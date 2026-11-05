@@ -9,27 +9,56 @@ import java.nio.file.Path
 
 private val logger = Logging.getLogger("TestJvmConstraintsUtils")
 
-internal fun TestJvmConstraintsExtension.isJavaVersionAllowed(version: JavaVersion): Boolean = withinAllowedRange(version)
+/** Matches a `testJvm` name, like `8` or `zulu11`: group 1 is the distribution, group 2 the major version. */
+internal val TEST_JVM_NAME = Regex("([a-zA-Z]*)([0-9]+)")
 
-internal fun TestJvmConstraintsExtension.isTestJvmAllowed(testJvmSpec: TestJvmSpec): Boolean {
-  val testJvmName = testJvmSpec.normalizedTestJvm.get()
+internal fun TestJvmConstraintsExtension.isJavaVersionAllowed(version: JavaVersion): Boolean =
+  isWithinAllowedRange(version, minJavaVersion.orNull, maxJavaVersion.orNull)
 
-  val included = includeJdk.get()
-  if (included.isNotEmpty() && included.none { it.equals(testJvmName, ignoreCase = true) }) {
+internal fun TestJvmConstraintsExtension.isTestJvmAllowed(testJvmSpec: TestJvmSpec): Boolean =
+  isTestJvmAllowed(
+    testJvmSpec.normalizedTestJvm.get(),
+    { JavaVersion.toVersion(testJvmSpec.requestedTestJvmLauncher.get().metadata.languageVersion.asInt()) },
+    includeJdk.get(),
+    excludeJdk.get(),
+    forceJdk.get(),
+    minJavaVersion.orNull,
+    maxJavaVersion.orNull,
+  )
+
+/**
+ * Tells whether a test JVM satisfies the test JVM constraints: it must be in [includeJdk] when set,
+ * must not be in [excludeJdk], and must be within the [minJavaVersion]..[maxJavaVersion] range unless
+ * [forceJdk] names it.
+ *
+ * @param testJvmName The `testJvm` name, like `8`, `zulu11` or `tip`.
+ * @param testJvmVersion The Java version of the test JVM, only computed when the range is checked.
+ * @param includeJdk The only test JVM names allowed, or empty to allow any.
+ * @param excludeJdk The test JVM names never allowed.
+ * @param forceJdk The test JVM names allowed regardless of the version range.
+ * @param minJavaVersion The lowest Java version allowed, if any.
+ * @param maxJavaVersion The highest Java version allowed, if any.
+ * @return `true` if the test JVM is allowed.
+ */
+internal fun isTestJvmAllowed(
+  testJvmName: String,
+  testJvmVersion: () -> JavaVersion,
+  includeJdk: List<String>,
+  excludeJdk: List<String>,
+  forceJdk: List<String>,
+  minJavaVersion: JavaVersion?,
+  maxJavaVersion: JavaVersion?,
+): Boolean {
+  if (includeJdk.isNotEmpty() && includeJdk.none { it.equals(testJvmName, ignoreCase = true) }) {
     return false
   }
 
-  val excluded = excludeJdk.get()
-  if (excluded.isNotEmpty() && excluded.any { it.equals(testJvmName, ignoreCase = true) }) {
+  if (excludeJdk.any { it.equals(testJvmName, ignoreCase = true) }) {
     return false
   }
 
-  val launcherVersion = JavaVersion.toVersion(testJvmSpec.requestedTestJvmLauncher.get().metadata.languageVersion.asInt())
-  if (!withinAllowedRange(launcherVersion) && forceJdk.get().none { it.equals(testJvmName, ignoreCase = true) }) {
-    return false
-  }
-
-  return true
+  return isWithinAllowedRange(testJvmVersion(), minJavaVersion, maxJavaVersion) ||
+    forceJdk.any { it.equals(testJvmName, ignoreCase = true) }
 }
 
 /**
@@ -58,17 +87,18 @@ private fun hasNativeImage(installPath: Path): Boolean =
     Files.exists(installPath.resolve("bin/native-image")) ||
     Files.exists(installPath.resolve("bin/native-image.cmd"))
 
-private fun TestJvmConstraintsExtension.withinAllowedRange(currentJvmVersion: JavaVersion): Boolean {
-  val definedMin = minJavaVersion.isPresent
-  val definedMax = maxJavaVersion.isPresent
-
-  if (definedMin && (minJavaVersion.get()) > currentJvmVersion) {
-    logger.info("'isWithinAllowedRange' returns false b/o testJvmConstraints.minJavaVersion=${minJavaVersion.get()} is defined and greater than test JVM version=$currentJvmVersion")
+private fun isWithinAllowedRange(
+  currentJvmVersion: JavaVersion,
+  minJavaVersion: JavaVersion?,
+  maxJavaVersion: JavaVersion?,
+): Boolean {
+  if (minJavaVersion != null && minJavaVersion > currentJvmVersion) {
+    logger.info("'isWithinAllowedRange' returns false b/o testJvmConstraints.minJavaVersion=$minJavaVersion is defined and greater than test JVM version=$currentJvmVersion")
     return false
   }
 
-  if (definedMax && (maxJavaVersion.get()) < currentJvmVersion) {
-    logger.info("'isWithinAllowedRange' returns false because testJvmConstraints.maxJavaVersion=${maxJavaVersion.get()} is defined and lower than test JVM version=$currentJvmVersion")
+  if (maxJavaVersion != null && maxJavaVersion < currentJvmVersion) {
+    logger.info("'isWithinAllowedRange' returns false because testJvmConstraints.maxJavaVersion=$maxJavaVersion is defined and lower than test JVM version=$currentJvmVersion")
     return false
   }
 
