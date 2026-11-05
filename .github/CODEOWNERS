@@ -143,7 +143,6 @@
 /setup.sh                                  @DataDog/apm-java @DataDog/apm-lang-platform-java
 /static-analysis.datadog.yml               @DataDog/apm-java @DataDog/apm-lang-platform-java
 /tooling/                                  @DataDog/apm-java @DataDog/apm-lang-platform-java
-/tooling/check_test_agent_results.sh        @DataDog/apm-java @DataDog/apm-release-platform @DataDog/apm-lang-platform-java
 /gradle/java_no_deps.gradle                @DataDog/apm-java @DataDog/apm-lang-platform-java
 /gradle/wrapper/                           @DataDog/apm-java @DataDog/apm-lang-platform-java
 /repository.datadog.yaml                   @DataDog/apm-java @DataDog/apm-lang-platform-java
