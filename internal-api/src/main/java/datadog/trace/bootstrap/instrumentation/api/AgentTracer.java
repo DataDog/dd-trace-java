@@ -394,17 +394,6 @@ public class AgentTracer {
       return null;
     }
 
-    /** Whether the native Lambda lifecycle is enabled in this build. */
-    default boolean isNativeLambdaTracingEnabled() {
-      return false;
-    }
-
-    AgentSpanContext notifyLambdaStart(Object event, String lambdaRequestId);
-
-    void notifyExtensionEnd(AgentSpan span, Object result, boolean isError, String lambdaRequestId);
-
-    void notifyAppSecEnd(AgentSpan span, Object result);
-
     AgentDataStreamsMonitoring getDataStreamsMonitoring();
 
     String getTraceId(AgentSpan span);
@@ -668,18 +657,6 @@ public class AgentTracer {
     public EndpointTracker onRootSpanStarted(AgentSpan root) {
       return EndpointTracker.NO_OP;
     }
-
-    @Override
-    public AgentSpanContext notifyLambdaStart(Object event, String lambdaRequestId) {
-      return null;
-    }
-
-    @Override
-    public void notifyExtensionEnd(
-        AgentSpan span, Object result, boolean isError, String lambdaRequestId) {}
-
-    @Override
-    public void notifyAppSecEnd(AgentSpan span, Object result) {}
 
     @Override
     public AgentDataStreamsMonitoring getDataStreamsMonitoring() {

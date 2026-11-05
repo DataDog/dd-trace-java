@@ -5,19 +5,13 @@ AppSec callbacks, payload capture, DSM consumption and upstream span pointers. I
 configured trace writer and existing DSM transport. There are no lifecycle HTTP calls,
 capability probes, identity announcements or completion acknowledgments in the native path.
 
-## Development gate
+## Activation
 
-The normal build keeps the existing extension-based Lambda lifecycle. Native Java tracing is
-hard-disabled by `NATIVE_LAMBDA_TRACING_ENABLED = false` in `CoreTracer`. There is no environment
-variable or system property to enable it. Handler advice and the tracer entry point consult the
-same internal decision. Unit tests override that decision on test tracers; forked handler tests
-enable it only inside their isolated test JVMs.
-
-For a local native preview layer, temporarily change the constant to `true`, rebuild the agent
-and layer, record the source diff with the artifact, then restore the constant to `false`.
-Compare that preview against an unchanged build using the legacy lifecycle. The final activation
-PR removes the gate and the legacy implementation together after the compatibility work below.
-There is no runtime rollback switch; before activation, native tracing requires a preview build.
+This final activation removes the hardcoded development gate and the legacy Java lifecycle
+together. Lambda tracing is always native in this build. There is no migration environment
+variable, system property or runtime rollback switch; rollback requires a prior tracer release.
+This activation draft remains blocked on the platform compatibility work below, deployed
+certification and an explicit release decision.
 
 Java propagation, sampling, AppSec and service settings apply. Optional settings:
 

@@ -1,7 +1,6 @@
 package datadog.trace.lambda;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -86,11 +85,16 @@ class LambdaNativeInvocationTest extends DDCoreJavaSpecification {
   }
 
   @Test
-  void hardcodedGateDoesNotCreateNativeInvocations() {
-    CoreTracer tracer = tracerBuilder().build();
+  void nativeInvocationsAreActiveAfterGateRemoval() {
+    ListWriter writer = new ListWriter();
+    CoreTracer tracer = tracerBuilder().writer(writer).build();
     try {
-      assertFalse(tracer.isNativeLambdaTracingEnabled());
-      assertNull(tracer.startLambdaInvocation("{}", "request-1", "function", "1", null));
+      AgentTracer.LambdaInvocation invocation =
+          tracer.startLambdaInvocation("{}", "request-1", "function", "1", null);
+      assertEquals("aws.lambda", invocation.span().getOperationName().toString());
+      invocation.onExit(null, null);
+      invocation.finish();
+      assertEquals(1, writer.size());
     } finally {
       tracer.close();
     }
