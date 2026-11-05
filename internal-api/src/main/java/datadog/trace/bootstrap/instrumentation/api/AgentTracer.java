@@ -240,6 +240,16 @@ public class AgentTracer {
   // Not intended to be constructed.
   private AgentTracer() {}
 
+  public interface LambdaInvocation {
+    AgentSpan span();
+
+    ContextScope activate();
+
+    void onExit(Object result, Throwable error);
+
+    void finish();
+  }
+
   public interface TracerAPI
       extends datadog.trace.api.Tracer, InternalTracer, EndpointCheckpointer {
 
@@ -374,6 +384,15 @@ public class AgentTracer {
     CallbackProvider getCallbackProvider(RequestContextSlot slot);
 
     CallbackProvider getUniversalCallbackProvider();
+
+    default LambdaInvocation startLambdaInvocation(
+        Object event,
+        String requestId,
+        String functionName,
+        String functionVersion,
+        String invokedArn) {
+      return null;
+    }
 
     /** Whether the native Lambda lifecycle is enabled in this build. */
     default boolean isNativeLambdaTracingEnabled() {
