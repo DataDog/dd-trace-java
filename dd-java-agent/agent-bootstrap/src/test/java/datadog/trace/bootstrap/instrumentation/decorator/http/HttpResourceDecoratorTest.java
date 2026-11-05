@@ -11,7 +11,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.test.junit.utils.config.WithConfig;
-import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -34,9 +34,9 @@ class HttpResourceDecoratorTest {
 
   @BeforeEach
   void setup() throws ReflectiveOperationException {
-    Field instance = HttpResourceNames.class.getDeclaredField("INSTANCE");
-    instance.setAccessible(true);
-    instance.set(null, null);
+    Method reset = HttpResourceNames.class.getDeclaredMethod("reset");
+    reset.setAccessible(true);
+    reset.invoke(null);
   }
 
   @Test

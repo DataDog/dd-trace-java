@@ -45,7 +45,8 @@ class DBTypeProcessingDatabaseClientDecoratorTest extends ClientDecoratorTest {
     verify(span).setSpanType("test-type");
     verify(span).setServiceName("test-db");
     verify(span).setOperationName(UTF8BytesString.create("test-db.query"));
-    // is this really necessary or a waste of space and cycles?
+    // Do consumers require db.type even when the service and operation names include the database
+    // type?
     verify(span).setTag("db.type", "test-db");
     verify(span).setMetric(DDTags.ANALYTICS_SAMPLE_RATE, 1.0);
     verifyNoMoreInteractions(span, spanContext);

@@ -40,7 +40,8 @@ class ClientIpAddressResolverTest {
     "plain ip list                  | '127.0.0.1, 8.8.8.8'                           | 8.8.8.8 ",
     "forwarded list                 | 'for=\"[::1]\", for=8.8.8.8'                   | 8.8.8.8 ",
     "forwarded with port            | 'for=\"8.8.8.8:8888\"'                         | 8.8.8.8 ",
-    // though we allow this, the correct form is the next
+    // The parser accepts an unquoted bracketed IPv4-mapped IPv6 address with a port; the correct
+    // form quotes it, as in the next row.
     "unquoted mapped ipv6 with port | 'for=\"[::1]\", for=[::ffff:1.1.1.1]:8888'     | 1.1.1.1 ",
     "quoted mapped ipv6 with port   | 'for=\"[::1]\", for=\"[::ffff:1.1.1.1]:8888\"' | 1.1.1.1 ",
     "private ip                     | '10.0.0.1'                                     | 10.0.0.1"
@@ -84,7 +85,7 @@ class ClientIpAddressResolverTest {
     "forwarded upper case        | forwarded           | 'for=127.0.0.1, FOR=1.1.1.1'                                       | 1.1.1.1          ",
     "forwarded escaped quote     | forwarded           | 'for=\"\"foobar\";proto=http,FOR=\"1.1.1.1\"'                      | 1.1.1.1          ",
     "forwarded trailing comma    | forwarded           | 'for=\"8.8.8.8:2222\",'                                            | 8.8.8.8          ",
-    // quote not closed
+    // The closing quote is missing, so no address is extracted.
     "forwarded unclosed quote    | forwarded           | 'for=\"8.8.8.8'                                                    |                  ",
     "forwarded other key         | forwarded           | 'far=\"8.8.8.8\",for=4.4.4.4;'                                     | 4.4.4.4          ",
     "forwarded garbage           | forwarded           | '   for=127.0.0.1,for= for=,for=;\"for = for=\"\" ,; for=8.8.8.8;' | 8.8.8.8          ",

@@ -601,7 +601,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     when(mTracer.getCallbackProvider(APPSEC)).thenReturn(cbpAppSec);
     when(mTracer.getCallbackProvider(IAST))
         .thenReturn(CallbackProvider.CallbackProviderNoop.INSTANCE);
-    // no iast callbacks, so this is equivalent
+    // Universal callback lookups use the AppSec provider because no IAST callbacks are registered.
     when(mTracer.getUniversalCallbackProvider()).thenReturn(cbpAppSec);
     when(mTracer.getDataStreamsMonitoring()).thenReturn(mock(DataStreamsMonitoring.class));
     HttpServerDecorator<

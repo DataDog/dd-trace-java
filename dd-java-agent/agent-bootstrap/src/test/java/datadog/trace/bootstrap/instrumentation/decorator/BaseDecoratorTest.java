@@ -11,7 +11,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.fail;
-import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.atLeast;
@@ -35,14 +34,10 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.stream.Stream;
 import javax.annotation.Nonnull;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.invocation.Invocation;
 import org.tabletest.junit.TableTest;
 
@@ -98,9 +93,18 @@ class BaseDecoratorTest extends DDJavaSpecification {
         .assertIdentityAppliedTo(recordingSpan);
   }
 
-  @ParameterizedTest
-  @MethodSource("testOnPeerConnectionArguments")
-  void testOnPeerConnection(InetSocketAddress connection) {
+  @TableTest({
+    "scenario        | host              | port | resolved",
+    "localhost       | localhost         | 888  | true    ",
+    "ipv6 host       | ipv6.google.com   | 999  | true    ",
+    "unresolved host | bad.address.local | 999  | false   "
+  })
+  void testOnPeerConnection(String host, int port, boolean resolved) {
+    InetSocketAddress connection =
+        resolved
+            ? new InetSocketAddress(host, port)
+            : InetSocketAddress.createUnresolved(host, port);
+
     // when
     decorator.onPeerConnection(span, connection);
 
@@ -119,16 +123,14 @@ class BaseDecoratorTest extends DDJavaSpecification {
     verifyNoMoreInteractions(span);
   }
 
-  static Stream<Arguments> testOnPeerConnectionArguments() {
-    return Stream.of(
-        arguments(new InetSocketAddress("localhost", 888)),
-        arguments(new InetSocketAddress("ipv6.google.com", 999)),
-        arguments(InetSocketAddress.createUnresolved("bad.address.local", 999)));
-  }
+  @TableTest({
+    "scenario   | withError",
+    "with error | true     ",
+    "no error   | false    "
+  })
+  void testOnError(boolean withError) {
+    Exception error = withError ? new Exception() : null;
 
-  @ParameterizedTest
-  @MethodSource("testOnErrorArguments")
-  void testOnError(Exception error) {
     // when
     decorator.onError(span, error);
 
@@ -138,10 +140,6 @@ class BaseDecoratorTest extends DDJavaSpecification {
           .addThrowable(error, errorPriority != null ? errorPriority : ErrorPriorities.DEFAULT);
     }
     verifyNoMoreInteractions(span);
-  }
-
-  static Stream<Arguments> testOnErrorArguments() {
-    return Stream.of(arguments(new Exception()), arguments((Object) null));
   }
 
   @Test
