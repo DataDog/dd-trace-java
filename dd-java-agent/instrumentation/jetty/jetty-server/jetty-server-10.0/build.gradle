@@ -110,6 +110,13 @@ tasks.named('earlyDep10ForkedTest', Test) {
   }
 }
 
+// Logback 1.2 only binds to SLF4J 1.7: with SLF4J 2, the tests would silently log nothing
+configurations.named('latestDepTestRuntimeClasspath') {
+  resolutionStrategy {
+    force libs.slf4j
+  }
+}
+
 tasks.named("compileMain_java11Java", JavaCompile) {
   // Java 8 bytecode — override addSourceSetFor(11)'s Java 11 default
   configureCompiler(it, JavaVersion.VERSION_1_8)
