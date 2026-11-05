@@ -12,6 +12,10 @@ plugins {
   id 'dd-trace-java.module.product-subsystem'
 }
 
+// JMXFetch runs in an agent-loaded JVM: it is tested in :dd-java-agent JMXFetchTest
+minimumBranchCoverage = 0.0
+minimumInstructionCoverage = 0.0
+
 dependencies {
   api('com.datadoghq:jmxfetch:0.52.1') {
     exclude group: 'org.slf4j', module: 'slf4j-api'
