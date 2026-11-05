@@ -107,14 +107,9 @@ public final class LambdaInvocation implements AgentTracer.LambdaInvocation {
       span = builder.start();
       span.setServiceName(config.getServiceName());
       LambdaPayloadCapture.capture(config, span, "function.request", event);
+      LambdaDataStreams.consume(tracer, config, span, payload);
       return new LambdaInvocation(
-          tracer,
-          config,
-          inferred,
-          span,
-          extracted.context.with(span),
-          functionName,
-          client.begin(span, ((DDSpan) span).getParentId(), requestId));
+          tracer, config, inferred, span, extracted.context.with(span), functionName);
     } catch (RuntimeException | Error failure) {
       try {
         LambdaAppSecHandler.processRequestEnd(span);
