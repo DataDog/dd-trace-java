@@ -2,14 +2,6 @@ plugins {
   id 'dd-trace-java.module.internal-library'
 }
 
-tracerJava {
-  addSourceSetFor(JavaVersion.VERSION_11) {
-    // By default tests with be compiled for `minJavaVersion` version,
-    // but in this case we would like to avoid this since we would like to run with ZULU8
-    applyForTestSources = false
-  }
-}
-
 minimumBranchCoverage = 0.5
 minimumInstructionCoverage = 0.7
 
@@ -29,6 +21,8 @@ dependencies {
 // Oracle JDK requires extra JVM arguments to enable JFR
 tasks.withType(Test).configureEach {
   testJvmConstraints {
+    minJavaVersion = JavaVersion.VERSION_1_8
+    maxJavaVersion = JavaVersion.VERSION_1_8
     includeJdk = ['ORACLE8']
   }
 

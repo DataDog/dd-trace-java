@@ -3,9 +3,10 @@ package datadog.trace.bootstrap.instrumentation;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
+import datadog.trace.test.util.DDJavaSpecification;
 import org.tabletest.junit.TableTest;
 
-class DBQueryInfoTest {
+class DBQueryInfoTest extends DDJavaSpecification {
 
   @TableTest({
     "scenario                     | operation | sql                                                                                                                                        ",
