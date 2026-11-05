@@ -228,10 +228,10 @@ option to the Gradle task:
 * `-PtestJvm=X` like `-PtestJvm=8`, `-PtestJvm=25` to run with a specific JDK version,
 * `-PtestJvm=/path/to/jdk` to run with a given JDK,
 
-To also run CI tests on the additional vendor and pre-release JVMs, include the exact, case-sensitive
-`[ci: NON_DEFAULT_JVMS]` text in the commit message. By default, CI runs amd64 tests only.
+To also run CI tests on the additional vendor and pre-release JVMs, include the case-sensitive
+`[ci: NON_DEFAULT_JVMS]` option in the commit message. By default, CI runs amd64 tests only.
 
-On pull requests, arm64 tests are manual jobs. To run them on CI, include one of the following exact, case-sensitive
+On pull requests, arm64 tests are manual jobs. To run them on CI, include one of the following case-sensitive
 texts in the commit message:
 
 * `[ci: ARM64]` to run them on the default arm64 JVMs.
@@ -269,7 +269,8 @@ Read more about [the APM Test Agent](https://github.com/datadog/dd-apm-test-agen
 ### Forwarding CI Test Logs to Datadog
 
 Test output remains available in GitLab job artifacts. To also forward JUnit-captured output to Datadog, include the
-exact, case-sensitive `[ci: DEBUG_LOGS]` token in the commit message or set the GitLab CI variable
+case-sensitive `[ci: DEBUG_LOGS]` option in the commit message or set the GitLab CI variable
 `DD_CIVISIBILITY_LOGS_ENABLED=true`.
+You can combine it with other CI options, for example `[ci: ARM64, DEBUG_LOGS]`.
 
 The opt-in forwards all JUnit-captured output, not only DEBUG messages.
