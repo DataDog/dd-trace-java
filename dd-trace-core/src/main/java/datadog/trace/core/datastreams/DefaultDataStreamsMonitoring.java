@@ -248,6 +248,10 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
   @Override
   public void trackBacklog(DataStreamsTags tags, long value) {
+    // With Data Streams off the inbox would only drop it
+    if (!traceConfigSupplier.get().isDataStreamsEnabled()) {
+      return;
+    }
     inbox.offer(new Backlog(tags, value, timeSource.getCurrentTimeNanos(), getThreadServiceName()));
   }
 
@@ -259,6 +263,10 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       boolean isSuccess,
       boolean isKey,
       String operation) {
+    // With Data Streams off the inbox would only drop it
+    if (!traceConfigSupplier.get().isDataStreamsEnabled()) {
+      return;
+    }
     inbox.offer(
         new SchemaRegistryUsage(
             topic,

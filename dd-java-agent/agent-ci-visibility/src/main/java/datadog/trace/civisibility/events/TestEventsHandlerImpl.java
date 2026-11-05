@@ -1,5 +1,8 @@
 package datadog.trace.civisibility.events;
 
+import static datadog.trace.api.civisibility.execution.TestAutomationExclusion.NO_AUTO_RETRY;
+import static datadog.trace.api.civisibility.execution.TestAutomationExclusion.PREVENT_FAILURE_SUPPRESSION;
+
 import datadog.json.JsonWriter;
 import datadog.trace.api.DisableTestTrace;
 import datadog.trace.api.civisibility.CIConstants;
@@ -24,6 +27,7 @@ import datadog.trace.civisibility.domain.TestFrameworkModule;
 import datadog.trace.civisibility.domain.TestFrameworkSession;
 import datadog.trace.civisibility.domain.TestImpl;
 import datadog.trace.civisibility.domain.TestSuiteImpl;
+import datadog.trace.civisibility.execution.AttemptToFix;
 import java.util.Collection;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
@@ -186,6 +190,13 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
     TestImpl test =
         testSuite.testStart(testName, testParameters, testSourceData.getTestMethod(), startTime);
 
+    if (NO_AUTO_RETRY.isDeclared(testSourceData, categories)) {
+      test.setTag(Tags.TEST_TEST_MANAGEMENT_NO_AUTO_RETRY, true);
+    }
+    if (PREVENT_FAILURE_SUPPRESSION.isDeclared(testSourceData, categories)) {
+      test.setTag(Tags.TEST_TEST_MANAGEMENT_PREVENT_FAILURE_SUPPRESSION, true);
+    }
+
     TestIdentifier thisTest = test.getIdentifier();
     if (testModule.isNew(thisTest)) {
       test.setTag(Tags.TEST_IS_NEW, true);
@@ -234,7 +245,7 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
           test.setTag(Tags.TEST_ITR_UNSKIPPABLE, true);
           metricCollector.add(CiVisibilityCountMetric.ITR_UNSKIPPABLE, 1, EventType.TEST);
 
-          if (testModule.skipReason(thisTest) == SkipReason.ITR) {
+          if (testModule.skipReason(thisTest, testSourceData, categories) == SkipReason.ITR) {
             test.setTag(Tags.TEST_ITR_FORCED_RUN, true);
             metricCollector.add(CiVisibilityCountMetric.ITR_FORCED_RUN, 1, EventType.TEST);
           }
@@ -303,7 +314,7 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
           test.setTag(Tags.TEST_HAS_FAILED_ALL_RETRIES, true);
         }
 
-        if (testModule.isAttemptToFix(test.getIdentifier())) {
+        if (testExecutionTracker instanceof AttemptToFix) {
           test.setTag(
               Tags.TEST_TEST_MANAGEMENT_ATTEMPT_TO_FIX_PASSED,
               outcome.aggregation() == ExecutionAggregation.ONLY_PASSED);
@@ -353,6 +364,13 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
   @Override
   public int executionPriority(@Nullable TestIdentifier test, @Nonnull TestSourceData testSource) {
     return getOrCreateTestModule().executionPriority(test, testSource);
+  }
+
+  @Nullable
+  @Override
+  public SkipReason skipReason(
+      TestIdentifier test, TestSourceData source, Collection<String> tags) {
+    return getOrCreateTestModule().skipReason(test, source, tags);
   }
 
   @Nullable
