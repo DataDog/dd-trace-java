@@ -1,12 +1,12 @@
 package datadog.trace.core;
 
-import static datadog.trace.api.KnownTags.HTTP_ROUTE_ID;
-import static datadog.trace.api.KnownTags.HTTP_STATUS_CODE_ID;
-import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_ROUTE;
+import static datadog.trace.api.KnownTags.HTTP_ROUTE;
+import static datadog.trace.api.KnownTags.HTTP_STATUS_CODE;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_STATUS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.TagStore;
 import datadog.trace.common.writer.ListWriter;
@@ -32,28 +32,28 @@ class TagStoreTest extends DDCoreJavaSpecification {
   @Test
   void storedByIdLoadsByName() {
     forEachTagStore(tags -> {
-      tags.store(HTTP_ROUTE_ID, "/users/{id}");
+      tags.store(HTTP_ROUTE, "/users/{id}");
 
+      assertEquals("/users/{id}", tags.load(Tags.HTTP_ROUTE));
       assertEquals("/users/{id}", tags.load(HTTP_ROUTE));
-      assertEquals("/users/{id}", tags.load(HTTP_ROUTE_ID));
     });
   }
 
   @Test
   void storedByNameLoadsById() {
     forEachTagStore(tags -> {
-      tags.store(HTTP_ROUTE, "/users/{id}");
+      tags.store(Tags.HTTP_ROUTE, "/users/{id}");
 
-      assertEquals("/users/{id}", tags.load(HTTP_ROUTE_ID));
+      assertEquals("/users/{id}", tags.load(HTTP_ROUTE));
     });
   }
 
   @Test
   void loadStringByIdConverts() {
     forEachTagStore(tags -> {
-      tags.store(HTTP_STATUS_CODE_ID, 404);
+      tags.store(HTTP_STATUS_CODE, 404);
 
-      assertEquals("404", tags.loadString(HTTP_STATUS_CODE_ID));
+      assertEquals("404", tags.loadString(HTTP_STATUS_CODE));
       assertEquals("404", tags.loadString(HTTP_STATUS));
     });
   }
@@ -61,12 +61,12 @@ class TagStoreTest extends DDCoreJavaSpecification {
   @Test
   void nullStoredByIdRemoves() {
     forEachTagStore(tags -> {
-      tags.store(HTTP_ROUTE, "/users/{id}");
+      tags.store(Tags.HTTP_ROUTE, "/users/{id}");
 
-      tags.store(HTTP_ROUTE_ID, null);
+      tags.store(HTTP_ROUTE, null);
 
-      assertNull(tags.load(HTTP_ROUTE));
-      assertNull(tags.loadString(HTTP_ROUTE_ID));
+      assertNull(tags.load(Tags.HTTP_ROUTE));
+      assertNull(tags.loadString(HTTP_ROUTE));
     });
   }
 

@@ -5,7 +5,7 @@ import java.util.Locale
 
 /**
  * Emits the generated `KnownTags.java` from a [TagRegistry]. Public API first — per-tag
- * `<X>_NAME` (string) + `<X>_ID` (encoded long, literal) couplets with a trailing `// makeTagId(...)`
+ * `<X>` (encoded long id, literal) + `<X>_NAME` (string) couplets with a trailing `// makeTagId(...)`
  * derivation comment — then the `<X>_SERIAL_NUM` constants, the
  * `StringIndex.EmbeddingSupport` keyOf table, the `NAMES_BY_SERIAL` array behind `nameOf`, and the
  * resolver's `openTelemetryNameOf` switch.
@@ -20,14 +20,14 @@ object KnownTagsEmitter {
       return c
     }
 
-    // A constant is always its tag's sanitized name plus the full suffix, even when the name already
-    // ends with it: "messaging.kafka.cluster.id" yields MESSAGING_KAFKA_CLUSTER_ID_ID. Collapsing the
-    // doubled suffix would let two tags claim one constant (db.operation.name's NAME is db.operation's
-    // NAME), and registering a tag later could silently change what an existing constant means. Under
-    // a static import, the suffix is also all that says whether a constant is an id or a name.
+    // A tag's id is its sanitized name, bare: the id is what instrumentation sets, so
+    // span.setTag(DB_POOL_NAME, ...) reads like the name it replaces. Its other constants add a
+    // suffix, always in full even when the name already ends with it: db.pool.name's name is
+    // DB_POOL_NAME_NAME. Collapsing a doubled suffix would let two tags claim one constant, and
+    // registering a tag later could silently change what an existing constant means.
     //
     // The constants are all fields of one class, so a clash that remains (two names that sanitize
-    // alike, or a tag "x.otel" whose NAME is tag "x"'s OTEL_NAME) fails generation rather than being
+    // alike, or a tag "x.name" whose id is tag "x"'s NAME) fails generation rather than being
     // numbered, which would make a constant's name depend on registration order. The tracer overlay's
     // java_names resolves one by giving a name its own constant base.
     val claimedBy = HashMap<String, String>()
@@ -44,7 +44,7 @@ object KnownTagsEmitter {
     for (t in reg.tags) {
       val base = reg.javaNames[t.ddName] ?: sanitize(t.name)
       nameOfConst[t.ddName] = claim("${base}_NAME", t.ddName)
-      idOfConst[t.ddName] = claim("${base}_ID", t.ddName)
+      idOfConst[t.ddName] = claim(base, t.ddName)
       serialOfConst[t.ddName] = claim("${base}_SERIAL_NUM", t.ddName)
       if (t.otelName != null) otelNameOfConst[t.ddName] = claim("${base}_OTEL_NAME", t.ddName)
     }
@@ -64,7 +64,7 @@ object KnownTagsEmitter {
       }
     }
     return buildString {
-      // Public API first (name + encoded id couplets), so readers see the useful parts up top; the
+      // Public API first (encoded id + name couplets), so readers see the useful parts up top; the
       // serial ids and keyOf/resolver machinery follow below. Derivation is in the trailing comment.
       appendLine(
         """
@@ -81,8 +81,8 @@ object KnownTagsEmitter {
       )
 
       for (t in reg.tags) {
-        appendLine("  public static final String ${nameC(t.ddName)} = \"${escape(t.ddName)}\";")
         appendLine("  public static final long ${idC(t.ddName)} = ${hex(t.id)};")
+        appendLine("  public static final String ${nameC(t.ddName)} = \"${escape(t.ddName)}\";")
         if (t.otelName != null) {
           appendLine("  public static final String ${otelNameC(t.ddName)} = \"${escape(t.otelName)}\";")
         }
@@ -101,7 +101,7 @@ object KnownTagsEmitter {
       // this package (the resolver here, TagInterceptor in core) can name them as case labels.
       // Per-direction aliases: each OpenTelemetry name that names a tag on spans of one direction, as
       // that tag's id. Code that knows its direction writes in OpenTelemetry terms by id
-      // (Outbound.SERVER_ADDRESS_ID is PEER_HOSTNAME_ID) without knowing the Datadog name, and
+      // (Outbound.SERVER_ADDRESS is PEER_HOSTNAME) without knowing the Datadog name, and
       // without a lookup. Direction-free renames are repeated in each, so one class covers a span.
       for (direction in TagConventions.Direction.entries) {
         val aliases = sortedMapOf<String, String>()
@@ -115,7 +115,7 @@ object KnownTagsEmitter {
         appendLine("  public static final class $holder {")
         val local = HashMap<String, String>()
         for ((otel, ddName) in aliases) {
-          val constant = "${reg.javaNames[otel] ?: sanitize(otel)}_ID"
+          val constant = reg.javaNames[otel] ?: sanitize(otel)
           val previous = local.putIfAbsent(constant, otel)
           require(previous == null) {
             clash("OpenTelemetry names '$previous' and '$otel'", "$holder.$constant", otel)

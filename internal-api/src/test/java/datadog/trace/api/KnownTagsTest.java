@@ -29,40 +29,40 @@ class KnownTagsTest {
   /** (name, id) pairs across the groups — keyOf returns the id verbatim. */
   static Stream<Arguments> knownTags() {
     return Stream.of(
-        Arguments.of(DDTags.PARENT_ID, KnownTags.DD_PARENT_ID_ID),
-        Arguments.of(DDTags.BASE_SERVICE, KnownTags.DD_BASE_SERVICE_ID),
-        Arguments.of(Tags.VERSION, KnownTags.VERSION_ID),
-        Arguments.of("env", KnownTags.ENV_ID),
-        Arguments.of(DDTags.DJM_ENABLED, KnownTags.DD_DJM_ENABLED_ID),
-        Arguments.of(DDTags.DSM_ENABLED, KnownTags.DD_DSM_ENABLED_ID),
-        Arguments.of(DDTags.TRACER_HOST, KnownTags.DD_TRACER_HOST_ID),
-        Arguments.of(DDTags.DD_INTEGRATION, KnownTags.DD_INTEGRATION_ID),
-        Arguments.of(DDTags.DD_SVC_SRC, KnownTags.DD_SVC_SRC_ID),
-        Arguments.of(Tags.PEER_SERVICE, KnownTags.PEER_SERVICE_ID),
-        Arguments.of(DDTags.PEER_SERVICE_REMAPPED_FROM, KnownTags.DD_PEER_SERVICE_REMAPPED_FROM_ID),
-        Arguments.of(Tags.HTTP_METHOD, KnownTags.HTTP_METHOD_ID),
+        Arguments.of(DDTags.PARENT_ID, KnownTags.DD_PARENT_ID),
+        Arguments.of(DDTags.BASE_SERVICE, KnownTags.DD_BASE_SERVICE),
+        Arguments.of(Tags.VERSION, KnownTags.VERSION),
+        Arguments.of("env", KnownTags.ENV),
+        Arguments.of(DDTags.DJM_ENABLED, KnownTags.DD_DJM_ENABLED),
+        Arguments.of(DDTags.DSM_ENABLED, KnownTags.DD_DSM_ENABLED),
+        Arguments.of(DDTags.TRACER_HOST, KnownTags.DD_TRACER_HOST),
+        Arguments.of(DDTags.DD_INTEGRATION, KnownTags.DD_INTEGRATION),
+        Arguments.of(DDTags.DD_SVC_SRC, KnownTags.DD_SVC_SRC),
+        Arguments.of(Tags.PEER_SERVICE, KnownTags.PEER_SERVICE),
+        Arguments.of(DDTags.PEER_SERVICE_REMAPPED_FROM, KnownTags.DD_PEER_SERVICE_REMAPPED_FROM),
+        Arguments.of(Tags.HTTP_METHOD, KnownTags.HTTP_METHOD),
         Arguments.of(
-            KnownTags.HTTP_REQUEST_METHOD_ORIGINAL_NAME, KnownTags.HTTP_REQUEST_METHOD_ORIGINAL_ID),
-        Arguments.of(Tags.HTTP_ROUTE, KnownTags.HTTP_ROUTE_ID),
-        Arguments.of(Tags.HTTP_URL, KnownTags.HTTP_URL_ID),
-        Arguments.of(Tags.HTTP_HOSTNAME, KnownTags.HTTP_HOSTNAME_ID),
-        Arguments.of(KnownTags.SERVER_PORT_NAME, KnownTags.SERVER_PORT_ID),
-        Arguments.of(KnownTags.URL_PATH_NAME, KnownTags.URL_PATH_ID),
-        Arguments.of(KnownTags.HTTP_QUERY_STRING_NAME, KnownTags.HTTP_QUERY_STRING_ID),
-        Arguments.of(KnownTags.URL_QUERY_NAME, KnownTags.URL_QUERY_ID),
-        Arguments.of(KnownTags.URL_SCHEME_NAME, KnownTags.URL_SCHEME_ID),
-        Arguments.of(KnownTags.NETWORK_CLIENT_IP_NAME, KnownTags.NETWORK_CLIENT_IP_ID),
-        Arguments.of(Tags.PEER_HOSTNAME, KnownTags.PEER_HOSTNAME_ID),
-        Arguments.of(Tags.PEER_HOST_IPV4, KnownTags.PEER_IPV4_ID),
-        Arguments.of(Tags.PEER_HOST_IPV6, KnownTags.PEER_IPV6_ID),
-        Arguments.of(Tags.COMPONENT, KnownTags.COMPONENT_ID),
-        Arguments.of(Tags.SPAN_KIND, KnownTags.SPAN_KIND_ID),
-        Arguments.of(DDTags.LANGUAGE_TAG_KEY, KnownTags.LANGUAGE_ID),
-        Arguments.of(Tags.DB_TYPE, KnownTags.DB_TYPE_ID),
-        Arguments.of(Tags.DB_INSTANCE, KnownTags.DB_INSTANCE_ID),
-        Arguments.of(Tags.DB_USER, KnownTags.DB_USER_ID),
-        Arguments.of(Tags.DB_OPERATION, KnownTags.DB_OPERATION_ID),
-        Arguments.of(Tags.DB_POOL_NAME, KnownTags.DB_POOL_NAME_ID));
+            KnownTags.HTTP_REQUEST_METHOD_ORIGINAL_NAME, KnownTags.HTTP_REQUEST_METHOD_ORIGINAL),
+        Arguments.of(Tags.HTTP_ROUTE, KnownTags.HTTP_ROUTE),
+        Arguments.of(Tags.HTTP_URL, KnownTags.HTTP_URL),
+        Arguments.of(Tags.HTTP_HOSTNAME, KnownTags.HTTP_HOSTNAME),
+        Arguments.of(KnownTags.SERVER_PORT_NAME, KnownTags.SERVER_PORT),
+        Arguments.of(KnownTags.URL_PATH_NAME, KnownTags.URL_PATH),
+        Arguments.of(KnownTags.HTTP_QUERY_STRING_NAME, KnownTags.HTTP_QUERY_STRING),
+        Arguments.of(KnownTags.URL_QUERY_NAME, KnownTags.URL_QUERY),
+        Arguments.of(KnownTags.URL_SCHEME_NAME, KnownTags.URL_SCHEME),
+        Arguments.of(KnownTags.NETWORK_CLIENT_IP_NAME, KnownTags.NETWORK_CLIENT_IP),
+        Arguments.of(Tags.PEER_HOSTNAME, KnownTags.PEER_HOSTNAME),
+        Arguments.of(Tags.PEER_HOST_IPV4, KnownTags.PEER_IPV4),
+        Arguments.of(Tags.PEER_HOST_IPV6, KnownTags.PEER_IPV6),
+        Arguments.of(Tags.COMPONENT, KnownTags.COMPONENT),
+        Arguments.of(Tags.SPAN_KIND, KnownTags.SPAN_KIND),
+        Arguments.of(DDTags.LANGUAGE_TAG_KEY, KnownTags.LANGUAGE),
+        Arguments.of(Tags.DB_TYPE, KnownTags.DB_TYPE),
+        Arguments.of(Tags.DB_INSTANCE, KnownTags.DB_INSTANCE),
+        Arguments.of(Tags.DB_USER, KnownTags.DB_USER),
+        Arguments.of(Tags.DB_OPERATION, KnownTags.DB_OPERATION),
+        Arguments.of(Tags.DB_POOL_NAME, KnownTags.DB_POOL_NAME));
   }
 
   /**
@@ -71,16 +71,15 @@ class KnownTagsTest {
    */
   static Stream<Arguments> otelNamedTags() {
     return Stream.of(
-        Arguments.of("http.request.method", KnownTags.HTTP_METHOD_ID, "http.method"),
-        Arguments.of(
-            "http.response.status_code", KnownTags.HTTP_STATUS_CODE_ID, "http.status_code"),
-        Arguments.of("url.full", KnownTags.HTTP_URL_ID, "http.url"),
-        Arguments.of("user_agent.original", KnownTags.HTTP_USERAGENT_ID, "http.useragent"),
-        Arguments.of("client.address", KnownTags.HTTP_CLIENT_IP_ID, "http.client_ip"),
-        Arguments.of("db.system", KnownTags.DB_TYPE_ID, "db.type"),
-        Arguments.of("db.operation.name", KnownTags.DB_OPERATION_ID, "db.operation"),
-        Arguments.of("db.query.text", KnownTags.DB_STATEMENT_ID, "db.statement"),
-        Arguments.of("service.name", KnownTags.SERVICE_ID, "service"));
+        Arguments.of("http.request.method", KnownTags.HTTP_METHOD, "http.method"),
+        Arguments.of("http.response.status_code", KnownTags.HTTP_STATUS_CODE, "http.status_code"),
+        Arguments.of("url.full", KnownTags.HTTP_URL, "http.url"),
+        Arguments.of("user_agent.original", KnownTags.HTTP_USERAGENT, "http.useragent"),
+        Arguments.of("client.address", KnownTags.HTTP_CLIENT_IP, "http.client_ip"),
+        Arguments.of("db.system", KnownTags.DB_TYPE, "db.type"),
+        Arguments.of("db.operation.name", KnownTags.DB_OPERATION, "db.operation"),
+        Arguments.of("db.query.text", KnownTags.DB_STATEMENT, "db.statement"),
+        Arguments.of("service.name", KnownTags.SERVICE, "service"));
   }
 
   /**
@@ -88,24 +87,24 @@ class KnownTagsTest {
    */
   static Stream<Arguments> traceLevelTags() {
     return Stream.of(
-        Arguments.of(KnownTags.DD_BASE_SERVICE_ID),
-        Arguments.of(KnownTags.VERSION_ID),
-        Arguments.of(KnownTags.ENV_ID),
-        Arguments.of(KnownTags.LANGUAGE_ID),
-        Arguments.of(KnownTags.RUNTIME_ID_ID),
-        Arguments.of(KnownTags.DD_TRACER_HOST_ID),
-        Arguments.of(KnownTags.DD_DJM_ENABLED_ID));
+        Arguments.of(KnownTags.DD_BASE_SERVICE),
+        Arguments.of(KnownTags.VERSION),
+        Arguments.of(KnownTags.ENV),
+        Arguments.of(KnownTags.LANGUAGE),
+        Arguments.of(KnownTags.RUNTIME_ID),
+        Arguments.of(KnownTags.DD_TRACER_HOST),
+        Arguments.of(KnownTags.DD_DJM_ENABLED));
   }
 
   /** Span-level tags — their id leaves the LEVEL_TRACE bit clear. */
   static Stream<Arguments> spanLevelTags() {
     return Stream.of(
-        Arguments.of(KnownTags.HTTP_METHOD_ID),
-        Arguments.of(KnownTags.HTTP_URL_ID),
-        Arguments.of(KnownTags.DB_TYPE_ID),
-        Arguments.of(KnownTags.COMPONENT_ID),
-        Arguments.of(KnownTags.SPAN_KIND_ID),
-        Arguments.of(KnownTags.PEER_SERVICE_ID));
+        Arguments.of(KnownTags.HTTP_METHOD),
+        Arguments.of(KnownTags.HTTP_URL),
+        Arguments.of(KnownTags.DB_TYPE),
+        Arguments.of(KnownTags.COMPONENT),
+        Arguments.of(KnownTags.SPAN_KIND),
+        Arguments.of(KnownTags.PEER_SERVICE));
   }
 
   @ParameterizedTest
@@ -146,10 +145,10 @@ class KnownTagsTest {
   @Test
   void openTelemetryTagOfPassesThroughWhenThereIsNoRename() {
     // http.route declares no otel-name, so the OpenTelemetry namespace emits the Datadog name.
-    assertNull(KnownTagCodec.openTelemetryNameOf(KnownTags.HTTP_ROUTE_ID), "no declared rename");
+    assertNull(KnownTagCodec.openTelemetryNameOf(KnownTags.HTTP_ROUTE), "no declared rename");
     assertEquals(
-        KnownTagCodec.nameOf(KnownTags.HTTP_ROUTE_ID),
-        KnownTagCodec.openTelemetryTagOf(KnownTags.HTTP_ROUTE_ID),
+        KnownTagCodec.nameOf(KnownTags.HTTP_ROUTE),
+        KnownTagCodec.openTelemetryTagOf(KnownTags.HTTP_ROUTE),
         "pass-through falls back to the Datadog name");
   }
 
@@ -161,7 +160,7 @@ class KnownTagsTest {
 
   @Test
   void tagsWithoutOtelNameReturnNull() {
-    assertNull(KnownTagCodec.openTelemetryNameOf(KnownTags.HTTP_ROUTE_ID)); // no OTel name declared
+    assertNull(KnownTagCodec.openTelemetryNameOf(KnownTags.HTTP_ROUTE)); // no OTel name declared
     assertNull(KnownTagCodec.openTelemetryNameOf(0L)); // unknown id
   }
 
@@ -175,7 +174,7 @@ class KnownTagsTest {
   @Test
   void networkPeerAddressIsNotADirectionFreeAliasForClientIp() {
     assertEquals(0L, KnownTagCodec.keyOf("network.peer.address"));
-    assertNull(KnownTagCodec.openTelemetryNameOf(KnownTags.NETWORK_CLIENT_IP_ID));
+    assertNull(KnownTagCodec.openTelemetryNameOf(KnownTags.NETWORK_CLIENT_IP));
   }
 
   @TableTest({
@@ -191,7 +190,7 @@ class KnownTagsTest {
     assertEquals(
         expectedName,
         KnownTagCodec.openTelemetryTagOf(
-            KnownTags.NETWORK_CLIENT_IP_ID, KnownTagCodec.directionOfKind(kind)));
+            KnownTags.NETWORK_CLIENT_IP, KnownTagCodec.directionOfKind(kind)));
   }
 
   /**
@@ -201,19 +200,19 @@ class KnownTagsTest {
    */
   @Test
   void aNameDeclaredPerDirectionIsOneTag() {
-    assertEquals(KnownTags.PEER_PORT_ID, KnownTagCodec.keyOf(Tags.PEER_PORT));
-    assertEquals(Tags.PEER_PORT, KnownTagCodec.nameOf(KnownTags.PEER_PORT_ID));
-    assertNull(KnownTagCodec.openTelemetryNameOf(KnownTags.PEER_PORT_ID));
-    assertEquals(Tags.PEER_PORT, KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT_ID));
+    assertEquals(KnownTags.PEER_PORT, KnownTagCodec.keyOf(Tags.PEER_PORT));
+    assertEquals(Tags.PEER_PORT, KnownTagCodec.nameOf(KnownTags.PEER_PORT));
+    assertNull(KnownTagCodec.openTelemetryNameOf(KnownTags.PEER_PORT));
+    assertEquals(Tags.PEER_PORT, KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT));
     assertEquals(
         "client.port",
-        KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT_ID, KnownTagCodec.DIRECTION_INBOUND));
+        KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT, KnownTagCodec.DIRECTION_INBOUND));
     assertEquals(
         "server.port",
-        KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT_ID, KnownTagCodec.DIRECTION_OUTBOUND));
+        KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT, KnownTagCodec.DIRECTION_OUTBOUND));
     assertEquals(
         Tags.PEER_PORT,
-        KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT_ID, KnownTagCodec.DIRECTION_NONE));
+        KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT, KnownTagCodec.DIRECTION_NONE));
   }
 
   @TableTest({
@@ -253,10 +252,10 @@ class KnownTagsTest {
   /** Tags reachable only through a mixin whose {@code applies:} target is not modeled. */
   static Stream<Arguments> declarationOnlyMixinTags() {
     return Stream.of(
-        Arguments.of(KnownTags.TEST_NAME_NAME, KnownTags.TEST_NAME_ID),
-        Arguments.of(KnownTags.TEST_SUITE_NAME, KnownTags.TEST_SUITE_ID),
-        Arguments.of(KnownTags.TEST_STATUS_NAME, KnownTags.TEST_STATUS_ID),
-        Arguments.of(KnownTags.TEST_FRAMEWORK_NAME, KnownTags.TEST_FRAMEWORK_ID));
+        Arguments.of(KnownTags.TEST_NAME_NAME, KnownTags.TEST_NAME),
+        Arguments.of(KnownTags.TEST_SUITE_NAME, KnownTags.TEST_SUITE),
+        Arguments.of(KnownTags.TEST_STATUS_NAME, KnownTags.TEST_STATUS),
+        Arguments.of(KnownTags.TEST_FRAMEWORK_NAME, KnownTags.TEST_FRAMEWORK));
   }
 
   @Test
@@ -298,13 +297,13 @@ class KnownTagsTest {
 
   @Test
   void theInterceptedBitMarksTheTracerOverlayTags() {
-    assertTrue(KnownTagCodec.isIntercepted(KnownTags.SPAN_KIND_ID));
-    assertFalse(KnownTagCodec.isIntercepted(KnownTags.HTTP_ROUTE_ID));
+    assertTrue(KnownTagCodec.isIntercepted(KnownTags.SPAN_KIND));
+    assertFalse(KnownTagCodec.isIntercepted(KnownTags.HTTP_ROUTE));
   }
 
   @Test
   void isKnownRejectsTheNoTagSerialAndSerialsPastTheLimit() {
-    assertTrue(KnownTagCodec.isKnown(KnownTags.HTTP_ROUTE_ID));
+    assertTrue(KnownTagCodec.isKnown(KnownTags.HTTP_ROUTE));
     assertFalse(KnownTagCodec.isKnown(0L));
     assertFalse(KnownTagCodec.isKnown(KnownTagCodec.makeTagId(KnownTagCodec.serialLimit())));
   }
@@ -335,7 +334,7 @@ class KnownTagsTest {
     TagMap tags = TagMap.create();
     assertEquals(KnownTagCodec.DIRECTION_UNKNOWN, KnownTagCodec.directionOf(tags));
 
-    tags.set(KnownTags.SPAN_KIND_ID, Tags.SPAN_KIND_CLIENT);
+    tags.set(KnownTags.SPAN_KIND, Tags.SPAN_KIND_CLIENT);
     assertEquals(KnownTagCodec.DIRECTION_OUTBOUND, KnownTagCodec.directionOf(tags));
   }
 
@@ -344,9 +343,9 @@ class KnownTagsTest {
     TagMap.Entry custom = TagMap.Entry.newAnyEntry("my.custom.tag", "value");
     assertEquals("my.custom.tag", custom.openTelemetryTag(KnownTagCodec.DIRECTION_OUTBOUND));
 
-    TagMap.Entry peerPort = TagMap.Entry.newAnyEntry(KnownTags.PEER_PORT_ID, 443);
+    TagMap.Entry peerPort = TagMap.Entry.newAnyEntry(KnownTags.PEER_PORT, 443);
     assertEquals(
-        KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT_ID, KnownTagCodec.DIRECTION_OUTBOUND),
+        KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT, KnownTagCodec.DIRECTION_OUTBOUND),
         peerPort.openTelemetryTag(KnownTagCodec.DIRECTION_OUTBOUND));
   }
 
@@ -387,25 +386,23 @@ class KnownTagsTest {
    */
   @Test
   void aSharedNameIsItsOwnTagWithoutADirection() {
-    assertEquals(KnownTags.SERVER_PORT_ID, KnownTagCodec.keyOf("server.port"));
-    assertEquals("server.port", KnownTagCodec.nameOf(KnownTags.SERVER_PORT_ID));
+    assertEquals(KnownTags.SERVER_PORT, KnownTagCodec.keyOf("server.port"));
+    assertEquals("server.port", KnownTagCodec.nameOf(KnownTags.SERVER_PORT));
     assertEquals(0L, KnownTagCodec.keyOf("server.address"));
     assertEquals(
-        "server.port",
-        KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT_ID, DIRECTION_OUTBOUND));
+        "server.port", KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT, DIRECTION_OUTBOUND));
     assertEquals(
-        "server.port",
-        KnownTagCodec.openTelemetryTagOf(KnownTags.SERVER_PORT_ID, DIRECTION_INBOUND));
+        "server.port", KnownTagCodec.openTelemetryTagOf(KnownTags.SERVER_PORT, DIRECTION_INBOUND));
   }
 
   @Test
   void eachDirectionNamesItsTagsInOpenTelemetryTerms() {
-    assertEquals(KnownTags.PEER_HOSTNAME_ID, KnownTags.Outbound.SERVER_ADDRESS_ID);
-    assertEquals(KnownTags.PEER_PORT_ID, KnownTags.Outbound.SERVER_PORT_ID);
-    assertEquals(KnownTags.HTTP_HOSTNAME_ID, KnownTags.Inbound.SERVER_ADDRESS_ID);
-    assertEquals(KnownTags.SERVER_PORT_ID, KnownTags.Inbound.SERVER_PORT_ID);
-    assertEquals(KnownTags.PEER_PORT_ID, KnownTags.Inbound.CLIENT_PORT_ID);
-    assertEquals(KnownTags.HTTP_URL_ID, KnownTags.Outbound.URL_FULL_ID);
+    assertEquals(KnownTags.PEER_HOSTNAME, KnownTags.Outbound.SERVER_ADDRESS);
+    assertEquals(KnownTags.PEER_PORT, KnownTags.Outbound.SERVER_PORT);
+    assertEquals(KnownTags.HTTP_HOSTNAME, KnownTags.Inbound.SERVER_ADDRESS);
+    assertEquals(KnownTags.SERVER_PORT, KnownTags.Inbound.SERVER_PORT);
+    assertEquals(KnownTags.PEER_PORT, KnownTags.Inbound.CLIENT_PORT);
+    assertEquals(KnownTags.HTTP_URL, KnownTags.Outbound.URL_FULL);
   }
 
   /** Every per-direction alias names, in its direction, a tag emitted under that alias. */
@@ -422,7 +419,7 @@ class KnownTagsTest {
     for (Field field : fields) {
       long tagId = field.getLong(null);
       String otelName = KnownTagCodec.openTelemetryTagOf(tagId, direction);
-      String expected = otelName.toUpperCase(Locale.ROOT).replaceAll("[^A-Z0-9]+", "_") + "_ID";
+      String expected = otelName.toUpperCase(Locale.ROOT).replaceAll("[^A-Z0-9]+", "_");
       assertEquals(expected, field.getName(), holder + "." + field.getName());
     }
   }

@@ -12,33 +12,33 @@ class TagMapEntryCreateByIdTest {
   void matchesCreateByNameForEveryValueType() {
     assertEquivalent(
         TagMap.Entry.create(KnownTags.COMPONENT_NAME, (Object) "okhttp"),
-        TagMap.Entry.create(KnownTags.COMPONENT_ID, (Object) "okhttp"));
+        TagMap.Entry.create(KnownTags.COMPONENT, (Object) "okhttp"));
     assertEquivalent(
         TagMap.Entry.create(KnownTags.PEER_HOSTNAME_NAME, (CharSequence) "db.internal"),
-        TagMap.Entry.create(KnownTags.PEER_HOSTNAME_ID, (CharSequence) "db.internal"));
+        TagMap.Entry.create(KnownTags.PEER_HOSTNAME, (CharSequence) "db.internal"));
     assertEquivalent(
         TagMap.Entry.create(KnownTags.DD_PROFILING_ENABLED_NAME, true),
-        TagMap.Entry.create(KnownTags.DD_PROFILING_ENABLED_ID, true));
+        TagMap.Entry.create(KnownTags.DD_PROFILING_ENABLED, true));
     assertEquivalent(
         TagMap.Entry.create(KnownTags.HTTP_STATUS_CODE_NAME, 5432),
-        TagMap.Entry.create(KnownTags.HTTP_STATUS_CODE_ID, 5432));
+        TagMap.Entry.create(KnownTags.HTTP_STATUS_CODE, 5432));
     assertEquivalent(
         TagMap.Entry.create(KnownTags.HTTP_RESEND_COUNT_NAME, 2L),
-        TagMap.Entry.create(KnownTags.HTTP_RESEND_COUNT_ID, 2L));
+        TagMap.Entry.create(KnownTags.HTTP_RESEND_COUNT, 2L));
     assertEquivalent(
         TagMap.Entry.create(KnownTags.DB_USER_NAME, 1.5f),
-        TagMap.Entry.create(KnownTags.DB_USER_ID, 1.5f));
+        TagMap.Entry.create(KnownTags.DB_USER, 1.5f));
     assertEquivalent(
         TagMap.Entry.create(KnownTags.DB_POOL_NAME_NAME, 2.5d),
-        TagMap.Entry.create(KnownTags.DB_POOL_NAME_ID, 2.5d));
+        TagMap.Entry.create(KnownTags.DB_POOL_NAME, 2.5d));
   }
 
   @Test
   void aNullOrEmptyValueCreatesNoEntry() {
-    assertNull(TagMap.Entry.create(KnownTags.COMPONENT_ID, (Object) null));
-    assertNull(TagMap.Entry.create(KnownTags.COMPONENT_ID, (Object) ""));
-    assertNull(TagMap.Entry.create(KnownTags.COMPONENT_ID, (CharSequence) null));
-    assertNull(TagMap.Entry.create(KnownTags.COMPONENT_ID, (CharSequence) ""));
+    assertNull(TagMap.Entry.create(KnownTags.COMPONENT, (Object) null));
+    assertNull(TagMap.Entry.create(KnownTags.COMPONENT, (Object) ""));
+    assertNull(TagMap.Entry.create(KnownTags.COMPONENT, (CharSequence) null));
+    assertNull(TagMap.Entry.create(KnownTags.COMPONENT, (CharSequence) ""));
   }
 
   @Test

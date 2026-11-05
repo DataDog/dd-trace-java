@@ -213,8 +213,8 @@ class OtlpTraceJsonCollectorTest {
         exportedServerPorts(
             "client",
             span -> {
-              span.setTag(KnownTags.SERVER_PORT_ID, 8080);
-              span.setTag(KnownTags.PEER_PORT_ID, 443);
+              span.setTag(KnownTags.SERVER_PORT, 8080);
+              span.setTag(KnownTags.PEER_PORT, 443);
             });
 
     assertEquals(2, ports.size(), "got " + ports);
