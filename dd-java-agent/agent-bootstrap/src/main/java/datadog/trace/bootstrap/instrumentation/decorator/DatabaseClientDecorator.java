@@ -1,9 +1,9 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
-import static datadog.trace.api.KnownTags.DB_INSTANCE_ID;
-import static datadog.trace.api.KnownTags.DB_TYPE_ID;
-import static datadog.trace.api.KnownTags.DB_USER_ID;
-import static datadog.trace.api.KnownTags.PEER_HOSTNAME_ID;
+import static datadog.trace.api.KnownTags.DB_INSTANCE;
+import static datadog.trace.api.KnownTags.DB_TYPE;
+import static datadog.trace.api.KnownTags.DB_USER;
+import static datadog.trace.api.KnownTags.PEER_HOSTNAME;
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.bootstrap.instrumentation.api.ServiceNameSources.DB_CLIENT_SPLIT_BY_HOST;
 
@@ -71,11 +71,11 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
    */
   public void onConnection(final AgentSpan span, final CONNECTION connection) {
     if (connection != null) {
-      span.setTag(DB_USER_ID, dbUser(connection));
+      span.setTag(DB_USER, dbUser(connection));
       onInstance(span, dbInstance(connection));
       CharSequence hostName = dbHostname(connection);
       if (hostName != null) {
-        span.setTag(PEER_HOSTNAME_ID, hostName);
+        span.setTag(PEER_HOSTNAME, hostName);
 
         if (Config.get().isDbClientSplitByHost()) {
           span.setServiceName(hostName.toString(), DB_CLIENT_SPLIT_BY_HOST);
@@ -86,7 +86,7 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
 
   protected void onInstance(final AgentSpan span, final String dbInstance) {
     if (dbInstance != null) {
-      span.setTag(DB_INSTANCE_ID, dbInstance);
+      span.setTag(DB_INSTANCE, dbInstance);
       String serviceName = dbClientService(dbInstance);
       if (null != serviceName) {
         span.setServiceName(serviceName, component());
@@ -155,7 +155,7 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
     }
 
     final NamingEntry namingEntry = CACHE.computeIfAbsent(dbType, NamingEntry::new);
-    span.setTag(DB_TYPE_ID, namingEntry.dbType);
+    span.setTag(DB_TYPE, namingEntry.dbType);
     postProcessServiceAndOperationName(span, namingEntry);
 
     if (Config.get().isAppSecRaspEnabled()) {

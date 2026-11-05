@@ -3,7 +3,7 @@ package datadog.trace.instrumentation.jdbc;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.api.KnownTags.DD_DBM_TRACE_INJECTED_ID;
+import static datadog.trace.api.KnownTags.DD_DBM_TRACE_INJECTED;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
@@ -127,7 +127,7 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
                 traceParent = W3CTraceParent.from(span);
               }
               // set the dbm trace injected tag on the span
-              span.setTag(DD_DBM_TRACE_INJECTED_ID, true);
+              span.setTag(DD_DBM_TRACE_INJECTED, true);
             }
           }
           // For SQL Server and Oracle, trace context is propagated via
