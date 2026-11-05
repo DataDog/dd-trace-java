@@ -131,6 +131,16 @@ abstract class PekkoHttpRouteOtelSemanticsTest extends WithHttpServer<PekkoHttpT
 
     where:
     path                            | route
+    '/directive-or/literal'          | '/directive-or/literal'
+    '/directive-or-empty/value'      | '/directive-or-empty'
+    '/lookahead/users/alice'         | '/lookahead/users/{param}'
+    '/lookahead-dynamic/users/alice' | '/lookahead-dynamic/users/{param}'
+    '/opaque/alice'                  | '/opaque/{param}'
+    '/opaque/bob'                    | '/opaque/{param}'
+    '/crud'                          | '/crud'
+    '/crud/alice'                    | '/crud/{param}'
+    '/handled-rejection/value'       | '/handled-rejection/{param}'
+    '/delayed-rejection/value'       | '/delayed-rejection/{param}'
     '/success'                      | '/success'
     '/prefix-empty-fallback'         | '/prefix-empty-fallback'
     '/zero-consumption-rejection/value' | '/zero-consumption-rejection'
@@ -169,7 +179,7 @@ abstract class PekkoHttpRouteOtelSemanticsTest extends WithHttpServer<PekkoHttpT
     path << ['/route-alternative/6/other', '/route-async/4/other']
   }
 
-  def "a fallback does not retain a route rejected by a later directive"() {
+  def "a fallback retains only its enclosing prefix"() {
     when:
     def response = client.newCall(new Request.Builder().url(address.resolve(path).toString()).build()).execute()
     assert response.code() == 200
@@ -179,11 +189,28 @@ abstract class PekkoHttpRouteOtelSemanticsTest extends WithHttpServer<PekkoHttpT
 
     then:
     def serverSpan = TEST_WRITER.flatten().find { it.getTag('component')?.toString() == 'pekko-http-server' }
-    serverSpan.getTag('http.route') == null
-    serverSpan.resourceName.toString() == 'GET'
+    serverSpan.getTag('http.route') == route
+    serverSpan.resourceName.toString() == "GET $route"
 
     where:
-    path << ['/directive-rejection/value', '/header-rejection/value']
+    path                         | route
+    '/directive-rejection/value' | '/directive-rejection'
+    '/header-rejection/value'    | '/header-rejection'
+  }
+
+  def "path first CRUD keeps routes for write methods"() {
+    expect:
+    [['POST', '/crud', '/crud'], ['DELETE', '/crud/alice', '/crud/{param}']].each { method, path, route ->
+      def body = method == 'POST' ? okhttp3.RequestBody.create(okhttp3.MediaType.parse('text/plain'), '') : null
+      def response = client.newCall(new Request.Builder().url(address.resolve(path).toString()).method(method, body).build()).execute()
+      assert response.code() == 200
+      response.close()
+      TEST_WRITER.waitForTraces(1)
+      def span = TEST_WRITER.flatten().find { it.getTag('component')?.toString() == 'pekko-http-server' }
+      assert span.getTag('http.route') == route
+      assert span.resourceName.toString() == "$method $route"
+      TEST_WRITER.clear()
+    }
   }
 
   def "concurrent requests retain their own routes across asynchronous matching and rejection"() {
@@ -345,7 +372,6 @@ abstract class PekkoHttpRouteConfigurationTest extends WithHttpServer<PekkoHttpT
 
     where:
     path | status
-    '/header-rejection/value' | 200
     '/route-async/4/other' | 404
   }
 }
@@ -386,5 +412,25 @@ class PekkoHttpRouteNamingDisabledForkedTest extends PekkoHttpRouteEnabledForked
   @Override
   boolean routeBasedNaming() {
     false
+  }
+}
+
+class PekkoHttpSingleRejectedRouteForkedTest extends WithHttpServer<PekkoHttpTestWebServer> implements TestingGenericHttpNamingConventions.ServerV0, TestingOtelHttpSemantics {
+  @Override
+  HttpServer server() {
+    new PekkoHttpTestWebServer(PekkoHttpTestWebServer.BindRejectedRoute())
+  }
+
+  def "a single rejected route leaves no server route"() {
+    when:
+    def response = client.newCall(new Request.Builder().url(address.resolve('/single/value').toString()).build()).execute()
+    assert response.code() == 404
+    response.close()
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    def span = TEST_WRITER.flatten().find { it.getTag('component')?.toString() == 'pekko-http-server' }
+    span.getTag('http.route') == null
+    span.resourceName.toString() == 'GET'
   }
 }

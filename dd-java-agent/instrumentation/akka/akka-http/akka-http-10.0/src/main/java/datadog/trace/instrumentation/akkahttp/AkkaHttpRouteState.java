@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.akkahttp;
 
 import static datadog.context.ContextKey.named;
-import static datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities.HTTP_FRAMEWORK_ROUTE;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 import static java.util.Collections.singletonList;
 
@@ -14,92 +13,119 @@ import datadog.trace.api.KnownTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 
-/** Request-local route state, independent of the HTTP routing DSL. */
+/**
+ * Route contributions owned by one directive invocation, with immutable history shared by child
+ * directives.
+ */
 public final class AkkaHttpRouteState {
   private static final boolean OTEL_SEMANTICS = Config.get().isTraceOtelSemanticsEnabled();
   private static final ContextKey<AkkaHttpRouteState> KEY = named("akka-http-route");
-
   private static final boolean ROUTE_CAPTURE_ENABLED =
       InstrumenterConfig.get()
           .isIntegrationEnabled(
               singletonList("akka-http-route"),
               InstrumenterConfig.get().isIntegrationsEnabled() && OTEL_SEMANTICS);
 
-  String requestPath;
-  Route route;
-  CharSequence originalResourceName;
+  Uri.Path remaining;
+  Part part;
 
-  /** Whether the latest route candidate has matched without subsequently being rejected. */
-  boolean routeMatched;
-
-  AkkaHttpRouteState(String requestPath) {
-    this.requestPath = requestPath;
+  AkkaHttpRouteState(Uri.Path remaining) {
+    this.remaining = remaining;
   }
 
   public static Context init(Context context, Uri.Path requestPath) {
-    return ROUTE_CAPTURE_ENABLED
-        ? context.with(KEY, new AkkaHttpRouteState(requestPath.toString()))
-        : context;
+    return ROUTE_CAPTURE_ENABLED ? context.with(KEY, new AkkaHttpRouteState(requestPath)) : context;
   }
 
   static AkkaHttpRouteState current() {
     return Context.current().get(KEY);
   }
 
-  public static void onRejected() {
-    AkkaHttpRouteState state = current();
-    if (state != null) {
-      state.routeMatched = false;
+  Context storeIn(Context context) {
+    return context.with(KEY, this);
+  }
+
+  AkkaHttpRouteState fork() {
+    AkkaHttpRouteState child = new AkkaHttpRouteState(remaining);
+    child.part = part;
+    return child;
+  }
+
+  void select(AkkaHttpRouteState child) {
+    part = child.part;
+    remaining = child.remaining;
+  }
+
+  void matched(Uri.Path before, Uri.Path after, String literal) {
+    if (!before.equals(remaining)) {
+      // Lookahead matchers can inspect input that a later directive consumes again.
+      unmatched(before);
+      if (!before.equals(remaining)) {
+        return;
+      }
+    }
+    part = new Part(before, literal, part);
+    remaining = after;
+  }
+
+  void unmatched(Uri.Path before) {
+    // A composed matcher can fail after some of its leaves have consumed input.
+    for (Part cursor = part; cursor != null; cursor = cursor.previous) {
+      if (cursor.before.equals(before)) {
+        part = cursor.previous;
+        remaining = before;
+        return;
+      }
     }
   }
 
-  /** Drops rejected candidates and releases route history after request completion. */
+  String template() {
+    if (part == null) {
+      return null;
+    }
+    int length = 0;
+    for (Part cursor = part; cursor != null; cursor = cursor.previous) {
+      length += cursor.literal.length();
+    }
+    char[] chars = new char[length];
+    for (Part cursor = part; cursor != null; cursor = cursor.previous) {
+      String literal = cursor.literal;
+      length -= literal.length();
+      literal.getChars(0, literal.length(), chars, length);
+    }
+    return new String(chars);
+  }
+
+  /** Publishes only the selected route, before normal HTTP response naming. */
   public static void onComplete(Context context, AgentSpan span) {
     AkkaHttpRouteState state = context.get(KEY);
     if (state == null) {
       return;
     }
-    state.requestPath = null;
-    Route route = state.route;
-    state.route = null;
-    CharSequence originalResourceName = state.originalResourceName;
-    state.originalResourceName = null;
-    if (route == null) {
+    String template = state.template();
+    state.part = null;
+    state.remaining = null;
+    if (template == null) {
       return;
     }
     AgentSpan root = span.getLocalRootSpan();
     if (root == null) {
       root = span;
     }
-    if (state.routeMatched) {
-      if (!OTEL_SEMANTICS) {
-        Object method = root.getTag(Tags.HTTP_METHOD);
-        HTTP_RESOURCE_DECORATOR.withRoute(
-            root, method == null ? null : method.toString(), route.template, true);
-      }
-      return;
-    }
-    root.setTag(KnownTags.HTTP_ROUTE_ID, (String) null);
-    if (originalResourceName != null) {
-      // Undo tentative route naming without overriding higher-priority application names.
-      root.setResourceName(originalResourceName, HTTP_FRAMEWORK_ROUTE);
-    }
+    Object method =
+        root.getTag(OTEL_SEMANTICS ? KnownTags.HTTP_METHOD_OTEL_NAME : Tags.HTTP_METHOD);
+    HTTP_RESOURCE_DECORATOR.withRoute(
+        root, method == null ? null : method.toString(), template, true);
   }
 
-  public static final class Route {
-    final int offset;
-    final String remaining;
-    final String template;
-    final Route previous;
+  static final class Part {
+    final Uri.Path before;
+    final String literal;
+    final Part previous;
 
-    Route(int offset, String remaining, String template) {
-      this(offset, remaining, template, null);
-    }
-
-    Route(int offset, String remaining, String template, Route previous) {
-      this.offset = offset;
-      this.remaining = remaining;
-      this.template = template;
+    Part(Uri.Path before, String literal, Part previous) {
+      this.before = before;
+      this.literal = literal;
       this.previous = previous;
     }
   }

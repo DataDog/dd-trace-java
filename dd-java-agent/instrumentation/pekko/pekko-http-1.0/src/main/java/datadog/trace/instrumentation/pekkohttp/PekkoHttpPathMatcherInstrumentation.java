@@ -2,44 +2,24 @@ package datadog.trace.instrumentation.pekkohttp;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_OTEL_SEMANTICS_ENABLED;
-import static datadog.trace.api.config.GeneralConfig.TRACE_OTEL_SEMANTICS_ENABLED;
 import static net.bytebuddy.matcher.ElementMatchers.isBridge;
-import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
-import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.bootstrap.config.provider.ConfigProvider;
+import datadog.trace.bootstrap.InstrumentationContext;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.pekko.http.scaladsl.model.Uri;
 import org.apache.pekko.http.scaladsl.server.PathMatcher;
 
-/** Tracks matched Pekko HTTP route templates and directive rejection results. */
-@AutoService(InstrumenterModule.class)
-public final class PekkoHttpPathMatcherInstrumentation extends InstrumenterModule.Tracing
+/** Records literal metadata and matched route components. */
+public final class PekkoHttpPathMatcherInstrumentation
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-  public PekkoHttpPathMatcherInstrumentation() {
-    // Keep this opt-in independent of an explicit parent HTTP integration enablement.
-    super("pekko-http-route");
-  }
-
-  @Override
-  protected boolean defaultEnabled() {
-    // OTel enables route capture by default; the dedicated integration switch can override it.
-    // Avoid loading the global Config while setting up instrumentation.
-    return super.defaultEnabled()
-        && ConfigProvider.getInstance()
-            .getBoolean(TRACE_OTEL_SEMANTICS_ENABLED, DEFAULT_TRACE_OTEL_SEMANTICS_ENABLED);
-  }
-
   @Override
   public String hierarchyMarkerType() {
     return "org.apache.pekko.http.scaladsl.server.PathMatcher";
@@ -48,15 +28,11 @@ public final class PekkoHttpPathMatcherInstrumentation extends InstrumenterModul
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return extendsClass(named(hierarchyMarkerType()))
-        .or(named("org.apache.pekko.http.scaladsl.server.RouteResult$Rejected"));
+        .or(named("org.apache.pekko.http.scaladsl.server.PathMatcher$"));
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isConstructor()
-            .and(isDeclaredBy(named("org.apache.pekko.http.scaladsl.server.RouteResult$Rejected"))),
-        getClass().getName() + "$RejectedAdvice");
     transformer.applyAdvice(
         named("apply")
             .and(takesArguments(1))
@@ -64,27 +40,30 @@ public final class PekkoHttpPathMatcherInstrumentation extends InstrumenterModul
             .and(returns(named("org.apache.pekko.http.scaladsl.server.PathMatcher$Matching")))
             .and(not(isBridge())),
         getClass().getName() + "$MatchAdvice");
-  }
-
-  public static final class RejectedAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void exit() {
-      PekkoHttpRouteState.onRejected();
-    }
+    transformer.applyAdvice(
+        named("apply")
+            .and(takesArgument(0, named("org.apache.pekko.http.scaladsl.model.Uri$Path")))
+            .and(returns(named("org.apache.pekko.http.scaladsl.server.PathMatcher")))
+            .and(isDeclaredBy(named("org.apache.pekko.http.scaladsl.server.PathMatcher$"))),
+        getClass().getName() + "$LiteralAdvice");
   }
 
   public static final class MatchAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static PekkoHttpRouteHelper.Frame enter(@Advice.Argument(0) Uri.Path path) {
-      return PekkoHttpRouteHelper.enter(path);
-    }
-
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void exit(
-        @Advice.Enter PekkoHttpRouteHelper.Frame frame,
-        @Advice.Return PathMatcher.Matching<?> matching,
-        @Advice.Thrown Throwable throwable) {
-      PekkoHttpRouteHelper.exit(frame, matching, throwable);
+        @Advice.This PathMatcher<?> matcher,
+        @Advice.Argument(0) Uri.Path path,
+        @Advice.Return PathMatcher.Matching<?> matching) {
+      PekkoHttpRouteHelper.matched(
+          matcher, path, matching, InstrumentationContext.get(PathMatcher.class, String.class));
+    }
+  }
+
+  public static final class LiteralAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void exit(
+        @Advice.Argument(0) Uri.Path path, @Advice.Return PathMatcher<?> matcher) {
+      InstrumentationContext.get(PathMatcher.class, String.class).put(matcher, path.toString());
     }
   }
 }
