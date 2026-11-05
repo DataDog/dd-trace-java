@@ -1,6 +1,6 @@
 include:
   - project: 'ddoghq/llm-validation-platform'
-    ref: '2ba4fe55aa62a6c5bea1b5936e5e988f009775fa' # Platform PR #48; keep aligned with LLMVAL_PLATFORM_REF.
+    ref: 'ce106a54a4f81cfdeee5abb7b727d9bac5578509' # Platform PR #48; keep aligned with LLMVAL_PLATFORM_REF.
     file: '/ci/llm-validation.gitlab-ci.yml'
   - local: ".gitlab/one-pipeline.locked.yml"
   - local: ".gitlab/benchmarks.yml"
@@ -1555,7 +1555,7 @@ update_central_configurations_version_range_v2:
     - when: never
   variables:
     LLMVAL_PLATFORM_PROJECT: "ddoghq/llm-validation-platform"
-    LLMVAL_PLATFORM_REF: "2ba4fe55aa62a6c5bea1b5936e5e988f009775fa"
+    LLMVAL_PLATFORM_REF: "ce106a54a4f81cfdeee5abb7b727d9bac5578509"
     LLMVAL_GITHUB_REPO: "DataDog/dd-trace-java"
     LLMVAL_BASE_REF: "master"
 
