@@ -118,6 +118,7 @@ class EvaluationTelemetryOptOutTest {
   private CapturingEvaluator evaluator;
   private Client client;
   private boolean failDependencyPublisher;
+  private boolean failFirstDependencyEnqueue;
   private boolean mutateDependencyRecord;
 
   @BeforeEach
@@ -796,6 +797,44 @@ class EvaluationTelemetryOptOutTest {
     assertEquals("us-east-1", this.events.get(0).attrs.get("region"));
   }
 
+  @Test
+  void dependencyAndRootTelemetryRetainTheEvaluationConsentSnapshot() throws Exception {
+    start(
+        new Provider.Options().enableEvaluationTelemetryOptOutParameter(false),
+        twoDependencyConfiguration(false));
+    final MutableContext context = new MutableContext("subject").add("region", "us-east-1");
+    this.api.addHooks(
+        new Hook<Object>() {
+          @Override
+          public void after(
+              final HookContext<Object> hookContext,
+              final FlagEvaluationDetails<Object> details,
+              final Map<String, Object> hints) {
+            EvaluationTelemetryOptOutTest.this.evaluator.accept(twoDependencyConfiguration(true));
+          }
+        });
+
+    final FlagEvaluationDetails<Integer> first = this.client.getIntegerDetails("root", 0, context);
+
+    assertNull(first.getErrorCode());
+    assertEquals(1, first.getValue());
+    assertEquals(3, this.events.size(), "two dependencies and the root evaluation");
+    for (final FlagEvalEvent event : this.events) {
+      assertEquals(false, event.observeFullEvaluationData);
+      assertTrue(event.attrs.isEmpty());
+    }
+
+    final FlagEvaluationDetails<Integer> second = this.client.getIntegerDetails("root", 0, context);
+
+    assertNull(second.getErrorCode());
+    assertEquals(1, second.getValue());
+    assertEquals(6, this.events.size());
+    for (final FlagEvalEvent event : this.events.subList(3, 6)) {
+      assertEquals(true, event.observeFullEvaluationData);
+      assertEquals("us-east-1", event.attrs.get("region"));
+    }
+  }
+
   @TableTest({
     "initial | after",
     "false   | true ",
@@ -892,6 +931,25 @@ class EvaluationTelemetryOptOutTest {
     assertEquals(1, this.events.size(), "only root telemetry survives publisher failure");
     assertEquals(1, this.metrics.get(), "only root metrics survive publisher failure");
     assertEquals(2, this.exposures.size(), "publisher failure does not affect exposures");
+  }
+
+  @Test
+  void oneDependencyEnqueueFailureDoesNotSuppressLaterTelemetry() throws Exception {
+    this.failFirstDependencyEnqueue = true;
+    start(
+        new Provider.Options().enableEvaluationTelemetryOptOutParameter(false),
+        twoDependencyConfiguration(false));
+
+    final FlagEvaluationDetails<Integer> details =
+        this.client.getIntegerDetails("root", 0, context("subject", new Value(false)));
+
+    assertNull(details.getErrorCode());
+    assertEquals(1, details.getValue());
+    assertEquals(2, this.events.size(), "the second dependency and root must still publish");
+    assertEquals("second", this.events.get(0).flagKey);
+    assertEquals("root", this.events.get(1).flagKey);
+    assertEquals(3, this.metrics.get(), "dependency metric publication is independent");
+    assertTrue(this.exposures.isEmpty(), "telemetry failure must not create exposures");
   }
 
   @Test
@@ -1432,7 +1490,7 @@ class EvaluationTelemetryOptOutTest {
   }
 
   /** A flag evaluation pipeline capturing enqueued events, never started. */
-  private static final class CapturingPipeline extends FlagEvaluationPipeline {
+  private final class CapturingPipeline extends FlagEvaluationPipeline {
     private final List<FlagEvalEvent> events;
 
     CapturingPipeline(final List<FlagEvalEvent> events) {
@@ -1448,6 +1506,11 @@ class EvaluationTelemetryOptOutTest {
 
     @Override
     public void enqueue(final FlagEvalEvent event) {
+      if (EvaluationTelemetryOptOutTest.this.failFirstDependencyEnqueue
+          && !"root".equals(event.flagKey)) {
+        EvaluationTelemetryOptOutTest.this.failFirstDependencyEnqueue = false;
+        throw new IllegalStateException("first dependency enqueue failed");
+      }
       this.events.add(event);
     }
   }
