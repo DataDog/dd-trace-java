@@ -1,11 +1,13 @@
 package datadog.trace.instrumentation.java.completablefuture;
 
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.COMPLETABLE_FUTURE_CALLBACK;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.EXECUTOR;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.FORK_JOIN_TASK;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static datadog.trace.instrumentation.java.completablefuture.AsyncTaskInstrumentation.CLASS_NAMES;
 import static datadog.trace.instrumentation.java.completablefuture.CompletableFutureUniCompletionInstrumentation.UNI_COMPLETION;
 import static java.util.Arrays.asList;
+import static java.util.Collections.singletonList;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
@@ -86,6 +88,10 @@ public class CompletableFutureModule extends InstrumenterModule.ContextTracking
       excludedForkJoinClass.addAll(unicompletionClasses);
     }
 
+    excluded.put(
+        COMPLETABLE_FUTURE_CALLBACK,
+        singletonList(
+            "datadog.trace.bootstrap.instrumentation.java.concurrent.AsyncResultExtensions$SpanFinisher"));
     excluded.put(RUNNABLE, excludedRunnableClasses);
     excluded.put(FORK_JOIN_TASK, excludedForkJoinClass);
     excluded.put(EXECUTOR, excludedExecutorClasses);

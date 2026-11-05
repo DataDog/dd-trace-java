@@ -85,7 +85,18 @@ public final class AsyncResultExtensions {
   }
 
   public static <T> BiConsumer<T, Throwable> finishSpan(AgentSpan span) {
-    return (o, throwable) -> {
+    return new SpanFinisher<>(span);
+  }
+
+  private static final class SpanFinisher<T> implements BiConsumer<T, Throwable> {
+    private final AgentSpan span;
+
+    private SpanFinisher(AgentSpan span) {
+      this.span = span;
+    }
+
+    @Override
+    public void accept(T result, Throwable throwable) {
       if (throwable != null) {
         span.addThrowable(
             throwable instanceof ExecutionException || throwable instanceof CompletionException
@@ -93,6 +104,6 @@ public final class AsyncResultExtensions {
                 : throwable);
       }
       span.finish();
-    };
+    }
   }
 }
