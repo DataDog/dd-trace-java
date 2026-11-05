@@ -20,7 +20,7 @@
     - **JAX-WS**: `jakarta.xml.ws:jakarta.xml.ws-api`
     - **Servlet**: `jakarta.servlet:jakarta.servlet-api`
   - **DO NOT classify interface-only API JARs as not_applicable.** They ARE instrumentable via `implementsInterface()`.
-  - **Database-client design rules** (applied when picking the hook target in Step 3 / writing the module in Step 5): keep the connection/session `db.instance`/keyspace as the DEFAULT, and OVERRIDE it per-operation only when the operation supplies a more specific value (e.g. a fully-qualified `other_ks.table` query, or keyspace read from the response `ColumnDefinitions`) — never drop the default, or operations with no result metadata (a Cassandra write) lose the tag; prefer a tracing wrapper of long-lived client objects (wrap the client's factory return value) over per-`execute` advice; gate DBM metadata collection behind the DBM-enabled flag; and populate connection metadata eagerly at `Driver.connect` into a `Connection`-keyed context store, while retaining a lazy `parseDBInfo`-style fallback for connections created through paths the connect hook doesn't cover (DataSource, proxy).
+  - **Database-client design rules** (applied when picking the hook target in Step 3 / writing the module in Step 5): keep the connection/session `db.instance`/keyspace as the DEFAULT, and OVERRIDE it per-operation only when the operation supplies a more specific value (e.g. a fully-qualified `other_ks.table` query, or keyspace read from the response `ColumnDefinitions`) — never drop the default, or operations with no result metadata (a Cassandra write) lose the tag; prefer a tracing wrapper of long-lived client objects (wrap the client's factory return value) over per-`execute` advice; gate DBM metadata collection behind the DBM-enabled flag; and populate connection metadata eagerly at `Driver.connect` into a `Connection`-keyed context store, while retaining a lazy `parseDBInfo`-style fallback for connections created through paths the connect hook doesn't cover (DataSource, proxy). Set the resource from normalized SQL via `DBQueryInfo` (`ofPreparedStatement` caches per template), never the raw query string, and tag `db.operation`. For DBM, inject through the shared `SQLCommenter` (`datadog.trace.bootstrap.instrumentation.dbm`), which places the comment the same way for every SQL integration (appended for `CALL`, PostgreSQL `pg_hint_plan` hints and `dd.dbm.always_append_sql_comment`; the caller adds database-specific reasons such as SQL Server), and apply the service mapping to `dddbs`. If the SQL is rewritten before the query span exists (statement creation), inject static service metadata only — a `traceparent` built at that point names the wrong span — and do not set `_dd.dbm_trace_injected`, which means trace context was injected. Test the injected comment text itself. Resource naming runs on the thread executing the query (often an I/O event loop), so bound its work: for a multi-statement execution (a batch), build the resource from a fixed number of statements as their distinct normalized forms — never normalize the concatenation of every statement, since normalization cost grows faster than linearly with input size — and keep such entries out of the prepared-statement cache (`DBQueryInfo.ofStatement`), because statements with inlined literals rarely repeat.
   - **RPC-client-and-server design rule:** when a library has distinct client and server call paths (gRPC, Thrift, Dubbo, any request/response protocol with two roles), give each role its own decorator/component pair — do not share one `Decorator`/`component` constant across both. A client span and a server span for the same call must carry distinct `component` values (e.g. `grpc-client` vs `grpc-server`), distinct `span.kind` (`client` vs `server`), and independently-computed status/error tags — collapsing them into one shared decorator silently loses the role distinction that lets a trace viewer tell "we called out" from "we were called."
 - Add `classLoaderMatcher()` if a sentinel class identifies the framework on the classpath
 - Declare **all** helper class names in `helperClassNames()`:
@@ -43,6 +43,112 @@
      `public String[] triggerClasses() { return TRIGGER_CLASSES; }`
 
   ✅ `public String[] triggerClasses() { return new String[]{"com.example.Foo"}; }`
+
+### Before hand-writing method advice, check for an official interception SPI
+
+Before instrumenting a client library by matching and advising its methods directly, check whether the library — or an official companion library in its ecosystem — exposes a first-class **interception / listener SPI**: a listener interface, an interceptor-registration hook, or a proxy/wrapper factory built for observability. Many client libraries provide one, and it is almost always the better hook point than hand-written method advice.
+
+Examples of such SPIs:
+
+- **R2DBC** → `r2dbc-proxy` (an official R2DBC project) exposes `ProxyExecutionListener` / `ProxyMethodExecutionListener`, invoked around every query via `beforeQuery(QueryExecutionInfo)` / `afterQuery(QueryExecutionInfo)`. You install it by wrapping the `ConnectionFactory`.
+- **gRPC** → `ClientInterceptor` / `ServerInterceptor`.
+- **Kafka** → `ProducerInterceptor` / `ConsumerInterceptor` (`interceptor.classes`).
+- **JAX-RS / JDBC / many others** → filter, interceptor, or proxy-driver registration hooks.
+
+**Why prefer the SPI over hand-written advice, especially for reactive/async clients:** a listener SPI is designed around the library's own execution lifecycle and delivers a single well-defined start/end (and error/**cancel**) callback per logical operation, with the operation's metadata (query text, connection info, status, timing) already assembled for you. Hand-written advice on a reactive method must instead re-implement that lifecycle by wrapping the returned `Publisher`/`Mono`/`Flux` and tracking subscribe/complete/error/**cancel** by hand — this is easy to get subtly wrong. A wrapper that finishes the span only on `onComplete`/`onError` will **leak every span that gets cancelled** (reactive pipelines routinely cancel upstreams — e.g. `take(1)`, timeouts, `DiscardOnCancel` operators), so the span is created but never finished and never exported. It is also easy to wrap at the wrong granularity and emit many spans per logical query. The library's listener already handles all of this.
+
+**Bundle the interception library into the agent — shaded, without forcing it on the user.** The application usually does NOT depend on the interception library (an R2DBC app need not have `r2dbc-proxy`), so its classes must travel inside the agent and be injected as helpers:
+
+- **Shade and relocate it into the module's own package.** Use a dedicated configuration (`transitive = false`) and a `ShadowJar` task that relocates the library (e.g. `io.r2dbc.proxy` → `<module package>.shaded.proxy`) and excludes packages you don't use; put the relocated jar on `compileOnly`/`testImplementation`, merge it into the module jar, and give it to muzzle through `extraAgentClasspath`. Relocation keeps the bundled copy from clashing with an application that ships its own version. Plain `compileOnly` leaves the classes out of the agent jar, and plain `implementation` ships them unrelocated together with their transitive dependencies. Reference build: `dd-java-agent/instrumentation/r2dbc/r2dbc-1.0/build.gradle`.
+- **The library's own dependencies come from the application** (for `r2dbc-proxy`: `r2dbc-spi`, `reactor-core`, `reactive-streams`) — `compileOnly`, never bundled; the injected helpers link against the application's copies.
+- **Claim the relocated classes as helpers** with `isHelperClass(className)` (e.g. `className.startsWith(packageName + ".shaded.")`): they are not compiled from the module's sources, so helper discovery does not find them on its own.
+- **Let runtime muzzle gate on what the bundled library needs** rather than a `classLoaderMatcher()`. Because the relocated classes are helpers, muzzle checks their references against the application's classloader and skips the module when a requirement is missing (`r2dbc-proxy` needs Reactor, and `ContextView` from Reactor 3.4+). Put a compatible version on the muzzle `pass` classpath with `extraDependency`, and prove the boundary with a muzzle `fail` directive on an older version.
+- **A helper class is injected untransformed — never also make it an instrumented type.** Advice on it never runs, and dropping it from the helpers to "fix" that makes the library fail at runtime (`NoClassDefFoundError` when it instantiates the class). If you need behavior the listener cannot express (e.g. rewriting SQL for DBM), advise the application's or driver's own SPI type instead — for R2DBC, `io.r2dbc.spi.Connection#createStatement(String)` via `ForTypeHierarchy`, mirroring `DBMCompatibleConnectionInstrumentation` for JDBC.
+- Bundled bytes count against the agent jar size budget (`jar.size.budget` in `metadata/agent-jar-checks.properties`, enforced by `:dd-java-agent:verifyAgentJarContents`); run that task, and state the size cost in the PR.
+- **Test under the repo's own instrumentation of those dependencies** (`testRuntimeOnly project(':dd-java-agent:instrumentation:reactor-core-3.1')`, `reactive-streams-1.0`), and cover several cancellation shapes (`take(1)`, `next()`, `blockFirst()`, `Mono.from(...)`) and result-transforming paths (e.g. `Result#filter`), asserting each span still finishes. If the bundled library leaves a path unwrapped (r2dbc-proxy did not keep filtered results attached to the query lifecycle), patch it through the library's own extension point (r2dbc-proxy's `ProxyFactory`) rather than modifying the bundled copy.
+
+Reach for hand-written method advice when no such SPI exists, or when the SPI cannot express what you need to capture. When one does exist and fits, prefer it — and note the choice, the bundling approach and its jar-size cost in the PR. Also call out that the application now sees proxies: code that casts to a driver-specific type or checks `instanceof` on it sees the proxy instead (r2dbc-proxy's proxies implement `io.r2dbc.spi.Wrapped`, whose `unwrap()` returns the original object).
+
+**Worked example — hooking a registration/factory point instead of the query methods (R2DBC + `r2dbc-proxy`):**
+
+1. **Advice target is the factory, not the query.** Hook `io.r2dbc.spi.ConnectionFactories.find(ConnectionFactoryOptions)` (it returns a nullable `ConnectionFactory`; `get(...)` delegates to it) — NOT `Statement.execute()` / `Batch.execute()`. Replace the returned `ConnectionFactory` with a writable return on method exit:
+
+   ```java
+   @Advice.OnMethodExit(suppress = Throwable.class)
+   public static void onExit(
+       @Advice.Return(readOnly = false) ConnectionFactory factory,
+       @Advice.Argument(0) ConnectionFactoryOptions options) {
+     if (factory != null) {
+       factory = R2dbcTracingSupport.wrapConnectionFactory(
+           factory, options, InstrumentationContext.get(Connection.class, ConnectionFactoryOptions.class));
+     }
+   }
+   ```
+
+   The writable return's declared type must match the advised method's return type exactly. Binding a reactive-streams interface (`Publisher<...>`) as a writable return on a method returning a concrete `Mono`/`Flux` fails Byte Buddy transformation.
+
+2. **Wrap helper installs the listener.** Skip wrapping when the factory is already a proxy (`DRIVER == "proxy"`) or a wrapper driver that resolves its delegate through a nested, already-instrumented factory lookup (`DRIVER == "pool"` for `r2dbc:pool:` URLs). Wrapping either emits duplicate spans per query, and replacing a pool with a proxy breaks casts to the pool type and its disposal API:
+
+   ```java
+   return ProxyConnectionFactory.builder(factory)
+       .listener(new TraceProxyExecutionListener(options))
+       .listener(new ConnectionMetadataListener(options, connectionOptionsStore)) // DBM metadata
+       .build();
+   ```
+
+3. **Listener drives the span lifecycle** — implements `ProxyExecutionListener` (which declares `beforeQuery`/`afterQuery`); stash the span on the query's own value store (the interception library already carries one per call — do not add a separate `ContextStore` keyed on the driver object):
+
+   ```java
+   public void beforeQuery(QueryExecutionInfo qei) {
+     AgentSpan span = startSpan("r2dbc", R2DBC_QUERY);
+     DECORATE.afterStart(span);
+     String sql = extractQuery(qei);
+     if (sql != null) {
+       // Normalized, cached per template (R2DBC re-executes bind-parameterized SQL)
+       DBQueryInfo info = DBQueryInfo.ofPreparedStatement(sql);
+       span.setResourceName(info.getSql());
+       span.setTag(DB_OPERATION, info.getOperation());
+     } else {
+       span.setResourceName(DB_QUERY); // "DB Query"
+     }
+     qei.getValueStore().put(SPAN_KEY, span);
+   }
+
+   public void afterQuery(QueryExecutionInfo qei) {
+     AgentSpan span = qei.getValueStore().get(SPAN_KEY, AgentSpan.class);
+     if (span == null) return;
+     if (qei.getThrowable() != null) DECORATE.onError(span, qei.getThrowable());
+     DECORATE.beforeFinish(span);
+     span.finish();
+   }
+   ```
+
+   `beforeQuery`/`afterQuery` fire once per logical operation and `r2dbc-proxy` itself owns completion/error/**cancel** — you do not hand-roll a `Publisher` wrapper to catch those.
+
+4. **Muzzle covers the bundled library's runtime dependency, both ways:**
+
+   ```groovy
+   muzzle {
+     pass {
+       group = "io.r2dbc"
+       module = "r2dbc-spi"
+       versions = "[1.0.0.RELEASE,)"
+       extraDependency "io.projectreactor:reactor-core:3.5.0"
+     }
+     fail {
+       name = "reactor-3.3"
+       group = "io.r2dbc"
+       module = "r2dbc-spi"
+       versions = "[1.0.0.RELEASE,)"
+       extraDependency "io.projectreactor:reactor-core:3.3.22.RELEASE" // no ContextView
+     }
+   }
+   tasks.withType(MuzzleTask).configureEach {
+     extraAgentClasspath.from(relocatedR2dbcProxyJarFile)
+   }
+   ```
+
+Net result: one `InstrumenterModule` (`R2dbcModule`) that groups the factory hook and the DBM `createStatement` hook via `typeInstrumentations()` and declares the `Connection → ConnectionFactoryOptions` context store, plus one wrap helper and one listener class — smaller than the method-advice alternative (per-method advice on both `Statement.execute()` and `Batch.execute()`, plus a hand-rolled cancel-safe `Publisher` wrapper) and correct by construction on cancellation. The same shape applies to any other SPI in the examples list above: hook the registration/interceptor-installation point, not the client's own operational methods.
 
 ### Before writing a new module, scan for an existing one
 
@@ -128,7 +234,7 @@ A helper class is appropriate when multiple instrumentation classes share the sa
 For database-client integrations (`DatabaseClientDecorator` / `DBTypeProcessingDatabaseClientDecorator`), capture connection metadata (host, port, db name, user) at **connection-establishment** time and cache it in a `ContextStore` keyed on the connection object — not lazily on the first query. The canonical pattern is a dedicated instrumentation on the connect/factory method:
 
 - **JDBC** — `dd-java-agent/instrumentation/jdbc/DriverInstrumentation.java` hooks `Driver.connect(url, props)` and populates `InstrumentationContext.get(Connection.class, DBInfo.class)` at open time. Statement advice then reads the already-cached `DBInfo`.
-- **Reactive drivers with an async connect** — the equivalent connect point is the connection FACTORY, not the connection object. For R2DBC, `io.r2dbc.spi.ConnectionFactoryOptions` is the only place host/port/database/user are exposed as structured data; `io.r2dbc.spi.ConnectionMetadata` (on the live `Connection`) exposes ONLY product name/version. **But `ConnectionFactory.create()` is a zero-argument SPI method returning a `Publisher<? extends Connection>` — the options are NOT available at `create()`.** Capture them earlier, where the factory is built: hook `ConnectionFactories.get(ConnectionFactoryOptions)` (or the provider-construction path) and store the options in a `ContextStore<ConnectionFactory, ConnectionFactoryOptions>`; then, in advice on `create()`, read the stored options for that factory and thread them onto the asynchronously-emitted `Connection` (a second context store keyed on the returned `Connection`). Hooking only `Connection.createStatement()` + `ConnectionMetadata` CANNOT populate `db.name`/`peer.hostname`/`db.user`/port. (OpenTelemetry's R2DBC instrumentation does exactly this options→factory→connection threading; it is a good reference.)
+- **Reactive drivers with an async connect** — the equivalent connect point is the connection FACTORY, not the connection object. For R2DBC, `io.r2dbc.spi.ConnectionFactoryOptions` is the only place host/port/database/user are exposed as structured data; `io.r2dbc.spi.ConnectionMetadata` (on the live `Connection`) exposes ONLY product name/version. **But `ConnectionFactory.create()` is a zero-argument SPI method returning a `Publisher<? extends Connection>` — the options are NOT available at `create()`.** Capture them earlier, where the factory is built: hook `ConnectionFactories.get(ConnectionFactoryOptions)` (or the provider-construction path) and store the options in a `ContextStore<ConnectionFactory, ConnectionFactoryOptions>`; then, in advice on `create()`, read the stored options for that factory and thread them onto the asynchronously-emitted `Connection` (a second context store keyed on the returned `Connection`). Hooking only `Connection.createStatement()` + `ConnectionMetadata` CANNOT populate `db.name`/`peer.hostname`/`db.user`/port. (OpenTelemetry's R2DBC instrumentation does exactly this options→factory→connection threading; it is a good reference.) Note also — per "Before hand-writing method advice, check for an official interception SPI" above — that R2DBC has `r2dbc-proxy`, whose `ProxyMethodExecutionListener` surfaces this connection/query metadata through a listener and handles the reactive lifecycle for you; prefer it over hand-wrapping the `create()`/`execute()` publishers where it fits.
 
 Why eager-at-connect beats lazy-per-query: lazy extraction (e.g. `statement.getConnection().getMetaData().getURL()` on first execute) works for plain JDBC but (a) pays the extraction cost on every connection's first query instead of amortizing at pool-open, and (b) silently yields nothing when the metadata is not reachable from the object the query advice happens to hold — which is exactly what happens for reactive drivers whose statement/connection objects don't carry the factory options.
 
