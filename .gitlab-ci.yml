@@ -1348,6 +1348,9 @@ deploy_to_maven_central:
   rules:
     - if: '$POPULATE_CACHE'
       when: never
+    # Release branches build -rc.N versions, which the publish plugin would push to the release staging repository
+    - if: '$CI_COMMIT_BRANCH =~ /^release\/v/'
+      when: never
     - if: '$CI_COMMIT_BRANCH == "master"'
       when: on_success
     # Do not deploy release candidate versions
@@ -1377,6 +1380,9 @@ deploy_snapshot_with_ddprof_snapshot:
     CACHE_TYPE: "lib"
   rules:
     - if: '$POPULATE_CACHE'
+      when: never
+    # Release branches build -rc.N versions, which the publish plugin would push to the release staging repository
+    - if: '$CI_COMMIT_BRANCH =~ /^release\/v/'
       when: never
     # Manual trigger only - for testing with ddprof snapshot versions
     - when: manual
