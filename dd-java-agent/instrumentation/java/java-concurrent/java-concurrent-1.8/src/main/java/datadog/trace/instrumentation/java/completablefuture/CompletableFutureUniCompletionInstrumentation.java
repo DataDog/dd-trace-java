@@ -1,10 +1,10 @@
 package datadog.trace.instrumentation.java.completablefuture;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.concreteClass;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresField;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static net.bytebuddy.matcher.ElementMatchers.declaresField;
-import static net.bytebuddy.matcher.ElementMatchers.isAbstract;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
 import static net.bytebuddy.matcher.ElementMatchers.not;
@@ -60,7 +60,7 @@ public class CompletableFutureUniCompletionInstrumentation
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return nameStartsWith(COMPLETABLE_FUTURE)
         .and(extendsClass(named(UNI_COMPLETION)))
-        .and(not(isAbstract()));
+        .and(concreteClass());
   }
 
   @Override
