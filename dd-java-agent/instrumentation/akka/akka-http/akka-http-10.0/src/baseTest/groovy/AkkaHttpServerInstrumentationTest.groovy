@@ -417,6 +417,14 @@ abstract class AkkaHttpRouteOtelSemanticsTest extends WithHttpServer<AkkaHttpTes
 class AkkaHttpRouteOtelSemanticsForkedTest extends AkkaHttpRouteOtelSemanticsTest {
 }
 
+class AkkaHttpRouteOtelSemanticsCompletionPriorityForkedTest extends AkkaHttpRouteOtelSemanticsTest {
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig('trace.integration.scala_promise_completion_priority.enabled', 'true')
+  }
+}
+
 class AkkaHttpRouteOtelSemanticsRawResourceForkedTest extends AkkaHttpRouteOtelSemanticsTest {
   @Override
   void configurePreAgent() {

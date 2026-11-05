@@ -29,6 +29,9 @@ public final class AkkaHttpRouteState {
   Uri.Path remaining;
   Part part;
 
+  /** Set once this directive's result is known; later work under its context updates the parent. */
+  private AkkaHttpRouteState retiredTo;
+
   AkkaHttpRouteState(Uri.Path remaining) {
     this.remaining = remaining;
   }
@@ -38,7 +41,12 @@ public final class AkkaHttpRouteState {
   }
 
   static AkkaHttpRouteState current() {
-    return Context.current().get(KEY);
+    AkkaHttpRouteState state = Context.current().get(KEY);
+    // A fallback can run under the completion context of a directive that already finished.
+    while (state != null && state.retiredTo != null) {
+      state = state.retiredTo;
+    }
+    return state;
   }
 
   Context storeIn(Context context) {
@@ -54,6 +62,10 @@ public final class AkkaHttpRouteState {
   void select(AkkaHttpRouteState child) {
     part = child.part;
     remaining = child.remaining;
+  }
+
+  void retire(AkkaHttpRouteState child) {
+    child.retiredTo = this;
   }
 
   void matched(Uri.Path before, Uri.Path after, String literal) {

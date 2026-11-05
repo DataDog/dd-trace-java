@@ -39,6 +39,7 @@ public final class AkkaHttpRouteWrapper
         future = delegate.apply(request);
       } catch (Throwable failure) {
         parent.select(child);
+        parent.retire(child);
         throw failure;
       }
       Option<Try<RouteResult>> value = future.value();
@@ -69,5 +70,6 @@ public final class AkkaHttpRouteWrapper
     if (result.isFailure() || result.get() instanceof RouteResult.Complete) {
       parent.select(child);
     }
+    parent.retire(child);
   }
 }
