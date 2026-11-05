@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.springwebflux.client;
 
-import static datadog.trace.api.KnownTags.EVENT_ID;
-import static datadog.trace.api.KnownTags.MESSAGE_ID;
+import static datadog.trace.api.KnownTags.EVENT;
+import static datadog.trace.api.KnownTags.MESSAGE;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -24,8 +24,8 @@ public class SpringWebfluxHttpClientDecorator
   public static final CharSequence HTTP_REQUEST = UTF8BytesString.create(DECORATE.operationName());
 
   public void onCancel(final AgentSpan span) {
-    span.setTag(EVENT_ID, CANCELLED);
-    span.setTag(MESSAGE_ID, CANCELLED_MESSAGE);
+    span.setTag(EVENT, CANCELLED);
+    span.setTag(MESSAGE, CANCELLED_MESSAGE);
   }
 
   @Override

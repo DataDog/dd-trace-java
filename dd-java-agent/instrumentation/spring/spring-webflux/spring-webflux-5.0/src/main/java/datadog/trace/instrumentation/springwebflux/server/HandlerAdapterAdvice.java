@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.springwebflux.server;
 
-import static datadog.trace.api.KnownTags.HANDLER_TYPE_ID;
+import static datadog.trace.api.KnownTags.HANDLER_TYPE;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
@@ -45,7 +45,7 @@ public class HandlerAdapterAdvice {
       }
 
       span.setSpanName(operationName);
-      span.setTag(HANDLER_TYPE_ID, handlerType);
+      span.setTag(HANDLER_TYPE, handlerType);
 
       scope = activateSpan(span);
     }
