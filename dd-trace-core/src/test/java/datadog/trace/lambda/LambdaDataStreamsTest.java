@@ -78,6 +78,8 @@ class LambdaDataStreamsTest extends DDCoreJavaSpecification {
       }
       invocation.onExit(null, null);
       invocation.finish();
+      verify(dsm).flush();
+      assertEquals(dropTrace ? 0 : 1, writer.size());
     } finally {
       AgentTracer.forceRegister(previous);
       tracer.close();
