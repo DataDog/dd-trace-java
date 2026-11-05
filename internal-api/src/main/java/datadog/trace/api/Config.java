@@ -666,6 +666,8 @@ import static datadog.trace.api.config.TracerConfig.CAPTURE_LAMBDA_PAYLOAD;
 import static datadog.trace.api.config.TracerConfig.CAPTURE_LAMBDA_PAYLOAD_MAX_DEPTH;
 import static datadog.trace.api.config.TracerConfig.CLIENT_IP_ENABLED;
 import static datadog.trace.api.config.TracerConfig.CLOCK_SYNC_PERIOD;
+import static datadog.trace.api.config.TracerConfig.DSM_EXCHANGE_NAME;
+import static datadog.trace.api.config.TracerConfig.DSM_KAFKA_GROUP;
 import static datadog.trace.api.config.TracerConfig.ENABLE_TRACE_AGENT_V05;
 import static datadog.trace.api.config.TracerConfig.FORCE_CLEAR_TEXT_HTTP_FOR_INTAKE_CLIENT;
 import static datadog.trace.api.config.TracerConfig.HEADER_TAGS;
@@ -1372,6 +1374,8 @@ public class Config {
 
   private final boolean lambdaSnapStartClockResyncEnabled;
   private final boolean universalInstrumentationEnabled;
+  private final String dsmExchangeName;
+  private final String dsmKafkaGroup;
   private final boolean captureLambdaPayload;
   private final int captureLambdaPayloadMaxDepth;
   private final boolean awsServiceRepresentationEnabled;
@@ -1619,6 +1623,8 @@ public class Config {
             CAPTURE_LAMBDA_PAYLOAD_MAX_DEPTH, DEFAULT_CAPTURE_LAMBDA_PAYLOAD_MAX_DEPTH);
     captureLambdaPayloadMaxDepth =
         payloadDepth < 0 ? DEFAULT_CAPTURE_LAMBDA_PAYLOAD_MAX_DEPTH : payloadDepth;
+    dsmExchangeName = configProvider.getString(DSM_EXCHANGE_NAME);
+    dsmKafkaGroup = configProvider.getString(DSM_KAFKA_GROUP);
     universalInstrumentationEnabled =
         parseUniversalInstrumentation(configProvider.getString(UNIVERSAL_INSTRUMENTATION));
     lambdaSnapStartClockResyncEnabled =
@@ -5324,6 +5330,14 @@ public class Config {
     return captureLambdaPayloadMaxDepth;
   }
 
+  public String getDsmExchangeName() {
+    return dsmExchangeName;
+  }
+
+  public String getDsmKafkaGroup() {
+    return dsmKafkaGroup;
+  }
+
   public boolean isUniversalInstrumentationEnabled() {
     return universalInstrumentationEnabled;
   }
@@ -6728,7 +6742,11 @@ public class Config {
   @Override
   public String toString() {
     return "Config{"
-        + "captureLambdaPayload="
+        + "dsmExchangeName="
+        + dsmExchangeName
+        + ", dsmKafkaGroup="
+        + dsmKafkaGroup
+        + ", captureLambdaPayload="
         + captureLambdaPayload
         + ", captureLambdaPayloadMaxDepth="
         + captureLambdaPayloadMaxDepth

@@ -178,7 +178,7 @@ final class LambdaMessagingEvents {
     return trigger;
   }
 
-  private static Map<String, String> kafkaHeaders(Object rawHeaders) {
+  static Map<String, String> kafkaHeaders(Object rawHeaders) {
     Map<String, String> result = new LinkedHashMap<>();
     for (Object header : values(rawHeaders)) {
       for (Map.Entry<String, Object> entry : object(header).entrySet()) {
