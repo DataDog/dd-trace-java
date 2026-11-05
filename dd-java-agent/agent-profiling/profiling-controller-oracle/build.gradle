@@ -2,6 +2,12 @@ plugins {
   id 'dd-trace-java.module.internal-library'
 }
 
+testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_1_8
+  maxJavaVersion = JavaVersion.VERSION_1_8
+  includeJdk = ['ORACLE8']
+}
+
 minimumBranchCoverage = 0.5
 minimumInstructionCoverage = 0.7
 
@@ -20,12 +26,6 @@ dependencies {
 
 // Oracle JDK requires extra JVM arguments to enable JFR
 tasks.withType(Test).configureEach {
-  testJvmConstraints {
-    minJavaVersion = JavaVersion.VERSION_1_8
-    maxJavaVersion = JavaVersion.VERSION_1_8
-    includeJdk = ['ORACLE8']
-  }
-
   jvmArgs += [
     "-XX:+IgnoreUnrecognizedVMOptions",
     "-XX:+UnlockCommercialFeatures",

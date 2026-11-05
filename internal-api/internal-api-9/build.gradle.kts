@@ -6,10 +6,6 @@ plugins {
   id("dd-trace-java.module.internal-api")
 }
 
-extensions.getByName("tracerJava").withGroovyBuilder {
-  invokeMethod("addSourceSetFor", JavaVersion.VERSION_17)
-}
-
 testJvmConstraints {
   minJavaVersion = JavaVersion.VERSION_11
 }
