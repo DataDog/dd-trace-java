@@ -117,6 +117,8 @@ import datadog.trace.core.taginterceptor.TagInterceptor;
 import datadog.trace.core.traceinterceptor.LatencyTraceInterceptor;
 import datadog.trace.lambda.LambdaAppSecHandler;
 import datadog.trace.lambda.LambdaHandler;
+import datadog.trace.lambda.LambdaInvocation;
+import datadog.trace.lambda.LambdaNativeClient;
 import datadog.trace.util.AgentTaskScheduler;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
@@ -145,6 +147,8 @@ import org.slf4j.LoggerFactory;
  * reporting, and propagating traces
  */
 public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
+  private volatile LambdaNativeClient lambdaNativeClient;
+
   private static final Logger log = LoggerFactory.getLogger(CoreTracer.class);
 
   public static CoreTracerBuilder builder() {
@@ -1334,6 +1338,40 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     if (activeScope != null) {
       activeScope.close();
     }
+  }
+
+  @Override
+  public boolean isUniversalInstrumentationEnabled() {
+    return initialConfig.isUniversalInstrumentationEnabled();
+  }
+
+  @Override
+  public AgentTracer.LambdaInvocation startLambdaInvocation(
+      Object event,
+      String requestId,
+      String functionName,
+      String functionVersion,
+      String invokedArn) {
+    if (initialConfig.isUniversalInstrumentationEnabled()) {
+      return null;
+    }
+    maybeResyncClockForLambdaInvocation();
+    return LambdaInvocation.start(
+        this,
+        initialConfig,
+        nativeLambdaClient(),
+        event,
+        requestId,
+        functionName,
+        functionVersion,
+        invokedArn);
+  }
+
+  private synchronized LambdaNativeClient nativeLambdaClient() {
+    if (lambdaNativeClient == null) {
+      lambdaNativeClient = new LambdaNativeClient();
+    }
+    return lambdaNativeClient;
   }
 
   @Override
