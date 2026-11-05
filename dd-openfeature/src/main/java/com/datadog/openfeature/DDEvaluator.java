@@ -1,5 +1,13 @@
 package com.datadog.openfeature;
 
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.ALLOCATION_KEY;
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.DO_LOG;
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EVALUATION_FEATURE_PREFIX;
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EXPOSURE_FEATURE_PREFIX;
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.HAS_EVALUATION_FEATURES;
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.OBSERVE_FULL_EVALUATION_DATA;
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.SPLIT_SERIAL_ID;
+
 import com.datadog.openfeature.internal.FeatureFlagsRuntime;
 import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
 import com.datadog.openfeature.internal.config.Settings;
@@ -8,22 +16,30 @@ import com.datadog.openfeature.internal.evaluation.FlagEvaluator;
 import com.datadog.openfeature.internal.exposure.ExposureDeduplicationCache;
 import com.datadog.openfeature.internal.exposure.ExposureEvent;
 import com.datadog.openfeature.internal.exposure.Subject;
+import com.datadog.openfeature.internal.flagevaluation.FlagEvalEvent;
+import com.datadog.openfeature.internal.flagevaluation.FlagEvaluationWriter;
 import com.datadog.openfeature.internal.ufc.Allocation;
+import com.datadog.openfeature.internal.ufc.ConditionConfiguration;
+import com.datadog.openfeature.internal.ufc.Flag;
+import com.datadog.openfeature.internal.ufc.Rule;
 import com.datadog.openfeature.internal.ufc.ServerConfiguration;
 import com.datadog.openfeature.internal.ufc.ValueType;
 import dev.openfeature.sdk.EvaluationContext;
+import dev.openfeature.sdk.FlagEvaluationDetails;
+import dev.openfeature.sdk.ImmutableMetadata;
 import dev.openfeature.sdk.ImmutableStructure;
 import dev.openfeature.sdk.ProviderEvaluation;
 import dev.openfeature.sdk.Structure;
 import dev.openfeature.sdk.Value;
 import java.time.Instant;
 import java.util.AbstractMap;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.IdentityHashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -31,6 +47,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
+
+  static final String DEPENDENCY_TELEMETRY_SCOPE = "datadog.dependencyTelemetryScope";
 
   /**
    * Maximum evaluation-context nesting depth captured on the hot path. Recursion runs on the
@@ -81,6 +99,13 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
   private final Settings settings;
   private final FlagEvaluator core;
   private final ConfigurationStore configuration = new ConfigurationStore();
+  private volatile ConfigurationSnapshot configurationSnapshot = ConfigurationSnapshot.EMPTY;
+  // Dependency telemetry is sidecar telemetry parallel to the existing OpenFeature client-hook
+  // telemetry. The exposure hook pins one configuration snapshot before provider evaluation;
+  // evaluation hooks publish the returned batch after graph completion and before the client call
+  // returns; finallyAfter closes the scope even when application after hooks fail. Direct provider
+  // calls have no scope and emit no sidecar telemetry. A stack isolates nested client evaluations.
+  private final ThreadLocal<Deque<Object>> dependencyTelemetryScopes = new ThreadLocal<>();
   private volatile FeatureFlagsRuntime runtime;
 
   DDEvaluator(final Runnable configCallback, final AgentBridge bridge, final Settings settings) {
@@ -120,11 +145,12 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
 
   @Override
   public boolean hasConfiguration() {
-    return this.configuration.get() != null;
+    return this.configurationSnapshot.config != null;
   }
 
   @Override
   public synchronized void shutdown() {
+    dependencyTelemetryScopes.remove();
     final FeatureFlagsRuntime released = this.runtime;
     this.runtime = null;
     if (released != null) {
@@ -142,6 +168,8 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
 
   @Override
   public void accept(final ServerConfiguration config) {
+    final ConfigurationSnapshot snapshot = ConfigurationSnapshot.create(config);
+    this.configurationSnapshot = snapshot;
     this.configuration.set(config);
     if (config != null) {
       this.configuration.markReady();
@@ -157,7 +185,20 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
       final String key,
       final T defaultValue,
       final EvaluationContext context) {
-    return core.evaluate(configuration.get(), target, key, defaultValue, context);
+    final Object scope = claimEvaluationScope(key, context);
+    final DependencyTelemetryToken token =
+        scope instanceof DependencyTelemetryToken ? (DependencyTelemetryToken) scope : null;
+    final ConfigurationSnapshot snapshot =
+        token != null
+            ? token.snapshot
+            : scope instanceof EvaluationScope
+                ? ((EvaluationScope) scope).snapshot
+                : configurationSnapshot;
+    final FlagEvaluator.EvaluationResult<T> evaluation =
+        core.evaluateWithTrace(snapshot.config, target, key, defaultValue, context);
+    final ProviderEvaluation<T> result = evaluation.details;
+    stageDependencyTelemetry(token, evaluation);
+    return result;
   }
 
   static boolean isAllocationActive(final Allocation allocation, final Instant now) {
@@ -230,6 +271,24 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
         features.isEmpty() ? null : features);
   }
 
+  private static ExposureEvent exposureEvent(
+      final String flag,
+      final String allocationKey,
+      final String variantKey,
+      final String targetingKey,
+      final Map<String, Object> contextAttributes,
+      final Integer serialId,
+      final Map<String, Object> features) {
+    return new ExposureEvent(
+        System.currentTimeMillis(),
+        new com.datadog.openfeature.internal.exposure.Allocation(allocationKey),
+        new com.datadog.openfeature.internal.exposure.Flag(flag),
+        new com.datadog.openfeature.internal.exposure.Variant(variantKey),
+        new Subject(targetingKey, contextAttributes),
+        serialId,
+        features.isEmpty() ? null : features);
+  }
+
   /**
    * Records an exposure to the runtime, if initialized.
    *
@@ -239,6 +298,404 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
     final FeatureFlagsRuntime current = this.runtime;
     if (current != null) {
       current.recordExposure(event);
+    }
+  }
+
+  void publishDependencyEvaluation(
+      final FlagEvaluator.DependencyEvaluation dependency,
+      final EvaluationContext context,
+      final long evaluationTimestampMs,
+      final FlagEvaluationWriter writer,
+      final DependencyContextSnapshot contextSnapshot) {
+    final ImmutableMetadata metadata = dependency.metadata;
+    final Map<String, Object> values =
+        metadata == null ? Collections.<String, Object>emptyMap() : metadata.asUnmodifiableMap();
+    final Object allocationValue = values.get(ALLOCATION_KEY);
+    final String allocationKey =
+        allocationValue instanceof String ? (String) allocationValue : null;
+    if (writer == null || !writer.hasCapacityForEnqueue()) {
+      if (writer != null) {
+        writer.countPreQueueOverflow();
+      }
+      return;
+    }
+    final boolean observeFullEvaluationData =
+        Boolean.TRUE.equals(values.get(OBSERVE_FULL_EVALUATION_DATA));
+    String errorMessage = observeFullEvaluationData ? dependency.errorMessage : null;
+    if ((errorMessage == null || errorMessage.isEmpty()) && dependency.errorCode != null) {
+      errorMessage = dependency.errorCode.name();
+    }
+    final Map<String, Object> attrs;
+    if (observeFullEvaluationData) {
+      attrs = contextSnapshot.capture(context, writer);
+    } else {
+      attrs = Collections.emptyMap();
+    }
+    final Map<String, Object> features =
+        Boolean.TRUE.equals(values.get(HAS_EVALUATION_FEATURES))
+            ? SplitFeatureMetadata.featuresWithPrefix(metadata, EVALUATION_FEATURE_PREFIX)
+            : Collections.<String, Object>emptyMap();
+    writer.enqueue(
+        new FlagEvalEvent(
+            dependency.flagKey,
+            dependency.variant,
+            allocationKey,
+            context == null ? null : context.getTargetingKey(),
+            errorMessage,
+            evaluationTimestampMs,
+            observeFullEvaluationData,
+            attrs,
+            features));
+  }
+
+  void publishDependencyEvaluations(
+      final DependencyEvaluationTrace trace,
+      final EvaluationContext context,
+      final FlagEvaluationWriter writer) {
+    final DependencyContextSnapshot contextSnapshot = new DependencyContextSnapshot();
+    for (final FlagEvaluator.DependencyEvaluation dependency : trace.evaluations) {
+      try {
+        publishDependencyEvaluation(
+            dependency, context, trace.evaluationTimestampMs, writer, contextSnapshot);
+      } catch (final RuntimeException | LinkageError ignored) {
+        // One telemetry record must not suppress the root or later dependency records.
+      }
+    }
+  }
+
+  /** Lazily captures one detached evaluation-context snapshot for a dependency batch. */
+  private static final class DependencyContextSnapshot {
+    private CopyResult copy;
+
+    private Map<String, Object> capture(
+        final EvaluationContext context, final FlagEvaluationWriter writer) {
+      if (copy == null) {
+        copy = copyPrunedContext(context);
+        if (copy.truncatedReason != null) {
+          writer.countContextTruncated(copy.truncatedReason);
+        }
+      }
+      return copy.attrs;
+    }
+  }
+
+  void recordDependencyMetrics(
+      final DependencyEvaluationTrace trace, final FlagEvalMetrics metrics) {
+    if (metrics == null) {
+      return;
+    }
+    for (final FlagEvaluator.DependencyEvaluation dependency : trace.evaluations) {
+      try {
+        final ImmutableMetadata metadata = dependency.metadata;
+        final Map<String, Object> values =
+            metadata == null
+                ? Collections.<String, Object>emptyMap()
+                : metadata.asUnmodifiableMap();
+        final Object allocationValue = values.get(ALLOCATION_KEY);
+        metrics.record(
+            dependency.flagKey,
+            dependency.variant,
+            dependency.reason,
+            dependency.errorCode,
+            allocationValue instanceof String ? (String) allocationValue : null);
+      } catch (final RuntimeException | LinkageError ignored) {
+        // Metrics are best effort and must not affect evaluation or the root metric.
+      }
+    }
+  }
+
+  Object beginDependencyExposureScope(
+      final String rootFlagKey, final EvaluationContext evaluationContext) {
+    final ConfigurationSnapshot snapshot = configurationSnapshot;
+    final Object scope =
+        snapshot.dependencyFlags.contains(rootFlagKey)
+            ? new DependencyTelemetryToken(snapshot, rootFlagKey, evaluationContext)
+            : new EvaluationScope(snapshot, rootFlagKey, evaluationContext);
+    Deque<Object> scopes = dependencyTelemetryScopes.get();
+    if (scopes == null) {
+      scopes = new ArrayDeque<>();
+      dependencyTelemetryScopes.set(scopes);
+    }
+    scopes.push(scope);
+    return scope;
+  }
+
+  List<FlagEvaluator.DependencyExposure> endDependencyExposureScope(final Object scope) {
+    final Deque<Object> scopes = dependencyTelemetryScopes.get();
+    if (scope == null || scopes == null || scopes.isEmpty() || scopes.peek() != scope) {
+      return Collections.emptyList();
+    }
+    scopes.pop();
+    if (scopes.isEmpty()) {
+      dependencyTelemetryScopes.remove();
+    }
+    return scope instanceof DependencyTelemetryToken
+        ? ((DependencyTelemetryToken) scope).exposures
+        : Collections.<FlagEvaluator.DependencyExposure>emptyList();
+  }
+
+  List<FlagEvaluator.DependencyExposure> endDependencyExposureScope() {
+    final Deque<Object> scopes = dependencyTelemetryScopes.get();
+    return scopes == null || scopes.isEmpty()
+        ? Collections.<FlagEvaluator.DependencyExposure>emptyList()
+        : endDependencyExposureScope(scopes.peek());
+  }
+
+  DependencyTelemetryToken dependencyTelemetryToken(final Object scope) {
+    return scope instanceof DependencyTelemetryToken && ((DependencyTelemetryToken) scope).sealed
+        ? (DependencyTelemetryToken) scope
+        : null;
+  }
+
+  Object currentDependencyTelemetryScope() {
+    final Deque<Object> scopes = dependencyTelemetryScopes.get();
+    return scopes == null || scopes.isEmpty() ? null : scopes.peek();
+  }
+
+  DependencyEvaluationTrace dependencyEvaluationTrace(final DependencyTelemetryToken token) {
+    final Deque<Object> scopes = dependencyTelemetryScopes.get();
+    if (token == null || scopes == null || scopes.isEmpty() || scopes.peek() != token) {
+      return DependencyEvaluationTrace.EMPTY;
+    }
+    return token.sealed ? token.evaluationTrace : DependencyEvaluationTrace.EMPTY;
+  }
+
+  private Object claimEvaluationScope(
+      final String rootFlagKey, final EvaluationContext evaluationContext) {
+    final Deque<Object> scopes = dependencyTelemetryScopes.get();
+    if (scopes == null || scopes.isEmpty()) {
+      return null;
+    }
+    final Object scope = scopes.peek();
+    if (scope instanceof DependencyTelemetryToken) {
+      final DependencyTelemetryToken token = (DependencyTelemetryToken) scope;
+      if (token.claimed || !token.matches(rootFlagKey, evaluationContext)) {
+        return null;
+      }
+      token.claimed = true;
+      return token;
+    }
+    if (!(scope instanceof EvaluationScope)) {
+      return null;
+    }
+    final EvaluationScope evaluationScope = (EvaluationScope) scope;
+    if (evaluationScope.claimed || !evaluationScope.matches(rootFlagKey, evaluationContext)) {
+      return null;
+    }
+    evaluationScope.claimed = true;
+    return evaluationScope;
+  }
+
+  private void stageDependencyTelemetry(
+      final DependencyTelemetryToken token, final FlagEvaluator.EvaluationResult<?> evaluation) {
+    if (token == null || token.sealed) {
+      return;
+    }
+    // The first matching provider evaluation owns this hook lifecycle, even when it has no
+    // eligible candidates. This prevents a later direct or reentrant evaluation from filling the
+    // scope before finallyAfter consumes it.
+    token.sealed = true;
+    if (!evaluation.dependencyEvaluations.isEmpty()) {
+      token.evaluationTrace =
+          new DependencyEvaluationTrace(
+              evaluation.dependencyEvaluations, evaluation.evaluationTimestampMs);
+    }
+    final List<FlagEvaluator.DependencyExposure> candidates =
+        evaluation.details.getErrorCode() == null
+            ? evaluation.dependencyExposures
+            : Collections.<FlagEvaluator.DependencyExposure>emptyList();
+    if (candidates == null || candidates.isEmpty()) {
+      return;
+    }
+    List<FlagEvaluator.DependencyExposure> eligible = null;
+    for (final FlagEvaluator.DependencyExposure candidate : candidates) {
+      final ImmutableMetadata metadata = candidate.metadata;
+      final Map<String, Object> values =
+          metadata == null ? Collections.<String, Object>emptyMap() : metadata.asUnmodifiableMap();
+      if (!Boolean.TRUE.equals(values.get(DO_LOG))
+          || !(values.get(ALLOCATION_KEY) instanceof String)
+          || candidate.variant == null) {
+        continue;
+      }
+      if (eligible == null) {
+        eligible = new ArrayList<>();
+      }
+      eligible.add(candidate);
+    }
+    if (eligible != null) {
+      token.exposures = Collections.unmodifiableList(eligible);
+    }
+  }
+
+  List<FlagEvaluationDetails<Object>> recordDependencyExposures(
+      final List<FlagEvaluator.DependencyExposure> exposures, final EvaluationContext context) {
+    final ExposureDeduplicationCache cache = exposureCache();
+    if (cache == null || context == null) {
+      return Collections.emptyList();
+    }
+    final String targetingKey = context.getTargetingKey();
+    final boolean exposureDeliveryEnabled = isExposureDeliveryEnabled();
+    Map<String, Object> contextAttributes = null;
+    List<FlagEvaluationDetails<Object>> details = null;
+    for (final FlagEvaluator.DependencyExposure exposure : exposures) {
+      final ImmutableMetadata metadata = exposure.metadata;
+      final Map<String, Object> values =
+          metadata == null ? Collections.<String, Object>emptyMap() : metadata.asUnmodifiableMap();
+      if (!Boolean.TRUE.equals(values.get(DO_LOG))) {
+        continue;
+      }
+      final Object allocationValue = values.get(ALLOCATION_KEY);
+      final String allocationKey =
+          allocationValue instanceof String ? (String) allocationValue : null;
+      final String variantKey = exposure.variant;
+      if (allocationKey == null || variantKey == null) {
+        continue;
+      }
+      if (details == null) {
+        details = new ArrayList<>();
+      }
+      details.add(
+          FlagEvaluationDetails.<Object>builder()
+              .flagKey(exposure.flagKey)
+              .value(exposure.value)
+              .variant(variantKey)
+              .reason(exposure.reason)
+              .flagMetadata(metadata)
+              .build());
+      final Object serialValue = values.get(SPLIT_SERIAL_ID);
+      final Integer serialId = serialValue instanceof Integer ? (Integer) serialValue : null;
+      if (cache.recordIfChanged(exposure.flagKey, targetingKey, allocationKey, variantKey, serialId)
+          && exposureDeliveryEnabled) {
+        if (contextAttributes == null) {
+          contextAttributes = Collections.unmodifiableMap(flattenContext(context));
+        }
+        recordExposure(
+            exposureEvent(
+                exposure.flagKey,
+                allocationKey,
+                variantKey,
+                targetingKey,
+                contextAttributes,
+                serialId,
+                SplitFeatureMetadata.featuresWithPrefix(metadata, EXPOSURE_FEATURE_PREFIX)));
+      }
+    }
+    return details == null ? Collections.emptyList() : Collections.unmodifiableList(details);
+  }
+
+  static final class DependencyEvaluationTrace {
+    private static final DependencyEvaluationTrace EMPTY =
+        new DependencyEvaluationTrace(Collections.emptyList(), 0);
+
+    final List<FlagEvaluator.DependencyEvaluation> evaluations;
+    final long evaluationTimestampMs;
+
+    private DependencyEvaluationTrace(
+        final List<FlagEvaluator.DependencyEvaluation> evaluations,
+        final long evaluationTimestampMs) {
+      this.evaluations = evaluations;
+      this.evaluationTimestampMs = evaluationTimestampMs;
+    }
+  }
+
+  static final class DependencyTelemetryToken {
+    private final ConfigurationSnapshot snapshot;
+    private final String rootFlagKey;
+    private final EvaluationContext evaluationContext;
+    private DependencyEvaluationTrace evaluationTrace = DependencyEvaluationTrace.EMPTY;
+    private List<FlagEvaluator.DependencyExposure> exposures = Collections.emptyList();
+    private boolean claimed;
+    private boolean sealed;
+
+    private DependencyTelemetryToken(
+        final ConfigurationSnapshot snapshot,
+        final String rootFlagKey,
+        final EvaluationContext evaluationContext) {
+      this.snapshot = snapshot;
+      this.rootFlagKey = rootFlagKey;
+      this.evaluationContext = evaluationContext;
+    }
+
+    private boolean matches(
+        final String evaluatedFlagKey, final EvaluationContext evaluatedContext) {
+      return rootFlagKey != null
+          && rootFlagKey.equals(evaluatedFlagKey)
+          && evaluationContext == evaluatedContext;
+    }
+  }
+
+  private static final class EvaluationScope {
+    private final ConfigurationSnapshot snapshot;
+    private final String rootFlagKey;
+    private final EvaluationContext evaluationContext;
+    private boolean claimed;
+
+    private EvaluationScope(
+        final ConfigurationSnapshot snapshot,
+        final String rootFlagKey,
+        final EvaluationContext evaluationContext) {
+      this.snapshot = snapshot;
+      this.rootFlagKey = rootFlagKey;
+      this.evaluationContext = evaluationContext;
+    }
+
+    private boolean matches(
+        final String evaluatedFlagKey, final EvaluationContext evaluatedContext) {
+      return rootFlagKey != null
+          && rootFlagKey.equals(evaluatedFlagKey)
+          && evaluationContext == evaluatedContext;
+    }
+  }
+
+  private static final class ConfigurationSnapshot {
+    private static final ConfigurationSnapshot EMPTY =
+        new ConfigurationSnapshot(null, Collections.<String>emptySet());
+
+    private final ServerConfiguration config;
+    private final Set<String> dependencyFlags;
+
+    private ConfigurationSnapshot(
+        final ServerConfiguration config, final Set<String> dependencyFlags) {
+      this.config = config;
+      this.dependencyFlags = dependencyFlags;
+    }
+
+    private static ConfigurationSnapshot create(final ServerConfiguration config) {
+      if (config == null || config.flags == null || config.flags.isEmpty()) {
+        return config == null ? EMPTY : new ConfigurationSnapshot(config, Collections.emptySet());
+      }
+      final Set<String> dependencyFlags = new HashSet<>();
+      for (final Map.Entry<String, Flag> entry : config.flags.entrySet()) {
+        final Flag flag = entry.getValue();
+        if (flag == null || flag.allocations == null) {
+          continue;
+        }
+        boolean found = false;
+        for (final Allocation allocation : flag.allocations) {
+          if (allocation == null || allocation.rules == null) {
+            continue;
+          }
+          for (final Rule rule : allocation.rules) {
+            if (rule == null || rule.conditions == null) {
+              continue;
+            }
+            for (final ConditionConfiguration condition : rule.conditions) {
+              if (condition != null && condition.flagEvaluationKey != null) {
+                dependencyFlags.add(entry.getKey());
+                found = true;
+                break;
+              }
+            }
+            if (found) {
+              break;
+            }
+          }
+          if (found) {
+            break;
+          }
+        }
+      }
+      return new ConfigurationSnapshot(config, Collections.unmodifiableSet(dependencyFlags));
     }
   }
 
@@ -302,7 +759,7 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
     final HashMap<String, Object> result = new HashMap<>();
     final Set<Object> seenContainers = Collections.newSetFromMap(new IdentityHashMap<>());
     for (final Map.Entry<String, Value> root : values.entrySet()) {
-      final Deque<FlattenEntry> deque = new LinkedList<>();
+      final Deque<FlattenEntry> deque = new ArrayDeque<>();
       deque.push(new FlattenEntry(root.getKey(), root.getValue()));
       while (!deque.isEmpty()) {
         final FlattenEntry entry = deque.pop();

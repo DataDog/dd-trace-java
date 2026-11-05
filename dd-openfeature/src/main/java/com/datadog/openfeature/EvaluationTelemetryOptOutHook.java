@@ -24,7 +24,7 @@ final class EvaluationTelemetryOptOutHook implements Hook<Object> {
     // Provider before hooks see the merged context, including application before hooks.
     // HookData belongs to this evaluation, including nested and concurrent calls.
     context.getHookData().set(DECISION, isOptedOut(context.getCtx()));
-    return Optional.empty();
+    return delegate.before(context, hints);
   }
 
   @Override

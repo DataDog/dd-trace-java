@@ -8,12 +8,14 @@ import static com.datadog.openfeature.internal.evaluation.MetadataKeys.OBSERVE_F
 
 import com.datadog.openfeature.internal.flagevaluation.FlagEvalEvent;
 import com.datadog.openfeature.internal.flagevaluation.FlagEvaluationWriter;
+import dev.openfeature.sdk.EvaluationContext;
 import dev.openfeature.sdk.FlagEvaluationDetails;
 import dev.openfeature.sdk.Hook;
 import dev.openfeature.sdk.HookContext;
 import dev.openfeature.sdk.ImmutableMetadata;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Supplier;
 
 /**
@@ -41,8 +43,30 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
   /** Pipeline resolver, returning {@code null} when evaluation counts are not delivered. */
   private final Supplier<FlagEvaluationWriter> writerSupplier;
 
+  private final Supplier<DDEvaluator> evaluatorSupplier;
+
   FlagEvalLoggingHook(final Supplier<FlagEvaluationWriter> writerSupplier) {
+    this(writerSupplier, () -> null);
+  }
+
+  FlagEvalLoggingHook(
+      final Supplier<FlagEvaluationWriter> writerSupplier,
+      final Supplier<DDEvaluator> evaluatorSupplier) {
     this.writerSupplier = writerSupplier;
+    this.evaluatorSupplier = evaluatorSupplier;
+  }
+
+  @Override
+  public Optional<EvaluationContext> before(
+      final HookContext<T> ctx, final Map<String, Object> hints) {
+    final DDEvaluator evaluator = evaluatorSupplier.get();
+    if (evaluator != null && ctx != null && ctx.getHookData() != null) {
+      final Object scope = evaluator.currentDependencyTelemetryScope();
+      if (scope != null) {
+        ctx.getHookData().set(DDEvaluator.DEPENDENCY_TELEMETRY_SCOPE, scope);
+      }
+    }
+    return Optional.empty();
   }
 
   /**
@@ -64,6 +88,22 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
       final FlagEvaluationWriter w = writerSupplier.get();
       if (w == null) {
         return;
+      }
+
+      final DDEvaluator evaluator = evaluatorSupplier.get();
+      if (evaluator != null && ctx != null) {
+        try {
+          evaluator.publishDependencyEvaluations(
+              evaluator.dependencyEvaluationTrace(
+                  evaluator.dependencyTelemetryToken(
+                      ctx.getHookData() == null
+                          ? evaluator.currentDependencyTelemetryScope()
+                          : ctx.getHookData().get(DDEvaluator.DEPENDENCY_TELEMETRY_SCOPE))),
+              ctx.getCtx(),
+              w);
+        } catch (final RuntimeException | LinkageError ignored) {
+          // Dependency telemetry is best effort and must not suppress the root event.
+        }
       }
 
       // Pre-queue guard: if the queue is already saturated, avoid the context-copy work whose

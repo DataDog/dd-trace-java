@@ -12,7 +12,10 @@ import dev.openfeature.sdk.FlagEvaluationDetails;
 import dev.openfeature.sdk.Hook;
 import dev.openfeature.sdk.HookContext;
 import dev.openfeature.sdk.ImmutableMetadata;
+import dev.openfeature.sdk.Reason;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
@@ -41,14 +44,60 @@ class ExposureLoggingHook<T> implements Hook<T> {
   }
 
   @Override
+  public Optional<EvaluationContext> before(
+      final HookContext<T> ctx, final Map<String, Object> hints) {
+    try {
+      final DDEvaluator evaluator = this.evaluatorSupplier.get();
+      if (evaluator != null && ctx != null) {
+        final Object scope = evaluator.beginDependencyExposureScope(ctx.getFlagKey(), ctx.getCtx());
+        ExposureHook.bindProviderScope(scope, ctx);
+        if (ctx.getHookData() != null) {
+          ctx.getHookData().set(DDEvaluator.DEPENDENCY_TELEMETRY_SCOPE, scope);
+        }
+      }
+    } catch (final RuntimeException | LinkageError e) {
+      warnOnce(e);
+    }
+    return Optional.empty();
+  }
+
+  @Override
   public void finallyAfter(
       final HookContext<T> ctx,
       final FlagEvaluationDetails<T> details,
       final Map<String, Object> hints) {
     try {
-      if (details == null || details.getErrorCode() != null) {
+      final DDEvaluator evaluator = this.evaluatorSupplier.get();
+      final Object scope =
+          ctx == null || ctx.getHookData() == null
+              ? evaluator == null ? null : evaluator.currentDependencyTelemetryScope()
+              : ctx.getHookData().get(DDEvaluator.DEPENDENCY_TELEMETRY_SCOPE);
+      final List<com.datadog.openfeature.internal.evaluation.FlagEvaluator.DependencyExposure>
+          dependencyExposures =
+              evaluator == null
+                  ? java.util.Collections
+                      .<com.datadog.openfeature.internal.evaluation.FlagEvaluator
+                              .DependencyExposure>
+                          emptyList()
+                  : evaluator.endDependencyExposureScope(scope);
+      if (details == null) {
         log.trace("Feature Flagging exposure suppressed: evaluation failed or details unavailable");
         return;
+      }
+      if (details.getErrorCode() != null || Reason.ERROR.name().equals(details.getReason())) {
+        log.trace("Feature Flagging exposure suppressed: evaluation failed or details unavailable");
+        return;
+      }
+      final EvaluationContext context = ctx == null ? null : ctx.getCtx();
+      if (evaluator != null) {
+        try {
+          final List<FlagEvaluationDetails<Object>> dependencyDetails =
+              evaluator.recordDependencyExposures(dependencyExposures, context);
+          ExposureHook.publishDependencies(scope, ctx, dependencyDetails);
+        } catch (final RuntimeException | LinkageError e) {
+          // Dependency exposure delivery is best-effort and must not suppress the root exposure.
+          warnOnce(e);
+        }
       }
       final ImmutableMetadata metadata = details.getFlagMetadata();
       if (metadata == null) {
@@ -69,13 +118,11 @@ class ExposureLoggingHook<T> implements Hook<T> {
       final String allocationKey =
           allocationValue instanceof String ? (String) allocationValue : null;
       final String variantKey = details.getVariant();
-      final EvaluationContext context = ctx == null ? null : ctx.getCtx();
       if (allocationKey == null || variantKey == null || context == null) {
         log.trace(
             "Feature Flagging exposure suppressed: allocation, variant, or context unavailable");
         return;
       }
-      final DDEvaluator evaluator = this.evaluatorSupplier.get();
       final ExposureDeduplicationCache cache = evaluator == null ? null : evaluator.exposureCache();
       if (cache == null) {
         log.trace("Feature Flagging exposure suppressed: provider not initialized");
@@ -103,9 +150,13 @@ class ExposureLoggingHook<T> implements Hook<T> {
       }
     } catch (final RuntimeException | LinkageError e) {
       // Never let exposure reporting break flag evaluation.
-      if (this.warned.compareAndSet(false, true)) {
-        log.warn("Could not record a feature flag exposure; later failures are not logged", e);
-      }
+      warnOnce(e);
+    }
+  }
+
+  private void warnOnce(final Throwable failure) {
+    if (this.warned.compareAndSet(false, true)) {
+      log.warn("Could not record a feature flag exposure; later failures are not logged", failure);
     }
   }
 }
