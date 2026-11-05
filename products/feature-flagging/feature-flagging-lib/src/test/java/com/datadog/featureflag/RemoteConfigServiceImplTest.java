@@ -41,6 +41,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.slf4j.LoggerFactory;
+import org.tabletest.junit.TableTest;
 
 class RemoteConfigServiceImplTest {
   private static final byte[] DOCUMENT = "{\"flags\":{}}".getBytes(UTF_8);
@@ -78,6 +79,39 @@ class RemoteConfigServiceImplTest {
     assertArrayEquals(DOCUMENT, first.get(0));
     assertNull(first.get(1));
     assertEquals(2, second.size());
+  }
+
+  @TableTest({
+    "Scenario           | previousKey | replacementKey",
+    "enable dependency  | base        | dependent     ",
+    "disable dependency | dependent   | base          ",
+    "semver upgrade     | base        | semver        "
+  })
+  void keepsReplacementWhenPreviousConfigurationIsRemoved(
+      final String previousKey, final String replacementKey) {
+    final RemoteConfigServiceImpl service =
+        new RemoteConfigServiceImpl(mock(ConfigurationPoller.class));
+    final List<byte[]> received = new ArrayList<>();
+    service.subscribe(received::add);
+    final byte[] replacement = "{\"flags\":{\"replacement\":{}}}".getBytes(UTF_8);
+
+    // The RC poller applies the new target before removing the obsolete target.
+    service.accept(previousKey, DOCUMENT, null);
+    service.accept(replacementKey, replacement, null);
+    service.accept(previousKey, null, null);
+
+    assertEquals(2, received.size(), "Removing the old target must not clear its replacement");
+    assertArrayEquals(replacement, received.get(1));
+    final List<byte[]> replayed = new ArrayList<>();
+    service.subscribe(replayed::add);
+    assertEquals(1, replayed.size());
+    assertArrayEquals(replacement, replayed.get(0));
+
+    service.accept(replacementKey, null, null);
+    assertEquals(3, received.size());
+    assertNull(received.get(2));
+    assertEquals(2, replayed.size());
+    assertNull(replayed.get(1));
   }
 
   @Test
@@ -339,6 +373,7 @@ class RemoteConfigServiceImplTest {
 
     @Test
     void reportsRemovedConfiguration() {
+      service.accept("config", DOCUMENT, mock(PollingRateHinter.class));
       service.accept("config", null, mock(PollingRateHinter.class));
 
       assertLogged("configuration removed: key=config");
