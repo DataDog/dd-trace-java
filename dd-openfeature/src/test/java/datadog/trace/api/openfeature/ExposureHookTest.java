@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import dev.openfeature.sdk.DefaultHookData;
 import dev.openfeature.sdk.FlagEvaluationDetails;
 import dev.openfeature.sdk.FlagValueType;
 import dev.openfeature.sdk.HookContext;
@@ -34,6 +35,7 @@ class ExposureHookTest {
                 .addString("__dd_feature.holdout.key", "holdout")
                 .build());
 
+    hook.before(context, emptyMap());
     hook.finallyAfter(context, details, emptyMap());
 
     assertEquals(1, evaluations.size());
@@ -51,7 +53,9 @@ class ExposureHookTest {
     final List<ExposureHook.Evaluation> evaluations = new ArrayList<>();
     final ExposureHook hook = new ExposureHook(evaluations::add);
 
-    hook.finallyAfter(context(), details(ImmutableMetadata.builder().build()), emptyMap());
+    final HookContext<Object> context = context();
+    hook.before(context, emptyMap());
+    hook.finallyAfter(context, details(ImmutableMetadata.builder().build()), emptyMap());
 
     final ExposureHook.Evaluation evaluation = evaluations.get(0);
     assertFalse(evaluation.isExposure());
@@ -66,8 +70,13 @@ class ExposureHookTest {
   }
 
   private static HookContext<Object> context() {
-    return HookContext.from(
-        "flag", FlagValueType.STRING, null, null, new ImmutableContext("user"), "default");
+    return HookContext.<Object>builder()
+        .flagKey("flag")
+        .type(FlagValueType.STRING)
+        .defaultValue("default")
+        .ctx(new ImmutableContext("user"))
+        .hookData(new DefaultHookData())
+        .build();
   }
 
   private static FlagEvaluationDetails<Object> details(final ImmutableMetadata metadata) {

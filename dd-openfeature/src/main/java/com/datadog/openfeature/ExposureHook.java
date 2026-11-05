@@ -20,6 +20,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,10 +52,13 @@ import org.slf4j.LoggerFactory;
 public final class ExposureHook implements Hook<Object> {
 
   private static final Logger log = LoggerFactory.getLogger(ExposureHook.class);
-  private static final ThreadLocal<List<ExposureHook>> ACTIVE_HOOKS = new ThreadLocal<>();
+  private static final AtomicLong LIFECYCLE_IDS = new AtomicLong();
+  private static final ThreadLocal<List<Registration>> ACTIVE_REGISTRATIONS = new ThreadLocal<>();
 
   private final Consumer<Evaluation> callback;
   private final AtomicBoolean warned = new AtomicBoolean();
+  private final String lifecycleKey =
+      "datadog.exposureHookLifecycle." + LIFECYCLE_IDS.incrementAndGet();
 
   /**
    * Creates an exposure hook.
@@ -69,12 +73,17 @@ public final class ExposureHook implements Hook<Object> {
   @Override
   public Optional<EvaluationContext> before(
       final HookContext<Object> context, final Map<String, Object> hints) {
-    List<ExposureHook> hooks = ACTIVE_HOOKS.get();
-    if (hooks == null) {
-      hooks = new ArrayList<>();
-      ACTIVE_HOOKS.set(hooks);
+    if (context == null || context.getHookData() == null) {
+      return Optional.empty();
     }
-    hooks.add(this);
+    final Registration registration = new Registration(this, context);
+    context.getHookData().set(this.lifecycleKey, registration);
+    List<Registration> registrations = ACTIVE_REGISTRATIONS.get();
+    if (registrations == null) {
+      registrations = new ArrayList<>();
+      ACTIVE_REGISTRATIONS.set(registrations);
+    }
+    registrations.add(registration);
     return Optional.empty();
   }
 
@@ -83,49 +92,111 @@ public final class ExposureHook implements Hook<Object> {
       final HookContext<Object> context,
       final FlagEvaluationDetails<Object> details,
       final Map<String, Object> hints) {
+    final Registration registration = registration(context);
+    if (registration == null) {
+      return;
+    }
     try {
       if (details != null) {
         publish(new Evaluation(context.getCtx(), details));
       }
     } finally {
-      unregister();
+      unregister(registration);
+    }
+  }
+
+  static void bindProviderScope(final Object scope, final HookContext<?> context) {
+    if (scope == null || context == null) {
+      return;
+    }
+    final List<Registration> registrations = ACTIVE_REGISTRATIONS.get();
+    if (registrations == null || registrations.isEmpty()) {
+      return;
+    }
+    final Set<ExposureHook> bound =
+        Collections.newSetFromMap(new IdentityHashMap<ExposureHook, Boolean>());
+    for (int i = registrations.size() - 1; i >= 0; i--) {
+      final Registration registration = registrations.get(i);
+      if (!bound.add(registration.hook)) {
+        continue;
+      }
+      if (registration.active
+          && registration.providerScope == null
+          && registration.matches(context)) {
+        registration.providerScope = scope;
+      }
     }
   }
 
   static void publishDependencies(
-      final HookContext<?> context, final List<FlagEvaluationDetails<Object>> details) {
-    if (context == null || details == null || details.isEmpty()) {
+      final Object scope,
+      final HookContext<?> context,
+      final List<FlagEvaluationDetails<Object>> details) {
+    if (scope == null || context == null || details == null || details.isEmpty()) {
       return;
     }
-    final List<ExposureHook> registered = ACTIVE_HOOKS.get();
-    if (registered == null || registered.isEmpty()) {
+    final List<Registration> registrations = ACTIVE_REGISTRATIONS.get();
+    if (registrations == null || registrations.isEmpty()) {
       return;
     }
-    final Set<ExposureHook> published =
-        Collections.newSetFromMap(new IdentityHashMap<ExposureHook, Boolean>());
-    for (final ExposureHook exposureHook : registered) {
-      if (!published.add(exposureHook)) {
-        continue;
+    final List<Registration> recipients = new ArrayList<>();
+    for (final Registration registration : registrations) {
+      if (registration.active && registration.providerScope == scope) {
+        recipients.add(registration);
       }
+    }
+    for (final Registration registration : recipients) {
       for (final FlagEvaluationDetails<Object> dependency : details) {
-        exposureHook.publish(new Evaluation(context.getCtx(), dependency));
+        registration.hook.publish(new Evaluation(context.getCtx(), dependency));
       }
     }
   }
 
-  private void unregister() {
-    final List<ExposureHook> hooks = ACTIVE_HOOKS.get();
-    if (hooks == null) {
+  private Registration registration(final HookContext<?> context) {
+    if (context == null || context.getHookData() == null) {
+      return null;
+    }
+    final Object value = context.getHookData().get(this.lifecycleKey);
+    if (!(value instanceof Registration)) {
+      return null;
+    }
+    final Registration registration = (Registration) value;
+    return registration.active && registration.hook == this ? registration : null;
+  }
+
+  private static void unregister(final Registration registration) {
+    registration.active = false;
+    final List<Registration> registrations = ACTIVE_REGISTRATIONS.get();
+    if (registrations == null) {
       return;
     }
-    for (int i = hooks.size() - 1; i >= 0; i--) {
-      if (hooks.get(i) == this) {
-        hooks.remove(i);
+    for (int i = registrations.size() - 1; i >= 0; i--) {
+      if (registrations.get(i) == registration) {
+        registrations.remove(i);
         break;
       }
     }
-    if (hooks.isEmpty()) {
-      ACTIVE_HOOKS.remove();
+    if (registrations.isEmpty()) {
+      ACTIVE_REGISTRATIONS.remove();
+    }
+  }
+
+  private static final class Registration {
+    private final ExposureHook hook;
+    private final String flagKey;
+    private final EvaluationContext evaluationContext;
+    private Object providerScope;
+    private boolean active = true;
+
+    private Registration(final ExposureHook hook, final HookContext<?> context) {
+      this.hook = hook;
+      this.flagKey = context.getFlagKey();
+      this.evaluationContext = context.getCtx();
+    }
+
+    private boolean matches(final HookContext<?> context) {
+      return java.util.Objects.equals(this.flagKey, context.getFlagKey())
+          && this.evaluationContext == context.getCtx();
     }
   }
 

@@ -487,7 +487,9 @@ class EvaluationTelemetryOptOutTest {
     assertEquals(0, details.getValue());
     assertTelemetryCounts(0);
     assertEquals(0, this.exposures.size());
-    assertEquals(1, this.customerEvaluations.size());
+    assertTrue(
+        this.customerEvaluations.isEmpty(),
+        "a skipped before hook has no lifecycle registration for finally");
   }
 
   @Test
@@ -575,6 +577,158 @@ class EvaluationTelemetryOptOutTest {
         2,
         this.customerEvaluations.stream()
             .filter(evaluation -> "root".equals(evaluation.getDetails().getFlagKey()))
+            .count());
+  }
+
+  @Test
+  void distinctNestedClientsReceiveOnlyTheirOwnDependencyExposures() throws Exception {
+    start(
+        new Provider.Options().enableEvaluationTelemetryOptOutParameter(false),
+        dependentConfiguration());
+    final List<ExposureHook.Evaluation> outerEvaluations = new ArrayList<>();
+    final List<ExposureHook.Evaluation> innerEvaluations = new ArrayList<>();
+    final Client outer = this.api.getClient("outer-client");
+    final Client inner = this.api.getClient("inner-client");
+    outer.addHooks(
+        new ExposureHook(outerEvaluations::add),
+        new Hook<Object>() {
+          @Override
+          public void after(
+              final HookContext<Object> context,
+              final FlagEvaluationDetails<Object> details,
+              final Map<String, Object> hints) {
+            if ("outer".equals(context.getCtx().getTargetingKey())) {
+              assertEquals(
+                  1,
+                  inner
+                      .getIntegerDetails(
+                          "root",
+                          0,
+                          EvaluationTelemetryOptOutTest.context("inner", new Value(false)))
+                      .getValue());
+            }
+          }
+        });
+    inner.addHooks(new ExposureHook(innerEvaluations::add));
+
+    assertEquals(
+        1, outer.getIntegerDetails("root", 0, context("outer", new Value(false))).getValue());
+
+    assertEquals(2, outerEvaluations.size());
+    assertTrue(
+        outerEvaluations.stream()
+            .allMatch(evaluation -> "outer".equals(evaluation.getContext().getTargetingKey())));
+    assertEquals(2, innerEvaluations.size());
+    assertTrue(
+        innerEvaluations.stream()
+            .allMatch(evaluation -> "inner".equals(evaluation.getContext().getTargetingKey())));
+  }
+
+  @Test
+  @SuppressWarnings("deprecation")
+  void deprecatedExposureHookReceivesDependencyAndRootExactlyOnce() throws Exception {
+    start(
+        new Provider.Options().enableEvaluationTelemetryOptOutParameter(false),
+        dependentConfiguration());
+    final List<datadog.trace.api.openfeature.ExposureHook.Evaluation> deprecated =
+        new ArrayList<>();
+    this.api.addHooks(new datadog.trace.api.openfeature.ExposureHook(deprecated::add));
+
+    assertEquals(
+        1,
+        this.client
+            .getIntegerDetails("root", 0, context("deprecated", new Value(false)))
+            .getValue());
+
+    assertEquals(2, deprecated.size());
+    assertEquals(
+        1,
+        deprecated.stream()
+            .filter(evaluation -> "dependency".equals(evaluation.getDetails().getFlagKey()))
+            .count());
+    assertEquals(
+        1,
+        deprecated.stream()
+            .filter(evaluation -> "root".equals(evaluation.getDetails().getFlagKey()))
+            .count());
+  }
+
+  @Test
+  @SuppressWarnings("deprecation")
+  void deprecatedExposureHookDoesNotPublishDependenciesFromFailedOrRejectedGraphs()
+      throws Exception {
+    final List<datadog.trace.api.openfeature.ExposureHook.Evaluation> deprecated =
+        new ArrayList<>();
+    this.api.addHooks(new datadog.trace.api.openfeature.ExposureHook(deprecated::add));
+    start(
+        new Provider.Options().enableEvaluationTelemetryOptOutParameter(false),
+        failedDependencyConfiguration());
+
+    final FlagEvaluationDetails<Integer> failed =
+        this.client.getIntegerDetails("root", 0, context("failed", new Value(false)));
+
+    assertEquals(ErrorCode.GENERAL, failed.getErrorCode());
+    assertEquals(1, deprecated.size());
+    assertEquals("root", deprecated.get(0).getDetails().getFlagKey());
+
+    this.api.shutdown();
+    deprecated.clear();
+    start(
+        new Provider.Options().enableEvaluationTelemetryOptOutParameter(false),
+        rejectedDependencyConfiguration());
+    this.api.addHooks(new datadog.trace.api.openfeature.ExposureHook(deprecated::add));
+
+    final FlagEvaluationDetails<Integer> rejected =
+        this.client.getIntegerDetails("root", 0, context("rejected", new Value(false)));
+
+    assertNull(rejected.getErrorCode());
+    assertEquals(1, deprecated.size());
+    assertEquals("root", deprecated.get(0).getDetails().getFlagKey());
+  }
+
+  @Test
+  @SuppressWarnings("deprecation")
+  void deprecatedExposureHookCleansUpNestedLifecycles() throws Exception {
+    start(
+        new Provider.Options().enableEvaluationTelemetryOptOutParameter(false),
+        dependentConfiguration());
+    final List<datadog.trace.api.openfeature.ExposureHook.Evaluation> deprecated =
+        new ArrayList<>();
+    this.api.addHooks(
+        new datadog.trace.api.openfeature.ExposureHook(deprecated::add),
+        new Hook<Object>() {
+          @Override
+          public void after(
+              final HookContext<Object> context,
+              final FlagEvaluationDetails<Object> details,
+              final Map<String, Object> hints) {
+            if ("outer".equals(context.getCtx().getTargetingKey())) {
+              assertEquals(
+                  1,
+                  EvaluationTelemetryOptOutTest.this
+                      .client
+                      .getIntegerDetails(
+                          "root",
+                          0,
+                          EvaluationTelemetryOptOutTest.context("inner", new Value(false)))
+                      .getValue());
+            }
+          }
+        });
+
+    assertEquals(
+        1, this.client.getIntegerDetails("root", 0, context("outer", new Value(false))).getValue());
+
+    assertEquals(4, deprecated.size());
+    assertEquals(
+        2,
+        deprecated.stream()
+            .filter(evaluation -> "inner".equals(evaluation.getContext().getTargetingKey()))
+            .count());
+    assertEquals(
+        2,
+        deprecated.stream()
+            .filter(evaluation -> "outer".equals(evaluation.getContext().getTargetingKey()))
             .count());
   }
 
@@ -1060,6 +1214,56 @@ class EvaluationTelemetryOptOutTest {
     final Map<String, Flag> flags = new HashMap<>();
     flags.put("dependency", dependency);
     flags.put("root", root);
+    return new ServerConfiguration("", "", false, null, flags);
+  }
+
+  private static ServerConfiguration failedDependencyConfiguration() {
+    final Rule rule =
+        new Rule(
+            singletonList(
+                new ConditionConfiguration(
+                    ConditionOperator.ONE_OF, null, "missing", singletonList("on"))));
+    final Allocation allocation =
+        new Allocation(
+            "root-allocation",
+            singletonList(rule),
+            null,
+            null,
+            singletonList(new Split(emptyList(), "on", emptyMap(), 7)),
+            true);
+    final Flag root =
+        new Flag(
+            "root",
+            true,
+            ValueType.INTEGER,
+            singletonMap("on", new Variant("on", 1)),
+            singletonList(allocation));
+    return new ServerConfiguration("", "", false, null, singletonMap("root", root));
+  }
+
+  private static ServerConfiguration rejectedDependencyConfiguration() {
+    final ServerConfiguration configuration = dependentConfiguration();
+    final Flag root = configuration.flags.get("root");
+    final ConditionConfiguration rejected =
+        new ConditionConfiguration(
+            ConditionOperator.ONE_OF, null, "dependency", singletonList("off"));
+    final Allocation allocation =
+        new Allocation(
+            "rejected",
+            singletonList(new Rule(singletonList(rejected))),
+            null,
+            null,
+            root.allocations.get(0).splits,
+            true);
+    final Map<String, Flag> flags = new HashMap<>(configuration.flags);
+    flags.put(
+        "root",
+        new Flag(
+            root.key,
+            root.enabled,
+            root.variationType,
+            root.variations,
+            singletonList(allocation)));
     return new ServerConfiguration("", "", false, null, flags);
   }
 

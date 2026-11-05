@@ -50,6 +50,7 @@ class ExposureLoggingHook<T> implements Hook<T> {
       final DDEvaluator evaluator = this.evaluatorSupplier.get();
       if (evaluator != null && ctx != null) {
         final Object scope = evaluator.beginDependencyExposureScope(ctx.getFlagKey(), ctx.getCtx());
+        ExposureHook.bindProviderScope(scope, ctx);
         if (ctx.getHookData() != null) {
           ctx.getHookData().set(DDEvaluator.DEPENDENCY_TELEMETRY_SCOPE, scope);
         }
@@ -92,7 +93,7 @@ class ExposureLoggingHook<T> implements Hook<T> {
         try {
           final List<FlagEvaluationDetails<Object>> dependencyDetails =
               evaluator.recordDependencyExposures(dependencyExposures, context);
-          ExposureHook.publishDependencies(ctx, dependencyDetails);
+          ExposureHook.publishDependencies(scope, ctx, dependencyDetails);
         } catch (final RuntimeException | LinkageError e) {
           // Dependency exposure delivery is best-effort and must not suppress the root exposure.
           warnOnce(e);
