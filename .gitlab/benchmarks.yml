@@ -37,11 +37,15 @@
     FLAKY_BENCHMARKS_REGEX: ""
 
 dsm-kafka-producer-benchmark:
+  rules:
+    - when: never
   extends: .dsm-kafka-benchmarks
   variables:
     BP_KAFKA_SCENARIO_DIR: producer-benchmark
 
 dsm-kafka-consumer-benchmark:
+  rules:
+    - when: never
   extends: .dsm-kafka-benchmarks
   variables:
     BP_KAFKA_SCENARIO_DIR: consumer-benchmark
@@ -49,16 +53,7 @@ dsm-kafka-consumer-benchmark:
 debugger-benchmarks:
   stage: benchmarks
   rules:
-    - if: '$POPULATE_CACHE'
-      when: never
-    - if: $CI_PIPELINE_SOURCE != "schedule"
-      changes:
-        paths:
-          - dd-java-agent/agent-debugger/**/*
-        compare_to: "master"
-      when: on_success
-    - when: manual
-      allow_failure: true
+    - when: always
   tags: ["runner:apm-k8s-tweaked-metal"]
   interruptible: true
   timeout: 1h
