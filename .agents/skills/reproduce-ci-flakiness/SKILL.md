@@ -19,9 +19,12 @@ The goal is a small local reproducer with the same failure as CI, not merely any
   JDK version/vendor, architecture, and relevant services from the CI log or artifacts.
   Inspect the module's build file for the actual suite and JVM constraints. Distinguish
   `test`, `forkedTest`, `latestDepTest`, and custom suites; do not guess a task from the class name.
-- Use available CI evidence before asking for missing details. If GitHub CI log access
-  needs a token, obtain it with `ddtool`; never request a token from the user or print it.
+- Retrieve CI logs and artifacts using available authenticated tools and the repository's
+  documented access guidance. If access is unavailable, ask for the relevant failure log
+  or artifacts. Never request or print access tokens.
 - Run the narrowest matching test with the CI JDK and dependencies before adding stress.
+  Preserve CI's exact `testJvm` selector and Gradle concurrency settings in the baseline;
+  use `JAVA_<selector>_HOME` to point a named selector at the matching local JDK.
   Remove `skipFlakyTests` when targeting an annotated test. Use `runFlakyTests` only when
   intentionally selecting annotated tests. Confirm the test actually executes rather than
   being skipped, filtered out, up to date, or restored from cache.
@@ -47,7 +50,7 @@ change global Gradle/JDK configuration.
 `--max-workers` limits Gradle work, not application threads. If CI starvation is the suspected
 cause, use an existing suitable Linux/container environment with a CPU quota or affinity,
 recording that as a separate experiment. Reducing Gradle workers can hide contention, so
-retain a comparison with CI's concurrency when relevant.
+keep CI's concurrency in the baseline and treat serialized execution as a separate profile.
 
 `-Xint` removes JIT compilation and can hide compiler-dependent races or cause unrelated
 timeouts. A different failure is a new observation, not a successful reproduction. Keep a

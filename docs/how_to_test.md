@@ -99,7 +99,11 @@ with a CI job URL or a task, test name, and failure log; see the
 First match the CI commit, Gradle task, test selection, JDK version/vendor, architecture,
 dependency suite, and required services. For example, `latestDepTest` may exercise a different
 library version, and classes ending in `ForkedTest` require the corresponding forked task.
-Use `-PtestJvm=/path/to/ci-matching-jdk` to select the test JDK. A local run on another OS or
+Preserve CI's exact `-PtestJvm=<selector>` value. Named JVM constraints compare this selector,
+so replacing `ORACLE8` with a filesystem path can skip a module that includes only `ORACLE8`,
+or bypass a name-based exclusion. Point `JAVA_<selector>_HOME` at the matching local installation
+(for example, `JAVA_ORACLE8_HOME=/path/to/oracle8` with `-PtestJvm=ORACLE8`). A filesystem path
+is suitable only when the module has no name-based constraints. A local run on another OS or
 architecture is a timing experiment, not an exact copy of CI.
 
 #### Choose the timing control
@@ -120,14 +124,17 @@ direct `taskset` equivalent; use a Linux VM/container when actual CPU restrictio
 
 #### Run a narrow comparison
 
-Replace the task, class, and JDK below with the CI values. Run the baseline once to resolve
-dependencies and build before adding slowdown flags:
+Replace the task, class, JVM selector, and worker count below with the CI values. Set the
+corresponding `JAVA_<selector>_HOME` if the JDK needs a local installation override. Preserve
+CI's parallelism settings: GitLab's shared arguments use `--parallel --max-workers=$GRADLE_WORKERS`.
+Run the baseline once to resolve dependencies and build before adding slowdown flags:
 
 ```shell
+GRADLE_WORKERS=4 # Replace with the failing CI job's worker count.
 ./gradlew :path:to:module:test --tests 'package.SomeTest' \
-  -PtestJvm=/path/to/ci-matching-jdk \
+  -PtestJvm=ORACLE8 \
   --rerun-tasks --no-build-cache --no-configuration-cache \
-  --no-daemon --max-workers=1 --no-parallel --console=plain --info
+  --no-daemon --parallel --max-workers="$GRADLE_WORKERS" --console=plain --info
 ```
 
 Then rerun the same command with each command-scoped prefix, first separately and then together:
@@ -139,8 +146,9 @@ JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:+$JAVA_TOOL_OPTIONS }-Xint -XX:ActiveProc
 ```
 
 Here `...` stands for the complete baseline arguments. Keep baseline and stressed runs' other
-settings equal. If contention between suites matters, also compare with CI's worker settings
-and a broader suite after trying the narrow reproducer.
+settings equal. Test serialized execution separately with `--max-workers=1 --no-parallel`;
+it may hide failures caused by contention. If contention between suites matters, also run
+the broader CI task selection after trying the narrow reproducer.
 
 [`JAVA_TOOL_OPTIONS`](https://docs.oracle.com/javase/8/docs/technotes/guides/troubleshoot/envvars002.html)
 reaches newly launched JVMs that inherit the environment, including test workers and many child
