@@ -51,7 +51,7 @@ Multiple arguments as inline CSV rows (or an external file).
 ### [`@MethodSource`](https://docs.junit.org/5.14.3/writing-tests/parameterized-classes-and-tests.html#tests-sources-MethodSource)
 
 A static factory method returning `Stream<Arguments>`.
-Use when arguments cannot be expressed as literals (objects, builders, mocks):
+Use when arguments cannot be expressed easily as table values or constructed from simple table columns (for example, complex builders or mocks):
 
 ```java
 @ParameterizedTest
@@ -138,7 +138,9 @@ class DDSpanIdTest { /* ... */ }
 
 #### Combining `@TableTest` with `@MethodSource`
 
-Both annotations can coexist on the same `@ParameterizedTest`: keep tabular cases in `@TableTest` and move only the non-tabular ones (complex builders, mocks) to `@MethodSource`.
+Both annotations can coexist on the same `@ParameterizedTest`: use `@TableTest` for scenarios that can be described as text and `@MethodSource` for cases requiring programmatic argument construction. Keep the same argument signature for both sources; the table's display-only scenario column is not a method argument. Do not split a test merely because some cases need a different source.
+
+Before falling back to `@MethodSource`, try expressing an object's building blocks as table columns and constructing it at the start of the test. For an internet socket address, columns could be `host`, `port`, and `resolvable`; construct the address with `new InetSocketAddress(host, port)` or `InetSocketAddress.createUnresolved(host, port)`. Use a numeric loopback host for resolved cases to avoid external DNS, unless resolution itself is under test. Keep setup simple and preserve the original behavior; fall back to `@MethodSource` if the table requires elaborate construction logic.
 
 ### When to use which
 
@@ -148,12 +150,13 @@ Both annotations can coexist on the same `@ParameterizedTest`: keep tabular case
 | Enum values                              | `@EnumSource`                             |
 | Multiple primitive/string parameters     | `@TableTest`                              |
 | Cases include symbolic constants         | `@TableTest` + `@TypeConverter`           |
-| Arguments need builders/mocks/objects    | `@MethodSource`                           |
-| Mostly tabular, a few complex cases      | `@TableTest` + `@MethodSource` combined   |
+| Objects built from simple literal parts  | `@TableTest`, construct in test setup     |
+| Arguments need complex builders/mocks    | `@MethodSource`                           |
+| Tabular and programmatic cases           | `@TableTest` + `@MethodSource` combined   |
 | Reusable provider across classes         | `@ArgumentsSource`                        |
 
 Rule of thumb: reach for `@TableTest` by default for multi-column data - it reads like a spec and keeps cases aligned.
-Fall back to `@MethodSource` only when values cannot be expressed as strings.
+Preserve simple single-parameter `@ValueSource` tests unless meaningful scenario names or additional columns improve readability. Array parameters such as `String[]` accept TableTest list literals (see `JsonMapperTest.testMappingArrayToJsonArray`). Fall back to `@MethodSource` when neither table values nor simple building-block columns express the case easily.
 
 ## Config injection with `@WithConfig`
 
