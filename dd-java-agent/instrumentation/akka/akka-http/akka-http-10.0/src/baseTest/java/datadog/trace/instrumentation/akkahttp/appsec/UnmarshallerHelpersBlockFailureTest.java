@@ -21,8 +21,8 @@ import org.junit.jupiter.api.Test;
 /**
  * Covers the {@code UnmarshallerHelpers.tryBlock() -> AppSecContext.reportBlockFailure()} path.
  * Hand-written test doubles are used because Mockito is only on this module's test runtime
- * classpath, not its test compile classpath (see {@code gradle/java_test_deps.gradle}: {@code
- * testRuntimeOnly libs.mokito.core}).
+ * classpath, not its test compile classpath (see the {@code dd-trace-java.conventions.java}
+ * convention's {@code testRuntimeOnly} dependency on {@code mokito-core}).
  */
 class UnmarshallerHelpersBlockFailureTest {
 
