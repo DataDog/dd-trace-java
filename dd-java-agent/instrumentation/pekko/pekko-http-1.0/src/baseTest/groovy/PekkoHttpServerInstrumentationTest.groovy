@@ -138,6 +138,8 @@ abstract class PekkoHttpRouteOtelSemanticsTest extends WithHttpServer<PekkoHttpT
     where:
     path                            | route
     '/success'                      | '/success'
+    '/prefix-empty-fallback'         | '/prefix-empty-fallback'
+    '/zero-consumption-rejection/value' | '/zero-consumption-rejection'
     '/directive-rejection/value?required=yes' | '/directive-rejection/{param}'
     '/items/a%20b'                  | '/items/{param}'
     '/items/a%2Fb'                  | '/items/{param}'
@@ -187,7 +189,7 @@ abstract class PekkoHttpRouteOtelSemanticsTest extends WithHttpServer<PekkoHttpT
     serverSpan.resourceName.toString() == 'GET'
 
     where:
-    path << ['/directive-rejection/value', '/header-rejection/value', '/zero-consumption-rejection/value']
+    path << ['/directive-rejection/value', '/header-rejection/value']
   }
 
   def "concurrent requests retain their own routes across asynchronous matching and rejection"() {
@@ -318,32 +320,39 @@ abstract class PekkoHttpRouteConfigurationTest extends WithHttpServer<PekkoHttpT
 
   def "route opt in respects naming semantics"() {
     when:
-    def response = client.newCall(new Request.Builder().url(address.resolve('/items/value').toString()).build()).execute()
+    def response = client.newCall(new Request.Builder().url(address.resolve(path).toString()).build()).execute()
     assert response.code() == 200
     response.close()
     TEST_WRITER.waitForTraces(1)
 
     then:
     def span = TEST_WRITER.flatten().find { it.getTag('component')?.toString() == 'pekko-http-server' }
-    span.getTag('http.route') == (routeEnabled() ? '/items/{param}' : null)
-    span.resourceName.toString() == (otelEnabled() ? 'GET' : (routeBasedNaming() ? 'GET /items/{param}' : 'GET /items/value'))
+    span.getTag('http.route') == (routeEnabled() ? route : null)
+    span.resourceName.toString() == (otelEnabled() ? 'GET' : (routeBasedNaming() ? "GET $route" : "GET $path"))
+
+    where:
+    path | route
+    '/items/value' | '/items/{param}'
+    '/prefix-empty-fallback' | '/prefix-empty-fallback'
+    '/zero-consumption-rejection/value' | '/zero-consumption-rejection'
   }
 
   def "rejected route leaves the original resource"() {
     when:
     def response = client.newCall(new Request.Builder().url(address.resolve(path).toString()).build()).execute()
-    assert response.code() == 200
-    assert response.body().string() == 'fallback'
+    assert response.code() == status
     response.close()
     TEST_WRITER.waitForTraces(1)
 
     then:
     def span = TEST_WRITER.flatten().find { it.getTag('component')?.toString() == 'pekko-http-server' }
     span.getTag('http.route') == null
-    span.resourceName.toString() == (otelEnabled() ? 'GET' : "GET $path")
+    span.resourceName.toString() == (otelEnabled() ? 'GET' : (status == 404 ? '404' : "GET $path"))
 
     where:
-    path << ['/header-rejection/value', '/zero-consumption-rejection/value']
+    path | status
+    '/header-rejection/value' | 200
+    '/route-async/4/other' | 404
   }
 }
 

@@ -220,6 +220,8 @@ object PekkoHttpTestWebServer {
         } ~ pathPrefix("zero-consumption-rejection") {
           path(Segment) { _ => reject } ~
             rawPathPrefix(Segment.?) { _ => complete("fallback") }
+        } ~ pathPrefix("prefix-empty-fallback") {
+          path("detail") { complete("detail") } ~ pathEnd { complete("fallback") }
         } ~ path("items" / Segment) { _ =>
           complete("item")
         } ~ pathPrefix("route-async" / IntNumber) { id =>

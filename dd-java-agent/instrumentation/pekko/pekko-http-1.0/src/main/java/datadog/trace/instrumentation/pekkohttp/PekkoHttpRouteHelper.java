@@ -6,7 +6,7 @@ import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourc
 import datadog.trace.api.Config;
 import datadog.trace.api.KnownTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import datadog.trace.instrumentation.pekkohttp.PekkoHttpRouteState.Route;
 import java.util.ArrayList;
 import java.util.List;
@@ -17,8 +17,6 @@ import scala.Product;
 /** Builds route templates from matched literals and parameter placeholders. */
 public final class PekkoHttpRouteHelper {
   private static final boolean OTEL_SEMANTICS_ENABLED = Config.get().isTraceOtelSemanticsEnabled();
-  private static final boolean ROUTE_BASED_NAMING_ENABLED =
-      OTEL_SEMANTICS_ENABLED || Config.get().isHttpServerRouteBasedNaming();
   // Matcher calls nest synchronously; request state carries routes across asynchronous directives.
   private static final ThreadLocal<Frame> CURRENT = new ThreadLocal<>();
 
@@ -69,11 +67,10 @@ public final class PekkoHttpRouteHelper {
     String rest = matched.pathRest().toString();
     String path = frame.path();
     int consumed = path.length() - rest.length();
-    if (consumed <= 0) {
-      // An empty matcher must not revive a candidate rejected by an earlier alternative.
+    if (consumed < 0 || (consumed == 0 && frame.parent != null)) {
       return;
     }
-    String template = frame.template(consumed, matched.extractions());
+    String template = consumed == 0 ? "" : frame.template(consumed, matched.extractions());
     if (frame.parent != null) {
       String parentPath = frame.parent.path();
       if (parentPath.endsWith(path)) {
@@ -96,16 +93,27 @@ public final class PekkoHttpRouteHelper {
       }
       template = previous.template + template;
     }
-    if (frame.state.route == null && ROUTE_BASED_NAMING_ENABLED) {
-      frame.state.originalResourceName = frame.span.getResourceName();
+    if (consumed == 0) {
+      // Keep only the enclosing prefix, not a rejected candidate that consumed more of the path.
+      if (previous == null) {
+        return;
+      }
+      frame.state.route = previous;
+    } else {
+      if (frame.state.route == null && OTEL_SEMANTICS_ENABLED) {
+        frame.state.originalResourceName = frame.span.getResourceName();
+      }
+      frame.state.route = new Route(0, rest, template, previous);
     }
-    frame.state.route = new Route(0, rest, template, previous);
     frame.state.routeMatched = true;
-    Object method =
-        frame.span.getTag(
-            OTEL_SEMANTICS_ENABLED ? KnownTags.HTTP_METHOD_OTEL_NAME : Tags.HTTP_METHOD);
-    HTTP_RESOURCE_DECORATOR.withRoute(
-        frame.span, method == null ? null : method.toString(), template, true);
+    if (OTEL_SEMANTICS_ENABLED) {
+      Object method = frame.span.getTag(KnownTags.HTTP_METHOD_OTEL_NAME);
+      HTTP_RESOURCE_DECORATOR.withRoute(
+          frame.span, method == null ? null : method.toString(), template, true);
+    } else {
+      // Commit legacy route naming at completion so rejected candidates cannot block 404 naming.
+      frame.span.setTag(KnownTags.HTTP_ROUTE_ID, URIUtils.decode(template));
+    }
   }
 
   public static final class Frame {
