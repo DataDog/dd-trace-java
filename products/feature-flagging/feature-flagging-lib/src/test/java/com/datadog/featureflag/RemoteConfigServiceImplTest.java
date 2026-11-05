@@ -54,7 +54,8 @@ class RemoteConfigServiceImplTest {
     service.subscribe(content -> {});
     service.subscribe(content -> {});
 
-    verify(poller).addCapabilities(Capabilities.CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
+    verify(poller)
+        .addCapabilities(Capabilities.CAPABILITY_FFE_FLAG_CONFIGURATION_RULES | (1L << 50));
     final ArgumentCaptor<ConfigurationDeserializer<byte[]>> deserializer =
         ArgumentCaptor.forClass(ConfigurationDeserializer.class);
     verify(poller).addListener(eq(Product.FFE_FLAGS), deserializer.capture(), eq(service));
@@ -258,7 +259,8 @@ class RemoteConfigServiceImplTest {
     service.start();
     service.subscribe(content -> {});
 
-    verify(poller, times(1)).addCapabilities(Capabilities.CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
+    verify(poller, times(1))
+        .addCapabilities(Capabilities.CAPABILITY_FFE_FLAG_CONFIGURATION_RULES | (1L << 50));
     verify(poller, times(1)).start();
   }
 
@@ -288,7 +290,7 @@ class RemoteConfigServiceImplTest {
     service.accept("key", DOCUMENT, mock(PollingRateHinter.class));
 
     verify(poller, times(1))
-        .removeCapabilities(Capabilities.CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
+        .removeCapabilities(Capabilities.CAPABILITY_FFE_FLAG_CONFIGURATION_RULES | (1L << 50));
     verify(poller, times(1)).removeListeners(Product.FFE_FLAGS);
     verify(poller, times(1)).stop();
     assertEquals(0, received.size());
