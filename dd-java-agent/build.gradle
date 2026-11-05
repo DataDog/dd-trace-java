@@ -413,6 +413,8 @@ dependencies {
   testImplementation project(':utils:test-agent-utils:decoder')
 
   testImplementation libs.bundles.test.logging
+  testImplementation libs.bundles.mockito
+  testImplementation libs.json.unit.assertj
   testImplementation libs.guava
   testImplementation libs.datadog.okhttp
   testImplementation group: 'io.opentracing', name: 'opentracing-util', version: '0.31.0'
