@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.servlet2;
 
-import static datadog.trace.api.KnownTags.SERVLET_CONTEXT_ID;
-import static datadog.trace.api.KnownTags.SERVLET_PATH_ID;
+import static datadog.trace.api.KnownTags.SERVLET_CONTEXT;
+import static datadog.trace.api.KnownTags.SERVLET_PATH;
 import static datadog.trace.instrumentation.servlet2.HttpServletRequestExtractAdapter.GETTER;
 
 import datadog.context.Context;
@@ -89,8 +89,8 @@ public class Servlet2Decorator
       final Context parentContext) {
     assert span != null;
     if (request != null) {
-      span.setTag(SERVLET_CONTEXT_ID, request.getContextPath());
-      span.setTag(SERVLET_PATH_ID, request.getServletPath());
+      span.setTag(SERVLET_CONTEXT, request.getContextPath());
+      span.setTag(SERVLET_PATH, request.getServletPath());
     }
     super.doOnRequest(span, connection, request, parentContext);
   }

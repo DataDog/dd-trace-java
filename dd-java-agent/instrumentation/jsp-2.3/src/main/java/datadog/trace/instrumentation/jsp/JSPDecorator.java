@@ -1,10 +1,10 @@
 package datadog.trace.instrumentation.jsp;
 
-import static datadog.trace.api.KnownTags.JSP_CLASSFQCN_ID;
-import static datadog.trace.api.KnownTags.JSP_COMPILER_ID;
-import static datadog.trace.api.KnownTags.JSP_FORWARDORIGIN_ID;
-import static datadog.trace.api.KnownTags.JSP_REQUESTURL_ID;
-import static datadog.trace.api.KnownTags.SERVLET_CONTEXT_ID;
+import static datadog.trace.api.KnownTags.JSP_CLASSFQCN;
+import static datadog.trace.api.KnownTags.JSP_COMPILER;
+import static datadog.trace.api.KnownTags.JSP_FORWARDORIGIN;
+import static datadog.trace.api.KnownTags.JSP_REQUESTURL;
+import static datadog.trace.api.KnownTags.SERVLET_CONTEXT;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 
 import datadog.context.ContextScope;
@@ -44,13 +44,13 @@ public class JSPDecorator extends BaseDecorator {
       span.setResourceName(jspCompilationContext.getJspFile());
 
       if (jspCompilationContext.getServletContext() != null) {
-        span.setTag(SERVLET_CONTEXT_ID, jspCompilationContext.getServletContext().getContextPath());
+        span.setTag(SERVLET_CONTEXT, jspCompilationContext.getServletContext().getContextPath());
       }
 
       if (jspCompilationContext.getCompiler() != null) {
-        span.setTag(JSP_COMPILER_ID, jspCompilationContext.getCompiler().getClass().getName());
+        span.setTag(JSP_COMPILER, jspCompilationContext.getCompiler().getClass().getName());
       }
-      span.setTag(JSP_CLASSFQCN_ID, jspCompilationContext.getFQCN());
+      span.setTag(JSP_CLASSFQCN, jspCompilationContext.getFQCN());
     }
   }
 
@@ -65,7 +65,7 @@ public class JSPDecorator extends BaseDecorator {
 
     final Object forwardOrigin = req.getAttribute(RequestDispatcher.FORWARD_SERVLET_PATH);
     if (forwardOrigin instanceof String) {
-      span.setTag(JSP_FORWARDORIGIN_ID, forwardOrigin.toString());
+      span.setTag(JSP_FORWARDORIGIN, forwardOrigin.toString());
     }
 
     // add the request URL as a tag to provide better context when looking at spans produced by
@@ -77,7 +77,7 @@ public class JSPDecorator extends BaseDecorator {
       // and we never know if ever this can happen
       final StringBuffer requestURL = req.getRequestURL();
       if (requestURL != null && requestURL.length() > 0) {
-        span.setTag(JSP_REQUESTURL_ID, (new URI(requestURL.toString())).normalize().toString());
+        span.setTag(JSP_REQUESTURL, (new URI(requestURL.toString())).normalize().toString());
       }
     } catch (final Throwable ignored) {
       // logging here will be too verbose

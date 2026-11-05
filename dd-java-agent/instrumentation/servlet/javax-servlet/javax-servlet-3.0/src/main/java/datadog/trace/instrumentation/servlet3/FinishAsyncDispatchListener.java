@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.servlet3;
 
-import static datadog.trace.api.KnownTags.TIMEOUT_ID;
+import static datadog.trace.api.KnownTags.TIMEOUT;
 import static datadog.trace.instrumentation.servlet3.Servlet3Decorator.DECORATE;
 
 import datadog.context.ContextScope;
@@ -76,7 +76,7 @@ public class FinishAsyncDispatchListener implements AsyncListener, Runnable {
       if (Config.get().isServletAsyncTimeoutError()) {
         span.setError(true);
       }
-      span.setTag(TIMEOUT_ID, event.getAsyncContext().getTimeout());
+      span.setTag(TIMEOUT, event.getAsyncContext().getTimeout());
       DECORATE.beforeFinish(scope.context());
       maybeFinishSpan();
     }

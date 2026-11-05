@@ -3,7 +3,7 @@ package datadog.trace.instrumentation.servlet5;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasSuperType;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.api.KnownTags.USER_PRINCIPAL_ID;
+import static datadog.trace.api.KnownTags.USER_PRINCIPAL;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_RUM_INJECTED;
@@ -120,7 +120,7 @@ public class JakartaServletInstrumentation extends InstrumenterModule.Tracing
           (HttpServletRequest) request; // at this point the cast should be safe
       if (Config.get().isServletPrincipalEnabled()
           && httpServletRequest.getUserPrincipal() != null) {
-        span.setTag(USER_PRINCIPAL_ID, httpServletRequest.getUserPrincipal().getName());
+        span.setTag(USER_PRINCIPAL, httpServletRequest.getUserPrincipal().getName());
       }
     }
   }
