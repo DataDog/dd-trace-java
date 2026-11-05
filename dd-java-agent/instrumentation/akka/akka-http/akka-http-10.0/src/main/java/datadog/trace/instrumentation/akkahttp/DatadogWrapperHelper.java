@@ -33,7 +33,7 @@ public class DatadogWrapperHelper {
     DECORATE.afterStart(span);
     DECORATE.onRequest(span, request, request, parentContext);
 
-    return AkkaHttpRouteState.init(context);
+    return AkkaHttpRouteState.init(context, request.uri().path());
   }
 
   static final class SwappedContextScope implements ContextScope {
@@ -64,7 +64,7 @@ public class DatadogWrapperHelper {
 
   public static void finishSpan(final Context context, final HttpResponse response) {
     final AgentSpan span = fromContext(context);
-    AkkaHttpRouteState.dropRejectedRoute(context, span);
+    AkkaHttpRouteState.onComplete(context, span);
     DECORATE.onResponse(span, response);
     DECORATE.beforeFinish(context);
 
@@ -73,7 +73,7 @@ public class DatadogWrapperHelper {
 
   public static void finishSpan(final Context context, final Throwable t) {
     final AgentSpan span = fromContext(context);
-    AkkaHttpRouteState.dropRejectedRoute(context, span);
+    AkkaHttpRouteState.onComplete(context, span);
     DECORATE.onError(span, t);
     span.setHttpStatusCode(500);
     DECORATE.beforeFinish(context);

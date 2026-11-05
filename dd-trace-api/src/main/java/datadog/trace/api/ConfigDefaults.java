@@ -127,7 +127,7 @@ public final class ConfigDefaults {
 
   public static final boolean DEFAULT_METRICS_OTEL_EXPERIMENTAL_ENABLED = true;
 
-  static final boolean DEFAULT_TRACE_OTEL_SEMANTICS_ENABLED = false;
+  public static final boolean DEFAULT_TRACE_OTEL_SEMANTICS_ENABLED = false;
   public static final int DEFAULT_OTLP_TRACES_TIMEOUT = 10_000; // ms
 
   static final String DEFAULT_OTLP_HTTP_LOGS_ENDPOINT = "v1/logs";

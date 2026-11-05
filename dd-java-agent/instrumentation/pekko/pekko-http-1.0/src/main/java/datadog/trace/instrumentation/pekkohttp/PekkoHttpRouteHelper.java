@@ -14,11 +14,10 @@ import org.apache.pekko.http.scaladsl.model.Uri;
 import org.apache.pekko.http.scaladsl.server.PathMatcher;
 import scala.Product;
 
-/**
- * Builds templates from matched literals and extracted parameters, retaining no parameter values.
- */
+/** Builds route templates from matched literals and parameter placeholders. */
 public final class PekkoHttpRouteHelper {
-  private static final boolean RAW_RESOURCE = Config.get().isHttpServerRawResource();
+  private static final boolean OTEL_SEMANTICS = Config.get().isTraceOtelSemanticsEnabled();
+  // Matcher calls nest synchronously; request state carries routes across asynchronous directives.
   private static final ThreadLocal<Frame> CURRENT = new ThreadLocal<>();
 
   private PekkoHttpRouteHelper() {}
@@ -32,7 +31,7 @@ public final class PekkoHttpRouteHelper {
       return frame;
     }
     PekkoHttpRouteState state = PekkoHttpRouteState.current();
-    if (state == null) {
+    if (state == null || state.requestPath == null) {
       return null;
     }
     AgentSpan active = activeSpan();
@@ -40,7 +39,7 @@ public final class PekkoHttpRouteHelper {
       return null;
     }
     AgentSpan root = active.getLocalRootSpan();
-    if (root == null || root.getTag(KnownTags.URL_PATH_NAME) == null) {
+    if (root == null) {
       return null;
     }
     Frame frame = new Frame(path, root, state, null);
@@ -55,7 +54,9 @@ public final class PekkoHttpRouteHelper {
     boolean isMatch = throwable == null && matching instanceof PathMatcher.Matched;
     if (frame.parent == null) {
       CURRENT.remove();
-      frame.state.routeMatched = isMatch;
+      if (!isMatch) {
+        frame.state.routeMatched = false;
+      }
     } else {
       CURRENT.set(frame.parent);
     }
@@ -66,10 +67,10 @@ public final class PekkoHttpRouteHelper {
     String rest = matched.pathRest().toString();
     String path = frame.path();
     int consumed = path.length() - rest.length();
-    if (consumed <= 0) {
+    if (consumed < 0 || (consumed == 0 && frame.parent != null)) {
       return;
     }
-    String template = frame.template(consumed, matched.extractions());
+    String template = consumed == 0 ? "" : frame.template(consumed, matched.extractions());
     if (frame.parent != null) {
       String parentPath = frame.parent.path();
       if (parentPath.endsWith(path)) {
@@ -81,9 +82,7 @@ public final class PekkoHttpRouteHelper {
       return;
     }
     Route previous = null;
-    Object requestPath = frame.span.getTag(KnownTags.URL_PATH_NAME);
-    if (requestPath == null
-        || !requestPath.toString().equals(RAW_RESOURCE ? path : URIUtils.decode(path))) {
+    if (!frame.state.requestPath.equals(path)) {
       previous = frame.state.route;
       // A rejected route can retry an earlier unmatched path in another alternative.
       while (previous != null && !previous.remaining.equals(path)) {
@@ -94,10 +93,27 @@ public final class PekkoHttpRouteHelper {
       }
       template = previous.template + template;
     }
-    frame.state.route = new Route(0, rest, template, previous);
-    Object method = frame.span.getTag(KnownTags.HTTP_METHOD_OTEL_NAME);
-    HTTP_RESOURCE_DECORATOR.withRoute(
-        frame.span, method == null ? null : method.toString(), template, true);
+    if (consumed == 0) {
+      // Keep only the enclosing prefix, not a rejected candidate that consumed more of the path.
+      if (previous == null) {
+        return;
+      }
+      frame.state.route = previous;
+    } else {
+      if (frame.state.route == null && OTEL_SEMANTICS) {
+        frame.state.originalResourceName = frame.span.getResourceName();
+      }
+      frame.state.route = new Route(0, rest, template, previous);
+    }
+    frame.state.routeMatched = true;
+    if (OTEL_SEMANTICS) {
+      Object method = frame.span.getTag(KnownTags.HTTP_METHOD_OTEL_NAME);
+      HTTP_RESOURCE_DECORATOR.withRoute(
+          frame.span, method == null ? null : method.toString(), template, true);
+    } else {
+      // Commit legacy route naming at completion so rejected candidates cannot block 404 naming.
+      frame.span.setTag(KnownTags.HTTP_ROUTE_ID, URIUtils.decode(template));
+    }
   }
 
   public static final class Frame {

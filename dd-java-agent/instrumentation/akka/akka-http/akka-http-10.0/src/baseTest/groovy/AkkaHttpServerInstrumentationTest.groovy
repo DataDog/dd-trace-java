@@ -302,6 +302,8 @@ abstract class AkkaHttpRouteOtelSemanticsTest extends WithHttpServer<AkkaHttpTes
     where:
     path                            | route
     '/success'                      | '/success'
+    '/prefix-empty-fallback'         | '/prefix-empty-fallback'
+    '/zero-consumption-rejection/value' | '/zero-consumption-rejection'
     '/directive-rejection/value?required=yes' | '/directive-rejection/{param}'
     '/items/a%20b'                  | '/items/{param}'
     '/items/a%2Fb'                  | '/items/{param}'
@@ -503,5 +505,106 @@ class AkkaHttpServerInstrumentationAsyncHttp2Test extends AkkaHttpServerInstrume
   @Override
   HttpServer server() {
     return new AkkaHttpTestWebServer(AkkaHttpTestWebServer.BindAndHandleAsyncHttp2())
+  }
+}
+
+
+abstract class AkkaHttpRouteConfigurationTest extends WithHttpServer<AkkaHttpTestWebServer> implements TestingGenericHttpNamingConventions.ServerV0 {
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig(TraceInstrumentationConfig.LEGACY_CONTEXT_MANAGER_ENABLED, "true")
+  }
+
+  @Override
+  HttpServer server() {
+    new AkkaHttpTestWebServer(AkkaHttpTestWebServer.BindAndHandle())
+  }
+
+  boolean routeEnabled() {
+    false
+  }
+  boolean otelEnabled() {
+    false
+  }
+
+  boolean routeBasedNaming() {
+    true
+  }
+
+  def "route opt in respects naming semantics"() {
+    when:
+    def response = client.newCall(new Request.Builder().url(address.resolve(path).toString()).build()).execute()
+    assert response.code() == 200
+    response.close()
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    def span = TEST_WRITER.flatten().find { it.getTag('component')?.toString() == 'akka-http-server' }
+    span.getTag('http.route') == (routeEnabled() ? route : null)
+    span.resourceName.toString() == (otelEnabled() ? 'GET' : (routeBasedNaming() ? "GET $route" : "GET $path"))
+
+    where:
+    path | route
+    '/items/value' | '/items/{param}'
+    '/prefix-empty-fallback' | '/prefix-empty-fallback'
+    '/zero-consumption-rejection/value' | '/zero-consumption-rejection'
+  }
+
+  def "rejected route leaves the original resource"() {
+    when:
+    def response = client.newCall(new Request.Builder().url(address.resolve(path).toString()).build()).execute()
+    assert response.code() == status
+    response.close()
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    def span = TEST_WRITER.flatten().find { it.getTag('component')?.toString() == 'akka-http-server' }
+    span.getTag('http.route') == null
+    span.resourceName.toString() == (otelEnabled() ? 'GET' : (status == 404 ? '404' : "GET $path"))
+
+    where:
+    path | status
+    '/header-rejection/value' | 200
+    '/route-async/4/other' | 404
+  }
+}
+
+class AkkaHttpRouteEnabledForkedTest extends AkkaHttpRouteConfigurationTest {
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig('integration.akka-http-route.enabled', 'true')
+  }
+
+  @Override
+  boolean routeEnabled() {
+    true
+  }
+}
+
+class AkkaHttpRouteDisabledOtelSemanticsForkedTest extends AkkaHttpRouteConfigurationTest implements TestingOtelHttpSemantics {
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig('integration.akka-http-route.enabled', 'false')
+  }
+
+  @Override
+  boolean otelEnabled() {
+    true
+  }
+}
+
+class AkkaHttpRouteNamingDisabledForkedTest extends AkkaHttpRouteEnabledForkedTest {
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig('http.server.route-based-naming', 'false')
+  }
+
+  @Override
+  boolean routeBasedNaming() {
+    false
   }
 }
