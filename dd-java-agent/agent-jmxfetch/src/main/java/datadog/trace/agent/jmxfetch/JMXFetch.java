@@ -108,6 +108,7 @@ public class JMXFetch {
     final List<String> defaultConfigs =
         defaultInstanceConfigs(
             otlpRuntimeMetricsEnabled, internalMetricsConfigs, metricsConfigs, websphereEnabled);
+    log.debug("JMXFetch default instance configs: {}", defaultConfigs);
     if (!hasJmxFetchWork(defaultConfigs, jmxFetchConfigDir, jmxFetchConfigs)) {
       log.debug(
           "JMXFetch collector not started: JVM runtime metrics are collected over OTLP and no"

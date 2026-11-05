@@ -170,12 +170,12 @@ class JMXFetchTest {
   }
 
   @TableTest({
-    "scenario                     | otlp  | tomcat | websphere | userConfig | expectedStarted | expectedDefaultInstance",
-    "otlp disabled                | false | false  | false     | false      | true            | true                   ",
-    "otlp enabled, no integration | true  | false  | false     | false      | false           | false                  ",
-    "otlp enabled, tomcat enabled | true  | true   | false     | false      | true            | true                   ",
-    "otlp enabled, websphere only | true  | false  | true      | false      | true            | false                  ",
-    "otlp enabled, user config    | true  | false  | false     | true       | true            | false                  "
+    "scenario                     | otlp  | tomcat | websphere | userConfig | expectedStarted | expectedDefaultConfigs                ",
+    "otlp disabled                | false | false  | false     | false      | true            | [jmxfetch-config.yaml]                ",
+    "otlp enabled, no integration | true  | false  | false     | false      | false           | []                                    ",
+    "otlp enabled, tomcat enabled | true  | true   | false     | false      | true            | [jmxfetch-config-no-jvm-defaults.yaml]",
+    "otlp enabled, websphere only | true  | false  | true      | false      | true            | [jmxfetch-websphere-config.yaml]      ",
+    "otlp enabled, user config    | true  | false  | false     | true       | true            | []                                    "
   })
   void jmxCollectorStartsOnlyWhenItHasWork(
       boolean otlp,
@@ -183,7 +183,7 @@ class JMXFetchTest {
       boolean websphere,
       boolean userConfig,
       boolean expectedStarted,
-      boolean expectedDefaultInstance)
+      List<String> expectedDefaultConfigs)
       throws Exception {
     // setup
     List<String> jvmArgs =
@@ -212,7 +212,6 @@ class JMXFetchTest {
               "  is_jmx: true",
               "instances:",
               "  - jvm_direct: true",
-              "    name: user instance",
               "    conf:",
               "      - include:",
               "          domain: java.lang",
@@ -243,18 +242,11 @@ class JMXFetchTest {
         !expectedStarted,
         lines.stream().anyMatch(line -> line.contains("JMXFetch collector not started")),
         "Unexpected skip log state in output: " + lines);
-    assertEquals(
-        expectedDefaultInstance,
-        lines.stream()
-            .anyMatch(
-                line -> line.contains("Successfully initialized instance: dd-java-agent default")),
-        "Unexpected default instance state in output: " + lines);
-    if (userConfig) {
-      assertTrue(
-          lines.stream()
-              .anyMatch(line -> line.contains("Successfully initialized instance: user instance")),
-          "Expected the user instance to be initialized in output: " + lines);
-    }
+    // logged synchronously by JMXFetch.run() in premain, so it is in the output when the JVM exits
+    String expectedConfigsLine = "JMXFetch default instance configs: " + expectedDefaultConfigs;
+    assertTrue(
+        lines.stream().anyMatch(line -> line.endsWith(expectedConfigsLine)),
+        "Expected '" + expectedConfigsLine + "' in output: " + lines);
   }
 
   private static List<String> readLines(InputStream input) throws IOException {
