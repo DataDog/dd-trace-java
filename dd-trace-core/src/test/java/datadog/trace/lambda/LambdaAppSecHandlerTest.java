@@ -12,8 +12,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -50,7 +48,6 @@ import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
-import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDCoreJavaSpecification;
 import datadog.trace.lambda.LambdaEventParser.LambdaResponseData;
 import datadog.trace.lambda.LambdaEventParser.LambdaTriggerType;
@@ -1529,56 +1526,6 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   }
 
   // ============================================================================
-  // mergeContexts Tests
-  // ============================================================================
-
-  @Test
-  void mergeContextsReturnsNullWhenBothContextsAreNull() {
-    assertNull(LambdaAppSecHandler.mergeContexts(null, null));
-  }
-
-  @Test
-  void mergeContextsReturnsExtensionContextWhenAppSecContextIsNull() {
-    TagContext extensionContext = mock(TagContext.class);
-    assertEquals(extensionContext, LambdaAppSecHandler.mergeContexts(extensionContext, null));
-  }
-
-  @Test
-  void mergeContextsReturnsAppSecContextWhenExtensionContextIsNull() {
-    TagContext appSecContext = mock(TagContext.class);
-    assertEquals(appSecContext, LambdaAppSecHandler.mergeContexts(null, appSecContext));
-  }
-
-  @Test
-  void mergeContextsMergesAppSecDataIntoTagContext() {
-    Object appSecData = new Object();
-    TagContext appSecContext = new TagContext();
-    appSecContext.withRequestContextDataAppSec(appSecData);
-    TagContext extensionContext = new TagContext();
-
-    AgentSpanContext result = LambdaAppSecHandler.mergeContexts(extensionContext, appSecContext);
-
-    assertEquals(extensionContext, result);
-    assertEquals(appSecData, ((TagContext) result).getRequestContextDataAppSec());
-  }
-
-  @Test
-  void mergeContextsReturnsExtensionContextWhenAppSecContextIsNotTagContext() {
-    TagContext extensionContext = mock(TagContext.class);
-    AgentSpanContext appSecContext = mock(AgentSpanContext.class);
-    assertEquals(
-        extensionContext, LambdaAppSecHandler.mergeContexts(extensionContext, appSecContext));
-  }
-
-  @Test
-  void mergeContextsReturnsExtensionContextWhenItIsNotTagContext() {
-    AgentSpanContext extensionContext = mock(AgentSpanContext.class);
-    TagContext appSecContext = mock(TagContext.class);
-    assertEquals(
-        extensionContext, LambdaAppSecHandler.mergeContexts(extensionContext, appSecContext));
-  }
-
-  // ============================================================================
   // Error Handling and Null Callback Tests
   // ============================================================================
 
@@ -1809,37 +1756,6 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
         span, createOutputStream("{\"statusCode\": 200, \"body\": \"ok\"}"));
 
     verifyNoInteractions(span);
-  }
-
-  @Test
-  @SuppressWarnings("unchecked")
-  void notifyAppSecEndFinalizesRequestWhenResponseProcessingThrows() {
-    LambdaAppSecHandler.setCurrentTriggerType(LambdaTriggerType.API_GATEWAY_V1_REST);
-    RequestContext requestContext = mock(RequestContext.class);
-    when(requestContext.getData(RequestContextSlot.APPSEC)).thenReturn(new Object());
-    AgentSpan span = mock(AgentSpan.class);
-    when(span.getRequestContext()).thenReturn(requestContext);
-
-    BiFunction<RequestContext, IGSpanInfo, Flow<Void>> requestEndedCallback =
-        mock(BiFunction.class);
-    when(requestEndedCallback.apply(any(), any())).thenReturn(Flow.ResultFlow.empty());
-    CallbackProvider callbackProvider = mock(CallbackProvider.class);
-    when(callbackProvider.getCallback(EVENTS.requestEnded())).thenReturn(requestEndedCallback);
-    AgentTracer.TracerAPI tracer = mock(AgentTracer.TracerAPI.class);
-    when(tracer.getCallbackProvider(RequestContextSlot.APPSEC)).thenReturn(callbackProvider);
-    AgentTracer.forceRegister(tracer);
-
-    ByteArrayOutputStream result =
-        new ByteArrayOutputStream() {
-          @Override
-          public synchronized byte[] toByteArray() {
-            throw new AssertionError("response processing failed");
-          }
-        };
-
-    CoreTracer coreTracer = tracerBuilder().build();
-    assertThrows(AssertionError.class, () -> coreTracer.notifyAppSecEnd(span, result));
-    verify(requestEndedCallback).apply(requestContext, span);
   }
 
   @Test
@@ -2842,26 +2758,6 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     assertEquals("GET", tags.get(Tags.HTTP_METHOD));
     assertEquals("https://lb-123.eu-west-1.elb.amazonaws.com/alb", tags.get(Tags.HTTP_URL));
     assertEquals("alb-agent", tags.get(Tags.HTTP_USER_AGENT));
-  }
-
-  @Test
-  void mergeContextsCopiesHttpTagsIntoExtensionContext() {
-    TagContext appSecContext = new TagContext();
-    appSecContext.putTag(Tags.COMPONENT, "aws-lambda");
-    appSecContext.putTag(Tags.HTTP_URL, "https://api.example.com/users/42");
-    appSecContext.putTag(Tags.HTTP_ROUTE, "/users/{id}");
-    TagContext extensionContext = new TagContext();
-
-    AgentSpanContext merged = LambdaAppSecHandler.mergeContexts(extensionContext, appSecContext);
-
-    assertSame(extensionContext, merged);
-    Map<String, Object> tags = tagsOf(merged);
-    assertEquals("aws-lambda", tags.get(Tags.COMPONENT));
-    assertEquals("https://api.example.com/users/42", tags.get(Tags.HTTP_URL));
-    assertEquals("/users/{id}", tags.get(Tags.HTTP_ROUTE));
-
-    ((TagContext) merged).putTag(Tags.COMPONENT, "spring-web-controller");
-    assertEquals("spring-web-controller", tagsOf(merged).get(Tags.COMPONENT));
   }
 
   @Test

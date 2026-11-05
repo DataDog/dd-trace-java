@@ -142,8 +142,8 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
 
   @Test
   @WithConfig(key = TracerConfig.TRACE_LAMBDA_SNAPSTART_CLOCK_RESYNC_ENABLED, value = "true")
-  void notifyLambdaStart_whenExplicitlyEnabled_thenResyncsClockToCurrentTime() {
-    // notifyLambdaStart runs once per Lambda invocation, before any span for that invocation is
+  void startLambdaInvocation_whenExplicitlyEnabled_thenResyncsClockToCurrentTime() {
+    // startLambdaInvocation runs once per Lambda invocation, before any span for that invocation is
     // created - the actual trigger point for the resync in production, not just the extracted
     // maybeResyncClockForLambdaInvocation() logic exercised directly above.
     SnapStartTimeSource timeSource = new SnapStartTimeSource(SNAPSTART_CONSTRUCTION_TIME_NANOS);
@@ -152,9 +152,12 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
       timeSource.simulateSnapStartRestore(TimeUnit.HOURS.toNanos(2));
       long postRestoreNanos = timeSource.getCurrentTimeNanos();
 
-      tracer.notifyLambdaStart(new Object(), "lambda-request-123");
+      datadog.trace.bootstrap.instrumentation.api.AgentTracer.LambdaInvocation invocation =
+          tracer.startLambdaInvocation(new Object(), "lambda-request-123", "function", "1", null);
+      invocation.onExit(null, null);
+      invocation.finish();
 
-      // Same near-frozen-nanoTicks check as above: proves notifyLambdaStart's resync corrected
+      // Same near-frozen-nanoTicks check as above: proves startLambdaInvocation's resync corrected
       // the drift, rather than the assertion re-deriving the answer independently.
       assertEquals(postRestoreNanos, tracer.getTimeWithNanoTicks(timeSource.getNanoTicks()));
     } finally {
@@ -164,7 +167,7 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
 
   @Test
   void
-      notifyLambdaStart_whenResyncDefaultsToDisabled_thenTimestampStaysAnchoredToConstructionTime() {
+      startLambdaInvocation_whenResyncDefaultsToDisabled_thenTimestampStaysAnchoredToConstructionTime() {
     SnapStartTimeSource timeSource = new SnapStartTimeSource(SNAPSTART_CONSTRUCTION_TIME_NANOS);
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).timeSource(timeSource).build();
     try {
@@ -172,7 +175,10 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
       timeSource.simulateSnapStartRestore(TimeUnit.HOURS.toNanos(2));
 
       // No @WithConfig override here - this is an opt-in feature, off by default.
-      tracer.notifyLambdaStart(new Object(), "lambda-request-123");
+      datadog.trace.bootstrap.instrumentation.api.AgentTracer.LambdaInvocation invocation =
+          tracer.startLambdaInvocation(new Object(), "lambda-request-123", "function", "1", null);
+      invocation.onExit(null, null);
+      invocation.finish();
 
       assertEquals(
           SNAPSTART_CONSTRUCTION_TIME_NANOS,

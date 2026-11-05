@@ -115,8 +115,6 @@ import datadog.trace.core.servicediscovery.ServiceDiscoveryFactory;
 import datadog.trace.core.taginterceptor.RuleFlags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
 import datadog.trace.core.traceinterceptor.LatencyTraceInterceptor;
-import datadog.trace.lambda.LambdaAppSecHandler;
-import datadog.trace.lambda.LambdaHandler;
 import datadog.trace.lambda.LambdaInvocation;
 import datadog.trace.util.AgentTaskScheduler;
 import java.io.IOException;
@@ -148,9 +146,6 @@ import org.slf4j.LoggerFactory;
 public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
   private static final Logger log = LoggerFactory.getLogger(CoreTracer.class);
-
-  /** Temporary development gate; remove together with the legacy Lambda path. */
-  private static final boolean NATIVE_LAMBDA_TRACING_ENABLED = false;
 
   public static CoreTracerBuilder builder() {
     return new CoreTracerBuilder();
@@ -1348,46 +1343,9 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       String functionName,
       String functionVersion,
       String invokedArn) {
-    if (!isNativeLambdaTracingEnabled()) {
-      return null;
-    }
     maybeResyncClockForLambdaInvocation();
     return LambdaInvocation.start(
         this, initialConfig, event, requestId, functionName, functionVersion, invokedArn);
-  }
-
-  @Override
-  public boolean isNativeLambdaTracingEnabled() {
-    return NATIVE_LAMBDA_TRACING_ENABLED;
-  }
-
-  @Override
-  public AgentSpanContext notifyLambdaStart(Object event, String lambdaRequestId) {
-    maybeResyncClockForLambdaInvocation();
-
-    // Get context from AppSec
-    AgentSpanContext appSecContext = LambdaAppSecHandler.processRequestStart(event);
-
-    // Get context from extension
-    AgentSpanContext extensionContext = LambdaHandler.notifyStartInvocation(event, lambdaRequestId);
-
-    // Merge contexts
-    return LambdaAppSecHandler.mergeContexts(extensionContext, appSecContext);
-  }
-
-  @Override
-  public void notifyExtensionEnd(
-      AgentSpan span, Object result, boolean isError, String lambdaRequestId) {
-    LambdaHandler.notifyEndInvocation(span, result, isError, lambdaRequestId);
-  }
-
-  @Override
-  public void notifyAppSecEnd(AgentSpan span, Object result) {
-    try {
-      LambdaAppSecHandler.processResponseData(span, result);
-    } finally {
-      LambdaAppSecHandler.processRequestEnd(span);
-    }
   }
 
   @Override
