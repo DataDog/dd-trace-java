@@ -9,25 +9,32 @@ On top of the standard sources, [`@TableTest`](https://tabletest.org/) can be us
 
 ### [`@ValueSource`](https://docs.junit.org/5.14.3/writing-tests/parameterized-classes-and-tests.html#tests-sources-ValueSource)
 
-Single-parameter tests with literal values (`String`, `int`, `long`, `double`, `boolean`, `Class`):
+For single-parameter tests with literal values, prefer `@TableTest` over `@ValueSource`: named scenarios make each case easier to understand. Convert existing `@ValueSource` tests when migrating them.
 
 ```java
-@ParameterizedTest
-@ValueSource(strings = {"RANDOM", "SEQUENTIAL", "SECURE_RANDOM"})
+@TableTest({
+    "scenario      | strategyName",
+    "random        | RANDOM",
+    "sequential    | SEQUENTIAL",
+    "secure random | SECURE_RANDOM"
+})
 void generateIdWithStrategy(String strategyName) {
-    // strategyName takes each value in turn
+    // Exercise each strategy.
 }
 ```
 
 ### [`@NullSource` / `@EmptySource` / `@NullAndEmptySource`](https://docs.junit.org/5.14.3/writing-tests/parameterized-classes-and-tests.html#tests-sources-null-and-empty)
 
-Inject `null`, empty, or both as a single argument.
-Often combined with `@ValueSource`:
+These JUnit sources inject null, empty, or both as a single argument. Prefer expressing these cases as named `@TableTest` rows alongside the other inputs. A blank cell represents null; `''` represents an empty string:
 
 ```java
-@ParameterizedTest
-@NullSource
-@ValueSource(strings = {"", "-1", "18446744073709551616"})
+@TableTest({
+    "scenario | stringId",
+    "null     |",
+    "empty    | ''",
+    "negative | '-1'",
+    "overflow | '18446744073709551616'"
+})
 void failOnIllegalString(String stringId) {
     assertThrows(NumberFormatException.class, () -> DDSpanId.from(stringId));
 }
@@ -146,7 +153,7 @@ Before falling back to `@MethodSource`, try expressing an object's building bloc
 
 | Use                                      | Prefer                                    |
 |------------------------------------------|-------------------------------------------|
-| One primitive/string parameter           | `@ValueSource` (+ `@NullSource` if needed)|
+| One primitive/string parameter           | `@TableTest` with named scenarios        |
 | Enum values                              | `@EnumSource`                             |
 | Multiple primitive/string parameters     | `@TableTest`                              |
 | Cases include symbolic constants         | `@TableTest` + `@TypeConverter`           |
@@ -156,7 +163,7 @@ Before falling back to `@MethodSource`, try expressing an object's building bloc
 | Reusable provider across classes         | `@ArgumentsSource`                        |
 
 Rule of thumb: reach for `@TableTest` by default for multi-column data - it reads like a spec and keeps cases aligned.
-Preserve simple single-parameter `@ValueSource` tests unless meaningful scenario names or additional columns improve readability. Array parameters such as `String[]` accept TableTest list literals (see `JsonMapperTest.testMappingArrayToJsonArray`). Fall back to `@MethodSource` when neither table values nor simple building-block columns express the case easily.
+Prefer `@TableTest` over `@ValueSource` even for single-parameter tests, including named null and empty cases in the table. Array parameters such as `String[]` accept TableTest list literals (see `JsonMapperTest.testMappingArrayToJsonArray`). Fall back to `@MethodSource` when neither table values nor simple building-block columns express the case easily.
 
 ## Config injection with `@WithConfig`
 
