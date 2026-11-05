@@ -1,7 +1,5 @@
 package datadog.trace.instrumentation.httpclient
 
-import datadog.trace.agent.test.scopediag.TrackScopeContinuations
-
 import java.nio.ByteBuffer
 import java.util.concurrent.CompletionStage
 import java.util.concurrent.CountDownLatch
@@ -36,7 +34,6 @@ class JavaHttpClientAsyncTest extends JavaHttpClientTest {
     return ret
   }
 
-  @TrackScopeContinuations
   def "application callbacks retain parents after async response: failure=#failure"() {
     setup:
     def releaseResponse = new CountDownLatch(1)
