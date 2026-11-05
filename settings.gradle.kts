@@ -1,3 +1,5 @@
+import org.gradle.internal.os.OperatingSystem
+
 pluginManagement {
   repositories {
     mavenLocal()
@@ -33,7 +35,7 @@ pluginManagement {
 }
 
 plugins {
-  id("com.github.burrunan.s3-build-cache") version "1.9.9"
+  id("com.github.burrunan.s3-build-cache") version "1.9.11"
   id("com.gradle.develocity") version "4.6.1"
   id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
@@ -56,15 +58,11 @@ if (isCI.isPresent) {
     local {
       directory = File(rootDir, "workspace/build-cache")
     }
+    // Only GitLab CI provides the S3 build cache configuration and credentials.
     if (isGitLabCI.isPresent) {
       val defaultCachePrefix = providers.provider {
-        val osName = providers.systemProperty("os.name").get()
-        val os = if (osName == "Mac OS X") "darwin" else osName.lowercase()
-        val arch = when (val archName = providers.systemProperty("os.arch").get()) {
-          "amd64" -> "x86_64"
-          "aarch64", "arm64" -> if (os == "darwin") "arm64" else "aarch64"
-          else -> archName
-        }
+        val os = OperatingSystem.current().familyName.replace(' ', '-')
+        val arch = providers.systemProperty("os.arch").get()
         // Non-tag pipelines share a cache per architecture/OS so that all jobs contribute
         // outputs and reuse them across jobs and pipelines. Release prefixes can use:
         // - Pipeline ID (default): jobs share within one pipeline; new pipelines start fresh.
@@ -92,6 +90,7 @@ if (isCI.isPresent) {
         region = providers.environmentVariable("S3_BUILD_CACHE_REGION").get()
         bucket = providers.environmentVariable("S3_BUILD_CACHE_BUCKET").get()
         prefix = "$cachePrefix/"
+        // Trusted CI jobs populate matching cache entries for reuse.
         isPush = true
         lookupDefaultAwsCredentials = true
         isReducedRedundancy = false
