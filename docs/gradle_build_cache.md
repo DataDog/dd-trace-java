@@ -40,6 +40,25 @@ not task-output caches.
 | `UP-TO-DATE` | Existing workspace outputs reused.                                                             |
 | `SKIPPED` / `NO-SOURCE` | No execution needed; not a cache hit.                                                          |
 
+## Read cache statistics
+
+Search the main script in a GitLab job log for `S3 cache`, near the end of each Gradle run.
+For example, `reads: 100, hits: 90` means a 90% hit rate and 10 misses.
+
+| Measure | Meaning |
+| --- | --- |
+| S3 hit rate | Total `hits` divided by total `reads`. |
+| S3 misses | Total `reads` minus total `hits`. |
+| Writes | Store attempts, which can repeat the same key. |
+| Task restoration | `FROM-CACHE` tasks divided by Gradle's total actionable tasks; includes local and S3 hits. |
+| Test restoration | Cached `Test` tasks divided by cached plus executed `Test` tasks. Exclude `UP-TO-DATE`, `SKIPPED` and `NO-SOURCE`; these are task counts, not test counts. |
+
+Check individual task outcomes: compilation can hit the cache while tests still execute.
+Add counters before calculating rates, grouping jobs by family, architecture and JVM.
+Keep Gradle invocations separate, and record transfer bytes and read/write times.
+In a read summary, omitted `hits` means zero; omitted `reads` means all lookups hit.
+If no summary appears, try `--info` and check cache and statistics settings.
+
 ## Investigate a problem
 
 | Symptom | Check |
@@ -47,6 +66,8 @@ not task-output caches.
 | Unexpected misses | Cache flags, prefix, platform, changed inputs, and the task's cacheability. New namespaces cause expected misses. |
 | S3 errors | Credentials, bucket/region, permissions, and network errors. A green job does not prove S3 access. |
 | Incorrect cached output | Compare with an uncached run. Isolate suspect entries while fixing missing inputs or outputs that vary with identical inputs. |
+| Failures involving generated classes, resources, or instrumentation indexes | Use `SKIP_BUILD_CACHE=true` to regenerate and repackage outputs from `build` or `build_tests` in the failing job. |
+| Native smoke-test failures | Use `SKIP_BUILD_CACHE=true` to rebuild the executable in the failing job. Check that task inputs track changes to the toolchain and builder image. |
 | Hits without faster CI | Transfers, configuration time, tasks that still execute, and the pipeline's critical path. |
 
 Compare task inputs in [Build Scans](how_to_work_with_gradle.md#build-scans-develocity).
@@ -61,10 +82,32 @@ Replace the module/task as needed. Run twice and compare keys and input hashes.
 Cleaning outputs allows restoration; omit `--rerun-tasks` when checking hits.
 Local runs diagnose inputs, but do not verify CI's S3 access.
 
+S3 misses can also mean HTTP 403 (access denied) or an entry larger than the plugin's
+`maximumCachedObjectLength`. Use `--info` to check the key and reason before assuming
+an entry is missing.
+
 Check build logic, dependencies, JVM/toolchains, flags, platform, container digests,
 and generated files. Timestamps and absolute paths can cause unnecessary misses;
 missing inputs can cause incorrect hits. See Gradle's
 [cache debugging guide](https://docs.gradle.org/current/userguide/build_cache_debugging.html).
+
+Smoke tests track the complete agent JAR through `SmokeAgentArguments.tracerJar` (`@InputFile`).
+Its generated `.version` files contain the commit hash, so a new commit can cause smoke-test
+misses even with identical sources. Compilation may still hit the cache. Rerun the same commit
+with matching inputs to measure smoke-test reuse.
+
+## Inspect a cache entry
+
+With S3 read access, inspect an object's size, last-modified time and metadata using its full key:
+
+```shell
+aws s3api head-object --bucket '<bucket>' --key '<prefix><cache-key>'
+```
+
+Optional [plugin metadata](https://github.com/burrunan/gradle-s3-build-cache/tree/v1.9.11#s3-metadata)
+includes the task path (`identity`), execution time in milliseconds (`executiontime`),
+build ID (`buildinvocationid`), Gradle version and operating system. S3 lowercases these keys.
+Use the build ID to help trace the producer, and logs to count reads and misses.
 
 ## Compare correctness and performance
 
@@ -82,15 +125,19 @@ the same commit. Master is a baseline, but differing code/jobs limit comparison.
 
 Check artifacts and timing as well as job status:
 
-- **JARs:** `validate_build` compares `build` artifacts with cached and uncached rebuilds.
+- **JARs:** `validate_build` compares `build` artifacts with one candidate using the pipeline's
+  cache settings. The candidate may reuse workspace outputs.
   Read `check_reports/<module>/jardiff/`; failed comparisons preserve JARs in
   `check_reports/jar-comparison-artifacts/{reference,candidate}/`.
-  Check dependency version stamps. `SKIP_BUILD_CACHE=true` makes both validators uncached.
+  Check dependency version stamps. Compare runs with and without caching to check cache effects.
+  #12604 adds a cached/uncached validation matrix; `SKIP_BUILD_CACHE=true` forces both variants uncached.
 - **Tests:** compare JUnit/Muzzle names, counts, outcomes, and shard coverage in
   `results/`, `reports/`, or `check_reports/`. Timing fields can differ.
   Cached tests restore previous results. Check collection logs for missing reports.
 - **Time:** compare actual job duration and the pipeline's critical path.
-  Separate queue, artifact transfer, and configuration time. The plugin's summed
+  Record queue time separately. Break out runner setup, checkout, GitLab cache restoration,
+  Gradle configuration and tasks, report collection, and artifact upload. Compare similarly warm
+  caches for each job family and architecture. The plugin's summed
   time-saved estimate does not account for parallel execution.
 
 ## Task changes and issue reports
