@@ -230,6 +230,12 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     }
   }
 
+  /** Returns the application HTTP server span, beneath any inferred proxy span. */
+  protected static AgentSpan getHttpServerSpan(AgentSpan span) {
+    InferredProxySpan inferredProxy = InferredProxySpan.fromContext(Context.current());
+    return inferredProxy != null ? inferredProxy.getServiceEntrySpan() : span.getLocalRootSpan();
+  }
+
   private void resetServiceNameIfUnderInferredProxy(Context parentContext, AgentSpan span) {
     if (InferredProxySpan.fromContext(parentContext) != null) {
       span.setServiceName(Config.get().getServiceName());

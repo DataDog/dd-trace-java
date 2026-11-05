@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.play27.server.test
 
+import datadog.context.Context
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
@@ -9,11 +11,16 @@ import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.api.KnownTags
 import datadog.trace.api.config.TraceInstrumentationConfig
+import datadog.trace.api.gateway.InferredProxySpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.instrumentation.play26.PlayAdvice
 import datadog.trace.instrumentation.play26.PlayHttpServerDecorator
 import datadog.trace.instrumentation.play26.server.TestHttpErrorHandler
 import okhttp3.Request
 import play.api.BuiltInComponents
+import play.api.libs.typedmap.TypedMap$
+import play.api.mvc.Request as ScalaRequest
+import play.api.routing.HandlerDef
 import play.libs.concurrent.ClassLoaderExecution
 import play.routing.Router
 import spock.lang.Shared
@@ -28,6 +35,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWAR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext
 
 class PlayAsyncServerRoutesScalaWithErrorHandlerTest extends AbstractPlayServer27WithErrorHandlerTest {
   @Shared
@@ -166,5 +174,73 @@ class PlayAsyncServerRoutesOtelSemanticsForkedTest extends PlayAsyncServerRoutes
     transport.getTag('http.route') == '/path/$path<[^/]+>/param'
     transport.resourceName.toString() == 'GET /path/$path<[^/]+>/param'
     play.getTag('http.route') == '/path/$path<[^/]+>/param'
+  }
+}
+
+class PlayRouteTracingFilterOtelSemanticsForkedTest extends InstrumentationSpecification {
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig('trace.inferred.proxy.services.enabled', 'true')
+    injectSysConfig('trace.otel.semantics.enabled', 'true')
+  }
+
+  def "tracing filters do not receive the HTTP server route before sampling"() {
+    setup:
+    def handler = Stub(HandlerDef) {
+      path() >> '/items/{param}'
+    }
+    def requestAttributes = TypedMap$.MODULE$.empty().updated(Router.Attrs.HANDLER_DEF.asScala(), handler)
+    def request = Stub(ScalaRequest) {
+      attrs() >> requestAttributes
+      method() >> 'GET'
+      path() >> '/items/value'
+      host() >> 'localhost'
+      remoteAddress() >> '127.0.0.1'
+      rawQueryString() >> ''
+    }
+    request.addAttr(_, _) >> request
+    def inferred = InferredProxySpan.fromHeaders([
+      'x-dd-proxy': 'aws-apigateway',
+      'x-dd-proxy-request-time-ms': Long.toString(System.currentTimeMillis()),
+      'x-dd-proxy-httpmethod': 'GET',
+      'x-dd-proxy-path': '/public/items/value',
+      'x-dd-proxy-resource-path': '/public/{proxy+}'
+    ])
+    def parent = inferredProxy ? Context.root().with(inferred) : Context.root()
+    def serverContext = PlayHttpServerDecorator.DECORATE.startSpan(null, parent)
+    def server = fromContext(serverContext)
+    server.setResourceName('GET')
+    def serverScope = serverContext.attach()
+    def filter = TEST_TRACER.startSpan('test', 'filter1')
+    filter.setResourceName('filter1')
+    def filterScope = TEST_TRACER.activateManualSpan(filter)
+    def playScope
+    def play
+
+    when:
+    playScope = PlayAdvice.onEnter(request)
+    play = fromContext(playScope.context())
+
+    then:
+    play.getTag('http.route') == '/items/{param}'
+    server.getTag('http.route') == '/items/{param}'
+    server.resourceName.toString() == 'GET /items/{param}'
+    filter.getTag('http.route') == null
+    filter.resourceName.toString() == 'filter1'
+    !inferredProxy || server.localRootSpan.getTag('http.route') == '/public/{proxy+}'
+    !inferredProxy || server.localRootSpan.resourceName.toString() == 'GET /public/{proxy+}'
+
+    cleanup:
+    playScope?.close()
+    play?.finish()
+    filterScope?.close()
+    filter?.finish()
+    serverScope?.close()
+    server?.finish()
+    inferred?.finish()
+
+    where:
+    inferredProxy << [false, true]
   }
 }
