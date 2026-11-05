@@ -210,18 +210,20 @@ public class ExecutionStrategy {
   }
 
   public boolean isModified(@Nonnull TestSourceData testSourceData) {
-    Class<?> testClass = testSourceData.getTestClass();
-    if (testClass == null) {
+    Method testMethod = testSourceData.getTestMethod();
+    Class<?> sourceClass =
+        testMethod != null ? testMethod.getDeclaringClass() : testSourceData.getTestClass();
+    if (sourceClass == null) {
       return false;
     }
     try {
-      Collection<String> sourcePaths = sourcePathResolver.getSourcePaths(testClass);
+      Collection<String> sourcePaths = sourcePathResolver.getSourcePaths(sourceClass);
       if (sourcePaths.size() != 1) {
         return false;
       }
       String sourcePath = sourcePaths.iterator().next();
 
-      LinesResolver.Lines lines = getLines(testSourceData.getTestMethod());
+      LinesResolver.Lines lines = getLines(testMethod);
       return executionSettings
           .getPullRequestDiff()
           .contains(sourcePath, lines.getStartLineNumber(), lines.getEndLineNumber());
