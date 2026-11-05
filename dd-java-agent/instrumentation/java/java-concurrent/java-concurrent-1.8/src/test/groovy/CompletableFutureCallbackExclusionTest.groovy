@@ -7,7 +7,6 @@ import completablefuture.CallbackExclusionTestInstrumentation.UnlistedSubclass
 import datadog.environment.JavaVirtualMachine
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.scopediag.ScopeDiagnostics
-import datadog.trace.agent.test.scopediag.TrackScopeContinuations
 
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
@@ -19,7 +18,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.COMPLETABLE_FUTURE_CALLBACK
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.exclude
 
-@TrackScopeContinuations
 class CompletableFutureCallbackExclusionTest extends InstrumentationSpecification {
   def setup() {
     assert exclude(COMPLETABLE_FUTURE_CALLBACK, Excluded.name): "Unary callback exclusion provider was not installed"

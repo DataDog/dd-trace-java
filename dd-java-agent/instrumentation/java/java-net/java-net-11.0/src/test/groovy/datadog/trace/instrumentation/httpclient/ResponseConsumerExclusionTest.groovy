@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.httpclient
 
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.scopediag.ScopeDiagnostics
-import datadog.trace.agent.test.scopediag.TrackScopeContinuations
 
 import java.net.http.HttpHeaders
 import java.net.http.HttpResponse
@@ -15,7 +14,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.exclude
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.COMPLETABLE_FUTURE_CALLBACK
 
-@TrackScopeContinuations
 class ResponseConsumerExclusionTest extends InstrumentationSpecification {
   def "real response consumer captures no continuation: completed=#completed failure=#failure"() {
     setup:
