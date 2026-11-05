@@ -3,7 +3,7 @@ package datadog.trace.instrumentation.kafka_clients38;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 
 import datadog.trace.api.datastreams.DataStreamsTags;
-import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.instrumentation.kafka_common.MetadataState;
 import java.util.Map;
@@ -15,11 +15,15 @@ import org.apache.kafka.common.TopicPartition;
 public class DDOffsetCommitCallback implements OffsetCommitCallback {
   OffsetCommitCallback callback;
   KafkaConsumerInfo kafkaConsumerInfo;
+  private final ContextStore<Metadata, MetadataState> metadataStore;
 
   public DDOffsetCommitCallback(
-      OffsetCommitCallback callback, KafkaConsumerInfo kafkaConsumerInfo) {
+      OffsetCommitCallback callback,
+      KafkaConsumerInfo kafkaConsumerInfo,
+      ContextStore<Metadata, MetadataState> metadataStore) {
     this.callback = callback;
     this.kafkaConsumerInfo = kafkaConsumerInfo;
+    this.metadataStore = metadataStore;
   }
 
   @Override
@@ -42,8 +46,7 @@ public class DDOffsetCommitCallback implements OffsetCommitCallback {
         consumerGroup = kafkaConsumerInfo.getConsumerGroup().orElse(null);
         Metadata consumerMetadata = kafkaConsumerInfo.getmetadata().orElse(null);
         if (consumerMetadata != null) {
-          MetadataState metadataState =
-              InstrumentationContext.get(Metadata.class, MetadataState.class).get(consumerMetadata);
+          MetadataState metadataState = metadataStore.get(consumerMetadata);
           clusterId = metadataState != null ? metadataState.clusterId : null;
         }
       }
