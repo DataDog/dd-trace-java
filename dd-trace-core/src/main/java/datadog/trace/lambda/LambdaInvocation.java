@@ -6,6 +6,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.TagMap;
+import datadog.trace.api.TracePropagationBehaviorExtract;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
@@ -17,6 +18,7 @@ import datadog.trace.config.inversion.ConfigHelper;
 import datadog.trace.core.CoreTracer;
 import java.math.BigDecimal;
 import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /** Owns the real invocation span when universal instrumentation is disabled. */
@@ -45,11 +47,26 @@ public final class LambdaInvocation implements AgentTracer.LambdaInvocation {
       String invokedArn) {
     functionName =
         valueOr(functionName, valueOr(ConfigHelper.env("AWS_LAMBDA_FUNCTION_NAME"), "lambda"));
+    Map<String, Object> payload = LambdaEventData.payload(event);
+    String region =
+        valueOr(
+            ConfigHelper.env("AWS_REGION"), LambdaEventData.part(valueOr(invokedArn, ""), ":", 3));
+    LambdaTrigger trigger =
+        new LambdaTriggerExtractor(region, functionName, config.getServiceMapping())
+            .extract(payload);
+    LambdaPropagation extracted = LambdaPropagation.extract(config, trigger, payload);
+    AgentSpanContext parent = extracted.parent;
+    CharSequence origin =
+        parent instanceof TagContext
+                && config.getTracePropagationBehaviorExtract()
+                    == TracePropagationBehaviorExtract.CONTINUE
+            ? ((TagContext) parent).getOrigin()
+            : null;
     AgentTracer.SpanBuilder builder =
         tracer
             .buildSpan("aws-lambda", "aws.lambda")
             .ignoreActiveSpan()
-            .asChildOf((AgentSpanContext) null)
+            .asChildOf(parent)
             .withSpanType(DDSpanTypes.SERVERLESS)
             .withResourceName(functionName)
             .withServiceName(config.getServiceName())
@@ -58,8 +75,9 @@ public final class LambdaInvocation implements AgentTracer.LambdaInvocation {
             .withTag("resource_names", functionName)
             .withTag("function_arn", invokedArn)
             .withTag("executedversion", functionVersion)
-            .withTag(DDTags.ORIGIN_KEY, "lambda")
+            .withTag(DDTags.ORIGIN_KEY, origin == null ? "lambda" : origin.toString())
             .withTag(Tags.SPAN_KIND, Tags.SPAN_KIND_SERVER);
+    trigger.tags.forEach(builder::withTag);
     AgentSpanContext appSec = LambdaAppSecHandler.processRequestStart(event);
     if (appSec instanceof TagContext) {
       TagContext data = (TagContext) appSec;
@@ -73,7 +91,12 @@ public final class LambdaInvocation implements AgentTracer.LambdaInvocation {
     AgentSpan span = null;
     try {
       span = builder.start();
-      return new LambdaInvocation(tracer, span, Context.root().with(span), functionName);
+      return new LambdaInvocation(
+          tracer,
+          span,
+          extracted.context.with(span),
+          functionName,
+          client.begin(span, ((DDSpan) span).getParentId(), requestId));
     } catch (RuntimeException | Error failure) {
       try {
         LambdaAppSecHandler.processRequestEnd(span);
