@@ -176,6 +176,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_128_BIT_TRACEID_LOG
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PROTOCOL_VERSION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANALYTICS_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AWS_SERVICE_REPRESENTATION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_BAGGAGE_MAX_BYTES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_BAGGAGE_MAX_ITEMS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_BAGGAGE_TAG_KEYS;
@@ -695,6 +696,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_PORT;
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_PROTOCOL_VERSION;
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_URL;
 import static datadog.trace.api.config.TracerConfig.TRACE_ANALYTICS_ENABLED;
+import static datadog.trace.api.config.TracerConfig.TRACE_AWS_SERVICE_REPRESENTATION_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_BAGGAGE_MAX_BYTES;
 import static datadog.trace.api.config.TracerConfig.TRACE_BAGGAGE_MAX_ITEMS;
 import static datadog.trace.api.config.TracerConfig.TRACE_BAGGAGE_TAG_KEYS;
@@ -1363,6 +1365,7 @@ public class Config {
   private final boolean secureRandom;
 
   private final boolean lambdaSnapStartClockResyncEnabled;
+  private final boolean awsServiceRepresentationEnabled;
 
   private final boolean trace128bitTraceIdGenerationEnabled;
   private final boolean logs128bitTraceIdEnabled;
@@ -1596,6 +1599,10 @@ public class Config {
     } else {
       secureRandom = configProvider.getBoolean(SECURE_RANDOM, DEFAULT_SECURE_RANDOM);
     }
+    awsServiceRepresentationEnabled =
+        configProvider.getBoolean(
+            TRACE_AWS_SERVICE_REPRESENTATION_ENABLED,
+            DEFAULT_TRACE_AWS_SERVICE_REPRESENTATION_ENABLED);
     lambdaSnapStartClockResyncEnabled =
         configProvider.getBoolean(
             TRACE_LAMBDA_SNAPSTART_CLOCK_RESYNC_ENABLED,
@@ -5286,6 +5293,10 @@ public class Config {
     return awsServerless;
   }
 
+  public boolean isAwsServiceRepresentationEnabled() {
+    return awsServiceRepresentationEnabled;
+  }
+
   public boolean isLambdaSnapStartClockResyncEnabled() {
     return lambdaSnapStartClockResyncEnabled;
   }
@@ -6661,7 +6672,9 @@ public class Config {
   @Override
   public String toString() {
     return "Config{"
-        + "instrumenterConfig="
+        + "awsServiceRepresentationEnabled="
+        + awsServiceRepresentationEnabled
+        + ", instrumenterConfig="
         + instrumenterConfig
         + ", runtimeId='"
         + getRuntimeId()
