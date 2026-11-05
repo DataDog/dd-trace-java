@@ -1,44 +1,52 @@
 package com.datadog.openfeature;
 
 import static java.util.Collections.emptyMap;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 
+import com.datadog.openfeature.internal.ConfigurationService;
+import com.datadog.openfeature.internal.FeatureFlagsRuntime;
 import com.datadog.openfeature.internal.JsonReading;
+import com.datadog.openfeature.internal.RuntimeServices;
 import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
+import com.datadog.openfeature.internal.bridge.v1.HealthMetrics;
 import com.datadog.openfeature.internal.config.TestSettings;
 import com.datadog.openfeature.internal.evaluation.ExperimentationOptOut;
+import com.datadog.openfeature.internal.exposure.ExposureDeduplicationCache;
 import com.datadog.openfeature.internal.exposure.ExposureEvent;
+import com.datadog.openfeature.internal.exposure.ExposurePipeline;
 import com.datadog.openfeature.internal.flagevaluation.FlagEvalEvent;
-import com.datadog.openfeature.internal.flagevaluation.FlagEvaluationWriter;
+import com.datadog.openfeature.internal.flagevaluation.FlagEvaluationPipeline;
+import com.datadog.openfeature.internal.ufc.ServerConfiguration;
 import com.datadog.openfeature.internal.ufc.UniversalFlagConfigParser;
-import dev.openfeature.sdk.DefaultHookData;
+import dev.openfeature.sdk.Client;
 import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.EvaluationContext;
 import dev.openfeature.sdk.FlagEvaluationDetails;
-import dev.openfeature.sdk.FlagValueType;
-import dev.openfeature.sdk.HookContext;
 import dev.openfeature.sdk.MutableContext;
-import dev.openfeature.sdk.ProviderEvaluation;
+import dev.openfeature.sdk.OpenFeatureAPI;
 import dev.openfeature.sdk.Value;
 import java.io.IOException;
+import java.lang.reflect.Constructor;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
@@ -69,21 +77,42 @@ class CanonicalFixtureTest {
     assertThat(testCases(DEPENDENT_FLAGS).size(), greaterThan(0));
   }
 
+  @Test
+  void eventMatchersGreedilyConsumeMatchingEvents() {
+    final Map<String, Object> matcher = new LinkedHashMap<>();
+    matcher.put("flag", "expected");
+    final Map<String, Object> expectation = new LinkedHashMap<>();
+    expectation.put("evaluationEvents", Collections.singletonList(matcher));
+    final FixtureExpectations expectations = new FixtureExpectations(expectation);
+    final List<FlagEvalEvent> actual =
+        Arrays.asList(
+            new FlagEvalEvent("unmatched", null, null, null, 0, emptyMap()),
+            new FlagEvalEvent("expected", null, null, null, 0, emptyMap()));
+
+    expectations.assertMatches(Collections.emptyList(), actual);
+
+    expectation.put("noUnmatchedEvents", true);
+    final FixtureExpectations exactExpectations = new FixtureExpectations(expectation);
+    assertThrows(
+        AssertionError.class,
+        () -> exactExpectations.assertMatches(Collections.emptyList(), actual));
+  }
+
   @MethodSource("canonicalTestCases")
   @ParameterizedTest(name = "{0}")
-  void evaluateCanonicalFixture(final FixtureCase testCase) throws IOException {
+  void evaluateCanonicalFixture(final FixtureCase testCase) throws Exception {
     evaluateCanonicalFixture(testCase, ExperimentationOptOutMode.DISABLED);
   }
 
   @MethodSource("immediateOptOutTestCases")
   @ParameterizedTest(name = "immediate: {0}")
-  void evaluateImmediateOptOutFixture(final FixtureCase testCase) throws IOException {
+  void evaluateImmediateOptOutFixture(final FixtureCase testCase) throws Exception {
     evaluateCanonicalFixture(testCase, ExperimentationOptOutMode.IMMEDIATE);
   }
 
   @MethodSource("futureOptOutTestCases")
   @ParameterizedTest(name = "future: {0}")
-  void evaluateFutureOptOutFixture(final FixtureCase testCase) throws IOException {
+  void evaluateFutureOptOutFixture(final FixtureCase testCase) throws Exception {
     evaluateCanonicalFixture(testCase, ExperimentationOptOutMode.FUTURE_EXPERIMENTS_ONLY);
   }
 
@@ -113,49 +142,32 @@ class CanonicalFixtureTest {
   }
 
   private void evaluateCanonicalFixture(
-      final FixtureCase testCase, final ExperimentationOptOutMode mode) throws IOException {
+      final FixtureCase testCase, final ExperimentationOptOutMode mode) throws Exception {
     final Class<?> targetType = targetType(testCase.variationType);
     final Object defaultValue = fixtureValue(targetType, testCase.defaultValue);
     final Object expectedValue = fixtureValue(targetType, testCase.resultValue);
-    final ProviderEvaluation<?> details;
-    final List<ExposureEvent> exposures;
-    final List<FlagEvalEvent> evaluationEvents;
-
-    if (testCase.expectations != null && mode == ExperimentationOptOutMode.DISABLED) {
-      final ExposureTestEvaluator evaluator =
-          new ExposureTestEvaluator(
-              UniversalFlagConfigParser.parse(
-                  Files.readAllBytes(fixtureRoot().resolve(testCase.suite.ufcPath))),
-              true);
-      evaluationEvents = new ArrayList<>();
+    final List<FlagEvalEvent> evaluationEvents = new ArrayList<>();
+    final boolean captureTelemetry =
+        testCase.expectations != null && mode == ExperimentationOptOutMode.DISABLED;
+    final FeatureFlagsRuntime runtime =
+        captureTelemetry ? capturingRuntime(new CapturingPipeline(evaluationEvents)) : null;
+    final FixtureEvaluator evaluator =
+        new FixtureEvaluator(
+            UniversalFlagConfigParser.parse(
+                Files.readAllBytes(fixtureRoot().resolve(testCase.suite.ufcPath))),
+            mode,
+            runtime,
+            captureTelemetry);
+    final Provider provider =
+        new Provider(new Provider.Options().experimentationOptOutMode(mode), evaluator, false);
+    final OpenFeatureAPI api = OpenFeatureAPI.getInstance();
+    final FlagEvaluationDetails<?> details;
+    try {
+      api.setProviderAndWait(provider);
       details =
-          evaluateWithTelemetry(
-              evaluator,
-              new CapturingEvaluationWriter(evaluationEvents),
-              targetType,
-              testCase.flag,
-              defaultValue,
-              context(testCase));
-      exposures = evaluator.sentToDatadog;
-    } else {
-      final DDEvaluator evaluator =
-          new DDEvaluator(
-              mock(Runnable.class),
-              AgentBridge.NONE,
-              TestSettings.of("experimental.flagging.provider.span.enrichment.enabled", "true"),
-              mode);
-      evaluator.accept(
-          UniversalFlagConfigParser.parse(
-              Files.readAllBytes(fixtureRoot().resolve(testCase.suite.ufcPath))));
-      final Provider provider =
-          new Provider(new Provider.Options().experimentationOptOutMode(mode), evaluator, false);
-      try {
-        details = evaluate(provider, targetType, testCase.flag, defaultValue, context(testCase));
-      } finally {
-        provider.shutdown();
-      }
-      exposures = Collections.emptyList();
-      evaluationEvents = Collections.emptyList();
+          evaluate(api.getClient(), targetType, testCase.flag, defaultValue, context(testCase));
+    } finally {
+      api.shutdown();
     }
 
     assertThat(details.getValue(), equalTo(expectedValue));
@@ -188,7 +200,7 @@ class CanonicalFixtureTest {
           equalTo(testCase.resultAllocationKey));
     }
     if (testCase.expectations != null) {
-      testCase.expectations.assertMatches(exposures, evaluationEvents);
+      testCase.expectations.assertMatches(evaluator.exposures, evaluationEvents);
     }
   }
 
@@ -208,72 +220,35 @@ class CanonicalFixtureTest {
     return value;
   }
 
-  private static ProviderEvaluation<?> evaluate(
-      final Provider provider,
+  private static FlagEvaluationDetails<?> evaluate(
+      final Client client,
       final Class<?> targetType,
       final String flag,
       final Object defaultValue,
       final EvaluationContext context) {
     if (targetType == Boolean.class) {
-      return provider.getBooleanEvaluation(flag, (Boolean) defaultValue, context);
+      return client.getBooleanDetails(flag, (Boolean) defaultValue, context);
     }
     if (targetType == Integer.class) {
-      return provider.getIntegerEvaluation(flag, (Integer) defaultValue, context);
+      return client.getIntegerDetails(flag, (Integer) defaultValue, context);
     }
     if (targetType == Double.class) {
-      return provider.getDoubleEvaluation(flag, (Double) defaultValue, context);
+      return client.getDoubleDetails(flag, (Double) defaultValue, context);
     }
     if (targetType == String.class) {
-      return provider.getStringEvaluation(flag, (String) defaultValue, context);
+      return client.getStringDetails(flag, (String) defaultValue, context);
     }
-    return provider.getObjectEvaluation(flag, (Value) defaultValue, context);
+    return client.getObjectDetails(flag, (Value) defaultValue, context);
   }
 
-  @SuppressWarnings({"rawtypes", "unchecked"})
-  private static ProviderEvaluation<?> evaluateWithTelemetry(
-      final ExposureTestEvaluator evaluator,
-      final FlagEvaluationWriter writer,
-      final Class<?> targetType,
-      final String flag,
-      final Object defaultValue,
-      final EvaluationContext context) {
-    final HookContext hookContext =
-        HookContext.builder()
-            .flagKey(flag)
-            .type(flagValueType(targetType))
-            .defaultValue(defaultValue)
-            .ctx(context)
-            .hookData(new DefaultHookData())
-            .build();
-    final Map<String, Object> hints = new HashMap<>();
-    final ExposureLoggingHook exposureHook = new ExposureLoggingHook(() -> evaluator);
-    final FlagEvalLoggingHook evaluationHook =
-        new FlagEvalLoggingHook(() -> writer, () -> evaluator);
-
-    exposureHook.before(hookContext, hints);
-    evaluationHook.before(hookContext, hints);
-    final ProviderEvaluation<?> evaluation =
-        evaluator.evaluate((Class) targetType, flag, defaultValue, context);
-    final FlagEvaluationDetails details = FlagEvaluationDetails.from(evaluation, flag);
-    evaluationHook.finallyAfter(hookContext, details, hints);
-    exposureHook.finallyAfter(hookContext, details, hints);
-    return evaluation;
-  }
-
-  private static FlagValueType flagValueType(final Class<?> targetType) {
-    if (Boolean.class.equals(targetType)) {
-      return FlagValueType.BOOLEAN;
-    }
-    if (Integer.class.equals(targetType)) {
-      return FlagValueType.INTEGER;
-    }
-    if (Double.class.equals(targetType)) {
-      return FlagValueType.DOUBLE;
-    }
-    if (String.class.equals(targetType)) {
-      return FlagValueType.STRING;
-    }
-    return FlagValueType.OBJECT;
+  /** Creates a runtime only holding a flag-evaluation pipeline, without starting it. */
+  private static FeatureFlagsRuntime capturingRuntime(final FlagEvaluationPipeline evaluations)
+      throws ReflectiveOperationException {
+    final Constructor<FeatureFlagsRuntime> constructor =
+        FeatureFlagsRuntime.class.getDeclaredConstructor(
+            ConfigurationService.class, ExposurePipeline.class, FlagEvaluationPipeline.class);
+    constructor.setAccessible(true);
+    return constructor.newInstance(mock(ConfigurationService.class), null, evaluations);
   }
 
   static List<FixtureCase> canonicalTestCases() throws IOException {
@@ -386,10 +361,12 @@ class CanonicalFixtureTest {
     return value;
   }
 
-  private static final class CapturingEvaluationWriter implements FlagEvaluationWriter {
+  private static final class CapturingPipeline extends FlagEvaluationPipeline {
     private final List<FlagEvalEvent> events;
 
-    private CapturingEvaluationWriter(final List<FlagEvalEvent> events) {
+    private CapturingPipeline(final List<FlagEvalEvent> events) {
+      super(
+          1, 1, SECONDS, (route, json) -> {}, emptyMap(), new RuntimeServices(HealthMetrics.NOOP));
       this.events = events;
     }
 
@@ -399,14 +376,57 @@ class CanonicalFixtureTest {
     }
 
     @Override
-    public void countPreQueueOverflow() {}
-
-    @Override
-    public void countContextTruncated(final String reason) {}
-
-    @Override
     public void enqueue(final FlagEvalEvent event) {
       events.add(event);
+    }
+  }
+
+  /** Evaluator with per-case caches and optional in-memory telemetry sinks. */
+  private static final class FixtureEvaluator extends DDEvaluator {
+    private final ExposureDeduplicationCache cache = new ExposureDeduplicationCache();
+    private final List<ExposureEvent> exposures = new ArrayList<>();
+    private final FeatureFlagsRuntime runtime;
+    private final boolean captureExposures;
+
+    private FixtureEvaluator(
+        final ServerConfiguration configuration,
+        final ExperimentationOptOutMode mode,
+        final FeatureFlagsRuntime runtime,
+        final boolean captureExposures) {
+      super(
+          mock(Runnable.class),
+          AgentBridge.NONE,
+          TestSettings.of("experimental.flagging.provider.span.enrichment.enabled", "true"),
+          mode);
+      this.runtime = runtime;
+      this.captureExposures = captureExposures;
+      accept(configuration);
+    }
+
+    @Override
+    public boolean initialize(
+        final long timeout, final TimeUnit unit, final EvaluationContext context) {
+      return hasConfiguration();
+    }
+
+    @Override
+    FeatureFlagsRuntime runtime() {
+      return runtime;
+    }
+
+    @Override
+    ExposureDeduplicationCache exposureCache() {
+      return cache;
+    }
+
+    @Override
+    boolean isExposureDeliveryEnabled() {
+      return captureExposures;
+    }
+
+    @Override
+    void recordExposure(final ExposureEvent event) {
+      exposures.add(event);
     }
   }
 
@@ -503,18 +523,22 @@ class CanonicalFixtureTest {
         final List<T> actual,
         final boolean exact,
         final String eventType) {
-      int actualIndex = 0;
+      final List<T> unconsumed = new ArrayList<>(actual);
       for (final EventMatcher matcher : expected) {
         for (int count = 0; count < matcher.count; count++) {
-          assertTrue(actualIndex < actual.size(), "missing " + eventType + " for " + matcher);
-          assertTrue(
-              matcher.matches(actual.get(actualIndex)),
-              eventType + " at index " + actualIndex + " did not match " + matcher);
-          actualIndex++;
+          boolean matched = false;
+          for (int index = 0; index < unconsumed.size(); index++) {
+            if (matcher.matches(unconsumed.get(index))) {
+              unconsumed.remove(index);
+              matched = true;
+              break;
+            }
+          }
+          assertTrue(matched, "missing " + eventType + " for " + matcher + "; actual=" + actual);
         }
       }
       if (exact) {
-        assertEquals(actualIndex, actual.size(), "unexpected " + eventType + " events");
+        assertTrue(unconsumed.isEmpty(), "unexpected " + eventType + " events: " + unconsumed);
       }
     }
 
