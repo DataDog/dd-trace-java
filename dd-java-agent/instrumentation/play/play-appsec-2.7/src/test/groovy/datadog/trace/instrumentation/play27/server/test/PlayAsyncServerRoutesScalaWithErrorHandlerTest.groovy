@@ -16,7 +16,6 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.play26.PlayAdvice
 import datadog.trace.instrumentation.play26.PlayHttpServerDecorator
 import datadog.trace.instrumentation.play26.server.TestHttpErrorHandler
-import okhttp3.Request
 import play.api.BuiltInComponents
 import play.api.libs.typedmap.TypedMap$
 import play.api.mvc.Request as ScalaRequest
@@ -139,43 +138,7 @@ class PlayAsyncServerRoutesScalaWithErrorHandlerTest extends AbstractPlayServer2
   }
 }
 
-class PlayAsyncServerRoutesOtelSemanticsForkedTest extends PlayAsyncServerRoutesScalaWithErrorHandlerTest implements TestingOtelHttpSemantics {
-  @Override
-  protected void configurePreAgent() {
-    super.configurePreAgent()
-    injectSysConfig('trace.inferred.proxy.services.enabled', 'true')
-  }
-
-  def "application routes preserve the inferred gateway route"() {
-    when:
-    def response = client.newCall(new Request.Builder()
-      .url(address.resolve('/path/123/param').toString())
-      .header('x-dd-proxy', 'aws-apigateway')
-      .header('x-dd-proxy-request-time-ms', Long.toString(System.currentTimeMillis()))
-      .header('x-dd-proxy-httpmethod', 'GET')
-      .header('x-dd-proxy-path', '/public/path/123/param')
-      .header('x-dd-proxy-resource-path', '/public/{proxy+}')
-      .build()).execute()
-    assert response.code() == 200
-    response.close()
-    TEST_WRITER.waitForTraces(1)
-
-    then:
-    def spans = TEST_WRITER.flatten()
-    def gateway = spans.find { it.getTag('_dd.inferred_span') != null }
-    def transport = spans.find { it.getTag('component')?.toString() == 'akka-http-server' }
-    def play = spans.find { it.getTag('component')?.toString() == 'play-action' }
-    gateway != null
-    transport != null
-    play != null
-    transport.parentId == gateway.spanId
-    gateway.getTag('http.route') == '/public/{proxy+}'
-    gateway.resourceName.toString() == 'GET /public/{proxy+}'
-    transport.getTag('http.route') == '/path/$path<[^/]+>/param'
-    transport.resourceName.toString() == 'GET /path/$path<[^/]+>/param'
-    play.getTag('http.route') == '/path/$path<[^/]+>/param'
-  }
-}
+class PlayAsyncServerRoutesOtelSemanticsForkedTest extends PlayAsyncServerRoutesScalaWithErrorHandlerTest implements TestingOtelHttpSemantics {}
 
 class PlayRouteTracingFilterOtelSemanticsForkedTest extends InstrumentationSpecification {
   @Override
@@ -185,7 +148,7 @@ class PlayRouteTracingFilterOtelSemanticsForkedTest extends InstrumentationSpeci
     injectSysConfig('trace.otel.semantics.enabled', 'true')
   }
 
-  def "tracing filters do not receive the HTTP server route before sampling"() {
+  def "application routes preserve gateway routes and skip tracing filters before sampling"() {
     setup:
     def handler = Stub(HandlerDef) {
       path() >> '/items/{param}'
@@ -212,9 +175,9 @@ class PlayRouteTracingFilterOtelSemanticsForkedTest extends InstrumentationSpeci
     def server = fromContext(serverContext)
     server.setResourceName('GET')
     def serverScope = serverContext.attach()
-    def filter = TEST_TRACER.startSpan('test', 'filter1')
-    filter.setResourceName('filter1')
-    def filterScope = TEST_TRACER.activateManualSpan(filter)
+    def filter = tracingFilter ? TEST_TRACER.startSpan('test', 'filter1') : null
+    filter?.setResourceName('filter1')
+    def filterScope = filter ? TEST_TRACER.activateManualSpan(filter) : null
     def playScope
     def play
 
@@ -226,8 +189,10 @@ class PlayRouteTracingFilterOtelSemanticsForkedTest extends InstrumentationSpeci
     play.getTag('http.route') == '/items/{param}'
     server.getTag('http.route') == '/items/{param}'
     server.resourceName.toString() == 'GET /items/{param}'
-    filter.getTag('http.route') == null
-    filter.resourceName.toString() == 'filter1'
+    play.parentId == (filter ?: server).spanId
+    !filter || filter.getTag('http.route') == null
+    !filter || filter.resourceName.toString() == 'filter1'
+    !inferredProxy || server.parentId == server.localRootSpan.spanId
     !inferredProxy || server.localRootSpan.getTag('http.route') == '/public/{proxy+}'
     !inferredProxy || server.localRootSpan.resourceName.toString() == 'GET /public/{proxy+}'
 
@@ -241,6 +206,10 @@ class PlayRouteTracingFilterOtelSemanticsForkedTest extends InstrumentationSpeci
     inferred?.finish()
 
     where:
-    inferredProxy << [false, true]
+    inferredProxy | tracingFilter
+    false         | false
+    false         | true
+    true          | false
+    true          | true
   }
 }
