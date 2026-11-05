@@ -247,6 +247,14 @@ abstract class PekkoHttpRouteOtelSemanticsTest extends WithHttpServer<PekkoHttpT
 class PekkoHttpRouteOtelSemanticsForkedTest extends PekkoHttpRouteOtelSemanticsTest {
 }
 
+class PekkoHttpRouteOtelSemanticsCompletionPriorityForkedTest extends PekkoHttpRouteOtelSemanticsTest {
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig('trace.integration.scala_promise_completion_priority.enabled', 'true')
+  }
+}
+
 class PekkoHttpRouteOtelSemanticsRawResourceForkedTest extends PekkoHttpRouteOtelSemanticsTest {
   @Override
   void configurePreAgent() {
