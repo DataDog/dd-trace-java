@@ -6,6 +6,11 @@ import static datadog.trace.agent.test.assertions.TraceMatcher.trace;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static java.util.Arrays.asList;
+import static java.util.Collections.emptyList;
+import static java.util.Collections.singletonList;
+import static java.util.concurrent.Executors.newSingleThreadExecutor;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -22,13 +27,9 @@ import io.reactivex.rxjava3.disposables.Disposable;
 import io.reactivex.rxjava3.schedulers.Schedulers;
 import io.reactivex.rxjava3.schedulers.TestScheduler;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
@@ -48,7 +49,7 @@ class SingleMaybeCoverageTest extends AbstractInstrumentationTest {
                           })
                       .toFlowable())
           .subscribe(e::value, e::error, e::complete);
-      e.result(Collections.singletonList("Hello"), 1, null);
+      e.result(singletonList("Hello"), 1, null);
     }
   }
 
@@ -66,7 +67,7 @@ class SingleMaybeCoverageTest extends AbstractInstrumentationTest {
                           })
                       .toFlowable())
           .subscribe(e::value, e::error, e::complete);
-      e.result(Collections.emptyList(), 0, failure);
+      e.result(emptyList(), 0, failure);
     }
   }
 
@@ -84,14 +85,14 @@ class SingleMaybeCoverageTest extends AbstractInstrumentationTest {
                           })
                       .toFlowable())
           .subscribe(e::value, e::error, e::complete);
-      e.result(Collections.singletonList("AB"), 1, null);
+      e.result(singletonList("AB"), 1, null);
     }
   }
 
   @Test
   void singleAsyncHandoff() throws Exception {
-    ExecutorService first = Executors.newSingleThreadExecutor();
-    ExecutorService second = Executors.newSingleThreadExecutor();
+    ExecutorService first = newSingleThreadExecutor();
+    ExecutorService second = newSingleThreadExecutor();
     CountDownLatch release = new CountDownLatch(1);
     AtomicReference<Disposable> subscription = new AtomicReference<>();
     AtomicReference<Thread> firstThread = new AtomicReference<>();
@@ -99,13 +100,9 @@ class SingleMaybeCoverageTest extends AbstractInstrumentationTest {
     try (Evidence e = new Evidence()) {
       try {
         Object[] firstOriginal =
-            first
-                .submit(() -> new Object[] {Context.current(), activeSpan()})
-                .get(5, TimeUnit.SECONDS);
+            first.submit(() -> new Object[] {Context.current(), activeSpan()}).get(5, SECONDS);
         Object[] secondOriginal =
-            second
-                .submit(() -> new Object[] {Context.current(), activeSpan()})
-                .get(5, TimeUnit.SECONDS);
+            second.submit(() -> new Object[] {Context.current(), activeSpan()}).get(5, SECONDS);
         e.run(
             () ->
                 subscription.set(
@@ -113,7 +110,7 @@ class SingleMaybeCoverageTest extends AbstractInstrumentationTest {
                         .subscribeOn(Schedulers.from(first))
                         .map(
                             value -> {
-                              if (!release.await(5, TimeUnit.SECONDS))
+                              if (!release.await(5, SECONDS))
                                 throw new IllegalStateException("gate timed out");
                               firstThread.set(Thread.currentThread());
                               e.observe("first map");
@@ -129,11 +126,10 @@ class SingleMaybeCoverageTest extends AbstractInstrumentationTest {
                         .toFlowable()
                         .subscribe(e::value, e::error, e::complete)));
         assertSame(e.original, Context.current());
-        assertNotSame(e.expected, Context.current());
         release.countDown();
-        assertTrue(e.done.await(5, TimeUnit.SECONDS), "terminal timeout");
+        assertTrue(e.done.await(5, SECONDS), "terminal timeout");
         assertNotSame(firstThread.get(), secondThread.get());
-        e.result(Collections.singletonList("Hello"), 1, null);
+        e.result(singletonList("Hello"), 1, null);
         assertSame(e.original, Context.current());
         assertSame(e.originalSpan, activeSpan());
         // Sentinels run after each scheduler task unwinds on the same worker thread.
@@ -144,7 +140,7 @@ class SingleMaybeCoverageTest extends AbstractInstrumentationTest {
                   assertSame(firstOriginal[0], Context.current());
                   assertSame(firstOriginal[1], activeSpan());
                 })
-            .get(5, TimeUnit.SECONDS);
+            .get(5, SECONDS);
         second
             .submit(
                 () -> {
@@ -152,15 +148,17 @@ class SingleMaybeCoverageTest extends AbstractInstrumentationTest {
                   assertSame(secondOriginal[0], Context.current());
                   assertSame(secondOriginal[1], activeSpan());
                 })
-            .get(5, TimeUnit.SECONDS);
+            .get(5, SECONDS);
       } finally {
         release.countDown();
         if (subscription.get() != null) subscription.get().dispose();
         first.shutdownNow();
         second.shutdownNow();
-        assertTrue(first.awaitTermination(5, TimeUnit.SECONDS));
-        assertTrue(second.awaitTermination(5, TimeUnit.SECONDS));
+        first.awaitTermination(5, SECONDS);
+        second.awaitTermination(5, SECONDS);
       }
+      assertTrue(first.isTerminated(), "first executor terminated");
+      assertTrue(second.isTerminated(), "second executor terminated");
     }
   }
 
@@ -176,7 +174,7 @@ class SingleMaybeCoverageTest extends AbstractInstrumentationTest {
                         throw failure;
                       }))
           .subscribe(e::value, e::error, e::complete);
-      e.result(Collections.emptyList(), 0, failure);
+      e.result(emptyList(), 0, failure);
     }
   }
 
@@ -185,6 +183,8 @@ class SingleMaybeCoverageTest extends AbstractInstrumentationTest {
     AtomicReference<MaybeEmitter<Integer>> emitter = new AtomicReference<>();
     AtomicReference<Disposable> subscription = new AtomicReference<>();
     AtomicInteger cleanup = new AtomicInteger();
+    Context[] disposalContext = new Context[1];
+    AgentSpan[] disposalSpan = new AgentSpan[1];
     try (Evidence e = new Evidence()) {
       try {
         Maybe<Integer> source =
@@ -196,7 +196,8 @@ class SingleMaybeCoverageTest extends AbstractInstrumentationTest {
                           emitter.set(sink);
                           sink.setCancellable(
                               () -> {
-                                e.assertRestored();
+                                disposalContext[0] = Context.current();
+                                disposalSpan[0] = activeSpan();
                                 cleanup.incrementAndGet();
                               });
                         }));
@@ -208,7 +209,9 @@ class SingleMaybeCoverageTest extends AbstractInstrumentationTest {
         emitter.get().onSuccess(1);
         subscription.get().dispose();
         assertEquals(1, cleanup.get());
-        e.result(Collections.emptyList(), 0, null);
+        assertSame(e.original, disposalContext[0]);
+        assertSame(e.originalSpan, disposalSpan[0]);
+        e.result(emptyList(), 0, null);
       } finally {
         if (subscription.get() != null) subscription.get().dispose();
       }
@@ -239,9 +242,9 @@ class SingleMaybeCoverageTest extends AbstractInstrumentationTest {
                           })
                       .cache());
       cached.subscribe(e::value, e::error, e::complete);
-      e.result(empty ? Collections.emptyList() : Collections.singletonList(1), empty ? 1 : 0, null);
+      e.result(empty ? emptyList() : singletonList(1), empty ? 1 : 0, null);
       cached.subscribe(e::value, e::error, e::complete);
-      e.result(empty ? Collections.emptyList() : Arrays.asList(1, 1), empty ? 2 : 0, null);
+      e.result(empty ? emptyList() : asList(1, 1), empty ? 2 : 0, null);
       assertEquals(1, subscriptions.get());
     }
   }
@@ -260,7 +263,7 @@ class SingleMaybeCoverageTest extends AbstractInstrumentationTest {
                             cleanup.incrementAndGet();
                           }))
           .subscribe(e::value, e::error, e::complete);
-      e.result(Collections.emptyList(), 0, failure);
+      e.result(emptyList(), 0, failure);
       assertEquals(1, cleanup.get());
     }
   }
@@ -269,27 +272,32 @@ class SingleMaybeCoverageTest extends AbstractInstrumentationTest {
   void maybeTimerDispose() {
     TestScheduler scheduler = new TestScheduler();
     AtomicInteger cleanup = new AtomicInteger();
+    Context[] disposalContext = new Context[1];
+    AgentSpan[] disposalSpan = new AgentSpan[1];
     AtomicReference<Disposable> subscription = new AtomicReference<>();
     try (Evidence e = new Evidence()) {
       try {
         Maybe<Long> timer =
             e.assemble(
                 () ->
-                    Maybe.timer(1, TimeUnit.SECONDS, scheduler)
+                    Maybe.timer(1, SECONDS, scheduler)
                         .doOnSubscribe(ignored -> e.observe("subscribe"))
                         .doOnDispose(
                             () -> {
-                              e.assertRestored();
+                              disposalContext[0] = Context.current();
+                              disposalSpan[0] = activeSpan();
                               cleanup.incrementAndGet();
                             }));
         subscription.set(timer.subscribe(e::value, e::error, e::complete));
         e.assertRestored();
         subscription.get().dispose();
         assertTrue(subscription.get().isDisposed());
-        scheduler.advanceTimeBy(2, TimeUnit.SECONDS);
+        scheduler.advanceTimeBy(2, SECONDS);
         assertSame(e.original, Context.current());
         assertEquals(1, cleanup.get());
-        e.result(Collections.emptyList(), 0, null);
+        assertSame(e.original, disposalContext[0]);
+        assertSame(e.originalSpan, disposalSpan[0]);
+        e.result(emptyList(), 0, null);
       } finally {
         if (subscription.get() != null) subscription.get().dispose();
       }
@@ -311,12 +319,13 @@ class SingleMaybeCoverageTest extends AbstractInstrumentationTest {
     int completions;
 
     <T> T assemble(Supplier<T> factory) {
+      T result;
       try (ContextScope scope = activateSpan(parent)) {
         expected = Context.current();
-        return factory.get();
-      } finally {
-        assertRestored();
+        result = factory.get();
       }
+      assertRestored();
+      return result;
     }
 
     void assertRestored() {

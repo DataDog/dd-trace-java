@@ -10,7 +10,6 @@ import static java.util.Arrays.asList;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -160,10 +159,11 @@ class ObservableCoverageTest extends AbstractInstrumentationTest {
         assertEquals(0, result.completions);
         assertTrue(result.errors.isEmpty());
         assertSame(h.original, Context.current());
-        assertNotSame(h.parent, activeSpan());
+        assertSame(h.originalSpan, activeSpan());
         scheduler.advanceTimeBy(1, MILLISECONDS);
         result.success(asList(1, 2));
         assertSame(h.original, Context.current());
+        assertSame(h.originalSpan, activeSpan());
       } finally {
         if (result.subscription != null) result.subscription.dispose();
       }

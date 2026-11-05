@@ -6,6 +6,9 @@ import static datadog.trace.agent.test.assertions.TraceMatcher.trace;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static java.util.Arrays.asList;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
@@ -16,23 +19,21 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
-import datadog.trace.agent.test.assertions.SpanMatcher;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.reactivex.rxjava3.core.Flowable;
 import io.reactivex.rxjava3.disposables.Disposable;
 import io.reactivex.rxjava3.flowables.ConnectableFlowable;
-import io.reactivex.rxjava3.internal.subscriptions.BooleanSubscription;
 import io.reactivex.rxjava3.schedulers.TestScheduler;
 import io.reactivex.rxjava3.subscribers.TestSubscriber;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import org.reactivestreams.Subscriber;
+import org.reactivestreams.Subscription;
 
 class FlowableCoverageTest extends AbstractInstrumentationTest {
   @Test
@@ -106,7 +107,7 @@ class FlowableCoverageTest extends AbstractInstrumentationTest {
       Flowable<Integer> taken = watch(source.take(1), e, "take");
       e.release();
       taken.test().assertResult(1);
-      assertEquals(Arrays.asList(1), upstream);
+      assertEquals(asList(1), upstream);
       assertEquals(1, cancellations.get());
     }
     e.check();
@@ -129,7 +130,7 @@ class FlowableCoverageTest extends AbstractInstrumentationTest {
       Flowable<Integer> sum = watch(reduced, e, "sum");
       e.release();
       sum.test().assertResult(10);
-      assertEquals(Arrays.asList("1+2", "3+3", "6+4"), calls);
+      assertEquals(asList("1+2", "3+3", "6+4"), calls);
     }
     e.check();
   }
@@ -144,8 +145,8 @@ class FlowableCoverageTest extends AbstractInstrumentationTest {
       subscriber.assertEmpty();
       e.release();
       assertSame(e.original, Context.current());
-      assertNotSame(e.parent, activeSpan());
-      scheduler.advanceTimeBy(1, TimeUnit.MILLISECONDS);
+      assertSame(e.originalSpan, activeSpan());
+      scheduler.advanceTimeBy(1, MILLISECONDS);
       subscriber.assertResult(1, 2);
       assertSame(e.original, Context.current());
       assertSame(e.originalSpan, activeSpan());
@@ -157,10 +158,21 @@ class FlowableCoverageTest extends AbstractInstrumentationTest {
 
   @Test
   void flowablePublishMulticast() throws InterruptedException {
-    Evidence e = new Evidence();
     AtomicReference<Subscriber<? super String>> upstream = new AtomicReference<>();
     AtomicInteger subscriptions = new AtomicInteger();
-    BooleanSubscription sourceSubscription = new BooleanSubscription();
+    AtomicBoolean cancelled = new AtomicBoolean();
+    Subscription sourceSubscription =
+        new Subscription() {
+          @Override
+          public void request(long n) {
+            // This source emits explicitly from the delivery worker.
+          }
+
+          @Override
+          public void cancel() {
+            cancelled.set(true);
+          }
+        };
     CountDownLatch start = new CountDownLatch(1);
     AtomicReference<Throwable> workerError = new AtomicReference<>();
     Context[] workerContexts = new Context[2];
@@ -169,8 +181,7 @@ class FlowableCoverageTest extends AbstractInstrumentationTest {
         new Thread(
             () -> {
               try {
-                if (!start.await(5, TimeUnit.SECONDS))
-                  throw new IllegalStateException("start timeout");
+                if (!start.await(5, SECONDS)) throw new IllegalStateException("start timeout");
                 workerContexts[0] = Context.current();
                 workerSpans[0] = activeSpan();
                 upstream.get().onNext("first");
@@ -183,6 +194,7 @@ class FlowableCoverageTest extends AbstractInstrumentationTest {
               }
             },
             "flowable-raw-delivery");
+    Evidence e = new Evidence();
     TestSubscriber<String> first = null;
     TestSubscriber<String> second = null;
     Disposable connection = null;
@@ -202,8 +214,8 @@ class FlowableCoverageTest extends AbstractInstrumentationTest {
       connection = published.connect();
       first.assertEmpty();
       second.assertEmpty();
-      worker.start();
       e.release();
+      worker.start();
       start.countDown();
       worker.join(5000);
       assertFalse(worker.isAlive(), "delivery worker completed");
@@ -231,7 +243,7 @@ class FlowableCoverageTest extends AbstractInstrumentationTest {
         e.close();
       }
     }
-    assertTrue(sourceSubscription.isCancelled());
+    assertTrue(cancelled.get());
     assertTrue(connection.isDisposed());
     e.check();
   }
@@ -257,8 +269,9 @@ class FlowableCoverageTest extends AbstractInstrumentationTest {
       contexts.add(Context.current());
       spans.add(activeSpan());
       labels.add(label);
-      AgentSpan child = startSpan("test", "callback-" + labels.size());
-      child.finish();
+      if (labels.size() == 1) {
+        startSpan("test", "callback").finish();
+      }
     }
 
     void release() {
@@ -278,14 +291,15 @@ class FlowableCoverageTest extends AbstractInstrumentationTest {
       assertSame(original, Context.current());
       assertSame(originalSpan, activeSpan());
       assertFalse(labels.isEmpty());
-      SpanMatcher[] matchers = new SpanMatcher[labels.size() + 1];
-      matchers[0] = span().root().operationName("parent");
       for (int i = 0; i < labels.size(); i++) {
         assertSame(expected, contexts.get(i), labels.get(i));
         assertSame(parent, spans.get(i), labels.get(i));
-        matchers[i + 1] = span().childOfIndex(0).operationName("callback-" + (i + 1));
       }
-      assertTraces(trace(SORT_BY_START_TIME, matchers));
+      assertTraces(
+          trace(
+              SORT_BY_START_TIME,
+              span().root().operationName("parent"),
+              span().childOfIndex(0).operationName("callback")));
     }
   }
 }

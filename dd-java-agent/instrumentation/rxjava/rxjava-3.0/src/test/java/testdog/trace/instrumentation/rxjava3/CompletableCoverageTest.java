@@ -10,7 +10,6 @@ import static java.util.Arrays.asList;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -130,7 +129,6 @@ class CompletableCoverageTest extends AbstractInstrumentationTest {
       try {
         p.closeScope();
         p.assertRestored();
-        assertNotSame(p.expected, Context.current());
         p.assertTerminal(0, null);
         scheduler.advanceTimeBy(499, MILLISECONDS);
         p.assertTerminal(0, null);
@@ -153,6 +151,8 @@ class CompletableCoverageTest extends AbstractInstrumentationTest {
   void completableSubscribeDispose() {
     PublishProcessor<Integer> processor = PublishProcessor.create();
     AtomicInteger cleanup = new AtomicInteger();
+    Context[] disposalContext = new Context[1];
+    AgentSpan[] disposalSpan = new AgentSpan[1];
     try (Probe p = new Probe()) {
       Completable source =
           processor
@@ -162,7 +162,8 @@ class CompletableCoverageTest extends AbstractInstrumentationTest {
                   () -> {
                     cleanup.incrementAndGet();
                     // Disposing is a caller action, outside the captured callback context.
-                    p.assertRestored();
+                    disposalContext[0] = Context.current();
+                    disposalSpan[0] = activeSpan();
                   });
       p.closeScope();
       p.assertRestored();
@@ -177,6 +178,8 @@ class CompletableCoverageTest extends AbstractInstrumentationTest {
         assertTrue(subscription.isDisposed());
         assertFalse(processor.hasSubscribers());
         assertEquals(1, cleanup.get());
+        assertSame(p.original, disposalContext[0]);
+        assertSame(p.originalSpan, disposalSpan[0]);
         subscription.dispose();
         assertEquals(1, cleanup.get());
         p.assertRestored();
@@ -222,12 +225,7 @@ class CompletableCoverageTest extends AbstractInstrumentationTest {
       contexts.add(Context.current());
       spans.add(activeSpan());
       if (labels.size() == 1) {
-        AgentSpan child = startSpan("test", "callback");
-        try {
-          // Starting in the observed callback must establish the parent relationship.
-        } finally {
-          child.finish();
-        }
+        startSpan("test", "callback").finish();
       }
     }
 
