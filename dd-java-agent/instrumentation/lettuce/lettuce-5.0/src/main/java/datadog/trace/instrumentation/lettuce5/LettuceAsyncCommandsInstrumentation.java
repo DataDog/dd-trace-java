@@ -1,21 +1,33 @@
 package datadog.trace.instrumentation.lettuce5;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.COMPLETABLE_FUTURE_CALLBACK;
+import static java.util.Collections.singleton;
+import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
+import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public class LettuceAsyncCommandsInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice, ExcludeFilterProvider {
 
   public LettuceAsyncCommandsInstrumentation() {
     super("lettuce", "lettuce-5", "lettuce-5-async");
+  }
+
+  @Override
+  public Map<ExcludeType, ? extends Collection<String>> excludedClasses() {
+    return singletonMap(
+        COMPLETABLE_FUTURE_CALLBACK, singleton(packageName + ".LettuceAsyncBiConsumer"));
   }
 
   @Override
