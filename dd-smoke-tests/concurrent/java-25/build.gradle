@@ -8,6 +8,10 @@ plugins {
 
 testJvmConstraints {
   minJavaVersion = JavaVersion.VERSION_25
+  // Newer JVMs can run ordinary Java 25 bytecode, but these are tests for preview of StructuredTaskScope API.
+  // Preview bytecode runs only on the Java release that compiled it.
+  // Even with --enable-preview, Java 27 accepts only Java 27 preview bytecode, not Java 25's.
+  maxJavaVersion = JavaVersion.VERSION_25
 }
 
 description = 'JDK 25 Concurrent Integration Tests'
