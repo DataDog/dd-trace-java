@@ -7,11 +7,11 @@ capability probes, identity announcements or completion acknowledgments in the n
 
 ## Configuration
 
-During development, `DD_UNIVERSAL_INSTRUMENTATION` defaults to `true`, retaining the legacy
-extension bridge. Set it to `false` to opt into experimental Java tracing. Explicit native mode
-never falls back to lifecycle requests. An unset or invalid value retains the stage default;
-invalid nonempty values log a diagnostic. The setting accepts Go-compatible Boolean forms.
-The native-default and legacy-removal drafts remain blocked on the compatibility work below.
+At this proposed default-switch stage, `DD_UNIVERSAL_INSTRUMENTATION` defaults to `false`.
+Explicit `true` retains the legacy extension bridge as a temporary rollback. Native mode never
+falls back to lifecycle requests. An unset or invalid value uses the stage default; invalid
+nonempty values log a diagnostic. The setting accepts Go-compatible Boolean forms.
+This default-switch draft remains blocked on the compatibility work below; it is not a rollout.
 
 Java propagation, sampling, AppSec and service settings apply. Optional settings:
 

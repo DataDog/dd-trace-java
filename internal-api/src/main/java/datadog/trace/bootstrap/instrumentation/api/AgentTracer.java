@@ -386,7 +386,7 @@ public class AgentTracer {
     CallbackProvider getUniversalCallbackProvider();
 
     default boolean isUniversalInstrumentationEnabled() {
-      return true;
+      return false;
     }
 
     default LambdaInvocation startLambdaInvocation(

@@ -253,17 +253,17 @@ class ConfigTest {
   void universalInstrumentationInvalidValuesKeepTheDefault(String value) {
     Properties properties = new Properties();
     properties.setProperty("universal.instrumentation", value);
-    assertTrue(Config.get(properties).isUniversalInstrumentationEnabled());
+    assertFalse(Config.get(properties).isUniversalInstrumentationEnabled());
   }
 
   @Test
-  void universalInstrumentationDefaultsToLegacyAndIsFixedAtStartup() {
+  void universalInstrumentationDefaultsToNativeAndRollbackIsFixedAtStartup() {
     Properties properties = new Properties();
     Config config = Config.get(properties);
-    assertTrue(config.isUniversalInstrumentationEnabled());
-    properties.setProperty("universal.instrumentation", "false");
-    assertTrue(config.isUniversalInstrumentationEnabled());
-    assertFalse(Config.get(properties).isUniversalInstrumentationEnabled());
+    assertFalse(config.isUniversalInstrumentationEnabled());
+    properties.setProperty("universal.instrumentation", "true");
+    assertFalse(config.isUniversalInstrumentationEnabled());
+    assertTrue(Config.get(properties).isUniversalInstrumentationEnabled());
   }
 
   @Test
