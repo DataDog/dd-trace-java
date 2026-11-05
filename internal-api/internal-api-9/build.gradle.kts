@@ -6,10 +6,6 @@ plugins {
   id("dd-trace-java.module.internal-api")
 }
 
-extensions.getByName("tracerJava").withGroovyBuilder {
-  invokeMethod("addSourceSetFor", JavaVersion.VERSION_17)
-}
-
 testJvmConstraints {
   minJavaVersion = JavaVersion.VERSION_11
 }
@@ -24,12 +20,10 @@ tasks.withType<Javadoc>().configureEach {
   javadocTool = javaToolchains.javadocToolFor(java.toolchain)
 }
 
-listOf(JavaCompile::class.java, GroovyCompile::class.java).forEach { compileTaskType ->
-  tasks.withType(compileTaskType).configureEach {
-    // These implementations are selected only on Java 9+, so they can target Java 9 and restore
-    // --release after confirming no project output must be loaded during Java 8 discovery.
-    configureCompiler(JavaVersion.VERSION_1_8, "Uses Java 9+ APIs (StackWalker, ProcessHandle, Module) at Java 8 bytecode")
-  }
+tasks.withType<JavaCompile>().configureEach {
+  // These implementations are selected only on Java 9+, so they can target Java 9 and restore
+  // --release after confirming no project output must be loaded during Java 8 discovery.
+  configureCompiler(JavaVersion.VERSION_1_8, "Uses Java 9+ APIs (StackWalker, ProcessHandle, Module) at Java 8 bytecode")
 }
 
 extra["minimumBranchCoverage"] = 0.8

@@ -150,6 +150,28 @@ public class DebuggerAgentTest {
 
   @Test
   @EnabledOnJre({JAVA_8, JAVA_11})
+  public void runEnabledWithDatadogAgentWithoutSnapshotEndpoint() throws URISyntaxException {
+    URL res = getClass().getClassLoader().getResource("test_probe_file.json");
+    String probeDefinitionPath = Paths.get(res.toURI()).toFile().getAbsolutePath();
+    when(config.getServiceName()).thenReturn("petclinic");
+    when(config.isDynamicInstrumentationEnabled()).thenReturn(true);
+    when(config.getAgentUrl()).thenReturn(url.toString());
+    when(config.getFinalDebuggerSnapshotUrl())
+        .thenReturn("http://localhost:8126/debugger/v1/input");
+    when(config.getDynamicInstrumentationMaxPayloadSize()).thenReturn(4096L);
+    when(config.getDynamicInstrumentationProbeFile()).thenReturn(probeDefinitionPath);
+    when(config.getDynamicInstrumentationUploadBatchSize()).thenReturn(100);
+    when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
+    // agent only exposes debugger/v1/input: no dedicated snapshot endpoint
+    String infoContent = "{\"endpoints\": [\"v0.4/traces\", \"debugger/v1/input\"] }";
+    server.enqueue(new MockResponse().setResponseCode(200).setBody(infoContent));
+    when(inst.getAllLoadedClasses()).thenReturn(new Class[0]);
+    DebuggerAgent.run(config, inst, new SharedCommunicationObjects());
+    verify(inst, atLeastOnce()).addTransformer(any(), eq(true));
+  }
+
+  @Test
+  @EnabledOnJre({JAVA_8, JAVA_11})
   public void readFromFile() throws URISyntaxException {
     URL res = getClass().getClassLoader().getResource("test_probe_file.json");
     String probeDefinitionPath = Paths.get(res.toURI()).toFile().getAbsolutePath();

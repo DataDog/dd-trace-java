@@ -145,6 +145,49 @@ class TestJvmConstraintsPluginTest {
   }
 
   @Test
+  fun `project includeJdk controls test task eligibility`() {
+    val testJvm = JavaVersion.current().majorVersion
+    withTestJvm(testJvm) {
+      val project = ProjectBuilder.builder().build()
+      project.pluginManager.apply("dd-trace-java.test-jvm-constraints")
+      val projectExtension = project.extensions.getByType(TestJvmConstraintsExtension::class.java)
+      projectExtension.includeJdk.set(listOf(testJvm))
+
+      val testTask = project.tasks.named("test", GradleTest::class.java).get()
+
+      assertThat(testTask.onlyIf.isSatisfiedBy(testTask)).isTrue()
+
+      projectExtension.includeJdk.set(listOf("ORACLE8"))
+
+      assertThat(testTask.onlyIf.isSatisfiedBy(testTask)).isFalse()
+    }
+  }
+
+  @Test
+  fun `task includeJdk overrides project inclusion`() {
+    val testJvm = JavaVersion.current().majorVersion
+    withTestJvm(testJvm) {
+      val project = ProjectBuilder.builder().build()
+      project.pluginManager.apply("dd-trace-java.test-jvm-constraints")
+      project.extensions.getByType(TestJvmConstraintsExtension::class.java).includeJdk.set(listOf("ORACLE8"))
+      val testTask = project.tasks.named("test", GradleTest::class.java).get()
+      val taskExtension = testTask.extensions.getByType(TestJvmConstraintsExtension::class.java)
+
+      taskExtension.includeJdk.set(listOf(testJvm))
+
+      assertThat(testTask.onlyIf.isSatisfiedBy(testTask)).isTrue()
+
+      taskExtension.includeJdk.set(listOf("ZULU8"))
+
+      assertThat(testTask.onlyIf.isSatisfiedBy(testTask)).isFalse()
+
+      taskExtension.includeJdk.set(emptyList())
+
+      assertThat(testTask.onlyIf.isSatisfiedBy(testTask)).isTrue()
+    }
+  }
+
+  @Test
   fun `jacoco is disabled for additional test jvm when coverage is not checked`() {
     val testTask = testTaskWithJacoco()
 
