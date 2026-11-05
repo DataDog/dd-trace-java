@@ -1,0 +1,29 @@
+{
+  "Records": [
+    {
+      "attributes": {
+        "AWSTraceHeader": "Root=1-6a7047f0-000000002301f1b51ee3ad28;Parent=0e9cba22408874fb;Sampled=1",
+        "ApproximateFirstReceiveTimestamp": "1785743344086",
+        "ApproximateReceiveCount": "1",
+        "SenderId": "AROA3TYMO3BGLN4BJFZQH:AWS-CLOUDCAST",
+        "SentTimestamp": "1785743344084"
+      },
+      "awsRegion": "us-west-1",
+      "body": "{\"data\":{\"message\":\"Hello from DSM SNS demo\"},\"source\":\"java-dsm-demo-sns-producer\",\"type\":\"dsm.sns.demo.v1\"}",
+      "eventSource": "aws:sqs",
+      "eventSourceARN": "arn:aws:sqs:us-west-1:927749345584:java-dsm-demo-sns-demo-dev-dev",
+      "md5OfBody": "d0f22180e2cfeeed2792094dea97f103",
+      "md5OfMessageAttributes": "0d7adfa416aed513b06a7c9d6087381e",
+      "messageAttributes": {
+        "_datadog": {
+          "binaryListValues": [],
+          "binaryValue": "eyJkZC1wYXRod2F5LWN0eC1iYXNlNjQiOiJFditYTWZOSjMxVCtoY2pwK0dmK2hjanArR2M9IiwieC1kYXRhZG9nLXRyYWNlLWlkIjoiMjUyMjU2MzAyNjUxMzgwMDQ4OCIsIngtZGF0YWRvZy1wYXJlbnQtaWQiOiIxMDUyOTIxMDY5MTcyMTkyNTA3IiwieC1kYXRhZG9nLXNhbXBsaW5nLXByaW9yaXR5IjoiMSIsIngtZGF0YWRvZy10YWdzIjoiX2RkLnAuZG09LTEsX2RkLnAudGlkPTZhNzA0N2VmMDAwMDAwMDAiLCJ0cmFjZXBhcmVudCI6IjAwLTZhNzA0N2VmMDAwMDAwMDAyMzAxZjFiNTFlZTNhZDI4LTBlOWNiYTIyNDA4ODc0ZmItMDEiLCJ0cmFjZXN0YXRlIjoiZGQ9czoxO3A6MGU5Y2JhMjI0MDg4NzRmYjt0LmRtOi0xO3QudGlkOjZhNzA0N2VmMDAwMDAwMDAifQ==",
+          "dataType": "Binary",
+          "stringListValues": []
+        }
+      },
+      "messageId": "8fea9445-ffbb-4720-9399-03ab674f21d7",
+      "receiptHandle": "AQEBrU3X0N1q9cUzBjTHqcS4qViA7Yq"
+    }
+  ]
+}
