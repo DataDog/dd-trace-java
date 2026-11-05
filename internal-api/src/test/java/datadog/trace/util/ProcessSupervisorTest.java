@@ -309,6 +309,27 @@ class ProcessSupervisorTest {
     }
   }
 
+  @Test
+  void backsOffWhenTheProcessKeepsExitingWithCodeZero() throws Exception {
+    // the trace agent exits with 0 at once when APM is disabled
+    List<FakeProcess> started = new CopyOnWriteArrayList<>();
+    ProcessBuilder processBuilder = mock(ProcessBuilder.class);
+    when(processBuilder.start())
+        .thenAnswer(
+            invocation -> {
+              FakeProcess process = startFakeProcess(started, true);
+              process.exit(0);
+              return process;
+            });
+
+    try (ProcessSupervisor ignored = new ProcessSupervisor("test", processBuilder)) {
+      new PollingConditions(5).eventually(() -> assertEquals(1, started.size()));
+      // the first fault waits 2 s; restarting after a clean exit would take about 100 ms
+      Thread.sleep(1_000);
+      assertEquals(1, started.size());
+    }
+  }
+
   private static ProcessBuilder startsFakeProcesses(
       List<FakeProcess> started, boolean stopsWhenAsked) throws IOException {
     ProcessBuilder processBuilder = mock(ProcessBuilder.class);
