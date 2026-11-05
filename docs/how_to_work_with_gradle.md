@@ -1828,6 +1828,10 @@ This task updates the `gradle/gradle-daemon-jvm.properties` file with the new cr
 
 When Gradle builds fail or behave unexpectedly, several tools and techniques can help diagnose the problem.
 
+For intermittent CI test failures, see [reproducing timing-sensitive CI failures](how_to_test.md#reproducing-timing-sensitive-ci-failures).
+That guide explains how to pass `-Xint` and `-XX:ActiveProcessorCount` to test JVMs,
+force fresh test execution, and distinguish Gradle worker limits from application CPU limits.
+
 > [!TIP]
 > In general following the [Gradle best practices](https://docs.gradle.org/current/userguide/best_practices.html) is safe bet to avoid isses.
 

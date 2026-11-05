@@ -3,8 +3,12 @@ plugins {
   id 'dd-trace-java.instrumentation.netty-concurrent-tests'
 }
 
-tracerJava {
-  addSourceSetFor(JavaVersion.VERSION_11)
+testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_11
+}
+
+tasks.withType(JavaCompile).matching { it.name.contains('Test') }.configureEach {
+  configureCompiler(it, JavaVersion.VERSION_11)
 }
 
 muzzle {
