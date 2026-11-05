@@ -73,15 +73,45 @@ public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
   }
 
   public static class ExtensionCommunicationAdvice {
-    @OnMethodEnter
+    @OnMethodEnter(suppress = Throwable.class)
     static ContextScope enter(
         @This final Object that,
         @Advice.Argument(0) final Object in,
         @Advice.Argument(1) final Object out,
         @Advice.Argument(2) final Context awsContext,
-        @Origin("#m") final String methodName) {
+        @Origin("#m") final String methodName,
+        @Advice.Local("nativeInvocation") AgentTracer.LambdaInvocation nativeInvocation) {
 
       if (CallDepthThreadLocalMap.incrementCallDepth(RequestHandler.class) > 0) {
+        return null;
+      }
+      if (!AgentTracer.get().isUniversalInstrumentationEnabled()) {
+        try {
+          nativeInvocation =
+              AgentTracer.get()
+                  .startLambdaInvocation(
+                      in,
+                      awsContext.getAwsRequestId(),
+                      awsContext.getFunctionName(),
+                      awsContext.getFunctionVersion(),
+                      awsContext.getInvokedFunctionArn());
+          if (nativeInvocation != null) {
+            return nativeInvocation.activate();
+          }
+        } catch (Throwable failure) {
+          try {
+            if (nativeInvocation != null) {
+              try {
+                nativeInvocation.onExit(null, null);
+              } finally {
+                nativeInvocation.finish();
+              }
+            }
+          } finally {
+            CallDepthThreadLocalMap.reset(RequestHandler.class);
+          }
+        }
+        CallDepthThreadLocalMap.reset(RequestHandler.class);
         return null;
       }
       String lambdaRequestId = awsContext.getAwsRequestId();
@@ -105,13 +135,27 @@ public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
         @Enter final ContextScope scope,
         @Advice.Argument(1) final Object result,
         @Advice.Argument(2) final Context awsContext,
-        @Advice.Thrown final Throwable throwable) {
+        @Advice.Thrown final Throwable throwable,
+        @Advice.Local("nativeInvocation") final AgentTracer.LambdaInvocation nativeInvocation) {
 
       if (scope == null) {
         return;
       }
 
       CallDepthThreadLocalMap.reset(RequestHandler.class);
+
+      if (nativeInvocation != null) {
+        try {
+          nativeInvocation.onExit(result, throwable);
+        } finally {
+          try {
+            scope.close();
+          } finally {
+            nativeInvocation.finish();
+          }
+        }
+        return;
+      }
 
       final AgentSpan span = spanFromScope(scope);
       try {
