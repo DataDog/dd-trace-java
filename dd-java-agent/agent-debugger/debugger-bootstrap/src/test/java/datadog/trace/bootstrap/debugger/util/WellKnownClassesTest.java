@@ -45,4 +45,16 @@ class WellKnownClassesTest {
     assertTrue(WellKnownClasses.isSafe(Collections.emptyList()));
     assertTrue(WellKnownClasses.isSafe(Collections.unmodifiableMap(new HashMap<>())));
   }
+
+  @Test
+  public void springMapsAreSafeOnlyOnExactMatch() {
+    assertTrue(WellKnownClasses.isSafeMap("org.springframework.util.LinkedMultiValueMap"));
+    assertTrue(WellKnownClasses.isSafeMap("org.springframework.util.LinkedCaseInsensitiveMap"));
+    assertTrue(
+        WellKnownClasses.isSafeMap("org.springframework.validation.support.BindingAwareModelMap"));
+    assertFalse(
+        WellKnownClasses.isSafeMap("org.springframework.util.LinkedMultiValueMap$$SpringCGLIB$$0"));
+    assertFalse(WellKnownClasses.isSafeMap("org.springframework.util.LinkedMultiValueMapFoo"));
+    assertFalse(WellKnownClasses.isSafeMap("org.springframework.util.ConcurrentReferenceHashMap"));
+  }
 }

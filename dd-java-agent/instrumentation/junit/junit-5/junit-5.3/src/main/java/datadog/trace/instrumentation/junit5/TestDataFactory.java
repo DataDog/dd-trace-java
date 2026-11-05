@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.junit5;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -11,6 +12,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import javax.annotation.Nullable;
 import org.junit.platform.engine.TestDescriptor;
+import org.junit.platform.engine.TestTag;
 
 public abstract class TestDataFactory {
 
@@ -24,6 +26,9 @@ public abstract class TestDataFactory {
 
   private static volatile Map<String, Predicate<TestDescriptor>>
       TEST_DESCRIPTOR_FILTER_BY_ENGINE_ID = Collections.emptyMap();
+
+  private static volatile Map<String, Function<TestDescriptor, Collection<TestTag>>>
+      TEST_TAGS_FACTORY_BY_ENGINE_ID = Collections.emptyMap();
 
   @SuppressFBWarnings(
       value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
@@ -41,6 +46,24 @@ public abstract class TestDataFactory {
       TEST_DESCRIPTOR_FILTER_BY_ENGINE_ID =
           addEntry(TEST_DESCRIPTOR_FILTER_BY_ENGINE_ID, engineId, testDescriptorFilter);
     }
+  }
+
+  /** Registers an engine-specific resolver for tags retained outside its test descriptors. */
+  @SuppressFBWarnings(
+      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
+      justification = "Holder class not exposed to application code; locking on its Class is safe")
+  public static synchronized void registerTags(
+      String engineId, Function<TestDescriptor, Collection<TestTag>> testTagsFactory) {
+    TEST_TAGS_FACTORY_BY_ENGINE_ID =
+        addEntry(TEST_TAGS_FACTORY_BY_ENGINE_ID, engineId, testTagsFactory);
+  }
+
+  /** Resolves effective framework tags, falling back to the descriptor for other engines. */
+  public static Collection<TestTag> createTestTags(TestDescriptor testDescriptor) {
+    return engineId(testDescriptor)
+        .map(TEST_TAGS_FACTORY_BY_ENGINE_ID::get)
+        .orElse(TestDescriptor::getTags)
+        .apply(testDescriptor);
   }
 
   private static <K, V> Map<K, V> addEntry(Map<K, V> originalMap, K key, V value) {
