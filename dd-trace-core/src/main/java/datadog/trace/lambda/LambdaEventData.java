@@ -55,12 +55,20 @@ final class LambdaEventData {
     return value instanceof String ? (String) value : "";
   }
 
+  static Object parse(String value) throws java.io.IOException {
+    return JSON.fromJson(value);
+  }
+
   static Map<String, Object> json(String value) {
     try {
       return object(JSON.fromJson(value));
     } catch (Exception ignored) {
       return emptyMap();
     }
+  }
+
+  static String serializeValue(Object value) {
+    return JSON.serializeNulls().toJson(value);
   }
 
   static String serialize(Object value) {
