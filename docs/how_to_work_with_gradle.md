@@ -1842,6 +1842,10 @@ and forcing selected tasks to execute even when their outputs are up to date.
 Existing task filters and skip conditions still apply.
 
 The default is `false`. Dependency and plugin caches remain available.
+
+The commit-message option is ignored in the `publish` and `publish-release-artifacts` stages.
+The explicit `SKIP_BUILD_CACHE=true` variable still applies there.
+
 For the same behavior locally, pass the Gradle flags directly:
 
 ```shell
