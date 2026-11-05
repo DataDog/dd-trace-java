@@ -25,6 +25,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public final class LambdaInvocation implements AgentTracer.LambdaInvocation {
   private final CoreTracer tracer;
   private final LambdaInferredSpans inferred;
+  private final Config config;
   private final AgentSpan invocation;
   private final Context context;
   private final String functionName;
@@ -32,11 +33,13 @@ public final class LambdaInvocation implements AgentTracer.LambdaInvocation {
 
   private LambdaInvocation(
       CoreTracer tracer,
+      Config config,
       LambdaInferredSpans inferred,
       AgentSpan invocation,
       Context context,
       String functionName) {
     this.tracer = tracer;
+    this.config = config;
     this.inferred = inferred;
     this.invocation = invocation;
     this.context = context;
@@ -103,8 +106,10 @@ public final class LambdaInvocation implements AgentTracer.LambdaInvocation {
       }
       span = builder.start();
       span.setServiceName(config.getServiceName());
+      LambdaPayloadCapture.capture(config, span, "function.request", event);
       return new LambdaInvocation(
           tracer,
+          config,
           inferred,
           span,
           extracted.context.with(span),
@@ -164,6 +169,7 @@ public final class LambdaInvocation implements AgentTracer.LambdaInvocation {
   @Override
   public void onExit(Object result, Throwable error) {
     try {
+      LambdaPayloadCapture.capture(config, invocation, "function.response", result);
       if (error != null) {
         invocation.addThrowable(error);
       } else {
