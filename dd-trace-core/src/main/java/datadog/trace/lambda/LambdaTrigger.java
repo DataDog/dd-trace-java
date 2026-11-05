@@ -8,6 +8,7 @@ import java.util.Map;
 final class LambdaTrigger {
   String name;
   String service;
+  boolean serviceMapped;
   String resource;
   String type = "web";
   long startMicros;
@@ -25,6 +26,11 @@ final class LambdaTrigger {
       tags.put("function_trigger.event_source", source);
       tags.put("function_trigger.event_source_arn", arn);
     }
+  }
+
+  LambdaTrigger mapping(Map<String, String> mapping, String specific, String generic) {
+    serviceMapped = mapping.containsKey(specific) || mapping.containsKey(generic);
+    return this;
   }
 
   LambdaTrigger span(String name, String service, String resource, long startMicros) {
