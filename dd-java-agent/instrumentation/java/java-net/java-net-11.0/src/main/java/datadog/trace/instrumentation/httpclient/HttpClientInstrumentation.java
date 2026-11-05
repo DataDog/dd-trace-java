@@ -4,6 +4,9 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.COMPLETABLE_FUTURE_CALLBACK;
+import static java.util.Collections.singleton;
+import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.not;
@@ -12,8 +15,12 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.environment.JavaVirtualMachine;
+import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
+import java.util.Collection;
+import java.util.Map;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -21,7 +28,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 public class HttpClientInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForBootstrap,
         Instrumenter.ForTypeHierarchy,
-        Instrumenter.HasMethodAdvice {
+        Instrumenter.HasMethodAdvice,
+        ExcludeFilterProvider {
 
   public HttpClientInstrumentation() {
     super("java-http-client");
@@ -48,6 +56,11 @@ public class HttpClientInstrumentation extends InstrumenterModule.Tracing
         .or(nameStartsWith("jdk.internal."))
         .and(not(named("jdk.internal.net.http.HttpClientFacade")))
         .and(extendsClass(named("java.net.http.HttpClient")));
+  }
+
+  @Override
+  public Map<ExcludeFilter.ExcludeType, ? extends Collection<String>> excludedClasses() {
+    return singletonMap(COMPLETABLE_FUTURE_CALLBACK, singleton(packageName + ".ResponseConsumer"));
   }
 
   @Override
