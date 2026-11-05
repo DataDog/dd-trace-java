@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.kafka_clients38;
 
-import static datadog.trace.api.KnownTags.TOMBSTONE_ID;
+import static datadog.trace.api.KnownTags.TOMBSTONE;
 import static datadog.trace.api.datastreams.DataStreamsContext.create;
 import static datadog.trace.api.datastreams.DataStreamsTags.Direction.INBOUND;
 import static datadog.trace.api.datastreams.DataStreamsTags.create;
@@ -142,7 +142,7 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
           span = startSpan(JAVA_KAFKA.toString(), operationName, null);
         }
         if (val.value() == null) {
-          span.setTag(TOMBSTONE_ID, true);
+          span.setTag(TOMBSTONE, true);
         }
         decorator.afterStart(span);
         decorator.onConsume(span, val, group, clusterId, bootstrapServers);

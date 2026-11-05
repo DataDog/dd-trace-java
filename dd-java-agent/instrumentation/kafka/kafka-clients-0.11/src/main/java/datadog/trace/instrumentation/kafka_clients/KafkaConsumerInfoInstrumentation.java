@@ -2,7 +2,7 @@ package datadog.trace.instrumentation.kafka_clients;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.api.KnownTags.KAFKA_RECORDS_COUNT_ID;
+import static datadog.trace.api.KnownTags.KAFKA_RECORDS_COUNT;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
@@ -283,7 +283,7 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
         return;
       }
       AgentSpan span = spanFromScope(scope);
-      span.setTag(KAFKA_RECORDS_COUNT_ID, recordsCount);
+      span.setTag(KAFKA_RECORDS_COUNT, recordsCount);
       if (!(throwable instanceof WakeupException)) {
         span.addThrowable(throwable);
       }

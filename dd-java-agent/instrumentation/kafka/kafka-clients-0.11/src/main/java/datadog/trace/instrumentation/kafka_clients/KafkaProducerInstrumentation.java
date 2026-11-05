@@ -4,7 +4,7 @@ import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEXT_TRACKING;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.api.KnownTags.TOMBSTONE_ID;
+import static datadog.trace.api.KnownTags.TOMBSTONE;
 import static datadog.trace.api.datastreams.DataStreamsContext.fromTagsWithoutCheckpoint;
 import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
 import static datadog.trace.api.datastreams.DataStreamsTags.createWithClusterId;
@@ -173,7 +173,7 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
       callback = new KafkaProducerCallback(callback, callbackParentSpan, span, clusterId);
 
       if (record.value() == null) {
-        span.setTag(TOMBSTONE_ID, true);
+        span.setTag(TOMBSTONE, true);
       }
 
       return activateSpan(span);

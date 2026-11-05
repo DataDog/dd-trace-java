@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.kafka_clients38;
 
-import static datadog.trace.api.KnownTags.KAFKA_RECORDS_COUNT_ID;
+import static datadog.trace.api.KnownTags.KAFKA_RECORDS_COUNT;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
@@ -72,7 +72,7 @@ public class RecordsAdvice {
       return;
     }
     AgentSpan span = spanFromScope(scope);
-    span.setTag(KAFKA_RECORDS_COUNT_ID, recordsCount);
+    span.setTag(KAFKA_RECORDS_COUNT, recordsCount);
     if (!(throwable instanceof WakeupException)) {
       span.addThrowable(throwable);
     }
