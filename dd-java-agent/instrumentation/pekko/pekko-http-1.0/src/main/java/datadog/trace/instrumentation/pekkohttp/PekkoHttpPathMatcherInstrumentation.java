@@ -2,6 +2,8 @@ package datadog.trace.instrumentation.pekkohttp;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_OTEL_SEMANTICS_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.TRACE_OTEL_SEMANTICS_ENABLED;
 import static net.bytebuddy.matcher.ElementMatchers.isBridge;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
@@ -13,7 +15,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.api.Config;
+import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -25,12 +27,17 @@ import org.apache.pekko.http.scaladsl.server.PathMatcher;
 public final class PekkoHttpPathMatcherInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
   public PekkoHttpPathMatcherInstrumentation() {
-    super("pekko-http", "pekko-http-server");
+    // Keep this opt-in independent of an explicit parent HTTP integration enablement.
+    super("pekko-http-route");
   }
 
   @Override
-  public boolean isEnabled() {
-    return super.isEnabled() && Config.get().isTraceOtelSemanticsEnabled();
+  protected boolean defaultEnabled() {
+    // OTel enables route capture by default; the dedicated integration switch can override it.
+    // Avoid loading the global Config while setting up instrumentation.
+    return super.defaultEnabled()
+        && ConfigProvider.getInstance()
+            .getBoolean(TRACE_OTEL_SEMANTICS_ENABLED, DEFAULT_TRACE_OTEL_SEMANTICS_ENABLED);
   }
 
   @Override

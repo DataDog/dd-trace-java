@@ -4572,6 +4572,14 @@
         "aliases": ["DD_TRACE_INTEGRATION_AKKA_HTTP_ENABLED", "DD_INTEGRATION_AKKA_HTTP_ENABLED"]
       }
     ],
+    "DD_TRACE_AKKA_HTTP_ROUTE_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": ["DD_TRACE_INTEGRATION_AKKA_HTTP_ROUTE_ENABLED", "DD_INTEGRATION_AKKA_HTTP_ROUTE_ENABLED"]
+      }
+    ],
     "DD_TRACE_AKKA_HTTP_SERVER_ANALYTICS_ENABLED": [
       {
         "version": "A",
@@ -9098,6 +9106,14 @@
         "type": "boolean",
         "default": "true",
         "aliases": ["DD_TRACE_INTEGRATION_PEKKO_HTTP_ENABLED", "DD_INTEGRATION_PEKKO_HTTP_ENABLED"]
+      }
+    ],
+    "DD_TRACE_PEKKO_HTTP_ROUTE_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": ["DD_TRACE_INTEGRATION_PEKKO_HTTP_ROUTE_ENABLED", "DD_INTEGRATION_PEKKO_HTTP_ROUTE_ENABLED"]
       }
     ],
     "DD_TRACE_PEKKO_HTTP_SERVER_ANALYTICS_ENABLED": [
