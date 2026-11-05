@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.akkahttp;
 
 import static datadog.context.ContextKey.named;
 import static datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities.HTTP_FRAMEWORK_ROUTE;
+import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 import static java.util.Collections.singletonList;
 
 import akka.http.scaladsl.model.Uri;
@@ -11,6 +12,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.KnownTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 
 /** Request-local route state, independent of the HTTP routing DSL. */
 public final class AkkaHttpRouteState {
@@ -58,16 +60,24 @@ public final class AkkaHttpRouteState {
       return;
     }
     state.requestPath = null;
-    boolean rejected = state.route != null && !state.routeMatched;
+    Route route = state.route;
     state.route = null;
     CharSequence originalResourceName = state.originalResourceName;
     state.originalResourceName = null;
-    if (!rejected) {
+    if (route == null) {
       return;
     }
     AgentSpan root = span.getLocalRootSpan();
     if (root == null) {
       root = span;
+    }
+    if (state.routeMatched) {
+      if (!OTEL_SEMANTICS_ENABLED) {
+        Object method = root.getTag(Tags.HTTP_METHOD);
+        HTTP_RESOURCE_DECORATOR.withRoute(
+            root, method == null ? null : method.toString(), route.template, true);
+      }
+      return;
     }
     root.setTag(KnownTags.HTTP_ROUTE_ID, (String) null);
     if (originalResourceName != null) {
