@@ -105,6 +105,7 @@
 /utils/flare-utils/                                                      @DataDog/apm-java @DataDog/apm-sdk-capabilities
 
 # @DataDog/apm-serverless
+/docs/aws-lambda-native.md                                            @DataDog/apm-java @DataDog/apm-serverless
 /dd-trace-core/src/*/*/datadog/trace/lambda/                          @DataDog/apm-java @DataDog/apm-serverless
 /utils/container-utils/                                               @DataDog/apm-java @DataDog/apm-serverless
 **/InferredProxy*                                                     @DataDog/apm-java @DataDog/apm-serverless
