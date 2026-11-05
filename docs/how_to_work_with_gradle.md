@@ -1836,7 +1836,9 @@ force fresh test execution, and distinguish Gradle worker limits from applicatio
 
 ### Forcing Fresh CI Task Execution
 
-Set the GitLab CI variable `SKIP_BUILD_CACHE=true` when starting a pipeline.
+Set the GitLab CI variable `SKIP_BUILD_CACHE=true` when starting a pipeline, or include
+the case-sensitive `[ci: SKIP_BUILD_CACHE]` option in the commit message. Combine it with
+other CI options as needed, for example `[ci: ARM64, SKIP_BUILD_CACHE]`.
 For a fresh rerun, start a new pipeline for the same ref with this variable.
 This appends `--no-build-cache --rerun-tasks` to the shared Gradle arguments,
 bypassing local and remote task-output caches (including S3 when configured)
@@ -1844,6 +1846,10 @@ and forcing selected tasks to execute even when their outputs are up to date.
 Existing task filters and skip conditions still apply.
 
 The default is `false`. Dependency and plugin caches remain available.
+
+The commit-message option is ignored in the `publish` and `publish-release-artifacts` stages.
+The explicit `SKIP_BUILD_CACHE=true` variable still applies there.
+
 For the same behavior locally, pass the Gradle flags directly:
 
 ```shell
