@@ -2,6 +2,7 @@ package datadog.trace.agent.jmxfetch;
 
 import static datadog.trace.util.AgentThreadFactory.AgentThread.JMX_COLLECTOR;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
+import static datadog.trace.util.Strings.isBlank;
 import static org.datadog.jmxfetch.AppConfig.ACTION_COLLECT;
 
 import datadog.environment.SystemProperties;
@@ -92,28 +93,32 @@ public class JMXFetch {
           statsDConnectionString);
     }
 
-    final StatsDClient statsd = statsDClientManager.statsDClient(host, port, namedPipe, null, null);
-    final AgentStatsdReporter reporter = new AgentStatsdReporter(statsd);
-
     final boolean otlpRuntimeMetricsEnabled =
         InstrumenterConfig.get().isMetricsOtelEnabled() && config.isMetricsOtlpExporterEnabled();
+    final boolean websphereEnabled =
+        config.isJmxFetchIntegrationEnabled(Collections.singletonList("websphere"), false);
 
-    TracerFlare.addReporter(reporter);
-    final List<String> defaultConfigs = new ArrayList<>();
     if (otlpRuntimeMetricsEnabled) {
       // Register JVM runtime metric callbacks against the OtelMeterProvider so the OTLP
       // exporter started by CoreTracer collects them. Started here so it rides the same
       // delayed-start path as JMXFetch itself.
       JvmOtlpRuntimeMetrics.start(config.isMetricsOtelExperimentalEnabled());
-      // When the OTLP exporter is collecting JVM runtime metrics, skip the default JMXFetch
-      // JVM config to avoid double-reporting.
-      defaultConfigs.add(OTLP_JMX_CONFIG);
-    } else {
-      defaultConfigs.add(DEFAULT_CONFIG);
     }
-    if (config.isJmxFetchIntegrationEnabled(Collections.singletonList("websphere"), false)) {
-      defaultConfigs.add(WEBSPHERE_CONFIG);
+
+    final List<String> defaultConfigs =
+        defaultInstanceConfigs(
+            otlpRuntimeMetricsEnabled, internalMetricsConfigs, metricsConfigs, websphereEnabled);
+    if (!hasJmxFetchWork(defaultConfigs, jmxFetchConfigDir, jmxFetchConfigs)) {
+      log.debug(
+          "JMXFetch collector not started: JVM runtime metrics are collected over OTLP and no"
+              + " JMXFetch integration or configuration is enabled");
+      return;
     }
+
+    final StatsDClient statsd = statsDClientManager.statsDClient(host, port, namedPipe, null, null);
+    final AgentStatsdReporter reporter = new AgentStatsdReporter(statsd);
+
+    TracerFlare.addReporter(reporter);
 
     final AppConfig.AppConfigBuilder configBuilder =
         AppConfig.builder()
@@ -183,6 +188,40 @@ public class JMXFetch {
             });
     thread.setContextClassLoader(JMXFetch.class.getClassLoader());
     thread.start();
+  }
+
+  /**
+   * Returns the bundled instance configs to load.
+   *
+   * <p>When OTLP reports JVM runtime metrics, the default instance no longer collects them. It then
+   * only carries the integration and user metric configs, which JMXFetch appends to every instance.
+   * Without any, the default instance matches no MBean and logs "didn't return any metrics" on
+   * every check, so it is left out.
+   */
+  static List<String> defaultInstanceConfigs(
+      final boolean otlpRuntimeMetricsEnabled,
+      final List<String> internalMetricsConfigs,
+      final List<String> metricsConfigs,
+      final boolean websphereEnabled) {
+    final List<String> defaultConfigs = new ArrayList<>();
+    if (!otlpRuntimeMetricsEnabled) {
+      defaultConfigs.add(DEFAULT_CONFIG);
+    } else if (!internalMetricsConfigs.isEmpty() || !metricsConfigs.isEmpty()) {
+      // This config turns off JMXFetch's JVM metrics, which OTLP already reports.
+      defaultConfigs.add(OTLP_JMX_CONFIG);
+    }
+    if (websphereEnabled) {
+      defaultConfigs.add(WEBSPHERE_CONFIG);
+    }
+    return defaultConfigs;
+  }
+
+  /** Returns whether the JMXFetch collector has at least one bundled or user instance to run. */
+  static boolean hasJmxFetchWork(
+      final List<String> defaultConfigs,
+      final String jmxFetchConfigDir,
+      final List<String> jmxFetchConfigs) {
+    return !defaultConfigs.isEmpty() || !isBlank(jmxFetchConfigDir) || !jmxFetchConfigs.isEmpty();
   }
 
   @SuppressForbidden

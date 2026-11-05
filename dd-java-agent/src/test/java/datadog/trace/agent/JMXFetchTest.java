@@ -19,6 +19,8 @@ import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -26,11 +28,13 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import jvmbootstraptest.AgentLoadedChecker;
+import jvmbootstraptest.JmxCollectorStateChecker;
 import jvmbootstraptest.JmxStartedChecker;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.api.io.TempDir;
 import org.tabletest.junit.TableTest;
 
 @Timeout(30)
@@ -42,6 +46,8 @@ class JMXFetchTest {
       Pattern.compile("Reading metric config resource (.*)");
 
   private DatagramSocket jmxStatsSocket;
+
+  @TempDir private Path tempDir;
 
   @BeforeEach
   void setup() throws IOException {
@@ -161,6 +167,94 @@ class JMXFetchTest {
       expectedConfig.add(METRIC_CONFIG_PREFIX + config + ".yaml");
     }
     assertEquals(expectedConfig, actualConfig);
+  }
+
+  @TableTest({
+    "scenario                     | otlp  | tomcat | websphere | userConfig | expectedStarted | expectedDefaultInstance",
+    "otlp disabled                | false | false  | false     | false      | true            | true                   ",
+    "otlp enabled, no integration | true  | false  | false     | false      | false           | false                  ",
+    "otlp enabled, tomcat enabled | true  | true   | false     | false      | true            | true                   ",
+    "otlp enabled, websphere only | true  | false  | true      | false      | true            | false                  ",
+    "otlp enabled, user config    | true  | false  | false     | true       | true            | false                  "
+  })
+  void jmxCollectorStartsOnlyWhenItHasWork(
+      boolean otlp,
+      boolean tomcat,
+      boolean websphere,
+      boolean userConfig,
+      boolean expectedStarted,
+      boolean expectedDefaultInstance)
+      throws Exception {
+    // setup
+    List<String> jvmArgs =
+        new ArrayList<>(
+            asList(
+                "-Ddd.jmxfetch.enabled=true",
+                "-Ddd.jmxfetch.start-delay=0",
+                "-Ddd.jmxfetch.statsd.port=" + jmxStatsSocket.getLocalPort(),
+                "-Ddd.trace.debug=true",
+                "-Ddd.writer.type=DDAgentWriter"));
+    if (otlp) {
+      jvmArgs.add("-Ddd.metrics.otel.enabled=true");
+      jvmArgs.add("-Ddd.metrics.otel.exporter=otlp");
+    }
+    if (tomcat) {
+      jvmArgs.add("-Ddd.jmxfetch.tomcat.enabled=true");
+    }
+    if (websphere) {
+      jvmArgs.add("-Ddd.jmxfetch.websphere.enabled=true");
+    }
+    if (userConfig) {
+      Files.write(
+          tempDir.resolve("user.yaml"),
+          asList(
+              "init_config:",
+              "  is_jmx: true",
+              "instances:",
+              "  - jvm_direct: true",
+              "    name: user instance",
+              "    conf:",
+              "      - include:",
+              "          domain: java.lang",
+              "          type: Memory"));
+      jvmArgs.add("-Ddd.jmxfetch.config.dir=" + tempDir);
+      jvmArgs.add("-Ddd.jmxfetch.config=user.yaml");
+    }
+    ByteArrayOutputStream testOutput = new ByteArrayOutputStream();
+
+    // when
+    int returnCode =
+        runOnSeparateJvm(
+            JmxCollectorStateChecker.class.getName(),
+            jvmArgs,
+            emptyList(),
+            emptyMap(),
+            new PrintStream(testOutput));
+
+    // then
+    assertEquals(0, returnCode);
+    List<String> lines = readLines(new ByteArrayInputStream(testOutput.toByteArray()));
+    String expectedLine = "JMX_COLLECTOR_STARTED=" + expectedStarted;
+    assertTrue(
+        lines.stream().anyMatch(line -> line.endsWith(expectedLine)),
+        "Expected '" + expectedLine + "' in output: " + lines);
+    // the collector must be skipped on purpose, not because JMXFetch failed to start
+    assertEquals(
+        !expectedStarted,
+        lines.stream().anyMatch(line -> line.contains("JMXFetch collector not started")),
+        "Unexpected skip log state in output: " + lines);
+    assertEquals(
+        expectedDefaultInstance,
+        lines.stream()
+            .anyMatch(
+                line -> line.contains("Successfully initialized instance: dd-java-agent default")),
+        "Unexpected default instance state in output: " + lines);
+    if (userConfig) {
+      assertTrue(
+          lines.stream()
+              .anyMatch(line -> line.contains("Successfully initialized instance: user instance")),
+          "Expected the user instance to be initialized in output: " + lines);
+    }
   }
 
   private static List<String> readLines(InputStream input) throws IOException {
