@@ -49,7 +49,9 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 import org.jctools.queues.MessagePassingQueue;
 import org.slf4j.Logger;
@@ -65,6 +67,13 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       new StatsPoint(DataStreamsTags.EMPTY, 0, 0, 0, 0, 0, 0, 0, null);
   private static final StatsPoint POISON_PILL =
       new StatsPoint(DataStreamsTags.EMPTY, 0, 0, 0, 0, 0, 0, 0, null);
+
+  private final AtomicLong deliveryFailures = new AtomicLong();
+
+  private static final class FlushRequest implements InboxItem {
+    final CountDownLatch done = new CountDownLatch(1);
+    boolean success;
+  }
 
   private final Map<Long, Map<String, StatsBucket>> timeToBucket = new HashMap<>();
   private final MessagePassingQueue<InboxItem> inbox = Queues.mpscArrayQueue(1024);
@@ -383,6 +392,23 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   }
 
   @Override
+  public boolean flush() {
+    if (!thread.isAlive() || Thread.currentThread() == thread) {
+      return false;
+    }
+    FlushRequest request = new FlushRequest();
+    if (!inbox.offer(request)) {
+      return false;
+    }
+    try {
+      return request.done.await(1, TimeUnit.SECONDS) && request.success;
+    } catch (InterruptedException interrupted) {
+      Thread.currentThread().interrupt();
+      return false;
+    }
+  }
+
+  @Override
   public void close() {
     if (null != cancellation) {
       cancellation.cancel();
@@ -434,7 +460,19 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
             continue;
           }
 
-          if (payload == REPORT) {
+          if (payload instanceof FlushRequest) {
+            FlushRequest request = (FlushRequest) payload;
+            try {
+              checkDynamicConfig();
+              if (supportsDataStreams) {
+                long failures = deliveryFailures.get();
+                flush(Long.MAX_VALUE);
+                request.success = failures == deliveryFailures.get();
+              }
+            } finally {
+              request.done.countDown();
+            }
+          } else if (payload == REPORT) {
             checkDynamicConfig();
 
             if (supportsDataStreams) {
@@ -538,6 +576,11 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
   @Override
   public void onEvent(EventType eventType, String message) {
+    if (eventType == EventType.DOWNGRADED
+        || eventType == EventType.BAD_PAYLOAD
+        || eventType == EventType.ERROR) {
+      deliveryFailures.incrementAndGet();
+    }
     switch (eventType) {
       case DOWNGRADED:
         log.debug("Agent downgrade was detected");
