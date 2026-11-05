@@ -25,12 +25,14 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Per-record Lambda consume checkpoints, independent of trace retention. */
 final class LambdaDataStreams {
   private static final Logger log = LoggerFactory.getLogger(LambdaDataStreams.class);
+  private static final AtomicBoolean flushWarning = new AtomicBoolean();
 
   static void consume(
       CoreTracer tracer, Config config, AgentSpan invocation, Map<String, Object> event) {
@@ -64,6 +66,14 @@ final class LambdaDataStreams {
       }
     } catch (RuntimeException error) {
       log.debug("Unable to process native Lambda DSM consumption", error);
+    }
+  }
+
+  static void flush(CoreTracer tracer, AgentSpan invocation) {
+    if (invocation.traceConfig().isDataStreamsEnabled()
+        && !tracer.getDataStreamsMonitoring().flush()
+        && flushWarning.compareAndSet(false, true)) {
+      log.warn("Native Lambda DSM flush did not complete successfully before handler return");
     }
   }
 

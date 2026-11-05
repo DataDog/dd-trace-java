@@ -57,6 +57,11 @@ public interface AgentDataStreamsMonitoring
 
   void add(StatsPoint statsPoint);
 
+  /** Attempts to send queued and current-bucket data before a runtime freeze. */
+  default boolean flush() {
+    return false;
+  }
+
   void setProduceCheckpoint(String type, String target);
 
   /**

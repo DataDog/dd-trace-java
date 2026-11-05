@@ -5,12 +5,14 @@ import static datadog.trace.core.datastreams.DefaultDataStreamsMonitoringTestBri
 import static datadog.trace.core.datastreams.DefaultDataStreamsMonitoringTestBridge.isInboxEmpty;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.RETURNS_SMART_NULLS;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -1580,6 +1582,79 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     assertEquals("all", bucket.getKafkaConfigs().get(0).getConfig().get("acks"));
     assertEquals("kafka_consumer", bucket.getKafkaConfigs().get(1).getType());
     assertEquals("test", bucket.getKafkaConfigs().get(1).getConfig().get("group.id"));
+  }
+
+  @Test
+  void explicitFlushDrainsTheCurrentBucketWithoutWaitingForItsBoundary() {
+    ControllableTimeSource time = new ControllableTimeSource();
+    CapturingPayloadWriter writer = new CapturingPayloadWriter();
+    DefaultDataStreamsMonitoring dsm =
+        new DefaultDataStreamsMonitoring(
+            mock(Sink.class),
+            stubFeatures(true),
+            time,
+            () -> stubTraceConfig(true),
+            writer,
+            DEFAULT_BUCKET_DURATION_NANOS);
+    dsm.start();
+    try {
+      dsm.add(
+          new StatsPoint(
+              DataStreamsTags.create("sqs", DataStreamsTags.Direction.INBOUND, "queue"),
+              1,
+              2,
+              3,
+              time.getCurrentTimeNanos(),
+              0,
+              0,
+              12,
+              null));
+      assertTrue(dsm.flush());
+      assertEquals(1, writer.buckets.size());
+      assertTrue(dsm.flush());
+      assertEquals(1, writer.buckets.size());
+    } finally {
+      dsm.close();
+    }
+    assertFalse(dsm.flush());
+  }
+
+  @Test
+  void explicitFlushReportsTransportFailure() {
+    ControllableTimeSource time = new ControllableTimeSource();
+    DatastreamsPayloadWriter writer = mock(DatastreamsPayloadWriter.class);
+    DefaultDataStreamsMonitoring dsm =
+        new DefaultDataStreamsMonitoring(
+            mock(Sink.class),
+            stubFeatures(true),
+            time,
+            () -> stubTraceConfig(true),
+            writer,
+            DEFAULT_BUCKET_DURATION_NANOS);
+    doAnswer(
+            call -> {
+              dsm.onEvent(EventListener.EventType.ERROR, "test failure");
+              return null;
+            })
+        .when(writer)
+        .writePayload(any(), any());
+    dsm.start();
+    try {
+      dsm.add(
+          new StatsPoint(
+              DataStreamsTags.create("sqs", DataStreamsTags.Direction.INBOUND, "queue"),
+              1,
+              2,
+              3,
+              time.getCurrentTimeNanos(),
+              0,
+              0,
+              12,
+              null));
+      assertFalse(dsm.flush());
+    } finally {
+      dsm.close();
+    }
   }
 
   static class CapturingPayloadWriter implements DatastreamsPayloadWriter {
