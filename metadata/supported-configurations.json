@@ -12280,6 +12280,14 @@
         "aliases": ["DD_TRACE_INTEGRATION_JAVA_MODULE_ENABLED", "DD_INTEGRATION_JAVA_MODULE_ENABLED"]
       }
     ],
+    "DD_UNIVERSAL_INSTRUMENTATION": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": []
+      }
+    ],
     "DD_DETAILED_INSTRUMENTATION_ERRORS": [
       {
         "version": "A",
