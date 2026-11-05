@@ -2,12 +2,12 @@ package datadog.trace.agent.tooling;
 
 import static datadog.crashtracking.ConfigManager.readConfig;
 
+import com.datadog.profiling.controller.EnvironmentChecker;
 import datadog.crashtracking.ConfigManager;
 import datadog.crashtracking.CrashUploader;
 import datadog.crashtracking.OOMENotifier;
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers;
-import datadog.trace.agent.tooling.profiler.EnvironmentChecker;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.Agent;
 import datadog.trace.bootstrap.InitializationTelemetry;
@@ -163,10 +163,16 @@ public final class AgentCLI {
     System.out.println("Scan finished");
   }
 
-  public static void checkProfilerEnv(String temp) {
-    if (!EnvironmentChecker.checkEnvironment(temp)) {
-      System.exit(1);
-    }
+  /**
+   * Uses the profiler's normal temp-directory lifecycle, including startup cleanup of stale JVM
+   * directories. This CLI's per-process directory may remain for cleanup by a later JVM.
+   */
+  @SuppressForbidden
+  public static boolean checkProfilerEnv() {
+    StringBuilder report = new StringBuilder();
+    boolean success = EnvironmentChecker.checkEnvironment(report);
+    System.out.println(report);
+    return success;
   }
 
   private static void recursiveDependencySearch(Consumer<File> invoker, File origin)

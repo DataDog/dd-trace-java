@@ -41,9 +41,7 @@ public final class ProfilerFlareReporter implements TracerFlare.Reporter {
     }
 
     StringBuilder envCheck = new StringBuilder();
-    String tempDir = ConfigProvider.getInstance().getString(ProfilingConfig.PROFILING_TEMP_DIR);
-    EnvironmentChecker.checkEnvironment(
-        tempDir != null ? tempDir : System.getProperty("java.io.tmpdir"), envCheck);
+    EnvironmentChecker.checkEnvironment(envCheck);
     TracerFlare.addText(zip, "profiler_env.txt", envCheck.toString());
   }
 
