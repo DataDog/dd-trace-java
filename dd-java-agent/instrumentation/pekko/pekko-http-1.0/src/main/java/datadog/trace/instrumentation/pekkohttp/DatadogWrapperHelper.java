@@ -33,7 +33,7 @@ public class DatadogWrapperHelper {
     DECORATE.afterStart(span);
     DECORATE.onRequest(span, request, request, parentContext);
 
-    return PekkoHttpRouteState.init(context);
+    return PekkoHttpRouteState.init(context, request.uri().path());
   }
 
   static final class SwappedContextScope implements ContextScope {
@@ -64,7 +64,7 @@ public class DatadogWrapperHelper {
 
   public static void finishSpan(final Context context, final HttpResponse response) {
     final AgentSpan span = fromContext(context);
-    PekkoHttpRouteState.dropRejectedRoute(context, span);
+    PekkoHttpRouteState.onComplete(context, span);
     try {
       DECORATE.onResponse(span, response);
       DECORATE.beforeFinish(context);
@@ -75,7 +75,7 @@ public class DatadogWrapperHelper {
 
   public static void finishSpan(final Context context, final Throwable t) {
     final AgentSpan span = fromContext(context);
-    PekkoHttpRouteState.dropRejectedRoute(context, span);
+    PekkoHttpRouteState.onComplete(context, span);
     try {
       DECORATE.onError(span, t);
       span.setHttpStatusCode(500);
