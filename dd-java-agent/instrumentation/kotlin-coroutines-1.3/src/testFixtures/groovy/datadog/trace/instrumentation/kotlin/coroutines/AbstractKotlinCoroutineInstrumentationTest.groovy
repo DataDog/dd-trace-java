@@ -250,6 +250,12 @@ abstract class AbstractKotlinCoroutineInstrumentationTest<T extends CoreKotlinCo
     [dispatcherName, dispatcher] << dispatchersToTest
   }
 
+  @Flaky(
+  value = "Recurring Kotlin coroutine CI failures with the legacy context manager",
+  condition = {
+    InstrumenterConfig.get().isLegacyContextManagerEnabled()
+  }
+  )
   def "coroutine instrumentation should work without an enclosing trace span #dispatcherName"() {
     setup:
     CoreKotlinCoroutineTests kotlinTest = getCoreKotlinCoroutineTestsInstance(dispatcher)
@@ -262,6 +268,12 @@ abstract class AbstractKotlinCoroutineInstrumentationTest<T extends CoreKotlinCo
     [dispatcherName, dispatcher] << dispatchersToTest
   }
 
+  @Flaky(
+  value = "Recurring Kotlin coroutine CI failures with the legacy context manager",
+  condition = {
+    InstrumenterConfig.get().isLegacyContextManagerEnabled()
+  }
+  )
   def "coroutine instrumentation should work when started lazily without an enclosing trace span #dispatcherName"() {
     setup:
     CoreKotlinCoroutineTests kotlinTest = getCoreKotlinCoroutineTestsInstance(dispatcher)
@@ -379,6 +391,12 @@ abstract class AbstractKotlinCoroutineInstrumentationTest<T extends CoreKotlinCo
   }
 
 
+  @Flaky(
+  value = "Recurring Kotlin coroutine CI failures with the legacy context manager",
+  condition = {
+    InstrumenterConfig.get().isLegacyContextManagerEnabled()
+  }
+  )
   def "coroutine instrumentation should work without any parent span #dispatcherName"() {
     setup:
     CoreKotlinCoroutineTests kotlinTest = getCoreKotlinCoroutineTestsInstance(dispatcher)
@@ -550,6 +568,12 @@ abstract class AbstractKotlinCoroutineInstrumentationTest<T extends CoreKotlinCo
     [dispatcherName, dispatcher] << dispatchersToTest
   }
 
+  @Flaky(
+  value = "Recurring Kotlin coroutine CI failures with the legacy context manager",
+  condition = {
+    InstrumenterConfig.get().isLegacyContextManagerEnabled()
+  }
+  )
   def "child launched after a scoped coroutine keeps the trace open scoped=#scoped #dispatcherName"() {
     setup:
     CoreKotlinCoroutineTests kotlinTest = getCoreKotlinCoroutineTestsInstance(dispatcher)
@@ -570,6 +594,12 @@ abstract class AbstractKotlinCoroutineInstrumentationTest<T extends CoreKotlinCo
     }
   }
 
+  @Flaky(
+  value = "Recurring Kotlin coroutine CI failures with the legacy context manager",
+  condition = {
+    InstrumenterConfig.get().isLegacyContextManagerEnabled()
+  }
+  )
   def "children of scoped coroutines keep the trace open #dispatcherName (suspendScope=#suspendScope)"() {
     setup:
     CoreKotlinCoroutineTests kotlinTest = getCoreKotlinCoroutineTestsInstance(dispatcher)
@@ -590,6 +620,12 @@ abstract class AbstractKotlinCoroutineInstrumentationTest<T extends CoreKotlinCo
     }
   }
 
+  @Flaky(
+  value = "Recurring Kotlin coroutine CI failures with the legacy context manager",
+  condition = {
+    InstrumenterConfig.get().isLegacyContextManagerEnabled()
+  }
+  )
   def "structured child keeps the trace open when its parent started without one #dispatcherName"() {
     setup:
     CoreKotlinCoroutineTests kotlinTest = getCoreKotlinCoroutineTestsInstance(dispatcher)

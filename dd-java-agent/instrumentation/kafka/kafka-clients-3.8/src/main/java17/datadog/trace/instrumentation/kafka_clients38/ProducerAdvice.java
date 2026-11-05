@@ -4,6 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extra
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.JAVA_KAFKA;
 import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.KAFKA_PRODUCE;
 import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.PRODUCER_DECORATE;
@@ -35,8 +36,8 @@ public class ProducerAdvice {
         InstrumentationContext.get(Metadata.class, MetadataState.class).get(metadata);
     String clusterId = metadataState != null ? metadataState.clusterId : null;
 
-    // Set cluster ID for Schema Registry instrumentation
-    if (clusterId != null) {
+    // Set cluster ID for Schema Registry instrumentation, which only reports to Data Streams
+    if (clusterId != null && traceConfig().isDataStreamsEnabled()) {
       ClusterIdHolder.set(clusterId);
     }
 

@@ -1,16 +1,11 @@
 plugins {
+  // Tests load the native profiler selected for the image's libc variant.
+  id 'dd-trace-java.ci-builder-inputs'
   id 'dd-trace-java.module.internal-library'
 }
 
-tracerJava {
-  addSourceSetFor(JavaVersion.VERSION_11) {
-    // By default tests with be compiled for `minJavaVersion` version,
-    // but in this case we would like to avoid this since we would like to run with ZULU8
-    applyForTestSources = false
-  }
-}
-
 testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_11
   excludeJdk = ['SEMERU11', 'SEMERU17']
 }
 
