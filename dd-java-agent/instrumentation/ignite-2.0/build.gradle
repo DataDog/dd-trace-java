@@ -42,19 +42,6 @@ for (taskName in ['compileLatestDepTestGroovy', 'compileLatestDepForkedTestGroov
   }
 }
 
-tasks.withType(Test).configureEach {
-  def latestDep = it.name.startsWith('latestDep')
-  testJvmConstraints {
-    if (latestDep) {
-      // ignite 2.17.0+ requires Java 11+
-      minJavaVersion = JavaVersion.VERSION_11
-    } else {
-      // ignite 2.16.0 latest version compatible with Java 8
-      maxJavaVersion = JavaVersion.VERSION_1_8
-    }
-  }
-}
-
 // See https://ignite.apache.org/docs/latest/quick-start/java#running-ignite-with-java-11-or-later
 final igniteJava11Opens = [
   'java.base/jdk.internal.access',
@@ -82,8 +69,17 @@ final igniteJava11Opens = [
   'java.management/sun.management'
 ]
 
-for (taskName in ['latestDepTest', 'latestDepForkedTest']) {
-  tasks.named(taskName, Test) {
+tasks.withType(Test).configureEach {
+  if (it.name.startsWith('latestDep')) {
+    testJvmConstraints {
+      // ignite 2.17.0+ requires Java 11+
+      minJavaVersion = JavaVersion.VERSION_11
+    }
     jvmArgs(igniteJava11Opens.collect { "--add-opens=${it}=ALL-UNNAMED" })
+  } else {
+    testJvmConstraints {
+      // ignite 2.16.0 latest version compatible with Java 8
+      maxJavaVersion = JavaVersion.VERSION_1_8
+    }
   }
 }
