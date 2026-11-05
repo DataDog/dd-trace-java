@@ -30,3 +30,5 @@ class Scala213PromiseCompletionPriorityThreadPoolForkedTest extends ScalaPromise
     return ExecutionContext.fromExecutorService(Executors.newCachedThreadPool())
   }
 }
+
+class Scala213PromiseCallbackExclusionCompletionPriorityForkedTest extends ScalaPromiseCallbackExclusionCompletionPriorityTestBase {}

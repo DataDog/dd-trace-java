@@ -3,6 +3,8 @@ package datadog.trace.instrumentation.scala213.concurrent;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.capture;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.endTaskScope;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.SCALA_PROMISE_CALLBACK;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.exclude;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
@@ -39,9 +41,14 @@ public final class PromiseTransformationInstrumentation
   public static final class Construct {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static <F, T> void onConstruct(
-        @Advice.This Transformation<F, T> task, @Advice.Argument(3) int xform) {
+        @Advice.This Transformation<F, T> task,
+        @Advice.Argument(3) int xform,
+        @Advice.FieldValue("_fun") Object callback) {
       // Do not trace the Noop Transformation
       if (xform == 0) {
+        return;
+      }
+      if (callback != null && exclude(SCALA_PROMISE_CALLBACK, callback)) {
         return;
       }
       capture(InstrumentationContext.get(Transformation.class, State.class), task);
@@ -74,7 +81,12 @@ public final class PromiseTransformationInstrumentation
   public static final class SubmitWithValue {
     @Advice.OnMethodEnter
     public static <F, T> void beforeExecute(
-        @Advice.This Transformation<F, T> task, @Advice.Argument(value = 0) Try<T> resolved) {
+        @Advice.This Transformation<F, T> task,
+        @Advice.Argument(value = 0) Try<T> resolved,
+        @Advice.FieldValue("_fun") Object callback) {
+      if (callback != null && exclude(SCALA_PROMISE_CALLBACK, callback)) {
+        return;
+      }
       // About to enter an ExecutionContext so capture the Scope if necessary
       ContextStore<Transformation, State> contextStore =
           InstrumentationContext.get(Transformation.class, State.class);
