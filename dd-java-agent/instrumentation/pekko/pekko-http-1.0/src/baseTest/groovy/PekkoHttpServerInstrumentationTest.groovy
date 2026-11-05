@@ -312,6 +312,10 @@ abstract class PekkoHttpRouteConfigurationTest extends WithHttpServer<PekkoHttpT
     false
   }
 
+  boolean routeBasedNaming() {
+    true
+  }
+
   def "route opt in respects naming semantics"() {
     when:
     def response = client.newCall(new Request.Builder().url(address.resolve('/items/value').toString()).build()).execute()
@@ -322,7 +326,7 @@ abstract class PekkoHttpRouteConfigurationTest extends WithHttpServer<PekkoHttpT
     then:
     def span = TEST_WRITER.flatten().find { it.getTag('component')?.toString() == 'pekko-http-server' }
     span.getTag('http.route') == (routeEnabled() ? '/items/{param}' : null)
-    span.resourceName.toString() == (otelEnabled() ? 'GET' : 'GET /items/value')
+    span.resourceName.toString() == (otelEnabled() ? 'GET' : (routeBasedNaming() ? 'GET /items/{param}' : 'GET /items/value'))
   }
 
   def "rejected route leaves the original resource"() {
@@ -366,5 +370,18 @@ class PekkoHttpRouteDisabledOtelSemanticsForkedTest extends PekkoHttpRouteConfig
   @Override
   boolean otelEnabled() {
     true
+  }
+}
+
+class PekkoHttpRouteNamingDisabledForkedTest extends PekkoHttpRouteEnabledForkedTest {
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig('http.server.route-based-naming', 'false')
+  }
+
+  @Override
+  boolean routeBasedNaming() {
+    false
   }
 }
