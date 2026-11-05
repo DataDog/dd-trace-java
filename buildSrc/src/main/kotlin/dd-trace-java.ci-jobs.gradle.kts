@@ -94,6 +94,8 @@ if (gitBaseRefProvider.isPresent) {
 
     val projects = subprojects.sortedByDescending { it.projectDir.path.length }
     val affectedProjects = mutableMapOf<Project, MutableSet<String>>()
+    val openFeatureCorpus =
+      rootProject.file("dd-smoke-tests/openfeature/src/test/resources/ffe-system-test-data")
 
     // Path prefixes mapped to affected task names. A file not matching any of these prefixes will affect all tasks in
     // the project ("all" can be used a task name to explicitly state the same). Only the first matching prefix is used.
@@ -116,6 +118,12 @@ if (gitBaseRefProvider.isPresent) {
       val task = matchers.find { relPath.startsWith(it["prefix"]!!) }?.get("task") ?: "all"
       logger.warn("Changed file: ${relativeToGitRoot(f)} in project ${p.path} ($task)")
       affectedProjects.computeIfAbsent(p) { mutableSetOf() }.add(task)
+
+      if (f == openFeatureCorpus) {
+        val openFeatureProject = project(":dd-openfeature")
+        logger.warn("Selecting ${openFeatureProject.path}:testClasses for shared FFE corpus change")
+        affectedProjects.computeIfAbsent(openFeatureProject) { mutableSetOf() }.add("testClasses")
+      }
     }
 
     rootProject.extra.set("affectedProjects", affectedProjects)

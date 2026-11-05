@@ -98,6 +98,41 @@ class CanonicalFixtureTest {
         () -> exactExpectations.assertMatches(Collections.emptyList(), actual));
   }
 
+  @Test
+  void platformSelectorsControlApplicability() {
+    final Map<String, Object> javaSelector =
+        Collections.singletonMap("platform", (Object) PLATFORM);
+    final Map<String, Object> webSelector = Collections.singletonMap("platform", (Object) "web");
+
+    assertFalse(
+        isApplicable(Collections.singletonMap("_skip", Collections.singletonList(javaSelector))));
+    assertTrue(
+        isApplicable(
+            Collections.singletonMap("_include", Collections.singletonList(javaSelector))));
+    assertTrue(
+        isApplicable(Collections.singletonMap("_skip", Collections.singletonList(webSelector))));
+    assertFalse(
+        isApplicable(Collections.singletonMap("_include", Collections.singletonList(webSelector))));
+  }
+
+  @Test
+  void eventMatchersEnforceCounts() {
+    final Map<String, Object> matcher = new LinkedHashMap<>();
+    matcher.put("flag", "expected");
+    matcher.put("_count", 2);
+    final Map<String, Object> expectation = new LinkedHashMap<>();
+    expectation.put("evaluationEvents", Collections.singletonList(matcher));
+    expectation.put("noUnmatchedEvents", true);
+    final FixtureExpectations expectations = new FixtureExpectations(expectation);
+    final FlagEvalEvent event = new FlagEvalEvent("expected", null, null, null, 0, emptyMap());
+
+    expectations.assertMatches(Collections.emptyList(), Arrays.asList(event, event));
+    assertThrows(
+        AssertionError.class,
+        () ->
+            expectations.assertMatches(Collections.emptyList(), Collections.singletonList(event)));
+  }
+
   @MethodSource("canonicalTestCases")
   @ParameterizedTest(name = "{0}")
   void evaluateCanonicalFixture(final FixtureCase testCase) throws Exception {
