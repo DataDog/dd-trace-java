@@ -2,6 +2,7 @@ package com.datadog.openfeature.internal.delivery;
 
 import com.datadog.openfeature.internal.ConfigurationService;
 import com.datadog.openfeature.internal.bridge.v1.ConfigurationSource;
+import com.datadog.openfeature.internal.evaluation.EvaluatorCapabilities;
 import com.datadog.openfeature.internal.ufc.ServerConfiguration;
 import com.datadog.openfeature.internal.ufc.UniversalFlagConfigParser;
 import java.io.IOException;
@@ -38,7 +39,8 @@ public final class RemoteConfigurationService implements ConfigurationService {
                 configuration = UniversalFlagConfigParser.parse(content);
               } catch (final IOException | RuntimeException e) {
                 LOGGER.debug(
-                    "Remote Configuration returned a malformed flag configuration ({}); retaining the current configuration",
+                    "Remote Configuration returned a malformed flag configuration ({}); retaining"
+                        + " the current configuration",
                     e.getClass().getSimpleName(),
                     e);
                 // Rejects the document so the agent reports it as not applied.
@@ -48,7 +50,8 @@ public final class RemoteConfigurationService implements ConfigurationService {
               if (configuration != null) {
                 listener.accept(configuration);
               }
-            });
+            },
+            EvaluatorCapabilities.supported());
   }
 
   @Override

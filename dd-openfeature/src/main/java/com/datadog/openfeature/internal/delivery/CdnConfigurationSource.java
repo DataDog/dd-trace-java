@@ -5,6 +5,7 @@ import static com.datadog.openfeature.internal.delivery.Retries.isRetryableStatu
 import com.datadog.openfeature.internal.ConfigurationService;
 import com.datadog.openfeature.internal.RuntimeServices;
 import com.datadog.openfeature.internal.config.Settings;
+import com.datadog.openfeature.internal.evaluation.EvaluatorCapabilities;
 import com.datadog.openfeature.internal.ufc.ServerConfiguration;
 import com.datadog.openfeature.internal.ufc.UniversalFlagConfigParser;
 import java.io.IOException;
@@ -124,7 +125,8 @@ public final class CdnConfigurationSource implements ConfigurationService {
     }
     // Logged last: a diagnostic must not keep the polling from starting.
     LOGGER.debug(
-        "Feature Flags agentless configuration source started: endpoint={}://{}{}, pollIntervalMillis={}, requestTimeout={}",
+        "Feature Flags agentless configuration source started: endpoint={}://{}{},"
+            + " pollIntervalMillis={}, requestTimeout={}",
         // The origin only: the userinfo, the path and the query of a custom endpoint can carry a
         // credential.
         this.endpoint.getScheme(),
@@ -243,14 +245,16 @@ public final class CdnConfigurationSource implements ConfigurationService {
       configuration = UniversalFlagConfigParser.parseJsonApi(Gzip.decode(response));
     } catch (final IOException | RuntimeException e) {
       LOGGER.debug(
-          "Feature Flags configuration endpoint returned a malformed payload ({}); retaining the current configuration",
+          "Feature Flags configuration endpoint returned a malformed payload ({}); retaining the"
+              + " current configuration",
           e.getClass().getSimpleName(),
           e);
       return false;
     }
     if (configuration == null) {
       LOGGER.debug(
-          "Feature Flags configuration endpoint returned no flag data; retaining the current configuration");
+          "Feature Flags configuration endpoint returned no flag data; retaining the current"
+              + " configuration");
       return false;
     }
     this.listener.accept(configuration);
@@ -298,6 +302,11 @@ public final class CdnConfigurationSource implements ConfigurationService {
             .timeout(this.requestTimeout)
             .header("Accept-Encoding", "gzip");
     Headers.addMetadata(request);
+    if (EvaluatorCapabilities.supported()
+        .contains(EvaluatorCapabilities.DEPENDENT_FLAG_VARIANT_KEY_V1)) {
+      request.header(
+          "X-DD-FEATURE-FLAGS-CAPABILITIES", EvaluatorCapabilities.DEPENDENT_FLAG_VARIANT_KEY_V1);
+    }
     if (this.apiKey != null) {
       request.header("DD-API-KEY", this.apiKey);
     }

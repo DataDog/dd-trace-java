@@ -27,6 +27,7 @@ import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.PollingRateHinter;
 import datadog.remoteconfig.Product;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
@@ -44,6 +45,38 @@ import org.slf4j.LoggerFactory;
 
 class RemoteConfigServiceImplTest {
   private static final byte[] DOCUMENT = "{\"flags\":{}}".getBytes(UTF_8);
+
+  @Test
+  void gatesDependentFlagsOnEverySubscriberAndRemovesOnClose() throws Exception {
+    final ConfigurationPoller poller = mock(ConfigurationPoller.class);
+    final RemoteConfigServiceImpl service = new RemoteConfigServiceImpl(poller);
+    service.start();
+    verify(poller, never())
+        .addCapabilities(Capabilities.CAPABILITY_FFE_FLAG_DEPENDENT_FLAG_VARIANT_KEY_V1);
+    final AutoCloseable supported =
+        service.subscribe(content -> {}, Collections.singleton("dependent-flag-variant-key-v1"));
+    verify(poller).addCapabilities(Capabilities.CAPABILITY_FFE_FLAG_DEPENDENT_FLAG_VARIANT_KEY_V1);
+    final AutoCloseable legacy = service.subscribe(content -> {});
+    verify(poller)
+        .removeCapabilities(Capabilities.CAPABILITY_FFE_FLAG_DEPENDENT_FLAG_VARIANT_KEY_V1);
+    legacy.close();
+    verify(poller, times(2))
+        .addCapabilities(Capabilities.CAPABILITY_FFE_FLAG_DEPENDENT_FLAG_VARIANT_KEY_V1);
+    supported.close();
+    verify(poller, times(2))
+        .removeCapabilities(Capabilities.CAPABILITY_FFE_FLAG_DEPENDENT_FLAG_VARIANT_KEY_V1);
+    service.close();
+  }
+
+  @Test
+  void unknownEvaluatorCapabilitiesDoNotOptIn() {
+    final ConfigurationPoller poller = mock(ConfigurationPoller.class);
+    final RemoteConfigServiceImpl service = new RemoteConfigServiceImpl(poller);
+    service.subscribe(content -> {}, Collections.singleton("unknown-v1"));
+    verify(poller, never())
+        .addCapabilities(Capabilities.CAPABILITY_FFE_FLAG_DEPENDENT_FLAG_VARIANT_KEY_V1);
+    service.close();
+  }
 
   @Test
   @SuppressWarnings("unchecked")
