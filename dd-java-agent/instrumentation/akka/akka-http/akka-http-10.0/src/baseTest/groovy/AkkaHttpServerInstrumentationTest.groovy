@@ -282,12 +282,6 @@ class AkkaHttpServerInstrumentationSyncOtelSemanticsForkedTest extends AkkaHttpS
 
 abstract class AkkaHttpRouteOtelSemanticsTest extends WithHttpServer<AkkaHttpTestWebServer> implements TestingGenericHttpNamingConventions.ServerV0, TestingOtelHttpSemantics {
   @Override
-  void configurePreAgent() {
-    super.configurePreAgent()
-    injectSysConfig(TraceInstrumentationConfig.LEGACY_CONTEXT_MANAGER_ENABLED, "true")
-  }
-
-  @Override
   HttpServer server() {
     new AkkaHttpTestWebServer(AkkaHttpTestWebServer.BindAndHandle())
   }

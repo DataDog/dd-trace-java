@@ -112,12 +112,6 @@ class PekkoHttpServerInstrumentationSyncV1ForkedTest extends PekkoHttpServerInst
 
 abstract class PekkoHttpRouteOtelSemanticsTest extends WithHttpServer<PekkoHttpTestWebServer> implements TestingGenericHttpNamingConventions.ServerV0, TestingOtelHttpSemantics {
   @Override
-  void configurePreAgent() {
-    super.configurePreAgent()
-    injectSysConfig(TraceInstrumentationConfig.LEGACY_CONTEXT_MANAGER_ENABLED, "true")
-  }
-
-  @Override
   HttpServer server() {
     new PekkoHttpTestWebServer(PekkoHttpTestWebServer.BindAndHandle())
   }
