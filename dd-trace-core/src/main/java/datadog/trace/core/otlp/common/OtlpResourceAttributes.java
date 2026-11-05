@@ -79,13 +79,12 @@ final class OtlpResourceAttributes {
     if (globalTags instanceof TagMap) {
       boolean otelSemantics = config.isTraceOtelSemanticsEnabled();
       ((TagMap) globalTags)
-          .forEach(
-              entry ->
-                  visitGlobalTag(
-                      otelSemantics ? entry.openTelemetryTag() : entry.tag(),
-                      entry.stringValue(),
-                      extraAttributes,
-                      visitor));
+          .forEach(entry ->
+              visitGlobalTag(
+                  otelSemantics ? entry.openTelemetryTag() : entry.tag(),
+                  entry.stringValue(),
+                  extraAttributes,
+                  visitor));
     } else if (globalTags != null) {
       globalTags.forEach(
           (key, value) -> visitGlobalTag(key, String.valueOf(value), extraAttributes, visitor));

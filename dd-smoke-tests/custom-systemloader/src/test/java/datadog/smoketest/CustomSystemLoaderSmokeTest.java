@@ -38,11 +38,10 @@ class CustomSystemLoaderSmokeTest {
 
     List<String> logLines = new ArrayList<>();
     assertTrue(
-        app.waitForLogLine(
-            line -> {
-              logLines.add(line);
-              return "FIN".equals(line);
-            }));
+        app.waitForLogLine(line -> {
+          logLines.add(line);
+          return "FIN".equals(line);
+        }));
     Predicate<String> loadedResource =
         compile("Loading sample.app.Resource[$]Test[1-3] from TestLoader").asPredicate();
     Predicate<String> transformedResource =

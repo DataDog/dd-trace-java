@@ -240,28 +240,25 @@ class FeatureFlagsRuntimeTest {
     final ExecutorService executor = Executors.newFixedThreadPool(2);
     try {
       final Future<?> registration =
-          executor.submit(
-              () ->
-                  runtime.addConfigurationListener(
-                      configuration -> {
-                        if (configuration != null) {
-                          replayStarted.countDown();
-                          try {
-                            assertTrue(finishReplay.await(5, SECONDS));
-                          } catch (final InterruptedException e) {
-                            Thread.currentThread().interrupt();
-                            throw new AssertionError(e);
-                          }
-                        }
-                        received.add(configuration);
-                      }));
+          executor.submit(() ->
+              runtime.addConfigurationListener(configuration -> {
+                if (configuration != null) {
+                  replayStarted.countDown();
+                  try {
+                    assertTrue(finishReplay.await(5, SECONDS));
+                  } catch (final InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new AssertionError(e);
+                  }
+                }
+                received.add(configuration);
+              }));
       assertTrue(replayStarted.await(5, SECONDS));
       final Future<?> removal =
-          executor.submit(
-              () -> {
-                removalStarted.countDown();
-                source.listener.accept(null);
-              });
+          executor.submit(() -> {
+            removalStarted.countDown();
+            source.listener.accept(null);
+          });
       assertTrue(removalStarted.await(5, SECONDS));
       assertThrows(TimeoutException.class, () -> removal.get(100, MILLISECONDS));
 
@@ -308,10 +305,9 @@ class FeatureFlagsRuntimeTest {
             new TestAgentBridge(source, null),
             TestSettings.of("feature.flags.configuration.source", "remote_config"));
     final List<ServerConfiguration> received = new CopyOnWriteArrayList<>();
-    runtime.addConfigurationListener(
-        configuration -> {
-          throw new IllegalStateException("listener failure");
-        });
+    runtime.addConfigurationListener(configuration -> {
+      throw new IllegalStateException("listener failure");
+    });
     runtime.addConfigurationListener(received::add);
     runtime.start();
     try {

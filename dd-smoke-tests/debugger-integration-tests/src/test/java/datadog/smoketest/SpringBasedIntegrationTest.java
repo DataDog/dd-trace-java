@@ -67,12 +67,11 @@ public class SpringBasedIntegrationTest extends BaseIntegrationTest {
     int i = 0;
     while (i < total && !result[0]) {
       try (Stream<String> lines = Files.lines(logFilePath)) {
-        lines.forEach(
-            it -> {
-              if (it.contains(line)) {
-                result[0] = true;
-              }
-            });
+        lines.forEach(it -> {
+          if (it.contains(line)) {
+            result[0] = true;
+          }
+        });
       }
       LockSupport.parkNanos(sleep.toNanos());
       i++;

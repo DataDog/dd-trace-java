@@ -191,11 +191,10 @@ public final class OtlpTraceProto {
     spanLink
         .attributes()
         .asMap()
-        .forEach(
-            (key, value) -> {
-              writeTag(buf, 4, LEN_WIRE_TYPE);
-              writeAttribute(buf, STRING_ATTRIBUTE, key, value);
-            });
+        .forEach((key, value) -> {
+          writeTag(buf, 4, LEN_WIRE_TYPE);
+          writeAttribute(buf, STRING_ATTRIBUTE, key, value);
+        });
 
     writeTag(buf, 6, I32_WIRE_TYPE);
     writeI32(buf, spanLink.traceFlags() & 0xff);
