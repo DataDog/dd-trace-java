@@ -103,8 +103,9 @@ public class ExternalAgentLauncher implements Closeable {
     private final File pipe;
     private final boolean checkResponse;
 
-    // Only the supervisor thread runs the health check, so this needs no synchronization
-    private FutureTask<Boolean> pendingInfoRequest;
+    // A request that got no answer in time. Only the supervisor thread runs the health check, so
+    // this needs no synchronization.
+    private FutureTask<Boolean> timedOutInfoRequest;
 
     NamedPipeHealthCheck(String pipeName, boolean checkResponse) {
       this.checkResponse = checkResponse;
@@ -151,19 +152,39 @@ public class ExternalAgentLauncher implements Closeable {
     /**
      * Sends a request on another thread and waits up to {@link #RESPONSE_TIMEOUT_MILLIS} for the
      * answer. Reads from a pipe cannot time out, so a request to a hung agent stays blocked until
-     * the agent exits. Until then later checks fail without sending another request.
+     * the agent exits. Until then later checks fail without sending another request. An answer that
+     * arrives after the timeout still counts at the next check, so a slow agent is not restarted.
      */
     private boolean agentResponds() throws InterruptedException {
-      if (pendingInfoRequest != null && !pendingInfoRequest.isDone()) {
-        return false; // the last request is still waiting for an answer
+      FutureTask<Boolean> lateRequest = timedOutInfoRequest;
+      if (lateRequest != null) {
+        if (!lateRequest.isDone()) {
+          return false; // still waiting for an answer
+        }
+        timedOutInfoRequest = null;
+        if (answered(lateRequest)) {
+          return true;
+        }
       }
       FutureTask<Boolean> infoRequest = new FutureTask<>(this::sendInfoRequest);
-      pendingInfoRequest = infoRequest;
       AgentThreadFactory.newAgentThread(PROCESS_SUPERVISOR, "-health-check", infoRequest, true)
           .start();
       try {
         return infoRequest.get(RESPONSE_TIMEOUT_MILLIS, MILLISECONDS);
-      } catch (ExecutionException | TimeoutException e) {
+      } catch (TimeoutException e) {
+        timedOutInfoRequest = infoRequest;
+        return false;
+      } catch (ExecutionException e) {
+        return false;
+      }
+    }
+
+    /** Returns the result of a finished request, without waiting. */
+    private static boolean answered(FutureTask<Boolean> finishedRequest)
+        throws InterruptedException {
+      try {
+        return finishedRequest.get();
+      } catch (ExecutionException e) {
         return false;
       }
     }

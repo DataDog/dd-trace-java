@@ -168,18 +168,26 @@ public class ProcessSupervisor implements Closeable {
 
     // Keep checking on the process until it exits
     while (!currentProcess.waitFor(HEALTHY_DELAY_MILLIS, MILLISECONDS)) {
-      faultBackoff.recordUptime(System.currentTimeMillis() - currentProcessStartedMillis);
+      long upMillis = System.currentTimeMillis() - currentProcessStartedMillis;
+      faultBackoff.recordUptime(upMillis);
+      if (upMillis >= STABLE_RUN_MILLIS) {
+        failuresInARow = 0; // it stayed up, so log its lifecycle at info level again
+      }
       if (healthCheck != ALWAYS_READY && !passesHealthCheck(childPid)) {
         restartUnhealthyProcess(childPid);
         return;
       }
     }
     int code = currentProcess.exitValue();
-    currentHealth = code == 0 ? INTERRUPTED : FAULTED;
-
     long ranMillis = System.currentTimeMillis() - currentProcessStartedMillis;
+    boolean stayedUp = ranMillis >= STABLE_RUN_MILLIS;
+    // An exit before the process stayed up is a fault whatever its code. The trace agent exits
+    // with 0 when APM is disabled, for example, and restarting that every 100 ms never ends.
+    boolean failed = code != 0 || !stayedUp;
+    currentHealth = failed ? FAULTED : INTERRUPTED;
+
     faultBackoff.recordUptime(ranMillis);
-    if (ranMillis >= STABLE_RUN_MILLIS) {
+    if (stayedUp) {
       failuresInARow = 0;
     }
     logLifecycle(
@@ -188,9 +196,9 @@ public class ProcessSupervisor implements Closeable {
         childPid,
         code,
         ranMillis);
-    if (code != 0 && ++failuresInARow == QUIET_AFTER_FAILURES) {
+    if (failed && ++failuresInARow == QUIET_AFTER_FAILURES) {
       log.warn(
-          "Process [{}] has exited with an error {} times in a row; "
+          "Process [{}] has failed {} times in a row; "
               + "further starts and exits are logged at debug level until it stays up for {} seconds",
           imageName,
           failuresInARow,
