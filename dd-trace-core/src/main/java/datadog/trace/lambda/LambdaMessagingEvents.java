@@ -42,6 +42,7 @@ final class LambdaMessagingEvents {
                 service(mapping, queue, "lambda_sqs", queue),
                 queue,
                 micros(attributes.get("SentTimestamp"), 1_000));
+    trigger.mapping(mapping, queue, "lambda_sqs");
     trigger.meta.put("receipt_handle", string(record, "receiptHandle"));
     trigger.meta.put("retry_count", string(attributes, "ApproximateReceiveCount"));
     trigger.meta.put("sender_id", string(attributes, "SenderId"));
@@ -84,6 +85,7 @@ final class LambdaMessagingEvents {
                 service(mapping, topic, "lambda_sns", topic),
                 topic,
                 timestamp(string(entity, "Timestamp")));
+    trigger.mapping(mapping, topic, "lambda_sns");
     trigger.meta.put("topicname", topic);
     trigger.meta.put("topic_arn", arn);
     trigger.meta.put("message_id", string(entity, "MessageId"));
@@ -125,6 +127,7 @@ final class LambdaMessagingEvents {
                 service(mapping, resource, "lambda_eventbridge", resource),
                 resource,
                 start);
+    trigger.mapping(mapping, resource, "lambda_eventbridge");
     trigger.meta.put("detail_type", string(event, "detail-type"));
     trigger.carrier = carrier;
     return trigger;
@@ -166,6 +169,7 @@ final class LambdaMessagingEvents {
                 service(mapping, cluster, "lambda_msk", cluster),
                 topic,
                 micros(chosen.get("timestamp"), 1_000));
+    trigger.mapping(mapping, cluster, "lambda_msk");
     trigger.meta.put("topic", topic);
     tag(trigger.meta, "partition", chosen.get("partition"));
     trigger.meta.put("event_source", string(event, "eventSource"));
