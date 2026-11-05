@@ -12288,6 +12288,22 @@
         "aliases": []
       }
     ],
+    "DD_CAPTURE_LAMBDA_PAYLOAD": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
+    "DD_CAPTURE_LAMBDA_PAYLOAD_MAX_DEPTH": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "10",
+        "aliases": []
+      }
+    ],
     "DD_UNIVERSAL_INSTRUMENTATION": [
       {
         "version": "A",

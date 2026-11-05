@@ -23,6 +23,8 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_TRACE_RATE_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_WAF_METRICS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_WAF_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APP_LOGS_COLLECTION_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CAPTURE_LAMBDA_PAYLOAD;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CAPTURE_LAMBDA_PAYLOAD_MAX_DEPTH;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CASSANDRA_KEYSPACE_STATEMENT_EXTRACTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_AGENTLESS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_AUTO_CONFIGURATION_ENABLED;
@@ -660,6 +662,8 @@ import static datadog.trace.api.config.TracerConfig.AGENT_PORT_LEGACY;
 import static datadog.trace.api.config.TracerConfig.AGENT_TIMEOUT;
 import static datadog.trace.api.config.TracerConfig.AGENT_UNIX_DOMAIN_SOCKET;
 import static datadog.trace.api.config.TracerConfig.BAGGAGE_MAPPING;
+import static datadog.trace.api.config.TracerConfig.CAPTURE_LAMBDA_PAYLOAD;
+import static datadog.trace.api.config.TracerConfig.CAPTURE_LAMBDA_PAYLOAD_MAX_DEPTH;
 import static datadog.trace.api.config.TracerConfig.CLIENT_IP_ENABLED;
 import static datadog.trace.api.config.TracerConfig.CLOCK_SYNC_PERIOD;
 import static datadog.trace.api.config.TracerConfig.ENABLE_TRACE_AGENT_V05;
@@ -1368,6 +1372,8 @@ public class Config {
 
   private final boolean lambdaSnapStartClockResyncEnabled;
   private final boolean universalInstrumentationEnabled;
+  private final boolean captureLambdaPayload;
+  private final int captureLambdaPayloadMaxDepth;
   private final boolean awsServiceRepresentationEnabled;
 
   private final boolean trace128bitTraceIdGenerationEnabled;
@@ -1606,6 +1612,13 @@ public class Config {
         configProvider.getBoolean(
             TRACE_AWS_SERVICE_REPRESENTATION_ENABLED,
             DEFAULT_TRACE_AWS_SERVICE_REPRESENTATION_ENABLED);
+    captureLambdaPayload =
+        configProvider.getBoolean(CAPTURE_LAMBDA_PAYLOAD, DEFAULT_CAPTURE_LAMBDA_PAYLOAD);
+    int payloadDepth =
+        configProvider.getInteger(
+            CAPTURE_LAMBDA_PAYLOAD_MAX_DEPTH, DEFAULT_CAPTURE_LAMBDA_PAYLOAD_MAX_DEPTH);
+    captureLambdaPayloadMaxDepth =
+        payloadDepth < 0 ? DEFAULT_CAPTURE_LAMBDA_PAYLOAD_MAX_DEPTH : payloadDepth;
     universalInstrumentationEnabled =
         parseUniversalInstrumentation(configProvider.getString(UNIVERSAL_INSTRUMENTATION));
     lambdaSnapStartClockResyncEnabled =
@@ -5303,6 +5316,14 @@ public class Config {
     return awsServiceRepresentationEnabled;
   }
 
+  public boolean isCaptureLambdaPayload() {
+    return captureLambdaPayload;
+  }
+
+  public int getCaptureLambdaPayloadMaxDepth() {
+    return captureLambdaPayloadMaxDepth;
+  }
+
   public boolean isUniversalInstrumentationEnabled() {
     return universalInstrumentationEnabled;
   }
@@ -6707,7 +6728,11 @@ public class Config {
   @Override
   public String toString() {
     return "Config{"
-        + "awsServiceRepresentationEnabled="
+        + "captureLambdaPayload="
+        + captureLambdaPayload
+        + ", captureLambdaPayloadMaxDepth="
+        + captureLambdaPayloadMaxDepth
+        + ", awsServiceRepresentationEnabled="
         + awsServiceRepresentationEnabled
         + ", universalInstrumentationEnabled="
         + universalInstrumentationEnabled
