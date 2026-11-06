@@ -43,7 +43,7 @@
 # direction.
 # CONCEPTS. A tag's id must mean the same thing on every span. A name that doesn't -- peer.port is the
 # server's port on a client span and the client's port on a server span -- is declared in `concepts:`,
-# one concept per meaning, and referenced by that concept's name. The generator won't guess: an
+# one concept per meaning, and referenced with `{ concept-ref: <concept> }`. The generator won't guess: an
 # ambiguous name declared any other way fails generation.
 # The tracer core resolves names without a direction, so only renames that apply in every direction
 # resolve a name to a tag there. A directional rename, including one under `span-kind: internal`, is
@@ -142,7 +142,7 @@ span_types:
     tags:
       - { dd-name: http.route,        type: string, required: conditional }  # passes through: dd-name already is the OTel name
       - { dd-name: http.hostname,     type: string, required: required,    otel-name: server.address }  # inbound only; on outbound spans server.address is peer.hostname
-      - { ref: server.port,         required: conditional }  # the server's own port
+      - { concept-ref: server.port, required: conditional }  # the server's own port
       - { dd-name: http.useragent,    type: string, required: recommended, otel-name: user_agent.original, span-kind-neutral: true }
       - { dd-name: url.path,          type: string, required: conditional }  # OTel-only; server replacement for http.url
       - { dd-name: url.scheme,        type: string, required: conditional }  # OTel-only; server replacement for http.url
@@ -555,13 +555,13 @@ mixins:
     span-kind: client
     tags:
       - { dd-name: peer.hostname, type: string, required: recommended, otel-name: server.address }
-      - { ref: server.port }
+      - { concept-ref: server.port }
 
   # inbound_peer — the other end of an inbound connection: the client.
   inbound_peer:
     span-kind: server
     tags:
-      - { ref: client.port }
+      - { concept-ref: client.port }
 
   # code_origin — the debugger's code origin, on entry spans (and their local root), annotated
   # controller methods' handler spans, and @Trace spans.
