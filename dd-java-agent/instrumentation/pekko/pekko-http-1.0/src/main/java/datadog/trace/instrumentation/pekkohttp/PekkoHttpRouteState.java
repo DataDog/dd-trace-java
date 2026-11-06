@@ -2,12 +2,10 @@ package datadog.trace.instrumentation.pekkohttp;
 
 import static datadog.context.ContextKey.named;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
-import static java.util.Collections.singletonList;
 
 import datadog.context.Context;
 import datadog.context.ContextKey;
 import datadog.trace.api.Config;
-import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.KnownTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -20,11 +18,6 @@ import org.apache.pekko.http.scaladsl.model.Uri;
 public final class PekkoHttpRouteState {
   private static final boolean OTEL_SEMANTICS = Config.get().isTraceOtelSemanticsEnabled();
   private static final ContextKey<PekkoHttpRouteState> KEY = named("pekko-http-route");
-  private static final boolean ROUTE_CAPTURE_ENABLED =
-      InstrumenterConfig.get()
-          .isIntegrationEnabled(
-              singletonList("pekko-http-route"),
-              InstrumenterConfig.get().isIntegrationsEnabled() && OTEL_SEMANTICS);
 
   Uri.Path remaining;
   Part part;
@@ -37,9 +30,7 @@ public final class PekkoHttpRouteState {
   }
 
   public static Context init(Context context, Uri.Path requestPath) {
-    return ROUTE_CAPTURE_ENABLED
-        ? context.with(KEY, new PekkoHttpRouteState(requestPath))
-        : context;
+    return context.with(KEY, new PekkoHttpRouteState(requestPath));
   }
 
   static PekkoHttpRouteState current() {
