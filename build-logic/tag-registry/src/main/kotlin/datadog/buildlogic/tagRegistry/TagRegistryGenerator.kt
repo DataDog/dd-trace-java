@@ -117,5 +117,21 @@ object TagRegistryGenerator {
     for ((otel, direction, canonical) in scoped) {
       appendLine("  %-30s %-9s -> %s".format(Locale.ROOT, otel, direction.yamlKey, canonical))
     }
+    appendLine(
+      """
+
+      # CONCEPTS. Names that mean different things on different spans, each meaning declared once in
+      # `concepts:`. A span names the concept from its kind when the tag is written; a kind without a
+      # Datadog name below uses the concept's name. Datadog names here resolve with the span's kind.
+      """.trimIndent()
+    )
+    for (t in reg.tags.filter { it.projected }) {
+      appendLine("  ${t.name}  (id 0x%016X)".format(Locale.ROOT, t.id))
+      for (kind in TagConventions.SpanKind.entries) {
+        val dd = t.datadogNames[kind] ?: t.ddName
+        val otel = t.otelName ?: t.scopedOtelNames[kind.direction] ?: "(pass-through: $dd)"
+        appendLine("    %-10s datadog %-14s otel %s".format(Locale.ROOT, kind.yamlKey ?: "no kind", dd, otel))
+      }
+    }
   }
 }

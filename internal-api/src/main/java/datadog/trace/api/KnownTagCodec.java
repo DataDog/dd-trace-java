@@ -1,5 +1,6 @@
 package datadog.trace.api;
 
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 
 /**
@@ -130,6 +131,49 @@ public final class KnownTagCodec {
   /** Internal spans, which have no other end. */
   public static final int DIRECTION_NONE = 2;
 
+  /*
+   * A span's kind, for the few concepts whose Datadog name depends on it: server.port is named
+   * server.port on server spans but peer.port on client, producer and consumer spans. Pass one of
+   * these to datadogNameOf / datadogKeyOf. The numbering matches the core span's cached kind
+   * ordinal, so the core passes that ordinal as is.
+   */
+
+  /** No kind yet. Named like an internal span: see {@link #datadogWriteKeyOf}. */
+  public static final int KIND_UNSET = 0;
+
+  public static final int KIND_SERVER = 1;
+  public static final int KIND_CLIENT = 2;
+  public static final int KIND_PRODUCER = 3;
+  public static final int KIND_CONSUMER = 4;
+  public static final int KIND_INTERNAL = 5;
+  public static final int KIND_BROKER = 6;
+
+  /** A kind none of the others names. */
+  public static final int KIND_CUSTOM = 7;
+
+  /** The {@code KIND_*} number of a span of {@code kind}. */
+  public static int kindOf(String kind) {
+    if (kind == null) {
+      return KIND_UNSET;
+    }
+    switch (kind) {
+      case Tags.SPAN_KIND_SERVER:
+        return KIND_SERVER;
+      case Tags.SPAN_KIND_CLIENT:
+        return KIND_CLIENT;
+      case Tags.SPAN_KIND_PRODUCER:
+        return KIND_PRODUCER;
+      case Tags.SPAN_KIND_CONSUMER:
+        return KIND_CONSUMER;
+      case Tags.SPAN_KIND_INTERNAL:
+        return KIND_INTERNAL;
+      case Tags.SPAN_KIND_BROKER:
+        return KIND_BROKER;
+      default:
+        return KIND_CUSTOM;
+    }
+  }
+
   /** The direction of a span with these tags, from its {@code span.kind}. */
   public static int directionOf(TagMap tags) {
     TagMap.Entry kind = tags.getEntry(KnownTags.SPAN_KIND);
@@ -172,6 +216,12 @@ public final class KnownTagCodec {
 
     /** See {@link KnownTagCodec#directionalKeyOf}. */
     long directionalKeyOf(String name, int direction);
+
+    /** See {@link KnownTagCodec#datadogNameOf(long, int)}. */
+    String datadogNameOf(long tagId, int spanKind);
+
+    /** See {@link KnownTagCodec#datadogKeyOf}. */
+    long datadogKeyOf(String name, int spanKind);
   }
 
   /**
@@ -200,6 +250,11 @@ public final class KnownTagCodec {
    */
   public static String openTelemetryNameOf(long tagId) {
     return Installed.RESOLVER.openTelemetryNameOf(tagId, DIRECTION_UNKNOWN);
+  }
+
+  /** {@link #openTelemetryNameOf(long)} on spans of {@code direction}: raw registry data. */
+  public static String openTelemetryNameOf(long tagId, int direction) {
+    return Installed.RESOLVER.openTelemetryNameOf(tagId, direction);
   }
 
   /**
@@ -268,6 +323,55 @@ public final class KnownTagCodec {
   public static String canonicalTagName(String name) {
     long id = keyOf(name);
     return id != 0 ? nameOf(id) : name;
+  }
+
+  /**
+   * True when {@code tagId} names a concept whose Datadog name depends on the span's kind ({@code
+   * server.port} is {@code server.port} on server spans and {@code peer.port} on client spans). A
+   * span names such a tag with {@link #datadogNameOf(long, int)} when it is written. Folds to a
+   * constant for a constant id.
+   */
+  public static boolean hasProjectedName(long tagId) {
+    return KnownTags.hasProjectedName(tagId);
+  }
+
+  /**
+   * The Datadog name of {@code tagId} on a span of {@code spanKind} (a {@code KIND_*} number). For
+   * every tag but a projected concept, this is {@link #nameOf}.
+   */
+  public static String datadogNameOf(long tagId, int spanKind) {
+    return Installed.RESOLVER.datadogNameOf(tagId, spanKind);
+  }
+
+  /**
+   * The projected concept {@code name} is the Datadog name of on spans of {@code spanKind}, or 0.
+   * For reading: on a span with no kind, or an internal one, {@code peer.port} still finds the
+   * {@code server.port} concept its instrumentation wrote.
+   */
+  public static long datadogKeyOf(String name, int spanKind) {
+    return name == null ? 0L : Installed.RESOLVER.datadogKeyOf(name, spanKind);
+  }
+
+  /**
+   * {@link #datadogKeyOf} for writing a tag by name. Only a span that is a server, client, producer
+   * or consumer resolves a name: on a span with no kind yet (or an internal, broker or custom one),
+   * a name that some kinds project stays a plain name, since it is not yet known what it means.
+   */
+  public static long datadogWriteKeyOf(String name, int spanKind) {
+    return spanKind >= KIND_SERVER && spanKind <= KIND_CONSUMER ? datadogKeyOf(name, spanKind) : 0L;
+  }
+
+  /**
+   * The name {@code span} stores {@code tagId} under when set by that name: {@link #nameOf}, or for
+   * a projected concept the Datadog name {@code span}'s kind gives it. For spans that set a tag by
+   * id through its name.
+   */
+  public static String nameOnSpan(long tagId, AgentSpan span) {
+    if (!hasProjectedName(tagId)) {
+      return nameOf(tagId);
+    }
+    Object kind = span.getTag(Tags.SPAN_KIND);
+    return datadogNameOf(tagId, kindOf(kind == null ? null : kind.toString()));
   }
 
   private KnownTagCodec() {}

@@ -1107,12 +1107,16 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
     verify(span).setServiceName("split", ServiceNameSources.SPLIT_BY_TAGS);
   }
 
+  /**
+   * peer.port names a concept only with a span kind, so split-by-tags matches it by the name a span
+   * gives a port (see DDSpanProjectedTagTest), not by an id.
+   */
   @Test
-  void splitByTagsOnANameDeclaredPerDirectionMatchesItsOneTag() {
+  void splitByTagsOnAProjectedNameMatchesTheName() {
     TagInterceptor interceptor = splittingInterceptor(Tags.PEER_PORT);
 
-    assertTrue(interceptor.needsIntercept(KnownTags.PEER_PORT));
-    assertTrue(interceptor.needsIntercept(Tags.PEER_PORT));
+    assertTrue(interceptor.needsInterceptCustomTag(Tags.PEER_PORT));
+    assertFalse(interceptor.needsIntercept(KnownTags.SERVER_PORT));
   }
 
   private static TagInterceptor splittingInterceptor(String splitByTag) {

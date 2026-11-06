@@ -41,12 +41,10 @@
 # globally, and where a rename is declared scopes it: in a scope without a span-kind (trace_level, an
 # abstract type, a plain mixin) it applies in every direction; in a directional scope, only in that
 # direction.
-# A tag whose MEANING flips with direction, like peer.port (the server's port on an outbound span, the
-# client's on an inbound one), is declared once per direction, each in a directional mixin. The
-# declarations merge into ONE tag with one id; only its OpenTelemetry name depends on the span's
-# direction. Any other repeated declaration is still an error.
-# A directional rename may also be another tag's Datadog name: server.port is peer.port on outbound
-# spans, and its own tag (the server's port) in every other direction.
+# CONCEPTS. A tag's id must mean the same thing on every span. A name that doesn't -- peer.port is the
+# server's port on a client span and the client's port on a server span -- is declared in `concepts:`,
+# one concept per meaning, and referenced with `{ concept-ref: <concept> }`. The generator won't guess: an
+# ambiguous name declared any other way fails generation.
 # The tracer core resolves names without a direction, so only renames that apply in every direction
 # resolve a name to a tag there. A directional rename, including one under `span-kind: internal`, is
 # applied when a span's tags are emitted under OpenTelemetry names, and by the OpenTelemetry API,
@@ -91,6 +89,22 @@ trace_level:
     - { dd-name: _dd.agent_psr,          type: double,  required: optional }     # the agent-provided sampling rate the sampler applied
     - { dd-name: ai_guard.event,         type: boolean, required: optional }     # when the trace holds an AI Guard evaluation span
 
+# ---------------------------------------------------------------------------
+# CONCEPTS — one entry per meaning of an ambiguous name, named by its OpenTelemetry role.
+#   dd-name:   by span kind (server, client, producer, consumer, internal), direction (inbound,
+#              outbound, none) or default; the most specific wins. No entry: the concept's name.
+#   otel-name: by direction. No entry: the Datadog name.
+# ---------------------------------------------------------------------------
+concepts:
+  # A server's own port is server.port; anyone else's view of the server is peer.port.
+  - { concept: server.port, type: int,
+      dd-name: { server: server.port, default: peer.port },
+      otel-name: { inbound: server.port, outbound: server.port } }
+  # The client's port, seen from the server.
+  - { concept: client.port, type: int,
+      dd-name: { server: peer.port },
+      otel-name: { inbound: client.port } }
+
 span_types:
   # root: per-span tags every span has (incl. the per-span core tags parent_id / integration / svc_src
   # — core-set but per-span, so NOT trace-level).
@@ -128,7 +142,7 @@ span_types:
     tags:
       - { dd-name: http.route,        type: string, required: conditional }  # passes through: dd-name already is the OTel name
       - { dd-name: http.hostname,     type: string, required: required,    otel-name: server.address }  # inbound only; on outbound spans server.address is peer.hostname
-      - { dd-name: server.port,       type: int,    required: conditional }  # the server's own port; on outbound spans server.port is peer.port
+      - { concept-ref: server.port, required: conditional }  # the server's own port
       - { dd-name: http.useragent,    type: string, required: recommended, otel-name: user_agent.original, span-kind-neutral: true }
       - { dd-name: url.path,          type: string, required: conditional }  # OTel-only; server replacement for http.url
       - { dd-name: url.scheme,        type: string, required: conditional }  # OTel-only; server replacement for http.url
@@ -536,22 +550,18 @@ mixins:
       - { dd-name: peer.ipv4, type: string }
       - { dd-name: peer.ipv6, type: string }
 
-  # outbound_peer / inbound_peer declare peer.port once per direction. It is still one tag
-  # (PEER_PORT_ID); only its OpenTelemetry name depends on the span's direction: client.port on
-  # inbound spans, server.port on outbound ones.
-
   # outbound_peer — the other end of an outbound connection: the server.
   outbound_peer:
     span-kind: client
     tags:
       - { dd-name: peer.hostname, type: string, required: recommended, otel-name: server.address }
-      - { dd-name: peer.port,     type: int,    otel-name: server.port }
+      - { concept-ref: server.port }
 
   # inbound_peer — the other end of an inbound connection: the client.
   inbound_peer:
     span-kind: server
     tags:
-      - { dd-name: peer.port,            type: int, otel-name: client.port }
+      - { concept-ref: client.port }
 
   # code_origin — the debugger's code origin, on entry spans (and their local root), annotated
   # controller methods' handler spans, and @Trace spans.

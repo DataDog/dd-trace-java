@@ -1,12 +1,18 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
 import datadog.trace.api.DDTags;
+import datadog.trace.api.KnownTags;
 import datadog.trace.bootstrap.instrumentation.api.SpanPrototype;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
 public abstract class ServerDecorator extends BaseDecorator {
+  /** A server span's other end is the client, so its peer port is the client's port. */
+  @Override
+  protected long peerPortTag() {
+    return KnownTags.CLIENT_PORT;
+  }
 
   @Override
   protected SpanPrototype buildSpanPrototype() {

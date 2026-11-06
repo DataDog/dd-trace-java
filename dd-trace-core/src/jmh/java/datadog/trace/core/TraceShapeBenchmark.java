@@ -249,7 +249,7 @@ public class TraceShapeBenchmark {
     server.setTag(KnownTags.HTTP_HOSTNAME, HOSTNAME);
     server.setResourceName(SERVER_RESOURCE);
     server.setTag(KnownTags.PEER_IPV4, CLIENT_IP);
-    server.setTag(KnownTags.PEER_PORT, CLIENT_PORT);
+    server.setTag(KnownTags.CLIENT_PORT, CLIENT_PORT);
     server.setTag(KnownTags.HTTP_ROUTE, ROUTE);
     try (ContextScope scope = tracer.activateSpan(server)) {
       for (int i = 0; i < children; ++i) {
