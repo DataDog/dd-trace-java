@@ -29,9 +29,8 @@ import org.slf4j.LoggerFactory;
 public class SpanPointersProcessor extends TagsPostProcessor {
   private static final Logger LOG = LoggerFactory.getLogger(SpanPointersProcessor.class);
 
-  // The pointer direction will always be down. The serverless agent handles cases where the
-  // direction is up.
   public static final String DOWN_DIRECTION = "d";
+  public static final String UP_DIRECTION = "u";
   public static final String DYNAMODB_PTR_KIND = "aws.dynamodb.item";
   public static final String S3_PTR_KIND = "aws.s3.object";
   public static final String LINK_KIND = "span-pointer";
@@ -70,13 +69,7 @@ public class SpanPointersProcessor extends TagsPostProcessor {
       eTag = eTag.substring(1, eTag.length() - 1);
     }
     String[] components = new String[] {bucket, key, eTag};
-    try {
-      String hash = generatePointerHash(components);
-      return buildSpanPointer(hash, S3_PTR_KIND);
-    } catch (Exception e) {
-      LOG.debug("Failed to add span pointer: {}", e.getMessage());
-      return null;
-    }
+    return createPointer(S3_PTR_KIND, DOWN_DIRECTION, components);
   }
 
   private static AgentSpanLink handleDynamoDbSpanPointer(Map<String, Object> unsafeTags) {
@@ -109,13 +102,7 @@ public class SpanPointersProcessor extends TagsPostProcessor {
         new String[] {
           tableName, primaryKey1Name, primaryKey1Value, primaryKey2Name, primaryKey2Value
         };
-    try {
-      String hash = generatePointerHash(components);
-      return buildSpanPointer(hash, DYNAMODB_PTR_KIND);
-    } catch (Exception e) {
-      LOG.debug("Failed to add span pointer: {}", e.getMessage());
-      return null;
-    }
+    return createPointer(DYNAMODB_PTR_KIND, DOWN_DIRECTION, components);
   }
 
   private static String asString(Object o) {
@@ -150,11 +137,20 @@ public class SpanPointersProcessor extends TagsPostProcessor {
     return Strings.toHexString(truncatedHash);
   }
 
-  private static AgentSpanLink buildSpanPointer(String hash, String ptrKind) {
+  /** Creates a pointer with shared hashing rules for producer and consumer spans. */
+  public static AgentSpanLink createPointer(
+      String ptrKind, String direction, String... components) {
+    final String hash;
+    try {
+      hash = generatePointerHash(components);
+    } catch (NoSuchAlgorithmException e) {
+      LOG.debug("Failed to add span pointer", e);
+      return null;
+    }
     SpanAttributes attributes =
         SpanAttributes.builder()
             .put("ptr.kind", ptrKind)
-            .put("ptr.dir", DOWN_DIRECTION)
+            .put("ptr.dir", direction)
             .put("ptr.hash", hash)
             .put("link.kind", LINK_KIND)
             .build();
