@@ -399,3 +399,4 @@ intercepted:
 
 java_names:
   aws_service: TOP_LEVEL_AWS_SERVICE  # as InstrumentationTags names it; aws.service keeps AWS_SERVICE
+  service_name: SPARK_SERVICE_NAME    # Spark's service_name; service's name constant is SERVICE_NAME
