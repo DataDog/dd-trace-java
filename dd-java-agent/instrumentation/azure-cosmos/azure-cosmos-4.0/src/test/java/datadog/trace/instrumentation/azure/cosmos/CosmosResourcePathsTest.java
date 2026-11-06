@@ -1,10 +1,10 @@
 package datadog.trace.instrumentation.azure.cosmos;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
+import datadog.trace.api.Pair;
 import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
@@ -44,8 +44,7 @@ class CosmosResourcePathsTest {
     "bare slash                | /                                  |          |          "
   })
   void databaseAndContainer(String path, String database, String container) {
-    assertArrayEquals(
-        new String[] {database, container}, CosmosResourcePaths.databaseAndContainer(path));
+    assertEquals(Pair.of(database, container), CosmosResourcePaths.databaseAndContainer(path));
   }
 
   @TableTest({

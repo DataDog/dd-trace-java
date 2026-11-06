@@ -11,6 +11,7 @@ import com.azure.cosmos.implementation.PathsHelper;
 import com.azure.cosmos.implementation.ResourceType;
 import com.azure.cosmos.implementation.RxDocumentServiceRequest;
 import com.azure.cosmos.implementation.RxDocumentServiceResponse;
+import datadog.trace.api.Pair;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -96,16 +97,16 @@ public class AzureCosmosDecorator
     span.setResourceName(
         (operationType == null ? "" : operationType.name()) + " " + normalize(path));
 
-    String[] databaseAndContainer = databaseAndContainer(path);
-    String database = databaseAndContainer[0];
+    Pair<String, String> databaseAndContainer = databaseAndContainer(path);
+    String database = databaseAndContainer.getLeft();
     if (database == null
         && operationType == OperationType.Create
         && request.getResourceType() == ResourceType.Database) {
       database = idFromBody(request.getContentAsByteArray());
     }
     onInstance(span, database);
-    if (databaseAndContainer[1] != null) {
-      span.setTag(CONTAINER, databaseAndContainer[1]);
+    if (databaseAndContainer.hasRight()) {
+      span.setTag(CONTAINER, databaseAndContainer.getRight());
     }
 
     if (info != null) {

@@ -2,6 +2,10 @@ package datadog.trace.instrumentation.azure.cosmos;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import datadog.json.JsonReader;
+import datadog.trace.api.Pair;
+import java.io.IOException;
+
 /**
  * Derives span resource and tags from a Cosmos resource path such as {@code
  * /dbs/myDb/colls/myColl/docs/item1}. Ported from the dd-trace-py Cosmos integration so both
@@ -10,7 +14,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 public final class CosmosResourcePaths {
   private static final String DATABASES = "dbs";
   private static final String COLLECTIONS = "colls";
-  private static final String ID_KEY = "\"id\"";
+  private static final String ID = "id";
 
   private CosmosResourcePaths() {}
 
@@ -38,23 +42,23 @@ public final class CosmosResourcePaths {
   }
 
   /**
-   * Returns the database id and the container id addressed by a path, each {@code null} when the
-   * path does not name one.
+   * Returns the database id (left) and the container id (right) addressed by a path. Each of them
+   * is null when the path does not name one.
    */
-  public static String[] databaseAndContainer(String path) {
-    String[] result = new String[2];
+  public static Pair<String, String> databaseAndContainer(String path) {
     if (path == null || path.isEmpty()) {
-      return result;
+      return Pair.of(null, null);
     }
     String trimmed = path.length() > 1 && path.charAt(0) == '/' ? path.substring(1) : path;
     String[] parts = trimmed.split("/", -1);
-    if (parts.length >= 2 && DATABASES.equalsIgnoreCase(parts[0]) && !parts[1].isEmpty()) {
-      result[0] = parts[1];
-      if (parts.length >= 4 && COLLECTIONS.equalsIgnoreCase(parts[2]) && !parts[3].isEmpty()) {
-        result[1] = parts[3];
-      }
+    if (parts.length < 2 || !DATABASES.equalsIgnoreCase(parts[0]) || parts[1].isEmpty()) {
+      return Pair.of(null, null);
     }
-    return result;
+    String container =
+        parts.length >= 4 && COLLECTIONS.equalsIgnoreCase(parts[2]) && !parts[3].isEmpty()
+            ? parts[3]
+            : null;
+    return Pair.of(parts[1], container);
   }
 
   /**
@@ -65,71 +69,19 @@ public final class CosmosResourcePaths {
     if (body == null || body.length == 0) {
       return null;
     }
-    String json = new String(body, UTF_8);
-    int depth = 0;
-    for (int i = 0; i < json.length(); i++) {
-      char c = json.charAt(i);
-      if (c == '{' || c == '[') {
-        depth++;
-      } else if (c == '}' || c == ']') {
-        depth--;
-      } else if (c == '"') {
-        int end = endOfString(json, i);
-        if (end < 0) {
-          return null;
+    try (JsonReader reader = new JsonReader(new String(body, UTF_8))) {
+      reader.beginObject();
+      String name;
+      while ((name = reader.nextName()) != null) {
+        if (ID.equals(name)) {
+          return reader.nextString();
         }
-        if (depth == 1 && json.startsWith(ID_KEY, i) && end == i + ID_KEY.length() - 1) {
-          int colon = skipWhitespace(json, end + 1);
-          if (colon < json.length() && json.charAt(colon) == ':') {
-            int value = skipWhitespace(json, colon + 1);
-            if (value >= json.length() || json.charAt(value) != '"') {
-              return null;
-            }
-            return readString(json, value);
-          }
-        }
-        i = end;
+        // skips the value, including nested objects that could hold another id
+        reader.nextValue();
       }
+    } catch (IOException e) {
+      // not a JSON object, or the id is not a string
     }
     return null;
-  }
-
-  /** Returns the index of the quote closing the string that opens at {@code start}, or -1. */
-  private static int endOfString(String json, int start) {
-    for (int i = start + 1; i < json.length(); i++) {
-      char c = json.charAt(i);
-      if (c == '\\') {
-        i++;
-      } else if (c == '"') {
-        return i;
-      }
-    }
-    return -1;
-  }
-
-  private static String readString(String json, int start) {
-    StringBuilder value = new StringBuilder();
-    for (int i = start + 1; i < json.length(); i++) {
-      char c = json.charAt(i);
-      if (c == '"') {
-        return value.toString();
-      }
-      if (c == '\\') {
-        if (++i >= json.length()) {
-          return null;
-        }
-        value.append(json.charAt(i));
-      } else {
-        value.append(c);
-      }
-    }
-    return null;
-  }
-
-  private static int skipWhitespace(String json, int i) {
-    while (i < json.length() && Character.isWhitespace(json.charAt(i))) {
-      i++;
-    }
-    return i;
   }
 }
