@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.azure.cosmos;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.instrumentation.azure.cosmos.AzureCosmosDecorator.DECORATE;
 
 import com.azure.cosmos.implementation.RxDocumentServiceResponse;
@@ -39,7 +40,10 @@ public final class TracingCosmosSubscriber
   @Override
   public void onSubscribe(Subscription subscription) {
     upstream = subscription;
-    actual.onSubscribe(this);
+    // demand that downstream issues from here puts the request span back, see request()
+    try (ContextScope ignored = parentContext.attach()) {
+      actual.onSubscribe(this);
+    }
   }
 
   @Override
@@ -84,7 +88,14 @@ public final class TracingCosmosSubscriber
 
   @Override
   public void request(long n) {
-    upstream.request(n);
+    if (finished != 0) {
+      upstream.request(n);
+      return;
+    }
+    // the transport work that the demand starts belongs to the request span
+    try (ContextScope ignored = activateSpan(span)) {
+      upstream.request(n);
+    }
   }
 
   @Override

@@ -66,7 +66,11 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
     boolean awsClientCall = request.headers().contains("amz-sdk-invocation-id");
     final AgentSpan parentSpan = activeSpan();
     if ((!AWS_LEGACY_TRACING && awsClientCall) || isCosmosRequestSpan(parentSpan)) {
-      // avoid creating an extra HTTP client span beneath the AWS or Cosmos client call
+      // avoid creating an extra HTTP client span beneath the AWS or Cosmos client call, and clear
+      // what a previous traced request left on a reused connection, so that the response doesn't
+      // tag or finish that request's span or its parent
+      ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(null);
+      ctx.channel().attr(CLIENT_PARENT_ATTRIBUTE_KEY).set(null);
       try {
         ctx.write(msg, prm);
         return;
