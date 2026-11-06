@@ -232,6 +232,40 @@ import org.tabletest.junit.TableTest;
 
 @ExtendWith(WithConfigExtension.class)
 class ConfigTest {
+  @ParameterizedTest
+  @ValueSource(strings = {"1", "t", "T", "true", "TRUE", "True"})
+  void universalInstrumentationAcceptsGoTrueValues(String value) {
+    Properties properties = new Properties();
+    properties.setProperty("universal.instrumentation", value);
+    assertTrue(Config.get(properties).isUniversalInstrumentationEnabled());
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"0", "f", "F", "false", "FALSE", "False"})
+  void universalInstrumentationAcceptsGoFalseValues(String value) {
+    Properties properties = new Properties();
+    properties.setProperty("universal.instrumentation", value);
+    assertFalse(Config.get(properties).isUniversalInstrumentationEnabled());
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"", "invalid", "2", "yes", " false "})
+  void universalInstrumentationInvalidValuesKeepTheDefault(String value) {
+    Properties properties = new Properties();
+    properties.setProperty("universal.instrumentation", value);
+    assertTrue(Config.get(properties).isUniversalInstrumentationEnabled());
+  }
+
+  @Test
+  void universalInstrumentationDefaultsToLegacyAndIsFixedAtStartup() {
+    Properties properties = new Properties();
+    Config config = Config.get(properties);
+    assertTrue(config.isUniversalInstrumentationEnabled());
+    properties.setProperty("universal.instrumentation", "false");
+    assertTrue(config.isUniversalInstrumentationEnabled());
+    assertFalse(Config.get(properties).isUniversalInstrumentationEnabled());
+  }
+
   private static final String PREFIX = "dd.";
   private static final String DD_API_KEY_ENV = "DD_API_KEY";
   private static final String DD_SERVICE_NAME_ENV = "DD_SERVICE_NAME";
