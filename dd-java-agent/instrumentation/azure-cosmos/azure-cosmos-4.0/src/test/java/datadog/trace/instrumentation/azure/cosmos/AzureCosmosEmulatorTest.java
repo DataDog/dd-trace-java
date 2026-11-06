@@ -30,7 +30,12 @@ import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.DDSpan;
+import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.InetAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -60,12 +65,13 @@ class AzureCosmosEmulatorTest extends AbstractInstrumentationTest {
   private static final String OPERATION_NAME = "cosmosdb.query";
   private static final AtomicInteger DATABASE_COUNTER = new AtomicInteger();
   private static final String EMULATOR_PLATFORM = "linux/amd64";
-  private static final String HOSTNAME_VALIDATION_DISABLED = "COSMOS.HOSTNAME_VALIDATION_DISABLED";
+  private static final int EMULATOR_PORT = 8081;
 
   @TempDir static Path tempDir;
 
   private static CosmosDBEmulatorContainer emulator;
   private static Path keyStoreFile;
+  private static LocalForwarder forwarder;
 
   @BeforeAll
   static void startEmulator() throws Exception {
@@ -99,6 +105,9 @@ class AzureCosmosEmulatorTest extends AbstractInstrumentationTest {
     try (OutputStream out = Files.newOutputStream(keyStoreFile)) {
       emulator.buildNewKeyStore().store(out, emulator.getEmulatorKey().toCharArray());
     }
+    // Recent SDK versions check the host name against the certificate, which names localhost but
+    // not the Docker host that CI reaches the emulator through.
+    forwarder = new LocalForwarder(emulator.getHost(), emulator.getMappedPort(EMULATOR_PORT));
   }
 
   /**
@@ -110,13 +119,13 @@ class AzureCosmosEmulatorTest extends AbstractInstrumentationTest {
     System.setProperty("javax.net.ssl.trustStore", keyStoreFile.toString());
     System.setProperty("javax.net.ssl.trustStorePassword", emulator.getEmulatorKey());
     System.setProperty("javax.net.ssl.trustStoreType", "PKCS12");
-    // recent SDK versions check the host name, and the emulator certificate does not name the
-    // Docker host that CI reaches it through
-    System.setProperty(HOSTNAME_VALIDATION_DISABLED, "true");
   }
 
   @AfterAll
-  static void stopEmulator() {
+  static void stopEmulator() throws IOException {
+    if (forwarder != null) {
+      forwarder.close();
+    }
     if (emulator != null) {
       emulator.stop();
     }
@@ -270,7 +279,7 @@ class AzureCosmosEmulatorTest extends AbstractInstrumentationTest {
         () -> assertEquals(Tags.SPAN_KIND_CLIENT, span.getTag(Tags.SPAN_KIND)),
         () -> assertEquals("cosmosdb", span.getTag(Tags.DB_TYPE)),
         () -> assertEquals(database, span.getTag(Tags.DB_INSTANCE)),
-        () -> assertEquals(emulator.getHost(), span.getTag(Tags.PEER_HOSTNAME)),
+        () -> assertEquals("localhost", span.getTag(Tags.PEER_HOSTNAME)),
         () -> assertEquals("gateway", span.getTag(AzureCosmosDecorator.CONNECTION_MODE)),
         () -> {
           Object userAgent = span.getTag(Tags.HTTP_USER_AGENT);
@@ -372,7 +381,7 @@ class AzureCosmosEmulatorTest extends AbstractInstrumentationTest {
 
   private static CosmosClientBuilder clientBuilder() {
     return new CosmosClientBuilder()
-        .endpoint(emulator.getEmulatorEndpoint())
+        .endpoint("https://localhost:" + forwarder.port() + "/")
         .key(emulator.getEmulatorKey())
         .gatewayMode()
         .endpointDiscoveryEnabled(false)
@@ -383,6 +392,73 @@ class AzureCosmosEmulatorTest extends AbstractInstrumentationTest {
     return "async".equals(api)
         ? new AsyncTestClient(clientBuilder().buildAsyncClient())
         : new SyncTestClient(clientBuilder().buildClient());
+  }
+
+  /** Relays connections accepted on localhost to the emulator. */
+  private static final class LocalForwarder implements AutoCloseable {
+    private final ServerSocket server;
+
+    LocalForwarder(String host, int port) throws IOException {
+      server = new ServerSocket(0, 50, InetAddress.getLoopbackAddress());
+      Thread acceptor =
+          new Thread(
+              () -> {
+                while (!server.isClosed()) {
+                  try {
+                    Socket client = server.accept();
+                    Socket emulator = new Socket(host, port);
+                    pipe(client, emulator);
+                    pipe(emulator, client);
+                  } catch (IOException e) {
+                    // the forwarder is closed
+                  }
+                }
+              },
+              "cosmos-emulator-forwarder");
+      acceptor.setDaemon(true);
+      acceptor.start();
+    }
+
+    int port() {
+      return server.getLocalPort();
+    }
+
+    private static void pipe(Socket from, Socket to) {
+      Thread pipe =
+          new Thread(
+              () -> {
+                byte[] buffer = new byte[8192];
+                try (InputStream in = from.getInputStream();
+                    OutputStream out = to.getOutputStream()) {
+                  int read;
+                  while ((read = in.read(buffer)) != -1) {
+                    out.write(buffer, 0, read);
+                    out.flush();
+                  }
+                } catch (IOException e) {
+                  // one side closed the connection
+                } finally {
+                  closeQuietly(from);
+                  closeQuietly(to);
+                }
+              },
+              "cosmos-emulator-pipe");
+      pipe.setDaemon(true);
+      pipe.start();
+    }
+
+    private static void closeQuietly(Socket socket) {
+      try {
+        socket.close();
+      } catch (IOException ignored) {
+        // already closed
+      }
+    }
+
+    @Override
+    public void close() throws IOException {
+      server.close();
+    }
   }
 
   /** A document stored by the tests. */
