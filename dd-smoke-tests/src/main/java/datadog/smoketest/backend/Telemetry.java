@@ -72,14 +72,13 @@ public final class Telemetry {
    */
   public void waitForCount(int count, double timeoutSeconds) {
     new PollingConditions(timeoutSeconds)
-        .eventually(
-            () -> {
-              int actual = getMessages().size();
-              if (actual < count) {
-                throw new AssertionError(
-                    "Expected at least " + count + " telemetry message(s) but got " + actual);
-              }
-            });
+        .eventually(() -> {
+          int actual = getMessages().size();
+          if (actual < count) {
+            throw new AssertionError(
+                "Expected at least " + count + " telemetry message(s) but got " + actual);
+          }
+        });
   }
 
   /**
@@ -102,11 +101,10 @@ public final class Telemetry {
    */
   public void waitForFlat(Predicate<Map<String, Object>> predicate, double timeoutSeconds) {
     new PollingConditions(timeoutSeconds)
-        .eventually(
-            () -> {
-              if (getFlatMessages().stream().noneMatch(predicate)) {
-                throw new AssertionError("No telemetry event matched; received: " + getMessages());
-              }
-            });
+        .eventually(() -> {
+          if (getFlatMessages().stream().noneMatch(predicate)) {
+            throw new AssertionError("No telemetry event matched; received: " + getMessages());
+          }
+        });
   }
 }

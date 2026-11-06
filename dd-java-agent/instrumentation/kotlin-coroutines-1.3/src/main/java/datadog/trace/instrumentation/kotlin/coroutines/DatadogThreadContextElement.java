@@ -31,12 +31,11 @@ public final class DatadogThreadContextElement
 
   /** Coroutines built by coroutineScope, withContext, etc. that their caller waits for. */
   private static final ClassValue<Boolean> SCOPED_COROUTINE =
-      GenericClassValue.of(
-          type ->
-              ScopeCoroutine.class.isAssignableFrom(type)
-                  // older timeout coroutines are scoped but don't extend ScopeCoroutine
-                  || (AbstractCoroutine.class.isAssignableFrom(type)
-                      && "kotlinx.coroutines.TimeoutCoroutine".equals(type.getName())));
+      GenericClassValue.of(type ->
+          ScopeCoroutine.class.isAssignableFrom(type)
+              // older timeout coroutines are scoped but don't extend ScopeCoroutine
+              || (AbstractCoroutine.class.isAssignableFrom(type)
+                  && "kotlinx.coroutines.TimeoutCoroutine".equals(type.getName())));
 
   /** null before the Datadog element, false after it, true once a later hook is found. */
   private static final Function2<Boolean, CoroutineContext.Element, Boolean> HAS_LATER_HOOK =

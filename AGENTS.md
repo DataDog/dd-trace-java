@@ -36,6 +36,7 @@ docs/                     Developer documentation (see below)
 | Adding a new instrumentation | [docs/add_new_instrumentation.md](docs/add_new_instrumentation.md) |
 | Adding a new configuration | [docs/add_new_configurations.md](docs/add_new_configurations.md) |
 | Testing guide (6 test types) | [docs/how_to_test.md](docs/how_to_test.md) |
+| Reproducing timing-sensitive CI flakes | [Reproduction guide](docs/how_to_test.md#reproducing-timing-sensitive-ci-failures) |
 | Writing JUnit tests | [docs/how_to_test_with_junit.md](docs/how_to_test_with_junit.md) |
 | Writing a smoke test | [docs/how_to_smoke_test.md](docs/how_to_smoke_test.md) |
 | Working with Gradle | [docs/how_to_work_with_gradle.md](docs/how_to_work_with_gradle.md) |
@@ -82,6 +83,8 @@ docs/                     Developer documentation (see below)
   and include them in the same PR. See [lockfile updates](docs/how_to_work_with_gradle.md#updating-lock-files).
 
 ## Review Guidelines
+
+- **CI flakiness**: use [reproduce-ci-flakiness](.agents/skills/reproduce-ci-flakiness/SKILL.md) for local reproduction of intermittent timeouts, races, or asynchronous test failures. Match the CI task/JDK first, then compare bounded reruns with `-Xint` and reduced JVM-visible CPUs. See the [testing guide](docs/how_to_test.md#reproducing-timing-sensitive-ci-failures) for commands and CPU-limit distinctions.
 
 - **Technical debt**: run `/techdebt` over branch changes before marking a PR ready to catch code duplication, unnecessary complexity, and dead code (refactor-only, never changes behavior) — see [.agents/skills/techdebt/SKILL.md](.agents/skills/techdebt/SKILL.md).
 - **Performance**: run `/perf-review` over branch changes before marking a PR ready (advisory, not a merge gate) — see [.agents/skills/perf-review/SKILL.md](.agents/skills/perf-review/SKILL.md).

@@ -100,4 +100,6 @@ tasks.named("jar", Jar) {
 }
 
 // we want to test with no special reflective access (no --add-opens)
-ext.allowReflectiveAccessToJdk = false
+testJvmConstraints {
+  allowReflectiveAccessToJdk = false
+}

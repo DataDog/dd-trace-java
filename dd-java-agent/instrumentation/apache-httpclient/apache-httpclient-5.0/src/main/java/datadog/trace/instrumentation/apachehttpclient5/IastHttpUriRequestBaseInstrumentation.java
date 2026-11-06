@@ -42,7 +42,7 @@ public class IastHttpUriRequestBaseInstrumentation extends InstrumenterModule.Ta
   }
 
   public static class CtorAdvice {
-    @Advice.OnMethodExit()
+    @Advice.OnMethodExit
     @Propagation
     public static void afterCtor(
         @Advice.This final HttpUriRequestBase self, @Advice.Argument(1) final URI uri) {
