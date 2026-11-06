@@ -32,8 +32,8 @@ class OtelHttpSemanticsTest {
 
     OtelHttpSemantics.setRequestMethod(span, method);
 
-    verify(span).setTag(KnownTags.HTTP_METHOD_ID, method);
-    verify(span, never()).setTag(eq(KnownTags.HTTP_REQUEST_METHOD_ORIGINAL_ID), anyString());
+    verify(span).setTag(KnownTags.HTTP_METHOD, method);
+    verify(span, never()).setTag(eq(KnownTags.HTTP_REQUEST_METHOD_ORIGINAL), anyString());
   }
 
   @ParameterizedTest
@@ -43,8 +43,8 @@ class OtelHttpSemanticsTest {
 
     OtelHttpSemantics.setRequestMethod(span, method);
 
-    verify(span).setTag(KnownTags.HTTP_METHOD_ID, OtelHttpSemantics.OTHER_METHOD);
-    verify(span).setTag(KnownTags.HTTP_REQUEST_METHOD_ORIGINAL_ID, method);
+    verify(span).setTag(KnownTags.HTTP_METHOD, OtelHttpSemantics.OTHER_METHOD);
+    verify(span).setTag(KnownTags.HTTP_REQUEST_METHOD_ORIGINAL, method);
   }
 
   @TableTest({
@@ -93,8 +93,8 @@ class OtelHttpSemanticsTest {
   })
   void urlOrPathFromTagStoreMatchesMap(String httpUrl, String path) {
     TagMap tags = TagMap.create();
-    tags.store(KnownTags.HTTP_URL_ID, httpUrl);
-    tags.store(KnownTags.URL_PATH_ID, path);
+    tags.store(KnownTags.HTTP_URL, httpUrl);
+    tags.store(KnownTags.URL_PATH, path);
 
     assertEquals(
         OtelHttpSemantics.urlOrPath((Map<String, Object>) tags),
@@ -188,7 +188,7 @@ class OtelHttpSemanticsTest {
 
     OtelHttpSemantics.setErrorType(span, 500);
 
-    verify(span).setTag(KnownTags.ERROR_TYPE_ID, "500");
+    verify(span).setTag(KnownTags.ERROR_TYPE, "500");
   }
 
   @Test
@@ -198,7 +198,7 @@ class OtelHttpSemanticsTest {
 
     OtelHttpSemantics.setErrorType(span, 500);
 
-    verify(span, never()).setTag(eq(KnownTags.ERROR_TYPE_ID), any(String.class));
+    verify(span, never()).setTag(eq(KnownTags.ERROR_TYPE), any(String.class));
   }
 
   @TableTest({
