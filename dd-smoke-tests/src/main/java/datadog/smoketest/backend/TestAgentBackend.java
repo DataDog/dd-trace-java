@@ -1,6 +1,7 @@
 package datadog.smoketest.backend;
 
 import static datadog.smoketest.backend.AgentBackendMessages.decodeMessages;
+import static datadog.trace.agent.test.utils.TestAgentPort.parse;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.squareup.moshi.JsonAdapter;
@@ -392,16 +393,21 @@ public final class TestAgentBackend extends AgentBackend {
     private String sessionToken;
 
     private Builder() {
-      String customImageRef = System.getenv(CUSTOM_IMAGE_REF_PROPERTY);
-      String ciAgentHost = System.getenv(CI_AGENT_HOST_ENV);
+      this(System.getenv());
+    }
+
+    Builder(Map<String, String> environment) {
+      String customImageRef = environment.get(CUSTOM_IMAGE_REF_PROPERTY);
+      String ciAgentHost = environment.get(CI_AGENT_HOST_ENV);
+      this.externalPort = AGENT_PORT;
       if (customImageRef != null) {
         this.image = customImageRef;
       } else if (ciAgentHost != null) {
         this.externalHost = ciAgentHost;
+        this.externalPort = parse(environment.get("CI_TEST_AGENT_PORT"));
       } else {
         this.image = defaultImage();
       }
-      this.externalPort = AGENT_PORT;
     }
 
     /**

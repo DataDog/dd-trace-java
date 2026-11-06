@@ -65,7 +65,7 @@ private val testAgentVariables = listOf(
 private fun Test.testAgentEnvironment(): Provider<Map<String, String>> {
   return project.providers.provider {
     environment.filterKeys {
-      it == "CI_USE_TEST_AGENT" || it == "CI_AGENT_HOST"
+      it == "CI_USE_TEST_AGENT" || it == "CI_AGENT_HOST" || it == "CI_TEST_AGENT_PORT"
     }.mapValues { it.value.toString() }
   }
 }
@@ -74,13 +74,17 @@ private fun testAgentConfiguration(
   factory: ProviderFactory,
   testEnvironment: Provider<Map<String, String>>
 ): Provider<Map<String, String>> {
-  // Capture the host now so a change refreshes Test.environment in the configuration cache.
+  // Capture the endpoint now so a change refreshes Test.environment in the configuration cache.
   val sidecarHost = factory.environmentVariable("CI_AGENT_HOST").getOrElse("")
+  val sidecarPort = factory.environmentVariable("CI_TEST_AGENT_PORT").getOrElse("8126")
 
   // These values configure the already running sidecar; Test.environment cannot override them.
   val sidecarEnvironment = factory.environmentVariablesPrefixedBy("CI_TEST_AGENT_")
     .map { settings ->
-      settings.filterKeys { it in testAgentVariables } + ("CI_AGENT_HOST" to sidecarHost)
+      settings.filterKeys { it in testAgentVariables } + mapOf(
+        "CI_AGENT_HOST" to sidecarHost,
+        "CI_TEST_AGENT_PORT" to sidecarPort,
+      )
     }
 
   return testEnvironment.zip(sidecarEnvironment) { test, sidecar ->
@@ -100,6 +104,9 @@ private fun testAgentConfiguration(
     }
     if (sidecar.getValue("CI_AGENT_HOST").isEmpty() || test["CI_AGENT_HOST"] != sidecar["CI_AGENT_HOST"]) {
       throw InvalidUserDataException("CI_AGENT_HOST must match the job's fingerprinted APM Test Agent sidecar")
+    }
+    if ((test["CI_TEST_AGENT_PORT"] ?: "8126") != sidecar["CI_TEST_AGENT_PORT"]) {
+      throw InvalidUserDataException("CI_TEST_AGENT_PORT must match the job's fingerprinted APM Test Agent sidecar")
     }
 
     test + sidecar
