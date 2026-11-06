@@ -1,9 +1,11 @@
 package datadog.trace.instrumentation.azure.cosmos;
 
+import static datadog.trace.util.Strings.split;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import datadog.json.JsonReader;
 import datadog.trace.api.Pair;
+import datadog.trace.util.SubSequence;
 import java.io.IOException;
 
 /**
@@ -26,19 +28,28 @@ public final class CosmosResourcePaths {
     if (path == null || path.isEmpty()) {
       return path;
     }
-    // -1 keeps trailing empty segments, so a trailing slash survives
-    String[] parts = path.split("/", -1);
-    int firstId = parts[0].isEmpty() ? 2 : 1;
-    for (int i = firstId; i < parts.length; i += 2) {
-      String key = parts[i - 1];
-      if (parts[i].isEmpty()
-          || DATABASES.equalsIgnoreCase(key)
-          || COLLECTIONS.equalsIgnoreCase(key)) {
-        continue;
+    StringBuilder normalized = new StringBuilder(path.length());
+    // with a leading slash the first segment is empty, so the first id comes one segment later
+    int firstId = path.charAt(0) == '/' ? 2 : 1;
+    int index = 0;
+    SubSequence key = null;
+    for (SubSequence segment : split(path, '/')) {
+      if (index > 0) {
+        normalized.append('/');
       }
-      parts[i] = "?";
+      boolean isId = index >= firstId && (index - firstId) % 2 == 0;
+      if (isId
+          && segment.length() > 0
+          && !key.equalsIgnoreCase(DATABASES)
+          && !key.equalsIgnoreCase(COLLECTIONS)) {
+        normalized.append('?');
+      } else {
+        segment.appendTo(normalized);
+      }
+      key = segment;
+      index++;
     }
-    return String.join("/", parts);
+    return normalized.toString();
   }
 
   /**
@@ -50,15 +61,23 @@ public final class CosmosResourcePaths {
       return Pair.of(null, null);
     }
     String trimmed = path.length() > 1 && path.charAt(0) == '/' ? path.substring(1) : path;
-    String[] parts = trimmed.split("/", -1);
-    if (parts.length < 2 || !DATABASES.equalsIgnoreCase(parts[0]) || parts[1].isEmpty()) {
+    // only dbs/<database>/colls/<container> matters
+    SubSequence[] parts = new SubSequence[4];
+    int count = 0;
+    for (SubSequence segment : split(trimmed, '/')) {
+      parts[count++] = segment;
+      if (count == parts.length) {
+        break;
+      }
+    }
+    if (count < 2 || !parts[0].equalsIgnoreCase(DATABASES) || parts[1].length() == 0) {
       return Pair.of(null, null);
     }
     String container =
-        parts.length >= 4 && COLLECTIONS.equalsIgnoreCase(parts[2]) && !parts[3].isEmpty()
-            ? parts[3]
+        count == 4 && parts[2].equalsIgnoreCase(COLLECTIONS) && parts[3].length() > 0
+            ? parts[3].toString()
             : null;
-    return Pair.of(parts[1], container);
+    return Pair.of(parts[1].toString(), container);
   }
 
   /**
