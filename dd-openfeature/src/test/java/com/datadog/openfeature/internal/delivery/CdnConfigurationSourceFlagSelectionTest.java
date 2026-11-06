@@ -37,9 +37,9 @@ class CdnConfigurationSourceFlagSelectionTest {
           + "\"flags\":{}}}}";
   private static final String IGNORED = "DD-Flag-Selection-Ignored";
   private static final FlagSelectionRequest SELECTION =
-      FlagSelectionRequest.of(asList("team:checkout", "a b"), singletonList("checkout.*"));
+      FlagSelectionRequest.of(asList("area:checkout", "a b"), singletonList("checkout.*"));
   private static final String SELECTION_QUERY =
-      "selected_flag_tags=a%20b&selected_flag_tags=team%3Acheckout"
+      "selected_flag_tags=a%20b&selected_flag_tags=area%3Acheckout"
           + "&selected_flag_key_patterns=checkout.%2A";
 
   private LocalHttpServer server;

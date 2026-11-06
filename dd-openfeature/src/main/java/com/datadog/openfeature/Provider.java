@@ -469,15 +469,16 @@ public class Provider extends EventProvider implements Metadata {
      * <p>Leading and trailing Unicode white space is trimmed from every value, empty values are
      * dropped, and duplicates are removed. A null list is treated as absent. Each list accepts at
      * most 31 values, and each tag and key pattern is at most 200 UTF-8 bytes after trimming. A
-     * selection over a limit, or holding a null or non-String value or an unpaired UTF-16
-     * surrogate, is not sent: the provider logs an error and loads all the flags. The server can
-     * also ignore a selection, and then returns all the flags.
+     * selection over a limit, holding a null or non-String value or an unpaired UTF-16 surrogate,
+     * or making the request URL longer than 8192 bytes once percent-encoded, is not sent: the
+     * provider logs an error and loads all the flags. The server can also ignore a selection, and
+     * then returns all the flags.
      *
      * <p>The provider captures the selection at construction. The providers of a class loader share
      * one flag configuration: the first provider initialized decides the selection until the last
-     * one shuts down, and a later provider with a different selection logs a warning and uses the
-     * first one. The {@code remote_config} configuration source does not support a selection and
-     * loads all the flags.
+     * one shuts down, and a later provider with a different selection uses the first one. The first
+     * such provider logs a warning, once per class loader. The {@code remote_config} configuration
+     * source does not support a selection and loads all the flags.
      *
      * @param selection the flag selection, or {@code null} for all the flags.
      * @return these options.

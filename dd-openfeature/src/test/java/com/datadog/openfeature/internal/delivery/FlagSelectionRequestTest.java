@@ -95,6 +95,8 @@ class FlagSelectionRequestTest {
     assertTrue(FlagSelectionRequest.NONE.isNone());
     assertEquals(FlagSelectionRequest.NONE, FlagSelectionRequest.of(emptyList(), null));
     assertNull(FlagSelectionRequest.NONE.dropReason());
+    assertFalse(FlagSelectionRequest.of(singletonList(null), null).isNone());
+    assertFalse(FlagSelectionRequest.urlTooLong().isNone());
   }
 
   @Test
@@ -138,6 +140,31 @@ class FlagSelectionRequestTest {
     assertEquals(
         "malformed_selection",
         assertDoesNotThrow(() -> FlagSelectionRequest.of(failing, null)).dropReason());
+  }
+
+  @Test
+  void aListThatBreaksTheToArrayContractIsMalformed() {
+    final List<String> broken =
+        new AbstractList<String>() {
+          @Override
+          public String get(final int index) {
+            return "area:checkout";
+          }
+
+          @Override
+          public int size() {
+            return 1;
+          }
+
+          @Override
+          public Object[] toArray() {
+            return null;
+          }
+        };
+
+    assertEquals(
+        "malformed_selection",
+        assertDoesNotThrow(() -> FlagSelectionRequest.of(broken, null)).dropReason());
   }
 
   @TableTest({
@@ -222,7 +249,8 @@ class FlagSelectionRequestTest {
     "empty query        | 'https://cdn.example/ufc?'                 | 'https://cdn.example/ufc?selected_flag_tags=a&selected_flag_tags=b&selected_flag_key_patterns=c'                 ",
     "existing query     | 'https://cdn.example/ufc?dd_env=a+b&t=%2B' | 'https://cdn.example/ufc?dd_env=a+b&t=%2B&selected_flag_tags=a&selected_flag_tags=b&selected_flag_key_patterns=c'",
     "fragment           | 'https://cdn.example/ufc?dd_env=test#top'  | 'https://cdn.example/ufc?dd_env=test&selected_flag_tags=a&selected_flag_tags=b&selected_flag_key_patterns=c#top' ",
-    "fragment, no query | 'http://user@localhost:8080/ufc.json#top'  | 'http://user@localhost:8080/ufc.json?selected_flag_tags=a&selected_flag_tags=b&selected_flag_key_patterns=c#top' "
+    "fragment, no query | 'http://user@localhost:8080/ufc.json#top'  | 'http://user@localhost:8080/ufc.json?selected_flag_tags=a&selected_flag_tags=b&selected_flag_key_patterns=c#top' ",
+    "encoded path       | 'https://cdn.example/a%20b/ufc'            | 'https://cdn.example/a%20b/ufc?selected_flag_tags=a&selected_flag_tags=b&selected_flag_key_patterns=c'           "
   })
   void mergesTheParametersIntoTheEndpointQuery(final String endpoint, final String sent) {
     final FlagSelectionRequest selection =
@@ -388,6 +416,23 @@ class FlagSelectionRequestTest {
     assertDoesNotThrow(FlagSelectionRequest::warnSecondSelection);
     assertDoesNotThrow(FlagSelectionRequest::warnRemoteConfiguration);
     assertFalse(messages().isEmpty());
+  }
+
+  @Test
+  void countsEachReasonOncePerKind() {
+    final RecordingHealthMetrics metrics = new RecordingHealthMetrics();
+
+    dropped("too_many_values").reportNotSent(metrics.services());
+    dropped("invalid_tag").reportNotSent(metrics.services());
+    FlagSelectionRequest.urlTooLong().reportNotSent(metrics.services());
+    FlagSelectionRequest.reportIgnored(metrics.services(), "too_many_values");
+
+    assertEquals(
+        asList(
+            "flag_selection.dropped|1|too_many_values",
+            "flag_selection.dropped|1|invalid_tag",
+            "flag_selection.ignored|1|too_many_values"),
+        metrics.counts);
   }
 
   private static FlagSelectionRequest dropped(final String reason) {

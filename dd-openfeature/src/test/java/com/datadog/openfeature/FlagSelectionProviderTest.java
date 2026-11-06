@@ -65,7 +65,7 @@ class FlagSelectionProviderTest {
   @ValueSource(booleans = {false, true})
   @SuppressWarnings("deprecation")
   void capturesTheSelectionAtConstruction(final boolean alias) throws Exception {
-    final List<String> tags = new ArrayList<>(asList(" team:checkout", "mobile"));
+    final List<String> tags = new ArrayList<>(asList(" area:checkout", "mobile"));
     final List<String> keyPatterns = new ArrayList<>(singletonList("checkout.*"));
     final Provider.Options options =
         alias ? new datadog.trace.api.openfeature.Provider.Options() : new Provider.Options();
@@ -82,7 +82,7 @@ class FlagSelectionProviderTest {
     options.flagSelection(null);
 
     assertEquals(
-        "selected_flag_tags=mobile&selected_flag_tags=team%3Acheckout"
+        "selected_flag_tags=area%3Acheckout&selected_flag_tags=mobile"
             + "&selected_flag_key_patterns=checkout.%2A",
         initializeAndGetQuery(provider));
   }
@@ -109,7 +109,7 @@ class FlagSelectionProviderTest {
   @Test
   @SuppressWarnings({"unchecked", "rawtypes"})
   void malformedSelectionLoadsAllTheFlagsWithoutThrowing() throws Exception {
-    final List raw = new ArrayList(singletonList("team:checkout"));
+    final List raw = new ArrayList(singletonList("area:checkout"));
     raw.add(7);
     final Provider provider =
         assertDoesNotThrow(() ->
@@ -133,7 +133,10 @@ class FlagSelectionProviderTest {
     final datadog.trace.api.openfeature.Provider.Options options =
         new datadog.trace.api.openfeature.Provider.Options();
 
-    assertSame(options, options.flagSelection(new FlagSelection()).initTimeout(1, SECONDS));
+    final datadog.trace.api.openfeature.Provider.Options returned =
+        options.flagSelection(new FlagSelection());
+
+    assertSame(options, returned);
   }
 
   /** Initializes the provider, returns the raw query of its first request and shuts it down. */

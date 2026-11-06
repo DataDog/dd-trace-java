@@ -528,14 +528,14 @@ class FeatureFlagsRuntimeTest {
   @Test
   void firstSelectionWinsAndALaterDifferentOneWarnsOnce() throws Exception {
     try (FlagSelectionScope scope = new FlagSelectionScope()) {
-      final FeatureFlagsRuntime first = scope.acquire(TEAM_CHECKOUT);
-      assertSame(first, scope.acquire(FlagSelectionRequest.of(singletonList("team:search"), null)));
+      final FeatureFlagsRuntime first = scope.acquire(AREA_CHECKOUT);
+      assertSame(first, scope.acquire(FlagSelectionRequest.of(singletonList("area:search"), null)));
       assertSame(first, scope.acquire(FlagSelectionRequest.NONE));
-      assertSame(first, scope.acquire(FlagSelectionRequest.of(asList(" team:checkout"), null)));
+      assertSame(first, scope.acquire(FlagSelectionRequest.of(asList(" area:checkout"), null)));
 
       assertEquals(singletonList(SECOND_SELECTION_WARNING), scope.messages());
       assertEquals(1, scope.cdn.requests().size());
-      assertEquals(TEAM_CHECKOUT_QUERY, scope.cdn.requests().get(0).uri.getRawQuery());
+      assertEquals(AREA_CHECKOUT_QUERY, scope.cdn.requests().get(0).uri.getRawQuery());
     }
   }
 
@@ -544,7 +544,7 @@ class FeatureFlagsRuntimeTest {
     try (FlagSelectionScope scope = new FlagSelectionScope()) {
       final FeatureFlagsRuntime first = scope.acquire(FlagSelectionRequest.NONE);
       assertSame(first, scope.acquire(FlagSelectionRequest.of(asList(" ", ""), null)));
-      assertSame(first, scope.acquire(TEAM_CHECKOUT));
+      assertSame(first, scope.acquire(AREA_CHECKOUT));
 
       assertEquals(singletonList(SECOND_SELECTION_WARNING), scope.messages());
       assertNull(scope.cdn.requests().get(0).uri.getRawQuery());
@@ -556,12 +556,12 @@ class FeatureFlagsRuntimeTest {
     try (FlagSelectionScope scope = new FlagSelectionScope()) {
       final FeatureFlagsRuntime first = scope.acquire(FlagSelectionRequest.NONE);
       scope.releaseAll();
-      final FeatureFlagsRuntime second = scope.acquire(TEAM_CHECKOUT);
+      final FeatureFlagsRuntime second = scope.acquire(AREA_CHECKOUT);
 
       assertNotSame(first, second, "the last release stops the runtime");
       assertTrue(scope.messages().isEmpty(), scope.messages().toString());
       assertNull(scope.cdn.requests().get(0).uri.getRawQuery());
-      assertEquals(TEAM_CHECKOUT_QUERY, scope.cdn.requests().get(1).uri.getRawQuery());
+      assertEquals(AREA_CHECKOUT_QUERY, scope.cdn.requests().get(1).uri.getRawQuery());
     }
   }
 
@@ -587,8 +587,8 @@ class FeatureFlagsRuntimeTest {
     final char[] padding = new char[8150];
     Arrays.fill(padding, 'x');
     try (FlagSelectionScope scope = new FlagSelectionScope("/ufc?pad=" + new String(padding))) {
-      scope.acquire(TEAM_CHECKOUT);
-      scope.acquire(TEAM_CHECKOUT);
+      scope.acquire(AREA_CHECKOUT);
+      scope.acquire(AREA_CHECKOUT);
 
       final String notSent =
           "ERROR flagSelection was not sent (too_many_values: the request URL is at most 8192"
@@ -620,7 +620,9 @@ class FeatureFlagsRuntimeTest {
       FeatureFlagsRuntime.acquire(bridge, remoteConfig, dropped);
       FeatureFlagsRuntime.release();
       FeatureFlagsRuntime.release();
-      FeatureFlagsRuntime.acquire(bridge, remoteConfig, TEAM_CHECKOUT);
+      assertEquals(
+          singletonList(REMOTE_CONFIG_WARNING), flagSelectionMessages(), "an invalid selection");
+      FeatureFlagsRuntime.acquire(bridge, remoteConfig, AREA_CHECKOUT);
       FeatureFlagsRuntime.release();
 
       assertEquals(singletonList(REMOTE_CONFIG_WARNING), flagSelectionMessages());
@@ -640,8 +642,8 @@ class FeatureFlagsRuntimeTest {
         TestSettings.of("experimental.flagging.provider.enabled", "true");
     try {
       FeatureFlagsRuntime.acquire(bridge, legacyRemoteConfig, FlagSelectionRequest.NONE);
-      FeatureFlagsRuntime.acquire(bridge, legacyRemoteConfig, TEAM_CHECKOUT);
-      FeatureFlagsRuntime.acquire(bridge, legacyRemoteConfig, TEAM_CHECKOUT);
+      FeatureFlagsRuntime.acquire(bridge, legacyRemoteConfig, AREA_CHECKOUT);
+      FeatureFlagsRuntime.acquire(bridge, legacyRemoteConfig, AREA_CHECKOUT);
 
       assertEquals(
           asList(REMOTE_CONFIG_WARNING, SECOND_SELECTION_WARNING), flagSelectionMessages());
@@ -665,7 +667,7 @@ class FeatureFlagsRuntimeTest {
               FeatureFlagsRuntime.create(
                   AgentBridge.NONE,
                   TestSettings.of("feature.flags.configuration.source", "remote_config"),
-                  TEAM_CHECKOUT));
+                  AREA_CHECKOUT));
 
       assertEquals(singletonList(REMOTE_CONFIG_WARNING), flagSelectionMessages());
     } finally {
@@ -680,15 +682,26 @@ class FeatureFlagsRuntimeTest {
       CapturingServiceProvider.failOn("flagSelection");
       final FeatureFlagsRuntime first =
           assertDoesNotThrow(() -> scope.acquire(FlagSelectionRequest.of(values(32), null)));
-      assertSame(first, assertDoesNotThrow(() -> scope.acquire(TEAM_CHECKOUT)));
+      assertSame(first, assertDoesNotThrow(() -> scope.acquire(AREA_CHECKOUT)));
 
       assertEquals(2, scope.messages().size());
     }
   }
 
-  private static final FlagSelectionRequest TEAM_CHECKOUT =
-      FlagSelectionRequest.of(singletonList("team:checkout"), null);
-  private static final String TEAM_CHECKOUT_QUERY = "selected_flag_tags=team%3Acheckout";
+  @Test
+  void aDifferentDroppedSelectionOfAJoiningProviderOnlyWarns() throws Exception {
+    try (FlagSelectionScope scope = new FlagSelectionScope()) {
+      scope.acquire(AREA_CHECKOUT);
+      scope.acquire(FlagSelectionRequest.of(values(32), null));
+
+      assertEquals(singletonList(SECOND_SELECTION_WARNING), scope.messages());
+      assertTrue(scope.metrics.counts.isEmpty(), scope.metrics.counts.toString());
+    }
+  }
+
+  private static final FlagSelectionRequest AREA_CHECKOUT =
+      FlagSelectionRequest.of(singletonList("area:checkout"), null);
+  private static final String AREA_CHECKOUT_QUERY = "selected_flag_tags=area%3Acheckout";
   private static final String SECOND_SELECTION_WARNING =
       "WARN flagSelection differs from the flag selection already in use in this process. Using"
           + " the first selection.";

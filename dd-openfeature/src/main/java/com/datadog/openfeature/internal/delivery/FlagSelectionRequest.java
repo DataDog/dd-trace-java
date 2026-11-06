@@ -99,8 +99,8 @@ public final class FlagSelectionRequest {
     final Object[] rawTags;
     final Object[] rawKeyPatterns;
     try {
-      rawTags = tags == null ? NO_VALUES : tags.toArray();
-      rawKeyPatterns = keyPatterns == null ? NO_VALUES : keyPatterns.toArray();
+      rawTags = tags == null ? NO_VALUES : tags.toArray().clone();
+      rawKeyPatterns = keyPatterns == null ? NO_VALUES : keyPatterns.toArray().clone();
     } catch (final RuntimeException e) {
       // For example a list that the application modifies concurrently.
       return dropped(MALFORMED_SELECTION, MALFORMED_LIMIT);
