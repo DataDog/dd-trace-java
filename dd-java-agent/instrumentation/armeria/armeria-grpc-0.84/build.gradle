@@ -39,10 +39,6 @@ protobuf {
 
 addTestSuiteForDir('latestDepTest', 'test')
 
-tasks.named("latestDepTest", Test) {
-  finalizedBy 'latestDepForkedTest'
-}
-
 dependencies {
   compileOnly group: 'com.linecorp.armeria', name: 'armeria-grpc', version: '0.84.0'
   compileOnly group: 'com.linecorp.armeria', name: 'armeria-grpc-protocol', version: '0.84.0'

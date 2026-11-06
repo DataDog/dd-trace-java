@@ -14,10 +14,6 @@ muzzle {
 
 addTestSuiteForDir('latestDepTest', 'test')
 
-tasks.named("latestDepTest", Test) {
-  finalizedBy 'latestDepForkedTest'
-}
-
 dependencies {
   compileOnly group: 'net.spy', name: 'spymemcached', version: '2.10.4'
   testContainerImage(image('library/memcached:1.6.14-alpine', 'test.memcached.image'))

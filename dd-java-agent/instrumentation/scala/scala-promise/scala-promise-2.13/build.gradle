@@ -38,10 +38,6 @@ addTestSuiteForDir('latestDepTest', 'test', false) // latestDepForkedTest is dec
 addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'forkedTest')
 addTestSuite('scala21317Test')
 
-tasks.named("latestDepTest", Test) {
-  finalizedBy 'latestDepForkedTest'
-}
-
 sourceSets {
   latestDepTest.java.srcDir 'src/scala21317Test/java'
 

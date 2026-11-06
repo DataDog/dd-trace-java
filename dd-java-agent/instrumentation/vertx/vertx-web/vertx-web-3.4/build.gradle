@@ -19,10 +19,6 @@ muzzle {
 
 addTestSuiteForDir('latestDepTest', 'test')
 
-tasks.named("latestDepTest", Test) {
-  finalizedBy 'latestDepForkedTest'
-}
-
 configurations {
   testArtifacts
 }

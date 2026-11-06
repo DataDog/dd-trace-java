@@ -13,10 +13,6 @@ muzzle {
 
 addTestSuiteForDir('latestDepTest', 'test')
 
-tasks.named("latestDepTest", Test) {
-  finalizedBy 'latestDepForkedTest'
-}
-
 dependencies {
   implementation project(':dd-java-agent:instrumentation:jms:javax-jms-1.1')
 

@@ -23,10 +23,6 @@ muzzle {
 
 addTestSuiteForDir('latestDepTest', 'test')
 
-tasks.named("latestDepTest", Test) {
-  finalizedBy 'latestDepForkedTest'
-}
-
 dependencies {
   testContainerImage(image('postgres:16-alpine', 'test.postgres.image'))
 
