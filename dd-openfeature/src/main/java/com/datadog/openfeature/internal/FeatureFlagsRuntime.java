@@ -173,14 +173,16 @@ public final class FeatureFlagsRuntime {
   }
 
   /**
-   * Signals that the managed CDN endpoint has no API key, before any runtime resources have been
-   * started: it rejects every request, so no configuration can arrive.
+   * Signals a missing API key for the managed CDN endpoint, before any runtime resources have been
+   * started: the endpoint rejects unauthenticated requests, so no configuration can arrive.
    */
   public static final class MissingApiKeyException extends IllegalStateException {
     private MissingApiKeyException() {
       super(
-          "DD_API_KEY is required for the default Datadog Feature Flagging endpoint; set DD_API_KEY"
-              + " or DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL");
+          "DD_API_KEY is required for the default Datadog Feature Flagging endpoint; set DD_API_KEY,"
+              + " set DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL, or set"
+              + " DD_FEATURE_FLAGS_CONFIGURATION_SOURCE=remote_config to load flags through the Datadog"
+              + " Agent");
     }
   }
 

@@ -189,7 +189,7 @@ public class Provider extends EventProvider implements Metadata {
     } catch (final MissingApiKeyException e) {
       // No configuration can arrive, so fail now instead of waiting for the timeout.
       markInitializationError();
-      log.error("{}; returning caller defaults", e.getMessage());
+      error("{}; returning caller defaults", e.getMessage());
       throw new ProviderNotReadyError(e.getMessage());
     } catch (final RemoteConfigurationUnavailableException e) {
       // No RC connector means no configuration can arrive in this JVM. Complete registration
@@ -218,6 +218,15 @@ public class Provider extends EventProvider implements Metadata {
   private static void debug(final String message, final Object... arguments) {
     try {
       log.debug(message, arguments);
+    } catch (final RuntimeException | LinkageError ignored) {
+      // Nothing more can be done.
+    }
+  }
+
+  /** Logs a lifecycle error. Like {@link #debug}, a failing logging backend changes no state. */
+  private static void error(final String message, final Object... arguments) {
+    try {
+      log.error(message, arguments);
     } catch (final RuntimeException | LinkageError ignored) {
       // Nothing more can be done.
     }
