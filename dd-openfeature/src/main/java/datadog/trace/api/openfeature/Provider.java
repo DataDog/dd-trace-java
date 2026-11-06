@@ -53,6 +53,12 @@ public class Provider extends com.datadog.openfeature.Provider {
     }
 
     @Override
+    public Options flagSelection(final com.datadog.openfeature.FlagSelection selection) {
+      super.flagSelection(selection);
+      return this;
+    }
+
+    @Override
     public Options initTimeout(final long timeout, final TimeUnit unit) {
       super.initTimeout(timeout, unit);
       return this;
