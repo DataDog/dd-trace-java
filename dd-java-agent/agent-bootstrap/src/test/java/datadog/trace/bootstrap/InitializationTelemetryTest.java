@@ -5,10 +5,9 @@ import static datadog.trace.bootstrap.InitializationTelemetry.proxy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
-import datadog.trace.test.util.DDJavaSpecification;
 import org.junit.jupiter.api.Test;
 
-class InitializationTelemetryTest extends DDJavaSpecification {
+class InitializationTelemetryTest {
 
   @Test
   void telemetryWrapperNullCase() {

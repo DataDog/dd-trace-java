@@ -29,14 +29,14 @@ class KnownTagCodecSlotTest {
   @Test
   void tagsOnAnHttpServerSpanHaveDistinctSlots() {
     long[] httpServerTags = {
-      KnownTags.SERVICE_ID,
-      KnownTags.COMPONENT_ID,
-      KnownTags.SPAN_KIND_ID,
-      KnownTags.HTTP_METHOD_ID,
-      KnownTags.HTTP_URL_ID,
-      KnownTags.HTTP_STATUS_CODE_ID,
-      KnownTags.HTTP_ROUTE_ID,
-      KnownTags.HTTP_HOSTNAME_ID,
+      KnownTags.SERVICE,
+      KnownTags.COMPONENT,
+      KnownTags.SPAN_KIND,
+      KnownTags.HTTP_METHOD,
+      KnownTags.HTTP_URL,
+      KnownTags.HTTP_STATUS_CODE,
+      KnownTags.HTTP_ROUTE,
+      KnownTags.HTTP_HOSTNAME,
     };
     Set<Integer> slots = new HashSet<>();
     for (long tagId : httpServerTags) {
@@ -47,19 +47,19 @@ class KnownTagCodecSlotTest {
 
   @Test
   void anOptionalTagOnASpanTypeHasASlot() {
-    assertTrue(KnownTagCodec.hasSlot(KnownTags.PEER_PORT_ID));
-    assertTrue(KnownTagCodec.hasSlot(KnownTags.DB_POOL_NAME_ID));
+    assertTrue(KnownTagCodec.hasSlot(KnownTags.PEER_PORT));
+    assertTrue(KnownTagCodec.hasSlot(KnownTags.DB_POOL_NAME));
   }
 
   @Test
   void aTagOnNoSpanTypeHasNoSlot() {
     // the tracer overlay's routing-only keys appear on no modeled span type
-    assertFalse(KnownTagCodec.hasSlot(KnownTags.RESOURCE_NAME_ID));
+    assertFalse(KnownTagCodec.hasSlot(KnownTags.RESOURCE_NAME));
   }
 
   @Test
   void theSlotDoesNotChangeTheSerialOrFlags() {
-    long tagId = KnownTags.HTTP_METHOD_ID;
+    long tagId = KnownTags.HTTP_METHOD;
 
     assertTrue(KnownTagCodec.hasSlot(tagId));
     assertEquals(KnownTags.HTTP_METHOD_NAME, KnownTagCodec.nameOf(tagId));
@@ -78,7 +78,7 @@ class KnownTagCodecSlotTest {
   void anUnslottedTagSharesTheReservedTopBit() {
     // An occupancy bit of 1L << slotOf(id) needs no branch for NO_SLOT: a long shift uses only the
     // low 6 bits of its count, so 0xFFFF lands on bit 63, which no real slot uses
-    assertEquals(1L << 63, 1L << KnownTagCodec.slotOf(KnownTags.RESOURCE_NAME_ID));
+    assertEquals(1L << 63, 1L << KnownTagCodec.slotOf(KnownTags.RESOURCE_NAME));
     assertTrue(KnownTagCodec.slotCount() <= 63, "real slots must stay below the shared bit 63");
   }
 }

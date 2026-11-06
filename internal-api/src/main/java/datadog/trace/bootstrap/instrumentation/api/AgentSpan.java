@@ -107,7 +107,7 @@ public interface AgentSpan
   AgentSpan setTag(String key, Object value);
 
   /*
-   * Id-keyed setTag family: the caller passes a KnownTags.*_ID instead of a name. The default
+   * Id-keyed setTag family: the caller passes a KnownTags id instead of a name. The default
    * resolves the id to its name and delegates to the String setter, which is correct for every
    * implementation; the core span overrides these to skip the name lookup when storing the tag.
    */
