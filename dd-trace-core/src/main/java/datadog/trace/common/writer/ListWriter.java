@@ -50,11 +50,12 @@ public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Wr
       span.processTagsAndBaggage(metadataConsumer, OWN_PROPAGATION_TAGS);
     }
 
-    add(trace);
     structureWriter.write(trace);
 
-    traceCount.incrementAndGet();
     synchronized (monitor) {
+      // Publish and count together so clear cannot leave a count for a removed trace.
+      add(trace);
+      traceCount.incrementAndGet();
       monitor.notifyAll();
     }
   }
@@ -63,21 +64,22 @@ public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Wr
       throws InterruptedException {
     final long deadline = System.nanoTime() + unit.toNanos(timeout);
 
-    while (true) {
-      if (predicate.getAsBoolean()) {
-        return true;
-      }
+    synchronized (monitor) {
+      while (true) {
+        if (predicate.getAsBoolean()) {
+          return true;
+        }
 
-      long now = System.nanoTime();
-      long remaining = deadline - now;
-      if (remaining <= 0) {
-        break;
-      }
+        long now = System.nanoTime();
+        long remaining = deadline - now;
+        if (remaining <= 0) {
+          break;
+        }
 
-      long millis = NANOSECONDS.toMillis(remaining);
-      long nanos = remaining - MILLISECONDS.toNanos(millis);
+        long millis = NANOSECONDS.toMillis(remaining);
+        long nanos = remaining - MILLISECONDS.toNanos(millis);
 
-      synchronized (monitor) {
+        // Check and wait under the same monitor so publication cannot lose its notification.
         monitor.wait(millis, (int) nanos);
       }
     }
@@ -158,9 +160,10 @@ public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Wr
 
   @Override
   public void clear() {
-    super.clear();
-
-    traceCount.set(0);
+    synchronized (monitor) {
+      super.clear();
+      traceCount.set(0);
+    }
   }
 
   @Override
