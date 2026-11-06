@@ -17,6 +17,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -36,6 +37,7 @@ public final class CdnConfigurationSource implements ConfigurationService {
 
   static final String UFC_RULES_BASED_SERVER_PATH =
       "/api/v2/feature-flagging/config/rules-based/server";
+  static final String DEPENDENT_FLAG_VARIANT_KEY_QUERY = "cap_dependent-flags-variant-key=v1";
   static final int MAX_ATTEMPTS = 3;
   private static final long FIRST_RETRY_MIN_MILLIS = 2_000;
   private static final long FIRST_RETRY_MAX_MILLIS = 10_000;
@@ -298,15 +300,10 @@ public final class CdnConfigurationSource implements ConfigurationService {
 
   private HttpRequest buildRequest() {
     final HttpRequest.Builder request =
-        HttpRequest.newBuilder(this.endpoint)
+        HttpRequest.newBuilder(requestEndpoint(this.endpoint, EvaluatorCapabilities.supported()))
             .timeout(this.requestTimeout)
             .header("Accept-Encoding", "gzip");
     Headers.addMetadata(request);
-    if (EvaluatorCapabilities.supported()
-        .contains(EvaluatorCapabilities.DEPENDENT_FLAG_VARIANT_KEY_V1)) {
-      request.header(
-          "X-DD-FEATURE-FLAGS-CAPABILITIES", EvaluatorCapabilities.DEPENDENT_FLAG_VARIANT_KEY_V1);
-    }
     if (this.apiKey != null) {
       request.header("DD-API-KEY", this.apiKey);
     }
@@ -315,6 +312,21 @@ public final class CdnConfigurationSource implements ConfigurationService {
       request.header("If-None-Match", currentEtag);
     }
     return request.GET().build();
+  }
+
+  static URI requestEndpoint(final URI endpoint, final Set<String> capabilities) {
+    if (!capabilities.contains(EvaluatorCapabilities.DEPENDENT_FLAG_VARIANT_KEY_V1)) {
+      return endpoint;
+    }
+    final String separator;
+    if (endpoint.getRawQuery() == null) {
+      separator = "?";
+    } else if (endpoint.getRawQuery().isEmpty()) {
+      separator = "";
+    } else {
+      separator = "&";
+    }
+    return URI.create(endpoint + separator + DEPENDENT_FLAG_VARIANT_KEY_QUERY);
   }
 
   private synchronized void warn(final String message, final Object... arguments) {

@@ -135,6 +135,7 @@ public class RemoteConfigServiceImpl implements ConfigurationChangesTypedListene
       this.configurationPoller.removeCapabilities(
           CAPABILITY_FFE_FLAG_DEPENDENT_FLAG_VARIANT_KEY_V1);
     }
+    requestAgain();
   }
 
   /**

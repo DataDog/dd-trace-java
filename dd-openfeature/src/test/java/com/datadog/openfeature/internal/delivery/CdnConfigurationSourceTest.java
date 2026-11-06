@@ -27,6 +27,7 @@ import java.net.ServerSocket;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.time.Duration;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
@@ -97,20 +98,13 @@ class CdnConfigurationSourceTest {
   }
 
   @TableTest({
-    "scenario    | baseUrl                              | endpoint                                 "
-        + "                                            ",
-    "host only   | 'http://localhost:8080'              |"
-        + " 'http://localhost:8080/api/v2/feature-flagging/config/rules-based/server'            ",
-    "root path   | 'http://localhost:8080/'             |"
-        + " 'http://localhost:8080/api/v2/feature-flagging/config/rules-based/server'            ",
-    "root query  | 'https://proxy.example/?token=a%2Bb' |"
-        + " 'https://proxy.example/api/v2/feature-flagging/config/rules-based/server?token=a%2Bb'",
-    "host query  | 'https://proxy.example?token=a'      |"
-        + " 'https://proxy.example/api/v2/feature-flagging/config/rules-based/server?token=a'    ",
-    "custom path | 'https://proxy.example/ufc.json'     | 'https://proxy.example/ufc.json'         "
-        + "                                            ",
-    "trimmed     | '  https://proxy.example/ufc  '      | 'https://proxy.example/ufc'              "
-        + "                                            "
+    "scenario    | baseUrl                              | endpoint                                                                             ",
+    "host only   | 'http://localhost:8080'              | 'http://localhost:8080/api/v2/feature-flagging/config/rules-based/server'            ",
+    "root path   | 'http://localhost:8080/'             | 'http://localhost:8080/api/v2/feature-flagging/config/rules-based/server'            ",
+    "root query  | 'https://proxy.example/?token=a%2Bb' | 'https://proxy.example/api/v2/feature-flagging/config/rules-based/server?token=a%2Bb'",
+    "host query  | 'https://proxy.example?token=a'      | 'https://proxy.example/api/v2/feature-flagging/config/rules-based/server?token=a'    ",
+    "custom path | 'https://proxy.example/ufc.json'     | 'https://proxy.example/ufc.json'                                                     ",
+    "trimmed     | '  https://proxy.example/ufc  '      | 'https://proxy.example/ufc'                                                          "
   })
   void resolvesConfiguredAgentlessBaseUrl(final String baseUrl, final String endpoint) {
     assertEquals(
@@ -171,7 +165,16 @@ class CdnConfigurationSourceTest {
     assertEquals("gzip", request.header("Accept-Encoding"));
     assertEquals("java", request.header("Datadog-Meta-Lang"));
     assertNull(request.header("If-None-Match"));
-    assertNull(request.header("X-DD-FEATURE-FLAGS-CAPABILITIES"));
+  }
+
+  @Test
+  void addsDependentFlagCapabilityToAgentlessQuery() {
+    assertEquals(
+        "https://example.com/ufc?token=a%2Bb&cap_dependent-flags-variant-key=v1",
+        CdnConfigurationSource.requestEndpoint(
+                URI.create("https://example.com/ufc?token=a%2Bb"),
+                Collections.singleton("dependent-flag-variant-key-v1"))
+            .toString());
   }
 
   @Test
@@ -215,7 +218,6 @@ class CdnConfigurationSourceTest {
 
     assertEquals(1, this.dispatched.size());
     assertEquals("\"v1\"", this.server.requests().get(1).header("If-None-Match"));
-    assertNull(this.server.requests().get(1).header("X-DD-FEATURE-FLAGS-CAPABILITIES"));
   }
 
   @Test
@@ -232,7 +234,6 @@ class CdnConfigurationSourceTest {
     }
 
     assertEquals("\"v1\"", this.server.requests().get(1).header("If-None-Match"));
-    assertNull(this.server.requests().get(1).header("X-DD-FEATURE-FLAGS-CAPABILITIES"));
     assertNull(this.server.requests().get(2).header("If-None-Match"));
     assertNull(this.server.requests().get(3).header("If-None-Match"));
   }

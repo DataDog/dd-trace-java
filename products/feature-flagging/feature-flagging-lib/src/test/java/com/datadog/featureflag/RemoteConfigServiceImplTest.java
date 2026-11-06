@@ -65,6 +65,7 @@ class RemoteConfigServiceImplTest {
     supported.close();
     verify(poller, times(2))
         .removeCapabilities(Capabilities.CAPABILITY_FFE_FLAG_DEPENDENT_FLAG_VARIANT_KEY_V1);
+    verify(poller, times(4)).removeListeners(Product.FFE_FLAGS);
     service.close();
   }
 
