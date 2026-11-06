@@ -8,6 +8,7 @@ import okhttp3.MediaType
 import okhttp3.Request
 import okhttp3.RequestBody
 import org.apache.commons.io.IOUtils
+import spock.lang.IgnoreIf
 import spock.lang.Shared
 
 import java.nio.charset.StandardCharsets
@@ -100,6 +101,9 @@ class SpringBootGraphqlSmokeTest extends AbstractAppSecServerSmokeTest {
     }
   }
 
+  // testRuntimeActivation loads AppSec without ever activating it, so no attack can be detected.
+  // TODO APMLP-2199: activate AppSec through remote config and run this feature in that mode too.
+  @IgnoreIf({ System.getProperty('smoke_test.appsec.enabled') == 'inactive' })
   def 'test detect #description'() {
     setup:
 

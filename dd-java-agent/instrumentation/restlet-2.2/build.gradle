@@ -27,6 +27,8 @@ addTestSuite('latestDepTest')
 
 tasks.named("test", Test) {
   dependsOn "baseForkedTest"
+  // The test source set only holds the abstract base and resources shared with baseForkedTest and latestDepTest
+  failOnNoDiscoveredTests = false
 }
 
 dependencies {
