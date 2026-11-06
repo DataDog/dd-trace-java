@@ -96,7 +96,8 @@ public class GitDataUploaderImpl implements GitDataUploader {
 
       GitInfo gitInfo = gitInfoProvider.getGitInfo(repoRoot);
       String remoteUrl = gitInfo.getRepositoryURL();
-      List<String> latestCommits = gitClient.getLatestCommits();
+      String selectedCommit = gitInfo.getCommit().getSha();
+      List<String> latestCommits = gitClient.getLatestCommits(selectedCommit);
       if (latestCommits.isEmpty()) {
         LOGGER.debug("No commits in the last month, skipping git data upload");
         callback.complete(null);
@@ -113,7 +114,7 @@ public class GitDataUploaderImpl implements GitDataUploader {
       }
 
       if (config.isCiVisibilityGitUnshallowDefer() && gitRepoUnshallow.unshallow()) {
-        latestCommits = gitClient.getLatestCommits();
+        latestCommits = gitClient.getLatestCommits(selectedCommit);
         commitsToSkip = gitDataApi.searchCommits(remoteUrl, latestCommits);
       }
 

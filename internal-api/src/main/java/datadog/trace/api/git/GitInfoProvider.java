@@ -162,23 +162,35 @@ public class GitInfoProvider {
     private final String repositoryPath;
     private final Map<GitInfoBuilder, GitInfo> infos;
     private final Set<ShaDiscrepancy> shaDiscrepancies;
-    private final boolean gitClientAvailable;
+    private Boolean gitClientAvailable;
 
     private Evaluator(String repositoryPath, Collection<GitInfoBuilder> builders) {
       this.repositoryPath = repositoryPath;
       this.infos = new LinkedHashMap<>();
       this.shaDiscrepancies = new HashSet<>();
-      GitInfo localInfo = null;
       for (GitInfoBuilder builder : builders) {
-        GitInfo info = null;
-        if (builder.providerAsExpected() == GitProviderExpected.GIT_CLIENT) {
-          info = builder.build(repositoryPath);
-          localInfo = info;
+        infos.put(builder, null);
+      }
+    }
+
+    private boolean isGitClientAvailable() {
+      if (gitClientAvailable != null) {
+        return gitClientAvailable;
+      }
+      GitInfo localInfo = null;
+      String explicitSha = null;
+      for (Map.Entry<GitInfoBuilder, GitInfo> entry : infos.entrySet()) {
+        if (entry.getKey().providerAsExpected() == GitProviderExpected.GIT_CLIENT) {
+          localInfo = entry.getKey().build(repositoryPath);
+          entry.setValue(localInfo);
+        } else if (entry.getKey().providerAsExpected() == GitProviderExpected.USER_SUPPLIED
+            && entry.getValue() != null
+            && Strings.isNotBlank(entry.getValue().getCommit().getSha())) {
+          explicitSha = entry.getValue().getCommit().getSha();
         }
-        infos.put(builder, info);
       }
       gitClientAvailable = localInfo != null && Strings.isNotBlank(localInfo.getCommit().getSha());
-      if (gitClientAvailable) {
+      if (gitClientAvailable && explicitSha == null) {
         for (Map.Entry<GitInfoBuilder, GitInfo> entry : infos.entrySet()) {
           if (entry.getKey().providerAsExpected() != GitProviderExpected.CI_PROVIDER) {
             continue;
@@ -201,6 +213,7 @@ public class GitInfoProvider {
           }
         }
       }
+      return gitClientAvailable;
     }
 
     private String get(Function<GitInfo, String> function, Predicate<String> validator) {
@@ -225,10 +238,14 @@ public class GitInfoProvider {
       GitProviderExpected expectedGitProvider = null;
 
       for (Map.Entry<GitInfoBuilder, GitInfo> e : infos.entrySet()) {
-        if (gitClientAvailable
-            && e.getKey().providerAsExpected() != GitProviderExpected.USER_SUPPLIED
-            && e.getKey().providerAsExpected() != GitProviderExpected.GIT_CLIENT) {
-          continue;
+        GitProviderExpected provider = e.getKey().providerAsExpected();
+        if (provider != GitProviderExpected.USER_SUPPLIED) {
+          boolean readableCheckout = isGitClientAvailable();
+          if (readableCheckout
+              ? provider != GitProviderExpected.GIT_CLIENT
+              : provider == GitProviderExpected.GIT_CLIENT) {
+            continue;
+          }
         }
         GitInfo info = e.getValue();
         if (info == null) {

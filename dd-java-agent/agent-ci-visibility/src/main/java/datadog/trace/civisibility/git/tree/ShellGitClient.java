@@ -45,7 +45,7 @@ public class ShellGitClient implements GitClient {
       Arrays.asList("release/", "hotfix/");
   private static final Pattern WHITESPACE_PATTERN = Pattern.compile("\\s+");
   private static final String ORIGIN = "origin";
-  private static final Pattern COMMIT_INFO_SPLIT = Pattern.compile("\",\"");
+  private static final Pattern COMMIT_INFO_SPLIT = Pattern.compile("\\x00");
 
   private final CiVisibilityMetricCollector metricCollector;
   private final String repoRoot;
@@ -438,14 +438,15 @@ public class ShellGitClient implements GitClient {
                             "show",
                             commit,
                             "-s",
-                            "--format=%H\",\"%an\",\"%ae\",\"%aI\",\"%cn\",\"%ce\",\"%cI\",\"%B"))
+                            "--no-show-signature",
+                            "--format=%H%x00%an%x00%ae%x00%aI%x00%cn%x00%ce%x00%cI%x00%B"))
                     .trim();
           } catch (ShellCommandExecutor.ShellCommandFailedException e) {
             LOGGER.error("Failed to fetch commit info", e);
             return CommitInfo.NOOP;
           }
 
-          String[] fields = COMMIT_INFO_SPLIT.split(info);
+          String[] fields = COMMIT_INFO_SPLIT.split(info, 8);
           if (fields.length < 8) {
             LOGGER.error("Could not parse commit info: {}", info);
             return CommitInfo.NOOP;
@@ -472,17 +473,34 @@ public class ShellGitClient implements GitClient {
   @Override
   public List<String> getLatestCommits()
       throws IOException, TimeoutException, InterruptedException {
-    return executeCommand(
-        Command.GET_LOCAL_COMMITS,
-        () ->
-            commandExecutor.executeCommand(
-                IOUtils::readLines,
-                buildGitCommand(
-                    "log",
-                    "--format=%H",
-                    "-n",
-                    String.valueOf(latestCommitsLimit),
-                    String.format("--since='%s'", latestCommitsSince))));
+    return getLatestCommits(HEAD);
+  }
+
+  @Nonnull
+  @Override
+  public List<String> getLatestCommits(String commit)
+      throws IOException, TimeoutException, InterruptedException {
+    if (GitUtils.isNotValidCommit(commit)) {
+      return Collections.emptyList();
+    }
+    List<String> commits =
+        executeCommand(
+            Command.GET_LOCAL_COMMITS,
+            () ->
+                commandExecutor.executeCommand(
+                    IOUtils::readLines,
+                    buildGitCommand(
+                        "log",
+                        "--format=%H",
+                        "-n",
+                        String.valueOf(latestCommitsLimit),
+                        String.format("--since='%s'", latestCommitsSince),
+                        commit,
+                        "--")));
+    if (!HEAD.equals(commit) && !commits.contains(commit) && isCommitPresent(commit)) {
+      commits.add(0, commit);
+    }
+    return commits;
   }
 
   /**
@@ -510,7 +528,7 @@ public class ShellGitClient implements GitClient {
           gitArgs[1] = "--objects";
           gitArgs[2] = "--no-object-names";
           gitArgs[3] = "--filter=blob:none";
-          gitArgs[4] = String.format("--since='%s'", latestCommitsSince);
+          gitArgs[4] = "--max-count=" + latestCommitsLimit;
 
           int count = 5;
           for (String commitToSkip : commitsToSkip) {

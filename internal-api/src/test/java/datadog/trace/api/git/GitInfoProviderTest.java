@@ -377,7 +377,11 @@ class GitInfoProviderTest {
             GitProviderDiscrepant.CI_PROVIDER));
     provider.registerGitInfoBuilder(
         givenABuilderReturning(
-            GitInfo.NOOP, 1, GitProviderExpected.GIT_CLIENT, GitProviderDiscrepant.GIT_CLIENT));
+            new GitInfo(
+                "https://unreadable/repo.git", "partial-branch", "partial-tag", CommitInfo.NOOP),
+            1,
+            GitProviderExpected.GIT_CLIENT,
+            GitProviderDiscrepant.GIT_CLIENT));
 
     GitInfo info = provider.getGitInfo(REPO_PATH);
     assertEquals("ci-sha", info.getCommit().getSha());
@@ -400,13 +404,14 @@ class GitInfoProviderTest {
             0,
             GitProviderExpected.USER_SUPPLIED,
             GitProviderDiscrepant.USER_SUPPLIED));
-    provider.registerGitInfoBuilder(
+    GitInfoBuilder gitClient =
         givenABuilderReturning(
             new GitInfo(
                 "https://local/repo.git", "local-branch", "local-tag", new CommitInfo("local-sha")),
             1,
             GitProviderExpected.GIT_CLIENT,
-            GitProviderDiscrepant.GIT_CLIENT));
+            GitProviderDiscrepant.GIT_CLIENT);
+    provider.registerGitInfoBuilder(gitClient);
 
     GitInfo info = provider.getGitInfo(REPO_PATH);
     assertEquals("user-sha", info.getCommit().getSha());
@@ -414,6 +419,37 @@ class GitInfoProviderTest {
     assertEquals("user-branch", info.getBranch());
     assertEquals("user-tag", info.getTag());
     assertEquals("user-message", info.getCommit().getFullMessage());
+    verify(gitClient, never()).build(any());
+  }
+
+  @Test
+  void testExplicitShaDoesNotReportCiAgainstAnUnselectedLocalSha() {
+    CiVisibilityMetricCollector collector = mock(CiVisibilityMetricCollector.class);
+    InstrumentationBridge.registerMetricCollector(collector);
+    GitInfoProvider provider = new GitInfoProvider();
+    provider.registerGitInfoBuilder(
+        givenABuilderReturning(
+            new GitInfo(null, null, null, new CommitInfo("selected-sha")),
+            0,
+            GitProviderExpected.USER_SUPPLIED,
+            GitProviderDiscrepant.USER_SUPPLIED));
+    provider.registerGitInfoBuilder(
+        givenABuilderReturning(
+            new GitInfo(
+                "https://local/repo.git", "local-branch", null, new CommitInfo("local-sha")),
+            1,
+            GitProviderExpected.GIT_CLIENT,
+            GitProviderDiscrepant.GIT_CLIENT));
+    GitInfoBuilder ci =
+        givenABuilderReturning(
+            new GitInfo("https://ci/repo.git", "ci-branch", null, new CommitInfo("selected-sha")),
+            2,
+            GitProviderExpected.CI_PROVIDER,
+            GitProviderDiscrepant.CI_PROVIDER);
+    provider.registerGitInfoBuilder(ci);
+
+    assertEquals("selected-sha", provider.getGitInfo(REPO_PATH).getCommit().getSha());
+    verify(ci, never()).build(any());
   }
 
   private static void assertFallbackCommitInfo(GitInfo actualGitInfo) {

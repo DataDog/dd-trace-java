@@ -38,7 +38,7 @@ class GitDataUploaderImplTest extends Specification {
     }
     def api = Mock(GitDataApi)
     def gitInfoProvider = Stub(GitInfoProvider)
-    gitInfoProvider.getGitInfo(repoRoot) >> new GitInfo(repoUrl, null, null, new CommitInfo("explicit-session-sha"))
+    gitInfoProvider.getGitInfo(repoRoot) >> new GitInfo(repoUrl, null, null, new CommitInfo("5b6f3a6dab5972d73a56dff737bd08d995255c08"))
 
     def gitClient = new ShellGitClient(metricCollector, repoRoot, "25 years ago", 3, TIMEOUT_MILLIS)
     def unshallow = new GitRepoUnshallow(config, gitClient)
@@ -60,7 +60,7 @@ class GitDataUploaderImplTest extends Specification {
 
     1 * api.uploadPackFile(
       repoUrl,
-      "explicit-session-sha",
+      "5b6f3a6dab5972d73a56dff737bd08d995255c08",
       fileWithContents(Paths.get(getClass().getClassLoader().getResource("ci/git/uploadedPackFile.pack").toURI())))
     0 * _
   }
