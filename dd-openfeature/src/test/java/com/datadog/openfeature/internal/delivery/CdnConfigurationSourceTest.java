@@ -141,7 +141,8 @@ class CdnConfigurationSourceTest {
                 this.server.uri("/").toString(),
                 "api-key",
                 "secret"),
-            new RuntimeServices(HealthMetrics.NOOP));
+            new RuntimeServices(HealthMetrics.NOOP),
+            FlagSelectionRequest.NONE);
     try {
       source.start(this.dispatched::add);
     } finally {

@@ -24,6 +24,7 @@ import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
 import com.datadog.openfeature.internal.bridge.v1.HealthMetrics;
 import com.datadog.openfeature.internal.bridge.v1.SpanEnricher;
 import com.datadog.openfeature.internal.config.TestSettings;
+import com.datadog.openfeature.internal.delivery.FlagSelectionRequest;
 import com.datadog.openfeature.internal.exposure.ExposureDeduplicationCache;
 import com.datadog.openfeature.internal.exposure.ExposureEvent;
 import com.datadog.openfeature.internal.exposure.ExposurePipeline;
@@ -721,9 +722,20 @@ class EvaluationTelemetryOptOutTest {
       throws ReflectiveOperationException {
     final Constructor<FeatureFlagsRuntime> constructor =
         FeatureFlagsRuntime.class.getDeclaredConstructor(
-            ConfigurationService.class, ExposurePipeline.class, FlagEvaluationPipeline.class);
+            ConfigurationService.class,
+            RuntimeServices.class,
+            FlagSelectionRequest.class,
+            FlagSelectionRequest.class,
+            ExposurePipeline.class,
+            FlagEvaluationPipeline.class);
     constructor.setAccessible(true);
-    return constructor.newInstance(mock(ConfigurationService.class), null, evaluations);
+    return constructor.newInstance(
+        mock(ConfigurationService.class),
+        new RuntimeServices(HealthMetrics.NOOP),
+        FlagSelectionRequest.NONE,
+        FlagSelectionRequest.NONE,
+        null,
+        evaluations);
   }
 
   private static ServerConfiguration defaultConfiguration() {

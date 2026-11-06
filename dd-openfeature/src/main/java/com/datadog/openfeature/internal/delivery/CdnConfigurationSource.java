@@ -4,6 +4,7 @@ import static com.datadog.openfeature.internal.delivery.Retries.isRetryableStatu
 
 import com.datadog.openfeature.internal.ConfigurationService;
 import com.datadog.openfeature.internal.RuntimeServices;
+import com.datadog.openfeature.internal.bridge.v1.HealthMetrics;
 import com.datadog.openfeature.internal.config.Settings;
 import com.datadog.openfeature.internal.ufc.ServerConfiguration;
 import com.datadog.openfeature.internal.ufc.UniversalFlagConfigParser;
@@ -44,6 +45,8 @@ public final class CdnConfigurationSource implements ConfigurationService {
   private static final long WARNING_INTERVAL_NANOS = TimeUnit.MINUTES.toNanos(5);
 
   private final URI endpoint;
+  private final FlagSelectionRequest selection;
+  private final boolean selectionSent;
   @Nullable private final String apiKey;
   private final long pollIntervalMillis;
   private final Duration requestTimeout;
@@ -51,6 +54,7 @@ public final class CdnConfigurationSource implements ConfigurationService {
   private final ScheduledExecutorService executor;
   private final Retries.Sleeper retrySleeper;
   private final DoubleSupplier jitter;
+  private final RuntimeServices services;
   private final Object lifecycleLock = new Object();
   private final AtomicBoolean polling = new AtomicBoolean();
   private final CountDownLatch closedSignal = new CountDownLatch(1);
@@ -62,9 +66,13 @@ public final class CdnConfigurationSource implements ConfigurationService {
   private volatile String etag;
   private long lastWarningNanos;
 
-  public CdnConfigurationSource(final Settings settings, final RuntimeServices services) {
+  public CdnConfigurationSource(
+      final Settings settings,
+      final RuntimeServices services,
+      final FlagSelectionRequest selection) {
     this(
         endpoint(settings),
+        selection,
         isManagedEndpoint(settings) ? settings.apiKey() : null,
         TimeUnit.SECONDS.toMillis(settings.agentlessPollIntervalSeconds()),
         Duration.ofSeconds(settings.agentlessRequestTimeoutSeconds()),
@@ -75,7 +83,8 @@ public final class CdnConfigurationSource implements ConfigurationService {
         Executors.newSingleThreadScheduledExecutor(
             task -> services.newThread("configuration", task)),
         null,
-        () -> ThreadLocalRandom.current().nextDouble(1 - RETRY_JITTER, 1 + RETRY_JITTER));
+        () -> ThreadLocalRandom.current().nextDouble(1 - RETRY_JITTER, 1 + RETRY_JITTER),
+        services);
   }
 
   CdnConfigurationSource(
@@ -87,7 +96,35 @@ public final class CdnConfigurationSource implements ConfigurationService {
       final ScheduledExecutorService executor,
       @Nullable final Retries.Sleeper retrySleeper,
       final DoubleSupplier jitter) {
-    this.endpoint = endpoint;
+    this(
+        endpoint,
+        FlagSelectionRequest.NONE,
+        apiKey,
+        pollIntervalMillis,
+        requestTimeout,
+        httpClient,
+        executor,
+        retrySleeper,
+        jitter,
+        new RuntimeServices(HealthMetrics.NOOP));
+  }
+
+  CdnConfigurationSource(
+      final URI endpoint,
+      final FlagSelectionRequest selection,
+      @Nullable final String apiKey,
+      final long pollIntervalMillis,
+      final Duration requestTimeout,
+      final HttpClient httpClient,
+      final ScheduledExecutorService executor,
+      @Nullable final Retries.Sleeper retrySleeper,
+      final DoubleSupplier jitter,
+      final RuntimeServices services) {
+    // The endpoint is fixed for the life of the source, so the URL check holds for every request.
+    final URI selected = selection.appendTo(endpoint);
+    this.endpoint = selected == null ? endpoint : selected;
+    this.selection = selected == null ? FlagSelectionRequest.urlTooLong() : selection;
+    this.selectionSent = selected != null && selection.hasValues();
     this.apiKey = apiKey;
     this.pollIntervalMillis = pollIntervalMillis;
     this.requestTimeout = requestTimeout;
@@ -98,6 +135,15 @@ public final class CdnConfigurationSource implements ConfigurationService {
             ? retrySleeper
             : delay -> this.closedSignal.await(delay, TimeUnit.MILLISECONDS);
     this.jitter = jitter;
+    this.services = services;
+  }
+
+  /**
+   * @return the selection that this source sends, {@link FlagSelectionRequest#NONE}, or the reason
+   *     it is not sent.
+   */
+  public FlagSelectionRequest selection() {
+    return this.selection;
   }
 
   @Override
@@ -238,6 +284,11 @@ public final class CdnConfigurationSource implements ConfigurationService {
       warn("Feature Flags configuration endpoint returned HTTP {}", status);
       return false;
     }
+    final String ignoredReason =
+        this.selectionSent
+            ? FlagSelectionRequest.ignoredReason(
+                response.headers().firstValue(FlagSelectionRequest.IGNORED_HEADER).orElse(null))
+            : null;
     final ServerConfiguration configuration;
     try {
       configuration = UniversalFlagConfigParser.parseJsonApi(Gzip.decode(response));
@@ -257,6 +308,10 @@ public final class CdnConfigurationSource implements ConfigurationService {
     final String nextEtag = response.headers().firstValue("ETag").orElse(null);
     this.etag = nextEtag == null || nextEtag.trim().isEmpty() ? null : nextEtag;
     LOGGER.debug("Feature Flags agentless configuration applied: etag={}", this.etag);
+    // Reported last, so that "Loaded the full flag configuration" is already true.
+    if (ignoredReason != null) {
+      FlagSelectionRequest.reportIgnored(this.services, ignoredReason);
+    }
     return true;
   }
 
