@@ -73,7 +73,7 @@ dependencies {
 }
 
 tasks.withType<Test>().configureEach {
-  if (name in listOf("latestDepTest", "latestDepForkedTest", "latestDepTestForkedTest")) {
+  if (name in listOf("latestDepTest", "latestDepForkedTest")) {
     jvmArgs("-Dtest.dd.latestDepTest=true")
   }
 }

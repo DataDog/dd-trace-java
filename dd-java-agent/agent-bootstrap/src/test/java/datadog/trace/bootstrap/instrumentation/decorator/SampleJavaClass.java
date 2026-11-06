@@ -1,8 +1,8 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
 /**
- * Used by {@link BaseDecoratorTest}. Groovy with Java 10+ doesn't seem to treat it properly as an
- * anonymous class, so use a Java class instead.
+ * Provides a top-level anonymous class ({@code SampleJavaClass$1}) for {@link BaseDecoratorTest}'s
+ * span name tests.
  */
 public class SampleJavaClass {
   public static Class anonymousClass =

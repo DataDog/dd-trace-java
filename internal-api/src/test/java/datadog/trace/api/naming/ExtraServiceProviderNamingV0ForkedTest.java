@@ -10,10 +10,9 @@ import static org.mockito.Mockito.verify;
 import datadog.trace.api.remoteconfig.ServiceNameCollector;
 import datadog.trace.api.remoteconfig.ServiceNameCollectorTestBridge;
 import datadog.trace.test.junit.utils.config.WithConfig;
-import datadog.trace.test.util.DDJavaSpecification;
 import org.junit.jupiter.api.Test;
 
-class ExtraServiceProviderNamingV0ForkedTest extends DDJavaSpecification {
+class ExtraServiceProviderNamingV0ForkedTest {
 
   @Test
   @WithConfig(key = SERVICE_NAME, value = "testService")

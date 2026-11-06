@@ -126,7 +126,7 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
       if (OTEL_SEMANTICS) {
         OtelHttpSemantics.setRequestMethod(span, method);
       } else {
-        span.setTag(KnownTags.HTTP_METHOD_ID, method);
+        span.setTag(KnownTags.HTTP_METHOD, method);
       }
 
       if (CLIENT_TAG_HEADERS) {

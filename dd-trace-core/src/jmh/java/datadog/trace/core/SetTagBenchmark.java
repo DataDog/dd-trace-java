@@ -47,7 +47,7 @@ public class SetTagBenchmark {
   public void setup() {
     span = (DDSpan) TRACER.startSpan("benchmark", "set.tag");
     tagMap = TagMap.create();
-    nonConstantTagId = KnownTags.HTTP_ROUTE_ID;
+    nonConstantTagId = KnownTags.HTTP_ROUTE;
   }
 
   @TearDown
@@ -57,7 +57,7 @@ public class SetTagBenchmark {
 
   @Benchmark
   public Object tagMap_byId() {
-    tagMap.set(KnownTags.HTTP_ROUTE_ID, "/users/{id}");
+    tagMap.set(KnownTags.HTTP_ROUTE, "/users/{id}");
     return tagMap;
   }
 
@@ -65,7 +65,7 @@ public class SetTagBenchmark {
   public Object tagMap_byId_synchronized() {
     TagMap tagMap = this.tagMap;
     synchronized (tagMap) {
-      tagMap.set(KnownTags.HTTP_ROUTE_ID, "/users/{id}");
+      tagMap.set(KnownTags.HTTP_ROUTE, "/users/{id}");
     }
     return tagMap;
   }
@@ -77,12 +77,12 @@ public class SetTagBenchmark {
 
   @Benchmark
   public Object knownTag_byId() {
-    return span.setTag(KnownTags.HTTP_ROUTE_ID, "/users/{id}");
+    return span.setTag(KnownTags.HTTP_ROUTE, "/users/{id}");
   }
 
   @Benchmark
   public Object interceptedTag_byId() {
-    return span.setTag(KnownTags.SPAN_KIND_ID, "client");
+    return span.setTag(KnownTags.SPAN_KIND, "client");
   }
 
   @Benchmark
@@ -97,7 +97,7 @@ public class SetTagBenchmark {
 
   @Benchmark
   public Object knownIntTag_byId() {
-    return span.setTag(KnownTags.HTTP_RESEND_COUNT_ID, 2);
+    return span.setTag(KnownTags.HTTP_RESEND_COUNT, 2);
   }
 
   @Benchmark

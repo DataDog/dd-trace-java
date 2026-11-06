@@ -548,7 +548,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
 
   @Override
   public DDSpan setTag(final long tagId, final int value) {
-    if (tagId == KnownTags.HTTP_STATUS_CODE_ID) {
+    if (tagId == KnownTags.HTTP_STATUS_CODE) {
       context.setHttpStatusCode((short) value);
     }
     context.setTag(tagId, value);

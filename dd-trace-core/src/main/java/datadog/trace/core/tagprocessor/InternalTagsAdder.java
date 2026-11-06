@@ -1,7 +1,7 @@
 package datadog.trace.core.tagprocessor;
 
-import static datadog.trace.api.KnownTags.DD_BASE_SERVICE_ID;
-import static datadog.trace.api.KnownTags.VERSION_ID;
+import static datadog.trace.api.KnownTags.DD_BASE_SERVICE;
+import static datadog.trace.api.KnownTags.VERSION;
 
 import datadog.trace.api.TagMap;
 import datadog.trace.api.TagStore;
@@ -20,10 +20,10 @@ public final class InternalTagsAdder extends EagerTagsPostProcessor {
 
   public InternalTagsAdder(@Nonnull final String ddService, @Nullable final String version) {
     this.ddService = UTF8BytesString.create(ddService);
-    this.baseServiceEntry = TagMap.Entry.create(DD_BASE_SERVICE_ID, this.ddService);
+    this.baseServiceEntry = TagMap.Entry.create(DD_BASE_SERVICE, this.ddService);
     this.versionEntry =
         version != null && !version.isEmpty()
-            ? TagMap.Entry.create(VERSION_ID, UTF8BytesString.create(version))
+            ? TagMap.Entry.create(VERSION, UTF8BytesString.create(version))
             : null;
   }
 
@@ -42,7 +42,7 @@ public final class InternalTagsAdder extends EagerTagsPostProcessor {
     } else {
       // as per config consistency, the version tag is added across tracers only if
       // the service name is DD_SERVICE and version  tag is not manually set
-      if (versionEntry != null && unsafeTags.load(VERSION_ID) == null) {
+      if (versionEntry != null && unsafeTags.load(VERSION) == null) {
         unsafeTags.store(versionEntry);
       }
     }
