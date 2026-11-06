@@ -1,16 +1,14 @@
 package datadog.gradle.plugin.testing
 
+import okhttp3.HttpUrl
 import org.gradle.api.Action
 import org.gradle.api.InvalidUserDataException
 import org.gradle.api.Task
 import org.gradle.api.file.Directory
-import org.gradle.api.file.RegularFile
 import org.gradle.api.provider.Provider
 import org.gradle.api.provider.ProviderFactory
-import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.testing.Test
 import org.gradle.kotlin.dsl.newInstance
-import org.gradle.process.ExecOperations
 import javax.inject.Inject
 
 fun Test.configureTestAgentPostChecks() {
@@ -19,17 +17,15 @@ fun Test.configureTestAgentPostChecks() {
     return
   }
 
-  val checkScript = project.rootProject.layout.projectDirectory.file("tooling/check_test_agent_results.sh")
   val reportDirectory = project.layout.buildDirectory.dir("reports/test-agent/$name")
 
   val testEnvironment = testAgentEnvironment()
   val configuration = testAgentConfiguration(this.project.providers, testEnvironment)
+  val agentUrl = project.providers.testAgentUrl()
 
   // Register additional inputs related to APM TestAgent
   inputs.property("ciTestAgentConfiguration", configuration)
-  inputs.file(checkScript)
-    .withPropertyName("ciTestAgentCheckScript")
-    .withPathSensitivity(PathSensitivity.NONE)
+  inputs.property("ciTestAgentUrl", agentUrl)
 
   outputs.files(reportDirectory.map { directory ->
     listOf(
@@ -42,11 +38,19 @@ fun Test.configureTestAgentPostChecks() {
   doLast(
     "checkTestAgent",
     project.objects.newInstance<CheckTestAgentResultsAction>(
-      checkScript,
-      reportDirectory
+      reportDirectory,
+      agentUrl
     )
   )
 }
+
+/** Resolves the same job endpoint for per-Test checks and the final live check. */
+internal fun ProviderFactory.testAgentUrl(): Provider<String> =
+  environmentVariable("CI_AGENT_HOST").zip(environmentVariable("CI_TEST_AGENT_PORT").orElse("8126")) { host, value ->
+    val port = value.toIntOrNull()?.takeIf { it in 1..65535 }
+      ?: throw InvalidUserDataException("CI_TEST_AGENT_PORT must be an integer between 1 and 65535")
+    HttpUrl.Builder().scheme("http").host(host).port(port).build().toString()
+  }
 
 private val testAgentBooleanVariables = listOf(
   "CI_TEST_AGENT_SUPPRESS_TRACE_PARSE_ERRORS",
@@ -103,22 +107,14 @@ private fun testAgentConfiguration(
 }
 
 abstract class CheckTestAgentResultsAction @Inject constructor(
-  private val checkScript: RegularFile,
   private val reportDirectory: Provider<Directory>,
+  private val agentUrl: Provider<String>,
 ) : Action<Task> {
-  @get:Inject
-  abstract val execOperations: ExecOperations
-
   override fun execute(task: Task) {
-    val test = task as Test
-    val directory = reportDirectory.get().asFile
-    // Replace reports from previous executions or cache restores before checking the live agent.
-    check(directory.deleteRecursively() && directory.mkdirs()) { "Cannot prepare Test Agent report directory: $directory" }
-    execOperations.exec {
-      commandLine("bash", checkScript.asFile.absolutePath)
-      workingDir(directory)
-      // Registration already established that the invocation enables these checks.
-      environment = test.environment + ("CI_USE_TEST_AGENT" to "true")
-    }
+    TestAgentResultsChecker(
+      agentUrl.get(),
+      reportDirectory.get().asFile,
+      task.logger::lifecycle,
+    ).check()
   }
 }

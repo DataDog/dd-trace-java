@@ -1,6 +1,7 @@
 import com.diffplug.gradle.spotless.GroovyExtension
 import datadog.gradle.plugin.HostPlatform
 import datadog.gradle.plugin.ci.testAggregate
+import datadog.gradle.plugin.testing.CheckTestAgentResults
 
 plugins {
   kotlin("jvm") version libs.versions.kotlin.plugin apply false
@@ -24,6 +25,8 @@ plugins {
 }
 
 description = "dd-trace-java"
+
+tasks.register<CheckTestAgentResults>("checkTestAgentResults")
 
 val isCI = providers.environmentVariable("CI")
 

@@ -8,15 +8,28 @@ import okhttp3.mockwebserver.RecordedRequest
 import org.assertj.core.api.Assertions.assertThat
 import org.gradle.testkit.runner.TaskOutcome.FAILED
 import org.gradle.testkit.runner.TaskOutcome.FROM_CACHE
+import org.gradle.testkit.runner.TaskOutcome.NO_SOURCE
+import org.gradle.testkit.runner.TaskOutcome.SKIPPED
 import org.gradle.testkit.runner.TaskOutcome.SUCCESS
+import org.gradle.testkit.runner.TaskOutcome.UP_TO_DATE
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
+import org.objectweb.asm.ClassReader
+import org.objectweb.asm.ClassVisitor
+import org.objectweb.asm.ClassWriter
+import org.objectweb.asm.Opcodes.ACC_FINAL
+import org.objectweb.asm.Opcodes.ACC_PRIVATE
+import org.objectweb.asm.Opcodes.ACC_STATIC
+import org.objectweb.asm.Opcodes.ASM9
 import java.io.File
+import java.util.Properties
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
 class CheckTestAgentResultsActionTest : GradleFixture() {
+  private var agentPort = 8126
+
   @Test
   fun `failed trace checks are not cached and successful checks allow reuse`() {
     withAgent { server, failing, checks ->
@@ -201,18 +214,36 @@ class CheckTestAgentResultsActionTest : GradleFixture() {
   }
 
   @Test
-  fun `checker script contents invalidate previously cached results`() {
+  fun `checker implementation changes invalidate previously cached results`() {
     withAgent { server, _, checks ->
       writeProject(server)
-      val first = run("clean", "test", "--build-cache", "--configuration-cache", env = agentEnvironment)
+      val metadata = Properties().apply {
+        CheckTestAgentResultsActionTest::class.java.classLoader.getResourceAsStream("plugin-under-test-metadata.properties")!!.use { load(it) }
+      }
+      val classpath = metadata.getProperty("implementation-classpath").split(File.pathSeparator).map(::File)
+      val checkerPath = "datadog/gradle/plugin/testing/TestAgentResultsChecker.class"
+      val originalClasses = classpath.first { File(it, checkerPath).isFile }
+      val classes = file("plugin-classes")
+      check(originalClasses.copyRecursively(classes))
+      val pluginClasspath = classpath.map { if (it == originalClasses) classes else it }
+      val first = run("clean", "test", "--build-cache", "--configuration-cache", env = agentEnvironment, pluginClasspath = pluginClasspath)
       assertThat(first.task(":test")?.outcome).describedAs(first.output).isEqualTo(SUCCESS)
-      file("tooling/check_test_agent_results.sh").appendText("\n# Updated validation script\n")
-      val changed = run("clean", "test", "--build-cache", "--configuration-cache", env = agentEnvironment)
+      // Change only the native checker, leaving its action and the test inputs unchanged.
+      val checkerClass = File(classes, checkerPath)
+      val writer = ClassWriter(0)
+      ClassReader(checkerClass.readBytes()).accept(object : ClassVisitor(ASM9, writer) {
+        override fun visitEnd() {
+          super.visitField(ACC_PRIVATE or ACC_STATIC or ACC_FINAL, "validationPolicyVersion", "I", null, 2).visitEnd()
+          super.visitEnd()
+        }
+      }, 0)
+      checkerClass.writeBytes(writer.toByteArray())
+      val changed = run("clean", "test", "--build-cache", "--configuration-cache", env = agentEnvironment, pluginClasspath = pluginClasspath)
       assertThat(changed.task(":test")?.outcome).describedAs(changed.output).isEqualTo(SUCCESS)
-      assertThat(changed.output).contains("Reusing configuration cache")
       assertThat(checks.get()).isEqualTo(2)
-      val restored = run("clean", "test", "--build-cache", "--configuration-cache", env = agentEnvironment)
+      val restored = run("clean", "test", "--build-cache", "--configuration-cache", env = agentEnvironment, pluginClasspath = pluginClasspath)
       assertThat(restored.task(":test")?.outcome).describedAs(restored.output).isEqualTo(FROM_CACHE)
+      assertThat(restored.output).contains("Reusing configuration cache")
       assertThat(checks.get()).isEqualTo(2)
     }
   }
@@ -288,16 +319,145 @@ class CheckTestAgentResultsActionTest : GradleFixture() {
       val first = run("test", "--build-cache", "--configuration-cache", env = agentEnvironment)
       assertThat(first.task(":test")?.outcome).describedAs(first.output).isEqualTo(SUCCESS)
       assertThat(file("build/reports/test-agent/test/summary_response.txt")).exists()
-      writeFile("tooling/check_test_agent_results.sh", "exit 1")
-      val failed = run("test", "--build-cache", "--configuration-cache", env = agentEnvironment, expectFailure = true)
+      server.setDispatcher(object : Dispatcher() {
+        override fun dispatch(request: RecordedRequest): MockResponse = MockResponse().setBody("not json")
+      })
+      val failed = run("test", "--rerun", "--build-cache", "--configuration-cache", env = agentEnvironment, expectFailure = true)
       assertThat(failed.task(":test")?.outcome).describedAs(failed.output).isEqualTo(FAILED)
       assertThat(checks.get()).isEqualTo(1)
-      assertThat(file("build/reports/test-agent/test/summary_response.txt")).doesNotExist()
+      assertThat(file("build/reports/test-agent/test/summary_response.txt")).hasContent("not json")
       assertThat(file("build/reports/test-agent/test/response.txt")).doesNotExist()
     }
   }
 
+  @Test
+  fun `final checks execute when tests are cached or up to date`() {
+    withAgent { server, failing, checks ->
+      writeProject(server)
+      val first = run("clean", "test", "--build-cache", "--configuration-cache", env = agentEnvironment)
+      assertThat(first.task(":test")?.outcome).describedAs(first.output).isEqualTo(SUCCESS)
+      val firstCheck = run("checkTestAgentResults", "--build-cache", "--configuration-cache", env = agentEnvironment)
+      assertThat(firstCheck.task(":checkTestAgentResults")?.outcome).describedAs(firstCheck.output).isEqualTo(SUCCESS)
+      assertThat(firstCheck.task(":test")).isNull()
+      assertThat(checks.get()).isEqualTo(2)
+
+      val cached = run("clean", "test", "--build-cache", "--configuration-cache", env = agentEnvironment)
+      assertThat(cached.task(":test")?.outcome).describedAs(cached.output).isEqualTo(FROM_CACHE)
+      val cachedCheck = run("checkTestAgentResults", "--build-cache", "--configuration-cache", env = agentEnvironment)
+      assertThat(cachedCheck.task(":checkTestAgentResults")?.outcome).describedAs(cachedCheck.output).isEqualTo(SUCCESS)
+      assertThat(cachedCheck.output).contains("Reusing configuration cache")
+      assertThat(checks.get()).isEqualTo(3)
+
+      val upToDate = run("test", "--build-cache", "--configuration-cache", env = agentEnvironment)
+      assertThat(upToDate.task(":test")?.outcome).describedAs(upToDate.output).isEqualTo(UP_TO_DATE)
+      failing.set(true)
+      val failedCheck = run("checkTestAgentResults", "--build-cache", "--configuration-cache", env = agentEnvironment, expectFailure = true)
+      assertThat(failedCheck.task(":checkTestAgentResults")?.outcome).describedAs(failedCheck.output).isEqualTo(FAILED)
+      assertThat(checks.get()).isEqualTo(4)
+      assertThat(file("build/reports/test-agent/checkTestAgentResults/response.txt")).hasContent("{\"failure\":\"bad trace\"}")
+    }
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = ["skipped", "no source"])
+  fun `final checks reject failures when test actions do not execute`(mode: String) {
+    withAgent { server, failing, checks ->
+      writeProject(server)
+      if (mode == "skipped") {
+        writeRootProject("tasks.withType<Test>().configureEach { onlyIf { false } }", append = true)
+      } else {
+        check(file("src/test").deleteRecursively())
+      }
+      val tests = run("test", "--build-cache", "--configuration-cache", env = agentEnvironment)
+      assertThat(tests.task(":test")?.outcome).describedAs(tests.output).isEqualTo(if (mode == "skipped") SKIPPED else NO_SOURCE)
+      assertThat(checks.get()).isZero()
+      failing.set(true)
+      val result = run("checkTestAgentResults", "--build-cache", "--configuration-cache", env = agentEnvironment, expectFailure = true)
+      assertThat(result.task(":checkTestAgentResults")?.outcome).describedAs(result.output).isEqualTo(FAILED)
+      assertThat(checks.get()).isEqualTo(1)
+    }
+  }
+
+  @Test
+  fun `final checks are opt in even with configuration cache reuse`() {
+    withAgent { server, _, checks ->
+      writeProject(server)
+      val unset = agentEnvironment.keys + setOf("CI", "GITLAB_CI")
+      val inactive = run("checkTestAgentResults", "--configuration-cache", unsetEnv = unset)
+      assertThat(inactive.task(":checkTestAgentResults")?.outcome).describedAs(inactive.output).isEqualTo(SKIPPED)
+      assertThat(checks.get()).isZero()
+      val active = run("checkTestAgentResults", "--configuration-cache", env = agentEnvironment)
+      assertThat(active.task(":checkTestAgentResults")?.outcome).describedAs(active.output).isEqualTo(SUCCESS)
+      assertThat(checks.get()).isEqualTo(1)
+      val disabled = run("checkTestAgentResults", "--configuration-cache", env = agentEnvironment + mapOf("CI_USE_TEST_AGENT" to "false", "CI_TEST_AGENT_PORT" to "invalid"))
+      assertThat(disabled.task(":checkTestAgentResults")?.outcome).describedAs(disabled.output).isEqualTo(SKIPPED)
+      assertThat(checks.get()).isEqualTo(1)
+    }
+  }
+
+  @Test
+  fun `both checks follow the job port and invalidate cached test results`() {
+    withAgent { firstServer, _, firstChecks ->
+      writeProject(firstServer)
+      val firstEnvironment = agentEnvironment
+      val first = run("clean", "test", "--build-cache", "--configuration-cache", env = firstEnvironment)
+      assertThat(first.task(":test")?.outcome).describedAs(first.output).isEqualTo(SUCCESS)
+      val firstCheck = run("checkTestAgentResults", "--configuration-cache", env = firstEnvironment)
+      assertThat(firstCheck.task(":checkTestAgentResults")?.outcome).describedAs(firstCheck.output).isEqualTo(SUCCESS)
+      assertThat(firstChecks.get()).isEqualTo(2)
+
+      withAgent { secondServer, _, secondChecks ->
+        val secondEnvironment = firstEnvironment + ("CI_TEST_AGENT_PORT" to secondServer.port.toString())
+        val changed = run("clean", "test", "--build-cache", "--configuration-cache", env = secondEnvironment)
+        assertThat(changed.task(":test")?.outcome).describedAs(changed.output).isEqualTo(SUCCESS)
+        assertThat(changed.output).contains("Reusing configuration cache")
+        val changedCheck = run("checkTestAgentResults", "--configuration-cache", env = secondEnvironment)
+        assertThat(changedCheck.task(":checkTestAgentResults")?.outcome).describedAs(changedCheck.output).isEqualTo(SUCCESS)
+        assertThat(changedCheck.output).contains("Reusing configuration cache")
+        assertThat(secondChecks.get()).isEqualTo(2)
+        assertThat(firstChecks.get()).isEqualTo(2)
+
+        val restored = run("clean", "test", "--build-cache", "--configuration-cache", env = secondEnvironment)
+        assertThat(restored.task(":test")?.outcome).describedAs(restored.output).isEqualTo(FROM_CACHE)
+        assertThat(secondChecks.get()).isEqualTo(2)
+        val original = run("clean", "test", "--build-cache", "--configuration-cache", env = firstEnvironment)
+        assertThat(original.task(":test")?.outcome).describedAs(original.output).isEqualTo(FROM_CACHE)
+        assertThat(firstChecks.get()).isEqualTo(2)
+      }
+    }
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = ["", "0", "-1", "65536", "not-a-port"])
+  fun `both checks reject an invalid job port`(port: String) {
+    withAgent { server, _, checks ->
+      writeProject(server)
+      val environment = agentEnvironment + ("CI_TEST_AGENT_PORT" to port)
+      val tests = run("test", "--configuration-cache", env = environment, expectFailure = true)
+      assertThat(tests.task(":test")?.outcome).describedAs(tests.output).isEqualTo(FAILED)
+      assertThat(tests.output).contains("CI_TEST_AGENT_PORT must be an integer between 1 and 65535")
+      val finalCheck = run("checkTestAgentResults", "--configuration-cache", env = environment, expectFailure = true)
+      assertThat(finalCheck.task(":checkTestAgentResults")?.outcome).describedAs(finalCheck.output).isEqualTo(FAILED)
+      assertThat(finalCheck.output).contains("CI_TEST_AGENT_PORT must be an integer between 1 and 65535")
+      assertThat(checks.get()).isZero()
+    }
+  }
+
+  @Test
+  fun `job endpoint defaults to the existing sidecar port`() {
+    withAgent { server, _, checks ->
+      writeProject(server)
+      writeRootProject("""
+        println("Test Agent endpoint: " + tasks.named<CheckTestAgentResults>("checkTestAgentResults").get().agentUrl.get())
+      """, append = true)
+      val result = run("help", env = agentEnvironment - "CI_TEST_AGENT_PORT", unsetEnv = setOf("CI_TEST_AGENT_PORT"))
+      assertThat(result.output).contains("Test Agent endpoint: http://127.0.0.1:8126/")
+      assertThat(checks.get()).isZero()
+    }
+  }
+
   private fun writeProject(server: MockWebServer) {
+    agentPort = server.port
     writeSettings(
       """
       rootProject.name = "test-agent-check"
@@ -305,8 +465,6 @@ class CheckTestAgentResultsActionTest : GradleFixture() {
       """
     )
     writeRootProject(testBuildScript)
-    val script = File("../tooling/check_test_agent_results.sh").readText()
-    writeFile("tooling/check_test_agent_results.sh", script.replace(":8126", ":${server.port}"))
     writeJavaSource("Example", "public class Example {}")
     writeJavaSource(
       "ExampleTest",
@@ -340,9 +498,10 @@ class CheckTestAgentResultsActionTest : GradleFixture() {
     }
   }
 
-  private val agentEnvironment = mapOf(
+  private val agentEnvironment get() = mapOf(
     "CI_USE_TEST_AGENT" to "true",
     "CI_AGENT_HOST" to "127.0.0.1",
+    "CI_TEST_AGENT_PORT" to agentPort.toString(),
     "CI_TEST_AGENT_IMAGE" to "test-agent@sha256:${"1".repeat(64)}",
     "CI_TEST_AGENT_ENABLED_CHECKS" to "trace_peer_service",
     "CI_TEST_AGENT_SUPPRESS_TRACE_PARSE_ERRORS" to "true",
@@ -351,6 +510,7 @@ class CheckTestAgentResultsActionTest : GradleFixture() {
   )
 
   private val testBuildScript = """
+    import datadog.gradle.plugin.testing.CheckTestAgentResults
     import datadog.gradle.plugin.testing.configureTestAgentPostChecks
 
     plugins { id("dd-trace-java.test-jvm-constraints") }
@@ -365,5 +525,6 @@ class CheckTestAgentResultsActionTest : GradleFixture() {
       useJUnitPlatform()
       configureTestAgentPostChecks()
     }
+    tasks.register<CheckTestAgentResults>("checkTestAgentResults")
   """
 }
