@@ -1,12 +1,12 @@
 package datadog.trace.instrumentation.kafka_streams;
 
+import static datadog.trace.instrumentation.kafka_common.Utils.readProducedTime;
 import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.KAFKA_PRODUCED_KEY;
 import static datadog.trace.instrumentation.kafka_streams.ProcessorRecordContextHeadersAccess.HEADERS_METHOD;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation.ContextVisitor;
-import java.nio.ByteBuffer;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.Headers;
 import org.apache.kafka.streams.processor.internals.ProcessorRecordContext;
@@ -48,10 +48,7 @@ public class ProcessorRecordContextVisitor implements ContextVisitor<ProcessorRe
       Headers headers = (Headers) HEADERS_METHOD.invokeExact(carrier);
       Header header = headers.lastHeader(KAFKA_PRODUCED_KEY);
       if (null != header) {
-        ByteBuffer buf = ByteBuffer.allocate(8);
-        buf.put(header.value());
-        buf.flip();
-        return buf.getLong();
+        return readProducedTime(header.value());
       }
     } catch (Throwable e) {
       log.debug("Unable to get kafka produced time", e);

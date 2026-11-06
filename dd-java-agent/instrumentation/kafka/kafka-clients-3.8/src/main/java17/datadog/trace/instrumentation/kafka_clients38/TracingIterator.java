@@ -98,8 +98,12 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
         if (!Config.get().isKafkaClientPropagationDisabledForTopic(val.topic())) {
           final AgentSpanContext spanContext =
               extractContextAndGetSpanContext(val.headers(), GETTER);
-          long timeInQueueStart = GETTER.extractTimeInQueueStart(val.headers());
-          if (timeInQueueStart == 0 || !KafkaDecorator.TIME_IN_QUEUE_ENABLED) {
+          // Check the flag first, as finding the produce time scans the record's headers
+          long timeInQueueStart =
+              KafkaDecorator.TIME_IN_QUEUE_ENABLED
+                  ? GETTER.extractTimeInQueueStart(val.headers())
+                  : 0;
+          if (timeInQueueStart == 0) {
             span = startSpan(JAVA_KAFKA.toString(), operationName, spanContext);
           } else {
             queueSpan =
