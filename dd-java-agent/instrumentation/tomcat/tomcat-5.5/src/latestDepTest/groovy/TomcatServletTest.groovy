@@ -18,6 +18,8 @@ import org.apache.tomcat.util.descriptor.web.ContextEnvironment
 import org.apache.tomcat.util.descriptor.web.FilterDef
 import org.apache.tomcat.util.descriptor.web.FilterMap
 import spock.lang.IgnoreIf
+import test.servlet5.GenericHtmlRumServlet
+import test.servlet5.GenericXmlRumServlet
 import test.servlet5.HtmlAsyncRumServlet
 import test.servlet5.XmlAsyncRumServlet
 
@@ -309,6 +311,15 @@ class TomcatRumInjectionForkedTest extends TomcatServletTest {
     super.setupServlets(context)
     addServlet(context, "/gimme-html", HtmlRumServlet)
     addServlet(context, "/gimme-xml", XmlRumServlet)
+  }
+}
+
+class TomcatGenericServletRumInjectionForkedTest extends TomcatRumInjectionForkedTest {
+  @Override
+  protected void setupServlets(Context context) {
+    super.setupServlets(context)
+    addServlet(context, "/gimme-html", GenericHtmlRumServlet)
+    addServlet(context, "/gimme-xml", GenericXmlRumServlet)
   }
 }
 
