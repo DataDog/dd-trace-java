@@ -41,25 +41,10 @@
 # globally, and where a rename is declared scopes it: in a scope without a span-kind (trace_level, an
 # abstract type, a plain mixin) it applies in every direction; in a directional scope, only in that
 # direction.
-# ONE ID PER UNAMBIGUOUS CONCEPT. A tag's identity must mean the same thing on every span. Some
-# Datadog names don't: peer.port is the server's port on a client span but the client's port on a
-# server span. Such a name is not an identity; it is how a CONCEPT is named on spans of some kinds.
-# Declare the concept once, in the top-level `concepts:` section, named by its OpenTelemetry role name
-# (which never changes meaning), and map its Datadog name by span kind or direction:
-#   - { concept: server.port, type: int,
-#       dd-name: { server: server.port, default: peer.port },
-#       otel-name: { inbound: server.port, outbound: server.port } }
-# A `dd-name` key is a direction (inbound, outbound, none), a span kind (server, client, producer,
-# consumer, internal), or `default`; a kind's entry overrides its direction's, which overrides default. A span with no kind yet, a broker or a
-# custom kind takes `none`. A kind with no entry uses the concept's name. `otel-name` maps directions;
-# a direction without one emits the tag under its Datadog name. Instrumentation writes the concept's id
-# (KnownTags.SERVER_PORT), which is never ambiguous; the span picks the Datadog name from its kind when
-# the tag is written. A concept's names are not direction-free names: a by-name write resolves them
-# with the span's kind (only on server, client, producer and consumer spans -- on any other span the
-# name stays a plain name), and a read by name falls back to them the same way.
-# The disambiguation lives on the Datadog side because that is where the names are relative.
-# The generator does not split an ambiguous name on its own: a name declared once per direction, or a
-# Datadog name that is also another tag's OpenTelemetry name, fails generation and asks for concepts.
+# CONCEPTS. A tag's id must mean the same thing on every span. A name that doesn't -- peer.port is the
+# server's port on a client span and the client's port on a server span -- is declared in `concepts:`,
+# one concept per meaning, and referenced by that concept's name. The generator won't guess: an
+# ambiguous name declared any other way fails generation.
 # The tracer core resolves names without a direction, so only renames that apply in every direction
 # resolve a name to a tag there. A directional rename, including one under `span-kind: internal`, is
 # applied when a span's tags are emitted under OpenTelemetry names, and by the OpenTelemetry API,
@@ -105,20 +90,17 @@ trace_level:
     - { dd-name: ai_guard.event,         type: boolean, required: optional }     # when the trace holds an AI Guard evaluation span
 
 # ---------------------------------------------------------------------------
-# CONCEPTS — the names that mean different things on different spans, each meaning declared once.
-# peer.port is the server's port on client, producer and consumer spans (a consumer's broker is the
-# server) and the client's port on server spans, so it is not one tag. Each meaning is a concept,
-# named by its role; span types and mixins `ref` it by that name, and instrumentation writes its id
-# (KnownTags.SERVER_PORT). Only ambiguous names belong here: a tag that means one thing everywhere is
-# its own concept. A name declared per direction, or a Datadog name that is also another tag's
-# OpenTelemetry name, fails generation and asks to be declared here.
+# CONCEPTS — one entry per meaning of an ambiguous name, named by its OpenTelemetry role.
+#   dd-name:   by span kind (server, client, producer, consumer, internal), direction (inbound,
+#              outbound, none) or default; the most specific wins. No entry: the concept's name.
+#   otel-name: by direction. No entry: the Datadog name.
 # ---------------------------------------------------------------------------
 concepts:
-  # The server's port: server.port on a server span (its own port), peer.port everywhere else.
+  # A server's own port is server.port; anyone else's view of the server is peer.port.
   - { concept: server.port, type: int,
       dd-name: { server: server.port, default: peer.port },
       otel-name: { inbound: server.port, outbound: server.port } }
-  # The client's port, as a server span sees it.
+  # The client's port, seen from the server.
   - { concept: client.port, type: int,
       dd-name: { server: peer.port },
       otel-name: { inbound: client.port } }
@@ -160,7 +142,7 @@ span_types:
     tags:
       - { dd-name: http.route,        type: string, required: conditional }  # passes through: dd-name already is the OTel name
       - { dd-name: http.hostname,     type: string, required: required,    otel-name: server.address }  # inbound only; on outbound spans server.address is peer.hostname
-      - { ref: server.port,         required: conditional }  # the server's own port: Datadog name server.port on server spans
+      - { ref: server.port,         required: conditional }  # the server's own port
       - { dd-name: http.useragent,    type: string, required: recommended, otel-name: user_agent.original, span-kind-neutral: true }
       - { dd-name: url.path,          type: string, required: conditional }  # OTel-only; server replacement for http.url
       - { dd-name: url.scheme,        type: string, required: conditional }  # OTel-only; server replacement for http.url
