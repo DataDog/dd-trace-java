@@ -1,5 +1,7 @@
 package datadog.trace.api.function;
 
+import datadog.perfcontract.PerfContract;
+import datadog.perfcontract.SuppressPerfContract;
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -12,10 +14,9 @@ import java.lang.annotation.Target;
  * thread (the foreground; see {@link ForegroundSafe}), where its cost would become customer-visible
  * latency instead.
  *
- * <p>This is a documentation-and-tooling marker; it changes no behavior. It exists to telegraph the
- * constraint to readers and to give a future checker (see {@code APMLP-1645}) something to verify
- * -- that no {@code @BackgroundOnly} code is reachable from a foreground call site. The discipline
- * it names is <b>not yet enforced</b>; hold to it by hand until the checker lands.
+ * <p>This marker changes no runtime behavior. The checker contract below guides AI review through
+ * the perf-review skill's {@code checks.md}; no static checker enforces it yet (see {@code
+ * APMLP-1645}).
  *
  * <p>The two markers are <b>not symmetric</b> -- see {@link ForegroundSafe} for why it, not this
  * one, is the strictly stronger guarantee.
@@ -26,8 +27,34 @@ import java.lang.annotation.Target;
  * <p><b>On a method</b> ({@link ElementType#METHOD}): this method specifically is background-only,
  * regardless of what the enclosing type declares -- a method-level marker always wins over the
  * type-level one.
+ *
+ * <p><b>Checker contract.</b> A trigger is a presumptive finding to raise, not an automatic
+ * failure.
+ *
+ * <ul>
+ *   <li><b>Foreground code:</b> a method annotated {@link ForegroundSafe}; a method of a type
+ *       annotated {@code @ForegroundSafe} that has no method-level {@code @BackgroundOnly}; or an
+ *       advice method annotated {@code @Advice.OnMethodEnter} or {@code @Advice.OnMethodExit}.
+ *       ByteBuddy inlines advice into the instrumented application method, so it runs on the
+ *       application thread by construction.
+ *   <li><b>Background-only code:</b> a method annotated {@code @BackgroundOnly}, or a method of a
+ *       type annotated {@code @BackgroundOnly} that has no method-level {@code @ForegroundSafe}.
+ *   <li><b>Trigger:</b> foreground code that directly calls background-only code.
+ *   <li><b>Not a trigger:</b> background-only code calling foreground code; foreground code that
+ *       hands work to a background thread (for example by enqueueing it) without running it; or a
+ *       calling method annotated {@link SuppressPerfContract} with {@code BackgroundOnly.class} in
+ *       its {@code value} and a non-blank reason.
+ *   <li><b>Violation example:</b> a {@code @ForegroundSafe} {@code onSpanFinished(span)} that calls
+ *       a {@code @BackgroundOnly} {@code aggregate(span)}.
+ *   <li><b>Compliant example:</b> the same {@code onSpanFinished(span)} that only enqueues {@code
+ *       span}, so the background thread that drains the queue calls {@code aggregate}.
+ *   <li><b>Out of scope (v1):</b> calls that reach background-only code through intermediate
+ *       methods carrying neither marker. Flag direct calls only; widen this contract once a real
+ *       case shows that direct calls are not enough.
+ * </ul>
  */
 @Documented
-@Retention(RetentionPolicy.SOURCE)
+@PerfContract
+@Retention(RetentionPolicy.CLASS)
 @Target({ElementType.TYPE, ElementType.METHOD})
 public @interface BackgroundOnly {}
