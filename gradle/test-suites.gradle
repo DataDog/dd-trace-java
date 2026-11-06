@@ -98,7 +98,6 @@ ext.addForkedTestTask = { String sourceSetName ->
   def taskName = sourceSetName == 'test' ? 'forkedTest' : "${sourceSetName}ForkedTest"
   return tasks.register(taskName, Test) {
     group = LifecycleBasePlugin.VERIFICATION_GROUP
-    useJUnitPlatform()
     testClassesDirs = sourceSets[sourceSetName].output.classesDirs
     classpath = sourceSets[sourceSetName].runtimeClasspath
   }
