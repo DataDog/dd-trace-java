@@ -234,10 +234,10 @@ import org.tabletest.junit.TableTest;
 class ConfigTest {
   @ParameterizedTest
   @ValueSource(strings = {"1", "t", "T", "true", "TRUE", "True"})
-  void universalInstrumentationAcceptsGoTrueValues(String value) {
+  void universalInstrumentationObsoleteTrueValuesCannotRestoreLegacy(String value) {
     Properties properties = new Properties();
     properties.setProperty("universal.instrumentation", value);
-    assertTrue(Config.get(properties).isUniversalInstrumentationEnabled());
+    assertFalse(Config.get(properties).isUniversalInstrumentationEnabled());
   }
 
   @ParameterizedTest
@@ -257,13 +257,13 @@ class ConfigTest {
   }
 
   @Test
-  void universalInstrumentationDefaultsToNativeAndRollbackIsFixedAtStartup() {
+  void universalInstrumentationIsNativeRegardlessOfObsoleteSetting() {
     Properties properties = new Properties();
     Config config = Config.get(properties);
     assertFalse(config.isUniversalInstrumentationEnabled());
     properties.setProperty("universal.instrumentation", "true");
     assertFalse(config.isUniversalInstrumentationEnabled());
-    assertTrue(Config.get(properties).isUniversalInstrumentationEnabled());
+    assertFalse(Config.get(properties).isUniversalInstrumentationEnabled());
   }
 
   @Test

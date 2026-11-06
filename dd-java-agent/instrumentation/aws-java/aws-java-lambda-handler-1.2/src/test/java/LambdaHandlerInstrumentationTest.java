@@ -4,6 +4,7 @@ import static datadog.trace.agent.test.assertions.TagsMatcher.error;
 import static datadog.trace.agent.test.assertions.TagsMatcher.tag;
 import static datadog.trace.agent.test.assertions.TraceMatcher.trace;
 import static datadog.trace.api.gateway.Events.EVENTS;
+import static datadog.trace.bootstrap.instrumentation.api.ServiceNameSources.MANUAL;
 import static datadog.trace.test.junit.utils.assertions.Matchers.is;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -172,7 +173,8 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
     ByteArrayOutputStream output = new ByteArrayOutputStream();
     new HandlerStreaming().handleRequest(input, output, newContext());
 
-    assertTraces(trace(span().type(DDSpanTypes.SERVERLESS).error(false)));
+    assertTraces(
+        trace(span().operationName(operation()).type(DDSpanTypes.SERVERLESS).error(false)));
   }
 
   @Test
@@ -184,7 +186,8 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
     assertTraces(
         trace(
             span()
-                .resourceName(name -> operation().equals(name.toString()))
+                .operationName(operation())
+                .resourceName("TestFunction")
                 .type(DDSpanTypes.SERVERLESS)
                 .error(false)));
   }
@@ -211,7 +214,8 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
     assertTraces(
         trace(
             span()
-                .resourceName(name -> operation().equals(name.toString()))
+                .operationName(operation())
+                .resourceName("TestFunction")
                 .type(DDSpanTypes.SERVERLESS)
                 .error(false)));
   }
@@ -228,10 +232,15 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
     assertTraces(
         trace(
             span()
+                .operationName(operation())
                 .type(DDSpanTypes.SERVERLESS)
                 .error(true)
                 .tags(
                     defaultTags(),
+                    tag("functionname", is("testfunction")),
+                    tag("resource_names", is("TestFunction")),
+                    tag("span.kind", is("server")),
+                    tag("_dd.svc_src", is(MANUAL)),
                     tag("request_id", is(REQUEST_ID)),
                     tag("_dd.appsec.serverless.tracer", is(1)),
                     tag("_dd.appsec.unsupported_event_type", is(1)),
@@ -264,7 +273,8 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
     assertEquals("application/json", capturedHeaders.get("content-type"));
     assertTrue(capturedBody instanceof Map);
     assertTrue(appSecEnded);
-    assertTraces(trace(span().type(DDSpanTypes.SERVERLESS).error(false)));
+    assertTraces(
+        trace(span().operationName(operation()).type(DDSpanTypes.SERVERLESS).error(false)));
   }
 
   @Test
@@ -298,7 +308,8 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
     assertEquals("session=abc123", capturedHeaders.get("cookie"));
     assertTrue(capturedBody instanceof Map);
     assertTrue(appSecEnded);
-    assertTraces(trace(span().type(DDSpanTypes.SERVERLESS).error(false)));
+    assertTraces(
+        trace(span().operationName(operation()).type(DDSpanTypes.SERVERLESS).error(false)));
   }
 
   @Test
@@ -319,7 +330,8 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
     assertNull(capturedMethod);
     assertFalse(appSecEnded);
     assertNull(capturedResponseStatus);
-    assertTraces(trace(span().type(DDSpanTypes.SERVERLESS).error(false)));
+    assertTraces(
+        trace(span().operationName(operation()).type(DDSpanTypes.SERVERLESS).error(false)));
   }
 
   @Test
@@ -342,10 +354,15 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
     assertTraces(
         trace(
             span()
+                .operationName(operation())
                 .type(DDSpanTypes.SERVERLESS)
                 .error(false)
                 .tags(
                     defaultTags(),
+                    tag("functionname", is("testfunction")),
+                    tag("resource_names", is("TestFunction")),
+                    tag("span.kind", is("server")),
+                    tag("_dd.svc_src", is(MANUAL)),
                     tag("request_id", is(REQUEST_ID)),
                     tag("_dd.appsec.serverless.tracer", is(1)),
                     tag("_dd.appsec.unsupported_event_type", is(1)))));
@@ -375,7 +392,8 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
     assertEquals("ok", ((Map<?, ?>) capturedResponseBody).get("result"));
     assertTrue(responseHeaderDoneCalled);
     assertTrue(appSecEnded);
-    assertTraces(trace(span().type(DDSpanTypes.SERVERLESS).error(false)));
+    assertTraces(
+        trace(span().operationName(operation()).type(DDSpanTypes.SERVERLESS).error(false)));
   }
 
   @Test
@@ -397,7 +415,8 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
     assertEquals("text/html", capturedResponseHeaders.get("content-type"));
     assertEquals("Not Found", capturedResponseBody);
     assertTrue(appSecEnded);
-    assertTraces(trace(span().type(DDSpanTypes.SERVERLESS).error(false)));
+    assertTraces(
+        trace(span().operationName(operation()).type(DDSpanTypes.SERVERLESS).error(false)));
   }
 
   @Test
@@ -431,7 +450,8 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
     assertEquals("hello", ((Map<?, ?>) capturedResponseBody).get("result"));
     assertTrue(responseHeaderDoneCalled);
     assertTrue(appSecEnded);
-    assertTraces(trace(span().type(DDSpanTypes.SERVERLESS).error(false)));
+    assertTraces(
+        trace(span().operationName(operation()).type(DDSpanTypes.SERVERLESS).error(false)));
   }
 
   @Test
@@ -448,7 +468,8 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
     assertFalse(responseHeaderDoneCalled);
     // AppSec skipped the invocation entirely, so there is no request context to end
     assertFalse(appSecEnded);
-    assertTraces(trace(span().type(DDSpanTypes.SERVERLESS).error(false)));
+    assertTraces(
+        trace(span().operationName(operation()).type(DDSpanTypes.SERVERLESS).error(false)));
   }
 
   @Test
@@ -480,7 +501,8 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
     assertTrue(capturedResponseBody instanceof Map);
 
     assertTrue(appSecEnded);
-    assertTraces(trace(span().type(DDSpanTypes.SERVERLESS).error(false)));
+    assertTraces(
+        trace(span().operationName(operation()).type(DDSpanTypes.SERVERLESS).error(false)));
   }
 
   @Test
@@ -509,10 +531,15 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
     assertTraces(
         trace(
             span()
+                .operationName(operation())
                 .type(DDSpanTypes.SERVERLESS)
                 .error(false)
                 .tags(
                     defaultTags(),
+                    tag("functionname", is("testfunction")),
+                    tag("resource_names", is("TestFunction")),
+                    tag("span.kind", is("server")),
+                    tag("_dd.svc_src", is(MANUAL)),
                     tag("request_id", is(REQUEST_ID)),
                     tag("_dd.appsec.serverless.tracer", is(1)),
                     tag(Tags.HTTP_METHOD, is("GET")),
@@ -540,7 +567,8 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
     assertTrue(appSecStarted);
     assertTrue(appSecEnded);
     assertEquals(1, appSecEndCount);
-    assertTraces(trace(span().type(DDSpanTypes.SERVERLESS).error(false)));
+    assertTraces(
+        trace(span().operationName(operation()).type(DDSpanTypes.SERVERLESS).error(false)));
   }
 
   @Test
@@ -603,7 +631,8 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
     assertTrue(callOrder.indexOf("responseStarted") < callOrder.indexOf("requestEnded"));
     assertTrue(callOrder.indexOf("responseHeaderDone") < callOrder.indexOf("requestEnded"));
     assertTrue(callOrder.indexOf("responseBody") < callOrder.indexOf("requestEnded"));
-    assertTraces(trace(span().type(DDSpanTypes.SERVERLESS).error(false)));
+    assertTraces(
+        trace(span().operationName(operation()).type(DDSpanTypes.SERVERLESS).error(false)));
   }
 
   @Test
@@ -628,10 +657,15 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
     assertTraces(
         trace(
             span()
+                .operationName(operation())
                 .type(DDSpanTypes.SERVERLESS)
                 .error(true)
                 .tags(
                     defaultTags(),
+                    tag("functionname", is("testfunction")),
+                    tag("resource_names", is("TestFunction")),
+                    tag("span.kind", is("server")),
+                    tag("_dd.svc_src", is(MANUAL)),
                     tag("request_id", is(REQUEST_ID)),
                     tag("_dd.appsec.serverless.tracer", is(1)),
                     tag(Tags.HTTP_METHOD, is("GET")),
@@ -663,7 +697,7 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
 
     @Override
     public String getFunctionName() {
-      return null;
+      return "TestFunction";
     }
 
     @Override
