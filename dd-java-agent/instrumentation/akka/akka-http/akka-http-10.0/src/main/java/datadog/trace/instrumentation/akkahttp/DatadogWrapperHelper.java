@@ -2,15 +2,24 @@ package datadog.trace.instrumentation.akkahttp;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
 import static datadog.trace.instrumentation.akkahttp.AkkaHttpServerDecorator.DECORATE;
+import static java.util.Collections.singletonList;
 
 import akka.http.scaladsl.model.HttpRequest;
 import akka.http.scaladsl.model.HttpResponse;
 import datadog.context.Context;
 import datadog.context.ContextScope;
+import datadog.trace.api.Config;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 
 public class DatadogWrapperHelper {
+  private static final boolean ROUTE_CAPTURE_ENABLED =
+      InstrumenterConfig.get()
+          .isIntegrationEnabled(
+              singletonList("akka-http-route"),
+              InstrumenterConfig.get().isIntegrationsEnabled()
+                  && Config.get().isTraceOtelSemanticsEnabled());
+
   private static final boolean LEGACY_CONTEXT_MANAGER_ENABLED =
       InstrumenterConfig.get().isLegacyContextManagerEnabled();
 
@@ -33,7 +42,11 @@ public class DatadogWrapperHelper {
     DECORATE.afterStart(span);
     DECORATE.onRequest(span, request, request, parentContext);
 
-    return AkkaHttpRouteState.init(context, request.uri().path());
+    if (ROUTE_CAPTURE_ENABLED) {
+      return AkkaHttpRouteState.init(context, request.uri().path());
+    } else {
+      return context;
+    }
   }
 
   static final class SwappedContextScope implements ContextScope {
@@ -64,7 +77,9 @@ public class DatadogWrapperHelper {
 
   public static void finishSpan(final Context context, final HttpResponse response) {
     final AgentSpan span = fromContext(context);
-    AkkaHttpRouteState.onComplete(context, span);
+    if (ROUTE_CAPTURE_ENABLED) {
+      AkkaHttpRouteState.onComplete(context, span);
+    }
     DECORATE.onResponse(span, response);
     DECORATE.beforeFinish(context);
 
@@ -73,7 +88,9 @@ public class DatadogWrapperHelper {
 
   public static void finishSpan(final Context context, final Throwable t) {
     final AgentSpan span = fromContext(context);
-    AkkaHttpRouteState.onComplete(context, span);
+    if (ROUTE_CAPTURE_ENABLED) {
+      AkkaHttpRouteState.onComplete(context, span);
+    }
     DECORATE.onError(span, t);
     span.setHttpStatusCode(500);
     DECORATE.beforeFinish(context);
