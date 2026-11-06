@@ -4,7 +4,9 @@ import static com.datadog.openfeature.Provider.METADATA;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonList;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
+import static java.util.stream.Collectors.toList;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -36,6 +38,7 @@ import com.datadog.openfeature.internal.ufc.ServerConfiguration;
 import com.datadog.openfeature.internal.ufc.Split;
 import com.datadog.openfeature.internal.ufc.ValueType;
 import com.datadog.openfeature.internal.ufc.Variant;
+import com.datadog.openfeature.testlog.CapturingServiceProvider;
 import dev.openfeature.sdk.Client;
 import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.EvaluationContext;
@@ -70,10 +73,14 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.slf4j.event.Level;
 
 public class ProviderTest {
 
   private static final long EVENT_TIMEOUT_SECONDS = 10;
+  private static final String MISSING_API_KEY =
+      "DD_API_KEY is required for the default Datadog Feature Flagging endpoint; set DD_API_KEY"
+          + " or DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL";
 
   private ExecutorService executor;
   private LocalHttpServer cdn;
@@ -409,6 +416,42 @@ public class ProviderTest {
     assertThat(result.getErrorCode(), equalTo(ErrorCode.PROVIDER_NOT_READY));
     assertNull(this.evaluator.runtime());
     assertDoesNotThrow(api::shutdown);
+  }
+
+  @Test
+  public void testAgentlessWithoutApiKeyFailsInitializationAtOnce() throws Exception {
+    final Provider[] providerRef = new Provider[1];
+    this.evaluator =
+        new DDEvaluator(
+            () -> providerRef[0].onConfigurationChange(), AgentBridge.NONE, TestSettings.of());
+    providerRef[0] = new Provider(new Options().initTimeout(30, SECONDS), this.evaluator);
+    final OpenFeatureAPI api = OpenFeatureAPI.getInstance();
+    CapturingServiceProvider.reset();
+    CapturingServiceProvider.enable(Provider.class.getName(), Level.ERROR);
+    try {
+      final long start = System.nanoTime();
+      final ProviderNotReadyError error =
+          assertThrows(ProviderNotReadyError.class, () -> api.setProviderAndWait(providerRef[0]));
+      final long elapsedMillis = NANOSECONDS.toMillis(System.nanoTime() - start);
+
+      // Waiting for the 30-second timeout fails this bound.
+      assertTrue(elapsedMillis < 10_000, "initialization waited " + elapsedMillis + " ms");
+      assertThat(error.getMessage(), equalTo(MISSING_API_KEY));
+      assertThat(api.getClient().getProviderState(), equalTo(ProviderState.ERROR));
+      assertThat(initializationState(providerRef[0]), equalTo("ERROR"));
+      assertNull(this.evaluator.runtime(), "no polling or event delivery starts without a key");
+      final FlagEvaluationDetails<String> result =
+          api.getClient().getStringDetails("missing", "caller-default");
+      assertThat(result.getValue(), equalTo("caller-default"));
+      assertThat(result.getErrorCode(), equalTo(ErrorCode.PROVIDER_NOT_READY));
+      assertThat(
+          CapturingServiceProvider.events().stream()
+              .map(event -> event.level + " " + event.message)
+              .collect(toList()),
+          equalTo(singletonList("ERROR " + MISSING_API_KEY + "; returning caller defaults")));
+    } finally {
+      CapturingServiceProvider.reset();
+    }
   }
 
   private Provider newRemoteConfigurationProvider(final AgentBridge bridge) {

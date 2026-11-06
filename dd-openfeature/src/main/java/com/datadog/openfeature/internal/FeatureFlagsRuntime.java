@@ -118,6 +118,9 @@ public final class FeatureFlagsRuntime {
       // Remote Configuration never falls back to direct intake.
       transport = bridge.eventProxy();
     } else {
+      if (settings.agentlessBaseUrl() == null && settings.apiKey() == null) {
+        throw new MissingApiKeyException();
+      }
       source = new CdnConfigurationSource(settings, services);
       final EventTransport proxy = bridge.eventProxy();
       final EventTransport direct = DirectIntakeTransport.create(settings);
@@ -166,6 +169,18 @@ public final class FeatureFlagsRuntime {
               + " Remote Configuration enabled; attach a compatible agent or configure"
               + " DD_FEATURE_FLAGS_CONFIGURATION_SOURCE=agentless for CDN delivery",
           cause);
+    }
+  }
+
+  /**
+   * Signals that the managed CDN endpoint has no API key, before any runtime resources have been
+   * started: it rejects every request, so no configuration can arrive.
+   */
+  public static final class MissingApiKeyException extends IllegalStateException {
+    private MissingApiKeyException() {
+      super(
+          "DD_API_KEY is required for the default Datadog Feature Flagging endpoint; set DD_API_KEY"
+              + " or DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL");
     }
   }
 
