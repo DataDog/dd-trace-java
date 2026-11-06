@@ -1,20 +1,17 @@
 package datadog.trace.instrumentation.azure.cosmos;
 
-import com.azure.cosmos.ConnectionMode;
-import com.azure.cosmos.implementation.ConnectionPolicy;
 import com.azure.cosmos.implementation.RxDocumentClientImpl;
 import com.azure.cosmos.implementation.UserAgentContainer;
 import java.net.URI;
 
-/** Client-level details shared by every request sent through one Cosmos client. */
+/** Client-level details shared by every request sent through one Cosmos store model. */
 public final class CosmosClientInfo {
-  static final String MODE_GATEWAY = "gateway";
-  static final String MODE_DIRECT = "direct";
-  static final String MODE_OTHER = "other";
+  public static final String MODE_GATEWAY = "gateway";
+  public static final String MODE_DIRECT = "direct";
 
-  String host;
-  int port;
-  String connectionMode;
+  final String host;
+  final int port;
+  final String connectionMode;
   // the SDK can append suffixes to the user agent after the store models are created
   private final UserAgentContainer userAgentContainer;
 
@@ -26,25 +23,18 @@ public final class CosmosClientInfo {
     this.userAgentContainer = userAgentContainer;
   }
 
+  /**
+   * The connection mode is the one of the store model, not of the client: a direct mode client
+   * still sends its metadata requests through the gateway store model.
+   */
   public static CosmosClientInfo create(
-      RxDocumentClientImpl client, UserAgentContainer userAgentContainer) {
+      RxDocumentClientImpl client, String connectionMode, UserAgentContainer userAgentContainer) {
     URI endpoint = client.getServiceEndpoint();
-    ConnectionPolicy connectionPolicy = client.getConnectionPolicy();
     return new CosmosClientInfo(
         endpoint == null ? null : endpoint.getHost(),
         endpoint == null ? -1 : endpoint.getPort(),
-        connectionMode(connectionPolicy == null ? null : connectionPolicy.getConnectionMode()),
+        connectionMode,
         userAgentContainer);
-  }
-
-  static String connectionMode(ConnectionMode mode) {
-    if (mode == ConnectionMode.GATEWAY) {
-      return MODE_GATEWAY;
-    }
-    if (mode == ConnectionMode.DIRECT) {
-      return MODE_DIRECT;
-    }
-    return MODE_OTHER;
   }
 
   String userAgent() {

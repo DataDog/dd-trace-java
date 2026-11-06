@@ -49,15 +49,17 @@ class CosmosResourcePathsTest {
   }
 
   @TableTest({
-    "Scenario           | Body                          | Id  ",
-    "simple             | '{\"id\":\"myDb\"}'           | myDb",
-    "whitespace         | '{ \"id\" :  \"myDb\" }'      | myDb",
-    "other fields first | '{\"ttl\":5,\"id\":\"myDb\"}' | myDb",
-    "no id              | '{\"name\":\"myDb\"}'         |     ",
-    "id is not a string | '{\"id\":42}'                 |     ",
-    "unterminated       | '{\"id\":\"myDb'              |     ",
-    "missing colon      | '{\"id\" \"myDb\"}'           |     ",
-    "empty              | ''                            |     "
+    "Scenario           | Body                                      | Id  ",
+    "simple             | '{\"id\":\"myDb\"}'                       | myDb",
+    "whitespace         | '{ \"id\" :  \"myDb\" }'                  | myDb",
+    "other fields first | '{\"ttl\":5,\"id\":\"myDb\"}'             | myDb",
+    "no id              | '{\"name\":\"myDb\"}'                     |     ",
+    "id is not a string | '{\"id\":42}'                             |     ",
+    "unterminated       | '{\"id\":\"myDb'                          |     ",
+    "missing colon      | '{\"id\" \"myDb\"}'                       |     ",
+    "empty              | ''                                        |     ",
+    "nested id first    | '{\"a\":{\"id\":\"x\"},\"id\":\"myDb\"}'  | myDb",
+    "id inside a value  | '{\"a\":\"\\\"id\\\":\",\"id\":\"myDb\"}' | myDb"
   })
   void idFromBody(String body, String id) {
     assertEquals(id, CosmosResourcePaths.idFromBody(body.getBytes(UTF_8)));

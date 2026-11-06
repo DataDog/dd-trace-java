@@ -66,31 +66,61 @@ public final class CosmosResourcePaths {
       return null;
     }
     String json = new String(body, UTF_8);
-    int i = json.indexOf(ID_KEY);
-    if (i < 0) {
-      return null;
+    int depth = 0;
+    for (int i = 0; i < json.length(); i++) {
+      char c = json.charAt(i);
+      if (c == '{' || c == '[') {
+        depth++;
+      } else if (c == '}' || c == ']') {
+        depth--;
+      } else if (c == '"') {
+        int end = endOfString(json, i);
+        if (end < 0) {
+          return null;
+        }
+        if (depth == 1 && json.startsWith(ID_KEY, i) && end == i + ID_KEY.length() - 1) {
+          int colon = skipWhitespace(json, end + 1);
+          if (colon < json.length() && json.charAt(colon) == ':') {
+            int value = skipWhitespace(json, colon + 1);
+            if (value >= json.length() || json.charAt(value) != '"') {
+              return null;
+            }
+            return readString(json, value);
+          }
+        }
+        i = end;
+      }
     }
-    i = skipWhitespace(json, i + ID_KEY.length());
-    if (i >= json.length() || json.charAt(i) != ':') {
-      return null;
+    return null;
+  }
+
+  /** Returns the index of the quote closing the string that opens at {@code start}, or -1. */
+  private static int endOfString(String json, int start) {
+    for (int i = start + 1; i < json.length(); i++) {
+      char c = json.charAt(i);
+      if (c == '\\') {
+        i++;
+      } else if (c == '"') {
+        return i;
+      }
     }
-    i = skipWhitespace(json, i + 1);
-    if (i >= json.length() || json.charAt(i) != '"') {
-      return null;
-    }
-    StringBuilder id = new StringBuilder();
-    for (i = i + 1; i < json.length(); i++) {
+    return -1;
+  }
+
+  private static String readString(String json, int start) {
+    StringBuilder value = new StringBuilder();
+    for (int i = start + 1; i < json.length(); i++) {
       char c = json.charAt(i);
       if (c == '"') {
-        return id.toString();
+        return value.toString();
       }
       if (c == '\\') {
         if (++i >= json.length()) {
           return null;
         }
-        id.append(json.charAt(i));
+        value.append(json.charAt(i));
       } else {
-        id.append(c);
+        value.append(c);
       }
     }
     return null;

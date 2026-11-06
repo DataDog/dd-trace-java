@@ -51,7 +51,9 @@ public final class DocumentClientInstrumentation
         @Advice.Return RxStoreModel storeModel) {
       if (storeModel != null) {
         InstrumentationContext.get(RxStoreModel.class, CosmosClientInfo.class)
-            .put(storeModel, CosmosClientInfo.create(client, userAgentContainer));
+            .put(
+                storeModel,
+                CosmosClientInfo.create(client, CosmosClientInfo.MODE_GATEWAY, userAgentContainer));
       }
     }
   }
@@ -64,7 +66,9 @@ public final class DocumentClientInstrumentation
         @Advice.FieldValue("storeModel") RxStoreModel storeModel) {
       if (storeModel != null) {
         InstrumentationContext.get(RxStoreModel.class, CosmosClientInfo.class)
-            .put(storeModel, CosmosClientInfo.create(client, userAgentContainer));
+            .put(
+                storeModel,
+                CosmosClientInfo.create(client, CosmosClientInfo.MODE_DIRECT, userAgentContainer));
       }
     }
   }

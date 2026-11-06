@@ -60,7 +60,11 @@ public final class TracingCosmosSubscriber
   @Override
   public void onError(Throwable error) {
     if (FINISHED.compareAndSet(this, 0, 1)) {
-      DECORATE.onError(span, error);
+      try {
+        DECORATE.onError(span, error);
+      } catch (Throwable ignored) {
+        // tags are best effort
+      }
       finishSpan();
     }
     try (ContextScope ignored = parentContext.attach()) {

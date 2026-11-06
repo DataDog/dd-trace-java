@@ -1,6 +1,9 @@
 package datadog.trace.instrumentation.azure.cosmos;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.instrumentation.azure.cosmos.CosmosResourcePaths.databaseAndContainer;
+import static datadog.trace.instrumentation.azure.cosmos.CosmosResourcePaths.idFromBody;
+import static datadog.trace.instrumentation.azure.cosmos.CosmosResourcePaths.normalize;
 
 import com.azure.cosmos.CosmosException;
 import com.azure.cosmos.implementation.OperationType;
@@ -78,8 +81,12 @@ public class AzureCosmosDecorator
 
   public AgentSpan startRequestSpan(RxDocumentServiceRequest request, CosmosClientInfo info) {
     AgentSpan span = startSpan(INSTRUMENTATION_NAME, OPERATION_NAME);
-    afterStart(span);
-    onRequest(span, request, info);
+    try {
+      afterStart(span);
+      onRequest(span, request, info);
+    } catch (Throwable ignored) {
+      // tags are best effort, the span must still be finished by the subscriber
+    }
     return span;
   }
 
@@ -87,16 +94,14 @@ public class AzureCosmosDecorator
     OperationType operationType = request.getOperationType();
     String path = requestPath(request);
     span.setResourceName(
-        (operationType == null ? "" : operationType.name())
-            + " "
-            + CosmosResourcePaths.normalize(path));
+        (operationType == null ? "" : operationType.name()) + " " + normalize(path));
 
-    String[] databaseAndContainer = CosmosResourcePaths.databaseAndContainer(path);
+    String[] databaseAndContainer = databaseAndContainer(path);
     String database = databaseAndContainer[0];
     if (database == null
         && operationType == OperationType.Create
         && request.getResourceType() == ResourceType.Database) {
-      database = CosmosResourcePaths.idFromBody(request.getContentAsByteArray());
+      database = idFromBody(request.getContentAsByteArray());
     }
     onInstance(span, database);
     if (databaseAndContainer[1] != null) {

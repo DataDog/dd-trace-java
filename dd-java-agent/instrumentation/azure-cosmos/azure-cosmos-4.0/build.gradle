@@ -18,7 +18,7 @@ dependencies {
   compileOnly group: 'com.azure', name: 'azure-cosmos', version: '4.0.1'
 
   // The Linux emulator image only ships for amd64.
-  testContainerImage(image('mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:latest', 'test.cosmosdb.image'))
+  testContainerImage(image('mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:2.14.28', 'test.cosmosdb.image'))
 
   testImplementation group: 'com.azure', name: 'azure-cosmos', version: '4.0.1'
   testImplementation group: 'org.testcontainers', name: 'azure', version: libs.versions.testcontainers.get()
