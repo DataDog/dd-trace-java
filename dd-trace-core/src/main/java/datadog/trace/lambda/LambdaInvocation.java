@@ -209,7 +209,11 @@ public final class LambdaInvocation implements AgentTracer.LambdaInvocation {
         inferred.finish((invocation.getStartTime() + invocation.getDurationNano()) / 1_000);
       }
     } finally {
-      tracer.flush();
+      try {
+        tracer.flush();
+      } finally {
+        LambdaDataStreams.flush(tracer, invocation);
+      }
     }
   }
 }
