@@ -597,9 +597,9 @@
     ],
     "DD_CIVISIBILITY_COMPILER_PLUGIN_VERSION": [
       {
-        "version": "A",
+        "version": "B",
         "type": "string",
-        "default": "0.2.4",
+        "default": "0.2.5",
         "aliases": []
       }
     ],
