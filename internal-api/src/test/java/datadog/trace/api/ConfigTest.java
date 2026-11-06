@@ -3174,6 +3174,24 @@ class ConfigTest {
   }
 
   @Test
+  void appSecScaCveFileDefaultsToNull() throws Exception {
+    Config config = newConfig();
+
+    assertNull(config.getAppSecScaCveFile());
+    assertFalse(config.isAppSecScaEnabled());
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"/tmp/sca-catalog.json", ""})
+  void appSecScaCveFileUsesPrivateEnvironmentVariable(String path) throws Exception {
+    setEnv("_DD_APPSEC_SCA_CVE_FILE", path);
+    Config config = newConfig();
+
+    assertEquals(path, config.getAppSecScaCveFile());
+    assertFalse(config.isAppSecScaEnabled());
+  }
+
+  @Test
   void hostnameDiscoveryWithEnvironmentVariables() {
     String expectedHostname = "myhostname";
     setEnv("HOSTNAME", expectedHostname);
