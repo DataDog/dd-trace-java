@@ -67,6 +67,7 @@ out/
 /bin
 /out
 /workspace
+/inline-of-duty-pipeline/
 dd-java-agent/benchmark-integration/perf-test-settings.rc
 derby.log
 .java-version
