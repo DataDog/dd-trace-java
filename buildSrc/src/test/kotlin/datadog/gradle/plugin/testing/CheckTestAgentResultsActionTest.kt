@@ -396,7 +396,7 @@ class CheckTestAgentResultsActionTest : GradleFixture() {
   }
 
   @Test
-  fun `both checks follow the job port and invalidate cached test results`() {
+  fun `both checks follow the job port and refresh the cached test environment`() {
     withAgent { firstServer, _, firstChecks ->
       writeProject(firstServer)
       val firstEnvironment = agentEnvironment
@@ -410,7 +410,9 @@ class CheckTestAgentResultsActionTest : GradleFixture() {
         val secondEnvironment = firstEnvironment + ("CI_TEST_AGENT_PORT" to secondServer.port.toString())
         val changed = run("clean", "test", "--build-cache", "--configuration-cache", env = secondEnvironment)
         assertThat(changed.task(":test")?.outcome).describedAs(changed.output).isEqualTo(SUCCESS)
-        assertThat(changed.output).contains("Reusing configuration cache")
+        assertThat(changed.output).doesNotContain("Reusing configuration cache")
+        assertThat(file("build/test-results/test/TEST-ExampleTest.xml").readText())
+          .contains("Test Agent port: ${secondServer.port}")
         val changedCheck = run("checkTestAgentResults", "--configuration-cache", env = secondEnvironment)
         assertThat(changedCheck.task(":checkTestAgentResults")?.outcome).describedAs(changedCheck.output).isEqualTo(SUCCESS)
         assertThat(changedCheck.output).contains("Reusing configuration cache")
@@ -424,6 +426,22 @@ class CheckTestAgentResultsActionTest : GradleFixture() {
         assertThat(original.task(":test")?.outcome).describedAs(original.output).isEqualTo(FROM_CACHE)
         assertThat(firstChecks.get()).isEqualTo(2)
       }
+    }
+  }
+
+  @Test
+  fun `task port overrides cannot send traces away from the checked sidecar`() {
+    withAgent { server, _, checks ->
+      writeProject(server)
+      val first = run("test", "--build-cache", "--configuration-cache", env = agentEnvironment)
+      assertThat(first.task(":test")?.outcome).describedAs(first.output).isEqualTo(SUCCESS)
+      writeRootProject("""
+        tasks.withType<Test>().configureEach { environment("CI_TEST_AGENT_PORT", "1") }
+      """, append = true)
+      val failed = run("test", "--build-cache", "--configuration-cache", env = agentEnvironment, expectFailure = true)
+      assertThat(failed.task(":test")?.outcome).describedAs(failed.output).isEqualTo(FAILED)
+      assertThat(failed.output).contains("CI_TEST_AGENT_PORT must match")
+      assertThat(checks.get()).isEqualTo(1)
     }
   }
 
@@ -471,7 +489,9 @@ class CheckTestAgentResultsActionTest : GradleFixture() {
       """
       public class ExampleTest {
         @org.junit.jupiter.api.Test
-        public void passes() {}
+        public void passes() {
+          System.out.println("Test Agent port: " + System.getenv("CI_TEST_AGENT_PORT"));
+        }
       }
       """,
       sourceSet = "test",
