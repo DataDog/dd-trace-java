@@ -274,6 +274,19 @@ class ConfigTest {
     assertFalse(Config.get(properties).isAwsServiceRepresentationEnabled());
   }
 
+  @Test
+  void lambdaPayloadCaptureDefaultsOffAndRejectsNegativeDepth() {
+    Properties properties = new Properties();
+    assertFalse(Config.get(properties).isCaptureLambdaPayload());
+    assertEquals(10, Config.get(properties).getCaptureLambdaPayloadMaxDepth());
+    properties.setProperty("capture.lambda.payload", "true");
+    properties.setProperty("capture.lambda.payload.max.depth", "0");
+    assertTrue(Config.get(properties).isCaptureLambdaPayload());
+    assertEquals(0, Config.get(properties).getCaptureLambdaPayloadMaxDepth());
+    properties.setProperty("capture.lambda.payload.max.depth", "-1");
+    assertEquals(10, Config.get(properties).getCaptureLambdaPayloadMaxDepth());
+  }
+
   private static final String PREFIX = "dd.";
   private static final String DD_API_KEY_ENV = "DD_API_KEY";
   private static final String DD_SERVICE_NAME_ENV = "DD_SERVICE_NAME";
