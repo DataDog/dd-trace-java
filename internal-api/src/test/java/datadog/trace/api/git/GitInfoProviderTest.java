@@ -436,7 +436,7 @@ class GitInfoProviderTest {
     provider.registerGitInfoBuilder(
         givenABuilderReturning(
             new GitInfo(
-                "https://local/repo.git", "local-branch", null, new CommitInfo("local-sha")),
+                "https://local/repo.git", "local-branch", "local-tag", new CommitInfo("local-sha")),
             1,
             GitProviderExpected.GIT_CLIENT,
             GitProviderDiscrepant.GIT_CLIENT));
@@ -449,6 +449,7 @@ class GitInfoProviderTest {
     provider.registerGitInfoBuilder(ci);
 
     assertEquals("selected-sha", provider.getGitInfo(REPO_PATH).getCommit().getSha());
+    assertNull(provider.getGitInfo(REPO_PATH).getTag());
     verify(ci, never()).build(any());
   }
 

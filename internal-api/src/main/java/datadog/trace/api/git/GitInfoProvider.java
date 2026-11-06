@@ -71,7 +71,7 @@ public class GitInfoProvider {
                 gi -> GitUtils.filterSensitiveInfo(gi.getRepositoryURL()),
                 GitInfoProvider::validateGitRemoteUrl),
             evaluator.get(GitInfo::getBranch, Strings::isNotBlank),
-            evaluator.get(GitInfo::getTag, Strings::isNotBlank),
+            evaluator.getIfCommitShaMatches(GitInfo::getTag, Strings::isNotBlank),
             new CommitInfo(
                 evaluator.get(gi1 -> gi1.getCommit().getSha(), Strings::isNotBlank),
                 new PersonInfo(
@@ -262,7 +262,7 @@ public class GitInfoProvider {
               expectedCommitSha = currentCommitSha;
               expectedRepoUrl = info.getRepositoryURL();
               expectedGitProvider = e.getKey().providerAsExpected();
-            } else if (!expectedCommitSha.equals(currentCommitSha)) {
+            } else if (!expectedCommitSha.equalsIgnoreCase(currentCommitSha)) {
               // We already have a commit SHA from source that has higher priority.
               // Commit SHA from current source is different, so we have to skip it
               GitShaDiscrepancyType discrepancyType = GitShaDiscrepancyType.COMMIT_DISCREPANCY;
