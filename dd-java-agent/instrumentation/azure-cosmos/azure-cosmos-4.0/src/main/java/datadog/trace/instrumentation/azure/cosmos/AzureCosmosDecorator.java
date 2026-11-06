@@ -97,7 +97,10 @@ public class AzureCosmosDecorator
     span.setResourceName(
         (operationType == null ? "" : operationType.name()) + " " + normalize(path));
 
-    Pair<String, String> databaseAndContainer = databaseAndContainer(path);
+    // the SDK addresses some of its own metadata requests, such as partition key range reads, by
+    // internal resource ids rather than by name, so only name based paths carry the names
+    Pair<String, String> databaseAndContainer =
+        request.getIsNameBased() ? databaseAndContainer(path) : Pair.of(null, null);
     String database = databaseAndContainer.getLeft();
     if (database == null
         && operationType == OperationType.Create

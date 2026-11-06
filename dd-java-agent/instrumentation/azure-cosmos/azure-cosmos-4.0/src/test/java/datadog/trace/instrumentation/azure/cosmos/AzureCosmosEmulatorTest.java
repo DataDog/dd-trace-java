@@ -33,23 +33,18 @@ import datadog.trace.core.DDSpan;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.security.KeyStore;
-import java.security.cert.Certificate;
-import java.security.cert.X509Certificate;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLSocket;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.CosmosDBEmulatorContainer;
 import org.testcontainers.utility.DockerImageName;
 
@@ -64,78 +59,64 @@ class AzureCosmosEmulatorTest extends AbstractInstrumentationTest {
   private static final String CONTAINER = "container";
   private static final String OPERATION_NAME = "cosmosdb.query";
   private static final AtomicInteger DATABASE_COUNTER = new AtomicInteger();
-  private static final int EMULATOR_PORT = 8081;
+  private static final String EMULATOR_PLATFORM = "linux/amd64";
   private static final String HOSTNAME_VALIDATION_DISABLED = "COSMOS.HOSTNAME_VALIDATION_DISABLED";
 
   @TempDir static Path tempDir;
 
   private static CosmosDBEmulatorContainer emulator;
+  private static Path keyStoreFile;
 
   @BeforeAll
   static void startEmulator() throws Exception {
-    // The Linux emulator image has no arm64 build.
+    // arm64 Linux CI runners can't be relied on to emulate amd64 containers
     assumeFalse(
-        OperatingSystem.architecture().isArm64(), "Cosmos DB emulator requires an amd64 host");
+        OperatingSystem.isLinux() && OperatingSystem.architecture().isArm64(),
+        "Cosmos DB emulator only ships for amd64");
+    DockerImageName image =
+        DockerImageName.parse(System.getProperty("test.cosmosdb.image"))
+            .asCompatibleSubstituteFor("mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator");
+    // The emulator image only ships for amd64, run it emulated on arm64 hosts. A default pull
+    // would ask for the host platform, which the image does not have.
+    if (OperatingSystem.architecture().isArm64()) {
+      DockerClientFactory.instance()
+          .client()
+          .pullImageCmd(image.asCanonicalNameString())
+          .withPlatform(EMULATOR_PLATFORM)
+          .start()
+          .awaitCompletion();
+    }
     emulator =
-        new CosmosDBEmulatorContainer(
-                DockerImageName.parse(System.getProperty("test.cosmosdb.image"))
-                    .asCompatibleSubstituteFor(
-                        "mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator"))
+        new CosmosDBEmulatorContainer(image)
+            .withCreateContainerCmdModifier(cmd -> cmd.withPlatform(EMULATOR_PLATFORM))
             .withEnv("AZURE_COSMOS_EMULATOR_PARTITION_COUNT", "2")
             .withEnv("AZURE_COSMOS_EMULATOR_ENABLE_DATA_PERSISTENCE", "false")
             .withStartupTimeout(Duration.ofMinutes(5));
     emulator.start();
 
-    // The emulator serves a self-signed certificate. Trust the one it actually presents in a
-    // handshake rather than the one its download endpoint returns, which the SDK rejected in CI.
-    Path keyStoreFile = tempDir.resolve("azure-cosmos-emulator.keystore");
-    char[] password = "changeit".toCharArray();
+    // the emulator serves a self-signed certificate
+    keyStoreFile = tempDir.resolve("azure-cosmos-emulator.keystore");
     try (OutputStream out = Files.newOutputStream(keyStoreFile)) {
-      servedCertificates(emulator.getHost(), emulator.getMappedPort(EMULATOR_PORT))
-          .store(out, password);
+      emulator.buildNewKeyStore().store(out, emulator.getEmulatorKey().toCharArray());
     }
+  }
+
+  /**
+   * Trusts the emulator certificate. This runs before each test because the test base class resets
+   * the system properties before each test.
+   */
+  @BeforeEach
+  void trustEmulator() {
     System.setProperty("javax.net.ssl.trustStore", keyStoreFile.toString());
-    System.setProperty("javax.net.ssl.trustStorePassword", new String(password));
+    System.setProperty("javax.net.ssl.trustStorePassword", emulator.getEmulatorKey());
     System.setProperty("javax.net.ssl.trustStoreType", "PKCS12");
-    // recent SDK versions check the host name, and the emulator certificate doesn't name the
-    // Docker host the tests reach it through
+    // recent SDK versions check the host name, and the emulator certificate does not name the
+    // Docker host that CI reaches it through
     System.setProperty(HOSTNAME_VALIDATION_DISABLED, "true");
-  }
-
-  /** Returns a key store trusting the certificates the server presents in a TLS handshake. */
-  private static KeyStore servedCertificates(String host, int port) throws Exception {
-    SSLContext trustAll = SSLContext.getInstance("TLS");
-    trustAll.init(null, new TrustManager[] {new TrustAllManager()}, null);
-    Certificate[] certificates;
-    try (SSLSocket socket = (SSLSocket) trustAll.getSocketFactory().createSocket(host, port)) {
-      socket.startHandshake();
-      certificates = socket.getSession().getPeerCertificates();
-    }
-    KeyStore keyStore = KeyStore.getInstance("PKCS12");
-    keyStore.load(null, null);
-    for (int i = 0; i < certificates.length; i++) {
-      keyStore.setCertificateEntry("azure-cosmos-emulator-" + i, certificates[i]);
-    }
-    return keyStore;
-  }
-
-  /** Accepts any server certificate, only used to read the emulator certificate. */
-  private static final class TrustAllManager implements X509TrustManager {
-    @Override
-    public void checkClientTrusted(X509Certificate[] chain, String authType) {}
-
-    @Override
-    public void checkServerTrusted(X509Certificate[] chain, String authType) {}
-
-    @Override
-    public X509Certificate[] getAcceptedIssuers() {
-      return new X509Certificate[0];
-    }
   }
 
   @AfterAll
   static void stopEmulator() {
-    System.clearProperty(HOSTNAME_VALIDATION_DISABLED);
     if (emulator != null) {
       emulator.stop();
     }
@@ -196,8 +177,10 @@ class AzureCosmosEmulatorTest extends AbstractInstrumentationTest {
       }
       assertTrue(!span.isError(), "unexpected error on " + resource(span));
       Object statusCode = span.getTag(AzureCosmosDecorator.STATUS_CODE);
+      // 304 answers the SDK's own change feed reads of partition key ranges
       assertTrue(
-          statusCode != null && statusCode.toString().startsWith("2"),
+          statusCode != null
+              && (statusCode.toString().startsWith("2") || "304".equals(statusCode.toString())),
           "status of " + resource(span) + ": " + statusCode);
     }
     assertNoDatabaseAccountSpans();
@@ -273,22 +256,29 @@ class AzureCosmosEmulatorTest extends AbstractInstrumentationTest {
 
   private static void assertCommonTags(DDSpan span, String db) {
     String resource = resource(span);
+    // the SDK's own metadata requests addressed by resource id don't carry the database name
+    String database =
+        resource.equals("Create /dbs")
+                || resource.contains("/dbs/" + db + "/")
+                || resource.endsWith("/dbs/" + db)
+            ? db
+            : null;
     assertAll(
         resource,
         () -> assertEquals("cosmosdb", span.getSpanType()),
         () -> assertEquals("azure-cosmos", String.valueOf(span.getTag(Tags.COMPONENT))),
         () -> assertEquals(Tags.SPAN_KIND_CLIENT, span.getTag(Tags.SPAN_KIND)),
         () -> assertEquals("cosmosdb", span.getTag(Tags.DB_TYPE)),
-        () -> assertEquals(db, span.getTag(Tags.DB_INSTANCE)),
+        () -> assertEquals(database, span.getTag(Tags.DB_INSTANCE)),
         () -> assertEquals(emulator.getHost(), span.getTag(Tags.PEER_HOSTNAME)),
         () -> assertEquals("gateway", span.getTag(AzureCosmosDecorator.CONNECTION_MODE)),
         () -> {
           Object userAgent = span.getTag(Tags.HTTP_USER_AGENT);
           assertNotNull(userAgent);
-          // early 4.x versions identify as cosmosdb-java-sdk
+          // early 4.x versions identify as cosmosdb-java-sdk, after the OS and JRE versions
           assertTrue(
-              userAgent.toString().startsWith("azsdk-java-cosmos/")
-                  || userAgent.toString().startsWith("cosmosdb-java-sdk/"),
+              userAgent.toString().contains("azsdk-java-cosmos/")
+                  || userAgent.toString().contains("cosmosdb-java-sdk/"),
               userAgent.toString());
         });
   }
