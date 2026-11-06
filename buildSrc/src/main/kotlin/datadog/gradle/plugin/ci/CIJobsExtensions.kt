@@ -6,6 +6,65 @@ import org.gradle.api.provider.Provider
 import org.gradle.kotlin.dsl.extra
 import kotlin.math.abs
 
+private const val instrumentationProjectPrefix = ":dd-java-agent:instrumentation:"
+private const val defaultInstrumentationTestDurationSeconds = 30
+
+// Approximate project durations from CI Visibility pipeline 142652739. Keeping the data here makes
+// the assignment reproducible; projects not listed here use the conservative default above.
+private val instrumentationTestDurationSeconds = mapOf(
+  ":dd-java-agent:instrumentation:apache-httpclient:apache-httpclient-4.0" to 205,
+  ":dd-java-agent:instrumentation:armeria:armeria-grpc-0.84" to 720,
+  ":dd-java-agent:instrumentation:aws-java:aws-java-eventbridge-2.0" to 89,
+  ":dd-java-agent:instrumentation:aws-java:aws-java-s3-2.0" to 105,
+  ":dd-java-agent:instrumentation:aws-java:aws-java-sfn-2.0" to 94,
+  ":dd-java-agent:instrumentation:aws-java:aws-java-sns-1.0" to 75,
+  ":dd-java-agent:instrumentation:aws-java:aws-java-sns-2.0" to 144,
+  ":dd-java-agent:instrumentation:couchbase:couchbase-2.0" to 87,
+  ":dd-java-agent:instrumentation:couchbase:couchbase-3.1" to 157,
+  ":dd-java-agent:instrumentation:couchbase:couchbase-3.2" to 157,
+  ":dd-java-agent:instrumentation:datastax-cassandra:datastax-cassandra-4.0" to 188,
+  ":dd-java-agent:instrumentation:java:java-concurrent:java-concurrent-1.8" to 189,
+  ":dd-java-agent:instrumentation:jdbc" to 697,
+  ":dd-java-agent:instrumentation:lettuce:lettuce-5.0" to 400,
+  ":dd-java-agent:instrumentation:liberty:liberty-20.0" to 100,
+  ":dd-java-agent:instrumentation:liberty:liberty-23.0" to 87,
+  ":dd-java-agent:instrumentation:maven:maven-3.2.1" to 146,
+  ":dd-java-agent:instrumentation:rabbitmq-amqp-2.7" to 185,
+  ":dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0" to 238,
+  ":dd-java-agent:instrumentation:spring:spring-webflux:spring-webflux-5.0" to 500,
+  ":dd-java-agent:instrumentation:spring:spring-webmvc:spring-webmvc-3.1" to 130,
+)
+
+private fun Project.durationWeightedInstrumentationTestSlot(totalSlots: Int): Int? {
+  if (!path.startsWith(instrumentationProjectPrefix)) {
+    return null
+  }
+
+  val slotDurations = IntArray(totalSlots)
+  val projectsByDescendingDuration = rootProject.subprojects
+    .asSequence()
+    .filter {
+      it.path.startsWith(instrumentationProjectPrefix) &&
+        it.tasks.findByName("allTests") != null
+    }
+    .map { it.path }
+    .sortedWith(
+      compareByDescending<String> {
+        instrumentationTestDurationSeconds[it] ?: defaultInstrumentationTestDurationSeconds
+      }.thenBy { it }
+    )
+
+  projectsByDescendingDuration.forEach { projectPath ->
+    val lightestSlot = slotDurations.indices.minBy { slotDurations[it] }
+    if (projectPath == path) {
+      return lightestSlot + 1
+    }
+    slotDurations[lightestSlot] +=
+      instrumentationTestDurationSeconds[projectPath] ?: defaultInstrumentationTestDurationSeconds
+  }
+  return null
+}
+
 /**
  * Determines if the current project is in the selected slot.
  *
@@ -44,7 +103,14 @@ val Project.isInSelectedSlot: Provider<Boolean>
     // * size  8 distribution: {2=62, 4=72, 0=71, 5=70, 7=78, 6=84, 1=87, 3=67}
     // * size 10 distribution: {8=62, 0=65, 5=70, 9=59, 3=54, 1=56, 6=63, 4=47, 2=52, 7=63}
     // * size 12 distribution: {10=55, 0=47, 4=45, 9=46, 8=51, 3=51, 2=46, 1=59, 5=52, 7=49, 11=45, 6=45}
-    val projectSlot = abs(project.path.hashCode() % totalSlots) + 1 // Convert to 1-based
+    val defaultProjectSlot = abs(project.path.hashCode() % totalSlots) + 1 // Convert to 1-based
+    val useDurationWeightedInstrumentationTests =
+      rootProject.providers.gradleProperty("durationWeightedInstrumentationTests").isPresent && totalSlots == 12
+    val projectSlot = if (useDurationWeightedInstrumentationTests) {
+      project.durationWeightedInstrumentationTestSlot(totalSlots) ?: defaultProjectSlot
+    } else {
+      defaultProjectSlot
+    }
 
     project.logger.info(
       "Project {} assigned to slot {}/{}, active slot is {}",
