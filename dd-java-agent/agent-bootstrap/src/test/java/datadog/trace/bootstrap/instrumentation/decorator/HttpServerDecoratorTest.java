@@ -402,10 +402,9 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     // then
     verify(requestContext)
         .setClientIpAddressData(
-            argThat(
-                data ->
-                    "4.4.4.4".equals(data.getPeerIp())
-                        && "2.3.4.5".equals(data.getInferredClientIp())));
+            argThat(data ->
+                "4.4.4.4".equals(data.getPeerIp())
+                    && "2.3.4.5".equals(data.getInferredClientIp())));
     assertTagNotSet(span, HTTP_CLIENT_IP);
     assertTagNotSet(span, NETWORK_CLIENT_IP);
     assertTagNotSet(span, HTTP_FORWARDED_IP);
@@ -534,11 +533,10 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     AgentSpan responseSpan = mock(AgentSpan.class);
     when(responseSpan.traceConfig()).thenReturn(traceConfig);
     when(responseSpan.setTag(nullable(String.class), nullable(String.class)))
-        .thenAnswer(
-            invocation -> {
-              tags.put(invocation.getArgument(0), invocation.getArgument(1));
-              return responseSpan;
-            });
+        .thenAnswer(invocation -> {
+          tags.put(invocation.getArgument(0), invocation.getArgument(1));
+          return responseSpan;
+        });
     HttpServerDecorator<
             Map<String, Object>, Map<String, Object>, Map<String, Object>, Map<String, String>>
         decorator = newDecorator(null, new MapCarrierVisitor());
