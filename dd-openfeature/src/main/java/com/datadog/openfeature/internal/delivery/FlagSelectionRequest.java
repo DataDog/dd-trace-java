@@ -196,14 +196,14 @@ public final class FlagSelectionRequest {
     return (c >= '\t' && c <= '\r')
         || c == ' '
         || c == '\u0085'
-        || c == ' '
-        || c == ' '
-        || (c >= ' ' && c <= ' ')
-        || c == ' '
-        || c == ' '
-        || c == ' '
-        || c == ' '
-        || c == '　';
+        || c == '\u00A0'
+        || c == '\u1680'
+        || (c >= '\u2000' && c <= '\u200A')
+        || c == '\u2028'
+        || c == '\u2029'
+        || c == '\u202F'
+        || c == '\u205F'
+        || c == '\u3000';
   }
 
   private static boolean anyOverLimit(final List<String> values) {

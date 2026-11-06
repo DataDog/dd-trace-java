@@ -73,15 +73,15 @@ class FlagSelectionRequestTest {
   @Test
   void sortsByUtf8BytesRatherThanUtf16CodeUnits() {
     final FlagSelectionRequest selection =
-        FlagSelectionRequest.of(asList("😀", "Ａ", "a", "Z", "é"), null);
+        FlagSelectionRequest.of(asList("\uD83D\uDE00", "\uFF21", "a", "Z", "\u00E9"), null);
 
-    assertEquals(asList("Z", "a", "é", "Ａ", "😀"), selection.tags());
+    assertEquals(asList("Z", "a", "\u00E9", "\uFF21", "\uD83D\uDE00"), selection.tags());
   }
 
   @Test
   void dropsEmptyValuesAndDuplicatesInEachList() {
     final FlagSelectionRequest selection =
-        FlagSelectionRequest.of(asList(" b", "a", "", "b ", "　"), asList("a", " a "));
+        FlagSelectionRequest.of(asList(" b", "a", "", "b ", "\u3000"), asList("a", " a "));
 
     assertEquals(asList("a", "b"), selection.tags());
     assertEquals(singletonList("a"), selection.keyPatterns());
@@ -210,7 +210,8 @@ class FlagSelectionRequestTest {
 
   @Test
   void encodesCharactersOutsideTheBasicMultilingualPlane() {
-    final URI sent = FlagSelectionRequest.of(singletonList("😀"), null).appendTo(ENDPOINT);
+    final URI sent =
+        FlagSelectionRequest.of(singletonList("\uD83D\uDE00"), null).appendTo(ENDPOINT);
 
     assertEquals("https://cdn.example/ufc?selected_flag_tags=%F0%9F%98%80", sent.toString());
   }

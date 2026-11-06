@@ -632,6 +632,29 @@ class FeatureFlagsRuntimeTest {
   }
 
   @Test
+  void remoteConfigurationWarnsAJoiningProviderWithASelection() {
+    FlagSelectionTestSupport.resetReported();
+    CapturingServiceProvider.enable("com.datadog.openfeature", Level.WARN);
+    final AgentBridge bridge = new TestAgentBridge(new TestConfigurationSource(), null);
+    final Settings legacyRemoteConfig =
+        TestSettings.of("experimental.flagging.provider.enabled", "true");
+    try {
+      FeatureFlagsRuntime.acquire(bridge, legacyRemoteConfig, FlagSelectionRequest.NONE);
+      FeatureFlagsRuntime.acquire(bridge, legacyRemoteConfig, TEAM_CHECKOUT);
+      FeatureFlagsRuntime.acquire(bridge, legacyRemoteConfig, TEAM_CHECKOUT);
+
+      assertEquals(
+          asList(REMOTE_CONFIG_WARNING, SECOND_SELECTION_WARNING), flagSelectionMessages());
+    } finally {
+      FeatureFlagsRuntime.release();
+      FeatureFlagsRuntime.release();
+      FeatureFlagsRuntime.release();
+      CapturingServiceProvider.reset();
+      FlagSelectionTestSupport.resetReported();
+    }
+  }
+
+  @Test
   void remoteConfigurationWarningPrecedesTheConnectorCheck() {
     FlagSelectionTestSupport.resetReported();
     CapturingServiceProvider.enable("com.datadog.openfeature", Level.WARN);

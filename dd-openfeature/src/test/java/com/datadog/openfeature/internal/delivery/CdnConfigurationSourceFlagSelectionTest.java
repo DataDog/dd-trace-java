@@ -218,13 +218,17 @@ class CdnConfigurationSourceFlagSelectionTest {
     // The endpoint fits in 8192 bytes, but not once the selection is added.
     final char[] padding = new char[8150];
     Arrays.fill(padding, 'x');
-    this.server.enqueue(200, CONFIG, IGNORED, "invalid_tag");
+    this.server.otherwise(200, CONFIG, IGNORED, "invalid_tag");
     final CdnConfigurationSource source =
         source(this.server.uri("/ufc?pad=" + new String(padding)), SELECTION, this.dispatched::add);
 
     assertTrue(source.pollOnce());
+    assertTrue(source.pollOnce());
 
-    assertEquals("pad=" + new String(padding), this.server.requests().get(0).uri.getRawQuery());
+    assertEquals(2, this.server.requests().size());
+    for (final LocalHttpServer.Request request : this.server.requests()) {
+      assertEquals("pad=" + new String(padding), request.uri.getRawQuery());
+    }
     assertEquals(FlagSelectionRequest.urlTooLong(), source.selection());
     assertTrue(messages().isEmpty(), "the runtime reports the dropped selection");
     assertTrue(this.metrics.counts.isEmpty(), "the header of an unselected request is not read");

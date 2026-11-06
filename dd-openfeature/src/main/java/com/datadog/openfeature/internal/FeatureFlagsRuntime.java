@@ -204,6 +204,9 @@ public final class FeatureFlagsRuntime {
    * claimed one is not used, and an equal one is sent, or not, as the claimed one is.
    */
   private void reportSelection(final FlagSelectionRequest selection) {
+    if (this.source instanceof RemoteConfigurationService && !selection.isNone()) {
+      FlagSelectionRequest.warnRemoteConfiguration();
+    }
     if (selection.equals(this.claimedSelection)) {
       this.sentSelection.reportNotSent(this.services);
     } else {
