@@ -104,7 +104,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_TRACE_AWS_SERVICE_REPRESENTATION_ENABLED = true;
   static final boolean DEFAULT_CAPTURE_LAMBDA_PAYLOAD = false;
   static final int DEFAULT_CAPTURE_LAMBDA_PAYLOAD_MAX_DEPTH = 10;
-  static final boolean DEFAULT_UNIVERSAL_INSTRUMENTATION = true;
+  static final boolean DEFAULT_UNIVERSAL_INSTRUMENTATION = false;
 
   static final boolean DEFAULT_TRACE_LAMBDA_SNAPSTART_CLOCK_RESYNC_ENABLED = false;
 

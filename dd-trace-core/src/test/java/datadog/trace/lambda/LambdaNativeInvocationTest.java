@@ -85,6 +85,7 @@ class LambdaNativeInvocationTest extends DDCoreJavaSpecification {
   }
 
   @Test
+  @WithConfig(key = "universal.instrumentation", value = "true")
   void legacyGateDoesNotCreateNativeInvocations() {
     CoreTracer tracer = tracerBuilder().build();
     try {

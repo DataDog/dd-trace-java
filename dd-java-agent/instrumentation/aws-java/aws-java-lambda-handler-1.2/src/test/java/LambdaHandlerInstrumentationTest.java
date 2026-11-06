@@ -47,6 +47,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 @WithConfig(key = "_HANDLER", value = "Handler", env = true, addPrefix = false)
+@WithConfig(key = "universal.instrumentation", value = "true")
 abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationTest {
 
   static final String REQUEST_ID = "test-request-id";
