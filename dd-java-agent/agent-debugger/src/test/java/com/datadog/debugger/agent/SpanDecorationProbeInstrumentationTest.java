@@ -69,10 +69,11 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
       new ProbeId("beae1817-f3b0-4ea8-a74f-000000000003", 0);
 
   private TestTraceInterceptor traceInterceptor = new TestTraceInterceptor();
+  private CoreTracer tracer;
 
   @BeforeEach
   public void setUp() {
-    CoreTracer tracer = CoreTracer.builder().build();
+    tracer = CoreTracer.builder().build();
     TracerInstaller.forceInstallGlobalTracer(tracer);
     tracer.addTraceInterceptor(traceInterceptor);
   }
@@ -81,6 +82,7 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
   @AfterEach
   public void after() {
     super.after();
+    tracer.close();
     Redaction.clearUserDefinedTypes();
     ProbeRateLimiter.resetGlobalRate();
   }
