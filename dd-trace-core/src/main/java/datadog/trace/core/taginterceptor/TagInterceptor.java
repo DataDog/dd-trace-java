@@ -151,6 +151,25 @@ public class TagInterceptor {
     return tagId != 0 ? needsIntercept(tagId) : isSplitServiceTag(entry.tag());
   }
 
+  /**
+   * Whether a span prototype's tags can be seeded in bulk: none of its known tags needs the
+   * interceptor except {@code span.kind}, whose only effect is the span's cached kind ordinal,
+   * which the seed sets directly. Custom tags don't count: they are seeded one at a time. Depends
+   * only on this interceptor's configuration, so a prototype computes it once per interceptor.
+   */
+  public boolean canSeedInBulk(TagMap tags) {
+    for (TagMap.EntryReader entry : tags) {
+      long tagId = entry.tagId();
+      if (tagId == 0) {
+        continue;
+      }
+      if (tagId == KnownTags.SPAN_KIND_ID ? isSplitServiceTag(tagId) : needsIntercept(tagId)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   /** Whether a custom tag (one with no id) may be routed; only split-by-tags routes them. */
   public boolean needsInterceptCustomTag(String customTag) {
     return isSplitServiceTag(customTag);

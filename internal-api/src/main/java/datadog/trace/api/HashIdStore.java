@@ -310,7 +310,7 @@ final class HashIdStore extends IdStore {
   }
 
   @Override
-  void forEach(Consumer<? super EntryReader> consumer) {
+  public void forEach(Consumer<? super EntryReader> consumer) {
     if (this.hasTombstones) {
       HashSupport.forEachLive(this.buckets, consumer);
     } else {
@@ -322,7 +322,7 @@ final class HashIdStore extends IdStore {
   }
 
   @Override
-  <T> void forEach(T thisObj, BiConsumer<T, ? super EntryReader> consumer) {
+  public <T> void forEach(T thisObj, BiConsumer<T, ? super EntryReader> consumer) {
     if (this.hasTombstones) {
       HashSupport.forEachLive(this.buckets, thisObj, consumer);
     } else {
@@ -343,7 +343,8 @@ final class HashIdStore extends IdStore {
   }
 
   @Override
-  <T, U> void forEach(T thisObj, U otherObj, TriConsumer<T, U, ? super EntryReader> consumer) {
+  public <T, U> void forEach(
+      T thisObj, U otherObj, TriConsumer<T, U, ? super EntryReader> consumer) {
     if (this.hasTombstones) {
       HashSupport.forEachLive(this.buckets, thisObj, otherObj, consumer);
     } else {

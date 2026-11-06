@@ -1,5 +1,7 @@
 package datadog.trace.api;
 
+import javax.annotation.Nullable;
+
 /**
  * Builds the {@link IdStore}s of the one implementation this JVM uses: {@link DenseIdStore} when
  * the dense store is on, {@link HashIdStore} otherwise. Rollout scaffolding: the hash store stays
@@ -17,21 +19,33 @@ package datadog.trace.api;
 abstract class IdStoreFactory {
   /** The JVM's store, chosen once by the dense-store flag. */
   static final class Default {
+    /** Whether the dense store is on; folds wherever it is tested. */
+    static final boolean DENSE = Config.get().isTraceDenseTagsEnabled();
+
     static final IdStoreFactory INSTANCE =
-        Config.get().isTraceDenseTagsEnabled()
-            ? DenseIdStoreFactory.INSTANCE
-            : HashIdStoreFactory.INSTANCE;
+        DENSE ? DenseIdStoreFactory.INSTANCE : HashIdStoreFactory.INSTANCE;
 
     private Default() {}
   }
 
   /**
-   * Creates a store for a span or map.
+   * Creates a store for a span or map, without presizing.
    *
    * @param parent the frozen store to read through to; may be null
    * @return a fresh, empty store
    */
-  abstract IdStore create(IdStore parent);
+  final IdStore create(IdStore parent) {
+    return create(parent, null);
+  }
+
+  /**
+   * Creates a store for a span or map, presized where the store keeps sized arrays.
+   *
+   * @param parent the frozen store to read through to; may be null
+   * @param hint the expected size; null presizes nothing
+   * @return a fresh, empty store
+   */
+  abstract IdStore create(IdStore parent, @Nullable SizingHint hint);
 
   /**
    * Creates the store for a frozen empty map.
@@ -47,8 +61,8 @@ final class HashIdStoreFactory extends IdStoreFactory {
   private HashIdStoreFactory() {}
 
   @Override
-  IdStore create(IdStore parent) {
-    return new HashIdStore(parent);
+  IdStore create(IdStore parent, @Nullable SizingHint hint) {
+    return new HashIdStore(parent); // buckets aren't sized per span; a hint is only for dense
   }
 
   @Override
@@ -63,8 +77,8 @@ final class DenseIdStoreFactory extends IdStoreFactory {
   private DenseIdStoreFactory() {}
 
   @Override
-  IdStore create(IdStore parent) {
-    return new DenseIdStore(parent);
+  IdStore create(IdStore parent, @Nullable SizingHint hint) {
+    return new DenseIdStore(parent, hint);
   }
 
   @Override

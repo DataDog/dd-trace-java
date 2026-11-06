@@ -2,8 +2,10 @@ package datadog.trace.bootstrap.instrumentation.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import datadog.trace.api.SizingHint;
 import datadog.trace.api.TagMap;
 import org.junit.jupiter.api.Test;
 
@@ -176,5 +178,38 @@ class SpanPrototypeTest {
     final SpanPrototype proto = SpanPrototype.builder().initTag((TagMap.EntryReader) null).build();
 
     assertTrue(proto.tags().isEmpty());
+  }
+
+  @Test
+  void theSeedPlanIsNullUntilTheCoreRecordsOne() {
+    final SpanPrototype proto = SpanPrototype.builder().initOperationName("op").build();
+    assertNull(proto.seedPlan());
+
+    final Object plan = new Object();
+    proto.seedPlan(plan);
+    assertSame(plan, proto.seedPlan());
+  }
+
+  @Test
+  void theOwnOperationNamesHintIsResolvedOncePerLane() {
+    final SpanPrototype proto = SpanPrototype.builder().initOperationName("proto.op").build();
+
+    // the same name as a String or a UTF8BytesString resolves to the table's hint, then is cached
+    assertSame(SizingHint.forOperation("proto.op", true), proto.sizingHint(true, "proto.op"));
+    assertSame(
+        proto.sizingHint(true, "proto.op"),
+        proto.sizingHint(true, UTF8BytesString.create("proto.op")));
+    assertSame(SizingHint.forOperation("proto.op", false), proto.sizingHint(false, "proto.op"));
+  }
+
+  @Test
+  void anotherOperationNameGetsThatNamesHint() {
+    final SpanPrototype proto = SpanPrototype.builder().initOperationName("proto.op").build();
+    assertSame(SizingHint.forOperation("other.op", true), proto.sizingHint(true, "other.op"));
+    assertSame(SizingHint.forOperation(null, false), proto.sizingHint(false, null));
+
+    // a prototype with no operation name of its own always asks the table
+    assertSame(
+        SizingHint.forOperation("other.op", true), SpanPrototype.NONE.sizingHint(true, "other.op"));
   }
 }
