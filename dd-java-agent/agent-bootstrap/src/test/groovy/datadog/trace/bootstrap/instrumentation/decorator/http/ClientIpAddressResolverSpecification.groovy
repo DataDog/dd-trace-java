@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.instrumentation.decorator.http
 
 import datadog.trace.api.interceptor.MutableSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext
+import datadog.trace.bootstrap.instrumentation.api.http.ClientIpAddressResolver
 import spock.lang.Specification
 
 class ClientIpAddressResolverSpecification extends Specification {

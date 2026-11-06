@@ -1,4 +1,4 @@
-package datadog.trace.bootstrap.instrumentation.decorator.http.utils;
+package datadog.trace.bootstrap.instrumentation.api.http.utils;
 
 /**
  * This is exact copy of sun.net.util.IPAddressUtil Used copy because class

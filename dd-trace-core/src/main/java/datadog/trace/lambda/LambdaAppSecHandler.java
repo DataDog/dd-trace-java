@@ -35,7 +35,7 @@ import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.URIUtils;
-import datadog.trace.bootstrap.instrumentation.decorator.http.ClientIpAddressResolver;
+import datadog.trace.bootstrap.instrumentation.api.http.ClientIpAddressResolver;
 import datadog.trace.lambda.LambdaEventParser.LambdaRequestData;
 import datadog.trace.lambda.LambdaEventParser.LambdaResponseData;
 import datadog.trace.lambda.LambdaEventParser.LambdaTriggerType;
@@ -555,17 +555,7 @@ public class LambdaAppSecHandler {
             null,
             TracePropagationStyle.NONE,
             DDTraceId.ZERO);
-    InetAddress inferred = ClientIpAddressResolver.resolve(extracted, null);
-    if (eventData.sourceIp != null) {
-      if (inferred == null) {
-        inferred = ClientIpAddressResolver.parseIpAddress(eventData.sourceIp);
-      } else if (ClientIpAddressResolver.isIpAddrPrivate(inferred)) {
-        InetAddress source = ClientIpAddressResolver.parseIpAddress(eventData.sourceIp);
-        if (source != null && !ClientIpAddressResolver.isIpAddrPrivate(source)) {
-          inferred = source;
-        }
-      }
-    }
+    InetAddress inferred = ClientIpAddressResolver.resolve(extracted, null, eventData.sourceIp);
     return inferred == null ? null : inferred.getHostAddress();
   }
 
