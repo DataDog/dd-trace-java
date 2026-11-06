@@ -86,7 +86,8 @@ mechanism is certain or the severity is catastrophic.
   callback / request handler?) and *down* (follow callbacks, hooks, and listeners to
   their **sink** before flagging). If a per-span hook's every reachable sink is an
   atomic counter (`LongAdder`, `AtomicLong`) or a no-op-when-disabled, stay silent — a
-  "verify contention" nudge there is noise.
+  "verify contention" nudge there is noise. That clears the *call* only: arguments built
+  eagerly for a disabled product's no-op are still paid for (J14).
 - **Make the reachability path the headline.** The reachability claim is the most
   valuable *and* least reliable part of a finding — residual false positives cluster
   in "called it unconditional, missed an upstream guard." Say *"reachable from
@@ -157,9 +158,11 @@ metrics/stats path, decorators, propagation (header read/write).
 rare error branch, or behind a guard that provably fires rarely. Watch the
 **interprocedural trap** — a method three helpers deep from an `@Advice` entry is
 still hot. And note **domain adjustment**: large-denominator domains (LLMObs, CI
-Visibility, DSM) absorb per-call CPU/alloc cost, but the risk *inverts* to payload
+Visibility, DJM) absorb per-call CPU/alloc cost, but the risk *inverts* to payload
 memory (SEV-1); streaming handlers fire per-chunk, so the large-denominator relief
-suspends inside them. See `guide.md` §6.
+suspends inside them. **DSM is not large-denominator** — it runs on per-message paths.
+The relief never covers work done for a product while it's **off** (J14). See
+`guide.md` §6.
 
 ### Step 3 — Apply the checks
 
@@ -250,6 +253,9 @@ result, not a failure to find something.
 - **J2** megamorphic dispatch is **PARKED** — do *not* raise megamorphism findings in
   review yet (kept as author reference only; it needs a standing audit, not per-PR
   flagging). See `checks.md` for why.
+- **J14** work done for an optional product that's off (DSM / DBM / DJM, …): arguments
+  built for a no-op still cost; verify the running implementation is really a no-op;
+  gate with the product's own check, keeping it dynamic where it is.
 - ByteBuddy-Advice idioms (`Config.get()` hoisting, `@Advice.AllArguments` →
   `@Advice.Argument`, `@Advice.SkipOn`+cached-boolean, `@Advice.Local`, `switch(String)`
   three-tier) — in `checks.md`.
