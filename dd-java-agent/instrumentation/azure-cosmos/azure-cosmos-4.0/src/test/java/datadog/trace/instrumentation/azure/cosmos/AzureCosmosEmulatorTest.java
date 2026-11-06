@@ -58,6 +58,9 @@ class AzureCosmosEmulatorTest extends AbstractInstrumentationTest {
   private static final String CONTAINER = "container";
   private static final String OPERATION_NAME = "cosmosdb.query";
   private static final AtomicInteger DATABASE_COUNTER = new AtomicInteger();
+  private static final String EMULATOR_CERT_VALIDATION_DISABLED =
+      "COSMOS.EMULATOR_SERVER_CERTIFICATE_VALIDATION_DISABLED";
+  private static final String EMULATOR_HOST = "COSMOS.EMULATOR_HOST";
 
   @TempDir static Path tempDir;
 
@@ -87,10 +90,16 @@ class AzureCosmosEmulatorTest extends AbstractInstrumentationTest {
     System.setProperty("javax.net.ssl.trustStore", keyStoreFile.toString());
     System.setProperty("javax.net.ssl.trustStorePassword", emulator.getEmulatorKey());
     System.setProperty("javax.net.ssl.trustStoreType", "PKCS12");
+    // recent SDK versions don't use the JVM trust store, and instead skip certificate checks for
+    // the emulator host, which is only localhost by default
+    System.setProperty(EMULATOR_CERT_VALIDATION_DISABLED, "true");
+    System.setProperty(EMULATOR_HOST, emulator.getHost());
   }
 
   @AfterAll
   static void stopEmulator() {
+    System.clearProperty(EMULATOR_CERT_VALIDATION_DISABLED);
+    System.clearProperty(EMULATOR_HOST);
     if (emulator != null) {
       emulator.stop();
     }
