@@ -24,6 +24,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeoutException;
@@ -45,7 +46,7 @@ public class ShellGitClient implements GitClient {
       Arrays.asList("release/", "hotfix/");
   private static final Pattern WHITESPACE_PATTERN = Pattern.compile("\\s+");
   private static final String ORIGIN = "origin";
-  private static final Pattern COMMIT_INFO_SPLIT = Pattern.compile("\",\"");
+  private static final Pattern COMMIT_INFO_SPLIT = Pattern.compile("\\x00");
 
   private final CiVisibilityMetricCollector metricCollector;
   private final String repoRoot;
@@ -323,10 +324,9 @@ public class ShellGitClient implements GitClient {
         () -> {
           try {
             return commandExecutor.executeCommand(
-                IOUtils::readLines, buildGitCommand("describe", "--tags", "--exact-match", commit));
+                IOUtils::readLines, buildGitCommand("tag", "--no-column", "--points-at", commit));
           } catch (ShellCommandExecutor.ShellCommandFailedException e) {
-            // if provided commit is not tagged,
-            // command will fail because "--exact-match" is specified
+            // An unavailable revision cannot have local tags.
             return Collections.emptyList();
           }
         });
@@ -438,14 +438,15 @@ public class ShellGitClient implements GitClient {
                             "show",
                             commit,
                             "-s",
-                            "--format=%H\",\"%an\",\"%ae\",\"%aI\",\"%cn\",\"%ce\",\"%cI\",\"%B"))
+                            "--no-show-signature",
+                            "--format=%H%x00%an%x00%ae%x00%aI%x00%cn%x00%ce%x00%cI%x00%B"))
                     .trim();
           } catch (ShellCommandExecutor.ShellCommandFailedException e) {
             LOGGER.error("Failed to fetch commit info", e);
             return CommitInfo.NOOP;
           }
 
-          String[] fields = COMMIT_INFO_SPLIT.split(info);
+          String[] fields = COMMIT_INFO_SPLIT.split(info, 8);
           if (fields.length < 8) {
             LOGGER.error("Could not parse commit info: {}", info);
             return CommitInfo.NOOP;
@@ -472,17 +473,42 @@ public class ShellGitClient implements GitClient {
   @Override
   public List<String> getLatestCommits()
       throws IOException, TimeoutException, InterruptedException {
-    return executeCommand(
-        Command.GET_LOCAL_COMMITS,
-        () ->
-            commandExecutor.executeCommand(
-                IOUtils::readLines,
-                buildGitCommand(
-                    "log",
-                    "--format=%H",
-                    "-n",
-                    String.valueOf(latestCommitsLimit),
-                    String.format("--since='%s'", latestCommitsSince))));
+    return getLatestCommits(HEAD);
+  }
+
+  @Nonnull
+  @Override
+  public List<String> getLatestCommits(String commit)
+      throws IOException, TimeoutException, InterruptedException {
+    if (GitUtils.isNotValidCommit(commit)) {
+      return Collections.emptyList();
+    }
+    List<String> commits;
+    try {
+      commits =
+          executeCommand(
+              Command.GET_LOCAL_COMMITS,
+              () ->
+                  commandExecutor.executeCommand(
+                      IOUtils::readLines,
+                      buildGitCommand(
+                          "log",
+                          "--format=%H",
+                          "-n",
+                          String.valueOf(latestCommitsLimit),
+                          String.format("--since='%s'", latestCommitsSince),
+                          commit,
+                          "--")));
+    } catch (ShellCommandExecutor.ShellCommandFailedException e) {
+      if (!isCommitPresent(commit)) {
+        return Collections.emptyList();
+      }
+      throw e;
+    }
+    if (!HEAD.equals(commit) && !commits.contains(commit) && isCommitPresent(commit)) {
+      commits.add(0, commit);
+    }
+    return commits;
   }
 
   /**
@@ -505,14 +531,15 @@ public class ShellGitClient implements GitClient {
     return executeCommand(
         Command.GET_OBJECTS,
         () -> {
-          String[] gitArgs = new String[5 + commitsToSkip.size() + commitsToInclude.size()];
+          String[] gitArgs = new String[6 + commitsToSkip.size() + commitsToInclude.size()];
           gitArgs[0] = "rev-list";
           gitArgs[1] = "--objects";
           gitArgs[2] = "--no-object-names";
           gitArgs[3] = "--filter=blob:none";
           gitArgs[4] = String.format("--since='%s'", latestCommitsSince);
+          gitArgs[5] = "--max-count=" + latestCommitsLimit;
 
-          int count = 5;
+          int count = 6;
           for (String commitToSkip : commitsToSkip) {
             gitArgs[count++] = "^" + commitToSkip;
           }
@@ -520,7 +547,29 @@ public class ShellGitClient implements GitClient {
             gitArgs[count++] = commitToInclude;
           }
 
-          return commandExecutor.executeCommand(IOUtils::readLines, buildGitCommand(gitArgs));
+          List<String> objects =
+              commandExecutor.executeCommand(IOUtils::readLines, buildGitCommand(gitArgs));
+          LinkedHashSet<String> outsideWindow = new LinkedHashSet<>(commitsToInclude);
+          for (String object : objects) {
+            outsideWindow.remove(object);
+          }
+          if (!outsideWindow.isEmpty()) {
+            List<String> selectedArgs = new ArrayList<>();
+            Collections.addAll(
+                selectedArgs,
+                "rev-list",
+                "--objects",
+                "--no-object-names",
+                "--filter=blob:none",
+                "--no-walk=unsorted");
+            selectedArgs.addAll(outsideWindow);
+            LinkedHashSet<String> combined = new LinkedHashSet<>(objects);
+            combined.addAll(
+                commandExecutor.executeCommand(
+                    IOUtils::readLines, buildGitCommand(selectedArgs.toArray(new String[0]))));
+            return new ArrayList<>(combined);
+          }
+          return objects;
         });
   }
 

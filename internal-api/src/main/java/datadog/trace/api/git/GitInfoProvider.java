@@ -71,7 +71,7 @@ public class GitInfoProvider {
                 gi -> GitUtils.filterSensitiveInfo(gi.getRepositoryURL()),
                 GitInfoProvider::validateGitRemoteUrl),
             evaluator.get(GitInfo::getBranch, Strings::isNotBlank),
-            evaluator.get(GitInfo::getTag, Strings::isNotBlank),
+            evaluator.getIfCommitShaMatches(GitInfo::getTag, Strings::isNotBlank),
             new CommitInfo(
                 evaluator.get(gi1 -> gi1.getCommit().getSha(), Strings::isNotBlank),
                 new PersonInfo(
@@ -162,6 +162,7 @@ public class GitInfoProvider {
     private final String repositoryPath;
     private final Map<GitInfoBuilder, GitInfo> infos;
     private final Set<ShaDiscrepancy> shaDiscrepancies;
+    private Boolean gitClientAvailable;
 
     private Evaluator(String repositoryPath, Collection<GitInfoBuilder> builders) {
       this.repositoryPath = repositoryPath;
@@ -170,6 +171,49 @@ public class GitInfoProvider {
       for (GitInfoBuilder builder : builders) {
         infos.put(builder, null);
       }
+    }
+
+    private boolean isGitClientAvailable() {
+      if (gitClientAvailable != null) {
+        return gitClientAvailable;
+      }
+      GitInfo localInfo = null;
+      String explicitSha = null;
+      for (Map.Entry<GitInfoBuilder, GitInfo> entry : infos.entrySet()) {
+        if (entry.getKey().providerAsExpected() == GitProviderExpected.GIT_CLIENT) {
+          localInfo = entry.getKey().build(repositoryPath);
+          entry.setValue(localInfo);
+        } else if (entry.getKey().providerAsExpected() == GitProviderExpected.USER_SUPPLIED
+            && entry.getValue() != null
+            && Strings.isNotBlank(entry.getValue().getCommit().getSha())) {
+          explicitSha = entry.getValue().getCommit().getSha();
+        }
+      }
+      gitClientAvailable = localInfo != null && Strings.isNotBlank(localInfo.getCommit().getSha());
+      if (gitClientAvailable && explicitSha == null) {
+        for (Map.Entry<GitInfoBuilder, GitInfo> entry : infos.entrySet()) {
+          if (entry.getKey().providerAsExpected() != GitProviderExpected.CI_PROVIDER) {
+            continue;
+          }
+          GitInfo ciInfo = entry.getKey().build(repositoryPath);
+          entry.setValue(ciInfo);
+          String ciSha = ciInfo.getCommit().getSha();
+          if (Strings.isNotBlank(ciSha) && !ciSha.equals(localInfo.getCommit().getSha())) {
+            boolean repositoryMismatch =
+                localInfo.getRepositoryURL() != null
+                    && ciInfo.getRepositoryURL() != null
+                    && !localInfo.getRepositoryURL().equals(ciInfo.getRepositoryURL());
+            shaDiscrepancies.add(
+                new ShaDiscrepancy(
+                    GitProviderExpected.GIT_CLIENT,
+                    GitProviderDiscrepant.CI_PROVIDER,
+                    repositoryMismatch
+                        ? GitShaDiscrepancyType.REPOSITORY_DISCREPANCY
+                        : GitShaDiscrepancyType.COMMIT_DISCREPANCY));
+          }
+        }
+      }
+      return gitClientAvailable;
     }
 
     private String get(Function<GitInfo, String> function, Predicate<String> validator) {
@@ -194,6 +238,15 @@ public class GitInfoProvider {
       GitProviderExpected expectedGitProvider = null;
 
       for (Map.Entry<GitInfoBuilder, GitInfo> e : infos.entrySet()) {
+        GitProviderExpected provider = e.getKey().providerAsExpected();
+        if (provider != GitProviderExpected.USER_SUPPLIED) {
+          boolean readableCheckout = isGitClientAvailable();
+          if (readableCheckout
+              ? provider != GitProviderExpected.GIT_CLIENT
+              : provider == GitProviderExpected.GIT_CLIENT) {
+            continue;
+          }
+        }
         GitInfo info = e.getValue();
         if (info == null) {
           GitInfoBuilder builder = e.getKey();
@@ -209,7 +262,7 @@ public class GitInfoProvider {
               expectedCommitSha = currentCommitSha;
               expectedRepoUrl = info.getRepositoryURL();
               expectedGitProvider = e.getKey().providerAsExpected();
-            } else if (!expectedCommitSha.equals(currentCommitSha)) {
+            } else if (!expectedCommitSha.equalsIgnoreCase(currentCommitSha)) {
               // We already have a commit SHA from source that has higher priority.
               // Commit SHA from current source is different, so we have to skip it
               GitShaDiscrepancyType discrepancyType = GitShaDiscrepancyType.COMMIT_DISCREPANCY;
