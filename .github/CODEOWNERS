@@ -41,6 +41,8 @@
 /dd-java-agent/cws-tls/                @DataDog/apm-java
 /dd-java-agent/load-generator/         @DataDog/apm-java
 
+/dd-java-agent/agent-bootstrap/src/**/datadog/trace/bootstrap/instrumentation/log/LogPatternInjector* @DataDog/apm-java
+
 # Shared trace protocol
 /utils/test-agent-utils/                                                     @DataDog/apm-java @DataDog/apm-lang-platform-java @DataDog/apm-sdk-capabilities
 /dd-trace-api/src/**/*ProtocolVersion*                                       @DataDog/apm-java @DataDog/apm-lang-platform-java @DataDog/apm-sdk-capabilities

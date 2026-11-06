@@ -105,6 +105,7 @@ public final class TraceInstrumentationConfig {
 
   public static final String LOGS_INJECTION_ENABLED = "logs.injection.enabled";
   public static final String LOGS_INJECTION = "logs.injection";
+  public static final String LOGS_PATTERN_INJECT = "logs.pattern.inject";
 
   public static final String TRACE_128_BIT_TRACEID_LOGGING_ENABLED =
       "trace.128.bit.traceid.logging.enabled";

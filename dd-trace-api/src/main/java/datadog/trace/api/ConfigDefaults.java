@@ -147,6 +147,7 @@ public final class ConfigDefaults {
   // Change value to be false in new release. Until then, manually set logs_injection default
   // value to false if config is under breaking changes flag
   static final boolean DEFAULT_LOGS_INJECTION_ENABLED = true;
+  static final boolean DEFAULT_LOG_PATTERN_INJECT = false;
 
   static final boolean DEFAULT_APP_LOGS_COLLECTION_ENABLED = false;
 
