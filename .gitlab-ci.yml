@@ -966,7 +966,7 @@ muzzle-dep-report:
   script:
     - !reference [.test_job_common, script]
     # Check traces from executed tests; cache hits restore results without sending traces.
-    - tooling/check_test_agent_results.sh
+    - ./gradlew :checkTestAgentResults $GRADLE_ARGS
 
 .test_job_amd64_with_test_agent:
   extends:

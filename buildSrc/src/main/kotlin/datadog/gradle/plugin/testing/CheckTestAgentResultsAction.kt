@@ -1,16 +1,14 @@
 package datadog.gradle.plugin.testing
 
+import okhttp3.HttpUrl
 import org.gradle.api.Action
 import org.gradle.api.InvalidUserDataException
 import org.gradle.api.Task
 import org.gradle.api.file.Directory
-import org.gradle.api.file.RegularFile
 import org.gradle.api.provider.Provider
 import org.gradle.api.provider.ProviderFactory
-import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.testing.Test
 import org.gradle.kotlin.dsl.newInstance
-import org.gradle.process.ExecOperations
 import javax.inject.Inject
 
 fun Test.configureTestAgentPostChecks() {
@@ -19,17 +17,15 @@ fun Test.configureTestAgentPostChecks() {
     return
   }
 
-  val checkScript = project.rootProject.layout.projectDirectory.file("tooling/check_test_agent_results.sh")
   val reportDirectory = project.layout.buildDirectory.dir("reports/test-agent/$name")
 
   val testEnvironment = testAgentEnvironment()
   val configuration = testAgentConfiguration(this.project.providers, testEnvironment)
+  val agentUrl = project.providers.testAgentUrl()
 
   // Register additional inputs related to APM TestAgent
   inputs.property("ciTestAgentConfiguration", configuration)
-  inputs.file(checkScript)
-    .withPropertyName("ciTestAgentCheckScript")
-    .withPathSensitivity(PathSensitivity.NONE)
+  inputs.property("ciTestAgentUrl", agentUrl)
 
   outputs.files(reportDirectory.map { directory ->
     listOf(
@@ -42,11 +38,19 @@ fun Test.configureTestAgentPostChecks() {
   doLast(
     "checkTestAgent",
     project.objects.newInstance<CheckTestAgentResultsAction>(
-      checkScript,
-      reportDirectory
+      reportDirectory,
+      agentUrl
     )
   )
 }
+
+/** Resolves the same job endpoint for per-Test checks and the final live check. */
+internal fun ProviderFactory.testAgentUrl(): Provider<String> =
+  environmentVariable("CI_AGENT_HOST").zip(environmentVariable("CI_TEST_AGENT_PORT").orElse("8126")) { host, value ->
+    val port = value.toIntOrNull()?.takeIf { it in 1..65535 }
+      ?: throw InvalidUserDataException("CI_TEST_AGENT_PORT must be an integer between 1 and 65535")
+    HttpUrl.Builder().scheme("http").host(host).port(port).build().toString()
+  }
 
 private val testAgentBooleanVariables = listOf(
   "CI_TEST_AGENT_SUPPRESS_TRACE_PARSE_ERRORS",
@@ -61,7 +65,7 @@ private val testAgentVariables = listOf(
 private fun Test.testAgentEnvironment(): Provider<Map<String, String>> {
   return project.providers.provider {
     environment.filterKeys {
-      it == "CI_USE_TEST_AGENT" || it == "CI_AGENT_HOST"
+      it == "CI_USE_TEST_AGENT" || it == "CI_AGENT_HOST" || it == "CI_TEST_AGENT_PORT"
     }.mapValues { it.value.toString() }
   }
 }
@@ -70,13 +74,17 @@ private fun testAgentConfiguration(
   factory: ProviderFactory,
   testEnvironment: Provider<Map<String, String>>
 ): Provider<Map<String, String>> {
-  // Capture the host now so a change refreshes Test.environment in the configuration cache.
+  // Capture the endpoint now so a change refreshes Test.environment in the configuration cache.
   val sidecarHost = factory.environmentVariable("CI_AGENT_HOST").getOrElse("")
+  val sidecarPort = factory.environmentVariable("CI_TEST_AGENT_PORT").getOrElse("8126")
 
   // These values configure the already running sidecar; Test.environment cannot override them.
   val sidecarEnvironment = factory.environmentVariablesPrefixedBy("CI_TEST_AGENT_")
     .map { settings ->
-      settings.filterKeys { it in testAgentVariables } + ("CI_AGENT_HOST" to sidecarHost)
+      settings.filterKeys { it in testAgentVariables } + mapOf(
+        "CI_AGENT_HOST" to sidecarHost,
+        "CI_TEST_AGENT_PORT" to sidecarPort,
+      )
     }
 
   return testEnvironment.zip(sidecarEnvironment) { test, sidecar ->
@@ -97,28 +105,23 @@ private fun testAgentConfiguration(
     if (sidecar.getValue("CI_AGENT_HOST").isEmpty() || test["CI_AGENT_HOST"] != sidecar["CI_AGENT_HOST"]) {
       throw InvalidUserDataException("CI_AGENT_HOST must match the job's fingerprinted APM Test Agent sidecar")
     }
+    if ((test["CI_TEST_AGENT_PORT"] ?: "8126") != sidecar["CI_TEST_AGENT_PORT"]) {
+      throw InvalidUserDataException("CI_TEST_AGENT_PORT must match the job's fingerprinted APM Test Agent sidecar")
+    }
 
     test + sidecar
   }
 }
 
 abstract class CheckTestAgentResultsAction @Inject constructor(
-  private val checkScript: RegularFile,
   private val reportDirectory: Provider<Directory>,
+  private val agentUrl: Provider<String>,
 ) : Action<Task> {
-  @get:Inject
-  abstract val execOperations: ExecOperations
-
   override fun execute(task: Task) {
-    val test = task as Test
-    val directory = reportDirectory.get().asFile
-    // Replace reports from previous executions or cache restores before checking the live agent.
-    check(directory.deleteRecursively() && directory.mkdirs()) { "Cannot prepare Test Agent report directory: $directory" }
-    execOperations.exec {
-      commandLine("bash", checkScript.asFile.absolutePath)
-      workingDir(directory)
-      // Registration already established that the invocation enables these checks.
-      environment = test.environment + ("CI_USE_TEST_AGENT" to "true")
-    }
+    TestAgentResultsChecker(
+      agentUrl.get(),
+      reportDirectory.get().asFile,
+      task.logger::lifecycle,
+    ).check()
   }
 }
