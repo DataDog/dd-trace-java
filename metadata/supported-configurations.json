@@ -12304,6 +12304,22 @@
         "aliases": []
       }
     ],
+    "DD_DSM_EXCHANGE_NAME": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "DD_DSM_KAFKA_GROUP": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
     "DD_UNIVERSAL_INSTRUMENTATION": [
       {
         "version": "A",

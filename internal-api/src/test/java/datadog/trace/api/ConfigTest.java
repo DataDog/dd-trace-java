@@ -287,6 +287,17 @@ class ConfigTest {
     assertEquals(10, Config.get(properties).getCaptureLambdaPayloadMaxDepth());
   }
 
+  @Test
+  void lambdaDsmSettingsPreserveConfiguredExchangeAndGroup() {
+    Properties properties = new Properties();
+    assertNull(Config.get(properties).getDsmExchangeName());
+    assertNull(Config.get(properties).getDsmKafkaGroup());
+    properties.setProperty("dsm.exchange.name", "bus");
+    properties.setProperty("dsm.kafka.group", "group");
+    assertEquals("bus", Config.get(properties).getDsmExchangeName());
+    assertEquals("group", Config.get(properties).getDsmKafkaGroup());
+  }
+
   private static final String PREFIX = "dd.";
   private static final String DD_API_KEY_ENV = "DD_API_KEY";
   private static final String DD_SERVICE_NAME_ENV = "DD_SERVICE_NAME";

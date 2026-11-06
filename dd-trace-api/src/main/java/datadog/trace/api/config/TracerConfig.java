@@ -154,6 +154,8 @@ public final class TracerConfig {
       "trace.aws.service.representation.enabled";
   public static final String CAPTURE_LAMBDA_PAYLOAD = "capture.lambda.payload";
   public static final String CAPTURE_LAMBDA_PAYLOAD_MAX_DEPTH = "capture.lambda.payload.max.depth";
+  public static final String DSM_EXCHANGE_NAME = "dsm.exchange.name";
+  public static final String DSM_KAFKA_GROUP = "dsm.kafka.group";
   public static final String UNIVERSAL_INSTRUMENTATION = "universal.instrumentation";
 
   public static final String TRACE_SPAN_ATTRIBUTE_SCHEMA = "trace.span.attribute.schema";
