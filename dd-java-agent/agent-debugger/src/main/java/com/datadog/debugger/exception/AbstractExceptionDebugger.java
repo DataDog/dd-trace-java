@@ -145,12 +145,11 @@ public abstract class AbstractExceptionDebugger implements DebuggerContext.Excep
       LOGGER.debug("Clear previous frame tags");
       // already set for this span, clear the frame tags
       span.getTags()
-          .forEach(
-              (k, v) -> {
-                if (k.startsWith(DD_DEBUG_ERROR_PREFIX)) {
-                  span.setTag(k, (String) null);
-                }
-              });
+          .forEach((k, v) -> {
+            if (k.startsWith(DD_DEBUG_ERROR_PREFIX)) {
+              span.setTag(k, (String) null);
+            }
+          });
     }
     boolean snapshotAssigned = false;
     List<Snapshot> snapshots = state.getSnapshots();

@@ -37,14 +37,11 @@ class R2dbcFilteredResultTest extends AbstractInstrumentationTest {
       assertEquals(
           singletonList(42),
           Flux.from(connection.createStatement("SELECT 42").execute())
-              .flatMap(
-                  result ->
-                      result
-                          .filter(segment -> segment instanceof Result.RowSegment)
-                          .flatMap(
-                              segment ->
-                                  Mono.just(
-                                      ((Result.RowSegment) segment).row().get(0, Integer.class))))
+              .flatMap(result ->
+                  result
+                      .filter(segment -> segment instanceof Result.RowSegment)
+                      .flatMap(segment ->
+                          Mono.just(((Result.RowSegment) segment).row().get(0, Integer.class))))
               .collectList()
               .block(TIMEOUT));
     } finally {

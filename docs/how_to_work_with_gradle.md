@@ -1827,6 +1827,10 @@ This task updates the `gradle/gradle-daemon-jvm.properties` file with the new cr
 
 When Gradle builds fail or behave unexpectedly, several tools and techniques can help diagnose the problem.
 
+For intermittent CI test failures, see [reproducing timing-sensitive CI failures](how_to_test.md#reproducing-timing-sensitive-ci-failures).
+That guide explains how to pass `-Xint` and `-XX:ActiveProcessorCount` to test JVMs,
+force fresh test execution, and distinguish Gradle worker limits from application CPU limits.
+
 > [!TIP]
 > In general following the [Gradle best practices](https://docs.gradle.org/current/userguide/best_practices.html) is safe bet to avoid isses.
 
@@ -1846,7 +1850,9 @@ Include the pipeline ID in release overrides to preserve isolation.
 
 ### Forcing Fresh CI Task Execution
 
-Set the GitLab CI variable `SKIP_BUILD_CACHE=true` when starting a pipeline.
+Set the GitLab CI variable `SKIP_BUILD_CACHE=true` when starting a pipeline, or include
+the case-sensitive `[ci: SKIP_BUILD_CACHE]` option in the commit message. Combine it with
+other CI options as needed, for example `[ci: ARM64, SKIP_BUILD_CACHE]`.
 For a fresh rerun, start a new pipeline for the same ref with this variable.
 This appends `--no-build-cache --rerun-tasks` to the shared Gradle arguments,
 bypassing local and remote task-output caches (including S3 when configured)
@@ -1854,6 +1860,10 @@ and forcing selected tasks to execute even when their outputs are up to date.
 Existing task filters and skip conditions still apply.
 
 The default is `false`. Dependency and plugin caches remain available.
+
+The commit-message option is ignored in the `publish` and `publish-release-artifacts` stages.
+The explicit `SKIP_BUILD_CACHE=true` variable still applies there.
+
 For the same behavior locally, pass the Gradle flags directly:
 
 ```shell

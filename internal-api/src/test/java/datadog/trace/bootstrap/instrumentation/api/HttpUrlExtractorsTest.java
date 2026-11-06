@@ -77,25 +77,23 @@ class HttpUrlExtractorsTest {
     CyclicBarrier start = new CyclicBarrier(2);
     try {
       Future<?> rendering =
-          executor.submit(
-              () -> {
-                start.await(10, TimeUnit.SECONDS);
-                for (int i = 0; i < 1000; i++) {
-                  assertEquals("https://host/a%3Fb#fragment", url.get());
-                  assertEquals("a%3Fb", url.subSequence(13, 18).toString());
-                }
-                return null;
-              });
+          executor.submit(() -> {
+            start.await(10, TimeUnit.SECONDS);
+            for (int i = 0; i < 1000; i++) {
+              assertEquals("https://host/a%3Fb#fragment", url.get());
+              assertEquals("a%3Fb", url.subSequence(13, 18).toString());
+            }
+            return null;
+          });
       Future<?> reading =
-          executor.submit(
-              () -> {
-                start.await(10, TimeUnit.SECONDS);
-                for (int i = 0; i < 1000; i++) {
-                  assertEquals("/a?b", url.path());
-                  assertEquals("https://host/a%3Fb#fragment", url.toString());
-                }
-                return null;
-              });
+          executor.submit(() -> {
+            start.await(10, TimeUnit.SECONDS);
+            for (int i = 0; i < 1000; i++) {
+              assertEquals("/a?b", url.path());
+              assertEquals("https://host/a%3Fb#fragment", url.toString());
+            }
+            return null;
+          });
       rendering.get(10, TimeUnit.SECONDS);
       reading.get(10, TimeUnit.SECONDS);
     } finally {

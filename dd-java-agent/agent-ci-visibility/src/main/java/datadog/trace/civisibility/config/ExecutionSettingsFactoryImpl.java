@@ -234,19 +234,15 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
         executor.submit(
             () -> getSkippableTests(tracerEnvironment, itrEnabled, skippableTestsError));
     Future<Map<String, Collection<TestFQN>>> flakyTestsFuture =
-        executor.submit(
-            () ->
-                getFlakyTestsByModule(tracerEnvironment, flakyTestRetriesEnabled, flakyTestsError));
+        executor.submit(() ->
+            getFlakyTestsByModule(tracerEnvironment, flakyTestRetriesEnabled, flakyTestsError));
     Future<Map<String, Collection<TestFQN>>> knownTestsFuture =
         executor.submit(
             () -> getKnownTestsByModule(tracerEnvironment, knownTestsRequest, knownTestsError));
     Future<Map<TestSetting, Map<String, Collection<TestFQN>>>> testManagementTestsFuture =
-        executor.submit(
-            () ->
-                getTestManagementTestsByModule(
-                    tracerEnvironment,
-                    testManagementSettings.isEnabled(),
-                    testManagementTestsError));
+        executor.submit(() ->
+            getTestManagementTestsByModule(
+                tracerEnvironment, testManagementSettings.isEnabled(), testManagementTestsError));
     Future<Diff> pullRequestDiffFuture =
         executor.submit(
             () -> getPullRequestDiff(impactedTestsEnabled, settings.getDefaultBranch()));
