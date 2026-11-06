@@ -99,7 +99,8 @@ ext.addTestSuite = { testSuiteName, boolean withForkedTest = true ->
 //
 // The task is named after the source set, with its 'Test' suffix replaced: 'test' registers
 // 'forkedTest' and 'latestDepTest' registers 'latestDepForkedTest'. It runs on the same JVMs as the
-// source set test task, as it inherits its test JVM constraints.
+// source set test task: it uses its Java launcher and inherits its test JVM constraints. Configure the
+// task explicitly to override either.
 //
 // java_no_deps.gradle registers 'forkedTest' for the default 'test' source set, and
 // addTestSuiteExtendingForDir registers one for each suite.
@@ -107,13 +108,17 @@ ext.addTestSuite = { testSuiteName, boolean withForkedTest = true ->
 // Returns the TaskProvider so callers can configure the task further.
 ext.addForkedTestTask = { String sourceSetName ->
   def taskName = sourceSetName == 'test' ? 'forkedTest' : "${sourceSetName - ~/Test\z/}ForkedTest"
-  def suiteConstraints = tasks.named(sourceSetName, Test).map { it.extensions.getByName('testJvmConstraints') }
+  def suiteTask = tasks.named(sourceSetName, Test)
+  def suiteConstraints = suiteTask.map { it.extensions.getByName('testJvmConstraints') }
   return tasks.register(taskName, Test) {
     group = LifecycleBasePlugin.VERIFICATION_GROUP
     description = "Runs the '*ForkedTest' classes of the '${sourceSetName}' source set, each in its own JVM."
     useJUnitPlatform()
     testClassesDirs = sourceSets[sourceSetName].output.classesDirs
     classpath = sourceSets[sourceSetName].runtimeClasspath
+    // Set rather than a convention: the test JVM constraints plugin already sets the launcher of every
+    // Test task when 'testJvm' selects another JVM than the Gradle daemon one, which would hide a convention.
+    javaLauncher.set(suiteTask.flatMap { it.javaLauncher })
     extensions.configure('testJvmConstraints') { constraints ->
       constraints.minJavaVersion.convention(suiteConstraints.flatMap { it.minJavaVersion })
       constraints.maxJavaVersion.convention(suiteConstraints.flatMap { it.maxJavaVersion })

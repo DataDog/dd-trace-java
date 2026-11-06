@@ -762,8 +762,8 @@ In this project, the `gradle/test-suites.gradle` script provides helpers to crea
 
 Each of these helpers also registers a forked task for the suite with `addForkedTestTask`. It runs the suite's
 `*ForkedTest` classes, each in its own JVM, reusing the suite's compiled classes and runtime classpath. The task is
-named after the suite with its `Test` suffix replaced by `ForkedTest`, and it inherits the suite's test JVM
-constraints.
+named after the suite with its `Test` suffix replaced by `ForkedTest`, and it uses the suite's Java launcher and
+test JVM constraints.
 
 For example:
 
