@@ -70,7 +70,7 @@ public class HttpResourceDecorator {
     if (encoded) {
       routeTag = URIUtils.decode(route.toString());
     }
-    span.setTag(KnownTags.HTTP_ROUTE_ID, routeTag);
+    span.setTag(KnownTags.HTTP_ROUTE, routeTag);
     if (OTEL_SEMANTICS) {
       final CharSequence resourceName =
           HttpResourceNames.join(OtelHttpSemantics.spanNameMethod(method), routeTag);
