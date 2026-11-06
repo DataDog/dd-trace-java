@@ -10,7 +10,8 @@ Migrate eligible tests while preserving assertions, setup, and case coverage. Th
 
 ## Choosing argument sources
 
-- Prefer `@TableTest` for all eligible literal scenarios, including single-parameter `@ValueSource` tests. Convert values into named scenario rows rather than retaining `@ValueSource` for brevity. Include companion null and empty cases in the table, preserving their distinct meanings and original coverage.
+- Retain `@ValueSource` for single-parameter literal tests by default. Convert to `@TableTest` only when every row has a precise, natural scenario name that explains why the case matters and clearly improves readability. Names that merely repeat the input, add generic labels, or invent unsupported meaning do not justify conversion; when in doubt, keep `@ValueSource`.
+- Retain `@NullSource`, `@EmptySource`, and `@NullAndEmptySource` when they clearly mark the tested inputs. Do not absorb them into a table merely for consistency. Include null or empty cases in a table only when the same scenario-name criterion improves readability, preserving their distinct meanings and original coverage.
 - Prefer `@TableTest` for scenarios that can be described clearly as text, including multi-column data from `@CsvSource`, `@MethodSource`, or Spock `where:` blocks.
 - Before choosing `@MethodSource` for an object argument, attempt to express its building blocks as table columns and construct the object at the start of the test. Keep construction short, deterministic, and faithful to the original behavior. Avoid elaborate parsers, branching factories, or mocks introduced solely to force a table.
 - Combine `@TableTest` and `@MethodSource` on the same `@ParameterizedTest` when they exercise the same behavior with compatible argument signatures. Keep text-friendly cases in the table and only cases requiring programmatic construction in the method source. Do not split a test merely because its sources differ or duplicate cases across sources.
