@@ -3,7 +3,7 @@
 # This file is expected to be part of source control.
 # To regenerate this file, run: ./gradlew :dd-java-agent:instrumentation:play:play-appsec-2.7:dependencies --write-locks
 aopalliance:aopalliance:1.0=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
-at.yawk.lz4:lz4-java:1.12.1=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
+at.yawk.lz4:lz4-java:1.11.4=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
 cafe.cryptography:curve25519-elisabeth:0.1.0=latestDepTestRuntimeClasspath,testRuntimeClasspath
 cafe.cryptography:ed25519-elisabeth:0.1.0=latestDepTestRuntimeClasspath,testRuntimeClasspath
 cglib:cglib:3.3.0=latestDepTestRuntimeClasspath
@@ -175,7 +175,7 @@ io.opentelemetry:opentelemetry-sdk-metrics:1.28.0=latestDepTestCompileClasspath,
 io.opentelemetry:opentelemetry-sdk-trace:1.28.0=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath
 io.opentelemetry:opentelemetry-sdk:1.28.0=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath
 io.opentelemetry:opentelemetry-semconv:1.28.0-alpha=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath
-io.sqreen:libsqreen:17.5.0=latestDepTestRuntimeClasspath,testRuntimeClasspath
+io.sqreen:libsqreen:17.6.0=latestDepTestRuntimeClasspath,testRuntimeClasspath
 jakarta.inject:jakarta.inject-api:2.0.1=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath
 javax.activation:javax.activation-api:1.2.0=compileClasspath
 javax.inject:javax.inject:1=compileClasspath,latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath

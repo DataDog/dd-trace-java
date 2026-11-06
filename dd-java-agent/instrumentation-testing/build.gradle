@@ -62,6 +62,7 @@ dependencies {
   implementation "org.junit.platform:junit-platform-runner:${libs.versions.junit.platform.get()}"
 
   testImplementation project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
+  testImplementation sourceSets.smokeAgent.output
 
   testImplementation group: 'cglib', name: 'cglib', version: '3.2.5'
   // test instrumenting java 1.1 bytecode

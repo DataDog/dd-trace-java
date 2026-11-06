@@ -45,7 +45,8 @@ dependencies {
   compileOnly group: 'io.netty', name: 'netty-common', version: '4.0.0.Final'
 
   testImplementation project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
-  testImplementation group: 'io.netty', name: 'netty-all', version: '4.0.0.Final'
+  // Avoid the GlobalEventExecutor lost-wakeup race fixed in Netty commit 28b8573.
+  testImplementation 'io.netty:netty-all:4.0.4.Final'
   testImplementation group: 'io.grpc', name: 'grpc-netty-shaded', version: '1.58.0'
 
   latestDep4TestImplementation group: 'io.netty', name: 'netty-all', version: '4.+'

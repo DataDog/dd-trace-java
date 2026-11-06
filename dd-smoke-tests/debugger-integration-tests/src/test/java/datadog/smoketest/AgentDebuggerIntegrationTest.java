@@ -33,10 +33,9 @@ public class AgentDebuggerIntegrationTest extends SimpleAppDebuggerIntegrationTe
                 classpath, commandParams, logFilePath, "App", EXPECTED_UPLOADS)
             .start();
     AtomicBoolean snapshotReceived = new AtomicBoolean(false);
-    registerSnapshotListener(
-        snapshot -> {
-          snapshotReceived.set(true);
-        });
+    registerSnapshotListener(snapshot -> {
+      snapshotReceived.set(true);
+    });
     processRequests(
         snapshotReceived::get,
         () -> String.format("timeout snapshotReceived=%s", snapshotReceived.get()));
@@ -53,10 +52,9 @@ public class AgentDebuggerIntegrationTest extends SimpleAppDebuggerIntegrationTe
     setCurrentConfiguration(createConfig(probe));
     targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
     AtomicBoolean snapshotReceived = new AtomicBoolean(false);
-    registerSnapshotListener(
-        snapshot -> {
-          snapshotReceived.set(true);
-        });
+    registerSnapshotListener(snapshot -> {
+      snapshotReceived.set(true);
+    });
     processRequests(
         snapshotReceived::get,
         () -> String.format("timeout snapshotReceived=%s", snapshotReceived.get()));
@@ -80,10 +78,9 @@ public class AgentDebuggerIntegrationTest extends SimpleAppDebuggerIntegrationTe
             .setResponseCode(200));
     targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
     AtomicBoolean snapshotReceived = new AtomicBoolean(false);
-    registerSnapshotListener(
-        snapshot -> {
-          snapshotReceived.set(true);
-        });
+    registerSnapshotListener(snapshot -> {
+      snapshotReceived.set(true);
+    });
     processRequests(
         snapshotReceived::get,
         () -> String.format("timeout snapshotReceived=%s", snapshotReceived.get()));

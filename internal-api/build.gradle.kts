@@ -278,7 +278,6 @@ dependencies {
   api(project(":components:context"))
   api(project(":components:environment"))
   api(project(":components:json"))
-  implementation(project(":products:feature-flagging:feature-flagging-config"))
   api(project(":utils:config-utils"))
   api(project(":utils:time-utils"))
 
@@ -290,7 +289,6 @@ dependencies {
   testImplementation(project(":utils:test-utils"))
   testImplementation(libs.bundles.junit5)
   testImplementation(libs.assertj.core)
-  testImplementation("org.junit.vintage:junit-vintage-engine:${libs.versions.junit5.get()}")
   testImplementation(libs.commons.math)
   testImplementation(libs.bundles.mockito)
   testImplementation(libs.jol.core)

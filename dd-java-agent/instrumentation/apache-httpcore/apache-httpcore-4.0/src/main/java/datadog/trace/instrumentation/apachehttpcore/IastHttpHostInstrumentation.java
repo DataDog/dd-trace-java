@@ -50,7 +50,7 @@ public class IastHttpHostInstrumentation extends InstrumenterModule.Iast
   }
 
   public static class ToUriAdvice {
-    @Advice.OnMethodExit()
+    @Advice.OnMethodExit
     @Propagation
     public static void methodExit(@Advice.This HttpHost self, @Advice.Return String result) {
       final PropagationModule propagationModule = InstrumentationBridge.PROPAGATION;

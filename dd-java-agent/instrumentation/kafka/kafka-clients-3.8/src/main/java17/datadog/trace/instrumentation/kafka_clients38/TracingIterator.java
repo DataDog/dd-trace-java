@@ -116,23 +116,26 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
             // spans are written out together by TraceStructureWriter when running in strict mode
           }
 
-          DataStreamsTags tags = create("kafka", INBOUND, val.topic(), group, clusterId);
-          final long payloadSize =
-              traceConfig().isDataStreamsEnabled() ? Utils.computePayloadSizeBytes(val) : 0;
-          if (StreamingContext.STREAMING_CONTEXT.isDisabledForTopic(val.topic())) {
-            AgentTracer.get()
-                .getDataStreamsMonitoring()
-                .setCheckpoint(span, create(tags, val.timestamp(), payloadSize));
-          } else {
-            // when we're in a streaming context we want to consume only from source topics
-            if (StreamingContext.STREAMING_CONTEXT.isSourceTopic(val.topic())) {
-              // We have to inject the context to headers here,
-              // since the data received from the source may leave the topology on
-              // some other instance of the application, breaking the context propagation
-              // for DSM users
-              Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
-              DataStreamsContext dsmContext = create(tags, val.timestamp(), payloadSize);
-              dsmPropagator.inject(span.with(dsmContext), val.headers(), SETTER);
+          // Only build the DSM tags and context when DSM is on: with it off the checkpoint is a
+          // no-op, but the arguments were still built (hashed tags, strings) for every record.
+          if (traceConfig().isDataStreamsEnabled()) {
+            DataStreamsTags tags = create("kafka", INBOUND, val.topic(), group, clusterId);
+            final long payloadSize = Utils.computePayloadSizeBytes(val);
+            if (StreamingContext.STREAMING_CONTEXT.isDisabledForTopic(val.topic())) {
+              AgentTracer.get()
+                  .getDataStreamsMonitoring()
+                  .setCheckpoint(span, create(tags, val.timestamp(), payloadSize));
+            } else {
+              // when we're in a streaming context we want to consume only from source topics
+              if (StreamingContext.STREAMING_CONTEXT.isSourceTopic(val.topic())) {
+                // We have to inject the context to headers here,
+                // since the data received from the source may leave the topology on
+                // some other instance of the application, breaking the context propagation
+                // for DSM users
+                Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
+                DataStreamsContext dsmContext = create(tags, val.timestamp(), payloadSize);
+                dsmPropagator.inject(span.with(dsmContext), val.headers(), SETTER);
+              }
             }
           }
         } else {

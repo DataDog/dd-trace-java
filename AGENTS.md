@@ -36,6 +36,7 @@ docs/                     Developer documentation (see below)
 | Adding a new instrumentation | [docs/add_new_instrumentation.md](docs/add_new_instrumentation.md) |
 | Adding a new configuration | [docs/add_new_configurations.md](docs/add_new_configurations.md) |
 | Testing guide (6 test types) | [docs/how_to_test.md](docs/how_to_test.md) |
+| Reproducing timing-sensitive CI flakes | [Reproduction guide](docs/how_to_test.md#reproducing-timing-sensitive-ci-failures) |
 | Writing JUnit tests | [docs/how_to_test_with_junit.md](docs/how_to_test_with_junit.md) |
 | Writing a smoke test | [docs/how_to_smoke_test.md](docs/how_to_smoke_test.md) |
 | Working with Gradle | [docs/how_to_work_with_gradle.md](docs/how_to_work_with_gradle.md) |
@@ -71,6 +72,10 @@ docs/                     Developer documentation (see below)
 ## PR conventions
 
 - Title: imperative verb sentence describing user-visible change (e.g. "Fix span sampling rule parsing")
+- Description: follow the section guidance in [the PR template](.github/pull_request_template.md).
+  Write for a human reviewer first: short, plain and skimmable. Explain the intent and rationale of the change,
+  not its content: the diff already shows the code, so don't walk through it file by file or list the classes and methods touched.
+- Size: keep PRs small (under 1000 added lines), split larger changes into stacked PRs.
 - Labels: always add `tag: ai generated` and at least one `comp:` or `inst:` label + one `type:` label
 - Use `tag: no release notes` for internal/refactoring changes
 - Open as draft first, convert to ready when reviewable
@@ -78,6 +83,8 @@ docs/                     Developer documentation (see below)
   and include them in the same PR. See [lockfile updates](docs/how_to_work_with_gradle.md#updating-lock-files).
 
 ## Review Guidelines
+
+- **CI flakiness**: use [reproduce-ci-flakiness](.agents/skills/reproduce-ci-flakiness/SKILL.md) for local reproduction of intermittent timeouts, races, or asynchronous test failures. Match the CI task/JDK first, then compare bounded reruns with `-Xint` and reduced JVM-visible CPUs. See the [testing guide](docs/how_to_test.md#reproducing-timing-sensitive-ci-failures) for commands and CPU-limit distinctions.
 
 - **Technical debt**: run `/techdebt` over branch changes before marking a PR ready to catch code duplication, unnecessary complexity, and dead code (refactor-only, never changes behavior) — see [.agents/skills/techdebt/SKILL.md](.agents/skills/techdebt/SKILL.md).
 - **Performance**: run `/perf-review` over branch changes before marking a PR ready (advisory, not a merge gate) — see [.agents/skills/perf-review/SKILL.md](.agents/skills/perf-review/SKILL.md).

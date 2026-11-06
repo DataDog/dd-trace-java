@@ -165,7 +165,6 @@ include(":dd-java-agent:agent-aiguard")
 include(
   ":products:feature-flagging:feature-flagging-agent",
   ":products:feature-flagging:feature-flagging-bootstrap",
-  ":products:feature-flagging:feature-flagging-config",
   ":products:feature-flagging:feature-flagging-lib"
 )
 
@@ -214,6 +213,7 @@ include(
   ":dd-smoke-tests:log-injection",
   ":dd-smoke-tests:maven",
   ":dd-smoke-tests:openfeature",
+  ":dd-smoke-tests:openfeature-legacy",
   ":dd-smoke-tests:opentracing",
   ":dd-smoke-tests:opentelemetry",
   ":dd-smoke-tests:osgi",
@@ -270,6 +270,7 @@ include(
   ":dd-smoke-tests:wildfly",
   ":dd-smoke-tests:appsec",
   ":dd-smoke-tests:appsec:spring-tomcat7",
+  ":dd-smoke-tests:appsec:lambda-sca",
   ":dd-smoke-tests:appsec:springboot",
   ":dd-smoke-tests:appsec:springboot-grpc",
   ":dd-smoke-tests:appsec:springboot-graphql",
@@ -344,6 +345,7 @@ include(
   ":dd-java-agent:instrumentation:cxf-2.1",
   ":dd-java-agent:instrumentation:datadog:asm:iast-instrumenter",
   ":dd-java-agent:instrumentation:datadog:dynamic-instrumentation:span-origin",
+  ":dd-java-agent:instrumentation:datadog:openfeature:dd-openfeature-1.56",
   ":dd-java-agent:instrumentation:datadog:openfeature:dd-openfeature-1.69",
   ":dd-java-agent:instrumentation:datadog:profiling:enable-wallclock-profiling",
   ":dd-java-agent:instrumentation:datadog:profiling:exception-profiling",

@@ -1,3 +1,5 @@
+import datadog.gradle.plugin.testing.GeneratedGroovyClosureSpec
+import datadog.gradle.plugin.testing.configureTestAgentPostChecks
 import org.gradle.api.plugins.jvm.JvmTestSuite
 import org.gradle.api.services.BuildService
 import org.gradle.api.services.BuildServiceParameters
@@ -37,6 +39,8 @@ val runFlakyTestsProvider = rootProject.providers.gradleProperty("runFlakyTests"
 
 // Go through the Test tasks and configure them
 tasks.withType<Test>().configureEach {
+  configureTestAgentPostChecks()
+
   // Disable all tests if skipTests property was specified
   onlyIf("skipTests are undefined or false") { !skipTestsProvider.isPresent }
 
@@ -55,6 +59,7 @@ tasks.withType<Test>().configureEach {
   // Split up tests that want to run forked in their own separate JVM for generated tasks
   if (name.startsWith("forkedTest") || name.endsWith("ForkedTest")) {
     setExcludes(emptyList())
+    exclude(GeneratedGroovyClosureSpec())
     setIncludes(listOf("**/*ForkedTest*"))
     forkEvery = 1
     // Limit the number of concurrent forked tests

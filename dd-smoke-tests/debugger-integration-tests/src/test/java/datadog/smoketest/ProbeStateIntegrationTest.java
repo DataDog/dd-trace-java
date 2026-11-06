@@ -7,7 +7,6 @@ import com.datadog.debugger.agent.Configuration;
 import com.datadog.debugger.agent.ProbeStatus;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.sink.Snapshot;
-import datadog.trace.test.util.Flaky;
 import datadog.trace.test.util.NonRetryable;
 import java.util.Collections;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -74,7 +73,6 @@ public class ProbeStateIntegrationTest extends ServerAppDebuggerIntegrationTest 
 
   @Test
   @DisplayName("testAddSourceFileProbeHugeInnerClasses")
-  @Flaky
   @DisabledIf(
       value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "Flaky on J9 JVMs")
@@ -192,18 +190,17 @@ public class ProbeStateIntegrationTest extends ServerAppDebuggerIntegrationTest 
     addProbe(logProbe);
     AtomicBoolean received = new AtomicBoolean();
     AtomicBoolean error = new AtomicBoolean();
-    registerProbeStatusListener(
-        probeStatus -> {
-          if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.RECEIVED) {
-            received.set(true);
-          }
-          if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.ERROR) {
-            assertEquals(
-                "Cannot find method datadog/smoketest/debugger/ServerDebuggerTestApplication::unknownMethodName",
-                probeStatus.getDiagnostics().getException().getMessage());
-            error.set(true);
-          }
-        });
+    registerProbeStatusListener(probeStatus -> {
+      if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.RECEIVED) {
+        received.set(true);
+      }
+      if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.ERROR) {
+        assertEquals(
+            "Cannot find method datadog/smoketest/debugger/ServerDebuggerTestApplication::unknownMethodName",
+            probeStatus.getDiagnostics().getException().getMessage());
+        error.set(true);
+      }
+    });
     processRequests(
         () -> received.get() && error.get(),
         () -> String.format("timeout received=%s error=%s", received.get(), error.get()));

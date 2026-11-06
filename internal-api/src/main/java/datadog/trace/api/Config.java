@@ -375,6 +375,9 @@ import static datadog.trace.api.config.DebuggerConfig.THIRD_PARTY_DETECTION_INCL
 import static datadog.trace.api.config.DebuggerConfig.THIRD_PARTY_EXCLUDES;
 import static datadog.trace.api.config.DebuggerConfig.THIRD_PARTY_INCLUDES;
 import static datadog.trace.api.config.DebuggerConfig.THIRD_PARTY_SHADING_IDENTIFIERS;
+import static datadog.trace.api.config.FeatureFlaggingConfig.EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED;
+import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE;
+import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.AGENTLESS_LOG_SUBMISSION_LEVEL;
 import static datadog.trace.api.config.GeneralConfig.AGENTLESS_LOG_SUBMISSION_QUEUE_SIZE;
 import static datadog.trace.api.config.GeneralConfig.AGENTLESS_LOG_SUBMISSION_URL;
@@ -744,9 +747,6 @@ import static datadog.trace.api.config.TracerConfig.TRACE_X_DATADOG_TAGS_MAX_LEN
 import static datadog.trace.api.config.TracerConfig.WRITER_BAGGAGE_INJECT;
 import static datadog.trace.api.config.TracerConfig.WRITER_LINKS_INJECT;
 import static datadog.trace.api.config.TracerConfig.WRITER_TYPE;
-import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED;
-import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE;
-import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_ENABLED;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.MULTI_WRITER_TYPE;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.OTLP_WRITER_TYPE;
@@ -792,11 +792,13 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.UnsupportedEncodingException;
 import java.net.InetAddress;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.net.URLDecoder;
 import java.net.UnknownHostException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -2155,7 +2157,7 @@ public class Config {
     }
     otlpLogsTimeout = otlpTimeout;
 
-    otlpLogsHeaders = configProvider.getMergedMap(OTLP_LOGS_HEADERS, '=');
+    otlpLogsHeaders = decodeOtlpHeaders(configProvider.getMergedMap(OTLP_LOGS_HEADERS, '='));
     otlpLogsProtocol =
         configProvider.getEnum(
             OTLP_LOGS_PROTOCOL, OtlpConfig.Protocol.class, OtlpConfig.Protocol.HTTP_PROTOBUF);
@@ -2219,7 +2221,7 @@ public class Config {
     }
     otlpMetricsTimeout = otlpTimeout;
 
-    otlpMetricsHeaders = configProvider.getMergedMap(OTLP_METRICS_HEADERS, '=');
+    otlpMetricsHeaders = decodeOtlpHeaders(configProvider.getMergedMap(OTLP_METRICS_HEADERS, '='));
     otlpMetricsProtocol =
         configProvider.getEnum(
             OTLP_METRICS_PROTOCOL, OtlpConfig.Protocol.class, OtlpConfig.Protocol.HTTP_PROTOBUF);
@@ -2265,7 +2267,7 @@ public class Config {
     }
     otlpTracesTimeout = otlpTimeout;
 
-    otlpTracesHeaders = configProvider.getMergedMap(OTLP_TRACES_HEADERS, '=');
+    otlpTracesHeaders = decodeOtlpHeaders(configProvider.getMergedMap(OTLP_TRACES_HEADERS, '='));
     otlpTracesProtocol =
         configProvider.getEnum(
             OTLP_TRACES_PROTOCOL, OtlpConfig.Protocol.class, OtlpConfig.Protocol.HTTP_PROTOBUF);
@@ -3487,6 +3489,24 @@ public class Config {
         configProvider.getBoolean(AI_GUARD_REDACTION_ENABLED, DEFAULT_AI_GUARD_REDACTION_ENABLED);
 
     log.debug("New instance: {}", this);
+  }
+
+  /** Decodes resolved OTLP header values after parsing and precedence resolution. */
+  private static Map<String, String> decodeOtlpHeaders(Map<String, String> headers) {
+    headers.replaceAll((name, value) -> decodeOtlpHeaderValue(value));
+    return headers;
+  }
+
+  private static String decodeOtlpHeaderValue(String value) {
+    if (value.indexOf('%') == -1) {
+      return value;
+    }
+    try {
+      // Baggage-style percent encoding preserves literal '+', unlike form encoding.
+      return URLDecoder.decode(value.replace("+", "%2B"), "UTF-8");
+    } catch (UnsupportedEncodingException | IllegalArgumentException ignored) {
+      return value;
+    }
   }
 
   private static int nonNegativeBaggageLimit(String setting, int value) {
@@ -4932,9 +4952,8 @@ public class Config {
     return instrumenterConfig.isFeatureFlaggingEnabled();
   }
 
-  public String getFeatureFlaggingConfigurationSource() {
-    final FeatureFlaggingSource source = instrumenterConfig.getFeatureFlaggingConfigurationSource();
-    return source == FeatureFlaggingSource.UNSET ? null : source.name().toLowerCase(Locale.ROOT);
+  public FeatureFlaggingSource getFeatureFlaggingConfigurationSource() {
+    return instrumenterConfig.getFeatureFlaggingConfigurationSource();
   }
 
   public boolean isDynamicInstrumentationEnabled() {

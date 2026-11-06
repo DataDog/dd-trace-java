@@ -27,6 +27,7 @@ import datadog.trace.api.aiguard.AIGuard.ToolCall.Function;
 import datadog.trace.api.aiguard.Evaluator;
 import datadog.trace.api.aiguard.noop.NoOpEvaluator;
 import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.telemetry.WafMetricCollector;
 import datadog.trace.api.telemetry.WafMetricCollector.AIGuardError;
 import datadog.trace.api.telemetry.WafMetricCollector.AIGuardRedaction;
@@ -133,7 +134,7 @@ public class AIGuardInternal implements Evaluator {
     Installer.install(new NoOpEvaluator());
   }
 
-  private final HttpUrl url;
+  @VisibleForTesting final HttpUrl url;
   private final Moshi moshi;
   private final OkHttpClient client;
   private final Map<String, String> meta;
@@ -492,7 +493,8 @@ public class AIGuardInternal implements Evaluator {
     return OkHttpUtils.buildHttpClient(url, timeout).newBuilder().build();
   }
 
-  private static Map<String, String> mapOf(final String... props) {
+  @VisibleForTesting
+  static Map<String, String> mapOf(final String... props) {
     if (props.length % 2 != 0) {
       throw new IllegalArgumentException("Props must be even");
     }

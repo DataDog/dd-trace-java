@@ -1,10 +1,10 @@
 package datadog.trace.core.tagprocessor;
 
+import static datadog.trace.api.KnownTags.HTTP_METHOD_ID;
+import static datadog.trace.api.KnownTags.HTTP_ROUTE_ID;
 import static datadog.trace.bootstrap.instrumentation.api.OtelHttpSemantics.urlOrPath;
-import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_METHOD;
-import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_ROUTE;
 
-import datadog.trace.api.TagMap;
+import datadog.trace.api.TagStore;
 import datadog.trace.api.endpoint.EndpointResolver;
 import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.instrumentation.api.AppendableSpanLinks;
@@ -30,7 +30,7 @@ import org.slf4j.LoggerFactory;
  *   <li>If {@code alwaysSimplifiedEndpoint=true}, always compute from URL regardless of route
  * </ul>
  */
-public class HttpEndpointPostProcessor extends TagsPostProcessor {
+public class HttpEndpointPostProcessor extends EagerTagsPostProcessor {
   private static final Logger log = LoggerFactory.getLogger(HttpEndpointPostProcessor.class);
 
   private final EndpointResolver endpointResolver;
@@ -55,18 +55,18 @@ public class HttpEndpointPostProcessor extends TagsPostProcessor {
 
   @Override
   public void processTags(
-      TagMap unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
+      TagStore unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
     if (!endpointResolver.isEnabled()) {
       log.debug("EndpointResolver is not enabled, skipping HTTP endpoint post processing");
       return;
     }
 
-    if (unsafeTags.getObject(HTTP_METHOD) == null) {
+    if (unsafeTags.load(HTTP_METHOD_ID) == null) {
       return;
     }
 
     try {
-      String httpRoute = unsafeTags.getString(HTTP_ROUTE);
+      String httpRoute = unsafeTags.loadString(HTTP_ROUTE_ID);
       Object httpUrl = urlOrPath(unsafeTags);
       endpointResolver.resolveEndpoint(
           unsafeTags, httpRoute, httpUrl == null ? null : httpUrl.toString());

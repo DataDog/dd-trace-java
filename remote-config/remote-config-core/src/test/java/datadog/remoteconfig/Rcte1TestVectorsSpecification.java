@@ -96,11 +96,10 @@ class Rcte1TestVectorsSpecification extends DDJavaSpecification {
   private void stubScheduling() {
     when(scheduler.scheduleAtFixedRate(
             any(), eq(poller), eq(0L), eq((long) DEFAULT_POLL_PERIOD), eq(TimeUnit.MILLISECONDS)))
-        .thenAnswer(
-            invocation -> {
-              task = invocation.getArgument(0);
-              return scheduled;
-            });
+        .thenAnswer(invocation -> {
+          task = invocation.getArgument(0);
+          return scheduled;
+        });
   }
 
   @Test
@@ -118,11 +117,10 @@ class Rcte1TestVectorsSpecification extends DDJavaSpecification {
     assertNotNull(task);
 
     when(okHttpClient.newCall(any(Request.class)))
-        .thenAnswer(
-            invocation -> {
-              request = invocation.getArgument(0);
-              return call;
-            });
+        .thenAnswer(invocation -> {
+          request = invocation.getArgument(0);
+          return call;
+        });
     when(call.execute()).thenReturn(buildOKResponse(getFileContents("validOneFile")));
 
     task.run(poller);
@@ -151,11 +149,10 @@ class Rcte1TestVectorsSpecification extends DDJavaSpecification {
     assertNotNull(task);
 
     when(okHttpClient.newCall(any(Request.class)))
-        .thenAnswer(
-            invocation -> {
-              request = invocation.getArgument(0);
-              return call;
-            });
+        .thenAnswer(invocation -> {
+          request = invocation.getArgument(0);
+          return call;
+        });
     when(call.execute())
         .thenReturn(buildOKResponse(getFileContents(baseFileName)))
         .thenReturn(buildOKResponse("validOneFile"));

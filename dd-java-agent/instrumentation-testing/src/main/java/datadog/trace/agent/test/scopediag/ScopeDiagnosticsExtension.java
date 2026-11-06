@@ -146,8 +146,7 @@ public final class ScopeDiagnosticsExtension
 
   private static void report(String displayName, TrackScopeContinuations config) {
     try {
-      ScopeDiagnostics.awaitQuiescence();
-      ScopeDiagnostics.stop();
+      ScopeDiagnostics.stopAfterQuiescence();
       ScopeDiagnosticsReport report = ScopeDiagnostics.report();
       if (report.hasFindings()) {
         log.info("[{}] {}", displayName, report.renderTimeline());

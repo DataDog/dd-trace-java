@@ -118,25 +118,24 @@ class ReactorNettyBaggagePropagationTest extends AbstractInstrumentationTest {
     HttpClient client =
         HttpClient.create(connections)
             .runOn(eventLoops)
-            .doOnConnected(
-                connection -> {
-                  channel.set(connection.channel());
-                  connection
-                      .channel()
-                      .pipeline()
-                      .addLast(
-                          new ChannelInboundHandlerAdapter() {
-                            @Override
-                            public void userEventTriggered(ChannelHandlerContext ctx, Object event)
-                                throws Exception {
-                              if (event == idleEvent) {
-                                eventSpan.set(AgentTracer.activeSpan());
-                                eventBaggage.set(Baggage.fromContext(Context.current()));
-                              }
-                              super.userEventTriggered(ctx, event);
-                            }
-                          });
-                });
+            .doOnConnected(connection -> {
+              channel.set(connection.channel());
+              connection
+                  .channel()
+                  .pipeline()
+                  .addLast(
+                      new ChannelInboundHandlerAdapter() {
+                        @Override
+                        public void userEventTriggered(ChannelHandlerContext ctx, Object event)
+                            throws Exception {
+                          if (event == idleEvent) {
+                            eventSpan.set(AgentTracer.activeSpan());
+                            eventBaggage.set(Baggage.fromContext(Context.current()));
+                          }
+                          super.userEventTriggered(ctx, event);
+                        }
+                      });
+            });
     Channel firstChannel = null;
     try {
       for (int request = 0; request < 2; request++) {
@@ -176,13 +175,12 @@ class ReactorNettyBaggagePropagationTest extends AbstractInstrumentationTest {
         }
         currentChannel
             .eventLoop()
-            .submit(
-                () -> {
-                  assertNull(AgentTracer.activeSpan());
-                  assertNull(currentChannel.attr(CONTEXT_ATTRIBUTE_KEY).get());
-                  assertNull(currentChannel.attr(CLIENT_PARENT_ATTRIBUTE_KEY).get());
-                  currentChannel.pipeline().fireUserEventTriggered(idleEvent);
-                })
+            .submit(() -> {
+              assertNull(AgentTracer.activeSpan());
+              assertNull(currentChannel.attr(CONTEXT_ATTRIBUTE_KEY).get());
+              assertNull(currentChannel.attr(CLIENT_PARENT_ATTRIBUTE_KEY).get());
+              currentChannel.pipeline().fireUserEventTriggered(idleEvent);
+            })
             .get(10, TimeUnit.SECONDS);
         assertNull(eventSpan.get(), "an idle channel event must not activate the previous request");
         assertNull(eventBaggage.get(), "an idle channel event must not reactivate request baggage");
@@ -206,31 +204,27 @@ class ReactorNettyBaggagePropagationTest extends AbstractInstrumentationTest {
     HttpClient client =
         HttpClient.create(connections)
             .runOn(eventLoops)
-            .doOnConnected(
-                connection -> {
-                  channel.set(connection.channel());
-                  connection
-                      .channel()
-                      .pipeline()
-                      .addFirst(
-                          new ChannelInboundHandlerAdapter() {
-                            @Override
-                            public void channelInactive(ChannelHandlerContext ctx)
-                                throws Exception {
-                              try {
-                                super.channelInactive(ctx);
-                              } finally {
-                                inactive.countDown();
-                              }
-                            }
-                          });
-                })
-            .doOnDisconnected(
-                connection ->
-                    disconnectSpan.compareAndSet(
-                        null,
-                        AgentSpan.fromContext(
-                            connection.channel().attr(CONTEXT_ATTRIBUTE_KEY).get())));
+            .doOnConnected(connection -> {
+              channel.set(connection.channel());
+              connection
+                  .channel()
+                  .pipeline()
+                  .addFirst(
+                      new ChannelInboundHandlerAdapter() {
+                        @Override
+                        public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+                          try {
+                            super.channelInactive(ctx);
+                          } finally {
+                            inactive.countDown();
+                          }
+                        }
+                      });
+            })
+            .doOnDisconnected(connection ->
+                disconnectSpan.compareAndSet(
+                    null,
+                    AgentSpan.fromContext(connection.channel().attr(CONTEXT_ATTRIBUTE_KEY).get())));
     AgentSpan parent = AgentTracer.startSpan("test", "failed-body-parent");
     IllegalStateException failure = new IllegalStateException("request body failed");
     try {
@@ -243,10 +237,9 @@ class ReactorNettyBaggagePropagationTest extends AbstractInstrumentationTest {
                     client
                         .post()
                         .uri(baseUrl + "/fail-body")
-                        .send(
-                            (request, outbound) ->
-                                outbound.sendString(
-                                    Flux.concat(Mono.just("payload"), Mono.error(failure))))
+                        .send((request, outbound) ->
+                            outbound.sendString(
+                                Flux.concat(Mono.just("payload"), Mono.error(failure))))
                         .responseContent()
                         .aggregate()
                         .asString()
@@ -261,11 +254,10 @@ class ReactorNettyBaggagePropagationTest extends AbstractInstrumentationTest {
       channel
           .get()
           .eventLoop()
-          .submit(
-              () -> {
-                assertNull(channel.get().attr(CONTEXT_ATTRIBUTE_KEY).get());
-                assertNull(channel.get().attr(CLIENT_PARENT_ATTRIBUTE_KEY).get());
-              })
+          .submit(() -> {
+            assertNull(channel.get().attr(CONTEXT_ATTRIBUTE_KEY).get());
+            assertNull(channel.get().attr(CLIENT_PARENT_ATTRIBUTE_KEY).get());
+          })
           .get(10, TimeUnit.SECONDS);
       writer.waitForTraces(1);
       long parentId = parent.getSpanId();

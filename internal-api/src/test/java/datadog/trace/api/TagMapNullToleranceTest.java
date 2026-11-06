@@ -6,12 +6,16 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import datadog.trace.bootstrap.instrumentation.api.Tags;
+import java.util.HashMap;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 /**
  * Pins the Entry-pathway null-tolerance contract: {@code create(...)} returns null for a null or
  * empty value, and the {@code Entry} sinks ({@code set(Entry)} / {@code getAndSet(Entry)}) treat
- * null as a no-op -- so a null/empty value flows through as "no tag" without any caller guarding.
+ * null as a no-op -- so a null/empty value flows through as "no tag" without any caller guarding. A
+ * null value given to a setter removes the tag, as {@code setTag(tag, null)} does on a span.
  */
 class TagMapNullToleranceTest {
 
@@ -62,5 +66,56 @@ class TagMapNullToleranceTest {
     map.set(TagMap.Entry.create("present", "v"));
     assertEquals(1, map.size());
     assertTrue(map.containsKey("present"));
+  }
+
+  @Test
+  void setNullRemovesAKnownOrCustomTag() {
+    TagMap map = TagMap.create();
+    map.set(Tags.COMPONENT, "okhttp");
+    map.set("custom.tag", "v");
+
+    map.set(Tags.COMPONENT, (Object) null);
+    map.set("custom.tag", (CharSequence) null);
+    assertEquals(0, map.size());
+    assertFalse(map.containsKey(Tags.COMPONENT));
+    assertFalse(map.containsKey("custom.tag"));
+  }
+
+  @Test
+  void setNullByIdRemovesTheTag() {
+    TagMap map = TagMap.create();
+    map.set(KnownTags.COMPONENT_ID, "okhttp");
+    map.set(KnownTags.COMPONENT_ID, (Object) null);
+    assertNull(map.getObject(Tags.COMPONENT));
+
+    map.set(KnownTags.COMPONENT_ID, "okhttp");
+    map.set(KnownTags.COMPONENT_ID, (CharSequence) null);
+    assertEquals(0, map.size());
+  }
+
+  @Test
+  void putAndGetAndSetNullRemoveTheTagAndReturnItsPriorValue() {
+    TagMap map = TagMap.create();
+    map.set("custom.tag", "v");
+    assertEquals("v", map.put("custom.tag", null));
+    assertFalse(map.containsKey("custom.tag"));
+
+    map.set(Tags.COMPONENT, "okhttp");
+    assertEquals("okhttp", map.getAndSet(Tags.COMPONENT, (Object) null).objectValue());
+    assertNull(map.getAndSet(Tags.COMPONENT, (CharSequence) null), "already removed");
+    assertEquals(0, map.size());
+  }
+
+  @Test
+  void putAllWithANullValueLeavesNoTag() {
+    Map<String, Object> source = new HashMap<>();
+    source.put("custom.tag", null);
+    source.put(Tags.COMPONENT, null);
+    source.put("present", "v");
+
+    TagMap map = TagMap.fromMap(source);
+    assertEquals(1, map.size());
+    assertFalse(map.containsKey("custom.tag"));
+    assertFalse(map.containsKey(Tags.COMPONENT));
   }
 }
