@@ -166,7 +166,7 @@ public final class FlagEvaluator {
       result =
           error(
               defaultValue,
-              e.configurationError ? e.errorCode : ErrorCode.GENERAL,
+              ErrorCode.GENERAL,
               e.dependencyKey == null
                   ? e.getMessage()
                   : "prerequisite flag " + e.dependencyKey + ": " + e.getMessage(),
@@ -292,21 +292,50 @@ public final class FlagEvaluator {
   }
 
   private static int maxDependencyDepth(final ServerConfiguration config) {
-    if (config.evaluatorParams == null || !config.evaluatorParams.maxDependencyDepthPresent) {
+    if (config.evaluatorParams == null) {
       return DEFAULT_MAX_DEPENDENCY_DEPTH;
     }
-    final Object configured = config.evaluatorParams.maxDependencyDepth;
-    if (configured instanceof Number) {
-      final double value = ((Number) configured).doubleValue();
-      if (Double.isFinite(value) && value == Math.rint(value) && value >= 0 && value <= 255) {
-        return (int) value;
-      }
+    if (config.evaluatorParams.validationError != null) {
+      logInvalidMaxDependencyDepth(config.evaluatorParams.validationError, null);
+      return DEFAULT_MAX_DEPENDENCY_DEPTH;
     }
-    throw new DependencyGraphException(
-        ErrorCode.PARSE_ERROR,
-        "maxDependencyDepth must be an integer from 0 through 255",
-        null,
-        true);
+    if (!config.evaluatorParams.maxDependencyDepthPresent) {
+      return DEFAULT_MAX_DEPENDENCY_DEPTH;
+    }
+    try {
+      final Object configured = config.evaluatorParams.maxDependencyDepth;
+      if (configured instanceof Number) {
+        final double value = ((Number) configured).doubleValue();
+        if (Double.isFinite(value) && value == Math.rint(value) && value >= 0 && value <= 255) {
+          return (int) value;
+        }
+      }
+      logInvalidMaxDependencyDepth(
+          "maxDependencyDepth must be an integer from 0 through 255", null);
+    } catch (final RuntimeException failure) {
+      logInvalidMaxDependencyDepth("could not read maxDependencyDepth", failure);
+    }
+    return DEFAULT_MAX_DEPENDENCY_DEPTH;
+  }
+
+  private static void logInvalidMaxDependencyDepth(
+      final String diagnostic, final RuntimeException failure) {
+    try {
+      if (failure == null) {
+        LOGGER.error(
+            "Invalid evaluator options ({}); using maxDependencyDepth={}",
+            diagnostic,
+            DEFAULT_MAX_DEPENDENCY_DEPTH);
+      } else {
+        LOGGER.error(
+            "Invalid evaluator options ({}); using maxDependencyDepth={}",
+            diagnostic,
+            DEFAULT_MAX_DEPENDENCY_DEPTH,
+            failure);
+      }
+    } catch (final RuntimeException ignored) {
+      // Diagnostics are best effort and must not make a valid independent graph fail.
+    }
   }
 
   private static ImmutableMetadata consentMetadata(final boolean observeFullEvaluationData) {
@@ -797,7 +826,7 @@ public final class FlagEvaluator {
     private final Map<String, MemoizedDependency> memo = new HashMap<>();
     private final Set<String> active = new HashSet<>();
     private final List<DependencyFrame> frames = new ArrayList<>();
-    private final Set<String> evaluatedFlags = new HashSet<>();
+    private final Map<String, Integer> evaluationSlots = new HashMap<>();
     private final List<DependencyEvaluation> evaluations = new ArrayList<>();
     private final List<ExposureTrace> selectedExposureTraces = new ArrayList<>();
     private Integer maxDependencyDepth;
@@ -805,7 +834,6 @@ public final class FlagEvaluator {
     private DependencyEvaluationSession(final String rootFlagKey, final EvaluationState state) {
       this.state = state;
       active.add(rootFlagKey);
-      evaluatedFlags.add(rootFlagKey);
     }
 
     private ExposureCheckpoint checkpoint() {
@@ -837,11 +865,7 @@ public final class FlagEvaluator {
 
     private String resolveCurrent(final String flagKey) {
       if (maxDependencyDepth == null) {
-        try {
-          maxDependencyDepth = FlagEvaluator.maxDependencyDepth(state.config);
-        } catch (final DependencyGraphException e) {
-          throw emitFailure(flagKey, e.errorCode, e.getMessage(), e.configurationError);
-        }
+        maxDependencyDepth = FlagEvaluator.maxDependencyDepth(state.config);
       }
       final int depth = frames.isEmpty() ? 1 : frames.get(frames.size() - 1).depth + 1;
       return resolve(flagKey, depth);
@@ -870,6 +894,8 @@ public final class FlagEvaluator {
         return memoized.details.getVariant();
       }
 
+      reserveEvaluation(flagKey);
+
       final Flag flag = state.config.flags == null ? null : state.config.flags.get(flagKey);
       if (flag == null) {
         final ProviderEvaluation<Object> missing =
@@ -886,8 +912,7 @@ public final class FlagEvaluator {
             missing.getErrorCode() == ErrorCode.FLAG_NOT_FOUND
                 ? "prerequisite flag is missing"
                 : "invalid prerequisite flag configuration",
-            flagKey,
-            false);
+            flagKey);
       }
 
       active.add(flagKey);
@@ -934,27 +959,30 @@ public final class FlagEvaluator {
 
     private DependencyGraphException emitFailure(
         final String flagKey, final ErrorCode errorCode, final String message) {
-      return emitFailure(flagKey, errorCode, message, false);
-    }
-
-    private DependencyGraphException emitFailure(
-        final String flagKey,
-        final ErrorCode errorCode,
-        final String message,
-        final boolean configurationError) {
       final DependencyGraphException failure =
           new DependencyGraphException(
-              errorCode, message == null ? errorCode.name() : message, flagKey, configurationError);
+              errorCode, message == null ? errorCode.name() : message, flagKey);
       emitEvaluation(
           flagKey, error(null, errorCode, failure.getMessage(), state.observeFullEvaluationData));
       return failure;
     }
 
     private void emitEvaluation(final String flagKey, final ProviderEvaluation<?> details) {
-      if (!evaluatedFlags.add(flagKey)) {
-        return;
+      final int slot = reserveEvaluation(flagKey);
+      if (evaluations.get(slot) == null) {
+        evaluations.set(slot, new DependencyEvaluation(flagKey, details));
       }
-      evaluations.add(new DependencyEvaluation(flagKey, details));
+    }
+
+    private int reserveEvaluation(final String flagKey) {
+      final Integer existing = evaluationSlots.get(flagKey);
+      if (existing != null) {
+        return existing;
+      }
+      final int slot = evaluations.size();
+      evaluationSlots.put(flagKey, slot);
+      evaluations.add(null);
+      return slot;
     }
 
     private void recordReachedDepth(final int depth) {
@@ -1093,26 +1121,20 @@ public final class FlagEvaluator {
   private static final class DependencyGraphException extends RuntimeException {
     private final ErrorCode errorCode;
     private final String dependencyKey;
-    private final boolean configurationError;
 
     private DependencyGraphException(final ErrorCode errorCode, final String message) {
-      this(errorCode, message, null, false);
+      this(errorCode, message, null);
     }
 
     private DependencyGraphException(
-        final ErrorCode errorCode,
-        final String message,
-        final String dependencyKey,
-        final boolean configurationError) {
+        final ErrorCode errorCode, final String message, final String dependencyKey) {
       super(message);
       this.errorCode = errorCode;
       this.dependencyKey = dependencyKey;
-      this.configurationError = configurationError;
     }
 
     private DependencyGraphException withDependencyKey(final String dependencyKey) {
-      return new DependencyGraphException(
-          this.errorCode, getMessage(), dependencyKey, this.configurationError);
+      return new DependencyGraphException(this.errorCode, getMessage(), dependencyKey);
     }
   }
 
