@@ -3,20 +3,21 @@
   "deny": [
     {
       "id": "unsupported_jvm",
-      "description": "Skip older JVMs",
+      "description": "Exclude older JVMs",
       "os": null,
       "cmds": [
         "**/java-1.5*/**/java",
         "**/java-1.6*/**/java",
+        "**/java-1.7*/**/java",
         "**/java-6*/**/java",
-        "**/java-7/**/java"
+        "**/java-7*/**/java"
       ],
       "args": [],
       "envars": null
     },
     {
       "id": "java8_version",
-      "description": "Skip java -version command",
+      "description": "Exclude java -version command",
       "os": null,
       "cmds": [
         "**/java"
@@ -26,14 +27,14 @@
           "args": [
             "-version"
           ],
-          "position": 1
+          "position": null
         }
       ],
       "envars": null
     },
     {
       "id": "java_version",
-      "description": "Skip java --version command",
+      "description": "Exclude java --version command",
       "os": null,
       "cmds": [
         "**/java"
@@ -43,7 +44,7 @@
           "args": [
             "--version"
           ],
-          "position": 1
+          "position": null
         }
       ],
       "envars": null
@@ -53,29 +54,35 @@
     "glibc": [
       {
         "arch": "x86",
-        "supported": true
+        "supported": true,
+        "description": "glibc on x86 is fully supported, no minimum version required"
       },
       {
         "arch": "x64",
-        "supported": true
+        "supported": true,
+        "description": "glibc on x64 is fully supported, no minimum version required"
       },
       {
         "arch": "arm64",
-        "supported": true
+        "supported": true,
+        "description": "glibc on arm64 is fully supported, no minimum version required"
       }
     ],
     "musl": [
       {
         "arch": "x86",
-        "supported": true
+        "supported": true,
+        "description": "musl on x86 is fully supported, no minimum version required"
       },
       {
         "arch": "x64",
-        "supported": true
+        "supported": true,
+        "description": "musl on x64 is fully supported, no minimum version required"
       },
       {
         "arch": "arm64",
-        "supported": true
+        "supported": true,
+        "description": "musl on arm64 is fully supported, no minimum version required"
       }
     ]
   }
