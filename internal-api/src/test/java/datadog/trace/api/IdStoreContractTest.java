@@ -658,10 +658,9 @@ class IdStoreContractTest {
   /** Each store, against each value an Entry classifies or coerces differently. */
   static Stream<Arguments> storesAndValues() {
     return stores()
-        .flatMap(
-            store ->
-                TagValueConversionsTest.values()
-                    .map(value -> arguments(store.get()[0], named(describe(value), value))));
+        .flatMap(store ->
+            TagValueConversionsTest.values()
+                .map(value -> arguments(store.get()[0], named(describe(value), value))));
   }
 
   private static String describe(Object value) {
@@ -675,7 +674,7 @@ class IdStoreContractTest {
   @ParameterizedTest
   @MethodSource("storesAndValues")
   void readerAgreesWithEntry(Function<IdStore, IdStore> newStore, Object value) {
-    long tagId = KnownTags.HTTP_METHOD_ID;
+    long tagId = KnownTags.HTTP_METHOD;
     IdStore store = newStore.apply(null);
     store.store(tagId, value);
 

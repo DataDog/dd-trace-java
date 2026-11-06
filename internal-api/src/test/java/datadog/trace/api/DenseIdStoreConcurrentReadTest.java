@@ -39,27 +39,24 @@ class DenseIdStoreConcurrentReadTest {
     for (int t = 0; t < threads; ++t) {
       final int offset = t;
       Thread reader =
-          new Thread(
-              () -> {
-                try {
-                  start.await();
-                } catch (InterruptedException e) {
-                  return;
-                }
-                for (int i = 0; i < 20_000 && mismatch.get() == null; ++i) {
-                  long id = ids.get((i + offset) % ids.size());
-                  String name = KnownTagCodec.nameOf(id);
-                  TagMap.Entry entry = shared.getEntry(id);
-                  TagMap.EntryReader viaReader = store.getEntryReader(id);
-                  if (!name.equals(entry.tag()) || !name.equals(entry.objectValue())) {
-                    mismatch.set(name + " read as " + entry.tag() + "=" + entry.objectValue());
-                  } else if (!name.equals(viaReader.tag())
-                      || !name.equals(viaReader.objectValue())) {
-                    mismatch.set(
-                        name + " read as " + viaReader.tag() + "=" + viaReader.objectValue());
-                  }
-                }
-              });
+          new Thread(() -> {
+            try {
+              start.await();
+            } catch (InterruptedException e) {
+              return;
+            }
+            for (int i = 0; i < 20_000 && mismatch.get() == null; ++i) {
+              long id = ids.get((i + offset) % ids.size());
+              String name = KnownTagCodec.nameOf(id);
+              TagMap.Entry entry = shared.getEntry(id);
+              TagMap.EntryReader viaReader = store.getEntryReader(id);
+              if (!name.equals(entry.tag()) || !name.equals(entry.objectValue())) {
+                mismatch.set(name + " read as " + entry.tag() + "=" + entry.objectValue());
+              } else if (!name.equals(viaReader.tag()) || !name.equals(viaReader.objectValue())) {
+                mismatch.set(name + " read as " + viaReader.tag() + "=" + viaReader.objectValue());
+              }
+            }
+          });
       readers.add(reader);
       reader.start();
     }
