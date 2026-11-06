@@ -3,6 +3,7 @@ package datadog.trace.common.metrics;
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V06_METRICS_ENDPOINT;
 import static datadog.trace.common.metrics.EventListener.EventType.OK;
 import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -17,6 +18,7 @@ import static org.mockito.Mockito.verify;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -55,7 +57,7 @@ class OkHttpSinkTest {
     doAnswer(invocation -> respond(invocation.getArgument(0), responseCode))
         .when(client)
         .newCall(any());
-    sink.accept(0, ByteBuffer.allocate(0));
+    sink.accept(0, Collections.singletonList(ByteBuffer.allocate(0)));
 
     verify(client, times(1)).newCall(any());
     verify(listener).onEvent(eq(eventType), any());
@@ -97,8 +99,8 @@ class OkHttpSinkTest {
         .newCall(any());
 
     // one slow response followed by a request
-    sink.accept(1, ByteBuffer.allocate(0));
-    sink.accept(1, ByteBuffer.allocate(0));
+    sink.accept(1, Collections.singletonList(ByteBuffer.allocate(0)));
+    sink.accept(1, Collections.singletonList(ByteBuffer.allocate(0)));
     latch.await(10, SECONDS);
 
     // the second request degrades to async mode
@@ -112,12 +114,54 @@ class OkHttpSinkTest {
     assertTrue(sink.isInDegradedMode());
 
     // the agent has recovered and has responded quickly once
-    sink.accept(1, ByteBuffer.allocate(0));
+    sink.accept(1, Collections.singletonList(ByteBuffer.allocate(0)));
 
     // the request was sent synchronously
     verify(client, times(3)).newCall(any());
     assertEquals(asyncRequests, sink.asyncRequestCount());
     assertFalse(sink.isInDegradedMode());
+  }
+
+  @Test
+  void asyncModeSendsACopyOfThePayload() throws Exception {
+    // the writer reuses its chunks for the next payload as soon as accept returns, so a request
+    // queued in async mode must not share them
+    String agentUrl = "http://localhost:8126";
+    CountDownLatch latch = new CountDownLatch(2);
+    BlockingListener listener = new BlockingListener(latch);
+    OkHttpClient client = mock(OkHttpClient.class);
+    OkHttpSink sink =
+        new OkHttpSink(client, agentUrl, V06_METRICS_ENDPOINT, true, false, Collections.emptyMap());
+    sink.register(listener);
+    AtomicInteger callCount = new AtomicInteger(0);
+    List<byte[]> sentBodies = new CopyOnWriteArrayList<>();
+    doAnswer(
+            invocation -> {
+              Request request = invocation.getArgument(0);
+              okio.Buffer body = new okio.Buffer();
+              request.body().writeTo(body);
+              sentBodies.add(body.readByteArray());
+              if (callCount.incrementAndGet() == 1) {
+                // a slow agent switches the sink to async mode
+                Thread.sleep(1001);
+              }
+              return respond(request, 200);
+            })
+        .when(client)
+        .newCall(any());
+
+    sink.accept(1, Collections.singletonList(ByteBuffer.wrap(new byte[] {1})));
+    byte[] first = {2, 3};
+    byte[] second = {4, 5};
+    sink.accept(1, Arrays.asList(ByteBuffer.wrap(first), ByteBuffer.wrap(second)));
+    assertTrue(sink.isInDegradedMode());
+    // the writer starts its next payload in the same chunks
+    Arrays.fill(first, (byte) 9);
+    Arrays.fill(second, (byte) 9);
+    latch.await(10, SECONDS);
+
+    assertEquals(2, sentBodies.size());
+    assertArrayEquals(new byte[] {2, 3, 4, 5}, sentBodies.get(1));
   }
 
   private static Call respond(Request request, int code) throws IOException {
