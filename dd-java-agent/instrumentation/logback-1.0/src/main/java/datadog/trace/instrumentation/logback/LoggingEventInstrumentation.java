@@ -28,9 +28,23 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class LoggingEventInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.CanShortcutTypeMatching,
+        Instrumenter.ForBootstrap,
+        Instrumenter.HasMethodAdvice {
   public LoggingEventInstrumentation() {
     super("logback");
+  }
+
+  @Override
+  public String[] knownMatchingTypes() {
+    return new String[] {
+      "ch.qos.logback.classic.spi.LoggingEvent", "ch.qos.logback.classic.spi.LoggingEventVO"
+    };
+  }
+
+  @Override
+  public boolean onlyMatchKnownTypes() {
+    return false;
   }
 
   @Override

@@ -187,6 +187,7 @@
 0 ch.qos.logback.classic.spi.LoggingEvent*
 # We instrument this Runnable
 0 ch.qos.logback.core.AsyncAppenderBase$Worker
+0 ch.qos.logback.core.pattern.PatternLayoutBase
 2 com.beust.jcommander.*
 2 com.carrotsearch.hppc.*
 0 com.carrotsearch.hppc.HashOrderMixing$*

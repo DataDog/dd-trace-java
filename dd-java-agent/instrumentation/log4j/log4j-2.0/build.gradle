@@ -15,6 +15,13 @@ configurations {
 
 muzzle {
   pass {
+    name = 'pattern-layout'
+    group = 'org.apache.logging.log4j'
+    module = 'log4j-core'
+    versions = '[2.0,3.0.0)'
+  }
+
+  pass {
     name = "default"
     group = 'org.apache.logging.log4j'
     module = 'log4j-core'
