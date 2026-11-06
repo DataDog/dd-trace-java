@@ -201,11 +201,15 @@ public final class FeatureFlagsRuntime {
 
   /**
    * Reports what happens to the selection of an acquiring provider: a selection different from the
-   * claimed one is not used, and an equal one is sent, or not, as the claimed one is.
+   * claimed one is not used, and an equal one is sent, or not, as the claimed one is. Remote
+   * Configuration uses no selection at all, so only its own warning applies.
    */
   private void reportSelection(final FlagSelectionRequest selection) {
-    if (this.source instanceof RemoteConfigurationService && !selection.isNone()) {
-      FlagSelectionRequest.warnRemoteConfiguration();
+    if (this.source instanceof RemoteConfigurationService) {
+      if (!selection.isNone()) {
+        FlagSelectionRequest.warnRemoteConfiguration();
+      }
+      return;
     }
     if (selection.equals(this.claimedSelection)) {
       this.sentSelection.reportNotSent(this.services);

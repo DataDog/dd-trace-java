@@ -645,8 +645,7 @@ class FeatureFlagsRuntimeTest {
       FeatureFlagsRuntime.acquire(bridge, legacyRemoteConfig, AREA_CHECKOUT);
       FeatureFlagsRuntime.acquire(bridge, legacyRemoteConfig, AREA_CHECKOUT);
 
-      assertEquals(
-          asList(REMOTE_CONFIG_WARNING, SECOND_SELECTION_WARNING), flagSelectionMessages());
+      assertEquals(singletonList(REMOTE_CONFIG_WARNING), flagSelectionMessages());
     } finally {
       FeatureFlagsRuntime.release();
       FeatureFlagsRuntime.release();
