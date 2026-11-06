@@ -22,6 +22,7 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.context.Context;
+import datadog.trace.api.KnownTagCodec;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.config.inversion.ConfigHelper;
@@ -64,7 +65,12 @@ class BaseDecoratorTest extends DDJavaSpecification {
   @BeforeEach
   void setupDecoratorAndSpan() {
     decorator = newDecorator();
-    span = mockSpan();
+    span = ((NameKeyedAgentSpan) mockSpan()).ofKind(spanKind());
+  }
+
+  /** The kind of the spans the decorator under test makes, which names its projected tags. */
+  protected int spanKind() {
+    return KnownTagCodec.KIND_UNSET;
   }
 
   /**

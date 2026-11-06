@@ -82,6 +82,12 @@ class TagMapTagHashTest {
     assertEquals(tagIds.size(), copy.size());
     for (long tagId : tagIds) {
       String name = KnownTagCodec.nameOf(tagId);
+      if (KnownTagCodec.hasProjectedName(tagId)) {
+        // a projected concept has no direction-free name: read it by id
+        assertEquals("value", map.getEntry(tagId).objectValue(), name);
+        assertEquals("value", copy.getEntry(tagId).objectValue(), name);
+        continue;
+      }
       assertEquals("value", map.getObject(name), name);
       assertEquals("value", copy.getObject(name), name);
     }

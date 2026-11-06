@@ -61,7 +61,7 @@ class IdStoreContractTest {
     store.store(KnownTags.HTTP_METHOD, (CharSequence) "GET");
     store.store(KnownTags.ERROR, true);
     store.store(KnownTags.HTTP_STATUS_CODE, 200);
-    store.store(KnownTags.PEER_PORT, 5432L);
+    store.store(KnownTags.DB_REDIS_DBINDEX, 5432L);
     store.store(KnownTags.DD_AGENT_PSR, 0.5f);
     store.store(KnownTags.DB_TYPE, (Object) "postgres");
     store.store(KnownTags.COMPONENT, (CharSequence) "jdbc");
@@ -87,7 +87,7 @@ class IdStoreContractTest {
     assertEquals(KnownTags.HTTP_STATUS_CODE, status.tagId());
     assertEquals("http.status_code", status.tag());
 
-    assertEquals(5432L, store.getEntryReader(KnownTags.PEER_PORT).longValue());
+    assertEquals(5432L, store.getEntryReader(KnownTags.DB_REDIS_DBINDEX).longValue());
     assertEquals(0.5f, store.getEntryReader(KnownTags.DD_AGENT_PSR).floatValue());
     assertEquals(2.5d, store.getEntryReader(KnownTags.DB_INSTANCE).doubleValue());
 
@@ -374,11 +374,11 @@ class IdStoreContractTest {
     parent.store(KnownTags.HTTP_ROUTE, "/inherited");
     parent.store(KnownTags.COMPONENT, "hidden");
     IdStore store = newStore.apply(parent);
-    store.store(KnownTags.PEER_PORT, 5432);
+    store.store(KnownTags.DB_REDIS_DBINDEX, 5432);
     store.store(KnownTags.DB_INSTANCE, 1.5d);
     store.remove(KnownTags.COMPONENT);
 
-    assertEquals("5432", store.loadString(KnownTags.PEER_PORT));
+    assertEquals("5432", store.loadString(KnownTags.DB_REDIS_DBINDEX));
     assertEquals("1.5", store.loadString(KnownTags.DB_INSTANCE));
     assertEquals("/inherited", store.loadString(KnownTags.HTTP_ROUTE));
     assertNull(store.loadString(KnownTags.COMPONENT), "hidden by the removal");
@@ -392,14 +392,14 @@ class IdStoreContractTest {
   void aViewReadsValuesFromEitherStore(Function<IdStore, IdStore> newStore) {
     IdStore store = newStore.apply(null);
     store.store(KnownTags.HTTP_ROUTE, "/a");
-    store.store(KnownTags.PEER_PORT, 5432);
+    store.store(KnownTags.DB_REDIS_DBINDEX, 5432);
     HashStore names = HashStore.create(null);
     names.store("my.tag", 7);
 
     TagMap view = TagMap.viewOf(store, names, false);
     assertEquals("/a", view.getObject(KnownTags.HTTP_ROUTE_NAME));
-    assertEquals(5432, view.getObject("peer.port"));
-    assertEquals("5432", view.getString("peer.port"));
+    assertEquals(5432, view.getObject("db.redis.dbIndex"));
+    assertEquals("5432", view.getString("db.redis.dbIndex"));
     assertEquals(7, view.getObject("my.tag"));
     assertEquals("7", view.getString("my.tag"));
     assertNull(view.getObject(KnownTags.HTTP_METHOD_NAME));
@@ -411,28 +411,28 @@ class IdStoreContractTest {
   @MethodSource("stores")
   void aViewReadsPrimitivesThroughAReader(Function<IdStore, IdStore> newStore) {
     IdStore store = newStore.apply(null);
-    store.store(KnownTags.PEER_PORT, 5432);
+    store.store(KnownTags.DB_REDIS_DBINDEX, 5432);
     store.store(KnownTags.DB_INSTANCE, 1.5d);
     store.store(KnownTags.DD_MEASURED, true);
     HashStore names = HashStore.create(null);
     names.store("my.count", 7L);
 
     TagMap view = TagMap.viewOf(store, names, false);
-    assertEquals(5432, view.getInt("peer.port"));
-    assertEquals(5432L, view.getLong("peer.port"));
+    assertEquals(5432, view.getInt("db.redis.dbIndex"));
+    assertEquals(5432L, view.getLong("db.redis.dbIndex"));
     assertEquals(1.5d, view.getDouble("db.instance"));
     assertEquals(1.5f, view.getFloat("db.instance"));
     assertTrue(view.getBoolean(KnownTags.DD_MEASURED_NAME));
     assertEquals(7L, view.getLong("my.count"));
     assertEquals(-1, view.getIntOrDefault(KnownTags.HTTP_METHOD_NAME, -1));
     assertEquals(-1L, view.getLongOrDefault("other.tag", -1L));
-    assertTrue(view.containsKey("peer.port"));
+    assertTrue(view.containsKey("db.redis.dbIndex"));
     assertTrue(view.containsKey("my.count"));
     assertFalse(view.containsKey("other.tag"));
 
-    EntryReader port = view.getEntryReader(KnownTags.PEER_PORT);
+    EntryReader port = view.getEntryReader(KnownTags.DB_REDIS_DBINDEX);
     assertEquals(5432, port.intValue());
-    assertEquals(KnownTags.PEER_PORT, port.tagId());
+    assertEquals(KnownTags.DB_REDIS_DBINDEX, port.tagId());
     assertEquals(7L, view.getEntryReader("my.count").longValue());
     assertNull(view.getEntryReader(KnownTags.HTTP_METHOD));
     assertNull(TagMap.viewOf(store, null, false).getEntryReader("my.count"), "no custom store");
@@ -444,7 +444,7 @@ class IdStoreContractTest {
     IdStore store = newStore.apply(null);
     store.store(KnownTags.HTTP_ROUTE, "/a");
     store.store(KnownTags.HTTP_METHOD, "GET");
-    store.store(KnownTags.PEER_PORT, 5432);
+    store.store(KnownTags.DB_REDIS_DBINDEX, 5432);
     HashStore names = HashStore.create(null);
     names.store("my.tag", "custom");
     TagMap view = TagMap.viewOf(store, names, false);
@@ -458,7 +458,7 @@ class IdStoreContractTest {
     Map<String, Object> expected = new HashMap<>();
     expected.put("http.route", "/a");
     expected.put("http.method", "GET");
-    expected.put("peer.port", 5432);
+    expected.put("db.redis.dbIndex", 5432);
     expected.put("my.tag", "custom");
     assertEquals(expected, byName);
   }
@@ -470,17 +470,17 @@ class IdStoreContractTest {
     view.put("http.route", "/a");
     view.put("my.tag", "custom");
     view.set("http.method", "GET");
-    view.set("peer.port", 5432);
+    view.set("db.redis.dbIndex", 5432);
 
     assertEquals("/a", view.put("http.route", null), "returns the prior value");
     assertEquals("custom", view.put("my.tag", null));
     view.set("http.method", (Object) null);
-    assertEquals(5432, view.getAndSet("peer.port", (Object) null).objectValue());
+    assertEquals(5432, view.getAndSet("db.redis.dbIndex", (Object) null).objectValue());
     Map<String, Object> withNull = new HashMap<>();
     withNull.put("http.route", null);
     view.putAll(withNull); // already absent: still absent
 
-    for (String tag : new String[] {"http.route", "my.tag", "http.method", "peer.port"}) {
+    for (String tag : new String[] {"http.route", "my.tag", "http.method", "db.redis.dbIndex"}) {
       assertFalse(view.containsKey(tag), tag);
       assertNull(view.get(tag), tag);
     }

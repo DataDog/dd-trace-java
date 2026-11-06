@@ -110,37 +110,39 @@ public interface AgentSpan
    * Id-keyed setTag family: the caller passes a KnownTags id instead of a name. The default
    * resolves the id to its name and delegates to the String setter, which is correct for every
    * implementation; the core span overrides these to skip the name lookup when storing the tag.
+   * A concept whose Datadog name depends on the span's kind (server.port) is named from this span's
+   * kind, as the core span names it.
    */
   default AgentSpan setTag(long tagId, boolean value) {
-    return setTag(KnownTagCodec.nameOf(tagId), value);
+    return setTag(KnownTagCodec.nameOnSpan(tagId, this), value);
   }
 
   default AgentSpan setTag(long tagId, int value) {
-    return setTag(KnownTagCodec.nameOf(tagId), value);
+    return setTag(KnownTagCodec.nameOnSpan(tagId, this), value);
   }
 
   default AgentSpan setTag(long tagId, long value) {
-    return setTag(KnownTagCodec.nameOf(tagId), value);
+    return setTag(KnownTagCodec.nameOnSpan(tagId, this), value);
   }
 
   default AgentSpan setTag(long tagId, float value) {
-    return setTag(KnownTagCodec.nameOf(tagId), value);
+    return setTag(KnownTagCodec.nameOnSpan(tagId, this), value);
   }
 
   default AgentSpan setTag(long tagId, double value) {
-    return setTag(KnownTagCodec.nameOf(tagId), value);
+    return setTag(KnownTagCodec.nameOnSpan(tagId, this), value);
   }
 
   default AgentSpan setTag(long tagId, String value) {
-    return setTag(KnownTagCodec.nameOf(tagId), value);
+    return setTag(KnownTagCodec.nameOnSpan(tagId, this), value);
   }
 
   default AgentSpan setTag(long tagId, CharSequence value) {
-    return setTag(KnownTagCodec.nameOf(tagId), value);
+    return setTag(KnownTagCodec.nameOnSpan(tagId, this), value);
   }
 
   default AgentSpan setTag(long tagId, Object value) {
-    return setTag(KnownTagCodec.nameOf(tagId), value);
+    return setTag(KnownTagCodec.nameOnSpan(tagId, this), value);
   }
 
   /** entry may be null - in which case the tags remained unchanged */

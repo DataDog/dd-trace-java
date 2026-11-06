@@ -223,13 +223,23 @@ public abstract class BaseDecorator {
   }
 
   public void setPeerPort(AgentSpan span, String port) {
-    span.setTag(KnownTags.PEER_PORT, port);
+    span.setTag(peerPortTag(), port);
   }
 
   public void setPeerPort(AgentSpan span, int port) {
     if (port > UNSET_PORT) {
-      span.setTag(KnownTags.PEER_PORT, port);
+      span.setTag(peerPortTag(), port);
     }
+  }
+
+  /**
+   * The concept this decorator's peer port is. The other end of a client, producer or consumer span
+   * is the server (a consumer's broker included), so by default it is the server's port; a server
+   * decorator's other end is the client. A Datadog name alone ({@code peer.port}) would mean
+   * either.
+   */
+  protected long peerPortTag() {
+    return KnownTags.SERVER_PORT;
   }
 
   /**

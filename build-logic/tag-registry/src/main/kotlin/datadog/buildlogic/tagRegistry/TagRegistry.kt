@@ -24,9 +24,12 @@ package datadog.buildlogic.tagRegistry
  * a constant id then folds the interception test away. TagInterceptor's switch stays the authority
  * on what each tag does; a test there keeps the bit and the switch in agreement.
  *
- * <p>There is one tag, and one id, per Datadog name. A name the conventions declare once per
- * direction, as `peer.port` is, is still one tag: only its OpenTelemetry name depends on the span's
- * direction, so direction is applied when a tag is named, never when it is stored.
+ * <p>There is one tag, and one id, per concept. Almost every concept is named by its Datadog name.
+ * A concept whose Datadog name depends on the span's kind -- `server.port` is `server.port` on a
+ * server span and `peer.port` on a client span -- is declared with `concept:` and named by its
+ * OpenTelemetry role name; its Datadog name is projected from the span's kind when the tag is
+ * written (see [Tag.datadogNames]). Such a concept's names are left out of the direction-free
+ * name lookup, since no one of them names it everywhere.
  */
 class TagRegistry private constructor(
   val tags: List<Tag>,
@@ -49,7 +52,13 @@ class TagRegistry private constructor(
     val scopedOtelNames: Map<TagConventions.Direction, String> = emptyMap(),
     /** The tag's slot is shared with another optional tag on one of its span types, after an overflow. */
     val sharesSlot: Boolean = false,
+    /** A projected concept's Datadog name on spans of each kind; empty for every other tag. */
+    val datadogNames: Map<TagConventions.SpanKind, String> = emptyMap(),
   ) {
+    /** True for a concept whose Datadog name is projected by span kind. */
+    val projected: Boolean
+      get() = datadogNames.isNotEmpty()
+
     /** The tag as reports and generated constant names show it. */
     val name: String
       get() = ddName
@@ -106,10 +115,12 @@ class TagRegistry private constructor(
             otelName = otelName,
             scopedOtelNames = scoped,
             sharesSlot = first.ddName in sharing,
+            datadogNames = first.datadogNames,
           )
         }
 
       validateOtelNames(tags)
+      validateProjections(tags)
       val names = tags.flatMap { listOfNotNull(it.ddName, it.otelName) + it.scopedOtelNames.values }.toSet()
       val unknownJavaNames = conv.javaNames.keys - names
       require(unknownJavaNames.isEmpty()) {
@@ -119,28 +130,30 @@ class TagRegistry private constructor(
     }
 
     /**
-     * A tag whose Datadog name is also another tag's direction-scoped OpenTelemetry name keeps that
-     * name in every direction the other tag doesn't claim it: `server.port` is its own tag (the
-     * server's port), except on outbound spans, where it is `peer.port`. The Datadog name still
-     * resolves to the tag without a direction; only OpenTelemetry-side resolution by direction maps
-     * it to the other tag.
+     * A Datadog name that is also another tag's direction-scoped OpenTelemetry name names different
+     * things on different spans (before concepts, `server.port` was the server's own port, and
+     * peer.port's OpenTelemetry name on outbound spans). That is ambiguity the conventions must
+     * declare as concepts, not something the generator resolves on its own.
      */
     private fun claimSharedNames(tags: List<Tag>): List<Tag> {
       val claimedBy = HashMap<String, MutableSet<TagConventions.Direction>>()
       for (t in tags) {
+        if (t.projected) continue
         for ((direction, otel) in t.scopedOtelNames) {
           claimedBy.getOrPut(otel) { mutableSetOf() }.add(direction)
         }
       }
-      return tags.map { t ->
-        val claimed = claimedBy[t.ddName] ?: return@map t
-        require(t.otelName == null && t.scopedOtelNames.isEmpty()) {
-          "'${t.name}' is another tag's OpenTelemetry name on ${claimed.joinToString { it.yamlKey }} " +
-            "spans, so it cannot be renamed itself"
-        }
-        val own = TagConventions.Direction.entries.filter { it !in claimed }.associateWith { t.ddName }
-        t.copy(scopedOtelNames = own.toSortedMap())
+      for (t in tags) {
+        if (t.projected) continue
+        val claimed = claimedBy[t.ddName] ?: continue
+        throw IllegalArgumentException(
+          "'${t.name}' is a Datadog name, and also another tag's OpenTelemetry name on " +
+            "${claimed.joinToString { it.yamlKey }} spans, so it names different things on different " +
+            "spans. Declare each meaning once as a concept in the top-level `concepts:` section, with " +
+            "'${t.name}' as its Datadog name where it applies."
+        )
       }
+      return tags
     }
 
     /** Requirement levels whose tags may share a slot with each other when a span type overflows. */
@@ -235,6 +248,32 @@ class TagRegistry private constructor(
       return null to scoped
     }
 
+    /**
+     * A projected concept's Datadog names must resolve back to it: on spans of one kind, a Datadog
+     * name projects from at most one concept. Its names (concept, Datadog, OpenTelemetry) are left
+     * out of the direction-free lookup, so none may also be another tag's name there.
+     */
+    private fun validateProjections(tags: List<Tag>) {
+      val owner = HashMap<Pair<TagConventions.SpanKind, String>, String>()
+      val plainNames =
+        tags.filter { !it.projected }.flatMap { listOfNotNull(it.ddName, it.otelName) + it.scopedOtelNames.values }.toSet()
+      for (t in tags.filter { it.projected }) {
+        for ((kind, name) in t.datadogNames) {
+          val prev = owner.put(kind to name, t.name)
+          require(prev == null || prev == t.name) {
+            "Datadog name '$name' projects from both '$prev' and '${t.name}' on " +
+              "${kind.yamlKey ?: "unkinded"} spans"
+          }
+        }
+        val names = t.datadogNames.values + t.ddName + t.scopedOtelNames.values + listOfNotNull(t.otelName)
+        for (name in names) {
+          require(name !in plainNames) {
+            "'$name', a name of projected concept '${t.name}', is also the name of another tag"
+          }
+        }
+      }
+    }
+
     private val REQUIREMENT_STRENGTH = listOf("required", "conditional", "recommended", "optional")
 
     /** The strongest of a name's requirement levels across its declarations per direction. */
@@ -253,7 +292,8 @@ class TagRegistry private constructor(
         val byDirection =
           t.otelName?.let { otel -> TagConventions.Direction.entries.associateWith { otel } } ?: t.scopedOtelNames
         for ((direction, otel) in byDirection) {
-          require(otel != t.ddName && (t.otelName == null || otel !in canonical)) {
+          // A projected concept is named by its OpenTelemetry role name, so the two may coincide.
+          require((t.projected || otel != t.ddName) && (t.otelName == null || otel !in canonical)) {
             "OpenTelemetry name '$otel' (of '${t.name}') collides with canonical tag name '$otel'"
           }
           val prev = owner.put(direction to otel, t.name)

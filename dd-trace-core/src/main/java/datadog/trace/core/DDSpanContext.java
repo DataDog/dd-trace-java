@@ -112,14 +112,15 @@ public class DDSpanContext
 
   // Cached span.kind ordinal for fast isOutbound() checks.
   // Ordinal constants -- keep in sync with SPAN_KIND_VALUES array.
-  static final byte SPAN_KIND_UNSET = 0;
-  static final byte SPAN_KIND_SERVER = 1;
-  static final byte SPAN_KIND_CLIENT = 2;
-  static final byte SPAN_KIND_PRODUCER = 3;
-  static final byte SPAN_KIND_CONSUMER = 4;
-  static final byte SPAN_KIND_INTERNAL = 5;
-  static final byte SPAN_KIND_BROKER = 6;
-  static final byte SPAN_KIND_CUSTOM = 7;
+  // Numbered as KnownTagCodec's KIND_* constants, so the ordinal names a projected concept as is.
+  static final byte SPAN_KIND_UNSET = KnownTagCodec.KIND_UNSET;
+  static final byte SPAN_KIND_SERVER = KnownTagCodec.KIND_SERVER;
+  static final byte SPAN_KIND_CLIENT = KnownTagCodec.KIND_CLIENT;
+  static final byte SPAN_KIND_PRODUCER = KnownTagCodec.KIND_PRODUCER;
+  static final byte SPAN_KIND_CONSUMER = KnownTagCodec.KIND_CONSUMER;
+  static final byte SPAN_KIND_INTERNAL = KnownTagCodec.KIND_INTERNAL;
+  static final byte SPAN_KIND_BROKER = KnownTagCodec.KIND_BROKER;
+  static final byte SPAN_KIND_CUSTOM = KnownTagCodec.KIND_CUSTOM;
 
   /** Maps ordinal to canonical string constant. Index 0 (UNSET) and 7 (CUSTOM) are null. */
   static final String[] SPAN_KIND_VALUES = {
@@ -134,6 +135,19 @@ public class DDSpanContext
   };
 
   private volatile byte spanKindOrdinal = SPAN_KIND_UNSET;
+
+  /*
+   * Projected concepts (KnownTagCodec.hasProjectedName), such as server.port: stored under the
+   * Datadog name the span's kind gives them when written. Guarded by the tag lock.
+   */
+  /** A projected concept was written, so its name already depends on the span's kind. */
+  private boolean projectedTagWritten;
+
+  /** A name some kinds project (peer.port) was stored as a plain tag, its meaning still unknown. */
+  private boolean unresolvedProjectedName;
+
+  /** {@link #projectedNameTarget}: the plain-name write is dropped, a concept already holds it. */
+  private static final long DROP_PROJECTED_NAME = -1L;
 
   private CharSequence integrationName;
   private CharSequence serviceNameSource;
@@ -676,7 +690,7 @@ public class DDSpanContext
               return;
             }
             if (!ctx.tagInterceptor.interceptTag(ctx, tagEntry)) {
-              ctx.unsafeTags.set(tagEntry);
+              ctx.setEntryLocked(tagEntry);
             }
           });
     }
@@ -931,7 +945,19 @@ public class DDSpanContext
    * span.kind is set.
    */
   public void setSpanKindOrdinal(String kind) {
-    spanKindOrdinal = spanKindOrdinalOf(kind);
+    setSpanKindOrdinal(spanKindOrdinalOf(kind));
+  }
+
+  private void setSpanKindOrdinal(byte ordinal) {
+    // Strict check (assertions are on in tests): a projected concept took its Datadog name from the
+    // kind when it was written, so the kind must not change afterwards.
+    assert !projectedTagWritten || ordinal == spanKindOrdinal
+        : "span.kind changed from "
+            + spanKindOrdinal
+            + " to "
+            + ordinal
+            + " after a tag whose Datadog name depends on it was written";
+    spanKindOrdinal = ordinal;
   }
 
   static byte spanKindOrdinalOf(String kind) {
@@ -1019,10 +1045,22 @@ public class DDSpanContext
   public void removeTag(String tag) {
     if (tagEquals(tag, Tags.SPAN_KIND)) {
       // Clear the cached ordinal; unsafeTags still needs to be updated below.
-      spanKindOrdinal = SPAN_KIND_UNSET;
+      setSpanKindOrdinal(SPAN_KIND_UNSET);
     }
     synchronized (unsafeTags) {
       unsafeTags.remove(tag);
+      removeProjectedLocked(tag);
+    }
+  }
+
+  /** Removes the projected concept stored under {@code tag}, a Datadog name, if there is one. */
+  private void removeProjectedLocked(String tag) {
+    long tagId = KnownTagCodec.datadogKeyOf(tag, spanKindOrdinal);
+    if (tagId != 0) {
+      TagMap.Entry entry = unsafeTags.getEntry(tagId);
+      if (entry != null && tag.equals(entry.tag())) {
+        unsafeTags.getAndRemove(tagId);
+      }
     }
   }
 
@@ -1037,7 +1075,7 @@ public class DDSpanContext
       return;
     }
     if (tagId == KnownTags.SPAN_KIND) {
-      spanKindOrdinal = SPAN_KIND_UNSET;
+      setSpanKindOrdinal(SPAN_KIND_UNSET);
     }
     synchronized (unsafeTags) {
       unsafeTags.getAndRemove(tagId);
@@ -1067,7 +1105,7 @@ public class DDSpanContext
       removeTag(tag);
     } else if (!tagInterceptor.interceptCustomTag(this, tag, value)) {
       synchronized (unsafeTags) {
-        unsafeTags.set(tag, value);
+        setNamedLocked(tag, value);
       }
     }
   }
@@ -1083,7 +1121,7 @@ public class DDSpanContext
       removeTag(tag);
     } else if (!tagInterceptor.interceptCustomTag(this, tag, value)) {
       synchronized (unsafeTags) {
-        unsafeTags.set(tag, value);
+        setNamedLocked(tag, value);
       }
     }
   }
@@ -1099,6 +1137,8 @@ public class DDSpanContext
     }
     if (null == value) {
       removeTag(tagId);
+    } else if (KnownTagCodec.hasProjectedName(tagId)) {
+      setProjected(tagId, (Object) value);
     } else if (!tagInterceptor.needsIntercept(tagId)
         || !tagInterceptor.interceptTag(this, tagId, value)) {
       synchronized (unsafeTags) {
@@ -1113,6 +1153,8 @@ public class DDSpanContext
     }
     if (null == value) {
       removeTag(tagId);
+    } else if (KnownTagCodec.hasProjectedName(tagId)) {
+      setProjected(tagId, (Object) value);
     } else if (!tagInterceptor.needsIntercept(tagId)
         || !tagInterceptor.interceptTag(this, tagId, value)) {
       synchronized (unsafeTags) {
@@ -1125,7 +1167,9 @@ public class DDSpanContext
     if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
-    if (tagInterceptor.needsIntercept(tagId)) {
+    if (KnownTagCodec.hasProjectedName(tagId)) {
+      setProjected(tagId, (Object) value);
+    } else if (tagInterceptor.needsIntercept(tagId)) {
       this.setBox(tagId, value);
     } else {
       synchronized (unsafeTags) {
@@ -1138,7 +1182,9 @@ public class DDSpanContext
     if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
-    if (tagInterceptor.needsIntercept(tagId)) {
+    if (KnownTagCodec.hasProjectedName(tagId)) {
+      setProjected(tagId, value);
+    } else if (tagInterceptor.needsIntercept(tagId)) {
       this.setBox(tagId, value);
     } else {
       synchronized (unsafeTags) {
@@ -1151,7 +1197,9 @@ public class DDSpanContext
     if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
-    if (tagInterceptor.needsIntercept(tagId)) {
+    if (KnownTagCodec.hasProjectedName(tagId)) {
+      setProjected(tagId, value);
+    } else if (tagInterceptor.needsIntercept(tagId)) {
       this.setBox(tagId, value);
     } else {
       synchronized (unsafeTags) {
@@ -1164,7 +1212,9 @@ public class DDSpanContext
     if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
-    if (tagInterceptor.needsIntercept(tagId)) {
+    if (KnownTagCodec.hasProjectedName(tagId)) {
+      setProjected(tagId, (Object) value);
+    } else if (tagInterceptor.needsIntercept(tagId)) {
       this.setBox(tagId, value);
     } else {
       synchronized (unsafeTags) {
@@ -1177,7 +1227,9 @@ public class DDSpanContext
     if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
-    if (tagInterceptor.needsIntercept(tagId)) {
+    if (KnownTagCodec.hasProjectedName(tagId)) {
+      setProjected(tagId, (Object) value);
+    } else if (tagInterceptor.needsIntercept(tagId)) {
       this.setBox(tagId, value);
     } else {
       synchronized (unsafeTags) {
@@ -1194,8 +1246,126 @@ public class DDSpanContext
     // the interceptor prechecks the entry, to avoid boxing
     if (!tagInterceptor.interceptTag(this, entry)) {
       synchronized (unsafeTags) {
-        unsafeTags.set(entry);
+        setEntryLocked(entry);
       }
+    }
+  }
+
+  /*
+   * Projected concepts. Instrumentation writes a concept's id (KnownTags.SERVER_PORT), so the span
+   * names it from its kind; a write by a name some kinds project (peer.port) resolves it the same way
+   * when the kind says what it means, and otherwise stays a plain tag (see projectedNameTarget).
+   */
+
+  private void setProjected(long tagId, Object value) {
+    synchronized (unsafeTags) {
+      putProjectedLocked(tagId, value);
+    }
+  }
+
+  private void setProjected(long tagId, int value) {
+    synchronized (unsafeTags) {
+      String name = projectedNameLocked(tagId);
+      if (!splitsServiceBy(name, value)) {
+        unsafeTags.internals().setProjected(tagId, name, value);
+      }
+    }
+  }
+
+  private void setProjected(long tagId, long value) {
+    synchronized (unsafeTags) {
+      String name = projectedNameLocked(tagId);
+      if (!splitsServiceBy(name, value)) {
+        unsafeTags.internals().setProjected(tagId, name, value);
+      }
+    }
+  }
+
+  private void putProjectedLocked(long tagId, Object value) {
+    if (value == null) {
+      unsafeTags.getAndRemove(tagId);
+      return;
+    }
+    String name = projectedNameLocked(tagId);
+    if (!splitsServiceBy(name, value)) {
+      unsafeTags.internals().setProjected(tagId, name, value);
+    }
+  }
+
+  /**
+   * Split-by-tags matches a projected concept by the name it takes on this span: splitting by
+   * peer.port splits on the port a client span stores as peer.port, as it did before concepts.
+   * Returns true when the tag was consumed into the service name.
+   */
+  private boolean splitsServiceBy(String name, Object value) {
+    return tagInterceptor.needsInterceptCustomTag(name)
+        && tagInterceptor.interceptCustomTag(this, name, value);
+  }
+
+  /**
+   * The Datadog name for a projected concept on this span, from its kind. A plain tag stored under
+   * that name before the kind was known is dropped, so the name is never on the wire twice: the
+   * concept wins over the unresolved name.
+   */
+  private String projectedNameLocked(long tagId) {
+    String name = KnownTagCodec.datadogNameOf(tagId, spanKindOrdinal);
+    if (unresolvedProjectedName) {
+      unsafeTags.remove(name);
+    }
+    projectedTagWritten = true;
+    return name;
+  }
+
+  /**
+   * Where a write by {@code tag}, a name with no direction-free id, goes: the projected concept the
+   * span's kind says it names; {@link #DROP_PROJECTED_NAME} when the kind says nothing yet but a
+   * concept is already stored under that name (the concept wins); or 0, a plain tag.
+   */
+  private long projectedNameTarget(String tag) {
+    byte kind = spanKindOrdinal;
+    long tagId = KnownTagCodec.datadogWriteKeyOf(tag, kind);
+    if (tagId != 0) {
+      return tagId;
+    }
+    long stored = KnownTagCodec.datadogKeyOf(tag, kind);
+    if (stored == 0) {
+      return 0L;
+    }
+    TagMap.Entry entry = unsafeTags.getEntry(stored);
+    if (entry != null && tag.equals(entry.tag())) {
+      return DROP_PROJECTED_NAME;
+    }
+    unresolvedProjectedName = true;
+    return 0L;
+  }
+
+  /** Stores an entry, naming a projected concept, or resolving a projected name, for this span. */
+  private void setEntryLocked(TagMap.EntryReader entry) {
+    long tagId = entry.tagId();
+    if (tagId != 0) {
+      if (KnownTagCodec.hasProjectedName(tagId)) {
+        putProjectedLocked(tagId, entry.objectValue());
+        return;
+      }
+    } else {
+      long target = projectedNameTarget(entry.tag());
+      if (target == DROP_PROJECTED_NAME) {
+        return;
+      } else if (target != 0) {
+        putProjectedLocked(target, entry.objectValue());
+        return;
+      }
+    }
+    unsafeTags.set(entry);
+  }
+
+  /** Stores {@code value} under {@code tag}, a name with no direction-free id. */
+  private void setNamedLocked(String tag, Object value) {
+    long target = projectedNameTarget(tag);
+    if (target == 0) {
+      unsafeTags.set(tag, value);
+    } else if (target != DROP_PROJECTED_NAME) {
+      putProjectedLocked(target, value);
     }
   }
 
@@ -1229,7 +1399,11 @@ public class DDSpanContext
     } else if (!tagInterceptor.needsInterceptCustomTag(tag)
         || !tagInterceptor.interceptCustomTag(this, tag, value)) {
       synchronized (unsafeTags) {
-        unsafeTags.set(tag, value);
+        if (projectedNameTarget(tag) == 0) {
+          unsafeTags.set(tag, value);
+        } else {
+          setNamedLocked(tag, value);
+        }
       }
     }
   }
@@ -1244,7 +1418,11 @@ public class DDSpanContext
     } else if (!tagInterceptor.needsInterceptCustomTag(tag)
         || !tagInterceptor.interceptCustomTag(this, tag, value)) {
       synchronized (unsafeTags) {
-        unsafeTags.set(tag, value);
+        if (projectedNameTarget(tag) == 0) {
+          unsafeTags.set(tag, value);
+        } else {
+          setNamedLocked(tag, value);
+        }
       }
     }
   }
@@ -1259,7 +1437,11 @@ public class DDSpanContext
     } else if (!tagInterceptor.needsInterceptCustomTag(tag)
         || !tagInterceptor.interceptCustomTag(this, tag, value)) {
       synchronized (unsafeTags) {
-        unsafeTags.set(tag, value);
+        if (projectedNameTarget(tag) == 0) {
+          unsafeTags.set(tag, value);
+        } else {
+          setNamedLocked(tag, value);
+        }
       }
     }
   }
@@ -1274,7 +1456,11 @@ public class DDSpanContext
     } else if (!tagInterceptor.needsInterceptCustomTag(tag)
         || !tagInterceptor.interceptCustomTag(this, tag, value)) {
       synchronized (unsafeTags) {
-        unsafeTags.set(tag, value);
+        if (projectedNameTarget(tag) == 0) {
+          unsafeTags.set(tag, value);
+        } else {
+          setNamedLocked(tag, value);
+        }
       }
     }
   }
@@ -1289,7 +1475,11 @@ public class DDSpanContext
     } else if (!tagInterceptor.needsInterceptCustomTag(tag)
         || !tagInterceptor.interceptCustomTag(this, tag, value)) {
       synchronized (unsafeTags) {
-        unsafeTags.set(tag, value);
+        if (projectedNameTarget(tag) == 0) {
+          unsafeTags.set(tag, value);
+        } else {
+          setNamedLocked(tag, value);
+        }
       }
     }
   }
@@ -1312,10 +1502,12 @@ public class DDSpanContext
             this,
             (ctx, tagEntry) -> {
               if (!ctx.tagInterceptor.interceptTag(ctx, tagEntry)) {
-                ctx.unsafeTags.set(tagEntry);
+                ctx.setEntryLocked(tagEntry);
               }
             });
       } else {
+        // Tracer-level maps (merged tracer tags, core and root span tags) never carry a projected
+        // concept or name, so they are copied as they are.
         unsafeTags.putAll(map);
       }
     }
@@ -1327,23 +1519,43 @@ public class DDSpanContext
     }
 
     synchronized (unsafeTags) {
+      // The builder's tags are replayed in the order they were set, so the last write wins exactly
+      // as before. A name some kinds project (peer.port) is resolved with the kind known at build
+      // time -- whether the builder's kind was set before or after it -- so take the ledger's final
+      // span.kind first.
+      String kind = finalSpanKind(ledger);
+      if (kind != null) {
+        setSpanKindOrdinal(kind);
+      }
       for (final TagMap.EntryChange entryChange : ledger) {
         String tag = entryChange.tag();
         if (entryChange.isRemoval()) {
           if (tagEquals(tag, Tags.SPAN_KIND)) {
             // mirror removeTag(String): keep the cached ordinal in sync with unsafeTags
-            spanKindOrdinal = SPAN_KIND_UNSET;
+            setSpanKindOrdinal(SPAN_KIND_UNSET);
           }
           unsafeTags.remove(tag);
+          removeProjectedLocked(tag);
         } else {
           TagMap.Entry entry = (TagMap.Entry) entryChange;
 
           if (!tagInterceptor.interceptTag(this, entry)) {
-            unsafeTags.set(entry);
+            setEntryLocked(entry);
           }
         }
       }
     }
+  }
+
+  /** The span.kind a builder's ledger leaves set, or null when it sets none (or removes it). */
+  private static String finalSpanKind(final TagMap.Ledger ledger) {
+    String kind = null;
+    for (final TagMap.EntryChange entryChange : ledger) {
+      if (tagEquals(entryChange.tag(), Tags.SPAN_KIND)) {
+        kind = entryChange.isRemoval() ? null : ((TagMap.Entry) entryChange).stringValue();
+      }
+    }
+    return kind;
   }
 
   void setAllTags(final Map<String, ?> map) {
@@ -1457,17 +1669,30 @@ public class DDSpanContext
   }
 
   /**
-   * Resolves an OpenTelemetry name whose tag depends on the span's direction, by this span's kind:
-   * {@code server.address} is {@code http.hostname} on inbound spans and {@code peer.hostname} on
-   * outbound ones. Tried only after a plain lookup misses, so a tag set under the literal name
-   * wins; null when the name isn't direction-scoped or the span has no direction.
+   * Resolves a name whose tag depends on the span's kind: a Datadog name a projected concept is
+   * stored under ({@code peer.port}), or an OpenTelemetry name whose tag depends on the span's
+   * direction: {@code server.address} is {@code http.hostname} on inbound spans and {@code
+   * peer.hostname} on outbound ones. Tried only after a plain lookup misses, so a tag set under the
+   * literal name wins; null when the name isn't direction-scoped or the span has no direction.
    */
   private Object unsafeGetDirectionScopedTag(final String tag) {
-    int direction = directionOfKind(spanKindOrdinal);
+    byte kind = spanKindOrdinal;
+    // A Datadog name a projected concept is stored under on spans of this kind (peer.port is the
+    // server.port concept on a client span), on any span: a read resolves even where a write by
+    // name
+    // wouldn't, since the concept, if present, already took its name from this span's kind.
+    long tagId = KnownTagCodec.datadogKeyOf(tag, kind);
+    if (tagId != 0) {
+      TagMap.Entry entry = unsafeTags.getEntry(tagId);
+      if (entry != null && tag.equals(entry.tag())) {
+        return entry.objectValue();
+      }
+    }
+    int direction = directionOfKind(kind);
     if (direction == KnownTagCodec.DIRECTION_UNKNOWN) {
       return null;
     }
-    long tagId = KnownTagCodec.directionalKeyOf(tag, direction);
+    tagId = KnownTagCodec.directionalKeyOf(tag, direction);
     if (tagId == 0) {
       return null;
     }

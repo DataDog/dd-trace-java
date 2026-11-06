@@ -53,7 +53,9 @@ object KnownTagsEmitter {
     fun serialC(ddName: String) = serialOfConst.getValue(ddName)
     fun otelNameC(ddName: String) = otelNameOfConst.getValue(ddName)
 
-    val keyOfOrder = reg.tags.map { it.ddName } // stable emit order
+    // A projected concept's names name it only on spans of some kinds, so none of them is in the
+    // direction-free lookup: datadogKeyOf and directionalKeyOf resolve them with the span's kind.
+    val keyOfOrder = reg.tags.filter { !it.projected }.map { it.ddName } // stable emit order
     // OpenTelemetry names that denote a different tag depending on the span's direction. keyOf
     // ignores direction (a shared Datadog name such as server.port resolves to its own tag);
     // directionalKeyOf(name, direction) switches on each one's tag per direction.
@@ -93,6 +95,10 @@ object KnownTagsEmitter {
         if (t.sharesSlot) append(" + shares slot")
         if (t.otelName != null) append(" -> ${escape(t.otelName)}")
         for ((direction, otel) in t.scopedOtelNames) append(" -> ${escape(otel)} (${direction.yamlKey})")
+        if (t.projected) {
+          append(" + Datadog name by kind: ")
+          append(t.datadogNames.entries.joinToString(", ") { (k, n) -> "${k.yamlKey ?: "unkinded"}=${escape(n)}" })
+        }
         appendLine("  <${escape(t.required)}>")
         appendLine()
       }
@@ -128,6 +134,25 @@ object KnownTagsEmitter {
         appendLine("  }")
         appendLine()
       }
+
+      val projected = reg.tags.filter { it.projected }
+      appendLine(
+        """
+          /**
+           * True when {@code tagId} names a concept whose Datadog name depends on the span's kind, so a
+           * span projects its name when the tag is written. With a constant id this folds to a constant.
+           */
+          public static boolean hasProjectedName(long tagId) {
+        """.trimIndent()
+      )
+      if (projected.isEmpty()) {
+        appendLine("    return false;")
+      } else {
+        appendLine("    int serial = KnownTagCodec.serialNum(tagId);")
+        appendLine("    return " + projected.joinToString(" || ") { "serial == ${serialC(it.ddName)}" } + ";")
+      }
+      appendLine("  }")
+      appendLine()
 
       appendLine("  // ---- serial numbers ----")
       for (t in reg.tags) {
@@ -247,6 +272,60 @@ object KnownTagsEmitter {
         """
                   default:
                     return null;
+                }
+              }
+
+              @Override
+              public String datadogNameOf(long tagId, int spanKind) {
+                switch (KnownTagCodec.serialNum(tagId)) {
+        """.trimIndent()
+      )
+      for (t in projected) {
+        val nameByKind = TagConventions.SpanKind.entries.associateWith { t.datadogNames[it] ?: t.ddName }
+        val other = nameByKind.getValue(TagConventions.SpanKind.OTHER)
+        val expr =
+          nameByKind.entries
+            .filter { (k, n) -> k != TagConventions.SpanKind.OTHER && n != other }
+            .reversed()
+            .fold("\"${escape(other)}\"") { rest, (k, n) ->
+              "spanKind == KnownTagCodec.${k.codecConstant} ? \"${escape(n)}\" : $rest"
+            }
+        appendLine("case ${serialC(t.ddName)}:")
+        appendLine("  return $expr;")
+      }
+      appendLine(
+        """
+                  default:
+                    return nameOf(tagId);
+                }
+              }
+
+              @Override
+              public long datadogKeyOf(String name, int spanKind) {
+                switch (name) {
+        """.trimIndent()
+      )
+      val byName = sortedMapOf<String, MutableMap<TagConventions.SpanKind, String>>()
+      for (t in projected) {
+        for ((k, n) in t.datadogNames) byName.getOrPut(n) { mutableMapOf() }[k] = t.ddName
+      }
+      for ((name, byKind) in byName) {
+        appendLine("    case \"${escape(name)}\":")
+        appendLine("      switch (spanKind) {")
+        for (k in TagConventions.SpanKind.entries) {
+          if (k == TagConventions.SpanKind.OTHER) continue
+          val concept = byKind[k] ?: continue
+          appendLine("        case KnownTagCodec.${k.codecConstant}:")
+          appendLine("          return ${idC(concept)};")
+        }
+        appendLine("        default:")
+        appendLine("          return ${byKind[TagConventions.SpanKind.OTHER]?.let { idC(it) } ?: "0L"};")
+        appendLine("      }")
+      }
+      appendLine(
+        """
+                  default:
+                    return 0L;
                 }
               }
 

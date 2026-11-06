@@ -12,6 +12,7 @@ import com.couchbase.client.java.transcoder.crypto.JsonCryptoTranscoder;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.KnownTags;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -77,7 +78,8 @@ public class CouchbaseNetworkInstrumentation extends InstrumenterModule.Tracing
         if (remoteSocket != null) {
           final int splitIndex = remoteSocket.lastIndexOf(":");
           if (splitIndex != -1) {
-            span.setTag(Tags.PEER_PORT, Integer.parseInt(remoteSocket.substring(splitIndex + 1)));
+            span.setTag(
+                KnownTags.SERVER_PORT, Integer.parseInt(remoteSocket.substring(splitIndex + 1)));
           }
         }
 
