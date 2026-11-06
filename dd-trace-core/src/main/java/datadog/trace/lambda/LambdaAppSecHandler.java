@@ -123,8 +123,7 @@ public class LambdaAppSecHandler {
       }
       LambdaURIDataAdapter uriAdapter =
           new LambdaURIDataAdapter(fullPath, eventData.headers, eventData.host);
-      String clientIp = resolveClientIp(eventData);
-      AgentSpanContext context = processAppSecRequestData(eventData, uriAdapter, clientIp);
+      AgentSpanContext context = processAppSecRequestData(eventData, uriAdapter);
       if (context instanceof TagContext) {
         applyHttpTags((TagContext) context, eventData, uriAdapter);
       }
@@ -391,7 +390,7 @@ public class LambdaAppSecHandler {
    *     requestStarted} callback
    */
   private static AgentSpanContext processAppSecRequestData(
-      LambdaRequestData eventData, LambdaURIDataAdapter uriAdapter, String clientIp) {
+      LambdaRequestData eventData, LambdaURIDataAdapter uriAdapter) {
     AgentTracer.TracerAPI tracer = AgentTracer.get();
     Supplier<Flow<Object>> requestStartedCallback =
         tracer.getCallbackProvider(RequestContextSlot.APPSEC).getCallback(EVENTS.requestStarted());
@@ -400,15 +399,12 @@ public class LambdaAppSecHandler {
       return null;
     }
 
-    TagContext tagContext = new TagContext();
-    Object appSecRequestContext;
+    TagContext tagContext = createRequestTagContext(eventData);
+    String clientIp = tagContext.getTags().getString(Tags.HTTP_CLIENT_IP);
 
     // Call requestStarted
-    appSecRequestContext = requestStartedCallback.get().getResult();
+    Object appSecRequestContext = requestStartedCallback.get().getResult();
     tagContext.withRequestContextDataAppSec(appSecRequestContext);
-    if (clientIp != null) {
-      tagContext.putTag(Tags.HTTP_CLIENT_IP, clientIp);
-    }
 
     if (appSecRequestContext != null) {
       TemporaryRequestContext requestContext = new TemporaryRequestContext(appSecRequestContext);
@@ -524,11 +520,11 @@ public class LambdaAppSecHandler {
     return tagContext;
   }
 
-  /** Resolves the client address using the same configuration and precedence as HTTP servers. */
-  private static String resolveClientIp(LambdaRequestData eventData) {
+  /** Creates the request context, resolving the client address with HTTP server precedence. */
+  private static TagContext createRequestTagContext(LambdaRequestData eventData) {
     Config config = Config.get();
     if (!config.isClientIpEnabled() && !config.isTraceClientIpResolverEnabled()) {
-      return null;
+      return new TagContext();
     }
     TagContext.HttpHeaders headers = new TagContext.HttpHeaders();
     headers.xForwardedFor = findHeader(eventData.headers, "x-forwarded-for");
@@ -556,7 +552,10 @@ public class LambdaAppSecHandler {
             TracePropagationStyle.NONE,
             DDTraceId.ZERO);
     InetAddress inferred = ClientIpAddressResolver.resolve(extracted, null, eventData.sourceIp);
-    return inferred == null ? null : inferred.getHostAddress();
+    if (inferred != null) {
+      extracted.putTag(Tags.HTTP_CLIENT_IP, inferred.getHostAddress());
+    }
+    return extracted;
   }
 
   /** Sets the current trigger type thread-local. Package-private for use in tests only. */

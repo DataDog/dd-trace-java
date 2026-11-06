@@ -21,21 +21,25 @@ import org.tabletest.junit.TableTest;
 
 class ClientIpAddressResolverTest {
   @TableTest({
-    "Scenario                      | Header               | Peer     | Expected            ",
-    "no addresses                  |                      |          |                     ",
-    "public peer fallback          |                      | 1.2.3.4  | 1.2.3.4             ",
-    "private peer fallback         |                      | 10.0.0.5 | 10.0.0.5            ",
-    "invalid peer                  |                      | invalid  |                     ",
-    "invalid header fallback       | invalid              | 1.2.3.4  | 1.2.3.4             ",
-    "public header beats peer      | 1.2.3.4              | 8.8.8.8  | 1.2.3.4             ",
-    "public header without peer    | 1.2.3.4              |          | 1.2.3.4             ",
-    "public peer beats private     | 10.0.0.2             | 1.2.3.4  | 1.2.3.4             ",
-    "private header beats private  | 10.0.0.2             | 10.0.0.5 | 10.0.0.2            ",
-    "private header without peer   | 10.0.0.2             |          | 10.0.0.2            ",
-    "invalid peer preserves header | 10.0.0.2             | invalid  | 10.0.0.2            ",
-    "forwarded chain               | '10.0.0.2, 1.2.3.4'  | 8.8.8.8  | 1.2.3.4             ",
-    "public IPv6 header            | 2001:4860:4860::8888 | 1.2.3.4  | 2001:4860:4860::8888",
-    "public peer beats loopback    | ::1                  | 1.2.3.4  | 1.2.3.4             "
+    "Scenario                      | Header                                | Peer            | Expected            ",
+    "no addresses                  |                                       |                 |                     ",
+    "public peer fallback          |                                       | 1.2.3.4         | 1.2.3.4             ",
+    "private peer fallback         |                                       | 10.0.0.5        | 10.0.0.5            ",
+    "invalid peer                  |                                       | invalid         |                     ",
+    "invalid header fallback       | invalid                               | 1.2.3.4         | 1.2.3.4             ",
+    "public header beats peer      | 1.2.3.4                               | 8.8.8.8         | 1.2.3.4             ",
+    "public header without peer    | 1.2.3.4                               |                 | 1.2.3.4             ",
+    "public peer beats private     | 10.0.0.2                              | 1.2.3.4         | 1.2.3.4             ",
+    "private header beats private  | 10.0.0.2                              | 10.0.0.5        | 10.0.0.2            ",
+    "private header without peer   | 10.0.0.2                              |                 | 10.0.0.2            ",
+    "invalid peer preserves header | 10.0.0.2                              | invalid         | 10.0.0.2            ",
+    "invalid numeric IPv4          | 999.999.999.999                       |                 |                     ",
+    "invalid numeric IPv6          | 2001:db8:::1                          |                 |                     ",
+    "skip invalid numeric chain    | '999.999.999.999, 300.1.2.3, 1.2.3.4' | 8.8.8.8         | 1.2.3.4             ",
+    "invalid numeric peer          | 10.0.0.2                              | 999.999.999.999 | 10.0.0.2            ",
+    "forwarded chain               | '10.0.0.2, 1.2.3.4'                   | 8.8.8.8         | 1.2.3.4             ",
+    "public IPv6 header            | 2001:4860:4860::8888                  | 1.2.3.4         | 2001:4860:4860::8888",
+    "public peer beats loopback    | ::1                                   | 1.2.3.4         | 1.2.3.4             "
   })
   void resolvesHeadersAndPeer(String header, String peer, String expected)
       throws UnknownHostException {

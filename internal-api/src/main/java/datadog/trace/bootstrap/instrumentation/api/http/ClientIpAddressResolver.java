@@ -452,6 +452,9 @@ public class ClientIpAddressResolver {
       if (addr == null) {
         addr = IPAddressUtil.textToNumericFormatV6(str);
       }
+      if (addr == null) {
+        return null;
+      }
       return InetAddress.getByAddress(str, addr);
     } catch (UnknownHostException e) {
       return null; // should not happen

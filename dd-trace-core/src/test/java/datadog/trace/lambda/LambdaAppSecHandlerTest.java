@@ -14,6 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -3010,6 +3011,37 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     assertNotNull(context);
     assertNull(tagsOf(context).get(Tags.HTTP_CLIENT_IP));
     assertTrue(inferredAddresses.isEmpty());
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  void processRequestStartKeepsContextAndTagsSeparateAcrossInvocations(boolean resolverEnabled) {
+    injectSysConfig("trace.client-ip.resolver.enabled", Boolean.toString(resolverEnabled));
+    injectSysConfig("trace.client-ip.enabled", "false");
+    setupMockCallbacks(new Callbacks());
+
+    TagContext first =
+        (TagContext)
+            LambdaAppSecHandler.processRequestStart(
+                clientIpEvent("10.0.0.5", "x-forwarded-for", "1.2.3.4"));
+    TagContext second =
+        (TagContext)
+            LambdaAppSecHandler.processRequestStart(
+                clientIpEvent("10.0.0.6", "x-forwarded-for", "8.8.8.8"));
+    TagContext withoutAddress =
+        (TagContext) LambdaAppSecHandler.processRequestStart(clientIpEvent(null, null, null));
+
+    assertNotSame(first, second);
+    assertNotSame(second, withoutAddress);
+    assertNotSame(first.getTags(), second.getTags());
+    assertEquals(
+        resolverEnabled ? "1.2.3.4" : null, first.getTags().getString(Tags.HTTP_CLIENT_IP));
+    assertEquals(
+        resolverEnabled ? "8.8.8.8" : null, second.getTags().getString(Tags.HTTP_CLIENT_IP));
+    assertNull(withoutAddress.getTags().getString(Tags.HTTP_CLIENT_IP));
+    assertNotNull(first.getRequestContextDataAppSec());
+    assertNotNull(second.getRequestContextDataAppSec());
+    assertNotNull(withoutAddress.getRequestContextDataAppSec());
   }
 
   private static ByteArrayInputStream clientIpEvent(
