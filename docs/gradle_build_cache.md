@@ -8,16 +8,16 @@ at the pipeline's commit for its configuration.
 
 Set variables when starting a **new pipeline** (job retries keep their pipeline's configuration).
 
-| Need | Action |
-| --- | --- |
+| Need                  | Action                                                                                                                                                        |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Force fresh execution | Set `SKIP_BUILD_CACHE=true` to bypass task caches and up-to-date reuse. See [fresh CI execution](how_to_work_with_gradle.md#forcing-fresh-ci-task-execution). |
-| Isolate S3 entries | Set `S3_BUILD_CACHE_PREFIX`, e.g. `v1/investigate-2163/x86_64/linux/`. It replaces the entire prefix and must be non-empty. |
-| Check the destination | Inspect `S3_BUILD_CACHE_BUCKET` and `S3_BUILD_CACHE_REGION`. |
+| Isolate S3 entries    | Set `S3_BUILD_CACHE_PREFIX`, e.g. `v1/investigate-2163/x86_64/linux/`. It replaces the entire prefix and must be non-empty.                                   |
+| Check the destination | Inspect `S3_BUILD_CACHE_BUCKET` and `S3_BUILD_CACHE_REGION`.                                                                                                  |
 
-| Pipeline | Default prefix |
-| --- | --- |
-| PR, branch, nightly, and master | `v1/<architecture>/<os>/` |
-| Tag/release | `v1/release/<CI_PIPELINE_ID>/<architecture>/<os>/` |
+| Pipeline                        | Default prefix                                     |
+| ------------------------------- | -------------------------------------------------- |
+| PR, branch, nightly, and master | `v1/<architecture>/<os>/`                          |
+| Tag/release                     | `v1/release/<CI_PIPELINE_ID>/<architecture>/<os>/` |
 
 Non-tag pipelines share entries across jobs and pipelines. Release jobs share within
 one pipeline.
@@ -34,10 +34,10 @@ not task-output caches.
   S3 requires both `CI` and `GITLAB_CI`; ordinary local builds do not use it.
 - Dependency downloads, GitLab cache archives, and Gradle's configuration cache are separate.
 
-| Task outcome | Meaning                                                                                        |
-| --- |------------------------------------------------------------------------------------------------|
-| `FROM-CACHE` | Outputs restored from the local cache or S3. Check `S3 cache` in CI job logs for more details. |
-| `UP-TO-DATE` | Existing workspace outputs reused.                                                             |
+| Task outcome            | Meaning                                                                                        |
+| ----------------------- | ---------------------------------------------------------------------------------------------- |
+| `FROM-CACHE`            | Outputs restored from the local cache or S3. Check `S3 cache` in CI job logs for more details. |
+| `UP-TO-DATE`            | Existing workspace outputs reused.                                                             |
 | `SKIPPED` / `NO-SOURCE` | No execution needed; not a cache hit.                                                          |
 
 ## Read cache statistics
@@ -45,12 +45,12 @@ not task-output caches.
 Search the main script in a GitLab job log for `S3 cache`, near the end of each Gradle run.
 For example, `reads: 100, hits: 90` means a 90% hit rate and 10 misses.
 
-| Measure | Meaning |
-| --- | --- |
-| S3 hit rate | Total `hits` divided by total `reads`. |
-| S3 misses | Total `reads` minus total `hits`. |
-| Writes | Store attempts, which can repeat the same key. |
-| Task restoration | `FROM-CACHE` tasks divided by Gradle's total actionable tasks; includes local and S3 hits. |
+| Measure          | Meaning                                                                                                                                                    |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| S3 hit rate      | Total `hits` divided by total `reads`.                                                                                                                     |
+| S3 misses        | Total `reads` minus total `hits`.                                                                                                                          |
+| Writes           | Store attempts, which can repeat the same key.                                                                                                             |
+| Task restoration | `FROM-CACHE` tasks divided by Gradle's total actionable tasks; includes local and S3 hits.                                                                 |
 | Test restoration | Cached `Test` tasks divided by cached plus executed `Test` tasks. Exclude `UP-TO-DATE`, `SKIPPED` and `NO-SOURCE`; these are task counts, not test counts. |
 
 Check individual task outcomes: compilation can hit the cache while tests still execute.
@@ -61,14 +61,14 @@ If no summary appears, try `--info` and check cache and statistics settings.
 
 ## Investigate a problem
 
-| Symptom | Check |
-| --- | --- |
-| Unexpected misses | Cache flags, prefix, platform, changed inputs, and the task's cacheability. New namespaces cause expected misses. |
-| S3 errors | Credentials, bucket/region, permissions, and network errors. A green job does not prove S3 access. |
-| Incorrect cached output | Compare with an uncached run. Isolate suspect entries while fixing missing inputs or outputs that vary with identical inputs. |
-| Failures involving generated classes, resources, or instrumentation indexes | Use `SKIP_BUILD_CACHE=true` to regenerate and repackage outputs from `build` or `build_tests` in the failing job. |
-| Native smoke-test failures | Use `SKIP_BUILD_CACHE=true` to rebuild the executable in the failing job. Check that task inputs track changes to the toolchain and builder image. |
-| Hits without faster CI | Transfers, configuration time, tasks that still execute, and the pipeline's critical path. |
+| Symptom                                                                     | Check                                                                                                                                              |
+| --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Unexpected misses                                                           | Cache flags, prefix, platform, changed inputs, and the task's cacheability. New namespaces cause expected misses.                                  |
+| S3 errors                                                                   | Credentials, bucket/region, permissions, and network errors. A green job does not prove S3 access.                                                 |
+| Incorrect cached output                                                     | Compare with an uncached run. Isolate suspect entries while fixing missing inputs or outputs that vary with identical inputs.                      |
+| Failures involving generated classes, resources, or instrumentation indexes | Use `SKIP_BUILD_CACHE=true` to regenerate and repackage outputs from `build` or `build_tests` in the failing job.                                  |
+| Native smoke-test failures                                                  | Use `SKIP_BUILD_CACHE=true` to rebuild the executable in the failing job. Check that task inputs track changes to the toolchain and builder image. |
+| Hits without faster CI                                                      | Transfers, configuration time, tasks that still execute, and the pipeline's critical path.                                                         |
 
 Compare task inputs in [Build Scans](how_to_work_with_gradle.md#build-scans-develocity).
 Muzzle jobs disable scans; use logs instead. For detailed fingerprints:
@@ -113,11 +113,11 @@ Use the build ID to help trace the producer, and logs to count reads and misses.
 
 Use the same commit, jobs, platform, JVMs, resolved dependencies, and other flags:
 
-| Run | Configuration |
-| --- | --- |
-| Uncached | `SKIP_BUILD_CACHE=true` |
-| Cold S3 | Cache enabled, unique prefix, empty local task cache, clean outputs |
-| Warm S3 | Cache enabled, same prefix after the cold run, empty local task cache, clean outputs |
+| Run      | Configuration                                                                        |
+| -------- | ------------------------------------------------------------------------------------ |
+| Uncached | `SKIP_BUILD_CACHE=true`                                                              |
+| Cold S3  | Cache enabled, unique prefix, empty local task cache, clean outputs                  |
+| Warm S3  | Cache enabled, same prefix after the cold run, empty local task cache, clean outputs |
 
 Check each job's local cache when measuring S3 reuse. Later jobs in a cold pipeline
 can reuse earlier jobs' entries. Scheduled lock refreshes can change dependencies at
