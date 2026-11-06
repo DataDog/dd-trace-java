@@ -3,6 +3,7 @@ package datadog.trace.common.metrics;
 import static datadog.trace.api.config.GeneralConfig.TRACE_STATS_COMPUTATION_ENABLED;
 import static datadog.trace.api.config.OtlpConfig.OTEL_TRACES_SPAN_METRICS_ENABLED;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_PROTOCOL;
+import static datadog.trace.api.config.OtlpConfig.TRACE_OTEL_EXPORTER;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -68,6 +69,17 @@ class MetricsAggregatorFactoryTest {
     // native path uses a hardcoded 10s cadence, not trace.stats.interval.
     assertEquals(10, conflating.reportingInterval());
     assertEquals(SECONDS, conflating.reportingIntervalTimeUnit());
+  }
+
+  @Test
+  void whenOtlpTracesEnabledNoOpAggregatorCreatedByDefault() {
+    Config config = Config.get(props(TRACE_OTEL_EXPORTER, "otlp"));
+
+    MetricsAggregator aggregator =
+        MetricsAggregatorFactory.createMetricsAggregator(
+            config, sharedCommunicationObjects(), HealthMetrics.NO_OP);
+
+    assertInstanceOf(NoOpMetricsAggregator.class, aggregator);
   }
 
   @Test
