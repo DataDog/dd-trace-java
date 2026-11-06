@@ -18,6 +18,7 @@ import static datadog.trace.instrumentation.kafka_clients.TextMapInjectAdapter.S
 import static datadog.trace.instrumentation.kafka_common.StreamingContext.STREAMING_CONTEXT;
 import static datadog.trace.instrumentation.kafka_common.Utils.DSM_TRANSACTION_SOURCE_READER;
 import static datadog.trace.instrumentation.kafka_common.Utils.computePayloadSizeBytes;
+import static datadog.trace.instrumentation.kafka_common.Utils.hasHeaders;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import datadog.context.Context;
@@ -100,8 +101,11 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
       AgentSpan span, queueSpan = null;
       if (val != null) {
         if (!Config.get().isKafkaClientPropagationDisabledForTopic(val.topic())) {
+          // A record without headers has no context to extract
           final AgentSpanContext spanContext =
-              extractContextAndGetSpanContext(val.headers(), GETTER);
+              hasHeaders(val.headers())
+                  ? extractContextAndGetSpanContext(val.headers(), GETTER)
+                  : null;
           long timeInQueueStart = GETTER.extractTimeInQueueStart(val.headers());
           if (timeInQueueStart == 0 || !TIME_IN_QUEUE_ENABLED) {
             span = startSpan(JAVA_KAFKA.toString(), operationName, spanContext);

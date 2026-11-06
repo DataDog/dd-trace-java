@@ -19,6 +19,7 @@ import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.PRODUCE
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.TIME_IN_QUEUE_ENABLED;
 import static datadog.trace.instrumentation.kafka_common.StreamingContext.STREAMING_CONTEXT;
 import static datadog.trace.instrumentation.kafka_common.Utils.DSM_TRANSACTION_SOURCE_READER;
+import static datadog.trace.instrumentation.kafka_common.Utils.hasHeaders;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -151,9 +152,11 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
         ClusterIdHolder.set(clusterId);
       }
 
-      // Try to extract existing trace context from record headers
+      // Try to extract existing trace context from record headers, which most records don't have
       final AgentSpanContext extractedContext =
-          extractContextAndGetSpanContext(record.headers(), TextMapExtractAdapter.GETTER);
+          hasHeaders(record.headers())
+              ? extractContextAndGetSpanContext(record.headers(), TextMapExtractAdapter.GETTER)
+              : null;
 
       final AgentSpan localActiveSpan = activeSpan();
 
