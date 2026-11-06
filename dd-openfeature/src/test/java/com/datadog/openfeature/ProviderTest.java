@@ -464,6 +464,29 @@ public class ProviderTest {
   }
 
   @Test
+  public void testInvalidCustomEndpointErrorOmitsTheUrl() {
+    final Provider[] providerRef = new Provider[1];
+    this.evaluator =
+        new DDEvaluator(
+            () -> providerRef[0].onConfigurationChange(),
+            AgentBridge.NONE,
+            TestSettings.of(
+                "feature.flags.configuration.source.agentless.base.url",
+                "ftp://user:secret@example.com/ufc?token=secret"));
+    providerRef[0] = new Provider(new Options().initTimeout(30, SECONDS), this.evaluator);
+
+    final FatalError error =
+        assertThrows(
+            FatalError.class,
+            () -> OpenFeatureAPI.getInstance().setProviderAndWait(providerRef[0]));
+
+    // OpenFeature logs this error with its causes, so none of them may echo the URL.
+    for (Throwable cause = error; cause != null; cause = cause.getCause()) {
+      assertFalse(String.valueOf(cause.getMessage()).contains("secret"), cause.toString());
+    }
+  }
+
+  @Test
   public void testAgentlessWithoutApiKeyFailsInitializationWhenTheLogFails() {
     final Provider[] providerRef = new Provider[1];
     this.evaluator =
