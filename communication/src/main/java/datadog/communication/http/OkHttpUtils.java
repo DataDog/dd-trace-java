@@ -277,15 +277,6 @@ public final class OkHttpUtils {
     return builder;
   }
 
-  /**
-   * Prepares a request to an endpoint that is neither the local Datadog Agent nor the Datadog
-   * intake, so it carries neither origin detection headers nor the API key.
-   */
-  public static Request.Builder prepareExternalRequest(
-      final HttpUrl url, final Map<String, String> headers) {
-    return prepareRequest(url, headers, ContainerInfo.get(), false);
-  }
-
   static Request.Builder prepareRequest(
       final HttpUrl url,
       final Map<String, String> headers,

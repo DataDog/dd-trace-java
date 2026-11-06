@@ -26,7 +26,7 @@ public class TelemetryClient {
       OkHttpClient okHttpClient, HttpUrl agentUrl, HttpRetryPolicy.Factory httpRetryPolicy) {
     HttpUrl agentTelemetryUrl =
         agentUrl.newBuilder().addPathSegments(AGENT_TELEMETRY_API_ENDPOINT).build();
-    return new TelemetryClient(okHttpClient, httpRetryPolicy, agentTelemetryUrl, null);
+    return new TelemetryClient(okHttpClient, httpRetryPolicy, agentTelemetryUrl, null, true);
   }
 
   public static TelemetryClient buildIntakeClient(
@@ -48,7 +48,7 @@ public class TelemetryClient {
 
     long timeoutMillis = TimeUnit.SECONDS.toMillis(config.getAgentTimeout());
     OkHttpClient httpClient = OkHttpUtils.buildHttpClient(url, timeoutMillis);
-    return new TelemetryClient(httpClient, httpRetryPolicy, url, apiKey);
+    return new TelemetryClient(httpClient, httpRetryPolicy, url, apiKey, false);
   }
 
   private static String buildIntakeTelemetryUrl(Config config) {
@@ -71,15 +71,28 @@ public class TelemetryClient {
   private final HttpUrl url;
   private final String apiKey;
 
+  /** Whether requests target the local Datadog Agent, which uses the origin detection headers. */
+  private final boolean toAgent;
+
   public TelemetryClient(
       OkHttpClient okHttpClient,
       HttpRetryPolicy.Factory httpRetryPolicy,
       HttpUrl url,
       String apiKey) {
+    this(okHttpClient, httpRetryPolicy, url, apiKey, apiKey == null);
+  }
+
+  private TelemetryClient(
+      OkHttpClient okHttpClient,
+      HttpRetryPolicy.Factory httpRetryPolicy,
+      HttpUrl url,
+      String apiKey,
+      boolean toAgent) {
     this.okHttpClient = okHttpClient;
     this.httpRetryPolicy = httpRetryPolicy;
     this.url = url;
     this.apiKey = apiKey;
+    this.toAgent = toAgent;
   }
 
   public HttpUrl getUrl() {
@@ -91,8 +104,9 @@ public class TelemetryClient {
     if (apiKey != null) {
       // intake client
       httpRequestBuilder.addHeader("DD-API-KEY", apiKey);
-    } else {
-      // agent client: only the local Datadog Agent uses the origin detection headers
+    }
+    if (toAgent) {
+      // only the local Datadog Agent uses the origin detection headers
       OkHttpUtils.addOriginHeaders(httpRequestBuilder);
     }
 

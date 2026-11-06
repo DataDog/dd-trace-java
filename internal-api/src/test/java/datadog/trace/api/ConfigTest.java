@@ -2894,6 +2894,7 @@ class ConfigTest {
   @TableTest({
     "scenario          | configuredUrl                        | expectedAgentHttpUrl   ",
     "'http url'        | 'http://dd-agent:8126'               | 'http://dd-agent:8126' ",
+    "'trailing slash'  | 'http://dd-agent:8126/'              | 'http://dd-agent:8126' ",
     "'unix socket url' | 'unix:///var/run/datadog/apm.socket' | 'http://localhost:8126'"
   })
   void agentHttpUrlReplacesUnixDomainSocketWithPlaceholder(
@@ -2934,6 +2935,7 @@ class ConfigTest {
     "scenario          | configuredUrl                        | expectedTelemetryUrl                                        | expectedErrorTrackingUrl                                ",
     "'http url'        | 'http://dd-agent:8126'               | 'http://dd-agent:8126/telemetry/proxy/api/v2/apmtelemetry'  | 'http://dd-agent:8126/evp_proxy/v4/api/v2/errorsintake' ",
     "'https url'       | 'https://dd-agent:8126'              | 'https://dd-agent:8126/telemetry/proxy/api/v2/apmtelemetry' | 'https://dd-agent:8126/evp_proxy/v4/api/v2/errorsintake'",
+    "'trailing slash'  | 'http://dd-agent:8126/'              | 'http://dd-agent:8126/telemetry/proxy/api/v2/apmtelemetry'  | 'http://dd-agent:8126/evp_proxy/v4/api/v2/errorsintake' ",
     "'unix socket url' | 'unix:///var/run/datadog/apm.socket' | 'http://localhost:8126/telemetry/proxy/api/v2/apmtelemetry' | 'http://localhost:8126/evp_proxy/v4/api/v2/errorsintake'"
   })
   void crashTrackingUrlsTargetAgentUrl(

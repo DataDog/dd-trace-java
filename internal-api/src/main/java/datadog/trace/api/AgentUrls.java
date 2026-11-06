@@ -11,8 +11,9 @@ public final class AgentUrls {
   private AgentUrls() {}
 
   /**
-   * Returns {@code agentUrl}, or a placeholder HTTP URL built from {@code agentHost} and {@code
-   * agentPort} when it is a unix domain socket URL, as requests are tunnelled over the socket.
+   * Returns {@code agentUrl} without trailing slashes, so callers can append paths to it, or a
+   * placeholder HTTP URL built from {@code agentHost} and {@code agentPort} when it is a unix
+   * domain socket URL, as requests are tunnelled over the socket.
    */
   public static String toHttpUrl(
       final String agentUrl, final String agentHost, final int agentPort) {
@@ -20,6 +21,10 @@ public final class AgentUrls {
       // provide placeholder agent URL, in practice we'll be tunnelling over UDS
       return "http://" + agentHost + ":" + agentPort;
     }
-    return agentUrl;
+    int end = agentUrl.length();
+    while (end > 0 && agentUrl.charAt(end - 1) == '/') {
+      end--;
+    }
+    return agentUrl.substring(0, end);
   }
 }
