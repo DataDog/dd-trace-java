@@ -72,12 +72,11 @@ class FlowableCoverageTest extends AbstractInstrumentationTest {
     AtomicInteger calls = new AtomicInteger();
     try (Evidence ignored = e) {
       Flowable<Object> source =
-          Flowable.error(
-              () -> {
-                calls.incrementAndGet();
-                e.observe("supplier");
-                return failure;
-              });
+          Flowable.error(() -> {
+            calls.incrementAndGet();
+            e.observe("supplier");
+            return failure;
+          });
       Flowable<Long> counted = watch(source.count().toFlowable(), e, "count-error");
       e.release();
       counted.test().assertNoValues().assertNotComplete().assertError(error -> error == failure);
@@ -94,16 +93,14 @@ class FlowableCoverageTest extends AbstractInstrumentationTest {
     try (Evidence ignored = e) {
       Flowable<Integer> source =
           Flowable.just(1, 2, 3)
-              .doOnNext(
-                  value -> {
-                    upstream.add(value);
-                    e.observe("upstream-next");
-                  })
-              .doOnCancel(
-                  () -> {
-                    cancellations.incrementAndGet();
-                    e.observe("cancel");
-                  });
+              .doOnNext(value -> {
+                upstream.add(value);
+                e.observe("upstream-next");
+              })
+              .doOnCancel(() -> {
+                cancellations.incrementAndGet();
+                e.observe("cancel");
+              });
       Flowable<Integer> taken = watch(source.take(1), e, "take");
       e.release();
       taken.test().assertResult(1);
@@ -120,12 +117,11 @@ class FlowableCoverageTest extends AbstractInstrumentationTest {
     try (Evidence ignored = e) {
       Flowable<Integer> reduced =
           Flowable.just(1, 2, 3, 4)
-              .reduce(
-                  (left, right) -> {
-                    calls.add(left + "+" + right);
-                    e.observe("reduce");
-                    return left + right;
-                  })
+              .reduce((left, right) -> {
+                calls.add(left + "+" + right);
+                e.observe("reduce");
+                return left + right;
+              })
               .toFlowable();
       Flowable<Integer> sum = watch(reduced, e, "sum");
       e.release();

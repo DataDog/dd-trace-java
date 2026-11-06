@@ -94,16 +94,14 @@ class ObservableCoverageTest extends AbstractInstrumentationTest {
       try (ContextScope ignored = h.activate()) {
         taken =
             Observable.just(1, 2, 3)
-                .doOnNext(
-                    v -> {
-                      h.record("source next");
-                      upstream.add(v);
-                    })
-                .doOnDispose(
-                    () -> {
-                      h.record("dispose");
-                      disposals.incrementAndGet();
-                    })
+                .doOnNext(v -> {
+                  h.record("source next");
+                  upstream.add(v);
+                })
+                .doOnDispose(() -> {
+                  h.record("dispose");
+                  disposals.incrementAndGet();
+                })
                 .take(1);
       }
       taken.subscribe(result);
@@ -122,12 +120,11 @@ class ObservableCoverageTest extends AbstractInstrumentationTest {
       try (ContextScope ignored = h.activate()) {
         reduced =
             Observable.just(1, 2, 3, 4)
-                .reduce(
-                    (a, b) -> {
-                      h.record("reducer");
-                      reductions.add(a + "+" + b);
-                      return a + b;
-                    });
+                .reduce((a, b) -> {
+                  h.record("reducer");
+                  reductions.add(a + "+" + b);
+                  return a + b;
+                });
       }
       reduced.subscribe(
           v -> {

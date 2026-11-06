@@ -72,12 +72,11 @@ class CompletableCoverageTest extends AbstractInstrumentationTest {
     List<Integer> effects = new ArrayList<>();
     try (Probe p = new Probe()) {
       Completable deferred =
-          Completable.defer(
-              () -> {
-                p.record("supplier");
-                int subscription = suppliers.incrementAndGet();
-                return source(p, effects, subscription, null);
-              });
+          Completable.defer(() -> {
+            p.record("supplier");
+            int subscription = suppliers.incrementAndGet();
+            return source(p, effects, subscription, null);
+          });
       assertEquals(0, suppliers.get());
       assertTrue(effects.isEmpty());
       p.closeScope();
@@ -101,12 +100,11 @@ class CompletableCoverageTest extends AbstractInstrumentationTest {
     AtomicInteger suppliers = new AtomicInteger();
     try (Probe p = new Probe()) {
       Completable error =
-          Completable.error(
-              () -> {
-                suppliers.incrementAndGet();
-                p.record("supplier");
-                return failure;
-              });
+          Completable.error(() -> {
+            suppliers.incrementAndGet();
+            p.record("supplier");
+            return failure;
+          });
       assertEquals(0, suppliers.get());
       p.closeScope();
       p.assertRestored();
@@ -158,13 +156,12 @@ class CompletableCoverageTest extends AbstractInstrumentationTest {
           processor
               .ignoreElements()
               .doOnSubscribe(ignored -> p.record("subscribe"))
-              .doOnDispose(
-                  () -> {
-                    cleanup.incrementAndGet();
-                    // Disposing is a caller action, outside the captured callback context.
-                    disposalContext[0] = Context.current();
-                    disposalSpan[0] = activeSpan();
-                  });
+              .doOnDispose(() -> {
+                cleanup.incrementAndGet();
+                // Disposing is a caller action, outside the captured callback context.
+                disposalContext[0] = Context.current();
+                disposalSpan[0] = activeSpan();
+              });
       p.closeScope();
       p.assertRestored();
       Disposable subscription = source.subscribe(p::complete, p::error);
@@ -195,16 +192,15 @@ class CompletableCoverageTest extends AbstractInstrumentationTest {
   }
 
   private static Completable source(Probe p, List<Integer> effects, int id, Throwable failure) {
-    return Completable.create(
-        emitter -> {
-          p.record("source-" + id);
-          effects.add(id);
-          if (failure == null) {
-            emitter.onComplete();
-          } else {
-            emitter.onError(failure);
-          }
-        });
+    return Completable.create(emitter -> {
+      p.record("source-" + id);
+      effects.add(id);
+      if (failure == null) {
+        emitter.onComplete();
+      } else {
+        emitter.onError(failure);
+      }
+    });
   }
 
   private final class Probe implements AutoCloseable {
