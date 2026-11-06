@@ -28,6 +28,8 @@ class ShellGitClientParsingTest {
         Paths.get(getClass().getClassLoader().getResource("ci/git/with_pack/git").toURI());
     IOUtils.copyFolder(fixture, Files.createDirectories(checkout.resolve(".git")));
     ShellCommandExecutor command = new ShellCommandExecutor(checkout.toFile(), 10_000);
+    command.executeCommand(IOUtils::readFully, "git", "config", "column.ui", "always");
+    command.executeCommand(IOUtils::readFully, "git", "config", "column.tag", "always");
     ShellGitClient client =
         new ShellGitClient(
             mock(CiVisibilityMetricCollector.class),
