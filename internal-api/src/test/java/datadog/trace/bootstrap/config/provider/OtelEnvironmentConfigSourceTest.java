@@ -28,7 +28,9 @@ import static datadog.trace.test.junit.utils.config.WithConfigExtension.removeSy
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.test.junit.utils.config.WithConfig;
 import datadog.trace.test.junit.utils.config.WithConfigExtension;
@@ -150,7 +152,6 @@ class OtelEnvironmentConfigSourceTest {
     assertNoOtelSettingsMapped(source);
   }
 
-  @Disabled("enable this test when we enable the OpenTelemetry integration by default")
   @Test
   @WithConfig(key = "otel.sdk.disabled", value = "true", addPrefix = false)
   @WithConfig(key = "otel.service.name", value = "TEST_SERVICE", addPrefix = false)
@@ -184,14 +185,12 @@ class OtelEnvironmentConfigSourceTest {
       key = "otel.javaagent.extensions",
       value = "/opt/opentelemetry/extensions",
       addPrefix = false)
-  void disablingOtelWithSystemPropertyDisablesOtelIntegration() {
+  void disablingOtelSdkWithSystemPropertyDisablesTracing() {
     OtelEnvironmentConfigSource source = new OtelEnvironmentConfigSource();
 
-    assertEquals("false", source.get(TRACE_OTEL_ENABLED));
-    assertNoOtelSettingsMapped(source);
+    assertOtelSdkDisabled(source);
   }
 
-  @Disabled("enable this test when we enable the OpenTelemetry integration by default")
   @Test
   @WithConfig(key = "OTEL_SDK_DISABLED", value = "true", env = true, addPrefix = false)
   @WithConfig(key = "OTEL_LOG_LEVEL", value = "debug", env = true, addPrefix = false)
@@ -236,11 +235,38 @@ class OtelEnvironmentConfigSourceTest {
       value = "/opt/opentelemetry/extensions",
       env = true,
       addPrefix = false)
-  void disablingOtelWithEnvironmentVariableDisablesOtelIntegration() {
+  void disablingOtelSdkWithEnvironmentVariableDisablesTracing() {
     OtelEnvironmentConfigSource source = new OtelEnvironmentConfigSource();
 
-    assertEquals("false", source.get(TRACE_OTEL_ENABLED));
-    assertNoOtelSettingsMapped(source);
+    assertOtelSdkDisabled(source);
+  }
+
+  @Test
+  @WithConfig(key = TRACE_OTEL_ENABLED, value = "true")
+  @WithConfig(key = "OTEL_SDK_DISABLED", value = "true", env = true, addPrefix = false)
+  @WithConfig(key = "OTEL_SERVICE_NAME", value = "TEST_SERVICE", env = true, addPrefix = false)
+  @WithConfig(
+      key = "OTEL_TRACES_SPAN_METRICS_ENABLED",
+      value = "true",
+      env = true,
+      addPrefix = false)
+  void otelSdkDisabledTakesPrecedenceOverTraceOtelEnabled() {
+    OtelEnvironmentConfigSource source = new OtelEnvironmentConfigSource();
+
+    assertOtelSdkDisabled(source);
+    assertNull(source.get(OTEL_TRACES_SPAN_METRICS_ENABLED));
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"false", "", "foo"})
+  void otelSdkIsOnlyDisabledByTrue(String value) {
+    injectEnvConfig("OTEL_SDK_DISABLED", value, false);
+
+    OtelEnvironmentConfigSource source = new OtelEnvironmentConfigSource();
+
+    assertFalse(source.isSdkDisabled());
+    assertNull(source.get(TRACE_ENABLED));
+    assertNull(source.get(RUNTIME_METRICS_ENABLED));
   }
 
   @Test
@@ -655,7 +681,23 @@ class OtelEnvironmentConfigSourceTest {
     assertNull(source.get(TAGS));
   }
 
+  private static void assertOtelSdkDisabled(OtelEnvironmentConfigSource source) {
+    assertTrue(source.isSdkDisabled());
+    assertEquals("false", source.get(TRACE_ENABLED));
+    assertEquals("false", source.get(TRACE_OTEL_ENABLED));
+    assertEquals("false", source.get(METRICS_OTEL_ENABLED));
+    assertEquals("false", source.get(LOGS_OTEL_ENABLED));
+    assertEquals("false", source.get(RUNTIME_METRICS_ENABLED));
+    assertNoOtelValuesMapped(source);
+  }
+
   private static void assertNoOtelSettingsMapped(OtelEnvironmentConfigSource source) {
+    assertNull(source.get(TRACE_ENABLED));
+    assertNull(source.get(RUNTIME_METRICS_ENABLED));
+    assertNoOtelValuesMapped(source);
+  }
+
+  private static void assertNoOtelValuesMapped(OtelEnvironmentConfigSource source) {
     assertNull(source.get(LOG_LEVEL));
     assertNull(source.get(SERVICE_NAME));
     assertNull(source.get(VERSION));
@@ -663,8 +705,6 @@ class OtelEnvironmentConfigSourceTest {
     assertNull(source.get(TAGS));
     assertNull(source.get(TRACE_PROPAGATION_STYLE));
     assertNull(source.get(TRACE_SAMPLE_RATE));
-    assertNull(source.get(TRACE_ENABLED));
-    assertNull(source.get(RUNTIME_METRICS_ENABLED));
     assertNull(source.get(REQUEST_HEADER_TAGS));
     assertNull(source.get(RESPONSE_HEADER_TAGS));
     assertNull(source.get(TRACE_EXTENSIONS_PATH));

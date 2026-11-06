@@ -61,6 +61,19 @@ public final class ConfigProvider {
     return "no config file present";
   }
 
+  /**
+   * Returns {@code true} when {@code OTEL_SDK_DISABLED=true}, which turns off OpenTelemetry signals
+   * and runtime metrics even when their Datadog settings enable them.
+   */
+  public boolean isOtelSdkDisabled() {
+    for (ConfigProvider.Source source : sources) {
+      if (source instanceof OtelEnvironmentConfigSource) {
+        return ((OtelEnvironmentConfigSource) source).isSdkDisabled();
+      }
+    }
+    return false;
+  }
+
   // Gets a string value when there is no default value.
   public String getString(String key) {
     return getString(key, null);
