@@ -8,7 +8,6 @@ import static com.datadog.openfeature.internal.ufc.ConditionOperator.ONE_OF;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonList;
-import static java.util.Collections.singletonMap;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -192,7 +191,8 @@ class ExposureLoggingHookTest {
 
     final Object scope =
         this.evaluator.beginDependencyExposureScope(context.getFlagKey(), context.getCtx());
-    assertNull(this.evaluator.dependencyTelemetryToken(scope));
+    assertNull(scope);
+    assertNull(this.evaluator.currentDependencyTelemetryScope());
     assertTrue(this.evaluator.endDependencyExposureScope().isEmpty());
   }
 
@@ -323,7 +323,7 @@ class ExposureLoggingHookTest {
   @Test
   void configurationRefreshCannotChangeTheGraphInsideAClientHookLifecycle() {
     final ExposureTestEvaluator dependent =
-        new ExposureTestEvaluator(ordinaryRootConfiguration(), true);
+        new ExposureTestEvaluator(dependentConfiguration(true, 2, "pinned-value"), true);
     final ExposureLoggingHook<Integer> hook = new ExposureLoggingHook<>(() -> dependent);
     final MutableContext evaluationContext = new MutableContext("subject");
     final HookContext<Integer> hookContext =
@@ -348,7 +348,8 @@ class ExposureLoggingHookTest {
         "on-value",
         unrelated.getValue(),
         "an unrelated evaluation after the root uses the refreshed configuration");
-    assertTrue(dependent.sentToDatadog.isEmpty());
+    assertEquals(1, dependent.sentToDatadog.size());
+    assertEquals("dependency", dependent.sentToDatadog.get(0).flag.key);
 
     final HookContext<Integer> refreshedContext =
         HookContext.<Integer>builder()
@@ -701,30 +702,14 @@ class ExposureLoggingHookTest {
   }
 
   private static ServerConfiguration dependentConfiguration(final boolean dependencyDoLog) {
-    final Map<String, Flag> flags = new HashMap<>();
-    addDependentFlagPair(flags, "root", "dependency", dependencyDoLog);
-    return new ServerConfiguration("", "", false, null, flags);
+    return dependentConfiguration(dependencyDoLog, 1, "on-value");
   }
 
-  private static ServerConfiguration ordinaryRootConfiguration() {
-    final Map<String, Variant> variations = new HashMap<>();
-    variations.put("selected", new Variant("selected", 2));
-    final Allocation allocation =
-        new Allocation(
-            "ordinary-root",
-            null,
-            null,
-            null,
-            singletonList(new Split(emptyList(), "selected", emptyMap(), 1)),
-            false);
-    return new ServerConfiguration(
-        "",
-        "",
-        false,
-        null,
-        singletonMap(
-            "root",
-            new Flag("root", true, ValueType.INTEGER, variations, singletonList(allocation))));
+  private static ServerConfiguration dependentConfiguration(
+      final boolean dependencyDoLog, final int rootValue, final String dependencyValue) {
+    final Map<String, Flag> flags = new HashMap<>();
+    addDependentFlagPair(flags, "root", "dependency", dependencyDoLog, rootValue, dependencyValue);
+    return new ServerConfiguration("", "", false, null, flags);
   }
 
   private static ServerConfiguration reentrantDependentConfiguration() {
@@ -782,8 +767,18 @@ class ExposureLoggingHookTest {
       final String rootKey,
       final String dependencyKey,
       final boolean dependencyDoLog) {
+    addDependentFlagPair(flags, rootKey, dependencyKey, dependencyDoLog, 1, "on-value");
+  }
+
+  private static void addDependentFlagPair(
+      final Map<String, Flag> flags,
+      final String rootKey,
+      final String dependencyKey,
+      final boolean dependencyDoLog,
+      final int rootValue,
+      final String dependencyValue) {
     final Map<String, Variant> dependencyVariations = new HashMap<>();
-    dependencyVariations.put("on", new Variant("on", "on-value"));
+    dependencyVariations.put("on", new Variant("on", dependencyValue));
     final Allocation dependencyAllocation =
         new Allocation(
             dependencyKey + "-allocation",
@@ -801,7 +796,7 @@ class ExposureLoggingHookTest {
             singletonList(dependencyAllocation));
 
     final Map<String, Variant> rootVariations = new HashMap<>();
-    rootVariations.put("selected", new Variant("selected", 1));
+    rootVariations.put("selected", new Variant("selected", rootValue));
     final Rule dependencyRule =
         new Rule(
             singletonList(

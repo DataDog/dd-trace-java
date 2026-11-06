@@ -50,9 +50,9 @@ class ExposureLoggingHook<T> implements Hook<T> {
       final DDEvaluator evaluator = this.evaluatorSupplier.get();
       if (evaluator != null && ctx != null) {
         final Object scope = evaluator.beginDependencyExposureScope(ctx.getFlagKey(), ctx.getCtx());
-        ExposureHook.bindProviderScope(scope, ctx);
-        if (ctx.getHookData() != null) {
-          ctx.getHookData().set(DDEvaluator.DEPENDENCY_TELEMETRY_SCOPE, scope);
+        if (scope != null) {
+          ExposureHook.bindProviderScope(scope, ctx);
+          HookDataAccessor.set(ctx, DDEvaluator.DEPENDENCY_TELEMETRY_SCOPE, scope);
         }
       }
     } catch (final RuntimeException | LinkageError e) {
@@ -68,10 +68,7 @@ class ExposureLoggingHook<T> implements Hook<T> {
       final Map<String, Object> hints) {
     try {
       final DDEvaluator evaluator = this.evaluatorSupplier.get();
-      final Object scope =
-          ctx == null || ctx.getHookData() == null
-              ? evaluator == null ? null : evaluator.currentDependencyTelemetryScope()
-              : ctx.getHookData().get(DDEvaluator.DEPENDENCY_TELEMETRY_SCOPE);
+      final Object scope = HookDataAccessor.take(ctx, DDEvaluator.DEPENDENCY_TELEMETRY_SCOPE);
       final List<com.datadog.openfeature.internal.evaluation.FlagEvaluator.DependencyExposure>
           dependencyExposures =
               evaluator == null

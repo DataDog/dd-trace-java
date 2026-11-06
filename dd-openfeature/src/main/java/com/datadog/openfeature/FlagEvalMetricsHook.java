@@ -28,10 +28,10 @@ class FlagEvalMetricsHook implements Hook<Object> {
   @Override
   public Optional<EvaluationContext> before(HookContext<Object> ctx, Map<String, Object> hints) {
     final DDEvaluator evaluator = evaluatorSupplier.get();
-    if (evaluator != null && ctx != null && ctx.getHookData() != null) {
+    if (evaluator != null && ctx != null) {
       final Object scope = evaluator.currentDependencyTelemetryScope();
       if (scope != null) {
-        ctx.getHookData().set(DDEvaluator.DEPENDENCY_TELEMETRY_SCOPE, scope);
+        HookDataAccessor.set(ctx, DDEvaluator.DEPENDENCY_TELEMETRY_SCOPE, scope);
       }
     }
     return Optional.empty();
@@ -47,11 +47,7 @@ class FlagEvalMetricsHook implements Hook<Object> {
       final DDEvaluator evaluator = evaluatorSupplier.get();
       if (evaluator != null && ctx != null) {
         evaluator.recordDependencyMetrics(
-            evaluator.dependencyEvaluationTrace(
-                evaluator.dependencyTelemetryToken(
-                    ctx.getHookData() == null
-                        ? evaluator.currentDependencyTelemetryScope()
-                        : ctx.getHookData().get(DDEvaluator.DEPENDENCY_TELEMETRY_SCOPE))),
+            evaluator.dependencyEvaluationTrace(evaluator.dependencyTelemetryToken(scope(ctx))),
             metrics);
       }
     } catch (final RuntimeException | LinkageError ignored) {
@@ -73,5 +69,9 @@ class FlagEvalMetricsHook implements Hook<Object> {
     } catch (final RuntimeException | LinkageError ignored) {
       // Never let metrics recording break flag evaluation
     }
+  }
+
+  private static Object scope(final HookContext<?> context) {
+    return HookDataAccessor.get(context, DDEvaluator.DEPENDENCY_TELEMETRY_SCOPE);
   }
 }

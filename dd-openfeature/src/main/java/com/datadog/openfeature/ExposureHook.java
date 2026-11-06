@@ -73,11 +73,11 @@ public final class ExposureHook implements Hook<Object> {
   @Override
   public Optional<EvaluationContext> before(
       final HookContext<Object> context, final Map<String, Object> hints) {
-    if (context == null || context.getHookData() == null) {
+    if (context == null) {
       return Optional.empty();
     }
     final Registration registration = new Registration(this, context);
-    context.getHookData().set(this.lifecycleKey, registration);
+    HookDataAccessor.set(context, this.lifecycleKey, registration);
     List<Registration> registrations = ACTIVE_REGISTRATIONS.get();
     if (registrations == null) {
       registrations = new ArrayList<>();
@@ -93,6 +93,7 @@ public final class ExposureHook implements Hook<Object> {
       final FlagEvaluationDetails<Object> details,
       final Map<String, Object> hints) {
     final Registration registration = registration(context);
+    HookDataAccessor.take(context, this.lifecycleKey);
     if (registration == null) {
       return;
     }
@@ -153,15 +154,15 @@ public final class ExposureHook implements Hook<Object> {
   }
 
   private Registration registration(final HookContext<?> context) {
-    if (context == null || context.getHookData() == null) {
+    if (context == null) {
       return null;
     }
-    final Object value = context.getHookData().get(this.lifecycleKey);
-    if (!(value instanceof Registration)) {
-      return null;
+    final Object value = HookDataAccessor.get(context, this.lifecycleKey);
+    if (value instanceof Registration) {
+      final Registration registration = (Registration) value;
+      return registration.active && registration.hook == this ? registration : null;
     }
-    final Registration registration = (Registration) value;
-    return registration.active && registration.hook == this ? registration : null;
+    return null;
   }
 
   private static void unregister(final Registration registration) {

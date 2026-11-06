@@ -1,13 +1,18 @@
 package com.datadog.featureflag;
 
 import static datadog.remoteconfig.Capabilities.CAPABILITY_FFE_FLAG_CONFIGURATION_RULES;
+import static datadog.remoteconfig.Capabilities.CAPABILITY_FFE_FLAG_DEPENDENT_FLAG_VARIANT_KEY_V1;
 import static datadog.remoteconfig.Product.FFE_FLAGS;
+import static java.util.Collections.emptySet;
 
 import datadog.remoteconfig.ConfigurationChangesTypedListener;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.PollingRateHinter;
+import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 import javax.annotation.Nullable;
@@ -32,6 +37,8 @@ public class RemoteConfigServiceImpl implements ConfigurationChangesTypedListene
   private boolean unvalidated;
 
   private boolean started;
+  private final Map<Consumer<byte[]>, Boolean> dependentFlagSubscribers = new IdentityHashMap<>();
+  private boolean dependentFlagsAdvertised;
 
   public RemoteConfigServiceImpl(final ConfigurationPoller configurationPoller) {
     this.configurationPoller = configurationPoller;
@@ -64,11 +71,25 @@ public class RemoteConfigServiceImpl implements ConfigurationChangesTypedListene
    * @return the handle to close to unsubscribe.
    */
   public AutoCloseable subscribe(final Consumer<byte[]> subscriber) {
+    return subscribe(subscriber, emptySet());
+  }
+
+  /** Subscribes with the evaluator capabilities reported by this SDK instance. */
+  public AutoCloseable subscribe(
+      final Consumer<byte[]> subscriber, final Set<String> capabilities) {
     start();
+    // A distinct forwarding listener keeps repeated registrations independently removable.
+    final Consumer<byte[]> registered = subscriber::accept;
     boolean requestAgain = false;
     // Keep registration and replay atomic with notification snapshots.
     synchronized (this.subscribers) {
-      this.subscribers.add(subscriber);
+      this.subscribers.add(registered);
+      this.dependentFlagSubscribers.put(
+          registered, capabilities.contains("dependent-flag-variant-key-v1"));
+      if (this.dependentFlagsAdvertised
+          && !capabilities.contains("dependent-flag-variant-key-v1")) {
+        this.current = null;
+      }
       final byte[] document = this.current;
       if (document != null) {
         try {
@@ -81,10 +102,40 @@ public class RemoteConfigServiceImpl implements ConfigurationChangesTypedListene
         this.unvalidated = false;
       }
     }
+    updateDependentFlagCapability();
     if (requestAgain) {
       requestAgain();
     }
-    return () -> this.subscribers.remove(subscriber);
+    return () -> {
+      synchronized (this.subscribers) {
+        this.subscribers.remove(registered);
+        this.dependentFlagSubscribers.remove(registered);
+      }
+      updateDependentFlagCapability();
+    };
+  }
+
+  private synchronized void updateDependentFlagCapability() {
+    final boolean supported;
+    synchronized (this.subscribers) {
+      supported =
+          this.started
+              && !this.dependentFlagSubscribers.isEmpty()
+              && !this.dependentFlagSubscribers.containsValue(false);
+      if (supported == this.dependentFlagsAdvertised) {
+        return;
+      }
+      this.dependentFlagsAdvertised = supported;
+      this.current = null;
+    }
+    // The poller invokes callbacks under its lock; never acquire it with subscribers locked.
+    if (supported) {
+      this.configurationPoller.addCapabilities(CAPABILITY_FFE_FLAG_DEPENDENT_FLAG_VARIANT_KEY_V1);
+    } else {
+      this.configurationPoller.removeCapabilities(
+          CAPABILITY_FFE_FLAG_DEPENDENT_FLAG_VARIANT_KEY_V1);
+    }
+    requestAgain();
   }
 
   /**
@@ -114,7 +165,11 @@ public class RemoteConfigServiceImpl implements ConfigurationChangesTypedListene
     this.configurationPoller.removeCapabilities(CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
     this.configurationPoller.removeListeners(FFE_FLAGS);
     this.configurationPoller.stop();
-    this.subscribers.clear();
+    synchronized (this.subscribers) {
+      this.subscribers.clear();
+      this.dependentFlagSubscribers.clear();
+    }
+    updateDependentFlagCapability();
     this.current = null;
   }
 
