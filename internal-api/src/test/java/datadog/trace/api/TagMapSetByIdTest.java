@@ -13,10 +13,10 @@ class TagMapSetByIdTest {
   void storesUnderTheCanonicalName() {
     TagMap map = TagMap.create();
 
-    map.set(KnownTags.PEER_HOSTNAME_ID, "db.internal");
+    map.set(KnownTags.PEER_HOSTNAME, "db.internal");
 
     assertEquals("db.internal", map.getObject(KnownTags.PEER_HOSTNAME_NAME));
-    assertEquals(KnownTags.PEER_HOSTNAME_ID, map.getEntry(KnownTags.PEER_HOSTNAME_NAME).tagId());
+    assertEquals(KnownTags.PEER_HOSTNAME, map.getEntry(KnownTags.PEER_HOSTNAME_NAME).tagId());
   }
 
   @Test
@@ -24,7 +24,7 @@ class TagMapSetByIdTest {
     TagMap byId = TagMap.create();
     TagMap byOtelName = TagMap.create();
 
-    byId.set(KnownTags.HTTP_METHOD_ID, "GET");
+    byId.set(KnownTags.HTTP_METHOD, "GET");
     byOtelName.set(KnownTags.HTTP_METHOD_OTEL_NAME, "GET");
 
     assertEquals(new HashMap<>(byOtelName), new HashMap<>(byId));
@@ -33,13 +33,13 @@ class TagMapSetByIdTest {
   @Test
   void matchesTheNameKeyedSettersForEveryValueType() {
     TagMap byId = TagMap.create();
-    byId.set(KnownTags.HTTP_STATUS_CODE_ID, 5432);
-    byId.set(KnownTags.HTTP_RESEND_COUNT_ID, 2L);
-    byId.set(KnownTags.PEER_HOSTNAME_ID, (CharSequence) "db.internal");
-    byId.set(KnownTags.DB_INSTANCE_ID, (Object) "orders");
-    byId.set(KnownTags.DD_PROFILING_ENABLED_ID, true);
-    byId.set(KnownTags.DB_USER_ID, 1.5f);
-    byId.set(KnownTags.DB_POOL_NAME_ID, 2.5d);
+    byId.set(KnownTags.HTTP_STATUS_CODE, 5432);
+    byId.set(KnownTags.HTTP_RESEND_COUNT, 2L);
+    byId.set(KnownTags.PEER_HOSTNAME, (CharSequence) "db.internal");
+    byId.set(KnownTags.DB_INSTANCE, (Object) "orders");
+    byId.set(KnownTags.DD_PROFILING_ENABLED, true);
+    byId.set(KnownTags.DB_USER, 1.5f);
+    byId.set(KnownTags.DB_POOL_NAME, 2.5d);
 
     TagMap byName = TagMap.create();
     byName.set(KnownTags.HTTP_STATUS_CODE_NAME, 5432);
@@ -59,10 +59,10 @@ class TagMapSetByIdTest {
     TagMap map = TagMap.create();
     map.set(KnownTags.HTTP_METHOD_NAME, "GET");
 
-    assertEquals("GET", map.getEntry(KnownTags.HTTP_METHOD_ID).stringValue());
-    assertEquals("GET", map.getAndRemove(KnownTags.HTTP_METHOD_ID).stringValue());
-    assertNull(map.getEntry(KnownTags.HTTP_METHOD_ID));
-    assertNull(map.getAndRemove(KnownTags.HTTP_METHOD_ID));
+    assertEquals("GET", map.getEntry(KnownTags.HTTP_METHOD).stringValue());
+    assertEquals("GET", map.getAndRemove(KnownTags.HTTP_METHOD).stringValue());
+    assertNull(map.getEntry(KnownTags.HTTP_METHOD));
+    assertNull(map.getAndRemove(KnownTags.HTTP_METHOD));
   }
 
   @Test

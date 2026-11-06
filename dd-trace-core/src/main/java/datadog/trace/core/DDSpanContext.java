@@ -1129,7 +1129,7 @@ public class DDSpanContext
     }
     // UNSET or CUSTOM -- fall through to tag map
     synchronized (knownTags) {
-      TagMap.EntryReader kind = knownTags.getEntryReader(KnownTags.SPAN_KIND_ID);
+      TagMap.EntryReader kind = knownTags.getEntryReader(KnownTags.SPAN_KIND);
       return kind == null ? null : kind.stringValue();
     }
   }

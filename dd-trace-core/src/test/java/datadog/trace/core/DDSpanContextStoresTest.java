@@ -46,7 +46,7 @@ class DDSpanContextStoresTest extends DDCoreJavaSpecification {
     try {
       span.setTag("http.route", "/users");
       span.setTag("custom.kept", "kept");
-      span.spanContext().setTag(new NoEntryReader("http.route", KnownTags.HTTP_ROUTE_ID));
+      span.spanContext().setTag(new NoEntryReader("http.route", KnownTags.HTTP_ROUTE));
       span.spanContext().setTag(new NoEntryReader("custom.kept", 0L));
       span.spanContext().setMetric(new NoEntryReader("custom.metric", 0L));
 
@@ -84,16 +84,16 @@ class DDSpanContextStoresTest extends DDCoreJavaSpecification {
   void interceptedTagsSetByIdAsPrimitivesAreRouted() {
     DDSpan span = start();
     try {
-      span.spanContext().setTag(KnownTags.HTTP_STATUS_CODE_ID, 404);
+      span.spanContext().setTag(KnownTags.HTTP_STATUS_CODE, 404);
       assertEquals(404, span.getHttpStatusCode());
-      span.spanContext().setTag(KnownTags.HTTP_STATUS_CODE_ID, 503L);
+      span.spanContext().setTag(KnownTags.HTTP_STATUS_CODE, 503L);
       assertEquals(503, span.getHttpStatusCode());
 
-      span.spanContext().setTag(KnownTags.DD_MEASURED_ID, true);
+      span.spanContext().setTag(KnownTags.DD_MEASURED, true);
       assertTrue(span.isMeasured());
 
-      span.spanContext().setTag(KnownTags.DD1_SR_EAUSR_ID, 0.25d);
-      span.spanContext().setTag(KnownTags.DD1_SR_EAUSR_ID, 0.5f);
+      span.spanContext().setTag(KnownTags.DD1_SR_EAUSR, 0.25d);
+      span.spanContext().setTag(KnownTags.DD1_SR_EAUSR, 0.5f);
       assertEquals(0.5f, ((Number) span.getTag("_dd1.sr.eausr")).floatValue());
     } finally {
       span.finish();
@@ -104,16 +104,16 @@ class DDSpanContextStoresTest extends DDCoreJavaSpecification {
   void knownTagsSetByIdAsPrimitivesWithoutInterception() {
     DDSpan span = start();
     try {
-      span.spanContext().setTag(KnownTags.PEER_PORT_ID, 5432L);
-      span.spanContext().setTag(KnownTags.DB_INSTANCE_ID, 1.5f);
-      span.spanContext().setTag(KnownTags.DB_POOL_NAME_ID, 2.5d);
+      span.spanContext().setTag(KnownTags.PEER_PORT, 5432L);
+      span.spanContext().setTag(KnownTags.DB_INSTANCE, 1.5f);
+      span.spanContext().setTag(KnownTags.DB_POOL_NAME, 2.5d);
       assertEquals(5432L, span.getTag("peer.port"));
       assertEquals(1.5f, span.getTag("db.instance"));
       assertEquals(2.5d, span.getTag("db.pool.name"));
 
       // an intercepted tag the interceptor declines is still stored: span.kind records its
       // ordinal and keeps the value
-      span.spanContext().setTag(KnownTags.SPAN_KIND_ID, 1);
+      span.spanContext().setTag(KnownTags.SPAN_KIND, 1);
       assertEquals("1", String.valueOf(span.getTag("span.kind")));
     } finally {
       span.finish();
