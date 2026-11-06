@@ -345,14 +345,14 @@ class TagRegistryGeneratorTest {
           span-kind: server
           tags:
             - {dd-name: http.hostname, otel-name: server.address}
-            - {ref: server.port}
+            - {concept-ref: server.port}
         http.client: {span-kind: client, include: [outbound_peer]}
       mixins:
         outbound_peer:
           span-kind: client
           tags:
             - {dd-name: peer.hostname, otel-name: server.address}
-            - {ref: server.port}
+            - {concept-ref: server.port}
       """
     )
     val output = File(directory, "generated")
@@ -387,10 +387,10 @@ class TagRegistryGeneratorTest {
       - { concept: client.port, type: int, dd-name: { server: peer.port }, otel-name: { inbound: client.port } }
     span_types:
       http.client: {span-kind: client, include: [outbound_peer]}
-      http.server: {span-kind: server, include: [inbound_peer], tags: [{ref: server.port}]}
+      http.server: {span-kind: server, include: [inbound_peer], tags: [{concept-ref: server.port}]}
     mixins:
-      outbound_peer: {span-kind: client, tags: [{ref: server.port}]}
-      inbound_peer: {span-kind: server, tags: [{ref: client.port}]}
+      outbound_peer: {span-kind: client, tags: [{concept-ref: server.port}]}
+      inbound_peer: {span-kind: server, tags: [{concept-ref: client.port}]}
     """
 
   @Test
@@ -530,6 +530,29 @@ class TagRegistryGeneratorTest {
       }
       .withMessageContaining("'server.port' is a Datadog name, and also another tag's OpenTelemetry name")
   }
+
+  @Test
+  fun `a concept is referenced with concept-ref, not ref`() {
+    assertThatIllegalArgumentException()
+      .isThrownBy { refConventions("{ref: server.port}") }
+      .withMessageContaining("use `{ concept-ref: server.port }`")
+  }
+
+  @Test
+  fun `a tag is referenced with ref, not concept-ref`() {
+    assertThatIllegalArgumentException()
+      .isThrownBy { refConventions("{concept-ref: http.method}") }
+      .withMessageContaining("use `{ ref: http.method }`")
+  }
+
+  private fun refConventions(entry: String) = tagConventions(
+    """
+    concepts:
+      - { concept: server.port, type: int, dd-name: { server: server.port, default: peer.port } }
+    span_types:
+      http.server: {span-kind: server, tags: [{dd-name: http.method}, $entry]}
+    """
+  )
 
   @Test
   fun `the assignment report lists each concept's names by kind`() {

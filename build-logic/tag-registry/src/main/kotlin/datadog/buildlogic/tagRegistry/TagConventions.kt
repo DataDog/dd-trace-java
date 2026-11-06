@@ -117,7 +117,12 @@ class TagConventions private constructor(
    * [name] is the referenced tag's identity, resolved by direction when the name is declared per
    * direction.
    */
-  data class Ref(val identity: TagIdentity, val required: String?)
+  data class Ref(
+    val identity: TagIdentity,
+    val required: String?,
+    /** Written `concept-ref`: it names a concept from `concepts:`, so readers know where to look. */
+    val concept: Boolean = false,
+  )
 
   data class SpanType(
     val name: String,
@@ -478,6 +483,7 @@ class TagConventions private constructor(
         }
       validateOtelNameScope(spanTypes, mixins, traceLevel)
       val conv = TagConventions(spanTypes, mixins, traceLevel, intercepted, javaNames)
+      validateRefKinds(conv, spanTypes.values.flatMap { it.refs } + mixins.values.flatMap { it.refs })
       val declared = conv.allDeclaredTags().map { it.ddName }.toSet()
       for (name in intercepted) {
         require(name in declared) { "intercepted tag '$name' is not declared" }
@@ -622,21 +628,28 @@ class TagConventions private constructor(
       }
     }
 
-    private val REF_KEYS = setOf("ref", "required")
+    private fun isRef(m: Map<String, Any?>) = m.containsKey("ref") || m.containsKey("concept-ref")
 
+    /**
+     * `{ ref: <dd-name> }` reuses a tag declared elsewhere; `{ concept-ref: <concept> }` reuses a concept
+     * from `concepts:`. The two keys are kept apart so a reader knows where to look.
+     */
     @Suppress("UNCHECKED_CAST")
     private fun refList(tags: Any?): List<Ref> = (tags as? List<Map<String, Any?>>)
-      ?.filter { it.containsKey("ref") }
+      ?.filter { isRef(it) }
       ?.map { m ->
-        val extra = m.keys - REF_KEYS
+        val concept = m.containsKey("concept-ref")
+        val key = if (concept) "concept-ref" else "ref"
+        require(!(concept && m.containsKey("ref"))) { "a tag entry has both ref and concept-ref: $m" }
+        val extra = m.keys - setOf(key, "required")
         require(extra.isEmpty()) {
-          "ref '${m["ref"]}' may override only `required`, but also sets $extra; identity " +
-            "(type, otel-name) comes from the tag's single declaration"
+          "$key '${m[key]}' may override only `required`, but also sets $extra; identity " +
+            "(type, otel-name) comes from the single declaration"
         }
-        val name = m["ref"]
-        require(name is String && name.isNotBlank()) { "ref has no valid tag name: $m" }
-        require(m["required"] == null || m["required"] is String) { "ref '$name' required must be a string" }
-        Ref(TagIdentity(name), m["required"] as? String)
+        val name = m[key]
+        require(name is String && name.isNotBlank()) { "$key has no valid tag name: $m" }
+        require(m["required"] == null || m["required"] is String) { "$key '$name' required must be a string" }
+        Ref(TagIdentity(name), m["required"] as? String, concept)
       } ?: emptyList()
 
     @Suppress("UNCHECKED_CAST")
@@ -645,7 +658,7 @@ class TagConventions private constructor(
       return (tags as? List<*>)?.mapNotNull { entry ->
         require(entry is Map<*, *>) { "tag declaration must be a mapping" }
         val m = entry as Map<String, Any?>
-        if (m.containsKey("ref")) return@mapNotNull null
+        if (isRef(m)) return@mapNotNull null
         require(!m.containsKey("concept")) {
           "concept '${m["concept"]}' must be declared in the top-level `concepts:` section"
         }
@@ -719,6 +732,23 @@ class TagConventions private constructor(
         datadogNames = datadogNames,
         otelNamesByDirection = otelByDirection,
       )
+    }
+
+    /** A `concept-ref` must name a concept, and a plain `ref` must not. */
+    private fun validateRefKinds(conv: TagConventions, refs: List<Ref>) {
+      val byIdentity = conv.allDeclaredTags().associateBy { it.identity }
+      for (r in refs) {
+        val target = byIdentity[r.identity] ?: continue
+        if (r.concept) {
+          require(target.projected) {
+            "concept-ref '${r.identity.ddName}' names a tag, not a concept; use `{ ref: ${r.identity.ddName} }`"
+          }
+        } else {
+          require(!target.projected) {
+            "ref '${r.identity.ddName}' names a concept; use `{ concept-ref: ${r.identity.ddName} }`"
+          }
+        }
+      }
     }
 
     /** Reads the required, nonblank string `dd-name`; invalid values fail generation. */
