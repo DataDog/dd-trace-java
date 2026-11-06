@@ -24,6 +24,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeoutException;
@@ -323,10 +324,9 @@ public class ShellGitClient implements GitClient {
         () -> {
           try {
             return commandExecutor.executeCommand(
-                IOUtils::readLines, buildGitCommand("describe", "--tags", "--exact-match", commit));
+                IOUtils::readLines, buildGitCommand("tag", "--points-at", commit));
           } catch (ShellCommandExecutor.ShellCommandFailedException e) {
-            // if provided commit is not tagged,
-            // command will fail because "--exact-match" is specified
+            // An unavailable revision cannot have local tags.
             return Collections.emptyList();
           }
         });
@@ -483,20 +483,28 @@ public class ShellGitClient implements GitClient {
     if (GitUtils.isNotValidCommit(commit)) {
       return Collections.emptyList();
     }
-    List<String> commits =
-        executeCommand(
-            Command.GET_LOCAL_COMMITS,
-            () ->
-                commandExecutor.executeCommand(
-                    IOUtils::readLines,
-                    buildGitCommand(
-                        "log",
-                        "--format=%H",
-                        "-n",
-                        String.valueOf(latestCommitsLimit),
-                        String.format("--since='%s'", latestCommitsSince),
-                        commit,
-                        "--")));
+    List<String> commits;
+    try {
+      commits =
+          executeCommand(
+              Command.GET_LOCAL_COMMITS,
+              () ->
+                  commandExecutor.executeCommand(
+                      IOUtils::readLines,
+                      buildGitCommand(
+                          "log",
+                          "--format=%H",
+                          "-n",
+                          String.valueOf(latestCommitsLimit),
+                          String.format("--since='%s'", latestCommitsSince),
+                          commit,
+                          "--")));
+    } catch (ShellCommandExecutor.ShellCommandFailedException e) {
+      if (!isCommitPresent(commit)) {
+        return Collections.emptyList();
+      }
+      throw e;
+    }
     if (!HEAD.equals(commit) && !commits.contains(commit) && isCommitPresent(commit)) {
       commits.add(0, commit);
     }
@@ -523,14 +531,15 @@ public class ShellGitClient implements GitClient {
     return executeCommand(
         Command.GET_OBJECTS,
         () -> {
-          String[] gitArgs = new String[5 + commitsToSkip.size() + commitsToInclude.size()];
+          String[] gitArgs = new String[6 + commitsToSkip.size() + commitsToInclude.size()];
           gitArgs[0] = "rev-list";
           gitArgs[1] = "--objects";
           gitArgs[2] = "--no-object-names";
           gitArgs[3] = "--filter=blob:none";
-          gitArgs[4] = "--max-count=" + latestCommitsLimit;
+          gitArgs[4] = String.format("--since='%s'", latestCommitsSince);
+          gitArgs[5] = "--max-count=" + latestCommitsLimit;
 
-          int count = 5;
+          int count = 6;
           for (String commitToSkip : commitsToSkip) {
             gitArgs[count++] = "^" + commitToSkip;
           }
@@ -538,7 +547,29 @@ public class ShellGitClient implements GitClient {
             gitArgs[count++] = commitToInclude;
           }
 
-          return commandExecutor.executeCommand(IOUtils::readLines, buildGitCommand(gitArgs));
+          List<String> objects =
+              commandExecutor.executeCommand(IOUtils::readLines, buildGitCommand(gitArgs));
+          LinkedHashSet<String> outsideWindow = new LinkedHashSet<>(commitsToInclude);
+          for (String object : objects) {
+            outsideWindow.remove(object);
+          }
+          if (!outsideWindow.isEmpty()) {
+            List<String> selectedArgs = new ArrayList<>();
+            Collections.addAll(
+                selectedArgs,
+                "rev-list",
+                "--objects",
+                "--no-object-names",
+                "--filter=blob:none",
+                "--no-walk=unsorted");
+            selectedArgs.addAll(outsideWindow);
+            LinkedHashSet<String> combined = new LinkedHashSet<>(objects);
+            combined.addAll(
+                commandExecutor.executeCommand(
+                    IOUtils::readLines, buildGitCommand(selectedArgs.toArray(new String[0]))));
+            return new ArrayList<>(combined);
+          }
+          return objects;
         });
   }
 

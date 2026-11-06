@@ -299,6 +299,8 @@ public class GitUtils {
 
   /** Checks if the provided string is neither a valid commit SHA nor a valid Git reference */
   public static boolean isNotValidCommit(@Nullable String commit) {
-    return !isValidCommitSha(commit) && !isValidRef(commit);
+    return commit == null
+        || commit.startsWith("-")
+        || (!isValidCommitSha(commit) && !isValidRef(commit));
   }
 }

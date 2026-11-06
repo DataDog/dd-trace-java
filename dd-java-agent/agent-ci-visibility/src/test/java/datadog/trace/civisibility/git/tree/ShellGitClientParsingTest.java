@@ -15,11 +15,35 @@ import datadog.trace.civisibility.utils.ShellCommandExecutor;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class ShellGitClientParsingTest {
   @TempDir Path checkout;
+
+  @Test
+  void enumeratesEveryTagOnTheSelectedCommit() throws Exception {
+    Path fixture =
+        Paths.get(getClass().getClassLoader().getResource("ci/git/with_pack/git").toURI());
+    IOUtils.copyFolder(fixture, Files.createDirectories(checkout.resolve(".git")));
+    ShellCommandExecutor command = new ShellCommandExecutor(checkout.toFile(), 10_000);
+    ShellGitClient client =
+        new ShellGitClient(
+            mock(CiVisibilityMetricCollector.class),
+            checkout.toString(),
+            "1 month ago",
+            1000,
+            10_000);
+    assertTrue(client.getTags(GitClient.HEAD).isEmpty());
+    command.executeCommand(IOUtils::readFully, "git", "update-ref", "refs/tags/v1", GitClient.HEAD);
+    assertEquals(singletonList("v1"), client.getTags(GitClient.HEAD));
+    command.executeCommand(
+        IOUtils::readFully, "git", "update-ref", "refs/tags/stable", GitClient.HEAD);
+    assertEquals(2, client.getTags(GitClient.HEAD).size());
+    assertTrue(client.getTags(GitClient.HEAD).contains("stable"));
+    assertTrue(client.getTags(GitClient.HEAD).contains("v1"));
+  }
 
   @Test
   void selectedCommitHistoryAndPackObjectsDoNotSubstituteHeadOrDiscardOldCommits()
@@ -36,11 +60,17 @@ class ShellGitClientParsingTest {
             10_000);
     String selected = "98cd7c8e9cf71e02dc28bd9b13928bee0f85b74c";
     String head = "5b6f3a6dab5972d73a56dff737bd08d995255c08";
+    String parent =
+        new ShellCommandExecutor(checkout.toFile(), 10_000)
+            .executeCommand(IOUtils::readFully, "git", "rev-parse", selected + "^")
+            .trim();
 
     assertEquals(selected, client.getLatestCommits(selected).get(0));
     assertFalse(client.getLatestCommits(selected).contains(head));
-    assertTrue(client.getObjects(emptyList(), singletonList(selected)).contains(selected));
-    assertFalse(client.getObjects(emptyList(), singletonList(selected)).contains(head));
+    List<String> objects = client.getObjects(emptyList(), singletonList(selected));
+    assertTrue(objects.contains(selected));
+    assertFalse(objects.contains(head));
+    assertFalse(objects.contains(parent));
     assertTrue(client.getLatestCommits("--all").isEmpty());
   }
 

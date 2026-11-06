@@ -12,6 +12,20 @@ import org.tabletest.junit.TableTest;
 
 class GitUtilsTest {
 
+  @TableTest({
+    "scenario        | revision        | invalid",
+    "all refs option | --all           | true   ",
+    "output option   | --output=result | true   ",
+    "head            | HEAD            | false  ",
+    "branch          | refs/heads/main | false  ",
+    "short SHA       | 123abcd         | false  ",
+    "missing         |                 | true   ",
+    "empty           | ''              | true   "
+  })
+  void testCommitReferenceRejectsOptions(String revision, boolean invalid) {
+    assertEquals(invalid, GitUtils.isNotValidCommit(revision));
+  }
+
   private static final PersonInfo JANE_DOE_PERSON_INFO =
       new PersonInfo("Jane Doe", "jane.doe@email.com");
 
