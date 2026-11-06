@@ -34,11 +34,17 @@ import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.KeyStore;
+import java.security.cert.Certificate;
+import java.security.cert.X509Certificate;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSocket;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.io.TempDir;
@@ -58,9 +64,8 @@ class AzureCosmosEmulatorTest extends AbstractInstrumentationTest {
   private static final String CONTAINER = "container";
   private static final String OPERATION_NAME = "cosmosdb.query";
   private static final AtomicInteger DATABASE_COUNTER = new AtomicInteger();
-  private static final String EMULATOR_CERT_VALIDATION_DISABLED =
-      "COSMOS.EMULATOR_SERVER_CERTIFICATE_VALIDATION_DISABLED";
-  private static final String EMULATOR_HOST = "COSMOS.EMULATOR_HOST";
+  private static final int EMULATOR_PORT = 8081;
+  private static final String HOSTNAME_VALIDATION_DISABLED = "COSMOS.HOSTNAME_VALIDATION_DISABLED";
 
   @TempDir static Path tempDir;
 
@@ -81,25 +86,56 @@ class AzureCosmosEmulatorTest extends AbstractInstrumentationTest {
             .withStartupTimeout(Duration.ofMinutes(5));
     emulator.start();
 
-    // the emulator serves a self-signed certificate
+    // The emulator serves a self-signed certificate. Trust the one it actually presents in a
+    // handshake rather than the one its download endpoint returns, which the SDK rejected in CI.
     Path keyStoreFile = tempDir.resolve("azure-cosmos-emulator.keystore");
-    KeyStore keyStore = emulator.buildNewKeyStore();
+    char[] password = "changeit".toCharArray();
     try (OutputStream out = Files.newOutputStream(keyStoreFile)) {
-      keyStore.store(out, emulator.getEmulatorKey().toCharArray());
+      servedCertificates(emulator.getHost(), emulator.getMappedPort(EMULATOR_PORT))
+          .store(out, password);
     }
     System.setProperty("javax.net.ssl.trustStore", keyStoreFile.toString());
-    System.setProperty("javax.net.ssl.trustStorePassword", emulator.getEmulatorKey());
+    System.setProperty("javax.net.ssl.trustStorePassword", new String(password));
     System.setProperty("javax.net.ssl.trustStoreType", "PKCS12");
-    // recent SDK versions don't use the JVM trust store, and instead skip certificate checks for
-    // the emulator host, which is only localhost by default
-    System.setProperty(EMULATOR_CERT_VALIDATION_DISABLED, "true");
-    System.setProperty(EMULATOR_HOST, emulator.getHost());
+    // recent SDK versions check the host name, and the emulator certificate doesn't name the
+    // Docker host the tests reach it through
+    System.setProperty(HOSTNAME_VALIDATION_DISABLED, "true");
+  }
+
+  /** Returns a key store trusting the certificates the server presents in a TLS handshake. */
+  private static KeyStore servedCertificates(String host, int port) throws Exception {
+    SSLContext trustAll = SSLContext.getInstance("TLS");
+    trustAll.init(null, new TrustManager[] {new TrustAllManager()}, null);
+    Certificate[] certificates;
+    try (SSLSocket socket = (SSLSocket) trustAll.getSocketFactory().createSocket(host, port)) {
+      socket.startHandshake();
+      certificates = socket.getSession().getPeerCertificates();
+    }
+    KeyStore keyStore = KeyStore.getInstance("PKCS12");
+    keyStore.load(null, null);
+    for (int i = 0; i < certificates.length; i++) {
+      keyStore.setCertificateEntry("azure-cosmos-emulator-" + i, certificates[i]);
+    }
+    return keyStore;
+  }
+
+  /** Accepts any server certificate, only used to read the emulator certificate. */
+  private static final class TrustAllManager implements X509TrustManager {
+    @Override
+    public void checkClientTrusted(X509Certificate[] chain, String authType) {}
+
+    @Override
+    public void checkServerTrusted(X509Certificate[] chain, String authType) {}
+
+    @Override
+    public X509Certificate[] getAcceptedIssuers() {
+      return new X509Certificate[0];
+    }
   }
 
   @AfterAll
   static void stopEmulator() {
-    System.clearProperty(EMULATOR_CERT_VALIDATION_DISABLED);
-    System.clearProperty(EMULATOR_HOST);
+    System.clearProperty(HOSTNAME_VALIDATION_DISABLED);
     if (emulator != null) {
       emulator.stop();
     }
