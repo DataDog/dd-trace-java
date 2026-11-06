@@ -11,17 +11,20 @@ import static datadog.trace.instrumentation.netty41.client.NettyHttpClientDecora
 import static datadog.trace.instrumentation.netty41.client.NettyHttpClientDecorator.NETTY_CLIENT;
 import static datadog.trace.instrumentation.netty41.client.NettyHttpClientDecorator.NETTY_CLIENT_REQUEST;
 import static datadog.trace.instrumentation.netty41.client.NettyResponseInjectAdapter.SETTER;
+import static java.util.Collections.singleton;
 
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
 import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.ChannelPromise;
+import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpRequest;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
@@ -46,6 +49,10 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
 
   private static final boolean AWS_LEGACY_TRACING = Config.get().isAwsLegacyTracingEnabled();
 
+  // the azure-cosmos integration traces each gateway request itself
+  private static final boolean AZURE_COSMOS_TRACING =
+      InstrumenterConfig.get().isIntegrationEnabled(singleton("azure-cosmos"), true);
+
   @Override
   public void write(final ChannelHandlerContext ctx, final Object msg, final ChannelPromise prm) {
     if (!(msg instanceof HttpRequest)) {
@@ -61,8 +68,9 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
 
     final HttpRequest request = (HttpRequest) msg;
     boolean awsClientCall = request.headers().contains("amz-sdk-invocation-id");
-    if (!AWS_LEGACY_TRACING && awsClientCall) {
-      // avoid creating an extra HTTP client span beneath the AWS client call
+    if ((!AWS_LEGACY_TRACING && awsClientCall)
+        || (AZURE_COSMOS_TRACING && isCosmosClientCall(request))) {
+      // avoid creating an extra HTTP client span beneath the AWS or Cosmos client call
       try {
         ctx.write(msg, prm);
         return;
@@ -109,6 +117,17 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
         parentScope.close();
       }
     }
+  }
+
+  /**
+   * Requests sent by the Azure Cosmos DB SDK, whose user agent starts with {@code
+   * azsdk-java-cosmos/} (or {@code cosmosdb-java-sdk/} in early 4.x versions).
+   */
+  private static boolean isCosmosClientCall(final HttpRequest request) {
+    final String userAgent = request.headers().get(HttpHeaderNames.USER_AGENT);
+    return userAgent != null
+        && (userAgent.startsWith("azsdk-java-cosmos/")
+            || userAgent.startsWith("cosmosdb-java-sdk/"));
   }
 
   private static ContextContinuation takeConnectParentContinuation(
