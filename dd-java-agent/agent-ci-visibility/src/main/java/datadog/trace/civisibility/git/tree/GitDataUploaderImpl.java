@@ -132,7 +132,7 @@ public class GitDataUploaderImpl implements GitDataUploader {
         return;
       }
 
-      String currentCommit = latestCommits.get(0);
+      String currentCommit = gitInfo.getCommit().getSha();
 
       Path packFilesDirectory = gitClient.createPackFiles(objectHashes);
       try {

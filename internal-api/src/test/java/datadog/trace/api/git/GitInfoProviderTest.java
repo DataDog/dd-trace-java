@@ -232,18 +232,17 @@ class GitInfoProviderTest {
             new CommitInfo("shaA", PersonInfo.NOOP, PersonInfo.NOOP, "message"));
     GitInfo gitInfoB =
         new GitInfo("repoUrlA", null, null, new CommitInfo("shaB", AUTHOR, COMMITTER, "message"));
-    GitInfo gitInfoC =
-        new GitInfo("repoUrlB", null, null, new CommitInfo("shaC", AUTHOR, COMMITTER, "message"));
+    GitInfo gitInfoC = new GitInfo("repoUrlB", null, null, new CommitInfo("shaC"));
 
     GitInfoBuilder gitInfoBuilderA =
         givenABuilderReturning(
-            gitInfoA, 1, GitProviderExpected.CI_PROVIDER, GitProviderDiscrepant.CI_PROVIDER);
+            gitInfoA, 3, GitProviderExpected.CI_PROVIDER, GitProviderDiscrepant.CI_PROVIDER);
     GitInfoBuilder gitInfoBuilderB =
         givenABuilderReturning(
             gitInfoB, 2, GitProviderExpected.LOCAL_GIT, GitProviderDiscrepant.LOCAL_GIT);
     GitInfoBuilder gitInfoBuilderC =
         givenABuilderReturning(
-            gitInfoC, 3, GitProviderExpected.GIT_CLIENT, GitProviderDiscrepant.GIT_CLIENT);
+            gitInfoC, 1, GitProviderExpected.GIT_CLIENT, GitProviderDiscrepant.GIT_CLIENT);
 
     GitInfoProvider gitInfoProvider = new GitInfoProvider();
     gitInfoProvider.registerGitInfoBuilder(gitInfoBuilderA);
@@ -257,15 +256,8 @@ class GitInfoProviderTest {
         .add(
             GIT_COMMIT_SHA_DISCREPANCY,
             1L,
-            GitProviderExpected.CI_PROVIDER,
-            GitProviderDiscrepant.LOCAL_GIT,
-            GitShaDiscrepancyType.COMMIT_DISCREPANCY);
-    verify(metricCollector)
-        .add(
-            GIT_COMMIT_SHA_DISCREPANCY,
-            1L,
-            GitProviderExpected.CI_PROVIDER,
-            GitProviderDiscrepant.GIT_CLIENT,
+            GitProviderExpected.GIT_CLIENT,
+            GitProviderDiscrepant.CI_PROVIDER,
             GitShaDiscrepancyType.REPOSITORY_DISCREPANCY);
   }
 
@@ -318,6 +310,110 @@ class GitInfoProviderTest {
     GitInfo actualGitInfo = gitInfoProvider.getGitInfo(REPO_PATH);
 
     assertEquals("http://usefulUrl", actualGitInfo.getRepositoryURL());
+  }
+
+  @Test
+  void testGitClientPrecedesCiAndDoesNotFillMissingFieldsFromCi() {
+    GitInfoProvider provider = new GitInfoProvider();
+    provider.registerGitInfoBuilder(
+        givenABuilderReturning(
+            new GitInfo(
+                "https://ci/repo.git",
+                "ci-branch",
+                "ci-tag",
+                new CommitInfo("ci-sha", AUTHOR, COMMITTER, "ci-message")),
+            3,
+            GitProviderExpected.CI_PROVIDER,
+            GitProviderDiscrepant.CI_PROVIDER));
+    provider.registerGitInfoBuilder(
+        givenABuilderReturning(
+            new GitInfo(null, null, null, new CommitInfo("local-sha")),
+            1,
+            GitProviderExpected.GIT_CLIENT,
+            GitProviderDiscrepant.GIT_CLIENT));
+
+    provider.registerGitInfoBuilder(
+        givenABuilderReturning(
+            new GitInfo(
+                "https://filesystem/repo.git",
+                "filesystem-branch",
+                "filesystem-tag",
+                new CommitInfo("local-sha", AUTHOR, COMMITTER, "filesystem-message")),
+            4,
+            GitProviderExpected.LOCAL_GIT,
+            GitProviderDiscrepant.LOCAL_GIT));
+    provider.registerGitInfoBuilder(
+        givenABuilderReturning(
+            new GitInfo(
+                "https://embedded/repo.git",
+                "embedded-branch",
+                "embedded-tag",
+                new CommitInfo("local-sha", AUTHOR, COMMITTER, "embedded-message")),
+            5,
+            GitProviderExpected.EMBEDDED,
+            GitProviderDiscrepant.EMBEDDED));
+
+    GitInfo info = provider.getGitInfo(REPO_PATH);
+    assertEquals("local-sha", info.getCommit().getSha());
+    assertNull(info.getRepositoryURL());
+    assertNull(info.getBranch());
+    assertNull(info.getTag());
+    assertNull(info.getCommit().getFullMessage());
+    assertNull(info.getCommit().getAuthor().getName());
+  }
+
+  @Test
+  void testCiGitMetadataIsUsedWhenGitClientCannotReadCheckout() {
+    GitInfoProvider provider = new GitInfoProvider();
+    provider.registerGitInfoBuilder(
+        givenABuilderReturning(
+            new GitInfo(
+                "https://ci/repo.git",
+                "ci-branch",
+                "ci-tag",
+                new CommitInfo("ci-sha", AUTHOR, COMMITTER, "ci-message")),
+            3,
+            GitProviderExpected.CI_PROVIDER,
+            GitProviderDiscrepant.CI_PROVIDER));
+    provider.registerGitInfoBuilder(
+        givenABuilderReturning(
+            GitInfo.NOOP, 1, GitProviderExpected.GIT_CLIENT, GitProviderDiscrepant.GIT_CLIENT));
+
+    GitInfo info = provider.getGitInfo(REPO_PATH);
+    assertEquals("ci-sha", info.getCommit().getSha());
+    assertEquals("https://ci/repo.git", info.getRepositoryURL());
+    assertEquals("ci-branch", info.getBranch());
+    assertEquals("ci-tag", info.getTag());
+    assertEquals("ci-message", info.getCommit().getFullMessage());
+  }
+
+  @Test
+  void testExplicitOverridesPrecedeReadableCheckout() {
+    GitInfoProvider provider = new GitInfoProvider();
+    provider.registerGitInfoBuilder(
+        givenABuilderReturning(
+            new GitInfo(
+                "https://user/repo.git",
+                "user-branch",
+                "user-tag",
+                new CommitInfo("user-sha", AUTHOR, COMMITTER, "user-message")),
+            0,
+            GitProviderExpected.USER_SUPPLIED,
+            GitProviderDiscrepant.USER_SUPPLIED));
+    provider.registerGitInfoBuilder(
+        givenABuilderReturning(
+            new GitInfo(
+                "https://local/repo.git", "local-branch", "local-tag", new CommitInfo("local-sha")),
+            1,
+            GitProviderExpected.GIT_CLIENT,
+            GitProviderDiscrepant.GIT_CLIENT));
+
+    GitInfo info = provider.getGitInfo(REPO_PATH);
+    assertEquals("user-sha", info.getCommit().getSha());
+    assertEquals("https://user/repo.git", info.getRepositoryURL());
+    assertEquals("user-branch", info.getBranch());
+    assertEquals("user-tag", info.getTag());
+    assertEquals("user-message", info.getCommit().getFullMessage());
   }
 
   private static void assertFallbackCommitInfo(GitInfo actualGitInfo) {

@@ -33,7 +33,12 @@ public class GitClientGitInfoBuilder implements GitInfoBuilder {
     GitClient gitClient = gitClientFactory.create(repositoryPath);
     try {
       String remoteName = config.getCiVisibilityGitRemoteName();
-      String remoteUrl = gitClient.getRemoteUrl(remoteName);
+      String remoteUrl = null;
+      try {
+        remoteUrl = gitClient.getRemoteUrl(remoteName);
+      } catch (Exception e) {
+        LOGGER.debug("Could not read Git remote URL from {}", repositoryPath, e);
+      }
       String branch = gitClient.getCurrentBranch();
       List<String> tags = gitClient.getTags(GitClient.HEAD);
       String tag = !tags.isEmpty() ? tags.iterator().next() : null;
@@ -50,7 +55,7 @@ public class GitClientGitInfoBuilder implements GitInfoBuilder {
 
   @Override
   public int order() {
-    return 3;
+    return 1;
   }
 
   @Override

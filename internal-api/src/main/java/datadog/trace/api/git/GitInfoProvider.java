@@ -162,13 +162,44 @@ public class GitInfoProvider {
     private final String repositoryPath;
     private final Map<GitInfoBuilder, GitInfo> infos;
     private final Set<ShaDiscrepancy> shaDiscrepancies;
+    private final boolean gitClientAvailable;
 
     private Evaluator(String repositoryPath, Collection<GitInfoBuilder> builders) {
       this.repositoryPath = repositoryPath;
       this.infos = new LinkedHashMap<>();
       this.shaDiscrepancies = new HashSet<>();
+      GitInfo localInfo = null;
       for (GitInfoBuilder builder : builders) {
-        infos.put(builder, null);
+        GitInfo info = null;
+        if (builder.providerAsExpected() == GitProviderExpected.GIT_CLIENT) {
+          info = builder.build(repositoryPath);
+          localInfo = info;
+        }
+        infos.put(builder, info);
+      }
+      gitClientAvailable = localInfo != null && Strings.isNotBlank(localInfo.getCommit().getSha());
+      if (gitClientAvailable) {
+        for (Map.Entry<GitInfoBuilder, GitInfo> entry : infos.entrySet()) {
+          if (entry.getKey().providerAsExpected() != GitProviderExpected.CI_PROVIDER) {
+            continue;
+          }
+          GitInfo ciInfo = entry.getKey().build(repositoryPath);
+          entry.setValue(ciInfo);
+          String ciSha = ciInfo.getCommit().getSha();
+          if (Strings.isNotBlank(ciSha) && !ciSha.equals(localInfo.getCommit().getSha())) {
+            boolean repositoryMismatch =
+                localInfo.getRepositoryURL() != null
+                    && ciInfo.getRepositoryURL() != null
+                    && !localInfo.getRepositoryURL().equals(ciInfo.getRepositoryURL());
+            shaDiscrepancies.add(
+                new ShaDiscrepancy(
+                    GitProviderExpected.GIT_CLIENT,
+                    GitProviderDiscrepant.CI_PROVIDER,
+                    repositoryMismatch
+                        ? GitShaDiscrepancyType.REPOSITORY_DISCREPANCY
+                        : GitShaDiscrepancyType.COMMIT_DISCREPANCY));
+          }
+        }
       }
     }
 
@@ -194,6 +225,11 @@ public class GitInfoProvider {
       GitProviderExpected expectedGitProvider = null;
 
       for (Map.Entry<GitInfoBuilder, GitInfo> e : infos.entrySet()) {
+        if (gitClientAvailable
+            && e.getKey().providerAsExpected() != GitProviderExpected.USER_SUPPLIED
+            && e.getKey().providerAsExpected() != GitProviderExpected.GIT_CLIENT) {
+          continue;
+        }
         GitInfo info = e.getValue();
         if (info == null) {
           GitInfoBuilder builder = e.getKey();

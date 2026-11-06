@@ -52,6 +52,27 @@ class GitClientGitInfoBuilderTest extends Specification {
       "* Changes based on the review."
   }
 
+  def "keeps checkout metadata when no remote is configured"() {
+    given:
+    givenGitRepo()
+    Files.delete(tempDir.resolve(".git/config"))
+    def metricCollector = Stub(CiVisibilityMetricCollectorImpl)
+    def config = Stub(Config) {
+      getCiVisibilityGitRemoteName() >> "origin"
+      getCiVisibilityGitCommandTimeoutMillis() >> GIT_COMMAND_TIMEOUT_MILLIS
+    }
+    def builder = new GitClientGitInfoBuilder(config, new ShellGitClient.Factory(config, metricCollector))
+
+    when:
+    def gitInfo = builder.build(tempDir.toString())
+
+    then:
+    gitInfo.repositoryURL == null
+    gitInfo.branch == "master"
+    gitInfo.commit.sha == "5b6f3a6dab5972d73a56dff737bd08d995255c08"
+    gitInfo.commit.author.name == "Tony Redondo"
+  }
+
   private void givenGitRepo() {
     givenGitRepo("ci/git/with_pack/git")
   }
