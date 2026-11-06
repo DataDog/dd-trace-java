@@ -4,9 +4,14 @@ import static datadog.trace.bootstrap.instrumentation.decorator.ExpectedSpanStat
 import static org.mockito.Mockito.atMost;
 import static org.mockito.Mockito.verify;
 
+import datadog.trace.api.KnownTagCodec;
 import org.junit.jupiter.api.Test;
 
 class ServerDecoratorTest extends BaseDecoratorTest {
+  @Override
+  protected int spanKind() {
+    return KnownTagCodec.KIND_SERVER;
+  }
 
   @Test
   void testServerAfterStart() {

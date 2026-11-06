@@ -54,9 +54,10 @@ public final class OtelConventions {
    * name, and a direction-scoped one that denotes no tag in {@code direction}, is stored as
    * written.
    */
-  static String attributeTag(String key, int direction) {
+  static String attributeTag(String key, int direction, int spanKind) {
     long tagId = KnownTagCodec.directionalIdOf(key, direction);
-    return tagId == 0 ? key : KnownTagCodec.nameOf(tagId);
+    // A projected concept is named by the span's kind: server.port is peer.port on a client span.
+    return tagId == 0 ? key : KnownTagCodec.datadogNameOf(tagId, spanKind);
   }
 
   /**

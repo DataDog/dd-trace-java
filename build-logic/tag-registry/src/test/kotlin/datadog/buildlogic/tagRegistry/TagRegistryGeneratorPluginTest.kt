@@ -250,7 +250,14 @@ class TagRegistryGeneratorPluginTest {
           String openTelemetryNameOf(long id, int direction);
           long idOf(String name);
           long directionalIdOf(String name, int direction);
+          String datadogNameOf(long id, int spanKind);
+          long datadogIdOf(String name, int spanKind);
         }
+        public static final int KIND_SERVER = 1;
+        public static final int KIND_CLIENT = 2;
+        public static final int KIND_PRODUCER = 3;
+        public static final int KIND_CONSUMER = 4;
+        public static final int KIND_INTERNAL = 5;
         public static final int DIRECTION_UNKNOWN = -1;
         public static final int DIRECTION_INBOUND = 0;
         public static final int DIRECTION_OUTBOUND = 1;

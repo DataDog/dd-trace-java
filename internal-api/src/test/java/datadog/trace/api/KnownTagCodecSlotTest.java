@@ -47,7 +47,7 @@ class KnownTagCodecSlotTest {
 
   @Test
   void anOptionalTagOnASpanTypeHasASlot() {
-    assertTrue(KnownTagCodec.hasSlot(KnownTags.PEER_PORT));
+    assertTrue(KnownTagCodec.hasSlot(KnownTags.SERVER_PORT));
     assertTrue(KnownTagCodec.hasSlot(KnownTags.DB_POOL_NAME));
   }
 

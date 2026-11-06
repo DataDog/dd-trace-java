@@ -40,13 +40,18 @@ public class OtelSpan implements Span, WithAgentSpan, SpanWrapper {
   /** The direction of the span's kind, fixed at start; it decides direction-scoped names. */
   private final int direction;
 
+  /** The span's KnownTagCodec kind, fixed at start; it names projected concepts. */
+  private final int spanKind;
+
   private StatusCode statusCode = UNSET;
   private volatile boolean recording = true;
 
   public OtelSpan(AgentSpan delegate) {
     this.delegate = delegate;
     Object kind = delegate.getTag(Tags.SPAN_KIND);
-    this.direction = KnownTagCodec.directionOfKind(kind == null ? null : kind.toString());
+    String kindName = kind == null ? null : kind.toString();
+    this.direction = KnownTagCodec.directionOfKind(kindName);
+    this.spanKind = KnownTagCodec.kindOf(kindName);
     if (delegate instanceof AttachableWrapper) {
       ((AttachableWrapper) delegate).attachWrapper(this);
     }
@@ -78,7 +83,7 @@ public class OtelSpan implements Span, WithAgentSpan, SpanWrapper {
           }
           break;
         default:
-          this.delegate.setTag(attributeTag(key.getKey(), this.direction), value);
+          this.delegate.setTag(attributeTag(key.getKey(), this.direction, this.spanKind), value);
           break;
       }
     }
