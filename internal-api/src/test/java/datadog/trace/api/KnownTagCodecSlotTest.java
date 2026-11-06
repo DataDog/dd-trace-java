@@ -85,7 +85,7 @@ class KnownTagCodecSlotTest {
   @Test
   void makeTagIdBuildsTheRealIdOfAKnownTag() {
     // a slotted, intercepted tag: its constant carries slot and flag bits beyond the serial
-    long id = KnownTags.HTTP_STATUS_CODE_ID;
+    long id = KnownTags.HTTP_STATUS_CODE;
     assertEquals(id, KnownTagCodec.makeTagId(KnownTagCodec.serialNum(id)));
 
     long unknown = KnownTagCodec.makeTagId(KnownTagCodec.serialLimit() + 1);

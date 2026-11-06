@@ -22,7 +22,7 @@ class DenseIdStoreForkedTest {
   @Test
   void onlyTheDenseStoreIsLoaded() {
     TagMap map = TagMap.create();
-    map.set(KnownTags.COMPONENT_ID, "okhttp");
+    map.set(KnownTags.COMPONENT, "okhttp");
     map.set("custom.tag", "custom");
 
     assertSame(DenseIdStore.class, map.knownStore.getClass());

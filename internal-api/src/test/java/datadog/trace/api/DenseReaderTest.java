@@ -13,7 +13,7 @@ class DenseReaderTest {
   @Test
   void exposesAnIntValue() {
     DenseReader reader = new DenseReader();
-    reader.set(KnownTags.HTTP_STATUS_CODE_ID, 200);
+    reader.set(KnownTags.HTTP_STATUS_CODE, 200);
 
     assertEquals(200, reader.intValue());
     assertEquals(200L, reader.longValue());
@@ -27,7 +27,7 @@ class DenseReaderTest {
   @Test
   void exposesALongValue() {
     DenseReader reader = new DenseReader();
-    reader.set(KnownTags.HTTP_STATUS_CODE_ID, 123456789L);
+    reader.set(KnownTags.HTTP_STATUS_CODE, 123456789L);
 
     assertEquals(123456789L, reader.longValue());
     assertEquals(TagMap.EntryReader.LONG, reader.type());
@@ -37,7 +37,7 @@ class DenseReaderTest {
   @Test
   void exposesABooleanValue() {
     DenseReader reader = new DenseReader();
-    reader.set(KnownTags.HTTP_STATUS_CODE_ID, true);
+    reader.set(KnownTags.HTTP_STATUS_CODE, true);
 
     assertTrue(reader.booleanValue());
     assertEquals(TagMap.EntryReader.BOOLEAN, reader.type());
@@ -48,11 +48,11 @@ class DenseReaderTest {
   @Test
   void exposesFloatAndDoubleValues() {
     DenseReader reader = new DenseReader();
-    reader.set(KnownTags.HTTP_STATUS_CODE_ID, 1.5f);
+    reader.set(KnownTags.HTTP_STATUS_CODE, 1.5f);
     assertEquals(1.5f, reader.floatValue());
     assertEquals(TagMap.EntryReader.FLOAT, reader.type());
 
-    reader.set(KnownTags.HTTP_STATUS_CODE_ID, 3.14);
+    reader.set(KnownTags.HTTP_STATUS_CODE, 3.14);
     assertEquals(3.14, reader.doubleValue());
     assertEquals(TagMap.EntryReader.DOUBLE, reader.type());
   }
@@ -60,7 +60,7 @@ class DenseReaderTest {
   @Test
   void exposesAStringAsAnObject() {
     DenseReader reader = new DenseReader();
-    reader.set(KnownTags.HTTP_METHOD_ID, "GET");
+    reader.set(KnownTags.HTTP_METHOD, "GET");
 
     assertEquals("GET", reader.stringValue());
     assertEquals("GET", reader.objectValue());
@@ -72,9 +72,9 @@ class DenseReaderTest {
   @Test
   void namesTheTagFromItsId() {
     DenseReader reader = new DenseReader();
-    reader.set(KnownTags.HTTP_METHOD_ID, "GET");
+    reader.set(KnownTags.HTTP_METHOD, "GET");
 
-    assertEquals(KnownTags.HTTP_METHOD_ID, reader.tagId());
+    assertEquals(KnownTags.HTTP_METHOD, reader.tagId());
     assertEquals(KnownTags.HTTP_METHOD_NAME, reader.tag());
     assertEquals(KnownTags.HTTP_METHOD_NAME, reader.tag()); // the resolved name is reused
   }
@@ -82,21 +82,21 @@ class DenseReaderTest {
   @Test
   void aNewTagReplacesTheResolvedName() {
     DenseReader reader = new DenseReader();
-    reader.set(KnownTags.HTTP_METHOD_ID, "GET");
+    reader.set(KnownTags.HTTP_METHOD, "GET");
     assertEquals(KnownTags.HTTP_METHOD_NAME, reader.tag());
 
-    reader.set(KnownTags.HTTP_ROUTE_ID, "/users");
-    assertEquals(KnownTags.HTTP_ROUTE_ID, reader.tagId());
+    reader.set(KnownTags.HTTP_ROUTE, "/users");
+    assertEquals(KnownTags.HTTP_ROUTE, reader.tagId());
     assertEquals(KnownTags.HTTP_ROUTE_NAME, reader.tag());
   }
 
   @Test
   void buildsAnEntryForTheTag() {
     DenseReader reader = new DenseReader();
-    reader.set(KnownTags.HTTP_METHOD_ID, "GET");
+    reader.set(KnownTags.HTTP_METHOD, "GET");
 
     TagMap.Entry entry = reader.entry();
-    assertEquals(KnownTags.HTTP_METHOD_ID, entry.tagId());
+    assertEquals(KnownTags.HTTP_METHOD, entry.tagId());
     assertEquals(KnownTags.HTTP_METHOD_NAME, entry.tag());
     assertEquals("GET", entry.objectValue());
 

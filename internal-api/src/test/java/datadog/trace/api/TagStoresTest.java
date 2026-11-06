@@ -154,8 +154,7 @@ class TagStoresTest {
     DenseIdStore traceLevel = new DenseIdStore(null);
     traceLevel.store(KnownTags.RUNTIME_ID, "abc");
     DenseIdStore span = new DenseIdStore(traceLevel);
-    long other =
-        spanLevelId == KnownTags.HTTP_ROUTE_ID ? KnownTags.COMPONENT_ID : KnownTags.HTTP_ROUTE_ID;
+    long other = spanLevelId == KnownTags.HTTP_ROUTE ? KnownTags.COMPONENT : KnownTags.HTTP_ROUTE;
     span.store(other, "/a");
 
     long bit = DenseIdStore.slotBit(spanLevelId);
@@ -170,16 +169,16 @@ class TagStoresTest {
   void aClearDenseSlotBitIsADefiniteMiss() {
     DenseIdStore ids = new DenseIdStore(null);
     assertEquals(0L, ids.spanOccupancy);
-    assertNull(ids.getEntryReader(KnownTags.HTTP_ROUTE_ID));
+    assertNull(ids.getEntryReader(KnownTags.HTTP_ROUTE));
 
-    ids.store(KnownTags.HTTP_ROUTE_ID, "/a");
-    assertNotEquals(0L, ids.spanOccupancy & DenseIdStore.slotBit(KnownTags.HTTP_ROUTE_ID));
-    assertEquals("/a", ids.load(KnownTags.HTTP_ROUTE_ID));
+    ids.store(KnownTags.HTTP_ROUTE, "/a");
+    assertNotEquals(0L, ids.spanOccupancy & DenseIdStore.slotBit(KnownTags.HTTP_ROUTE));
+    assertEquals("/a", ids.load(KnownTags.HTTP_ROUTE));
 
     // a child inherits its parent's slots, so a read-through miss can stop early
     DenseIdStore child = new DenseIdStore(ids);
     assertEquals(ids.spanOccupancy, child.inheritedMask);
-    assertEquals("/a", child.load(KnownTags.HTTP_ROUTE_ID));
+    assertEquals("/a", child.load(KnownTags.HTTP_ROUTE));
   }
 
   @Test
@@ -188,9 +187,9 @@ class TagStoresTest {
     // colored independently, so their slot numbers overlap.
     DenseIdStore ids = new DenseIdStore(null);
     ids.store(KnownTags.RUNTIME_ID, "abc");
-    ids.store(KnownTags.HTTP_ROUTE_ID, "/a");
+    ids.store(KnownTags.HTTP_ROUTE, "/a");
     long runtimeIdBit = DenseIdStore.slotBit(KnownTags.RUNTIME_ID);
-    assertNotEquals(runtimeIdBit, DenseIdStore.slotBit(KnownTags.HTTP_ROUTE_ID), "precondition");
+    assertNotEquals(runtimeIdBit, DenseIdStore.slotBit(KnownTags.HTTP_ROUTE), "precondition");
 
     assertTrue(ids.mayHaveLocal(runtimeIdBit, DenseIdStore.TRACE_LEVEL));
     assertFalse(ids.mayHaveLocal(runtimeIdBit, DenseIdStore.SPAN_LEVEL));
@@ -199,13 +198,13 @@ class TagStoresTest {
   @Test
   void aDenseRemovalOfAnInheritedTagMarksATombstone() {
     DenseIdStore parent = new DenseIdStore(null);
-    parent.store(KnownTags.HTTP_ROUTE_ID, "/a");
+    parent.store(KnownTags.HTTP_ROUTE, "/a");
     DenseIdStore child = new DenseIdStore(parent);
     assertEquals(0L, child.tombstoneMask);
 
-    child.remove(KnownTags.HTTP_ROUTE_ID);
+    child.remove(KnownTags.HTTP_ROUTE);
     assertNotEquals(0L, child.tombstoneMask);
-    assertNull(child.load(KnownTags.HTTP_ROUTE_ID));
+    assertNull(child.load(KnownTags.HTTP_ROUTE));
     assertEquals(0, child.computeSize());
   }
 
