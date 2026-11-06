@@ -149,7 +149,8 @@ public final class UniversalFlagConfigParser {
               asString(json.get("format"), "format"),
               lenientBoolean(json.get("observeFullEvaluationData")),
               toEnvironment(json.get("environment")),
-              toFlags(json.get("flags"), invalidFlags));
+              toFlags(json.get("flags"), invalidFlags),
+              toEvaluatorParams(json.get("evaluatorParams"), json.containsKey("evaluatorParams")));
       if (!invalidFlags.isEmpty()) {
         configuration.invalidFlags = invalidFlags;
       }
@@ -157,6 +158,22 @@ public final class UniversalFlagConfigParser {
     } catch (final IllegalArgumentException e) {
       throw new IOException("Invalid flag configuration: " + e.getMessage(), e);
     }
+  }
+
+  @Nullable
+  private static EvaluatorParams toEvaluatorParams(
+      @Nullable final Object value, final boolean present) {
+    if (!present) {
+      return null;
+    }
+    if (!(value instanceof Map)) {
+      // Keep the invalid value as a lazy evaluator diagnostic. Independent flags must remain
+      // usable, and dependency evaluation will log the problem before falling back to its default.
+      return new EvaluatorParams(null, false, "evaluatorParams must be an object");
+    }
+    final Map<?, ?> json = (Map<?, ?>) value;
+    return new EvaluatorParams(
+        json.get("maxDependencyDepth"), json.containsKey("maxDependencyDepth"));
   }
 
   @Nullable
@@ -264,10 +281,36 @@ public final class UniversalFlagConfigParser {
       return null;
     }
     final Map<?, ?> json = asObject(value, "condition");
-    return new ConditionConfiguration(
-        asEnum(json.get("operator"), ConditionOperator.class, "operator"),
-        asString(json.get("attribute"), "attribute"),
-        json.get("value"));
+    final boolean hasAttribute = json.containsKey("attribute");
+    final boolean hasFlagEvaluation = json.containsKey("flagEvaluation");
+    if (hasAttribute == hasFlagEvaluation) {
+      throw new IllegalArgumentException(
+          "condition must contain exactly one of attribute or flagEvaluation");
+    }
+    final String attribute = hasAttribute ? asString(json.get("attribute"), "attribute") : null;
+    final String flagEvaluationKey =
+        hasFlagEvaluation ? toFlagEvaluationKey(json.get("flagEvaluation")) : null;
+    final ConditionOperator operator =
+        asEnum(json.get("operator"), ConditionOperator.class, "operator");
+    if (flagEvaluationKey != null
+        && operator != ConditionOperator.ONE_OF
+        && operator != ConditionOperator.NOT_ONE_OF) {
+      throw new IllegalArgumentException(
+          "flagEvaluation conditions support only ONE_OF and NOT_ONE_OF");
+    }
+    return new ConditionConfiguration(operator, attribute, flagEvaluationKey, json.get("value"));
+  }
+
+  private static String toFlagEvaluationKey(@Nullable final Object value) {
+    final Map<?, ?> json = asObject(value, "flagEvaluation");
+    if (!json.containsKey("key")) {
+      throw new IllegalArgumentException("flagEvaluation must contain key");
+    }
+    final String key = asString(json.get("key"), "flagEvaluation.key");
+    if (key == null || key.isEmpty()) {
+      throw new IllegalArgumentException("flagEvaluation.key must not be empty");
+    }
+    return key;
   }
 
   @Nullable
@@ -578,6 +621,17 @@ public final class UniversalFlagConfigParser {
             if (!(condition.value instanceof List)) {
               throw new IllegalArgumentException(
                   "flag \"" + flagKey + "\" has a non-list condition");
+            }
+            // A flag evaluation compares the dependency's variant key, which is always a String.
+            // Attribute membership deliberately retains the evaluator's boolean/numeric equality
+            // semantics.
+            if (condition.flagEvaluationKey != null) {
+              for (final Object member : (List<?>) condition.value) {
+                if (!(member instanceof String)) {
+                  throw new IllegalArgumentException(
+                      "flag \"" + flagKey + "\" has a non-string membership operand");
+                }
+              }
             }
             break;
           case IS_NULL:

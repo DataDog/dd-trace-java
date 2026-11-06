@@ -11,11 +11,14 @@ import static com.datadog.openfeature.internal.evaluation.MetadataKeys.HAS_EVALU
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.OBSERVE_FULL_EVALUATION_DATA;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.SPLIT_SERIAL_ID;
 import static java.util.Arrays.asList;
+import static java.util.Collections.emptyList;
+import static java.util.Collections.unmodifiableList;
 
 import com.datadog.openfeature.ExperimentationOptOutMode;
 import com.datadog.openfeature.internal.ufc.Allocation;
 import com.datadog.openfeature.internal.ufc.ConditionConfiguration;
 import com.datadog.openfeature.internal.ufc.ConditionOperator;
+import com.datadog.openfeature.internal.ufc.EvaluatorParams;
 import com.datadog.openfeature.internal.ufc.Feature;
 import com.datadog.openfeature.internal.ufc.Flag;
 import com.datadog.openfeature.internal.ufc.ParsedSemver;
@@ -36,8 +39,13 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -54,6 +62,7 @@ public final class FlagEvaluator {
   static final String FEATURE_DESTINATION_HOOK = "HOOK";
   static final String FEATURE_DESTINATION_EXPOSURE = "EXPOSURE";
   static final String FEATURE_DESTINATION_EVALUATION = "EVALUATION";
+  static final int DEFAULT_MAX_DEPENDENCY_DEPTH = 10;
   // A newer UFC can name destinations this SDK does not know; warn once per name, not per
   // evaluation.
   static final int MAX_WARNED_FEATURE_DESTINATIONS = 64;
@@ -87,6 +96,16 @@ public final class FlagEvaluator {
       final String key,
       final T defaultValue,
       final EvaluationContext context) {
+    return evaluateWithTrace(config, target, key, defaultValue, context).details;
+  }
+
+  /** Evaluates a root flag and returns all telemetry candidates produced by its graph. */
+  public <T> EvaluationResult<T> evaluateWithTrace(
+      final ServerConfiguration config,
+      final Class<T> target,
+      final String key,
+      final T defaultValue,
+      final EvaluationContext context) {
     // Snapshot the config once and thread observeFullEvaluationData through every
     // ProviderEvaluation returned, so the hook's consent decision is pinned to this evaluation's
     // config and cannot drift on a concurrent Remote Config swap.
@@ -94,142 +113,249 @@ public final class FlagEvaluator {
     // an NPE — the field is boxed so a malformed UFC message doesn't abort the whole parse.
     final boolean observeFullEvaluationData =
         config != null && Boolean.TRUE.equals(config.observeFullEvaluationData);
+    final long evaluationTimestampMs = System.currentTimeMillis();
+    if (config == null) {
+      return new EvaluationState(
+              null, context, observeFullEvaluationData, evaluationTimestampMs, null)
+          .complete(
+              error(defaultValue, ErrorCode.PROVIDER_NOT_READY, null, observeFullEvaluationData),
+              false);
+    }
+    if (context == null) {
+      return new EvaluationState(
+              config, null, observeFullEvaluationData, evaluationTimestampMs, null)
+          .complete(
+              error(defaultValue, ErrorCode.INVALID_CONTEXT, null, observeFullEvaluationData),
+              false);
+    }
+    final Instant experimentationCutoff;
     try {
-      if (config == null) {
-        return error(defaultValue, ErrorCode.PROVIDER_NOT_READY, null, observeFullEvaluationData);
-      }
-
-      if (context == null) {
-        return error(defaultValue, ErrorCode.INVALID_CONTEXT, null, observeFullEvaluationData);
-      }
-
-      final Instant experimentationCutoff;
-      try {
-        experimentationCutoff = ExperimentationOptOut.cutoff(experimentationOptOutMode, context);
-      } catch (final ExperimentationOptOut.InvalidTimestampException e) {
-        // This diagnostic is fixed SDK text. It contains no customer context values.
-        return ProviderEvaluation.<T>builder()
-            .value(defaultValue)
-            .reason(Reason.ERROR.name())
-            .errorCode(ErrorCode.INVALID_CONTEXT)
-            .errorMessage(ExperimentationOptOut.INVALID_TIMESTAMP)
-            .flagMetadata(consentMetadata(observeFullEvaluationData))
-            .build();
-      }
-
-      final Flag flag = config.flags.get(key);
-      if (flag == null) {
-        if (config.invalidFlags != null && config.invalidFlags.containsKey(key)) {
-          return error(
+      experimentationCutoff = ExperimentationOptOut.cutoff(experimentationOptOutMode, context);
+    } catch (final ExperimentationOptOut.InvalidTimestampException e) {
+      // This diagnostic is fixed SDK text. It contains no customer context values.
+      final ProviderEvaluation<T> invalidContext =
+          ProviderEvaluation.<T>builder()
+              .value(defaultValue)
+              .reason(Reason.ERROR.name())
+              .errorCode(ErrorCode.INVALID_CONTEXT)
+              .errorMessage(ExperimentationOptOut.INVALID_TIMESTAMP)
+              .flagMetadata(consentMetadata(observeFullEvaluationData))
+              .build();
+      return new EvaluationState(
+              config, context, observeFullEvaluationData, evaluationTimestampMs, null)
+          .complete(invalidContext, false);
+    } catch (final Exception e) {
+      return new EvaluationState(
+              config, context, observeFullEvaluationData, evaluationTimestampMs, null)
+          .complete(
+              error(defaultValue, ErrorCode.GENERAL, e.getMessage(), observeFullEvaluationData),
+              false);
+    }
+    final EvaluationState state =
+        new EvaluationState(
+            config,
+            context,
+            observeFullEvaluationData,
+            evaluationTimestampMs,
+            experimentationCutoff);
+    ProviderEvaluation<T> result;
+    boolean commitExposures;
+    try {
+      result = evaluateFlag(state, target, key, defaultValue);
+      commitExposures = result.getErrorCode() == null;
+    } catch (final DependencyGraphException e) {
+      result =
+          error(
               defaultValue,
-              ErrorCode.PARSE_ERROR,
-              "invalid configuration for flag " + key,
+              ErrorCode.GENERAL,
+              e.dependencyKey == null
+                  ? e.getMessage()
+                  : "prerequisite flag " + e.dependencyKey + ": " + e.getMessage(),
               observeFullEvaluationData);
-        }
-        return error(defaultValue, ErrorCode.FLAG_NOT_FOUND, null, observeFullEvaluationData);
-      }
+      commitExposures = false;
+    } catch (final PatternSyntaxException e) {
+      result =
+          error(defaultValue, ErrorCode.PARSE_ERROR, e.getMessage(), observeFullEvaluationData);
+      commitExposures = false;
+    } catch (final NumberFormatException e) {
+      result =
+          error(defaultValue, ErrorCode.TYPE_MISMATCH, e.getMessage(), observeFullEvaluationData);
+      commitExposures = false;
+    } catch (final Exception e) {
+      result = error(defaultValue, ErrorCode.GENERAL, e.getMessage(), observeFullEvaluationData);
+      commitExposures = false;
+    }
+    return state.complete(result, commitExposures);
+  }
 
-      if (experimentationCutoff != null
-          && experimentationOptOutMode == ExperimentationOptOutMode.FUTURE_EXPERIMENTS_ONLY
-          && ExperimentationOptOut.hasInvalidActivation(flag.allocations)) {
+  private <T> ProviderEvaluation<T> evaluateFlag(
+      final EvaluationState state, final Class<T> target, final String key, final T defaultValue) {
+    final ServerConfiguration config = state.config;
+    if (config == null) {
+      return error(
+          defaultValue, ErrorCode.PROVIDER_NOT_READY, null, state.observeFullEvaluationData);
+    }
+    if (state.context == null) {
+      return error(defaultValue, ErrorCode.INVALID_CONTEXT, null, state.observeFullEvaluationData);
+    }
+    final Flag flag = config.flags == null ? null : config.flags.get(key);
+    if (flag == null) {
+      if (config.invalidFlags != null && config.invalidFlags.containsKey(key)) {
         return error(
             defaultValue,
             ErrorCode.PARSE_ERROR,
-            "invalid randomizationActivatedAt for flag " + key,
-            observeFullEvaluationData);
+            "invalid configuration for flag " + key,
+            state.observeFullEvaluationData);
       }
+      return error(defaultValue, ErrorCode.FLAG_NOT_FOUND, null, state.observeFullEvaluationData);
+    }
+    if (state.experimentationCutoff != null
+        && experimentationOptOutMode == ExperimentationOptOutMode.FUTURE_EXPERIMENTS_ONLY
+        && ExperimentationOptOut.hasInvalidActivation(flag.allocations)) {
+      return error(
+          defaultValue,
+          ErrorCode.PARSE_ERROR,
+          "invalid randomizationActivatedAt for flag " + key,
+          state.observeFullEvaluationData);
+    }
+    if (!flag.enabled) {
+      return ProviderEvaluation.<T>builder()
+          .value(defaultValue)
+          .reason(Reason.DISABLED.name())
+          .flagMetadata(consentMetadata(state.observeFullEvaluationData))
+          .build();
+    }
+    if (flag.allocations == null) {
+      return error(
+          defaultValue,
+          ErrorCode.GENERAL,
+          "Missing allocations for flag " + key,
+          state.observeFullEvaluationData);
+    }
 
-      if (!flag.enabled) {
-        return ProviderEvaluation.<T>builder()
-            .value(defaultValue)
-            .reason(Reason.DISABLED.name())
-            .flagMetadata(consentMetadata(observeFullEvaluationData))
-            .build();
+    final Instant now = Instant.ofEpochMilli(state.evaluationTimestampMs);
+    final String targetingKey = state.context.getTargetingKey();
+    for (final Allocation allocation : flag.allocations) {
+      if (state.experimentationCutoff != null
+          && ExperimentationOptOut.excludes(
+              experimentationOptOutMode, state.experimentationCutoff, allocation)) {
+        continue;
       }
-
-      if (flag.allocations == null) {
-        return error(
-            defaultValue,
-            ErrorCode.GENERAL,
-            "Missing allocations for flag " + key,
-            observeFullEvaluationData);
+      if (!isAllocationActive(allocation, now)) {
+        continue;
       }
-
-      final Instant now = Instant.now();
-      final long evalTimestampMs = now.toEpochMilli();
-      final String targetingKey = context.getTargetingKey();
-
-      for (final Allocation allocation : flag.allocations) {
-        if (experimentationCutoff != null
-            && ExperimentationOptOut.excludes(
-                experimentationOptOutMode, experimentationCutoff, allocation)) {
-          continue;
-        }
-        if (!isAllocationActive(allocation, now)) {
-          continue;
-        }
-
-        if (!isEmpty(allocation.rules)) {
-          if (!evaluateRules(allocation.rules, context)) {
-            continue;
-          }
-        }
-
-        if (!isEmpty(allocation.splits)) {
-          for (final Split split : allocation.splits) {
-            if (isEmpty(split.shards)) {
-              return resolveVariant(
-                  target,
+      final ExposureCheckpoint allocationCheckpoint = state.checkpoint();
+      if (!isEmpty(allocation.rules)
+          && !evaluateRules(allocation.rules, state, key, state.context)) {
+        state.rollback(allocationCheckpoint);
+        continue;
+      }
+      if (!isEmpty(allocation.splits)) {
+        for (final Split split : allocation.splits) {
+          boolean allShardsMatch = true;
+          if (!isEmpty(split.shards)) {
+            if (targetingKey == null) {
+              state.rollback(allocationCheckpoint);
+              return error(
                   defaultValue,
-                  flag,
-                  split.variationKey,
-                  allocation,
-                  split,
-                  context,
-                  evalTimestampMs,
-                  observeFullEvaluationData);
-            } else {
-              if (targetingKey == null) {
-                return error(
-                    defaultValue, ErrorCode.TARGETING_KEY_MISSING, null, observeFullEvaluationData);
-              }
-              // To match a split, subject must match ALL underlying shards
-              boolean allShardsMatch = true;
-              for (final Shard shard : split.shards) {
-                if (!matchesShard(shard, targetingKey)) {
-                  allShardsMatch = false;
-                  break;
-                }
-              }
-              if (allShardsMatch) {
-                return resolveVariant(
-                    target,
-                    defaultValue,
-                    flag,
-                    split.variationKey,
-                    allocation,
-                    split,
-                    context,
-                    evalTimestampMs,
-                    observeFullEvaluationData);
+                  ErrorCode.TARGETING_KEY_MISSING,
+                  null,
+                  state.observeFullEvaluationData);
+            }
+            for (final Shard shard : split.shards) {
+              if (!matchesShard(shard, targetingKey)) {
+                allShardsMatch = false;
+                break;
               }
             }
           }
+          if (allShardsMatch) {
+            return resolveVariant(
+                target,
+                defaultValue,
+                flag,
+                split.variationKey,
+                allocation,
+                split,
+                state.context,
+                state.evaluationTimestampMs,
+                state.observeFullEvaluationData);
+          }
         }
       }
+      state.rollback(allocationCheckpoint);
+    }
+    return ProviderEvaluation.<T>builder()
+        .value(defaultValue)
+        .reason(Reason.DEFAULT.name())
+        .flagMetadata(consentMetadata(state.observeFullEvaluationData))
+        .build();
+  }
 
-      return ProviderEvaluation.<T>builder()
-          .value(defaultValue)
-          .reason(Reason.DEFAULT.name())
-          .flagMetadata(consentMetadata(observeFullEvaluationData))
-          .build();
-    } catch (final PatternSyntaxException e) {
-      return error(defaultValue, ErrorCode.PARSE_ERROR, e.getMessage(), observeFullEvaluationData);
-    } catch (final NumberFormatException e) {
-      return error(
-          defaultValue, ErrorCode.TYPE_MISMATCH, e.getMessage(), observeFullEvaluationData);
-    } catch (final Exception e) {
-      return error(defaultValue, ErrorCode.GENERAL, e.getMessage(), observeFullEvaluationData);
+  private static int maxDependencyDepth(final ServerConfiguration config) {
+    final EvaluatorParams params = config.evaluatorParams;
+    if (params == null) {
+      return DEFAULT_MAX_DEPENDENCY_DEPTH;
+    }
+    Integer cached = params.resolvedMaxDependencyDepth();
+    if (cached != null) {
+      return cached;
+    }
+    // UFC snapshots and their evaluator params are immutable. Synchronization is reached only on
+    // this snapshot's first dependency evaluation; subsequent requests take the volatile fast
+    // path above. This also ensures malformed input is diagnosed once under concurrent first use.
+    synchronized (params) {
+      cached = params.resolvedMaxDependencyDepth();
+      if (cached != null) {
+        return cached;
+      }
+      final int parsed = parseMaxDependencyDepth(params);
+      params.cacheResolvedMaxDependencyDepth(parsed);
+      return parsed;
+    }
+  }
+
+  private static int parseMaxDependencyDepth(final EvaluatorParams params) {
+    if (params.validationError != null) {
+      logInvalidMaxDependencyDepth(params.validationError, null);
+      return DEFAULT_MAX_DEPENDENCY_DEPTH;
+    }
+    if (!params.maxDependencyDepthPresent) {
+      return DEFAULT_MAX_DEPENDENCY_DEPTH;
+    }
+    try {
+      final Object configured = params.maxDependencyDepth;
+      if (configured instanceof Number) {
+        final double value = ((Number) configured).doubleValue();
+        if (Double.isFinite(value) && value == Math.rint(value) && value >= 0 && value <= 255) {
+          return (int) value;
+        }
+      }
+      logInvalidMaxDependencyDepth(
+          "maxDependencyDepth must be an integer from 0 through 255", null);
+    } catch (final RuntimeException failure) {
+      logInvalidMaxDependencyDepth("could not read maxDependencyDepth", failure);
+    }
+    return DEFAULT_MAX_DEPENDENCY_DEPTH;
+  }
+
+  private static void logInvalidMaxDependencyDepth(
+      final String diagnostic, final RuntimeException failure) {
+    try {
+      if (failure == null) {
+        LOGGER.error(
+            "Invalid evaluator options ({}); using maxDependencyDepth={}",
+            diagnostic,
+            DEFAULT_MAX_DEPENDENCY_DEPTH);
+      } else {
+        LOGGER.error(
+            "Invalid evaluator options ({}); using maxDependencyDepth={}",
+            diagnostic,
+            DEFAULT_MAX_DEPENDENCY_DEPTH,
+            failure);
+      }
+    } catch (final RuntimeException ignored) {
+      // Diagnostics are best effort and must not make a valid independent graph fail.
     }
   }
 
@@ -276,15 +402,20 @@ public final class FlagEvaluator {
     return true;
   }
 
-  private static boolean evaluateRules(final List<Rule> rules, final EvaluationContext context) {
+  private boolean evaluateRules(
+      final List<Rule> rules,
+      final EvaluationState state,
+      final String rootFlagKey,
+      final EvaluationContext context) {
     for (final Rule rule : rules) {
       if (isEmpty(rule.conditions)) {
         continue;
       }
 
+      final ExposureCheckpoint ruleCheckpoint = state.checkpoint();
       boolean allConditionsMatch = true;
       for (final ConditionConfiguration condition : rule.conditions) {
-        if (!evaluateCondition(condition, context)) {
+        if (!evaluateCondition(condition, state, rootFlagKey, context)) {
           allConditionsMatch = false;
           break;
         }
@@ -293,21 +424,30 @@ public final class FlagEvaluator {
       if (allConditionsMatch) {
         return true;
       }
+      state.rollback(ruleCheckpoint);
     }
     return false;
   }
 
-  private static boolean evaluateCondition(
-      final ConditionConfiguration condition, final EvaluationContext context) {
+  private boolean evaluateCondition(
+      final ConditionConfiguration condition,
+      final EvaluationState state,
+      final String rootFlagKey,
+      final EvaluationContext context) {
+    final Object attributeValue;
+    if (condition.flagEvaluationKey != null) {
+      attributeValue =
+          state.dependencySession(rootFlagKey).resolveCurrent(condition.flagEvaluationKey);
+    } else {
+      attributeValue = resolveAttribute(condition.attribute, context);
+    }
     if (condition.operator == ConditionOperator.IS_NULL) {
-      final Object value = resolveAttribute(condition.attribute, context);
-      boolean isNull = value == null;
+      boolean isNull = attributeValue == null;
       // condition.value determines if we're checking for null (true) or not null (false)
       boolean expectedNull = condition.value instanceof Boolean ? (Boolean) condition.value : true;
       return isNull == expectedNull;
     }
 
-    final Object attributeValue = resolveAttribute(condition.attribute, context);
     if (attributeValue == null) {
       return false;
     }
@@ -654,6 +794,429 @@ public final class FlagEvaluator {
       return ((Number) value).doubleValue();
     }
     return Double.parseDouble(String.valueOf(value));
+  }
+
+  private final class EvaluationState {
+    private final ServerConfiguration config;
+    private final EvaluationContext context;
+    private final boolean observeFullEvaluationData;
+    private final long evaluationTimestampMs;
+    private final Instant experimentationCutoff;
+    private DependencyEvaluationSession session;
+
+    private EvaluationState(
+        final ServerConfiguration config,
+        final EvaluationContext context,
+        final boolean observeFullEvaluationData,
+        final long evaluationTimestampMs,
+        final Instant experimentationCutoff) {
+      this.config = config;
+      this.context = context;
+      this.observeFullEvaluationData = observeFullEvaluationData;
+      this.evaluationTimestampMs = evaluationTimestampMs;
+      this.experimentationCutoff = experimentationCutoff;
+    }
+
+    private DependencyEvaluationSession dependencySession(final String rootFlagKey) {
+      if (session == null) {
+        session = new DependencyEvaluationSession(rootFlagKey, this);
+      }
+      return session;
+    }
+
+    private ExposureCheckpoint checkpoint() {
+      return session == null ? ExposureCheckpoint.EMPTY : session.checkpoint();
+    }
+
+    private void rollback(final ExposureCheckpoint checkpoint) {
+      if (session != null) {
+        session.rollback(checkpoint);
+      }
+    }
+
+    private <T> EvaluationResult<T> complete(
+        final ProviderEvaluation<T> details, final boolean commitExposures) {
+      return session == null
+          ? new EvaluationResult<>(details, emptyList(), emptyList(), evaluationTimestampMs)
+          : session.complete(details, commitExposures);
+    }
+  }
+
+  private final class DependencyEvaluationSession {
+    private final EvaluationState state;
+    private final Map<String, MemoizedDependency> memo = new HashMap<>();
+    private final Set<String> active = new HashSet<>();
+    private final List<DependencyFrame> frames = new ArrayList<>();
+    private final Map<String, Integer> evaluationSlots = new HashMap<>();
+    private final List<DependencyEvaluation> evaluations = new ArrayList<>();
+    private final List<ExposureTrace> selectedExposureTraces = new ArrayList<>();
+    private Integer maxDependencyDepth;
+
+    private DependencyEvaluationSession(final String rootFlagKey, final EvaluationState state) {
+      this.state = state;
+      active.add(rootFlagKey);
+    }
+
+    private ExposureCheckpoint checkpoint() {
+      return new ExposureCheckpoint(
+          selectedExposureTraces.size(),
+          frames.isEmpty() ? 0 : frames.get(frames.size() - 1).childExposureTraces.size());
+    }
+
+    private void rollback(final ExposureCheckpoint checkpoint) {
+      while (selectedExposureTraces.size() > checkpoint.exposureTraceCount) {
+        selectedExposureTraces.remove(selectedExposureTraces.size() - 1);
+      }
+      if (!frames.isEmpty()) {
+        final DependencyFrame frame = frames.get(frames.size() - 1);
+        while (frame.childExposureTraces.size() > checkpoint.frameExposureTraceCount) {
+          frame.childExposureTraces.remove(frame.childExposureTraces.size() - 1);
+        }
+      }
+    }
+
+    private <T> EvaluationResult<T> complete(
+        final ProviderEvaluation<T> details, final boolean commitExposures) {
+      return new EvaluationResult<>(
+          details,
+          evaluations,
+          commitExposures ? flattenExposureTraces() : emptyList(),
+          state.evaluationTimestampMs);
+    }
+
+    private String resolveCurrent(final String flagKey) {
+      if (maxDependencyDepth == null) {
+        maxDependencyDepth = FlagEvaluator.maxDependencyDepth(state.config);
+      }
+      final int depth = frames.isEmpty() ? 1 : frames.get(frames.size() - 1).depth + 1;
+      return resolve(flagKey, depth);
+    }
+
+    private String resolve(final String flagKey, final int depth) {
+      if (depth > maxDependencyDepth) {
+        if (!memo.containsKey(flagKey) && !active.contains(flagKey)) {
+          throw emitFailure(flagKey, ErrorCode.GENERAL, "maximum flag dependency depth exceeded");
+        }
+        throw new DependencyGraphException(
+            ErrorCode.GENERAL, "maximum flag dependency depth exceeded");
+      }
+      if (active.contains(flagKey)) {
+        throw new DependencyGraphException(ErrorCode.GENERAL, "flag dependency cycle detected");
+      }
+
+      final MemoizedDependency memoized = memo.get(flagKey);
+      if (memoized != null) {
+        if (depth + memoized.descendantDepth > maxDependencyDepth) {
+          throw new DependencyGraphException(
+              ErrorCode.GENERAL, "maximum flag dependency depth exceeded");
+        }
+        recordReachedDepth(depth + memoized.descendantDepth);
+        recordExposureTrace(memoized.exposureTrace);
+        return memoized.details.getVariant();
+      }
+
+      reserveEvaluation(flagKey);
+
+      final Flag flag = state.config.flags == null ? null : state.config.flags.get(flagKey);
+      if (flag == null) {
+        final ProviderEvaluation<Object> missing =
+            error(
+                null,
+                state.config.invalidFlags != null && state.config.invalidFlags.containsKey(flagKey)
+                    ? ErrorCode.PARSE_ERROR
+                    : ErrorCode.FLAG_NOT_FOUND,
+                "prerequisite flag is missing",
+                state.observeFullEvaluationData);
+        emitEvaluation(flagKey, missing);
+        throw new DependencyGraphException(
+            missing.getErrorCode(),
+            missing.getErrorCode() == ErrorCode.FLAG_NOT_FOUND
+                ? "prerequisite flag is missing"
+                : "invalid prerequisite flag configuration",
+            flagKey);
+      }
+
+      active.add(flagKey);
+      final DependencyFrame frame = new DependencyFrame(depth);
+      frames.add(frame);
+      try {
+        final ProviderEvaluation<?> details = evaluateDeclaredFlag(state, flagKey, flag);
+        if (details.getErrorCode() != null || Reason.ERROR.name().equals(details.getReason())) {
+          throw new DependencyGraphException(
+              details.getErrorCode() == null ? ErrorCode.GENERAL : details.getErrorCode(),
+              details.getErrorMessage() == null
+                  ? "prerequisite flag evaluation failed"
+                  : details.getErrorMessage());
+        }
+        if (details.getVariant() == null) {
+          throw new DependencyGraphException(
+              ErrorCode.GENERAL, "prerequisite flag evaluation returned no variant");
+        }
+        final ExposureTrace exposureTrace =
+            new ExposureTrace(frame.childExposureTraces, new DependencyExposure(flagKey, details));
+        final MemoizedDependency result =
+            new MemoizedDependency(details, frame.maxReachedDepth - depth, exposureTrace);
+        memo.put(flagKey, result);
+        emitEvaluation(flagKey, details);
+        recordReachedDepthOnParent(frame.maxReachedDepth);
+        recordExposureTraceOnParent(exposureTrace);
+        return details.getVariant();
+      } catch (final DependencyGraphException e) {
+        final ProviderEvaluation<Object> failure =
+            error(null, e.errorCode, e.getMessage(), state.observeFullEvaluationData);
+        emitEvaluation(flagKey, failure);
+        throw e.dependencyKey == null ? e.withDependencyKey(flagKey) : e;
+      } catch (final PatternSyntaxException e) {
+        throw emitFailure(flagKey, ErrorCode.PARSE_ERROR, e.getMessage());
+      } catch (final NumberFormatException e) {
+        throw emitFailure(flagKey, ErrorCode.TYPE_MISMATCH, e.getMessage());
+      } catch (final Exception e) {
+        throw emitFailure(flagKey, ErrorCode.GENERAL, e.getMessage());
+      } finally {
+        frames.remove(frames.size() - 1);
+        active.remove(flagKey);
+      }
+    }
+
+    private DependencyGraphException emitFailure(
+        final String flagKey, final ErrorCode errorCode, final String message) {
+      final DependencyGraphException failure =
+          new DependencyGraphException(
+              errorCode, message == null ? errorCode.name() : message, flagKey);
+      emitEvaluation(
+          flagKey, error(null, errorCode, failure.getMessage(), state.observeFullEvaluationData));
+      return failure;
+    }
+
+    private void emitEvaluation(final String flagKey, final ProviderEvaluation<?> details) {
+      final int slot = reserveEvaluation(flagKey);
+      if (evaluations.get(slot) == null) {
+        evaluations.set(slot, new DependencyEvaluation(flagKey, details));
+      }
+    }
+
+    private int reserveEvaluation(final String flagKey) {
+      final Integer existing = evaluationSlots.get(flagKey);
+      if (existing != null) {
+        return existing;
+      }
+      final int slot = evaluations.size();
+      evaluationSlots.put(flagKey, slot);
+      evaluations.add(null);
+      return slot;
+    }
+
+    private void recordReachedDepth(final int depth) {
+      if (!frames.isEmpty()) {
+        final DependencyFrame frame = frames.get(frames.size() - 1);
+        frame.maxReachedDepth = Math.max(frame.maxReachedDepth, depth);
+      }
+    }
+
+    private void recordReachedDepthOnParent(final int depth) {
+      if (frames.size() > 1) {
+        final DependencyFrame parent = frames.get(frames.size() - 2);
+        parent.maxReachedDepth = Math.max(parent.maxReachedDepth, depth);
+      }
+    }
+
+    private void recordExposureTrace(final ExposureTrace trace) {
+      if (frames.isEmpty()) {
+        selectedExposureTraces.add(trace);
+      } else {
+        frames.get(frames.size() - 1).childExposureTraces.add(trace);
+      }
+    }
+
+    private void recordExposureTraceOnParent(final ExposureTrace trace) {
+      if (frames.size() > 1) {
+        frames.get(frames.size() - 2).childExposureTraces.add(trace);
+      } else {
+        selectedExposureTraces.add(trace);
+      }
+    }
+
+    private List<DependencyExposure> flattenExposureTraces() {
+      if (selectedExposureTraces.isEmpty()) {
+        return emptyList();
+      }
+      final List<DependencyExposure> result = new ArrayList<>();
+      final Set<String> exposureKeys = new HashSet<>();
+      final Set<ExposureTrace> visited = Collections.newSetFromMap(new IdentityHashMap<>());
+      for (final ExposureTrace trace : selectedExposureTraces) {
+        flattenExposureTrace(trace, visited, exposureKeys, result);
+      }
+      return result;
+    }
+
+    private void flattenExposureTrace(
+        final ExposureTrace trace,
+        final Set<ExposureTrace> visited,
+        final Set<String> exposureKeys,
+        final List<DependencyExposure> result) {
+      if (!visited.add(trace)) {
+        return;
+      }
+      for (final ExposureTrace child : trace.children) {
+        flattenExposureTrace(child, visited, exposureKeys, result);
+      }
+      if (exposureKeys.add(trace.exposure.flagKey)) {
+        result.add(trace.exposure);
+      }
+    }
+  }
+
+  private ProviderEvaluation<?> evaluateDeclaredFlag(
+      final EvaluationState state, final String flagKey, final Flag flag) {
+    if (flag.variationType == null) {
+      throw new DependencyGraphException(
+          ErrorCode.PARSE_ERROR, "prerequisite flag has no variation type");
+    }
+    switch (flag.variationType) {
+      case BOOLEAN:
+        return evaluateFlag(state, Boolean.class, flagKey, Boolean.FALSE);
+      case INTEGER:
+        return evaluateFlag(state, Integer.class, flagKey, 0);
+      case NUMERIC:
+        return evaluateFlag(state, Double.class, flagKey, 0D);
+      case STRING:
+        return evaluateFlag(state, String.class, flagKey, "");
+      case JSON:
+        return evaluateFlag(state, Value.class, flagKey, new Value());
+      default:
+        throw new DependencyGraphException(
+            ErrorCode.PARSE_ERROR, "unsupported prerequisite variation type");
+    }
+  }
+
+  private static final class DependencyFrame {
+    private final int depth;
+    private int maxReachedDepth;
+    private final List<ExposureTrace> childExposureTraces = new ArrayList<>();
+
+    private DependencyFrame(final int depth) {
+      this.depth = depth;
+      this.maxReachedDepth = depth;
+    }
+  }
+
+  private static final class ExposureCheckpoint {
+    private static final ExposureCheckpoint EMPTY = new ExposureCheckpoint(0, 0);
+    private final int exposureTraceCount;
+    private final int frameExposureTraceCount;
+
+    private ExposureCheckpoint(final int exposureTraceCount, final int frameExposureTraceCount) {
+      this.exposureTraceCount = exposureTraceCount;
+      this.frameExposureTraceCount = frameExposureTraceCount;
+    }
+  }
+
+  private static final class ExposureTrace {
+    private final List<ExposureTrace> children;
+    private final DependencyExposure exposure;
+
+    private ExposureTrace(final List<ExposureTrace> children, final DependencyExposure exposure) {
+      this.children =
+          children.isEmpty()
+              ? Collections.<ExposureTrace>emptyList()
+              : Collections.unmodifiableList(new ArrayList<>(children));
+      this.exposure = exposure;
+    }
+  }
+
+  private static final class MemoizedDependency {
+    private final ProviderEvaluation<?> details;
+    private final int descendantDepth;
+    private final ExposureTrace exposureTrace;
+
+    private MemoizedDependency(
+        final ProviderEvaluation<?> details,
+        final int descendantDepth,
+        final ExposureTrace exposureTrace) {
+      this.details = details;
+      this.descendantDepth = descendantDepth;
+      this.exposureTrace = exposureTrace;
+    }
+  }
+
+  private static final class DependencyGraphException extends RuntimeException {
+    private final ErrorCode errorCode;
+    private final String dependencyKey;
+
+    private DependencyGraphException(final ErrorCode errorCode, final String message) {
+      this(errorCode, message, null);
+    }
+
+    private DependencyGraphException(
+        final ErrorCode errorCode, final String message, final String dependencyKey) {
+      super(message);
+      this.errorCode = errorCode;
+      this.dependencyKey = dependencyKey;
+    }
+
+    private DependencyGraphException withDependencyKey(final String dependencyKey) {
+      return new DependencyGraphException(this.errorCode, getMessage(), dependencyKey);
+    }
+  }
+
+  public static final class DependencyExposure {
+    public final String flagKey;
+    public final Object value;
+    public final String variant;
+    public final String reason;
+    public final ImmutableMetadata metadata;
+
+    private DependencyExposure(final String flagKey, final ProviderEvaluation<?> details) {
+      this.flagKey = flagKey;
+      this.value = details.getValue();
+      this.variant = details.getVariant();
+      this.reason = details.getReason();
+      this.metadata = details.getFlagMetadata();
+    }
+  }
+
+  /** Detached evaluation telemetry for one reached prerequisite. */
+  public static final class DependencyEvaluation {
+    public final String flagKey;
+    public final String variant;
+    public final String reason;
+    public final ErrorCode errorCode;
+    public final String errorMessage;
+    public final ImmutableMetadata metadata;
+
+    private DependencyEvaluation(final String flagKey, final ProviderEvaluation<?> details) {
+      this.flagKey = flagKey;
+      this.variant = details.getVariant();
+      this.reason = details.getReason();
+      this.errorCode = details.getErrorCode();
+      this.errorMessage = details.getErrorMessage();
+      this.metadata = details.getFlagMetadata();
+    }
+  }
+
+  /** Root evaluation plus the telemetry candidates accumulated while evaluating its graph. */
+  public static final class EvaluationResult<T> {
+    public final ProviderEvaluation<T> details;
+    public final List<DependencyEvaluation> dependencyEvaluations;
+    public final List<DependencyExposure> dependencyExposures;
+    public final long evaluationTimestampMs;
+
+    private EvaluationResult(
+        final ProviderEvaluation<T> details,
+        final List<DependencyEvaluation> dependencyEvaluations,
+        final List<DependencyExposure> dependencyExposures,
+        final long evaluationTimestampMs) {
+      this.details = details;
+      this.dependencyEvaluations =
+          dependencyEvaluations.isEmpty()
+              ? emptyList()
+              : unmodifiableList(new ArrayList<>(dependencyEvaluations));
+      this.dependencyExposures =
+          dependencyExposures.isEmpty()
+              ? emptyList()
+              : unmodifiableList(new ArrayList<>(dependencyExposures));
+      this.evaluationTimestampMs = evaluationTimestampMs;
+    }
   }
 
   /** Tells whether an exposure was already recorded, so it is not sent again. */

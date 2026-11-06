@@ -1,6 +1,7 @@
 package datadog.trace.api.featureflag;
 
 import java.io.IOException;
+import java.util.Set;
 import java.util.function.Consumer;
 import javax.annotation.Nullable;
 
@@ -57,6 +58,12 @@ public final class FeatureFlaggingGateway {
      * @return the handle to close to unsubscribe.
      */
     AutoCloseable subscribeRemoteConfig(Consumer<byte[]> listener);
+
+    /** Subscribes with the SDK evaluator's optional UFC capabilities. */
+    default AutoCloseable subscribeRemoteConfig(
+        Consumer<byte[]> listener, Set<String> capabilities) {
+      return subscribeRemoteConfig(listener);
+    }
 
     /**
      * @return whether the Datadog Agent event platform proxy is available.

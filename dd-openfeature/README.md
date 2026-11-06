@@ -132,6 +132,15 @@ The provider then sends no exposures to Datadog. `ExposureHook` callbacks still 
 
 This setting stops exposures only. Flag evaluation events have their own setting, `DD_FLAGGING_EVALUATION_COUNTS_ENABLED`. The Java provider does not read dd-trace-py's `DD_FFE_INTAKE_ENABLED`.
 
+For dependent flags, the evaluator finishes the graph before the provider's OpenFeature client hooks
+publish prerequisite evaluation events. Those events are parallel to the existing root evaluation
+telemetry and are published synchronously before the client evaluation call returns. Evaluation
+telemetry is best effort and includes reached prerequisites even when the root fails. Prerequisite
+exposures remain transactional: the hooks publish them only when the complete root graph succeeds.
+
+Call through an OpenFeature client when this telemetry is required. A direct call to the provider
+returns resolution details only; it does not run the client-hook sidecar telemetry lifecycle.
+
 ## Per-subject experimentation opt-out
 
 Set `DD_FEATURE_FLAGS_EXPERIMENTATION_OPT_OUT_MODE=immediate` before constructing the provider.

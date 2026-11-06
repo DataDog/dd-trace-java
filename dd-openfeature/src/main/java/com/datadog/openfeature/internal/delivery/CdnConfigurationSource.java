@@ -5,6 +5,7 @@ import static com.datadog.openfeature.internal.delivery.Retries.isRetryableStatu
 import com.datadog.openfeature.internal.ConfigurationService;
 import com.datadog.openfeature.internal.RuntimeServices;
 import com.datadog.openfeature.internal.config.Settings;
+import com.datadog.openfeature.internal.evaluation.EvaluatorCapabilities;
 import com.datadog.openfeature.internal.ufc.ServerConfiguration;
 import com.datadog.openfeature.internal.ufc.UniversalFlagConfigParser;
 import java.io.IOException;
@@ -16,6 +17,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -35,6 +37,7 @@ public final class CdnConfigurationSource implements ConfigurationService {
 
   static final String UFC_RULES_BASED_SERVER_PATH =
       "/api/v2/feature-flagging/config/rules-based/server";
+  static final String DEPENDENT_FLAG_VARIANT_KEY_QUERY = "cap_dependent-flags-variant-key=v1";
   static final int MAX_ATTEMPTS = 3;
   private static final long FIRST_RETRY_MIN_MILLIS = 2_000;
   private static final long FIRST_RETRY_MAX_MILLIS = 10_000;
@@ -124,7 +127,8 @@ public final class CdnConfigurationSource implements ConfigurationService {
     }
     // Logged last: a diagnostic must not keep the polling from starting.
     LOGGER.debug(
-        "Feature Flags agentless configuration source started: endpoint={}://{}{}, pollIntervalMillis={}, requestTimeout={}",
+        "Feature Flags agentless configuration source started: endpoint={}://{}{},"
+            + " pollIntervalMillis={}, requestTimeout={}",
         // The origin only: the userinfo, the path and the query of a custom endpoint can carry a
         // credential.
         this.endpoint.getScheme(),
@@ -243,14 +247,16 @@ public final class CdnConfigurationSource implements ConfigurationService {
       configuration = UniversalFlagConfigParser.parseJsonApi(Gzip.decode(response));
     } catch (final IOException | RuntimeException e) {
       LOGGER.debug(
-          "Feature Flags configuration endpoint returned a malformed payload ({}); retaining the current configuration",
+          "Feature Flags configuration endpoint returned a malformed payload ({}); retaining the"
+              + " current configuration",
           e.getClass().getSimpleName(),
           e);
       return false;
     }
     if (configuration == null) {
       LOGGER.debug(
-          "Feature Flags configuration endpoint returned no flag data; retaining the current configuration");
+          "Feature Flags configuration endpoint returned no flag data; retaining the current"
+              + " configuration");
       return false;
     }
     this.listener.accept(configuration);
@@ -294,7 +300,7 @@ public final class CdnConfigurationSource implements ConfigurationService {
 
   private HttpRequest buildRequest() {
     final HttpRequest.Builder request =
-        HttpRequest.newBuilder(this.endpoint)
+        HttpRequest.newBuilder(requestEndpoint(this.endpoint, EvaluatorCapabilities.supported()))
             .timeout(this.requestTimeout)
             .header("Accept-Encoding", "gzip");
     Headers.addMetadata(request);
@@ -306,6 +312,21 @@ public final class CdnConfigurationSource implements ConfigurationService {
       request.header("If-None-Match", currentEtag);
     }
     return request.GET().build();
+  }
+
+  static URI requestEndpoint(final URI endpoint, final Set<String> capabilities) {
+    if (!capabilities.contains(EvaluatorCapabilities.DEPENDENT_FLAG_VARIANT_KEY_V1)) {
+      return endpoint;
+    }
+    final String separator;
+    if (endpoint.getRawQuery() == null) {
+      separator = "?";
+    } else if (endpoint.getRawQuery().isEmpty()) {
+      separator = "";
+    } else {
+      separator = "&";
+    }
+    return URI.create(endpoint + separator + DEPENDENT_FLAG_VARIANT_KEY_QUERY);
   }
 
   private synchronized void warn(final String message, final Object... arguments) {
