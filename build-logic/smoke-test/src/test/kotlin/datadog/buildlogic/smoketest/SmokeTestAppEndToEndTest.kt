@@ -14,6 +14,9 @@ import org.tabletest.junit.TableTest
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
+import java.util.jar.JarEntry
+import java.util.jar.JarFile
+import java.util.jar.JarOutputStream
 
 /**
  * End-to-end tests that drive the plugin through the Gradle Test Kit and a temporary,
@@ -40,6 +43,7 @@ class SmokeTestAppEndToEndTest {
 
   @Test
   fun `nested build produces the configured artifact`() {
+    // given
     writeOuterSettings()
     writeSmokeTestAppBuild(
       smokeTestGradleApplication(
@@ -60,14 +64,159 @@ class SmokeTestAppEndToEndTest {
     File(applicationDir, "src").mkdir()
     File(applicationDir, "src/hello.txt").writeText("hi")
 
+    // when
     val result = runner("buildJar").build()
 
+    // then
     assertThat(result.task(":buildJar")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
     assertThat(applicationOutput("libs/sample.jar")).exists()
   }
 
+  @TableTest(
+    """
+    scenario                                    | configuration | change          | expected
+    normalised version stamp ignored            | default       | stamp           | FROM_CACHE
+    ZIP timestamps ignored                      | default       | zip             | FROM_CACHE
+    ZIP entry order ignored                     | default       | order           | FROM_CACHE
+    project version tracked                     | default       | version         | SUCCESS
+    class contents tracked                      | default       | class           | SUCCESS
+    classdata tracked                           | default       | classdata       | SUCCESS
+    other resources tracked                     | default       | resource        | SUCCESS
+    YAML resource contents tracked              | default       | yaml            | SUCCESS
+    agent version added                         | default       | added           | SUCCESS
+    agent version removed                       | default       | removed         | SUCCESS
+    normalised version resources ignored        | default       | normalized-path | FROM_CACHE
+    shadow normalised version stamp ignored     | shadow        | stamp           | FROM_CACHE
+    """
+  )
+  fun `project JAR fingerprints ignore metadata and track source changes`(
+    configuration: String,
+    change: String,
+    expected: TaskOutcome,
+  ) {
+    // given
+    writeOuterSettings(withLocalBuildCache = true)
+    outerSettings.appendText("\ninclude(\":api\")\n")
+    val apiDirectory = projectDir.resolve("api").toFile().apply { mkdirs() }
+    File(apiDirectory, "build.gradle.kts").writeText(
+      """
+      plugins { base }
+      version = providers.gradleProperty("apiVersion").getOrElse("1.0")
+      val prepareJar = tasks.register<Copy>("prepareJar") {
+        from("input.jar")
+        into(layout.buildDirectory.dir("libs"))
+      }
+      val outgoing = configurations.${if (configuration == "default") "named(\"default\")" else "create(\"shadow\")"} {
+        isCanBeConsumed = true
+        isCanBeResolved = false
+      }
+      artifacts.add(outgoing.name, layout.buildDirectory.file("libs/input.jar")) {
+        builtBy(prepareJar)
+      }
+      """.trimIndent(),
+    )
+    writeSmokeTestAppBuild(
+      """
+      ${smokeTestGradleApplication("packageApp", "embedded-api.jar", "api.path")}
+      projectJar("apiJar", project(":api")${if (configuration == "default") "" else ", \"shadow\""})
+      """,
+      extraImports = "import datadog.buildlogic.smoketest.NestedGradleBuild",
+      extraPreamble = """
+      normalization.runtimeClasspath.ignore("**/*.version")
+      tasks.withType<NestedGradleBuild>().configureEach {
+        actions.clear()
+        val inputJar = projectJars.flatMap { it.single().file }
+        val target = applicationBuildDir.file("embedded-api.jar")
+        doLast {
+          target.get().asFile.apply {
+            parentFile.mkdirs()
+            inputJar.get().asFile.copyTo(this, overwrite = true)
+          }
+        }
+      }
+      """,
+    )
+
+    val entries = linkedMapOf(
+      "api.version" to "1.0~initial",
+      "example/Api.class" to "class",
+      "example/Agent.classdata" to "classdata",
+      "config.txt" to "resource",
+      "config.yaml" to "enabled: false\n",
+    )
+    if (change == "removed") {
+      entries["dd-java-agent.version"] = "1.0~initial"
+    }
+
+    fun writeApiJar(timestamp: Long = 1_000_000_000_000L, reverseEntries: Boolean = false) {
+      JarOutputStream(File(apiDirectory, "input.jar").outputStream()).use { jar ->
+        val orderedEntries = if (reverseEntries) entries.entries.reversed() else entries.entries
+        orderedEntries.forEach { (name, contents) ->
+          jar.putNextEntry(JarEntry(name).apply {
+            time = timestamp
+          })
+          jar.write(contents.toByteArray(Charsets.UTF_8))
+          jar.closeEntry()
+        }
+      }
+    }
+
+    writeApiJar()
+
+    // when
+    // Re-snapshot the JAR rewritten outside Gradle between runs.
+    val first = runner("packageApp", "--build-cache", "--configuration-cache", "--no-watch-fs", "-PapiVersion=1.0").build()
+
+    // then
+    assertThat(first.task(":api:prepareJar")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+    assertThat(first.task(":packageApp")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+
+    // when
+    applicationBuildDir.deleteRecursively()
+    var timestamp = 1_000_000_000_000L
+    var reverseEntries = false
+    var apiVersion = "1.0"
+    when (change) {
+      "stamp" -> entries["api.version"] = "1.0~next"
+      "class" -> entries["example/Api.class"] = "changed class"
+      "classdata" -> entries["example/Agent.classdata"] = "changed classdata"
+      "resource" -> entries["config.txt"] = "changed resource"
+      "yaml" -> entries["config.yaml"] = "enabled: true\n"
+      "added" -> entries["dd-java-agent.version"] = "1.0~initial"
+      "removed" -> entries.remove("dd-java-agent.version")
+      "normalized-path" -> entries["optional.version"] = "1.0~initial"
+      "zip" -> timestamp = 1_700_000_000_000L
+      "order" -> reverseEntries = true
+      "version" -> apiVersion = "2.0"
+      else -> error("Unknown change: $change")
+    }
+    writeApiJar(timestamp, reverseEntries)
+    val second = runner(
+      "packageApp", "--build-cache", "--configuration-cache", "--no-watch-fs",
+      "-PapiVersion=$apiVersion",
+    ).build()
+
+    // then
+    if (change != "version") {
+      assertThat(second.task(":api:prepareJar")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+    }
+    assertThat(second.task(":packageApp")?.outcome).isEqualTo(expected)
+    if (change != "version") {
+      assertThat(second.output).contains("Reusing configuration cache.")
+    }
+    JarFile(applicationOutput("embedded-api.jar")).use { jar ->
+      val stamp = jar.getInputStream(jar.getJarEntry("api.version")).bufferedReader().use { it.readText() }
+      assertThat(stamp).isEqualTo("1.0~initial")
+      assertThat(jar.getJarEntry("dd-java-agent.version") != null).isEqualTo(change == "added")
+      assertThat(jar.getJarEntry("optional.version")).isNull()
+      val yaml = jar.getInputStream(jar.getJarEntry("config.yaml")).bufferedReader().use { it.readText() }
+      assertThat(yaml).isEqualTo(if (change == "yaml") "enabled: true\n" else "enabled: false\n")
+    }
+  }
+
   @Test
   fun `nested Maven build produces the configured artifact`() {
+    // given
     writeOuterSettings()
     writeFakeMavenWrapper()
     writeSmokeTestAppBuild(
@@ -83,11 +232,13 @@ class SmokeTestAppEndToEndTest {
     )
     File(applicationDir, "pom.xml").writeText("<project />")
 
+    // when
     val result = runner(
       "packageApp",
       environment = mapOf("MAVEN_REPOSITORY_PROXY" to "https://repo.example/maven2/"),
     ).build()
 
+    // then
     assertThat(result.task(":packageApp")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
     assertThat(applicationOutput("target/sample.jar")).exists()
     assertThat(applicationOutput("target/maven-env.txt").readLines()).contains(
@@ -98,6 +249,7 @@ class SmokeTestAppEndToEndTest {
 
   @Test
   fun `nested Maven build output is restored from the outer build cache`() {
+    // given
     writeOuterSettings(withLocalBuildCache = true)
     writeFakeMavenWrapper()
     writeSmokeTestAppBuild(
@@ -112,13 +264,19 @@ class SmokeTestAppEndToEndTest {
     )
     File(applicationDir, "pom.xml").writeText("<project />")
 
+    // when
     val first = runner("packageApp", "--build-cache").build()
+
+    // then
     assertThat(first.task(":packageApp")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
     assertThat(applicationOutput("target/sample.jar")).exists()
 
+    // when
     applicationBuildDir.deleteRecursively()
 
     val second = runner("packageApp", "--build-cache").build()
+
+    // then
     assertThat(second.task(":packageApp")?.outcome).isEqualTo(TaskOutcome.FROM_CACHE)
     assertThat(applicationOutput("target/sample.jar")).exists()
   }
@@ -140,6 +298,7 @@ class SmokeTestAppEndToEndTest {
   }
 
   private fun assertTestsTrackApplicationContents(scenario: String) {
+    // given
     val maven = scenario == "Maven artifact"
     val graalvm = scenario == "GraalVM release"
     val extra = scenario.startsWith("extra")
@@ -249,33 +408,47 @@ class SmokeTestAppEndToEndTest {
       )
     }
 
+    // when
     val first = runner("test", "--build-cache").build()
+
+    // then
     assertThat(first.task(":packageApp")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
     assertThat(first.task(":test")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+
+    // when
     val unchanged = runner("test", "--build-cache").build()
+
+    // then
     assertThat(unchanged.task(":packageApp")?.outcome).isEqualTo(TaskOutcome.UP_TO_DATE)
     assertThat(unchanged.task(":test")?.outcome).isEqualTo(TaskOutcome.UP_TO_DATE)
 
+    // when
     File(projectDir.toFile(), "build/test-results").deleteRecursively()
     File(projectDir.toFile(), "build/reports/tests").deleteRecursively()
     if (graalvm) {
       applicationBuildDir.deleteRecursively()
     }
     val restored = runner("test", "--build-cache").build()
+
+    // then
     if (graalvm) {
       assertThat(restored.task(":packageApp")?.outcome).isEqualTo(TaskOutcome.FROM_CACHE)
     }
     assertThat(restored.task(":test")?.outcome).isEqualTo(TaskOutcome.FROM_CACHE)
 
+    // when
     if (maven) {
       File(applicationDir, "pom.xml").appendText("\n")
     } else {
       File(applicationDir, "payload/unrelated.txt").writeText("unrelated")
     }
     val unchangedArtifact = runner("test", "--build-cache").build()
+
+    // then
     assertThat(unchangedArtifact.task(":packageApp")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
     assertThat(unchangedArtifact.task(":test")?.outcome).isEqualTo(TaskOutcome.UP_TO_DATE)
 
+    // when
     if (graalvm) {
       File(projectDir.toFile(), "graalvm/release").writeText("broken")
     } else if (maven) {
@@ -286,6 +459,8 @@ class SmokeTestAppEndToEndTest {
       File(applicationDir, "payload/$payloadPath").writeText("broken")
     }
     val changedArtifact = runner("test", "--build-cache").buildAndFail()
+
+    // then
     assertThat(changedArtifact.task(":packageApp")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
     assertThat(changedArtifact.task(":test")?.outcome).isEqualTo(TaskOutcome.FAILED)
     assertThat(File(projectDir.toFile(), "build/test-results/test/TEST-SmokeArtifactTest.xml"))
@@ -295,6 +470,7 @@ class SmokeTestAppEndToEndTest {
 
   @Test
   fun `nested build clears inherited Gradle launcher environment`() {
+    // given
     writeOuterSettings()
     val inheritedGradleUserHome = projectDir.resolve("inherited-gradle-user-home").toFile()
     inheritedGradleUserHome.mkdirs()
@@ -334,6 +510,7 @@ class SmokeTestAppEndToEndTest {
       """.trimIndent(),
     )
 
+    // when
     val result = runner(
       "recordGradleEnvironment",
       environment = mapOf(
@@ -343,6 +520,7 @@ class SmokeTestAppEndToEndTest {
       ),
     ).build()
 
+    // then
     assertThat(result.task(":recordGradleEnvironment")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
     val envFile = applicationOutput("gradle-env.txt")
     assertThat(envFile).exists()
@@ -360,10 +538,12 @@ class SmokeTestAppEndToEndTest {
     assertThat(applicationOutput("daemon-stopped.txt")).exists()
     assertThat(File(gradleUserHomeDir)).doesNotExist()
 
+    // when
     assertThat(applicationOutput("daemon-stopped.txt").delete()).isTrue()
     assertThat(envFile.delete()).isTrue()
     val second = runner("recordGradleEnvironment", "--rerun-tasks", "--no-build-cache").build()
 
+    // then
     assertThat(second.task(":recordGradleEnvironment")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
     assertThat(applicationOutput("daemon-stopped.txt")).exists()
     assertThat(File(gradleUserHomeDir)).doesNotExist()
@@ -371,9 +551,10 @@ class SmokeTestAppEndToEndTest {
 
   @Test
   fun `nested build receives native app environment and provider backed file inputs`() {
+    // given
     writeOuterSettings()
     val graalvmHome = projectDir.resolve("test-graalvm").toFile()
-    File(projectDir.toFile(), "agent.jar").writeText("agent")
+    JarOutputStream(File(projectDir.toFile(), "agent.jar").outputStream()).use { }
     writeSmokeTestAppBuild(
       """
       ${smokeTestGradleApplication(
@@ -385,7 +566,11 @@ class SmokeTestAppEndToEndTest {
         environment.put("GRAALVM_HOME", providers.provider { layout.projectDirectory.dir("test-graalvm").asFile.absolutePath })
         """,
       )}
-      projectJar("agentPath", providers.provider { layout.projectDirectory.file("agent.jar") })
+      projectJar(
+        "agentPath",
+        providers.provider { layout.projectDirectory.file("agent.jar") },
+        providers.provider { "1.0" },
+      )
       """,
     )
     writeInnerSettings()
@@ -407,8 +592,10 @@ class SmokeTestAppEndToEndTest {
       """.trimIndent(),
     )
 
+    // when
     val result = runner("recordNativeInputs").build()
 
+    // then
     assertThat(result.task(":recordNativeInputs")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
     val inputsFile = applicationOutput("native-inputs.txt")
     assertThat(inputsFile).exists()
@@ -421,6 +608,7 @@ class SmokeTestAppEndToEndTest {
 
   @Test
   fun `application inputs are only queried for selected builds that run`() {
+    // given
     writeOuterSettings()
     writeSmokeTestAppBuild(
       smokeTestGradleApplication(
@@ -439,20 +627,35 @@ class SmokeTestAppEndToEndTest {
       """,
     )
 
-    assertThat(runner("help", "--configuration-cache").build().task(":nativeBuild")).isNull()
-    assertThat(runner("nativeBuild").build().task(":nativeBuild")?.outcome)
+    // when
+    val unselected = runner("help", "--configuration-cache").build()
+
+    // then
+    assertThat(unselected.task(":nativeBuild")).isNull()
+
+    // when
+    val skippedWithFailingProvider = runner("nativeBuild").build()
+
+    // then
+    assertThat(skippedWithFailingProvider.task(":nativeBuild")?.outcome)
       .isEqualTo(TaskOutcome.SKIPPED)
 
+    // when
     outerBuild.writeText(
       outerBuild
         .readText()
         .replace("providers.provider<String> { error(\"Tool metadata queried\") }", "providers.gradleProperty(\"missingRequired\")"),
     )
     val skipped = runner("nativeBuild", "--configuration-cache").build()
+
+    // then
     assertThat(skipped.task(":nativeBuild")?.outcome).isEqualTo(TaskOutcome.SKIPPED)
 
+    // when
     outerBuild.writeText(outerBuild.readText().replace("onlyIf { false }", "onlyIf { true }"))
     val missingInput = runner("nativeBuild").buildAndFail()
+
+    // then
     assertThat(missingInput.output).contains("externalTool", "value")
   }
 
@@ -467,6 +670,7 @@ class SmokeTestAppEndToEndTest {
     maven: Boolean,
     groovy: Boolean,
   ) {
+    // given
     val application = if (maven) "mavenApp" else "gradleApp"
     val taskType = if (maven) "NestedMavenBuild" else "NestedGradleBuild"
     writeOuterSettings(withLocalBuildCache = true)
@@ -550,31 +754,47 @@ class SmokeTestAppEndToEndTest {
       )
     }
 
+    // when
     val first = runner("packageApp", "--build-cache", "--configuration-cache").build()
+
+    // then
     assertThat(first.task(":packageApp")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
     assertThat(applicationOutput("toolchain.txt")).content().isEqualTo("first")
 
+    // when
     val unchanged = runner("packageApp", "--build-cache", "--configuration-cache").build()
+
+    // then
     assertThat(unchanged.output).contains("Reusing configuration cache")
     assertThat(unchanged.task(":packageApp")?.outcome).isEqualTo(TaskOutcome.UP_TO_DATE)
 
+    // when
     applicationBuildDir.deleteRecursively()
     val restored = runner("packageApp", "--build-cache", "--configuration-cache").build()
+
+    // then
     assertThat(restored.task(":packageApp")?.outcome).isEqualTo(TaskOutcome.FROM_CACHE)
     assertThat(applicationOutput("toolchain.txt")).content().isEqualTo("first")
 
+    // when
     release.writeText("second")
     val changed = runner("packageApp", "--build-cache", "--configuration-cache").build()
+
+    // then
     assertThat(changed.task(":packageApp")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
     assertThat(applicationOutput("toolchain.txt")).content().isEqualTo("second")
 
+    // when
     release.delete()
     val missing = runner("packageApp", "--build-cache", "--configuration-cache").buildAndFail()
+
+    // then
     assertThat(missing.output).contains("toolchainRelease", "value")
   }
 
   @Test
   fun `init scripts are not added outside CI`() {
+    // given
     writeOuterSettings()
     writeSmokeTestAppBuild(
       smokeTestGradleApplication(
@@ -597,11 +817,13 @@ class SmokeTestAppEndToEndTest {
       """.trimIndent(),
     )
 
+    // when
     val result = runner(
       "recordInitScripts",
       environment = mapOf("CI" to "false"),
     ).build()
 
+    // then
     assertThat(result.task(":recordInitScripts")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
     val countFile = applicationOutput("init-script-count.txt")
     assertThat(countFile).exists()
@@ -610,6 +832,7 @@ class SmokeTestAppEndToEndTest {
 
   @Test
   fun `Maven proxy replaces Maven Central in nested repositories`() {
+    // given
     writeOuterSettings()
     val proxyRepository = projectDir.resolve("proxy-maven-repo").toFile()
     val projectRepository = projectDir.resolve("project-maven-repo").toFile()
@@ -685,12 +908,14 @@ class SmokeTestAppEndToEndTest {
       """.trimIndent(),
     )
 
+    // when
     val result = runner(
       "resolveRepositories",
       "-PmavenRepositoryProxy=${proxyRepository.toURI()}",
       environment = mapOf("CI" to "false"),
     ).build()
 
+    // then
     assertThat(result.task(":resolveRepositories")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
     val resolvedFile = applicationOutput("resolved-repositories.txt")
     assertThat(resolvedFile).exists()
@@ -723,6 +948,7 @@ class SmokeTestAppEndToEndTest {
 
   @Test
   fun `proxy declared in gradleProperties also injects repository init script`() {
+    // given
     writeOuterSettings()
     writeSmokeTestAppBuild(
       smokeTestGradleApplication(
@@ -741,11 +967,13 @@ class SmokeTestAppEndToEndTest {
     writeInnerSettings()
     writeInnerBuild(recordProxyTask())
 
+    // when
     val result = runner(
       "recordProxy",
       environment = mapOf("CI" to "false"),
     ).build()
 
+    // then
     assertThat(result.task(":recordProxy")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
     assertThat(applicationOutput("proxy.txt").readLines()).containsExactly(
       "proxy=https://declared.example",
@@ -755,6 +983,7 @@ class SmokeTestAppEndToEndTest {
 
   @Test
   fun `explicit task proxy overrides outer proxy on CI`() {
+    // given
     writeOuterSettings()
     writeSmokeTestAppBuild(
       smokeTestGradleApplication(
@@ -772,12 +1001,14 @@ class SmokeTestAppEndToEndTest {
     writeInnerSettings()
     writeInnerBuild(recordProxyTask())
 
+    // when
     val result = runner(
       "recordProxy",
       "-PmavenRepositoryProxy=https://outer.example",
       environment = mapOf("CI" to "true"),
     ).build()
 
+    // then
     assertThat(result.task(":recordProxy")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
     assertThat(applicationOutput("proxy.txt").readLines()).containsExactly(
       "proxy=https://task.example",
@@ -787,6 +1018,7 @@ class SmokeTestAppEndToEndTest {
 
   @Test
   fun `outer cache key reflects repository proxy changes`() {
+    // given
     writeOuterSettings(withLocalBuildCache = true)
     writeSmokeTestAppBuild(
       smokeTestGradleApplication(
@@ -798,13 +1030,17 @@ class SmokeTestAppEndToEndTest {
     writeInnerSettings()
     writeInnerBuild(recordProxyTask())
 
+    // when
     val first = runner(
       "recordProxy",
       "--build-cache",
       "-PmavenRepositoryProxy=https://first.example",
     ).build()
+
+    // then
     assertThat(first.task(":recordProxy")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
 
+    // when
     applicationBuildDir.deleteRecursively()
 
     val second = runner(
@@ -812,6 +1048,8 @@ class SmokeTestAppEndToEndTest {
       "--build-cache",
       "-PmavenRepositoryProxy=https://second.example",
     ).build()
+
+    // then
     assertThat(second.task(":recordProxy")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
     assertThat(applicationOutput("proxy.txt").readLines()).containsExactly(
       "proxy=https://second.example",
@@ -832,6 +1070,7 @@ class SmokeTestAppEndToEndTest {
     dslLine: String,
     expectedFlag: String,
   ) {
+    // given
     writeOuterSettings()
     writeSmokeTestAppBuild(
       smokeTestGradleApplication(
@@ -855,8 +1094,10 @@ class SmokeTestAppEndToEndTest {
       """.trimIndent(),
     )
 
+    // when
     val result = runner("recordCacheFlag").build()
 
+    // then
     assertThat(result.task(":recordCacheFlag")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
     val flagFile = applicationOutput("cache-flag.txt")
     assertThat(flagFile).exists()
@@ -882,6 +1123,7 @@ class SmokeTestAppEndToEndTest {
     secondRunPropertyValue: String,
     expectedSecondOutcome: TaskOutcome,
   ) {
+    // given
     writeOuterSettings(withLocalBuildCache = true)
     writeSmokeTestAppBuild(
       smokeTestGradleApplication(
@@ -905,14 +1147,18 @@ class SmokeTestAppEndToEndTest {
     File(applicationDir, "src").mkdir()
     File(applicationDir, "src/hello.txt").writeText("hi")
 
+    // when
     val firstArgs = listOfNotNull(
       "buildJar",
       "--build-cache",
       firstRunPropertyValue.takeIf { it.isNotEmpty() }?.let { "-PenvValue=$it" },
     ).toTypedArray()
     val first = runner(*firstArgs).build()
+
+    // then
     assertThat(first.task(":buildJar")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
 
+    // when
     // Wipe the output dir so the cache must serve it on the next run.
     applicationBuildDir.deleteRecursively()
 
@@ -922,6 +1168,8 @@ class SmokeTestAppEndToEndTest {
       secondRunPropertyValue.takeIf { it.isNotEmpty() }?.let { "-PenvValue=$it" },
     ).toTypedArray()
     val second = runner(*secondArgs).build()
+
+    // then
     assertThat(second.task(":buildJar")?.outcome).isEqualTo(expectedSecondOutcome)
     assertThat(applicationOutput("libs/sample.jar")).exists()
   }

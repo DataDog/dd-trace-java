@@ -213,31 +213,31 @@ abstract class SmokeTestAppExtension @Inject constructor(
   }
 
   /**
-   * Forward the default `jar` artifact from [sourceProject] into the nested build as
-   * `-P<propertyName>=<absolute path>`. The jar is consumed via a resolvable [Configuration],
-   * which both establishes the correct task dependency and lets Gradle resolve the artifact
-   * lazily — no `evaluationDependsOn` is needed.
+   * Forward a JAR from [sourceProject] as `-P<propertyName>=<absolute path>`.
+   * [configuration] selects an outgoing artifact configuration, such as `shadow`;
+   * the default artifact is used when it is omitted. Resolution is lazy and carries
+   * the producing task dependency.
+   *
+   * Fingerprints use this project's runtime-classpath normalisation and track the
+   * producing project's version separately. Classes, `.classdata` and other tracked
+   * resources remain inputs; ZIP metadata and configured resource exclusions are ignored.
+   * Cached JVM applications and native executables can retain earlier embedded agent
+   * and API commit stamps when only excluded version metadata changes.
    */
-  fun projectJar(propertyName: String, sourceProject: Project) {
-    val cfg = createExtraJarConfiguration(propertyName)
-    project.dependencies.add(cfg.name, sourceProject)
-    addProjectJarFromConfiguration(propertyName, cfg)
-  }
-
-  /**
-   * Forward a non-default artifact configuration from [sourceProject]. Use this when the
-   * upstream project exposes its build output under a configuration other than the default
-   * (e.g. `shadowJar`).
-   */
-  fun projectJar(propertyName: String, sourceProject: Project, configuration: String) {
+  @JvmOverloads
+  fun projectJar(propertyName: String, sourceProject: Project, configuration: String? = null) {
     val cfg = createExtraJarConfiguration(propertyName)
     project.dependencies.add(
       cfg.name,
-      project.dependencies.project(
+      if (configuration == null) sourceProject else project.dependencies.project(
         mapOf("path" to sourceProject.path, "configuration" to configuration),
       ),
     )
-    addProjectJarFromConfiguration(propertyName, cfg)
+    projectJar(
+      propertyName,
+      project.layout.file(cfg.elements.map { files -> files.single().asFile }),
+      sourceProject.provider { sourceProject.version.toString() },
+    )
   }
 
   private fun createExtraJarConfiguration(propertyName: String): Configuration {
@@ -253,29 +253,15 @@ abstract class SmokeTestAppExtension @Inject constructor(
 
   /**
    * Lower-level overload for the rare case where the caller already has a provider of the
-   * file. The caller is responsible for the upstream task dependency.
+   * file and its base [version]. Uses the same normalisation as the project overload;
+   * the caller is responsible for the upstream task dependency.
    */
-  fun projectJar(propertyName: String, file: Provider<RegularFile>) {
+  fun projectJar(propertyName: String, file: Provider<RegularFile>, version: Provider<String>) {
     projectJars.add(
       project.objects.newInstance<NestedBuildProjectJar>().apply {
         this.propertyName.set(propertyName)
         this.file.set(file)
-      },
-    )
-  }
-
-  private fun addProjectJarFromConfiguration(propertyName: String, cfg: Configuration) {
-    projectJars.add(
-      project.objects.newInstance<NestedBuildProjectJar>().apply {
-        this.propertyName.set(propertyName)
-        // Configuration.elements yields a Provider that carries the producing task dependency,
-        // so wiring it into the task's @InputFile both tracks file contents and arranges build
-        // order.
-        this.file.set(
-          cfg.elements.map { files ->
-            project.objects.fileProperty().fileValue(files.single().asFile).get()
-          },
-        )
+        this.version.set(version)
       },
     )
   }
