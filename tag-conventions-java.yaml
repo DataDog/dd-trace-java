@@ -6,7 +6,7 @@
 #
 # span_types  — span types only this tracer has, each extending a shared one with tags only this
 #               tracer sets (servlet's request extends http.server). Their tags get slots like any other.
-# mixins      — this tracer's cross-cutting tags, pushed onto span types with `applies`. (None yet.)
+# mixins      — this tracer's cross-cutting tags, pushed onto span types with `applies` (databricks).
 # tags        — keys that exist only to be routed, so the conventions do not declare them. They get
 #               ids like any other tag (instrumentation can set them by id) but belong to no span type.
 #               Each is intercepted, so it is not listed again below. Same declaration syntax as
@@ -182,6 +182,196 @@ span_types:
     tags:
       - { dd-name: test.callback, type: string, required: recommended }  # Before, AfterAll, ...
 
+  # Data Jobs Monitoring: Spark spans (span.kind unset at runtime). DJM is Java only, so its span
+  # types live here. Not modeled: name patterns (the config.* job parameters, spark.source.N.* and
+  # spark.state.N.* streaming progress, runtime tags copied from job properties) can't have ids.
+  #
+  # The driver's spans form application > [sql] > job > stage > task; on Databricks a job, or a
+  # streaming batch, is the top-level span instead of an application. Executor task spans come from
+  # the executor's own instrumentation.
+  spark:
+    abstract: true
+    extends: internal
+    tags:
+      - { dd-name: app_id,       type: string, required: recommended }
+      - { dd-name: service_name, type: string, required: optional }  # when the Spark app name is the service
+
+  # Spark spans reporting task metrics: one task on an executor, or the sum over a driver span's tasks.
+  spark.task_metrics:
+    abstract: true
+    extends: spark
+    tags:
+      - { dd-name: spark.executor_deserialize_time,         type: long, required: optional }
+      - { dd-name: spark.executor_deserialize_cpu_time,     type: long, required: optional }
+      - { dd-name: spark.executor_run_time,                 type: long, required: optional }
+      - { dd-name: spark.executor_cpu_time,                 type: long, required: optional }
+      - { dd-name: spark.result_size,                       type: long, required: optional }
+      - { dd-name: spark.jvm_gc_time,                       type: long, required: optional }
+      - { dd-name: spark.result_serialization_time,         type: long, required: optional }
+      - { dd-name: spark.memory_bytes_spilled,              type: long, required: optional }
+      - { dd-name: spark.disk_bytes_spilled,                type: long, required: optional }
+      - { dd-name: spark.peak_execution_memory,             type: long, required: optional }
+      - { dd-name: spark.input_bytes,                       type: long, required: optional }
+      - { dd-name: spark.input_records,                     type: long, required: optional }
+      - { dd-name: spark.output_bytes,                      type: long, required: optional }
+      - { dd-name: spark.output_records,                    type: long, required: optional }
+      - { dd-name: spark.shuffle_read_bytes,                type: long, required: optional }
+      - { dd-name: spark.shuffle_read_bytes_local,          type: long, required: optional }
+      - { dd-name: spark.shuffle_read_bytes_remote,         type: long, required: optional }
+      - { dd-name: spark.shuffle_read_bytes_remote_to_disk, type: long, required: optional }
+      - { dd-name: spark.shuffle_read_fetch_wait_time,      type: long, required: optional }
+      - { dd-name: spark.shuffle_read_records,              type: long, required: optional }
+      - { dd-name: spark.shuffle_write_bytes,               type: long, required: optional }
+      - { dd-name: spark.shuffle_write_records,             type: long, required: optional }
+      - { dd-name: spark.shuffle_write_time,                type: long, required: optional }
+
+  # Driver spans summing their tasks' metrics: application, sql, job, stage and streaming batch.
+  spark.aggregate:
+    abstract: true
+    extends: spark.task_metrics
+    tags:
+      - { dd-name: spark.task_completed_count,    type: long,   required: optional }
+      - { dd-name: spark.task_failed_count,       type: long,   required: optional }
+      - { dd-name: spark.task_retried_count,      type: long,   required: optional }
+      - { dd-name: spark.task_with_output_count,  type: long,   required: optional }
+      - { dd-name: spark.available_executor_time, type: long,   required: optional }
+      - { dd-name: spark.skew_time,               type: long,   required: optional }
+      # Base64 histograms over the tasks, when there were any.
+      - { dd-name: _dd.spark.task_run_time,       type: string, required: optional }
+      - { dd-name: _dd.spark.input_bytes,         type: string, required: optional }
+      - { dd-name: _dd.spark.output_bytes,        type: string, required: optional }
+      - { dd-name: _dd.spark.shuffle_read_bytes,  type: string, required: optional }
+      - { dd-name: _dd.spark.shuffle_write_bytes, type: string, required: optional }
+      - { dd-name: _dd.spark.disk_bytes_spilled,  type: string, required: optional }
+
+  spark.application:
+    extends: spark.aggregate
+    tags:
+      - { dd-name: application_name,         type: string, required: recommended }
+      - { dd-name: spark_user,               type: string, required: recommended }
+      - { dd-name: app_attempt_id,           type: string, required: optional }
+      - { dd-name: djm.tags,                 type: string, required: optional }  # the global tags, as k:v,...
+      - { dd-name: spark.max_executor_count, type: int,    required: optional }
+      # Fixed members of the config.* family.
+      - { dd-name: config.spark_version,     type: string, required: optional }
+      - { dd-name: config.spark_serializer,  type: string, required: optional }
+      - { dd-name: emr_step_id,              type: string, required: optional }  # on EMR
+      # OpenLineage, when the app has an OpenLineage parent.
+      - { dd-name: spark.openlineage.appName,             type: string, required: optional }
+      - { dd-name: openlineage_parent_job_namespace,      type: string, required: optional }
+      - { dd-name: openlineage_parent_job_name,           type: string, required: optional }
+      - { dd-name: openlineage_parent_run_id,             type: string, required: optional }
+      - { dd-name: openlineage_root_parent_job_namespace, type: string, required: optional }
+      - { dd-name: openlineage_root_parent_job_name,      type: string, required: optional }
+      - { dd-name: openlineage_root_parent_run_id,        type: string, required: optional }
+
+  spark.sql:
+    extends: spark.aggregate
+    tags:
+      - { dd-name: query_id,    type: long,   required: recommended }
+      - { dd-name: description, type: string, required: optional }
+      - { dd-name: details,     type: string, required: optional }
+      - { ref: config.spark_version }  # top-level on Databricks
+
+  spark.job:
+    extends: spark.aggregate
+    tags:
+      - { dd-name: job_id,      type: int, required: recommended }
+      - { dd-name: stage_count, type: int, required: optional }
+      - { ref: config.spark_serializer }
+      - { ref: config.spark_version }  # top-level on Databricks
+
+  spark.stage:
+    extends: spark.aggregate
+    tags:
+      - { dd-name: stage_id,         type: int,    required: recommended }
+      - { dd-name: attempt_id,       type: int,    required: optional }
+      - { dd-name: parent_stage_ids, type: string, required: optional }
+      - { dd-name: task_count,       type: int,    required: optional }
+      - { ref: details }
+      - { ref: config.spark_serializer }
+      # The stage's part of its SQL plan, when it ran SQL.
+      - { dd-name: _dd.spark.sql_parent_stage_ids, type: string, required: optional }
+      - { dd-name: _dd.spark.sql_plan,             type: string, required: optional }
+
+  spark.streaming_batch:
+    extends: spark.aggregate
+    tags:
+      - { dd-name: streaming_query.id,       type: string, required: recommended }
+      - { dd-name: streaming_query.run_id,   type: string, required: recommended }
+      - { dd-name: streaming_query.batch_id, type: long,   required: recommended }
+      - { dd-name: streaming_query.name,     type: string, required: optional }
+      - { ref: config.spark_version }
+      - { dd-name: spark.num_input_rows,             type: long,   required: optional }
+      - { dd-name: spark.input_rows_per_second,      type: double, required: optional }
+      - { dd-name: spark.processed_rows_per_second,  type: double, required: optional }
+      - { dd-name: spark.event_time.watermark,       type: long,   required: optional }
+      - { dd-name: spark.event_time.watermark_gap,   type: long,   required: optional }
+      - { dd-name: spark.event_time.max,             type: long,   required: optional }
+      - { dd-name: spark.event_time.min,             type: long,   required: optional }
+      - { dd-name: spark.add_batch_duration,         type: long,   required: optional }
+      - { dd-name: spark.get_batch_duration,         type: long,   required: optional }
+      - { dd-name: spark.latest_offset_duration,     type: long,   required: optional }
+      - { dd-name: spark.query_planing_duration,     type: long,   required: optional }
+      - { dd-name: spark.trigger_execution_duration, type: long,   required: optional }
+      - { dd-name: spark.wal_commit_duration,        type: long,   required: optional }
+      - { dd-name: spark.sink.description,           type: string, required: optional }
+
+  # A task as the driver saw it finish.
+  spark.task:
+    extends: spark
+    tags:
+      - { dd-name: task_id,          type: long,    required: recommended }
+      - { dd-name: task_attempt_id,  type: int,     required: optional }
+      - { dd-name: task_type,        type: string,  required: optional }
+      - { ref: stage_id }
+      - { dd-name: stage_attempt_id, type: int,     required: optional }
+      - { dd-name: executor_id,      type: string,  required: optional }
+      - { dd-name: host,             type: string,  required: optional }
+      - { dd-name: task_locality,    type: string,  required: optional }
+      - { dd-name: speculative,      type: boolean, required: optional }
+      - { dd-name: status,           type: string,  required: optional }
+      - { dd-name: count_towards_task_failures, type: boolean, required: optional }  # failed tasks
+
+  # A task running on an executor.
+  spark.executor.task:
+    extends: spark.task_metrics
+    tags:
+      - { ref: task_id }
+      - { dd-name: task_thread_name, type: string, required: optional }
+      - { ref: stage_id }
+      - { ref: stage_attempt_id }
+      - { ref: job_id }
+      - { ref: app_attempt_id }
+      - { ref: application_name }
+
+  # SparkLauncher launching an application.
+  spark.launcher:
+    extends: internal
+    tags:
+      - { ref: app_id }
+      - { dd-name: spark.app_id,                        type: string, required: optional }
+      - { ref: application_name }
+      - { ref: emr_step_id }
+      - { dd-name: master,                              type: string, required: optional }
+      - { dd-name: deploy_mode,                         type: string, required: optional }
+      - { dd-name: main_class,                          type: string, required: optional }
+      - { dd-name: app_resource,                        type: string, required: optional }
+      - { dd-name: spark.launcher.app_state,            type: string, required: optional }
+      - { dd-name: spark.launcher.time_to_connected_ms, type: long,   required: optional }
+      - { dd-name: spark.launcher.time_to_submitted_ms, type: long,   required: optional }
+      - { dd-name: spark.launcher.time_to_running_ms,   type: long,   required: optional }
+
+mixins:
+  # Databricks job and task ids, on the top-level span when Spark runs on Databricks, which has no
+  # application span: a SQL execution, a job or a streaming batch.
+  databricks:
+    applies: [ spark.sql, spark.job, spark.streaming_batch ]
+    tags:
+      - { dd-name: databricks_job_id,      type: string, required: optional }
+      - { dd-name: databricks_job_run_id,  type: string, required: optional }
+      - { dd-name: databricks_task_run_id, type: string, required: optional }
+
 tags:
   - { dd-name: resource.name,     type: string }
   - { dd-name: span.type,         type: string }
@@ -209,3 +399,4 @@ intercepted:
 
 java_names:
   aws_service: TOP_LEVEL_AWS_SERVICE  # as InstrumentationTags names it; aws.service keeps AWS_SERVICE
+  service_name: SPARK_SERVICE_NAME    # Spark's service_name; service's name constant is SERVICE_NAME
