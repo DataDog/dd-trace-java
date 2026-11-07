@@ -10,7 +10,12 @@ public class TextMapInjectAdapter implements TextMapInjectAdapterInterface {
 
   @Override
   public void set(final Headers headers, final String key, final String value) {
-    headers.remove(key).add(key, value.getBytes(UTF_8));
+    // Codecs can write the same key, so replace it, but probe first: remove allocates an iterator,
+    // lastHeader doesn't, and the key is usually not there yet
+    if (headers.lastHeader(key) != null) {
+      headers.remove(key);
+    }
+    headers.add(key, value.getBytes(UTF_8));
   }
 
   public void injectTimeInQueue(Headers headers) {
