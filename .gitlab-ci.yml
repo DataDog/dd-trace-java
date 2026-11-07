@@ -1,4 +1,7 @@
 include:
+  - project: 'ddoghq/llm-validation-platform'
+    ref: 'v0.1.6'
+    file: '/ci/llm-validation.gitlab-ci.yml'
   - local: ".gitlab/one-pipeline.locked.yml"
   - local: ".gitlab/benchmarks.yml"
   - local: ".gitlab/exploration-tests.yml"
@@ -1561,3 +1564,25 @@ update_central_configurations_version_range_v2:
     LANGUAGE_NAME: "java"
     MULTIPLE_RELEASE_LINES: "false"
     SEND_ALIASES: "true"
+
+# Temporary compatibility experiment: run both modes on this branch only.
+"llm validation":
+  rules:
+    - if: '$CI_COMMIT_REF_NAME == "nacho/llm-setup-symlink-smoke"'
+      when: on_success
+    - when: never
+  variables:
+    LLMVAL_PLATFORM_PROJECT: "ddoghq/llm-validation-platform"
+    LLMVAL_PLATFORM_REF: "745818b5d65805d5852b07cbdf4d09c29b3da6c9" # v0.1.6 commit; setup requires a full SHA
+    LLMVAL_GITHUB_REPO: "DataDog/dd-trace-java"
+    LLMVAL_BASE_REF: "master"
+
+"llm validation (setup smoke)":
+  allow_failure: true # Experimental setup evaluation must not block normal Java checks.
+  variables:
+    LLMVAL_SETUP_ENABLED: "true" # For testing only; remove before merging.
+    LLMVAL_SETUP_PRESET: "java-setup-smoke"
+  rules:
+    - if: '$CI_COMMIT_REF_NAME == "nacho/llm-setup-symlink-smoke"'
+      when: on_success
+    - when: never
