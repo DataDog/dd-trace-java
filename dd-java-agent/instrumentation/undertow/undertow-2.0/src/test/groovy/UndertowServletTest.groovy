@@ -5,6 +5,8 @@ import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.bootstrap.blocking.BlockingActionHelper
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
+import datadog.trace.instrumentation.undertow.ForwardingServlet
+import datadog.trace.instrumentation.undertow.IncludingServlet
 import io.undertow.Handlers
 import io.undertow.Undertow
 import io.undertow.UndertowOptions
@@ -14,6 +16,7 @@ import io.undertow.servlet.api.ServletContainer
 import io.undertow.servlet.api.ServletInfo
 import io.undertow.websockets.jsr.WebSocketDeploymentInfo
 import okhttp3.MediaType
+import okhttp3.Request
 import okhttp3.RequestBody
 import spock.lang.IgnoreIf
 
@@ -45,6 +48,8 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.WEBSOC
 
 abstract class UndertowServletTest extends HttpServerTest<Undertow> {
   private static final CONTEXT = "ctx"
+  private static final String FORWARDING_PATH = "/dispatch/forward"
+  private static final String INCLUDING_PATH = "/dispatch/include"
 
   private final static String MULTIPART_CONTENT_TYPE =
   'multipart/form-data; charset=utf-8; boundary=------------------------943d3207457896a3'
@@ -70,6 +75,8 @@ abstract class UndertowServletTest extends HttpServerTest<Undertow> {
         .setDeploymentName("servletContext.war")
         .addServlet(new ServletInfo("SuccessServlet", SuccessServlet).addMapping(SUCCESS.getPath()))
         .addServlet(new ServletInfo("ForwardedServlet", ForwardedServlet).addMapping(FORWARDED.getPath()))
+        .addServlet(new ServletInfo("ForwardingServlet", ForwardingServlet).addMapping(FORWARDING_PATH))
+        .addServlet(new ServletInfo("IncludingServlet", IncludingServlet).addMapping(INCLUDING_PATH))
         .addServlet(new ServletInfo("QueryEncodedBothServlet", QueryEncodedBothServlet).addMapping(QUERY_ENCODED_BOTH.getPath()))
         .addServlet(new ServletInfo("QueryEncodedServlet", QueryEncodedServlet).addMapping(QUERY_ENCODED_QUERY.getPath()))
         .addServlet(new ServletInfo("QueryParamServlet", QueryServlet).addMapping(QUERY_PARAM.getPath()))
@@ -290,6 +297,10 @@ abstract class UndertowServletTest extends HttpServerTest<Undertow> {
     true
   }
 
+  def dispatchRenamesResource() {
+    false
+  }
+
   @Override
   Serializable expectedServerSpanRoute(ServerEndpoint endpoint) {
     if (!generateHttpRoute()) {
@@ -329,6 +340,36 @@ abstract class UndertowServletTest extends HttpServerTest<Undertow> {
     where:
     method = "GET"
     body = null
+  }
+
+  def "internal #dispatch keeps the original request's resource and servlet path"() {
+    setup:
+    def request = new Request.Builder().url(address.resolve(path.substring(1)).toURL()).get().build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
+    response.code() == SUCCESS.status
+    response.body().string() == SUCCESS.body
+
+    when:
+    TEST_WRITER.waitForTraces(1)
+    DDSpan serverSpan = TEST_WRITER.flatten().find {
+      it.parentId == 0
+    }
+
+    then:
+    // with the opt-out, a forward renames the request to its target; an include leaves the path alone
+    def namedPath = dispatchRenamesResource() && dispatch == "forward" ? SUCCESS.path : path
+    serverSpan.resourceName.toString() == (generateHttpRoute() ? "GET $namedPath" : "GET /$CONTEXT$path")
+    serverSpan.tags["servlet.path"] == namedPath
+    serverSpan.tags[Tags.HTTP_ROUTE] == (generateHttpRoute() ? namedPath : null)
+
+    where:
+    dispatch  | path
+    "forward" | FORWARDING_PATH
+    "include" | INCLUDING_PATH
   }
 
   // Pins the block-telemetry-3 wiring added to FormDataParserInstrumentation (urlencoded body,
@@ -421,4 +462,17 @@ class UndertowServletNoHttpRouteForkedTest extends UndertowServletTest implement
 }
 
 class UndertowServletV1ForkedTest extends UndertowServletTest implements TestingGenericHttpNamingConventions.ServerV1 {
+}
+
+class UndertowServletDispatchRenameForkedTest extends UndertowServletTest implements TestingGenericHttpNamingConventions.ServerV0 {
+  @Override
+  def dispatchRenamesResource() {
+    true
+  }
+
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("trace.undertow.dispatch.rename-resource", "true")
+  }
 }
