@@ -22,7 +22,7 @@ def ciBuildCpuCount = providers.environmentVariable("KUBERNETES_CPU_REQUEST").ge
 dependencies {
   implementation enforcedPlatform("${quarkusPlatformGroupId}:${quarkusPlatformArtifactId}:${quarkusPlatformVersion}")
   implementation 'io.quarkus:quarkus-resteasy'
-  if (hasProperty('apiJar')) {
+  if (project.hasProperty('apiJar')) {
     implementation files(property('apiJar'))
   } else {
     implementation "com.datadoghq:dd-trace-api:1.38.1"

@@ -14,6 +14,9 @@ import org.tabletest.junit.TableTest
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
+import java.util.jar.JarEntry
+import java.util.jar.JarFile
+import java.util.jar.JarOutputStream
 
 /**
  * End-to-end tests that drive the plugin through the Gradle Test Kit and a temporary,
@@ -64,6 +67,104 @@ class SmokeTestAppEndToEndTest {
 
     assertThat(result.task(":buildJar")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
     assertThat(applicationOutput("libs/sample.jar")).exists()
+  }
+
+  @TableTest(
+    "scenario                   | normalised | change    | expected   ",
+    "commit stamp ignored       | true       | stamp     | FROM_CACHE ",
+    "ZIP timestamps ignored     | true       | zip       | FROM_CACHE ",
+    "project version tracked    | true       | version   | SUCCESS    ",
+    "class contents tracked     | true       | class     | SUCCESS    ",
+    "classdata tracked          | true       | classdata | SUCCESS    ",
+    "other resources tracked    | true       | resource  | SUCCESS    ",
+    "raw commit stamp tracked   | false      | stamp     | SUCCESS    ",
+    "raw ZIP timestamps tracked | false      | zip       | SUCCESS    ",
+  )
+  fun `project JAR fingerprints preserve the selected semantics`(
+    normalised: Boolean,
+    change: String,
+    expected: TaskOutcome,
+  ) {
+    writeOuterSettings(withLocalBuildCache = true)
+    outerSettings.appendText("\ninclude(\":api\")\n")
+    val apiDirectory = projectDir.resolve("api").toFile().apply { mkdirs() }
+    File(apiDirectory, "build.gradle.kts").writeText(
+      """
+      plugins { base }
+      version = providers.gradleProperty("apiVersion").getOrElse("1.0")
+      val prepareJar = tasks.register<Copy>("prepareJar") {
+        from("input.jar")
+        into(layout.buildDirectory.dir("libs"))
+      }
+      val outgoing = configurations.named("default") {
+        isCanBeConsumed = true
+        isCanBeResolved = false
+      }
+      artifacts.add(outgoing.name, layout.buildDirectory.file("libs/input.jar")) {
+        builtBy(prepareJar)
+      }
+      """.trimIndent(),
+    )
+    writeSmokeTestAppBuild(
+      """
+      ${smokeTestGradleApplication("packageApp", "embedded-api.jar", "api.path")}
+      ${if (normalised) "projectClasspathJar" else "projectJar"}("apiJar", project(":api"))
+      """,
+      extraImports = "import datadog.buildlogic.smoketest.NestedGradleBuild",
+      extraPreamble = """
+      normalization.runtimeClasspath.ignore("**/*.version")
+      tasks.withType<NestedGradleBuild>().configureEach {
+        actions.clear()
+        val inputJar = projectJars.flatMap { it.single().file }
+        val target = applicationBuildDir.file("embedded-api.jar")
+        doLast {
+          target.get().asFile.apply {
+            parentFile.mkdirs()
+            inputJar.get().asFile.copyTo(this, overwrite = true)
+          }
+        }
+      }
+      """,
+    )
+
+    fun writeApiJar(changed: Boolean) {
+      val entries = mapOf(
+        "api.version" to if (changed && change == "stamp") "1.0~next" else "1.0~initial",
+        "example/Api.class" to if (changed && change == "class") "changed class" else "class",
+        "example/Agent.classdata" to if (changed && change == "classdata") "changed classdata" else "classdata",
+        "config.txt" to if (changed && change == "resource") "changed resource" else "resource",
+      )
+      JarOutputStream(File(apiDirectory, "input.jar").outputStream()).use { jar ->
+        entries.forEach { (name, contents) ->
+          jar.putNextEntry(JarEntry(name).apply {
+            time = if (changed && change == "zip") 1700000000000L else 1000000000000L
+          })
+          jar.write(contents.toByteArray(Charsets.UTF_8))
+          jar.closeEntry()
+        }
+      }
+    }
+
+    writeApiJar(changed = false)
+    val first = runner("packageApp", "--build-cache", "--configuration-cache", "-PapiVersion=1.0").build()
+    assertThat(first.task(":api:prepareJar")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+    assertThat(first.task(":packageApp")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+
+    applicationBuildDir.deleteRecursively()
+    writeApiJar(changed = true)
+    val second = runner(
+      "packageApp", "--build-cache", "--configuration-cache",
+      "-PapiVersion=${if (change == "version") "2.0" else "1.0"}",
+    ).build()
+    assertThat(second.task(":packageApp")?.outcome).isEqualTo(expected)
+    if (change != "version") {
+      assertThat(second.output).contains("Reusing configuration cache.")
+    }
+    JarFile(applicationOutput("embedded-api.jar")).use { jar ->
+      val stamp = jar.getInputStream(jar.getJarEntry("api.version")).bufferedReader().use { it.readText() }
+      val expectedStamp = if (!normalised && change == "stamp") "1.0~next" else "1.0~initial"
+      assertThat(stamp).isEqualTo(expectedStamp)
+    }
   }
 
   @Test

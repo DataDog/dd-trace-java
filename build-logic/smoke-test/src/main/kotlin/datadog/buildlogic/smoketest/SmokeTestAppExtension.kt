@@ -225,6 +225,18 @@ abstract class SmokeTestAppExtension @Inject constructor(
   }
 
   /**
+   * Forward a classpath JAR using this project's runtime classpath normalisation.
+   * Cached fixtures can retain an earlier commit stamp; the source project's version is tracked.
+   */
+  fun projectClasspathJar(propertyName: String, sourceProject: Project) {
+    val cfg = createExtraJarConfiguration(propertyName)
+    project.dependencies.add(cfg.name, sourceProject)
+    val input = project.objects.newInstance<NestedBuildClasspathJar>()
+    input.version.set(sourceProject.provider { sourceProject.version.toString() })
+    addProjectJarFromConfiguration(propertyName, cfg, input)
+  }
+
+  /**
    * Forward a non-default artifact configuration from [sourceProject]. Use this when the
    * upstream project exposes its build output under a configuration other than the default
    * (e.g. `shadowJar`).
@@ -264,18 +276,16 @@ abstract class SmokeTestAppExtension @Inject constructor(
     )
   }
 
-  private fun addProjectJarFromConfiguration(propertyName: String, cfg: Configuration) {
+  private fun addProjectJarFromConfiguration(
+    propertyName: String,
+    cfg: Configuration,
+    input: NestedBuildProjectJar = project.objects.newInstance<NestedBuildProjectJar>(),
+  ) {
     projectJars.add(
-      project.objects.newInstance<NestedBuildProjectJar>().apply {
+      input.apply {
         this.propertyName.set(propertyName)
-        // Configuration.elements yields a Provider that carries the producing task dependency,
-        // so wiring it into the task's @InputFile both tracks file contents and arranges build
-        // order.
-        this.file.set(
-          cfg.elements.map { files ->
-            project.objects.fileProperty().fileValue(files.single().asFile).get()
-          },
-        )
+        // Keep the producing task dependency when forwarding the resolved artifact.
+        this.file.set(project.layout.file(cfg.elements.map { files -> files.single().asFile }))
       },
     )
   }

@@ -99,6 +99,12 @@ the packaged version resources against the current version and commit. Its marke
 paths, so adding or removing a version resource invalidates test results. Commit-only changes
 can reuse matching results; classes, `.classdata` and other resources remain in the fingerprint.
 
+Nested JVM application builds opt into the same normalisation with
+`smokeTestApp.projectClasspathJar('apiJar', project(':dd-trace-api'))`.
+The producing project's version is tracked separately. Cached application artifacts can
+retain an earlier embedded dependency commit stamp. `projectJar` tracks every JAR byte;
+native application builds use it to preserve the exact embedded agent and API stamps.
+
 ## Inspect a cache entry
 
 With S3 read access, inspect an object's size, last-modified time and metadata using its full key:

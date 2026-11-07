@@ -48,7 +48,7 @@ smokeTestApp {
     artifactPath = 'libs/armeria-smoketest-all.jar'
     sysProperty = 'datadog.smoketest.armeria.uberJar.path'
   }
-  projectJar('apiJar', project(':dd-trace-api'))
+  projectClasspathJar('apiJar', project(':dd-trace-api'))
 }
 
 dependencies {
