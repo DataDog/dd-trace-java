@@ -1,6 +1,7 @@
 plugins {
   id 'dd-trace-java.module.instrumentation'
   id 'scala'
+  id 'dd-trace-java.jmh-conventions'
 }
 
 muzzle {
@@ -75,7 +76,13 @@ tasks.withType(ScalaCompile).configureEach {
   configureCompiler(it, 8, JavaVersion.VERSION_1_8, "Scala compilers here do not run on modern JDKs")
 }
 
+jmh {
+  jmhVersion = libs.versions.jmh
+  includeTests = false
+}
+
 dependencies {
+  jmh 'org.scala-lang:scala-library:2.13.0'
   compileOnly group: 'org.scala-lang', name: 'scala-library', version: '2.13.0'
   implementation project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-common')
 

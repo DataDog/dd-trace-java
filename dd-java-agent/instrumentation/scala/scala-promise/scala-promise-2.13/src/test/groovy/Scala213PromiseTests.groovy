@@ -30,3 +30,5 @@ class Scala213PromiseThreadPoolTest extends ScalaPromiseTestBase {
     return ExecutionContext.fromExecutorService(Executors.newCachedThreadPool())
   }
 }
+
+class Scala213PromiseCallbackExclusionTest extends ScalaPromiseCallbackExclusionTestBase {}
