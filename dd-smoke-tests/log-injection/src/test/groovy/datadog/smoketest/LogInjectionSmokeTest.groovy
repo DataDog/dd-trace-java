@@ -37,7 +37,8 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
 
   static final String LOG4J2_BACKEND = "Log4j2"
   static final String LOGBACK_BACKEND = "Logback"
-  static final Set<String> DIRECT_LOG_SUBMISSION_BACKENDS = [LOG4J2_BACKEND, LOGBACK_BACKEND] as Set
+  static final String JBOSS_BACKEND = "JBoss"
+  static final Set<String> DIRECT_LOG_SUBMISSION_BACKENDS = [LOG4J2_BACKEND, LOGBACK_BACKEND, JBOSS_BACKEND] as Set
 
   @Shared
   File outputLogFile
@@ -519,7 +520,7 @@ class JULInterfaceLog4j2LatestBackend extends JULInterfaceLog4j2Backend {}
 
 class JULInterfaceJBossBackend extends LogInjectionSmokeTest {
   def backend() {
-    "JBoss"
+    JBOSS_BACKEND
   }
   def supportsJson() {
     false
@@ -767,7 +768,7 @@ class Log4j2InterfaceSlf4jToLogbackLatestBackend extends Log4j2InterfaceSlf4jToL
 
 class JBossInterfaceJBossBackend extends LogInjectionSmokeTest {
   def backend() {
-    "JBoss"
+    JBOSS_BACKEND
   }
   def supportsJson() {
     false
