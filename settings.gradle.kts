@@ -94,6 +94,8 @@ if (isCI.isPresent) {
         isPush = true
         lookupDefaultAwsCredentials = true
         isReducedRedundancy = false
+        // Smoke application build entries exceed the plugin's 50 MiB default limit.
+        maximumCachedObjectLength = 256L * 1024 * 1024
       }
     }
   }

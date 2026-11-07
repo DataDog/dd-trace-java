@@ -30,7 +30,7 @@ tasks.withType(JavaCompile).configureEach {
 
 dependencies {
   implementation 'org.springframework.boot:spring-boot-starter-web'
-  if (hasProperty('apiJar')) {
+  if (project.hasProperty('apiJar')) {
     implementation files(property('apiJar'))
   } else {
     implementation "com.datadoghq:dd-trace-api:1.2.0"

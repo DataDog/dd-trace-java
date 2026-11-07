@@ -15,7 +15,7 @@ smokeTestApp {
     artifactPath = 'libs/openfeature-smoketest.jar'
     sysProperty = 'datadog.smoketest.springboot.shadowJar.path'
   }
-  projectJar('featureFlaggingApiJar', project(':dd-openfeature'))
+  projectClasspathJar('featureFlaggingApiJar', project(':dd-openfeature'))
 }
 
 dependencies {

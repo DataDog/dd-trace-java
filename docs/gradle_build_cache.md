@@ -84,17 +84,26 @@ Local runs diagnose inputs, but do not verify CI's S3 access.
 
 S3 misses can also mean HTTP 403 (access denied) or an entry larger than the plugin's
 `maximumCachedObjectLength`. Use `--info` to check the key and reason before assuming
-an entry is missing.
+an entry is missing. This build allows entries up to 256 MiB so smoke application builds
+can be stored and restored.
 
 Check build logic, dependencies, JVM/toolchains, flags, platform, container digests,
 and generated files. Timestamps and absolute paths can cause unnecessary misses;
 missing inputs can cause incorrect hits. See Gradle's
 [cache debugging guide](https://docs.gradle.org/current/userguide/build_cache_debugging.html).
 
-Smoke tests track the complete agent JAR through `SmokeAgentArguments.tracerJar` (`@InputFile`).
-Its generated `.version` files contain the commit hash, so a new commit can cause smoke-test
-misses even with identical sources. Compilation may still hit the cache. Rerun the same commit
-with matching inputs to measure smoke-test reuse.
+Smoke tests fingerprint the agent JAR through `SmokeAgentArguments.tracerJar` (`@Classpath`).
+Runtime-classpath normalisation excludes generated `.version` resources; the project version
+is tracked separately. Before restoring cached test results, `verifyAgentJarContents` checks
+the packaged version resources against the current version and commit. Its marker tracks their
+paths, so adding or removing a version resource invalidates test results. Commit-only changes
+can reuse matching results; classes, `.classdata` and other resources remain in the fingerprint.
+
+Nested JVM application builds opt into the same normalisation with
+`smokeTestApp.projectClasspathJar('apiJar', project(':dd-trace-api'))`.
+The producing project's version is tracked separately. Cached application artifacts can
+retain an earlier embedded dependency commit stamp. `projectJar` tracks every JAR byte;
+native application builds use it to preserve the exact embedded agent and API stamps.
 
 ## Inspect a cache entry
 

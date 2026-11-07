@@ -16,7 +16,7 @@ smokeTestApp {
     artifactPath = 'libs/springboot-java-11-smoketest.jar'
     sysProperty = 'datadog.smoketest.springboot.shadowJar.path'
   }
-  projectJar('iastUtil11Jar', project(':dd-smoke-tests:iast-util:iast-util-11'))
+  projectClasspathJar('iastUtil11Jar', project(':dd-smoke-tests:iast-util:iast-util-11'))
 }
 
 dependencies {

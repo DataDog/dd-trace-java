@@ -23,7 +23,7 @@ smokeTestApp {
     artifactPath = 'quarkus-smoketest--runner.jar'
     sysProperty = 'datadog.smoketest.quarkus.uberJar.path'
   }
-  projectJar('apiJar', project(':dd-trace-api'))
+  projectClasspathJar('apiJar', project(':dd-trace-api'))
 }
 
 dependencies {

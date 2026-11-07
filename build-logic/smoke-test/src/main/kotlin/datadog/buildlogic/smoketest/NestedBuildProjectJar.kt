@@ -2,6 +2,7 @@ package datadog.buildlogic.smoketest
 
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.Property
+import org.gradle.api.tasks.Classpath
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.PathSensitive
@@ -21,4 +22,13 @@ abstract class NestedBuildProjectJar {
   @get:InputFile
   @get:PathSensitive(PathSensitivity.NONE)
   abstract val file: RegularFileProperty
+}
+
+/** Classpath input for fixtures whose cached outputs can retain an earlier commit stamp. */
+abstract class NestedBuildClasspathJar : NestedBuildProjectJar() {
+  @get:Classpath
+  abstract override val file: RegularFileProperty
+
+  @get:Input
+  abstract val version: Property<String>
 }
