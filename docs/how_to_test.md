@@ -48,6 +48,13 @@ The project leverages different types of tests:
 > [!TIP]
 > Most of the instrumented tests and integration tests are instrumentation tests.
 
+### Logged stack overflows
+
+Instrumentation tests fail when JUL or Logback logs a `StackOverflowError` during a test,
+including one caught by a framework on a background thread. The harness retains the error and
+reports it during cleanup even if the response and trace assertions passed. This check does not
+cover errors that are never logged, other logging backends, or a JVM that hangs before cleanup.
+
 ### Forked Tests
 
 Independent of the type of test, test can be run in another (forked) JVM than the one running Gradle.
