@@ -1,5 +1,7 @@
 package opentelemetry147.metrics;
 
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -24,11 +26,9 @@ import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -233,32 +233,34 @@ public class JvmOtlpRuntimeMetricsTest {
     assertNotNull(threadPoints, "jvm.thread.count should have data points");
     assertFalse(threadPoints.isEmpty(), "jvm.thread.count should have data points");
 
-    // Every data point must carry both jvm.thread.daemon (Boolean) and jvm.thread.state (String).
-    Set<String> validStates = new HashSet<>();
-    for (Thread.State state : Thread.State.values()) {
-      validStates.add(state.name().toLowerCase(Locale.ROOT));
+    // Every live state is reported for both daemon values, empty ones included; NEW and TERMINATED
+    // threads are never reported.
+    Set<String> expectedPairs = new TreeSet<>();
+    for (String daemon : new String[] {"true", "false"}) {
+      for (String state : new String[] {"runnable", "blocked", "waiting", "timed_waiting"}) {
+        expectedPairs.add(daemon + "/" + state);
+      }
     }
+    Set<String> actualPairs = new TreeSet<>();
     long totalThreads = 0;
     for (DataPointEntry point : threadPoints) {
       Object daemon = point.attrs.get("jvm.thread.daemon");
       Object state = point.attrs.get("jvm.thread.state");
       assertNotNull(daemon, "jvm.thread.count point missing jvm.thread.daemon: " + point.attrs);
       assertNotNull(state, "jvm.thread.count point missing jvm.thread.state: " + point.attrs);
+      actualPairs.add(daemon + "/" + state);
       assertTrue(
-          "true".equals(daemon.toString()) || "false".equals(daemon.toString()),
-          "jvm.thread.daemon must be a boolean string, got " + daemon);
-      assertTrue(
-          validStates.contains(state.toString()),
-          "jvm.thread.state must be one of " + validStates + ", got " + state);
-      assertTrue(
-          point.value.longValue() > 0,
-          "jvm.thread.count bucket should be positive (empty buckets must be skipped), got "
+          point.value.longValue() >= 0,
+          "jvm.thread.count bucket should not be negative, got "
               + point.value
               + " for "
               + point.attrs);
       totalThreads += point.value.longValue();
     }
     assertTrue(totalThreads > 0, "Sum of jvm.thread.count buckets should be positive");
+    assertEquals(expectedPairs, actualPairs, "jvm.thread.count (daemon/state) series");
+    assertEquals(
+        expectedPairs.size(), threadPoints.size(), "jvm.thread.count should have no duplicates");
 
     // The test JVM has at minimum: the main test thread (non-daemon) plus GC/JMX/etc. daemon
     // threads — so we should observe at least one daemon=true and one daemon=false bucket.
@@ -266,6 +268,61 @@ public class JvmOtlpRuntimeMetricsTest {
     assertTrue(
         daemonValues.contains("true") && daemonValues.contains("false"),
         "jvm.thread.count should emit both daemon and non-daemon buckets, got: " + daemonValues);
+  }
+
+  @Test
+  void jvmThreadCountDropsWhenBlockedThreadsFinish() throws InterruptedException {
+    long deadline = System.nanoTime() + SECONDS.toNanos(30);
+    Object lock = new Object();
+    List<Thread> threads = new ArrayList<>();
+    long blockedWhileHeld;
+    synchronized (lock) {
+      for (int i = 0; i < 3; i++) {
+        Thread thread =
+            new Thread(
+                () -> {
+                  synchronized (lock) {
+                    // only contend for the lock
+                  }
+                });
+        thread.setDaemon(false);
+        thread.start();
+        threads.add(thread);
+      }
+      for (Thread thread : threads) {
+        while (thread.getState() != Thread.State.BLOCKED) {
+          assertTrue(System.nanoTime() < deadline, thread + " never blocked on the lock");
+          Thread.yield();
+        }
+      }
+      blockedWhileHeld = blockedNonDaemonThreadCount();
+      assertTrue(blockedWhileHeld >= 3, "blocked threads should be reported");
+    }
+    for (Thread thread : threads) {
+      thread.join(Math.max(1, NANOSECONDS.toMillis(deadline - System.nanoTime())));
+      assertFalse(thread.isAlive(), thread + " did not finish");
+    }
+
+    // Other threads of the test JVM may be blocked at any time, so compare with the value read
+    // while the lock was held instead of expecting 0. Before the fix the value did not drop at all.
+    long blockedAfterRelease = blockedNonDaemonThreadCount();
+    assertTrue(
+        blockedWhileHeld - blockedAfterRelease >= 3,
+        "blocked non-daemon count should drop by 3 after release, was "
+            + blockedWhileHeld
+            + " then "
+            + blockedAfterRelease);
+  }
+
+  private static long blockedNonDaemonThreadCount() {
+    MetricCollector collector = new MetricCollector();
+    OtelMetricRegistry.INSTANCE.collectMetrics(collector);
+    return collector.points.get("jvm.thread.count").stream()
+        .filter(p -> "blocked".equals(p.attrs.get("jvm.thread.state")))
+        .filter(p -> "false".equals(p.attrs.get("jvm.thread.daemon")))
+        .mapToLong(p -> p.value.longValue())
+        .findFirst()
+        .orElseThrow(() -> new AssertionError("no blocked non-daemon jvm.thread.count point"));
   }
 
   @Test
