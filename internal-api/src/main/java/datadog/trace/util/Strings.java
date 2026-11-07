@@ -8,6 +8,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.Locale;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
@@ -17,6 +18,11 @@ public final class Strings {
   private static final byte[] HEX_DIGITS = {
     '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'
   };
+
+  /** Formats text with {@link Locale#ROOT}. */
+  public static String format(String format, Object... args) {
+    return String.format(Locale.ROOT, format, args);
+  }
 
   /** com.foo.Bar -> com/foo/Bar.class */
   public static String getResourceName(final String className) {

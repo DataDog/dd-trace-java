@@ -1,5 +1,6 @@
 package datadog.crashtracking.buildid;
 
+import datadog.trace.util.Strings;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
@@ -167,7 +168,7 @@ public class ElfBuildIdExtractor implements BuildIdExtractor {
         // Convert to hex string
         StringBuilder hex = new StringBuilder(descsz * 2);
         for (byte b : buildIdBytes) {
-          hex.append(String.format("%02x", b & 0xff));
+          hex.append(Strings.format("%02x", b & 0xff));
         }
         return hex.toString();
       } else {

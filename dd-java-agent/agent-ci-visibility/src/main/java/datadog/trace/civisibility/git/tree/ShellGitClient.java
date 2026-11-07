@@ -194,7 +194,7 @@ public class ShellGitClient implements GitClient {
                     "--update-shallow",
                     "--filter=blob:none",
                     "--recurse-submodules=no",
-                    String.format("--shallow-since='%s'", latestCommitsSince),
+                    Strings.format("--shallow-since='%s'", latestCommitsSince),
                     remote,
                     commitSha));
           } else {
@@ -205,7 +205,7 @@ public class ShellGitClient implements GitClient {
                     "--update-shallow",
                     "--filter=blob:none",
                     "--recurse-submodules=no",
-                    String.format("--shallow-since='%s'", latestCommitsSince),
+                    Strings.format("--shallow-since='%s'", latestCommitsSince),
                     remote));
           }
 
@@ -482,7 +482,7 @@ public class ShellGitClient implements GitClient {
                     "--format=%H",
                     "-n",
                     String.valueOf(latestCommitsLimit),
-                    String.format("--since='%s'", latestCommitsSince))));
+                    Strings.format("--since='%s'", latestCommitsSince))));
   }
 
   /**
@@ -510,7 +510,7 @@ public class ShellGitClient implements GitClient {
           gitArgs[1] = "--objects";
           gitArgs[2] = "--no-object-names";
           gitArgs[3] = "--filter=blob:none";
-          gitArgs[4] = String.format("--since='%s'", latestCommitsSince);
+          gitArgs[4] = Strings.format("--since='%s'", latestCommitsSince);
 
           int count = 5;
           for (String commitToSkip : commitsToSkip) {

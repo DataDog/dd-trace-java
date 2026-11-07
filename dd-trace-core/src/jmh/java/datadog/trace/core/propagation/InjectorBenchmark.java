@@ -16,6 +16,7 @@ import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import javax.annotation.ParametersAreNonnullByDefault;
 import org.openjdk.jmh.annotations.Benchmark;
@@ -44,7 +45,8 @@ public class InjectorBenchmark {
   String injectPropagationStyles;
 
   static String dup(String input) {
-    return new String(input.toLowerCase().getBytes(StandardCharsets.UTF_8), StandardCharsets.UTF_8);
+    return new String(
+        input.toLowerCase(Locale.ROOT).getBytes(StandardCharsets.UTF_8), StandardCharsets.UTF_8);
   }
 
   Map<String, String> headers;

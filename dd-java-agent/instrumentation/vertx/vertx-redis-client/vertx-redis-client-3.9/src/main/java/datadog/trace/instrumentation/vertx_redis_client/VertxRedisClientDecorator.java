@@ -12,6 +12,7 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.redis.client.Command;
+import java.util.Locale;
 
 public class VertxRedisClientDecorator
     extends DBTypeProcessingDatabaseClientDecorator<SocketAddress> {
@@ -71,7 +72,8 @@ public class VertxRedisClientDecorator
 
   public AgentSpan startAndDecorateSpan(String command) {
     UTF8BytesString upperCase =
-        commandCache.computeIfAbsent(command, key -> UTF8BytesString.create(key.toUpperCase()));
+        commandCache.computeIfAbsent(
+            command, key -> UTF8BytesString.create(key.toUpperCase(Locale.ROOT)));
     return innerStartAndDecorateSpan(upperCase);
   }
 

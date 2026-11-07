@@ -1,5 +1,6 @@
 package com.datadog.debugger.symbol;
 
+import datadog.trace.util.Strings;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -42,7 +43,7 @@ public class BasicSymDBReport implements SymDBReport {
   public void report() {
     int totalClasses = classCountByJar.values().stream().mapToInt(Integer::intValue).sum();
     String content =
-        String.format(
+        Strings.format(
             "SymDB Report: Scanned jar count=%d, Total class count=%d, class count by jar: %s, Scanned jars: %s, Location errors: %s Missing jars: %s IOExceptions: %s",
             scannedJars.size(),
             totalClasses,

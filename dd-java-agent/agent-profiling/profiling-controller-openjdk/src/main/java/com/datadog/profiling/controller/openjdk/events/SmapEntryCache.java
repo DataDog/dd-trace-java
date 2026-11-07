@@ -7,6 +7,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.lang.management.ManagementFactory;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -302,7 +303,9 @@ final class SmapEntryCache {
 
   private void collectEvents(List<SmapEntryEvent> events) {
     try (BufferedReader br =
-        new BufferedReader(new InputStreamReader(Files.newInputStream(smapsPath)), 64 * 1024)) {
+        new BufferedReader(
+            new InputStreamReader(Files.newInputStream(smapsPath), StandardCharsets.UTF_8),
+            64 * 1024)) {
       readEvents(br, events);
       Map<Long, String> regions = getAnnotatedRegions();
       for (SmapEntryEvent e : events) {

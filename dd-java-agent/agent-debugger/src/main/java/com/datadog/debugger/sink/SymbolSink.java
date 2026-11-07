@@ -11,6 +11,7 @@ import com.datadog.debugger.util.MoshiHelper;
 import com.squareup.moshi.JsonAdapter;
 import datadog.trace.api.Config;
 import datadog.trace.util.RandomUtils;
+import datadog.trace.util.Strings;
 import datadog.trace.util.TagsHelper;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -180,7 +181,7 @@ public class SymbolSink {
 
   private BatchUploader.MultiPartContent buildEvent(long currentBatch, int attachmentSize) {
     byte[] eventContent =
-        String.format(
+        Strings.format(
                 EVENT_FORMAT,
                 serviceName,
                 version,

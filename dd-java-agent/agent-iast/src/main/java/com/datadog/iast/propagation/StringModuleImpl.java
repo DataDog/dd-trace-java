@@ -18,6 +18,7 @@ import com.datadog.iast.util.StringUtils;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.Taintable;
 import datadog.trace.api.iast.propagation.StringModule;
+import datadog.trace.util.Strings;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Arrays;
@@ -42,7 +43,7 @@ public class StringModuleImpl implements StringModule {
 
   /** Escaped format patterns * */
   private static final Map<String, String> ESCAPED_PATTERNS =
-      Stream.of("%%", "%n").collect(Collectors.toMap(Function.identity(), String::format));
+      Stream.of("%%", "%n").collect(Collectors.toMap(Function.identity(), Strings::format));
 
   private static final Ranged END = Ranged.build(Integer.MAX_VALUE, 0);
 

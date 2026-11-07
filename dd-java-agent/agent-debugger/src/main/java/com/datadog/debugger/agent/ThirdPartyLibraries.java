@@ -7,6 +7,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
@@ -80,7 +81,7 @@ public class ThirdPartyLibraries {
   }
 
   private static InternalConfig readConfig(InputStream inputStream) throws IOException {
-    try (InputStreamReader isr = new InputStreamReader(inputStream);
+    try (InputStreamReader isr = new InputStreamReader(inputStream, StandardCharsets.UTF_8);
         BufferedReader reader = new BufferedReader(isr)) {
       return ADAPTER.fromJson(reader.lines().collect(Collectors.joining(System.lineSeparator())));
     }

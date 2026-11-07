@@ -19,6 +19,7 @@ import io.valkey.Connection;
 import io.valkey.Protocol;
 import io.valkey.ValkeyClientDecorator;
 import io.valkey.commands.ProtocolCommand;
+import java.nio.charset.StandardCharsets;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
@@ -59,7 +60,7 @@ public final class ValkeyInstrumentation extends InstrumenterModule.Tracing
       if (command instanceof Protocol.Command) {
         DECORATE.onStatement(span, ((Protocol.Command) command).name());
       } else {
-        DECORATE.onStatement(span, new String(command.getRaw()));
+        DECORATE.onStatement(span, new String(command.getRaw(), StandardCharsets.UTF_8));
       }
       return activateSpan(span);
     }

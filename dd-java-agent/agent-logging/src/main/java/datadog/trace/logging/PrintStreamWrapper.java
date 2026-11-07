@@ -2,6 +2,7 @@ package datadog.trace.logging;
 
 import datadog.environment.OperatingSystem;
 import datadog.trace.api.internal.VisibleForTesting;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.OutputStream;
@@ -14,6 +15,8 @@ public class PrintStreamWrapper extends PrintStream {
   private volatile int currentSize = 0;
   private PrintStream capturingStream = null;
 
+  // Preserve the JDK's encoding choice for the wrapped logging stream.
+  @SuppressForbidden
   public PrintStreamWrapper(PrintStream ps) {
     super(ps);
   }
@@ -45,6 +48,8 @@ public class PrintStreamWrapper extends PrintStream {
     println(s);
   }
 
+  // Log capture retains the platform encoding for compatibility.
+  @SuppressForbidden
   public void startCapturing(Path filepath) {
     stopCapturing();
     try {
