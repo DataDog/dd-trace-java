@@ -40,9 +40,9 @@ final class OtlpSpanAttributes {
    * Span fields and intercepted Metadata fields bypass TagMap entry projection. Resolve their
    * keys through the registry here so OpenTelemetry names stay consistent with entry tags.
    */
-  static final UTF8BytesString SERVICE_NAME_KEY = otelKey(KnownTags.SERVICE_ID);
+  static final UTF8BytesString SERVICE_NAME_KEY = otelKey(KnownTags.SERVICE);
 
-  static final UTF8BytesString HTTP_STATUS_CODE_KEY = otelKey(KnownTags.HTTP_STATUS_CODE_ID);
+  static final UTF8BytesString HTTP_STATUS_CODE_KEY = otelKey(KnownTags.HTTP_STATUS_CODE);
 
   static final UTF8BytesString HTTP_STATUS_CODE_KEY_DD =
       UTF8BytesString.create(KnownTags.HTTP_STATUS_CODE_NAME);
