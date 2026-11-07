@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.kotlin.coroutines;
 
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
+import datadog.context.ContextHandle;
 import datadog.trace.api.GenericClassValue;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
@@ -17,7 +18,7 @@ import kotlinx.coroutines.internal.ScopeCoroutine;
 
 /** Manages the Datadog context for coroutines, switching contexts as coroutines switch threads. */
 public final class DatadogThreadContextElement
-    implements ThreadContextElement<Context>,
+    implements ThreadContextElement<ContextHandle>,
         Function2<CoroutineContext, CoroutineContext.Element, CoroutineContext> {
   private static final AtomicReferenceFieldUpdater<DatadogThreadContextElement, ContextContinuation>
       CONTINUATION =
@@ -85,7 +86,7 @@ public final class DatadogThreadContextElement
     DatadogThreadContextElement caller = downstream.get(DATADOG_KEY);
     if (caller != null) {
       // Downstream reinstalls the caller's element without constructing a coroutine.
-      caller.context = Context.current();
+      caller.context = Context.current().checkpoint();
     }
     DatadogThreadContextElement element = upstream.get(DATADOG_KEY);
     if (element == null || element == caller) {
@@ -113,7 +114,7 @@ public final class DatadogThreadContextElement
   }
 
   @Nullable private AgentSpan parentLocalRootSpan;
-  private volatile Context context;
+  private volatile ContextHandle context;
   private volatile ContextContinuation continuation;
 
   /** The owning Job, null before initialization, or COMPLETED after releasing the owner. */
@@ -158,7 +159,7 @@ public final class DatadogThreadContextElement
       } else if (datadog.owner != coroutine && datadog.isScopedBy(coroutine)) {
         // scoped coroutines (coroutineScope, withTimeout, or withContext before 1.6.1) share their
         // caller's element, so refresh it with the active context
-        datadog.context = Context.current();
+        datadog.context = Context.current().checkpoint();
       }
     }
   }
@@ -182,7 +183,7 @@ public final class DatadogThreadContextElement
           }
         }
       }
-      context = initial;
+      context = initial.checkpoint();
       parentLocalRootSpan = null;
     }
   }
@@ -209,8 +210,8 @@ public final class DatadogThreadContextElement
   }
 
   @Override
-  public Context updateThreadContext(@Nonnull CoroutineContext coroutineContext) {
-    Context current = context;
+  public ContextHandle updateThreadContext(@Nonnull CoroutineContext coroutineContext) {
+    ContextHandle current = context;
     if (current == null) {
       if (owner == null) {
         Job job = coroutineContext.get(Job.Key);
@@ -230,7 +231,7 @@ public final class DatadogThreadContextElement
 
   @Override
   public void restoreThreadContext(
-      @Nonnull CoroutineContext coroutineContext, Context originalContext) {
+      @Nonnull CoroutineContext coroutineContext, ContextHandle originalContext) {
     context = originalContext.swap();
   }
 

@@ -25,6 +25,7 @@ import static org.mockito.Mockito.when;
 
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
+import datadog.context.ContextHandle;
 import datadog.context.ContextKey;
 import datadog.context.ContextScope;
 import datadog.trace.api.DDTraceId;
@@ -1059,7 +1060,7 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
     Context context1 = Context.root().with(testKey, "first-value");
     Context context2 = context1.with(testKey, "second-value");
 
-    Context swappedOut = scopeManager.swap(Context.root());
+    ContextHandle swappedOut = scopeManager.swap(Context.root());
 
     assertNull(scopeManager.active());
     assertEquals(Context.root(), scopeManager.currentContext());
@@ -1086,7 +1087,7 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
     assertEquals(context2, scopeManager.currentContext());
     assertEquals("first-value", swappedOut.get(testKey));
 
-    Context context3 = swappedOut.with(testKey, "third-value");
+    Context context3 = context1.with(testKey, "third-value");
     scopeManager.swap(context3);
 
     assertNotNull(scopeManager.active());

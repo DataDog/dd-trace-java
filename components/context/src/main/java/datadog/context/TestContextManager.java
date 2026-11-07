@@ -23,13 +23,28 @@ final class TestContextManager implements ContextManager {
   }
 
   @Override
-  public Context swap(Context context) {
+  public ContextHandle swap(ContextHandle context) {
     return delegate().swap(context);
+  }
+
+  @Override
+  public ContextHandle checkpoint(Context context) {
+    return delegate().checkpoint(context);
   }
 
   @Override
   public ContextContinuation capture(Context context) {
     return delegate().capture(context);
+  }
+
+  @Override
+  public boolean isCaptureEnabled() {
+    return delegate().isCaptureEnabled();
+  }
+
+  @Override
+  public void setCaptureEnabled(boolean enabled) {
+    delegate().setCaptureEnabled(enabled);
   }
 
   @Override

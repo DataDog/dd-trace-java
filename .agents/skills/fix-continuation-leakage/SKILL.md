@@ -60,8 +60,10 @@ set -o pipefail
      preserving capture for the task actually submitted.
    - For intentionally delayed work, wait for its documented terminal event rather than
      suppressing propagation.
-   - For a context swap, verify both restoration and resource cleanup. Restore or close the
-     returned ownership object in `finally`; do not ignore every swap.
+   - For a context swap, restore the returned checkpoint by swapping it back in `finally`, or at
+     the matching suspension/exit hook. Release separately owned continuations when their owner
+     ends; checkpoints do not keep a trace open. See
+     [capture controls and context switches](../../../docs/how_instrumentations_work.md#capture-controls-and-context-switches).
 5. Prefer a test-lifecycle fix when production behavior is correct. Otherwise fix ownership where
    it breaks, with one owner and `try/finally` cleanup across every exit.
 6. Rerun the failing test, then its module. Validate the leaked record and root-trace publication
