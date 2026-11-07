@@ -30,7 +30,8 @@ class IdStoreContractTest {
 
   static Stream<Arguments> stores() {
     return Stream.of(
-        arguments(named("HashIdStore", (Function<IdStore, IdStore>) HashIdStore::new)));
+        arguments(named("HashIdStore", (Function<IdStore, IdStore>) HashIdStore::new)),
+        arguments(named("DenseIdStore", (Function<IdStore, IdStore>) DenseIdStore::new)));
   }
 
   /** Every known tag id, in declaration order. */
@@ -652,5 +653,61 @@ class IdStoreContractTest {
 
     assertEquals(visible(store), viaCursor);
     assertNull(viaCursor.get(KnownTagCodec.nameOf(ids.get(3))));
+  }
+
+  /** Each store, against each value an Entry classifies or coerces differently. */
+  static Stream<Arguments> storesAndValues() {
+    return stores()
+        .flatMap(store ->
+            TagValueConversionsTest.values()
+                .map(value -> arguments(store.get()[0], named(describe(value), value))));
+  }
+
+  private static String describe(Object value) {
+    return value.getClass().getSimpleName() + " " + value;
+  }
+
+  /**
+   * A store's reader reports what an Entry of the stored value does, so the dense flag cannot
+   * change what a tag read returns.
+   */
+  @ParameterizedTest
+  @MethodSource("storesAndValues")
+  void readerAgreesWithEntry(Function<IdStore, IdStore> newStore, Object value) {
+    long tagId = KnownTags.HTTP_METHOD;
+    IdStore store = newStore.apply(null);
+    store.store(tagId, value);
+
+    TagMap.Entry expected = TagMap.Entry.newAnyEntry(tagId, value);
+    EntryReader reader = store.getEntryReader(tagId);
+    assertNotNull(reader);
+    assertReadsLike(expected, reader);
+    assertReadsLike(expected, reader.entry());
+  }
+
+  private static void assertReadsLike(TagMap.Entry expected, EntryReader actual) {
+    String what = describe(expected.objectValue());
+    assertEquals(expected.type(), actual.type(), what);
+    for (byte type :
+        new byte[] {
+          EntryReader.OBJECT,
+          EntryReader.BOOLEAN,
+          EntryReader.INT,
+          EntryReader.LONG,
+          EntryReader.FLOAT,
+          EntryReader.DOUBLE
+        }) {
+      assertEquals(expected.is(type), actual.is(type), what + " is " + type);
+    }
+    assertEquals(expected.isObject(), actual.isObject(), what);
+    assertEquals(expected.isNumber(), actual.isNumber(), what);
+    assertEquals(expected.isNumericPrimitive(), actual.isNumericPrimitive(), what);
+    assertEquals(expected.booleanValue(), actual.booleanValue(), what);
+    assertEquals(expected.intValue(), actual.intValue(), what);
+    assertEquals(expected.longValue(), actual.longValue(), what);
+    assertEquals(expected.floatValue(), actual.floatValue(), what);
+    assertEquals(expected.doubleValue(), actual.doubleValue(), what);
+    assertEquals(expected.stringValue(), actual.stringValue(), what);
+    assertEquals(expected.objectValue(), actual.objectValue(), what);
   }
 }

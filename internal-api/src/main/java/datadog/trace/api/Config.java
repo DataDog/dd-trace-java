@@ -706,6 +706,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_CLOUD_PAYLOAD_TAGGING_
 import static datadog.trace.api.config.TracerConfig.TRACE_CLOUD_PAYLOAD_TAGGING_SERVICES;
 import static datadog.trace.api.config.TracerConfig.TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING;
 import static datadog.trace.api.config.TracerConfig.TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING;
+import static datadog.trace.api.config.TracerConfig.TRACE_DENSE_TAGS_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_EXPERIMENTAL_FEATURES_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_GIT_METADATA_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_CLIENT_ERROR_STATUSES;
@@ -1457,6 +1458,7 @@ public class Config {
   private final boolean jdkSocketEnabled;
 
   private final boolean spanBuilderReuseEnabled;
+  private final boolean traceDenseTagsEnabled;
   private final int tagNameUtf8CacheSize;
   private final int tagValueUtf8CacheSize;
   private final int stackTraceLengthLimit;
@@ -3462,6 +3464,7 @@ public class Config {
 
     this.spanBuilderReuseEnabled =
         configProvider.getBoolean(GeneralConfig.SPAN_BUILDER_REUSE_ENABLED, true);
+    this.traceDenseTagsEnabled = configProvider.getBoolean(TRACE_DENSE_TAGS_ENABLED, false);
     this.tagNameUtf8CacheSize =
         Math.max(configProvider.getInteger(GeneralConfig.TAG_NAME_UTF8_CACHE_SIZE, 128), 0);
     this.tagValueUtf8CacheSize =
@@ -5442,6 +5445,10 @@ public class Config {
 
   public boolean isJdkSocketEnabled() {
     return jdkSocketEnabled;
+  }
+
+  public boolean isTraceDenseTagsEnabled() {
+    return traceDenseTagsEnabled;
   }
 
   public boolean isSpanBuilderReuseEnabled() {
