@@ -10,7 +10,8 @@ import org.slf4j.LoggerFactory;
 import play.api.mvc.Result;
 import scala.util.Try;
 
-public class RequestCompleteCallback extends scala.runtime.AbstractFunction1<Try<Result>, Object> {
+public class RequestCompleteCallback
+    extends scala.runtime.AbstractPartialFunction<Try<Result>, Object> {
 
   private static final Logger log = LoggerFactory.getLogger(RequestCompleteCallback.class);
 
@@ -20,6 +21,11 @@ public class RequestCompleteCallback extends scala.runtime.AbstractFunction1<Try
   public RequestCompleteCallback(final ContextScope scope) {
     this.span = AgentSpan.fromContext(scope.context());
     this.scope = scope;
+  }
+
+  @Override
+  public boolean isDefinedAt(final Try<Result> result) {
+    return true;
   }
 
   @Override
