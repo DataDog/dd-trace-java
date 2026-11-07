@@ -1,12 +1,22 @@
 package datadog.trace.instrumentation.java.completablefuture;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.concreteClass;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresField;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
+import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
+import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ConcurrentState;
+import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.matcher.ElementMatcher;
 
 /**
- * Instrumentation for {@code UniCompletion} in {@code CompletableFuture}.
+ * Constructor instrumentation for concrete {@code UniCompletion} subclasses in {@code
+ * CompletableFuture}.
  *
  * <p>A {@code UniCompletion} or one of its subclasses is what is created in code that use the
  * chaining methods on {@code CompletableFuture}, i.e.:
@@ -18,7 +28,8 @@ import datadog.trace.bootstrap.instrumentation.java.concurrent.ConcurrentState;
  *
  * <p>The general idea is to capture the current scope at the time of creation of the {@code
  * UniCompletion} and then activate that scope around the processing that happens in the {@code
- * tryFire} method.
+ * tryFire} method. Capture runs at concrete constructor exit, after callback fields are
+ * initialized, so integration-owned callbacks can opt out before a continuation is allocated.
  *
  * <p>Since {@code UniCompletion} implements {@link Runnable} and extends {@code ForkJoinTask}, and
  * this instrumentation wants to have full control of the captured state, we exclude {@code
@@ -32,19 +43,33 @@ import datadog.trace.bootstrap.instrumentation.java.concurrent.ConcurrentState;
  * taking place that decides which thread actually get to run the user code that was supplied.
  */
 public class CompletableFutureUniCompletionInstrumentation
-    implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForBootstrap,
+        Instrumenter.ForTypeHierarchy,
+        Instrumenter.HasMethodAdvice {
   static final String JAVA_UTIL_CONCURRENT = "java.util.concurrent";
   static final String COMPLETABLE_FUTURE = JAVA_UTIL_CONCURRENT + ".CompletableFuture";
   static final String UNI_COMPLETION = COMPLETABLE_FUTURE + "$UniCompletion";
   static final String ADVICE_BASE = JAVA_UTIL_CONCURRENT + ".CompletableFutureAdvice$";
 
   @Override
-  public String instrumentedType() {
-    return UNI_COMPLETION;
+  public String hierarchyMarkerType() {
+    return null; // bootstrap type
+  }
+
+  @Override
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
+    return nameStartsWith(COMPLETABLE_FUTURE)
+        .and(extendsClass(named(UNI_COMPLETION)))
+        .and(concreteClass());
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(isConstructor(), ADVICE_BASE + "UniConstructor");
+    transformer.applyAdvice(
+        isConstructor().and(isDeclaredBy(declaresField(named("fn")))),
+        ADVICE_BASE + "UniCallbackConstructor");
+    transformer.applyAdvice(
+        isConstructor().and(isDeclaredBy(not(declaresField(named("fn"))))),
+        ADVICE_BASE + "UniConstructor");
   }
 }
