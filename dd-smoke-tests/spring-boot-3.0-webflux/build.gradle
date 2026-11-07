@@ -16,7 +16,6 @@ smokeTestApp {
     artifactPath = 'libs/webflux-3.0-smoketest.jar'
     sysProperty = 'datadog.smoketest.webflux.uberJar.path'
   }
-  projectJar('apiJar', project(':dd-trace-api'))
 }
 
 dependencies {
