@@ -46,6 +46,9 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
 
   private static final boolean AWS_LEGACY_TRACING = Config.get().isAwsLegacyTracingEnabled();
 
+  // span type of the azure-cosmos request spans, which already trace each gateway request
+  private static final String COSMOS_SPAN_TYPE = "cosmosdb";
+
   @Override
   public void write(final ChannelHandlerContext ctx, final Object msg, final ChannelPromise prm) {
     if (!(msg instanceof HttpRequest)) {
@@ -61,8 +64,13 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
 
     final HttpRequest request = (HttpRequest) msg;
     boolean awsClientCall = request.headers().contains("amz-sdk-invocation-id");
-    if (!AWS_LEGACY_TRACING && awsClientCall) {
-      // avoid creating an extra HTTP client span beneath the AWS client call
+    final AgentSpan parentSpan = activeSpan();
+    if ((!AWS_LEGACY_TRACING && awsClientCall) || isCosmosRequestSpan(parentSpan)) {
+      // avoid creating an extra HTTP client span beneath the AWS or Cosmos client call, and clear
+      // what a previous traced request left on a reused connection, so that the response doesn't
+      // tag or finish that request's span or its parent
+      ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(null);
+      ctx.channel().attr(CLIENT_PARENT_ATTRIBUTE_KEY).set(null);
       try {
         ctx.write(msg, prm);
         return;
@@ -73,7 +81,7 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
       }
     }
     if (ctx.channel().parent() == null) {
-      ctx.channel().attr(CLIENT_PARENT_ATTRIBUTE_KEY).set(activeSpan());
+      ctx.channel().attr(CLIENT_PARENT_ATTRIBUTE_KEY).set(parentSpan);
     }
     boolean isSecure = SSL_HANDLER != null && ctx.pipeline().get(SSL_HANDLER) != null;
     NettyHttpClientDecorator decorate = isSecure ? DECORATE_SECURE : DECORATE;
@@ -109,6 +117,14 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
         parentScope.close();
       }
     }
+  }
+
+  /**
+   * Whether the request is sent under an azure-cosmos request span. Checking the span rather than
+   * the request keeps the HTTP span when the Cosmos instrumentation is disabled or not applied.
+   */
+  private static boolean isCosmosRequestSpan(final AgentSpan span) {
+    return span != null && COSMOS_SPAN_TYPE.equals(span.getSpanType());
   }
 
   private static ContextContinuation takeConnectParentContinuation(
