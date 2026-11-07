@@ -2251,13 +2251,14 @@ public class Config {
             OtlpConfig.Temporality.DELTA);
 
     // Tri-state default: when unset, SDK-computed OTLP span metrics are emitted iff OTLP trace
-    // export and OTLP metrics export are both enabled.
+    // export and OTLP metrics export are both enabled. OTEL_SDK_DISABLED=true turns them off.
     otelTracesSpanMetricsEnabled =
         configProvider.getBoolean(
-            OTEL_TRACES_SPAN_METRICS_ENABLED,
-            isTraceOtlpExporterEnabled()
-                && isMetricsOtelEnabled()
-                && isMetricsOtlpExporterEnabled());
+                OTEL_TRACES_SPAN_METRICS_ENABLED,
+                isTraceOtlpExporterEnabled()
+                    && isMetricsOtelEnabled()
+                    && isMetricsOtlpExporterEnabled())
+            && !configProvider.isOtelSdkDisabled();
 
     otlpTimeout = configProvider.getInteger(OTLP_TRACES_TIMEOUT, DEFAULT_OTLP_TRACES_TIMEOUT);
     if (otlpTimeout < 0) {
@@ -2290,8 +2291,11 @@ public class Config {
     }
     otlpTracesEndpoint = otlpTracesEndpointFromEnvironment;
 
-    // Runtime metrics are disabled if Otel metrics are enabled and the metrics exporter is none
-    runtimeMetricsEnabled = configProvider.getBoolean(RUNTIME_METRICS_ENABLED, true);
+    // Runtime metrics are disabled if Otel metrics are enabled and the metrics exporter is none.
+    // OTEL_SDK_DISABLED=true turns them off, whatever DD_RUNTIME_METRICS_ENABLED says.
+    runtimeMetricsEnabled =
+        configProvider.getBoolean(RUNTIME_METRICS_ENABLED, true)
+            && !configProvider.isOtelSdkDisabled();
 
     jmxFetchEnabled =
         runtimeMetricsEnabled
