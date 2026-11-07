@@ -17,9 +17,12 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.InstrumenterConfig;
+import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
+import datadog.trace.bootstrap.instrumentation.log.AgentlessLogSubmission;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import org.apache.log4j.spi.LoggingEvent;
@@ -42,6 +45,11 @@ public class CategoryInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
+  public String[] helperClassNames() {
+    return new String[] {packageName + ".LogsIntakeHelper"};
+  }
+
+  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
@@ -50,6 +58,15 @@ public class CategoryInstrumentation extends InstrumenterModule.Tracing
             .and(takesArguments(1))
             .and(takesArgument(0, named("org.apache.log4j.spi.LoggingEvent"))),
         CategoryInstrumentation.class.getName() + "$CallAppendersAdvice");
+    if (InstrumenterConfig.get().isAgentlessLogSubmissionEnabled()) {
+      transformer.applyAdvice(
+          isMethod()
+              .and(isPublic())
+              .and(named("callAppenders"))
+              .and(takesArguments(1))
+              .and(takesArgument(0, named("org.apache.log4j.spi.LoggingEvent"))),
+          CategoryInstrumentation.class.getName() + "$SubmitLogAdvice");
+    }
   }
 
   public static class CallAppendersAdvice {
@@ -60,6 +77,21 @@ public class CategoryInstrumentation extends InstrumenterModule.Tracing
       if (span != null && traceConfig(span).isLogsInjectionEnabled()) {
         InstrumentationContext.get(LoggingEvent.class, AgentSpanContext.class)
             .put(event, span.spanContext());
+      }
+    }
+  }
+
+  public static class SubmitLogAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void onEnter(@Advice.Argument(0) LoggingEvent event) {
+      if (event == null
+          || CallDepthThreadLocalMap.incrementCallDepth(AgentlessLogSubmission.class) > 0) {
+        return;
+      }
+      try {
+        LogsIntakeHelper.submit(event);
+      } finally {
+        CallDepthThreadLocalMap.reset(AgentlessLogSubmission.class);
       }
     }
   }
