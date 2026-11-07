@@ -13,29 +13,35 @@ public class DataStreamsTags {
 
   public static DataStreamsTags EMPTY = DataStreamsTags.create(null, null);
 
+  // Hashes are computed on first read, since with Data Streams off nothing reads them
   private long hash;
   private long aggregationHash;
   private long completeHash;
   private int nonNullSize;
+  private volatile boolean hashed;
 
+  // Read when the tags are built, as they depend on the time and thread of the checkpoint
+  private final long baseHash;
+  private final String serviceNameOverrideValue;
+
+  // Tag values; the "name:value" tags are built from them only when read
   // hash tags
-  protected final String bus;
-  protected final String direction;
-  protected final Direction directionValue;
-  protected final String exchange;
-  protected final String topic;
-  protected final String type;
-  protected final String subscription;
+  private final String bus;
+  private final Direction directionValue;
+  private final String exchange;
+  private final String topic;
+  private final String type;
+  private final String subscription;
   // additional grouping tags
-  protected final String datasetName;
-  protected final String datasetNamespace;
-  protected final String isManual;
+  private final String datasetName;
+  private final String datasetNamespace;
+  private final Boolean isManual;
   // informational tags
-  protected final String group;
-  protected final String consumerGroup;
-  protected final String hasRoutingKey;
-  protected final String kafkaClusterId;
-  protected final String partition;
+  private final String group;
+  private final String consumerGroup;
+  private final Boolean hasRoutingKey;
+  private final String kafkaClusterId;
+  private final String partition;
 
   public static final String MANUAL_TAG = "manual_checkpoint";
   public static final String TYPE_TAG = "type";
@@ -145,90 +151,26 @@ public class DataStreamsTags {
   /// For usage in tests *only*
   public Boolean hasAllTags(String[] tags) {
     for (String tag : tags) {
-      if (tag.indexOf(':') == -1) {
+      int separator = tag.indexOf(':');
+      if (separator == -1) {
         return false;
       }
-      String key = tag.substring(0, tag.indexOf(':'));
-      String value = tag.substring(tag.indexOf(':') + 1);
-      switch (key) {
-        case BUS_TAG:
-          if (!Objects.equals(this.bus, tag)) {
-            return false;
-          }
-          break;
-        case DIRECTION_TAG:
-          if (!Objects.equals(
-              this.directionValue,
-              Objects.equals(value, "out") ? Direction.OUTBOUND : Direction.INBOUND)) {
-            return false;
-          }
-          break;
-        case EXCHANGE_TAG:
-          if (!Objects.equals(this.exchange, tag)) {
-            return false;
-          }
-          break;
-        case TOPIC_TAG:
-          if (!Objects.equals(this.topic, tag)) {
-            return false;
-          }
-          break;
-        case TYPE_TAG:
-          if (!Objects.equals(this.type, tag)) {
-            return false;
-          }
-          break;
-        case SUBSCRIPTION_TAG:
-          if (!Objects.equals(this.subscription, tag)) {
-            return false;
-          }
-          break;
-        case DATASET_NAME_TAG:
-          if (!Objects.equals(this.datasetName, tag)) {
-            return false;
-          }
-          break;
-        case DATASET_NAMESPACE_TAG:
-          if (!Objects.equals(this.datasetNamespace, tag)) {
-            return false;
-          }
-          break;
-        case MANUAL_TAG:
-          if (!Objects.equals(this.isManual, tag)) {
-            return false;
-          }
-          break;
-        case GROUP_TAG:
-          if (!Objects.equals(this.group, tag)) {
-            return false;
-          }
-          break;
-        case CONSUMER_GROUP_TAG:
-          if (!Objects.equals(this.consumerGroup, tag)) {
-            return false;
-          }
-          break;
-        case HAS_ROUTING_KEY_TAG:
-          if (!Objects.equals(this.hasRoutingKey, tag)) {
-            return false;
-          }
-          break;
-        case KAFKA_CLUSTER_ID_TAG:
-          if (!Objects.equals(this.kafkaClusterId, tag)) {
-            return false;
-          }
-          break;
-        case PARTITION_TAG:
-          if (!Objects.equals(this.partition, tag)) {
-            return false;
-          }
-          break;
-        default:
-          return false;
+      int index = indexOfName(tag.substring(0, separator));
+      if (index == -1 || !Objects.equals(tagByIndex(index), tag)) {
+        return false;
       }
     }
 
     return true;
+  }
+
+  private int indexOfName(String name) {
+    for (int i = 0; i < size(); i++) {
+      if (nameByIndex(i).equals(name)) {
+        return i;
+      }
+    }
+    return -1;
   }
 
   public static DataStreamsTags createWithGroup(
@@ -301,68 +243,78 @@ public class DataStreamsTags {
       Boolean hasRoutingKey,
       String kafkaClusterId,
       String partition) {
-    this.bus = bus != null ? BUS_TAG + ":" + bus : null;
+    this.bus = bus;
     this.directionValue = direction;
-    if (direction == Direction.INBOUND) {
-      this.direction = DIRECTION_TAG + ":in";
-    } else if (direction == Direction.OUTBOUND) {
-      this.direction = DIRECTION_TAG + ":out";
-    } else {
-      this.direction = null;
-    }
-    this.exchange = exchange != null ? EXCHANGE_TAG + ":" + exchange : null;
-    this.topic = topic != null ? TOPIC_TAG + ":" + topic : null;
-    this.type = type != null ? TYPE_TAG + ":" + type : null;
-    this.subscription = subscription != null ? SUBSCRIPTION_TAG + ":" + subscription : null;
-    this.datasetName = datasetName != null ? DATASET_NAME_TAG + ":" + datasetName : null;
-    this.datasetNamespace =
-        datasetNamespace != null ? DATASET_NAMESPACE_TAG + ":" + datasetNamespace : null;
-    this.isManual = isManual != null ? MANUAL_TAG + ":" + isManual : null;
-    this.group = group != null ? GROUP_TAG + ":" + group : null;
-    this.consumerGroup = consumerGroup != null ? CONSUMER_GROUP_TAG + ":" + consumerGroup : null;
-    this.hasRoutingKey = hasRoutingKey != null ? HAS_ROUTING_KEY_TAG + ":" + hasRoutingKey : null;
-    this.kafkaClusterId =
-        kafkaClusterId != null ? KAFKA_CLUSTER_ID_TAG + ":" + kafkaClusterId : null;
-    this.partition = partition != null ? PARTITION_TAG + ":" + partition : null;
+    this.exchange = exchange;
+    this.topic = topic;
+    this.type = type;
+    this.subscription = subscription;
+    this.datasetName = datasetName;
+    this.datasetNamespace = datasetNamespace;
+    this.isManual = isManual;
+    this.group = group;
+    this.consumerGroup = consumerGroup;
+    this.hasRoutingKey = hasRoutingKey;
+    this.kafkaClusterId = kafkaClusterId;
+    this.partition = partition;
 
-    this.hash = BaseHash.getBaseHash();
+    this.baseHash = BaseHash.getBaseHash();
+    ThreadLocal<String> serviceNameOverride = DataStreamsTags.serviceNameOverride;
+    this.serviceNameOverrideValue = serviceNameOverride != null ? serviceNameOverride.get() : null;
+  }
 
-    if (DataStreamsTags.serviceNameOverride != null) {
-      String val = DataStreamsTags.serviceNameOverride.get();
-      if (val != null) {
-        this.hash = FNV64Hash.continueHash(this.hash, val, FNV64Hash.Version.v1);
-      }
+  private void ensureHashed() {
+    if (hashed) {
+      return;
     }
+    // Racing threads compute the same values, so the race is benign
+    long hash = baseHash;
+    if (serviceNameOverrideValue != null) {
+      hash = FNV64Hash.continueHash(hash, serviceNameOverrideValue, FNV64Hash.Version.v1);
+    }
+    int nonNullSize = 0;
 
     // hashable tags are 0-6: bus, direction, exchange, topic, type, subscription, kafkaClusterId
     for (int i = 0; i < 7; i++) {
-      String tag = this.tagByIndex(i);
-      if (tag != null) {
-        this.nonNullSize++;
-        this.hash = FNV64Hash.continueHash(this.hash, tag, FNV64Hash.Version.v1);
+      String value = valueByIndex(i);
+      if (value != null) {
+        nonNullSize++;
+        hash = continueHash(hash, i, value);
       }
     }
 
     // aggregation tags are 7-11: datasetName, datasetNamespace, isManual, group, consumerGroup
-    this.aggregationHash = this.hash;
+    long aggregationHash = hash;
     for (int i = 7; i < 12; i++) {
-      String tag = this.tagByIndex(i);
-      if (tag != null) {
-        this.nonNullSize++;
-        this.aggregationHash =
-            FNV64Hash.continueHash(this.aggregationHash, tag, FNV64Hash.Version.v1);
+      String value = valueByIndex(i);
+      if (value != null) {
+        nonNullSize++;
+        aggregationHash = continueHash(aggregationHash, i, value);
       }
     }
 
     // values are 12-13: partition, hasRoutingKey
-    this.completeHash = aggregationHash;
-    for (int i = 12; i < this.size(); i++) {
-      String tag = this.tagByIndex(i);
-      if (tag != null) {
-        this.nonNullSize++;
-        this.completeHash = FNV64Hash.continueHash(this.completeHash, tag, FNV64Hash.Version.v1);
+    long completeHash = aggregationHash;
+    for (int i = 12; i < size(); i++) {
+      String value = valueByIndex(i);
+      if (value != null) {
+        nonNullSize++;
+        completeHash = continueHash(completeHash, i, value);
       }
     }
+
+    this.hash = hash;
+    this.aggregationHash = aggregationHash;
+    this.completeHash = completeHash;
+    this.nonNullSize = nonNullSize;
+    this.hashed = true;
+  }
+
+  /** Continues {@code hash} over the tag {@code "name:value"}, without building it. */
+  private static long continueHash(long hash, int index, String value) {
+    hash = FNV64Hash.continueHash(hash, nameByIndex(index), FNV64Hash.Version.v1);
+    hash = FNV64Hash.continueHash(hash, ":", FNV64Hash.Version.v1);
+    return FNV64Hash.continueHash(hash, value, FNV64Hash.Version.v1);
   }
 
   public int size() {
@@ -372,12 +324,22 @@ public class DataStreamsTags {
 
   // WARNING: DO NOT REORDER! Indices 0-6 are hash tags, 7-11 are aggregation tags, 12-13 are
   // values. Reordering breaks hashing!
+  /**
+   * The {@code name:value} tag at {@code index}, or null if it has no value. Builds a new string on
+   * each call, as do the {@code get*} tag getters, so they're meant for serialization and tests,
+   * not per-message use.
+   */
   public String tagByIndex(int index) {
+    String value = valueByIndex(index);
+    return value != null ? nameByIndex(index) + ":" + value : null;
+  }
+
+  private String valueByIndex(int index) {
     switch (index) {
       case 0:
         return this.bus;
       case 1:
-        return this.direction;
+        return directionTagValue();
       case 2:
         return this.exchange;
       case 3:
@@ -393,7 +355,7 @@ public class DataStreamsTags {
       case 8:
         return this.datasetNamespace;
       case 9:
-        return this.isManual;
+        return toString(this.isManual);
       case 10:
         return this.group;
       case 11:
@@ -401,34 +363,82 @@ public class DataStreamsTags {
       case 12:
         return this.partition;
       case 13:
-        return this.hasRoutingKey;
+        return toString(this.hasRoutingKey);
       default:
         return null;
     }
   }
 
+  private static String nameByIndex(int index) {
+    switch (index) {
+      case 0:
+        return BUS_TAG;
+      case 1:
+        return DIRECTION_TAG;
+      case 2:
+        return EXCHANGE_TAG;
+      case 3:
+        return TOPIC_TAG;
+      case 4:
+        return TYPE_TAG;
+      case 5:
+        return SUBSCRIPTION_TAG;
+      case 6:
+        return KAFKA_CLUSTER_ID_TAG;
+      case 7:
+        return DATASET_NAME_TAG;
+      case 8:
+        return DATASET_NAMESPACE_TAG;
+      case 9:
+        return MANUAL_TAG;
+      case 10:
+        return GROUP_TAG;
+      case 11:
+        return CONSUMER_GROUP_TAG;
+      case 12:
+        return PARTITION_TAG;
+      case 13:
+        return HAS_ROUTING_KEY_TAG;
+      default:
+        return null;
+    }
+  }
+
+  private String directionTagValue() {
+    if (directionValue == Direction.INBOUND) {
+      return "in";
+    } else if (directionValue == Direction.OUTBOUND) {
+      return "out";
+    }
+    return null;
+  }
+
+  private static String toString(Boolean value) {
+    return value != null ? value.toString() : null;
+  }
+
   public String getDirection() {
-    return this.direction;
+    return tagByIndex(1);
   }
 
   public String getTopic() {
-    return this.topic;
+    return tagByIndex(3);
   }
 
   public String getType() {
-    return this.type;
+    return tagByIndex(4);
   }
 
   public String getIsManual() {
-    return this.isManual;
+    return tagByIndex(9);
   }
 
   public String getBus() {
-    return this.bus;
+    return tagByIndex(0);
   }
 
   public String getExchange() {
-    return this.exchange;
+    return tagByIndex(2);
   }
 
   public Direction getDirectionValue() {
@@ -436,46 +446,49 @@ public class DataStreamsTags {
   }
 
   public String getSubscription() {
-    return this.subscription;
+    return tagByIndex(5);
   }
 
   public String getDatasetName() {
-    return this.datasetName;
+    return tagByIndex(7);
   }
 
   public String getDatasetNamespace() {
-    return this.datasetNamespace;
+    return tagByIndex(8);
   }
 
   public String getGroup() {
-    return this.group;
+    return tagByIndex(10);
   }
 
   public String getConsumerGroup() {
-    return this.consumerGroup;
+    return tagByIndex(11);
   }
 
   public String getPartition() {
-    return this.partition;
+    return tagByIndex(12);
   }
 
   public String getKafkaClusterId() {
-    return this.kafkaClusterId;
+    return tagByIndex(6);
   }
 
   public String getHasRoutingKey() {
-    return this.hasRoutingKey;
+    return tagByIndex(13);
   }
 
   public int nonNullSize() {
+    ensureHashed();
     return this.nonNullSize;
   }
 
   public long getHash() {
+    ensureHashed();
     return hash;
   }
 
   public long getAggregationHash() {
+    ensureHashed();
     return aggregationHash;
   }
 
@@ -485,11 +498,14 @@ public class DataStreamsTags {
     if (o == null || getClass() != o.getClass()) return false;
 
     DataStreamsTags that = (DataStreamsTags) o;
+    ensureHashed();
+    that.ensureHashed();
     return this.completeHash == that.completeHash;
   }
 
   @Override
   public int hashCode() {
+    ensureHashed();
     return Long.hashCode(this.completeHash);
   }
 
@@ -497,37 +513,37 @@ public class DataStreamsTags {
   public String toString() {
     return "DataStreamsTags{"
         + "bus='"
-        + this.bus
+        + getBus()
         + "', direction='"
-        + this.direction
+        + getDirection()
         + "', exchange='"
-        + this.exchange
+        + getExchange()
         + "', topic='"
-        + this.topic
+        + getTopic()
         + "', type='"
-        + this.type
+        + getType()
         + "', subscription='"
-        + this.subscription
+        + getSubscription()
         + "', datasetName='"
-        + this.datasetName
+        + getDatasetName()
         + "', datasetNamespace='"
-        + this.datasetNamespace
+        + getDatasetNamespace()
         + "', isManual="
-        + this.isManual
+        + getIsManual()
         + "', group='"
-        + this.group
+        + getGroup()
         + "', consumerGroup='"
-        + this.consumerGroup
+        + getConsumerGroup()
         + "', hasRoutingKey='"
-        + this.hasRoutingKey
+        + getHasRoutingKey()
         + "', kafkaClusterId='"
-        + this.kafkaClusterId
+        + getKafkaClusterId()
         + "', partition='"
-        + this.partition
+        + getPartition()
         + "', hash='"
-        + hash
+        + getHash()
         + "', aggregationHash='"
-        + aggregationHash
+        + getAggregationHash()
         + "', size='"
         + size();
   }

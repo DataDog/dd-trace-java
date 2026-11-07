@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import datadog.trace.util.FNV64Hash.Version;
+import java.nio.charset.StandardCharsets;
 import java.util.stream.Stream;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -232,6 +233,35 @@ class FNV64HashTest {
         arguments(repeat(bytes(0x00), 500), "1fe3fce62bd816b5", "1fe3fce62bd816b5"),
         arguments(repeat(bytes(0x07), 500), "0289a488a8df69d9", "c23e9fccd6f70591"),
         arguments(repeat(bytes(0x7f), 500), "e6be57375ad89b99", "39e9f18f2f85e221"));
+  }
+
+  @ParameterizedTest(name = "{index}: {0}")
+  @MethodSource("utf8Strings")
+  void stringHashMatchesItsUtf8Bytes(String scenario, String input) {
+    byte[] utf8 = input.getBytes(StandardCharsets.UTF_8);
+    for (Version version : Version.values()) {
+      assertEquals(generateHash(utf8, version), generateHash(input, version), scenario);
+      assertEquals(
+          continueHash(0x1234_5678_9abc_def0L, utf8, version),
+          continueHash(0x1234_5678_9abc_def0L, input, version),
+          scenario);
+    }
+  }
+
+  // A method source, not a table: the inputs are escapes for unpaired surrogates and other
+  // characters a table can't show readably
+  static Stream<Arguments> utf8Strings() {
+    return Stream.of(
+        arguments("ascii", "topic:orders"),
+        arguments("two-byte", "topic:caf\u00e9"),
+        arguments("three-byte", "topic:\u6ce8\u6587"),
+        arguments("max three-byte", "\uffff"),
+        arguments("supplementary", "topic:\ud83d\ude80"),
+        arguments("lone high surrogate", "a\ud83db"),
+        arguments("high surrogate at end", "a\ud83d"),
+        arguments("lone low surrogate", "a\ude80b"),
+        arguments("reversed pair", "\ude80\ud83d"),
+        arguments("high surrogate pair then lone", "\ud83d\ude80\ud83d"));
   }
 
   private static String repeat(String value, int times) {
