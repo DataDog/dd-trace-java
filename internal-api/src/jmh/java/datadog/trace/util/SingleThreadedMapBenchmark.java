@@ -209,7 +209,7 @@ public class SingleThreadedMapBenchmark {
 
   static IntEntry[] newFilledFlat() {
     // Sized to the key count (FlatHashtable is fixed-capacity, no resize): load factor <= 0.5.
-    IntEntry[] table = FlatHashtable.create(IntEntry.class, INSERTION_KEYS.length);
+    IntEntry[] table = FlatHashtable.create(INSERTION_KEYS.length, IntEntry[]::new);
     for (int i = 0; i < INSERTION_KEYS.length; ++i) {
       FlatHashtable.insert(table, new IntEntry(INSERTION_KEYS[i], i), IntEntryKeyStrategy.INSTANCE);
     }
