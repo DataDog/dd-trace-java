@@ -7,6 +7,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -43,7 +44,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
@@ -190,6 +196,67 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
         });
 
     assertEquals(keyValue, extracted[0]);
+  }
+
+  @Test
+  void clearWaitsForPendingWritesAndDiscardsQueuedPoints() throws Exception {
+    ControllableTimeSource timeSource = new ControllableTimeSource();
+    TraceConfig traceConfig = stubTraceConfig(true);
+    CountDownLatch writing = new CountDownLatch(1);
+    CountDownLatch releaseWrite = new CountDownLatch(1);
+    CapturingPayloadWriter writer =
+        new CapturingPayloadWriter() {
+          @Override
+          public void writePayload(Collection<StatsBucket> payload, String serviceNameOverride) {
+            writing.countDown();
+            try {
+              assertTrue(releaseWrite.await(5, SECONDS));
+            } catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
+              throw new AssertionError(e);
+            }
+            super.writePayload(payload, serviceNameOverride);
+          }
+        };
+    DefaultDataStreamsMonitoring dataStreams =
+        new DefaultDataStreamsMonitoring(
+            mock(Sink.class),
+            stubFeatures(true),
+            timeSource,
+            () -> traceConfig,
+            writer,
+            DEFAULT_BUCKET_DURATION_NANOS);
+    ExecutorService executor = Executors.newSingleThreadExecutor();
+    dataStreams.start();
+    try {
+      DataStreamsTags tags =
+          DataStreamsTags.create("testType", null, "testTopic", "testGroup", null);
+      dataStreams.add(new StatsPoint(tags, 1, 0, 0, 0, 0, 0, 0, null));
+      timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS);
+      dataStreams.report();
+      assertTrue(writing.await(5, SECONDS));
+
+      dataStreams.add(
+          new StatsPoint(tags, 2, 0, 0, timeSource.getCurrentTimeNanos(), 0, 0, 0, null));
+      Future<?> cleared = executor.submit(dataStreams::clear);
+      assertThrows(TimeoutException.class, () -> cleared.get(100, TimeUnit.MILLISECONDS));
+      releaseWrite.countDown();
+      cleared.get(5, SECONDS);
+      writer.buckets.clear();
+
+      dataStreams.add(
+          new StatsPoint(tags, 3, 0, 0, timeSource.getCurrentTimeNanos(), 0, 0, 0, null));
+      timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS);
+      dataStreams.report();
+      awaitBuckets(dataStreams, writer, 1);
+      Collection<StatsGroup> groups = writer.buckets.get(0).getGroups();
+      assertEquals(1, groups.size());
+      assertEquals(3L, groups.iterator().next().getHash());
+    } finally {
+      releaseWrite.countDown();
+      executor.shutdownNow();
+      dataStreams.close();
+    }
   }
 
   @Test

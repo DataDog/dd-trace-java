@@ -494,8 +494,8 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     if (scopeDiagnosticsEnabled()) {
       ScopeDiagnostics.startRecording(scopeDiagConfig())
     }
-    TEST_DATA_STREAMS_WRITER.clear()
     TEST_DATA_STREAMS_MONITORING.clear()
+    TEST_DATA_STREAMS_WRITER.clear()
 
     def util = new MockUtil()
     util.attachMock(STATS_D_CLIENT, this)
