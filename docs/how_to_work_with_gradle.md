@@ -27,6 +27,7 @@ plugin or task belong beside its source or in local documentation.
 
 **Troubleshooting:**
 - [Build Scans & Diagnostics](#troubleshooting) — Develocity, `--info`, `--scan`, critical path analysis
+- [Build Cache](gradle_build_cache.md) — S3 prefixes, cache misses, artifact checks, and runtime comparisons
 - [Configuration Cache](#configuration-cache-issues) — Common violations and fixes
 
 > [!TIP]
@@ -754,21 +755,23 @@ Each test suite (like `test`, `integrationTest`) gets its own set of configurati
 
 In this project, the `gradle/test-suites.gradle` script provides helpers to create test suites with proper configuration inheritance:
 
-| Helper                                                 | Description                                                                           |
-|--------------------------------------------------------|---------------------------------------------------------------------------------------|
-| `addTestSuite('name')`                                 | Creates `name` test suite extending `test`, sources in `src/name/`                    |
-| `addTestSuiteForDir('name', 'dir')`                    | Creates `name` test suite extending `test`, sources in `src/dir/`                    |
-| `addTestSuiteExtendingForDir('name', 'parent', 'dir')` | Creates `name` test suite extending `parent` test suite, sources in `src/dir/`        |
-| `addForkedTestTask('name')`                            | Creates `nameForkedTest`, reusing the `name` source set output and runtime classpath |
+| Helper                                                 | Description                                                                    |
+|--------------------------------------------------------|--------------------------------------------------------------------------------|
+| `addTestSuite('name')`                                 | Creates `name` test suite extending `test`, sources in `src/name/`             |
+| `addTestSuiteForDir('name', 'dir')`                    | Creates `name` test suite extending `test`, sources in `src/dir/`              |
+| `addTestSuiteExtendingForDir('name', 'parent', 'dir')` | Creates `name` test suite extending `parent` test suite, sources in `src/dir/` |
+
+Each of these helpers also registers a forked task for the suite with `addForkedTestTask`. It runs the suite's
+`*ForkedTest` classes, each in its own JVM, reusing the suite's compiled classes and runtime classpath. The task is
+named after the suite with its `Test` suffix replaced by `ForkedTest`, and it uses the suite's Java launcher and
+test JVM constraints.
 
 For example:
 
 ```Gradle
-// Creates 'latestDepTest' suite extending 'test', sources in src/latestDepTest/
+// Creates 'latestDepTest' suite extending 'test', sources in src/latestDepTest/,
+// and 'latestDepForkedTest' running its '*ForkedTest' classes
 addTestSuite('latestDepTest')
-
-// Creates 'latestDepTestForkedTest' using the compiled latestDepTest classes and dependencies
-addForkedTestTask('latestDepTest')
 ```
 
 ```mermaid
@@ -790,8 +793,10 @@ graph LR
 
 *Similar inheritance applies to `compileOnly`, `runtimeOnly`, and `annotationProcessor` configurations.*
 
-Use a separate suite only when forked tests need different sources or dependencies. When they run
-the same source set and classpath, prefer `addForkedTestTask` to avoid compiling those sources twice.
+Declare a separate forked suite only when forked tests need different sources or dependencies. If it
+takes the name of the suite's forked task, pass `false` as the last argument of the suite helper so that
+the suite doesn't register its own forked task. Passing `false` also keeps the suite's forked tests from
+running at all, which should stay exceptional and be explained in a comment.
 
 ### Creating Custom Configurations
 
@@ -1122,14 +1127,20 @@ tasks.named<Test>("latestDepTest") {
 }
 ```
 
-| Property                     | Description                                             |
-|------------------------------|---------------------------------------------------------|
-| `minJavaVersion`             | Minimum JDK version allowed for tests                   |
-| `maxJavaVersion`             | Maximum JDK version allowed for tests                   |
-| `forceJdk`                   | List of JDK names to force (overrides version checks)   |
-| `includeJdk`                 | JDK names to include                                    |
-| `excludeJdk`                 | JDK names to exclude                                    |
-| `allowReflectiveAccessToJdk` | Adds `--add-opens` flags for Java 16+ reflective access |
+| Property                           | Rule                                                                                                                      |
+|------------------------------------|---------------------------------------------------------------------------------------------------------------------------|
+| `minJavaVersion`, `maxJavaVersion` | Inclusive bounds. The check rejects an empty range unless a forced JDK remains allowed.                                   |
+| `forceJdk`                         | Overrides version bounds; inclusion and exclusion still apply.                                                            |
+| `includeJdk`                       | Restricts JDK names. The check fails when no entry is allowed. Set it on the test task: a project-level value is ignored. |
+| `excludeJdk`                       | Rejects listed JDK names, including forced JDKs.                                                                          |
+| `allowReflectiveAccessToJdk`       | Adds `--add-opens` flags for Java 16+ reflective access.                                                                  |
+
+`checkTestJvmConstraints` runs with `check` and rejects unsatisfiable constraints.
+The JDK name lists apply when tests run with `-PtestJvm`.
+
+```bash
+./gradlew :dd-java-agent:instrumentation:<instrumentation>:checkTestJvmConstraints
+```
 
 **Running tests with a specific JVM:**
 
@@ -1821,12 +1832,32 @@ This task updates the `gradle/gradle-daemon-jvm.properties` file with the new cr
 
 When Gradle builds fail or behave unexpectedly, several tools and techniques can help diagnose the problem.
 
+For intermittent CI test failures, see [reproducing timing-sensitive CI failures](how_to_test.md#reproducing-timing-sensitive-ci-failures).
+That guide explains how to pass `-Xint` and `-XX:ActiveProcessorCount` to test JVMs,
+force fresh test execution, and distinguish Gradle worker limits from application CPU limits.
+
 > [!TIP]
 > In general following the [Gradle best practices](https://docs.gradle.org/current/userguide/best_practices.html) is safe bet to avoid isses.
 
+### S3 Build Cache
+
+Gradle's build cache reuses task outputs when their inputs match. S3 shares those outputs
+across CI jobs and pipelines. Cacheable tasks must declare all inputs that affect their outputs.
+Otherwise, Gradle may reuse stale outputs when an untracked input changes.
+
+| Pipeline | Default prefix |
+| --- | --- |
+| Non-tag (including PR, nightly, and master) | `v1/<architecture>/<os>/` |
+| Release tag | `v1/release/<CI_PIPELINE_ID>/<architecture>/<os>/` |
+
+`S3_BUILD_CACHE_PREFIX` overrides the entire prefix; Gradle appends the task cache key.
+Include the pipeline ID in release overrides to preserve isolation.
+
 ### Forcing Fresh CI Task Execution
 
-Set the GitLab CI variable `SKIP_BUILD_CACHE=true` when starting a pipeline.
+Set the GitLab CI variable `SKIP_BUILD_CACHE=true` when starting a pipeline, or include
+the case-sensitive `[ci: SKIP_BUILD_CACHE]` option in the commit message. Combine it with
+other CI options as needed, for example `[ci: ARM64, SKIP_BUILD_CACHE]`.
 For a fresh rerun, start a new pipeline for the same ref with this variable.
 This appends `--no-build-cache --rerun-tasks` to the shared Gradle arguments,
 bypassing local and remote task-output caches (including S3 when configured)
@@ -1834,6 +1865,10 @@ and forcing selected tasks to execute even when their outputs are up to date.
 Existing task filters and skip conditions still apply.
 
 The default is `false`. Dependency and plugin caches remain available.
+
+The commit-message option is ignored in the `publish` and `publish-release-artifacts` stages.
+The explicit `SKIP_BUILD_CACHE=true` variable still applies there.
+
 For the same behavior locally, pass the Gradle flags directly:
 
 ```shell

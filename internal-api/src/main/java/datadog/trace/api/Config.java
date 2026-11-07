@@ -792,11 +792,13 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.UnsupportedEncodingException;
 import java.net.InetAddress;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.net.URLDecoder;
 import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystems;
@@ -2154,7 +2156,7 @@ public class Config {
     }
     otlpLogsTimeout = otlpTimeout;
 
-    otlpLogsHeaders = configProvider.getMergedMap(OTLP_LOGS_HEADERS, '=');
+    otlpLogsHeaders = decodeOtlpHeaders(configProvider.getMergedMap(OTLP_LOGS_HEADERS, '='));
     otlpLogsProtocol =
         configProvider.getEnum(
             OTLP_LOGS_PROTOCOL, OtlpConfig.Protocol.class, OtlpConfig.Protocol.HTTP_PROTOBUF);
@@ -2218,7 +2220,7 @@ public class Config {
     }
     otlpMetricsTimeout = otlpTimeout;
 
-    otlpMetricsHeaders = configProvider.getMergedMap(OTLP_METRICS_HEADERS, '=');
+    otlpMetricsHeaders = decodeOtlpHeaders(configProvider.getMergedMap(OTLP_METRICS_HEADERS, '='));
     otlpMetricsProtocol =
         configProvider.getEnum(
             OTLP_METRICS_PROTOCOL, OtlpConfig.Protocol.class, OtlpConfig.Protocol.HTTP_PROTOBUF);
@@ -2264,7 +2266,7 @@ public class Config {
     }
     otlpTracesTimeout = otlpTimeout;
 
-    otlpTracesHeaders = configProvider.getMergedMap(OTLP_TRACES_HEADERS, '=');
+    otlpTracesHeaders = decodeOtlpHeaders(configProvider.getMergedMap(OTLP_TRACES_HEADERS, '='));
     otlpTracesProtocol =
         configProvider.getEnum(
             OTLP_TRACES_PROTOCOL, OtlpConfig.Protocol.class, OtlpConfig.Protocol.HTTP_PROTOBUF);
@@ -3486,6 +3488,24 @@ public class Config {
         configProvider.getBoolean(AI_GUARD_REDACTION_ENABLED, DEFAULT_AI_GUARD_REDACTION_ENABLED);
 
     log.debug("New instance: {}", this);
+  }
+
+  /** Decodes resolved OTLP header values after parsing and precedence resolution. */
+  private static Map<String, String> decodeOtlpHeaders(Map<String, String> headers) {
+    headers.replaceAll((name, value) -> decodeOtlpHeaderValue(value));
+    return headers;
+  }
+
+  private static String decodeOtlpHeaderValue(String value) {
+    if (value.indexOf('%') == -1) {
+      return value;
+    }
+    try {
+      // Baggage-style percent encoding preserves literal '+', unlike form encoding.
+      return URLDecoder.decode(value.replace("+", "%2B"), "UTF-8");
+    } catch (UnsupportedEncodingException | IllegalArgumentException ignored) {
+      return value;
+    }
   }
 
   private static int nonNegativeBaggageLimit(String setting, int value) {

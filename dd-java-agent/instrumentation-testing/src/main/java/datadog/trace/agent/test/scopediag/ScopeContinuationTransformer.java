@@ -125,97 +125,88 @@ final class ScopeContinuationTransformer {
             .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
             .with(AgentBuilder.TypeStrategy.Default.REDEFINE)
             .type(named(corePackage + ".scopemanager.ScopeContinuation"), is(loader))
-            .transform(
-                (builder, type, classLoader, module, pd) ->
-                    builder
-                        .visit(
-                            Advice.to(ContinuationAdvice.Register.class, locator)
-                                .on(
-                                    isMethod()
-                                        .and(named("register"))
-                                        .and(takesArguments(0))
-                                        .and(
-                                            returns(
-                                                named(
-                                                    corePackage
-                                                        + ".scopemanager.ScopeContinuation")))))
-                        .visit(
-                            Advice.to(ContinuationAdvice.Activate.class, locator)
-                                .on(
-                                    isMethod()
-                                        .and(named("resume"))
-                                        .and(takesArguments(0))
-                                        .and(returns(named("datadog.context.ContextScope")))))
-                        .visit(
-                            Advice.to(ContinuationAdvice.Cancel.class, locator)
-                                .on(
-                                    isMethod()
-                                        .and(
-                                            named("release")
-                                                .or(named("cancelFromContinuedScopeClose")))
-                                        .and(takesArguments(0))
-                                        .and(returns(void.class)))))
+            .transform((builder, type, classLoader, module, pd) ->
+                builder
+                    .visit(
+                        Advice.to(ContinuationAdvice.Register.class, locator)
+                            .on(
+                                isMethod()
+                                    .and(named("register"))
+                                    .and(takesArguments(0))
+                                    .and(
+                                        returns(
+                                            named(
+                                                corePackage + ".scopemanager.ScopeContinuation")))))
+                    .visit(
+                        Advice.to(ContinuationAdvice.Activate.class, locator)
+                            .on(
+                                isMethod()
+                                    .and(named("resume"))
+                                    .and(takesArguments(0))
+                                    .and(returns(named("datadog.context.ContextScope")))))
+                    .visit(
+                        Advice.to(ContinuationAdvice.Cancel.class, locator)
+                            .on(
+                                isMethod()
+                                    .and(
+                                        named("release").or(named("cancelFromContinuedScopeClose")))
+                                    .and(takesArguments(0))
+                                    .and(returns(void.class)))))
             .type(named(corePackage + ".PendingTrace"), is(loader))
-            .transform(
-                (builder, type, classLoader, module, pd) ->
-                    builder.visit(
-                        Advice.to(PendingTraceAdvice.Write.class, locator)
-                            .on(
-                                isMethod()
-                                    .and(named("write"))
-                                    .and(takesArguments(boolean.class))
-                                    .and(returns(int.class)))))
+            .transform((builder, type, classLoader, module, pd) ->
+                builder.visit(
+                    Advice.to(PendingTraceAdvice.Write.class, locator)
+                        .on(
+                            isMethod()
+                                .and(named("write"))
+                                .and(takesArguments(boolean.class))
+                                .and(returns(int.class)))))
             .type(named(corePackage + ".scopemanager.ContinuableScope"), is(loader))
-            .transform(
-                (builder, type, classLoader, module, pd) ->
-                    builder
-                        .visit(
-                            Advice.to(ContinuableScopeAdvice.OnProperClose.class, locator)
-                                .on(
-                                    isMethod()
-                                        .and(named("onProperClose"))
-                                        .and(takesArguments(0))
-                                        .and(returns(void.class))))
-                        .visit(
-                            Advice.to(ContinuableScopeAdvice.Close.class, locator)
-                                .on(
-                                    isMethod()
-                                        .and(named("close"))
-                                        .and(takesArguments(0))
-                                        .and(returns(void.class)))))
+            .transform((builder, type, classLoader, module, pd) ->
+                builder
+                    .visit(
+                        Advice.to(ContinuableScopeAdvice.OnProperClose.class, locator)
+                            .on(
+                                isMethod()
+                                    .and(named("onProperClose"))
+                                    .and(takesArguments(0))
+                                    .and(returns(void.class))))
+                    .visit(
+                        Advice.to(ContinuableScopeAdvice.Close.class, locator)
+                            .on(
+                                isMethod()
+                                    .and(named("close"))
+                                    .and(takesArguments(0))
+                                    .and(returns(void.class)))))
             .type(named(corePackage + ".scopemanager.ScopeStack"), is(loader))
-            .transform(
-                (builder, type, classLoader, module, pd) ->
-                    builder.visit(
-                        Advice.to(ScopeStackAdvice.Push.class, locator)
-                            .on(
-                                isMethod()
-                                    .and(named("push"))
-                                    .and(takesArguments(1))
-                                    .and(
-                                        takesArgument(
-                                            0,
-                                            named(corePackage + ".scopemanager.ContinuableScope")))
-                                    .and(returns(void.class)))))
+            .transform((builder, type, classLoader, module, pd) ->
+                builder.visit(
+                    Advice.to(ScopeStackAdvice.Push.class, locator)
+                        .on(
+                            isMethod()
+                                .and(named("push"))
+                                .and(takesArguments(1))
+                                .and(
+                                    takesArgument(
+                                        0, named(corePackage + ".scopemanager.ContinuableScope")))
+                                .and(returns(void.class)))))
             .type(named(corePackage + ".scopemanager.ContinuableScopeManager"), is(loader))
-            .transform(
-                (builder, type, classLoader, module, pd) ->
-                    builder.visit(
-                        Advice.to(
-                                ContinuableScopeManagerAdvice.ScheduleRootIterationCleanup.class,
-                                locator)
-                            .on(
-                                isMethod()
-                                    .and(named("scheduleRootIterationScopeCleanup"))
-                                    .and(takesArguments(2))
-                                    .and(
-                                        takesArgument(
-                                            0, named(corePackage + ".scopemanager.ScopeStack")))
-                                    .and(
-                                        takesArgument(
-                                            1,
-                                            named(corePackage + ".scopemanager.ContinuableScope")))
-                                    .and(returns(void.class)))))
+            .transform((builder, type, classLoader, module, pd) ->
+                builder.visit(
+                    Advice.to(
+                            ContinuableScopeManagerAdvice.ScheduleRootIterationCleanup.class,
+                            locator)
+                        .on(
+                            isMethod()
+                                .and(named("scheduleRootIterationScopeCleanup"))
+                                .and(takesArguments(2))
+                                .and(
+                                    takesArgument(
+                                        0, named(corePackage + ".scopemanager.ScopeStack")))
+                                .and(
+                                    takesArgument(
+                                        1, named(corePackage + ".scopemanager.ContinuableScope")))
+                                .and(returns(void.class)))))
             .installOn(instrumentation);
     Set<String> expected = new HashSet<>();
     for (String target : TARGET_SUFFIXES) {

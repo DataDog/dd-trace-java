@@ -128,13 +128,12 @@ public class OpenTelemetry14ConventionsTest extends AbstractOpenTelemetry14Test 
     List<TagsMatcher> tagMatchers = new ArrayList<>();
     tagMatchers.add(defaultTags());
     tagMatchers.add(tag(SPAN_KIND, is(expectedSpanKindTag)));
-    attributes.forEach(
-        (key, value) -> {
-          if (!OPERATION_NAME_SPECIFIC_ATTRIBUTE.equals(key)) {
-            String tagName = CANONICAL_TAG_NAMES.getOrDefault(key, key);
-            tagMatchers.add(tag(tagName, is(value)));
-          }
-        });
+    attributes.forEach((key, value) -> {
+      if (!OPERATION_NAME_SPECIFIC_ATTRIBUTE.equals(key)) {
+        String tagName = CANONICAL_TAG_NAMES.getOrDefault(key, key);
+        tagMatchers.add(tag(tagName, is(value)));
+      }
+    });
 
     assertTraces(
         trace(

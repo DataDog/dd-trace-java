@@ -32,12 +32,11 @@ public class SpanProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest 
 
     AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting(PROBE_ID);
     AtomicBoolean traceReceived = new AtomicBoolean();
-    registerTraceListener(
-        decodedTrace -> {
-          DecodedSpan decodedSpan = decodedTrace.getSpans().get(0);
-          assertEquals("Main.fullMethod", decodedSpan.getResource());
-          traceReceived.set(true);
-        });
+    registerTraceListener(decodedTrace -> {
+      DecodedSpan decodedSpan = decodedTrace.getSpans().get(0);
+      assertEquals("Main.fullMethod", decodedSpan.getResource());
+      traceReceived.set(true);
+    });
     processRequests(
         () -> statusResult.get() && traceReceived.get(),
         () ->
@@ -62,12 +61,11 @@ public class SpanProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest 
     targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
     AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting(PROBE_ID);
     AtomicBoolean traceReceived = new AtomicBoolean();
-    registerTraceListener(
-        decodedTrace -> {
-          DecodedSpan decodedSpan = decodedTrace.getSpans().get(0);
-          assertEquals("Main.fullMethod:L95-104", decodedSpan.getResource());
-          traceReceived.set(true);
-        });
+    registerTraceListener(decodedTrace -> {
+      DecodedSpan decodedSpan = decodedTrace.getSpans().get(0);
+      assertEquals("Main.fullMethod:L95-104", decodedSpan.getResource());
+      traceReceived.set(true);
+    });
     processRequests(
         () -> statusResult.get() && traceReceived.get(),
         () ->
@@ -94,18 +92,17 @@ public class SpanProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest 
     targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
     AtomicBoolean received = new AtomicBoolean(false);
     AtomicBoolean error = new AtomicBoolean(false);
-    registerProbeStatusListener(
-        probeStatus -> {
-          if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.RECEIVED) {
-            received.set(true);
-          }
-          if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.ERROR) {
-            assertEquals(
-                "Single line span is not supported, you need to provide a range.",
-                probeStatus.getDiagnostics().getException().getMessage());
-            error.set(true);
-          }
-        });
+    registerProbeStatusListener(probeStatus -> {
+      if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.RECEIVED) {
+        received.set(true);
+      }
+      if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.ERROR) {
+        assertEquals(
+            "Single line span is not supported, you need to provide a range.",
+            probeStatus.getDiagnostics().getException().getMessage());
+        error.set(true);
+      }
+    });
     processRequests(
         () -> received.get() && error.get(),
         () -> String.format("timeout received=%s error=%s", received.get(), error.get()));

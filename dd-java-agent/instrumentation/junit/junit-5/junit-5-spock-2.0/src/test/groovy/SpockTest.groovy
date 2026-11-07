@@ -10,6 +10,13 @@ import datadog.trace.instrumentation.junit5.TestEventsHandlerHolder
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import org.example.TestFailedParameterizedSpock
+import org.example.TestAutomationExcluded
+import org.example.TestAutomationExcludedParameterizedAnnotations
+import org.example.TestAutomationExcludedParameterizedNative
+import org.example.TestAutomationExcludedInherited
+import org.example.TestAutomationExcludedCollisionBase
+import org.example.TestAutomationExcludedCollisionMiddle
+import org.example.TestAutomationExcludedCollisionLeaf
 import org.example.TestFailedSpock
 import org.example.TestFailedThenSucceedParameterizedSpock
 import org.example.TestFailedThenSucceedSpock
@@ -34,6 +41,129 @@ import org.spockframework.util.SpockReleaseInfo
 
 @DisableTestTrace(reason = "avoid self-tracing")
 class SpockTest extends CiVisibilityInstrumentationTest {
+  def "test automation exclusions preserve a blocking failure and execute once"() {
+    given:
+    TestAutomationExcluded.executions = 0
+    def id = new TestFQN("org.example.TestAutomationExcluded", "protected_failure")
+    givenDisabledTests([id])
+    givenQuarantinedTests([id])
+    givenAttemptToFixTests([id])
+    givenFlakyRetryEnabled(true)
+    givenFlakyTests([id])
+    givenEarlyFlakinessDetectionEnabled(true)
+    givenKnownTests([])
+
+    when:
+    runTests([TestAutomationExcluded], false)
+
+    then:
+    TestAutomationExcluded.executions == 1
+    def testSpan = TEST_WRITER.toList().flatten().find { it.getTag("test.name") == "protected_failure" }
+    testSpan != null
+    testSpan.getTag("test.test_management.no_auto_retry") == true
+    testSpan.getTag("test.test_management.prevent_failure_suppression") == true
+    testSpan.getTag("test.test_management.is_test_disabled") == true
+    testSpan.getTag("test.test_management.is_quarantined") == true
+    testSpan.getTag("test.test_management.is_attempt_to_fix") == true
+    testSpan.getTag("test.test_management.attempt_to_fix_passed") == null
+  }
+
+  def "test automation exclusions preserve data-driven #declarations with attempt to fix #attemptToFix"() {
+    given:
+    fixture.EXECUTIONS.set(0, 0)
+    fixture.EXECUTIONS.set(1, 0)
+    def names = ["protected_failure #row", "protected_failure 0", "protected_failure 1"]
+    def ids = names.collect { new TestFQN(fixture.name, it) }
+    givenDisabledTests(ids)
+    givenQuarantinedTests(ids)
+    givenAttemptToFixTests(attemptToFix ? ids : [])
+    givenFlakyRetryEnabled(true)
+    givenFlakyTests(ids)
+    givenEarlyFlakinessDetectionEnabled(true)
+    givenKnownTests([])
+
+    when:
+    runTests([fixture], false)
+
+    then:
+    fixture.EXECUTIONS.get(0) == 1
+    fixture.EXECUTIONS.get(1) == 1
+    def spans = TEST_WRITER.toList().flatten().findAll {
+      it.getTag("test.suite") == fixture.name && it.getTag("test.name") in names.tail()
+    }
+    spans.size() == 2
+    spans.every { it.getTag("test.status")?.toString() == "fail" }
+    spans.every { it.getTag("test.test_management.no_auto_retry") == true }
+    spans.every { it.getTag("test.test_management.prevent_failure_suppression") == true }
+    spans.every { it.getTag("test.test_management.is_test_disabled") == true }
+    spans.every { it.getTag("test.test_management.is_quarantined") == true }
+    spans.every { it.getTag("test.test_management.is_attempt_to_fix") == (attemptToFix ? true : null) }
+    spans.every { it.getTag("test.test_management.attempt_to_fix_passed") == null }
+    spans.every { it.getTag("test.is_retry") == null }
+
+    where:
+    declarations         | fixture                                            | attemptToFix
+    "native tags"        | TestAutomationExcludedParameterizedNative          | false
+    "native tags"        | TestAutomationExcludedParameterizedNative          | true
+    "method annotations" | TestAutomationExcludedParameterizedAnnotations     | false
+    "method annotations" | TestAutomationExcludedParameterizedAnnotations     | true
+  }
+
+  def "test automation exclusions honor inherited feature declarations with attempt to fix #attemptToFix"() {
+    given:
+    TestAutomationExcluded.executions = 0
+    def id = new TestFQN("org.example.TestAutomationExcludedInherited", "protected_failure")
+    givenDisabledTests([id])
+    givenQuarantinedTests([id])
+    givenAttemptToFixTests(attemptToFix ? [id] : [])
+    givenFlakyRetryEnabled(true)
+    givenEarlyFlakinessDetectionEnabled(true)
+    givenKnownTests([])
+
+    when:
+    runTests([TestAutomationExcludedInherited], false)
+
+    then:
+    TestAutomationExcluded.executions == 1
+    def spans = TEST_WRITER.toList().flatten().findAll { it.getTag("test.name") == "protected_failure" }
+    spans.size() == 1
+    spans[0].getTag("test.suite") == "org.example.TestAutomationExcludedInherited"
+    spans[0].getTag("test.test_management.no_auto_retry") == true
+    spans[0].getTag("test.test_management.prevent_failure_suppression") == true
+    spans[0].getTag("test.test_management.is_test_disabled") == true
+    spans[0].getTag("test.test_management.is_quarantined") == true
+    spans[0].getTag("test.test_management.is_attempt_to_fix") == (attemptToFix ? true : null)
+    spans[0].getTag("test.test_management.attempt_to_fix_passed") == null
+
+    where:
+    attemptToFix << [false, true]
+  }
+
+  def "test automation exclusions distinguish inherited features with the same name when disabled #disabled"() {
+    given:
+    TestAutomationExcludedCollisionBase.normalExecutions = 0
+    TestAutomationExcludedCollisionMiddle.protectedExecutions = 0
+    def id = new TestFQN("org.example.TestAutomationExcludedCollisionLeaf", "same_named_feature")
+    givenDisabledTests(disabled ? [id] : [])
+    givenFlakyRetryEnabled(!disabled)
+    givenFlakyTests([id])
+
+    when:
+    runTests([TestAutomationExcludedCollisionLeaf], false)
+
+    then:
+    disabled ? TestAutomationExcludedCollisionBase.normalExecutions == 0 : TestAutomationExcludedCollisionBase.normalExecutions > 1
+    TestAutomationExcludedCollisionMiddle.protectedExecutions == 1
+    def spans = TEST_WRITER.toList().flatten().findAll { it.getTag("test.name") == "same_named_feature" }
+    spans.every { it.getTag("test.suite") == "org.example.TestAutomationExcludedCollisionLeaf" }
+    spans.count { it.getTag("test.test_management.no_auto_retry") == true } == 1
+    spans.count { it.getTag("test.test_management.prevent_failure_suppression") == true } == 1
+    disabled ? spans.any { it.getTag("test.status")?.toString() == "skip" } : spans.any { it.getTag("test.is_retry") == true }
+
+    where:
+    disabled << [false, true]
+  }
+
   def "test #testcaseName"() {
     runTests(tests)
 

@@ -184,6 +184,34 @@ class SingleSpanSamplerTest extends DDCoreJavaSpecification {
     assertEquals(isSecondSampled, sampler.setSamplingPriority(span2));
   }
 
+  @TableTest({
+    "scenario          | rules                                                                                                                   | sampled",
+    "resource match    | '[ { \"resource\": \"resource\" } ]'                                                                                    | true   ",
+    "resource no match | '[ { \"resource\": \"resource-b\" } ]'                                                                                  | false  ",
+    "tag match         | '[ { \"tags\": { \"env\": \"bar\" } } ]'                                                                                | true   ",
+    "tag no match      | '[ { \"tags\": { \"env\": \"xxx\" } } ]'                                                                                | false  ",
+    "all fields match  | '[ { \"service\": \"service\", \"name\": \"operation\", \"resource\": \"resource\", \"tags\": { \"env\": \"bar\" } } ]' | true   "
+  })
+  void singleSpanSamplerMatchesResourceAndTags(String rules, boolean sampled) {
+    Properties properties = new Properties();
+    properties.setProperty(SPAN_SAMPLING_RULES, rules);
+    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+
+    SingleSpanSampler sampler = SingleSpanSampler.Builder.forConfig(Config.get(properties));
+
+    DDSpan span =
+        (DDSpan)
+            tracer
+                .buildSpan("datadog", "operation")
+                .withServiceName("service")
+                .withResourceName("resource")
+                .withTag("env", "bar")
+                .ignoreActiveSpan()
+                .start();
+
+    assertEquals(sampled, sampler.setSamplingPriority(span));
+  }
+
   @Test
   void loadRulesFromFile() throws Exception {
     String rules =
