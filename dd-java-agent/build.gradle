@@ -2,6 +2,7 @@ import static org.gradle.api.file.DuplicatesStrategy.INCLUDE
 
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import com.github.jengelman.gradle.plugins.shadow.transformers.PreserveFirstFoundResourceTransformer
+import datadog.gradle.plugin.version.AgentVersionFiles
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.jar.JarFile
 
@@ -518,8 +519,18 @@ tasks.register('verifyAgentJarContents') {
   description = 'Verify the agent jar contains required entries and meets structural invariants'
 
   def jarProvider = tasks.named('shadowJar', ShadowJar).flatMap { it.archiveFile }
+  def versionFile = tasks.named('writeVersionNumberFile').flatMap {
+    it.outputDirectory.file('dd-java-agent.version')
+  }
+  def versionResources = tasks.named('shadowJar', ShadowJar).map {
+    it.source.matching { include '**/*.version' }
+  }
+  def versionDependencies = tasks.named('shadowJar', ShadowJar).map { it.includedDependencies }
   inputs.file(jarProvider)
   inputs.file(agentJarChecksProps)
+  inputs.file(versionFile).withPropertyName('expectedVersion').withPathSensitivity(PathSensitivity.NONE)
+  inputs.files(versionResources).withPropertyName('versionResources').withPathSensitivity(PathSensitivity.RELATIVE)
+  inputs.files(versionDependencies).withPropertyName('versionDependencies').withPathSensitivity(PathSensitivity.NONE)
   inputs.property('productPrefixes', includedProductPrefixes)
   outputs.file(project.layout.buildDirectory.file("tmp/${it.name}/.verified"))
 
@@ -530,6 +541,7 @@ tasks.register('verifyAgentJarContents') {
     File jarFile = jarProvider.get().asFile
     List<String> failures = []
     Map<String, Long> entries = [:]
+    def expectedPaths = AgentVersionFiles.expectedPaths(versionResources.get(), versionDependencies.get())
 
     // Jar size budget — raise only when the growth is intentional
     def sizeBudget = Long.parseLong(props['jar.size.budget'])
@@ -540,6 +552,7 @@ tasks.register('verifyAgentJarContents') {
     // Inspect jar content
     new JarFile(jarFile).withCloseable { jf ->
       jf.entries().each { ze -> entries[ze.name] = ze.size }
+      failures.addAll(AgentVersionFiles.validate(jf, expectedPaths, versionFile.get().asFile.getText('UTF-8')))
     }
 
     // Required entries
@@ -615,7 +628,8 @@ tasks.register('verifyAgentJarContents') {
 
     def marker = outputs.files.singleFile
     marker.parentFile.mkdirs()
-    marker.text = 'verified'
+    // Resource-set changes must invalidate smoke results despite the classpath exclusion.
+    marker.text = expectedPaths.sort().join('\n') + '\n'
   }
 }
 

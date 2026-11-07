@@ -44,7 +44,8 @@ if (hasProperty('agentJar')) {
     "-J-javaagent:${agentJar}",
     "-J-Ddatadog.slf4j.simpleLogger.dateTimeFormat=yyyy-MM-dd'T'HH:mm:ss.SSS'Z [dd.trace]'",
     "-J-Ddd.profiling.enabled=true",
-    "-march=native",
+    // Cached executables must run on other CI hosts of the same architecture.
+    "-march=compatibility",
   ]
   if (isCI) {
     nativeBuildArgs.add("-H:NumberOfThreads=$ciBuildCpuCount")

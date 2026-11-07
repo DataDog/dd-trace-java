@@ -1,4 +1,5 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import datadog.gradle.plugin.testing.SmokeAgentArguments
 
 plugins {
   id 'dd-trace-java.module.smoke-test'
@@ -38,31 +39,19 @@ allprojects { Project subProj ->
     def diagnosticsTaskRef = project(':dd-java-agent:instrumentation-testing').tasks.named('scopeDiagnosticsAgentJar', Jar)
     def agentArguments = subProj.objects.newInstance(SmokeAgentArguments)
     agentArguments.tracerJar.set(agentTaskRef.flatMap { it.archiveFile })
+    agentArguments.tracerVersion.set(subProj.version.toString())
     agentArguments.diagnosticsJar.set(diagnosticsTaskRef.flatMap { it.archiveFile })
     jvmArgumentProviders.add(agentArguments)
+
+    // Check excluded version resources even when smoke-test results come from the cache.
+    inputs.files(project(':dd-java-agent').tasks.named('verifyAgentJarContents'))
+      .withPropertyName('verifiedAgentJar')
+      .withPathSensitivity(PathSensitivity.NONE)
 
     def quiescenceProperty = 'datadog.smoketest.scopeDiagnostics.quiescenceMillis'
     systemProperty quiescenceProperty, providers.systemProperty(quiescenceProperty).getOrElse('2000')
 
     // Tests depend on this to know where to run things and what agent jar to use
     jvmArgs "-Ddatadog.smoketest.builddir=${buildDir}"
-  }
-}
-
-abstract class SmokeAgentArguments implements CommandLineArgumentProvider {
-  @InputFile
-  @PathSensitive(PathSensitivity.NONE)
-  abstract RegularFileProperty getTracerJar()
-
-  @InputFile
-  @PathSensitive(PathSensitivity.NONE)
-  abstract RegularFileProperty getDiagnosticsJar()
-
-  @Override
-  Iterable<String> asArguments() {
-    return [
-      '-Ddatadog.smoketest.agent.shadowJar.path=' + tracerJar.get().asFile.absolutePath,
-      '-Ddatadog.smoketest.scopeDiagnostics.agent.path=' + diagnosticsJar.get().asFile.absolutePath
-    ]
   }
 }
