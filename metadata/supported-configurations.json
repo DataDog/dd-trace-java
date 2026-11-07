@@ -2525,6 +2525,14 @@
         "aliases": []
       }
     ],
+    "DD_MAX_LOGFILE_SIZE": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "10485760",
+        "aliases": []
+      }
+    ],
     "DD_MEASURE_METHODS": [
       {
         "version": "A",
@@ -8194,6 +8202,14 @@
         "type": "boolean",
         "default": "true",
         "aliases": ["DD_TRACE_INTEGRATION_LOGBACK_ENABLED", "DD_INTEGRATION_LOGBACK_ENABLED"]
+      }
+    ],
+    "DD_TRACE_LOGFILE_RETENTION_DAYS": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "32",
+        "aliases": []
       }
     ],
     "DD_TRACE_LOGS_INTAKE_ENABLED": [
