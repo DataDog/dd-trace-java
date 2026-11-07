@@ -228,6 +228,7 @@
 # /dd-java-agent/instrumentation/**/*appsec* patterns above to win last-match-wins)
 
 # vertx-web (3.4 / 4.0 / 5.0)
+/dd-java-agent/instrumentation/vertx/vertx-web/*/src/test/java/**/RouteHandlerWrapperTest.java            @DataDog/apm-java @DataDog/asm-java
 /dd-java-agent/instrumentation/vertx/vertx-web/*/src/main/java/**/RoutingContext*Advice.java              @DataDog/apm-java @DataDog/asm-java
 /dd-java-agent/instrumentation/vertx/vertx-web/*/src/main/java/**/FileUploadHelper.java                   @DataDog/apm-java @DataDog/asm-java
 /dd-java-agent/instrumentation/vertx/vertx-web/*/src/main/java/**/PathParameterPublishingHelper.java      @DataDog/apm-java @DataDog/asm-java
