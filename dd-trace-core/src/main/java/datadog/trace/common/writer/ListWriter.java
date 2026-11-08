@@ -50,11 +50,10 @@ public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Wr
       span.processTagsAndBaggage(metadataConsumer, OWN_PROPAGATION_TAGS);
     }
 
-    add(trace);
-    structureWriter.write(trace);
-
-    traceCount.incrementAndGet();
     synchronized (monitor) {
+      add(trace);
+      structureWriter.write(trace);
+      traceCount.incrementAndGet();
       monitor.notifyAll();
     }
   }
@@ -158,9 +157,10 @@ public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Wr
 
   @Override
   public void clear() {
-    super.clear();
-
-    traceCount.set(0);
+    synchronized (monitor) {
+      super.clear();
+      traceCount.set(0);
+    }
   }
 
   @Override
