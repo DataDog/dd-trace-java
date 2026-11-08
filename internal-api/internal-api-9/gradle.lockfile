@@ -107,4 +107,4 @@ org.snakeyaml:snakeyaml-engine:2.9=jmhRuntimeClasspath,runtimeClasspath,testRunt
 org.tabletest:tabletest-junit:1.2.2=jmhRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
 org.tabletest:tabletest-parser:1.2.1=jmhRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
 org.xmlresolver:xmlresolver:5.3.3=spotbugs
-empty=annotationProcessor,jmhAnnotationProcessor,main_java17AnnotationProcessor,main_java17CompileClasspath,main_java17RuntimeClasspath,spotbugsPlugins,testAnnotationProcessor
+empty=annotationProcessor,jmhAnnotationProcessor,spotbugsPlugins,testAnnotationProcessor
