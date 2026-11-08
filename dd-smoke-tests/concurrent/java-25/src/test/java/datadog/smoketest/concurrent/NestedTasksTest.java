@@ -28,16 +28,13 @@ class NestedTasksTest extends AbstractStructuredConcurrencyTest {
     return trace ->
         trace.getSpans().size() == 5
             && findRootSpan(trace, "parent")
-                .filter(
-                    parent ->
-                        findChildSpan(trace, "child1", parent.getSpanId())
-                            .filter(
-                                child1 ->
-                                    hasChildSpan(trace, "child2", parent.getSpanId())
-                                        && hasChildSpan(trace, "great-child1-1", child1.getSpanId())
-                                        && hasChildSpan(
-                                            trace, "great-child1-2", child1.getSpanId()))
-                            .isPresent())
+                .filter(parent ->
+                    findChildSpan(trace, "child1", parent.getSpanId())
+                        .filter(child1 ->
+                            hasChildSpan(trace, "child2", parent.getSpanId())
+                                && hasChildSpan(trace, "great-child1-1", child1.getSpanId())
+                                && hasChildSpan(trace, "great-child1-2", child1.getSpanId()))
+                        .isPresent())
                 .isPresent();
   }
 

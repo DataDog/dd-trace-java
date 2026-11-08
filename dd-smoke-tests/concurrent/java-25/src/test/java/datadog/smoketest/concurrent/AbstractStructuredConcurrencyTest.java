@@ -47,9 +47,8 @@ abstract class AbstractStructuredConcurrencyTest {
   protected Optional<DecodedSpan> findChildSpan(
       DecodedTrace trace, String resource, long parentSpanId) {
     return trace.getSpans().stream()
-        .filter(
-            span ->
-                Objects.equals(resource, span.getResource()) && span.getParentId() == parentSpanId)
+        .filter(span ->
+            Objects.equals(resource, span.getResource()) && span.getParentId() == parentSpanId)
         .findFirst();
   }
 

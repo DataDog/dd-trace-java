@@ -34,17 +34,15 @@ class ScheduledForkJoinTaskTest extends AbstractStructuredConcurrencyTest {
     assertTrue(traces.stream().anyMatch(checkTrace()), "Missing scheduled task trace");
     assertTrue(
         traces.stream()
-            .anyMatch(
-                trace ->
-                    trace.getSpans().size() == 1
-                        && findRootSpan(trace, "unrelated-forkjoin").isPresent()),
+            .anyMatch(trace ->
+                trace.getSpans().size() == 1
+                    && findRootSpan(trace, "unrelated-forkjoin").isPresent()),
         "Missing unrelated fork-join trace");
     assertTrue(
         traces.stream()
-            .anyMatch(
-                trace ->
-                    trace.getSpans().size() == 1
-                        && findRootSpan(trace, "unrelated-executor").isPresent()),
+            .anyMatch(trace ->
+                trace.getSpans().size() == 1
+                    && findRootSpan(trace, "unrelated-executor").isPresent()),
         "Missing unrelated executor trace");
   }
 }

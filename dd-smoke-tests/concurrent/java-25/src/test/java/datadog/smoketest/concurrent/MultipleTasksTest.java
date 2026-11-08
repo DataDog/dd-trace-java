@@ -26,11 +26,10 @@ class MultipleTasksTest extends AbstractStructuredConcurrencyTest {
     return trace ->
         trace.getSpans().size() == 4
             && findRootSpan(trace, "parent")
-                .filter(
-                    parent ->
-                        hasChildSpan(trace, "child1", parent.getSpanId())
-                            && hasChildSpan(trace, "child2", parent.getSpanId())
-                            && hasChildSpan(trace, "child3", parent.getSpanId()))
+                .filter(parent ->
+                    hasChildSpan(trace, "child1", parent.getSpanId())
+                        && hasChildSpan(trace, "child2", parent.getSpanId())
+                        && hasChildSpan(trace, "child3", parent.getSpanId()))
                 .isPresent();
   }
 
