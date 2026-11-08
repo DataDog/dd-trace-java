@@ -67,7 +67,7 @@ public class Reporter {
     }
     if (span == null) {
       final AgentSpan newSpan = startNewSpan();
-      try (final ContextScope autoClosed = tracer().activateManualSpan(newSpan)) {
+      try (final ContextScope autoClosed = tracer().activateSpan(newSpan)) {
         vulnerability.updateSpan(newSpan);
         reportVulnerability(newSpan, vulnerability);
       } finally {

@@ -13,7 +13,7 @@ class AddingSpanAttributesAnnotationTest extends InstrumentationSpecification {
     setup:
     def methodName = "sayHelloWith${typeName}Attribute"
     def testSpan = TEST_TRACER.startSpan("test", "operation")
-    def scope = TEST_TRACER.activateManualSpan(testSpan)
+    def scope = TEST_TRACER.activateSpan(testSpan)
     AnnotatedMethods."$methodName"(value)
     scope.close()
     testSpan.finish()
@@ -47,7 +47,7 @@ class AddingSpanAttributesAnnotationTest extends InstrumentationSpecification {
     setup:
     def methodName = "sayHelloWithMultipleAttributes"
     def testSpan = TEST_TRACER.startSpan("test", "operation")
-    def scope = TEST_TRACER.activateManualSpan(testSpan)
+    def scope = TEST_TRACER.activateSpan(testSpan)
     AnnotatedMethods."$methodName"("param1", "param2")
     scope.close()
     testSpan.finish()
