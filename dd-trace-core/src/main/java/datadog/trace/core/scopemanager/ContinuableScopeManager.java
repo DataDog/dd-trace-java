@@ -217,7 +217,7 @@ public final class ContinuableScopeManager {
 
   public boolean isAsyncPropagationEnabled() {
     ContinuableScope activeScope = scopeStack().active();
-    return activeScope != null && activeScope.isAsyncPropagating();
+    return activeScope == null || activeScope.isAsyncPropagating();
   }
 
   public void setAsyncPropagationEnabled(boolean asyncPropagationEnabled) {
