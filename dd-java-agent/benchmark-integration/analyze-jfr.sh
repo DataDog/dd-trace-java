@@ -97,8 +97,9 @@ function emit(tt, all, r, o,   c) {
 # "thread<TAB>ownerFrame<TAB>weight": the sampledThread (CPU) or eventThread (allocation); the
 # first non-JDK frame from the leaf, else the leaf; and for allocation samples
 # the weight in bytes (JFR throttles them, and each one stands for that many bytes; CPU samples weigh
-# 1). State resets at every event header, so a sample without a stack can't lend its thread to the
-# next one.
+# 1). Each event is emitted when its block closes, so one without a stack (JFR records some JVM and
+# compiler allocations that way) still counts toward the totals, owned by "(no stack)"; state resets
+# at every event header, so an event can't lend its thread or stack to the next one.
 extract_stream() {
   local event="$1"
   jfr print --events "$event" --stack-depth "${STACK_DEPTH:-64}" "$jfr_file" 2>/dev/null | awk '
@@ -108,7 +109,13 @@ extract_stream() {
       if (match(line, /"[^"]*"/)) return substr(line, RSTART + 1, RLENGTH - 2);
       t = line; sub(/.*= /, "", t); sub(/ .*/, "", t); return t;
     }
-    /^jdk\.[A-Za-z]+ \{/ { thr=""; want=0; w=1; next }
+    function emit() {
+      if (!in_event) return;
+      print thr "\t" (owner != "" ? owner : (leaf != "" ? leaf : "(no stack)")) "\t" w;
+      in_event=0;
+    }
+    /^jdk\.[A-Za-z]+ \{/ { emit(); in_event=1; thr=""; want=0; w=1; leaf=""; owner=""; next }
+    /^\}/ { emit(); next }
     /sampledThread = / { thr=thread_name($0); next }
     /eventThread = /   { if (thr=="") thr=thread_name($0); next }
     /^ *weight = / {
@@ -118,16 +125,14 @@ extract_stream() {
       next
     }
     /stackTrace = \[/  { want=1; leaf=""; owner=""; next }
-    want==1 && /^ *\]/ {
-      if (leaf != "") { if (owner != "") print thr "\t" owner "\t" w; else print thr "\t" leaf "\t" w }
-      want=0; next
-    }
+    want==1 && /^ *\]/ { want=0; next }
     want==1 {
       frame=$1; sub(/\(.*/,"",frame);         # strip "(params)"
       if (frame == "" || frame == "...") next;
       if (leaf == "") leaf=frame;
       if (owner == "" && frame !~ /^(java|javax|jdk|sun|com\.sun)\./) owner=frame;
     }
+    END { emit() }
   '
 }
 
