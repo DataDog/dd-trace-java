@@ -14,12 +14,10 @@ import java.lang.annotation.Target;
  * customer-visible latency, as opposed to a background thread the tracer owns and paces itself (see
  * {@link BackgroundOnly}).
  *
- * <p>This marker changes no runtime behavior. It telegraphs the guarantee to readers and marks
- * where foreground code starts for the rule in {@link BackgroundOnly}'s checker contract: no
- * {@code @BackgroundOnly} code may be called from a foreground call site. AI review applies that
- * rule through the perf-review skill's {@code checks.md}; no static checker enforces it yet (see
- * {@code APMLP-1645}). A deliberate exception is marked with {@link SuppressPerfContract} citing
- * {@link BackgroundOnly}.
+ * <p>This marker changes no runtime behavior. The {@code perf-review} skill applies {@link
+ * BackgroundOnly}'s checker contract to direct calls from foreground-safe code to background-only
+ * code. Deliberate exceptions use {@link SuppressPerfContract} for {@code BackgroundOnly.class}. No
+ * static checker enforces the contract yet.
  *
  * <p>The two markers are <b>not symmetric</b>. {@code @ForegroundSafe} is the strictly stronger
  * guarantee: code cheap enough for the foreground is automatically fine to call from a background

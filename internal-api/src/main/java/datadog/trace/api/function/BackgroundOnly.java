@@ -14,12 +14,10 @@ import java.lang.annotation.Target;
  * thread (the foreground; see {@link ForegroundSafe}), where its cost would become customer-visible
  * latency instead.
  *
- * <p>This marker changes no runtime behavior. The checker contract below guides AI review through
- * the perf-review skill's {@code checks.md}; no static checker enforces it yet (see {@code
- * APMLP-1645}).
+ * <p>This marker changes no runtime behavior. The {@code perf-review} skill applies the checker
+ * contract below during AI review; no static checker enforces it yet.
  *
- * <p>The two markers are <b>not symmetric</b> -- see {@link ForegroundSafe} for why it, not this
- * one, is the strictly stronger guarantee.
+ * <p>{@link ForegroundSafe} code may run on either application or background threads.
  *
  * <p><b>On a type</b> ({@link ElementType#TYPE}): every method of this type is background-only
  * unless a method-level {@link ForegroundSafe} widens it.
@@ -35,15 +33,15 @@ import java.lang.annotation.Target;
  *   <li><b>Foreground code:</b> a method annotated {@link ForegroundSafe}; a method of a type
  *       annotated {@code @ForegroundSafe} that has no method-level {@code @BackgroundOnly}; or an
  *       advice method annotated {@code @Advice.OnMethodEnter} or {@code @Advice.OnMethodExit}.
- *       ByteBuddy inlines advice into the instrumented application method, so it runs on the
- *       application thread by construction.
+ *       Advice executes on the thread running the instrumented method. The check treats advice as
+ *       foreground code; advice confined to a tracer-owned thread can use a suppression.
  *   <li><b>Background-only code:</b> a method annotated {@code @BackgroundOnly}, or a method of a
  *       type annotated {@code @BackgroundOnly} that has no method-level {@code @ForegroundSafe}.
  *   <li><b>Trigger:</b> foreground code that directly calls background-only code.
  *   <li><b>Not a trigger:</b> background-only code calling foreground code; foreground code that
  *       hands work to a background thread (for example by enqueueing it) without running it; or a
- *       calling method annotated {@link SuppressPerfContract} with {@code BackgroundOnly.class} in
- *       its {@code value} and a non-blank reason.
+ *       calling method carrying a suppression for {@code BackgroundOnly.class}, as defined by
+ *       {@link SuppressPerfContract}'s checker contract.
  *   <li><b>Violation example:</b> a {@code @ForegroundSafe} {@code onSpanFinished(span)} that calls
  *       a {@code @BackgroundOnly} {@code aggregate(span)}.
  *   <li><b>Compliant example:</b> the same {@code onSpanFinished(span)} that only enqueues {@code

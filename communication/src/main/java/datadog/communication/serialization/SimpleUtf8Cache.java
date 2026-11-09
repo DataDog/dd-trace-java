@@ -9,11 +9,9 @@ import javax.annotation.concurrent.ThreadSafe;
  *
  * <p>Cache is designed to be resilient against single use values
  *
- * <p>NOTE: The aim of this cache is to reduce allocation overhead -- not CPU overhead. Using the
- * cache has higher CPU overhead than simply calling {@link
- * String#getBytes(java.nio.charset.Charset)}. That trade only pays off on a serializer thread, so
- * the cache is {@link BackgroundOnly}: on an application thread, the extra CPU becomes request
- * latency.
+ * <p>This cache reduces repeated allocations from {@link String#getBytes(java.nio.charset.Charset)}
+ * at the cost of extra CPU work. It is {@link BackgroundOnly} to keep that work off application
+ * threads, where it adds to request latency.
  *
  * <p>The cache is thread safe.
  */
