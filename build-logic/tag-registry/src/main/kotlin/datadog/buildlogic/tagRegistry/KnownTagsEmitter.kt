@@ -66,6 +66,7 @@ object KnownTagsEmitter {
     }
     val concepts = reg.tags.filter { it.concept }
     val conceptsByName = concepts.groupBy { it.datadogName }.toSortedMap()
+
     // Lines continue the raw template they're interpolated into, so they carry its indent.
     fun conceptArrays(): String = conceptsByName.entries.joinToString("\n          ") { (name, ids) ->
       "/** The concepts whose Datadog name is {@code ${escape(name)}}. */\n          " +
