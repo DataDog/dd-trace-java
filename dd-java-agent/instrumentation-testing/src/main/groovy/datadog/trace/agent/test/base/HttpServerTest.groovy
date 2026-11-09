@@ -67,6 +67,7 @@ import java.util.function.BiFunction
 import java.util.function.Function
 import java.util.function.Supplier
 
+import static datadog.context.Context.isCaptureEnabled
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_JSON
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_MULTIPART
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_MULTIPART_COMBINED
@@ -104,7 +105,6 @@ import static datadog.trace.api.config.TracerConfig.RESPONSE_HEADER_TAGS
 import static datadog.trace.bootstrap.blocking.BlockingActionHelper.TemplateType.JSON
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.get
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPropagationEnabled
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan
 import static java.nio.charset.StandardCharsets.UTF_8
 import static org.junit.jupiter.api.Assumptions.assumeTrue
@@ -667,7 +667,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   static <T> T controller(ServerEndpoint endpoint, Closure<T> closure) {
     assert activeSpan() != null: "Controller should have a parent span."
     assert activeSpan() != noopSpan(): "Parent span shouldn't be noopSpan"
-    assert isAsyncPropagationEnabled(): "Span should be propagating async."
+    assert isCaptureEnabled(): "Span should be propagating async."
     if (endpoint == NOT_FOUND || endpoint == UNKNOWN) {
       return closure()
     }

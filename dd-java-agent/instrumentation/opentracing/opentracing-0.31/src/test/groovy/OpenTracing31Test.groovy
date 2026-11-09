@@ -1,9 +1,11 @@
+import static datadog.context.Context.isCaptureEnabled
+import static datadog.context.Context.setCaptureEnabled
+
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTags
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.interceptor.MutableSpan
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities
 import datadog.trace.core.propagation.PropagationTags
 import datadog.trace.instrumentation.opentracing.DefaultLogHandler
@@ -155,24 +157,23 @@ class OpenTracing31Test extends InstrumentationSpecification {
 
   def "test scopemanager"() {
     setup:
-    AgentTracer.TracerAPI internalTracer = tracer.tracer.tracer
     def span = tracer.buildSpan("some name").start()
     def scope = tracer.scopeManager().activate(span, finishSpan)
-    internalTracer.setAsyncPropagationEnabled(false)
+    setCaptureEnabled(false)
 
     expect:
     span instanceof MutableSpan
     scope instanceof TraceScope
-    !internalTracer.isAsyncPropagationEnabled()
+    !isCaptureEnabled()
     (tracer.scopeManager().active().span().delegate == span.delegate)
 
     when:
-    internalTracer.setAsyncPropagationEnabled(true)
+    setCaptureEnabled(true)
     def continuation = (scope as TraceScope).capture()
     continuation.cancel()
 
     then:
-    internalTracer.isAsyncPropagationEnabled()
+    isCaptureEnabled()
     continuation instanceof TraceScope.Continuation
 
     when: "attempting to close the span this way doesn't work because we lost the 'finishSpan' reference"

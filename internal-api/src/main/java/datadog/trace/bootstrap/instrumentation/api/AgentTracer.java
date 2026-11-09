@@ -6,7 +6,6 @@ import datadog.context.ContextHandle;
 import datadog.context.ContextListener;
 import datadog.context.ContextManager;
 import datadog.context.ContextScope;
-import datadog.trace.api.ConfigDefaults;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.EndpointCheckpointer;
 import datadog.trace.api.EndpointTracker;
@@ -157,29 +156,6 @@ public class AgentTracer {
   }
 
   /**
-   * Checks whether asynchronous propagation is enabled, meaning this context will propagate across
-   * asynchronous boundaries.
-   *
-   * @return {@code true} if asynchronous propagation is enabled, {@code false} otherwise.
-   */
-  public static boolean isAsyncPropagationEnabled() {
-    return get().isAsyncPropagationEnabled();
-  }
-
-  /**
-   * Enables or disables asynchronous propagation for the active span.
-   *
-   * <p>Asynchronous propagation is enabled by default from {@link
-   * ConfigDefaults#DEFAULT_ASYNC_PROPAGATING}.
-   *
-   * @param asyncPropagationEnabled {@code true} to enable asynchronous propagation, {@code false}
-   *     to disable it.
-   */
-  public static void setAsyncPropagationEnabled(boolean asyncPropagationEnabled) {
-    get().setAsyncPropagationEnabled(asyncPropagationEnabled);
-  }
-
-  /**
    * Returns the noop span instance.
    *
    * <p>This instance will always be the same, and can be safely tested using object identity (ie
@@ -296,6 +272,16 @@ public class AgentTracer {
 
     /** Activate a span which will be closed by {@link #closeActive()} instead of a scope. */
     void activateSpanWithoutScope(AgentSpan span);
+
+    @Override
+    default boolean isAsyncPropagationEnabled() {
+      return Context.isCaptureEnabled();
+    }
+
+    @Override
+    default void setAsyncPropagationEnabled(boolean asyncPropagationEnabled) {
+      Context.setCaptureEnabled(asyncPropagationEnabled);
+    }
 
     @Override
     default TraceScope.Continuation captureActiveSpan() {
@@ -418,6 +404,12 @@ public class AgentTracer {
 
     @Deprecated
     ContextContinuation capture(Context context);
+
+    @Deprecated
+    boolean isCaptureEnabled();
+
+    @Deprecated
+    void setCaptureEnabled(boolean enabled);
   }
 
   public interface SpanBuilder {
@@ -503,14 +495,6 @@ public class AgentTracer {
 
     @Override
     public void activateSpanWithoutScope(final AgentSpan span) {}
-
-    @Override
-    public boolean isAsyncPropagationEnabled() {
-      return false;
-    }
-
-    @Override
-    public void setAsyncPropagationEnabled(boolean asyncPropagationEnabled) {}
 
     @Override
     public void checkpointActiveForRollback() {}
@@ -700,6 +684,14 @@ public class AgentTracer {
     public ContextContinuation capture(Context context) {
       return NoopContinuation.INSTANCE;
     }
+
+    @Override
+    public boolean isCaptureEnabled() {
+      return false;
+    }
+
+    @Override
+    public void setCaptureEnabled(boolean enabled) {}
   }
 
   public static class NoopAgentTraceCollector implements AgentTraceCollector {
@@ -806,7 +798,6 @@ public class AgentTracer {
   }
 
   /** Shim mapping new Context API to legacy scope manager. */
-  @SuppressWarnings("deprecation")
   static final class LegacyContextManager implements ContextManager {
     static final LegacyContextManager INSTANCE = new LegacyContextManager();
 
@@ -837,12 +828,12 @@ public class AgentTracer {
 
     @Override
     public boolean isCaptureEnabled() {
-      return AgentTracer.get().isAsyncPropagationEnabled();
+      return AgentTracer.get().isCaptureEnabled();
     }
 
     @Override
     public void setCaptureEnabled(boolean enabled) {
-      AgentTracer.get().setAsyncPropagationEnabled(enabled);
+      AgentTracer.get().setCaptureEnabled(enabled);
     }
 
     @Override
