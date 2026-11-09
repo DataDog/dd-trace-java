@@ -8,9 +8,7 @@ plugins {
 // we put the test classes in the baseTest test set so that the scala
 // version is not inherited
 addTestSuite('baseTest')
-addForkedTestTask('baseTest')
 addTestSuiteForDir('version101Test', 'baseTest')
-addTestSuiteExtendingForDir('version101ForkedTest', 'version101Test', 'baseTest')
 addTestSuiteForDir('version102Scala213Test', 'latestDepTest')
 addForkedTestTask('version102Scala213Test')
 addTestSuite('latestDepTest')
@@ -171,10 +169,6 @@ tasks.named("compileBaseTestGroovy", GroovyCompile) {
 }
 
 tasks.named("compileVersion101TestGroovy", GroovyCompile) {
-  classpath += files(tasks.named('compileVersion101TestScala').map { it.destinationDirectory })
-}
-
-tasks.named("compileVersion101ForkedTestGroovy", GroovyCompile) {
   classpath += files(tasks.named('compileVersion101TestScala').map { it.destinationDirectory })
 }
 

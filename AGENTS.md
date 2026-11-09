@@ -65,7 +65,6 @@ docs/                     Developer documentation (see below)
 - **Instrumentation layout**: `dd-java-agent/instrumentation/{framework}/{framework}-{minVersion}/`
 - **Instrumentation pattern**: Type matching → Method matching → Advice class (bytecode advice, not AOP)
 - **Test frameworks**: Always use JUnit 5 for unit tests. Only use Groovy / Spock tests for instrumentation and smoke tests.
-- **Groovy migrations**: Tests inheriting `DDSpecification` must inherit `DDJavaSpecification` after migration, directly or through their migrated base class, preserving shared setup and cleanup.
 - **Parameterized tests**: Prefer `@TableTest` for multi-column literal data, with named scenarios and aligned columns. Prefer a simple `@TypeConverter` over switching to `@MethodSource` when it can turn table values into the required arguments. Use `@MethodSource` for cases requiring complex object construction, builders, or mocks. See [the JUnit testing guide](docs/how_to_test_with_junit.md#parameterized-tests).
 - **Forked tests**: Use `ForkedTest` suffix when tests need a separate JVM
 - **Flaky tests**: Annotate with `@Flaky` — they are skipped in CI by default
@@ -89,6 +88,12 @@ docs/                     Developer documentation (see below)
 
 - **Technical debt**: run `/techdebt` over branch changes before marking a PR ready to catch code duplication, unnecessary complexity, and dead code (refactor-only, never changes behavior) — see [.agents/skills/techdebt/SKILL.md](.agents/skills/techdebt/SKILL.md).
 - **Performance**: run `/perf-review` over branch changes before marking a PR ready (advisory, not a merge gate) — see [.agents/skills/perf-review/SKILL.md](.agents/skills/perf-review/SKILL.md).
+
+### Core performance rules
+
+These rules are strict for shipped runtime code in `dd-trace-core/src/main/` and `internal-api/src/main/`. Elsewhere, including those modules' tests, benchmarks and build files, treat them as advice.
+
+- **Measure performance claims.** A PR that claims to be faster or to allocate less must include JMH before/after results from the same machine, JDK, JVM flags and benchmark settings, with time and allocation (`-Pjmh.profilers=gc`). Without them, reviewers should flag the claim as unmeasured and the author should either add numbers or drop the claim.
 
 ## CI scripts
 

@@ -395,6 +395,14 @@
         "aliases": []
       }
     ],
+    "_DD_APPSEC_SCA_CVE_FILE": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
     "DD_APPSEC_SCA_ENABLED": [
       {
         "version": "B",

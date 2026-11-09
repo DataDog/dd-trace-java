@@ -17,11 +17,11 @@ public final class DatadogClientUrl implements TagExtractor<URI> {
   @Override
   public void extract(URI uri, AgentSpan span) {
     span.setTag(
-        KnownTags.HTTP_URL_ID,
+        KnownTags.HTTP_URL,
         URIUtils.lazyValidURL(uri.getScheme(), uri.getHost(), uri.getPort(), uri.getPath()));
     if (Config.get().isHttpClientTagQueryString()) {
       span.setTag(
-          KnownTags.HTTP_QUERY_STRING_ID,
+          KnownTags.HTTP_QUERY_STRING,
           URIUtils.preserveQueryDelimiters(uri.getRawQuery(), uri.getQuery()));
       span.setTag(DDTags.HTTP_FRAGMENT, uri.getFragment());
     }
