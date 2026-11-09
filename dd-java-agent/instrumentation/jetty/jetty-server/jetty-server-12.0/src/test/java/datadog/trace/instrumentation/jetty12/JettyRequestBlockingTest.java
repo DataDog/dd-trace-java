@@ -1,6 +1,8 @@
 package datadog.trace.instrumentation.jetty12;
 
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
+import static datadog.trace.instrumentation.jetty12.JettyFakes.fake;
+import static datadog.trace.instrumentation.jetty12.JettyFakes.proxy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -14,23 +16,18 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.lang.reflect.Proxy;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.util.Callback;
 import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
-/**
- * Unit tests for {@link JettyBlockResponseHelper#tryBlockRequest}.
- *
- * <p>Uses dynamic proxy fakes so the tests compile against every Jetty 12 version.
- */
+/** Unit tests for {@link JettyBlockResponseHelper#tryBlockRequest}. */
 class JettyRequestBlockingTest {
 
   private static final Flow.Action.RequestBlockingAction RBA =
       new Flow.Action.RequestBlockingAction(403, BlockingContentType.AUTO);
 
-  private final TraceSegment segment = proxy(TraceSegment.class, (name, args) -> null);
+  private final TraceSegment segment = fake(TraceSegment.class);
   private int callbackSucceeded;
   private int callbackFailed;
   private int blockFailures;
@@ -50,26 +47,13 @@ class JettyRequestBlockingTest {
     assertEquals(0, blockFailures);
   }
 
-  @Test
-  void failsOpenAndReportsWhenCommitFails() {
-    boolean blocked = tryBlock(true, true, true, true, brf(false));
-
-    assertFalse(blocked);
-    assertEquals(1, commits);
-    assertEquals(0, callbackSucceeded);
-    assertEquals(0, callbackFailed);
-    assertEquals(1, blockFailures, "the (RequestContext, RBA) overload reports block_failure");
-  }
-
-  @Test
-  void failsOpenAndReportsWhenCommitThrows() {
-    BlockResponseFunction throwing =
-        (seg, status, bct, headers, rid) -> {
-          commits++;
-          throw new IllegalStateException("boom");
-        };
-
-    boolean blocked = tryBlock(true, true, true, true, throwing);
+  @TableTest({
+    "Scenario      | BRF Outcome",
+    "commit fails  | false      ",
+    "commit throws | throws     "
+  })
+  void failsOpenAndReportsWhenCommitFails(String brfOutcome) {
+    boolean blocked = tryBlock(true, true, true, true, brf(brfOutcome));
 
     assertFalse(blocked);
     assertEquals(1, commits);
@@ -114,6 +98,36 @@ class JettyRequestBlockingTest {
     assertTrue(blocked, "the blocking response was written, the handler chain must not run");
   }
 
+  @Test
+  void commitReturnsFalseWithoutReportingWhenThereIsNoBrf() {
+    assertFalse(JettyBlockResponseHelper.tryCommitBlockingResponse(requestContext(null), RBA));
+    assertFalse(JettyBlockResponseHelper.tryCommitBlockingResponse(null, RBA));
+
+    assertEquals(0, commits);
+    assertEquals(0, blockFailures, "nothing was attempted, nothing to report");
+  }
+
+  @Test
+  void commitReturnsTrueWhenBrfCommits() {
+    assertTrue(JettyBlockResponseHelper.tryCommitBlockingResponse(requestContext(brf(true)), RBA));
+
+    assertEquals(1, commits);
+    assertEquals(0, blockFailures);
+  }
+
+  @TableTest({
+    "Scenario   | BRF Outcome",
+    "BRF fails  | false      ",
+    "BRF throws | throws     "
+  })
+  void commitReturnsFalseAndReportsWhenBrfFails(String brfOutcome) {
+    assertFalse(
+        JettyBlockResponseHelper.tryCommitBlockingResponse(requestContext(brf(brfOutcome)), RBA));
+
+    assertEquals(1, commits);
+    assertEquals(1, blockFailures);
+  }
+
   private boolean tryBlock(
       boolean hasContext,
       boolean hasSpan,
@@ -133,46 +147,6 @@ class JettyRequestBlockingTest {
             });
     return JettyBlockResponseHelper.tryBlockRequest(
         request(hasContext, hasSpan, hasRba, hasReqCtx, brf), callback);
-  }
-
-  @Test
-  void commitReturnsFalseWithoutReportingWhenThereIsNoBrf() {
-    assertFalse(JettyBlockResponseHelper.tryCommitBlockingResponse(requestContext(null), RBA));
-    assertFalse(JettyBlockResponseHelper.tryCommitBlockingResponse(null, RBA));
-
-    assertEquals(0, commits);
-    assertEquals(0, blockFailures, "nothing was attempted, nothing to report");
-  }
-
-  @Test
-  void commitReturnsTrueWhenBrfCommits() {
-    assertTrue(JettyBlockResponseHelper.tryCommitBlockingResponse(requestContext(brf(true)), RBA));
-
-    assertEquals(1, commits);
-    assertEquals(0, blockFailures);
-  }
-
-  @Test
-  void commitReturnsFalseAndReportsWhenBrfFails() {
-    assertFalse(
-        JettyBlockResponseHelper.tryCommitBlockingResponse(requestContext(brf(false)), RBA));
-
-    assertEquals(1, commits);
-    assertEquals(1, blockFailures, "the (RequestContext, RBA) overload reports block_failure");
-  }
-
-  @Test
-  void commitReturnsFalseAndReportsWhenBrfThrows() {
-    BlockResponseFunction throwing =
-        (seg, status, bct, headers, rid) -> {
-          commits++;
-          throw new IllegalStateException("boom");
-        };
-
-    assertFalse(JettyBlockResponseHelper.tryCommitBlockingResponse(requestContext(throwing), RBA));
-
-    assertEquals(1, commits);
-    assertEquals(1, blockFailures);
   }
 
   private Request request(
@@ -215,22 +189,31 @@ class JettyRequestBlockingTest {
               }
               return null;
             });
-    RequestContext reqCtx =
-        proxy(
-            RequestContext.class,
-            (name, args) -> {
-              switch (name) {
-                case "getBlockResponseFunction":
-                  return brf;
-                case "getTraceSegment":
-                  return segment;
-                case "getData":
-                  return args[0] == RequestContextSlot.APPSEC ? appSecCtx : null;
-                default:
-                  return null;
-              }
-            });
-    return reqCtx;
+    return proxy(
+        RequestContext.class,
+        (name, args) -> {
+          switch (name) {
+            case "getBlockResponseFunction":
+              return brf;
+            case "getTraceSegment":
+              return segment;
+            case "getData":
+              return args[0] == RequestContextSlot.APPSEC ? appSecCtx : null;
+            default:
+              return null;
+          }
+        });
+  }
+
+  private BlockResponseFunction brf(String outcome) {
+    switch (outcome) {
+      case "false":
+        return brf(false);
+      case "throws":
+        return throwingBrf();
+      default:
+        throw new IllegalArgumentException(outcome);
+    }
   }
 
   private BlockResponseFunction brf(boolean result) {
@@ -241,27 +224,10 @@ class JettyRequestBlockingTest {
     };
   }
 
-  private interface Handler {
-    Object handle(String methodName, Object[] args);
-  }
-
-  @SuppressWarnings("unchecked")
-  private static <T> T proxy(Class<T> type, Handler handler) {
-    return (T)
-        Proxy.newProxyInstance(
-            JettyRequestBlockingTest.class.getClassLoader(),
-            new Class<?>[] {type},
-            (proxy, method, args) -> {
-              switch (method.getName()) {
-                case "toString":
-                  return type.getSimpleName() + "Fake";
-                case "hashCode":
-                  return System.identityHashCode(proxy);
-                case "equals":
-                  return proxy == args[0];
-                default:
-                  return handler.handle(method.getName(), args);
-              }
-            });
+  private BlockResponseFunction throwingBrf() {
+    return (seg, statusCode, bct, extraHeaders, securityResponseId) -> {
+      commits++;
+      throw new IllegalStateException("boom");
+    };
   }
 }

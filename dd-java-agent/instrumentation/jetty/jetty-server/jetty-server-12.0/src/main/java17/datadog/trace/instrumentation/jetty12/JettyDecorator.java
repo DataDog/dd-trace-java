@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.jetty12;
 
 import static datadog.trace.bootstrap.ActiveSubsystems.APPSEC_ACTIVE;
 
+import datadog.context.Context;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.gateway.RequestContext;
@@ -18,7 +19,6 @@ import org.eclipse.jetty.io.EndPoint;
 import org.eclipse.jetty.server.ConnectionMetaData;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
-import org.eclipse.jetty.server.internal.HttpChannelState;
 
 public class JettyDecorator extends HttpServerDecorator<Request, Request, Response, Request> {
   public static final CharSequence JETTY_SERVER = UTF8BytesString.create("jetty-server");
@@ -135,12 +135,9 @@ public class JettyDecorator extends HttpServerDecorator<Request, Request, Respon
   }
 
   /**
-   * Registers the Jetty 12 {@link JettyBlockResponseFunction} on the span request context. Mirrors
-   * the gating of {@code HttpServerDecorator.doOnRequest}: {@code createBlockResponseFunction} is
-   * not used because it only receives the request, and the core request has no public path to its
-   * response. Must be called right after {@code onRequest}, with the per-request response (never
-   * the recycled {@code HttpChannelState}). A function already registered by the request-phase IG
-   * callbacks (which run before this method) is kept.
+   * Registers the {@link JettyBlockResponseFunction} on the span request context, right after
+   * {@code onRequest}. {@code createBlockResponseFunction} is not used because it only receives the
+   * request, and the core request has no public path to its response.
    */
   public void registerBlockResponseFunction(
       final AgentSpan span, final Request request, final Response response) {
@@ -153,8 +150,12 @@ public class JettyDecorator extends HttpServerDecorator<Request, Request, Respon
     }
   }
 
-  public void onResponse(AgentSpan span, HttpChannelState channel) {
-    onResponse(span, channel.getRequest(), channel.getResponse());
+  /** Decorates the span with the response and finishes it. */
+  public void finishSpan(
+      final Context context, final AgentSpan span, final Request request, final Response response) {
+    onResponse(span, request, response);
+    beforeFinish(context);
+    span.finish();
   }
 
   public void onResponse(AgentSpan span, Request request, Response response) {

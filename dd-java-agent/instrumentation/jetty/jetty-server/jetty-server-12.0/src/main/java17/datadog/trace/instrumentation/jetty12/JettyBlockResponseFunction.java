@@ -33,12 +33,11 @@ public class JettyBlockResponseFunction implements BlockResponseFunction {
     if (blockingResponseInitiated) {
       return true;
     }
-    boolean committed =
-        JettyBlockResponseHelper.commitBlockingResponse(
-            segment, request, response, statusCode, bct, extraHeaders, securityResponseId);
-    if (committed) {
+    if (JettyBlockResponseHelper.commitBlockingResponse(
+        segment, request, response, statusCode, bct, extraHeaders, securityResponseId)) {
       blockingResponseInitiated = true;
+      return true;
     }
-    return committed;
+    return false;
   }
 }

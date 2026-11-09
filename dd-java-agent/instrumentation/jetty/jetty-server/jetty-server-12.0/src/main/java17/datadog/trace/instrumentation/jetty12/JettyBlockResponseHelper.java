@@ -20,6 +20,7 @@ import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
 import org.eclipse.jetty.http.HttpFields;
 import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.http.HttpMethod;
@@ -56,7 +57,7 @@ public final class JettyBlockResponseHelper {
    * @return the body to write, or {@code null} if the response is already committed
    * @throws IllegalStateException if {@link Response#reset()} fails (e.g. committed concurrently)
    */
-  public static ByteBuffer prepareBlockResponse(
+  static ByteBuffer prepareBlockResponse(
       Request request,
       Response response,
       int statusCode,
@@ -65,6 +66,15 @@ public final class JettyBlockResponseHelper {
       String securityResponseId) {
     if (response.isCommitted()) {
       return null;
+    }
+    // build the body before reset() so a failure here does not leave a half-reset response
+    byte[] template = null;
+    String contentType = null;
+    if (bct != BlockingContentType.NONE && !HttpMethod.HEAD.is(request.getMethod())) {
+      String accept = request.getHeaders().get(HttpHeader.ACCEPT);
+      TemplateType type = BlockingActionHelper.determineTemplateType(bct, accept);
+      template = BlockingActionHelper.getTemplate(type, securityResponseId);
+      contentType = BlockingActionHelper.getContentType(type);
     }
     request.setAttribute(DD_IGNORE_COMMIT_ATTRIBUTE, Boolean.TRUE);
     response.reset();
@@ -75,13 +85,10 @@ public final class JettyBlockResponseHelper {
         headers.put(h.getKey(), h.getValue());
       }
     }
-    if (bct == BlockingContentType.NONE || HttpMethod.HEAD.is(request.getMethod())) {
+    if (template == null) {
       return EMPTY_BODY.duplicate();
     }
-    String accept = request.getHeaders().get(HttpHeader.ACCEPT);
-    TemplateType type = BlockingActionHelper.determineTemplateType(bct, accept);
-    byte[] template = BlockingActionHelper.getTemplate(type, securityResponseId);
-    headers.put(HttpHeader.CONTENT_TYPE, BlockingActionHelper.getContentType(type));
+    headers.put(HttpHeader.CONTENT_TYPE, contentType);
     headers.put(HttpHeader.CONTENT_LENGTH, template.length);
     return ByteBuffer.wrap(template);
   }
@@ -90,9 +97,12 @@ public final class JettyBlockResponseHelper {
    * Prepares and writes the blocking response, waiting up to {@link #COMMIT_TIMEOUT_MILLIS} for the
    * write to complete. Calls {@link TraceSegment#effectivelyBlocked()} once the write is confirmed.
    *
-   * @return true only if the blocking response was written successfully
+   * <p>If the wait times out or is interrupted the write is still in flight: the blocking response
+   * is considered initiated, and the segment is marked when the write completes.
+   *
+   * @return true if the blocking response was written, or its write is still in flight
    */
-  public static boolean commitBlockingResponse(
+  static boolean commitBlockingResponse(
       TraceSegment segment,
       Request request,
       Response response,
@@ -100,6 +110,29 @@ public final class JettyBlockResponseHelper {
       BlockingContentType bct,
       Map<String, String> extraHeaders,
       String securityResponseId) {
+    return commitBlockingResponse(
+        segment,
+        request,
+        response,
+        statusCode,
+        bct,
+        extraHeaders,
+        securityResponseId,
+        COMMIT_TIMEOUT_MILLIS);
+  }
+
+  /** Variant with an explicit wait bound, used by tests. */
+  static boolean commitBlockingResponse(
+      TraceSegment segment,
+      Request request,
+      Response response,
+      int statusCode,
+      BlockingContentType bct,
+      Map<String, String> extraHeaders,
+      String securityResponseId,
+      long timeoutMillis) {
+    // a completed CompletableFuture returns from get() without checking the interrupt flag
+    CompletableFuture<Void> written = new CompletableFuture<>();
     try {
       ByteBuffer body =
           prepareBlockResponse(
@@ -108,50 +141,56 @@ public final class JettyBlockResponseHelper {
         log.debug("Response already committed, cannot commit blocking response");
         return false;
       }
-      // a completed CompletableFuture returns from get() without checking the interrupt flag
-      CompletableFuture<Void> written = new CompletableFuture<>();
       response.write(true, body, Callback.from(written, NON_BLOCKING));
-      written.get(COMMIT_TIMEOUT_MILLIS, MILLISECONDS);
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      log.debug("Interrupted while committing blocking response", e);
-      return false;
-    } catch (ExecutionException e) {
-      log.debug("Failed to write blocking response", e.getCause());
-      return false;
+      written.get(timeoutMillis, MILLISECONDS);
+    } catch (TimeoutException | InterruptedException e) {
+      if (e instanceof InterruptedException) {
+        Thread.currentThread().interrupt();
+      }
+      log.debug("Blocking response write still pending, completing it asynchronously", e);
+      completeAsync(written, segment, request);
+      return true;
     } catch (Throwable t) {
-      // TimeoutException, WritePendingException, reset() failing on a concurrent commit, ...
-      log.debug("Failed to commit blocking response", t);
+      // write failure, WritePendingException, reset() failing on a concurrent commit, ...
+      log.debug(
+          "Failed to commit blocking response", t instanceof ExecutionException ? t.getCause() : t);
       return false;
     }
-    try {
-      segment.effectivelyBlocked();
-    } catch (Throwable t) {
-      // the blocking response was already written, blocking succeeded
-      log.debug("Failed to mark segment as effectively blocked", t);
-    }
+    markEffectivelyBlocked(segment);
     return true;
   }
 
   /**
+   * Marks the segment when a pending write succeeds and reports {@code block_failure} when it
+   * fails. The request context is resolved now: the context attribute is gone once the channel is
+   * recycled.
+   */
+  private static void completeAsync(
+      CompletableFuture<Void> written, TraceSegment segment, Request request) {
+    AgentSpan span = spanFrom(request);
+    RequestContext reqCtx = span == null ? null : span.getRequestContext();
+    written.whenComplete((v, t) -> {
+      if (t == null) {
+        markEffectivelyBlocked(segment);
+      } else {
+        log.debug("Pending blocking response write failed", t);
+        if (reqCtx != null) {
+          reportBlockFailure(reqCtx);
+        }
+      }
+    });
+  }
+
+  /**
    * Request-phase blocking: commits the blocking response decided while processing the request
-   * (headers, URI, client IP) through the {@link BlockResponseFunction} registered on the request
-   * context, and completes the Jetty {@code callback} when it succeeds.
+   * (headers, URI, client IP) and completes the Jetty {@code callback}. Fails open: on {@code
+   * false} the handler chain runs normally.
    *
-   * <p>Called on entry of {@code Server.handle(Request, Response, Callback)}. Fails open: when
-   * there is nothing to block or the commit fails, it returns {@code false} and the handler chain
-   * runs normally. A failed commit is reported as {@code block_failure} (by the {@code
-   * (RequestContext, RequestBlockingAction)} overload, or here when the commit throws).
-   *
-   * @return true only if the blocking response was committed and the callback completed, in which
-   *     case the caller must skip the handler chain
+   * @return true only if the blocking response was committed, in which case the caller must skip
+   *     the handler chain
    */
   public static boolean tryBlockRequest(Request request, Callback callback) {
-    Object contextObj = request.getAttribute(DD_CONTEXT_ATTRIBUTE);
-    if (!(contextObj instanceof Context)) {
-      return false;
-    }
-    AgentSpan span = AgentSpan.fromContext((Context) contextObj);
+    AgentSpan span = spanFrom(request);
     if (span == null) {
       return false;
     }
@@ -197,6 +236,21 @@ public final class JettyBlockResponseHelper {
       log.debug("Failed to commit blocking response", t);
       reportBlockFailure(reqCtx);
       return false;
+    }
+  }
+
+  /** Returns the server span stored in the request context attribute, or {@code null}. */
+  static AgentSpan spanFrom(Request request) {
+    Object contextObj = request.getAttribute(DD_CONTEXT_ATTRIBUTE);
+    return contextObj instanceof Context ? AgentSpan.fromContext((Context) contextObj) : null;
+  }
+
+  static void markEffectivelyBlocked(TraceSegment segment) {
+    try {
+      segment.effectivelyBlocked();
+    } catch (Throwable t) {
+      // the blocking response was already written, blocking succeeded
+      log.debug("Failed to mark segment as effectively blocked", t);
     }
   }
 

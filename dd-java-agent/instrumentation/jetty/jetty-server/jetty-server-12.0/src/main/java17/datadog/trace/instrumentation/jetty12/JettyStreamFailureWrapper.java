@@ -7,7 +7,6 @@ import static datadog.trace.instrumentation.jetty12.JettyDecorator.DECORATE;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.context.Context;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.util.function.Function;
 import org.eclipse.jetty.server.HttpStream;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
@@ -38,7 +37,8 @@ public final class JettyStreamFailureWrapper extends HttpStream.Wrapper {
   /** Wraps the current stream of {@code request}; a no-op when there is no active stream. */
   public static void install(final Request request, final Response response) {
     try {
-      request.addHttpStreamWrapper(new Installer(request, response));
+      request.addHttpStreamWrapper(
+          stream -> new JettyStreamFailureWrapper(stream, request, response));
     } catch (final RuntimeException ignored) {
       // no active stream: nothing to wrap
     }
@@ -68,9 +68,7 @@ public final class JettyStreamFailureWrapper extends HttpStream.Wrapper {
     if (blockingException != null) {
       DECORATE.onError(span, blockingException);
     }
-    DECORATE.onResponse(span, request, response);
-    DECORATE.beforeFinish(context);
-    span.finish();
+    DECORATE.finishSpan(context, span, request, response);
   }
 
   /** Looks for a {@link BlockingException} in the cause chain and the top-level suppressed list. */
@@ -91,21 +89,5 @@ public final class JettyStreamFailureWrapper extends HttpStream.Wrapper {
       }
     }
     return null;
-  }
-
-  /** Stream wrapper factory passed to {@link Request#addHttpStreamWrapper}. */
-  static final class Installer implements Function<HttpStream, HttpStream> {
-    private final Request request;
-    private final Response response;
-
-    Installer(final Request request, final Response response) {
-      this.request = request;
-      this.response = response;
-    }
-
-    @Override
-    public HttpStream apply(final HttpStream stream) {
-      return new JettyStreamFailureWrapper(stream, request, response);
-    }
   }
 }

@@ -1,6 +1,8 @@
 package datadog.trace.instrumentation.jetty12;
 
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
+import static datadog.trace.instrumentation.jetty12.JettyFakes.fake;
+import static datadog.trace.instrumentation.jetty12.JettyFakes.proxy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -8,19 +10,15 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.context.Context;
 import java.io.IOException;
-import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 import org.eclipse.jetty.server.HttpStream;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
 import org.junit.jupiter.api.Test;
 
-/**
- * Unit tests for {@link JettyStreamFailureWrapper}.
- *
- * <p>Uses dynamic proxy fakes so the tests compile against every Jetty 12 version.
- */
+/** Unit tests for {@link JettyStreamFailureWrapper}. */
 class JettyStreamFailureWrapperTest {
 
   private final List<String> streamCalls = new ArrayList<>();
@@ -71,8 +69,7 @@ class JettyStreamFailureWrapperTest {
 
   @Test
   void removesContextAndDelegatesFailureWhenContextHasNoSpan() {
-    Context context = proxy(Context.class, (name, args) -> null);
-    HttpStream stream = wrapper(context);
+    HttpStream stream = wrapper(fake(Context.class));
 
     stream.failed(new BlockingException("blocked"));
 
@@ -82,7 +79,7 @@ class JettyStreamFailureWrapperTest {
 
   @Test
   void succeededOnlyDelegates() {
-    HttpStream stream = wrapper(proxy(Context.class, (name, args) -> null));
+    HttpStream stream = wrapper(fake(Context.class));
 
     stream.succeeded();
 
@@ -91,18 +88,29 @@ class JettyStreamFailureWrapperTest {
   }
 
   @Test
-  void installerWrapsTheStream() {
+  @SuppressWarnings("unchecked")
+  void installWrapsTheStream() {
+    List<Function<HttpStream, HttpStream>> installed = new ArrayList<>();
+    Request request =
+        proxy(
+            Request.class,
+            (name, args) -> {
+              if ("addHttpStreamWrapper".equals(name)) {
+                installed.add((Function<HttpStream, HttpStream>) args[0]);
+              }
+              return null;
+            });
     HttpStream wrapped = stream();
-    HttpStream result =
-        new JettyStreamFailureWrapper.Installer(request(null), proxy(Response.class, null))
-            .apply(wrapped);
 
+    JettyStreamFailureWrapper.install(request, fake(Response.class));
+
+    assertEquals(1, installed.size());
+    HttpStream result = installed.get(0).apply(wrapped);
     assertSame(wrapped, ((HttpStream.Wrapper) result).getWrapped());
   }
 
   private HttpStream wrapper(Context context) {
-    return new JettyStreamFailureWrapper(
-        stream(), request(context), proxy(Response.class, (name, args) -> null));
+    return new JettyStreamFailureWrapper(stream(), request(context), fake(Response.class));
   }
 
   private HttpStream stream() {
@@ -124,29 +132,5 @@ class JettyStreamFailureWrapperTest {
           }
           return null;
         });
-  }
-
-  private interface Handler {
-    Object handle(String methodName, Object[] args);
-  }
-
-  @SuppressWarnings("unchecked")
-  private static <T> T proxy(Class<T> type, Handler handler) {
-    return (T)
-        Proxy.newProxyInstance(
-            JettyStreamFailureWrapperTest.class.getClassLoader(),
-            new Class<?>[] {type},
-            (proxy, method, args) -> {
-              switch (method.getName()) {
-                case "toString":
-                  return type.getSimpleName() + "Fake";
-                case "hashCode":
-                  return System.identityHashCode(proxy);
-                case "equals":
-                  return proxy == args[0];
-                default:
-                  return handler == null ? null : handler.handle(method.getName(), args);
-              }
-            });
   }
 }

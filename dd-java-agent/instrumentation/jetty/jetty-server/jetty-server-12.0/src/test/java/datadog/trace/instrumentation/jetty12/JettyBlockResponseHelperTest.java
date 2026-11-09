@@ -1,21 +1,28 @@
 package datadog.trace.instrumentation.jetty12;
 
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_IGNORE_COMMIT_ATTRIBUTE;
+import static datadog.trace.instrumentation.jetty12.JettyFakes.proxy;
+import static datadog.trace.instrumentation.jetty12.JettyFakes.toBytes;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.appsec.api.blocking.BlockingContentType;
+import datadog.context.Context;
+import datadog.trace.api.appsec.AppSecContext;
+import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.blocking.BlockingActionHelper;
 import datadog.trace.bootstrap.blocking.BlockingActionHelper.TemplateType;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.io.IOException;
-import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.Proxy;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritePendingException;
 import java.util.ArrayList;
@@ -30,12 +37,7 @@ import org.eclipse.jetty.util.Callback;
 import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
-/**
- * Unit tests for {@link JettyBlockResponseHelper} and {@link JettyBlockResponseFunction}.
- *
- * <p>Uses dynamic proxy fakes so the tests compile against every Jetty 12 version (the core
- * interfaces gain abstract methods across minor versions).
- */
+/** Unit tests for {@link JettyBlockResponseHelper} and {@link JettyBlockResponseFunction}. */
 class JettyBlockResponseHelperTest {
 
   @TableTest({
@@ -151,64 +153,103 @@ class JettyBlockResponseHelperTest {
     assertTrue(response.writes.isEmpty());
   }
 
-  @Test
-  void committedResponseIsNotBlocked() {
+  @TableTest({
+    "Scenario     | Failure      | Resets | Writes",
+    "committed    | committed    | 0      | 0     ",
+    "reset throws | reset        | 0      | 0     ",
+    "write fails  | write fails  | 1      | 1     ",
+    "write throws | write throws | 1      | 0     "
+  })
+  void failedCommitIsNotBlocked(String failure, int resets, int writes) {
     FakeResponse response = new FakeResponse();
-    response.committed = true;
+    switch (failure) {
+      case "committed":
+        response.committed = true;
+        break;
+      case "reset":
+        response.resetFailure = new IllegalStateException("committed");
+        break;
+      case "write fails":
+        response.writeFailure = new IOException("broken pipe");
+        break;
+      case "write throws":
+        response.writeThrows = new WritePendingException();
+        break;
+      default:
+        throw new IllegalArgumentException(failure);
+    }
     FakeSegment segment = new FakeSegment();
 
     assertFalse(commit(new FakeRequest("GET", null), response, segment));
+    assertEquals(resets, response.resets);
+    assertEquals(writes, response.writes.size());
+    assertEquals(0, segment.effectivelyBlockedCalls);
+  }
+
+  @Test
+  void templateFailureLeavesResponseUntouched() {
+    FakeRequest request = new FakeRequest("GET", null);
+    request.headersFailure = new IllegalStateException("headers");
+    FakeResponse response = new FakeResponse();
+
+    assertThrows(
+        IllegalStateException.class,
+        () ->
+            JettyBlockResponseHelper.prepareBlockResponse(
+                request.proxy, response.proxy, 403, BlockingContentType.JSON, emptyMap(), null));
+    assertNull(request.attributes.get(DD_IGNORE_COMMIT_ATTRIBUTE));
     assertEquals(0, response.resets);
-    assertTrue(response.writes.isEmpty());
-    assertEquals(0, segment.effectivelyBlockedCalls);
   }
 
   @Test
-  void resetFailureIsNotBlocked() {
-    FakeResponse response = new FakeResponse();
-    response.resetFailure = new IllegalStateException("committed");
-    FakeSegment segment = new FakeSegment();
-
-    assertFalse(commit(new FakeRequest("GET", null), response, segment));
-    assertTrue(response.writes.isEmpty());
-    assertEquals(0, segment.effectivelyBlockedCalls);
-  }
-
-  @Test
-  void writeFailureIsNotBlocked() {
-    FakeResponse response = new FakeResponse();
-    response.writeFailure = new IOException("broken pipe");
-    FakeSegment segment = new FakeSegment();
-
-    assertFalse(commit(new FakeRequest("GET", null), response, segment));
-    assertEquals(1, response.writes.size());
-    assertEquals(0, segment.effectivelyBlockedCalls);
-  }
-
-  @Test
-  void writeThrowingIsNotBlocked() {
-    FakeResponse response = new FakeResponse();
-    response.writeThrows = new WritePendingException();
-    FakeSegment segment = new FakeSegment();
-
-    assertFalse(commit(new FakeRequest("GET", null), response, segment));
-    assertEquals(0, segment.effectivelyBlockedCalls);
-  }
-
-  @Test
-  void interruptedWaitIsNotBlockedAndKeepsInterruptFlag() {
+  void interruptedWaitKeepsInterruptFlagAndMarksOnLateSuccess() {
     FakeResponse response = new FakeResponse();
     response.completeWrites = false;
     FakeSegment segment = new FakeSegment();
 
     Thread.currentThread().interrupt();
     try {
-      assertFalse(commit(new FakeRequest("GET", null), response, segment));
+      assertTrue(commit(new FakeRequest("GET", null), response, segment));
       assertTrue(Thread.currentThread().isInterrupted());
     } finally {
       Thread.interrupted();
     }
     assertEquals(0, segment.effectivelyBlockedCalls);
+
+    response.pending.succeeded();
+
+    assertEquals(1, segment.effectivelyBlockedCalls);
+  }
+
+  @Test
+  void timedOutWriteIsInitiatedAndMarksOnLateSuccess() {
+    FakeResponse response = new FakeResponse();
+    response.completeWrites = false;
+    FakeSegment segment = new FakeSegment();
+
+    assertTrue(commitWithShortTimeout(new FakeRequest("GET", null), response, segment));
+    assertEquals(0, segment.effectivelyBlockedCalls);
+
+    response.pending.succeeded();
+
+    assertEquals(1, segment.effectivelyBlockedCalls);
+  }
+
+  @Test
+  void timedOutWriteReportsBlockFailureOnLateFailure() {
+    FakeRequest request = new FakeRequest("GET", null);
+    int[] blockFailures = new int[1];
+    request.attributes.put(DD_CONTEXT_ATTRIBUTE, context(blockFailures));
+    FakeResponse response = new FakeResponse();
+    response.completeWrites = false;
+    FakeSegment segment = new FakeSegment();
+
+    assertTrue(commitWithShortTimeout(request, response, segment));
+
+    response.pending.failed(new IOException("broken pipe"));
+
+    assertEquals(0, segment.effectivelyBlockedCalls);
+    assertEquals(1, blockFailures[0]);
   }
 
   @Test
@@ -276,30 +317,37 @@ class JettyBlockResponseHelperTest {
         null);
   }
 
-  private static byte[] toBytes(ByteBuffer buffer) {
-    byte[] bytes = new byte[buffer.remaining()];
-    buffer.duplicate().get(bytes);
-    return bytes;
+  private static boolean commitWithShortTimeout(
+      FakeRequest request, FakeResponse response, FakeSegment segment) {
+    return JettyBlockResponseHelper.commitBlockingResponse(
+        segment.proxy,
+        request.proxy,
+        response.proxy,
+        403,
+        BlockingContentType.AUTO,
+        emptyMap(),
+        null,
+        1);
   }
 
-  @SuppressWarnings("unchecked")
-  private static <T> T proxy(Class<T> type, InvocationHandler handler) {
-    return (T)
-        Proxy.newProxyInstance(
-            JettyBlockResponseHelperTest.class.getClassLoader(),
-            new Class<?>[] {type},
-            (proxy, method, args) -> {
-              switch (method.getName()) {
-                case "toString":
-                  return type.getSimpleName() + "Fake";
-                case "hashCode":
-                  return System.identityHashCode(proxy);
-                case "equals":
-                  return proxy == args[0];
-                default:
-                  return handler.invoke(proxy, method, args);
+  private static Context context(int[] blockFailures) {
+    AppSecContext appSecCtx =
+        proxy(
+            AppSecContext.class,
+            (name, args) -> {
+              if ("reportBlockFailure".equals(name)) {
+                blockFailures[0]++;
               }
+              return null;
             });
+    RequestContext reqCtx =
+        proxy(
+            RequestContext.class,
+            (name, args) ->
+                "getData".equals(name) && args[0] == RequestContextSlot.APPSEC ? appSecCtx : null);
+    AgentSpan span =
+        proxy(AgentSpan.class, (name, args) -> "getRequestContext".equals(name) ? reqCtx : null);
+    return proxy(Context.class, (name, args) -> "get".equals(name) ? span : null);
   }
 
   private static final class FakeRequest {
@@ -307,6 +355,7 @@ class JettyBlockResponseHelperTest {
     final HttpFields headers;
     final Map<String, Object> attributes = new HashMap<>();
     final Request proxy;
+    RuntimeException headersFailure;
 
     FakeRequest(String method, String accept) {
       this.method = method;
@@ -318,18 +367,21 @@ class JettyBlockResponseHelperTest {
       this.proxy =
           proxy(
               Request.class,
-              (p, m, args) -> {
-                switch (m.getName()) {
+              (name, args) -> {
+                switch (name) {
                   case "getMethod":
                     return this.method;
                   case "getHeaders":
+                    if (headersFailure != null) {
+                      throw headersFailure;
+                    }
                     return headers;
                   case "setAttribute":
                     return attributes.put((String) args[0], args[1]);
                   case "getAttribute":
                     return attributes.get((String) args[0]);
                   default:
-                    throw new UnsupportedOperationException(m.getName());
+                    throw new UnsupportedOperationException(name);
                 }
               });
     }
@@ -344,6 +396,7 @@ class JettyBlockResponseHelperTest {
     int resets;
     boolean committed;
     boolean completeWrites = true;
+    Callback pending;
     RuntimeException resetFailure;
     RuntimeException writeThrows;
     Throwable writeFailure;
@@ -352,8 +405,8 @@ class JettyBlockResponseHelperTest {
       this.proxy =
           proxy(
               Response.class,
-              (p, m, args) -> {
-                switch (m.getName()) {
+              (name, args) -> {
+                switch (name) {
                   case "isCommitted":
                     return committed;
                   case "getStatus":
@@ -379,6 +432,7 @@ class JettyBlockResponseHelperTest {
                     writes.add(toBytes((ByteBuffer) args[1]));
                     Callback callback = (Callback) args[2];
                     if (!completeWrites) {
+                      pending = callback;
                       return null;
                     }
                     if (writeFailure != null) {
@@ -389,7 +443,7 @@ class JettyBlockResponseHelperTest {
                     }
                     return null;
                   default:
-                    throw new UnsupportedOperationException(m.getName());
+                    throw new UnsupportedOperationException(name);
                 }
               });
     }
@@ -404,15 +458,15 @@ class JettyBlockResponseHelperTest {
       this.proxy =
           proxy(
               TraceSegment.class,
-              (p, m, args) -> {
-                if ("effectivelyBlocked".equals(m.getName())) {
+              (name, args) -> {
+                if ("effectivelyBlocked".equals(name)) {
                   effectivelyBlockedCalls++;
                   if (failure != null) {
                     throw failure;
                   }
                   return null;
                 }
-                throw new UnsupportedOperationException(m.getName());
+                throw new UnsupportedOperationException(name);
               });
     }
   }
