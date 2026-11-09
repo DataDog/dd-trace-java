@@ -9,6 +9,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import urllib.error
 from datetime import datetime, timezone
 from pathlib import Path
 from unittest import mock
@@ -504,6 +505,44 @@ class DependencyAgeScriptTest(unittest.TestCase):
         self.assertIn("### 48h cooldown, reverted", summary)
         self.assertNotIn("Cannot verify age", summary)
         self.assertNotIn("updated to the previous version", summary)
+
+    def _json_response(self, payload: object) -> mock.MagicMock:
+        response = mock.MagicMock()
+        response.__enter__.return_value = io.BytesIO(json.dumps(payload).encode())
+        return response
+
+    def _http_error(self, code: int) -> urllib.error.HTTPError:
+        return urllib.error.HTTPError("https://example.test", code, "error", {}, None)
+
+    def test_load_json_retries_url_after_timeout(self) -> None:
+        responses = [TimeoutError("The read operation timed out"), self._json_response({"ok": True})]
+        with mock.patch("urllib.request.urlopen", side_effect=responses) as urlopen, mock.patch("time.sleep") as sleep, \
+                contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(dependency_age.load_json(None, "https://example.test"), {"ok": True})
+        self.assertEqual(urlopen.call_count, 2)
+        sleep.assert_called_once_with(dependency_age.URL_RETRY_DELAYS[0])
+
+    def test_load_json_retries_url_after_throttling(self) -> None:
+        responses = [self._http_error(429), self._http_error(503), self._json_response([])]
+        with mock.patch("urllib.request.urlopen", side_effect=responses), mock.patch("time.sleep") as sleep, \
+                contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(dependency_age.load_json(None, "https://example.test"), [])
+        self.assertEqual(sleep.call_count, 2)
+
+    def test_load_json_raises_after_last_retry(self) -> None:
+        with mock.patch("urllib.request.urlopen", side_effect=TimeoutError("timed out")) as urlopen, \
+                mock.patch("time.sleep"), contextlib.redirect_stderr(io.StringIO()):
+            with self.assertRaises(TimeoutError):
+                dependency_age.load_json(None, "https://example.test")
+        self.assertEqual(urlopen.call_count, len(dependency_age.URL_RETRY_DELAYS) + 1)
+
+    def test_load_json_does_not_retry_client_errors(self) -> None:
+        with mock.patch("urllib.request.urlopen", side_effect=self._http_error(404)) as urlopen, \
+                mock.patch("time.sleep") as sleep:
+            with self.assertRaises(urllib.error.HTTPError):
+                dependency_age.load_json(None, "https://example.test")
+        self.assertEqual(urlopen.call_count, 1)
+        sleep.assert_not_called()
 
 
 if __name__ == "__main__":
