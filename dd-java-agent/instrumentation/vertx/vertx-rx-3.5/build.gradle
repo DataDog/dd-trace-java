@@ -23,3 +23,59 @@ dependencies {
   latestDepTestImplementation group: 'io.vertx', name: 'vertx-circuit-breaker', version: '3.+'
   latestDepTestImplementation group: 'io.vertx', name: 'vertx-rx-java2', version: '3.+'
 }
+
+// ---------------------------------------------------------------------------------------------
+// DIAGNOSTIC ONLY (branch mo.atie/vertx-rx-hang-b-capture-error, never merged).
+//
+// Hunting "hang B": the Test worker blocks on Gradle's MessageHub lock, which is leaked by the
+// Vert.x event loop. The leading hypothesis is a StackOverflowError raised on the event loop
+// right after ReentrantLock.lock() returns (JEP 270 delayed overflow), before the caller's try.
+// On HotSpot, abort the forked test JVM on the first StackOverflowError so hs_err captures the
+// throwing thread's full Java stack. IBM/OpenJ9 does not support these flags, so skip it there
+// (same vendor check as DumpHangedTestPlugin.isIbmJvmVendor).
+// ---------------------------------------------------------------------------------------------
+class AbortOnStackOverflowArgs implements CommandLineArgumentProvider {
+  private final Provider<JavaLauncher> launcher
+
+  AbortOnStackOverflowArgs(Provider<JavaLauncher> launcher) {
+    this.launcher = launcher
+  }
+
+  @Override
+  Iterable<String> asArguments() {
+    def vendor = launcher.get().metadata.vendor
+    if (JvmVendorSpec.IBM.matches(vendor)) {
+      return []
+    }
+    return [
+      '-XX:+UnlockDiagnosticVMOptions',
+      '-XX:AbortVMOnException=java.lang.StackOverflowError',
+      // Collected by .gitlab/collect_reports.sh (cp /tmp/hs_err_pid*.log).
+      '-XX:ErrorFile=/tmp/hs_err_pid%p.log',
+      // A core file of a 1G heap JVM would only fill the runner disk.
+      '-XX:-CreateCoredumpOnCrash',
+    ]
+  }
+}
+
+// Extra copies of 'forkedTest' so one Gradle invocation runs the suite many times. The names start
+// with 'forkedTest', so the test conventions treat them exactly like 'forkedTest' (forkEvery = 1,
+// '**/*ForkedTest*' includes, shared forked-test concurrency limit, 20 minutes timeout, dumps).
+def vertxHangDiagReps = (findProperty('vertxHangDiagReps') ?: '1') as int
+for (int rep = 2; rep <= vertxHangDiagReps; rep++) {
+  def copy = rep
+  tasks.register("forkedTestRep${copy}", Test) {
+    group = LifecycleBasePlugin.VERIFICATION_GROUP
+    description = "Diagnostic copy #${copy} of 'forkedTest'."
+    useJUnitPlatform()
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    javaLauncher.set(tasks.named('test', Test).flatMap { it.javaLauncher })
+  }
+}
+
+tasks.withType(Test).matching {
+  it.name.startsWith('forkedTest') || it.name == 'latestDepForkedTest'
+}.configureEach { Test t ->
+  t.jvmArgumentProviders.add(new AbortOnStackOverflowArgs(t.javaLauncher))
+}
