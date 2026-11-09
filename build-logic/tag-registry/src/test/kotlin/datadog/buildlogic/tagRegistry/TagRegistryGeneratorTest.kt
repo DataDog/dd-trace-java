@@ -336,7 +336,7 @@ class TagRegistryGeneratorTest {
     val yaml = directory.conventionsFile(
       """
       concepts:
-        - { concept: server.port, type: int, dd-name: server.port, otel-name: server.port, resolves-on: [server] }
+        - { concept: server.port, type: int, dd-name: server.port, otel-name: server.port }
       span_types:
         base: {abstract: true, tags: [{dd-name: http.method, otel-name: http.request.method}]}
         http.server:
@@ -371,23 +371,26 @@ class TagRegistryGeneratorTest {
   private val portConcepts =
     """
     concepts:
-      - { concept: server.port,      type: int, dd-name: server.port, otel-name: server.port, resolves-on: [server] }
-      - { concept: peer.server.port, type: int, dd-name: peer.port,   otel-name: server.port, resolves-on: [client, producer, consumer] }
-      - { concept: client.port,      type: int, dd-name: peer.port,   otel-name: client.port, resolves-on: [server] }
+      - { concept: server.port,      type: int, dd-name: server.port, otel-name: server.port }
+      - { concept: peer.server.port, type: int, dd-name: peer.port,   otel-name: server.port }
+      - { concept: client.port,      type: int, dd-name: peer.port,   otel-name: client.port }
     span_types:
       http.client: {span-kind: client, include: [outbound_peer]}
       http.server: {span-kind: server, include: [inbound_peer], tags: [{concept-ref: server.port}]}
+      messaging.producer: {span-kind: producer, tags: [{concept-ref: peer.server.port}]}
+      messaging.consumer: {span-kind: consumer, tags: [{concept-ref: peer.server.port}]}
     mixins:
       outbound_peer: {span-kind: client, tags: [{concept-ref: peer.server.port}]}
       inbound_peer: {span-kind: server, tags: [{concept-ref: client.port}]}
     """
 
   @Test
-  fun `a concept has fixed names and the kinds its names resolve on`() {
+  fun `a concept has fixed names and resolves on the kinds of the span types that carry it`() {
     val conventions = tagConventions(portConcepts)
-    val peerServerPort = conventions.allDeclaredTags().single { it.name == "peer.server.port" }
+    val declared = conventions.allDeclaredTags().single { it.name == "peer.server.port" }
+    val peerServerPort = TagRegistry.build(conventions).tags.single { it.name == "peer.server.port" }
 
-    assertThat(peerServerPort.concept).isTrue()
+    assertThat(declared.concept).isTrue()
     assertThat(peerServerPort.datadogName).isEqualTo("peer.port")
     assertThat(peerServerPort.otelName).isEqualTo("server.port")
     assertThat(peerServerPort.resolvesOn).containsExactlyInAnyOrder(
@@ -430,13 +433,43 @@ class TagRegistryGeneratorTest {
           tagConventions(
             """
             concepts:
-              - { concept: a.port, type: int, dd-name: peer.port, otel-name: a.port, resolves-on: [client] }
-              - { concept: b.port, type: int, dd-name: peer.port, otel-name: b.port, resolves-on: [client] }
+              - { concept: a.port, type: int, dd-name: peer.port, otel-name: a.port }
+              - { concept: b.port, type: int, dd-name: peer.port, otel-name: b.port }
+            span_types:
+              http.client: {span-kind: client, tags: [{concept-ref: a.port}]}
+              db.client: {span-kind: client, tags: [{concept-ref: b.port}]}
             """
           )
         )
       }
       .withMessageContaining("Datadog name 'peer.port' resolves to both 'a.port' and 'b.port' on client spans")
+  }
+
+  @Test
+  fun `a concept no kinded span type carries fails generation`() {
+    assertThatIllegalArgumentException()
+      .isThrownBy {
+        TagRegistry.build(
+          tagConventions(
+            """
+            concepts:
+              - { concept: a.port, type: int, dd-name: peer.port, otel-name: a.port }
+            span_types:
+              misc: {tags: [{concept-ref: a.port}]}
+            """
+          )
+        )
+      }
+      .withMessageContaining("is carried by no span type with a span-kind")
+  }
+
+  @Test
+  fun `resolves-on is not declared, it follows from concept-refs`() {
+    assertThatIllegalArgumentException()
+      .isThrownBy {
+        tagConventions("concepts: [{ concept: p, dd-name: peer.port, otel-name: server.port, resolves-on: [client] }]")
+      }
+      .withMessageContaining("follow from the span types that concept-ref it")
   }
 
   @Test
@@ -447,7 +480,9 @@ class TagRegistryGeneratorTest {
           tagConventions(
             """
             concepts:
-              - { concept: peer.server.port, type: int, dd-name: peer.port, otel-name: server.port, resolves-on: [client] }
+              - { concept: peer.server.port, type: int, dd-name: peer.port, otel-name: server.port }
+            span_types:
+              http.client: {span-kind: client, tags: [{concept-ref: peer.server.port}]}
             mixins:
               other: {tags: [{ dd-name: peer.port, type: int }]}
             """
@@ -460,13 +495,11 @@ class TagRegistryGeneratorTest {
   @ParameterizedTest
   @ValueSource(
     strings = [
-      "{ concept: p, dd-name: peer.port, otel-name: server.port }",
-      "{ concept: p, dd-name: peer.port, otel-name: server.port, resolves-on: [] }",
-      "{ concept: p, dd-name: peer.port, otel-name: server.port, resolves-on: [sideways] }",
-      "{ concept: p, otel-name: server.port, resolves-on: [client] }",
-      "{ concept: p, dd-name: peer.port, resolves-on: [client] }",
-      "{ concept: p, dd-name: { client: peer.port }, otel-name: server.port, resolves-on: [client] }",
-      "{ concept: p, dd-name: peer.port, otel-name: server.port, resolves-on: [client], span-kind-neutral: true }",
+      "{ concept: p, otel-name: server.port }",
+      "{ concept: p, dd-name: peer.port }",
+      "{ concept: p, dd-name: { client: peer.port }, otel-name: server.port }",
+      "{ concept: p, dd-name: peer.port, otel-name: server.port, span-kind-neutral: true }",
+      "{ concept: p, dd-name: peer.port, otel-name: server.port, sideways: true }",
     ]
   )
   fun `a malformed concept fails generation`(declaration: String) {
@@ -479,7 +512,7 @@ class TagRegistryGeneratorTest {
   fun `a concept declared outside the concepts section fails generation`() {
     assertThatIllegalArgumentException()
       .isThrownBy {
-        tagConventions("mixins: {ports: {tags: [{ concept: p, dd-name: peer.port, otel-name: server.port, resolves-on: [client] }]}}")
+        tagConventions("mixins: {ports: {tags: [{ concept: p, dd-name: peer.port, otel-name: server.port }]}}")
       }
       .withMessageContaining("top-level `concepts:` section")
   }
@@ -535,7 +568,7 @@ class TagRegistryGeneratorTest {
   private fun refConventions(entry: String) = tagConventions(
     """
     concepts:
-      - { concept: server.port, type: int, dd-name: server.port, otel-name: server.port, resolves-on: [server] }
+      - { concept: server.port, type: int, dd-name: server.port, otel-name: server.port }
     span_types:
       http.server: {span-kind: server, tags: [{dd-name: http.method}, $entry]}
     """

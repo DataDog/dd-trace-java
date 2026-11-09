@@ -55,7 +55,7 @@ class TagRegistry private constructor(
     val concept: Boolean = false,
     /** The Datadog name this id is emitted under: its own name, unless a concept says otherwise. */
     val datadogName: String = ddName,
-    /** For a concept, the span kinds on which its names resolve to it. */
+    /** For a concept, the span kinds on which its names resolve to it: those of the types that carry it. */
     val resolvesOn: Set<TagConventions.SpanKind> = emptySet(),
   ) {
 
@@ -89,6 +89,7 @@ class TagRegistry private constructor(
       val traceLevel = conv.traceLevelTags().map { it.ddName }.toSet()
       val renames = conv.otelMappings().groupBy { it.tag.ddName }
       val (slots, sharing) = colorSlots(conv)
+      val conceptKinds = conv.conceptKinds()
 
       // One tag per Datadog name, in a stable order (by name) so serials -- and therefore ids -- are
       // a pure function of the input. A name's declarations per direction merge into its one tag.
@@ -117,7 +118,7 @@ class TagRegistry private constructor(
             sharesSlot = first.ddName in sharing,
             concept = first.concept,
             datadogName = first.datadogName ?: first.ddName,
-            resolvesOn = first.resolvesOn,
+            resolvesOn = conceptKinds[first.identity].orEmpty(),
           )
         }
 
@@ -258,10 +259,15 @@ class TagRegistry private constructor(
       val plainNames =
         tags.filter { !it.concept }.flatMap { listOfNotNull(it.ddName, it.otelName) + it.scopedOtelNames.values }.toSet()
       for (t in tags.filter { it.concept }) {
+        require(t.resolvesOn.isNotEmpty()) {
+          "concept '${t.name}' is carried by no span type with a span-kind, so its names never resolve " +
+            "to it; `{ concept-ref: ${t.name} }` it from the span types that carry it"
+        }
         for (kind in t.resolvesOn) {
           val dd = datadogOwner.put(kind to t.datadogName, t.name)
           require(dd == null) {
-            "Datadog name '${t.datadogName}' resolves to both '$dd' and '${t.name}' on ${kind.yamlKey} spans"
+            "Datadog name '${t.datadogName}' resolves to both '$dd' and '${t.name}' on ${kind.yamlKey} spans: " +
+              "span types of that kind carry both"
           }
           t.otelName?.let { otel ->
             val prev = otelOwner.put(kind to otel, t.name)

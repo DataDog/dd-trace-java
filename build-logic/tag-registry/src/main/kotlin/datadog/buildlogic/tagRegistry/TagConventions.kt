@@ -64,14 +64,12 @@ class TagConventions private constructor(
     /**
      * A concept from `concepts:`: an id whose Datadog name is shared with other ids, so the name alone
      * doesn't say which it is (peer.port is the remote server's port on a client span, the client's
-     * port on a server span). Its names are fixed -- id to name never needs context -- and
-     * [resolvesOn] says on which span kinds its shared names mean this id.
+     * port on a server span). Its names are fixed -- id to name never needs context; on which span
+     * kinds its shared names mean this id follows from the span types that `concept-ref` it.
      */
     val concept: Boolean = false,
     /** A concept's Datadog name, when it differs from its id's name; null otherwise. */
     val datadogName: String? = null,
-    /** The span kinds on which a concept's names resolve to it, when written or read by name. */
-    val resolvesOn: Set<SpanKind> = emptySet(),
   ) {
     /** The identity's label, as reports show it; see [TagIdentity.label]. */
     val name: String
@@ -93,7 +91,7 @@ class TagConventions private constructor(
   }
 
   /**
-   * The span kinds a concept's names can resolve on (`resolves-on`), as KnownTagCodec numbers them. A
+   * The span kinds a concept's names can resolve on (those of the span types carrying it), as KnownTagCodec numbers them. A
    * span with no kind yet, a broker or a custom kind resolves no concept name.
    */
   enum class SpanKind(val yamlKey: String, val codecConstant: String) {
@@ -129,6 +127,8 @@ class TagConventions private constructor(
     val refs: List<Ref> = emptyList(),
     /** The direction set by this type's own `span-kind`, or null; see [directionOf] for inheritance. */
     val direction: Direction? = null,
+    /** This type's own `span-kind`, or null; see [kindOf] for inheritance. */
+    val kind: SpanKind? = null,
   )
 
   /**
@@ -243,6 +243,22 @@ class TagConventions private constructor(
     }
   }
 
+  /**
+   * For each concept, the span kinds on which its shared names resolve to it: the kinds of the
+   * concrete span types that carry it (by `concept-ref`, directly or through a mixin). A type with no
+   * span-kind contributes none.
+   */
+  fun conceptKinds(): Map<TagIdentity, Set<SpanKind>> {
+    val kinds = LinkedHashMap<TagIdentity, MutableSet<SpanKind>>()
+    for (type in concreteTypes()) {
+      val kind = chainOf(spanTypes, type).firstNotNullOfOrNull { it.kind } ?: continue
+      for (t in resolve(type)) {
+        if (t.concept) kinds.getOrPut(t.identity) { java.util.EnumSet.noneOf(SpanKind::class.java) }.add(kind)
+      }
+    }
+    return kinds
+  }
+
   companion object {
     private val SPAN_KIND_DIRECTIONS =
       mapOf(
@@ -301,6 +317,7 @@ class TagConventions private constructor(
         tags = tagList(m["tags"]),
         refs = refList(m["tags"]),
         direction = parseDirection(m, "span type '$name'"),
+        kind = SpanKind.entries.firstOrNull { it.yamlKey == m["span-kind"] },
       )
     }
 
@@ -545,8 +562,8 @@ class TagConventions private constructor(
             "names a different thing on spans of each direction. Declare each meaning once in the " +
             "top-level `concepts:` section, with '$name' as its Datadog name, for example\n" +
             "  concepts:\n" +
-            "    - { concept: <id>, dd-name: $name, otel-name: <otel name>, resolves-on: [<span kinds>] }\n" +
-            "and use `{ concept-ref: <id> }` where '$name' was declared."
+            "    - { concept: <id>, dd-name: $name, otel-name: <otel name> }\n" +
+            "and use `{ concept-ref: <id> }` where '$name' was declared, once per meaning."
         )
       }
       return byName.keys
@@ -633,18 +650,21 @@ class TagConventions private constructor(
       } ?: emptyList()
     }
 
-    private val CONCEPT_KEYS = setOf("concept", "type", "required", "dd-name", "otel-name", "resolves-on")
+    private val CONCEPT_KEYS = setOf("concept", "type", "required", "dd-name", "otel-name")
 
     /**
-     * One concept: `{ concept: <id>, type: ..., dd-name: <name>, otel-name: <name>, resolves-on:
-     * [<kinds>] }`. The id names one thing on every span; its Datadog and OpenTelemetry names are
-     * fixed, and may be shared with other concepts. `resolves-on` lists the span kinds (server, client,
-     * producer, consumer, internal) where a write or read by those names means this concept.
+     * One concept: `{ concept: <id>, type: ..., dd-name: <name>, otel-name: <name> }`. The id names
+     * one thing on every span; its Datadog and OpenTelemetry names are fixed, and may be shared with
+     * other concepts. The span kinds where a shared name means this concept follow from the span
+     * types that `concept-ref` it.
      */
     @Suppress("UNCHECKED_CAST")
     private fun parseConcept(m: Map<String, Any?>): Tag {
       val concept = m["concept"]
       require(concept is String && concept.isNotBlank()) { "concept declaration has no valid concept name: $m" }
+      require(!m.containsKey("resolves-on")) {
+        "concept '$concept' sets resolves-on, but its kinds follow from the span types that concept-ref it"
+      }
       val extra = m.keys - CONCEPT_KEYS
       require(extra.isEmpty()) { "concept '$concept' may set only $CONCEPT_KEYS, not $extra" }
       val ddName = m["dd-name"]
@@ -653,16 +673,6 @@ class TagConventions private constructor(
       require(otelName is String && otelName.isNotBlank()) {
         "concept '$concept' needs an otel-name, its OpenTelemetry name"
       }
-      val kinds = m["resolves-on"]
-      require(kinds is List<*> && kinds.isNotEmpty()) {
-        "concept '$concept' needs resolves-on: the span kinds where its names mean it"
-      }
-      val resolvesOn = kinds.map { kind ->
-        SpanKind.entries.firstOrNull { it.yamlKey == kind }
-          ?: throw IllegalArgumentException(
-            "concept '$concept' resolves-on '$kind' is not a span kind (server, client, producer, consumer, internal)"
-          )
-      }.toSet()
       require(m["type"] == null || m["type"] is String) { "concept '$concept' type must be a string" }
       require(m["required"] == null || m["required"] is String) { "concept '$concept' required must be a string" }
       return Tag(
@@ -672,7 +682,6 @@ class TagConventions private constructor(
         otelName = otelName,
         concept = true,
         datadogName = ddName.takeUnless { it == concept },
-        resolvesOn = resolvesOn,
       )
     }
 

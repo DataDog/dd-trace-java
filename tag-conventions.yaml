@@ -91,15 +91,16 @@ trace_level:
 
 # ---------------------------------------------------------------------------
 # CONCEPTS — ids whose Datadog name is shared with other ids. Each has fixed names (id to name never
-# needs context); resolves-on lists the span kinds where its names, written or read by name, mean it.
+# needs context). A shared name, written or read by name, means the concept the span's kind carries:
+# the span types that `concept-ref` a concept say which kinds that is.
 # ---------------------------------------------------------------------------
 concepts:
   # A server's own port.
-  - { concept: server.port,      type: int, dd-name: server.port, otel-name: server.port, resolves-on: [server] }
+  - { concept: server.port,      type: int, dd-name: server.port, otel-name: server.port }
   # The remote server's port, as a client, producer or consumer sees it (a consumer's broker is the server).
-  - { concept: peer.server.port, type: int, dd-name: peer.port,   otel-name: server.port, resolves-on: [client, producer, consumer] }
+  - { concept: peer.server.port, type: int, dd-name: peer.port,   otel-name: server.port }
   # The remote client's port, as a server sees it.
-  - { concept: client.port,      type: int, dd-name: peer.port,   otel-name: client.port, resolves-on: [server] }
+  - { concept: client.port,      type: int, dd-name: peer.port,   otel-name: client.port }
 
 span_types:
   # root: per-span tags every span has (incl. the per-span core tags parent_id / integration / svc_src
@@ -289,8 +290,9 @@ span_types:
   messaging.consumer:
     extends: messaging
     span-kind: consumer
-    include: [ peer_address, inbound_peer ]
+    include: [ peer_address ]
     tags:
+      - { concept-ref: peer.server.port }  # the broker is the server
       - { dd-name: record.queue_time_ms,   type: long, required: optional }  # from the message's timestamp, when it has one
       - { dd-name: record.e2e_duration_ms, type: long, required: optional }  # only when end-to-end durations are enabled
 
