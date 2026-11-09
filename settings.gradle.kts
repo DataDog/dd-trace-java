@@ -190,6 +190,7 @@ include(
 include(
   ":dd-smoke-tests:apm-tracing-disabled",
   ":dd-smoke-tests:armeria-grpc",
+  ":dd-smoke-tests:azure-cosmos",
   ":dd-smoke-tests:backend-mock",
   ":dd-smoke-tests:cli",
   ":dd-smoke-tests:concurrent:java-8",
