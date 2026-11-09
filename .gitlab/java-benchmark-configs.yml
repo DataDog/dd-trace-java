@@ -1,3 +1,8 @@
+# Test the unmerged image-cache harness from apm-sdks-benchmarks PR #356.
+.parallel-benchmark-template:
+  variables:
+    APM_SDKS_BENCHMARKS_BRANCH: "alexeyk/cache-java-benchmark-images"
+
 # Benchmarks run on master, merge queue, or when manually triggered.
 .parallel_benchmark_rules: &parallel_benchmark_rules
   - if: '$POPULATE_CACHE'
@@ -40,32 +45,56 @@
 
 # Ensure the tracer artifact publish finishes before the benchmark jobs start.
 linux-java-spring-petclinic-parallel:
-  needs: ["publish-artifacts-to-s3"]
+  needs:
+    - job: publish-artifacts-to-s3
+    - job: build-java-spring-petclinic-image
+      artifacts: true
 
 linux-java-insecure-bank-load-parallel:
-  needs: ["publish-artifacts-to-s3"]
+  needs:
+    - job: publish-artifacts-to-s3
+    - job: build-java-insecure-bank-image
+      artifacts: true
   rules: *parallel_benchmark_rules
 
 linux-java-spring-petclinic-load-parallel:
-  needs: ["publish-artifacts-to-s3"]
+  needs:
+    - job: publish-artifacts-to-s3
+    - job: build-java-spring-petclinic-image
+      artifacts: true
   rules: *parallel_benchmark_rules
 
 linux-java-spring-petclinic-sca-load-parallel:
-  needs: ["publish-artifacts-to-s3"]
+  needs:
+    - job: publish-artifacts-to-s3
+    - job: build-java-spring-petclinic-image
+      artifacts: true
   rules: *parallel_benchmark_rules
 
 linux-java-insecure-bank-startup-parallel:
-  needs: ["publish-artifacts-to-s3"]
+  needs:
+    - job: publish-artifacts-to-s3
+    - job: build-java-insecure-bank-image
+      artifacts: true
   rules: *parallel_startup_benchmark_rules
 
 linux-java-spring-petclinic-startup-parallel:
-  needs: ["publish-artifacts-to-s3"]
+  needs:
+    - job: publish-artifacts-to-s3
+    - job: build-java-spring-petclinic-image
+      artifacts: true
   rules: *parallel_startup_benchmark_rules
 
 linux-java-dacapo-parallel-1:
-  needs: ["publish-artifacts-to-s3"]
+  needs:
+    - job: publish-artifacts-to-s3
+    - job: build-java-dacapo-image
+      artifacts: true
   rules: *parallel_benchmark_rules
 
 linux-java-dacapo-parallel-2:
-  needs: ["publish-artifacts-to-s3"]
+  needs:
+    - job: publish-artifacts-to-s3
+    - job: build-java-dacapo-image
+      artifacts: true
   rules: *parallel_benchmark_rules
