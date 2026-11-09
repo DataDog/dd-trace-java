@@ -31,7 +31,6 @@ abstract class PTagsCodec {
   protected static final TagKey LLMOBS_PAGENT_SPAN_ID_TAG = TagKey.from("llmobs_pagent_span_id");
   protected static final TagKey LLMOBS_PAGENT_NAME_TAG = TagKey.from("llmobs_pagent_name");
   protected static final TagKey LLMOBS_PARENT_ID_TAG = TagKey.from("llmobs_parent_id");
-
   protected static final TagKey LLMOBS_SAMPLE_RATE_TAG = TagKey.from("llmobs_sr");
   protected static final TagKey LLMOBS_SAMPLING_DECISION_TAG = TagKey.from("llmobs_sd");
 
@@ -45,7 +44,7 @@ abstract class PTagsCodec {
   }
 
   /** Whether values of {@code key} are unique to one trace or span, so not worth caching. */
-  static boolean hasUniqueValues(TagKey key) {
+  private static boolean hasUniqueValues(TagKey key) {
     return LLMOBS_TRACE_ID_TAG.equals(key)
         || LLMOBS_PARENT_ID_TAG.equals(key)
         || LLMOBS_PAGENT_SPAN_ID_TAG.equals(key);
