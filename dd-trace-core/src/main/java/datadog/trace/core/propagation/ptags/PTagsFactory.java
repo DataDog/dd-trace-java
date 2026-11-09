@@ -906,11 +906,10 @@ public class PTagsFactory implements PropagationTags.Factory {
             reconcileOtelTraceState(
                 otelTraceState, overridingPriority, SamplingMechanism.EXTERNAL_OVERRIDE);
       }
+      // The parse already found the otel member, so an override that drops it falls back to the
+      // member as parsed rather than scanning the tracestate for it again
       setW3CTracestate(
-          source.tracestate,
-          otelTraceState != null
-              ? otelTraceState
-              : W3CPTagsCodec.extractOtelTraceState(source.tracestate));
+          source.tracestate, otelTraceState != null ? otelTraceState : source.otelTraceState);
     }
 
     private void setW3CTracestate(String tracestate, OtelTraceState otelTraceState) {

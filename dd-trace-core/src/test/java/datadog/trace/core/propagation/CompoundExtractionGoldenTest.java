@@ -283,15 +283,12 @@ class CompoundExtractionGoldenTest extends DDCoreJavaSpecification {
 
   private static String id(Map<String, String> headers) {
     StringBuilder sb = new StringBuilder();
-    headers.forEach(
-        (key, value) -> {
-          if (sb.length() > 0) {
-            sb.append(' ');
-          }
-          sb.append(key)
-              .append('=')
-              .append(value.length() > 200 ? value.length() + "chars" : value);
-        });
+    headers.forEach((key, value) -> {
+      if (sb.length() > 0) {
+        sb.append(' ');
+      }
+      sb.append(key).append('=').append(value.length() > 200 ? value.length() + "chars" : value);
+    });
     return sb.length() == 0 ? "<no headers>" : sb.toString();
   }
 
