@@ -133,8 +133,8 @@ class HealthMetricsTest {
     assertTrue(budget.tryAdmitKept(300));
     CountDownLatch latch = new CountDownLatch(3);
     try (TracerHealthMetrics healthMetrics =
-        new TracerHealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)) {
-      healthMetrics.onStart(1024, budget);
+        new TracerHealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS, budget)) {
+      healthMetrics.onStart(1024);
       // the limit is constant, so it is reported once, with the queue capacity
       verify(statsD).gauge("queue.max_length", 1024L);
       verify(statsD).gauge("queue.span_limit", 1000L);
@@ -148,8 +148,8 @@ class HealthMetricsTest {
   @Test
   void testUnlimitedSpanBudgetReportsNoSpanGauges() throws InterruptedException {
     try (TracerHealthMetrics healthMetrics =
-        new TracerHealthMetrics(statsD, 100, TimeUnit.MILLISECONDS)) {
-      healthMetrics.onStart(1024, SpanBudget.unlimited());
+        new TracerHealthMetrics(statsD, 100, TimeUnit.MILLISECONDS, SpanBudget.unlimited())) {
+      healthMetrics.onStart(1024);
       healthMetrics.start();
       Thread.sleep(300);
     }

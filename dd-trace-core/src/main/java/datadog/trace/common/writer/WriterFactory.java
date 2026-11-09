@@ -23,6 +23,7 @@ import datadog.trace.common.sampling.Sampler;
 import datadog.trace.common.sampling.SingleSpanSampler;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
 import datadog.trace.common.writer.ddagent.Prioritization;
+import datadog.trace.common.writer.ddagent.SpanBudget;
 import datadog.trace.common.writer.ddintake.DDEvpProxyApi;
 import datadog.trace.common.writer.ddintake.DDIntakeApi;
 import datadog.trace.common.writer.ddintake.DDIntakeTrackTypeResolver;
@@ -39,14 +40,34 @@ public class WriterFactory {
 
   private static final Logger log = LoggerFactory.getLogger(WriterFactory.class);
 
+  /**
+   * The span budget for writers made from this configuration: the configured limit, or unlimited
+   * when the configured prioritization doesn't use one. Made before the writer, so health metrics
+   * can be built with it.
+   */
+  public static SpanBudget spanBudget(final Config config) {
+    return prioritization(config).spanBudget(config.getTraceWriterSpanBudget());
+  }
+
+  private static Prioritization prioritization(final Config config) {
+    return config.getEnumValue(PRIORITIZATION_TYPE, Prioritization.class, FAST_LANE);
+  }
+
   public static Writer createWriter(
       final Config config,
       final SharedCommunicationObjects commObjects,
       final Sampler sampler,
       final SingleSpanSampler singleSpanSampler,
-      final HealthMetrics healthMetrics) {
+      final HealthMetrics healthMetrics,
+      final SpanBudget spanBudget) {
     return createWriter(
-        config, commObjects, sampler, singleSpanSampler, healthMetrics, config.getWriterType());
+        config,
+        commObjects,
+        sampler,
+        singleSpanSampler,
+        healthMetrics,
+        spanBudget,
+        config.getWriterType());
   }
 
   @SuppressForbidden
@@ -56,6 +77,7 @@ public class WriterFactory {
       final Sampler sampler,
       final SingleSpanSampler singleSpanSampler,
       final HealthMetrics healthMetrics,
+      final SpanBudget spanBudget,
       String configuredType) {
 
     int flushIntervalMilliseconds = Math.round(config.getTraceFlushIntervalSeconds() * 1000);
@@ -69,7 +91,13 @@ public class WriterFactory {
           Strings.replace(configuredType, TRACE_STRUCTURE_WRITER_TYPE, ""));
     } else if (configuredType.startsWith(MULTI_WRITER_TYPE)) {
       return new MultiWriter(
-          config, commObjects, sampler, singleSpanSampler, healthMetrics, configuredType);
+          config,
+          commObjects,
+          sampler,
+          singleSpanSampler,
+          healthMetrics,
+          spanBudget,
+          configuredType);
     } else if (OTLP_WRITER_TYPE.equals(configuredType)) {
       return OtlpWriter.builder()
           .endpoint(config.getOtlpTracesEndpoint())
@@ -78,6 +106,7 @@ public class WriterFactory {
           .compression(config.getOtlpTracesCompression())
           .timeoutMillis(config.getOtlpTracesTimeout())
           .spanSamplingRules(singleSpanSampler)
+          .spanBudget(spanBudget)
           .flushIntervalMilliseconds(flushIntervalMilliseconds)
           .build();
     }
@@ -90,8 +119,7 @@ public class WriterFactory {
       configuredType = datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_WRITER_TYPE;
     }
 
-    Prioritization prioritization =
-        config.getEnumValue(PRIORITIZATION_TYPE, Prioritization.class, FAST_LANE);
+    Prioritization prioritization = prioritization(config);
     if (ENSURE_TRACE == prioritization) {
       log.info(
           "Using 'EnsureTrace' prioritization type. (Do not use this type if your application is running in production mode)");
@@ -112,6 +140,7 @@ public class WriterFactory {
       TraceProcessingWorker worker =
           new TraceProcessingWorker(
               1024,
+              spanBudget,
               healthMetrics,
               dispatcher,
               DroppingPolicy.DISABLED,
@@ -153,6 +182,7 @@ public class WriterFactory {
               .addTrack(trackType, remoteApi)
               .prioritization(prioritization)
               .healthMetrics(healthMetrics)
+              .spanBudget(spanBudget)
               .monitoring(commObjects.monitoring)
               .singleSpanSampler(singleSpanSampler)
               .alwaysFlush(isServerlessDefault)
@@ -217,6 +247,7 @@ public class WriterFactory {
               .droppingPolicy(droppingPolicy)
               .prioritization(prioritization)
               .healthMetrics(healthMetrics)
+              .spanBudget(spanBudget)
               .monitoring(commObjects.monitoring)
               .alwaysFlush(alwaysFlush)
               .spanSamplingRules(singleSpanSampler)

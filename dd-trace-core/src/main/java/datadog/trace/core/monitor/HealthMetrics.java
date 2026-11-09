@@ -1,7 +1,6 @@
 package datadog.trace.core.monitor;
 
 import datadog.trace.common.writer.RemoteApi;
-import datadog.trace.common.writer.ddagent.SpanBudget;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.propagation.opg.OrgGuard;
 import java.util.List;
@@ -23,11 +22,7 @@ public abstract class HealthMetrics implements AutoCloseable {
 
   public void start() {}
 
-  /**
-   * @param queueCapacity the trace capacity of the writer's queues
-   * @param spanBudget the writer's span budget; its usage is read when metrics are flushed
-   */
-  public void onStart(final int queueCapacity, final SpanBudget spanBudget) {}
+  public void onStart(final int queueCapacity) {}
 
   public void onShutdown(final boolean flushSuccess) {}
 

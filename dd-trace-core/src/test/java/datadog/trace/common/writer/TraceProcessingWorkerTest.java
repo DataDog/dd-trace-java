@@ -2,6 +2,7 @@ package datadog.trace.common.writer;
 
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
+import static datadog.trace.common.writer.ddagent.Prioritization.ENSURE_TRACE;
 import static datadog.trace.common.writer.ddagent.Prioritization.FAST_LANE;
 import static datadog.trace.common.writer.ddagent.PrioritizationStrategy.PublishResult.ENQUEUED_FOR_SERIALIZATION;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -819,5 +820,40 @@ class TraceProcessingWorkerTest extends DDJavaSpecification {
 
   private static List<DDSpan> trace(int spans) {
     return Collections.nCopies(spans, mock(DDSpan.class));
+  }
+
+  @Test
+  void testPrioritizationThatDoesNotUseABudgetGetsAnUnlimitedOne() throws Exception {
+    // ENSURE_TRACE never counts traces against a budget, while the serializer still releases to the
+    // worker's budget: given a limited one, releases would push it below zero
+    SpanBudget shared = SpanBudget.of(10);
+    PayloadDispatcherImpl dispatcher = mock(PayloadDispatcherImpl.class);
+    CountDownLatch serialized = new CountDownLatch(1);
+    doAnswer(
+            inv -> {
+              serialized.countDown();
+              return null;
+            })
+        .when(dispatcher)
+        .addTrace(any());
+    try (TraceProcessingWorker worker =
+        new TraceProcessingWorker(
+            10,
+            shared,
+            mock(HealthMetrics.class),
+            dispatcher,
+            () -> false,
+            ENSURE_TRACE,
+            0,
+            TimeUnit.SECONDS,
+            null)) {
+      worker.start();
+      List<DDSpan> trace = trace(50);
+      assertEquals(ENQUEUED_FOR_SERIALIZATION, worker.publish(trace.get(0), SAMPLER_KEEP, trace));
+      assertTrue(serialized.await(5, TimeUnit.SECONDS));
+      Thread.sleep(20);
+    }
+
+    assertEquals(0, shared.used());
   }
 }

@@ -22,6 +22,7 @@ import datadog.trace.common.sampling.RateByServiceTraceSampler;
 import datadog.trace.common.sampling.Sampler;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
 import datadog.trace.common.writer.ddagent.Prioritization;
+import datadog.trace.common.writer.ddagent.SpanBudget;
 import datadog.trace.common.writer.ddagent.TraceMapperV0_4;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.test.util.DDJavaSpecification;
@@ -115,7 +116,13 @@ class WriterFactoryTest extends DDJavaSpecification {
 
     Writer writer =
         WriterFactory.createWriter(
-            config, sharedComm, sampler, null, HealthMetrics.NO_OP, configuredType);
+            config,
+            sharedComm,
+            sampler,
+            null,
+            HealthMetrics.NO_OP,
+            SpanBudget.unlimited(),
+            configuredType);
 
     List<Class<?>> expectedApiClasses =
         expectedApiClass != null ? singletonList(expectedApiClass) : null;
@@ -195,7 +202,13 @@ class WriterFactoryTest extends DDJavaSpecification {
 
     Writer writer =
         WriterFactory.createWriter(
-            config, sharedComm, sampler, null, HealthMetrics.NO_OP, configuredType);
+            config,
+            sharedComm,
+            sampler,
+            null,
+            HealthMetrics.NO_OP,
+            SpanBudget.unlimited(),
+            configuredType);
     List<Class<?>> llmObsApiClasses =
         ((RemoteWriter) writer)
             .getApis().stream()
@@ -242,7 +255,8 @@ class WriterFactoryTest extends DDJavaSpecification {
 
     // OTLP branch in WriterFactory does not consult sharedComm or sampler, so nulls are safe here.
     Writer writer =
-        WriterFactory.createWriter(config, null, null, null, HealthMetrics.NO_OP, "OtlpWriter");
+        WriterFactory.createWriter(
+            config, null, null, null, HealthMetrics.NO_OP, SpanBudget.unlimited(), "OtlpWriter");
     Object sender = readField(writer, "sender");
 
     assertEquals(OtlpWriter.class, writer.getClass());
@@ -330,7 +344,13 @@ class WriterFactoryTest extends DDJavaSpecification {
     sharedComm.createRemaining(config);
 
     return WriterFactory.createWriter(
-        config, sharedComm, sampler, null, HealthMetrics.NO_OP, "DDAgentWriter");
+        config,
+        sharedComm,
+        sampler,
+        null,
+        HealthMetrics.NO_OP,
+        SpanBudget.unlimited(),
+        "DDAgentWriter");
   }
 
   private static DDAgentApi onlyApi(Writer writer) {
@@ -383,5 +403,31 @@ class WriterFactoryTest extends DDJavaSpecification {
     Field field = instance.getClass().getDeclaredField(fieldName);
     field.setAccessible(true);
     return field.get(instance);
+  }
+
+  @TableTest({
+    "scenario                    | prioritization | limit | unlimited | expectedLimit",
+    "configured limit            | FAST_LANE      | 20000 | false     | 20000        ",
+    "zero turns the budget off   | FAST_LANE      | 0     | true      | 0            ",
+    "ensure trace doesn't use it | ENSURE_TRACE   | 20000 | true      | 0            "
+  })
+  void testSpanBudgetFollowsConfig(
+      Prioritization prioritization, int limit, boolean unlimited, long expectedLimit) {
+    Config config = mock(Config.class);
+    //noinspection unchecked
+    doReturn(prioritization)
+        .when(config)
+        .getEnumValue(
+            eq(PRIORITIZATION_TYPE),
+            (Class<Prioritization>) any(Class.class),
+            any(Prioritization.class));
+    when(config.getTraceWriterSpanBudget()).thenReturn(limit);
+
+    SpanBudget budget = WriterFactory.spanBudget(config);
+
+    assertEquals(unlimited, budget.isUnlimited());
+    if (!unlimited) {
+      assertEquals(expectedLimit, budget.limit());
+    }
   }
 }

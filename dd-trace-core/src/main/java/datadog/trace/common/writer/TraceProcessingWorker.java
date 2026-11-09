@@ -77,8 +77,12 @@ public class TraceProcessingWorker implements AutoCloseable {
         singleSpanSampler);
   }
 
-  @VisibleForTesting
-  TraceProcessingWorker(
+  /**
+   * @param spanBudget the span budget the queues count traces against, possibly shared with other
+   *     workers and with health metrics; a prioritization that doesn't use one gets an unlimited
+   *     budget instead
+   */
+  public TraceProcessingWorker(
       final int capacity,
       final SpanBudget spanBudget,
       final HealthMetrics healthMetrics,
@@ -89,7 +93,7 @@ public class TraceProcessingWorker implements AutoCloseable {
       final TimeUnit timeUnit,
       final SingleSpanSampler singleSpanSampler) {
     this.capacity = capacity;
-    this.spanBudget = spanBudget;
+    this.spanBudget = prioritization.usesSpanBudget() ? spanBudget : SpanBudget.unlimited();
     this.primaryQueue = createQueue(capacity);
     this.secondaryQueue = createQueue(capacity);
     this.spanSamplingWorker =
@@ -99,14 +103,14 @@ public class TraceProcessingWorker implements AutoCloseable {
             secondaryQueue,
             singleSpanSampler,
             healthMetrics,
-            spanBudget,
+            this.spanBudget,
             droppingPolicy);
     this.prioritizationStrategy =
         prioritization.create(
             primaryQueue,
             secondaryQueue,
             spanSamplingWorker.getSpanSamplingQueue(),
-            spanBudget,
+            this.spanBudget,
             droppingPolicy);
 
     this.serializingHandler =
@@ -117,7 +121,7 @@ public class TraceProcessingWorker implements AutoCloseable {
             dispatcher,
             flushInterval,
             timeUnit,
-            spanBudget);
+            this.spanBudget);
     this.serializerThread = newAgentThread(TRACE_PROCESSOR, serializingHandler);
   }
 
@@ -166,10 +170,6 @@ public class TraceProcessingWorker implements AutoCloseable {
   public <T extends CoreSpan<T>> PrioritizationStrategy.PublishResult publish(
       T root, int samplingPriority, final List<T> trace) {
     return prioritizationStrategy.publish(root, samplingPriority, trace);
-  }
-
-  SpanBudget getSpanBudget() {
-    return spanBudget;
   }
 
   public int getCapacity() {

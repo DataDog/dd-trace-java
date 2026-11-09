@@ -28,8 +28,8 @@ public enum Prioritization {
     }
 
     @Override
-    public SpanBudget spanBudget(long spanLimit) {
-      return SpanBudget.unlimited();
+    public boolean usesSpanBudget() {
+      return false;
     }
   },
   FAST_LANE {
@@ -44,8 +44,8 @@ public enum Prioritization {
     }
 
     @Override
-    public SpanBudget spanBudget(long spanLimit) {
-      return SpanBudget.of(spanLimit);
+    public boolean usesSpanBudget() {
+      return true;
     }
   };
 
@@ -60,8 +60,16 @@ public enum Prioritization {
       SpanBudget budget,
       DroppingPolicy droppingPolicy);
 
+  /**
+   * Whether strategies of this type count admitted traces against a span budget. One that doesn't
+   * must be given an unlimited budget, since whoever consumes its queues still releases to it.
+   */
+  public abstract boolean usesSpanBudget();
+
   /** The span budget for a strategy of this type, given the configured span limit. */
-  public abstract SpanBudget spanBudget(long spanLimit);
+  public SpanBudget spanBudget(long spanLimit) {
+    return usesSpanBudget() ? SpanBudget.of(spanLimit) : SpanBudget.unlimited();
+  }
 
   private abstract static class PrioritizationStrategyWithFlush implements PrioritizationStrategy {
 
