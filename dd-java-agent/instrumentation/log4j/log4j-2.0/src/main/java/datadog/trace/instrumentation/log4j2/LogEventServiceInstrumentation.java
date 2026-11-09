@@ -1,9 +1,12 @@
 package datadog.trace.instrumentation.log4j2;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
+import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
+import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import com.google.auto.service.AutoService;
@@ -18,7 +21,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 /** Provides the service field on versions predating Log4j2's ContextDataInjector. */
 @AutoService(InstrumenterModule.class)
 public class LogEventServiceInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
   public LogEventServiceInstrumentation() {
     super("log4j", "log4j-2");
   }
@@ -34,8 +37,11 @@ public class LogEventServiceInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public String instrumentedType() {
-    return "org.apache.logging.log4j.core.impl.Log4jLogEvent";
+  public String[] knownMatchingTypes() {
+    return new String[] {
+      "org.apache.logging.log4j.core.impl.Log4jLogEvent",
+      "org.apache.logging.log4j.core.async.RingBufferLogEvent"
+    };
   }
 
   @Override
@@ -45,7 +51,12 @@ public class LogEventServiceInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(isConstructor(), getClass().getName() + "$ServiceAdvice");
+    transformer.applyAdvice(
+        isConstructor()
+            .and(isDeclaredBy(named("org.apache.logging.log4j.core.impl.Log4jLogEvent")))
+            // AsyncLogger merges configured properties on its consumer before calling appenders.
+            .or(isMethod().and(named("mergePropertiesIntoContextMap"))),
+        getClass().getName() + "$ServiceAdvice");
   }
 
   public static class ServiceAdvice {

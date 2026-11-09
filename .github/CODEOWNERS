@@ -386,3 +386,5 @@
 **/build.gradle.kts                                @DataDog/apm-java @DataDog/apm-lang-platform-java
 **/gradle.lockfile                                 @DataDog/apm-java @DataDog/apm-lang-platform-java
 /dd-java-agent/instrumentation/**/gradle.lockfile  @DataDog/apm-java @DataDog/apm-idm-java
+
+/dd-java-agent/instrumentation/log4j/log4j-2.0/src/test/java/ @DataDog/apm-java @DataDog/apm-idm-java

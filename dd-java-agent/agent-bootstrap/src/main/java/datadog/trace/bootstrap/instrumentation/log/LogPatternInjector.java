@@ -96,7 +96,16 @@ public final class LogPatternInjector {
   }
 
   private static boolean isComposite(String name) {
-    return "style".equals(name)
+    return "black".equals(name)
+        || "blue".equals(name)
+        || "cyan".equals(name)
+        || "green".equals(name)
+        || "magenta".equals(name)
+        || "red".equals(name)
+        || "white".equals(name)
+        || "yellow".equals(name)
+        || "maxLength".equals(name)
+        || "style".equals(name)
         || "highlight".equals(name)
         || "replace".equals(name)
         || "notEmpty".equals(name)
@@ -155,7 +164,7 @@ public final class LogPatternInjector {
           if (c == quote) {
             quote = 0;
           }
-        } else if (c == '\'' || c == '"') {
+        } else if (logback && (c == '\'' || c == '"')) {
           quote = c;
         } else if (c == '{') {
           optionsDepth++;

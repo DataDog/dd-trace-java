@@ -5,6 +5,7 @@ import static datadog.trace.api.CorrelationIdentifier.getTraceId;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import datadog.context.ContextScope;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
@@ -110,9 +111,28 @@ class Log4j2PatternLayoutTest extends AbstractInstrumentationTest {
         "%mdc{dd.service}",
         "%MDC{dd.trace_id}",
         "%%X{dd.trace_id}",
-        "%style{%X{dd.span_id}}{red}"
+        "%style{%X{dd.span_id}}{red}",
+        "%black{%X{dd.trace_id}}",
+        "%blue{%X}",
+        "%cyan{%X{dd.trace_id}}",
+        "%green{%X{dd.trace_id}}",
+        "%magenta{%X{dd.trace_id}}",
+        "%red{%X{dd.trace_id}}",
+        "%white{%X{dd.trace_id}}",
+        "%yellow{%X{dd.trace_id}}",
+        "%maxLength{%X{dd.trace_id}}{100}",
+        "%maxLen{%X{dd.trace_id}}{100}",
+        "%upperCase{%X{dd.trace_id}}",
+        "%lowerCase{%X{dd.trace_id}}"
       })
   protected void printsEveryExistingOrMissingValueExactlyOnce(String converter) {
+    if (converter.startsWith("%max")) {
+      assumeTrue(
+          getClass()
+                  .getClassLoader()
+                  .getResource("org/apache/logging/log4j/core/pattern/MaxLengthConverter.class")
+              != null);
+    }
     ThreadContext.put("dd.service", "service-marker");
     ThreadContext.put("dd.trace_id", "trace-marker");
     ThreadContext.put("dd.span_id", "span-marker");
@@ -121,6 +141,16 @@ class Log4j2PatternLayoutTest extends AbstractInstrumentationTest {
     for (String marker : new String[] {"service-marker", "trace-marker", "span-marker"}) {
       assertEquals(2, output.split(marker, -1).length, output);
     }
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"%replace{%m}{'}{}%n", "%replace{%m}{\"}{}%n"})
+  void keepsCorrelationFieldsOnTheMessageLineWithLiteralQuotes(String pattern) {
+    ThreadContext.put("dd.service", "application-service");
+    PatternLayout layout = PatternLayout.newBuilder().withPattern(pattern).build();
+    assertEquals(
+        "message dd.service=application-service dd.trace_id= dd.span_id=" + System.lineSeparator(),
+        layout.toSerializable(Events.event("message")));
   }
 
   private static class Events {
