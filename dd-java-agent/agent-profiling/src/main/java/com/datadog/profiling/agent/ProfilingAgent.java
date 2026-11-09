@@ -58,7 +58,6 @@ public class ProfilingAgent {
   private static volatile ProfileUploader uploader;
   private static volatile ProfilingConfigPoller remoteConfig;
   private static volatile ProfilingRemoteConfigHandler remoteConfigHandler;
-  private static volatile SharedCommunicationObjects sharedCommunicationObjects;
 
   private static class DataDumper implements RecordingDataListener {
     private final Path path;
@@ -193,7 +192,7 @@ public class ProfilingAgent {
         if (config.getProfilingEnablement() == ProfilingEnablement.ARMED) {
           // initialized, but recording only starts when requested by remote config
           log.debug("Profiling lifecycle: initialized -> idle (armed)");
-          maybeSubscribeRemoteConfig(config);
+          connectRemoteConfigToProfiler();
         } else {
           system.start();
           log.debug("Profiling has started");
@@ -225,8 +224,8 @@ public class ProfilingAgent {
   /**
    * Subscribes to profiling remote config. Called reflectively by {@code
    * datadog.trace.bootstrap.Agent} once the shared communication objects exist. This subscribes
-   * immediately so that DEBUG is included in the first remote config poll request; configs received
-   * before the profiler is initialized are dropped.
+   * immediately so that APM_PROFILING is included in the first remote config poll request; configs
+   * received before the profiler is initialized are kept, and applied once it is.
    */
   @SuppressFBWarnings(
       value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
@@ -241,27 +240,34 @@ public class ProfilingAgent {
     if (remoteConfig != null) {
       return; // already subscribed
     }
-    // Subscribe immediately so DEBUG is included in the first poll request.
-    // The handler drops configs until the profiler becomes available.
+    // Subscribe immediately so APM_PROFILING is included in the first poll request.
+    // The handler keeps the latest configs until the profiler becomes available.
+    // The profiler can be started by remote config as soon as the handler is connected to it,
+    // which can be in premain: it only starts right away where that is safe, as when forced to
+    // start first, and after the startup delay elsewhere.
     ProfilingRemoteConfigHandler handler =
-        new ProfilingRemoteConfigHandler(ConfigProvider.getInstance(), false);
+        new ProfilingRemoteConfigHandler(
+            ConfigProvider.getInstance(), false, isStartForceFirstSafe());
     if (profiler != null) {
       handler.setProfilingSystem(profiler);
     }
     ProfilingConfigPoller poller = new ProfilingConfigPoller(handler);
-    poller.start(config, sco);
+    if (!poller.start(config, sco)) {
+      // nothing will ever ask the profiler to start
+      log.warn("Profiling is armed, but remote config is not enabled: the profiler will not start");
+      return;
+    }
     remoteConfigHandler = handler;
     remoteConfig = poller;
-    sharedCommunicationObjects = sco;
   }
 
   // called with the class lock held once the profiling system is initialized; connects the
-  // profiler to the remote config handler so that later configs are applied
-  private static void maybeSubscribeRemoteConfig(Config config) {
-    if (profiler == null || remoteConfigHandler == null) {
-      return;
+  // profiler to the remote config handler, if there is one, so that later configs are applied
+  private static void connectRemoteConfigToProfiler() {
+    ProfilingRemoteConfigHandler handler = remoteConfigHandler;
+    if (profiler != null && handler != null) {
+      handler.setProfilingSystem(profiler);
     }
-    remoteConfigHandler.setProfilingSystem(profiler);
   }
 
   private static RecordingDataListener wrapWithScrubber(
@@ -293,14 +299,15 @@ public class ProfilingAgent {
   private static void shutdown(
       ProfilingSystem profiler, ProfileUploader uploader, boolean snapshot) {
     if (shutDownFlag.compareAndSet(false, true)) {
-      ProfilingConfigPoller rc = remoteConfig;
-      if (rc != null) {
-        rc.stop();
-      }
-      // a remote config update still in flight must not restart the profiler after it stopped
+      // a remote config update still in flight must not restart the profiler after it stopped, so
+      // stop reacting to remote config before unsubscribing
       ProfilingRemoteConfigHandler rcHandler = remoteConfigHandler;
       if (rcHandler != null) {
         rcHandler.close();
+      }
+      ProfilingConfigPoller rc = remoteConfig;
+      if (rc != null) {
+        rc.stop();
       }
 
       if (profiler != null) {

@@ -12,6 +12,6 @@ public enum Product {
   ASM_DATA,
   ASM_FEATURES,
   FFE_FLAGS,
-  DEBUG,
+  APM_PROFILING,
   _UNKNOWN,
 }

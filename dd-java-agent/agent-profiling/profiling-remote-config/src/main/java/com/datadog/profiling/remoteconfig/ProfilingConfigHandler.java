@@ -1,15 +1,16 @@
 package com.datadog.profiling.remoteconfig;
 
-import java.util.Map;
-
-/** Receives the full set of active {@code DEBUG} configs after each remote-config commit. */
+/**
+ * Receives the priority stack of the active {@code APM_PROFILING} configs after each remote-config
+ * commit.
+ */
 @FunctionalInterface
 public interface ProfilingConfigHandler {
-  ProfilingConfigHandler NOOP = configsById -> {};
+  ProfilingConfigHandler NOOP = stack -> {};
 
   /**
-   * @param configsById raw JSON payloads keyed by remote-config config id; empty when all configs
-   *     have been removed
+   * @param stack a snapshot of the stack, that the poller doesn't change afterwards; empty when all
+   *     configs have been removed
    */
-  void onConfigsChanged(Map<String, String> configsById);
+  void onConfigsChanged(RemoteConfigurationStack stack);
 }
