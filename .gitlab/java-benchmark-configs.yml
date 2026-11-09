@@ -43,12 +43,27 @@
     interruptible: true
     allow_failure: true
 
+# Run publishers whenever their consumers run automatically, including PR startup
+# benchmarks and merge-queue benchmarks. DaCapo remains manual on PR branches.
+build-java-spring-petclinic-image:
+  rules: *parallel_startup_benchmark_rules
+
+build-java-insecure-bank-image:
+  rules: *parallel_startup_benchmark_rules
+
+build-java-dacapo-image:
+  rules: *parallel_benchmark_rules
+
 # Ensure the tracer artifact publish finishes before the benchmark jobs start.
 linux-java-spring-petclinic-parallel:
   needs:
     - job: publish-artifacts-to-s3
     - job: build-java-spring-petclinic-image
       artifacts: true
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - !reference [.parallel-benchmark-template, rules]
 
 linux-java-insecure-bank-load-parallel:
   needs:
