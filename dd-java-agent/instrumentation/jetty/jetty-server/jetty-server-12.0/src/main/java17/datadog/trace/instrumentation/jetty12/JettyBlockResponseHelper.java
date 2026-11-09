@@ -1,13 +1,21 @@
 package datadog.trace.instrumentation.jetty12;
 
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_IGNORE_COMMIT_ATTRIBUTE;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.eclipse.jetty.util.thread.Invocable.InvocationType.NON_BLOCKING;
 
 import datadog.appsec.api.blocking.BlockingContentType;
+import datadog.context.Context;
+import datadog.trace.api.appsec.AppSecContext;
+import datadog.trace.api.gateway.BlockResponseFunction;
+import datadog.trace.api.gateway.Flow;
+import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.blocking.BlockingActionHelper;
 import datadog.trace.bootstrap.blocking.BlockingActionHelper.TemplateType;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -123,5 +131,68 @@ public final class JettyBlockResponseHelper {
       log.debug("Failed to mark segment as effectively blocked", t);
     }
     return true;
+  }
+
+  /**
+   * Request-phase blocking: commits the blocking response decided while processing the request
+   * (headers, URI, client IP) through the {@link BlockResponseFunction} registered on the request
+   * context, and completes the Jetty {@code callback} when it succeeds.
+   *
+   * <p>Called on entry of {@code Server.handle(Request, Response, Callback)}. Fails open: when
+   * there is nothing to block or the commit fails, it returns {@code false} and the handler chain
+   * runs normally. A failed commit is reported as {@code block_failure} (by the {@code
+   * (RequestContext, RequestBlockingAction)} overload, or here when the commit throws).
+   *
+   * @return true only if the blocking response was committed and the callback completed, in which
+   *     case the caller must skip the handler chain
+   */
+  public static boolean tryBlockRequest(Request request, Callback callback) {
+    Object contextObj = request.getAttribute(DD_CONTEXT_ATTRIBUTE);
+    if (!(contextObj instanceof Context)) {
+      return false;
+    }
+    AgentSpan span = AgentSpan.fromContext((Context) contextObj);
+    if (span == null) {
+      return false;
+    }
+    Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
+    if (rba == null) {
+      return false;
+    }
+    RequestContext reqCtx = span.getRequestContext();
+    if (reqCtx == null) {
+      return false;
+    }
+    BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
+    if (brf == null) {
+      return false;
+    }
+    try {
+      if (!brf.tryCommitBlockingResponse(reqCtx, rba)) {
+        return false;
+      }
+    } catch (Throwable t) {
+      log.debug("Failed to commit request blocking response", t);
+      reportBlockFailure(reqCtx);
+      return false;
+    }
+    try {
+      callback.succeeded();
+    } catch (Throwable t) {
+      // the blocking response was already written, the handler chain must not run
+      log.debug("Failed to complete callback after request blocking response", t);
+    }
+    return true;
+  }
+
+  private static void reportBlockFailure(RequestContext reqCtx) {
+    try {
+      Object appSecCtx = reqCtx.getData(RequestContextSlot.APPSEC);
+      if (appSecCtx instanceof AppSecContext) {
+        ((AppSecContext) appSecCtx).reportBlockFailure();
+      }
+    } catch (Throwable t) {
+      log.debug("Failed to report block failure", t);
+    }
   }
 }
