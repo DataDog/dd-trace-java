@@ -1,0 +1,14 @@
+# Initial integration smoke; expand and calibrate the suite before using it as a quality gate.
+model: claude-opus-5-5
+runs: 1
+concurrency: 2
+max_turns: 10
+
+instruction_files:
+  - AGENTS.md
+
+default_level: minimum
+presets:
+  minimum:
+    cases: [java-lint-plan-001]
+    runs: 1

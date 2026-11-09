@@ -1,0 +1,19 @@
+name: java-agent-smoke
+version: "0.1"
+cases:
+  - id: java-lint-plan-001
+    files: [AGENTS.md]
+    only_warn: true
+    input: |
+      I want to enable one currently deferred SpotBugs detector for production code
+      in dd-trace-java. Give a short plan using repository files, identifying the
+      configuration, scope, and validation steps. Do not edit files, run builds,
+      call external services, or claim that validation has already passed.
+    expected_criteria:
+      - Locates the SpotBugs convention in buildSrc/src/main/kotlin/dd-trace-java.conventions.spotbugs.gradle.kts and checks its omitVisitors list before choosing a detector.
+      - Proposes enabling one detector, keeping ignoreFailures false and the production task scope; does not enable analysis on tests or smoke tests as part of this request.
+      - Proposes validating the affected production checks; ./gradlew check -PskipTests includes enabled SpotBugs tasks and other checks. Distinguishes proposed validation from completed validation.
+      - Respects the read-only, plan-only request.
+    bad_signals:
+      - Recommends bulk-removing omitVisitors entries or setting ignoreFailures to true to pass CI.
+      - Claims builds or checks passed despite not running them, or performs edits or external calls contrary to the request.
