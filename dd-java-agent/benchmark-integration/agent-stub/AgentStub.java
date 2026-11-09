@@ -7,6 +7,8 @@ import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
@@ -21,6 +23,10 @@ import java.util.concurrent.atomic.AtomicLongArray;
  * unsampled traces, peer tags. Remote Config is not advertised, so the tracer doesn't poll it. Trace
  * and stats payloads are read, discarded and answered immediately.
  *
+ * <p>Every response carries {@code Datadog-Agent-State}, the SHA-256 of {@code /info}, as a real
+ * Agent's do. The tracer compares it with the hash it took at discovery, and a missing header looks
+ * like an Agent change, so it would rerun discovery after every payload.
+ *
  * <p>A local Agent can be slow or rejecting payloads without anyone noticing, and the tracer's writer
  * then backs up and holds traces in the heap, which changes the GC behavior being measured. The stub
  * takes that variable out, and {@code GET /_stats} reports what it received, one line per endpoint
@@ -34,10 +40,12 @@ import java.util.concurrent.atomic.AtomicLongArray;
  */
 public class AgentStub {
   private static final Map<String, AtomicLongArray> RECEIVED = new ConcurrentHashMap<>();
+  private static String agentState;
 
   public static void main(String[] args) throws IOException {
     int port = args.length > 0 ? Integer.parseInt(args[0]) : 8126;
     byte[] info = Files.readAllBytes(Path.of(args.length > 1 ? args[1] : "agent-info.json"));
+    agentState = sha256Hex(info);
     double sampleRate = Double.parseDouble(env("STUB_SAMPLE_RATE", "1"));
     long delayMs = Long.parseLong(env("STUB_DELAY_MS", "0"));
     int errorCode = Integer.parseInt(env("STUB_ERROR_CODE", "0"));
@@ -106,11 +114,25 @@ public class AgentStub {
 
   private static void reply(HttpExchange exchange, int status, byte[] body) throws IOException {
     exchange.getResponseHeaders().set("Content-Type", "application/json");
+    exchange.getResponseHeaders().set("Datadog-Agent-State", agentState);
     exchange.sendResponseHeaders(status, body.length == 0 ? -1 : body.length);
     if (body.length > 0) {
       try (OutputStream out = exchange.getResponseBody()) {
         out.write(body);
       }
+    }
+  }
+
+  /** Lowercase hex, matching how the tracer hashes the {@code /info} body. */
+  private static String sha256Hex(byte[] bytes) {
+    try {
+      StringBuilder hex = new StringBuilder(64);
+      for (byte b : MessageDigest.getInstance("SHA-256").digest(bytes)) {
+        hex.append(Character.forDigit((b >> 4) & 0xF, 16)).append(Character.forDigit(b & 0xF, 16));
+      }
+      return hex.toString();
+    } catch (NoSuchAlgorithmException e) {
+      throw new IllegalStateException(e);
     }
   }
 
