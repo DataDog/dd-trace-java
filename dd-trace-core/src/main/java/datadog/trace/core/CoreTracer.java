@@ -1266,16 +1266,6 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   }
 
   @Override
-  public boolean isAsyncPropagationEnabled() {
-    return scopeManager.isAsyncPropagationEnabled();
-  }
-
-  @Override
-  public void setAsyncPropagationEnabled(boolean asyncPropagationEnabled) {
-    scopeManager.setAsyncPropagationEnabled(asyncPropagationEnabled);
-  }
-
-  @Override
   public void closePrevious(boolean finishSpan) {
     if (!InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
       throw new IllegalStateException(
@@ -2738,6 +2728,16 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       }
     }
     return result.freeze();
+  }
+
+  @Override
+  public boolean isCaptureEnabled() {
+    return scopeManager.isCaptureEnabled();
+  }
+
+  @Override
+  public void setCaptureEnabled(boolean enabled) {
+    scopeManager.setCaptureEnabled(enabled);
   }
 
   @Override

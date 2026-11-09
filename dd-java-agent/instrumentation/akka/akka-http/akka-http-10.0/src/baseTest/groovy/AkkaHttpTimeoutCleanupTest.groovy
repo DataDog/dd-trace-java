@@ -2,6 +2,7 @@ import akka.actor.ActorSystem
 import akka.actor.Cancellable
 import akka.http.javadsl.model.HttpRequest
 import akka.stream.ActorMaterializer
+import datadog.context.Context
 import datadog.trace.agent.test.InstrumentationSpecification
 import scala.concurrent.Await
 import scala.concurrent.Promise$
@@ -12,8 +13,6 @@ import spock.util.concurrent.PollingConditions
 import java.util.concurrent.TimeUnit
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPropagationEnabled
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagationEnabled
 
 class AkkaHttpTimeoutCleanupTest extends InstrumentationSpecification {
 
@@ -41,9 +40,9 @@ class AkkaHttpTimeoutCleanupTest extends InstrumentationSpecification {
 
     when:
     runUnderTrace('request') {
-      setAsyncPropagationEnabled(enabled)
+      Context.setCaptureEnabled(enabled)
       clear.invoke(access)
-      assert isAsyncPropagationEnabled() == enabled
+      assert Context.isCaptureEnabled() == enabled
     }
 
     then:

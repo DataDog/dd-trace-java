@@ -12,6 +12,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.api.aiguard.AIGuard;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -80,7 +81,7 @@ class AIGuardContextPropagationTest {
           DDSpan span = (DDSpan) tracer.activeSpan();
           assertEquals(
               scopeDepthLimit == 1 ? "parent" : "ai_guard", span.getOperationName().toString());
-          assertFalse(tracer.isAsyncPropagationEnabled());
+          assertFalse(Context.isCaptureEnabled());
           if (outcome == Outcome.ERROR) {
             throw new IOException("Transport failed");
           }
@@ -102,7 +103,7 @@ class AIGuardContextPropagationTest {
     List<AIGuard.Message> messages = singletonList(AIGuard.Message.message("user", "Hello"));
     AgentSpan parent = tracer.startSpan("test", "parent");
     try (ContextScope ignored = tracer.activateSpan(parent)) {
-      tracer.setAsyncPropagationEnabled(callerPropagation);
+      Context.setCaptureEnabled(callerPropagation);
       if (outcome == Outcome.ERROR) {
         assertThrows(
             AIGuard.AIGuardClientError.class,
@@ -117,7 +118,7 @@ class AIGuardContextPropagationTest {
             evaluator.evaluate(messages, AIGuard.Options.DEFAULT).getAction());
       }
       assertSame(parent, tracer.activeSpan());
-      assertEquals(callerPropagation, tracer.isAsyncPropagationEnabled());
+      assertEquals(callerPropagation, Context.isCaptureEnabled());
       verify(call).execute();
     } finally {
       parent.finish();

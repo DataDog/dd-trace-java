@@ -1,17 +1,13 @@
 import Scheduler.Schedule
 
+import datadog.context.Context
 import java.util.concurrent.Semaphore
 import org.apache.pekko.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Props}
 import org.apache.pekko.pattern.ask
 import org.apache.pekko.routing.RoundRobinPool
 import org.apache.pekko.util.Timeout
 import datadog.trace.api.Trace
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer.{
-  activateSpan,
-  activeSpan,
-  setAsyncPropagationEnabled,
-  startSpan
-}
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.{activateSpan, activeSpan, startSpan}
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -61,7 +57,7 @@ class PekkoActors extends AutoCloseable {
   @Trace
   def send(name: String, who: String): Unit = {
     val actor = actors(name)
-    setAsyncPropagationEnabled(true)
+    Context.setCaptureEnabled(true)
     activeSpan().setSpanName(name)
     actor ! WhoToGreet(who)
     if (name == "ask") {
@@ -73,7 +69,7 @@ class PekkoActors extends AutoCloseable {
 
   @Trace
   def leak(who: String, leak: String): Unit = {
-    setAsyncPropagationEnabled(true)
+    Context.setCaptureEnabled(true)
     activeSpan().setSpanName("leak all the things")
     tellGreeter ! WhoToGreet(who)
     tellGreeter ! Leak(leak)
@@ -82,7 +78,7 @@ class PekkoActors extends AutoCloseable {
   @Trace
   def schedule(): Semaphore = {
     val barrier = new Semaphore(0)
-    setAsyncPropagationEnabled(true)
+    Context.setCaptureEnabled(true)
     activeSpan().setSpanName("schedulerSpan")
     scheduler ! Schedule(barrier)
     barrier
