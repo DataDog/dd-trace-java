@@ -29,15 +29,12 @@ class JMXFetchCollectorDecisionTest {
   }
 
   @TableTest({
-    "scenario             | defaultConfigs         | configDir     | configs       | expected",
-    "default instance     | [jmxfetch-config.yaml] |               | []            | true    ",
-    "nothing              | []                     |               | []            | false   ",
-    "blank config dir     | []                     | ' '           | []            | false   ",
-    "user config dir      | []                     | /etc/jmxfetch | []            | true    ",
-    "user instance config | []                     |               | [my-app.yaml] | true    "
+    "scenario             | defaultConfigs         | configs       | expected",
+    "default instance     | [jmxfetch-config.yaml] | []            | true    ",
+    "nothing              | []                     | []            | false   ",
+    "user instance config | []                     | [my-app.yaml] | true    "
   })
-  void hasJmxFetchWork(
-      List<String> defaultConfigs, String configDir, List<String> configs, boolean expected) {
-    assertEquals(expected, JMXFetch.hasJmxFetchWork(defaultConfigs, configDir, configs));
+  void hasJmxFetchWork(List<String> defaultConfigs, List<String> configs, boolean expected) {
+    assertEquals(expected, JMXFetch.hasJmxFetchWork(defaultConfigs, configs));
   }
 }

@@ -170,18 +170,20 @@ class JMXFetchTest {
   }
 
   @TableTest({
-    "scenario                     | otlp  | tomcat | websphere | userConfig | expectedStarted | expectedDefaultConfigs                ",
-    "otlp disabled                | false | false  | false     | false      | true            | [jmxfetch-config.yaml]                ",
-    "otlp enabled, no integration | true  | false  | false     | false      | false           | []                                    ",
-    "otlp enabled, tomcat enabled | true  | true   | false     | false      | true            | [jmxfetch-config-no-jvm-defaults.yaml]",
-    "otlp enabled, websphere only | true  | false  | true      | false      | true            | [jmxfetch-websphere-config.yaml]      ",
-    "otlp enabled, user config    | true  | false  | false     | true       | true            | []                                    "
+    "scenario                      | otlp  | tomcat | websphere | userConfig | configDirOnly | expectedStarted | expectedDefaultConfigs                ",
+    "otlp disabled                 | false | false  | false     | false      | false         | true            | [jmxfetch-config.yaml]                ",
+    "otlp enabled, no integration  | true  | false  | false     | false      | false         | false           | []                                    ",
+    "otlp enabled, tomcat enabled  | true  | true   | false     | false      | false         | true            | [jmxfetch-config-no-jvm-defaults.yaml]",
+    "otlp enabled, websphere only  | true  | false  | true      | false      | false         | true            | [jmxfetch-websphere-config.yaml]      ",
+    "otlp enabled, user config     | true  | false  | false     | true       | false         | true            | []                                    ",
+    "otlp enabled, config dir only | true  | false  | false     | false      | true          | false           | []                                    "
   })
   void jmxCollectorStartsOnlyWhenItHasWork(
       boolean otlp,
       boolean tomcat,
       boolean websphere,
       boolean userConfig,
+      boolean configDirOnly,
       boolean expectedStarted,
       List<String> expectedDefaultConfigs)
       throws Exception {
@@ -204,7 +206,7 @@ class JMXFetchTest {
     if (websphere) {
       jvmArgs.add("-Ddd.jmxfetch.websphere.enabled=true");
     }
-    if (userConfig) {
+    if (userConfig || configDirOnly) {
       Files.write(
           tempDir.resolve("user.yaml"),
           asList(
@@ -217,6 +219,9 @@ class JMXFetchTest {
               "          domain: java.lang",
               "          type: Memory"));
       jvmArgs.add("-Ddd.jmxfetch.config.dir=" + tempDir);
+    }
+    if (userConfig) {
+      // JMXFetch loads only the files listed in dd.jmxfetch.config: it does not scan the dir
       jvmArgs.add("-Ddd.jmxfetch.config=user.yaml");
     }
     ByteArrayOutputStream testOutput = new ByteArrayOutputStream();

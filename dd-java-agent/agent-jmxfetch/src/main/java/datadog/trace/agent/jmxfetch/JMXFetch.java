@@ -2,7 +2,6 @@ package datadog.trace.agent.jmxfetch;
 
 import static datadog.trace.util.AgentThreadFactory.AgentThread.JMX_COLLECTOR;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
-import static datadog.trace.util.Strings.isBlank;
 import static org.datadog.jmxfetch.AppConfig.ACTION_COLLECT;
 
 import datadog.environment.SystemProperties;
@@ -109,7 +108,7 @@ public class JMXFetch {
         defaultInstanceConfigs(
             otlpRuntimeMetricsEnabled, internalMetricsConfigs, metricsConfigs, websphereEnabled);
     log.debug("JMXFetch default instance configs: {}", defaultConfigs);
-    if (!hasJmxFetchWork(defaultConfigs, jmxFetchConfigDir, jmxFetchConfigs)) {
+    if (!hasJmxFetchWork(defaultConfigs, jmxFetchConfigs)) {
       log.debug(
           "JMXFetch collector not started: JVM runtime metrics are collected over OTLP and no"
               + " JMXFetch integration or configuration is enabled");
@@ -219,10 +218,8 @@ public class JMXFetch {
 
   /** Returns whether the JMXFetch collector has at least one bundled or user instance to run. */
   static boolean hasJmxFetchWork(
-      final List<String> defaultConfigs,
-      final String jmxFetchConfigDir,
-      final List<String> jmxFetchConfigs) {
-    return !defaultConfigs.isEmpty() || !isBlank(jmxFetchConfigDir) || !jmxFetchConfigs.isEmpty();
+      final List<String> defaultConfigs, final List<String> jmxFetchConfigs) {
+    return !defaultConfigs.isEmpty() || !jmxFetchConfigs.isEmpty();
   }
 
   @SuppressForbidden
