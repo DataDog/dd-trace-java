@@ -1,0 +1,15 @@
+server:
+  type: simple
+  applicationContextPath: /
+  rootPath: /api/*
+  connector:
+    type: http
+    # Overridden by the smoke test with -Ddw.server.connector.port=<httpPort>
+    port: 8080
+  requestLog:
+    appenders: []
+
+logging:
+  level: INFO
+  appenders:
+    - type: console

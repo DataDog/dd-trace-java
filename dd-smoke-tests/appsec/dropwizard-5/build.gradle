@@ -1,0 +1,59 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
+plugins {
+  id 'com.gradleup.shadow'
+  id 'dd-trace-java.module.smoke-test'
+}
+
+description = 'Dropwizard 5 AppSec Smoke Tests.'
+
+testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_17
+}
+
+tasks.named("compileJava", JavaCompile) {
+  configureCompiler(it, JavaVersion.VERSION_17)
+}
+
+tasks.named("jar", Jar) {
+  manifest {
+    attributes(
+      'Main-Class': 'datadog.smoketest.appsec.dropwizard5.DropwizardApplication',
+      // Jetty 12 and Jackson ship multi-release jars
+      'Multi-Release': 'true'
+      )
+  }
+}
+
+tasks.named("shadowJar", ShadowJar) {
+  duplicatesStrategy = DuplicatesStrategy.INCLUDE
+  mergeServiceFiles()
+  filesNotMatching('META-INF/services/**') {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+  }
+  exclude 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA'
+}
+
+dependencies {
+  implementation project(':dd-trace-api')
+  // Dropwizard 5.0.1 brings Jersey 3.1.11 and Jetty ee10 12.1.5 through its BOM
+  implementation 'io.dropwizard:dropwizard-core:5.0.1'
+  constraints {
+    // Mirror the affected customer stack: newer Jetty core server with the BOM ee10 servlet layer
+    implementation('org.eclipse.jetty:jetty-server:12.1.14')
+  }
+
+  testImplementation project(':dd-smoke-tests:appsec')
+}
+
+tasks.withType(Test).configureEach {
+  def shadowJarTask = tasks.named('shadowJar', ShadowJar)
+  dependsOn shadowJarTask
+
+  jvmArgumentProviders.add(new CommandLineArgumentProvider() {
+      @Override
+      Iterable<String> asArguments() {
+        return shadowJarTask.map { ["-Ddatadog.smoketest.appsec.dropwizard5.shadowJar.path=${it.archiveFile.get()}"] }.get()
+      }
+    })
+}
