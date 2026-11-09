@@ -1,12 +1,12 @@
 package testdog.trace.instrumentation.java.concurrent;
 
 import static datadog.context.Context.current;
+import static datadog.context.Context.isCaptureEnabled;
+import static datadog.context.Context.setCaptureEnabled;
 import static datadog.trace.agent.test.assertions.SpanMatcher.span;
 import static datadog.trace.agent.test.assertions.TraceMatcher.SORT_BY_START_TIME;
 import static datadog.trace.agent.test.assertions.TraceMatcher.trace;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPropagationEnabled;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagationEnabled;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static java.util.concurrent.TimeUnit.DAYS;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -348,12 +348,12 @@ class ForkJoinPoolSchedulingTest extends AbstractInstrumentationTest {
     try (ForkJoinPool pool = new ForkJoinPool(1)) {
       AgentSpan parent = startSpan("test", "parent");
       try (ContextScope ignored = current().with(parent).attach()) {
-        boolean enabled = isAsyncPropagationEnabled();
-        setAsyncPropagationEnabled(false);
+        boolean enabled = isCaptureEnabled();
+        setCaptureEnabled(false);
         try {
           pool.schedule(() -> assertNull(AgentSpan.current()), 0, MILLISECONDS).get(10, SECONDS);
         } finally {
-          setAsyncPropagationEnabled(enabled);
+          setCaptureEnabled(enabled);
         }
       } finally {
         parent.finish();

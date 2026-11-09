@@ -5,8 +5,8 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameEnd
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPropagationEnabled;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagationEnabled;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.isContextCaptureEnabled;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.setContextCaptureEnabled;
 import static datadog.trace.instrumentation.java.concurrent.ConcurrentInstrumentationNames.EXECUTOR_INSTRUMENTATION_NAME;
 import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
 import static net.bytebuddy.matcher.ElementMatchers.isTypeInitializer;
@@ -276,8 +276,8 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static boolean before() {
-      if (isAsyncPropagationEnabled()) {
-        setAsyncPropagationEnabled(false);
+      if (isContextCaptureEnabled()) {
+        setContextCaptureEnabled(false);
         return true;
       }
       return false;
@@ -286,7 +286,7 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void after(@Advice.Enter boolean wasDisabled) {
       if (wasDisabled) {
-        setAsyncPropagationEnabled(true);
+        setContextCaptureEnabled(true);
       }
     }
   }

@@ -1,11 +1,11 @@
 package server;
 
+import static datadog.context.Context.isCaptureEnabled;
+import static datadog.context.Context.setCaptureEnabled;
 import static datadog.trace.agent.test.assertions.SpanMatcher.span;
 import static datadog.trace.agent.test.assertions.TraceMatcher.trace;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPropagationEnabled;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagationEnabled;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -44,7 +44,7 @@ class LocalSessionStoreInstrumentationTest extends AbstractInstrumentationTest {
     try (ContextScope ignored = activateSpan(parent)) {
       store = LocalSessionStore.create(vertx, "creation", 60_000);
       assertSame(parent, activeSpan());
-      assertTrue(isAsyncPropagationEnabled());
+      assertTrue(isCaptureEnabled());
     } finally {
       parent.finish();
     }
@@ -64,7 +64,7 @@ class LocalSessionStoreInstrumentationTest extends AbstractInstrumentationTest {
         // A worker queue can invoke the maintenance callback under an unrelated request context.
         ((LocalSessionStoreImpl) store).handle(0L);
         assertSame(parent, activeSpan());
-        assertTrue(isAsyncPropagationEnabled());
+        assertTrue(isCaptureEnabled());
       } finally {
         parent.finish();
       }
@@ -82,7 +82,7 @@ class LocalSessionStoreInstrumentationTest extends AbstractInstrumentationTest {
           IllegalArgumentException.class,
           () -> LocalSessionStore.create(vertx, "invalid-interval", -1));
       assertSame(parent, activeSpan());
-      assertTrue(isAsyncPropagationEnabled());
+      assertTrue(isCaptureEnabled());
     } finally {
       parent.finish();
     }
@@ -93,10 +93,10 @@ class LocalSessionStoreInstrumentationTest extends AbstractInstrumentationTest {
   void preservesDisabledPropagation() throws Exception {
     AgentSpan parent = startSpan("test", "parent");
     try (ContextScope ignored = activateSpan(parent)) {
-      setAsyncPropagationEnabled(false);
+      setCaptureEnabled(false);
       LocalSessionStore store = LocalSessionStore.create(vertx, "disabled", 60_000);
       try {
-        assertFalse(isAsyncPropagationEnabled());
+        assertFalse(isCaptureEnabled());
       } finally {
         store.close();
       }

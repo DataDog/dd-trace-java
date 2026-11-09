@@ -11,9 +11,9 @@ import spock.util.concurrent.PollingConditions
 
 import java.util.concurrent.TimeUnit
 
+import static datadog.context.Context.isCaptureEnabled
+import static datadog.context.Context.setCaptureEnabled
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPropagationEnabled
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagationEnabled
 
 class AkkaHttpTimeoutCleanupTest extends InstrumentationSpecification {
 
@@ -41,9 +41,9 @@ class AkkaHttpTimeoutCleanupTest extends InstrumentationSpecification {
 
     when:
     runUnderTrace('request') {
-      setAsyncPropagationEnabled(enabled)
+      setCaptureEnabled(enabled)
       clear.invoke(access)
-      assert isAsyncPropagationEnabled() == enabled
+      assert isCaptureEnabled() == enabled
     }
 
     then:

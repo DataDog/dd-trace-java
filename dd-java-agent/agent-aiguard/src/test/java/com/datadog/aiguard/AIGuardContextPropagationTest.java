@@ -1,5 +1,7 @@
 package com.datadog.aiguard;
 
+import static datadog.context.Context.isCaptureEnabled;
+import static datadog.context.Context.setCaptureEnabled;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -80,7 +82,7 @@ class AIGuardContextPropagationTest {
           DDSpan span = (DDSpan) tracer.activeSpan();
           assertEquals(
               scopeDepthLimit == 1 ? "parent" : "ai_guard", span.getOperationName().toString());
-          assertFalse(tracer.isAsyncPropagationEnabled());
+          assertFalse(isCaptureEnabled());
           if (outcome == Outcome.ERROR) {
             throw new IOException("Transport failed");
           }
@@ -102,7 +104,7 @@ class AIGuardContextPropagationTest {
     List<AIGuard.Message> messages = singletonList(AIGuard.Message.message("user", "Hello"));
     AgentSpan parent = tracer.startSpan("test", "parent");
     try (ContextScope ignored = tracer.activateSpan(parent)) {
-      tracer.setAsyncPropagationEnabled(callerPropagation);
+      setCaptureEnabled(callerPropagation);
       if (outcome == Outcome.ERROR) {
         assertThrows(
             AIGuard.AIGuardClientError.class,
@@ -117,7 +119,7 @@ class AIGuardContextPropagationTest {
             evaluator.evaluate(messages, AIGuard.Options.DEFAULT).getAction());
       }
       assertSame(parent, tracer.activeSpan());
-      assertEquals(callerPropagation, tracer.isAsyncPropagationEnabled());
+      assertEquals(callerPropagation, isCaptureEnabled());
       verify(call).execute();
     } finally {
       parent.finish();
