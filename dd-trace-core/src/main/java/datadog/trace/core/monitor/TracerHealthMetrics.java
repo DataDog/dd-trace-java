@@ -109,7 +109,7 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   private final StatsDClient statsd;
   private final long interval;
 
-  /** Read on flush, so the gauges keep moving while the serializer is stuck in a send. */
+  /** Read on flush, so queue.spans keeps moving while the serializer is stuck in a send. */
   private volatile SpanBudget spanBudget;
 
   private final TimeUnit units;
@@ -134,13 +134,10 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   }
 
   @Override
-  public void onStart(final int queueCapacity) {
+  public void onStart(final int queueCapacity, final SpanBudget spanBudget) {
     statsd.gauge("queue.max_length", queueCapacity, NO_TAGS);
-  }
-
-  @Override
-  public void registerSpanBudget(final SpanBudget spanBudget) {
     if (!spanBudget.isUnlimited()) {
+      statsd.gauge("queue.span_limit", spanBudget.limit(), NO_TAGS);
       this.spanBudget = spanBudget;
     }
   }
@@ -495,7 +492,6 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
         SpanBudget spanBudget = target.spanBudget;
         if (spanBudget != null) {
           target.statsd.gauge("queue.spans", spanBudget.used(), NO_TAGS);
-          target.statsd.gauge("queue.span_limit", spanBudget.limit(), NO_TAGS);
         }
         reportIfChanged(target.statsd, "queue.enqueued.bytes", target.enqueuedBytes, NO_TAGS);
         reportIfChanged(target.statsd, "trace.pending.created", target.createdTraces, NO_TAGS);

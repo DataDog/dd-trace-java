@@ -69,7 +69,8 @@ class DDAgentWriterTest extends DDCoreJavaSpecification {
     verify(monitor).start();
     verify(worker).start();
     verify(worker).getCapacity();
-    verify(monitor).onStart(capacity);
+    verify(worker).getSpanBudget();
+    verify(monitor).onStart(eq(capacity), any());
     verifyNoMoreInteractions(monitor, worker, discovery, api);
   }
 

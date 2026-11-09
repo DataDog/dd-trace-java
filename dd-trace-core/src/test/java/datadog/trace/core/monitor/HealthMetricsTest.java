@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -127,29 +128,33 @@ class HealthMetricsTest {
   }
 
   @Test
-  void testReportsSpanBudgetGaugesOnFlush() throws InterruptedException {
+  void testReportsSpanLimitOnStartAndUsageOnFlush() throws InterruptedException {
     SpanBudget budget = SpanBudget.of(1000);
     assertTrue(budget.tryAdmitKept(300));
-    CountDownLatch latch = new CountDownLatch(2);
+    CountDownLatch latch = new CountDownLatch(3);
     try (TracerHealthMetrics healthMetrics =
         new TracerHealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)) {
-      healthMetrics.registerSpanBudget(budget);
+      healthMetrics.onStart(1024, budget);
+      // the limit is constant, so it is reported once, with the queue capacity
+      verify(statsD).gauge("queue.max_length", 1024L);
+      verify(statsD).gauge("queue.span_limit", 1000L);
       healthMetrics.start();
       assertTrue(latch.await(10, TimeUnit.SECONDS));
     }
     verify(statsD, atLeastOnce()).gauge("queue.spans", 300L);
-    verify(statsD, atLeastOnce()).gauge("queue.span_limit", 1000L);
+    verify(statsD, times(1)).gauge("queue.span_limit", 1000L);
   }
 
   @Test
-  void testUnlimitedSpanBudgetReportsNoGauges() throws InterruptedException {
+  void testUnlimitedSpanBudgetReportsNoSpanGauges() throws InterruptedException {
     try (TracerHealthMetrics healthMetrics =
         new TracerHealthMetrics(statsD, 100, TimeUnit.MILLISECONDS)) {
-      healthMetrics.registerSpanBudget(SpanBudget.unlimited());
+      healthMetrics.onStart(1024, SpanBudget.unlimited());
       healthMetrics.start();
       Thread.sleep(300);
     }
     verify(statsD, never()).gauge(eq("queue.spans"), anyLong());
+    verify(statsD, never()).gauge(eq("queue.span_limit"), anyLong());
   }
 
   @Test

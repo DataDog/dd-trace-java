@@ -23,10 +23,11 @@ public abstract class HealthMetrics implements AutoCloseable {
 
   public void start() {}
 
-  public void onStart(final int queueCapacity) {}
-
-  /** Reports the writer's span budget; it is read when metrics are flushed. */
-  public void registerSpanBudget(final SpanBudget spanBudget) {}
+  /**
+   * @param queueCapacity the trace capacity of the writer's queues
+   * @param spanBudget the writer's span budget; its usage is read when metrics are flushed
+   */
+  public void onStart(final int queueCapacity, final SpanBudget spanBudget) {}
 
   public void onShutdown(final boolean flushSuccess) {}
 

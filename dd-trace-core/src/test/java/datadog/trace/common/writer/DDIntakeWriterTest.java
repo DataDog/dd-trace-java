@@ -79,7 +79,8 @@ class DDIntakeWriterTest extends DDCoreJavaSpecification {
     verify(healthMetrics).start();
     verify(worker).start();
     verify(worker).getCapacity();
-    verify(healthMetrics).onStart(capacity);
+    verify(worker).getSpanBudget();
+    verify(healthMetrics).onStart(eq(capacity), any());
     verifyNoMoreInteractions(healthMetrics, worker, discovery, api);
   }
 

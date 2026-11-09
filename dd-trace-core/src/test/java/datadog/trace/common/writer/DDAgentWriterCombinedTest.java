@@ -18,6 +18,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -376,7 +377,7 @@ class DDAgentWriterCombinedTest extends DDCoreJavaSpecification {
       // start
       writer.start();
 
-      verify(healthMetrics, times(1)).onStart((int) writer.getCapacity());
+      verify(healthMetrics, times(1)).onStart(eq((int) writer.getCapacity()), any());
 
       // write and flush
       writer.write(minimalTrace);
@@ -431,7 +432,7 @@ class DDAgentWriterCombinedTest extends DDCoreJavaSpecification {
       // start
       writer.start();
 
-      verify(healthMetrics, times(1)).onStart((int) writer.getCapacity());
+      verify(healthMetrics, times(1)).onStart(eq((int) writer.getCapacity()), any());
 
       // write and flush
       writer.write(minimalTrace);
@@ -562,7 +563,7 @@ class DDAgentWriterCombinedTest extends DDCoreJavaSpecification {
     // start
     writer.start();
 
-    verify(healthMetrics, times(1)).onStart((int) writer.getCapacity());
+    verify(healthMetrics, times(1)).onStart(eq((int) writer.getCapacity()), any());
 
     // write and flush
     writer.write(minimalTrace);

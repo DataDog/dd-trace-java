@@ -153,7 +153,7 @@ public abstract class RemoteWriter implements Writer {
     if (!closed) {
       traceProcessingWorker.start();
       healthMetrics.start();
-      healthMetrics.onStart((int) getCapacity());
+      healthMetrics.onStart((int) getCapacity(), traceProcessingWorker.getSpanBudget());
     }
   }
 

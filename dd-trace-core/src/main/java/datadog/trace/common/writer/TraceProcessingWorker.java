@@ -90,7 +90,6 @@ public class TraceProcessingWorker implements AutoCloseable {
       final SingleSpanSampler singleSpanSampler) {
     this.capacity = capacity;
     this.spanBudget = spanBudget;
-    healthMetrics.registerSpanBudget(spanBudget);
     this.primaryQueue = createQueue(capacity);
     this.secondaryQueue = createQueue(capacity);
     this.spanSamplingWorker =
@@ -167,6 +166,10 @@ public class TraceProcessingWorker implements AutoCloseable {
   public <T extends CoreSpan<T>> PrioritizationStrategy.PublishResult publish(
       T root, int samplingPriority, final List<T> trace) {
     return prioritizationStrategy.publish(root, samplingPriority, trace);
+  }
+
+  SpanBudget getSpanBudget() {
+    return spanBudget;
   }
 
   public int getCapacity() {
