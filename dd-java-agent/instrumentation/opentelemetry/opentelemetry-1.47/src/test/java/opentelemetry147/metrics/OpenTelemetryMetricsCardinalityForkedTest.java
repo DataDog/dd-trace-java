@@ -21,8 +21,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /**
- * Forked test: runs in an isolated JVM with a low cardinality limit, verifying that attribute sets
- * an observable callback stops reporting free their cardinality slots.
+ * Checks that an attribute set that an observable callback stops reporting frees its cardinality
+ * slot. Runs in its own JVM because the cardinality limit is read once into a static field.
  */
 @WithConfig(key = "metrics.otel.enabled", value = "true")
 @WithConfig(key = "metrics.otel.cardinality.limit", value = "2")

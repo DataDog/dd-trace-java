@@ -190,18 +190,21 @@ public final class OtelMetricStorage {
   }
 
   /**
-   * Collect data without resetting on collect.
+   * Collects data points without resetting aggregator values.
    *
    * <p>Synchronous instruments keep their aggregators for future writes. Observable instruments
-   * start the next cycle empty, so attribute sets their callback stops reporting are not exported
-   * and don't hold cardinality slots (OTel SDK spec, asynchronous instruments).
+   * start the next collection empty, so attribute sets that their callback stops reporting are no
+   * longer exported and free their cardinality slots, as the OTel SDK spec requires for
+   * asynchronous instruments.
    */
   private void doCollect(OtlpMetricVisitor visitor) {
     // no need to hold writers back if we are not resetting metrics on collect
     Map<Object, OtelAggregator> aggregators = currentRecording.aggregators;
     collectDataPoints(aggregators, visitor, OtelAggregator::collect);
     if (forgetUnobserved) {
-      // observables are only written during the collect cycle, so this can't race a writer
+      // safe without writer coordination: observables are only written by their callbacks,
+      // which OtelMetricRegistry.collectScopedMetrics runs on the collecting thread before
+      // collecting any storage
       aggregators.clear();
     }
   }

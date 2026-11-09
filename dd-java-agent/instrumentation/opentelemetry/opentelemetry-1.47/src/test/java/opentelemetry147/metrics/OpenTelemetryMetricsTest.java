@@ -576,9 +576,12 @@ class OpenTelemetryMetricsTest extends AbstractInstrumentationTest {
   }
 
   /**
-   * Registers an observable whose callback reports {@code 1} without attributes and, while enabled,
-   * {@code 2} with {@link #SOME_ATTRIBUTES}. Checks that the series with attributes is exported
-   * only in the collections where the callback reports it.
+   * Checks that an observable exports the attribute set {@link #SOME_ATTRIBUTES} only in the
+   * collections where its callback reports it. The callback always reports {@code 1} without
+   * attributes, and reports {@code 2} with attributes in the first and third collections only.
+   *
+   * @param metric the exported metric key, as {@code scope:instrument}
+   * @param register builds the observable instrument from the given callback
    */
   static void assertStopsExportingUnobservedAttributes(
       String metric,
@@ -604,7 +607,8 @@ class OpenTelemetryMetricsTest extends AbstractInstrumentationTest {
     assertEquals(1L, points.get(metric));
     assertNull(points.get(metric + WITH_ATTRS));
 
-    // reported again: same value as the first collection, not a delta against a forgotten value
+    // reported again: exported with its full value; observable counters use delta storage, so
+    // this also checks that no stale previous value is subtracted
     reportAttrs[0] = true;
     points.clear();
     OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
