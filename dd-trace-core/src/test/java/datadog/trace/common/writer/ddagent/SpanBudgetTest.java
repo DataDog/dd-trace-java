@@ -80,7 +80,7 @@ class SpanBudgetTest {
   }
 
   @Test
-  void spansRefusedByTheBudgetAreNeverCharged() {
+  void spansRefusedByTheBudgetAreNeverCounted() {
     SpanBudget budget = SpanBudget.of(100);
     assertTrue(budget.tryAdmitKept(100));
 
@@ -96,7 +96,7 @@ class SpanBudgetTest {
   // limit as its cutoff, so these exercise the limit itself.
 
   @Test
-  void admitsWhileBelowTheLimitAndChargesTheFullCost() {
+  void admitsWhileBelowTheLimitAndCountsEverySpan() {
     SpanBudget budget = SpanBudget.of(1000);
 
     assertTrue(budget.tryAdmitKept(600));
@@ -124,7 +124,7 @@ class SpanBudgetTest {
   }
 
   @Test
-  void refusesAtTheLimitWithoutCharging() {
+  void refusesAtTheLimitWithoutCounting() {
     SpanBudget budget = SpanBudget.of(1000);
     assertTrue(budget.tryAdmitKept(1000));
 

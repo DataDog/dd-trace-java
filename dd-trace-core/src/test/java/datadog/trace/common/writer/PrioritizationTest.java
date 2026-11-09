@@ -341,7 +341,7 @@ class PrioritizationTest extends DDJavaSpecification {
 
   @SuppressWarnings("unchecked")
   @Test
-  void testFastLaneChargesEnqueuedTraceAndReleasesOneTheQueueRefuses() {
+  void testFastLaneCountsEnqueuedTraceAndReleasesOneTheQueueRefuses() {
     Queue<Object> primary = mock(Queue.class);
     Queue<Object> secondary = mock(Queue.class);
     SpanBudget budget = SpanBudget.of(100);

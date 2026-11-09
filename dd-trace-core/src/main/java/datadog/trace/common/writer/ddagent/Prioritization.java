@@ -50,8 +50,8 @@ public enum Prioritization {
   };
 
   /**
-   * @param budget the span budget the strategy charges; whoever consumes the queues must release
-   *     what was charged
+   * @param budget the span budget the strategy counts admitted traces against; whoever consumes the
+   *     queues must release what was counted
    */
   public abstract PrioritizationStrategy create(
       Queue<Object> primary,

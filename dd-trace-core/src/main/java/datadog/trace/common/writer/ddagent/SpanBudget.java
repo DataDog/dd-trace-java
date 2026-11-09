@@ -7,8 +7,8 @@ import java.util.concurrent.atomic.AtomicLongFieldUpdater;
  *
  * <p>The writer's queues are bounded by trace count, which says nothing about memory: a stalled
  * agent leaves them full of traces of any size. This budget counts spans instead, shared across
- * every writer queue. It is charged when a trace is enqueued and released once the serializer has
- * consumed the trace, or when the trace is dropped after admission.
+ * every writer queue. A trace's spans are added when it is enqueued, and released once the
+ * serializer has consumed the trace, or when the trace is dropped after admission.
  *
  * <p>Each kind of trace gets its own cutoff, so the least valuable shed first as usage rises:
  *
@@ -23,9 +23,10 @@ import java.util.concurrent.atomic.AtomicLongFieldUpdater;
  * </ul>
  *
  * <p>Admission checks headroom, not fit: a trace is admitted when usage before it is below its
- * cutoff, and is then charged in full. A large trace is admitted whenever a small one would be, so
- * a nearly full budget does not turn away only the large traces. Usage can overshoot a cutoff by
- * the traces admitted while it was below; partial flush bounds chunk size, which bounds that.
+ * cutoff, and then all its spans are counted. A large trace is admitted whenever a small one would
+ * be, so a nearly full budget does not turn away only the large traces. Usage can overshoot a
+ * cutoff by the traces admitted while it was below; partial flush bounds chunk size, which bounds
+ * that.
  *
  * <p>A refused trace only reads the counter, so a saturated budget adds no contended writes to the
  * rejection path, which is the common path while it stays saturated. Each admitted trace must be
@@ -47,7 +48,7 @@ public final class SpanBudget {
     return spanLimit <= 0 ? UNLIMITED : new SpanBudget(spanLimit);
   }
 
-  /** Admits everything and charges nothing. */
+  /** Admits everything and counts nothing. */
   public static SpanBudget unlimited() {
     return UNLIMITED;
   }

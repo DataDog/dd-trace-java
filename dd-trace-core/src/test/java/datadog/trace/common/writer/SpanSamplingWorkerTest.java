@@ -457,7 +457,7 @@ class SpanSamplingWorkerTest extends DDJavaSpecification {
     assertTrue(worker.getSpanSamplingQueue().offer(trace));
 
     assertTrue(latch.await(10, TimeUnit.SECONDS));
-    // the dropping policy discards the two unsampled spans; the sampled one stays charged
+    // the dropping policy discards the two unsampled spans; the sampled one stays counted
     assertEquals(Collections.singletonList(sampled), primaryQueue.take());
     assertEquals(1, budget.used());
 

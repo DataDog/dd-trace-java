@@ -21,8 +21,8 @@ import org.slf4j.LoggerFactory;
 
 public interface SpanSamplingWorker extends AutoCloseable {
   /**
-   * @param spanBudget the budget the traces on this worker's queue were charged to; spans this
-   *     worker drops are released to it, spans it forwards stay charged
+   * @param spanBudget the budget that counts the spans on this worker's queue; spans this worker
+   *     drops are released from it, spans it forwards stay counted
    */
   static SpanSamplingWorker build(
       int capacity,
@@ -146,8 +146,9 @@ public interface SpanSamplingWorker extends AutoCloseable {
             return;
           }
 
-          // The trace was charged whole. Parts forwarded below stay charged until serialized;
-          // parts dropped here are released here.
+          // The whole trace was counted against the budget. Parts forwarded below stay counted
+          // until
+          // serialized; parts dropped here are released here.
 
           ArrayList<DDSpan> sampledSpans = new ArrayList<>(trace.size());
           ArrayList<DDSpan> unsampledSpans = new ArrayList<>(trace.size());

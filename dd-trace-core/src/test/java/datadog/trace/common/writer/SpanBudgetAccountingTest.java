@@ -33,9 +33,9 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 /**
- * The span budget is charged and released on different threads along many paths. A release that is
- * missed or doubled skews every later decision and never corrects, so this drives every path at
- * once and checks that a drained writer holds exactly zero spans.
+ * Spans are added to and released from the budget on different threads along many paths. A release
+ * that is missed or doubled skews every later decision and never corrects, so this drives every
+ * path at once and checks that a drained writer holds exactly zero spans.
  */
 class SpanBudgetAccountingTest extends DDJavaSpecification {
 
