@@ -83,9 +83,9 @@ class FeatureFlagsRuntimeTest {
 
     assertEquals(
         "DD_API_KEY is required for the default Datadog Feature Flagging endpoint; set DD_API_KEY,"
-            + " set DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL, or set"
-            + " DD_FEATURE_FLAGS_CONFIGURATION_SOURCE=remote_config to load flags through the Datadog"
-            + " Agent",
+            + " set DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL, or attach"
+            + " dd-java-agent and set DD_FEATURE_FLAGS_CONFIGURATION_SOURCE=remote_config to load"
+            + " flags through the Datadog Agent",
         error.getMessage());
   }
 
@@ -103,6 +103,16 @@ class FeatureFlagsRuntimeTest {
     assertThrows(
         FeatureFlagsRuntime.MissingApiKeyException.class,
         () -> FeatureFlagsRuntime.create(AgentBridge.NONE, TestSettings.of("api-key", "  ")));
+  }
+
+  @Test
+  void managedEndpointChecksTheApiKeyBeforeBuildingTheSource() {
+    // The CDN source rejects this site when it is built, so a check below that fails here.
+    assertThrows(
+        FeatureFlagsRuntime.MissingApiKeyException.class,
+        () ->
+            FeatureFlagsRuntime.create(
+                AgentBridge.NONE, TestSettings.of("site", "datadoghq.com@other.example")));
   }
 
   @Test

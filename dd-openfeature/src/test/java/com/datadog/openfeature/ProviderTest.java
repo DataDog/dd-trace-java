@@ -80,9 +80,9 @@ public class ProviderTest {
   private static final long EVENT_TIMEOUT_SECONDS = 10;
   private static final String MISSING_API_KEY =
       "DD_API_KEY is required for the default Datadog Feature Flagging endpoint; set DD_API_KEY,"
-          + " set DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL, or set"
-          + " DD_FEATURE_FLAGS_CONFIGURATION_SOURCE=remote_config to load flags through the Datadog"
-          + " Agent";
+          + " set DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL, or attach"
+          + " dd-java-agent and set DD_FEATURE_FLAGS_CONFIGURATION_SOURCE=remote_config to load"
+          + " flags through the Datadog Agent";
 
   private ExecutorService executor;
   private LocalHttpServer cdn;
