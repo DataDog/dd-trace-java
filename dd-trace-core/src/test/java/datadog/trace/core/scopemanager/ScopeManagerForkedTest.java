@@ -127,6 +127,33 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
   }
 
   @Test
+  void attachingNewContextResetsAsyncPropagation() {
+    ContextKey<String> key = ContextKey.named("test-key");
+    Context parent = Context.root().with(key, "parent");
+    try (ContextScope ignored = parent.attach()) {
+      tracer.setAsyncPropagationEnabled(false);
+      try (ContextScope ignored2 = parent.with(key, "child").attach()) {
+        assertTrue(tracer.isAsyncPropagationEnabled());
+      }
+      assertFalse(tracer.isAsyncPropagationEnabled());
+    }
+    assertTrue(tracer.isAsyncPropagationEnabled());
+  }
+
+  @Test
+  void attachingTheCurrentContextPreservesAsyncPropagation() {
+    Context context = Context.root().with(ContextKey.named("test-key"), "value");
+    try (ContextScope ignored = context.attach()) {
+      tracer.setAsyncPropagationEnabled(false);
+      try (ContextScope ignored2 = context.attach()) {
+        assertFalse(tracer.isAsyncPropagationEnabled());
+      }
+      assertFalse(tracer.isAsyncPropagationEnabled());
+    }
+    assertTrue(tracer.isAsyncPropagationEnabled());
+  }
+
+  @Test
   void nonDdspanActivationResultsInAContinuableScope() {
     ContextScope scope = scopeManager.activateSpan(noopSpan());
 
