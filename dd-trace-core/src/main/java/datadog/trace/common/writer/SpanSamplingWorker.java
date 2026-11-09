@@ -20,23 +20,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public interface SpanSamplingWorker extends AutoCloseable {
-  static SpanSamplingWorker build(
-      int capacity,
-      Queue<Object> primaryQueue,
-      Queue<Object> secondaryQueue,
-      SingleSpanSampler singleSpanSampler,
-      HealthMetrics healthMetrics,
-      DroppingPolicy droppingPolicy) {
-    return build(
-        capacity,
-        primaryQueue,
-        secondaryQueue,
-        singleSpanSampler,
-        healthMetrics,
-        droppingPolicy,
-        SpanAdmission.unlimited());
-  }
-
   /**
    * @param spanAdmission the budget the traces on this worker's queue were charged to; spans this
    *     worker drops are released to it, spans it forwards stay charged

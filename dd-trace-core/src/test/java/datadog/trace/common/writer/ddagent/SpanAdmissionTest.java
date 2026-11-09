@@ -78,4 +78,17 @@ class SpanAdmissionTest {
     assertTrue(admission.tryAdmitSampledOut(Integer.MAX_VALUE));
     assertEquals(0, admission.used());
   }
+
+  @Test
+  void spansRefusedByTheBudgetAreNeverCharged() {
+    SpanAdmission admission = SpanAdmission.of(100);
+    assertTrue(admission.tryAdmitKept(100));
+
+    for (int i = 0; i < 1_000; i++) {
+      admission.tryAdmitKept(10);
+      admission.tryAdmitSampledOut(10);
+    }
+
+    assertEquals(100, admission.used());
+  }
 }

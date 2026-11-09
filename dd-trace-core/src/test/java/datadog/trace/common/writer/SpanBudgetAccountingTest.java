@@ -29,7 +29,6 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
@@ -148,18 +147,5 @@ class SpanBudgetAccountingTest extends DDJavaSpecification {
       assertTrue(serializerFailures.get() > 0, "no serializer failures");
       assertEquals(0, admission.used());
     }
-  }
-
-  @Test
-  void spansRefusedByTheBudgetAreNeverCharged() {
-    SpanAdmission admission = SpanAdmission.of(100);
-    assertTrue(admission.tryAdmitKept(100));
-
-    for (int i = 0; i < 1_000; i++) {
-      admission.tryAdmitKept(10);
-      admission.tryAdmitSampledOut(10);
-    }
-
-    assertEquals(100, admission.used());
   }
 }

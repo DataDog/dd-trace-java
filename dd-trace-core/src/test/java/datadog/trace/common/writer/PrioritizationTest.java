@@ -53,7 +53,8 @@ class PrioritizationTest extends DDJavaSpecification {
     Queue<Object> primary = mock(Queue.class);
     Queue<Object> secondary = mock(Queue.class);
     PrioritizationStrategy blocking =
-        Prioritization.ENSURE_TRACE.create(primary, secondary, null, () -> false);
+        Prioritization.ENSURE_TRACE.create(
+            primary, secondary, null, () -> false, SpanAdmission.unlimited());
     // stub: first offer returns !primaryFull, second offer returns true
     when(primary.offer(trace)).thenReturn(!primaryFull, true);
     when(secondary.offer(trace)).thenReturn(true);
@@ -83,7 +84,8 @@ class PrioritizationTest extends DDJavaSpecification {
     Queue<Object> primary = mock(Queue.class);
     Queue<Object> secondary = mock(Queue.class);
     PrioritizationStrategy fastLane =
-        Prioritization.FAST_LANE.create(primary, secondary, null, () -> false);
+        Prioritization.FAST_LANE.create(
+            primary, secondary, null, () -> false, SpanAdmission.unlimited());
 
     PublishResult publishResult = fastLane.publish(mock(DDSpan.class), priority, trace);
 
@@ -109,7 +111,8 @@ class PrioritizationTest extends DDJavaSpecification {
     Queue<Object> primary = mock(Queue.class);
     Queue<Object> secondary = mock(Queue.class);
     PrioritizationStrategy drop =
-        Prioritization.FAST_LANE.create(primary, secondary, null, () -> true);
+        Prioritization.FAST_LANE.create(
+            primary, secondary, null, () -> true, SpanAdmission.unlimited());
     when(primary.offer(trace)).thenReturn(true);
 
     PublishResult publishResult = drop.publish(mock(DDSpan.class), priority, trace);
@@ -129,7 +132,7 @@ class PrioritizationTest extends DDJavaSpecification {
     Queue<Object> primary = mock(Queue.class);
     Queue<Object> secondary = mock(Queue.class);
     PrioritizationStrategy prioritizationStrategy =
-        strategy.create(primary, secondary, null, () -> false);
+        strategy.create(primary, secondary, null, () -> false, SpanAdmission.unlimited());
     when(primary.offer(any())).thenReturn(true);
 
     prioritizationStrategy.flush(100, TimeUnit.MILLISECONDS);
@@ -147,7 +150,8 @@ class PrioritizationTest extends DDJavaSpecification {
   void testDropStrategyRespectsForceKeep(
       Prioritization strategy, boolean forceKeep, PublishResult expectedResult) {
     Queue<Object> primary = mock(Queue.class);
-    PrioritizationStrategy drop = strategy.create(primary, null, null, () -> true);
+    PrioritizationStrategy drop =
+        strategy.create(primary, null, null, () -> true, SpanAdmission.unlimited());
     DDSpan root = mock(DDSpan.class);
     List<DDSpan> trace = Collections.singletonList(root);
     when(root.isForceKeep()).thenReturn(forceKeep);
@@ -197,7 +201,8 @@ class PrioritizationTest extends DDJavaSpecification {
     Queue<Object> secondary = mock(Queue.class);
     Queue<Object> spanSampling = mock(Queue.class);
     PrioritizationStrategy blocking =
-        Prioritization.ENSURE_TRACE.create(primary, secondary, spanSampling, () -> false);
+        Prioritization.ENSURE_TRACE.create(
+            primary, secondary, spanSampling, () -> false, SpanAdmission.unlimited());
     when(primary.offer(trace)).thenReturn(!primaryFull, true);
     when(spanSampling.offer(trace)).thenReturn(!singleSpanFull);
 
@@ -234,7 +239,8 @@ class PrioritizationTest extends DDJavaSpecification {
     Queue<Object> secondary = mock(Queue.class);
     Queue<Object> spanSampling = mock(Queue.class);
     PrioritizationStrategy fastLane =
-        Prioritization.FAST_LANE.create(primary, secondary, spanSampling, () -> false);
+        Prioritization.FAST_LANE.create(
+            primary, secondary, spanSampling, () -> false, SpanAdmission.unlimited());
     when(primary.offer(trace)).thenReturn(true);
     when(spanSampling.offer(trace)).thenReturn(!singleSpanFull);
 
@@ -265,7 +271,8 @@ class PrioritizationTest extends DDJavaSpecification {
     Queue<Object> secondary = mock(Queue.class);
     Queue<Object> spanSampling = mock(Queue.class);
     PrioritizationStrategy drop =
-        Prioritization.FAST_LANE.create(primary, secondary, spanSampling, () -> true);
+        Prioritization.FAST_LANE.create(
+            primary, secondary, spanSampling, () -> true, SpanAdmission.unlimited());
     when(primary.offer(trace)).thenReturn(true);
     when(spanSampling.offer(trace)).thenReturn(true);
 
@@ -296,7 +303,8 @@ class PrioritizationTest extends DDJavaSpecification {
       PublishResult expectedResult) {
     Queue<Object> primary = mock(Queue.class);
     Queue<Object> spanSampling = mock(Queue.class);
-    PrioritizationStrategy drop = strategy.create(primary, null, spanSampling, () -> true);
+    PrioritizationStrategy drop =
+        strategy.create(primary, null, spanSampling, () -> true, SpanAdmission.unlimited());
     DDSpan root = mock(DDSpan.class);
     List<DDSpan> trace = Collections.singletonList(root);
     when(root.isForceKeep()).thenReturn(forceKeep);

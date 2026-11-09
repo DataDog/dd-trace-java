@@ -49,15 +49,6 @@ public enum Prioritization {
     }
   };
 
-  /** As {@link #create(Queue, Queue, Queue, DroppingPolicy, SpanAdmission)} without a budget. */
-  public PrioritizationStrategy create(
-      Queue<Object> primary,
-      Queue<Object> secondary,
-      Queue<Object> spanSampling,
-      DroppingPolicy droppingPolicy) {
-    return create(primary, secondary, spanSampling, droppingPolicy, SpanAdmission.unlimited());
-  }
-
   /**
    * @param admission the span budget the strategy charges; whoever consumes the queues must release
    *     what was charged

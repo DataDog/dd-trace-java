@@ -26,7 +26,7 @@ public final class AdmissionBudget {
   private volatile long used;
 
   /**
-   * @param limit the usage at which {@link #tryAcquire(long)} stops admitting; must be positive
+   * @param limit the nominal capacity callers take their cutoffs from; must be positive
    */
   public AdmissionBudget(long limit) {
     if (limit <= 0) {
@@ -42,11 +42,6 @@ public final class AdmissionBudget {
   /** The cost admitted and not yet released. May exceed {@link #limit()}. */
   public long used() {
     return used;
-  }
-
-  /** As {@link #tryAcquire(long, long)} with the budget's own limit as the cutoff. */
-  public boolean tryAcquire(long cost) {
-    return tryAcquire(cost, limit);
   }
 
   /**

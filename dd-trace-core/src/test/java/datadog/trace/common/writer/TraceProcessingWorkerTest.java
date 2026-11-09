@@ -16,6 +16,7 @@ import datadog.trace.bootstrap.instrumentation.api.SpanPostProcessor;
 import datadog.trace.common.sampling.SingleSpanSampler;
 import datadog.trace.common.writer.ddagent.FlushEvent;
 import datadog.trace.common.writer.ddagent.PrioritizationStrategy.PublishResult;
+import datadog.trace.common.writer.ddagent.SpanAdmission;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.DDSpanContext;
@@ -771,10 +772,11 @@ class TraceProcessingWorkerTest extends DDJavaSpecification {
         .when(dispatcher)
         .addTrace(any());
     int spanLimit = 1000;
+    SpanAdmission admission = FAST_LANE.admission(spanLimit);
     try (TraceProcessingWorker worker =
         new TraceProcessingWorker(
             1024,
-            spanLimit,
+            admission,
             mock(HealthMetrics.class),
             dispatcher,
             () -> false,
@@ -801,17 +803,17 @@ class TraceProcessingWorkerTest extends DDJavaSpecification {
 
       // a large trace still gets in past the point small ones were shed
       assertEquals(ENQUEUED_FOR_SERIALIZATION, worker.publish(root, SAMPLER_KEEP, trace(200)));
-      assertTrue(worker.getOutstandingSpans() <= spanLimit);
+      assertTrue(admission.used() <= spanLimit);
 
       // trace count capacity was never the limit
       assertTrue(worker.getRemainingCapacity() > 900);
 
       agentRecovers.countDown();
       long deadline = System.currentTimeMillis() + 10_000;
-      while (worker.getOutstandingSpans() > 0 && System.currentTimeMillis() < deadline) {
+      while (admission.used() > 0 && System.currentTimeMillis() < deadline) {
         Thread.sleep(10);
       }
-      assertEquals(0, worker.getOutstandingSpans());
+      assertEquals(0, admission.used());
     }
   }
 

@@ -37,7 +37,13 @@ class SpanSamplingWorkerTest extends DDJavaSpecification {
     HealthMetrics healthMetrics = mock(HealthMetrics.class);
     SpanSamplingWorker worker =
         SpanSamplingWorker.build(
-            10, primaryQueue, secondaryQueue, singleSpanSampler, healthMetrics, () -> false);
+            10,
+            primaryQueue,
+            secondaryQueue,
+            singleSpanSampler,
+            healthMetrics,
+            () -> false,
+            SpanAdmission.unlimited());
     worker.start();
     DDSpan span1 = mock(DDSpan.class);
     DDSpan span2 = mock(DDSpan.class);
@@ -62,7 +68,13 @@ class SpanSamplingWorkerTest extends DDJavaSpecification {
     HealthMetrics healthMetrics = mock(HealthMetrics.class);
     SpanSamplingWorker worker =
         SpanSamplingWorker.build(
-            10, primaryQueue, secondaryQueue, singleSpanSampler, healthMetrics, () -> false);
+            10,
+            primaryQueue,
+            secondaryQueue,
+            singleSpanSampler,
+            healthMetrics,
+            () -> false,
+            SpanAdmission.unlimited());
     worker.start();
     DDSpan span1 = mock(DDSpan.class);
     DDSpan span2 = mock(DDSpan.class);
@@ -94,7 +106,13 @@ class SpanSamplingWorkerTest extends DDJavaSpecification {
     HealthMetrics healthMetrics = mock(HealthMetrics.class);
     SpanSamplingWorker worker =
         SpanSamplingWorker.build(
-            10, primaryQueue, secondaryQueue, singleSpanSampler, healthMetrics, () -> false);
+            10,
+            primaryQueue,
+            secondaryQueue,
+            singleSpanSampler,
+            healthMetrics,
+            () -> false,
+            SpanAdmission.unlimited());
     worker.start();
     DDSpan span1 = mock(DDSpan.class);
     DDSpan span2 = mock(DDSpan.class);
@@ -131,7 +149,13 @@ class SpanSamplingWorkerTest extends DDJavaSpecification {
     HealthMetrics healthMetrics = mock(HealthMetrics.class);
     SpanSamplingWorker worker =
         SpanSamplingWorker.build(
-            10, primaryQueue, secondaryQueue, singleSpanSampler, healthMetrics, () -> false);
+            10,
+            primaryQueue,
+            secondaryQueue,
+            singleSpanSampler,
+            healthMetrics,
+            () -> false,
+            SpanAdmission.unlimited());
     worker.start();
     DDSpan span1 = mock(DDSpan.class);
     when(singleSpanSampler.setSamplingPriority(span1)).thenReturn(true);
@@ -238,7 +262,13 @@ class SpanSamplingWorkerTest extends DDJavaSpecification {
     HealthMetrics healthMetrics = mock(HealthMetrics.class);
     SpanSamplingWorker worker =
         SpanSamplingWorker.build(
-            10, primaryQueue, secondaryQueue, singleSpanSampler, healthMetrics, () -> false);
+            10,
+            primaryQueue,
+            secondaryQueue,
+            singleSpanSampler,
+            healthMetrics,
+            () -> false,
+            SpanAdmission.unlimited());
     worker.start();
     DDSpan span1 = mock(DDSpan.class);
     DDSpan span2 = mock(DDSpan.class);
@@ -269,7 +299,13 @@ class SpanSamplingWorkerTest extends DDJavaSpecification {
     HealthMetrics healthMetrics = mock(HealthMetrics.class);
     SpanSamplingWorker worker =
         SpanSamplingWorker.build(
-            10, primaryQueue, secondaryQueue, singleSpanSampler, healthMetrics, () -> false);
+            10,
+            primaryQueue,
+            secondaryQueue,
+            singleSpanSampler,
+            healthMetrics,
+            () -> false,
+            SpanAdmission.unlimited());
     worker.start();
     DDSpan span1 = mock(DDSpan.class);
     DDSpan span2 = mock(DDSpan.class);

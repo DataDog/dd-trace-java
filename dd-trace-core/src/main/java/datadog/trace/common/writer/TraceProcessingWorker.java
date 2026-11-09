@@ -67,33 +67,7 @@ public class TraceProcessingWorker implements AutoCloseable {
       final SingleSpanSampler singleSpanSampler) {
     this(
         capacity,
-        Config.get().getTraceWriterSpanBudget(),
-        healthMetrics,
-        dispatcher,
-        droppingPolicy,
-        prioritization,
-        flushInterval,
-        timeUnit,
-        singleSpanSampler);
-  }
-
-  /**
-   * @param spanLimit the most spans the queues hold before shedding; zero or negative disables the
-   *     budget, leaving only the per-queue trace capacity
-   */
-  public TraceProcessingWorker(
-      final int capacity,
-      final long spanLimit,
-      final HealthMetrics healthMetrics,
-      final PayloadDispatcher dispatcher,
-      final DroppingPolicy droppingPolicy,
-      final Prioritization prioritization,
-      final long flushInterval,
-      final TimeUnit timeUnit,
-      final SingleSpanSampler singleSpanSampler) {
-    this(
-        capacity,
-        prioritization.admission(spanLimit),
+        prioritization.admission(Config.get().getTraceWriterSpanBudget()),
         healthMetrics,
         dispatcher,
         droppingPolicy,
@@ -202,11 +176,6 @@ public class TraceProcessingWorker implements AutoCloseable {
   public long getRemainingCapacity() {
     // only advertise primary capacity (partly to keep test which aims to saturate the queue happy)
     return primaryQueue.remainingCapacity();
-  }
-
-  /** Spans enqueued and not yet serialized; zero when the span budget is disabled. */
-  public long getOutstandingSpans() {
-    return spanAdmission.used();
   }
 
   @VisibleForTesting

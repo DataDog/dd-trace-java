@@ -13,8 +13,8 @@ class AdmissionBudgetTest {
   void admitsWhileBelowTheLimitAndChargesTheFullCost() {
     AdmissionBudget budget = new AdmissionBudget(100);
 
-    assertTrue(budget.tryAcquire(60));
-    assertTrue(budget.tryAcquire(30));
+    assertTrue(budget.tryAcquire(60, budget.limit()));
+    assertTrue(budget.tryAcquire(30, budget.limit()));
 
     assertEquals(90, budget.used());
   }
@@ -22,10 +22,10 @@ class AdmissionBudgetTest {
   @Test
   void admitsCostLargerThanTheRemainingHeadroom() {
     AdmissionBudget budget = new AdmissionBudget(100);
-    budget.tryAcquire(90);
+    budget.tryAcquire(90, budget.limit());
 
     // 10 left, 500 asked: headroom, not fit, decides
-    assertTrue(budget.tryAcquire(500));
+    assertTrue(budget.tryAcquire(500, budget.limit()));
 
     assertEquals(590, budget.used());
   }
@@ -34,15 +34,15 @@ class AdmissionBudgetTest {
   void admitsCostLargerThanTheWholeLimit() {
     AdmissionBudget budget = new AdmissionBudget(100);
 
-    assertTrue(budget.tryAcquire(1_000));
+    assertTrue(budget.tryAcquire(1_000, budget.limit()));
   }
 
   @Test
   void refusesAtTheLimitWithoutCharging() {
     AdmissionBudget budget = new AdmissionBudget(100);
-    budget.tryAcquire(100);
+    budget.tryAcquire(100, budget.limit());
 
-    assertFalse(budget.tryAcquire(1));
+    assertFalse(budget.tryAcquire(1, budget.limit()));
 
     assertEquals(100, budget.used());
   }
@@ -50,19 +50,19 @@ class AdmissionBudgetTest {
   @Test
   void releaseReopensAdmission() {
     AdmissionBudget budget = new AdmissionBudget(100);
-    budget.tryAcquire(150);
-    assertFalse(budget.tryAcquire(1));
+    budget.tryAcquire(150, budget.limit());
+    assertFalse(budget.tryAcquire(1, budget.limit()));
 
     budget.release(150);
 
     assertEquals(0, budget.used());
-    assertTrue(budget.tryAcquire(1));
+    assertTrue(budget.tryAcquire(1, budget.limit()));
   }
 
   @Test
   void cutoffBelowTheLimitShedsEarlier() {
     AdmissionBudget budget = new AdmissionBudget(100);
-    budget.tryAcquire(50);
+    budget.tryAcquire(50, budget.limit());
 
     assertFalse(budget.tryAcquire(1, 50));
     assertTrue(budget.tryAcquire(1, 51));
@@ -71,9 +71,9 @@ class AdmissionBudgetTest {
   @Test
   void cutoffAboveTheLimitAdmitsPastIt() {
     AdmissionBudget budget = new AdmissionBudget(100);
-    budget.tryAcquire(150);
+    budget.tryAcquire(150, budget.limit());
 
-    assertFalse(budget.tryAcquire(1));
+    assertFalse(budget.tryAcquire(1, budget.limit()));
     assertTrue(budget.tryAcquire(1, 200));
   }
 

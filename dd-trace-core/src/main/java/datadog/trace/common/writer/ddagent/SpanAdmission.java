@@ -44,16 +44,21 @@ public final class SpanAdmission {
   }
 
   private final AdmissionBudget budget;
+  private final long limit;
+  private final long halfLimit;
   private final long sampledOutCutoff;
   private final long forceKeepCutoff;
 
   private SpanAdmission(AdmissionBudget budget) {
     this.budget = budget;
     if (budget == null) {
+      this.limit = Long.MAX_VALUE;
+      this.halfLimit = Long.MAX_VALUE;
       this.sampledOutCutoff = Long.MAX_VALUE;
       this.forceKeepCutoff = Long.MAX_VALUE;
     } else {
-      long limit = budget.limit();
+      this.limit = budget.limit();
+      this.halfLimit = limit / 2;
       this.sampledOutCutoff = Math.max(1, limit / 4);
       this.forceKeepCutoff = limit > Long.MAX_VALUE / 2 ? Long.MAX_VALUE : limit * 2;
     }
@@ -89,13 +94,11 @@ public final class SpanAdmission {
 
   /** The span cap the cutoffs are taken from, or {@link Long#MAX_VALUE} when unlimited. */
   public long limit() {
-    return budget == null ? Long.MAX_VALUE : budget.limit();
+    return limit;
   }
 
   long keptCutoff(int spans) {
-    long limit = budget.limit();
-    long half = limit / 2;
-    long scaled = Math.min(Math.max(spans, 0), LARGE_CHUNK_SPANS);
-    return Math.max(1, half + (limit - half) * scaled / LARGE_CHUNK_SPANS);
+    long scaled = Math.min(spans, LARGE_CHUNK_SPANS);
+    return Math.max(1, halfLimit + (limit - halfLimit) * scaled / LARGE_CHUNK_SPANS);
   }
 }
