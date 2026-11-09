@@ -72,7 +72,8 @@ resolve_variant() {
     log "building current shadow jar (:dd-java-agent:shadowJar)"
     # Redirect the build's stdout to stderr: resolve_variant's stdout is captured as the jar path by
     # the caller, so any gradle output on stdout would corrupt it (that broke the first sweep).
-    ( cd "$repo_root" && ./gradlew -q :dd-java-agent:shadowJar >&2 )
+    ( cd "$repo_root" && ./gradlew -q :dd-java-agent:shadowJar >&2 ) \
+      || { log "ERROR: shadow jar build failed"; exit 1; }
     local jar
     jar=$(ls -t "$repo_root"/dd-java-agent/build/libs/dd-java-agent-*.jar 2>/dev/null \
       | grep -v -- '-sources' | grep -v -- '-javadoc' | head -1 || true)
@@ -105,7 +106,10 @@ fi
 log "resolving ${#variants[@]} variant(s): ${variants[*]}"
 resolved=()
 for v in "${variants[@]}"; do
-  resolved+=("$(resolve_variant "$v")")
+  # resolve_variant runs in a command substitution, where its `exit 1` only leaves the subshell, so
+  # check its status here; otherwise a failed build or download would benchmark the wrong jar.
+  jar=$(resolve_variant "$v") || exit 1
+  resolved+=("$jar")
 done
 
 if [ "${PETCLINIC_AGENT:-stub}" = "stub" ]; then
