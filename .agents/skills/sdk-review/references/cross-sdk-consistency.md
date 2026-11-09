@@ -37,5 +37,5 @@ Other repositories:
 ### XSDK-3.1: Follow the OpenFeature spec for evaluation results, and call out behaviour changes explicitly
 - Flag: a flag-evaluation path that returns `Reason.DEFAULT` (or a default value with no error) for a missing flag instead of the `FLAG_NOT_FOUND` error code, or that changes an evaluation result with no mention in the PR description.
 
-### XSDK-3.2: Keep published version strings and other values that the backend or telemetry parse in their existing format
-- Flag: a change to the format of the tracer version string (for example, short to full git hash), a telemetry field or a payload field, made to fix a local build or tooling problem.
+### XSDK-3.2: Keep published version strings, propagation tag names and other values that other SDKs, the backend or telemetry parse in their existing format
+- Flag: a change to the format of the tracer version string (for example, short to full git hash), a telemetry field or a payload field, or a rename of a propagation tag (`_dd.p.*`) or header that has already shipped. This includes changes made to fix a local build or tooling problem.

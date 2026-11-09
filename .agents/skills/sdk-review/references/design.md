@@ -85,6 +85,6 @@ Where code belongs, who owns state, and API and type shape.
 - A missing `@FunctionalInterface` on an interface whose single abstract method is incidental.
 - A `static final` mode constant read on a hot path (e.g. per virtual-thread mount), even though its tests must be forked.
 - Deprecated delegating shim methods added to `TracerAPI` to support an in-progress API migration.
-- Renaming propagation tags that are already GA, since the cross-SDK wire contract is fixed.
+- Suggestions to rename or shorten propagation tags that are already GA (for example, to save header space). Their names are a fixed cross-SDK wire contract. A diff that does rename a GA tag is a finding under XSDK-3.2.
 - Finer-grained Gradle convention plugins than one per high-level module role.
 
