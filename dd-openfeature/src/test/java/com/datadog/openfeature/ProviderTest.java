@@ -31,6 +31,7 @@ import com.datadog.openfeature.internal.bridge.v1.EventTransport;
 import com.datadog.openfeature.internal.bridge.v1.HealthMetrics;
 import com.datadog.openfeature.internal.bridge.v1.ShutdownSource;
 import com.datadog.openfeature.internal.bridge.v1.SpanEnricher;
+import com.datadog.openfeature.internal.config.Settings;
 import com.datadog.openfeature.internal.config.TestSettings;
 import com.datadog.openfeature.internal.ufc.Allocation;
 import com.datadog.openfeature.internal.ufc.Flag;
@@ -110,14 +111,18 @@ public class ProviderTest {
   }
 
   private Provider newProvider(final Options options, final AgentBridge bridge) {
+    return newProvider(
+        options,
+        bridge,
+        TestSettings.of(
+            "feature.flags.configuration.source.agentless.base.url", this.cdn.uri("/").toString()));
+  }
+
+  private Provider newProvider(
+      final Options options, final AgentBridge bridge, final Settings settings) {
     final Provider[] providerRef = new Provider[1];
     this.evaluator =
-        new DDEvaluator(
-            () -> providerRef[0].onConfigurationChange(),
-            bridge,
-            TestSettings.of(
-                "feature.flags.configuration.source.agentless.base.url",
-                this.cdn.uri("/").toString()));
+        new DDEvaluator(() -> providerRef[0].onConfigurationChange(), bridge, settings);
     providerRef[0] = new Provider(options, this.evaluator);
     return providerRef[0];
   }
@@ -422,25 +427,22 @@ public class ProviderTest {
 
   @Test
   public void testAgentlessWithoutApiKeyFailsInitializationAtOnce() throws Exception {
-    final Provider[] providerRef = new Provider[1];
-    this.evaluator =
-        new DDEvaluator(
-            () -> providerRef[0].onConfigurationChange(), AgentBridge.NONE, TestSettings.of());
-    providerRef[0] = new Provider(new Options().initTimeout(30, SECONDS), this.evaluator);
+    final Provider provider =
+        newProvider(new Options().initTimeout(30, SECONDS), AgentBridge.NONE, TestSettings.of());
     final OpenFeatureAPI api = OpenFeatureAPI.getInstance();
     CapturingServiceProvider.reset();
     CapturingServiceProvider.enable(Provider.class.getName(), Level.ERROR);
     try {
       final long start = System.nanoTime();
       final ProviderNotReadyError error =
-          assertThrows(ProviderNotReadyError.class, () -> api.setProviderAndWait(providerRef[0]));
+          assertThrows(ProviderNotReadyError.class, () -> api.setProviderAndWait(provider));
       final long elapsedMillis = NANOSECONDS.toMillis(System.nanoTime() - start);
 
       // Waiting for the 30-second timeout fails this bound.
       assertTrue(elapsedMillis < 10_000, "initialization waited " + elapsedMillis + " ms");
       assertThat(error.getMessage(), equalTo(MISSING_API_KEY));
       assertThat(api.getClient().getProviderState(), equalTo(ProviderState.ERROR));
-      assertThat(initializationState(providerRef[0]), equalTo("ERROR"));
+      assertThat(initializationState(provider), equalTo("ERROR"));
       assertNull(this.evaluator.runtime(), "no polling or event delivery starts without a key");
       final FlagEvaluationDetails<String> result =
           api.getClient().getStringDetails("missing", "caller-default");
@@ -454,9 +456,9 @@ public class ProviderTest {
 
       // A repeated initialization fails the same way, without starting a runtime.
       final ProviderNotReadyError retry =
-          assertThrows(ProviderNotReadyError.class, () -> providerRef[0].initialize(null));
+          assertThrows(ProviderNotReadyError.class, () -> provider.initialize(null));
       assertThat(retry.getMessage(), equalTo(MISSING_API_KEY));
-      assertThat(initializationState(providerRef[0]), equalTo("ERROR"));
+      assertThat(initializationState(provider), equalTo("ERROR"));
       assertNull(this.evaluator.runtime());
     } finally {
       CapturingServiceProvider.reset();
@@ -465,20 +467,17 @@ public class ProviderTest {
 
   @Test
   public void testInvalidCustomEndpointErrorOmitsTheUrl() {
-    final Provider[] providerRef = new Provider[1];
-    this.evaluator =
-        new DDEvaluator(
-            () -> providerRef[0].onConfigurationChange(),
+    final Provider provider =
+        newProvider(
+            new Options().initTimeout(30, SECONDS),
             AgentBridge.NONE,
             TestSettings.of(
                 "feature.flags.configuration.source.agentless.base.url",
                 "ftp://user:secret@example.com/ufc?token=secret"));
-    providerRef[0] = new Provider(new Options().initTimeout(30, SECONDS), this.evaluator);
 
     final FatalError error =
         assertThrows(
-            FatalError.class,
-            () -> OpenFeatureAPI.getInstance().setProviderAndWait(providerRef[0]));
+            FatalError.class, () -> OpenFeatureAPI.getInstance().setProviderAndWait(provider));
 
     // OpenFeature logs this error with its causes, so none of them may echo the URL.
     for (Throwable cause = error; cause != null; cause = cause.getCause()) {
@@ -488,17 +487,14 @@ public class ProviderTest {
 
   @Test
   public void testAgentlessWithoutApiKeyFailsInitializationWhenTheLogFails() {
-    final Provider[] providerRef = new Provider[1];
-    this.evaluator =
-        new DDEvaluator(
-            () -> providerRef[0].onConfigurationChange(), AgentBridge.NONE, TestSettings.of());
-    providerRef[0] = new Provider(new Options().initTimeout(30, SECONDS), this.evaluator);
+    final Provider provider =
+        newProvider(new Options().initTimeout(30, SECONDS), AgentBridge.NONE, TestSettings.of());
     CapturingServiceProvider.reset();
     CapturingServiceProvider.enable(Provider.class.getName(), Level.ERROR);
     CapturingServiceProvider.failOn("DD_API_KEY");
     try {
       final ProviderNotReadyError error =
-          assertThrows(ProviderNotReadyError.class, () -> providerRef[0].initialize(null));
+          assertThrows(ProviderNotReadyError.class, () -> provider.initialize(null));
       assertThat(error.getMessage(), equalTo(MISSING_API_KEY));
     } finally {
       CapturingServiceProvider.reset();

@@ -118,7 +118,7 @@ public final class FeatureFlagsRuntime {
       // Remote Configuration never falls back to direct intake.
       transport = bridge.eventProxy();
     } else {
-      if (settings.agentlessBaseUrl() == null && settings.apiKey() == null) {
+      if (CdnConfigurationSource.isManagedEndpoint(settings) && settings.apiKey() == null) {
         throw new MissingApiKeyException();
       }
       source = new CdnConfigurationSource(settings, services);

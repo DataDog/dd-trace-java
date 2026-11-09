@@ -351,7 +351,7 @@ public final class CdnConfigurationSource implements ConfigurationService {
     return parsed;
   }
 
-  private static boolean isManagedEndpoint(final Settings settings) {
+  public static boolean isManagedEndpoint(final Settings settings) {
     return settings.agentlessBaseUrl() == null;
   }
 
