@@ -19,6 +19,11 @@
   - if: '$CI_COMMIT_BRANCH =~ /^gh-readonly-queue\//'
     when: on_success
     interruptible: true
+  # Temporary: exercise all benchmarks on this validation PR.
+  - if: '$CI_COMMIT_BRANCH == "alexeyk/test-java-benchmark-images"'
+    when: on_success
+    interruptible: true
+    allow_failure: true
   - when: manual
     interruptible: true
     allow_failure: true
@@ -63,6 +68,10 @@ linux-java-spring-petclinic-parallel:
   rules:
     - if: '$POPULATE_CACHE'
       when: never
+    - if: '$CI_COMMIT_BRANCH == "alexeyk/test-java-benchmark-images"'
+      when: on_success
+      interruptible: true
+      allow_failure: true
     - !reference [.parallel-benchmark-template, rules]
 
 linux-java-insecure-bank-load-parallel:
