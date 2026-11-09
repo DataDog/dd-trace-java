@@ -48,6 +48,8 @@ function role(t) {
   return "other";
 }
 function owner(f) {
+  # The Jetty and Play perf-test apps live in datadog.perftest; their code is the workload.
+  if (f ~ /^datadog\.perftest\./) return "app";
   if (f ~ /^datadog\.trace\.instrumentation\./) return "instrumentation";
   if (f ~ /^datadog\./) return "core";
   return "app";
@@ -100,9 +102,15 @@ function emit(tt, all, r, o,   c) {
 extract_stream() {
   local event="$1"
   jfr print --events "$event" --stack-depth "${STACK_DEPTH:-64}" "$jfr_file" 2>/dev/null | awk '
+    # Thread lines look like: sampledThread = "G1 Conc#0" (javaThreadId = 12). Take the whole quoted
+    # name -- many JVM thread names have spaces.
+    function thread_name(line,   t) {
+      if (match(line, /"[^"]*"/)) return substr(line, RSTART + 1, RLENGTH - 2);
+      t = line; sub(/.*= /, "", t); sub(/ .*/, "", t); return t;
+    }
     /^jdk\.[A-Za-z]+ \{/ { thr=""; want=0; w=1; next }
-    /sampledThread = / { thr=$0; sub(/.*sampledThread = /,"",thr); sub(/ .*/,"",thr); gsub(/"/,"",thr); next }
-    /eventThread = /   { if (thr=="") { thr=$0; sub(/.*eventThread = /,"",thr); sub(/ .*/,"",thr); gsub(/"/,"",thr) } next }
+    /sampledThread = / { thr=thread_name($0); next }
+    /eventThread = /   { if (thr=="") thr=thread_name($0); next }
     /^ *weight = / {
       # e.g. "weight = 17.3 MB", "463.1 kB", "512 bytes"
       w=$3; u=$4;
