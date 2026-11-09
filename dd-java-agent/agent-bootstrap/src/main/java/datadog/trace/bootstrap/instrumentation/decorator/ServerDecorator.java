@@ -11,7 +11,7 @@ public abstract class ServerDecorator extends BaseDecorator {
   /** A server span's other end is the client, so its peer port is the client's port. */
   @Override
   protected long peerPortTag() {
-    return KnownTags.CLIENT_PORT;
+    return KnownTags.PEER_CLIENT_PORT;
   }
 
   @Override

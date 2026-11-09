@@ -1113,7 +1113,7 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
     TagInterceptor interceptor = splittingInterceptor(Tags.PEER_PORT);
 
     assertTrue(interceptor.needsIntercept(KnownTags.PEER_SERVER_PORT));
-    assertTrue(interceptor.needsIntercept(KnownTags.CLIENT_PORT));
+    assertTrue(interceptor.needsIntercept(KnownTags.PEER_CLIENT_PORT));
     assertFalse(interceptor.needsIntercept(KnownTags.SERVER_PORT));
     assertTrue(interceptor.needsInterceptCustomTag(Tags.PEER_PORT));
   }

@@ -100,7 +100,7 @@ concepts:
   # The remote server's port, as a client, producer or consumer sees it (a consumer's broker is the server).
   - { concept: peer.server.port, type: int, dd-name: peer.port,   otel-name: server.port }
   # The remote client's port, as a server sees it.
-  - { concept: client.port,      type: int, dd-name: peer.port,   otel-name: client.port }
+  - { concept: peer.client.port, type: int, dd-name: peer.port,   otel-name: client.port }
 
 span_types:
   # root: per-span tags every span has (incl. the per-span core tags parent_id / integration / svc_src
@@ -559,7 +559,7 @@ mixins:
   inbound_peer:
     span-kind: server
     tags:
-      - { concept-ref: client.port }
+      - { concept-ref: peer.client.port }
 
   # code_origin — the debugger's code origin, on entry spans (and their local root), annotated
   # controller methods' handler spans, and @Trace spans.

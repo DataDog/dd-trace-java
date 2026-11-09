@@ -373,7 +373,7 @@ class TagRegistryGeneratorTest {
     concepts:
       - { concept: server.port,      type: int, dd-name: server.port, otel-name: server.port }
       - { concept: peer.server.port, type: int, dd-name: peer.port,   otel-name: server.port }
-      - { concept: client.port,      type: int, dd-name: peer.port,   otel-name: client.port }
+      - { concept: peer.client.port, type: int, dd-name: peer.port,   otel-name: client.port }
     span_types:
       http.client: {span-kind: client, include: [outbound_peer]}
       http.server: {span-kind: server, include: [inbound_peer], tags: [{concept-ref: server.port}]}
@@ -381,7 +381,7 @@ class TagRegistryGeneratorTest {
       messaging.consumer: {span-kind: consumer, tags: [{concept-ref: peer.server.port}]}
     mixins:
       outbound_peer: {span-kind: client, tags: [{concept-ref: peer.server.port}]}
-      inbound_peer: {span-kind: server, tags: [{concept-ref: client.port}]}
+      inbound_peer: {span-kind: server, tags: [{concept-ref: peer.client.port}]}
     """
 
   @Test
@@ -398,7 +398,7 @@ class TagRegistryGeneratorTest {
       TagConventions.SpanKind.PRODUCER,
       TagConventions.SpanKind.CONSUMER,
     )
-    assertThat(conventions.resolve("http.server").map { it.name }).contains("server.port", "client.port")
+    assertThat(conventions.resolve("http.server").map { it.name }).contains("server.port", "peer.client.port")
     assertThat(conventions.resolve("http.client").map { it.name }).contains("peer.server.port")
   }
 
@@ -412,15 +412,15 @@ class TagRegistryGeneratorTest {
     // Id to name is a constant: both share peer.port.
     assertThat(source).contains(
       "PEER_SERVER_PORT_NAME = \"peer.port\"",
-      "CLIENT_PORT_NAME = \"peer.port\"",
+      "PEER_CLIENT_PORT_NAME = \"peer.port\"",
       "SERVER_PORT_NAME = \"server.port\"",
-      "CONCEPTS_NAMED_PEER_PORT = {CLIENT_PORT, PEER_SERVER_PORT};",
+      "CONCEPTS_NAMED_PEER_PORT = {PEER_CLIENT_PORT, PEER_SERVER_PORT};",
     )
     assertThat(source.substringAfter("IDOF_NAMES = {").substringBefore("};"))
-      .doesNotContain("SERVER_PORT_NAME", "CLIENT_PORT_NAME")
+      .doesNotContain("SERVER_PORT_NAME", "PEER_CLIENT_PORT_NAME")
     val byName = source.substringAfter("public long datadogIdOf(String name, int spanKind)").substringBefore("@Override")
     assertThat(byName.substringAfter("case \"peer.port\":").substringBefore("default:")).contains(
-      "case KnownTagCodec.KIND_SERVER:\n            return CLIENT_PORT;",
+      "case KnownTagCodec.KIND_SERVER:\n            return PEER_CLIENT_PORT;",
       "case KnownTagCodec.KIND_CLIENT:\n            return PEER_SERVER_PORT;",
     )
   }
@@ -584,7 +584,7 @@ class TagRegistryGeneratorTest {
     assertThat(report.lines().map { it.trim().replace(Regex("\\s+"), " ") }).contains(
       "server.port datadog server.port otel server.port resolves on server",
       "peer.server.port datadog peer.port otel server.port resolves on client, producer, consumer",
-      "client.port datadog peer.port otel client.port resolves on server",
+      "peer.client.port datadog peer.port otel client.port resolves on server",
     )
   }
 

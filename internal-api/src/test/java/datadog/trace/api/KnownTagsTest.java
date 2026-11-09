@@ -199,7 +199,7 @@ class KnownTagsTest {
     "scenario           | id               | datadog     | otel       ",
     "server's own port  | server.port      | server.port | server.port",
     "remote server port | peer.server.port | peer.port   | server.port",
-    "remote client port | client.port      | peer.port   | client.port"
+    "remote client port | peer.client.port | peer.port   | client.port"
   })
   void aConceptHasFixedNames(String id, String datadog, String otel) {
     long tagId = conceptId(id);
@@ -223,13 +223,13 @@ class KnownTagsTest {
    */
   @TableTest({
     "scenario              | name        | kind | datadog          | write            | otel            ",
-    "peer.port on server   | peer.port   | 1    | client.port      | client.port      |                 ",
+    "peer.port on server   | peer.port   | 1    | peer.client.port | peer.client.port |                 ",
     "peer.port on client   | peer.port   | 2    | peer.server.port | peer.server.port |                 ",
     "peer.port on consumer | peer.port   | 4    | peer.server.port | peer.server.port |                 ",
     "peer.port on internal | peer.port   | 5    |                  |                  |                 ",
     "server.port on server | server.port | 1    | server.port      | server.port      | server.port     ",
     "server.port on client | server.port | 2    |                  |                  | peer.server.port",
-    "client.port on server | client.port | 1    |                  |                  | client.port     ",
+    "client.port on server | client.port | 1    |                  |                  | peer.client.port",
     "a plain name          | my.tag      | 2    |                  |                  |                 "
   })
   void aSharedNameResolvesByKind(String name, int kind, String datadog, String write, String otel) {
@@ -241,7 +241,7 @@ class KnownTagsTest {
   @Test
   void theConceptsSharingANameAreListed() {
     assertArrayEquals(
-        new long[] {KnownTags.CLIENT_PORT, KnownTags.PEER_SERVER_PORT},
+        new long[] {KnownTags.PEER_CLIENT_PORT, KnownTags.PEER_SERVER_PORT},
         KnownTagCodec.conceptsNamed(Tags.PEER_PORT));
     assertArrayEquals(
         new long[] {KnownTags.SERVER_PORT}, KnownTagCodec.conceptsNamed("server.port"));
@@ -255,7 +255,7 @@ class KnownTagsTest {
       case "peer.server.port":
         return KnownTags.PEER_SERVER_PORT;
       default:
-        return KnownTags.CLIENT_PORT;
+        return KnownTags.PEER_CLIENT_PORT;
     }
   }
 
@@ -267,8 +267,8 @@ class KnownTagsTest {
       return "server.port";
     } else if (tagId == KnownTags.PEER_SERVER_PORT) {
       return "peer.server.port";
-    } else if (tagId == KnownTags.CLIENT_PORT) {
-      return "client.port";
+    } else if (tagId == KnownTags.PEER_CLIENT_PORT) {
+      return "peer.client.port";
     }
     return KnownTagCodec.nameOf(tagId);
   }

@@ -19,11 +19,11 @@ import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
 /**
- * The port concepts ({@code KnownTags.SERVER_PORT}, {@code PEER_SERVER_PORT}, {@code CLIENT_PORT}):
- * one id per meaning, each with fixed names, two of them sharing the Datadog name {@code
- * peer.port}. Instrumentation writes the id, which is never ambiguous. A write by the shared name
- * resolves with the span's kind, and before the kind is known stays a plain tag that never
- * duplicates a concept's name.
+ * The port concepts ({@code KnownTags.SERVER_PORT}, {@code PEER_SERVER_PORT}, {@code
+ * PEER_CLIENT_PORT}): one id per meaning, each with fixed names, two of them sharing the Datadog
+ * name {@code peer.port}. Instrumentation writes the id, which is never ambiguous. A write by the
+ * shared name resolves with the span's kind, and before the kind is known stays a plain tag that
+ * never duplicates a concept's name.
  */
 class DDSpanConceptTagTest extends DDCoreJavaSpecification {
   private CoreTracer tracer;
@@ -45,7 +45,7 @@ class DDSpanConceptTagTest extends DDCoreJavaSpecification {
     "remote server, consumer | consumer | peer.server.port | peer.port  ",
     "remote server, no kind  |          | peer.server.port | peer.port  ",
     "own port on server      | server   | server.port      | server.port",
-    "remote client on server | server   | client.port      | peer.port  "
+    "remote client on server | server   | peer.client.port | peer.port  "
   })
   void aConceptWrittenByIdKeepsItsName(String kind, String concept, String name) {
     DDSpan span = start(kind);
@@ -61,7 +61,7 @@ class DDSpanConceptTagTest extends DDCoreJavaSpecification {
 
   @TableTest({
     "scenario      | kind     | concept         ",
-    "on a server   | server   | client.port     ",
+    "on a server   | server   | peer.client.port",
     "on a client   | client   | peer.server.port",
     "on a producer | producer | peer.server.port",
     "on a consumer | consumer | peer.server.port"
@@ -126,8 +126,8 @@ class DDSpanConceptTagTest extends DDCoreJavaSpecification {
 
   @TableTest({
     "scenario           | kindFirst | kind   | concept         ",
-    "kind before tag    | true      | server | client.port     ",
-    "kind after tag     | false     | server | client.port     ",
+    "kind before tag    | true      | server | peer.client.port",
+    "kind after tag     | false     | server | peer.client.port",
     "client kind before | true      | client | peer.server.port",
     "client kind after  | false     | client | peer.server.port"
   })
@@ -189,7 +189,7 @@ class DDSpanConceptTagTest extends DDCoreJavaSpecification {
       case "peer.server.port":
         return KnownTags.PEER_SERVER_PORT;
       default:
-        return KnownTags.CLIENT_PORT;
+        return KnownTags.PEER_CLIENT_PORT;
     }
   }
 
