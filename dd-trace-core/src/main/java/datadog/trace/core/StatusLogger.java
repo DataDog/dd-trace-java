@@ -10,6 +10,7 @@ import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProductActivation;
+import datadog.trace.common.sampling.Sampler;
 import datadog.trace.logging.LoggingSettingsDescription;
 import datadog.trace.util.AgentTaskScheduler;
 import java.io.File;
@@ -26,8 +27,15 @@ import org.slf4j.LoggerFactory;
 public final class StatusLogger extends JsonAdapter<Config>
     implements AgentTaskScheduler.Task<Config>, JsonAdapter.Factory {
 
-  public static void logStatus(Config config) {
-    AgentTaskScheduler.get().schedule(new StatusLogger(), config, 500, MILLISECONDS);
+  private final Sampler sampler;
+
+  /** {@code sampler} is the root sampler of the tracer, described by the OpenTelemetry settings. */
+  StatusLogger(Sampler sampler) {
+    this.sampler = sampler;
+  }
+
+  public static void logStatus(Config config, Sampler sampler) {
+    AgentTaskScheduler.get().schedule(new StatusLogger(sampler), config, 500, MILLISECONDS);
   }
 
   @Override
@@ -164,6 +172,8 @@ public final class StatusLogger extends JsonAdapter<Config>
     writer.value(config.isOtlpMetricsExportEnabled());
     writer.name("otlp_logs_export_enabled");
     writer.value(config.isOtlpLogsExportEnabled());
+    OtelStartupLogSettings.write(
+        writer, config, sampler, LoggerFactory.getLogger(StatusLogger.class));
 
     writer.name("app_logs_collection_enabled");
     writer.value(config.isAppLogsCollectionEnabled());
@@ -185,7 +195,7 @@ public final class StatusLogger extends JsonAdapter<Config>
     }
   }
 
-  private static void writeMap(JsonWriter writer, Map<String, String> map) throws IOException {
+  static void writeMap(JsonWriter writer, Map<String, String> map) throws IOException {
     writer.beginObject();
     for (Map.Entry<String, String> entry : map.entrySet()) {
       writer.name(entry.getKey());
