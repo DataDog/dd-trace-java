@@ -1,6 +1,5 @@
 plugins {
   id 'dd-trace-java.module.internal-library'
-  id 'idea'
 }
 
 minimumBranchCoverage = 0.6
@@ -70,10 +69,4 @@ dependencies {
 tasks.named("jar", Jar) {
   from sourceSets.main_java11.output
   from sourceSets.main_java25.output
-}
-
-idea {
-  module {
-    jdkName = '11'
-  }
 }

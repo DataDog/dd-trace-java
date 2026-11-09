@@ -1,17 +1,9 @@
 plugins {
   id 'dd-trace-java.module.internal-library'
-  id 'idea'
-}
-
-tracerJava {
-  addSourceSetFor(JavaVersion.VERSION_11) {
-    // By default tests with be compiled for `minJavaVersion` version,
-    // but in this case we would like to avoid this since we would like to run with ZULU8
-    applyForTestSources = false
-  }
 }
 
 testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_11
   // Zulu has backported profiling support
   forceJdk = ['ZULU8']
   excludeJdk = ['SEMERU11', 'SEMERU17']
@@ -37,7 +29,6 @@ dependencies {
  Setup here is as following:
  * We compile with Java25 compiler to get JFR definitions.
  * We specify source/target as Java8 to get code that is loadable on Java8 - JFR defs are Java8 compatible.
- * We force IDEA to treat this as Java11 project with 'idea' plugin below.
  */
 [JavaCompile, GroovyCompile].each {
   tasks.withType(it).configureEach {
@@ -47,11 +38,5 @@ dependencies {
     // Disable '-options' because we are compiling for java8 without specifying bootstrap - intentionally.
     // Disable '-path' because we do not have some of the paths seem to be missing.
     options.compilerArgs.addAll(['-Xlint:all,-processing,-options,-path'/*, '-Werror'*/])
-  }
-}
-
-idea {
-  module {
-    jdkName = '11'
   }
 }

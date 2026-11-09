@@ -7,6 +7,11 @@ import datadog.trace.test.agent.decoder.DecodedTrace
 import java.util.function.Function
 
 abstract class AbstractDemoTest extends AbstractSmokeTest {
+  @Override
+  protected boolean expectsProcessAliveBeforeEachTest() {
+    false
+  }
+
   protected static final int TIMEOUT_SECS = 10
   protected abstract List<String> getTestArguments()
 

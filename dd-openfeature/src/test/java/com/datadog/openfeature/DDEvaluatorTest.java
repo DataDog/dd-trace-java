@@ -26,7 +26,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.datadog.openfeature.internal.LocalHttpServer;
-import com.datadog.openfeature.internal.bridge.AgentBridge;
+import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
 import com.datadog.openfeature.internal.config.Settings;
 import com.datadog.openfeature.internal.config.TestSettings;
 import com.datadog.openfeature.internal.exposure.ExposureDeduplicationCache;
@@ -199,12 +199,11 @@ public class DDEvaluatorTest {
     final AutoCloseable subscription = mock(AutoCloseable.class);
     final AgentBridge bridge = mock(AgentBridge.class);
     when(bridge.remoteConfiguration())
-        .thenReturn(
-            listener -> {
-              configurationListener.set(listener);
-              subscribed.countDown();
-              return subscription;
-            });
+        .thenReturn(listener -> {
+          configurationListener.set(listener);
+          subscribed.countDown();
+          return subscription;
+        });
     final Settings settings =
         TestSettings.of("feature.flags.configuration.source", "remote_config");
     final DDEvaluator evaluator = new DDEvaluator(() -> {}, bridge, settings);

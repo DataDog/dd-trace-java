@@ -4,6 +4,7 @@ import static datadog.opentelemetry.shim.trace.OtelConventions.EXCEPTION_SPAN_EV
 import static datadog.opentelemetry.shim.trace.OtelConventions.applyNamingConvention;
 import static datadog.opentelemetry.shim.trace.OtelConventions.applyReservedAttribute;
 import static datadog.opentelemetry.shim.trace.OtelConventions.applySpanEventExceptionAttributes;
+import static datadog.opentelemetry.shim.trace.OtelConventions.attributeTag;
 import static datadog.opentelemetry.shim.trace.OtelConventions.convertEventAttributes;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static io.opentelemetry.api.trace.StatusCode.ERROR;
@@ -11,12 +12,14 @@ import static io.opentelemetry.api.trace.StatusCode.OK;
 import static io.opentelemetry.api.trace.StatusCode.UNSET;
 
 import datadog.context.ContextScope;
+import datadog.trace.api.KnownTagCodec;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.SpanWrapper;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.WithAgentSpan;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
@@ -33,11 +36,17 @@ import javax.annotation.ParametersAreNonnullByDefault;
 @ParametersAreNonnullByDefault
 public class OtelSpan implements Span, WithAgentSpan, SpanWrapper {
   private final AgentSpan delegate;
+
+  /** The direction of the span's kind, fixed at start; it decides direction-scoped names. */
+  private final int direction;
+
   private StatusCode statusCode = UNSET;
   private volatile boolean recording = true;
 
   public OtelSpan(AgentSpan delegate) {
     this.delegate = delegate;
+    Object kind = delegate.getTag(Tags.SPAN_KIND);
+    this.direction = KnownTagCodec.directionOfKind(kind == null ? null : kind.toString());
     if (delegate instanceof AttachableWrapper) {
       ((AttachableWrapper) delegate).attachWrapper(this);
     }
@@ -69,7 +78,7 @@ public class OtelSpan implements Span, WithAgentSpan, SpanWrapper {
           }
           break;
         default:
-          this.delegate.setTag(key.getKey(), value);
+          this.delegate.setTag(attributeTag(key.getKey(), this.direction), value);
           break;
       }
     }

@@ -104,6 +104,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     Map<String, String> requestHeaderTags;
     Map<String, String> responseHeaderTags;
     Map<String, String> tracingTags;
+    boolean tracingTagsOverridden;
     Map<String, String> baggageMapping;
 
     List<? extends SpanSamplingRule> spanSamplingRules;
@@ -134,6 +135,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
       this.traceSampleRate = snapshot.traceSampleRate;
 
       this.tracingTags = snapshot.tracingTags;
+      this.tracingTagsOverridden = snapshot.tracingTagsOverridden;
 
       this.preferredServiceNameAndSource = snapshot.preferredServiceNameAndSource;
       this.dataStreamsTransactionExtractors = snapshot.dataStreamsTransactionExtractors;
@@ -218,6 +220,14 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
 
     public Builder setTracingTags(Map<String, String> tracingTags) {
       this.tracingTags = tracingTags;
+      this.tracingTagsOverridden = false;
+      return this;
+    }
+
+    /** Sets the tracing tags from a remote config override, even an empty one. */
+    public Builder overrideTracingTags(Map<String, String> tracingTags) {
+      this.tracingTags = tracingTags;
+      this.tracingTagsOverridden = true;
       return this;
     }
 
@@ -332,6 +342,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
 
     final Double traceSampleRate;
     final Map<String, String> tracingTags;
+    final boolean tracingTagsOverridden;
 
     final Pair<String, CharSequence> preferredServiceNameAndSource;
     final List<DataStreamsTransactionExtractor> dataStreamsTransactionExtractors;
@@ -354,6 +365,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
       this.traceSampleRate = builder.traceSampleRate;
 
       this.tracingTags = nullToEmpty(builder.tracingTags);
+      this.tracingTagsOverridden = builder.tracingTagsOverridden;
 
       this.preferredServiceNameAndSource = builder.preferredServiceNameAndSource;
       this.dataStreamsTransactionExtractors = builder.dataStreamsTransactionExtractors;
@@ -435,6 +447,11 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     @Override
     public Map<String, String> getTracingTags() {
       return tracingTags;
+    }
+
+    /** True while the tracing tags come from a remote config override. */
+    public boolean isTracingTagsOverridden() {
+      return tracingTagsOverridden;
     }
 
     @Override

@@ -1,13 +1,18 @@
 package datadog.trace.test.agent.decoder.v1.raw;
 
+import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import datadog.trace.test.agent.decoder.DecodedSpanEvent;
 import datadog.trace.test.agent.decoder.DecodedSpanLink;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.msgpack.core.MessageBufferPacker;
 import org.msgpack.core.MessagePack;
@@ -69,6 +74,105 @@ class SpanV1Test {
     packer.packArrayHeader(0);
 
     assertEquals(emptyList(), SpanV1.unpackSpanLinks(unpacker(packer), new ArrayList<>()));
+  }
+
+  @Test
+  void decodesSpanEventsWithTypedAttributes() throws IOException {
+    MessageBufferPacker packer = MessagePack.newDefaultBufferPacker();
+    packer.packArrayHeader(1);
+    packer.packMapHeader(3);
+    packer.packInt(SpanV1.EVENT_FIELD_TIME);
+    packer.packLong(1_234L);
+    packer.packInt(SpanV1.EVENT_FIELD_NAME);
+    packer.packString("event");
+    packer.packInt(SpanV1.EVENT_FIELD_ATTRIBUTES);
+    packer.packArrayHeader(5 * 3);
+    packAttributeKey(packer, "str", SpanV1.STRING_VALUE_TYPE);
+    packer.packString("value");
+    packAttributeKey(packer, "bool", SpanV1.BOOL_VALUE_TYPE);
+    packer.packBoolean(true);
+    packAttributeKey(packer, "int", SpanV1.INT_VALUE_TYPE);
+    packer.packLong(42L);
+    packAttributeKey(packer, "double", SpanV1.FLOAT_VALUE_TYPE);
+    packer.packDouble(12.5d);
+    packAttributeKey(packer, "arr", SpanV1.ARRAY_VALUE_TYPE);
+    packer.packArrayHeader(2 * 2);
+    packer.packInt(SpanV1.STRING_VALUE_TYPE);
+    packer.packString("x");
+    packer.packInt(SpanV1.INT_VALUE_TYPE);
+    packer.packLong(7L);
+
+    List<DecodedSpanEvent> events = SpanV1.unpackSpanEvents(unpacker(packer), new ArrayList<>());
+
+    assertEquals(1, events.size());
+    DecodedSpanEvent event = events.get(0);
+    assertEquals("event", event.getName());
+    assertEquals(1_234L, event.getTimeUnixNano());
+    Map<String, Object> expected = new LinkedHashMap<>();
+    expected.put("str", "value");
+    expected.put("bool", true);
+    expected.put("int", 42L);
+    expected.put("double", 12.5d);
+    expected.put("arr", asList("x", 7L));
+    assertEquals(expected, event.getAttributes());
+  }
+
+  @Test
+  void spanEventsKeepTheStringTableInSync() throws IOException {
+    // The event introduces "event" and "key" in the string table, then the span type refers to
+    // "key" by its index: decoding the events must have registered both strings.
+    MessageBufferPacker packer = MessagePack.newDefaultBufferPacker();
+    packer.packMapHeader(2);
+    packer.packInt(SpanV1.SPAN_FIELD_SPAN_EVENTS);
+    packer.packArrayHeader(1);
+    packer.packMapHeader(3);
+    packer.packInt(SpanV1.EVENT_FIELD_TIME);
+    packer.packLong(1L);
+    packer.packInt(SpanV1.EVENT_FIELD_NAME);
+    packer.packString("event");
+    packer.packInt(SpanV1.EVENT_FIELD_ATTRIBUTES);
+    packer.packArrayHeader(3);
+    packAttributeKey(packer, "key", SpanV1.INT_VALUE_TYPE);
+    packer.packLong(1L);
+    packer.packInt(SpanV1.SPAN_FIELD_TYPE);
+    packer.packInt(2);
+    List<String> stringTable = new ArrayList<>();
+    stringTable.add("");
+
+    SpanV1 span = SpanV1.unpack(unpacker(packer), stringTable);
+
+    assertEquals("key", span.getType(), "string index after the events");
+    assertEquals(1, span.getEvents().size());
+    assertEquals("event", span.getEvents().get(0).getName());
+  }
+
+  @Test
+  void rejectsSpanEventsMissingRequiredFields() throws IOException {
+    MessageBufferPacker packer = MessagePack.newDefaultBufferPacker();
+    packer.packArrayHeader(1);
+    packer.packMapHeader(1);
+    packer.packInt(SpanV1.EVENT_FIELD_NAME);
+    packer.packString("event");
+    MessageUnpacker unpacker = unpacker(packer);
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> SpanV1.unpackSpanEvents(unpacker, new ArrayList<>()),
+        "missing time");
+  }
+
+  @Test
+  void noSpanEventsDecodeToAnEmptyList() throws IOException {
+    MessageBufferPacker packer = MessagePack.newDefaultBufferPacker();
+    packer.packArrayHeader(0);
+
+    assertEquals(emptyList(), SpanV1.unpackSpanEvents(unpacker(packer), new ArrayList<>()));
+  }
+
+  private static void packAttributeKey(MessageBufferPacker packer, String key, int valueType)
+      throws IOException {
+    packer.packString(key);
+    packer.packInt(valueType);
   }
 
   private static long spanIdOf(BigInteger id) throws IOException {

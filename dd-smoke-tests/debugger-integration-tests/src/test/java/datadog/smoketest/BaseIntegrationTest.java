@@ -113,6 +113,8 @@ public abstract class BaseIntegrationTest {
   protected final List<Consumer<DecodedTrace>> traceListeners = new ArrayList<>();
   protected final List<Consumer<ProbeStatus>> probeStatusListeners = new ArrayList<>();
   protected int batchSize = 1; // to verify each snapshot upload one by one
+  protected final List<String> removableJvmArgs = new ArrayList<>();
+  protected final List<String> additionalJvmArgs = new ArrayList<>();
 
   @BeforeAll
   static void setupAll() throws Exception {
@@ -148,7 +150,8 @@ public abstract class BaseIntegrationTest {
 
   protected ProcessBuilder createProcessBuilder(Path logFilePath, String... params) {
     List<String> commandParams = getDebuggerCommandParams();
-    commandParams.add("-Ddd.trace.enabled=false");
+    commandParams.removeAll(removableJvmArgs);
+    commandParams.addAll(additionalJvmArgs);
     return ProcessBuilderHelper.createProcessBuilder(
         commandParams, logFilePath, getAppClass(), params);
   }
@@ -169,6 +172,7 @@ public abstract class BaseIntegrationTest {
             "-Ddatadog.slf4j.simpleLogger.log.datadog.remoteconfig=debug",
             "-Ddd.jmxfetch.start-delay=0",
             "-Ddd.jmxfetch.enabled=false",
+            "-Ddd.trace.enabled=false", // tracer disabled by default
             "-Ddd.dynamic.instrumentation.enabled=true",
             "-Ddd.remote_config.poll_interval.seconds=1",
             "-Ddd.trace.agent.url=http://localhost:" + datadogAgentServer.getPort(),
@@ -338,21 +342,20 @@ public abstract class BaseIntegrationTest {
     AtomicBoolean installed = new AtomicBoolean();
     AtomicBoolean emitting = new AtomicBoolean();
     AtomicBoolean result = new AtomicBoolean();
-    registerProbeStatusListener(
-        probeStatus -> {
-          if (probeStatus.getDiagnostics().getProbeId().equals(probeId)) {
-            if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.RECEIVED) {
-              received.set(true);
-            }
-            if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.INSTALLED) {
-              installed.set(true);
-            }
-            if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.EMITTING) {
-              emitting.set(true);
-            }
-            result.set(received.get() && installed.get() && emitting.get());
-          }
-        });
+    registerProbeStatusListener(probeStatus -> {
+      if (probeStatus.getDiagnostics().getProbeId().equals(probeId)) {
+        if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.RECEIVED) {
+          received.set(true);
+        }
+        if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.INSTALLED) {
+          installed.set(true);
+        }
+        if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.EMITTING) {
+          emitting.set(true);
+        }
+        result.set(received.get() && installed.get() && emitting.get());
+      }
+    });
     return result;
   }
 
@@ -601,12 +604,11 @@ public abstract class BaseIntegrationTest {
       try (Stream<String> lines = Files.lines(logFilePath)) {
         long errorLines =
             lines
-                .filter(
-                    it ->
-                        it.contains(" ERROR ")
-                            || it.contains("ASSERTION FAILED")
-                            || it.contains("Error:")
-                            || checker.apply(it))
+                .filter(it ->
+                    it.contains(" ERROR ")
+                        || it.contains("ASSERTION FAILED")
+                        || it.contains("Error:")
+                        || checker.apply(it))
                 .peek(System.out::println)
                 .count();
         boolean hasErrors = errorLines > 0;

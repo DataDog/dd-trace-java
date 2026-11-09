@@ -793,12 +793,11 @@ public class ProfilingSystemTest {
   @Test
   public void testStoppedWhileCreatingRecording() throws Exception {
     when(controller.createRecording(any(), any()))
-        .thenAnswer(
-            invocation -> {
-              // simulates stop() tearing down the scheduler while the recording is created
-              scheduler.shutdown(0, SECONDS);
-              return recording;
-            });
+        .thenAnswer(invocation -> {
+          // simulates stop() tearing down the scheduler while the recording is created
+          scheduler.shutdown(0, SECONDS);
+          return recording;
+        });
     final ProfilingSystem system =
         new ProfilingSystem(
             configProvider,

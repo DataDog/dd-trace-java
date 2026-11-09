@@ -7,11 +7,8 @@ import com.datadog.debugger.agent.Configuration;
 import com.datadog.debugger.agent.ProbeStatus;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.sink.Snapshot;
-import datadog.trace.test.util.Flaky;
 import datadog.trace.test.util.NonRetryable;
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
@@ -24,25 +21,16 @@ import org.junit.jupiter.api.condition.JRE;
 
 @NonRetryable
 public class ProbeStateIntegrationTest extends ServerAppDebuggerIntegrationTest {
-  private final List<String> additionalJvmArgs = new ArrayList<>();
-
   @BeforeEach
   @Override
   void setup(TestInfo testInfo) throws Exception {
     super.setup(testInfo);
+    additionalJvmArgs.add("-Ddd.third.party.excludes=datadog.smoketest");
     // internal flag required to avoid racing source file tracking and class loading as
     // source file tracking information may be missing when looking for class to retransform
     additionalJvmArgs.add(
         "-Ddd.internal.dynamic.instrumentation.synchronous.source.file.tracking.enabled=true");
     appUrl = startAppAndAndGetUrl();
-  }
-
-  @Override
-  protected List<String> getDebuggerCommandParams() {
-    List<String> args = super.getDebuggerCommandParams();
-    args.add("-Ddd.third.party.excludes=datadog.smoketest");
-    args.addAll(additionalJvmArgs);
-    return args;
   }
 
   @Test
@@ -85,7 +73,6 @@ public class ProbeStateIntegrationTest extends ServerAppDebuggerIntegrationTest 
 
   @Test
   @DisplayName("testAddSourceFileProbeHugeInnerClasses")
-  @Flaky
   @DisabledIf(
       value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "Flaky on J9 JVMs")
@@ -203,18 +190,17 @@ public class ProbeStateIntegrationTest extends ServerAppDebuggerIntegrationTest 
     addProbe(logProbe);
     AtomicBoolean received = new AtomicBoolean();
     AtomicBoolean error = new AtomicBoolean();
-    registerProbeStatusListener(
-        probeStatus -> {
-          if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.RECEIVED) {
-            received.set(true);
-          }
-          if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.ERROR) {
-            assertEquals(
-                "Cannot find method datadog/smoketest/debugger/ServerDebuggerTestApplication::unknownMethodName",
-                probeStatus.getDiagnostics().getException().getMessage());
-            error.set(true);
-          }
-        });
+    registerProbeStatusListener(probeStatus -> {
+      if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.RECEIVED) {
+        received.set(true);
+      }
+      if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.ERROR) {
+        assertEquals(
+            "Cannot find method datadog/smoketest/debugger/ServerDebuggerTestApplication::unknownMethodName",
+            probeStatus.getDiagnostics().getException().getMessage());
+        error.set(true);
+      }
+    });
     processRequests(
         () -> received.get() && error.get(),
         () -> String.format("timeout received=%s error=%s", received.get(), error.get()));

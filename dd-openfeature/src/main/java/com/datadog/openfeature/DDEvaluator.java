@@ -1,7 +1,7 @@
 package com.datadog.openfeature;
 
 import com.datadog.openfeature.internal.FeatureFlagsRuntime;
-import com.datadog.openfeature.internal.bridge.AgentBridge;
+import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
 import com.datadog.openfeature.internal.config.Settings;
 import com.datadog.openfeature.internal.evaluation.ConfigurationStore;
 import com.datadog.openfeature.internal.evaluation.FlagEvaluator;
@@ -84,12 +84,22 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
   private volatile FeatureFlagsRuntime runtime;
 
   DDEvaluator(final Runnable configCallback, final AgentBridge bridge, final Settings settings) {
+    this(configCallback, bridge, settings, ExperimentationOptOutMode.DISABLED);
+  }
+
+  DDEvaluator(
+      final Runnable configCallback,
+      final AgentBridge bridge,
+      final Settings settings,
+      final ExperimentationOptOutMode experimentationOptOutMode) {
     this.configCallback = configCallback;
     this.bridge = bridge;
     this.settings = settings;
     // When span enrichment is off, the __dd_* span-enrichment metadata is attached only to
     // evaluations of allocations logging exposures, for the exposure hook.
-    this.core = new FlagEvaluator(settings.isSpanEnrichmentEnabled(), this::isExposed);
+    this.core =
+        new FlagEvaluator(
+            settings.isSpanEnrichmentEnabled(), this::isExposed, experimentationOptOutMode);
   }
 
   @Override

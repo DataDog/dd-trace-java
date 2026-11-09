@@ -1,6 +1,6 @@
 package com.datadog.openfeature.internal;
 
-import com.datadog.openfeature.internal.bridge.HealthMetrics;
+import com.datadog.openfeature.internal.bridge.v1.HealthMetrics;
 import javax.annotation.Nullable;
 
 /** Thread creation and health metrics shared by the runtime components. */

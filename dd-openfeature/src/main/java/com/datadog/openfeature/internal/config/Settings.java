@@ -1,6 +1,6 @@
 package com.datadog.openfeature.internal.config;
 
-import com.datadog.openfeature.internal.bridge.AgentBridge;
+import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.Locale;
 import java.util.function.UnaryOperator;
@@ -36,6 +36,10 @@ public final class Settings {
   static final String EVALUATION_COUNTS_ENABLED = "flagging.evaluation.counts.enabled";
   static final String EXPOSURES_DATADOG_LOGGING_ENABLED =
       "feature.flags.exposures.datadog.logging.enabled";
+  static final String EVALUATION_TELEMETRY_PER_SUBJECT_OPT_OUT_ENABLED =
+      "feature.flags.evaluation.telemetry.per.subject.opt.out.enabled";
+  static final String EXPERIMENTATION_OPT_OUT_MODE = "feature.flags.experimentation.opt.out.mode";
+  static final String TRACE_DEBUG = "trace.debug";
   static final String API_KEY = "api-key";
   static final String SITE = "site";
   static final String ENV = "env";
@@ -160,6 +164,32 @@ public final class Settings {
    */
   public boolean isExposuresDatadogLoggingEnabled() {
     return !Boolean.FALSE.equals(getBoolean(EXPOSURES_DATADOG_LOGGING_ENABLED));
+  }
+
+  /**
+   * Tells whether the {@code dd_evaluation_telemetry_opt_out} evaluation context attribute can opt
+   * subjects out of evaluation telemetry. The provider option takes precedence over this setting.
+   *
+   * @return whether per-subject evaluation telemetry opt-out is enabled (off by default).
+   */
+  public boolean isEvaluationTelemetryPerSubjectOptOutEnabled() {
+    return Boolean.TRUE.equals(getBoolean(EVALUATION_TELEMETRY_PER_SUBJECT_OPT_OUT_ENABLED));
+  }
+
+  /** Returns the configured experimentation opt-out mode, disabled by default. */
+  public String experimentationOptOutMode() {
+    final String mode = get(EXPERIMENTATION_OPT_OUT_MODE);
+    return mode == null ? "disabled" : mode;
+  }
+
+  /**
+   * Tells whether {@code DD_TRACE_DEBUG} is on. It gates the diagnostics that log raw evaluation
+   * contexts and values, on top of the application's logging configuration.
+   *
+   * @return whether trace debug is enabled (off by default).
+   */
+  public boolean isTraceDebug() {
+    return Boolean.TRUE.equals(getBoolean(TRACE_DEBUG));
   }
 
   /**

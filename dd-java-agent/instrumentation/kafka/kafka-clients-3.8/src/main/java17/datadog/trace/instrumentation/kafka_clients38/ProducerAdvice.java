@@ -1,9 +1,11 @@
 package datadog.trace.instrumentation.kafka_clients38;
 
+import static datadog.trace.api.KnownTags.TOMBSTONE;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.JAVA_KAFKA;
 import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.KAFKA_PRODUCE;
 import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.PRODUCER_DECORATE;
@@ -12,7 +14,6 @@ import datadog.context.ContextScope;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
-import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.instrumentation.kafka_common.ClusterIdHolder;
 import datadog.trace.instrumentation.kafka_common.MetadataState;
 import net.bytebuddy.asm.Advice;
@@ -35,8 +36,8 @@ public class ProducerAdvice {
         InstrumentationContext.get(Metadata.class, MetadataState.class).get(metadata);
     String clusterId = metadataState != null ? metadataState.clusterId : null;
 
-    // Set cluster ID for Schema Registry instrumentation
-    if (clusterId != null) {
+    // Set cluster ID for Schema Registry instrumentation, which only reports to Data Streams
+    if (clusterId != null && traceConfig().isDataStreamsEnabled()) {
       ClusterIdHolder.set(clusterId);
     }
 
@@ -62,7 +63,7 @@ public class ProducerAdvice {
     callback = new KafkaProducerCallback(callback, callbackParentSpan, span, clusterId);
 
     if (record.value() == null) {
-      span.setTag(InstrumentationTags.TOMBSTONE, true);
+      span.setTag(TOMBSTONE, true);
     }
 
     return activateSpan(span);

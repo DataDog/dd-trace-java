@@ -1,3 +1,5 @@
+import datadog.gradle.plugin.testing.GeneratedGroovyClosureSpec
+import datadog.gradle.plugin.testing.configureTestAgentPostChecks
 import org.gradle.api.plugins.jvm.JvmTestSuite
 import org.gradle.api.services.BuildService
 import org.gradle.api.services.BuildServiceParameters
@@ -34,15 +36,29 @@ val skipTestsProvider = rootProject.providers.gradleProperty("skipTests")
 val skipForkedTestsProvider = rootProject.providers.gradleProperty("skipForkedTests")
 val skipFlakyTestsProvider = rootProject.providers.gradleProperty("skipFlakyTests")
 val runFlakyTestsProvider = rootProject.providers.gradleProperty("runFlakyTests")
+val rerunTestsProperty = "rerun.tests.${project.name}"
+val rerunTestsProvider = rootProject.providers.gradleProperty(rerunTestsProperty)
+val isMasterBranch = providers.environmentVariable("CI_COMMIT_BRANCH")
+  .map { it == "master" }
+  .orElse(false)
 
 // Go through the Test tasks and configure them
 tasks.withType<Test>().configureEach {
+  configureTestAgentPostChecks()
+
   // Disable all tests if skipTests property was specified
   onlyIf("skipTests are undefined or false") { !skipTestsProvider.isPresent }
 
-  // Enable force rerun of tests with -Prerun.tests.${project.name}
-  outputs.upToDateWhen {
-    !rootProject.providers.gradleProperty("rerun.tests.${project.name}").isPresent
+  // Keep running tests on master even with the S3 build cache to keep
+  // steady flaky-tests signals. Successful results still populate the cache.
+  outputs.upToDateWhen { task ->
+    val reason = when {
+      isMasterBranch.get() -> "CI_COMMIT_BRANCH=master"
+      rerunTestsProvider.isPresent -> "$rerunTestsProperty is set"
+      else -> return@upToDateWhen true
+    }
+    task.logger.info("Disabling output reuse for {}: {}", task.path, reason)
+    false
   }
 
   // Trick to avoid on CI: "Couldn't flush user prefs: java.util.prefs.BackingStoreException: Couldn't get file lock."
@@ -55,6 +71,7 @@ tasks.withType<Test>().configureEach {
   // Split up tests that want to run forked in their own separate JVM for generated tasks
   if (name.startsWith("forkedTest") || name.endsWith("ForkedTest")) {
     setExcludes(emptyList())
+    exclude(GeneratedGroovyClosureSpec())
     setIncludes(listOf("**/*ForkedTest*"))
     forkEvery = 1
     // Limit the number of concurrent forked tests

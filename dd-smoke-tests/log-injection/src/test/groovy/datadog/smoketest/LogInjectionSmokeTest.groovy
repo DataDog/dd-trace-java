@@ -27,6 +27,11 @@ import static java.util.concurrent.TimeUnit.SECONDS
  * SECONDTRACEID TRACEID SPANID
  */
 abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
+  @Override
+  protected boolean expectsProcessAliveBeforeEachTest() {
+    false
+  }
+
   // Estimate for the amount of time instrumentation, plus request, plus some extra
   static final int TIMEOUT_SECS = 30
 

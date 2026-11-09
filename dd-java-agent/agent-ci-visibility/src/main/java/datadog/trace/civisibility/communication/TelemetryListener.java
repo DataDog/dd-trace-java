@@ -8,7 +8,10 @@ import datadog.trace.api.civisibility.telemetry.tag.ErrorType;
 import datadog.trace.api.civisibility.telemetry.tag.RequestCompressed;
 import datadog.trace.api.civisibility.telemetry.tag.ResponseCompressed;
 import datadog.trace.api.civisibility.telemetry.tag.StatusCode;
+import datadog.trace.api.time.SystemTimeSource;
+import datadog.trace.api.time.TimeSource;
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 import okhttp3.Call;
 import okhttp3.Response;
@@ -24,7 +27,9 @@ public class TelemetryListener extends OkHttpUtils.CustomListener {
   private final @Nullable CiVisibilityDistributionMetric requestBytesMetric;
   private final @Nullable CiVisibilityDistributionMetric requestDurationMetric;
   private final @Nullable CiVisibilityDistributionMetric responseBytesMetric;
+  private final TimeSource timeSource;
   private long callStartTimestamp;
+  private long totalRequestDurationNanos;
   private boolean responseCompressed;
 
   private TelemetryListener(
@@ -33,17 +38,19 @@ public class TelemetryListener extends OkHttpUtils.CustomListener {
       @Nullable CiVisibilityCountMetric requestErrorsMetric,
       @Nullable CiVisibilityDistributionMetric requestBytesMetric,
       @Nullable CiVisibilityDistributionMetric requestDurationMetric,
-      @Nullable CiVisibilityDistributionMetric responseBytesMetric) {
+      @Nullable CiVisibilityDistributionMetric responseBytesMetric,
+      TimeSource timeSource) {
     this.metricCollector = metricCollector;
     this.requestCountMetric = requestCountMetric;
     this.requestErrorsMetric = requestErrorsMetric;
     this.requestBytesMetric = requestBytesMetric;
     this.requestDurationMetric = requestDurationMetric;
     this.responseBytesMetric = responseBytesMetric;
+    this.timeSource = timeSource;
   }
 
   public void callStart(Call call) {
-    callStartTimestamp = System.currentTimeMillis();
+    callStartTimestamp = timeSource.getNanoTicks();
     if (requestCountMetric != null) {
       metricCollector.add(
           requestCountMetric,
@@ -82,25 +89,34 @@ public class TelemetryListener extends OkHttpUtils.CustomListener {
   }
 
   public void callEnd(Call call) {
-    if (requestDurationMetric != null) {
-      int durationMillis = (int) (System.currentTimeMillis() - callStartTimestamp);
-      metricCollector.add(requestDurationMetric, durationMillis);
-    }
+    recordRequestDuration();
   }
 
   public void callFailed(Call call, IOException ioe) {
-    if (requestDurationMetric != null) {
-      int durationMillis = (int) (System.currentTimeMillis() - callStartTimestamp);
-      metricCollector.add(requestDurationMetric, durationMillis);
-    }
+    recordRequestDuration();
 
     if (requestErrorsMetric != null) {
       metricCollector.add(requestErrorsMetric, 1, ErrorType.NETWORK);
     }
   }
 
+  private void recordRequestDuration() {
+    long durationNanos = timeSource.getNanoTicks() - callStartTimestamp;
+    totalRequestDurationNanos += durationNanos;
+    if (requestDurationMetric != null) {
+      metricCollector.add(
+          requestDurationMetric, (int) TimeUnit.NANOSECONDS.toMillis(durationNanos));
+    }
+  }
+
+  /** Returns total call time, including failed attempts and excluding time between calls. */
+  public int getTotalRequestDurationMillis() {
+    return (int) TimeUnit.NANOSECONDS.toMillis(totalRequestDurationNanos);
+  }
+
   public static final class Builder {
     private final CiVisibilityMetricCollector metricCollector;
+    private final TimeSource timeSource;
     private @Nullable CiVisibilityCountMetric requestCountMetric;
     private @Nullable CiVisibilityCountMetric requestErrorsMetric;
     private @Nullable CiVisibilityDistributionMetric requestBytesMetric;
@@ -108,7 +124,12 @@ public class TelemetryListener extends OkHttpUtils.CustomListener {
     private @Nullable CiVisibilityDistributionMetric responseBytesMetric;
 
     public Builder(CiVisibilityMetricCollector metricCollector) {
+      this(metricCollector, SystemTimeSource.INSTANCE);
+    }
+
+    public Builder(CiVisibilityMetricCollector metricCollector, TimeSource timeSource) {
       this.metricCollector = metricCollector;
+      this.timeSource = timeSource;
     }
 
     public Builder requestCount(@Nullable CiVisibilityCountMetric requestCountMetric) {
@@ -136,14 +157,15 @@ public class TelemetryListener extends OkHttpUtils.CustomListener {
       return this;
     }
 
-    public OkHttpUtils.CustomListener build() {
+    public TelemetryListener build() {
       return new TelemetryListener(
           metricCollector,
           requestCountMetric,
           requestErrorsMetric,
           requestBytesMetric,
           requestDurationMetric,
-          responseBytesMetric);
+          responseBytesMetric,
+          timeSource);
     }
   }
 }

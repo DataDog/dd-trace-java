@@ -4,6 +4,7 @@ import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
 import static datadog.trace.api.datastreams.DataStreamsTags.create;
 import static datadog.trace.api.datastreams.PathwayContext.DATADOG_KEY;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.bootstrap.instrumentation.api.URIUtils.urlFileName;
 import static datadog.trace.instrumentation.aws.v2.sqs.MessageAttributeInjector.SETTER;
 
@@ -93,6 +94,10 @@ public class SqsInterceptor implements ExecutionInterceptor {
 
   private Context getContext(ExecutionAttributes executionAttributes, String queueUrl) {
     Context context = executionAttributes.getAttribute(CONTEXT_ATTRIBUTE);
+    // With DSM off the DSM propagator injects nothing, so skip building its tags and context.
+    if (!traceConfig().isDataStreamsEnabled()) {
+      return context;
+    }
 
     DataStreamsTags tags = create("sqs", OUTBOUND, urlFileName(queueUrl));
     DataStreamsContext dsmContext = DataStreamsContext.fromTags(tags);

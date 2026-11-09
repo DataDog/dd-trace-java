@@ -3,6 +3,11 @@ package datadog.smoketest
 import spock.lang.Shared
 
 abstract class AbstractModulesSmokeTest extends AbstractSmokeTest {
+  @Override
+  protected boolean expectsProcessAliveBeforeEachTest() {
+    false
+  }
+
   static final String CONFIG_PREFIX = 'datadog.smoketest.jbossmodules.'
 
   @Shared

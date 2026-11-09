@@ -1,5 +1,4 @@
 import com.diffplug.gradle.spotless.GroovyExtension
-import com.diffplug.gradle.spotless.SpotlessExtension
 import datadog.gradle.plugin.HostPlatform
 import datadog.gradle.plugin.ci.testAggregate
 
@@ -18,7 +17,6 @@ plugins {
 
   alias(libs.plugins.shadow) apply false
   alias(libs.plugins.spotless)
-  id("com.github.spotbugs") version "6.5.11"
   id("io.github.gradle-nexus.publish-plugin") version "2.0.0"
   id("me.champeau.gradle.japicmp") version "0.4.3"
   id("me.champeau.jmh") version "0.7.3" apply false
@@ -32,18 +30,13 @@ val isCI = providers.environmentVariable("CI")
 apply(from = rootDir.resolve("gradle/repositories.gradle"))
 apply(from = rootDir.resolve("gradle/ddprof-override.gradle"))
 
-spotless {
-  // only resolve the spotless dependencies once in the build
-  predeclareDeps()
-}
-
-with(extensions["spotlessPredeclare"] as SpotlessExtension) {
+spotlessPredeclare {
   // these need to align with the types and versions in gradle/spotless.gradle
   java {
     removeUnusedImports()
     forbidWildcardImports()
 
-    googleJavaFormat(libs.versions.google.java.format.get())
+    googleJavaFormat()
     tableTestFormatter(libs.versions.tabletest.formatter.get())
   }
   groovyGradle {
@@ -60,13 +53,13 @@ with(extensions["spotlessPredeclare"] as SpotlessExtension) {
     greclipse()
   }
   kotlinGradle {
-    ktlint(libs.versions.ktlint.get())
+    ktlint()
   }
   kotlin {
-    ktlint(libs.versions.ktlint.get())
+    ktlint()
   }
   scala {
-    scalafmt(libs.versions.scalafmt.get())
+    scalafmt()
   }
 }
 apply(from = rootDir.resolve("gradle/spotless.gradle"))

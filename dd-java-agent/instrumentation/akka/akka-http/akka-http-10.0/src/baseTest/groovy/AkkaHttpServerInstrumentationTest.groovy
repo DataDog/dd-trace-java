@@ -1,6 +1,7 @@
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
+import datadog.trace.agent.test.naming.TestingOtelHttpSemantics
 import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.test.util.ThreadUtils
 import datadog.trace.instrumentation.akkahttp.AkkaHttpServerDecorator
@@ -273,6 +274,9 @@ class AkkaHttpServerInstrumentationSyncV0ForkedTest extends AkkaHttpServerInstru
 }
 
 class AkkaHttpServerInstrumentationSyncV1ForkedTest extends AkkaHttpServerInstrumentationSyncTest implements TestingGenericHttpNamingConventions.ServerV1 {
+}
+
+class AkkaHttpServerInstrumentationSyncOtelSemanticsForkedTest extends AkkaHttpServerInstrumentationSyncV0ForkedTest implements TestingOtelHttpSemantics {
 }
 
 class AkkaHttpServerInstrumentationAsyncTest extends AkkaHttpServerInstrumentationTest {

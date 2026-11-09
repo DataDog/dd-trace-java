@@ -2,7 +2,7 @@
 # Manual edits can break the build and are not advised.
 # This file is expected to be part of source control.
 # To regenerate this file, run: ./gradlew :dd-java-agent:agent-profiling:profiling-controller-oracle:dependencies --write-locks
-at.yawk.lz4:lz4-java:1.11.4=testRuntimeClasspath
+at.yawk.lz4:lz4-java:1.12.1=testRuntimeClasspath
 cafe.cryptography:curve25519-elisabeth:0.1.0=testRuntimeClasspath
 cafe.cryptography:ed25519-elisabeth:0.1.0=testRuntimeClasspath
 ch.qos.logback:logback-classic:1.2.13=testCompileClasspath,testRuntimeClasspath
@@ -104,4 +104,4 @@ org.spockframework:spock-core:2.4-groovy-3.0=testCompileClasspath,testRuntimeCla
 org.tabletest:tabletest-junit:1.2.2=testCompileClasspath,testRuntimeClasspath
 org.tabletest:tabletest-parser:1.2.1=testCompileClasspath,testRuntimeClasspath
 org.xmlresolver:xmlresolver:5.3.3=spotbugs
-empty=annotationProcessor,main_java11AnnotationProcessor,main_java11CompileClasspath,main_java11RuntimeClasspath,spotbugsPlugins,testAnnotationProcessor
+empty=annotationProcessor,spotbugsPlugins,testAnnotationProcessor

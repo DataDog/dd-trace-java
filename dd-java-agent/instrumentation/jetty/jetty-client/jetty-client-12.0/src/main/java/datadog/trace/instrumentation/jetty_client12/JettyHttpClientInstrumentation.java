@@ -28,6 +28,11 @@ public class JettyHttpClientInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
+  public String muzzleDirective() {
+    return "jetty-client";
+  }
+
+  @Override
   public String instrumentedType() {
     return "org.eclipse.jetty.client.transport.HttpRequest";
   }

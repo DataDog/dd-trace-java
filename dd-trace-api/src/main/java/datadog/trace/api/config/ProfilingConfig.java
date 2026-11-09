@@ -131,6 +131,9 @@ public final class ProfilingConfig {
   public static final String PROFILING_DATADOG_PROFILER_SCHEDULING_EVENT_INTERVAL =
       "profiling.experimental.ddprof.scheduling.event.interval";
 
+  public static final String PROFILING_DATADOG_PROFILER_OPTIONS =
+      "profiling.experimental.ddprof.options";
+
   public static final String PROFILING_PROCESS_CONTEXT_ENABLED =
       "profiling.experimental.process_context.enabled";
   public static final boolean PROFILING_PROCESS_CONTEXT_ENABLED_DEFAULT = true;

@@ -1,17 +1,11 @@
 plugins {
+  // Tests load the native profiler selected for the image's libc variant.
+  id 'dd-trace-java.ci-builder-inputs'
   id 'dd-trace-java.module.internal-library'
-  id 'idea'
-}
-
-tracerJava {
-  addSourceSetFor(JavaVersion.VERSION_11) {
-    // By default tests with be compiled for `minJavaVersion` version,
-    // but in this case we would like to avoid this since we would like to run with ZULU8
-    applyForTestSources = false
-  }
 }
 
 testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_11
   excludeJdk = ['SEMERU11', 'SEMERU17']
 }
 
@@ -41,10 +35,4 @@ tasks.withType(AbstractCompile).configureEach {
   // Disable '-options' because we are compiling for java8 without specifying bootstrap - intentionally.
   // Disable '-path' because we do not have some of the paths seem to be missing.
   options.compilerArgs.addAll(['-Xlint:all,-processing,-options,-path'/*, '-Werror'*/])
-}
-
-idea {
-  module {
-    jdkName = '11'
-  }
 }

@@ -27,14 +27,14 @@ import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.utility.DockerImageName;
 
 /**
- * {@link AgentBackend} backed by a <a href="https://github.com/DataDog/dd-apm-test-agent">
- * dd-apm-test-agent</a> — either an already-running external agent ({@link Builder#external(String,
- * int)}, defaulting to the {@code CI_AGENT_HOST} sidecar when that variable is set) or a
- * Testcontainers-managed container ({@link Builder#image(String)}, the local-dev default). It reads
- * received traces from the agent's {@code /test/session/traces} JSON endpoint and decodes them into
- * the shared {@link DecodedTrace} model via {@link Decoder#decodeJson(String)}, so a test body
- * written against the common {@link Traces} surface runs unchanged against this backend or the
- * {@link MockAgentBackend}.
+ * {@link AgentBackend} backed by a <a
+ * href="https://github.com/DataDog/dd-apm-test-agent">dd-apm-test-agent</a> — either an
+ * already-running external agent ({@link Builder#external(String, int)}, defaulting to the {@code
+ * CI_AGENT_HOST} sidecar when that variable is set) or a Testcontainers-managed container ({@link
+ * Builder#image(String)}, the local-dev default). It reads received traces from the agent's {@code
+ * /test/session/traces} JSON endpoint and decodes them into the shared {@link DecodedTrace} model
+ * via {@link Decoder#decodeJson(String)}, so a test body written against the common {@link Traces}
+ * surface runs unchanged against this backend or the {@link MockAgentBackend}.
  *
  * <p><strong>Per-test isolation.</strong> A shared external agent serves every test in a job, so
  * traces are scoped by an {@code X-Datadog-Test-Session-Token}: the backend owns a token (see

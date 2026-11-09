@@ -78,6 +78,69 @@ public class URIUtils {
   }
 
   /**
+   * Preserves encoded {@code &} and {@code #} in a decoded query so value bytes cannot become
+   * parameter or fragment delimiters. If a raw query delimiter has no corresponding decoded
+   * delimiter, returns null to omit the inconsistent query rather than risk incomplete redaction.
+   */
+  public static String preserveQueryDelimiters(String rawQuery, String decodedQuery) {
+    if (rawQuery == null || decodedQuery == null || rawQuery.indexOf('%') < 0) {
+      return decodedQuery;
+    }
+    StringBuilder preservedQuery = null;
+    int searchStart = 0;
+    int appendStart = 0;
+    int bracketEnd = 0;
+    for (int i = 0; i < rawQuery.length(); i++) {
+      char candidate = rawQuery.charAt(i);
+      boolean encoded = candidate == '%' && i + 2 < rawQuery.length();
+      if (encoded) {
+        i++;
+        if (rawQuery.startsWith("26", i)) {
+          candidate = '&';
+        } else if (rawQuery.startsWith("23", i)) {
+          candidate = '#';
+        } else if (rawQuery.startsWith("5B", i) || rawQuery.startsWith("5b", i)) {
+          candidate = '[';
+        }
+        i++;
+      }
+      if (candidate != '&' && candidate != '#' && candidate != '[') {
+        continue;
+      }
+      // Match each delimiter in the decoded query; restore its escape only if it was encoded.
+      int index = decodedQuery.indexOf(candidate, searchStart);
+      if (index < 0) {
+        // Inconsistent inputs: omit the query rather than risk incomplete redaction.
+        return null;
+      }
+      searchStart = index + 1;
+      if (candidate == '[') {
+        if (!encoded && i >= bracketEnd) {
+          // Java 8's URI decoder leaves escapes inside literal brackets unchanged.
+          int end = rawQuery.indexOf(']', i + 1);
+          bracketEnd = end < 0 ? rawQuery.length() : end + 1;
+          // Compare each bracketed region once, even if it contains more opening brackets.
+          int length = bracketEnd - i;
+          if (decodedQuery.regionMatches(index, rawQuery, i, length)) {
+            i += length - 1;
+            searchStart = index + length;
+          }
+        }
+      } else if (encoded) {
+        if (preservedQuery == null) {
+          preservedQuery = new StringBuilder(decodedQuery.length() + 4);
+        }
+        // Restore only this escape, keeping the surrounding text decoded.
+        preservedQuery.append(decodedQuery, appendStart, index).append(rawQuery, i - 2, i + 1);
+        appendStart = searchStart;
+      }
+    }
+    return preservedQuery == null
+        ? decodedQuery
+        : preservedQuery.append(decodedQuery, appendStart, decodedQuery.length()).toString();
+  }
+
+  /**
    * Build a URL based on the scheme, host, port and path.
    *
    * <p>Will remove the port if it is <= 0 or if its the default http/https port.

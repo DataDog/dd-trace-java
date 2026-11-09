@@ -7,7 +7,6 @@ import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.test.agent.decoder.DecodedSpan;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -28,18 +27,11 @@ public class ProbeFileIntegrationTest extends ServerAppDebuggerIntegrationTest {
     super.setup(testInfo);
     probeFilePath =
         Paths.get(ProbeFileIntegrationTest.class.getResource("/test_probe_file.json").toURI());
-    appUrl = startAppAndAndGetUrl();
-  }
-
-  @Override
-  protected ProcessBuilder createProcessBuilder(Path logFilePath, String... params) {
-    List<String> commandParams = getDebuggerCommandParams();
-    commandParams.add("-Ddd.trace.enabled=true"); // explicitly enable tracer
-    commandParams.add("-Ddd.dynamic.instrumentation.probe.file=" + probeFilePath.toString());
+    additionalJvmArgs.add("-Ddd.trace.enabled=true"); // explicitly enable tracer
+    additionalJvmArgs.add("-Ddd.dynamic.instrumentation.probe.file=" + probeFilePath.toString());
     // increase eval timeout for decoration evaluations
-    commandParams.add("-Ddd.dynamic.instrumentation.evaluation.timeout.ms=100");
-    return ProcessBuilderHelper.createProcessBuilder(
-        commandParams, logFilePath, getAppClass(), params);
+    additionalJvmArgs.add("-Ddd.dynamic.instrumentation.evaluation.timeout.ms=100");
+    appUrl = startAppAndAndGetUrl();
   }
 
   @Test
@@ -52,22 +44,20 @@ public class ProbeFileIntegrationTest extends ServerAppDebuggerIntegrationTest {
     execute(appUrl, TRACED_METHOD_NAME);
     AtomicBoolean snapshotReceived = new AtomicBoolean();
     AtomicBoolean traceReceived = new AtomicBoolean();
-    registerSnapshotListener(
-        snapshot -> {
-          assertEquals(PROBE_ID.getId(), snapshot.getProbe().getId());
-          assertEquals(5, snapshot.getCaptures().getReturn().getArguments().size());
-          snapshotReceived.set(true);
-        });
-    registerTraceListener(
-        decodedTrace -> {
-          for (DecodedSpan span : decodedTrace.getSpans()) {
-            if (isDynamicSpan(span)) {
-              assertEquals("foobar", span.getMeta().get("client"));
-              assertEquals(PROBE_ID2.getId(), span.getMeta().get("_dd.di.client.probe_id"));
-              traceReceived.set(true);
-            }
-          }
-        });
+    registerSnapshotListener(snapshot -> {
+      assertEquals(PROBE_ID.getId(), snapshot.getProbe().getId());
+      assertEquals(5, snapshot.getCaptures().getReturn().getArguments().size());
+      snapshotReceived.set(true);
+    });
+    registerTraceListener(decodedTrace -> {
+      for (DecodedSpan span : decodedTrace.getSpans()) {
+        if (isDynamicSpan(span)) {
+          assertEquals("foobar", span.getMeta().get("client"));
+          assertEquals(PROBE_ID2.getId(), span.getMeta().get("_dd.di.client.probe_id"));
+          traceReceived.set(true);
+        }
+      }
+    });
     processRequests(
         () -> snapshotReceived.get() && traceReceived.get(),
         () ->

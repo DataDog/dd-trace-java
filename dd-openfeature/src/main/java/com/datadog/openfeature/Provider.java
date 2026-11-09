@@ -1,11 +1,14 @@
 package com.datadog.openfeature;
 
+import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import com.datadog.openfeature.internal.FeatureFlagsRuntime;
-import com.datadog.openfeature.internal.bridge.AgentBridge;
-import com.datadog.openfeature.internal.bridge.AgentBridges;
+import com.datadog.openfeature.internal.FeatureFlagsRuntime.RemoteConfigurationUnavailableException;
+import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
+import com.datadog.openfeature.internal.bridge.v1.AgentBridges;
 import com.datadog.openfeature.internal.config.Settings;
+import com.datadog.openfeature.internal.evaluation.ExperimentationOptOut;
 import com.datadog.openfeature.internal.flagevaluation.FlagEvaluationWriter;
 import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.EvaluationContext;
@@ -22,6 +25,7 @@ import dev.openfeature.sdk.exceptions.ProviderNotReadyError;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
@@ -38,6 +42,7 @@ public class Provider extends EventProvider implements Metadata {
   private final Options options;
   private final AgentBridge bridge;
   private final Settings settings;
+  private final ExperimentationOptOutMode experimentationOptOutMode;
   private final AtomicReference<InitializationState> initializationState =
       new AtomicReference<>(InitializationState.NOT_STARTED);
   private final FlagEvalMetrics flagEvalMetrics;
@@ -78,6 +83,10 @@ public class Provider extends EventProvider implements Metadata {
     this.evaluator = evaluator;
     this.bridge = AgentBridges.detect();
     this.settings = Settings.load(this.bridge);
+    this.experimentationOptOutMode =
+        this.settings.isEnabled()
+            ? ExperimentationOptOut.resolve(options.experimentationOptOutMode, this.settings)
+            : ExperimentationOptOutMode.DISABLED;
     FlagEvalMetrics metrics = null;
     FlagEvalMetricsHook hook = null;
     try {
@@ -101,7 +110,7 @@ public class Provider extends EventProvider implements Metadata {
 
     // Precompute the immutable hook list once so getProviderHooks() (called on every evaluation)
     // allocates nothing, including when the gate is off.
-    final List<Hook> hooks = new ArrayList<>(4);
+    final List<Hook> hooks = new ArrayList<>(5);
     if (flagEvalMetricsHook != null) {
       hooks.add(flagEvalMetricsHook);
     }
@@ -111,7 +120,27 @@ public class Provider extends EventProvider implements Metadata {
     if (spanEnrichmentHook != null) {
       hooks.add(spanEnrichmentHook);
     }
-    // Exposure hook: always registered last; no-op when the evaluator is not a Datadog one or is
+    if (options.isEvaluationTelemetryOptOutParameterEnabled(this.settings)) {
+      for (int i = 0; i < hooks.size(); i++) {
+        hooks.set(i, new EvaluationTelemetryOptOutHook(hooks.get(i)));
+      }
+    }
+    // Local debug diagnostics are not telemetry, so the opt-out does not apply to them.
+    if (this.settings.isTraceDebug()) {
+      if (DebugLoggingHook.isLoggerEnabled()) {
+        hooks.add(new DebugLoggingHook<>());
+        DebugLoggingHook.announce();
+      } else {
+        // DD_TRACE_DEBUG cannot raise the application's logger levels, so name the second gate.
+        log.warn(
+            "DD_TRACE_DEBUG is enabled, but DEBUG is disabled for {} in the application's logging"
+                + " configuration; evaluation debug diagnostics are off. Enable DEBUG for that"
+                + " category before constructing the Provider.",
+            DebugLoggingHook.class.getName());
+      }
+    }
+    // Exposure hook: always registered last, and independent of evaluation telemetry opt-out; no-op
+    // when the evaluator is not a Datadog one or is
     // not initialized.
     hooks.add(new ExposureLoggingHook<>(this::datadogEvaluator));
     this.providerHooks =
@@ -124,33 +153,67 @@ public class Provider extends EventProvider implements Metadata {
     } else {
       log.info("{} span enrichment disabled", METADATA);
     }
+    log.info(
+        "{} experimentation opt-out mode: {}",
+        METADATA,
+        this.experimentationOptOutMode.name().toLowerCase(Locale.ROOT));
   }
 
   @Override
   public void initialize(final EvaluationContext context) throws Exception {
     initializationState.set(InitializationState.INITIALIZING);
+    debug(
+        "Feature Flagging provider initializing: timeout={} {}",
+        options.getTimeout(),
+        options.getUnit());
     try {
       evaluator = buildEvaluator();
       if (!evaluator.initialize(options.getTimeout(), options.getUnit(), context)) {
         if (markInitialConfigReceivedReady()) {
+          debug("Feature Flagging provider ready: configuration received during initialization");
           return;
         }
         markInitializationError();
+        debug("Feature Flagging provider initialization timed out waiting for configuration");
         throw new ProviderNotReadyError(
             "Provider timed-out while waiting for initial configuration");
       }
       if (!evaluator.hasConfiguration() || !markSuccessfulInitializationReady()) {
         markInitializationError();
+        debug("Feature Flagging provider initialization timed out waiting for configuration");
         throw new ProviderNotReadyError(
             "Provider timed-out while waiting for initial configuration");
       }
+      debug("Feature Flagging provider ready");
+    } catch (final RemoteConfigurationUnavailableException e) {
+      // No RC connector means no configuration can arrive in this JVM. Complete registration
+      // without waiting or switching sources. The evaluator has no runtime/configuration and
+      // returns caller defaults with PROVIDER_NOT_READY, never successful flag assignments.
+      // OpenFeature marks the completed registration READY; that does not imply RC is available.
+      initializationState.set(InitializationState.FALLBACK);
+      log.warn("{}; returning caller defaults", e.getMessage());
+      log.debug("Feature Flags Remote Configuration connector unavailable", e);
     } catch (final OpenFeatureError e) {
       markInitializationError();
       throw e;
     } catch (final Throwable e) {
       markInitializationError();
+      // Only the type: the message of a configuration error can echo a URL with credentials.
+      debug("Feature Flagging provider initialization failed: {}", e.getClass().getName());
       throw new FatalError(
           "Failed to initialize Datadog Feature Flags provider: " + e.getMessage(), e);
+    }
+  }
+
+  /**
+   * Logs a lifecycle diagnostic. A failing logging backend must not turn a state change into a
+   * failure, such as a successful initialization into an error.
+   */
+  private static void debug(final String message, final Object... arguments) {
+    try {
+      log.debug(message, arguments);
+    } catch (final RuntimeException | LinkageError ignored) {
+      // Nothing more can be done.
     }
   }
 
@@ -172,6 +235,7 @@ public class Provider extends EventProvider implements Metadata {
     if (state == InitializationState.ERROR
         && initializationState.compareAndSet(
             InitializationState.ERROR, InitializationState.READY)) {
+      debug("Feature Flagging provider recovered: configuration received after an error");
       emit(
           ProviderEvent.PROVIDER_READY,
           ProviderEventDetails.builder().message("Provider ready").build());
@@ -180,6 +244,7 @@ public class Provider extends EventProvider implements Metadata {
     if (initializationState.get() != InitializationState.READY) {
       return;
     }
+    debug("Feature Flagging provider configuration changed");
     emit(
         ProviderEvent.PROVIDER_CONFIGURATION_CHANGED,
         ProviderEventDetails.builder().message("New configuration received").build());
@@ -193,6 +258,7 @@ public class Provider extends EventProvider implements Metadata {
     if (!initializationState.compareAndSet(InitializationState.READY, InitializationState.ERROR)) {
       return;
     }
+    debug("Feature Flagging provider configuration unavailable; evaluations return defaults");
     emit(
         ProviderEvent.PROVIDER_ERROR,
         ProviderEventDetails.builder()
@@ -227,7 +293,8 @@ public class Provider extends EventProvider implements Metadata {
     if (evaluator != null) {
       return evaluator;
     }
-    return new DDEvaluator(this::onConfigurationChange, this.bridge, this.settings);
+    return new DDEvaluator(
+        this::onConfigurationChange, this.bridge, this.settings, this.experimentationOptOutMode);
   }
 
   private FlagEvaluationWriter flagEvaluationPipeline() {
@@ -258,6 +325,8 @@ public class Provider extends EventProvider implements Metadata {
     if (evaluator != null) {
       evaluator.shutdown();
     }
+    // Logged last: a diagnostic must not get in the way of the cleanup.
+    log.debug("Feature Flagging provider shut down");
   }
 
   // Visible for tests: expose whether span enrichment is wired (gate-on) without leaking the impl.
@@ -310,14 +379,74 @@ public class Provider extends EventProvider implements Metadata {
     INITIALIZING,
     INITIAL_CONFIG_RECEIVED,
     READY,
-    ERROR
+    ERROR,
+    FALLBACK
   }
 
   /** The provider options. */
   public static class Options {
 
-    private long timeout;
-    private TimeUnit unit;
+    private long timeout = 30;
+    private TimeUnit unit = SECONDS;
+    private Boolean evaluationTelemetryOptOutParameterEnabled;
+    private ExperimentationOptOutMode experimentationOptOutMode = ExperimentationOptOutMode.DEFAULT;
+
+    /**
+     * Sets per-subject experimentation opt-out. {@link ExperimentationOptOutMode#DEFAULT} reads
+     * {@code DD_FEATURE_FLAGS_EXPERIMENTATION_OPT_OUT_MODE}; every other mode, including {@code
+     * DISABLED}, overrides configuration. The provider captures the mode at construction.
+     * Unsupported configured modes throw {@link IllegalArgumentException} unless Feature Flags is
+     * disabled.
+     *
+     * <p>Enabled modes read {@code dd_experimentation_opt_out_at} from the merged evaluation
+     * context. Supply a timestamp String accepted by {@link
+     * java.time.format.DateTimeFormatter#ISO_OFFSET_DATE_TIME}, for example {@code
+     * Instant.now().toString()}. An {@code Instant} object, null, or any other invalid value
+     * returns the application's default with {@code INVALID_CONTEXT} after configuration is ready,
+     * even for ordinary or missing flags. Omit the attribute to permit experimentation; disabled
+     * mode ignores it.
+     *
+     * <p>This controls experiment allocation selection, independently of evaluation telemetry
+     * opt-out. The attribute remains available for targeting and reporting under the existing
+     * exposure and evaluation-data settings.
+     *
+     * @param mode the mode; configure before constructing the provider.
+     * @return these options.
+     * @throws NullPointerException if mode is null.
+     */
+    public Options experimentationOptOutMode(final ExperimentationOptOutMode mode) {
+      this.experimentationOptOutMode = requireNonNull(mode, "mode");
+      return this;
+    }
+
+    /**
+     * Enables per-evaluation telemetry opt-out through the {@code dd_evaluation_telemetry_opt_out}
+     * context attribute. Overrides {@code
+     * DD_FEATURE_FLAGS_EVALUATION_TELEMETRY_PER_SUBJECT_OPT_OUT_ENABLED}, including when false.
+     * Without an explicit option, the provider reads configuration at construction. Disabled by
+     * default.
+     *
+     * <p>Only boolean {@code true} suppresses new Datadog evaluation events, evaluation metrics,
+     * and automatic flag span enrichment. Missing or other values preserve telemetry. This does not
+     * change flag results, exposure logging, application hooks, or previously recorded data.
+     *
+     * <p>The attribute remains available for targeting and exposure reporting. Existing privacy and
+     * reporting settings apply.
+     *
+     * @param enabled whether to honor the attribute; configure before constructing the provider.
+     * @return these options.
+     */
+    public Options enableEvaluationTelemetryOptOutParameter(final boolean enabled) {
+      this.evaluationTelemetryOptOutParameterEnabled = enabled;
+      return this;
+    }
+
+    private boolean isEvaluationTelemetryOptOutParameterEnabled(final Settings settings) {
+      if (this.evaluationTelemetryOptOutParameterEnabled != null) {
+        return this.evaluationTelemetryOptOutParameterEnabled;
+      }
+      return settings.isEvaluationTelemetryPerSubjectOptOutEnabled();
+    }
 
     /**
      * Sets how long provider initialization waits for the initial flag configuration.

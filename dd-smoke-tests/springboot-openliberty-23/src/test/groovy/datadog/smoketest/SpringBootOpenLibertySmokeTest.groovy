@@ -24,10 +24,13 @@ class SpringBootOpenLibertySmokeTest extends AbstractServerSmokeTest {
   @Shared
   String openLibertyShadowJar = System.getProperty("datadog.smoketest.openliberty.jar.path")
 
+  @Shared
+  String applicationJar
+
   @Override
   ProcessBuilder createProcessBuilder() {
     // Make a copy of the OpenLiberty runnable JAR before injecting JVM configuration
-    def applicationJar = copyApplicationJar().toAbsolutePath().toString()
+    applicationJar = copyApplicationJar().toAbsolutePath().toString()
 
     List<String> command = [
       javaPath(),
@@ -54,6 +57,11 @@ class SpringBootOpenLibertySmokeTest extends AbstractServerSmokeTest {
     processBuilder.environment().put('WLP_JAR_EXTRACT_ROOT', 'application')
     processBuilder.directory(new File(buildDirectory))
     return processBuilder
+  }
+
+  @Override
+  protected boolean replaceScopeDiagnosticsArgument(ProcessBuilder builder, String argument) {
+    replaceScopeDiagnosticsArgumentInJar(Paths.get(applicationJar), argument)
   }
 
   Path copyApplicationJar() {

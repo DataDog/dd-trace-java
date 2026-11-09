@@ -85,6 +85,38 @@ class ScopeDiagnosticsReportTest {
   }
 
   @Test
+  void externallyOwnedContinuationDoesNotRequireResolutionInThisWindow() {
+    ContinuationRecord r =
+        new ContinuationRecord(0, DDTraceId.from(11), 7L, "op", (byte) 0, true, null);
+    r.addResume(event(ScopeEvent.Type.ACTIVATE, "pool-1", 2000));
+
+    ScopeDiagnosticsReport report = report(list(r), map());
+
+    assertEquals(0, report.leakCount());
+    assertFalse(report.hasIncompleteLifecycles());
+    assertFalse(report.hasViolations());
+    assertFalse(r.isResolved());
+    assertEquals(ContinuationStatus.EXTERNAL, r.status());
+    assertTrue(report.renderTimeline().contains("EXTERNAL"));
+    assertFalse(report.renderTimeline().contains("LEAKED"));
+  }
+
+  @Test
+  void failedResumeProvesResolutionWithoutATerminalEvent() {
+    ContinuationRecord r = record(0, DDTraceId.from(11));
+    r.addFailedActivation(event(ScopeEvent.Type.ACTIVATE_FAILED, "pool-1", 2000));
+
+    ScopeDiagnosticsReport report = report(list(r), map());
+
+    assertEquals(1, report.activateAfterResolveCount());
+    assertEquals(0, report.leakCount());
+    assertFalse(report.hasIncompleteLifecycles());
+    assertTrue(report.hasViolations());
+    assertTrue(report.records().get(0).isResolved());
+    assertEquals(ContinuationStatus.RESOLVED, report.records().get(0).status());
+  }
+
+  @Test
   void resolutionAfterRootWriteIsFlaggedLate() {
     DDTraceId trace = DDTraceId.from(12);
     ContinuationRecord r = record(0, trace);

@@ -28,7 +28,11 @@ package datadog.buildlogic.tagRegistry
  * direction, as `peer.port` is, is still one tag: only its OpenTelemetry name depends on the span's
  * direction, so direction is applied when a tag is named, never when it is stored.
  */
-class TagRegistry private constructor(val tags: List<Tag>) {
+class TagRegistry private constructor(
+  val tags: List<Tag>,
+  /** KnownTags constant bases that replace a sanitized Datadog or OpenTelemetry name. */
+  val javaNames: Map<String, String> = emptyMap(),
+) {
   data class Tag(
     val ddName: String,
     val type: String,
@@ -106,7 +110,37 @@ class TagRegistry private constructor(val tags: List<Tag>) {
         }
 
       validateOtelNames(tags)
-      return TagRegistry(tags)
+      val names = tags.flatMap { listOfNotNull(it.ddName, it.otelName) + it.scopedOtelNames.values }.toSet()
+      val unknownJavaNames = conv.javaNames.keys - names
+      require(unknownJavaNames.isEmpty()) {
+        "java_names names no registered tag or OpenTelemetry name: $unknownJavaNames"
+      }
+      return TagRegistry(claimSharedNames(tags), conv.javaNames)
+    }
+
+    /**
+     * A tag whose Datadog name is also another tag's direction-scoped OpenTelemetry name keeps that
+     * name in every direction the other tag doesn't claim it: `server.port` is its own tag (the
+     * server's port), except on outbound spans, where it is `peer.port`. The Datadog name still
+     * resolves to the tag without a direction; only OpenTelemetry-side resolution by direction maps
+     * it to the other tag.
+     */
+    private fun claimSharedNames(tags: List<Tag>): List<Tag> {
+      val claimedBy = HashMap<String, MutableSet<TagConventions.Direction>>()
+      for (t in tags) {
+        for ((direction, otel) in t.scopedOtelNames) {
+          claimedBy.getOrPut(otel) { mutableSetOf() }.add(direction)
+        }
+      }
+      return tags.map { t ->
+        val claimed = claimedBy[t.ddName] ?: return@map t
+        require(t.otelName == null && t.scopedOtelNames.isEmpty()) {
+          "'${t.name}' is another tag's OpenTelemetry name on ${claimed.joinToString { it.yamlKey }} " +
+            "spans, so it cannot be renamed itself"
+        }
+        val own = TagConventions.Direction.entries.filter { it !in claimed }.associateWith { t.ddName }
+        t.copy(scopedOtelNames = own.toSortedMap())
+      }
     }
 
     /** Requirement levels whose tags may share a slot with each other when a span type overflows. */
@@ -207,10 +241,10 @@ class TagRegistry private constructor(val tags: List<Tag>) {
     private fun strongestRequirement(levels: List<String>): String = levels.minBy { REQUIREMENT_STRENGTH.indexOf(it).let { i -> if (i < 0) Int.MAX_VALUE else i } }
 
     /**
-     * Rejects OpenTelemetry names that collide with any Datadog name. Within each direction,
-     * a rename must also belong to a single tag. Direction-free renames reserve their name
-     * in every direction. Scoped renames may share a name across directions: `server.address`
-     * maps to `http.hostname` inbound and `peer.hostname` outbound.
+     * Within each direction, a rename must belong to a single tag. A direction-free rename can't
+     * be a Datadog name too, since without a direction its name would resolve to two tags. A scoped
+     * rename may share a name across directions -- `server.address` is `http.hostname` inbound and
+     * `peer.hostname` outbound -- and may be another tag's Datadog name (see [claimSharedNames]).
      */
     private fun validateOtelNames(tags: List<Tag>) {
       val canonical = tags.map { it.ddName }.toSet()
@@ -219,7 +253,7 @@ class TagRegistry private constructor(val tags: List<Tag>) {
         val byDirection =
           t.otelName?.let { otel -> TagConventions.Direction.entries.associateWith { otel } } ?: t.scopedOtelNames
         for ((direction, otel) in byDirection) {
-          require(otel !in canonical) {
+          require(otel != t.ddName && (t.otelName == null || otel !in canonical)) {
             "OpenTelemetry name '$otel' (of '${t.name}') collides with canonical tag name '$otel'"
           }
           val prev = owner.put(direction to otel, t.name)

@@ -2,7 +2,6 @@ plugins {
   id 'com.gradleup.shadow'
   id 'dd-trace-java.module.bootstrap-component'
   id 'dd-trace-java.jmh-conventions'
-  id 'idea'
 }
 
 // The shadowJar of this project will be injected into the JVM's bootstrap classloader
@@ -23,7 +22,6 @@ dependencies {
   api project(':dd-java-agent:agent-debugger:debugger-bootstrap')
   api project(':components:environment')
   api project(':components:json')
-  api project(':products:feature-flagging:feature-flagging-config')
   api project(':products:metrics:metrics-agent')
   api libs.instrument.java
   api libs.slf4j
@@ -54,12 +52,6 @@ dependencies {
 
 tasks.named("jar", Jar) {
   from sourceSets.main_java11.output
-}
-
-idea {
-  module {
-    jdkName = '11'
-  }
 }
 
 jmh {

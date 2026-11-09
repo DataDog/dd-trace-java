@@ -20,8 +20,13 @@ object TagRegistryGenerator {
 
     // Validate before touching the destination tree: an invalid domain model must fail loudly,
     // not after the previous (valid) generated output has already been wiped out.
+    // Emitting validates too (a KnownTags constant claimed by two tags fails), so everything is
+    // rendered before the tree is touched as well.
     val conv = TagConventions.parse(domain, overlay)
     val reg = TagRegistry.build(conv)
+    val resolved = resolvedReport(conv)
+    val assignment = assignmentReport(reg)
+    val knownTags = KnownTagsEmitter.emit(reg, "datadog.trace.api", "KnownTags")
 
     // Remove obsolete generated files when the output changes.
     outDir.deleteRecursively()
@@ -29,10 +34,9 @@ object TagRegistryGenerator {
     // KnownTags.java goes under java/<pkg> (added as a srcDir); the .txt reports sit at the root.
     val javaPkg = File(outDir, "java/datadog/trace/api").apply { mkdirs() }
 
-    File(outDir, "resolved-tags.txt").writeText(resolvedReport(conv))
-    File(outDir, "tag-assignment.txt").writeText(assignmentReport(reg))
-    File(javaPkg, "KnownTags.java")
-      .writeText(KnownTagsEmitter.emit(reg, "datadog.trace.api", "KnownTags"))
+    File(outDir, "resolved-tags.txt").writeText(resolved)
+    File(outDir, "tag-assignment.txt").writeText(assignment)
+    File(javaPkg, "KnownTags.java").writeText(knownTags)
   }
 
   /** resolved-tags.txt — the per-type resolved sets (composition check). */
@@ -103,7 +107,7 @@ object TagRegistryGenerator {
 
       # DIRECTION-SCOPED OPENTELEMETRY NAMES. Each applies only on spans of the given direction, so
       # it is not in the tables above: a tag is emitted under it when its span has that direction,
-      # but name resolution does not use it until it knows the direction.
+      # and a value written under it is resolved to the tag once the span's direction is known.
       """.trimIndent()
     )
     val scoped =

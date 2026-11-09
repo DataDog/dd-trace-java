@@ -31,14 +31,12 @@ public class JwtSecurityConfigurerAdapter extends WebSecurityConfigurerAdapter {
         .httpBasic()
         .disable()
         .exceptionHandling()
-        .authenticationEntryPoint(
-            (request, response, authException) -> {
-              response.sendError(401, authException.getMessage());
-            })
-        .accessDeniedHandler(
-            (request, response, accessDeniedException) -> {
-              response.sendError(403, "Access Denied.");
-            })
+        .authenticationEntryPoint((request, response, authException) -> {
+          response.sendError(401, authException.getMessage());
+        })
+        .accessDeniedHandler((request, response, accessDeniedException) -> {
+          response.sendError(403, "Access Denied.");
+        })
         .and()
         .headers()
         .disable();

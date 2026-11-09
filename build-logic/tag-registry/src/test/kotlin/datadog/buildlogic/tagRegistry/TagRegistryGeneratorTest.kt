@@ -60,7 +60,7 @@ class TagRegistryGeneratorTest {
     assertThat(first.getValue("tag-assignment.txt"))
       .contains("tags=6", "test.name", "service.name")
     assertThat(first.getValue("java/datadog/trace/api/KnownTags.java"))
-      .contains("ENV_ID = 0x0001000000000004L", "TEST_NAME", "http.request.method")
+      .contains("ENV = 0x0001000000000004L", "TEST_NAME", "http.request.method")
   }
 
   @TableTest(
@@ -341,6 +341,85 @@ class TagRegistryGeneratorTest {
   }
 
   @Test
+  fun `a Datadog name can be another tag's OpenTelemetry name in some directions`() {
+    val domain =
+      """
+      span_types:
+        http.server:
+          span-kind: server
+          tags: [{dd-name: server.port, type: int}]
+        http.client: {span-kind: client, include: [outbound_peer]}
+      mixins:
+        outbound_peer: {span-kind: client, tags: [{dd-name: peer.port, type: int, otel-name: server.port}]}
+      """
+    val output = File(directory, "generated")
+
+    TagRegistryGenerator.generate(directory.conventionsFile(domain), output)
+
+    val tags = TagRegistry.build(tagConventions(domain)).tags.associateBy { it.name }
+    assertThat(tags.getValue("server.port").scopedOtelNames)
+      .isEqualTo(
+        mapOf(TagConventions.Direction.INBOUND to "server.port", TagConventions.Direction.NONE to "server.port")
+      )
+    val source = contents(output).getValue("java/datadog/trace/api/KnownTags.java")
+    assertThat(source.substringAfter("case \"server.port\":").substringBefore("default:"))
+      .contains(
+        "case KnownTagCodec.DIRECTION_INBOUND:",
+        "return SERVER_PORT;",
+        "case KnownTagCodec.DIRECTION_OUTBOUND:",
+        "return PEER_PORT;",
+        "case KnownTagCodec.DIRECTION_NONE:",
+      )
+    // Without a direction the Datadog name is its own tag; only directionalKeyOf maps it elsewhere.
+    assertThat(source.substringAfter("KEYOF_VALUES = {").substringBefore("};"))
+      .contains("SERVER_PORT,")
+      .doesNotContain("SENTINEL")
+  }
+
+  @Test
+  fun `each direction gets its OpenTelemetry names as the ids of the tags they name`() {
+    val yaml = directory.conventionsFile(
+      """
+      span_types:
+        base: {abstract: true, tags: [{dd-name: http.method, otel-name: http.request.method}]}
+        http.server:
+          span-kind: server
+          tags:
+            - {dd-name: http.hostname, otel-name: server.address}
+            - {dd-name: server.port, type: int}
+        http.client: {span-kind: client, include: [outbound_peer]}
+      mixins:
+        outbound_peer:
+          span-kind: client
+          tags:
+            - {dd-name: peer.hostname, otel-name: server.address}
+            - {dd-name: peer.port, type: int, otel-name: server.port}
+      """
+    )
+    val output = File(directory, "generated")
+
+    TagRegistryGenerator.generate(yaml, output)
+
+    val source = contents(output).getValue("java/datadog/trace/api/KnownTags.java")
+    fun holder(name: String) = source.substringAfter("public static final class $name {").substringBefore("private $name() {}")
+    assertThat(holder("Outbound"))
+      .contains(
+        "SERVER_ADDRESS = KnownTags.PEER_HOSTNAME;",
+        "SERVER_PORT = KnownTags.PEER_PORT;",
+        "HTTP_REQUEST_METHOD = KnownTags.HTTP_METHOD;",
+      )
+    assertThat(holder("Inbound"))
+      .contains(
+        "SERVER_ADDRESS = KnownTags.HTTP_HOSTNAME;",
+        "SERVER_PORT = KnownTags.SERVER_PORT;",
+        "HTTP_REQUEST_METHOD = KnownTags.HTTP_METHOD;",
+      )
+    assertThat(holder("Internal"))
+      .contains("SERVER_PORT = KnownTags.SERVER_PORT;")
+      .doesNotContain("SERVER_ADDRESS")
+  }
+
+  @Test
   fun `a Datadog name declared per direction is one tag`() {
     val yaml = directory.conventionsFile(
       """
@@ -359,10 +438,10 @@ class TagRegistryGeneratorTest {
     val generated = contents(output)
     val source = generated.getValue("java/datadog/trace/api/KnownTags.java")
     assertThat(source)
-      .contains("PEER_PORT_NAME = \"peer.port\"", "PEER_PORT_ID")
+      .contains("PEER_PORT_NAME = \"peer.port\"", "long PEER_PORT = ")
       .doesNotContain("PEER_PORT_INBOUND", "PEER_PORT_OUTBOUND", "shared")
     assertThat(source.substringAfter("KEYOF_NAMES = {").substringBefore("};")).contains("PEER_PORT_NAME,")
-    assertThat(source.substringAfter("KEYOF_VALUES = {").substringBefore("};")).contains("PEER_PORT_ID,")
+    assertThat(source.substringAfter("KEYOF_VALUES = {").substringBefore("};")).contains("PEER_PORT,")
     assertThat(generated.getValue("tag-assignment.txt").lines().filter { it.endsWith(" peer.port") })
       .hasSize(1)
   }
@@ -434,6 +513,8 @@ class TagRegistryGeneratorTest {
   @TableTest(
     """
           scenario                     | domain                                                                                                                                                               | message
+          scoped rename to own name    | span_types: {a: {span-kind: client, tags: [{dd-name: x, otel-name: x}]}}                                                                                             | collides with canonical
+          shared name renamed itself   | span_types: {a: {span-kind: server, tags: [{dd-name: x, otel-name: o}]}, b: {span-kind: client, tags: [{dd-name: y, otel-name: x}]}}                                  | so it cannot be renamed itself
           same name in one direction   | span_types: {a: {span-kind: server, tags: [{dd-name: x, otel-name: o}]}, b: {span-kind: consumer, tags: [{dd-name: y, otel-name: o}]}}                                | claimed by both 'x' and 'y' on inbound spans
           neutral contradicts scoped   | span_types: {a: {span-kind: server, tags: [{dd-name: x, otel-name: o, span-kind-neutral: true}]}, b: {span-kind: client, tags: [{dd-name: y, otel-name: o}]}}         | on outbound spans
           map-form otel-name           | span_types: {a: {span-kind: client, tags: [{dd-name: x, otel-name: {outbound: o}}]}}                                                                                  | invalid otel-name
@@ -535,9 +616,9 @@ class TagRegistryGeneratorTest {
     val knownTags = contents(output).getValue("java/datadog/trace/api/KnownTags.java")
     assertThat(knownTags)
       .contains(
-        "COMPONENT_ID = 0x0001FFFF00000000L",
-        "RESOURCE_NAME_ID = 0x0002FFFF00000002L",
-        "SERVICE_ID = 0x0003FFFF00000002L",
+        "COMPONENT = 0x0001FFFF00000000L",
+        "RESOURCE_NAME = 0x0002FFFF00000002L",
+        "SERVICE = 0x0003FFFF00000002L",
         "public static final int SERVICE_SERIAL_NUM = 3;",
         "public static final int SERIAL_LIMIT = 4;"
       )
@@ -606,6 +687,68 @@ class TagRegistryGeneratorTest {
     assertThat(conv.resolve("http.server").map { it.ddName }).containsExactlyInAnyOrder("service", "http.route")
   }
 
+  @Test
+  fun `ids are bare and names keep the full suffix even when the name already ends with it`() {
+    val yaml = directory.conventionsFile(
+      "span_types: {base: {tags: [{dd-name: cluster.id}, {dd-name: destination.name}]}}"
+    )
+    val output = File(directory, "generated")
+
+    TagRegistryGenerator.generate(yaml, output)
+
+    val knownTags = contents(output).getValue("java/datadog/trace/api/KnownTags.java")
+    assertThat(knownTags)
+      .contains(
+        "long CLUSTER_ID = ",
+        "String CLUSTER_ID_NAME = \"cluster.id\"",
+        "long DESTINATION_NAME = ",
+        "String DESTINATION_NAME_NAME = \"destination.name\""
+      )
+      .doesNotContain("CLUSTER_ID_ID", "DESTINATION_NAME_ID", "String DESTINATION_NAME = ")
+  }
+
+  @Test
+  fun `names that generate the same constant are rejected with how to fix it`() {
+    val yaml = directory.conventionsFile("span_types: {base: {tags: [{dd-name: aws.service}, {dd-name: aws_service}]}}")
+
+    assertThatIllegalArgumentException()
+      .isThrownBy { TagRegistryGenerator.generate(yaml, File(directory, "generated")) }
+      .withMessageContaining("Tags 'aws.service' and 'aws_service' both generate the constant AWS_SERVICE_NAME")
+      .withMessageContaining("tag-conventions-java.yaml")
+      .withMessageContaining("java_names:\n    aws_service: <UPPER_CASE_BASE>")
+  }
+
+  @Test
+  fun `a constant clash preserves previous output`() {
+    val yaml = directory.conventionsFile("span_types: {base: {tags: [{dd-name: aws.service}]}}")
+    val output = File(directory, "generated")
+    TagRegistryGenerator.generate(yaml, output)
+    val previous = contents(output)
+    directory.conventionsFile("span_types: {base: {tags: [{dd-name: aws.service}, {dd-name: aws_service}]}}")
+
+    assertThatIllegalArgumentException().isThrownBy { TagRegistryGenerator.generate(yaml, output) }
+      .withMessageContaining("both generate the constant")
+
+    assertThat(contents(output)).isEqualTo(previous)
+  }
+
+  @Test
+  fun `java_names gives a tag its own constants`() {
+    val yaml = directory.conventionsFile("span_types: {base: {tags: [{dd-name: aws.service}, {dd-name: aws_service}]}}")
+    val overlay = directory.writeFile("overlay.yaml", "java_names: {aws_service: TOP_LEVEL_AWS_SERVICE}")
+    val output = File(directory, "generated")
+
+    TagRegistryGenerator.generate(yaml, output, overlay)
+
+    assertThat(contents(output).getValue("java/datadog/trace/api/KnownTags.java"))
+      .contains(
+        "String AWS_SERVICE_NAME = \"aws.service\"",
+        "String TOP_LEVEL_AWS_SERVICE_NAME = \"aws_service\"",
+        "long TOP_LEVEL_AWS_SERVICE = ",
+        "int TOP_LEVEL_AWS_SERVICE_SERIAL_NUM = "
+      )
+  }
+
   @TableTest(
     """
           scenario           | overlay                      | message
@@ -617,6 +760,8 @@ class TagRegistryGeneratorTest {
           mixin reusing a shared name | 'mixins: {peer: {applies: [base], tags: [{dd-name: x.y}]}}' | reuses the name
           type with no extends | 'span_types: {servlet.request: {tags: [{dd-name: servlet.path}]}}' | must extend a span type
           type reusing a shared name | 'span_types: {base: {extends: base}}' | reuses the name of a shared span type
+          java name of no tag | 'java_names: {missing: MISSING}' | names no registered tag
+          java name not a constant | 'java_names: {service: svc}' | not to an upper-case Java identifier
           """
   )
   fun `invalid tracer overlays are rejected`(overlay: String, message: String) {
@@ -660,11 +805,11 @@ class TagRegistryGeneratorTest {
     // them; env is trace-level (its own TagMap) and reuses slot 0. Every level is slotted.
     assertThat(contents(output).getValue("java/datadog/trace/api/KnownTags.java"))
       .contains(
-        "DB_TYPE_ID = 0x0001000100000000L",
-        "DB_USER_ID = 0x0002000200000000L",
-        "ENV_ID = 0x0003000000000004L",
-        "HTTP_ROUTE_ID = 0x0004000100000000L",
-        "SERVICE_ID = 0x0005000000000000L",
+        "DB_TYPE = 0x0001000100000000L",
+        "DB_USER = 0x0002000200000000L",
+        "ENV = 0x0003000000000004L",
+        "HTTP_ROUTE = 0x0004000100000000L",
+        "SERVICE = 0x0005000000000000L",
         "public static final int SLOT_COUNT = 3;"
       )
   }
@@ -681,7 +826,7 @@ class TagRegistryGeneratorTest {
 
     // The required tags take exact slots 0-59; the optional ones spread over the 3 left, 2 each.
     val knownTags = contents(output).getValue("java/datadog/trace/api/KnownTags.java")
-    val slotOf = Regex("""T_(\w+)_ID = 0x[0-9A-F]{4}([0-9A-F]{4})""").findAll(knownTags)
+    val slotOf = Regex("""long T_(\w+) = 0x[0-9A-F]{4}([0-9A-F]{4})""").findAll(knownTags)
       .associate { it.groupValues[1] to it.groupValues[2].toInt(16) }
     assertThat((0 until 60).map { slotOf.getValue("REQ$it") }.toSet()).isEqualTo((0 until 60).toSet())
     assertThat((0 until 6).map { slotOf.getValue("OPT$it") }.groupingBy { it }.eachCount())

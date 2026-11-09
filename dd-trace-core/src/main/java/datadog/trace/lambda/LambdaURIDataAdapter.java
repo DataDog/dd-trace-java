@@ -1,6 +1,8 @@
 package datadog.trace.lambda;
 
 import static datadog.trace.lambda.LambdaEventParser.findHeader;
+import static datadog.trace.util.IntStringUtils.REJECT_LEADING_PLUS;
+import static datadog.trace.util.IntStringUtils.parseNonNegativeIntTrimmed;
 
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapterBase;
 import java.util.Locale;
@@ -48,14 +50,9 @@ class LambdaURIDataAdapter extends URIDataAdapterBase {
     String proto = forwardedProto == null ? null : forwardedProto.toLowerCase(Locale.ROOT);
     this.scheme = "http".equals(proto) || "https".equals(proto) ? proto : "https";
 
-    String forwardedPort = findHeader(headers, "x-forwarded-port");
-    int parsedPort = -1;
-    if (forwardedPort != null && !forwardedPort.isEmpty()) {
-      try {
-        parsedPort = Integer.parseInt(forwardedPort.trim());
-      } catch (NumberFormatException ignored) {
-      }
-    }
+    // X-Forwarded-Port is client-influenceable, so parse it without throwing
+    int parsedPort =
+        parseNonNegativeIntTrimmed(findHeader(headers, "x-forwarded-port"), REJECT_LEADING_PLUS);
     // URIUtils.buildURL only suppresses the port for 80 on http and 443 on https, so the default
     // has to follow the scheme or an http URL would leak ":443".
     this.port = parsedPort > 0 ? parsedPort : ("http".equals(this.scheme) ? 80 : 443);

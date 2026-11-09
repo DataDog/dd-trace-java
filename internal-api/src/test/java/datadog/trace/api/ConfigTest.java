@@ -1,8 +1,6 @@
 package datadog.trace.api;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_HOST;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_POLL_INTERVAL_SECONDS;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_REQUEST_TIMEOUT_SECONDS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_ERROR_STATUSES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ERROR_STATUSES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PARTIAL_FLUSH_MIN_SPANS;
@@ -44,6 +42,9 @@ import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_UP
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_UPLOAD_TIMEOUT;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_VERIFY_BYTECODE;
 import static datadog.trace.api.config.DebuggerConfig.EXCEPTION_REPLAY_ENABLED;
+import static datadog.trace.api.config.FeatureFlaggingConfig.EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED;
+import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE;
+import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.API_KEY;
 import static datadog.trace.api.config.GeneralConfig.API_KEY_FILE;
 import static datadog.trace.api.config.GeneralConfig.CONFIGURATION_FILE;
@@ -55,6 +56,7 @@ import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_STATSD_PORT;
 import static datadog.trace.api.config.GeneralConfig.INSTRUMENTATION_SOURCE;
 import static datadog.trace.api.config.GeneralConfig.JDK_SOCKET_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.PERF_METRICS_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.RUNTIME_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME;
 import static datadog.trace.api.config.GeneralConfig.SITE;
 import static datadog.trace.api.config.GeneralConfig.SSI_INJECTION_ENABLED;
@@ -73,6 +75,7 @@ import static datadog.trace.api.config.JmxFetchConfig.JMX_TAGS;
 import static datadog.trace.api.config.LlmObsConfig.LLMOBS_AGENTLESS_ENABLED;
 import static datadog.trace.api.config.LlmObsConfig.LLMOBS_ENABLED;
 import static datadog.trace.api.config.LlmObsConfig.LLMOBS_ML_APP;
+import static datadog.trace.api.config.OtlpConfig.LOGS_OTEL_ENABLED;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_ENABLED;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_EXPORTER;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_INTERVAL;
@@ -156,6 +159,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_EXPERIMENTAL_FEATURES_
 import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_FLUSH_INTERVAL;
 import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL;
+import static datadog.trace.api.config.TracerConfig.TRACE_PEER_SERVICE_DEFAULTS_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_BEHAVIOR_EXTRACT;
 import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_EXTRACT_FIRST;
 import static datadog.trace.api.config.TracerConfig.TRACE_RATE_LIMIT;
@@ -165,14 +169,10 @@ import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLE_RATE;
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_OPERATION_RULES;
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_SERVICE_RULES;
 import static datadog.trace.api.config.TracerConfig.TRACE_SERVICE_DISCOVERY_ENABLED;
+import static datadog.trace.api.config.TracerConfig.TRACE_SPAN_ATTRIBUTE_SCHEMA;
 import static datadog.trace.api.config.TracerConfig.TRACE_X_DATADOG_TAGS_MAX_LENGTH;
 import static datadog.trace.api.config.TracerConfig.WRITER_TYPE;
 import static datadog.trace.api.env.FixedCapturedEnvironment.useFixedEnv;
-import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED;
-import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE;
-import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS;
-import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS;
-import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_ENABLED;
 import static datadog.trace.bootstrap.config.provider.ConfigProvider.withPropertiesOverride;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
@@ -193,6 +193,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 
 import datadog.environment.EnvironmentVariables;
+import datadog.trace.api.telemetry.OtelEnvMetricCollectorImpl;
 import datadog.trace.bootstrap.config.provider.AgentArgsInjector;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.config.inversion.ConfigHelper;
@@ -200,6 +201,8 @@ import datadog.trace.config.inversion.ConfigHelper.StrictnessPolicy;
 import datadog.trace.test.junit.utils.config.WithConfigExtension;
 import datadog.trace.test.junit.utils.config.WithConfigExtension.TestEnvironmentVariables;
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -210,6 +213,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 import java.util.TreeSet;
@@ -221,6 +225,7 @@ import org.junit.jupiter.api.Named;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -329,6 +334,8 @@ class ConfigTest {
       "OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE";
   private static final String OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE_PROP =
       "otel.exporter.otlp.metrics.temporality.preference";
+
+  private static final String OTEL_SDK_DISABLED_ENV = "OTEL_SDK_DISABLED";
 
   private static final String OTEL_TRACES_EXPORTER_ENV = "OTEL_TRACES_EXPORTER";
   private static final String OTEL_TRACES_EXPORTER_PROP = "otel.traces.exporter";
@@ -700,6 +707,33 @@ class ConfigTest {
   }
 
   @Test
+  void otelSemanticsForcesItsRequiredConfiguration() {
+    ConfigCollector.get().collect();
+    Properties prop = new Properties();
+    prop.setProperty(TRACE_OTEL_SEMANTICS_ENABLED, "true");
+    prop.setProperty(TRACE_OTEL_EXPORTER, "agent");
+    prop.setProperty(WRITER_TYPE, "LoggingWriter");
+    prop.setProperty(TRACE_SPAN_ATTRIBUTE_SCHEMA, "v1");
+    prop.setProperty(TRACE_PEER_SERVICE_DEFAULTS_ENABLED, "true");
+
+    Config config = Config.get(prop);
+    Map<String, ConfigSetting> calculated =
+        ConfigCollector.get().collect().get(ConfigOrigin.CALCULATED);
+
+    assertTrue(config.isTraceOtelSemanticsEnabled());
+    assertTrue(config.isTraceOtlpExporterEnabled());
+    assertEquals("OtlpWriter", config.getWriterType());
+    assertEquals(0, config.getSpanAttributeSchemaVersion());
+    assertFalse(config.isPeerServiceDefaultsEnabled());
+    assertEquals(toBitSet(400, 599), config.getHttpClientErrorStatuses());
+
+    assertEquals("otlp", calculated.get(TRACE_OTEL_EXPORTER).value);
+    assertEquals("OtlpWriter", calculated.get(WRITER_TYPE).value);
+    assertEquals("v0", calculated.get(TRACE_SPAN_ATTRIBUTE_SCHEMA).value);
+    assertEquals(false, calculated.get(TRACE_PEER_SERVICE_DEFAULTS_ENABLED).value);
+  }
+
+  @Test
   void otelCheckSyntaxForOtlpHeaders() {
     Properties prop = new Properties();
     prop.setProperty(OTLP_METRICS_HEADERS, "api,key=key");
@@ -773,6 +807,213 @@ class ConfigTest {
     assertEquals("production", tags.get("env"));
     assertEquals("1.0.0", tags.get("version"));
     assertEquals(expectedLogLevel, config.getLogLevel());
+  }
+
+  @Nested
+  class OtlpHeaders {
+    @TempDir File directory;
+
+    @AfterEach
+    void clearOtelMetrics() {
+      OtelEnvMetricCollectorImpl.getInstance().drain();
+    }
+
+    @BeforeEach
+    void enableOtlpSignals() {
+      System.setProperty("dd.logs.otel.enabled", "true");
+      System.setProperty(DD_METRICS_OTEL_ENABLED_PROP, "true");
+      System.setProperty(DD_TRACE_OTEL_ENABLED_PROP, "true");
+      System.setProperty(OTEL_TRACES_EXPORTER_PROP, "otlp");
+    }
+
+    @TableTest({
+      "scenario         | signal  | environment",
+      "generic env      | all     | true       ",
+      "logs env         | logs    | true       ",
+      "metrics env      | metrics | true       ",
+      "traces env       | traces  | true       ",
+      "generic property | all     | false      ",
+      "logs property    | logs    | false      ",
+      "metrics property | metrics | false      ",
+      "traces property  | traces  | false      "
+    })
+    void decodeHeaderValuesAfterSeparatingEntries(String signal, boolean environment)
+        throws Exception {
+      setOtelHeaders(signal, "api-key=hello%20world%2Cvalue%3D1,other=value", environment);
+
+      Config config = newConfig();
+
+      Map<String, String> expected = new HashMap<>();
+      expected.put("api-key", "hello world,value=1");
+      expected.put("other", "value");
+      assertHeaders(config, signal, expected);
+    }
+
+    @TableTest({
+      "scenario          | encoded     | expected   ",
+      "plain             | plain-value | plain-value",
+      "literal plus      | a+b         | a+b        ",
+      "plus with escape  | a+b%20c     | 'a+b c'    ",
+      "encoded plus      | a%2Bb       | a+b        ",
+      "decode once       | %2520       | %20        ",
+      "lowercase escapes | a%2cb%3dc   | a,b=c      ",
+      "encoded percent   | 100%25      | 100%       ",
+      "leading space     | %20value    | ' value'   ",
+      "trailing space    | value%20    | 'value '   ",
+      "incomplete escape | value%      | value%     ",
+      "short escape      | value%2     | value%2    ",
+      "invalid hex       | value%GG    | value%GG   ",
+      "mixed invalid     | value%20%GG | value%20%GG"
+    })
+    void decodeValuesExactlyOnceAndPreserveMalformedEscapes(String encoded, String expected)
+        throws Exception {
+      setOtelHeaders("all", "encoded%2Dname=" + encoded + ",other=value", true);
+
+      Config config = newConfig();
+
+      Map<String, String> headers = new HashMap<>();
+      headers.put("encoded%2Dname", expected);
+      headers.put("other", "value");
+      assertHeaders(config, "all", headers);
+    }
+
+    @TableTest({
+      "scenario         | signal  | environment",
+      "logs env         | logs    | true       ",
+      "metrics env      | metrics | true       ",
+      "traces env       | traces  | true       ",
+      "logs property    | logs    | false      ",
+      "metrics property | metrics | false      ",
+      "traces property  | traces  | false      "
+    })
+    void signalHeadersOverrideGenericHeaders(String signal, boolean environment) throws Exception {
+      setOtelHeaders("all", "api-key=generic%20value,generic-only=value", environment);
+      setOtelHeaders(signal, "api-key=signal%20value", environment);
+
+      Config config = newConfig();
+
+      assertEquals(singletonMap("api-key", "signal value"), headersFor(config, signal));
+    }
+
+    @TableTest({
+      "scenario         | signal  | environment",
+      "logs env         | logs    | true       ",
+      "metrics env      | metrics | true       ",
+      "traces env       | traces  | true       ",
+      "logs property    | logs    | false      ",
+      "metrics property | metrics | false      ",
+      "traces property  | traces  | false      "
+    })
+    void datadogHeadersTakePrecedenceAndAreDecoded(String signal, boolean environment)
+        throws Exception {
+      setOtelHeaders("all", "api-key=generic%20value", environment);
+      setOtelHeaders(signal, "api-key=signal%20value", environment);
+      String key = "otlp." + signal + ".headers";
+      if (environment) {
+        setEnv(
+            "DD_OTLP_" + signal.toUpperCase(Locale.ROOT) + "_HEADERS",
+            "api-key=dd%20value+literal");
+      } else {
+        System.setProperty("dd." + key, "api-key=dd%20value+literal");
+      }
+
+      assertEquals(singletonMap("api-key", "dd value+literal"), headersFor(newConfig(), signal));
+    }
+
+    @TableTest({
+      "scenario         | signal  | environment",
+      "logs env         | logs    | true       ",
+      "metrics env      | metrics | true       ",
+      "traces env       | traces  | true       ",
+      "logs property    | logs    | false      ",
+      "metrics property | metrics | false      ",
+      "traces property  | traces  | false      "
+    })
+    void decodeDatadogHeadersWithoutOtelSource(String signal, boolean environment)
+        throws Exception {
+      System.setProperty("dd.logs.otel.enabled", "false");
+      System.setProperty(DD_METRICS_OTEL_ENABLED_PROP, "false");
+      System.setProperty(DD_TRACE_OTEL_ENABLED_PROP, "false");
+      System.clearProperty(OTEL_TRACES_EXPORTER_PROP);
+      String value =
+          "api-key=hello%20world%2Cvalue%3D1,once=%2520,plus=a+b%20c,"
+              + "malformed=value%20%GG,plain=value,encoded%2Dname=a%2Bb";
+      if (environment) {
+        setEnv("DD_OTLP_" + signal.toUpperCase(Locale.ROOT) + "_HEADERS", value);
+      } else {
+        System.setProperty("dd.otlp." + signal + ".headers", value);
+      }
+
+      Config config = newConfig();
+
+      assertFalse(config.isLogsOtelEnabled());
+      assertFalse(config.isMetricsOtelEnabled());
+      assertFalse(config.isTraceOtelEnabled());
+      Map<String, String> expected = new HashMap<>();
+      expected.put("api-key", "hello world,value=1");
+      expected.put("once", "%20");
+      expected.put("plus", "a+b c");
+      expected.put("malformed", "value%20%GG");
+      expected.put("plain", "value");
+      expected.put("encoded%2Dname", "a+b");
+      assertHeaders(config, signal, expected);
+    }
+
+    @TableTest({
+      "scenario     | signal ",
+      "generic file | all    ",
+      "logs file    | logs   ",
+      "metrics file | metrics",
+      "traces file  | traces "
+    })
+    void decodeHeadersFromOtelConfigFile(String signal) throws Exception {
+      Properties properties = new Properties();
+      properties.setProperty(otelHeadersKey(signal), "api-key=hello%20world%2Cvalue%3D1");
+      File file = new File(directory, "otel.properties");
+      try (FileOutputStream output = new FileOutputStream(file)) {
+        properties.store(output, null);
+      }
+      System.setProperty("otel.javaagent.configuration-file", file.getAbsolutePath());
+
+      assertHeaders(newConfig(), signal, singletonMap("api-key", "hello world,value=1"));
+    }
+
+    private void setOtelHeaders(String signal, String value, boolean environment) {
+      String key = otelHeadersKey(signal);
+      if (environment) {
+        setEnv(key.toUpperCase(Locale.ROOT).replace('.', '_'), value);
+      } else {
+        System.setProperty(key, value);
+      }
+    }
+
+    private String otelHeadersKey(String signal) {
+      return "all".equals(signal)
+          ? OTEL_EXPORTER_OTLP_HEADERS_PROP
+          : "otel.exporter.otlp." + signal + ".headers";
+    }
+
+    private void assertHeaders(Config config, String signal, Map<String, String> expected) {
+      for (String candidate : asList("logs", "metrics", "traces")) {
+        assertEquals(
+            "all".equals(signal) || signal.equals(candidate) ? expected : emptyMap(),
+            headersFor(config, candidate),
+            candidate);
+      }
+    }
+
+    private Map<String, String> headersFor(Config config, String signal) {
+      switch (signal) {
+        case "logs":
+          return config.getOtlpLogsHeaders();
+        case "metrics":
+          return config.getOtlpMetricsHeaders();
+        case "traces":
+          return config.getOtlpTracesHeaders();
+        default:
+          throw new IllegalArgumentException(signal);
+      }
+    }
   }
 
   @Test
@@ -867,6 +1108,41 @@ class ConfigTest {
     // Unset: emit iff OTLP trace export and OTLP metrics export are both on. An explicit
     // dd.otel.traces.span.metrics.enabled always wins.
     assertEquals(expected, config.isOtelTracesSpanMetricsEnabled());
+  }
+
+  @Test
+  void otelSdkDisabledOverridesDatadogSignalSettings() throws Exception {
+    setEnv(OTEL_SDK_DISABLED_ENV, "true");
+    System.setProperty(PREFIX + TRACE_OTEL_ENABLED, "true");
+    System.setProperty(PREFIX + METRICS_OTEL_ENABLED, "true");
+    System.setProperty(PREFIX + LOGS_OTEL_ENABLED, "true");
+    System.setProperty(PREFIX + OTEL_TRACES_SPAN_METRICS_ENABLED, "true");
+    System.setProperty(PREFIX + RUNTIME_METRICS_ENABLED, "true");
+
+    Config config = newConfig();
+
+    assertFalse(config.isTraceEnabled());
+    assertFalse(config.isTraceOtelEnabled());
+    assertFalse(config.isMetricsOtelEnabled());
+    assertFalse(config.isLogsOtelEnabled());
+    assertFalse(config.isOtelTracesSpanMetricsEnabled());
+    assertFalse(config.isOtlpMetricsExportEnabled());
+    assertFalse(config.isOtlpLogsExportEnabled());
+    assertFalse(config.isRuntimeMetricsEnabled());
+    assertFalse(config.isJmxFetchEnabled());
+    assertFalse(config.isHealthMetricsEnabled());
+  }
+
+  @Test
+  void ddTraceEnabledTakesPrecedenceOverOtelSdkDisabled() throws Exception {
+    setEnv(OTEL_SDK_DISABLED_ENV, "true");
+    setEnv(DD_TRACE_ENABLED_ENV, "true");
+
+    Config config = newConfig();
+
+    assertTrue(config.isTraceEnabled());
+    // unlike tracing, runtime metrics stay off
+    assertFalse(config.isRuntimeMetricsEnabled());
   }
 
   @Test
@@ -1002,7 +1278,7 @@ class ConfigTest {
     assertEquals("new site", config.getSite());
     assertEquals("something else", config.getServiceName());
     assertFalse(config.isTraceEnabled());
-    assertEquals("LoggingWriter", config.getWriterType());
+    assertEquals("OtlpWriter", config.getWriterType());
     assertEquals("somehost", config.getAgentHost());
     assertEquals(123, config.getAgentPort());
     assertEquals("somepath", config.getAgentUnixDomainSocket());
@@ -1657,10 +1933,9 @@ class ConfigTest {
     System.setProperty(PREFIX + REQUEST_HEADER_TAGS, "rqh1");
     System.setProperty(PREFIX + RESPONSE_HEADER_TAGS, "rsh1");
     Map<String, String> responseHeaderTags = new HashMap<>();
-    map.forEach(
-        (key, value) ->
-            responseHeaderTags.put(
-                key, value.replace("http.request.headers", "http.response.headers")));
+    map.forEach((key, value) ->
+        responseHeaderTags.put(
+            key, value.replace("http.request.headers", "http.response.headers")));
     responseHeaderTags.put("rsh1", "http.response.headers.rsh1");
     Properties props = new Properties();
     props.setProperty(HEADER_TAGS, mapString);
@@ -2938,6 +3213,24 @@ class ConfigTest {
   }
 
   @Test
+  void appSecScaCveFileDefaultsToNull() throws Exception {
+    Config config = newConfig();
+
+    assertNull(config.getAppSecScaCveFile());
+    assertFalse(config.isAppSecScaEnabled());
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"/tmp/sca-catalog.json", ""})
+  void appSecScaCveFileUsesPrivateEnvironmentVariable(String path) throws Exception {
+    setEnv("_DD_APPSEC_SCA_CVE_FILE", path);
+    Config config = newConfig();
+
+    assertEquals(path, config.getAppSecScaCveFile());
+    assertFalse(config.isAppSecScaEnabled());
+  }
+
+  @Test
   void hostnameDiscoveryWithEnvironmentVariables() {
     String expectedHostname = "myhostname";
     setEnv("HOSTNAME", expectedHostname);
@@ -3681,31 +3974,18 @@ class ConfigTest {
     assertEquals(expected, config.isTraceResourceRenamingAlwaysSimplifiedEndpoint());
   }
 
-  @Test
-  void agentlessFeatureFlagTimingUsesPositiveConfiguredValues() throws Exception {
-    Properties properties = new Properties();
-    properties.setProperty(
-        FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS, "60");
-    properties.setProperty(
-        FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS, "4");
-
-    Config config = newConfig(withPropertiesOverride(properties));
-
-    assertEquals(60, config.getFeatureFlaggingConfigurationSourcePollIntervalSeconds());
-    assertEquals(4, config.getFeatureFlaggingConfigurationSourceRequestTimeoutSeconds());
-  }
-
   @TableTest({
     "scenario             | value             | expected     ",
-    "not set              |                   | agentless    ",
-    "empty                | ''                | agentless    ",
-    "blank                | '   '             | agentless    ",
-    "case insensitive     | ReMoTe_ConFiG     | remote_config",
-    "padded               | ' remote_config ' | invalid      ",
-    "unknown source       | not-a-real-source | invalid      ",
-    "unset is not a value | unset             | invalid      "
+    "not set              |                   | AGENTLESS    ",
+    "empty                | ''                | AGENTLESS    ",
+    "blank                | '   '             | AGENTLESS    ",
+    "case insensitive     | ReMoTe_ConFiG     | REMOTE_CONFIG",
+    "padded               | ' remote_config ' | INVALID      ",
+    "unknown source       | not-a-real-source | INVALID      ",
+    "unset is not a value | unset             | INVALID      "
   })
-  void featureFlagConfigurationSourceParsesValue(String value, String expected) throws Exception {
+  void featureFlagConfigurationSourceParsesValue(String value, FeatureFlaggingSource expected)
+      throws Exception {
     Properties properties = new Properties();
     if (value != null) {
       properties.setProperty(FEATURE_FLAGS_CONFIGURATION_SOURCE, value);
@@ -3718,23 +3998,23 @@ class ConfigTest {
 
   @TableTest({
     "scenario                           | providerEnabled | source        | legacyProviderEnabled | expectedEnabled | expectedSource",
-    "nothing set                        |                 |               |                       | true            | agentless     ",
-    "provider enabled                   | true            |               |                       | true            | agentless     ",
-    "legacy enabled                     |                 |               | true                  | true            | remote_config ",
-    "legacy disabled                    |                 |               | false                 | false           |               ",
-    "source wins over legacy enabled    |                 | agentless     | true                  | true            | agentless     ",
-    "source wins over legacy disabled   |                 | remote_config | false                 | true            | remote_config ",
-    "provider disabled wins over legacy | false           | agentless     | true                  | false           | agentless     ",
-    "legacy disabled wins over provider | true            |               | false                 | false           |               ",
-    "unknown source                     |                 | not-a-source  |                       | false           | invalid       ",
-    "offline source                     |                 | offline       | true                  | false           | invalid       "
+    "nothing set                        |                 |               |                       | true            | AGENTLESS     ",
+    "provider enabled                   | true            |               |                       | true            | AGENTLESS     ",
+    "legacy enabled                     |                 |               | true                  | true            | REMOTE_CONFIG ",
+    "legacy disabled                    |                 |               | false                 | false           | UNSET         ",
+    "source wins over legacy enabled    |                 | agentless     | true                  | true            | AGENTLESS     ",
+    "source wins over legacy disabled   |                 | remote_config | false                 | true            | REMOTE_CONFIG ",
+    "provider disabled wins over legacy | false           | agentless     | true                  | false           | AGENTLESS     ",
+    "legacy disabled wins over provider | true            |               | false                 | false           | UNSET         ",
+    "unknown source                     |                 | not-a-source  |                       | false           | INVALID       ",
+    "offline source                     |                 | offline       | true                  | false           | INVALID       "
   })
   void featureFlagConfigurationAppliesMigrationPrecedence(
       Boolean providerEnabled,
       String source,
       Boolean legacyProviderEnabled,
       boolean expectedEnabled,
-      String expectedSource)
+      FeatureFlaggingSource expectedSource)
       throws Exception {
     Properties properties = new Properties();
     if (providerEnabled != null) {
@@ -3752,23 +4032,6 @@ class ConfigTest {
 
     assertEquals(expectedEnabled, config.isFeatureFlaggingProviderEnabled());
     assertEquals(expectedSource, config.getFeatureFlaggingConfigurationSource());
-  }
-
-  @Test
-  void agentlessFeatureFlagTimingFallsBackForNonPositiveValues() throws Exception {
-    Properties properties = new Properties();
-    properties.setProperty(FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS, "0");
-    properties.setProperty(
-        FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS, "-1");
-
-    Config config = newConfig(withPropertiesOverride(properties));
-
-    assertEquals(
-        DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_POLL_INTERVAL_SECONDS,
-        config.getFeatureFlaggingConfigurationSourcePollIntervalSeconds());
-    assertEquals(
-        DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_REQUEST_TIMEOUT_SECONDS,
-        config.getFeatureFlaggingConfigurationSourceRequestTimeoutSeconds());
   }
 
   /** Reads a private {@link Config} field that has no getter. */

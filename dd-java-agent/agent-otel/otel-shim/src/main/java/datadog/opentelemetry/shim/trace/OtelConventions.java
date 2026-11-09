@@ -1,9 +1,6 @@
 package datadog.opentelemetry.shim.trace;
 
 import static datadog.trace.api.DDTags.ANALYTICS_SAMPLE_RATE;
-import static datadog.trace.api.DDTags.ERROR_MSG;
-import static datadog.trace.api.DDTags.ERROR_STACK;
-import static datadog.trace.api.DDTags.ERROR_TYPE;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CLIENT;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CONSUMER;
@@ -18,6 +15,8 @@ import static java.lang.Boolean.parseBoolean;
 import static java.util.Collections.emptyMap;
 import static java.util.Locale.ROOT;
 
+import datadog.trace.api.KnownTagCodec;
+import datadog.trace.api.KnownTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -47,6 +46,18 @@ public final class OtelConventions {
   private static final Logger LOGGER = LoggerFactory.getLogger(OtelConventions.class);
 
   private OtelConventions() {}
+
+  /**
+   * The tag to store an attribute under on spans of {@code direction}. A direction-scoped
+   * OpenTelemetry name is stored as the Datadog tag it denotes there: {@code server.address} is
+   * {@code peer.hostname} on a client span and {@code http.hostname} on a server span. Every other
+   * name, and a direction-scoped one that denotes no tag in {@code direction}, is stored as
+   * written.
+   */
+  static String attributeTag(String key, int direction) {
+    long tagId = KnownTagCodec.directionalKeyOf(key, direction);
+    return tagId == 0 ? key : KnownTagCodec.nameOf(tagId);
+  }
 
   /**
    * Convert OpenTelemetry {@link SpanKind} to {@link Tags#SPAN_KIND} value.
@@ -158,16 +169,16 @@ public final class OtelConventions {
     // Handle exception message
     Object value =
         attributes.computeIfAbsent(EXCEPTION_MESSAGE_ATTRIBUTE, k -> exception.getMessage());
-    span.setTag(ERROR_MSG, value);
+    span.setTag(KnownTags.ERROR_MESSAGE, value);
     // Handle exception type
     value =
         attributes.computeIfAbsent(EXCEPTION_TYPE_ATTRIBUTE, k -> exception.getClass().getName());
-    span.setTag(ERROR_TYPE, value);
+    span.setTag(KnownTags.ERROR_TYPE, value);
     // Handle exception stacktrace
     value =
         attributes.computeIfAbsent(
             EXCEPTION_STACK_TRACE_ATTRIBUTE, k -> stringifyErrorStack(exception));
-    span.setTag(ERROR_STACK, value);
+    span.setTag(KnownTags.ERROR_STACK, value);
   }
 
   static String stringifyErrorStack(Throwable error) {
@@ -304,40 +315,39 @@ public final class OtelConventions {
       return SpanAttributes.EMPTY;
     }
     SpanAttributes.Builder builder = SpanAttributes.builder();
-    attributes.forEach(
-        (attributeKey, value) -> {
-          String key = attributeKey.getKey();
-          switch (attributeKey.getType()) {
-            case STRING:
-              builder.put(key, (String) value);
-              break;
-            case BOOLEAN:
-              builder.put(key, (boolean) value);
-              break;
-            case LONG:
-              builder.put(key, (long) value);
-              break;
-            case DOUBLE:
-              builder.put(key, (double) value);
-              break;
-            case STRING_ARRAY:
-              //noinspection unchecked
-              builder.putStringArray(key, (List<String>) value);
-              break;
-            case BOOLEAN_ARRAY:
-              //noinspection unchecked
-              builder.putBooleanArray(key, (List<Boolean>) value);
-              break;
-            case LONG_ARRAY:
-              //noinspection unchecked
-              builder.putLongArray(key, (List<Long>) value);
-              break;
-            case DOUBLE_ARRAY:
-              //noinspection unchecked
-              builder.putDoubleArray(key, (List<Double>) value);
-              break;
-          }
-        });
+    attributes.forEach((attributeKey, value) -> {
+      String key = attributeKey.getKey();
+      switch (attributeKey.getType()) {
+        case STRING:
+          builder.put(key, (String) value);
+          break;
+        case BOOLEAN:
+          builder.put(key, (boolean) value);
+          break;
+        case LONG:
+          builder.put(key, (long) value);
+          break;
+        case DOUBLE:
+          builder.put(key, (double) value);
+          break;
+        case STRING_ARRAY:
+          //noinspection unchecked
+          builder.putStringArray(key, (List<String>) value);
+          break;
+        case BOOLEAN_ARRAY:
+          //noinspection unchecked
+          builder.putBooleanArray(key, (List<Boolean>) value);
+          break;
+        case LONG_ARRAY:
+          //noinspection unchecked
+          builder.putLongArray(key, (List<Long>) value);
+          break;
+        case DOUBLE_ARRAY:
+          //noinspection unchecked
+          builder.putDoubleArray(key, (List<Double>) value);
+          break;
+      }
+    });
     return builder.build();
   }
 }

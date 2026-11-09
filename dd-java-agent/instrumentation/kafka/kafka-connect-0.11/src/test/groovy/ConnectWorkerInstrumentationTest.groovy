@@ -29,8 +29,11 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 class ConnectWorkerInstrumentationTest extends InstrumentationSpecification {
+  private static final String SOURCE_TOPIC = 'source-test-topic'
+  private static final String SINK_TOPIC = 'sink-test-topic'
+
   @Shared
-  EmbeddedKafkaBroker embeddedKafka = new EmbeddedKafkaBroker(1, false, 1, 'test-topic')
+  EmbeddedKafkaBroker embeddedKafka = new EmbeddedKafkaBroker(1, false, 1, SOURCE_TOPIC, SINK_TOPIC)
 
   def setupSpec() {
     embeddedKafka.afterPropertiesSet() // Initializes the broker
@@ -57,13 +60,15 @@ class ConnectWorkerInstrumentationTest extends InstrumentationSpecification {
 
     // Create a temporary file with a test message
     File tempFile = File.createTempFile("test-message", ".txt")
+    File offsetFile = new File(tempFile.parentFile, "connect-source-offsets-${UUID.randomUUID()}")
+    offsetFile.deleteOnExit()
 
     // Worker properties
     Properties workerProps = new Properties()
     workerProps.put(WorkerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers)
     workerProps.put(WorkerConfig.KEY_CONVERTER_CLASS_CONFIG, "org.apache.kafka.connect.storage.StringConverter")
     workerProps.put(WorkerConfig.VALUE_CONVERTER_CLASS_CONFIG, "org.apache.kafka.connect.storage.StringConverter")
-    workerProps.put(StandaloneConfig.OFFSET_STORAGE_FILE_FILENAME_CONFIG, "/tmp/connect.offsets")
+    workerProps.put(StandaloneConfig.OFFSET_STORAGE_FILE_FILENAME_CONFIG, offsetFile.absolutePath)
     workerProps.put(WorkerConfig.INTERNAL_KEY_CONVERTER_CLASS_CONFIG, "org.apache.kafka.connect.json.JsonConverter")
     workerProps.put(WorkerConfig.INTERNAL_VALUE_CONVERTER_CLASS_CONFIG, "org.apache.kafka.connect.json.JsonConverter")
     workerProps.put(WorkerConfig.PLUGIN_PATH_CONFIG, "") // Required but can be empty for built-in connectors
@@ -97,7 +102,7 @@ class ConnectWorkerInstrumentationTest extends InstrumentationSpecification {
       'connector.class': 'org.apache.kafka.connect.file.FileStreamSourceConnector',
       'tasks.max'     : '1',
       'file'          : tempFile.getAbsolutePath(),
-      'topic'         : 'test-topic'
+      'topic'         : SOURCE_TOPIC
     ]
 
     // Latch to wait for connector addition
@@ -133,7 +138,7 @@ class ConnectWorkerInstrumentationTest extends InstrumentationSpecification {
     consumerProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringDeserializer")
 
     KafkaConsumer<String, String> consumer = new KafkaConsumer<>(consumerProps)
-    consumer.subscribe(['test-topic'])
+    consumer.subscribe([SOURCE_TOPIC])
 
     String receivedMessage = null
     for (int i = 0; i < 10; i++) {
@@ -144,27 +149,22 @@ class ConnectWorkerInstrumentationTest extends InstrumentationSpecification {
         break
       }
     }
-    TEST_DATA_STREAMS_WRITER.waitForGroups(2)
-
     then:
     receivedMessage == "Hello Kafka"
 
-    StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
-      it.parentHash == 0
-    }
+    List<StatsGroup> pathway = waitForPathway(SOURCE_TOPIC, "test-consumer-group")
+    StatsGroup first = pathway[0]
     verifyAll(first) {
       tags.hasAllTags(
       "direction:out",
-      "topic:test-topic",
+      "topic:" + SOURCE_TOPIC,
       "type:kafka"
       )
     }
 
-    StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find {
-      it.parentHash == first.hash
-    }
+    StatsGroup second = pathway[1]
     verifyAll(second) {
-      tags.hasAllTags("direction:in", "group:test-consumer-group", "topic:test-topic", "type:kafka")
+      tags.hasAllTags("direction:in", "group:test-consumer-group", "topic:" + SOURCE_TOPIC, "type:kafka")
     }
     TEST_DATA_STREAMS_WRITER.getServices().contains('file-source-connector')
 
@@ -174,6 +174,7 @@ class ConnectWorkerInstrumentationTest extends InstrumentationSpecification {
     herder?.stop()
     worker?.stop()
     tempFile?.delete()
+    offsetFile?.delete()
   }
 
   def "test kafka-connect sink instrumentation"() {
@@ -194,12 +195,14 @@ class ConnectWorkerInstrumentationTest extends InstrumentationSpecification {
       sinkFile.delete()
     }
     sinkFile.deleteOnExit()
+    File offsetFile = new File(sinkFile.parentFile, "connect-sink-offsets-${UUID.randomUUID()}")
+    offsetFile.deleteOnExit()
 
     Properties workerProps = new Properties()
     workerProps.put(WorkerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers)
     workerProps.put(WorkerConfig.KEY_CONVERTER_CLASS_CONFIG, "org.apache.kafka.connect.storage.StringConverter")
     workerProps.put(WorkerConfig.VALUE_CONVERTER_CLASS_CONFIG, "org.apache.kafka.connect.storage.StringConverter")
-    workerProps.put(StandaloneConfig.OFFSET_STORAGE_FILE_FILENAME_CONFIG, "/tmp/connect.offsets")
+    workerProps.put(StandaloneConfig.OFFSET_STORAGE_FILE_FILENAME_CONFIG, offsetFile.absolutePath)
     workerProps.put(WorkerConfig.INTERNAL_KEY_CONVERTER_CLASS_CONFIG, "org.apache.kafka.connect.json.JsonConverter")
     workerProps.put(WorkerConfig.INTERNAL_VALUE_CONVERTER_CLASS_CONFIG, "org.apache.kafka.connect.json.JsonConverter")
     workerProps.put(WorkerConfig.PLUGIN_PATH_CONFIG, "") // Required but can be empty for built-in connectors
@@ -233,7 +236,7 @@ class ConnectWorkerInstrumentationTest extends InstrumentationSpecification {
       'connector.class': 'org.apache.kafka.connect.file.FileStreamSinkConnector',
       'tasks.max'      : '1',
       'file'           : sinkFile.getAbsolutePath(),
-      'topics'         : 'test-topic'
+      'topics'         : SINK_TOPIC
     ]
 
     // Latch to wait for connector addition
@@ -265,7 +268,7 @@ class ConnectWorkerInstrumentationTest extends InstrumentationSpecification {
     producerProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer")
 
     KafkaProducer<String, String> producer = new KafkaProducer<>(producerProps)
-    producer.send(new ProducerRecord<>("test-topic", "key1", "Hello Kafka Sink"))
+    producer.send(new ProducerRecord<>(SINK_TOPIC, "key1", "Hello Kafka Sink"))
     producer.flush()
     producer.close()
 
@@ -278,23 +281,18 @@ class ConnectWorkerInstrumentationTest extends InstrumentationSpecification {
     }
 
     String fileContents = sinkFile.text
-    TEST_DATA_STREAMS_WRITER.waitForGroups(2)
-
     then:
     fileContents.contains("Hello Kafka Sink")
 
-    StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
-      it.parentHash == 0
-    }
+    List<StatsGroup> pathway = waitForPathway(SINK_TOPIC, "connect-file-sink-connector")
+    StatsGroup first = pathway[0]
     verifyAll(first) {
-      tags.hasAllTags("direction:out", "topic:test-topic", "type:kafka")
+      tags.hasAllTags("direction:out", "topic:" + SINK_TOPIC, "type:kafka")
     }
 
-    StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find {
-      it.parentHash == first.hash
-    }
+    StatsGroup second = pathway[1]
     verifyAll(second) {
-      tags.hasAllTags("direction:in", "group:connect-file-sink-connector", "topic:test-topic", "type:kafka")
+      tags.hasAllTags("direction:in", "group:connect-file-sink-connector", "topic:" + SINK_TOPIC, "type:kafka")
     }
     TEST_DATA_STREAMS_WRITER.getServices().contains('file-sink-connector')
 
@@ -303,6 +301,29 @@ class ConnectWorkerInstrumentationTest extends InstrumentationSpecification {
     herder?.stop()
     worker?.stop()
     sinkFile?.delete()
+    offsetFile?.delete()
+  }
+
+  private List<StatsGroup> waitForPathway(String topic, String group) {
+    long deadline = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(10)
+    while (System.currentTimeMillis() < deadline) {
+      List<StatsGroup> groups = TEST_DATA_STREAMS_WRITER.groups
+      StatsGroup producer = groups.find {
+        it.parentHash == 0 &&
+        it.tags.hasAllTags("direction:out", "topic:" + topic, "type:kafka")
+      }
+      if (producer != null) {
+        StatsGroup consumer = groups.find {
+          it.parentHash == producer.hash &&
+          it.tags.hasAllTags("direction:in", "group:" + group, "topic:" + topic, "type:kafka")
+        }
+        if (consumer != null) {
+          return [producer, consumer]
+        }
+      }
+      Thread.sleep(20)
+    }
+    throw new AssertionError("No matching data-stream pathway found for topic " + topic + " and group " + group)
   }
 
   @Override

@@ -7,6 +7,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extra
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateNext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.bootstrap.instrumentation.api.URIUtils.urlFileName;
 import static datadog.trace.instrumentation.aws.v1.sqs.MessageExtractAdapter.GETTER;
 import static datadog.trace.instrumentation.aws.v1.sqs.SqsDecorator.BROKER_DECORATE;
@@ -105,8 +106,12 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
         }
         AgentSpan span = startSpan(COMPONENT_NAME.toString(), SQS_INBOUND_OPERATION, batchContext);
 
-        DataStreamsTags tags = create("sqs", INBOUND, urlFileName(queueUrl));
-        AgentTracer.get().getDataStreamsMonitoring().setCheckpoint(span, create(tags, 0, 0));
+        // Only build the DSM tags and context when DSM is on: with it off the checkpoint is a
+        // no-op, but the arguments were still built for every message.
+        if (traceConfig().isDataStreamsEnabled()) {
+          DataStreamsTags tags = create("sqs", INBOUND, urlFileName(queueUrl));
+          AgentTracer.get().getDataStreamsMonitoring().setCheckpoint(span, create(tags, 0, 0));
+        }
 
         CONSUMER_DECORATE.afterStart(span);
         CONSUMER_DECORATE.onConsume(span, queueUrl);
