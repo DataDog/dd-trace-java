@@ -2,6 +2,9 @@ package datadog.trace.instrumentation.jetty12;
 
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_IGNORE_COMMIT_ATTRIBUTE;
+import static datadog.trace.instrumentation.jetty12.JettyFakes.fake;
+import static datadog.trace.instrumentation.jetty12.JettyFakes.proxy;
+import static datadog.trace.instrumentation.jetty12.JettyFakes.toBytes;
 import static java.util.Collections.singletonMap;
 import static org.eclipse.jetty.util.thread.Invocable.InvocationType.NON_BLOCKING;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
@@ -15,6 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.context.Context;
 import datadog.trace.api.appsec.AppSecContext;
+import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
@@ -24,7 +28,6 @@ import datadog.trace.bootstrap.blocking.BlockingActionHelper.TemplateType;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.io.IOException;
-import java.lang.reflect.Proxy;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -56,6 +59,7 @@ class JettyCommitResponseHelperTest {
   private final List<ByteBuffer> writes = new ArrayList<>();
   private final List<Callback> writeCallbacks = new ArrayList<>();
   private final FakeDecorator decorator = new FakeDecorator();
+  private BlockResponseFunction brf;
   private boolean committed;
   private int status;
   private int resets;
@@ -93,48 +97,35 @@ class JettyCommitResponseHelperTest {
         }
       };
 
-  @Test
-  void committedResponseIsIgnored() {
-    attributes.put(DD_CONTEXT_ATTRIBUTE, context(true));
-    committed = true;
-
-    assertFalse(tryBlock());
-    assertEquals(0, decorator.calls);
-    assertNull(attributes.get(DD_IGNORE_COMMIT_ATTRIBUTE));
-  }
-
-  @Test
-  void ignoreAttributeSkipsEvaluation() {
-    attributes.put(DD_CONTEXT_ATTRIBUTE, context(true));
-    attributes.put(DD_IGNORE_COMMIT_ATTRIBUTE, Boolean.TRUE);
-
-    assertFalse(tryBlock());
-    assertEquals(0, decorator.calls);
-  }
-
   @TableTest({
-    "Scenario           | Context | Span  | Request Context",
-    "no context         | false   | true  | true           ",
-    "no span            | true    | false | true           ",
-    "no request context | true    | true  | false          "
+    "Scenario           | Context | Span  | Request Context | Committed | Ignore Commit | Status",
+    "committed          | true    | true  | true            | true      | false         | 0     ",
+    "ignore attribute   | true    | true  | true            | false     | true          | 0     ",
+    "interim status     | true    | true  | true            | false     | false         | 103   ",
+    "no context         | false   | true  | true            | false     | false         | 0     ",
+    "no span            | true    | false | true            | false     | false         | 0     ",
+    "no request context | true    | true  | false           | false     | false         | 0     "
   })
-  void nothingToEvaluate(boolean hasContext, boolean hasSpan, boolean hasReqCtx) {
+  void nothingToEvaluate(
+      boolean hasContext,
+      boolean hasSpan,
+      boolean hasReqCtx,
+      boolean committed,
+      boolean ignoreCommit,
+      int status) {
     if (hasContext) {
-      attributes.put(DD_CONTEXT_ATTRIBUTE, hasSpan ? context(hasReqCtx) : emptyContext());
+      attributes.put(DD_CONTEXT_ATTRIBUTE, hasSpan ? context(hasReqCtx) : fake(Context.class));
     }
+    if (ignoreCommit) {
+      attributes.put(DD_IGNORE_COMMIT_ATTRIBUTE, Boolean.TRUE);
+    }
+    this.committed = committed;
+    this.status = status;
 
     assertFalse(tryBlock());
     assertEquals(0, decorator.calls);
-    assertNull(attributes.get(DD_IGNORE_COMMIT_ATTRIBUTE));
-  }
-
-  @Test
-  void interimStatusIsIgnored() {
-    attributes.put(DD_CONTEXT_ATTRIBUTE, context(true));
-    status = 103;
-
-    assertFalse(tryBlock());
-    assertEquals(0, decorator.calls);
+    assertEquals(ignoreCommit ? Boolean.TRUE : null, attributes.get(DD_IGNORE_COMMIT_ATTRIBUTE));
+    assertTrue(writes.isEmpty());
   }
 
   @TableTest({
@@ -207,6 +198,27 @@ class JettyCommitResponseHelperTest {
     assertEquals(1, blockFailures);
     assertSame(failure, originalFailure);
     assertEquals(0, originalSucceeded);
+  }
+
+  @Test
+  void laterBrfBlockAfterResponseBlockIsNotReportedAsFailure() {
+    Response response = response();
+    JettyBlockResponseFunction jettyBrf =
+        new JettyBlockResponseFunction(response.getRequest(), response);
+    brf = jettyBrf;
+    Context context = context(true);
+    attributes.put(DD_CONTEXT_ATTRIBUTE, context);
+    decorator.action = RBA;
+    assertTrue(tryBlock());
+    // the blocking write is still in flight and has committed the response
+    committed = true;
+    RequestContext reqCtx = AgentSpan.fromContext(context).getRequestContext();
+
+    assertTrue(jettyBrf.tryCommitBlockingResponse(reqCtx, RBA));
+
+    assertEquals(1, writes.size(), "no second blocking write");
+    assertEquals(0, blockFailures);
+    assertEquals(0, effectivelyBlocked, "marked only once the write completes");
   }
 
   @Test
@@ -315,6 +327,8 @@ class JettyCommitResponseHelperTest {
               switch (name) {
                 case "getTraceSegment":
                   return segment;
+                case "getBlockResponseFunction":
+                  return brf;
                 case "getData":
                   return args[0] == RequestContextSlot.APPSEC ? appSecCtx : null;
                 default:
@@ -326,16 +340,6 @@ class JettyCommitResponseHelperTest {
             AgentSpan.class,
             (name, args) -> "getRequestContext".equals(name) && hasReqCtx ? reqCtx : null);
     return proxy(Context.class, (name, args) -> "get".equals(name) ? span : null);
-  }
-
-  private static Context emptyContext() {
-    return proxy(Context.class, (name, args) -> null);
-  }
-
-  private static byte[] toBytes(ByteBuffer buffer) {
-    byte[] bytes = new byte[buffer.remaining()];
-    buffer.duplicate().get(bytes);
-    return bytes;
   }
 
   private final class FakeDecorator extends JettyDecorator {
@@ -370,29 +374,5 @@ class JettyCommitResponseHelperTest {
         }
       };
     }
-  }
-
-  private interface Handler {
-    Object handle(String methodName, Object[] args);
-  }
-
-  @SuppressWarnings("unchecked")
-  private static <T> T proxy(Class<T> type, Handler handler) {
-    return (T)
-        Proxy.newProxyInstance(
-            JettyCommitResponseHelperTest.class.getClassLoader(),
-            new Class<?>[] {type},
-            (proxy, method, args) -> {
-              switch (method.getName()) {
-                case "toString":
-                  return type.getSimpleName() + "Fake";
-                case "hashCode":
-                  return System.identityHashCode(proxy);
-                case "equals":
-                  return proxy == args[0];
-                default:
-                  return handler.handle(method.getName(), args);
-              }
-            });
   }
 }

@@ -15,6 +15,7 @@ import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.io.Connection;
 import org.eclipse.jetty.io.EndPoint;
 import org.eclipse.jetty.server.ConnectionMetaData;
@@ -159,6 +160,12 @@ public class JettyDecorator extends HttpServerDecorator<Request, Request, Respon
     return true;
   }
 
+  /** Returns the response status, mapping the unset status {@code 0} to the implicit 200. */
+  static int effectiveStatus(final Response response) {
+    final int status = response.getStatus();
+    return status == 0 ? HttpStatus.OK_200 : status;
+  }
+
   /** Decorates the span with the response and finishes it. */
   public void finishSpan(
       final Context context, final AgentSpan span, final Request request, final Response response) {
@@ -192,9 +199,8 @@ public class JettyDecorator extends HttpServerDecorator<Request, Request, Respon
     if (request.getAttribute(DD_IGNORE_COMMIT_ATTRIBUTE) == null) {
       // the commit hook never saw this response (e.g. a core handler committing it without any
       // write, or AppSec instrumentation not applied): keep response monitoring, too late to block
-      int status = response.getStatus();
       callIGCallbackResponseAndHeaders(
-          span, response, status == 0 ? 200 : status, ExtractAdapter.Response.GETTER);
+          span, response, effectiveStatus(response), ExtractAdapter.Response.GETTER);
     }
     super.onResponse(span, response);
   }

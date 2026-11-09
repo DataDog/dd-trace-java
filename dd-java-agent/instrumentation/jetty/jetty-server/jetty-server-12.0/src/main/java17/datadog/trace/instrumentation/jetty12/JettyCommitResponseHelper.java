@@ -1,16 +1,20 @@
 package datadog.trace.instrumentation.jetty12;
 
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_IGNORE_COMMIT_ATTRIBUTE;
+import static datadog.trace.instrumentation.jetty12.JettyBlockResponseHelper.markEffectivelyBlocked;
 import static datadog.trace.instrumentation.jetty12.JettyBlockResponseHelper.prepareBlockResponse;
 import static datadog.trace.instrumentation.jetty12.JettyBlockResponseHelper.reportBlockFailure;
+import static datadog.trace.instrumentation.jetty12.JettyBlockResponseHelper.spanFrom;
 import static datadog.trace.instrumentation.jetty12.JettyDecorator.DECORATE;
+import static datadog.trace.instrumentation.jetty12.JettyDecorator.effectiveStatus;
 
-import datadog.context.Context;
+import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.nio.ByteBuffer;
+import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
 import org.eclipse.jetty.util.Callback;
@@ -48,11 +52,7 @@ public final class JettyCommitResponseHelper {
     if (request == null || request.getAttribute(DD_IGNORE_COMMIT_ATTRIBUTE) != null) {
       return false;
     }
-    Object contextObj = request.getAttribute(DD_CONTEXT_ATTRIBUTE);
-    if (!(contextObj instanceof Context)) {
-      return false;
-    }
-    AgentSpan span = AgentSpan.fromContext((Context) contextObj);
+    AgentSpan span = spanFrom(request);
     if (span == null) {
       return false;
     }
@@ -60,10 +60,8 @@ public final class JettyCommitResponseHelper {
     if (reqCtx == null) {
       return false;
     }
-    int status = response.getStatus();
-    if (status == 0) {
-      status = 200;
-    } else if (status >= 100 && status < 200) {
+    int status = effectiveStatus(response);
+    if (HttpStatus.isInformational(status)) {
       // interim responses do not commit the final response
       return false;
     }
@@ -100,30 +98,47 @@ public final class JettyCommitResponseHelper {
       reportBlockFailure(reqCtx);
       return false;
     }
+    // separate from the commit: the blocking write is in flight, the original write must be skipped
+    try {
+      markBrfBlockingResponseInitiated(reqCtx);
+    } catch (Throwable t) {
+      log.debug("Failed to mark the block response function as blocked", t);
+    }
     return true;
+  }
+
+  /**
+   * Once the blocking write is handed to Jetty the response is committed by us: later blocking
+   * evaluations on the same request (RASP, user blocking) go through the BRF, which must treat that
+   * commit as expected instead of reporting a {@code block_failure}. Set when the write is started
+   * rather than on its success so an async write still in flight is covered too; a failed write is
+   * reported once by {@link BlockingCallback#failed}. The segment is still marked only on success.
+   */
+  private static void markBrfBlockingResponseInitiated(RequestContext reqCtx) {
+    BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
+    if (brf instanceof JettyBlockResponseFunction) {
+      ((JettyBlockResponseFunction) brf).markBlockingResponseInitiated();
+    }
   }
 
   /**
    * Completes the original write callback once the blocking response write completes, marking the
    * segment as effectively blocked on success and reporting {@code block_failure} on failure.
    */
-  public static final class BlockingCallback implements Callback {
+  static final class BlockingCallback implements Callback {
     private final RequestContext reqCtx;
+    private final TraceSegment segment;
     private final Callback delegate;
 
     BlockingCallback(RequestContext reqCtx, Callback delegate) {
       this.reqCtx = reqCtx;
+      this.segment = reqCtx.getTraceSegment();
       this.delegate = delegate != null ? delegate : Callback.NOOP;
     }
 
     @Override
     public void succeeded() {
-      try {
-        reqCtx.getTraceSegment().effectivelyBlocked();
-      } catch (Throwable t) {
-        // the blocking response was already written, blocking succeeded
-        log.debug("Failed to mark segment as effectively blocked", t);
-      }
+      markEffectivelyBlocked(segment);
       delegate.succeeded();
     }
 
