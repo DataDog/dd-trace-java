@@ -311,7 +311,7 @@ public class ProfilingAgent {
       }
 
       if (profiler != null) {
-        profiler.stop(snapshot);
+        profiler.shutdown(snapshot);
       }
 
       if (uploader != null) {

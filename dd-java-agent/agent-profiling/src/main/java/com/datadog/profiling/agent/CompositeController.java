@@ -89,7 +89,26 @@ public class CompositeController implements Controller {
     @Nonnull
     @Override
     public RecordingData stop() {
-      return compose(OngoingRecording::stop);
+      // every recording must be stopped, even when another one fails to: a ddprof recording that
+      // stays running would keep the profiler from starting again
+      List<RecordingData> data = new ArrayList<>(recordings.size());
+      RuntimeException failure = null;
+      for (OngoingRecording recording : recordings) {
+        try {
+          data.add(recording.stop());
+        } catch (RuntimeException e) {
+          if (failure == null) {
+            failure = e;
+          } else {
+            failure.addSuppressed(e);
+          }
+        }
+      }
+      if (failure != null) {
+        data.forEach(RecordingData::release);
+        throw failure;
+      }
+      return new CompositeRecordingData(data);
     }
 
     @Nonnull

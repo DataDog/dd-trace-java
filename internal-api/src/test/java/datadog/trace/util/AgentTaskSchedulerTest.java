@@ -74,6 +74,33 @@ class AgentTaskSchedulerTest {
   }
 
   @Test
+  void shutdownReleasesTheScheduler() throws InterruptedException {
+    // the JVM keeps the shutdown hook forever, so unless shutdown removes it, it keeps the
+    // scheduler alive: a scheduler per profiler restart would be leaked
+    AgentTaskScheduler shortLived = new AgentTaskScheduler(TASK_SCHEDULER);
+    CountDownLatch ran = new CountDownLatch(1);
+    shortLived.scheduleAtFixedRate(
+        new AgentTaskScheduler.Task<CountDownLatch>() {
+          @Override
+          public void run(CountDownLatch target) {
+            target.countDown();
+          }
+        },
+        ran,
+        0,
+        1000,
+        MILLISECONDS);
+    assertTrue(ran.await(5, SECONDS), "the scheduler started, and so registered its hook");
+    WeakReference<AgentTaskScheduler> weakScheduler = new WeakReference<>(shortLived);
+
+    shortLived.shutdown(5, SECONDS);
+    shortLived = null;
+
+    GCUtils.awaitGC(weakScheduler);
+    assertEquals(null, weakScheduler.get());
+  }
+
+  @Test
   void testDelay() throws InterruptedException {
     CountDownLatch latch = new CountDownLatch(1);
     AgentTaskScheduler.Task<CountDownLatch> task =

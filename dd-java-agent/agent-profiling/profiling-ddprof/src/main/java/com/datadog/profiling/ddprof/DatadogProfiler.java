@@ -464,21 +464,26 @@ public final class DatadogProfiler {
       // reconfigure() can't replace the settings once the flag is set
       settings = this.settings;
     }
+    boolean started = false;
     try {
       Path recFile = Files.createTempFile(recordingsPath, "dd-profiler-", ".jfr");
       String cmd = cmdStartProfiling(settings, orderedContextAttributes, recFile);
       String rslt = executeProfilerCmd(cmd);
       log.debug("DatadogProfiler.execute({}) = {}", cmd, rslt);
+      started = true;
       return recFile;
-    } catch (IOException | IllegalStateException e) {
+    } catch (IOException | RuntimeException e) {
       if (log.isDebugEnabled()) {
         log.warn("Unable to start Datadog profiler recording", e);
       } else {
         log.warn("Unable to start Datadog profiler recording: {}", e.getMessage());
       }
-      // allow a later start, possibly with another configuration
-      recordingFlag.set(false);
       throw e;
+    } finally {
+      if (!started) {
+        // allow a later start, possibly with another configuration, whatever the failure was
+        recordingFlag.set(false);
+      }
     }
   }
 

@@ -7,6 +7,9 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.spy;
 
 import com.datadog.profiling.controller.OngoingRecording;
 import com.datadog.profiling.utils.ProfilingMode;
@@ -701,6 +704,19 @@ class DatadogProfilerTest {
     assertTrue(wallCommand.contains(",wall="), wallCommand);
     assertTrue(profiler.enabledModes().contains(ProfilingMode.WALL));
     assertFalse(profiler.enabledModes().contains(ProfilingMode.CPU));
+  }
+
+  @Test
+  void failedStartWhateverTheFailureAllowsALaterStart() throws Exception {
+    DatadogProfiler profiler =
+        spy(DatadogProfiler.newInstance(configProvider(true, false, false, false)));
+    doThrow(new IllegalArgumentException("bad option")).when(profiler).executeProfilerCmd(any());
+
+    assertThrows(IllegalArgumentException.class, profiler::newRecording);
+
+    // the failed start doesn't keep the profiler from being reconfigured, or started again
+    assertDoesNotThrow(() -> profiler.reconfigure(configProvider(false, true, false, false)));
+    assertThrows(IllegalArgumentException.class, profiler::newRecording);
   }
 
   @Test

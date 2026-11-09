@@ -79,6 +79,19 @@ class ProfilingConfigTargetsTest {
     assertTrue(ProfilingConfigTargets.matches(noEnv, null, "my-app"));
   }
 
+  @Test
+  void rankIsTheSpecificityOfAPayloadThatMatchesAndNoMatchOtherwise() {
+    String forService = "{\"targets\":[{\"service\":\"my-app\"}]}";
+    String forOther = "{\"targets\":[{\"service\":\"other\"}]}";
+
+    assertEquals(
+        ProfilingConfigTargets.specificity(forService, "prod", "my-app"),
+        ProfilingConfigTargets.rank(forService, "prod", "my-app"));
+    assertEquals(
+        ProfilingConfigTargets.NO_MATCH, ProfilingConfigTargets.rank(forOther, "prod", "my-app"));
+    assertEquals(0, ProfilingConfigTargets.specificity(forOther, "prod", "my-app"));
+  }
+
   // a payload that is rejected must not rank, and one that ranks must not be rejected
   @TableTest({
     "Scenario               | Json                                                           ",

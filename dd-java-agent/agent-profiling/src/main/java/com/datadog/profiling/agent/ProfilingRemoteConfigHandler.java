@@ -33,8 +33,12 @@ import org.slf4j.LoggerFactory;
  * <p>Stopping a running profiler uploads what it recorded since its last snapshot first. That
  * upload is synchronous, so it holds up the remote config thread for at most the upload timeout.
  *
- * <p>When applying a configuration fails, or the profiler doesn't start, the next remote config
- * change applies it again, even if it is the one that was applied before.
+ * <p>When applying a configuration fails, or the profiler doesn't start, even later after the
+ * startup delay, the next remote config change applies it again, even if it is the one that was
+ * applied before.
+ *
+ * <p>The startup delay only protects a start from {@code premain}: once a recording has run, the
+ * JVM is past that, and the profiler restarts right away.
  *
  * <p>This handler can be created before the profiler is initialized. Remote config is not delivered
  * again once it was, so the configs received before the profiler is available via {@link
@@ -56,6 +60,8 @@ final class ProfilingRemoteConfigHandler implements ProfilingConfigHandler {
   private RemoteConfiguration appliedConfiguration;
   // whether the profiler is in the state that appliedConfiguration says; false after a failure
   private boolean stateKnown = true;
+  // whether a recording was seen running, which means that the JVM is past premain
+  private boolean recordingSeen;
   // volatile rather than guarded, so that closing doesn't wait for a configuration being applied
   private volatile boolean closed;
 
@@ -137,7 +143,13 @@ final class ProfilingRemoteConfigHandler implements ProfilingConfigHandler {
     // the value of each feature comes from the highest priority configuration that sets it
     final RemoteConfiguration merged = ProfilingConfigMerger.merge(stack);
     final RemoteConfiguration remote = merged.isEmpty() ? null : merged;
-    if (stateKnown && Objects.equals(remote, appliedConfiguration)) {
+    if (profilingSystem.isStarted()) {
+      recordingSeen = true;
+    }
+    // a start that was delayed can fail later, on a thread that this one doesn't see
+    if (stateKnown
+        && !profilingSystem.isStartFailed()
+        && Objects.equals(remote, appliedConfiguration)) {
       log.debug("APM_PROFILING remote config unchanged, nothing to do");
       return;
     }
@@ -175,8 +187,13 @@ final class ProfilingRemoteConfigHandler implements ProfilingConfigHandler {
           return;
         }
         profilingSystem.reconfigure(config);
-        profilingSystem.start(startImmediately);
-        if (startImmediately && !profilingSystem.isStarted()) {
+        final boolean immediately = startImmediately || recordingSeen;
+        profilingSystem.start(immediately);
+        if (closed) {
+          // shut down in the meantime, which is why the profiler didn't start
+          return;
+        }
+        if (immediately && !profilingSystem.isStarted()) {
           // the start failed without throwing, e.g. the profiler isn't supported here: don't
           // leave it half started, and don't take the configuration for applied
           profilingSystem.stop(false);
@@ -185,7 +202,7 @@ final class ProfilingRemoteConfigHandler implements ProfilingConfigHandler {
         log.debug(
             "Profiling lifecycle: {} -> {} ({} configuration)",
             running ? "stopped" : "idle",
-            startImmediately ? "running" : "starting after the startup delay",
+            startImmediately || recordingSeen ? "running" : "starting after the startup delay",
             remote == null ? "local" : "remote");
       }
       appliedConfiguration = remote;

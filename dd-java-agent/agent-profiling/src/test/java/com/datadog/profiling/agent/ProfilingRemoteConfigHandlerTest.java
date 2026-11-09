@@ -465,6 +465,61 @@ class ProfilingRemoteConfigHandlerTest {
   }
 
   @Test
+  void aStartThatFailsAfterTheStartupDelayIsAppliedAgainByTheSameConfig() throws Exception {
+    when(controller.createRecording(any(), any()))
+        .thenThrow(new IllegalArgumentException("boom"))
+        .thenReturn(recording);
+    ProfilingSystem system = systemWithStartupDelay(Duration.ofMillis(20));
+    ProfilingRemoteConfigHandler handler = handler(system, false, false);
+
+    handler.onConfigsChanged(enabledConfig());
+    awaitTrue(system::isStartFailed);
+    // the same config: the handler is not told that the start failed, but the system is
+    handler.onConfigsChanged(enabledConfig());
+
+    assertEquals(2, createdConfigs.size(), "applied again, although it is the same configuration");
+    awaitTrue(system::isStarted);
+    system.stop(false);
+  }
+
+  @Test
+  void restartsRightAwayOnceARecordingRanEvenWhenStartingFirstIsNotSafe() throws Exception {
+    ProfilingSystem system = systemWithStartupDelay(Duration.ofMillis(300));
+    ProfilingRemoteConfigHandler handler = handler(system, false, false);
+
+    handler.onConfigsChanged(enabledConfig());
+    assertFalse(system.isStarted(), "the first start waits for the startup delay");
+    awaitTrue(system::isStarted);
+
+    handler.onConfigsChanged(otherEnabledConfig());
+
+    // the JVM is past premain by then: no new startup delay
+    assertTrue(system.isStarted());
+    system.stop(false);
+  }
+
+  private ProfilingSystem systemWithStartupDelay(Duration startupDelay) throws Exception {
+    return new ProfilingSystem(
+        localConfig,
+        context -> controller,
+        mock(RecordingDataListener.class),
+        startupDelay,
+        Duration.ofMillis(1),
+        Duration.ofHours(1),
+        false);
+  }
+
+  private static void awaitTrue(java.util.function.BooleanSupplier condition) throws Exception {
+    long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+    while (!condition.getAsBoolean()) {
+      if (System.nanoTime() > deadline) {
+        throw new AssertionError("condition not met in time");
+      }
+      Thread.sleep(5);
+    }
+  }
+
+  @Test
   void stoppingTheProfilerFlushesWhatItRecorded() throws Exception {
     ProfilingRemoteConfigHandler handler = handler(false);
     handler.onConfigsChanged(enabledConfig());

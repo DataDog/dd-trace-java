@@ -91,6 +91,7 @@ public class AgentTaskScheduler implements Executor {
   private final AgentThread agentThread;
   private volatile Thread worker;
   private volatile boolean shutdown;
+  private volatile ShutdownHook shutdownHook;
 
   public AgentTaskScheduler(final AgentThread agentThread) {
     this.agentThread = agentThread;
@@ -205,7 +206,9 @@ public class AgentTaskScheduler implements Executor {
           try {
             worker = newAgentThread(agentThread, new Worker());
             // register hook after worker is assigned, but before we start it
-            Runtime.getRuntime().addShutdownHook(new ShutdownHook());
+            final ShutdownHook hook = new ShutdownHook();
+            Runtime.getRuntime().addShutdownHook(hook);
+            shutdownHook = hook;
             worker.start();
           } catch (final IllegalStateException e) {
             shutdown = true; // couldn't add hook, JVM is shutting down
@@ -259,6 +262,7 @@ public class AgentTaskScheduler implements Executor {
 
   public void shutdown(final long timeout, final TimeUnit unit) {
     shutdown = true;
+    removeShutdownHook();
     final Thread t = worker;
     if (t != null) {
       t.interrupt();
@@ -268,6 +272,20 @@ public class AgentTaskScheduler implements Executor {
         } catch (final InterruptedException e) {
           // continue shutdown...
         }
+      }
+    }
+  }
+
+  // a scheduler that was shut down doesn't need its hook anymore, and the JVM would otherwise keep
+  // it, and the scheduler, forever
+  private void removeShutdownHook() {
+    final ShutdownHook hook = shutdownHook;
+    if (hook != null && hook != Thread.currentThread()) {
+      shutdownHook = null;
+      try {
+        Runtime.getRuntime().removeShutdownHook(hook);
+      } catch (final IllegalStateException e) {
+        // JVM is already shutting down
       }
     }
   }

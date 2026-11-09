@@ -860,6 +860,83 @@ public class ProfilingSystemTest {
     assertFalse(system.isStarted());
   }
 
+  @Test
+  public void testShutdownIsFinalAndOnlyClosesTheRecording() throws Exception {
+    final ProfilingSystem system =
+        new ProfilingSystem(
+            configProvider,
+            controllerFactory,
+            listener,
+            Duration.ofMillis(10),
+            Duration.ZERO,
+            Duration.ofMillis(100),
+            true,
+            () -> scheduler,
+            threadLocalRandom);
+    system.start();
+    assertTrue(system.isStarted());
+
+    system.shutdown(false);
+
+    assertFalse(system.isStarted());
+    verify(recording).close();
+    verify(recording, never()).stop();
+
+    // a shut down system can't be started again, e.g. by remote config that is still in flight
+    system.start();
+    assertFalse(system.isStarted());
+    assertFalse(system.isRunning());
+    verify(controller, times(1)).createRecording(any(), any());
+  }
+
+  @Test
+  public void testUnsupportedEnvironmentIsAStartFailureUntilStopped() throws Exception {
+    when(controller.createRecording(any(), any()))
+        .thenThrow(new UnsupportedEnvironmentException("unsupported"));
+    final ProfilingSystem system =
+        new ProfilingSystem(
+            configProvider,
+            controllerFactory,
+            listener,
+            Duration.ofMillis(10),
+            Duration.ZERO,
+            Duration.ofMillis(100),
+            true,
+            () -> scheduler,
+            threadLocalRandom);
+    assertFalse(system.isStartFailed());
+
+    system.start();
+
+    assertTrue(system.isStartFailed());
+    system.stop(false);
+    assertFalse(system.isStartFailed());
+  }
+
+  @Test
+  public void testDelayedStartFailureIsRecorded() throws Exception {
+    when(controller.createRecording(any(), any())).thenThrow(new IllegalArgumentException("boom"));
+    final ProfilingSystem system =
+        new ProfilingSystem(
+            configProvider,
+            controllerFactory,
+            listener,
+            Duration.ofMillis(10),
+            Duration.ZERO,
+            Duration.ofMillis(100),
+            false,
+            () -> scheduler,
+            threadLocalRandom);
+
+    // the start is delayed, so it doesn't throw: this is how a caller learns that it failed
+    system.start();
+    await().until(system::isStartFailed);
+
+    assertFalse(system.isStarted());
+    assertTrue(system.isRunning());
+    system.stop(false);
+  }
+
   private Answer<Object> generateMockRecordingData(
       final List<RecordingData> generatedRecordingData) {
     return (InvocationOnMock invocation) -> {

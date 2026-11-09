@@ -138,6 +138,9 @@ public final class ProfilingConfigTargets {
     return levels;
   }
 
+  /** The rank of a payload that is not intended for this application. */
+  public static final int NO_MATCH = -1;
+
   /**
    * Whether a payload is intended for this application. It is not when none of its valid targets is
    * for this application's service and env, in which case it has to be rejected.
@@ -147,12 +150,7 @@ public final class ProfilingConfigTargets {
    * @param service this application's service
    */
   public static boolean matches(String json, String env, String service) {
-    for (Target target : readTargets(json)) {
-      if (target.isFor(env, service)) {
-        return true;
-      }
-    }
-    return false;
+    return rank(json, env, service) != NO_MATCH;
   }
 
   /**
@@ -171,13 +169,24 @@ public final class ProfilingConfigTargets {
    * @param service this application's service
    */
   public static int specificity(String json, String env, String service) {
-    int specificity = 0;
+    return Math.max(0, rank(json, env, service));
+  }
+
+  /**
+   * Both whether a payload is intended for this application and its specificity, from a single read
+   * of the payload.
+   *
+   * @return {@link #NO_MATCH} if the payload does not {@link #matches match}, or else its {@link
+   *     #specificity}
+   */
+  public static int rank(String json, String env, String service) {
+    int rank = NO_MATCH;
     for (Target target : readTargets(json)) {
       if (target.isFor(env, service)) {
-        specificity = Math.max(specificity, target.specificity());
+        rank = Math.max(rank, target.specificity());
       }
     }
-    return specificity;
+    return rank;
   }
 
   /**

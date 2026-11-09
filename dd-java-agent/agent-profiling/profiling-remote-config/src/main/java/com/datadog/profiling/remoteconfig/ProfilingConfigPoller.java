@@ -83,7 +83,9 @@ public final class ProfilingConfigPoller {
     public void accept(ConfigKey configKey, byte[] content, PollingRateHinter hinter) {
       String configId = configKey.getConfigId();
       String json = new String(content, UTF_8);
-      if (!ProfilingConfigTargets.matches(json, env, service)) {
+      // the more specific the targets are for this application, the higher the priority
+      int priority = ProfilingConfigTargets.rank(json, env, service);
+      if (priority == ProfilingConfigTargets.NO_MATCH) {
         // may have targeted this application before, in which case it no longer applies
         stack.remove(configId);
         log.debug(
@@ -93,8 +95,6 @@ public final class ProfilingConfigPoller {
             service);
         return;
       }
-      // the more specific the targets are for this application, the higher the priority
-      int priority = ProfilingConfigTargets.specificity(json, env, service);
       RemoteConfiguration configuration = RemoteConfiguration.parse(json);
       stack.push(configId, priority, configuration);
       log.debug(

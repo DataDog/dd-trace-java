@@ -43,7 +43,7 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Lifecycle: {@link #init()} creates the profiler(s) without starting them, {@link #start()}
  * starts recording and the snapshot scheduler, and {@link #stop(boolean)} stops both. The system
- * can be started again after it was stopped.
+ * can be started again after it was stopped, until it is shut down with {@link #shutdown(boolean)}.
  */
 public final class ProfilingSystem {
   private static final Logger log = LoggerFactory.getLogger(ProfilingSystem.class);
@@ -71,6 +71,10 @@ public final class ProfilingSystem {
   private volatile OngoingRecording recording;
   private volatile SnapshotRecording snapshotRecording;
   private volatile boolean started = false;
+  // set when a start didn't give a recording, e.g. on the scheduler thread after a delay
+  private volatile boolean startFailed = false;
+  // terminal: a shut down system can't be started again
+  private boolean closed = false;
 
   /**
    * Constructor.
@@ -175,11 +179,16 @@ public final class ProfilingSystem {
    * @throws UnsupportedEnvironmentException if no profiler is supported in this environment
    */
   public synchronized void start(boolean immediately) throws UnsupportedEnvironmentException {
+    if (closed) {
+      log.debug("Profiling system is shut down, not starting it");
+      return;
+    }
     if (scheduler != null) {
       log.debug("Profiling system is already started");
       return;
     }
     init();
+    startFailed = false;
 
     final AgentTaskScheduler scheduler = schedulerFactory.get();
     this.scheduler = scheduler;
@@ -231,6 +240,7 @@ public final class ProfilingSystem {
           TimeUnit.MILLISECONDS);
       started = true;
     } catch (UnsupportedEnvironmentException unsupported) {
+      startFailed = !scheduler.isShutdown();
       ProfilerFlareLogger.getInstance()
           .log(
               "Datadog Profiling was enabled on an unsupported JVM, will not profile application. "
@@ -242,6 +252,7 @@ public final class ProfilingSystem {
               "https://docs.datadoghq.com/profiler/enabling/java/?tab=commandarguments#requirements",
               unsupported);
     } catch (Throwable t) {
+      startFailed = !scheduler.isShutdown();
       if (t instanceof RuntimeException) {
         // Possibly a wrapped exception related to Oracle JDK 8 JFR MX beans
         Throwable inspecting = t.getCause();
@@ -288,6 +299,23 @@ public final class ProfilingSystem {
    * @param snapshot whether to take a last snapshot before stopping
    */
   public synchronized void stop(boolean snapshot) {
+    stop(snapshot, true);
+  }
+
+  /**
+   * Stops recording like {@link #stop(boolean)}, and makes the system final: it can't be started
+   * again. Unlike {@code stop}, it only closes the recording, which is all that a system that won't
+   * be restarted needs, and is cheaper in a shutdown hook.
+   *
+   * @param snapshot whether to take a last snapshot before stopping
+   */
+  public synchronized void shutdown(boolean snapshot) {
+    closed = true;
+    stop(snapshot, false);
+  }
+
+  private void stop(boolean snapshot, boolean restartable) {
+    startFailed = false;
     final AgentTaskScheduler scheduler = this.scheduler;
     if (scheduler == null) {
       return;
@@ -306,7 +334,11 @@ public final class ProfilingSystem {
     final OngoingRecording recording = this.recording;
     this.recording = null;
     if (recording != null) {
-      stopRecording(recording);
+      if (restartable) {
+        stopRecording(recording);
+      } else {
+        recording.close();
+      }
     }
 
     started = false;
@@ -358,6 +390,14 @@ public final class ProfilingSystem {
   /** Whether a recording is in progress. */
   public boolean isStarted() {
     return started;
+  }
+
+  /**
+   * Whether the last start didn't give a recording, e.g. because it was delayed and then failed.
+   * Cleared by the next {@link #start} or {@link #stop}.
+   */
+  public boolean isStartFailed() {
+    return startFailed;
   }
 
   @VisibleForTesting
