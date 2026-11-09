@@ -1,5 +1,7 @@
 package datadog.trace.logging.simplelogger;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import datadog.trace.logging.LogLevel;
 import datadog.trace.logging.LogReporter;
 import datadog.trace.logging.PrintStreamWrapper;
@@ -191,7 +193,7 @@ public class SLCompatSettings {
             parentFile.mkdirs();
           }
           outputStream = new FileOutputStream(outputFile);
-          PrintStream printStream = new PrintStream(outputStream, true);
+          PrintStream printStream = new PrintStream(outputStream, true, UTF_8.name());
           LogReporter.register(outputFile);
           return printStream;
         } catch (IOException | SecurityException e) {

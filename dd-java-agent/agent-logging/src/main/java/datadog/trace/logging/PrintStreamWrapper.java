@@ -1,10 +1,12 @@
 package datadog.trace.logging;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import datadog.environment.OperatingSystem;
 import datadog.trace.api.internal.VisibleForTesting;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.nio.file.Path;
@@ -15,7 +17,7 @@ public class PrintStreamWrapper extends PrintStream {
   private volatile int currentSize = 0;
   private PrintStream capturingStream = null;
 
-  // Preserve the JDK's encoding choice for the wrapped logging stream.
+  // JDK 18+ inherits the wrapped stream's charset; older JDKs use the JVM default.
   @SuppressForbidden
   public PrintStreamWrapper(PrintStream ps) {
     super(ps);
@@ -48,18 +50,16 @@ public class PrintStreamWrapper extends PrintStream {
     println(s);
   }
 
-  // Log capture retains the platform encoding for compatibility.
-  @SuppressForbidden
   public void startCapturing(Path filepath) {
     stopCapturing();
     try {
       if (filepath != null) {
         String logFile = filepath.toString();
         FileOutputStream fileOutputStream = new FileOutputStream(logFile);
-        capturingStream = new PrintStream(fileOutputStream, true);
+        capturingStream = new PrintStream(fileOutputStream, true, UTF_8.name());
         captureOutput = true;
       }
-    } catch (FileNotFoundException e) {
+    } catch (IOException e) {
       // TODO maybe have support for delayed logging of early failures?
     }
   }

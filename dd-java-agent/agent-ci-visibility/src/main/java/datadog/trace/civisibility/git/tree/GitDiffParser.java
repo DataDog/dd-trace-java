@@ -1,11 +1,12 @@
 package datadog.trace.civisibility.git.tree;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import datadog.trace.civisibility.diff.LineDiff;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.nio.charset.Charset;
 import java.util.BitSet;
 import java.util.HashMap;
 import java.util.Map;
@@ -23,8 +24,7 @@ public class GitDiffParser {
   public static @Nonnull LineDiff parse(InputStream input) throws IOException {
     Map<String, BitSet> linesByRelativePath = new HashMap<>();
 
-    BufferedReader bufferedReader =
-        new BufferedReader(new InputStreamReader(input, Charset.defaultCharset()));
+    BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(input, UTF_8));
     String changedFile = null;
     BitSet changedLines = null;
 

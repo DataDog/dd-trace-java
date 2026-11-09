@@ -65,7 +65,7 @@ datadog.okhttp3.internal.tls.OkHostnameVerifier
 # encoding and formatting; the bundled rules also forbid default time zones.
 # Use @SuppressForbidden on the smallest scope with a comment explaining intentional defaults.
 # https://github.com/policeman-tools/forbidden-apis/wiki/BundledSignatures
-@defaultMessage Pass an explicit charset (usually StandardCharsets.UTF_8); explain intentional defaults beside @SuppressForbidden.
+@defaultMessage Pass an explicit charset (usually StandardCharsets.UTF_8, or OperatingSystem.nativeCharset() for host-encoded data); explain intentional defaults beside @SuppressForbidden.
 java.lang.String#getBytes()
 java.lang.String#<init>(byte[])
 java.lang.String#<init>(byte[],int,int)
@@ -95,7 +95,7 @@ java.util.Scanner#<init>(java.io.InputStream)
 java.util.Scanner#<init>(java.nio.channels.ReadableByteChannel)
 java.util.Scanner#<init>(java.nio.file.Path)
 
-@defaultMessage Pass an explicit locale (usually Locale.ROOT); explain intentional defaults beside @SuppressForbidden.
+@defaultMessage Use Strings.format for string formatting where internal-api is available, or pass an explicit locale (usually Locale.ROOT); explain intentional defaults beside @SuppressForbidden.
 java.lang.String#toLowerCase()
 java.lang.String#toUpperCase()
 java.lang.String#format(java.lang.String,java.lang.Object[])

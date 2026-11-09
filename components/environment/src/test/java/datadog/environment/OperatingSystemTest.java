@@ -12,10 +12,56 @@ import static org.junit.jupiter.api.condition.OS.MAC;
 import static org.junit.jupiter.api.condition.OS.WINDOWS;
 
 import datadog.environment.OperatingSystem.Type;
+import java.nio.charset.Charset;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledOnOs;
+import org.junit.jupiter.api.parallel.ResourceLock;
+import org.junit.jupiter.api.parallel.Resources;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
+@ResourceLock(Resources.SYSTEM_PROPERTIES)
 class OperatingSystemTest {
+  private String previousNativeEncoding;
+
+  @BeforeEach
+  void saveNativeEncoding() {
+    previousNativeEncoding = System.getProperty("native.encoding");
+  }
+
+  @AfterEach
+  void restoreNativeEncoding() {
+    if (previousNativeEncoding == null) {
+      System.clearProperty("native.encoding");
+    } else {
+      System.setProperty("native.encoding", previousNativeEncoding);
+    }
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"UTF-8", "ISO-8859-1"})
+  void usesNativeEncoding(String encoding) {
+    System.setProperty("native.encoding", encoding);
+
+    assertEquals(Charset.forName(encoding), OperatingSystem.nativeCharset());
+  }
+
+  @ParameterizedTest
+  @NullSource
+  @ValueSource(strings = {"", "unsupported-charset", "invalid charset"})
+  void fallsBackToDefaultCharset(String encoding) {
+    if (encoding == null) {
+      System.clearProperty("native.encoding");
+    } else {
+      System.setProperty("native.encoding", encoding);
+    }
+
+    assertEquals(Charset.defaultCharset(), OperatingSystem.nativeCharset());
+  }
+
   @Test
   @EnabledOnOs(LINUX)
   void onLinuxOnly() {
