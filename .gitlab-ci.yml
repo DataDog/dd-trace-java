@@ -540,6 +540,15 @@ check-instrumentation-naming:
     - ./gradlew --version
     - ./gradlew checkInstrumentationNaming $GRADLE_ARGS
 
+check-codeowners:
+  # The Java builder base includes Python 3 and Git; the generic GBI image does not include Python.
+  image: ${BUILDER_IMAGE_REPO}:${BUILDER_IMAGE_VERSION_PREFIX}base
+  stage: tests
+  needs: []
+  script:
+    - python3 -m unittest discover -s tooling/tests -p 'test_check_codeowners.py'
+    - python3 tooling/check_codeowners.py
+
 config-inversion-linter:
   extends: .gradle_build
   stage: tests
