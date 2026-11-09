@@ -25,7 +25,7 @@ import org.tabletest.junit.TableTest;
  * resolves with the span's kind, and before the kind is known stays a plain tag that never
  * duplicates a concept's name.
  */
-class DDSpanProjectedTagTest extends DDCoreJavaSpecification {
+class DDSpanConceptTagTest extends DDCoreJavaSpecification {
   private CoreTracer tracer;
 
   @BeforeEach

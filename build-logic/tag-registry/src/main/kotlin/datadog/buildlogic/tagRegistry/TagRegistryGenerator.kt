@@ -131,7 +131,7 @@ object TagRegistryGenerator {
           t.name,
           t.datadogName,
           t.otelName ?: t.datadogName,
-          t.resolvesOn.joinToString(", ") { it.yamlKey!! },
+          t.resolvesOn.joinToString(", ") { it.yamlKey },
         )
       )
     }

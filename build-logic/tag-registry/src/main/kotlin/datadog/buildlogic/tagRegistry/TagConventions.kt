@@ -93,16 +93,15 @@ class TagConventions private constructor(
   }
 
   /**
-   * The span kinds a concept's names can resolve on, as KnownTagCodec numbers them. [OTHER] stands for
-   * a span with no kind yet, a broker span, or a custom kind; it is never named in `resolves-on`.
+   * The span kinds a concept's names can resolve on (`resolves-on`), as KnownTagCodec numbers them. A
+   * span with no kind yet, a broker or a custom kind resolves no concept name.
    */
-  enum class SpanKind(val yamlKey: String?, val codecConstant: String?, val direction: Direction) {
-    SERVER("server", "KIND_SERVER", Direction.INBOUND),
-    CLIENT("client", "KIND_CLIENT", Direction.OUTBOUND),
-    PRODUCER("producer", "KIND_PRODUCER", Direction.OUTBOUND),
-    CONSUMER("consumer", "KIND_CONSUMER", Direction.INBOUND),
-    INTERNAL("internal", "KIND_INTERNAL", Direction.NONE),
-    OTHER(null, null, Direction.NONE),
+  enum class SpanKind(val yamlKey: String, val codecConstant: String) {
+    SERVER("server", "KIND_SERVER"),
+    CLIENT("client", "KIND_CLIENT"),
+    PRODUCER("producer", "KIND_PRODUCER"),
+    CONSUMER("consumer", "KIND_CONSUMER"),
+    INTERNAL("internal", "KIND_INTERNAL"),
   }
 
   /** The OpenTelemetry name for [tag] on spans of [direction], or of every direction when null. */
@@ -460,22 +459,11 @@ class TagConventions private constructor(
 
       validateInheritedDirections(parsedSpanTypes)
       validateMixinDirections(parsedSpanTypes, parsedMixins)
-      val identities = assignIdentities(parsedSpanTypes, parsedMixins, traceLevel)
-      val spanTypes =
-        parsedSpanTypes.mapValues { (_, st) ->
-          val direction = directionOf(parsedSpanTypes, st)
-          st.copy(
-            tags = st.tags.map { identities.rename(it, direction) },
-            refs = st.refs.map { identities.resolve(it, "span type '${st.name}'", direction) },
-          )
-        }
-      val mixins =
-        parsedMixins.mapValues { (_, mx) ->
-          mx.copy(
-            tags = mx.tags.map { identities.rename(it, mx.direction) },
-            refs = mx.refs.map { identities.resolve(it, "mixin '${mx.name}'", mx.direction) },
-          )
-        }
+      val names = declaredNames(parsedSpanTypes, parsedMixins, traceLevel)
+      for (st in parsedSpanTypes.values) requireDeclared(names, st.refs, "span type '${st.name}'")
+      for (mx in parsedMixins.values) requireDeclared(names, mx.refs, "mixin '${mx.name}'")
+      val spanTypes = parsedSpanTypes
+      val mixins = parsedMixins
       validateOtelNameScope(spanTypes, mixins, traceLevel)
       val conv = TagConventions(spanTypes, mixins, traceLevel, intercepted, javaNames)
       validateRefKinds(conv, spanTypes.values.flatMap { it.refs } + mixins.values.flatMap { it.refs })
@@ -523,18 +511,16 @@ class TagConventions private constructor(
     }
 
     /**
-     * Uses `dd-name` as the identity for a single declaration. A name declared in multiple
-     * directions gets `<dd-name>@<direction>` for each declaration; each must have a distinct
-     * declared or inherited direction.
-     *
-     * All other duplicate declarations fail, including identical ones. Reuse a tag with
-     * `{ ref: <dd-name>, required: <level> }`; a reference may override only `required`.
+     * Uses `dd-name` as the identity of each declaration, and returns the declared names. A name may
+     * be declared only once: reuse a tag with `{ ref: <dd-name>, required: <level> }`, which may
+     * override only `required`. A name declared once per direction means a different thing on in and
+     * out spans, so it fails and asks for concepts instead.
      */
-    private fun assignIdentities(
+    private fun declaredNames(
       spanTypes: Map<String, SpanType>,
       mixins: Map<String, Mixin>,
       traceLevel: List<Tag>,
-    ): Identities {
+    ): Set<String> {
       data class Declaration(val container: String, val direction: Direction?)
       val byName = LinkedHashMap<String, MutableList<Declaration>>()
       fun declare(container: String, direction: Direction?, t: Tag) {
@@ -546,52 +532,29 @@ class TagConventions private constructor(
         mx.tags.forEach { declare("mixin ${mx.name}", mx.direction, it) }
       }
 
-      val perDirection = HashMap<String, Set<Direction>>()
       for ((name, decls) in byName) {
         if (decls.size == 1) continue
-        val first = decls[0]
-        val second = decls[1]
         val directions = decls.map { it.direction }
         require(directions.none { it == null } && directions.distinct().size == directions.size) {
-          "tag '$name' is declared in both '${first.container}' and '${second.container}'. Declare it " +
-            "once and use `{ ref: $name, required: <level> }` elsewhere (a ref may override only " +
+          "tag '$name' is declared in both '${decls[0].container}' and '${decls[1].container}'. Declare " +
+            "it once and use `{ ref: $name, required: <level> }` elsewhere (a ref may override only " +
             "`required`)."
         }
-        // Declared once per direction: the name means something different on in and out spans, so it
-        // is not one tag. Say what each meaning is, rather than letting the generator split it.
         throw IllegalArgumentException(
           "'$name' is declared once per direction (${directions.joinToString { it!!.yamlKey }}), so it " +
-            "names a different thing on spans of each direction. Declare each meaning once as a " +
-            "concept in the top-level `concepts:` section, named by its role, with '$name' as its " +
-            "Datadog name where it applies -- for example\n" +
+            "names a different thing on spans of each direction. Declare each meaning once in the " +
+            "top-level `concepts:` section, with '$name' as its Datadog name, for example\n" +
             "  concepts:\n" +
-            "    - { concept: <role name>, dd-name: { ${directions.first()!!.yamlKey}: $name } }\n" +
-            "and `{ ref: <role name> }` it where '$name' was declared."
+            "    - { concept: <id>, dd-name: $name, otel-name: <otel name>, resolves-on: [<span kinds>] }\n" +
+            "and use `{ concept-ref: <id> }` where '$name' was declared."
         )
       }
-      return Identities(byName.keys, perDirection)
+      return byName.keys
     }
 
-    private class Identities(val names: Set<String>, val perDirection: Map<String, Set<Direction>>) {
-      fun rename(t: Tag, direction: Direction?): Tag {
-        if (t.ddName !in perDirection) return t
-        // Declaring a tag per direction says its meaning flips with direction; neutral says it doesn't.
-        require(!t.spanKindNeutral) {
-          "tag '${t.name}' is declared per direction, so its otel-name '${t.otelName}' cannot be " +
-            "span-kind-neutral; each direction's declaration names its own"
-        }
-        return t.copy(identity = TagIdentity(t.ddName, direction))
-      }
-
-      fun resolve(r: Ref, container: String, direction: Direction?): Ref {
-        val name = r.identity.ddName
-        require(name in names) { "'$container' refs undeclared tag '$name'" }
-        val directions = perDirection[name] ?: return r
-        require(direction != null && direction in directions) {
-          "'$container' refs '$name', which is declared per direction, but has no matching " +
-            "direction (${direction?.yamlKey ?: "no span-kind"})"
-        }
-        return r.copy(identity = TagIdentity(name, direction))
+    private fun requireDeclared(names: Set<String>, refs: List<Ref>, container: String) {
+      for (r in refs) {
+        require(r.identity.ddName in names) { "'$container' refs undeclared tag '${r.identity.ddName}'" }
       }
     }
 
@@ -695,7 +658,7 @@ class TagConventions private constructor(
         "concept '$concept' needs resolves-on: the span kinds where its names mean it"
       }
       val resolvesOn = kinds.map { kind ->
-        SpanKind.entries.firstOrNull { it.yamlKey != null && it.yamlKey == kind }
+        SpanKind.entries.firstOrNull { it.yamlKey == kind }
           ?: throw IllegalArgumentException(
             "concept '$concept' resolves-on '$kind' is not a span kind (server, client, producer, consumer, internal)"
           )

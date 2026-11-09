@@ -37,7 +37,7 @@ public class OtelSpanBuilder implements SpanBuilder {
   /** The direction of the span's kind once set; it decides direction-scoped attribute names. */
   private int direction = DIRECTION_UNKNOWN;
 
-  /** The span's KnownTagCodec kind once set; it names projected concepts. */
+  /** The span's KnownTagCodec kind once set; it resolves names several concepts share. */
   private int spanKind = KnownTagCodec.KIND_UNSET;
 
   /**

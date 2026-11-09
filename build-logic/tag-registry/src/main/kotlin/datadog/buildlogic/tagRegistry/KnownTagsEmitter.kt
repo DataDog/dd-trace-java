@@ -57,15 +57,15 @@ object KnownTagsEmitter {
     // datadogIdOf and openTelemetryIdOf resolve them with the span's kind.
     val keyOfOrder = reg.tags.filter { !it.concept }.map { it.ddName } // stable emit order
     // OpenTelemetry names that denote a different tag depending on the span's direction. idOf
-    // ignores direction (a shared Datadog name such as server.port resolves to its own tag);
-    // directionalIdOf(name, direction) switches on each one's tag per direction.
+    // ignores direction; directionalIdOf(name, direction) switches on each one's tag per direction.
     val directional = sortedMapOf<String, MutableMap<TagConventions.Direction, String>>()
     for (t in reg.tags) {
       for ((direction, otel) in t.scopedOtelNames) {
         directional.getOrPut(otel) { mutableMapOf() }[direction] = t.ddName
       }
     }
-    val conceptsByName = reg.tags.filter { it.concept }.groupBy { it.datadogName }.toSortedMap()
+    val concepts = reg.tags.filter { it.concept }
+    val conceptsByName = concepts.groupBy { it.datadogName }.toSortedMap()
     // Lines continue the raw template they're interpolated into, so they carry its indent.
     fun conceptArrays(): String = conceptsByName.entries.joinToString("\n          ") { (name, ids) ->
       "/** The concepts whose Datadog name is {@code ${escape(name)}}. */\n          " +
@@ -101,7 +101,7 @@ object KnownTagsEmitter {
         if (t.sharesSlot) append(" + shares slot")
         if (t.otelName != null) append(" -> ${escape(t.otelName)}")
         for ((direction, otel) in t.scopedOtelNames) append(" -> ${escape(otel)} (${direction.yamlKey})")
-        if (t.concept) append(" + concept, resolves on ${t.resolvesOn.joinToString(", ") { it.yamlKey!! }}")
+        if (t.concept) append(" + concept, resolves on ${t.resolvesOn.joinToString(", ") { it.yamlKey }}")
         appendLine("  <${escape(t.required)}>")
         appendLine()
       }
@@ -139,7 +139,6 @@ object KnownTagsEmitter {
         appendLine()
       }
 
-      val projected = reg.tags.filter { it.concept }
       appendLine(
         """
           /**
@@ -149,11 +148,11 @@ object KnownTagsEmitter {
           public static boolean isConcept(long tagId) {
         """.trimIndent()
       )
-      if (projected.isEmpty()) {
+      if (concepts.isEmpty()) {
         appendLine("    return false;")
       } else {
         appendLine("    int serial = KnownTagCodec.serialNum(tagId);")
-        appendLine("    return " + projected.joinToString(" || ") { "serial == ${serialC(it.ddName)}" } + ";")
+        appendLine("    return " + concepts.joinToString(" || ") { "serial == ${serialC(it.ddName)}" } + ";")
       }
       appendLine("  }")
       appendLine()
@@ -288,7 +287,7 @@ object KnownTagsEmitter {
       )
       fun emitKindTable(nameOf: (TagRegistry.Tag) -> String?) {
         val byName = sortedMapOf<String, MutableMap<TagConventions.SpanKind, String>>()
-        for (t in projected) {
+        for (t in concepts) {
           val name = nameOf(t) ?: continue
           for (k in t.resolvesOn) byName.getOrPut(name) { mutableMapOf() }[k] = t.ddName
         }
@@ -319,7 +318,7 @@ object KnownTagsEmitter {
       appendLine("  @Override")
       appendLine("  public long[] conceptsNamed(String name) {")
       appendLine("    switch (name) {")
-      for ((name, ids) in projected.groupBy { it.datadogName }.toSortedMap()) {
+      for (name in conceptsByName.keys) {
         appendLine("      case \"${escape(name)}\":")
         appendLine("        return CONCEPTS_NAMED_${sanitize(name)};")
       }

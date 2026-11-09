@@ -131,13 +131,13 @@ public final class KnownTagCodec {
   public static final int DIRECTION_NONE = 2;
 
   /*
-   * A span's kind, for the few concepts whose Datadog name depends on it: server.port is named
-   * server.port on server spans but peer.port on client, producer and consumer spans. Pass one of
-   * these to datadogNameOf / datadogIdOf. The numbering matches the core span's cached kind
+   * A span's kind, for resolving a name that several concepts share: peer.port is the client's port
+   * on a server span and the remote server's port on client, producer and consumer spans. Pass one of
+   * these to datadogIdOf / openTelemetryIdOf. The numbering matches the core span's cached kind
    * ordinal, so the core passes that ordinal as is.
    */
 
-  /** No kind yet. Named like an internal span: see {@link #datadogWriteIdOf}. */
+  /** No kind yet: resolves no shared name (see {@link #datadogWriteIdOf}). */
   public static final int KIND_UNSET = 0;
 
   public static final int KIND_SERVER = 1;
@@ -252,11 +252,6 @@ public final class KnownTagCodec {
    */
   public static String openTelemetryNameOf(long tagId) {
     return Installed.RESOLVER.openTelemetryNameOf(tagId, DIRECTION_UNKNOWN);
-  }
-
-  /** {@link #openTelemetryNameOf(long)} on spans of {@code direction}: raw registry data. */
-  public static String openTelemetryNameOf(long tagId, int direction) {
-    return Installed.RESOLVER.openTelemetryNameOf(tagId, direction);
   }
 
   /**

@@ -40,7 +40,7 @@ public class OtelSpan implements Span, WithAgentSpan, SpanWrapper {
   /** The direction of the span's kind, fixed at start; it decides direction-scoped names. */
   private final int direction;
 
-  /** The span's KnownTagCodec kind, fixed at start; it names projected concepts. */
+  /** The span's KnownTagCodec kind, fixed at start; it resolves names several concepts share. */
   private final int spanKind;
 
   private StatusCode statusCode = UNSET;
