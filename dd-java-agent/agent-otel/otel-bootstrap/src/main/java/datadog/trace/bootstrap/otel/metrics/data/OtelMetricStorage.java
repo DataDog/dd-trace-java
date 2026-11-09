@@ -48,6 +48,7 @@ public final class OtelMetricStorage {
   private final OtelInstrumentDescriptor descriptor;
   private final boolean resetOnCollect;
   private final boolean toggleRecordings;
+  private final boolean forgetUnobserved;
   private final Function<Object, OtelAggregator> aggregatorSupplier;
   private volatile Recording currentRecording;
 
@@ -58,9 +59,13 @@ public final class OtelMetricStorage {
       OtelInstrumentDescriptor descriptor, Supplier<OtelAggregator> aggregatorSupplier) {
     this.descriptor = descriptor;
     this.resetOnCollect = shouldResetOnCollect(descriptor.getType());
+    boolean observable = descriptor.getType().isObservable();
     // no need to toggle if not resetting on collect, or if it's an observable instrument
     // (observables are always invoked within the collect cycle, so no concurrent writers)
-    this.toggleRecordings = resetOnCollect && !descriptor.getType().isObservable();
+    this.toggleRecordings = resetOnCollect && !observable;
+    // observables must forget attribute sets that their callback stopped reporting
+    // (only used by doCollect, i.e. when not resetting on collect)
+    this.forgetUnobserved = observable;
     this.aggregatorSupplier = unused -> aggregatorSupplier.get();
     this.currentRecording = new Recording();
     if (toggleRecordings) {
@@ -184,10 +189,21 @@ public final class OtelMetricStorage {
     ATTRIBUTE_READERS.put(cl, reader);
   }
 
-  /** Collect data for CUMULATIVE temporality, keeping aggregators for future writes. */
+  /**
+   * Collect data without resetting on collect.
+   *
+   * <p>Synchronous instruments keep their aggregators for future writes. Observable instruments
+   * start the next cycle empty, so attribute sets their callback stops reporting are not exported
+   * and don't hold cardinality slots (OTel SDK spec, asynchronous instruments).
+   */
   private void doCollect(OtlpMetricVisitor visitor) {
     // no need to hold writers back if we are not resetting metrics on collect
-    collectDataPoints(currentRecording.aggregators, visitor, OtelAggregator::collect);
+    Map<Object, OtelAggregator> aggregators = currentRecording.aggregators;
+    collectDataPoints(aggregators, visitor, OtelAggregator::collect);
+    if (forgetUnobserved) {
+      // observables are only written during the collect cycle, so this can't race a writer
+      aggregators.clear();
+    }
   }
 
   /**

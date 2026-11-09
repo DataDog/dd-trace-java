@@ -31,6 +31,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Consumer;
+import java.util.function.Function;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -337,6 +339,24 @@ class OpenTelemetryMetricsTest extends AbstractInstrumentationTest {
   }
 
   @Test
+  void testObservableGaugeStopsExportingUnobservedAttributes() {
+    assertStopsExportingUnobservedAttributes(
+        "test:observable-gauge-unobserved",
+        points,
+        meterReader,
+        meter.gaugeBuilder("observable-gauge-unobserved").ofLongs()::buildWithCallback);
+  }
+
+  @Test
+  void testObservableUpDownCounterStopsExportingUnobservedAttributes() {
+    assertStopsExportingUnobservedAttributes(
+        "test:observable-up-down-counter-unobserved",
+        points,
+        meterReader,
+        meter.upDownCounterBuilder("observable-up-down-counter-unobserved")::buildWithCallback);
+  }
+
+  @Test
   void testObservableLongCounterDeltaWithChangingValues() {
     long[] absoluteValue = {0L};
     AutoCloseable observable =
@@ -542,22 +562,58 @@ class OpenTelemetryMetricsTest extends AbstractInstrumentationTest {
     assertNull(points.get("test:long-counter-observer" + WITH_ATTRS));
     assertNull(points.get("test:double-counter-observer"));
     assertNull(points.get("test:double-counter-observer" + WITH_ATTRS));
-    // up-down counters stay cumulative: they continue to show the last count set
-    assertEquals(4L, points.get("test:long-up-down-counter-observer"));
-    assertEquals(40L, points.get("test:long-up-down-counter-observer" + WITH_ATTRS));
-    assertEquals(5.6, (double) points.get("test:double-up-down-counter-observer"), 0.001);
-    assertEquals(
-        50.6, (double) points.get("test:double-up-down-counter-observer" + WITH_ATTRS), 0.001);
-    // gauges also stay cumulative: they continue to show the latest value set
-    assertEquals(7L, points.get("test:long-gauge-observer"));
-    assertEquals(70L, points.get("test:long-gauge-observer" + WITH_ATTRS));
-    assertEquals(8.9, points.get("test:double-gauge-observer"));
-    assertEquals(80.9, points.get("test:double-gauge-observer" + WITH_ATTRS));
+    // up-down counters and gauges: nothing was observed, so no data point (OTel SDK spec)
+    assertNull(points.get("test:long-up-down-counter-observer"));
+    assertNull(points.get("test:long-up-down-counter-observer" + WITH_ATTRS));
+    assertNull(points.get("test:double-up-down-counter-observer"));
+    assertNull(points.get("test:double-up-down-counter-observer" + WITH_ATTRS));
+    assertNull(points.get("test:long-gauge-observer"));
+    assertNull(points.get("test:long-gauge-observer" + WITH_ATTRS));
+    assertNull(points.get("test:double-gauge-observer"));
+    assertNull(points.get("test:double-gauge-observer" + WITH_ATTRS));
 
     noopCallback.close();
   }
 
-  private static void closeQuietly(AutoCloseable closeable) {
+  /**
+   * Registers an observable whose callback reports {@code 1} without attributes and, while enabled,
+   * {@code 2} with {@link #SOME_ATTRIBUTES}. Checks that the series with attributes is exported
+   * only in the collections where the callback reports it.
+   */
+  static void assertStopsExportingUnobservedAttributes(
+      String metric,
+      Map<String, Object> points,
+      MeterReader meterReader,
+      Function<Consumer<ObservableLongMeasurement>, AutoCloseable> register) {
+    boolean[] reportAttrs = {true};
+    AutoCloseable observable =
+        register.apply(
+            m -> {
+              m.record(1);
+              if (reportAttrs[0]) {
+                m.record(2, SOME_ATTRIBUTES);
+              }
+            });
+    OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
+    assertEquals(1L, points.get(metric));
+    assertEquals(2L, points.get(metric + WITH_ATTRS));
+
+    reportAttrs[0] = false;
+    points.clear();
+    OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
+    assertEquals(1L, points.get(metric));
+    assertNull(points.get(metric + WITH_ATTRS));
+
+    // reported again: same value as the first collection, not a delta against a forgotten value
+    reportAttrs[0] = true;
+    points.clear();
+    OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
+    assertEquals(2L, points.get(metric + WITH_ATTRS));
+
+    closeQuietly(observable);
+  }
+
+  static void closeQuietly(AutoCloseable closeable) {
     try {
       closeable.close();
     } catch (Exception e) {
