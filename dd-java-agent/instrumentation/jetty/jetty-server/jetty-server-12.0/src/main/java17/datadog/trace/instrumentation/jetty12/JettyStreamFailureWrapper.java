@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.jetty12;
 
+import static datadog.trace.bootstrap.ActiveSubsystems.APPSEC_ACTIVE;
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.instrumentation.jetty12.JettyDecorator.DECORATE;
@@ -20,6 +21,9 @@ import org.eclipse.jetty.server.Response;
  * a blocking response was written) closes the connection without recycling the channel, so the span
  * would never be finished. The context attribute is removed before finishing, so the span is
  * finished at most once.
+ *
+ * <p>Only installed when AppSec is active: blocking is the flow that reliably aborts committed
+ * responses, and the wrapper costs allocations and an extra delegation on every stream operation.
  */
 public final class JettyStreamFailureWrapper extends HttpStream.Wrapper {
   private static final int MAX_CAUSE_DEPTH = 16;
@@ -34,8 +38,14 @@ public final class JettyStreamFailureWrapper extends HttpStream.Wrapper {
     this.response = response;
   }
 
-  /** Wraps the current stream of {@code request}; a no-op when there is no active stream. */
+  /**
+   * Wraps the current stream of {@code request}; a no-op when AppSec is inactive or there is no
+   * active stream.
+   */
   public static void install(final Request request, final Response response) {
+    if (!APPSEC_ACTIVE) {
+      return;
+    }
     try {
       request.addHttpStreamWrapper(
           stream -> new JettyStreamFailureWrapper(stream, request, response));

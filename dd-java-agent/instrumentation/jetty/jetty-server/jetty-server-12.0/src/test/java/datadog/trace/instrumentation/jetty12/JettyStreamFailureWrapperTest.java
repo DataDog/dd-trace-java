@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.context.Context;
+import datadog.trace.bootstrap.ActiveSubsystems;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -16,13 +17,27 @@ import java.util.function.Function;
 import org.eclipse.jetty.server.HttpStream;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.tabletest.junit.TableTest;
 
 /** Unit tests for {@link JettyStreamFailureWrapper}. */
 class JettyStreamFailureWrapperTest {
 
   private final List<String> streamCalls = new ArrayList<>();
   private final List<String> removedAttributes = new ArrayList<>();
+  private boolean previousAppSecActive;
+
+  @BeforeEach
+  void saveAppSecActive() {
+    previousAppSecActive = ActiveSubsystems.APPSEC_ACTIVE;
+  }
+
+  @AfterEach
+  void restoreAppSecActive() {
+    ActiveSubsystems.APPSEC_ACTIVE = previousAppSecActive;
+  }
 
   @Test
   void findsDirectBlockingException() {
@@ -87,9 +102,14 @@ class JettyStreamFailureWrapperTest {
     assertEquals(List.of("succeeded"), streamCalls);
   }
 
-  @Test
+  @TableTest({
+    "Scenario        | AppSec Active | Installed",
+    "AppSec active   | true          | 1        ",
+    "AppSec inactive | false         | 0        "
+  })
   @SuppressWarnings("unchecked")
-  void installWrapsTheStream() {
+  void installWrapsTheStreamOnlyWhenAppSecIsActive(boolean appSecActive, int expectedInstalled) {
+    ActiveSubsystems.APPSEC_ACTIVE = appSecActive;
     List<Function<HttpStream, HttpStream>> installed = new ArrayList<>();
     Request request =
         proxy(
@@ -100,13 +120,15 @@ class JettyStreamFailureWrapperTest {
               }
               return null;
             });
-    HttpStream wrapped = stream();
 
     JettyStreamFailureWrapper.install(request, fake(Response.class));
 
-    assertEquals(1, installed.size());
-    HttpStream result = installed.get(0).apply(wrapped);
-    assertSame(wrapped, ((HttpStream.Wrapper) result).getWrapped());
+    assertEquals(expectedInstalled, installed.size());
+    if (expectedInstalled > 0) {
+      HttpStream wrapped = stream();
+      HttpStream result = installed.get(0).apply(wrapped);
+      assertSame(wrapped, ((HttpStream.Wrapper) result).getWrapped());
+    }
   }
 
   private HttpStream wrapper(Context context) {
