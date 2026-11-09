@@ -99,34 +99,48 @@ public class JUnit4Instrumentation extends InstrumenterModule.CiVisibility
 
   public static class JUnit4Advice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void addTracingListener(
+    public static JUnit4TracingListener addTracingListener(
         @Advice.This final Runner runner, @Advice.Argument(0) final RunNotifier runNotifier) {
       if (!JUnit4Utils.runnerToFramework(runner).equals(TestFrameworkInstrumentation.JUNIT4)) {
         // checking class names in hierarchyMatcher alone is not enough:
         // for example, Karate calls #run method of its super class,
         // that was transformed
-        return;
+        return null;
       }
 
       // No public accessor to get already installed listeners.
       // The installed RunListeners list are obtained using reflection.
       final List<RunListener> runListeners = JUnit4Utils.runListenersFromRunNotifier(runNotifier);
       if (runListeners == null) {
-        return;
+        return null;
       }
 
       for (final RunListener listener : runListeners) {
         RunListener tracingListener = JUnit4Utils.toTracingListener(listener);
         if (tracingListener != null) {
           // prevents installing TracingListener multiple times
-          return;
+          if (tracingListener instanceof JUnit4TracingListener) {
+            JUnit4TracingListener junit4Listener = (JUnit4TracingListener) tracingListener;
+            junit4Listener.runnerStarted();
+            return junit4Listener;
+          }
+          return null;
         }
       }
 
-      final TracingListener tracingListener =
+      final JUnit4TracingListener tracingListener =
           new JUnit4TracingListener(
               InstrumentationContext.get(Description.class, TestExecutionTracker.class));
+      tracingListener.runnerStarted();
       runNotifier.addListener(tracingListener);
+      return tracingListener;
+    }
+
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void finishTestSuites(@Advice.Enter final JUnit4TracingListener tracingListener) {
+      if (tracingListener != null) {
+        tracingListener.runnerFinished();
+      }
     }
 
     // JUnit 4.10 and above

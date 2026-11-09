@@ -19,13 +19,12 @@ public class ContactPointsUtil {
               .map(EndPoint::resolve)
               .filter(InetSocketAddress.class::isInstance)
               .map(InetSocketAddress.class::cast)
-              .map(
-                  inetSocketAddress -> {
-                    if (inetSocketAddress.getPort() > 0) {
-                      return inetSocketAddress.getHostString() + ":" + inetSocketAddress.getPort();
-                    }
-                    return inetSocketAddress.getHostString();
-                  })
+              .map(inetSocketAddress -> {
+                if (inetSocketAddress.getPort() > 0) {
+                  return inetSocketAddress.getHostString() + ":" + inetSocketAddress.getPort();
+                }
+                return inetSocketAddress.getHostString();
+              })
               .distinct() // avoid duplicates
               .collect(Collectors.joining(","));
 

@@ -2,6 +2,8 @@ import java.util.concurrent.Callable
 import java.util.regex.Pattern
 
 plugins {
+  // Native smoke builds use GraalVM and native tools from the builder environment.
+  id 'dd-trace-java.ci-builder-inputs'
   id 'dd-trace-java.smoke-test-app'
   id 'dd-trace-java.module.smoke-test'
 }
@@ -42,6 +44,10 @@ smokeTestApp {
     environment.put('GRAALVM_HOME', graalvmHome)
     environment.put('DD_TRACE_METHODS', 'datadog.smoketest.springboot.controller.WebController[sayHello]')
     environment.put('NATIVE_IMAGE_DEPRECATED_BUILDER_SANITATION', 'true')
+    inputs {
+      property('graalvmRelease', fileContent(graalvmHome, 'release'))
+      property('ciBuilderIdentity', ciBuilderInputs.identity)
+    }
   }
   projectJar('apiJar', project(':dd-trace-api'))
   projectJar('agentPath', project(':dd-java-agent'), 'shadow')

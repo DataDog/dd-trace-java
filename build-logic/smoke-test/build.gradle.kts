@@ -39,6 +39,7 @@ testing {
         implementation(libs.junit.jupiter)
         implementation(libs.junit.jupiter.params)
         implementation(libs.junit.jupiter.engine)
+        implementation(libs.tabletest)
         implementation(libs.assertj.core)
         implementation(gradleTestKit())
       }

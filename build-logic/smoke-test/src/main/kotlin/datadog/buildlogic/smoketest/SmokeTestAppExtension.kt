@@ -3,6 +3,7 @@ package datadog.buildlogic.smoketest
 import org.gradle.api.Action
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
+import org.gradle.api.file.Directory
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFile
 import org.gradle.api.file.RegularFileProperty
@@ -10,6 +11,8 @@ import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
+import org.gradle.api.tasks.PathSensitivity
+import org.gradle.api.tasks.TaskInputs
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.tasks.testing.Test
 import org.gradle.jvm.toolchain.JavaLanguageVersion
@@ -82,9 +85,21 @@ abstract class SmokeTestAppExtension @Inject constructor(
 
   }
 
+  /** Provides lazy text contents relative to a directory provider. */
+  fun fileContent(
+    directory: Provider<String>,
+    relativePath: String,
+  ): Provider<String> =
+    project.providers
+      .fileContents(
+        project.layout.projectDirectory
+          .dir(directory)
+          .map { it.file(relativePath) },
+      ).asText
+
   /**
    * Register the nested-build task and wire the produced artifact into every `Test` task as
-   * a system property. Calling this triggers task registration; consumers that prefer to
+   * an input and a system property. Calling this triggers task registration; consumers that prefer to
    * register [NestedGradleBuild] manually can leave [gradleApp] uncalled.
    */
   fun gradleApp(action: Action<GradleAppSpec>) {
@@ -114,9 +129,15 @@ abstract class SmokeTestAppExtension @Inject constructor(
         buildCacheEnabled.set(spec.buildCacheEnabled)
         spec.stopTimeoutSeconds.orNull?.let(stopTimeoutSeconds::set)
         projectJars.set(this@SmokeTestAppExtension.projectJars)
+        spec.applyInputs(inputs)
       }
 
-    wireTestTasks(taskProvider, artifactPath, sysProperty, spec.additionalSystemProperties)
+    wireTestTasks(
+      taskProvider.flatMap { it.applicationBuildDir },
+      artifactPath,
+      sysProperty,
+      spec.additionalSystemProperties,
+    )
   }
 
   /** Register a Maven nested-build task and expose its artifact to every `Test` task. */
@@ -154,23 +175,39 @@ abstract class SmokeTestAppExtension @Inject constructor(
         useMavenLocalRepository.set(spec.useMavenLocalRepository)
         mavenLocalRepository.set(spec.mavenLocalRepository)
         spec.buildTimeoutSeconds.orNull?.let(buildTimeoutSeconds::set)
+        spec.applyInputs(inputs)
       }
 
-    wireTestTasks(taskProvider, artifactPath, sysProperty, spec.additionalSystemProperties)
+    wireTestTasks(
+      taskProvider.flatMap { it.applicationBuildDir },
+      artifactPath,
+      sysProperty,
+      spec.additionalSystemProperties,
+    )
   }
 
   private fun wireTestTasks(
-    taskProvider: TaskProvider<*>,
+    applicationOutput: Provider<Directory>,
     artifactPath: String,
     sysProperty: String,
     additionalSystemProperties: MapProperty<String, String>,
   ) {
-    val artifactProvider: Provider<RegularFile> = applicationBuildDir.file(artifactPath)
-    val extras = additionalSystemProperties.get().mapValues { (_, relativePath) ->
-      applicationBuildDir.file(relativePath)
-    }
+    val artifactProvider = applicationOutput.map { it.file(artifactPath) }
+    val extras =
+      additionalSystemProperties.get().mapValues { (_, relativePath) ->
+        applicationOutput.map { it.file(relativePath) }
+      }
     project.tasks.withType<Test>().configureEach {
-      dependsOn(taskProvider)
+      inputs
+        .file(artifactProvider)
+        .withPropertyName("smokeTestAppArtifact.$sysProperty")
+        .withPathSensitivity(PathSensitivity.NONE)
+      extras.forEach { (key, value) ->
+        inputs
+          .files(value)
+          .withPropertyName("smokeTestAppExtra.$key")
+          .withPathSensitivity(PathSensitivity.RELATIVE)
+      }
       jvmArgumentProviders.add(SmokeTestArgProvider(sysProperty, artifactProvider, extras))
     }
   }
@@ -257,6 +294,8 @@ abstract class SmokeTestAppExtension @Inject constructor(
 /** Common DSL for a smoke-test application artifact. */
 abstract class ApplicationSpec @Inject constructor() {
 
+  private val inputActions = mutableListOf<Action<in TaskInputs>>()
+
   init {
     additionalSystemProperties.convention(emptyMap())
   }
@@ -276,6 +315,15 @@ abstract class ApplicationSpec @Inject constructor() {
    * than the single primary artifact path (e.g. a separately unpacked server install).
    */
   abstract val additionalSystemProperties: MapProperty<String, String>
+
+  /** Configures additional inputs of the application build task. */
+  fun inputs(action: Action<in TaskInputs>) {
+    inputActions.add(action)
+  }
+
+  internal fun applyInputs(inputs: TaskInputs) {
+    inputActions.forEach { it.execute(inputs) }
+  }
 }
 
 /** DSL describing a nested Gradle invocation for one smoke-test application. */

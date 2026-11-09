@@ -6,10 +6,13 @@ import static datadog.communication.serialization.msgpack.MsgPackWriter.FIXARRAY
 import static datadog.communication.serialization.msgpack.MsgPackWriter.FIXMAP;
 import static datadog.communication.serialization.msgpack.MsgPackWriter.MAP16;
 import static datadog.communication.serialization.msgpack.MsgPackWriter.MAP32;
+import static java.util.Collections.singletonList;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
+import java.util.ArrayList;
+import java.util.List;
 import okhttp3.RequestBody;
 
 public abstract class Payload {
@@ -19,9 +22,14 @@ public abstract class Payload {
   private int traceCount = 0;
   private long droppedTraces = 0;
   private long droppedSpans = 0;
-  protected ByteBuffer body = EMPTY_ARRAY.duplicate();
+  private List<ByteBuffer> body = singletonList(EMPTY_ARRAY);
 
   public Payload withBody(int traceCount, ByteBuffer body) {
+    return withBody(traceCount, null == body ? null : singletonList(body));
+  }
+
+  /** Sets a body held in parts, such as the chunks of a chunked buffer, in order. */
+  public Payload withBody(int traceCount, List<ByteBuffer> body) {
     this.traceCount = traceCount;
     if (null != body) {
       this.body = body;
@@ -56,6 +64,50 @@ public abstract class Payload {
   public abstract void writeTo(WritableByteChannel channel) throws IOException;
 
   public abstract RequestBody toRequest();
+
+  /** The size of the body in bytes. */
+  protected int bodySize() {
+    int size = 0;
+    for (ByteBuffer part : body) {
+      size += part.remaining();
+    }
+    return size;
+  }
+
+  /**
+   * Writes the body to the channel. The body isn't consumed, so it can be written again, as when a
+   * request is retried.
+   */
+  protected void writeBody(WritableByteChannel channel) throws IOException {
+    for (ByteBuffer part : body) {
+      writeFully(part.duplicate(), channel);
+    }
+  }
+
+  /** Writes all of the buffer's remaining bytes to the channel. */
+  protected static void writeFully(ByteBuffer buffer, WritableByteChannel channel)
+      throws IOException {
+    while (buffer.hasRemaining()) {
+      channel.write(buffer);
+    }
+  }
+
+  /**
+   * The given buffers followed by new views of the body, for building a request. A {@code null}
+   * prefix buffer is skipped.
+   */
+  protected List<ByteBuffer> bodyAfter(ByteBuffer... prefix) {
+    List<ByteBuffer> buffers = new ArrayList<>(prefix.length + body.size());
+    for (ByteBuffer buffer : prefix) {
+      if (null != buffer) {
+        buffers.add(buffer);
+      }
+    }
+    for (ByteBuffer part : body) {
+      buffers.add(part.duplicate());
+    }
+    return buffers;
+  }
 
   protected int msgpackArrayHeaderSize(int count) {
     if (count < 0x10) {

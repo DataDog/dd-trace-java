@@ -20,8 +20,9 @@ muzzle {
   }
 }
 
-addTestSuiteForDir('latestDep4Test', 'test')
-addTestSuiteForDir('latestDepTest', 'test')
+// TODO APMLP-2195: no forked latest dependency tests until thread registration works with the latest Netty
+addTestSuiteForDir('latestDep4Test', 'test', false)
+addTestSuiteForDir('latestDepTest', 'test', false)
 
 
 dependencies {

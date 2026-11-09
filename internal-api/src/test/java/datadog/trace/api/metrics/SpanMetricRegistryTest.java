@@ -28,11 +28,10 @@ class SpanMetricRegistryTest extends DDJavaSpecification {
     SpanMetricRegistry spanMetricRegistry = SpanMetricRegistry.getInstance();
     try {
       SpanMetrics spanMetrics = spanMetricRegistry.get("test-api");
-      assertDoesNotThrow(
-          () -> {
-            spanMetrics.onSpanCreated();
-            spanMetrics.onSpanFinished();
-          });
+      assertDoesNotThrow(() -> {
+        spanMetrics.onSpanCreated();
+        spanMetrics.onSpanFinished();
+      });
     } finally {
       if (spanMetricRegistry instanceof SpanMetricRegistryImpl) {
         for (SpanMetricsImpl spanMetrics :

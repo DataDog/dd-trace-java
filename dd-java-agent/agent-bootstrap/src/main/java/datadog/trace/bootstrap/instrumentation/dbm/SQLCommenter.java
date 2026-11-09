@@ -63,8 +63,8 @@ public class SQLCommenter {
         return sql;
       }
 
-      // Append the comment for mysql JDBC callable statements
-      if (firstWord.startsWith("{") && "mysql".equals(dbType)) {
+      // MySQL and SQL Server require JDBC escape calls to start with '{', before any comment.
+      if (firstWord.startsWith("{") && ("mysql".equals(dbType) || "sqlserver".equals(dbType))) {
         appendComment = true;
       }
 

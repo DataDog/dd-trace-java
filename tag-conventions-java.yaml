@@ -15,6 +15,12 @@
 #               the INTERCEPTED bit, so a setter called with a constant id folds the interception test
 #               away. TagInterceptor's switch is the authority on what each one does; a test there
 #               keeps this list and the switch in agreement.
+# java_names  — KnownTags constant bases that replace a tag's sanitized name. Each tag's constants are
+#               its name upper-cased with every other character as '_' (the id, bare), and that plus
+#               _NAME, _SERIAL_NUM and so on, so two names that differ only in punctuation
+#               (aws.service, aws_service) would generate the same constants, as would a tag x.name
+#               (id X_NAME) and a tag x (name X_NAME). Generation fails on such a clash until one is
+#               renamed here.
 # ---------------------------------------------------------------------------
 
 span_types:
@@ -138,6 +144,44 @@ span_types:
       - { dd-name: hystrix.group,        type: string,  required: optional }
       - { dd-name: hystrix.circuit-open, type: boolean, required: optional }
 
+  # Gradle and Maven specifics on CI Visibility's session and module spans.
+  test.gradle.session:
+    extends: test.session
+    tags:
+      - { dd-name: test.gradle.nested_build, type: boolean, required: optional }
+      - { dd-name: test.is_android,          type: boolean, required: optional }
+
+  test.gradle.module:
+    extends: test.module
+    tags:
+      - { ref: test.is_android }
+
+  test.maven.module:
+    extends: test.module
+    tags:
+      - { dd-name: test.execution, type: string, required: recommended }  # artifactId:goal:executionId
+
+  # An Android test run under Robolectric.
+  test.android:
+    extends: test
+    tags:
+      - { dd-name: test.android.api_level,           type: int,    required: optional }
+      - { dd-name: test.android.release,             type: string, required: optional }
+      - { dd-name: test.android.codename,            type: string, required: optional }
+      - { dd-name: test.android.robolectric.version, type: string, required: optional }
+
+  # A JUnit 5 test, which may be a dynamic test.
+  test.junit5:
+    extends: test
+    tags:
+      - { dd-name: test.junit5.is_dynamic, type: boolean, required: optional }
+
+  # JUnit's before and after callbacks (span.kind unset).
+  junit.callback:
+    extends: internal
+    tags:
+      - { dd-name: test.callback, type: string, required: recommended }  # Before, AfterAll, ...
+
 tags:
   - { dd-name: resource.name,     type: string }
   - { dd-name: span.type,         type: string }
@@ -162,3 +206,6 @@ intercepted:
   - http.method
   - http.url
   - http.status_code
+
+java_names:
+  aws_service: TOP_LEVEL_AWS_SERVICE  # as InstrumentationTags names it; aws.service keeps AWS_SERVICE

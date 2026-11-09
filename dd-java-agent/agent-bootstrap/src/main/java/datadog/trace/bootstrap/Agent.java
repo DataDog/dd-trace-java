@@ -35,6 +35,7 @@ import datadog.trace.api.config.CiVisibilityConfig;
 import datadog.trace.api.config.CrashTrackingConfig;
 import datadog.trace.api.config.CwsConfig;
 import datadog.trace.api.config.DebuggerConfig;
+import datadog.trace.api.config.FeatureFlaggingConfig;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.config.IastConfig;
 import datadog.trace.api.config.JmxFetchConfig;
@@ -44,7 +45,6 @@ import datadog.trace.api.config.RemoteConfigConfig;
 import datadog.trace.api.config.TraceInstrumentationConfig;
 import datadog.trace.api.config.TracerConfig;
 import datadog.trace.api.config.UsmConfig;
-import datadog.trace.api.featureflag.config.FeatureFlaggingConfig;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.git.EmbeddedGitInfoBuilder;
@@ -1625,11 +1625,10 @@ public class Agent {
 
   private static void initProfilerContext() {
     log.debug("Scheduling profiler context initialization");
-    WithGlobalTracer.registerOrExecute(
-        tracer -> {
-          log.debug("Initializing profiler context integration");
-          tracer.getProfilingContext().onStart();
-        });
+    WithGlobalTracer.registerOrExecute(tracer -> {
+      log.debug("Initializing profiler context integration");
+      tracer.getProfilingContext().onStart();
+    });
   }
 
   private static boolean isAwsLambdaRuntime() {

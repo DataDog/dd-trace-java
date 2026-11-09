@@ -395,6 +395,14 @@
         "aliases": []
       }
     ],
+    "_DD_APPSEC_SCA_CVE_FILE": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
     "DD_APPSEC_SCA_ENABLED": [
       {
         "version": "B",
@@ -1609,6 +1617,14 @@
         "version": "A",
         "type": "boolean",
         "default": "false",
+        "aliases": []
+      }
+    ],
+    "DD_FEATURE_FLAGS_EXPERIMENTATION_OPT_OUT_MODE": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": "disabled",
         "aliases": []
       }
     ],

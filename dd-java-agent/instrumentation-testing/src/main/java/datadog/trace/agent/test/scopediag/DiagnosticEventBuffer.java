@@ -42,6 +42,15 @@ final class DiagnosticEventBuffer {
     }
   }
 
+  /** Closes only if no producer reserved an event since the last drain. */
+  boolean closeIfEmpty() {
+    if (!tail.compareAndSet(consumed, CLOSED)) {
+      return false;
+    }
+    consumed.next = CLOSED;
+    return true;
+  }
+
   boolean hasPending() {
     Event last = tail.get();
     return consumed != last && consumed.next != CLOSED;
