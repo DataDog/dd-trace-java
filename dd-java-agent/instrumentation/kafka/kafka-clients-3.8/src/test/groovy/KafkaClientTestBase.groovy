@@ -1,3 +1,4 @@
+import datadog.context.Context
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
@@ -46,7 +47,6 @@ import static datadog.trace.agent.test.asserts.TagsAssert.codeOriginTags
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPropagationEnabled
 
 abstract class KafkaClientTestBase extends VersionedNamingTestBase {
   static final SHARED_TOPIC = "shared.topic"
@@ -197,7 +197,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     String greeting = "Hello Spring Kafka Sender!"
     runUnderTrace("parent") {
       producer.send(new ProducerRecord(SHARED_TOPIC, greeting)) { meta, ex ->
-        assert isAsyncPropagationEnabled()
+        assert Context.isCaptureEnabled()
         if (ex == null) {
           runUnderTrace("producer callback") {}
         } else {
@@ -356,7 +356,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     String greeting = "Hello Spring Kafka Sender!"
     runUnderTrace("parent") {
       kafkaTemplate.send(SHARED_TOPIC, greeting).whenComplete { meta, ex ->
-        assert isAsyncPropagationEnabled()
+        assert Context.isCaptureEnabled()
         if (ex == null) {
           runUnderTrace("producer callback") {}
         } else {
