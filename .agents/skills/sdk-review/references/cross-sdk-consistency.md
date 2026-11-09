@@ -4,7 +4,7 @@ Behaviour that must match other Datadog SDKs, specs (including OpenTelemetry), a
 
 **When planning:** take the rules below into account when designing the change.
 
-**When reviewing:** report a finding when the diff matches a rule's `Flag:` line, naming the spec, registry, or contract you compared against. Only the cross-SDK reviewer may consult external references.
+**When reviewing:** report a finding when the diff matches a rule's `Flag:` line, or when it clearly diverges from a spec or another SDK in a way no rule covers (mark it `no rule`), naming the spec, registry, or contract you compared against. Only the cross-SDK reviewer may consult external references.
 
 - Check changes to shared tracer behavior (e.g., context propagation, sampling, configuration, or telemetry) for cross-language impact, using relevant specifications and other tracer implementations as references.
 - When an issue stems from the shared design or specification, explicitly flag it as a **design issue** requiring coordination with the affected tracer teams.

@@ -4,4 +4,4 @@ Secrets and sensitive configuration, CI and supply chain, PII, and safety inside
 
 **When planning:** take the rules below into account when designing the change.
 
-**When reviewing:** also inspect commit messages and the PR description. Report a finding when the diff matches a rule's `Flag:` line, with the leak path (source to sink).
+**When reviewing:** also inspect commit messages and the PR description. Report a finding when the diff matches a rule's `Flag:` line, or when it has a clear security or safety problem that no rule covers (mark it `no rule`), with the leak path (source to sink).

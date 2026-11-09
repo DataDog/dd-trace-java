@@ -10,6 +10,10 @@ allowed-tools:
   - Grep
   - Glob
   - WebFetch
+disallowed-tools:
+  - Edit
+  - Write
+  - NotebookEdit
 ---
 
 # SDK review
@@ -44,13 +48,15 @@ Give every reviewer the same frozen evidence. Security must also inspect commit 
 | Codebase conventions | [codebase-conventions.md](references/codebase-conventions.md) |
 | Cross-SDK consistency | [cross-sdk-consistency.md](references/cross-sdk-consistency.md) |
 
-Each lens file lists rules with IDs (e.g. `PERF-1.3`, meaning section 1, rule 3). Cite the rule ID in each finding, and respect each file's `Not when:` lines and "Don't flag" section where present.
+Each lens file lists rules with IDs (e.g. `PERF-1.3`, meaning section 1, rule 3). Cite the rule ID in each finding that matches a rule, and respect each file's `Not when:` lines and "Don't flag" section where present.
 
-Always run every lens as its own fresh, read-only subagent, all seven in parallel, however small the diff. The coordinator never reviews the change itself. Each reviewer reads its lens file before it looks at the diff. If subagents are unavailable, run the lenses one at a time yourself, read each lens file in turn, and don't carry conclusions from one lens to the next. Do not edit while reviewers run.
+Always run every lens as its own fresh, read-only subagent, all seven in parallel, however small the diff. Use the `sdk-review-lens` agent type where it exists, since it has no tools that can edit files. The coordinator never reviews the change itself. Each reviewer reads its lens file before it looks at the diff. If subagents are unavailable, run the lenses one at a time yourself, read each lens file in turn, and don't carry conclusions from one lens to the next. Do not edit while reviewers run.
 
 Each reviewer reads every changed hunk in its scope, not a sample. For a large diff (roughly 1,000 or more changed lines), split the changed files into groups of about 500 changed lines. Keep related files together, such as a class and its test. Give each lens one reviewer per group, and merge each lens's results before reporting. Each reviewer still receives the full file list and commit messages for context. Report any hunk a reviewer did not read as a coverage limitation.
 
 A changed line that clearly matches a rule's `Flag:` line is a finding unless a `Not when:` line or "Don't flag" entry applies. Report it even if the impact is small, at `P3`, rather than dropping it as minor. If you aren't sure the line matches, leave it out. Don't report "borderline" or "plausible" findings. Cite only rule IDs that exist in the lens file; a finding that comes from a `perf-review` check cites that check instead.
+
+The rules are not exhaustive. Also report a clear problem within the lens's scope that no rule describes, such as a bug, a race or a broken contract, and mark it `no rule`. The same bar applies: report it only if you are sure it is a real problem in the changed code, and never as borderline or plausible.
 
 When a rule matches, search the rest of the diff for the same pattern before moving on. Sibling files, overloads and copied blocks often repeat it. List every matching location in that one finding instead of reporting only the first. Don't leave out a location because a sibling is already reported.
 
