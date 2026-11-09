@@ -6,7 +6,6 @@ import static org.junit.jupiter.params.provider.Arguments.arguments;
 import datadog.trace.api.Functions;
 import datadog.trace.api.Functions.PrefixJoin;
 import datadog.trace.api.Functions.SuffixJoin;
-import datadog.trace.test.util.DDJavaSpecification;
 import java.util.function.Function;
 import java.util.stream.Stream;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -14,7 +13,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.tabletest.junit.TableTest;
 
-class QualifiedClassNameCacheTest extends DDJavaSpecification {
+class QualifiedClassNameCacheTest {
 
   @ParameterizedTest(name = "{0}")
   @MethodSource("testCachedStringOperationsArguments")

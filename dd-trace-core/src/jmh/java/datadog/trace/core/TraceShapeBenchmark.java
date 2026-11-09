@@ -243,28 +243,28 @@ public class TraceShapeBenchmark {
   @Benchmark
   public void newApi() {
     AgentSpan server = tracer.startSpan(serverProto, SERVER_OPERATION);
-    server.setTag(KnownTags.HTTP_USERAGENT_ID, USER_AGENT);
-    server.setTag(KnownTags.HTTP_METHOD_ID, METHOD);
-    server.setTag(KnownTags.HTTP_URL_ID, URL);
-    server.setTag(KnownTags.HTTP_HOSTNAME_ID, HOSTNAME);
+    server.setTag(KnownTags.HTTP_USERAGENT, USER_AGENT);
+    server.setTag(KnownTags.HTTP_METHOD, METHOD);
+    server.setTag(KnownTags.HTTP_URL, URL);
+    server.setTag(KnownTags.HTTP_HOSTNAME, HOSTNAME);
     server.setResourceName(SERVER_RESOURCE);
-    server.setTag(KnownTags.PEER_IPV4_ID, CLIENT_IP);
-    server.setTag(KnownTags.PEER_PORT_ID, CLIENT_PORT);
-    server.setTag(KnownTags.HTTP_ROUTE_ID, ROUTE);
+    server.setTag(KnownTags.PEER_IPV4, CLIENT_IP);
+    server.setTag(KnownTags.PEER_PORT, CLIENT_PORT);
+    server.setTag(KnownTags.HTTP_ROUTE, ROUTE);
     try (ContextScope scope = tracer.activateSpan(server)) {
       for (int i = 0; i < children; ++i) {
         AgentSpan jdbc = tracer.startSpan(jdbcProto, JDBC_OPERATION);
-        jdbc.setTag(KnownTags.DB_TYPE_ID, DB_TYPE);
+        jdbc.setTag(KnownTags.DB_TYPE, DB_TYPE);
         jdbc.setServiceName(DB_SERVICE, JAVA_JDBC);
         jdbc.setOperationName(JDBC_RENAMED_OPERATION);
-        jdbc.setTag(KnownTags.DB_POOL_NAME_ID, DB_POOL);
-        jdbc.setTag(KnownTags.DB_USER_ID, DB_USER);
-        jdbc.setTag(KnownTags.DB_INSTANCE_ID, DB_INSTANCE);
-        jdbc.setTag(KnownTags.PEER_HOSTNAME_ID, DB_HOST);
+        jdbc.setTag(KnownTags.DB_POOL_NAME, DB_POOL);
+        jdbc.setTag(KnownTags.DB_USER, DB_USER);
+        jdbc.setTag(KnownTags.DB_INSTANCE, DB_INSTANCE);
+        jdbc.setTag(KnownTags.PEER_HOSTNAME, DB_HOST);
         jdbc.setResourceName(STATEMENT);
-        jdbc.setTag(KnownTags.DB_OPERATION_ID, DB_OPERATION);
+        jdbc.setTag(KnownTags.DB_OPERATION, DB_OPERATION);
         jdbc.spanContext().setIntegrationName(JDBC_PREPARED_STATEMENT);
-        jdbc.setTag(KnownTags.COMPONENT_ID, JDBC_PREPARED_STATEMENT);
+        jdbc.setTag(KnownTags.COMPONENT, JDBC_PREPARED_STATEMENT);
         finishScoped(jdbc);
       }
       AgentSpan internal = tracer.startSpan(traceProto, TRACE_OPERATION);

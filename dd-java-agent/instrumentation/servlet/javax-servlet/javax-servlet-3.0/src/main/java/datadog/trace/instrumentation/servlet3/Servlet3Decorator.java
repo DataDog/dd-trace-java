@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.servlet3;
 
+import static datadog.trace.api.KnownTags.SERVLET_CONTEXT;
+import static datadog.trace.api.KnownTags.SERVLET_PATH;
 import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY;
 
 import datadog.context.Context;
@@ -109,8 +111,8 @@ public class Servlet3Decorator
       String contextPath = request.getContextPath();
       String servletPath = request.getServletPath();
 
-      span.setTag("servlet.context", contextPath);
-      span.setTag("servlet.path", servletPath);
+      span.setTag(SERVLET_CONTEXT, contextPath);
+      span.setTag(SERVLET_PATH, servletPath);
 
       // Used by AsyncContextInstrumentation because the context path may be reset
       // (eg by jetty) by the time the async context is dispatched.

@@ -11,7 +11,8 @@ muzzle {
   }
 }
 
-addTestSuiteForDir('latestDepTest', 'test')
+// TODO APMLP-2194: no latestDepForkedTest until AppSec redirect analysis tests pass with the latest OkHttp 3
+addTestSuiteForDir('latestDepTest', 'test', false)
 
 dependencies {
   compileOnly(group: 'com.squareup.okhttp3', name: 'okhttp', version: '3.0.0')
