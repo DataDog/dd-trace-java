@@ -139,7 +139,8 @@ public class JettyDecorator extends HttpServerDecorator<Request, Request, Respon
    * the gating of {@code HttpServerDecorator.doOnRequest}: {@code createBlockResponseFunction} is
    * not used because it only receives the request, and the core request has no public path to its
    * response. Must be called right after {@code onRequest}, with the per-request response (never
-   * the recycled {@code HttpChannelState}).
+   * the recycled {@code HttpChannelState}). A function already registered by the request-phase IG
+   * callbacks (which run before this method) is kept.
    */
   public void registerBlockResponseFunction(
       final AgentSpan span, final Request request, final Response response) {
@@ -147,14 +148,16 @@ public class JettyDecorator extends HttpServerDecorator<Request, Request, Respon
       return;
     }
     final RequestContext requestContext = span.getRequestContext();
-    if (requestContext != null) {
+    if (requestContext != null && requestContext.getBlockResponseFunction() == null) {
       requestContext.setBlockResponseFunction(new JettyBlockResponseFunction(request, response));
     }
   }
 
   public void onResponse(AgentSpan span, HttpChannelState channel) {
-    Request request = channel.getRequest();
-    Response response = channel.getResponse();
+    onResponse(span, channel.getRequest(), channel.getResponse());
+  }
+
+  public void onResponse(AgentSpan span, Request request, Response response) {
     if (Config.get().isServletPrincipalEnabled()) {
       final Request.AuthenticationState authenticationState =
           Request.getAuthenticationState(request);

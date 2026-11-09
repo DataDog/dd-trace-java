@@ -61,6 +61,8 @@ public class JettyServerAdvice {
         req.setAttribute(DD_CONTEXT_ATTRIBUTE, context);
         req.setAttribute(CorrelationIdentifier.getTraceIdKey(), CorrelationIdentifier.getTraceId());
         req.setAttribute(CorrelationIdentifier.getSpanIdKey(), CorrelationIdentifier.getSpanId());
+        // a failed stream never recycles the channel, so ResetAdvice would not finish the span
+        JettyStreamFailureWrapper.install(req, channel.getResponse());
         ret = JettyRunnableWrapper.wrapIfNeeded(ret);
       }
     }

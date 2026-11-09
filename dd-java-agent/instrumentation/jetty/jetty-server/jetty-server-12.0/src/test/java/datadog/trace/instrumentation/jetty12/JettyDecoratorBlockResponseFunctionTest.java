@@ -50,6 +50,17 @@ class JettyDecoratorBlockResponseFunctionTest {
   }
 
   @Test
+  void keepsAlreadyRegisteredBrf() {
+    ActiveSubsystems.APPSEC_ACTIVE = true;
+    BlockResponseFunction existing = (segment, status, type, headers, id) -> false;
+
+    DECORATE.registerBlockResponseFunction(
+        span(requestContext(existing)), fake(Request.class), fake(Response.class));
+
+    assertEquals(0, registered.size());
+  }
+
+  @Test
   void doesNotRegisterWhenAppSecInactive() {
     ActiveSubsystems.APPSEC_ACTIVE = false;
 
@@ -71,11 +82,17 @@ class JettyDecoratorBlockResponseFunctionTest {
   }
 
   private RequestContext requestContext() {
+    return requestContext(null);
+  }
+
+  private RequestContext requestContext(BlockResponseFunction existing) {
     return proxy(
         RequestContext.class,
         (name, args) -> {
           if ("setBlockResponseFunction".equals(name)) {
             registered.add((BlockResponseFunction) args[0]);
+          } else if ("getBlockResponseFunction".equals(name)) {
+            return existing;
           }
           return null;
         });
