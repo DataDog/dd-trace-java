@@ -56,6 +56,7 @@ public class JettyServerAdvice {
         span.setMeasured(true);
         DECORATE.afterStart(span);
         DECORATE.onRequest(span, req, req, parentContext);
+        DECORATE.registerBlockResponseFunction(span, req, channel.getResponse());
 
         req.setAttribute(DD_CONTEXT_ATTRIBUTE, context);
         req.setAttribute(CorrelationIdentifier.getTraceIdKey(), CorrelationIdentifier.getTraceId());

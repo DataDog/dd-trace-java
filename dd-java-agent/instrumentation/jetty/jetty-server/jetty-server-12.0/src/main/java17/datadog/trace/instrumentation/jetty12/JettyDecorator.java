@@ -1,7 +1,10 @@
 package datadog.trace.instrumentation.jetty12;
 
+import static datadog.trace.bootstrap.ActiveSubsystems.APPSEC_ACTIVE;
+
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
@@ -129,6 +132,24 @@ public class JettyDecorator extends HttpServerDecorator<Request, Request, Respon
   @Override
   protected String getRequestHeader(final Request request, String key) {
     return request.getHeaders().get(key);
+  }
+
+  /**
+   * Registers the Jetty 12 {@link JettyBlockResponseFunction} on the span request context. Mirrors
+   * the gating of {@code HttpServerDecorator.doOnRequest}: {@code createBlockResponseFunction} is
+   * not used because it only receives the request, and the core request has no public path to its
+   * response. Must be called right after {@code onRequest}, with the per-request response (never
+   * the recycled {@code HttpChannelState}).
+   */
+  public void registerBlockResponseFunction(
+      final AgentSpan span, final Request request, final Response response) {
+    if (!APPSEC_ACTIVE || request == null || response == null) {
+      return;
+    }
+    final RequestContext requestContext = span.getRequestContext();
+    if (requestContext != null) {
+      requestContext.setBlockResponseFunction(new JettyBlockResponseFunction(request, response));
+    }
   }
 
   public void onResponse(AgentSpan span, HttpChannelState channel) {
