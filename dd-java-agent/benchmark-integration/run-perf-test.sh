@@ -184,13 +184,15 @@ function start_server {
       # it appears the binary script will always be named main at the time of writing
       # no matter what the zip file is named.
       play_script=${unzipped_server_path}/${unzipped_dirname}/bin/main
+      # The Gradle-built zip doesn't keep the launcher's executable bit.
+      chmod +x "${play_script}"
 
       # have to use env to set JAVA_OPTS because of a gradle play plugin bug:
       # https://github.com/gradle/gradle/issues/4471
-      utility_cmd="env JAVA_OPTS=${run_java_args} ${play_script}"
-
-      echo "starting server: ${utility_cmd}"
-      { /usr/bin/time $time_flag ${utility_cmd} ; } 2> $server_output 1>/dev/null &
+      # JAVA_OPTS must stay one quoted argument: split on spaces, only the first flag reaches it and
+      # env tries to run the next one as the command.
+      echo "starting server: env JAVA_OPTS=\"${run_java_args}\" ${play_script}"
+      { /usr/bin/time $time_flag env "JAVA_OPTS=${run_java_args}" "${play_script}" ; } 2> $server_output 1>/dev/null &
     fi
 
     # Block until the server actually SERVES HTTP 200 -- not just binds the TCP port. The java agent
