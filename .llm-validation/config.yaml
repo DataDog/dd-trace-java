@@ -10,5 +10,5 @@ instruction_files:
 default_level: minimum
 presets:
   minimum:
-    cases: [java-instrumentation-test-selection-001]
+    cases: [java-core-validation-001]
     runs: 1

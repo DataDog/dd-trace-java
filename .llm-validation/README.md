@@ -6,8 +6,8 @@ task with the PR's instructions and the target branch's instructions against the
 same code, then compares the answers.
 
 [config.yaml](config.yaml) monitors only the root `AGENTS.md`.
-[suites/](suites/) contains one practical task: selecting focused Netty instrumentation
-tests for normal and latest dependencies. It runs once per instruction version, with
+[suites/](suites/) contains one practical task: choosing tests and formatting checks
+for a `dd-trace-core` change. It runs once per instruction version, with
 advisory quality results. This checks the integration, not overall instruction
 quality. Other guidance files and setup mode are outside this initial scope.
 

@@ -1,21 +1,21 @@
 name: java-agent-smoke
 version: "0.1"
 cases:
-  # Ground truth: settings.gradle.kts, netty-4.1/build.gradle, and Netty41ClientTest.groovy.
-  - id: java-instrumentation-test-selection-001
+  # Ground truth: dd-trace-core/build.gradle, docs/how_to_test.md, and CONTRIBUTING.md.
+  - id: java-core-validation-001
     files: [AGENTS.md]
     only_warn: true
     input: |
-      I changed the Netty 4.1 HTTP client instrumentation. How do I run only
-      Netty41ClientV0ForkedTest on Java 17, with both the normal and latest dependencies?
-      Check the module and test class before suggesting commands.
-      Give a plan only; do not edit files, run commands, or use external services.
+      I changed Java code in dd-trace-core. Which tests and formatting checks
+      should I run locally before requesting review? Keep tests scoped to that module.
+      Read local files as needed. Give commands and a brief explanation, but do not
+      run commands, edit files, or use external services.
     expected_criteria:
-      - Uses the module path :dd-java-agent:instrumentation:netty:netty-4.1.
-      - Selects forkedTest for the normal dependencies and latestDepForkedTest for the latest dependencies.
-      - Filters both tasks to Netty41ClientV0ForkedTest with --tests and selects Java 17 with -PtestJvm=17.
-      - Explains that the ForkedTest class needs a separate JVM and that a successful build with zero tests is not validation.
+      - Uses the Gradle wrapper to run the module's tests, such as ./gradlew :dd-trace-core:test.
+      - Notes that separate-JVM tests use :dd-trace-core:forkedTest; test alone does not run those tests.
+      - Uses Spotless for formatting, with spotlessCheck or spotlessApply; module-qualified tasks are valid.
+      - Gives focused validation steps and distinguishes proposed commands from checks actually performed.
     bad_signals:
-      - Uses only test or latestDepTest, omits the netty parent project, or filters only the abstract base class.
-      - Recommends changing build configuration or running the entire repository suite for this focused check.
-      - Changes files, runs commands, uses external services, or claims the test passed.
+      - Uses the whole-repository test suite or a clean build as the only way to validate this module change.
+      - Proposes skipping the module's tests or disabling checks to force a pass.
+      - Runs commands, edits files, uses external services, or claims unperformed checks passed.
