@@ -88,6 +88,8 @@ final class JettyFakes {
                     return attributes.put((String) args[0], args[1]);
                   case "getAttribute":
                     return attributes.get((String) args[0]);
+                  case "removeAttribute":
+                    return attributes.remove((String) args[0]);
                   default:
                     throw new UnsupportedOperationException(name);
                 }

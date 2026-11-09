@@ -1,12 +1,14 @@
 package datadog.trace.instrumentation.jetty12;
 
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_IGNORE_COMMIT_ATTRIBUTE;
 import static datadog.trace.instrumentation.jetty12.JettyFakes.fake;
 import static datadog.trace.instrumentation.jetty12.JettyFakes.proxy;
 import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -203,6 +205,34 @@ class JettyRequestBlockingTest {
     assertTrue(f.events.isEmpty(), "the handler chain completes the Jetty callback");
     assertEquals(1, blockFailures);
     assertFalse(f.brf.isBlockingResponseInitiated());
+    assertNull(f.request.attributes.get(DD_IGNORE_COMMIT_ATTRIBUTE));
+  }
+
+  @Test
+  void jettyBrfWriteThrowRestoresResponseBeforeFailingOpen() {
+    JettyBrfFixture f = new JettyBrfFixture();
+    f.response.headers.put("X-App-Header", "app");
+    f.response.writeThrows = new WritePendingException();
+
+    assertFalse(f.tryBlock());
+
+    assertEquals(2, f.response.resets, "prepared, then reset again before failing open");
+    assertEquals(0, f.response.status);
+    assertEquals(0, f.response.headers.size());
+    assertNull(f.request.attributes.get(DD_IGNORE_COMMIT_ATTRIBUTE));
+    assertEquals(1, blockFailures);
+  }
+
+  @Test
+  void alreadyClaimedJettyBrfCompletesCallbackWithoutWriting() {
+    JettyBrfFixture f = new JettyBrfFixture();
+    f.brf.markBlockingResponseInitiated();
+
+    assertTrue(f.tryBlock());
+
+    assertTrue(f.response.writes.isEmpty(), "another evaluation owns the block");
+    assertEquals(asList("succeeded"), f.events);
+    assertEquals(0, blockFailures);
   }
 
   /** Request-phase blocking with a registered {@link JettyBlockResponseFunction}. */

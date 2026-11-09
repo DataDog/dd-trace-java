@@ -8,8 +8,6 @@ import static datadog.trace.bootstrap.blocking.BlockingActionHelper.getTemplate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_IGNORE_COMMIT_ATTRIBUTE;
-import static java.util.concurrent.TimeUnit.MILLISECONDS;
-import static org.eclipse.jetty.util.thread.Invocable.InvocationType.NON_BLOCKING;
 
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.context.Context;
@@ -19,15 +17,11 @@ import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.internal.TraceSegment;
-import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.blocking.BlockingActionHelper.TemplateType;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeoutException;
 import org.eclipse.jetty.http.HttpFields;
 import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.http.HttpMethod;
@@ -44,15 +38,12 @@ import org.slf4j.LoggerFactory;
  * <p>Only references Jetty 12 core and jetty-util types so it works for every environment (ee8,
  * ee9, ee10) sitting on top of the core server.
  *
- * <p>Write outcomes that complete asynchronously (after a timed out wait, or the request-phase
- * write) are resolved in a Jetty callback. A {@code block_failure} reported there after the request
- * ended may be lost, a known gap shared with other async frameworks.
+ * <p>Blocking response writes never wait: their outcome is resolved in a Jetty write callback. A
+ * {@code block_failure} reported there after the request ended may be lost, a known gap shared with
+ * other async frameworks.
  */
 public final class JettyBlockResponseHelper {
   private static final Logger log = LoggerFactory.getLogger(JettyBlockResponseHelper.class);
-
-  /** Upper bound for waiting on the synchronous blocking response write. */
-  static final long COMMIT_TIMEOUT_MILLIS = 5000;
 
   private static final ByteBuffer EMPTY_BODY = ByteBuffer.allocate(0).asReadOnlyBuffer();
 
@@ -107,106 +98,92 @@ public final class JettyBlockResponseHelper {
   }
 
   /**
-   * Prepares and writes the blocking response, waiting up to {@link #COMMIT_TIMEOUT_MILLIS} for the
-   * write to complete. Calls {@link TraceSegment#effectivelyBlocked()} once the write is confirmed.
+   * Prepares the blocking response and hands it to Jetty without waiting for the write. The caller
+   * must hold the claim of {@code brf}.
    *
-   * <p>If the wait times out or is interrupted the write is still in flight: the blocking response
-   * is considered initiated, the segment is marked when the write completes, and {@code
-   * onLateFailure} runs if it fails.
+   * <p>The write callback marks {@code segment} on success and then completes {@code onWritten}; on
+   * failure it reports {@code block_failure} through {@code reqCtx} (when not null), releases the
+   * claim and fails {@code onWritten}. {@code onWritten} also sets the invocation type of the write
+   * callback.
    *
-   * @return true if the blocking response was written, or its write is still in flight
+   * <p>When nothing could be sent the claim is released (and a prepared response restored) and
+   * false is returned without reporting: the caller decides how the failure is reported.
+   *
+   * @return true once Jetty accepted the write; false if nothing was sent
    */
   static boolean commitBlockingResponse(
+      JettyBlockResponseFunction brf,
       TraceSegment segment,
-      Request request,
-      Response response,
+      RequestContext reqCtx,
       int statusCode,
       BlockingContentType bct,
       Map<String, String> extraHeaders,
       String securityResponseId,
-      Runnable onLateFailure) {
-    return commitBlockingResponse(
-        segment,
-        request,
-        response,
-        statusCode,
-        bct,
-        extraHeaders,
-        securityResponseId,
-        onLateFailure,
-        COMMIT_TIMEOUT_MILLIS);
-  }
-
-  /** Variant with an explicit wait bound. */
-  @VisibleForTesting
-  static boolean commitBlockingResponse(
-      TraceSegment segment,
-      Request request,
-      Response response,
-      int statusCode,
-      BlockingContentType bct,
-      Map<String, String> extraHeaders,
-      String securityResponseId,
-      Runnable onLateFailure,
-      long timeoutMillis) {
-    // a completed CompletableFuture returns from get() without checking the interrupt flag
-    CompletableFuture<Void> written = new CompletableFuture<>();
+      Callback onWritten) {
+    Request request = brf.getRequest();
+    Response response = brf.getResponse();
+    ByteBuffer body;
     try {
-      ByteBuffer body =
+      body =
           prepareBlockResponse(
               request, response, statusCode, bct, extraHeaders, securityResponseId);
-      if (body == null) {
-        log.debug("Response already committed, cannot commit blocking response");
-        return false;
-      }
-      response.write(true, body, Callback.from(written, NON_BLOCKING));
-      written.get(timeoutMillis, MILLISECONDS);
-    } catch (TimeoutException | InterruptedException e) {
-      if (e instanceof InterruptedException) {
-        Thread.currentThread().interrupt();
-      }
-      log.debug("Blocking response write still pending, completing it asynchronously", e);
-      completeAsync(written, segment, request, onLateFailure);
-      return true;
-    } catch (ExecutionException e) {
-      logWriteFailure("Failed to write blocking response", e.getCause());
-      return false;
     } catch (Exception e) {
-      // WritePendingException, reset() failing on a concurrent commit, ...
-      log.debug("Failed to commit blocking response", e);
+      // template failure or reset() failing on a concurrent commit: the response was not prepared
+      log.debug("Failed to prepare blocking response", e);
+      brf.release();
       return false;
     }
-    markEffectivelyBlocked(segment);
+    if (body == null) {
+      log.debug("Response already committed, cannot commit blocking response");
+      brf.release();
+      return false;
+    }
+    Callback writeCallback =
+        Callback.from(
+            Invocable.getInvocationType(onWritten),
+            () -> {
+              markEffectivelyBlocked(segment);
+              onWritten.succeeded();
+            },
+            failure -> {
+              logWriteFailure("Blocking response write failed", failure);
+              if (reqCtx != null) {
+                reportBlockFailure(reqCtx);
+              }
+              brf.release();
+              onWritten.failed(failure);
+            });
+    try {
+      response.write(true, body, writeCallback);
+    } catch (Exception e) {
+      // Jetty reports write failures through the callback; a throw (e.g. WritePendingException)
+      // means nothing was sent
+      log.debug("Failed to write blocking response", e);
+      restoreAfterFailedBlock(request, response);
+      brf.release();
+      return false;
+    }
     return true;
   }
 
   /**
-   * Marks the segment when a pending write succeeds; when it fails runs {@code onLateFailure} and
-   * reports {@code block_failure}. The request context is resolved now: the context attribute is
-   * gone once the channel is recycled.
+   * Undoes {@link #prepareBlockResponse} before failing open, so the application does not run on a
+   * response carrying the blocking status and headers. The reset also clears headers set before
+   * (e.g. by customizers): an accepted trade-off versus leaking the blocking page headers.
    */
-  private static void completeAsync(
-      CompletableFuture<Void> written,
-      TraceSegment segment,
-      Request request,
-      Runnable onLateFailure) {
-    AgentSpan span = spanFrom(request);
-    RequestContext reqCtx = span == null ? null : span.getRequestContext();
-    written.whenComplete((v, t) -> {
-      if (t == null) {
-        markEffectivelyBlocked(segment);
-        return;
+  static void restoreAfterFailedBlock(Request request, Response response) {
+    try {
+      if (!response.isCommitted()) {
+        response.reset();
       }
-      logWriteFailure("Pending blocking response write failed", t);
-      try {
-        onLateFailure.run();
-      } catch (Throwable e) {
-        log.debug("Failed to handle late blocking response failure", e);
-      }
-      if (reqCtx != null) {
-        reportBlockFailure(reqCtx);
-      }
-    });
+    } catch (Exception e) {
+      log.debug("Failed to reset response after failed blocking attempt", e);
+    }
+    try {
+      request.removeAttribute(DD_IGNORE_COMMIT_ATTRIBUTE);
+    } catch (Exception e) {
+      log.debug("Failed to remove ignore commit attribute after failed blocking attempt", e);
+    }
   }
 
   /**
@@ -233,8 +210,20 @@ public final class JettyBlockResponseHelper {
     RequestContext reqCtx = span.getRequestContext();
     BlockResponseFunction brf = reqCtx == null ? null : reqCtx.getBlockResponseFunction();
     if (brf instanceof JettyBlockResponseFunction
-        && !((JettyBlockResponseFunction) brf).isBlockingResponseInitiated()) {
-      return blockRequestAsync((JettyBlockResponseFunction) brf, reqCtx, rba, callback);
+        && ((JettyBlockResponseFunction) brf).tryClaim()) {
+      if (commitBlockingResponse(
+          (JettyBlockResponseFunction) brf,
+          reqCtx.getTraceSegment(),
+          reqCtx,
+          rba.getStatusCode(),
+          rba.getBlockingContentType(),
+          rba.getExtraHeaders(),
+          rba.getSecurityResponseId(),
+          callback)) {
+        return true;
+      }
+      reportBlockFailure(reqCtx);
+      return false;
     }
     if (!tryCommitBlockingResponse(reqCtx, rba)) {
       return false;
@@ -244,67 +233,6 @@ public final class JettyBlockResponseHelper {
     } catch (Exception e) {
       // the blocking response was already written, the handler chain must not run
       log.debug("Failed to complete callback after request blocking response", e);
-    }
-    return true;
-  }
-
-  /**
-   * Writes the request-phase blocking response without waiting. The write callback marks the
-   * segment (or reports {@code block_failure} and clears the guard of {@code brf}) and then
-   * completes {@code callback}, keeping its invocation type.
-   *
-   * @return true once the write was handed to Jetty; false if nothing was written
-   */
-  static boolean blockRequestAsync(
-      JettyBlockResponseFunction brf,
-      RequestContext reqCtx,
-      Flow.Action.RequestBlockingAction rba,
-      Callback callback) {
-    Request request = brf.getRequest();
-    Response response = brf.getResponse();
-    TraceSegment segment = reqCtx.getTraceSegment();
-    ByteBuffer body;
-    try {
-      body =
-          prepareBlockResponse(
-              request,
-              response,
-              rba.getStatusCode(),
-              rba.getBlockingContentType(),
-              rba.getExtraHeaders(),
-              rba.getSecurityResponseId());
-    } catch (Exception e) {
-      log.debug("Failed to prepare request blocking response", e);
-      reportBlockFailure(reqCtx);
-      return false;
-    }
-    if (body == null) {
-      log.debug("Response already committed, cannot commit request blocking response");
-      reportBlockFailure(reqCtx);
-      return false;
-    }
-    brf.markBlockingResponseInitiated();
-    Callback writeCallback =
-        Callback.from(
-            Invocable.getInvocationType(callback),
-            () -> {
-              markEffectivelyBlocked(segment);
-              callback.succeeded();
-            },
-            failure -> {
-              logWriteFailure("Request blocking response write failed", failure);
-              reportBlockFailure(reqCtx);
-              brf.clearBlockingResponseInitiated();
-              callback.failed(failure);
-            });
-    try {
-      response.write(true, body, writeCallback);
-    } catch (Exception e) {
-      // Jetty reports write failures through the callback; a throw means nothing was written
-      log.debug("Failed to write request blocking response", e);
-      brf.clearBlockingResponseInitiated();
-      reportBlockFailure(reqCtx);
-      return false;
     }
     return true;
   }

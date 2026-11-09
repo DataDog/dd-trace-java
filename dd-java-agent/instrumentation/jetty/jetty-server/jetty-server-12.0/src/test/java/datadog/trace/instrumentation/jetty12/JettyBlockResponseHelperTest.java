@@ -6,16 +6,20 @@ import static datadog.trace.instrumentation.jetty12.JettyFakes.proxy;
 import static datadog.trace.instrumentation.jetty12.JettyFakes.toBytes;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonMap;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.context.Context;
 import datadog.trace.api.appsec.AppSecContext;
+import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.blocking.BlockingActionHelper;
@@ -27,14 +31,24 @@ import datadog.trace.instrumentation.jetty12.JettyFakes.FakeSegment;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritePendingException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import org.eclipse.jetty.http.HttpHeader;
+import org.eclipse.jetty.util.thread.Invocable.InvocationType;
 import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
 /** Unit tests for {@link JettyBlockResponseHelper} and {@link JettyBlockResponseFunction}. */
 class JettyBlockResponseHelperTest {
 
-  private static final Runnable NO_OP = () -> {};
+  private static final Flow.Action.RequestBlockingAction RBA =
+      new Flow.Action.RequestBlockingAction(403, BlockingContentType.AUTO);
+
+  private int blockFailures;
 
   @TableTest({
     "Scenario            | Content Type | Accept                             | Expected Type",
@@ -52,15 +66,9 @@ class JettyBlockResponseHelperTest {
     FakeSegment segment = new FakeSegment();
 
     boolean committed =
-        JettyBlockResponseHelper.commitBlockingResponse(
-            segment.proxy,
-            request.proxy,
-            response.proxy,
-            418,
-            contentType,
-            singletonMap("X-Extra", "value"),
-            "rid-1",
-            NO_OP);
+        new JettyBlockResponseFunction(request.proxy, response.proxy)
+            .tryCommitBlockingResponse(
+                segment.proxy, 418, contentType, singletonMap("X-Extra", "value"), "rid-1");
 
     assertTrue(committed);
     byte[] expectedBody = BlockingActionHelper.getTemplate(expectedType, "rid-1");
@@ -83,7 +91,7 @@ class JettyBlockResponseHelperTest {
   @Test
   void invalidStatusFallsBackToDefault() {
     FakeResponse response = new FakeResponse();
-    assertTrue(commit(new FakeRequest("GET", null), response, new FakeSegment(), 42));
+    assertTrue(commit(brf(new FakeRequest("GET", null), response), new FakeSegment(), 42));
     assertEquals(403, response.status);
   }
 
@@ -93,15 +101,13 @@ class JettyBlockResponseHelperTest {
     FakeSegment segment = new FakeSegment();
 
     boolean committed =
-        JettyBlockResponseHelper.commitBlockingResponse(
-            segment.proxy,
-            new FakeRequest("GET", "text/html").proxy,
-            response.proxy,
-            301,
-            BlockingContentType.NONE,
-            singletonMap("Location", "https://example.com/"),
-            null,
-            NO_OP);
+        brf(new FakeRequest("GET", "text/html"), response)
+            .tryCommitBlockingResponse(
+                segment.proxy,
+                301,
+                BlockingContentType.NONE,
+                singletonMap("Location", "https://example.com/"),
+                null);
 
     assertTrue(committed);
     assertEquals(301, response.status);
@@ -115,7 +121,7 @@ class JettyBlockResponseHelperTest {
   @Test
   void headRequestHasNoBody() {
     FakeResponse response = new FakeResponse();
-    assertTrue(commit(new FakeRequest("HEAD", "application/json"), response, new FakeSegment()));
+    assertTrue(commit(brf(new FakeRequest("HEAD", "application/json"), response)));
     assertEquals(403, response.status);
     assertNull(response.headers.get(HttpHeader.CONTENT_TYPE));
     assertNull(response.headers.get(HttpHeader.CONTENT_LENGTH));
@@ -152,13 +158,13 @@ class JettyBlockResponseHelperTest {
   }
 
   @TableTest({
-    "Scenario     | Failure      | Resets | Writes",
-    "committed    | committed    | 0      | 0     ",
-    "reset throws | reset        | 0      | 0     ",
-    "write fails  | write fails  | 1      | 1     ",
-    "write throws | write throws | 1      | 0     "
+    "Scenario     | Failure      | Resets",
+    "committed    | committed    | 0     ",
+    "reset throws | reset        | 0     ",
+    "write throws | write throws | 2     "
   })
-  void failedCommitIsNotBlocked(String failure, int resets, int writes) {
+  void failedCommitIsNotBlockedAndReported(String failure, int resets) {
+    FakeRequest request = new FakeRequest("GET", null);
     FakeResponse response = new FakeResponse();
     switch (failure) {
       case "committed":
@@ -167,9 +173,6 @@ class JettyBlockResponseHelperTest {
       case "reset":
         response.resetFailure = new IllegalStateException("committed");
         break;
-      case "write fails":
-        response.writeFailure = new IOException("broken pipe");
-        break;
       case "write throws":
         response.writeThrows = new WritePendingException();
         break;
@@ -177,11 +180,62 @@ class JettyBlockResponseHelperTest {
         throw new IllegalArgumentException(failure);
     }
     FakeSegment segment = new FakeSegment();
+    JettyBlockResponseFunction brf = brf(request, response);
 
-    assertFalse(commit(new FakeRequest("GET", null), response, segment));
+    assertFalse(brf.tryCommitBlockingResponse(requestContext(segment), RBA));
+
     assertEquals(resets, response.resets);
-    assertEquals(writes, response.writes.size());
+    assertTrue(response.writes.isEmpty());
     assertEquals(0, segment.effectivelyBlockedCalls);
+    assertEquals(1, blockFailures);
+    assertNull(request.attributes.get(DD_IGNORE_COMMIT_ATTRIBUTE));
+    assertFalse(brf.isBlockingResponseInitiated(), "a failed attempt must release the claim");
+  }
+
+  @Test
+  void synchronousWriteFailureRestoresResponse() {
+    FakeRequest request = new FakeRequest("GET", null);
+    FakeResponse response = new FakeResponse();
+    response.writeThrows = new WritePendingException();
+
+    assertFalse(
+        brf(request, response)
+            .tryCommitBlockingResponse(
+                new FakeSegment().proxy,
+                403,
+                BlockingContentType.JSON,
+                singletonMap("X-Extra", "value"),
+                null));
+
+    assertEquals(2, response.resets, "prepared, then reset again before failing open");
+    assertEquals(0, response.status);
+    assertEquals(0, response.headers.size(), "no blocking headers must leak to the app");
+    assertNull(request.attributes.get(DD_IGNORE_COMMIT_ATTRIBUTE));
+  }
+
+  @Test
+  void restoreSkipsResetOnCommittedResponse() {
+    FakeRequest request = new FakeRequest("GET", null);
+    request.attributes.put(DD_IGNORE_COMMIT_ATTRIBUTE, Boolean.TRUE);
+    FakeResponse response = new FakeResponse();
+    response.committed = true;
+
+    JettyBlockResponseHelper.restoreAfterFailedBlock(request.proxy, response.proxy);
+
+    assertEquals(0, response.resets);
+    assertNull(request.attributes.get(DD_IGNORE_COMMIT_ATTRIBUTE));
+  }
+
+  @Test
+  void restoreIgnoresResetFailure() {
+    FakeRequest request = new FakeRequest("GET", null);
+    request.attributes.put(DD_IGNORE_COMMIT_ATTRIBUTE, Boolean.TRUE);
+    FakeResponse response = new FakeResponse();
+    response.resetFailure = new IllegalStateException("committed");
+
+    JettyBlockResponseHelper.restoreAfterFailedBlock(request.proxy, response.proxy);
+
+    assertNull(request.attributes.get(DD_IGNORE_COMMIT_ATTRIBUTE));
   }
 
   @Test
@@ -200,74 +254,6 @@ class JettyBlockResponseHelperTest {
   }
 
   @Test
-  void interruptedWaitKeepsInterruptFlagAndMarksOnLateSuccess() {
-    FakeResponse response = new FakeResponse();
-    response.completeWrites = false;
-    FakeSegment segment = new FakeSegment();
-
-    Thread.currentThread().interrupt();
-    try {
-      assertTrue(commit(new FakeRequest("GET", null), response, segment));
-      assertTrue(Thread.currentThread().isInterrupted());
-    } finally {
-      Thread.interrupted();
-    }
-    assertEquals(0, segment.effectivelyBlockedCalls);
-
-    response.pending.succeeded();
-
-    assertEquals(1, segment.effectivelyBlockedCalls);
-  }
-
-  @Test
-  void timedOutWriteIsInitiatedAndMarksOnLateSuccess() {
-    FakeResponse response = new FakeResponse();
-    response.completeWrites = false;
-    FakeSegment segment = new FakeSegment();
-
-    assertTrue(commitWithShortTimeout(new FakeRequest("GET", null), response, segment));
-    assertEquals(0, segment.effectivelyBlockedCalls);
-
-    response.pending.succeeded();
-
-    assertEquals(1, segment.effectivelyBlockedCalls);
-  }
-
-  @Test
-  void timedOutWriteReportsBlockFailureOnLateFailure() {
-    FakeRequest request = new FakeRequest("GET", null);
-    int[] blockFailures = new int[1];
-    request.attributes.put(DD_CONTEXT_ATTRIBUTE, context(blockFailures));
-    FakeResponse response = new FakeResponse();
-    response.completeWrites = false;
-    FakeSegment segment = new FakeSegment();
-
-    int[] lateFailures = new int[1];
-
-    assertTrue(commitWithShortTimeout(request, response, segment, () -> lateFailures[0]++));
-
-    response.pending.failed(new IOException("broken pipe"));
-
-    assertEquals(0, segment.effectivelyBlockedCalls);
-    assertEquals(1, blockFailures[0]);
-    assertEquals(1, lateFailures[0]);
-  }
-
-  @Test
-  void timedOutWriteDoesNotRunLateFailureOnSuccess() {
-    FakeResponse response = new FakeResponse();
-    response.completeWrites = false;
-    int[] lateFailures = new int[1];
-
-    assertTrue(
-        commitWithShortTimeout(
-            new FakeRequest("GET", null), response, new FakeSegment(), () -> lateFailures[0]++));
-    response.pending.succeeded();
-
-    assertEquals(0, lateFailures[0]);
-  }
-
-  @Test
   void resetFailureLeavesNoIgnoreCommitAttribute() {
     FakeRequest request = new FakeRequest("GET", null);
     FakeResponse response = new FakeResponse();
@@ -282,135 +268,175 @@ class JettyBlockResponseHelperTest {
   }
 
   @Test
-  void effectivelyBlockedFailureKeepsSuccess() {
-    FakeSegment segment = new FakeSegment();
-    segment.failure = new IllegalStateException("segment finished");
-
-    assertTrue(commit(new FakeRequest("GET", null), new FakeResponse(), segment));
-    assertEquals(1, segment.effectivelyBlockedCalls);
-  }
-
-  @Test
-  void functionShortCircuitsAfterSuccessfulCommit() {
-    FakeResponse response = new FakeResponse();
-    FakeSegment segment = new FakeSegment();
-    JettyBlockResponseFunction brf =
-        new JettyBlockResponseFunction(new FakeRequest("GET", null).proxy, response.proxy);
-
-    assertTrue(
-        brf.tryCommitBlockingResponse(
-            segment.proxy, 403, BlockingContentType.JSON, emptyMap(), null));
-    response.committed = true;
-    assertTrue(
-        brf.tryCommitBlockingResponse(
-            segment.proxy, 403, BlockingContentType.JSON, emptyMap(), null));
-
-    assertEquals(1, response.writes.size());
-    assertEquals(1, response.resets);
-    assertEquals(1, segment.effectivelyBlockedCalls);
-  }
-
-  @Test
-  void functionLateFailureClearsGuard() {
+  void returnsBeforeTheWriteCompletesAndMarksOnSuccess() {
     FakeResponse response = new FakeResponse();
     response.completeWrites = false;
     FakeSegment segment = new FakeSegment();
-    JettyBlockResponseFunction brf =
-        new JettyBlockResponseFunction(new FakeRequest("GET", null).proxy, response.proxy);
+    JettyBlockResponseFunction brf = brf(new FakeRequest("GET", null), response);
 
-    // an interrupted wait leaves the write in flight without waiting for the timeout
-    Thread.currentThread().interrupt();
-    try {
-      assertTrue(
-          brf.tryCommitBlockingResponse(
-              segment.proxy, 403, BlockingContentType.JSON, emptyMap(), null));
-    } finally {
-      Thread.interrupted();
-    }
+    assertTrue(commit(brf, segment), "the write was accepted");
+    assertNotNull(response.pending, "the write callback is still pending");
+    assertSame(InvocationType.NON_BLOCKING, response.pending.getInvocationType());
+    assertEquals(0, segment.effectivelyBlockedCalls);
     assertTrue(brf.isBlockingResponseInitiated());
 
+    response.pending.succeeded();
+
+    assertEquals(1, segment.effectivelyBlockedCalls);
+    assertTrue(brf.isBlockingResponseInitiated());
+  }
+
+  @Test
+  void asynchronousWriteFailureReportsAndReleasesClaim() {
+    FakeRequest request = new FakeRequest("GET", null);
+    request.attributes.put(DD_CONTEXT_ATTRIBUTE, context(requestContext(new FakeSegment())));
+    FakeResponse response = new FakeResponse();
+    response.completeWrites = false;
+    FakeSegment segment = new FakeSegment();
+    JettyBlockResponseFunction brf = brf(request, response);
+
+    assertTrue(commit(brf, segment));
     response.pending.failed(new IOException("broken pipe"));
 
+    assertEquals(0, segment.effectivelyBlockedCalls);
+    assertEquals(1, blockFailures);
     assertFalse(brf.isBlockingResponseInitiated());
+
     response.completeWrites = true;
-    assertTrue(
-        brf.tryCommitBlockingResponse(
-            segment.proxy, 403, BlockingContentType.JSON, emptyMap(), null));
+    assertTrue(commit(brf, segment));
     assertEquals(2, response.writes.size(), "the next call must write again");
     assertEquals(1, segment.effectivelyBlockedCalls);
   }
 
   @Test
-  void functionRetriesAfterFailedCommit() {
+  void asynchronousWriteFailureWithoutRequestContextReleasesClaim() {
     FakeResponse response = new FakeResponse();
     response.writeFailure = new IOException("broken pipe");
     FakeSegment segment = new FakeSegment();
-    JettyBlockResponseFunction brf =
-        new JettyBlockResponseFunction(new FakeRequest("GET", null).proxy, response.proxy);
+    JettyBlockResponseFunction brf = brf(new FakeRequest("GET", null), response);
 
-    assertFalse(
-        brf.tryCommitBlockingResponse(
-            segment.proxy, 403, BlockingContentType.JSON, emptyMap(), null));
-    response.writeFailure = null;
-    assertTrue(
-        brf.tryCommitBlockingResponse(
-            segment.proxy, 403, BlockingContentType.JSON, emptyMap(), null));
+    assertTrue(commit(brf, segment), "the write was accepted, it failed in its callback");
 
-    assertEquals(2, response.writes.size());
+    assertEquals(0, segment.effectivelyBlockedCalls);
+    assertFalse(brf.isBlockingResponseInitiated());
+  }
+
+  @Test
+  void effectivelyBlockedFailureKeepsSuccess() {
+    FakeSegment segment = new FakeSegment();
+    segment.failure = new IllegalStateException("segment finished");
+
+    assertTrue(commit(brf(new FakeRequest("GET", null), new FakeResponse()), segment));
     assertEquals(1, segment.effectivelyBlockedCalls);
   }
 
-  private static boolean commit(FakeRequest request, FakeResponse response, FakeSegment segment) {
-    return commit(request, response, segment, 403);
+  @Test
+  void laterEvaluationDoesNotWriteAgain() {
+    FakeResponse response = new FakeResponse();
+    response.completeWrites = false;
+    FakeSegment segment = new FakeSegment();
+    JettyBlockResponseFunction brf = brf(new FakeRequest("GET", null), response);
+
+    assertTrue(commit(brf, segment));
+    assertTrue(commit(brf, segment), "another evaluation owns the block");
+
+    assertEquals(1, response.writes.size());
+    assertEquals(1, response.resets);
   }
 
-  private static boolean commit(
-      FakeRequest request, FakeResponse response, FakeSegment segment, int status) {
-    return JettyBlockResponseHelper.commitBlockingResponse(
-        segment.proxy,
-        request.proxy,
-        response.proxy,
-        status,
-        BlockingContentType.AUTO,
-        emptyMap(),
-        null,
-        NO_OP);
+  @Test
+  void markedFunctionDoesNotWrite() {
+    FakeResponse response = new FakeResponse();
+    JettyBlockResponseFunction brf = brf(new FakeRequest("GET", null), response);
+    brf.markBlockingResponseInitiated();
+
+    assertTrue(commit(brf, new FakeSegment()));
+
+    assertTrue(response.writes.isEmpty());
+    assertEquals(0, response.resets);
   }
 
-  private static boolean commitWithShortTimeout(
-      FakeRequest request, FakeResponse response, FakeSegment segment) {
-    return commitWithShortTimeout(request, response, segment, NO_OP);
+  @Test
+  void claimIsExclusiveUntilReleased() {
+    JettyBlockResponseFunction brf = brf(new FakeRequest("GET", null), new FakeResponse());
+
+    assertTrue(brf.tryClaim());
+    assertFalse(brf.tryClaim());
+    brf.release();
+    assertTrue(brf.tryClaim());
   }
 
-  private static boolean commitWithShortTimeout(
-      FakeRequest request, FakeResponse response, FakeSegment segment, Runnable onLateFailure) {
-    return JettyBlockResponseHelper.commitBlockingResponse(
-        segment.proxy,
-        request.proxy,
-        response.proxy,
-        403,
-        BlockingContentType.AUTO,
-        emptyMap(),
-        null,
-        onLateFailure,
-        1);
+  @Test
+  void concurrentClaimsHaveASingleWinner() throws Exception {
+    JettyBlockResponseFunction brf = brf(new FakeRequest("GET", null), new FakeResponse());
+    int threads = 8;
+    CountDownLatch start = new CountDownLatch(1);
+    ExecutorService executor = Executors.newFixedThreadPool(threads);
+    try {
+      List<Future<Boolean>> claims = new ArrayList<>();
+      for (int i = 0; i < threads; i++) {
+        claims.add(
+            executor.submit(() -> {
+              start.await();
+              return brf.tryClaim();
+            }));
+      }
+      start.countDown();
+      int winners = 0;
+      for (Future<Boolean> claim : claims) {
+        if (claim.get(10, SECONDS)) {
+          winners++;
+        }
+      }
+      assertEquals(1, winners);
+    } finally {
+      executor.shutdownNow();
+    }
   }
 
-  private static Context context(int[] blockFailures) {
+  private static JettyBlockResponseFunction brf(FakeRequest request, FakeResponse response) {
+    return new JettyBlockResponseFunction(request.proxy, response.proxy);
+  }
+
+  private static boolean commit(JettyBlockResponseFunction brf) {
+    return commit(brf, new FakeSegment());
+  }
+
+  private static boolean commit(JettyBlockResponseFunction brf, FakeSegment segment) {
+    return commit(brf, segment, 403);
+  }
+
+  private static boolean commit(JettyBlockResponseFunction brf, FakeSegment segment, int status) {
+    return brf.tryCommitBlockingResponse(
+        segment.proxy, status, BlockingContentType.AUTO, emptyMap(), null);
+  }
+
+  /** A request context counting {@code block_failure} reports. */
+  private RequestContext requestContext(FakeSegment segment) {
     AppSecContext appSecCtx =
         proxy(
             AppSecContext.class,
             (name, args) -> {
               if ("reportBlockFailure".equals(name)) {
-                blockFailures[0]++;
+                blockFailures++;
               }
               return null;
             });
-    RequestContext reqCtx =
-        proxy(
-            RequestContext.class,
-            (name, args) ->
-                "getData".equals(name) && args[0] == RequestContextSlot.APPSEC ? appSecCtx : null);
+    return proxy(
+        RequestContext.class,
+        (name, args) -> {
+          switch (name) {
+            case "getTraceSegment":
+              return segment.proxy;
+            case "getData":
+              return args[0] == RequestContextSlot.APPSEC ? appSecCtx : null;
+            default:
+              return null;
+          }
+        });
+  }
+
+  private static Context context(RequestContext reqCtx) {
     AgentSpan span =
         proxy(AgentSpan.class, (name, args) -> "getRequestContext".equals(name) ? reqCtx : null);
     return proxy(Context.class, (name, args) -> "get".equals(name) ? span : null);
