@@ -1,5 +1,6 @@
 package com.datadog.profiling.agent;
 
+import static com.datadog.profiling.agent.ProfilingRemoteConfigHandler.DISABLE_CONFIG_ID;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -20,6 +21,7 @@ import datadog.trace.api.profiling.RecordingDataListener;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
@@ -128,6 +130,42 @@ class ProfilingRemoteConfigHandlerTest {
   }
 
   @Test
+  void runningStopsAndAppliesDisableConfig() throws Exception {
+    ProfilingRemoteConfigHandler handler = handler(false);
+    handler.onConfigsChanged(ENABLED_CONFIG);
+
+    handler.onConfigsChanged(withDisableConfig(ENABLED_CONFIG));
+
+    assertFalse(profilingSystem.isRunning());
+    assertEquals(2, createdConfigs.size());
+    verify(recording).stop();
+    verify(controller).reconfigure(createdConfigs.get(1));
+    verify(controller, times(1)).createRecording(any(), any());
+  }
+
+  @Test
+  void idleAppliesDisableConfigWithoutStarting() throws Exception {
+    handler(false).onConfigsChanged(withDisableConfig(ENABLED_CONFIG));
+
+    assertFalse(profilingSystem.isRunning());
+    assertEquals(1, createdConfigs.size());
+    verify(controller).reconfigure(createdConfigs.get(0));
+    verify(controller, never()).createRecording(any(), any());
+  }
+
+  @Test
+  void removingDisableConfigRestartsProfiling() throws Exception {
+    ProfilingRemoteConfigHandler handler = handler(false);
+    handler.onConfigsChanged(withDisableConfig(ENABLED_CONFIG));
+
+    // same merged values as before, only the disable config is gone
+    handler.onConfigsChanged(ENABLED_CONFIG);
+
+    assertTrue(profilingSystem.isRunning());
+    verify(controller, times(1)).createRecording(any(), any());
+  }
+
+  @Test
   void removingRemoteConfigRevertsToIdleWhenArmed() throws Exception {
     ProfilingRemoteConfigHandler handler = handler(false);
     handler.onConfigsChanged(ENABLED_CONFIG);
@@ -194,39 +232,34 @@ class ProfilingRemoteConfigHandlerTest {
   }
 
   @Test
-  void configsAreBufferedUntilProfilerIsSet() throws Exception {
+  void configsBeforeProfilerIsSetAreDropped() throws Exception {
     ProfilingRemoteConfigHandler handler = handlerWithoutProfiler(false);
 
-    // Config arrives before profiler is available
     handler.onConfigsChanged(ENABLED_CONFIG);
-
-    // Profiler not running yet because it wasn't set
-    assertFalse(profilingSystem.isRunning());
-    verify(controller, never()).createRecording(any(), any());
-
-    // Now set the profiler - buffered config should be applied
     handler.setProfilingSystem(profilingSystem);
 
-    assertTrue(profilingSystem.isRunning());
-    assertTrue(profilingSystem.isStarted());
-    assertEquals(1, createdConfigs.size());
-    verify(controller).reconfigure(createdConfigs.get(0));
-    verify(controller).createRecording(any(), any());
+    assertFalse(profilingSystem.isRunning());
+    assertTrue(createdConfigs.isEmpty());
+    verify(controller, never()).createRecording(any(), any());
   }
 
   @Test
-  void laterConfigReplacesBufferedConfig() throws Exception {
+  void configsAfterProfilerIsSetAreApplied() throws Exception {
     ProfilingRemoteConfigHandler handler = handlerWithoutProfiler(false);
-
-    // Multiple configs arrive before profiler is available
     handler.onConfigsChanged(DISABLED_CONFIG);
-    handler.onConfigsChanged(ENABLED_CONFIG);
-
-    // Now set the profiler - only the latest config should be applied
     handler.setProfilingSystem(profilingSystem);
+
+    handler.onConfigsChanged(ENABLED_CONFIG);
 
     assertTrue(profilingSystem.isRunning());
     assertEquals(1, createdConfigs.size());
+    verify(controller).reconfigure(createdConfigs.get(0));
+  }
+
+  private static Map<String, String> withDisableConfig(Map<String, String> configs) {
+    Map<String, String> result = new HashMap<>(configs);
+    result.put(DISABLE_CONFIG_ID, "{}");
+    return result;
   }
 
   private ProfilingRemoteConfigHandler handlerWithoutProfiler(boolean runWithLocalConfig) {

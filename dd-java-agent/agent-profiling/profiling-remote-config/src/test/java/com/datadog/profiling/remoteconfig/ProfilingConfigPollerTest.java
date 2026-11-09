@@ -36,6 +36,8 @@ import org.tabletest.junit.TableTest;
 
 @ExtendWith(MockitoExtension.class)
 class ProfilingConfigPollerTest {
+  private static final String ENV = "staging";
+  private static final String SERVICE = "my-app";
 
   @Mock private Config config;
   @Mock private SharedCommunicationObjects sco;
@@ -88,13 +90,13 @@ class ProfilingConfigPollerTest {
   void commitPassesAllAcceptedConfigs() throws Exception {
     ProductListener listener = startAndCaptureListener();
 
-    listener.accept(configKey("a"), json("{\"a\":1}"), hinter);
-    listener.accept(configKey("b"), json("{\"b\":2}"), hinter);
+    listener.accept(configKey("a"), targeted("a", 1), hinter);
+    listener.accept(configKey("b"), targeted("b", 2), hinter);
     listener.commit(hinter);
 
     Map<String, String> expected = new HashMap<>();
-    expected.put("a", "{\"a\":1}");
-    expected.put("b", "{\"b\":2}");
+    expected.put("a", payload("a", 1));
+    expected.put("b", payload("b", 2));
     assertEquals(expected, committedConfigs());
   }
 
@@ -102,26 +104,51 @@ class ProfilingConfigPollerTest {
   void acceptReplacesConfigWithSameId() throws Exception {
     ProductListener listener = startAndCaptureListener();
 
-    listener.accept(configKey("a"), json("{\"v\":1}"), hinter);
-    listener.accept(configKey("a"), json("{\"v\":2}"), hinter);
+    listener.accept(configKey("a"), targeted("v", 1), hinter);
+    listener.accept(configKey("a"), targeted("v", 2), hinter);
     listener.commit(hinter);
 
     Map<String, String> expected = new HashMap<>();
-    expected.put("a", "{\"v\":2}");
+    expected.put("a", payload("v", 2));
     assertEquals(expected, committedConfigs());
+  }
+
+  @Test
+  void configNotTargetingThisApplicationIsIgnored() throws Exception {
+    ProductListener listener = startAndCaptureListener();
+
+    listener.accept(configKey("a"), targeted("a", 1), hinter);
+    listener.accept(configKey("other"), json("{\"targets\":[{\"service\":\"other\"}]}"), hinter);
+    listener.accept(configKey("untargeted"), json("{\"quotas\":[]}"), hinter);
+    listener.commit(hinter);
+
+    Map<String, String> expected = new HashMap<>();
+    expected.put("a", payload("a", 1));
+    assertEquals(expected, committedConfigs());
+  }
+
+  @Test
+  void configNoLongerTargetingThisApplicationIsDropped() throws Exception {
+    ProductListener listener = startAndCaptureListener();
+
+    listener.accept(configKey("a"), targeted("a", 1), hinter);
+    listener.accept(configKey("a"), json("{\"targets\":[{\"env\":\"prod\"}]}"), hinter);
+    listener.commit(hinter);
+
+    assertEquals(emptyMap(), committedConfigs());
   }
 
   @Test
   void removedConfigIsNotCommitted() throws Exception {
     ProductListener listener = startAndCaptureListener();
 
-    listener.accept(configKey("a"), json("{\"a\":1}"), hinter);
-    listener.accept(configKey("b"), json("{\"b\":2}"), hinter);
+    listener.accept(configKey("a"), targeted("a", 1), hinter);
+    listener.accept(configKey("b"), targeted("b", 2), hinter);
     listener.remove(configKey("a"), hinter);
     listener.commit(hinter);
 
     Map<String, String> expected = new HashMap<>();
-    expected.put("b", "{\"b\":2}");
+    expected.put("b", payload("b", 2));
     assertEquals(expected, committedConfigs());
   }
 
@@ -129,7 +156,7 @@ class ProfilingConfigPollerTest {
   void removingAllConfigsCommitsEmptyMap() throws Exception {
     ProductListener listener = startAndCaptureListener();
 
-    listener.accept(configKey("a"), json("{\"a\":1}"), hinter);
+    listener.accept(configKey("a"), targeted("a", 1), hinter);
     listener.remove(configKey("a"), hinter);
     listener.commit(hinter);
 
@@ -140,10 +167,10 @@ class ProfilingConfigPollerTest {
   void committedConfigsAreAnUnmodifiableSnapshot() throws Exception {
     ProductListener listener = startAndCaptureListener();
 
-    listener.accept(configKey("a"), json("{\"a\":1}"), hinter);
+    listener.accept(configKey("a"), targeted("a", 1), hinter);
     listener.commit(hinter);
     Map<String, String> committed = committedConfigs();
-    listener.accept(configKey("b"), json("{\"b\":2}"), hinter);
+    listener.accept(configKey("b"), targeted("b", 2), hinter);
 
     assertEquals(1, committed.size());
     assertThrows(UnsupportedOperationException.class, () -> committed.put("c", "{}"));
@@ -154,7 +181,7 @@ class ProfilingConfigPollerTest {
     ProductListener listener = startAndCaptureListener();
     doThrow(new IllegalStateException("boom")).when(handler).onConfigsChanged(any());
 
-    listener.accept(configKey("a"), json("{\"a\":1}"), hinter);
+    listener.accept(configKey("a"), targeted("a", 1), hinter);
 
     assertDoesNotThrow(() -> listener.commit(hinter));
   }
@@ -177,6 +204,8 @@ class ProfilingConfigPollerTest {
 
   private ProductListener startAndCaptureListener() {
     when(sco.configurationPoller(config)).thenReturn(poller);
+    when(config.getEnv()).thenReturn(ENV);
+    when(config.getServiceName()).thenReturn(SERVICE);
     profilingConfigPoller.start(config, sco);
     verify(poller).addListener(eq(Product.DEBUG), listenerCaptor.capture());
     return listenerCaptor.getValue();
@@ -191,6 +220,22 @@ class ProfilingConfigPollerTest {
     ConfigKey key = mock(ConfigKey.class);
     when(key.getConfigId()).thenReturn(configId);
     return key;
+  }
+
+  private static String payload(String key, int value) {
+    return "{\""
+        + key
+        + "\":"
+        + value
+        + ",\"targets\":[{\"env\":\""
+        + ENV
+        + "\",\"service\":\""
+        + SERVICE
+        + "\"}]}";
+  }
+
+  private static byte[] targeted(String key, int value) {
+    return json(payload(key, value));
   }
 
   private static byte[] json(String json) {

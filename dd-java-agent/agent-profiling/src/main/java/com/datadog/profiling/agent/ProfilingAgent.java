@@ -226,7 +226,7 @@ public class ProfilingAgent {
    * Subscribes to profiling remote config. Called reflectively by {@code
    * datadog.trace.bootstrap.Agent} once the shared communication objects exist. This subscribes
    * immediately so that DEBUG is included in the first remote config poll request; configs received
-   * before the profiler is initialized are buffered and applied later.
+   * before the profiler is initialized are dropped.
    */
   @SuppressFBWarnings(
       value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
@@ -242,7 +242,7 @@ public class ProfilingAgent {
       return; // already subscribed
     }
     // Subscribe immediately so DEBUG is included in the first poll request.
-    // The handler buffers configs until the profiler becomes available.
+    // The handler drops configs until the profiler becomes available.
     ProfilingRemoteConfigHandler handler =
         new ProfilingRemoteConfigHandler(ConfigProvider.getInstance(), false);
     if (profiler != null) {
@@ -256,7 +256,7 @@ public class ProfilingAgent {
   }
 
   // called with the class lock held once the profiling system is initialized; connects the
-  // profiler to the remote config handler so buffered configs can be applied
+  // profiler to the remote config handler so that later configs are applied
   private static void maybeSubscribeRemoteConfig(Config config) {
     if (profiler == null || remoteConfigHandler == null) {
       return;
