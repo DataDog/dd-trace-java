@@ -584,18 +584,15 @@ class AppSecRequestContextTest {
       for (int thread = 0; thread < numThreads; thread++) {
         int firstAttribute = thread * 2 + 1;
         futures.add(
-            executorService.submit(
-                () -> {
-                  startLatch.await(); // Wait for all threads to be ready
-                  context.reportDerivatives(
-                      singletonMap(
-                          "attr" + firstAttribute, literalValue("value" + firstAttribute)));
-                  context.reportDerivatives(
-                      singletonMap(
-                          "attr" + (firstAttribute + 1),
-                          literalValue("value" + (firstAttribute + 1))));
-                  return null;
-                }));
+            executorService.submit(() -> {
+              startLatch.await(); // Wait for all threads to be ready
+              context.reportDerivatives(
+                  singletonMap("attr" + firstAttribute, literalValue("value" + firstAttribute)));
+              context.reportDerivatives(
+                  singletonMap(
+                      "attr" + (firstAttribute + 1), literalValue("value" + (firstAttribute + 1))));
+              return null;
+            }));
       }
 
       // Release all threads at once to maximize concurrent execution

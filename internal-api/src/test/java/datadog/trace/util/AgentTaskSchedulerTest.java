@@ -8,7 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import datadog.trace.test.util.DDJavaSpecification;
 import datadog.trace.test.util.GCUtils;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
@@ -19,7 +18,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-class AgentTaskSchedulerTest extends DDJavaSpecification {
+class AgentTaskSchedulerTest {
 
   private AgentTaskScheduler scheduler;
 

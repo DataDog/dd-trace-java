@@ -331,7 +331,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       }
       String userAgent = extracted.getUserAgent();
       if (userAgent != null) {
-        span.setTag(KnownTags.HTTP_USERAGENT_ID, userAgent);
+        span.setTag(KnownTags.HTTP_USERAGENT, userAgent);
       }
     }
 
@@ -341,7 +341,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
         OtelHttpSemantics.setRequestMethod(span, method);
         OtelHttpSemantics.setMethodResourceName(span, method);
       } else {
-        span.setTag(KnownTags.HTTP_METHOD_ID, method);
+        span.setTag(KnownTags.HTTP_METHOD, method);
       }
 
       try {
@@ -403,7 +403,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       if (inferredAddress != null) {
         inferredAddressStr = inferredAddress.getHostAddress();
         if (shouldTagIps) {
-          span.setTag(KnownTags.HTTP_CLIENT_IP_ID, inferredAddressStr);
+          span.setTag(KnownTags.HTTP_CLIENT_IP, inferredAddressStr);
           clientIpTagged = true;
         }
       }
@@ -416,23 +416,23 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       AgentSpan localRootSpan = span.getLocalRootSpan();
       Object clientIp = localRootSpan.getTag(Tags.HTTP_CLIENT_IP);
       if (clientIp != null) {
-        span.setTag(KnownTags.HTTP_CLIENT_IP_ID, clientIp);
+        span.setTag(KnownTags.HTTP_CLIENT_IP, clientIp);
         clientIpTagged = true;
       }
     }
 
     if (peerIp != null) {
       if (peerIp.indexOf(':') > 0) {
-        span.setTag(KnownTags.PEER_IPV6_ID, peerIp);
+        span.setTag(KnownTags.PEER_IPV6, peerIp);
       } else {
-        span.setTag(KnownTags.PEER_IPV4_ID, peerIp);
+        span.setTag(KnownTags.PEER_IPV4, peerIp);
       }
       if (shouldTagIps) {
-        span.setTag(KnownTags.NETWORK_CLIENT_IP_ID, peerIp);
+        span.setTag(KnownTags.NETWORK_CLIENT_IP, peerIp);
         if (OTEL_SEMANTICS
             && !clientIpTagged
             && span.getTag(KnownTags.HTTP_CLIENT_IP_OTEL_NAME) == null) {
-          span.setTag(KnownTags.HTTP_CLIENT_IP_ID, peerIp);
+          span.setTag(KnownTags.HTTP_CLIENT_IP, peerIp);
         }
       }
     }

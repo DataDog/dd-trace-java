@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.kafka_clients38;
 
+import static datadog.trace.api.KnownTags.TOMBSTONE;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
@@ -14,7 +15,6 @@ import datadog.context.ContextScope;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
-import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.instrumentation.kafka_common.ClusterIdHolder;
 import datadog.trace.instrumentation.kafka_common.MetadataState;
 import net.bytebuddy.asm.Advice;
@@ -66,7 +66,7 @@ public class ProducerAdvice {
     callback = new KafkaProducerCallback(callback, callbackParentSpan, span, clusterId);
 
     if (record.value() == null) {
-      span.setTag(InstrumentationTags.TOMBSTONE, true);
+      span.setTag(TOMBSTONE, true);
     }
 
     return activateSpan(span);

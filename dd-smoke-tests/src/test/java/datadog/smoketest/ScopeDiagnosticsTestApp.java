@@ -65,14 +65,13 @@ public final class ScopeDiagnosticsTestApp {
     span.finish();
     if (action.startsWith("resume-retained")) {
       FutureTask<Void> resume =
-          new FutureTask<>(
-              () -> {
-                ContextScope scope = retained.resume();
-                if (!"resume-retained-unclosed".equals(action)) {
-                  scope.close();
-                }
-                return null;
-              });
+          new FutureTask<>(() -> {
+            ContextScope scope = retained.resume();
+            if (!"resume-retained-unclosed".equals(action)) {
+              scope.close();
+            }
+            return null;
+          });
       new Thread(resume, "retained-continuation-worker").start();
       resume.get(10, TimeUnit.SECONDS);
     } else if ("release-retained".equals(action)) {

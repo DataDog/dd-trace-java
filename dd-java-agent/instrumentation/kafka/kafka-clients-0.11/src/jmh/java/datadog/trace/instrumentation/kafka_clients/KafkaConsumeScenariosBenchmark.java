@@ -5,6 +5,7 @@ import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_ENABLED;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.CONSUMER_DECORATE;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_CONSUME;
+import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.TIME_IN_QUEUE_ENABLED;
 import static datadog.trace.instrumentation.kafka_clients.TextMapInjectAdapter.SETTER;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
@@ -54,6 +55,10 @@ import org.openjdk.jmh.infra.Blackhole;
  * case; with no local Datadog Agent, DSM still builds tags, contexts and checkpoints, but drops the
  * stats points instead of sending them.
  *
+ * <p>{@code timeInQueue} sets {@code dd.kafka.time-in-queue.enabled}, which is off by default with
+ * legacy Kafka tracing. With it on, producers also write their produce time to a header, and the
+ * consumer starts a {@code kafka.deliver} span from it.
+ *
  * <p>{@code traceHeaders} {@code false} gives records with no headers at all, as an untraced
  * producer sends them.
  *
@@ -94,6 +99,9 @@ public class KafkaConsumeScenariosBenchmark {
   @Param({"true", "false"})
   boolean traceHeaders;
 
+  @Param({"false", "true"})
+  boolean timeInQueue;
+
   CoreTracer tracer;
   List<ConsumerRecord<?, ?>> batch;
 
@@ -102,8 +110,12 @@ public class KafkaConsumeScenariosBenchmark {
     // Config is read once per JVM, so this must run before anything touches it. JMH forks a fresh
     // JVM per parameter value; running in-process (-f 0) would silently measure one setting.
     System.setProperty("dd." + DATA_STREAMS_ENABLED, String.valueOf(dataStreams));
+    System.setProperty("dd.kafka.time-in-queue.enabled", String.valueOf(timeInQueue));
     if (Config.get().isDataStreamsEnabled() != dataStreams) {
       throw new IllegalStateException("Config was read before setup; run with forks (not -f 0)");
+    }
+    if (TIME_IN_QUEUE_ENABLED != timeInQueue) {
+      throw new IllegalStateException("time in queue doesn't match timeInQueue=" + timeInQueue);
     }
 
     // Building the tracer registers its propagators as the default ones.
@@ -121,6 +133,9 @@ public class KafkaConsumeScenariosBenchmark {
       if (traceHeaders) {
         AgentSpan producer = tracer.buildSpan("bench", "kafka.produce").start();
         defaultPropagator().inject(producer, headers, SETTER);
+        if (timeInQueue) {
+          SETTER.injectTimeInQueue(headers);
+        }
         producer.finish();
       }
 

@@ -244,10 +244,9 @@ public class CapturedSnapshotTest extends CapturingTestBase {
         createMethodProbe(PROBE_ID2, CLASS_NAME, "main", "int (java.lang.String)");
     TestSnapshotListener listener = installProbes(lineProbe, methodProbe);
     DebuggerAgentHelper.injectSink(listener);
-    DebuggerContext.initProbeResolver(
-        probeIndex -> {
-          throw new IllegalArgumentException("oops");
-        });
+    DebuggerContext.initProbeResolver(probeIndex -> {
+      throw new IllegalArgumentException("oops");
+    });
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.onClass(testClass).call("main", "1").get();
     assertEquals(3, result);
@@ -2779,12 +2778,11 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     MockSampler probeSampler = new MockSampler();
     MockSampler errorSampler = new MockSampler();
     MockSampler globalSampler = new MockSampler();
-    ProbeRateLimiter.setSamplerSupplier(
-        rate -> {
-          if (rate < 2) return errorSampler;
-          if (rate < 101) return probeSampler;
-          return globalSampler;
-        });
+    ProbeRateLimiter.setSamplerSupplier(rate -> {
+      if (rate < 2) return errorSampler;
+      if (rate < 101) return probeSampler;
+      return globalSampler;
+    });
     globalRateSetter.accept(1000);
     try {
       testRun.run();
