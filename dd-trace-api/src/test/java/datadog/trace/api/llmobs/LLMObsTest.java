@@ -370,14 +370,13 @@ class LLMObsTest {
 
   @Test
   void testDefaultNoOpEvaluationProcessorBehavior() {
-    assertDoesNotThrow(
-        () -> {
-          Map<String, Object> emptyTags = new HashMap<>();
-          LLMObs.SubmitEvaluation(NoOpLLMObsSpan.INSTANCE, "label", 0.5, emptyTags);
-          LLMObs.SubmitEvaluation(NoOpLLMObsSpan.INSTANCE, "label", 0.5, "app", emptyTags);
-          LLMObs.SubmitEvaluation(NoOpLLMObsSpan.INSTANCE, "label", "value", emptyTags);
-          LLMObs.SubmitEvaluation(NoOpLLMObsSpan.INSTANCE, "label", "value", "app", emptyTags);
-        });
+    assertDoesNotThrow(() -> {
+      Map<String, Object> emptyTags = new HashMap<>();
+      LLMObs.SubmitEvaluation(NoOpLLMObsSpan.INSTANCE, "label", 0.5, emptyTags);
+      LLMObs.SubmitEvaluation(NoOpLLMObsSpan.INSTANCE, "label", 0.5, "app", emptyTags);
+      LLMObs.SubmitEvaluation(NoOpLLMObsSpan.INSTANCE, "label", "value", emptyTags);
+      LLMObs.SubmitEvaluation(NoOpLLMObsSpan.INSTANCE, "label", "value", "app", emptyTags);
+    });
   }
 
   @Test
@@ -387,13 +386,12 @@ class LLMObsTest {
     tags.put("category", "test");
     tags.put("version", "1.0");
 
-    assertDoesNotThrow(
-        () -> {
-          LLMObs.SubmitEvaluation(span, "accuracy", 0.0, tags);
-          LLMObs.SubmitEvaluation(span, "precision", 1.0, tags);
-          LLMObs.SubmitEvaluation(span, "recall", 0.85, tags);
-          LLMObs.SubmitEvaluation(span, "f1_score", 0.92, "myapp", tags);
-        });
+    assertDoesNotThrow(() -> {
+      LLMObs.SubmitEvaluation(span, "accuracy", 0.0, tags);
+      LLMObs.SubmitEvaluation(span, "precision", 1.0, tags);
+      LLMObs.SubmitEvaluation(span, "recall", 0.85, tags);
+      LLMObs.SubmitEvaluation(span, "f1_score", 0.92, "myapp", tags);
+    });
   }
 
   @Test
@@ -403,12 +401,11 @@ class LLMObsTest {
     tags.put("evaluator", "human");
     tags.put("context", "production");
 
-    assertDoesNotThrow(
-        () -> {
-          LLMObs.SubmitEvaluation(span, "quality", "excellent", tags);
-          LLMObs.SubmitEvaluation(span, "relevance", "poor", tags);
-          LLMObs.SubmitEvaluation(span, "toxicity", "safe", "content-app", tags);
-        });
+    assertDoesNotThrow(() -> {
+      LLMObs.SubmitEvaluation(span, "quality", "excellent", tags);
+      LLMObs.SubmitEvaluation(span, "relevance", "poor", tags);
+      LLMObs.SubmitEvaluation(span, "toxicity", "safe", "content-app", tags);
+    });
   }
 
   @Test
@@ -416,11 +413,10 @@ class LLMObsTest {
     LLMObsSpan span = NoOpLLMObsSpan.INSTANCE;
     Map<String, Object> emptyTags = new HashMap<>();
 
-    assertDoesNotThrow(
-        () -> {
-          LLMObs.SubmitEvaluation(span, "score", 0.75, emptyTags);
-          LLMObs.SubmitEvaluation(span, "category", "good", emptyTags);
-        });
+    assertDoesNotThrow(() -> {
+      LLMObs.SubmitEvaluation(span, "score", 0.75, emptyTags);
+      LLMObs.SubmitEvaluation(span, "category", "good", emptyTags);
+    });
   }
 
   @Test

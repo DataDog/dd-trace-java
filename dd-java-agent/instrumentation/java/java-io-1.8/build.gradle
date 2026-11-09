@@ -12,8 +12,11 @@ muzzle {
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteForDir('java11Test', 'java11Test')
 
-// java11Test only runs on JDK 11+; the testJvmConstraints plugin reads this property by convention
-ext.java11TestMinJavaVersionForTests = JavaVersion.VERSION_11
+tasks.named("java11Test", Test) {
+  testJvmConstraints {
+    minJavaVersion = JavaVersion.VERSION_11
+  }
+}
 
 tasks.named("compileJava11TestJava", JavaCompile) {
   configureCompiler(it, JavaVersion.VERSION_11)

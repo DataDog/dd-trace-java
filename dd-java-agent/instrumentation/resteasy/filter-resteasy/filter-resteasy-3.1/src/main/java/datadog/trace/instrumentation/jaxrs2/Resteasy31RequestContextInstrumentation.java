@@ -17,7 +17,8 @@ import org.jboss.resteasy.core.interception.jaxrs.PostMatchContainerRequestConte
  *
  * <p>In the RESTEasy implementation, <code>ContainerRequestContext</code> is implemented by <code>
  * PostMatchContainerRequestContext</code>. This class provides a way to get the matched resource
- * method through <code>getResourceMethod()</code>.
+ * method through <code>
+ * getResourceMethod()</code>.
  */
 @AutoService(InstrumenterModule.class)
 public class Resteasy31RequestContextInstrumentation extends AbstractRequestContextInstrumentation {

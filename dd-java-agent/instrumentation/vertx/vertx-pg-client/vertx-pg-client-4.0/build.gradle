@@ -22,11 +22,6 @@ muzzle {
 }
 
 addTestSuiteForDir('latestDepTest', 'test')
-addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
-
-tasks.named("latestDepTest", Test) {
-  finalizedBy 'latestDepForkedTest'
-}
 
 dependencies {
   testContainerImage(image('postgres:16-alpine', 'test.postgres.image'))
@@ -51,9 +46,6 @@ dependencies {
 }
 
 configurations.named("latestDepTestRuntimeClasspath") {
-  exclude group: 'com.ongres.scram', module: 'client'
-}
-configurations.named("latestDepForkedTestRuntimeClasspath") {
   exclude group: 'com.ongres.scram', module: 'client'
 }
 

@@ -56,12 +56,11 @@ public class InstrumentedDataFetcher implements DataFetcher<Object> {
       }
       if (dataValue instanceof CompletionStage<?>) {
         return ((CompletionStage<?>) dataValue)
-            .whenComplete(
-                (result, throwable) -> {
-                  DECORATE.onError(fieldSpan, AsyncExceptionUnwrapper.unwrap(throwable));
-                  DECORATE.beforeFinish(fieldSpan);
-                  fieldSpan.finish();
-                });
+            .whenComplete((result, throwable) -> {
+              DECORATE.onError(fieldSpan, AsyncExceptionUnwrapper.unwrap(throwable));
+              DECORATE.beforeFinish(fieldSpan);
+              fieldSpan.finish();
+            });
       }
       DECORATE.beforeFinish(fieldSpan);
       fieldSpan.finish();

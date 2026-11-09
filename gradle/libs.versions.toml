@@ -11,12 +11,9 @@ spotbugs-gradle-plugin = "6.5.11"
 spotbugs_annotations = "4.10.4"
 
 # Source code formatters
-google-java-format = "1.36.1"
 greclipse = "4.27"  # Pinned to preserve Spock table alignment and compact closure formatting.
-ktlint = "1.8.0"
-scalafmt = "3.11.5"
-spotless = "8.10.4"
-tabletest-formatter = "1.1.2"
+spotless = "8.11.0"
+tabletest-formatter = "1.1.3"
 
 # DataDog libs and forks
 ddprof = "1.52.1"

@@ -15,23 +15,22 @@ class RumTelemetryCollectorTest {
 
   @Test
   void testDefaultNoOpDoesNotThrowException() {
-    assertDoesNotThrow(
-        () -> {
-          NO_OP.onInjectionSucceed("3");
-          NO_OP.onInjectionSucceed("5");
-          NO_OP.onInjectionFailed("3", "gzip");
-          NO_OP.onInjectionFailed("5", null);
-          NO_OP.onInjectionSkipped("3");
-          NO_OP.onInjectionSkipped("5");
-          NO_OP.onInitializationSucceed();
-          NO_OP.onContentSecurityPolicyDetected("3");
-          NO_OP.onContentSecurityPolicyDetected("5");
-          NO_OP.onInjectionResponseSize("3", 256L);
-          NO_OP.onInjectionResponseSize("5", 512L);
-          NO_OP.onInjectionTime("3", 10L);
-          NO_OP.onInjectionTime("5", 20L);
-          NO_OP.close();
-        });
+    assertDoesNotThrow(() -> {
+      NO_OP.onInjectionSucceed("3");
+      NO_OP.onInjectionSucceed("5");
+      NO_OP.onInjectionFailed("3", "gzip");
+      NO_OP.onInjectionFailed("5", null);
+      NO_OP.onInjectionSkipped("3");
+      NO_OP.onInjectionSkipped("5");
+      NO_OP.onInitializationSucceed();
+      NO_OP.onContentSecurityPolicyDetected("3");
+      NO_OP.onContentSecurityPolicyDetected("5");
+      NO_OP.onInjectionResponseSize("3", 256L);
+      NO_OP.onInjectionResponseSize("5", 512L);
+      NO_OP.onInjectionTime("3", 10L);
+      NO_OP.onInjectionTime("5", 20L);
+      NO_OP.close();
+    });
   }
 
   @Test
@@ -80,12 +79,11 @@ class RumTelemetryCollectorTest {
 
   @Test
   void testMultipleCloseCallsDoNotThrowException() {
-    assertDoesNotThrow(
-        () -> {
-          NO_OP.close();
-          NO_OP.close();
-          NO_OP.close();
-        });
+    assertDoesNotThrow(() -> {
+      NO_OP.close();
+      NO_OP.close();
+      NO_OP.close();
+    });
   }
 
   @Test
@@ -103,12 +101,11 @@ class RumTelemetryCollectorTest {
 
   @Test
   void testDefaultNoOpDrainMethodsDoNotThrowException() {
-    assertDoesNotThrow(
-        () -> {
-          NO_OP.drain();
-          NO_OP.drain();
-          NO_OP.drainDistributionSeries();
-          NO_OP.drainDistributionSeries();
-        });
+    assertDoesNotThrow(() -> {
+      NO_OP.drain();
+      NO_OP.drain();
+      NO_OP.drainDistributionSeries();
+      NO_OP.drainDistributionSeries();
+    });
   }
 }
