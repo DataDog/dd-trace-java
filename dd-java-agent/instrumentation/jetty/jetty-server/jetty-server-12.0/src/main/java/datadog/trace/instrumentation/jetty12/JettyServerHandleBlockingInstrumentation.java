@@ -30,7 +30,9 @@ public final class JettyServerHandleBlockingInstrumentation extends Instrumenter
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {packageName + ".JettyBlockResponseHelper"};
+    return new String[] {
+      packageName + ".JettyBlockResponseFunction", packageName + ".JettyBlockResponseHelper"
+    };
   }
 
   @Override

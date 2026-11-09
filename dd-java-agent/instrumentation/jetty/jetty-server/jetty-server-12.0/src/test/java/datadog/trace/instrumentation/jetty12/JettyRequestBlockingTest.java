@@ -3,8 +3,11 @@ package datadog.trace.instrumentation.jetty12;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.instrumentation.jetty12.JettyFakes.fake;
 import static datadog.trace.instrumentation.jetty12.JettyFakes.proxy;
+import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.appsec.api.blocking.BlockingContentType;
@@ -16,8 +19,15 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.instrumentation.jetty12.JettyFakes.FakeRequest;
+import datadog.trace.instrumentation.jetty12.JettyFakes.FakeResponse;
+import java.io.IOException;
+import java.nio.channels.WritePendingException;
+import java.util.ArrayList;
+import java.util.List;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.util.Callback;
+import org.eclipse.jetty.util.thread.Invocable.InvocationType;
 import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
@@ -128,6 +138,136 @@ class JettyRequestBlockingTest {
     assertEquals(1, blockFailures);
   }
 
+  @Test
+  void jettyBrfCompletesCallbackOnlyAfterWriteSucceeds() {
+    JettyBrfFixture f = new JettyBrfFixture();
+
+    assertTrue(f.tryBlock());
+
+    assertEquals(1, f.response.writes.size(), "the blocking response write was issued");
+    assertTrue(f.response.lastFlags.get(0));
+    assertNotNull(f.response.pending);
+    assertSame(
+        InvocationType.EITHER,
+        f.response.pending.getInvocationType(),
+        "the write callback keeps the invocation type of the Jetty callback");
+    assertTrue(f.events.isEmpty(), "the Jetty callback must wait for the write");
+    assertTrue(f.brf.isBlockingResponseInitiated());
+
+    f.response.pending.succeeded();
+
+    assertEquals(asList("effectivelyBlocked", "succeeded"), f.events);
+    assertEquals(0, blockFailures);
+    assertTrue(f.brf.isBlockingResponseInitiated());
+  }
+
+  @Test
+  void jettyBrfWriteFailureReportsAndFailsCallback() {
+    JettyBrfFixture f = new JettyBrfFixture();
+    IOException failure = new IOException("broken pipe");
+
+    assertTrue(f.tryBlock());
+    f.response.pending.failed(failure);
+
+    assertEquals(asList("failed"), f.events);
+    assertSame(failure, f.callbackFailure);
+    assertEquals(1, blockFailures);
+    assertFalse(f.brf.isBlockingResponseInitiated(), "a failed write must clear the guard");
+  }
+
+  @TableTest({
+    "Scenario     | Failure     ",
+    "committed    | committed   ",
+    "reset throws | reset throws",
+    "write throws | write throws"
+  })
+  void jettyBrfFailsOpenWhenNothingWasWritten(String failure) {
+    JettyBrfFixture f = new JettyBrfFixture();
+    switch (failure) {
+      case "committed":
+        f.response.committed = true;
+        break;
+      case "reset throws":
+        f.response.resetFailure = new IllegalStateException("committed");
+        break;
+      case "write throws":
+        f.response.writeThrows = new WritePendingException();
+        break;
+      default:
+        throw new IllegalArgumentException(failure);
+    }
+
+    assertFalse(f.tryBlock());
+
+    assertTrue(f.response.writes.isEmpty());
+    assertTrue(f.events.isEmpty(), "the handler chain completes the Jetty callback");
+    assertEquals(1, blockFailures);
+    assertFalse(f.brf.isBlockingResponseInitiated());
+  }
+
+  /** Request-phase blocking with a registered {@link JettyBlockResponseFunction}. */
+  private final class JettyBrfFixture {
+    final FakeRequest request = new FakeRequest("GET", null);
+    final FakeResponse response = new FakeResponse();
+    final JettyBlockResponseFunction brf =
+        new JettyBlockResponseFunction(request.proxy, response.proxy);
+
+    /** Records Jetty callback completions and {@code effectivelyBlocked()} calls, in order. */
+    final List<String> events = new ArrayList<>();
+
+    final TraceSegment segment =
+        proxy(
+            TraceSegment.class,
+            (name, args) -> {
+              events.add(name);
+              return null;
+            });
+    Throwable callbackFailure;
+
+    JettyBrfFixture() {
+      response.completeWrites = false;
+      RequestContext reqCtx = requestContext(brf, segment);
+      AgentSpan span =
+          proxy(
+              AgentSpan.class,
+              (name, args) -> {
+                switch (name) {
+                  case "getRequestBlockingAction":
+                    return RBA;
+                  case "getRequestContext":
+                    return reqCtx;
+                  default:
+                    return null;
+                }
+              });
+      request.attributes.put(
+          DD_CONTEXT_ATTRIBUTE,
+          proxy(Context.class, (name, args) -> "get".equals(name) ? span : null));
+    }
+
+    boolean tryBlock() {
+      Callback callback =
+          proxy(
+              Callback.class,
+              (name, args) -> {
+                switch (name) {
+                  case "getInvocationType":
+                    return InvocationType.EITHER;
+                  case "succeeded":
+                    events.add(name);
+                    return null;
+                  case "failed":
+                    events.add(name);
+                    callbackFailure = (Throwable) args[0];
+                    return null;
+                  default:
+                    return null;
+                }
+              });
+      return JettyBlockResponseHelper.tryBlockRequest(request.proxy, callback);
+    }
+  }
+
   private boolean tryBlock(
       boolean hasContext,
       boolean hasSpan,
@@ -180,6 +320,10 @@ class JettyRequestBlockingTest {
   }
 
   private RequestContext requestContext(BlockResponseFunction brf) {
+    return requestContext(brf, segment);
+  }
+
+  private RequestContext requestContext(BlockResponseFunction brf, TraceSegment traceSegment) {
     AppSecContext appSecCtx =
         proxy(
             AppSecContext.class,
@@ -196,7 +340,7 @@ class JettyRequestBlockingTest {
             case "getBlockResponseFunction":
               return brf;
             case "getTraceSegment":
-              return segment;
+              return traceSegment;
             case "getData":
               return args[0] == RequestContextSlot.APPSEC ? appSecCtx : null;
             default:

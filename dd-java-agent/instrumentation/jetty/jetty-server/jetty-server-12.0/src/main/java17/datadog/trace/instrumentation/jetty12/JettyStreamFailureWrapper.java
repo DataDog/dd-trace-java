@@ -11,6 +11,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import org.eclipse.jetty.server.HttpStream;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Finishes the server span when the Jetty 12 stream completes with a failure.
@@ -26,6 +28,7 @@ import org.eclipse.jetty.server.Response;
  * responses, and the wrapper costs allocations and an extra delegation on every stream operation.
  */
 public final class JettyStreamFailureWrapper extends HttpStream.Wrapper {
+  private static final Logger log = LoggerFactory.getLogger(JettyStreamFailureWrapper.class);
   private static final int MAX_CAUSE_DEPTH = 16;
 
   private final Request request;
@@ -49,8 +52,9 @@ public final class JettyStreamFailureWrapper extends HttpStream.Wrapper {
     try {
       request.addHttpStreamWrapper(
           stream -> new JettyStreamFailureWrapper(stream, request, response));
-    } catch (final RuntimeException ignored) {
+    } catch (final RuntimeException e) {
       // no active stream: nothing to wrap
+      log.debug("Failed to install the stream failure wrapper", e);
     }
   }
 
@@ -58,8 +62,9 @@ public final class JettyStreamFailureWrapper extends HttpStream.Wrapper {
   public void failed(final Throwable failure) {
     try {
       finishSpan(request, response, failure);
-    } catch (final Throwable ignored) {
-      // never prevent the stream from completing
+    } catch (final Throwable t) {
+      // runs on Jetty callback threads: never prevent the stream from completing
+      log.debug("Failed to finish the span of a failed stream", t);
     }
     super.failed(failure);
   }
