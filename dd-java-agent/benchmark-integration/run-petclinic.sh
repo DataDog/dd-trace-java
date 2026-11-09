@@ -147,6 +147,9 @@ heaps=(${PETCLINIC_HEAPS:-256m})
 
 # Honor a pre-set PERF_SETTINGS (e.g. a smoke-test rc); otherwise use the PetClinic settings.
 settings="${PERF_SETTINGS:-$script_dir/perf-test-petclinic-settings.rc}"
+# Absolute, since the benchmark runs from script_dir.
+[ -f "$settings" ] || { log "ERROR: settings file not found: $settings"; exit 1; }
+settings="$(cd "$(dirname "$settings")" && pwd)/$(basename "$settings")"
 
 results_dir="$script_dir/build/petclinic-results/results-$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$results_dir"
