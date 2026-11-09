@@ -5,7 +5,6 @@ import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import com.datadog.profiling.controller.ProfilingSystem;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import com.datadog.profiling.ddprof.DatadogProfiler;
-import com.datadog.profiling.ddprof.DatadogProfilerConfig;
 import com.datadog.profiling.remoteconfig.ProfilingConfigHandler;
 import com.datadog.profiling.remoteconfig.ProfilingConfigMerger;
 import com.datadog.profiling.remoteconfig.RemoteConfiguration;
@@ -49,7 +48,6 @@ final class ProfilingRemoteConfigHandler implements ProfilingConfigHandler {
   private final boolean runWithLocalConfig;
   private final Function<Map<String, String>, ConfigProvider> remoteConfigFactory;
   private final Predicate<ConfigProvider> anyProfilingEnabled;
-  private final Predicate<ConfigProvider> liveHeapEnabled;
   private final boolean startImmediately;
 
   // the latest configs received before the profiler was available, if any
@@ -77,7 +75,6 @@ final class ProfilingRemoteConfigHandler implements ProfilingConfigHandler {
         runWithLocalConfig,
         ConfigProvider::withRemoteOverride,
         DatadogProfiler::isAnyProfilingModeEnabled,
-        DatadogProfilerConfig::isMemoryLeakProfilingEnabled,
         startImmediately);
   }
 
@@ -87,14 +84,12 @@ final class ProfilingRemoteConfigHandler implements ProfilingConfigHandler {
       boolean runWithLocalConfig,
       Function<Map<String, String>, ConfigProvider> remoteConfigFactory,
       Predicate<ConfigProvider> anyProfilingEnabled,
-      Predicate<ConfigProvider> liveHeapEnabled,
       boolean startImmediately) {
     this.profilingSystem = profilingSystem;
     this.localConfig = localConfig;
     this.runWithLocalConfig = runWithLocalConfig;
     this.remoteConfigFactory = remoteConfigFactory;
     this.anyProfilingEnabled = anyProfilingEnabled;
-    this.liveHeapEnabled = liveHeapEnabled;
     this.startImmediately = startImmediately;
   }
 
@@ -155,7 +150,7 @@ final class ProfilingRemoteConfigHandler implements ProfilingConfigHandler {
       enabled = runWithLocalConfig;
     } else {
       log.debug("Applying APM_PROFILING remote config: {}", remote);
-      config = remoteConfigFactory.apply(remote.toConfigValues(liveHeapEnabled.test(localConfig)));
+      config = remoteConfigFactory.apply(remote.toConfigValues());
       // the features that the remote config doesn't set keep their local value
       enabled = anyProfilingEnabled.test(config);
     }

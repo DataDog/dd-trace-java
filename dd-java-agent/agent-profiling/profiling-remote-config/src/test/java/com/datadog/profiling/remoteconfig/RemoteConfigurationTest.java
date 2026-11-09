@@ -3,12 +3,10 @@ package com.datadog.profiling.remoteconfig;
 import static com.datadog.profiling.remoteconfig.RemoteConfiguration.Feature.ALLOCATIONS;
 import static com.datadog.profiling.remoteconfig.RemoteConfiguration.Feature.CPU_TIME;
 import static com.datadog.profiling.remoteconfig.RemoteConfiguration.Feature.HEAP_OBJECTS;
-import static com.datadog.profiling.remoteconfig.RemoteConfiguration.Feature.HEAP_SIZE;
 import static com.datadog.profiling.remoteconfig.RemoteConfiguration.Feature.WALL_TIME;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ALLOCATION_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_CPU_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_TRACK_HEAPSIZE;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_ENABLED;
 import static java.util.Collections.emptyMap;
@@ -32,12 +30,11 @@ class RemoteConfigurationTest {
   void parseReadsEveryFeature() {
     RemoteConfiguration configuration =
         RemoteConfiguration.parse(
-            "{\"profilers\":{\"cpuTime\":true,\"wallTime\":false,\"heapSize\":true,"
+            "{\"profilers\":{\"cpuTime\":true,\"wallTime\":false,"
                 + "\"heapObjects\":false,\"allocations\":true},\"targets\":[]}");
 
     assertEquals(true, configuration.get(CPU_TIME));
     assertEquals(false, configuration.get(WALL_TIME));
-    assertEquals(true, configuration.get(HEAP_SIZE));
     assertEquals(false, configuration.get(HEAP_OBJECTS));
     assertEquals(true, configuration.get(ALLOCATIONS));
   }
@@ -49,7 +46,6 @@ class RemoteConfigurationTest {
 
     assertEquals(true, configuration.get(CPU_TIME));
     assertNull(configuration.get(WALL_TIME));
-    assertNull(configuration.get(HEAP_SIZE));
     assertNull(configuration.get(HEAP_OBJECTS));
     assertNull(configuration.get(ALLOCATIONS));
   }
@@ -58,7 +54,7 @@ class RemoteConfigurationTest {
   void parseIgnoresUnknownAndInvalidFeatures() {
     RemoteConfiguration configuration =
         RemoteConfiguration.parse(
-            "{\"profilers\":{\"cpuTime\":\"true\",\"wallTime\":1,\"heapSize\":null,"
+            "{\"profilers\":{\"cpuTime\":\"true\",\"wallTime\":1,\"heapSize\":true,"
                 + "\"heapObjects\":{},\"allocations\":false,\"locks\":true}}");
 
     // only the valid one is set
@@ -101,7 +97,7 @@ class RemoteConfigurationTest {
     assertEquals(true, merged.get(CPU_TIME), "overwritten by the higher one");
     assertEquals(true, merged.get(WALL_TIME), "only set by the lower one");
     assertEquals(true, merged.get(ALLOCATIONS), "only set by the higher one");
-    assertNull(merged.get(HEAP_SIZE));
+    assertNull(merged.get(HEAP_OBJECTS));
     // the original configurations don't change
     assertEquals(false, lower.get(CPU_TIME));
     assertNull(higher.get(WALL_TIME));
@@ -120,7 +116,7 @@ class RemoteConfigurationTest {
   void emptyConfigurationSetsNothing() {
     assertTrue(RemoteConfiguration.EMPTY.isEmpty());
     assertFalse(RemoteConfiguration.parse("{\"profilers\":{\"cpuTime\":false}}").isEmpty());
-    assertEquals(emptyMap(), RemoteConfiguration.EMPTY.toConfigValues(false));
+    assertEquals(emptyMap(), RemoteConfiguration.EMPTY.toConfigValues());
   }
 
   @Test
@@ -139,7 +135,7 @@ class RemoteConfigurationTest {
         expected,
         RemoteConfiguration.parse(
                 "{\"profilers\":{\"cpuTime\":true,\"wallTime\":false,\"allocations\":true}}")
-            .toConfigValues(false));
+            .toConfigValues());
   }
 
   @Test
@@ -150,110 +146,31 @@ class RemoteConfigurationTest {
 
     assertEquals(
         expected,
-        RemoteConfiguration.parse("{\"profilers\":{\"heapObjects\":true}}").toConfigValues(false));
+        RemoteConfiguration.parse("{\"profilers\":{\"heapObjects\":true}}").toConfigValues());
   }
 
   @Test
-  void heapSizeEnablesTheLiveHeapAndItsSizeTracking() {
-    Map<String, String> expected = new HashMap<>();
-    expected.put(PROFILING_HEAP_ENABLED, "true");
-    expected.put(PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED, "true");
-    expected.put(PROFILING_DATADOG_PROFILER_LIVEHEAP_TRACK_HEAPSIZE, "true");
-
-    assertEquals(
-        expected,
-        RemoteConfiguration.parse("{\"profilers\":{\"heapSize\":true}}").toConfigValues(false));
-  }
-
-  @Test
-  void heapObjectsWithoutHeapSizeKeepTheLiveHeapRunning() {
-    Map<String, String> expected = new HashMap<>();
-    expected.put(PROFILING_HEAP_ENABLED, "true");
-    expected.put(PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED, "true");
-    expected.put(PROFILING_DATADOG_PROFILER_LIVEHEAP_TRACK_HEAPSIZE, "false");
-
-    assertEquals(
-        expected,
-        RemoteConfiguration.parse("{\"profilers\":{\"heapObjects\":true,\"heapSize\":false}}")
-            .toConfigValues(false));
-  }
-
-  @Test
-  void liveHeapStaysOnWhileEitherHeapFeatureIsOn() {
-    // heap sizes and live objects come from the same profiler, so it keeps running for the other
-    Map<String, String> values =
-        RemoteConfiguration.parse("{\"profilers\":{\"heapObjects\":false,\"heapSize\":true}}")
-            .toConfigValues(false);
-
-    assertEquals("true", values.get(PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED));
-    assertEquals("true", values.get(PROFILING_DATADOG_PROFILER_LIVEHEAP_TRACK_HEAPSIZE));
-  }
-
-  @Test
-  void liveHeapIsTurnedOffWhenNoHeapFeatureIsOn() {
+  void heapObjectsDisabledTurnsTheLiveHeapOff() {
     Map<String, String> expected = new HashMap<>();
     expected.put(PROFILING_HEAP_ENABLED, "false");
     expected.put(PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED, "false");
-    expected.put(PROFILING_DATADOG_PROFILER_LIVEHEAP_TRACK_HEAPSIZE, "false");
 
     assertEquals(
         expected,
-        RemoteConfiguration.parse("{\"profilers\":{\"heapObjects\":false,\"heapSize\":false}}")
-            .toConfigValues(false));
+        RemoteConfiguration.parse("{\"profilers\":{\"heapObjects\":false}}").toConfigValues());
   }
 
   @Test
-  void turningOffOneHeapFeatureTurnsOffTheLiveHeapWhenItIsNotEnabledLocally() {
-    Map<String, String> objectsOff =
-        RemoteConfiguration.parse("{\"profilers\":{\"heapObjects\":false}}").toConfigValues(false);
-    assertEquals("false", objectsOff.get(PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED));
-    assertFalse(objectsOff.containsKey(PROFILING_DATADOG_PROFILER_LIVEHEAP_TRACK_HEAPSIZE));
-
-    Map<String, String> sizeOff =
-        RemoteConfiguration.parse("{\"profilers\":{\"heapSize\":false}}").toConfigValues(false);
-    assertEquals("false", sizeOff.get(PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED));
-    assertEquals("false", sizeOff.get(PROFILING_DATADOG_PROFILER_LIVEHEAP_TRACK_HEAPSIZE));
-  }
-
-  @Test
-  void turningOffOneHeapFeatureKeepsTheLiveHeapWhenItIsEnabledLocally() {
-    // the feature that isn't set takes its local value, and comes from the same profiler
-    Map<String, String> sizeOff =
-        RemoteConfiguration.parse("{\"profilers\":{\"heapSize\":false}}").toConfigValues(true);
-    assertEquals("true", sizeOff.get(PROFILING_HEAP_ENABLED));
-    assertEquals("true", sizeOff.get(PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED));
-    assertEquals("false", sizeOff.get(PROFILING_DATADOG_PROFILER_LIVEHEAP_TRACK_HEAPSIZE));
-
-    Map<String, String> objectsOff =
-        RemoteConfiguration.parse("{\"profilers\":{\"heapObjects\":false}}").toConfigValues(true);
-    assertEquals("true", objectsOff.get(PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED));
-    assertFalse(objectsOff.containsKey(PROFILING_DATADOG_PROFILER_LIVEHEAP_TRACK_HEAPSIZE));
-  }
-
-  @Test
-  void turningOffBothHeapFeaturesTurnsOffTheLiveHeapWhateverIsEnabledLocally() {
-    Map<String, String> values =
-        RemoteConfiguration.parse("{\"profilers\":{\"heapObjects\":false,\"heapSize\":false}}")
-            .toConfigValues(true);
-
-    assertEquals("false", values.get(PROFILING_HEAP_ENABLED));
-    assertEquals("false", values.get(PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED));
-  }
-
-  @Test
-  void theLocalLiveHeapOnlyMattersWhenAHeapFeatureIsSet() {
-    Map<String, String> values =
-        RemoteConfiguration.parse("{\"profilers\":{\"cpuTime\":true}}").toConfigValues(true);
-
-    assertEquals(1, values.size());
-    assertFalse(values.containsKey(PROFILING_HEAP_ENABLED));
-    assertFalse(values.containsKey(PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED));
+  void heapSizeIsNotSupportedAndIgnored() {
+    assertSame(
+        RemoteConfiguration.EMPTY,
+        RemoteConfiguration.parse("{\"profilers\":{\"heapSize\":true}}"));
   }
 
   @Test
   void featuresNotSetAreNotInTheConfigValues() {
     Map<String, String> values =
-        RemoteConfiguration.parse("{\"profilers\":{\"cpuTime\":true}}").toConfigValues(false);
+        RemoteConfiguration.parse("{\"profilers\":{\"cpuTime\":true}}").toConfigValues();
 
     assertEquals(1, values.size());
     assertFalse(values.containsKey(PROFILING_DATADOG_PROFILER_WALL_ENABLED));

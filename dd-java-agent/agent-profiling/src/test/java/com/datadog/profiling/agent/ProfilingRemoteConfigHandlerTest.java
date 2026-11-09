@@ -19,7 +19,6 @@ import com.datadog.profiling.controller.OngoingRecording;
 import com.datadog.profiling.controller.ProfilingSystem;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import com.datadog.profiling.ddprof.DatadogProfiler;
-import com.datadog.profiling.ddprof.DatadogProfilerConfig;
 import com.datadog.profiling.remoteconfig.RemoteConfiguration;
 import com.datadog.profiling.remoteconfig.RemoteConfigurationStack;
 import datadog.trace.api.profiling.ProfilingSnapshot;
@@ -44,8 +43,7 @@ class ProfilingRemoteConfigHandlerTest {
   private static final String ENABLED_KEY = "profiling.ddprof.cpu.enabled";
   private static final String WALL_KEY = "profiling.ddprof.wall.enabled";
   private static final String ALL_FEATURES_DISABLED =
-      "\"cpuTime\":false,\"wallTime\":false,\"heapSize\":false,\"heapObjects\":false,"
-          + "\"allocations\":false";
+      "\"cpuTime\":false,\"wallTime\":false,\"heapObjects\":false," + "\"allocations\":false";
 
   private final ConfigProvider localConfig = ConfigProvider.getInstance();
   private final Controller controller = mock(Controller.class);
@@ -88,12 +86,11 @@ class ProfilingRemoteConfigHandlerTest {
         false,
         ConfigProvider::withRemoteOverride,
         DatadogProfiler::isAnyProfilingModeEnabled,
-        DatadogProfilerConfig::isMemoryLeakProfilingEnabled,
         true);
   }
 
   private ProfilingRemoteConfigHandler handler(ProfilingSystem system, boolean runWithLocalConfig) {
-    return handler(system, runWithLocalConfig, true, false);
+    return handler(system, runWithLocalConfig, true);
   }
 
   /**
@@ -101,13 +98,9 @@ class ProfilingRemoteConfigHandlerTest {
    * enables anything.
    *
    * @param startImmediately whether starting right away is safe
-   * @param localLiveHeapEnabled whether the live heap profiler runs by the local configuration
    */
   private ProfilingRemoteConfigHandler handler(
-      ProfilingSystem system,
-      boolean runWithLocalConfig,
-      boolean startImmediately,
-      boolean localLiveHeapEnabled) {
+      ProfilingSystem system, boolean runWithLocalConfig, boolean startImmediately) {
     return new ProfilingRemoteConfigHandler(
         system,
         localConfig,
@@ -119,7 +112,6 @@ class ProfilingRemoteConfigHandlerTest {
           return config;
         },
         config -> "true".equals(remoteValues.getOrDefault(config, emptyMap()).get(ENABLED_KEY)),
-        config -> localLiveHeapEnabled,
         startImmediately);
   }
 
@@ -463,7 +455,7 @@ class ProfilingRemoteConfigHandlerTest {
 
   @Test
   void profilerStartsAfterTheStartupDelayWhenStartingRightAwayIsNotSafe() throws Exception {
-    handler(profilingSystem, false, false, false).onConfigsChanged(enabledConfig());
+    handler(profilingSystem, false, false).onConfigsChanged(enabledConfig());
 
     // it is starting, but only records after the startup delay, which isn't a failure to start
     assertTrue(profilingSystem.isRunning());
@@ -492,21 +484,6 @@ class ProfilingRemoteConfigHandlerTest {
 
     assertTrue(profilingSystem.isRunning());
     verify(recording).snapshot(any(), eq(ProfilingSnapshot.Kind.ON_SHUTDOWN));
-  }
-
-  @Test
-  void heapFeatureThatIsNotSetIsAsEnabledAsTheLocalLiveHeap() throws Exception {
-    // heapSize is disabled and heapObjects isn't set: the live heap keeps running if it runs
-    // locally
-    String payload = "\"cpuTime\":true,\"heapSize\":false";
-
-    handler(profilingSystem, false, true, true).onConfigsChanged(stackOf(payload));
-    handler(profilingSystem, false, true, false).onConfigsChanged(stackOf(payload));
-
-    assertEquals(
-        "true", remoteValues.get(createdConfigs.get(0)).get("profiling.ddprof.liveheap.enabled"));
-    assertEquals(
-        "false", remoteValues.get(createdConfigs.get(1)).get("profiling.ddprof.liveheap.enabled"));
   }
 
   @Test

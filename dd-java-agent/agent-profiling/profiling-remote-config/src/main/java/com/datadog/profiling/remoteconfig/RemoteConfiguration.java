@@ -3,7 +3,6 @@ package com.datadog.profiling.remoteconfig;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ALLOCATION_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_CPU_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_TRACK_HEAPSIZE;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_ENABLED;
 import static java.util.Collections.unmodifiableMap;
@@ -32,7 +31,6 @@ public final class RemoteConfiguration {
   public enum Feature {
     CPU_TIME("cpuTime"),
     WALL_TIME("wallTime"),
-    HEAP_SIZE("heapSize"),
     HEAP_OBJECTS("heapObjects"),
     ALLOCATIONS("allocations");
 
@@ -153,34 +151,19 @@ public final class RemoteConfiguration {
    * <ul>
    *   <li>{@code cpuTime}, {@code wallTime} and {@code allocations} enable the Datadog profiler's
    *       CPU, wall time and allocation profiling;
-   *   <li>{@code heapObjects} and {@code heapSize} both come from the live heap profiler, so it
-   *       runs when either is enabled. A heap feature that this doesn't set is enabled when the
-   *       live heap profiler runs locally, so disabling one of them only turns the live heap
-   *       profiler off when the other isn't enabled either. {@code heapSize} also enables, or
-   *       disables, tracking the size of the live heap.
+   *   <li>{@code heapObjects} enables the live heap (object sampling) profiler.
    * </ul>
    *
-   * @param localLiveHeapEnabled whether the live heap profiler is enabled by the local
-   *     configuration, which is the value of the heap features that this doesn't set
    * @return the configuration values by config name
    */
-  public Map<String, String> toConfigValues(boolean localLiveHeapEnabled) {
+  public Map<String, String> toConfigValues() {
     Map<String, String> config = new HashMap<>();
     put(config, PROFILING_DATADOG_PROFILER_CPU_ENABLED, get(Feature.CPU_TIME));
     put(config, PROFILING_DATADOG_PROFILER_WALL_ENABLED, get(Feature.WALL_TIME));
     put(config, PROFILING_ALLOCATION_ENABLED, get(Feature.ALLOCATIONS));
-
     Boolean heapObjects = get(Feature.HEAP_OBJECTS);
-    Boolean heapSize = get(Feature.HEAP_SIZE);
-    if (heapObjects != null || heapSize != null) {
-      // a feature that isn't set is as enabled as the live heap profiler is locally
-      boolean objectsOn = heapObjects != null ? heapObjects : localLiveHeapEnabled;
-      boolean sizeOn = heapSize != null ? heapSize : localLiveHeapEnabled;
-      boolean liveHeap = objectsOn || sizeOn;
-      put(config, PROFILING_HEAP_ENABLED, liveHeap);
-      put(config, PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED, liveHeap);
-    }
-    put(config, PROFILING_DATADOG_PROFILER_LIVEHEAP_TRACK_HEAPSIZE, heapSize);
+    put(config, PROFILING_HEAP_ENABLED, heapObjects);
+    put(config, PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED, heapObjects);
     return config;
   }
 

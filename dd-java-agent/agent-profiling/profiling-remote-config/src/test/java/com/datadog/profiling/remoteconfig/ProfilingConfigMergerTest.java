@@ -3,7 +3,6 @@ package com.datadog.profiling.remoteconfig;
 import static com.datadog.profiling.remoteconfig.RemoteConfiguration.Feature.ALLOCATIONS;
 import static com.datadog.profiling.remoteconfig.RemoteConfiguration.Feature.CPU_TIME;
 import static com.datadog.profiling.remoteconfig.RemoteConfiguration.Feature.HEAP_OBJECTS;
-import static com.datadog.profiling.remoteconfig.RemoteConfiguration.Feature.HEAP_SIZE;
 import static com.datadog.profiling.remoteconfig.RemoteConfiguration.Feature.WALL_TIME;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -65,16 +64,15 @@ class ProfilingConfigMergerTest {
 
   @Test
   void configurationsAreMergedFeatureByFeature() {
-    stack.push("general", 0, config("\"cpuTime\":true,\"wallTime\":false,\"heapSize\":true"));
+    stack.push("general", 0, config("\"cpuTime\":true,\"wallTime\":false,\"heapObjects\":true"));
     stack.push("specific", 2001, config("\"wallTime\":true,\"allocations\":true"));
 
     RemoteConfiguration merged = ProfilingConfigMerger.merge(stack);
 
     assertEquals(true, merged.get(CPU_TIME), "only set by the general one");
     assertEquals(true, merged.get(WALL_TIME), "overwritten by the specific one");
-    assertEquals(true, merged.get(HEAP_SIZE), "only set by the general one");
+    assertEquals(true, merged.get(HEAP_OBJECTS), "only set by the general one");
     assertEquals(true, merged.get(ALLOCATIONS), "only set by the specific one");
-    assertNull(merged.get(HEAP_OBJECTS), "set by none");
   }
 
   @Test
