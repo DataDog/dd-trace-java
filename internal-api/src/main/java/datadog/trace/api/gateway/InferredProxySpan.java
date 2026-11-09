@@ -106,25 +106,25 @@ public class InferredProxySpan implements ImplicitContextKeyed {
     span.setServiceName(serviceName, INSTRUMENTATION_NAME);
 
     // Component: aws-apigateway or aws-httpapi
-    span.setTag(KnownTags.COMPONENT_ID, proxySystem);
+    span.setTag(KnownTags.COMPONENT, proxySystem);
 
     // Span kind: server
-    span.setTag(KnownTags.SPAN_KIND_ID, SPAN_KIND_SERVER);
+    span.setTag(KnownTags.SPAN_KIND, SPAN_KIND_SERVER);
 
     // SpanType: web
-    span.setTag(KnownTags.SPAN_TYPE_ID, "web");
+    span.setTag(KnownTags.SPAN_TYPE, "web");
 
     if (OTEL_SEMANTICS) {
       OtelHttpSemantics.setRequestMethod(span, httpMethod);
     } else {
-      span.setTag(KnownTags.HTTP_METHOD_ID, httpMethod);
+      span.setTag(KnownTags.HTTP_METHOD, httpMethod);
     }
     span.setTagsFrom(HttpServerUrl.fromInferredProxy(domainName, path), URL_TAGS);
 
     // A concrete path is not a route under the OTel conventions. Keep the legacy fallback only
     // while Datadog semantics are active.
     String route = resourcePath != null && !resourcePath.isEmpty() ? resourcePath : null;
-    span.setTag(KnownTags.HTTP_ROUTE_ID, OTEL_SEMANTICS ? route : route != null ? route : path);
+    span.setTag(KnownTags.HTTP_ROUTE, OTEL_SEMANTICS ? route : route != null ? route : path);
 
     // "stage" - value of x-dd-proxy-stage
     span.setTag("stage", header(STAGE));
@@ -306,7 +306,7 @@ public class InferredProxySpan implements ImplicitContextKeyed {
 
     Object userAgent = serviceEntrySpan.getTag(HTTP_USER_AGENT);
     if (userAgent != null) {
-      this.span.setTag(KnownTags.HTTP_USERAGENT_ID, userAgent.toString());
+      this.span.setTag(KnownTags.HTTP_USERAGENT, userAgent.toString());
     }
 
     // Forward the Datadog scan/test markers so the API endpoint reducer can keep

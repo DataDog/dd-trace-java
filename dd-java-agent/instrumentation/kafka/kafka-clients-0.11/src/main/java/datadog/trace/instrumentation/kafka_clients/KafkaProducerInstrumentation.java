@@ -4,6 +4,7 @@ import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEXT_TRACKING;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.api.KnownTags.TOMBSTONE;
 import static datadog.trace.api.datastreams.DataStreamsContext.fromTagsWithoutCheckpoint;
 import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
 import static datadog.trace.api.datastreams.DataStreamsTags.createWithClusterId;
@@ -43,7 +44,6 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.instrumentation.kafka_common.ClusterIdHolder;
 import datadog.trace.instrumentation.kafka_common.KafkaConfigHelper;
 import datadog.trace.instrumentation.kafka_common.MetadataState;
@@ -173,7 +173,7 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
       callback = new KafkaProducerCallback(callback, callbackParentSpan, span, clusterId);
 
       if (record.value() == null) {
-        span.setTag(InstrumentationTags.TOMBSTONE, true);
+        span.setTag(TOMBSTONE, true);
       }
 
       return activateSpan(span);

@@ -15,7 +15,6 @@ muzzle {
 }
 
 addTestSuiteForDir('latestDepTest', 'test')
-addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 
 dependencies {
   compileOnly group: 'org.redisson', name: 'redisson', version: '3.10.3', {

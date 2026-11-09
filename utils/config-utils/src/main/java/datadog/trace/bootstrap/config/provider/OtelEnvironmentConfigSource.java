@@ -74,6 +74,8 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
 
   private final boolean enabled;
 
+  private final boolean sdkDisabled;
+
   private final Map<String, String> otelEnvironment = new HashMap<>();
 
   private final Properties otelConfigFile = loadOtelConfigFile();
@@ -82,12 +84,8 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
 
   @Override
   protected String get(String key) {
-    if (!enabled) {
-      return null;
-    }
-
     String value = otelEnvironment.get(key);
-    if (null == value && key.startsWith("otel.")) {
+    if (null == value && enabled && key.startsWith("otel.")) {
       value = getOtelProperty(key);
     }
     return value;
@@ -104,23 +102,36 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
 
   OtelEnvironmentConfigSource(Properties datadogConfigFile) {
     this.datadogConfigFile = datadogConfigFile;
-    this.enabled = traceOtelEnabled() || metricsOtelEnabled() || logsOtelEnabled();
+    // OTEL_SDK_DISABLED applies even when no OpenTelemetry signal is enabled
+    this.sdkDisabled = "true".equalsIgnoreCase(getOtelProperty("otel.sdk.disabled"));
+    this.enabled =
+        !sdkDisabled && (traceOtelEnabled() || metricsOtelEnabled() || logsOtelEnabled());
 
-    if (enabled) {
+    if (sdkDisabled) {
+      // DD_TRACE_ENABLED can turn tracing back on, unlike the other switches, which
+      // InstrumenterConfig and Config enforce. Other OpenTelemetry settings are ignored.
+      capture(TRACE_ENABLED, "false");
+      capture(TRACE_OTEL_ENABLED, "false");
+      capture(METRICS_OTEL_ENABLED, "false");
+      capture(LOGS_OTEL_ENABLED, "false");
+      capture(RUNTIME_METRICS_ENABLED, "false");
+    } else if (enabled) {
       setupOtelEnvironment();
     }
   }
 
-  private void setupOtelEnvironment() {
+  /**
+   * Returns {@code true} when {@code OTEL_SDK_DISABLED=true}, which also turns off OpenTelemetry
+   * signals and runtime metrics whatever their Datadog settings.
+   */
+  boolean isSdkDisabled() {
+    return sdkDisabled;
+  }
 
-    // only applies when OTEL is enabled by default
-    String sdkDisabled = getOtelProperty("otel.sdk.disabled", "dd." + TRACE_OTEL_ENABLED);
-    if ("true".equalsIgnoreCase(sdkDisabled)) {
-      capture(TRACE_OTEL_ENABLED, "false");
-      capture(METRICS_OTEL_ENABLED, "false");
-      capture(LOGS_OTEL_ENABLED, "false");
-      return;
-    }
+  private void setupOtelEnvironment() {
+    // Reports that DD_TRACE_OTEL_ENABLED hides OTEL_SDK_DISABLED, which only applies when true
+    getOtelProperty("otel.sdk.disabled", "dd." + TRACE_OTEL_ENABLED);
+
     String logLevel = getOtelProperty("otel.log.level", "dd." + LOG_LEVEL);
     String resourceAttributes = getOtelProperty("otel.resource.attributes", "dd." + TAGS);
     String serviceName = getOtelProperty("otel.service.name", "dd." + SERVICE_NAME);
