@@ -283,7 +283,7 @@ public final class JettyBlockResponseHelper {
   }
 
   /** Can run inside a Jetty write callback, so it never lets anything escape. */
-  private static void reportBlockFailure(RequestContext reqCtx) {
+  static void reportBlockFailure(RequestContext reqCtx) {
     try {
       Object appSecCtx = reqCtx.getData(RequestContextSlot.APPSEC);
       if (appSecCtx instanceof AppSecContext) {

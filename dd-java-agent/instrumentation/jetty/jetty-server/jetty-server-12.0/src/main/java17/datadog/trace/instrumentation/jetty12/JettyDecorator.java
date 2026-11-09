@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.jetty12;
 
 import static datadog.trace.bootstrap.ActiveSubsystems.APPSEC_ACTIVE;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_IGNORE_COMMIT_ATTRIBUTE;
 
 import datadog.context.Context;
 import datadog.trace.api.Config;
@@ -150,6 +151,14 @@ public class JettyDecorator extends HttpServerDecorator<Request, Request, Respon
     }
   }
 
+  /**
+   * Response-phase AppSec analysis runs before the commit, see {@code JettyCommitResponseHelper}.
+   */
+  @Override
+  protected boolean isAppSecOnResponseSeparate() {
+    return true;
+  }
+
   /** Decorates the span with the response and finishes it. */
   public void finishSpan(
       final Context context, final AgentSpan span, final Request request, final Response response) {
@@ -179,6 +188,13 @@ public class JettyDecorator extends HttpServerDecorator<Request, Request, Respon
         throwable = throwable.getCause();
       }
       onError(span, throwable);
+    }
+    if (request.getAttribute(DD_IGNORE_COMMIT_ATTRIBUTE) == null) {
+      // the commit hook never saw this response (e.g. a core handler committing it without any
+      // write, or AppSec instrumentation not applied): keep response monitoring, too late to block
+      int status = response.getStatus();
+      callIGCallbackResponseAndHeaders(
+          span, response, status == 0 ? 200 : status, ExtractAdapter.Response.GETTER);
     }
     super.onResponse(span, response);
   }
