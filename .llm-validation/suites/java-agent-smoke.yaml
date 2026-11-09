@@ -1,19 +1,21 @@
 name: java-agent-smoke
 version: "0.1"
 cases:
-  - id: java-lint-plan-001
+  # Ground truth: settings.gradle.kts, netty-4.1/build.gradle, and Netty41ClientTest.groovy.
+  - id: java-instrumentation-test-selection-001
     files: [AGENTS.md]
     only_warn: true
     input: |
-      I want to enable one currently deferred SpotBugs detector for production code
-      in dd-trace-java. Give a short plan using repository files, identifying the
-      configuration, scope, and validation steps. Do not edit files, run builds,
-      call external services, or claim that validation has already passed.
+      I changed the Netty 4.1 HTTP client instrumentation. How do I run only
+      Netty41ClientV0ForkedTest on Java 17, with both the normal and latest dependencies?
+      Check the module and test class before suggesting commands.
+      Give a plan only; do not edit files, run commands, or use external services.
     expected_criteria:
-      - Locates the SpotBugs convention in buildSrc/src/main/kotlin/dd-trace-java.conventions.spotbugs.gradle.kts and checks its omitVisitors list before choosing a detector.
-      - Proposes enabling one detector, keeping ignoreFailures false and the production task scope; does not enable analysis on tests or smoke tests as part of this request.
-      - Proposes validating the affected production checks; ./gradlew check -PskipTests includes enabled SpotBugs tasks and other checks. Distinguishes proposed validation from completed validation.
-      - Respects the read-only, plan-only request.
+      - Uses the module path :dd-java-agent:instrumentation:netty:netty-4.1.
+      - Selects forkedTest for the normal dependencies and latestDepForkedTest for the latest dependencies.
+      - Filters both tasks to Netty41ClientV0ForkedTest with --tests and selects Java 17 with -PtestJvm=17.
+      - Explains that the ForkedTest class needs a separate JVM and that a successful build with zero tests is not validation.
     bad_signals:
-      - Recommends bulk-removing omitVisitors entries or setting ignoreFailures to true to pass CI.
-      - Claims builds or checks passed despite not running them, or performs edits or external calls contrary to the request.
+      - Uses only test or latestDepTest, omits the netty parent project, or filters only the abstract base class.
+      - Recommends changing build configuration or running the entire repository suite for this focused check.
+      - Changes files, runs commands, uses external services, or claims the test passed.
