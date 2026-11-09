@@ -145,15 +145,14 @@ class OtlpMetricsServiceTest {
     CountDownLatch firstEntered = new CountDownLatch(1);
     CountDownLatch release = new CountDownLatch(1);
     when(test.collector.collectMetrics())
-        .thenAnswer(
-            ignored -> {
-              int count = active.incrementAndGet();
-              maximum.accumulateAndGet(count, Math::max);
-              firstEntered.countDown();
-              assertTrue(release.await(5, SECONDS));
-              active.decrementAndGet();
-              return PAYLOAD;
-            });
+        .thenAnswer(ignored -> {
+          int count = active.incrementAndGet();
+          maximum.accumulateAndGet(count, Math::max);
+          firstEntered.countDown();
+          assertTrue(release.await(5, SECONDS));
+          active.decrementAndGet();
+          return PAYLOAD;
+        });
     when(test.sender.send(PAYLOAD)).thenReturn(success(200));
 
     test.service.flush();
@@ -255,12 +254,11 @@ class OtlpMetricsServiceTest {
   private TestService blockingService() {
     TestService test = service(PAYLOAD);
     when(test.sender.send(PAYLOAD))
-        .thenAnswer(
-            ignored -> {
-              test.sendEntered.countDown();
-              assertTrue(test.releaseSend.await(5, SECONDS));
-              return success(200);
-            });
+        .thenAnswer(ignored -> {
+          test.sendEntered.countDown();
+          assertTrue(test.releaseSend.await(5, SECONDS));
+          return success(200);
+        });
     return test;
   }
 

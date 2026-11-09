@@ -123,16 +123,15 @@ public final class StackTraces {
     StringBuilder sb = new StringBuilder(trace.length());
     new BufferedReader(new StringReader(trace))
         .lines()
-        .forEach(
-            line -> {
-              Matcher m = FRAME.matcher(line);
-              if (m.matches()) {
-                sb.append("\tat ").append(abbreviatePackageName(m.group(1))).append(m.group(2));
-              } else {
-                sb.append(line);
-              }
-              sb.append(System.lineSeparator());
-            });
+        .forEach(line -> {
+          Matcher m = FRAME.matcher(line);
+          if (m.matches()) {
+            sb.append("\tat ").append(abbreviatePackageName(m.group(1))).append(m.group(2));
+          } else {
+            sb.append(line);
+          }
+          sb.append(System.lineSeparator());
+        });
     return sb.toString();
   }
 

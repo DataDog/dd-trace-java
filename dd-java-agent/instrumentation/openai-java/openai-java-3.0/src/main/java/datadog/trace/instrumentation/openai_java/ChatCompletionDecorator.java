@@ -51,11 +51,10 @@ public class ChatCompletionDecorator {
     }
 
     // Keep model_name and output shape stable on error paths where no response is available.
-    modelName.ifPresent(
-        str -> {
-          span.setTag(CommonTags.MODEL_NAME, str);
-          span.setTag(CommonTags.OUTPUT, Collections.singletonList(LLMObs.LLMMessage.from("", "")));
-        });
+    modelName.ifPresent(str -> {
+      span.setTag(CommonTags.MODEL_NAME, str);
+      span.setTag(CommonTags.OUTPUT, Collections.singletonList(LLMObs.LLMMessage.from("", "")));
+    });
 
     span.setTag(CommonTags.SPAN_KIND, Tags.LLMOBS_LLM_SPAN_KIND);
 
@@ -73,12 +72,11 @@ public class ChatCompletionDecorator {
     metadata.put("stream", stream);
     params
         .streamOptions()
-        .ifPresent(
-            v -> {
-              if (v.includeUsage().orElse(false)) {
-                metadata.put("stream_options", Collections.singletonMap("include_usage", true));
-              }
-            });
+        .ifPresent(v -> {
+          if (v.includeUsage().orElse(false)) {
+            metadata.put("stream_options", Collections.singletonMap("include_usage", true));
+          }
+        });
     params.topP().ifPresent(v -> metadata.put("top_p", v));
     params.frequencyPenalty().ifPresent(v -> metadata.put("frequency_penalty", v));
     params.presencePenalty().ifPresent(v -> metadata.put("presence_penalty", v));
@@ -87,22 +85,21 @@ public class ChatCompletionDecorator {
     span.setTag(CommonTags.METADATA, metadata);
     params
         .toolChoice()
-        .ifPresent(
-            toolChoice -> {
-              String choice = null;
-              if (toolChoice.isAuto()) {
-                choice = "auto";
-              } else if (toolChoice.isAllowedToolChoice()) {
-                choice = "allowed_tools";
-              } else if (toolChoice.isNamedToolChoice()) {
-                choice = "function";
-              } else if (toolChoice.isNamedToolChoiceCustom()) {
-                choice = "custom";
-              }
-              if (choice != null) {
-                metadata.put("tool_choice", choice);
-              }
-            });
+        .ifPresent(toolChoice -> {
+          String choice = null;
+          if (toolChoice.isAuto()) {
+            choice = "auto";
+          } else if (toolChoice.isAllowedToolChoice()) {
+            choice = "allowed_tools";
+          } else if (toolChoice.isNamedToolChoice()) {
+            choice = "function";
+          } else if (toolChoice.isNamedToolChoiceCustom()) {
+            choice = "custom";
+          }
+          if (choice != null) {
+            metadata.put("tool_choice", choice);
+          }
+        });
 
     List<ChatCompletionTool> tools = params._tools().asKnown().orElse(Collections.emptyList());
     if (!tools.isEmpty()) {
@@ -139,9 +136,8 @@ public class ChatCompletionDecorator {
       funcDef.description().ifPresent(desc -> toolDef.put("description", desc));
       funcDef
           .parameters()
-          .ifPresent(
-              params ->
-                  toolDef.put("schema", jsonValueMapToObject(params._additionalProperties())));
+          .ifPresent(params ->
+              toolDef.put("schema", jsonValueMapToObject(params._additionalProperties())));
       return toolDef;
     }
 

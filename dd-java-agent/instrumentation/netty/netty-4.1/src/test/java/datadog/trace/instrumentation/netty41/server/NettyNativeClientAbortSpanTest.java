@@ -155,15 +155,14 @@ public class NettyNativeClientAbortSpanTest extends AbstractInstrumentationTest 
         ctx.write(new DefaultHttpContent(content));
       }
       ctx.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT)
-          .addListener(
-              future -> {
-                if (future.isSuccess()) {
-                  failures.offer(
-                      new AssertionError("cancelled response tail write unexpectedly succeeded"));
-                } else if (failureRecorded.compareAndSet(false, true)) {
-                  failures.offer(future.cause());
-                }
-              });
+          .addListener(future -> {
+            if (future.isSuccess()) {
+              failures.offer(
+                  new AssertionError("cancelled response tail write unexpectedly succeeded"));
+            } else if (failureRecorded.compareAndSet(false, true)) {
+              failures.offer(future.cause());
+            }
+          });
     }
 
     private Throwable awaitFailure() throws InterruptedException, TimeoutException {

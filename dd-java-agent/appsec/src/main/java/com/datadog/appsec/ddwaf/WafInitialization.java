@@ -3,9 +3,10 @@ package com.datadog.appsec.ddwaf;
 import com.datadog.appsec.util.StandardizedLogging;
 import com.datadog.ddwaf.Waf;
 import datadog.environment.SystemProperties;
+import datadog.trace.api.internal.VisibleForTesting;
 import java.io.File;
-import java.io.IOException;
 import java.util.Scanner;
+import java.util.concurrent.Callable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,21 +28,28 @@ public class WafInitialization {
   }
 
   private static String getLibc() {
-    String os = SystemProperties.get("os.name");
-    if ("Linux".equals(os)) {
-      File file = new File("/proc/self/maps");
-      try (Scanner sc = new Scanner(file, "ISO-8859-1")) {
-        while (sc.hasNextLine()) {
-          String module = sc.nextLine();
-          if (module.contains("libc.musl-") || module.contains("ld-musl-")) {
-            return "musl";
-          } else if (module.contains("-linux-gnu") || module.contains("libc-")) {
-            return "libc";
+    return getLibc(
+        () -> SystemProperties.get("os.name"),
+        () -> new Scanner(new File("/proc/self/maps"), "ISO-8859-1"));
+  }
+
+  @VisibleForTesting
+  static String getLibc(Callable<String> osName, Callable<Scanner> opener) {
+    try {
+      if ("Linux".equals(osName.call())) {
+        try (Scanner sc = opener.call()) {
+          while (sc.hasNextLine()) {
+            String module = sc.nextLine();
+            if (module.contains("libc.musl-") || module.contains("ld-musl-")) {
+              return "musl";
+            } else if (module.contains("-linux-gnu") || module.contains("libc-")) {
+              return "libc";
+            }
           }
         }
-      } catch (IOException e) {
-        // purposefully left blank
       }
+    } catch (Throwable e) {
+      LoggerFactory.getLogger(WafInitialization.class).debug("Error detecting libc", e);
     }
     return "unknown";
   }

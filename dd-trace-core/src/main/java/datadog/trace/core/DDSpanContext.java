@@ -1030,13 +1030,13 @@ public class DDSpanContext
    * Removes a known tag by id rather than by its name. An id the id-keyed setters ignore is ignored
    * here too.
    *
-   * @param tagId a {@code KnownTags.*_ID} constant
+   * @param tagId a {@code KnownTags} id constant
    */
   public void removeTag(long tagId) {
     if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
-    if (tagId == KnownTags.SPAN_KIND_ID) {
+    if (tagId == KnownTags.SPAN_KIND) {
       spanKindOrdinal = SPAN_KIND_UNSET;
     }
     synchronized (unsafeTags) {
