@@ -386,9 +386,6 @@ class W3CHttpCodec {
         log.debug("Exception when building context", e);
         return null;
       }
-      if (DDTraceId.ZERO.equals(traceId)) {
-        return null;
-      }
       int overridingPriority =
           overridesTracestatePriority(samplingPriority, tracestate.getSamplingPriority())
               ? samplingPriority

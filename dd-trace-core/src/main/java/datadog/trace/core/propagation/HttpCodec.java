@@ -253,19 +253,17 @@ public class HttpCodec {
               break;
             }
           }
-          // If another valid context is extracted
-          else {
-            if (!traceIdMatch(context.getTraceId(), extractedContext.getTraceId())) {
-              // Terminate extracted context and add it as span link
-              context.addTerminatedSpanLink(
-                  DDSpanLink.from(
-                      (ExtractedContext) extracted,
-                      SpanAttributes.builder()
-                          .put("reason", "terminated_context")
-                          .put("context_headers", extracted.getPropagationStyle().toString())
-                          .build()));
-              // TODO Note: Other vendor tracestate will be lost here
-            }
+          // If another valid context is extracted, for a different trace
+          else if (!traceIdMatch(context.getTraceId(), extractedContext.getTraceId())) {
+            // Terminate extracted context and add it as span link
+            context.addTerminatedSpanLink(
+                DDSpanLink.from(
+                    (ExtractedContext) extracted,
+                    SpanAttributes.builder()
+                        .put("reason", "terminated_context")
+                        .put("context_headers", extracted.getPropagationStyle().toString())
+                        .build()));
+            // TODO Note: Other vendor tracestate will be lost here
           }
         }
         // Check if context is at least partial to keep it as first valid partial context found
