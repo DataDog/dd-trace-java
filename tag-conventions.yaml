@@ -42,9 +42,9 @@
 # abstract type, a plain mixin) it applies in every direction; in a directional scope, only in that
 # direction.
 # CONCEPTS. A tag's id must mean the same thing on every span. A name that doesn't -- peer.port is the
-# server's port on a client span and the client's port on a server span -- is declared in `concepts:`,
-# one concept per meaning, and referenced with `{ concept-ref: <concept> }`. The generator won't guess: an
-# ambiguous name declared any other way fails generation.
+# remote server's port on a client span and the client's port on a server span -- becomes several ids
+# in `concepts:`, one per meaning, referenced with `{ concept-ref: <id> }`. The generator won't guess:
+# an ambiguous name declared any other way fails generation.
 # The tracer core resolves names without a direction, so only renames that apply in every direction
 # resolve a name to a tag there. A directional rename, including one under `span-kind: internal`, is
 # applied when a span's tags are emitted under OpenTelemetry names, and by the OpenTelemetry API,
@@ -90,20 +90,16 @@ trace_level:
     - { dd-name: ai_guard.event,         type: boolean, required: optional }     # when the trace holds an AI Guard evaluation span
 
 # ---------------------------------------------------------------------------
-# CONCEPTS — one entry per meaning of an ambiguous name, named by its OpenTelemetry role.
-#   dd-name:   by span kind (server, client, producer, consumer, internal), direction (inbound,
-#              outbound, none) or default; the most specific wins. No entry: the concept's name.
-#   otel-name: by direction. No entry: the Datadog name.
+# CONCEPTS — ids whose Datadog name is shared with other ids. Each has fixed names (id to name never
+# needs context); resolves-on lists the span kinds where its names, written or read by name, mean it.
 # ---------------------------------------------------------------------------
 concepts:
-  # A server's own port is server.port; anyone else's view of the server is peer.port.
-  - { concept: server.port, type: int,
-      dd-name: { server: server.port, default: peer.port },
-      otel-name: { inbound: server.port, outbound: server.port } }
-  # The client's port, seen from the server.
-  - { concept: client.port, type: int,
-      dd-name: { server: peer.port },
-      otel-name: { inbound: client.port } }
+  # A server's own port.
+  - { concept: server.port,      type: int, dd-name: server.port, otel-name: server.port, resolves-on: [server] }
+  # The remote server's port, as a client, producer or consumer sees it (a consumer's broker is the server).
+  - { concept: peer.server.port, type: int, dd-name: peer.port,   otel-name: server.port, resolves-on: [client, producer, consumer] }
+  # The remote client's port, as a server sees it.
+  - { concept: client.port,      type: int, dd-name: peer.port,   otel-name: client.port, resolves-on: [server] }
 
 span_types:
   # root: per-span tags every span has (incl. the per-span core tags parent_id / integration / svc_src
@@ -555,7 +551,7 @@ mixins:
     span-kind: client
     tags:
       - { dd-name: peer.hostname, type: string, required: recommended, otel-name: server.address }
-      - { concept-ref: server.port }
+      - { concept-ref: peer.server.port }
 
   # inbound_peer — the other end of an inbound connection: the client.
   inbound_peer:

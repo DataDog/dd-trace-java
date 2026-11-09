@@ -150,7 +150,7 @@ public final class MongoCommandListener implements CommandListener {
         // may do a DNS lookup
         ServerAddress serverAddress = event.getConnectionDescription().getServerAddress();
         span.setTag(Tags.PEER_HOSTNAME, serverAddress.getHost())
-            .setTag(KnownTags.SERVER_PORT, serverAddress.getPort())
+            .setTag(KnownTags.PEER_SERVER_PORT, serverAddress.getPort())
             .setTag(
                 Tags.DB_OPERATION,
                 COMMAND_NAMES.computeIfAbsent(event.getCommandName(), UTF8_ENCODE));

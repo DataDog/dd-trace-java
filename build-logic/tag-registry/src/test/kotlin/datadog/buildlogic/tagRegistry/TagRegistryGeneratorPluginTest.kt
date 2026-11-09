@@ -250,8 +250,9 @@ class TagRegistryGeneratorPluginTest {
           String openTelemetryNameOf(long id, int direction);
           long idOf(String name);
           long directionalIdOf(String name, int direction);
-          String datadogNameOf(long id, int spanKind);
           long datadogIdOf(String name, int spanKind);
+          long openTelemetryIdOf(String name, int spanKind);
+          long[] conceptsNamed(String name);
         }
         public static final int KIND_SERVER = 1;
         public static final int KIND_CLIENT = 2;

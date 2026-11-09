@@ -93,12 +93,13 @@ final class OtlpSpanAttributes {
       return directionalTagId != 0
           && exportsAs(tags.getEntry(directionalTagId), key, direction, true);
     }
-    // A projected concept is stored under the Datadog name its span's kind gave it (peer.port).
-    TagMap.Entry kindEntry = tags.getEntry(KnownTags.SPAN_KIND);
-    long projectedTagId =
-        KnownTagCodec.datadogIdOf(
-            key, KnownTagCodec.kindOf(kindEntry == null ? null : kindEntry.stringValue()));
-    return projectedTagId != 0 && exportsAs(tags.getEntry(projectedTagId), key, direction, false);
+    // A concept's shared Datadog name (peer.port): any concept of that name the span holds.
+    for (long concept : KnownTagCodec.conceptsNamed(key)) {
+      if (exportsAs(tags.getEntry(concept), key, direction, false)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private static boolean exportsAs(

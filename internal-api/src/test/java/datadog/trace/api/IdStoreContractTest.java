@@ -634,6 +634,8 @@ class IdStoreContractTest {
   void cursorSeesWhatForEachSees(Function<IdStore, IdStore> newStore)
       throws IllegalAccessException {
     List<Long> ids = knownIds();
+    // Keyed by name below, so leave out concepts: two of them share a name (peer.port).
+    ids.removeIf(KnownTagCodec::isConcept);
     IdStore parent = newStore.apply(null);
     for (int i = 0; i < ids.size(); i += 3) {
       parent.store(ids.get(i), "parent-" + i);

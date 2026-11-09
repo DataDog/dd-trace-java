@@ -62,19 +62,17 @@ class TagConventions private constructor(
      */
     val spanKindNeutral: Boolean = false,
     /**
-     * For a concept whose Datadog name depends on the span's kind (`server.port` is `server.port` on
-     * server spans but `peer.port` on client spans), its Datadog name on spans of each [SpanKind] its
-     * `dd-name` mapping names; a kind it doesn't name uses the concept's name. Empty for every other tag, whose Datadog name is its identity. Declared with `concept:` and a
-     * `dd-name:` mapping; the identity is then the concept's name, its OpenTelemetry role name.
+     * A concept from `concepts:`: an id whose Datadog name is shared with other ids, so the name alone
+     * doesn't say which it is (peer.port is the remote server's port on a client span, the client's
+     * port on a server span). Its names are fixed -- id to name never needs context -- and
+     * [resolvesOn] says on which span kinds its shared names mean this id.
      */
-    val datadogNames: Map<SpanKind, String> = emptyMap(),
-    /** OpenTelemetry names per direction, from an `otel-name:` mapping on a concept declaration. */
-    val otelNamesByDirection: Map<Direction, String> = emptyMap(),
+    val concept: Boolean = false,
+    /** A concept's Datadog name, when it differs from its id's name; null otherwise. */
+    val datadogName: String? = null,
+    /** The span kinds on which a concept's names resolve to it, when written or read by name. */
+    val resolvesOn: Set<SpanKind> = emptySet(),
   ) {
-    /** True for a concept whose Datadog name is projected by span kind; see [datadogNames]. */
-    val projected: Boolean
-      get() = datadogNames.isNotEmpty()
-
     /** The identity's label, as reports show it; see [TagIdentity.label]. */
     val name: String
       get() = identity.label
@@ -95,9 +93,8 @@ class TagConventions private constructor(
   }
 
   /**
-   * The span kinds a projected concept's Datadog name can depend on, as KnownTagCodec numbers them.
-   * [OTHER] stands for a span with no kind yet, a broker span, or a custom kind; like [INTERNAL], it
-   * takes a `dd-name` mapping's `none` entry.
+   * The span kinds a concept's names can resolve on, as KnownTagCodec numbers them. [OTHER] stands for
+   * a span with no kind yet, a broker span, or a custom kind; it is never named in `resolves-on`.
    */
   enum class SpanKind(val yamlKey: String?, val codecConstant: String?, val direction: Direction) {
     SERVER("server", "KIND_SERVER", Direction.INBOUND),
@@ -234,7 +231,6 @@ class TagConventions private constructor(
    */
   fun otelMappings(): List<OtelMapping> = buildList {
     fun add(t: Tag, direction: Direction?) {
-      for ((d, otel) in t.otelNamesByDirection) add(OtelMapping(t.identity, otel, d))
       val otel = t.otelName ?: return
       add(OtelMapping(t.identity, otel, direction.takeUnless { t.spanKindNeutral }))
     }
@@ -344,9 +340,8 @@ class TagConventions private constructor(
     const val CONCEPTS_MIXIN = "concepts"
 
     /**
-     * The `concepts:` section: the one place a name whose meaning depends on the span's kind is
-     * disambiguated, each meaning declared once as a concept. Span types and mixins then `ref` the
-     * concept by name. Held as a mixin that applies to no span type.
+     * The `concepts:` section: ids whose names are shared, declared once each. Span types and mixins
+     * reference them with `concept-ref`. Held as a mixin that applies to no span type.
      */
     private fun conceptsMixin(root: Map<String, Any?>): Map<String, Mixin> {
       val raw = root["concepts"] ?: return emptyMap()
@@ -675,62 +670,46 @@ class TagConventions private constructor(
       } ?: emptyList()
     }
 
-    private val PROJECTION_KEYS =
-      Direction.entries.map { it.yamlKey }.toSet() + SpanKind.entries.mapNotNull { it.yamlKey } + "default"
+    private val CONCEPT_KEYS = setOf("concept", "type", "required", "dd-name", "otel-name", "resolves-on")
 
     /**
-     * A concept whose Datadog name depends on the span's kind, declared as
-     * `{ concept: <otel role name>, type: ..., dd-name: { <kind or direction>: <name>, ... },
-     * otel-name: { <direction>: <name>, ... } }`. A `dd-name` key is a direction (`inbound`,
-     * `outbound`, `none`) or a span kind (`server`, `client`, `producer`, `consumer`, `internal`),
-     * or `default`; a kind's own entry overrides its direction's, which overrides `default`. A span with no kind, a broker or a custom kind
-     * takes `none`. A kind with no entry uses the concept's name. `otel-name` may be a mapping by
-     * direction, or one name; a direction without one emits the tag under its Datadog name.
+     * One concept: `{ concept: <id>, type: ..., dd-name: <name>, otel-name: <name>, resolves-on:
+     * [<kinds>] }`. The id names one thing on every span; its Datadog and OpenTelemetry names are
+     * fixed, and may be shared with other concepts. `resolves-on` lists the span kinds (server, client,
+     * producer, consumer, internal) where a write or read by those names means this concept.
      */
     @Suppress("UNCHECKED_CAST")
     private fun parseConcept(m: Map<String, Any?>): Tag {
       val concept = m["concept"]
       require(concept is String && concept.isNotBlank()) { "concept declaration has no valid concept name: $m" }
-      require(!m.containsKey("span-kind-neutral")) {
-        "concept '$concept' cannot be span-kind-neutral: its names already say what each kind uses"
+      val extra = m.keys - CONCEPT_KEYS
+      require(extra.isEmpty()) { "concept '$concept' may set only $CONCEPT_KEYS, not $extra" }
+      val ddName = m["dd-name"]
+      require(ddName is String && ddName.isNotBlank()) { "concept '$concept' needs a dd-name, its Datadog name" }
+      val otelName = m["otel-name"]
+      require(otelName is String && otelName.isNotBlank()) {
+        "concept '$concept' needs an otel-name, its OpenTelemetry name"
       }
-      val raw = m["dd-name"]
-      require(raw is Map<*, *> && raw.isNotEmpty()) {
-        "concept '$concept' needs a dd-name mapping from span kinds or directions to Datadog names"
+      val kinds = m["resolves-on"]
+      require(kinds is List<*> && kinds.isNotEmpty()) {
+        "concept '$concept' needs resolves-on: the span kinds where its names mean it"
       }
-      val byKey = (raw as Map<String, Any?>).mapValues { (key, name) ->
-        require(key in PROJECTION_KEYS) { "concept '$concept' dd-name key '$key' is not one of $PROJECTION_KEYS" }
-        require(name is String && name.isNotBlank()) { "concept '$concept' dd-name for '$key' must be a name" }
-        name
-      }
-      // Only the kinds the mapping names: a kind without an entry is named by the concept's name,
-      // which is not a Datadog name a by-name write or read resolves.
-      val datadogNames = SpanKind.entries.mapNotNull { kind ->
-        (kind.yamlKey?.let { byKey[it] } ?: byKey[kind.direction.yamlKey] ?: byKey["default"])
-          ?.let { kind to it }
-      }.toMap()
+      val resolvesOn = kinds.map { kind ->
+        SpanKind.entries.firstOrNull { it.yamlKey != null && it.yamlKey == kind }
+          ?: throw IllegalArgumentException(
+            "concept '$concept' resolves-on '$kind' is not a span kind (server, client, producer, consumer, internal)"
+          )
+      }.toSet()
       require(m["type"] == null || m["type"] is String) { "concept '$concept' type must be a string" }
       require(m["required"] == null || m["required"] is String) { "concept '$concept' required must be a string" }
-      val otelRaw = m["otel-name"]
-      var otelName: String? = null
-      var otelByDirection: Map<Direction, String> = emptyMap()
-      if (otelRaw is Map<*, *>) {
-        otelByDirection = (otelRaw as Map<String, Any?>).entries.associate { (key, name) ->
-          val direction = Direction.entries.firstOrNull { it.yamlKey == key }
-          require(direction != null) { "concept '$concept' otel-name key '$key' must be a direction" }
-          require(name is String && name.isNotBlank()) { "concept '$concept' otel-name for '$key' must be a name" }
-          direction to name
-        }
-      } else if (m.containsKey("otel-name")) {
-        otelName = parseOtelName(m)
-      }
       return Tag(
         identity = TagIdentity(concept),
         type = (m["type"] as? String) ?: "string",
         required = (m["required"] as? String) ?: "optional",
         otelName = otelName,
-        datadogNames = datadogNames,
-        otelNamesByDirection = otelByDirection,
+        concept = true,
+        datadogName = ddName.takeUnless { it == concept },
+        resolvesOn = resolvesOn,
       )
     }
 
@@ -740,11 +719,11 @@ class TagConventions private constructor(
       for (r in refs) {
         val target = byIdentity[r.identity] ?: continue
         if (r.concept) {
-          require(target.projected) {
+          require(target.concept) {
             "concept-ref '${r.identity.ddName}' names a tag, not a concept; use `{ ref: ${r.identity.ddName} }`"
           }
         } else {
-          require(!target.projected) {
+          require(!target.concept) {
             "ref '${r.identity.ddName}' names a concept; use `{ concept-ref: ${r.identity.ddName} }`"
           }
         }

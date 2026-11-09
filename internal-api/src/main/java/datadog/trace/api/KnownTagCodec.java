@@ -1,6 +1,5 @@
 package datadog.trace.api;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 
 /**
@@ -217,11 +216,14 @@ public final class KnownTagCodec {
     /** See {@link KnownTagCodec#directionalIdOf}. */
     long directionalIdOf(String name, int direction);
 
-    /** See {@link KnownTagCodec#datadogNameOf(long, int)}. */
-    String datadogNameOf(long tagId, int spanKind);
-
     /** See {@link KnownTagCodec#datadogIdOf}. */
     long datadogIdOf(String name, int spanKind);
+
+    /** See {@link KnownTagCodec#openTelemetryIdOf}. */
+    long openTelemetryIdOf(String name, int spanKind);
+
+    /** See {@link KnownTagCodec#conceptsNamed}. */
+    long[] conceptsNamed(String name);
   }
 
   /**
@@ -326,52 +328,43 @@ public final class KnownTagCodec {
   }
 
   /**
-   * True when {@code tagId} names a concept whose Datadog name depends on the span's kind ({@code
-   * server.port} is {@code server.port} on server spans and {@code peer.port} on client spans). A
-   * span names such a tag with {@link #datadogNameOf(long, int)} when it is written. Folds to a
-   * constant for a constant id.
+   * True when {@code tagId} is a concept: an id whose names are shared with other ids ({@code
+   * peer.port} is the remote server's port on a client span and the client's port on a server
+   * span). Its names are still fixed; only resolving a shared name to it needs the span's kind.
+   * Folds to a constant for a constant id.
    */
-  public static boolean hasProjectedName(long tagId) {
-    return KnownTags.hasProjectedName(tagId);
+  public static boolean isConcept(long tagId) {
+    return KnownTags.isConcept(tagId);
   }
 
   /**
-   * The Datadog name of {@code tagId} on a span of {@code spanKind} (a {@code KIND_*} number). For
-   * every tag but a projected concept, this is {@link #nameOf}.
-   */
-  public static String datadogNameOf(long tagId, int spanKind) {
-    return Installed.RESOLVER.datadogNameOf(tagId, spanKind);
-  }
-
-  /**
-   * The projected concept {@code name} is the Datadog name of on spans of {@code spanKind}, or 0.
-   * For reading: on a span with no kind, or an internal one, {@code peer.port} still finds the
-   * {@code server.port} concept its instrumentation wrote.
+   * The concept {@code name}, a Datadog name, means on spans of {@code spanKind} (a {@code KIND_*}
+   * number), or 0. {@code peer.port} is the client's port on a server span and the remote server's
+   * port on client, producer and consumer spans.
    */
   public static long datadogIdOf(String name, int spanKind) {
     return name == null ? 0L : Installed.RESOLVER.datadogIdOf(name, spanKind);
   }
 
   /**
-   * {@link #datadogIdOf} for writing a tag by name. Only a span that is a server, client, producer
-   * or consumer resolves a name: on a span with no kind yet (or an internal, broker or custom one),
-   * a name that some kinds project stays a plain name, since it is not yet known what it means.
+   * {@link #datadogIdOf} for writing a tag by name: on a span with no kind yet (or an internal,
+   * broker or custom one) a shared name isn't resolved, since it isn't yet known what it means.
    */
   public static long datadogWriteIdOf(String name, int spanKind) {
     return spanKind >= KIND_SERVER && spanKind <= KIND_CONSUMER ? datadogIdOf(name, spanKind) : 0L;
   }
 
+  /** The concept {@code name}, an OpenTelemetry name, means on spans of {@code spanKind}, or 0. */
+  public static long openTelemetryIdOf(String name, int spanKind) {
+    return name == null ? 0L : Installed.RESOLVER.openTelemetryIdOf(name, spanKind);
+  }
+
   /**
-   * The name {@code span} stores {@code tagId} under when set by that name: {@link #nameOf}, or for
-   * a projected concept the Datadog name {@code span}'s kind gives it. For spans that set a tag by
-   * id through its name.
+   * The concepts whose Datadog name is {@code name}, for finding one on a span whose kind doesn't
+   * resolve the name. Empty for any other name; the array is shared, so don't modify it.
    */
-  public static String nameOnSpan(long tagId, AgentSpan span) {
-    if (!hasProjectedName(tagId)) {
-      return nameOf(tagId);
-    }
-    Object kind = span.getTag(Tags.SPAN_KIND);
-    return datadogNameOf(tagId, kindOf(kind == null ? null : kind.toString()));
+  public static long[] conceptsNamed(String name) {
+    return Installed.RESOLVER.conceptsNamed(name);
   }
 
   private KnownTagCodec() {}

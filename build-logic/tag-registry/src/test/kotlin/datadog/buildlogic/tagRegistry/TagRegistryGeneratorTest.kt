@@ -336,9 +336,7 @@ class TagRegistryGeneratorTest {
     val yaml = directory.conventionsFile(
       """
       concepts:
-        - { concept: server.port, type: int,
-            dd-name: { server: server.port, default: peer.port },
-            otel-name: { inbound: server.port, outbound: server.port } }
+        - { concept: server.port, type: int, dd-name: server.port, otel-name: server.port, resolves-on: [server] }
       span_types:
         base: {abstract: true, tags: [{dd-name: http.method, otel-name: http.request.method}]}
         http.server:
@@ -352,7 +350,6 @@ class TagRegistryGeneratorTest {
           span-kind: client
           tags:
             - {dd-name: peer.hostname, otel-name: server.address}
-            - {concept-ref: server.port}
       """
     )
     val output = File(directory, "generated")
@@ -362,97 +359,84 @@ class TagRegistryGeneratorTest {
     val source = contents(output).getValue("java/datadog/trace/api/KnownTags.java")
     fun holder(name: String) = source.substringAfter("public static final class $name {").substringBefore("private $name() {}")
     assertThat(holder("Outbound"))
-      .contains(
-        "SERVER_ADDRESS = KnownTags.PEER_HOSTNAME;",
-        "SERVER_PORT = KnownTags.SERVER_PORT;",
-        "HTTP_REQUEST_METHOD = KnownTags.HTTP_METHOD;",
-      )
+      .contains("SERVER_ADDRESS = KnownTags.PEER_HOSTNAME;", "HTTP_REQUEST_METHOD = KnownTags.HTTP_METHOD;")
     assertThat(holder("Inbound"))
-      .contains(
-        "SERVER_ADDRESS = KnownTags.HTTP_HOSTNAME;",
-        "SERVER_PORT = KnownTags.SERVER_PORT;",
-        "HTTP_REQUEST_METHOD = KnownTags.HTTP_METHOD;",
-      )
-    // With no direction, server.port is emitted under its Datadog name, so it has no alias there.
-    assertThat(holder("Internal")).doesNotContain("SERVER_ADDRESS", "SERVER_PORT")
+      .contains("SERVER_ADDRESS = KnownTags.HTTP_HOSTNAME;", "HTTP_REQUEST_METHOD = KnownTags.HTTP_METHOD;")
+    assertThat(holder("Internal")).doesNotContain("SERVER_ADDRESS")
+    // A concept's names are shared, so it has no alias: instrumentation writes its id directly.
+    assertThat(source.substringAfter("public static final class Inbound {")).doesNotContain("= KnownTags.SERVER_PORT;")
   }
 
   /** The ports, as concepts: the shape of tag-conventions.yaml's `concepts:` section. */
   private val portConcepts =
     """
     concepts:
-      - { concept: server.port, type: int,
-          dd-name: { server: server.port, default: peer.port },
-          otel-name: { inbound: server.port, outbound: server.port } }
-      - { concept: client.port, type: int, dd-name: { server: peer.port }, otel-name: { inbound: client.port } }
+      - { concept: server.port,      type: int, dd-name: server.port, otel-name: server.port, resolves-on: [server] }
+      - { concept: peer.server.port, type: int, dd-name: peer.port,   otel-name: server.port, resolves-on: [client, producer, consumer] }
+      - { concept: client.port,      type: int, dd-name: peer.port,   otel-name: client.port, resolves-on: [server] }
     span_types:
       http.client: {span-kind: client, include: [outbound_peer]}
       http.server: {span-kind: server, include: [inbound_peer], tags: [{concept-ref: server.port}]}
     mixins:
-      outbound_peer: {span-kind: client, tags: [{concept-ref: server.port}]}
+      outbound_peer: {span-kind: client, tags: [{concept-ref: peer.server.port}]}
       inbound_peer: {span-kind: server, tags: [{concept-ref: client.port}]}
     """
 
   @Test
-  fun `a concept's Datadog name is projected by span kind, a kind's entry over default`() {
+  fun `a concept has fixed names and the kinds its names resolve on`() {
     val conventions = tagConventions(portConcepts)
-    val serverPort = conventions.allDeclaredTags().single { it.name == "server.port" }
+    val peerServerPort = conventions.allDeclaredTags().single { it.name == "peer.server.port" }
 
-    assertThat(serverPort.projected).isTrue()
-    assertThat(serverPort.datadogNames).containsExactlyInAnyOrderEntriesOf(
-      mapOf(
-        TagConventions.SpanKind.SERVER to "server.port",
-        TagConventions.SpanKind.CLIENT to "peer.port",
-        TagConventions.SpanKind.PRODUCER to "peer.port",
-        TagConventions.SpanKind.CONSUMER to "peer.port",
-        TagConventions.SpanKind.INTERNAL to "peer.port",
-        TagConventions.SpanKind.OTHER to "peer.port",
-      )
+    assertThat(peerServerPort.concept).isTrue()
+    assertThat(peerServerPort.datadogName).isEqualTo("peer.port")
+    assertThat(peerServerPort.otelName).isEqualTo("server.port")
+    assertThat(peerServerPort.resolvesOn).containsExactlyInAnyOrder(
+      TagConventions.SpanKind.CLIENT,
+      TagConventions.SpanKind.PRODUCER,
+      TagConventions.SpanKind.CONSUMER,
     )
     assertThat(conventions.resolve("http.server").map { it.name }).contains("server.port", "client.port")
-    assertThat(conventions.resolve("http.client").map { it.name }).contains("server.port")
+    assertThat(conventions.resolve("http.client").map { it.name }).contains("peer.server.port")
   }
 
   @Test
-  fun `a concept is one tag, emitted with tables that name it by span kind`() {
+  fun `two concepts can share a name, which resolves by kind`() {
     val output = File(directory, "generated")
 
     TagRegistryGenerator.generate(directory.conventionsFile(portConcepts), output)
 
     val source = contents(output).getValue("java/datadog/trace/api/KnownTags.java")
+    // Id to name is a constant: both share peer.port.
     assertThat(source).contains(
-      "long SERVER_PORT = ",
+      "PEER_SERVER_PORT_NAME = \"peer.port\"",
+      "CLIENT_PORT_NAME = \"peer.port\"",
       "SERVER_PORT_NAME = \"server.port\"",
-      "long CLIENT_PORT = ",
-      "return serial == CLIENT_PORT_SERIAL_NUM || serial == SERVER_PORT_SERIAL_NUM;",
-      "return spanKind == KnownTagCodec.KIND_SERVER ? \"server.port\" : \"peer.port\";",
-      "return spanKind == KnownTagCodec.KIND_SERVER ? \"peer.port\" : \"client.port\";",
+      "CONCEPTS_NAMED_PEER_PORT = {CLIENT_PORT, PEER_SERVER_PORT};",
     )
-    assertThat(source).doesNotContain("PEER_PORT")
-    // No name of a concept resolves without a kind.
     assertThat(source.substringAfter("IDOF_NAMES = {").substringBefore("};"))
-      .doesNotContain("SERVER_PORT_NAME", "CLIENT_PORT_NAME", "peer.port")
+      .doesNotContain("SERVER_PORT_NAME", "CLIENT_PORT_NAME")
     val byName = source.substringAfter("public long datadogIdOf(String name, int spanKind)").substringBefore("@Override")
-    assertThat(byName).contains("case \"peer.port\":", "case \"server.port\":").doesNotContain("case \"client.port\":")
-    // A concept's OpenTelemetry role names it in the per-direction aliases.
-    assertThat(source).contains("public static final long SERVER_PORT = KnownTags.SERVER_PORT;")
+    assertThat(byName.substringAfter("case \"peer.port\":").substringBefore("default:")).contains(
+      "case KnownTagCodec.KIND_SERVER:\n            return CLIENT_PORT;",
+      "case KnownTagCodec.KIND_CLIENT:\n            return PEER_SERVER_PORT;",
+    )
   }
 
   @Test
-  fun `two concepts cannot project the same Datadog name on one kind`() {
+  fun `a shared name must resolve to one concept on each kind`() {
     assertThatIllegalArgumentException()
       .isThrownBy {
         TagRegistry.build(
           tagConventions(
             """
             concepts:
-              - { concept: server.port, type: int, dd-name: { outbound: peer.port } }
-              - { concept: client.port, type: int, dd-name: { client: peer.port } }
+              - { concept: a.port, type: int, dd-name: peer.port, otel-name: a.port, resolves-on: [client] }
+              - { concept: b.port, type: int, dd-name: peer.port, otel-name: b.port, resolves-on: [client] }
             """
           )
         )
       }
-      .withMessageContaining("Datadog name 'peer.port' projects from both")
+      .withMessageContaining("Datadog name 'peer.port' resolves to both 'a.port' and 'b.port' on client spans")
   }
 
   @Test
@@ -463,7 +447,7 @@ class TagRegistryGeneratorTest {
           tagConventions(
             """
             concepts:
-              - { concept: server.port, type: int, dd-name: { outbound: peer.port } }
+              - { concept: peer.server.port, type: int, dd-name: peer.port, otel-name: server.port, resolves-on: [client] }
             mixins:
               other: {tags: [{ dd-name: peer.port, type: int }]}
             """
@@ -476,10 +460,13 @@ class TagRegistryGeneratorTest {
   @ParameterizedTest
   @ValueSource(
     strings = [
-      "{ concept: server.port, dd-name: peer.port }",
-      "{ concept: server.port, dd-name: { sideways: peer.port } }",
-      "{ concept: server.port, dd-name: { client: peer.port }, span-kind-neutral: true }",
-      "{ concept: server.port, dd-name: { client: peer.port }, otel-name: { server: server.port } }",
+      "{ concept: p, dd-name: peer.port, otel-name: server.port }",
+      "{ concept: p, dd-name: peer.port, otel-name: server.port, resolves-on: [] }",
+      "{ concept: p, dd-name: peer.port, otel-name: server.port, resolves-on: [sideways] }",
+      "{ concept: p, otel-name: server.port, resolves-on: [client] }",
+      "{ concept: p, dd-name: peer.port, resolves-on: [client] }",
+      "{ concept: p, dd-name: { client: peer.port }, otel-name: server.port, resolves-on: [client] }",
+      "{ concept: p, dd-name: peer.port, otel-name: server.port, resolves-on: [client], span-kind-neutral: true }",
     ]
   )
   fun `a malformed concept fails generation`(declaration: String) {
@@ -492,7 +479,7 @@ class TagRegistryGeneratorTest {
   fun `a concept declared outside the concepts section fails generation`() {
     assertThatIllegalArgumentException()
       .isThrownBy {
-        tagConventions("mixins: {ports: {tags: [{ concept: server.port, dd-name: { client: peer.port } }]}}")
+        tagConventions("mixins: {ports: {tags: [{ concept: p, dd-name: peer.port, otel-name: server.port, resolves-on: [client] }]}}")
       }
       .withMessageContaining("top-level `concepts:` section")
   }
@@ -548,24 +535,23 @@ class TagRegistryGeneratorTest {
   private fun refConventions(entry: String) = tagConventions(
     """
     concepts:
-      - { concept: server.port, type: int, dd-name: { server: server.port, default: peer.port } }
+      - { concept: server.port, type: int, dd-name: server.port, otel-name: server.port, resolves-on: [server] }
     span_types:
       http.server: {span-kind: server, tags: [{dd-name: http.method}, $entry]}
     """
   )
 
   @Test
-  fun `the assignment report lists each concept's names by kind`() {
+  fun `the assignment report lists each concept's names and kinds`() {
     val output = File(directory, "generated")
 
     TagRegistryGenerator.generate(directory.conventionsFile(portConcepts), output)
 
     val report = contents(output).getValue("tag-assignment.txt").substringAfter("# CONCEPTS")
-    assertThat(report).contains("server.port  (id ", "client.port  (id ")
     assertThat(report.lines().map { it.trim().replace(Regex("\\s+"), " ") }).contains(
-      "server datadog server.port otel server.port",
-      "client datadog peer.port otel server.port",
-      "internal datadog peer.port otel (pass-through: peer.port)",
+      "server.port datadog server.port otel server.port resolves on server",
+      "peer.server.port datadog peer.port otel server.port resolves on client, producer, consumer",
+      "client.port datadog peer.port otel client.port resolves on server",
     )
   }
 

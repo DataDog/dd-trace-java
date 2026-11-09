@@ -213,8 +213,8 @@ class OtlpTraceJsonCollectorTest {
         exportedServerPorts(
             "client",
             span -> {
-              span.setTag(KnownTags.SERVER_PORT, 8080);
-              span.setTag(KnownTags.SERVER_PORT, 443);
+              span.setTag(KnownTags.PEER_SERVER_PORT, 8080);
+              span.setTag(KnownTags.PEER_SERVER_PORT, 443);
             });
 
     assertEquals(1, ports.size(), "got " + ports);
@@ -222,14 +222,14 @@ class OtlpTraceJsonCollectorTest {
   }
 
   /**
-   * A consumer's other end is the broker, the server: its port is the server.port concept. Datadog
+   * A consumer's other end is the broker, the server: its port is the remote server's port. Datadog
    * output keeps peer.port; with OpenTelemetry semantics it is server.port, where it used to be
    * client.port -- a deliberate fix.
    */
   @Test
   void aConsumersBrokerPortIsTheServerPort() throws IOException {
     List<Object> ports =
-        exportedServerPorts("consumer", span -> span.setTag(KnownTags.SERVER_PORT, 5672));
+        exportedServerPorts("consumer", span -> span.setTag(KnownTags.PEER_SERVER_PORT, 5672));
 
     assertEquals(1, ports.size(), "got " + ports);
     assertEquals("5672", String.valueOf(ports.get(0)));

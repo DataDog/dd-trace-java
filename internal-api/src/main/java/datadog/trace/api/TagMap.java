@@ -183,8 +183,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
      * step and nothing more, so the policy still lives in exactly one place.
      */
     default String openTelemetryTag() {
-      long tagId = tagId();
-      String otelTag = tagId == 0 ? null : KnownTagCodec.openTelemetryNameOf(tagId);
+      String otelTag = KnownTagCodec.openTelemetryTagOf(tagId());
       return otelTag != null ? otelTag : tag();
     }
 
@@ -195,10 +194,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
      */
     default String openTelemetryTag(int direction) {
       long tagId = tagId();
-      String otelTag = tagId == 0 ? null : KnownTagCodec.openTelemetryNameOf(tagId, direction);
-      // Pass-through falls back to the entry's own name, which for a projected concept (server.port
-      // stored as peer.port on a client span) is the name its span chose, not the concept's.
-      return otelTag != null ? otelTag : tag();
+      return tagId == 0 ? tag() : KnownTagCodec.openTelemetryTagOf(tagId, direction);
     }
 
     byte type();
@@ -499,8 +495,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
     /** {@code tagId} is a known id, or 0 for the custom tag {@code customTag}. */
     Entry(long tagId, String customTag, byte type, long prim, Object obj) {
-      // A known id with a name is a projected concept, named for its span (see setProjected).
-      super(tagId != 0 && customTag == null ? KnownTagCodec.nameOf(tagId) : customTag);
+      super(tagId != 0 ? KnownTagCodec.nameOf(tagId) : customTag);
       this.tagHash = tagId != 0 ? tagId : customHash(customTag);
       this.tombstone = false;
 
@@ -1774,23 +1769,6 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
     public void setKnown(long tagId, double value) {
       this.map.putKnown(new Entry(tagId, null, EntryReader.DOUBLE, Entry.double2Prim(value), null));
-    }
-
-    /*
-     * Sets a projected concept (KnownTagCodec.hasProjectedName) under the Datadog name its span chose
-     * for it, KnownTagCodec.datadogNameOf(tagId, spanKind). The entry is still keyed by the concept's
-     * id, so reading or replacing it by id doesn't depend on the name.
-     */
-    public void setProjected(long tagId, @Nonnull String name, @Nonnull Object value) {
-      this.map.putKnown(new Entry(tagId, name, Entry.ANY, 0L, value));
-    }
-
-    public void setProjected(long tagId, @Nonnull String name, int value) {
-      this.map.putKnown(new Entry(tagId, name, EntryReader.INT, Entry.int2Prim(value), null));
-    }
-
-    public void setProjected(long tagId, @Nonnull String name, long value) {
-      this.map.putKnown(new Entry(tagId, name, EntryReader.LONG, Entry.long2Prim(value), null));
     }
   }
 

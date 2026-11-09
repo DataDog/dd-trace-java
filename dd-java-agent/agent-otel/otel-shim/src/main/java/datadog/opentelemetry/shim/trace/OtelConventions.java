@@ -55,9 +55,13 @@ public final class OtelConventions {
    * written.
    */
   static String attributeTag(String key, int direction, int spanKind) {
-    long tagId = KnownTagCodec.directionalIdOf(key, direction);
-    // A projected concept is named by the span's kind: server.port is peer.port on a client span.
-    return tagId == 0 ? key : KnownTagCodec.datadogNameOf(tagId, spanKind);
+    // A concept's shared OpenTelemetry name: server.port is the remote server's port on a client
+    // span.
+    long tagId = KnownTagCodec.openTelemetryIdOf(key, spanKind);
+    if (tagId == 0) {
+      tagId = KnownTagCodec.directionalIdOf(key, direction);
+    }
+    return tagId == 0 ? key : KnownTagCodec.nameOf(tagId);
   }
 
   /**

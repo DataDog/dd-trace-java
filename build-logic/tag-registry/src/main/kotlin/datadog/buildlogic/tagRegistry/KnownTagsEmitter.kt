@@ -53,9 +53,9 @@ object KnownTagsEmitter {
     fun serialC(ddName: String) = serialOfConst.getValue(ddName)
     fun otelNameC(ddName: String) = otelNameOfConst.getValue(ddName)
 
-    // A projected concept's names name it only on spans of some kinds, so none of them is in the
-    // direction-free lookup: datadogIdOf and directionalIdOf resolve them with the span's kind.
-    val keyOfOrder = reg.tags.filter { !it.projected }.map { it.ddName } // stable emit order
+    // A concept's names are shared with other ids, so none of them is in the direction-free lookup:
+    // datadogIdOf and openTelemetryIdOf resolve them with the span's kind.
+    val keyOfOrder = reg.tags.filter { !it.concept }.map { it.ddName } // stable emit order
     // OpenTelemetry names that denote a different tag depending on the span's direction. idOf
     // ignores direction (a shared Datadog name such as server.port resolves to its own tag);
     // directionalIdOf(name, direction) switches on each one's tag per direction.
@@ -64,6 +64,12 @@ object KnownTagsEmitter {
       for ((direction, otel) in t.scopedOtelNames) {
         directional.getOrPut(otel) { mutableMapOf() }[direction] = t.ddName
       }
+    }
+    val conceptsByName = reg.tags.filter { it.concept }.groupBy { it.datadogName }.toSortedMap()
+    // Lines continue the raw template they're interpolated into, so they carry its indent.
+    fun conceptArrays(): String = conceptsByName.entries.joinToString("\n          ") { (name, ids) ->
+      "/** The concepts whose Datadog name is {@code ${escape(name)}}. */\n          " +
+        "static final long[] CONCEPTS_NAMED_${sanitize(name)} = {" + ids.joinToString(", ") { idOfConst.getValue(it.ddName) } + "};"
     }
     return buildString {
       // Public API first (encoded id + name couplets), so readers see the useful parts up top; the
@@ -84,7 +90,7 @@ object KnownTagsEmitter {
 
       for (t in reg.tags) {
         appendLine("  public static final long ${idC(t.ddName)} = ${hex(t.id)};")
-        appendLine("  public static final String ${nameC(t.ddName)} = \"${escape(t.ddName)}\";")
+        appendLine("  public static final String ${nameC(t.ddName)} = \"${escape(t.datadogName)}\";")
         if (t.otelName != null) {
           appendLine("  public static final String ${otelNameC(t.ddName)} = \"${escape(t.otelName)}\";")
         }
@@ -95,10 +101,7 @@ object KnownTagsEmitter {
         if (t.sharesSlot) append(" + shares slot")
         if (t.otelName != null) append(" -> ${escape(t.otelName)}")
         for ((direction, otel) in t.scopedOtelNames) append(" -> ${escape(otel)} (${direction.yamlKey})")
-        if (t.projected) {
-          append(" + Datadog name by kind: ")
-          append(t.datadogNames.entries.joinToString(", ") { (k, n) -> "${k.yamlKey ?: "unkinded"}=${escape(n)}" })
-        }
+        if (t.concept) append(" + concept, resolves on ${t.resolvesOn.joinToString(", ") { it.yamlKey!! }}")
         appendLine("  <${escape(t.required)}>")
         appendLine()
       }
@@ -112,6 +115,7 @@ object KnownTagsEmitter {
       for (direction in TagConventions.Direction.entries) {
         val aliases = sortedMapOf<String, String>()
         for (t in reg.tags) {
+          if (t.concept) continue // a concept's OpenTelemetry name is shared; write its id directly
           val otel = t.otelName ?: t.scopedOtelNames[direction] ?: continue
           aliases[otel] = t.ddName
         }
@@ -135,14 +139,14 @@ object KnownTagsEmitter {
         appendLine()
       }
 
-      val projected = reg.tags.filter { it.projected }
+      val projected = reg.tags.filter { it.concept }
       appendLine(
         """
           /**
-           * True when {@code tagId} names a concept whose Datadog name depends on the span's kind, so a
-           * span projects its name when the tag is written. With a constant id this folds to a constant.
+           * True when {@code tagId} is a concept: an id whose names are shared with other ids, so a name
+           * alone doesn't say which it is. With a constant id this folds to a constant.
            */
-          public static boolean hasProjectedName(long tagId) {
+          public static boolean isConcept(long tagId) {
         """.trimIndent()
       )
       if (projected.isEmpty()) {
@@ -169,6 +173,7 @@ object KnownTagsEmitter {
       // canonical names. Sort by OTel name to keep output deterministic.
       val otelByCanonical =
         reg.tags
+          .filter { !it.concept }
           .mapNotNull { t -> t.otelName?.let { it to t.ddName } }
           .sortedBy { it.first }
 
@@ -236,6 +241,8 @@ object KnownTagsEmitter {
            * reads this field from its own holder, so the two classes complete each other: the codec owns
            * the bit layout and the naming policy, this class owns the data. Nothing has to be called first.
            */
+          static final long[] NO_CONCEPTS = {};
+          ${conceptArrays()}
           static final KnownTagCodec.Resolver RESOLVER =
               new KnownTagCodec.Resolver() {
                 @Override
@@ -276,58 +283,52 @@ object KnownTagsEmitter {
               }
 
               @Override
-              public String datadogNameOf(long tagId, int spanKind) {
-                switch (KnownTagCodec.serialNum(tagId)) {
-        """.trimIndent()
-      )
-      for (t in projected) {
-        val nameByKind = TagConventions.SpanKind.entries.associateWith { t.datadogNames[it] ?: t.ddName }
-        val other = nameByKind.getValue(TagConventions.SpanKind.OTHER)
-        val expr =
-          nameByKind.entries
-            .filter { (k, n) -> k != TagConventions.SpanKind.OTHER && n != other }
-            .reversed()
-            .fold("\"${escape(other)}\"") { rest, (k, n) ->
-              "spanKind == KnownTagCodec.${k.codecConstant} ? \"${escape(n)}\" : $rest"
-            }
-        appendLine("case ${serialC(t.ddName)}:")
-        appendLine("  return $expr;")
-      }
-      appendLine(
-        """
-                  default:
-                    return nameOf(tagId);
-                }
-              }
-
-              @Override
               public long datadogIdOf(String name, int spanKind) {
-                switch (name) {
         """.trimIndent()
       )
-      val byName = sortedMapOf<String, MutableMap<TagConventions.SpanKind, String>>()
-      for (t in projected) {
-        for ((k, n) in t.datadogNames) byName.getOrPut(n) { mutableMapOf() }[k] = t.ddName
-      }
-      for ((name, byKind) in byName) {
-        appendLine("    case \"${escape(name)}\":")
-        appendLine("      switch (spanKind) {")
-        for (k in TagConventions.SpanKind.entries) {
-          if (k == TagConventions.SpanKind.OTHER) continue
-          val concept = byKind[k] ?: continue
-          appendLine("        case KnownTagCodec.${k.codecConstant}:")
-          appendLine("          return ${idC(concept)};")
+      fun emitKindTable(nameOf: (TagRegistry.Tag) -> String?) {
+        val byName = sortedMapOf<String, MutableMap<TagConventions.SpanKind, String>>()
+        for (t in projected) {
+          val name = nameOf(t) ?: continue
+          for (k in t.resolvesOn) byName.getOrPut(name) { mutableMapOf() }[k] = t.ddName
         }
-        appendLine("        default:")
-        appendLine("          return ${byKind[TagConventions.SpanKind.OTHER]?.let { idC(it) } ?: "0L"};")
-        appendLine("      }")
+        appendLine("    switch (name) {")
+        for ((name, byKind) in byName) {
+          appendLine("      case \"${escape(name)}\":")
+          appendLine("        switch (spanKind) {")
+          for (k in TagConventions.SpanKind.entries) {
+            val concept = byKind[k] ?: continue
+            appendLine("          case KnownTagCodec.${k.codecConstant}:")
+            appendLine("            return ${idC(concept)};")
+          }
+          appendLine("          default:")
+          appendLine("            return 0L;")
+          appendLine("        }")
+        }
+        appendLine("      default:")
+        appendLine("        return 0L;")
+        appendLine("    }")
+        appendLine("  }")
       }
+      emitKindTable { it.datadogName }
+      appendLine()
+      appendLine("  @Override")
+      appendLine("  public long openTelemetryIdOf(String name, int spanKind) {")
+      emitKindTable { it.otelName }
+      appendLine()
+      appendLine("  @Override")
+      appendLine("  public long[] conceptsNamed(String name) {")
+      appendLine("    switch (name) {")
+      for ((name, ids) in projected.groupBy { it.datadogName }.toSortedMap()) {
+        appendLine("      case \"${escape(name)}\":")
+        appendLine("        return CONCEPTS_NAMED_${sanitize(name)};")
+      }
+      appendLine("      default:")
+      appendLine("        return NO_CONCEPTS;")
+      appendLine("    }")
+      appendLine("  }")
       appendLine(
         """
-                  default:
-                    return 0L;
-                }
-              }
 
               @Override
               public long idOf(String name) {

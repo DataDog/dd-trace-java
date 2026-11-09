@@ -79,7 +79,8 @@ public class CouchbaseNetworkInstrumentation extends InstrumenterModule.Tracing
           final int splitIndex = remoteSocket.lastIndexOf(":");
           if (splitIndex != -1) {
             span.setTag(
-                KnownTags.SERVER_PORT, Integer.parseInt(remoteSocket.substring(splitIndex + 1)));
+                KnownTags.PEER_SERVER_PORT,
+                Integer.parseInt(remoteSocket.substring(splitIndex + 1)));
           }
         }
 
