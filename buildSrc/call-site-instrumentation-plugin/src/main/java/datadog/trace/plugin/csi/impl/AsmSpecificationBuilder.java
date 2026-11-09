@@ -38,6 +38,7 @@ import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -75,7 +76,7 @@ public class AsmSpecificationBuilder implements SpecificationBuilder {
     private Type clazz;
     private boolean isCallSite;
     private final List<AdviceSpecification> advices = new ArrayList<>();
-    private final Set<Type> helpers = new HashSet<>();
+    private final Set<Type> helpers = new LinkedHashSet<>();
     private final Set<Type> spi = new HashSet<>();
     private List<String> enabled = new ArrayList<>();
     private CallSiteSpecification result;
