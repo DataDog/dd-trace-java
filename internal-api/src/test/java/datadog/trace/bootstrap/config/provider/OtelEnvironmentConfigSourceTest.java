@@ -680,6 +680,31 @@ class OtelEnvironmentConfigSourceTest {
     assertNull(source.get(TAGS));
   }
 
+  @Test
+  @WithConfig(key = "DD_TRACE_OTEL_ENABLED", value = "true", env = true, addPrefix = false)
+  @WithConfig(key = "OTEL_SERVICE_NAME", value = "", env = true, addPrefix = false)
+  @WithConfig(
+      key = "OTEL_RESOURCE_ATTRIBUTES",
+      value = "service.name=DEV_SERVICE",
+      env = true,
+      addPrefix = false)
+  void emptyOtelEnvironmentVariableIsIgnored() {
+    OtelEnvironmentConfigSource source = new OtelEnvironmentConfigSource();
+
+    // empty OTEL_SERVICE_NAME does not override the one from OTEL_RESOURCE_ATTRIBUTES
+    assertEquals("DEV_SERVICE", source.get(SERVICE_NAME));
+  }
+
+  @Test
+  @WithConfig(key = "DD_METRICS_OTEL_ENABLED", value = "true", env = true, addPrefix = false)
+  @WithConfig(key = "OTEL_METRICS_EXPORTER", value = "", env = true, addPrefix = false)
+  void emptyOtelExporterEnvironmentVariableFallsBackToDefault() {
+    OtelEnvironmentConfigSource source = new OtelEnvironmentConfigSource();
+
+    assertEquals("otlp", source.get(METRICS_OTEL_EXPORTER));
+    assertNull(source.get(RUNTIME_METRICS_ENABLED));
+  }
+
   private static void assertOtelSdkDisabled(OtelEnvironmentConfigSource source) {
     assertTrue(source.isSdkDisabled());
     assertEquals("false", source.get(TRACE_ENABLED));
