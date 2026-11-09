@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
-import datadog.trace.test.util.DDJavaSpecification;
 import datadog.trace.test.util.GCUtils;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
@@ -25,7 +24,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.tabletest.junit.TableTest;
 
-class FixedSizeCacheTest extends DDJavaSpecification {
+class FixedSizeCacheTest {
 
   private static final TKey ID1 = new TKey(1, 1, "one");
 
@@ -117,12 +116,11 @@ class FixedSizeCacheTest extends DDJavaSpecification {
     assertEquals(count, creationCount.get());
 
     List<String> visited = new ArrayList<>();
-    fsCache.visit(
-        (key, val) -> {
-          if ((key[0] + "_value").equals(val)) {
-            visited.add(key[0].toString());
-          }
-        });
+    fsCache.visit((key, val) -> {
+      if ((key[0] + "_value").equals(val)) {
+        visited.add(key[0].toString());
+      }
+    });
     assertEquals(keys, visited);
   }
 
@@ -246,21 +244,19 @@ class FixedSizeCacheTest extends DDJavaSpecification {
       List<Future<?>> futures = new ArrayList<>();
       for (int t = 0; t < numThreads; t++) {
         futures.add(
-            executor.submit(
-                () -> {
-                  ThreadLocalRandom random = ThreadLocalRandom.current();
-                  started.countDown();
-                  runTest.await();
-                  for (int i = 0; i < numInsertions; i++) {
-                    int hash = random.nextInt();
-                    String string = String.valueOf(hash);
-                    TKey tkey = new TKey(hash, hash, string);
-                    assertEquals(
-                        string + "_value",
-                        fsCache.computeIfAbsent(tkey, key -> key.string + "_value"));
-                  }
-                  return null;
-                }));
+            executor.submit(() -> {
+              ThreadLocalRandom random = ThreadLocalRandom.current();
+              started.countDown();
+              runTest.await();
+              for (int i = 0; i < numInsertions; i++) {
+                int hash = random.nextInt();
+                String string = String.valueOf(hash);
+                TKey tkey = new TKey(hash, hash, string);
+                assertEquals(
+                    string + "_value", fsCache.computeIfAbsent(tkey, key -> key.string + "_value"));
+              }
+              return null;
+            }));
       }
       started.await();
       runTest.countDown();
@@ -457,12 +453,11 @@ class FixedSizeCacheTest extends DDJavaSpecification {
   /** Collects the keys whose cached value matches the value produced by {@link TVC}. */
   private static List<String> visitedKeys(DDCache<TKey, String> cache) {
     List<String> visited = new ArrayList<>();
-    cache.visit(
-        (key, value) -> {
-          if ((key + "_value").equals(value)) {
-            visited.add(key.toString());
-          }
-        });
+    cache.visit((key, value) -> {
+      if ((key + "_value").equals(value)) {
+        visited.add(key.toString());
+      }
+    });
     return visited;
   }
 

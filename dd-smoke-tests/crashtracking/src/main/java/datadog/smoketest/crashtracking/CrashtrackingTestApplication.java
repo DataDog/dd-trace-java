@@ -63,16 +63,15 @@ public class CrashtrackingTestApplication {
     CountDownLatch latch = new CountDownLatch(1);
 
     Thread t =
-        new Thread(
-            () -> {
-              Path scriptPath =
-                  Paths.get(crashUploaderScript != null ? crashUploaderScript : oomeNotifierScript);
-              while (!Files.exists(scriptPath)) {
-                System.out.println("Waiting for the script " + scriptPath + " to be created...");
-                LockSupport.parkNanos(1_000_000_000L);
-              }
-              latch.countDown();
-            });
+        new Thread(() -> {
+          Path scriptPath =
+              Paths.get(crashUploaderScript != null ? crashUploaderScript : oomeNotifierScript);
+          while (!Files.exists(scriptPath)) {
+            System.out.println("Waiting for the script " + scriptPath + " to be created...");
+            LockSupport.parkNanos(1_000_000_000L);
+          }
+          latch.countDown();
+        });
     t.setDaemon(true);
     t.start();
 

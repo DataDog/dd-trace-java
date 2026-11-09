@@ -859,11 +859,10 @@ class AIGuardInternalTests {
     when(call.execute()).thenAnswer(invocation -> mockResponse(request, status, response));
     OkHttpClient client = mock(OkHttpClient.class);
     when(client.newCall(any(Request.class)))
-        .thenAnswer(
-            invocation -> {
-              request = invocation.getArgument(0);
-              return call;
-            });
+        .thenAnswer(invocation -> {
+          request = invocation.getArgument(0);
+          return call;
+        });
     return new AIGuardInternal(URL, HEADERS, client);
   }
 
@@ -913,11 +912,10 @@ class AIGuardInternalTests {
     expected.add("integration:none");
     List<Metric> filtered =
         metrics.stream()
-            .filter(
-                it ->
-                    "ai_guard".equals(it.namespace)
-                        && metric.equals(it.metricName)
-                        && expected.equals(it.tags))
+            .filter(it ->
+                "ai_guard".equals(it.namespace)
+                    && metric.equals(it.metricName)
+                    && expected.equals(it.tags))
             .collect(toList());
     assertEquals(1, filtered.size(), metrics::toString);
     assertEquals(1, filtered.stream().mapToLong(it -> it.value.longValue()).sum());

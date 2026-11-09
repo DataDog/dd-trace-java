@@ -9,7 +9,8 @@ import net.bytebuddy.asm.Advice;
 
 /**
  * Detect blocking for older Hikari versions before commit f0b3c520c (<2.6.0) by looking for calls
- * to <code>synchronizer.waitUntilSequenceExceeded(startSeq, timeout)</code>.
+ * to <code>
+ * synchronizer.waitUntilSequenceExceeded(startSeq, timeout)</code>.
  */
 @AutoService(InstrumenterModule.class)
 public final class HikariQueuedSequenceSynchronizerInstrumentation

@@ -330,17 +330,17 @@ public final class FlagEvaluator {
       case LT:
         return compareNumber(attributeValue, condition.value, (a, b) -> a < b);
       case SEMVER_EQ:
-        return evaluateSemverCondition(attributeValue, condition.semverComparand, (o) -> o == 0);
+        return evaluateSemverCondition(attributeValue, condition.semverComparand, o -> o == 0);
       case SEMVER_NEQ:
-        return evaluateSemverCondition(attributeValue, condition.semverComparand, (o) -> o != 0);
+        return evaluateSemverCondition(attributeValue, condition.semverComparand, o -> o != 0);
       case SEMVER_LT:
-        return evaluateSemverCondition(attributeValue, condition.semverComparand, (o) -> o < 0);
+        return evaluateSemverCondition(attributeValue, condition.semverComparand, o -> o < 0);
       case SEMVER_LTE:
-        return evaluateSemverCondition(attributeValue, condition.semverComparand, (o) -> o <= 0);
+        return evaluateSemverCondition(attributeValue, condition.semverComparand, o -> o <= 0);
       case SEMVER_GT:
-        return evaluateSemverCondition(attributeValue, condition.semverComparand, (o) -> o > 0);
+        return evaluateSemverCondition(attributeValue, condition.semverComparand, o -> o > 0);
       case SEMVER_GTE:
-        return evaluateSemverCondition(attributeValue, condition.semverComparand, (o) -> o >= 0);
+        return evaluateSemverCondition(attributeValue, condition.semverComparand, o -> o >= 0);
       default:
         return false;
     }
