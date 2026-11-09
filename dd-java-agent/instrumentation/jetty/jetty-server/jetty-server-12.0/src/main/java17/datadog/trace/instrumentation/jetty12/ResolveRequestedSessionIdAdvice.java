@@ -38,7 +38,10 @@ public class ResolveRequestedSessionIdAdvice {
       }
       final Flow<Void> flow = addrCallback.apply(reqCtx, requestedSessionId);
       Flow.Action action = flow.getAction();
-      if (action instanceof Flow.Action.RequestBlockingAction) {
+      if (action instanceof Flow.Action.RequestBlockingAction
+          && JettyBlockResponseHelper.tryCommitBlockingResponse(
+              reqCtx, (Flow.Action.RequestBlockingAction) action)) {
+        // only abort the request when the blocking response was actually committed
         throw new BlockingException("Blocked request (for sessionId)");
       }
     }

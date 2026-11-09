@@ -135,12 +135,77 @@ class JettyRequestBlockingTest {
         request(hasContext, hasSpan, hasRba, hasReqCtx, brf), callback);
   }
 
+  @Test
+  void commitReturnsFalseWithoutReportingWhenThereIsNoBrf() {
+    assertFalse(JettyBlockResponseHelper.tryCommitBlockingResponse(requestContext(null), RBA));
+    assertFalse(JettyBlockResponseHelper.tryCommitBlockingResponse(null, RBA));
+
+    assertEquals(0, commits);
+    assertEquals(0, blockFailures, "nothing was attempted, nothing to report");
+  }
+
+  @Test
+  void commitReturnsTrueWhenBrfCommits() {
+    assertTrue(JettyBlockResponseHelper.tryCommitBlockingResponse(requestContext(brf(true)), RBA));
+
+    assertEquals(1, commits);
+    assertEquals(0, blockFailures);
+  }
+
+  @Test
+  void commitReturnsFalseAndReportsWhenBrfFails() {
+    assertFalse(
+        JettyBlockResponseHelper.tryCommitBlockingResponse(requestContext(brf(false)), RBA));
+
+    assertEquals(1, commits);
+    assertEquals(1, blockFailures, "the (RequestContext, RBA) overload reports block_failure");
+  }
+
+  @Test
+  void commitReturnsFalseAndReportsWhenBrfThrows() {
+    BlockResponseFunction throwing =
+        (seg, status, bct, headers, rid) -> {
+          commits++;
+          throw new IllegalStateException("boom");
+        };
+
+    assertFalse(JettyBlockResponseHelper.tryCommitBlockingResponse(requestContext(throwing), RBA));
+
+    assertEquals(1, commits);
+    assertEquals(1, blockFailures);
+  }
+
   private Request request(
       boolean hasContext,
       boolean hasSpan,
       boolean hasRba,
       boolean hasReqCtx,
       BlockResponseFunction brf) {
+    RequestContext reqCtx = requestContext(brf);
+    AgentSpan span =
+        proxy(
+            AgentSpan.class,
+            (name, args) -> {
+              switch (name) {
+                case "getRequestBlockingAction":
+                  return hasRba ? RBA : null;
+                case "getRequestContext":
+                  return hasReqCtx ? reqCtx : null;
+                default:
+                  return null;
+              }
+            });
+    Context context =
+        proxy(Context.class, (name, args) -> "get".equals(name) && hasSpan ? span : null);
+    return proxy(
+        Request.class,
+        (name, args) ->
+            "getAttribute".equals(name) && DD_CONTEXT_ATTRIBUTE.equals(args[0]) && hasContext
+                ? context
+                : null);
+  }
+
+  private RequestContext requestContext(BlockResponseFunction brf) {
     AppSecContext appSecCtx =
         proxy(
             AppSecContext.class,
@@ -165,27 +230,7 @@ class JettyRequestBlockingTest {
                   return null;
               }
             });
-    AgentSpan span =
-        proxy(
-            AgentSpan.class,
-            (name, args) -> {
-              switch (name) {
-                case "getRequestBlockingAction":
-                  return hasRba ? RBA : null;
-                case "getRequestContext":
-                  return hasReqCtx ? reqCtx : null;
-                default:
-                  return null;
-              }
-            });
-    Context context =
-        proxy(Context.class, (name, args) -> "get".equals(name) && hasSpan ? span : null);
-    return proxy(
-        Request.class,
-        (name, args) ->
-            "getAttribute".equals(name) && DD_CONTEXT_ATTRIBUTE.equals(args[0]) && hasContext
-                ? context
-                : null);
+    return reqCtx;
   }
 
   private BlockResponseFunction brf(boolean result) {

@@ -159,21 +159,7 @@ public final class JettyBlockResponseHelper {
     if (rba == null) {
       return false;
     }
-    RequestContext reqCtx = span.getRequestContext();
-    if (reqCtx == null) {
-      return false;
-    }
-    BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
-    if (brf == null) {
-      return false;
-    }
-    try {
-      if (!brf.tryCommitBlockingResponse(reqCtx, rba)) {
-        return false;
-      }
-    } catch (Throwable t) {
-      log.debug("Failed to commit request blocking response", t);
-      reportBlockFailure(reqCtx);
+    if (!tryCommitBlockingResponse(span.getRequestContext(), rba)) {
       return false;
     }
     try {
@@ -183,6 +169,35 @@ public final class JettyBlockResponseHelper {
       log.debug("Failed to complete callback after request blocking response", t);
     }
     return true;
+  }
+
+  /**
+   * Commits a blocking response through the {@link BlockResponseFunction} registered on the request
+   * context.
+   *
+   * <p>Returns {@code false} without reporting when there is no request context or no {@link
+   * BlockResponseFunction} (nothing was attempted). A {@code false} commit result is reported as
+   * {@code block_failure} by the {@code (RequestContext, RequestBlockingAction)} overload; a commit
+   * that throws is reported here.
+   *
+   * @return true only if the blocking response was committed
+   */
+  public static boolean tryCommitBlockingResponse(
+      RequestContext reqCtx, Flow.Action.RequestBlockingAction rba) {
+    if (reqCtx == null || rba == null) {
+      return false;
+    }
+    BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
+    if (brf == null) {
+      return false;
+    }
+    try {
+      return brf.tryCommitBlockingResponse(reqCtx, rba);
+    } catch (Throwable t) {
+      log.debug("Failed to commit blocking response", t);
+      reportBlockFailure(reqCtx);
+      return false;
+    }
   }
 
   private static void reportBlockFailure(RequestContext reqCtx) {
