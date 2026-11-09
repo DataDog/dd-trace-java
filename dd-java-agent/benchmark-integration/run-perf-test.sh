@@ -5,7 +5,7 @@ test_csv_file=/tmp/perf_results.csv
 server_output=/tmp/server_output.txt
 server_type=$1
 server_package=$2
-agent_jars="${@:3}"
+agent_jars=("${@:3}")
 server_pid=""
 agent_state=""
 if [[ "$server_package" = "" ]] || [[ "$server_type" != "play-zip" && "$server_type" != "jar" ]]; then
@@ -141,37 +141,36 @@ function kill_tree {
 function start_server {
     agent_jar="$1"
     variant_label="$2"
-    javaagent_arg=""
+    # JVM options as an array, so paths with spaces (agent jar, JFR, GC log) stay one argument each.
+    run_java_args=()
     if [ "$agent_jar" != "" -a -f "$agent_jar" ]; then
-        javaagent_arg="-javaagent:$agent_jar -Ddatadog.slf4j.simpleLogger.defaultLogLevel=off -Ddd.writer.type=$writer_type -Ddd.trace.agent.port=$agent_port -Ddd.service.name=perf-test-app"
+        run_java_args+=("-javaagent:$agent_jar" -Ddatadog.slf4j.simpleLogger.defaultLogLevel=off "-Ddd.writer.type=$writer_type" "-Ddd.trace.agent.port=$agent_port" -Ddd.service.name=perf-test-app)
     fi
 
     # Opt-in JFR (PERF_JFR=1): one recording per variant, named by label so runs don't collide.
     # settings=profile captures jdk.ExecutionSample + jdk.ObjectAllocationSample for analyze-jfr.sh.
-    jfr_arg=""
     if [ "${PERF_JFR:-}" = "1" ]; then
         jfr_file="/tmp/perf_${variant_label}.jfr"
         rm -f "$jfr_file"
-        jfr_arg="-XX:StartFlightRecording=settings=profile,filename=$jfr_file,dumponexit=true"
+        run_java_args+=("-XX:StartFlightRecording=settings=profile,filename=$jfr_file,dumponexit=true")
         echo "JFR enabled -> $jfr_file"
     fi
     # GC log per variant, so test_endpoint can count young GCs inside each measured window. Unified
     # logging (-Xlog) needs JDK 9+; on JDK 8 the YGC/1k column is left empty.
+    run_java_args+=("-Xms$server_heap" "-Xmx$server_heap")
     gc_log=""
-    gc_arg=""
     if [ "$java_major" -ge 9 ] 2>/dev/null; then
         gc_log="/tmp/perf_gc_${variant_label}.log"
         rm -f "$gc_log"
-        gc_arg="-Xlog:gc:file=$gc_log"
+        run_java_args+=("-Xlog:gc:file=$gc_log")
     fi
-    run_java_args="$javaagent_arg $jfr_arg -Xms$server_heap -Xmx$server_heap $gc_arg"
 
     if [ "$server_type" = "jar" ]; then
-      echo "starting server: java $run_java_args -jar $server_package"
+      echo "starting server: java ${run_java_args[*]} -jar $server_package"
       # Server stdout -> /dev/null: Spring logs the /oups crash-endpoint RuntimeException to stdout
       # per request; under load that leaked 790K stack traces (~5G) into the run log and got the task
       # killed. Readiness is HTTP-polled and the pid comes from lsof, so stdout is not needed here.
-      { /usr/bin/time $time_flag java $run_java_args -jar "$server_package" ; } 2> $server_output 1>/dev/null &
+      { /usr/bin/time $time_flag java "${run_java_args[@]}" -jar "$server_package" ; } 2> $server_output 1>/dev/null &
     else
       # make a temp directory to hold the unzipped server
       unzip_temp=`mktemp -d`
@@ -199,9 +198,10 @@ function start_server {
       # have to use env to set JAVA_OPTS because of a gradle play plugin bug:
       # https://github.com/gradle/gradle/issues/4471
       # JAVA_OPTS must stay one quoted argument: split on spaces, only the first flag reaches it and
-      # env tries to run the next one as the command.
-      echo "starting server: env JAVA_OPTS=\"${run_java_args}\" ${play_script}"
-      { /usr/bin/time $time_flag env "JAVA_OPTS=${run_java_args}" "${play_script}" ; } 2> $server_output 1>/dev/null &
+      # env tries to run the next one as the command. The Play launcher splits JAVA_OPTS on spaces
+      # itself, so on Play an agent path with spaces still can't work.
+      echo "starting server: env JAVA_OPTS=\"${run_java_args[*]}\" ${play_script}"
+      { /usr/bin/time $time_flag env "JAVA_OPTS=${run_java_args[*]}" "${play_script}" ; } 2> $server_output 1>/dev/null &
     fi
     local launch_pid=$!
 
@@ -344,7 +344,7 @@ header="$header,Server CPU Burn,Server Max RSS,Server Start RSS,Server Load Incr
 echo $header > $test_csv_file
 
 variant_index=0
-for agent_jar in $agent_jars; do
+for agent_jar in "${agent_jars[@]}"; do
     variant_index=$((variant_index + 1))
     # Quiet cooldown between variants (skip before the first). Off unless the settings set it.
     if [ "${_did_first_variant:-}" = "1" ] && [ "${test_cooldown_seconds:-0}" -gt 0 ] 2>/dev/null; then
@@ -363,7 +363,7 @@ for agent_jar in $agent_jars; do
         variant_label="noagent"
         start_server "" "$variant_label"
     else
-        agent_version=$(java -jar $agent_jar 2>/dev/null)
+        agent_version=$(java -jar "$agent_jar" 2>/dev/null)
         result_row="$agent_version"
         # sanitize the version into a filesystem-safe JFR label; fall back to the jar basename. The
         # variant's position keeps two builds reporting the same version from sharing artifacts.
