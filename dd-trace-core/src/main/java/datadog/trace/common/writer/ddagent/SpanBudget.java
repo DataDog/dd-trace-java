@@ -1,6 +1,6 @@
 package datadog.trace.common.writer.ddagent;
 
-import datadog.common.queue.AdmissionBudget;
+import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
 /**
  * Bounds the spans the writer holds between publish and serialization.
@@ -22,79 +22,102 @@ import datadog.common.queue.AdmissionBudget;
  *   <li>force-kept traces: twice the limit.
  * </ul>
  *
- * <p>Admission checks headroom, not fit (see {@link AdmissionBudget}), so a large trace is never
- * refused for its size alone. Partial flush bounds chunk size, which in turn bounds the overshoot.
+ * <p>Admission checks headroom, not fit: a trace is admitted when usage before it is below its
+ * cutoff, and is then charged in full. A large trace is admitted whenever a small one would be, so
+ * a nearly full budget does not turn away only the large traces. Usage can overshoot a cutoff by
+ * the traces admitted while it was below; partial flush bounds chunk size, which bounds that.
+ *
+ * <p>A refused trace only reads the counter, so a saturated budget adds no contended writes to the
+ * rejection path, which is the common path while it stays saturated. Each admitted trace must be
+ * released exactly once, with the spans it was admitted with.
  */
-public final class SpanAdmission {
+public final class SpanBudget {
   /** Chunk size at which a kept trace is admitted up to the full limit. */
   static final int LARGE_CHUNK_SPANS = 100;
 
-  private static final SpanAdmission UNLIMITED = new SpanAdmission(null);
+  private static final AtomicLongFieldUpdater<SpanBudget> USED =
+      AtomicLongFieldUpdater.newUpdater(SpanBudget.class, "used");
+
+  private static final SpanBudget UNLIMITED = new SpanBudget(0);
 
   /**
    * @param spanLimit the span limit; zero or negative disables the budget
    */
-  public static SpanAdmission of(long spanLimit) {
-    return spanLimit <= 0 ? UNLIMITED : new SpanAdmission(new AdmissionBudget(spanLimit));
+  public static SpanBudget of(long spanLimit) {
+    return spanLimit <= 0 ? UNLIMITED : new SpanBudget(spanLimit);
   }
 
   /** Admits everything and charges nothing. */
-  public static SpanAdmission unlimited() {
+  public static SpanBudget unlimited() {
     return UNLIMITED;
   }
 
-  private final AdmissionBudget budget;
+  private final boolean unlimited;
   private final long limit;
   private final long halfLimit;
   private final long sampledOutCutoff;
   private final long forceKeepCutoff;
 
-  private SpanAdmission(AdmissionBudget budget) {
-    this.budget = budget;
-    if (budget == null) {
+  /** Spans admitted and not yet released. */
+  private volatile long used;
+
+  private SpanBudget(long spanLimit) {
+    this.unlimited = spanLimit <= 0;
+    if (unlimited) {
       this.limit = Long.MAX_VALUE;
       this.halfLimit = Long.MAX_VALUE;
       this.sampledOutCutoff = Long.MAX_VALUE;
       this.forceKeepCutoff = Long.MAX_VALUE;
     } else {
-      this.limit = budget.limit();
-      this.halfLimit = limit / 2;
-      this.sampledOutCutoff = Math.max(1, limit / 4);
-      this.forceKeepCutoff = limit > Long.MAX_VALUE / 2 ? Long.MAX_VALUE : limit * 2;
+      this.limit = spanLimit;
+      this.halfLimit = spanLimit / 2;
+      this.sampledOutCutoff = Math.max(1, spanLimit / 4);
+      this.forceKeepCutoff = spanLimit > Long.MAX_VALUE / 2 ? Long.MAX_VALUE : spanLimit * 2;
     }
   }
 
   public boolean isUnlimited() {
-    return budget == null;
+    return unlimited;
   }
 
-  /** Spans admitted and not yet released; zero when unlimited. */
+  /** Spans admitted and not yet released; may exceed {@link #limit()}. Zero when unlimited. */
   public long used() {
-    return budget == null ? 0 : budget.used();
-  }
-
-  public boolean tryAdmitSampledOut(int spans) {
-    return budget == null || budget.tryAcquire(spans, sampledOutCutoff);
-  }
-
-  public boolean tryAdmitKept(int spans) {
-    return budget == null || budget.tryAcquire(spans, keptCutoff(spans));
-  }
-
-  public boolean tryAdmitForceKept(int spans) {
-    return budget == null || budget.tryAcquire(spans, forceKeepCutoff);
-  }
-
-  /** Returns the spans of an admitted trace once the writer no longer holds them. */
-  public void release(int spans) {
-    if (budget != null) {
-      budget.release(spans);
-    }
+    return used;
   }
 
   /** The span cap the cutoffs are taken from, or {@link Long#MAX_VALUE} when unlimited. */
   public long limit() {
     return limit;
+  }
+
+  public boolean tryAdmitSampledOut(int spans) {
+    return tryAdmit(spans, sampledOutCutoff);
+  }
+
+  public boolean tryAdmitKept(int spans) {
+    return tryAdmit(spans, keptCutoff(spans));
+  }
+
+  public boolean tryAdmitForceKept(int spans) {
+    return tryAdmit(spans, forceKeepCutoff);
+  }
+
+  /** Returns the spans of an admitted trace once the writer no longer holds them. */
+  public void release(int spans) {
+    if (!unlimited) {
+      USED.getAndAdd(this, -spans);
+    }
+  }
+
+  private boolean tryAdmit(int spans, long cutoff) {
+    if (unlimited) {
+      return true;
+    }
+    if (used >= cutoff) {
+      return false;
+    }
+    USED.getAndAdd(this, spans);
+    return true;
   }
 
   long keptCutoff(int spans) {

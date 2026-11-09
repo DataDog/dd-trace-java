@@ -13,7 +13,7 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import datadog.metrics.api.statsd.StatsDClient;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.common.writer.RemoteApi;
-import datadog.trace.common.writer.ddagent.SpanAdmission;
+import datadog.trace.common.writer.ddagent.SpanBudget;
 import datadog.trace.core.DDSpan;
 import java.util.Arrays;
 import java.util.Collections;
@@ -128,12 +128,12 @@ class HealthMetricsTest {
 
   @Test
   void testReportsSpanBudgetGaugesOnFlush() throws InterruptedException {
-    SpanAdmission admission = SpanAdmission.of(1000);
-    assertTrue(admission.tryAdmitKept(300));
+    SpanBudget budget = SpanBudget.of(1000);
+    assertTrue(budget.tryAdmitKept(300));
     CountDownLatch latch = new CountDownLatch(2);
     try (TracerHealthMetrics healthMetrics =
         new TracerHealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)) {
-      healthMetrics.registerSpanAdmission(admission);
+      healthMetrics.registerSpanBudget(budget);
       healthMetrics.start();
       assertTrue(latch.await(10, TimeUnit.SECONDS));
     }
@@ -145,7 +145,7 @@ class HealthMetricsTest {
   void testUnlimitedSpanBudgetReportsNoGauges() throws InterruptedException {
     try (TracerHealthMetrics healthMetrics =
         new TracerHealthMetrics(statsD, 100, TimeUnit.MILLISECONDS)) {
-      healthMetrics.registerSpanAdmission(SpanAdmission.unlimited());
+      healthMetrics.registerSpanBudget(SpanBudget.unlimited());
       healthMetrics.start();
       Thread.sleep(300);
     }

@@ -14,7 +14,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import datadog.trace.common.sampling.SingleSpanSampler;
-import datadog.trace.common.writer.ddagent.SpanAdmission;
+import datadog.trace.common.writer.ddagent.SpanBudget;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.monitor.HealthMetrics;
@@ -81,14 +81,14 @@ class SpanBudgetAccountingTest extends DDJavaSpecification {
     when(forceKeptRoot.isForceKeep()).thenReturn(true);
     DDSpan span = mock(DDSpan.class);
 
-    SpanAdmission admission = SpanAdmission.of(2_000);
+    SpanBudget budget = SpanBudget.of(2_000);
     AtomicLong admitted = new AtomicLong();
     AtomicLong refused = new AtomicLong();
     try (TraceProcessingWorker worker =
         new TraceProcessingWorker(
             // a small trace capacity, so queue-full drops happen after admission too
             16,
-            admission,
+            budget,
             mock(HealthMetrics.class),
             dispatcher,
             droppingPolicy::get,
@@ -137,7 +137,7 @@ class SpanBudgetAccountingTest extends DDJavaSpecification {
       executor.shutdown();
 
       long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
-      while (admission.used() != 0 && System.nanoTime() < deadline) {
+      while (budget.used() != 0 && System.nanoTime() < deadline) {
         Thread.sleep(10);
       }
 
@@ -145,7 +145,7 @@ class SpanBudgetAccountingTest extends DDJavaSpecification {
       assertTrue(admitted.get() > 0, "nothing was admitted");
       assertTrue(refused.get() > 0, "nothing was refused");
       assertTrue(serializerFailures.get() > 0, "no serializer failures");
-      assertEquals(0, admission.used());
+      assertEquals(0, budget.used());
     }
   }
 }

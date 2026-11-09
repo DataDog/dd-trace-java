@@ -12,7 +12,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import datadog.metrics.api.statsd.StatsDClient;
 import datadog.trace.api.cache.RadixTreeCache;
 import datadog.trace.common.writer.RemoteApi;
-import datadog.trace.common.writer.ddagent.SpanAdmission;
+import datadog.trace.common.writer.ddagent.SpanBudget;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.propagation.opg.OrgGuard;
 import datadog.trace.util.AgentTaskScheduler;
@@ -110,7 +110,7 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   private final long interval;
 
   /** Read on flush, so the gauges keep moving while the serializer is stuck in a send. */
-  private volatile SpanAdmission spanAdmission;
+  private volatile SpanBudget spanBudget;
 
   private final TimeUnit units;
 
@@ -139,9 +139,9 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   }
 
   @Override
-  public void registerSpanAdmission(final SpanAdmission spanAdmission) {
-    if (!spanAdmission.isUnlimited()) {
-      this.spanAdmission = spanAdmission;
+  public void registerSpanBudget(final SpanBudget spanBudget) {
+    if (!spanBudget.isUnlimited()) {
+      this.spanBudget = spanBudget;
     }
   }
 
@@ -492,10 +492,10 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
             target.statsd, "queue.dropped.spans", target.unsetPriorityDroppedSpans, UNSET_TAG);
 
         reportIfChanged(target.statsd, "queue.enqueued.spans", target.enqueuedSpans, NO_TAGS);
-        SpanAdmission spanAdmission = target.spanAdmission;
-        if (spanAdmission != null) {
-          target.statsd.gauge("queue.spans", spanAdmission.used(), NO_TAGS);
-          target.statsd.gauge("queue.span_limit", spanAdmission.limit(), NO_TAGS);
+        SpanBudget spanBudget = target.spanBudget;
+        if (spanBudget != null) {
+          target.statsd.gauge("queue.spans", spanBudget.used(), NO_TAGS);
+          target.statsd.gauge("queue.span_limit", spanBudget.limit(), NO_TAGS);
         }
         reportIfChanged(target.statsd, "queue.enqueued.bytes", target.enqueuedBytes, NO_TAGS);
         reportIfChanged(target.statsd, "trace.pending.created", target.createdTraces, NO_TAGS);

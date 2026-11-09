@@ -17,7 +17,7 @@ import datadog.trace.common.sampling.SingleSpanSampler;
 import datadog.trace.common.writer.ddagent.FlushEvent;
 import datadog.trace.common.writer.ddagent.Prioritization;
 import datadog.trace.common.writer.ddagent.PrioritizationStrategy;
-import datadog.trace.common.writer.ddagent.SpanAdmission;
+import datadog.trace.common.writer.ddagent.SpanBudget;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.monitor.HealthMetrics;
@@ -46,7 +46,7 @@ public class TraceProcessingWorker implements AutoCloseable {
   private final TraceSerializingHandler serializingHandler;
   private final Thread serializerThread;
   private final int capacity;
-  private final SpanAdmission spanAdmission;
+  private final SpanBudget spanBudget;
 
   private final SpanSamplingWorker spanSamplingWorker;
 
@@ -67,7 +67,7 @@ public class TraceProcessingWorker implements AutoCloseable {
       final SingleSpanSampler singleSpanSampler) {
     this(
         capacity,
-        prioritization.admission(Config.get().getTraceWriterSpanBudget()),
+        prioritization.spanBudget(Config.get().getTraceWriterSpanBudget()),
         healthMetrics,
         dispatcher,
         droppingPolicy,
@@ -80,7 +80,7 @@ public class TraceProcessingWorker implements AutoCloseable {
   @VisibleForTesting
   TraceProcessingWorker(
       final int capacity,
-      final SpanAdmission spanAdmission,
+      final SpanBudget spanBudget,
       final HealthMetrics healthMetrics,
       final PayloadDispatcher dispatcher,
       final DroppingPolicy droppingPolicy,
@@ -89,8 +89,8 @@ public class TraceProcessingWorker implements AutoCloseable {
       final TimeUnit timeUnit,
       final SingleSpanSampler singleSpanSampler) {
     this.capacity = capacity;
-    this.spanAdmission = spanAdmission;
-    healthMetrics.registerSpanAdmission(spanAdmission);
+    this.spanBudget = spanBudget;
+    healthMetrics.registerSpanBudget(spanBudget);
     this.primaryQueue = createQueue(capacity);
     this.secondaryQueue = createQueue(capacity);
     this.spanSamplingWorker =
@@ -100,15 +100,15 @@ public class TraceProcessingWorker implements AutoCloseable {
             secondaryQueue,
             singleSpanSampler,
             healthMetrics,
-            droppingPolicy,
-            spanAdmission);
+            spanBudget,
+            droppingPolicy);
     this.prioritizationStrategy =
         prioritization.create(
             primaryQueue,
             secondaryQueue,
             spanSamplingWorker.getSpanSamplingQueue(),
-            droppingPolicy,
-            spanAdmission);
+            spanBudget,
+            droppingPolicy);
 
     this.serializingHandler =
         new TraceSerializingHandler(
@@ -118,7 +118,7 @@ public class TraceProcessingWorker implements AutoCloseable {
             dispatcher,
             flushInterval,
             timeUnit,
-            spanAdmission);
+            spanBudget);
     this.serializerThread = newAgentThread(TRACE_PROCESSOR, serializingHandler);
   }
 
@@ -200,7 +200,7 @@ public class TraceProcessingWorker implements AutoCloseable {
     private final long ticksRequiredToFlush;
     private final boolean doTimeFlush;
     private final PayloadDispatcher payloadDispatcher;
-    private final SpanAdmission spanAdmission;
+    private final SpanBudget spanBudget;
     private long lastTicks;
 
     public TraceSerializingHandler(
@@ -210,8 +210,8 @@ public class TraceProcessingWorker implements AutoCloseable {
         final PayloadDispatcher payloadDispatcher,
         final long flushInterval,
         final TimeUnit timeUnit,
-        final SpanAdmission spanAdmission) {
-      this.spanAdmission = spanAdmission;
+        final SpanBudget spanBudget) {
+      this.spanBudget = spanBudget;
       this.primaryQueue = primaryQueue;
       this.secondaryQueue = secondaryQueue;
       this.healthMetrics = healthMetrics;
@@ -260,7 +260,7 @@ public class TraceProcessingWorker implements AutoCloseable {
             payloadDispatcher.addTrace(trace);
           } finally {
             // serialized or failed, the writer no longer holds these spans
-            spanAdmission.release(trace.size());
+            spanBudget.release(trace.size());
           }
         } else if (event instanceof FlushEvent) {
           // The flush marker only goes to the primary queue, so drain the secondary queue too:

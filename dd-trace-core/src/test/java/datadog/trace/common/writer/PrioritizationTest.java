@@ -16,7 +16,7 @@ import datadog.trace.common.writer.ddagent.FlushEvent;
 import datadog.trace.common.writer.ddagent.Prioritization;
 import datadog.trace.common.writer.ddagent.PrioritizationStrategy;
 import datadog.trace.common.writer.ddagent.PrioritizationStrategy.PublishResult;
-import datadog.trace.common.writer.ddagent.SpanAdmission;
+import datadog.trace.common.writer.ddagent.SpanBudget;
 import datadog.trace.core.DDSpan;
 import datadog.trace.test.junit.utils.converter.PrioritySamplingConverter;
 import datadog.trace.test.util.DDJavaSpecification;
@@ -54,7 +54,7 @@ class PrioritizationTest extends DDJavaSpecification {
     Queue<Object> secondary = mock(Queue.class);
     PrioritizationStrategy blocking =
         Prioritization.ENSURE_TRACE.create(
-            primary, secondary, null, () -> false, SpanAdmission.unlimited());
+            primary, secondary, null, SpanBudget.unlimited(), () -> false);
     // stub: first offer returns !primaryFull, second offer returns true
     when(primary.offer(trace)).thenReturn(!primaryFull, true);
     when(secondary.offer(trace)).thenReturn(true);
@@ -85,7 +85,7 @@ class PrioritizationTest extends DDJavaSpecification {
     Queue<Object> secondary = mock(Queue.class);
     PrioritizationStrategy fastLane =
         Prioritization.FAST_LANE.create(
-            primary, secondary, null, () -> false, SpanAdmission.unlimited());
+            primary, secondary, null, SpanBudget.unlimited(), () -> false);
 
     PublishResult publishResult = fastLane.publish(mock(DDSpan.class), priority, trace);
 
@@ -112,7 +112,7 @@ class PrioritizationTest extends DDJavaSpecification {
     Queue<Object> secondary = mock(Queue.class);
     PrioritizationStrategy drop =
         Prioritization.FAST_LANE.create(
-            primary, secondary, null, () -> true, SpanAdmission.unlimited());
+            primary, secondary, null, SpanBudget.unlimited(), () -> true);
     when(primary.offer(trace)).thenReturn(true);
 
     PublishResult publishResult = drop.publish(mock(DDSpan.class), priority, trace);
@@ -132,7 +132,7 @@ class PrioritizationTest extends DDJavaSpecification {
     Queue<Object> primary = mock(Queue.class);
     Queue<Object> secondary = mock(Queue.class);
     PrioritizationStrategy prioritizationStrategy =
-        strategy.create(primary, secondary, null, () -> false, SpanAdmission.unlimited());
+        strategy.create(primary, secondary, null, SpanBudget.unlimited(), () -> false);
     when(primary.offer(any())).thenReturn(true);
 
     prioritizationStrategy.flush(100, TimeUnit.MILLISECONDS);
@@ -151,7 +151,7 @@ class PrioritizationTest extends DDJavaSpecification {
       Prioritization strategy, boolean forceKeep, PublishResult expectedResult) {
     Queue<Object> primary = mock(Queue.class);
     PrioritizationStrategy drop =
-        strategy.create(primary, null, null, () -> true, SpanAdmission.unlimited());
+        strategy.create(primary, null, null, SpanBudget.unlimited(), () -> true);
     DDSpan root = mock(DDSpan.class);
     List<DDSpan> trace = Collections.singletonList(root);
     when(root.isForceKeep()).thenReturn(forceKeep);
@@ -202,7 +202,7 @@ class PrioritizationTest extends DDJavaSpecification {
     Queue<Object> spanSampling = mock(Queue.class);
     PrioritizationStrategy blocking =
         Prioritization.ENSURE_TRACE.create(
-            primary, secondary, spanSampling, () -> false, SpanAdmission.unlimited());
+            primary, secondary, spanSampling, SpanBudget.unlimited(), () -> false);
     when(primary.offer(trace)).thenReturn(!primaryFull, true);
     when(spanSampling.offer(trace)).thenReturn(!singleSpanFull);
 
@@ -240,7 +240,7 @@ class PrioritizationTest extends DDJavaSpecification {
     Queue<Object> spanSampling = mock(Queue.class);
     PrioritizationStrategy fastLane =
         Prioritization.FAST_LANE.create(
-            primary, secondary, spanSampling, () -> false, SpanAdmission.unlimited());
+            primary, secondary, spanSampling, SpanBudget.unlimited(), () -> false);
     when(primary.offer(trace)).thenReturn(true);
     when(spanSampling.offer(trace)).thenReturn(!singleSpanFull);
 
@@ -272,7 +272,7 @@ class PrioritizationTest extends DDJavaSpecification {
     Queue<Object> spanSampling = mock(Queue.class);
     PrioritizationStrategy drop =
         Prioritization.FAST_LANE.create(
-            primary, secondary, spanSampling, () -> true, SpanAdmission.unlimited());
+            primary, secondary, spanSampling, SpanBudget.unlimited(), () -> true);
     when(primary.offer(trace)).thenReturn(true);
     when(spanSampling.offer(trace)).thenReturn(true);
 
@@ -304,7 +304,7 @@ class PrioritizationTest extends DDJavaSpecification {
     Queue<Object> primary = mock(Queue.class);
     Queue<Object> spanSampling = mock(Queue.class);
     PrioritizationStrategy drop =
-        strategy.create(primary, null, spanSampling, () -> true, SpanAdmission.unlimited());
+        strategy.create(primary, null, spanSampling, SpanBudget.unlimited(), () -> true);
     DDSpan root = mock(DDSpan.class);
     List<DDSpan> trace = Collections.singletonList(root);
     when(root.isForceKeep()).thenReturn(forceKeep);
@@ -325,10 +325,10 @@ class PrioritizationTest extends DDJavaSpecification {
   void testFastLaneRefusesOverBudgetTraceWithoutOffering() {
     Queue<Object> primary = mock(Queue.class);
     Queue<Object> secondary = mock(Queue.class);
-    SpanAdmission admission = SpanAdmission.of(100);
-    assertTrue(admission.tryAdmitKept(100));
+    SpanBudget budget = SpanBudget.of(100);
+    assertTrue(budget.tryAdmitKept(100));
     PrioritizationStrategy fastLane =
-        Prioritization.FAST_LANE.create(primary, secondary, null, () -> false, admission);
+        Prioritization.FAST_LANE.create(primary, secondary, null, budget, () -> false);
     List<DDSpan> trace = Collections.nCopies(10, mock(DDSpan.class));
 
     PublishResult result =
@@ -336,7 +336,7 @@ class PrioritizationTest extends DDJavaSpecification {
 
     assertEquals(PublishResult.DROPPED_BUFFER_OVERFLOW, result);
     verify(primary, never()).offer(any());
-    assertEquals(100, admission.used());
+    assertEquals(100, budget.used());
   }
 
   @SuppressWarnings("unchecked")
@@ -344,21 +344,21 @@ class PrioritizationTest extends DDJavaSpecification {
   void testFastLaneChargesEnqueuedTraceAndReleasesOneTheQueueRefuses() {
     Queue<Object> primary = mock(Queue.class);
     Queue<Object> secondary = mock(Queue.class);
-    SpanAdmission admission = SpanAdmission.of(100);
+    SpanBudget budget = SpanBudget.of(100);
     PrioritizationStrategy fastLane =
-        Prioritization.FAST_LANE.create(primary, secondary, null, () -> false, admission);
+        Prioritization.FAST_LANE.create(primary, secondary, null, budget, () -> false);
     List<DDSpan> trace = Collections.nCopies(10, mock(DDSpan.class));
     when(primary.offer(trace)).thenReturn(true, false);
 
     assertEquals(
         ENQUEUED_FOR_SERIALIZATION,
         fastLane.publish(mock(DDSpan.class), PrioritySampling.SAMPLER_KEEP, trace));
-    assertEquals(10, admission.used());
+    assertEquals(10, budget.used());
 
     assertEquals(
         PublishResult.DROPPED_BUFFER_OVERFLOW,
         fastLane.publish(mock(DDSpan.class), PrioritySampling.SAMPLER_KEEP, trace));
-    assertEquals(10, admission.used());
+    assertEquals(10, budget.used());
   }
 
   @SuppressWarnings("unchecked")
@@ -368,10 +368,10 @@ class PrioritizationTest extends DDJavaSpecification {
     Queue<Object> secondary = mock(Queue.class);
     when(primary.offer(any())).thenReturn(true);
     when(secondary.offer(any())).thenReturn(true);
-    SpanAdmission admission = SpanAdmission.of(100);
-    assertTrue(admission.tryAdmitKept(30));
+    SpanBudget budget = SpanBudget.of(100);
+    assertTrue(budget.tryAdmitKept(30));
     PrioritizationStrategy fastLane =
-        Prioritization.FAST_LANE.create(primary, secondary, null, () -> false, admission);
+        Prioritization.FAST_LANE.create(primary, secondary, null, budget, () -> false);
     List<DDSpan> trace = Collections.singletonList(mock(DDSpan.class));
 
     assertEquals(
@@ -384,7 +384,7 @@ class PrioritizationTest extends DDJavaSpecification {
 
   @Test
   void testEnsureTraceIsOutsideTheSpanBudget() {
-    assertTrue(Prioritization.ENSURE_TRACE.admission(100).isUnlimited());
-    assertEquals(false, Prioritization.FAST_LANE.admission(100).isUnlimited());
+    assertTrue(Prioritization.ENSURE_TRACE.spanBudget(100).isUnlimited());
+    assertEquals(false, Prioritization.FAST_LANE.spanBudget(100).isUnlimited());
   }
 }
