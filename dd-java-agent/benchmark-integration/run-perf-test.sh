@@ -127,6 +127,15 @@ function cpu_seconds {
     ps -o time= -p "$1" | awk -F'[:\.]' '{ print ($1 * 3600) + ($2 * 60) + $3 }'
 }
 
+# Kill a process and all of its descendants, children first.
+function kill_tree {
+    local child
+    for child in $(pgrep -P "$1"); do
+        kill_tree "$child"
+    done
+    kill "$1" 2>/dev/null
+}
+
 # Start up server passed into the script
 # Blocks until server is bound to local port 8080
 function start_server {
@@ -162,12 +171,12 @@ function start_server {
       # Server stdout -> /dev/null: Spring logs the /oups crash-endpoint RuntimeException to stdout
       # per request; under load that leaked 790K stack traces (~5G) into the run log and got the task
       # killed. Readiness is HTTP-polled and the pid comes from lsof, so stdout is not needed here.
-      { /usr/bin/time $time_flag java $run_java_args -jar $server_package ; } 2> $server_output 1>/dev/null &
+      { /usr/bin/time $time_flag java $run_java_args -jar "$server_package" ; } 2> $server_output 1>/dev/null &
     else
       # make a temp directory to hold the unzipped server
       unzip_temp=`mktemp -d`
       # perform the unzipping of the play zip
-      unzip ${server_package} -d ${unzip_temp} &> /dev/null
+      unzip "${server_package}" -d "${unzip_temp}" &> /dev/null
 
       if [ $? -eq 0 ]; then
         echo "Unzipped server package at ${unzip_temp}"
@@ -194,6 +203,7 @@ function start_server {
       echo "starting server: env JAVA_OPTS=\"${run_java_args}\" ${play_script}"
       { /usr/bin/time $time_flag env "JAVA_OPTS=${run_java_args}" "${play_script}" ; } 2> $server_output 1>/dev/null &
     fi
+    local launch_pid=$!
 
     # Block until the server actually SERVES HTTP 200 -- not just binds the TCP port. The java agent
     # slows startup, so a TCP-only check (nc -z) let wrk start before the app was serving under
@@ -206,6 +216,9 @@ function start_server {
         || python3 -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen(sys.argv[1],timeout=2).getcode()==200 else 1)" "$ready_url" >/dev/null 2>&1 ; do
         if [ "$SECONDS" -ge "$ready_deadline" ]; then
             echo "ERROR: server did not serve HTTP 200 on $ready_url within 180s -- aborting" >&2
+            # server_pid isn't known yet, so stop what was launched: the time wrapper and the JVM
+            # under it, which would otherwise outlive the script and hold the port.
+            kill_tree "$launch_pid"
             exit 1
         fi
         sleep 0.5
@@ -372,7 +385,10 @@ for agent_jar in $agent_jars; do
         label="$t"
         url="${endpoints[$label]}"
         echo "--Testing $label -- $url--"
-        test_output_files=($(test_endpoint $url))
+        # test_endpoint's `exit 1` (e.g. on wrk socket errors) only leaves this command
+        # substitution, so check its status rather than recording an empty row.
+        test_output=$(test_endpoint "$url") || { stop_server; exit 1; }
+        test_output_files=($test_output)
         let server_total_rss=$server_total_rss+$(ps -o rss= -p "$server_pid")
         let server_total_rss_count=$server_total_rss_count+1
 
