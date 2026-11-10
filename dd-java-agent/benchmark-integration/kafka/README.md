@@ -52,7 +52,8 @@ Set `TRACE_AGENT_PORT` if your local Datadog Agent isn't on 8126.
 Variants are `NoAgent` or `label=path/to/agent.jar`. Each run is a fresh JVM, and the variant order
 rotates every rep.
 
-Consumer and enricher runs always read the first `MESSAGES` records of the topic, so rerunning `prefill.sh` only
+Consumer and enricher runs always read the first `MESSAGES` records of the topic (the enricher finishes the poll
+that reaches it, so up to one batch more), so rerunning `prefill.sh` only
 appends records that are never read; the headers consumers see come from the agent used for the
 first prefill. To change them (e.g. to compare propagation styles), stop the broker, delete
 `build/kafka-data/`, and start and prefill again.

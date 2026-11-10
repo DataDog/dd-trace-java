@@ -21,7 +21,8 @@ import org.apache.kafka.clients.producer.ProducerRecord;
  * next service. So one record exercises extraction, span creation and injection on the same trace.
  *
  * <p>Prints {@code enriched N records in T ms, R records/s}, timed from the first record received to
- * the last send acknowledged, so startup and the group join are excluded. Exits non-zero if the topic
+ * the last send acknowledged, so startup and the group join are excluded. It finishes the batch that
+ * reaches {@code messages}, so N can exceed it by up to one poll. Exits non-zero if the topic
  * runs dry before {@code messages} records or any send fails.
  *
  * <pre>java -cp "$KAFKA_HOME/libs/*" Enricher.java bootstrap in-topic out-topic messages group [copy-headers]
@@ -104,9 +105,9 @@ public class Enricher {
                   ? new ProducerRecord<>(outTopic, null, record.key(), enriched, record.headers())
                   : new ProducerRecord<>(outTopic, record.key(), enriched);
           producer.send(out, onSent);
-          if (++count >= messages) {
-            break;
-          }
+          count++;
+          // No break once `messages` is reached: the instrumented iterator finishes a record's
+          // consume span only when it advances or runs out, so finish the fetched batch.
         }
       }
       producer.flush();
