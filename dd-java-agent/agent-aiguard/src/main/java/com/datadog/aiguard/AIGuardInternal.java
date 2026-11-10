@@ -601,6 +601,8 @@ public class AIGuardInternal implements Evaluator {
         if (sdsFindings != null && !sdsFindings.isEmpty()) {
           metaStruct.put(META_STRUCT_SDS, sdsFindings);
         }
+        // Before the block decision so both the allow and the DENY path carry the backend extras.
+        applyBackendExtras(span, metaStruct, result);
         final boolean shouldBlock =
             isBlockingEnabled(options, result.get("is_blocking_enabled")) && action != Action.ALLOW;
         WafMetricCollector.get().aiGuardRequest(action, shouldBlock, redactionState);
