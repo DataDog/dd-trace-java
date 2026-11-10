@@ -31,6 +31,7 @@ import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.civisibility.utils.ShellCommandExecutor;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -282,6 +283,7 @@ class GitDataUploaderSelectedCommitTest {
             : git(command, "rev-parse", "HEAD");
     git(command, "update-ref", "HEAD", head);
     Path checkout = shallowClone(command, origin);
+    List<String> originalShallow = Files.readAllLines(checkout.resolve(".git/shallow"));
     ShellGitClient client = spy(client(checkout, "1 month ago"));
     String selected = "98cd7c8e9cf71e02dc28bd9b13928bee0f85b74c";
     assertTrue(client.getLatestCommits(selected).isEmpty());
@@ -302,13 +304,7 @@ class GitDataUploaderSelectedCommitTest {
       assertEquals(singletonList(selected), client.getLatestCommits(selected));
       if (deferred) {
         verify(client).fetchSelectedCommit(selected);
-        assertEquals(
-            "1",
-            git(
-                new ShellCommandExecutor(checkout.toFile(), 10_000),
-                "rev-list",
-                "--count",
-                selected));
+        assertEquals(originalShallow, Files.readAllLines(checkout.resolve(".git/shallow")));
       } else {
         verify(client, never()).fetchSelectedCommit(selected);
       }

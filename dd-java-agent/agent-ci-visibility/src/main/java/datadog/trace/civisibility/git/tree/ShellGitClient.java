@@ -454,7 +454,7 @@ public class ShellGitClient implements GitClient {
           Path recoveryDirectory = null;
           ShellCommandExecutor fetchExecutor = commandExecutor;
           try {
-            if (!isShallow()) {
+            {
               // A private Git directory owns the boundaries; downloaded objects remain reusable.
               recoveryDirectory = Files.createTempDirectory("dd-ci-vis-recovery-");
               args.add(2, "--no-auto-gc");
@@ -479,6 +479,15 @@ public class ShellGitClient implements GitClient {
               initArgs.add(recoveryDirectory.toString());
               fetchExecutor.executeCommand(
                   ShellCommandExecutor.OutputParser.IGNORE, initArgs.toArray(new String[0]));
+              String shallowPath =
+                  commandExecutor
+                      .executeCommand(
+                          IOUtils::readFully, buildGitCommand("rev-parse", "--git-path", "shallow"))
+                      .trim();
+              Path checkoutShallow = Paths.get(repoRoot).resolve(shallowPath);
+              if (Files.exists(checkoutShallow)) {
+                Files.copy(checkoutShallow, recoveryDirectory.resolve("shallow"));
+              }
               // Snapshot includes in the original gitdir/branch context, including inherited
               // overrides.
               String[] settings =
@@ -568,7 +577,20 @@ public class ShellGitClient implements GitClient {
     }
     if (fetchIfNotPresent) {
       boolean isPresent = isCommitPresent(commit);
-      if (!isPresent || recoveredShallowCommits != null) {
+      boolean needsAncestry = !isPresent || recoveredShallowCommits != null;
+      if (!needsAncestry) {
+        try {
+          // Recovery objects survive the original client; presence alone does not imply ancestry.
+          commandExecutor.executeCommand(
+              ShellCommandExecutor.OutputParser.IGNORE,
+              buildGitCommand("rev-list", "--quiet", commit, "--"));
+        } catch (ShellCommandExecutor.ShellCommandFailedException e) {
+          needsAncestry = true;
+        } catch (TimeoutException e) {
+          LOGGER.debug("Could not check PR ancestry; retaining local commit metadata", e);
+        }
+      }
+      if (needsAncestry) {
         try {
           // A previous bounded upload fetch may have the tip but lack its PR ancestry.
           fetchCommit(commit);
