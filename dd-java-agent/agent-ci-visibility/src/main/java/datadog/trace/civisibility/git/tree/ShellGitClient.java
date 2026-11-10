@@ -488,20 +488,25 @@ public class ShellGitClient implements GitClient {
                           buildGitCommand("config", "--null", "--list", "--includes")));
               environment.put("GIT_CONFIG_NOSYSTEM", "1");
               environment.put("GIT_CONFIG_GLOBAL", recoveryDirectory.resolve("config").toString());
-              environment.put("GIT_CONFIG_PARAMETERS", "");
-              int settingCount = 0;
+              StringBuilder parameters = new StringBuilder();
               for (String setting : settings) {
                 int separator = setting.indexOf('\n');
                 String key = separator < 0 ? setting : setting.substring(0, separator);
                 if (key.equals("include.path") || key.startsWith("includeif.")) {
                   continue;
                 }
-                environment.put("GIT_CONFIG_KEY_" + settingCount, key);
-                environment.put(
-                    "GIT_CONFIG_VALUE_" + settingCount++,
-                    separator < 0 ? "true" : setting.substring(separator + 1));
+                String value = separator < 0 ? "true" : setting.substring(separator + 1);
+                // Legacy quoting is supported before Git 2.31 and preserves ordered multivalues.
+                if (parameters.length() > 0) {
+                  parameters.append(' ');
+                }
+                parameters
+                    .append('\'')
+                    .append((key + "=" + value).replace("'", "'\\''"))
+                    .append('\'');
               }
-              environment.put("GIT_CONFIG_COUNT", String.valueOf(settingCount));
+              environment.put("GIT_CONFIG_PARAMETERS", parameters.toString());
+              environment.put("GIT_CONFIG_COUNT", "0");
               if (isCommitPresent(HEAD)) {
                 fetchExecutor.executeCommand(
                     ShellCommandExecutor.OutputParser.IGNORE,

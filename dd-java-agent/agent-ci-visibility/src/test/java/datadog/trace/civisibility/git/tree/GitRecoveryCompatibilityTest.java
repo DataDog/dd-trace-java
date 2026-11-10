@@ -138,6 +138,29 @@ class GitRecoveryCompatibilityTest {
     assertFalse(client.isShallow());
   }
 
+  @Test
+  void evaluatedConfigurationPreservesMultipleQuotedValues() throws Exception {
+    Path origin = directory.resolve("origin's repository");
+    ShellCommandExecutor remote = fixture(origin);
+    Path checkout = cloneFrom(remote, origin);
+    ShellCommandExecutor local = new ShellCommandExecutor(checkout.toFile(), 10_000);
+    String alias = "url." + origin.toUri() + ".insteadOf";
+    git(local, "config", "--add", alias, "first:");
+    git(local, "config", "--add", alias, "second:");
+    git(local, "config", "remote.origin.url", "second:");
+    String selected =
+        writeCommit(
+            remote,
+            git(remote, "rev-parse", "HEAD^{tree}"),
+            git(remote, "rev-parse", "HEAD"),
+            "selected");
+    git(remote, "update-ref", "refs/heads/selected", selected);
+    ShellGitClient client = client(checkout, "1 month ago");
+    client.fetchSelectedCommit(selected);
+    assertEquals(selected, client.getCommitInfo(selected, false).getSha());
+    assertFalse(client.isShallow());
+  }
+
   private Path cloneFrom(ShellCommandExecutor remote, Path origin) throws Exception {
     Path checkout = directory.resolve("checkout");
     git(remote, "clone", "--no-local", origin.toString(), checkout.toString());
