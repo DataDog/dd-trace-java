@@ -12,7 +12,7 @@ dependencies {
   implementation libs.slf4j
 
   testImplementation project(':components:environment')
-  testImplementation project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests:smoke-test-common')
   testImplementation project(':remote-config:remote-config-api')
   testImplementation project(':utils:test-utils')
 }

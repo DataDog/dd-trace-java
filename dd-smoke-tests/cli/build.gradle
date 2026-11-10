@@ -16,7 +16,7 @@ tasks.named("jar", Jar) {
 dependencies {
   implementation project(':dd-trace-api')
 
-  testImplementation project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests:smoke-test-common')
 }
 
 tasks.withType(Test).configureEach {

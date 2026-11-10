@@ -5,5 +5,5 @@ plugins {
 description = 'Sample Trace CLI Smoke Tests.'
 
 dependencies {
-  testImplementation project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests:smoke-test-common')
 }

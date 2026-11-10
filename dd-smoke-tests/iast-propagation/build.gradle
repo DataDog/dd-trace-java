@@ -39,7 +39,7 @@ dependencies {
   implementation libs.scala213
   implementation libs.kotlin
 
-  testImplementation project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests:smoke-test-common')
   testImplementation(testFixtures(project(":dd-smoke-tests:iast-util")))
 
   implementation(libs.bundles.groovy)
