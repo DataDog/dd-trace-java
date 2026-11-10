@@ -38,8 +38,11 @@ A PASS does not establish that guidance is necessary or belongs in `AGENTS.md`. 
 
 Use [CONTRIBUTING.md](../CONTRIBUTING.md) and the relevant [developer guides](../AGENTS.md#key-documentation-read-on-demand-dont-load-upfront).
 When adding imports or moving guidance into a skill, list every affected file in `instruction_files`
-so both instruction versions are compared. Verify new case criteria against repository sources and
-keep unrelated control cases in the PR preset.
+so both instruction versions are compared.
+
+As instructions evolve, add or update cases to check the intended behavior and catch regressions.
+Ground expectations in repository sources, include new cases in the `minimum` preset in `config.yaml`,
+and keep a general Java control case. Review the actual answers alongside the scores.
 
 ## Setup evaluation
 
