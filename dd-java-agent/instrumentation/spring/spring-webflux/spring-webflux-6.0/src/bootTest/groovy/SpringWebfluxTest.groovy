@@ -20,6 +20,7 @@ import datadog.trace.api.config.GeneralConfig
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.URIUtils
 import datadog.trace.core.DDSpan
+import dd.trace.instrumentation.springwebflux.server.CorsController
 import dd.trace.instrumentation.springwebflux.server.EchoHandlerFunction
 import dd.trace.instrumentation.springwebflux.server.ErrorPathController
 import dd.trace.instrumentation.springwebflux.server.FooModel
@@ -632,6 +633,75 @@ class SpringWebfluxHttp11Test extends InstrumentationSpecification {
     "exception handled by @ExceptionHandler" | "GET"  | "/handled-error/1" | "/handled-error/{id}" | "ErrorPathController.handledError" | 400    | null
     "ResponseStatusException"                | "GET"  | "/status-error/1"  | "/status-error/{id}"  | "ErrorPathController.statusError"  | 409    | ResponseStatusException
     "no handler for the method"              | "POST" | "/foo"             | null                  | "DispatcherHandler.handle"         | 405    | MethodNotAllowedException
+  }
+
+  def "Request answered by Spring without a controller method: #testName"() {
+    setup:
+    String url = "http://localhost:$port$urlPath"
+    when:
+    def response = client.options().uri(url).headers { h ->
+      requestHeaders.each { name, value ->
+        h.set(name, value)
+      }
+    }.exchange().block()
+
+    then:
+    response.statusCode().value() == 200
+    response.headers().asHttpHeaders().getFirst(responseHeader)?.contains(responseHeaderValue)
+    assertTraces(2) {
+      def traceParent
+      sortSpansByStart()
+      trace(2) {
+        clientSpan(it, null, "http.request", "spring-webflux-client", "OPTIONS", URI.create(url))
+        traceParent = clientSpan(it, span(0), "netty.client.request", "netty-client", "OPTIONS", URI.create(url))
+      }
+      trace(2) {
+        span {
+          // no route: the resource falls back to the request path
+          resourceName Config.get().isTraceOtelSemanticsEnabled() ? "OPTIONS" : serverResource
+          operationName "netty.request"
+          spanType DDSpanTypes.HTTP_SERVER
+          errored false
+          childOf(traceParent)
+          tags {
+            "$Tags.COMPONENT" "netty"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+            "$Tags.PEER_HOST_IPV4" "127.0.0.1"
+            "$Tags.PEER_PORT" Integer
+            this.serverUrlTags(it, url)
+            "$Tags.HTTP_METHOD" "OPTIONS"
+            "$Tags.HTTP_STATUS" 200
+            "$Tags.HTTP_USER_AGENT" String
+            "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
+            "$Tags.NETWORK_CLIENT_IP" "127.0.0.1"
+            defaultTags(true)
+          }
+        }
+        span {
+          resourceName handlerName
+          operationName handlerName
+          spanType DDSpanTypes.HTTP_SERVER
+          childOf(span(0))
+          errored false
+          tags {
+            "$Tags.COMPONENT" "spring-webflux-controller"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+            if (handlerType != null) {
+              "handler.type" handlerType
+            }
+            defaultTags()
+          }
+        }
+      }
+    }
+
+    // OPTIONS on a GET-only mapping is handled by Spring's internal HttpOptionsHandler. A CORS
+    // preflight is answered by DispatcherHandler itself, so no handler adapter names the span or
+    // sets the route, although the request matched /cors/{id}.
+    where:
+    testName           | urlPath   | requestHeaders                                                                       | responseHeader                 | responseHeaderValue           | serverResource    | handlerName                 | handlerType
+    "implicit OPTIONS" | "/foo"    | [:]                                                                                  | "Allow"                        | "GET"                         | "OPTIONS /foo"    | "HttpOptionsHandler.handle" | "org.springframework.web.reactive.result.method.RequestMappingInfoHandlerMapping\$HttpOptionsHandler"
+    "CORS preflight"   | "/cors/1" | ["Origin": CorsController.ALLOWED_ORIGIN, "Access-Control-Request-Method": "GET"] | "Access-Control-Allow-Origin" | CorsController.ALLOWED_ORIGIN | "OPTIONS /cors/?" | "DispatcherHandler.handle"  | null
   }
 
   def "Redirect test"() {
