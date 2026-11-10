@@ -21,15 +21,20 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.URIUtils
 import datadog.trace.core.DDSpan
 import dd.trace.instrumentation.springwebflux.server.EchoHandlerFunction
+import dd.trace.instrumentation.springwebflux.server.ErrorPathController
 import dd.trace.instrumentation.springwebflux.server.FooModel
+import dd.trace.instrumentation.springwebflux.server.FunctionalRoutesComponent
 import dd.trace.instrumentation.springwebflux.server.SpringWebFluxTestApplication
 import dd.trace.instrumentation.springwebflux.server.TestController
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.web.server.LocalServerPort
+import org.springframework.http.HttpMethod
 import org.springframework.http.client.reactive.ReactorClientHttpConnector
 import org.springframework.web.reactive.function.BodyExtractors
 import org.springframework.web.reactive.function.BodyInserters
 import org.springframework.web.reactive.function.client.WebClient
+import org.springframework.web.reactive.function.server.HandlerFilterFunction
+import org.springframework.web.server.MethodNotAllowedException
 import org.springframework.web.server.ResponseStatusException
 import reactor.core.publisher.Mono
 import reactor.netty.http.HttpProtocol
@@ -491,6 +496,142 @@ class SpringWebfluxHttp11Test extends InstrumentationSpecification {
 
     "annotation API fail fast" | "/foo-failfast/1"   | "/foo-failfast/{id}"   | "getFooFailFast"
     "annotation API fail Mono" | "/foo-failmono/1"   | "/foo-failmono/{id}"   | "getFooFailMono"
+  }
+
+  def "Functional API #testName"() {
+    setup:
+    String url = "http://localhost:$port$urlPath"
+    when:
+    def response = client.get().uri(url).exchange().block()
+
+    then:
+    response.statusCode().value() == 200
+    response.body(BodyExtractors.toMono(String)).block() == expectedResponseBody
+    assertTraces(2) {
+      def traceParent
+      sortSpansByStart()
+      trace(2) {
+        clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url))
+        traceParent = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url))
+      }
+      trace(2) {
+        span {
+          resourceName "GET $route"
+          operationName "netty.request"
+          spanType DDSpanTypes.HTTP_SERVER
+          childOf(traceParent)
+          tags {
+            "$Tags.COMPONENT" "netty"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+            "$Tags.PEER_HOST_IPV4" "127.0.0.1"
+            "$Tags.PEER_PORT" Integer
+            this.serverUrlTags(it, url)
+            "$Tags.HTTP_METHOD" "GET"
+            "$Tags.HTTP_STATUS" 200
+            "$Tags.HTTP_USER_AGENT" String
+            "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
+            "$Tags.NETWORK_CLIENT_IP" "127.0.0.1"
+            "$Tags.HTTP_ROUTE" route
+            defaultTags(true)
+          }
+        }
+        span {
+          resourceName handlerName
+          operationName handlerName
+          spanType DDSpanTypes.HTTP_SERVER
+          childOf(span(0))
+          tags {
+            "$Tags.COMPONENT" "spring-webflux-controller"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+            "request.predicate" predicate
+            "handler.type" { String tagVal ->
+              return tagVal.startsWith(handlerTypePrefix)
+            }
+            defaultTags()
+          }
+        }
+      }
+    }
+
+    // Nested routes get their full route from the best-matching pattern set by RouterFunctionMapping,
+    // while request.predicate holds only the inner predicate. A filtered route's handler is the
+    // lambda returned by HandlerFilterFunction.apply, so the span is named after it.
+    where:
+    testName         | urlPath       | route            | handlerName                        | predicate                  | handlerTypePrefix                  | expectedResponseBody
+    "nested route"   | "/nested/1"   | "/nested/{id}"   | "FunctionalRoutesComponent.lambda" | "(GET && /{id})"           | FunctionalRoutesComponent.name     | "nested 1"
+    "filtered route" | "/filtered/2" | "/filtered/{id}" | "HandlerFilterFunction.lambda"     | "(GET && /filtered/{id})"  | HandlerFilterFunction.name         | "filtered 2"
+  }
+
+  def "Annotated API error resolved to #status: #testName"() {
+    setup:
+    String url = "http://localhost:$port$urlPath"
+    when:
+    def response = client.method(HttpMethod.valueOf(method)).uri(url).exchange().block()
+
+    then:
+    response.statusCode().value() == status
+    assertTraces(2) {
+      def traceParent
+      sortSpansByStart()
+      trace(2) {
+        clientSpan(it, null, "http.request", "spring-webflux-client", method, URI.create(url), status, true)
+        traceParent = clientSpan(it, span(0), "netty.client.request", "netty-client", method, URI.create(url), status, true)
+      }
+      trace(2) {
+        span {
+          if (route != null) {
+            resourceName "$method $route"
+          } else {
+            // no route: the resource falls back to the request path
+            resourceName Config.get().isTraceOtelSemanticsEnabled() ? method : "$method $urlPath"
+          }
+          operationName "netty.request"
+          spanType DDSpanTypes.HTTP_SERVER
+          errored false
+          childOf(traceParent)
+          tags {
+            "$Tags.COMPONENT" "netty"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+            "$Tags.PEER_HOST_IPV4" "127.0.0.1"
+            "$Tags.PEER_PORT" Integer
+            this.serverUrlTags(it, url)
+            "$Tags.HTTP_METHOD" method
+            "$Tags.HTTP_STATUS" status
+            "$Tags.HTTP_USER_AGENT" String
+            "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
+            "$Tags.NETWORK_CLIENT_IP" "127.0.0.1"
+            if (route != null) {
+              "$Tags.HTTP_ROUTE" route
+            }
+            defaultTags(true)
+          }
+        }
+        span {
+          resourceName handlerName
+          operationName handlerName
+          spanType DDSpanTypes.HTTP_SERVER
+          childOf(span(0))
+          errored handlerError != null
+          tags {
+            "$Tags.COMPONENT" "spring-webflux-controller"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+            if (route != null) {
+              "handler.type" ErrorPathController.name
+            }
+            if (handlerError != null) {
+              errorTags(handlerError, String)
+            }
+            defaultTags()
+          }
+        }
+      }
+    }
+
+    where:
+    testName                                 | method | urlPath            | route                 | handlerName                        | status | handlerError
+    "exception handled by @ExceptionHandler" | "GET"  | "/handled-error/1" | "/handled-error/{id}" | "ErrorPathController.handledError" | 400    | null
+    "ResponseStatusException"                | "GET"  | "/status-error/1"  | "/status-error/{id}"  | "ErrorPathController.statusError"  | 409    | ResponseStatusException
+    "no handler for the method"              | "POST" | "/foo"             | null                  | "DispatcherHandler.handle"         | 405    | MethodNotAllowedException
   }
 
   def "Redirect test"() {
