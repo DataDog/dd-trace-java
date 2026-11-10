@@ -74,13 +74,16 @@ class UniversalFlagConfigParserTest {
     "'0'             ",
     "'true'          ",
     "'\"future\"'    ",
-    "'[]'            "
+    "'[]'            ",
+    "'null'          "
   })
-  void ignoresNonObjectEvaluatorParams(final String evaluatorParams) throws Exception {
+  void preservesNonObjectEvaluatorParamsForLazyValidation(final String evaluatorParams)
+      throws Exception {
     final ServerConfiguration config =
         deserialize("{\"evaluatorParams\":" + evaluatorParams + ",\"flags\":{}}");
 
-    assertNull(config.evaluatorParams);
+    assertNotNull(config.evaluatorParams);
+    assertEquals("evaluatorParams must be an object", config.evaluatorParams.validationError);
   }
 
   @TableTest({
@@ -144,6 +147,56 @@ class UniversalFlagConfigParserTest {
                 + "\"rules\":[{\"conditions\":[{\"operator\":\"ONE_OF\","
                 + "\"attribute\":\"plan\",\"flagEvaluation\":{\"key\":\"dependency\"},"
                 + "\"value\":[\"on\"]}]}],\"splits\":[]}]}}}");
+
+    assertFalse(config.flags.containsKey("bad"));
+    assertEquals("invalid_flag", config.invalidFlags.get("bad"));
+  }
+
+  @Test
+  void rejectsConditionsWithNeitherAttributeNorFlagEvaluation() throws Exception {
+    final ServerConfiguration config =
+        deserialize(
+            "{\"flags\":{\"bad\":{\"key\":\"bad\",\"allocations\":[{\"key\":\"a\","
+                + "\"rules\":[{\"conditions\":[{\"operator\":\"ONE_OF\",\"value\":[\"on\"]}]}],"
+                + "\"splits\":[]}]}}}");
+
+    assertFalse(config.flags.containsKey("bad"));
+    assertEquals("invalid_flag", config.invalidFlags.get("bad"));
+  }
+
+  @TableTest({
+    "operator   ",
+    "MATCHES    ",
+    "NOT_MATCHES"
+  })
+  void rejectsUnsupportedDependentRegexOperators(final ConditionOperator operator)
+      throws Exception {
+    final ServerConfiguration config =
+        deserialize(
+            "{\"flags\":{\"bad\":{\"key\":\"bad\",\"allocations\":[{\"key\":\"a\","
+                + "\"rules\":[{\"conditions\":[{\"operator\":\""
+                + operator
+                + "\",\"flagEvaluation\":{\"key\":\"dependency\",\"future\":true},"
+                + "\"value\":\"on\"}]}],\"splits\":[]}]}}}");
+
+    assertFalse(config.flags.containsKey("bad"));
+    assertEquals("invalid_flag", config.invalidFlags.get("bad"));
+  }
+
+  @TableTest({
+    "key   ",
+    "'\"\"'",
+    "'1'   ",
+    "'true'"
+  })
+  void rejectsInvalidDependentFlagKeys(final String key) throws Exception {
+    final ServerConfiguration config =
+        deserialize(
+            "{\"flags\":{\"bad\":{\"key\":\"bad\",\"allocations\":[{\"key\":\"a\","
+                + "\"rules\":[{\"conditions\":[{\"operator\":\"ONE_OF\","
+                + "\"flagEvaluation\":{\"key\":"
+                + key
+                + "},\"value\":[\"on\"]}]}],\"splits\":[]}]}}}");
 
     assertFalse(config.flags.containsKey("bad"));
     assertEquals("invalid_flag", config.invalidFlags.get("bad"));

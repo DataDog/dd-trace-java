@@ -22,16 +22,20 @@ import com.datadog.openfeature.internal.ufc.Split;
 import com.datadog.openfeature.internal.ufc.UniversalFlagConfigParser;
 import com.datadog.openfeature.internal.ufc.ValueType;
 import com.datadog.openfeature.internal.ufc.Variant;
+import com.datadog.openfeature.testlog.CapturingServiceProvider;
 import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.MutableContext;
 import dev.openfeature.sdk.ProviderEvaluation;
+import dev.openfeature.sdk.Reason;
 import java.time.Instant;
+import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.slf4j.event.Level;
 
 class DependentFlagEvaluatorTest {
 
@@ -171,6 +175,7 @@ class DependentFlagEvaluatorTest {
 
     assertEquals(ErrorCode.GENERAL, result.getErrorCode());
     assertEquals(singletonList("b:GENERAL"), evaluations(evaluation));
+    assertTrue(evaluation.dependencyExposures.isEmpty());
   }
 
   @Test
@@ -191,7 +196,8 @@ class DependentFlagEvaluatorTest {
     final ProviderEvaluation<String> result = evaluation.details;
 
     assertEquals(ErrorCode.GENERAL, result.getErrorCode());
-    assertEquals(Arrays.asList("b:GENERAL", "a:GENERAL"), evaluations(evaluation));
+    assertEquals(Arrays.asList("a:GENERAL", "b:GENERAL"), evaluations(evaluation));
+    assertTrue(evaluation.dependencyExposures.isEmpty());
   }
 
   @Test
@@ -226,13 +232,17 @@ class DependentFlagEvaluatorTest {
       for (final String record : evaluations(evaluation)) {
         evaluationKeys.add(record.substring(0, record.indexOf(':')));
       }
-      assertEquals(Arrays.asList("leaf", "a", "b"), evaluationKeys);
+      assertEquals(
+          rootDependencies.get(0).equals("a")
+              ? Arrays.asList("a", "leaf", "b")
+              : Arrays.asList("b", "a", "leaf"),
+          evaluationKeys);
       assertTrue(evaluation.dependencyExposures.isEmpty());
     }
   }
 
   @Test
-  void validatesInvalidMaximumDependencyDepthOnlyWhenADependencyIsReached() {
+  void fallsBackFromInvalidMaximumDependencyDepthOnlyWhenADependencyIsReached() {
     final FlagEvaluator evaluator = evaluator();
     final Map<String, Flag> flags = new HashMap<>();
     flags.put("ordinary", stringFlag("ordinary", "on", null, false));
@@ -241,21 +251,30 @@ class DependentFlagEvaluatorTest {
         "dependent", stringFlag("dependent", "on", dependencyRule("dependency", "on"), false));
     final ServerConfiguration config = config(flags, new EvaluatorParams(1.5D));
 
-    final ProviderEvaluation<String> ordinary =
-        evaluator.evaluate(config, String.class, "ordinary", "default", new MutableContext("u"));
-    final FlagEvaluator.EvaluationResult<String> dependent =
-        evaluator.evaluateWithTrace(
-            config, String.class, "dependent", "default", new MutableContext("u"));
+    CapturingServiceProvider.reset();
+    CapturingServiceProvider.enable(FlagEvaluator.class.getName(), Level.ERROR);
+    try {
+      final ProviderEvaluation<String> ordinary =
+          evaluator.evaluate(config, String.class, "ordinary", "default", new MutableContext("u"));
+      assertEquals("on-value", ordinary.getValue());
+      assertTrue(CapturingServiceProvider.events().isEmpty(), "validation must remain lazy");
 
-    assertEquals("on-value", ordinary.getValue());
-    assertEquals(ErrorCode.PARSE_ERROR, dependent.details.getErrorCode());
-    assertNotNull(dependent.details.getFlagMetadata());
-    assertEquals(singletonList("dependency:PARSE_ERROR"), evaluations(dependent));
-    assertTrue(dependent.dependencyExposures.isEmpty());
+      final FlagEvaluator.EvaluationResult<String> dependent =
+          evaluator.evaluateWithTrace(
+              config, String.class, "dependent", "default", new MutableContext("u"));
+      assertEquals("on-value", dependent.details.getValue());
+      assertNotNull(dependent.details.getFlagMetadata());
+      assertEquals(singletonList("dependency:on"), evaluations(dependent));
+      assertEquals(1, CapturingServiceProvider.events().size());
+      assertTrue(
+          CapturingServiceProvider.events().get(0).message.contains("maxDependencyDepth=10"));
+    } finally {
+      CapturingServiceProvider.reset();
+    }
   }
 
   @Test
-  void rejectsExplicitNullMaximumDependencyDepthButDefaultsAnEmptyObject() {
+  void defaultsExplicitNullAndEmptyMaximumDependencyDepth() {
     final Map<String, Flag> flags = new HashMap<>();
     flags.put("ordinary", stringFlag("ordinary", "on", null, false));
     flags.put("dependency", stringFlag("dependency", "on", null, false));
@@ -280,9 +299,8 @@ class DependentFlagEvaluatorTest {
             "dependent",
             "default",
             new MutableContext("u"));
-    assertEquals(ErrorCode.PARSE_ERROR, explicitNull.details.getErrorCode());
-    assertEquals(singletonList("dependency:PARSE_ERROR"), evaluations(explicitNull));
-    assertTrue(explicitNull.dependencyExposures.isEmpty());
+    assertEquals("on-value", explicitNull.details.getValue());
+    assertEquals(singletonList("dependency:on"), evaluations(explicitNull));
     assertEquals(
         "on-value",
         evaluator
@@ -296,7 +314,7 @@ class DependentFlagEvaluatorTest {
   }
 
   @Test
-  void invalidMaximumDepthDoesNotEmitTheSelfDependentRootAsAPrerequisite() {
+  void invalidMaximumDepthFallsBackBeforeDetectingASelfDependency() {
     final Map<String, Flag> flags = new HashMap<>();
     flags.put("root", stringFlag("root", "on", dependencyRule("root", "on"), false));
 
@@ -309,8 +327,219 @@ class DependentFlagEvaluatorTest {
                 "default",
                 new MutableContext("u"));
 
-    assertEquals(ErrorCode.PARSE_ERROR, evaluation.details.getErrorCode());
+    assertEquals(ErrorCode.GENERAL, evaluation.details.getErrorCode());
     assertTrue(evaluation.dependencyEvaluations.isEmpty());
+    assertTrue(evaluation.dependencyExposures.isEmpty());
+  }
+
+  @Test
+  void defaultsToTenDependencyEdgesAndTreatsZeroAsAnExplicitLimit() {
+    final FlagEvaluator evaluator = evaluator();
+
+    final FlagEvaluator.EvaluationResult<String> tenEdges =
+        evaluator.evaluateWithTrace(
+            chain(10), String.class, "root", "default", new MutableContext("u"));
+    final FlagEvaluator.EvaluationResult<String> elevenEdges =
+        evaluator.evaluateWithTrace(
+            chain(11), String.class, "root", "default", new MutableContext("u"));
+    final FlagEvaluator.EvaluationResult<String> zero =
+        evaluator.evaluateWithTrace(
+            chain(1, new EvaluatorParams(0D)),
+            String.class,
+            "root",
+            "default",
+            new MutableContext("u"));
+
+    assertEquals("on-value", tenEdges.details.getValue());
+    assertEquals(10, tenEdges.dependencyEvaluations.size());
+    assertEquals(ErrorCode.GENERAL, elevenEdges.details.getErrorCode());
+    assertEquals(11, elevenEdges.dependencyEvaluations.size());
+    assertTrue(elevenEdges.dependencyExposures.isEmpty());
+    assertEquals(ErrorCode.GENERAL, zero.details.getErrorCode());
+    assertEquals(singletonList("dependency-1:GENERAL"), evaluations(zero));
+    assertTrue(zero.dependencyExposures.isEmpty());
+  }
+
+  @Test
+  void fallsBackWhenReadingMaximumDependencyDepthThrows() {
+    final Map<String, Flag> flags = new HashMap<>();
+    flags.put("dependency", stringFlag("dependency", "on", null, false));
+    flags.put("root", stringFlag("root", "on", dependencyRule("dependency", "on"), false));
+    final Number throwingNumber =
+        new Number() {
+          @Override
+          public int intValue() {
+            throw new IllegalStateException("broken numeric option");
+          }
+
+          @Override
+          public long longValue() {
+            throw new IllegalStateException("broken numeric option");
+          }
+
+          @Override
+          public float floatValue() {
+            throw new IllegalStateException("broken numeric option");
+          }
+
+          @Override
+          public double doubleValue() {
+            throw new IllegalStateException("broken numeric option");
+          }
+        };
+
+    final FlagEvaluator.EvaluationResult<String> evaluation =
+        evaluator()
+            .evaluateWithTrace(
+                config(flags, new EvaluatorParams(throwingNumber)),
+                String.class,
+                "root",
+                "default",
+                new MutableContext("u"));
+
+    assertEquals("on-value", evaluation.details.getValue());
+    assertEquals(singletonList("dependency:on"), evaluations(evaluation));
+  }
+
+  @Test
+  void acceptsInclusiveMaximumDepthRangeAndDefaultsOutOfRangeOrWrongTypes() {
+    final Map<String, Flag> flags = new HashMap<>();
+    flags.put("dependency", stringFlag("dependency", "on", null, false));
+    flags.put("root", stringFlag("root", "on", dependencyRule("dependency", "on"), false));
+    final MutableContext context = new MutableContext("u");
+
+    assertEquals(
+        "on-value",
+        evaluator()
+            .evaluate(
+                config(flags, new EvaluatorParams(255D)), String.class, "root", "default", context)
+            .getValue());
+    for (final Object invalid : Arrays.asList(-1D, 256D, 1.5D, "10", Boolean.TRUE)) {
+      assertEquals(
+          "on-value",
+          evaluator()
+              .evaluate(
+                  config(flags, new EvaluatorParams(invalid)),
+                  String.class,
+                  "root",
+                  "default",
+                  context)
+              .getValue(),
+          String.valueOf(invalid));
+    }
+  }
+
+  @Test
+  void loggingFailureCannotChangeInvalidDepthFallback() {
+    final Map<String, Flag> flags = new HashMap<>();
+    flags.put("dependency", stringFlag("dependency", "on", null, false));
+    flags.put("root", stringFlag("root", "on", dependencyRule("dependency", "on"), false));
+    CapturingServiceProvider.reset();
+    CapturingServiceProvider.enable(FlagEvaluator.class.getName(), Level.ERROR);
+    CapturingServiceProvider.failOn("Invalid evaluator options");
+    try {
+      final ProviderEvaluation<String> evaluation =
+          evaluator()
+              .evaluate(
+                  config(flags, new EvaluatorParams("bad")),
+                  String.class,
+                  "root",
+                  "default",
+                  new MutableContext("u"));
+
+      assertEquals("on-value", evaluation.getValue());
+    } finally {
+      CapturingServiceProvider.reset();
+    }
+  }
+
+  @Test
+  void memoizationAvoidsReevaluatingThePrerequisite() {
+    final CountingAllocationList allocations =
+        new CountingAllocationList(allocation("dependency-allocation", null, "on", false));
+    final Map<String, Variant> variations = new HashMap<>();
+    variations.put("on", new Variant("on", "on-value"));
+    final Map<String, Flag> flags = new HashMap<>();
+    flags.put(
+        "dependency", new Flag("dependency", true, ValueType.STRING, variations, allocations));
+    flags.put(
+        "root",
+        stringFlag(
+            "root",
+            "on",
+            new Rule(
+                Arrays.asList(
+                    new ConditionConfiguration(ONE_OF, null, "dependency", singletonList("on")),
+                    new ConditionConfiguration(ONE_OF, null, "dependency", singletonList("on")))),
+            false));
+
+    final FlagEvaluator.EvaluationResult<String> evaluation =
+        evaluator()
+            .evaluateWithTrace(
+                config(flags, null), String.class, "root", "default", new MutableContext("u"));
+
+    assertEquals("on-value", evaluation.details.getValue());
+    assertEquals(1, allocations.reads);
+    assertEquals(singletonList("dependency:on"), evaluations(evaluation));
+  }
+
+  @Test
+  void retainsEarlierSiblingTelemetryAndAbortsBeforeLaterWaterfallAllocations() {
+    final Map<String, Flag> flags = new HashMap<>();
+    flags.put("successful", stringFlag("successful", "on", null, true));
+    final Rule graph =
+        new Rule(
+            Arrays.asList(
+                new ConditionConfiguration(ONE_OF, null, "successful", singletonList("on")),
+                new ConditionConfiguration(ONE_OF, null, "missing", singletonList("on"))));
+    flags.put(
+        "root",
+        integerFlag(
+            "root",
+            Arrays.asList(
+                allocation("graph", graph, "selected", false),
+                allocation("must-not-run", null, "selected", false))));
+
+    final FlagEvaluator.EvaluationResult<Integer> evaluation =
+        evaluator()
+            .evaluateWithTrace(
+                config(flags, null), Integer.class, "root", 0, new MutableContext("u"));
+
+    assertEquals(0, evaluation.details.getValue());
+    assertEquals(Reason.ERROR.name(), evaluation.details.getReason());
+    assertEquals(ErrorCode.GENERAL, evaluation.details.getErrorCode());
+    assertEquals(Arrays.asList("successful:on", "missing:FLAG_NOT_FOUND"), evaluations(evaluation));
+    assertTrue(evaluation.dependencyExposures.isEmpty());
+  }
+
+  @Test
+  void prerequisiteWithoutAssignmentAbortsTheGraphAndLaterWaterfallAllocations() {
+    final Map<String, Flag> flags = new HashMap<>();
+    flags.put(
+        "unassigned",
+        new Flag(
+            "unassigned",
+            true,
+            ValueType.STRING,
+            singletonMap("on", new Variant("on", "on-value")),
+            singletonList(new Allocation("none", null, null, null, emptyList(), true))));
+    flags.put(
+        "root",
+        integerFlag(
+            "root",
+            Arrays.asList(
+                allocation("graph", dependencyRule("unassigned", "on"), "selected", false),
+                allocation("must-not-run", null, "selected", false))));
+
+    final FlagEvaluator.EvaluationResult<Integer> evaluation =
+        evaluator()
+            .evaluateWithTrace(
+                config(flags, null), Integer.class, "root", 0, new MutableContext("u"));
+
+    assertEquals(0, evaluation.details.getValue());
+    assertEquals(Reason.ERROR.name(), evaluation.details.getReason());
+    assertEquals(ErrorCode.GENERAL, evaluation.details.getErrorCode());
+    assertEquals(singletonList("unassigned:GENERAL"), evaluations(evaluation));
     assertTrue(evaluation.dependencyExposures.isEmpty());
   }
 
@@ -441,6 +670,12 @@ class DependentFlagEvaluatorTest {
     assertEquals(ErrorCode.GENERAL, missingEvaluation.details.getErrorCode());
     assertTrue(missingEvaluation.details.getErrorMessage().contains("missing"));
     assertEquals(singletonList("missing:FLAG_NOT_FOUND"), evaluations(missingEvaluation));
+    assertEquals(
+        ErrorCode.FLAG_NOT_FOUND, missingEvaluation.dependencyEvaluations.get(0).errorCode);
+    assertEquals(
+        "prerequisite flag is missing",
+        missingEvaluation.dependencyEvaluations.get(0).errorMessage);
+    assertTrue(missingEvaluation.dependencyExposures.isEmpty());
 
     final ServerConfiguration invalidConfig = config(missingFlags, null, true);
     invalidConfig.invalidFlags = singletonMap("missing", "invalid_flag");
@@ -451,6 +686,7 @@ class DependentFlagEvaluatorTest {
     assertEquals(ErrorCode.GENERAL, invalidEvaluation.details.getErrorCode());
     assertTrue(invalidEvaluation.details.getErrorMessage().contains("missing"));
     assertEquals(singletonList("missing:PARSE_ERROR"), evaluations(invalidEvaluation));
+    assertTrue(invalidEvaluation.dependencyExposures.isEmpty());
   }
 
   @Test
@@ -478,7 +714,7 @@ class DependentFlagEvaluatorTest {
     final ProviderEvaluation<Integer> result = evaluation.details;
 
     assertEquals(1, result.getValue());
-    assertEquals(Arrays.asList("leaf:on", "parent:on"), evaluations(evaluation));
+    assertEquals(Arrays.asList("parent:on", "leaf:on"), evaluations(evaluation));
     assertTrue(evaluation.dependencyExposures.isEmpty());
   }
 
@@ -512,6 +748,21 @@ class DependentFlagEvaluatorTest {
   private static ServerConfiguration config(
       final Map<String, Flag> flags, final EvaluatorParams params) {
     return config(flags, params, false);
+  }
+
+  private static ServerConfiguration chain(final int edges) {
+    return chain(edges, null);
+  }
+
+  private static ServerConfiguration chain(final int edges, final EvaluatorParams params) {
+    final Map<String, Flag> flags = new HashMap<>();
+    for (int edge = 1; edge <= edges; edge++) {
+      final String key = "dependency-" + edge;
+      final Rule rule = edge == edges ? null : dependencyRule("dependency-" + (edge + 1), "on");
+      flags.put(key, stringFlag(key, "on", rule, false));
+    }
+    flags.put("root", stringFlag("root", "on", dependencyRule("dependency-1", "on"), false));
+    return config(flags, params);
   }
 
   private static ServerConfiguration config(
@@ -555,5 +806,28 @@ class DependentFlagEvaluatorTest {
     return new Rule(
         singletonList(
             new ConditionConfiguration(ONE_OF, null, flagKey, singletonList(expectedVariant))));
+  }
+
+  private static final class CountingAllocationList extends AbstractList<Allocation> {
+    private final Allocation allocation;
+    private int reads;
+
+    private CountingAllocationList(final Allocation allocation) {
+      this.allocation = allocation;
+    }
+
+    @Override
+    public Allocation get(final int index) {
+      if (index != 0) {
+        throw new IndexOutOfBoundsException(String.valueOf(index));
+      }
+      reads++;
+      return allocation;
+    }
+
+    @Override
+    public int size() {
+      return 1;
+    }
   }
 }
