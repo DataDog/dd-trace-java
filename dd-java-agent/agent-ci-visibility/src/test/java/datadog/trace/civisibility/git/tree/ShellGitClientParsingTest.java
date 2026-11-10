@@ -6,23 +6,78 @@ import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.RETURNS_DEFAULTS;
 import static org.mockito.Mockito.mock;
 
 import datadog.communication.util.IOUtils;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.git.CommitInfo;
 import datadog.trace.civisibility.utils.ShellCommandExecutor;
+import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.tabletest.junit.TableTest;
 
 class ShellGitClientParsingTest {
   @TempDir Path checkout;
+
+  @TableTest({
+    "Scenario               | includeOldRoot | expectedCommands",
+    "excluded recent roots  | false          | 2               ",
+    "excluded and old roots | true           | 3               "
+  })
+  void excludedAncestorsDoNotStartOneProcessPerCommit(boolean includeOldRoot, int expectedCommands)
+      throws Exception {
+    List<String> recentRoots = new ArrayList<>();
+    for (int i = 1; i < 1000; i++) {
+      recentRoots.add(String.format("%040x", i));
+    }
+    String oldRoot = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+    List<String> includedRoots = new ArrayList<>(recentRoots);
+    if (includeOldRoot) {
+      includedRoots.add(oldRoot);
+    }
+    ShellGitClient client =
+        new ShellGitClient(
+            mock(CiVisibilityMetricCollector.class),
+            checkout.toString(),
+            "1 month ago",
+            1000,
+            10_000);
+    AtomicInteger commands = new AtomicInteger();
+    ShellCommandExecutor command =
+        mock(
+            ShellCommandExecutor.class,
+            invocation -> {
+              if (!"executeCommand".equals(invocation.getMethod().getName())) {
+                return RETURNS_DEFAULTS.answer(invocation);
+              }
+              switch (commands.getAndIncrement()) {
+                case 0:
+                  return emptyList();
+                case 1:
+                  return recentRoots;
+                default:
+                  return singletonList(oldRoot);
+              }
+            });
+    Field executor = ShellGitClient.class.getDeclaredField("commandExecutor");
+    executor.setAccessible(true);
+    executor.set(client, command);
+
+    List<String> objects =
+        client.getObjects(singletonList("ffffffffffffffffffffffffffffffffffffffff"), includedRoots);
+
+    assertEquals(expectedCommands, commands.get());
+    assertEquals(includeOldRoot ? singletonList(oldRoot) : emptyList(), objects);
+  }
 
   @Test
   void enumeratesEveryTagOnTheSelectedCommit() throws Exception {
@@ -117,6 +172,14 @@ class ShellGitClientParsingTest {
     String parent =
         command.executeCommand(IOUtils::readFully, "git", "rev-parse", selected + "^").trim();
     assertTrue(client.getObjects(singletonList(head), singletonList(selected)).isEmpty());
+    ShellGitClient allHistory =
+        new ShellGitClient(
+            mock(CiVisibilityMetricCollector.class),
+            checkout.toString(),
+            "1970-01-01",
+            1000,
+            10_000);
+    assertTrue(allHistory.getObjects(singletonList(head), singletonList(selected)).isEmpty());
 
     String tree =
         command.executeCommand(IOUtils::readFully, "git", "rev-parse", "HEAD^{tree}").trim();

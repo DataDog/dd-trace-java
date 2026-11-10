@@ -103,7 +103,7 @@ public class GitDataUploaderImpl implements GitDataUploader {
         // HEAD/upstream recovery may not contain an explicitly selected revision.
         gitClient.getCommitInfo(selectedCommit, true);
         latestCommits = gitClient.getLatestCommits(selectedCommit);
-        unshallowed = true;
+        unshallowed = !gitClient.isShallow();
       }
       if (latestCommits.isEmpty()) {
         LOGGER.debug("No commits in the last month, skipping git data upload");

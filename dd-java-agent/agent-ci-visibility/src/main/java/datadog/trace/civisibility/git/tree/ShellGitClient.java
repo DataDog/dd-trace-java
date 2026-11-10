@@ -554,13 +554,31 @@ public class ShellGitClient implements GitClient {
 
           List<String> objects =
               commandExecutor.executeCommand(IOUtils::readLines, buildGitCommand(gitArgs));
-          LinkedHashSet<String> outsideWindow = new LinkedHashSet<>(commitsToInclude);
+          LinkedHashSet<String> rootsToRecover = new LinkedHashSet<>(commitsToInclude);
           for (String object : objects) {
-            outsideWindow.remove(object);
+            rootsToRecover.remove(object);
           }
-          if (!outsideWindow.isEmpty()) {
+          if (!rootsToRecover.isEmpty() && !commitsToSkip.isEmpty()) {
+            List<String> inWindowArgs = new ArrayList<>();
+            Collections.addAll(
+                inWindowArgs,
+                "log",
+                "--no-walk=unsorted",
+                "--format=%H",
+                "--no-show-signature",
+                String.format("--since='%s'", latestCommitsSince));
+            inWindowArgs.addAll(rootsToRecover);
+            inWindowArgs.add("--");
+            // In-window roots omitted above are already excluded by known descendants.
+            for (String inWindowRoot :
+                commandExecutor.executeCommand(
+                    IOUtils::readLines, buildGitCommand(inWindowArgs.toArray(new String[0])))) {
+              rootsToRecover.remove(inWindowRoot);
+            }
+          }
+          if (!rootsToRecover.isEmpty()) {
             LinkedHashSet<String> combined = new LinkedHashSet<>(objects);
-            for (String selectedCommit : outsideWindow) {
+            for (String selectedCommit : rootsToRecover) {
               List<String> selectedArgs = new ArrayList<>();
               Collections.addAll(
                   selectedArgs,
