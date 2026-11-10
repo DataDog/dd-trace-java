@@ -41,6 +41,9 @@ abstract class AbstractAppSecServerSmokeTest extends AbstractServerSmokeTest {
     }
   }
 
+  /** True when the suite runs with AppSec inactive at boot so it can be activated through remote config. */
+  protected static final boolean RUNTIME_ACTIVATION = System.getProperty('smoke_test.appsec.enabled') == 'inactive'
+
   @Shared
   protected BlockingQueue<RootSpan> rootSpans = new LinkedBlockingQueue<>()
 
@@ -56,14 +59,32 @@ abstract class AbstractAppSecServerSmokeTest extends AbstractServerSmokeTest {
     "-Ddd.appsec.trace.rate.limit=-1",
     // disable http client sampling
     "-Ddd.api-security.downstream.request.body.analysis.sample_rate=1"
-  ] + (System.getProperty('smoke_test.appsec.enabled') == 'inactive' ?
-  // enable remote config so that appsec is partially enabled (rc is now enabled by default)
+  ] + (RUNTIME_ACTIVATION ?
+  // point remote config at the mock agent so AppSec can be activated at runtime
   [
-    '-Ddd.remote_config.url=https://127.0.0.1:54670/invalid_endpoint',
-    '-Ddd.remote_config.poll_interval.seconds=3600'
+    '-Ddd.remote_config.enabled=true',
+    "-Ddd.remote_config.url=http://localhost:${server.address.port}/v0.7/config".toString(),
+    '-Ddd.remote_config.poll_interval.seconds=1'
   ]:
   ['-Ddd.remote_config.enabled=false']
   )
+
+  /**
+   * Whether to activate AppSec through remote config once the app is up. Only used when {@link #RUNTIME_ACTIVATION}.
+   * Specs that do not pass {@code defaultAppSecProperties} (remote config not pointed at the mock agent) or that
+   * must stay inactive must override it to return false.
+   */
+  boolean activateAppSecAtRuntime() {
+    true
+  }
+
+  def setupSpec() {
+    if (RUNTIME_ACTIVATION && activateAppSecAtRuntime()) {
+      setRemoteConfig('datadog/2/ASM_FEATURES/asm_features_activation/config', '{"asm":{"enabled":true}}')
+      // ASM_DD is first polled once init() loaded the rules (custom rules too: hasUserWafConfig is set after subscribing)
+      waitForRcClientRequest { (it.client?.products as List)?.contains('ASM_DD') }
+    }
+  }
 
   @Override
   Closure decodedTracesCallback() {

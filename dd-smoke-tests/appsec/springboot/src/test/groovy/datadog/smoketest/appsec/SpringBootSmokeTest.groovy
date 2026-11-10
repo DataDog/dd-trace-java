@@ -10,12 +10,15 @@ import okhttp3.MediaType
 import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.Response
+import spock.lang.IgnoreIf
 import spock.lang.Shared
 
 import java.nio.charset.StandardCharsets
 import java.util.zip.GZIPInputStream
 
 class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
+
+  static final String RASP_LFI_BOOT_ONLY = 'RASP LFI uses call-site instrumentation applied only when AppSec is enabled at boot (InstrumenterConfig.isRaspEnabled)'
 
   @Override
   def logLevel() {
@@ -742,6 +745,9 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     assert trigger != null, 'test trigger not found'
   }
 
+  @IgnoreIf(reason = 'java.net.URL SSRF goes through the RASP call site (URLSinkCallSite), applied only when AppSec is enabled at boot (InstrumenterConfig.isRaspEnabled)', value = {
+    AbstractAppSecServerSmokeTest.RUNTIME_ACTIVATION && data.variant == 'query'
+  })
   void 'rasp blocks on SSRF'() {
     when:
     String url = "http://localhost:${httpPort}/ssrf/${variant}?domain=169.254.169.254"
@@ -785,6 +791,7 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     'commons-httpclient2' | _
   }
 
+  @IgnoreIf(reason = RASP_LFI_BOOT_ONLY, value = { AbstractAppSecServerSmokeTest.RUNTIME_ACTIVATION })
   void 'rasp blocks on LFI for #variant'() {
     when:
     String url = "http://localhost:${httpPort}/lfi/"+variant+"?path=." + URLEncoder.encode("../../../etc/passwd", StandardCharsets.UTF_8.name())
@@ -823,6 +830,7 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     'path'    | _
   }
 
+  @IgnoreIf(reason = RASP_LFI_BOOT_ONLY, value = { AbstractAppSecServerSmokeTest.RUNTIME_ACTIVATION })
   void 'rasp blocks on LFI write'() {
     when:
     String url = "http://localhost:${httpPort}/lfi/fileoutputstream?path=." + URLEncoder.encode("../../../etc/passwd", StandardCharsets.UTF_8.name())
