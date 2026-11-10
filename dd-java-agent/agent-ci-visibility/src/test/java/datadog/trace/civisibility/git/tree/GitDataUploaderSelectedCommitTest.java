@@ -166,14 +166,14 @@ class GitDataUploaderSelectedCommitTest {
   }
 
   @TableTest({
-    "Scenario         | deferred | since         | transportAllowed | worktree | autoGc | conditional",
-    "deferred         | true     | '1 month ago' | true             | false    | false  | false      ",
-    "eager            | false    | '1 month ago' | true             | false    | false  | false      ",
-    "full window      | true     | '1970-01-01'  | true             | false    | false  | false      ",
-    "transport denied | true     | '1 month ago' | false            | false    | false  | false      ",
-    "linked worktree  | true     | '1 month ago' | true             | true     | false  | false      ",
-    "automatic GC     | true     | '1 month ago' | true             | false    | true   | false      ",
-    "conditional deny | true     | '1 month ago' | false            | false    | false  | true       "
+    "Scenario         | deferred | since                  | transportAllowed | worktree | autoGc | conditional",
+    "deferred         | true     | '1 month ago'          | true             | false    | false  | false      ",
+    "eager            | false    | '1 month ago'          | true             | false    | false  | false      ",
+    "full window      | true     | '1970-01-01T00:00:00Z' | true             | false    | false  | false      ",
+    "transport denied | true     | '1 month ago'          | false            | false    | false  | false      ",
+    "linked worktree  | true     | '1 month ago'          | true             | true     | false  | false      ",
+    "automatic GC     | true     | '1 month ago'          | true             | false    | true   | false      ",
+    "conditional deny | true     | '1 month ago'          | false            | false    | false  | true       "
   })
   void recoveryDoesNotMakeACompleteCheckoutShallow(
       boolean deferred,
