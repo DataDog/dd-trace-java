@@ -7,6 +7,7 @@ import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -27,6 +28,7 @@ import datadog.remoteconfig.state.ConfigKey;
 import datadog.remoteconfig.state.ProductListener;
 import datadog.trace.api.Config;
 import datadog.trace.api.profiling.ProfilingEnablement;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -142,15 +144,18 @@ class ProfilingConfigPollerTest {
   }
 
   @Test
-  void configWithoutProfilersIsStoredWithoutFeatures() throws Exception {
+  void configWithoutProfilersOrSettingsIsNotAProfilingConfig() throws Exception {
     ProductListener listener = startAndCaptureListener();
 
+    listener.accept(configKey("a"), targeted("\"cpuTime\":true"), hinter);
     listener.accept(configKey("a"), json("{\"targets\":[{\"service\":\"my-app\"}]}"), hinter);
+    listener.accept(configKey("b"), json("{\"targets\":[{\"service\":\"my-app\"}]}"), hinter);
+    // settings alone don't make a profiling config either
+    listener.accept(
+        configKey("c"), json("{\"settings\":{},\"targets\":[{\"service\":\"my-app\"}]}"), hinter);
     listener.commit(hinter);
 
-    RemoteConfigurationStack stack = committedStack();
-    assertTrue(stack.contains("a"));
-    assertTrue(ProfilingConfigMerger.merge(stack).isEmpty());
+    assertTrue(committedStack().isEmpty());
   }
 
   @Test
@@ -167,61 +172,85 @@ class ProfilingConfigPollerTest {
   }
 
   @Test
-  void configNotTargetingThisApplicationIsIgnored() throws Exception {
+  void configWithoutTargetsIsStoredWithTheLowestPriority() throws Exception {
     ProductListener listener = startAndCaptureListener();
 
-    listener.accept(configKey("a"), targeted("\"cpuTime\":true"), hinter);
-    listener.accept(
-        configKey("other"),
-        json("{\"profilers\":{\"cpuTime\":false},\"targets\":[{\"service\":\"other\"}]}"),
-        hinter);
     listener.accept(configKey("untargeted"), json("{\"profilers\":{\"cpuTime\":false}}"), hinter);
+    listener.accept(configKey("a"), targeted("\"cpuTime\":true"), hinter);
     listener.commit(hinter);
 
     RemoteConfigurationStack stack = committedStack();
-    assertEquals(asList("a"), new ArrayList<>(stack.configIds()));
+    assertEquals(asList("untargeted", "a"), configIds(stack.lowestToHighestPriority()));
     assertEquals(true, ProfilingConfigMerger.merge(stack).get(CPU_TIME));
   }
 
   @Test
-  void configForAnotherServiceOrEnvIsRejected() throws Exception {
+  void configForAnotherServiceOrEnvIsStoredWithTheLowestPriority() throws Exception {
     ProductListener listener = startAndCaptureListener();
 
     listener.accept(
         configKey("other-service"),
-        json("{\"profilers\":{\"cpuTime\":true},\"targets\":[{\"service\":\"other-app\"}]}"),
+        json("{\"profilers\":{\"cpuTime\":false},\"targets\":[{\"service\":\"other-app\"}]}"),
         hinter);
     listener.accept(
         configKey("other-env"),
-        json("{\"profilers\":{\"cpuTime\":true},\"targets\":[{\"env\":\"prod\"}]}"),
+        json("{\"profilers\":{\"cpuTime\":false},\"targets\":[{\"env\":\"prod\"}]}"),
         hinter);
-    listener.accept(
-        configKey("other-both"),
-        json(
-            "{\"profilers\":{\"cpuTime\":true},"
-                + "\"targets\":[{\"env\":\"prod\",\"service\":\"other-app\"}]}"),
-        hinter);
+    listener.accept(configKey("a"), targeted("\"cpuTime\":true"), hinter);
+    listener.commit(hinter);
+
+    RemoteConfigurationStack stack = committedStack();
+    assertEquals(asList(0, 0, 3002), priorities(stack.lowestToHighestPriority()));
+    assertEquals(true, ProfilingConfigMerger.merge(stack).get(CPU_TIME));
+  }
+
+  @Test
+  void configWithOnlyMalformedTargetsIsDroppedAndReported() throws Exception {
+    ProductListener listener = startAndCaptureListener();
+
+    // a target that isn't valid must not be taken for one that matches every service
+    IOException error =
+        assertThrows(
+            IOException.class,
+            () ->
+                listener.accept(
+                    configKey("service-not-a-string"),
+                    json("{\"profilers\":{\"cpuTime\":true},\"targets\":[{\"service\":123}]}"),
+                    hinter));
+    assertTrue(error.getMessage().contains("no valid targets"), error.getMessage());
+    assertThrows(
+        IOException.class,
+        () ->
+            listener.accept(
+                configKey("targets-not-an-array"),
+                json("{\"profilers\":{\"cpuTime\":true},\"targets\":{}}"),
+                hinter));
     listener.commit(hinter);
 
     assertTrue(committedStack().isEmpty());
   }
 
   @Test
-  void configWithOnlyMalformedTargetsIsRejected() throws Exception {
+  void invalidFieldsAreReportedWhileTheValidOnesApply() throws Exception {
     ProductListener listener = startAndCaptureListener();
 
-    // a target that isn't valid must not be taken for one that matches every service
-    listener.accept(
-        configKey("service-not-a-string"),
-        json("{\"profilers\":{\"cpuTime\":true},\"targets\":[{\"service\":123}]}"),
-        hinter);
-    listener.accept(
-        configKey("tags-not-an-array"),
-        json("{\"profilers\":{\"cpuTime\":true},\"targets\":[{\"tags\":\"x\"}]}"),
-        hinter);
+    IOException error =
+        assertThrows(
+            IOException.class,
+            () ->
+                listener.accept(
+                    configKey("a"),
+                    json(
+                        "{\"profilers\":{\"cpuTime\":true,\"wallTime\":\"yes\"},"
+                            + "\"targets\":[{\"service\":\"my-app\"},{\"service\":1}]}"),
+                    hinter));
     listener.commit(hinter);
 
-    assertTrue(committedStack().isEmpty());
+    assertTrue(error.getMessage().contains("profilers.wallTime is not a boolean"));
+    assertTrue(error.getMessage().contains("targets[1] is invalid"));
+    RemoteConfiguration stored = committedStack().lowestToHighestPriority().get(0).configuration();
+    assertEquals(true, stored.get(CPU_TIME));
+    assertEquals(null, stored.get(WALL_TIME));
   }
 
   @Test
@@ -238,11 +267,17 @@ class ProfilingConfigPollerTest {
   }
 
   @Test
-  void configNoLongerTargetingThisApplicationIsDropped() throws Exception {
+  void configThatBecomesInvalidIsDropped() throws Exception {
     ProductListener listener = startAndCaptureListener();
 
     listener.accept(configKey("a"), targeted("\"cpuTime\":true"), hinter);
-    listener.accept(configKey("a"), json("{\"targets\":[{\"env\":\"prod\"}]}"), hinter);
+    assertThrows(
+        IOException.class,
+        () ->
+            listener.accept(
+                configKey("a"),
+                json("{\"profilers\":{\"cpuTime\":true},\"targets\":[{\"service\":1}]}"),
+                hinter));
     listener.commit(hinter);
 
     assertTrue(committedStack().isEmpty());

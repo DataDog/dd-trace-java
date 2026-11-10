@@ -11,6 +11,10 @@ import datadog.remoteconfig.state.ConfigKey;
 import datadog.remoteconfig.state.ProductListener;
 import datadog.trace.api.Config;
 import datadog.trace.api.profiling.ProfilingEnablement;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -80,28 +84,38 @@ public final class ProfilingConfigPoller {
     }
 
     @Override
-    public void accept(ConfigKey configKey, byte[] content, PollingRateHinter hinter) {
+    public void accept(ConfigKey configKey, byte[] content, PollingRateHinter hinter)
+        throws IOException {
       String configId = configKey.getConfigId();
-      String json = new String(content, UTF_8);
+      List<String> problems = new ArrayList<>();
+      Map<String, Object> payload = ApmProfilingPayload.read(new String(content, UTF_8), problems);
+      // null for a payload that is not a profiling config: the product is shared
+      RemoteConfiguration configuration =
+          payload == null ? null : RemoteConfiguration.parse(payload, problems);
       // the more specific the targets are for this application, the higher the priority
-      int priority = ProfilingConfigTargets.rank(json, env, service);
-      if (priority == ProfilingConfigTargets.NO_MATCH) {
-        // may have targeted this application before, in which case it no longer applies
+      int priority =
+          configuration == null
+              ? ProfilingConfigTargets.DROPPED
+              : ProfilingConfigTargets.rank(payload, env, service, problems);
+      if (priority == ProfilingConfigTargets.DROPPED) {
+        // may have been a usable config before, in which case it no longer applies
         stack.remove(configId);
+        log.debug("Ignoring APM_PROFILING config {}: {}", configId, problems);
+      } else {
+        stack.push(configId, priority, configuration);
         log.debug(
-            "Ignoring APM_PROFILING config {}: not targeting env={} service={}",
+            "Stored APM_PROFILING config {} in the priority stack with priority {}: {}",
             configId,
-            env,
-            service);
-        return;
+            priority,
+            configuration);
       }
-      RemoteConfiguration configuration = RemoteConfiguration.parse(json);
-      stack.push(configId, priority, configuration);
-      log.debug(
-          "Stored APM_PROFILING config {} in the priority stack with priority {}: {}",
-          configId,
-          priority,
-          configuration);
+      if (!problems.isEmpty()) {
+        // The config is stored or dropped above before throwing. The poller records the message as
+        // the apply error of this config and still commits, so the valid fields of a stored config
+        // apply.
+        throw new IOException(
+            "Invalid APM_PROFILING config " + configId + ": " + String.join("; ", problems));
+      }
     }
 
     @Override

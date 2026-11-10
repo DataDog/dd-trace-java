@@ -7,12 +7,11 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILE
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_ENABLED;
 import static java.util.Collections.unmodifiableMap;
 
-import com.squareup.moshi.JsonReader;
-import java.io.IOException;
+import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-import okio.Buffer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -71,46 +70,53 @@ public final class RemoteConfiguration {
   }
 
   /**
-   * Reads the {@code profilers} section of a payload. Features that are missing, unknown or not a
-   * boolean are not set, so a payload without a {@code profilers} section, or one that can't be
-   * read, gives {@link #EMPTY}.
+   * Reads the {@code profilers} section of a payload, ignoring what is wrong with it: features that
+   * are missing, unknown or not a boolean are not set. Unlike {@link #parse(Map, List)}, it can't
+   * tell a payload that is not a profiling config from one that sets no feature: both give {@link
+   * #EMPTY}.
    */
   public static RemoteConfiguration parse(String json) {
-    try {
-      return readPayload(JsonReader.of(new Buffer().writeUtf8(json)));
-    } catch (IOException | RuntimeException e) {
-      log.debug("Ignoring the profilers of an unreadable APM_PROFILING config: {}", e.toString());
+    List<String> problems = new ArrayList<>();
+    Map<String, Object> payload = ApmProfilingPayload.read(json, problems);
+    RemoteConfiguration parsed = payload == null ? null : parse(payload, problems);
+    return parsed == null ? EMPTY : parsed;
+  }
+
+  /**
+   * Reads the {@code profilers} section of a payload, and reports what is wrong with it. Valid
+   * features still apply when others are not.
+   *
+   * @param payload the payload, see {@link ApmProfilingPayload#read}
+   * @param problems receives a description of each thing that is invalid
+   * @return the configuration, or null when the payload has no {@code profilers} section, so that
+   *     it is not a profiling config; the shared {@code APM_PROFILING} product may carry others
+   */
+  static RemoteConfiguration parse(Map<String, Object> payload, List<String> problems) {
+    if (!payload.containsKey("profilers")) {
+      return null;
+    }
+    Object settings = payload.get("settings");
+    if (payload.containsKey("settings") && !(settings instanceof Map)) {
+      problems.add("settings is not an object");
+    }
+    Object profilers = payload.get("profilers");
+    if (!(profilers instanceof Map)) {
+      problems.add("profilers is not an object");
       return EMPTY;
     }
-  }
-
-  private static RemoteConfiguration readPayload(JsonReader reader) throws IOException {
-    reader.beginObject();
-    while (reader.hasNext()) {
-      if ("profilers".equals(reader.nextName()) && reader.peek() == JsonReader.Token.BEGIN_OBJECT) {
-        return readProfilers(reader);
-      }
-      reader.skipValue();
-    }
-    return EMPTY;
-  }
-
-  private static RemoteConfiguration readProfilers(JsonReader reader) throws IOException {
+    Map<?, ?> section = (Map<?, ?>) profilers;
     Map<Feature, Boolean> values = new EnumMap<>(Feature.class);
-    reader.beginObject();
-    while (reader.hasNext()) {
-      String name = reader.nextName();
-      Feature feature = Feature.fromJsonName(name);
-      if (feature != null && reader.peek() == JsonReader.Token.BOOLEAN) {
-        values.put(feature, reader.nextBoolean());
+    for (Feature feature : Feature.values()) {
+      if (!section.containsKey(feature.jsonName)) {
+        continue;
+      }
+      Object value = section.get(feature.jsonName);
+      if (value instanceof Boolean) {
+        values.put(feature, (Boolean) value);
       } else {
-        if (feature != null) {
-          log.debug("Ignoring profilers.{}: not a boolean", name);
-        }
-        reader.skipValue();
+        problems.add("profilers." + feature.jsonName + " is not a boolean");
       }
     }
-    reader.endObject();
     return of(values);
   }
 

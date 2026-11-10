@@ -1,33 +1,30 @@
 package com.datadog.profiling.remoteconfig;
 
-import static java.util.Collections.emptyList;
-
-import com.squareup.moshi.JsonReader;
 import datadog.trace.util.TagsHelper;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
-import okio.Buffer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Decides whether a {@code APM_PROFILING} payload is intended for this application, based on its
- * {@code targets} list, e.g. {@code
- * {"targets":[{"env":"staging","service":"my-app"},{"service":"x"}]}}, and how specific it is for
- * it, which ranks the payloads that are.
+ * Ranks an {@code APM_PROFILING} payload for this application by its {@code targets} list, e.g.
+ * {@code {"targets":[{"env":"staging","service":"my-app"},{"service":"x"}]}}, following
+ * dd-trace-js.
  *
- * <p>A payload matches only when one of its valid targets is consistent with this application: its
- * {@code service} and {@code env} must be this application's ones, compared normalized like the
- * backend does. A missing {@code service} or {@code env}, or the value {@code "*"}, matches
- * anything. Any other payload is rejected: one whose targets are all for another service or env,
- * has no valid target, is unreadable, or has no {@code targets} list, as it is then not a profiling
- * config (the {@code APM_PROFILING} product is shared). A target that is not valid, e.g. with a
- * {@code service} that is not a string, never matches, rather than matching everything.
+ * <p>Remote config only delivers the configs that apply to this application, so every payload is
+ * kept and its targets only rank it: the rank is the specificity of its most specific target that
+ * is consistent with this application, i.e. whose {@code service} and {@code env} are this
+ * application's ones, compared normalized like the backend does, or 0 when there is none, or no
+ * target. A missing {@code service} or {@code env}, or the value {@code "*"}, matches anything.
+ *
+ * <p>A payload is dropped, with {@link #DROPPED}, when its targets can't be trusted: it is
+ * unreadable, its {@code targets} is not a list, or it has targets but none is valid. A target that
+ * is not valid, e.g. with a {@code service} that is not a string, is skipped, and never matches
+ * everything.
  *
  * <p>The tags of a target only have to hold for {@code service:} and {@code env:} tags, which name
  * this application's service and env like the fields do. The other tag conditions are not checked:
@@ -138,50 +135,42 @@ public final class ProfilingConfigTargets {
     return levels;
   }
 
-  /** The rank of a payload that is not intended for this application. */
-  public static final int NO_MATCH = -1;
+  /** The rank of a payload that is dropped, as its targets can't be trusted. */
+  public static final int DROPPED = -1;
 
   /**
-   * Whether a payload is intended for this application. It is not when none of its valid targets is
-   * for this application's service and env, in which case it has to be rejected.
-   *
-   * @param json the payload
-   * @param env this application's env
-   * @param service this application's service
-   */
-  public static boolean matches(String json, String env, String service) {
-    return rank(json, env, service) != NO_MATCH;
-  }
-
-  /**
-   * The specificity of a payload for this application, which ranks the payloads that match it: the
-   * higher, the more specific, and the higher the priority of its values.
+   * The rank of a payload for this application: the higher, the more specific, and the higher the
+   * priority of its values.
    *
    * <p>It is the specificity of the most specific target for this application, or 0 if there is
-   * none, i.e. when the payload does not {@link #matches match}, or when its target is the least
-   * specific one. A payload's targets can name several scopes, and the one it was delivered for has
-   * to be consistent with them.
+   * none, or no target. A target ranks by its most specific condition, and then by its number of
+   * conditions.
    *
-   * <p>A target ranks by its most specific condition, and then by its number of conditions.
-   *
-   * @param json the payload
-   * @param env this application's env
-   * @param service this application's service
+   * @return {@link #DROPPED} if the payload is dropped
    */
-  public static int specificity(String json, String env, String service) {
-    return Math.max(0, rank(json, env, service));
+  public static int rank(String json, String env, String service) {
+    return rank(json, env, service, new ArrayList<>());
+  }
+
+  static int rank(String json, String env, String service, List<String> problems) {
+    Map<String, Object> payload = ApmProfilingPayload.read(json, problems);
+    return payload == null ? DROPPED : rank(payload, env, service, problems);
   }
 
   /**
-   * Both whether a payload is intended for this application and its specificity, from a single read
-   * of the payload.
+   * Same as {@link #rank(String, String, String)}, for a payload that was read already, also
+   * describing the invalid targets.
    *
-   * @return {@link #NO_MATCH} if the payload does not {@link #matches match}, or else its {@link
-   *     #specificity}
+   * @param payload the payload, see {@link ApmProfilingPayload#read}
+   * @param problems receives a description of each target that is invalid
    */
-  public static int rank(String json, String env, String service) {
-    int rank = NO_MATCH;
-    for (Target target : readTargets(json)) {
+  static int rank(Map<String, Object> payload, String env, String service, List<String> problems) {
+    List<Target> targets = readTargets(payload, problems);
+    if (targets == null) {
+      return DROPPED;
+    }
+    int rank = 0;
+    for (Target target : targets) {
       if (target.isFor(env, service)) {
         rank = Math.max(rank, target.specificity());
       }
@@ -190,33 +179,32 @@ public final class ProfilingConfigTargets {
   }
 
   /**
-   * @return the valid targets of the payload; none if it has no targets or can't be read
+   * @return the valid targets of the payload, none if it has no targets; null if the payload has to
+   *     be dropped
    */
-  private static List<Target> readTargets(String json) {
-    try {
-      return readTargets(JsonReader.of(new Buffer().writeUtf8(json)));
-    } catch (IOException | RuntimeException e) {
-      log.debug("Ignoring the targets of an unreadable APM_PROFILING config: {}", e.toString());
-      return emptyList();
-    }
-  }
-
-  private static List<Target> readTargets(JsonReader reader) throws IOException {
+  private static List<Target> readTargets(Map<String, Object> payload, List<String> problems) {
     List<Target> targets = new ArrayList<>();
-    reader.beginObject();
-    while (reader.hasNext()) {
-      if (!"targets".equals(reader.nextName()) || reader.peek() != JsonReader.Token.BEGIN_ARRAY) {
-        reader.skipValue();
-        continue;
+    if (!payload.containsKey("targets")) {
+      return targets;
+    }
+    Object list = payload.get("targets");
+    if (!(list instanceof List)) {
+      problems.add("targets is not an array");
+      return null;
+    }
+    List<?> entries = (List<?>) list;
+    for (int i = 0; i < entries.size(); i++) {
+      Target target = readTarget(entries.get(i));
+      if (target != null) {
+        targets.add(target);
+      } else {
+        problems.add("targets[" + i + "] is invalid");
       }
-      reader.beginArray();
-      while (reader.hasNext()) {
-        Target target = readTarget(reader);
-        if (target != null) {
-          targets.add(target);
-        }
-      }
-      reader.endArray();
+    }
+    // an all-invalid list is rejected rather than taken for an untargeted config
+    if (targets.isEmpty() && !entries.isEmpty()) {
+      problems.add("no valid targets");
+      return null;
     }
     return targets;
   }
@@ -224,54 +212,40 @@ public final class ProfilingConfigTargets {
   /**
    * @return the target, or null if it is not valid
    */
-  private static Target readTarget(JsonReader reader) throws IOException {
-    if (reader.peek() != JsonReader.Token.BEGIN_OBJECT) {
-      reader.skipValue();
+  private static Target readTarget(Object entry) {
+    if (!(entry instanceof Map)) {
       return null;
     }
-    String service = null;
-    String env = null;
+    Map<?, ?> map = (Map<?, ?>) entry;
+    if (!isOptionalString(map, "service") || !isOptionalString(map, "env")) {
+      return null;
+    }
     List<String> tags = new ArrayList<>();
-    boolean valid = true;
-    reader.beginObject();
-    while (reader.hasNext()) {
-      String name = reader.nextName();
-      if ("service".equals(name) || "env".equals(name)) {
-        if (reader.peek() == JsonReader.Token.STRING) {
-          String value = reader.nextString();
-          // any service or env is not a condition
-          String condition = WILDCARD.equals(value) ? null : value;
-          if ("service".equals(name)) {
-            service = condition;
-          } else {
-            env = condition;
-          }
-        } else {
-          valid = false;
-          reader.skipValue();
+    if (map.containsKey("tags")) {
+      if (!(map.get("tags") instanceof List)) {
+        return null;
+      }
+      for (Object tag : (List<?>) map.get("tags")) {
+        if (!(tag instanceof String)) {
+          return null;
         }
-      } else if ("tags".equals(name)) {
-        if (reader.peek() == JsonReader.Token.BEGIN_ARRAY) {
-          reader.beginArray();
-          while (reader.hasNext()) {
-            if (reader.peek() == JsonReader.Token.STRING) {
-              tags.add(reader.nextString());
-            } else {
-              valid = false;
-              reader.skipValue();
-            }
-          }
-          reader.endArray();
-        } else {
-          valid = false;
-          reader.skipValue();
-        }
-      } else {
-        reader.skipValue();
+        tags.add((String) tag);
       }
     }
-    reader.endObject();
-    return valid ? new Target(service, env, tags) : null;
+    return new Target(condition(map, "service"), condition(map, "env"), tags);
+  }
+
+  private static boolean isOptionalString(Map<?, ?> target, String field) {
+    return !target.containsKey(field) || target.get(field) instanceof String;
+  }
+
+  /**
+   * @return the value of the field, or null if it is missing or {@code "*"}, as any value is not a
+   *     condition
+   */
+  private static String condition(Map<?, ?> target, String field) {
+    Object value = target.get(field);
+    return value == null || WILDCARD.equals(value) ? null : (String) value;
   }
 
   private static int tagLevel(String tag) {
