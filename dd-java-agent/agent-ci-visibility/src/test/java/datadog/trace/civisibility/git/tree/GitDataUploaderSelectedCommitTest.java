@@ -28,10 +28,13 @@ import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.civisibility.utils.ShellCommandExecutor;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Locale;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.InOrder;
@@ -362,6 +365,102 @@ class GitDataUploaderSelectedCommitTest {
         origin.toUri().toString(),
         checkout.toString());
     return checkout;
+  }
+
+  @TableTest({
+    "Scenario                    | failure      | recovered | succeeds",
+    "selected timeout            | timeout      | true      | true    ",
+    "unrecovered timeout         | timeout      | false     | false   ",
+    "selected interruption       | interruption | true      | false   ",
+    "unrecovered interruption    | interruption | false     | false   ",
+    "selected command failure    | command      | true      | true    ",
+    "unrecovered command failure | command      | false     | false   "
+  })
+  void deferredFailureRetainsSelectedRecoveryButNeverSwallowsInterruption(
+      String failure, boolean recovered, boolean succeeds) throws Exception {
+    String selected = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+    GitClient client = mock(GitClient.class);
+    when(client.getLatestCommits(selected))
+        .thenReturn(recovered ? emptyList() : singletonList(selected), singletonList(selected));
+    when(client.isShallow()).thenReturn(true);
+    when(config.isCiVisibilityGitUnshallowDefer()).thenReturn(true);
+    when(config.isCiVisibilityGitUnshallowEnabled()).thenReturn(recovered);
+    when(api.searchCommits(URL, singletonList(selected))).thenReturn(emptyList());
+    GitRepoUnshallow unshallow = mock(GitRepoUnshallow.class);
+    Exception exception =
+        "timeout".equals(failure)
+            ? new TimeoutException("upstream timeout")
+            : "interruption".equals(failure)
+                ? new InterruptedException("cancelled")
+                : new ShellCommandExecutor.ShellCommandFailedException(128, "upstream unavailable");
+    when(unshallow.unshallow()).thenThrow(exception);
+    Path packs = Files.createDirectory(directory.resolve("packs"));
+    Files.createFile(packs.resolve("selected.pack"));
+    when(client.getObjects(any(), any())).thenReturn(singletonList(selected));
+    when(client.createPackFiles(any())).thenReturn(packs);
+    Future<Void> upload =
+        uploader(client, unshallow, selected, "/checkout").startOrObserveGitDataUpload();
+    if (succeeds) {
+      upload.get(5, TimeUnit.SECONDS);
+      verify(api).uploadPackFile(eq(URL), eq(selected), any());
+    } else {
+      assertEquals(
+          exception,
+          assertThrows(ExecutionException.class, () -> upload.get(5, TimeUnit.SECONDS)).getCause());
+      verify(api, never()).uploadPackFile(any(), any(), any());
+    }
+  }
+
+  @TableTest({
+    "Scenario          | deferred | recoveryEnabled",
+    "deferred          | true     | true           ",
+    "eager             | false    | true           ",
+    "disabled deferred | true     | false          ",
+    "disabled eager    | false    | false          "
+  })
+  void aNewClientCanReusePrivatelyRecoveredHistory(boolean deferred, boolean recoveryEnabled)
+      throws Exception {
+    Path origin = directory.resolve("origin");
+    ShellCommandExecutor remote = fixture(origin);
+    Path checkout = directory.resolve("checkout");
+    git(remote, "clone", "--no-local", origin.toString(), checkout.toString());
+    String parent =
+        writeCommit(
+            remote,
+            git(remote, "rev-parse", "HEAD^{tree}"),
+            git(remote, "rev-parse", "HEAD"),
+            "missing parent");
+    String selected =
+        writeObject(
+            remote,
+            "tree "
+                + git(remote, "rev-parse", "HEAD^{tree}")
+                + "\nparent "
+                + parent
+                + "\nauthor Test <test@example.com> 1 +0000\ncommitter Test <test@example.com> 1 +0000\n\nold selected\n");
+    git(remote, "update-ref", "refs/heads/selected", selected);
+    ShellGitClient first = client(checkout, "1 month ago");
+    first.fetchSelectedCommit(selected);
+    assertEquals(singletonList(selected), first.getLatestCommits(selected));
+    ShellGitClient next = spy(client(checkout, "1 month ago"));
+    when(config.isCiVisibilityGitUnshallowDefer()).thenReturn(deferred);
+    when(config.isCiVisibilityGitUnshallowEnabled()).thenReturn(recoveryEnabled);
+    when(api.searchCommits(URL, singletonList(selected))).thenReturn(emptyList());
+    Future<Void> upload =
+        uploader(next, new GitRepoUnshallow(config, next), selected, checkout.toString())
+            .startOrObserveGitDataUpload();
+    if (recoveryEnabled) {
+      upload.get(5, TimeUnit.SECONDS);
+      verify(next).fetchSelectedCommit(selected);
+      verify(api).uploadPackFile(eq(URL), eq(selected), any());
+    } else {
+      assertTrue(
+          assertThrows(ExecutionException.class, () -> upload.get(5, TimeUnit.SECONDS)).getCause()
+              instanceof ShellCommandExecutor.ShellCommandFailedException);
+      verify(next, never()).fetchSelectedCommit(any());
+      verify(api, never()).uploadPackFile(any(), any(), any());
+    }
+    assertFalse(next.isShallow());
   }
 
   private GitDataUploaderImpl uploader(

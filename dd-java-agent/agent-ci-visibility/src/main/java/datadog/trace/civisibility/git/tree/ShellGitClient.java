@@ -663,8 +663,9 @@ public class ShellGitClient implements GitClient {
                             buildGitCommand("rev-parse", "--since=" + latestCommitsSince))
                         .trim();
                 long cutoff = Long.parseLong(since.substring("--max-age=".length()));
-                // Bound the ancestor walk before filtering: old children must not prune newer
-                // parents.
+                // Git's topological ordering can read the entire graph before applying -n.
+                // Bound discovery first; filter dates afterward so old children do not prune
+                // newer parents.
                 return commandExecutor.executeCommand(
                     input -> {
                       List<String> recent = new ArrayList<>();
@@ -678,7 +679,6 @@ public class ShellGitClient implements GitClient {
                     },
                     buildGitCommand(
                         "log",
-                        "--topo-order",
                         "--no-show-signature",
                         "--format=%H %ct",
                         "-n",
@@ -739,9 +739,10 @@ public class ShellGitClient implements GitClient {
           }
           if (!exclusions.isEmpty()) {
             List<String> eligibility = new ArrayList<>();
-            Collections.addAll(
-                eligibility, "rev-list", "--topo-order", "--max-count=" + latestCommitsLimit);
+            eligibility.add("rev-list");
             eligibility.addAll(exclusions);
+            // Only classify the already capped advertised roots, without discovering ancestors.
+            eligibility.add("--no-walk=unsorted");
             eligibility.addAll(roots);
             roots.retainAll(
                 commandExecutor.executeCommand(
