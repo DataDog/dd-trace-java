@@ -34,7 +34,7 @@ public class CallSiteSpecification implements Validatable {
   private final List<AdviceSpecification> advices;
   private final Type[] spi;
   private final Enabled enabled;
-  private Type[] helpers;
+  private final Type[] helpers;
 
   public CallSiteSpecification(
       @Nonnull final Type clazz,
@@ -96,11 +96,6 @@ public class CallSiteSpecification implements Validatable {
 
   public Type[] getHelpers() {
     return helpers;
-  }
-
-  /** Replaces the helpers, for instance with their dependencies added. */
-  public void setHelpers(@Nonnull final Type[] helpers) {
-    this.helpers = helpers;
   }
 
   public List<AdviceSpecification> getAdvices() {

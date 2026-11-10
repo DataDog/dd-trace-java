@@ -35,7 +35,9 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -44,6 +46,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.objectweb.asm.AnnotationVisitor;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
@@ -56,12 +59,28 @@ import org.objectweb.asm.Type;
  */
 public class AsmSpecificationBuilder implements SpecificationBuilder {
 
+  /** Where the module's classes are, to find what helpers depend on; null to take them as is. */
+  @Nullable private final Path classesFolder;
+
+  /** Takes each call site's helpers exactly as declared. */
+  public AsmSpecificationBuilder() {
+    this(null);
+  }
+
+  /**
+   * Adds to each call site's helpers the classes in {@code classesFolder} they depend on, see
+   * {@link HelperDependencies}.
+   */
+  public AsmSpecificationBuilder(@Nullable final Path classesFolder) {
+    this.classesFolder = classesFolder;
+  }
+
   @Override
   @Nonnull
   public Optional<CallSiteSpecification> build(@Nonnull final File file) {
     try (final InputStream stream = Files.newInputStream(file.toPath())) {
       final ClassReader reader = new ClassReader(stream);
-      final SpecificationVisitor visitor = new SpecificationVisitor();
+      final SpecificationVisitor visitor = new SpecificationVisitor(classesFolder);
       reader.accept(visitor, SKIP_CODE | SKIP_FRAMES | SKIP_DEBUG);
       return visitor.getResult();
     } catch (IOException e) {
@@ -81,8 +100,11 @@ public class AsmSpecificationBuilder implements SpecificationBuilder {
     private List<String> enabled = new ArrayList<>();
     private CallSiteSpecification result;
 
-    public SpecificationVisitor() {
+    @Nullable private final Path classesFolder;
+
+    public SpecificationVisitor(@Nullable final Path classesFolder) {
       super(ASM_API_VERSION);
+      this.classesFolder = classesFolder;
     }
 
     @Override
@@ -150,8 +172,16 @@ public class AsmSpecificationBuilder implements SpecificationBuilder {
     @Override
     public void visitEnd() {
       if (isCallSite) {
-        result = new CallSiteSpecification(clazz, advices, spi, enabled, helpers);
+        result = new CallSiteSpecification(clazz, advices, spi, enabled, withDependencies());
       }
+    }
+
+    private Set<Type> withDependencies() {
+      if (classesFolder == null) {
+        return helpers;
+      }
+      final Type[] declared = helpers.toArray(new Type[0]);
+      return new LinkedHashSet<>(Arrays.asList(HelperDependencies.expand(classesFolder, declared)));
     }
 
     public Optional<CallSiteSpecification> getResult() {

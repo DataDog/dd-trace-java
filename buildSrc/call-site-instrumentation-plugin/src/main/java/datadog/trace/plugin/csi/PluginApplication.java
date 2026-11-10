@@ -6,7 +6,6 @@ import static datadog.trace.plugin.csi.impl.CallSiteFactory.typeResolver;
 
 import datadog.trace.plugin.csi.AdviceGenerator.CallSiteResult;
 import datadog.trace.plugin.csi.impl.CallSiteSpecification;
-import datadog.trace.plugin.csi.impl.HelperDependencies;
 import datadog.trace.plugin.csi.util.CallSiteUtils;
 import datadog.trace.plugin.csi.util.ErrorCode;
 import java.io.IOException;
@@ -71,7 +70,7 @@ public class PluginApplication {
 
   private static List<CallSiteSpecification> searchForCallSites(final Configuration configuration) {
     try {
-      final SpecificationBuilder builder = specificationBuilder();
+      final SpecificationBuilder builder = specificationBuilder(configuration.classesFolder);
       final List<CallSiteSpecification> result = new ArrayList<>();
       final Pattern pattern = Pattern.compile(".*" + configuration.suffix + "\\.class$");
       Files.walkFileTree(
@@ -80,14 +79,7 @@ public class PluginApplication {
             public FileVisitResult visitFile(final Path file, final BasicFileAttributes attrs) {
               if (Files.isRegularFile(file)
                   && pattern.matcher(file.getFileName().toString()).matches()) {
-                builder
-                    .build(file.toFile())
-                    .ifPresent(spec -> {
-                      spec.setHelpers(
-                          HelperDependencies.expand(
-                              configuration.classesFolder, spec.getHelpers()));
-                      result.add(spec);
-                    });
+                builder.build(file.toFile()).ifPresent(result::add);
               }
               return FileVisitResult.CONTINUE;
             }
