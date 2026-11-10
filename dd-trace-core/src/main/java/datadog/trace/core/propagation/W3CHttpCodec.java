@@ -1,6 +1,7 @@
 package datadog.trace.core.propagation;
 
 import static datadog.trace.api.TracePropagationStyle.TRACECONTEXT;
+import static datadog.trace.api.internal.util.LongStringUtils.parseUnsignedLongHexOrZero;
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
 import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
@@ -16,7 +17,6 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.internal.VisibleForTesting;
-import datadog.trace.api.internal.util.LongStringUtils;
 import datadog.trace.api.llmobs.LLMObsInternal;
 import datadog.trace.api.propagation.W3CTraceParent;
 import datadog.trace.api.sampling.PrioritySampling;
@@ -322,12 +322,15 @@ class W3CHttpCodec {
     @Override
     protected TagContext build() {
       if (canBuildFullContext()) {
-        try {
-          parseRequiredTraceParent();
-          parseTraceStateHeader(tracestateHeader);
-        } catch (RuntimeException e) {
+        if (parseRequiredTraceParent(true)) {
+          try {
+            parseTraceStateHeader(tracestateHeader);
+          } catch (RuntimeException e) {
+            onlyTagContext();
+            log.debug("Exception when building context", e);
+          }
+        } else {
           onlyTagContext();
-          log.debug("Exception when building context", e);
         }
       }
       return super.build();
@@ -341,57 +344,80 @@ class W3CHttpCodec {
       return valid && fullContext;
     }
 
-    /** Parses the traceparent header, which a tracestate header is invalid without. */
-    private void parseRequiredTraceParent() {
+    /**
+     * Parses the traceparent header, which a tracestate header is invalid without, returning
+     * whether it is valid. The trace id is built only if {@code buildTraceId}.
+     */
+    private boolean parseRequiredTraceParent(boolean buildTraceId) {
       if (traceparentHeader == null) {
-        throw new IllegalStateException(
-            "Found no traceparent header but tracestate header '" + tracestateHeader + "'");
+        log.debug(
+            "Ignoring tracestate header without a traceparent header: '{}'", tracestateHeader);
+        return false;
       }
-      parseTraceParent(traceparentHeader, true);
+      return parseTraceParent(traceparentHeader, buildTraceId);
     }
 
     /**
-     * Validates the traceparent and reads its parts. The trace id is built only if {@code
-     * buildTraceId}; its high and low order bits are read either way.
+     * Validates the traceparent and reads its parts, returning {@code false} if it is malformed.
+     * Malformed traceparent headers are common, so this does not throw: an exception per request is
+     * costly. The trace id is built only if {@code buildTraceId}; its high and low order bits are
+     * read either way.
      */
-    private void parseTraceParent(String tp, boolean buildTraceId) {
+    private boolean parseTraceParent(String tp, boolean buildTraceId) {
       int length = tp == null ? 0 : tp.length();
       if (length < TRACE_PARENT_LENGTH) {
-        throw new IllegalStateException("The length of traceparent '" + tp + "' is too short");
+        return rejectTraceParent(tp, "too short");
       }
-      long version = LongStringUtils.parseUnsignedLongHex(tp, 0, 2, true);
-      if (version == 255) {
-        throw new IllegalStateException("Illegal version number " + tp.substring(0, 2));
+      // zero is also what malformed hex parses to, so a zero part that may be zero is checked
+      long version = parseUnsignedLongHexOrZero(tp, 0, 2, true);
+      if ((version == 0 && !isAllZeros(tp, 0, 2)) || version == 255) {
+        return rejectTraceParent(tp, "illegal version");
       } else if (version == 0 && length > TRACE_PARENT_LENGTH) {
-        throw new IllegalStateException("The length of traceparent '" + tp + "' is too long");
+        return rejectTraceParent(tp, "too long");
       }
-      this.traceIdHigh = LongStringUtils.parseUnsignedLongHex(tp, TRACE_PARENT_TID_START, 16, true);
-      this.traceIdLow =
-          LongStringUtils.parseUnsignedLongHex(tp, TRACE_PARENT_TID_START + 16, 16, true);
+      this.traceIdHigh = parseUnsignedLongHexOrZero(tp, TRACE_PARENT_TID_START, 16, true);
+      if (traceIdHigh == 0 && !isAllZeros(tp, TRACE_PARENT_TID_START, 16)) {
+        return rejectTraceParent(tp, "illegal trace id");
+      }
+      this.traceIdLow = parseUnsignedLongHexOrZero(tp, TRACE_PARENT_TID_START + 16, 16, true);
       if (traceIdLow == 0) {
-        throw new IllegalStateException(
-            "Illegal all zero 64 bit trace id "
-                + tp.substring(TRACE_PARENT_TID_START, TRACE_PARENT_TID_END));
+        return rejectTraceParent(tp, "illegal or all zero 64 bit trace id");
       }
       if (buildTraceId) {
         // Built from its parts, so it formats its hex form only if read, not per extraction
         this.traceId = DD128bTraceId.from(traceIdHigh, traceIdLow);
       }
-      this.spanId = DDSpanId.fromHex(tp, TRACE_PARENT_SID_START, 16, true);
+      this.spanId = parseUnsignedLongHexOrZero(tp, TRACE_PARENT_SID_START, 16, true);
       if (this.spanId == 0) {
-        throw new IllegalStateException(
-            "Illegal all zero span id "
-                + tp.substring(TRACE_PARENT_SID_START, TRACE_PARENT_SID_END));
+        return rejectTraceParent(tp, "illegal or all zero span id");
       }
       if (version != 0 && length > TRACE_PARENT_LENGTH && tp.charAt(TRACE_PARENT_LENGTH) != '-') {
-        throw new IllegalStateException("Illegal character after flags in '" + tp + "'");
+        return rejectTraceParent(tp, "illegal character after flags");
       }
-      long flags = LongStringUtils.parseUnsignedLongHex(tp, TRACE_PARENT_FLAGS_START, 2, true);
+      long flags = parseUnsignedLongHexOrZero(tp, TRACE_PARENT_FLAGS_START, 2, true);
+      if (flags == 0 && !isAllZeros(tp, TRACE_PARENT_FLAGS_START, 2)) {
+        return rejectTraceParent(tp, "illegal flags");
+      }
       if ((flags & TRACE_PARENT_FLAGS_SAMPLED) != 0) {
         this.samplingPriority = SAMPLER_KEEP;
       } else {
         this.samplingPriority = SAMPLER_DROP;
       }
+      return true;
+    }
+
+    private static boolean rejectTraceParent(String tp, String reason) {
+      log.debug("Ignoring invalid traceparent '{}': {}", tp, reason);
+      return false;
+    }
+
+    private static boolean isAllZeros(String s, int start, int len) {
+      for (int i = start, end = start + len; i < end; i++) {
+        if (s.charAt(i) != '0') {
+          return false;
+        }
+      }
+      return true;
     }
 
     /** Like {@link #build()}, but for {@link TraceContextExtractor#extractForMerge}. */
@@ -399,14 +425,12 @@ class W3CHttpCodec {
       if (!canBuildFullContext()) {
         return null;
       }
+      // the trace id only needs to be compared, so it's kept as its parts
+      if (!parseRequiredTraceParent(false)) {
+        return null;
+      }
       W3CTracestate tracestate;
       try {
-        if (traceparentHeader == null) {
-          throw new IllegalStateException(
-              "Found no traceparent header but tracestate header '" + tracestateHeader + "'");
-        }
-        // the trace id only needs to be compared, so it's kept as its parts
-        parseTraceParent(traceparentHeader, false);
         tracestate = W3CTracestate.parse(tracestateHeader);
       } catch (RuntimeException e) {
         log.debug("Exception when building context", e);
