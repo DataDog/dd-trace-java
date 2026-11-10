@@ -24,7 +24,9 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.concurrent.TimeoutException;
 import java.util.regex.Pattern;
@@ -45,7 +47,7 @@ public class ShellGitClient implements GitClient {
       Arrays.asList("release/", "hotfix/");
   private static final Pattern WHITESPACE_PATTERN = Pattern.compile("\\s+");
   private static final String ORIGIN = "origin";
-  private static final Pattern COMMIT_INFO_SPLIT = Pattern.compile("\",\"");
+  private static final Pattern COMMIT_INFO_SPLIT = Pattern.compile("\\x00");
 
   private final CiVisibilityMetricCollector metricCollector;
   private final String repoRoot;
@@ -320,16 +322,9 @@ public class ShellGitClient implements GitClient {
     }
     return executeCommand(
         Command.OTHER,
-        () -> {
-          try {
-            return commandExecutor.executeCommand(
-                IOUtils::readLines, buildGitCommand("describe", "--tags", "--exact-match", commit));
-          } catch (ShellCommandExecutor.ShellCommandFailedException e) {
-            // if provided commit is not tagged,
-            // command will fail because "--exact-match" is specified
-            return Collections.emptyList();
-          }
-        });
+        () ->
+            commandExecutor.executeCommand(
+                IOUtils::readLines, buildGitCommand("tag", "--no-column", "--points-at", commit)));
   }
 
   /**
@@ -387,15 +382,28 @@ public class ShellGitClient implements GitClient {
         Command.FETCH_COMMIT,
         () -> {
           String remote = getRemoteName();
-          commandExecutor.executeCommand(
-              ShellCommandExecutor.OutputParser.IGNORE,
-              buildGitCommand(
-                  "fetch",
-                  "--filter=blob:none",
-                  "--recurse-submodules=no",
-                  "--no-write-fetch-head",
-                  remote,
-                  remoteCommitReference));
+          List<String> args = new ArrayList<>();
+          Collections.addAll(
+              args,
+              "fetch",
+              "--shallow-since=" + latestCommitsSince,
+              "--update-shallow",
+              "--filter=blob:none",
+              "--recurse-submodules=no",
+              "--no-write-fetch-head",
+              remote,
+              remoteCommitReference);
+          try {
+            commandExecutor.executeCommand(
+                ShellCommandExecutor.OutputParser.IGNORE,
+                buildGitCommand(args.toArray(new String[0])));
+          } catch (ShellCommandExecutor.ShellCommandFailedException e) {
+            // A selected revision can predate the history window.
+            args.set(1, "--depth=1");
+            commandExecutor.executeCommand(
+                ShellCommandExecutor.OutputParser.IGNORE,
+                buildGitCommand(args.toArray(new String[0])));
+          }
 
           return (Void) null;
         });
@@ -438,14 +446,15 @@ public class ShellGitClient implements GitClient {
                             "show",
                             commit,
                             "-s",
-                            "--format=%H\",\"%an\",\"%ae\",\"%aI\",\"%cn\",\"%ce\",\"%cI\",\"%B"))
+                            "--no-show-signature",
+                            "--format=%H%x00%an%x00%ae%x00%aI%x00%cn%x00%ce%x00%cI%x00%B"))
                     .trim();
           } catch (ShellCommandExecutor.ShellCommandFailedException e) {
             LOGGER.error("Failed to fetch commit info", e);
             return CommitInfo.NOOP;
           }
 
-          String[] fields = COMMIT_INFO_SPLIT.split(info);
+          String[] fields = COMMIT_INFO_SPLIT.split(info, 8);
           if (fields.length < 8) {
             LOGGER.error("Could not parse commit info: {}", info);
             return CommitInfo.NOOP;
@@ -472,17 +481,46 @@ public class ShellGitClient implements GitClient {
   @Override
   public List<String> getLatestCommits()
       throws IOException, TimeoutException, InterruptedException {
-    return executeCommand(
-        Command.GET_LOCAL_COMMITS,
-        () ->
-            commandExecutor.executeCommand(
-                IOUtils::readLines,
-                buildGitCommand(
-                    "log",
-                    "--format=%H",
-                    "-n",
-                    String.valueOf(latestCommitsLimit),
-                    String.format("--since='%s'", latestCommitsSince))));
+    return getLatestCommits(HEAD);
+  }
+
+  @Nonnull
+  @Override
+  public List<String> getLatestCommits(String commit)
+      throws IOException, TimeoutException, InterruptedException {
+    if (GitUtils.isNotValidCommit(commit)) {
+      return Collections.emptyList();
+    }
+    String canonicalCommit =
+        GitUtils.isValidCommitShaFull(commit) ? commit.toLowerCase(Locale.ROOT) : commit;
+    List<String> commits;
+    try {
+      commits =
+          executeCommand(
+              Command.GET_LOCAL_COMMITS,
+              () ->
+                  commandExecutor.executeCommand(
+                      IOUtils::readLines,
+                      buildGitCommand(
+                          "log",
+                          "--format=%H",
+                          "-n",
+                          String.valueOf(latestCommitsLimit),
+                          String.format("--since='%s'", latestCommitsSince),
+                          canonicalCommit,
+                          "--")));
+    } catch (ShellCommandExecutor.ShellCommandFailedException e) {
+      if (!isCommitPresent(canonicalCommit)) {
+        return Collections.emptyList();
+      }
+      throw e;
+    }
+    if (!HEAD.equals(canonicalCommit)
+        && !commits.contains(canonicalCommit)
+        && isCommitPresent(canonicalCommit)) {
+      commits.add(0, canonicalCommit);
+    }
+    return commits;
   }
 
   /**
@@ -505,14 +543,16 @@ public class ShellGitClient implements GitClient {
     return executeCommand(
         Command.GET_OBJECTS,
         () -> {
-          String[] gitArgs = new String[5 + commitsToSkip.size() + commitsToInclude.size()];
+          String[] gitArgs = new String[7 + commitsToSkip.size() + commitsToInclude.size()];
           gitArgs[0] = "rev-list";
           gitArgs[1] = "--objects";
           gitArgs[2] = "--no-object-names";
           gitArgs[3] = "--filter=blob:none";
           gitArgs[4] = String.format("--since='%s'", latestCommitsSince);
+          gitArgs[5] = "--max-count=" + latestCommitsLimit;
+          gitArgs[6] = "--topo-order";
 
-          int count = 5;
+          int count = 7;
           for (String commitToSkip : commitsToSkip) {
             gitArgs[count++] = "^" + commitToSkip;
           }
@@ -520,7 +560,53 @@ public class ShellGitClient implements GitClient {
             gitArgs[count++] = commitToInclude;
           }
 
-          return commandExecutor.executeCommand(IOUtils::readLines, buildGitCommand(gitArgs));
+          List<String> objects =
+              commandExecutor.executeCommand(IOUtils::readLines, buildGitCommand(gitArgs));
+          LinkedHashSet<String> rootsToRecover = new LinkedHashSet<>(commitsToInclude);
+          for (String object : objects) {
+            rootsToRecover.remove(object);
+          }
+          if (!rootsToRecover.isEmpty() && !commitsToSkip.isEmpty()) {
+            List<String> inWindowArgs = new ArrayList<>();
+            Collections.addAll(
+                inWindowArgs,
+                "log",
+                "--no-walk=unsorted",
+                "--format=%H",
+                "--no-show-signature",
+                String.format("--since='%s'", latestCommitsSince));
+            inWindowArgs.addAll(rootsToRecover);
+            inWindowArgs.add("--");
+            // In-window roots omitted above are already excluded by known descendants.
+            for (String inWindowRoot :
+                commandExecutor.executeCommand(
+                    IOUtils::readLines, buildGitCommand(inWindowArgs.toArray(new String[0])))) {
+              rootsToRecover.remove(inWindowRoot);
+            }
+          }
+          if (!rootsToRecover.isEmpty()) {
+            LinkedHashSet<String> combined = new LinkedHashSet<>(objects);
+            for (String selectedCommit : rootsToRecover) {
+              List<String> selectedArgs = new ArrayList<>();
+              Collections.addAll(
+                  selectedArgs,
+                  "rev-list",
+                  "--objects",
+                  "--no-object-names",
+                  "--filter=blob:none",
+                  "--max-count=1");
+              for (String commitToSkip : commitsToSkip) {
+                selectedArgs.add("^" + commitToSkip);
+              }
+              // Negative refs disable --no-walk; one root per query keeps its ancestors out.
+              selectedArgs.add(selectedCommit);
+              combined.addAll(
+                  commandExecutor.executeCommand(
+                      IOUtils::readLines, buildGitCommand(selectedArgs.toArray(new String[0]))));
+            }
+            return new ArrayList<>(combined);
+          }
+          return objects;
         });
   }
 
