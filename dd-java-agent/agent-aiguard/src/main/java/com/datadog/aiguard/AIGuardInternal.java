@@ -5,6 +5,7 @@ import static datadog.trace.api.telemetry.WafMetricCollector.AIGuardTruncationTy
 import static datadog.trace.api.telemetry.WafMetricCollector.AIGuardTruncationType.MESSAGES;
 import static datadog.trace.util.Strings.isBlank;
 import static java.util.Arrays.asList;
+import static java.util.Collections.emptyList;
 import static java.util.Collections.unmodifiableSet;
 
 import com.squareup.moshi.JsonAdapter;
@@ -87,6 +88,10 @@ public class AIGuardInternal implements Evaluator {
   static final String REDACTED_TAG = "ai_guard.redacted";
 
   static final String RESPONSE_REDACTION_REPLACEMENTS = "redaction_replacements";
+  static final String EXTRA_TAGS_FIELD = "extra_tags";
+  static final String EXTRA_METASTRUCT_FIELD = "extra_metastruct";
+  private static final String EXTRA_KEY_FIELD = "key";
+  private static final String EXTRA_VALUE_FIELD = "value";
 
   static final String META_STRUCT_TAG = "ai_guard";
   static final String META_STRUCT_MESSAGES = "messages";
@@ -388,6 +393,102 @@ public class AIGuardInternal implements Evaluator {
         span.setTag("ai_guard." + tag, value.toString());
       }
     }
+  }
+
+  /**
+   * Applies the optional backend-provided {@code extra_tags} and {@code extra_metastruct} lists to
+   * the span and its meta struct. Never throws: malformed or reserved entries are skipped.
+   */
+  private static void applyBackendExtras(
+      final AgentSpan span,
+      final Map<String, Object> metaStruct,
+      final Map<String, Object> result) {
+    try {
+      applyExtraTags(span, result.get(EXTRA_TAGS_FIELD));
+    } catch (final Exception e) {
+      log.debug("AI Guard: could not apply extra_tags", e);
+    }
+    try {
+      applyExtraMetaStruct(metaStruct, result.get(EXTRA_METASTRUCT_FIELD));
+    } catch (final Exception e) {
+      log.debug("AI Guard: could not apply extra_metastruct", e);
+    }
+  }
+
+  private static void applyExtraTags(final AgentSpan span, final Object raw) {
+    for (final Map<?, ?> entry : extraEntries(EXTRA_TAGS_FIELD, raw)) {
+      final String key = extraKey(EXTRA_TAGS_FIELD, entry);
+      if (key == null) {
+        continue;
+      }
+      if (isReservedTag(key)) {
+        log.debug("AI Guard: skipping extra tag '{}': reserved key", key);
+        continue;
+      }
+      final Object value = entry.get(EXTRA_VALUE_FIELD);
+      if (!(value instanceof String)) {
+        log.debug("AI Guard: skipping extra tag '{}': value is not a string", key);
+        continue;
+      }
+      final String stringValue = (String) value;
+      span.setTag(key, stringValue);
+    }
+  }
+
+  private static void applyExtraMetaStruct(final Map<String, Object> metaStruct, final Object raw) {
+    for (final Map<?, ?> entry : extraEntries(EXTRA_METASTRUCT_FIELD, raw)) {
+      final String key = extraKey(EXTRA_METASTRUCT_FIELD, entry);
+      if (key == null) {
+        continue;
+      }
+      if (isReservedMetaStructKey(key)) {
+        log.debug("AI Guard: skipping extra meta_struct '{}': reserved key", key);
+        continue;
+      }
+      final Object value = entry.get(EXTRA_VALUE_FIELD);
+      if (value == null) {
+        log.debug("AI Guard: skipping extra meta_struct '{}': value is null", key);
+        continue;
+      }
+      metaStruct.put(key, value);
+    }
+  }
+
+  /** Returns the {@code {key, value}} entries of an extras list, skipping non-object entries. */
+  private static List<Map<?, ?>> extraEntries(final String field, final Object raw) {
+    if (raw == null) {
+      return emptyList();
+    }
+    if (!(raw instanceof List)) {
+      log.debug("AI Guard: {} is not a list", field);
+      return emptyList();
+    }
+    final List<?> list = (List<?>) raw;
+    final List<Map<?, ?>> entries = new ArrayList<>(list.size());
+    for (final Object item : list) {
+      if (item instanceof Map) {
+        entries.add((Map<?, ?>) item);
+      } else {
+        log.debug("AI Guard: skipping {} entry: not an object", field);
+      }
+    }
+    return entries;
+  }
+
+  /** Returns the entry key when it is a non-empty string, or {@code null} after logging why. */
+  @Nullable
+  private static String extraKey(final String field, final Map<?, ?> entry) {
+    final Object key = entry.get(EXTRA_KEY_FIELD);
+    if (!(key instanceof String)) {
+      log.debug("AI Guard: skipping {} entry: key is not a string", field);
+      return null;
+    }
+    final String stringKey = (String) key;
+    if (stringKey.isEmpty()) {
+      log.debug("AI Guard: skipping {} entry: key is empty", field);
+      return null;
+    }
+    return stringKey;
   }
 
   @Override
