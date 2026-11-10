@@ -9,6 +9,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -47,6 +48,7 @@ import dev.openfeature.sdk.HookContext;
 import dev.openfeature.sdk.ImmutableContext;
 import dev.openfeature.sdk.MutableContext;
 import dev.openfeature.sdk.OpenFeatureAPI;
+import dev.openfeature.sdk.ProviderEvaluation;
 import dev.openfeature.sdk.Value;
 import dev.openfeature.sdk.multiprovider.MultiProvider;
 import io.opentelemetry.api.GlobalOpenTelemetry;
@@ -55,6 +57,7 @@ import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.LongCounter;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -114,6 +117,8 @@ class EvaluationTelemetryOptOutTest {
   private FeatureFlagsRuntime runtime;
   private CapturingEvaluator evaluator;
   private Client client;
+  private boolean failDependencyPublisher;
+  private boolean mutateDependencyRecord;
 
   @BeforeEach
   void setUp() throws Exception {
@@ -482,7 +487,9 @@ class EvaluationTelemetryOptOutTest {
     assertEquals(0, details.getValue());
     assertTelemetryCounts(0);
     assertEquals(0, this.exposures.size());
-    assertEquals(1, this.customerEvaluations.size());
+    assertTrue(
+        this.customerEvaluations.isEmpty(),
+        "a skipped before hook has no lifecycle registration for finally");
   }
 
   @Test
@@ -507,6 +514,424 @@ class EvaluationTelemetryOptOutTest {
     assertEquals("inner", this.events.get(0).targetingKey);
     assertEquals(2, this.exposures.size());
     assertEquals(2, this.customerEvaluations.size());
+  }
+
+  @Test
+  void dependencyTelemetryHonorsEnabledProviderOptOut() throws Exception {
+    start(
+        new Provider.Options().enableEvaluationTelemetryOptOutParameter(true),
+        dependentConfiguration());
+
+    final FlagEvaluationDetails<Integer> optedOut =
+        this.client.getIntegerDetails("root", 0, context("subject-1", new Value(true)));
+
+    assertEquals(1, optedOut.getValue());
+    assertTelemetryCounts(0);
+    assertEquals(2, this.exposures.size(), "dependency and root exposures remain independent");
+    assertEquals(2, this.customerEvaluations.size());
+    assertTrue(
+        this.customerEvaluations.stream()
+            .anyMatch(evaluation -> "dependency".equals(evaluation.getDetails().getFlagKey())));
+    assertTrue(
+        this.customerEvaluations.stream()
+            .anyMatch(evaluation -> "root".equals(evaluation.getDetails().getFlagKey())));
+    assertTrue(this.customerEvaluations.stream().allMatch(ExposureHook.Evaluation::shouldSend));
+  }
+
+  @Test
+  void nestedDependentRootsPublishEachCustomerExposureOnce() throws Exception {
+    start(
+        new Provider.Options().enableEvaluationTelemetryOptOutParameter(false),
+        dependentConfiguration());
+    this.api.addHooks(
+        new Hook<Object>() {
+          @Override
+          public void after(
+              final HookContext<Object> context,
+              final FlagEvaluationDetails<Object> details,
+              final Map<String, Object> hints) {
+            if ("outer".equals(context.getCtx().getTargetingKey())) {
+              assertEquals(
+                  1,
+                  EvaluationTelemetryOptOutTest.this
+                      .client
+                      .getIntegerDetails(
+                          "root",
+                          0,
+                          EvaluationTelemetryOptOutTest.context("inner", new Value(false)))
+                      .getValue());
+            }
+          }
+        });
+
+    assertEquals(
+        1, this.client.getIntegerDetails("root", 0, context("outer", new Value(false))).getValue());
+
+    assertEquals(4, this.customerEvaluations.size());
+    assertEquals(
+        2,
+        this.customerEvaluations.stream()
+            .filter(evaluation -> "dependency".equals(evaluation.getDetails().getFlagKey()))
+            .count());
+    assertEquals(
+        2,
+        this.customerEvaluations.stream()
+            .filter(evaluation -> "root".equals(evaluation.getDetails().getFlagKey()))
+            .count());
+  }
+
+  @Test
+  void distinctNestedClientsReceiveOnlyTheirOwnDependencyExposures() throws Exception {
+    start(
+        new Provider.Options().enableEvaluationTelemetryOptOutParameter(false),
+        dependentConfiguration());
+    final List<ExposureHook.Evaluation> outerEvaluations = new ArrayList<>();
+    final List<ExposureHook.Evaluation> innerEvaluations = new ArrayList<>();
+    final Client outer = this.api.getClient("outer-client");
+    final Client inner = this.api.getClient("inner-client");
+    outer.addHooks(
+        new ExposureHook(outerEvaluations::add),
+        new Hook<Object>() {
+          @Override
+          public void after(
+              final HookContext<Object> context,
+              final FlagEvaluationDetails<Object> details,
+              final Map<String, Object> hints) {
+            if ("outer".equals(context.getCtx().getTargetingKey())) {
+              assertEquals(
+                  1,
+                  inner
+                      .getIntegerDetails(
+                          "root",
+                          0,
+                          EvaluationTelemetryOptOutTest.context("inner", new Value(false)))
+                      .getValue());
+            }
+          }
+        });
+    inner.addHooks(new ExposureHook(innerEvaluations::add));
+
+    assertEquals(
+        1, outer.getIntegerDetails("root", 0, context("outer", new Value(false))).getValue());
+
+    assertEquals(2, outerEvaluations.size());
+    assertTrue(
+        outerEvaluations.stream()
+            .allMatch(evaluation -> "outer".equals(evaluation.getContext().getTargetingKey())));
+    assertEquals(2, innerEvaluations.size());
+    assertTrue(
+        innerEvaluations.stream()
+            .allMatch(evaluation -> "inner".equals(evaluation.getContext().getTargetingKey())));
+  }
+
+  @Test
+  @SuppressWarnings("deprecation")
+  void deprecatedExposureHookReceivesDependencyAndRootExactlyOnce() throws Exception {
+    start(
+        new Provider.Options().enableEvaluationTelemetryOptOutParameter(false),
+        dependentConfiguration());
+    final List<datadog.trace.api.openfeature.ExposureHook.Evaluation> deprecated =
+        new ArrayList<>();
+    this.api.addHooks(new datadog.trace.api.openfeature.ExposureHook(deprecated::add));
+
+    assertEquals(
+        1,
+        this.client
+            .getIntegerDetails("root", 0, context("deprecated", new Value(false)))
+            .getValue());
+
+    assertEquals(2, deprecated.size());
+    assertEquals(
+        1,
+        deprecated.stream()
+            .filter(evaluation -> "dependency".equals(evaluation.getDetails().getFlagKey()))
+            .count());
+    assertEquals(
+        1,
+        deprecated.stream()
+            .filter(evaluation -> "root".equals(evaluation.getDetails().getFlagKey()))
+            .count());
+  }
+
+  @Test
+  @SuppressWarnings("deprecation")
+  void deprecatedExposureHookDoesNotPublishDependenciesFromFailedOrRejectedGraphs()
+      throws Exception {
+    final List<datadog.trace.api.openfeature.ExposureHook.Evaluation> deprecated =
+        new ArrayList<>();
+    this.api.addHooks(new datadog.trace.api.openfeature.ExposureHook(deprecated::add));
+    start(
+        new Provider.Options().enableEvaluationTelemetryOptOutParameter(false),
+        failedDependencyConfiguration());
+
+    final FlagEvaluationDetails<Integer> failed =
+        this.client.getIntegerDetails("root", 0, context("failed", new Value(false)));
+
+    assertEquals(ErrorCode.GENERAL, failed.getErrorCode());
+    assertEquals(1, deprecated.size());
+    assertEquals("root", deprecated.get(0).getDetails().getFlagKey());
+
+    this.api.shutdown();
+    deprecated.clear();
+    start(
+        new Provider.Options().enableEvaluationTelemetryOptOutParameter(false),
+        rejectedDependencyConfiguration());
+    this.api.addHooks(new datadog.trace.api.openfeature.ExposureHook(deprecated::add));
+
+    final FlagEvaluationDetails<Integer> rejected =
+        this.client.getIntegerDetails("root", 0, context("rejected", new Value(false)));
+
+    assertNull(rejected.getErrorCode());
+    assertEquals(1, deprecated.size());
+    assertEquals("root", deprecated.get(0).getDetails().getFlagKey());
+  }
+
+  @Test
+  @SuppressWarnings("deprecation")
+  void deprecatedExposureHookCleansUpNestedLifecycles() throws Exception {
+    start(
+        new Provider.Options().enableEvaluationTelemetryOptOutParameter(false),
+        dependentConfiguration());
+    final List<datadog.trace.api.openfeature.ExposureHook.Evaluation> deprecated =
+        new ArrayList<>();
+    this.api.addHooks(
+        new datadog.trace.api.openfeature.ExposureHook(deprecated::add),
+        new Hook<Object>() {
+          @Override
+          public void after(
+              final HookContext<Object> context,
+              final FlagEvaluationDetails<Object> details,
+              final Map<String, Object> hints) {
+            if ("outer".equals(context.getCtx().getTargetingKey())) {
+              assertEquals(
+                  1,
+                  EvaluationTelemetryOptOutTest.this
+                      .client
+                      .getIntegerDetails(
+                          "root",
+                          0,
+                          EvaluationTelemetryOptOutTest.context("inner", new Value(false)))
+                      .getValue());
+            }
+          }
+        });
+
+    assertEquals(
+        1, this.client.getIntegerDetails("root", 0, context("outer", new Value(false))).getValue());
+
+    assertEquals(4, deprecated.size());
+    assertEquals(
+        2,
+        deprecated.stream()
+            .filter(evaluation -> "inner".equals(evaluation.getContext().getTargetingKey()))
+            .count());
+    assertEquals(
+        2,
+        deprecated.stream()
+            .filter(evaluation -> "outer".equals(evaluation.getContext().getTargetingKey()))
+            .count());
+  }
+
+  @Test
+  void enabledProviderOptOutIncludesDependencyTelemetryWhenSubjectDoesNotOptOut() throws Exception {
+    start(
+        new Provider.Options().enableEvaluationTelemetryOptOutParameter(true),
+        dependentConfiguration());
+
+    for (final Value optOut : asList(null, new Value(false))) {
+      final String subject = optOut == null ? "absent" : "false";
+      final FlagEvaluationDetails<Integer> included =
+          this.client.getIntegerDetails("root", 0, context(subject, optOut));
+
+      assertEquals(1, included.getValue());
+    }
+
+    assertEquals(4, this.events.size(), "dependency and root events for both subjects");
+    assertEquals("dependency", this.events.get(0).flagKey);
+    assertEquals("root", this.events.get(1).flagKey);
+    assertEquals("dependency", this.events.get(2).flagKey);
+    assertEquals("root", this.events.get(3).flagKey);
+    assertEquals(4, this.metrics.get(), "dependency and root metrics for both subjects");
+    assertEquals(4, this.exposures.size());
+  }
+
+  @Test
+  void dependencyTelemetryIncludesMetricsWhenProviderOptOutIsDisabled() throws Exception {
+    start(
+        new Provider.Options().enableEvaluationTelemetryOptOutParameter(false),
+        dependentConfiguration());
+
+    final FlagEvaluationDetails<Integer> included =
+        this.client.getIntegerDetails("root", 0, context("subject-2", new Value(true)));
+
+    assertEquals(1, included.getValue());
+    assertEquals(2, this.events.size(), "dependency and root evaluation events");
+    assertEquals("dependency", this.events.get(0).flagKey, "dependency publishes before root");
+    assertEquals("root", this.events.get(1).flagKey);
+    assertEquals(2, this.metrics.get(), "dependency and root OTel metrics");
+    assertEquals(1, this.spans.size(), "only the ordinary root span hook runs");
+    assertEquals(2, this.exposures.size());
+  }
+
+  @Test
+  void dependencyTelemetryReusesOneDetachedContextSnapshotPerBatch() throws Exception {
+    start(
+        new Provider.Options().enableEvaluationTelemetryOptOutParameter(false),
+        twoDependencyConfiguration(true));
+    final MutableContext context = new MutableContext("subject");
+    context.add("region", "us-east-1");
+
+    final FlagEvaluationDetails<Integer> included =
+        this.client.getIntegerDetails("root", 0, context);
+    context.add("region", "eu-west-1");
+
+    assertEquals(1, included.getValue());
+    assertEquals(3, this.events.size(), "two dependencies and the root evaluation");
+    assertEquals("first", this.events.get(0).flagKey);
+    assertEquals("second", this.events.get(1).flagKey);
+    assertSame(
+        this.events.get(0).attrs,
+        this.events.get(1).attrs,
+        "dependency events in one batch must reuse the detached snapshot");
+    assertEquals("us-east-1", this.events.get(0).attrs.get("region"));
+  }
+
+  @TableTest({
+    "initial | after",
+    "false   | true ",
+    "true    | false"
+  })
+  void dependencyAndRootTelemetryShareAfterHookOptOutBoundary(
+      final boolean initial, final boolean after) throws Exception {
+    start(
+        new Provider.Options().enableEvaluationTelemetryOptOutParameter(true),
+        dependentConfiguration());
+    final MutableContext context = new MutableContext("subject").add(PARAMETER, initial);
+    this.api.addHooks(
+        new Hook<Object>() {
+          @Override
+          public void after(
+              final HookContext<Object> hookContext,
+              final FlagEvaluationDetails<Object> details,
+              final Map<String, Object> hints) {
+            context.add(PARAMETER, after);
+          }
+        });
+
+    final FlagEvaluationDetails<Integer> details =
+        this.client.getIntegerDetails("root", 0, context);
+
+    assertNull(details.getErrorCode());
+    assertEquals(1, details.getValue());
+    assertTelemetryCounts(0);
+    assertEquals(2, this.exposures.size(), "evaluation opt-out does not suppress exposures");
+  }
+
+  @Test
+  void directProviderCallEmitsNeitherRootNorDependencyTelemetry() throws Exception {
+    this.evaluator = new CapturingEvaluator(dependentConfiguration());
+    final Provider provider =
+        provider(
+            new Provider.Options().enableEvaluationTelemetryOptOutParameter(false), this.evaluator);
+    final MutableContext context = new MutableContext("subject");
+    provider.initialize(context);
+
+    final ProviderEvaluation<Integer> details = provider.getIntegerEvaluation("root", 0, context);
+
+    assertNull(details.getErrorCode());
+    assertEquals(1, details.getValue());
+    assertTelemetryCounts(0);
+    assertTrue(this.exposures.isEmpty());
+    assertTrue(this.customerEvaluations.isEmpty());
+    provider.shutdown();
+  }
+
+  @Test
+  void failingAfterHookDiscardsBufferedDependencyExposures() throws Exception {
+    start(
+        new Provider.Options().enableEvaluationTelemetryOptOutParameter(false),
+        dependentConfiguration());
+    this.api.addHooks(
+        new Hook<Object>() {
+          @Override
+          public void after(
+              final HookContext<Object> context,
+              final FlagEvaluationDetails<Object> details,
+              final Map<String, Object> hints) {
+            throw new IllegalStateException("application hook failed");
+          }
+        });
+
+    final FlagEvaluationDetails<Integer> details =
+        this.client.getIntegerDetails("root", 0, context("subject", new Value(false)));
+
+    assertEquals(ErrorCode.GENERAL, details.getErrorCode());
+    assertEquals(0, details.getValue());
+    assertEquals(2, this.events.size(), "dependency and failed root telemetry");
+    assertEquals("dependency", this.events.get(0).flagKey);
+    assertEquals("root", this.events.get(1).flagKey);
+    assertEquals(0, this.exposures.size());
+
+    this.client.getIntegerDetails("root", 0, context("nested-subject", new Value(false)));
+    assertEquals(4, this.events.size(), "the failed lifecycle must not retain its scope");
+    assertEquals("dependency", this.events.get(2).flagKey);
+    assertEquals("root", this.events.get(3).flagKey);
+  }
+
+  @Test
+  void failingDependencyPublisherDoesNotChangeTheRootOrExposures() throws Exception {
+    this.failDependencyPublisher = true;
+    start(
+        new Provider.Options().enableEvaluationTelemetryOptOutParameter(false),
+        dependentConfiguration());
+
+    final FlagEvaluationDetails<Integer> details =
+        this.client.getIntegerDetails("root", 0, context("subject", new Value(false)));
+
+    assertEquals(1, details.getValue());
+    assertEquals(1, this.events.size(), "only root telemetry survives publisher failure");
+    assertEquals(1, this.metrics.get(), "only root metrics survive publisher failure");
+    assertEquals(2, this.exposures.size(), "publisher failure does not affect exposures");
+  }
+
+  @Test
+  void dependencyRecordCannotBeMutatedByItsPublisher() throws Exception {
+    this.mutateDependencyRecord = true;
+    start(
+        new Provider.Options().enableEvaluationTelemetryOptOutParameter(false),
+        dependentConfiguration());
+
+    final FlagEvaluationDetails<Integer> details =
+        this.client.getIntegerDetails("root", 0, context("subject", new Value(false)));
+
+    assertEquals(1, details.getValue());
+    assertEquals(1, this.events.size(), "immutable record rejects publisher mutation");
+    assertEquals(2, this.exposures.size(), "mutation attempt does not affect exposures");
+  }
+
+  @Test
+  void parallelDependentRootsKeepIndependentReturnedBatches() throws Exception {
+    start(
+        new Provider.Options().enableEvaluationTelemetryOptOutParameter(false),
+        dependentConfiguration());
+    final ExecutorService executor = Executors.newFixedThreadPool(2);
+    try {
+      final Future<FlagEvaluationDetails<Integer>> first =
+          executor.submit(
+              () -> this.client.getIntegerDetails("root", 0, context("first", new Value(false))));
+      final Future<FlagEvaluationDetails<Integer>> second =
+          executor.submit(
+              () -> this.client.getIntegerDetails("root", 0, context("second", new Value(false))));
+
+      assertEquals(1, first.get(5, SECONDS).getValue());
+      assertEquals(1, second.get(5, SECONDS).getValue());
+    } finally {
+      executor.shutdownNow();
+    }
+    assertEquals(4, this.events.size(), "dependency and root for each evaluation");
+    assertEquals(4, this.metrics.get());
+    assertEquals(4, this.exposures.size());
+    assertEquals(4, this.customerEvaluations.size());
   }
 
   @Test
@@ -698,7 +1123,12 @@ class EvaluationTelemetryOptOutTest {
   }
 
   private void start(final Provider.Options options) throws Exception {
-    this.evaluator = new CapturingEvaluator(defaultConfiguration());
+    start(options, defaultConfiguration());
+  }
+
+  private void start(final Provider.Options options, final ServerConfiguration configuration)
+      throws Exception {
+    this.evaluator = new CapturingEvaluator(configuration);
     this.api.setProviderAndWait(provider(options, this.evaluator));
     this.client = this.api.getClient();
   }
@@ -743,6 +1173,141 @@ class EvaluationTelemetryOptOutTest {
             singletonMap("on", new Variant("on", 1)),
             singletonList(allocation));
     return new ServerConfiguration("", "", false, null, singletonMap("flag", flag));
+  }
+
+  private static ServerConfiguration dependentConfiguration() {
+    final Allocation dependencyAllocation =
+        new Allocation(
+            "dependency-allocation",
+            null,
+            null,
+            null,
+            singletonList(new Split(emptyList(), "on", emptyMap(), 7)),
+            true);
+    final Flag dependency =
+        new Flag(
+            "dependency",
+            true,
+            ValueType.INTEGER,
+            singletonMap("on", new Variant("on", 1)),
+            singletonList(dependencyAllocation));
+    final Rule rule =
+        new Rule(
+            singletonList(
+                new ConditionConfiguration(
+                    ConditionOperator.ONE_OF, null, "dependency", singletonList("on"))));
+    final Allocation rootAllocation =
+        new Allocation(
+            "root-allocation",
+            singletonList(rule),
+            null,
+            null,
+            singletonList(new Split(emptyList(), "on", emptyMap(), 7)),
+            true);
+    final Flag root =
+        new Flag(
+            "root",
+            true,
+            ValueType.INTEGER,
+            singletonMap("on", new Variant("on", 1)),
+            singletonList(rootAllocation));
+    final Map<String, Flag> flags = new HashMap<>();
+    flags.put("dependency", dependency);
+    flags.put("root", root);
+    return new ServerConfiguration("", "", false, null, flags);
+  }
+
+  private static ServerConfiguration failedDependencyConfiguration() {
+    final Rule rule =
+        new Rule(
+            singletonList(
+                new ConditionConfiguration(
+                    ConditionOperator.ONE_OF, null, "missing", singletonList("on"))));
+    final Allocation allocation =
+        new Allocation(
+            "root-allocation",
+            singletonList(rule),
+            null,
+            null,
+            singletonList(new Split(emptyList(), "on", emptyMap(), 7)),
+            true);
+    final Flag root =
+        new Flag(
+            "root",
+            true,
+            ValueType.INTEGER,
+            singletonMap("on", new Variant("on", 1)),
+            singletonList(allocation));
+    return new ServerConfiguration("", "", false, null, singletonMap("root", root));
+  }
+
+  private static ServerConfiguration rejectedDependencyConfiguration() {
+    final ServerConfiguration configuration = dependentConfiguration();
+    final Flag root = configuration.flags.get("root");
+    final ConditionConfiguration rejected =
+        new ConditionConfiguration(
+            ConditionOperator.ONE_OF, null, "dependency", singletonList("off"));
+    final Allocation allocation =
+        new Allocation(
+            "rejected",
+            singletonList(new Rule(singletonList(rejected))),
+            null,
+            null,
+            root.allocations.get(0).splits,
+            true);
+    final Map<String, Flag> flags = new HashMap<>(configuration.flags);
+    flags.put(
+        "root",
+        new Flag(
+            root.key,
+            root.enabled,
+            root.variationType,
+            root.variations,
+            singletonList(allocation)));
+    return new ServerConfiguration("", "", false, null, flags);
+  }
+
+  private static ServerConfiguration twoDependencyConfiguration(
+      final boolean observeFullEvaluationData) {
+    final Map<String, Flag> flags = new HashMap<>();
+    final List<ConditionConfiguration> conditions = new ArrayList<>();
+    for (final String key : asList("first", "second")) {
+      final Allocation dependencyAllocation =
+          new Allocation(
+              key + "-allocation",
+              null,
+              null,
+              null,
+              singletonList(new Split(emptyList(), "on", emptyMap(), 7)),
+              false);
+      flags.put(
+          key,
+          new Flag(
+              key,
+              true,
+              ValueType.INTEGER,
+              singletonMap("on", new Variant("on", 1)),
+              singletonList(dependencyAllocation)));
+      conditions.add(
+          new ConditionConfiguration(ConditionOperator.ONE_OF, null, key, singletonList("on")));
+    }
+    final Allocation rootAllocation =
+        new Allocation(
+            "root-allocation",
+            singletonList(new Rule(conditions)),
+            null,
+            null,
+            singletonList(new Split(emptyList(), "on", emptyMap(), 7)),
+            false);
+    flags.put(
+        "root",
+        new Flag(
+            "root",
+            true,
+            ValueType.INTEGER,
+            singletonMap("on", new Variant("on", 1)),
+            singletonList(rootAllocation)));
+    return new ServerConfiguration("", "", observeFullEvaluationData, null, flags);
   }
 
   private static ServerConfiguration targetingConfiguration(
@@ -840,6 +1405,29 @@ class EvaluationTelemetryOptOutTest {
     @Override
     void recordExposure(final ExposureEvent event) {
       EvaluationTelemetryOptOutTest.this.exposures.add(event);
+    }
+
+    @Override
+    void publishDependencyEvaluations(
+        final DependencyEvaluationTrace trace,
+        final EvaluationContext context,
+        final com.datadog.openfeature.internal.flagevaluation.FlagEvaluationWriter writer) {
+      if (EvaluationTelemetryOptOutTest.this.failDependencyPublisher) {
+        throw new IllegalStateException("publisher failed");
+      }
+      if (EvaluationTelemetryOptOutTest.this.mutateDependencyRecord) {
+        trace.evaluations.get(0).metadata.asUnmodifiableMap().clear();
+      }
+      super.publishDependencyEvaluations(trace, context, writer);
+    }
+
+    @Override
+    void recordDependencyMetrics(
+        final DependencyEvaluationTrace trace, final FlagEvalMetrics dependencyMetrics) {
+      if (EvaluationTelemetryOptOutTest.this.failDependencyPublisher) {
+        throw new IllegalStateException("publisher failed");
+      }
+      super.recordDependencyMetrics(trace, dependencyMetrics);
     }
   }
 

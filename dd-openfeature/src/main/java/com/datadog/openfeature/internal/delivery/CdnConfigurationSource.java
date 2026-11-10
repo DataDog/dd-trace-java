@@ -35,6 +35,8 @@ public final class CdnConfigurationSource implements ConfigurationService {
 
   static final String UFC_RULES_BASED_SERVER_PATH =
       "/api/v2/feature-flagging/config/rules-based/server";
+  static final String FEATURE_FLAGS_CAPABILITIES_HEADER = "X-DD-FEATURE-FLAGS-CAPABILITIES";
+  static final String DEPENDENT_FLAG_CAPABILITY = "dependent-flag-variant-key-v1";
   static final int MAX_ATTEMPTS = 3;
   private static final long FIRST_RETRY_MIN_MILLIS = 2_000;
   private static final long FIRST_RETRY_MAX_MILLIS = 10_000;
@@ -296,7 +298,8 @@ public final class CdnConfigurationSource implements ConfigurationService {
     final HttpRequest.Builder request =
         HttpRequest.newBuilder(this.endpoint)
             .timeout(this.requestTimeout)
-            .header("Accept-Encoding", "gzip");
+            .header("Accept-Encoding", "gzip")
+            .header(FEATURE_FLAGS_CAPABILITIES_HEADER, DEPENDENT_FLAG_CAPABILITY);
     Headers.addMetadata(request);
     if (this.apiKey != null) {
       request.header("DD-API-KEY", this.apiKey);

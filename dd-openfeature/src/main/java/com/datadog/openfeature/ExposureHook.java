@@ -12,8 +12,15 @@ import dev.openfeature.sdk.FlagEvaluationDetails;
 import dev.openfeature.sdk.Hook;
 import dev.openfeature.sdk.HookContext;
 import dev.openfeature.sdk.ImmutableMetadata;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.IdentityHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,7 +33,8 @@ import org.slf4j.LoggerFactory;
  * metadata" in the README), but the exposure decision is available only from this hook.
  *
  * <p>Register it with {@code OpenFeatureAPI.getInstance().addHooks(new ExposureHook(callback))} or
- * on a client. The callback runs for every evaluation, including errors and repeats. Use {@link
+ * on a client. The callback runs for every evaluation, including errors and repeats. A successful
+ * dependent-flag evaluation also invokes it for each selected prerequisite exposure. Use {@link
  * Evaluation#shouldSend()} to keep the new or changed exposures.
  *
  * <p>When the provider's own hooks run and {@code
@@ -44,9 +52,13 @@ import org.slf4j.LoggerFactory;
 public final class ExposureHook implements Hook<Object> {
 
   private static final Logger log = LoggerFactory.getLogger(ExposureHook.class);
+  private static final AtomicLong LIFECYCLE_IDS = new AtomicLong();
+  private static final ThreadLocal<List<Registration>> ACTIVE_REGISTRATIONS = new ThreadLocal<>();
 
   private final Consumer<Evaluation> callback;
   private final AtomicBoolean warned = new AtomicBoolean();
+  private final String lifecycleKey =
+      "datadog.exposureHookLifecycle." + LIFECYCLE_IDS.incrementAndGet();
 
   /**
    * Creates an exposure hook.
@@ -59,15 +71,138 @@ public final class ExposureHook implements Hook<Object> {
   }
 
   @Override
+  public Optional<EvaluationContext> before(
+      final HookContext<Object> context, final Map<String, Object> hints) {
+    if (context == null || context.getHookData() == null) {
+      return Optional.empty();
+    }
+    final Registration registration = new Registration(this, context);
+    context.getHookData().set(this.lifecycleKey, registration);
+    List<Registration> registrations = ACTIVE_REGISTRATIONS.get();
+    if (registrations == null) {
+      registrations = new ArrayList<>();
+      ACTIVE_REGISTRATIONS.set(registrations);
+    }
+    registrations.add(registration);
+    return Optional.empty();
+  }
+
+  @Override
   public void finallyAfter(
       final HookContext<Object> context,
       final FlagEvaluationDetails<Object> details,
       final Map<String, Object> hints) {
-    if (details == null) {
+    final Registration registration = registration(context);
+    if (registration == null) {
       return;
     }
     try {
-      this.callback.accept(new Evaluation(context.getCtx(), details));
+      if (details != null) {
+        publish(new Evaluation(context.getCtx(), details));
+      }
+    } finally {
+      unregister(registration);
+    }
+  }
+
+  static void bindProviderScope(final Object scope, final HookContext<?> context) {
+    if (scope == null || context == null) {
+      return;
+    }
+    final List<Registration> registrations = ACTIVE_REGISTRATIONS.get();
+    if (registrations == null || registrations.isEmpty()) {
+      return;
+    }
+    final Set<ExposureHook> bound =
+        Collections.newSetFromMap(new IdentityHashMap<ExposureHook, Boolean>());
+    for (int i = registrations.size() - 1; i >= 0; i--) {
+      final Registration registration = registrations.get(i);
+      if (!bound.add(registration.hook)) {
+        continue;
+      }
+      if (registration.active
+          && registration.providerScope == null
+          && registration.matches(context)) {
+        registration.providerScope = scope;
+      }
+    }
+  }
+
+  static void publishDependencies(
+      final Object scope,
+      final HookContext<?> context,
+      final List<FlagEvaluationDetails<Object>> details) {
+    if (scope == null || context == null || details == null || details.isEmpty()) {
+      return;
+    }
+    final List<Registration> registrations = ACTIVE_REGISTRATIONS.get();
+    if (registrations == null || registrations.isEmpty()) {
+      return;
+    }
+    final List<Registration> recipients = new ArrayList<>();
+    for (final Registration registration : registrations) {
+      if (registration.active && registration.providerScope == scope) {
+        recipients.add(registration);
+      }
+    }
+    for (final Registration registration : recipients) {
+      for (final FlagEvaluationDetails<Object> dependency : details) {
+        registration.hook.publish(new Evaluation(context.getCtx(), dependency));
+      }
+    }
+  }
+
+  private Registration registration(final HookContext<?> context) {
+    if (context == null || context.getHookData() == null) {
+      return null;
+    }
+    final Object value = context.getHookData().get(this.lifecycleKey);
+    if (!(value instanceof Registration)) {
+      return null;
+    }
+    final Registration registration = (Registration) value;
+    return registration.active && registration.hook == this ? registration : null;
+  }
+
+  private static void unregister(final Registration registration) {
+    registration.active = false;
+    final List<Registration> registrations = ACTIVE_REGISTRATIONS.get();
+    if (registrations == null) {
+      return;
+    }
+    for (int i = registrations.size() - 1; i >= 0; i--) {
+      if (registrations.get(i) == registration) {
+        registrations.remove(i);
+        break;
+      }
+    }
+    if (registrations.isEmpty()) {
+      ACTIVE_REGISTRATIONS.remove();
+    }
+  }
+
+  private static final class Registration {
+    private final ExposureHook hook;
+    private final String flagKey;
+    private final EvaluationContext evaluationContext;
+    private Object providerScope;
+    private boolean active = true;
+
+    private Registration(final ExposureHook hook, final HookContext<?> context) {
+      this.hook = hook;
+      this.flagKey = context.getFlagKey();
+      this.evaluationContext = context.getCtx();
+    }
+
+    private boolean matches(final HookContext<?> context) {
+      return java.util.Objects.equals(this.flagKey, context.getFlagKey())
+          && this.evaluationContext == context.getCtx();
+    }
+  }
+
+  private void publish(final Evaluation evaluation) {
+    try {
+      this.callback.accept(evaluation);
     } catch (final LinkageError | RuntimeException e) {
       if (this.warned.compareAndSet(false, true)) {
         log.warn("Exposure callback failed; later failures are logged at debug level", e);
