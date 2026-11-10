@@ -120,7 +120,7 @@ public class ShellGitClient implements GitClient {
    * @return The complete command array including "git", "-c", "safe.directory=...", and the args
    */
   private String[] buildGitCommand(String... gitArgs) {
-    Path shallowFile = activeShallowFile.get();
+    Path shallowFile = recoveredShallowCommits == null ? null : activeShallowFile.get();
     int offset = shallowFile == null ? 3 : 5;
     String[] command = new String[gitArgs.length + offset];
     command[0] = "git";
@@ -414,6 +414,7 @@ public class ShellGitClient implements GitClient {
             if (!isShallow()) {
               // A private Git directory owns the boundaries; downloaded objects remain reusable.
               recoveryDirectory = Files.createTempDirectory("dd-ci-vis-recovery-");
+              args.add(2, "--no-auto-gc");
               String objects =
                   commandExecutor
                       .executeCommand(
@@ -569,7 +570,7 @@ public class ShellGitClient implements GitClient {
   @Override
   public List<String> getLatestCommits(String commit)
       throws IOException, TimeoutException, InterruptedException {
-    if (GitUtils.isNotValidCommit(commit)) {
+    if (latestCommitsLimit <= 0 || GitUtils.isNotValidCommit(commit)) {
       return Collections.emptyList();
     }
     String resolvedCommit = commit;
@@ -593,6 +594,7 @@ public class ShellGitClient implements GitClient {
                       IOUtils::readLines,
                       buildGitCommand(
                           "log",
+                          "--topo-order",
                           "--format=%H",
                           "-n",
                           String.valueOf(latestCommitsLimit),
@@ -608,6 +610,9 @@ public class ShellGitClient implements GitClient {
     if (!HEAD.equals(canonicalCommit)
         && !commits.contains(canonicalCommit)
         && isCommitPresent(canonicalCommit)) {
+      if (commits.size() == latestCommitsLimit) {
+        commits.remove(commits.size() - 1);
+      }
       commits.add(0, canonicalCommit);
     }
     return commits;
@@ -667,7 +672,8 @@ public class ShellGitClient implements GitClient {
                 String.format("--since='%s'", latestCommitsSince));
             inWindowArgs.addAll(rootsToRecover);
             inWindowArgs.add("--");
-            // In-window roots omitted above are already excluded by known descendants.
+            // The matching topological history walk keeps advertised roots inside the cap.
+            // Do not recover roots excluded by known descendants.
             for (String inWindowRoot :
                 commandExecutor.executeCommand(
                     IOUtils::readLines, buildGitCommand(inWindowArgs.toArray(new String[0])))) {
@@ -1152,11 +1158,14 @@ public class ShellGitClient implements GitClient {
     long startTime = System.currentTimeMillis();
     Path shallowFile = null;
     try {
-      // Keep recovery boundaries private when the caller's checkout is complete.
-      if (activeShallowFile.get() == null
-          && commandType != Command.CHECK_SHALLOW
-          && commandType != Command.FETCH_COMMIT
-          && recoveredShallowCommits != null) {
+      // Only readonly operations may use private recovery boundaries.
+      if (recoveredShallowCommits != null
+          && activeShallowFile.get() == null
+          && (commandType == Command.GET_LOCAL_COMMITS
+              || commandType == Command.GET_OBJECTS
+              || commandType == Command.PACK_OBJECTS
+              || commandType == Command.DIFF
+              || commandType == Command.OTHER)) {
         shallowFile = Files.createTempFile("dd-ci-vis-shallow-", ".tmp");
         Files.write(shallowFile, recoveredShallowCommits.getBytes(StandardCharsets.UTF_8));
         activeShallowFile.set(shallowFile);
