@@ -2600,7 +2600,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     assertEquals(0, listener.snapshots.size());
     InstrumentationResult instrumentationResult =
         instrumentationListener.results.get(PROBE_ID.getId());
-    assertTrue(instrumentationResult.isBlocked());
+    assertTrue(instrumentationResult.isBlocked(PROBE_ID));
   }
 
   @Test

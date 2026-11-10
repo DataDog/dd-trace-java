@@ -1,8 +1,8 @@
-package datadog.trace.bootstrap.instrumentation.decorator.http;
+package datadog.trace.bootstrap.instrumentation.api.http;
 
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
-import datadog.trace.bootstrap.instrumentation.decorator.http.utils.IPAddressUtil;
+import datadog.trace.bootstrap.instrumentation.api.http.utils.IPAddressUtil;
 import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetAddress;
@@ -35,6 +35,23 @@ public class ClientIpAddressResolver {
       log.warn("Unexpected exception (bug) inferring client IP address", rte);
       return null;
     }
+  }
+
+  /**
+   * Resolves the client address from headers, falling back to the peer when headers yield no
+   * address or a private address and the peer is public. An invalid peer never replaces a valid
+   * header address.
+   */
+  public static InetAddress resolve(
+      AgentSpanContext.Extracted context, MutableSpan span, String peerIp) {
+    InetAddress inferred = resolve(context, span);
+    if (peerIp != null && (inferred == null || isIpAddrPrivate(inferred))) {
+      InetAddress peer = parseIpAddress(peerIp);
+      if (peer != null && (inferred == null || !isIpAddrPrivate(peer))) {
+        return peer;
+      }
+    }
+    return inferred;
   }
 
   private static InetAddress doResolve(AgentSpanContext.Extracted context, MutableSpan span) {
@@ -434,6 +451,9 @@ public class ClientIpAddressResolver {
       byte[] addr = IPAddressUtil.textToNumericFormatV4(str);
       if (addr == null) {
         addr = IPAddressUtil.textToNumericFormatV6(str);
+      }
+      if (addr == null) {
+        return null;
       }
       return InetAddress.getByAddress(str, addr);
     } catch (UnknownHostException e) {

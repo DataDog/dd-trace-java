@@ -104,6 +104,33 @@ and include them in the same PR.
 This applies to changes in build scripts and `gradle/libs.versions.toml`.
 Follow the [lockfile update workflow](docs/how_to_work_with_gradle.md#updating-lock-files) before requesting review.
 
+### CODEOWNERS changes
+
+New files inherit ownership from matching rules in [.github/CODEOWNERS](.github/CODEOWNERS).
+Add a file-specific rule only when it changes the owners inherited from the last matching preceding rule.
+An explicit rule can still be needed to restore ownership after an intervening override.
+
+The GitLab `check-codeowners` job rejects redundant explicit file entries and reports both the
+redundant entry's line and the preceding rule that already assigns the same owners.
+Remove the redundant entry to resolve the failure.
+
+Run the check from the repository root with Python 3 and Git; no extra Python packages are required:
+
+```bash
+python3 tooling/check_codeowners.py
+```
+
+The check covers tracked files with rooted literal paths, such as `/src/Example.java`.
+Stage newly added files before checking them locally. Directory rules, wildcard rules, and
+paths containing escapes are excluded from redundancy detection; directory and wildcard rules
+can intentionally cover future files. The check does not validate GitHub team permissions.
+
+To test changes to the checker, run:
+
+```bash
+python3 -m unittest discover -s tooling/tests -p 'test_check_codeowners.py'
+```
+
 ### Pull request size
 
 Pull requests should add less than 1000 lines to remain reviewable.

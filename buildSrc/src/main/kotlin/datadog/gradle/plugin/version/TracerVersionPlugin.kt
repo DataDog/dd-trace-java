@@ -49,31 +49,22 @@ class TracerVersionPlugin @Inject constructor(
       // Not a git repository
       extension.defaultVersion.get()
     } else {
-      val currentBranchProvider = currentBranchProvider(repoWorkingDirectory)
+      val isReleaseBranchProvider = currentBranchProvider(repoWorkingDirectory).map {
+        it.startsWith(RELEASE_BRANCH_PREFIX)
+      }
       providerFactory.zip(
-        currentBranchProvider.flatMap { currentBranch ->
+        isReleaseBranchProvider.flatMap { isReleaseBranch ->
           // Use --first-parent only on release branches so they stay anchored to their own
           // version line; feature branches pick up newer tags merged in from main.
           gitDescribeProvider(
             extension,
             repoWorkingDirectory,
-            firstParent = currentBranch.startsWith("release/v")
+            firstParent = isReleaseBranch
           )
         },
-        currentBranchProvider
-      ) { describeString, currentBranch ->
-        toTracerVersion(describeString, extension) {
-          when {
-            currentBranch.startsWith("release/v") -> {
-              logger.info("Incrementing patch because release branch : $currentBranch")
-              nextPatchVersion()
-            }
-            else -> {
-              logger.info("Incrementing minor")
-              nextMinorVersion()
-            }
-          }
-        }
+        isReleaseBranchProvider
+      ) { describeString, isReleaseBranch ->
+        toTracerVersion(describeString, extension, isReleaseBranch)
       }.get()
     }
 
@@ -97,8 +88,8 @@ class TracerVersionPlugin @Inject constructor(
    * Checks whether a build checked out on that exact tag may use it as the release version.
    *
    * In GitLab, only the pipeline of the tag itself builds a release version. Other pipelines on
-   * the tagged commit, like the master one, build the next snapshot version, so they never publish
-   * the release a second time.
+   * the tagged commit, like the master or release branch ones, build the next pre-release version,
+   * so they never publish the release a second time.
    *
    * @param tag the tag, with its prefix
    * @return whether the tag can be used as the release version
@@ -148,7 +139,14 @@ class TracerVersionPlugin @Inject constructor(
     }
   }
 
-  private fun toTracerVersion(describeString: String, extension: TracerVersionExtension, nextVersion: Version.() -> Version): String {
+  /**
+   * Builds the tracer version from the `git describe` output.
+   *
+   * Builds with commits after the last tag get the next minor `-SNAPSHOT` version, except on
+   * release branches, which get the next patch `-rc.N` version, where `N` is the number of commits
+   * since the last tag.
+   */
+  private fun toTracerVersion(describeString: String, extension: TracerVersionExtension, isReleaseBranch: Boolean): String {
     logger.info("Git describe output: {}", describeString)
 
     val tagPrefix = extension.tagVersionPrefix.get()
@@ -159,10 +157,16 @@ class TracerVersionPlugin @Inject constructor(
     val (lastTagVersion, describeTrailer) = matchResult.destructured
     val hasLaterCommits = describeTrailer.isNotBlank() || !isReleaseTag("$tagPrefix$lastTagVersion")
     val version = Version.parse(lastTagVersion).let {
-      if (hasLaterCommits) {
-        it.nextVersion()
-      } else {
-        it
+      when {
+        !hasLaterCommits -> it
+        isReleaseBranch -> {
+          logger.info("Incrementing patch because release branch")
+          it.nextPatchVersion()
+        }
+        else -> {
+          logger.info("Incrementing minor")
+          it.nextMinorVersion()
+        }
       }
     }
 
@@ -178,13 +182,34 @@ class TracerVersionPlugin @Inject constructor(
       }
 
       if (hasLaterCommits) {
-        append(if (extension.useSnapshot.get() || describeTrailer.isBlank()) "-SNAPSHOT" else describeTrailer)
+        append(
+          when {
+            isReleaseBranch -> "-rc.${commitsSinceTag(describeTrailer)}"
+            extension.useSnapshot.get() || describeTrailer.isBlank() -> "-SNAPSHOT"
+            else -> describeTrailer
+          }
+        )
       }
 
       if (describeTrailer.endsWith("-dirty")) {
         append(if (extension.useSnapshot.get()) "-DIRTY" else "-dirty")
       }
     }
+  }
+
+  /**
+   * Reads the number of commits since the last tag from the `git describe` trailer, like
+   * `-3-g1234abcd` or `-3-g1234abcd-dirty`. The trailer is blank, or only `-dirty`, on the tagged
+   * commit itself.
+   */
+  private fun commitsSinceTag(describeTrailer: String): Int =
+    COMMITS_SINCE_TAG_REGEX.find(describeTrailer)?.groupValues?.get(1)?.toInt() ?: 0
+
+  private companion object {
+    /** Branches starting with this prefix build the next patch `-rc.N` version. */
+    const val RELEASE_BRANCH_PREFIX = "release/v"
+
+    val COMMITS_SINCE_TAG_REGEX = Regex("^-(\\d+)-g[0-9a-f]+")
   }
 
   open class TracerVersionExtension @Inject constructor(objectFactory: ObjectFactory) {

@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.springweb;
 
+import static datadog.trace.api.KnownTags.VIEW_NAME;
+import static datadog.trace.api.KnownTags.VIEW_TYPE;
 import static datadog.trace.api.Pair.of;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
@@ -155,11 +157,11 @@ public class SpringWebHttpServerDecorator
   public void onRender(final AgentSpan span, final ModelAndView mv) {
     final String viewName = mv.getViewName();
     if (viewName != null) {
-      span.setTag("view.name", viewName);
+      span.setTag(VIEW_NAME, viewName);
       span.setResourceName(viewName);
     }
     if (mv.getView() != null) {
-      span.setTag("view.type", className(mv.getView().getClass()));
+      span.setTag(VIEW_TYPE, className(mv.getView().getClass()));
     }
   }
 }

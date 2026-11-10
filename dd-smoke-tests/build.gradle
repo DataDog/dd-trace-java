@@ -1,4 +1,5 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import java.util.jar.JarFile
 
 plugins {
   id 'dd-trace-java.module.smoke-test'
@@ -38,6 +39,7 @@ allprojects { Project subProj ->
     def diagnosticsTaskRef = project(':dd-java-agent:instrumentation-testing').tasks.named('scopeDiagnosticsAgentJar', Jar)
     def agentArguments = subProj.objects.newInstance(SmokeAgentArguments)
     agentArguments.tracerJar.set(agentTaskRef.flatMap { it.archiveFile })
+    agentArguments.tracerVersion.set(subProj.version.toString())
     agentArguments.diagnosticsJar.set(diagnosticsTaskRef.flatMap { it.archiveFile })
     jvmArgumentProviders.add(agentArguments)
 
@@ -50,9 +52,28 @@ allprojects { Project subProj ->
 }
 
 abstract class SmokeAgentArguments implements CommandLineArgumentProvider {
-  @InputFile
-  @PathSensitive(PathSensitivity.NONE)
+  // Runtime classpath hashing tracks classes and resources: .classdata, manifests, instrumentation
+  // indexes, configuration files and native libraries. Changes to normalised contents invalidate tests.
+  @Classpath
   abstract RegularFileProperty getTracerJar()
+
+  // project.version is the base version (e.g. 1.69.0-SNAPSHOT); WriteVersionFile appends ~<SHA>.
+  // Runtime-classpath normalisation excludes the complete *.version resources.
+  // Tracking the base version separately invalidates results on version changes,
+  // while changing only the commit stamp allows reuse when the other inputs match.
+  @Input
+  abstract Property<String> getTracerVersion()
+
+  // Tracks only the presence of these version files. Their contents remain excluded from the fingerprint.
+  // CI Visibility reads the agent version; missing API/core versions fall back to "unknown".
+  @Input
+  Provider<List<String>> getNeededResourcePaths() {
+    tracerJar.map(existingResourcePaths(
+      'dd-java-agent.version',
+      'dd-trace-api.version',
+      'trace/dd-trace-core.version'
+      ))
+  }
 
   @InputFile
   @PathSensitive(PathSensitivity.NONE)
@@ -64,5 +85,13 @@ abstract class SmokeAgentArguments implements CommandLineArgumentProvider {
       '-Ddatadog.smoketest.agent.shadowJar.path=' + tracerJar.get().asFile.absolutePath,
       '-Ddatadog.smoketest.scopeDiagnostics.agent.path=' + diagnosticsJar.get().asFile.absolutePath
     ]
+  }
+
+  private static Transformer<List<String>, RegularFile> existingResourcePaths(String... paths) {
+    return { RegularFile file ->
+      new JarFile(file.asFile).withCloseable { jar ->
+        paths.findAll { jar.getJarEntry(it) != null }.sort()
+      }
+    } as Transformer<List<String>, RegularFile>
   }
 }
