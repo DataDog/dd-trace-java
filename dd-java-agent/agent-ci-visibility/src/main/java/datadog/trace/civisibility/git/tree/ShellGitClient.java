@@ -26,6 +26,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.concurrent.TimeoutException;
 import java.util.regex.Pattern;
@@ -483,6 +484,8 @@ public class ShellGitClient implements GitClient {
     if (GitUtils.isNotValidCommit(commit)) {
       return Collections.emptyList();
     }
+    String canonicalCommit =
+        GitUtils.isValidCommitShaFull(commit) ? commit.toLowerCase(Locale.ROOT) : commit;
     List<String> commits;
     try {
       commits =
@@ -497,16 +500,18 @@ public class ShellGitClient implements GitClient {
                           "-n",
                           String.valueOf(latestCommitsLimit),
                           String.format("--since='%s'", latestCommitsSince),
-                          commit,
+                          canonicalCommit,
                           "--")));
     } catch (ShellCommandExecutor.ShellCommandFailedException e) {
-      if (!isCommitPresent(commit)) {
+      if (!isCommitPresent(canonicalCommit)) {
         return Collections.emptyList();
       }
       throw e;
     }
-    if (!HEAD.equals(commit) && !commits.contains(commit) && isCommitPresent(commit)) {
-      commits.add(0, commit);
+    if (!HEAD.equals(canonicalCommit)
+        && !commits.contains(canonicalCommit)
+        && isCommitPresent(canonicalCommit)) {
+      commits.add(0, canonicalCommit);
     }
     return commits;
   }

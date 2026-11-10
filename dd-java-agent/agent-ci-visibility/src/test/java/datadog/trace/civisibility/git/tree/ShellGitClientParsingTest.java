@@ -16,8 +16,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.Locale;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.tabletest.junit.TableTest;
 
 class ShellGitClientParsingTest {
   @TempDir Path checkout;
@@ -74,6 +76,27 @@ class ShellGitClientParsingTest {
     assertFalse(objects.contains(head));
     assertFalse(objects.contains(parent));
     assertTrue(client.getLatestCommits("--all").isEmpty());
+  }
+
+  @TableTest({
+    "Scenario       | since        ",
+    "inside window  | '1970-01-01' ",
+    "outside window | '1 month ago'"
+  })
+  void selectedCommitHistoryUsesOneCanonicalSha(String since) throws Exception {
+    Path fixture =
+        Paths.get(getClass().getClassLoader().getResource("ci/git/with_pack/git").toURI());
+    IOUtils.copyFolder(fixture, Files.createDirectories(checkout.resolve(".git")));
+    ShellGitClient client =
+        new ShellGitClient(
+            mock(CiVisibilityMetricCollector.class), checkout.toString(), since, 1000, 10_000);
+    String selected = "98cd7c8e9cf71e02dc28bd9b13928bee0f85b74c";
+
+    List<String> commits = client.getLatestCommits(selected.toUpperCase(Locale.ROOT));
+
+    assertEquals(client.getLatestCommits(selected), commits);
+    assertEquals(selected, commits.get(0));
+    assertEquals(1, commits.stream().filter(selected::equals).count());
   }
 
   @Test
