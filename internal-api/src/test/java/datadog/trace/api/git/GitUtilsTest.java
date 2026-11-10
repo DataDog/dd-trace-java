@@ -130,6 +130,9 @@ class GitUtilsTest {
     "SCP IPv6 path     | '[2001:db8::1]:repos/@team/project.git'            | '[2001:db8::1]:repos/@team/project.git'           ",
     "SCP path colons   | 'git_alias:repos/release:1@stable/project.git'     | 'git_alias:repos/release:1@stable/project.git'    ",
     "SCP IPv6 colons   | '[2001:db8::1]:repos/release:1@stable/project.git' | '[2001:db8::1]:repos/release:1@stable/project.git'",
+    "SSH plus alias    | 'ssh://git@git+work/team/repo.git'                 | 'ssh://git+work/team/repo.git'                    ",
+    "plus credentials  | 'ssh://user:password@git+work/team/repo.git'       | 'ssh://git+work/team/repo.git'                    ",
+    "IPv6 first colon  | '[2001:db8::1]:release:1@stable/project.git'       | '[2001:db8::1]:release:1@stable/project.git'      ",
     "invalid port      | 'ssh://user:password@git_alias:invalid/repo.git'   |                                                   "
   })
   void testHostAliasesKeepSanitizedRepositoryIdentity(String url, String expectedResult) {

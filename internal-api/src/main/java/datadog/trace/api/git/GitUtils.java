@@ -107,7 +107,7 @@ public class GitUtils {
   }
 
   private static final Pattern USER_INFO_WITH_HOST_ALIAS =
-      Pattern.compile("[^@]+@[\\p{L}\\p{N}._-]+(?::[0-9]+)?");
+      Pattern.compile("[^@]+@[\\p{L}\\p{N}._+-]+(?::[0-9]+)?");
 
   /**
    * Removes the user info of a certain URL. E.g: https://user:password@host.com/path ->
@@ -126,7 +126,8 @@ public class GitUtils {
       if (urlStr.startsWith("[")) {
         int bracket = urlStr.indexOf("]:");
         if (bracket >= 0) {
-          colon = bracket + 1;
+          // Everything after a bracketed SCP host is a path, not URI user info.
+          return urlStr;
         }
       }
       int at = urlStr.indexOf('@');
