@@ -3,8 +3,12 @@ plugins {
   id 'dd-trace-java.instrumentation.netty-concurrent-tests'
 }
 
-tracerJava {
-  addSourceSetFor(JavaVersion.VERSION_11)
+testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_11
+}
+
+tasks.withType(JavaCompile).matching { it.name.contains('Test') }.configureEach {
+  configureCompiler(it, JavaVersion.VERSION_11)
 }
 
 muzzle {
@@ -18,7 +22,6 @@ muzzle {
 }
 
 addTestSuiteForDir('latestDepTest', 'test')
-addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 
 configurations {
   testArtifacts
@@ -60,9 +63,7 @@ dependencies {
 // TEMPORARILY exclude iast tests from latest Dep at the compile level because it fails with vertx 5.1
 // (types HeadersMultiMap and Http2HeadersAdaptor were (re)moved)
 // TODO for AppSec team: remove this section, run `./gradlew :dd-java-agent:instrumentation:vertx:vertx-web:vertx-web-5.0:latestDepTest`, see errors and fix them.
-["compileLatestDepTestGroovy", "compileLatestDepForkedTestGroovy"].each {
-  tasks.named(it, GroovyCompile) {
-    exclude("core/Iast*.groovy")
-    exclude("server/Iast*.groovy")
-  }
+tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
+  exclude("core/Iast*.groovy")
+  exclude("server/Iast*.groovy")
 }

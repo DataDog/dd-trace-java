@@ -50,12 +50,10 @@ muzzle {
 }
 
 addTestSuite('latestDepTest')
-addForkedTestTask('latestDepTest')
 
 addTestSuite("tomcat9Test")
 
 addTestSuiteForDir('latest10Test', 'latestDepTest')
-addTestSuiteExtendingForDir('latest10ForkedTest', 'latest10Test', 'latestDepTest')
 
 // Exercise the shared header lookup against each supported Tomcat test version.
 ["tomcat9Test", "latest10Test", "latestDepTest"].each { suite ->
@@ -73,10 +71,8 @@ configurations.configureEach {
   }
 }
 
-["compileLatest10TestGroovy", "compileLatest10ForkedTestGroovy"].each { name ->
-  tasks.named(name, GroovyCompile) {
-    configureCompiler(it, JavaVersion.VERSION_11)
-  }
+tasks.named("compileLatest10TestGroovy", GroovyCompile) {
+  configureCompiler(it, JavaVersion.VERSION_11)
 }
 
 tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
@@ -180,19 +176,7 @@ tasks.named("latestDepTest", Test) {
   }
 }
 
-tasks.named("latestDepTestForkedTest", Test) {
-  testJvmConstraints {
-    minJavaVersion = JavaVersion.VERSION_17
-  }
-}
-
 tasks.named("latest10Test", Test) {
-  testJvmConstraints {
-    minJavaVersion = JavaVersion.VERSION_11
-  }
-}
-
-tasks.named("latest10ForkedTest", Test) {
   testJvmConstraints {
     minJavaVersion = JavaVersion.VERSION_11
   }

@@ -167,15 +167,14 @@ public class TestApplicationHelper {
       init.run();
       AtomicBoolean fromLineMatched = new AtomicBoolean(fromLineMatcher == null);
       try (Stream<String> lines = Files.lines(logFilePath)) {
-        lines.forEach(
-            line -> {
-              if (!fromLineMatched.get()) {
-                fromLineMatched.set(fromLineMatcher.test(line));
-              } else if (lineMatcher.test(line)) {
-                matchedLine.set(line);
-                result.set(true);
-              }
-            });
+        lines.forEach(line -> {
+          if (!fromLineMatched.get()) {
+            fromLineMatched.set(fromLineMatcher.test(line));
+          } else if (lineMatcher.test(line)) {
+            matchedLine.set(line);
+            result.set(true);
+          }
+        });
       }
       LockSupport.parkNanos(sleep.toNanos());
       i++;

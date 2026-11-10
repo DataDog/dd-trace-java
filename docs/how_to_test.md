@@ -89,6 +89,128 @@ supported. Matching is exact, so subclasses and nested classes must each be list
 > * using the `Retry` button from the job view:
     > ![Rerun workflow from failed](how_to_test/retry-failed-job.png)
 
+### Reproducing timing-sensitive CI failures
+
+Use this workflow when a test intermittently times out, observes incomplete asynchronous work,
+or passes locally but fails on a slower CI runner. Agents can invoke `$reproduce-ci-flakiness`
+with a CI job URL or a task, test name, and failure log; see the
+[repository skill](../.agents/skills/reproduce-ci-flakiness/SKILL.md).
+
+First match the CI commit, Gradle task, test selection, JDK version/vendor, architecture,
+dependency suite, and required services. For example, `latestDepTest` may exercise a different
+library version, and classes ending in `ForkedTest` require the corresponding forked task.
+Preserve CI's exact `-PtestJvm=<selector>` value. Named JVM constraints compare this selector,
+so replacing `ORACLE8` with a filesystem path can skip a module that includes only `ORACLE8`,
+or bypass a name-based exclusion. Point `JAVA_<selector>_HOME` at the matching local installation
+(for example, `JAVA_ORACLE8_HOME=/path/to/oracle8` with `-PtestJvm=ORACLE8`). A filesystem path
+is suitable only when the module has no name-based constraints. A local run on another OS or
+architecture is a timing experiment, not an exact copy of CI.
+
+#### Choose the timing control
+
+| Control | What changes | Limitations |
+|---|---|---|
+| `-Xint` | Runs Java bytecode through the interpreter, disabling JIT compilation | Can greatly slow startup and execution; can hide JIT-dependent failures or introduce unrelated timeouts |
+| `-XX:ActiveProcessorCount=2` (or `1`) | Changes JVM-visible CPU count and CPU-based pool sizing | Does not cap OS CPU time or restrict threads to that many physical CPUs; check support on the selected JDK/vendor |
+| `--max-workers=1 --no-parallel` | Reduces Gradle worker/task concurrency | Does not restrict application threads; reducing build contention may hide the CI failure |
+| Container CPU quota or Linux CPU affinity | Restricts actual CPU capacity or eligible CPUs | Requires a suitable environment; record quota/affinity separately from JVM-visible CPU count |
+
+The [Java launcher reference](https://docs.oracle.com/en/java/javase/11/tools/java.html)
+describes the JVM flags. When CI CPU starvation is suspected, use an existing Linux/container
+test environment with a quota such as Docker `--cpus=1`, or Linux `taskset -c <allowed-cpu>`
+around the invocation. Choose a CPU from the process's allowed affinity set. These are separate
+experiments; `ActiveProcessorCount=1` alone does not emulate a throttled runner. macOS has no
+direct `taskset` equivalent; use a Linux VM/container when actual CPU restriction is needed.
+
+#### Run a narrow comparison
+
+Replace the task, class, JVM selector, and worker count below with the CI values. Set the
+corresponding `JAVA_<selector>_HOME` if the JDK needs a local installation override. Preserve
+CI's parallelism settings: GitLab's shared arguments use `--parallel --max-workers=$GRADLE_WORKERS`.
+Run the baseline once to resolve dependencies and build before adding slowdown flags:
+
+```shell
+GRADLE_WORKERS=4 # Replace with the failing CI job's worker count.
+./gradlew :path:to:module:test --tests 'package.SomeTest' \
+  -PtestJvm=ORACLE8 \
+  --rerun-tasks --no-build-cache --no-configuration-cache \
+  --no-daemon --parallel --max-workers="$GRADLE_WORKERS" --console=plain --info
+```
+
+Then rerun the same command with each command-scoped prefix, first separately and then together:
+
+```shell
+JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:+$JAVA_TOOL_OPTIONS }-XX:ActiveProcessorCount=2" ./gradlew ...
+JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:+$JAVA_TOOL_OPTIONS }-Xint" ./gradlew ...
+JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:+$JAVA_TOOL_OPTIONS }-Xint -XX:ActiveProcessorCount=1" ./gradlew ...
+```
+
+Here `...` stands for the complete baseline arguments. Keep baseline and stressed runs' other
+settings equal. Test serialized execution separately with `--max-workers=1 --no-parallel`;
+it may hide failures caused by contention. If contention between suites matters, also run
+the broader CI task selection after trying the narrow reproducer.
+
+[`JAVA_TOOL_OPTIONS`](https://docs.oracle.com/javase/8/docs/technotes/guides/troubleshoot/envvars002.html)
+reaches newly launched JVMs that inherit the environment, including test workers and many child
+applications. It also affects newly launched Gradle/compiler JVMs, so `-Xint` can slow the build
+itself. Keep it scoped to a command, rather than exporting it in shell startup files.
+`--no-daemon` avoids reusing a persistent daemon; Gradle can still launch a single-use daemon.
+`GRADLE_OPTS`, `JAVA_OPTS`, and `org.gradle.jvmargs` alone do not configure the forked test JVM.
+
+Verify the test worker's output includes `Picked up JAVA_TOOL_OPTIONS` with the intended flags.
+If a harness replaces a child application's environment, configure that child's JVM explicitly.
+For an effective-value check in the failing JVM, inspect `Runtime.availableProcessors()` and
+`ManagementFactory.getRuntimeMXBean().getInputArguments()` using a debugger or temporary diagnostics.
+Remove temporary diagnostics after the investigation. Check for explicit task arguments that
+override environment-supplied options. For old/vendor JDKs, first try the flags with that JDK's
+`java -version`; an unsupported option is a setup failure.
+
+For expensive builds, a temporary Gradle init script can instead add `jvmArgs` to only the
+selected `Test` task. Such arguments do not automatically propagate to child application JVMs;
+verify them separately. Save this as `/tmp/reproduce-flake.init.gradle`, replacing the task path
+and choosing the flags for the current profile:
+
+```groovy
+gradle.beforeProject { project ->
+  project.tasks.withType(org.gradle.api.tasks.testing.Test).configureEach { testTask ->
+    if (testTask.path == ':path:to:module:test') {
+      testTask.jvmArgs('-Xint', '-XX:ActiveProcessorCount=1')
+    }
+  }
+}
+```
+
+Run the baseline command with `--init-script /tmp/reproduce-flake.init.gradle` and without the
+`JAVA_TOOL_OPTIONS` prefix. Check `--info` output for the test worker's command line. Keep
+this script outside tracked sources and remove it when finished.
+
+The fresh-execution flags prevent cache hits and up-to-date results from looking like passing
+reruns. `--rerun-tasks` also reruns prerequisite tasks, so account for build time. Check the XML
+or HTML report to ensure the selected test actually ran. Remove `-PskipFlakyTests` when targeting
+an annotated test; add `-PrunFlakyTests` only if you intend to run annotated tests exclusively.
+CI enables automatic test retries; preserve the original failed attempt even if a retry passes.
+
+#### Repeat and keep evidence
+
+Start with one attempt per profile. Repeat a promising profile up to ten times within an overall
+time budget (for example, 15 minutes); stop at the first failure matching CI or when the budget
+expires. Avoid unbounded loops. For a hang, capture thread dumps from the test worker and
+relevant child JVMs before stopping the run. Count setup failures and skipped tests separately.
+
+Before another invocation overwrites results, copy the failing log and the module's
+`build/test-results/<task>/` and `build/reports/tests/<task>/` directories to a separate location.
+Record:
+
+- Commit, task, class/method filter, JDK version/vendor, OS/architecture, and required services.
+- Exact command, JVM options, Gradle workers, CPU quota/affinity if any, attempts, failures, and elapsed time per profile.
+- First causal exception/assertion, report paths, and whether it matches CI's failure signature.
+
+A timeout introduced only by interpreted execution does not establish the original race.
+Passing ten runs does not prove reliability. Use the evidence to inspect missing synchronization,
+premature assertions, unfinished cleanup, or incorrect deadlines; do not treat added sleeps,
+larger timeouts, or disabling diagnostics as a causal fix. After a fix, check both the profile
+that reproduced the failure and normal JIT execution.
+
 ## Tests that use containers
 
 > [!IMPORTANT]
@@ -228,10 +350,10 @@ option to the Gradle task:
 * `-PtestJvm=X` like `-PtestJvm=8`, `-PtestJvm=25` to run with a specific JDK version,
 * `-PtestJvm=/path/to/jdk` to run with a given JDK,
 
-To also run CI tests on the additional vendor and pre-release JVMs, include the exact, case-sensitive
-`[ci: NON_DEFAULT_JVMS]` text in the commit message. By default, CI runs amd64 tests only.
+To also run CI tests on the additional vendor and pre-release JVMs, include the case-sensitive
+`[ci: NON_DEFAULT_JVMS]` option in the commit message. By default, CI runs amd64 tests only.
 
-On pull requests, arm64 tests are manual jobs. To run them on CI, include one of the following exact, case-sensitive
+On pull requests, arm64 tests are manual jobs. To run them on CI, include one of the following case-sensitive
 texts in the commit message:
 
 * `[ci: ARM64]` to run them on the default arm64 JVMs.
@@ -269,7 +391,8 @@ Read more about [the APM Test Agent](https://github.com/datadog/dd-apm-test-agen
 ### Forwarding CI Test Logs to Datadog
 
 Test output remains available in GitLab job artifacts. To also forward JUnit-captured output to Datadog, include the
-exact, case-sensitive `[ci: DEBUG_LOGS]` token in the commit message or set the GitLab CI variable
+case-sensitive `[ci: DEBUG_LOGS]` option in the commit message or set the GitLab CI variable
 `DD_CIVISIBILITY_LOGS_ENABLED=true`.
+You can combine it with other CI options, for example `[ci: ARM64, DEBUG_LOGS]`.
 
 The opt-in forwards all JUnit-captured output, not only DEBUG messages.

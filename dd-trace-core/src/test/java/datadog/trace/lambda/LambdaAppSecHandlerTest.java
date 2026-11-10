@@ -344,17 +344,15 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
     setupMockCallbacks(
         new Callbacks()
-            .onMethodUri(
-                (method, uri) -> {
-                  capturedMethod[0] = method;
-                  capturedPath[0] = uri.path();
-                })
+            .onMethodUri((method, uri) -> {
+              capturedMethod[0] = method;
+              capturedPath[0] = uri.path();
+            })
             .onHeader(capturedHeaders::put)
-            .onSocketAddress(
-                (ip, port) -> {
-                  capturedSourceIp[0] = ip;
-                  capturedSourcePort[0] = port;
-                })
+            .onSocketAddress((ip, port) -> {
+              capturedSourceIp[0] = ip;
+              capturedSourcePort[0] = port;
+            })
             .onPathParams(params -> capturedPathParams[0] = params)
             .onBody(body -> capturedBody[0] = body));
 
@@ -401,17 +399,15 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
     setupMockCallbacks(
         new Callbacks()
-            .onMethodUri(
-                (method, uri) -> {
-                  capturedMethod[0] = method;
-                  capturedPath[0] = uri.path();
-                })
+            .onMethodUri((method, uri) -> {
+              capturedMethod[0] = method;
+              capturedPath[0] = uri.path();
+            })
             .onHeader(capturedHeaders::put)
-            .onSocketAddress(
-                (ip, port) -> {
-                  capturedSourceIp[0] = ip;
-                  capturedSourcePort[0] = port;
-                })
+            .onSocketAddress((ip, port) -> {
+              capturedSourceIp[0] = ip;
+              capturedSourcePort[0] = port;
+            })
             .onPathParams(params -> capturedPathParams[0] = params));
 
     AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
@@ -446,11 +442,10 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
     setupMockCallbacks(
         new Callbacks()
-            .onMethodUri(
-                (method, uri) -> {
-                  capturedMethod[0] = method;
-                  capturedPath[0] = uri.path();
-                }));
+            .onMethodUri((method, uri) -> {
+              capturedMethod[0] = method;
+              capturedPath[0] = uri.path();
+            }));
 
     AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
 
@@ -478,11 +473,10 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
     setupMockCallbacks(
         new Callbacks()
-            .onMethodUri(
-                (method, uri) -> {
-                  capturedMethod[0] = method;
-                  capturedPath[0] = uri.path();
-                })
+            .onMethodUri((method, uri) -> {
+              capturedMethod[0] = method;
+              capturedPath[0] = uri.path();
+            })
             .onSocketAddress((ip, port) -> capturedSourceIp[0] = ip));
 
     AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
@@ -746,10 +740,9 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
     setupMockCallbacks(
         new Callbacks()
-            .onMethodUri(
-                (method, uri) -> {
-                  capturedQuery[0] = uri.query();
-                }));
+            .onMethodUri((method, uri) -> {
+              capturedQuery[0] = uri.query();
+            }));
 
     AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
 
@@ -809,10 +802,9 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
     setupMockCallbacks(
         new Callbacks()
-            .onMethodUri(
-                (method, uri) -> {
-                  capturedQuery[0] = uri.query();
-                }));
+            .onMethodUri((method, uri) -> {
+              capturedQuery[0] = uri.query();
+            }));
 
     AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
 
@@ -861,11 +853,10 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
     setupMockCallbacks(
         new Callbacks()
-            .onMethodUri(
-                (method, uri) -> {
-                  capturedMethod[0] = method;
-                  capturedPath[0] = uri.path();
-                })
+            .onMethodUri((method, uri) -> {
+              capturedMethod[0] = method;
+              capturedPath[0] = uri.path();
+            })
             .onSocketAddress((ip, port) -> capturedSourceIp[0] = ip));
 
     AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
@@ -1024,11 +1015,10 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
     setupMockCallbacks(
         new Callbacks()
-            .onMethodUri(
-                (method, uri) -> {
-                  capturedPath[0] = uri.path();
-                  capturedQuery[0] = uri.query();
-                }));
+            .onMethodUri((method, uri) -> {
+              capturedPath[0] = uri.path();
+              capturedQuery[0] = uri.query();
+            }));
 
     AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
 
@@ -1056,15 +1046,14 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
     setupMockCallbacks(
         new Callbacks()
-            .onMethodUri(
-                (method, uri) -> {
-                  capturedPath[0] = uri.path();
-                  capturedQuery[0] = uri.query();
-                  capturedRawPath[0] = uri.rawPath();
-                  capturedRawQuery[0] = uri.rawQuery();
-                  capturedHost[0] = uri.host();
-                  capturedFragment[0] = uri.fragment();
-                }));
+            .onMethodUri((method, uri) -> {
+              capturedPath[0] = uri.path();
+              capturedQuery[0] = uri.query();
+              capturedRawPath[0] = uri.rawPath();
+              capturedRawQuery[0] = uri.rawQuery();
+              capturedHost[0] = uri.host();
+              capturedFragment[0] = uri.fragment();
+            }));
 
     AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
 
@@ -1093,10 +1082,9 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
     setupMockCallbacks(
         new Callbacks()
-            .onMethodUri(
-                (method, uri) -> {
-                  capturedQuery[0] = uri.query();
-                }));
+            .onMethodUri((method, uri) -> {
+              capturedQuery[0] = uri.query();
+            }));
 
     AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
 
@@ -1122,10 +1110,9 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
     setupMockCallbacks(
         new Callbacks()
-            .onMethodUri(
-                (method, uri) -> {
-                  capturedQuery[0] = uri.query();
-                }));
+            .onMethodUri((method, uri) -> {
+              capturedQuery[0] = uri.query();
+            }));
 
     AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
 
@@ -1157,11 +1144,10 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
     setupMockCallbacks(
         new Callbacks()
-            .onMethodUri(
-                (method, uri) -> {
-                  capturedScheme[0] = uri.scheme();
-                  capturedPort[0] = uri.port();
-                }));
+            .onMethodUri((method, uri) -> {
+              capturedScheme[0] = uri.scheme();
+              capturedPort[0] = uri.port();
+            }));
 
     AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
 
@@ -1254,11 +1240,10 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
     setupMockCallbacks(
         new Callbacks()
-            .onMethodUri(
-                (method, uri) -> {
-                  capturedMethod[0] = method;
-                  capturedPath[0] = uri.path();
-                })
+            .onMethodUri((method, uri) -> {
+              capturedMethod[0] = method;
+              capturedPath[0] = uri.path();
+            })
             .onSocketAddress((ip, port) -> capturedSourceIp[0] = ip));
 
     AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
@@ -1280,11 +1265,10 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
     setupMockCallbacks(
         new Callbacks()
-            .onMethodUri(
-                (method, uri) -> {
-                  capturedMethod[0] = method;
-                  capturedPath[0] = uri.path();
-                }));
+            .onMethodUri((method, uri) -> {
+              capturedMethod[0] = method;
+              capturedPath[0] = uri.path();
+            }));
 
     AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
 
@@ -3291,13 +3275,12 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
     Function<RequestContext, Flow<Void>> headerDoneCallback = mock(Function.class);
     when(headerDoneCallback.apply(any()))
-        .thenAnswer(
-            inv -> {
-              if (callbacks.onHeadersDone != null) {
-                callbacks.onHeadersDone.run();
-              }
-              return Flow.ResultFlow.empty();
-            });
+        .thenAnswer(inv -> {
+          if (callbacks.onHeadersDone != null) {
+            callbacks.onHeadersDone.run();
+          }
+          return Flow.ResultFlow.empty();
+        });
 
     BiFunction<RequestContext, Map<String, ?>, Flow<Void>> pathParamsCallback = null;
     if (callbacks.onPathParams != null) {

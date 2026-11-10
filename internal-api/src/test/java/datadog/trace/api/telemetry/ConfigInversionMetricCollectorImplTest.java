@@ -5,12 +5,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.api.telemetry.ConfigInversionMetricCollectorImpl.ConfigInversionMetric;
-import datadog.trace.test.util.DDJavaSpecification;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
-class ConfigInversionMetricCollectorImplTest extends DDJavaSpecification {
+class ConfigInversionMetricCollectorImplTest {
 
   @Test
   void shouldEmitMetricWhenUnsupportedEnvVarIsUsed() {

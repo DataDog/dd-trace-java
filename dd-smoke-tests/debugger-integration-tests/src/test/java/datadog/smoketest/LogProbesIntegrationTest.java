@@ -61,10 +61,9 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
     setCurrentConfiguration(createConfig(probe));
     targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
     AtomicBoolean snapshotReceived = new AtomicBoolean(false);
-    registerSnapshotListener(
-        snapshot -> {
-          snapshotReceived.set(true);
-        });
+    registerSnapshotListener(snapshot -> {
+      snapshotReceived.set(true);
+    });
     processRequests(
         snapshotReceived::get,
         () -> String.format("timeout snapshotReceived=%s", snapshotReceived.get()));
@@ -85,27 +84,25 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
     setCurrentConfiguration(createConfig(probe));
     targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
     AtomicBoolean snapshotReceived = new AtomicBoolean();
-    registerIntakeRequestListener(
-        intakeRequest -> {
-          assertEquals("snapshot", intakeRequest.getType());
-        });
-    registerSnapshotListener(
-        snapshot -> {
-          assertEquals(PROBE_ID.getId(), snapshot.getProbe().getId());
-          assertFullMethodCaptureArgs(snapshot.getCaptures().getEntry());
-          assertNull(snapshot.getCaptures().getEntry().getLocals());
-          assertNull(snapshot.getCaptures().getEntry().getCapturedThrowable());
-          assertFullMethodCaptureArgs(snapshot.getCaptures().getReturn());
-          assertCaptureReturnValue(
-              snapshot.getCaptures().getReturn(),
-              "java.lang.String",
-              "42, foobar, 3.42, {key1=val1, key2=val2, key3=val3}, var1,var2,var3");
-          assertNotNull(snapshot.getCaptures().getReturn().getLocals());
-          // @return is the only locals but ex is safely hoisted in the method
-          assertEquals(2, snapshot.getCaptures().getReturn().getLocals().size());
-          assertNull(snapshot.getCaptures().getReturn().getCapturedThrowable());
-          snapshotReceived.set(true);
-        });
+    registerIntakeRequestListener(intakeRequest -> {
+      assertEquals("snapshot", intakeRequest.getType());
+    });
+    registerSnapshotListener(snapshot -> {
+      assertEquals(PROBE_ID.getId(), snapshot.getProbe().getId());
+      assertFullMethodCaptureArgs(snapshot.getCaptures().getEntry());
+      assertNull(snapshot.getCaptures().getEntry().getLocals());
+      assertNull(snapshot.getCaptures().getEntry().getCapturedThrowable());
+      assertFullMethodCaptureArgs(snapshot.getCaptures().getReturn());
+      assertCaptureReturnValue(
+          snapshot.getCaptures().getReturn(),
+          "java.lang.String",
+          "42, foobar, 3.42, {key1=val1, key2=val2, key3=val3}, var1,var2,var3");
+      assertNotNull(snapshot.getCaptures().getReturn().getLocals());
+      // @return is the only locals but ex is safely hoisted in the method
+      assertEquals(2, snapshot.getCaptures().getReturn().getLocals().size());
+      assertNull(snapshot.getCaptures().getReturn().getCapturedThrowable());
+      snapshotReceived.set(true);
+    });
     AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting(PROBE_ID);
     processRequests(
         () -> snapshotReceived.get() && statusResult.get(),
@@ -132,12 +129,11 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
     setCurrentConfiguration(createConfig(probe));
     targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
     AtomicBoolean snapshotReceived = new AtomicBoolean();
-    registerSnapshotListener(
-        snapshot -> {
-          assertEquals(PROBE_ID.getId(), snapshot.getProbe().getId());
-          assertFullMethodCaptureArgs(snapshot.getCaptures().getEntry());
-          snapshotReceived.set(true);
-        });
+    registerSnapshotListener(snapshot -> {
+      assertEquals(PROBE_ID.getId(), snapshot.getProbe().getId());
+      assertFullMethodCaptureArgs(snapshot.getCaptures().getEntry());
+      snapshotReceived.set(true);
+    });
     AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting(PROBE_ID);
     processRequests(
         () -> snapshotReceived.get() && statusResult.get(),
@@ -166,12 +162,11 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
     setCurrentConfiguration(createConfig(probe));
     targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
     AtomicBoolean snapshotReceived = new AtomicBoolean();
-    registerSnapshotListener(
-        snapshot -> {
-          assertEquals(PROBE_ID.getId(), snapshot.getProbe().getId());
-          assertFullMethodCaptureArgs(snapshot.getCaptures().getReturn());
-          snapshotReceived.set(true);
-        });
+    registerSnapshotListener(snapshot -> {
+      assertEquals(PROBE_ID.getId(), snapshot.getProbe().getId());
+      assertFullMethodCaptureArgs(snapshot.getCaptures().getReturn());
+      snapshotReceived.set(true);
+    });
     AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting(PROBE_ID);
     processRequests(
         () -> snapshotReceived.get() && statusResult.get(),
@@ -197,14 +192,12 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
     setCurrentConfiguration(createConfig(probe));
     targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
     AtomicBoolean snapshotReceived = new AtomicBoolean();
-    registerSnapshotListener(
-        snapshot -> {
-          assertEquals(PROBE_ID.getId(), snapshot.getProbe().getId());
-          assertEquals(1, snapshot.getEvaluationErrors().size());
-          assertEquals(
-              "Cannot find symbol: noarg", snapshot.getEvaluationErrors().get(0).getMessage());
-          snapshotReceived.set(true);
-        });
+    registerSnapshotListener(snapshot -> {
+      assertEquals(PROBE_ID.getId(), snapshot.getProbe().getId());
+      assertEquals(1, snapshot.getEvaluationErrors().size());
+      assertEquals("Cannot find symbol: noarg", snapshot.getEvaluationErrors().get(0).getMessage());
+      snapshotReceived.set(true);
+    });
     AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting(PROBE_ID);
     processRequests(
         () -> snapshotReceived.get() && statusResult.get(),
@@ -230,18 +223,16 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
     targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
     AtomicBoolean snapshotReceived = new AtomicBoolean();
     AtomicBoolean correctLogMessage = new AtomicBoolean();
-    registerIntakeRequestListener(
-        intakeRequest -> {
-          assertEquals(
-              "log line 42 foobar 3.42 {[key1=val1], [key2=val2], [key3=val3]} [var1, var2, var3]",
-              intakeRequest.getMessage());
-          correctLogMessage.set(true);
-        });
-    registerSnapshotListener(
-        snapshot -> {
-          assertEquals(PROBE_ID.getId(), snapshot.getProbe().getId());
-          snapshotReceived.set(true);
-        });
+    registerIntakeRequestListener(intakeRequest -> {
+      assertEquals(
+          "log line 42 foobar 3.42 {[key1=val1], [key2=val2], [key3=val3]} [var1, var2, var3]",
+          intakeRequest.getMessage());
+      correctLogMessage.set(true);
+    });
+    registerSnapshotListener(snapshot -> {
+      assertEquals(PROBE_ID.getId(), snapshot.getProbe().getId());
+      snapshotReceived.set(true);
+    });
     AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting(PROBE_ID);
     processRequests(
         () -> snapshotReceived.get() && correctLogMessage.get() && statusResult.get(),
@@ -276,24 +267,23 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
     setCurrentConfiguration(createConfig(probe));
     targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
     AtomicBoolean snapshotReceived = new AtomicBoolean();
-    registerSnapshotListener(
-        snapshot -> {
-          assertEquals(PROBE_ID.getId(), snapshot.getProbe().getId());
-          assertEquals(2, snapshot.getCaptures().getReturn().getCaptureExpressions().size());
-          assertNull(snapshot.getCaptures().getReturn().getArguments());
-          assertNull(snapshot.getCaptures().getReturn().getLocals());
-          CapturedContext.CapturedValue argStrValue =
-              snapshot.getCaptures().getReturn().getCaptureExpressions().get("argStr");
-          assertEquals("argStr", argStrValue.getName());
-          assertEquals("foo", argStrValue.getValue());
-          assertEquals("truncated", argStrValue.getNotCapturedReason());
-          CapturedContext.CapturedValue key2Value =
-              snapshot.getCaptures().getReturn().getCaptureExpressions().get("argMap[key2]");
-          assertEquals("argMap[key2]", key2Value.getName());
-          assertEquals("val2", key2Value.getValue());
-          assertNull(key2Value.getNotCapturedReason());
-          snapshotReceived.set(true);
-        });
+    registerSnapshotListener(snapshot -> {
+      assertEquals(PROBE_ID.getId(), snapshot.getProbe().getId());
+      assertEquals(2, snapshot.getCaptures().getReturn().getCaptureExpressions().size());
+      assertNull(snapshot.getCaptures().getReturn().getArguments());
+      assertNull(snapshot.getCaptures().getReturn().getLocals());
+      CapturedContext.CapturedValue argStrValue =
+          snapshot.getCaptures().getReturn().getCaptureExpressions().get("argStr");
+      assertEquals("argStr", argStrValue.getName());
+      assertEquals("foo", argStrValue.getValue());
+      assertEquals("truncated", argStrValue.getNotCapturedReason());
+      CapturedContext.CapturedValue key2Value =
+          snapshot.getCaptures().getReturn().getCaptureExpressions().get("argMap[key2]");
+      assertEquals("argMap[key2]", key2Value.getName());
+      assertEquals("val2", key2Value.getValue());
+      assertNull(key2Value.getNotCapturedReason());
+      snapshotReceived.set(true);
+    });
     AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting(PROBE_ID);
     processRequests(
         () -> snapshotReceived.get() && statusResult.get(),
@@ -325,22 +315,20 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
     Set<String> probeIds = new HashSet<>();
     AtomicBoolean allSnapshotReceived = new AtomicBoolean();
     AtomicBoolean allStatusEmitting = new AtomicBoolean();
-    registerSnapshotListener(
-        snapshot -> {
-          probeIds.add(snapshot.getProbe().getId());
-          allSnapshotReceived.set(probeIds.size() == NB_PROBES);
-        });
+    registerSnapshotListener(snapshot -> {
+      probeIds.add(snapshot.getProbe().getId());
+      allSnapshotReceived.set(probeIds.size() == NB_PROBES);
+    });
     Map<String, ProbeStatus.Status> statuses = new HashMap<>();
-    registerProbeStatusListener(
-        probeStatus -> {
-          statuses.put(
-              probeStatus.getDiagnostics().getProbeId().getId(),
-              probeStatus.getDiagnostics().getStatus());
-          allStatusEmitting.set(
-              statuses.size() == NB_PROBES
-                  && statuses.values().stream()
-                      .allMatch(status -> status == ProbeStatus.Status.EMITTING));
-        });
+    registerProbeStatusListener(probeStatus -> {
+      statuses.put(
+          probeStatus.getDiagnostics().getProbeId().getId(),
+          probeStatus.getDiagnostics().getStatus());
+      allStatusEmitting.set(
+          statuses.size() == NB_PROBES
+              && statuses.values().stream()
+                  .allMatch(status -> status == ProbeStatus.Status.EMITTING));
+    });
     processRequests(
         () -> allSnapshotReceived.get() && allStatusEmitting.get(),
         () ->
@@ -368,15 +356,14 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
     setCurrentConfiguration(createConfig(probe));
     targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
     AtomicBoolean snapshotReceived = new AtomicBoolean();
-    registerSnapshotListener(
-        snapshot -> {
-          assertEquals(LINE_PROBE_ID1.getId(), snapshot.getProbe().getId());
-          CapturedContext capturedContext = snapshot.getCaptures().getLines().get(95);
-          assertFullMethodCaptureArgs(capturedContext);
-          assertNull(capturedContext.getLocals());
-          assertNull(capturedContext.getCapturedThrowable());
-          snapshotReceived.set(true);
-        });
+    registerSnapshotListener(snapshot -> {
+      assertEquals(LINE_PROBE_ID1.getId(), snapshot.getProbe().getId());
+      CapturedContext capturedContext = snapshot.getCaptures().getLines().get(95);
+      assertFullMethodCaptureArgs(capturedContext);
+      assertNull(capturedContext.getLocals());
+      assertNull(capturedContext.getCapturedThrowable());
+      snapshotReceived.set(true);
+    });
     AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting(LINE_PROBE_ID1);
     processRequests(
         () -> snapshotReceived.get() && statusResult.get(),
@@ -433,10 +420,9 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
                 logFilePath, "loopingFullMethod", EXPECTED_UPLOADS, String.valueOf(LOOP_COUNT))
             .start();
     AtomicInteger snapshotCount = new AtomicInteger();
-    registerSnapshotListener(
-        snapshot -> {
-          snapshotCount.incrementAndGet();
-        });
+    registerSnapshotListener(snapshot -> {
+      snapshotCount.incrementAndGet();
+    });
     processRequests(
         () -> {
           LOG.info("snapshots={}", snapshotCount.get());
@@ -469,10 +455,9 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
                 logFilePath, "loopingFullMethod", EXPECTED_UPLOADS, String.valueOf(LOOP_COUNT))
             .start();
     AtomicInteger snapshotCount = new AtomicInteger();
-    registerSnapshotListener(
-        snapshot -> {
-          snapshotCount.incrementAndGet();
-        });
+    registerSnapshotListener(snapshot -> {
+      snapshotCount.incrementAndGet();
+    });
     processRequests(
         () -> {
           LOG.info("snapshots={}", snapshotCount.get());
@@ -504,10 +489,9 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
                 logFilePath, "loopingFullMethod", EXPECTED_UPLOADS, String.valueOf(LOOP_COUNT))
             .start();
     AtomicInteger snapshotCount = new AtomicInteger();
-    registerSnapshotListener(
-        snapshot -> {
-          snapshotCount.incrementAndGet();
-        });
+    registerSnapshotListener(snapshot -> {
+      snapshotCount.incrementAndGet();
+    });
     processRequests(
         () -> {
           LOG.info("snapshots={}", snapshotCount.get());
@@ -532,18 +516,17 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
     targetProcess =
         createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS, "uncaught").start();
     AtomicBoolean snapshotReceived = new AtomicBoolean();
-    registerSnapshotListener(
-        snapshot -> {
-          assertEquals("123356536", snapshot.getProbe().getId());
-          CapturedContext.CapturedThrowable throwable =
-              snapshot.getCaptures().getReturn().getCapturedThrowable();
-          assertEquals("oops uncaught!", throwable.getMessage());
-          assertTrue(throwable.getStacktrace().size() > 0);
-          assertEquals(
-              "datadog.smoketest.debugger.Main.exceptionMethod",
-              throwable.getStacktrace().get(0).getFunction());
-          snapshotReceived.set(true);
-        });
+    registerSnapshotListener(snapshot -> {
+      assertEquals("123356536", snapshot.getProbe().getId());
+      CapturedContext.CapturedThrowable throwable =
+          snapshot.getCaptures().getReturn().getCapturedThrowable();
+      assertEquals("oops uncaught!", throwable.getMessage());
+      assertTrue(throwable.getStacktrace().size() > 0);
+      assertEquals(
+          "datadog.smoketest.debugger.Main.exceptionMethod",
+          throwable.getStacktrace().get(0).getFunction());
+      snapshotReceived.set(true);
+    });
     processRequests(
         snapshotReceived::get,
         () -> String.format("timeout snapshotReceived=%s", snapshotReceived.get()));
@@ -565,18 +548,17 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
     targetProcess =
         createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS, "caught").start();
     AtomicBoolean snapshotReceived = new AtomicBoolean();
-    registerSnapshotListener(
-        snapshot -> {
-          assertEquals("123356536", snapshot.getProbe().getId());
-          assertEquals(1, snapshot.getCaptures().getCaughtExceptions().size());
-          CapturedContext.CapturedThrowable throwable =
-              snapshot.getCaptures().getCaughtExceptions().get(0);
-          assertEquals("oops caught!", throwable.getMessage());
-          assertEquals(
-              "datadog.smoketest.debugger.Main.exceptionMethod",
-              throwable.getStacktrace().get(0).getFunction());
-          snapshotReceived.set(true);
-        });
+    registerSnapshotListener(snapshot -> {
+      assertEquals("123356536", snapshot.getProbe().getId());
+      assertEquals(1, snapshot.getCaptures().getCaughtExceptions().size());
+      CapturedContext.CapturedThrowable throwable =
+          snapshot.getCaptures().getCaughtExceptions().get(0);
+      assertEquals("oops caught!", throwable.getMessage());
+      assertEquals(
+          "datadog.smoketest.debugger.Main.exceptionMethod",
+          throwable.getStacktrace().get(0).getFunction());
+      snapshotReceived.set(true);
+    });
     processRequests(
         snapshotReceived::get,
         () -> String.format("timeout snapshotReceived=%s", snapshotReceived.get()));
@@ -601,14 +583,13 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
     setCurrentConfiguration(createConfig(probe));
     targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
     AtomicBoolean snapshotReceived = new AtomicBoolean();
-    registerSnapshotListener(
-        snapshot -> {
-          if (snapshot.getProbe().getProbeId().equals(PROBE_ID)) {
-            assertEquals(1, snapshot.getEvaluationErrors().size());
-            assertEquals("timeout (200ms)", snapshot.getEvaluationErrors().get(0).getMessage());
-            snapshotReceived.set(true);
-          }
-        });
+    registerSnapshotListener(snapshot -> {
+      if (snapshot.getProbe().getProbeId().equals(PROBE_ID)) {
+        assertEquals(1, snapshot.getEvaluationErrors().size());
+        assertEquals("timeout (200ms)", snapshot.getEvaluationErrors().get(0).getMessage());
+        snapshotReceived.set(true);
+      }
+    });
     processRequests(
         snapshotReceived::get,
         () -> String.format("timeout snapshotReceived=%s", snapshotReceived.get()));
@@ -637,14 +618,13 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
     setCurrentConfiguration(createConfig(probe));
     targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
     AtomicBoolean snapshotReceived = new AtomicBoolean();
-    registerSnapshotListener(
-        snapshot -> {
-          if (snapshot.getProbe().getProbeId().equals(PROBE_ID)) {
-            assertEquals(1, snapshot.getEvaluationErrors().size());
-            assertEquals("timeout (200ms)", snapshot.getEvaluationErrors().get(0).getMessage());
-            snapshotReceived.set(true);
-          }
-        });
+    registerSnapshotListener(snapshot -> {
+      if (snapshot.getProbe().getProbeId().equals(PROBE_ID)) {
+        assertEquals(1, snapshot.getEvaluationErrors().size());
+        assertEquals("timeout (200ms)", snapshot.getEvaluationErrors().get(0).getMessage());
+        snapshotReceived.set(true);
+      }
+    });
     processRequests(
         snapshotReceived::get,
         () -> String.format("timeout snapshotReceived=%s", snapshotReceived.get()));

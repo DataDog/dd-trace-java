@@ -13,10 +13,9 @@ import static org.mockito.Mockito.when;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.InstrumenterConfig;
-import datadog.trace.test.util.DDJavaSpecification;
 import org.junit.jupiter.api.Test;
 
-class RumInjectorTest extends DDJavaSpecification {
+class RumInjectorTest {
   static final String UTF8 = "UTF-8";
 
   @Test

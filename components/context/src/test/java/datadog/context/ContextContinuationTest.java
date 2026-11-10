@@ -152,14 +152,13 @@ class ContextContinuationTest extends ContextTestBase {
     ExecutorService executor = Executors.newSingleThreadExecutor();
     try {
       Future<?> future =
-          executor.submit(
-              () -> {
-                assertEquals(root(), current()); // thread starts with root context
-                try (ContextScope scope = continuation.resume()) {
-                  assertEquals(context, current());
-                }
-                assertEquals(root(), current()); // restored after scope close
-              });
+          executor.submit(() -> {
+            assertEquals(root(), current()); // thread starts with root context
+            try (ContextScope scope = continuation.resume()) {
+              assertEquals(context, current());
+            }
+            assertEquals(root(), current()); // restored after scope close
+          });
       assertDoesNotThrow(() -> future.get());
     } finally {
       executor.shutdown();
@@ -188,27 +187,25 @@ class ContextContinuationTest extends ContextTestBase {
     ExecutorService executor = Executors.newFixedThreadPool(2);
     try {
       Future<?> f1 =
-          executor.submit(
-              () -> {
-                try (ContextScope scope = continuation.resume()) {
-                  bothResumed.countDown();
-                  closeFirst.await();
-                } catch (InterruptedException e) {
-                  Thread.currentThread().interrupt();
-                } finally {
-                  firstClosed.countDown();
-                }
-              });
+          executor.submit(() -> {
+            try (ContextScope scope = continuation.resume()) {
+              bothResumed.countDown();
+              closeFirst.await();
+            } catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
+            } finally {
+              firstClosed.countDown();
+            }
+          });
       Future<?> f2 =
-          executor.submit(
-              () -> {
-                try (ContextScope scope = continuation.resume()) {
-                  bothResumed.countDown();
-                  closeSecond.await();
-                } catch (InterruptedException e) {
-                  Thread.currentThread().interrupt();
-                }
-              });
+          executor.submit(() -> {
+            try (ContextScope scope = continuation.resume()) {
+              bothResumed.countDown();
+              closeSecond.await();
+            } catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
+            }
+          });
       bothResumed.await();
       assertTrue(events.isEmpty(), "release should not fire while scopes are open");
       closeFirst.countDown();

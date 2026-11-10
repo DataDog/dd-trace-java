@@ -79,19 +79,18 @@ class AccumulatorTest {
     CountDownLatch done = new CountDownLatch(threadCount);
     try {
       for (int t = 0; t < threadCount; t++) {
-        pool.execute(
-            () -> {
-              try {
-                start.await();
-                for (int i = 0; i < incrementsPerThread; i++) {
-                  counters.inc(Counters.FOO);
-                }
-              } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-              } finally {
-                done.countDown();
-              }
-            });
+        pool.execute(() -> {
+          try {
+            start.await();
+            for (int i = 0; i < incrementsPerThread; i++) {
+              counters.inc(Counters.FOO);
+            }
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+          } finally {
+            done.countDown();
+          }
+        });
       }
       start.countDown();
       assertTrue(done.await(30, TimeUnit.SECONDS));
@@ -117,24 +116,22 @@ class AccumulatorTest {
 
     try {
       Future<?> drainer =
-          pool.submit(
-              () -> {
-                while (!stop.get()) {
-                  Accumulator.Counts<Counters> drained = counters.accumulateAndReset();
-                  synchronized (runningTotal) {
-                    runningTotal[0] += drained.get(Counters.FOO);
-                  }
-                }
-              });
+          pool.submit(() -> {
+            while (!stop.get()) {
+              Accumulator.Counts<Counters> drained = counters.accumulateAndReset();
+              synchronized (runningTotal) {
+                runningTotal[0] += drained.get(Counters.FOO);
+              }
+            }
+          });
 
       for (int t = 0; t < threadCount; t++) {
-        pool.execute(
-            () -> {
-              for (int i = 0; i < incrementsPerThread; i++) {
-                counters.inc(Counters.FOO);
-              }
-              done.countDown();
-            });
+        pool.execute(() -> {
+          for (int i = 0; i < incrementsPerThread; i++) {
+            counters.inc(Counters.FOO);
+          }
+          done.countDown();
+        });
       }
 
       assertTrue(done.await(30, TimeUnit.SECONDS));
