@@ -92,6 +92,8 @@ class OracleDynamicServiceActionInjectionForkedTest extends OracleInjectionTestB
       TraceInstrumentationConfig.DB_DBM_PROPAGATION_ORACLE_ACTION_ONLY_ENABLED, "true")
   }
 
+  static serviceHashAction = "_DD_DDSH:-6937226773133363462"
+
   def setup() {
     ProcessTags.reset()
     BaseHash.updateBaseHash(-6937226773133363462L)
@@ -109,8 +111,9 @@ class OracleDynamicServiceActionInjectionForkedTest extends OracleInjectionTestB
     then:
     statement.sql == query
     connection.clientInfoName == "OCSID.ACTION"
-    connection.clientInfoValue == "_DD_DDSH:-6937226773133363462"
-    connection.clientInfoSetCount == 1
+    connection.clientInfoValue == serviceHashAction
+    // ACTION is cleared before each write so drivers that skip same-value writes still send it
+    connection.clientInfoValues == ["", serviceHashAction, "", serviceHashAction]
     assertTraces(2) {
       trace(1) {
         span {
@@ -141,11 +144,10 @@ class OracleDynamicServiceActionInjectionForkedTest extends OracleInjectionTestB
 
     then:
     statement.sql == query
-    connection.clientInfoValue == "_DD_DDSH:-6937226773133363462"
-    connection.clientInfoSetCount == 1
+    connection.clientInfoValues == ["", serviceHashAction]
   }
 
-  def "Oracle dynamic service mode refreshes ACTION only when the hash changes"() {
+  def "Oracle dynamic service mode writes the current hash in ACTION"() {
     setup:
     def connection = createOracleConnection(serviceNameUrl)
     def statement = connection.createStatement() as TestStatement
@@ -156,8 +158,33 @@ class OracleDynamicServiceActionInjectionForkedTest extends OracleInjectionTestB
     statement.executeQuery(query)
 
     then:
-    connection.clientInfoValue == "_DD_DDSH:123456789"
-    connection.clientInfoSetCount == 2
+    connection.clientInfoValues == ["", serviceHashAction, "", "_DD_DDSH:123456789"]
+  }
+
+  def "Oracle #statementType restores ACTION after the application changes it"() {
+    setup:
+    def connection = createOracleConnection(serviceNameUrl)
+    def execute = {
+      if (prepared) {
+        connection.prepareStatement(query).execute()
+      } else {
+        connection.createStatement().executeQuery(query)
+      }
+    }
+
+    when:
+    execute()
+    // e.g. BEGIN DBMS_APPLICATION_INFO.SET_ACTION('app-action'); END;
+    connection.clientInfoValue = "app-action"
+    execute()
+
+    then:
+    connection.clientInfoValue == serviceHashAction
+
+    where:
+    statementType        | prepared
+    "statement"          | false
+    "prepared statement" | true
   }
 
   def "Oracle #statementType uses one BaseHash value for ACTION and the span"() {
@@ -175,7 +202,7 @@ class OracleDynamicServiceActionInjectionForkedTest extends OracleInjectionTestB
     }
 
     then:
-    connection.clientInfoValue == "_DD_DDSH:-6937226773133363462"
+    connection.clientInfoValue == serviceHashAction
     BaseHash.getBaseHashStr() == "123456789"
     assertTraces(1) {
       trace(1) {
@@ -204,8 +231,8 @@ class OracleDynamicServiceActionInjectionForkedTest extends OracleInjectionTestB
     secondConnection.createStatement().executeQuery(query)
 
     then:
-    firstConnection.clientInfoSetCount == 1
-    secondConnection.clientInfoSetCount == 1
+    firstConnection.clientInfoValues == ["", serviceHashAction]
+    secondConnection.clientInfoValues == ["", serviceHashAction]
   }
 
   def "Oracle dynamic service mode retries the same hash after a transient failure"() {
@@ -219,8 +246,8 @@ class OracleDynamicServiceActionInjectionForkedTest extends OracleInjectionTestB
     statement.executeQuery(query)
 
     then:
-    connection.clientInfoValue == "_DD_DDSH:-6937226773133363462"
-    connection.clientInfoSetCount == 2
+    connection.clientInfoValues == ["", serviceHashAction]
+    connection.clientInfoSetCount == 3
   }
 
   def "Oracle dynamic service mode remembers unsupported client info"() {
