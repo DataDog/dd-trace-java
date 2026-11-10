@@ -123,8 +123,21 @@ public class GitUtils {
     if (!urlStr.contains("://") && !urlStr.startsWith("//")) {
       // Preserve SCP-style usernames and non-URL CI values, but reject opaque credentials.
       int colon = urlStr.indexOf(':');
+      if (urlStr.startsWith("[")) {
+        int bracket = urlStr.indexOf("]:");
+        if (bracket >= 0) {
+          colon = bracket + 1;
+        }
+      }
       int at = urlStr.indexOf('@');
-      return colon >= 0 && at > colon ? null : urlStr;
+      if (colon >= 0 && at > colon) {
+        int pathColon = urlStr.indexOf(':', colon + 1);
+        // A password separator before @ is opaque URI user info, not an SCP path.
+        if (pathColon >= 0 && pathColon < at) {
+          return null;
+        }
+      }
+      return urlStr;
     }
     try {
       URI url = new URI(urlStr);
@@ -291,7 +304,7 @@ public class GitUtils {
 
   /** Checks if the provided string is a valid Git reference (branch, tag, etc.) */
   public static boolean isValidRef(@Nullable String ref) {
-    if (Strings.isBlank(ref)) {
+    if (Strings.isBlank(ref) || ref.charAt(0) == '-') {
       return false;
     }
 
