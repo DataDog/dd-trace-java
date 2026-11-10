@@ -7,9 +7,12 @@ import static datadog.trace.civisibility.git.tree.GitTestRepository.writeCommit;
 import static datadog.trace.civisibility.git.tree.GitTestRepository.writeObject;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.communication.util.IOUtils;
 import datadog.trace.civisibility.utils.ShellCommandExecutor;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
@@ -48,6 +51,26 @@ class GitRecoveryCompatibilityTest {
     assertEquals(64, selected.length());
     assertEquals(selected, client.getCommitInfo(selected, false).getSha());
     assertFalse(client.isShallow());
+  }
+
+  @Test
+  void unknownAbbreviationsAreRejectedBeforeRemoteRecovery() throws Exception {
+    Path origin = directory.resolve("origin");
+    ShellCommandExecutor remote = fixture(origin);
+    Path checkout = cloneFrom(remote, origin);
+    String selected =
+        writeCommit(
+            remote,
+            git(remote, "rev-parse", "HEAD^{tree}"),
+            git(remote, "rev-parse", "HEAD"),
+            "selected");
+    git(remote, "update-ref", "refs/heads/selected", selected);
+    ShellGitClient client = client(checkout, "1 month ago");
+    IOException error =
+        assertThrows(IOException.class, () -> client.fetchSelectedCommit(selected.substring(0, 8)));
+    assertTrue(error.getMessage().contains("abbreviated"));
+    client.fetchSelectedCommit(selected);
+    assertEquals(selected, client.getCommitInfo(selected, false).getSha());
   }
 
   @TableTest({

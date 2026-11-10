@@ -425,6 +425,20 @@ public class ShellGitClient implements GitClient {
                   .executeCommand(
                       IOUtils::readFully, buildGitCommand("rev-parse", "--show-object-format"))
                   .trim();
+          String selectedCommit = remoteCommitReference;
+          if (GitUtils.isValidCommitSha(selectedCommit)) {
+            if (isCommitPresent(selectedCommit)) {
+              selectedCommit =
+                  commandExecutor
+                      .executeCommand(
+                          IOUtils::readFully,
+                          buildGitCommand("rev-parse", "--verify", selectedCommit + "^{commit}"))
+                      .trim();
+            } else if (selectedCommit.length() != ("sha256".equals(objectFormat) ? 64 : 40)) {
+              throw new IOException("Cannot recover an unresolved abbreviated Git revision");
+            }
+            selectedCommit = selectedCommit.toLowerCase(Locale.ROOT);
+          }
           String remote = getRemoteName();
           List<String> args = new ArrayList<>();
           Collections.addAll(
@@ -436,7 +450,7 @@ public class ShellGitClient implements GitClient {
               "--recurse-submodules=no",
               "--no-write-fetch-head",
               remote,
-              remoteCommitReference);
+              selectedCommit);
           Path recoveryDirectory = null;
           ShellCommandExecutor fetchExecutor = commandExecutor;
           try {
