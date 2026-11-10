@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
@@ -32,13 +33,15 @@ class UniversalFlagConfigParserTest {
   void parsesDependentFlagConditionsAndEvaluatorParams() throws Exception {
     final ServerConfiguration config =
         deserialize(
-            "{\"evaluatorParams\":{\"maxDependencyDepth\":4},\"flags\":{\"root\":{"
+            "{\"evaluatorParams\":{\"maxDependencyDepth\":4,\"futureOption\":true},\"flags\":{\"root\":{"
                 + "\"key\":\"root\",\"allocations\":[{\"key\":\"a\",\"rules\":[{"
                 + "\"conditions\":[{\"operator\":\"ONE_OF\","
                 + "\"flagEvaluation\":{\"key\":\"dependency\"},\"value\":[\"on\"]}]}],"
                 + "\"splits\":[]}]}}}");
 
-    assertEquals(4.0, config.evaluatorParams.maxDependencyDepth);
+    final Map<?, ?> evaluatorParams = (Map<?, ?>) config.evaluatorParams;
+    assertEquals(4.0, evaluatorParams.get("maxDependencyDepth"));
+    assertEquals(Boolean.TRUE, evaluatorParams.get("futureOption"));
     final ConditionConfiguration condition =
         config.flags.get("root").allocations.get(0).rules.get(0).conditions.get(0);
     assertNull(condition.attribute);
@@ -69,21 +72,17 @@ class UniversalFlagConfigParserTest {
             .flagEvaluationKey);
   }
 
-  @TableTest({
-    "evaluator params",
-    "'0'             ",
-    "'true'          ",
-    "'\"future\"'    ",
-    "'[]'            ",
-    "'null'          "
-  })
-  void preservesNonObjectEvaluatorParamsForLazyValidation(final String evaluatorParams)
-      throws Exception {
-    final ServerConfiguration config =
-        deserialize("{\"evaluatorParams\":" + evaluatorParams + ",\"flags\":{}}");
+  @Test
+  void preservesNonObjectEvaluatorParamsForLazyValidation() throws Exception {
+    final List<String> inputs = asList("0", "true", "\"future\"", "[]");
+    final List<Object> expected = asList(0.0, Boolean.TRUE, "future", asList());
 
-    assertNotNull(config.evaluatorParams);
-    assertEquals("evaluatorParams must be an object", config.evaluatorParams.validationError);
+    for (int index = 0; index < inputs.size(); index++) {
+      final ServerConfiguration config =
+          deserialize("{\"evaluatorParams\":" + inputs.get(index) + ",\"flags\":{}}");
+
+      assertEquals(expected.get(index), config.evaluatorParams);
+    }
   }
 
   @TableTest({
@@ -134,9 +133,9 @@ class UniversalFlagConfigParserTest {
         deserialize("{\"evaluatorParams\":{\"maxDependencyDepth\":null},\"flags\":{}}");
 
     assertNull(absent.evaluatorParams);
-    assertFalse(empty.evaluatorParams.maxDependencyDepthPresent);
-    assertTrue(explicitNull.evaluatorParams.maxDependencyDepthPresent);
-    assertNull(explicitNull.evaluatorParams.maxDependencyDepth);
+    assertTrue(((Map<?, ?>) empty.evaluatorParams).isEmpty());
+    assertTrue(((Map<?, ?>) explicitNull.evaluatorParams).containsKey("maxDependencyDepth"));
+    assertNull(((Map<?, ?>) explicitNull.evaluatorParams).get("maxDependencyDepth"));
   }
 
   @Test

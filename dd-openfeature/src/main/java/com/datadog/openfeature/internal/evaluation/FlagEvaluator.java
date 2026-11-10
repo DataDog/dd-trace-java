@@ -18,7 +18,6 @@ import com.datadog.openfeature.ExperimentationOptOutMode;
 import com.datadog.openfeature.internal.ufc.Allocation;
 import com.datadog.openfeature.internal.ufc.ConditionConfiguration;
 import com.datadog.openfeature.internal.ufc.ConditionOperator;
-import com.datadog.openfeature.internal.ufc.EvaluatorParams;
 import com.datadog.openfeature.internal.ufc.Feature;
 import com.datadog.openfeature.internal.ufc.Flag;
 import com.datadog.openfeature.internal.ufc.ParsedSemver;
@@ -157,7 +156,8 @@ public final class FlagEvaluator {
             context,
             observeFullEvaluationData,
             evaluationTimestampMs,
-            experimentationCutoff);
+            experimentationCutoff,
+            maxDependencyDepth(config));
     ProviderEvaluation<T> result;
     boolean commitExposures;
     try {
@@ -293,38 +293,20 @@ public final class FlagEvaluator {
   }
 
   private static int maxDependencyDepth(final ServerConfiguration config) {
-    final EvaluatorParams params = config.evaluatorParams;
+    final Object params = config.evaluatorParams;
     if (params == null) {
       return DEFAULT_MAX_DEPENDENCY_DEPTH;
     }
-    Integer cached = params.resolvedMaxDependencyDepth();
-    if (cached != null) {
-      return cached;
-    }
-    // UFC snapshots and their evaluator params are immutable. Synchronization is reached only on
-    // this snapshot's first dependency evaluation; subsequent requests take the volatile fast
-    // path above. This also ensures malformed input is diagnosed once under concurrent first use.
-    synchronized (params) {
-      cached = params.resolvedMaxDependencyDepth();
-      if (cached != null) {
-        return cached;
-      }
-      final int parsed = parseMaxDependencyDepth(params);
-      params.cacheResolvedMaxDependencyDepth(parsed);
-      return parsed;
-    }
-  }
-
-  private static int parseMaxDependencyDepth(final EvaluatorParams params) {
-    if (params.validationError != null) {
-      logInvalidMaxDependencyDepth(params.validationError, null);
-      return DEFAULT_MAX_DEPENDENCY_DEPTH;
-    }
-    if (!params.maxDependencyDepthPresent) {
-      return DEFAULT_MAX_DEPENDENCY_DEPTH;
-    }
     try {
-      final Object configured = params.maxDependencyDepth;
+      if (!(params instanceof Map)) {
+        logInvalidMaxDependencyDepth("evaluatorParams must be an object", null);
+        return DEFAULT_MAX_DEPENDENCY_DEPTH;
+      }
+      final Map<?, ?> evaluatorParams = (Map<?, ?>) params;
+      if (!evaluatorParams.containsKey("maxDependencyDepth")) {
+        return DEFAULT_MAX_DEPENDENCY_DEPTH;
+      }
+      final Object configured = evaluatorParams.get("maxDependencyDepth");
       if (configured instanceof Number) {
         final double value = ((Number) configured).doubleValue();
         if (Double.isFinite(value) && value == Math.rint(value) && value >= 0 && value <= 255) {
@@ -343,12 +325,12 @@ public final class FlagEvaluator {
       final String diagnostic, final RuntimeException failure) {
     try {
       if (failure == null) {
-        LOGGER.error(
+        LOGGER.warn(
             "Invalid evaluator options ({}); using maxDependencyDepth={}",
             diagnostic,
             DEFAULT_MAX_DEPENDENCY_DEPTH);
       } else {
-        LOGGER.error(
+        LOGGER.warn(
             "Invalid evaluator options ({}); using maxDependencyDepth={}",
             diagnostic,
             DEFAULT_MAX_DEPENDENCY_DEPTH,
@@ -802,6 +784,7 @@ public final class FlagEvaluator {
     private final boolean observeFullEvaluationData;
     private final long evaluationTimestampMs;
     private final Instant experimentationCutoff;
+    private final int maxDependencyDepth;
     private DependencyEvaluationSession session;
 
     private EvaluationState(
@@ -810,11 +793,28 @@ public final class FlagEvaluator {
         final boolean observeFullEvaluationData,
         final long evaluationTimestampMs,
         final Instant experimentationCutoff) {
+      this(
+          config,
+          context,
+          observeFullEvaluationData,
+          evaluationTimestampMs,
+          experimentationCutoff,
+          DEFAULT_MAX_DEPENDENCY_DEPTH);
+    }
+
+    private EvaluationState(
+        final ServerConfiguration config,
+        final EvaluationContext context,
+        final boolean observeFullEvaluationData,
+        final long evaluationTimestampMs,
+        final Instant experimentationCutoff,
+        final int maxDependencyDepth) {
       this.config = config;
       this.context = context;
       this.observeFullEvaluationData = observeFullEvaluationData;
       this.evaluationTimestampMs = evaluationTimestampMs;
       this.experimentationCutoff = experimentationCutoff;
+      this.maxDependencyDepth = maxDependencyDepth;
     }
 
     private DependencyEvaluationSession dependencySession(final String rootFlagKey) {
@@ -850,10 +850,11 @@ public final class FlagEvaluator {
     private final Map<String, Integer> evaluationSlots = new HashMap<>();
     private final List<DependencyEvaluation> evaluations = new ArrayList<>();
     private final List<ExposureTrace> selectedExposureTraces = new ArrayList<>();
-    private Integer maxDependencyDepth;
+    private final int maxDependencyDepth;
 
     private DependencyEvaluationSession(final String rootFlagKey, final EvaluationState state) {
       this.state = state;
+      this.maxDependencyDepth = state.maxDependencyDepth;
       active.add(rootFlagKey);
     }
 
@@ -885,9 +886,6 @@ public final class FlagEvaluator {
     }
 
     private String resolveCurrent(final String flagKey) {
-      if (maxDependencyDepth == null) {
-        maxDependencyDepth = FlagEvaluator.maxDependencyDepth(state.config);
-      }
       final int depth = frames.isEmpty() ? 1 : frames.get(frames.size() - 1).depth + 1;
       return resolve(flagKey, depth);
     }
