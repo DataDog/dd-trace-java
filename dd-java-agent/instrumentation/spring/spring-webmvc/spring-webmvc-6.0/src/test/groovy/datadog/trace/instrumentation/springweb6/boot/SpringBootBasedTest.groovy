@@ -14,6 +14,7 @@ import datadog.trace.api.iast.IastContext
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.propagation.PropagationModule
+import datadog.trace.api.iast.sink.UnvalidatedRedirectModule
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
 import datadog.trace.instrumentation.springweb6.SetupSpecHelper
@@ -28,6 +29,7 @@ import org.springframework.beans.BeansException
 import org.springframework.boot.SpringApplication
 import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.http.MediaType
+import org.springframework.web.HttpRequestMethodNotSupportedException
 import org.springframework.web.server.ResponseStatusException
 import org.springframework.web.servlet.view.RedirectView
 import org.springframework.web.socket.BinaryMessage
@@ -55,7 +57,8 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
 
   SpringApplication application() {
     return new SpringApplication(SecurityConfig, TestController, AppConfig, WebsocketConfig, FailOnHeaderConfig,
-      RenderTestController, RenderTestConfig, ErrorPathController, ErrorPathControllerAdvice)
+      RenderTestController, RenderTestConfig, ErrorPathController, ErrorPathControllerAdvice,
+      MappingEdgeController, ForwardTargetController)
   }
 
   class SpringBootServer implements WebsocketServer {
@@ -635,6 +638,258 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
     path                                     | handlerMethod    | status | exceptionType                              | message
     ErrorPathController.RESPONSE_STATUS_PATH | 'responseStatus' | 409    | ResponseStatusException                    | '409 CONFLICT "response status exception"'
     ErrorPathController.ADVICE_PATH          | 'advice'         | 400    | ErrorPathController.AdviceHandledException | 'handled by controller advice'
+  }
+
+  def "#method to a GET-only mapping is answered during handler lookup"() {
+    setup:
+    def path = MappingEdgeController.GET_ONLY_PATH
+    def request = new Request.Builder().url(HttpUrl.get(address.resolve(path))).method(method, null).build()
+
+    when:
+    def response = client.newCall(request).execute()
+    response.close()
+
+    then:
+    response.code() == status
+    response.header("Allow") == allow
+
+    and:
+    // No mapping matched, so no route is set and the resource falls back to the request path
+    assertTraces(1) {
+      trace(handlerResource == null ? 1 : 2) {
+        sortSpansByStart()
+        span {
+          operationName operation()
+          resourceName Config.get().isTraceOtelSemanticsEnabled() ? method : "$method $path"
+          spanType DDSpanTypes.HTTP_SERVER
+          errored false
+          parent()
+          tags(false) {
+            "$Tags.HTTP_STATUS" status
+            "$Tags.HTTP_ROUTE" null
+            if (lookupError != null) {
+              errorTags(lookupError, "Request method '$method' is not supported")
+            }
+          }
+        }
+        if (handlerResource != null) {
+          span {
+            operationName "spring.handler"
+            resourceName handlerResource
+            spanType DDSpanTypes.HTTP_SERVER
+            errored false
+            childOf(span(0))
+            tags {
+              "$Tags.COMPONENT" SpringWebHttpServerDecorator.DECORATE.component()
+              "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+              defaultTags()
+            }
+          }
+        }
+      }
+    }
+
+    // DELETE fails in getHandler, so no handler adapter runs; OPTIONS is answered by Spring's
+    // internal HttpOptionsHandler
+    where:
+    method    | status | allow             | handlerResource             | lookupError
+    "DELETE"  | 405    | "GET"             | null                        | HttpRequestMethodNotSupportedException
+    "OPTIONS" | 200    | "GET,HEAD,OPTIONS" | "HttpOptionsHandler.handle" | null
+  }
+
+  def "forward view keeps the route of the original request"() {
+    setup:
+    def request = new Request.Builder().url(HttpUrl.get(address.resolve("/render/forward"))).get().build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
+    response.code() == 200
+    response.body().string() == ForwardTargetController.BODY
+
+    and:
+    assertTraces(1) {
+      trace(4) {
+        sortSpansByStart()
+        span {
+          operationName operation()
+          resourceName "GET /render/forward"
+          spanType DDSpanTypes.HTTP_SERVER
+          errored false
+          parent()
+          tags(false) {
+            "$Tags.HTTP_STATUS" 200
+            // the forwarded dispatch matches another pattern, but the first route is kept
+            "$Tags.HTTP_ROUTE" "/render/forward"
+          }
+        }
+        span {
+          operationName "spring.handler"
+          resourceName "RenderTestController.forward"
+          spanType DDSpanTypes.HTTP_SERVER
+          errored false
+          childOf(span(0))
+          tags {
+            "$Tags.COMPONENT" SpringWebHttpServerDecorator.DECORATE.component()
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+            defaultTags()
+          }
+        }
+        span {
+          operationName "response.render"
+          resourceName "forward:$ForwardTargetController.PATH"
+          spanType DDSpanTypes.HTTP_SERVER
+          errored false
+          childOf(span(0))
+          tags {
+            "$Tags.COMPONENT" "spring-webmvc"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+            "view.name" "forward:$ForwardTargetController.PATH"
+            defaultTags()
+          }
+        }
+        span {
+          operationName "spring.handler"
+          resourceName "ForwardTargetController.target"
+          spanType DDSpanTypes.HTTP_SERVER
+          errored false
+          childOf(span(2))
+          tags {
+            "$Tags.COMPONENT" SpringWebHttpServerDecorator.DECORATE.component()
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+            defaultTags()
+          }
+        }
+      }
+    }
+  }
+
+  def "exception resolved to an error view is rendered in a response.render span"() {
+    setup:
+    def request = new Request.Builder().url(HttpUrl.get(address.resolve("/render/error-view"))).get().build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
+    response.code() == RenderTestConfig.ERROR_VIEW_STATUS
+    response.body().string() == RenderTestConfig.ERROR_VIEW_BODY
+
+    and:
+    assertTraces(1) {
+      trace(3) {
+        sortSpansByStart()
+        span {
+          operationName operation()
+          resourceName "GET /render/error-view"
+          spanType DDSpanTypes.HTTP_SERVER
+          errored true
+          parent()
+          tags(false) {
+            "$Tags.HTTP_STATUS" RenderTestConfig.ERROR_VIEW_STATUS
+            "$Tags.HTTP_ROUTE" "/render/error-view"
+            errorTags(RenderTestController.ErrorViewException, RenderTestController.ERROR_VIEW_MESSAGE)
+          }
+        }
+        span {
+          operationName "spring.handler"
+          resourceName "RenderTestController.errorView"
+          spanType DDSpanTypes.HTTP_SERVER
+          errored true
+          childOf(span(0))
+          tags {
+            "$Tags.COMPONENT" SpringWebHttpServerDecorator.DECORATE.component()
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+            errorTags(RenderTestController.ErrorViewException, RenderTestController.ERROR_VIEW_MESSAGE)
+            defaultTags()
+          }
+        }
+        span {
+          operationName "response.render"
+          resourceName RenderTestConfig.ERROR_VIEW
+          spanType DDSpanTypes.HTTP_SERVER
+          errored false
+          childOf(span(0))
+          tags {
+            "$Tags.COMPONENT" "spring-webmvc"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+            "view.name" RenderTestConfig.ERROR_VIEW
+            defaultTags()
+          }
+        }
+      }
+    }
+  }
+
+  void '#handlerMethod redirect is reported to the IAST unvalidated redirect sink'() {
+    setup:
+    UnvalidatedRedirectModule module = Mock()
+    InstrumentationBridge.registerIastModule(module)
+    def path = "/render/$pathSuffix"
+    def request = new Request.Builder().url(HttpUrl.get(address.resolve(path))).get().build()
+
+    when:
+    def response = client.newCall(request).execute()
+    response.close()
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    response.code() == 302
+    // reported when the return value handler is selected, with the controller method as location
+    1 * module.onRedirect(RenderTestController.REDIRECT_VIEW_NAME, RenderTestController.name, handlerMethod)
+    0 * module.onRedirect(_ as String, _ as String, _ as String)
+
+    and:
+    assertTraces(1) {
+      trace(3) {
+        sortSpansByStart()
+        span {
+          operationName operation()
+          resourceName "GET $path"
+          spanType DDSpanTypes.HTTP_SERVER
+          errored false
+          parent()
+          tags(false) {
+            "$Tags.HTTP_STATUS" 302
+            "$Tags.HTTP_ROUTE" path
+          }
+        }
+        span {
+          operationName "spring.handler"
+          resourceName "RenderTestController.$handlerMethod"
+          spanType DDSpanTypes.HTTP_SERVER
+          errored false
+          childOf(span(0))
+          tags {
+            "$Tags.COMPONENT" SpringWebHttpServerDecorator.DECORATE.component()
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+            defaultTags()
+          }
+        }
+        span {
+          operationName "response.render"
+          resourceName RenderTestController.REDIRECT_VIEW_NAME
+          spanType DDSpanTypes.HTTP_SERVER
+          errored false
+          childOf(span(0))
+          tags {
+            "$Tags.COMPONENT" "spring-webmvc"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+            "view.name" RenderTestController.REDIRECT_VIEW_NAME
+            defaultTags()
+          }
+        }
+      }
+    }
+
+    cleanup:
+    InstrumentationBridge.clearIastModules()
+
+    where:
+    handlerMethod           | pathSuffix
+    "redirectViewName"      | "redirect-view-name"
+    "redirectModelAndView"  | "redirect-model-and-view"
   }
 
   boolean hasResponseSpan(ServerEndpoint endpoint) {
