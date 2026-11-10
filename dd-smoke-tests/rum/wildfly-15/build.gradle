@@ -58,13 +58,14 @@ dependencies {
 def appBuildDir = layout.buildDirectory.dir("rm-ear")
 evaluationDependsOn(':dd-trace-api')
 def apiJarTask = project(':dd-trace-api').tasks.named('jar')
+def apiJarVersion = project(':dd-trace-api').version.toString()
 
 // Run the nested EAR build through the Gradle Tooling API.
 tasks.register('earBuild', NestedGradleBuild) {
   applicationDir = layout.projectDirectory.dir("rum-ear")
   applicationBuildDir = appBuildDir
   tasksToRun = ['assemble']
-  projectJar('apiJar', apiJarTask.flatMap { it.archiveFile })
+  projectJar('apiJar', apiJarTask.flatMap { it.archiveFile }, providers.provider { apiJarVersion })
   dependsOn apiJarTask
 }
 
