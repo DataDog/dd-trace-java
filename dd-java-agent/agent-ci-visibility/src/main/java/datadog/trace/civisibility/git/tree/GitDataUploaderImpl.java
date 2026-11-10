@@ -128,8 +128,14 @@ public class GitDataUploaderImpl implements GitDataUploader {
       if (!recoveredSelected
           && config.isCiVisibilityGitUnshallowEnabled()
           && gitClient.isShallow()) {
-        gitClient.fetchCommit(selectedCommit);
-        refreshed = true;
+        try {
+          gitClient.fetchCommit(selectedCommit);
+          refreshed = true;
+        } catch (
+            datadog.trace.civisibility.utils.ShellCommandExecutor.ShellCommandFailedException e) {
+          LOGGER.debug(
+              "Could not fetch local selected commit; continuing with upstream recovery", e);
+        }
       }
       if (config.isCiVisibilityGitUnshallowDefer()
           && !unshallowed
