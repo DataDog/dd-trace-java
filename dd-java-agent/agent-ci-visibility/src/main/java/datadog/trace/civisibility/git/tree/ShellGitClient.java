@@ -382,15 +382,28 @@ public class ShellGitClient implements GitClient {
         Command.FETCH_COMMIT,
         () -> {
           String remote = getRemoteName();
-          commandExecutor.executeCommand(
-              ShellCommandExecutor.OutputParser.IGNORE,
-              buildGitCommand(
-                  "fetch",
-                  "--filter=blob:none",
-                  "--recurse-submodules=no",
-                  "--no-write-fetch-head",
-                  remote,
-                  remoteCommitReference));
+          List<String> args = new ArrayList<>();
+          Collections.addAll(
+              args,
+              "fetch",
+              "--shallow-since=" + latestCommitsSince,
+              "--update-shallow",
+              "--filter=blob:none",
+              "--recurse-submodules=no",
+              "--no-write-fetch-head",
+              remote,
+              remoteCommitReference);
+          try {
+            commandExecutor.executeCommand(
+                ShellCommandExecutor.OutputParser.IGNORE,
+                buildGitCommand(args.toArray(new String[0])));
+          } catch (ShellCommandExecutor.ShellCommandFailedException e) {
+            // A selected revision can predate the history window.
+            args.set(1, "--depth=1");
+            commandExecutor.executeCommand(
+                ShellCommandExecutor.OutputParser.IGNORE,
+                buildGitCommand(args.toArray(new String[0])));
+          }
 
           return (Void) null;
         });

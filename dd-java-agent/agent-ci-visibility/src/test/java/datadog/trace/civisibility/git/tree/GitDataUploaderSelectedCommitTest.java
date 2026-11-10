@@ -15,6 +15,8 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -61,9 +63,7 @@ class GitDataUploaderSelectedCommitTest {
 
     assertEquals(asList(selected, head, ancestor), client.getLatestCommits(selected));
     assertEquals(head, client.getSha(GitClient.HEAD));
-    InOrder order = inOrder(api);
-    order.verify(api).searchCommits(URL, asList(selected, head));
-    order.verify(api).searchCommits(URL, asList(selected, head, ancestor));
+    verify(api, times(2)).searchCommits(URL, asList(selected, head, ancestor));
     verify(api).uploadPackFile(eq(URL), eq(selected), any());
   }
 
@@ -86,7 +86,7 @@ class GitDataUploaderSelectedCommitTest {
             "recent checkout");
     git(command, "update-ref", "HEAD", head);
     Path checkout = shallowClone(command, origin);
-    ShellGitClient client = client(checkout, "1 month ago");
+    ShellGitClient client = spy(client(checkout, "1 month ago"));
     String selected = "98cd7c8e9cf71e02dc28bd9b13928bee0f85b74c";
     assertTrue(client.getLatestCommits(selected).isEmpty());
     when(config.isCiVisibilityGitUnshallowDefer()).thenReturn(deferred);
@@ -100,6 +100,18 @@ class GitDataUploaderSelectedCommitTest {
     assertEquals(head, client.getSha(GitClient.HEAD));
     if (recoveryEnabled) {
       assertEquals(singletonList(selected), client.getLatestCommits(selected));
+      if (deferred) {
+        verify(client).getCommitInfo(selected, true);
+        assertEquals(
+            "1",
+            git(
+                new ShellCommandExecutor(checkout.toFile(), 10_000),
+                "rev-list",
+                "--count",
+                selected));
+      } else {
+        verify(client, never()).getCommitInfo(selected, true);
+      }
       verify(api).searchCommits(URL, singletonList(selected));
     } else {
       assertTrue(client.getLatestCommits(selected).isEmpty());
