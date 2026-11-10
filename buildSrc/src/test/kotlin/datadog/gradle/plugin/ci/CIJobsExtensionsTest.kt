@@ -24,9 +24,10 @@ class CIJobsExtensionsTest {
 
   @Test
   fun `listed test tasks move to their override slot`() {
-    assertEquals(3, testTaskSlot("$lettuce:lettuce62Test", 8))
+    assertEquals(3, testTaskSlot("$lettuce:lettuce60Test", 8))
+    assertEquals(4, testTaskSlot("$lettuce:lettuce62Test", 8))
     assertEquals(8, testTaskSlot("$jdbc:oldPostgresTest", 8))
-    assertEquals(setOf(6, 3), projectSlots(lettuce, 8))
+    assertEquals(setOf(6, 3, 4), projectSlots(lettuce, 8))
     assertEquals(setOf(5, 8), projectSlots(jdbc, 8))
   }
 

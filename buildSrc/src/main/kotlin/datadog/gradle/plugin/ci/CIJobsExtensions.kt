@@ -16,17 +16,25 @@ import kotlin.math.abs
  */
 internal val TEST_TASK_SLOT_OVERRIDES: Map<Int, Map<String, Int>> = mapOf(
   // Measured with CI Visibility test durations of full `test_inst` runs (2026-11-06 to 2026-11-10).
+  // Each split makes the next longest project the bottleneck, so recheck the slowest shard after test suite changes.
   8 to mapOf(
     // lettuce-5.0 (slot 6) ran ~25 min of tests in a row on JVM 8 and 11
     ":dd-java-agent:instrumentation:lettuce:lettuce-5.0:lettuce60Test" to 3,
     ":dd-java-agent:instrumentation:lettuce:lettuce-5.0:lettuce60ForkedTest" to 3,
     ":dd-java-agent:instrumentation:lettuce:lettuce-5.0:lettuce61Test" to 3,
     ":dd-java-agent:instrumentation:lettuce:lettuce-5.0:lettuce61ForkedTest" to 3,
-    ":dd-java-agent:instrumentation:lettuce:lettuce-5.0:lettuce62Test" to 3,
-    ":dd-java-agent:instrumentation:lettuce:lettuce-5.0:lettuce62ForkedTest" to 3,
+    ":dd-java-agent:instrumentation:lettuce:lettuce-5.0:lettuce62Test" to 4,
+    ":dd-java-agent:instrumentation:lettuce:lettuce-5.0:lettuce62ForkedTest" to 4,
     // jdbc (slot 5) ran ~18 min of tests in a row on JVM 8 and 11
     ":dd-java-agent:instrumentation:jdbc:oldH2Test" to 8,
     ":dd-java-agent:instrumentation:jdbc:oldPostgresTest" to 8,
+    // akka-http-10.0 (slot 2) ran ~33 min of tests in a row on JVM 11 once lettuce was split
+    ":dd-java-agent:instrumentation:akka:akka-http:akka-http-10.0:version101Test" to 6,
+    ":dd-java-agent:instrumentation:akka:akka-http:akka-http-10.0:version101ForkedTest" to 6,
+    ":dd-java-agent:instrumentation:akka:akka-http:akka-http-10.0:version101IastTest" to 6,
+    ":dd-java-agent:instrumentation:akka:akka-http:akka-http-10.0:version102Scala213Test" to 7,
+    ":dd-java-agent:instrumentation:akka:akka-http:akka-http-10.0:version102Scala213ForkedTest" to 7,
+    ":dd-java-agent:instrumentation:akka:akka-http:akka-http-10.0:version102IastTest" to 7,
   ),
 )
 
