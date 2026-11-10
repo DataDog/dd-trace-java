@@ -1,3 +1,4 @@
+import datadog.gradle.plugin.ci.isInOwnSlot
 import datadog.gradle.plugin.ci.isInSelectedSlot
 import org.gradle.api.tasks.testing.Test
 import java.io.File
@@ -126,7 +127,7 @@ tasks.register("runMuzzle") {
   val muzzleSubprojects = subprojects.filter { p ->
     p.plugins.hasPlugin("java") &&
       p.plugins.hasPlugin("dd-trace-java.muzzle") &&
-      p.isInSelectedSlot.get()
+      p.isInOwnSlot.get()
   }
   dependsOn(muzzleSubprojects.map { p -> "${p.path}:muzzle" })
 }
