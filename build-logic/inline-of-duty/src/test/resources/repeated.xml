@@ -1,0 +1,46 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<hotspot_log>
+<vm_version><name>OpenJDK 64-Bit Server VM</name><release>25</release></vm_version>
+<nmethod compile_id='1' compiler='c2'/>
+<nmethod compile_id='2' compiler='c2'/>
+<compilation_log>
+<task compile_id='1' method='example.Work run ()V'>
+<type id='1114' name='void'/><type id='1112' name='int'/>
+<klass id='1200' name='example.Work'/><klass id='1201' name='example.Parent'/>
+<klass id='1202' name='datadog.trace.Helper'/>
+<method id='1250' holder='1200' name='run' return='1114'/>
+<method id='1251' holder='1201' name='first' return='1114'/>
+<method id='1252' holder='1201' name='second' return='1114'/>
+<method id='1253' holder='1202' name='help' return='1114'/>
+<method id='1254' holder='1202' name='help' return='1114' arguments='1112'/>
+<parse method='1250'>
+<bc code='184' bci='5'/><call method='1251' count='1000'/><inline_success reason='inline (hot)'/>
+<parse method='1251'><bc code='184' bci='7'/><call method='1253' count='1000'/>
+<inline_fail reason='hot method too big'/></parse>
+<bc code='184' bci='15'/><call method='1252' count='1000'/><inline_success reason='inline (hot)'/>
+<parse method='1252'><bc code='184' bci='7'/><call method='1253' count='1000'/>
+<inline_fail reason='inlining too deep'/></parse>
+<bc code='184' bci='25'/><call method='1254' count='1000'/><inline_fail reason='hot method too big'/>
+<parse_done stamp='1.0'/></parse>
+<task_done success='1' nmsize='42' count='1000'/></task>
+<task compile_id='2' method='example.Work run ()V'>
+<type id='1114' name='void'/><type id='1112' name='int'/>
+<klass id='1200' name='example.Work'/><klass id='1201' name='example.Parent'/>
+<klass id='1202' name='datadog.trace.Helper'/>
+<method id='1250' holder='1200' name='run' return='1114'/>
+<method id='1251' holder='1201' name='first' return='1114'/>
+<method id='1252' holder='1201' name='second' return='1114'/>
+<method id='1253' holder='1202' name='help' return='1114'/>
+<method id='1254' holder='1202' name='help' return='1114' arguments='1112'/>
+<parse method='1250'>
+<bc code='184' bci='5'/><call method='1251' count='1000'/><inline_success reason='inline (hot)'/>
+<parse method='1251'><bc code='184' bci='7'/><call method='1253' count='1000'/>
+<inline_fail reason='hot method too big'/></parse>
+<bc code='184' bci='15'/><call method='1252' count='1000'/><inline_success reason='inline (hot)'/>
+<parse method='1252'><bc code='184' bci='7'/><call method='1253' count='1000'/>
+<inline_fail reason='inlining too deep'/></parse>
+<bc code='184' bci='25'/><call method='1254' count='1000'/><inline_fail reason='hot method too big'/>
+<parse_done stamp='1.0'/></parse>
+<task_done success='1' nmsize='42' count='1000'/></task>
+</compilation_log>
+</hotspot_log>
