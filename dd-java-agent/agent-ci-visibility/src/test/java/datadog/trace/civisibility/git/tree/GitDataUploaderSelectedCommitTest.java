@@ -100,23 +100,25 @@ class GitDataUploaderSelectedCommitTest {
   void baseBranchFetchRemainsAvailableAfterPrivateRecovery() throws Exception {
     Path origin = directory.resolve("origin");
     ShellCommandExecutor remote = fixture(origin);
+    String ancestor = git(remote, "rev-parse", "HEAD");
+    String tree = git(remote, "rev-parse", "HEAD^{tree}");
+    String head = writeCommit(remote, tree, ancestor, "recent checkout");
+    git(remote, "update-ref", "HEAD", head);
     Path checkout = directory.resolve("checkout");
     git(remote, "clone", "--no-local", origin.toString(), checkout.toString());
     Path control = directory.resolve("control");
     git(remote, "clone", "--no-local", origin.toString(), control.toString());
-    String head = git(remote, "rev-parse", "HEAD");
-    String selected =
-        writeObject(
-            remote,
-            "tree "
-                + git(remote, "rev-parse", "HEAD^{tree}")
-                + "\nparent "
-                + head
-                + "\nauthor Test <test@example.com> 1 +0000\ncommitter Test <test@example.com> 1 +0000\n\nselected old commit\n");
+    String selected = writeCommit(remote, tree, head, "selected child");
     git(remote, "update-ref", "refs/heads/selected", selected);
+    git(
+        new ShellCommandExecutor(checkout.toFile(), 10_000),
+        "update-ref",
+        "refs/remotes/origin/base",
+        ancestor);
     ShellGitClient client = client(checkout, "1 month ago");
     assertEquals(selected, client.getCommitInfo(selected, true).getSha());
     assertFalse(client.isShallow());
+    assertEquals(ancestor, client.getBaseCommitSha("base", null));
     git(remote, "update-ref", "refs/heads/new-base", head);
     assertEquals(head, client(control, "1 month ago").getBaseCommitSha("new-base", null));
     assertEquals(head, client.getBaseCommitSha("new-base", null));
