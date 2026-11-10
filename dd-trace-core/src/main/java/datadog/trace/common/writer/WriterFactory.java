@@ -49,6 +49,16 @@ public class WriterFactory {
     return prioritization(config).spanBudget(config.getTraceWriterSpanBudget());
   }
 
+  /**
+   * The OTLP writer always uses {@link Prioritization#FAST_LANE}, which counts traces against a
+   * budget even when the configured prioritization doesn't, so it then gets its own.
+   */
+  private static SpanBudget otlpSpanBudget(final Config config, final SpanBudget spanBudget) {
+    return prioritization(config).usesSpanBudget()
+        ? spanBudget
+        : FAST_LANE.spanBudget(config.getTraceWriterSpanBudget());
+  }
+
   private static Prioritization prioritization(final Config config) {
     return config.getEnumValue(PRIORITIZATION_TYPE, Prioritization.class, FAST_LANE);
   }
@@ -106,7 +116,7 @@ public class WriterFactory {
           .compression(config.getOtlpTracesCompression())
           .timeoutMillis(config.getOtlpTracesTimeout())
           .spanSamplingRules(singleSpanSampler)
-          .spanBudget(spanBudget)
+          .spanBudget(otlpSpanBudget(config, spanBudget))
           .flushIntervalMilliseconds(flushIntervalMilliseconds)
           .build();
     }

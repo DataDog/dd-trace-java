@@ -172,6 +172,11 @@ public class TraceProcessingWorker implements AutoCloseable {
     return prioritizationStrategy.publish(root, samplingPriority, trace);
   }
 
+  @VisibleForTesting
+  SpanBudget spanBudget() {
+    return spanBudget;
+  }
+
   public int getCapacity() {
     return capacity;
   }

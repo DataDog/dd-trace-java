@@ -3,6 +3,7 @@ package datadog.trace.common.writer;
 import static datadog.trace.api.config.TracerConfig.PRIORITIZATION_TYPE;
 import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -252,6 +253,7 @@ class WriterFactoryTest extends DDJavaSpecification {
     when(config.getOtlpTracesProtocol()).thenReturn(protocol);
     when(config.getOtlpTracesCompression()).thenReturn(compression);
     when(config.getOtlpTracesTimeout()).thenReturn(5000);
+    stubPrioritization(config, Prioritization.FAST_LANE);
 
     // OTLP branch in WriterFactory does not consult sharedComm or sampler, so nulls are safe here.
     Writer writer =
@@ -429,5 +431,41 @@ class WriterFactoryTest extends DDJavaSpecification {
     if (!unlimited) {
       assertEquals(expectedLimit, budget.limit());
     }
+  }
+
+  @Test
+  void testOtlpWriterKeepsItsSpanBudgetWhenTheConfiguredPrioritizationDoesNotUseOne() {
+    // OTLP always uses FAST_LANE, so ENSURE_TRACE in the config must not take its budget away
+    Config config = mock(Config.class);
+    when(config.getTraceFlushIntervalSeconds()).thenReturn(1.0f);
+    when(config.getOtlpTracesEndpoint()).thenReturn("http://otel-collector:4318/v1/traces");
+    when(config.getOtlpTracesHeaders()).thenReturn(new HashMap<>());
+    when(config.getOtlpTracesProtocol()).thenReturn(OtlpConfig.Protocol.HTTP_PROTOBUF);
+    when(config.getOtlpTracesCompression()).thenReturn(OtlpConfig.Compression.NONE);
+    when(config.getOtlpTracesTimeout()).thenReturn(5000);
+    when(config.getTraceWriterSpanBudget()).thenReturn(20000);
+    stubPrioritization(config, Prioritization.ENSURE_TRACE);
+
+    SpanBudget factoryBudget = WriterFactory.spanBudget(config);
+    OtlpWriter writer =
+        (OtlpWriter)
+            WriterFactory.createWriter(
+                config, null, null, null, HealthMetrics.NO_OP, factoryBudget, "OtlpWriter");
+
+    assertTrue(factoryBudget.isUnlimited());
+    SpanBudget otlpBudget = writer.traceProcessingWorker.spanBudget();
+    assertFalse(otlpBudget.isUnlimited());
+    assertEquals(20000, otlpBudget.limit());
+    writer.close();
+  }
+
+  @SuppressWarnings("unchecked")
+  private static void stubPrioritization(Config config, Prioritization prioritization) {
+    doReturn(prioritization)
+        .when(config)
+        .getEnumValue(
+            eq(PRIORITIZATION_TYPE),
+            (Class<Prioritization>) any(Class.class),
+            any(Prioritization.class));
   }
 }
