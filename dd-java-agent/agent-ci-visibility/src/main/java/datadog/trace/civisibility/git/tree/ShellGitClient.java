@@ -322,15 +322,9 @@ public class ShellGitClient implements GitClient {
     }
     return executeCommand(
         Command.OTHER,
-        () -> {
-          try {
-            return commandExecutor.executeCommand(
-                IOUtils::readLines, buildGitCommand("tag", "--no-column", "--points-at", commit));
-          } catch (ShellCommandExecutor.ShellCommandFailedException e) {
-            // An unavailable revision cannot have local tags.
-            return Collections.emptyList();
-          }
-        });
+        () ->
+            commandExecutor.executeCommand(
+                IOUtils::readLines, buildGitCommand("tag", "--no-column", "--points-at", commit)));
   }
 
   /**
