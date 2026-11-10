@@ -186,6 +186,14 @@ abstract class NestedGradleBuild @Inject constructor(
     val appDir = applicationDir.get().asFile
     val appBuildDirFile = applicationBuildDir.get().asFile
     val daemonJavaHome = javaLauncher.get().metadata.installationPath.asFile
+    val distributionBaseUrl = gradleDistributionBaseUrl.orNull
+    val gradleInstallationDir =
+      distributionBaseUrl?.takeIf { it.isNotBlank() }?.let { baseUrl ->
+        val distributionUri = gradleDistributionUri(baseUrl, gradleVersion.get())
+        GradleDistributionCache(
+          project.gradle.gradleUserHomeDir.resolve("caches/nested-gradle-distributions"),
+        ).getInstallation(distributionUri, gradleVersion.get())
+      }
     val gradleUserHomeDir = createGradleUserHome()
     val declaredProperties = gradleProperties.get()
     val proxyProperties = proxyProperties(declaredProperties)
@@ -216,13 +224,10 @@ abstract class NestedGradleBuild @Inject constructor(
       .forProjectDirectory(appDir)
       .useGradleUserHomeDir(gradleUserHomeDir)
       .apply {
-        val distributionBaseUrl = gradleDistributionBaseUrl.orNull
-        if (distributionBaseUrl.isNullOrBlank()) {
+        if (gradleInstallationDir == null) {
           useGradleVersion(gradleVersion.get())
         } else {
-          useDistribution(
-            gradleDistributionUri(distributionBaseUrl, gradleVersion.get()),
-          )
+          useInstallation(gradleInstallationDir)
         }
       }
 
@@ -247,7 +252,13 @@ abstract class NestedGradleBuild @Inject constructor(
           .run()
       }
     } finally {
-      stopGradleDaemon(appDir, gradleUserHomeDir, daemonJavaHome, mergedEnv)?.let { daemons ->
+      stopGradleDaemon(
+        appDir,
+        gradleUserHomeDir,
+        gradleInstallationDir,
+        daemonJavaHome,
+        mergedEnv,
+      )?.let { daemons ->
         deleteGradleUserHome(gradleUserHomeDir, daemons)
       }
     }
@@ -256,6 +267,7 @@ abstract class NestedGradleBuild @Inject constructor(
   private fun stopGradleDaemon(
     appDir: File,
     gradleUserHomeDir: File,
+    gradleInstallationDir: File?,
     daemonJavaHome: File,
     environment: Map<String, String>,
   ): List<ProcessHandle>? {
@@ -271,7 +283,7 @@ abstract class NestedGradleBuild @Inject constructor(
         )
         null
       }
-      val gradleExecutable = findGradleExecutable(gradleUserHomeDir)
+      val gradleExecutable = findGradleExecutable(gradleInstallationDir ?: gradleUserHomeDir)
       if (gradleExecutable == null) {
         if (daemons?.isEmpty() == true) return daemons
         logger.warn(
