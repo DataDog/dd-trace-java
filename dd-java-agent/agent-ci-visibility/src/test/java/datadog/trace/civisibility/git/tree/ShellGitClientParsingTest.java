@@ -3,8 +3,10 @@ package datadog.trace.civisibility.git.tree;
 import static datadog.trace.civisibility.git.tree.GitTestRepository.client;
 import static datadog.trace.civisibility.git.tree.GitTestRepository.fixture;
 import static datadog.trace.civisibility.git.tree.GitTestRepository.git;
+import static datadog.trace.civisibility.git.tree.GitTestRepository.writeCommit;
 import static datadog.trace.civisibility.git.tree.GitTestRepository.writeObject;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -40,12 +42,14 @@ class ShellGitClientParsingTest {
   }
 
   @TableTest({
-    "Scenario               | includeOldRoot | expectedCommands",
-    "excluded recent roots  | false          | 2               ",
-    "excluded and old roots | true           | 3               "
+    "Scenario         | includeOldRoot | backendExclusions | expectedCommands",
+    "excluded recent  | false          | true              | 2               ",
+    "excluded and old | true           | true              | 3               ",
+    "capped recent    | false          | false             | 2               ",
+    "capped and old   | true           | false             | 3               "
   })
-  void excludedAncestorsDoNotStartOneProcessPerCommit(boolean includeOldRoot, int expectedCommands)
-      throws Exception {
+  void unrecoveredRootsDoNotStartOneProcessPerCommit(
+      boolean includeOldRoot, boolean backendExclusions, int expectedCommands) throws Exception {
     List<String> recentRoots = new ArrayList<>();
     for (int i = 1; i < 1000; i++) {
       recentRoots.add(String.format("%040x", i));
@@ -77,14 +81,22 @@ class ShellGitClientParsingTest {
     executor.set(client, command);
 
     List<String> objects =
-        client.getObjects(singletonList("ffffffffffffffffffffffffffffffffffffffff"), includedRoots);
+        client.getObjects(
+            backendExclusions
+                ? singletonList("ffffffffffffffffffffffffffffffffffffffff")
+                : emptyList(),
+            includedRoots);
 
     assertEquals(expectedCommands, commands.get());
     assertEquals(includeOldRoot ? singletonList(oldRoot) : emptyList(), objects);
   }
 
-  @Test
-  void cappedTraversalIncludesABackdatedSelectedMerge() throws Exception {
+  @TableTest({
+    "Scenario       | backendExclusions",
+    "known roots    | true             ",
+    "no known roots | false            "
+  })
+  void cappedTraversalIncludesABackdatedSelectedMerge(boolean backendExclusions) throws Exception {
     String parent = git(command, "rev-parse", "HEAD");
     long now = System.currentTimeMillis() / 1000;
     StringBuilder input = new StringBuilder();
@@ -108,11 +120,16 @@ class ShellGitClientParsingTest {
     String selected = git(command, "rev-parse", "refs/heads/capped");
     String known = git(command, "rev-parse", selected + "^");
     List<String> commits = client.getLatestCommits(selected);
-    commits.remove(known);
-    List<String> objects = client.getObjects(singletonList(known), commits);
+    if (backendExclusions) {
+      commits.remove(known);
+    }
+    List<String> objects =
+        client.getObjects(backendExclusions ? singletonList(known) : emptyList(), commits);
     assertTrue(objects.contains(selected));
-    assertFalse(objects.contains(known));
-    assertTrue(objects.size() <= 1000);
+    if (backendExclusions) {
+      assertFalse(objects.contains(known));
+    }
+    assertTrue(objects.size() <= (backendExclusions ? 1000 : 1001));
   }
 
   @Test
@@ -173,11 +190,25 @@ class ShellGitClientParsingTest {
     client = client(checkout, since);
     String selected = "98cd7c8e9cf71e02dc28bd9b13928bee0f85b74c";
 
-    List<String> commits = client.getLatestCommits(selected.toUpperCase(Locale.ROOT));
+    for (String input : asList(selected.toUpperCase(Locale.ROOT), selected.substring(0, 8))) {
+      List<String> commits = client.getLatestCommits(input);
+      assertEquals(client.getLatestCommits(selected), commits);
+      assertEquals(selected, commits.get(0));
+      assertEquals(1, commits.stream().filter(selected::equals).count());
+    }
+  }
 
-    assertEquals(client.getLatestCommits(selected), commits);
-    assertEquals(selected, commits.get(0));
-    assertEquals(1, commits.stream().filter(selected::equals).count());
+  @Test
+  void optionLikeSelectedRevisionsCannotEnumerateOtherRefs() throws Exception {
+    String selected =
+        writeCommit(
+            command,
+            git(command, "rev-parse", "HEAD^{tree}"),
+            git(command, "rev-parse", "HEAD"),
+            "recent commit");
+    git(command, "update-ref", "refs/heads/recent", selected);
+    assertTrue(client.getLatestCommits("--all").isEmpty());
+    assertEquals(CommitInfo.NOOP, client.getCommitInfo("--all", false));
   }
 
   @Test

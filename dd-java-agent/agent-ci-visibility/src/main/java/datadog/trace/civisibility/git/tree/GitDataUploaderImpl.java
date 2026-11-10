@@ -99,9 +99,11 @@ public class GitDataUploaderImpl implements GitDataUploader {
       String selectedCommit = gitInfo.getCommit().getSha();
       List<String> latestCommits = gitClient.getLatestCommits(selectedCommit);
       boolean unshallowed = false;
+      boolean recoveredSelected = false;
       if (latestCommits.isEmpty() && config.isCiVisibilityGitUnshallowEnabled()) {
         // HEAD/upstream recovery may not contain an explicitly selected revision.
         gitClient.getCommitInfo(selectedCommit, true);
+        recoveredSelected = true;
         latestCommits = gitClient.getLatestCommits(selectedCommit);
         unshallowed = !gitClient.isShallow();
       }
@@ -120,9 +122,19 @@ public class GitDataUploaderImpl implements GitDataUploader {
         return;
       }
 
+      boolean refreshed = false;
+      if (!recoveredSelected
+          && config.isCiVisibilityGitUnshallowEnabled()
+          && gitClient.isShallow()) {
+        gitClient.fetchCommit(selectedCommit);
+        refreshed = true;
+      }
       if (config.isCiVisibilityGitUnshallowDefer()
           && !unshallowed
           && gitRepoUnshallow.unshallow()) {
+        refreshed = true;
+      }
+      if (refreshed) {
         latestCommits = gitClient.getLatestCommits(selectedCommit);
         commitsToSkip = gitDataApi.searchCommits(remoteUrl, latestCommits);
       }

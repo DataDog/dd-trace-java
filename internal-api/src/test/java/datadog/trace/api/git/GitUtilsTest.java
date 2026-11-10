@@ -94,6 +94,7 @@ class GitUtilsTest {
     "short tag                          | v1.2.3                  | true ",
     "main                               | main                    | true ",
     "develop                            | develop                 | true ",
+    "option                             | --all                   | false",
     "empty                              | ''                      | false",
     "whitespace only                    | '   '                   | false",
     "null                               |                         | false",

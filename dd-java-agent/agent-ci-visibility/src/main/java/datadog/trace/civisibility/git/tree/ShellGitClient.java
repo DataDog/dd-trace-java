@@ -16,6 +16,7 @@ import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitUtils;
 import datadog.trace.api.git.PersonInfo;
 import datadog.trace.civisibility.diff.LineDiff;
+import datadog.trace.civisibility.utils.FileUtils;
 import datadog.trace.civisibility.utils.ShellCommandExecutor;
 import datadog.trace.civisibility.utils.ShellCommandExecutor.OutputParser;
 import datadog.trace.util.Strings;
@@ -25,6 +26,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringReader;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.FileStore;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -34,9 +36,11 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeoutException;
 import java.util.regex.Pattern;
@@ -65,6 +69,9 @@ public class ShellGitClient implements GitClient {
   private final int latestCommitsLimit;
   private final ShellCommandExecutor commandExecutor;
   private final String safeDirectoryOption;
+  private final long timeoutMillis;
+  private final ThreadLocal<Path> activeShallowFile = new ThreadLocal<>();
+  @Nullable private String recoveredShallowCommits;
 
   /**
    * Creates a new git client
@@ -86,6 +93,7 @@ public class ShellGitClient implements GitClient {
     this.metricCollector = metricCollector;
     this.latestCommitsSince = latestCommitsSince;
     this.latestCommitsLimit = latestCommitsLimit;
+    this.timeoutMillis = timeoutMillis;
 
     this.repoRoot = findGitRepositoryRoot(new File(repoRoot));
     this.safeDirectoryOption = "safe.directory=" + this.repoRoot;
@@ -122,14 +130,20 @@ public class ShellGitClient implements GitClient {
    * @return The complete command array including Git configuration options and the args
    */
   private String[] buildGitCommand(String... gitArgs) {
-    String[] command = new String[gitArgs.length + 5];
+    Path shallowFile = activeShallowFile.get();
+    int offset = shallowFile == null ? 5 : 7;
+    String[] command = new String[gitArgs.length + offset];
     command[0] = "git";
     command[1] = "-c";
     command[2] = safeDirectoryOption;
     command[3] = "-c";
     // This requests UTF-8 commit text; refs, config values and filesystem paths retain their bytes.
     command[4] = "i18n.logOutputEncoding=UTF-8";
-    System.arraycopy(gitArgs, 0, command, 5, gitArgs.length);
+    if (shallowFile != null) {
+      command[5] = "--shallow-file";
+      command[6] = shallowFile.toString();
+    }
+    System.arraycopy(gitArgs, 0, command, offset, gitArgs.length);
     return command;
   }
 
@@ -422,7 +436,8 @@ public class ShellGitClient implements GitClient {
   }
 
   /** Fetches provided commit object from the server. */
-  private void fetchCommit(String remoteCommitReference)
+  @Override
+  public void fetchCommit(String remoteCommitReference)
       throws IOException, TimeoutException, InterruptedException {
     if (GitUtils.isNotValidCommit(remoteCommitReference)) {
       return;
@@ -442,16 +457,82 @@ public class ShellGitClient implements GitClient {
               "--no-write-fetch-head",
               remote,
               remoteCommitReference);
+          Path recoveryDirectory = null;
+          ShellCommandExecutor fetchExecutor = commandExecutor;
           try {
-            commandExecutor.executeCommand(
-                ShellCommandExecutor.OutputParser.IGNORE,
-                buildGitCommand(args.toArray(new String[0])));
-          } catch (ShellCommandExecutor.ShellCommandFailedException e) {
-            // A selected revision can predate the history window.
-            args.set(1, "--depth=1");
-            commandExecutor.executeCommand(
-                ShellCommandExecutor.OutputParser.IGNORE,
-                buildGitCommand(args.toArray(new String[0])));
+            if (!isShallow()) {
+              // A private Git directory owns the boundaries; downloaded objects remain reusable.
+              recoveryDirectory = Files.createTempDirectory("dd-ci-vis-recovery-");
+              String objects =
+                  commandExecutor
+                      .executeCommand(
+                          IOUtils::readFully, buildGitCommand("rev-parse", "--git-path", "objects"))
+                      .trim();
+              Map<String, String> environment = new HashMap<>();
+              environment.put("GIT_DIR", recoveryDirectory.toString());
+              environment.put("GIT_COMMON_DIR", recoveryDirectory.toString());
+              environment.put(
+                  "GIT_OBJECT_DIRECTORY", Paths.get(repoRoot).resolve(objects).toString());
+              fetchExecutor =
+                  new ShellCommandExecutor(new File(repoRoot), timeoutMillis, environment);
+              fetchExecutor.executeCommand(
+                  ShellCommandExecutor.OutputParser.IGNORE,
+                  "git",
+                  "init",
+                  "--bare",
+                  recoveryDirectory.toString());
+              for (String configFile : Arrays.asList("config", "config.worktree")) {
+                String configPath =
+                    commandExecutor
+                        .executeCommand(
+                            IOUtils::readFully,
+                            buildGitCommand("rev-parse", "--git-path", configFile))
+                        .trim();
+                Path source = Paths.get(repoRoot).resolve(configPath);
+                if (Files.exists(source)) {
+                  fetchExecutor.executeCommand(
+                      ShellCommandExecutor.OutputParser.IGNORE,
+                      "git",
+                      "config",
+                      "--add",
+                      "include.path",
+                      source.toString());
+                }
+              }
+              if (isCommitPresent(HEAD)) {
+                fetchExecutor.executeCommand(
+                    ShellCommandExecutor.OutputParser.IGNORE,
+                    "git",
+                    "update-ref",
+                    "HEAD",
+                    getSha(HEAD));
+              }
+            }
+            try {
+              fetchExecutor.executeCommand(
+                  ShellCommandExecutor.OutputParser.IGNORE,
+                  buildGitCommand(args.toArray(new String[0])));
+            } catch (ShellCommandExecutor.ShellCommandFailedException e) {
+              // A selected revision can predate the history window.
+              args.set(1, "--depth=1");
+              fetchExecutor.executeCommand(
+                  ShellCommandExecutor.OutputParser.IGNORE,
+                  buildGitCommand(args.toArray(new String[0])));
+            }
+            if (recoveryDirectory != null) {
+              Path shallow = recoveryDirectory.resolve("shallow");
+              if (Files.exists(shallow)) {
+                if (Files.size(shallow) > latestCommitsLimit * 41L) {
+                  throw new IOException("Too many shallow boundaries in recovered Git history");
+                }
+                recoveredShallowCommits =
+                    new String(Files.readAllBytes(shallow), StandardCharsets.UTF_8);
+              }
+            }
+          } finally {
+            if (recoveryDirectory != null) {
+              FileUtils.delete(recoveryDirectory);
+            }
           }
 
           return (Void) null;
@@ -541,8 +622,17 @@ public class ShellGitClient implements GitClient {
     if (GitUtils.isNotValidCommit(commit)) {
       return Collections.emptyList();
     }
-    String canonicalCommit =
-        GitUtils.isValidCommitShaFull(commit) ? commit.toLowerCase(Locale.ROOT) : commit;
+    String resolvedCommit = commit;
+    if (GitUtils.isValidCommitShaFull(commit)) {
+      resolvedCommit = commit.toLowerCase(Locale.ROOT);
+    } else if (GitUtils.isValidCommitSha(commit)) {
+      try {
+        resolvedCommit = getSha(commit.toLowerCase(Locale.ROOT));
+      } catch (ShellCommandExecutor.ShellCommandFailedException e) {
+        return Collections.emptyList();
+      }
+    }
+    final String canonicalCommit = resolvedCommit;
     List<String> commits;
     try {
       commits =
@@ -616,7 +706,7 @@ public class ShellGitClient implements GitClient {
           for (String object : objects) {
             rootsToRecover.remove(object);
           }
-          if (!rootsToRecover.isEmpty() && !commitsToSkip.isEmpty()) {
+          if (!rootsToRecover.isEmpty()) {
             List<String> inWindowArgs = new ArrayList<>();
             Collections.addAll(
                 inWindowArgs,
@@ -1110,10 +1200,20 @@ public class ShellGitClient implements GitClient {
     T execute() throws IOException, TimeoutException, InterruptedException;
   }
 
-  private <T> T executeCommand(Command commandType, GitCommand<T> command)
+  private synchronized <T> T executeCommand(Command commandType, GitCommand<T> command)
       throws IOException, TimeoutException, InterruptedException {
     long startTime = System.currentTimeMillis();
+    Path shallowFile = null;
     try {
+      // Keep recovery boundaries private when the caller's checkout is complete.
+      if (activeShallowFile.get() == null
+          && commandType != Command.CHECK_SHALLOW
+          && commandType != Command.FETCH_COMMIT
+          && recoveredShallowCommits != null) {
+        shallowFile = Files.createTempFile("dd-ci-vis-shallow-", ".tmp");
+        Files.write(shallowFile, recoveredShallowCommits.getBytes(StandardCharsets.UTF_8));
+        activeShallowFile.set(shallowFile);
+      }
       return command.execute();
 
     } catch (IOException | TimeoutException | InterruptedException e) {
@@ -1125,6 +1225,11 @@ public class ShellGitClient implements GitClient {
       throw e;
 
     } finally {
+      if (shallowFile != null) {
+        activeShallowFile.remove();
+        Files.deleteIfExists(shallowFile);
+        Files.deleteIfExists(Paths.get(shallowFile + ".lock"));
+      }
       metricCollector.add(CiVisibilityCountMetric.GIT_COMMAND, 1, commandType);
       metricCollector.add(
           CiVisibilityDistributionMetric.GIT_COMMAND_MS,
