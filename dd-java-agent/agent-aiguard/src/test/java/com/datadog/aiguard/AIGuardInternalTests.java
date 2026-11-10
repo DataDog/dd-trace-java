@@ -1,6 +1,10 @@
 package com.datadog.aiguard;
 
 import static com.datadog.aiguard.AIGuardInternal.ACTION_TAG;
+import static com.datadog.aiguard.AIGuardInternal.BLOCKED_TAG;
+import static com.datadog.aiguard.AIGuardInternal.EXTRA_METASTRUCT_FIELD;
+import static com.datadog.aiguard.AIGuardInternal.EXTRA_TAGS_FIELD;
+import static com.datadog.aiguard.AIGuardInternal.META_STRUCT_MESSAGES;
 import static com.datadog.aiguard.AIGuardInternal.META_STRUCT_TAG;
 import static com.datadog.aiguard.AIGuardInternal.REASON_TAG;
 import static com.datadog.aiguard.AIGuardInternal.TARGET_TAG;
@@ -601,6 +605,100 @@ class AIGuardInternalTests {
   }
 
   @Test
+  void testEvaluateAppliesExtrasOnAllow() throws IOException {
+    Map<String, Object> policy = new HashMap<>();
+    policy.put("name", "p1");
+    policy.put("enabled", true);
+    policy.put("weights", asList(1, 2));
+    policy.put("nested", singletonMap("a", "b"));
+    Map<String, Object> attributes = new HashMap<>();
+    attributes.put("action", "ALLOW");
+    attributes.put("reason", "It is fine");
+    attributes.put(
+        EXTRA_TAGS_FIELD,
+        asList(
+            extra("ai_guard.evaluate_id", "11111111-2222-3333-4444-555555555555"),
+            extra("custom.tag", "custom-value")));
+    attributes.put(
+        EXTRA_METASTRUCT_FIELD, asList(extra("policy", policy), extra("scalar_entry", "x")));
+    AIGuardInternal aiguard = mockClient(200, evaluation(attributes));
+
+    Evaluation result = aiguard.evaluate(PROMPT, DEFAULT);
+
+    assertEquals(ALLOW, result.getAction());
+    verify(span).setTag("ai_guard.evaluate_id", "11111111-2222-3333-4444-555555555555");
+    verify(span).setTag("custom.tag", "custom-value");
+    // Moshi decodes every JSON number as a Double
+    Map<String, Object> expectedPolicy = new HashMap<>();
+    expectedPolicy.put("name", "p1");
+    expectedPolicy.put("enabled", true);
+    expectedPolicy.put("weights", asList(1.0, 2.0));
+    expectedPolicy.put("nested", singletonMap("a", "b"));
+    assertEquals(expectedPolicy, receivedMeta.get("policy"));
+    assertEquals("x", receivedMeta.get("scalar_entry"));
+    assertTrue(receivedMeta.containsKey(META_STRUCT_MESSAGES));
+    assertFalse(receivedMeta.containsKey("ai_guard.evaluate_id"));
+    assertFalse(receivedMeta.containsKey("custom.tag"));
+  }
+
+  @Test
+  void testEvaluateAppliesExtrasOnDeny() throws IOException {
+    Map<String, Object> attributes = new HashMap<>();
+    attributes.put("action", "DENY");
+    attributes.put("reason", "Not allowed");
+    attributes.put("is_blocking_enabled", true);
+    attributes.put(
+        EXTRA_TAGS_FIELD,
+        singletonList(extra("ai_guard.evaluate_id", "11111111-2222-3333-4444-555555555555")));
+    attributes.put(
+        EXTRA_METASTRUCT_FIELD,
+        singletonList(extra("policy", singletonMap("weights", asList(7, 8)))));
+    AIGuardInternal aiguard = mockClient(200, evaluation(attributes));
+
+    AIGuardAbortError error =
+        assertThrows(
+            AIGuardAbortError.class, () -> aiguard.evaluate(PROMPT, new Options().block(true)));
+
+    assertEquals(DENY, error.getAction());
+    verify(span).setTag("ai_guard.evaluate_id", "11111111-2222-3333-4444-555555555555");
+    verify(span).setTag(BLOCKED_TAG, true);
+    assertEquals(singletonMap("weights", asList(7.0, 8.0)), receivedMeta.get("policy"));
+    assertTrue(receivedMeta.containsKey(META_STRUCT_MESSAGES));
+  }
+
+  @Test
+  void testEvaluateKeepsExtraKeysVerbatim() throws IOException {
+    String evaluationContext = repeat('C', 3000);
+    Map<String, Object> attributes = new HashMap<>();
+    attributes.put("action", "ALLOW");
+    attributes.put("reason", "It is fine");
+    attributes.put(
+        EXTRA_TAGS_FIELD,
+        asList(
+            extra("ai_guard.evaluation_context", evaluationContext),
+            extra("custom.key", "custom-value"),
+            extra("ai_guard.evaluate_id", "11111111-2222-3333-4444-555555555555")));
+    attributes.put(
+        EXTRA_METASTRUCT_FIELD, singletonList(extra("evaluation_policy", "policy-value")));
+    AIGuardInternal aiguard = mockClient(200, evaluation(attributes));
+
+    aiguard.evaluate(PROMPT, DEFAULT);
+
+    // Values are never truncated
+    verify(span).setTag("ai_guard.evaluation_context", evaluationContext);
+    assertEquals(3000, evaluationContext.length());
+    // Keys without the ai_guard prefix are not prefixed
+    verify(span).setTag("custom.key", "custom-value");
+    verifyTagNeverSet("ai_guard.custom.key");
+    // Keys that already carry the ai_guard prefix are not prefixed twice
+    verify(span).setTag("ai_guard.evaluate_id", "11111111-2222-3333-4444-555555555555");
+    verifyTagNeverSet("ai_guard.ai_guard.evaluate_id");
+    // meta_struct keys are kept verbatim too
+    assertEquals("policy-value", receivedMeta.get("evaluation_policy"));
+    assertFalse(receivedMeta.containsKey("ai_guard.evaluation_policy"));
+  }
+
+  @Test
   void testMissingToolName() throws IOException {
     AIGuardInternal aiguard = mockClient(200, evaluation("ALLOW", "Just do it"));
 
@@ -875,6 +973,20 @@ class AIGuardInternalTests {
 
   private static Map<String, Object> evaluation(Map<String, Object> attributes) {
     return singletonMap("data", singletonMap("attributes", attributes));
+  }
+
+  /** Builds one {@code {key, value}} entry of the backend extra_tags or extra_metastruct lists. */
+  private static Map<String, Object> extra(String key, Object value) {
+    Map<String, Object> entry = new HashMap<>();
+    entry.put("key", key);
+    entry.put("value", value);
+    return entry;
+  }
+
+  /** Verifies that no tag was set on the span with the given key, pinning both setTag overloads. */
+  private void verifyTagNeverSet(String key) {
+    verify(span, never()).setTag(eq(key), anyString());
+    verify(span, never()).setTag(eq(key), (Object) any());
   }
 
   private static Map<String, Object> sdsFinding(
