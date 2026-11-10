@@ -5,6 +5,7 @@ import static datadog.trace.civisibility.git.tree.GitTestRepository.fixture;
 import static datadog.trace.civisibility.git.tree.GitTestRepository.git;
 import static datadog.trace.civisibility.git.tree.GitTestRepository.writeCommit;
 import static datadog.trace.civisibility.git.tree.GitTestRepository.writeObject;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -101,6 +102,39 @@ class GitRecoveryCompatibilityTest {
     }
     assertEquals(selected, client.getCommitInfo(selected, true).getSha());
     assertEquals(base, client.getMergeBase(base, selected));
+    assertFalse(client.isShallow());
+  }
+
+  @Test
+  void privateRecoveryRetainsBlobsForSubsequentDiffs() throws Exception {
+    Path origin = directory.resolve("origin");
+    ShellCommandExecutor remote = fixture(origin);
+    git(remote, "config", "uploadpack.allowFilter", "true");
+    Path checkout = cloneFrom(remote, origin);
+    String base = git(remote, "rev-parse", "HEAD");
+    String blob =
+        remote
+            .executeCommand(
+                IOUtils::readFully,
+                "selected contents\n".getBytes(UTF_8),
+                "git",
+                "hash-object",
+                "-w",
+                "--stdin")
+            .trim();
+    String tree =
+        remote
+            .executeCommand(
+                IOUtils::readFully,
+                ("100644 blob " + blob + "\tnew.txt\n").getBytes(UTF_8),
+                "git",
+                "mktree")
+            .trim();
+    String selected = writeCommit(remote, tree, base, "new file");
+    git(remote, "update-ref", "refs/heads/selected", selected);
+    ShellGitClient client = client(checkout, "1 month ago");
+    client.fetchSelectedCommit(selected);
+    assertTrue(client.getGitDiff(base, selected).contains("new.txt", 1, 1));
     assertFalse(client.isShallow());
   }
 

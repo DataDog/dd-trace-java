@@ -458,6 +458,8 @@ public class ShellGitClient implements GitClient {
               // A private Git directory owns the boundaries; downloaded objects remain reusable.
               recoveryDirectory = Files.createTempDirectory("dd-ci-vis-recovery-");
               args.add(2, "--no-auto-gc");
+              // The temporary promisor configuration will be deleted; keep its blobs reusable.
+              args.remove("--filter=blob:none");
               String objects =
                   commandExecutor
                       .executeCommand(
