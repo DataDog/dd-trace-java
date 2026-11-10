@@ -1246,7 +1246,7 @@ Optimizes CI by skipping tests for projects unaffected by git changes.
 ```
 
 The system:
-- Detects changed files via `git diff`
+- Detects files changed since the merge base with `git diff <gitBaseRef>...<gitNewRef>`, so changes made on the base branch are not counted
 - Maps changes to affected projects
 - Skips tests for unchanged projects
 - Falls back to running all tests if "global effect" files change (e.g., `gradle/`, `build.gradle`)
