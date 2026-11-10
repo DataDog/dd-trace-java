@@ -1,5 +1,7 @@
 package datadog.trace.civisibility.git.tree;
 
+import static java.util.Collections.emptyList;
+
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityDistributionMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
@@ -99,7 +101,18 @@ public class GitDataUploaderImpl implements GitDataUploader {
       GitInfo gitInfo = gitInfoProvider.getGitInfo(repoRoot);
       String remoteUrl = gitInfo.getRepositoryURL();
       String selectedCommit = gitInfo.getCommit().getSha();
-      List<String> latestCommits = gitClient.getLatestCommits(selectedCommit);
+      List<String> latestCommits;
+      try {
+        latestCommits = gitClient.getLatestCommits(selectedCommit);
+      } catch (
+          datadog.trace.civisibility.utils.ShellCommandExecutor.ShellCommandFailedException e) {
+        if (!config.isCiVisibilityGitUnshallowEnabled()) {
+          throw e;
+        }
+        // A previous client's bounded fetch may have stored the tip without its parents.
+        LOGGER.debug("Could not read selected history; attempting configured recovery", e);
+        latestCommits = emptyList();
+      }
       boolean unshallowed = false;
       boolean recoveredSelected = false;
       if (latestCommits.isEmpty() && config.isCiVisibilityGitUnshallowEnabled()) {
@@ -140,8 +153,8 @@ public class GitDataUploaderImpl implements GitDataUploader {
       if (config.isCiVisibilityGitUnshallowDefer() && !unshallowed) {
         try {
           refreshed |= gitRepoUnshallow.unshallow();
-        } catch (
-            datadog.trace.civisibility.utils.ShellCommandExecutor.ShellCommandFailedException e) {
+        } catch (datadog.trace.civisibility.utils.ShellCommandExecutor.ShellCommandFailedException
+            | TimeoutException e) {
           if (!recoveredSelected && !refreshed) {
             throw e;
           }
