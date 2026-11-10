@@ -46,7 +46,7 @@ public interface GitClient {
       throws IOException, TimeoutException, InterruptedException;
 
   /** Recovers the selected revision and its bounded history, including existing shallow roots. */
-  void fetchCommit(String commitReference)
+  void fetchSelectedCommit(String commitReference)
       throws IOException, TimeoutException, InterruptedException;
 
   @Nonnull
