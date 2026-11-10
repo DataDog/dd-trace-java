@@ -50,7 +50,6 @@
 
 # @DataDog/apm-idm-java
 /dd-java-agent/instrumentation/                      @DataDog/apm-java @DataDog/apm-idm-java
-/dd-java-agent/instrumentation/play/play-2.6/src/testFixtures/java/playtest/ControlledAction.java  @DataDog/apm-java @DataDog/apm-idm-java
 /dd-smoke-tests/armeria-grpc/                        @DataDog/apm-java @DataDog/apm-idm-java
 /dd-smoke-tests/cli/                                 @DataDog/apm-java @DataDog/apm-idm-java
 /dd-smoke-tests/grpc-1.5/                            @DataDog/apm-java @DataDog/apm-idm-java
