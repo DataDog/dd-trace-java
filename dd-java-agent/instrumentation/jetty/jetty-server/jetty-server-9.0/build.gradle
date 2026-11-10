@@ -44,6 +44,7 @@ dependencies {
   testFixturesCompileOnly group: 'org.eclipse.jetty', name: 'jetty-servlet', version: jetty9Version
   testFixturesImplementation  group: 'javax.websocket', name: 'javax.websocket-api', version: '1.0'
   testImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: jetty9Version
+  testImplementation libs.bundles.mockito
   testImplementation group: 'org.eclipse.jetty', name: 'jetty-servlet', version: jetty9Version
   testImplementation group: 'org.eclipse.jetty', name: 'jetty-continuation', version: jetty9Version
   testImplementation project(':dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-7.0')
