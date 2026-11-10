@@ -233,6 +233,10 @@ class DatadogHttpCodec {
         } catch (RuntimeException e) {
           invalidateContext();
           log.debug("Exception when extracting context", e);
+        } finally {
+          // The interpreter is cached per thread: don't keep the raw header reachable until the
+          // next extraction.
+          datadogTags = null;
         }
       }
       restore128bTraceId();
