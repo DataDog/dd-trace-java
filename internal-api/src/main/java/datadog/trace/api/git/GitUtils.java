@@ -132,8 +132,9 @@ public class GitUtils {
       int at = urlStr.indexOf('@');
       if (colon >= 0 && at > colon) {
         int pathColon = urlStr.indexOf(':', colon + 1);
-        // A password separator before @ is opaque URI user info, not an SCP path.
-        if (pathColon >= 0 && pathColon < at) {
+        // A slash before the second colon identifies an SCP path, not opaque user info.
+        int slash = urlStr.indexOf('/', colon + 1);
+        if (pathColon >= 0 && pathColon < at && (slash < 0 || pathColon < slash)) {
           return null;
         }
       }

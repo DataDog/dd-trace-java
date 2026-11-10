@@ -119,16 +119,18 @@ class GitUtilsTest {
   }
 
   @TableTest({
-    "scenario          | url                                                | expectedResult                           ",
-    "SSH alias         | 'ssh://git@git_alias/team/repo.git'                | 'ssh://git_alias/team/repo.git'          ",
-    "alias credentials | 'ssh://user:password@git_alias:2222/team/repo.git' | 'ssh://git_alias:2222/team/repo.git'     ",
-    "custom scheme     | 'git+ssh://git@git_alias/team/repo.git'            | 'git+ssh://git_alias/team/repo.git'      ",
-    "SCP alias path    | 'git_alias:repos/@team/project.git'                | 'git_alias:repos/@team/project.git'      ",
-    "SCP host path     | 'host.com:repos/team@version/project.git'          | 'host.com:repos/team@version/project.git'",
-    "SCP leading at    | 'git_alias:@team/project.git'                      | 'git_alias:@team/project.git'            ",
-    "SCP path at       | 'git_alias:project@version.git'                    | 'git_alias:project@version.git'          ",
-    "SCP IPv6 path     | '[2001:db8::1]:repos/@team/project.git'            | '[2001:db8::1]:repos/@team/project.git'  ",
-    "invalid port      | 'ssh://user:password@git_alias:invalid/repo.git'   |                                          "
+    "scenario          | url                                                | expectedResult                                    ",
+    "SSH alias         | 'ssh://git@git_alias/team/repo.git'                | 'ssh://git_alias/team/repo.git'                   ",
+    "alias credentials | 'ssh://user:password@git_alias:2222/team/repo.git' | 'ssh://git_alias:2222/team/repo.git'              ",
+    "custom scheme     | 'git+ssh://git@git_alias/team/repo.git'            | 'git+ssh://git_alias/team/repo.git'               ",
+    "SCP alias path    | 'git_alias:repos/@team/project.git'                | 'git_alias:repos/@team/project.git'               ",
+    "SCP host path     | 'host.com:repos/team@version/project.git'          | 'host.com:repos/team@version/project.git'         ",
+    "SCP leading at    | 'git_alias:@team/project.git'                      | 'git_alias:@team/project.git'                     ",
+    "SCP path at       | 'git_alias:project@version.git'                    | 'git_alias:project@version.git'                   ",
+    "SCP IPv6 path     | '[2001:db8::1]:repos/@team/project.git'            | '[2001:db8::1]:repos/@team/project.git'           ",
+    "SCP path colons   | 'git_alias:repos/release:1@stable/project.git'     | 'git_alias:repos/release:1@stable/project.git'    ",
+    "SCP IPv6 colons   | '[2001:db8::1]:repos/release:1@stable/project.git' | '[2001:db8::1]:repos/release:1@stable/project.git'",
+    "invalid port      | 'ssh://user:password@git_alias:invalid/repo.git'   |                                                   "
   })
   void testHostAliasesKeepSanitizedRepositoryIdentity(String url, String expectedResult) {
     assertEquals(expectedResult, GitUtils.filterSensitiveInfo(url));
