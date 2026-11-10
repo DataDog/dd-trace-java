@@ -436,11 +436,10 @@ public class ShellGitClient implements GitClient {
               // Snapshot includes in the original gitdir/branch context, including inherited
               // overrides.
               String[] settings =
-                  commandExecutor
-                      .executeCommand(
+                  COMMIT_INFO_SPLIT.split(
+                      commandExecutor.executeCommand(
                           IOUtils::readFully,
-                          buildGitCommand("config", "--null", "--list", "--includes"))
-                      .split("\u0000");
+                          buildGitCommand("config", "--null", "--list", "--includes")));
               environment.put("GIT_CONFIG_NOSYSTEM", "1");
               environment.put("GIT_CONFIG_GLOBAL", recoveryDirectory.resolve("config").toString());
               environment.put("GIT_CONFIG_PARAMETERS", "");
