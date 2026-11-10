@@ -327,9 +327,9 @@ class ShellGitClientParsingTest {
   }
 
   @TableTest({
-    "Scenario       | since        ",
-    "inside window  | '1970-01-01' ",
-    "outside window | '1 month ago'"
+    "Scenario       | since                 ",
+    "inside window  | '1970-01-01T00:00:00Z'",
+    "outside window | '1 month ago'         "
   })
   void selectedCommitHistoryUsesOneCanonicalSha(String since) throws Exception {
     client = client(checkout, since);
@@ -341,6 +341,29 @@ class ShellGitClientParsingTest {
       assertEquals(selected, commits.get(0));
       assertEquals(1, commits.stream().filter(selected::equals).count());
     }
+  }
+
+  @TableTest({
+    "Scenario              | since                     ",
+    "epoch in UTC          | '1970-01-01T00:00:00Z'    ",
+    "epoch positive offset | '1970-01-01T00:00:00+0100'",
+    "later cutoff          | '2030-01-01T00:00:00Z'    "
+  })
+  void historyMatchesNativeUnsignedDateCutoffs(String since) throws Exception {
+    String expected =
+        git(
+            command,
+            "log",
+            "--no-show-signature",
+            "--format=%H",
+            "-n",
+            "1000",
+            "--since=" + since,
+            "HEAD",
+            "--");
+    assertEquals(
+        expected.isEmpty() ? emptyList() : asList(expected.split("\n")),
+        client(checkout, since).getLatestCommits());
   }
 
   @Test
