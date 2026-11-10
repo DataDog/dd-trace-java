@@ -160,4 +160,4 @@ org.testcontainers:mongodb:1.21.4=testCompileClasspath,testRuntimeClasspath
 org.testcontainers:testcontainers:1.21.4=testCompileClasspath,testRuntimeClasspath
 org.xmlresolver:xmlresolver:5.3.3=spotbugs
 org.yaml:snakeyaml:1.27=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
-empty=annotationProcessor,shadow,spotbugsPlugins,testAnnotationProcessor
+empty=annotationProcessor,shadow,smokeTestDiagnosticsClasspath,smokeTestTracerClasspath,spotbugsPlugins,testAnnotationProcessor

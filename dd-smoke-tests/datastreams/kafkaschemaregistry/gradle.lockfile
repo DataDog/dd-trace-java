@@ -117,4 +117,4 @@ org.tabletest:tabletest-parser:1.2.1=testCompileClasspath,testRuntimeClasspath
 org.xerial.snappy:snappy-java:1.1.10.5=runtimeClasspath,testRuntimeClasspath
 org.xmlresolver:xmlresolver:5.3.3=spotbugs
 org.yaml:snakeyaml:2.0=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
-empty=annotationProcessor,shadow,spotbugsPlugins,testAnnotationProcessor
+empty=annotationProcessor,shadow,smokeTestDiagnosticsClasspath,smokeTestTracerClasspath,spotbugsPlugins,testAnnotationProcessor

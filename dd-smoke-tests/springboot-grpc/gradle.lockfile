@@ -209,4 +209,4 @@ org.testcontainers:testcontainers:1.21.4=testCompileClasspath,testCompileProtoPa
 org.threeten:threetenbp:1.4.4=compileClasspath,compileProtoPath,runtimeClasspath,testCompileClasspath,testCompileProtoPath,testRuntimeClasspath
 org.xmlresolver:xmlresolver:5.3.3=spotbugs
 org.yaml:snakeyaml:1.17=compileProtoPath,runtimeClasspath,testCompileProtoPath,testRuntimeClasspath
-empty=annotationProcessor,protobuf,shadow,spotbugsPlugins,testAnnotationProcessor,testProtobuf
+empty=annotationProcessor,protobuf,shadow,smokeTestDiagnosticsClasspath,smokeTestTracerClasspath,spotbugsPlugins,testAnnotationProcessor,testProtobuf

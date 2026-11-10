@@ -1,4 +1,3 @@
-import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import java.util.jar.JarFile
 
 plugins {
@@ -32,15 +31,34 @@ allprojects { Project subProj ->
   // Don't need javadoc task run for internal projects.
   subProj.tasks.withType(Javadoc).configureEach { enabled = false }
 
-  subProj.evaluationDependsOn ':dd-java-agent'
-  subProj.evaluationDependsOn ':dd-java-agent:instrumentation-testing'
+  // Bind the lookup to each smoke test project configured by this parent script.
+  def smokeTestAgentFrom = { String name, String producerPath, Attribute<? extends Named> lookupAttribute, String lookupValue ->
+    def agentDependencies = subProj.configurations.dependencyScope(name) {
+      dependencies.add(subProj.dependencies.project(path: producerPath))
+    }
+    def agentClasspath = subProj.configurations.resolvable("${name}Classpath") {
+      extendsFrom(agentDependencies)
+      transitive = false
+      attributes.attribute(lookupAttribute, subProj.objects.named(lookupAttribute.type, lookupValue))
+    }
+    subProj.layout.file(agentClasspath.flatMap { it.elements }.map { files ->
+      assert files.size() == 1 : "Expected one smoke test agent JAR from ${producerPath}"
+      files.first().asFile
+    })
+  }
+
+  def tracerJar = smokeTestAgentFrom(
+    'smokeTestTracer', ':dd-java-agent',
+    Bundling.BUNDLING_ATTRIBUTE, Bundling.SHADOWED)
+  def diagnosticsJar = smokeTestAgentFrom(
+    'smokeTestDiagnostics', ':dd-java-agent:instrumentation-testing',
+    LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, 'scope-diagnostics-agent')
+
   subProj.tasks.withType(Test).configureEach { subTask ->
-    def agentTaskRef = project(':dd-java-agent').tasks.named('shadowJar', ShadowJar)
-    def diagnosticsTaskRef = project(':dd-java-agent:instrumentation-testing').tasks.named('scopeDiagnosticsAgentJar', Jar)
     def agentArguments = subProj.objects.newInstance(SmokeAgentArguments)
-    agentArguments.tracerJar.set(agentTaskRef.flatMap { it.archiveFile })
+    agentArguments.tracerJar.set(tracerJar)
     agentArguments.tracerVersion.set(subProj.version.toString())
-    agentArguments.diagnosticsJar.set(diagnosticsTaskRef.flatMap { it.archiveFile })
+    agentArguments.diagnosticsJar.set(diagnosticsJar)
     jvmArgumentProviders.add(agentArguments)
 
     def quiescenceProperty = 'datadog.smoketest.scopeDiagnostics.quiescenceMillis'
