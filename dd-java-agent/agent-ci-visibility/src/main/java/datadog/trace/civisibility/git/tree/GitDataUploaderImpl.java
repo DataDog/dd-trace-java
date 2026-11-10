@@ -100,15 +100,6 @@ public class GitDataUploaderImpl implements GitDataUploader {
       String remoteUrl = gitInfo.getRepositoryURL();
       String selectedCommit = gitInfo.getCommit().getSha();
       List<String> latestCommits = gitClient.getLatestCommits(selectedCommit);
-      boolean unshallowed = false;
-      boolean recoveredSelected = false;
-      if (latestCommits.isEmpty() && config.isCiVisibilityGitUnshallowEnabled()) {
-        // HEAD/upstream recovery may not contain an explicitly selected revision.
-        gitClient.getCommitInfo(selectedCommit, true);
-        recoveredSelected = true;
-        latestCommits = gitClient.getLatestCommits(selectedCommit);
-        unshallowed = !gitClient.isShallow();
-      }
       if (latestCommits.isEmpty()) {
         LOGGER.debug("No commits in the last month, skipping git data upload");
         callback.complete(null);
@@ -124,25 +115,7 @@ public class GitDataUploaderImpl implements GitDataUploader {
         return;
       }
 
-      boolean refreshed = false;
-      if (!recoveredSelected
-          && config.isCiVisibilityGitUnshallowEnabled()
-          && gitClient.isShallow()) {
-        try {
-          gitClient.fetchCommit(selectedCommit);
-          refreshed = true;
-        } catch (
-            datadog.trace.civisibility.utils.ShellCommandExecutor.ShellCommandFailedException e) {
-          LOGGER.debug(
-              "Could not fetch local selected commit; continuing with upstream recovery", e);
-        }
-      }
-      if (config.isCiVisibilityGitUnshallowDefer()
-          && !unshallowed
-          && gitRepoUnshallow.unshallow()) {
-        refreshed = true;
-      }
-      if (refreshed) {
+      if (config.isCiVisibilityGitUnshallowDefer() && gitRepoUnshallow.unshallow()) {
         latestCommits = gitClient.getLatestCommits(selectedCommit);
         commitsToSkip = gitDataApi.searchCommits(remoteUrl, latestCommits);
       }
