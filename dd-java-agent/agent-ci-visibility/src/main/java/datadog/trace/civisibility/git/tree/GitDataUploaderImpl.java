@@ -104,7 +104,7 @@ public class GitDataUploaderImpl implements GitDataUploader {
       boolean recoveredSelected = false;
       if (latestCommits.isEmpty() && config.isCiVisibilityGitUnshallowEnabled()) {
         // HEAD/upstream recovery may not contain an explicitly selected revision.
-        gitClient.getCommitInfo(selectedCommit, true);
+        gitClient.fetchSelectedCommit(selectedCommit);
         recoveredSelected = true;
         latestCommits = gitClient.getLatestCommits(selectedCommit);
         unshallowed = !gitClient.isShallow();
@@ -129,7 +129,7 @@ public class GitDataUploaderImpl implements GitDataUploader {
           && config.isCiVisibilityGitUnshallowEnabled()
           && gitClient.isShallow()) {
         try {
-          gitClient.fetchCommit(selectedCommit);
+          gitClient.fetchSelectedCommit(selectedCommit);
           refreshed = true;
         } catch (
             datadog.trace.civisibility.utils.ShellCommandExecutor.ShellCommandFailedException e) {

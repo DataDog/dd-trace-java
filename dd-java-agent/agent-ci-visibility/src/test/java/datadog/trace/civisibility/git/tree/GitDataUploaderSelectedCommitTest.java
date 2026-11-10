@@ -13,7 +13,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
@@ -116,7 +115,8 @@ class GitDataUploaderSelectedCommitTest {
         "refs/remotes/origin/base",
         ancestor);
     ShellGitClient client = client(checkout, "1 month ago");
-    assertEquals(selected, client.getCommitInfo(selected, true).getSha());
+    client.fetchSelectedCommit(selected);
+    assertEquals(selected, client.getCommitInfo(selected, false).getSha());
     assertFalse(client.isShallow());
     assertEquals(ancestor, client.getBaseCommitSha("base", null));
     git(remote, "update-ref", "refs/heads/new-base", head);
@@ -289,7 +289,7 @@ class GitDataUploaderSelectedCommitTest {
     if (recoveryEnabled) {
       assertEquals(singletonList(selected), client.getLatestCommits(selected));
       if (deferred) {
-        verify(client).getCommitInfo(selected, true);
+        verify(client).fetchSelectedCommit(selected);
         assertEquals(
             "1",
             git(
@@ -298,7 +298,7 @@ class GitDataUploaderSelectedCommitTest {
                 "--count",
                 selected));
       } else {
-        verify(client, never()).getCommitInfo(selected, true);
+        verify(client, never()).fetchSelectedCommit(selected);
       }
       verify(api).searchCommits(URL, singletonList(selected));
     } else {
@@ -333,11 +333,11 @@ class GitDataUploaderSelectedCommitTest {
         order.verify(unshallow).unshallow();
       }
       order.verify(client).getLatestCommits(selected);
-      order.verify(client).getCommitInfo(selected, true);
+      order.verify(client).fetchSelectedCommit(selected);
       order.verify(client).getLatestCommits(selected);
       order.verify(api).searchCommits(URL, singletonList(selected));
     } else {
-      verify(client, never()).getCommitInfo(any(), anyBoolean());
+      verify(client, never()).fetchSelectedCommit(any());
       verify(unshallow, never()).unshallow();
       verify(api, never()).searchCommits(any(), any());
     }

@@ -386,9 +386,33 @@ public class ShellGitClient implements GitClient {
         });
   }
 
+  /** Fetches full PR ancestry without applying the upload history window. */
+  private void fetchCommit(String remoteCommitReference)
+      throws IOException, TimeoutException, InterruptedException {
+    if (GitUtils.isNotValidCommit(remoteCommitReference)) {
+      return;
+    }
+    executeCommand(
+        Command.FETCH_COMMIT,
+        () -> {
+          String remote = getRemoteName();
+          commandExecutor.executeCommand(
+              ShellCommandExecutor.OutputParser.IGNORE,
+              buildGitCommand(
+                  "fetch",
+                  "--filter=blob:none",
+                  "--recurse-submodules=no",
+                  "--no-write-fetch-head",
+                  remote,
+                  remoteCommitReference));
+
+          return (Void) null;
+        });
+  }
+
   /** Fetches provided commit object from the server. */
   @Override
-  public void fetchCommit(String remoteCommitReference)
+  public void fetchSelectedCommit(String remoteCommitReference)
       throws IOException, TimeoutException, InterruptedException {
     if (GitUtils.isNotValidCommit(remoteCommitReference)) {
       return;
@@ -516,8 +540,17 @@ public class ShellGitClient implements GitClient {
     }
     if (fetchIfNotPresent) {
       boolean isPresent = isCommitPresent(commit);
-      if (!isPresent) {
-        fetchCommit(commit);
+      if (!isPresent || recoveredShallowCommits != null) {
+        try {
+          // A previous bounded upload fetch may have the tip but lack its PR ancestry.
+          fetchCommit(commit);
+          recoveredShallowCommits = null;
+        } catch (ShellCommandExecutor.ShellCommandFailedException e) {
+          if (!isPresent) {
+            throw e;
+          }
+          LOGGER.debug("Could not recover full PR ancestry; retaining local commit metadata", e);
+        }
       }
     }
     return executeCommand(
@@ -1168,9 +1201,7 @@ public class ShellGitClient implements GitClient {
           && activeShallowFile.get() == null
           && (commandType == Command.GET_LOCAL_COMMITS
               || commandType == Command.GET_OBJECTS
-              || commandType == Command.PACK_OBJECTS
-              || commandType == Command.DIFF
-              || commandType == Command.OTHER)) {
+              || commandType == Command.PACK_OBJECTS)) {
         shallowFile = Files.createTempFile("dd-ci-vis-shallow-", ".tmp");
         Files.write(shallowFile, recoveredShallowCommits.getBytes(StandardCharsets.UTF_8));
         activeShallowFile.set(shallowFile);
