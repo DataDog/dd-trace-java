@@ -12,8 +12,9 @@ plugins {
   id("dd-trace-java.gradle-debug")
   id("dd-trace-java.tracer-version")
 
-  // Keep the shared image resolver in one classloader across subproject plugin combinations.
+  // Keep shared plugin state in one classloader across subproject plugin combinations.
   id("dd-trace-java.testcontainers") apply false
+  id("dd-trace-java.smoke-test-app") apply false
 
   alias(libs.plugins.shadow) apply false
   alias(libs.plugins.spotless)

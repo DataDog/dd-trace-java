@@ -12,7 +12,6 @@ import java.nio.file.StandardCopyOption
 import java.nio.file.StandardOpenOption
 import java.security.MessageDigest
 import java.util.UUID
-import java.util.concurrent.ConcurrentHashMap
 import java.util.zip.ZipFile
 
 /** Caches verified Gradle installations independently from the user home of a nested daemon. */
@@ -28,7 +27,9 @@ internal class GradleDistributionCache(
     val lockFile = cacheDirectory.resolve("$key.lock")
     cacheDirectory.mkdirs()
 
-    return synchronized(lockFor(lockFile)) {
+    return synchronized(
+      "datadog.buildlogic.smoketest.GradleDistributionCache:${lockFile.canonicalPath}".intern(),
+    ) {
       FileChannel.open(
         lockFile.toPath(),
         StandardOpenOption.CREATE,
@@ -205,9 +206,6 @@ internal class GradleDistributionCache(
   ): GradleException =
     GradleException("Could not download $description from $uri after $attempts attempt(s)", cause)
 
-  private fun lockFor(lockFile: File): Any =
-    locks.computeIfAbsent(lockFile.absolutePath) { Any() }
-
   private class DownloadFailure(private val status: Int) : IOException("HTTP $status") {
     val isTransient: Boolean
       get() = status == 408 || status == 429 || status in 500..599
@@ -221,7 +219,6 @@ internal class GradleDistributionCache(
     private const val RETRY_DELAY_MILLIS = 1_000L
     private const val KEY_LENGTH = 32
     private val CHECKSUM_PATTERN = Regex("([0-9a-fA-F]{64})")
-    private val locks = ConcurrentHashMap<String, Any>()
 
     private fun sha256(value: String): String {
       val digest = MessageDigest.getInstance("SHA-256").digest(value.toByteArray(Charsets.UTF_8))

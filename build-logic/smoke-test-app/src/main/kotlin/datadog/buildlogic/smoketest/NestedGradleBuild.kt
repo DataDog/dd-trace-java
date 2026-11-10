@@ -186,6 +186,7 @@ abstract class NestedGradleBuild @Inject constructor(
     val appDir = applicationDir.get().asFile
     val appBuildDirFile = applicationBuildDir.get().asFile
     val daemonJavaHome = javaLauncher.get().metadata.installationPath.asFile
+    val gradleUserHomeDir = createGradleUserHome()
     val distributionBaseUrl = gradleDistributionBaseUrl.orNull
     val gradleInstallationDir =
       distributionBaseUrl?.takeIf { it.isNotBlank() }?.let { baseUrl ->
@@ -194,7 +195,6 @@ abstract class NestedGradleBuild @Inject constructor(
           project.gradle.gradleUserHomeDir.resolve("caches/nested-gradle-distributions"),
         ).getInstallation(distributionUri, gradleVersion.get())
       }
-    val gradleUserHomeDir = createGradleUserHome()
     val declaredProperties = gradleProperties.get()
     val proxyProperties = proxyProperties(declaredProperties)
     val initScriptFiles = writeInitScripts(proxyProperties.isNotEmpty())
