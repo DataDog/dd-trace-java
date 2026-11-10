@@ -20,6 +20,11 @@ import org.apache.kafka.clients.producer.ProducerRecord;
  * inside the loop body gets a produce span, child of the consume span, that injects headers for the
  * next service. So one record exercises extraction, span creation and injection on the same trace.
  *
+ * <p>With {@code copy-headers}, the output record carries the input's headers, as in a Kafka Streams
+ * app. The producer instrumentation then starts the produce span from the trace context in those
+ * headers, so it's a sibling of the consume span rather than its child, as it is for Kafka Streams
+ * users, and the tracer replaces the forwarded headers rather than adding new ones.
+ *
  * <p>Prints {@code enriched N records in T ms, R records/s}, timed from the first record received to
  * the last send acknowledged, so startup and the group join are excluded. It finishes the batch that
  * reaches {@code messages}, so N can exceed it by up to one poll. Exits non-zero if the topic

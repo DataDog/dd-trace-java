@@ -71,7 +71,7 @@ tool logs failed sends without failing). Each enricher run writes to its own out
 | `HEAPS` | `256m 128m 64m` (enricher `512m 256m 128m`) | heap sweep; at 64m the enricher is GC-bound even without the agent (likely the producer's 32 MB send buffer) |
 | `REPS` | `5` | fresh-JVM runs per variant |
 | `MESSAGES` | `10000000` (enricher `3000000`) | records consumed per run |
-| `ENRICH_COPY_HEADERS` | `false` | enricher forwards input headers to output records, as Kafka Streams does |
+| `ENRICH_COPY_HEADERS` | `false` | enricher forwards input headers to output records, as Kafka Streams does; the produce span is then parented on the forwarded upstream context (a sibling of the consume span), as for Streams users |
 | `RATE` / `RECORDS` / `HEAP` | `100000` / `3000000` / `256m` | producer: fixed offered rate, run length, heap |
 | `DSM` | `false` | Data Streams on/off for all agent variants |
 | `AGENT_EXTRA_OPTS` | — | extra JVM/agent options for agent variants |
