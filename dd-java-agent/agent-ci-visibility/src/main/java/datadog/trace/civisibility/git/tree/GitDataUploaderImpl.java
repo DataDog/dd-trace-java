@@ -144,8 +144,8 @@ public class GitDataUploaderImpl implements GitDataUploader {
         try {
           gitClient.fetchSelectedCommit(selectedCommit);
           refreshed = true;
-        } catch (
-            datadog.trace.civisibility.utils.ShellCommandExecutor.ShellCommandFailedException e) {
+        } catch (datadog.trace.civisibility.utils.ShellCommandExecutor.ShellCommandFailedException
+            | TimeoutException e) {
           LOGGER.debug(
               "Could not fetch local selected commit; continuing with upstream recovery", e);
         }

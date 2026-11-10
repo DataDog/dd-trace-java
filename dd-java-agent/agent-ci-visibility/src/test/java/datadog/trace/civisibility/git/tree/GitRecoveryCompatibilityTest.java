@@ -10,12 +10,18 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.spy;
 
 import datadog.communication.util.IOUtils;
 import datadog.trace.civisibility.utils.ShellCommandExecutor;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.concurrent.TimeoutException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.tabletest.junit.TableTest;
@@ -76,15 +82,24 @@ class GitRecoveryCompatibilityTest {
   }
 
   @TableTest({
-    "Scenario               | selectedRecoveryFirst",
-    "PR metadata first      | false                ",
-    "bounded recovery first | true                 "
+    "Scenario                  | selectedRecoveryFirst | freshClient | shallow",
+    "PR metadata first         | false                 | false       | false  ",
+    "bounded recovery first    | true                  | false       | false  ",
+    "fresh after recovery      | true                  | true        | false  ",
+    "shallow PR metadata first | false                 | false       | true   ",
+    "shallow recovery first    | true                  | false       | true   ",
+    "fresh shallow recovery    | true                  | true        | true   "
   })
-  void pullRequestMetadataFetchRetainsAncestorsOutsideTheUploadWindow(boolean selectedRecoveryFirst)
-      throws Exception {
+  void pullRequestMetadataFetchRetainsAncestorsOutsideTheUploadWindow(
+      boolean selectedRecoveryFirst, boolean freshClient, boolean shallow) throws Exception {
     Path origin = directory.resolve("origin");
     ShellCommandExecutor remote = fixture(origin);
-    Path checkout = cloneFrom(remote, origin);
+    Path checkout = directory.resolve("checkout");
+    if (shallow) {
+      git(remote, "clone", "--depth=1", origin.toUri().toString(), checkout.toString());
+    } else {
+      git(remote, "clone", "--no-local", origin.toString(), checkout.toString());
+    }
     String base = git(remote, "rev-parse", "HEAD");
     String tree = git(remote, "rev-parse", "HEAD^{tree}");
     String oldParent =
@@ -101,9 +116,53 @@ class GitRecoveryCompatibilityTest {
     if (selectedRecoveryFirst) {
       client.fetchSelectedCommit(selected);
     }
+    if (freshClient) {
+      client = client(checkout, "1 month ago");
+    }
     assertEquals(selected, client.getCommitInfo(selected, true).getSha());
     assertEquals(base, client.getMergeBase(base, selected));
-    assertFalse(client.isShallow());
+    if (!selectedRecoveryFirst) {
+      client.fetchSelectedCommit(selected);
+      assertEquals(base, client.getMergeBase(base, selected));
+    }
+    assertEquals(shallow, client.isShallow());
+  }
+
+  @TableTest({
+    "Scenario     | interruption",
+    "timeout      | false       ",
+    "interruption | true        "
+  })
+  void ancestryCheckDoesNotDiscardLocalMetadataOnTimeout(boolean interruption) throws Exception {
+    Path checkout = directory.resolve("checkout");
+    ShellCommandExecutor command = spy(fixture(checkout));
+    String selected = git(command, "rev-parse", "HEAD");
+    Exception failure =
+        interruption
+            ? new InterruptedException("cancelled")
+            : new TimeoutException("ancestry check");
+    doThrow(failure)
+        .when(command)
+        .executeCommand(
+            eq(ShellCommandExecutor.OutputParser.IGNORE),
+            eq("git"),
+            eq("-c"),
+            anyString(),
+            eq("rev-list"),
+            eq("--quiet"),
+            eq(selected),
+            eq("--"));
+    ShellGitClient client = client(checkout, "1 month ago");
+    Field executor = ShellGitClient.class.getDeclaredField("commandExecutor");
+    executor.setAccessible(true);
+    executor.set(client, command);
+    if (interruption) {
+      assertEquals(
+          failure,
+          assertThrows(InterruptedException.class, () -> client.getCommitInfo(selected, true)));
+    } else {
+      assertEquals(selected, client.getCommitInfo(selected, true).getSha());
+    }
   }
 
   @Test

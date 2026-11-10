@@ -13,6 +13,7 @@ import datadog.trace.civisibility.diff.LineDiff;
 import datadog.trace.civisibility.utils.FileUtils;
 import datadog.trace.civisibility.utils.ShellCommandExecutor;
 import datadog.trace.util.Strings;
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -454,7 +455,7 @@ public class ShellGitClient implements GitClient {
           Path recoveryDirectory = null;
           ShellCommandExecutor fetchExecutor = commandExecutor;
           try {
-            if (!isShallow()) {
+            {
               // A private Git directory owns the boundaries; downloaded objects remain reusable.
               recoveryDirectory = Files.createTempDirectory("dd-ci-vis-recovery-");
               args.add(2, "--no-auto-gc");
@@ -479,6 +480,15 @@ public class ShellGitClient implements GitClient {
               initArgs.add(recoveryDirectory.toString());
               fetchExecutor.executeCommand(
                   ShellCommandExecutor.OutputParser.IGNORE, initArgs.toArray(new String[0]));
+              String shallowPath =
+                  commandExecutor
+                      .executeCommand(
+                          IOUtils::readFully, buildGitCommand("rev-parse", "--git-path", "shallow"))
+                      .trim();
+              Path checkoutShallow = Paths.get(repoRoot).resolve(shallowPath);
+              if (Files.exists(checkoutShallow)) {
+                Files.copy(checkoutShallow, recoveryDirectory.resolve("shallow"));
+              }
               // Snapshot includes in the original gitdir/branch context, including inherited
               // overrides.
               String[] settings =
@@ -568,7 +578,20 @@ public class ShellGitClient implements GitClient {
     }
     if (fetchIfNotPresent) {
       boolean isPresent = isCommitPresent(commit);
-      if (!isPresent || recoveredShallowCommits != null) {
+      boolean needsAncestry = !isPresent || recoveredShallowCommits != null;
+      if (!needsAncestry) {
+        try {
+          // Recovery objects survive the original client; presence alone does not imply ancestry.
+          commandExecutor.executeCommand(
+              ShellCommandExecutor.OutputParser.IGNORE,
+              buildGitCommand("rev-list", "--quiet", commit, "--"));
+        } catch (ShellCommandExecutor.ShellCommandFailedException e) {
+          needsAncestry = true;
+        } catch (TimeoutException e) {
+          LOGGER.debug("Could not check PR ancestry; retaining local commit metadata", e);
+        }
+      }
+      if (needsAncestry) {
         try {
           // A previous bounded upload fetch may have the tip but lack its PR ancestry.
           fetchCommit(commit);
@@ -738,15 +761,32 @@ public class ShellGitClient implements GitClient {
             exclusions.add("^" + commit);
           }
           if (!exclusions.isEmpty()) {
-            List<String> eligibility = new ArrayList<>();
-            eligibility.add("rev-list");
-            eligibility.addAll(exclusions);
-            // Only classify the already capped advertised roots, without discovering ancestors.
-            eligibility.add("--no-walk=unsorted");
-            eligibility.addAll(roots);
-            roots.retainAll(
-                commandExecutor.executeCommand(
-                    IOUtils::readLines, buildGitCommand(eligibility.toArray(new String[0]))));
+            // Walk only known ancestry. Walking positive roots here can defeat the commit cap.
+            Path knownHistory = Files.createTempFile(DD_TEMP_DIRECTORY_PREFIX, ".commits");
+            try {
+              List<String> known = new ArrayList<>();
+              Collections.addAll(
+                  known,
+                  "log",
+                  "--no-show-signature",
+                  "--format=%H",
+                  "--output=" + knownHistory,
+                  "--end-of-options");
+              known.addAll(commitsToSkip);
+              known.add("--");
+              commandExecutor.executeCommand(
+                  ShellCommandExecutor.OutputParser.IGNORE,
+                  buildGitCommand(known.toArray(new String[0])));
+              // Keep history out of the executor's buffered stdout and the tracer's heap.
+              try (BufferedReader reader = Files.newBufferedReader(knownHistory)) {
+                String commit;
+                while ((commit = reader.readLine()) != null) {
+                  roots.remove(commit);
+                }
+              }
+            } finally {
+              Files.deleteIfExists(knownHistory);
+            }
             if (roots.isEmpty()) {
               return Collections.emptyList();
             }
