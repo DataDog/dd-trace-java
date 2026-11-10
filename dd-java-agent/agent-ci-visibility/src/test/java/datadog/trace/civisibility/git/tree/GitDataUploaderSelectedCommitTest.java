@@ -30,6 +30,7 @@ import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.civisibility.utils.ShellCommandExecutor;
 import java.nio.file.Path;
+import java.util.Locale;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
@@ -43,8 +44,12 @@ class GitDataUploaderSelectedCommitTest {
   private final Config config = mock(Config.class);
   private final GitDataApi api = mock(GitDataApi.class);
 
-  @Test
-  void fetchingAMissingChildStillRecoversEligibleAncestors() throws Exception {
+  @TableTest({
+    "Scenario     | local",
+    "remote child | false",
+    "local child  | true "
+  })
+  void fetchingAMissingChildStillRecoversEligibleAncestors(boolean local) throws Exception {
     Path origin = directory.resolve("origin");
     ShellCommandExecutor command = fixture(origin);
     String tree = git(command, "rev-parse", "HEAD^{tree}");
@@ -53,10 +58,12 @@ class GitDataUploaderSelectedCommitTest {
     String head = writeCommit(command, tree, ancestor, "shallow checkout");
     git(command, "update-ref", "HEAD", head);
     Path checkout = shallowClone(command, origin);
-    String selected = writeCommit(command, tree, head, "selected child");
-    git(command, "update-ref", "HEAD", selected);
+    ShellCommandExecutor selectedRepo =
+        local ? new ShellCommandExecutor(checkout.toFile(), 10_000) : command;
+    String selected = writeCommit(selectedRepo, tree, head, "selected child");
+    git(selectedRepo, "update-ref", "HEAD", selected);
     ShellGitClient client = client(checkout, "1 month ago");
-    assertTrue(client.getLatestCommits(selected).isEmpty());
+    assertEquals(!local, client.getLatestCommits(selected).isEmpty());
     when(config.isCiVisibilityGitUnshallowDefer()).thenReturn(true);
     when(config.isCiVisibilityGitUnshallowEnabled()).thenReturn(true);
     when(api.searchCommits(eq(URL), any())).thenReturn(emptyList());
@@ -66,9 +73,55 @@ class GitDataUploaderSelectedCommitTest {
         .get(5, TimeUnit.SECONDS);
 
     assertEquals(asList(selected, head, ancestor), client.getLatestCommits(selected));
-    assertEquals(head, client.getSha(GitClient.HEAD));
-    verify(api, times(2)).searchCommits(URL, asList(selected, head, ancestor));
+    assertEquals(local ? selected : head, client.getSha(GitClient.HEAD));
+    verify(api, times(local ? 1 : 2)).searchCommits(URL, asList(selected, head, ancestor));
     verify(api).uploadPackFile(eq(URL), eq(selected), any());
+  }
+
+  @TableTest({
+    "Scenario        | abbreviated",
+    "uppercase SHA   | false      ",
+    "abbreviated SHA | true       "
+  })
+  void uploadedPackUsesTheCanonicalSelectedSha(boolean abbreviated) throws Exception {
+    Path checkout = directory.resolve("checkout");
+    fixture(checkout);
+    ShellGitClient client = client(checkout, "1 month ago");
+    String selected = "98cd7c8e9cf71e02dc28bd9b13928bee0f85b74c";
+    String input = abbreviated ? selected.substring(0, 8) : selected.toUpperCase(Locale.ROOT);
+    when(api.searchCommits(eq(URL), any())).thenReturn(emptyList());
+    uploader(client, new GitRepoUnshallow(config, client), input, checkout.toString())
+        .startOrObserveGitDataUpload()
+        .get(5, TimeUnit.SECONDS);
+    verify(api).uploadPackFile(eq(URL), eq(selected), any());
+  }
+
+  @Test
+  void baseBranchFetchRemainsAvailableAfterPrivateRecovery() throws Exception {
+    Path origin = directory.resolve("origin");
+    ShellCommandExecutor remote = fixture(origin);
+    String ancestor = git(remote, "rev-parse", "HEAD");
+    String tree = git(remote, "rev-parse", "HEAD^{tree}");
+    String head = writeCommit(remote, tree, ancestor, "recent checkout");
+    git(remote, "update-ref", "HEAD", head);
+    Path checkout = directory.resolve("checkout");
+    git(remote, "clone", "--no-local", origin.toString(), checkout.toString());
+    Path control = directory.resolve("control");
+    git(remote, "clone", "--no-local", origin.toString(), control.toString());
+    String selected = writeCommit(remote, tree, head, "selected child");
+    git(remote, "update-ref", "refs/heads/selected", selected);
+    git(
+        new ShellCommandExecutor(checkout.toFile(), 10_000),
+        "update-ref",
+        "refs/remotes/origin/base",
+        ancestor);
+    ShellGitClient client = client(checkout, "1 month ago");
+    assertEquals(selected, client.getCommitInfo(selected, true).getSha());
+    assertFalse(client.isShallow());
+    assertEquals(ancestor, client.getBaseCommitSha("base", null));
+    git(remote, "update-ref", "refs/heads/new-base", head);
+    assertEquals(head, client(control, "1 month ago").getBaseCommitSha("new-base", null));
+    assertEquals(head, client.getBaseCommitSha("new-base", null));
   }
 
   @TableTest({
@@ -108,15 +161,23 @@ class GitDataUploaderSelectedCommitTest {
   }
 
   @TableTest({
-    "Scenario         | deferred | since         | transportAllowed | worktree",
-    "deferred         | true     | '1 month ago' | true             | false   ",
-    "eager            | false    | '1 month ago' | true             | false   ",
-    "full window      | true     | '1970-01-01'  | true             | false   ",
-    "transport denied | true     | '1 month ago' | false            | false   ",
-    "linked worktree  | true     | '1 month ago' | true             | true    "
+    "Scenario         | deferred | since         | transportAllowed | worktree | autoGc | conditional",
+    "deferred         | true     | '1 month ago' | true             | false    | false  | false      ",
+    "eager            | false    | '1 month ago' | true             | false    | false  | false      ",
+    "full window      | true     | '1970-01-01'  | true             | false    | false  | false      ",
+    "transport denied | true     | '1 month ago' | false            | false    | false  | false      ",
+    "linked worktree  | true     | '1 month ago' | true             | true     | false  | false      ",
+    "automatic GC     | true     | '1 month ago' | true             | false    | true   | false      ",
+    "conditional deny | true     | '1 month ago' | false            | false    | false  | true       "
   })
   void recoveryDoesNotMakeACompleteCheckoutShallow(
-      boolean deferred, String since, boolean transportAllowed, boolean worktree) throws Exception {
+      boolean deferred,
+      String since,
+      boolean transportAllowed,
+      boolean worktree,
+      boolean autoGc,
+      boolean conditional)
+      throws Exception {
     Path origin = directory.resolve("origin");
     ShellCommandExecutor command = fixture(origin);
     Path clone = directory.resolve("checkout");
@@ -135,6 +196,18 @@ class GitDataUploaderSelectedCommitTest {
     String head = git(local, "rev-parse", "HEAD");
     String count = git(local, "rev-list", "--count", "HEAD");
     String tree = git(command, "rev-parse", "HEAD^{tree}");
+    String protectedCommit = head;
+    if (autoGc) {
+      protectedCommit = writeCommit(local, tree, head, "protected branch");
+      git(local, "update-ref", "refs/heads/protected", protectedCommit);
+      for (String[] setting :
+          new String[][] {
+            {"gc.auto", "1"}, {"gc.autoPackLimit", "1"}, {"gc.autoDetach", "false"},
+            {"gc.pruneExpire", "now"}, {"fetch.unpackLimit", "0"}, {"maintenance.auto", "true"}
+          }) {
+        git(local, "config", setting[0], setting[1]);
+      }
+    }
     String selected =
         writeObject(
             command,
@@ -153,9 +226,21 @@ class GitDataUploaderSelectedCommitTest {
       uploader(client, new GitRepoUnshallow(config, client), selected, checkout.toString())
           .startOrObserveGitDataUpload()
           .get(5, TimeUnit.SECONDS);
+      git(local, "cat-file", "-e", protectedCommit + "^{commit}");
       assertEquals(selected, client.getLatestCommits(selected).get(0));
     } else {
-      git(local, "config", "protocol.file.allow", "never");
+      if (conditional) {
+        Path included = directory.resolve("conditional.config");
+        git(local, "config", "--file", included.toString(), "protocol.file.allow", "never");
+        git(
+            local,
+            "config",
+            "includeIf.gitdir:" + checkout.resolve(".git").toRealPath() + ".path",
+            included.toString());
+      } else {
+        git(local, "config", "protocol.file.allow", "never");
+      }
+      assertEquals("never", git(local, "config", "--get", "protocol.file.allow"));
       assertThrows(
           ExecutionException.class,
           () ->

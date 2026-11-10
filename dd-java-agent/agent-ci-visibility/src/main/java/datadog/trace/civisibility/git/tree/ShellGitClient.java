@@ -61,7 +61,7 @@ public class ShellGitClient implements GitClient {
   private final String safeDirectoryOption;
   private final long timeoutMillis;
   private final ThreadLocal<Path> activeShallowFile = new ThreadLocal<>();
-  @Nullable private String recoveredShallowCommits;
+  @Nullable private volatile String recoveredShallowCommits;
 
   /**
    * Creates a new git client
@@ -120,7 +120,7 @@ public class ShellGitClient implements GitClient {
    * @return The complete command array including "git", "-c", "safe.directory=...", and the args
    */
   private String[] buildGitCommand(String... gitArgs) {
-    Path shallowFile = activeShallowFile.get();
+    Path shallowFile = recoveredShallowCommits == null ? null : activeShallowFile.get();
     int offset = shallowFile == null ? 3 : 5;
     String[] command = new String[gitArgs.length + offset];
     command[0] = "git";
@@ -414,6 +414,7 @@ public class ShellGitClient implements GitClient {
             if (!isShallow()) {
               // A private Git directory owns the boundaries; downloaded objects remain reusable.
               recoveryDirectory = Files.createTempDirectory("dd-ci-vis-recovery-");
+              args.add(2, "--no-auto-gc");
               String objects =
                   commandExecutor
                       .executeCommand(
@@ -432,24 +433,30 @@ public class ShellGitClient implements GitClient {
                   "init",
                   "--bare",
                   recoveryDirectory.toString());
-              for (String configFile : Arrays.asList("config", "config.worktree")) {
-                String configPath =
-                    commandExecutor
-                        .executeCommand(
-                            IOUtils::readFully,
-                            buildGitCommand("rev-parse", "--git-path", configFile))
-                        .trim();
-                Path source = Paths.get(repoRoot).resolve(configPath);
-                if (Files.exists(source)) {
-                  fetchExecutor.executeCommand(
-                      ShellCommandExecutor.OutputParser.IGNORE,
-                      "git",
-                      "config",
-                      "--add",
-                      "include.path",
-                      source.toString());
+              // Snapshot includes in the original gitdir/branch context, including inherited
+              // overrides.
+              String[] settings =
+                  commandExecutor
+                      .executeCommand(
+                          IOUtils::readFully,
+                          buildGitCommand("config", "--null", "--list", "--includes"))
+                      .split("\u0000");
+              environment.put("GIT_CONFIG_NOSYSTEM", "1");
+              environment.put("GIT_CONFIG_GLOBAL", recoveryDirectory.resolve("config").toString());
+              environment.put("GIT_CONFIG_PARAMETERS", "");
+              int settingCount = 0;
+              for (String setting : settings) {
+                int separator = setting.indexOf('\n');
+                String key = separator < 0 ? setting : setting.substring(0, separator);
+                if (key.equals("include.path") || key.startsWith("includeif.")) {
+                  continue;
                 }
+                environment.put("GIT_CONFIG_KEY_" + settingCount, key);
+                environment.put(
+                    "GIT_CONFIG_VALUE_" + settingCount++,
+                    separator < 0 ? "true" : setting.substring(separator + 1));
               }
+              environment.put("GIT_CONFIG_COUNT", String.valueOf(settingCount));
               if (isCommitPresent(HEAD)) {
                 fetchExecutor.executeCommand(
                     ShellCommandExecutor.OutputParser.IGNORE,
@@ -569,7 +576,7 @@ public class ShellGitClient implements GitClient {
   @Override
   public List<String> getLatestCommits(String commit)
       throws IOException, TimeoutException, InterruptedException {
-    if (GitUtils.isNotValidCommit(commit)) {
+    if (latestCommitsLimit <= 0 || GitUtils.isNotValidCommit(commit)) {
       return Collections.emptyList();
     }
     String resolvedCommit = commit;
@@ -593,6 +600,7 @@ public class ShellGitClient implements GitClient {
                       IOUtils::readLines,
                       buildGitCommand(
                           "log",
+                          "--topo-order",
                           "--format=%H",
                           "-n",
                           String.valueOf(latestCommitsLimit),
@@ -608,6 +616,9 @@ public class ShellGitClient implements GitClient {
     if (!HEAD.equals(canonicalCommit)
         && !commits.contains(canonicalCommit)
         && isCommitPresent(canonicalCommit)) {
+      if (commits.size() == latestCommitsLimit) {
+        commits.remove(commits.size() - 1);
+      }
       commits.add(0, canonicalCommit);
     }
     return commits;
@@ -667,7 +678,8 @@ public class ShellGitClient implements GitClient {
                 String.format("--since='%s'", latestCommitsSince));
             inWindowArgs.addAll(rootsToRecover);
             inWindowArgs.add("--");
-            // In-window roots omitted above are already excluded by known descendants.
+            // The matching topological history walk keeps advertised roots inside the cap.
+            // Do not recover roots excluded by known descendants.
             for (String inWindowRoot :
                 commandExecutor.executeCommand(
                     IOUtils::readLines, buildGitCommand(inWindowArgs.toArray(new String[0])))) {
@@ -1152,11 +1164,14 @@ public class ShellGitClient implements GitClient {
     long startTime = System.currentTimeMillis();
     Path shallowFile = null;
     try {
-      // Keep recovery boundaries private when the caller's checkout is complete.
-      if (activeShallowFile.get() == null
-          && commandType != Command.CHECK_SHALLOW
-          && commandType != Command.FETCH_COMMIT
-          && recoveredShallowCommits != null) {
+      // Only readonly operations may use private recovery boundaries.
+      if (recoveredShallowCommits != null
+          && activeShallowFile.get() == null
+          && (commandType == Command.GET_LOCAL_COMMITS
+              || commandType == Command.GET_OBJECTS
+              || commandType == Command.PACK_OBJECTS
+              || commandType == Command.DIFF
+              || commandType == Command.OTHER)) {
         shallowFile = Files.createTempFile("dd-ci-vis-shallow-", ".tmp");
         Files.write(shallowFile, recoveredShallowCommits.getBytes(StandardCharsets.UTF_8));
         activeShallowFile.set(shallowFile);

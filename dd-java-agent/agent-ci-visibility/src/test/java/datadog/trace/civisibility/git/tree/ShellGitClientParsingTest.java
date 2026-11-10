@@ -92,16 +92,21 @@ class ShellGitClientParsingTest {
   }
 
   @TableTest({
-    "Scenario       | backendExclusions",
-    "known roots    | true             ",
-    "no known roots | false            "
+    "Scenario                  | backendExclusions | split",
+    "long first branch known   | true              | 1001 ",
+    "long first branch unknown | false             | 1001 ",
+    "balanced branches known   | true              | 501  ",
+    "balanced branches unknown | false             | 501  ",
+    "unequal branches known    | true              | 901  ",
+    "unequal branches unknown  | false             | 901  "
   })
-  void cappedTraversalIncludesABackdatedSelectedMerge(boolean backendExclusions) throws Exception {
+  void cappedTraversalIncludesABackdatedSelectedMerge(boolean backendExclusions, int split)
+      throws Exception {
     String parent = git(command, "rev-parse", "HEAD");
     long now = System.currentTimeMillis() / 1000;
     StringBuilder input = new StringBuilder();
     for (int i = 1; i <= 1002; i++) {
-      String from = i == 1 || i == 1001 ? parent : ":" + (i - 1);
+      String from = i == 1 || i == split ? parent : ":" + (i - 1);
       input
           .append("commit refs/heads/capped\nmark :")
           .append(i)
@@ -111,7 +116,7 @@ class ShellGitClientParsingTest {
           .append(from)
           .append('\n');
       if (i == 1002) {
-        input.append("merge :1000\n");
+        input.append("merge :").append(split - 1).append("\n");
       }
       input.append('\n');
     }
@@ -126,6 +131,9 @@ class ShellGitClientParsingTest {
     List<String> objects =
         client.getObjects(backendExclusions ? singletonList(known) : emptyList(), commits);
     assertTrue(objects.contains(selected));
+    if (!backendExclusions) {
+      assertTrue(objects.containsAll(commits));
+    }
     if (backendExclusions) {
       assertFalse(objects.contains(known));
     }
