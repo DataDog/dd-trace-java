@@ -2,7 +2,7 @@ plugins {
   `java-library`
   `java-test-fixtures`
   id("dd-trace-java.supported-config-generator")
-  id("dd-trace-java.module.internal-library")
+  id("dd-trace-java.module.internal-library.with.testing.groovy")
 }
 
 val minimumBranchCoverage by extra(0.7)

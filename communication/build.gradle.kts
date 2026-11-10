@@ -1,6 +1,6 @@
 plugins {
   `java-library`
-  id("dd-trace-java.module.internal-library")
+  id("dd-trace-java.module.internal-library.with.testing.groovy")
 }
 
 description = "communication"
