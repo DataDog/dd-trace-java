@@ -1,6 +1,9 @@
 package datadog.trace.civisibility.git.tree;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
+import static datadog.trace.civisibility.git.tree.GitTestRepository.client;
+import static datadog.trace.civisibility.git.tree.GitTestRepository.fixture;
+import static datadog.trace.civisibility.git.tree.GitTestRepository.git;
+import static datadog.trace.civisibility.git.tree.GitTestRepository.writeCommit;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
@@ -15,16 +18,13 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import datadog.communication.util.IOUtils;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.civisibility.utils.ShellCommandExecutor;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -32,98 +32,39 @@ import org.mockito.InOrder;
 import org.tabletest.junit.TableTest;
 
 class GitDataUploaderSelectedCommitTest {
+  private static final String URL = "https://example.com/repo.git";
   @TempDir Path directory;
+  private final Config config = mock(Config.class);
+  private final GitDataApi api = mock(GitDataApi.class);
 
   @Test
   void fetchingAMissingChildStillRecoversEligibleAncestors() throws Exception {
-    Path origin = Files.createDirectories(directory.resolve("origin"));
-    Path fixture =
-        Paths.get(getClass().getClassLoader().getResource("ci/git/with_pack/git").toURI());
-    IOUtils.copyFolder(fixture, Files.createDirectories(origin.resolve(".git")));
-    ShellCommandExecutor command = new ShellCommandExecutor(origin.toFile(), 10_000);
-    String oldHead = command.executeCommand(IOUtils::readFully, "git", "rev-parse", "HEAD").trim();
-    String tree =
-        command.executeCommand(IOUtils::readFully, "git", "rev-parse", "HEAD^{tree}").trim();
-    String ancestor = writeCommit(command, tree, oldHead, "eligible ancestor");
+    Path origin = directory.resolve("origin");
+    ShellCommandExecutor command = fixture(origin);
+    String tree = git(command, "rev-parse", "HEAD^{tree}");
+    String ancestor =
+        writeCommit(command, tree, git(command, "rev-parse", "HEAD"), "eligible ancestor");
     String head = writeCommit(command, tree, ancestor, "shallow checkout");
-    command.executeCommand(IOUtils::readFully, "git", "update-ref", "HEAD", head);
-    Path checkout = directory.resolve("checkout");
-    command.executeCommand(
-        IOUtils::readFully,
-        "git",
-        "clone",
-        "--depth=1",
-        "--no-checkout",
-        origin.toUri().toString(),
-        checkout.toString());
+    git(command, "update-ref", "HEAD", head);
+    Path checkout = shallowClone(command, origin);
     String selected = writeCommit(command, tree, head, "selected child");
-    command.executeCommand(IOUtils::readFully, "git", "update-ref", "HEAD", selected);
-    ShellGitClient client =
-        new ShellGitClient(
-            mock(CiVisibilityMetricCollector.class),
-            checkout.toString(),
-            "1 month ago",
-            1000,
-            10_000);
+    git(command, "update-ref", "HEAD", selected);
+    ShellGitClient client = client(checkout, "1 month ago");
     assertTrue(client.getLatestCommits(selected).isEmpty());
-    Config config = mock(Config.class);
     when(config.isCiVisibilityGitUnshallowDefer()).thenReturn(true);
     when(config.isCiVisibilityGitUnshallowEnabled()).thenReturn(true);
-    GitInfoProvider info = mock(GitInfoProvider.class);
-    when(info.getGitInfo(checkout.toString()))
-        .thenReturn(
-            new GitInfo("https://example.com/repo.git", null, null, new CommitInfo(selected)));
-    GitDataApi api = mock(GitDataApi.class);
-    when(api.searchCommits(eq("https://example.com/repo.git"), any())).thenReturn(emptyList());
-    GitDataUploaderImpl uploader =
-        new GitDataUploaderImpl(
-            config,
-            mock(CiVisibilityMetricCollector.class),
-            api,
-            client,
-            new GitRepoUnshallow(config, client),
-            info,
-            checkout.toString(),
-            "origin");
+    when(api.searchCommits(eq(URL), any())).thenReturn(emptyList());
 
-    uploader.startOrObserveGitDataUpload().get(5, TimeUnit.SECONDS);
+    uploader(client, new GitRepoUnshallow(config, client), selected, checkout.toString())
+        .startOrObserveGitDataUpload()
+        .get(5, TimeUnit.SECONDS);
 
     assertEquals(asList(selected, head, ancestor), client.getLatestCommits(selected));
     assertEquals(head, client.getSha(GitClient.HEAD));
     InOrder order = inOrder(api);
-    order.verify(api).searchCommits("https://example.com/repo.git", asList(selected, head));
-    order
-        .verify(api)
-        .searchCommits("https://example.com/repo.git", asList(selected, head, ancestor));
-    verify(api).uploadPackFile(eq("https://example.com/repo.git"), eq(selected), any());
-  }
-
-  private static String writeCommit(
-      ShellCommandExecutor command, String tree, String parent, String message) throws Exception {
-    long now = System.currentTimeMillis() / 1000;
-    String object =
-        "tree "
-            + tree
-            + "\nparent "
-            + parent
-            + "\nauthor Test <test@example.com> "
-            + now
-            + " +0000\ncommitter Test <test@example.com> "
-            + now
-            + " +0000\n\n"
-            + message
-            + "\n";
-    return command
-        .executeCommand(
-            IOUtils::readFully,
-            object.getBytes(UTF_8),
-            "git",
-            "hash-object",
-            "-t",
-            "commit",
-            "-w",
-            "--stdin")
-        .trim();
+    order.verify(api).searchCommits(URL, asList(selected, head));
+    order.verify(api).searchCommits(URL, asList(selected, head, ancestor));
+    verify(api).uploadPackFile(eq(URL), eq(selected), any());
   }
 
   @TableTest({
@@ -135,83 +76,31 @@ class GitDataUploaderSelectedCommitTest {
   })
   void shallowCheckoutRecoversAnOldSelectedRevisionOnlyWhenEnabled(
       boolean deferred, boolean recoveryEnabled) throws Exception {
-    Path origin = Files.createDirectories(directory.resolve("origin"));
-    Path fixture =
-        Paths.get(getClass().getClassLoader().getResource("ci/git/with_pack/git").toURI());
-    IOUtils.copyFolder(fixture, Files.createDirectories(origin.resolve(".git")));
-    ShellCommandExecutor command = new ShellCommandExecutor(origin.toFile(), 10_000);
-    String oldHead = command.executeCommand(IOUtils::readFully, "git", "rev-parse", "HEAD").trim();
-    String tree =
-        command.executeCommand(IOUtils::readFully, "git", "rev-parse", "HEAD^{tree}").trim();
-    long now = System.currentTimeMillis() / 1000;
-    String object =
-        "tree "
-            + tree
-            + "\nparent "
-            + oldHead
-            + "\nauthor Test <test@example.com> "
-            + now
-            + " +0000\ncommitter Test <test@example.com> "
-            + now
-            + " +0000\n\nrecent checkout\n";
+    Path origin = directory.resolve("origin");
+    ShellCommandExecutor command = fixture(origin);
     String head =
-        command
-            .executeCommand(
-                IOUtils::readFully,
-                object.getBytes(UTF_8),
-                "git",
-                "hash-object",
-                "-t",
-                "commit",
-                "-w",
-                "--stdin")
-            .trim();
-    command.executeCommand(IOUtils::readFully, "git", "update-ref", "HEAD", head);
-    Path checkout = directory.resolve("checkout");
-    command.executeCommand(
-        IOUtils::readFully,
-        "git",
-        "clone",
-        "--depth=1",
-        "--no-checkout",
-        origin.toUri().toString(),
-        checkout.toString());
-    ShellGitClient client =
-        new ShellGitClient(
-            mock(CiVisibilityMetricCollector.class),
-            checkout.toString(),
-            "1 month ago",
-            1000,
-            10_000);
+        writeCommit(
+            command,
+            git(command, "rev-parse", "HEAD^{tree}"),
+            git(command, "rev-parse", "HEAD"),
+            "recent checkout");
+    git(command, "update-ref", "HEAD", head);
+    Path checkout = shallowClone(command, origin);
+    ShellGitClient client = client(checkout, "1 month ago");
     String selected = "98cd7c8e9cf71e02dc28bd9b13928bee0f85b74c";
     assertTrue(client.getLatestCommits(selected).isEmpty());
-    Config config = mock(Config.class);
     when(config.isCiVisibilityGitUnshallowDefer()).thenReturn(deferred);
     when(config.isCiVisibilityGitUnshallowEnabled()).thenReturn(recoveryEnabled);
-    GitInfoProvider info = mock(GitInfoProvider.class);
-    when(info.getGitInfo(checkout.toString()))
-        .thenReturn(
-            new GitInfo("https://example.com/repo.git", null, null, new CommitInfo(selected)));
-    GitDataApi api = mock(GitDataApi.class);
-    when(api.searchCommits("https://example.com/repo.git", singletonList(selected)))
-        .thenReturn(singletonList(selected));
-    GitDataUploaderImpl uploader =
-        new GitDataUploaderImpl(
-            config,
-            mock(CiVisibilityMetricCollector.class),
-            api,
-            client,
-            new GitRepoUnshallow(config, client),
-            info,
-            checkout.toString(),
-            "origin");
+    when(api.searchCommits(URL, singletonList(selected))).thenReturn(singletonList(selected));
 
-    uploader.startOrObserveGitDataUpload().get(5, TimeUnit.SECONDS);
+    uploader(client, new GitRepoUnshallow(config, client), selected, checkout.toString())
+        .startOrObserveGitDataUpload()
+        .get(5, TimeUnit.SECONDS);
 
     assertEquals(head, client.getSha(GitClient.HEAD));
     if (recoveryEnabled) {
       assertEquals(singletonList(selected), client.getLatestCommits(selected));
-      verify(api).searchCommits("https://example.com/repo.git", singletonList(selected));
+      verify(api).searchCommits(URL, singletonList(selected));
     } else {
       assertTrue(client.getLatestCommits(selected).isEmpty());
       verify(api, never()).searchCommits(any(), any());
@@ -219,77 +108,67 @@ class GitDataUploaderSelectedCommitTest {
   }
 
   @TableTest({
-    "Scenario     | deferred",
-    "deferred     | true    ",
-    "not deferred | false   "
+    "Scenario          | deferred | recoveryEnabled",
+    "deferred          | true     | true           ",
+    "not deferred      | false    | true           ",
+    "disabled recovery | true     | false          "
   })
-  void recoversTheSelectedRevisionRatherThanOnlyHead(boolean deferred) throws Exception {
+  void recoversTheSelectedRevisionRatherThanOnlyHead(boolean deferred, boolean recoveryEnabled)
+      throws Exception {
     String selected = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-    Config config = mock(Config.class);
     when(config.isCiVisibilityGitUnshallowDefer()).thenReturn(deferred);
-    when(config.isCiVisibilityGitUnshallowEnabled()).thenReturn(true);
+    when(config.isCiVisibilityGitUnshallowEnabled()).thenReturn(recoveryEnabled);
     GitClient client = mock(GitClient.class);
     when(client.getLatestCommits(selected)).thenReturn(emptyList(), singletonList(selected));
     GitRepoUnshallow unshallow = mock(GitRepoUnshallow.class);
-    GitInfoProvider info = mock(GitInfoProvider.class);
-    when(info.getGitInfo("/checkout"))
-        .thenReturn(
-            new GitInfo("https://example.com/repo.git", null, null, new CommitInfo(selected)));
-    GitDataApi api = mock(GitDataApi.class);
-    when(api.searchCommits("https://example.com/repo.git", singletonList(selected)))
-        .thenReturn(singletonList(selected));
-    GitDataUploaderImpl uploader =
-        new GitDataUploaderImpl(
-            config,
-            mock(CiVisibilityMetricCollector.class),
-            api,
-            client,
-            unshallow,
-            info,
-            "/checkout",
-            "origin");
+    when(api.searchCommits(URL, singletonList(selected))).thenReturn(singletonList(selected));
 
-    uploader.startOrObserveGitDataUpload().get(5, TimeUnit.SECONDS);
+    uploader(client, unshallow, selected, "/checkout")
+        .startOrObserveGitDataUpload()
+        .get(5, TimeUnit.SECONDS);
 
-    InOrder order = inOrder(client, unshallow, api);
-    if (!deferred) {
-      order.verify(unshallow).unshallow();
+    if (recoveryEnabled) {
+      InOrder order = inOrder(client, unshallow, api);
+      if (!deferred) {
+        order.verify(unshallow).unshallow();
+      }
+      order.verify(client).getLatestCommits(selected);
+      order.verify(client).getCommitInfo(selected, true);
+      order.verify(client).getLatestCommits(selected);
+      order.verify(api).searchCommits(URL, singletonList(selected));
+    } else {
+      verify(client, never()).getCommitInfo(any(), anyBoolean());
+      verify(unshallow, never()).unshallow();
+      verify(api, never()).searchCommits(any(), any());
     }
-    order.verify(client).getLatestCommits(selected);
-    order.verify(client).getCommitInfo(selected, true);
-    order.verify(client).getLatestCommits(selected);
-    order.verify(api).searchCommits("https://example.com/repo.git", singletonList(selected));
     verify(client, never()).getObjects(any(), any());
   }
 
-  @Test
-  void disabledRecoveryDoesNotFetchAMissingSelectedRevision() throws Exception {
-    String selected = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-    Config config = mock(Config.class);
-    when(config.isCiVisibilityGitUnshallowDefer()).thenReturn(true);
-    GitClient client = mock(GitClient.class);
-    when(client.getLatestCommits(selected)).thenReturn(emptyList());
+  private Path shallowClone(ShellCommandExecutor command, Path origin) throws Exception {
+    Path checkout = directory.resolve("checkout");
+    git(
+        command,
+        "clone",
+        "--depth=1",
+        "--no-checkout",
+        origin.toUri().toString(),
+        checkout.toString());
+    return checkout;
+  }
+
+  private GitDataUploaderImpl uploader(
+      GitClient client, GitRepoUnshallow unshallow, String selected, String checkout) {
     GitInfoProvider info = mock(GitInfoProvider.class);
-    when(info.getGitInfo("/checkout"))
-        .thenReturn(
-            new GitInfo("https://example.com/repo.git", null, null, new CommitInfo(selected)));
-    GitDataApi api = mock(GitDataApi.class);
-    GitRepoUnshallow unshallow = mock(GitRepoUnshallow.class);
-    GitDataUploaderImpl uploader =
-        new GitDataUploaderImpl(
-            config,
-            mock(CiVisibilityMetricCollector.class),
-            api,
-            client,
-            unshallow,
-            info,
-            "/checkout",
-            "origin");
-
-    uploader.startOrObserveGitDataUpload().get(5, TimeUnit.SECONDS);
-
-    verify(client, never()).getCommitInfo(any(), anyBoolean());
-    verify(unshallow, never()).unshallow();
-    verify(api, never()).searchCommits(any(), any());
+    when(info.getGitInfo(checkout))
+        .thenReturn(new GitInfo(URL, null, null, new CommitInfo(selected)));
+    return new GitDataUploaderImpl(
+        config,
+        mock(CiVisibilityMetricCollector.class),
+        api,
+        client,
+        unshallow,
+        info,
+        checkout,
+        "origin");
   }
 }

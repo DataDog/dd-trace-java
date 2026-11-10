@@ -299,23 +299,14 @@ class GitInfoProviderTest {
     CiVisibilityMetricCollector metricCollector = mock(CiVisibilityMetricCollector.class);
     InstrumentationBridge.registerMetricCollector(metricCollector);
     String localSha = "abcdef0123456789abcdef0123456789abcdef01";
-    GitInfoProvider provider = new GitInfoProvider();
-    provider.registerGitInfoBuilder(
-        givenABuilderReturning(
+    GitInfoProvider provider =
+        providerWithCheckout(
             new GitInfo("https://example.com/repo.git", null, null, new CommitInfo(localSha)),
-            1,
-            GitProviderExpected.GIT_CLIENT,
-            GitProviderDiscrepant.GIT_CLIENT));
-    provider.registerGitInfoBuilder(
-        givenABuilderReturning(
             new GitInfo(
                 "https://example.com/repo.git",
                 null,
                 null,
-                new CommitInfo("ABCDEF0123456789ABCDEF0123456789ABCDEF01")),
-            2,
-            GitProviderExpected.CI_PROVIDER,
-            GitProviderDiscrepant.CI_PROVIDER));
+                new CommitInfo("ABCDEF0123456789ABCDEF0123456789ABCDEF01")));
 
     assertEquals(localSha, provider.getGitInfo(REPO_PATH).getCommit().getSha());
     verify(metricCollector).add(GIT_COMMIT_SHA_MATCH, 1L, GitShaMatch.TRUE);
@@ -373,19 +364,10 @@ class GitInfoProviderTest {
   })
   void testLocalRemoteCredentialsDoNotReachSelectedMetadata(String localUrl, String expectedUrl) {
     String sha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-    GitInfoProvider provider = new GitInfoProvider();
-    provider.registerGitInfoBuilder(
-        givenABuilderReturning(
+    GitInfoProvider provider =
+        providerWithCheckout(
             new GitInfo(localUrl, "main", null, new CommitInfo(sha)),
-            1,
-            GitProviderExpected.GIT_CLIENT,
-            GitProviderDiscrepant.GIT_CLIENT));
-    provider.registerGitInfoBuilder(
-        givenABuilderReturning(
-            new GitInfo("https://example.com/provider.git", "provider", null, new CommitInfo(sha)),
-            2,
-            GitProviderExpected.CI_PROVIDER,
-            GitProviderDiscrepant.CI_PROVIDER));
+            new GitInfo("https://example.com/provider.git", "provider", null, new CommitInfo(sha)));
 
     GitInfo selected = provider.getGitInfo(REPO_PATH);
 
@@ -415,23 +397,14 @@ class GitInfoProviderTest {
 
   @Test
   void testGitClientPrecedesCiAndDoesNotFillMissingFieldsFromCi() {
-    GitInfoProvider provider = new GitInfoProvider();
-    provider.registerGitInfoBuilder(
-        givenABuilderReturning(
+    GitInfoProvider provider =
+        providerWithCheckout(
+            new GitInfo(null, null, null, new CommitInfo("local-sha")),
             new GitInfo(
                 "https://ci/repo.git",
                 "ci-branch",
                 "ci-tag",
-                new CommitInfo("ci-sha", AUTHOR, COMMITTER, "ci-message")),
-            3,
-            GitProviderExpected.CI_PROVIDER,
-            GitProviderDiscrepant.CI_PROVIDER));
-    provider.registerGitInfoBuilder(
-        givenABuilderReturning(
-            new GitInfo(null, null, null, new CommitInfo("local-sha")),
-            1,
-            GitProviderExpected.GIT_CLIENT,
-            GitProviderDiscrepant.GIT_CLIENT));
+                new CommitInfo("ci-sha", AUTHOR, COMMITTER, "ci-message")));
 
     provider.registerGitInfoBuilder(
         givenABuilderReturning(
@@ -465,24 +438,15 @@ class GitInfoProviderTest {
 
   @Test
   void testCiGitMetadataIsUsedWhenGitClientCannotReadCheckout() {
-    GitInfoProvider provider = new GitInfoProvider();
-    provider.registerGitInfoBuilder(
-        givenABuilderReturning(
+    GitInfoProvider provider =
+        providerWithCheckout(
+            new GitInfo(
+                "https://unreadable/repo.git", "partial-branch", "partial-tag", CommitInfo.NOOP),
             new GitInfo(
                 "https://ci/repo.git",
                 "ci-branch",
                 "ci-tag",
-                new CommitInfo("ci-sha", AUTHOR, COMMITTER, "ci-message")),
-            3,
-            GitProviderExpected.CI_PROVIDER,
-            GitProviderDiscrepant.CI_PROVIDER));
-    provider.registerGitInfoBuilder(
-        givenABuilderReturning(
-            new GitInfo(
-                "https://unreadable/repo.git", "partial-branch", "partial-tag", CommitInfo.NOOP),
-            1,
-            GitProviderExpected.GIT_CLIENT,
-            GitProviderDiscrepant.GIT_CLIENT));
+                new CommitInfo("ci-sha", AUTHOR, COMMITTER, "ci-message")));
 
     GitInfo info = provider.getGitInfo(REPO_PATH);
     assertEquals("ci-sha", info.getCommit().getSha());
@@ -570,6 +534,17 @@ class GitInfoProviderTest {
     assertEquals("committer name", committer.getName());
     assertEquals("committer email", committer.getEmail());
     assertEquals("committer date", committer.getIso8601Date());
+  }
+
+  private static GitInfoProvider providerWithCheckout(GitInfo checkout, GitInfo ci) {
+    GitInfoProvider provider = new GitInfoProvider();
+    provider.registerGitInfoBuilder(
+        givenABuilderReturning(
+            checkout, 1, GitProviderExpected.GIT_CLIENT, GitProviderDiscrepant.GIT_CLIENT));
+    provider.registerGitInfoBuilder(
+        givenABuilderReturning(
+            ci, 3, GitProviderExpected.CI_PROVIDER, GitProviderDiscrepant.CI_PROVIDER));
+    return provider;
   }
 
   private static GitInfoBuilder givenABuilderReturning(GitInfo gitInfo) {
