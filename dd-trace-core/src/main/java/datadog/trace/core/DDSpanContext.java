@@ -1027,7 +1027,10 @@ public class DDSpanContext
 
   /** Removes {@code tag}, known or custom. Call under the {@code knownTags} lock. */
   private void routeRemoval(String tag) {
-    long key = KnownTagCodec.keyOf(tag);
+    routeRemoval(KnownTagCodec.keyOf(tag), tag);
+  }
+
+  private void routeRemoval(long key, String tag) {
     if (key != 0) {
       knownTags.remove(key);
     } else {
@@ -1049,16 +1052,22 @@ public class DDSpanContext
    * custom store by name. Call them while holding the knownTags lock.
    */
 
+  /** A null value removes the tag, as {@code setTag(tag, null)} does; the stores take no nulls. */
   private void routeSet(long key, String tag, Object value) {
-    if (key != 0) {
+    if (value == null) {
+      routeRemoval(key, tag);
+    } else if (key != 0) {
       knownTags.store(key, value);
     } else {
       customTagsForWrite().store(tag, value);
     }
   }
 
+  /** A null value removes the tag, as {@code setTag(tag, null)} does; the stores take no nulls. */
   private void routeSet(long key, String tag, CharSequence value) {
-    if (key != 0) {
+    if (value == null) {
+      routeRemoval(key, tag);
+    } else if (key != 0) {
       knownTags.store(key, value);
     } else {
       customTagsForWrite().store(tag, value);

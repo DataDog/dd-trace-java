@@ -3,13 +3,15 @@ package datadog.trace.instrumentation.jdbc;
 import static datadog.trace.api.Config.DBM_PROPAGATION_MODE_DYNAMIC_SERVICE;
 import static datadog.trace.api.Config.DBM_PROPAGATION_MODE_FULL;
 import static datadog.trace.api.Config.DBM_PROPAGATION_MODE_STATIC;
+import static datadog.trace.api.KnownTags.COMPONENT;
+import static datadog.trace.api.KnownTags.DB_OPERATION;
+import static datadog.trace.api.KnownTags.DB_POOL_NAME;
+import static datadog.trace.api.KnownTags.DB_SCHEMA;
+import static datadog.trace.api.KnownTags.DB_WAREHOUSE;
+import static datadog.trace.api.KnownTags.DD_DBM_TRACE_INJECTED;
+import static datadog.trace.api.KnownTags.DD_INSTRUMENTATION_TIME_MS;
+import static datadog.trace.api.KnownTags.DD_PROPAGATED_HASH;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DBM_TRACE_INJECTED;
-import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.INSTRUMENTATION_TIME_MS;
-import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_OPERATION;
-import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_POOL_NAME;
-import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_SCHEMA;
-import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_WAREHOUSE;
 
 import datadog.context.ContextScope;
 import datadog.trace.api.BaseHash;
@@ -22,7 +24,6 @@ import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.dbm.SQLCommenter;
 import datadog.trace.bootstrap.instrumentation.decorator.DatabaseClientDecorator;
@@ -170,9 +171,9 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     return info.getHost();
   }
 
-  private void setTagIfPresent(final AgentSpan span, final String key, final String value) {
+  private void setTagIfPresent(final AgentSpan span, final long tagId, final String value) {
     if (value != null && !value.isEmpty()) {
-      span.setTag(key, value);
+      span.setTag(tagId, value);
     }
   }
 
@@ -293,7 +294,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       final String baseHash =
           usesOracleServiceHashAction(dbInfo) ? oracleServiceHash : BaseHash.getBaseHashStr();
       if (baseHash != null) {
-        span.setTag(Tags.BASE_HASH, baseHash);
+        span.setTag(DD_PROPAGATED_HASH, baseHash);
       }
     }
   }
@@ -306,7 +307,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       span.setResourceName(DB_QUERY);
     }
     span.spanContext().setIntegrationName(component);
-    span.setTag(Tags.COMPONENT, component);
+    span.setTag(COMPONENT, component);
   }
 
   public boolean isOracle(final DBInfo dbInfo) {
@@ -403,7 +404,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
 
       connection.setClientInfo("OCSID.ACTION", traceContext);
 
-      span.setTag("_dd.dbm_trace_injected", true);
+      span.setTag(DD_DBM_TRACE_INJECTED, true);
     } catch (Throwable e) {
       logInjectionErrorOnce("action", e);
       DECORATE.onError(span, e);
@@ -493,9 +494,9 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       logInjectionErrorOnce("application_name", e);
       DECORATE.onError(span, e);
     } finally {
-      span.setTag(DBM_TRACE_INJECTED, true);
+      span.setTag(DD_DBM_TRACE_INJECTED, true);
       final long elapsed = System.currentTimeMillis() - startTime;
-      span.setTag(INSTRUMENTATION_TIME_MS, elapsed);
+      span.setTag(DD_INSTRUMENTATION_TIME_MS, elapsed);
     }
   }
 

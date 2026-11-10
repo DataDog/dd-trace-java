@@ -5,13 +5,12 @@ import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
-import datadog.trace.test.util.DDJavaSpecification;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
-class EndpointCollectorTest extends DDJavaSpecification {
+class EndpointCollectorTest {
 
   @Test
   void noMetricsDrainEmptyList() {

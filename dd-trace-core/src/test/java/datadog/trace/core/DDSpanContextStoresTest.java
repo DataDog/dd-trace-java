@@ -1,6 +1,7 @@
 package datadog.trace.core;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -154,6 +155,32 @@ class DDSpanContextStoresTest extends DDCoreJavaSpecification {
       assertEquals("value", span.getTag("custom.from.map"));
       assertEquals("chars", String.valueOf(span.getTag("custom.chars.from.map")));
       assertEquals("unsafe", span.getTag("custom.unsafe"));
+    } finally {
+      span.finish();
+    }
+  }
+
+  @Test
+  void aNullValueInAMapWriteRemovesTheTag() {
+    DDSpan span = start();
+    try {
+      span.setTag("http.route", "/users");
+      span.setTag("custom.set", "value");
+      span.setTag("custom.chars", "chars");
+
+      Map<String, Object> tags = new LinkedHashMap<>();
+      tags.put("http.route", null); // known
+      tags.put("custom.set", null); // custom, set on this span
+      tags.put("global.custom", null); // custom, borrowed from the tracer
+      span.setAllTags(tags);
+      span.spanContext().unsafeSetTag("custom.chars", (CharSequence) null);
+
+      Map<String, Object> all = span.getTags();
+      for (String tag :
+          new String[] {"http.route", "custom.set", "global.custom", "custom.chars"}) {
+        assertNull(span.getTag(tag), tag);
+        assertFalse(all.containsKey(tag), tag);
+      }
     } finally {
       span.finish();
     }

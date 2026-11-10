@@ -1128,6 +1128,7 @@ public class Config {
   private final String appSecHttpBlockedTemplateJson;
   private final UserIdCollectionMode appSecUserIdCollectionMode;
   private final Boolean appSecScaEnabled;
+  private final String appSecScaCveFile;
   private final int appSecScaMaxTrackedDependencies;
   private final boolean appSecStackTraceEnabled;
   private final int appSecMaxStackTraces;
@@ -2253,13 +2254,14 @@ public class Config {
             OtlpConfig.Temporality.DELTA);
 
     // Tri-state default: when unset, SDK-computed OTLP span metrics are emitted iff OTLP trace
-    // export and OTLP metrics export are both enabled.
+    // export and OTLP metrics export are both enabled. OTEL_SDK_DISABLED=true turns them off.
     otelTracesSpanMetricsEnabled =
         configProvider.getBoolean(
-            OTEL_TRACES_SPAN_METRICS_ENABLED,
-            isTraceOtlpExporterEnabled()
-                && isMetricsOtelEnabled()
-                && isMetricsOtlpExporterEnabled());
+                OTEL_TRACES_SPAN_METRICS_ENABLED,
+                isTraceOtlpExporterEnabled()
+                    && isMetricsOtelEnabled()
+                    && isMetricsOtlpExporterEnabled())
+            && !configProvider.isOtelSdkDisabled();
 
     otlpTimeout = configProvider.getInteger(OTLP_TRACES_TIMEOUT, DEFAULT_OTLP_TRACES_TIMEOUT);
     if (otlpTimeout < 0) {
@@ -2292,8 +2294,11 @@ public class Config {
     }
     otlpTracesEndpoint = otlpTracesEndpointFromEnvironment;
 
-    // Runtime metrics are disabled if Otel metrics are enabled and the metrics exporter is none
-    runtimeMetricsEnabled = configProvider.getBoolean(RUNTIME_METRICS_ENABLED, true);
+    // Runtime metrics are disabled if Otel metrics are enabled and the metrics exporter is none.
+    // OTEL_SDK_DISABLED=true turns them off, whatever DD_RUNTIME_METRICS_ENABLED says.
+    runtimeMetricsEnabled =
+        configProvider.getBoolean(RUNTIME_METRICS_ENABLED, true)
+            && !configProvider.isOtelSdkDisabled();
 
     jmxFetchEnabled =
         runtimeMetricsEnabled
@@ -2635,6 +2640,8 @@ public class Config {
             configProvider.getStringNotEmpty(APPSEC_AUTO_USER_INSTRUMENTATION_MODE, null),
             configProvider.getStringNotEmpty(APPSEC_AUTOMATED_USER_EVENTS_TRACKING, null));
     appSecScaEnabled = configProvider.getBoolean(APPSEC_SCA_ENABLED);
+    // Internal override: preserve the underscore prefix and exclude it from config telemetry.
+    appSecScaCveFile = ConfigHelper.env("_DD_APPSEC_SCA_CVE_FILE");
     appSecScaMaxTrackedDependencies =
         configProvider.getInteger(
             APPSEC_SCA_MAX_TRACKED_DEPENDENCIES, DEFAULT_APPSEC_SCA_MAX_TRACKED_DEPENDENCIES);
@@ -6262,6 +6269,11 @@ public class Config {
     return appSecScaEnabled != null && appSecScaEnabled;
   }
 
+  /** Returns the local SCA catalog override, or null to use the bundled catalog. */
+  public String getAppSecScaCveFile() {
+    return appSecScaCveFile;
+  }
+
   public int getAppSecScaMaxTrackedDependencies() {
     return appSecScaMaxTrackedDependencies;
   }
@@ -7132,6 +7144,8 @@ public class Config {
         + telemetryMetricsEnabled
         + ", appSecScaEnabled="
         + appSecScaEnabled
+        + ", appSecScaCveFile="
+        + appSecScaCveFile
         + ", appSecScaMaxTrackedDependencies="
         + appSecScaMaxTrackedDependencies
         + ", appSecRaspEnabled="

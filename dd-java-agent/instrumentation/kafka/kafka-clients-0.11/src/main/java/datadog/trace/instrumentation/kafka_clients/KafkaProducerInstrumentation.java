@@ -4,6 +4,7 @@ import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEXT_TRACKING;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.api.KnownTags.TOMBSTONE;
 import static datadog.trace.api.datastreams.DataStreamsContext.fromTagsWithoutCheckpoint;
 import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
 import static datadog.trace.api.datastreams.DataStreamsTags.createWithClusterId;
@@ -19,6 +20,7 @@ import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.PRODUCE
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.TIME_IN_QUEUE_ENABLED;
 import static datadog.trace.instrumentation.kafka_common.StreamingContext.STREAMING_CONTEXT;
 import static datadog.trace.instrumentation.kafka_common.Utils.DSM_TRANSACTION_SOURCE_READER;
+import static datadog.trace.instrumentation.kafka_common.Utils.hasHeaders;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -43,7 +45,6 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.instrumentation.kafka_common.ClusterIdHolder;
 import datadog.trace.instrumentation.kafka_common.KafkaConfigHelper;
 import datadog.trace.instrumentation.kafka_common.MetadataState;
@@ -151,9 +152,11 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
         ClusterIdHolder.set(clusterId);
       }
 
-      // Try to extract existing trace context from record headers
+      // Try to extract existing trace context from record headers, which most records don't have
       final AgentSpanContext extractedContext =
-          extractContextAndGetSpanContext(record.headers(), TextMapExtractAdapter.GETTER);
+          hasHeaders(record.headers())
+              ? extractContextAndGetSpanContext(record.headers(), TextMapExtractAdapter.GETTER)
+              : null;
 
       final AgentSpan localActiveSpan = activeSpan();
 
@@ -173,7 +176,7 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
       callback = new KafkaProducerCallback(callback, callbackParentSpan, span, clusterId);
 
       if (record.value() == null) {
-        span.setTag(InstrumentationTags.TOMBSTONE, true);
+        span.setTag(TOMBSTONE, true);
       }
 
       return activateSpan(span);
