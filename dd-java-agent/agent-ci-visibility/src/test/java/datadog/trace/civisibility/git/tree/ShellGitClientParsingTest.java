@@ -9,6 +9,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
+import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -17,9 +18,11 @@ import static org.mockito.Mockito.RETURNS_DEFAULTS;
 import static org.mockito.Mockito.mock;
 
 import datadog.communication.util.IOUtils;
+import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.git.CommitInfo;
 import datadog.trace.civisibility.utils.ShellCommandExecutor;
 import java.lang.reflect.Field;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -141,6 +144,58 @@ class ShellGitClientParsingTest {
             "cat-file",
             "--batch-check=%(objecttype)");
     assertTrue(types.stream().filter("commit"::equals).count() <= 1000);
+  }
+
+  @TableTest({
+    "Scenario   | objects",
+    "history    | false  ",
+    "pack roots | true   "
+  })
+  void cappedWalkDoesNotReadTheEntirePackedHistory(boolean objects) throws Exception {
+    StringBuilder input = new StringBuilder();
+    long now = System.currentTimeMillis() / 1000;
+    for (int i = 1; i <= 4000; i++) {
+      input
+          .append("commit refs/heads/long\nmark :")
+          .append(i)
+          .append("\ncommitter Test <test@example.com> ")
+          .append(now + i)
+          .append(" +0000\ndata 1\nx\n");
+      if (i > 1) {
+        input.append("from :").append(i - 1).append('\n');
+      }
+      input.append('\n');
+    }
+    command.executeCommand(
+        IOUtils::readFully, input.toString().getBytes(UTF_8), "git", "fast-import", "--quiet");
+    String known =
+        writeObject(
+            command,
+            "tree "
+                + git(command, "rev-parse", "refs/heads/long^{tree}")
+                + "\nauthor Test <test@example.com> 1 +0000\ncommitter Test <test@example.com> 1 +0000\n\nknown root\n");
+    git(command, "update-ref", "refs/heads/known", known);
+    git(command, "repack", "-ad");
+    git(command, "config", "core.commitGraph", "false");
+    String selected = git(command, "rev-parse", "refs/heads/long");
+    Path trace = checkout.resolve("object-reads.trace");
+    ShellGitClient bounded =
+        new ShellGitClient(
+            mock(CiVisibilityMetricCollector.class), checkout.toString(), "1 month ago", 1, 10_000);
+    Field executor = ShellGitClient.class.getDeclaredField("commandExecutor");
+    executor.setAccessible(true);
+    executor.set(
+        bounded,
+        new ShellCommandExecutor(
+            checkout.toFile(), 10_000, singletonMap("GIT_TRACE_PACK_ACCESS", trace.toString())));
+    List<String> result =
+        objects
+            ? bounded.getObjects(singletonList(known), singletonList(selected))
+            : bounded.getLatestCommits(selected);
+    assertTrue(result.contains(selected));
+    int reads = Files.readAllLines(trace).size();
+    assertTrue(
+        reads < 100, "A one-commit limit must not read thousands of packed ancestors: " + reads);
   }
 
   @Test
