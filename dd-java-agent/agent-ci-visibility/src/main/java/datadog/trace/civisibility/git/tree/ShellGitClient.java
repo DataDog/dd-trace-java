@@ -554,19 +554,25 @@ public class ShellGitClient implements GitClient {
             outsideWindow.remove(object);
           }
           if (!outsideWindow.isEmpty()) {
-            List<String> selectedArgs = new ArrayList<>();
-            Collections.addAll(
-                selectedArgs,
-                "rev-list",
-                "--objects",
-                "--no-object-names",
-                "--filter=blob:none",
-                "--no-walk=unsorted");
-            selectedArgs.addAll(outsideWindow);
             LinkedHashSet<String> combined = new LinkedHashSet<>(objects);
-            combined.addAll(
-                commandExecutor.executeCommand(
-                    IOUtils::readLines, buildGitCommand(selectedArgs.toArray(new String[0]))));
+            for (String selectedCommit : outsideWindow) {
+              List<String> selectedArgs = new ArrayList<>();
+              Collections.addAll(
+                  selectedArgs,
+                  "rev-list",
+                  "--objects",
+                  "--no-object-names",
+                  "--filter=blob:none",
+                  "--max-count=1");
+              for (String commitToSkip : commitsToSkip) {
+                selectedArgs.add("^" + commitToSkip);
+              }
+              // Negative refs disable --no-walk; one root per query keeps its ancestors out.
+              selectedArgs.add(selectedCommit);
+              combined.addAll(
+                  commandExecutor.executeCommand(
+                      IOUtils::readLines, buildGitCommand(selectedArgs.toArray(new String[0]))));
+            }
             return new ArrayList<>(combined);
           }
           return objects;

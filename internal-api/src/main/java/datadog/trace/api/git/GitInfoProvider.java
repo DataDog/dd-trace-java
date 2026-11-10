@@ -198,7 +198,8 @@ public class GitInfoProvider {
           GitInfo ciInfo = entry.getKey().build(repositoryPath);
           entry.setValue(ciInfo);
           String ciSha = ciInfo.getCommit().getSha();
-          if (Strings.isNotBlank(ciSha) && !ciSha.equals(localInfo.getCommit().getSha())) {
+          if (Strings.isNotBlank(ciSha)
+              && !ciSha.equalsIgnoreCase(localInfo.getCommit().getSha())) {
             boolean repositoryMismatch =
                 localInfo.getRepositoryURL() != null
                     && ciInfo.getRepositoryURL() != null

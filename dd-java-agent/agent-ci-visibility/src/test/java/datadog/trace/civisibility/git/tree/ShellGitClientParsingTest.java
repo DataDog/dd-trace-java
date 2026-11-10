@@ -77,6 +77,49 @@ class ShellGitClientParsingTest {
   }
 
   @Test
+  void oldSelectedObjectsRespectExcludedDescendantsWithoutAddingAncestors() throws Exception {
+    Path fixture =
+        Paths.get(getClass().getClassLoader().getResource("ci/git/with_pack/git").toURI());
+    IOUtils.copyFolder(fixture, Files.createDirectories(checkout.resolve(".git")));
+    ShellCommandExecutor command = new ShellCommandExecutor(checkout.toFile(), 10_000);
+    ShellGitClient client =
+        new ShellGitClient(
+            mock(CiVisibilityMetricCollector.class),
+            checkout.toString(),
+            "1 month ago",
+            1000,
+            10_000);
+    String selected = "98cd7c8e9cf71e02dc28bd9b13928bee0f85b74c";
+    String head = command.executeCommand(IOUtils::readFully, "git", "rev-parse", "HEAD").trim();
+    String parent =
+        command.executeCommand(IOUtils::readFully, "git", "rev-parse", selected + "^").trim();
+    assertTrue(client.getObjects(singletonList(head), singletonList(selected)).isEmpty());
+
+    String tree =
+        command.executeCommand(IOUtils::readFully, "git", "rev-parse", "HEAD^{tree}").trim();
+    String object =
+        "tree "
+            + tree
+            + "\nauthor Test <test@example.com> 1 +0000\ncommitter Test <test@example.com> 1 +0000\n\nunrelated\n";
+    String unrelated =
+        command
+            .executeCommand(
+                IOUtils::readFully,
+                object.getBytes(UTF_8),
+                "git",
+                "hash-object",
+                "-t",
+                "commit",
+                "-w",
+                "--stdin")
+            .trim();
+    List<String> objects = client.getObjects(singletonList(unrelated), singletonList(selected));
+    assertTrue(objects.contains(selected));
+    assertFalse(objects.contains(parent));
+    assertFalse(objects.contains(head));
+  }
+
+  @Test
   void preservesSeparatorsInNamesAndMessagesAndSuppressesSignatureOutput() throws Exception {
     Path fixture =
         Paths.get(getClass().getClassLoader().getResource("ci/git/with_pack/git").toURI());

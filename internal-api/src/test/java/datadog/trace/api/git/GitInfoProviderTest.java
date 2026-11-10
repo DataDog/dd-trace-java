@@ -294,6 +294,35 @@ class GitInfoProviderTest {
   }
 
   @Test
+  void testGitClientAndCiProviderShaComparisonIgnoresCase() {
+    CiVisibilityMetricCollector metricCollector = mock(CiVisibilityMetricCollector.class);
+    InstrumentationBridge.registerMetricCollector(metricCollector);
+    String localSha = "abcdef0123456789abcdef0123456789abcdef01";
+    GitInfoProvider provider = new GitInfoProvider();
+    provider.registerGitInfoBuilder(
+        givenABuilderReturning(
+            new GitInfo("https://example.com/repo.git", null, null, new CommitInfo(localSha)),
+            1,
+            GitProviderExpected.GIT_CLIENT,
+            GitProviderDiscrepant.GIT_CLIENT));
+    provider.registerGitInfoBuilder(
+        givenABuilderReturning(
+            new GitInfo(
+                "https://example.com/repo.git",
+                null,
+                null,
+                new CommitInfo("ABCDEF0123456789ABCDEF0123456789ABCDEF01")),
+            2,
+            GitProviderExpected.CI_PROVIDER,
+            GitProviderDiscrepant.CI_PROVIDER));
+
+    assertEquals(localSha, provider.getGitInfo(REPO_PATH).getCommit().getSha());
+    verify(metricCollector).add(GIT_COMMIT_SHA_MATCH, 1L, GitShaMatch.TRUE);
+    verify(metricCollector, never())
+        .add(eq(GIT_COMMIT_SHA_DISCREPANCY), anyLong(), (TagValue[]) any());
+  }
+
+  @Test
   void testIgnoresRemoteUrlsStartingWithFileProtocol() {
     GitInfoBuilder gitInfoBuilderA =
         givenABuilderReturning(
