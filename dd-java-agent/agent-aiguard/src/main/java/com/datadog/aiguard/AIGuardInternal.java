@@ -430,8 +430,7 @@ public class AIGuardInternal implements Evaluator {
         log.debug("AI Guard: skipping extra tag '{}': value is not a string", key);
         continue;
       }
-      final String stringValue = (String) value;
-      span.setTag(key, stringValue);
+      span.setTag(key, (String) value);
     }
   }
 
