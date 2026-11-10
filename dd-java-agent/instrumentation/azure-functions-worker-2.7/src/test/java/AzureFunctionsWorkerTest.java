@@ -122,11 +122,11 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
   }
 
   @Test
-  void cosmosDbTriggerSpanContinuesHostTraceAndRecordsFailure() throws Exception {
+  void cosmosDbTriggerSpanStartsNewTraceAndRecordsFailure() throws Exception {
     MiddlewareContext context = contextFor("CosmosDBTrigger", "CosmosFunction");
     TraceContext traceContext = mock(TraceContext.class);
     when(traceContext.getTraceparent())
-        .thenReturn("00-0000000000000000000000000000002a-000000000000002b-01");
+        .thenReturn("00-0000000000000000000000000000002a-000000000000002b-00");
     when(context.getTraceContext()).thenReturn(traceContext);
     MiddlewareChain chain = mock(MiddlewareChain.class);
     doAnswer(
@@ -142,8 +142,9 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
 
     writer.waitForTraces(1);
     DDSpan span = writer.firstTrace().get(0);
-    assertEquals("42", span.getTraceId().toString());
-    assertEquals(43L, span.getParentId());
+    assertNotEquals("42", span.getTraceId().toString());
+    assertEquals(0L, span.getParentId());
+    assertNotEquals(SAMPLER_DROP, span.samplingPriority());
     assertEquals("CosmosDB CosmosFunction", span.getResourceName().toString());
     assertTrue(span.isError());
     assertEquals(IllegalStateException.class.getName(), span.getTag("error.type"));

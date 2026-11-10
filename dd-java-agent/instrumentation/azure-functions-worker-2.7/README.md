@@ -22,8 +22,5 @@ for host configuration details.
 # Azure Functions Cosmos DB trigger tracing
 
 Functions with a `@CosmosDBTrigger` parameter get an `azure.functions.invoke` span with resource
-`CosmosDB <function name>` and the `aas.function.trigger:CosmosDB` tag. Like Durable invocations,
-the span continues the trace context the Functions host passes to the worker.
-Enable `"telemetryMode": "OpenTelemetry"` in `host.json` as described above. Without it, the
-trigger span's parent is a host span that is not sent to Datadog, and a drop decision from the
-host also drops the trigger span.
+`CosmosDB <function name>` and the `aas.function.trigger:CosmosDB` tag. Like dd-trace-js and
+dd-trace-py, the span starts a new trace instead of continuing the host's trace context.
