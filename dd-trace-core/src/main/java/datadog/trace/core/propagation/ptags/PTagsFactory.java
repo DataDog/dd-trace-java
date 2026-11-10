@@ -34,7 +34,7 @@ public class PTagsFactory implements PropagationTags.Factory {
   public PTagsFactory(int xDatadogTagsLimit) {
     this.xDatadogTagsLimit = xDatadogTagsLimit;
     DEC_ENC_MAP.put(DATADOG, new DatadogPTagsCodec(xDatadogTagsLimit));
-    DEC_ENC_MAP.put(W3C, new W3CPTagsCodec());
+    DEC_ENC_MAP.put(W3C, new W3CPTagsCodec(this));
   }
 
   boolean isPropagationTagsDisabled() {
@@ -898,19 +898,18 @@ public class PTagsFactory implements PropagationTags.Factory {
     }
 
     @Override
-    public void updateW3CTracestateFrom(PropagationTags source) {
-      if (!(source instanceof PTags)) {
-        super.updateW3CTracestateFrom(source);
-        return;
+    public void updateW3CTracestateFrom(W3CTracestate source, int overridingPriority) {
+      OtelTraceState otelTraceState = source.otelTraceState;
+      if (overridingPriority != PrioritySampling.UNSET) {
+        // as the trace context's own priority override reconciles its member
+        otelTraceState =
+            reconcileOtelTraceState(
+                otelTraceState, overridingPriority, SamplingMechanism.EXTERNAL_OVERRIDE);
       }
-      PTags sourcePTags = (PTags) source;
-      SamplingState sourceState = sourcePTags.samplingState();
-      CharSequence sourceOtelTraceState = sourceState.getOtelTraceState();
+      // The parse already found the otel member, so an override that drops it falls back to the
+      // member as parsed rather than scanning the tracestate for it again
       setW3CTracestate(
-          sourceState.getTracestate(),
-          sourceOtelTraceState instanceof OtelTraceState
-              ? (OtelTraceState) sourceOtelTraceState
-              : W3CPTagsCodec.extractOtelTraceState(sourceState.getTracestate()));
+          source.tracestate, otelTraceState != null ? otelTraceState : source.otelTraceState);
     }
 
     private void setW3CTracestate(String tracestate, OtelTraceState otelTraceState) {
