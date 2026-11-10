@@ -581,6 +581,8 @@ class OpenTelemetryMetricsTest extends AbstractInstrumentationTest {
    * attributes, and reports {@code 2} with attributes in the first and third collections only.
    *
    * @param metric the exported metric key, as {@code scope:instrument}
+   * @param points the data points collected by {@code meterReader}, cleared between collections
+   * @param meterReader the visitor that fills {@code points}
    * @param register builds the observable instrument from the given callback
    */
   static void assertStopsExportingUnobservedAttributes(

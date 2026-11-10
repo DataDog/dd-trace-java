@@ -194,7 +194,7 @@ public final class OtelMetricStorage {
    *
    * <p>Synchronous instruments keep their aggregators for future writes. Observable instruments
    * start the next collection empty, so attribute sets that their callback stops reporting are no
-   * longer exported and free their cardinality slots, as the OTel SDK spec requires for
+   * longer exported and free their cardinality slots, as the OTel SDK spec specifies for
    * asynchronous instruments.
    */
   private void doCollect(OtlpMetricVisitor visitor) {
