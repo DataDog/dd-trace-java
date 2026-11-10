@@ -2,6 +2,7 @@ package datadog.trace.core.propagation;
 
 import static datadog.trace.api.TracePropagationStyle.B3MULTI;
 import static datadog.trace.api.TracePropagationStyle.B3SINGLE;
+import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY;
 import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
 
 import datadog.context.propagation.CarrierSetter;
@@ -201,6 +202,19 @@ class B3HttpCodec {
       tagLedger().set(B3_TRACE_ID, tId);
       return true;
     }
+
+    /**
+     * A malformed id or sampling priority sent by a caller surfaces as a {@link
+     * NumberFormatException}. That is expected input, not a tracer failure, so it is kept out of
+     * telemetry; anything else may be a tracer bug and is still reported.
+     */
+    static void logExtractionFailure(RuntimeException e) {
+      if (e instanceof NumberFormatException) {
+        log.debug(EXCLUDE_TELEMETRY, "Exception when extracting context", e);
+      } else {
+        log.debug("Exception when extracting context", e);
+      }
+    }
   }
 
   private static final class B3MultiContextInterpreter extends B3BaseContextInterpreter {
@@ -250,7 +264,7 @@ class B3HttpCodec {
         handleTags(key, value);
       } catch (RuntimeException e) {
         invalidateContext();
-        log.debug("Exception when extracting context", e);
+        logExtractionFailure(e);
         return false;
       }
       return true;
@@ -297,7 +311,7 @@ class B3HttpCodec {
         handleTags(key, value);
       } catch (RuntimeException e) {
         invalidateContext();
-        log.debug("Exception when extracting context", e);
+        logExtractionFailure(e);
         return false;
       }
       return true;

@@ -1,5 +1,6 @@
 package datadog.trace.core.propagation;
 
+import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY;
 import static datadog.trace.bootstrap.instrumentation.api.ContextVisitors.stringValuesMap;
 import static datadog.trace.core.propagation.B3HttpCodec.B3_KEY;
 import static datadog.trace.core.propagation.B3HttpCodec.B3_SPAN_ID;
@@ -16,16 +17,23 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.test.junit.utils.converter.PrioritySamplingConverter;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.converter.ConvertWith;
+import org.slf4j.LoggerFactory;
 import org.tabletest.junit.TableTest;
 
 class B3HttpExtractorTest extends AbstractHttpExtractorTest {
@@ -237,6 +245,47 @@ class B3HttpExtractorTest extends AbstractHttpExtractorTest {
 
     assertFalse(context instanceof ExtractedContext);
     assertEquals(singletonMap(SOME_TAG, SOME_VALUE), context.getTags());
+  }
+
+  /**
+   * A malformed id is expected input from a caller, so its extraction failure is logged without
+   * being sent to telemetry.
+   */
+  @TableTest({
+    "scenario                 | traceId | header      | value                ",
+    "oversized multi span id  | '1'     | X-B3-SpanId | '10000000000000000'  ",
+    "oversized single span id |         | b3          | '1-10000000000000000'",
+    "non-hexadecimal span id  | '1'     | X-B3-SpanId | 'spanId'             "
+  })
+  void malformedIdIsNotReportedToTelemetry(String traceId, String header, String value) {
+    Logger logger = (Logger) LoggerFactory.getLogger(B3HttpCodec.class);
+    Level previousLevel = logger.getLevel();
+    ListAppender<ILoggingEvent> appender = new ListAppender<>();
+    appender.start();
+    logger.addAppender(appender);
+    logger.setLevel(Level.DEBUG);
+    try {
+      // spotless:off
+      Map<String, String> headers = headers(
+          TRACE_ID_KEY, traceId,
+          header, value,
+          SOME_HEADER, SOME_VALUE);
+      // spotless:on
+
+      TagContext context = extractor.extract(headers, stringValuesMap());
+
+      assertFalse(context instanceof ExtractedContext);
+      List<ILoggingEvent> failures =
+          appender.list.stream()
+              .filter(event -> "Exception when extracting context".equals(event.getMessage()))
+              .collect(Collectors.toList());
+      assertEquals(1, failures.size(), () -> "logged: " + appender.list);
+      assertEquals(Level.DEBUG, failures.get(0).getLevel());
+      assertEquals(EXCLUDE_TELEMETRY, failures.get(0).getMarker());
+    } finally {
+      logger.detachAppender(appender);
+      logger.setLevel(previousLevel);
+    }
   }
 
   @TableTest({
