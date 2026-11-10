@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Named.named;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import datadog.trace.api.TagMap.EntryReader;
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -104,14 +105,15 @@ class IdStoreContractTest {
 
   @ParameterizedTest
   @MethodSource("stores")
-  void putAndGetAndPutReturnThePriorValue(Function<IdStore, IdStore> newStore) {
+  void putReplacesAndGetAndPutReturnsThePriorValue(Function<IdStore, IdStore> newStore) {
     IdStore parent = newStore.apply(null);
     parent.store(KnownTags.HTTP_ROUTE, "/inherited");
     IdStore store = newStore.apply(parent);
 
-    assertNull(store.put(TagMap.Entry.newAnyEntry(KnownTags.HTTP_METHOD, "GET")));
-    EntryReader prior = store.put(TagMap.Entry.newAnyEntry(KnownTags.HTTP_METHOD, "POST"));
-    assertEquals("GET", prior.objectValue());
+    store.put(TagMap.Entry.newAnyEntry(KnownTags.HTTP_METHOD, "GET"));
+    assertEquals("GET", store.load(KnownTags.HTTP_METHOD));
+    store.put(TagMap.Entry.newAnyEntry(KnownTags.HTTP_METHOD, "POST"));
+    assertEquals("POST", store.load(KnownTags.HTTP_METHOD));
 
     // getAndPut reports the prior visible value, inherited included
     EntryReader inherited =
@@ -136,19 +138,19 @@ class IdStoreContractTest {
     assertTrue(store.hasParent());
     assertEquals(3, store.size());
 
-    assertEquals("/inherited", store.remove(KnownTags.HTTP_ROUTE).objectValue());
+    assertEquals("/inherited", store.getAndRemove(KnownTags.HTTP_ROUTE).objectValue());
     assertNull(store.load(KnownTags.HTTP_ROUTE));
-    assertNull(store.remove(KnownTags.HTTP_ROUTE), "already hidden");
+    assertNull(store.getAndRemove(KnownTags.HTTP_ROUTE), "already hidden");
     assertEquals(2, store.size());
     assertEquals("/inherited", parent.load(KnownTags.HTTP_ROUTE), "parent untouched");
 
     // a local value that also hides an inherited one is removed with its tombstone in place
     store.store(KnownTags.COMPONENT, "local");
-    assertEquals("local", store.remove(KnownTags.COMPONENT).objectValue());
+    assertEquals("local", store.getAndRemove(KnownTags.COMPONENT).objectValue());
     assertNull(store.load(KnownTags.COMPONENT));
 
-    assertEquals("GET", store.remove(KnownTags.HTTP_METHOD).objectValue());
-    assertNull(store.remove(KnownTags.HTTP_METHOD), "absent");
+    assertEquals("GET", store.getAndRemove(KnownTags.HTTP_METHOD).objectValue());
+    assertNull(store.getAndRemove(KnownTags.HTTP_METHOD), "absent");
     assertTrue(store.isEmpty());
     assertTrue(store.isDefinitelyEmpty() || store.estimateSize() >= 0);
 
@@ -496,7 +498,7 @@ class IdStoreContractTest {
     store.store(KnownTags.HTTP_ROUTE, "/a");
     NoEntryReader empty = new NoEntryReader("http.route", KnownTags.HTTP_ROUTE);
 
-    assertNull(store.put(empty));
+    store.put(empty);
     assertNull(store.getAndPut(empty));
     assertEquals("/a", store.load(KnownTags.HTTP_ROUTE), "left as it was");
     assertEquals(1, store.size());
@@ -709,5 +711,54 @@ class IdStoreContractTest {
     assertEquals(expected.doubleValue(), actual.doubleValue(), what);
     assertEquals(expected.stringValue(), actual.stringValue(), what);
     assertEquals(expected.objectValue(), actual.objectValue(), what);
+  }
+
+  /**
+   * A value a write replaces or removes isn't kept reachable by the store once the caller drops it,
+   * whichever write did it. A store that answered with a reused reader kept the last prior value,
+   * e.g. a large removed error.stack, attached to a long-lived span.
+   */
+  @ParameterizedTest
+  @MethodSource("stores")
+  void aStoreDoesNotRetainAValueItNoLongerHolds(Function<IdStore, IdStore> newStore)
+      throws InterruptedException {
+    IdStore store = newStore.apply(null);
+    assertCollectedAfter(
+        store,
+        value -> store.store(KnownTags.ERROR_STACK, value),
+        () -> store.remove(KnownTags.ERROR_STACK));
+    assertCollectedAfter(
+        store,
+        value -> store.store(KnownTags.ERROR_STACK, value),
+        () -> store.getAndRemove(KnownTags.ERROR_STACK));
+    assertCollectedAfter(
+        store,
+        value -> store.store(KnownTags.ERROR_STACK, value),
+        () -> store.put(TagMap.Entry.newAnyEntry(KnownTags.ERROR_STACK, "replacement")));
+    assertCollectedAfter(
+        store,
+        value -> store.store(KnownTags.ERROR_STACK, value),
+        () -> store.getAndPut(TagMap.Entry.newAnyEntry(KnownTags.ERROR_STACK, "replacement")));
+    assertNotNull(store); // the store stays reachable throughout
+  }
+
+  private static void assertCollectedAfter(
+      IdStore store, java.util.function.Consumer<Object> set, Runnable drop)
+      throws InterruptedException {
+    WeakReference<Object> ref = storeLargeValue(set);
+    drop.run();
+    for (int i = 0; i < 20 && ref.get() != null; i++) {
+      System.gc();
+      Thread.sleep(10);
+    }
+    assertNull(ref.get(), "the store still references a value it no longer holds");
+    store.remove(KnownTags.ERROR_STACK); // reset for the next case
+  }
+
+  /** Stores a fresh large value and returns only a weak reference to it. */
+  private static WeakReference<Object> storeLargeValue(java.util.function.Consumer<Object> set) {
+    Object value = new StringBuilder(new String(new char[64 * 1024])).toString();
+    set.accept(value);
+    return new WeakReference<>(value);
   }
 }

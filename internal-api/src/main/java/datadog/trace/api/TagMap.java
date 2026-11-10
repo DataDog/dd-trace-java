@@ -1918,14 +1918,14 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     // See getEntry: entries are stored under their canonical Datadog name, so a removal by an
     // OpenTelemetry rename must resolve to the id first to find (and tombstone) the right entry.
     long key = KnownTagCodec.keyOf(tag);
-    return key != 0 ? entryOf(this.knownStore.remove(key)) : this.removeCustom(tag);
+    return key != 0 ? entryOf(this.knownStore.getAndRemove(key)) : this.removeCustom(tag);
   }
 
   /** Removes the entry for a known tag id; see {@link #getEntry(long)}. */
   public Entry getAndRemove(long tagId) {
     this.checkWriteAccess();
 
-    return entryOf(this.knownStore.remove(tagId));
+    return entryOf(this.knownStore.getAndRemove(tagId));
   }
 
   public TagMap copy() {

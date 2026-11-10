@@ -223,13 +223,6 @@ final class DenseIdStore extends IdStore {
   /** The frozen parent's id store, or null. */
   final DenseIdStore parent;
 
-  /**
-   * The reused flyweight that writes ({@code put}, {@code getAndPut}, {@code remove}) answer their
-   * prior value with; built on first use. Only writes use it: a store being written has a single
-   * writer, while a frozen store that threads share is only read, and reads build their own.
-   */
-  private DenseReader reader;
-
   DenseIdStore(IdStore parent) {
     DenseIdStore dense = (DenseIdStore) parent;
     this.parent = dense;
@@ -383,13 +376,12 @@ final class DenseIdStore extends IdStore {
   }
 
   @Override
-  public EntryReader put(EntryReader entryReader) {
+  public void put(EntryReader entryReader) {
     Object value = entryReader.objectValue();
     if (value == null) {
-      return null; // a reader with nothing to store is a no-op, as for TagMap.set
+      return; // a reader with nothing to store is a no-op, as for TagMap.set
     }
-    long tagId = entryReader.tagId();
-    return this.readerOf(tagId, this.storeLocal(tagId, value));
+    this.storeLocal(entryReader.tagId(), value);
   }
 
   @Override
@@ -415,11 +407,21 @@ final class DenseIdStore extends IdStore {
       prior = this.mayInherit(bit, level) ? this.parent.getVisible(serial, bit, level) : null;
       this.append(serial, bit, level, entryReader.objectValue());
     }
-    return this.readerOf(tagId, prior);
+    return readerOf(tagId, prior);
   }
 
   @Override
-  public EntryReader remove(long tagId) {
+  public void remove(long tagId) {
+    this.removeLocal(tagId);
+  }
+
+  @Override
+  public EntryReader getAndRemove(long tagId) {
+    return readerOf(tagId, this.removeLocal(tagId));
+  }
+
+  /** Removes a known tag, returning its prior visible value, or null. Builds no reader. */
+  private Object removeLocal(long tagId) {
     if (!KnownTagCodec.isKnown(tagId)) {
       throw notKnown(tagId);
     }
@@ -447,14 +449,14 @@ final class DenseIdStore extends IdStore {
           this.appendSlot(serial, TOMBSTONE);
         }
         this.markTombstone(bit, level);
-        return this.readerOf(tagId, local != null ? local : inherited);
+        return local != null ? local : inherited;
       }
     }
     if (i >= 0) {
       this.removeAt(i);
       this.count--;
     }
-    return this.readerOf(tagId, local);
+    return local;
   }
 
   /** Stores a known tag's value, returning the prior local value, or null. Builds no Entry. */
@@ -529,16 +531,16 @@ final class DenseIdStore extends IdStore {
     this.values = Arrays.copyOf(this.values, newCap);
   }
 
-  /** The reused flyweight over a write's prior {@code value}, or null when there is none. */
-  private EntryReader readerOf(long tagId, Object value) {
+  /**
+   * A fresh reader over a write's prior {@code value}, or null when there is none. Never a reused
+   * one: a cached reader would keep a value the caller discarded reachable from the store (e.g. a
+   * removed {@code error.stack}). Short-lived, so usually scalar-replaced.
+   */
+  private static EntryReader readerOf(long tagId, Object value) {
     if (value == null) {
       return null;
     }
-    DenseReader reader = this.reader;
-    if (reader == null) {
-      reader = new DenseReader();
-      this.reader = reader;
-    }
+    DenseReader reader = new DenseReader();
     reader.set(tagId, value);
     return reader;
   }
