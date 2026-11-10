@@ -7,6 +7,7 @@ import datadog.trace.util.Strings;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.util.regex.Pattern;
 import java.util.zip.DataFormatException;
@@ -105,8 +106,6 @@ public class GitUtils {
     return ref;
   }
 
-  private static final Pattern SSH_PROTOCOL_AND_USER_INFO = Pattern.compile("^(ssh://).*?@");
-
   /**
    * Removes the user info of a certain URL. E.g: https://user:password@host.com/path ->
    * https://host.com/path
@@ -118,16 +117,27 @@ public class GitUtils {
     if (urlStr == null || urlStr.isEmpty()) {
       return null;
     }
+    if (!urlStr.contains("://") && !urlStr.startsWith("//")) {
+      // Preserve SCP-style usernames and non-URL CI values, but reject opaque credentials.
+      int colon = urlStr.indexOf(':');
+      int at = urlStr.indexOf('@');
+      return colon >= 0 && at > colon ? null : urlStr;
+    }
     try {
-      if (urlStr.startsWith("http")) {
-        final URI url = new URI(urlStr);
-        final String userInfo = url.getRawUserInfo();
-        return Pattern.compile(userInfo + "@", Pattern.LITERAL).matcher(urlStr).replaceAll("");
-      } else {
-        return SSH_PROTOCOL_AND_USER_INFO.matcher(urlStr).replaceAll("$1");
+      URI url = new URI(urlStr);
+      String authority = url.getRawAuthority();
+      if (authority == null) {
+        return null;
       }
-    } catch (final Exception ex) {
-      return urlStr;
+      String userInfo = url.getRawUserInfo();
+      if (userInfo == null) {
+        return authority.indexOf('@') >= 0 ? null : urlStr;
+      }
+      int authorityStart = urlStr.indexOf("//") + 2;
+      return urlStr.substring(0, authorityStart)
+          + urlStr.substring(authorityStart + userInfo.length() + 1);
+    } catch (URISyntaxException ex) {
+      return null;
     }
   }
 

@@ -99,6 +99,26 @@ class GitUtilsTest {
   }
 
   @TableTest({
+    "scenario            | url                                                                 | expectedResult                                  ",
+    "ftps credentials    | 'ftps://user:password@host.com/repo.git'                            | 'ftps://host.com/repo.git'                      ",
+    "git custom scheme   | 'git+ssh://user:password@host.com:2222/repo.git'                    | 'git+ssh://host.com:2222/repo.git'              ",
+    "uppercase scheme    | 'HTTPS://user:password@host.com/repo.git'                           | 'HTTPS://host.com/repo.git'                     ",
+    "encoded components  | 'ftps://user%40name:p%3Ass@host.com/repo%2Fpart.git?q=%40#revision' | 'ftps://host.com/repo%2Fpart.git?q=%40#revision'",
+    "network path        | '//user:password@host.com/repo.git'                                 | '//host.com/repo.git'                           ",
+    "IPv6 URI            | 'ftps://user:password@[2001:db8::1]:2121/repo.git'                  | 'ftps://[2001:db8::1]:2121/repo.git'            ",
+    "IPv6 scp            | 'git@[2001:db8::1]:repo.git'                                        | 'git@[2001:db8::1]:repo.git'                    ",
+    "plain CI value      | 'integration test job'                                              | 'integration test job'                          ",
+    "CI value with colon | 'build: integration tests'                                          | 'build: integration tests'                      ",
+    "malformed path      | 'ftps://user:password@host.com/repo name.git'                       |                                                 ",
+    "malformed authority | 'ftps://user:password@@host.com/repo.git'                           |                                                 ",
+    "missing host        | 'ftps://user:password@/repo.git'                                    |                                                 ",
+    "opaque credentials  | 'ftps:user:password@host.com/repo.git'                              |                                                 "
+  })
+  void testCredentialsAreFilteredForAllUriSchemes(String url, String expectedResult) {
+    assertEquals(expectedResult, GitUtils.filterSensitiveInfo(url));
+  }
+
+  @TableTest({
     "scenario                           | ref                     | valid",
     "full branch ref                    | refs/heads/main         | true ",
     "branch with slash and dots         | feature/branch-1.0      | true ",

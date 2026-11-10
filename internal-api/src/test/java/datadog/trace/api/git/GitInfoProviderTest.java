@@ -20,6 +20,7 @@ import datadog.trace.api.civisibility.telemetry.tag.GitProviderExpected;
 import datadog.trace.api.civisibility.telemetry.tag.GitShaDiscrepancyType;
 import datadog.trace.api.civisibility.telemetry.tag.GitShaMatch;
 import org.junit.jupiter.api.Test;
+import org.tabletest.junit.TableTest;
 
 class GitInfoProviderTest {
 
@@ -320,6 +321,34 @@ class GitInfoProviderTest {
     verify(metricCollector).add(GIT_COMMIT_SHA_MATCH, 1L, GitShaMatch.TRUE);
     verify(metricCollector, never())
         .add(eq(GIT_COMMIT_SHA_DISCREPANCY), anyLong(), (TagValue[]) any());
+  }
+
+  @TableTest({
+    "scenario      | localUrl                                      | expectedUrl               ",
+    "valid URI     | 'ftps://user:password@host.com/repo.git'      | 'ftps://host.com/repo.git'",
+    "malformed URI | 'ftps://user:password@host.com/repo name.git' |                           "
+  })
+  void testLocalRemoteCredentialsDoNotReachSelectedMetadata(String localUrl, String expectedUrl) {
+    String sha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+    GitInfoProvider provider = new GitInfoProvider();
+    provider.registerGitInfoBuilder(
+        givenABuilderReturning(
+            new GitInfo(localUrl, "main", null, new CommitInfo(sha)),
+            1,
+            GitProviderExpected.GIT_CLIENT,
+            GitProviderDiscrepant.GIT_CLIENT));
+    provider.registerGitInfoBuilder(
+        givenABuilderReturning(
+            new GitInfo("https://example.com/provider.git", "provider", null, new CommitInfo(sha)),
+            2,
+            GitProviderExpected.CI_PROVIDER,
+            GitProviderDiscrepant.CI_PROVIDER));
+
+    GitInfo selected = provider.getGitInfo(REPO_PATH);
+
+    assertEquals(expectedUrl, selected.getRepositoryURL());
+    assertEquals(sha, selected.getCommit().getSha());
+    assertEquals("main", selected.getBranch());
   }
 
   @Test
