@@ -33,9 +33,14 @@ final class TagValue extends TagElement {
   }
 
   /**
-   * Like {@link #from(Encoding, CharSequence, int, int)}, for a value unique to one trace or span,
-   * such as a span id. Caching those would never hit, and would evict values that do repeat.
+   * Like {@link #from(CharSequence)}, for a value unique to one trace or span, such as a span id.
+   * Caching those would never hit, and would evict values that do repeat.
    */
+  static TagValue uncached(CharSequence s) {
+    return uncached(Encoding.DATADOG, s, s == null ? -1 : 0, s == null ? -1 : s.length());
+  }
+
+  /** Like {@link #uncached(CharSequence)}, for a range of {@code s} in {@code encoding}. */
   static TagValue uncached(Encoding encoding, CharSequence s, int start, int end) {
     if (isInvalid(encoding, s, start, end)) {
       return null;

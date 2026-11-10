@@ -36,9 +36,10 @@ abstract class PTagsCodec {
 
   /**
    * The value of tag {@code key}, cached unless the key's values are unique to one trace or span.
+   * The LLM Observability root marker repeats, so it's cached under any key.
    */
   static TagValue tagValue(Encoding encoding, TagKey key, CharSequence s, int start, int end) {
-    return hasUniqueValues(key)
+    return hasUniqueValues(key) && !LLMObsTagValues.isRootMarker(s, start, end)
         ? TagValue.uncached(encoding, s, start, end)
         : TagValue.from(encoding, s, start, end);
   }
