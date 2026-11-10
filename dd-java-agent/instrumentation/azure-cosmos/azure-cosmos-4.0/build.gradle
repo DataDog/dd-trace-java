@@ -17,8 +17,8 @@ addTestSuiteForDir('latestDepTest', 'test')
 dependencies {
   compileOnly group: 'com.azure', name: 'azure-cosmos', version: '4.0.1'
 
-  // The Linux emulator image only ships for amd64.
-  testContainerImage(image('mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:2.14.28', 'test.cosmosdb.image'))
+  // the Linux-based (vNext) emulator, which ships for amd64 and arm64
+  testContainerImage(image('mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:vnext-EN20261008', 'test.cosmosdb.image'))
 
   testImplementation group: 'com.azure', name: 'azure-cosmos', version: '4.0.1'
   testImplementation group: 'org.testcontainers', name: 'azure', version: libs.versions.testcontainers.get()
