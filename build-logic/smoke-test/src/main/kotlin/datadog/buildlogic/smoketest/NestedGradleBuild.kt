@@ -163,17 +163,18 @@ abstract class NestedGradleBuild @Inject constructor(
   @get:OutputDirectory
   abstract val applicationBuildDir: DirectoryProperty
 
-  /** Forward a root-build jar as `-P<name>=<absolute path>` into the nested build. */
-  fun projectJar(name: String, file: Provider<RegularFile>) {
+  /** Forward a JAR with runtime-classpath normalisation and an explicit base [version]. */
+  fun projectJar(name: String, file: Provider<RegularFile>, version: Provider<String>) {
     projectJars.add(
       objects.newInstance<NestedBuildProjectJar>().apply {
         propertyName.set(name)
         this.file.set(file)
+        this.version.set(version)
       },
     )
   }
 
-  /** Configure additional aspects of the nested build via a typed action. */
+  /** Configure a normalised JAR input, including its base version, via a typed action. */
   fun projectJar(action: Action<NestedBuildProjectJar>) {
     projectJars.add(
       objects.newInstance<NestedBuildProjectJar>().also(action::execute),
