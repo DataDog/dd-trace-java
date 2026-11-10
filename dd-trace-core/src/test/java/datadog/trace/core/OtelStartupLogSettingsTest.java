@@ -239,15 +239,19 @@ class OtelStartupLogSettingsTest extends DDJavaSpecification {
   }
 
   @TableTest({
-    "scenario    | endpoint                                       | sanitized                           ",
-    "plain       | http://agent:4318/v1/traces                    | http://agent:4318/v1/traces         ",
-    "user info   | https://user:password@collector:4318/v1/traces | https://collector:4318/v1/traces    ",
-    "user only   | http://user@collector                          | http://collector                    ",
-    "query       | http://collector:4318/v1/traces?token=secret   | http://collector:4318/v1/traces     ",
-    "fragment    | http://collector:4318/v1/traces#secret         | http://collector:4318/v1/traces     ",
-    "@ in path   | http://collector:4318/v1/traces@path           | http://collector:4318/v1/traces@path",
-    "unix socket | unix:///var/run/otlp.sock                      | unix:///var/run/otlp.sock           ",
-    "no scheme   | collector:4317                                 | collector:4317                      "
+    "scenario    | endpoint                                        | sanitized                           ",
+    "plain       | http://agent:4318/v1/traces                     | http://agent:4318/v1/traces         ",
+    "user info   | https://user:password@collector:4318/v1/traces  | https://collector:4318/v1/traces    ",
+    "user only   | http://user@collector                           | http://collector                    ",
+    "query       | http://collector:4318/v1/traces?token=secret    | http://collector:4318/v1/traces     ",
+    "fragment    | http://collector:4318/v1/traces#secret          | http://collector:4318/v1/traces     ",
+    "@ in path   | http://collector:4318/v1/traces@path            | http://collector:4318/v1/traces@path",
+    "extra slash | http:///user:secret@collector:4318/v1/traces    | http:///collector:4318/v1/traces    ",
+    "no slash    | https:user:secret@collector:4318/v1/traces      | https:collector:4318/v1/traces      ",
+    "backslashes | 'http:\\\\user:secret@collector:4318/v1/traces' | 'http:\\\\collector:4318/v1/traces' ",
+    "upper case  | HTTP:////user:secret@collector:4318             | HTTP:////collector:4318             ",
+    "unix socket | unix:///var/run/otlp.sock                       | unix:///var/run/otlp.sock           ",
+    "no scheme   | collector:4317                                  | collector:4317                      "
   })
   void endpointsDropCredentials(String endpoint, String sanitized) {
     assertEquals(sanitized, OtelStartupLogSettings.sanitizeEndpoint(endpoint));

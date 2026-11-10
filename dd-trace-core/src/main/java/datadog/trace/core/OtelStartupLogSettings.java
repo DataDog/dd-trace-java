@@ -274,16 +274,31 @@ final class OtelStartupLogSettings {
       end = fragment;
     }
     String sanitized = endpoint.substring(0, end);
-    int schemeEnd = sanitized.indexOf("://");
-    int authorityStart = schemeEnd < 0 ? 0 : schemeEnd + 3;
-    int authorityEnd = sanitized.indexOf('/', authorityStart);
-    if (authorityEnd < 0) {
-      authorityEnd = sanitized.length();
+    int authorityStart;
+    if (sanitized.regionMatches(true, 0, "http:", 0, 5)
+        || sanitized.regionMatches(true, 0, "https:", 0, 6)) {
+      // like OkHttp, which sends OTLP, accept any number of slashes or backslashes before the
+      // authority
+      authorityStart = sanitized.indexOf(':') + 1;
+      while (authorityStart < sanitized.length() && isSlash(sanitized.charAt(authorityStart))) {
+        authorityStart++;
+      }
+    } else {
+      int schemeEnd = sanitized.indexOf("://");
+      authorityStart = schemeEnd < 0 ? 0 : schemeEnd + 3;
+    }
+    int authorityEnd = authorityStart;
+    while (authorityEnd < sanitized.length() && !isSlash(sanitized.charAt(authorityEnd))) {
+      authorityEnd++;
     }
     int userInfoEnd = sanitized.lastIndexOf('@', authorityEnd - 1);
     if (userInfoEnd >= authorityStart) {
       sanitized = sanitized.substring(0, authorityStart) + sanitized.substring(userInfoEnd + 1);
     }
     return sanitized;
+  }
+
+  private static boolean isSlash(char c) {
+    return c == '/' || c == '\\';
   }
 }
