@@ -59,6 +59,9 @@ import org.openjdk.jmh.infra.Blackhole;
  * legacy Kafka tracing. With it on, producers also write their produce time to a header, and the
  * consumer starts a {@code kafka.deliver} span from it.
  *
+ * <p>{@code traceHeaders} {@code false} gives records with no headers at all, as an untraced
+ * producer sends them.
+ *
  * <p><b>Read ns/op and {@code gc.alloc.rate.norm}</b> (B/op); both are per record. Expect the
  * relative difference between builds to be larger than in a real consumer: the records here are
  * pre-built, so Kafka's fetch and lazy header parsing (which the agent triggers by reading headers)
@@ -93,6 +96,9 @@ public class KafkaConsumeScenariosBenchmark {
   @Param({"false", "true"})
   boolean dataStreams;
 
+  @Param({"true", "false"})
+  boolean traceHeaders;
+
   @Param({"false", "true"})
   boolean timeInQueue;
 
@@ -124,12 +130,14 @@ public class KafkaConsumeScenariosBenchmark {
     long timestamp = System.currentTimeMillis();
     for (int i = 0; i < BATCH_SIZE; i++) {
       RecordHeaders headers = new RecordHeaders();
-      AgentSpan producer = tracer.buildSpan("bench", "kafka.produce").start();
-      defaultPropagator().inject(producer, headers, SETTER);
-      if (timeInQueue) {
-        SETTER.injectTimeInQueue(headers);
+      if (traceHeaders) {
+        AgentSpan producer = tracer.buildSpan("bench", "kafka.produce").start();
+        defaultPropagator().inject(producer, headers, SETTER);
+        if (timeInQueue) {
+          SETTER.injectTimeInQueue(headers);
+        }
+        producer.finish();
       }
-      producer.finish();
 
       batch.add(
           new ConsumerRecord<>(

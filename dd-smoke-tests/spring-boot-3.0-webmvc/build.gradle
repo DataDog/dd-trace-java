@@ -16,7 +16,6 @@ smokeTestApp {
     artifactPath = 'libs/webmvc-3.0-smoketest.jar'
     sysProperty = 'datadog.smoketest.springboot.uberJar.path'
   }
-  projectJar('apiJar', project(':dd-trace-api'))
 }
 
 dependencies {
