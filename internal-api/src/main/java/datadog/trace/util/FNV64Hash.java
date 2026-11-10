@@ -26,6 +26,12 @@ public class FNV64Hash {
     boolean v1 = version == Version.v1;
     long hash = currentHash;
     int length = data.length();
+    // UTF-8 encodes a code point in 1 to 4 bytes (RFC 3629 section 3,
+    // https://www.rfc-editor.org/rfc/rfc3629#section-3): 0xxxxxxx below U+0080; 110xxxxx 10xxxxxx
+    // below U+0800; 1110xxxx 10xxxxxx 10xxxxxx for the rest of the BMP; and 11110xxx followed by
+    // three 10xxxxxx bytes for a supplementary code point, which Java holds as a surrogate pair.
+    // Each shift takes the next group of the code point's bits, high to low, and each mask
+    // (0x3f) keeps the six bits a continuation byte carries.
     for (int i = 0; i < length; i++) {
       char c = data.charAt(i);
       if (c < 0x80) {
