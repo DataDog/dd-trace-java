@@ -1,4 +1,4 @@
-name: java-agent-smoke
+name: java-agent-instructions
 version: "0.2"
 cases:
   # Ground truth: dd-trace-core/build.gradle, docs/how_to_test.md, and CONTRIBUTING.md.

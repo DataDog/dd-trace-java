@@ -8,7 +8,7 @@ growth and documents how to review guidance for correctness, scope, and placemen
 
 `llm validation` reports context growth, then evaluates changes to the
 `instruction_files` in [config.yaml](config.yaml): `AGENTS.md` and `.claude/CLAUDE.md`.
-The [suite](suites/java-agent-smoke.yaml) covers focused validation, Java test conventions,
+The [suite](suites/java-agent-instructions.yaml) covers focused validation, Java test conventions,
 premain safety, and an unrelated Java task to look for broader quality regressions.
 
 The job skips `master`. Context reporting runs on other eligible pipelines even when unchanged
