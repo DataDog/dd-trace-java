@@ -61,7 +61,7 @@ public class ShellGitClient implements GitClient {
   private final String safeDirectoryOption;
   private final long timeoutMillis;
   private final ThreadLocal<Path> activeShallowFile = new ThreadLocal<>();
-  @Nullable private String recoveredShallowCommits;
+  @Nullable private volatile String recoveredShallowCommits;
 
   /**
    * Creates a new git client
@@ -433,24 +433,30 @@ public class ShellGitClient implements GitClient {
                   "init",
                   "--bare",
                   recoveryDirectory.toString());
-              for (String configFile : Arrays.asList("config", "config.worktree")) {
-                String configPath =
-                    commandExecutor
-                        .executeCommand(
-                            IOUtils::readFully,
-                            buildGitCommand("rev-parse", "--git-path", configFile))
-                        .trim();
-                Path source = Paths.get(repoRoot).resolve(configPath);
-                if (Files.exists(source)) {
-                  fetchExecutor.executeCommand(
-                      ShellCommandExecutor.OutputParser.IGNORE,
-                      "git",
-                      "config",
-                      "--add",
-                      "include.path",
-                      source.toString());
+              // Snapshot includes in the original gitdir/branch context, including inherited
+              // overrides.
+              String[] settings =
+                  commandExecutor
+                      .executeCommand(
+                          IOUtils::readFully,
+                          buildGitCommand("config", "--null", "--list", "--includes"))
+                      .split("\u0000");
+              environment.put("GIT_CONFIG_NOSYSTEM", "1");
+              environment.put("GIT_CONFIG_GLOBAL", recoveryDirectory.resolve("config").toString());
+              environment.put("GIT_CONFIG_PARAMETERS", "");
+              int settingCount = 0;
+              for (String setting : settings) {
+                int separator = setting.indexOf('\n');
+                String key = separator < 0 ? setting : setting.substring(0, separator);
+                if (key.equals("include.path") || key.startsWith("includeif.")) {
+                  continue;
                 }
+                environment.put("GIT_CONFIG_KEY_" + settingCount, key);
+                environment.put(
+                    "GIT_CONFIG_VALUE_" + settingCount++,
+                    separator < 0 ? "true" : setting.substring(separator + 1));
               }
+              environment.put("GIT_CONFIG_COUNT", String.valueOf(settingCount));
               if (isCommitPresent(HEAD)) {
                 fetchExecutor.executeCommand(
                     ShellCommandExecutor.OutputParser.IGNORE,
