@@ -19,9 +19,9 @@ import javax.annotation.Nullable;
  * TagMap} owns one too.
  *
  * <p>Values move by {@code load} and {@code store}, as through {@link TagStore}; entries by {@code
- * getEntry}, {@code put} and {@code remove}. {@link TagStore} treats a null value as a removal; an
- * id store takes no nulls at all, so its owner turns a null value into {@code remove} and skips a
- * null entry before calling.
+ * getEntry}, {@code put} and {@code getAndRemove}. {@link TagStore} treats a null value as a
+ * removal; an id store takes no nulls at all, so its owner turns a null value into {@code remove}
+ * and skips a null entry before calling.
  *
  * <p>Build stores only through {@link IdStoreFactory}, which says why: a JVM loads one
  * implementation, {@link HashIdStore} or {@link DenseIdStore}. No locking: guarded by the owner's
@@ -142,11 +142,12 @@ public abstract class IdStore {
    * Entry objects keeps {@code entryReader}'s Entry (free when it is one); a store that doesn't
    * copies its value.
    *
+   * <p>Returns nothing, like {@link #remove}: a caller that needs what it replaced uses {@link
+   * #getAndPut}.
+   *
    * @param entryReader the known tag to put
-   * @return the local entry it replaced, or null if there was none
    */
-  @Nullable
-  public abstract EntryReader put(@Nonnull EntryReader entryReader);
+  public abstract void put(@Nonnull EntryReader entryReader);
 
   /**
    * {@link #put}, also reporting the value the put hid.
@@ -159,14 +160,23 @@ public abstract class IdStore {
   public abstract EntryReader getAndPut(@Nonnull EntryReader entryReader);
 
   /**
-   * Removes a known tag; an inherited one is hidden by a tombstone.
+   * Removes a known tag; an inherited one is hidden by a tombstone. Builds nothing to return, so a
+   * caller that doesn't need the prior value neither allocates nor keeps it reachable.
+   *
+   * @param tagId the known tag's id
+   * @throws IllegalArgumentException if {@code tagId} names no known tag
+   */
+  public abstract void remove(long tagId);
+
+  /**
+   * {@link #remove} that returns the prior visible entry.
    *
    * @param tagId the known tag's id
    * @return the prior visible entry, or null if the tag was not visible
    * @throws IllegalArgumentException if {@code tagId} names no known tag
    */
   @Nullable
-  public abstract EntryReader remove(long tagId);
+  public abstract EntryReader getAndRemove(long tagId);
 
   /*
    * Whole-store operations, for the owning TagMap.
