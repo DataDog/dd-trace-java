@@ -685,7 +685,7 @@ public class ShellGitClient implements GitClient {
                             IOUtils::readFully,
                             buildGitCommand("rev-parse", "--since=" + latestCommitsSince))
                         .trim();
-                long cutoff = Long.parseLong(since.substring("--max-age=".length()));
+                long cutoff = Long.parseUnsignedLong(since.substring("--max-age=".length()));
                 // Git's topological ordering can read the entire graph before applying -n.
                 // Bound discovery first; filter dates afterward so old children do not prune
                 // newer parents.
@@ -694,7 +694,9 @@ public class ShellGitClient implements GitClient {
                       List<String> recent = new ArrayList<>();
                       for (String line : IOUtils.readLines(input)) {
                         int separator = line.indexOf(' ');
-                        if (Long.parseLong(line.substring(separator + 1)) >= cutoff) {
+                        if (Long.compareUnsigned(
+                                Long.parseUnsignedLong(line.substring(separator + 1)), cutoff)
+                            >= 0) {
                           recent.add(line.substring(0, separator));
                         }
                       }
