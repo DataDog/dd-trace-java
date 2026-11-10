@@ -119,6 +119,22 @@ class GitUtilsTest {
   }
 
   @TableTest({
+    "scenario                 | url                                                   | expectedResult                          ",
+    "regional helper          | codecommit::us-east-1://MyDemoRepo                    | codecommit::us-east-1://MyDemoRepo      ",
+    "profile                  | codecommit::us-east-1://demo-profile@MyRepositoryName | codecommit::us-east-1://MyRepositoryName",
+    "nested HTTPS credentials | custom::https://user:secret@host/repo                 | custom::https://host/repo               ",
+    "nested helper            | outer::inner::https://user:secret@host/repo           | outer::inner::https://host/repo         ",
+    "plain helper address     | hg::host/repo                                         | hg::host/repo                           ",
+    "numeric helper           | 1helper::https://user:secret@host/repo                | 1helper::https://host/repo              ",
+    "opaque credentials       | custom::ftps:user:password@host/repo                  |                                         ",
+    "malformed authority      | custom::https://user:secret@@host/repo                |                                         ",
+    "empty address            | codecommit::                                          |                                         "
+  })
+  void testRemoteHelperAddressesKeepTheirSanitizedIdentity(String url, String expectedResult) {
+    assertEquals(expectedResult, GitUtils.filterSensitiveInfo(url));
+  }
+
+  @TableTest({
     "scenario          | url                                                | expectedResult                                    ",
     "SSH alias         | 'ssh://git@git_alias/team/repo.git'                | 'ssh://git_alias/team/repo.git'                   ",
     "alias credentials | 'ssh://user:password@git_alias:2222/team/repo.git' | 'ssh://git_alias:2222/team/repo.git'              ",

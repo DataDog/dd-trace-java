@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
@@ -39,6 +40,8 @@ public class GitUtils {
               + "|/$" // ends with slash
           );
   private static final Pattern PATH_PATTERN = Pattern.compile("^[a-zA-Z0-9_./-]+$");
+  private static final Pattern REMOTE_HELPER_PREFIX =
+      Pattern.compile("[a-zA-Z0-9][a-zA-Z0-9+.-]*::");
   private static final Pattern SHELL_METACHAR_PATTERN = Pattern.compile(".*[`$&|;<>\n\r#].*");
 
   private static final int SHORT_SHA_LENGTH = 7;
@@ -117,6 +120,20 @@ public class GitUtils {
    * @return url without user info.
    */
   public static String filterSensitiveInfo(final String urlStr) {
+    if (urlStr == null) {
+      return null;
+    }
+    // Git passes a remote helper's address separately from its transport prefix.
+    Matcher helper = REMOTE_HELPER_PREFIX.matcher(urlStr);
+    int addressStart = 0;
+    while (helper.region(addressStart, urlStr.length()).lookingAt()) {
+      addressStart = helper.end();
+    }
+    String address = filterSensitiveInfoAddress(urlStr.substring(addressStart));
+    return address == null ? null : urlStr.substring(0, addressStart) + address;
+  }
+
+  private static String filterSensitiveInfoAddress(final String urlStr) {
     if (urlStr == null || urlStr.isEmpty()) {
       return null;
     }
