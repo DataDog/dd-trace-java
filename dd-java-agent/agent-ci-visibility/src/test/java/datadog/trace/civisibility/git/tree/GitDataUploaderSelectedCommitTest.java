@@ -14,6 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -365,6 +366,52 @@ class GitDataUploaderSelectedCommitTest {
         origin.toUri().toString(),
         checkout.toString());
     return checkout;
+  }
+
+  @TableTest({
+    "Scenario              | deferred | failure     ",
+    "deferred timeout      | true     | timeout     ",
+    "eager timeout         | false    | timeout     ",
+    "deferred command      | true     | command     ",
+    "eager command         | false    | command     ",
+    "deferred interruption | true     | interruption",
+    "eager interruption    | false    | interruption"
+  })
+  void localSelectedFetchFailureFallsBackButInterruptionPropagates(boolean deferred, String failure)
+      throws Exception {
+    String selected = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+    GitClient client = mock(GitClient.class);
+    when(client.getLatestCommits(selected)).thenReturn(singletonList(selected));
+    when(client.isShallow()).thenReturn(true);
+    when(config.isCiVisibilityGitUnshallowDefer()).thenReturn(deferred);
+    when(config.isCiVisibilityGitUnshallowEnabled()).thenReturn(true);
+    when(api.searchCommits(URL, singletonList(selected))).thenReturn(emptyList());
+    Exception exception =
+        "timeout".equals(failure)
+            ? new TimeoutException("selected fetch timeout")
+            : "interruption".equals(failure)
+                ? new InterruptedException("cancelled")
+                : new ShellCommandExecutor.ShellCommandFailedException(128, "selected unavailable");
+    doThrow(exception).when(client).fetchSelectedCommit(selected);
+    GitRepoUnshallow unshallow = mock(GitRepoUnshallow.class);
+    when(unshallow.unshallow()).thenReturn(true);
+    Path packs = Files.createDirectory(directory.resolve("packs"));
+    Files.createFile(packs.resolve("selected.pack"));
+    when(client.getObjects(any(), any())).thenReturn(singletonList(selected));
+    when(client.createPackFiles(any())).thenReturn(packs);
+    Future<Void> upload =
+        uploader(client, unshallow, selected, "/checkout").startOrObserveGitDataUpload();
+    if ("interruption".equals(failure)) {
+      assertEquals(
+          exception,
+          assertThrows(ExecutionException.class, () -> upload.get(5, TimeUnit.SECONDS)).getCause());
+      verify(api, never()).uploadPackFile(any(), any(), any());
+      verify(unshallow, times(deferred ? 0 : 1)).unshallow();
+    } else {
+      upload.get(5, TimeUnit.SECONDS);
+      verify(api).uploadPackFile(eq(URL), eq(selected), any());
+      verify(unshallow).unshallow();
+    }
   }
 
   @TableTest({
