@@ -63,7 +63,6 @@ class ProfilingConfigPollerTest {
   @TableTest({
     "Scenario | Enablement | Expected",
     "armed    | ARMED      | true    ",
-    "auto     | AUTO       | false   ",
     "enabled  | ENABLED    | false   ",
     "injected | INJECTED   | false   ",
     "disabled | DISABLED   | false   "

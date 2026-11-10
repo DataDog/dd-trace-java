@@ -41,22 +41,12 @@ public class ProfilerSettingsSupportTest {
             "tracer",
             new ProfilerActivationSetting(ProfilingEnablement.ENABLED, Ssi.INJECTED_AGENT)),
         Arguments.of(
-            "auto", null, new ProfilerActivationSetting(ProfilingEnablement.AUTO, Ssi.NONE)),
-        Arguments.of(
-            "auto",
-            "tracer",
-            new ProfilerActivationSetting(ProfilingEnablement.AUTO, Ssi.INJECTED_AGENT)),
-        Arguments.of(
             null,
             "profiler,tracer",
             new ProfilerActivationSetting(ProfilingEnablement.INJECTED, Ssi.INJECTED_AGENT)),
         Arguments.of(
             "true",
             "profiler,tracer",
-            new ProfilerActivationSetting(ProfilingEnablement.ENABLED, Ssi.INJECTED_AGENT)),
-        Arguments.of(
-            "auto",
-            "profiler,tracer",
-            new ProfilerActivationSetting(ProfilingEnablement.AUTO, Ssi.INJECTED_AGENT)));
+            new ProfilerActivationSetting(ProfilingEnablement.ENABLED, Ssi.INJECTED_AGENT)));
   }
 }

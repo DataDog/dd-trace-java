@@ -1808,8 +1808,8 @@ public class Agent {
       return !("false".equalsIgnoreCase(featureEnabled) || "0".equals(featureEnabled));
     } else {
       if (feature == AgentFeature.PROFILING) {
-        // We need this hack because profiling in SSI can receive 'auto' value in
-        // the enablement config
+        // We need this hack because the profiling enablement config can hold values other than
+        // 'true' and 'false', e.g. 'armed'
         return ProfilingEnablement.of(featureEnabled).isActive();
       }
       // false unless it's explicitly set to "true"
