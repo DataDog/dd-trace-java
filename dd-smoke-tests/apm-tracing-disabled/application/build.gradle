@@ -23,16 +23,6 @@ java {
   sourceCompatibility = '1.8'
 }
 
-if (hasProperty('apiJar')) {
-  dependencies {
-    implementation files(property('apiJar'))
-  }
-} else {
-  dependencies {
-    implementation "com.datadoghq:dd-trace-api:+"
-  }
-}
-
 dependencies {
   implementation 'org.springframework.boot:spring-boot-starter-web'
   // OpenTracing 0.32.0 is the last release and is intentionally pinned: this smoke test

@@ -540,6 +540,15 @@ check-instrumentation-naming:
     - ./gradlew --version
     - ./gradlew checkInstrumentationNaming $GRADLE_ARGS
 
+check-codeowners:
+  # The Java builder base includes Python 3 and Git; the generic GBI image does not include Python.
+  image: ${BUILDER_IMAGE_REPO}:${BUILDER_IMAGE_VERSION_PREFIX}base
+  stage: tests
+  needs: []
+  script:
+    - python3 -m unittest discover -s tooling/tests -p 'test_check_codeowners.py'
+    - python3 tooling/check_codeowners.py
+
 config-inversion-linter:
   extends: .gradle_build
   stage: tests
@@ -1359,6 +1368,9 @@ deploy_to_maven_central:
   rules:
     - if: '$POPULATE_CACHE'
       when: never
+    # Release branches build -rc.N versions, which the publish plugin would push to the release staging repository
+    - if: '$CI_COMMIT_BRANCH =~ /^release\/v/'
+      when: never
     - if: '$CI_COMMIT_BRANCH == "master"'
       when: on_success
     # Do not deploy release candidate versions
@@ -1388,6 +1400,9 @@ deploy_snapshot_with_ddprof_snapshot:
     CACHE_TYPE: "lib"
   rules:
     - if: '$POPULATE_CACHE'
+      when: never
+    # Release branches build -rc.N versions, which the publish plugin would push to the release staging repository
+    - if: '$CI_COMMIT_BRANCH =~ /^release\/v/'
       when: never
     # Manual trigger only - for testing with ddprof snapshot versions
     - when: manual
