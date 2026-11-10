@@ -256,22 +256,26 @@ class GitDataUploaderSelectedCommitTest {
   }
 
   @TableTest({
-    "Scenario          | deferred | recoveryEnabled",
-    "deferred recovery | true     | true           ",
-    "eager recovery    | false    | true           ",
-    "disabled deferred | true     | false          ",
-    "disabled eager    | false    | false          "
+    "Scenario                 | deferred | recoveryEnabled | recentHead | backendKnown",
+    "deferred recovery        | true     | true            | true       | true        ",
+    "eager recovery           | false    | true            | true       | true        ",
+    "disabled deferred        | true     | false           | true       | true        ",
+    "disabled eager           | false    | false           | true       | true        ",
+    "all-old unknown revision | true     | true            | false      | false       "
   })
   void shallowCheckoutRecoversAnOldSelectedRevisionOnlyWhenEnabled(
-      boolean deferred, boolean recoveryEnabled) throws Exception {
+      boolean deferred, boolean recoveryEnabled, boolean recentHead, boolean backendKnown)
+      throws Exception {
     Path origin = directory.resolve("origin");
     ShellCommandExecutor command = fixture(origin);
     String head =
-        writeCommit(
-            command,
-            git(command, "rev-parse", "HEAD^{tree}"),
-            git(command, "rev-parse", "HEAD"),
-            "recent checkout");
+        recentHead
+            ? writeCommit(
+                command,
+                git(command, "rev-parse", "HEAD^{tree}"),
+                git(command, "rev-parse", "HEAD"),
+                "recent checkout")
+            : git(command, "rev-parse", "HEAD");
     git(command, "update-ref", "HEAD", head);
     Path checkout = shallowClone(command, origin);
     ShellGitClient client = spy(client(checkout, "1 month ago"));
@@ -279,12 +283,16 @@ class GitDataUploaderSelectedCommitTest {
     assertTrue(client.getLatestCommits(selected).isEmpty());
     when(config.isCiVisibilityGitUnshallowDefer()).thenReturn(deferred);
     when(config.isCiVisibilityGitUnshallowEnabled()).thenReturn(recoveryEnabled);
-    when(api.searchCommits(URL, singletonList(selected))).thenReturn(singletonList(selected));
+    when(api.searchCommits(URL, singletonList(selected)))
+        .thenReturn(backendKnown ? singletonList(selected) : emptyList());
 
     uploader(client, new GitRepoUnshallow(config, client), selected, checkout.toString())
         .startOrObserveGitDataUpload()
         .get(5, TimeUnit.SECONDS);
 
+    if (!backendKnown) {
+      verify(api).uploadPackFile(eq(URL), eq(selected), any());
+    }
     assertEquals(head, client.getSha(GitClient.HEAD));
     if (recoveryEnabled) {
       assertEquals(singletonList(selected), client.getLatestCommits(selected));

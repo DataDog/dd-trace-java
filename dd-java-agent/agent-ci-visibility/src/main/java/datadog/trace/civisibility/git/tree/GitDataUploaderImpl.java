@@ -137,10 +137,16 @@ public class GitDataUploaderImpl implements GitDataUploader {
               "Could not fetch local selected commit; continuing with upstream recovery", e);
         }
       }
-      if (config.isCiVisibilityGitUnshallowDefer()
-          && !unshallowed
-          && gitRepoUnshallow.unshallow()) {
-        refreshed = true;
+      if (config.isCiVisibilityGitUnshallowDefer() && !unshallowed) {
+        try {
+          refreshed |= gitRepoUnshallow.unshallow();
+        } catch (
+            datadog.trace.civisibility.utils.ShellCommandExecutor.ShellCommandFailedException e) {
+          if (!recoveredSelected && !refreshed) {
+            throw e;
+          }
+          LOGGER.debug("Could not recover upstream history; retaining selected revision", e);
+        }
       }
       if (refreshed) {
         latestCommits = gitClient.getLatestCommits(selectedCommit);
