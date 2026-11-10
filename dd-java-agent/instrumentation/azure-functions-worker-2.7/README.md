@@ -18,3 +18,9 @@ worker invocations; enabling OpenTelemetry does not override an intentional upst
 
 See the [Azure Functions OpenTelemetry setup guide](https://learn.microsoft.com/en-us/azure/azure-functions/opentelemetry-howto)
 for host configuration details.
+
+# Azure Functions Cosmos DB trigger tracing
+
+Functions with a `@CosmosDBTrigger` parameter get an `azure.functions.invoke` span with resource
+`CosmosDB <function name>` and the `aas.function.trigger:CosmosDB` tag. Like Durable invocations,
+the span continues the trace context the Functions host passes to the worker.
