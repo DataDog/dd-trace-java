@@ -36,9 +36,11 @@ dependencies {
 // ---------------------------------------------------------------------------------------------
 class AbortOnStackOverflowArgs implements CommandLineArgumentProvider {
   private final Provider<JavaLauncher> launcher
+  private final List<String> extraArgs
 
-  AbortOnStackOverflowArgs(Provider<JavaLauncher> launcher) {
+  AbortOnStackOverflowArgs(Provider<JavaLauncher> launcher, List<String> extraArgs) {
     this.launcher = launcher
+    this.extraArgs = extraArgs
   }
 
   @Override
@@ -54,28 +56,53 @@ class AbortOnStackOverflowArgs implements CommandLineArgumentProvider {
       '-XX:ErrorFile=/tmp/hs_err_pid%p.log',
       // A core file of a 1G heap JVM would only fill the runner disk.
       '-XX:-CreateCoredumpOnCrash',
-    ]
+    ] + extraArgs
   }
 }
 
-// Extra copies of 'forkedTest' so one Gradle invocation runs the suite many times. The names start
-// with 'forkedTest', so the test conventions treat them exactly like 'forkedTest' (forkEvery = 1,
-// '**/*ForkedTest*' includes, shared forked-test concurrency limit, 20 minutes timeout, dumps).
-def vertxHangDiagReps = (findProperty('vertxHangDiagReps') ?: '1') as int
-for (int rep = 2; rep <= vertxHangDiagReps; rep++) {
-  def copy = rep
-  tasks.register("forkedTestRep${copy}", Test) {
-    group = LifecycleBasePlugin.VERIFICATION_GROUP
-    description = "Diagnostic copy #${copy} of 'forkedTest'."
-    useJUnitPlatform()
-    testClassesDirs = sourceSets.test.output.classesDirs
-    classpath = sourceSets.test.runtimeClasspath
-    javaLauncher.set(tasks.named('test', Test).flatMap { it.javaLauncher })
-  }
-}
+// Optional extra test JVM arguments (HotSpot only), e.g. an exception log or a smaller -Xss.
+def vertxHangDiagJvmArgs = (findProperty('vertxHangDiagJvmArgs') ?: '').toString().split(' ').findAll { it } as List<String>
 
 tasks.withType(Test).matching {
-  it.name.startsWith('forkedTest') || it.name == 'latestDepForkedTest'
+  it.name == 'forkedTest' || it.name == 'latestDepForkedTest'
 }.configureEach { Test t ->
-  t.jvmArgumentProviders.add(new AbortOnStackOverflowArgs(t.javaLauncher))
+  t.jvmArgumentProviders.add(new AbortOnStackOverflowArgs(t.javaLauncher, vertxHangDiagJvmArgs))
+}
+
+// Repetitions: with -PvertxHangDiagReps=N, generate N empty subclasses of each test spec that runs
+// tests, so 'forkedTest' runs every spec N+1 times, each in its own JVM (forkEvery = 1). Gradle runs
+// tasks of one project serially, so repetitions must live in one task to run concurrently; with
+// -PvertxHangDiagForks=K, K test JVMs run at once, like the concurrent test JVMs of a CI test job.
+// VertxRxHttpServerForkedTest is @Ignore'd, so it is not repeated.
+def vertxHangDiagReps = (findProperty('vertxHangDiagReps') ?: '0') as int
+def vertxHangDiagForks = (findProperty('vertxHangDiagForks') ?: '1') as int
+if (vertxHangDiagReps > 0) {
+  def specs = [
+    'client.VertxRxWebClientForkedTest',
+    'client.VertxRxCircuitBreakerWebClientForkedTest',
+    'server.VertxRxCircuitBreakerHttpServerForkedTest',
+  ]
+  def generatedDir = layout.buildDirectory.dir('generated/sources/vertxHangDiag/groovy')
+  def generateSpecs = tasks.register('generateVertxHangDiagSpecs') {
+    inputs.property('reps', vertxHangDiagReps)
+    inputs.property('specs', specs)
+    outputs.dir(generatedDir)
+    doLast {
+      def root = generatedDir.get().asFile
+      root.deleteDir()
+      specs.each { String spec ->
+        def pkg = spec.substring(0, spec.lastIndexOf('.'))
+        def name = spec.substring(spec.lastIndexOf('.') + 1)
+        (1..vertxHangDiagReps).each { int rep ->
+          def file = new File(root, "${pkg}/${name}Rep${rep}.groovy")
+          file.parentFile.mkdirs()
+          file.text = "package ${pkg}\n\nclass ${name}Rep${rep} extends ${name} {}\n"
+        }
+      }
+    }
+  }
+  sourceSets.test.groovy.srcDir(files(generatedDir).builtBy(generateSpecs))
+  tasks.named('forkedTest', Test) {
+    maxParallelForks = vertxHangDiagForks
+  }
 }

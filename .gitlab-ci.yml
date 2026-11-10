@@ -334,14 +334,19 @@ vertx_rx_hang_diag:
   timeout: 110 minutes
   variables:
     CACHE_TYPE: "inst"
-    VERTX_DIAG_REPS: "9"
+    # Each spec runs VERTX_DIAG_REPS+1 times per Gradle invocation, VERTX_DIAG_FORKS JVMs at once.
+    VERTX_DIAG_REPS: "10"
+    VERTX_DIAG_FORKS: "4"
     VERTX_DIAG_BUDGET_SECONDS: "3000"
     VERTX_DIAG_MAX_ABORTS: "3"
   parallel:
     matrix:
       - testJvm: ["25", "tip"]
+        # "512k" lowers the test JVM thread stack size (default 1M) to make a deep recursion
+        # overflow likelier; "default" keeps the CI stack size.
+        VERTX_DIAG_XSS: ["default", "512k"]
         # Independent repetitions; the job does not use the split index.
-        CI_SPLIT: ["1/6", "2/6", "3/6", "4/6", "5/6", "6/6"]
+        CI_SPLIT: ["1/3", "2/3", "3/3"]
   script:
     - *prepare_test_env
     # Same Gradle client/daemon options as .test_job_common.
