@@ -11,14 +11,40 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import datadog.communication.util.IOUtils;
 import datadog.trace.api.Config;
+import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.civisibility.git.tree.GitClient;
+import datadog.trace.civisibility.git.tree.ShellGitClient;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.concurrent.TimeoutException;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 class GitClientGitInfoBuilderUnitTest {
+  @Test
+  void keepsCheckoutMetadataWhenNoRemoteIsConfigured(@TempDir Path checkout) throws Exception {
+    IOUtils.copyFolder(
+        Paths.get(getClass().getClassLoader().getResource("ci/git/with_pack/git").toURI()),
+        Files.createDirectories(checkout.resolve(".git")));
+    Files.delete(checkout.resolve(".git/config"));
+    Config config = mock(Config.class);
+    when(config.getCiVisibilityGitRemoteName()).thenReturn("origin");
+    when(config.getCiVisibilityGitCommandTimeoutMillis()).thenReturn(10_000L);
+    GitInfo info =
+        new GitClientGitInfoBuilder(
+                config, new ShellGitClient.Factory(config, mock(CiVisibilityMetricCollector.class)))
+            .build(checkout.toString());
+    assertNull(info.getRepositoryURL());
+    assertEquals("master", info.getBranch());
+    assertEquals("5b6f3a6dab5972d73a56dff737bd08d995255c08", info.getCommit().getSha());
+    assertEquals("Tony Redondo", info.getCommit().getAuthor().getName());
+  }
+
   @Test
   void interruptedRemoteLookupAbortsAndPreservesInterruption() throws Exception {
     GitClient client = mock(GitClient.class);
