@@ -63,8 +63,8 @@ public final class OtelMetricStorage {
     // no need to toggle if not resetting on collect, or if it's an observable instrument
     // (observables are always invoked within the collect cycle, so no concurrent writers)
     this.toggleRecordings = resetOnCollect && !observable;
-    // observables must forget attribute sets that their callback stopped reporting
-    // (only used by doCollect, i.e. when not resetting on collect)
+    // observables must forget attribute sets that their callback stopped reporting: doCollect
+    // clears them all, doCollectAndReset removes the ones not reported in this collection
     this.forgetUnobserved = observable;
     this.aggregatorSupplier = unused -> aggregatorSupplier.get();
     this.currentRecording = new Recording();
@@ -232,8 +232,11 @@ public final class OtelMetricStorage {
 
     Map<Object, OtelAggregator> aggregators = recording.aggregators;
 
-    // avoid churn: only remove empty aggregators if we're over cardinality
-    if (aggregators.size() >= CARDINALITY_LIMIT) {
+    // callbacks have already run, so an empty observable aggregator was not reported in this
+    // collection: remove it, so a series reported again later does not compute its delta
+    // against a stale previous value. Otherwise avoid churn: only remove empty aggregators if
+    // we're over cardinality.
+    if (forgetUnobserved || aggregators.size() >= CARDINALITY_LIMIT) {
       aggregators.values().removeIf(OtelAggregator::isEmpty);
     }
 

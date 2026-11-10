@@ -383,6 +383,37 @@ class OpenTelemetryMetricsTest extends AbstractInstrumentationTest {
   }
 
   @Test
+  void testObservableCounterDeltaReportsFullValueAfterGap() {
+    boolean[] report = {true};
+    AutoCloseable observable =
+        meter
+            .counterBuilder("observable-counter-delta-gap")
+            .buildWithCallback(
+                m -> {
+                  if (report[0]) {
+                    m.record(2);
+                  }
+                });
+
+    OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
+    assertEquals(2L, points.get("test:observable-counter-delta-gap"));
+
+    // not reported: no data point, and the previous value is forgotten
+    report[0] = false;
+    points.clear();
+    OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
+    assertNull(points.get("test:observable-counter-delta-gap"));
+
+    // reported again: full value, as in OTel Java, not 0 against the stale previous value
+    report[0] = true;
+    points.clear();
+    OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
+    assertEquals(2L, points.get("test:observable-counter-delta-gap"));
+
+    closeQuietly(observable);
+  }
+
+  @Test
   void testObservableDoubleCounterDeltaWithChangingValues() {
     double[] absoluteValue = {0.0};
     AutoCloseable observable =
@@ -609,8 +640,8 @@ class OpenTelemetryMetricsTest extends AbstractInstrumentationTest {
     assertEquals(1L, points.get(metric));
     assertNull(points.get(metric + WITH_ATTRS));
 
-    // reported again: exported with its full value; observable counters use delta storage, so
-    // this also checks that no stale previous value is subtracted
+    // reported again: exported with its full value (for observable counters under delta, see
+    // testObservableCounterDeltaReportsFullValueAfterGap)
     reportAttrs[0] = true;
     points.clear();
     OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
