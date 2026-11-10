@@ -13,6 +13,32 @@ public class DataStreamsTags {
 
   public static DataStreamsTags EMPTY = DataStreamsTags.create(null, null);
 
+  // Tag positions, in hashing order. WARNING: DO NOT REORDER! The order is part of the hashes, so
+  // reordering changes every pathway hash.
+  private static final int BUS_INDEX = 0;
+  private static final int DIRECTION_INDEX = 1;
+  private static final int EXCHANGE_INDEX = 2;
+  private static final int TOPIC_INDEX = 3;
+  private static final int TYPE_INDEX = 4;
+  private static final int SUBSCRIPTION_INDEX = 5;
+  private static final int KAFKA_CLUSTER_ID_INDEX = 6;
+  private static final int DATASET_NAME_INDEX = 7;
+  private static final int DATASET_NAMESPACE_INDEX = 8;
+  private static final int MANUAL_INDEX = 9;
+  private static final int GROUP_INDEX = 10;
+  private static final int CONSUMER_GROUP_INDEX = 11;
+  private static final int PARTITION_INDEX = 12;
+  private static final int HAS_ROUTING_KEY_INDEX = 13;
+  private static final int TAG_COUNT = 14;
+
+  /**
+   * Tags from here up to {@link #VALUE_TAGS_START} are aggregation tags; those before, hash tags.
+   */
+  static final int AGGREGATION_TAGS_START = DATASET_NAME_INDEX;
+
+  /** Tags from here on are values, part only of {@link #equals}. */
+  static final int VALUE_TAGS_START = PARTITION_INDEX;
+
   // Hashes are computed on first read, since with Data Streams off nothing reads them
   private long hash;
   private long aggregationHash;
@@ -275,7 +301,7 @@ public class DataStreamsTags {
     int nonNullSize = 0;
 
     // hashable tags are 0-6: bus, direction, exchange, topic, type, subscription, kafkaClusterId
-    for (int i = 0; i < 7; i++) {
+    for (int i = 0; i < AGGREGATION_TAGS_START; i++) {
       String value = valueByIndex(i);
       if (value != null) {
         nonNullSize++;
@@ -285,7 +311,7 @@ public class DataStreamsTags {
 
     // aggregation tags are 7-11: datasetName, datasetNamespace, isManual, group, consumerGroup
     long aggregationHash = hash;
-    for (int i = 7; i < 12; i++) {
+    for (int i = AGGREGATION_TAGS_START; i < VALUE_TAGS_START; i++) {
       String value = valueByIndex(i);
       if (value != null) {
         nonNullSize++;
@@ -295,7 +321,7 @@ public class DataStreamsTags {
 
     // values are 12-13: partition, hasRoutingKey
     long completeHash = aggregationHash;
-    for (int i = 12; i < size(); i++) {
+    for (int i = VALUE_TAGS_START; i < size(); i++) {
       String value = valueByIndex(i);
       if (value != null) {
         nonNullSize++;
@@ -318,12 +344,9 @@ public class DataStreamsTags {
   }
 
   public int size() {
-    // make sure it's in sync with tagByIndex logic
-    return 14;
+    return TAG_COUNT;
   }
 
-  // WARNING: DO NOT REORDER! Indices 0-6 are hash tags, 7-11 are aggregation tags, 12-13 are
-  // values. Reordering breaks hashing!
   /**
    * The {@code name:value} tag at {@code index}, or null if it has no value. Builds a new string on
    * each call, as do the {@code get*} tag getters, so they're meant for serialization and tests,
@@ -336,33 +359,33 @@ public class DataStreamsTags {
 
   private String valueByIndex(int index) {
     switch (index) {
-      case 0:
+      case BUS_INDEX:
         return this.bus;
-      case 1:
+      case DIRECTION_INDEX:
         return directionTagValue();
-      case 2:
+      case EXCHANGE_INDEX:
         return this.exchange;
-      case 3:
+      case TOPIC_INDEX:
         return this.topic;
-      case 4:
+      case TYPE_INDEX:
         return this.type;
-      case 5:
+      case SUBSCRIPTION_INDEX:
         return this.subscription;
-      case 6:
+      case KAFKA_CLUSTER_ID_INDEX:
         return this.kafkaClusterId;
-      case 7:
+      case DATASET_NAME_INDEX:
         return this.datasetName;
-      case 8:
+      case DATASET_NAMESPACE_INDEX:
         return this.datasetNamespace;
-      case 9:
+      case MANUAL_INDEX:
         return toString(this.isManual);
-      case 10:
+      case GROUP_INDEX:
         return this.group;
-      case 11:
+      case CONSUMER_GROUP_INDEX:
         return this.consumerGroup;
-      case 12:
+      case PARTITION_INDEX:
         return this.partition;
-      case 13:
+      case HAS_ROUTING_KEY_INDEX:
         return toString(this.hasRoutingKey);
       default:
         return null;
@@ -371,33 +394,33 @@ public class DataStreamsTags {
 
   private static String nameByIndex(int index) {
     switch (index) {
-      case 0:
+      case BUS_INDEX:
         return BUS_TAG;
-      case 1:
+      case DIRECTION_INDEX:
         return DIRECTION_TAG;
-      case 2:
+      case EXCHANGE_INDEX:
         return EXCHANGE_TAG;
-      case 3:
+      case TOPIC_INDEX:
         return TOPIC_TAG;
-      case 4:
+      case TYPE_INDEX:
         return TYPE_TAG;
-      case 5:
+      case SUBSCRIPTION_INDEX:
         return SUBSCRIPTION_TAG;
-      case 6:
+      case KAFKA_CLUSTER_ID_INDEX:
         return KAFKA_CLUSTER_ID_TAG;
-      case 7:
+      case DATASET_NAME_INDEX:
         return DATASET_NAME_TAG;
-      case 8:
+      case DATASET_NAMESPACE_INDEX:
         return DATASET_NAMESPACE_TAG;
-      case 9:
+      case MANUAL_INDEX:
         return MANUAL_TAG;
-      case 10:
+      case GROUP_INDEX:
         return GROUP_TAG;
-      case 11:
+      case CONSUMER_GROUP_INDEX:
         return CONSUMER_GROUP_TAG;
-      case 12:
+      case PARTITION_INDEX:
         return PARTITION_TAG;
-      case 13:
+      case HAS_ROUTING_KEY_INDEX:
         return HAS_ROUTING_KEY_TAG;
       default:
         return null;
@@ -418,27 +441,27 @@ public class DataStreamsTags {
   }
 
   public String getDirection() {
-    return tagByIndex(1);
+    return tagByIndex(DIRECTION_INDEX);
   }
 
   public String getTopic() {
-    return tagByIndex(3);
+    return tagByIndex(TOPIC_INDEX);
   }
 
   public String getType() {
-    return tagByIndex(4);
+    return tagByIndex(TYPE_INDEX);
   }
 
   public String getIsManual() {
-    return tagByIndex(9);
+    return tagByIndex(MANUAL_INDEX);
   }
 
   public String getBus() {
-    return tagByIndex(0);
+    return tagByIndex(BUS_INDEX);
   }
 
   public String getExchange() {
-    return tagByIndex(2);
+    return tagByIndex(EXCHANGE_INDEX);
   }
 
   public Direction getDirectionValue() {
@@ -446,35 +469,35 @@ public class DataStreamsTags {
   }
 
   public String getSubscription() {
-    return tagByIndex(5);
+    return tagByIndex(SUBSCRIPTION_INDEX);
   }
 
   public String getDatasetName() {
-    return tagByIndex(7);
+    return tagByIndex(DATASET_NAME_INDEX);
   }
 
   public String getDatasetNamespace() {
-    return tagByIndex(8);
+    return tagByIndex(DATASET_NAMESPACE_INDEX);
   }
 
   public String getGroup() {
-    return tagByIndex(10);
+    return tagByIndex(GROUP_INDEX);
   }
 
   public String getConsumerGroup() {
-    return tagByIndex(11);
+    return tagByIndex(CONSUMER_GROUP_INDEX);
   }
 
   public String getPartition() {
-    return tagByIndex(12);
+    return tagByIndex(PARTITION_INDEX);
   }
 
   public String getKafkaClusterId() {
-    return tagByIndex(6);
+    return tagByIndex(KAFKA_CLUSTER_ID_INDEX);
   }
 
   public String getHasRoutingKey() {
-    return tagByIndex(13);
+    return tagByIndex(HAS_ROUTING_KEY_INDEX);
   }
 
   public int nonNullSize() {

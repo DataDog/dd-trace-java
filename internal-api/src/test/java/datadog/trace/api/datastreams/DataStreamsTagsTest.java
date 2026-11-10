@@ -576,7 +576,7 @@ class DataStreamsTagsTest {
       hash = hashEncoded(hash, serviceName);
     }
     int nonNullSize = 0;
-    for (int i = 0; i < 7; i++) {
+    for (int i = 0; i < DataStreamsTags.AGGREGATION_TAGS_START; i++) {
       String tag = tags.tagByIndex(i);
       if (tag != null) {
         nonNullSize++;
@@ -584,7 +584,9 @@ class DataStreamsTagsTest {
       }
     }
     long aggregationHash = hash;
-    for (int i = 7; i < 12; i++) {
+    for (int i = DataStreamsTags.AGGREGATION_TAGS_START;
+        i < DataStreamsTags.VALUE_TAGS_START;
+        i++) {
       String tag = tags.tagByIndex(i);
       if (tag != null) {
         nonNullSize++;
@@ -592,7 +594,7 @@ class DataStreamsTagsTest {
       }
     }
     long completeHash = aggregationHash;
-    for (int i = 12; i < tags.size(); i++) {
+    for (int i = DataStreamsTags.VALUE_TAGS_START; i < tags.size(); i++) {
       String tag = tags.tagByIndex(i);
       if (tag != null) {
         nonNullSize++;
