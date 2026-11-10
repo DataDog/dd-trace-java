@@ -323,7 +323,15 @@ class GitInfoProviderTest {
     "explicit credentials    | true     | 'https://user:token@example.com/repo.git' | 'https://example.com/repo.git'            | COMMIT_DISCREPANCY    ",
     "fallback credentials    | true     | 'https://example.com/repo.git'            | 'https://user:token@example.com/repo.git' | COMMIT_DISCREPANCY    ",
     "explicit different repo | true     | 'https://user:token@example.com/repo.git' | 'https://example.com/other.git'           | REPOSITORY_DISCREPANCY",
-    "explicit missing repo   | true     |                                           | 'https://example.com/repo.git'            | COMMIT_DISCREPANCY    "
+    "explicit missing repo   | true     |                                           | 'https://example.com/repo.git'            | COMMIT_DISCREPANCY    ",
+    "checkout SCP identity   | false    | 'git@github.com:DataDog/repo.git'         | 'https://github.com/DataDog/repo'         | COMMIT_DISCREPANCY    ",
+    "checkout SSH identity   | false    | 'ssh://git@github.com/DataDog/repo.git'   | 'https://github.com/DataDog/repo'         | COMMIT_DISCREPANCY    ",
+    "checkout host case      | false    | 'git@GITHUB.com:DataDog/repo.git'         | 'https://github.com/DataDog/repo'         | COMMIT_DISCREPANCY    ",
+    "explicit SCP identity   | true     | 'git@github.com:DataDog/repo.git'         | 'https://github.com/DataDog/repo'         | COMMIT_DISCREPANCY    ",
+    "explicit SSH identity   | true     | 'ssh://git@github.com/DataDog/repo.git'   | 'https://github.com/DataDog/repo'         | COMMIT_DISCREPANCY    ",
+    "different SCP path      | false    | 'git@github.com:DataDog/other.git'        | 'https://github.com/DataDog/repo'         | REPOSITORY_DISCREPANCY",
+    "distinct path case      | false    | 'git@github.com:DataDog/Repo.git'         | 'https://github.com/DataDog/repo'         | REPOSITORY_DISCREPANCY",
+    "distinct SSH port       | false    | 'ssh://git@github.com:2222/DataDog/repo'  | 'https://github.com/DataDog/repo'         | REPOSITORY_DISCREPANCY"
   })
   void testShaDiscrepancyComparesSanitizedRepositoryUrls(
       boolean explicit, String firstUrl, String secondUrl, GitShaDiscrepancyType discrepancy) {

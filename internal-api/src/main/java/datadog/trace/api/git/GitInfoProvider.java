@@ -17,6 +17,7 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -173,6 +174,40 @@ public class GitInfoProvider {
       }
     }
 
+    private static String repositoryIdentity(String repositoryUrl) {
+      String sanitized = GitUtils.filterSensitiveInfo(repositoryUrl);
+      if (sanitized == null) {
+        return null;
+      }
+      String identity = sanitized;
+      int schemeEnd = identity.indexOf("://");
+      if (schemeEnd >= 0) {
+        identity = identity.substring(schemeEnd + 3);
+      } else if (identity.startsWith("//")) {
+        identity = identity.substring(2);
+      } else {
+        int hostEnd =
+            identity.indexOf("]:") >= 0 ? identity.indexOf("]:") + 1 : identity.indexOf(':');
+        int slash = identity.indexOf('/');
+        if (hostEnd > 0 && (slash < 0 || hostEnd < slash)) {
+          identity = identity.substring(0, hostEnd) + "/" + identity.substring(hostEnd + 1);
+        } else {
+          return sanitized;
+        }
+      }
+      int pathStart = identity.indexOf('/');
+      if (pathStart < 0) {
+        return sanitized;
+      }
+      String host = identity.substring(0, pathStart);
+      host = host.substring(host.lastIndexOf('@') + 1).toLowerCase(Locale.ROOT);
+      String path = identity.substring(pathStart);
+      if (path.endsWith(".git")) {
+        path = path.substring(0, path.length() - 4);
+      }
+      return host + path;
+    }
+
     private boolean isGitClientAvailable() {
       if (gitClientAvailable != null) {
         return gitClientAvailable;
@@ -200,8 +235,8 @@ public class GitInfoProvider {
           String ciSha = ciInfo.getCommit().getSha();
           if (Strings.isNotBlank(ciSha)
               && !ciSha.equalsIgnoreCase(localInfo.getCommit().getSha())) {
-            String localRepoUrl = GitUtils.filterSensitiveInfo(localInfo.getRepositoryURL());
-            String ciRepoUrl = GitUtils.filterSensitiveInfo(ciInfo.getRepositoryURL());
+            String localRepoUrl = repositoryIdentity(localInfo.getRepositoryURL());
+            String ciRepoUrl = repositoryIdentity(ciInfo.getRepositoryURL());
             boolean repositoryMismatch =
                 localRepoUrl != null && ciRepoUrl != null && !localRepoUrl.equals(ciRepoUrl);
             shaDiscrepancies.add(
@@ -261,13 +296,13 @@ public class GitInfoProvider {
           if (Strings.isNotBlank(currentCommitSha)) {
             if (expectedCommitSha == null) {
               expectedCommitSha = currentCommitSha;
-              expectedRepoUrl = GitUtils.filterSensitiveInfo(info.getRepositoryURL());
+              expectedRepoUrl = repositoryIdentity(info.getRepositoryURL());
               expectedGitProvider = e.getKey().providerAsExpected();
             } else if (!expectedCommitSha.equalsIgnoreCase(currentCommitSha)) {
               // We already have a commit SHA from source that has higher priority.
               // Commit SHA from current source is different, so we have to skip it
               GitShaDiscrepancyType discrepancyType = GitShaDiscrepancyType.COMMIT_DISCREPANCY;
-              String repoUrl = GitUtils.filterSensitiveInfo(info.getRepositoryURL());
+              String repoUrl = repositoryIdentity(info.getRepositoryURL());
               if (expectedRepoUrl != null && repoUrl != null && !repoUrl.equals(expectedRepoUrl)) {
                 discrepancyType = GitShaDiscrepancyType.REPOSITORY_DISCREPANCY;
               }
