@@ -14,7 +14,9 @@ premain safety, and an unrelated Java task to look for broader quality regressio
 The job skips `master`. Context reporting runs on other eligible pipelines even when unchanged
 instructions cause the behavioral evaluation to skip. Growth and quality findings are advisory.
 Preflight errors, configuration errors, and incomplete evaluations after detecting instruction
-changes fail the job. Earlier platform infrastructure failures may pass as inconclusive.
+changes fail the job. During calibration, `allow_failure: true` keeps these failures visible without
+failing the GitLab pipeline. Keep this job optional in merge checks while testing. Earlier platform
+infrastructure failures may pass as inconclusive.
 
 Read the job artifacts:
 

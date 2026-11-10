@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
-# Report committed project-instruction bytes; this is not a runtime token measurement.
+# Compare committed bytes in AGENTS.md, .claude/CLAUDE.md, and relative @imports,
+# counting each file once. CI runs this in "llm validation" before LLM evaluation,
+# comparing HEAD with its merge base with master.
+# Results go to the job log and build/llm-validation/context-growth.md (CI artifact).
+# This measures file size, not token usage or instruction quality.
+# Size changes never fail the job. An incomplete comparison fails the job,
+# but the job is optional for merging during testing.
 set -euo pipefail
 export LC_ALL=C
 
