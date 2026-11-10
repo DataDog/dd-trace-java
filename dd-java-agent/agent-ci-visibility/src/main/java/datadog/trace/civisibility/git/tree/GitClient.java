@@ -49,6 +49,10 @@ public interface GitClient {
   List<String> getLatestCommits() throws IOException, TimeoutException, InterruptedException;
 
   @Nonnull
+  List<String> getLatestCommits(String commit)
+      throws IOException, TimeoutException, InterruptedException;
+
+  @Nonnull
   List<String> getObjects(Collection<String> commitsToSkip, Collection<String> commitsToInclude)
       throws IOException, TimeoutException, InterruptedException;
 

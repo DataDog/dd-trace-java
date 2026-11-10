@@ -75,6 +75,11 @@ public class NoOpGitClient implements GitClient {
 
   @Nonnull
   @Override
+  public List<String> getLatestCommits(String commit) {
+    return Collections.emptyList();
+  }
+
+  @Override
   public List<String> getLatestCommits() {
     return Collections.emptyList();
   }
