@@ -420,6 +420,11 @@ public class ShellGitClient implements GitClient {
     executeCommand(
         Command.FETCH_COMMIT,
         () -> {
+          String objectFormat =
+              commandExecutor
+                  .executeCommand(
+                      IOUtils::readFully, buildGitCommand("rev-parse", "--show-object-format"))
+                  .trim();
           String remote = getRemoteName();
           List<String> args = new ArrayList<>();
           Collections.addAll(
@@ -451,12 +456,13 @@ public class ShellGitClient implements GitClient {
                   "GIT_OBJECT_DIRECTORY", Paths.get(repoRoot).resolve(objects).toString());
               fetchExecutor =
                   new ShellCommandExecutor(new File(repoRoot), timeoutMillis, environment);
+              List<String> initArgs = new ArrayList<>(Arrays.asList("git", "init", "--bare"));
+              if ("sha1".equals(objectFormat) || "sha256".equals(objectFormat)) {
+                initArgs.add("--object-format=" + objectFormat);
+              }
+              initArgs.add(recoveryDirectory.toString());
               fetchExecutor.executeCommand(
-                  ShellCommandExecutor.OutputParser.IGNORE,
-                  "git",
-                  "init",
-                  "--bare",
-                  recoveryDirectory.toString());
+                  ShellCommandExecutor.OutputParser.IGNORE, initArgs.toArray(new String[0]));
               // Snapshot includes in the original gitdir/branch context, including inherited
               // overrides.
               String[] settings =
@@ -503,7 +509,8 @@ public class ShellGitClient implements GitClient {
             if (recoveryDirectory != null) {
               Path shallow = recoveryDirectory.resolve("shallow");
               if (Files.exists(shallow)) {
-                if (Files.size(shallow) > latestCommitsLimit * 41L) {
+                if (Files.size(shallow)
+                    > latestCommitsLimit * ("sha256".equals(objectFormat) ? 65L : 41L)) {
                   throw new IOException("Too many shallow boundaries in recovered Git history");
                 }
                 recoveredShallowCommits =

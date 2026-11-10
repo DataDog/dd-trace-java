@@ -8,13 +8,47 @@ import static datadog.trace.civisibility.git.tree.GitTestRepository.writeObject;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
+import datadog.communication.util.IOUtils;
 import datadog.trace.civisibility.utils.ShellCommandExecutor;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
 class GitRecoveryCompatibilityTest {
   @TempDir Path directory;
+
+  @Test
+  void recoveryUsesTheCheckoutObjectFormat() throws Exception {
+    Path origin = Files.createDirectory(directory.resolve("origin"));
+    ShellCommandExecutor remote = new ShellCommandExecutor(origin.toFile(), 10_000);
+    git(remote, "init", "--object-format=sha256");
+    String tree =
+        remote
+            .executeCommand(
+                IOUtils::readFully,
+                new byte[0],
+                "git",
+                "hash-object",
+                "-w",
+                "-t",
+                "tree",
+                "--stdin")
+            .trim();
+    String person = "Test <test@example.com> " + System.currentTimeMillis() / 1000 + " +0000";
+    String head =
+        writeObject(
+            remote, "tree " + tree + "\nauthor " + person + "\ncommitter " + person + "\n\nhead\n");
+    git(remote, "update-ref", "HEAD", head);
+    Path checkout = cloneFrom(remote, origin);
+    String selected = writeCommit(remote, tree, head, "selected");
+    git(remote, "update-ref", "refs/heads/selected", selected);
+    ShellGitClient client = client(checkout, "1 month ago");
+    client.fetchSelectedCommit(selected);
+    assertEquals(64, selected.length());
+    assertEquals(selected, client.getCommitInfo(selected, false).getSha());
+    assertFalse(client.isShallow());
+  }
 
   @TableTest({
     "Scenario               | selectedRecoveryFirst",
