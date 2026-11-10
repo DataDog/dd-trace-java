@@ -3,6 +3,7 @@ package datadog.trace.util;
 import static datadog.trace.util.FNV64Hash.continueHash;
 import static datadog.trace.util.FNV64Hash.generateHash;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Named.named;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import datadog.trace.util.FNV64Hash.Version;
@@ -236,32 +237,34 @@ class FNV64HashTest {
   }
 
   @ParameterizedTest(name = "{index}: {0}")
-  @MethodSource("utf8Strings")
-  void stringHashMatchesItsUtf8Bytes(String scenario, String input) {
+  @TableTest({
+    "Scenario      | input       ",
+    "ascii         | topic:orders",
+    "two-byte      | topic:café  ",
+    "three-byte    | topic:注文  ",
+    "supplementary | topic:🚀    "
+  })
+  @MethodSource("unpairedSurrogates")
+  void stringHashMatchesItsUtf8Bytes(String input) {
     byte[] utf8 = input.getBytes(StandardCharsets.UTF_8);
     for (Version version : Version.values()) {
-      assertEquals(generateHash(utf8, version), generateHash(input, version), scenario);
+      assertEquals(generateHash(utf8, version), generateHash(input, version), input);
       assertEquals(
           continueHash(0x1234_5678_9abc_def0L, utf8, version),
           continueHash(0x1234_5678_9abc_def0L, input, version),
-          scenario);
+          input);
     }
   }
 
-  // A method source, not a table: the inputs are escapes for unpaired surrogates and other
-  // characters a table can't show readably
-  static Stream<Arguments> utf8Strings() {
+  // Inputs a table can't show readably: noncharacters and surrogates that aren't paired
+  static Stream<Arguments> unpairedSurrogates() {
     return Stream.of(
-        arguments("ascii", "topic:orders"),
-        arguments("two-byte", "topic:caf\u00e9"),
-        arguments("three-byte", "topic:\u6ce8\u6587"),
-        arguments("max three-byte", "\uffff"),
-        arguments("supplementary", "topic:\ud83d\ude80"),
-        arguments("lone high surrogate", "a\ud83db"),
-        arguments("high surrogate at end", "a\ud83d"),
-        arguments("lone low surrogate", "a\ude80b"),
-        arguments("reversed pair", "\ude80\ud83d"),
-        arguments("high surrogate pair then lone", "\ud83d\ude80\ud83d"));
+        arguments(named("max three-byte", "\uffff")),
+        arguments(named("lone high surrogate", "a\ud83db")),
+        arguments(named("high surrogate at end", "a\ud83d")),
+        arguments(named("lone low surrogate", "a\ude80b")),
+        arguments(named("reversed pair", "\ude80\ud83d")),
+        arguments(named("high surrogate pair then lone", "\ud83d\ude80\ud83d")));
   }
 
   private static String repeat(String value, int times) {
