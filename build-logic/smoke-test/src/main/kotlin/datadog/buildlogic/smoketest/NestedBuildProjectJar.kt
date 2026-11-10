@@ -39,10 +39,17 @@ abstract class NestedBuildProjectJar {
   @get:Input
   abstract val version: Property<String>
 
-  /** Gradle CI Visibility loads `dd-java-agent.version`, so its presence affects smoke results. */
+  /**
+   * Tracks only the presence of these version files. Their contents remain excluded from the fingerprint.
+   * CI Visibility reads the agent version; missing API/core versions fall back to `unknown`.
+   */
   @get:Input
   val neededResourcePaths: Provider<List<String>>
-    get() = file.map(existingResourcePaths("dd-java-agent.version"))
+    get() = file.map(existingResourcePaths(
+      "dd-java-agent.version",
+      "dd-trace-api.version",
+      "trace/dd-trace-core.version",
+    ))
 
   private fun existingResourcePaths(vararg paths: String): Transformer<List<String>, RegularFile> =
     Transformer { file ->

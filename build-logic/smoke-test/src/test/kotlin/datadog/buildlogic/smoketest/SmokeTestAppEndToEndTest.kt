@@ -74,24 +74,32 @@ class SmokeTestAppEndToEndTest {
 
   @TableTest(
     """
-    scenario                                    | configuration | change          | expected
-    normalised version stamp ignored            | default       | stamp           | FROM_CACHE
-    ZIP timestamps ignored                      | default       | zip             | FROM_CACHE
-    ZIP entry order ignored                     | default       | order           | FROM_CACHE
-    project version tracked                     | default       | version         | SUCCESS
-    class contents tracked                      | default       | class           | SUCCESS
-    classdata tracked                           | default       | classdata       | SUCCESS
-    other resources tracked                     | default       | resource        | SUCCESS
-    YAML resource contents tracked              | default       | yaml            | SUCCESS
-    agent version added                         | default       | added           | SUCCESS
-    agent version removed                       | default       | removed         | SUCCESS
-    normalised version resources ignored        | default       | normalized-path | FROM_CACHE
-    shadow normalised version stamp ignored     | shadow        | stamp           | FROM_CACHE
+    scenario                                    | configuration | change          | version resource            | expected
+    normalised version stamp ignored            | default       | stamp           | api.version                 | FROM_CACHE
+    normalised agent version stamp ignored      | default       | stamp           | dd-java-agent.version       | FROM_CACHE
+    normalised API version stamp ignored        | default       | stamp           | dd-trace-api.version        | FROM_CACHE
+    normalised core version stamp ignored       | default       | stamp           | trace/dd-trace-core.version | FROM_CACHE
+    ZIP timestamps ignored                      | default       | zip             | api.version                 | FROM_CACHE
+    ZIP entry order ignored                     | default       | order           | api.version                 | FROM_CACHE
+    project version tracked                     | default       | version         | api.version                 | SUCCESS
+    class contents tracked                      | default       | class           | api.version                 | SUCCESS
+    classdata tracked                           | default       | classdata       | api.version                 | SUCCESS
+    other resources tracked                     | default       | resource        | api.version                 | SUCCESS
+    YAML resource contents tracked              | default       | yaml            | api.version                 | SUCCESS
+    agent version added                         | default       | added           | dd-java-agent.version       | SUCCESS
+    agent version removed                       | default       | removed         | dd-java-agent.version       | SUCCESS
+    API version added                           | default       | added           | dd-trace-api.version        | SUCCESS
+    API version removed                         | default       | removed         | dd-trace-api.version        | SUCCESS
+    core version added                          | default       | added           | trace/dd-trace-core.version | SUCCESS
+    core version removed                        | default       | removed         | trace/dd-trace-core.version | SUCCESS
+    normalised version resources ignored        | default       | normalized-path | optional.version            | FROM_CACHE
+    shadow normalised version stamp ignored     | shadow        | stamp           | api.version                 | FROM_CACHE
     """
   )
   fun `project JAR fingerprints ignore metadata and track source changes`(
     configuration: String,
     change: String,
+    versionResource: String,
     expected: TaskOutcome,
   ) {
     // given
@@ -144,8 +152,8 @@ class SmokeTestAppEndToEndTest {
       "config.txt" to "resource",
       "config.yaml" to "enabled: false\n",
     )
-    if (change == "removed") {
-      entries["dd-java-agent.version"] = "1.0~initial"
+    if (change == "removed" || change == "stamp") {
+      entries[versionResource] = "1.0~initial"
     }
 
     fun writeApiJar(timestamp: Long = 1_000_000_000_000L, reverseEntries: Boolean = false) {
@@ -177,14 +185,13 @@ class SmokeTestAppEndToEndTest {
     var reverseEntries = false
     var apiVersion = "1.0"
     when (change) {
-      "stamp" -> entries["api.version"] = "1.0~next"
+      "stamp" -> entries[versionResource] = "1.0~next"
       "class" -> entries["example/Api.class"] = "changed class"
       "classdata" -> entries["example/Agent.classdata"] = "changed classdata"
       "resource" -> entries["config.txt"] = "changed resource"
       "yaml" -> entries["config.yaml"] = "enabled: true\n"
-      "added" -> entries["dd-java-agent.version"] = "1.0~initial"
-      "removed" -> entries.remove("dd-java-agent.version")
-      "normalized-path" -> entries["optional.version"] = "1.0~initial"
+      "added", "normalized-path" -> entries[versionResource] = "1.0~initial"
+      "removed" -> entries.remove(versionResource)
       "zip" -> timestamp = 1_700_000_000_000L
       "order" -> reverseEntries = true
       "version" -> apiVersion = "2.0"
@@ -205,10 +212,12 @@ class SmokeTestAppEndToEndTest {
       assertThat(second.output).contains("Reusing configuration cache.")
     }
     JarFile(applicationOutput("embedded-api.jar")).use { jar ->
-      val stamp = jar.getInputStream(jar.getJarEntry("api.version")).bufferedReader().use { it.readText() }
-      assertThat(stamp).isEqualTo("1.0~initial")
-      assertThat(jar.getJarEntry("dd-java-agent.version") != null).isEqualTo(change == "added")
-      assertThat(jar.getJarEntry("optional.version")).isNull()
+      if (change == "removed" || change == "normalized-path") {
+        assertThat(jar.getJarEntry(versionResource)).isNull()
+      } else {
+        val stamp = jar.getInputStream(jar.getJarEntry(versionResource)).bufferedReader().use { it.readText() }
+        assertThat(stamp).isEqualTo("1.0~initial")
+      }
       val yaml = jar.getInputStream(jar.getJarEntry("config.yaml")).bufferedReader().use { it.readText() }
       assertThat(yaml).isEqualTo(if (change == "yaml") "enabled: true\n" else "enabled: false\n")
     }

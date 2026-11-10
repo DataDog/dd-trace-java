@@ -64,10 +64,15 @@ abstract class SmokeAgentArguments implements CommandLineArgumentProvider {
   @Input
   abstract Property<String> getTracerVersion()
 
-  // Gradle CI Visibility loads dd-java-agent.version, so its presence affects smoke results.
+  // Tracks only the presence of these version files. Their contents remain excluded from the fingerprint.
+  // CI Visibility reads the agent version; missing API/core versions fall back to "unknown".
   @Input
   Provider<List<String>> getNeededResourcePaths() {
-    tracerJar.map(existingResourcePaths('dd-java-agent.version'))
+    tracerJar.map(existingResourcePaths(
+      'dd-java-agent.version',
+      'dd-trace-api.version',
+      'trace/dd-trace-core.version'
+      ))
   }
 
   @InputFile
