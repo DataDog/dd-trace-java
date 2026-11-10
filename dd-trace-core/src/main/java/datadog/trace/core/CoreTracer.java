@@ -312,6 +312,10 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   // built via CoreTracerBuilder#withProperties/#config rather than the global Config.get()
   // singleton. See the tag-ordering block in buildSpanContext.
   private final boolean builderTagsPrecedence;
+  // Root spans read their trace-level tags through a shared parent (see buildSpanContext). Off for
+  // OTLP export: its span writer emits only a span's own tags, so inherited root tags would be
+  // lost.
+  private final boolean rootSpanTagsReadThroughEnabled;
 
   // Cache used by buildSpan - instance so it can capture the CoreTracer
   private final ReusableSingleSpanBuilderThreadLocalCache spanBuilderThreadLocalCache =
@@ -897,6 +901,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     propagationTagsFactory = PropagationTags.factory(config);
 
     builderTagsPrecedence = config.isTraceBuilderTagsPrecedenceEnabled();
+    rootSpanTagsReadThroughEnabled = builderTagsPrecedence && !config.isOtlpTracesExportEnabled();
 
     // Register context propagators
     HttpCodec.Extractor baseExtractor =
@@ -2348,10 +2353,11 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       // over the merged tracer tags) through one shared frozen parent instead of copying the
       // root-span tags in. They become the precedence floor: the flag's order already puts them
       // below builder and contextual tags, and now inbound header tags and prototype defaults also
-      // win over them. Tags needing interception are still copied in.
+      // win over them. Tags needing interception are still copied in, and with OTLP export it's
+      // off: the OTLP span writer emits only local tags.
       final boolean rootSpanTagsReadThrough =
           localRootSpanTags != null
-              && tracer.builderTagsPrecedence
+              && tracer.rootSpanTagsReadThroughEnabled
               && !rootSpanTagsNeedsIntercept
               && !mergedTracerTagsNeedsIntercept;
       final TagMap tagParent;

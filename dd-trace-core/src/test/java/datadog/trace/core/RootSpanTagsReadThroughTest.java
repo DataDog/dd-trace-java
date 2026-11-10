@@ -1,5 +1,6 @@
 package datadog.trace.core;
 
+import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.OTLP_WRITER_TYPE;
 import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -8,6 +9,7 @@ import datadog.trace.api.DynamicConfig;
 import datadog.trace.api.KnownTags;
 import datadog.trace.api.config.TracerConfig;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.common.writer.ListWriter;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.LinkedHashMap;
@@ -35,6 +37,10 @@ class RootSpanTagsReadThroughTest extends DDCoreJavaSpecification {
   }
 
   private CoreTracer tracer(boolean builderTagsPrecedence) {
+    return tracer(builderTagsPrecedence, false);
+  }
+
+  private CoreTracer tracer(boolean builderTagsPrecedence, boolean otlpExport) {
     Map<String, Object> rootTags = new LinkedHashMap<>();
     rootTags.put(KnownTags.LANGUAGE_NAME, "jvm");
     rootTags.put(KnownTags.PROCESS_ID_NAME, 42L);
@@ -42,7 +48,14 @@ class RootSpanTagsReadThroughTest extends DDCoreJavaSpecification {
     Properties properties = new Properties();
     properties.setProperty(
         TracerConfig.TRACE_BUILDER_TAGS_PRECEDENCE_ENABLED, String.valueOf(builderTagsPrecedence));
-    return tracerBuilder().withProperties(properties).localRootSpanTags(rootTags).build();
+    if (otlpExport) {
+      properties.setProperty(TracerConfig.WRITER_TYPE, OTLP_WRITER_TYPE);
+    }
+    return tracerBuilder()
+        .withProperties(properties)
+        .writer(new ListWriter())
+        .localRootSpanTags(rootTags)
+        .build();
   }
 
   @Test
@@ -57,6 +70,20 @@ class RootSpanTagsReadThroughTest extends DDCoreJavaSpecification {
     assertEquals(42L, root.getTag(KnownTags.PROCESS_ID_NAME));
     assertEquals("value", root.getTag(CUSTOM_ROOT_TAG));
     assertEquals(copiedLocally - 2, localKnownTagCount(root));
+  }
+
+  @Test
+  void withOtlpExportARootSpanStillCopiesItsRootTags() throws Exception {
+    // The OTLP span writer emits only a span's own tags, so inherited root tags would be lost.
+    tracer = tracer(false, true);
+    int copiedLocally = localKnownTagCount(rootSpanOf(tracer));
+    tracer.close();
+
+    tracer = tracer(true, true);
+    DDSpan root = rootSpanOf(tracer);
+    assertEquals("jvm", root.getTag(KnownTags.LANGUAGE_NAME));
+    assertEquals(42L, root.getTag(KnownTags.PROCESS_ID_NAME));
+    assertEquals(copiedLocally, localKnownTagCount(root));
   }
 
   @Test
