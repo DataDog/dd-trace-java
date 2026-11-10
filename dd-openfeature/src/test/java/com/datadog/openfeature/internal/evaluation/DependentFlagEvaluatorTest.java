@@ -268,6 +268,13 @@ class DependentFlagEvaluatorTest {
       assertEquals(1, CapturingServiceProvider.events().size());
       assertTrue(
           CapturingServiceProvider.events().get(0).message.contains("maxDependencyDepth=10"));
+
+      evaluator.evaluateWithTrace(
+          config, String.class, "dependent", "default", new MutableContext("another-user"));
+      assertEquals(
+          1,
+          CapturingServiceProvider.events().size(),
+          "one malformed configuration must not log at request QPS");
     } finally {
       CapturingServiceProvider.reset();
     }

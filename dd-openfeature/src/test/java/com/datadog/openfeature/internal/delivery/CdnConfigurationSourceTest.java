@@ -27,6 +27,7 @@ import java.net.ServerSocket;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.time.Duration;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
@@ -162,11 +163,19 @@ class CdnConfigurationSourceTest {
     assertEquals("GET", request.method);
     assertEquals("secret", request.header("DD-API-KEY"));
     assertEquals("gzip", request.header("Accept-Encoding"));
-    assertEquals(
-        CdnConfigurationSource.DEPENDENT_FLAG_CAPABILITY,
-        request.header(CdnConfigurationSource.FEATURE_FLAGS_CAPABILITIES_HEADER));
     assertEquals("java", request.header("Datadog-Meta-Lang"));
     assertNull(request.header("If-None-Match"));
+    assertEquals("cap_dependent-flags-variant-key=v1", request.uri.getRawQuery());
+  }
+
+  @Test
+  void preservesExistingAgentlessQueryWhenAddingDependentFlagCapability() {
+    assertEquals(
+        "https://example.com/ufc?token=a%2Bb&cap_dependent-flags-variant-key=v1",
+        CdnConfigurationSource.requestEndpoint(
+                URI.create("https://example.com/ufc?token=a%2Bb"),
+                Collections.singleton("dependent-flag-variant-key-v1"))
+            .toString());
   }
 
   @Test

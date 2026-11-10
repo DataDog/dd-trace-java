@@ -18,6 +18,7 @@ import com.datadog.openfeature.ExperimentationOptOutMode;
 import com.datadog.openfeature.internal.ufc.Allocation;
 import com.datadog.openfeature.internal.ufc.ConditionConfiguration;
 import com.datadog.openfeature.internal.ufc.ConditionOperator;
+import com.datadog.openfeature.internal.ufc.EvaluatorParams;
 import com.datadog.openfeature.internal.ufc.Feature;
 import com.datadog.openfeature.internal.ufc.Flag;
 import com.datadog.openfeature.internal.ufc.ParsedSemver;
@@ -292,18 +293,38 @@ public final class FlagEvaluator {
   }
 
   private static int maxDependencyDepth(final ServerConfiguration config) {
-    if (config.evaluatorParams == null) {
+    final EvaluatorParams params = config.evaluatorParams;
+    if (params == null) {
       return DEFAULT_MAX_DEPENDENCY_DEPTH;
     }
-    if (config.evaluatorParams.validationError != null) {
-      logInvalidMaxDependencyDepth(config.evaluatorParams.validationError, null);
+    Integer cached = params.resolvedMaxDependencyDepth();
+    if (cached != null) {
+      return cached;
+    }
+    // UFC snapshots and their evaluator params are immutable. Synchronization is reached only on
+    // this snapshot's first dependency evaluation; subsequent requests take the volatile fast
+    // path above. This also ensures malformed input is diagnosed once under concurrent first use.
+    synchronized (params) {
+      cached = params.resolvedMaxDependencyDepth();
+      if (cached != null) {
+        return cached;
+      }
+      final int parsed = parseMaxDependencyDepth(params);
+      params.cacheResolvedMaxDependencyDepth(parsed);
+      return parsed;
+    }
+  }
+
+  private static int parseMaxDependencyDepth(final EvaluatorParams params) {
+    if (params.validationError != null) {
+      logInvalidMaxDependencyDepth(params.validationError, null);
       return DEFAULT_MAX_DEPENDENCY_DEPTH;
     }
-    if (!config.evaluatorParams.maxDependencyDepthPresent) {
+    if (!params.maxDependencyDepthPresent) {
       return DEFAULT_MAX_DEPENDENCY_DEPTH;
     }
     try {
-      final Object configured = config.evaluatorParams.maxDependencyDepth;
+      final Object configured = params.maxDependencyDepth;
       if (configured instanceof Number) {
         final double value = ((Number) configured).doubleValue();
         if (Double.isFinite(value) && value == Math.rint(value) && value >= 0 && value <= 255) {
