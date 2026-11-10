@@ -20,14 +20,15 @@ build, such as `-PapiJar=<path>`, and carries its producing task dependency.
 
 ## Cache inputs
 
-Forwarded JARs use `@Classpath` input tracking, and will sue the declared normalization
-rules of the smoke test project. If normalization excludes `**/*.version` resources, 
+Forwarded JARs use `@Classpath` with the smoke-test project's normalization
+rules. If _normalization_ excludes `**/*.version` resources, 
 these paths won't be contributing to the fingerprint of added *project jar*.
 
-Note however, that the project's version is declared as an input of the
-*project jar*. `project.version` supplies a value such as `1.69.0-SNAPSHOT`;
-while commit hash is appended when generating version files, which invalidate the 
-fingerprint too early.
+Because current normalization applied on projects, the generated `.version`
+files are ignored, but _base version_ (e.g. `1.69.0-SNAPSHOT`) still need 
+to be tracked, as such the project's version is used. For example in 
+`projectJar('apiJar', project(':dd-trace-api'))`, the content of `dd-trace-api.version`
+is ignored, but `:dd-trace-api`'s version will be used as input.
 
 See the [build-cache guide](../../docs/gradle_build_cache.md#choose-input-fingerprints)
 for input annotations, normalization and cache diagnostics.
