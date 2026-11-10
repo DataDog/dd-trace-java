@@ -22,7 +22,7 @@ pluginManagement {
     if (mavenRepositoryProxy == null) {
       mavenCentral()
     }
-    // Hosts gradle-tooling-api, a transitive dep of the build-logic:smoke-test plugin used
+    // Hosts gradle-tooling-api, a transitive dep of the build-logic:smoke-test-app plugin used
     // to run nested Gradle builds for smoke-test applications pinned to older Gradle versions.
     maven {
       url = uri("https://repo.gradle.org/gradle/libs-releases")
@@ -94,6 +94,8 @@ if (isCI.isPresent) {
         isPush = true
         lookupDefaultAwsCredentials = true
         isReducedRedundancy = false
+        // Smoke application build entries exceed the plugin's 50 MiB default limit.
+        maximumCachedObjectLength = 256L * 1024 * 1024
       }
     }
   }
