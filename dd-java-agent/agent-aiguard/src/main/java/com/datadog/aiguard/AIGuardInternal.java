@@ -4,6 +4,8 @@ import static datadog.communication.ddagent.TracerVersion.TRACER_VERSION;
 import static datadog.trace.api.telemetry.WafMetricCollector.AIGuardTruncationType.CONTENT;
 import static datadog.trace.api.telemetry.WafMetricCollector.AIGuardTruncationType.MESSAGES;
 import static datadog.trace.util.Strings.isBlank;
+import static java.util.Arrays.asList;
+import static java.util.Collections.unmodifiableSet;
 
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
@@ -13,6 +15,7 @@ import com.squareup.moshi.Types;
 import datadog.communication.http.OkHttpUtils;
 import datadog.context.ContextScope;
 import datadog.trace.api.Config;
+import datadog.trace.api.DDTags;
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.aiguard.AIGuard;
 import datadog.trace.api.aiguard.AIGuard.AIGuardAbortError;
@@ -34,6 +37,7 @@ import datadog.trace.api.telemetry.WafMetricCollector.AIGuardRedaction;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ClientIpAddressData;
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
@@ -41,6 +45,7 @@ import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -97,6 +102,76 @@ public class AIGuardInternal implements Evaluator {
   static final String[] ANOMALY_DETECTION_TAGS = {
     Tags.HTTP_CLIENT_IP, Tags.NETWORK_CLIENT_IP, Tags.HTTP_USER_AGENT, "usr.id", "usr.session_id"
   };
+
+  private static final String RESERVED_TAG_PREFIX = "_dd";
+
+  private static final Set<String> RESERVED_TAGS = buildReservedTags();
+
+  private static final Set<String> RESERVED_META_STRUCT_KEYS =
+      unmodifiableSet(
+          new HashSet<>(
+              asList(
+                  META_STRUCT_MESSAGES,
+                  META_STRUCT_CATEGORIES,
+                  META_STRUCT_SDS,
+                  META_STRUCT_TAG_PROBS)));
+
+  private static Set<String> buildReservedTags() {
+    final Set<String> reserved =
+        new HashSet<>(
+            asList(
+                // tracer-computed AI Guard tags
+                ACTION_TAG,
+                REASON_TAG,
+                TARGET_TAG,
+                TOOL_TAG,
+                BLOCKED_TAG,
+                REDACTED_TAG,
+                Tags.AI_GUARD_EVENT,
+                Tags.AI_GUARD_KEEP,
+                // keys routed by TagInterceptor to span fields or sampling decisions
+                DDTags.MANUAL_KEEP,
+                DDTags.MANUAL_DROP,
+                Tags.ASM_KEEP,
+                Tags.SAMPLING_PRIORITY,
+                Tags.ERROR,
+                DDTags.SPAN_TYPE,
+                Tags.SPAN_KIND,
+                DDTags.RESOURCE_NAME,
+                "service",
+                DDTags.SERVICE_NAME,
+                Tags.PEER_SERVICE,
+                InstrumentationTags.SERVLET_CONTEXT,
+                Tags.DB_STATEMENT,
+                Tags.HTTP_METHOD,
+                Tags.HTTP_URL,
+                Tags.HTTP_STATUS,
+                // span-level identity keys
+                Tags.VERSION,
+                Tags.ENV,
+                DDTags.LANGUAGE_TAG_KEY,
+                DDTags.RUNTIME_ID_TAG,
+                DDTags.PID_TAG));
+    for (final String tag : ANOMALY_DETECTION_TAGS) {
+      reserved.add("ai_guard." + tag);
+    }
+    return unmodifiableSet(reserved);
+  }
+
+  /**
+   * Returns whether a backend extra tag key is reserved: a tracer-owned AI Guard tag or a key that
+   * TagInterceptor interprets (including any key starting with {@code _dd}). This protects
+   * tracer-owned state and is not a namespace filter: backend {@code ai_guard.*} keys such as
+   * {@code ai_guard.evaluate_id} are applied verbatim.
+   */
+  private static boolean isReservedTag(final String key) {
+    return RESERVED_TAGS.contains(key) || key.startsWith(RESERVED_TAG_PREFIX);
+  }
+
+  /** Returns whether a backend extra meta_struct key is owned by the tracer. */
+  private static boolean isReservedMetaStructKey(final String key) {
+    return RESERVED_META_STRUCT_KEYS.contains(key);
+  }
 
   public static void install() {
     final Config config = Config.get();
