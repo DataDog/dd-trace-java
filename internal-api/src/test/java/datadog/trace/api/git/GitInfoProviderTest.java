@@ -324,9 +324,10 @@ class GitInfoProviderTest {
   }
 
   @TableTest({
-    "scenario      | localUrl                                      | expectedUrl               ",
-    "valid URI     | 'ftps://user:password@host.com/repo.git'      | 'ftps://host.com/repo.git'",
-    "malformed URI | 'ftps://user:password@host.com/repo name.git' |                           "
+    "scenario      | localUrl                                      | expectedUrl                    ",
+    "valid URI     | 'ftps://user:password@host.com/repo.git'      | 'ftps://host.com/repo.git'     ",
+    "SSH alias     | 'ssh://git@git_alias/team/repo.git'           | 'ssh://git_alias/team/repo.git'",
+    "malformed URI | 'ftps://user:password@host.com/repo name.git' |                                "
   })
   void testLocalRemoteCredentialsDoNotReachSelectedMetadata(String localUrl, String expectedUrl) {
     String sha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";

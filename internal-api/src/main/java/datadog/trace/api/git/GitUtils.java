@@ -106,6 +106,9 @@ public class GitUtils {
     return ref;
   }
 
+  private static final Pattern USER_INFO_WITH_HOST_ALIAS =
+      Pattern.compile("[^@]+@[\\p{L}\\p{N}._-]+(?::[0-9]+)?");
+
   /**
    * Removes the user info of a certain URL. E.g: https://user:password@host.com/path ->
    * https://host.com/path
@@ -130,6 +133,10 @@ public class GitUtils {
         return null;
       }
       String userInfo = url.getRawUserInfo();
+      if (userInfo == null && USER_INFO_WITH_HOST_ALIAS.matcher(authority).matches()) {
+        // URI's DNS parser rejects valid aliases containing underscores.
+        userInfo = authority.substring(0, authority.indexOf('@'));
+      }
       if (userInfo == null) {
         return authority.indexOf('@') >= 0 ? null : urlStr;
       }

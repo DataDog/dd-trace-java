@@ -119,6 +119,17 @@ class GitUtilsTest {
   }
 
   @TableTest({
+    "scenario          | url                                                | expectedResult                      ",
+    "SSH alias         | 'ssh://git@git_alias/team/repo.git'                | 'ssh://git_alias/team/repo.git'     ",
+    "alias credentials | 'ssh://user:password@git_alias:2222/team/repo.git' | 'ssh://git_alias:2222/team/repo.git'",
+    "custom scheme     | 'git+ssh://git@git_alias/team/repo.git'            | 'git+ssh://git_alias/team/repo.git' ",
+    "invalid port      | 'ssh://user:password@git_alias:invalid/repo.git'   |                                     "
+  })
+  void testHostAliasesKeepSanitizedRepositoryIdentity(String url, String expectedResult) {
+    assertEquals(expectedResult, GitUtils.filterSensitiveInfo(url));
+  }
+
+  @TableTest({
     "scenario                           | ref                     | valid",
     "full branch ref                    | refs/heads/main         | true ",
     "branch with slash and dots         | feature/branch-1.0      | true ",
