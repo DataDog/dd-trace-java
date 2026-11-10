@@ -65,8 +65,7 @@ bash .llm-validation/context_growth.sh --base-ref "$instruction_base" \
   --report build/llm-validation/context-growth.md
 ```
 
-For an offline behavior smoke, use Docker; no host .NET SDK or model credentials are needed.
-Downloading the image requires internal registry access.
+Run a fake evaluation with Docker (requires internal registry access):
 
 ```shell
 mkdir -p build/llm-validation

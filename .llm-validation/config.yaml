@@ -8,8 +8,7 @@ instruction_files:
   - AGENTS.md
   - .claude/CLAUDE.md
 
-# On-demand setup comparison uses existing v0.1.6 directory support.
-# This inventory is separate from instruction-change targeting above; no extra CI job is enabled.
+# Inventory for on-demand setup evaluation; this does not enable a CI job.
 setup:
   files:
     - AGENTS.md

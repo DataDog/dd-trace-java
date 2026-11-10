@@ -31,7 +31,6 @@ done
 work_dir="$(mktemp -d)"
 trap 'rm -rf -- "$work_dir"' EXIT
 
-# Keep the small Markdown import reader with its only caller.
 imports() {
   awk -v source="$1" '
 # Extract relative @imports outside fenced blocks and inline code. Requires only POSIX awk.
