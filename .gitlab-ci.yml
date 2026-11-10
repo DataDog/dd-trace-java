@@ -1588,3 +1588,22 @@ update_central_configurations_version_range_v2:
     LLMVAL_GITHUB_REPO: "DataDog/dd-trace-java"
     LLMVAL_BASE_REF: "master"
     LLMVAL_CLAUDE_VERSION: "2.1.301"
+
+  # Run before the shared script can skip unchanged instructions. Keep its script and rules intact.
+  before_script:
+    - bash .llm-validation/tests/test_context_growth.sh
+    - git fetch --no-tags --depth=200 origin "$LLMVAL_BASE_REF"
+    - instruction_base=$(git merge-base HEAD "origin/$LLMVAL_BASE_REF")
+    - bash .llm-validation/context_growth.sh --base-ref "$instruction_base" --report build/llm-validation/context-growth.md
+  artifacts:
+    # GitLab replaces arrays: retain all v0.1.6 paths when adding the context report.
+    paths:
+      - results.json
+      - report.md
+      - report-main.md
+      - details.json
+      - telemetry.json
+      - infrastructure.jsonl
+      - results-partial.json
+      - report-partial.md
+      - build/llm-validation/context-growth.md

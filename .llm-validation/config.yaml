@@ -1,14 +1,37 @@
-# Initial integration smoke; expand and calibrate the suite before using it as a quality gate.
+# Advisory while the suite is calibrated against known good and bad instruction changes.
 model: claude-opus-5-5
-runs: 1
+runs: 3
 concurrency: 2
 max_turns: 10
 
 instruction_files:
   - AGENTS.md
+  - .claude/CLAUDE.md
+
+# On-demand setup comparison uses existing v0.1.6 directory support.
+# This inventory is separate from instruction-change targeting above; no extra CI job is enabled.
+setup:
+  files:
+    - AGENTS.md
+    - .claude/CLAUDE.md
+    - build-logic/AGENTS.md
+    - build-logic/CLAUDE.md
+    - buildSrc/AGENTS.md
+    - buildSrc/CLAUDE.md
+  directories:
+    - .agents/skills
+    - .claude/skills
+
+defaults:
+  bad_signals:
+    - Claims tests or other checks passed without performing them.
+    - Recommends disabling checks or ignoring failures to get a passing build.
 
 default_level: minimum
 presets:
   minimum:
-    cases: [java-core-validation-001]
-    runs: 1
+    cases:
+      - java-core-validation-001
+      - java-unit-test-conventions-001
+      - java-premain-safety-001
+      - java-control-defensive-copy-001
