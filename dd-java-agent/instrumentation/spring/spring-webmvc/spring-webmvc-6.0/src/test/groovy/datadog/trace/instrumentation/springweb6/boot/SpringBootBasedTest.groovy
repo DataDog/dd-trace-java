@@ -697,7 +697,8 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
 
 /**
  * Runs the suite on Spring's default PathPatternParser request matching. The base suite keeps
- * semicolon content in the lookup path, which uses AntPathMatcher (deprecated in Spring 7).
+ * semicolon content in the lookup path, which switches MVC request mapping to AntPathMatcher; that
+ * mode is deprecated for removal in Spring 7.
  */
 class SpringBootPathPatternTest extends SpringBootBasedTest {
   @Override
