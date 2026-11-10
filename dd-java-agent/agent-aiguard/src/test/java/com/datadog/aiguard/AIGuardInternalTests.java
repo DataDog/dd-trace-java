@@ -44,6 +44,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockingDetails;
@@ -863,12 +864,149 @@ class AIGuardInternalTests {
       assertEquals("It is fine", result.getReason(), scenario);
       assertEquals(expectedTagKeys, setTagKeys(), scenario);
       assertEquals(singleton(META_STRUCT_MESSAGES), receivedMeta.keySet(), scenario);
-      List<Metric> metrics = drainAIGuard();
-      assertTrue(
-          metrics.stream()
-              .noneMatch(it -> "ai_guard".equals(it.namespace) && "error".equals(it.metricName)),
-          metrics::toString);
+      assertNoErrorTelemetry();
     }
+  }
+
+  @Test
+  void testEvaluateSkipsMalformedExtras() throws IOException {
+    List<Map<String, Object>> validTags = singletonList(extra("t.ok", "v"));
+    List<Map<String, Object>> validMetaStruct = singletonList(extra("m.ok", "v"));
+    Map<String, String> validTagsApplied = singletonMap("t.ok", "v");
+    Map<String, Object> validMetaStructApplied = singletonMap("m.ok", "v");
+
+    // Containers that are not lists: nothing is applied from that field, the other list still is
+    List<Object> notLists = asList("not-a-list", extra("t.single", "v"), 42, true);
+    for (Object notList : notLists) {
+      assertMalformedExtrasSkipped(notList, validMetaStruct, emptyMap(), validMetaStructApplied);
+      assertMalformedExtrasSkipped(validTags, notList, validTagsApplied, emptyMap());
+    }
+
+    // Entries that are not objects are skipped, a valid sibling entry is applied
+    assertMalformedExtrasSkipped(
+        asList("x", 1, null, singletonList("a"), true, extra("t.ok", "v")),
+        asList("x", 1, null, singletonList("a"), true, extra("m.ok", "v")),
+        validTagsApplied,
+        validMetaStructApplied);
+
+    // Missing, empty, null and non-string keys are skipped; a whitespace-only key is kept verbatim
+    Map<String, String> tagsWithBlankKey = new HashMap<>(validTagsApplied);
+    tagsWithBlankKey.put(" ", "v");
+    Map<String, Object> metaStructWithBlankKey = new HashMap<>(validMetaStructApplied);
+    metaStructWithBlankKey.put(" ", "v");
+    assertMalformedExtrasSkipped(
+        malformedKeyEntries(extra("t.ok", "v")),
+        malformedKeyEntries(extra("m.ok", "v")),
+        tagsWithBlankKey,
+        metaStructWithBlankKey);
+
+    // extra_tags values that are missing or not strings are skipped
+    List<String> invalidTagValueKeys =
+        asList("v.missing", "v.null", "v.number", "v.bool", "v.list", "v.map");
+    assertMalformedExtrasSkipped(
+        asList(
+            singletonMap("key", "v.missing"),
+            extra("v.null", null),
+            extra("v.number", 1),
+            extra("v.bool", true),
+            extra("v.list", singletonList("a")),
+            extra("v.map", singletonMap("a", "b")),
+            extra("t.ok", "v")),
+        null,
+        validTagsApplied,
+        emptyMap());
+    for (String key : invalidTagValueKeys) {
+      verifyTagNeverSet(key);
+    }
+
+    // extra_metastruct values that are missing or null are skipped, falsy values are kept as is
+    Map<String, Object> falsyValues = new HashMap<>();
+    falsyValues.put("m.false", false);
+    // Moshi decodes every JSON number as a Double
+    falsyValues.put("m.zero", 0.0);
+    falsyValues.put("m.empty_string", "");
+    falsyValues.put("m.empty_list", emptyList());
+    falsyValues.put("m.empty_map", emptyMap());
+    assertMalformedExtrasSkipped(
+        null,
+        asList(
+            singletonMap("key", "m.missing"),
+            extra("m.null", null),
+            extra("m.false", false),
+            extra("m.zero", 0),
+            extra("m.empty_string", ""),
+            extra("m.empty_list", emptyList()),
+            extra("m.empty_map", emptyMap())),
+        emptyMap(),
+        falsyValues);
+
+    // DENY path: a malformed payload still ends in the abort error, valid entries are applied
+    clearInvocations(span);
+    receivedMeta = null;
+    Map<String, Object> attributes = new HashMap<>();
+    attributes.put("action", "DENY");
+    attributes.put("reason", "Not allowed");
+    attributes.put("is_blocking_enabled", true);
+    attributes.put(
+        EXTRA_TAGS_FIELD, asList("x", extra(123, "v"), extra("v.number", 1), extra("t.ok", "v")));
+    attributes.put(
+        EXTRA_METASTRUCT_FIELD,
+        asList(null, extra("", "v"), extra("m.null", null), extra("m.ok", "v")));
+    AIGuardInternal aiguard = mockClient(200, evaluation(attributes));
+
+    AIGuardAbortError error =
+        assertThrows(
+            AIGuardAbortError.class, () -> aiguard.evaluate(PROMPT, new Options().block(true)));
+
+    assertEquals(DENY, error.getAction());
+    verify(span).setTag("t.ok", "v");
+    verifyTagNeverSet("v.number");
+    assertFalse(setTagKeys().contains(""));
+    Set<String> expectedMetaKeys = new HashSet<>(asList(META_STRUCT_MESSAGES, "m.ok"));
+    assertEquals(expectedMetaKeys, receivedMeta.keySet());
+    assertEquals("v", receivedMeta.get("m.ok"));
+    assertNoErrorTelemetry();
+  }
+
+  @Test
+  void testEvaluateIgnoresFailureWhileApplyingExtras() throws IOException {
+    // Only the extra key is stubbed: evaluate() sets its own tags on the span before the extras
+    doThrow(new RuntimeException("boom")).when(span).setTag(eq("x.extra"), anyString());
+    Map<String, Object> attributes = new HashMap<>();
+    attributes.put("action", "ALLOW");
+    attributes.put("reason", "It is fine");
+    // An exception while applying a list aborts the rest of that list only, so y.extra is
+    // intentionally not asserted either way
+    attributes.put(EXTRA_TAGS_FIELD, asList(extra("x.extra", "v"), extra("y.extra", "v2")));
+    attributes.put(EXTRA_METASTRUCT_FIELD, singletonList(extra("m.ok", "v")));
+    AIGuardInternal aiguard = mockClient(200, evaluation(attributes));
+
+    Evaluation result = aiguard.evaluate(PROMPT, DEFAULT);
+
+    assertEquals(ALLOW, result.getAction());
+    assertEquals("It is fine", result.getReason());
+    // extra_metastruct is a separate list, applied despite the extra_tags failure
+    assertEquals("v", receivedMeta.get("m.ok"));
+    assertTrue(receivedMeta.containsKey(META_STRUCT_MESSAGES));
+    assertNoErrorTelemetry();
+
+    // The same failure on a blocking DENY still ends in the abort error, not a client error
+    clearInvocations(span);
+    receivedMeta = null;
+    attributes.put("action", "DENY");
+    attributes.put("reason", "Not allowed");
+    attributes.put("is_blocking_enabled", true);
+    AIGuardInternal blockingAiguard = mockClient(200, evaluation(attributes));
+
+    AIGuardAbortError error =
+        assertThrows(
+            AIGuardAbortError.class,
+            () -> blockingAiguard.evaluate(PROMPT, new Options().block(true)));
+
+    assertEquals(DENY, error.getAction());
+    assertEquals("v", receivedMeta.get("m.ok"));
+    assertTrue(receivedMeta.containsKey(META_STRUCT_MESSAGES));
+    assertNoErrorTelemetry();
   }
 
   @Test
@@ -1149,7 +1287,7 @@ class AIGuardInternalTests {
   }
 
   /** Builds one {@code {key, value}} entry of the backend extra_tags or extra_metastruct lists. */
-  private static Map<String, Object> extra(String key, Object value) {
+  private static Map<String, Object> extra(Object key, Object value) {
     Map<String, Object> entry = new HashMap<>();
     entry.put("key", key);
     entry.put("value", value);
@@ -1169,6 +1307,70 @@ class AIGuardInternalTests {
   private void verifyTagNeverSetTo(String key, String value) {
     verify(span, never()).setTag(eq(key), eq(value));
     verify(span, never()).setTag(eq(key), eq((Object) value));
+  }
+
+  /**
+   * Evaluates an ALLOW response carrying the given extras on a fresh span and asserts that only the
+   * expected entries were applied, the outcome is unchanged and no error telemetry is recorded.
+   */
+  private void assertMalformedExtrasSkipped(
+      Object extraTags,
+      Object extraMetaStruct,
+      Map<String, String> expectedTags,
+      Map<String, Object> expectedMetaStruct)
+      throws IOException {
+    clearInvocations(span);
+    receivedMeta = null;
+    Map<String, Object> attributes = new HashMap<>();
+    attributes.put("action", "ALLOW");
+    attributes.put("reason", "It is fine");
+    attributes.put(EXTRA_TAGS_FIELD, extraTags);
+    attributes.put(EXTRA_METASTRUCT_FIELD, extraMetaStruct);
+    AIGuardInternal aiguard = mockClient(200, evaluation(attributes));
+
+    Evaluation result = aiguard.evaluate(PROMPT, DEFAULT);
+
+    String scenario = "extra_tags: " + extraTags + ", extra_metastruct: " + extraMetaStruct;
+    assertEquals(ALLOW, result.getAction(), scenario);
+    assertEquals("It is fine", result.getReason(), scenario);
+    // Tags evaluate() sets on its own for an ALLOW prompt evaluation, plus the applied extras
+    Set<Object> expectedTagKeys = new HashSet<>(asList(TARGET_TAG, ACTION_TAG, REASON_TAG));
+    if (Config.get().isAiGuardRedactionEnabled()) {
+      expectedTagKeys.add(REDACTED_TAG);
+    }
+    expectedTagKeys.addAll(expectedTags.keySet());
+    assertEquals(expectedTagKeys, setTagKeys(), scenario);
+    expectedTags.forEach((key, value) -> verify(span).setTag(key, value));
+    Map<String, Object> metaStructExtras = new HashMap<>(receivedMeta);
+    assertTrue(metaStructExtras.remove(META_STRUCT_MESSAGES) != null, scenario);
+    assertEquals(expectedMetaStruct, metaStructExtras, scenario);
+    assertNoErrorTelemetry();
+  }
+
+  /**
+   * Returns extras entries with a missing, empty, null or non-string key, a whitespace-only key
+   * that is kept verbatim, and the given valid entry.
+   */
+  private static List<Map<String, Object>> malformedKeyEntries(Map<String, Object> validEntry) {
+    return asList(
+        singletonMap("value", "v"),
+        extra("", "v"),
+        extra(null, "v"),
+        extra(123, "v"),
+        extra(true, "v"),
+        extra(singletonList("k"), "v"),
+        extra(singletonMap("k", "v"), "v"),
+        extra(" ", "v"),
+        validEntry);
+  }
+
+  /** Asserts that no ai_guard error metric was recorded since the last drain. */
+  private static void assertNoErrorTelemetry() {
+    List<Metric> metrics = drainAIGuard();
+    assertTrue(
+        metrics.stream()
+            .noneMatch(it -> "ai_guard".equals(it.namespace) && "error".equals(it.metricName)),
+        metrics::toString);
   }
 
   /** Returns the keys of every setTag call the span received, whatever the overload. */
