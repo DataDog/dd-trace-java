@@ -44,9 +44,9 @@ class ShellGitClientParsingTest {
   @TableTest({
     "Scenario         | includeOldRoot | backendExclusions | expectedCommands",
     "excluded recent  | false          | true              | 2               ",
-    "excluded and old | true           | true              | 3               ",
-    "capped recent    | false          | false             | 2               ",
-    "capped and old   | true           | false             | 3               "
+    "excluded and old | true           | true              | 2               ",
+    "capped recent    | false          | false             | 1               ",
+    "capped and old   | true           | false             | 1               "
   })
   void unrecoveredRootsDoNotStartOneProcessPerCommit(
       boolean includeOldRoot, boolean backendExclusions, int expectedCommands) throws Exception {
@@ -67,14 +67,10 @@ class ShellGitClientParsingTest {
               if (!"executeCommand".equals(invocation.getMethod().getName())) {
                 return RETURNS_DEFAULTS.answer(invocation);
               }
-              switch (commands.getAndIncrement()) {
-                case 0:
-                  return emptyList();
-                case 1:
-                  return recentRoots;
-                default:
-                  return singletonList(oldRoot);
+              if (commands.getAndIncrement() == 0 && backendExclusions) {
+                return includedRoots;
               }
+              return singletonList("object-hash");
             });
     Field executor = ShellGitClient.class.getDeclaredField("commandExecutor");
     executor.setAccessible(true);
@@ -88,7 +84,7 @@ class ShellGitClientParsingTest {
             includedRoots);
 
     assertEquals(expectedCommands, commands.get());
-    assertEquals(includeOldRoot ? singletonList(oldRoot) : emptyList(), objects);
+    assertEquals(singletonList("object-hash"), objects);
   }
 
   @TableTest({
@@ -137,7 +133,14 @@ class ShellGitClientParsingTest {
     if (backendExclusions) {
       assertFalse(objects.contains(known));
     }
-    assertTrue(objects.size() <= (backendExclusions ? 1000 : 1001));
+    List<String> types =
+        command.executeCommand(
+            IOUtils::readLines,
+            String.join("\n", objects).getBytes(UTF_8),
+            "git",
+            "cat-file",
+            "--batch-check=%(objecttype)");
+    assertTrue(types.stream().filter("commit"::equals).count() <= 1000);
   }
 
   @Test
@@ -187,6 +190,36 @@ class ShellGitClientParsingTest {
     assertFalse(objects.contains(head));
     assertFalse(objects.contains(parent));
     assertTrue(client.getLatestCommits("--all").isEmpty());
+  }
+
+  @TableTest({
+    "Scenario         | headAlias | oldTip",
+    "old selected SHA | false     | true  ",
+    "old HEAD         | true      | true  ",
+    "recent selected  | false     | false ",
+    "recent HEAD      | true      | false "
+  })
+  void oldSelectedTipDoesNotHideRecentParents(boolean headAlias, boolean oldTip) throws Exception {
+    String tree = git(command, "rev-parse", "HEAD^{tree}");
+    String parent = writeCommit(command, tree, git(command, "rev-parse", "HEAD"), "recent parent");
+    String selected =
+        writeObject(
+            command,
+            "tree "
+                + tree
+                + "\nparent "
+                + parent
+                + "\nauthor Test <test@example.com> 1 +0000\ncommitter Test <test@example.com> 1 +0000\n\nold tip\n");
+    if (!oldTip) {
+      selected = writeCommit(command, tree, selected, "recent tip above old parent");
+    }
+    if (headAlias) {
+      git(command, "update-ref", "HEAD", selected);
+    }
+    List<String> commits = client.getLatestCommits(headAlias ? GitClient.HEAD : selected);
+    assertEquals(headAlias && oldTip ? singletonList(parent) : asList(selected, parent), commits);
+    assertTrue(client.getObjects(emptyList(), commits).containsAll(commits));
+    assertTrue(client.getObjects(singletonList(selected), commits).isEmpty());
   }
 
   @TableTest({
