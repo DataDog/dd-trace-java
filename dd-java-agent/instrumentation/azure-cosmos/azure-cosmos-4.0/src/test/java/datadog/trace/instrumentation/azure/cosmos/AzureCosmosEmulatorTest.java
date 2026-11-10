@@ -38,7 +38,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 import org.junit.jupiter.api.AfterAll;
@@ -60,6 +62,7 @@ import org.testcontainers.utility.DockerImageName;
 class AzureCosmosEmulatorTest extends AbstractInstrumentationTest {
   private static final String CONTAINER = "container";
   private static final String OPERATION_NAME = "cosmosdb.query";
+  private static final String HTTP_CLIENT_OPERATION_NAME = "netty.client.request";
   private static final AtomicInteger DATABASE_COUNTER = new AtomicInteger();
   private static final int EMULATOR_PORT = 8081;
   private static final int HEALTH_PORT = 8080;
@@ -226,7 +229,7 @@ class AzureCosmosEmulatorTest extends AbstractInstrumentationTest {
 
   @ParameterizedTest
   @ValueSource(strings = {"sync", "async"})
-  void noNestedHttpClientSpans(String api) {
+  void httpClientSpansAreChildrenOfCosmosSpans(String api) {
     String db = newDatabaseName(api);
     long parentId;
     try (TestClient client = client(api)) {
@@ -238,13 +241,27 @@ class AzureCosmosEmulatorTest extends AbstractInstrumentationTest {
               });
     }
 
-    List<String> others = new ArrayList<>();
-    for (DDSpan span : traceOf(parentId)) {
-      if (span.getSpanId() != parentId && !OPERATION_NAME.contentEquals(span.getOperationName())) {
-        others.add(span.getOperationName() + " " + span.getResourceName());
+    List<DDSpan> trace = traceOf(parentId);
+    Set<Long> cosmosSpanIds = new HashSet<>();
+    for (DDSpan span : cosmosSpans(trace)) {
+      cosmosSpanIds.add(span.getSpanId());
+    }
+    Set<Long> withHttpChild = new HashSet<>();
+    List<String> unexpected = new ArrayList<>();
+    for (DDSpan span : trace) {
+      if (span.getSpanId() == parentId || cosmosSpanIds.contains(span.getSpanId())) {
+        continue;
+      }
+      if (HTTP_CLIENT_OPERATION_NAME.contentEquals(span.getOperationName())
+          && cosmosSpanIds.contains(span.getParentId())) {
+        withHttpChild.add(span.getParentId());
+      } else {
+        unexpected.add(span.getOperationName() + " " + span.getResourceName());
       }
     }
-    assertTrue(others.isEmpty(), "spans besides Cosmos request spans: " + others);
+    assertTrue(unexpected.isEmpty(), "spans outside Cosmos request spans: " + unexpected);
+    // in gateway mode, each Cosmos request sends at least one HTTP request
+    assertEquals(cosmosSpanIds, withHttpChild, "Cosmos spans with an HTTP client child");
   }
 
   private static void assertCommonTags(DDSpan span, String db) {
