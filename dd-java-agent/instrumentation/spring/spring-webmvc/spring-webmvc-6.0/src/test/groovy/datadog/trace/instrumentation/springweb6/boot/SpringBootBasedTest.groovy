@@ -20,6 +20,7 @@ import datadog.trace.instrumentation.springweb6.SetupSpecHelper
 import datadog.trace.instrumentation.springweb6.SpringWebHttpServerDecorator
 import okhttp3.Credentials
 import okhttp3.FormBody
+import okhttp3.HttpUrl
 import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.Response
@@ -27,6 +28,8 @@ import org.springframework.beans.BeansException
 import org.springframework.boot.SpringApplication
 import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.http.MediaType
+import org.springframework.web.server.ResponseStatusException
+import org.springframework.web.servlet.view.RedirectView
 import org.springframework.web.socket.BinaryMessage
 import org.springframework.web.socket.TextMessage
 import org.springframework.web.socket.WebSocketSession
@@ -51,7 +54,8 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
   Map<String, String> extraServerTags = [:]
 
   SpringApplication application() {
-    return new SpringApplication(SecurityConfig, TestController, AppConfig, WebsocketConfig, FailOnHeaderConfig)
+    return new SpringApplication(SecurityConfig, TestController, AppConfig, WebsocketConfig, FailOnHeaderConfig,
+      RenderTestController, RenderTestConfig, ErrorPathController, ErrorPathControllerAdvice)
   }
 
   class SpringBootServer implements WebsocketServer {
@@ -258,10 +262,7 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
   }
 
   int spanCount(ServerEndpoint endpoint) {
-    if (endpoint == REDIRECT) {
-      // Spring is generates a RenderView and ResponseSpan for REDIRECT
-      return super.spanCount(endpoint) + 1
-    } else if (endpoint == NOT_FOUND) {
+    if (endpoint == NOT_FOUND) {
       //not found is handled by the application server in this test case
       return super.spanCount(endpoint) - 1
     }
@@ -462,20 +463,192 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
     span.isError()
   }
 
-  boolean hasResponseSpan(ServerEndpoint endpoint) {
-    // FIXME: uncomment when jakarta servlet will be instrumented
-    //  endpoint == REDIRECT || endpoint == NOT_FOUND || endpoint == LOGIN
-    false
+  def "view resolved by name is rendered in a response.render span"() {
+    setup:
+    def request = new Request.Builder().url(HttpUrl.get(address.resolve("/render/named"))).get().build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
+    response.code() == 200
+    response.body().string() == RenderTestConfig.TEXT_VIEW_BODY
+
+    and:
+    assertTraces(1) {
+      trace(3) {
+        sortSpansByStart()
+        span {
+          operationName operation()
+          resourceName "GET /render/named"
+          spanType DDSpanTypes.HTTP_SERVER
+          errored false
+          parent()
+          tags(false) {
+            "$Tags.HTTP_STATUS" 200
+            "$Tags.HTTP_ROUTE" "/render/named"
+          }
+        }
+        span {
+          operationName "spring.handler"
+          resourceName "RenderTestController.named"
+          spanType DDSpanTypes.HTTP_SERVER
+          errored false
+          childOf(span(0))
+          tags {
+            "$Tags.COMPONENT" SpringWebHttpServerDecorator.DECORATE.component()
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+            defaultTags()
+          }
+        }
+        span {
+          operationName "response.render"
+          resourceName RenderTestConfig.TEXT_VIEW
+          spanType DDSpanTypes.HTTP_SERVER
+          errored false
+          childOf(span(0))
+          tags {
+            "$Tags.COMPONENT" "spring-webmvc"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+            "view.name" RenderTestConfig.TEXT_VIEW
+            defaultTags()
+          }
+        }
+      }
+    }
   }
 
-  // FIXME: remove me when jakarta servlet instrumentation will be implemented
-  @Override
-  boolean testRedirect() {
-    false
+  def "view rendering failure is recorded on the response.render span"() {
+    setup:
+    def request = new Request.Builder().url(HttpUrl.get(address.resolve("/render/failing"))).get().build()
+
+    when:
+    def response = client.newCall(request).execute()
+    response.close()
+
+    then:
+    response.code() == 500
+
+    and:
+    assertTraces(1) {
+      trace(3) {
+        sortSpansByStart()
+        span {
+          operationName operation()
+          resourceName "GET /render/failing"
+          spanType DDSpanTypes.HTTP_SERVER
+          errored true
+          parent()
+          tags(false) {
+            "$Tags.HTTP_STATUS" 500
+            "$Tags.HTTP_ROUTE" "/render/failing"
+          }
+        }
+        span {
+          operationName "spring.handler"
+          resourceName "RenderTestController.failing"
+          spanType DDSpanTypes.HTTP_SERVER
+          errored false
+          childOf(span(0))
+          tags {
+            "$Tags.COMPONENT" SpringWebHttpServerDecorator.DECORATE.component()
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+            defaultTags()
+          }
+        }
+        span {
+          operationName "response.render"
+          resourceName RenderTestConfig.FAILING_VIEW
+          spanType DDSpanTypes.HTTP_SERVER
+          errored true
+          childOf(span(0))
+          tags {
+            "$Tags.COMPONENT" "spring-webmvc"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+            "view.name" RenderTestConfig.FAILING_VIEW
+            errorTags(IllegalStateException, RenderTestConfig.FAILING_VIEW_MESSAGE)
+            defaultTags()
+          }
+        }
+      }
+    }
+  }
+
+  def "#exceptionType.simpleName resolved to #status is recorded without marking the server span as an error"() {
+    setup:
+    def request = new Request.Builder().url(HttpUrl.get(address.resolve(path))).get().build()
+
+    when:
+    def response = client.newCall(request).execute()
+    response.close()
+
+    then:
+    response.code() == status
+
+    and:
+    assertTraces(1) {
+      trace(2) {
+        sortSpansByStart()
+        span {
+          operationName operation()
+          resourceName "GET $path"
+          spanType DDSpanTypes.HTTP_SERVER
+          // the handler exception is captured, but a client error status does not make it an error
+          errored false
+          parent()
+          tags(false) {
+            "$Tags.HTTP_STATUS" status
+            "$Tags.HTTP_ROUTE" path
+            errorTags(exceptionType, message)
+          }
+        }
+        span {
+          operationName "spring.handler"
+          resourceName "ErrorPathController.$handlerMethod"
+          spanType DDSpanTypes.HTTP_SERVER
+          errored true
+          childOf(span(0))
+          tags {
+            "$Tags.COMPONENT" SpringWebHttpServerDecorator.DECORATE.component()
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+            errorTags(exceptionType, message)
+            defaultTags()
+          }
+        }
+      }
+    }
+
+    where:
+    path                                     | handlerMethod    | status | exceptionType                              | message
+    ErrorPathController.RESPONSE_STATUS_PATH | 'responseStatus' | 409    | ResponseStatusException                    | '409 CONFLICT "response status exception"'
+    ErrorPathController.ADVICE_PATH          | 'advice'         | 400    | ErrorPathController.AdviceHandledException | 'handled by controller advice'
+  }
+
+  boolean hasResponseSpan(ServerEndpoint endpoint) {
+    // Spring renders the RedirectView returned for REDIRECT. There is no servlet.response span
+    // for sendRedirect because the jakarta servlet response is not instrumented.
+    endpoint == REDIRECT
   }
 
   @Override
   void responseSpan(TraceAssert trace, ServerEndpoint endpoint) {
+    if (endpoint == REDIRECT) {
+      // Rendering happens after the handler returns, so the span is a child of the server span
+      trace.span {
+        serviceName expectedServiceName()
+        operationName "response.render"
+        resourceName "response.render"
+        spanType DDSpanTypes.HTTP_SERVER
+        errored false
+        childOf(trace.span(0))
+        tags {
+          "$Tags.COMPONENT" "spring-webmvc"
+          "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+          "view.type" RedirectView.simpleName
+          defaultTags()
+        }
+      }
+    }
   }
 
 
