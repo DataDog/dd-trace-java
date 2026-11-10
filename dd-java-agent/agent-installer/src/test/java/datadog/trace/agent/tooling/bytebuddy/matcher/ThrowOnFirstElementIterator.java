@@ -3,7 +3,7 @@ package datadog.trace.agent.tooling.bytebuddy.matcher;
 import java.util.Iterator;
 
 /** Iterator reporting a single element, whose retrieval throws a checked exception. */
-class ThrowOnFirstElement<T> implements Iterator<T> {
+class ThrowOnFirstElementIterator<T> implements Iterator<T> {
 
   private int index = 0;
 

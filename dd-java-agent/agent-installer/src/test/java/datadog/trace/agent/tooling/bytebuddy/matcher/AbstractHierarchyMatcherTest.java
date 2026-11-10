@@ -13,12 +13,17 @@ abstract class AbstractHierarchyMatcherTest extends DDJavaSpecification {
     DDElementMatchers.registerAsSupplier();
   }
 
-  static final TypePool TYPE_POOL =
+  private static final TypePool TYPE_POOL =
       SharedTypePools.typePool(AbstractHierarchyMatcherTest.class.getClassLoader());
 
   /** Resolves a type through the shared type pool rather than the loaded class. */
   static TypeDescription describe(Class<?> type) {
-    return TYPE_POOL.describe(type.getName()).resolve();
+    return describe(type.getName());
+  }
+
+  /** Resolves a type by name through the shared type pool. */
+  static TypeDescription describe(String typeName) {
+    return TYPE_POOL.describe(typeName).resolve();
   }
 
   /** Mockito answer throwing a checked exception, like a Spock {@code >> { throw ... }} stub. */

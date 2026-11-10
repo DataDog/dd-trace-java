@@ -45,7 +45,7 @@ class HasInterfaceMatcherTest extends AbstractHierarchyMatcherTest {
     when(typeGeneric.asErasure()).thenAnswer(throwing("asErasure exception"));
     when(typeGeneric.getTypeName()).thenReturn("typeGeneric-name");
     when(type.getInterfaces()).thenReturn(interfaces);
-    when(interfaces.iterator()).thenReturn(new ThrowOnFirstElement<>());
+    when(interfaces.iterator()).thenReturn(new ThrowOnFirstElementIterator<>());
     when(type.getSuperClass()).thenAnswer(throwing("getSuperClass exception"));
     when(type.getTypeName()).thenReturn("type-name");
 

@@ -70,7 +70,7 @@ class SafeHasSuperTypeMatcherTest extends AbstractHierarchyMatcherTest {
     TypeList.Generic interfaces = mock(TypeList.Generic.class);
     when(type.isInterface()).thenReturn(false);
     when(type.getInterfaces()).thenReturn(interfaces);
-    when(interfaces.iterator()).thenReturn(new ThrowOnFirstElement<>());
+    when(interfaces.iterator()).thenReturn(new ThrowOnFirstElementIterator<>());
     when(type.asGenericType()).thenReturn(typeGeneric);
     when(typeGeneric.asErasure()).thenAnswer(throwing("asErasure exception"));
     when(typeGeneric.getTypeName()).thenReturn("typeGeneric-name");

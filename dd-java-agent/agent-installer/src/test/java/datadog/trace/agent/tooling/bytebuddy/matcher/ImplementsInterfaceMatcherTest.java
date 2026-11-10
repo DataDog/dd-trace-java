@@ -63,7 +63,7 @@ class ImplementsInterfaceMatcherTest extends AbstractHierarchyMatcherTest {
     TypeList.Generic interfaces = mock(TypeList.Generic.class);
     when(type.isInterface()).thenReturn(false);
     when(type.getInterfaces()).thenReturn(interfaces);
-    when(interfaces.iterator()).thenReturn(new ThrowOnFirstElement<>());
+    when(interfaces.iterator()).thenReturn(new ThrowOnFirstElementIterator<>());
     when(type.getTypeName()).thenReturn("type-name");
     when(type.getSuperClass()).thenAnswer(throwing("getSuperClass exception"));
 

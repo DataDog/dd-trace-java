@@ -17,7 +17,7 @@ class ShouldInjectFieldsMatcherTest extends AbstractHierarchyMatcherTest {
     ShouldInjectFieldsMatcher matcher = new ShouldInjectFieldsMatcher(keyType, "java.lang.String");
 
     // when
-    boolean matches = matcher.matches(TYPE_POOL.describe(klass).resolve());
+    boolean matches = matcher.matches(describe(klass));
 
     // then
     assertEquals(klass.equals(keyType), matches);
@@ -38,7 +38,7 @@ class ShouldInjectFieldsMatcherTest extends AbstractHierarchyMatcherTest {
     ShouldInjectFieldsMatcher matcher = new ShouldInjectFieldsMatcher(keyType, "java.lang.String");
 
     // when
-    boolean matches = matcher.matches(TYPE_POOL.describe(klass).resolve());
+    boolean matches = matcher.matches(describe(klass));
 
     // then
     assertEquals(klass.equals(expected), matches);
