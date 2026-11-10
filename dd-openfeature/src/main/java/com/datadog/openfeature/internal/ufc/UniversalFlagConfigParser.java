@@ -150,7 +150,7 @@ public final class UniversalFlagConfigParser {
               lenientBoolean(json.get("observeFullEvaluationData")),
               toEnvironment(json.get("environment")),
               toFlags(json.get("flags"), invalidFlags),
-              toEvaluatorParams(json.get("evaluatorParams"), json.containsKey("evaluatorParams")));
+              json.get("evaluatorParams"));
       if (!invalidFlags.isEmpty()) {
         configuration.invalidFlags = invalidFlags;
       }
@@ -158,22 +158,6 @@ public final class UniversalFlagConfigParser {
     } catch (final IllegalArgumentException e) {
       throw new IOException("Invalid flag configuration: " + e.getMessage(), e);
     }
-  }
-
-  @Nullable
-  private static EvaluatorParams toEvaluatorParams(
-      @Nullable final Object value, final boolean present) {
-    if (!present) {
-      return null;
-    }
-    if (!(value instanceof Map)) {
-      // Keep the invalid value as a lazy evaluator diagnostic. Independent flags must remain
-      // usable, and dependency evaluation will log the problem before falling back to its default.
-      return new EvaluatorParams(null, false, "evaluatorParams must be an object");
-    }
-    final Map<?, ?> json = (Map<?, ?>) value;
-    return new EvaluatorParams(
-        json.get("maxDependencyDepth"), json.containsKey("maxDependencyDepth"));
   }
 
   @Nullable
