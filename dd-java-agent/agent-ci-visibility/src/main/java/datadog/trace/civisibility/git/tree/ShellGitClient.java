@@ -543,15 +543,16 @@ public class ShellGitClient implements GitClient {
     return executeCommand(
         Command.GET_OBJECTS,
         () -> {
-          String[] gitArgs = new String[6 + commitsToSkip.size() + commitsToInclude.size()];
+          String[] gitArgs = new String[7 + commitsToSkip.size() + commitsToInclude.size()];
           gitArgs[0] = "rev-list";
           gitArgs[1] = "--objects";
           gitArgs[2] = "--no-object-names";
           gitArgs[3] = "--filter=blob:none";
           gitArgs[4] = String.format("--since='%s'", latestCommitsSince);
           gitArgs[5] = "--max-count=" + latestCommitsLimit;
+          gitArgs[6] = "--topo-order";
 
-          int count = 6;
+          int count = 7;
           for (String commitToSkip : commitsToSkip) {
             gitArgs[count++] = "^" + commitToSkip;
           }

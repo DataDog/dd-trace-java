@@ -4,6 +4,7 @@ import static datadog.trace.civisibility.git.tree.GitTestRepository.client;
 import static datadog.trace.civisibility.git.tree.GitTestRepository.fixture;
 import static datadog.trace.civisibility.git.tree.GitTestRepository.git;
 import static datadog.trace.civisibility.git.tree.GitTestRepository.writeObject;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -13,6 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.RETURNS_DEFAULTS;
 import static org.mockito.Mockito.mock;
 
+import datadog.communication.util.IOUtils;
 import datadog.trace.api.git.CommitInfo;
 import datadog.trace.civisibility.utils.ShellCommandExecutor;
 import java.lang.reflect.Field;
@@ -79,6 +81,38 @@ class ShellGitClientParsingTest {
 
     assertEquals(expectedCommands, commands.get());
     assertEquals(includeOldRoot ? singletonList(oldRoot) : emptyList(), objects);
+  }
+
+  @Test
+  void cappedTraversalIncludesABackdatedSelectedMerge() throws Exception {
+    String parent = git(command, "rev-parse", "HEAD");
+    long now = System.currentTimeMillis() / 1000;
+    StringBuilder input = new StringBuilder();
+    for (int i = 1; i <= 1002; i++) {
+      String from = i == 1 || i == 1001 ? parent : ":" + (i - 1);
+      input
+          .append("commit refs/heads/capped\nmark :")
+          .append(i)
+          .append("\ncommitter Test <test@example.com> ")
+          .append(i == 1002 ? now - 3600 : now + i)
+          .append(" +0000\ndata 1\nx\nfrom ")
+          .append(from)
+          .append('\n');
+      if (i == 1002) {
+        input.append("merge :1000\n");
+      }
+      input.append('\n');
+    }
+    command.executeCommand(
+        IOUtils::readFully, input.toString().getBytes(UTF_8), "git", "fast-import", "--quiet");
+    String selected = git(command, "rev-parse", "refs/heads/capped");
+    String known = git(command, "rev-parse", selected + "^");
+    List<String> commits = client.getLatestCommits(selected);
+    commits.remove(known);
+    List<String> objects = client.getObjects(singletonList(known), commits);
+    assertTrue(objects.contains(selected));
+    assertFalse(objects.contains(known));
+    assertTrue(objects.size() <= 1000);
   }
 
   @Test
