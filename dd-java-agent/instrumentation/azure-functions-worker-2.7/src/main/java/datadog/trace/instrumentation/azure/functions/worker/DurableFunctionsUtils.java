@@ -21,6 +21,7 @@ public final class DurableFunctionsUtils {
   private static final String ACTIVITY_ANNOTATION = "DurableActivityTrigger";
   private static final String ENTITY_ANNOTATION = "DurableEntityTrigger";
   private static final String ORCHESTRATION_ANNOTATION = "DurableOrchestrationTrigger";
+  private static final String COSMOS_DB_ANNOTATION = "CosmosDBTrigger";
 
   private DurableFunctionsUtils() {}
 
@@ -33,6 +34,9 @@ public final class DurableFunctionsUtils {
     }
     if (context.getParameterName(ENTITY_ANNOTATION) != null) {
       return "DurableEntity";
+    }
+    if (context.getParameterName(COSMOS_DB_ANNOTATION) != null) {
+      return "CosmosDB";
     }
     return null;
   }
