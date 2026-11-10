@@ -69,7 +69,7 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
       app.setDefaultProperties(["server.port": 0, "server.context-path": "/$servletContext",
         "spring.mvc.throw-exception-if-no-handler-found": false,
         "spring.web.resources.add-mappings"             : false,
-        "server.forward-headers-strategy": "NONE"])
+        "server.forward-headers-strategy": "NONE"] + extraServerProperties())
       context = app.run()
       port = context.webServer.port // ServletWebServerApplicationContext moved package in Boot 4
       try {
@@ -146,6 +146,15 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
       endpoint?.activeSession?.setBinaryMessageSizeLimit(size)
       endpoint?.activeSession?.setTextMessageSizeLimit(size)
     }
+  }
+
+  Map<String, Object> extraServerProperties() {
+    [:]
+  }
+
+  /** Matrix variables Spring binds for the {@code MATRIX_PARAM} path {@code /matrix/a=x,y;a=z}. */
+  Map<String, List<String>> expectedMatrixVariables() {
+    [a: ['x', 'y', 'z']]
   }
 
   def setupSpec() {
@@ -416,10 +425,10 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
 
     then:
     response.code() == MATRIX_PARAM.status
-    response.body().string() == MATRIX_PARAM.body
+    response.body().string() == expectedMatrixVariables() as String
     //FIXME: tomcat seems removing the part after the ';' on the decodedUri
     // should be  [var:['a=x,y;a=z'
-    span.getTag(IG_PATH_PARAMS_TAG) == [var: ['a=x,y', [a: ['x', 'y', 'z']]]]
+    span.getTag(IG_PATH_PARAMS_TAG) == [var: ['a=x,y', expectedMatrixVariables()]]
   }
 
   void 'tainting on matrix var'() {
@@ -437,10 +446,14 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
     then:
     // spring-security filter (AuthorizationFilter.java:95) causes uri matching to happen twice (or three times in recent spring (6.1+) versions)
     (1.._) * mod.taintString(_ as IastContext, 'a=x,y', SourceTypes.REQUEST_PATH_PARAMETER, 'var') // this version of spring removes ;a=z
-    (1.._) * mod.taintString(_ as IastContext, 'a', SourceTypes.REQUEST_MATRIX_PARAMETER, 'var')
-    (1.._) * mod.taintString(_ as IastContext, 'x', SourceTypes.REQUEST_MATRIX_PARAMETER, 'var')
-    (1.._) * mod.taintString(_ as IastContext, 'y', SourceTypes.REQUEST_MATRIX_PARAMETER, 'var')
-    (1.._) * mod.taintString(_ as IastContext, 'z', SourceTypes.REQUEST_MATRIX_PARAMETER, 'var')
+    interaction {
+      expectedMatrixVariables().each { name, values ->
+        (1.._) * mod.taintString(_ as IastContext, name, SourceTypes.REQUEST_MATRIX_PARAMETER, 'var')
+        values.each { value ->
+          (1.._) * mod.taintString(_ as IastContext, value, SourceTypes.REQUEST_MATRIX_PARAMETER, 'var')
+        }
+      }
+    }
     0 * mod._
 
     cleanup:
@@ -679,6 +692,23 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
         defaultTags()
       }
     }
+  }
+}
+
+/**
+ * Runs the suite on Spring's default PathPatternParser request matching. The base suite keeps
+ * semicolon content in the lookup path, which uses AntPathMatcher (deprecated in Spring 7).
+ */
+class SpringBootPathPatternTest extends SpringBootBasedTest {
+  @Override
+  Map<String, Object> extraServerProperties() {
+    [(AppConfig.LEGACY_PATH_MATCHING): "false"]
+  }
+
+  @Override
+  Map<String, List<String>> expectedMatrixVariables() {
+    // PathPatternParser binds "a=x,y" to the template variable and only ";a=z" as matrix content
+    [a: ['z']]
   }
 }
 
