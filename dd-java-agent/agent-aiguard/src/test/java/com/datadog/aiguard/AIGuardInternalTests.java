@@ -32,6 +32,7 @@ import static java.util.stream.Collectors.toList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -79,6 +80,9 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ClientIpAddressData;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.common.writer.ListWriter;
+import datadog.trace.core.CoreTracer;
+import datadog.trace.core.DDSpan;
 import datadog.trace.test.junit.utils.config.WithConfig;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -714,16 +718,23 @@ class AIGuardInternalTests {
   @Test
   void testEvaluateDoesNotOverrideReservedKeys() throws IOException {
     // Keys that evaluate() itself sets on the span for an ALLOW tool call evaluation
-    List<String> setByEvaluate = asList(ACTION_TAG, REASON_TAG, TARGET_TAG);
+    // (TOOL_TAG for a tool call with a tool name, REDACTED_TAG when redaction is enabled)
+    List<String> setByEvaluate = asList(ACTION_TAG, REASON_TAG, TARGET_TAG, TOOL_TAG, REDACTED_TAG);
     List<String> reservedTags =
         asList(
             ACTION_TAG,
             REASON_TAG,
             TARGET_TAG,
+            TOOL_TAG,
             BLOCKED_TAG,
+            REDACTED_TAG,
             "ai_guard.keep",
             "ai_guard.event",
             "ai_guard.http.client_ip",
+            "ai_guard.network.client.ip",
+            "ai_guard.http.useragent",
+            "ai_guard.usr.id",
+            "ai_guard.usr.session_id",
             "manual.keep",
             "manual.drop",
             "asm.keep",
@@ -735,9 +746,22 @@ class AIGuardInternalTests {
             "service",
             "service.name",
             "peer.service",
+            "servlet.context",
+            "db.statement",
             "http.method",
             "http.url",
             "http.status_code",
+            // OpenTelemetry names TagInterceptor resolves to the same intercepted tags
+            "http.response.status_code",
+            "url.full",
+            "http.request.method",
+            "db.query.text",
+            // Tags the tracer sets at span creation or when recording an error
+            "thread.name",
+            "thread.id",
+            "error.message",
+            "error.type",
+            "error.stack",
             "version",
             "env",
             "language",
@@ -975,8 +999,7 @@ class AIGuardInternalTests {
     Map<String, Object> attributes = new HashMap<>();
     attributes.put("action", "ALLOW");
     attributes.put("reason", "It is fine");
-    // An exception while applying a list aborts the rest of that list only, so y.extra is
-    // intentionally not asserted either way
+    // The failure on x.extra is swallowed per entry, so the sibling y.extra is still applied
     attributes.put(EXTRA_TAGS_FIELD, asList(extra("x.extra", "v"), extra("y.extra", "v2")));
     attributes.put(EXTRA_METASTRUCT_FIELD, singletonList(extra("m.ok", "v")));
     AIGuardInternal aiguard = mockClient(200, evaluation(attributes));
@@ -985,6 +1008,8 @@ class AIGuardInternalTests {
 
     assertEquals(ALLOW, result.getAction());
     assertEquals("It is fine", result.getReason());
+    verify(span).setTag("x.extra", "v");
+    verify(span).setTag("y.extra", "v2");
     // extra_metastruct is a separate list, applied despite the extra_tags failure
     assertEquals("v", receivedMeta.get("m.ok"));
     assertTrue(receivedMeta.containsKey(META_STRUCT_MESSAGES));
@@ -1004,9 +1029,64 @@ class AIGuardInternalTests {
             () -> blockingAiguard.evaluate(PROMPT, new Options().block(true)));
 
     assertEquals(DENY, error.getAction());
+    verify(span).setTag("y.extra", "v2");
     assertEquals("v", receivedMeta.get("m.ok"));
     assertTrue(receivedMeta.containsKey(META_STRUCT_MESSAGES));
     assertNoErrorTelemetry();
+  }
+
+  @Test
+  void testEvaluateReservedTagAliasesDoNotReachInterceptedSpanFields() throws Exception {
+    ListWriter writer = new ListWriter();
+    CoreTracer tracer = CoreTracer.builder().writer(writer).strictTraceWrites(true).build();
+    AgentTracer.TracerAPI mockedTracer = AgentTracer.get();
+    AgentTracer.forceRegister(tracer);
+    try {
+      Map<String, Object> attributes = new HashMap<>();
+      attributes.put("action", "ALLOW");
+      attributes.put("reason", "It is fine");
+      attributes.put(
+          EXTRA_TAGS_FIELD,
+          asList(
+              extra("http.response.status_code", "599"),
+              extra("url.full", "https://evil.example/url"),
+              extra("http.request.method", "EVIL"),
+              extra("db.query.text", "evil-statement"),
+              extra("resource.name", "evil-resource"),
+              extra("service.name", "evil-service"),
+              extra("span.type", "evil-type"),
+              extra("ai_guard.evaluate_id", "ok-id")));
+      AIGuardInternal aiguard = mockClient(200, evaluation(attributes));
+
+      assertEquals(ALLOW, aiguard.evaluate(PROMPT, DEFAULT).getAction());
+
+      writer.waitForTraces(1);
+      DDSpan evaluation =
+          writer.get(0).stream()
+              .filter(it -> "ai_guard".contentEquals(it.getOperationName()))
+              .findFirst()
+              .get();
+      assertEquals("ok-id", evaluation.getTag("ai_guard.evaluate_id"));
+      assertEquals("ai_guard", evaluation.getResourceName().toString());
+      assertNotEquals("evil-service", evaluation.getServiceName());
+      assertNull(evaluation.getSpanType());
+      assertEquals(0, evaluation.getHttpStatusCode());
+      for (String key :
+          asList(
+              "http.status_code",
+              "http.response.status_code",
+              "http.url",
+              "url.full",
+              "http.method",
+              "http.request.method",
+              "db.statement",
+              "db.query.text")) {
+        assertNull(evaluation.getTag(key), key);
+      }
+    } finally {
+      AgentTracer.forceRegister(mockedTracer);
+      tracer.close();
+    }
   }
 
   @Test
@@ -1342,7 +1422,7 @@ class AIGuardInternalTests {
     assertEquals(expectedTagKeys, setTagKeys(), scenario);
     expectedTags.forEach((key, value) -> verify(span).setTag(key, value));
     Map<String, Object> metaStructExtras = new HashMap<>(receivedMeta);
-    assertTrue(metaStructExtras.remove(META_STRUCT_MESSAGES) != null, scenario);
+    assertNotNull(metaStructExtras.remove(META_STRUCT_MESSAGES), scenario);
     assertEquals(expectedMetaStruct, metaStructExtras, scenario);
     assertNoErrorTelemetry();
   }

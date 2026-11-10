@@ -17,6 +17,7 @@ import datadog.communication.http.OkHttpUtils;
 import datadog.context.ContextScope;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.KnownTagCodec;
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.aiguard.AIGuard;
 import datadog.trace.api.aiguard.AIGuard.AIGuardAbortError;
@@ -156,7 +157,13 @@ public class AIGuardInternal implements Evaluator {
                 Tags.ENV,
                 DDTags.LANGUAGE_TAG_KEY,
                 DDTags.RUNTIME_ID_TAG,
-                DDTags.PID_TAG));
+                DDTags.PID_TAG,
+                // tags the tracer sets at span creation or when recording an error
+                DDTags.THREAD_NAME,
+                DDTags.THREAD_ID,
+                DDTags.ERROR_MSG,
+                DDTags.ERROR_TYPE,
+                DDTags.ERROR_STACK));
     for (final String tag : ANOMALY_DETECTION_TAGS) {
       reserved.add("ai_guard." + tag);
     }
@@ -164,13 +171,17 @@ public class AIGuardInternal implements Evaluator {
   }
 
   /**
-   * Returns whether a backend extra tag key is reserved: a tracer-owned AI Guard tag or a key that
-   * TagInterceptor interprets (including any key starting with {@code _dd}). This protects
+   * Returns whether a backend extra tag key is reserved: a tracer-owned AI Guard or span tag, a key
+   * that TagInterceptor interprets under any namespace spelling (Datadog or OpenTelemetry, such as
+   * {@code http.response.status_code}), or any key starting with {@code _dd}. This protects
    * tracer-owned state and is not a namespace filter: backend {@code ai_guard.*} keys such as
-   * {@code ai_guard.evaluate_id} are applied verbatim.
+   * {@code ai_guard.evaluate_id} are applied verbatim. Keys configured through split-by-tags
+   * ({@code DD_TRACE_SPLIT_BY_TAGS}) depend on the tracer configuration and are not covered.
    */
   private static boolean isReservedTag(final String key) {
-    return RESERVED_TAGS.contains(key) || key.startsWith(RESERVED_TAG_PREFIX);
+    return RESERVED_TAGS.contains(key)
+        || key.startsWith(RESERVED_TAG_PREFIX)
+        || KnownTagCodec.isIntercepted(KnownTagCodec.keyOf(key));
   }
 
   /** Returns whether a backend extra meta_struct key is owned by the tracer. */
@@ -417,39 +428,51 @@ public class AIGuardInternal implements Evaluator {
 
   private static void applyExtraTags(final AgentSpan span, final Object raw) {
     for (final Map<?, ?> entry : extraEntries(EXTRA_TAGS_FIELD, raw)) {
-      final String key = extraKey(EXTRA_TAGS_FIELD, entry);
-      if (key == null) {
-        continue;
+      String key = null;
+      try {
+        key = extraKey(EXTRA_TAGS_FIELD, entry);
+        if (key == null) {
+          continue;
+        }
+        if (isReservedTag(key)) {
+          log.debug("AI Guard: skipping extra tag '{}': reserved key", key);
+          continue;
+        }
+        final Object value = entry.get(EXTRA_VALUE_FIELD);
+        if (!(value instanceof String)) {
+          log.debug("AI Guard: skipping extra tag '{}': value is not a string", key);
+          continue;
+        }
+        span.setTag(key, (String) value);
+      } catch (final Exception e) {
+        // One failing entry must not drop its siblings; the value is never logged
+        log.debug("AI Guard: could not apply extra tag '{}'", key, e);
       }
-      if (isReservedTag(key)) {
-        log.debug("AI Guard: skipping extra tag '{}': reserved key", key);
-        continue;
-      }
-      final Object value = entry.get(EXTRA_VALUE_FIELD);
-      if (!(value instanceof String)) {
-        log.debug("AI Guard: skipping extra tag '{}': value is not a string", key);
-        continue;
-      }
-      span.setTag(key, (String) value);
     }
   }
 
   private static void applyExtraMetaStruct(final Map<String, Object> metaStruct, final Object raw) {
     for (final Map<?, ?> entry : extraEntries(EXTRA_METASTRUCT_FIELD, raw)) {
-      final String key = extraKey(EXTRA_METASTRUCT_FIELD, entry);
-      if (key == null) {
-        continue;
+      String key = null;
+      try {
+        key = extraKey(EXTRA_METASTRUCT_FIELD, entry);
+        if (key == null) {
+          continue;
+        }
+        if (isReservedMetaStructKey(key)) {
+          log.debug("AI Guard: skipping extra meta_struct '{}': reserved key", key);
+          continue;
+        }
+        final Object value = entry.get(EXTRA_VALUE_FIELD);
+        if (value == null) {
+          log.debug("AI Guard: skipping extra meta_struct '{}': value is null", key);
+          continue;
+        }
+        metaStruct.put(key, value);
+      } catch (final Exception e) {
+        // One failing entry must not drop its siblings; the value is never logged
+        log.debug("AI Guard: could not apply extra meta_struct '{}'", key, e);
       }
-      if (isReservedMetaStructKey(key)) {
-        log.debug("AI Guard: skipping extra meta_struct '{}': reserved key", key);
-        continue;
-      }
-      final Object value = entry.get(EXTRA_VALUE_FIELD);
-      if (value == null) {
-        log.debug("AI Guard: skipping extra meta_struct '{}': value is null", key);
-        continue;
-      }
-      metaStruct.put(key, value);
     }
   }
 
