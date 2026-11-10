@@ -152,6 +152,8 @@ class ShellGitClientParsingTest {
     "pack roots | true   "
   })
   void cappedWalkDoesNotReadTheEntirePackedHistory(boolean objects) throws Exception {
+    // Repacking on older Git requires the fixture's remote HEAD to resolve to an object.
+    git(command, "update-ref", "refs/remotes/origin/HEAD", "HEAD");
     StringBuilder input = new StringBuilder();
     long now = System.currentTimeMillis() / 1000;
     for (int i = 1; i <= 4000; i++) {
