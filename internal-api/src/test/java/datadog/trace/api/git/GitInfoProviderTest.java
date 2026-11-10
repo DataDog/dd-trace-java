@@ -324,6 +324,48 @@ class GitInfoProviderTest {
   }
 
   @TableTest({
+    "scenario                | explicit | firstUrl                                  | secondUrl                                 | discrepancy           ",
+    "checkout credentials    | false    | 'https://user:token@example.com/repo.git' | 'https://example.com/repo.git'            | COMMIT_DISCREPANCY    ",
+    "provider credentials    | false    | 'https://example.com/repo.git'            | 'https://user:token@example.com/repo.git' | COMMIT_DISCREPANCY    ",
+    "different repositories  | false    | 'https://user:token@example.com/repo.git' | 'https://example.com/other.git'           | REPOSITORY_DISCREPANCY",
+    "missing repository      | false    |                                           | 'https://example.com/repo.git'            | COMMIT_DISCREPANCY    ",
+    "explicit credentials    | true     | 'https://user:token@example.com/repo.git' | 'https://example.com/repo.git'            | COMMIT_DISCREPANCY    ",
+    "fallback credentials    | true     | 'https://example.com/repo.git'            | 'https://user:token@example.com/repo.git' | COMMIT_DISCREPANCY    ",
+    "explicit different repo | true     | 'https://user:token@example.com/repo.git' | 'https://example.com/other.git'           | REPOSITORY_DISCREPANCY",
+    "explicit missing repo   | true     |                                           | 'https://example.com/repo.git'            | COMMIT_DISCREPANCY    "
+  })
+  void testShaDiscrepancyComparesSanitizedRepositoryUrls(
+      boolean explicit, String firstUrl, String secondUrl, GitShaDiscrepancyType discrepancy) {
+    CiVisibilityMetricCollector metricCollector = mock(CiVisibilityMetricCollector.class);
+    InstrumentationBridge.registerMetricCollector(metricCollector);
+    GitProviderExpected firstProvider =
+        explicit ? GitProviderExpected.USER_SUPPLIED : GitProviderExpected.GIT_CLIENT;
+    GitProviderDiscrepant secondProvider =
+        explicit ? GitProviderDiscrepant.GIT_CLIENT : GitProviderDiscrepant.CI_PROVIDER;
+    GitInfoProvider provider = new GitInfoProvider();
+    provider.registerGitInfoBuilder(
+        givenABuilderReturning(
+            new GitInfo(firstUrl, "main", null, new CommitInfo("first-sha")),
+            1,
+            firstProvider,
+            explicit ? GitProviderDiscrepant.USER_SUPPLIED : GitProviderDiscrepant.GIT_CLIENT));
+    provider.registerGitInfoBuilder(
+        givenABuilderReturning(
+            new GitInfo(
+                secondUrl,
+                "other",
+                null,
+                new CommitInfo("second-sha", AUTHOR, COMMITTER, "message")),
+            2,
+            explicit ? GitProviderExpected.GIT_CLIENT : GitProviderExpected.CI_PROVIDER,
+            secondProvider));
+
+    assertEquals("first-sha", provider.getGitInfo(REPO_PATH).getCommit().getSha());
+    verify(metricCollector)
+        .add(GIT_COMMIT_SHA_DISCREPANCY, 1L, firstProvider, secondProvider, discrepancy);
+  }
+
+  @TableTest({
     "scenario      | localUrl                                      | expectedUrl                    ",
     "valid URI     | 'ftps://user:password@host.com/repo.git'      | 'ftps://host.com/repo.git'     ",
     "SSH alias     | 'ssh://git@git_alias/team/repo.git'           | 'ssh://git_alias/team/repo.git'",

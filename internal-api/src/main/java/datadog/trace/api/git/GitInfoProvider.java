@@ -200,10 +200,10 @@ public class GitInfoProvider {
           String ciSha = ciInfo.getCommit().getSha();
           if (Strings.isNotBlank(ciSha)
               && !ciSha.equalsIgnoreCase(localInfo.getCommit().getSha())) {
+            String localRepoUrl = GitUtils.filterSensitiveInfo(localInfo.getRepositoryURL());
+            String ciRepoUrl = GitUtils.filterSensitiveInfo(ciInfo.getRepositoryURL());
             boolean repositoryMismatch =
-                localInfo.getRepositoryURL() != null
-                    && ciInfo.getRepositoryURL() != null
-                    && !localInfo.getRepositoryURL().equals(ciInfo.getRepositoryURL());
+                localRepoUrl != null && ciRepoUrl != null && !localRepoUrl.equals(ciRepoUrl);
             shaDiscrepancies.add(
                 new ShaDiscrepancy(
                     GitProviderExpected.GIT_CLIENT,
@@ -261,13 +261,13 @@ public class GitInfoProvider {
           if (Strings.isNotBlank(currentCommitSha)) {
             if (expectedCommitSha == null) {
               expectedCommitSha = currentCommitSha;
-              expectedRepoUrl = info.getRepositoryURL();
+              expectedRepoUrl = GitUtils.filterSensitiveInfo(info.getRepositoryURL());
               expectedGitProvider = e.getKey().providerAsExpected();
             } else if (!expectedCommitSha.equalsIgnoreCase(currentCommitSha)) {
               // We already have a commit SHA from source that has higher priority.
               // Commit SHA from current source is different, so we have to skip it
               GitShaDiscrepancyType discrepancyType = GitShaDiscrepancyType.COMMIT_DISCREPANCY;
-              String repoUrl = info.getRepositoryURL();
+              String repoUrl = GitUtils.filterSensitiveInfo(info.getRepositoryURL());
               if (expectedRepoUrl != null && repoUrl != null && !repoUrl.equals(expectedRepoUrl)) {
                 discrepancyType = GitShaDiscrepancyType.REPOSITORY_DISCREPANCY;
               }
