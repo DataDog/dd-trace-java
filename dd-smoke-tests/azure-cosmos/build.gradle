@@ -19,8 +19,8 @@ tasks.named("shadowJar", ShadowJar) {
 }
 
 dependencies {
-  // The Linux emulator image only ships for amd64.
-  testContainerImage(image('mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:2.14.28', 'test.cosmosdb.image'))
+  // the Linux-based (vNext) emulator, which ships for amd64 and arm64
+  testContainerImage(image('mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:vnext-EN20261008', 'test.cosmosdb.image'))
 
   implementation project(':dd-trace-api')
   implementation group: 'com.azure', name: 'azure-cosmos', version: '4.83.0'

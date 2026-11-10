@@ -10,7 +10,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
-import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
 import com.azure.cosmos.ConsistencyLevel;
 import com.azure.cosmos.CosmosAsyncClient;
@@ -24,7 +23,6 @@ import com.azure.cosmos.models.CosmosItemRequestOptions;
 import com.azure.cosmos.models.CosmosQueryRequestOptions;
 import com.azure.cosmos.models.PartitionKey;
 import datadog.context.ContextScope;
-import datadog.environment.OperatingSystem;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -49,23 +47,22 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.CosmosDBEmulatorContainer;
+import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.utility.DockerImageName;
 
 /**
  * Runs the reference scenario of the dd-trace-py Cosmos integration against the Cosmos DB emulator,
  * with the sync and the async client.
  *
- * <p>Only gateway mode is covered: the emulator container exposes the gateway port, not the ports
- * direct mode connects to.
+ * <p>Only gateway mode is covered: the emulator doesn't support direct mode.
  */
 class AzureCosmosEmulatorTest extends AbstractInstrumentationTest {
   private static final String CONTAINER = "container";
   private static final String OPERATION_NAME = "cosmosdb.query";
   private static final AtomicInteger DATABASE_COUNTER = new AtomicInteger();
-  private static final String EMULATOR_PLATFORM = "linux/amd64";
   private static final int EMULATOR_PORT = 8081;
+  private static final int HEALTH_PORT = 8080;
 
   @TempDir static Path tempDir;
 
@@ -75,28 +72,15 @@ class AzureCosmosEmulatorTest extends AbstractInstrumentationTest {
 
   @BeforeAll
   static void startEmulator() throws Exception {
-    // arm64 Linux CI runners can't be relied on to emulate amd64 containers
-    assumeFalse(
-        OperatingSystem.isLinux() && OperatingSystem.architecture().isArm64(),
-        "Cosmos DB emulator only ships for amd64");
     DockerImageName image =
         DockerImageName.parse(System.getProperty("test.cosmosdb.image"))
             .asCompatibleSubstituteFor("mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator");
-    // The emulator image only ships for amd64, run it emulated on arm64 hosts. A default pull
-    // would ask for the host platform, which the image does not have.
-    if (OperatingSystem.architecture().isArm64()) {
-      DockerClientFactory.instance()
-          .client()
-          .pullImageCmd(image.asCanonicalNameString())
-          .withPlatform(EMULATOR_PLATFORM)
-          .start()
-          .awaitCompletion();
-    }
+    // the Java SDK needs HTTPS, which the emulator doesn't serve by default
     emulator =
         new CosmosDBEmulatorContainer(image)
-            .withCreateContainerCmdModifier(cmd -> cmd.withPlatform(EMULATOR_PLATFORM))
-            .withEnv("AZURE_COSMOS_EMULATOR_PARTITION_COUNT", "2")
-            .withEnv("AZURE_COSMOS_EMULATOR_ENABLE_DATA_PERSISTENCE", "false")
+            .withCommand("--protocol", "https")
+            .withExposedPorts(EMULATOR_PORT, HEALTH_PORT)
+            .waitingFor(Wait.forHttp("/ready").forPort(HEALTH_PORT))
             .withStartupTimeout(Duration.ofMinutes(5));
     emulator.start();
 

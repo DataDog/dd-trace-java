@@ -23,24 +23,21 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Locale;
 import java.util.regex.Pattern;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.DisabledIf;
 import org.junit.jupiter.api.extension.RegisterExtension;
-import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.CosmosDBEmulatorContainer;
+import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.utility.DockerImageName;
 
 /**
  * Runs the Cosmos DB scenario app with the agent against the Cosmos DB emulator, in gateway mode,
  * and checks the request spans it reports, with every other instrumentation loaded.
  */
-@DisabledIf(value = "isLinuxArm64", disabledReason = "Cosmos DB emulator only ships for amd64")
 class AzureCosmosSmokeTest {
-  private static final String EMULATOR_PLATFORM = "linux/amd64";
   private static final int EMULATOR_PORT = 8081;
+  private static final int HEALTH_PORT = 8080;
   private static final String COSMOS_SPAN = "cosmosdb.query";
   private static final String CONTAINER = "container";
 
@@ -67,12 +64,6 @@ class AzureCosmosSmokeTest {
           // the app may exit before sending telemetry
           .skipTelemetryCheck()
           .build();
-
-  static boolean isLinuxArm64() {
-    String arch = System.getProperty("os.arch", "");
-    return System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("linux")
-        && ("aarch64".equals(arch) || "arm64".equals(arch));
-  }
 
   @AfterAll
   static void stopEmulator() throws IOException {
@@ -247,27 +238,12 @@ class AzureCosmosSmokeTest {
       DockerImageName image =
           DockerImageName.parse(System.getProperty("test.cosmosdb.image"))
               .asCompatibleSubstituteFor("mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator");
-      // The image only ships for amd64, run it emulated on arm64 Macs. A default pull would ask
-      // for the host platform, which the image does not have.
-      String arch = System.getProperty("os.arch", "");
-      if ("aarch64".equals(arch) || "arm64".equals(arch)) {
-        try {
-          DockerClientFactory.instance()
-              .client()
-              .pullImageCmd(image.asCanonicalNameString())
-              .withPlatform(EMULATOR_PLATFORM)
-              .start()
-              .awaitCompletion();
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-          throw new IllegalStateException(e);
-        }
-      }
+      // the Java SDK needs HTTPS, which the emulator doesn't serve by default
       CosmosDBEmulatorContainer container =
           new CosmosDBEmulatorContainer(image)
-              .withCreateContainerCmdModifier(cmd -> cmd.withPlatform(EMULATOR_PLATFORM))
-              .withEnv("AZURE_COSMOS_EMULATOR_PARTITION_COUNT", "2")
-              .withEnv("AZURE_COSMOS_EMULATOR_ENABLE_DATA_PERSISTENCE", "false")
+              .withCommand("--protocol", "https")
+              .withExposedPorts(EMULATOR_PORT, HEALTH_PORT)
+              .waitingFor(Wait.forHttp("/ready").forPort(HEALTH_PORT))
               .withStartupTimeout(Duration.ofMinutes(5));
       container.start();
       emulator = container;
