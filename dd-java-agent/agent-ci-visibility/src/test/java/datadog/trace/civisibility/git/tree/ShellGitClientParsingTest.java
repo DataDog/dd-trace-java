@@ -200,6 +200,53 @@ class ShellGitClientParsingTest {
         reads < 100, "A one-commit limit must not read thousands of packed ancestors: " + reads);
   }
 
+  @TableTest({
+    "Scenario              | mixed | backdated",
+    "known descendant      | false | false    ",
+    "mixed roots           | true  | false    ",
+    "backdated mixed roots | true  | true     "
+  })
+  void backendDescendantsExcludeTransitiveAncestors(boolean mixed, boolean backdated)
+      throws Exception {
+    String tree = git(command, "rev-parse", "HEAD^{tree}");
+    String ancestor = git(command, "rev-parse", "HEAD");
+    String middle = writeCommit(command, tree, ancestor, "middle");
+    String known = writeCommit(command, tree, middle, "known descendant");
+    List<String> roots = new ArrayList<>();
+    roots.add(ancestor);
+    String unknownParent = known;
+    if (backdated) {
+      unknownParent = writeCommit(command, tree, ancestor, "unadvertised fork");
+      unknownParent = writeCommit(command, tree, unknownParent, "unadvertised child");
+      unknownParent = writeCommit(command, tree, unknownParent, "unadvertised grandchild");
+    }
+    String unknown = writeCommit(command, tree, unknownParent, "unknown child");
+    if (mixed) {
+      roots.add(unknown);
+    }
+    if (backdated) {
+      String old =
+          writeObject(
+              command,
+              "tree "
+                  + tree
+                  + "\nauthor Test <test@example.com> 1 +0000\n"
+                  + "committer Test <test@example.com> 1 +0000\n\nold unrelated root\n");
+      roots.add(old);
+    }
+    List<String> objects = client.getObjects(singletonList(known), roots);
+    assertFalse(objects.contains(ancestor));
+    assertFalse(objects.contains(middle));
+    assertFalse(objects.contains(known));
+    assertEquals(mixed, objects.contains(unknown));
+    if (backdated) {
+      assertTrue(objects.contains(roots.get(2)));
+    }
+    if (!mixed) {
+      assertTrue(objects.isEmpty());
+    }
+  }
+
   @Test
   void tagListingFailuresPropagateInsteadOfReturningNoTags() throws Exception {
     ShellCommandExecutor.ShellCommandFailedException failure =
