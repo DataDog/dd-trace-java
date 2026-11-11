@@ -329,6 +329,33 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
   }
 
 
+  def "aws.region is the client Region, but not a global pseudo-Region (#region)"() {
+    setup:
+    def client = SnsClient.builder()
+      .endpointOverride(server.address)
+      .region(region)
+      .credentialsProvider(CREDENTIALS_PROVIDER)
+      .build()
+    responseBody.set("""<PublishResponse><PublishResult><MessageId>test-message</MessageId></PublishResult></PublishResponse>""")
+
+    when:
+    client.publish(PublishRequest.builder().topicArn("arn:aws:sns:us-east-1:123456789012:test-topic").message("test").build())
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    def spans = TEST_WRITER.get(0)
+    spans.size() == 1
+    spans[0].getTag("aws.region") == expectedRegion
+
+    cleanup:
+    client.close()
+
+    where:
+    region            | expectedRegion
+    Region.US_EAST_1  | "us-east-1"
+    Region.AWS_GLOBAL | null
+  }
+
   def "Lambda resource tags normalize #scenario (async=#async)"() {
     setup:
     def eventLoopGroup = async ? SdkEventLoopGroup.builder().numberOfThreads(1).build() : null
