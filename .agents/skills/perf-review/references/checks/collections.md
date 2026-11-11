@@ -1,30 +1,36 @@
 # Wrong collection type
 
-Base P3.
+Lighter wins: `LinkedHashMap` → `HashMap` → a plain record or value class.
 
-Three-step ladder: `LinkedHashMap → HashMap → POJO/record`. Lighter wins.
+## Heavier collection than needed
 
-**`LinkedHashMap` when order isn't relied on.** ~16 B extra per entry + doubly-linked list
-maintenance on every put/remove. Only justified when iteration order is required (insertion-order)
-or for LRU (`accessOrder` + `removeEldestEntry`). Fix: `HashMap`.
+- **Flag:**
+  - `LinkedHashMap` where nothing relies on its iteration order. It costs about 16 B more per
+    entry and maintains a linked list on every put and remove;
+  - `HashMap` for a small, fixed, known set of keys. It pays for hashing, boxing and an `Entry`
+    object per mapping;
+  - a collection that grows at runtime when its final size is known in advance (`ArrayList`
+    grows by 1.5×, `HashMap` doubles and rehashes, and both copy on growth);
+  - the opposite: a collection or buffer pre-sized to its maximum when it usually holds much
+    less, or allocated eagerly at full size where it used to be lazy and is often empty.
+    Flag-as-measure: the right size depends on the real distribution. Accurate sizing is the
+    target, not generous sizing.
+- **Not when:**
+  - the order is needed (insertion order, or LRU with `accessOrder` and `removeEldestEntry`);
+  - the keys are open-ended or come from outside;
+  - the size isn't known when the collection is created.
+- **Confidence / level:** flag-with-confidence. P3, raised for the per-span core.
+- **Fix:** `HashMap` instead of `LinkedHashMap`; a record or value class instead of a small fixed
+  map (denser, type-safe, and scalar-replaceable when it doesn't escape); pre-size accurately.
+  `new HashMap<>(n)` still rehashes at 75% full, so on Java 8 use
+  `new HashMap<>((int) (n / 0.75f) + 1)`. `HashMap.newHashMap(n)` is cleaner but needs JDK 19+.
+- **Example:** a per-checkpoint `LinkedHashMap` replaced by a record-like value type removed the
+  per-entry objects, the boxing and the linked list, for about 20% more throughput.
 
-**`HashMap` for a fixed, small, known key set.** Pays hashing, boxing, and `Entry` object overhead
-per lookup. Fix: a plain record or value class — denser, EA-scalar-replaceable when non-escaping,
-type-safe. A 5-line record is often *easier* to write than a map.
+## Concurrent vs plain collections
 
-**Mis-sized collections.** `ArrayList` grows 1.5×; `HashMap` doubles and rehashes. Both pay
-allocation + copy on growth. Fix: pre-size accurately at construction. Note: `new HashMap<>(n)`
-still rehashes at 75% fill — pre-size with `new HashMap<>((int) (n / 0.75f) + 1)` (Java 8-safe);
-`HashMap.newHashMap(n)` is cleaner but only where the source set is known JDK 19+.
-
-**Concurrency choice — nominate, don't prescribe.** Replacing `ConcurrentHashMap` with `HashMap`
-on a wrong concurrency judgment introduces a data race — trading a performance overhead for a
-correctness bug, descending the do-no-harm hierarchy. Frame as a question ("if this map is
-thread-confined, a plain collection is cheaper — verify the access pattern"), never a directive.
-
-*Examples (patterns from back-test calibration):*
-- A per-checkpoint `LinkedHashMap` collapsed to a record-like value type. The full
-  three-step collapse: eliminated per-entry `Entry` overhead, boxing, and linked-list maintenance.
-  ~20% throughput improvement.
-- An oversized `StringBuilder(1024)` is the collection-sizing anti-pattern in a
-  different form. Accurate sizing, not generous sizing, is the target.
+- **Flag:** never as a directive. If a `ConcurrentHashMap` or other concurrent collection looks
+  thread-confined, raise it as a question: "if this map is only used by one thread, a plain
+  collection is cheaper; please check how it is accessed."
+- **Why:** swapping a concurrent collection for a plain one on a wrong judgment adds a data race.
+  That trades a performance cost for a correctness bug, which the do-no-harm order ranks worse.

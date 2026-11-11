@@ -78,10 +78,8 @@ mechanism is certain or the severity is catastrophic.
   *aggressively* — a false positive there is cheap insurance against a container kill.
   Flag low-severity CPU-micro *conservatively or not at all* — false positives there
   only erode trust.
-- **Never flag the *absence* of a cache on high-cardinality input.** For open-cardinality
-  data (raw SQL with literals, per-request strings), *not* caching is the correct
-  choice — caching it would be the worse P1. Flag a cache *keyed by* high-cardinality
-  data; never flag the decision not to cache.
+- **Never flag the *absence* of a cache on high-cardinality input.** Not caching is correct
+  there; see "Not when" on #3 in `checks/memory.md`.
 - **A *visibly contestable* perf tradeoff shipped without data → one soft flag-as-measure.**
   The trigger is narrow: the change makes a **visible tradeoff that could itself regress** —
   it removes a lock / guard / synchronization, swaps in a hand-rolled cache or data
@@ -93,7 +91,8 @@ mechanism is certain or the severity is catastrophic.
   (hoisting an invariant out of a loop, a denser data structure, removing an allocation);
   **routine adoption of a known-better idiom** (migrating to a lower-overhead builder / API /
   toolkit primitive — no visible downside); or a change that **ships a benchmark/JFR**
-  (well-evidenced — recognize it). One line; a nudge, not a code-pattern finding.
+  (well-evidenced — recognize it). One line at P3; a nudge, not a code-pattern finding. Report it at a
+  higher level only if a specific check's Flag line also matches the code.
 - **Shipped core code is stricter — see the core performance rules in `AGENTS.md`.**
   For changes to `dd-trace-core/src/main/` or `internal-api/src/main/`: a performance claim
   (in the title, description, or commits) without JMH before/after numbers is a finding, not

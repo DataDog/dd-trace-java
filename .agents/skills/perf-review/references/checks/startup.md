@@ -1,21 +1,22 @@
 # Startup latency
 
-P2.
+## Startup cost in premain-reachable code
 
-"Once per process" treats startup costs as negligible — but that breaks for serverless (cold starts
-are routine), short-lived CI jobs, and deployments that track startup time.
+- **Flag:** in code reachable from premain or from an instrumentation's static initializer: eager
+  class loading, native library loads (`Native.load`), reflection setup, regex compilation for
+  config, eager file or network I/O, and thread creation.
+- **Not when:** the work happens lazily on first use, off the startup path, or on a background
+  thread after startup.
+- **Confidence / level:** flag-with-confidence. P2.
+- **Fix:** defer it to first use off the hot path, or to a background thread after startup.
+- **Why:** "once per process" is not negligible for serverless (cold starts are routine),
+  short-lived CI jobs, or deployments that track startup time.
+- **Examples:**
+  - `Native.load` inside a `write()` method. If that is reached during startup, loading libc and
+    building the JNA proxy is a startup cost today, not a latent one.
+  - a static field in an `Instrumenter` subclass whose initializer loads classes or does I/O on
+    first reference. That code is reachable from premain.
 
-Flag in premain-reachable code: eager class loading, native library loads (`Native.load`),
-reflection setup, config-regex compilation, eager file/network I/O, and thread creation. Fix:
-defer to first-use off the hot path, or a background thread post-startup.
-
-Startup latency and bootstrap correctness share a lens. The bootstrap constraints (no
-`java.util.logging` / `java.nio` / `javax.management` in premain) are the correctness side;
-startup latency is the performance side. Both route to the platform team — not as contributor
-nudges.
-
-*Examples:*
-- `Native.load` inside a `write()` method. If reached on the startup path, it's a
-  present startup-latency cost (loading libc + building the JNA proxy), not just a latent one.
-- **Instrumentation static initializers** — any static field initialization in an `Instrumenter`
-  subclass that triggers class loading or I/O on first reference is premain-reachable.
+Startup latency is the performance side of the bootstrap constraints (no `java.util.logging`,
+`java.nio` or `javax.management` in premain), which are the correctness side. Findings on both
+go to the platform team, not to the contributor as nudges.
