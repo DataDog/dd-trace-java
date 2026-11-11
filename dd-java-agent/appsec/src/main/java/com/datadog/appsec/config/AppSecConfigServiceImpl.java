@@ -243,8 +243,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
           throw new RuntimeException(e);
         } catch (RuntimeException e) {
           if (e.getCause() instanceof InvalidRuleSetException) {
-            // Since libddwaf 2.2.0, a rejected update unregisters the path. Forget the key so the
-            // default rules can be restored if no other config is left.
+            // libddwaf >= 2.2.0 unregisters a rejected path: forget the key so defaults can return
             afterRemove(key);
           }
           throw e;
@@ -263,8 +262,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
         maybeInitializeDefaultConfig();
         wafBuilder.removeConfig(key);
       } catch (UnclassifiedWafException e) {
-        // Since libddwaf 2.2.0, a rejected update unregisters the path, so there is nothing
-        // left to remove. Remote Config forgets the key anyway, so keep our state in sync.
+        // libddwaf >= 2.2.0 already unregistered a rejected path; RC drops the key anyway
         log.debug("Could not remove waf config for config key {}: {}", key, e.getMessage());
       }
       afterRemove(key);

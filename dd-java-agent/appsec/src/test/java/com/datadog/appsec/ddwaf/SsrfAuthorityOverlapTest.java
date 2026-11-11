@@ -13,6 +13,7 @@ import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import java.io.InputStream;
+import java.lang.reflect.Type;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -24,20 +25,21 @@ import org.tabletest.junit.TableTest;
 
 /**
  * Regression test for the SSRF detector with the bundled rules ({@code rasp-934-100}). It
- * reproduces the shape of libddwaf#522 (escalation SCRS-2631) with a synthetic payload: a user
- * input that injects the authority and overlaps the URL scheme. The overlap cases need libsqreen >=
- * 17.7.0 (libddwaf 2.2.1); older versions skip the parameter and do not match.
+ * reproduces the shape of libddwaf#522 with a synthetic payload: a user input that injects the
+ * authority and overlaps the URL scheme. The overlap cases need libsqreen >= 17.7.0 (libddwaf
+ * 2.2.1); older versions skip the parameter and do not match.
  */
 class SsrfAuthorityOverlapTest {
   private static final String SSRF_RULE = "rasp-934-100";
   private static final Waf.Limits LIMITS =
       new Waf.Limits(20, 256, 4096, ((long) Integer.MAX_VALUE) * 1000, Integer.MAX_VALUE);
+  private static final Type STRING_OBJECT_MAP =
+      Types.newParameterizedType(Map.class, String.class, Object.class);
+  private static final Moshi MOSHI = new Moshi.Builder().build();
+  private static final JsonAdapter<Map<String, Object>> CONFIG_ADAPTER =
+      MOSHI.adapter(STRING_OBJECT_MAP);
   private static final JsonAdapter<List<Map<String, Object>>> EVENTS_ADAPTER =
-      new Moshi.Builder()
-          .build()
-          .adapter(
-              Types.newParameterizedType(
-                  List.class, Types.newParameterizedType(Map.class, String.class, Object.class)));
+      MOSHI.adapter(Types.newParameterizedType(List.class, STRING_OBJECT_MAP));
 
   private WafBuilder builder;
   private WafHandle handle;
@@ -47,13 +49,8 @@ class SsrfAuthorityOverlapTest {
     assertTrue(WafInitialization.ONLINE);
     builder = new WafBuilder();
     try (InputStream stream = getClass().getResourceAsStream("/default_config.json")) {
-      Map<String, Object> config =
-          new Moshi.Builder()
-              .build()
-              .<Map<String, Object>>adapter(
-                  Types.newParameterizedType(Map.class, String.class, Object.class))
-              .fromJson(Okio.buffer(Okio.source(stream)));
-      builder.addOrUpdateConfig("ASM_DD/default", config);
+      builder.addOrUpdateConfig(
+          "ASM_DD/default", CONFIG_ADAPTER.fromJson(Okio.buffer(Okio.source(stream))));
     }
     handle = builder.buildWafHandleInstance();
   }
