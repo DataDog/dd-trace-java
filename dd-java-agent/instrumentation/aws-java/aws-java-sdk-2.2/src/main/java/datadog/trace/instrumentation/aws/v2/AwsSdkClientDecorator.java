@@ -41,6 +41,7 @@ import java.util.Optional;
 import java.util.Set;
 import javax.annotation.Nonnull;
 import javax.annotation.ParametersAreNonnullByDefault;
+import software.amazon.awssdk.awscore.AwsExecutionAttribute;
 import software.amazon.awssdk.awscore.AwsResponse;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.core.SdkField;
@@ -53,6 +54,7 @@ import software.amazon.awssdk.core.interceptor.ExecutionAttributes;
 import software.amazon.awssdk.core.interceptor.SdkExecutionAttribute;
 import software.amazon.awssdk.http.SdkHttpRequest;
 import software.amazon.awssdk.http.SdkHttpResponse;
+import software.amazon.awssdk.regions.Region;
 
 public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, SdkHttpResponse>
     implements CarrierSetter<SdkHttpRequest.Builder> {
@@ -126,6 +128,13 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     final String awsServiceName = attributes.getAttribute(SdkExecutionAttribute.SERVICE_NAME);
     final String awsOperationName = attributes.getAttribute(SdkExecutionAttribute.OPERATION_NAME);
     onOperation(span, awsServiceName, awsOperationName);
+
+    // The client's configured Region, which is the Region of the endpoint it calls. Global
+    // pseudo-Regions (aws-global, ...) name no Region, so they are left out.
+    final Region region = attributes.getAttribute(AwsExecutionAttribute.AWS_REGION);
+    if (region != null && !region.isGlobalRegion()) {
+      span.setTag(InstrumentationTags.AWS_REGION, region.id());
+    }
 
     Config config = Config.get();
     if (config.isCloudRequestPayloadTaggingEnabled()

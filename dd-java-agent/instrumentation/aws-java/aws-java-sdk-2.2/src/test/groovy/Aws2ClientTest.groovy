@@ -149,6 +149,7 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
             "aws.service" "$service"
             "aws_service" "$service"
             "aws.operation" "${operation}"
+            "aws.region" "ap-northeast-1"
             "aws.agent" "java-aws-sdk"
             "aws.requestId" "$requestId"
             if (service == "S3") {
@@ -429,6 +430,7 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
             "aws.service" "$service"
             "aws_service" "$service"
             "aws.operation" "${operation}"
+            "aws.region" "ap-northeast-1"
             "aws.agent" "java-aws-sdk"
             "aws.requestId" "$requestId"
             def checkPeerService = false
@@ -605,6 +607,7 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
             "aws.service" "S3"
             "aws_service" "S3"
             "aws.operation" "GetObject"
+            "aws.region" "ap-northeast-1"
             "aws.agent" "java-aws-sdk"
             "aws.bucket.name" "somebucket"
             "bucketname" "somebucket"
@@ -678,6 +681,7 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
             "aws.service" service
             "aws_service" service
             "aws.operation" operation
+            "aws.region" "us-east-1"
             "aws.agent" "java-aws-sdk"
             "aws.requestId" requestId
 

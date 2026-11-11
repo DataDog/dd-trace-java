@@ -4,6 +4,7 @@ import com.amazonaws.SDKGlobalConfiguration
 import com.amazonaws.auth.AWSStaticCredentialsProvider
 import com.amazonaws.auth.AnonymousAWSCredentials
 import com.amazonaws.client.builder.AwsClientBuilder
+import com.amazonaws.handlers.HandlerContextKey
 import com.amazonaws.services.sqs.AmazonSQSClientBuilder
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.utils.TraceUtils
@@ -20,6 +21,10 @@ import javax.jms.Session
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 
 class LegacySqsClientForkedTest extends InstrumentationSpecification {
+
+  // Later 1.11.x SDKs record the request's signing Region (here the endpoint configuration's
+  // "elasticmq"), which is tagged as aws.region on SQS client spans.
+  static final boolean RECORDS_SIGNING_REGION = HandlerContextKey.fields.any { it.name == "SIGNING_REGION" }
 
   def setup() {
     System.setProperty(SDKGlobalConfiguration.ACCESS_KEY_SYSTEM_PROPERTY, "my-access-key")
@@ -94,6 +99,9 @@ class LegacySqsClientForkedTest extends InstrumentationSpecification {
             "aws_service" "sqs"
             "aws.endpoint" "http://localhost:${address.port}"
             "aws.operation" "SendMessageRequest"
+            if (RECORDS_SIGNING_REGION) {
+              "aws.region" "elasticmq"
+            }
             "aws.agent" "java-aws-sdk"
             "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
             defaultTags()
@@ -140,6 +148,9 @@ class LegacySqsClientForkedTest extends InstrumentationSpecification {
             "aws_service" "sqs"
             "aws.endpoint" "http://localhost:${address.port}"
             "aws.operation" "ReceiveMessageRequest"
+            if (RECORDS_SIGNING_REGION) {
+              "aws.region" "elasticmq"
+            }
             "aws.agent" "java-aws-sdk"
             "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
             defaultTags()
@@ -223,6 +234,9 @@ class LegacySqsClientForkedTest extends InstrumentationSpecification {
             "aws_service" "sqs"
             "aws.endpoint" "http://localhost:${address.port}"
             "aws.operation" "SendMessageRequest"
+            if (RECORDS_SIGNING_REGION) {
+              "aws.region" "elasticmq"
+            }
             "aws.agent" "java-aws-sdk"
             "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
             defaultTags()
@@ -289,6 +303,9 @@ class LegacySqsClientForkedTest extends InstrumentationSpecification {
             "aws_service" "sqs"
             "aws.endpoint" "http://localhost:${address.port}"
             "aws.operation" "DeleteMessageRequest"
+            if (RECORDS_SIGNING_REGION) {
+              "aws.region" "elasticmq"
+            }
             "aws.agent" "java-aws-sdk"
             "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
             defaultTags()
@@ -334,6 +351,9 @@ class LegacySqsClientForkedTest extends InstrumentationSpecification {
             "aws_service" "sqs"
             "aws.endpoint" "http://localhost:${address.port}"
             "aws.operation" "ReceiveMessageRequest"
+            if (RECORDS_SIGNING_REGION) {
+              "aws.region" "elasticmq"
+            }
             "aws.agent" "java-aws-sdk"
             "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
             defaultTags()
