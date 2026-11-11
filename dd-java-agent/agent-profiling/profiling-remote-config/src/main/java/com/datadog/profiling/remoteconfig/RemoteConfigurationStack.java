@@ -7,10 +7,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The accepted {@link RemoteConfiguration}s, ordered by priority: a feature set by several of them
- * takes the value of the one with the highest priority, see {@link ProfilingConfigMerger}.
+ * takes the value of the one with the highest priority, see {@link #merged()}.
  *
  * <p>Configurations with the same priority are ordered by config id, so that the outcome doesn't
  * depend on the order they were delivered in.
@@ -18,6 +20,7 @@ import java.util.TreeSet;
  * <p>Not thread safe.
  */
 public final class RemoteConfigurationStack {
+  private static final Logger log = LoggerFactory.getLogger(RemoteConfigurationStack.class);
 
   /** A configuration of the stack, with the id of the remote config it comes from. */
   public static final class Entry {
@@ -100,6 +103,23 @@ public final class RemoteConfigurationStack {
     List<Entry> sorted = new ArrayList<>(entries.values());
     sorted.sort(LOWEST_PRIORITY_FIRST);
     return sorted;
+  }
+
+  /**
+   * Merges the configurations into one.
+   *
+   * @return for each feature, the value of the highest priority configuration that sets it; a
+   *     feature that none sets is not set. It is {@link RemoteConfiguration#EMPTY} for an empty
+   *     stack.
+   */
+  public RemoteConfiguration merged() {
+    // from the lowest to the highest priority, so that the higher ones overwrite the lower ones
+    RemoteConfiguration merged = RemoteConfiguration.EMPTY;
+    for (Entry entry : lowestToHighestPriority()) {
+      merged = merged.overriddenBy(entry.configuration);
+    }
+    log.debug("Merged APM_PROFILING configs, lowest to highest priority: {} -> {}", this, merged);
+    return merged;
   }
 
   /**

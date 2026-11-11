@@ -1,9 +1,8 @@
 package com.datadog.profiling.remoteconfig;
 
-import com.squareup.moshi.JsonReader;
+import datadog.json.JsonMapper;
 import java.util.List;
 import java.util.Map;
-import okio.Buffer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,15 +16,14 @@ final class ApmProfilingPayload {
    * @param problems receives {@code payload is not an object} when it isn't
    * @return the members of the payload, or null if it is unreadable or not an object
    */
-  @SuppressWarnings("unchecked")
   static Map<String, Object> read(String json, List<String> problems) {
-    try {
-      Object value = JsonReader.of(new Buffer().writeUtf8(json)).readJsonValue();
-      if (value instanceof Map) {
-        return (Map<String, Object>) value;
+    // the mapper takes these for an empty object, while they are not an object
+    if (json != null && !json.isEmpty() && !"null".equals(json)) {
+      try {
+        return JsonMapper.fromJsonToMap(json);
+      } catch (Exception e) {
+        log.debug("Ignoring an unreadable APM_PROFILING config: {}", e.toString());
       }
-    } catch (Exception e) {
-      log.debug("Ignoring an unreadable APM_PROFILING config: {}", e.toString());
     }
     problems.add("payload is not an object");
     return null;

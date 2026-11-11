@@ -102,7 +102,7 @@ class ProfilingConfigPollerTest {
 
     RemoteConfigurationStack stack = committedStack();
     assertEquals(asList("a", "b"), new ArrayList<>(stack.configIds()));
-    RemoteConfiguration merged = ProfilingConfigMerger.merge(stack);
+    RemoteConfiguration merged = stack.merged();
     assertEquals(true, merged.get(CPU_TIME));
     assertEquals(true, merged.get(WALL_TIME));
   }
@@ -140,7 +140,7 @@ class ProfilingConfigPollerTest {
     List<Entry> entries = stack.lowestToHighestPriority();
     assertEquals(asList("y", "z", "a"), configIds(entries));
     assertEquals(asList(0, 2001, 3001), priorities(entries));
-    assertEquals(true, ProfilingConfigMerger.merge(stack).get(CPU_TIME));
+    assertEquals(true, stack.merged().get(CPU_TIME));
   }
 
   @Test
@@ -168,7 +168,7 @@ class ProfilingConfigPollerTest {
 
     RemoteConfigurationStack stack = committedStack();
     assertEquals(1, stack.lowestToHighestPriority().size());
-    assertEquals(false, ProfilingConfigMerger.merge(stack).get(CPU_TIME));
+    assertEquals(false, stack.merged().get(CPU_TIME));
   }
 
   @Test
@@ -181,7 +181,7 @@ class ProfilingConfigPollerTest {
 
     RemoteConfigurationStack stack = committedStack();
     assertEquals(asList("untargeted", "a"), configIds(stack.lowestToHighestPriority()));
-    assertEquals(true, ProfilingConfigMerger.merge(stack).get(CPU_TIME));
+    assertEquals(true, stack.merged().get(CPU_TIME));
   }
 
   @Test
@@ -201,7 +201,7 @@ class ProfilingConfigPollerTest {
 
     RemoteConfigurationStack stack = committedStack();
     assertEquals(asList(0, 0, 3002), priorities(stack.lowestToHighestPriority()));
-    assertEquals(true, ProfilingConfigMerger.merge(stack).get(CPU_TIME));
+    assertEquals(true, stack.merged().get(CPU_TIME));
   }
 
   @Test

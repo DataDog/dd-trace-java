@@ -230,9 +230,8 @@ public class DatadogProfilerConfig {
     if (!unifiedEnabled) {
       return false;
     }
-    // JVMTI Allocation Sampler is required for ddprof live heap and is available since Java 11.
     // isJmethodIDSafe() alone is not sufficient — Java 8 is jmethodID-safe but lacks the sampler.
-    boolean isSafe = JavaVirtualMachine.isJavaVersionAtLeast(11) && isJmethodIDSafe();
+    boolean isSafe = ProfilingSupport.isAllocationSamplerSafe();
     boolean enableDdprofMemleak =
         getBoolean(
             configProvider,

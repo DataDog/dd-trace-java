@@ -74,8 +74,8 @@ class ProfilingRemoteConfigHandlerTest {
     profilingSystem.stop(false);
   }
 
-  private ProfilingRemoteConfigHandler handler(boolean runWithLocalConfig) {
-    return handler(profilingSystem, runWithLocalConfig);
+  private ProfilingRemoteConfigHandler handler() {
+    return handler(profilingSystem);
   }
 
   /** A handler that decides from the values, like in production, whether anything is enabled. */
@@ -83,14 +83,13 @@ class ProfilingRemoteConfigHandlerTest {
     return new ProfilingRemoteConfigHandler(
         profilingSystem,
         localConfig,
-        false,
         ConfigProvider::withRemoteOverride,
         DatadogProfiler::isAnyProfilingModeEnabled,
         true);
   }
 
-  private ProfilingRemoteConfigHandler handler(ProfilingSystem system, boolean runWithLocalConfig) {
-    return handler(system, runWithLocalConfig, true);
+  private ProfilingRemoteConfigHandler handler(ProfilingSystem system) {
+    return handler(system, true);
   }
 
   /**
@@ -99,12 +98,10 @@ class ProfilingRemoteConfigHandlerTest {
    *
    * @param startImmediately whether starting right away is safe
    */
-  private ProfilingRemoteConfigHandler handler(
-      ProfilingSystem system, boolean runWithLocalConfig, boolean startImmediately) {
+  private ProfilingRemoteConfigHandler handler(ProfilingSystem system, boolean startImmediately) {
     return new ProfilingRemoteConfigHandler(
         system,
         localConfig,
-        runWithLocalConfig,
         values -> {
           ConfigProvider config = ConfigProvider.withRemoteOverride(values);
           remoteValues.put(config, values);
@@ -117,7 +114,7 @@ class ProfilingRemoteConfigHandlerTest {
 
   @Test
   void idleStartsWhenRemoteConfigEnablesProfiling() throws Exception {
-    handler(false).onConfigsChanged(enabledConfig());
+    handler().onConfigsChanged(enabledConfig());
 
     assertTrue(profilingSystem.isRunning());
     assertTrue(profilingSystem.isStarted(), "started immediately, without the startup delay");
@@ -128,7 +125,7 @@ class ProfilingRemoteConfigHandlerTest {
 
   @Test
   void idleStaysIdleWhenRemoteConfigDisablesEverything() throws Exception {
-    handler(false).onConfigsChanged(disabledConfig());
+    handler().onConfigsChanged(disabledConfig());
 
     assertFalse(profilingSystem.isRunning());
     verify(controller, never()).reconfigure(any());
@@ -137,7 +134,7 @@ class ProfilingRemoteConfigHandlerTest {
 
   @Test
   void runningRestartsWithNewConfiguration() throws Exception {
-    ProfilingRemoteConfigHandler handler = handler(false);
+    ProfilingRemoteConfigHandler handler = handler();
     handler.onConfigsChanged(enabledConfig());
 
     handler.onConfigsChanged(otherEnabledConfig());
@@ -152,7 +149,7 @@ class ProfilingRemoteConfigHandlerTest {
 
   @Test
   void runningStopsWhenRemoteConfigDisablesEverything() throws Exception {
-    ProfilingRemoteConfigHandler handler = handler(false);
+    ProfilingRemoteConfigHandler handler = handler();
     handler.onConfigsChanged(enabledConfig());
 
     handler.onConfigsChanged(disabledConfig());
@@ -165,7 +162,7 @@ class ProfilingRemoteConfigHandlerTest {
 
   @Test
   void runningStopsWhenAHigherPriorityConfigDisablesWhatTheOthersEnable() throws Exception {
-    ProfilingRemoteConfigHandler handler = handler(false);
+    ProfilingRemoteConfigHandler handler = handler();
     handler.onConfigsChanged(enabledConfig());
 
     // the merged configuration has the only feature that was enabled disabled
@@ -186,7 +183,7 @@ class ProfilingRemoteConfigHandlerTest {
     stack.push("a", 3001, config("\"cpuTime\":true"));
     stack.push("z", 0, config("\"cpuTime\":false"));
 
-    handler(false).onConfigsChanged(stack);
+    handler().onConfigsChanged(stack);
 
     assertTrue(profilingSystem.isRunning());
     assertEquals("true", remoteValues.get(createdConfigs.get(0)).get(ENABLED_KEY));
@@ -198,7 +195,7 @@ class ProfilingRemoteConfigHandlerTest {
     stack.push("general", 0, config("\"cpuTime\":true,\"wallTime\":false"));
     stack.push("specific", 2001, config("\"wallTime\":true"));
 
-    handler(false).onConfigsChanged(stack);
+    handler().onConfigsChanged(stack);
 
     Map<String, String> applied = remoteValues.get(createdConfigs.get(0));
     assertEquals("true", applied.get(ENABLED_KEY), "from the general configuration");
@@ -255,7 +252,7 @@ class ProfilingRemoteConfigHandlerTest {
 
   @Test
   void removingRemoteConfigRevertsToIdleWhenArmed() throws Exception {
-    ProfilingRemoteConfigHandler handler = handler(false);
+    ProfilingRemoteConfigHandler handler = handler();
     handler.onConfigsChanged(enabledConfig());
 
     handler.onConfigsChanged(new RemoteConfigurationStack());
@@ -265,21 +262,8 @@ class ProfilingRemoteConfigHandlerTest {
   }
 
   @Test
-  void removingRemoteConfigRestartsWithLocalConfiguration() throws Exception {
-    ProfilingRemoteConfigHandler handler = handler(true);
-    handler.onConfigsChanged(enabledConfig());
-
-    handler.onConfigsChanged(new RemoteConfigurationStack());
-
-    assertTrue(profilingSystem.isRunning());
-    verify(recording).stop();
-    verify(controller).reconfigure(localConfig);
-    verify(controller, times(2)).createRecording(any(), any());
-  }
-
-  @Test
   void configsThatSetNoFeatureApplyTheLocalConfiguration() throws Exception {
-    ProfilingRemoteConfigHandler handler = handler(false);
+    ProfilingRemoteConfigHandler handler = handler();
     handler.onConfigsChanged(enabledConfig());
 
     // there are configs, but none sets a feature, so it is as if there were none
@@ -293,7 +277,7 @@ class ProfilingRemoteConfigHandlerTest {
 
   @Test
   void unchangedRemoteConfigIsIgnored() throws Exception {
-    ProfilingRemoteConfigHandler handler = handler(false);
+    ProfilingRemoteConfigHandler handler = handler();
     handler.onConfigsChanged(enabledConfig());
 
     handler.onConfigsChanged(enabledConfig());
@@ -306,7 +290,7 @@ class ProfilingRemoteConfigHandlerTest {
 
   @Test
   void changeOfPriorityThatKeepsTheMergedConfigurationIsIgnored() throws Exception {
-    ProfilingRemoteConfigHandler handler = handler(false);
+    ProfilingRemoteConfigHandler handler = handler();
     RemoteConfigurationStack first = new RemoteConfigurationStack();
     first.push("a", 0, config("\"cpuTime\":true"));
     handler.onConfigsChanged(first);
@@ -321,7 +305,7 @@ class ProfilingRemoteConfigHandlerTest {
 
   @Test
   void noRemoteConfigInitiallyIsIgnored() throws Exception {
-    handler(false).onConfigsChanged(new RemoteConfigurationStack());
+    handler().onConfigsChanged(new RemoteConfigurationStack());
 
     assertFalse(profilingSystem.isRunning());
     verify(controller, never()).reconfigure(any());
@@ -329,7 +313,7 @@ class ProfilingRemoteConfigHandlerTest {
 
   @Test
   void closedHandlerIgnoresRemoteConfig() throws Exception {
-    ProfilingRemoteConfigHandler handler = handler(false);
+    ProfilingRemoteConfigHandler handler = handler();
     handler.close();
 
     handler.onConfigsChanged(enabledConfig());
@@ -346,7 +330,7 @@ class ProfilingRemoteConfigHandlerTest {
         .thenReturn(recording)
         .thenThrow(new IllegalStateException("boom"))
         .thenReturn(recording);
-    ProfilingRemoteConfigHandler handler = handler(false);
+    ProfilingRemoteConfigHandler handler = handler();
     handler.onConfigsChanged(enabledConfig());
     assertTrue(profilingSystem.isRunning());
 
@@ -365,7 +349,7 @@ class ProfilingRemoteConfigHandlerTest {
     when(controller.createRecording(any(), any()))
         .thenThrow(new UnsupportedEnvironmentException("unsupported"))
         .thenReturn(recording);
-    ProfilingRemoteConfigHandler handler = handler(false);
+    ProfilingRemoteConfigHandler handler = handler();
 
     handler.onConfigsChanged(enabledConfig());
     assertFalse(profilingSystem.isRunning(), "not left half started");
@@ -382,7 +366,7 @@ class ProfilingRemoteConfigHandlerTest {
   @Test
   void startFailureIsNotPropagated() throws Exception {
     when(controller.createRecording(any(), any())).thenThrow(new IllegalStateException("boom"));
-    ProfilingRemoteConfigHandler handler = handler(false);
+    ProfilingRemoteConfigHandler handler = handler();
 
     assertDoesNotThrow(() -> handler.onConfigsChanged(enabledConfig()));
 
@@ -391,7 +375,7 @@ class ProfilingRemoteConfigHandlerTest {
 
   @Test
   void configsBeforeProfilerIsSetAreAppliedOnceItIs() throws Exception {
-    ProfilingRemoteConfigHandler handler = handler(null, false);
+    ProfilingRemoteConfigHandler handler = handler(null);
 
     handler.onConfigsChanged(enabledConfig());
     assertFalse(profilingSystem.isRunning());
@@ -407,7 +391,7 @@ class ProfilingRemoteConfigHandlerTest {
 
   @Test
   void onlyTheLatestConfigsReceivedBeforeProfilerIsSetAreApplied() throws Exception {
-    ProfilingRemoteConfigHandler handler = handler(null, false);
+    ProfilingRemoteConfigHandler handler = handler(null);
 
     handler.onConfigsChanged(enabledConfig());
     handler.onConfigsChanged(disabledConfig());
@@ -419,7 +403,7 @@ class ProfilingRemoteConfigHandlerTest {
 
   @Test
   void configsReceivedBeforeProfilerIsSetAreNotAppliedOnceClosed() throws Exception {
-    ProfilingRemoteConfigHandler handler = handler(null, false);
+    ProfilingRemoteConfigHandler handler = handler(null);
     handler.onConfigsChanged(enabledConfig());
 
     handler.close();
@@ -431,7 +415,7 @@ class ProfilingRemoteConfigHandlerTest {
 
   @Test
   void settingTheProfilerWithoutConfigsLeavesItAlone() throws Exception {
-    ProfilingRemoteConfigHandler handler = handler(null, false);
+    ProfilingRemoteConfigHandler handler = handler(null);
 
     handler.setProfilingSystem(profilingSystem);
 
@@ -442,7 +426,7 @@ class ProfilingRemoteConfigHandlerTest {
 
   @Test
   void configsAfterProfilerIsSetAreApplied() throws Exception {
-    ProfilingRemoteConfigHandler handler = handler(null, false);
+    ProfilingRemoteConfigHandler handler = handler(null);
     handler.onConfigsChanged(disabledConfig());
     handler.setProfilingSystem(profilingSystem);
 
@@ -455,7 +439,7 @@ class ProfilingRemoteConfigHandlerTest {
 
   @Test
   void profilerStartsAfterTheStartupDelayWhenStartingRightAwayIsNotSafe() throws Exception {
-    handler(profilingSystem, false, false).onConfigsChanged(enabledConfig());
+    handler(profilingSystem, false).onConfigsChanged(enabledConfig());
 
     // it is starting, but only records after the startup delay, which isn't a failure to start
     assertTrue(profilingSystem.isRunning());
@@ -470,7 +454,7 @@ class ProfilingRemoteConfigHandlerTest {
         .thenThrow(new IllegalArgumentException("boom"))
         .thenReturn(recording);
     ProfilingSystem system = systemWithStartupDelay(Duration.ofMillis(20));
-    ProfilingRemoteConfigHandler handler = handler(system, false, false);
+    ProfilingRemoteConfigHandler handler = handler(system, false);
 
     handler.onConfigsChanged(enabledConfig());
     awaitTrue(system::isStartFailed);
@@ -485,7 +469,7 @@ class ProfilingRemoteConfigHandlerTest {
   @Test
   void restartsRightAwayOnceARecordingRanEvenWhenStartingFirstIsNotSafe() throws Exception {
     ProfilingSystem system = systemWithStartupDelay(Duration.ofMillis(300));
-    ProfilingRemoteConfigHandler handler = handler(system, false, false);
+    ProfilingRemoteConfigHandler handler = handler(system, false);
 
     handler.onConfigsChanged(enabledConfig());
     assertFalse(system.isStarted(), "the first start waits for the startup delay");
@@ -521,7 +505,7 @@ class ProfilingRemoteConfigHandlerTest {
 
   @Test
   void stoppingTheProfilerFlushesWhatItRecorded() throws Exception {
-    ProfilingRemoteConfigHandler handler = handler(false);
+    ProfilingRemoteConfigHandler handler = handler();
     handler.onConfigsChanged(enabledConfig());
 
     handler.onConfigsChanged(disabledConfig());
@@ -532,7 +516,7 @@ class ProfilingRemoteConfigHandlerTest {
 
   @Test
   void restartingTheProfilerFlushesWhatItRecorded() throws Exception {
-    ProfilingRemoteConfigHandler handler = handler(false);
+    ProfilingRemoteConfigHandler handler = handler();
     handler.onConfigsChanged(enabledConfig());
 
     handler.onConfigsChanged(otherEnabledConfig());
@@ -553,7 +537,7 @@ class ProfilingRemoteConfigHandlerTest {
           proceed.await(10, TimeUnit.SECONDS);
           return null;
         });
-    ProfilingRemoteConfigHandler handler = handler(false);
+    ProfilingRemoteConfigHandler handler = handler();
     handler.onConfigsChanged(enabledConfig());
     ExecutorService executor = Executors.newSingleThreadExecutor();
     try {

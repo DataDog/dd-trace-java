@@ -25,7 +25,6 @@ import datadog.trace.api.Config;
 import datadog.trace.api.Platform;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.profiling.ProfilerFlareLogger;
-import datadog.trace.api.profiling.ProfilingEnablement;
 import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.api.profiling.RecordingDataListener;
 import datadog.trace.api.profiling.RecordingType;
@@ -189,7 +188,7 @@ public class ProfilingAgent {
                 startForceFirst);
         system.init();
         profiler = system;
-        if (config.getProfilingEnablement() == ProfilingEnablement.ARMED) {
+        if (ProfilingConfigPoller.isEnabled(config)) {
           // initialized, but recording only starts when requested by remote config
           log.debug("Profiling lifecycle: initialized -> idle (armed)");
           connectRemoteConfigToProfiler();
@@ -246,11 +245,7 @@ public class ProfilingAgent {
     // which can be in premain: it only starts right away where that is safe, as when forced to
     // start first, and after the startup delay elsewhere.
     ProfilingRemoteConfigHandler handler =
-        new ProfilingRemoteConfigHandler(
-            ConfigProvider.getInstance(), false, isStartForceFirstSafe());
-    if (profiler != null) {
-      handler.setProfilingSystem(profiler);
-    }
+        new ProfilingRemoteConfigHandler(ConfigProvider.getInstance(), isStartForceFirstSafe());
     ProfilingConfigPoller poller = new ProfilingConfigPoller(handler);
     if (!poller.start(config, sco)) {
       // nothing will ever ask the profiler to start
@@ -259,6 +254,8 @@ public class ProfilingAgent {
     }
     remoteConfigHandler = handler;
     remoteConfig = poller;
+    // configs received until then are kept by the handler, and applied once it is connected
+    connectRemoteConfigToProfiler();
   }
 
   // called with the class lock held once the profiling system is initialized; connects the

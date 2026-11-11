@@ -39,19 +39,6 @@ public final class RemoteConfiguration {
     Feature(String jsonName) {
       this.jsonName = jsonName;
     }
-
-    public String jsonName() {
-      return jsonName;
-    }
-
-    static Feature fromJsonName(String name) {
-      for (Feature feature : values()) {
-        if (feature.jsonName.equals(name)) {
-          return feature;
-        }
-      }
-      return null;
-    }
   }
 
   /** A configuration that sets no feature. */
@@ -140,7 +127,7 @@ public final class RemoteConfiguration {
    * @param higher a configuration with a higher priority
    * @return a configuration where the features that {@code higher} sets overwrite the ones of this
    */
-  public RemoteConfiguration overriddenBy(RemoteConfiguration higher) {
+  RemoteConfiguration overriddenBy(RemoteConfiguration higher) {
     if (higher.isEmpty()) {
       return this;
     }

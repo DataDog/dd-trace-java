@@ -11,10 +11,8 @@ import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import com.datadog.profiling.ddprof.DatadogProfiler;
 import com.datadog.profiling.ddprof.DatadogProfilerConfig;
 import com.datadog.profiling.remoteconfig.ProfilingConfigHandler;
-import com.datadog.profiling.remoteconfig.ProfilingConfigMerger;
 import com.datadog.profiling.remoteconfig.RemoteConfiguration;
 import com.datadog.profiling.remoteconfig.RemoteConfigurationStack;
-import datadog.environment.JavaVirtualMachine;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.util.Map;
 import java.util.Objects;
@@ -27,9 +25,9 @@ import org.slf4j.LoggerFactory;
  * Starts, restarts or stops the profiler according to the {@link RemoteConfiguration}s of the
  * priority stack, merged into one with the value of each feature coming from the highest priority
  * configuration that sets it. The merged configuration takes precedence over the local one for the
- * features it sets; the others keep their local value. When it sets no feature, the local
- * configuration applies. The profiler is stopped when the resulting configuration has all profiling
- * features disabled.
+ * features it sets; the others keep their local value. When it sets no feature, the profiler is
+ * stopped, as it only runs when remote config asks for it. The profiler is also stopped when the
+ * resulting configuration has all profiling features disabled.
  *
  * <p>Whether something is enabled is judged from the modes of the Datadog profiler that the
  * resulting configuration enables, since that is what the remote features map to. A JFR-only setup
@@ -71,14 +69,13 @@ final class ProfilingRemoteConfigHandler implements ProfilingConfigHandler {
 
   private volatile ProfilingSystem profilingSystem;
   private final ConfigProvider localConfig;
-  private final boolean runWithLocalConfig;
   private final Function<Map<String, String>, ConfigProvider> remoteConfigFactory;
   private final Predicate<ConfigProvider> anyProfilingEnabled;
   private final boolean startImmediately;
 
   // the latest configs received before the profiler was available, if any
   private RemoteConfigurationStack pendingStack;
-  // the merged configuration currently applied, null when the local configuration applies
+  // the merged configuration currently applied, null when none sets a feature
   private RemoteConfiguration appliedConfiguration;
   // whether the profiler is in the state that appliedConfiguration says; false after a failure
   private boolean stateKnown = true;
@@ -91,16 +88,13 @@ final class ProfilingRemoteConfigHandler implements ProfilingConfigHandler {
    * Creates a handler without a profiling system. The profiler must be set later via {@link
    * #setProfilingSystem}.
    *
-   * @param runWithLocalConfig whether the profiler should run when no remote config is active
    * @param startImmediately whether the profiler can start right away, instead of after the usual
    *     startup delay; not on a JVM where starting before {@code main} has started can crash it
    */
-  ProfilingRemoteConfigHandler(
-      ConfigProvider localConfig, boolean runWithLocalConfig, boolean startImmediately) {
+  ProfilingRemoteConfigHandler(ConfigProvider localConfig, boolean startImmediately) {
     this(
         null,
         localConfig,
-        runWithLocalConfig,
         ConfigProvider::withRemoteOverride,
         DatadogProfiler::isAnyProfilingModeEnabled,
         startImmediately);
@@ -109,13 +103,11 @@ final class ProfilingRemoteConfigHandler implements ProfilingConfigHandler {
   ProfilingRemoteConfigHandler(
       ProfilingSystem profilingSystem,
       ConfigProvider localConfig,
-      boolean runWithLocalConfig,
       Function<Map<String, String>, ConfigProvider> remoteConfigFactory,
       Predicate<ConfigProvider> anyProfilingEnabled,
       boolean startImmediately) {
     this.profilingSystem = profilingSystem;
     this.localConfig = localConfig;
-    this.runWithLocalConfig = runWithLocalConfig;
     this.remoteConfigFactory = remoteConfigFactory;
     this.anyProfilingEnabled = anyProfilingEnabled;
     this.startImmediately = startImmediately;
@@ -163,7 +155,7 @@ final class ProfilingRemoteConfigHandler implements ProfilingConfigHandler {
   /** Applies the given configs to the profiling system. Must be called with the lock held. */
   private void applyConfigs(RemoteConfigurationStack stack) {
     // the value of each feature comes from the highest priority configuration that sets it
-    final RemoteConfiguration merged = ProfilingConfigMerger.merge(stack);
+    final RemoteConfiguration merged = stack.merged();
     final RemoteConfiguration remote = merged.isEmpty() ? null : merged;
     if (profilingSystem.isStarted()) {
       recordingSeen = true;
@@ -178,10 +170,9 @@ final class ProfilingRemoteConfigHandler implements ProfilingConfigHandler {
     final ConfigProvider config;
     final boolean enabled;
     if (remote == null) {
-      log.debug(
-          "No APM_PROFILING remote config sets a feature, reverting to the local configuration");
+      log.debug("No APM_PROFILING remote config sets a feature");
       config = localConfig;
-      enabled = runWithLocalConfig;
+      enabled = false;
     } else {
       log.debug("Applying APM_PROFILING remote config: {}", remote);
       final Map<String, String> values = remote.toConfigValues();
@@ -225,10 +216,9 @@ final class ProfilingRemoteConfigHandler implements ProfilingConfigHandler {
           throw new IllegalStateException("The profiler did not start");
         }
         log.debug(
-            "Profiling lifecycle: {} -> {} ({} configuration)",
+            "Profiling lifecycle: {} -> {} (remote configuration)",
             running ? "stopped" : "idle",
-            startImmediately || recordingSeen ? "running" : "starting after the startup delay",
-            remote == null ? "local" : "remote");
+            immediately ? "running" : "starting after the startup delay");
       }
       appliedConfiguration = remote;
       stateKnown = true;
@@ -247,10 +237,7 @@ final class ProfilingRemoteConfigHandler implements ProfilingConfigHandler {
    * is always allowed.
    */
   static void dropUnsafeEnablement(Map<String, String> values) {
-    // the JVMTI allocation sampler that both rely on is only available since Java 11
-    final boolean samplerSafe =
-        JavaVirtualMachine.isJavaVersionAtLeast(11) && ProfilingSupport.isJmethodIDSafe();
-    if (!samplerSafe) {
+    if (!ProfilingSupport.isAllocationSamplerSafe()) {
       dropEnablement(values, PROFILING_ALLOCATION_ENABLED);
       dropEnablement(values, PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED);
     }
