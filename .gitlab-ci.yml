@@ -5,7 +5,7 @@ include:
   - local: ".gitlab/ci-visibility-tests.yml"
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-spring-petclinic-parallel.yml'
-    ref: &apm_sdks_benchmarks_sha 'cbb693ea82c5a07634865e6edcc79cbaf947ee67' # pinned by .github/workflows/update-apm-sdks-benchmarks-reference.yaml
+    ref: &apm_sdks_benchmarks_sha '646620266c1fcffd279948322af15da0adc7c950' # pinned by .github/workflows/update-apm-sdks-benchmarks-reference.yaml
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-load-parallel.yml'
     ref: *apm_sdks_benchmarks_sha
@@ -55,8 +55,8 @@ variables:
   REGISTRY: 486234852809.dkr.ecr.us-east-1.amazonaws.com
   BUILD_JOB_NAME: "build"
   DEPENDENCY_CACHE_POLICY: pull
-  BUILD_CACHE_POLICY: pull
-  GRADLE_VERSION: "9.8.2" # must match gradle-wrapper.properties
+  S3_BUILD_CACHE_BUCKET: "dd-trace-java-gradle-build-cache"
+  S3_BUILD_CACHE_REGION: "us-east-1"
   MASS_READ_URL: "https://mass-read.us1.ddbuild.io"
   MAVEN_REPOSITORY_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
   GRADLE_PLUGIN_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
@@ -239,14 +239,6 @@ default:
       fallback_keys: # Use fallback keys because all cache types are not populated. See note under: populate_dep_cache
         - 'dependency-base'
         - 'dependency-lib'
-    - &build_cache
-      key: $CI_PIPELINE_ID-$CACHE_TYPE # Incremental build cache. Shared by all jobs in the pipeline of the same type
-      paths:
-        - .gradle/caches/$GRADLE_VERSION
-        - .gradle/$GRADLE_VERSION/executionHistory
-        - workspace
-      policy: $BUILD_CACHE_POLICY
-      unprotect: true
   before_script:
     - source .gitlab/gitlab-utils.sh
     - *container_info
@@ -363,7 +355,6 @@ build:
       optional: true
   extends: .gradle_build
   variables:
-    BUILD_CACHE_POLICY: push
     CACHE_TYPE: "lib"
     DEPENDENCY_CACHE_POLICY: pull
   script:
@@ -389,7 +380,6 @@ build_tests:
   extends: .gradle_build
   variables:
     <<: *tier_xl_variables
-    BUILD_CACHE_POLICY: push
     DEPENDENCY_CACHE_POLICY: pull
   parallel:
     matrix:
@@ -447,13 +437,11 @@ populate_dep_cache:
     - job: build_tests
       artifacts: false
   variables:
-    BUILD_CACHE_POLICY: pull
     DEPENDENCY_CACHE_POLICY: push
   cache:
     - <<: *plugin_cache
       policy: pull
     - *dependency_cache
-    - *build_cache
   rules:
     - if: '$POPULATE_CACHE'
       when: on_success
@@ -552,6 +540,15 @@ check-instrumentation-naming:
     - ./gradlew --version
     - ./gradlew checkInstrumentationNaming $GRADLE_ARGS
 
+check-codeowners:
+  # The Java builder base includes Python 3 and Git; the generic GBI image does not include Python.
+  image: ${BUILDER_IMAGE_REPO}:${BUILDER_IMAGE_VERSION_PREFIX}base
+  stage: tests
+  needs: []
+  script:
+    - python3 -m unittest discover -s tooling/tests -p 'test_check_codeowners.py'
+    - python3 tooling/check_codeowners.py
+
 config-inversion-linter:
   extends: .gradle_build
   stage: tests
@@ -597,7 +594,12 @@ validate_build:
   needs: [ build ]
   variables:
     CACHE_TYPE: "lib"
+  parallel:
+    matrix:
+      - BUILD_CACHE: ["true", "false"]
   script:
+    # Rebuild independently of the cache used to produce the reference artifacts.
+    - if [ "$BUILD_CACHE" = "false" ]; then export GRADLE_ARGS="$GRADLE_ARGS --no-build-cache --rerun-tasks"; fi
     # Preserve the `build` job artifacts before Gradle rebuilds and overwrites them under
     # workspace/**/build/libs, so jardiff can compare the rebuilt jars against them.
     - mkdir -p reference-artifacts
@@ -609,10 +611,9 @@ validate_build:
     # Refresh them here as well so the candidate uses the same dependency resolution.
     - if [ $CI_PIPELINE_SOURCE == "schedule" ] ; then ./gradlew resolveAndLockAll --write-locks $GRADLE_ARGS; fi
     - ./gradlew --version
-    # This will run the shadowJar task and exercise the build cache, allowing to identify build-cache issues
     # Keep both JAR sets for direct inspection when the comparison fails.
     - |
-      if ! ./gradlew compareToReferenceJar -PjardiffReferenceDir="$CI_PROJECT_DIR/reference-artifacts" -PskipTests $GRADLE_ARGS; then
+      if ! ./gradlew clean compareToReferenceJar -PjardiffReferenceDir="$CI_PROJECT_DIR/reference-artifacts" -PskipTests $GRADLE_ARGS; then
         mkdir -p check_reports/jar-comparison-artifacts/reference check_reports/jar-comparison-artifacts/candidate
         cp reference-artifacts/*.jar check_reports/jar-comparison-artifacts/reference/
         cp workspace/dd-java-agent/build/libs/*.jar check_reports/jar-comparison-artifacts/candidate/
@@ -1242,7 +1243,7 @@ test_smoke_graalvm:
   tags: [ "arch:amd64" ]
   variables:
     <<: *tier_l_variables
-    GRADLE_TARGET: "stageMainDist :dd-smoke-test:spring-boot-3.0-native:test :dd-smoke-test:quarkus-native:test"
+    GRADLE_TARGET: "stageMainDist :dd-smoke-test:spring-boot-3.0-native:test :dd-smoke-test:quarkus-native:test :dd-smoke-tests:native-image-jmx:test"
     CACHE_TYPE: "smoke"
     CI_NO_SPLIT: "true"
     NON_DEFAULT_JVMS: "true"
@@ -1255,7 +1256,7 @@ test_smoke_graalvm_arm64:
   tags: [ "arch:arm64" ]
   variables:
     <<: *tier_l_variables
-    GRADLE_TARGET: "stageMainDist :dd-smoke-test:spring-boot-3.0-native:test :dd-smoke-test:quarkus-native:test"
+    GRADLE_TARGET: "stageMainDist :dd-smoke-test:spring-boot-3.0-native:test :dd-smoke-test:quarkus-native:test :dd-smoke-tests:native-image-jmx:test"
     CACHE_TYPE: "smoke"
     CI_NO_SPLIT: "true"
     # Treat the GraalVM JVMs as this job's defaults, so it follows the arm64 rules like the other arm64 jobs:
@@ -1367,6 +1368,9 @@ deploy_to_maven_central:
   rules:
     - if: '$POPULATE_CACHE'
       when: never
+    # Release branches build -rc.N versions, which the publish plugin would push to the release staging repository
+    - if: '$CI_COMMIT_BRANCH =~ /^release\/v/'
+      when: never
     - if: '$CI_COMMIT_BRANCH == "master"'
       when: on_success
     # Do not deploy release candidate versions
@@ -1396,6 +1400,9 @@ deploy_snapshot_with_ddprof_snapshot:
     CACHE_TYPE: "lib"
   rules:
     - if: '$POPULATE_CACHE'
+      when: never
+    # Release branches build -rc.N versions, which the publish plugin would push to the release staging repository
+    - if: '$CI_COMMIT_BRANCH =~ /^release\/v/'
       when: never
     # Manual trigger only - for testing with ddprof snapshot versions
     - when: manual

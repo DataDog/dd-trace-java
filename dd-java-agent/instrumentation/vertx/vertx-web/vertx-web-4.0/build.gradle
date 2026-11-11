@@ -22,7 +22,6 @@ muzzle {
 }
 
 addTestSuiteForDir('latestDepTest', 'latestDepTest')
-addForkedTestTask('latestDepTest')
 
 configurations {
   testArtifacts
@@ -66,13 +65,6 @@ tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
 }
 
 tasks.named("latestDepTest", Test) {
-  testJvmConstraints {
-    minJavaVersion = JavaVersion.VERSION_11
-    maxJavaVersion = JavaVersion.VERSION_25
-  }
-}
-
-tasks.named("latestDepTestForkedTest", Test) {
   testJvmConstraints {
     minJavaVersion = JavaVersion.VERSION_11
     maxJavaVersion = JavaVersion.VERSION_25

@@ -47,7 +47,3 @@ tasks.named("compileLatestPre207ForkedTestGroovy", GroovyCompile) {
   classpath += files(tasks.named('compileLatestPre207ForkedTestScala').map { it.destinationDirectory })
   dependsOn "compileLatestPre207ForkedTestScala"
 }
-
-tasks.named("latestDepTest", Test) {
-  finalizedBy 'latestPre207ForkedTest'
-}

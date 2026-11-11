@@ -44,7 +44,7 @@ public class MetricsAggregatorFactory {
       return new ClientStatsAggregator(
           config, sharedCommunicationObjects, healthMetrics, new OtlpStatsMetricWriter(config));
     }
-    if (config.isTracerMetricsEnabled() && !config.isTraceOtlpExporterEnabled()) {
+    if (config.isNativeTracerMetricsEnabled()) {
       log.debug("tracer metrics enabled");
       return new ClientStatsAggregator(config, sharedCommunicationObjects, healthMetrics);
     }
