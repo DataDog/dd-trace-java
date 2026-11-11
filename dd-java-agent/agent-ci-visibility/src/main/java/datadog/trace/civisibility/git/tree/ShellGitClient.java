@@ -596,7 +596,7 @@ public class ShellGitClient implements GitClient {
           // A previous bounded upload fetch may have the tip but lack its PR ancestry.
           fetchCommit(commit);
           recoveredShallowCommits = null;
-        } catch (ShellCommandExecutor.ShellCommandFailedException e) {
+        } catch (ShellCommandExecutor.ShellCommandFailedException | TimeoutException e) {
           if (!isPresent) {
             throw e;
           }

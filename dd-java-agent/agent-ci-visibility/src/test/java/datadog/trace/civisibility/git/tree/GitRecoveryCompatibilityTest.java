@@ -129,19 +129,28 @@ class GitRecoveryCompatibilityTest {
   }
 
   @TableTest({
-    "Scenario     | interruption",
-    "timeout      | false       ",
-    "interruption | true        "
+    "Scenario                  | interruption | fetch | present",
+    "timeout                   | false        | false | true   ",
+    "interruption              | true         | false | true   ",
+    "fetch timeout             | false        | true  | true   ",
+    "absent fetch timeout      | false        | true  | false  ",
+    "fetch interruption        | true         | true  | true   ",
+    "absent fetch interruption | true         | true  | false  "
   })
-  void ancestryCheckDoesNotDiscardLocalMetadataOnTimeout(boolean interruption) throws Exception {
+  void ancestryCheckDoesNotDiscardLocalMetadataOnTimeout(
+      boolean interruption, boolean fetch, boolean present) throws Exception {
     Path checkout = directory.resolve("checkout");
     ShellCommandExecutor command = spy(fixture(checkout));
-    String selected = git(command, "rev-parse", "HEAD");
+    String selected =
+        present ? git(command, "rev-parse", "HEAD") : "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
     Exception failure =
         interruption
             ? new InterruptedException("cancelled")
             : new TimeoutException("ancestry check");
-    doThrow(failure)
+    doThrow(
+            fetch
+                ? new ShellCommandExecutor.ShellCommandFailedException(128, "missing ancestry")
+                : failure)
         .when(command)
         .executeCommand(
             eq(ShellCommandExecutor.OutputParser.IGNORE),
@@ -152,14 +161,16 @@ class GitRecoveryCompatibilityTest {
             eq("--quiet"),
             eq(selected),
             eq("--"));
-    ShellGitClient client = client(checkout, "1 month ago");
+    ShellGitClient client = spy(client(checkout, "1 month ago"));
+    if (fetch) {
+      doThrow(failure).when(client).getRemoteName();
+    }
     Field executor = ShellGitClient.class.getDeclaredField("commandExecutor");
     executor.setAccessible(true);
     executor.set(client, command);
-    if (interruption) {
-      assertEquals(
-          failure,
-          assertThrows(InterruptedException.class, () -> client.getCommitInfo(selected, true)));
+    if (interruption || !present) {
+      Class<? extends Exception> failureType = failure.getClass();
+      assertEquals(failure, assertThrows(failureType, () -> client.getCommitInfo(selected, true)));
     } else {
       assertEquals(selected, client.getCommitInfo(selected, true).getSha());
     }

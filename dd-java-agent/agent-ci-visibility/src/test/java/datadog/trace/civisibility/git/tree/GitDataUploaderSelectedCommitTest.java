@@ -29,6 +29,7 @@ import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.civisibility.utils.ShellCommandExecutor;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -370,6 +371,8 @@ class GitDataUploaderSelectedCommitTest {
     "eager timeout         | false    | timeout     ",
     "deferred command      | true     | command     ",
     "eager command         | false    | command     ",
+    "deferred boundary IO  | true     | io          ",
+    "eager boundary IO     | false    | io          ",
     "deferred interruption | true     | interruption",
     "eager interruption    | false    | interruption"
   })
@@ -387,7 +390,10 @@ class GitDataUploaderSelectedCommitTest {
             ? new TimeoutException("selected fetch timeout")
             : "interruption".equals(failure)
                 ? new InterruptedException("cancelled")
-                : new ShellCommandExecutor.ShellCommandFailedException(128, "selected unavailable");
+                : "io".equals(failure)
+                    ? new IOException("Too many shallow boundaries in recovered Git history")
+                    : new ShellCommandExecutor.ShellCommandFailedException(
+                        128, "selected unavailable");
     doThrow(exception).when(client).fetchSelectedCommit(selected);
     GitRepoUnshallow unshallow = mock(GitRepoUnshallow.class);
     when(unshallow.unshallow()).thenReturn(true);
