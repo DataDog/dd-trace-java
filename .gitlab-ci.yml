@@ -289,6 +289,15 @@ default:
     # GitLab's cache helper restores .gradle as root, but we run as non-root-user (uid 1001),
     # and Gradle does `chmod 700 .gradle` on startup which requires user ownership.
     - sudo chown -R 1001:1001 .gradle
+    # TEMPORARY (PR #13354 cold-cache test, reverted before merge): start each job with an empty
+    # nested Gradle distribution cache, and report whether the GitLab cache restored one.
+    - |
+      if [ -d .gradle/caches/nested-gradle-distributions ]; then
+        echo "PR13354-TEST nested-gradle-distributions restored: $(ls .gradle/caches/nested-gradle-distributions | tr '\n' ' ')"
+      else
+        echo "PR13354-TEST nested-gradle-distributions not restored"
+      fi
+      rm -rf .gradle/caches/nested-gradle-distributions
   after_script:
     - *cgroup_info
     - *container_info
