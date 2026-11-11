@@ -1,7 +1,6 @@
 package datadog.buildlogic.smoketest
 
 import org.gradle.api.GradleException
-import org.gradle.api.logging.Logging
 import java.io.File
 import java.io.IOException
 import java.net.HttpURLConnection
@@ -41,13 +40,11 @@ internal class GradleDistributionCache(
           val installation = entryDirectory.resolve("installation")
           val marker = entryDirectory.resolve("READY")
           if (isReady(marker, installation, distributionUri, gradleVersion)) {
-            logger.lifecycle("Using cached Gradle $gradleVersion installation at $installation")
             installation
           } else {
             entryDirectory.deleteRecursively()
             entryDirectory.mkdirs()
             try {
-              logger.lifecycle("Downloading Gradle $gradleVersion distribution from $distributionUri")
               val expectedChecksum = downloadChecksum(distributionUri)
               val archive = entryDirectory.resolve("distribution.zip.tmp-${UUID.randomUUID()}")
               try {
@@ -60,7 +57,6 @@ internal class GradleDistributionCache(
               marker.writeText(
                 "uri=$distributionUri\nversion=$gradleVersion\nsha256=$expectedChecksum\n",
               )
-              logger.lifecycle("Cached Gradle $gradleVersion installation at $installation")
               installation
             } catch (e: Exception) {
               entryDirectory.deleteRecursively()
@@ -218,7 +214,6 @@ internal class GradleDistributionCache(
   }
 
   companion object {
-    private val logger = Logging.getLogger(GradleDistributionCache::class.java)
     private const val BUFFER_SIZE = 8192
     private const val CONNECT_TIMEOUT_MILLIS = 30_000
     private const val READ_TIMEOUT_MILLIS = 30_000
