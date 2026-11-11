@@ -5126,7 +5126,7 @@
     ],
     "DD_TRACE_AZURE_COSMOS_ANALYTICS_ENABLED": [
       {
-        "version": "A",
+        "version": "B",
         "type": "boolean",
         "default": "false",
         "aliases": ["DD_AZURE_COSMOS_ANALYTICS_ENABLED"]
@@ -5142,7 +5142,7 @@
     ],
     "DD_TRACE_AZURE_COSMOS_ENABLED": [
       {
-        "version": "A",
+        "version": "B",
         "type": "boolean",
         "default": "true",
         "aliases": ["DD_TRACE_INTEGRATION_AZURE_COSMOS_ENABLED", "DD_INTEGRATION_AZURE_COSMOS_ENABLED"]
