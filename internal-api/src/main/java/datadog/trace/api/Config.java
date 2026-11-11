@@ -187,6 +187,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LAMBDA_SNAPSTART_CL
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_OTEL_SDK_SELF_MONITORING_METRICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_OTEL_SEMANTICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_POST_PROCESSING_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_PROPAGATION_BEHAVIOR_EXTRACT;
@@ -517,6 +518,7 @@ import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_HEADERS;
 import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_PROTOCOL;
 import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_TIMEOUT;
 import static datadog.trace.api.config.OtlpConfig.TRACE_OTEL_EXPORTER;
+import static datadog.trace.api.config.OtlpConfig.TRACE_OTEL_SDK_SELF_MONITORING_METRICS_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_AGENTLESS;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_AGENTLESS_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_FILE_OLD;
@@ -1033,6 +1035,7 @@ public class Config {
   private final int metricsOtelTimeout;
   private final int metricsOtelCardinalityLimit;
   private final boolean metricsOtelExperimentalEnabled;
+  private final boolean traceOtelSdkSelfMonitoringMetricsEnabled;
   private final String otlpMetricsEndpoint;
   private final Map<String, String> otlpMetricsHeaders;
   private final OtlpConfig.Protocol otlpMetricsProtocol;
@@ -2211,6 +2214,11 @@ public class Config {
     metricsOtelExperimentalEnabled =
         configProvider.getBoolean(
             METRICS_OTEL_EXPERIMENTAL_ENABLED, DEFAULT_METRICS_OTEL_EXPERIMENTAL_ENABLED);
+
+    traceOtelSdkSelfMonitoringMetricsEnabled =
+        configProvider.getBoolean(
+            TRACE_OTEL_SDK_SELF_MONITORING_METRICS_ENABLED,
+            DEFAULT_TRACE_OTEL_SDK_SELF_MONITORING_METRICS_ENABLED);
 
     // keep OTLP default timeout below the overall export timeout
     int defaultOtlpMetricsTimeout = Math.min(metricsOtelTimeout, DEFAULT_METRICS_OTEL_TIMEOUT);
@@ -5939,6 +5947,27 @@ public class Config {
     return metricsOtelExperimentalEnabled;
   }
 
+  /**
+   * Raw value of {@code trace.otel.sdk.self.monitoring.metrics.enabled}; see {@link
+   * #isOtelSdkSelfMonitoringMetricsActive()}.
+   */
+  public boolean isTraceOtelSdkSelfMonitoringMetricsEnabled() {
+    return traceOtelSdkSelfMonitoringMetricsEnabled;
+  }
+
+  /**
+   * Whether OTel SDK self-monitoring metrics ({@code otel.sdk.*}, Development stability) should be
+   * emitted through the OTLP metrics pipeline. Requires OTel metrics with the OTLP exporter,
+   * experimental OTel metrics, and the opt-in flag. Independent of {@link
+   * #isHealthMetricsEnabled()} and runtime metrics.
+   */
+  public boolean isOtelSdkSelfMonitoringMetricsActive() {
+    return isMetricsOtelEnabled()
+        && isMetricsOtlpExporterEnabled()
+        && metricsOtelExperimentalEnabled
+        && traceOtelSdkSelfMonitoringMetricsEnabled;
+  }
+
   public int getMetricsOtelCardinalityLimit() {
     return metricsOtelCardinalityLimit;
   }
@@ -7203,6 +7232,8 @@ public class Config {
         + metricsOtelCardinalityLimit
         + ", metricsOtelExperimentalEnabled="
         + metricsOtelExperimentalEnabled
+        + ", traceOtelSdkSelfMonitoringMetricsEnabled="
+        + traceOtelSdkSelfMonitoringMetricsEnabled
         + ", otlpMetricsEndpoint="
         + otlpMetricsEndpoint
         + ", otlpMetricsHeaders="
