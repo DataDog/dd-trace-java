@@ -5947,10 +5947,6 @@ public class Config {
     return metricsOtelExperimentalEnabled;
   }
 
-  /**
-   * Raw value of {@code trace.otel.sdk.self.monitoring.metrics.enabled}; see {@link
-   * #isOtelSdkSelfMonitoringMetricsActive()}.
-   */
   public boolean isTraceOtelSdkSelfMonitoringMetricsEnabled() {
     return traceOtelSdkSelfMonitoringMetricsEnabled;
   }
