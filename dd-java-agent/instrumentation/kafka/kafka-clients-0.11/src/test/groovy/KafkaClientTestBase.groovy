@@ -1247,7 +1247,8 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
         "$InstrumentationTags.MESSAGING_DESTINATION_NAME" "$SHARED_TOPIC"
         "$InstrumentationTags.PARTITION" { it >= 0 }
         "$InstrumentationTags.OFFSET" { it >= 0 }
-        "$InstrumentationTags.KAFKA_CLUSTER_ID" { String }
+        // a real check: { String } also passes when the tag is missing
+        "$InstrumentationTags.KAFKA_CLUSTER_ID" { it instanceof String && !it.isEmpty() }
         if (tombstone) {
           "$InstrumentationTags.TOMBSTONE" true
         }

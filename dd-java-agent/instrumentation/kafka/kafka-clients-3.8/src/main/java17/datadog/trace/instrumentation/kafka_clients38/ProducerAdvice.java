@@ -63,7 +63,8 @@ public class ProducerAdvice {
     PRODUCER_DECORATE.afterStart(span);
     PRODUCER_DECORATE.onProduce(span, record, producerConfig, clusterId);
 
-    callback = new KafkaProducerCallback(callback, callbackParentSpan, span, clusterId);
+    callback =
+        new KafkaProducerCallback(callback, callbackParentSpan, span, clusterId, metadataState);
 
     if (record.value() == null) {
       span.setTag(TOMBSTONE, true);
