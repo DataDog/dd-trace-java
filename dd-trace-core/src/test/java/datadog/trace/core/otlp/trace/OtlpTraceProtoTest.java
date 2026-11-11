@@ -1554,7 +1554,7 @@ class OtlpTraceProtoTest {
                 + "]");
         continue;
       }
-      long id = KnownTagCodec.keyOf(key);
+      long id = KnownTagCodec.idOf(key);
       String otelName = id != 0L ? KnownTagCodec.openTelemetryNameOf(id) : null;
       String expected = otelSemanticsEnabled && otelName != null ? otelName : key;
       assertTrue(

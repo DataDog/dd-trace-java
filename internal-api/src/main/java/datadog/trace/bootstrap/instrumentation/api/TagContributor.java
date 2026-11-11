@@ -5,7 +5,7 @@ package datadog.trace.bootstrap.instrumentation.api;
  * external {@code setTag} calls. Implemented by typed POJOs we own whose fields map to known tags
  * (e.g. {@code DbInfo}, git metadata, extracted context). {@code addTo} is a flat sweep of {@code
  * span.setTag(...)}; once id-keyed setters land, it becomes {@code setTag(KnownTags.X, field)}, so
- * it compiles to field-loads + positional stores with no {@code keyOf}.
+ * it compiles to field-loads + positional stores with no {@code idOf}.
  *
  * <p>This is an authoring aid meant to compile to ~zero — the opposite of a Decorator. Apply it at
  * a CONCRETE-type, monomorphic call site (the integration's own advice) so {@code addTo}

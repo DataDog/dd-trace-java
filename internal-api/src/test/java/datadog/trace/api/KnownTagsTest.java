@@ -26,7 +26,7 @@ import org.tabletest.junit.TableTest;
  */
 class KnownTagsTest {
 
-  /** (name, id) pairs across the groups — keyOf returns the id verbatim. */
+  /** (name, id) pairs across the groups — idOf returns the id verbatim. */
   static Stream<Arguments> knownTags() {
     return Stream.of(
         Arguments.of(DDTags.PARENT_ID, KnownTags.DD_PARENT_ID),
@@ -66,7 +66,7 @@ class KnownTagsTest {
   }
 
   /**
-   * (otelName, canonicalId, datadogName) — the OpenTelemetry name resolves (keyOf) to the canonical
+   * (otelName, canonicalId, datadogName) — the OpenTelemetry name resolves (idOf) to the canonical
    * tag's id; datadogNameOf returns the Datadog name and openTelemetryNameOf returns the OTel name.
    */
   static Stream<Arguments> otelNamedTags() {
@@ -110,7 +110,7 @@ class KnownTagsTest {
   @ParameterizedTest
   @MethodSource("knownTags")
   void keyOfResolvesNameToId(String name, long id) {
-    assertEquals(id, KnownTagCodec.keyOf(name), "keyOf(" + name + ")");
+    assertEquals(id, KnownTagCodec.idOf(name), "idOf(" + name + ")");
   }
 
   @ParameterizedTest
@@ -122,9 +122,9 @@ class KnownTagsTest {
   @ParameterizedTest
   @MethodSource("otelNamedTags")
   void otelNameResolvesToCanonicalId(String otelName, long id, String datadogName) {
-    // Inbound (keyOf) is many->one: both names land on the same canonical id.
-    assertEquals(id, KnownTagCodec.keyOf(otelName), "keyOf(" + otelName + ")");
-    assertEquals(id, KnownTagCodec.keyOf(datadogName), "keyOf(" + datadogName + ")");
+    // Inbound (idOf) is many->one: both names land on the same canonical id.
+    assertEquals(id, KnownTagCodec.idOf(otelName), "idOf(" + otelName + ")");
+    assertEquals(id, KnownTagCodec.idOf(datadogName), "idOf(" + datadogName + ")");
   }
 
   @ParameterizedTest
@@ -166,14 +166,14 @@ class KnownTagsTest {
 
   @Test
   void unknownNamesResolveToZero() {
-    assertEquals(0L, KnownTagCodec.keyOf("definitely.not.a.known.tag"));
-    assertEquals(0L, KnownTagCodec.keyOf("http.statuscode")); // close-but-not-listed
-    assertEquals(0L, KnownTagCodec.keyOf(""));
+    assertEquals(0L, KnownTagCodec.idOf("definitely.not.a.known.tag"));
+    assertEquals(0L, KnownTagCodec.idOf("http.statuscode")); // close-but-not-listed
+    assertEquals(0L, KnownTagCodec.idOf(""));
   }
 
   @Test
   void networkPeerAddressIsNotADirectionFreeAliasForClientIp() {
-    assertEquals(0L, KnownTagCodec.keyOf("network.peer.address"));
+    assertEquals(0L, KnownTagCodec.idOf("network.peer.address"));
     assertNull(KnownTagCodec.openTelemetryNameOf(KnownTags.NETWORK_CLIENT_IP));
   }
 
@@ -200,7 +200,7 @@ class KnownTagsTest {
    */
   @Test
   void aNameDeclaredPerDirectionIsOneTag() {
-    assertEquals(KnownTags.PEER_PORT, KnownTagCodec.keyOf(Tags.PEER_PORT));
+    assertEquals(KnownTags.PEER_PORT, KnownTagCodec.idOf(Tags.PEER_PORT));
     assertEquals(Tags.PEER_PORT, KnownTagCodec.nameOf(KnownTags.PEER_PORT));
     assertNull(KnownTagCodec.openTelemetryNameOf(KnownTags.PEER_PORT));
     assertEquals(Tags.PEER_PORT, KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT));
@@ -240,12 +240,12 @@ class KnownTagsTest {
    * applies to {@code test}, which the conventions do not model yet -- so these tags belong to no
    * concrete type's resolved set. They must still be registered: an id is identity, and identity
    * does not depend on layout. Building the registry by resolving concrete types instead dropped
-   * all four silently, leaving keyOf to report live CI Visibility tags as unknown.
+   * all four silently, leaving idOf to report live CI Visibility tags as unknown.
    */
   @ParameterizedTest
   @MethodSource("declarationOnlyMixinTags")
   void mixinTagsAreRegisteredEvenWhenTheirSpanTypeIsNotModeled(String name, long id) {
-    assertEquals(id, KnownTagCodec.keyOf(name), "keyOf(" + name + ")");
+    assertEquals(id, KnownTagCodec.idOf(name), "idOf(" + name + ")");
     assertEquals(name, KnownTagCodec.nameOf(id), "nameOf(" + name + ")");
   }
 
@@ -366,7 +366,7 @@ class KnownTagsTest {
     "Datadog name                | peer.hostname        | 1         |                  "
   })
   void aDirectionScopedNameResolvesByDirection(String name, int direction, String expected) {
-    long tagId = KnownTagCodec.directionalKeyOf(name, direction);
+    long tagId = KnownTagCodec.directionalIdOf(name, direction);
     assertEquals(expected, tagId == 0 ? null : KnownTagCodec.nameOf(tagId));
   }
 
@@ -386,9 +386,9 @@ class KnownTagsTest {
    */
   @Test
   void aSharedNameIsItsOwnTagWithoutADirection() {
-    assertEquals(KnownTags.SERVER_PORT, KnownTagCodec.keyOf("server.port"));
+    assertEquals(KnownTags.SERVER_PORT, KnownTagCodec.idOf("server.port"));
     assertEquals("server.port", KnownTagCodec.nameOf(KnownTags.SERVER_PORT));
-    assertEquals(0L, KnownTagCodec.keyOf("server.address"));
+    assertEquals(0L, KnownTagCodec.idOf("server.address"));
     assertEquals(
         "server.port", KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT, DIRECTION_OUTBOUND));
     assertEquals(

@@ -89,7 +89,7 @@ final class OtlpSpanAttributes {
       return true;
     }
     if (otelSemantics) {
-      long directionalTagId = KnownTagCodec.directionalKeyOf(key, direction);
+      long directionalTagId = KnownTagCodec.directionalIdOf(key, direction);
       return directionalTagId != 0
           && exportsAs(tags.getEntry(directionalTagId), key, direction, true);
     }
