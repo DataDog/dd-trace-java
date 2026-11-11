@@ -78,10 +78,8 @@ mechanism is certain or the severity is catastrophic.
   *aggressively* — a false positive there is cheap insurance against a container kill.
   Flag low-severity CPU-micro *conservatively or not at all* — false positives there
   only erode trust.
-- **Never flag the *absence* of a cache on high-cardinality input.** For open-cardinality
-  data (raw SQL with literals, per-request strings), *not* caching is the correct
-  choice — caching it would be the worse P1. Flag a cache *keyed by* high-cardinality
-  data; never flag the decision not to cache.
+- **Never flag the *absence* of a cache on high-cardinality input.** Not caching is correct
+  there; see "Not when" on #3 in `checks/memory.md`.
 - **A *visibly contestable* perf tradeoff shipped without data → one soft flag-as-measure.**
   The trigger is narrow: the change makes a **visible tradeoff that could itself regress** —
   it removes a lock / guard / synchronization, swaps in a hand-rolled cache or data
