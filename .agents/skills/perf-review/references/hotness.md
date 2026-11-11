@@ -5,11 +5,7 @@ For each changed method, decide *which multiplier applies* before flagging anyth
 
 ## Hotness rubric
 
-The key question when reviewing any code: *is this on a hot path?*
-
-The default answer is yes. The burden of proof runs toward cold. Ask "is there evidence this is
-cold or guarded?" — not "is there evidence this is hot?" (that rationalizes itself into "probably
-not").
+The default answer to "is this on a hot path?" is yes; see "Assume hot" in `posture.md`.
 
 **Hot anchors.** Paths are hot when reachable from:
 - `@Advice.OnMethodEnter` / `@Advice.OnMethodExit` (per-advised-call)
@@ -30,7 +26,6 @@ three helpers deep from an `@Advice` entry is still hot. Trace up before assumin
 Span lifecycle (create / setTag / finish), tag map ops, serialization/encoding, the metrics/stats
 path, decorators, propagation (header read/write). **Multiplier: per-span × spans/request ×
 requests/sec.** A per-span cost is multiplied massively; a per-process/once cost is negligible.
-The AI must reason about *which multiplier applies* before flagging.
 
 ## Domain adjustment
 

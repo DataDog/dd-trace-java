@@ -55,9 +55,9 @@ Then read the check files that apply to the diff:
 | `references/checks/benchmarks.md` | J12 benchmark validity, EA claims over I/O | diff touches `src/jmh/`, or PR text / commits cite benchmark results |
 | `references/remedies.md` | J7, J9, J10, J11 fix routes + toolkit availability; also holds the J7 retention trap and the J9 trigger | always |
 
-Each check reads as: **pattern** — *expensive when (the interprocedural condition to trace)* —
-confidence — severity — fix. J7, J9, J10 and J11 route an *existing* #1/#2/#3 finding to a landed reusable
-fix — they are not new triggers. Don't raise a finding you wouldn't have raised anyway.
+Each check has the same parts: **Flag** (the condition to trace), **Not when** (exceptions that
+keep you silent), **Confidence / level**, **Fix**, and where useful **Why** and an **Example**.
+Apply a check only when its Flag line holds and no Not-when line does.
 
 ## Workflow
 
