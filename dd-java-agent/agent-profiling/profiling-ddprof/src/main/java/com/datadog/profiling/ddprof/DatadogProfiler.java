@@ -465,8 +465,9 @@ public final class DatadogProfiler {
       settings = this.settings;
     }
     boolean started = false;
+    Path recFile = null;
     try {
-      Path recFile = Files.createTempFile(recordingsPath, "dd-profiler-", ".jfr");
+      recFile = Files.createTempFile(recordingsPath, "dd-profiler-", ".jfr");
       String cmd = cmdStartProfiling(settings, orderedContextAttributes, recFile);
       String rslt = executeProfilerCmd(cmd);
       log.debug("DatadogProfiler.execute({}) = {}", cmd, rslt);
@@ -483,6 +484,14 @@ public final class DatadogProfiler {
       if (!started) {
         // allow a later start, possibly with another configuration, whatever the failure was
         recordingFlag.set(false);
+        // don't leave an empty file behind for each failed start
+        if (recFile != null) {
+          try {
+            Files.deleteIfExists(recFile);
+          } catch (IOException ignored) {
+            // best effort
+          }
+        }
       }
     }
   }

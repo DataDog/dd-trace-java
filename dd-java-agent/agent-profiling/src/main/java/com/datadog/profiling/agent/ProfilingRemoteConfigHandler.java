@@ -1,14 +1,20 @@
 package com.datadog.profiling.agent;
 
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_ALLOCATION_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_ENABLED;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 
+import com.datadog.profiling.controller.ProfilingSupport;
 import com.datadog.profiling.controller.ProfilingSystem;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import com.datadog.profiling.ddprof.DatadogProfiler;
+import com.datadog.profiling.ddprof.DatadogProfilerConfig;
 import com.datadog.profiling.remoteconfig.ProfilingConfigHandler;
 import com.datadog.profiling.remoteconfig.ProfilingConfigMerger;
 import com.datadog.profiling.remoteconfig.RemoteConfiguration;
 import com.datadog.profiling.remoteconfig.RemoteConfigurationStack;
+import datadog.environment.JavaVirtualMachine;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.util.Map;
 import java.util.Objects;
@@ -29,6 +35,22 @@ import org.slf4j.LoggerFactory;
  * resulting configuration enables, since that is what the remote features map to. A JFR-only setup
  * is not told apart: it follows the same modes. The modes that remote config doesn't set, like
  * native memory, keep their local value and keep the profiler running if they are enabled.
+ *
+ * <p>Known limitations:
+ *
+ * <ul>
+ *   <li>Only the Datadog profiler is reconfigured. The JFR recording keeps its startup settings, so
+ *       a feature that remote config disables can still be recorded by its JFR events, e.g. {@code
+ *       jdk.ExecutionSample} for {@code cpuTime}.
+ *   <li>On a JVM where the Datadog profiler can't do allocation or live heap profiling, e.g. Java
+ *       8, a configuration that only enables {@code allocations} and/or {@code heapObjects} enables
+ *       no Datadog profiler mode, so it doesn't start the profiler.
+ *   <li>Remote config doesn't enable allocation or live heap profiling where they are not
+ *       considered safe, see {@link #dropUnsafeEnablement}: a remote {@code true} is ignored there.
+ *   <li>Wall clock profiling only samples the threads registered while tracing, which only happens
+ *       when it was enabled locally at startup: enabling it remotely otherwise gives an empty wall
+ *       clock profile, which is logged.
+ * </ul>
  *
  * <p>Stopping a running profiler uploads what it recorded since its last snapshot first. That
  * upload is synchronous, so it holds up the remote config thread for at most the upload timeout.
@@ -162,7 +184,10 @@ final class ProfilingRemoteConfigHandler implements ProfilingConfigHandler {
       enabled = runWithLocalConfig;
     } else {
       log.debug("Applying APM_PROFILING remote config: {}", remote);
-      config = remoteConfigFactory.apply(remote.toConfigValues());
+      final Map<String, String> values = remote.toConfigValues();
+      dropUnsafeEnablement(values);
+      warnIfWallClockCantSample(remote);
+      config = remoteConfigFactory.apply(values);
       // the features that the remote config doesn't set keep their local value
       enabled = anyProfilingEnabled.test(config);
     }
@@ -212,6 +237,43 @@ final class ProfilingRemoteConfigHandler implements ProfilingConfigHandler {
       // last applied configuration anymore: apply the next one even if it is the same
       stateKnown = false;
       log.warn(SEND_TELEMETRY, "Failed to apply APM_PROFILING remote config", e);
+    }
+  }
+
+  /**
+   * Removes the remote enablement of allocation and live heap profiling on a JVM where they are not
+   * considered safe, e.g. because of jmethodID crash bugs, so that the local default applies there.
+   * An explicit local opt-in is still honored, as the local configuration decides. Disabling them
+   * is always allowed.
+   */
+  static void dropUnsafeEnablement(Map<String, String> values) {
+    // the JVMTI allocation sampler that both rely on is only available since Java 11
+    final boolean samplerSafe =
+        JavaVirtualMachine.isJavaVersionAtLeast(11) && ProfilingSupport.isJmethodIDSafe();
+    if (!samplerSafe) {
+      dropEnablement(values, PROFILING_ALLOCATION_ENABLED);
+      dropEnablement(values, PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED);
+    }
+    if (!ProfilingSupport.isLiveHeapProfilingSafe()) {
+      dropEnablement(values, PROFILING_HEAP_ENABLED);
+    }
+  }
+
+  private static void dropEnablement(Map<String, String> values, String key) {
+    if ("true".equals(values.get(key))) {
+      values.remove(key);
+      log.debug("Ignoring the remote enablement of {}, which is not safe on this JVM", key);
+    }
+  }
+
+  // the threads are only registered for wall clock profiling when it is enabled at startup
+  private void warnIfWallClockCantSample(RemoteConfiguration remote) {
+    if (Boolean.TRUE.equals(remote.get(RemoteConfiguration.Feature.WALL_TIME))
+        && !DatadogProfilerConfig.isWallClockProfilerEnabled(localConfig)) {
+      log.warn(
+          "Remote config enables wall clock profiling, which was disabled at startup: no thread is"
+              + " registered for it, so the wall clock profile will be empty until the application"
+              + " is restarted with it enabled");
     }
   }
 

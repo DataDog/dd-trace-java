@@ -6,8 +6,6 @@ package com.datadog.profiling.remoteconfig;
  */
 @FunctionalInterface
 public interface ProfilingConfigHandler {
-  ProfilingConfigHandler NOOP = stack -> {};
-
   /**
    * @param stack a snapshot of the stack, that the poller doesn't change afterwards; empty when all
    *     configs have been removed

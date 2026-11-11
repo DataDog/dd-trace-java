@@ -74,7 +74,12 @@ public final class ProfilingSystem {
   // set when a start didn't give a recording, e.g. on the scheduler thread after a delay
   private volatile boolean startFailed = false;
   // terminal: a shut down system can't be started again
-  private boolean closed = false;
+  private volatile boolean closed = false;
+  // set while stop() runs, so that shutdown() doesn't wait behind its final snapshot upload
+  private volatile boolean stopping = false;
+  // guards publishing the recording on the scheduler thread against stop() taking it away, since
+  // stop() only waits a bounded time for that thread
+  private final Object recordingLock = new Object();
 
   /**
    * Constructor.
@@ -226,19 +231,23 @@ public final class ProfilingSystem {
     try {
       final Instant now = Instant.now();
       final OngoingRecording recording = controller.createRecording(RECORDING_NAME, context);
-      if (scheduler.isShutdown()) {
-        // stopped while the recording was being created
-        stopRecording(recording);
-        return;
+      synchronized (recordingLock) {
+        // stop() marks the scheduler as shut down before it takes the recording, under this lock,
+        // so a recording is either published before stop() takes it, or stopped here
+        if (scheduler.isShutdown()) {
+          // stopped while the recording was being created
+          stopRecording(recording);
+          return;
+        }
+        this.recording = recording;
+        scheduler.scheduleAtFixedRate(
+            SnapshotRecording::snapshot,
+            snapshotRecording = createSnapshotRecording(now),
+            uploadPeriod.toMillis(),
+            uploadPeriod.toMillis(),
+            TimeUnit.MILLISECONDS);
+        started = true;
       }
-      this.recording = recording;
-      scheduler.scheduleAtFixedRate(
-          SnapshotRecording::snapshot,
-          snapshotRecording = createSnapshotRecording(now),
-          uploadPeriod.toMillis(),
-          uploadPeriod.toMillis(),
-          TimeUnit.MILLISECONDS);
-      started = true;
     } catch (UnsupportedEnvironmentException unsupported) {
       startFailed = !scheduler.isShutdown();
       ProfilerFlareLogger.getInstance()
@@ -307,11 +316,22 @@ public final class ProfilingSystem {
    * again. Unlike {@code stop}, it only closes the recording, which is all that a system that won't
    * be restarted needs, and is cheaper in a shutdown hook.
    *
+   * <p>If a stop is already in progress, e.g. one triggered by remote config that is uploading its
+   * final snapshot, it returns right away and lets that stop finish, instead of holding up JVM
+   * shutdown until the upload is done.
+   *
    * @param snapshot whether to take a last snapshot before stopping
    */
-  public synchronized void shutdown(boolean snapshot) {
+  public void shutdown(boolean snapshot) {
+    // set before taking the lock, so that a start racing with the in-progress stop is refused
     closed = true;
-    stop(snapshot, false);
+    if (stopping) {
+      log.debug("Profiling system is already stopping, not waiting for it to shut down");
+      return;
+    }
+    synchronized (this) {
+      stop(snapshot, false);
+    }
   }
 
   private void stop(boolean snapshot, boolean restartable) {
@@ -320,28 +340,36 @@ public final class ProfilingSystem {
     if (scheduler == null) {
       return;
     }
-    this.scheduler = null;
-    scheduler.shutdown(TERMINATION_TIMEOUT, TimeUnit.SECONDS);
+    stopping = true;
+    try {
+      this.scheduler = null;
+      scheduler.shutdown(TERMINATION_TIMEOUT, TimeUnit.SECONDS);
 
-    // Here we assume that the scheduler thread has terminated and we can stop the running
-    // recording
-    final SnapshotRecording snapshotRecording = this.snapshotRecording;
-    this.snapshotRecording = null;
-    if (snapshot && snapshotRecording != null) {
-      snapshotRecording.snapshot(true);
-    }
-
-    final OngoingRecording recording = this.recording;
-    this.recording = null;
-    if (recording != null) {
-      if (restartable) {
-        stopRecording(recording);
-      } else {
-        recording.close();
+      // the scheduler is shut down, so after this the scheduler thread can't publish a recording,
+      // even if it didn't terminate in time
+      final SnapshotRecording snapshotRecording;
+      synchronized (recordingLock) {
+        snapshotRecording = this.snapshotRecording;
+        this.snapshotRecording = null;
       }
-    }
+      if (snapshot && snapshotRecording != null) {
+        // reads this.recording, so it is cleared only after the snapshot
+        snapshotRecording.snapshot(true);
+      }
 
-    started = false;
+      final OngoingRecording recording = this.recording;
+      this.recording = null;
+      started = false;
+      if (recording != null) {
+        if (restartable) {
+          stopRecording(recording);
+        } else {
+          recording.close();
+        }
+      }
+    } finally {
+      stopping = false;
+    }
   }
 
   private static void stopRecording(final OngoingRecording recording) {
@@ -361,6 +389,10 @@ public final class ProfilingSystem {
   /**
    * Applies a new configuration to the profiler(s), used from the next {@link #start()}. The
    * profiler(s) are initialized first if needed.
+   *
+   * <p>Only the profilers whose controller supports it take the new configuration, which is the
+   * Datadog profiler for now: the JFR recording keeps its startup settings, except for the events
+   * that the Datadog profiler takes over, as told by the refreshed context.
    *
    * @param configProvider the new configuration
    * @throws UnsupportedEnvironmentException if no profiler is supported in this environment

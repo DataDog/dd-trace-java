@@ -7,6 +7,7 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILE
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_ENABLED;
 import static java.util.Collections.unmodifiableMap;
 
+import datadog.trace.api.internal.VisibleForTesting;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.HashMap;
@@ -75,6 +76,7 @@ public final class RemoteConfiguration {
    * tell a payload that is not a profiling config from one that sets no feature: both give {@link
    * #EMPTY}.
    */
+  @VisibleForTesting
   public static RemoteConfiguration parse(String json) {
     List<String> problems = new ArrayList<>();
     Map<String, Object> payload = ApmProfilingPayload.read(json, problems);

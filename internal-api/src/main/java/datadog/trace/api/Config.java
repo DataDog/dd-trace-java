@@ -2439,6 +2439,7 @@ public class Config {
     // on whether
     // the profiler was enabled at build time or not.
     // Otherwise just do the standard config lookup by key.
+    // An extra step is needed to properly handle the 'auto' value for profiling enablement via SSI.
     String value =
         configProvider.getString(
             ProfilingConfig.PROFILING_ENABLED,
@@ -2492,7 +2493,8 @@ public class Config {
         configProvider.getInteger(PROFILING_START_DELAY, PROFILING_START_DELAY_DEFAULT);
     boolean profilingStartForceFirstValue =
         configProvider.getBoolean(PROFILING_START_FORCE_FIRST, PROFILING_START_FORCE_FIRST_DEFAULT);
-    if (profilingEnabled == ProfilingEnablement.INJECTED) {
+    if (profilingEnabled == ProfilingEnablement.AUTO
+        || profilingEnabled == ProfilingEnablement.INJECTED) {
       if (profilingStartDelayValue != PROFILING_START_DELAY_DEFAULT) {
         log.info(
             "Profiling start delay is set to {}s, but profiling enablement is set to auto. Using the default delay of {}s.",

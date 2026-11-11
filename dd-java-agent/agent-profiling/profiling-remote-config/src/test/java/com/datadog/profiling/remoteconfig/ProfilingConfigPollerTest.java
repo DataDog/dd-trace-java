@@ -63,6 +63,7 @@ class ProfilingConfigPollerTest {
   @TableTest({
     "Scenario | Enablement | Expected",
     "armed    | ARMED      | true    ",
+    "auto     | AUTO       | false   ",
     "enabled  | ENABLED    | false   ",
     "injected | INJECTED   | false   ",
     "disabled | DISABLED   | false   "
@@ -339,12 +340,6 @@ class ProfilingConfigPollerTest {
 
     verify(poller).removeListeners(Product.APM_PROFILING);
     verify(poller, never()).stop();
-  }
-
-  @Test
-  void noopHandlerAcceptsConfigs() {
-    assertDoesNotThrow(
-        () -> ProfilingConfigHandler.NOOP.onConfigsChanged(new RemoteConfigurationStack()));
   }
 
   private ProductListener startAndCaptureListener() {

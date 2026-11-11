@@ -1,5 +1,6 @@
 package com.datadog.profiling.remoteconfig;
 
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.util.TagsHelper;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -98,7 +99,8 @@ public final class ProfilingConfigTargets {
         level = Math.max(level, tagLevel(tag));
       }
       int conditions = (service != null ? 1 : 0) + (env != null ? 1 : 0) + tags.size();
-      return level * CONDITIONS_PER_LEVEL + conditions;
+      // clamped, so that no number of conditions reaches the next level
+      return level * CONDITIONS_PER_LEVEL + Math.min(conditions, CONDITIONS_PER_LEVEL - 1);
     }
   }
 
@@ -148,7 +150,8 @@ public final class ProfilingConfigTargets {
    *
    * @return {@link #DROPPED} if the payload is dropped
    */
-  public static int rank(String json, String env, String service) {
+  @VisibleForTesting
+  static int rank(String json, String env, String service) {
     return rank(json, env, service, new ArrayList<>());
   }
 

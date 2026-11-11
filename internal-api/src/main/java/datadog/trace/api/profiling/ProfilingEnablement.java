@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 public enum ProfilingEnablement {
   ENABLED(true, "manual"),
   DISABLED(false),
+  AUTO(true),
   INJECTED(true),
   ARMED(true);
 
@@ -55,6 +56,8 @@ public enum ProfilingEnablement {
       case "true":
       case "1":
         return ENABLED;
+      case "auto":
+        return AUTO;
       case "armed":
         return ARMED;
       default:
@@ -69,6 +72,7 @@ public enum ProfilingEnablement {
     switch (value.toLowerCase()) {
       case "false":
       case "true":
+      case "auto":
       case "armed":
         return;
       // values 1 and 0 are accepted for backwards compatibility
@@ -77,7 +81,7 @@ public enum ProfilingEnablement {
         return;
       default:
         logger.warn(
-            "Invalid value for 'dd.profiling.enabled' (DD_PROFILING_ENABLED) detected: {}. Valid values are 'true', 'false' and 'armed'.",
+            "Invalid value for 'dd.profiling.enabled' (DD_PROFILING_ENABLED) detected: {}. Valid values are 'true', 'false', 'auto' and 'armed'.",
             value);
     }
   }
