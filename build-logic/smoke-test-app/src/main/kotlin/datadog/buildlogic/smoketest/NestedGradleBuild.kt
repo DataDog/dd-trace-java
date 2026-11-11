@@ -57,6 +57,11 @@ abstract class NestedGradleBuild @Inject constructor(
     gradleDistributionBaseUrl.convention(
       project.providers.environmentVariable(MASS_READ_URL_ENV),
     )
+    gradleDistributionCacheDir.convention(
+      objects.directoryProperty().fileValue(
+        project.gradle.gradleUserHomeDir.resolve("caches/nested-gradle-distributions"),
+      ),
+    )
     initScripts.convention(emptyList())
     gradleProperties.convention(emptyMap())
     mavenRepositoryProxy.convention(
@@ -94,6 +99,10 @@ abstract class NestedGradleBuild @Inject constructor(
   @get:Input
   @get:Optional
   abstract val gradleDistributionBaseUrl: Property<String>
+
+  /** Shared cache of verified Gradle distributions; defaults to the outer Gradle user home. */
+  @get:Internal
+  abstract val gradleDistributionCacheDir: DirectoryProperty
 
   @get:Input
   abstract val initScripts: ListProperty<String>
@@ -192,7 +201,7 @@ abstract class NestedGradleBuild @Inject constructor(
       distributionBaseUrl?.takeIf { it.isNotBlank() }?.let { baseUrl ->
         val distributionUri = gradleDistributionUri(baseUrl, gradleVersion.get())
         GradleDistributionCache(
-          project.gradle.gradleUserHomeDir.resolve("caches/nested-gradle-distributions"),
+          gradleDistributionCacheDir.get().asFile,
         ).getInstallation(distributionUri, gradleVersion.get())
       }
     val declaredProperties = gradleProperties.get()
