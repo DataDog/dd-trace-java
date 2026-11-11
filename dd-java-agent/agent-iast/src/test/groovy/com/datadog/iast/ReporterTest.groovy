@@ -231,7 +231,7 @@ class ReporterTest extends DDSpecification {
     then:
     noExceptionThrown()
     1 * tracerAPI.startSpan('iast', 'vulnerability', _ as AgentSpanContext) >> span
-    1 * tracerAPI.activateManualSpan(span) >> scope
+    1 * tracerAPI.activateSpan(span) >> scope
     1 * span.getRequestContext() >> reqCtx
     1 * span.setSpanType(InternalSpanTypes.VULNERABILITY) >> span
     1 * span.setTag(ANALYZED.key(), ANALYZED.value())

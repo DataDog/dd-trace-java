@@ -3,10 +3,15 @@ package datadog.trace.api.git;
 import static datadog.trace.api.git.RawParseUtils.decode;
 import static datadog.trace.api.git.RawParseUtils.nextLF;
 
+import datadog.environment.OperatingSystem;
+import datadog.environment.SystemProperties;
 import datadog.trace.util.Strings;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URI;
+import java.nio.ByteBuffer;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.regex.Pattern;
 import java.util.zip.DataFormatException;
@@ -44,6 +49,35 @@ public class GitUtils {
   private static final int FULL_SHA_LENGTH = 40;
 
   private static final Logger log = LoggerFactory.getLogger(GitUtils.class);
+
+  /** Charset for Git filesystem paths: UTF-8 on Windows, the JDK filesystem charset elsewhere. */
+  public static Charset getFilesystemCharset() {
+    if (OperatingSystem.isWindows()) {
+      // Git for Windows translates native Unicode paths to UTF-8.
+      return StandardCharsets.UTF_8;
+    }
+    // Git's log encoding does not govern pathnames; use the charset Path uses to access names.
+    // macOS keeps sun.jnu.encoding=UTF-8 even when LC_ALL=C makes native.encoding ASCII.
+    String encoding = SystemProperties.get("sun.jnu.encoding");
+    if (encoding != null) {
+      try {
+        return Charset.forName(encoding);
+      } catch (IllegalArgumentException ignored) {
+      }
+    }
+    return OperatingSystem.nativeCharset();
+  }
+
+  /** Decode valid UTF-8 metadata first, falling back to the host charset for legacy bytes. */
+  public static String decodeMetadata(byte[] bytes) {
+    // Stored refs and config text can remain UTF-8 under an ASCII host locale. Prefer valid UTF-8
+    // for display, then try the host charset for legacy bytes such as Latin-1 or Windows-1252.
+    try {
+      return StandardCharsets.UTF_8.newDecoder().decode(ByteBuffer.wrap(bytes)).toString();
+    } catch (CharacterCodingException e) {
+      return new String(bytes, OperatingSystem.nativeCharset());
+    }
+  }
 
   /**
    * Normalizes Git tag references:

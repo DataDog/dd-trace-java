@@ -1,5 +1,9 @@
 # How to Test
 
+Write new tests in Java with JUnit 5, including instrumentation and smoke tests. Maintain existing Groovy/Spock tests
+as needed. The [Groovy enforcement workflow](../.github/workflows/enforce-groovy-migration.yaml) rejects new `.groovy`
+files unless the pull request has the `tag: override groovy enforcement` label.
+
 For JUnit test authoring, see the [JUnit testing guide](how_to_test_with_junit.md).
 Prefer `@TableTest` for parameterized tests with multi-column literal data. When a simple `@TypeConverter` can turn
 table values into the required arguments, prefer it over switching to `@MethodSource`. Use `@MethodSource` for cases
@@ -12,16 +16,13 @@ The project leverages different types of tests:
 1. The most common ones are **unit tests**.  
    They are intended to test a single isolated feature, and rely
    on [JUnit 5 framework](https://junit.org/junit5/docs/current/user-guide/)
-   or [Spock 2 framework](https://spockframework.org/spock/docs/).
-  * JUnit framework is recommended for most unit tests for its simplicity and performance reasons.
-  * Spock framework provides an alternative for more complex test scenarios, or tests that require Groovy Script to
-    access data outside their scope limitation (eg private fields).
+   or, for existing tests, [Spock 2 framework](https://spockframework.org/spock/docs/).
 
 2. A variant of unit tests is **instrumented tests**.  
    Their purpose is similar to unit tests, but the tested code is instrumented by the java agent
    (`:dd-trace-java:java-agent`) while running.
-   They extend the Spock specification `datadog.trace.agent.test.InstrumentationSpecification` which produces traces and
-   metrics for testing.
+   JUnit tests extend [AbstractInstrumentationTest](how_to_test_with_junit.md#instrumentation-tests-with-abstractinstrumentationtest).
+   Existing Spock tests extend `datadog.trace.agent.test.InstrumentationSpecification`.
    Instrumentation test harnesses always use strict trace writes so unfinished asynchronous work fails visibly instead
    of producing an incomplete trace.
 
@@ -350,10 +351,10 @@ option to the Gradle task:
 * `-PtestJvm=X` like `-PtestJvm=8`, `-PtestJvm=25` to run with a specific JDK version,
 * `-PtestJvm=/path/to/jdk` to run with a given JDK,
 
-To also run CI tests on the additional vendor and pre-release JVMs, include the exact, case-sensitive
-`[ci: NON_DEFAULT_JVMS]` text in the commit message. By default, CI runs amd64 tests only.
+To also run CI tests on the additional vendor and pre-release JVMs, include the case-sensitive
+`[ci: NON_DEFAULT_JVMS]` option in the commit message. By default, CI runs amd64 tests only.
 
-On pull requests, arm64 tests are manual jobs. To run them on CI, include one of the following exact, case-sensitive
+On pull requests, arm64 tests are manual jobs. To run them on CI, include one of the following case-sensitive
 texts in the commit message:
 
 * `[ci: ARM64]` to run them on the default arm64 JVMs.
@@ -391,7 +392,8 @@ Read more about [the APM Test Agent](https://github.com/datadog/dd-apm-test-agen
 ### Forwarding CI Test Logs to Datadog
 
 Test output remains available in GitLab job artifacts. To also forward JUnit-captured output to Datadog, include the
-exact, case-sensitive `[ci: DEBUG_LOGS]` token in the commit message or set the GitLab CI variable
+case-sensitive `[ci: DEBUG_LOGS]` option in the commit message or set the GitLab CI variable
 `DD_CIVISIBILITY_LOGS_ENABLED=true`.
+You can combine it with other CI options, for example `[ci: ARM64, DEBUG_LOGS]`.
 
 The opt-in forwards all JUnit-captured output, not only DEBUG messages.

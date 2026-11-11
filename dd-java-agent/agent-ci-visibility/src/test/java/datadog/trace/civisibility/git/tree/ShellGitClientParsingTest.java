@@ -71,7 +71,9 @@ class ShellGitClientParsingTest {
                 return RETURNS_DEFAULTS.answer(invocation);
               }
               if (commands.getAndIncrement() == 0 && backendExclusions) {
-                return includedRoots;
+                List<String> parents = new ArrayList<>(includedRoots);
+                parents.add("ffffffffffffffffffffffffffffffffffffffff");
+                return parents;
               }
               return singletonList("object-hash");
             });
@@ -147,11 +149,13 @@ class ShellGitClientParsingTest {
   }
 
   @TableTest({
-    "Scenario   | objects",
-    "history    | false  ",
-    "pack roots | true   "
+    "Scenario         | objects | incremental",
+    "history          | false   | false      ",
+    "pack roots       | true    | false      ",
+    "incremental pack | true    | true       "
   })
-  void cappedWalkDoesNotReadTheEntirePackedHistory(boolean objects) throws Exception {
+  void cappedWalkDoesNotReadTheEntirePackedHistory(boolean objects, boolean incremental)
+      throws Exception {
     // Repacking on older Git requires the fixture's remote HEAD to resolve to an object.
     git(command, "update-ref", "refs/remotes/origin/HEAD", "HEAD");
     StringBuilder input = new StringBuilder();
@@ -180,6 +184,9 @@ class ShellGitClientParsingTest {
     git(command, "repack", "-ad");
     git(command, "config", "core.commitGraph", "false");
     String selected = git(command, "rev-parse", "refs/heads/long");
+    if (incremental) {
+      known = git(command, "rev-parse", selected + "^");
+    }
     Path trace = checkout.resolve("object-reads.trace");
     ShellGitClient bounded =
         new ShellGitClient(
@@ -190,10 +197,10 @@ class ShellGitClientParsingTest {
         bounded,
         new ShellCommandExecutor(
             checkout.toFile(), 10_000, singletonMap("GIT_TRACE_PACK_ACCESS", trace.toString())));
+    List<String> excluded = singletonList(known);
+    List<String> included = singletonList(selected);
     List<String> result =
-        objects
-            ? bounded.getObjects(singletonList(known), singletonList(selected))
-            : bounded.getLatestCommits(selected);
+        objects ? bounded.getObjects(excluded, included) : bounded.getLatestCommits(selected);
     assertTrue(result.contains(selected));
     int reads = Files.readAllLines(trace).size();
     assertTrue(

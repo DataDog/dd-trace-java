@@ -78,6 +78,7 @@ import java.util.function.Supplier;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import javax.annotation.Nonnull;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -90,6 +91,13 @@ public class LogProbeTest {
   private static final ProbeId PROBE_ID = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f8", 0);
   private static final String DEBUG_SESSION_ID = "TestSession";
   private static final int BUDGET_RUNS = 1100;
+
+  private final List<TracerAPI> tracers = new ArrayList<>();
+
+  @AfterEach
+  void closeTracers() {
+    tracers.forEach(TracerAPI::close);
+  }
 
   @Test
   public void testCapture() {
@@ -398,6 +406,7 @@ public class LogProbeTest {
               .idGenerationStrategy(IdGenerationStrategy.fromName("random"))
               .build();
       AgentTracer.registerIfAbsent(tracer);
+      tracers.add(tracer);
       String sessionId = "12345";
 
       Result result = getResult(tracer, sessionId, true, null);
@@ -444,7 +453,7 @@ public class LogProbeTest {
     if (sessionId != null) {
       span.setTag(Tags.PROPAGATED_DEBUG, sessionId + ":1");
     }
-    try (ContextScope scope = tracer.activateManualSpan(span)) {
+    try (ContextScope scope = tracer.activateSpan(span)) {
       Builder builder =
           createLog("Budget testing").probeId(ProbeId.newId()).captureSnapshot(captureSnapshot);
       if (sessionId != null) {
@@ -484,8 +493,9 @@ public class LogProbeTest {
     TracerAPI tracer =
         CoreTracer.builder().idGenerationStrategy(IdGenerationStrategy.fromName("random")).build();
     AgentTracer.registerIfAbsent(tracer);
+    tracers.add(tracer);
     AgentSpan span = tracer.startSpan("log probe debug session testing", "test span");
-    try (ContextScope scope = tracer.activateManualSpan(span)) {
+    try (ContextScope scope = tracer.activateSpan(span)) {
       if (status == DebugSessionStatus.ACTIVE) {
         span.setTag(Tags.PROPAGATED_DEBUG, DEBUG_SESSION_ID + ":1");
       } else if (status == DebugSessionStatus.DISABLED) {
@@ -653,8 +663,9 @@ public class LogProbeTest {
     TracerAPI tracer =
         CoreTracer.builder().idGenerationStrategy(IdGenerationStrategy.fromName("random")).build();
     AgentTracer.registerIfAbsent(tracer);
+    tracers.add(tracer);
     AgentSpan span = tracer.startSpan("log probe capture expression testing", "test span");
-    try (ContextScope scope = tracer.activateManualSpan(span)) {
+    try (ContextScope scope = tracer.activateSpan(span)) {
       span.setTag(Tags.PROPAGATED_DEBUG, DEBUG_SESSION_ID + ":1");
       // the probe sampler always rejects: the active session decision must still win
       ProbeRateLimiter.setSamplerSupplier(rate -> new ConstantSampler(false));
@@ -696,8 +707,9 @@ public class LogProbeTest {
     TracerAPI tracer =
         CoreTracer.builder().idGenerationStrategy(IdGenerationStrategy.fromName("random")).build();
     AgentTracer.registerIfAbsent(tracer);
+    tracers.add(tracer);
     AgentSpan span = tracer.startSpan("coordinated sampling debug session testing", "test span");
-    try (ContextScope scope = tracer.activateManualSpan(span)) {
+    try (ContextScope scope = tracer.activateSpan(span)) {
       // every real sampling decision drops, so the first full-snapshot probe caches a DROP
       // decision for the whole trace before any debug session is active.
       ProbeRateLimiter.setSamplerSupplier(rate -> new ConstantSampler(false));

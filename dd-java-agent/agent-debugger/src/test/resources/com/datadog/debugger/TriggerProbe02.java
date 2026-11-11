@@ -12,7 +12,7 @@ public class TriggerProbe02 {
 
   public static int main(Integer value) throws ReflectiveOperationException {
     AgentSpan span = newSpan("main");
-    ContextScope scope = tracerAPI.activateManualSpan(span);
+    ContextScope scope = tracerAPI.activateSpan(span);
 
     fullTrace(value);
 
@@ -24,7 +24,7 @@ public class TriggerProbe02 {
 
   private static void fullTrace(int value) throws NoSuchMethodException {
     AgentSpan span = newSpan("entry");
-    ContextScope scope = tracerAPI.activateManualSpan(span);
+    ContextScope scope = tracerAPI.activateSpan(span);
     entry(value);
     span.finish();
     scope.close();

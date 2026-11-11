@@ -6,6 +6,7 @@ import static datadog.trace.util.Strings.getInternalName;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.ContextStores;
 import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.util.Strings;
 import java.util.Map;
 import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.field.FieldDescription;
@@ -138,7 +139,7 @@ public final class FieldBackedContextRequestRewriter implements AsmVisitorWrappe
                 }
                 if (!contextClassName.equals(contextStore.get(keyClassName))) {
                   throw new IllegalStateException(
-                      String.format(
+                      Strings.format(
                           "Incorrect Context Api Usage detected. Incorrect context class %s, expected %s for instrumentation %s",
                           contextClassName, contextStore.get(keyClassName), instrumenterClassName));
                 }

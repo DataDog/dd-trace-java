@@ -120,17 +120,23 @@ public abstract class RateSamplingRule {
   public static final class SpanSamplingRule extends RateSamplingRule {
     private final Matcher serviceMatcher;
     private final Matcher operationMatcher;
+    private final Matcher resourceMatcher;
+    private final TagsMatcher tagsMatcher;
     private final SimpleRateLimiter rateLimiter;
 
     public SpanSamplingRule(
         final String serviceName,
         final String operationName,
+        final String resourceName,
+        final Map<String, String> tags,
         final RateSampler sampler,
         final SimpleRateLimiter rateLimiter) {
       super(sampler);
 
       serviceMatcher = Matchers.compileGlob(serviceName);
       operationMatcher = Matchers.compileGlob(operationName);
+      resourceMatcher = Matchers.compileGlob(resourceName);
+      tagsMatcher = TagsMatcher.create(tags);
 
       this.rateLimiter = rateLimiter;
     }
@@ -138,7 +144,9 @@ public abstract class RateSamplingRule {
     @Override
     public <T extends CoreSpan<T>> boolean matches(T span) {
       return Matchers.matches(serviceMatcher, span.getServiceName())
-          && Matchers.matches(operationMatcher, span.getOperationName());
+          && Matchers.matches(operationMatcher, span.getOperationName())
+          && Matchers.matches(resourceMatcher, span.getResourceName())
+          && tagsMatcher.matches(span);
     }
 
     @Override

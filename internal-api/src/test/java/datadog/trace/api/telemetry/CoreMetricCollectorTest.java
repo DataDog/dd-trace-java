@@ -7,13 +7,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import datadog.trace.api.metrics.SpanMetricRegistryImpl;
 import datadog.trace.api.metrics.SpanMetrics;
 import datadog.trace.api.telemetry.CoreMetricCollector.CoreMetric;
-import datadog.trace.test.util.DDJavaSpecification;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-class CoreMetricCollectorTest extends DDJavaSpecification {
+class CoreMetricCollectorTest {
 
   /** Flushes metrics left over by previous tests, as the collector and registry are singletons. */
   @BeforeEach

@@ -40,7 +40,6 @@ fun addTestSuiteForDir(name: String, directory: String) {
 }
 
 addTestSuiteForDir("latestDepTest", "test")
-(project.extra["addForkedTestTask"] as Closure<*>).call("latestDepTest")
 
 dependencies {
   compileOnly("com.google.protobuf:protobuf-java:3.19.2")
