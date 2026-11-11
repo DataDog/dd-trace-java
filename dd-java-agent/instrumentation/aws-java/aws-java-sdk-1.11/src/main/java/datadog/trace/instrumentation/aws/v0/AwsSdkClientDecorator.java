@@ -66,6 +66,8 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
   private static final HandlerContextKey<String> SIGNING_REGION_KEY = signingRegionKey();
 
   private static final Pattern AWS_REGION_PATTERN = Pattern.compile("[a-z]{2}(-[a-z]+)+-\\d+");
+  private static final Pattern TABLE_ARN_PATTERN =
+      Pattern.compile("^arn:[^:]+:dynamodb:[^:]+:[0-9]{12}:table/[^/]+$");
   private static final String AWS_DOMAIN = ".amazonaws.com";
   private static final String AWS_CHINA_DOMAIN = ".amazonaws.com.cn";
   private static final String VPCE_LABEL = "vpce";
@@ -202,6 +204,9 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     }
     String tableName = access.getTableName(originalRequest);
     if (null != tableName) {
+      if (isTableArn(tableName)) {
+        span.setTag(InstrumentationTags.AWS_TABLE_ARN, tableName);
+      }
       span.setTag(InstrumentationTags.AWS_TABLE_NAME, tableName);
       span.setTag(InstrumentationTags.TABLE_NAME, tableName);
       bestPrecursor = InstrumentationTags.AWS_TABLE_NAME;
@@ -351,6 +356,15 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     } catch (Throwable ignored) {
       return null;
     }
+  }
+
+  /**
+   * Whether a DynamoDB {@code TableName} is a full table ARN, {@code
+   * arn:<partition>:dynamodb:<region>:<account>:table/<name>}. Cross-account access requires one,
+   * so it names the callee's account and Region.
+   */
+  static boolean isTableArn(String tableName) {
+    return TABLE_ARN_PATTERN.matcher(tableName).matches();
   }
 
   /**
