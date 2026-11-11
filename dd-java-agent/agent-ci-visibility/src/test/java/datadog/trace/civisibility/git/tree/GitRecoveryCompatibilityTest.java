@@ -8,10 +8,11 @@ import static datadog.trace.civisibility.git.tree.GitTestRepository.writeObject;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.spy;
 
@@ -23,6 +24,7 @@ import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.tabletest.junit.TableTest;
@@ -171,32 +173,31 @@ class GitRecoveryCompatibilityTest {
             : commandFailure
                 ? new ShellCommandExecutor.ShellCommandFailedException(128, "fetch failed")
                 : new TimeoutException("ancestry check");
-    doThrow(
-            fetch
-                ? new ShellCommandExecutor.ShellCommandFailedException(128, "missing ancestry")
-                : failure)
+    AtomicInteger commands = new AtomicInteger();
+    doAnswer(
+            invocation -> {
+              commands.incrementAndGet();
+              Object[] arguments = invocation.getArguments();
+              if ("rev-list".equals(arguments[4]) || "merge-base".equals(arguments[4])) {
+                throw fetch
+                    ? new ShellCommandExecutor.ShellCommandFailedException(128, "missing ancestry")
+                    : failure;
+              }
+              return invocation.callRealMethod();
+            })
         .when(command)
-        .executeCommand(
-            eq(ShellCommandExecutor.OutputParser.IGNORE),
-            eq("git"),
-            eq("-c"),
-            anyString(),
-            eq("rev-list"),
-            eq("--quiet"),
-            eq(selected),
-            eq("--"));
+        .executeCommand(any(), (String[]) any());
     ShellGitClient client = spy(client(checkout, "1 month ago"));
-    if (fetch) {
-      doThrow(failure).when(client).getRemoteName();
-    }
+    doThrow(failure).when(client).getRemoteName();
     Field executor = ShellGitClient.class.getDeclaredField("commandExecutor");
     executor.setAccessible(true);
     executor.set(client, command);
-    if (interruption || !present) {
+    if (!present) {
       Class<? extends Exception> failureType = failure.getClass();
       assertEquals(failure, assertThrows(failureType, () -> client.getCommitInfo(selected, true)));
     } else {
       CommitInfo info = client.getCommitInfo(selected, true);
+      assertEquals(2, commands.get());
       assertEquals(selected, info.getSha());
       assertEquals(info, client.getCommitInfo(selected, false));
       if (missingParent) {
@@ -205,53 +206,61 @@ class GitRecoveryCompatibilityTest {
         assertEquals(info.getAuthor(), info.getCommitter());
         assertEquals("local metadata", info.getFullMessage());
       }
+      if (commandFailure) {
+        assertNull(client.getMergeBase(GitClient.HEAD, selected));
+      } else {
+        assertEquals(
+            failure,
+            assertThrows(failure.getClass(), () -> client.getMergeBase(GitClient.HEAD, selected)));
+      }
     }
   }
 
-  @Test
-  void privateRecoveryRetainsBlobsForSubsequentDiffs() throws Exception {
+  @TableTest({
+    "Scenario                  | shallow",
+    "complete checkout         | false  ",
+    "complete shallow recovery | true   "
+  })
+  void privateRecoveryRetainsBlobsForSubsequentDiffs(boolean shallow) throws Exception {
     Path origin = directory.resolve("origin");
     ShellCommandExecutor remote = fixture(origin);
     git(remote, "config", "uploadpack.allowFilter", "true");
-    Path checkout = cloneFrom(remote, origin);
+    Path checkout = shallow ? directory.resolve("checkout") : cloneFrom(remote, origin);
+    if (shallow) {
+      git(remote, "clone", "--depth=1", origin.toUri().toString(), checkout.toString());
+    }
     String base = git(remote, "rev-parse", "HEAD");
-    String blob =
-        remote
-            .executeCommand(
-                IOUtils::readFully,
-                "selected contents\n".getBytes(UTF_8),
-                "git",
-                "hash-object",
-                "-w",
-                "--stdin")
-            .trim();
-    String tree =
-        remote
-            .executeCommand(
-                IOUtils::readFully,
-                ("100644 blob " + blob + "\tnew.txt\n").getBytes(UTF_8),
-                "git",
-                "mktree")
-            .trim();
+    Files.write(origin.resolve("new.txt"), "selected contents\n".getBytes(UTF_8));
+    String blob = git(remote, "hash-object", "-w", "--no-filters", "new.txt");
+    git(remote, "read-tree", "--empty");
+    git(remote, "update-index", "--add", "--cacheinfo", "100644", blob, "new.txt");
+    String tree = git(remote, "write-tree");
     String selected = writeCommit(remote, tree, base, "new file");
     git(remote, "update-ref", "refs/heads/selected", selected);
-    ShellGitClient client = client(checkout, "1 month ago");
+    ShellGitClient client = client(checkout, shallow ? "1970-01-01T00:00:00Z" : "1 month ago");
     client.fetchSelectedCommit(selected);
     assertTrue(client.getGitDiff(base, selected).contains("new.txt", 1, 1));
-    assertFalse(client.isShallow());
+    assertEquals(shallow, client.isShallow());
+    if (shallow) {
+      assertEquals(
+          Math.min(1000, Integer.parseInt(git(remote, "rev-list", "--count", selected))),
+          client.getLatestCommits(selected).size());
+    }
   }
 
   @TableTest({
-    "Scenario             | originName             ",
-    "quoted subsection    | origin's repository    ",
-    "equals in subsection | origin=a=b's repository"
+    "Scenario             | originName              | rawPath",
+    "quoted subsection    | origin's repository     | false  ",
+    "equals in subsection | origin=a=b's repository | false  ",
+    "UTF-8 subsection     | répo=a=b's repository   | true   "
   })
-  void evaluatedConfigurationPreservesMultipleQuotedValues(String originName) throws Exception {
+  void evaluatedConfigurationPreservesMultipleQuotedValues(String originName, boolean rawPath)
+      throws Exception {
     Path origin = directory.resolve(originName);
     ShellCommandExecutor remote = fixture(origin);
     Path checkout = cloneFrom(remote, origin);
     ShellCommandExecutor local = new ShellCommandExecutor(checkout.toFile(), 10_000);
-    String alias = "url." + origin.toUri() + ".insteadOf";
+    String alias = "url." + (rawPath ? origin : origin.toUri()) + ".insteadOf";
     git(local, "config", "--add", alias, "first:");
     git(local, "config", "--add", alias, "second:");
     git(local, "config", "remote.origin.url", "second:");
