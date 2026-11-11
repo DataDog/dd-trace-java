@@ -11,6 +11,7 @@ import com.datadog.openfeature.internal.ufc.UniversalFlagConfigParser;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URI;
+import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -37,7 +38,10 @@ public final class CdnConfigurationSource implements ConfigurationService {
 
   static final String UFC_RULES_BASED_SERVER_PATH =
       "/api/v2/feature-flagging/config/rules-based/server";
-  static final String DEPENDENT_FLAG_VARIANT_KEY_QUERY = "cap_dependent-flags-variant-key=v1";
+  private static final String DEPENDENT_FLAG_VARIANT_KEY_PARAMETER =
+      "cap_dependent-flags-variant-key";
+  static final String DEPENDENT_FLAG_VARIANT_KEY_QUERY =
+      DEPENDENT_FLAG_VARIANT_KEY_PARAMETER + "=v1";
   static final int MAX_ATTEMPTS = 3;
   private static final long FIRST_RETRY_MIN_MILLIS = 2_000;
   private static final long FIRST_RETRY_MAX_MILLIS = 10_000;
@@ -318,15 +322,37 @@ public final class CdnConfigurationSource implements ConfigurationService {
     if (!capabilities.contains(EvaluatorCapabilities.DEPENDENT_FLAG_VARIANT_KEY_V1)) {
       return endpoint;
     }
-    final String separator;
-    if (endpoint.getRawQuery() == null) {
-      separator = "?";
-    } else if (endpoint.getRawQuery().isEmpty()) {
-      separator = "";
-    } else {
-      separator = "&";
+    final StringBuilder query = new StringBuilder();
+    if (endpoint.getRawQuery() != null) {
+      for (final String item : endpoint.getRawQuery().split("&", -1)) {
+        if (!isDependentFlagCapability(item)) {
+          if (query.length() > 0) {
+            query.append('&');
+          }
+          query.append(item);
+        }
+      }
     }
-    return URI.create(endpoint + separator + DEPENDENT_FLAG_VARIANT_KEY_QUERY);
+    if (query.length() > 0) {
+      query.append('&');
+    }
+    query.append(DEPENDENT_FLAG_VARIANT_KEY_QUERY);
+
+    final String endpointText = endpoint.toString();
+    final int fragmentStart = endpointText.indexOf('#');
+    final String fragment = fragmentStart < 0 ? "" : endpointText.substring(fragmentStart);
+    final String withoutFragment =
+        fragmentStart < 0 ? endpointText : endpointText.substring(0, fragmentStart);
+    final int queryStart = withoutFragment.indexOf('?');
+    final String path = queryStart < 0 ? withoutFragment : withoutFragment.substring(0, queryStart);
+    return URI.create(path + "?" + query + fragment);
+  }
+
+  private static boolean isDependentFlagCapability(final String item) {
+    final int equals = item.indexOf('=');
+    final String key = equals < 0 ? item : item.substring(0, equals);
+    return DEPENDENT_FLAG_VARIANT_KEY_PARAMETER.equals(
+        URLDecoder.decode(key, StandardCharsets.UTF_8));
   }
 
   private synchronized void warn(final String message, final Object... arguments) {
