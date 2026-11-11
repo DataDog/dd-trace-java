@@ -100,7 +100,7 @@ public final class JettyCommitResponseHelper {
     }
     // separate from the commit: the blocking write is in flight, the original write must be skipped
     try {
-      markBrfBlockingResponseInitiated(reqCtx);
+      claimBrf(reqCtx);
     } catch (Throwable t) {
       log.debug("Failed to mark the block response function as blocked", t);
     }
@@ -110,14 +110,18 @@ public final class JettyCommitResponseHelper {
   /**
    * Once the blocking write is handed to Jetty the response is committed by us: later blocking
    * evaluations on the same request (RASP, user blocking) go through the BRF, which must treat that
-   * commit as expected instead of reporting a {@code block_failure}. Set when the write is started
-   * rather than on its success so an async write still in flight is covered too; a failed write is
-   * reported once by {@link BlockingCallback#failed}. The segment is still marked only on success.
+   * commit as expected instead of reporting a {@code block_failure}. Claimed when the write is
+   * started rather than on its success so an async write still in flight is covered too. The claim
+   * is never released here: a failed write is reported once by {@link BlockingCallback#failed}, and
+   * a later BRF attempt on the committed response would only report it again. The segment is still
+   * marked only on success.
    */
-  private static void markBrfBlockingResponseInitiated(RequestContext reqCtx) {
+  private static void claimBrf(RequestContext reqCtx) {
     BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
     if (brf instanceof JettyBlockResponseFunction) {
-      ((JettyBlockResponseFunction) brf).markBlockingResponseInitiated();
+      // the block page is already being written: the claim only records that this request is
+      // blocked, so a failed claim (another evaluation already blocking) needs no handling
+      ((JettyBlockResponseFunction) brf).tryClaim();
     }
   }
 
