@@ -3,6 +3,8 @@ package com.datadog.appsec.sca;
 import com.squareup.moshi.Json;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
+import datadog.trace.api.Config;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -19,7 +21,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Loads {@code sca_cves.json} from the classpath and builds the runtime index used by {@link
+ * Loads the bundled or configured CVE catalog and builds the runtime index used by {@link
  * ScaReachabilityTransformer}.
  *
  * <p>The primary index maps JVM internal class names (slashes) to the list of {@link ScaEntry}
@@ -39,26 +41,35 @@ public final class ScaCveDatabase {
   }
 
   /**
-   * Loads and parses {@code sca_cves.json} from the classpath.
+   * Loads the local JSON file selected by {@code _DD_APPSEC_SCA_CVE_FILE}, or the bundled {@code
+   * sca_cves.json} when unset. The override uses the same schema and replaces the bundle without
+   * merging. A missing or malformed override produces an empty database without fallback.
    *
-   * @return a populated database, or an empty one if the resource is missing or malformed
+   * @return a populated database, or an empty one if the selected source cannot be loaded
    */
   public static ScaCveDatabase load() {
-    InputStream stream = ScaCveDatabase.class.getResourceAsStream(RESOURCE_PATH);
-    if (stream == null) {
-      log.info(
-          "SCA Reachability: {} not found on classpath - no vulnerabilities will be tracked",
-          RESOURCE_PATH);
-      return new ScaCveDatabase(Collections.emptyMap());
-    }
-    // "UTF-8" string literal - java.nio.* is forbidden during premain
-    try (InputStreamReader reader = new InputStreamReader(stream, "UTF-8")) {
-      return parse(reader);
+    return load(Config.get().getAppSecScaCveFile());
+  }
+
+  static ScaCveDatabase load(@Nullable String cveFile) {
+    String source = cveFile == null ? RESOURCE_PATH : cveFile;
+    try (InputStream stream =
+        cveFile == null
+            ? ScaCveDatabase.class.getResourceAsStream(RESOURCE_PATH)
+            : new FileInputStream(cveFile)) {
+      if (stream == null) {
+        log.info(
+            "SCA Reachability: {} not found on classpath - no vulnerabilities will be tracked",
+            RESOURCE_PATH);
+        return new ScaCveDatabase(Collections.emptyMap());
+      }
+      // "UTF-8" string literal - java.nio.* is forbidden during premain
+      try (InputStreamReader reader = new InputStreamReader(stream, "UTF-8")) {
+        return parse(reader);
+      }
     } catch (Exception e) {
       log.error(
-          "SCA Reachability: failed to parse {} - no vulnerabilities will be tracked",
-          RESOURCE_PATH,
-          e);
+          "SCA Reachability: failed to load {} - no vulnerabilities will be tracked", source, e);
       return new ScaCveDatabase(Collections.emptyMap());
     }
   }

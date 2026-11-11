@@ -9,6 +9,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfi
 import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.JAVA_KAFKA;
 import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.KAFKA_PRODUCE;
 import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.PRODUCER_DECORATE;
+import static datadog.trace.instrumentation.kafka_common.Utils.hasHeaders;
 
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -41,9 +42,11 @@ public class ProducerAdvice {
       ClusterIdHolder.set(clusterId);
     }
 
-    // Try to extract existing trace context from record headers
+    // Try to extract existing trace context from record headers, which most records don't have
     final AgentSpanContext extractedContext =
-        extractContextAndGetSpanContext(record.headers(), TextMapExtractAdapter.GETTER);
+        hasHeaders(record.headers())
+            ? extractContextAndGetSpanContext(record.headers(), TextMapExtractAdapter.GETTER)
+            : null;
 
     final AgentSpan localActiveSpan = activeSpan();
 

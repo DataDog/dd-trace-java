@@ -86,7 +86,8 @@ mechanism is certain or the severity is catastrophic.
   callback / request handler?) and *down* (follow callbacks, hooks, and listeners to
   their **sink** before flagging). If a per-span hook's every reachable sink is an
   atomic counter (`LongAdder`, `AtomicLong`) or a no-op-when-disabled, stay silent — a
-  "verify contention" nudge there is noise.
+  "verify contention" nudge there is noise. That clears the *call* only: arguments built
+  eagerly for a disabled product's no-op are still paid for (J14).
 - **Make the reachability path the headline.** The reachability claim is the most
   valuable *and* least reliable part of a finding — residual false positives cluster
   in "called it unconditional, missed an upstream guard." Say *"reachable from
@@ -116,6 +117,11 @@ mechanism is certain or the severity is catastrophic.
   **routine adoption of a known-better idiom** (migrating to a lower-overhead builder / API /
   toolkit primitive — no visible downside); or a change that **ships a benchmark/JFR**
   (well-evidenced — recognize it). One line; a nudge, not a code-pattern finding.
+- **Shipped core code is stricter — see the core performance rules in `AGENTS.md`.**
+  For changes to `dd-trace-core/src/main/` or `internal-api/src/main/`: a performance claim
+  (in the title, description, or commits) without JMH before/after numbers is a finding, not
+  a soft nudge. Elsewhere, including those modules' tests, benchmarks and build files, keep
+  the softer posture above.
 
 ## Workflow
 
@@ -137,11 +143,22 @@ git diff $MERGE_BASE --stat
 git diff $MERGE_BASE --name-status
 ```
 
+Also read the claims the change makes. A performance claim can live only in the PR title
+or description, which the diff doesn't show:
+
+```bash
+gh pr view --json title,body 2>/dev/null   # the branch's PR, if it has one
+git log --format='%s%n%b' $MERGE_BASE..HEAD   # commit messages
+```
+
+If the branch has no PR, or `gh` can't reach it, check the commit messages and say in the
+summary that the PR text wasn't available, so a claim made only there wasn't checked.
+
 If there are no changes, say so and stop. Otherwise read the diff **and the full
 content of the modified source files** (not just the hunks) — the interprocedural
 condition (who calls this, what a helper does, where a hook's sink lands) lives
 outside the diff window. Ignore the PR description if the user asks for an
-independent review.
+independent review, except to find performance claims.
 
 ### Step 2 — Map the changed code onto hot paths
 
@@ -157,9 +174,11 @@ metrics/stats path, decorators, propagation (header read/write).
 rare error branch, or behind a guard that provably fires rarely. Watch the
 **interprocedural trap** — a method three helpers deep from an `@Advice` entry is
 still hot. And note **domain adjustment**: large-denominator domains (LLMObs, CI
-Visibility, DSM) absorb per-call CPU/alloc cost, but the risk *inverts* to payload
+Visibility, DJM) absorb per-call CPU/alloc cost, but the risk *inverts* to payload
 memory (SEV-1); streaming handlers fire per-chunk, so the large-denominator relief
-suspends inside them. See `guide.md` §6.
+suspends inside them. **DSM is not large-denominator** — it runs on per-message paths.
+The relief never covers work done for a product while it's **off** (J14). See
+`guide.md` §6.
 
 ### Step 3 — Apply the checks
 
@@ -250,6 +269,9 @@ result, not a failure to find something.
 - **J2** megamorphic dispatch is **PARKED** — do *not* raise megamorphism findings in
   review yet (kept as author reference only; it needs a standing audit, not per-PR
   flagging). See `checks.md` for why.
+- **J14** work done for an optional product that's off (DSM / DBM / DJM, …): arguments
+  built for a no-op still cost; verify the running implementation is really a no-op;
+  gate with the product's own check, keeping it dynamic where it is.
 - ByteBuddy-Advice idioms (`Config.get()` hoisting, `@Advice.AllArguments` →
   `@Advice.Argument`, `@Advice.SkipOn`+cached-boolean, `@Advice.Local`, `switch(String)`
   three-tier) — in `checks.md`.
