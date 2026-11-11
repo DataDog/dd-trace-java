@@ -1,7 +1,8 @@
 plugins {
   id 'dd-trace-java.jmh-conventions'
   id 'java-test-fixtures'
-  id 'dd-trace-java.module.internal-library.with.testing.groovy'
+  id 'dd-trace-java.module.internal-library'
+  id 'dd-trace-java.conventions.testing.groovy'
 }
 
 apply from: "$rootDir/gradle/tries.gradle"
