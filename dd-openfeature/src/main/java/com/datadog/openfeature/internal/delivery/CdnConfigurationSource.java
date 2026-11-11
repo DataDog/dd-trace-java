@@ -306,6 +306,7 @@ public final class CdnConfigurationSource implements ConfigurationService {
             .timeout(this.requestTimeout)
             .header("Accept-Encoding", "gzip");
     Headers.addMetadata(request);
+    Headers.addClientLibrary(request);
     if (this.apiKey != null) {
       request.header("DD-API-KEY", this.apiKey);
     }
