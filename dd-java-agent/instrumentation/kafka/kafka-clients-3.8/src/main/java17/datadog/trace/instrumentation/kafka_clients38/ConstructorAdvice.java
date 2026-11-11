@@ -43,9 +43,8 @@ public class ConstructorAdvice {
     if (bootstrapServersList != null && !bootstrapServersList.isEmpty()) {
       bootstrapServers = String.join(",", bootstrapServersList);
     }
-    // Keep the metadata even without Data Streams: MetadataInstrumentation records the cluster ID
-    // on
-    // it, which consumer spans are tagged with.
+    // Keep the metadata even without Data Streams: MetadataInstrumentation records the cluster
+    // ID on it, which consumer spans are tagged with.
     KafkaConsumerInfo kafkaConsumerInfo =
         new KafkaConsumerInfo(normalizedConsumerGroup, metadata, bootstrapServers);
     // new - searching context for ConsumerDelegate and OffsetCommitCallbackInvoker instead of
