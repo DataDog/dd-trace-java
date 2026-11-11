@@ -12,14 +12,11 @@ muzzle {
 }
 
 addTestSuiteForDir('latestDepTest', 'test')
-addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 
-["latestDepTest", "latestDepForkedTest"].each {
-  tasks.named(it, Test) {
-    testJvmConstraints {
-      // jboss-logmanager 3.2 requires Java 17
-      minJavaVersion = JavaVersion.VERSION_17
-    }
+tasks.named('latestDepTest', Test) {
+  testJvmConstraints {
+    // jboss-logmanager 3.2 requires Java 17
+    minJavaVersion = JavaVersion.VERSION_17
   }
 }
 
