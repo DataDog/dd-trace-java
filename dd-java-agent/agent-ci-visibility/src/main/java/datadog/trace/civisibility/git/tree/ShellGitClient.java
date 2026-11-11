@@ -22,17 +22,21 @@ import java.nio.file.FileStore;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.BitSet;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.TimeoutException;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -763,31 +767,40 @@ public class ShellGitClient implements GitClient {
             exclusions.add("^" + commit);
           }
           if (!exclusions.isEmpty()) {
-            // Walk only known ancestry. Walking positive roots here can defeat the commit cap.
-            Path knownHistory = Files.createTempFile(DD_TEMP_DIRECTORY_PREFIX, ".commits");
-            try {
-              List<String> known = new ArrayList<>();
-              Collections.addAll(
-                  known,
-                  "log",
-                  "--no-show-signature",
-                  "--format=%H",
-                  "--output=" + knownHistory,
-                  "--end-of-options");
-              known.addAll(commitsToSkip);
-              known.add("--");
-              commandExecutor.executeCommand(
-                  ShellCommandExecutor.OutputParser.IGNORE,
-                  buildGitCommand(known.toArray(new String[0])));
-              // Keep history out of the executor's buffered stdout and the tracer's heap.
-              try (BufferedReader reader = Files.newBufferedReader(knownHistory)) {
-                String commit;
-                while ((commit = reader.readLine()) != null) {
-                  roots.remove(commit);
+            Map<String, List<String>> parents = new HashMap<>();
+            Set<String> tips = new LinkedHashSet<>(roots);
+            tips.addAll(commitsToSkip);
+            readCommitParents(tips, false, parents);
+            if (!removeKnownRoots(roots, commitsToSkip, parents)) {
+              readCommitParents(commitsToSkip, true, parents);
+              if (!removeKnownRoots(roots, commitsToSkip, parents)) {
+                // Unrelated roots may need an exact ancestry walk. Keep that fallback off the
+                // incremental path and out of the tracer's buffered stdout and heap.
+                Path knownHistory = Files.createTempFile(DD_TEMP_DIRECTORY_PREFIX, ".commits");
+                try {
+                  List<String> known = new ArrayList<>();
+                  Collections.addAll(
+                      known,
+                      "log",
+                      "--no-show-signature",
+                      "--format=%H",
+                      "--output=" + knownHistory,
+                      "--end-of-options");
+                  known.addAll(commitsToSkip);
+                  known.add("--");
+                  commandExecutor.executeCommand(
+                      ShellCommandExecutor.OutputParser.IGNORE,
+                      buildGitCommand(known.toArray(new String[0])));
+                  try (BufferedReader reader = Files.newBufferedReader(knownHistory)) {
+                    String commit;
+                    while ((commit = reader.readLine()) != null && !roots.isEmpty()) {
+                      roots.remove(commit);
+                    }
+                  }
+                } finally {
+                  Files.deleteIfExists(knownHistory);
                 }
               }
-            } finally {
-              Files.deleteIfExists(knownHistory);
             }
             if (roots.isEmpty()) {
               return Collections.emptyList();
@@ -803,6 +816,105 @@ public class ShellGitClient implements GitClient {
           return commandExecutor.executeCommand(
               IOUtils::readLines, buildGitCommand(objects.toArray(new String[0])));
         });
+  }
+
+  private void readCommitParents(
+      Collection<String> tips, boolean walk, Map<String, List<String>> parents)
+      throws IOException, InterruptedException, TimeoutException {
+    List<String> command = new ArrayList<>();
+    Collections.addAll(command, "log", "--no-show-signature", "--format=%H %P");
+    if (walk) {
+      Collections.addAll(command, "-n", String.valueOf(latestCommitsLimit));
+    } else {
+      command.add("--no-walk=unsorted");
+    }
+    command.add("--end-of-options");
+    command.addAll(tips);
+    command.add("--");
+    for (String line :
+        commandExecutor.executeCommand(
+            IOUtils::readLines, buildGitCommand(command.toArray(new String[0])))) {
+      List<String> commits = Arrays.asList(WHITESPACE_PATTERN.split(line));
+      parents.put(commits.get(0), commits.subList(1, commits.size()));
+    }
+  }
+
+  private static boolean removeKnownRoots(
+      Set<String> roots, Collection<String> known, Map<String, List<String>> parents)
+      throws IOException {
+    Set<String> covered = new HashSet<>();
+    Set<String> frontier = new HashSet<>();
+    ArrayDeque<String> pending = new ArrayDeque<>(known);
+    while (!pending.isEmpty()) {
+      String commit = pending.removeLast();
+      if (!covered.add(commit)) {
+        continue;
+      }
+      List<String> ancestors = parents.get(commit);
+      if (ancestors == null) {
+        frontier.add(commit);
+      } else {
+        pending.addAll(ancestors);
+      }
+    }
+    roots.removeAll(covered);
+    if (roots.isEmpty() || frontier.isEmpty()) {
+      return true;
+    }
+    Map<String, BitSet> reachable = new HashMap<>();
+    int index = 0;
+    for (String commit : frontier) {
+      BitSet bit = new BitSet();
+      bit.set(index++);
+      reachable.put(commit, bit);
+    }
+    boolean classified = true;
+    for (String root : roots) {
+      // An unread frontier only hides ancestors of itself. If every frontier is a strict
+      // ancestor of this root, acyclicity proves that the root cannot be backend-known.
+      if (reachableFrontiers(root, parents, reachable).cardinality() != frontier.size()) {
+        classified = false;
+      }
+    }
+    return classified;
+  }
+
+  private static BitSet reachableFrontiers(
+      String root, Map<String, List<String>> parents, Map<String, BitSet> reachable)
+      throws IOException {
+    ArrayDeque<String> pending = new ArrayDeque<>();
+    Set<String> visiting = new HashSet<>();
+    pending.add(root);
+    while (!pending.isEmpty()) {
+      String commit = pending.peekLast();
+      if (reachable.containsKey(commit)) {
+        pending.removeLast();
+        visiting.remove(commit);
+        continue;
+      }
+      visiting.add(commit);
+      List<String> ancestors = parents.getOrDefault(commit, Collections.emptyList());
+      String missing = null;
+      for (String ancestor : ancestors) {
+        if (!reachable.containsKey(ancestor)) {
+          if (visiting.contains(ancestor)) {
+            throw new IOException("Cyclic Git ancestry");
+          }
+          missing = ancestor;
+          break;
+        }
+      }
+      if (missing != null) {
+        pending.add(missing);
+        continue;
+      }
+      BitSet mask = new BitSet();
+      for (String ancestor : ancestors) {
+        mask.or(reachable.get(ancestor));
+      }
+      reachable.put(commit, mask);
+    }
+    return reachable.get(root);
   }
 
   /**
