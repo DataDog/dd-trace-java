@@ -110,7 +110,7 @@ public class GitUtils {
   }
 
   private static final Pattern USER_INFO_WITH_HOST_ALIAS =
-      Pattern.compile("[^@]+@[\\p{L}\\p{N}._+-]+(?::[0-9]+)?");
+      Pattern.compile("[^@]+@[\\p{L}\\p{N}._+~-]+(?::[0-9]+)?");
 
   /**
    * Removes the user info of a certain URL. E.g: https://user:password@host.com/path ->
@@ -166,7 +166,7 @@ public class GitUtils {
       }
       String userInfo = url.getRawUserInfo();
       if (userInfo == null && USER_INFO_WITH_HOST_ALIAS.matcher(authority).matches()) {
-        // URI's DNS parser rejects valid aliases containing underscores.
+        // URI's DNS parser rejects valid SSH aliases such as underscores and tildes.
         userInfo = authority.substring(0, authority.indexOf('@'));
       }
       if (userInfo == null) {
