@@ -623,12 +623,13 @@ mixins:
       - { dd-name: tombstone,                         type: boolean, required: optional }     # a null record value
       - { dd-name: processor.name,                    type: string,  required: optional }     # Kafka Streams
 
-  # google_pubsub — Google Cloud Pub/Sub producer and consumer spans.
+  # google_pubsub — Google Cloud Pub/Sub producer and consumer spans: the full paths of the known
+  # resources, each with its own project.
   google_pubsub:
     applies: [ messaging.producer, messaging.consumer ]
     tags:
-      - { ref: messaging.destination.name, required: optional }  # the topic, on producer spans only
-      - { dd-name: gcloud.project_id, type: string, required: optional }  # the topic's or subscription's project
+      - { dd-name: gcp.pubsub.topic.name,        type: string, required: optional }  # projects/<project>/topics/<topic>, when known
+      - { dd-name: gcp.pubsub.subscription.name, type: string, required: optional }  # projects/<project>/subscriptions/<subscription>, on consumer spans
 
   # amqp — RabbitMQ (AMQP) spans: publish, consume, other commands, and time in queue.
   amqp:
