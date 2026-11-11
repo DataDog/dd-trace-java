@@ -3,7 +3,7 @@
 Where a finding from `checks/` should point for its fix. **These route an *existing* #1/#2/#3
 finding to a reusable fix — they are not new flag-triggers. Don't raise a finding you wouldn't
 have raised anyway; the posture (precision, silent-when-unsure, findings-cap-scales-with-diff —
-see `SKILL.md`) is unchanged.**
+see `../SKILL.md`) is unchanged.**
 
 ## Toolkit availability — cite only what exists
 

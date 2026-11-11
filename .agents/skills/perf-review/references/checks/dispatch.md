@@ -32,12 +32,12 @@ Checks #5, J2. **J2 is parked: do not raise megamorphism findings in review.**
   skips the fan-out (a default-empty listener array); **collapse N impls into one** `final` class
   with an internal state/size-class switch (e.g. retire a legacy map impl so the optimized one is
   the sole impl → every `TagMap` site monomorphic); or **call-site-split/unroll** a stable-order
-  fan-out (catalog #7). **flag-as-measure** — opaque; whether it bites depends on which impls
+  fan-out. **flag-as-measure** — opaque; whether it bites depends on which impls
   actually load + the runtime receiver mix. Confirm with `-XX:+PrintInlining` (`not inlined
   (megamorphic)`) / JITWatch, not a code read. **Diff-review blind spot → needs a standing
   audit.** The worst megamorphic sites *accumulate*: no single PR introduces them (each only nudges
   the type count by one), so a per-PR check catches only a PR that *widens* a site — the
   pre-existing hazards are invisible to it. The heaviest is `Context.get`/`with` dispatching across
-  `Empty`/`Singleton`/`Indexed`(+wrapper) impls — the hottest path in the system (catalog #11).
+  `Empty`/`Singleton`/`Indexed`(+wrapper) impls — the hottest path in the system.
   These want a **periodic PrintInlining census of the known hot sites**, run independent of any
   PR, not diff review.

@@ -10,8 +10,8 @@ work like an `.equals()` call.
 
 - **#2 — Repeat work across calls/traces** — *string concat / case-conversion / regex *compile* /
   format / parse recomputed each hot-path call, on a recurring (low-cardinality) input or
-  allocating each time* — flag-with-confidence — SEV-2/3 — fix: memoize (bounded — see #3) or
-  compile-once (hoist regex to static).
+  allocating each time* — flag-with-confidence — SEV-2/3 — fix: memoize (bounded — see #3 in
+  `memory.md`) or compile-once (hoist regex to static).
 - **J8 — Backtracking regex on external input → RE2J / bounded input** *(distinct from #2
   compile-per-call)*. `java.util.regex` backtracks → exponential worst-case (ReDoS) on adversarial
   input — a CPU / tail-latency / DoS hazard, **not** an allocation one. Flag the **conjunction**:

@@ -1,7 +1,6 @@
 # Performance-contract annotations
 
-Checks #8, #9, #10. **No lint enforces these yet — the AI reviewer is the only check.** Once a
-checker lands for one of them, it moves to the deterministic-lint candidates in `roadmap.md`.
+Checks #8, #9, #10. **No lint enforces these yet — the AI reviewer is the only check.**
 
 These checks fire on code that never names the annotation: a field of type `SubSequence`, `Maybe`
 or `ClassValue`, or a call into a method marked `@BackgroundOnly`. Read the annotation's own
@@ -28,7 +27,7 @@ Javadoc ("Checker contract") when a diff touches one of the marked types or meth
   requirement. Don't flag a `SuppressPerfContract`/canned-exception use as non-compliant just for
   being terse; that mirrors the annotation's own Checker contract. **flag-with-confidence** —
   SEV-2/3 (SEV-1 if the annotated type/method shares backing storage with something large, per its
-  own javadoc). Current wearers: `SubSequence`, `Maybe` (type form; see J7 in `remedies.md` for
+  own javadoc). Current wearers: `SubSequence`, `Maybe` (type form; see J7 in `../remedies.md` for
   `SubSequence`'s specific retention-vs-transient discriminator).
 - **#9 — `@StaticLifetime` field-lifetime violation** — *a field annotated `@StaticLifetime`
   (`datadog.perfcontract.StaticLifetime`), **or** an unannotated field whose declared type is
@@ -46,10 +45,7 @@ Javadoc ("Checker contract") when a diff touches one of the marked types or meth
   process-wide instance; declaring it satisfies `@StaticLifetime` for that class's `final` instance
   fields. **flag-with-confidence** — SEV-2/3, motivated by a real production defect (a
   per-request-constructed cache that never actually amortized anything — see the annotation's own
-  javadoc for the full trigger/accepted-form table). Refines the "per-call cache / expensive-object
-  creation that should be static/once" deterministic-lint candidate in `roadmap.md` by giving that
-  pattern's opted-in subset an explicit annotation and trigger; the unannotated general case is
-  still that line's job.
+  javadoc for the full trigger/accepted-form table).
 - **#10 — `@BackgroundOnly` reached from the foreground** — *foreground code that directly calls
   background-only code, as defined by the checker contract in `@BackgroundOnly`'s Javadoc
   (`datadog.trace.api.function.BackgroundOnly`; `@ForegroundSafe` marks where the foreground
@@ -61,7 +57,7 @@ Javadoc ("Checker contract") when a diff touches one of the marked types or meth
   `@ForegroundSafe` type), or is an advice method (`@Advice.OnMethodEnter` /
   `@Advice.OnMethodExit`), because both ends are declared — ByteBuddy inlines advice into the
   instrumented application method, so it is foreground by construction; **flag-as-measure** when
-  the caller is unmarked but sits on the hot-path map in `hotness.md` (decorators, span
+  the caller is unmarked but sits on the hot-path map in `../hotness.md` (decorators, span
   create/setTag/finish, tag-map ops, propagation), because "foreground" is then inferred rather
   than declared. Advice on a thread the tracer owns is the rare exception; it takes
   `@SuppressPerfContract(value = BackgroundOnly.class, reason = "...")`. Not a trigger: handing the

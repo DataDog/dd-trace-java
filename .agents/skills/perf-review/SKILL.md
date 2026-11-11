@@ -53,10 +53,10 @@ Then read the check files that apply to the diff:
 | `references/checks/contracts.md` | #8 `@NoEscape`, #9 `@StaticLifetime`, #10 `@BackgroundOnly` | always — these fire on code that doesn't name the annotation |
 | `references/checks/advice.md` | ByteBuddy Advice idioms | diff touches `dd-java-agent/` or uses `@Advice` |
 | `references/checks/benchmarks.md` | J12 benchmark validity, EA claims over I/O | diff touches `src/jmh/`, or PR text / commits cite benchmark results |
-| `references/remedies.md` | J7, J9, J10, J11 fix routes + toolkit availability | whenever a finding needs a fix |
+| `references/remedies.md` | J7, J9, J10, J11 fix routes + toolkit availability; also holds the J7 retention trap and the J9 trigger | always |
 
 Each check reads as: **pattern** — *expensive when (the interprocedural condition to trace)* —
-confidence — severity — fix. J7–J11 route an *existing* #1/#2/#3 finding to a landed reusable
+confidence — severity — fix. J7, J9, J10 and J11 route an *existing* #1/#2/#3 finding to a landed reusable
 fix — they are not new triggers. Don't raise a finding you wouldn't have raised anyway.
 
 ## Workflow

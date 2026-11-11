@@ -9,7 +9,7 @@ path."* Two failure shapes, different fixes: (1) the result is usually **discard
 **gate/defer** (parameterized logging, `isEnabled()` guard) — the cost is avoidable; (2) the
 result is always **needed but costly** → **cheapen/cache** — gating does nothing. The
 discriminator (eager? unconditional? guarded? result-needed?) is interprocedural — that's the
-review's job (`posture.md`). These idioms are the actionable fixes when a universal/Java finding
+review's job (`../posture.md`). These idioms are the actionable fixes when a universal/Java finding
 lands on an `@Advice` path:
 
 - **`Config.get()` / `InstrumenterConfig.get()` on a hot path — flag-with-confidence.** Walks a
@@ -35,8 +35,8 @@ lands on an `@Advice` path:
 - **Java Stream API on an advice/hot path — flag-with-confidence.** `stream()`/`IntStream`
   allocate `Spliterator` + pipeline objects per call; JIT elision is fragile. Fix: a plain `for`
   loop (`cstyleFor`/`enhancedFor`/`forEach`/`iterator` are all on par, ≈0 alloc). See
-  `repeat-work.md` for the benchmark numbers and the three silencing exceptions (cache-miss body,
-  length-guarded error path, cold/startup).
+  `repeat-work.md` for the benchmark numbers. Stay silent in a cache-miss body, a length-guarded
+  error path, or cold/startup code.
 - **`switch(String)` — three-tier fix ranking.** (1) resolve to a constant `long` id (folds on any
   JIT); (2) open-addressed table (never folds but always inlinable, low-variance); (3) plain
   `switch` (fine for small, inlinable dispatch). Flag *large* switches (inline-budget exhaustion is

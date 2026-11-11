@@ -9,7 +9,7 @@ Check J14.
   isn't behind that product's enabled check. Measured: the Kafka consumer's ungated DSM tags cost
   548 B per record (−13.7%) and 6.6% throughput, and the same miss was in five messaging paths.
   - **A no-op receiver doesn't clear it:** the arguments are built before the call (the exception
-    to "resolve-via-sink" in `posture.md`). And verify the no-op in the implementation that
+    to "resolve-via-sink" in `../posture.md`). And verify the no-op in the implementation that
     actually runs: with DSM off, `DefaultDataStreamsMonitoring.trackBacklog` still allocates and
     queues a `Backlog`.
   - **Fix: put the product's existing check around both the construction and the call**, keeping
