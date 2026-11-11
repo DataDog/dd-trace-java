@@ -31,8 +31,11 @@ aggressively: a false positive costs a reviewer a minute, a missed one costs an 
 
 - **Flag:** a config- or user-driven value (tag key or value, resource name, HTTP URL) that feeds
   an aggregator with a per-key budget, such as the conflating metrics aggregator, where each
-  distinct key combination is its own aggregate. Also flag any value that changes per message
-  (timestamp, offset, correlation id) used as part of an aggregation or hash key.
+  distinct key combination is its own aggregate. Also flag any value with open cardinality used as
+  part of an aggregation key or a propagated hash: values that change per message (timestamp,
+  offset, correlation id) and values that come from the data (object or file names such as S3
+  keys, URLs, query text). Check which fields a changed hash actually covers; a loop bound or
+  index list can pull in a field its comment says is excluded.
 - **Not when:** the value comes from a small fixed set, or is bounded before it reaches the
   aggregator.
 - **Confidence / level:** flag-with-confidence. P1.
@@ -41,8 +44,9 @@ aggressively: a false positive costs a reviewer a minute, a missed one costs an 
 - **Why:** a nominal cap such as `maxAggregates` prevents the OOM, but high-cardinality input
   makes it evict constantly, so the metrics come out wrong. #3 misses this because the
   collection does have a size bound.
-- **Example:** a DSM pathway hash that included a timestamp, so the aggregator gained a new slot
-  for every message.
+- **Examples:** a DSM pathway hash that included a timestamp, so the aggregator gained a new slot
+  for every message; a DSM pathway hash whose field loop covered a data-set name (an S3 object
+  key), so every downstream group split per object.
 
 ## J6 Reference strengthening in weak-cache scans
 

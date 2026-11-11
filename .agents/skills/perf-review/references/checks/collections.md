@@ -10,7 +10,11 @@ Lighter wins: `LinkedHashMap` → `HashMap` → a plain record or value class.
   - `HashMap` for a small, fixed, known set of keys. It pays for hashing, boxing and an `Entry`
     object per mapping;
   - a collection that grows at runtime when its final size is known in advance (`ArrayList`
-    grows by 1.5×, `HashMap` doubles and rehashes, and both copy on growth).
+    grows by 1.5×, `HashMap` doubles and rehashes, and both copy on growth);
+  - the opposite: a collection or buffer pre-sized to its maximum when it usually holds much
+    less, or allocated eagerly at full size where it used to be lazy and is often empty.
+    Flag-as-measure: the right size depends on the real distribution. Accurate sizing is the
+    target, not generous sizing.
 - **Not when:**
   - the order is needed (insertion order, or LRU with `accessOrder` and `removeEldestEntry`);
   - the keys are open-ended or come from outside;
