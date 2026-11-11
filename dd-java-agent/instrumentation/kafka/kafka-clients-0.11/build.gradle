@@ -24,6 +24,8 @@ muzzle {
 
 addTestSuite('latestDepTest')
 addTestSuite('iastLatestDepTest3')
+// Kafka 2.1-2.7 have no (ProducerConfig, Serializer, Serializer) producer constructor
+addTestSuiteForDir('kafka26Test', 'latestDepTest')
 
 dependencies {
   compileOnly group: 'org.apache.kafka', name: 'kafka-clients', version: '0.11.0.0'
@@ -58,6 +60,11 @@ dependencies {
   latestDepTestImplementation group: 'org.springframework.kafka', name: 'spring-kafka', version: '2.+'
   latestDepTestImplementation group: 'org.springframework.kafka', name: 'spring-kafka-test', version: '2.+'
   latestDepTestImplementation libs.guava
+
+  kafka26TestImplementation group: 'org.apache.kafka', name: 'kafka-clients', version: '2.6.+'
+  kafka26TestImplementation group: 'org.springframework.kafka', name: 'spring-kafka', version: '2.6.+'
+  kafka26TestImplementation group: 'org.springframework.kafka', name: 'spring-kafka-test', version: '2.6.+'
+  kafka26TestImplementation libs.guava
 
   // Add kafka version 3.x for IAST
   iastLatestDepTest3Implementation group: 'org.apache.kafka', name: 'kafka-clients', version: '3.+'

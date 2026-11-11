@@ -143,9 +143,13 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
         @Advice.FieldValue("metadata") Metadata metadata,
         @Advice.Argument(value = 0, readOnly = false) ProducerRecord record,
         @Advice.Argument(value = 1, readOnly = false) Callback callback) {
+      // getOrCreate: where the constructor advice doesn't apply (2.1-2.7 only have a Map-first
+      // constructor), this creates the state the metadata update records the cluster ID on, so the
+      // callback can still read it for sends that start before the first update
       MetadataState metadataState =
-          InstrumentationContext.get(Metadata.class, MetadataState.class).get(metadata);
-      String clusterId = metadataState != null ? metadataState.clusterId : null;
+          InstrumentationContext.get(Metadata.class, MetadataState.class)
+              .getOrCreate(metadata, MetadataState::new);
+      String clusterId = metadataState.clusterId;
 
       // Set cluster ID for Schema Registry instrumentation, which only reports to Data Streams
       if (clusterId != null && traceConfig().isDataStreamsEnabled()) {

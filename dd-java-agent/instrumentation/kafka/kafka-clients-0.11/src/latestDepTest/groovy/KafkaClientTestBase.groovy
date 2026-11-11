@@ -293,6 +293,8 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     }
     TEST_WRITER.waitForTraces(2)
     def consumeSpan = TEST_WRITER.flatten().find { it.getTag(Tags.SPAN_KIND) == Tags.SPAN_KIND_CONSUMER }
+    // the producer's first send, which starts before the producer has any metadata
+    def produceSpan = TEST_WRITER.flatten().find { it.getTag(Tags.SPAN_KIND) == Tags.SPAN_KIND_PRODUCER }
 
     then:
     received == ["Hello without a group!"]
@@ -301,6 +303,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     consumeSpan.getTag(InstrumentationTags.KAFKA_CLUSTER_ID) instanceof String
     !(consumeSpan.getTag(InstrumentationTags.KAFKA_CLUSTER_ID) as String).isEmpty()
     consumeSpan.getTag(InstrumentationTags.CONSUMER_GROUP) == null
+    produceSpan.getTag(InstrumentationTags.KAFKA_CLUSTER_ID) == consumeSpan.getTag(InstrumentationTags.KAFKA_CLUSTER_ID)
 
     cleanup:
     consumer.close()
