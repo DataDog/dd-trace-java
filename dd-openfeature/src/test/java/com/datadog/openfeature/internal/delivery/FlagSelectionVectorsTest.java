@@ -35,15 +35,12 @@ class FlagSelectionVectorsTest {
       URI.create(
           "https://ufc-server.ff-cdn.datadoghq.com/api/v2/feature-flagging/config/rules-based/server?dd_env=prod");
 
+  // No exact counts: the submodule can add vector cases at any time.
   @Test
   void runsEverySdkCaseAndSkipsOnlyTheRawQueryCases() throws IOException {
     final List<Map<String, Object>> cases = vectorCases();
-    final long sdkCases = cases.stream().filter(c -> c.containsKey("sdk")).count();
-    final long rawQueryCases = cases.stream().filter(c -> c.containsKey("rawQuery")).count();
 
-    assertEquals(44, cases.size());
-    assertEquals(38, sdkCases);
-    assertEquals(6, rawQueryCases);
+    assertTrue(cases.stream().anyMatch(c -> c.containsKey("sdk")), "the vectors have no SDK case");
     for (final Map<String, Object> testCase : cases) {
       assertTrue(
           testCase.containsKey("sdk") != testCase.containsKey("rawQuery"),

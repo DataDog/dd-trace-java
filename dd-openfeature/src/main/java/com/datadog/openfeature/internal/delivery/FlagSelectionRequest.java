@@ -64,24 +64,33 @@ public final class FlagSelectionRequest {
   private static final char[] HEX = "0123456789ABCDEF".toCharArray();
 
   /** No selection: all the flags are loaded. */
-  public static final FlagSelectionRequest NONE =
-      new FlagSelectionRequest(emptyList(), emptyList(), null, null);
+  public static final FlagSelectionRequest NONE = new FlagSelectionRequest(null, null);
 
   private static final FlagSelectionRequest URL_TOO_LONG =
-      new FlagSelectionRequest(emptyList(), emptyList(), TOO_MANY_VALUES, URL_LIMIT);
+      new FlagSelectionRequest(TOO_MANY_VALUES, URL_LIMIT);
 
   private final List<String> tags;
   private final List<String> keyPatterns;
+  // The UTF-8 encodings of the values, computed once for sorting and reused for the request URL.
+  private final List<byte[]> utf8Tags;
+  private final List<byte[]> utf8KeyPatterns;
   @Nullable private final String dropReason;
   @Nullable private final String dropLimit;
 
   private FlagSelectionRequest(
-      final List<String> tags,
-      final List<String> keyPatterns,
+      @Nullable final String dropReason, @Nullable final String dropLimit) {
+    this(emptyList(), emptyList(), dropReason, dropLimit);
+  }
+
+  private FlagSelectionRequest(
+      final List<Map.Entry<String, byte[]>> tags,
+      final List<Map.Entry<String, byte[]>> keyPatterns,
       @Nullable final String dropReason,
       @Nullable final String dropLimit) {
-    this.tags = tags;
-    this.keyPatterns = keyPatterns;
+    this.tags = keys(tags);
+    this.keyPatterns = keys(keyPatterns);
+    this.utf8Tags = values(tags);
+    this.utf8KeyPatterns = values(keyPatterns);
     this.dropReason = dropReason;
     this.dropLimit = dropLimit;
   }
@@ -99,17 +108,19 @@ public final class FlagSelectionRequest {
     final Object[] rawTags;
     final Object[] rawKeyPatterns;
     try {
-      rawTags = tags == null ? NO_VALUES : tags.toArray().clone();
-      rawKeyPatterns = keyPatterns == null ? NO_VALUES : keyPatterns.toArray().clone();
+      rawTags = tags == null ? NO_VALUES : Objects.requireNonNull(tags.toArray());
+      rawKeyPatterns =
+          keyPatterns == null ? NO_VALUES : Objects.requireNonNull(keyPatterns.toArray());
     } catch (final RuntimeException e) {
-      // For example a list that the application modifies concurrently.
+      // For example a list that the application modifies concurrently, or a toArray() that breaks
+      // its contract by returning null.
       return dropped(MALFORMED_SELECTION, MALFORMED_LIMIT);
     }
     if (!areWellFormedStrings(rawTags) || !areWellFormedStrings(rawKeyPatterns)) {
       return dropped(MALFORMED_SELECTION, MALFORMED_LIMIT);
     }
-    final List<String> canonicalTags = canonicalize(rawTags);
-    final List<String> canonicalKeyPatterns = canonicalize(rawKeyPatterns);
+    final List<Map.Entry<String, byte[]>> canonicalTags = canonicalize(rawTags);
+    final List<Map.Entry<String, byte[]>> canonicalKeyPatterns = canonicalize(rawKeyPatterns);
     if (canonicalTags.size() > MAX_VALUES || canonicalKeyPatterns.size() > MAX_VALUES) {
       return dropped(TOO_MANY_VALUES, VALUES_LIMIT);
     }
@@ -133,7 +144,7 @@ public final class FlagSelectionRequest {
   }
 
   private static FlagSelectionRequest dropped(final String reason, final String limit) {
-    return new FlagSelectionRequest(emptyList(), emptyList(), reason, limit);
+    return new FlagSelectionRequest(reason, limit);
   }
 
   private static boolean areWellFormedStrings(final Object[] values) {
@@ -160,7 +171,7 @@ public final class FlagSelectionRequest {
     return false;
   }
 
-  private static List<String> canonicalize(final Object[] values) {
+  private static List<Map.Entry<String, byte[]>> canonicalize(final Object[] values) {
     final Map<String, byte[]> unique = new LinkedHashMap<>();
     for (final Object value : values) {
       final String trimmed = trimWhiteSpace((String) value);
@@ -171,11 +182,23 @@ public final class FlagSelectionRequest {
     final List<Map.Entry<String, byte[]>> entries = new ArrayList<>(unique.entrySet());
     // UTF-8 byte order, which differs from String.compareTo outside the Basic Multilingual Plane.
     entries.sort((left, right) -> Arrays.compareUnsigned(left.getValue(), right.getValue()));
-    final List<String> canonical = new ArrayList<>(entries.size());
+    return entries;
+  }
+
+  private static List<String> keys(final List<Map.Entry<String, byte[]>> entries) {
+    final List<String> keys = new ArrayList<>(entries.size());
     for (final Map.Entry<String, byte[]> entry : entries) {
-      canonical.add(entry.getKey());
+      keys.add(entry.getKey());
     }
-    return unmodifiableList(canonical);
+    return unmodifiableList(keys);
+  }
+
+  private static List<byte[]> values(final List<Map.Entry<String, byte[]>> entries) {
+    final List<byte[]> values = new ArrayList<>(entries.size());
+    for (final Map.Entry<String, byte[]> entry : entries) {
+      values.add(entry.getValue());
+    }
+    return unmodifiableList(values);
   }
 
   private static String trimWhiteSpace(final String value) {
@@ -206,9 +229,9 @@ public final class FlagSelectionRequest {
         || c == '\u3000';
   }
 
-  private static boolean anyOverLimit(final List<String> values) {
-    for (final String value : values) {
-      if (value.getBytes(UTF_8).length > MAX_VALUE_BYTES) {
+  private static boolean anyOverLimit(final List<Map.Entry<String, byte[]>> entries) {
+    for (final Map.Entry<String, byte[]> entry : entries) {
+      if (entry.getValue().length > MAX_VALUE_BYTES) {
         return true;
       }
     }
@@ -264,11 +287,11 @@ public final class FlagSelectionRequest {
     if (!first) {
       url.append(query);
     }
-    for (final String tag : this.tags) {
+    for (final byte[] tag : this.utf8Tags) {
       appendParameter(url, first, "selected_flag_tags", tag);
       first = false;
     }
-    for (final String keyPattern : this.keyPatterns) {
+    for (final byte[] keyPattern : this.utf8KeyPatterns) {
       appendParameter(url, first, "selected_flag_key_patterns", keyPattern);
       first = false;
     }
@@ -282,13 +305,13 @@ public final class FlagSelectionRequest {
   }
 
   private static void appendParameter(
-      final StringBuilder url, final boolean first, final String name, final String value) {
+      final StringBuilder url, final boolean first, final String name, final byte[] utf8Value) {
     if (!first) {
       url.append('&');
     }
     url.append(name).append('=');
     // URLEncoder is form encoding: it sends a space as '+' and keeps '*'.
-    for (final byte b : value.getBytes(UTF_8)) {
+    for (final byte b : utf8Value) {
       final int octet = b & 0xFF;
       if (isUnreserved(octet)) {
         url.append((char) octet);
@@ -426,6 +449,9 @@ public final class FlagSelectionRequest {
 
   @Override
   public int hashCode() {
-    return Objects.hash(this.tags, this.keyPatterns, this.dropReason, this.dropLimit);
+    int hash = this.tags.hashCode();
+    hash = 31 * hash + this.keyPatterns.hashCode();
+    hash = 31 * hash + Objects.hashCode(this.dropReason);
+    return 31 * hash + Objects.hashCode(this.dropLimit);
   }
 }
