@@ -68,6 +68,11 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
   private static final Pattern AWS_REGION_PATTERN = Pattern.compile("[a-z]{2}(-[a-z]+)+-\\d+");
   private static final String AWS_DOMAIN = ".amazonaws.com";
   private static final String AWS_CHINA_DOMAIN = ".amazonaws.com.cn";
+  private static final String VPCE_LABEL = "vpce";
+  private static final String LEGACY_S3_PREFIX = "s3-";
+  // endpoint hosts are few per application, but custom endpoints can be many
+  private static final DDCache<String, String> ENDPOINT_REGION_CACHE =
+      DDCaches.newFixedSizeCache(64);
 
   private static final String PUT_RECORD_OPERATION_NAME = "PutRecordRequest";
   private static final String PUT_RECORDS_OPERATION_NAME = "PutRecordsRequest";
@@ -291,34 +296,51 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
       }
     }
     URI endpoint = request.getEndpoint();
-    return null != endpoint ? regionFromEndpointHost(endpoint.getHost()) : null;
+    String host = null != endpoint ? endpoint.getHost() : null;
+    return null != host
+        ? ENDPOINT_REGION_CACHE.computeIfAbsent(host, AwsSdkClientDecorator::regionFromEndpointHost)
+        : null;
   }
 
   /**
    * Extracts the Region from an AWS endpoint host, only when the label right before {@code
-   * amazonaws.com} (or {@code amazonaws.com.cn}) is a Region and a service label precedes it.
-   * Global endpoints ({@code s3.amazonaws.com}), legacy dash forms ({@code s3-us-west-2}) and
-   * custom endpoints yield {@code null}.
+   * amazonaws.com} (or {@code amazonaws.com.cn}, after a VPC endpoint's {@code vpce} label) is a
+   * Region with a service label before it, or a legacy {@code s3-<region>} label. Global endpoints
+   * ({@code s3.amazonaws.com}) and custom endpoints yield {@code null}.
    */
   static String regionFromEndpointHost(final String host) {
     if (null == host) {
       return null;
     }
     String lowerHost = host.toLowerCase(Locale.ROOT);
-    int domainStart;
+    int labelEnd;
     if (lowerHost.endsWith(AWS_DOMAIN)) {
-      domainStart = lowerHost.length() - AWS_DOMAIN.length();
+      labelEnd = lowerHost.length() - AWS_DOMAIN.length();
     } else if (lowerHost.endsWith(AWS_CHINA_DOMAIN)) {
-      domainStart = lowerHost.length() - AWS_CHINA_DOMAIN.length();
+      labelEnd = lowerHost.length() - AWS_CHINA_DOMAIN.length();
     } else {
       return null;
     }
-    int regionStart = lowerHost.lastIndexOf('.', domainStart - 1) + 1;
-    if (regionStart <= 1) {
+    int labelStart = lowerHost.lastIndexOf('.', labelEnd - 1) + 1;
+    if (labelEnd - labelStart == VPCE_LABEL.length()
+        && lowerHost.startsWith(VPCE_LABEL, labelStart)) {
+      // <endpoint-id>.<service>.<region>.vpce.amazonaws.com
+      labelEnd = labelStart - 1;
+      labelStart = lowerHost.lastIndexOf('.', labelEnd - 1) + 1;
+    }
+    if (labelEnd <= labelStart) {
+      return null;
+    }
+    String label = lowerHost.substring(labelStart, labelEnd);
+    if (label.startsWith(LEGACY_S3_PREFIX)) {
+      // legacy s3-<region>.amazonaws.com, also with a bucket before it
+      String region = label.substring(LEGACY_S3_PREFIX.length());
+      return AWS_REGION_PATTERN.matcher(region).matches() ? region : null;
+    }
+    if (labelStart <= 1) {
       return null; // no service label before the Region
     }
-    String region = lowerHost.substring(regionStart, domainStart);
-    return AWS_REGION_PATTERN.matcher(region).matches() ? region : null;
+    return AWS_REGION_PATTERN.matcher(label).matches() ? label : null;
   }
 
   @SuppressWarnings("unchecked")
