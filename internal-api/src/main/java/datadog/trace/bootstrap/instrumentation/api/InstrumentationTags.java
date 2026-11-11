@@ -116,8 +116,13 @@ public class InstrumentationTags {
   public static final String KAFKA_CLUSTER_ID = "messaging.kafka.cluster.id";
   public static final String MESSAGING_DESTINATION_NAME = "messaging.destination.name";
 
-  /** The Google Cloud project of the called resource (e.g. a Pub/Sub topic or subscription). */
-  public static final String GCLOUD_PROJECT_ID = "gcloud.project_id";
+  /** A Pub/Sub topic's full path, {@code projects/<project>/topics/<topic>}, when known. */
+  public static final String GCP_PUBSUB_TOPIC_NAME = "gcp.pubsub.topic.name";
+
+  /**
+   * A Pub/Sub subscription's full path, {@code projects/<project>/subscriptions/<subscription>}.
+   */
+  public static final String GCP_PUBSUB_SUBSCRIPTION_NAME = "gcp.pubsub.subscription.name";
 
   public static final String QUARTZ_JOB_NAME = "quartz.job.name";
   public static final String QUARTZ_JOB_GROUP = "quartz.job.group";

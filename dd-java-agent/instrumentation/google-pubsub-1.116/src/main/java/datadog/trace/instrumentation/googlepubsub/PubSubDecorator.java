@@ -74,10 +74,13 @@ public class PubSubDecorator extends MessagingClientDecorator {
   private static final Function<CharSequence, CharSequence> SUBSCRIPTION_EXTRACTION_FUNCTION =
       new RegexExtractor("^projects/(.+)/subscriptions/(.+)$", 2).andThen(UTF8BytesString::create);
 
-  // Project IDs never contain '/', so this only matches full topic and subscription names.
-  private static final Pattern PROJECT_ID_PATTERN =
-      Pattern.compile("^projects/([^/]+)/(?:topics|subscriptions)/.+$");
-  private static final DDCache<String, String> PROJECT_ID_CACHE = DDCaches.newFixedSizeCache(32);
+  // Full resource paths; project, topic and subscription IDs never contain '/'.
+  private static final Pattern FULL_TOPIC_PATH = Pattern.compile("^projects/[^/]+/topics/[^/]+$");
+  private static final Pattern FULL_SUBSCRIPTION_PATH =
+      Pattern.compile("^projects/[^/]+/subscriptions/[^/]+$");
+  private static final DDCache<String, String> TOPIC_PATH_CACHE = DDCaches.newFixedSizeCache(32);
+  private static final DDCache<String, String> SUBSCRIPTION_PATH_CACHE =
+      DDCaches.newFixedSizeCache(32);
 
   public static final PubSubDecorator PRODUCER_DECORATE =
       new PubSubDecorator(
@@ -152,30 +155,36 @@ public class PubSubDecorator extends MessagingClientDecorator {
     afterStart(span);
     span.setResourceName(
         CONSUMER_RESOURCE_NAME_CACHE.computeIfAbsent(parsedSubscription, CONSUMER_PREFIX));
-    // The subscription is not the topic, so it is not a messaging.destination.name, and the
-    // received message does not name its topic.
-    setProjectId(span, subscription);
+    // The received message does not name its topic, so only the subscription is known here.
+    final String subscriptionPath =
+        SUBSCRIPTION_PATH_CACHE.computeIfAbsent(
+            subscription, PubSubDecorator::fullSubscriptionPath);
+    if (subscriptionPath != null) {
+      span.setTag(InstrumentationTags.GCP_PUBSUB_SUBSCRIPTION_NAME, subscriptionPath);
+    }
     return span;
   }
 
-  public void onProduce(final AgentSpan span, final String fullTopic) {
-    final CharSequence topic = extractTopic(fullTopic);
+  public void onProduce(final AgentSpan span, final CharSequence topic, final String fullTopic) {
     span.setResourceName(PRODUCER_RESOURCE_NAME_CACHE.computeIfAbsent(topic, PRODUCER_PREFIX));
-    span.setTag(InstrumentationTags.MESSAGING_DESTINATION_NAME, topic);
-    setProjectId(span, fullTopic);
-  }
-
-  /** Tags the project of a full {@code projects/<project>/(topics|subscriptions)/<name>} name. */
-  private static void setProjectId(final AgentSpan span, final String fullName) {
-    final String projectId = PROJECT_ID_CACHE.computeIfAbsent(fullName, PubSubDecorator::projectId);
-    if (projectId != null) {
-      span.setTag(InstrumentationTags.GCLOUD_PROJECT_ID, projectId);
+    final String topicPath =
+        TOPIC_PATH_CACHE.computeIfAbsent(fullTopic, PubSubDecorator::fullTopicPath);
+    if (topicPath != null) {
+      span.setTag(InstrumentationTags.GCP_PUBSUB_TOPIC_NAME, topicPath);
     }
   }
 
-  static String projectId(final String fullName) {
-    final Matcher matcher = PROJECT_ID_PATTERN.matcher(fullName);
-    return matcher.matches() ? matcher.group(1) : null;
+  /** The name if it is a full {@code projects/<project>/topics/<topic>} path, else {@code null}. */
+  static String fullTopicPath(final String name) {
+    return FULL_TOPIC_PATH.matcher(name).matches() ? name : null;
+  }
+
+  /**
+   * The name if it is a full {@code projects/<project>/subscriptions/<subscription>} path, else
+   * {@code null}.
+   */
+  static String fullSubscriptionPath(final String name) {
+    return FULL_SUBSCRIPTION_PATH.matcher(name).matches() ? name : null;
   }
 
   public CharSequence extractTopic(String fullTopic) {

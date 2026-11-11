@@ -46,8 +46,10 @@ public final class PublisherInstrumentation
     public static ContextScope before(@Advice.This Publisher publisher) {
       final AgentSpan span = startSpan(JAVA_PUBSUB.toString(), PUBSUB_PRODUCE);
 
+      final String fullTopicName = publisher.getTopicNameString();
+      final CharSequence topicName = PRODUCER_DECORATE.extractTopic(fullTopicName);
       PRODUCER_DECORATE.afterStart(span);
-      PRODUCER_DECORATE.onProduce(span, publisher.getTopicNameString());
+      PRODUCER_DECORATE.onProduce(span, topicName, fullTopicName);
 
       return activateSpan(span);
     }
