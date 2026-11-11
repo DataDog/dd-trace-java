@@ -2,6 +2,7 @@ package datadog.trace.agent.tooling;
 
 import com.blogspot.mydailyjava.weaklockfree.WeakConcurrentMap;
 import datadog.trace.api.Platform;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.WeakMap;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentTaskScheduler.Task;
@@ -9,7 +10,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
 public class WeakMaps {
-  private static final long CLEAN_FREQUENCY_SECONDS = 1;
+  @VisibleForTesting static final long CLEAN_FREQUENCY_SECONDS = 1;
 
   public static <K, V> WeakMap<K, V> newWeakMap() {
     final WeakConcurrentMap<K, V> map = new WeakConcurrentMap<>(false, true);

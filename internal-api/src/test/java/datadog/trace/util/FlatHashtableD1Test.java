@@ -57,11 +57,11 @@ class FlatHashtableD1Test {
   }
 
   private static FlatHashtable.D1<String, StringIntEntry> growable(int initialCapacity) {
-    return FlatHashtable.D1.createGrowable(StringIntEntry.class, initialCapacity);
+    return FlatHashtable.D1.createGrowable(initialCapacity, StringIntEntry[]::new);
   }
 
   private static FlatHashtable.D1<String, StringIntEntry> fixed(int maxCapacity) {
-    return FlatHashtable.D1.createFixed(StringIntEntry.class, maxCapacity);
+    return FlatHashtable.D1.createFixed(maxCapacity, StringIntEntry[]::new);
   }
 
   @Test
@@ -171,7 +171,7 @@ class FlatHashtableD1Test {
   void hashCollisionsResolveByEquality() {
     // Two distinct keys with the same hashCode: the probe must distinguish them via matches().
     FlatHashtable.D1<CollidingKey, CollidingKeyEntry> table =
-        FlatHashtable.D1.createGrowable(CollidingKeyEntry.class, 4);
+        FlatHashtable.D1.createGrowable(4, CollidingKeyEntry[]::new);
     CollidingKey k1 = new CollidingKey("first", 17);
     CollidingKey k2 = new CollidingKey("second", 17);
     CollidingKeyEntry e1 = new CollidingKeyEntry(k1, 100);

@@ -39,6 +39,11 @@ ij_groovy_line_comment_add_space_on_reformat = false
 ij_groovy_line_comment_at_first_column = false
 
 [{*.kt,*.kts}]
+# ktlint rules for the main build, buildSrc and build-logic: the IntelliJ IDEA style
+# (https://pinterest.github.io/ktlint/latest/rules/code-styles/), with optional trailing commas.
+ktlint_code_style = intellij_idea
+ktlint_standard_trailing-comma-on-call-site = disabled
+ktlint_standard_trailing-comma-on-declaration-site = disabled
 ij_kotlin_import_nested_classes = false
 ij_kotlin_imports_layout = *,java.**,javax.**,kotlin.**,^
 

@@ -1,9 +1,9 @@
 package datadog.trace.core.taginterceptor;
 
 import static datadog.trace.api.DDTags.ANALYTICS_SAMPLE_RATE;
-import static datadog.trace.api.KnownTags.COMPONENT_ID;
-import static datadog.trace.api.KnownTags.LANGUAGE_ID;
-import static datadog.trace.api.KnownTags.SERVLET_CONTEXT_ID;
+import static datadog.trace.api.KnownTags.COMPONENT;
+import static datadog.trace.api.KnownTags.LANGUAGE;
+import static datadog.trace.api.KnownTags.SERVLET_CONTEXT;
 import static datadog.trace.api.sampling.PrioritySampling.USER_DROP;
 import static datadog.trace.bootstrap.instrumentation.api.ServiceNameSources.SPLIT_BY_SERVLET_CONTEXT;
 import static datadog.trace.bootstrap.instrumentation.api.ServiceNameSources.SPLIT_BY_TAGS;
@@ -85,7 +85,7 @@ public class TagInterceptor {
     this.splitServiceSerials = knownTagSerials(splitServiceTags);
     this.splitServiceCustomNames = customTagNames(splitServiceTags);
     this.ruleFlags = ruleFlags;
-    splitByServletContext = isSplitServiceTag(SERVLET_CONTEXT_ID);
+    splitByServletContext = isSplitServiceTag(SERVLET_CONTEXT);
 
     shouldSet404ResourceName =
         ruleFlags.isEnabled(URL_AS_RESOURCE_NAME)
@@ -287,7 +287,7 @@ public class TagInterceptor {
   private boolean interceptUrlResourceAsNameRule(DDSpanContext span, long tagId, Object value) {
     if (shouldSetUrlResourceAsName) {
       // Read by Datadog name only: entries are stored under it whichever spelling set them.
-      if (tagId == KnownTags.HTTP_METHOD_ID) {
+      if (tagId == KnownTags.HTTP_METHOD) {
         final Object url = span.unsafeGetTag(HTTP_URL);
         if (url != null) {
           setResourceFromUrl(span, value.toString(), url);
@@ -334,15 +334,15 @@ public class TagInterceptor {
    * its interception never reaches the split-by-tags check.)
    */
   public void resolveSplitByTagsPrecedence(DDSpanContext span, TagMap prototypeTags) {
-    if (isSplitServiceTag(COMPONENT_ID)) {
-      TagMap.Entry component = prototypeTags.getEntry(COMPONENT_ID);
+    if (isSplitServiceTag(COMPONENT)) {
+      TagMap.Entry component = prototypeTags.getEntry(COMPONENT);
       if (component != null) {
         splitService(span, component.objectValue());
         return;
       }
     }
-    if (isSplitServiceTag(LANGUAGE_ID)) {
-      TagMap.Entry language = prototypeTags.getEntry(LANGUAGE_ID);
+    if (isSplitServiceTag(LANGUAGE)) {
+      TagMap.Entry language = prototypeTags.getEntry(LANGUAGE);
       if (language != null) {
         splitService(span, language.objectValue());
       }

@@ -1,6 +1,7 @@
 package com.datadog.debugger.agent;
 
 import static com.datadog.debugger.agent.SourceFileTrackingTransformer.MAX_QUEUE_SIZE;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static utils.TestClassFileHelper.getClassFileBytes;
 
@@ -153,6 +154,68 @@ class SourceFileTrackingTransformerTest {
           getClassFileBytes(TopLevelHelper.class));
     }
     assertEquals(MAX_QUEUE_SIZE, sourceFileTrackingTransformer.getQueueSize());
+  }
+
+  @Test
+  void registerSourceFileCorruptedClassFileDoesNotThrow() throws IllegalClassFormatException {
+    TestHelper.setFieldInConfig(
+        Config.get(),
+        "debuggerThirdPartyExcludes",
+        new HashSet<>(Arrays.asList("com.datadog.debugger.agent")));
+    try {
+      ClassesToRetransformFinder finder = new ClassesToRetransformFinder();
+      SourceFileTrackingTransformer sourceFileTrackingTransformer =
+          new SourceFileTrackingTransformer(finder);
+      byte[] classFileBytes = getClassFileBytes(InnerHelper.MyInner.class);
+      // keep magic number and constant pool count but truncate the rest to trigger an
+      // out-of-bounds read while parsing the constant pool
+      byte[] truncated = Arrays.copyOf(classFileBytes, 16);
+      sourceFileTrackingTransformer.transform(
+          null, getInternalName(InnerHelper.MyInner.class), null, null, truncated);
+      // a valid item queued after the corrupted one must still be processed
+      sourceFileTrackingTransformer.transform(
+          null,
+          getInternalName(InnerHelper.MySecondInner.class),
+          null,
+          null,
+          getClassFileBytes(InnerHelper.MySecondInner.class));
+      assertDoesNotThrow(sourceFileTrackingTransformer::flush);
+      assertEquals(0, sourceFileTrackingTransformer.getQueueSize());
+      assertEquals(1, finder.getClassNamesBySourceFile().size());
+    } finally {
+      TestHelper.setFieldInConfig(
+          Config.get(), "debuggerThirdPartyExcludes", Collections.emptySet());
+    }
+  }
+
+  @Test
+  void registerSourceFileFinderExceptionDoesNotThrow() throws IllegalClassFormatException {
+    TestHelper.setFieldInConfig(
+        Config.get(),
+        "debuggerThirdPartyExcludes",
+        new HashSet<>(Arrays.asList("com.datadog.debugger.agent")));
+    try {
+      ClassesToRetransformFinder finder =
+          new ClassesToRetransformFinder() {
+            @Override
+            public void register(String sourceFile, String className) {
+              throw new IllegalStateException("boom");
+            }
+          };
+      SourceFileTrackingTransformer sourceFileTrackingTransformer =
+          new SourceFileTrackingTransformer(finder);
+      sourceFileTrackingTransformer.transform(
+          null,
+          getInternalName(InnerHelper.MyInner.class),
+          null,
+          null,
+          getClassFileBytes(InnerHelper.MyInner.class));
+      assertDoesNotThrow(sourceFileTrackingTransformer::flush);
+      assertEquals(0, sourceFileTrackingTransformer.getQueueSize());
+    } finally {
+      TestHelper.setFieldInConfig(
+          Config.get(), "debuggerThirdPartyExcludes", Collections.emptySet());
+    }
   }
 
   private static void replaceInByteArray(byte[] buffer, byte[] oldBytes, byte[] newBytes) {

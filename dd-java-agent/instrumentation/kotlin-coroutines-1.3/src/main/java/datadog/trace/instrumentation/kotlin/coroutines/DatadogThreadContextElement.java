@@ -194,7 +194,12 @@ public final class DatadogThreadContextElement
   }
 
   public static void cancelDatadogContext(@Nonnull AbstractCoroutine<?> coroutine) {
-    DatadogThreadContextElement datadog = coroutine.getContext().get(DATADOG_KEY);
+    CoroutineContext coroutineContext = coroutine.getContext();
+    if (coroutineContext == null) {
+      // a cancelled parent can complete the coroutine before its constructor assigns the context
+      return;
+    }
+    DatadogThreadContextElement datadog = coroutineContext.get(DATADOG_KEY);
     if (datadog == null || datadog.owner != coroutine) {
       // scoped coroutines share their caller's element, but must not release its trace hold
       return;

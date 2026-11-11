@@ -84,12 +84,12 @@ class TagMapNullToleranceTest {
   @Test
   void setNullByIdRemovesTheTag() {
     TagMap map = TagMap.create();
-    map.set(KnownTags.COMPONENT_ID, "okhttp");
-    map.set(KnownTags.COMPONENT_ID, (Object) null);
+    map.set(KnownTags.COMPONENT, "okhttp");
+    map.set(KnownTags.COMPONENT, (Object) null);
     assertNull(map.getObject(Tags.COMPONENT));
 
-    map.set(KnownTags.COMPONENT_ID, "okhttp");
-    map.set(KnownTags.COMPONENT_ID, (CharSequence) null);
+    map.set(KnownTags.COMPONENT, "okhttp");
+    map.set(KnownTags.COMPONENT, (CharSequence) null);
     assertEquals(0, map.size());
   }
 

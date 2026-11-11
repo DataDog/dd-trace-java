@@ -278,8 +278,9 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
       AgentSpan span, queueSpan = null;
       StreamTaskContext streamTaskContext =
           InstrumentationContext.get(StreamTask.class, StreamTaskContext.class).get(task);
-      long timeInQueueStart = SR_GETTER.extractTimeInQueueStart(record);
-      if (timeInQueueStart == 0 || !TIME_IN_QUEUE_ENABLED) {
+      // Check the flag first, as finding the produce time scans the record's headers
+      long timeInQueueStart = TIME_IN_QUEUE_ENABLED ? SR_GETTER.extractTimeInQueueStart(record) : 0;
+      if (timeInQueueStart == 0) {
         span = startSpan(JAVA_KAFKA.toString(), KAFKA_CONSUME);
       } else {
         queueSpan =
@@ -344,8 +345,9 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
       AgentSpan span, queueSpan = null;
       StreamTaskContext streamTaskContext =
           InstrumentationContext.get(StreamTask.class, StreamTaskContext.class).get(task);
-      long timeInQueueStart = PR_GETTER.extractTimeInQueueStart(record);
-      if (timeInQueueStart == 0 || !TIME_IN_QUEUE_ENABLED) {
+      // Check the flag first, as finding the produce time scans the record's headers
+      long timeInQueueStart = TIME_IN_QUEUE_ENABLED ? PR_GETTER.extractTimeInQueueStart(record) : 0;
+      if (timeInQueueStart == 0) {
         span = startSpan(JAVA_KAFKA.toString(), KAFKA_CONSUME);
       } else {
         queueSpan =

@@ -21,15 +21,15 @@ public final class DatadogServerUrl implements TagExtractor<HttpServerUrl> {
   public void extract(HttpServerUrl url, AgentSpan span) {
     CharSequence legacyUrl = url.datadogUrl();
     if (legacyUrl != null) {
-      span.setTag(KnownTags.HTTP_URL_ID, legacyUrl);
+      span.setTag(KnownTags.HTTP_URL, legacyUrl);
     }
     if (!urlOnly) {
       String hostname = url.datadogHostname();
       if (hostname != null) {
-        span.setTag(KnownTags.HTTP_HOSTNAME_ID, hostname);
+        span.setTag(KnownTags.HTTP_HOSTNAME, hostname);
       }
       if (url.isValid() && Config.get().isHttpServerTagQueryString()) {
-        span.setTag(KnownTags.HTTP_QUERY_STRING_ID, url.query());
+        span.setTag(KnownTags.HTTP_QUERY_STRING, url.query());
         span.setTag(DDTags.HTTP_FRAGMENT, url.fragment());
       }
     }

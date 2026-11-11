@@ -330,6 +330,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     then:
     status == 200
     assertTraces(2) {
+      sortSpansByStart()
       trace(size(2)) {
         sortSpansByStart()
         basicSpan(it, "parent")
@@ -369,6 +370,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     then:
     status == 500
     assertTraces(2) {
+      sortSpansByStart()
       trace(size(2)) {
         sortSpansByStart()
         basicSpan(it, "parent")
@@ -409,6 +411,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     then:
     status == 401
     assertTraces(2) {
+      sortSpansByStart()
       trace(size(2)) {
         sortSpansByStart()
         basicSpan(it, "parent")
@@ -760,6 +763,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     and:
     assertTraces(1) {
       trace(2) {
+        sortSpansByStart()
         basicSpan(it, "parent", null, thrownException)
         clientSpan(it, span(0), method, false, false, uri, null, true, thrownException)
       }

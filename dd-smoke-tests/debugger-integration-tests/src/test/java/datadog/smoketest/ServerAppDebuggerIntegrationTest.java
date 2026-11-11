@@ -1,6 +1,7 @@
 package datadog.smoketest;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import com.datadog.debugger.agent.ProbeStatus;
 import com.datadog.debugger.probe.LogProbe;
@@ -162,6 +163,7 @@ public class ServerAppDebuggerIntegrationTest extends BaseIntegrationTest {
   }
 
   protected String startAppAndAndGetUrl() throws InterruptedException, IOException {
+    assertNull(targetProcess); // make sure we are not calling this method twice
     controlServer.enqueue(EMPTY_200_RESPONSE); // ack response
     targetProcess = createProcessBuilder(logFilePath, controlUrl.toString()).start();
     RecordedRequest recordedRequest = controlServer.takeRequest(30, TimeUnit.SECONDS);

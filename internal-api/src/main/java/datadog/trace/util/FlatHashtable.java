@@ -2,13 +2,13 @@ package datadog.trace.util;
 
 import datadog.trace.api.function.Strategy;
 import datadog.trace.api.function.StrategyConsumer;
-import java.lang.reflect.Array;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.function.IntFunction;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -166,12 +166,19 @@ public final class FlatHashtable {
 
     private final boolean growable;
     private final float loadFactor;
+    private final IntFunction<TEntry[]> newArray; // mints a grown table of the precise type
     private TEntry[] table;
     private int size;
     private int limit; // grow trigger when growable; hard cap when fixed
 
-    private D1(TEntry[] table, float loadFactor, boolean growable, int limit) {
+    private D1(
+        TEntry[] table,
+        float loadFactor,
+        boolean growable,
+        int limit,
+        IntFunction<TEntry[]> newArray) {
       this.growable = growable;
+      this.newArray = newArray;
       this.loadFactor = loadFactor;
       this.table = table;
       this.size = 0;
@@ -184,14 +191,15 @@ public final class FlatHashtable {
      */
     @Nonnull
     public static <K, E extends D1.Entry<K>> D1<K, E> createFixed(
-        @Nonnull Class<E> type, int maxCapacity) {
-      return createFixed(type, maxCapacity, DEFAULT_LOAD_FACTOR);
+        int maxCapacity, @Nonnull IntFunction<E[]> newArray) {
+      return createFixed(maxCapacity, DEFAULT_LOAD_FACTOR, newArray);
     }
 
     @Nonnull
     public static <K, E extends D1.Entry<K>> D1<K, E> createFixed(
-        @Nonnull Class<E> type, int maxCapacity, float loadFactor) {
-      return new D1<>(create(type, maxCapacity, loadFactor), loadFactor, false, maxCapacity);
+        int maxCapacity, float loadFactor, @Nonnull IntFunction<E[]> newArray) {
+      return new D1<>(
+          create(maxCapacity, loadFactor, newArray), loadFactor, false, maxCapacity, newArray);
     }
 
     /**
@@ -200,15 +208,15 @@ public final class FlatHashtable {
      */
     @Nonnull
     public static <K, E extends D1.Entry<K>> D1<K, E> createGrowable(
-        @Nonnull Class<E> type, int initialCapacity) {
-      return createGrowable(type, initialCapacity, DEFAULT_LOAD_FACTOR);
+        int initialCapacity, @Nonnull IntFunction<E[]> newArray) {
+      return createGrowable(initialCapacity, DEFAULT_LOAD_FACTOR, newArray);
     }
 
     @Nonnull
     public static <K, E extends D1.Entry<K>> D1<K, E> createGrowable(
-        @Nonnull Class<E> type, int initialCapacity, float loadFactor) {
-      E[] table = create(type, initialCapacity, loadFactor);
-      return new D1<>(table, loadFactor, true, (int) (table.length * loadFactor));
+        int initialCapacity, float loadFactor, @Nonnull IntFunction<E[]> newArray) {
+      E[] table = create(initialCapacity, loadFactor, newArray);
+      return new D1<>(table, loadFactor, true, (int) (table.length * loadFactor), newArray);
     }
 
     public int size() {
@@ -302,7 +310,7 @@ public final class FlatHashtable {
     }
 
     private void grow() {
-      table = resize(table);
+      table = resize(table, newArray);
       limit = (int) (table.length * loadFactor);
     }
 
@@ -378,12 +386,19 @@ public final class FlatHashtable {
 
     private final boolean growable;
     private final float loadFactor;
+    private final IntFunction<TEntry[]> newArray; // mints a grown table of the precise type
     private TEntry[] table;
     private int size;
     private int limit; // grow trigger when growable; hard cap when fixed
 
-    private D2(TEntry[] table, float loadFactor, boolean growable, int limit) {
+    private D2(
+        TEntry[] table,
+        float loadFactor,
+        boolean growable,
+        int limit,
+        IntFunction<TEntry[]> newArray) {
       this.growable = growable;
+      this.newArray = newArray;
       this.loadFactor = loadFactor;
       this.table = table;
       this.size = 0;
@@ -396,14 +411,15 @@ public final class FlatHashtable {
      */
     @Nonnull
     public static <K1, K2, E extends D2.Entry<K1, K2>> D2<K1, K2, E> createFixed(
-        @Nonnull Class<E> type, int maxCapacity) {
-      return createFixed(type, maxCapacity, DEFAULT_LOAD_FACTOR);
+        int maxCapacity, @Nonnull IntFunction<E[]> newArray) {
+      return createFixed(maxCapacity, DEFAULT_LOAD_FACTOR, newArray);
     }
 
     @Nonnull
     public static <K1, K2, E extends D2.Entry<K1, K2>> D2<K1, K2, E> createFixed(
-        @Nonnull Class<E> type, int maxCapacity, float loadFactor) {
-      return new D2<>(create(type, maxCapacity, loadFactor), loadFactor, false, maxCapacity);
+        int maxCapacity, float loadFactor, @Nonnull IntFunction<E[]> newArray) {
+      return new D2<>(
+          create(maxCapacity, loadFactor, newArray), loadFactor, false, maxCapacity, newArray);
     }
 
     /**
@@ -412,15 +428,15 @@ public final class FlatHashtable {
      */
     @Nonnull
     public static <K1, K2, E extends D2.Entry<K1, K2>> D2<K1, K2, E> createGrowable(
-        @Nonnull Class<E> type, int initialCapacity) {
-      return createGrowable(type, initialCapacity, DEFAULT_LOAD_FACTOR);
+        int initialCapacity, @Nonnull IntFunction<E[]> newArray) {
+      return createGrowable(initialCapacity, DEFAULT_LOAD_FACTOR, newArray);
     }
 
     @Nonnull
     public static <K1, K2, E extends D2.Entry<K1, K2>> D2<K1, K2, E> createGrowable(
-        @Nonnull Class<E> type, int initialCapacity, float loadFactor) {
-      E[] table = create(type, initialCapacity, loadFactor);
-      return new D2<>(table, loadFactor, true, (int) (table.length * loadFactor));
+        int initialCapacity, float loadFactor, @Nonnull IntFunction<E[]> newArray) {
+      E[] table = create(initialCapacity, loadFactor, newArray);
+      return new D2<>(table, loadFactor, true, (int) (table.length * loadFactor), newArray);
     }
 
     public int size() {
@@ -520,7 +536,7 @@ public final class FlatHashtable {
     }
 
     private void grow() {
-      table = resize(table);
+      table = resize(table, newArray);
       limit = (int) (table.length * loadFactor);
     }
 
@@ -700,27 +716,28 @@ public final class FlatHashtable {
   }
 
   /**
-   * Allocates a correctly-typed table for a cardinality budget ({@link #capacityFor} slots).
-   * Passing {@code type} makes the array's runtime component type {@code E} rather than {@code
-   * Object[]} — typed reads, real array-store checks, and a monomorphic element type for the JIT.
-   * Callers can't {@code new E[]} themselves under erasure; this does the one reflective allocation
-   * at construction (off any hot path). Note: this {@code create} mints the backing array; {@link
-   * CreateStrategy#create} mints an entry — different types, no ambiguity at the call site.
+   * Allocates a table for a cardinality budget ({@link #capacityFor} slots). {@code newArray} is an
+   * array constructor of the entry type, e.g. {@code MyEntry[]::new}, so the table's runtime
+   * component type is {@code E} rather than {@code Object[]}: typed reads, real array-store checks,
+   * and a precise element type for the JIT. Unlike {@code Array.newInstance}, an array constructor
+   * isn't reflective, so the table works unchanged under GraalVM native-image with no reflection
+   * registration. Note: this {@code create} mints the backing array; {@link CreateStrategy#create}
+   * mints an entry -- different types, no ambiguity at the call site.
    */
-  @SuppressWarnings("unchecked")
   @Nonnull
-  public static <E> E[] create(@Nonnull Class<E> type, int cardinalityLimit) {
-    return (E[]) Array.newInstance(type, capacityFor(cardinalityLimit));
+  public static <E> E[] create(int cardinalityLimit, @Nonnull IntFunction<E[]> newArray) {
+    return newArray.apply(capacityFor(cardinalityLimit));
   }
 
   /**
-   * {@link #create(Class, int)} at an explicit {@code loadFactor} (see {@link #capacityFor(int,
-   * float)} and the {@link #DEFAULT_LOAD_FACTOR} / {@link #LOW_LOAD_FACTOR} constants).
+   * {@link #create(int, IntFunction)} at an explicit {@code loadFactor} (see {@link
+   * #capacityFor(int, float)} and the {@link #DEFAULT_LOAD_FACTOR} / {@link #LOW_LOAD_FACTOR}
+   * constants).
    */
-  @SuppressWarnings("unchecked")
   @Nonnull
-  public static <E> E[] create(@Nonnull Class<E> type, int cardinalityLimit, float loadFactor) {
-    return (E[]) Array.newInstance(type, capacityFor(cardinalityLimit, loadFactor));
+  public static <E> E[] create(
+      int cardinalityLimit, float loadFactor, @Nonnull IntFunction<E[]> newArray) {
+    return newArray.apply(capacityFor(cardinalityLimit, loadFactor));
   }
 
   /**
@@ -843,12 +860,13 @@ public final class FlatHashtable {
    * Doubles capacity and rehashes every entry into a new table — call when {@link #insert} returns
    * {@code false} and you want to grow rather than reject; the caller stores the returned array
    * back. Convenience over the {@link HashStrategy}-taking overload for {@link Entry}-based entries
-   * (the home comes from {@link Entry#hash}). See {@link #resizingInsert(Entry[], Entry)} to do
-   * both in one call, and its note on growing over unbounded key domains.
+   * (the home comes from {@link Entry#hash}). See {@link #resizingInsert(Entry[], Entry,
+   * IntFunction)} to do both in one call, and its note on growing over unbounded key domains.
    */
   @Nonnull
-  public static <E extends Entry> E[] resize(@Nonnull E[] table) {
-    E[] grown = allocateGrown(table);
+  public static <E extends Entry> E[] resize(
+      @Nonnull E[] table, @Nonnull IntFunction<E[]> newArray) {
+    E[] grown = newArray.apply(grownLength(table.length));
     for (final E e : table) {
       if (e != null) {
         placeAt(grown, e, e.hash);
@@ -858,13 +876,14 @@ public final class FlatHashtable {
   }
 
   /**
-   * {@link #resize(Entry[])} for any entry type: each entry's home comes from {@link
+   * {@link #resize(Entry[], IntFunction)} for any entry type: each entry's home comes from {@link
    * HashStrategy#hashOf}. Not a {@link StrategyConsumer} — the rehash is a cold, one-off traversal,
    * not a hot specialization site.
    */
   @Nonnull
-  public static <E> E[] resize(@Nonnull E[] table, @Nonnull HashStrategy<E> hashStrat) {
-    E[] grown = allocateGrown(table);
+  public static <E> E[] resize(
+      @Nonnull E[] table, @Nonnull HashStrategy<E> hashStrat, @Nonnull IntFunction<E[]> newArray) {
+    E[] grown = newArray.apply(grownLength(table.length));
     for (final E e : table) {
       if (e != null) {
         placeAt(grown, e, hashStrat.hashOf(e));
@@ -874,19 +893,11 @@ public final class FlatHashtable {
   }
 
   /**
-   * A new, empty table of twice the capacity, of the same runtime component type as {@code table}.
-   */
-  @SuppressWarnings("unchecked")
-  private static <E> E[] allocateGrown(E[] table) {
-    return (E[]) Array.newInstance(table.getClass().getComponentType(), grownLength(table.length));
-  }
-
-  /**
    * {@code currentLength << 1}, guarded against overflow. {@code currentLength << 1} overflows to a
    * negative value at {@code currentLength == 1 << 30}; without this check the failure surfaces as
-   * an opaque {@code NegativeArraySizeException} from {@code Array.newInstance} in {@link
-   * #allocateGrown}. Same overflow class as {@link #capacityFor}'s guard -- this is the growth-time
-   * counterpart.
+   * an opaque {@code NegativeArraySizeException} from the array constructor in {@link
+   * #resize(Entry[], IntFunction)}. Same overflow class as {@link #capacityFor}'s guard -- this is
+   * the growth-time counterpart.
    */
   static int grownLength(int currentLength) {
     int grownLength = currentLength << 1;
@@ -899,11 +910,11 @@ public final class FlatHashtable {
 
   /**
    * {@link #insert(Entry[], Entry) insert} that grows on demand: adds {@code entry}, {@link
-   * #resize(Entry[]) resizing} first if the table is full, and returns the table to store back —
-   * the <b>same</b> array if it fit, a <b>new larger</b> one if it grew:
+   * #resize(Entry[], IntFunction) resizing} first if the table is full, and returns the table to
+   * store back — the <b>same</b> array if it fit, a <b>new larger</b> one if it grew:
    *
    * <pre>{@code
-   * table = FlatHashtable.resizingInsert(table, entry); // always reassign
+   * table = FlatHashtable.resizingInsert(table, entry, MyEntry[]::new); // always reassign
    * }</pre>
    *
    * Same comparison-free, caller-ensures-absence contract as {@link #insert}.
@@ -924,25 +935,29 @@ public final class FlatHashtable {
    * size (as {@link D1} / {@link D2} do) can grow at a load factor of its own choosing instead.
    */
   @Nonnull
-  public static <E extends Entry> E[] resizingInsert(@Nonnull E[] table, @Nonnull E entry) {
+  public static <E extends Entry> E[] resizingInsert(
+      @Nonnull E[] table, @Nonnull E entry, @Nonnull IntFunction<E[]> newArray) {
     E[] t = table;
     while (!insert(t, entry)) {
-      t = resize(t); // one doubling always suffices; the loop is belt-and-braces
+      t = resize(t, newArray); // one doubling always suffices; the loop is belt-and-braces
     }
     return t;
   }
 
   /**
-   * {@link #resizingInsert(Entry[], Entry)} for any entry type (home via {@link
+   * {@link #resizingInsert(Entry[], Entry, IntFunction)} for any entry type (home via {@link
    * HashStrategy#hashOf}). Same grows-unboundedly caution and same probe-to-full growth trigger.
    */
   @StrategyConsumer
   @Nonnull
   public static <E> E[] resizingInsert(
-      @Nonnull E[] table, @Nonnull E entry, @Nonnull HashStrategy<E> hashStrat) {
+      @Nonnull E[] table,
+      @Nonnull E entry,
+      @Nonnull HashStrategy<E> hashStrat,
+      @Nonnull IntFunction<E[]> newArray) {
     E[] t = table;
     while (!insert(t, entry, hashStrat)) {
-      t = resize(t, hashStrat);
+      t = resize(t, hashStrat, newArray);
     }
     return t;
   }
@@ -991,7 +1006,7 @@ public final class FlatHashtable {
    * feeds the {@link Entry}-hash strategy singleton into the shared traversal template as a <i>
    * constant</i>, so {@code hashOf} devirtualizes to {@code entry.hash} and inlines — a monomorphic
    * call site thus gets a devirtualized pull-based traversal while keeping the plain {@link
-   * Iterator} API and reusing the same core (see the {@link HashIterator} base). Same {@code
+   * Iterator} API and reusing the same core (see the {@link HashTraversal} base). Same {@code
    * Iterator<E>} return type as the general overload; the call site specializes by its own
    * monomorphism.
    */
@@ -1001,91 +1016,88 @@ public final class FlatHashtable {
   }
 
   /**
-   * Shared iterator core. The traversal lives in {@code final} template methods parameterized by
-   * the strategy ({@code advanceWith}/{@code nextWith}); each concrete subclass implements {@link
-   * #next} by handing in its strategy source — a field (general) or a {@code static final} constant
-   * (Entry). Feeding a constant into the {@code final} template is what lets the specialized
-   * subclass inline {@code hashOf} (the CacheHelper static-polymorphism move), so the two share all
-   * the mechanism yet differ only in whether the strategy call devirtualizes.
+   * {@link #iterator(Object[], long, HashStrategy)} as a {@link Cursor}: the matching entries one
+   * at a time, then null. A cursor needs no look-ahead, so prefer it where the caller doesn't need
+   * an {@link Iterator}. The strategy is held in a field, so {@code hashOf} is called virtually;
+   * for {@link Entry}-based tables prefer {@link #cursor(Entry[], long)}.
    */
-  private abstract static class HashIterator<E> implements Iterator<E> {
+  @Nonnull
+  public static <E> Cursor<E> cursor(
+      @Nonnull E[] table, long hash, @Nonnull HashStrategy<E> hashStrat) {
+    return new StrategyHashCursor<>(table, hash, hashStrat);
+  }
+
+  /**
+   * {@link #cursor(Object[], long, HashStrategy)} for {@link Entry}-based tables. Feeds the {@link
+   * Entry}-hash strategy into the traversal as a constant, so {@code hashOf} inlines to {@code
+   * entry.hash} (see {@link #iterator(Entry[], long)}).
+   */
+  @Nonnull
+  public static <E extends Entry> Cursor<E> cursor(@Nonnull E[] table, long hash) {
+    return new EntryHashCursor<>(table, hash);
+  }
+
+  /**
+   * Shared traversal core for the cursors and iterators. The probe walk lives in the {@code final}
+   * template {@code nextWith}, parameterized by the strategy; each concrete class hands in its
+   * strategy source -- a field (general) or a {@code static final} constant (Entry). Feeding a
+   * constant into the {@code final} template is what lets the Entry variants inline {@code hashOf}
+   * (the CacheHelper static-polymorphism move).
+   *
+   * <p>The iterators extend this core rather than wrapping a cursor: a wrapper is a second object
+   * whose fields change in the caller's loop, and C2 didn't scalar-replace that pair (measured 40 B
+   * per walk, vs none for one object), even with everything inlined.
+   */
+  private abstract static class HashTraversal<E> {
     final E[] table;
     final long hash;
     final int start;
     int i;
     boolean done;
-    E lookahead;
 
-    HashIterator(E[] table, long hash) {
+    HashTraversal(E[] table, long hash) {
       this.table = table;
       this.hash = hash;
       this.start = home(hash, table.length - 1);
       this.i = this.start;
-      // Priming advance() is left to the concrete ctor: it needs the subclass's strategy source,
-      // which isn't set until after super().
     }
 
-    /**
-     * Template traversal core, parameterized by the strategy. {@code final} so that a subclass
-     * passing a constant strategy inlines this and devirtualizes {@code hashOf}.
-     */
-    final void advanceWith(HashStrategy<E> hashStrat) {
-      lookahead = null;
+    /** The next entry with the hash, or null once the probe run ends. */
+    final E nextWith(HashStrategy<E> hashStrat) {
       if (done) {
-        return;
+        return null;
       }
       final int mask = table.length - 1;
       for (; ; ) {
         final E e = table[i];
         if (e == null) {
           done = true; // probe run ends at the first empty slot
-          return;
+          return null;
         }
         final boolean match = hashStrat.hashOf(e) == hash;
         i = (i + 1) & mask;
         final boolean wrapped = (i == start);
         if (match) {
-          lookahead = e;
           done = wrapped;
-          return;
+          return e;
         }
         if (wrapped) {
           done = true; // walked the whole table without an empty slot
-          return;
+          return null;
         }
       }
     }
-
-    final E nextWith(HashStrategy<E> hashStrat) {
-      final E e = lookahead;
-      if (e == null) {
-        throw new NoSuchElementException();
-      }
-      advanceWith(hashStrat);
-      return e;
-    }
-
-    @Override
-    public final boolean hasNext() {
-      return lookahead != null;
-    }
-
-    // Abstract so each subclass injects its own strategy source into nextWith(); that binding is
-    // what lets the Entry variant inline hashOf while the general one stays virtual.
-    @Override
-    public abstract E next();
   }
 
-  /** General iterator: strategy held in a field, so {@code hashOf} stays a virtual call. */
-  private static final class StrategyHashIterator<E> extends HashIterator<E> {
-    // Dynamic dispatch on purpose: general iterator fallback partner to EntryHashIterator
+  /** General cursor: strategy held in a field, so {@code hashOf} stays a virtual call. */
+  private static final class StrategyHashCursor<E> extends HashTraversal<E> implements Cursor<E> {
+    // Dynamic dispatch on purpose: general fallback partner to EntryHashCursor
     // (see Strategy's Checker contract).
     private final HashStrategy<E> hashStrat;
 
-    StrategyHashIterator(E[] table, long hash, HashStrategy<E> hashStrat) {
+    StrategyHashCursor(E[] table, long hash, HashStrategy<E> hashStrat) {
       super(table, hash);
       this.hashStrat = hashStrat;
-      advanceWith(hashStrat); // prime
     }
 
     @Override
@@ -1095,18 +1107,72 @@ public final class FlatHashtable {
   }
 
   /**
-   * Entry iterator: feeds the constant {@link #ENTRY_HASH} singleton, so {@code hashOf} inlines to
+   * Entry cursor: feeds the constant {@link #ENTRY_HASH} singleton, so {@code hashOf} inlines to
    * {@code entry.hash}.
    */
-  private static final class EntryHashIterator<E extends Entry> extends HashIterator<E> {
-    EntryHashIterator(E[] table, long hash) {
+  private static final class EntryHashCursor<E extends Entry> extends HashTraversal<E>
+      implements Cursor<E> {
+    EntryHashCursor(E[] table, long hash) {
       super(table, hash);
-      advanceWith(entryHash()); // prime with the constant
     }
 
     @Override
     public E next() {
       return nextWith(entryHash());
+    }
+  }
+
+  /**
+   * The traversal as an {@link Iterator}: the look-ahead {@code hasNext} needs lives here, so the
+   * cursors carry none. Each subclass primes it once its strategy source is set.
+   */
+  private abstract static class HashIterator<E> extends HashTraversal<E> implements Iterator<E> {
+    E lookahead;
+
+    HashIterator(E[] table, long hash) {
+      super(table, hash);
+    }
+
+    @Override
+    public final boolean hasNext() {
+      return lookahead != null;
+    }
+
+    /** Hands out the look-ahead and replaces it with {@code following}. */
+    final E take(E following) {
+      final E e = lookahead;
+      if (e == null) {
+        throw new NoSuchElementException();
+      }
+      lookahead = following;
+      return e;
+    }
+  }
+
+  private static final class StrategyHashIterator<E> extends HashIterator<E> {
+    private final HashStrategy<E> hashStrat;
+
+    StrategyHashIterator(E[] table, long hash, HashStrategy<E> hashStrat) {
+      super(table, hash);
+      this.hashStrat = hashStrat;
+      this.lookahead = nextWith(hashStrat); // prime
+    }
+
+    @Override
+    public E next() {
+      return take(lookahead == null ? null : nextWith(hashStrat));
+    }
+  }
+
+  private static final class EntryHashIterator<E extends Entry> extends HashIterator<E> {
+    EntryHashIterator(E[] table, long hash) {
+      super(table, hash);
+      this.lookahead = nextWith(entryHash()); // prime with the constant
+    }
+
+    @Override
+    public E next() {
+      return take(lookahead == null ? null : nextWith(entryHash()));
     }
   }
 

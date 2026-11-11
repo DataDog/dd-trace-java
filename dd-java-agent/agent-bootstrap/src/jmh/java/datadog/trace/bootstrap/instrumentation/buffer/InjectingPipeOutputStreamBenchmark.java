@@ -6,6 +6,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
@@ -51,14 +52,18 @@ public class InjectingPipeOutputStreamBenchmark {
   public void withPipe() throws Exception {
     try (final PrintWriter out =
         new PrintWriter(
-            new InjectingPipeOutputStream(new ByteArrayOutputStream(), marker, content))) {
+            new OutputStreamWriter(
+                new InjectingPipeOutputStream(new ByteArrayOutputStream(), marker, content),
+                StandardCharsets.UTF_8))) {
       htmlContent.forEach(out::println);
     }
   }
 
   @Benchmark
   public void withoutPipe() throws Exception {
-    try (final PrintWriter out = new PrintWriter(new ByteArrayOutputStream())) {
+    try (final PrintWriter out =
+        new PrintWriter(
+            new OutputStreamWriter(new ByteArrayOutputStream(), StandardCharsets.UTF_8))) {
       htmlContent.forEach(out::println);
     }
   }
