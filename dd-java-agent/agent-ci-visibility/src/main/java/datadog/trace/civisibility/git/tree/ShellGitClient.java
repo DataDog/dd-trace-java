@@ -536,7 +536,7 @@ public class ShellGitClient implements GitClient {
             String[] settings =
                 COMMIT_INFO_SPLIT.split(
                     commandExecutor.executeCommand(
-                        input -> IOUtils.readFully(input, UTF_8),
+                        input -> IOUtils.readFully(input, StandardCharsets.UTF_8),
                         buildGitCommand("config", "--null", "--list", "--includes")));
             environment.put("GIT_CONFIG_NOSYSTEM", "1");
             environment.put("GIT_CONFIG_GLOBAL", recoveryDirectory.resolve("config").toString());
@@ -587,6 +587,8 @@ public class ShellGitClient implements GitClient {
               }
               recoveredShallowCommits =
                   new String(Files.readAllBytes(shallow), StandardCharsets.UTF_8);
+            } else {
+              recoveredShallowCommits = "";
             }
           } finally {
             FileUtils.delete(recoveryDirectory);
@@ -620,29 +622,8 @@ public class ShellGitClient implements GitClient {
     }
     if (fetchIfNotPresent) {
       boolean isPresent = isCommitPresent(commit);
-      boolean needsAncestry = !isPresent;
-      if (!needsAncestry) {
-        try {
-          // Recovery objects survive the original client; presence alone does not imply ancestry.
-          commandExecutor.executeCommand(
-              ShellCommandExecutor.OutputParser.IGNORE,
-              buildGitCommand("rev-list", "--quiet", commit, "--"));
-        } catch (ShellCommandExecutor.ShellCommandFailedException e) {
-          needsAncestry = true;
-        } catch (TimeoutException e) {
-          LOGGER.debug("Could not check PR ancestry; retaining local commit metadata", e);
-        }
-      }
-      if (needsAncestry) {
-        try {
-          // Fetch PR ancestry independently; retain private boundaries for other upload revisions.
-          fetchCommit(commit);
-        } catch (ShellCommandExecutor.ShellCommandFailedException | TimeoutException e) {
-          if (!isPresent) {
-            throw e;
-          }
-          LOGGER.debug("Could not recover full PR ancestry; retaining local commit metadata", e);
-        }
+      if (!isPresent) {
+        fetchCommit(commit);
       }
     }
     return executeCommand(
@@ -1343,11 +1324,19 @@ public class ShellGitClient implements GitClient {
     if (GitUtils.isNotValidCommit(base) || GitUtils.isNotValidCommit(source)) {
       return null;
     }
+    String[] arguments = buildGitCommand("merge-base", base, source);
     try {
-      return commandExecutor
-          .executeCommand(
-              input -> IOUtils.readFully(input, UTF_8), buildGitCommand("merge-base", base, source))
-          .trim();
+      try {
+        return commandExecutor.executeCommand(input -> IOUtils.readFully(input, UTF_8), arguments).trim();
+      } catch (ShellCommandExecutor.ShellCommandFailedException ignored) {
+        try {
+          commandExecutor.executeCommand(
+              IGNORE, buildGitCommand("rev-list", "--quiet", source, "--"));
+        } catch (ShellCommandExecutor.ShellCommandFailedException missingAncestry) {
+          fetchCommit(source);
+          return commandExecutor.executeCommand(input -> IOUtils.readFully(input, UTF_8), arguments).trim();
+        }
+      }
     } catch (ShellCommandExecutor.ShellCommandFailedException e) {
       LOGGER.debug("Error calculating common ancestor for {} and {}", base, source, e);
     }
