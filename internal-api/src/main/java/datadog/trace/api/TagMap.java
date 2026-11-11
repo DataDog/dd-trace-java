@@ -1404,7 +1404,11 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     }
     HashStore nameStore = this.nameStore;
     Entry entry = nameStore == null ? null : nameStore.getEntry(tag);
-    return entry == null ? null : entry.objectValue();
+    if (entry != null) {
+      return entry.objectValue();
+    }
+    long concept = this.presentConceptNamed(tag);
+    return concept == 0 ? null : this.knownStore.load(concept);
   }
 
   /**
@@ -1418,7 +1422,11 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     }
     HashStore nameStore = this.nameStore;
     Entry entry = nameStore == null ? null : nameStore.getEntry(tag);
-    return entry == null ? null : entry.stringValue();
+    if (entry != null) {
+      return entry.stringValue();
+    }
+    long concept = this.presentConceptNamed(tag);
+    return concept == 0 ? null : this.knownStore.loadString(concept);
   }
 
   /* TagStore, for standalone maps handed to the pipeline: TagMap's own get and set. */
@@ -1550,7 +1558,12 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       return this.knownStore.getEntry(key);
     }
     HashStore nameStore = this.nameStore;
-    return nameStore == null ? null : nameStore.getEntry(tag);
+    Entry entry = nameStore == null ? null : nameStore.getEntry(tag);
+    if (entry != null) {
+      return entry;
+    }
+    long concept = this.presentConceptNamed(tag);
+    return concept == 0 ? null : this.knownStore.getEntry(concept);
   }
 
   /** The entry for a known tag id, found by the id itself rather than by resolving a name. */
@@ -1569,7 +1582,27 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       return this.knownStore.getEntryReader(key);
     }
     HashStore nameStore = this.nameStore;
-    return nameStore == null ? null : nameStore.getEntry(tag);
+    Entry entry = nameStore == null ? null : nameStore.getEntry(tag);
+    if (entry != null) {
+      return entry;
+    }
+    long concept = this.presentConceptNamed(tag);
+    return concept == 0 ? null : this.knownStore.getEntryReader(concept);
+  }
+
+  /**
+   * The concept this map holds under {@code tag}, a name with no id of its own, or 0. A concept's
+   * name is shared with other concepts and a map has no span kind to choose between them, so a read
+   * by name finds whichever of them is present. A span holds at most one concept per name unless
+   * several are written by id.
+   */
+  private long presentConceptNamed(String tag) {
+    for (long concept : KnownTagCodec.conceptsNamed(tag)) {
+      if (this.knownStore.getEntryReader(concept) != null) {
+        return concept;
+      }
+    }
+    return 0L;
   }
 
   /** {@link #getEntryReader(String)} for a known tag id. */
@@ -1976,7 +2009,15 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     // See getEntry: entries are stored under their canonical Datadog name, so a removal by an
     // OpenTelemetry rename must resolve to the id first to find (and tombstone) the right entry.
     long key = KnownTagCodec.idOf(tag);
-    return key != 0 ? entryOf(this.knownStore.remove(key)) : this.removeCustom(tag);
+    if (key != 0) {
+      return entryOf(this.knownStore.remove(key));
+    }
+    Entry removed = this.removeCustom(tag);
+    if (removed != null) {
+      return removed;
+    }
+    long concept = this.presentConceptNamed(tag);
+    return concept == 0 ? null : entryOf(this.knownStore.remove(concept));
   }
 
   /** Removes the entry for a known tag id; see {@link #getEntry(long)}. */
