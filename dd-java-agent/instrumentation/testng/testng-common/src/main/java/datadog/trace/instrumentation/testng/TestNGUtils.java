@@ -13,8 +13,10 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Properties;
+import java.util.Set;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -107,20 +109,44 @@ public abstract class TestNGUtils {
     if (groups == null) {
       return null;
     }
-    return Arrays.asList(groups);
+    // Some TestNG versions (e.g. 6.14) only take the class-level groups from the class declaring
+    // the method, missing the groups of the test class when the method is inherited
+    List<String> classGroups = getClassGroups(getTestClass(result, method));
+    if (classGroups.isEmpty()) {
+      return Arrays.asList(groups);
+    }
+    Set<String> allGroups = new LinkedHashSet<>(Arrays.asList(groups));
+    allGroups.addAll(classGroups);
+    return new ArrayList<>(allGroups);
   }
 
-  public static List<String> getGroups(ITestClass testClass) {
-    Class<?> realClass = testClass.getRealClass();
+  private static Class<?> getTestClass(ITestResult result, ITestNGMethod method) {
+    Object instance = result.getInstance();
+    if (instance != null) {
+      return instance.getClass();
+    }
+    ITestClass testClass = method.getTestClass();
+    if (testClass != null) {
+      return testClass.getRealClass();
+    }
+    // falls back to the class declaring the method
+    return method.getRealClass();
+  }
+
+  private static List<String> getClassGroups(Class<?> clazz) {
     List<String> groups = new ArrayList<>();
-    while (realClass != null) {
-      Test testAnnotation = realClass.getAnnotation(Test.class);
+    while (clazz != null) {
+      Test testAnnotation = clazz.getAnnotation(Test.class);
       if (testAnnotation != null) {
         Collections.addAll(groups, testAnnotation.groups());
       }
-
-      realClass = realClass.getSuperclass();
+      clazz = clazz.getSuperclass();
     }
+    return groups;
+  }
+
+  public static List<String> getGroups(ITestClass testClass) {
+    List<String> groups = getClassGroups(testClass.getRealClass());
     return !groups.isEmpty() ? groups : null;
   }
 
