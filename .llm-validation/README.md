@@ -8,15 +8,12 @@ growth and documents how to review guidance for correctness, scope, and placemen
 
 `llm validation` reports context growth, then evaluates changes to the
 `instruction_files` in [config.yaml](config.yaml): `AGENTS.md` and `.claude/CLAUDE.md`.
-The [suite](suites/java-agent-instructions.yaml) covers focused validation, Java test conventions,
-premain safety, and an unrelated Java task to look for broader quality regressions.
 
 The job skips `master`. Context reporting runs on other eligible pipelines even when unchanged
 instructions cause the behavioral evaluation to skip. Growth and quality findings are advisory.
 Preflight errors, configuration errors, and incomplete evaluations after detecting instruction
-changes fail the job. During calibration, `allow_failure: true` keeps these failures visible without
-failing the GitLab pipeline. Keep this job optional in merge checks while testing. Earlier platform
-infrastructure failures may pass as inconclusive.
+changes fail the job. For now, we set `allow_failure: true` to keep these failures visible without
+failing the GitLab pipeline.
 
 Read the job artifacts:
 
@@ -46,12 +43,9 @@ and keep a general Java control case. Review the actual answers alongside the sc
 
 ## Setup evaluation
 
-The separate `setup` inventory in [config.yaml](config.yaml) declares root/build-module guidance
-and both skill directories. Existing `setup.directories` support includes tracked files recursively
-and resolves internal aliases; it does not expand instruction-change monitoring.
-
+The separate `setup` inventory in [config.yaml](config.yaml) declares root/build-module guidance.
 Setup mode compares the declared guidance against a minimal setup at the same commit. It is not
-enabled in CI. With the pinned platform runner, use `--comparison setup --level minimum`;
+enabled in CI yet. With the pinned platform runner, use `--comparison setup --level minimum`;
 add `--dry-run` to inspect the inventory and selection without calling a model. It reuses the
 existing suite, so conclusions apply only to the tasks covered.
 

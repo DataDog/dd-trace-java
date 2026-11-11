@@ -33,4 +33,7 @@ presets:
       - java-core-validation-001
       - java-unit-test-conventions-001
       - java-premain-safety-001
+      - java-ci-download-guidance-001
+      - java-documentation-only-validation-001
+      - java-existing-spock-maintenance-001
       - java-control-defensive-copy-001

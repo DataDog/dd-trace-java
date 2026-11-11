@@ -82,32 +82,77 @@ cases:
       - Uses System.out for diagnostics or assumes the internal logger is already configured.
       - Replaces the read with an empty result on every call, leaks an opened stream, or throws the IOException instead of continuing startup.
 
-  # Control: general Java reasoning, independent of repository-specific conventions.
-  # Ground truth: Java 8 Collections.unmodifiableList is a view; ArrayList(Collection) makes a copy.
-  # https://docs.oracle.com/javase/8/docs/api/java/util/Collections.html#unmodifiableList-java.util.List-
-  # https://docs.oracle.com/javase/8/docs/api/java/util/ArrayList.html#ArrayList-java.util.Collection-
-  - id: java-control-defensive-copy-001
+  # Ground truth: the CI curl policy in AGENTS.md#ci-scripts or linked contributor documentation after relocation.
+  - id: java-ci-download-guidance-001
     files: [AGENTS.md, .claude/CLAUDE.md]
     only_warn: true
     input: |
-      Review this Java 8 class. Its tags must be an immutable snapshot of the
-      constructor argument. Show a small fix if needed and explain why it works.
-      Assume the input list and its String elements are non-null. Keep the answer
-      about general Java; no repository lookup is needed. Give an answer only;
-      do not execute commands, edit files, or use external services.
+      I am updating an existing CI shell step that downloads an installer from
+      a remote endpoint and then runs it:
 
-      final class Tags {
-        private final java.util.List<String> tags;
-        Tags(java.util.List<String> tags) { this.tags = tags; }
-        java.util.List<String> tags() { return tags; }
-      }
+      curl -sSL "$INSTALLER_URL" | bash
+
+      Show a small replacement following this repository's CI download guidance
+      and briefly explain how failures are handled.
+      Read local files as needed. Give an example only; do not execute commands,
+      edit files, or use external services.
     expected_criteria:
-      - Identifies both constructor-argument aliasing and exposure of mutable state through the getter.
-      - Preserves the original tag values after the caller adds, removes, or replaces entries in the input list.
-      - Prevents getter callers from changing stored tags; an unmodifiable getter or a separate defensive copy is acceptable if stored state remains protected.
-      - Explains why an unmodifiable view of the original input alone is insufficient; accepts equivalent Java 8 implementations without requiring a particular class or exact wording.
+      - Identifies the local source of the CI download guidance and applies it; a linked contributor guide is valid without duplicating the guidance in AGENTS.md.
+      - Makes curl fail on HTTP errors with -f or --fail and retries with --retry 5 --retry-delay 2 --retry-connrefused for the remote endpoint.
+      - Downloads the installer to a file and runs it only after a successful download; a conditional, an && chain, or a suitable fail-fast shell setting is acceptable.
+      - Preserves the installer URL variable and keeps the proposed change focused on the download step.
     bad_signals:
-      - Claims that a final List field makes its contents immutable.
-      - Wraps the caller's original list without copying it and claims later input mutations cannot affect stored tags.
-      - Returns the mutable internal list directly or returns unrelated values instead of the original tag snapshot.
-      - Uses List.of or List.copyOf as the Java 8 solution.
+      - Pipes curl directly into bash or sh, including after adding failure and retry flags.
+      - Omits HTTP failure handling or retries, or allows the installer to execute after a failed download.
+      - Requires copying the detailed CI checklist into AGENTS.md to make a linked contributor guide usable.
+
+  # Control: a prose-only edit needs proportionate validation; CONTRIBUTING.md covers formatting and review.
+  - id: java-documentation-only-validation-001
+    files: [AGENTS.md, .claude/CLAUDE.md]
+    only_warn: true
+    input: |
+      My PR fixes one spelling mistake in an explanatory sentence in an existing
+      Markdown document. It changes no commands, code examples, links, generated
+      content, configuration, or agent instructions. What validation is appropriate
+      before requesting review?
+      Read local files as needed. Give a brief recommendation only; do not execute
+      commands, edit files, or use external services.
+    expected_criteria:
+      - Recommends reviewing the text diff for the intended correction and accidental changes.
+      - Keeps validation proportionate to the prose-only edit; a whitespace or Markdown check is acceptable without requiring an exact command.
+      - Does not require Java builds, runtime tests, benchmarks, migrations, or broad runtime-code review workflows for this spelling correction.
+      - Distinguishes recommended checks from checks actually performed and keeps the answer brief.
+    bad_signals:
+      - Requires a clean build, module tests, or whole-repository tests for this prose-only edit.
+      - Requires performance benchmarks, Groovy migrations, or unrelated CI-script checks before review.
+      - Requires reading the full architecture and all developer guides to validate the spelling correction.
+
+  # Ground truth: docs/how_to_test.md describes existing Spock instrumentation tests;
+  # .github/workflows/enforce-groovy-migration.yaml rejects newly introduced Groovy files.
+  - id: java-existing-spock-maintenance-001
+    files: [AGENTS.md, .claude/CLAUDE.md]
+    only_warn: true
+    input: |
+      I need one more input covered by an existing Groovy/Spock instrumentation
+      test. The production normalize helper already returns an empty string for
+      a string containing one space. Show the smallest change to this feature
+      to cover that input, and briefly explain the choice:
+
+      def "normalizes empty input"() {
+        expect:
+        normalize(input) == ""
+        where:
+        input << [null, ""]
+      }
+
+      Read local files as needed. Give an example only; do not execute commands,
+      edit files, or use external services.
+    expected_criteria:
+      - Adds a string containing one space to the existing Spock data inputs while preserving the null and empty-string cases.
+      - Keeps the existing feature and test file in place without introducing a new Groovy file or changing production code.
+      - Treats this as maintenance of an existing Spock instrumentation test rather than creation of a new Java unit test.
+      - Keeps a Groovy-to-Java migration outside the required scope of this small coverage change.
+    bad_signals:
+      - Requires migrating the existing file to Java or running migration skills before adding the input.
+      - Rewrites the feature or suite in JUnit instead of making the requested small Spock change.
+      - Drops existing coverage or changes the expected result instead of adding the whitespace input.
