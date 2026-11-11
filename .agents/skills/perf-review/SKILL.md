@@ -50,7 +50,7 @@ Then read the check files that apply to the diff:
 | `references/checks/startup.md` | premain-reachable startup cost | always |
 | `references/checks/product-off.md` | J14 work for an optional product that's off | always |
 | `references/checks/dispatch.md` | #5 polymorphic dispatch, J2 megamorphic (**parked**) | always |
-| `references/checks/contracts.md` | #8 `@NoEscape`, #9 `@StaticLifetime`, #10 `@BackgroundOnly` | always — these fire on code that doesn't name the annotation |
+| `references/checks/contracts.md` | #8 `@NoEscape`, #9 `@StaticLifetime`, #10 `@BackgroundOnly` | always — these fire on code that doesn't name the annotation; check every line Step 1b lists |
 | `references/checks/advice.md` | ByteBuddy Advice idioms | diff touches `dd-java-agent/` or uses `@Advice` |
 | `references/checks/benchmarks.md` | J12 benchmark validity, EA claims over I/O | diff touches `src/jmh/`, or PR text / commits cite benchmark results |
 | `references/remedies.md` | J7, J9, J10, J11 fix routes + toolkit availability; also holds the J7 retention trap and the J9 trigger | always |
@@ -95,6 +95,99 @@ content of the modified source files** (not just the hunks) — the interprocedu
 condition (who calls this, what a helper does, where a hook's sink lands) lives
 outside the diff window. Ignore the PR description if the user asks for an
 independent review, except to find performance claims.
+
+### Step 1b — Find code that uses the performance contracts
+
+The contract checks (#8–#10) fire on code that never names the annotation, so don't rely on
+spotting it while reading. Run this from the repository root. It runs under `bash` explicitly,
+because it relies on word splitting, which `zsh` doesn't do. Set `DIFF_BASE` to the merge base from
+Step 1 (it defaults to the merge base with `origin/master`):
+
+```bash
+DIFF_BASE=<merge base> bash <<'EOF'
+REV=${REV:-HEAD}
+DIFF_BASE=${DIFF_BASE:-$(git merge-base "$REV" origin/master)}  # the merge base from Step 1
+A='NoEscape|StaticLifetime|ImpliedFor|Singleton|BackgroundOnly|ForegroundSafe'
+PKG='datadog\.(perfcontract|trace\.api\.function)'
+FILES=$( { git grep -l -E "import $PKG\.($A);|@$PKG\.($A)" "$REV" -- '*.java'
+           git grep -l -E "@($A)([[:space:](]|$)" "$REV" -- 'internal-api/src/main/java/datadog/perfcontract/' 'internal-api/src/main/java/datadog/trace/api/function/'
+         } | sed "s|^$REV:||" | grep -v -E '/(test|jmh)/' | sort -u )
+[ -z "$FILES" ] && { echo "No contract annotations found."; exit 0; }
+
+# 1. Each annotation and the element it marks (the next class/interface/enum/record or method declaration).
+HITS=$(git grep -n -E "^[[:space:]]*@(($PKG\.)?($A))([[:space:](]|$)" "$REV" -- $FILES | sed "s|^$REV:||")
+echo "== 1. Marked elements"
+MARKED=$(echo "$HITS" | while IFS=: read -r f ln text; do
+  ann=$(echo "$text" | grep -oE "@($A)" | head -1)
+  if [ "$ann" = "@ImpliedFor" ]; then
+    for t in $(echo "$text" | grep -oE '[A-Z][A-Za-z0-9_]*\.class' | sed 's/\.class$//'); do echo "type $t $ann $f:$ln"; done
+    continue
+  fi
+  git show "$REV:$f" | awk -v s="$ln" -v ann="$ann" -v loc="$f:$ln" '
+    NR > s && NR <= s + 20 && $0 !~ /^[[:space:]]*@/ {
+      if (match($0, /(class|interface|enum|record)[[:space:]]+[A-Za-z0-9_]+/)) {
+        t = substr($0, RSTART, RLENGTH); sub(/.*[[:space:]]/, "", t); print "type " t " " ann " " loc; exit }
+      if (match($0, /[A-Za-z0-9_]+[[:space:]]*\(/)) {
+        m = substr($0, RSTART, RLENGTH); sub(/[[:space:]]*\($/, "", m); print "method " m " " ann " " loc; exit }
+    }'
+done)
+echo "$MARKED"
+TYPES=$(echo "$MARKED" | awk '$1 == "type" { print $2 }' | sort -u)
+METHODS=$(echo "$MARKED" | awk '$1 == "method" { print $2 }' | sort -u)
+
+# 2. One hop: fields and methods declared with a marked type. Only class-level declarations
+#    (with an access or static modifier) count: a local or parameter can't be used from another
+#    file. Fields match by name; methods only as Declarer.name(, since short method names such as
+#    of() or next() are everywhere.
+TRE=$(echo $TYPES | tr ' ' '|')
+DECL="($TRE)(<[^;=()]*>)?(\\[\\])?[[:space:]]+[A-Za-z_][A-Za-z0-9_]*[[:space:]]*[=;(]"
+HOLDS=$(git grep -n -E "(public|protected|private|static)[^=;(]*(^|[^A-Za-z0-9_.])$DECL" "$REV" -- '*.java' ':!*/test/*' ':!*/jmh/*' \
+        | sed "s|^$REV:||" | while IFS=: read -r f ln text; do
+            d=$(echo "$text" | grep -oE "$DECL" | head -1)
+            name=$(echo "$d" | sed -E 's/.*[[:space:]]([A-Za-z_][A-Za-z0-9_]*)[[:space:]]*[=;(]$/\1/')
+            cls=$(basename "$f" .java)
+            case "$d" in *'(') echo "method $cls.$name" ;; *) echo "field $name" ;; esac
+          done | sort -u)
+FIELDS=$(echo "$HOLDS" | awk '$1 == "field" { print $2 }')
+HMETHODS=$(echo "$HOLDS" | awk '$1 == "method" { print $2 }')
+echo; echo "== 2. Fields and methods declared with a marked type (one hop)"; echo $FIELDS $HMETHODS | fold -w 100 -s
+
+# 3. Added, non-comment lines in the diff that use any of those names.
+WORDS=$(printf '%s\n' $TYPES $METHODS $FIELDS | sort -u | tr '\n' '|' | sed 's/|$//')
+CALLS=$(printf '%s\n' $HMETHODS | sed 's/\./\\./' | sort -u | tr '\n' '|' | sed 's/|$//')
+RE="(^|[^A-Za-z0-9_])($WORDS)([^A-Za-z0-9_]|$)"
+[ -n "$CALLS" ] && RE="$RE|(^|[^A-Za-z0-9_.])($CALLS)[[:space:]]*\\("
+echo; echo "== 3. Added lines in the diff that use them"
+git diff -U0 "$DIFF_BASE" "$REV" -- '*.java' ':!*/test/*' ':!*/jmh/*' | RE="$RE" awk '
+  BEGIN { re = ENVIRON["RE"] }
+  /^\+\+\+ b\// { f = substr($0, 7); next }
+  /^@@/ { split($3, a, ","); n = substr(a[1], 2) + 0; next }
+  /^\+/ { line = substr($0, 2)
+          if (line !~ /^[[:space:]]*(\*|\/\/|\/\*)/ && match(line, re)) {
+            hit = substr(line, RSTART, RLENGTH); gsub(/^[^A-Za-z0-9_]+|[^A-Za-z0-9_.]+$/, "", hit); sub(/\.+$/, "", hit)
+            printf "%s:%d: [%s] %s\n", f, n, hit, line }
+          n++; next }'
+EOF
+```
+
+It prints three lists:
+
+1. **Marked elements:** each contract annotation and the type or method it marks, including the
+   types `@ImpliedFor` lists on `StaticLifetime`. A mark on a class covers its methods.
+2. **One hop:** class-level fields and methods declared with a marked type, such as a
+   `static final` cache field. Locals and parameters are left out: code in another file can't use
+   them, and a declaration in the diff already names the marked type.
+3. **Added lines in the diff that use either list**, tagged with the name that matched. Comment
+   lines are skipped.
+
+Check every line in list 3 against `checks/contracts.md`, however large the diff is. A hit is a
+place to look, not a finding: it still has to pass the check's Flag line, and short names can match
+by accident. The lookup follows one hop only, so also apply the checks to anything else you notice
+while reading. Only files that import the contract annotations count, so other annotations with the
+same simple name (for example `javax.inject.Singleton`) are left out.
+
+If you can't run it (for example, you only have a diff), say in **Scope reviewed** that the contract
+checks ran without it.
 
 ### Step 2 — Map the changed code onto hot paths
 

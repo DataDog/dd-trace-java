@@ -2,9 +2,11 @@
 
 Checks #8, #9, #10. No lint enforces these yet; the AI reviewer is the only check.
 
-These checks fire on code that never names the annotation: a field of type `SubSequence`, `Maybe`
-or `ClassValue`, or a call into a method marked `@BackgroundOnly`. When a diff touches one of the
-marked types or methods, read the annotation's own Javadoc. Each has a self-contained "Checker
+These checks fire on code that never names the annotation: for example a field of a type marked
+`@NoEscape`, or a call into a class marked `@BackgroundOnly`. Step 1b of `../../SKILL.md` lists the marked
+types and methods and the changed lines that use them; check every one of those lines here. Don't
+work from memory: the set changes as code is annotated. When a diff touches one of them, read the
+annotation's own Javadoc. Each has a self-contained "Checker
 contract" section with triggers, non-triggers and examples.
 
 Every contract is "should", not "must": a trigger is a presumptive finding, not an automatic
@@ -18,7 +20,7 @@ meta-annotated `@SuppressPerfContract` with `X.class` in its `value`; that annot
 - **Flag:** a field (instance or static, directly or as a generic type argument) whose declared
   type carries `@NoEscape` (`datadog.trace.api.function.NoEscape`), or that is initialized
   directly from a call to a method annotated `@NoEscape`, with no comment at the declaration
-  explaining why the value is kept. Current types with the annotation: `SubSequence`, `Maybe`.
+  explaining why the value is kept. The lookup lists the marked types and methods.
 - **Not when:** the declaration has a `// Retained on purpose: <reason>`-style comment, or a
   suppression as described above.
 - **Confidence / level:** flag-with-confidence. P3; P1 if the type or method shares backing storage
@@ -31,7 +33,8 @@ meta-annotated `@SuppressPerfContract` with `X.class` in its `value`; that annot
 ## #9 `@StaticLifetime` field lifetime
 
 - **Flag:** a field that is annotated `@StaticLifetime` (`datadog.perfcontract.StaticLifetime`),
-  or whose declared type is listed in the `@ImpliedFor` on `StaticLifetime` (subtypes included),
+  or whose declared type is listed in the `@ImpliedFor` on `StaticLifetime` (the lookup shows it;
+  subtypes included),
   and that is neither `static final` nor a `final` instance field of a class annotated
   `@Singleton` (`datadog.perfcontract.Singleton`).
 - **Not when:** the field has `@SuppressPerfContract(value = StaticLifetime.class, reason = ...)`,
@@ -53,7 +56,10 @@ meta-annotated `@SuppressPerfContract` with `X.class` in its `value`; that annot
   - the work is handed to a background thread (enqueued) instead of run;
   - background-only code calls `@ForegroundSafe` code;
   - the calling method has `@SuppressPerfContract(value = BackgroundOnly.class, reason = ...)`.
-    This is also the form for the rare advice that runs on a thread the tracer owns.
+    This is also the form for the rare advice that runs on a thread the tracer owns;
+  - you can't tell with confidence that the call reaches a marked type or method: only the method
+    name matches, or the call goes through an unmarked interface. Stay silent; don't flag on a
+    name match.
 - **Confidence / level:**
   - flag-with-confidence when the caller is marked `@ForegroundSafe` (or sits on a
     `@ForegroundSafe` type), or is an advice method (`@Advice.OnMethodEnter` /
@@ -61,7 +67,8 @@ meta-annotated `@SuppressPerfContract` with `X.class` in its `value`; that annot
     application's method, so advice is foreground by construction;
   - flag-as-measure when the caller is unmarked but sits on the hot-path map in `../hotness.md`
     (decorators, span create / setTag / finish, tag-map ops, propagation), because "foreground"
-    is then inferred, not declared.
+    is then inferred, not declared. Don't apply the per-span-core raise to this case: the
+    foreground itself is an inference, so it stays at the base level.
   - P2; P1 if the background-only work blocks (I/O, a contended lock, an unbounded loop).
 - **Fix:** move the work to the background thread that owns it: enqueue it, or record the inputs
   and let the background drain compute.
