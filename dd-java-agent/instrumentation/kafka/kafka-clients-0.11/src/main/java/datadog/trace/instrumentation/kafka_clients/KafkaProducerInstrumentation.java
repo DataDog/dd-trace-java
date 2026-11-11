@@ -143,9 +143,9 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
         @Advice.FieldValue("metadata") Metadata metadata,
         @Advice.Argument(value = 0, readOnly = false) ProducerRecord record,
         @Advice.Argument(value = 1, readOnly = false) Callback callback) {
-      // getOrCreate: where the constructor advice doesn't apply (2.1-2.7 only have a Map-first
-      // constructor), this creates the state the metadata update records the cluster ID on, so the
-      // callback can still read it for sends that start before the first update
+      // getOrCreate: where the constructor advice doesn't apply (2.1.1-2.7.x only have Map- and
+      // Properties-first constructors), this creates the state that the metadata update records
+      // the cluster ID on, so the callback can read it for sends before the first update
       MetadataState metadataState =
           InstrumentationContext.get(Metadata.class, MetadataState.class)
               .getOrCreate(metadata, MetadataState::new);
