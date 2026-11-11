@@ -169,7 +169,7 @@ class HttpUrlExtractorsTest {
     extractServerUrl(null, null, "http", "host", 8080);
 
     verify(span).setTag(KnownTags.HTTP_HOSTNAME, "host");
-    verify(span).setTag(KnownTags.Inbound.SERVER_PORT, 8080);
+    verify(span).setTag(KnownTags.SERVER_PORT, 8080);
   }
 
   @Test
@@ -177,7 +177,7 @@ class HttpUrlExtractorsTest {
     extractServerUrl(null, null, "https", "host", -1);
 
     verify(span).setTag(KnownTags.HTTP_HOSTNAME, "host");
-    verify(span).setTag(KnownTags.Inbound.SERVER_PORT, 443);
+    verify(span).setTag(KnownTags.SERVER_PORT, 443);
   }
 
   @Test
@@ -185,7 +185,7 @@ class HttpUrlExtractorsTest {
     extractServerUrl(null, null, "ftp", null, -1);
 
     verify(span, never()).setTag(eq(KnownTags.HTTP_HOSTNAME), anyString());
-    verify(span, never()).setTag(eq(KnownTags.Inbound.SERVER_PORT), anyInt());
+    verify(span, never()).setTag(eq(KnownTags.SERVER_PORT), anyInt());
   }
 
   @Test
@@ -193,7 +193,7 @@ class HttpUrlExtractorsTest {
     extractServerUrl(null, null, "http", "", -1);
 
     verify(span, never()).setTag(eq(KnownTags.HTTP_HOSTNAME), anyString());
-    verify(span).setTag(KnownTags.Inbound.SERVER_PORT, 80);
+    verify(span).setTag(KnownTags.SERVER_PORT, 80);
   }
 
   @Test
@@ -201,7 +201,7 @@ class HttpUrlExtractorsTest {
     extractServerUrl("proxy:8443", "9443", "http", "host", 8080);
 
     verify(span).setTag(KnownTags.HTTP_HOSTNAME, "proxy");
-    verify(span).setTag(KnownTags.Inbound.SERVER_PORT, 9443);
+    verify(span).setTag(KnownTags.SERVER_PORT, 9443);
   }
 
   @TableTest({
@@ -215,7 +215,7 @@ class HttpUrlExtractorsTest {
       String forwardedHost, String forwardedPort, int expectedPort) {
     extractServerUrl(forwardedHost, forwardedPort, "http", "host", 8080);
 
-    verify(span).setTag(KnownTags.Inbound.SERVER_PORT, expectedPort);
+    verify(span).setTag(KnownTags.SERVER_PORT, expectedPort);
   }
 
   @TableTest({
@@ -235,7 +235,7 @@ class HttpUrlExtractorsTest {
 
     verify(span).setTag(KnownTags.HTTP_HOSTNAME, expectedAddress);
     // A forwarded host suppresses the request port, so the scheme default applies instead.
-    verify(span).setTag(KnownTags.Inbound.SERVER_PORT, expectedPort);
+    verify(span).setTag(KnownTags.SERVER_PORT, expectedPort);
   }
 
   @Test
@@ -384,7 +384,7 @@ class HttpUrlExtractorsTest {
     verify(datadog).setTag(KnownTags.HTTP_URL, (CharSequence) originalUrl);
     verify(datadog, never()).setTag(eq(KnownTags.HTTP_HOSTNAME), anyString());
     verify(span).setTag(KnownTags.Inbound.SERVER_ADDRESS, expectedHost);
-    verify(span).setTag(KnownTags.Inbound.SERVER_PORT, expectedPort);
+    verify(span).setTag(KnownTags.SERVER_PORT, expectedPort);
   }
 
   @Test
@@ -418,7 +418,7 @@ class HttpUrlExtractorsTest {
     verify(span).setTag(KnownTags.URL_PATH, "/a");
     verify(span).setTag(KnownTags.URL_SCHEME, "https");
     verify(span).setTag(KnownTags.Inbound.SERVER_ADDRESS, "api.host");
-    verify(span).setTag(KnownTags.Inbound.SERVER_PORT, 443);
+    verify(span).setTag(KnownTags.SERVER_PORT, 443);
   }
 
   @ParameterizedTest
@@ -434,7 +434,7 @@ class HttpUrlExtractorsTest {
     verify(span).setTag(KnownTags.URL_PATH, "/a");
     verify(span, never()).setTag(eq(KnownTags.URL_SCHEME), anyString());
     verify(span, never()).setTag(eq(KnownTags.Inbound.SERVER_ADDRESS), anyString());
-    verify(span, never()).setTag(eq(KnownTags.Inbound.SERVER_PORT), anyInt());
+    verify(span, never()).setTag(eq(KnownTags.SERVER_PORT), anyInt());
   }
 
   private void extractServerUrl(

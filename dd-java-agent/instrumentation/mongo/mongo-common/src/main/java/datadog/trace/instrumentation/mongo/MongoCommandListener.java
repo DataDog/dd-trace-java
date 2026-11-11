@@ -14,6 +14,7 @@ import com.mongodb.event.CommandStartedEvent;
 import com.mongodb.event.CommandSucceededEvent;
 import datadog.context.ContextScope;
 import datadog.trace.api.Config;
+import datadog.trace.api.KnownTags;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.ContextStore;
@@ -149,7 +150,7 @@ public final class MongoCommandListener implements CommandListener {
         // may do a DNS lookup
         ServerAddress serverAddress = event.getConnectionDescription().getServerAddress();
         span.setTag(Tags.PEER_HOSTNAME, serverAddress.getHost())
-            .setTag(Tags.PEER_PORT, serverAddress.getPort())
+            .setTag(KnownTags.PEER_SERVER_PORT, serverAddress.getPort())
             .setTag(
                 Tags.DB_OPERATION,
                 COMMAND_NAMES.computeIfAbsent(event.getCommandName(), UTF8_ENCODE));

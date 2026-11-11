@@ -25,7 +25,7 @@ public final class OtelServerUrl implements TagExtractor<HttpServerUrl> {
       span.setTag(KnownTags.Inbound.SERVER_ADDRESS, origin.address);
     }
     if (origin.port > 0) {
-      span.setTag(KnownTags.Inbound.SERVER_PORT, origin.port);
+      span.setTag(KnownTags.SERVER_PORT, origin.port);
     }
     if (Config.get().isHttpServerTagQueryString()) {
       String query = url.query();

@@ -93,6 +93,12 @@ final class OtlpSpanAttributes {
       return directionalTagId != 0
           && exportsAs(tags.getEntry(directionalTagId), key, direction, true);
     }
+    // A concept's shared Datadog name (peer.port): any concept of that name the span holds.
+    for (long concept : KnownTagCodec.conceptsNamed(key)) {
+      if (exportsAs(tags.getEntry(concept), key, direction, false)) {
+        return true;
+      }
+    }
     return false;
   }
 

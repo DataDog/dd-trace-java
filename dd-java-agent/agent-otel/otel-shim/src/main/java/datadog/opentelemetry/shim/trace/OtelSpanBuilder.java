@@ -37,6 +37,9 @@ public class OtelSpanBuilder implements SpanBuilder {
   /** The direction of the span's kind once set; it decides direction-scoped attribute names. */
   private int direction = DIRECTION_UNKNOWN;
 
+  /** The span's KnownTagCodec kind once set; it resolves names several concepts share. */
+  private int spanKind = KnownTagCodec.KIND_UNSET;
+
   /**
    * Direction-scoped attributes ({@code server.address}) set before the span kind, as name/value
    * pairs, stored once the kind is known ({@code null} if none).
@@ -228,7 +231,7 @@ public class OtelSpanBuilder implements SpanBuilder {
     if (this.direction == DIRECTION_UNKNOWN && KnownTagCodec.isDirectionScoped(key)) {
       return null;
     }
-    return attributeTag(key, this.direction);
+    return attributeTag(key, this.direction, this.spanKind);
   }
 
   private void holdUntilKind(String key, Object value) {
@@ -246,6 +249,7 @@ public class OtelSpanBuilder implements SpanBuilder {
       this.delegate.withTag(SPAN_KIND, kind);
       this.spanKindSet = true;
       this.direction = KnownTagCodec.directionOfKind(kind);
+      this.spanKind = KnownTagCodec.kindOf(kind);
       resolveHeldAttributes();
     }
     return this;
@@ -260,7 +264,8 @@ public class OtelSpanBuilder implements SpanBuilder {
     if (this.heldUntilKind != null) {
       for (int i = 0; i < this.heldUntilKind.size(); i += 2) {
         String key = (String) this.heldUntilKind.get(i);
-        this.delegate.withTag(attributeTag(key, this.direction), this.heldUntilKind.get(i + 1));
+        this.delegate.withTag(
+            attributeTag(key, this.direction, this.spanKind), this.heldUntilKind.get(i + 1));
       }
       this.heldUntilKind = null;
     }

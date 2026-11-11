@@ -61,6 +61,15 @@ class TagConventions private constructor(
      * The flag requires an `otel-name` and cannot be used on a tag declared per direction.
      */
     val spanKindNeutral: Boolean = false,
+    /**
+     * A concept from `concepts:`: an id whose Datadog name is shared with other ids, so the name alone
+     * doesn't say which it is (peer.port is the remote server's port on a client span, the client's
+     * port on a server span). Its names are fixed -- id to name never needs context; on which span
+     * kinds its shared names mean this id follows from the span types that `concept-ref` it.
+     */
+    val concept: Boolean = false,
+    /** A concept's Datadog name, when it differs from its id's name; null otherwise. */
+    val datadogName: String? = null,
   ) {
     /** The identity's label, as reports show it; see [TagIdentity.label]. */
     val name: String
@@ -81,6 +90,18 @@ class TagConventions private constructor(
     NONE("none"),
   }
 
+  /**
+   * The span kinds a concept's names can resolve on (those of the span types carrying it), as KnownTagCodec numbers them. A
+   * span with no kind yet, a broker or a custom kind resolves no concept name.
+   */
+  enum class SpanKind(val yamlKey: String, val codecConstant: String) {
+    SERVER("server", "KIND_SERVER"),
+    CLIENT("client", "KIND_CLIENT"),
+    PRODUCER("producer", "KIND_PRODUCER"),
+    CONSUMER("consumer", "KIND_CONSUMER"),
+    INTERNAL("internal", "KIND_INTERNAL"),
+  }
+
   /** The OpenTelemetry name for [tag] on spans of [direction], or of every direction when null. */
   data class OtelMapping(val tag: TagIdentity, val otelName: String, val direction: Direction?)
 
@@ -90,7 +111,12 @@ class TagConventions private constructor(
    * [name] is the referenced tag's identity, resolved by direction when the name is declared per
    * direction.
    */
-  data class Ref(val identity: TagIdentity, val required: String?)
+  data class Ref(
+    val identity: TagIdentity,
+    val required: String?,
+    /** Written `concept-ref`: it names a concept from `concepts:`, so readers know where to look. */
+    val concept: Boolean = false,
+  )
 
   data class SpanType(
     val name: String,
@@ -101,6 +127,8 @@ class TagConventions private constructor(
     val refs: List<Ref> = emptyList(),
     /** The direction set by this type's own `span-kind`, or null; see [directionOf] for inheritance. */
     val direction: Direction? = null,
+    /** This type's own `span-kind`, or null; see [kindOf] for inheritance. */
+    val kind: SpanKind? = null,
   )
 
   /**
@@ -215,6 +243,22 @@ class TagConventions private constructor(
     }
   }
 
+  /**
+   * For each concept, the span kinds on which its shared names resolve to it: the kinds of the
+   * concrete span types that carry it (by `concept-ref`, directly or through a mixin). A type with no
+   * span-kind contributes none.
+   */
+  fun conceptKinds(): Map<TagIdentity, Set<SpanKind>> {
+    val kinds = LinkedHashMap<TagIdentity, MutableSet<SpanKind>>()
+    for (type in concreteTypes()) {
+      val kind = chainOf(spanTypes, type).firstNotNullOfOrNull { it.kind } ?: continue
+      for (t in resolve(type)) {
+        if (t.concept) kinds.getOrPut(t.identity) { java.util.EnumSet.noneOf(SpanKind::class.java) }.add(kind)
+      }
+    }
+    return kinds
+  }
+
   companion object {
     private val SPAN_KIND_DIRECTIONS =
       mapOf(
@@ -273,6 +317,7 @@ class TagConventions private constructor(
         tags = tagList(m["tags"]),
         refs = refList(m["tags"]),
         direction = parseDirection(m, "span type '$name'"),
+        kind = SpanKind.entries.firstOrNull { it.yamlKey == m["span-kind"] },
       )
     }
 
@@ -307,6 +352,28 @@ class TagConventions private constructor(
     /** The synthetic mixin holding the tracer overlay's tags; it applies to no span type. */
     const val OVERLAY_MIXIN = "tracer overlay"
 
+    /** The synthetic mixin holding the `concepts:` section; it applies to no span type. */
+    const val CONCEPTS_MIXIN = "concepts"
+
+    /**
+     * The `concepts:` section: ids whose names are shared, declared once each. Span types and mixins
+     * reference them with `concept-ref`. Held as a mixin that applies to no span type.
+     */
+    private fun conceptsMixin(root: Map<String, Any?>): Map<String, Mixin> {
+      val raw = root["concepts"] ?: return emptyMap()
+      require(raw is List<*>) { "concepts must be a list of concept declarations" }
+      val tags = raw.map { entry ->
+        require(entry is Map<*, *> && entry.containsKey("concept")) {
+          "each entry in concepts must declare a `concept:`, not $entry"
+        }
+        @Suppress("UNCHECKED_CAST")
+        parseConcept(entry as Map<String, Any?>)
+      }
+      return mapOf(
+        CONCEPTS_MIXIN to Mixin(name = CONCEPTS_MIXIN, appliesAll = false, appliesTo = emptySet(), tags = tags)
+      )
+    }
+
     /** What a java_names entry must be: an upper-case Java identifier, used as a constant base. */
     private val JAVA_CONSTANT_BASE = Regex("[A-Z][A-Z0-9_]*")
 
@@ -321,6 +388,9 @@ class TagConventions private constructor(
      */
     @Suppress("UNCHECKED_CAST")
     fun parse(root: Map<String, Any?>, overlay: Map<String, Any?> = emptyMap()): TagConventions {
+      require(root["mixins"] !is Map<*, *> || CONCEPTS_MIXIN !in (root["mixins"] as Map<*, *>)) {
+        "'$CONCEPTS_MIXIN' is reserved for the concepts section; rename the mixin"
+      }
       for (section in listOf("span_types", "mixins", "trace_level")) {
         require(root[section] == null || root[section] is Map<*, *>) { "$section must be a mapping" }
       }
@@ -379,7 +449,7 @@ class TagConventions private constructor(
           }
           mixin
         }
-      val parsedMixins = rootMixins + overlayMixins + overlayMixin(overlay)
+      val parsedMixins = rootMixins + overlayMixins + overlayMixin(overlay) + conceptsMixin(root)
 
       for (spanType in parsedSpanTypes.values) {
         for (included in spanType.include) {
@@ -406,24 +476,14 @@ class TagConventions private constructor(
 
       validateInheritedDirections(parsedSpanTypes)
       validateMixinDirections(parsedSpanTypes, parsedMixins)
-      val identities = assignIdentities(parsedSpanTypes, parsedMixins, traceLevel)
-      val spanTypes =
-        parsedSpanTypes.mapValues { (_, st) ->
-          val direction = directionOf(parsedSpanTypes, st)
-          st.copy(
-            tags = st.tags.map { identities.rename(it, direction) },
-            refs = st.refs.map { identities.resolve(it, "span type '${st.name}'", direction) },
-          )
-        }
-      val mixins =
-        parsedMixins.mapValues { (_, mx) ->
-          mx.copy(
-            tags = mx.tags.map { identities.rename(it, mx.direction) },
-            refs = mx.refs.map { identities.resolve(it, "mixin '${mx.name}'", mx.direction) },
-          )
-        }
+      val names = declaredNames(parsedSpanTypes, parsedMixins, traceLevel)
+      for (st in parsedSpanTypes.values) requireDeclared(names, st.refs, "span type '${st.name}'")
+      for (mx in parsedMixins.values) requireDeclared(names, mx.refs, "mixin '${mx.name}'")
+      val spanTypes = parsedSpanTypes
+      val mixins = parsedMixins
       validateOtelNameScope(spanTypes, mixins, traceLevel)
       val conv = TagConventions(spanTypes, mixins, traceLevel, intercepted, javaNames)
+      validateRefKinds(conv, spanTypes.values.flatMap { it.refs } + mixins.values.flatMap { it.refs })
       val declared = conv.allDeclaredTags().map { it.ddName }.toSet()
       for (name in intercepted) {
         require(name in declared) { "intercepted tag '$name' is not declared" }
@@ -468,18 +528,16 @@ class TagConventions private constructor(
     }
 
     /**
-     * Uses `dd-name` as the identity for a single declaration. A name declared in multiple
-     * directions gets `<dd-name>@<direction>` for each declaration; each must have a distinct
-     * declared or inherited direction.
-     *
-     * All other duplicate declarations fail, including identical ones. Reuse a tag with
-     * `{ ref: <dd-name>, required: <level> }`; a reference may override only `required`.
+     * Uses `dd-name` as the identity of each declaration, and returns the declared names. A name may
+     * be declared only once: reuse a tag with `{ ref: <dd-name>, required: <level> }`, which may
+     * override only `required`. A name declared once per direction means a different thing on in and
+     * out spans, so it fails and asks for concepts instead.
      */
-    private fun assignIdentities(
+    private fun declaredNames(
       spanTypes: Map<String, SpanType>,
       mixins: Map<String, Mixin>,
       traceLevel: List<Tag>,
-    ): Identities {
+    ): Set<String> {
       data class Declaration(val container: String, val direction: Direction?)
       val byName = LinkedHashMap<String, MutableList<Declaration>>()
       fun declare(container: String, direction: Direction?, t: Tag) {
@@ -491,42 +549,29 @@ class TagConventions private constructor(
         mx.tags.forEach { declare("mixin ${mx.name}", mx.direction, it) }
       }
 
-      val perDirection = HashMap<String, Set<Direction>>()
       for ((name, decls) in byName) {
         if (decls.size == 1) continue
-        val first = decls[0]
-        val second = decls[1]
         val directions = decls.map { it.direction }
         require(directions.none { it == null } && directions.distinct().size == directions.size) {
-          "tag '$name' is declared in both '${first.container}' and '${second.container}'. Declare it " +
-            "once and use `{ ref: $name, required: <level> }` elsewhere (a ref may override only " +
-            "`required`), or declare it once per direction in scopes with different span-kinds."
+          "tag '$name' is declared in both '${decls[0].container}' and '${decls[1].container}'. Declare " +
+            "it once and use `{ ref: $name, required: <level> }` elsewhere (a ref may override only " +
+            "`required`)."
         }
-        perDirection[name] = directions.filterNotNull().toSet()
+        throw IllegalArgumentException(
+          "'$name' is declared once per direction (${directions.joinToString { it!!.yamlKey }}), so it " +
+            "names a different thing on spans of each direction. Declare each meaning once in the " +
+            "top-level `concepts:` section, with '$name' as its Datadog name, for example\n" +
+            "  concepts:\n" +
+            "    - { concept: <id>, dd-name: $name, otel-name: <otel name> }\n" +
+            "and use `{ concept-ref: <id> }` where '$name' was declared, once per meaning."
+        )
       }
-      return Identities(byName.keys, perDirection)
+      return byName.keys
     }
 
-    private class Identities(val names: Set<String>, val perDirection: Map<String, Set<Direction>>) {
-      fun rename(t: Tag, direction: Direction?): Tag {
-        if (t.ddName !in perDirection) return t
-        // Declaring a tag per direction says its meaning flips with direction; neutral says it doesn't.
-        require(!t.spanKindNeutral) {
-          "tag '${t.name}' is declared per direction, so its otel-name '${t.otelName}' cannot be " +
-            "span-kind-neutral; each direction's declaration names its own"
-        }
-        return t.copy(identity = TagIdentity(t.ddName, direction))
-      }
-
-      fun resolve(r: Ref, container: String, direction: Direction?): Ref {
-        val name = r.identity.ddName
-        require(name in names) { "'$container' refs undeclared tag '$name'" }
-        val directions = perDirection[name] ?: return r
-        require(direction != null && direction in directions) {
-          "'$container' refs '$name', which is declared per direction, but has no matching " +
-            "direction (${direction?.yamlKey ?: "no span-kind"})"
-        }
-        return r.copy(identity = TagIdentity(name, direction))
+    private fun requireDeclared(names: Set<String>, refs: List<Ref>, container: String) {
+      for (r in refs) {
+        require(r.identity.ddName in names) { "'$container' refs undeclared tag '${r.identity.ddName}'" }
       }
     }
 
@@ -558,21 +603,28 @@ class TagConventions private constructor(
       }
     }
 
-    private val REF_KEYS = setOf("ref", "required")
+    private fun isRef(m: Map<String, Any?>) = m.containsKey("ref") || m.containsKey("concept-ref")
 
+    /**
+     * `{ ref: <dd-name> }` reuses a tag declared elsewhere; `{ concept-ref: <concept> }` reuses a concept
+     * from `concepts:`. The two keys are kept apart so a reader knows where to look.
+     */
     @Suppress("UNCHECKED_CAST")
     private fun refList(tags: Any?): List<Ref> = (tags as? List<Map<String, Any?>>)
-      ?.filter { it.containsKey("ref") }
+      ?.filter { isRef(it) }
       ?.map { m ->
-        val extra = m.keys - REF_KEYS
+        val concept = m.containsKey("concept-ref")
+        val key = if (concept) "concept-ref" else "ref"
+        require(!(concept && m.containsKey("ref"))) { "a tag entry has both ref and concept-ref: $m" }
+        val extra = m.keys - setOf(key, "required")
         require(extra.isEmpty()) {
-          "ref '${m["ref"]}' may override only `required`, but also sets $extra; identity " +
-            "(type, otel-name) comes from the tag's single declaration"
+          "$key '${m[key]}' may override only `required`, but also sets $extra; identity " +
+            "(type, otel-name) comes from the single declaration"
         }
-        val name = m["ref"]
-        require(name is String && name.isNotBlank()) { "ref has no valid tag name: $m" }
-        require(m["required"] == null || m["required"] is String) { "ref '$name' required must be a string" }
-        Ref(TagIdentity(name), m["required"] as? String)
+        val name = m[key]
+        require(name is String && name.isNotBlank()) { "$key has no valid tag name: $m" }
+        require(m["required"] == null || m["required"] is String) { "$key '$name' required must be a string" }
+        Ref(TagIdentity(name), m["required"] as? String, concept)
       } ?: emptyList()
 
     @Suppress("UNCHECKED_CAST")
@@ -581,7 +633,10 @@ class TagConventions private constructor(
       return (tags as? List<*>)?.mapNotNull { entry ->
         require(entry is Map<*, *>) { "tag declaration must be a mapping" }
         val m = entry as Map<String, Any?>
-        if (m.containsKey("ref")) return@mapNotNull null
+        if (isRef(m)) return@mapNotNull null
+        require(!m.containsKey("concept")) {
+          "concept '${m["concept"]}' must be declared in the top-level `concepts:` section"
+        }
         val name = parseDdName(m)
         require(m["type"] == null || m["type"] is String) { "tag '$name' type must be a string" }
         require(m["required"] == null || m["required"] is String) { "tag '$name' required must be a string" }
@@ -593,6 +648,58 @@ class TagConventions private constructor(
           spanKindNeutral = parseSpanKindNeutral(m),
         )
       } ?: emptyList()
+    }
+
+    private val CONCEPT_KEYS = setOf("concept", "type", "required", "dd-name", "otel-name")
+
+    /**
+     * One concept: `{ concept: <id>, type: ..., dd-name: <name>, otel-name: <name> }`. The id names
+     * one thing on every span; its Datadog and OpenTelemetry names are fixed, and may be shared with
+     * other concepts. The span kinds where a shared name means this concept follow from the span
+     * types that `concept-ref` it.
+     */
+    @Suppress("UNCHECKED_CAST")
+    private fun parseConcept(m: Map<String, Any?>): Tag {
+      val concept = m["concept"]
+      require(concept is String && concept.isNotBlank()) { "concept declaration has no valid concept name: $m" }
+      require(!m.containsKey("resolves-on")) {
+        "concept '$concept' sets resolves-on, but its kinds follow from the span types that concept-ref it"
+      }
+      val extra = m.keys - CONCEPT_KEYS
+      require(extra.isEmpty()) { "concept '$concept' may set only $CONCEPT_KEYS, not $extra" }
+      val ddName = m["dd-name"]
+      require(ddName is String && ddName.isNotBlank()) { "concept '$concept' needs a dd-name, its Datadog name" }
+      val otelName = m["otel-name"]
+      require(otelName is String && otelName.isNotBlank()) {
+        "concept '$concept' needs an otel-name, its OpenTelemetry name"
+      }
+      require(m["type"] == null || m["type"] is String) { "concept '$concept' type must be a string" }
+      require(m["required"] == null || m["required"] is String) { "concept '$concept' required must be a string" }
+      return Tag(
+        identity = TagIdentity(concept),
+        type = (m["type"] as? String) ?: "string",
+        required = (m["required"] as? String) ?: "optional",
+        otelName = otelName,
+        concept = true,
+        datadogName = ddName.takeUnless { it == concept },
+      )
+    }
+
+    /** A `concept-ref` must name a concept, and a plain `ref` must not. */
+    private fun validateRefKinds(conv: TagConventions, refs: List<Ref>) {
+      val byIdentity = conv.allDeclaredTags().associateBy { it.identity }
+      for (r in refs) {
+        val target = byIdentity[r.identity] ?: continue
+        if (r.concept) {
+          require(target.concept) {
+            "concept-ref '${r.identity.ddName}' names a tag, not a concept; use `{ ref: ${r.identity.ddName} }`"
+          }
+        } else {
+          require(!target.concept) {
+            "ref '${r.identity.ddName}' names a concept; use `{ concept-ref: ${r.identity.ddName} }`"
+          }
+        }
+      }
     }
 
     /** Reads the required, nonblank string `dd-name`; invalid values fail generation. */

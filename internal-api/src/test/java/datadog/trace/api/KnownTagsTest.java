@@ -1,7 +1,6 @@
 package datadog.trace.api;
 
-import static datadog.trace.api.KnownTagCodec.DIRECTION_INBOUND;
-import static datadog.trace.api.KnownTagCodec.DIRECTION_OUTBOUND;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -46,7 +45,6 @@ class KnownTagsTest {
         Arguments.of(Tags.HTTP_ROUTE, KnownTags.HTTP_ROUTE),
         Arguments.of(Tags.HTTP_URL, KnownTags.HTTP_URL),
         Arguments.of(Tags.HTTP_HOSTNAME, KnownTags.HTTP_HOSTNAME),
-        Arguments.of(KnownTags.SERVER_PORT_NAME, KnownTags.SERVER_PORT),
         Arguments.of(KnownTags.URL_PATH_NAME, KnownTags.URL_PATH),
         Arguments.of(KnownTags.HTTP_QUERY_STRING_NAME, KnownTags.HTTP_QUERY_STRING),
         Arguments.of(KnownTags.URL_QUERY_NAME, KnownTags.URL_QUERY),
@@ -194,25 +192,85 @@ class KnownTagsTest {
   }
 
   /**
-   * {@code peer.port} is declared once per direction, but it is one tag with one id: only its
-   * OpenTelemetry name depends on the span's direction ({@code client.port} inbound, {@code
-   * server.port} outbound).
+   * The ports are concepts: one id per meaning, each with fixed names. peer.port is the Datadog
+   * name of two of them, so it has no direction-free id; id to name never needs context.
    */
+  @TableTest({
+    "scenario           | id               | datadog     | otel       ",
+    "server's own port  | server.port      | server.port | server.port",
+    "remote server port | peer.server.port | peer.port   | server.port",
+    "remote client port | peer.client.port | peer.port   | client.port"
+  })
+  void aConceptHasFixedNames(String id, String datadog, String otel) {
+    long tagId = conceptId(id);
+    assertTrue(KnownTagCodec.isConcept(tagId));
+    assertEquals(datadog, KnownTagCodec.nameOf(tagId));
+    assertEquals(otel, KnownTagCodec.openTelemetryNameOf(tagId));
+    assertEquals(otel, KnownTagCodec.openTelemetryTagOf(tagId, KnownTagCodec.DIRECTION_NONE));
+  }
+
   @Test
-  void aNameDeclaredPerDirectionIsOneTag() {
-    assertEquals(KnownTags.PEER_PORT, KnownTagCodec.idOf(Tags.PEER_PORT));
-    assertEquals(Tags.PEER_PORT, KnownTagCodec.nameOf(KnownTags.PEER_PORT));
-    assertNull(KnownTagCodec.openTelemetryNameOf(KnownTags.PEER_PORT));
-    assertEquals(Tags.PEER_PORT, KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT));
-    assertEquals(
-        "client.port",
-        KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT, KnownTagCodec.DIRECTION_INBOUND));
-    assertEquals(
-        "server.port",
-        KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT, KnownTagCodec.DIRECTION_OUTBOUND));
-    assertEquals(
-        Tags.PEER_PORT,
-        KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT, KnownTagCodec.DIRECTION_NONE));
+  void aConceptsNamesHaveNoDirectionFreeId() {
+    assertEquals(0L, KnownTagCodec.idOf(Tags.PEER_PORT));
+    assertEquals(0L, KnownTagCodec.idOf("server.port"));
+    assertEquals(0L, KnownTagCodec.idOf("client.port"));
+    assertFalse(KnownTagCodec.isConcept(KnownTags.PEER_HOSTNAME));
+  }
+
+  /**
+   * A shared name resolves to a concept with the span's kind. A by-name write only resolves on a
+   * server, client, producer or consumer span.
+   */
+  @TableTest({
+    "scenario              | name        | kind | datadog          | write            | otel            ",
+    "peer.port on server   | peer.port   | 1    | peer.client.port | peer.client.port |                 ",
+    "peer.port on client   | peer.port   | 2    | peer.server.port | peer.server.port |                 ",
+    "peer.port on consumer | peer.port   | 4    | peer.server.port | peer.server.port |                 ",
+    "peer.port on internal | peer.port   | 5    |                  |                  |                 ",
+    "server.port on server | server.port | 1    | server.port      | server.port      | server.port     ",
+    "server.port on client | server.port | 2    |                  |                  | peer.server.port",
+    "client.port on server | client.port | 1    |                  |                  | peer.client.port",
+    "a plain name          | my.tag      | 2    |                  |                  |                 "
+  })
+  void aSharedNameResolvesByKind(String name, int kind, String datadog, String write, String otel) {
+    assertEquals(datadog, idName(KnownTagCodec.datadogIdOf(name, kind)));
+    assertEquals(write, idName(KnownTagCodec.datadogWriteIdOf(name, kind)));
+    assertEquals(otel, idName(KnownTagCodec.openTelemetryIdOf(name, kind)));
+  }
+
+  @Test
+  void theConceptsSharingANameAreListed() {
+    assertArrayEquals(
+        new long[] {KnownTags.PEER_CLIENT_PORT, KnownTags.PEER_SERVER_PORT},
+        KnownTagCodec.conceptsNamed(Tags.PEER_PORT));
+    assertArrayEquals(
+        new long[] {KnownTags.SERVER_PORT}, KnownTagCodec.conceptsNamed("server.port"));
+    assertEquals(0, KnownTagCodec.conceptsNamed("my.tag").length);
+  }
+
+  private static long conceptId(String id) {
+    switch (id) {
+      case "server.port":
+        return KnownTags.SERVER_PORT;
+      case "peer.server.port":
+        return KnownTags.PEER_SERVER_PORT;
+      default:
+        return KnownTags.PEER_CLIENT_PORT;
+    }
+  }
+
+  /** A concept id's id name (not its Datadog name), so a table can tell the concepts apart. */
+  private static String idName(long tagId) {
+    if (tagId == 0) {
+      return null;
+    } else if (tagId == KnownTags.SERVER_PORT) {
+      return "server.port";
+    } else if (tagId == KnownTags.PEER_SERVER_PORT) {
+      return "peer.server.port";
+    } else if (tagId == KnownTags.PEER_CLIENT_PORT) {
+      return "peer.client.port";
+    }
+    return KnownTagCodec.nameOf(tagId);
   }
 
   @TableTest({
@@ -343,10 +401,9 @@ class KnownTagsTest {
     TagMap.Entry custom = TagMap.Entry.newAnyEntry("my.custom.tag", "value");
     assertEquals("my.custom.tag", custom.openTelemetryTag(KnownTagCodec.DIRECTION_OUTBOUND));
 
-    TagMap.Entry peerPort = TagMap.Entry.newAnyEntry(KnownTags.PEER_PORT, 443);
-    assertEquals(
-        KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT, KnownTagCodec.DIRECTION_OUTBOUND),
-        peerPort.openTelemetryTag(KnownTagCodec.DIRECTION_OUTBOUND));
+    TagMap.Entry serverPort = TagMap.Entry.newAnyEntry(KnownTags.PEER_SERVER_PORT, 443);
+    assertEquals("server.port", serverPort.openTelemetryTag(KnownTagCodec.DIRECTION_OUTBOUND));
+    assertEquals("peer.port", serverPort.tag());
   }
 
   /** OpenTelemetry names whose tag depends on the span's direction, resolved by that direction. */
@@ -356,10 +413,6 @@ class KnownTagsTest {
     "server.address outbound     | server.address       | 1         | peer.hostname    ",
     "server.address internal     | server.address       | 2         |                  ",
     "server.address no direction | server.address       | -1        |                  ",
-    "server.port outbound        | server.port          | 1         | peer.port        ",
-    "server.port inbound         | server.port          | 0         | server.port      ",
-    "server.port internal        | server.port          | 2         | server.port      ",
-    "client.port inbound         | client.port          | 0         | peer.port        ",
     "client.port outbound        | client.port          | 1         |                  ",
     "client address inbound      | network.peer.address | 0         | network.client.ip",
     "direction-free name         | http.request.method  | 1         |                  ",
@@ -373,35 +426,21 @@ class KnownTagsTest {
   @Test
   void onlyDirectionScopedNamesAreReportedAsSuch() {
     assertTrue(KnownTagCodec.isDirectionScoped("server.address"));
-    assertTrue(KnownTagCodec.isDirectionScoped("server.port"));
-    assertTrue(KnownTagCodec.isDirectionScoped("client.port"));
     assertFalse(KnownTagCodec.isDirectionScoped("http.request.method"));
     assertFalse(KnownTagCodec.isDirectionScoped(Tags.PEER_HOSTNAME));
     assertFalse(KnownTagCodec.isDirectionScoped("my.custom.tag"));
   }
 
-  /**
-   * server.port is a Datadog name too: without a direction it is its own tag, the server's port.
-   * Only OpenTelemetry-side resolution maps it to peer.port on outbound spans.
-   */
+  /** server.address has no direction-free tag. */
   @Test
-  void aSharedNameIsItsOwnTagWithoutADirection() {
-    assertEquals(KnownTags.SERVER_PORT, KnownTagCodec.idOf("server.port"));
-    assertEquals("server.port", KnownTagCodec.nameOf(KnownTags.SERVER_PORT));
+  void aDirectionDependentNameHasNoDirectionFreeTag() {
     assertEquals(0L, KnownTagCodec.idOf("server.address"));
-    assertEquals(
-        "server.port", KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT, DIRECTION_OUTBOUND));
-    assertEquals(
-        "server.port", KnownTagCodec.openTelemetryTagOf(KnownTags.SERVER_PORT, DIRECTION_INBOUND));
   }
 
   @Test
   void eachDirectionNamesItsTagsInOpenTelemetryTerms() {
     assertEquals(KnownTags.PEER_HOSTNAME, KnownTags.Outbound.SERVER_ADDRESS);
-    assertEquals(KnownTags.PEER_PORT, KnownTags.Outbound.SERVER_PORT);
     assertEquals(KnownTags.HTTP_HOSTNAME, KnownTags.Inbound.SERVER_ADDRESS);
-    assertEquals(KnownTags.SERVER_PORT, KnownTags.Inbound.SERVER_PORT);
-    assertEquals(KnownTags.PEER_PORT, KnownTags.Inbound.CLIENT_PORT);
     assertEquals(KnownTags.HTTP_URL, KnownTags.Outbound.URL_FULL);
   }
 

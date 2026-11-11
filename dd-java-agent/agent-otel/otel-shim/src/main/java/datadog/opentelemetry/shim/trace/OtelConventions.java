@@ -54,8 +54,13 @@ public final class OtelConventions {
    * name, and a direction-scoped one that denotes no tag in {@code direction}, is stored as
    * written.
    */
-  static String attributeTag(String key, int direction) {
-    long tagId = KnownTagCodec.directionalIdOf(key, direction);
+  static String attributeTag(String key, int direction, int spanKind) {
+    // A concept's shared OpenTelemetry name: server.port is the remote server's port on a client
+    // span.
+    long tagId = KnownTagCodec.openTelemetryIdOf(key, spanKind);
+    if (tagId == 0) {
+      tagId = KnownTagCodec.directionalIdOf(key, direction);
+    }
     return tagId == 0 ? key : KnownTagCodec.nameOf(tagId);
   }
 

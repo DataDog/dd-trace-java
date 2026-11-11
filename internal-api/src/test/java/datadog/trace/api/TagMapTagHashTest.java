@@ -82,6 +82,12 @@ class TagMapTagHashTest {
     assertEquals(tagIds.size(), copy.size());
     for (long tagId : tagIds) {
       String name = KnownTagCodec.nameOf(tagId);
+      if (KnownTagCodec.isConcept(tagId)) {
+        // a concept's name is shared, so it has no direction-free id: read it by id
+        assertEquals("value", map.getEntry(tagId).objectValue(), name);
+        assertEquals("value", copy.getEntry(tagId).objectValue(), name);
+        continue;
+      }
       assertEquals("value", map.getObject(name), name);
       assertEquals("value", copy.getObject(name), name);
     }

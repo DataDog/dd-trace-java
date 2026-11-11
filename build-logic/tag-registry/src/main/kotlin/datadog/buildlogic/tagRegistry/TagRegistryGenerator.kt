@@ -117,5 +117,23 @@ object TagRegistryGenerator {
     for ((otel, direction, canonical) in scoped) {
       appendLine("  %-30s %-9s -> %s".format(Locale.ROOT, otel, direction.yamlKey, canonical))
     }
+    appendLine(
+      """
+
+      # CONCEPTS. Ids whose names are shared with other ids. An id's names never depend on the span;
+      # only resolving a shared name to an id needs the span's kind, on the kinds listed.
+      """.trimIndent()
+    )
+    for (t in reg.tags.filter { it.concept }) {
+      appendLine(
+        "  %-20s datadog %-14s otel %-14s resolves on %s".format(
+          Locale.ROOT,
+          t.name,
+          t.datadogName,
+          t.otelName ?: t.datadogName,
+          t.resolvesOn.joinToString(", ") { it.yamlKey },
+        )
+      )
+    }
   }
 }

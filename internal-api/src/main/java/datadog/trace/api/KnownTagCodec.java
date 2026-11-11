@@ -130,6 +130,49 @@ public final class KnownTagCodec {
   /** Internal spans, which have no other end. */
   public static final int DIRECTION_NONE = 2;
 
+  /*
+   * A span's kind, for resolving a name that several concepts share: peer.port is the client's port
+   * on a server span and the remote server's port on client, producer and consumer spans. Pass one of
+   * these to datadogIdOf / openTelemetryIdOf. The numbering matches the core span's cached kind
+   * ordinal, so the core passes that ordinal as is.
+   */
+
+  /** No kind yet: resolves no shared name (see {@link #datadogWriteIdOf}). */
+  public static final int KIND_UNSET = 0;
+
+  public static final int KIND_SERVER = 1;
+  public static final int KIND_CLIENT = 2;
+  public static final int KIND_PRODUCER = 3;
+  public static final int KIND_CONSUMER = 4;
+  public static final int KIND_INTERNAL = 5;
+  public static final int KIND_BROKER = 6;
+
+  /** A kind none of the others names. */
+  public static final int KIND_CUSTOM = 7;
+
+  /** The {@code KIND_*} number of a span of {@code kind}. */
+  public static int kindOf(String kind) {
+    if (kind == null) {
+      return KIND_UNSET;
+    }
+    switch (kind) {
+      case Tags.SPAN_KIND_SERVER:
+        return KIND_SERVER;
+      case Tags.SPAN_KIND_CLIENT:
+        return KIND_CLIENT;
+      case Tags.SPAN_KIND_PRODUCER:
+        return KIND_PRODUCER;
+      case Tags.SPAN_KIND_CONSUMER:
+        return KIND_CONSUMER;
+      case Tags.SPAN_KIND_INTERNAL:
+        return KIND_INTERNAL;
+      case Tags.SPAN_KIND_BROKER:
+        return KIND_BROKER;
+      default:
+        return KIND_CUSTOM;
+    }
+  }
+
   /** The direction of a span with these tags, from its {@code span.kind}. */
   public static int directionOf(TagMap tags) {
     TagMap.Entry kind = tags.getEntry(KnownTags.SPAN_KIND);
@@ -172,6 +215,15 @@ public final class KnownTagCodec {
 
     /** See {@link KnownTagCodec#directionalIdOf}. */
     long directionalIdOf(String name, int direction);
+
+    /** See {@link KnownTagCodec#datadogIdOf}. */
+    long datadogIdOf(String name, int spanKind);
+
+    /** See {@link KnownTagCodec#openTelemetryIdOf}. */
+    long openTelemetryIdOf(String name, int spanKind);
+
+    /** See {@link KnownTagCodec#conceptsNamed}. */
+    long[] conceptsNamed(String name);
   }
 
   /**
@@ -268,6 +320,46 @@ public final class KnownTagCodec {
   public static String canonicalTagName(String name) {
     long id = idOf(name);
     return id != 0 ? nameOf(id) : name;
+  }
+
+  /**
+   * True when {@code tagId} is a concept: an id whose names are shared with other ids ({@code
+   * peer.port} is the remote server's port on a client span and the client's port on a server
+   * span). Its names are still fixed; only resolving a shared name to it needs the span's kind.
+   * Folds to a constant for a constant id.
+   */
+  public static boolean isConcept(long tagId) {
+    return KnownTags.isConcept(tagId);
+  }
+
+  /**
+   * The concept {@code name}, a Datadog name, means on spans of {@code spanKind} (a {@code KIND_*}
+   * number), or 0. {@code peer.port} is the client's port on a server span and the remote server's
+   * port on client, producer and consumer spans.
+   */
+  public static long datadogIdOf(String name, int spanKind) {
+    return name == null ? 0L : Installed.RESOLVER.datadogIdOf(name, spanKind);
+  }
+
+  /**
+   * {@link #datadogIdOf} for writing a tag by name: on a span with no kind yet (or an internal,
+   * broker or custom one) a shared name isn't resolved, since it isn't yet known what it means.
+   */
+  public static long datadogWriteIdOf(String name, int spanKind) {
+    return spanKind >= KIND_SERVER && spanKind <= KIND_CONSUMER ? datadogIdOf(name, spanKind) : 0L;
+  }
+
+  /** The concept {@code name}, an OpenTelemetry name, means on spans of {@code spanKind}, or 0. */
+  public static long openTelemetryIdOf(String name, int spanKind) {
+    return name == null ? 0L : Installed.RESOLVER.openTelemetryIdOf(name, spanKind);
+  }
+
+  /**
+   * The concepts whose Datadog name is {@code name}, for finding one on a span whose kind doesn't
+   * resolve the name. Empty for any other name; the array is shared, so don't modify it.
+   */
+  public static long[] conceptsNamed(String name) {
+    return Installed.RESOLVER.conceptsNamed(name);
   }
 
   private KnownTagCodec() {}

@@ -187,7 +187,16 @@ class TagConstantsRegistryCoverageTest {
   }
 
   private static boolean isRegistered(String tag) {
-    return KnownTagCodec.idOf(tag) != 0;
+    if (KnownTagCodec.idOf(tag) != 0) {
+      return true;
+    }
+    // A projected concept's Datadog name (peer.port) resolves only with a span kind.
+    for (int kind = KnownTagCodec.KIND_UNSET; kind <= KnownTagCodec.KIND_CUSTOM; kind++) {
+      if (KnownTagCodec.datadogIdOf(tag, kind) != 0) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /** Every public static final String constant of the tag classes, keyed {@code Class.FIELD}. */

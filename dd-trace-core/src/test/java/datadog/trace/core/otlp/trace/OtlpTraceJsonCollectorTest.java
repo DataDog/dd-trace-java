@@ -204,20 +204,35 @@ class OtlpTraceJsonCollectorTest {
   }
 
   /**
-   * Ids are trusted: the server's own port written by id on a client span, beside peer.port (which
-   * is server.port there too), is exported twice rather than reconciled.
+   * The server's port is one concept: written by id twice on a client span, it is exported once,
+   * last write winning.
    */
   @Test
-  void aTagWrittenByIdOnTheWrongSideIsExportedAsWritten() throws IOException {
+  void aConceptWrittenTwiceByIdIsExportedOnce() throws IOException {
     List<Object> ports =
         exportedServerPorts(
             "client",
             span -> {
-              span.setTag(KnownTags.SERVER_PORT, 8080);
-              span.setTag(KnownTags.PEER_PORT, 443);
+              span.setTag(KnownTags.PEER_SERVER_PORT, 8080);
+              span.setTag(KnownTags.PEER_SERVER_PORT, 443);
             });
 
-    assertEquals(2, ports.size(), "got " + ports);
+    assertEquals(1, ports.size(), "got " + ports);
+    assertEquals("443", String.valueOf(ports.get(0)));
+  }
+
+  /**
+   * A consumer's other end is the broker, the server: its port is the remote server's port. Datadog
+   * output keeps peer.port; with OpenTelemetry semantics it is server.port, where it used to be
+   * client.port -- a deliberate fix.
+   */
+  @Test
+  void aConsumersBrokerPortIsTheServerPort() throws IOException {
+    List<Object> ports =
+        exportedServerPorts("consumer", span -> span.setTag(KnownTags.PEER_SERVER_PORT, 5672));
+
+    assertEquals(1, ports.size(), "got " + ports);
+    assertEquals("5672", String.valueOf(ports.get(0)));
   }
 
   private static List<Object> exportedServerPorts(String kind, Consumer<AgentSpan> tagger)
