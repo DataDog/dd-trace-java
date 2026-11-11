@@ -98,6 +98,8 @@ dsm-throughput:
   rules:
     - if: '$POPULATE_CACHE'
       when: never
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: never
     - if: '$CI_COMMIT_BRANCH == "master"'
       when: on_success
     - when: manual

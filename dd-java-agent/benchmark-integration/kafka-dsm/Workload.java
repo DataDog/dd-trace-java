@@ -136,6 +136,7 @@ public class Workload {
     int warmup = parseIntEnv("WARMUP", "100", 0);
     int commitEvery = parseIntEnv("COMMIT_EVERY", "100", 1);
     int count = parseIntEnv("COUNT", "25", 1);
+    int threadCount = parseIntEnv("NUM_THREADS", "1", 1);
     String outputPath = System.getenv().getOrDefault("TIMEIT_OUTPUT", "results.json");
     String experimentName = System.getenv().getOrDefault("EXPERIMENT_NAME", "kafka-dsm");
 
@@ -149,7 +150,7 @@ public class Workload {
 
     // Warmup iterations are discarded.
     for (int i = 0; i < warmup; i++) {
-      runBenchmark(runId++, commitEvery);
+      runBenchmark(runId++, commitEvery, threadCount);
     }
 
     List<Double> durationsMs = new ArrayList<>();
@@ -165,7 +166,7 @@ public class Workload {
       long jitBefore = jitTimeSupported ? compilation.getTotalCompilationTime() : 0L;
       long gcBefore = totalCollectionTimeMs(collectors);
       long start = System.nanoTime();
-      double[] phases = runBenchmark(runId++, commitEvery);
+      double[] phases = runBenchmark(runId++, commitEvery, threadCount);
       iterationWallMs.add((System.nanoTime() - start) / 1_000_000.0);
       if (jitTimeSupported) {
         jitMs.add((double) (compilation.getTotalCompilationTime() - jitBefore));
@@ -331,9 +332,9 @@ public class Workload {
   }
 
   /** Returns {producePhaseMeanMs, consumePhaseMeanMs} across workers for one full pass. */
-  private static double[] runBenchmark(int runId, int commitEvery) throws Exception {
+  private static double[] runBenchmark(int runId, int commitEvery, int threadCount)
+      throws Exception {
     String baseTopic = System.getenv().getOrDefault("KAFKA_TOPIC", "benchmark-topic");
-    int threadCount = Integer.parseInt(System.getenv().getOrDefault("NUM_THREADS", "1"));
 
     List<String> topics = new ArrayList<>();
     for (int t = 0; t < threadCount; t++) {
