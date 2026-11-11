@@ -1,7 +1,7 @@
 # Agent context for dd-trace-java
 
 Datadog Java APM agent (`dd-trace-java`): a Java agent that auto-instruments JVM applications at runtime via bytecode manipulation.
-It ships ~120 integrations (~200 instrumentations) for tracing, profiling, AppSec, IAST, CI Visibility, USM, and LLM Observability.
+The agent provides tracing, profiling, application security (AppSec and IAST), CI Visibility, Universal Service Monitoring (USM), and LLM Observability.
 
 ## Project layout
 

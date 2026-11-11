@@ -71,7 +71,9 @@ Prefer static imports over class-qualified calls for call-style helpers — JUni
 Same goes for production code: `Collections.emptyList()` is fine, but if you find yourself repeatedly writing
 `Foo.bar(...)` where `Foo` adds no information at the call site, static-import `bar`.
 
-Wildcard imports (`import x.*` or `import static x.*`) are disallowed — see the IntelliJ IDEA settings above.
+Wildcard imports (`import x.*` or `import static x.*`) are disallowed. Spotless enforces this for Java
+with `forbidWildcardImports()`, so `./gradlew spotlessCheck` fails on wildcard imports.
+Use the IntelliJ IDEA settings above to prevent your IDE from introducing them.
 
 ### CI scripts
 
