@@ -785,6 +785,41 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     'commons-httpclient2' | _
   }
 
+  void 'rasp blocks on SSRF when the injected authority overlaps the scheme'() {
+    when:
+    // libddwaf#522: user input injects the authority and overlaps the URL scheme
+    String url = "http://localhost:${httpPort}/ssrf/url?url=" + URLEncoder.encode('http://169.254.169.254', StandardCharsets.UTF_8.name())
+    def request = new Request.Builder()
+      .url(url)
+      .get()
+      .build()
+    def response = client.newCall(request).execute()
+    def responseBodyStr = response.body().string()
+
+    then:
+    response.code() == 403
+    responseBodyStr.contains('You\'ve been blocked')
+
+    when:
+    waitForTraceCount(1)
+
+    then:
+    def rootSpans = this.rootSpans.toList()
+    rootSpans.size() == 1
+    def rootSpan = rootSpans[0]
+    assert rootSpan.meta.get('error.message').contains(BlockingException.name) // ensure the block was propagated
+    assert rootSpan.meta.get('appsec.blocked') == 'true', 'appsec.blocked is not set'
+    assert rootSpan.meta.get('_dd.appsec.json') != null, '_dd.appsec.json is not set'
+    def trigger = null
+    for (t in rootSpan.triggers) {
+      if (t['rule']['id'] == '__test_ssrf_block') {
+        trigger = t
+        break
+      }
+    }
+    assert trigger != null, 'test trigger not found'
+  }
+
   void 'rasp blocks on LFI for #variant'() {
     when:
     String url = "http://localhost:${httpPort}/lfi/"+variant+"?path=." + URLEncoder.encode("../../../etc/passwd", StandardCharsets.UTF_8.name())
