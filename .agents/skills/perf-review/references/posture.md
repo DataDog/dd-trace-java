@@ -91,7 +91,8 @@ mechanism is certain or the severity is catastrophic.
   (hoisting an invariant out of a loop, a denser data structure, removing an allocation);
   **routine adoption of a known-better idiom** (migrating to a lower-overhead builder / API /
   toolkit primitive — no visible downside); or a change that **ships a benchmark/JFR**
-  (well-evidenced — recognize it). One line; a nudge, not a code-pattern finding.
+  (well-evidenced — recognize it). One line at P3; a nudge, not a code-pattern finding. Report it at a
+  higher level only if a specific check's Flag line also matches the code.
 - **Shipped core code is stricter — see the core performance rules in `AGENTS.md`.**
   For changes to `dd-trace-core/src/main/` or `internal-api/src/main/`: a performance claim
   (in the title, description, or commits) without JMH before/after numbers is a finding, not
