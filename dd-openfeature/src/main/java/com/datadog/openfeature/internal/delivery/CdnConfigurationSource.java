@@ -16,6 +16,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.Locale;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -46,6 +47,7 @@ public final class CdnConfigurationSource implements ConfigurationService {
   // The CDN attributes a request's usage to DD-Service only when it matches this, and drops any
   // other value.
   private static final Pattern USAGE_SERVICE = Pattern.compile("[A-Za-z0-9][A-Za-z0-9_.:/-]{0,99}");
+  private static final int MAX_USAGE_SERVICE_LENGTH = 100;
 
   private final URI endpoint;
   @Nullable private final String apiKey;
@@ -368,19 +370,46 @@ public final class CdnConfigurationSource implements ConfigurationService {
   }
 
   /**
-   * Selects the service sent as DD-Service. A value the CDN would drop is not sent: besides being
-   * wasted, a header value with a line break or a character outside Latin-1 makes the HTTP request
-   * builder throw, which would fail every poll.
+   * Selects the service sent as DD-Service. The name is cleaned up, so {@code My Service} is
+   * attributed as {@code my_service}, as in APM, instead of being dropped by the CDN. Only this
+   * header value is cleaned up; the configured service is unchanged. A name with nothing left once
+   * cleaned up is not sent. Cleaning up also removes line breaks and characters outside Latin-1,
+   * which make the HTTP request builder throw and would fail every poll.
    */
   @Nullable
   private static String usageService(@Nullable final String service) {
-    if (service == null || USAGE_SERVICE.matcher(service).matches()) {
-      return service;
+    if (service == null || service.isEmpty()) {
+      return null;
+    }
+    final String normalized = normalizeService(service);
+    if (USAGE_SERVICE.matcher(normalized).matches()) {
+      return normalized;
     }
     LOGGER.debug(
-        "Feature Flags: service {} does not match the format the CDN attributes usage to; DD-Service header not sent",
+        "Feature Flags: service {} has nothing left the CDN can attribute usage to once cleaned up; DD-Service header not sent",
         service);
     return null;
+  }
+
+  /**
+   * Cleans up a service name with the character rules of {@code TagsHelper.sanitize}, which the
+   * tracer applies to the service it sends to Remote Configuration, and which the SDK can't depend
+   * on: lowercases it and replaces each character other than {@code a-z}, {@code 0-9}, {@code _},
+   * {@code :}, {@code .}, {@code /} and {@code -} with {@code _}. Also drops the leading characters
+   * other than letters and digits, and cuts the name to the length the CDN accepts.
+   */
+  private static String normalizeService(final String service) {
+    final String lower = service.toLowerCase(Locale.ROOT);
+    final StringBuilder normalized = new StringBuilder(MAX_USAGE_SERVICE_LENGTH);
+    for (int i = 0; i < lower.length() && normalized.length() < MAX_USAGE_SERVICE_LENGTH; i++) {
+      final char c = lower.charAt(i);
+      if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')) {
+        normalized.append(c);
+      } else if (normalized.length() > 0) {
+        normalized.append(c == '_' || c == ':' || c == '.' || c == '/' || c == '-' ? c : '_');
+      }
+    }
+    return normalized.toString();
   }
 
   private static String managedHost(final Settings settings) {

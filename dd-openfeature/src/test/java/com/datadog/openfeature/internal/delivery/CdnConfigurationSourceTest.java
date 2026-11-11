@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
@@ -17,6 +18,7 @@ import static org.mockito.Mockito.verify;
 
 import com.datadog.openfeature.internal.LocalHttpServer;
 import com.datadog.openfeature.internal.RuntimeServices;
+import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
 import com.datadog.openfeature.internal.bridge.v1.HealthMetrics;
 import com.datadog.openfeature.internal.config.SdkVersion;
 import com.datadog.openfeature.internal.config.Settings;
@@ -43,6 +45,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.slf4j.event.Level;
 import org.tabletest.junit.TableTest;
@@ -207,6 +210,7 @@ class CdnConfigurationSourceTest {
     final LocalHttpServer.Request request = pollWithService(service);
 
     assertFalse(request.headers.containsKey("DD-Service"));
+    assertEquals(1, this.dispatched.size());
   }
 
   @ParameterizedTest
@@ -219,11 +223,42 @@ class CdnConfigurationSourceTest {
     return Stream.of("a", "svc_name.v2:api/edge-1", "a" + "b".repeat(99));
   }
 
-  // The CDN drops any other value, and the HTTP request builder throws on a line break or a
-  // character outside Latin-1, which would fail every poll.
+  // The CDN drops any name outside its format, so the usage would bill without a service.
   @ParameterizedTest
-  @MethodSource("servicesTheCdnDrops")
-  void skipsServiceTheCdnWouldDrop(final String service) {
+  @MethodSource("servicesTheCdnWouldDrop")
+  void cleansUpServiceTheCdnWouldDrop(final String service, final String sent) {
+    assertEquals(sent, pollWithService(service).header("DD-Service"));
+  }
+
+  private static Stream<Arguments> servicesTheCdnWouldDrop() {
+    return Stream.of(
+        arguments("My Service", "my_service"),
+        arguments("My-API", "my-api"),
+        arguments("_svc", "svc"),
+        arguments("bad\nvalue", "bad_value"),
+        arguments("a" + "b".repeat(100), "a" + "b".repeat(99)));
+  }
+
+  @Test
+  void cleansUpOnlyTheServiceItSendsNotTheTracerService() {
+    final AgentBridge agent = mock(AgentBridge.class);
+    doReturn("My Service").when(agent).setting("service");
+    final Settings settings =
+        TestSettings.of(
+            agent,
+            "feature.flags.configuration.source.agentless.base.url",
+            this.server.uri("/").toString());
+
+    final LocalHttpServer.Request request = pollWith(settings);
+
+    assertEquals("my_service", request.header("DD-Service"));
+    assertEquals("My Service", settings.service());
+  }
+
+  // The HTTP request builder throws on a character outside Latin-1, which would fail every poll.
+  @ParameterizedTest
+  @MethodSource("servicesWithNothingLeftOnceCleanedUp")
+  void omitsServiceWithNothingLeftOnceCleanedUp(final String service) {
     CapturingServiceProvider.enable(CdnConfigurationSource.class.getName(), Level.DEBUG);
 
     final LocalHttpServer.Request request = pollWithService(service);
@@ -239,12 +274,13 @@ class CdnConfigurationSourceTest {
     assertEquals(
         "Feature Flags: service "
             + service
-            + " does not match the format the CDN attributes usage to; DD-Service header not sent",
+            + " has nothing left the CDN can attribute usage to once cleaned up; DD-Service header"
+            + " not sent",
         logged.get(0).message);
   }
 
-  private static Stream<String> servicesTheCdnDrops() {
-    return Stream.of("a" + "b".repeat(100), "_svc", "my service", "支付", "bad\nvalue");
+  private static Stream<String> servicesWithNothingLeftOnceCleanedUp() {
+    return Stream.of("支付", "___");
   }
 
   @Test
@@ -655,19 +691,23 @@ class CdnConfigurationSourceTest {
   }
 
   /**
-   * Builds the source from the settings, as the SDK does, with a custom endpoint on the local
-   * server, and polls once.
+   * Polls once with the service configured as {@code dd.service}, and a custom endpoint on the
+   * local server.
    */
   private LocalHttpServer.Request pollWithService(final String service) {
+    return pollWith(
+        TestSettings.of(
+            "feature.flags.configuration.source.agentless.base.url",
+            this.server.uri("/").toString(),
+            "service",
+            service));
+  }
+
+  /** Builds the source from the settings, as the SDK does, and polls once. */
+  private LocalHttpServer.Request pollWith(final Settings settings) {
     this.server.enqueue(200, CONFIG);
     final CdnConfigurationSource source =
-        new CdnConfigurationSource(
-            TestSettings.of(
-                "feature.flags.configuration.source.agentless.base.url",
-                this.server.uri("/").toString(),
-                "service",
-                service),
-            new RuntimeServices(HealthMetrics.NOOP));
+        new CdnConfigurationSource(settings, new RuntimeServices(HealthMetrics.NOOP));
     try {
       source.start(this.dispatched::add);
     } finally {
