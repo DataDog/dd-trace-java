@@ -86,7 +86,7 @@ class GradleDistributionCacheTest {
   }
 
   @Test
-  fun `retries transient download failures but not the build`() {
+  fun `retries transient archive download failures`() {
     val archive = gradleArchive("8.14.6")
     val archiveRequests = AtomicInteger()
     serve("/gradle-8.14.6-bin.zip", archive) {
@@ -98,6 +98,25 @@ class GradleDistributionCacheTest {
 
     assertThat(installation.resolve("bin/gradle")).isFile
     assertThat(archiveRequests).hasValue(3)
+  }
+
+  @Test
+  fun `preserves interruption during retry backoff`() {
+    serve("/gradle-8.14.6-bin.zip.sha256", "temporarily unavailable") { 503 }
+    val cache = GradleDistributionCache(
+      tempDir.resolve("cache").toFile(),
+      sleep = { throw InterruptedException("interrupted backoff") },
+    )
+
+    try {
+      assertThatThrownBy { cache.getInstallation(distributionUri(), "8.14.6") }
+        .isInstanceOf(GradleException::class.java)
+        .hasCauseInstanceOf(InterruptedException::class.java)
+        .hasMessageContaining("after 1 attempt(s)")
+      assertThat(Thread.currentThread().isInterrupted).isTrue()
+    } finally {
+      Thread.interrupted()
+    }
   }
 
   @Test
