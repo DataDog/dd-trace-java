@@ -620,7 +620,7 @@ public class ShellGitClient implements GitClient {
     }
     if (fetchIfNotPresent) {
       boolean isPresent = isCommitPresent(commit);
-      boolean needsAncestry = !isPresent || recoveredShallowCommits != null;
+      boolean needsAncestry = !isPresent;
       if (!needsAncestry) {
         try {
           // Recovery objects survive the original client; presence alone does not imply ancestry.
@@ -635,9 +635,8 @@ public class ShellGitClient implements GitClient {
       }
       if (needsAncestry) {
         try {
-          // A previous bounded upload fetch may have the tip but lack its PR ancestry.
+          // Fetch PR ancestry independently; retain private boundaries for other upload revisions.
           fetchCommit(commit);
-          recoveredShallowCommits = null;
         } catch (ShellCommandExecutor.ShellCommandFailedException | TimeoutException e) {
           if (!isPresent) {
             throw e;
