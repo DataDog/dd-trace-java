@@ -126,7 +126,7 @@ object ZioTestFixtures {
             .start()
         )
         ddScope <- ZIO.succeed(
-          AgentTracer.get().activateManualSpan(ddSpan)
+          AgentTracer.get().activateSpan(ddSpan)
         )
         _ <- scope.addFinalizer(ZIO.succeed(ddScope.close()))
         _ <- scope.addFinalizer(ZIO.succeed(ddSpan.finish()))

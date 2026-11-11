@@ -23,7 +23,7 @@ public class CodeOrigin04 {
       AgentSpan span;
       ContextScope scope;
       span = newSpan("exit");
-      scope = tracerAPI.activateManualSpan(span);
+      scope = tracerAPI.activateSpan(span);
       exit();
       span.finish();
       scope.close();
