@@ -23,25 +23,30 @@ import org.openjdk.jmh.annotations.Warmup;
  * search runs past the region to the end of the statement.
  *
  * <pre>
- *   ./gradlew :dd-java-agent:agent-bootstrap:jmh -PtestJvm=17 \
+ *   ./gradlew :dd-java-agent:agent-bootstrap:jmh -PtestJvm=17 -Pjmh.profilers=gc \
  *     -Pjmh.includes=SharedDBCommenterLeadingCommentBenchmark,SharedDBCommenterBenchmark
  * </pre>
  *
  * <p>{@link SharedDBCommenterBenchmark} is the check that the fix costs nothing when the region is
  * the whole string.
  *
- * <p><b>Results</b> (JDK 17.0.7, MacBook M-series, {@code @Threads(8)}, ops/s):
+ * <p><b>Results</b> (JDK 17.0.7, MacBook M-series, {@code @Threads(8)}, ops/s, same machine and
+ * settings for before and after):
  *
  * <pre>
  *   sqlLength                     200       2000      20000    whole-string region
- *   before (indexOf to end)       11.4M     1.29M     133K     105.3M ± 1.6M
- *   bounded loop only             38.9M     38.6M     38.7M     93.4M ± 2.9M
- *   after (indexOf or loop)       38.5M     39.6M     39.9M    101.5M ± 3.3M
+ *   before (indexOf to end)       11.5M     1.23M     129K     103.9M ± 2.7M
+ *   after                         38.9M     39.9M     39.6M    102.8M ± 3.3M
  * </pre>
  *
- * Before, throughput fell 10x for every 10x in statement length, even though the comment was the
- * same. After, it stays flat. A plain bounded loop was slower than the {@code indexOf} intrinsic on
- * the whole-string region, so {@code Strings.regionContains} keeps {@code indexOf} when the text
+ * Allocation ({@code gc.alloc.rate.norm}) is about 0 B/op for every case, before and after: both
+ * search paths read the string in place.
+ *
+ * <p>Before, throughput fell 10x for every 10x in statement length, even though the comment was the
+ * same. After, it stays flat. Two earlier versions of the fix were slower than {@code indexOf} on
+ * the whole-string region: a plain bounded loop (93.4M) and the loop with an {@code indexOf} branch
+ * behind the bounds arithmetic (98.5M). So {@code Strings.regionContains} now calls {@code indexOf}
+ * directly when the region runs to the end of the string, and otherwise uses it only when the text
  * past the region is no longer than the region.
  */
 @Fork(3)

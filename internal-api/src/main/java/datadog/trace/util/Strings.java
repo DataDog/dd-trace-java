@@ -353,6 +353,11 @@ public final class Strings {
    * Otherwise a loop that stops at {@code endIndex} is used.
    */
   public static boolean regionContains(String s, int beginIndex, int endIndex, String needle) {
+    if (endIndex >= s.length()) {
+      // The region runs to the end of the string, so indexOf has nothing to overshoot.
+      int idx = s.indexOf(needle, beginIndex);
+      return idx >= 0 && idx + needle.length() <= endIndex;
+    }
     int needleLen = needle.length();
     int from = Math.max(beginIndex, 0);
     int end = Math.min(endIndex, s.length());
