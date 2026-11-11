@@ -11,6 +11,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.withSettings;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.vertx.core.Handler;
@@ -34,9 +35,9 @@ class RouteHandlerWrapperTest {
       for (int iteration = 0; iteration < 1000; iteration++) {
         AgentSpan span = mock(AgentSpan.class);
         AtomicReference<AgentSpan> spanReference = new AtomicReference<>(span);
-        RoutingContext context = mock(RoutingContext.class);
+        RoutingContext context = mock(RoutingContext.class, withSettings().withoutAnnotations());
         when(context.get(HANDLER_SPAN_CONTEXT_KEY)).thenReturn(spanReference);
-        HttpServerResponse response = mock(HttpServerResponse.class);
+        HttpServerResponse response = mock(HttpServerResponse.class, withSettings().withoutAnnotations());
         when(context.response()).thenReturn(response);
         when(response.getStatusCode()).thenReturn(403);
         CountDownLatch ready = new CountDownLatch(2);
@@ -65,7 +66,7 @@ class RouteHandlerWrapperTest {
 
   @Test
   void ignoresContextWithoutHandlerSpan() {
-    RoutingContext context = mock(RoutingContext.class);
+    RoutingContext context = mock(RoutingContext.class, withSettings().withoutAnnotations());
     finishHandlerSpan(context);
     verify(context).get(HANDLER_SPAN_CONTEXT_KEY);
     verifyNoMoreInteractions(context);
@@ -76,7 +77,7 @@ class RouteHandlerWrapperTest {
   void reusesExistingHandlerSpan() {
     AgentSpan span = mock(AgentSpan.class);
     AtomicReference<AgentSpan> spanReference = new AtomicReference<>(span);
-    RoutingContext context = mock(RoutingContext.class);
+    RoutingContext context = mock(RoutingContext.class, withSettings().withoutAnnotations());
     when(context.get(HANDLER_SPAN_CONTEXT_KEY)).thenReturn(spanReference);
     Handler<RoutingContext> handler = mock(Handler.class);
 
