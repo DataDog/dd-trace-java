@@ -102,6 +102,7 @@ class GitRecoveryCompatibilityTest {
       git(remote, "clone", "--no-local", origin.toString(), checkout.toString());
     }
     String base = git(remote, "rev-parse", "HEAD");
+    String metadata = git(remote, "rev-parse", "HEAD^");
     String tree = git(remote, "rev-parse", "HEAD^{tree}");
     String oldParent =
         writeObject(
@@ -116,6 +117,8 @@ class GitRecoveryCompatibilityTest {
     ShellGitClient client = client(checkout, "1 month ago");
     if (selectedRecoveryFirst) {
       client.fetchSelectedCommit(selected);
+      assertEquals(metadata, client.getCommitInfo(metadata, true).getSha());
+      assertTrue(client.getLatestCommits(selected).contains(selected));
     }
     if (freshClient) {
       client = client(checkout, "1 month ago");
