@@ -426,6 +426,36 @@ public class ProviderTest {
   }
 
   @Test
+  public void testCustomEndpointWithoutApiKeyBecomesReady() throws Exception {
+    // A proxy that adds the API key, such as a local sidecar, needs none on the application.
+    this.cdn.otherwise(
+        200,
+        "{\"data\":{\"type\":\"universal-flag-configuration\",\"attributes\":"
+            + "{\"createdAt\":\"2024-04-17T19:40:53.716Z\",\"environment\":{\"name\":\"Test\"},"
+            + "\"flags\":{}}}}");
+    final Provider provider =
+        newProvider(
+            new Options().initTimeout(30, SECONDS),
+            AgentBridge.NONE,
+            TestSettings.of(
+                "feature.flags.configuration.source.agentless.base.url",
+                this.cdn.uri("").toString()));
+    final OpenFeatureAPI api = OpenFeatureAPI.getInstance();
+
+    api.setProviderAndWait(provider);
+
+    assertThat(api.getClient().getProviderState(), equalTo(ProviderState.READY));
+    final LocalHttpServer.Request request = this.cdn.requests().get(0);
+    assertThat(
+        request.uri.getPath(), equalTo("/api/v2/feature-flagging/config/rules-based/server"));
+    assertNull(request.header("DD-API-KEY"));
+    final FlagEvaluationDetails<String> result =
+        api.getClient().getStringDetails("missing", "caller-default");
+    assertThat(result.getValue(), equalTo("caller-default"));
+    assertThat(result.getErrorCode(), equalTo(ErrorCode.FLAG_NOT_FOUND));
+  }
+
+  @Test
   public void testAgentlessWithoutApiKeyFailsInitializationAtOnce() throws Exception {
     final Provider provider =
         newProvider(new Options().initTimeout(30, SECONDS), AgentBridge.NONE, TestSettings.of());
