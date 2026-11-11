@@ -12,7 +12,6 @@ smokeTestApp {
     artifactPath = 'libs/kafka-2-smoketest.jar'
     sysProperty = 'datadog.smoketest.springboot.shadowJar.path'
   }
-  projectJar('iastUtilJar', project(':dd-smoke-tests:iast-util'))
 }
 
 dependencies {
