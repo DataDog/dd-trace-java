@@ -22,13 +22,19 @@ public class ConstructorAdvice {
       @Advice.FieldValue("offsetCommitCallbackInvoker")
           OffsetCommitCallbackInvoker offsetCommitCallbackInvoker,
       @Advice.FieldValue("metadata") Metadata metadata) {
-    ConsumerGroupMetadata groupMetadata = consumer.groupMetadata();
     String consumerGroup = consumerConfig.getString(ConsumerConfig.GROUP_ID_CONFIG);
     String normalizedConsumerGroup =
         consumerGroup != null && !consumerGroup.isEmpty() ? consumerGroup : null;
     if (normalizedConsumerGroup == null) {
-      if (groupMetadata != null) {
-        normalizedConsumerGroup = groupMetadata.groupId();
+      try {
+        // groupMetadata() throws InvalidGroupIdException for a consumer without a group, which
+        // would otherwise drop the bootstrap servers and cluster ID too
+        ConsumerGroupMetadata groupMetadata = consumer.groupMetadata();
+        if (groupMetadata != null) {
+          normalizedConsumerGroup = groupMetadata.groupId();
+        }
+      } catch (RuntimeException ignored) {
+        // no consumer group
       }
     }
     List<String> bootstrapServersList =
@@ -37,17 +43,16 @@ public class ConstructorAdvice {
     if (bootstrapServersList != null && !bootstrapServersList.isEmpty()) {
       bootstrapServers = String.join(",", bootstrapServersList);
     }
-    KafkaConsumerInfo kafkaConsumerInfo;
-    if (Config.get().isDataStreamsEnabled()) {
-      kafkaConsumerInfo =
-          new KafkaConsumerInfo(normalizedConsumerGroup, metadata, bootstrapServers);
-    } else {
-      kafkaConsumerInfo = new KafkaConsumerInfo(normalizedConsumerGroup, bootstrapServers);
-    }
+    // Keep the metadata even without Data Streams: MetadataInstrumentation records the cluster ID
+    // on
+    // it, which consumer spans are tagged with.
+    KafkaConsumerInfo kafkaConsumerInfo =
+        new KafkaConsumerInfo(normalizedConsumerGroup, metadata, bootstrapServers);
     // new - searching context for ConsumerDelegate and OffsetCommitCallbackInvoker instead of
     // ConsumerCoordinator and KafkaConsumer
     if (kafkaConsumerInfo.getConsumerGroup().isPresent()
-        || kafkaConsumerInfo.getmetadata().isPresent()) {
+        || kafkaConsumerInfo.getmetadata().isPresent()
+        || kafkaConsumerInfo.getBootstrapServers().isPresent()) {
       InstrumentationContext.get(ConsumerDelegate.class, KafkaConsumerInfo.class)
           .put(consumer, kafkaConsumerInfo);
     }

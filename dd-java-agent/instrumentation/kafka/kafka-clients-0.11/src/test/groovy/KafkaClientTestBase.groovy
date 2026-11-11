@@ -332,6 +332,43 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     container?.stop()
   }
 
+  def "test consumer without a group tags bootstrap servers given as a list and the cluster id"() {
+    setup:
+    def kafkaPartition = 0
+    // Spring Boot passes bootstrap.servers as a List
+    def bootstrapServers = embeddedKafka.getBrokersAsString().split(",").toList()
+    def consumerProperties = KafkaTestUtils.consumerProps("sender", "false", embeddedKafka)
+    consumerProperties.remove(ConsumerConfig.GROUP_ID_CONFIG)
+    consumerProperties.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers)
+    consumerProperties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
+    def consumer = new KafkaConsumer<String, String>(consumerProperties)
+    consumer.assign([new TopicPartition(SHARED_TOPIC, kafkaPartition)])
+
+    def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
+    def producer = new KafkaProducer(senderProps)
+
+    when:
+    producer.send(new ProducerRecord<Integer, String>(SHARED_TOPIC, kafkaPartition, null, "Hello without a group!")).get()
+    def received = []
+    for (def record : KafkaTestUtils.getRecords(consumer)) {
+      received << record.value()
+    }
+    TEST_WRITER.waitForTraces(2)
+    def consumeSpan = TEST_WRITER.flatten().find { it.getTag(Tags.SPAN_KIND) == Tags.SPAN_KIND_CONSUMER }
+
+    then:
+    received == ["Hello without a group!"]
+    consumeSpan != null
+    consumeSpan.getTag(InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS) == bootstrapServers.join(",")
+    consumeSpan.getTag(InstrumentationTags.KAFKA_CLUSTER_ID) instanceof String
+    !(consumeSpan.getTag(InstrumentationTags.KAFKA_CLUSTER_ID) as String).isEmpty()
+    consumeSpan.getTag(InstrumentationTags.CONSUMER_GROUP) == null
+
+    cleanup:
+    consumer.close()
+    producer.close()
+  }
+
   def "test producing message too large"() {
     setup:
     def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
@@ -1280,7 +1317,8 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
         "$InstrumentationTags.OFFSET" { offset.containsWithinBounds(it as int) }
         "$InstrumentationTags.CONSUMER_GROUP" "sender"
         "$InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS" config.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG)
-        "$InstrumentationTags.KAFKA_CLUSTER_ID" { String }
+        // a real check: { String } also passes when the tag is missing
+        "$InstrumentationTags.KAFKA_CLUSTER_ID" { it instanceof String && !it.isEmpty() }
         "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
         "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
         "$InstrumentationTags.MESSAGING_DESTINATION_NAME" "$SHARED_TOPIC"

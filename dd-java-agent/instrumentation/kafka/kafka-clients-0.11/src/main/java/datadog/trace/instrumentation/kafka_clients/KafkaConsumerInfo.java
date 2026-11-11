@@ -17,12 +17,6 @@ public class KafkaConsumerInfo {
     this.bootstrapServers = bootstrapServers;
   }
 
-  public KafkaConsumerInfo(String consumerGroup, String bootstrapServers) {
-    this.consumerGroup = consumerGroup;
-    this.clientMetadata = null;
-    this.bootstrapServers = bootstrapServers;
-  }
-
   @Nullable
   public String getConsumerGroup() {
     return consumerGroup;

@@ -21,13 +21,19 @@ public class LegacyConstructorAdvice {
       @Advice.Argument(0) ConsumerConfig consumerConfig,
       @Advice.FieldValue("coordinator") ConsumerCoordinator coordinator,
       @Advice.FieldValue("metadata") Metadata metadata) {
-    ConsumerGroupMetadata groupMetadata = consumer.groupMetadata();
     String consumerGroup = consumerConfig.getString(ConsumerConfig.GROUP_ID_CONFIG);
     String normalizedConsumerGroup =
         consumerGroup != null && !consumerGroup.isEmpty() ? consumerGroup : null;
     if (normalizedConsumerGroup == null) {
-      if (groupMetadata != null) {
-        normalizedConsumerGroup = groupMetadata.groupId();
+      try {
+        // groupMetadata() throws InvalidGroupIdException for a consumer without a group, which
+        // would otherwise drop the bootstrap servers and cluster ID too
+        ConsumerGroupMetadata groupMetadata = consumer.groupMetadata();
+        if (groupMetadata != null) {
+          normalizedConsumerGroup = groupMetadata.groupId();
+        }
+      } catch (RuntimeException ignored) {
+        // no consumer group
       }
     }
     List<String> bootstrapServersList =
@@ -40,7 +46,8 @@ public class LegacyConstructorAdvice {
     kafkaConsumerInfo = new KafkaConsumerInfo(normalizedConsumerGroup, metadata, bootstrapServers);
     // new - search for the ConsumerDelegate instead of KafkaConsumer
     if (kafkaConsumerInfo.getConsumerGroup().isPresent()
-        || kafkaConsumerInfo.getmetadata().isPresent()) {
+        || kafkaConsumerInfo.getmetadata().isPresent()
+        || kafkaConsumerInfo.getBootstrapServers().isPresent()) {
       InstrumentationContext.get(ConsumerDelegate.class, KafkaConsumerInfo.class)
           .put(consumer, kafkaConsumerInfo);
       if (coordinator != null) {
