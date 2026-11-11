@@ -27,101 +27,37 @@ tracer, using the tracer performance rubric bundled in `references/`. This is a
 **low-friction advisory nudge**, not a gate: it reports findings and stops. It
 never edits code.
 
-## Why this exists (read first — it sets the whole posture)
+## The rubric
 
-The tracer shares the customer's process, heap, and latency budget. **Do no harm**:
-overhead is a form of incorrect behavior that can escalate to real customer harm —
-missed SLAs, OOM kills, container restarts, cold-start churn. So the review's job is
-to catch overhead the customer would feel, and to do it *without becoming noise*.
+Read these two files before looking at the diff. They set the whole posture:
 
-Two forces are in tension, and the resolution defines everything below:
+- **`references/posture.md`** — do no harm, assume hot vs. precision over recall, the core
+  rules (verify-don't-verdict, confidence axis, interprocedural resolution, shipped-evidence
+  check, contestable-tradeoff nudge), the severity scale, and the JVM target.
+- **`references/hotness.md`** — hot anchors, the hot-path map and its multiplier, what
+  counts as evidence of cold, and domain adjustment (large-denominator domains, DSM,
+  streaming handlers, AppSec).
 
-- **Assume hot.** We don't know what's on a customer's critical path. Absent positive
-  evidence of cold, assume the code runs on every request, under load, at full
-  concurrency. The burden of proof runs toward *cold*: ask "is there evidence this is
-  cold or guarded?" — not "is there evidence this is hot?" (that rationalizes itself
-  into "probably not").
-- **Precision over recall — be silent when unsure.** A false-positive-prone review
-  dies of being ignored. Over-flagging kills it faster than under-flagging. This
-  actively fights your default to be comprehensive and helpful: here, *not* flagging
-  a borderline case is the correct, skilled move — not a miss.
+Then read the check files that apply to the diff:
 
-You reconcile them with the **confidence axis** and **verify-don't-verdict** (below):
-assume-hot makes you *look* everywhere; precision makes you *speak* only when the
-mechanism is certain or the severity is catastrophic.
+| File | Checks | Load |
+|---|---|---|
+| `references/checks/memory.md` | #3 unbounded memory, J5 cardinality-sensitive aggregator, J6 weak-ref strengthening, J13 large retained `byte[]` | always |
+| `references/checks/allocation.md` | #1 per-call allocation, #7 escape defeated, J1 EA, J4 GC → tail latency; defensive copies, capturing lambdas, `Optional`/boxing | always |
+| `references/checks/repeat-work.md` | #2 repeat work, J8 backtracking regex; regex compile, `String.format`, `Config.get()`, Streams | always |
+| `references/checks/critical-path.md` | #4 deferrable work, #6 FFI crossing, J3 JNI + virtual-thread pinning | always |
+| `references/checks/collections.md` | wrong collection type, mis-sizing, concurrency choice | always |
+| `references/checks/startup.md` | premain-reachable startup cost | always |
+| `references/checks/product-off.md` | J14 work for an optional product that's off | always |
+| `references/checks/dispatch.md` | #5 polymorphic dispatch, J2 megamorphic (**parked**) | always |
+| `references/checks/contracts.md` | #8 `@NoEscape`, #9 `@StaticLifetime`, #10 `@BackgroundOnly` | always — these fire on code that doesn't name the annotation |
+| `references/checks/advice.md` | ByteBuddy Advice idioms | diff touches `dd-java-agent/` or uses `@Advice` |
+| `references/checks/benchmarks.md` | J12 benchmark validity, EA claims over I/O | diff touches `src/jmh/`, or PR text / commits cite benchmark results |
+| `references/remedies.md` | J7, J9, J10, J11 fix routes + toolkit availability; also holds the J7 retention trap and the J9 trigger | always |
 
-## Core rules
-
-- **Findings are prompts to *verify*, not verdicts.** You reason statically; you
-  cannot render a performance verdict from a code read. Every finding routes into
-  **Benchmark → Profile → Improve → Guard**. Phrase each as *"this looks like X;
-  verify with Y"* — never "this is slow."
-- **Check for shipped evidence before raising *any* flag-as-measure finding —
-  not just the contestable-tradeoff nudge.** Before asking the reader to verify a
-  JIT/GC-dependent cost (J1 escape elision, J4/J7 GC pressure, J5/J11 aggregator
-  cardinality, etc.), check whether the diff itself already ships the answer: a JMH
-  benchmark or profiler run whose stated purpose is exactly this mechanism (e.g. a
-  benchmark class's Javadoc saying "run with `-Pjmh.profilers=gc` to confirm X is
-  scalar-replaced"), or evidence already recorded in the PR/commit history that the
-  same question was measured. If that evidence directly covers the mechanism, don't
-  re-flag it as open — move it to **Correctly suppressed** / **Checked, no issue**
-  and cite the benchmark/evidence by name. Only raise a finding over it if the
-  evidence doesn't actually cover the claimed mechanism (wrong JVM, wrong code path,
-  never actually run) or is stale relative to the current diff.
-- **Confidence axis on every finding:**
-  - **flag-with-confidence** — the cost is *mechanism-determined* and visible in the
-    code: allocation, boxing, copying, unbounded growth, a native crossing. State it
-    plainly.
-  - **flag-as-measure** — the cost depends on JIT/GC/optimizer decisions you can't
-    see from source: escape elision, inlining/devirtualization, GC impact. Phrase as
-    "may X; verify with a profiler/benchmark," never as a certainty.
-- **Predicate-with-default, not a banned-API list.** Don't flag "you called
-  `String.format`." Flag *"an eager, unconditional expensive call on a hot,
-  instrumentation-reachable path."* The same API is fine on a cold path. Two failure
-  shapes, different fixes: result usually **discarded** → gate/defer; result always
-  **needed but costly** → cheapen/cache.
-- **Resolve interprocedurally — this is the review's whole reason to exist.** A
-  peephole lint can't answer "reachable from a hot entry, unconditional along the
-  way." Trace *up* (who calls this? is it reachable from an `@Advice` root / per-span
-  callback / request handler?) and *down* (follow callbacks, hooks, and listeners to
-  their **sink** before flagging). If a per-span hook's every reachable sink is an
-  atomic counter (`LongAdder`, `AtomicLong`) or a no-op-when-disabled, stay silent — a
-  "verify contention" nudge there is noise. That clears the *call* only: arguments built
-  eagerly for a disabled product's no-op are still paid for (J14).
-- **Make the reachability path the headline.** The reachability claim is the most
-  valuable *and* least reliable part of a finding — residual false positives cluster
-  in "called it unconditional, missed an upstream guard." Say *"reachable from
-  `Foo.onEnter` via A→B→C, no guard on that path"* so the reader can check the
-  shakiest link at a glance.
-- **Only flag toward a fix that exists.** A finding must be actionable *now*. Route to
-  a mechanism that has landed (see the toolkit note in `checks.md` — cite only what
-  exists; name "coming" primitives as coming). Don't flag a pattern whose only fix is
-  a mechanism that isn't built yet.
-- **Triage by severity.** Flag SEV-1 (unbounded memory / OOM, cardinality blowups)
-  *aggressively* — a false positive there is cheap insurance against a container kill.
-  Flag low-severity CPU-micro *conservatively or not at all* — false positives there
-  only erode trust.
-- **Never flag the *absence* of a cache on high-cardinality input.** For open-cardinality
-  data (raw SQL with literals, per-request strings), *not* caching is the correct
-  choice — caching it would be the worse SEV-1. Flag a cache *keyed by* high-cardinality
-  data; never flag the decision not to cache.
-- **A *visibly contestable* perf tradeoff shipped without data → one soft flag-as-measure.**
-  The trigger is narrow: the change makes a **visible tradeoff that could itself regress** —
-  it removes a lock / guard / synchronization, swaps in a hand-rolled cache or data
-  structure, or explicitly claims "faster / optimized" — **and** ships no benchmark or
-  profile. There a static read genuinely can't tell a win from a regression, so raise one
-  soft *flag-as-measure* nudge: *"this trades <X for Y>; verify with a JMH benchmark / JFR."*
-  Do **not** fire it otherwise — if nothing in the diff could plausibly regress, there is
-  nothing to measure, so stay silent. Specifically not for: a **mechanically-obvious win**
-  (hoisting an invariant out of a loop, a denser data structure, removing an allocation);
-  **routine adoption of a known-better idiom** (migrating to a lower-overhead builder / API /
-  toolkit primitive — no visible downside); or a change that **ships a benchmark/JFR**
-  (well-evidenced — recognize it). One line; a nudge, not a code-pattern finding.
-- **Shipped core code is stricter — see the core performance rules in `AGENTS.md`.**
-  For changes to `dd-trace-core/src/main/` or `internal-api/src/main/`: a performance claim
-  (in the title, description, or commits) without JMH before/after numbers is a finding, not
-  a soft nudge. Elsewhere, including those modules' tests, benchmarks and build files, keep
-  the softer posture above.
+Each check reads as: **pattern** — *expensive when (the interprocedural condition to trace)* —
+confidence — severity — fix. J7, J9, J10 and J11 route an *existing* #1/#2/#3 finding to a landed reusable
+fix — they are not new triggers. Don't raise a finding you wouldn't have raised anyway.
 
 ## Workflow
 
@@ -162,35 +98,14 @@ independent review, except to find performance claims.
 
 ### Step 2 — Map the changed code onto hot paths
 
-For each changed method, decide *which multiplier applies* before flagging anything.
-
-**Hot anchors** (reachable ⇒ assume hot): `@Advice.OnMethodEnter`/`OnMethodExit`,
-per-span / per-trace callbacks, request / message handlers, streaming chunk handlers.
-**Hot-path map** (where cost is multiplied per-span × spans/request × requests/sec):
-span lifecycle (create / setTag / finish), tag-map ops, serialization/encoding, the
-metrics/stats path, decorators, propagation (header read/write).
-
-**Cold only with positive evidence:** one-time init, startup-only path, a genuinely
-rare error branch, or behind a guard that provably fires rarely. Watch the
-**interprocedural trap** — a method three helpers deep from an `@Advice` entry is
-still hot. And note **domain adjustment**: large-denominator domains (LLMObs, CI
-Visibility, DJM) absorb per-call CPU/alloc cost, but the risk *inverts* to payload
-memory (SEV-1); streaming handlers fire per-chunk, so the large-denominator relief
-suspends inside them. **DSM is not large-denominator** — it runs on per-message paths.
-The relief never covers work done for a product while it's **off** (J14). See
-`guide.md` §6.
+For each changed method, decide *which multiplier applies* before flagging anything,
+using `references/hotness.md`.
 
 ### Step 3 — Apply the checks
 
-Run the changed hot-path code against the rubric. Keep the check index below in mind;
-open the references for the precise conditions, confidence, severity, and fix:
-
-- **`references/guide.md`** — the narrative "how": severity model, hotness rubric,
-  the 6 categories with worked examples, and the false-positive traps. Read this first
-  if you're calibrating judgment.
-- **`references/checks.md`** — the precise cost-model: 7 universal checks + the Java
-  addendum (J1–J11) + the ByteBuddy-Advice fix idioms + the toolkit-availability note.
-  Read this for the exact confidence/severity/fix of a specific pattern.
+Run the changed hot-path code against the check files in the table above. Load the
+conditional ones only when their condition holds, and say in **Scope reviewed** which
+conditional files you loaded.
 
 ### Step 4 — Resolve, then emit
 
@@ -209,8 +124,8 @@ Drop anything that resolves to benign. Then report in the format below.
 
 ## Output format
 
-Follow this structure (see `references/example-review.md` for a full worked instance —
-). Showing your suppressed lookalikes and what you cleared is not
+Follow this structure (see `references/example-review.md` for a full worked instance).
+Showing your suppressed lookalikes and what you cleared is not
 filler: it demonstrates the precision that makes the findings trustworthy.
 
 When providing suggestions as code review comments, prefix the comments with "perf: "
@@ -245,36 +160,3 @@ crossing (#6/J3)", "string-literal tag keys are JVM-interned — no per-call all
 If nothing survives the confidence bar, say so plainly — "No high-confidence hot-path
 findings; here's what I checked and cleared." A clean review is a valid, valuable
 result, not a failure to find something.
-
-## Check index (the map — details in the references)
-
-**Universal (language-agnostic):**
-1. Per-span/per-call allocation on a hot path (retained/escaping) — SEV-2/3
-2. Repeat work across calls (regex compile / format / parse / concat recomputed) — SEV-2/3
-3. Unbounded memory / collection, or keyed by high-cardinality input — **SEV-1**
-4. Expensive work on the critical path that could be deferred — SEV-1/2
-5. Polymorphic dispatch defeating inlining/devirt — flag-as-measure — SEV-2/3
-6. FFI / native-boundary crossing per-item (not batched) — SEV-1/2
-7. Escape / allocation-elision defeated by a refactor — flag-as-measure — SEV-2/3
-
-**Java addendum (JVM-specific — full text + mechanism in `checks.md`):**
-- **J1** escaping allocation defeats Escape Analysis · **J3** JNI crossing + virtual-thread
-  pinning · **J4** GC pressure → tail latency · **J5** cardinality-sensitive aggregator
-  (**SEV-1**) · **J6** `WeakReference.get()` in a probe loop strengthens the ref ·
-  **J7** `substring` → `SubSequence` zero-copy view · **J8** backtracking regex on
-  external input → RE2J (ReDoS) · **J9** `Objects.hash(...)` varargs/boxing →
-  `HashingUtils` · **J10** hot-path `String.format` → `Strings` · **J11** composite-key
-  maps → `Hashtable` · **J13** large retained `byte[]` / buffer → `ChunkedBuffer`
-  (retained past 512 KiB = humongous + constant live set, SEV-2).
-- **J2** megamorphic dispatch is **PARKED** — do *not* raise megamorphism findings in
-  review yet (kept as author reference only; it needs a standing audit, not per-PR
-  flagging). See `checks.md` for why.
-- **J14** work done for an optional product that's off (DSM / DBM / DJM, …): arguments
-  built for a no-op still cost; verify the running implementation is really a no-op;
-  gate with the product's own check, keeping it dynamic where it is.
-- ByteBuddy-Advice idioms (`Config.get()` hoisting, `@Advice.AllArguments` →
-  `@Advice.Argument`, `@Advice.SkipOn`+cached-boolean, `@Advice.Local`, `switch(String)`
-  three-tier) — in `checks.md`.
-
-J7–J11 route an *existing* #1/#2/#3 finding to a landed reusable fix — they are not new
-triggers. Don't raise a finding you wouldn't have raised anyway.

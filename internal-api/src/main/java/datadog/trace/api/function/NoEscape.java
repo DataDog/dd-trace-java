@@ -61,10 +61,10 @@ import java.lang.annotation.Target;
  *
  * <p><b>Checker contract.</b> The rule below is written to be machine-checkable -- by a future
  * static checker, or in the meantime by an AI reviewer (see the perf-review skill's {@code
- * checks.md}) -- without needing to read this class's prose above. Because the underlying rule is
- * "should" rather than "must", a trigger is a presumptive finding to raise, not an automatic
- * failure: a field that carries a comment explaining the deliberate exception, or a {@link
- * SuppressPerfContract} annotation citing this class, is compliant.
+ * checks/contracts.md}) -- without needing to read this class's prose above. Because the
+ * underlying rule is "should" rather than "must", a trigger is a presumptive finding to raise, not
+ * an automatic failure: a field that carries a comment explaining the deliberate exception, or a
+ * {@link SuppressPerfContract} annotation citing this class, is compliant.
  *
  * <ul>
  *   <li><b>Trigger (type form):</b> a field (instance or static, in any class) whose declared type
