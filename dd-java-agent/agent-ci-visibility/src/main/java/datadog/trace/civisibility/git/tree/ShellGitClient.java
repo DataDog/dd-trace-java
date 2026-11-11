@@ -618,9 +618,9 @@ public class ShellGitClient implements GitClient {
                     .executeCommand(
                         IOUtils::readFully,
                         buildGitCommand(
-                            "show",
+                            "log",
                             commit,
-                            "-s",
+                            "--no-walk",
                             "--no-show-signature",
                             "--format=%H%x00%an%x00%ae%x00%aI%x00%cn%x00%ce%x00%cI%x00%B"))
                     .trim();
