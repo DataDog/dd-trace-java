@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 #
-# Clone + build Spring PetClinic at a pinned commit, and print the path to the runnable fat jar.
+# Clone + build Spring PetClinic at a pinned commit, extract the fat jar, and print the path to the
+# extracted application jar (which runs with `java -jar`, its dependencies on a plain class path).
+#
+# Why extracted: run as a fat jar, PetClinic serializes requests on Spring Boot's nested-jar loader.
+# See the "Running PetClinic without a class loader lock" section of README.md.
 #
 # Idempotent: if the jar already exists it is reused (no clone, no rebuild). All progress output
 # goes to stderr so that stdout is ONLY the jar path -- callers capture it with:
@@ -18,7 +22,24 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # build/ is already git-ignored by the module, so the checkout is never committed.
 src_dir="$script_dir/build/spring-petclinic"
 
+extract_dir="$script_dir/build/spring-petclinic-extracted"
+
 log() { echo "[fetch-petclinic] $*" >&2; }
+
+# Extract fat jar $1 (Spring Boot's jarmode=tools layout: <name>.jar + lib/) unless the extraction is
+# already newer than it, and print the extracted application jar.
+extract() {
+  local fat="$1" app
+  app="$extract_dir/$(basename "$fat")"
+  if [ ! -f "$app" ] || [ "$fat" -nt "$app" ]; then
+    log "extracting $fat"
+    rm -rf "$extract_dir"
+    java -Djarmode=tools -jar "$fat" extract --destination "$extract_dir" >&2 \
+      || { log "ERROR: could not extract $fat"; exit 1; }
+  fi
+  [ -f "$app" ] || { log "ERROR: extracted jar not found at $app"; exit 1; }
+  echo "$app"
+}
 
 # The runnable fat jar under target/, if built (not the sources jar or the pre-repackage original).
 built_jar() {
@@ -36,7 +57,7 @@ if [ -n "$existing_jar" ] && [ "$(git -C "$src_dir" rev-parse HEAD 2>/dev/null)"
 fi
 if [ -n "$existing_jar" ]; then
   log "reusing existing jar: $existing_jar"
-  echo "$existing_jar"
+  extract "$existing_jar"
   exit 0
 fi
 
@@ -60,4 +81,4 @@ if [ -z "$jar" ]; then
   exit 1
 fi
 log "built jar: $jar"
-echo "$jar"
+extract "$jar"

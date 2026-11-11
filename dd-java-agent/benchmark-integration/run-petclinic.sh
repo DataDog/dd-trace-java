@@ -139,6 +139,10 @@ fi
 log "fetching + building PetClinic"
 petclinic_jar="$(bash "$script_dir/fetch-petclinic.sh")"
 log "PetClinic jar: $petclinic_jar"
+# Turn off Spring's resource chain (read by Spring Boot from the environment as
+# spring.web.resources.chain.enabled). With it on, every Thymeleaf link costs a class path lookup
+# that serializes requests on a class loader lock; see README.md. The server inherits this.
+export SPRING_WEB_RESOURCES_CHAIN_ENABLED=false
 
 # Heap-sweep dimension: run the full variant sweep once per heap size. PETCLINIC_HEAPS is a
 # space-separated list (e.g. "64m 256m 512m"); default is a single 256m (no heap sweep).

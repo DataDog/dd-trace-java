@@ -46,6 +46,27 @@ automated benchmarking platform (the GitLab `apm-sdks-benchmarks-java-slo` track
 On top of `wrk` and `nc`: `git`, a JDK (provides the `jfr` CLI), and `curl`. Maven is supplied by
 PetClinic's own wrapper. First run needs network access (clone + build + optional release download).
 
+### Running PetClinic without a class loader lock
+Out of the box, PetClinic can't use more than about one core: every request's Thymeleaf links
+(`@{/resources/...}`, `@{/webjars/...}`) go through Spring's resource chain, which looks each one up
+on the class path, and the lookup isn't cached when it finds nothing. Every request thread then
+queues on one lock: Spring Boot's nested-jar cache (`UrlJarFiles$Cache`) when run as a fat jar, or
+the JDK's `URLClassPath` when extracted. Throughput stays flat as connections go up and only latency
+grows, and that queueing hides tracer overhead.
+
+So the harness runs PetClinic **extracted** (`fetch-petclinic.sh` runs `-Djarmode=tools extract` on
+the fat jar) with **the resource chain off** (`SPRING_WEB_RESOURCES_CHAIN_ENABLED=false`, set by
+`run-petclinic.sh`). Pages render the same, except asset links aren't rewritten to versioned URLs,
+and wrk doesn't fetch assets.
+
+NoAgent on `/` at 64 connections (M1 Max):
+
+| PetClinic run as | req/s | p90 |
+|---|---|---|
+| fat jar | ~1,300 | 61 ms |
+| extracted | ~4,200 | 23 ms |
+| extracted, resource chain off | ~17,500 | 4.3 ms |
+
 ### Trace destination — what actually gets measured
 By default, `run-petclinic.sh` starts a local **Agent stub** (`agent-stub/AgentStub.java`, a
 single-file Java program) on `PETCLINIC_STUB_PORT` (default 8137) and points the agent variants at
