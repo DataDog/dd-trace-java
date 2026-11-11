@@ -25,6 +25,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.DoubleSupplier;
+import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,9 +43,13 @@ public final class CdnConfigurationSource implements ConfigurationService {
   private static final long SECOND_RETRY_MAX_MILLIS = 30_000;
   private static final double RETRY_JITTER = 0.2;
   private static final long WARNING_INTERVAL_NANOS = TimeUnit.MINUTES.toNanos(5);
+  // The CDN attributes a request's usage to DD-Service only when it matches this, and drops any
+  // other value.
+  private static final Pattern USAGE_SERVICE = Pattern.compile("[A-Za-z0-9][A-Za-z0-9_.:/-]{0,99}");
 
   private final URI endpoint;
   @Nullable private final String apiKey;
+  @Nullable private final String service;
   private final long pollIntervalMillis;
   private final Duration requestTimeout;
   private final HttpClient httpClient;
@@ -66,6 +71,7 @@ public final class CdnConfigurationSource implements ConfigurationService {
     this(
         endpoint(settings),
         isManagedEndpoint(settings) ? settings.apiKey() : null,
+        usageService(settings.service()),
         TimeUnit.SECONDS.toMillis(settings.agentlessPollIntervalSeconds()),
         Duration.ofSeconds(settings.agentlessRequestTimeoutSeconds()),
         HttpClient.newBuilder()
@@ -81,6 +87,7 @@ public final class CdnConfigurationSource implements ConfigurationService {
   CdnConfigurationSource(
       final URI endpoint,
       @Nullable final String apiKey,
+      @Nullable final String service,
       final long pollIntervalMillis,
       final Duration requestTimeout,
       final HttpClient httpClient,
@@ -89,6 +96,7 @@ public final class CdnConfigurationSource implements ConfigurationService {
       final DoubleSupplier jitter) {
     this.endpoint = endpoint;
     this.apiKey = apiKey;
+    this.service = service;
     this.pollIntervalMillis = pollIntervalMillis;
     this.requestTimeout = requestTimeout;
     this.httpClient = httpClient;
@@ -301,6 +309,10 @@ public final class CdnConfigurationSource implements ConfigurationService {
     if (this.apiKey != null) {
       request.header("DD-API-KEY", this.apiKey);
     }
+    if (this.service != null) {
+      // Lets the CDN attribute this request's usage to the service.
+      request.header("DD-Service", this.service);
+    }
     final String currentEtag = this.etag;
     if (currentEtag != null) {
       request.header("If-None-Match", currentEtag);
@@ -352,6 +364,22 @@ public final class CdnConfigurationSource implements ConfigurationService {
 
   private static boolean isManagedEndpoint(final Settings settings) {
     return settings.agentlessBaseUrl() == null;
+  }
+
+  /**
+   * Selects the service sent as DD-Service. A value the CDN would drop is not sent: besides being
+   * wasted, a header value with a line break or a character outside Latin-1 makes the HTTP request
+   * builder throw, which would fail every poll.
+   */
+  @Nullable
+  private static String usageService(@Nullable final String service) {
+    if (service == null || USAGE_SERVICE.matcher(service).matches()) {
+      return service;
+    }
+    LOGGER.debug(
+        "Feature Flags: service {} does not match the format the CDN attributes usage to; DD-Service header not sent",
+        service);
+    return null;
   }
 
   private static String managedHost(final Settings settings) {

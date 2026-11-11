@@ -21,6 +21,7 @@ import com.datadog.openfeature.internal.bridge.v1.HealthMetrics;
 import com.datadog.openfeature.internal.config.Settings;
 import com.datadog.openfeature.internal.config.TestSettings;
 import com.datadog.openfeature.internal.ufc.ServerConfiguration;
+import com.datadog.openfeature.testlog.CapturingServiceProvider;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
@@ -34,10 +35,15 @@ import java.util.concurrent.FutureTask;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.slf4j.event.Level;
 import org.tabletest.junit.TableTest;
 
 class CdnConfigurationSourceTest {
@@ -60,6 +66,7 @@ class CdnConfigurationSourceTest {
 
   @AfterEach
   void tearDown() {
+    CapturingServiceProvider.reset();
     this.server.close();
   }
 
@@ -164,6 +171,77 @@ class CdnConfigurationSourceTest {
     assertEquals("gzip", request.header("Accept-Encoding"));
     assertEquals("java", request.header("Datadog-Meta-Lang"));
     assertNull(request.header("If-None-Match"));
+  }
+
+  @Test
+  void sendsServiceOnEveryPoll() {
+    this.server.enqueue(200, CONFIG, "ETag", "\"v1\"").enqueue(304, null);
+    final CdnConfigurationSource source = source(null, "checkout");
+
+    assertTrue(source.pollOnce());
+    assertTrue(source.pollOnce());
+
+    assertEquals("checkout", this.server.requests().get(0).header("DD-Service"));
+    assertEquals("checkout", this.server.requests().get(1).header("DD-Service"));
+    assertEquals("\"v1\"", this.server.requests().get(1).header("If-None-Match"));
+  }
+
+  @Test
+  void sendsConfiguredServiceToCustomEndpoint() {
+    final LocalHttpServer.Request request = pollWithService("checkout");
+
+    assertEquals(CdnConfigurationSource.UFC_RULES_BASED_SERVER_PATH, request.uri.getPath());
+    assertEquals("checkout", request.header("DD-Service"));
+  }
+
+  @TableTest({
+    "scenario | service",
+    "unset    |        ",
+    "empty    | ''     ",
+    "blank    | '   '  "
+  })
+  void omitsServiceWhenNotConfigured(final String service) {
+    final LocalHttpServer.Request request = pollWithService(service);
+
+    assertFalse(request.headers.containsKey("DD-Service"));
+  }
+
+  @ParameterizedTest
+  @MethodSource("servicesTheCdnAccepts")
+  void sendsServiceAtTheLimitsOfTheCdnFormat(final String service) {
+    assertEquals(service, pollWithService(service).header("DD-Service"));
+  }
+
+  private static Stream<String> servicesTheCdnAccepts() {
+    return Stream.of("a", "svc_name.v2:api/edge-1", "a" + "b".repeat(99));
+  }
+
+  // The CDN drops any other value, and the HTTP request builder throws on a line break or a
+  // character outside Latin-1, which would fail every poll.
+  @ParameterizedTest
+  @MethodSource("servicesTheCdnDrops")
+  void skipsServiceTheCdnWouldDrop(final String service) {
+    CapturingServiceProvider.enable(CdnConfigurationSource.class.getName(), Level.DEBUG);
+
+    final LocalHttpServer.Request request = pollWithService(service);
+
+    assertFalse(request.headers.containsKey("DD-Service"));
+    assertEquals(1, this.dispatched.size());
+    final List<CapturingServiceProvider.Event> logged =
+        CapturingServiceProvider.events().stream()
+            .filter(e -> e.message.contains("DD-Service"))
+            .collect(Collectors.toList());
+    assertEquals(1, logged.size(), logged.toString());
+    assertEquals(Level.DEBUG, logged.get(0).level);
+    assertEquals(
+        "Feature Flags: service "
+            + service
+            + " does not match the format the CDN attributes usage to; DD-Service header not sent",
+        logged.get(0).message);
+  }
+
+  private static Stream<String> servicesTheCdnDrops() {
+    return Stream.of("a" + "b".repeat(100), "_svc", "my service", "支付", "bad\nvalue");
   }
 
   @Test
@@ -427,6 +505,7 @@ class CdnConfigurationSourceTest {
         new CdnConfigurationSource(
             this.server.uri("/ufc"),
             null,
+            null,
             TimeUnit.MINUTES.toMillis(10),
             Duration.ofSeconds(5),
             HttpClient.newHttpClient(),
@@ -468,6 +547,7 @@ class CdnConfigurationSourceTest {
           new CdnConfigurationSource(
               stalled.uri(),
               null,
+              null,
               POLL_INTERVAL_MILLIS,
               Duration.ofMillis(500),
               HttpClient.newHttpClient(),
@@ -499,6 +579,7 @@ class CdnConfigurationSourceTest {
       final CdnConfigurationSource source =
           new CdnConfigurationSource(
               stalled.uri(),
+              null,
               null,
               POLL_INTERVAL_MILLIS,
               Duration.ofMinutes(1),
@@ -535,18 +616,31 @@ class CdnConfigurationSourceTest {
   }
 
   private CdnConfigurationSource source(final String apiKey) {
+    return source(apiKey, null);
+  }
+
+  private CdnConfigurationSource source(final String apiKey, final String service) {
     final CdnConfigurationSource source =
-        source(this.server.uri("/ufc"), apiKey, mock(ScheduledExecutorService.class));
+        source(this.server.uri("/ufc"), apiKey, service, mock(ScheduledExecutorService.class));
     source.setListenerForTest(this.dispatched::add);
     return source;
   }
 
   private CdnConfigurationSource source(
       final URI endpoint, final String apiKey, final ScheduledExecutorService executor) {
+    return source(endpoint, apiKey, null, executor);
+  }
+
+  private CdnConfigurationSource source(
+      final URI endpoint,
+      final String apiKey,
+      final String service,
+      final ScheduledExecutorService executor) {
     final CdnConfigurationSource source =
         new CdnConfigurationSource(
             endpoint,
             apiKey,
+            service,
             POLL_INTERVAL_MILLIS,
             Duration.ofSeconds(5),
             HttpClient.newHttpClient(),
@@ -555,5 +649,28 @@ class CdnConfigurationSourceTest {
             () -> 1.0);
     source.setListenerForTest(this.dispatched::add);
     return source;
+  }
+
+  /**
+   * Builds the source from the settings, as the SDK does, with a custom endpoint on the local
+   * server, and polls once.
+   */
+  private LocalHttpServer.Request pollWithService(final String service) {
+    this.server.enqueue(200, CONFIG);
+    final CdnConfigurationSource source =
+        new CdnConfigurationSource(
+            TestSettings.of(
+                "feature.flags.configuration.source.agentless.base.url",
+                this.server.uri("/").toString(),
+                "service",
+                service),
+            new RuntimeServices(HealthMetrics.NOOP));
+    try {
+      source.start(this.dispatched::add);
+    } finally {
+      source.close();
+    }
+    assertEquals(1, this.server.requests().size());
+    return this.server.requests().get(0);
   }
 }
