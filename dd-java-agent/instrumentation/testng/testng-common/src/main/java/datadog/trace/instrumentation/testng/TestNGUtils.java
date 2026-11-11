@@ -111,7 +111,11 @@ public abstract class TestNGUtils {
     }
     // Some TestNG versions (e.g. 6.14) only take the class-level groups from the class declaring
     // the method, missing the groups of the test class when the method is inherited
-    List<String> classGroups = getClassGroups(getTestClass(result, method));
+    Class<?> testClass = getTestClass(result, method);
+    if (testClass == null || testClass == method.getRealClass()) {
+      return Arrays.asList(groups);
+    }
+    List<String> classGroups = getClassGroups(testClass);
     if (classGroups.isEmpty()) {
       return Arrays.asList(groups);
     }
@@ -126,11 +130,7 @@ public abstract class TestNGUtils {
       return instance.getClass();
     }
     ITestClass testClass = method.getTestClass();
-    if (testClass != null) {
-      return testClass.getRealClass();
-    }
-    // falls back to the class declaring the method
-    return method.getRealClass();
+    return testClass != null ? testClass.getRealClass() : null;
   }
 
   private static List<String> getClassGroups(Class<?> clazz) {
