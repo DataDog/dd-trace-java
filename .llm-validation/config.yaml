@@ -1,0 +1,23 @@
+# Temporary setup compatibility experiment, not a calibrated Java benchmark.
+model: claude-opus-5-5
+runs: 1
+concurrency: 2
+max_turns: 10
+instruction_files: [AGENTS.md]
+default_level: java-setup-smoke
+presets:
+  java-setup-smoke:
+    cases: [java-lint-plan-001]
+    runs: 1
+setup:
+  files:
+    - AGENTS.md
+    - .claude/CLAUDE.md
+    - build-logic/AGENTS.md
+    - build-logic/CLAUDE.md
+    - buildSrc/AGENTS.md
+    - buildSrc/CLAUDE.md
+  # Declare discovery links and all shared skills; linked targets are included automatically.
+  directories:
+    - .agents/skills
+    - .claude/skills
