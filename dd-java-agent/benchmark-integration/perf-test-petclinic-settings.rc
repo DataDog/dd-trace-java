@@ -22,12 +22,16 @@ test_repeats=1
 server_heap=256m
 
 # PetClinic endpoints -- a read-heavy mix spanning view rendering, a form, a DB-backed query,
-# a detail page, and the error path. PetClinic's default profile is in-memory H2 (no external DB).
+# and a detail page. PetClinic's default profile is in-memory H2 (no external DB).
 declare -A endpoints
 endpoints['home']='http://localhost:8080/'
 endpoints['vets']='http://localhost:8080/vets.html'
 endpoints['find-owners']='http://localhost:8080/owners/find'
 endpoints['owners-query']='http://localhost:8080/owners?lastName='
 endpoints['owner-detail']='http://localhost:8080/owners/1'
+# The error path (/oups) is defined but not run by default: its 500 carries "Connection: close", so
+# wrk reconnects per request and mostly measures TCP setup. At a few thousand req/s that also runs out
+# of local ports (macOS: 16K ephemeral ports, 30s TIME_WAIT), and wrk's connect errors abort the
+# sweep. Add 'error' to test_order to run it anyway.
 endpoints['error']='http://localhost:8080/oups'
-test_order=( 'home' 'vets' 'find-owners' 'owners-query' 'owner-detail' 'error' )
+test_order=( 'home' 'vets' 'find-owners' 'owners-query' 'owner-detail' )
