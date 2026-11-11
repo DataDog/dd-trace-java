@@ -10,13 +10,21 @@ import static org.mockito.Mockito.when;
 import com.datadog.debugger.symbol.Scope;
 import com.datadog.debugger.symbol.ScopeType;
 import com.datadog.debugger.uploader.BatchUploader;
+import com.datadog.debugger.util.MoshiHelper;
 import datadog.trace.api.Config;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.zip.GZIPInputStream;
 import okhttp3.MediaType;
+import okio.Okio;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class SymbolSinkTest {
 
@@ -101,6 +109,31 @@ class SymbolSinkTest {
   }
 
   @Test
+  public void flushWhenQueuedSizeLimitReached() {
+    SymbolUploaderMock symbolUploaderMock = new SymbolUploaderMock();
+    Config config = mock(Config.class);
+    when(config.getServiceName()).thenReturn("service1");
+    when(config.isSymbolDatabaseCompressed()).thenReturn(false);
+    Scope jarScope = Scope.builder(ScopeType.JAR, "jar1.jar", 0, 0).build();
+    int scopeSize = MoshiHelper.createMoshiSymbol().adapter(Scope.class).toJson(jarScope).length();
+    // limit reached when the 3rd scope is enqueued
+    SymbolSink symbolSink =
+        new SymbolSink(config, symbolUploaderMock, MAX_SYMDB_UPLOAD_SIZE, scopeSize * 3L);
+    symbolSink.addScope(jarScope);
+    symbolSink.addScope(jarScope);
+    assertEquals(0, symbolUploaderMock.multiPartContents.size());
+    // implicit flush because queued size limit is reached
+    symbolSink.addScope(jarScope);
+    assertEquals(2, symbolUploaderMock.multiPartContents.size());
+    // queued size is reset after the flush
+    symbolSink.addScope(jarScope);
+    symbolSink.addScope(jarScope);
+    assertEquals(2, symbolUploaderMock.multiPartContents.size());
+    symbolSink.addScope(jarScope);
+    assertEquals(4, symbolUploaderMock.multiPartContents.size());
+  }
+
+  @Test
   public void splitByJarScopes() {
     SymbolUploaderMock symbolUploaderMock = new SymbolUploaderMock();
     Config config = mock(Config.class);
@@ -121,6 +154,44 @@ class SymbolSinkTest {
       String strContent = assertMultipartContent(symbolUploaderMock, i);
       assertTrue(strContent.contains("\"source_file\":\"jar" + (i / 2) + ".jar\""));
     }
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  public void preSerializedScopesProduceValidJson(boolean compressed) throws IOException {
+    SymbolUploaderMock symbolUploaderMock = new SymbolUploaderMock();
+    Config config = mock(Config.class);
+    when(config.getServiceName()).thenReturn("service1");
+    when(config.isSymbolDatabaseCompressed()).thenReturn(compressed);
+    SymbolSink symbolSink = new SymbolSink(config, symbolUploaderMock, MAX_SYMDB_UPLOAD_SIZE);
+    symbolSink.addScope(
+        Scope.builder(ScopeType.JAR, "jar1.jar", 0, 0)
+            .scopes(singletonList(Scope.builder(ScopeType.CLASS, "class1", 1, 2).build()))
+            .build());
+    symbolSink.addScope(Scope.builder(ScopeType.JAR, "jar2.jar", 0, 0).build());
+    symbolSink.flush();
+    assertEquals(2, symbolUploaderMock.multiPartContents.size());
+    byte[] content = symbolUploaderMock.multiPartContents.get(1).getContent();
+    Map<String, Object> json =
+        MoshiHelper.createGenericAdapter()
+            .fromJson(
+                Okio.buffer(
+                    Okio.source(
+                        compressed
+                            ? new GZIPInputStream(new ByteArrayInputStream(content))
+                            : new ByteArrayInputStream(content))));
+    assertEquals("service1", json.get("service"));
+    assertEquals("JAVA", json.get("language"));
+    List<Map<String, Object>> jarScopes = (List<Map<String, Object>>) json.get("scopes");
+    assertEquals(2, jarScopes.size());
+    assertEquals("jar1.jar", jarScopes.get(0).get("source_file"));
+    assertEquals("jar2.jar", jarScopes.get(1).get("source_file"));
+    List<Map<String, Object>> classScopes =
+        (List<Map<String, Object>>) jarScopes.get(0).get("scopes");
+    assertEquals(1, classScopes.size());
+    assertEquals("class1", classScopes.get(0).get("source_file"));
+    assertEquals("CLASS", classScopes.get(0).get("scope_type"));
+    assertEquals(1, symbolSink.getStats().getTotalClassScopes());
   }
 
   @Test
