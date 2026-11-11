@@ -7,7 +7,7 @@ Checks #5, J2. **J2 is parked: do not raise megamorphism findings in review.**
 - **#5 — Polymorphic dispatch on a hot path** — *a hot call site becomes polymorphic enough to
   defeat the runtime's inlining/devirtualization (real for JIT runtimes — JVM/.NET/V8;
   AOT/interpreted differ)* — **flag-as-measure** ("may defeat devirtualization; verify on the
-  target runtime") — SEV-2/3 — fix: keep hot call sites mono/bi-morphic; specialize.
+  target runtime") — P3 — fix: keep hot call sites mono/bi-morphic; specialize.
 - **J2 — Megamorphic dispatch** *(refines #5)*. **Status — PARKED for PR-review flagging
   (2026-07-08): do NOT raise megamorphism findings in review yet.** Kept as author-reference + the
   standing-audit target described below, not as an active review idiom. Rationale: it's too

@@ -6,12 +6,12 @@ Checks #4, #6, J3.
 
 - **#4 — Expensive work on the critical path that could be deferred** — *heavy compute / parse /
   normalize / serialize / I/O / lock on the synchronous request or span-finish path, that could be
-  moved* — flag-as-*consider* (deferability is contextual) — SEV-1/2 — fix: defer to
+  moved* — flag-as-*consider* (deferability is contextual) — P2 (P1 if it blocks) — fix: defer to
   background/writer thread, lazy-compute, batch.
 - **#6 — FFI / native-boundary crossing on a hot path** *(central to the shared-core effort)* — *a
   native crossing per-span/per-item (not batched), or transporting strings/objects rather than
   primitives/IDs* — flag-with-confidence (boundary cost is mechanism-determined; runtime-specific
-  pinning → J3) — SEV-1/2 (SEV-1 if it blocks/pins under concurrency) — fix: batch (one per flush,
+  pinning → J3) — P2 (P1 if it blocks/pins under concurrency) — fix: batch (one per flush,
   not per item); transport interned IDs not strings; keep crossings off the hot/concurrency path.
 - **J3 — JNI / native crossing: overhead + virtual-thread pinning** *(refines #6)*. JNI call ≈
   100ns–1µs (state transition, arg pin/copy, no inlining across); string args via

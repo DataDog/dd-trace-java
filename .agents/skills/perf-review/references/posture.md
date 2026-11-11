@@ -74,13 +74,13 @@ mechanism is certain or the severity is catastrophic.
   a mechanism that has landed (see `remedies.md` — cite only what exists; name "coming"
   primitives as coming). Don't flag a pattern whose only fix is a mechanism that isn't
   built yet.
-- **Triage by severity.** Flag SEV-1 (unbounded memory / OOM, cardinality blowups)
+- **Triage by severity.** Flag P1 (unbounded memory / OOM, cardinality blowups)
   *aggressively* — a false positive there is cheap insurance against a container kill.
   Flag low-severity CPU-micro *conservatively or not at all* — false positives there
   only erode trust.
 - **Never flag the *absence* of a cache on high-cardinality input.** For open-cardinality
   data (raw SQL with literals, per-request strings), *not* caching is the correct
-  choice — caching it would be the worse SEV-1. Flag a cache *keyed by* high-cardinality
+  choice — caching it would be the worse P1. Flag a cache *keyed by* high-cardinality
   data; never flag the decision not to cache.
 - **A *visibly contestable* perf tradeoff shipped without data → one soft flag-as-measure.**
   The trigger is narrow: the change makes a **visible tradeoff that could itself regress** —
@@ -102,13 +102,26 @@ mechanism is certain or the severity is catastrophic.
 
 ## Severity
 
-| Severity | Type | Usual Cause |
+The scale is the one `/sdk-review` uses, so findings from both skills rank the same way:
+
+- `P0`: catastrophic or actively exploitable; stop publication.
+- `P1`: likely severe user impact, data exposure, or a broken release.
+- `P2`: meaningful defect, compatibility risk, or maintenance cost.
+- `P3`: localized low-impact issue with a clear fix.
+
+Performance findings top out at `P1`; `P0` is not used for them. How the usual causes map:
+
+| Level | Type | Usual cause |
 |---|---|---|
-| **SEV-1** | OOM / container kill | Unbounded memory growth |
-| **SEV-1/2** | Response time — median | Expensive work on the critical path |
-| **SEV-1/2** | Response time — tail latency | Allocation rate → GC pauses (shared heap) |
-| **SEV-2** | Startup latency | Eager class loading, init, transformation |
-| **SEV-2/3** | CPU overhead | General tracer activity, background work |
+| **P1** | OOM / container kill | Unbounded memory growth, cardinality blowups |
+| **P2** | Response time — median | Expensive work on the critical path (P1 if it blocks, pins a carrier thread, or is unbounded) |
+| **P2** | Response time — tail latency | Allocation rate → GC pauses (shared heap) |
+| **P2** | Startup latency | Eager class loading, init, transformation |
+| **P3** | CPU overhead | General tracer activity, background work |
+
+Each check gives one base level and says when it moves. One rule applies to every check: **raise
+one level when the cost lands on the tracer's own per-span core** (span create / setTag / finish,
+tag-map ops, propagation, serialization), which every integration pays.
 
 CPU overhead alone is the lowest priority — it's a cost issue, not a correctness one, and
 escalates only when it causes latency.

@@ -1,6 +1,6 @@
 # Repeated work on hot paths
 
-Checks #2, J8. SEV-2/3 (J8 up to SEV-1).
+Checks #2, J8. Base P3 (J8 up to P1).
 
 Tracing is repetitive. Work repeated per-span or per-trace compounds quickly. The focus is on
 *allocating* repeat work — patterns that produce garbage the GC must collect — not pure CPU-micro
@@ -10,14 +10,14 @@ work like an `.equals()` call.
 
 - **#2 — Repeat work across calls/traces** — *string concat / case-conversion / regex *compile* /
   format / parse recomputed each hot-path call, on a recurring (low-cardinality) input or
-  allocating each time* — flag-with-confidence — SEV-2/3 — fix: memoize (bounded — see #3 in
+  allocating each time* — flag-with-confidence — P3 — fix: memoize (bounded — see #3 in
   `memory.md`) or compile-once (hoist regex to static).
 - **J8 — Backtracking regex on external input → RE2J / bounded input** *(distinct from #2
   compile-per-call)*. `java.util.regex` backtracks → exponential worst-case (ReDoS) on adversarial
   input — a CPU / tail-latency / DoS hazard, **not** an allocation one. Flag the **conjunction**:
   (a) input is user/external-controllable AND (b) the pattern is backtracking-prone
   (nested/overlapping quantifiers, `(a+)+`, unanchored `.*` around a quantified group).
-  **flag-with-confidence** when both hold — SEV-2 (tail latency), **SEV-1** on a per-request
+  **flag-with-confidence** when both hold — P2 (tail latency), **P1** on a per-request
   AppSec/security-scan path (IAST Reporter / WAF run regex on untrusted input every request). Fix:
   RE2J (`com.google.re2j`, guaranteed linear; no backrefs/lookaround), anchor/de-nest, or hard-cap
   input length.
