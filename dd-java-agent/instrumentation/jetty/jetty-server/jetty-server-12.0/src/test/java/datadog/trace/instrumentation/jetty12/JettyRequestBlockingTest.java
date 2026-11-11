@@ -226,7 +226,7 @@ class JettyRequestBlockingTest {
   @Test
   void alreadyClaimedJettyBrfCompletesCallbackWithoutWriting() {
     JettyBrfFixture f = new JettyBrfFixture();
-    f.brf.markBlockingResponseInitiated();
+    assertTrue(f.brf.tryClaim());
 
     assertTrue(f.tryBlock());
 

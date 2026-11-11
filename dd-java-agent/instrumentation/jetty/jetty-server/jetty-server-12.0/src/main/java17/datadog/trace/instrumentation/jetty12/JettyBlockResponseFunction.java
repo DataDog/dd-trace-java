@@ -6,6 +6,7 @@ import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.internal.TraceSegment;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
@@ -68,6 +69,7 @@ public class JettyBlockResponseFunction implements BlockResponseFunction {
     return response;
   }
 
+  @VisibleForTesting
   boolean isBlockingResponseInitiated() {
     return claimed != 0;
   }
@@ -85,14 +87,5 @@ public class JettyBlockResponseFunction implements BlockResponseFunction {
   /** Releases the claim after a failed blocking response attempt. */
   void release() {
     claimed = 0;
-  }
-
-  /**
-   * Sets the claim unconditionally. Used when another path wrote the blocking response on the same
-   * request (the response-phase commit hook), so later blocking evaluations do not report a {@code
-   * block_failure} for it.
-   */
-  void markBlockingResponseInitiated() {
-    claimed = 1;
   }
 }

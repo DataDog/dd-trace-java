@@ -345,10 +345,10 @@ class JettyBlockResponseHelperTest {
   }
 
   @Test
-  void markedFunctionDoesNotWrite() {
+  void alreadyClaimedFunctionDoesNotWrite() {
     FakeResponse response = new FakeResponse();
     JettyBlockResponseFunction brf = brf(new FakeRequest("GET", null), response);
-    brf.markBlockingResponseInitiated();
+    assertTrue(brf.tryClaim());
 
     assertTrue(commit(brf, new FakeSegment()));
 
