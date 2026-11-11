@@ -7,6 +7,8 @@ This guide covers the JUnit 5 testing utilities for writing instrumentation and 
 JUnit 5 supports running the same test with different inputs via [`@ParameterizedTest`](https://docs.junit.org/5.14.3/writing-tests/parameterized-classes-and-tests.html#writing-tests-parameterized-classes-and-tests) combined with an argument source.
 On top of the standard sources, [`@TableTest`](https://tabletest.org/) can be used for readable tabular data as argument source.
 
+Argument sources are additive: each source adds separate test invocations. You can combine sources such as `@ValueSource`, `@NullSource`, `@TableTest`, and `@MethodSource` when their arguments match the test method's parameters.
+
 ### [`@ValueSource`](https://docs.junit.org/5.14.3/writing-tests/parameterized-classes-and-tests.html#tests-sources-ValueSource)
 
 For single-parameter tests with literal values, retain `@ValueSource` by default. Convert to `@TableTest` only when every row has a precise, natural scenario name that explains why the case matters and clearly improves readability. Names that merely repeat the input, add generic labels, or invent unsupported meaning do not justify conversion. When in doubt, keep `@ValueSource`.
