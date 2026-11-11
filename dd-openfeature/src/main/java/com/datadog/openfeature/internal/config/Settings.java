@@ -225,6 +225,17 @@ public final class Settings {
   }
 
   /**
+   * The tracer does not trim the service of its spans. Thus APM shows {@code " svc"} as {@code
+   * _svc}, not as {@code svc}.
+   *
+   * @return the service name with its surrounding whitespace, or {@code null} if not set.
+   */
+  @Nullable
+  public String untrimmedService() {
+    return get(SERVICE);
+  }
+
+  /**
    * @return the application version, or {@code null} if not set.
    */
   @Nullable

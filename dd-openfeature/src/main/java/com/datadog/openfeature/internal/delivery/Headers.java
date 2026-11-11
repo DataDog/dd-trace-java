@@ -26,7 +26,7 @@ final class Headers {
   }
 
   /**
-   * Adds the client library headers, from which the Feature Flags CDN logs the requesting SDK.
+   * Adds the client library headers. The Feature Flags CDN logs the requesting SDK from them.
    *
    * @param request the request to add the headers to.
    */

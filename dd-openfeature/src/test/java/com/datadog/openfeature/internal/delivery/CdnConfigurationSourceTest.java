@@ -214,35 +214,79 @@ class CdnConfigurationSourceTest {
   }
 
   @ParameterizedTest
-  @MethodSource("servicesTheCdnAccepts")
-  void sendsServiceAtTheLimitsOfTheCdnFormat(final String service) {
-    assertEquals(service, pollWithService(service).header("DD-Service"));
+  @MethodSource("servicesAndTheirHeader")
+  void sendsTheApmNameOfTheServiceOrNoHeader(final String service, final String header) {
+    CapturingServiceProvider.enable(CdnConfigurationSource.class.getName(), Level.DEBUG);
+
+    final LocalHttpServer.Request request = pollWithService(service);
+
+    assertEquals(header, request.header("DD-Service"));
+    assertEquals(1, this.dispatched.size());
+    final List<CapturingServiceProvider.Event> logged =
+        CapturingServiceProvider.events().stream()
+            .filter(e -> e.message.contains("DD-Service"))
+            .collect(Collectors.toList());
+    // A blank service is not set. Thus the SDK does not log it.
+    final boolean skipped = header == null && !service.trim().isEmpty();
+    assertEquals(skipped ? 1 : 0, logged.size(), logged.toString());
+    if (skipped) {
+      assertEquals(Level.DEBUG, logged.get(0).level);
+      assertEquals(
+          "Feature Flags: the CDN cannot attribute usage to the APM name of service "
+              + service
+              + "; DD-Service header not sent",
+          logged.get(0).message);
+    }
   }
 
-  private static Stream<String> servicesTheCdnAccepts() {
-    return Stream.of("a", "svc_name.v2:api/edge-1", "a" + "b".repeat(99));
-  }
-
-  // The CDN drops any name outside its format, so the usage would bill without a service.
-  @ParameterizedTest
-  @MethodSource("servicesTheCdnWouldDrop")
-  void cleansUpServiceTheCdnWouldDrop(final String service, final String sent) {
-    assertEquals(sent, pollWithService(service).header("DD-Service"));
-  }
-
-  private static Stream<Arguments> servicesTheCdnWouldDrop() {
+  // The headers come from the Agent. Each one is the result of NormalizeService (datadog-agent
+  // v0.82.3), then of the CDN format check. A null header means that the request has no
+  // DD-Service header.
+  private static Stream<Arguments> servicesAndTheirHeader() {
     return Stream.of(
+        arguments("checkout", "checkout"),
         arguments("My Service", "my_service"),
         arguments("My-API", "my-api"),
-        arguments("_svc", "svc"),
+        arguments("UPPER", "upper"),
         arguments("bad\nvalue", "bad_value"),
-        arguments("a" + "b".repeat(100), "a" + "b".repeat(99)));
+        arguments("a\tb", "a_b"),
+        arguments("a  b!", "a_b"),
+        arguments("svc ", "svc"),
+        arguments(" svc", null),
+        arguments("a_", "a"),
+        arguments("svc-", "svc-"),
+        arguments("a..b", "a..b"),
+        arguments("2fa-service", "2fa-service"),
+        arguments("9lives", "9lives"),
+        arguments("unnamed-service", "unnamed-service"),
+        arguments("svc_name.v2:api/edge-1", "svc_name.v2:api/edge-1"),
+        arguments("my__service", "my_service"),
+        arguments("Default Web Site/Shop", "default_web_site/shop"),
+        arguments("a" + "b".repeat(99), "a" + "b".repeat(99)),
+        arguments("a" + "b".repeat(100), "a" + "b".repeat(99)),
+        arguments("a".repeat(100) + " b", "a".repeat(100)),
+        arguments("a".repeat(99) + "é", "a".repeat(99)),
+        arguments("_svc", null),
+        arguments("-svc", null),
+        arguments(".svc", null),
+        arguments(":svc", null),
+        arguments("café-api", null),
+        arguments("Café", null),
+        arguments("支付", null),
+        arguments("a🐶b", "a_b"),
+        arguments("İstanbul", null),
+        arguments("é".repeat(60), null),
+        arguments("___", null),
+        arguments("-", null),
+        arguments("", null),
+        arguments("   ", null));
   }
 
-  @Test
-  void cleansUpOnlyTheServiceItSendsNotTheTracerService() {
+  @ParameterizedTest
+  @MethodSource("tracerServicesAndTheirHeader")
+  void cleansUpOnlyTheServiceItSendsNotTheTracerService(final String service, final String header) {
     final AgentBridge agent = mock(AgentBridge.class);
-    doReturn("My Service").when(agent).setting("service");
+    doReturn(service).when(agent).setting("service");
     final Settings settings =
         TestSettings.of(
             agent,
@@ -251,36 +295,16 @@ class CdnConfigurationSourceTest {
 
     final LocalHttpServer.Request request = pollWith(settings);
 
-    assertEquals("my_service", request.header("DD-Service"));
-    assertEquals("My Service", settings.service());
-  }
-
-  // The HTTP request builder throws on a character outside Latin-1, which would fail every poll.
-  @ParameterizedTest
-  @MethodSource("servicesWithNothingLeftOnceCleanedUp")
-  void omitsServiceWithNothingLeftOnceCleanedUp(final String service) {
-    CapturingServiceProvider.enable(CdnConfigurationSource.class.getName(), Level.DEBUG);
-
-    final LocalHttpServer.Request request = pollWithService(service);
-
-    assertFalse(request.headers.containsKey("DD-Service"));
+    assertEquals(header, request.header("DD-Service"));
     assertEquals(1, this.dispatched.size());
-    final List<CapturingServiceProvider.Event> logged =
-        CapturingServiceProvider.events().stream()
-            .filter(e -> e.message.contains("DD-Service"))
-            .collect(Collectors.toList());
-    assertEquals(1, logged.size(), logged.toString());
-    assertEquals(Level.DEBUG, logged.get(0).level);
-    assertEquals(
-        "Feature Flags: service "
-            + service
-            + " has nothing left the CDN can attribute usage to once cleaned up; DD-Service header"
-            + " not sent",
-        logged.get(0).message);
+    assertEquals(service, settings.service());
   }
 
-  private static Stream<String> servicesWithNothingLeftOnceCleanedUp() {
-    return Stream.of("支付", "___");
+  private static Stream<Arguments> tracerServicesAndTheirHeader() {
+    return Stream.of(
+        arguments("My Service", "my_service"),
+        arguments("_svc", null),
+        arguments("café-api", null));
   }
 
   @Test
@@ -690,10 +714,7 @@ class CdnConfigurationSourceTest {
     return source;
   }
 
-  /**
-   * Polls once with the service configured as {@code dd.service}, and a custom endpoint on the
-   * local server.
-   */
+  /** Polls once. The service is {@code dd.service}, and the endpoint is the local server. */
   private LocalHttpServer.Request pollWithService(final String service) {
     return pollWith(
         TestSettings.of(
@@ -703,7 +724,7 @@ class CdnConfigurationSourceTest {
             service));
   }
 
-  /** Builds the source from the settings, as the SDK does, and polls once. */
+  /** Builds the source from the settings like the SDK does, then polls once. */
   private LocalHttpServer.Request pollWith(final Settings settings) {
     this.server.enqueue(200, CONFIG);
     final CdnConfigurationSource source =

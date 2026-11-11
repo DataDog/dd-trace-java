@@ -16,7 +16,6 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.Locale;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -44,10 +43,10 @@ public final class CdnConfigurationSource implements ConfigurationService {
   private static final long SECOND_RETRY_MAX_MILLIS = 30_000;
   private static final double RETRY_JITTER = 0.2;
   private static final long WARNING_INTERVAL_NANOS = TimeUnit.MINUTES.toNanos(5);
-  // The CDN attributes a request's usage to DD-Service only when it matches this, and drops any
-  // other value.
+  // The CDN attributes usage to DD-Service only when the value matches this. It drops other values.
   private static final Pattern USAGE_SERVICE = Pattern.compile("[A-Za-z0-9][A-Za-z0-9_.:/-]{0,99}");
-  private static final int MAX_USAGE_SERVICE_LENGTH = 100;
+  // The Agent cuts a service to this many bytes of UTF-8.
+  private static final int MAX_SERVICE_BYTES = 100;
 
   private final URI endpoint;
   @Nullable private final String apiKey;
@@ -73,7 +72,7 @@ public final class CdnConfigurationSource implements ConfigurationService {
     this(
         endpoint(settings),
         isManagedEndpoint(settings) ? settings.apiKey() : null,
-        usageService(settings.service()),
+        usageService(settings.untrimmedService()),
         TimeUnit.SECONDS.toMillis(settings.agentlessPollIntervalSeconds()),
         Duration.ofSeconds(settings.agentlessRequestTimeoutSeconds()),
         HttpClient.newBuilder()
@@ -313,7 +312,7 @@ public final class CdnConfigurationSource implements ConfigurationService {
       request.header("DD-API-KEY", this.apiKey);
     }
     if (this.service != null) {
-      // Lets the CDN attribute this request's usage to the service.
+      // The CDN attributes the usage of this request to this service.
       request.header("DD-Service", this.service);
     }
     final String currentEtag = this.etag;
@@ -370,11 +369,12 @@ public final class CdnConfigurationSource implements ConfigurationService {
   }
 
   /**
-   * Selects the service sent as DD-Service. The name is cleaned up, so {@code My Service} is
-   * attributed as {@code my_service}, as in APM, instead of being dropped by the CDN. Only this
-   * header value is cleaned up; the configured service is unchanged. A name with nothing left once
-   * cleaned up is not sent. Cleaning up also removes line breaks and characters outside Latin-1,
-   * which make the HTTP request builder throw and would fail every poll.
+   * Selects the value of the DD-Service header. The value is the service name that APM shows, so
+   * the usage and APM show the same name. The value is {@code null} when the CDN cannot accept that
+   * name, for example {@code _svc} or {@code café-api}.
+   *
+   * <p>The value is always ASCII and has no line breaks. Thus the HTTP request builder does not
+   * throw, and the polls continue.
    */
   @Nullable
   private static String usageService(@Nullable final String service) {
@@ -386,30 +386,64 @@ public final class CdnConfigurationSource implements ConfigurationService {
       return normalized;
     }
     LOGGER.debug(
-        "Feature Flags: service {} has nothing left the CDN can attribute usage to once cleaned up; DD-Service header not sent",
+        "Feature Flags: the CDN cannot attribute usage to the APM name of service {}; DD-Service header not sent",
         service);
     return null;
   }
 
   /**
-   * Cleans up a service name with the character rules of {@code TagsHelper.sanitize}, which the
-   * tracer applies to the service it sends to Remote Configuration, and which the SDK can't depend
-   * on: lowercases it and replaces each character other than {@code a-z}, {@code 0-9}, {@code _},
-   * {@code :}, {@code .}, {@code /} and {@code -} with {@code _}. Also drops the leading characters
-   * other than letters and digits, and cuts the name to the length the CDN accepts.
+   * Normalizes a service name with the rules of {@code NormalizeService} in the Datadog Agent
+   * (datadog-agent pkg/trace/traceutil/normalize, v0.82.3). The result is the name that APM shows.
+   * The SDK does not depend on internal-api, so it cannot call {@code
+   * TraceUtils.normalizeServiceName}. That helper also follows older Agent rules.
+   *
+   * <ul>
+   *   <li>Cuts the name to 100 bytes of UTF-8, and does not split a character.
+   *   <li>Lowercases the ASCII letters.
+   *   <li>Keeps {@code a-z}, {@code 0-9}, {@code :}, {@code .}, {@code /}, {@code -}, and the
+   *       non-ASCII letters and decimal digits.
+   *   <li>Replaces each run of other characters with one {@code _}, and removes a run at the end.
+   * </ul>
    */
   private static String normalizeService(final String service) {
-    final String lower = service.toLowerCase(Locale.ROOT);
-    final StringBuilder normalized = new StringBuilder(MAX_USAGE_SERVICE_LENGTH);
-    for (int i = 0; i < lower.length() && normalized.length() < MAX_USAGE_SERVICE_LENGTH; i++) {
-      final char c = lower.charAt(i);
-      if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')) {
-        normalized.append(c);
-      } else if (normalized.length() > 0) {
-        normalized.append(c == '_' || c == ':' || c == '.' || c == '/' || c == '-' ? c : '_');
+    final StringBuilder normalized =
+        new StringBuilder(Math.min(service.length(), MAX_SERVICE_BYTES));
+    boolean underscorePending = false;
+    int bytes = 0;
+    for (int i = 0; i < service.length(); ) {
+      int c = service.codePointAt(i);
+      bytes += c < 0x80 ? 1 : c < 0x800 ? 2 : c < 0x10000 ? 3 : 4;
+      if (bytes > MAX_SERVICE_BYTES) {
+        break;
+      }
+      i += Character.charCount(c);
+      if (c >= 'A' && c <= 'Z') {
+        c += 'a' - 'A';
+      }
+      if (isServiceCharacter(c)) {
+        if (underscorePending) {
+          normalized.append('_');
+          underscorePending = false;
+        }
+        normalized.appendCodePoint(c);
+      } else {
+        underscorePending = true;
       }
     }
     return normalized.toString();
+  }
+
+  private static boolean isServiceCharacter(final int c) {
+    if (c < 0x80) {
+      return (c >= 'a' && c <= 'z')
+          || (c >= '0' && c <= '9')
+          || c == ':'
+          || c == '.'
+          || c == '/'
+          || c == '-';
+    }
+    // Like unicode.IsLetter and unicode.IsDigit in Go: the letters and the decimal digits (Nd).
+    return Character.isLetterOrDigit(c);
   }
 
   private static String managedHost(final Settings settings) {
