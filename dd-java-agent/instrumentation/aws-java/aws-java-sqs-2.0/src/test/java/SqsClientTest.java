@@ -52,6 +52,8 @@ import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
 
 @WithConfig(key = GeneralConfig.SERVICE_NAME, value = "A-service")
 abstract class SqsClientTestBase extends AbstractInstrumentationTest {
+  static final Region CLIENT_REGION = Region.EU_CENTRAL_1;
+
   private static final AnonymousCredentialsProvider CREDENTIALS_PROVIDER =
       AnonymousCredentialsProvider.create();
   private static final AtomicInteger QUEUE_COUNTER = new AtomicInteger();
@@ -328,7 +330,7 @@ abstract class SqsClientTestBase extends AbstractInstrumentationTest {
 
   private SqsClient newClient() {
     return SqsClient.builder()
-        .region(Region.EU_CENTRAL_1)
+        .region(CLIENT_REGION)
         .endpointOverride(endpoint)
         .credentialsProvider(CREDENTIALS_PROVIDER)
         .build();
@@ -450,6 +452,11 @@ abstract class SqsClientTestBase extends AbstractInstrumentationTest {
     assertEquals("Sqs", tagValue(span, "aws.service"));
     assertEquals("Sqs", tagValue(span, "aws_service"));
     assertEquals(awsOperation, tagValue(span, "aws.operation"));
+    // the client's Region, on client spans only (consumer spans come from the receive
+    // instrumentation)
+    assertEquals(
+        Tags.SPAN_KIND_CLIENT.equals(spanKind) ? CLIENT_REGION.id() : null,
+        tagValue(span, "aws.region"));
     assertEquals("java-aws-sdk", tagValue(span, "aws.agent"));
     assertEquals(queueUrl, tagValue(span, "aws.queue.url"));
     assertEquals(queueName(queueUrl), tagValue(span, "aws.queue.name"));
@@ -573,6 +580,8 @@ class SqsClientV1DataStreamsForkedTest extends SqsClientV1TestBase {
 @WithConfig(key = GeneralConfig.SERVICE_NAME, value = "A-service")
 @WithConfig(key = TracerConfig.SCOPE_ITERATION_KEEP_ALIVE, value = "1")
 abstract class SqsClientReceiveIterationTestBase extends AbstractInstrumentationTest {
+  static final Region CLIENT_REGION = Region.EU_CENTRAL_1;
+
   private static final AnonymousCredentialsProvider CREDENTIALS_PROVIDER =
       AnonymousCredentialsProvider.create();
   private static SQSRestServer server;
@@ -606,7 +615,7 @@ abstract class SqsClientReceiveIterationTestBase extends AbstractInstrumentation
   void syncReceiveActivatesConsumerSpanForUserHandlerIteration() throws Exception {
     try (SqsClient client =
         SqsClient.builder()
-            .region(Region.EU_CENTRAL_1)
+            .region(CLIENT_REGION)
             .endpointOverride(endpoint)
             .credentialsProvider(CREDENTIALS_PROVIDER)
             .build()) {
@@ -706,6 +715,11 @@ abstract class SqsClientReceiveIterationTestBase extends AbstractInstrumentation
     assertEquals("Sqs", tagValue(span, "aws.service"));
     assertEquals("Sqs", tagValue(span, "aws_service"));
     assertEquals(awsOperation, tagValue(span, "aws.operation"));
+    // the client's Region, on client spans only (consumer spans come from the receive
+    // instrumentation)
+    assertEquals(
+        Tags.SPAN_KIND_CLIENT.equals(spanKind) ? CLIENT_REGION.id() : null,
+        tagValue(span, "aws.region"));
     assertEquals("java-aws-sdk", tagValue(span, "aws.agent"));
     assertEquals(expectedQueueUrl(), tagValue(span, "aws.queue.url"));
     assertEquals("somequeue", tagValue(span, "aws.queue.name"));
