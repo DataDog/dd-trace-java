@@ -2,6 +2,8 @@ package datadog.gradle.plugin.instrument
 
 import datadog.gradle.plugin.GradleFixture
 import net.bytebuddy.utility.OpenedClassReader
+import org.gradle.testkit.runner.TaskOutcome
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.objectweb.asm.ClassReader
@@ -138,6 +140,51 @@ class BuildTimeInstrumentationPluginTest : GradleFixture() {
     assertInstrumented(buildFile("classes/java/main/example/ExampleCode.class"))
     assertInstrumented(buildFile("classes/java/main/ExternalCode.class"))
   }
+
+  @Test
+  fun `test a method body change on the classpath reruns instrumentation`() {
+    // Instrumentation reads classpath classes (muzzle records the library methods a helper calls),
+    // so a body-only change there must rerun it, though compile avoidance ignores such a change.
+    writeRootProject(
+      buildGradle +
+        """
+        dependencies {
+          implementation(project(":lib"))
+        }
+        """
+    )
+    addSubproject(
+      "lib",
+      """
+      plugins {
+        id("java")
+      }
+
+      java {
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
+      }
+      """
+    )
+    writeTestPlugin("ExampleCode")
+    writeJavaSource("example.ExampleCode", exampleCode)
+    writeJavaSource("lib.Helper", helperCode("return 1;"), projectPath = "lib")
+
+    run("build", "--stacktrace", forwardOutput = true)
+
+    writeJavaSource("lib.Helper", helperCode("return 2;"), projectPath = "lib")
+    val result = run("build", "--stacktrace", forwardOutput = true)
+
+    assertEquals(TaskOutcome.SUCCESS, result.task(":compileJava")?.outcome)
+    assertInstrumented(buildFile("classes/java/main/example/ExampleCode.class"))
+  }
+
+  private fun helperCode(body: String) = """
+    package lib;
+    public class Helper {
+      public static int value() { $body }
+    }
+  """
 
   private fun writeTestPlugin(vararg classNames: String) {
     val conditions = classNames.joinToString(" || ") { "\"$it\".equals(name)" }

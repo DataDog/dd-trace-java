@@ -117,6 +117,12 @@ class BuildTimeInstrumentationPlugin : Plugin<Project> {
         inputs.files(project.configurations.named(BUILD_TIME_INSTRUMENTATION_PLUGIN_CONFIGURATION))
           .withPropertyName(BUILD_TIME_INSTRUMENTATION_PLUGIN_CONFIGURATION)
           .withNormalizer(ClasspathNormalizer::class.java)
+        // The instrumentation reads classpath classes, not just their signatures: muzzle records the
+        // library methods a helper calls. The compile classpath input only fingerprints the ABI
+        // (compile avoidance), so a body-only change on the classpath would reuse stale output.
+        inputs.files(classpath)
+          .withPropertyName("instrumentingClasspath")
+          .withNormalizer(ClasspathNormalizer::class.java)
 
         // Compute optional Java version.
         val match = Regex("compileMain_(.+)Java").matchEntire(compileTaskName)
