@@ -84,3 +84,20 @@ debugger-benchmarks:
     FF_USE_LEGACY_KUBERNETES_EXECUTION_STRATEGY: "true"
     # See https://datadoghq.atlassian.net/wiki/spaces/APMINT/pages/7223313012/Flaky+Benchmarks+Monitoring for more details.
     FLAKY_BENCHMARKS_REGEX: ""
+
+# DSM overhead (baseline / apm-only / apm+dsm) on dd-java-agent/benchmark-integration/kafka-dsm. Not gating yet.
+dsm-throughput:
+  stage: benchmarks
+  needs: [ build ]
+  trigger:
+    include: .gitlab/benchmarks/dsm-throughput.yml
+  variables:
+    PARENT_PIPELINE_ID: $CI_PIPELINE_ID
+    DD_DISABLE_VPA: "true"
+  allow_failure: true
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - if: '$CI_COMMIT_BRANCH == "master"'
+      when: on_success
+    - when: manual

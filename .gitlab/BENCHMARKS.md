@@ -5,7 +5,7 @@ GitLab CI configuration for the benchmarks that run on the
 
 ## Layout
 
-- `benchmarks.yml`: dsm-kafka and debugger benchmarks.
+- `benchmarks.yml`: dsm-kafka, debugger and DSM overhead (`dsm-throughput`) benchmarks.
     - `dsm-kafka-producer-benchmark` and `dsm-kafka-consumer-benchmark` extend
       `.dsm-kafka-benchmarks`.
         - Run JMH microbenchmarks via `bp-runner`, then convert, upload and comment on the PR.
@@ -14,6 +14,12 @@ GitLab CI configuration for the benchmarks that run on the
     - `debugger-benchmarks`: k6 load test against Spring petclinic.
         - Runs via `bp-runner`, then converts, uploads and comments on the PR.
         - Steps live in the `java/debugger-benchmarks` branch of
+          [benchmarking-platform](https://github.com/DataDog/benchmarking-platform).
+    - `dsm-throughput`: triggers the `benchmarks/dsm-throughput.yml` child pipeline (automatic on
+      `master`, manual elsewhere, never blocking).
+        - Runs `dd-java-agent/benchmark-integration/kafka-dsm` (baseline / apm-only / apm+dsm) via
+          `bp-runner` against the `build` job's agent jar, then uploads the results.
+        - Steps live in the `java/data-streams-monitoring` branch of
           [benchmarking-platform](https://github.com/DataDog/benchmarking-platform).
 - `java-benchmark-configs.yml`: `needs` and `rules` overrides for the spring-petclinic,
   insecure-bank, startup and dacapo parallel jobs included from
