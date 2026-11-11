@@ -18,7 +18,7 @@ repository proxy handling and environment isolation.
 Run the tests for the module you changed, for example:
 
 ```shell
-./gradlew -p build-logic :smoke-test:test
+./gradlew -p build-logic :smoke-test-app:test
 ```
 
 For changes across modules, `./gradlew :build-logic:check` runs the included build's checks
