@@ -4074,7 +4074,7 @@ public class Config {
       return isAgentWriterType(writerType);
     }
     String multiWriterConfig = Strings.replace(writerType, MULTI_WRITER_TYPE + ":", "");
-    for (String subWriterType : multiWriterConfig.split(",")) {
+    for (String subWriterType : COMMA.split(multiWriterConfig)) {
       if (isAgentWriterType(subWriterType)) {
         return true;
       }
