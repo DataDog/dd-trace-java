@@ -37,7 +37,7 @@ The AI must reason about *which multiplier applies* before flagging.
 **Large-denominator domains.** LLMObs, CI Visibility, DJM instrument large units of work (LLM
 calls 500 ms+, Spark jobs seconds–minutes, CI test steps milliseconds–minutes). Per-"span"
 CPU/alloc severity collapses. But the risk *inverts*: payload memory (large prompts, job metadata,
-accumulated output) becomes SEV-1. A CPU-weighted reviewer flags the wrong things and misses the
+accumulated output) becomes P1. A CPU-weighted reviewer flags the wrong things and misses the
 real one.
 
 **Not DSM, and not a product that's off.** DSM runs on per-message paths, where a Kafka consumer
@@ -48,7 +48,7 @@ product while it's off: every customer who doesn't use it pays (`checks/product-
 denominator applies to costs that fire once per call. Costs inside a streaming handler fire
 per-chunk — SSE, chunked HTTP, gRPC streaming can produce hundreds of events per response. An
 unbounded accumulator inside a streaming handler (buffering all chunks until stream close) is
-SEV-1 regardless of how slow the overall stream is.
+P1 regardless of how slow the overall stream is.
 
 **AppSec sub-domain split.** The WAF blocking path fires only when a block action is triggered —
 genuinely cold, SILENT. The IAST taint/sink Reporter can fire frequently during an active security
@@ -61,4 +61,4 @@ cold. Do not apply "AppSec = cold" uniformly across AppSec sub-products.
   the cost. The right call was to accept it.
 - An LLMObs streaming helper that accumulated all SSE chunks into an `ArrayList` held
   until stream close. The large-denominator rule would have suppressed this; the chunk-level
-  carve-out catches it: SEV-1, regardless of stream duration.
+  carve-out catches it: P1, regardless of stream duration.

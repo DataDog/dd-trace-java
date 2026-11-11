@@ -1,6 +1,6 @@
 # Per-call and escaping allocation
 
-Checks #1, #7, J1, J4. SEV-2/3, can reach SEV-1 via tail latency.
+Checks #1, #7, J1, J4. Base P3; P1 when unbounded.
 
 The tracer shares the application heap. Additional allocation contributes to GC and raises
 stop-the-world pauses — directly increasing tail latency for the customer's application. The JVM's
@@ -13,12 +13,12 @@ escapes, and it's real.
 - **#1 — Per-span/per-call allocation on a hot path** — *per-span (or hotter) AND the object isn't
   trivially short-lived (it's retained, returned, captured, or passed across a boundary)* —
   flag-with-confidence if clearly per-span + retained; flag-as-measure if lifetime/escape is
-  borderline — SEV-2/3 (→SEV-1 if unbounded) — fix: reuse, pool, dense/positional storage, defer
+  borderline — P3 (P1 if unbounded) — fix: reuse, pool, dense/positional storage, defer
   out of the hot path.
 - **#7 — Escape / allocation-elision defeated** *(Java/Go/.NET/V8 all have a version)* — *a
   refactor makes a previously-local object escape (stored, returned, captured by a closure, passed
   to a virtual/non-inlined call) → silent heap allocation on a hot path* — **flag-as-measure**
-  ("may now escape and allocate; verify with an allocation profiler") — SEV-2/3 — fix: keep it
+  ("may now escape and allocate; verify with an allocation profiler") — P3 — fix: keep it
   local; avoid the escaping store/capture.
 - **J1 — Escaping allocation defeats Escape Analysis** *(refines #1, #7)*. The JVM scalar-replaces
   only *non-escaping* short-lived objects. An object stored in the tag map / span / a collection,

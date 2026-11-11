@@ -38,7 +38,7 @@ Coming (name as "coming", don't imply it's present): `ConcurrentHashtable`, `Str
   Fix: `datadog.trace.util.HashingUtils` — primitive `hash(long/int/boolean/char/…)` overloads (no
   boxing), `hash(Object,Object)` and `hash(int,int)` combiners (no array); for >2 fields fold
   pairwise through `hash(int,int)` (there is no varargs form, by design). flag-with-confidence for
-  the varargs/boxing form — SEV-2/3. **Do NOT flag allocation-free combines** — a hand-rolled
+  the varargs/boxing form — P3. **Do NOT flag allocation-free combines** — a hand-rolled
   `31*h + Long.hashCode(x)` / `31*h + intField`, or `Arrays.hashCode` over an *existing primitive
   array*, allocates nothing (`HashingUtils` is itself 31-based); flagging them would recommend
   replacing already-correct code.
@@ -49,11 +49,11 @@ Coming (name as "coming", don't imply it's present): `ConcurrentHashtable`, `Str
   allocation-aware `replace`/`truncate(CharSequence)`/`isBlank`/`getResourceName`/`getClassName`/…;
   for **transient substring compares** prefer a `SubSequence` view (J7); for plain assembly,
   direct concatenation beats `format`. flag-with-confidence for `String.format` on a hot path;
-  flag-as-measure for borderline munging — SEV-2/3.
+  flag-as-measure for borderline munging — P3.
 - **J11 — composite / multi-dimensional key maps on a hot path → `Hashtable` /
   `ConcurrentHashtable`** *(refines #1, #3)*. `Map<A, Map<B,V>>` nesting, or a `HashMap` keyed by
   a composite key (client-side stats, per-`(service, operation, …)` aggregation), allocates nested
   maps + `Entry` objects + boxes keys on the hot aggregation path. Fix:
   `datadog.trace.util.Hashtable` (single-threaded, composite-key D1/D2 tables — landed) or
   `datadog.trace.util.ConcurrentHashtable` (lock-free concurrent, **coming**) — positional
-  composite keys, fewer allocations. flag-as-measure — SEV-2/3.
+  composite keys, fewer allocations. flag-as-measure — P3.

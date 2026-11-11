@@ -1,6 +1,6 @@
 # Startup latency
 
-SEV-2.
+P2.
 
 "Once per process" treats startup costs as negligible — but that breaks for serverless (cold starts
 are routine), short-lived CI jobs, and deployments that track startup time.
