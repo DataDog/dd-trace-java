@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
-import datadog.trace.test.util.DDJavaSpecification;
 import datadog.trace.test.util.GCUtils;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
@@ -25,7 +24,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.tabletest.junit.TableTest;
 
-class FixedSizeCacheTest extends DDJavaSpecification {
+class FixedSizeCacheTest {
 
   private static final TKey ID1 = new TKey(1, 1, "one");
 

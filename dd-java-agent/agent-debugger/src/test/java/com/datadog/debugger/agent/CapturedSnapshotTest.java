@@ -2600,7 +2600,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     assertEquals(0, listener.snapshots.size());
     InstrumentationResult instrumentationResult =
         instrumentationListener.results.get(PROBE_ID.getId());
-    assertTrue(instrumentationResult.isBlocked());
+    assertTrue(instrumentationResult.isBlocked(PROBE_ID));
   }
 
   @Test
@@ -2868,7 +2868,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
             .add(TriggerProbe.builder().probeId(PROBE_ID4).where(where).build())
             .build();
 
-    CoreTracer tracer = CoreTracer.builder().build();
+    tracer = CoreTracer.builder().build();
     TracerInstaller.forceInstallGlobalTracer(tracer);
     TestTraceInterceptor traceInterceptor = new TestTraceInterceptor();
     tracer.addTraceInterceptor(traceInterceptor);

@@ -8,6 +8,7 @@ import org.intellij.lang.annotations.Language
 import org.junit.jupiter.api.io.TempDir
 import org.w3c.dom.Document
 import java.io.File
+import java.io.IOException
 import java.nio.file.Files
 import javax.xml.parsers.DocumentBuilderFactory
 
@@ -43,10 +44,12 @@ open class GradleFixture {
       Files.createTempDirectory("gradle-testkit-").toFile().also { dir ->
         // Register the cleanup hook before anything that can throw, so a failure below
         // does not leak the temp dir.
-        Runtime.getRuntime().addShutdownHook(Thread {
-          stopDaemonsIn(dir)
-          dir.deleteRecursively()
-        })
+        Runtime.getRuntime().addShutdownHook(
+          Thread {
+            stopDaemonsIn(dir)
+            dir.deleteRecursively()
+          }
+        )
         val initScript = File(dir, REPOSITORY_PROXY_INIT_SCRIPT)
         GradleFixture::class.java
           .getResourceAsStream("/$REPOSITORY_PROXY_INIT_SCRIPT")
@@ -90,10 +93,10 @@ open class GradleFixture {
       daemonDir.walkTopDown()
         .filter { it.isFile && it.name.endsWith(".out.log") && !it.name.startsWith("hs_err") }
         .forEach { logFile ->
-          val pid = logFile.nameWithoutExtension  // daemon-12345.out
-            .removeSuffix(".out")                 // daemon-12345
-            .removePrefix("daemon-")              // 12345
-            .toLongOrNull() ?: return@forEach     // skip UUIDs / unparseable names
+          val pid = logFile.nameWithoutExtension // daemon-12345.out
+            .removeSuffix(".out") // daemon-12345
+            .removePrefix("daemon-") // 12345
+            .toLongOrNull() ?: return@forEach // skip UUIDs / unparseable names
 
           val isWindows = System.getProperty("os.name").lowercase().contains("win")
           val killProcess = if (isWindows) {
@@ -129,6 +132,7 @@ open class GradleFixture {
    * @param forwardOutput Forward the build's stdout/stderr to the test's output
    * @param gradleProjectDir Override the project directory used by Gradle (useful for git worktree tests);
    *     defaults to the fixture's project directory.
+   * @param pluginClasspath Override the plugin classpath to test changes to build logic implementations.
    * @return The build result
    */
   fun run(
@@ -138,6 +142,7 @@ open class GradleFixture {
     unsetEnv: Set<String> = emptySet(),
     forwardOutput: Boolean = false,
     gradleProjectDir: File = projectDir,
+    pluginClasspath: List<File>? = null,
   ): BuildResult {
     val runner = GradleRunner.create()
       .withTestKitDir(testKitDir)
@@ -146,6 +151,9 @@ open class GradleFixture {
       // Using withDebug prevents starting a daemon, but it doesn't work with withEnvironment
       .withEnvironment(System.getenv() - unsetEnv + env)
       .withArguments("--init-script", repositoryProxyInitScript.absolutePath, *args)
+    if (pluginClasspath != null) {
+      runner.withPluginClasspath(pluginClasspath)
+    }
     if (forwardOutput) {
       runner.forwardOutput()
     }
@@ -165,12 +173,11 @@ open class GradleFixture {
    * @param append If true, appends to any existing file instead of overwriting it.
    *               Safe to call repeatedly to build content up across steps.
    */
-  fun writeFile(path: String, content: String, append: Boolean = false): File =
-    file(path).also {
-      it.parentFile?.mkdirs()
-      val text = content.trimIndent() + "\n"
-      if (append) it.appendText(text) else it.writeText(text)
-    }
+  fun writeFile(path: String, content: String, append: Boolean = false): File = file(path).also {
+    it.parentFile?.mkdirs()
+    val text = content.trimIndent() + "\n"
+    if (append) it.appendText(text) else it.writeText(text)
+  }
 
   /**
    * Adds a subproject to the build by appending an `include` line to settings.gradle.kts
@@ -213,8 +220,7 @@ open class GradleFixture {
    * @param content Properties content (trimIndent applied, trailing newline added)
    * @param append If true, appends to any existing file instead of overwriting
    */
-  fun writeGradleProperties(content: String, append: Boolean = false): File =
-    writeFile("gradle.properties", content, append)
+  fun writeGradleProperties(content: String, append: Boolean = false): File = writeFile("gradle.properties", content, append)
 
   /**
    * Writes the root project's build.gradle.kts file.
@@ -222,8 +228,7 @@ open class GradleFixture {
    * @param buildScript The build script content for the root project
    * @param append If true, appends to any existing file instead of overwriting
    */
-  fun writeRootProject(@Language("kotlin") buildScript: String, append: Boolean = false): File =
-    writeFile("build.gradle.kts", buildScript, append)
+  fun writeRootProject(@Language("kotlin") buildScript: String, append: Boolean = false): File = writeFile("build.gradle.kts", buildScript, append)
 
   /**
    * Writes the root project's settings.gradle.kts file.
@@ -231,8 +236,7 @@ open class GradleFixture {
    * @param settingsScript The settings script content
    * @param append If true, appends to any existing file instead of overwriting
    */
-  fun writeSettings(@Language("kotlin") settingsScript: String, append: Boolean = false): File =
-    writeFile("settings.gradle.kts", settingsScript, append)
+  fun writeSettings(@Language("kotlin") settingsScript: String, append: Boolean = false): File = writeFile("settings.gradle.kts", settingsScript, append)
 
   /**
    * Parses an XML file into a DOM Document.
@@ -273,4 +277,55 @@ open class GradleFixture {
    * Does NOT create parent dirs — these paths are read after a Gradle build produces them.
    */
   fun buildFile(path: String): File = File(buildDir, path)
+
+  /**
+   * Runs a command and fails when it exits with a non-zero code.
+   *
+   * @param workingDirectory The directory to run the command from
+   * @param args The command and its arguments
+   * @throws IOException if the command exits with a non-zero code
+   */
+  fun exec(workingDirectory: File, vararg args: String) {
+    val exitCode = ProcessBuilder()
+      .command(*args)
+      .directory(workingDirectory)
+      .inheritIO()
+      .start()
+      .waitFor()
+    if (exitCode != 0) {
+      throw IOException("Process failed: ${args.joinToString(" ")} (exit code $exitCode)")
+    }
+  }
+
+  /**
+   * Runs a command from the project directory and fails when it exits with a non-zero code.
+   *
+   * @param args The command and its arguments
+   * @throws IOException if the command exits with a non-zero code
+   */
+  fun exec(vararg args: String) = exec(projectDir, *args)
+
+  /**
+   * Initializes a git repository on the `main` branch and commits every file in it.
+   *
+   * @param workingDirectory The directory of the repository
+   */
+  fun initGitRepo(workingDirectory: File = projectDir) {
+    exec(workingDirectory, "git", "init", "--initial-branch", "main")
+    exec(workingDirectory, "git", "config", "user.email", "test@datadoghq.com")
+    exec(workingDirectory, "git", "config", "user.name", "Test")
+    exec(workingDirectory, "git", "config", "commit.gpgsign", "false")
+    commitAll("A commit", workingDirectory)
+  }
+
+  /**
+   * Stages every change of a git repository and commits it.
+   *
+   * @param message The commit message
+   * @param workingDirectory The directory of the repository
+   */
+  fun commitAll(message: String, workingDirectory: File = projectDir) {
+    exec(workingDirectory, "git", "add", "-A")
+    exec(workingDirectory, "git", "commit", "-m", message)
+  }
 }

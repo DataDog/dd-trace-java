@@ -1,5 +1,7 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
+import static datadog.gradle.plugin.smoketest.SmokeTestArtifacts.SCOPE_DIAGNOSTICS_AGENT
+
 plugins {
   id 'dd-trace-java.module.testing-support'
 }
@@ -27,8 +29,8 @@ def scopeDiagnosticsPayloadJar = tasks.register('scopeDiagnosticsPayloadJar', Sh
   relocate 'org.slf4j', 'datadog.slf4j'
 }
 
-tasks.register('scopeDiagnosticsAgentJar', Jar) {
-  archiveClassifier = 'scope-diagnostics-agent'
+def scopeDiagnosticsAgentJar = tasks.register('scopeDiagnosticsAgentJar', Jar) {
+  archiveClassifier = SCOPE_DIAGNOSTICS_AGENT
   manifest {
     attributes 'Premain-Class': 'datadog.trace.agent.test.smoke.ScopeDiagnosticsAgent',
     'Can-Retransform-Classes': 'true', 'Can-Redefine-Classes': 'true'
@@ -42,7 +44,13 @@ tasks.register('scopeDiagnosticsAgentJar', Jar) {
     }
     rename '(.*)\\.class', '$1.classdata'
   }
-  dependsOn scopeDiagnosticsPayloadJar
+}
+
+configurations.consumable('scopeDiagnosticsAgentElements') {
+  attributes {
+    attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, objects.named(LibraryElements, SCOPE_DIAGNOSTICS_AGENT))
+  }
+  outgoing.artifact(scopeDiagnosticsAgentJar)
 }
 
 dependencies {

@@ -18,6 +18,7 @@ import com.datadog.openfeature.internal.ufc.ConditionConfiguration;
 import com.datadog.openfeature.internal.ufc.ConditionOperator;
 import com.datadog.openfeature.internal.ufc.Feature;
 import com.datadog.openfeature.internal.ufc.Flag;
+import com.datadog.openfeature.internal.ufc.MembershipIndex;
 import com.datadog.openfeature.internal.ufc.ParsedSemver;
 import com.datadog.openfeature.internal.ufc.Rule;
 import com.datadog.openfeature.internal.ufc.ServerConfiguration;
@@ -318,9 +319,9 @@ public final class FlagEvaluator {
       case NOT_MATCHES:
         return !matchesRegex(attributeValue, condition);
       case ONE_OF:
-        return isOneOf(attributeValue, condition.value);
+        return isOneOf(attributeValue, condition);
       case NOT_ONE_OF:
-        return !isOneOf(attributeValue, condition.value);
+        return !isOneOf(attributeValue, condition);
       case GTE:
         return compareNumber(attributeValue, condition.value, (a, b) -> a >= b);
       case GT:
@@ -357,7 +358,26 @@ public final class FlagEvaluator {
     return pattern.matcher(String.valueOf(attributeValue)).find();
   }
 
-  private static boolean isOneOf(final Object attributeValue, final Object conditionValue) {
+  private static boolean isOneOf(
+      final Object attributeValue, final ConditionConfiguration condition) {
+    // Parsed configurations index lists of two or more elements; the index gives the same result
+    // as the scan.
+    final MembershipIndex membership = condition.membership;
+    if (membership != null) {
+      final int result = membership.lookup(attributeValue);
+      if (result > MembershipIndex.SCAN) {
+        return result == MembershipIndex.MATCH;
+      }
+      if (result < MembershipIndex.SCAN) {
+        // No earlier element matches, so the comparison with this element throws as the scan does.
+        final Object element = ((List<?>) condition.value).get(MembershipIndex.throwsAt(result));
+        return valuesEqual(attributeValue, element) || scanOneOf(attributeValue, condition.value);
+      }
+    }
+    return scanOneOf(attributeValue, condition.value);
+  }
+
+  private static boolean scanOneOf(final Object attributeValue, final Object conditionValue) {
     if (!(conditionValue instanceof Iterable)) {
       return false;
     }
@@ -383,15 +403,26 @@ public final class FlagEvaluator {
 
   private static boolean compareNumber(
       final Object attributeValue, final Object conditionValue, NumberComparator comparator) {
-    final double a = mapValue(Double.class, attributeValue);
-    final double b = mapValue(Double.class, conditionValue);
-    return comparator.compare(a, b);
+    return comparator.compare(toDouble(attributeValue), toDouble(conditionValue));
+  }
+
+  /**
+   * Converts a comparison operand to a double. A {@link Number} converts without allocating. Any
+   * other value goes through {@link #mapValue} as before: a non-numeric value fails with mapValue's
+   * exception, and null fails when its null result is unboxed.
+   */
+  private static double toDouble(final Object value) {
+    if (value instanceof Number) {
+      return ((Number) value).doubleValue();
+    }
+    return mapValue(Double.class, value);
   }
 
   /**
    * Evaluates a semantic version comparison operator. The attribute value must be a string that is
    * a valid semantic version, and the comparand must have been pre-parsed during configuration
-   * validation. If either is missing or invalid, the condition does not match.
+   * validation. If either is missing or invalid, the condition does not match. The attribute is
+   * validated and compared without parsing it into a {@link ParsedSemver}.
    */
   private static boolean evaluateSemverCondition(
       final Object attributeValue,
@@ -400,11 +431,11 @@ public final class FlagEvaluator {
     if (!(attributeValue instanceof String) || comparand == null) {
       return false;
     }
-    final ParsedSemver parsedAttribute = ParsedSemver.parse((String) attributeValue);
-    if (parsedAttribute == null) {
+    final int ordering = ParsedSemver.compare((String) attributeValue, comparand);
+    if (ordering == ParsedSemver.INVALID_ORDERING) {
       return false;
     }
-    return comparator.compare(ParsedSemver.compare(parsedAttribute, comparand));
+    return comparator.compare(ordering);
   }
 
   private static boolean matchesShard(final Shard shard, final String targetingKey) {
@@ -519,15 +550,23 @@ public final class FlagEvaluator {
     }
     return ProviderEvaluation.<T>builder()
         .value(mappedValue)
-        .reason(
-            !isEmpty(allocation.rules)
-                ? Reason.TARGETING_MATCH.name()
-                : allocation.startAt != null || allocation.endAt != null
-                    ? Reason.DEFAULT.name()
-                    : !isEmpty(split.shards) ? Reason.SPLIT.name() : Reason.STATIC.name())
+        .reason(resolveReason(allocation, split))
         .variant(variant.key)
         .flagMetadata(metadataBuilder.build())
         .build();
+  }
+
+  private static String resolveReason(final Allocation allocation, final Split split) {
+    if (!isEmpty(allocation.rules)) {
+      return Reason.TARGETING_MATCH.name();
+    }
+    if ((allocation.startAt != null || allocation.endAt != null)
+        && allocation.splits != null
+        && allocation.splits.size() == 1
+        && isEmpty(split.shards)) {
+      return Reason.DEFAULT.name();
+    }
+    return !isEmpty(split.shards) ? Reason.SPLIT.name() : Reason.STATIC.name();
   }
 
   private static void addSplitFeatures(

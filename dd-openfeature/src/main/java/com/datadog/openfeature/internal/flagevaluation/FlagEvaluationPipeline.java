@@ -7,6 +7,7 @@ import com.datadog.openfeature.internal.EventQueue;
 import com.datadog.openfeature.internal.RuntimeServices;
 import com.datadog.openfeature.internal.bridge.v1.EventTransport;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -417,6 +418,11 @@ public class FlagEvaluationPipeline implements FlagEvaluationWriter, EventPipeli
           LOGGER.debug(
               "Feature Flags flag evaluation flush delivered: payloads={}", payloads.bodies.size());
         }
+      } catch (IOException e) {
+        // Delivery failures (agent unreachable, timeouts, error responses) are expected
+        // environmental conditions for best-effort telemetry, not tracer bugs.
+        LOGGER.debug(
+            "Feature Flags flag evaluation flush failed: {}; dropping the batch", e.toString(), e);
       } catch (Exception e) {
         LOGGER.error("Could not submit flag evaluations", e);
       } finally {
