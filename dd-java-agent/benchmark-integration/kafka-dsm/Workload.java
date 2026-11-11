@@ -10,8 +10,9 @@
  * via -javaagent, mirroring the Python harness's in-process model. Tracer bootstrap/shutdown cost
  * is therefore excluded from the measured iterations here, same as Python.
  *
- * <p>Each iteration uses a fresh single-partition topic and a fresh consumer group. Every message
- * has no key, a fixed 1024-byte payload and 5 headers key0..key4 -> value0..value4.
+ * <p>Each iteration uses a fresh single-partition topic and a fresh consumer group, named after
+ * KAFKA_TOPIC, a per-process random run id and the iteration. Every message has no key, a fixed
+ * 1024-byte payload and 5 headers key0..key4 -> value0..value4.
  *
  * <p>The gated duration (process.internal_duration_ms) is the produce+consume time of each
  * iteration only: produce loop + flush, then consume + a commitSync every COMMIT_EVERY consumed
@@ -58,10 +59,28 @@
  *       "jvm.heap_used_bytes.median": <bytes, sampled after each timed iteration>,
  *       "warmup.iterations": <discarded warmup iterations run (= WARMUP)>,
  *       "config.commit_every": <COMMIT_EVERY, consumed messages per commitSync>
- *     }
+ *     },
+ *     "name": <EXPERIMENT_NAME>,
+ *     "warmUpCount": <WARMUP>,
+ *     "count": <COUNT>,
+ *     "data": [
+ *       {
+ *         "status": "Passed",
+ *         "metrics": {
+ *           "process.internal_duration_ms": <ms, produce+consume>,
+ *           "process.corrected_duration_ms": <ms, iteration wall time>,
+ *           "runtime.dotnet.mem.committed": <bytes, process RSS>
+ *         }
+ *       },
+ *       ... one per timed iteration
+ *     ]
  *   }
  * ]
  * }</pre>
+ *
+ * <p>{@code data} is for the platform's steps/convert-to-common-format.sh: bp-analyzer's
+ * TimeItSharp converter reads only per-iteration values from it, under TimeItSharp's metric names
+ * (it maps runtime.dotnet.mem.committed to RSS, whatever the runtime), and fails without it.
  *
  * <p>The jvm.jit_* keys are omitted when the JVM cannot report compilation time.
  *
@@ -83,7 +102,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Properties;
-import java.util.concurrent.ExecutionException;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.admin.AdminClientConfig;
@@ -110,12 +129,15 @@ public class Workload {
   private static final int MESSAGE_COUNT = 1000;
   private static final int NUM_HEADERS = 5;
   private static final String PAYLOAD = "x".repeat(1024);
+  // Keeps topics and groups fresh across runs against the same broker.
+  private static final String RUN_ID = UUID.randomUUID().toString().substring(0, 8);
 
   public static void main(String[] args) throws Exception {
-    int warmup = Integer.parseInt(System.getenv().getOrDefault("WARMUP", "100"));
-    int commitEvery = parseCommitEvery(System.getenv().getOrDefault("COMMIT_EVERY", "100"));
-    int count = Integer.parseInt(System.getenv().getOrDefault("COUNT", "25"));
+    int warmup = parseIntEnv("WARMUP", "100", 0);
+    int commitEvery = parseIntEnv("COMMIT_EVERY", "100", 1);
+    int count = parseIntEnv("COUNT", "25", 1);
     String outputPath = System.getenv().getOrDefault("TIMEIT_OUTPUT", "results.json");
+    String experimentName = System.getenv().getOrDefault("EXPERIMENT_NAME", "kafka-dsm");
 
     CompilationMXBean compilation = ManagementFactory.getCompilationMXBean();
     boolean jitTimeSupported =
@@ -181,6 +203,25 @@ public class Workload {
                 jitWindowShare)
             : "";
 
+    StringBuilder data = new StringBuilder();
+    for (int i = 0; i < count; i++) {
+      data.append(
+          String.format(
+              Locale.ROOT,
+              "      {\n"
+                  + "        \"status\": \"Passed\",\n"
+                  + "        \"metrics\": {\n"
+                  + "          \"process.internal_duration_ms\": %.6f,\n"
+                  + "          \"process.corrected_duration_ms\": %.6f,\n"
+                  + "          \"runtime.dotnet.mem.committed\": %d\n"
+                  + "        }\n"
+                  + "      }%s\n",
+              durationsMs.get(i),
+              iterationWallMs.get(i),
+              rssBytes.get(i),
+              i < count - 1 ? "," : ""));
+    }
+
     String json =
         String.format(
             Locale.ROOT,
@@ -199,7 +240,13 @@ public class Workload {
                 + "      \"jvm.heap_used_bytes.median\": %d,\n"
                 + "      \"warmup.iterations\": %d,\n"
                 + "      \"config.commit_every\": %d\n"
-                + "    }\n"
+                + "    },\n"
+                + "    \"name\": \"%s\",\n"
+                + "    \"warmUpCount\": %d,\n"
+                + "    \"count\": %d,\n"
+                + "    \"data\": [\n"
+                + "%s"
+                + "    ]\n"
                 + "  }\n"
                 + "]\n",
             durationMedian,
@@ -213,7 +260,11 @@ public class Workload {
             gcMsTotal,
             heapUsedMedian,
             warmup,
-            commitEvery);
+            commitEvery,
+            experimentName.replace("\\", "\\\\").replace("\"", "\\\""),
+            warmup,
+            count,
+            data);
 
     Files.write(Paths.get(outputPath), json.getBytes("UTF-8"));
 
@@ -247,19 +298,21 @@ public class Workload {
   }
 
   /**
-   * Parses COMMIT_EVERY: ASCII decimal digits only, value >= 1, otherwise exits with a clear error.
+   * Parses env var {@code name}: ASCII decimal digits only, value >= {@code minimum}, otherwise
+   * exits with a clear error.
    */
-  private static int parseCommitEvery(String raw) {
-    int value = 0;
+  private static int parseIntEnv(String name, String defaultValue, int minimum) {
+    String raw = System.getenv().getOrDefault(name, defaultValue);
+    int value = -1;
     if (raw.matches("[0-9]+")) {
       try {
         value = Integer.parseInt(raw);
       } catch (NumberFormatException e) {
-        value = 0;
+        value = -1;
       }
     }
-    if (value < 1) {
-      System.err.println("COMMIT_EVERY must be an integer >= 1, got '" + raw + "'");
+    if (value < minimum) {
+      System.err.println(name + " must be an integer >= " + minimum + ", got '" + raw + "'");
       System.exit(2);
     }
     return value;
@@ -277,15 +330,6 @@ public class Workload {
     return total;
   }
 
-  /**
-   * Single-argument entry point kept for the local profiler (profile-window-java/ProfileMain.java
-   * looks it up by reflection); reads COMMIT_EVERY from the environment like {@code main}.
-   */
-  private static double[] runBenchmark(int runId) throws Exception {
-    return runBenchmark(
-        runId, parseCommitEvery(System.getenv().getOrDefault("COMMIT_EVERY", "100")));
-  }
-
   /** Returns {producePhaseMeanMs, consumePhaseMeanMs} across workers for one full pass. */
   private static double[] runBenchmark(int runId, int commitEvery) throws Exception {
     String baseTopic = System.getenv().getOrDefault("KAFKA_TOPIC", "benchmark-topic");
@@ -293,7 +337,7 @@ public class Workload {
 
     List<String> topics = new ArrayList<>();
     for (int t = 0; t < threadCount; t++) {
-      topics.add(String.format("%s-%d-%d", baseTopic, runId, t));
+      topics.add(String.format("%s-%s-%d-%d", baseTopic, RUN_ID, runId, t));
     }
     createTopics(topics);
 
@@ -448,14 +492,8 @@ public class Workload {
       for (String topic : topics) {
         newTopics.add(new NewTopic(topic, 1, (short) 1));
       }
-      try {
-        admin.createTopics(newTopics).all().get();
-      } catch (ExecutionException e) {
-        if (e.getCause() == null
-            || !e.getCause().getClass().getSimpleName().contains("TopicExists")) {
-          throw e;
-        }
-      }
+      // Fails on an existing topic: every iteration must start from a fresh one.
+      admin.createTopics(newTopics).all().get();
     }
   }
 

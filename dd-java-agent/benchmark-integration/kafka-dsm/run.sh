@@ -18,6 +18,7 @@ OUT_DIR=${OUT_DIR:-$PWD/build/out}
 mkdir -p "$OUT_DIR"
 
 export KAFKA_TOPIC=${KAFKA_TOPIC:-benchmark-topic-java-$NAME-$SLUG}
+export EXPERIMENT_NAME=${EXPERIMENT_NAME:-$NAME}
 export TIMEIT_OUTPUT=${TIMEIT_OUTPUT:-$OUT_DIR/java-$SLUG.$NAME.json}
 # Must accept payloads: a dead port adds connection-error overhead to the tracer scenarios (see README).
 export DD_TRACE_AGENT_URL=${DD_TRACE_AGENT_URL:-http://127.0.0.1:18127}
