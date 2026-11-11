@@ -24,7 +24,7 @@ muzzle {
 
 addTestSuite('latestDepTest')
 addTestSuite('iastLatestDepTest3')
-// Kafka 2.1-2.7 have no (ProducerConfig, Serializer, Serializer) producer constructor
+// Kafka 2.1.1-2.7.x have no (ProducerConfig, Serializer, Serializer) producer constructor
 addTestSuiteForDir('kafka26Test', 'latestDepTest')
 
 dependencies {
