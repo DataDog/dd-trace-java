@@ -16,6 +16,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.spy;
 
 import datadog.communication.util.IOUtils;
+import datadog.trace.api.git.CommitInfo;
 import datadog.trace.civisibility.utils.ShellCommandExecutor;
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -129,24 +130,44 @@ class GitRecoveryCompatibilityTest {
   }
 
   @TableTest({
-    "Scenario                  | interruption | fetch | present",
-    "timeout                   | false        | false | true   ",
-    "interruption              | true         | false | true   ",
-    "fetch timeout             | false        | true  | true   ",
-    "absent fetch timeout      | false        | true  | false  ",
-    "fetch interruption        | true         | true  | true   ",
-    "absent fetch interruption | true         | true  | false  "
+    "Scenario                          | interruption | fetch | present | missingParent | commandFailure",
+    "timeout                           | false        | false | true    | false         | false         ",
+    "interruption                      | true         | false | true    | false         | false         ",
+    "fetch timeout                     | false        | true  | true    | false         | false         ",
+    "absent fetch timeout              | false        | true  | false   | false         | false         ",
+    "fetch interruption                | true         | true  | true    | false         | false         ",
+    "absent fetch interruption         | true         | true  | false   | false         | false         ",
+    "missing parent check timeout      | false        | false | true    | true          | false         ",
+    "missing parent fetch timeout      | false        | true  | true    | true          | false         ",
+    "missing parent fetch failure      | false        | true  | true    | true          | true          ",
+    "missing parent check interruption | true         | false | true    | true          | false         ",
+    "missing parent fetch interruption | true         | true  | true    | true          | false         "
   })
   void ancestryCheckDoesNotDiscardLocalMetadataOnTimeout(
-      boolean interruption, boolean fetch, boolean present) throws Exception {
+      boolean interruption,
+      boolean fetch,
+      boolean present,
+      boolean missingParent,
+      boolean commandFailure)
+      throws Exception {
     Path checkout = directory.resolve("checkout");
     ShellCommandExecutor command = spy(fixture(checkout));
     String selected =
-        present ? git(command, "rev-parse", "HEAD") : "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+        missingParent
+            ? writeCommit(
+                command,
+                git(command, "rev-parse", "HEAD^{tree}"),
+                "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "local metadata")
+            : present
+                ? git(command, "rev-parse", "HEAD")
+                : "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
     Exception failure =
         interruption
             ? new InterruptedException("cancelled")
-            : new TimeoutException("ancestry check");
+            : commandFailure
+                ? new ShellCommandExecutor.ShellCommandFailedException(128, "fetch failed")
+                : new TimeoutException("ancestry check");
     doThrow(
             fetch
                 ? new ShellCommandExecutor.ShellCommandFailedException(128, "missing ancestry")
@@ -172,7 +193,15 @@ class GitRecoveryCompatibilityTest {
       Class<? extends Exception> failureType = failure.getClass();
       assertEquals(failure, assertThrows(failureType, () -> client.getCommitInfo(selected, true)));
     } else {
-      assertEquals(selected, client.getCommitInfo(selected, true).getSha());
+      CommitInfo info = client.getCommitInfo(selected, true);
+      assertEquals(selected, info.getSha());
+      assertEquals(info, client.getCommitInfo(selected, false));
+      if (missingParent) {
+        assertTrue(info.isComplete());
+        assertEquals("Test", info.getAuthor().getName());
+        assertEquals(info.getAuthor(), info.getCommitter());
+        assertEquals("local metadata", info.getFullMessage());
+      }
     }
   }
 
