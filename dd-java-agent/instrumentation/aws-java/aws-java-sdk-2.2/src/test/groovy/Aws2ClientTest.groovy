@@ -356,6 +356,35 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
     Region.AWS_GLOBAL | null
   }
 
+  def "DynamoDB table ARN is tagged only for #scenario"() {
+    setup:
+    def client = DynamoDbClient.builder()
+      .endpointOverride(server.address)
+      .region(Region.US_EAST_1)
+      .credentialsProvider(CREDENTIALS_PROVIDER)
+      .build()
+    responseBody.set("{}")
+
+    when:
+    client.getItem(GetItemRequest.builder().tableName(tableName).key(["key": AttributeValue.builder().s("value").build()]).build())
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    def spans = TEST_WRITER.get(0)
+    spans.size() == 1
+    // the table name tag keeps the request value as before
+    spans[0].getTag("aws.table.name") == tableName
+    spans[0].getTag("aws.table.arn") == expectedArn
+
+    cleanup:
+    client.close()
+
+    where:
+    scenario      | tableName                                                 | expectedArn
+    "a table ARN" | "arn:aws:dynamodb:us-east-1:123456789012:table/sometable" | "arn:aws:dynamodb:us-east-1:123456789012:table/sometable"
+    "a name"      | "sometable"                                               | null
+  }
+
   def "Lambda resource tags normalize #scenario (async=#async)"() {
     setup:
     def eventLoopGroup = async ? SdkEventLoopGroup.builder().numberOfThreads(1).build() : null

@@ -39,6 +39,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
 import javax.annotation.ParametersAreNonnullByDefault;
 import software.amazon.awssdk.awscore.AwsExecutionAttribute;
@@ -78,6 +79,9 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
       SpanNaming.instance().namingSchema().cloud().serviceForRequest("aws", "sns");
   private static final String GENERIC_SERVICE_NAME =
       SpanNaming.instance().namingSchema().cloud().serviceForRequest("aws", null);
+
+  private static final Pattern TABLE_ARN_PATTERN =
+      Pattern.compile("^arn:[^:]+:dynamodb:[^:]+:[0-9]{12}:table/[^/]+$");
 
   private static final Set<String> KINESIS_PUT_RECORD_OPERATION_NAMES;
 
@@ -334,9 +338,21 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
   }
 
   private static void setTableName(AgentSpan span, String name) {
+    if (isTableArn(name)) {
+      span.setTag(InstrumentationTags.AWS_TABLE_ARN, name);
+    }
     span.setTag(InstrumentationTags.AWS_TABLE_NAME, name);
     span.setTag(InstrumentationTags.TABLE_NAME, name);
     setPeerService(span, InstrumentationTags.AWS_TABLE_NAME, name);
+  }
+
+  /**
+   * Whether a DynamoDB {@code TableName} is a full table ARN, {@code
+   * arn:<partition>:dynamodb:<region>:<account>:table/<name>}. Cross-account access requires one,
+   * so it names the callee's account and Region.
+   */
+  static boolean isTableArn(String tableName) {
+    return TABLE_ARN_PATTERN.matcher(tableName).matches();
   }
 
   /**
