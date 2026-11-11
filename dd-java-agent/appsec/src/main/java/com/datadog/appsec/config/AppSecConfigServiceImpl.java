@@ -255,10 +255,12 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
       try {
         maybeInitializeDefaultConfig();
         wafBuilder.removeConfig(key);
-        afterRemove(key);
       } catch (UnclassifiedWafException e) {
-        throw new RuntimeException(e);
+        // Since libddwaf 2.2.0, a rejected update unregisters the path, so there is nothing
+        // left to remove. Remote Config forgets the key anyway, so keep our state in sync.
+        log.debug("Could not remove waf config for config key {}: {}", key, e.getMessage());
       }
+      afterRemove(key);
     }
 
     @Override
