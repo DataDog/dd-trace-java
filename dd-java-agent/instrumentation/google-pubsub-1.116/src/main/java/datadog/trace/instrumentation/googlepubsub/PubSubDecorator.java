@@ -17,6 +17,7 @@ import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -72,6 +73,11 @@ public class PubSubDecorator extends MessagingClientDecorator {
       new RegexExtractor("^projects/(.+)/topics/(.+)$", 2).andThen(UTF8BytesString::create);
   private static final Function<CharSequence, CharSequence> SUBSCRIPTION_EXTRACTION_FUNCTION =
       new RegexExtractor("^projects/(.+)/subscriptions/(.+)$", 2).andThen(UTF8BytesString::create);
+
+  // Project IDs never contain '/', so this only matches full topic and subscription names.
+  private static final Pattern PROJECT_ID_PATTERN =
+      Pattern.compile("^projects/([^/]+)/(?:topics|subscriptions)/.+$");
+  private static final DDCache<String, String> PROJECT_ID_CACHE = DDCaches.newFixedSizeCache(32);
 
   public static final PubSubDecorator PRODUCER_DECORATE =
       new PubSubDecorator(
@@ -146,11 +152,30 @@ public class PubSubDecorator extends MessagingClientDecorator {
     afterStart(span);
     span.setResourceName(
         CONSUMER_RESOURCE_NAME_CACHE.computeIfAbsent(parsedSubscription, CONSUMER_PREFIX));
+    // The subscription is not the topic, so it is not a messaging.destination.name, and the
+    // received message does not name its topic.
+    setProjectId(span, subscription);
     return span;
   }
 
-  public void onProduce(final AgentSpan span, final CharSequence topic) {
+  public void onProduce(final AgentSpan span, final String fullTopic) {
+    final CharSequence topic = extractTopic(fullTopic);
     span.setResourceName(PRODUCER_RESOURCE_NAME_CACHE.computeIfAbsent(topic, PRODUCER_PREFIX));
+    span.setTag(InstrumentationTags.MESSAGING_DESTINATION_NAME, topic);
+    setProjectId(span, fullTopic);
+  }
+
+  /** Tags the project of a full {@code projects/<project>/(topics|subscriptions)/<name>} name. */
+  private static void setProjectId(final AgentSpan span, final String fullName) {
+    final String projectId = PROJECT_ID_CACHE.computeIfAbsent(fullName, PubSubDecorator::projectId);
+    if (projectId != null) {
+      span.setTag(InstrumentationTags.GCLOUD_PROJECT_ID, projectId);
+    }
+  }
+
+  static String projectId(final String fullName) {
+    final Matcher matcher = PROJECT_ID_PATTERN.matcher(fullName);
+    return matcher.matches() ? matcher.group(1) : null;
   }
 
   public CharSequence extractTopic(String fullTopic) {

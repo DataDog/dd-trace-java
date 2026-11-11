@@ -189,6 +189,8 @@ abstract class PubSubTest extends VersionedNamingTestBase {
           tags {
             "$Tags.COMPONENT" "java-google-pubsub"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
+            "$InstrumentationTags.MESSAGING_DESTINATION_NAME" TOPIC_ID
+            "$InstrumentationTags.GCLOUD_PROJECT_ID" PROJECT_ID
             if ({ isDataStreamsEnabled() }) {
               "$DDTags.PATHWAY_HASH" { String }
             }
@@ -224,6 +226,7 @@ abstract class PubSubTest extends VersionedNamingTestBase {
           tags {
             "$Tags.COMPONENT" "java-google-pubsub"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
+            "$InstrumentationTags.GCLOUD_PROJECT_ID" PROJECT_ID
             if ({ isDataStreamsEnabled() }) {
               "$DDTags.PATHWAY_HASH" { String }
             }

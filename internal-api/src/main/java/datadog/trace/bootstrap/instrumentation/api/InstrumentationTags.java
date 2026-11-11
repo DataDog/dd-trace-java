@@ -115,6 +115,10 @@ public class InstrumentationTags {
   public static final String KAFKA_BOOTSTRAP_SERVERS = "messaging.kafka.bootstrap.servers";
   public static final String KAFKA_CLUSTER_ID = "messaging.kafka.cluster.id";
   public static final String MESSAGING_DESTINATION_NAME = "messaging.destination.name";
+
+  /** The Google Cloud project of the called resource (e.g. a Pub/Sub topic or subscription). */
+  public static final String GCLOUD_PROJECT_ID = "gcloud.project_id";
+
   public static final String QUARTZ_JOB_NAME = "quartz.job.name";
   public static final String QUARTZ_JOB_GROUP = "quartz.job.group";
   public static final String QUARTZ_TRIGGER_NAME = "quartz.trigger.name";
