@@ -9,11 +9,12 @@ import com.datadog.ddwaf.Waf;
 import com.datadog.ddwaf.WafBuilder;
 import com.datadog.ddwaf.WafContext;
 import com.datadog.ddwaf.WafHandle;
+import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import java.io.InputStream;
-import java.util.Collection;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import okio.Okio;
@@ -31,6 +32,12 @@ class SsrfAuthorityOverlapTest {
   private static final String SSRF_RULE = "rasp-934-100";
   private static final Waf.Limits LIMITS =
       new Waf.Limits(20, 256, 4096, ((long) Integer.MAX_VALUE) * 1000, Integer.MAX_VALUE);
+  private static final JsonAdapter<List<Map<String, Object>>> EVENTS_ADAPTER =
+      new Moshi.Builder()
+          .build()
+          .adapter(
+              Types.newParameterizedType(
+                  List.class, Types.newParameterizedType(Map.class, String.class, Object.class)));
 
   private WafBuilder builder;
   private WafHandle handle;
@@ -93,17 +100,11 @@ class SsrfAuthorityOverlapTest {
     if (data == null || data.isEmpty()) {
       return ids;
     }
-    Object parsed = new Moshi.Builder().build().adapter(Object.class).fromJson(data);
-    if (parsed instanceof Map) {
-      parsed = ((Map<?, ?>) parsed).get("events");
-    }
-    if (parsed instanceof Collection) {
-      for (Object event : (Collection<?>) parsed) {
-        Object rule = ((Map<?, ?>) event).get("rule");
-        if (rule instanceof Map) {
-          ids.add(String.valueOf(((Map<?, ?>) rule).get("id")));
-        }
-      }
+    // the WAF result data is a JSON array of events (same shape WAFModule parses)
+    List<Map<String, Object>> events = EVENTS_ADAPTER.fromJson(data);
+    for (Map<String, Object> event : events) {
+      Map<?, ?> rule = (Map<?, ?>) event.get("rule");
+      ids.add(String.valueOf(rule.get("id")));
     }
     return ids;
   }
