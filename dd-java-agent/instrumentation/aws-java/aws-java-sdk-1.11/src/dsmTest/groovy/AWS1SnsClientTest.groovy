@@ -128,6 +128,7 @@ abstract class AWS1SnsClientTest extends VersionedNamingTestBase {
             "aws.endpoint" "$server.address"
             "aws.operation" "${operation}Request"
             "aws.agent" "java-aws-sdk"
+            "aws.region" "us-west-2"
             "aws.topic.name" topicName
             "topicname" topicName
             "aws.topic.arn" topicArn

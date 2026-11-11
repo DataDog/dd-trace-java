@@ -304,6 +304,7 @@ class TimeInQueueForkedTest extends InstrumentationSpecification {
         "aws.service" "Sqs"
         "aws_service" "Sqs"
         "aws.operation" "SendMessageBatch"
+        "aws.region" "eu-central-1"
         "aws.agent" "java-aws-sdk"
         "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
         "aws.queue.name" "somequeue"

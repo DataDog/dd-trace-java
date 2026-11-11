@@ -21,6 +21,10 @@ public class InstrumentationTags {
   public static final String TOP_LEVEL_AWS_SERVICE = "aws_service";
   public static final String AWS_OPERATION = "aws.operation";
   public static final String AWS_ENDPOINT = "aws.endpoint";
+
+  /** The Region of the called AWS endpoint, from the client configuration or the request. */
+  public static final String AWS_REGION = "aws.region";
+
   public static final String AWS_BUCKET_NAME = "aws.bucket.name";
   public static final String BUCKET_NAME = "bucketname";
   public static final String AWS_OBJECT_KEY = "aws.object.key";
