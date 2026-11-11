@@ -11,6 +11,7 @@ import datadog.trace.api.git.GitUtils;
 import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.civisibility.utils.FileUtils;
 import datadog.trace.util.AgentThreadFactory;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -144,8 +145,7 @@ public class GitDataUploaderImpl implements GitDataUploader {
         try {
           gitClient.fetchSelectedCommit(selectedCommit);
           refreshed = true;
-        } catch (datadog.trace.civisibility.utils.ShellCommandExecutor.ShellCommandFailedException
-            | TimeoutException e) {
+        } catch (IOException | TimeoutException e) {
           LOGGER.debug(
               "Could not fetch local selected commit; continuing with upstream recovery", e);
         }
