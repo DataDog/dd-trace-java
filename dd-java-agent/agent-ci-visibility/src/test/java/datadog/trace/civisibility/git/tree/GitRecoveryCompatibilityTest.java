@@ -238,9 +238,13 @@ class GitRecoveryCompatibilityTest {
     assertFalse(client.isShallow());
   }
 
-  @Test
-  void evaluatedConfigurationPreservesMultipleQuotedValues() throws Exception {
-    Path origin = directory.resolve("origin's repository");
+  @TableTest({
+    "Scenario             | originName             ",
+    "quoted subsection    | origin's repository    ",
+    "equals in subsection | origin=a=b's repository"
+  })
+  void evaluatedConfigurationPreservesMultipleQuotedValues(String originName) throws Exception {
+    Path origin = directory.resolve(originName);
     ShellCommandExecutor remote = fixture(origin);
     Path checkout = cloneFrom(remote, origin);
     ShellCommandExecutor local = new ShellCommandExecutor(checkout.toFile(), 10_000);
