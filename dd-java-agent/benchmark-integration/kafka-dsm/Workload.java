@@ -14,7 +14,7 @@
  * KAFKA_TOPIC, a per-process random run id and the iteration. Every message has no key, a fixed
  * 1024-byte payload and 5 headers key0..key4 -> value0..value4.
  *
- * <p>The gated duration (process.internal_duration_ms) is the produce+consume time of each
+ * <p>The measured duration (process.internal_duration_ms) is the produce+consume time of each
  * iteration only: produce loop + flush, then consume + a commitSync every COMMIT_EVERY consumed
  * messages (default 100) and after the last one, each committing the last consumed record's offset
  * + 1 (one OffsetCommit broker round trip per commit; MESSAGE_COUNT is 1000, so the default makes
@@ -281,7 +281,7 @@ public class Workload {
         Locale.ROOT,
         "Duration (produce+consume) median: %.3f ms (+/- %.3f) | RSS median: %.2f MB | produce"
             + " median: %.3f ms | consume+commit median: %.3f ms | iteration wall median (incl."
-            + " setup/teardown, not gated): %.3f ms | runs: %d (warmup %d) | JIT/GC time per timed"
+            + " setup/teardown, context): %.3f ms | runs: %d (warmup %d) | JIT/GC time per timed"
             + " iteration (incl. setup/teardown): %s, GC total %d ms | heap used median: %.2f MB |"
             + " commit every %d%n",
         durationMedian,

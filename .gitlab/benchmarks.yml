@@ -85,7 +85,7 @@ debugger-benchmarks:
     # See https://datadoghq.atlassian.net/wiki/spaces/APMINT/pages/7223313012/Flaky+Benchmarks+Monitoring for more details.
     FLAKY_BENCHMARKS_REGEX: ""
 
-# DSM overhead (baseline / apm-only / apm+dsm) on dd-java-agent/benchmark-integration/kafka-dsm. Not gating yet.
+# DSM overhead (baseline / apm-only / apm+dsm) on dd-java-agent/benchmark-integration/kafka-dsm. Report-only.
 dsm-throughput:
   stage: benchmarks
   needs: [ build ]
