@@ -69,8 +69,8 @@ class KnownTagCodecSlotTest {
 
   @Test
   void aCustomTagHasNoSlot() {
-    // keyOf gives a custom tag the id 0L, whose slot bits decode as slot 0
-    assertEquals(0L, KnownTagCodec.keyOf("my.custom.tag"));
+    // idOf gives a custom tag the id 0L, whose slot bits decode as slot 0
+    assertEquals(0L, KnownTagCodec.idOf("my.custom.tag"));
     assertFalse(KnownTagCodec.hasSlot(0L));
   }
 

@@ -159,7 +159,7 @@ public final class HashStore {
    */
   @Nullable
   public Entry getEntry(String tag) {
-    assert KnownTagCodec.keyOf(tag) == 0 : "'" + tag + "' is a known tag; look it up by its id";
+    assert KnownTagCodec.idOf(tag) == 0 : "'" + tag + "' is a known tag; look it up by its id";
     return this.get(tag, Entry.bucketHash(Entry.customHash(tag)));
   }
 
@@ -270,7 +270,7 @@ public final class HashStore {
    */
   @Nullable
   public Entry remove(String tag) {
-    assert KnownTagCodec.keyOf(tag) == 0 : "'" + tag + "' is a known tag; remove it by its id";
+    assert KnownTagCodec.idOf(tag) == 0 : "'" + tag + "' is a known tag; remove it by its id";
     int hash = Entry.bucketHash(Entry.customHash(tag));
     Entry localRemoved = HashSupport.remove(this.buckets, hash, tag);
     if (localRemoved != null) {

@@ -34,7 +34,7 @@ class TagMapNamespaceNamesTest {
 
   @Test
   void anOpenTelemetrySpellingNormalizesToTheOneName() {
-    // keyOf is many->one, so an entry written under the OTel name resolves to the same tag and
+    // idOf is many->one, so an entry written under the OTel name resolves to the same tag and
     // reads back under that name -- not under two different ones depending on how it was written.
     assertEquals("http.request.method", otelTagOf("http.request.method", "POST"));
     assertEquals(

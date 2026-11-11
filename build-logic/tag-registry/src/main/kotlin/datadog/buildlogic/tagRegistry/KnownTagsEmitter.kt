@@ -7,7 +7,7 @@ import java.util.Locale
  * Emits the generated `KnownTags.java` from a [TagRegistry]. Public API first — per-tag
  * `<X>` (encoded long id, literal) + `<X>_NAME` (string) couplets with a trailing `// makeTagId(...)`
  * derivation comment — then the `<X>_SERIAL_NUM` constants, the
- * `StringIndex.EmbeddingSupport` keyOf table, the `NAMES_BY_SERIAL` array behind `nameOf`, and the
+ * `StringIndex.EmbeddingSupport` idOf table, the `NAMES_BY_SERIAL` array behind `nameOf`, and the
  * resolver's `openTelemetryNameOf` switch.
  */
 object KnownTagsEmitter {
@@ -53,10 +53,10 @@ object KnownTagsEmitter {
     fun serialC(ddName: String) = serialOfConst.getValue(ddName)
     fun otelNameC(ddName: String) = otelNameOfConst.getValue(ddName)
 
-    val keyOfOrder = reg.tags.map { it.ddName } // stable emit order
-    // OpenTelemetry names that denote a different tag depending on the span's direction. keyOf
+    val idOfOrder = reg.tags.map { it.ddName } // stable emit order
+    // OpenTelemetry names that denote a different tag depending on the span's direction. idOf
     // ignores direction (a shared Datadog name such as server.port resolves to its own tag);
-    // directionalKeyOf(name, direction) switches on each one's tag per direction.
+    // directionalIdOf(name, direction) switches on each one's tag per direction.
     val directional = sortedMapOf<String, MutableMap<TagConventions.Direction, String>>()
     for (t in reg.tags) {
       for ((direction, otel) in t.scopedOtelNames) {
@@ -65,7 +65,7 @@ object KnownTagsEmitter {
     }
     return buildString {
       // Public API first (encoded id + name couplets), so readers see the useful parts up top; the
-      // serial ids and keyOf/resolver machinery follow below. Derivation is in the trailing comment.
+      // serial ids and idOf/resolver machinery follow below. Derivation is in the trailing comment.
       appendLine(
         """
         package $pkg;
@@ -147,26 +147,26 @@ object KnownTagsEmitter {
           .mapNotNull { t -> t.otelName?.let { it to t.ddName } }
           .sortedBy { it.first }
 
-      // keyOf table (open-addressed, via StringIndex.EmbeddingSupport). Canonical names first, then
+      // idOf table (open-addressed, via StringIndex.EmbeddingSupport). Canonical names first, then
       // OpenTelemetry names -- an OTel name resolves to its canonical tag's id (there is no distinct id
-      // for it), so keyOf(otelName) == keyOf(canonical); nameOf still returns the canonical name.
+      // for it), so idOf(otelName) == idOf(canonical); nameOf still returns the canonical name.
       appendLine(
         """
         
-          private static final String[] KEYOF_NAMES = {
+          private static final String[] IDOF_NAMES = {
         """.trimIndent()
       )
-      keyOfOrder.forEach { appendLine("    ${nameC(it)},") }
+      idOfOrder.forEach { appendLine("    ${nameC(it)},") }
       otelByCanonical.forEach { (otel, _) ->
         appendLine("    \"${escape(otel)}\",")
       }
       appendLine(
         """
           };
-          private static final long[] KEYOF_VALUES = {
+          private static final long[] IDOF_VALUES = {
         """.trimIndent()
       )
-      keyOfOrder.forEach { appendLine("    ${idC(it)},") }
+      idOfOrder.forEach { appendLine("    ${idC(it)},") }
       otelByCanonical.forEach { (_, canonical) ->
         appendLine("    ${idC(canonical)},")
       }
@@ -175,23 +175,23 @@ object KnownTagsEmitter {
       appendLine(
         """
             };
-          private static final int[] KEYOF_HASHES;
-          private static final String[] KEYOF_KEYS;
-          private static final long[] KEYOF_IDS;
+          private static final int[] IDOF_HASHES;
+          private static final String[] IDOF_KEYS;
+          private static final long[] IDOF_IDS;
 
           static {
             // Read the arrays once: a static field read inside its own class's initializer is not
             // cached by the interpreter, which on JDK 21 makes this loop cost tens of ms per JVM start.
-            String[] names = KEYOF_NAMES;
-            long[] values = KEYOF_VALUES;
+            String[] names = IDOF_NAMES;
+            long[] values = IDOF_VALUES;
             StringIndex.Data data = StringIndex.EmbeddingSupport.create(names);
             long[] ids = new long[data.names.length];
             for (int j = 0; j < names.length; j++) {
               ids[StringIndex.EmbeddingSupport.indexOf(data.hashes, data.names, names[j])] = values[j];
             }
-            KEYOF_HASHES = data.hashes;
-            KEYOF_KEYS = data.names;
-            KEYOF_IDS = ids;
+            IDOF_HASHES = data.hashes;
+            IDOF_KEYS = data.names;
+            IDOF_IDS = ids;
           }
 
           /**
@@ -274,13 +274,13 @@ object KnownTagsEmitter {
               }
 
               @Override
-              public long keyOf(String name) {
-                int slot = StringIndex.EmbeddingSupport.indexOf(KEYOF_HASHES, KEYOF_KEYS, name);
-                return slot < 0 ? 0L : KEYOF_IDS[slot];
+              public long idOf(String name) {
+                int slot = StringIndex.EmbeddingSupport.indexOf(IDOF_HASHES, IDOF_KEYS, name);
+                return slot < 0 ? 0L : IDOF_IDS[slot];
               }
 
               @Override
-              public long directionalKeyOf(String name, int direction) {
+              public long directionalIdOf(String name, int direction) {
                 switch (name) {
         """.trimIndent()
       )

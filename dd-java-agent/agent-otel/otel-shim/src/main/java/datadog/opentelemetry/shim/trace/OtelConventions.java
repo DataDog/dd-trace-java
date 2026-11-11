@@ -55,7 +55,7 @@ public final class OtelConventions {
    * written.
    */
   static String attributeTag(String key, int direction) {
-    long tagId = KnownTagCodec.directionalKeyOf(key, direction);
+    long tagId = KnownTagCodec.directionalIdOf(key, direction);
     return tagId == 0 ? key : KnownTagCodec.nameOf(tagId);
   }
 
