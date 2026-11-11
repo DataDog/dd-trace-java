@@ -99,6 +99,19 @@ class AppSecConfigServiceImplTest {
   }
 
   @Test
+  void defaultRulesAreRestoredWhileARejectedUpdateIsStillPublished() throws Exception {
+    asmDdListener.accept(KEY, VALID_CONFIG.getBytes(UTF_8), NOOP);
+    assertThrows(
+        RuntimeException.class,
+        () -> asmDdListener.accept(KEY, INVALID_VERSION_CONFIG.getBytes(UTF_8), NOOP));
+
+    configurationEndListener.onConfigurationEnd();
+
+    // only succeeds if the default config was registered again
+    assertDoesNotThrow(() -> service.getWafBuilder().removeConfig("ASM_DD/default"));
+  }
+
+  @Test
   void removingAKeyThatWasNeverAppliedDoesNotThrow() {
     assertDoesNotThrow(() -> asmDdListener.remove(KEY, NOOP));
   }

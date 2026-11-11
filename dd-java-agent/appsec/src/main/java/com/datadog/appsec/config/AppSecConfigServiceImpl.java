@@ -241,6 +241,13 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
           handleWafUpdateResultReport(key, contentMap);
         } catch (AppSecModule.AppSecModuleActivationException e) {
           throw new RuntimeException(e);
+        } catch (RuntimeException e) {
+          if (e.getCause() instanceof InvalidRuleSetException) {
+            // Since libddwaf 2.2.0, a rejected update unregisters the path. Forget the key so the
+            // default rules can be restored if no other config is left.
+            afterRemove(key);
+          }
+          throw e;
         }
       }
     }
