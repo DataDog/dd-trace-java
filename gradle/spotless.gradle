@@ -24,7 +24,7 @@ def forbidLegacyScriptApplySteps = { format ->
   if (forbidLegacyScriptApplies) {
     forbiddenScriptApplies.each { script, message ->
       if (!scriptApplyExceptions.getOrDefault(script, []).contains(project.path)) {
-        // Built-in steps fingerprint the rule and message instead of using random custom-step state.
+        // Built-in steps fingerprint the rule and message.
         format.forbidRegex('forbidLegacyScriptApply:' + script,
           legacyScriptApplyLinePattern + '.*' + quote(script) + '.*$', message)
       }
