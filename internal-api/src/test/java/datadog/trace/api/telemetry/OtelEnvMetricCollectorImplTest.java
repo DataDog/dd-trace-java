@@ -21,8 +21,8 @@ import org.tabletest.junit.TableTest;
 // We are calling ConfigProvider.createDefault()) twice
 // We check otel configuration keys only if opentelemetry is enabled using
 // DD_TRACE_OTEL_ENABLED=true or OTEL_SDK_DISABLED=false.
-// Note that if DD_TRACE_OTEL_ENABLED is set, its value will overwrite the one in
-// OTEL_SDK_DISABLED.
+// Note that OTEL_SDK_DISABLED=true takes precedence over DD_TRACE_OTEL_ENABLED, which hides any
+// other OTEL_SDK_DISABLED value.
 class OtelEnvMetricCollectorImplTest extends DDJavaSpecification {
 
   @Test
@@ -40,6 +40,17 @@ class OtelEnvMetricCollectorImplTest extends DDJavaSpecification {
   @Test
   @WithConfig(key = "DD_TRACE_OTEL_ENABLED", value = "true", env = true, addPrefix = false)
   @WithConfig(key = "OTEL_SDK_DISABLED", value = "true", env = true, addPrefix = false)
+  void otelSdkDisabledTrueNotHidden() {
+    // when
+    List<OtelEnvMetric> metrics = drainMetrics();
+
+    // then
+    assertEquals(0, metrics.size());
+  }
+
+  @Test
+  @WithConfig(key = "DD_TRACE_OTEL_ENABLED", value = "true", env = true, addPrefix = false)
+  @WithConfig(key = "OTEL_SDK_DISABLED", value = "false", env = true, addPrefix = false)
   void otelSdkDisabledHiding() {
     // when
     List<OtelEnvMetric> metrics = drainMetrics();

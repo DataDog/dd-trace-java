@@ -10,6 +10,7 @@ import org.gradle.kotlin.dsl.withType
 import org.gradle.testing.base.TestingExtension
 import java.time.Duration
 import java.time.temporal.ChronoUnit
+import java.util.concurrent.Callable
 
 plugins {
   id("dd-trace-java.modifiable-config")
@@ -36,17 +37,33 @@ val skipTestsProvider = rootProject.providers.gradleProperty("skipTests")
 val skipForkedTestsProvider = rootProject.providers.gradleProperty("skipForkedTests")
 val skipFlakyTestsProvider = rootProject.providers.gradleProperty("skipFlakyTests")
 val runFlakyTestsProvider = rootProject.providers.gradleProperty("runFlakyTests")
+val rerunTestsProperty = "rerun.tests.${project.name}"
+val rerunTestsProvider = rootProject.providers.gradleProperty(rerunTestsProperty)
+val isMasterBranch = providers.environmentVariable("CI_COMMIT_BRANCH")
+  .map { it == "master" }
+  .orElse(false)
 
 // Go through the Test tasks and configure them
 tasks.withType<Test>().configureEach {
   configureTestAgentPostChecks()
 
+  // Test suites get the JUnit Platform from `useJUnitJupiter()` above, but tasks registered with
+  // `tasks.register(..., Test)` would default to JUnit 4 and discover no Spock 2 or JUnit 5 tests.
+  useJUnitPlatform()
+
   // Disable all tests if skipTests property was specified
   onlyIf("skipTests are undefined or false") { !skipTestsProvider.isPresent }
 
-  // Enable force rerun of tests with -Prerun.tests.${project.name}
-  outputs.upToDateWhen {
-    !rootProject.providers.gradleProperty("rerun.tests.${project.name}").isPresent
+  // Keep running tests on master even with the S3 build cache to keep
+  // steady flaky-tests signals. Successful results still populate the cache.
+  outputs.upToDateWhen { task ->
+    val reason = when {
+      isMasterBranch.get() -> "CI_COMMIT_BRANCH=master"
+      rerunTestsProvider.isPresent -> "$rerunTestsProperty is set"
+      else -> return@upToDateWhen true
+    }
+    task.logger.info("Disabling output reuse for {}: {}", task.path, reason)
+    false
   }
 
   // Trick to avoid on CI: "Couldn't flush user prefs: java.util.prefs.BackingStoreException: Couldn't get file lock."
@@ -67,17 +84,15 @@ tasks.withType<Test>().configureEach {
     onlyIf("skipForkedTests are undefined or false") { !skipForkedTestsProvider.isPresent }
   } else {
     exclude("**/*ForkedTest*")
-    // Starting from Gradle 9.3, Gradle will fail if a test task has no discovered tests.
-    // While this can be a misconfiguration, dd-trace-java test suite conventions allow suites
-    // to contain abstract base classes that are extended by concrete forked test suites.
-    //
-    // Many instrumentation suites indeed only ship *ForkedTest concrete classes
-    // (the non-forked peer task created by `addTestSuiteExtendingForDir` exists only
-    // to host shared configurations/sources). Those test tasks won't have executable tests
-    // by design under the `**/*ForkedTest*` exclude rule above. So let's allow them.
-    //
-    // Related but not the issue here https://github.com/gradle/gradle/issues/36508
-    failOnNoDiscoveredTests = false
+    // Gradle fails a test task that discovers no tests, which catches misconfigured tasks.
+    // The exception is a suite whose concrete tests are all *ForkedTest classes: the exclude rule
+    // above leaves its non-forked task with abstract base classes only, so allow it to be empty.
+    // The compiled classes are read lazily, once the task inputs are snapshotted.
+    val forkedTestClasses = objects.fileCollection()
+      .from(Callable { testClassesDirs })
+      .asFileTree
+      .matching { include("**/*ForkedTest*.class") }
+    failOnNoDiscoveredTests.set(forkedTestClasses.elements.map { it.isEmpty() })
   }
 
   // Set test timeout for 20 minutes. Default job timeout is 1h (configured on CI level).

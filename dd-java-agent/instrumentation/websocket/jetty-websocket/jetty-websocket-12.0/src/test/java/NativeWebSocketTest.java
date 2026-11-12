@@ -346,15 +346,14 @@ public class NativeWebSocketTest extends AbstractInstrumentationTest {
     assertNull(activeSpan());
 
     CompletableFuture<Void> completion =
-        CompletableFuture.runAsync(
-            () -> {
-              if (fail) {
-                endpoint.pendingCallback.fail(new IllegalStateException("callback failed"));
-              } else {
-                endpoint.pendingCallback.succeed();
-              }
-              assertNull(activeSpan());
-            });
+        CompletableFuture.runAsync(() -> {
+          if (fail) {
+            endpoint.pendingCallback.fail(new IllegalStateException("callback failed"));
+          } else {
+            endpoint.pendingCallback.succeed();
+          }
+          assertNull(activeSpan());
+        });
     completion.get(5, SECONDS);
 
     assertTrue(callback.isDone());

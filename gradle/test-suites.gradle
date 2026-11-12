@@ -1,6 +1,14 @@
 import org.gradle.api.plugins.jvm.JvmTestSuite
 
-ext.addTestSuiteExtendingForDir = { String testSuiteName, String parentSuiteName, String dirName ->
+// Registers a test suite named 'testSuiteName' compiling 'src/<dirName>/', with configurations
+// extending the 'parentSuiteName' suite ones.
+//
+// Unless the suite itself is a forked one, its '*ForkedTest' classes run in a companion forked task
+// registered by addForkedTestTask. Pass 'withForkedTest = false' only when the module declares its own
+// forked suite under the companion name, compiling different sources, or when the suite forked tests
+// must not run.
+ext.addTestSuiteExtendingForDir = { String testSuiteName, String parentSuiteName, String dirName, boolean withForkedTest = true ->
+  def isForkedSuite = testSuiteName.endsWith('ForkedTest')
   testing {
     suites {
       register(testSuiteName, JvmTestSuite) {
@@ -41,7 +49,7 @@ ext.addTestSuiteExtendingForDir = { String testSuiteName, String parentSuiteName
         }
       }
 
-      if (testSuiteName ==~ /.*ForkedTest\z/) {
+      if (isForkedSuite) {
         def nonForkedBaseConfName = testSuiteName - ~/Forked/
         def nonForkedConfig = maybeCreate("${nonForkedBaseConfName}${suffix}")
         config.configure {
@@ -68,14 +76,18 @@ ext.addTestSuiteExtendingForDir = { String testSuiteName, String parentSuiteName
   project.dependencies {
     "${testSuiteName}Implementation"(project(project.path))
   }
+
+  if (withForkedTest && !isForkedSuite) {
+    ext.addForkedTestTask(testSuiteName)
+  }
 }
 
-ext.addTestSuiteForDir = { testSuiteName, dirName ->
-  ext.addTestSuiteExtendingForDir(testSuiteName, 'test', dirName)
+ext.addTestSuiteForDir = { testSuiteName, dirName, boolean withForkedTest = true ->
+  ext.addTestSuiteExtendingForDir(testSuiteName, 'test', dirName, withForkedTest)
 }
 
-ext.addTestSuite = { testSuiteName ->
-  ext.addTestSuiteForDir(testSuiteName, testSuiteName)
+ext.addTestSuite = { testSuiteName, boolean withForkedTest = true ->
+  ext.addTestSuiteForDir(testSuiteName, testSuiteName, withForkedTest)
 }
 
 // Registers a task that runs the '*ForkedTest' classes of a source set, each in its own JVM.
@@ -83,23 +95,37 @@ ext.addTestSuite = { testSuiteName ->
 // The task name ends in 'ForkedTest', which is what makes the test convention plugin restrict it to
 // '**/*ForkedTest*', set forkEvery=1 and apply the shared forked-test concurrency limit. 'check',
 // 'allTests' and 'allLatestDepTests' pick the task up automatically, because they match Test tasks
-// by type rather than by name.
+// by type rather than by name. Without '*ForkedTest' classes, the task is skipped as having no source.
 //
-// Modules whose tests live in the default 'test' source set get 'forkedTest' registered for them by
-// java_no_deps.gradle. Modules that use their own suites instead - for example to compile the same
-// tests against several Scala versions - have no 'test' sources, so their forked tests never run
-// unless they opt in:
+// The task is named after the source set, with its 'Test' suffix replaced: 'test' registers
+// 'forkedTest' and 'latestDepTest' registers 'latestDepForkedTest'. It runs on the same JVMs as the
+// source set test task: it uses its Java launcher and inherits its test JVM constraints. Configure the
+// task explicitly to override either.
 //
-//   addTestSuite('baseTest')
-//   addForkedTestTask('baseTest')  // registers 'baseTestForkedTest'
+// java_no_deps.gradle registers 'forkedTest' for the default 'test' source set, and
+// addTestSuiteExtendingForDir registers one for each suite.
 //
 // Returns the TaskProvider so callers can configure the task further.
 ext.addForkedTestTask = { String sourceSetName ->
-  def taskName = sourceSetName == 'test' ? 'forkedTest' : "${sourceSetName}ForkedTest"
+  def taskName = sourceSetName == 'test' ? 'forkedTest' : "${sourceSetName - ~/Test\z/}ForkedTest"
+  def suiteTask = tasks.named(sourceSetName, Test)
+  def suiteConstraints = suiteTask.map { it.extensions.getByName('testJvmConstraints') }
   return tasks.register(taskName, Test) {
     group = LifecycleBasePlugin.VERIFICATION_GROUP
-    useJUnitPlatform()
+    description = "Runs the '*ForkedTest' classes of the '${sourceSetName}' source set, each in its own JVM."
     testClassesDirs = sourceSets[sourceSetName].output.classesDirs
     classpath = sourceSets[sourceSetName].runtimeClasspath
+    // Set rather than a convention: the test JVM constraints plugin already sets the launcher of every
+    // Test task when 'testJvm' selects another JVM than the Gradle daemon one, which would hide a convention.
+    javaLauncher.set(suiteTask.flatMap { it.javaLauncher })
+    extensions.configure('testJvmConstraints') { constraints ->
+      constraints.minJavaVersion.convention(suiteConstraints.flatMap { it.minJavaVersion })
+      constraints.maxJavaVersion.convention(suiteConstraints.flatMap { it.maxJavaVersion })
+      constraints.forceJdk.convention(suiteConstraints.flatMap { it.forceJdk })
+      constraints.includeJdk.convention(suiteConstraints.flatMap { it.includeJdk })
+      constraints.excludeJdk.convention(suiteConstraints.flatMap { it.excludeJdk })
+      constraints.allowReflectiveAccessToJdk.convention(suiteConstraints.flatMap { it.allowReflectiveAccessToJdk })
+      constraints.nativeImageCapable.convention(suiteConstraints.flatMap { it.nativeImageCapable })
+    }
   }
 }

@@ -72,16 +72,15 @@ class ProbabilitySamplingStateTest {
       for (int i = 0; i < readers; i++) {
         int reader = i;
         threads[i] =
-            new Thread(
-                () -> {
-                  try {
-                    start.await();
-                  } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    return;
-                  }
-                  seen[reader] = state.getOtelTraceState();
-                });
+            new Thread(() -> {
+              try {
+                start.await();
+              } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
+              }
+              seen[reader] = state.getOtelTraceState();
+            });
         threads[i].start();
       }
       start.countDown();

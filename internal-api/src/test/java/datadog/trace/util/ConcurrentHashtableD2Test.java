@@ -109,23 +109,22 @@ class ConcurrentHashtableD2Test {
     Thread[] workers = new Thread[threads];
     for (int i = 0; i < threads; i++) {
       workers[i] =
-          new Thread(
-              () -> {
-                ready.countDown();
-                try {
-                  go.await();
-                } catch (InterruptedException ex) {
-                  Thread.currentThread().interrupt();
-                  return;
-                }
-                table.tryGetOrCreateOrNull(
-                    "shared",
-                    42,
-                    (k1, k2) -> {
-                      createCount.incrementAndGet();
-                      return new PairEntry(k1, k2);
-                    });
-              });
+          new Thread(() -> {
+            ready.countDown();
+            try {
+              go.await();
+            } catch (InterruptedException ex) {
+              Thread.currentThread().interrupt();
+              return;
+            }
+            table.tryGetOrCreateOrNull(
+                "shared",
+                42,
+                (k1, k2) -> {
+                  createCount.incrementAndGet();
+                  return new PairEntry(k1, k2);
+                });
+          });
       workers[i].start();
     }
     ready.await();
@@ -175,17 +174,16 @@ class ConcurrentHashtableD2Test {
       final String k1 = k1s[i];
       final Integer k2 = k2s[i];
       workers[i] =
-          new Thread(
-              () -> {
-                ready.countDown();
-                try {
-                  go.await();
-                } catch (InterruptedException ex) {
-                  Thread.currentThread().interrupt();
-                  return;
-                }
-                table.tryGetOrCreateOrNull(k1, k2, PairEntry::new);
-              });
+          new Thread(() -> {
+            ready.countDown();
+            try {
+              go.await();
+            } catch (InterruptedException ex) {
+              Thread.currentThread().interrupt();
+              return;
+            }
+            table.tryGetOrCreateOrNull(k1, k2, PairEntry::new);
+          });
       workers[i].start();
     }
     ready.await();

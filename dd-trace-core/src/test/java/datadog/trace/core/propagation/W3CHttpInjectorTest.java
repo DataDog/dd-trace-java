@@ -145,19 +145,18 @@ class W3CHttpInjectorTest extends AbstractHttpInjectorTest {
     CountDownLatch samplingUpdated = new CountDownLatch(1);
     AtomicReference<Throwable> failure = new AtomicReference<>();
     Thread updater =
-        new Thread(
-            () -> {
-              try {
-                assertTrue(traceparentWritten.await(5, TimeUnit.SECONDS));
-                assertTrue(
-                    tags.tryUpdateProbabilitySamplingDecision(
-                        SAMPLER_DROP, AGENT_RATE, 0.0, false, 1L, true));
-              } catch (Throwable throwable) {
-                failure.set(throwable);
-              } finally {
-                samplingUpdated.countDown();
-              }
-            });
+        new Thread(() -> {
+          try {
+            assertTrue(traceparentWritten.await(5, TimeUnit.SECONDS));
+            assertTrue(
+                tags.tryUpdateProbabilitySamplingDecision(
+                    SAMPLER_DROP, AGENT_RATE, 0.0, false, 1L, true));
+          } catch (Throwable throwable) {
+            failure.set(throwable);
+          } finally {
+            samplingUpdated.countDown();
+          }
+        });
     updater.start();
 
     injector.inject(
