@@ -155,6 +155,20 @@ class AgentlessLogSubmissionTest {
   }
 
   @Test
+  void stopsRenderingALongMessageAtTheMaximumLength() {
+    char[] message = new char[100_000];
+    Arrays.fill(message, 'x');
+    Throwable thrown = new IllegalStateException(new String(message));
+
+    submit("main", "ERROR", "logger", "message", thrown, 42L, null);
+
+    String stackTrace =
+        ((Map<?, ?>) messages.get(0).get("thrown")).get("extendedStackTrace").toString();
+    assertEquals(16 * 1_024, stackTrace.length());
+    assertTrue(stackTrace.startsWith("java.lang.IllegalStateException: xxx"));
+  }
+
+  @Test
   void submitsEventWithoutOptionalFields() {
     submit("main", "INFO", "logger", "message", null, 42L, null);
 

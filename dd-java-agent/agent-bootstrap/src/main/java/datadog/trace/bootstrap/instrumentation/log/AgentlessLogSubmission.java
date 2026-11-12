@@ -121,6 +121,15 @@ public final class AgentlessLogSubmission {
     }
 
     @Override
+    public void write(String string, int offset, int length) {
+      int remaining = MAX_STACKTRACE_STRING_LENGTH - buffer.length();
+      buffer.append(string, offset, offset + Math.min(length, remaining));
+      if (length >= remaining) {
+        throw StackTraceLimitReached.INSTANCE;
+      }
+    }
+
+    @Override
     public void flush() {}
 
     @Override
