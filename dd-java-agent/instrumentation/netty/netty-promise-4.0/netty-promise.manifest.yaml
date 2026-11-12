@@ -1,0 +1,11 @@
+_v: 1
+name: netty-promise
+display_name: Netty/Common
+description: Instruments Netty promise completion and progress listeners to propagate trace context into
+  callbacks.
+packages:
+- name: io.netty:netty-common
+category:
+- other
+systems: []
+creation_date: '2021-02-09'

@@ -1,0 +1,11 @@
+_v: 1
+name: scala_concurrent
+display_name: Scala Library
+description: Instruments Scala fork-join tasks, future callbacks and promise completion to propagate trace
+  context across asynchronous execution.
+packages:
+- name: org.scala-lang:scala-library
+category:
+- other
+systems: []
+creation_date: '2019-01-25'
