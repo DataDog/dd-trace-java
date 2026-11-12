@@ -65,7 +65,8 @@ if (gitBaseRefProvider.isPresent) {
     include("gradlew", "gradlew.bat", "mvnw", "mvnw.cmd")
     include("NOTICE")
     include("static-analysis.datadog.yml")
-    // GitHub and agent config do not affect Gradle tests
+    // Agent config do not affect Gradle tests
+    // Github workflows invoke Gradle without `gitBaseRef`
     include(".github/**", ".claude/**", ".agents/**")
   }
 
