@@ -1,0 +1,15 @@
+_v: 1
+name: azure-functions
+display_name: Microsoft Azure Functions Java Core Types
+description: Instruments Azure Functions HTTP invocations and Durable Functions orchestration, activity, and entity execution, propagating invocation context and recording failures while suppressing successful orchestration replays.
+packages:
+- name: com.microsoft.azure.functions:azure-functions-java-library
+- name: com.microsoft.azure.functions:azure-functions-java-spi
+- name: com.microsoft:durabletask-azure-functions
+- name: com.microsoft:durabletask-client
+category:
+- faas
+- workflow.durable_execution
+systems:
+- azure.functions
+creation_date: '2025-03-05'

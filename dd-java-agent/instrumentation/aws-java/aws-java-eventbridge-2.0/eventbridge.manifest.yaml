@@ -1,0 +1,11 @@
+_v: 1
+name: eventbridge
+display_name: 'AWS Java SDK :: Services :: EventBridge'
+description: Propagates trace context and optional Data Streams metadata in AWS SDK EventBridge event publication payloads.
+packages:
+- name: software.amazon.awssdk:eventbridge
+category:
+- other
+systems:
+- aws.eventbridge
+creation_date: '2024-10-04'

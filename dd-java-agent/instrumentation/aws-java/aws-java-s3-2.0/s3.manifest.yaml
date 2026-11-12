@@ -1,0 +1,11 @@
+_v: 1
+name: s3
+display_name: 'AWS Java SDK :: Services :: Amazon S3'
+description: Enriches AWS SDK S3 upload, copy, and multipart upload completion spans with object version information used to create optional span pointers.
+packages:
+- name: software.amazon.awssdk:s3
+category:
+- other
+systems:
+- aws.s3
+creation_date: '2025-01-22'

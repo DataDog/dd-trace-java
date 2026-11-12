@@ -1,0 +1,11 @@
+_v: 1
+name: dynamodb
+display_name: 'AWS Java SDK :: Services :: Amazon DynamoDB'
+description: Enriches AWS SDK DynamoDB update and delete spans with item keys used to create optional span pointers.
+packages:
+- name: software.amazon.awssdk:dynamodb
+category:
+- other
+systems:
+- aws.dynamodb
+creation_date: '2025-03-07'
