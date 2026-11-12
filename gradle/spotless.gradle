@@ -1,3 +1,5 @@
+import static java.util.regex.Pattern.quote
+
 apply plugin: 'com.diffplug.spotless'
 
 // This definition is needed since the spotless file is used from stand alone projects
@@ -11,25 +13,23 @@ def scriptApplyExceptions = [
   'gradle/publish.gradle': [':dd-java-agent'] as Set,
 ]
 boolean forbidLegacyScriptApplies = project.rootProject.name == 'dd-trace-java'
-def legacyScriptApplyLinePattern = ~/^\s*(?:\w+\.)?apply(?:\s+from\s*:|\s*\(\s*from\s*=).*/
+// Keep whitespace within one line when matching against the whole file.
+def legacyScriptApplyLinePattern = /^\h*(?:\w+\.)?apply(?:\h+from\h*:|\h*\(\h*from\h*=)/
 // Script plugins that must be replaced by their corresponding convention plugins.
 def forbiddenScriptApplies = [
   'gradle/java.gradle'   : 'Apply the \'dd-trace-java.conventions.java\' and \'dd-trace-java.conventions.testing.groovy\' convention plugins instead of applying the script plugin \'gradle/java.gradle\' directly.',
   'gradle/publish.gradle': 'Apply the \'dd-trace-java.module.distributable.*\' convention plugin instead of applying the script plugin \'gradle/publish.gradle\' directly.',
 ]
-def forbidLegacyScriptApplyStep = { String text ->
+def forbidLegacyScriptApplySteps = { format ->
   if (forbidLegacyScriptApplies) {
-    text.readLines().each { line ->
-      if (legacyScriptApplyLinePattern.matcher(line).matches()) {
-        forbiddenScriptApplies.each { script, message ->
-          if (line.contains(script) && !scriptApplyExceptions.getOrDefault(script, []).contains(project.path)) {
-            throw new AssertionError(message)
-          }
-        }
+    forbiddenScriptApplies.each { script, message ->
+      if (!scriptApplyExceptions.getOrDefault(script, []).contains(project.path)) {
+        // Built-in steps fingerprint the rule and message instead of using random custom-step state.
+        format.forbidRegex('forbidLegacyScriptApply:' + script,
+          legacyScriptApplyLinePattern + '.*' + quote(script) + '.*$', message)
       }
     }
   }
-  text
 }
 
 spotless {
@@ -66,7 +66,7 @@ spotless {
       target '*.gradle'
     }
     greclipse(libs.versions.greclipse.get()).configFile(configPath + '/enforcement/spotless-groovy.properties')
-    custom 'forbidGradleJavaScriptPlugin', forbidLegacyScriptApplyStep
+    forbidLegacyScriptApplySteps(delegate)
   }
 
   kotlinGradle {
@@ -78,7 +78,7 @@ spotless {
       'ktlint_standard_trailing-comma-on-call-site': 'disabled',
       'ktlint_standard_trailing-comma-on-declaration-site': 'disabled'
     ])
-    custom 'forbidGradleJavaScriptPlugin', forbidLegacyScriptApplyStep
+    forbidLegacyScriptApplySteps(delegate)
   }
 
   project.pluginManager.withPlugin('groovy') {
