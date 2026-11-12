@@ -3,8 +3,16 @@ package datadog.gradle.plugin.ci
 import org.gradle.api.Project
 import org.gradle.api.Task
 import org.gradle.api.provider.Provider
+import org.gradle.api.tasks.SourceSet
+import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.kotlin.dsl.extra
+import java.io.File
 import kotlin.math.abs
+
+/** Affected task name standing for every task of a project. */
+internal const val ALL_TASKS = "all"
+
+private const val AFFECTED_TASKS = "affectedTasksByProject"
 
 /**
  * Determines if the current project is in the selected slot.
@@ -58,9 +66,13 @@ val Project.isInSelectedSlot: Provider<Boolean>
   }.orElse(true)
 
 /**
- * Returns the task's path, given affected projects, if this task or its dependencies are affected by git changes.
+ * Returns the path of the first affected task found among the given task and its dependencies.
+ *
+ * @param baseTask the task to start the search from
+ * @param affectedTasksByProject the affected task names, by project, where [ALL_TASKS] stands for every task
+ * @return the affected task path, or `null` when neither the task nor its dependencies are affected
  */
-internal fun findAffectedTaskPath(baseTask: Task, affectedProjects: Map<Project, Set<String>>): String? {
+internal fun findAffectedTaskPath(baseTask: Task, affectedTasksByProject: Map<Project, Set<String>>): String? {
   val visited = mutableSetOf<Task>()
   val queue = mutableListOf(baseTask)
 
@@ -71,19 +83,82 @@ internal fun findAffectedTaskPath(baseTask: Task, affectedProjects: Map<Project,
     }
     visited.add(t)
 
-    val affectedTasks = affectedProjects[t.project]
-    if (affectedTasks != null) {
-      if (affectedTasks.contains("all")) {
-        return "${t.project.path}:${t.name}"
-      }
-      if (affectedTasks.contains(t.name)) {
-        return "${t.project.path}:${t.name}"
-      }
+    val affectedTasks = affectedTasksByProject[t.project]
+    if (affectedTasks != null && (ALL_TASKS in affectedTasks || t.name in affectedTasks)) {
+      return "${t.project.path}:${t.name}"
     }
 
     t.taskDependencies.getDependencies(t).forEach { queue.add(it) }
   }
   return null
+}
+
+/** A source directory of a project's source set. */
+internal data class SourceDirectory<P>(
+  val project: P,
+  val dir: File,
+  val classesTaskName: String,
+  val isMain: Boolean,
+)
+
+/**
+ * Maps changed files to the tasks they affect.
+ *
+ * A changed file affects the classes task of every source set containing it, whichever project declares the source
+ * set. A file in a main source set, or in no source set of the project containing it, affects all the tasks of that
+ * project.
+ *
+ * @param changedFilesByProject the changed files, by the project whose directory contains them
+ * @param sourceDirectories the source directories of every project
+ * @return the affected task names, by project, where [ALL_TASKS] stands for every task
+ */
+internal fun <P> affectedTasks(
+  changedFilesByProject: Map<P, List<File>>,
+  sourceDirectories: List<SourceDirectory<P>>,
+): Map<P, Set<String>> {
+  val sourceDirectoriesByDir = sourceDirectories.groupBy { it.dir }
+  val affected = mutableMapOf<P, MutableSet<String>>()
+  for ((owner, files) in changedFilesByProject) {
+    for (file in files) {
+      val containing = generateSequence(file.parentFile) { it.parentFile }
+        .flatMap { sourceDirectoriesByDir[it].orEmpty() }
+        .toList()
+      for (sourceDirectory in containing) {
+        val task = if (sourceDirectory.isMain) ALL_TASKS else sourceDirectory.classesTaskName
+        affected.getOrPut(sourceDirectory.project) { mutableSetOf() }.add(task)
+      }
+      if (containing.none { it.project == owner }) {
+        affected.getOrPut(owner) { mutableSetOf() }.add(ALL_TASKS)
+      }
+    }
+  }
+  return affected
+}
+
+/**
+ * Returns the tasks affected by the git changes, by project.
+ *
+ * Computed once, on first use, as it reads the source sets of every project, which are only known once they are all
+ * configured.
+ */
+private fun Project.affectedTasksByProject(): Map<Project, Set<String>> {
+  val extra = rootProject.extra
+  if (!extra.has(AFFECTED_TASKS)) {
+    @Suppress("UNCHECKED_CAST")
+    val changedFilesByProject = extra.get("changedFilesByProject") as Map<Project, List<File>>
+    val sourceDirectories = rootProject.subprojects.flatMap { subproject ->
+      val sourceSets = subproject.extensions.findByType(SourceSetContainer::class.java) ?: return@flatMap emptyList()
+      sourceSets.flatMap { sourceSet ->
+        val isMain = SourceSet.isMain(sourceSet) || sourceSet.name.startsWith("${SourceSet.MAIN_SOURCE_SET_NAME}_")
+        sourceSet.allSource.srcDirs.map { SourceDirectory(subproject, it, sourceSet.classesTaskName, isMain) }
+      }
+    }
+    val affected = affectedTasks(changedFilesByProject, sourceDirectories)
+    affected.forEach { (project, tasks) -> logger.warn("Affected tasks in ${project.path}: ${tasks.sorted()}") }
+    extra.set(AFFECTED_TASKS, affected)
+  }
+  @Suppress("UNCHECKED_CAST")
+  return extra.get(AFFECTED_TASKS) as Map<Project, Set<String>>
 }
 
 /**
@@ -110,9 +185,7 @@ private fun Project.createRootTask(
         if (testTask != null) {
           val useGitChanges = rootProject.extra.get("useGitChanges") as Boolean
           if (useGitChanges) {
-            @Suppress("UNCHECKED_CAST")
-            val affectedProjects = rootProject.extra.get("affectedProjects") as Map<Project, Set<String>>
-            val affectedTaskPath = findAffectedTaskPath(testTask, affectedProjects)
+            val affectedTaskPath = findAffectedTaskPath(testTask, project.affectedTasksByProject())
             if (affectedTaskPath != null) {
               logger.warn("Selecting ${subproject.path}:$subProjTaskName (affected by $affectedTaskPath)")
             } else {
