@@ -92,9 +92,11 @@ junit_upload() {
 
 # Upload code coverage results to Datadog
 coverage_upload() {
+    # Upload only ./reports, where collect_reports.sh copies the JaCoCo reports; skip the upload when there are none.
+    find ./reports -path '*/jacoco/*.xml' -print -quit 2>/dev/null | grep -q . || return 0
     DD_API_KEY=$1 \
     DD_GIT_REPOSITORY_URL=git@github.com:DataDog/dd-trace-java.git \
-        datadog-ci coverage upload --ignored-paths=./test-published-dependencies .
+        datadog-ci coverage upload ./reports
 }
 
 # Upload test results to production environment like all other CI jobs
