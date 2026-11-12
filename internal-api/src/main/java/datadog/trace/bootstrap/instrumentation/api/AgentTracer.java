@@ -106,49 +106,6 @@ public class AgentTracer {
     get().closeActive();
   }
 
-  /**
-   * Checkpoints the active scope. A subsequent call to {@link #rollbackActiveToCheckpoint()} closes
-   * outstanding scopes up to but not including the most recent checkpointed scope.
-   *
-   * @deprecated This should only be used when scopes might leak onto the scope stack which cannot
-   *     be cleaned up by other means.
-   */
-  @Deprecated
-  public static void checkpointActiveForRollback() {
-    get().checkpointActiveForRollback();
-  }
-
-  /**
-   * Closes outstanding scopes up to but not including the most recent scope checkpointed with
-   * {@link #checkpointActiveForRollback()}. Closes all scopes if none have been checkpointed.
-   *
-   * @deprecated This should only be used when scopes have leaked onto the scope stack that cannot
-   *     be cleaned up by other means.
-   */
-  @Deprecated
-  public static void rollbackActiveToCheckpoint() {
-    get().rollbackActiveToCheckpoint();
-  }
-
-  /**
-   * Closes the immediately previous iteration scope. Should be called before creating a new span
-   * for {@link #activateNext(AgentSpan)}.
-   */
-  @Deprecated
-  public static void closePrevious(final boolean finishSpan) {
-    get().closePrevious(finishSpan);
-  }
-
-  /**
-   * Activates a new iteration scope; closes automatically after a fixed period.
-   *
-   * @see datadog.trace.api.config.TracerConfig#SCOPE_ITERATION_KEEP_ALIVE
-   */
-  @Deprecated
-  public static ContextScope activateNext(final AgentSpan span) {
-    return get().activateNext(span);
-  }
-
   public static TraceConfig traceConfig(final AgentSpan span) {
     return null != span ? span.traceConfig() : traceConfig();
   }

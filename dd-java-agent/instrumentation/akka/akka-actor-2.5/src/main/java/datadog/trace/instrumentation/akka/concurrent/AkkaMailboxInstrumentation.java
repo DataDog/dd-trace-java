@@ -1,8 +1,6 @@
 package datadog.trace.instrumentation.akka.concurrent;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.checkpointActiveForRollback;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.rollbackActiveToCheckpoint;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.currentContext;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
@@ -11,6 +9,7 @@ import datadog.context.ContextHandle;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.InstrumenterConfig;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
@@ -48,7 +47,7 @@ public class AkkaMailboxInstrumentation extends InstrumenterModule.ContextTracki
     public static ContextHandle enter() {
       if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
         // remember the currently active scope so we can roll back to this point
-        checkpointActiveForRollback();
+        AgentTracer.get().checkpointActiveForRollback();
         return null;
       } else {
         return currentContext().swap();
@@ -59,7 +58,7 @@ public class AkkaMailboxInstrumentation extends InstrumenterModule.ContextTracki
     public static void exit(@Advice.Enter final ContextHandle checkpointContext) {
       if (checkpointContext == null) {
         // Clean up any leaking scopes from akka-streams/akka-http etc.
-        rollbackActiveToCheckpoint();
+        AgentTracer.get().rollbackActiveToCheckpoint();
       } else {
         checkpointContext.swap();
       }
