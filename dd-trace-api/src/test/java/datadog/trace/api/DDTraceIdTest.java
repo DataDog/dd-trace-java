@@ -200,6 +200,25 @@ class DDTraceIdTest {
         () -> DD128bTraceId.fromHex(hexId, start, length, lowerCaseOnly));
   }
 
+  @ParameterizedTest
+  @ValueSource(strings = {"1", "123456789", "18446744073709551615", "0", "007"})
+  void createFromParsedIdAsFromString(String stringId) {
+    DDTraceId parsed = DDTraceId.from(stringId);
+    DDTraceId created = DDTraceId.from(parsed.toLong(), stringId);
+
+    assertEquals(parsed, created);
+    assertEquals(parsed.toString(), created.toString());
+    assertEquals(parsed.getClass(), created.getClass());
+  }
+
+  @Test
+  void createFromParsedIdKeepsTheString() {
+    String stringId = "123456789";
+
+    assertSame(stringId, DDTraceId.from(123456789L, stringId).toString());
+    assertSame(DDTraceId.ZERO, DDTraceId.from(0L, "0"));
+  }
+
   @Test
   void checkZeroConstantInitialization() {
     DDTraceId zero = DDTraceId.ZERO;
