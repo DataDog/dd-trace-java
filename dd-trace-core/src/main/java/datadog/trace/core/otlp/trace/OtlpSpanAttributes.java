@@ -28,12 +28,16 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Span attributes shared by the OTLP protobuf and JSON trace writers: the keys and baggage rules
  * they use, and a {@link Writer} for the tags a span carries as attributes.
  */
 final class OtlpSpanAttributes {
+  private static final Logger log = LoggerFactory.getLogger(OtlpSpanAttributes.class);
 
   static final UTF8BytesString RESOURCE_NAME = UTF8BytesString.create("resource.name");
   static final UTF8BytesString OPERATION_NAME = UTF8BytesString.create("operation.name");
@@ -110,15 +114,21 @@ final class OtlpSpanAttributes {
     return UTF8BytesString.create(KnownTagCodec.openTelemetryTagOf(tagId));
   }
 
-  /** Encodes a structured report with the same MessagePack codec as native trace export. */
+  /** Encodes a report like native export, or returns null when that report cannot be serialized. */
+  @Nullable
   static byte[] encodeMetaStruct(Object value) {
-    GrowableBuffer buffer = new GrowableBuffer(1024);
-    MsgPackWriter writer = new MsgPackWriter(buffer);
-    writer.writeObject(value, null);
-    ByteBuffer encoded = buffer.slice();
-    byte[] bytes = new byte[encoded.remaining()];
-    encoded.get(bytes);
-    return bytes;
+    try {
+      GrowableBuffer buffer = new GrowableBuffer(1024);
+      MsgPackWriter writer = new MsgPackWriter(buffer);
+      writer.writeObject(value, null);
+      ByteBuffer encoded = buffer.slice();
+      byte[] bytes = new byte[encoded.remaining()];
+      encoded.get(bytes);
+      return bytes;
+    } catch (RuntimeException e) {
+      log.debug("Failed to serialize structured span report", e);
+      return null;
+    }
   }
 
   /**
@@ -140,6 +150,7 @@ final class OtlpSpanAttributes {
     private final T target;
     private final TriConsumer<T, Integer, TagMap.EntryReader> tagWriter;
     private final Set<String> skippedKeys;
+    private final boolean otelSemantics;
 
     // per-span state
     private Integer direction;
@@ -151,8 +162,8 @@ final class OtlpSpanAttributes {
     Writer(T target, TriConsumer<T, Integer, TagMap.EntryReader> tagWriter) {
       this.target = target;
       this.tagWriter = tagWriter;
-      this.skippedKeys =
-          Config.get().isTraceOtelSemanticsEnabled() ? OTEL_SPAN_FIELD_KEYS : emptySet();
+      this.otelSemantics = Config.get().isTraceOtelSemanticsEnabled();
+      this.skippedKeys = otelSemantics ? OTEL_SPAN_FIELD_KEYS : emptySet();
     }
 
     /** Writes the span's attribute tags, naming them for the span's {@code direction}. */
@@ -196,8 +207,9 @@ final class OtlpSpanAttributes {
 
     private boolean isSkipped(TagMap.EntryReader entry) {
       return skippedKeys.contains(entry.tag())
-          || structuredKeys.contains(
-              skippedKeys.isEmpty() ? entry.tag() : entry.openTelemetryTag(direction));
+          || (!structuredKeys.isEmpty()
+              && structuredKeys.contains(
+                  otelSemantics ? entry.openTelemetryTag(direction) : entry.tag()));
     }
   }
 

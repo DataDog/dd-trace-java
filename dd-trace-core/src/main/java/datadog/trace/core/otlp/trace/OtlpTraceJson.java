@@ -47,6 +47,7 @@ import datadog.trace.core.MetadataConsumer;
 import datadog.trace.core.PendingTrace;
 import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.propagation.PropagationTags.SamplingState;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -105,15 +106,24 @@ public final class OtlpTraceJson {
     }
     // Export root propagation tags on the span selected by the collector for sampling tags,
     // including when the exported trace contains no local root span.
-    metaWriter.structuredKeys = span.getMetaStruct().keySet();
+    Map<String, Object> reports = span.getMetaStruct();
+    Set<String> structuredKeys = emptySet();
+    if (!reports.isEmpty()) {
+      structuredKeys = new HashSet<>(reports.size());
+      for (Map.Entry<String, Object> report : reports.entrySet()) {
+        byte[] encoded = encodeMetaStruct(report.getValue());
+        if (encoded != null) {
+          writeBytesAttribute(writer, report.getKey(), encoded);
+          structuredKeys.add(report.getKey());
+        }
+      }
+    }
+    metaWriter.structuredKeys = structuredKeys;
     try {
       span.processTagsAndBaggage(
           metaWriter, metaWriter.includeSamplingTags ? ROOT_PROPAGATION_TAGS : 0);
     } finally {
       metaWriter.structuredKeys = emptySet();
-    }
-    for (Map.Entry<String, Object> report : span.getMetaStruct().entrySet()) {
-      writeBytesAttribute(writer, report.getKey(), encodeMetaStruct(report.getValue()));
     }
     writer.endArray();
 
