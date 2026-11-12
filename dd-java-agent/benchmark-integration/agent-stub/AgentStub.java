@@ -16,27 +16,22 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLongArray;
 
 /**
- * A fast stand-in for a healthy Datadog Agent, for benchmarking only.
+ * Local Datadog Agent stub for benchmarks. It reads and discards payloads so Agent processing and
+ * rejection do not affect the tracer's writer and heap measurements by default.
  *
- * <p>It serves a real Agent's {@code /info} response ({@code agent-info.json}, captured from Agent
- * 7.80.3), so the tracer's feature discovery matches a real Agent: client-side stats, dropping
- * unsampled traces, peer tags. Remote Config is not advertised, so the tracer doesn't poll it. Trace
- * and stats payloads are read, discarded and answered immediately.
+ * <p>Serves {@code agent-info.json}, captured from Agent 7.80.3, for feature discovery, including
+ * client-side stats, unsampled-trace dropping and peer tags. Remote Config is not advertised. Every
+ * response includes {@code Datadog-Agent-State}, the SHA-256 of that file, so trace responses match
+ * the discovered state and do not trigger repeated discovery.
  *
- * <p>Every response carries {@code Datadog-Agent-State}, the SHA-256 of {@code /info}, as a real
- * Agent's do. The tracer compares it with the hash it took at discovery, and a missing header looks
- * like an Agent change, so it would rerun discovery after every payload.
+ * <p>{@code GET /_stats} reports received requests and bytes per endpoint as {@code <path>
+ * <requests> <bytes>}. The runner uses this to check that each agent variant delivered traces.
  *
- * <p>A local Agent can be slow or rejecting payloads without anyone noticing, and the tracer's writer
- * then backs up and holds traces in the heap, which changes the GC behavior being measured. The stub
- * takes that variable out, and {@code GET /_stats} reports what it received, one line per endpoint
- * ({@code <path> <requests> <bytes>}), so a runner can check every variant actually sent traces.
+ * <pre>java AgentStub.java [port] [agent-info.json]</pre>
  *
- * <pre>java AgentStub.java [port] [agent-info.json]   (defaults: 8126, ./agent-info.json)</pre>
- *
- * <p>Environment: {@code STUB_SAMPLE_RATE} (default 1) is the rate returned in {@code
- * rate_by_service}; {@code STUB_DELAY_MS} delays every trace and stats response, and {@code
- * STUB_ERROR_CODE} answers them with that status, to benchmark a slow or rejecting Agent.
+ * <p>Defaults: port 8126 and {@code ./agent-info.json}. {@code STUB_SAMPLE_RATE} sets the {@code
+ * rate_by_service} response (default 1). {@code STUB_DELAY_MS} delays trace and stats responses;
+ * {@code STUB_ERROR_CODE} sets their response status to simulate a degraded Agent.
  */
 public class AgentStub {
   private static final Map<String, AtomicLongArray> RECEIVED = new ConcurrentHashMap<>();

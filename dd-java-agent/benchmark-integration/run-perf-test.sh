@@ -123,8 +123,19 @@ function gc_allocated_kb {
 }
 
 # CPU time (whole seconds) a process has used so far.
+# `ps -o time=` is [[dd-]hh:]mm:ss[.cc]: macOS prints minutes:seconds.hundredths, Linux
+# hh:mm:ss with an optional day prefix. Read the colon fields as base 60, add the days, and drop
+# the fraction for the caller's integer arithmetic.
 function cpu_seconds {
-    ps -o time= -p "$1" | awk -F'[:\.]' '{ print ($1 * 3600) + ($2 * 60) + $3 }'
+    ps -o time= -p "$1" | awk '
+        {
+            count = split($1, parts, "-")
+            days = count == 2 ? parts[1] : 0
+            count = split(parts[count], fields, ":")
+            seconds = 0
+            for (i = 1; i <= count; i++) seconds = seconds * 60 + fields[i]
+            printf "%.0f\n", int(days * 86400 + seconds)
+        }'
 }
 
 # Kill a process and all of its descendants, children first.
