@@ -36,6 +36,7 @@ public class AzureCosmosDecorator
   static final String SUB_STATUS_CODE = "cosmosdb.response.sub_status_code";
   static final String STATUS_CODE = "db.response.status_code";
   private static final String SUB_STATUS_HEADER = "x-ms-substatus";
+  private static final Pair<String, String> NO_NAMES = Pair.of(null, null);
 
   public static final AzureCosmosDecorator DECORATE = new AzureCosmosDecorator();
 
@@ -100,7 +101,7 @@ public class AzureCosmosDecorator
     // the SDK addresses some of its own metadata requests, such as partition key range reads, by
     // internal resource ids rather than by name, so only name based paths carry the names
     Pair<String, String> databaseAndContainer =
-        request.getIsNameBased() ? databaseAndContainer(path) : Pair.of(null, null);
+        request.getIsNameBased() ? databaseAndContainer(path) : NO_NAMES;
     String database = databaseAndContainer.getLeft();
     if (database == null
         && operationType == OperationType.Create
@@ -136,14 +137,17 @@ public class AzureCosmosDecorator
 
   @Override
   protected void doOnError(AgentSpan span, Throwable throwable, byte errorPriority) {
-    super.doOnError(span, throwable, errorPriority);
-    if (throwable instanceof CosmosException) {
-      CosmosException cosmosException = (CosmosException) throwable;
-      int subStatus = cosmosException.getSubStatusCode();
-      if (subStatus != 0) {
-        span.setTag(SUB_STATUS_CODE, Integer.toString(subStatus));
+    try {
+      super.doOnError(span, throwable, errorPriority);
+    } finally {
+      if (throwable instanceof CosmosException) {
+        CosmosException cosmosException = (CosmosException) throwable;
+        int subStatus = cosmosException.getSubStatusCode();
+        if (subStatus != 0) {
+          span.setTag(SUB_STATUS_CODE, Integer.toString(subStatus));
+        }
+        span.setTag(STATUS_CODE, Integer.toString(cosmosException.getStatusCode()));
       }
-      span.setTag(STATUS_CODE, Integer.toString(cosmosException.getStatusCode()));
     }
   }
 

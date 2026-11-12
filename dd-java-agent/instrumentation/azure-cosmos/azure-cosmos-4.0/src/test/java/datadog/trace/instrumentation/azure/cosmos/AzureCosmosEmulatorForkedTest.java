@@ -59,7 +59,7 @@ import org.testcontainers.utility.DockerImageName;
  *
  * <p>Only gateway mode is covered: the emulator doesn't support direct mode.
  */
-class AzureCosmosEmulatorTest extends AbstractInstrumentationTest {
+class AzureCosmosEmulatorForkedTest extends AbstractInstrumentationTest {
   private static final String CONTAINER = "container";
   private static final String OPERATION_NAME = "cosmosdb.query";
   private static final String HTTP_CLIENT_OPERATION_NAME = "netty.client.request";
@@ -98,8 +98,9 @@ class AzureCosmosEmulatorTest extends AbstractInstrumentationTest {
   }
 
   /**
-   * Trusts the emulator certificate. This runs before each test because the test base class resets
-   * the system properties before each test.
+   * Trusts the emulator certificate. The test is forked because this changes JVM-wide system
+   * properties, and it runs before each test because {@code WithConfigExtension} restores the
+   * system properties before each test.
    */
   @BeforeEach
   void trustEmulator() {
@@ -359,7 +360,7 @@ class AzureCosmosEmulatorTest extends AbstractInstrumentationTest {
             "no span with resource "
                 + expected
                 + " in order, spans were: "
-                + spans.stream().map(AzureCosmosEmulatorTest::resource).collect(toList()));
+                + spans.stream().map(AzureCosmosEmulatorForkedTest::resource).collect(toList()));
       }
       found.add(match);
     }

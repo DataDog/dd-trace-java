@@ -13,6 +13,7 @@ muzzle {
 }
 
 addTestSuiteForDir('latestDepTest', 'test')
+addForkedTestTask('latestDepTest')
 
 dependencies {
   compileOnly group: 'com.azure', name: 'azure-cosmos', version: '4.0.1'
