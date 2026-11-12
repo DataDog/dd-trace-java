@@ -571,12 +571,13 @@ class FeatureFlagsRuntimeTest {
     try (FlagSelectionScope scope = new FlagSelectionScope()) {
       scope.acquire(tooMany);
       scope.acquire(FlagSelectionRequest.of(values(33), null));
+      // A dropped selection loads every flag, as no selection does, so they do not differ.
       scope.acquire(FlagSelectionRequest.NONE);
 
       final String notSent =
           "ERROR flagSelection was not sent (too_many_values: each list accepts at most 31"
               + " values). Loading the full flag configuration.";
-      assertEquals(asList(notSent, notSent, SECOND_SELECTION_WARNING), scope.messages());
+      assertEquals(asList(notSent, notSent), scope.messages());
       assertEquals(singletonList("flag_selection.dropped|1|too_many_values"), scope.metrics.counts);
       assertNull(scope.cdn.requests().get(0).uri.getRawQuery());
     }
@@ -589,6 +590,7 @@ class FeatureFlagsRuntimeTest {
     try (FlagSelectionScope scope = new FlagSelectionScope("/ufc?pad=" + new String(padding))) {
       scope.acquire(AREA_CHECKOUT);
       scope.acquire(AREA_CHECKOUT);
+      scope.acquire(FlagSelectionRequest.NONE);
 
       final String notSent =
           "ERROR flagSelection was not sent (too_many_values: the request URL is at most 8192"
@@ -688,13 +690,50 @@ class FeatureFlagsRuntimeTest {
   }
 
   @Test
-  void aDifferentDroppedSelectionOfAJoiningProviderOnlyWarns() throws Exception {
+  void aDroppedSelectionOfAJoiningProviderIsReportedAndDiffersFromASentOne() throws Exception {
     try (FlagSelectionScope scope = new FlagSelectionScope()) {
       scope.acquire(AREA_CHECKOUT);
       scope.acquire(FlagSelectionRequest.of(values(32), null));
 
-      assertEquals(singletonList(SECOND_SELECTION_WARNING), scope.messages());
-      assertTrue(scope.metrics.counts.isEmpty(), scope.metrics.counts.toString());
+      assertEquals(
+          asList(
+              "ERROR flagSelection was not sent (too_many_values: each list accepts at most 31"
+                  + " values). Loading the full flag configuration.",
+              SECOND_SELECTION_WARNING),
+          scope.messages());
+      assertEquals(singletonList("flag_selection.dropped|1|too_many_values"), scope.metrics.counts);
+    }
+  }
+
+  @Test
+  void aMalformedSelectionOfAJoiningProviderIsReportedWithoutDifferingFromNoSelection()
+      throws Exception {
+    try (FlagSelectionScope scope = new FlagSelectionScope()) {
+      scope.acquire(FlagSelectionRequest.NONE);
+      scope.acquire(FlagSelectionRequest.of(asList("area:checkout", 42), null));
+
+      assertEquals(
+          singletonList(
+              "ERROR flagSelection was not sent (malformed_selection: flagSelection must be an"
+                  + " object with optional tags and keyPatterns string lists). Loading the full flag"
+                  + " configuration."),
+          scope.messages());
+      assertEquals(
+          singletonList("flag_selection.dropped|1|malformed_selection"), scope.metrics.counts);
+    }
+  }
+
+  @Test
+  void noSelectionOfAJoiningProviderDoesNotDifferFromADroppedOne() throws Exception {
+    try (FlagSelectionScope scope = new FlagSelectionScope()) {
+      scope.acquire(FlagSelectionRequest.of(values(32), null));
+      scope.acquire(FlagSelectionRequest.NONE);
+
+      assertEquals(
+          singletonList(
+              "ERROR flagSelection was not sent (too_many_values: each list accepts at most 31"
+                  + " values). Loading the full flag configuration."),
+          scope.messages());
     }
   }
 

@@ -249,6 +249,14 @@ public final class FlagSelectionRequest {
     return !this.tags.isEmpty() || !this.keyPatterns.isEmpty();
   }
 
+  /**
+   * @return this selection if it selects flags, or {@link #NONE} if every flag loads, because there
+   *     is no selection or it is not sent.
+   */
+  public FlagSelectionRequest selectedFlags() {
+    return hasValues() ? this : NONE;
+  }
+
   List<String> tags() {
     return this.tags;
   }
