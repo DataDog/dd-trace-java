@@ -279,12 +279,11 @@ public class JvmOtlpRuntimeMetricsTest {
     synchronized (lock) {
       for (int i = 0; i < 3; i++) {
         Thread thread =
-            new Thread(
-                () -> {
-                  synchronized (lock) {
-                    // only contend for the lock
-                  }
-                });
+            new Thread(() -> {
+              synchronized (lock) {
+                // only contend for the lock
+              }
+            });
         thread.setDaemon(false);
         thread.start();
         threads.add(thread);
