@@ -25,9 +25,12 @@ public abstract class ExtractAdapter<T> implements AgentPropagation.ContextVisit
       return;
     }
     for (int i = 0; i < headers.size(); ++i) {
-      MessageBytes header = headers.getName(i);
-      MessageBytes value = headers.getValue(i);
-      if (!classifier.accept(messageBytesToString(header), messageBytesToString(value))) {
+      String name = messageBytesToString(headers.getName(i));
+      if (name == null) {
+        // an empty slot has no name to classify, and classifiers require one
+        continue;
+      }
+      if (!classifier.accept(name, messageBytesToString(headers.getValue(i)))) {
         return;
       }
     }
