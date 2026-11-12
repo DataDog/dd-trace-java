@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.aerospike4;
+package datadog.trace.instrumentation.aerospike6;
 
 import static datadog.trace.agent.test.assertions.SpanMatcher.span;
 import static datadog.trace.agent.test.assertions.TagsMatcher.defaultTags;

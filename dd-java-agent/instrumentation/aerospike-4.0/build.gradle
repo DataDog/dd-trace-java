@@ -5,6 +5,7 @@ plugins {
 
 muzzle {
   pass {
+    name = 'aerospike-4.0'
     group = 'com.aerospike'
     module = 'aerospike-client'
     versions = "[4,8)"
@@ -13,11 +14,6 @@ muzzle {
 }
 
 addTestSuiteForDir("latestDepTest", "test")
-addTestSuiteForDir("latest7DepTest", "test")
-
-sourceSets.named('latest7DepTest') {
-  java.srcDir 'src/latest7DepTest/java'
-}
 
 tasks.named("latestDepTest", Test) {
   testJvmConstraints {
@@ -32,8 +28,6 @@ dependencies {
   testImplementation group: 'com.aerospike', name: 'aerospike-client', version: '4.0.0'
   testImplementation libs.testcontainers
 
-  latest7DepTestImplementation group: 'com.aerospike', name: 'aerospike-client', version: '7.+'
-  latest7DepTestImplementation libs.mokito.core
   latestDepTestImplementation group: 'com.aerospike', name: 'aerospike-client', version: '+'
 }
 

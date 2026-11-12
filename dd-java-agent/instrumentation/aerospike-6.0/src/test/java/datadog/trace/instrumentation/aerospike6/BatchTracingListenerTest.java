@@ -1,14 +1,17 @@
-package datadog.trace.instrumentation.aerospike4;
+package datadog.trace.instrumentation.aerospike6;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyByte;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
@@ -19,16 +22,13 @@ import com.aerospike.client.ResultCode;
 import com.aerospike.client.listener.BatchOperateListListener;
 import com.aerospike.client.listener.BatchRecordArrayListener;
 import com.aerospike.client.listener.BatchRecordSequenceListener;
+import datadog.appsec.api.blocking.BlockingException;
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
 import datadog.context.ContextKey;
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.NoopContinuation;
-import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.lang.reflect.Proxy;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -40,7 +40,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 class BatchTracingListenerTest {
-  static Stream<Arguments> terminalCallbacksArguments() throws Exception {
+  static Stream<Arguments> terminalCallbacksArguments() {
     BatchRecord[] records = {
       new BatchRecord(new Key("test", "set", "present"), false),
       new BatchRecord(new Key("test", "set", "missing"), false)
@@ -49,39 +49,27 @@ class BatchTracingListenerTest {
     records[1].setError(ResultCode.KEY_NOT_FOUND_ERROR, false);
     AerospikeException error = new AerospikeException("batch failed");
     return Stream.of(
-        Arguments.of(
-            BatchRecordArrayListener.class.getMethod(
-                "onSuccess", BatchRecord[].class, boolean.class),
-            new Object[] {records, false}),
-        Arguments.of(
-            BatchRecordArrayListener.class.getMethod(
-                "onFailure", BatchRecord[].class, AerospikeException.class),
-            new Object[] {records, error}),
-        Arguments.of(
-            BatchOperateListListener.class.getMethod("onSuccess", List.class, boolean.class),
-            new Object[] {Arrays.asList(records), false}),
-        Arguments.of(
-            BatchOperateListListener.class.getMethod("onFailure", AerospikeException.class),
-            new Object[] {error}),
-        Arguments.of(BatchRecordSequenceListener.class.getMethod("onSuccess"), new Object[0]),
-        Arguments.of(
-            BatchRecordSequenceListener.class.getMethod("onFailure", AerospikeException.class),
-            new Object[] {error}));
+        Arguments.of(TerminalCallback.ARRAY_SUCCESS, new Object[] {records, false}),
+        Arguments.of(TerminalCallback.ARRAY_FAILURE, new Object[] {records, error}),
+        Arguments.of(TerminalCallback.LIST_SUCCESS, new Object[] {Arrays.asList(records), false}),
+        Arguments.of(TerminalCallback.LIST_FAILURE, new Object[] {error}),
+        Arguments.of(TerminalCallback.SEQUENCE_SUCCESS, new Object[0]),
+        Arguments.of(TerminalCallback.SEQUENCE_FAILURE, new Object[] {error}));
   }
 
   @ParameterizedTest
   @MethodSource("terminalCallbacksArguments")
-  void terminalCallbacksPreserveArgumentsAndContext(Method method, Object[] expected)
-      throws Throwable {
+  void terminalCallbacksPreserveArgumentsAndContext(TerminalCallback callback, Object[] expected) {
     Fixture fixture = new Fixture();
     AtomicInteger calls = new AtomicInteger();
     Object listener =
-        proxy(
-            method.getDeclaringClass(),
-            (proxy, callback, args) -> {
+        mock(
+            callback.type,
+            invocation -> {
               fixture.assertCapturedContext();
-              assertEquals(method, callback);
-              assertEquals(expected.length, args == null ? 0 : args.length);
+              verify(fixture.span).finish();
+              Object[] args = invocation.getArguments();
+              assertEquals(expected.length, args.length);
               for (int i = 0; i < expected.length; i++) {
                 if (expected[i] instanceof Boolean) {
                   assertEquals(expected[i], args[i]);
@@ -92,15 +80,14 @@ class BatchTracingListenerTest {
               calls.incrementAndGet();
               return null;
             });
-    Object wrapped = fixture.wrap(method.getDeclaringClass(), listener);
-    assertSame(method.getDeclaringClass().getClassLoader(), wrapped.getClass().getClassLoader());
+    BatchTracingListener wrapped = fixture.wrap(listener);
     try (ContextScope ignored = fixture.foreign.attach()) {
-      invoke(method, wrapped, expected);
+      callback.invoke(wrapped, expected);
       assertSame(fixture.foreign, Context.current());
     }
     assertEquals(1, calls.get());
     fixture.assertCompleted(1, 0);
-    if (method.getName().equals("onFailure")) {
+    if (callback.name().endsWith("FAILURE")) {
       verify(fixture.span).addThrowable(same((Throwable) expected[expected.length - 1]), anyByte());
     } else {
       verify(fixture.span, never()).addThrowable(any(Throwable.class), anyByte());
@@ -110,10 +97,10 @@ class BatchTracingListenerTest {
 
   @ParameterizedTest
   @MethodSource("terminalCallbacksArguments")
-  void nullDelegatesReleaseTheCapture(Method method, Object[] args) throws Throwable {
+  void nullDelegatesReleaseTheCapture(TerminalCallback callback, Object[] args) {
     Fixture fixture = new Fixture();
     try (ContextScope ignored = fixture.foreign.attach()) {
-      invoke(method, fixture.wrap(method.getDeclaringClass(), null), args);
+      callback.invoke(fixture.wrap(null), args);
       assertSame(fixture.foreign, Context.current());
     }
     fixture.assertCompleted(0, 1);
@@ -121,20 +108,20 @@ class BatchTracingListenerTest {
 
   @ParameterizedTest
   @MethodSource("terminalCallbacksArguments")
-  void terminalCallbackExceptionsKeepTheirIdentity(Method method, Object[] args) {
+  void terminalCallbackExceptionsKeepTheirIdentity(TerminalCallback callback, Object[] args) {
     Fixture fixture = new Fixture();
     IllegalStateException thrown = new IllegalStateException("delegate failed");
     Object listener =
-        proxy(
-            method.getDeclaringClass(),
-            (proxy, callback, arguments) -> {
+        mock(
+            callback.type,
+            invocation -> {
               fixture.assertCapturedContext();
               throw thrown;
             });
-    Object wrapped = fixture.wrap(method.getDeclaringClass(), listener);
+    BatchTracingListener wrapped = fixture.wrap(listener);
     try (ContextScope ignored = fixture.foreign.attach()) {
       assertSame(
-          thrown, assertThrows(IllegalStateException.class, () -> invoke(method, wrapped, args)));
+          thrown, assertThrows(IllegalStateException.class, () -> callback.invoke(wrapped, args)));
       assertSame(fixture.foreign, Context.current());
     }
     fixture.assertCompleted(1, 0);
@@ -169,8 +156,7 @@ class BatchTracingListenerTest {
             throw new AssertionError(exception);
           }
         };
-    BatchRecordSequenceListener wrapped =
-        (BatchRecordSequenceListener) fixture.wrap(BatchRecordSequenceListener.class, listener);
+    BatchRecordSequenceListener wrapped = fixture.wrap(listener);
     try (ContextScope ignored = fixture.foreign.attach()) {
       for (int index = 0; index < 3; index++) {
         final int current = index;
@@ -204,23 +190,22 @@ class BatchTracingListenerTest {
     BatchRecord record = new BatchRecord(new Key("test", "set", "key"), false);
     AtomicInteger calls = new AtomicInteger();
     IllegalStateException thrown = new IllegalStateException("record failed");
-    Object listener =
-        proxy(
+    BatchRecordSequenceListener listener =
+        mock(
             BatchRecordSequenceListener.class,
-            (proxy, method, args) -> {
+            invocation -> {
+              Object[] args = invocation.getArguments();
               assertSame(ambient, Context.current());
               assertSame(foreignSpan, AgentSpan.fromContext(Context.current()));
               assertEquals("foreign", Context.current().get(marker));
               calls.incrementAndGet();
-              if (throwsOnLastRecord && method.getName().equals("onRecord") && (int) args[1] == 2) {
+              if (throwsOnLastRecord && args.length == 2 && (int) args[1] == 2) {
                 throw thrown;
               }
               return null;
             });
     BatchRecordSequenceListener wrapped =
-        (BatchRecordSequenceListener)
-            new BatchTracingListener(span, NoopContinuation.INSTANCE, listener)
-                .proxy(BatchRecordSequenceListener.class);
+        new BatchTracingListener(span, NoopContinuation.INSTANCE, listener);
     try (ContextScope ignored = ambient.attach()) {
       wrapped.onRecord(record, 0);
       wrapped.onRecord(record, 1);
@@ -266,7 +251,7 @@ class BatchTracingListenerTest {
   @Test
   void abortedPartialSetupWithoutHandlerReleasesCaptureAndRestoresContext() {
     Fixture fixture = new Fixture();
-    IllegalStateException error = new IllegalStateException("proxy setup failed");
+    IllegalStateException error = new IllegalStateException("listener setup failed");
     try (ContextScope ignored = fixture.foreign.attach()) {
       ContextScope submission = fixture.captured.attach();
       BatchTracingListener.closeSubmission(
@@ -277,15 +262,142 @@ class BatchTracingListenerTest {
     verify(fixture.span).addThrowable(same(error), anyByte());
   }
 
-  private static Object proxy(Class<?> type, InvocationHandler handler) {
-    return Proxy.newProxyInstance(type.getClassLoader(), new Class<?>[] {type}, handler);
+  @Test
+  void combinedDelegateExposesEveryTypedCallbackIncludingSharedFailure() {
+    Fixture fixture = new Fixture();
+    CombinedListener listener =
+        mock(
+            CombinedListener.class,
+            invocation -> {
+              fixture.assertCapturedContext();
+              return null;
+            });
+    BatchTracingListener wrapped = fixture.wrap(listener);
+    BatchRecord record = new BatchRecord(new Key("test", "set", "key"), false);
+    BatchRecord[] records = {record};
+    List<BatchRecord> list = Arrays.asList(records);
+    AerospikeException error = new AerospikeException("batch failed");
+    try (ContextScope ignored = fixture.foreign.attach()) {
+      wrapped.onRecord(record, 7);
+      wrapped.onSuccess(records, false);
+      wrapped.onSuccess(list, false);
+      wrapped.onSuccess();
+      wrapped.onFailure(records, error);
+      ((BatchOperateListListener) wrapped).onFailure(error);
+      ((BatchRecordSequenceListener) wrapped).onFailure(error);
+      assertSame(fixture.foreign, Context.current());
+    }
+    verify(listener).onRecord(same(record), eq(7));
+    verify(listener).onSuccess(same(records), eq(false));
+    verify(listener).onSuccess(same(list), eq(false));
+    verify(listener).onSuccess();
+    verify(listener).onFailure(same(records), same(error));
+    verify(listener, times(2)).onFailure(same(error));
+    verify(fixture.span, never()).addThrowable(any(Throwable.class), anyByte());
+    fixture.assertCompleted(1, 0);
   }
 
-  private static void invoke(Method method, Object listener, Object[] args) throws Throwable {
-    try {
-      method.invoke(listener, args);
-    } catch (InvocationTargetException exception) {
-      throw exception.getCause();
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void firstTerminalOwnsCompletionBeforeDuplicateCallbackAndSubmissionAbort(boolean failureFirst) {
+    Fixture fixture = new Fixture();
+    AtomicInteger calls = new AtomicInteger();
+    BatchRecordSequenceListener listener =
+        mock(
+            BatchRecordSequenceListener.class,
+            invocation -> {
+              fixture.assertCapturedContext();
+              verify(fixture.span).finish();
+              calls.incrementAndGet();
+              return null;
+            });
+    BatchTracingListener wrapped = fixture.wrap(listener);
+    AerospikeException error = new AerospikeException("batch failed");
+    try (ContextScope ignored = fixture.foreign.attach()) {
+      if (failureFirst) {
+        wrapped.onFailure(error);
+        wrapped.onSuccess();
+      } else {
+        wrapped.onSuccess();
+        wrapped.onFailure(error);
+      }
+      ContextScope submission = fixture.captured.attach();
+      BatchTracingListener.closeSubmission(
+          submission, wrapped, fixture.continuation, fixture.span, error, true);
+      assertSame(fixture.foreign, Context.current());
+    }
+    assertEquals(2, calls.get());
+    fixture.assertCompleted(1, 0);
+    verify(fixture.span, times(failureFirst ? 1 : 0)).addThrowable(same(error), anyByte());
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void throwingErrorDecorationStillFinishesAndResumesOrReleasesCapture(boolean nullDelegate) {
+    Fixture fixture = new Fixture();
+    AerospikeException error = new AerospikeException("batch failed");
+    doThrow(new BlockingException("decoration failed"))
+        .when(fixture.span)
+        .addThrowable(same(error), anyByte());
+    BatchRecordSequenceListener listener =
+        mock(
+            BatchRecordSequenceListener.class,
+            invocation -> {
+              fixture.assertCapturedContext();
+              verify(fixture.span).finish();
+              return null;
+            });
+    try (ContextScope ignored = fixture.foreign.attach()) {
+      fixture.wrap(nullDelegate ? null : listener).onFailure(error);
+      assertSame(fixture.foreign, Context.current());
+    }
+    if (nullDelegate) {
+      verifyNoInteractions(listener);
+    } else {
+      verify(listener).onFailure(same(error));
+    }
+    fixture.assertCompleted(nullDelegate ? 0 : 1, nullDelegate ? 1 : 0);
+  }
+
+  interface CombinedListener
+      extends BatchRecordArrayListener, BatchOperateListListener, BatchRecordSequenceListener {}
+
+  private enum TerminalCallback {
+    ARRAY_SUCCESS(BatchRecordArrayListener.class),
+    ARRAY_FAILURE(BatchRecordArrayListener.class),
+    LIST_SUCCESS(BatchOperateListListener.class),
+    LIST_FAILURE(BatchOperateListListener.class),
+    SEQUENCE_SUCCESS(BatchRecordSequenceListener.class),
+    SEQUENCE_FAILURE(BatchRecordSequenceListener.class);
+
+    final Class<?> type;
+
+    TerminalCallback(Class<?> type) {
+      this.type = type;
+    }
+
+    @SuppressWarnings("unchecked")
+    void invoke(BatchTracingListener listener, Object[] args) {
+      switch (this) {
+        case ARRAY_SUCCESS:
+          listener.onSuccess((BatchRecord[]) args[0], (boolean) args[1]);
+          break;
+        case ARRAY_FAILURE:
+          listener.onFailure((BatchRecord[]) args[0], (AerospikeException) args[1]);
+          break;
+        case LIST_SUCCESS:
+          listener.onSuccess((List<BatchRecord>) args[0], (boolean) args[1]);
+          break;
+        case LIST_FAILURE:
+          ((BatchOperateListListener) listener).onFailure((AerospikeException) args[0]);
+          break;
+        case SEQUENCE_SUCCESS:
+          listener.onSuccess();
+          break;
+        case SEQUENCE_FAILURE:
+          ((BatchRecordSequenceListener) listener).onFailure((AerospikeException) args[0]);
+          break;
+      }
     }
   }
 
@@ -296,9 +408,8 @@ class BatchTracingListenerTest {
     final Context foreign = Context.root().with(MARKER, "foreign");
     final CountingContinuation continuation = new CountingContinuation(captured.capture());
 
-    Object wrap(Class<?> type, Object listener) {
-      BatchTracingListener.validate(type);
-      return new BatchTracingListener(span, continuation, listener).proxy(type);
+    BatchTracingListener wrap(Object listener) {
+      return new BatchTracingListener(span, continuation, listener);
     }
 
     void assertCapturedContext() {

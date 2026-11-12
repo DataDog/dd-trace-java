@@ -16,6 +16,11 @@ public final class AerospikeModule extends InstrumenterModule.Tracing {
   }
 
   @Override
+  public String muzzleDirective() {
+    return "aerospike-4.0";
+  }
+
+  @Override
   public List<Instrumenter> typeInstrumentations() {
     final List<Instrumenter> ret = new ArrayList<>(4);
     ret.add(new AerospikeClientInstrumentation());
