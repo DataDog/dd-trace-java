@@ -53,6 +53,9 @@ public abstract class TestNGUtils {
   private static final ComparableVersion testNGv75 = new ComparableVersion("7.5");
   private static final ComparableVersion testNGv70 = new ComparableVersion("7.0");
 
+  private static final boolean SUBCLASS_GROUPS_MISSING =
+      isSubclassGroupsMissing(getTestNGVersion());
+
   private static Class<?> getTestClass(final ITestResult result) {
     IClass testClass = result.getTestClass();
     if (testClass == null) {
@@ -109,8 +112,11 @@ public abstract class TestNGUtils {
     if (groups == null) {
       return null;
     }
-    // Some TestNG versions (e.g. 6.14) only take the class-level groups from the class declaring
-    // the method, missing the groups of the subclasses when the method is inherited
+    if (!SUBCLASS_GROUPS_MISSING) {
+      return Arrays.asList(groups);
+    }
+    // TestNG 6 only takes the class-level groups from the class declaring the method, missing the
+    // groups of the subclasses when the method is inherited
     List<String> classGroups = getClassGroups(getTestClass(result, method), method.getRealClass());
     if (classGroups.isEmpty()) {
       return Arrays.asList(groups);
@@ -303,6 +309,10 @@ public abstract class TestNGUtils {
   }
 
   public static boolean isTestStartMissingOnSkip(String version) {
+    return version != null && testNGv70.compareTo(new ComparableVersion(version)) > 0;
+  }
+
+  private static boolean isSubclassGroupsMissing(String version) {
     return version != null && testNGv70.compareTo(new ComparableVersion(version)) > 0;
   }
 
