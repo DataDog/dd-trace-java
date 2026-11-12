@@ -127,17 +127,16 @@ class AzureCosmosEmulatorForkedTest extends AbstractInstrumentationTest {
     long parentId;
     try (TestClient client = client(api)) {
       parentId =
-          runUnderParent(
-              () -> {
-                client.createDatabase(db);
-                client.createContainer(db);
-                client.createItem(db, new Item("item1", "created"));
-                client.readItem(db, "item1");
-                client.upsertItem(db, new Item("item1", "upserted"));
-                client.queryItems(db);
-                client.deleteItem(db, "item1");
-                client.deleteDatabase(db);
-              });
+          runUnderParent(() -> {
+            client.createDatabase(db);
+            client.createContainer(db);
+            client.createItem(db, new Item("item1", "created"));
+            client.readItem(db, "item1");
+            client.upsertItem(db, new Item("item1", "upserted"));
+            client.queryItems(db);
+            client.deleteItem(db, "item1");
+            client.deleteDatabase(db);
+          });
     }
 
     List<DDSpan> cosmosSpans = cosmosSpans(traceOf(parentId));
@@ -194,14 +193,13 @@ class AzureCosmosEmulatorForkedTest extends AbstractInstrumentationTest {
         client.createContainer(db);
         client.upsertItem(db, new Item("item1", "upserted"));
         parentId =
-            runUnderParent(
-                () -> {
-                  CosmosException thrown =
-                      assertThrows(
-                          CosmosException.class,
-                          () -> client.createItem(db, new Item("item1", "duplicate")));
-                  assertEquals(409, thrown.getStatusCode());
-                });
+            runUnderParent(() -> {
+              CosmosException thrown =
+                  assertThrows(
+                      CosmosException.class,
+                      () -> client.createItem(db, new Item("item1", "duplicate")));
+              assertEquals(409, thrown.getStatusCode());
+            });
       } finally {
         client.deleteDatabase(db);
       }
@@ -235,11 +233,10 @@ class AzureCosmosEmulatorForkedTest extends AbstractInstrumentationTest {
     long parentId;
     try (TestClient client = client(api)) {
       parentId =
-          runUnderParent(
-              () -> {
-                client.createDatabase(db);
-                client.deleteDatabase(db);
-              });
+          runUnderParent(() -> {
+            client.createDatabase(db);
+            client.deleteDatabase(db);
+          });
     }
 
     List<DDSpan> trace = traceOf(parentId);
