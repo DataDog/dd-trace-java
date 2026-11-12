@@ -115,7 +115,7 @@ internal object SupportedVersions {
           val ranges = matches
             .map { it.first }
             .filter { it.javaVersion == null || it.javaVersion <= javaVersion }
-            .map { normalizeRange(it.versions) }
+            .map { it.versions }
             .toSet()
           if (ranges.isEmpty()) return@mapNotNull null
           val tested = lockfile[libraryName].orEmpty()
@@ -168,15 +168,27 @@ internal object SupportedVersions {
     }
 
   /**
-   * Joins Maven ranges into one Maven range union. Versions excluded with `skipVersions` can't be expressed in a
-   * Maven range, so they are not reported.
+   * Merges Maven ranges into one Maven range union without overlapping intervals. Versions excluded with
+   * `skipVersions` can't be expressed in a Maven range, so they are not reported.
    */
   fun supportedRange(ranges: Set<String>): String {
-    if ("[,]" in ranges) return "*"
-    val sorted = ranges.sortedWith(compareBy { versionScheme.parseVersion(lowerBound(it)) })
-    if (sorted.size == 1) return sorted.single()
-    // A bare version is only valid alone in a Maven range union.
-    return sorted.joinToString(",") { if (it.first() == '[' || it.first() == '(') it else "[$it]" }
+    val intervals = ranges.flatMap { range ->
+      // A range can itself be a union, like "[1.9,1.16],[5,6)", and a bare version is the only allowed version.
+      INTERVAL.findAll(range).map { parseInterval(it.value) }.toList().ifEmpty { listOf(Interval(range, true, range, true)) }
+    }.sortedWith(Comparator { a, b -> compareLower(a, b) })
+    val merged = mutableListOf<Interval>()
+    intervals.forEach { next ->
+      val last = merged.lastOrNull()
+      if (last != null && overlaps(last, next)) {
+        if (compareUpper(next, last) > 0) {
+          merged[merged.size - 1] = last.copy(upper = next.upper, upperInclusive = next.upperInclusive)
+        }
+      } else {
+        merged += next
+      }
+    }
+    if (merged.size == 1 && merged[0].lower == null && merged[0].upper == null) return "*"
+    return merged.joinToString(",") { it.toString() }
   }
 
   fun sortVersions(versions: Collection<String>): List<String> =
@@ -218,8 +230,43 @@ internal object SupportedVersions {
 
   private fun JsonNode.texts(): Set<String> = map { it.asText() }.toSet()
 
-  private fun normalizeRange(range: String): String = range.filterNot { it.isWhitespace() }
+  private val INTERVAL = Regex("""[\[(][^\])]*[\])]""")
 
-  private fun lowerBound(range: String): String =
-    range.trimStart('[', '(').substringBefore(',').trimEnd(']', ')').ifEmpty { "0" }
+  /** A Maven range interval, where a `null` bound is unbounded. */
+  private data class Interval(val lower: String?, val lowerInclusive: Boolean, val upper: String?, val upperInclusive: Boolean) {
+    override fun toString(): String =
+      if (lower != null && lower == upper) {
+        "[$lower]"
+      } else {
+        "${if (lower != null && lowerInclusive) "[" else "("}${lower.orEmpty()},${upper.orEmpty()}${if (upper != null && upperInclusive) "]" else ")"}"
+      }
+  }
+
+  private fun parseInterval(interval: String): Interval {
+    val bounds = interval.substring(1, interval.length - 1).split(',').map { it.trim().ifEmpty { null } }
+    val upper = if (bounds.size == 1) bounds[0] else bounds[1]
+    return Interval(bounds[0], interval.first() == '[', upper, interval.last() == ']')
+  }
+
+  private fun compareVersions(a: String, b: String): Int =
+    versionScheme.parseVersion(a).compareTo(versionScheme.parseVersion(b))
+
+  private fun compareLower(a: Interval, b: Interval): Int = when {
+    a.lower == null -> if (b.lower == null) 0 else -1
+    b.lower == null -> 1
+    else -> compareVersions(a.lower, b.lower).takeIf { it != 0 } ?: compareValues(!a.lowerInclusive, !b.lowerInclusive)
+  }
+
+  private fun compareUpper(a: Interval, b: Interval): Int = when {
+    a.upper == null -> if (b.upper == null) 0 else 1
+    b.upper == null -> -1
+    else -> compareVersions(a.upper, b.upper).takeIf { it != 0 } ?: compareValues(a.upperInclusive, b.upperInclusive)
+  }
+
+  /** Whether [next], starting at or after [last], overlaps or touches it. */
+  private fun overlaps(last: Interval, next: Interval): Boolean {
+    if (last.upper == null || next.lower == null) return true
+    val cmp = compareVersions(next.lower, last.upper)
+    return cmp < 0 || (cmp == 0 && (last.upperInclusive || next.lowerInclusive))
+  }
 }

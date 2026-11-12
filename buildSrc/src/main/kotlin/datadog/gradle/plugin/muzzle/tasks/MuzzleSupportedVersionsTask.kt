@@ -7,9 +7,11 @@ import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.MapProperty
+import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.Classpath
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFile
+import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.PathSensitive
@@ -20,9 +22,14 @@ import java.net.URLClassLoader
 
 /** Writes this instrumentation's supported versions, see [SupportedVersions]. */
 abstract class MuzzleSupportedVersionsTask : AbstractMuzzleTask() {
-  /** The pass directives to report. */
   @get:Input
   abstract val reportDirectives: ListProperty<MuzzleDirective>
+
+  /** The pass directives with a range to report. */
+  @get:Internal
+  val reportingDirectives: Provider<List<MuzzleDirective>> = reportDirectives.map { directives ->
+    directives.filter { it.assertPass && it.isReportable && it.versions != null }
+  }
 
   @get:Classpath
   abstract val instrumentationClasspath: ConfigurableFileCollection
@@ -42,11 +49,13 @@ abstract class MuzzleSupportedVersionsTask : AbstractMuzzleTask() {
 
   init {
     description = "Generate this instrumentation's supported versions"
+    reportDirectives.convention(emptyList())
   }
 
   @TaskAction
   fun generate() {
-    if (reportDirectives.get().isEmpty()) {
+    val reporting = reportingDirectives.get()
+    if (reporting.isEmpty()) {
       SupportedVersions.writeFragments(supportedVersionsFile.get().asFile, emptyList())
       return
     }
@@ -54,7 +63,7 @@ abstract class MuzzleSupportedVersionsTask : AbstractMuzzleTask() {
     val directives = URLClassLoader(cp, null).use { cl ->
       val scanPlugin = cl.loadClass("datadog.trace.agent.tooling.muzzle.MuzzleVersionScanPlugin")
       val listMethod = scanPlugin.getMethod("listInstrumentationsEnabled", ClassLoader::class.java, String::class.java)
-      reportDirectives.get().map { directive ->
+      reporting.map { directive ->
         @Suppress("UNCHECKED_CAST")
         val integrations = listMethod.invoke(null, cl, directive.name) as Map<String, Boolean>
         SupportedVersions.Directive(

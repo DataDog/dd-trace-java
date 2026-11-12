@@ -84,8 +84,8 @@ class SupportedVersionsTest {
         "graphql-java",
         true,
         mapOf(
-          8 to RuntimeSupport(setOf("[20.0,21.0)"), setOf("20.0")),
-          11 to RuntimeSupport(setOf("[20.0,21.0)", "[21.0,22.0)"), setOf("20.0", "21.5")),
+          8 to RuntimeSupport(setOf("[20.0, 21.0)"), setOf("20.0")),
+          11 to RuntimeSupport(setOf("[20.0, 21.0)", "[21.0, 22.0)"), setOf("20.0", "21.5")),
         ),
       )
     )
@@ -142,17 +142,20 @@ class SupportedVersionsTest {
         "autoInstrumented" to true,
         "versions" to listOf(
           mapOf("testedRuntimes" to mapOf("java" to listOf("8", "11")), "supportedRange" to "[1,2)", "tested" to listOf("1.2")),
-          mapOf("testedRuntimes" to mapOf("java" to listOf("17")), "supportedRange" to "[1,2),[2,3)", "tested" to listOf("1.2", "1.10", "2.0")),
+          mapOf("testedRuntimes" to mapOf("java" to listOf("17")), "supportedRange" to "[1,3)", "tested" to listOf("1.2", "1.10", "2.0")),
         ),
       )
     )
   }
 
   @Test
-  fun `joins ranges into a Maven range union`() {
-    assertThat(SupportedVersions.supportedRange(setOf("[2.0,3)"))).isEqualTo("[2.0,3)")
-    assertThat(SupportedVersions.supportedRange(setOf("[2.0,3)", "(,1.0]", "[1.5,2.0)"))).isEqualTo("(,1.0],[1.5,2.0),[2.0,3)")
-    assertThat(SupportedVersions.supportedRange(setOf("1.0", "[2.0,)"))).isEqualTo("[1.0],[2.0,)")
+  fun `merges ranges into a Maven range union without overlaps`() {
+    assertThat(SupportedVersions.supportedRange(setOf("[2.0, 3)"))).isEqualTo("[2.0,3)")
+    assertThat(SupportedVersions.supportedRange(setOf("[2.0,3)", "(,1.0]", "[1.5,2.0)"))).isEqualTo("(,1.0],[1.5,3)")
+    assertThat(SupportedVersions.supportedRange(setOf("[14.0,20)", "[14.0,)", "[20.0,21.0)"))).isEqualTo("[14.0,)")
+    assertThat(SupportedVersions.supportedRange(setOf("[1.9,1.16],[5,6)", "[1.10,2)"))).isEqualTo("[1.9,2),[5,6)")
+    assertThat(SupportedVersions.supportedRange(setOf("[1,2)", "(2,3)"))).isEqualTo("[1,2),(2,3)")
+    assertThat(SupportedVersions.supportedRange(setOf("1.0", "[2.0,]"))).isEqualTo("[1.0],[2.0,)")
     assertThat(SupportedVersions.supportedRange(setOf("[,]", "[2.0,)"))).isEqualTo("*")
   }
 

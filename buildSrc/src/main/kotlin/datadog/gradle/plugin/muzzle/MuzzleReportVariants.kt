@@ -23,17 +23,16 @@ private fun AttributeContainer.verificationAttributes(objects: ObjectFactory, ty
 }
 
 /** Publishes the producer's output with its inferred task dependency. */
-fun Project.publishMuzzleReport(report: Provider<RegularFile>) {
-  configurations.consumable("muzzleReportElements") {
-    attributes.muzzleReportAttributes(objects)
-    outgoing.artifact(report)
-  }
-}
+fun Project.publishMuzzleReport(report: Provider<RegularFile>) =
+  publishVerificationArtifact("muzzleReportElements", MUZZLE_REPORT_TYPE, report)
 
 /** Publishes the producer's supported versions with its inferred task dependency. */
-fun Project.publishSupportedVersions(report: Provider<RegularFile>) {
-  configurations.consumable("supportedVersionsElements") {
-    attributes.supportedVersionsAttributes(objects)
+fun Project.publishSupportedVersions(report: Provider<RegularFile>) =
+  publishVerificationArtifact("supportedVersionsElements", SUPPORTED_VERSIONS_TYPE, report)
+
+private fun Project.publishVerificationArtifact(name: String, type: String, report: Provider<RegularFile>) {
+  configurations.consumable(name) {
+    attributes.verificationAttributes(objects, type)
     outgoing.artifact(report)
   }
 }
