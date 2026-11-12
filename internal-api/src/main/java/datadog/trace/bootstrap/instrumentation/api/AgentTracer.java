@@ -360,6 +360,21 @@ public class AgentTracer {
      */
     SpanBuilder singleSpanBuilder(String instrumentationName, CharSequence spanName);
 
+    /**
+     * Returns a SpanBuilder seeded from a {@link SpanPrototype}, like {@link
+     * #buildSpan(SpanPrototype, CharSequence)}, that produces one and only one span, so it can be
+     * cheaper (see {@link #singleSpanBuilder(String, CharSequence)}). {@code operationName}
+     * overrides the prototype's when non-null.
+     *
+     * <p>This default seeds identity only, like {@link #buildSpan(SpanPrototype, CharSequence)}'s.
+     */
+    default SpanBuilder singleSpanBuilder(
+        @Nonnull SpanPrototype prototype, CharSequence operationName) {
+      return singleSpanBuilder(
+          prototype.instrumentationName(),
+          operationName != null ? operationName : prototype.operationName());
+    }
+
     void close();
 
     /**

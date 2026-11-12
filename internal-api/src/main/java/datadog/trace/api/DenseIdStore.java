@@ -6,6 +6,7 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import javax.annotation.Nullable;
 
 /**
  * The dense {@link IdStore}: known tags in two parallel arrays -- each tag's 16-bit serial and its
@@ -223,7 +224,24 @@ final class DenseIdStore extends IdStore {
   /** The frozen parent's id store, or null. */
   final DenseIdStore parent;
 
+  /**
+   * The per-operation hint this store was presized from, and that {@link #recordSize} tunes, or
+   * null. Held here rather than on the span so a span with the dense store off carries no field for
+   * it.
+   */
+  @Nullable private final SizingHint hint;
+
   DenseIdStore(IdStore parent) {
+    this(parent, null);
+  }
+
+  /**
+   * Like {@link #DenseIdStore(IdStore)}, with the arrays allocated up front at {@code hint}'s size.
+   * A span's store presized this way never grows on its first tag, so {@link #grow} stays off the
+   * write path. A null hint, or one not yet seeded (a racy reader can see 0), keeps the shared
+   * empty arrays.
+   */
+  DenseIdStore(IdStore parent, @Nullable SizingHint hint) {
     DenseIdStore dense = (DenseIdStore) parent;
     this.parent = dense;
     if (dense == null) {
@@ -232,6 +250,14 @@ final class DenseIdStore extends IdStore {
     } else {
       this.inheritedMask = dense.spanOccupancy | dense.traceOccupancy | dense.inheritedMask;
       this.inheritedLevels = (byte) (dense.localLevels() | dense.inheritedLevels);
+    }
+    this.hint = hint;
+    if (hint != null) {
+      int cap = hint.size; // read the racy field once
+      if (cap > 0) {
+        this.serials = new char[cap];
+        this.values = new Object[cap];
+      }
     }
   }
 
@@ -281,6 +307,70 @@ final class DenseIdStore extends IdStore {
   void markTombstone(long bit, int level) {
     this.tombstoneMask |= bit;
     this.tombstoneLevels |= (byte) level;
+  }
+
+  /**
+   * The bulk seed: when {@code source} is a parentless dense store with no tombstones and its
+   * occupancy words share no bit with this store's (live, tombstoned or inherited, per level), none
+   * of its tags can be present here, so its serials and values are appended with two array copies
+   * and its occupancy ORed in. The occupancy words over-approximate presence, so a shared bit only
+   * means "maybe present" and falls back to the caller's tag-by-tag seed.
+   */
+  @Override
+  public boolean supportsBulkSeed() {
+    return true;
+  }
+
+  @Override
+  public boolean seedAbsent(IdStore source) {
+    if (!(source instanceof DenseIdStore)) {
+      return false;
+    }
+    DenseIdStore src = (DenseIdStore) source;
+    int n = src.used;
+    if (src.parent != null || n != src.count) {
+      return false; // read-through or tombstones: not a plain list of tags
+    }
+    long maybeHere = this.tombstoneMask | this.inheritedMask;
+    if ((src.spanOccupancy & (this.spanOccupancy | maybeHere)) != 0L
+        || (src.traceOccupancy & (this.traceOccupancy | maybeHere)) != 0L) {
+      return false;
+    }
+    if (n == 0) {
+      return true;
+    }
+    int used = this.used;
+    if (used + n > this.serials.length) {
+      this.growTo(used + n);
+    }
+    System.arraycopy(src.serials, 0, this.serials, used, n);
+    System.arraycopy(src.values, 0, this.values, used, n);
+    this.used = used + n;
+    this.count += n;
+    this.spanOccupancy |= src.spanOccupancy;
+    this.traceOccupancy |= src.traceOccupancy;
+    return true;
+  }
+
+  /** Grows the arrays to hold at least {@code minCapacity} slots. Rare, so kept out of line. */
+  private void growTo(int minCapacity) {
+    int newCap =
+        Math.max(minCapacity, Math.min(this.serials.length << 1, KnownTagCodec.serialLimit()));
+    this.serials = Arrays.copyOf(this.serials, newCap);
+    this.values = Arrays.copyOf(this.values, newCap);
+  }
+
+  @Override
+  public void recordSize() {
+    // Capped hints (the shared overflow) are fixed: unlike sharers mustn't grow them. Best-effort
+    // racy max; a benign plain-int write.
+    SizingHint hint = this.hint;
+    if (hint != null && !hint.capped) {
+      int used = this.used;
+      if (used > hint.size) {
+        hint.size = used;
+      }
+    }
   }
 
   /**
@@ -402,11 +492,11 @@ final class DenseIdStore extends IdStore {
         this.markLocal(bit, level);
         this.count++;
       }
-      this.values[i] = entryReader.objectValue();
     } else {
       prior = this.mayInherit(bit, level) ? this.parent.getVisible(serial, bit, level) : null;
-      this.append(serial, bit, level, entryReader.objectValue());
+      i = this.appendSlot(serial, bit, level);
     }
+    this.values[i] = entryReader.objectValue(); // the one reference store; see store
     return readerOf(tagId, prior);
   }
 
@@ -446,7 +536,8 @@ final class DenseIdStore extends IdStore {
           this.values[i] = TOMBSTONE;
           this.count--;
         } else {
-          this.appendSlot(serial, TOMBSTONE);
+          int slot = this.reserveSlot(serial); // first: it may replace this.values
+          this.values[slot] = TOMBSTONE;
         }
         this.markTombstone(bit, level);
         return local != null ? local : inherited;
@@ -465,35 +556,43 @@ final class DenseIdStore extends IdStore {
     long bit = slotBit(tagId);
     int level = levelOf(tagId);
     int i = this.mayHaveLocal(bit, level) ? this.indexOf(serial) : -1;
+    Object prior;
     if (i >= 0) {
-      Object prior = this.values[i];
-      this.values[i] = value;
+      prior = this.values[i];
       if (prior == TOMBSTONE) {
+        prior = null; // a tombstone replaced is a removal undone: no prior local value
         this.markLocal(bit, level);
-        this.count++; // a tombstone replaced is a removal undone: no prior local value
-        return null;
+        this.count++;
       }
-      return prior;
+    } else {
+      prior = null;
+      i = this.appendSlot(serial, bit, level);
     }
-    this.append(serial, bit, level, value);
-    return null;
+    // The one reference store on this path. Under G1 (before JDK 24's late barrier expansion) C2
+    // expands each reference-store site's write barriers inline, roughly 250 bytes apiece, so the
+    // overwrite and append paths share this store rather than each having their own: that keeps
+    // the setters that inline this small enough to inline into their callers.
+    this.values[i] = value;
+    return prior;
   }
 
-  /** Appends a live local tag. */
-  private void append(char serial, long bit, int level, Object value) {
-    this.appendSlot(serial, value);
+  /** Reserves a slot for a new live local tag, returning its index; the caller stores the value. */
+  private int appendSlot(char serial, long bit, int level) {
+    int i = this.reserveSlot(serial);
     this.markLocal(bit, level);
     this.count++;
+    return i;
   }
 
-  private void appendSlot(char serial, Object value) {
+  /** Reserves the next slot for {@code serial}, returning its index; its value is left unset. */
+  private int reserveSlot(char serial) {
     int i = this.used;
     if (i == this.serials.length) {
       this.grow();
     }
     this.serials[i] = serial;
-    this.values[i] = value;
     this.used = i + 1;
+    return i;
   }
 
   /** Removes slot {@code i}, swapping the last slot into its place. The masks stay as they were. */
@@ -524,11 +623,9 @@ final class DenseIdStore extends IdStore {
     if (length == 0) {
       this.serials = new char[INIT_CAP];
       this.values = new Object[INIT_CAP];
-      return;
+    } else {
+      this.growTo(length + 1); // doubles, bounded by the serial limit
     }
-    int newCap = Math.max(Math.min(length << 1, KnownTagCodec.serialLimit()), length + 1);
-    this.serials = Arrays.copyOf(this.serials, newCap);
-    this.values = Arrays.copyOf(this.values, newCap);
   }
 
   /**
@@ -631,7 +728,7 @@ final class DenseIdStore extends IdStore {
   }
 
   @Override
-  void forEach(Consumer<? super EntryReader> consumer) {
+  public void forEach(Consumer<? super EntryReader> consumer) {
     DenseReader reader = new DenseReader();
     for (DenseIdStore level = this; level != null; level = level.parent) {
       for (int i = 0; i < level.used; ++i) {
@@ -643,7 +740,7 @@ final class DenseIdStore extends IdStore {
   }
 
   @Override
-  <T> void forEach(T thisObj, BiConsumer<T, ? super EntryReader> consumer) {
+  public <T> void forEach(T thisObj, BiConsumer<T, ? super EntryReader> consumer) {
     DenseReader reader = new DenseReader();
     for (DenseIdStore level = this; level != null; level = level.parent) {
       for (int i = 0; i < level.used; ++i) {
@@ -665,7 +762,8 @@ final class DenseIdStore extends IdStore {
   }
 
   @Override
-  <T, U> void forEach(T thisObj, U otherObj, TriConsumer<T, U, ? super EntryReader> consumer) {
+  public <T, U> void forEach(
+      T thisObj, U otherObj, TriConsumer<T, U, ? super EntryReader> consumer) {
     DenseReader reader = new DenseReader();
     for (DenseIdStore level = this; level != null; level = level.parent) {
       for (int i = 0; i < level.used; ++i) {
