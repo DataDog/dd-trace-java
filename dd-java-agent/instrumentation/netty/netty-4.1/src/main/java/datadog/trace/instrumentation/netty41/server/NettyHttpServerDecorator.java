@@ -128,7 +128,7 @@ public class NettyHttpServerDecorator
     super.doOnError(span, throwable, errorPriority);
   }
 
-  private static boolean isNettyNativeClientAbort(final Throwable throwable) {
+  static boolean isNettyNativeClientAbort(final Throwable throwable) {
     if (throwable == null
         || !NETTY_NATIVE_IO_EXCEPTION_CLASS_NAME.equals(throwable.getClass().getName())) {
       return false;
