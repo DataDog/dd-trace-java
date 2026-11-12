@@ -113,7 +113,9 @@ public class AgentStub {
   }
 
   private static void reply(HttpExchange exchange, int status, byte[] body) throws IOException {
-    exchange.getResponseHeaders().set("Content-Type", "application/json");
+    // OTLP/http (/v1/traces etc.) answers with protobuf; an empty body is an empty Export*Response.
+    boolean otlp = exchange.getRequestURI().getPath().startsWith("/v1/");
+    exchange.getResponseHeaders().set("Content-Type", otlp ? "application/x-protobuf" : "application/json");
     exchange.getResponseHeaders().set("Datadog-Agent-State", agentState);
     exchange.sendResponseHeaders(status, body.length == 0 ? -1 : body.length);
     if (body.length > 0) {
