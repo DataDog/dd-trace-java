@@ -2,14 +2,77 @@ package datadog.trace.bootstrap.instrumentation.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTimeout;
 
 import datadog.trace.bootstrap.instrumentation.api.URIUtils.LazyUrl;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.time.Duration;
+import java.util.Arrays;
 import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
 class URIUtilsTest {
+
+  @TableTest({
+    "Scenario          | Raw query                           | Expected query                     ",
+    "No query          |                                     |                                    ",
+    "Empty query       | ''                                  | ''                                 ",
+    "Plain query       | a=1&b=2                             | a=1&b=2                            ",
+    "Encoded name      | t%6fken=secret                      | token=secret                       ",
+    "Encoded ampersand | token=first%26SECOND_HALF&view=full | token=first%26SECOND_HALF&view=full",
+    "Encoded fragment  | q=one%23two                         | q=one%23two                        ",
+    "Mixed delimiters  | a=1&b=x%26y%23z&c=3                 | a=1&b=x%26y%23z&c=3                ",
+    "Double encoding   | q=%2526%2523                        | q=%26%23                           ",
+    "Bracketed escapes | q=[a%26b%23c]&view=full             | q=[a%26b%23c]&view=full            ",
+    "Mixed brackets    | q=%5B[a%26b]&token=x%26y            | q=[[a%26b]&token=x%26y             ",
+    "Unclosed bracket  | q=[a%26b&view=full                  | q=[a%26b&view=full                 ",
+    "Nested brackets   | q=[[a%26b]]&r=[[c%23d]]             | q=[[a%26b]]&r=[[c%23d]]            ",
+    "Unicode           | q=é%26%C3%A9                        | q=é%26é                            ",
+    "Spaces            | q=a%20b                             | 'q=a b'                            "
+  })
+  void preservesEncodedQueryDelimiters(String rawQuery, String expectedQuery) {
+    URI uri = URI.create("http://host/" + (rawQuery == null ? "" : "?" + rawQuery));
+
+    assertEquals(
+        expectedQuery, URIUtils.preserveQueryDelimiters(uri.getRawQuery(), uri.getQuery()));
+  }
+
+  @TableTest({
+    "Scenario            | Raw query | Decoded query | Expected query",
+    "Raw unavailable     |           | q=a&b         | q=a&b         ",
+    "Decoded unavailable | q=a%26b   |               |               ",
+    "Inconsistent query  | q=a%26b   | q=ab          |               ",
+    "Plus as space       | q=a+b%26c | 'q=a b&c'     | 'q=a b%26c'   ",
+    "Malformed escape    | q=%GG%26b | q=�&b         | q=�%26b       "
+  })
+  void preservesDelimitersWithAlternativeDecoders(
+      String rawQuery, String decodedQuery, String expectedQuery) {
+    assertEquals(expectedQuery, URIUtils.preserveQueryDelimiters(rawQuery, decodedQuery));
+  }
+
+  @TableTest({
+    "Scenario | Suffix",
+    "Closed   | '%20]'",
+    "Unclosed | '%20' "
+  })
+  void preservesDelimitersInBracketHeavyQueries(String suffix) {
+    char[] brackets = new char[1_000_000];
+    Arrays.fill(brackets, '[');
+    String bracketedQuery = "q=" + new String(brackets) + suffix;
+    String rawQuery = bracketedQuery + "&token=a%26b";
+    String expectedQuery = rawQuery.replace("%20", " ");
+    String decodedQuery = expectedQuery.replace("%26", "&");
+
+    assertTimeout(
+        Duration.ofSeconds(5),
+        () -> {
+          // Java 8 leaves bracketed escapes intact; newer decoders decode them.
+          assertEquals(
+              bracketedQuery, URIUtils.preserveQueryDelimiters(bracketedQuery, bracketedQuery));
+          assertEquals(expectedQuery, URIUtils.preserveQueryDelimiters(rawQuery, decodedQuery));
+        });
+  }
 
   @TableTest({
     "scenario             | input                         | expected              ",

@@ -2,7 +2,8 @@ import datadog.gradle.plugin.instrument.BuildTimeInstrumentationExtension
 
 plugins {
   id("dd-trace-java.conventions.java")
-  id("de.thetaphi.forbiddenapis")
+  id("dd-trace-java.conventions.testing.groovy")
+  id("dd-trace-java.conventions.forbidden-apis")
 }
 
 // These plugins are produced by buildSrc and are only available at runtime.
@@ -26,10 +27,7 @@ configurations.named("muzzleBootstrap") {
 tasks.withType<Javadoc>().configureEach { enabled = false }
 
 forbiddenApis {
-  signaturesFiles = files(
-    "$rootDir/gradle/forbiddenApiFilters/main.txt",
-    "$rootDir/gradle/forbiddenApiFilters/instrumentation.txt"
-  )
+  signaturesFiles += files(rootDir.resolve("gradle/forbiddenApiFilters/instrumentation.txt"))
 }
 
 val libs = versionCatalogs.named("libs")
@@ -75,7 +73,7 @@ dependencies {
 }
 
 tasks.withType<Test>().configureEach {
-  if (name in listOf("latestDepTest", "latestDepForkedTest", "latestDepTestForkedTest")) {
+  if (name in listOf("latestDepTest", "latestDepForkedTest")) {
     jvmArgs("-Dtest.dd.latestDepTest=true")
   }
 }

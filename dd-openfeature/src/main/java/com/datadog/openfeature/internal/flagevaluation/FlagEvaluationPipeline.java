@@ -1,8 +1,11 @@
 package com.datadog.openfeature.internal.flagevaluation;
 
+import static com.datadog.openfeature.internal.EventPipeline.awaitThread;
+
+import com.datadog.openfeature.internal.EventPipeline;
 import com.datadog.openfeature.internal.EventQueue;
 import com.datadog.openfeature.internal.RuntimeServices;
-import com.datadog.openfeature.internal.bridge.EventTransport;
+import com.datadog.openfeature.internal.bridge.v1.EventTransport;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.List;
@@ -38,7 +41,7 @@ import org.slf4j.LoggerFactory;
  * the worker has been joined, counting any remainder as a closed drop so shutdown loss is
  * observable rather than silent.
  */
-public class FlagEvaluationPipeline implements FlagEvaluationWriter, AutoCloseable {
+public class FlagEvaluationPipeline implements FlagEvaluationWriter, EventPipeline {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FlagEvaluationPipeline.class);
 
@@ -122,37 +125,32 @@ public class FlagEvaluationPipeline implements FlagEvaluationWriter, AutoCloseab
   }
 
   @Override
-  public void close() {
-    final boolean workerRunning;
+  public void requestShutdown() {
     synchronized (lifecycleLock) {
-      if (!closed.compareAndSet(false, true)) {
-        return;
-      }
-      workerRunning = this.serializerThread.isAlive();
-      if (workerRunning) {
-        // Ask the worker to drain the queue and final-flush, then interrupt to wake it from poll().
+      if (closed.compareAndSet(false, true)) {
+        // The worker polls every 100 ms: do not interrupt a current or final HTTP request.
         serializer.requestShutdown();
-        this.serializerThread.interrupt();
+        // Logged last: a diagnostic must not keep the worker from being signaled.
+        LOGGER.debug("Feature Flags flag evaluation shutdown requested");
       }
     }
+  }
+
+  @Override
+  public void awaitTermination(final long deadlineNanos) {
     if (Thread.currentThread() == this.serializerThread) {
       return;
     }
-    if (workerRunning) {
-      try {
-        // Bounded wait for the worker's final flush so queued events are not lost on shutdown.
-        this.serializerThread.join(TimeUnit.SECONDS.toMillis(5));
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-      }
-    }
+    awaitThread(this.serializerThread, deadlineNanos);
     // enqueue() is lock-free, so a producer that passed the closed check before close() ran can
     // still land an event after the worker's final drain. Sweep the remainder so that loss is
     // counted rather than silently stranded in a queue nobody polls again. Only safe once the
     // worker is gone: the queue is single-consumer, so sweeping alongside a live worker would
-    // break that contract. If join() timed out the worker is still draining, so skip the sweep.
-    if (!this.serializerThread.isAlive()) {
-      sweepAndCountResidualEvents();
+    // break that contract. If the wait timed out the worker is still draining, so skip the sweep.
+    synchronized (lifecycleLock) {
+      if (!this.serializerThread.isAlive()) {
+        sweepAndCountResidualEvents();
+      }
     }
   }
 
@@ -222,6 +220,10 @@ public class FlagEvaluationPipeline implements FlagEvaluationWriter, AutoCloseab
   /** Test seam: returns one queued event without starting the worker. */
   FlagEvalEvent pollQueuedEventForTest() {
     return queue.poll();
+  }
+
+  boolean isSerializerThreadAlive() {
+    return serializerThread.isAlive();
   }
 
   /** Test seam: flushes serializer state without starting the worker. */
@@ -294,12 +296,10 @@ public class FlagEvaluationPipeline implements FlagEvaluationWriter, AutoCloseab
         // On exit (interrupt or shutdown request), drain everything still buffered and flush it so
         // queued events are not lost on shutdown.
         //
-        // close() interrupts this thread to break it out of poll(). The final flush does socket
-        // I/O, which fails fast on a thread whose interrupt flag is set, so clear the flag
-        // for the duration of the drain and restore it afterwards. Without this the flush that
-        // close() exists to guarantee throws IOException, the aggregated rows are discarded by
-        // the clear() in flush(), and the loss is invisible to the drop counters because those
-        // rows already left the queue.
+        // Normal close only signals shutdown. If an unrelated interrupt ends the duty cycle, clear
+        // it during the final socket I/O and restore it afterwards: the flush otherwise fails
+        // fast, the aggregated rows are discarded by the clear() in flush(), and the loss is
+        // invisible to the drop counters because those rows already left the queue.
         final boolean wasInterrupted = Thread.interrupted();
         try {
           drainAndFlush();
@@ -412,6 +412,10 @@ public class FlagEvaluationPipeline implements FlagEvaluationWriter, AutoCloseab
         }
         for (final byte[] payload : payloads.bodies) {
           transport.post(FLAG_EVALUATION_ROUTE, payload);
+        }
+        if (!payloads.bodies.isEmpty()) {
+          LOGGER.debug(
+              "Feature Flags flag evaluation flush delivered: payloads={}", payloads.bodies.size());
         }
       } catch (Exception e) {
         LOGGER.error("Could not submit flag evaluations", e);

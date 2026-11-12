@@ -10,8 +10,11 @@ import static datadog.trace.lambda.LambdaEventParser.parseResponse;
 import datadog.logging.RatelimitedLogger;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.DDTraceId;
+import datadog.trace.api.KnownTags;
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.TagMap;
+import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.appsec.AppSecContext;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.gateway.BlockResponseFunction;
@@ -21,6 +24,7 @@ import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.internal.TraceSegment;
+import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
@@ -31,11 +35,13 @@ import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.URIUtils;
+import datadog.trace.bootstrap.instrumentation.api.http.ClientIpAddressResolver;
 import datadog.trace.lambda.LambdaEventParser.LambdaRequestData;
 import datadog.trace.lambda.LambdaEventParser.LambdaResponseData;
 import datadog.trace.lambda.LambdaEventParser.LambdaTriggerType;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.net.InetAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
@@ -61,6 +67,13 @@ public class LambdaAppSecHandler {
    * unreadable (not a {@code ByteArrayInputStream}, empty, oversized, or unparseable).
    */
   private static final String UNSUPPORTED_EVENT_TYPE_METRIC = "_dd.appsec.unsupported_event_type";
+
+  /**
+   * Identifies tracer-based AppSec to the usage extractor as {@code client_tracer_based:true}. Set
+   * before trigger checks because it identifies the implementation, not whether the event was
+   * analysed, matching dd-trace-py's {@code on_span_start}.
+   */
+  private static final String SERVERLESS_TRACER_METRIC = "_dd.appsec.serverless.tracer";
 
   // Carries the detected trigger type from processRequestStart to processResponseData within the
   // same Lambda invocation. Cleared in processRequestEnd.
@@ -131,12 +144,18 @@ public class LambdaAppSecHandler {
     LambdaTriggerType triggerType = CURRENT_TRIGGER_TYPE.get();
     CURRENT_TRIGGER_TYPE.remove();
 
-    if (!ActiveSubsystems.APPSEC_ACTIVE || span == null || triggerType == null) {
+    if (!ActiveSubsystems.APPSEC_ACTIVE || span == null) {
       return;
     }
 
+    span.setMetric(SERVERLESS_TRACER_METRIC, 1);
+
     // A null trigger type means processRequestStart never ran, so the invocation was not analysed
     // at all, which is not the same as an unsupported trigger.
+    if (triggerType == null) {
+      return;
+    }
+
     if (!triggerType.isHttp()) {
       span.setMetric(UNSUPPORTED_EVENT_TYPE_METRIC, 1);
       return;
@@ -334,14 +353,16 @@ public class LambdaAppSecHandler {
     }
 
     if (req.host != null) {
-      // No query string: QueryObfuscator obfuscates DDTags.HTTP_QUERY and re-appends it here.
+      // QueryObfuscator sanitizes the separate query tag before appending it to this URL.
       ctx.putTag(
           Tags.HTTP_URL, URIUtils.buildURL(url.scheme(), url.host(), url.port(), url.path()));
     }
 
     String query = url.rawQuery();
     if (query != null && !query.isEmpty() && Config.get().isHttpServerTagQueryString()) {
-      ctx.putTag(DDTags.HTTP_QUERY, query);
+      ctx.putTag(
+          Config.get().isTraceOtelSemanticsEnabled() ? KnownTags.URL_QUERY_NAME : DDTags.HTTP_QUERY,
+          query);
     }
 
     String userAgent = findHeader(req.headers, "user-agent");
@@ -378,11 +399,11 @@ public class LambdaAppSecHandler {
       return null;
     }
 
-    TagContext tagContext = new TagContext();
-    Object appSecRequestContext;
+    TagContext tagContext = createRequestTagContext(eventData);
+    String clientIp = tagContext.getTags().getString(Tags.HTTP_CLIENT_IP);
 
     // Call requestStarted
-    appSecRequestContext = requestStartedCallback.get().getResult();
+    Object appSecRequestContext = requestStartedCallback.get().getResult();
     tagContext.withRequestContextDataAppSec(appSecRequestContext);
 
     if (appSecRequestContext != null) {
@@ -417,19 +438,32 @@ public class LambdaAppSecHandler {
         }
       }
 
-      // Call requestClientSocketAddress
-      if (eventData.sourceIp != null) {
-        datadog.trace.api.function.TriFunction<RequestContext, String, Integer, Flow<Void>>
-            socketAddrCallback =
-                tracer
-                    .getCallbackProvider(RequestContextSlot.APPSEC)
-                    .getCallback(EVENTS.requestClientSocketAddress());
-        if (socketAddrCallback != null) {
-          Integer port = eventData.sourcePort != null ? eventData.sourcePort : 0;
-          socketAddrCallback.apply(requestContext, eventData.sourceIp, port);
-        } else {
-          log.debug("requestClientSocketAddress callback is null");
+      // Publish the inferred address before the socket address can trigger WAF evaluation.
+      if (clientIp != null) {
+        BiFunction<RequestContext, String, Flow<Void>> inferredAddrCallback =
+            tracer
+                .getCallbackProvider(RequestContextSlot.APPSEC)
+                .getCallback(EVENTS.requestInferredClientAddress());
+        if (inferredAddrCallback != null) {
+          inferredAddrCallback.apply(requestContext, clientIp);
         }
+      }
+
+      // Call requestClientSocketAddress even when no source IP is available.
+      datadog.trace.api.function.TriFunction<RequestContext, String, Integer, Flow<Void>>
+          socketAddrCallback =
+              tracer
+                  .getCallbackProvider(RequestContextSlot.APPSEC)
+                  .getCallback(EVENTS.requestClientSocketAddress());
+      if (socketAddrCallback != null) {
+        Integer port = eventData.sourcePort != null ? eventData.sourcePort : 0;
+        String sourceIp = eventData.sourceIp;
+        if (sourceIp == null || sourceIp.isEmpty()) {
+          sourceIp = "0.0.0.0";
+        }
+        socketAddrCallback.apply(requestContext, sourceIp, port);
+      } else {
+        log.debug("requestClientSocketAddress callback is null");
       }
 
       // Call requestHeaderDone
@@ -484,6 +518,44 @@ public class LambdaAppSecHandler {
       }
     }
     return tagContext;
+  }
+
+  /** Creates the request context, resolving the client address with HTTP server precedence. */
+  private static TagContext createRequestTagContext(LambdaRequestData eventData) {
+    Config config = Config.get();
+    if (!config.isClientIpEnabled() && !config.isTraceClientIpResolverEnabled()) {
+      return new TagContext();
+    }
+    TagContext.HttpHeaders headers = new TagContext.HttpHeaders();
+    headers.xForwardedFor = findHeader(eventData.headers, "x-forwarded-for");
+    headers.xRealIp = findHeader(eventData.headers, "x-real-ip");
+    headers.trueClientIp = findHeader(eventData.headers, "true-client-ip");
+    headers.xClientIp = findHeader(eventData.headers, "x-client-ip");
+    headers.forwarded = findHeader(eventData.headers, "forwarded");
+    headers.forwardedFor = findHeader(eventData.headers, "forwarded-for");
+    headers.xClusterClientIp = findHeader(eventData.headers, "x-cluster-client-ip");
+    headers.fastlyClientIp = findHeader(eventData.headers, "fastly-client-ip");
+    headers.cfConnectingIp = findHeader(eventData.headers, "cf-connecting-ip");
+    headers.cfConnectingIpv6 = findHeader(eventData.headers, "cf-connecting-ipv6");
+    String customHeader = config.getTraceClientIpHeader();
+    if (customHeader != null) {
+      headers.customIpHeader = findHeader(eventData.headers, customHeader);
+    }
+    TagContext extracted =
+        new TagContext(
+            null,
+            null,
+            headers,
+            null,
+            PrioritySampling.UNSET,
+            null,
+            TracePropagationStyle.NONE,
+            DDTraceId.ZERO);
+    InetAddress inferred = ClientIpAddressResolver.resolve(extracted, null, eventData.sourceIp);
+    if (inferred != null) {
+      extracted.putTag(Tags.HTTP_CLIENT_IP, inferred.getHostAddress());
+    }
+    return extracted;
   }
 
   /** Sets the current trigger type thread-local. Package-private for use in tests only. */

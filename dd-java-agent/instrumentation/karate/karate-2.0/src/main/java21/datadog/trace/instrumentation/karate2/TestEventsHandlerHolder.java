@@ -8,7 +8,7 @@ import datadog.trace.api.internal.VisibleForTesting;
 
 public abstract class TestEventsHandlerHolder {
 
-  public static volatile TestEventsHandler<TestSuiteDescriptor, TestDescriptor> TEST_EVENTS_HANDLER;
+  static volatile TestEventsHandler<TestSuiteDescriptor, TestDescriptor> TEST_EVENTS_HANDLER;
 
   static {
     start();

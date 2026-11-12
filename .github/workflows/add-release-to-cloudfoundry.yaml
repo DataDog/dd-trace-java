@@ -49,7 +49,7 @@ jobs:
           git add --all
           git commit -m "chore: Add version ${{ steps.get-release-version.outputs.VERSION }} to Cloud Foundry"
       - name: Push changes
-        uses: DataDog/commit-headless@79367f840e221d63cb28a359de97833cdfde81dd # action/v3.4.0
+        uses: DataDog/commit-headless@d6afabfd690ea1dbdd7d368acbefd71304928699 # action/v3.4.1
         with:
           branch: cloudfoundry
           command: push

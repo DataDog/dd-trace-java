@@ -59,7 +59,8 @@ final class InstrumenterIndex {
 
   /**
    * Bit to signal that the module needs to be early loaded regardless its applicability (i.e. it is
-   * instance of <code>ExcludeFilterProvider</code> or <code>JavaModuleOpenProvider</code>)
+   * instance of <code>
+   * ExcludeFilterProvider</code> or <code>JavaModuleOpenProvider</code>)
    */
   private static final int NEEDS_EARLY_LOAD_FLAG = 0x02;
 

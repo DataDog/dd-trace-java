@@ -17,14 +17,14 @@ import org.junit.jupiter.api.Test;
 class TagMapTagHashTest {
   @Test
   void aKnownTagHashesToItsIdHoweverItIsSet() {
-    TagMap.Entry byId = TagMap.Entry.newAnyEntry(KnownTags.HTTP_METHOD_ID, "GET");
+    TagMap.Entry byId = TagMap.Entry.newAnyEntry(KnownTags.HTTP_METHOD, "GET");
     TagMap.Entry byName = TagMap.anyEntryFor(KnownTags.HTTP_METHOD_NAME, "GET");
     TagMap.Entry byOtelName = TagMap.anyEntryFor(KnownTags.HTTP_METHOD_OTEL_NAME, "GET");
 
-    assertEquals(KnownTags.HTTP_METHOD_ID, byId.tagHash);
-    assertEquals(KnownTags.HTTP_METHOD_ID, byName.tagHash);
-    assertEquals(KnownTags.HTTP_METHOD_ID, byOtelName.tagHash);
-    assertEquals(KnownTags.HTTP_METHOD_ID, byName.tagId());
+    assertEquals(KnownTags.HTTP_METHOD, byId.tagHash);
+    assertEquals(KnownTags.HTTP_METHOD, byName.tagHash);
+    assertEquals(KnownTags.HTTP_METHOD, byOtelName.tagHash);
+    assertEquals(KnownTags.HTTP_METHOD, byName.tagId());
   }
 
   @Test
@@ -56,8 +56,8 @@ class TagMapTagHashTest {
   void theBucketHashOfAKnownTagCarriesItsSerial() {
     // Folding from bit 32 would leave the serial above any bucket mask; it must come from bit 48.
     assertNotEquals(
-        TagMap.Entry.bucketHash(KnownTags.HTTP_METHOD_ID) & 0xFF,
-        TagMap.Entry.bucketHash(KnownTags.HTTP_ROUTE_ID) & 0xFF);
+        TagMap.Entry.bucketHash(KnownTags.HTTP_METHOD) & 0xFF,
+        TagMap.Entry.bucketHash(KnownTags.HTTP_ROUTE) & 0xFF);
   }
 
   @Test
@@ -66,7 +66,7 @@ class TagMapTagHashTest {
     for (long tagId : knownTagIds()) {
       assertNotEquals(0, TagMap.Entry.bucketHash(tagId), Long.toHexString(tagId));
     }
-    assertNotEquals(0, TagMap.Entry.bucketHash(KnownTags.DD_DJM_ENABLED_ID));
+    assertNotEquals(0, TagMap.Entry.bucketHash(KnownTags.DD_DJM_ENABLED));
   }
 
   @Test
@@ -103,7 +103,7 @@ class TagMapTagHashTest {
   @Test
   void lookupsFindEntriesSetEitherWay() {
     TagMap map = TagMap.create();
-    map.set(KnownTags.HTTP_STATUS_CODE_ID, 5432);
+    map.set(KnownTags.HTTP_STATUS_CODE, 5432);
     map.set("my.custom.tag", "value");
 
     assertEquals(5432, map.getEntry(KnownTags.HTTP_STATUS_CODE_NAME).intValue());

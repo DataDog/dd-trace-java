@@ -15,6 +15,7 @@ import datadog.trace.lambda.LambdaEventParser.LambdaTriggerType;
 import java.util.ArrayList;
 import java.util.HashMap;
 import org.junit.jupiter.api.Test;
+import org.tabletest.junit.TableTest;
 
 /** Unit tests for the host and route extraction that feeds the HTTP span tags. */
 class LambdaEventParserTest {
@@ -312,18 +313,35 @@ class LambdaEventParserTest {
     assertEquals("curl/8.1", findHeader(data.headers, "user-agent"));
   }
 
-  @Test
-  void capitalisedCookieHeaderIsMergedWithTheV2CookiesArray() {
-    // The merge in extractHeadersWithCookies looks up "cookie", which only matches once keys are
-    // lowercased at extraction — an API Gateway v1 style "Cookie" used to be left as a second entry
-    LambdaRequestData data =
-        parseEvent(
-            "{\"headers\": {\"Cookie\": \"a=1\"}, \"cookies\": [\"b=2\"], \"requestContext\":"
-                + " {\"domainName\": \"api.example.com\", \"http\": {\"method\": \"GET\","
-                + " \"path\": \"/\"}}}");
+  @TableTest({
+    "Scenario                   | Headers                            | Cookies              | Expected Cookie",
+    "array only                 | '{}'                               | '[\"a=1\", \"b=2\"]' | 'a=1; b=2'     ",
+    "duplicate lowercase header | '{\"cookie\": \"a=1; b=2\"}'       | '[\"a=1\", \"b=2\"]' | 'a=1; b=2'     ",
+    "duplicate capitalised      | '{\"Cookie\": \"a=1; b=2\"}'       | '[\"a=1\", \"b=2\"]' | 'a=1; b=2'     ",
+    "array overrides header     | '{\"Cookie\": \"header=ignored\"}' | '[\"a=1\", \"b=2\"]' | 'a=1; b=2'     ",
+    "repeated names preserved   | '{\"Cookie\": \"a=1; a=2\"}'       | '[\"a=1\", \"a=2\"]' | 'a=1; a=2'     ",
+    "repeated values preserved  | '{\"Cookie\": \"a=1; a=1\"}'       | '[\"a=1\", \"a=1\"]' | 'a=1; a=1'     ",
+    "absent array fallback      | '{\"Cookie\": \"a=1\"}'            |                      | 'a=1'          ",
+    "empty array fallback       | '{\"Cookie\": \"a=1\"}'            | '[]'                 | 'a=1'          ",
+    "null array fallback        | '{\"Cookie\": \"a=1\"}'            | 'null'               | 'a=1'          "
+  })
+  void v2CookiesArrayTakesPrecedenceOverHeader(
+      String headersJson, String cookiesJson, String expectedCookie) {
+    for (String domainName : asList("api.example.com", "abc.lambda-url.eu-west-1.on.aws")) {
+      String cookiesField = cookiesJson == null ? "" : "\"cookies\": " + cookiesJson + ",";
+      LambdaRequestData data =
+          parseEvent(
+              "{\"headers\": "
+                  + headersJson
+                  + ","
+                  + cookiesField
+                  + "\"requestContext\": {\"domainName\": \""
+                  + domainName
+                  + "\", \"http\": {\"method\": \"GET\", \"path\": \"/\"}}}");
 
-    assertEquals("a=1; b=2", findHeader(data.headers, "cookie"));
-    assertEquals(1, data.headers.size());
+      assertEquals(expectedCookie, findHeader(data.headers, "cookie"), domainName);
+      assertEquals(1, data.headers.size(), domainName);
+    }
   }
 
   @Test

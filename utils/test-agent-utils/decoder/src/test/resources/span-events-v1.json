@@ -1,0 +1,134 @@
+[
+  [
+    {
+      "service": "probe",
+      "name": "internal",
+      "resource": "probe-span",
+      "span_id": 5036070619896663290,
+      "parent_id": 0,
+      "start": 1792414083893647083,
+      "duration": 3332208,
+      "error": 0,
+      "meta": {
+        "span.kind": "internal",
+        "service": "probe",
+        "language": "jvm"
+      },
+      "metrics": {},
+      "type": "",
+      "span_links": [],
+      "span_events": [
+        {
+          "time_unix_nano": 1792414083896152583,
+          "name": "plain",
+          "attributes": {}
+        },
+        {
+          "time_unix_nano": 1792414083896513708,
+          "name": "typed",
+          "attributes": {
+            "bools": {
+              "type": 4,
+              "array_value": {
+                "values": [
+                  {
+                    "type": 1,
+                    "bool_value": true
+                  },
+                  {
+                    "type": 1,
+                    "bool_value": false
+                  }
+                ]
+              }
+            },
+            "str": {
+              "type": 0,
+              "string_value": "value"
+            },
+            "longs": {
+              "type": 4,
+              "array_value": {
+                "values": [
+                  {
+                    "type": 2,
+                    "int_value": 1
+                  },
+                  {
+                    "type": 2,
+                    "int_value": 2
+                  }
+                ]
+              }
+            },
+            "bool": {
+              "type": 1,
+              "bool_value": true
+            },
+            "strs": {
+              "type": 4,
+              "array_value": {
+                "values": [
+                  {
+                    "type": 0,
+                    "string_value": "a"
+                  },
+                  {
+                    "type": 0,
+                    "string_value": "b"
+                  }
+                ]
+              }
+            },
+            "doubles": {
+              "type": 4,
+              "array_value": {
+                "values": [
+                  {
+                    "type": 3,
+                    "double_value": 1.5
+                  },
+                  {
+                    "type": 3,
+                    "double_value": 2.5
+                  }
+                ]
+              }
+            },
+            "double": {
+              "type": 3,
+              "double_value": 12.5
+            },
+            "whole": {
+              "type": 3,
+              "double_value": 2.0
+            },
+            "int": {
+              "type": 2,
+              "int_value": 42
+            }
+          }
+        },
+        {
+          "time_unix_nano": 1792414083896975500,
+          "name": "exception",
+          "attributes": {
+            "exception.stacktrace": {
+              "type": 0,
+              "string_value": "java.lang.IllegalStateException: boom\n\tat Probe.main(Probe.java:15)\n"
+            },
+            "exception.type": {
+              "type": 0,
+              "string_value": "java.lang.IllegalStateException"
+            },
+            "exception.message": {
+              "type": 0,
+              "string_value": "boom"
+            }
+          }
+        }
+      ],
+      "trace_id": 5991716161018019997
+    }
+  ]
+]

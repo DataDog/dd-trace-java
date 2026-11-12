@@ -125,7 +125,8 @@ public class TraceV1 implements DecodedTrace {
               metrics,
               span.getMeta(),
               span.getMetaStruct(),
-              span.getLinks());
+              span.getLinks(),
+              span.getEvents());
     }
     return updated;
   }

@@ -1,5 +1,6 @@
 import datadog.trace.agent.test.base.HttpClientTest
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
+import datadog.trace.agent.test.naming.TestingOtelHttpSemantics
 import datadog.trace.instrumentation.apachehttpclient.ApacheHttpClientDecorator
 import org.apache.http.HttpHost
 import org.apache.http.HttpRequest
@@ -194,4 +195,8 @@ class ApacheClientUriRequestResponseHandlerContextV0ForkedTest extends ApacheCli
 
 @Timeout(5)
 class ApacheClientUriRequestResponseHandlerContextV1ForkedTest extends ApacheClientUriRequestResponseHandlerContext implements TestingGenericHttpNamingConventions.ClientV1 {
+}
+
+@Timeout(5)
+class ApacheClientOtelSemanticsForkedTest extends ApacheClientUriRequestResponseHandlerContext implements TestingOtelHttpSemantics {
 }

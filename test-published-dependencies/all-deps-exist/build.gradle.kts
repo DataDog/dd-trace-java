@@ -11,6 +11,7 @@ dependencies {
   implementation("com.datadoghq:dd-java-agent:$version")
   implementation("com.datadoghq:dd-trace-api:$version")
   implementation("com.datadoghq:dd-trace-ot:$version")
+  implementation("com.datadoghq:dd-openfeature:$version")
 }
 
 application {

@@ -16,12 +16,8 @@ addTestSuite('executorTest')
 
 addTestSuiteForDir('latestDep4Test', 'test')
 addTestSuiteForDir('latestDepTest', 'test')
-addForkedTestTask('latestDep4Test')
-addForkedTestTask('latestDepTest')
 addTestSuiteForDir('netty4144Test', 'test')
 addTestSuiteForDir('legacyNettyTest', 'test')
-addForkedTestTask('netty4144Test')
-addForkedTestTask('legacyNettyTest')
 
 ['netty4144Test', 'legacyNettyTest'].each { name ->
   tasks.named(name, Test) {
@@ -31,7 +27,7 @@ addForkedTestTask('legacyNettyTest')
   }
 }
 
-['netty4144TestForkedTest', 'legacyNettyTestForkedTest'].each { name ->
+['netty4144ForkedTest', 'legacyNettyForkedTest'].each { name ->
   tasks.named(name, Test) {
     filter {
       includeTestsMatching 'executor.NettyScheduledFutureTaskCancellationForkedTest'
@@ -45,7 +41,8 @@ dependencies {
   compileOnly group: 'io.netty', name: 'netty-common', version: '4.0.0.Final'
 
   testImplementation project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
-  testImplementation group: 'io.netty', name: 'netty-all', version: '4.0.0.Final'
+  // Avoid the GlobalEventExecutor lost-wakeup race fixed in Netty commit 28b8573.
+  testImplementation 'io.netty:netty-all:4.0.4.Final'
   testImplementation group: 'io.grpc', name: 'grpc-netty-shaded', version: '1.58.0'
 
   latestDep4TestImplementation group: 'io.netty', name: 'netty-all', version: '4.+'

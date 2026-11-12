@@ -5,8 +5,10 @@ import datadog.trace.agent.test.asserts.TagsAssert
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.agent.test.server.http.HttpProxy
+import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
+import datadog.trace.api.KnownTags
 import datadog.trace.api.appsec.HttpClientRequest
 import datadog.trace.api.appsec.HttpClientResponse
 import datadog.trace.api.config.TracerConfig
@@ -16,6 +18,7 @@ import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
+import datadog.trace.bootstrap.instrumentation.api.OtelHttpSemantics
 import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.URIUtils
@@ -990,10 +993,14 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
   boolean ignorePeer = false,
   Map<String, Serializable> extraTags = null) {
 
+    def otelSemantics = Config.get().isTraceOtelSemanticsEnabled()
     def expectedQuery = tagQueryString ? uri.query : null
     def expectedUrl = URIUtils.buildURL(uri.scheme, uri.host, uri.port, uri.path)
     if (expectedQuery != null && !expectedQuery.empty) {
       expectedUrl = "$expectedUrl?$expectedQuery"
+    }
+    if (otelSemantics && emitsUrlFragment() && uri.rawFragment != null) {
+      expectedUrl = "$expectedUrl#$uri.rawFragment"
     }
     trace.span {
       if (parentSpan == null) {
@@ -1005,9 +1012,9 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
         serviceName uri.host
       }
       operationName operation()
-      resourceName "$method $uri.path"
+      resourceName otelSemantics ? OtelHttpSemantics.spanNameMethod(method) : "$method $uri.path"
       spanType DDSpanTypes.HTTP_CLIENT
-      errored error
+      errored otelSemantics && status != null && status >= 400 ? true : error
       measured true
       tags {
         "$Tags.COMPONENT" component
@@ -1019,14 +1026,19 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
           it == null || it == "127.0.0.1" || ignorePeer
         } // Optional
         "$Tags.PEER_PORT" {
-          it == null || it == uri.port || it == proxy.port || it == 443 || ignorePeer
+          otelSemantics
+          ? it == OtelHttpSemantics.serverPort(uri)
+          : (it == null || it == uri.port || it == proxy.port || it == 443 || ignorePeer)
         }
         "$Tags.HTTP_URL" expectedUrl
         "$Tags.HTTP_METHOD" method
         if (status) {
           "$Tags.HTTP_STATUS" status
         }
-        if (tagQueryString) {
+        if (otelSemantics) {
+          "$KnownTags.HTTP_QUERY_STRING_NAME" null
+          "$DDTags.HTTP_FRAGMENT" null
+        } else if (tagQueryString) {
           "$DDTags.HTTP_QUERY" expectedQuery
           "$DDTags.HTTP_FRAGMENT" {
             it == null || it == uri.fragment
@@ -1041,9 +1053,15 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
         }
         if (exception) {
           this.assertErrorTags(it, exception)
+        } else if (otelSemantics && status != null && status >= 400) {
+          "$DDTags.ERROR_TYPE" status.toString()
         }
-        peerServiceFrom(Tags.PEER_HOSTNAME)
-        defaultTags()
+        if (otelSemantics) {
+          defaultTagsNoPeerService()
+        } else {
+          peerServiceFrom(Tags.PEER_HOSTNAME)
+          defaultTags()
+        }
         if (extraTags) {
           it.addTags(extraTags)
         }
@@ -1092,6 +1110,10 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
   boolean testCallbackWithParent() {
     // FIXME: this hack is here because callback with parent is broken in play-ws when the stream()
     // function is used.  There is no way to stop a test from a derived class hence the flag
+    true
+  }
+
+  boolean emitsUrlFragment() {
     true
   }
 

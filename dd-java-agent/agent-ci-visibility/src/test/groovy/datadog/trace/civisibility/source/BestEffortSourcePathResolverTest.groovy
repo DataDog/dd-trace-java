@@ -55,5 +55,39 @@ class BestEffortSourcePathResolverTest extends Specification {
     paths.isEmpty()
   }
 
+  def "test get resource paths from second delegate when first returns empty"() {
+    setup:
+    def expectedPaths = ["src/test/resources/test.feature"]
+    def delegate = Stub(SourcePathResolver)
+    def secondDelegate = Stub(SourcePathResolver)
+    def resolver = new BestEffortSourcePathResolver(delegate, secondDelegate)
+
+    delegate.getResourcePaths("test.feature") >> []
+    secondDelegate.getResourcePaths("test.feature") >> expectedPaths
+
+    when:
+    def paths = resolver.getResourcePaths("test.feature")
+
+    then:
+    paths == expectedPaths
+  }
+
+  def "test failed to get resource paths from both delegates"() {
+    setup:
+    def delegate = Stub(SourcePathResolver)
+    def secondDelegate = Stub(SourcePathResolver)
+    def resolver = new BestEffortSourcePathResolver(delegate, secondDelegate)
+
+    delegate.getResourcePaths("test.feature") >> []
+    secondDelegate.getResourcePaths("test.feature") >> []
+
+    when:
+    def paths = resolver.getResourcePaths("test.feature")
+
+    then:
+    paths != null
+    paths.isEmpty()
+  }
+
   private static final class TestClass {}
 }

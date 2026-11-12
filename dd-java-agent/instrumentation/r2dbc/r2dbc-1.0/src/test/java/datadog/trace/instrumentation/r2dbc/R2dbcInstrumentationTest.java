@@ -21,6 +21,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.instrumentation.r2dbc.shaded.proxy.core.QueryExecutionInfo;
 import datadog.trace.instrumentation.r2dbc.shaded.proxy.core.ValueStore;
 import datadog.trace.test.junit.utils.assertions.Matcher;
+import io.r2dbc.spi.Batch;
 import io.r2dbc.spi.Connection;
 import io.r2dbc.spi.ConnectionFactories;
 import io.r2dbc.spi.ConnectionFactory;
@@ -159,6 +160,70 @@ class R2dbcInstrumentationTest extends AbstractInstrumentationTest {
                     tag(Tags.SPAN_KIND, eqs(Tags.SPAN_KIND_CLIENT)),
                     tag(Tags.DB_TYPE, eqs("h2")),
                     tag(Tags.DB_OPERATION, eqs("INSERT")),
+                    tag(Tags.DB_INSTANCE, any()),
+                    tag("_dd.svc_src", any()),
+                    defaultTags())));
+  }
+
+  @Test
+  void largeBatchOfDistinctStatementsHasOneNormalizedResource() {
+    // Distinct inlined values in every statement, as in the report for #12932
+    Batch batch = connection.createBatch();
+    for (int i = 0; i < 10_000; i++) {
+      batch.add("INSERT INTO test_table (id, name) VALUES (" + i + ", 'name-" + i + "')");
+    }
+
+    AgentSpan parent = startSpan("test", "parent");
+    try (ContextScope scope = activateSpan(parent)) {
+      Flux.from(batch.execute()).flatMap(Result::getRowsUpdated).blockLast();
+    } finally {
+      parent.finish();
+    }
+
+    assertBatchSpan("INSERT INTO test_table (id, name) VALUES (?, ?)", "INSERT");
+  }
+
+  @Test
+  void batchResourceListsDistinctStatementTemplates() {
+    AgentSpan parent = startSpan("test", "parent");
+    try (ContextScope scope = activateSpan(parent)) {
+      Flux.from(
+              connection
+                  .createBatch()
+                  .add("INSERT INTO test_table (id, name) VALUES (1, 'a')")
+                  .add("INSERT INTO test_table (id, name) VALUES (2, 'b')")
+                  .add("UPDATE test_table SET name = 'c' WHERE id = 1")
+                  .add("DELETE FROM test_table WHERE id = 2")
+                  .execute())
+          .flatMap(Result::getRowsUpdated)
+          .blockLast();
+    } finally {
+      parent.finish();
+    }
+
+    assertBatchSpan(
+        "INSERT INTO test_table (id, name) VALUES (?, ?); "
+            + "UPDATE test_table SET name = ? WHERE id = ?; "
+            + "DELETE FROM test_table WHERE id = ?",
+        "INSERT");
+  }
+
+  private void assertBatchSpan(String resource, String operation) {
+    assertTraces(
+        trace(
+            SORT_BY_START_TIME,
+            span().root().operationName("parent"),
+            span()
+                .childOfPrevious()
+                .operationName(H2_QUERY)
+                .resourceName(eqs(resource))
+                .type(DDSpanTypes.SQL)
+                .measured()
+                .tags(
+                    tag(Tags.COMPONENT, eqs("r2dbc")),
+                    tag(Tags.SPAN_KIND, eqs(Tags.SPAN_KIND_CLIENT)),
+                    tag(Tags.DB_TYPE, eqs("h2")),
+                    tag(Tags.DB_OPERATION, eqs(operation)),
                     tag(Tags.DB_INSTANCE, any()),
                     tag("_dd.svc_src", any()),
                     defaultTags())));

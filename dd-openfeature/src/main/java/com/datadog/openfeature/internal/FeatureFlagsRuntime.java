@@ -2,9 +2,10 @@ package com.datadog.openfeature.internal;
 
 import static com.datadog.openfeature.internal.config.Settings.CONFIGURATION_SOURCE_REMOTE_CONFIG;
 
-import com.datadog.openfeature.internal.bridge.AgentBridge;
-import com.datadog.openfeature.internal.bridge.ConfigurationSource;
-import com.datadog.openfeature.internal.bridge.EventTransport;
+import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
+import com.datadog.openfeature.internal.bridge.v1.ConfigurationSource;
+import com.datadog.openfeature.internal.bridge.v1.EventTransport;
+import com.datadog.openfeature.internal.bridge.v1.ShutdownSource;
 import com.datadog.openfeature.internal.config.Settings;
 import com.datadog.openfeature.internal.delivery.CdnConfigurationSource;
 import com.datadog.openfeature.internal.delivery.DirectIntakeTransport;
@@ -16,10 +17,12 @@ import com.datadog.openfeature.internal.exposure.ExposurePipeline;
 import com.datadog.openfeature.internal.flagevaluation.FlagEvaluationPipeline;
 import com.datadog.openfeature.internal.ufc.ServerConfiguration;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -27,7 +30,9 @@ import org.slf4j.LoggerFactory;
 
 /**
  * The Feature Flags runtime: configuration delivery and event pipelines. A single runtime is shared
- * by all the providers of a class loader, and stopped when the last one releases it.
+ * by all the providers of a class loader, and stopped when the last one releases it, or when the
+ * application shuts down: by the Datadog Java agent shutdown when attached, or by a JVM shutdown
+ * hook otherwise.
  */
 public final class FeatureFlagsRuntime {
   private static final Logger LOGGER = LoggerFactory.getLogger(FeatureFlagsRuntime.class);
@@ -42,6 +47,8 @@ public final class FeatureFlagsRuntime {
   @Nullable private final FlagEvaluationPipeline evaluations;
   private final List<Consumer<ServerConfiguration>> listeners = new CopyOnWriteArrayList<>();
   private volatile ServerConfiguration configuration;
+  private final AtomicBoolean stopped = new AtomicBoolean();
+  @Nullable private volatile AutoCloseable shutdownRegistration;
 
   FeatureFlagsRuntime(
       final ConfigurationService source,
@@ -66,6 +73,7 @@ public final class FeatureFlagsRuntime {
       if (shared == null) {
         final FeatureFlagsRuntime created = create(bridge, settings);
         created.start();
+        created.registerShutdown(bridge);
         shared = created;
       }
       references++;
@@ -92,16 +100,19 @@ public final class FeatureFlagsRuntime {
       throw new IllegalStateException("Feature Flags is disabled");
     }
     final boolean remoteConfig = CONFIGURATION_SOURCE_REMOTE_CONFIG.equals(sourceName);
+    LOGGER.debug("Feature Flags runtime starting: configurationSource={}", sourceName);
     final RuntimeServices services = new RuntimeServices(bridge.healthMetrics());
     final ConfigurationService source;
     final EventTransport transport;
     if (remoteConfig) {
-      // TODO Support Remote Configuration without the Datadog Java agent.
-      final ConfigurationSource remoteConfiguration = bridge.remoteConfiguration();
+      final ConfigurationSource remoteConfiguration;
+      try {
+        remoteConfiguration = bridge.remoteConfiguration();
+      } catch (final LinkageError e) {
+        throw new RemoteConfigurationUnavailableException(e);
+      }
       if (remoteConfiguration == null) {
-        throw new IllegalStateException(
-            "Feature Flags Remote Configuration source requires the Datadog Java agent with"
-                + " Remote Configuration enabled");
+        throw new RemoteConfigurationUnavailableException(null);
       }
       source = new RemoteConfigurationService(remoteConfiguration);
       // Remote Configuration never falls back to direct intake.
@@ -139,7 +150,23 @@ public final class FeatureFlagsRuntime {
                 context,
                 services)
             : null;
+    LOGGER.debug(
+        "Feature Flags event delivery: transport={}, exposures={}, evaluationCounts={}",
+        transport.getClass().getSimpleName(),
+        exposures != null ? "enabled" : "disabled",
+        evaluations != null ? "enabled" : "disabled");
     return new FeatureFlagsRuntime(source, exposures, evaluations);
+  }
+
+  /** Signals an unavailable RC connector before any runtime resources have been started. */
+  public static final class RemoteConfigurationUnavailableException extends IllegalStateException {
+    private RemoteConfigurationUnavailableException(@Nullable final LinkageError cause) {
+      super(
+          "Feature Flags Remote Configuration requires a compatible Datadog Java agent with"
+              + " Remote Configuration enabled; attach a compatible agent or configure"
+              + " DD_FEATURE_FLAGS_CONFIGURATION_SOURCE=agentless for CDN delivery",
+          cause);
+    }
   }
 
   private static Map<String, String> eventContext(final Settings settings) {
@@ -172,24 +199,96 @@ public final class FeatureFlagsRuntime {
     }
   }
 
+  /**
+   * Stops the runtime at application shutdown: through the agent when it supports it, otherwise
+   * through a JVM shutdown hook.
+   *
+   * @param bridge the bridge to the Datadog Java agent.
+   */
+  void registerShutdown(final AgentBridge bridge) {
+    AutoCloseable registration = null;
+    try {
+      final ShutdownSource shutdown = bridge.shutdown();
+      if (shutdown != null) {
+        registration = shutdown.subscribe(this::stop);
+      }
+    } catch (final RuntimeException | LinkageError e) {
+      LOGGER.debug("Could not subscribe to the agent shutdown, using a JVM shutdown hook", e);
+    }
+    this.shutdownRegistration = registration == null ? addShutdownHook() : registration;
+  }
+
+  @Nullable
+  private AutoCloseable addShutdownHook() {
+    final Thread hook = new Thread(this::stop, "dd-openfeature-shutdown");
+    try {
+      Runtime.getRuntime().addShutdownHook(hook);
+    } catch (final IllegalStateException | SecurityException e) {
+      LOGGER.debug("Could not register the Feature Flags shutdown hook", e);
+      return null;
+    }
+    return () -> {
+      if (Thread.currentThread() != hook) {
+        Runtime.getRuntime().removeShutdownHook(hook);
+      }
+    };
+  }
+
   void stop() {
-    this.source.close();
+    if (!this.stopped.compareAndSet(false, true)) {
+      return;
+    }
+    final AutoCloseable registration = this.shutdownRegistration;
+    if (registration != null) {
+      try {
+        registration.close();
+      } catch (final Exception e) {
+        // The JVM is already shutting down, or the agent backend is gone.
+      }
+    }
+    // Signal both pipelines before waiting for either, so they flush in parallel within one budget.
+    final long deadline = EventPipeline.shutdownDeadline();
     if (this.evaluations != null) {
-      this.evaluations.close();
+      this.evaluations.requestShutdown();
     }
     if (this.exposures != null) {
-      this.exposures.close();
+      this.exposures.requestShutdown();
     }
+    this.source.close();
+    if (this.evaluations != null) {
+      this.evaluations.awaitTermination(deadline);
+    }
+    if (this.exposures != null) {
+      this.exposures.awaitTermination(deadline);
+    }
+    // Logged last: a diagnostic must not get in the way of the cleanup.
+    LOGGER.debug("Feature Flags runtime stopped");
   }
 
   private void onConfiguration(@Nullable final ServerConfiguration configuration) {
-    this.configuration = configuration;
-    for (final Consumer<ServerConfiguration> listener : this.listeners) {
+    final Iterator<Consumer<ServerConfiguration>> snapshot;
+    synchronized (this.listeners) {
+      this.configuration = configuration;
+      snapshot = this.listeners.iterator();
+    }
+    while (snapshot.hasNext()) {
+      final Consumer<ServerConfiguration> listener = snapshot.next();
       try {
         listener.accept(configuration);
       } catch (final RuntimeException e) {
         LOGGER.warn("Feature Flags configuration listener failed", e);
       }
+    }
+    // Logged last: a diagnostic must not keep the configuration from being applied.
+    if (configuration == null) {
+      LOGGER.debug("Feature Flags configuration removed");
+    } else if (LOGGER.isDebugEnabled()) {
+      LOGGER.debug(
+          "Feature Flags configuration applied: flags={}, invalidFlags={}, configurationEnv={}, createdAt={}",
+          configuration.flags == null ? "missing" : configuration.flags.size(),
+          configuration.invalidFlags == null ? 0 : configuration.invalidFlags.size(),
+          configuration.environment == null ? null : configuration.environment.name,
+          configuration.createdAt);
     }
   }
 
@@ -199,10 +298,13 @@ public final class FeatureFlagsRuntime {
    * @param listener the listener to add.
    */
   public void addConfigurationListener(final Consumer<ServerConfiguration> listener) {
-    this.listeners.add(listener);
-    final ServerConfiguration current = this.configuration;
-    if (current != null) {
-      listener.accept(current);
+    // Keep registration and replay atomic with notification snapshots.
+    synchronized (this.listeners) {
+      this.listeners.add(listener);
+      final ServerConfiguration current = this.configuration;
+      if (current != null) {
+        listener.accept(current);
+      }
     }
   }
 

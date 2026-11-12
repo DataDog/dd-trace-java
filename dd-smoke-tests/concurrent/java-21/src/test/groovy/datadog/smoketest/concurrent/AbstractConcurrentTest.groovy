@@ -8,6 +8,11 @@ import java.util.function.Function
 import static java.util.concurrent.TimeUnit.SECONDS
 
 abstract class AbstractConcurrentTest extends AbstractSmokeTest {
+  @Override
+  protected boolean expectsProcessAliveBeforeEachTest() {
+    false
+  }
+
   protected static final int TIMEOUT_SECS = 10
   protected abstract List<String> getTestArguments()
 
@@ -67,7 +72,15 @@ abstract class AbstractConcurrentTest extends AbstractSmokeTest {
   protected void receivedCorrectTrace() {
     waitForTrace(defaultPoll, checkTrace())
     assert traceCount.get() == 1
-    assert testedProcess.waitFor(TIMEOUT_SECS, SECONDS)
+  }
+
+  def cleanupSpec() {
+    if (testedProcess == null) {
+      return
+    }
+    // Features may be skipped; finish the application before the superclass checks diagnostics.
+    assert testedProcess.waitFor(TIMEOUT_SECS, SECONDS):
+    "Concurrent application did not exit within ${TIMEOUT_SECS} seconds; see ${logFilePath}"
     assert testedProcess.exitValue() == 0
   }
 }

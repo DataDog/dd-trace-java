@@ -17,7 +17,6 @@ plugins {
 
   alias(libs.plugins.shadow) apply false
   alias(libs.plugins.spotless)
-  id("com.github.spotbugs") version "6.5.11"
   id("io.github.gradle-nexus.publish-plugin") version "2.0.0"
   id("me.champeau.gradle.japicmp") version "0.4.3"
   id("me.champeau.jmh") version "0.7.3" apply false
@@ -37,7 +36,7 @@ spotlessPredeclare {
     removeUnusedImports()
     forbidWildcardImports()
 
-    googleJavaFormat(libs.versions.google.java.format.get())
+    googleJavaFormat()
     tableTestFormatter(libs.versions.tabletest.formatter.get())
   }
   groovyGradle {
@@ -54,13 +53,13 @@ spotlessPredeclare {
     greclipse()
   }
   kotlinGradle {
-    ktlint(libs.versions.ktlint.get())
+    ktlint()
   }
   kotlin {
-    ktlint(libs.versions.ktlint.get())
+    ktlint()
   }
   scala {
-    scalafmt(libs.versions.scalafmt.get())
+    scalafmt()
   }
 }
 apply(from = rootDir.resolve("gradle/spotless.gradle"))

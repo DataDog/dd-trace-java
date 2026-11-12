@@ -307,6 +307,8 @@ class FileBasedPayloadDispatcherTest {
             Thread.currentThread().getId(),
             null,
             TagMap.fromMap(tags),
+            TagMap.EMPTY,
+            TagMap.EMPTY,
             Collections.<String, String>emptyMap(),
             0,
             false,

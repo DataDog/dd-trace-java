@@ -203,8 +203,6 @@ class PayloadTagsProcessorTest extends DDJavaSpecification {
             3.14d,
             "payload.tag4.Value.0",
             "string",
-            "payload.tag5",
-            null,
             "payload.tag6",
             false);
     assertEquals(expected, unsafeTags);
@@ -246,8 +244,6 @@ class PayloadTagsProcessorTest extends DDJavaSpecification {
             2,
             "p.j3.2",
             3.14d,
-            "p.j3.3",
-            null,
             "p.j3.4",
             true,
             "p.j4.foo",
@@ -255,6 +251,23 @@ class PayloadTagsProcessorTest extends DDJavaSpecification {
             "p.j4.baz",
             42);
     assertEquals(expected, unsafeTags);
+  }
+
+  @Test
+  void nullRemovesEarlierValueAtSamePath() {
+    PayloadTagsProcessor ptp = tagsProcessor("p", Collections.emptyList(), 10, 758);
+
+    Map<String, Object> st =
+        spanTags(
+            "p",
+            pv(pc().push("j1"), "{'x': 'old', 'x': null, 'y': 1}"),
+            pv(pc().push("v"), "old"),
+            pv(pc().push("v"), null));
+
+    TagMap unsafeTags = TagMap.fromMap(st);
+    ptp.processTags(unsafeTags, null, link -> {});
+
+    assertEquals(mapOf("p.j1.y", 1), unsafeTags);
   }
 
   @Test
@@ -410,8 +423,6 @@ class PayloadTagsProcessorTest extends DDJavaSpecification {
             2,
             "p.j3.2",
             3.14d,
-            "p.j3.3",
-            null,
             "p.j3.4",
             true,
             "p.j4.foo",
@@ -444,8 +455,8 @@ class PayloadTagsProcessorTest extends DDJavaSpecification {
             2,
             "p.j3.2",
             3.14d,
-            "p.j3.3",
-            null,
+            "p.j3.4",
+            true,
             "_dd.payload_tags_incomplete",
             true),
         unsafeTags);
@@ -474,8 +485,6 @@ class PayloadTagsProcessorTest extends DDJavaSpecification {
             2,
             "p.j3.2",
             3.14d,
-            "p.j3.3",
-            null,
             "p.j3.4",
             true,
             "p.j3.5.0",

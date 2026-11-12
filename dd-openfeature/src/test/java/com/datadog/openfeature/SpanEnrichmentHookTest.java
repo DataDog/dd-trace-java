@@ -6,7 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.datadog.openfeature.internal.bridge.SpanEnricher;
+import com.datadog.openfeature.internal.bridge.v1.SpanEnricher;
 import dev.openfeature.sdk.FlagEvaluationDetails;
 import dev.openfeature.sdk.FlagValueType;
 import dev.openfeature.sdk.Hook;

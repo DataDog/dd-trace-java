@@ -1,17 +1,9 @@
 plugins {
   id 'dd-trace-java.module.internal-library'
-  id 'idea'
-}
-
-tracerJava {
-  addSourceSetFor(JavaVersion.VERSION_11) {
-    // By default tests with be compiled for `minJavaVersion` version,
-    // but in this case we would like to avoid this since we would like to run with ZULU8
-    applyForTestSources = false
-  }
 }
 
 testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_11
   // Zulu has backported profiling support
   forceJdk = ['ZULU8']
   excludeJdk = ['SEMERU11', 'SEMERU17']
@@ -23,6 +15,10 @@ dependencies {
   api project(':utils:version-utils')
   api(project(':dd-java-agent:agent-bootstrap')) {
     exclude group: 'com.datadoghq', module: 'agent-logging'
+    // The jar includes the Java 11 JFR classes from the additional source set.
+    attributes {
+      attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, objects.named(LibraryElements, LibraryElements.JAR))
+    }
   }
   api project(':dd-java-agent:agent-profiling:profiling-controller')
   api project(':dd-java-agent:agent-profiling:profiling-controller-jfr')
@@ -37,7 +33,6 @@ dependencies {
  Setup here is as following:
  * We compile with Java25 compiler to get JFR definitions.
  * We specify source/target as Java8 to get code that is loadable on Java8 - JFR defs are Java8 compatible.
- * We force IDEA to treat this as Java11 project with 'idea' plugin below.
  */
 [JavaCompile, GroovyCompile].each {
   tasks.withType(it).configureEach {
@@ -47,11 +42,5 @@ dependencies {
     // Disable '-options' because we are compiling for java8 without specifying bootstrap - intentionally.
     // Disable '-path' because we do not have some of the paths seem to be missing.
     options.compilerArgs.addAll(['-Xlint:all,-processing,-options,-path'/*, '-Werror'*/])
-  }
-}
-
-idea {
-  module {
-    jdkName = '11'
   }
 }

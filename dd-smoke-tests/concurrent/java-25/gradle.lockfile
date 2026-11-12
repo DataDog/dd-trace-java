@@ -52,7 +52,7 @@ io.opentelemetry.instrumentation:opentelemetry-instrumentation-annotations:2.19.
 io.opentelemetry:opentelemetry-api:1.53.0=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 io.opentelemetry:opentelemetry-common:1.53.0=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 io.opentelemetry:opentelemetry-context:1.53.0=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
-io.sqreen:libsqreen:17.5.0=testRuntimeClasspath
+io.sqreen:libsqreen:17.6.0=testRuntimeClasspath
 javax.servlet:javax.servlet-api:3.1.0=testCompileClasspath,testRuntimeClasspath
 jaxen:jaxen:2.0.6=spotbugs
 junit:junit:4.13.2=testCompileClasspath,testRuntimeClasspath
@@ -126,4 +126,4 @@ org.tabletest:tabletest-junit:1.2.2=testCompileClasspath,testRuntimeClasspath
 org.tabletest:tabletest-parser:1.2.1=testCompileClasspath,testRuntimeClasspath
 org.testcontainers:testcontainers:1.21.4=testCompileClasspath,testRuntimeClasspath
 org.xmlresolver:xmlresolver:5.3.3=spotbugs
-empty=annotationProcessor,shadow,spotbugsPlugins,testAnnotationProcessor
+empty=annotationProcessor,shadow,smokeTestDiagnosticsClasspath,smokeTestTracerClasspath,spotbugsPlugins,testAnnotationProcessor

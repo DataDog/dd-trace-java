@@ -2,10 +2,13 @@ package datadog.trace.core;
 
 import static datadog.trace.bootstrap.instrumentation.api.Tags.COMPONENT;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CLIENT;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_SERVER;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import datadog.trace.bootstrap.instrumentation.api.SpanKind;
 import datadog.trace.bootstrap.instrumentation.api.SpanPrototype;
 import datadog.trace.common.writer.ListWriter;
 import org.junit.jupiter.api.AfterEach;
@@ -62,6 +65,36 @@ public class SpanPrototypeConstructionTest extends DDCoreJavaSpecification {
     try {
       assertEquals(SPAN_KIND_SERVER, span.getSpanKindString()); // ordinal side-effect applied
       assertEquals(SPAN_KIND_SERVER, span.getTags().get(SPAN_KIND)); // tag (shared Entry) present
+    } finally {
+      span.finish();
+    }
+  }
+
+  @Test
+  void seedsSpanKindOrdinalFromEnum() {
+    final SpanPrototype clientPrototype =
+        SpanPrototype.builder()
+            .initInstrumentationName("test-instr")
+            .initOperationName("client.op")
+            .initKind(SpanKind.CLIENT)
+            .build();
+    DDSpan span = (DDSpan) tracer.buildSpan(clientPrototype, null).start();
+    try {
+      assertEquals(SPAN_KIND_CLIENT, span.getSpanKindString());
+      assertEquals(SPAN_KIND_CLIENT, span.getTags().get(SPAN_KIND));
+      assertTrue(span.isOutbound());
+    } finally {
+      span.finish();
+    }
+  }
+
+  @Test
+  void explicitSpanKindOverridesPrototypeKind() {
+    DDSpan span =
+        (DDSpan) tracer.buildSpan(prototype, null).withTag(SPAN_KIND, SPAN_KIND_CLIENT).start();
+    try {
+      assertEquals(SPAN_KIND_CLIENT, span.getSpanKindString());
+      assertEquals(SPAN_KIND_CLIENT, span.getTags().get(SPAN_KIND));
     } finally {
       span.finish();
     }

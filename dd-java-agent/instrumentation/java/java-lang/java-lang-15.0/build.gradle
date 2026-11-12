@@ -1,5 +1,4 @@
 plugins {
-  id 'idea'
   id 'dd-trace-java.module.instrumentation'
   id 'dd-trace-java.call-site-instrumentation'
 }
@@ -11,12 +10,6 @@ testJvmConstraints {
 muzzle {
   pass {
     coreJdk()
-  }
-}
-
-idea {
-  module {
-    jdkName = '17'
   }
 }
 

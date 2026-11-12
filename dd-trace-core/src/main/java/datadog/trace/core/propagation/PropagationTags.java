@@ -7,6 +7,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.llmobs.LLMObsPropagationValues;
 import datadog.trace.core.propagation.ptags.PTagsFactory;
+import datadog.trace.core.propagation.ptags.W3CTracestate;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -24,7 +25,11 @@ import java.util.Map;
  */
 public abstract class PropagationTags {
 
-  public static final class SamplingState {
+  /**
+   * An immutable snapshot of the trace's sampling decision. Not final only so that a fresh
+   * probability decision can defer building its OpenTelemetry tracestate until it's read.
+   */
+  public static class SamplingState {
     private static final byte OTEL_POSITION_UNKNOWN = 0;
     private static final byte OTEL_POSITION_PRESERVED = 1;
     private static final byte OTEL_POSITION_REPLACED = 2;
@@ -57,6 +62,7 @@ public abstract class PropagationTags {
       return tracestate;
     }
 
+    /** The {@code ot} tracestate member, which a subclass may build on first read. */
     public CharSequence getOtelTraceState() {
       return otelTraceState;
     }
@@ -70,7 +76,11 @@ public abstract class PropagationTags {
     }
 
     public boolean preservesInheritedOtelPosition() {
-      if (tracestate == null || otelTraceState == null) {
+      if (tracestate == null) {
+        return false;
+      }
+      CharSequence otelTraceState = getOtelTraceState();
+      if (otelTraceState == null) {
         return false;
       }
       byte position = otelPosition;
@@ -112,6 +122,12 @@ public abstract class PropagationTags {
     PropagationTags empty();
 
     PropagationTags fromHeaderValue(HeaderType headerType, String value);
+
+    /**
+     * Like {@link #fromHeaderValue} for {@link HeaderType#DATADOG}, starting from the trace's
+     * extracted {@code samplingPriority} so it doesn't have to be applied as a later update.
+     */
+    PropagationTags fromDatadogHeaderValue(String value, int samplingPriority);
 
     /**
      * Returns a fresh PropagationTags that re-encodes only the non-{@code dd} vendor sections of
@@ -173,10 +189,14 @@ public abstract class PropagationTags {
    */
   public abstract void updateW3CTracestate(String tracestate);
 
-  /** Updates the original W3C tracestate header from {@code source}. */
-  public void updateW3CTracestateFrom(PropagationTags source) {
-    updateW3CTracestate(source.getW3CTracestate());
-  }
+  /**
+   * Takes the W3C tracestate from a trace context extracted alongside this one.
+   *
+   * @param source the trace context's tracestate
+   * @param overridingPriority the trace context's priority when it overrides the tracestate's own
+   *     ({@code s}), otherwise {@link datadog.trace.api.sampling.PrioritySampling#UNSET}
+   */
+  public abstract void updateW3CTracestateFrom(W3CTracestate source, int overridingPriority);
 
   /**
    * Constructs a header value that includes valid propagated _dd.p.* tags and possibly a new

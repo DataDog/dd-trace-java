@@ -1,6 +1,5 @@
 plugins {
   id 'dd-trace-java.module.internal-library'
-  id 'idea'
 }
 
 // Set properties before any plugins get loaded
@@ -46,12 +45,6 @@ excludedClassesCoverage += [
 
 tasks.named("jar", Jar) {
   from sourceSets.main_java11.output
-}
-
-idea {
-  module {
-    jdkName = '11'
-  }
 }
 
 tasks.withType(Test).configureEach {

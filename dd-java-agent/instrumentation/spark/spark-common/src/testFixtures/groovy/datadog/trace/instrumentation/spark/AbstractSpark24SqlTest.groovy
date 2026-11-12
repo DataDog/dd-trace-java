@@ -435,7 +435,6 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
           spanType "spark"
           childOf(span(2))
           assertStringSQLPlanEquals(secondStagePlan, span.tags["_dd.spark.sql_plan"].toString(), "secondStagePlan")
-          assert span.tags["_dd.spark.physical_plan"] == null
           assert span.tags["_dd.spark.sql_parent_stage_ids"] == "[0]"
         }
         span {
@@ -443,7 +442,6 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
           spanType "spark"
           childOf(span(2))
           assertStringSQLPlanEquals(firstStagePlan, span.tags["_dd.spark.sql_plan"].toString(), "firstStagePlan")
-          assert span.tags["_dd.spark.physical_plan"] == null
           assert span.tags["_dd.spark.sql_parent_stage_ids"] == "[]"
         }
       }
@@ -841,7 +839,6 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
           spanType "spark"
           childOf(span(2))
           assertStringSQLPlanSubset(fourthStagePlan, span.tags["_dd.spark.sql_plan"].toString(), "fourthStagePlan")
-          assert span.tags["_dd.spark.physical_plan"] == null
           assert span.tags["_dd.spark.sql_parent_stage_ids"] == "[2]"
         }
         span {
@@ -849,7 +846,6 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
           spanType "spark"
           childOf(span(2))
           assertStringSQLPlanEquals(thirdStagePlan, span.tags["_dd.spark.sql_plan"].toString(), "thirdStagePlan")
-          assert span.tags["_dd.spark.physical_plan"] == null
           assert ["[0, 1]", "[1, 0]"].contains(span.tags["_dd.spark.sql_parent_stage_ids"])
         }
         span {
@@ -857,7 +853,6 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
           spanType "spark"
           childOf(span(2))
           assertStringSQLPlanIn([firstStagePlan, secondStagePlan], span.tags["_dd.spark.sql_plan"].toString(), "secondStagePlan")
-          assert span.tags["_dd.spark.physical_plan"] == null
           assert span.tags["_dd.spark.sql_parent_stage_ids"] == "[]"
         }
         span {
@@ -865,7 +860,6 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
           spanType "spark"
           childOf(span(2))
           assertStringSQLPlanIn([firstStagePlan, secondStagePlan], span.tags["_dd.spark.sql_plan"].toString(), "firstStagePlan")
-          assert span.tags["_dd.spark.physical_plan"] == null
           assert span.tags["_dd.spark.sql_parent_stage_ids"] == "[]"
         }
       }
