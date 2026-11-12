@@ -13,6 +13,7 @@ import com.squareup.moshi.Types;
 import datadog.communication.http.OkHttpUtils;
 import datadog.context.ContextScope;
 import datadog.trace.api.Config;
+import datadog.trace.api.KnownTagCodec;
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.aiguard.AIGuard;
 import datadog.trace.api.aiguard.AIGuard.AIGuardAbortError;
@@ -40,7 +41,10 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -98,6 +102,26 @@ public class AIGuardInternal implements Evaluator {
     Tags.HTTP_CLIENT_IP, Tags.NETWORK_CLIENT_IP, Tags.HTTP_USER_AGENT, "usr.id", "usr.session_id"
   };
 
+  static final String RESPONSE_EXTRA_TAGS = "extra_tags";
+  static final String RESPONSE_EXTRA_METASTRUCT = "extra_metastruct";
+
+  /**
+   * Span tags the backend may not set through {@code extra_tags}, on top of every tag {@code
+   * TagInterceptor} may route (see {@link #isReservedExtraTag(String)}): the tracer-driven sampling
+   * and event markers, and the anomaly detection tags copied from the local root span.
+   */
+  static final Set<String> RESERVED_EXTRA_TAGS = reservedExtraTags();
+
+  private static Set<String> reservedExtraTags() {
+    final Set<String> reserved = new HashSet<>();
+    reserved.add(Tags.AI_GUARD_KEEP);
+    reserved.add(Tags.AI_GUARD_EVENT);
+    for (final String tag : ANOMALY_DETECTION_TAGS) {
+      reserved.add("ai_guard." + tag);
+    }
+    return Collections.unmodifiableSet(reserved);
+  }
+
   public static void install() {
     final Config config = Config.get();
     final String apiKey = config.getApiKey();
@@ -140,6 +164,9 @@ public class AIGuardInternal implements Evaluator {
   private final Map<String, String> headers;
   private final MessageRedactor redactor;
 
+  /** Canonical names of the {@code trace.split-by-tags} tags, which TagInterceptor also routes. */
+  private final Set<String> splitByTags;
+
   AIGuardInternal(final HttpUrl url, final Map<String, String> headers, final OkHttpClient client) {
     this.url = url;
     this.headers = headers;
@@ -151,6 +178,18 @@ public class AIGuardInternal implements Evaluator {
         config.isAiGuardRedactionEnabled()
             ? new MessageRedactor.DefaultRedactor()
             : new MessageRedactor.NoOp();
+    this.splitByTags = canonicalTagNames(config.getSplitByTags());
+  }
+
+  private static Set<String> canonicalTagNames(final Set<String> names) {
+    if (names.isEmpty()) {
+      return Collections.emptySet();
+    }
+    final Set<String> canonical = new HashSet<>();
+    for (final String name : names) {
+      canonical.add(KnownTagCodec.canonicalTagName(name));
+    }
+    return Collections.unmodifiableSet(canonical);
   }
 
   /**
@@ -315,6 +354,99 @@ public class AIGuardInternal implements Evaluator {
     }
   }
 
+  /**
+   * Attaches the span data the AI Guard service returned in {@code extra_tags} and {@code
+   * extra_metastruct} to the {@code ai_guard} span.
+   *
+   * <p>Keys are used exactly as returned: the backend owns the {@code ai_guard.} prefix, so the
+   * tracer neither adds it nor filters by namespace. Only the tags in {@link #RESERVED_EXTRA_TAGS}
+   * and the ones {@code TagInterceptor} may route are refused. Extras are best effort: malformed
+   * entries are skipped and nothing here can change the evaluation outcome.
+   */
+  private void applyExtras(
+      final AgentSpan span,
+      final Map<String, Object> metaStruct,
+      final Map<String, Object> result) {
+    try {
+      for (final Map.Entry<String, String> tag :
+          extraTags(result.get(RESPONSE_EXTRA_TAGS)).entrySet()) {
+        span.setTag(tag.getKey(), tag.getValue());
+      }
+      metaStruct.putAll(extraMetaStruct(result.get(RESPONSE_EXTRA_METASTRUCT)));
+    } catch (final Exception e) {
+      log.debug("AI Guard failed to apply the extra span data returned by the service", e);
+    }
+  }
+
+  /**
+   * Reads {@code extra_tags}: a list of {@code {key, value}} entries with a string value. Entries
+   * that do not match, or that target a reserved tag, are skipped. A later duplicate wins.
+   */
+  @VisibleForTesting
+  Map<String, String> extraTags(final Object raw) {
+    if (!(raw instanceof List)) {
+      return Collections.emptyMap();
+    }
+    final Map<String, String> tags = new LinkedHashMap<>();
+    for (final Object item : (List<?>) raw) {
+      final String key = extraKey(item);
+      if (key == null || isReservedExtraTag(key)) {
+        continue;
+      }
+      final Object value = ((Map<?, ?>) item).get("value");
+      if (value instanceof String) {
+        tags.put(key, (String) value);
+      }
+    }
+    return tags;
+  }
+
+  /**
+   * Reads {@code extra_metastruct}: a list of {@code {key, value}} entries whose value (object,
+   * array or scalar) is kept as parsed. Entries without a key or a value are skipped. A later
+   * duplicate wins.
+   */
+  @VisibleForTesting
+  static Map<String, Object> extraMetaStruct(final Object raw) {
+    if (!(raw instanceof List)) {
+      return Collections.emptyMap();
+    }
+    final Map<String, Object> entries = new LinkedHashMap<>();
+    for (final Object item : (List<?>) raw) {
+      final String key = extraKey(item);
+      if (key == null) {
+        continue;
+      }
+      final Object value = ((Map<?, ?>) item).get("value");
+      if (value != null) {
+        entries.put(key, value);
+      }
+    }
+    return entries;
+  }
+
+  /** The non-empty string key of a {@code {key, value}} entry, or {@code null} if malformed. */
+  @Nullable
+  private static String extraKey(final Object item) {
+    if (!(item instanceof Map)) {
+      return null;
+    }
+    final Object key = ((Map<?, ?>) item).get("key");
+    return key instanceof String && !((String) key).isEmpty() ? (String) key : null;
+  }
+
+  /**
+   * True for tags the backend may not set: the ones in {@link #RESERVED_EXTRA_TAGS}, and any tag
+   * {@code TagInterceptor} may route to a span field, the service name or a sampling decision
+   * instead of storing it, including the configured {@code trace.split-by-tags} under any alias.
+   */
+  @VisibleForTesting
+  boolean isReservedExtraTag(final String key) {
+    return RESERVED_EXTRA_TAGS.contains(key)
+        || KnownTagCodec.isIntercepted(KnownTagCodec.keyOf(key))
+        || (!splitByTags.isEmpty() && splitByTags.contains(KnownTagCodec.canonicalTagName(key)));
+  }
+
   @Override
   public Evaluation evaluate(final List<Message> messages, final Options options) {
     if (messages == null || messages.isEmpty()) {
@@ -425,6 +557,8 @@ public class AIGuardInternal implements Evaluator {
         if (sdsFindings != null && !sdsFindings.isEmpty()) {
           metaStruct.put(META_STRUCT_SDS, sdsFindings);
         }
+        // Applied before the blocking decision so a blocked evaluation carries them too.
+        applyExtras(span, metaStruct, result);
         final boolean shouldBlock =
             isBlockingEnabled(options, result.get("is_blocking_enabled")) && action != Action.ALLOW;
         WafMetricCollector.get().aiGuardRequest(action, shouldBlock, redactionState);

@@ -601,6 +601,226 @@ class AIGuardInternalTests {
   }
 
   @Test
+  void testEvaluateWithExtras() throws IOException {
+    Map<String, Object> policyMatch = new HashMap<>();
+    policyMatch.put("rule", "credit_card");
+    policyMatch.put("categories", asList("pii", "financial"));
+    Map<String, Object> attributes = new HashMap<>();
+    attributes.put("action", "ALLOW");
+    attributes.put("reason", "It is fine");
+    attributes.put(
+        "extra_tags",
+        asList(entry("ai_guard.evaluate_id", "evaluation-123"), entry("custom_context.note", "")));
+    attributes.put(
+        "extra_metastruct",
+        asList(
+            entry("policy_match", policyMatch),
+            entry("flag", false),
+            entry("empty", emptyList()),
+            entry("policy_version", "v3")));
+    AIGuardInternal aiguard = mockClient(200, evaluation(attributes));
+
+    Evaluation result = aiguard.evaluate(PROMPT, DEFAULT);
+
+    assertEquals(ALLOW, result.getAction());
+    verify(span).setTag("ai_guard.evaluate_id", "evaluation-123");
+    verify(span).setTag("custom_context.note", "");
+    verify(span, never()).setTag(eq("ai_guard.ai_guard.evaluate_id"), anyString());
+    verify(span, never()).setTag(eq("policy_match"), anyString());
+    assertEquals(policyMatch, receivedMeta.get("policy_match"));
+    assertEquals(false, receivedMeta.get("flag"));
+    assertEquals(emptyList(), receivedMeta.get("empty"));
+    assertEquals("v3", receivedMeta.get("policy_version"));
+    assertFalse(receivedMeta.containsKey("ai_guard.evaluate_id"));
+    assertFalse(receivedMeta.containsKey("custom_context.note"));
+  }
+
+  @Test
+  void testEvaluateWithoutExtras() throws IOException {
+    AIGuardInternal aiguard = mockClient(200, evaluation("ALLOW", "It is fine"));
+
+    aiguard.evaluate(PROMPT, DEFAULT);
+
+    verify(span, never()).setTag(eq("ai_guard.evaluate_id"), anyString());
+    assertEquals(singletonList("messages"), new ArrayList<>(receivedMeta.keySet()));
+  }
+
+  @TableTest({
+    "scenario                      | field           ",
+    "extra_tags is an object       | extra_tags      ",
+    "extra_metastruct is an object | extra_metastruct"
+  })
+  void testEvaluateWithExtrasNotAList(String field) throws IOException {
+    Map<String, Object> attributes = new HashMap<>();
+    attributes.put("action", "ALLOW");
+    attributes.put("reason", "It is fine");
+    attributes.put("extra_tags", singletonList(entry("ai_guard.evaluate_id", "evaluation-123")));
+    attributes.put("extra_metastruct", singletonList(entry("flag", true)));
+    attributes.put(field, singletonMap("ai_guard.policy", "example"));
+    AIGuardInternal aiguard = mockClient(200, evaluation(attributes));
+
+    Evaluation result = aiguard.evaluate(PROMPT, DEFAULT);
+
+    assertEquals(ALLOW, result.getAction());
+    verify(span, never()).addThrowable(any());
+    verify(span, never()).setTag(eq("ai_guard.policy"), anyString());
+    assertFalse(receivedMeta.containsKey("ai_guard.policy"));
+    if (field.equals("extra_tags")) {
+      verify(span, never()).setTag(eq("ai_guard.evaluate_id"), anyString());
+      assertEquals(true, receivedMeta.get("flag"));
+    } else {
+      verify(span).setTag("ai_guard.evaluate_id", "evaluation-123");
+      assertFalse(receivedMeta.containsKey("flag"));
+    }
+  }
+
+  @Test
+  void testEvaluateWithMalformedExtras() throws IOException {
+    Map<String, Object> attributes = new HashMap<>();
+    attributes.put("action", "ALLOW");
+    attributes.put("reason", "It is fine");
+    attributes.put(
+        "extra_tags",
+        asList(
+            entry("ai_guard.evaluate_id", "evaluation-123"),
+            null,
+            "not an object",
+            singletonMap("value", "missing key"),
+            entry("", "empty key"),
+            entry(1, "numeric key"),
+            entry("bad.number", 42),
+            entry("bad.object", emptyMap()),
+            entry("bad.boolean", true),
+            entry("bad.nil", null),
+            entry("custom_context.after_invalid", "kept")));
+    attributes.put(
+        "extra_metastruct",
+        asList(
+            entry("flag", false),
+            "not an object",
+            singletonMap("value", "missing key"),
+            entry("", "empty key"),
+            entry("bad.nil", null),
+            entry("after_invalid", true)));
+    AIGuardInternal aiguard = mockClient(200, evaluation(attributes));
+
+    Evaluation result = aiguard.evaluate(PROMPT, DEFAULT);
+
+    assertEquals(ALLOW, result.getAction());
+    verify(span, never()).addThrowable(any());
+    verify(span).setTag("ai_guard.evaluate_id", "evaluation-123");
+    verify(span).setTag("custom_context.after_invalid", "kept");
+    for (String key : asList("", "1", "bad.number", "bad.object", "bad.boolean", "bad.nil")) {
+      verify(span, never()).setTag(eq(key), nullable(String.class));
+    }
+    assertEquals(false, receivedMeta.get("flag"));
+    assertEquals(true, receivedMeta.get("after_invalid"));
+    assertFalse(receivedMeta.containsKey(""));
+    assertFalse(receivedMeta.containsKey("bad.nil"));
+  }
+
+  @Test
+  void testEvaluateWithExtrasIsPassThrough() throws IOException {
+    Map<String, Object> attributes = new HashMap<>();
+    attributes.put("action", "ALLOW");
+    attributes.put("reason", "It is fine");
+    attributes.put(
+        "extra_tags",
+        asList(
+            entry("_dd.custom", "value"),
+            entry("custom.tag", "first"),
+            entry("custom.tag", "second")));
+    attributes.put("extra_metastruct", asList(entry("key", "first"), entry("key", "second")));
+    AIGuardInternal aiguard = mockClient(200, evaluation(attributes));
+
+    aiguard.evaluate(PROMPT, DEFAULT);
+
+    // keys are neither prefixed nor filtered by namespace, and the last duplicate wins
+    verify(span).setTag("_dd.custom", "value");
+    verify(span).setTag("custom.tag", "second");
+    verify(span, never()).setTag("custom.tag", "first");
+    assertEquals("second", receivedMeta.get("key"));
+  }
+
+  @Test
+  void testEvaluateWithReservedExtras() throws IOException {
+    List<Object> extraTags = new ArrayList<>();
+    extraTags.add(entry("ai_guard.evaluate_id", "evaluation-123"));
+    for (String key :
+        asList(
+            Tags.AI_GUARD_KEEP,
+            Tags.AI_GUARD_EVENT,
+            "ai_guard." + HTTP_CLIENT_IP,
+            "ai_guard." + NETWORK_CLIENT_IP,
+            "ai_guard." + HTTP_USER_AGENT,
+            "ai_guard.usr.id",
+            "ai_guard.usr.session_id",
+            "manual.keep",
+            "manual.drop",
+            "sampling.priority",
+            "service",
+            "resource.name",
+            "span.type",
+            "error")) {
+      extraTags.add(entry(key, "forged"));
+    }
+    Map<String, Object> attributes = new HashMap<>();
+    attributes.put("action", "ALLOW");
+    attributes.put("reason", "It is fine");
+    attributes.put("extra_tags", extraTags);
+    attributes.put("extra_metastruct", singletonList(entry("messages", "forged")));
+    AIGuardInternal aiguard = mockClient(200, evaluation(attributes));
+
+    aiguard.evaluate(PROMPT, DEFAULT);
+
+    verify(span).setTag("ai_guard.evaluate_id", "evaluation-123");
+    verify(span, never()).setTag(anyString(), eq("forged"));
+    // the tracer always reports the evaluated conversation
+    assertEquals(PROMPT.size(), receivedMessages().size());
+  }
+
+  @Test
+  @WithConfig(key = "trace.split-by-tags", value = "custom.service_tag,http.useragent")
+  void testEvaluateWithSplitByExtras() throws IOException {
+    Map<String, Object> attributes = new HashMap<>();
+    attributes.put("action", "ALLOW");
+    attributes.put("reason", "It is fine");
+    attributes.put(
+        "extra_tags",
+        asList(
+            entry("ai_guard.evaluate_id", "evaluation-123"),
+            entry("custom.service_tag", "forged"),
+            entry("http.useragent", "forged"),
+            // OpenTelemetry name of http.useragent
+            entry("user_agent.original", "forged")));
+    AIGuardInternal aiguard = mockClient(200, evaluation(attributes));
+
+    aiguard.evaluate(PROMPT, DEFAULT);
+
+    // split-by tags would rename the service instead of being stored on the span
+    verify(span).setTag("ai_guard.evaluate_id", "evaluation-123");
+    verify(span, never()).setTag(anyString(), eq("forged"));
+  }
+
+  @Test
+  void testEvaluateWithExtrasWhenBlocking() throws IOException {
+    Map<String, Object> attributes = new HashMap<>();
+    attributes.put("action", "DENY");
+    attributes.put("reason", "Nope");
+    attributes.put("is_blocking_enabled", true);
+    attributes.put("extra_tags", singletonList(entry("ai_guard.evaluate_id", "evaluation-123")));
+    attributes.put("extra_metastruct", singletonList(entry("policy_version", "v3")));
+    AIGuardInternal aiguard = mockClient(200, evaluation(attributes));
+
+    assertThrows(
+        AIGuardAbortError.class, () -> aiguard.evaluate(PROMPT, new Options().block(true)));
+
+    verify(span).setTag("ai_guard.evaluate_id", "evaluation-123");
+    verify(span).setTag(AIGuardInternal.BLOCKED_TAG, true);
+    assertEquals("v3", receivedMeta.get("policy_version"));
+  }
+
+  @Test
   void testMissingToolName() throws IOException {
     AIGuardInternal aiguard = mockClient(200, evaluation("ALLOW", "Just do it"));
 
@@ -875,6 +1095,14 @@ class AIGuardInternalTests {
 
   private static Map<String, Object> evaluation(Map<String, Object> attributes) {
     return singletonMap("data", singletonMap("attributes", attributes));
+  }
+
+  /** A {@code {key, value}} entry of {@code extra_tags} or {@code extra_metastruct}. */
+  private static Map<String, Object> entry(Object key, Object value) {
+    Map<String, Object> entry = new HashMap<>();
+    entry.put("key", key);
+    entry.put("value", value);
+    return entry;
   }
 
   private static Map<String, Object> sdsFinding(
