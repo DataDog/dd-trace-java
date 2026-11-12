@@ -126,6 +126,7 @@ public final class SynapseClientInstrumentation extends InstrumenterModule.Traci
   public static final class ClientRequestContextPropagationAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(@Advice.Argument(0) final NHttpClientConnection connection) {
+      // HttpCore can invoke this callback while the connection has no pending request.
       if (TargetContext.getState(connection) != ProtocolState.REQUEST_READY
           || TargetContext.getRequest(connection) == null) {
         return;
