@@ -8,6 +8,7 @@ import datadog.communication.serialization.WritableFormatter;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProcessTags;
+import datadog.trace.api.TraceConfig;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.api.datastreams.KafkaConfigReport;
@@ -17,6 +18,7 @@ import datadog.trace.common.metrics.Sink;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -70,15 +72,21 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
   private final WellKnownTags wellKnownTags;
   private final byte[] tracerVersionValue;
   private final byte[] primaryTagValue;
+  private final Supplier<TraceConfig> traceConfigSupplier;
 
   public MsgPackDatastreamsPayloadWriter(
-      Sink sink, WellKnownTags wellKnownTags, String tracerVersion, String primaryTag) {
+      Sink sink,
+      WellKnownTags wellKnownTags,
+      String tracerVersion,
+      String primaryTag,
+      Supplier<TraceConfig> traceConfigSupplier) {
     buffer = new GrowableBuffer(INITIAL_CAPACITY);
     writer = new MsgPackWriter(buffer);
     this.sink = sink;
     this.wellKnownTags = wellKnownTags;
     tracerVersionValue = tracerVersion.getBytes(ISO_8859_1);
     primaryTagValue = primaryTag == null ? new byte[0] : primaryTag.getBytes(ISO_8859_1);
+    this.traceConfigSupplier = traceConfigSupplier;
   }
 
   public void reset() {
@@ -93,7 +101,7 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
 
   public long getProductsMask() {
     long productsMask = APM_PRODUCT;
-    if (Config.get().isDataStreamsEnabled()) {
+    if (traceConfigSupplier.get().isDataStreamsEnabled()) {
       productsMask |= DSM_PRODUCT;
     }
     if (Config.get().isDataJobsEnabled()) {

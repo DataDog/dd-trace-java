@@ -880,7 +880,9 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         new TracingPropagator(config.isApmTracingEnabled(), tracingInjector, tracingExtractor);
     Propagators.register(TRACING_CONCERN, tracingPropagator);
     Propagators.register(XRAY_TRACING_CONCERN, new XRayPropagator(config), false);
-    if (config.isDataStreamsEnabled()) {
+    // Also checks the live config: remote config may have enabled DSM before this point
+    if (config.isDataStreamsEnabled()
+        || dynamicConfig.captureTraceConfig().isDataStreamsEnabled()) {
       Propagators.register(DSM_CONCERN, this.dataStreamsMonitoring.propagator());
     }
     if (config.isBaggagePropagationEnabled()
@@ -2624,6 +2626,15 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       } else {
         // Reuse the agent sampler: registration for agent rates happens once, at construction.
         sampler = Sampler.Builder.forConfig(CoreTracer.this.initialConfig, this, agentSampler);
+      }
+
+      // Registered lazily so DSM costs nothing until enabled; null until the constructor sets it
+      DataStreamsMonitoring dataStreamsMonitoring = CoreTracer.this.dataStreamsMonitoring;
+      if (null != oldSnapshot
+          && null != dataStreamsMonitoring
+          && isDataStreamsEnabled()
+          && !oldSnapshot.isDataStreamsEnabled()) {
+        Propagators.register(DSM_CONCERN, dataStreamsMonitoring.propagator());
       }
 
       if (null != oldSnapshot
