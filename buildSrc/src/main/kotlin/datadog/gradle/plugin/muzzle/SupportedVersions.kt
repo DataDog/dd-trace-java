@@ -16,6 +16,9 @@ import java.io.File
  * the Java versions that share the same supported range and tested versions into one `versions` entry.
  */
 internal object SupportedVersions {
+  /** The build directory holding the supported versions, read by `.gitlab/generate_supported_versions.sh`. */
+  const val SUPPORTED_VERSIONS_RESULTS = "supported-versions"
+
   private val versionScheme = GenericVersionScheme()
   private val mapper = ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT)
 
@@ -40,10 +43,10 @@ internal object SupportedVersions {
   )
 
   /** Java major versions `:instrumentationTest` runs on, see the `.test_matrix` in `.gitlab-ci.yml`. */
-  private val TEST_JAVA_VERSIONS = listOf(8, 11, 17, 21, 25)
+  internal val TEST_JAVA_VERSIONS = listOf(8, 11, 17, 21, 25)
 
   /** Java major versions `:instrumentationLatestDepTest` runs on, see `test_inst_latest` in `.gitlab-ci.yml`. */
-  private val LATEST_DEP_TEST_JAVA_VERSIONS = listOf(8, 17, 21, 25)
+  internal val LATEST_DEP_TEST_JAVA_VERSIONS = listOf(8, 17, 21, 25)
 
   /** The JVM constraints of a test task named after its source set. */
   data class TestSuite(
@@ -121,9 +124,10 @@ internal object SupportedVersions {
           val tested = lockfile[libraryName].orEmpty()
             .filterValues { configurations -> configurations.any { javaVersion in testedRuntimes[it].orEmpty() } }
             .keys
+          // Only report the Java versions a test ran the library on, like the other tracers.
+          if (tested.isEmpty()) return@mapNotNull null
           javaVersion to RuntimeSupport(ranges, tested)
         }.toMap()
-        // The format requires tested runtimes, so libraries without tests are not reported.
         if (runtimes.isEmpty()) return@mapNotNull null
         SupportedVersionsFragment(libraryName, integrationName, matches.any { it.third }, runtimes)
       }

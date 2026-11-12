@@ -46,7 +46,7 @@ class MuzzleReportAggregationPlugin : Plugin<Project> {
 
     project.tasks.register<MuzzleAggregateSupportedVersionsTask>("aggregateSupportedVersions") {
       supportedVersionsReports.from(supportedVersions)
-      supportedVersionsFile.convention(project.layout.buildDirectory.file("supported-versions/supported_versions.json"))
+      supportedVersionsFile.convention(project.layout.buildDirectory.file("${SupportedVersions.SUPPORTED_VERSIONS_RESULTS}/supported_versions.json"))
     }
 
     val report = project.tasks.register<MuzzleAggregateReportTask>("aggregateMuzzleReports") {

@@ -92,15 +92,37 @@ class SupportedVersionsTest {
   }
 
   @Test
-  fun `does not report libraries without tested runtimes`() {
+  fun `does not report Java versions or libraries without tested versions`() {
     val fragments = SupportedVersions.fragments(
-      listOf(Directive("org.example:lib", "[1.0,)", null, mapOf("example" to false))),
-      emptyMap(),
-      emptyMap(),
+      listOf(
+        Directive("org.example:lib", "[1.0,)", null, mapOf("example" to true)),
+        Directive("org.example:untested", "[1.0,)", null, mapOf("example" to true)),
+      ),
+      mapOf("org.example:lib" to mapOf("1.0" to setOf("latestDepTestRuntimeClasspath"))),
+      mapOf(
+        "testRuntimeClasspath" to setOf(8),
+        "latestDepTestRuntimeClasspath" to setOf(17),
+      ),
     )
 
-    assertThat(fragments).isEmpty()
+    assertThat(fragments).containsExactly(
+      SupportedVersionsFragment("org.example:lib", "example", true, mapOf(17 to RuntimeSupport(setOf("[1.0,)"), setOf("1.0")))),
+    )
   }
+
+  @Test
+  fun `CI Java versions match the instrumentation test jobs`() {
+    val ci = File("../.gitlab-ci.yml").readText()
+    val testJvms = Regex("""- testJvm: &test_jvms\n((?:\s+- "[^"]+"\n)+)""").find(ci)!!.groupValues[1]
+    val latestDepTestJvms = Regex("""(?s)\ntest_inst_latest:.*?testJvm: \[([^]]+)]""").find(ci)!!.groupValues[1]
+
+    assertThat(SupportedVersions.TEST_JAVA_VERSIONS).isEqualTo(javaVersions(testJvms))
+    assertThat(SupportedVersions.LATEST_DEP_TEST_JAVA_VERSIONS).isEqualTo(javaVersions(latestDepTestJvms))
+  }
+
+  /** The plain `testJvm` majors, without vendor JVMs like `zulu8` and the moving `tip`. */
+  private fun javaVersions(testJvms: String): List<Int> =
+    Regex(""""(\d+)"""").findAll(testJvms).map { it.groupValues[1].toInt() }.toList()
 
   @Test
   fun `merges fragments of the same library and integration`() {

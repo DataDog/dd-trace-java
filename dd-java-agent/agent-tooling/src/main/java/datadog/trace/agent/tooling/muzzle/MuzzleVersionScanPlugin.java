@@ -194,11 +194,7 @@ public class MuzzleVersionScanPlugin {
 
   public static Set<String> listInstrumentationNames(
       final ClassLoader instrumentationLoader, String directive) {
-    final Set<String> ret = new HashSet<>();
-    for (final InstrumenterModule module : toBeTested(instrumentationLoader, directive)) {
-      ret.add(module.name());
-    }
-    return ret;
+    return listInstrumentationsEnabled(instrumentationLoader, directive).keySet();
   }
 
   /** Maps each instrumentation name to whether the instrumentation is enabled by default. */
@@ -207,7 +203,7 @@ public class MuzzleVersionScanPlugin {
     final Map<String, Boolean> ret = new LinkedHashMap<>();
     for (final InstrumenterModule module : toBeTested(instrumentationLoader, directive)) {
       // a name shared by several modules is enabled when any of them is
-      ret.merge(module.name(), module.isEnabled(), Boolean::logicalOr);
+      ret.merge(module.name(), module.isDefaultEnabled(), Boolean::logicalOr);
     }
     return ret;
   }

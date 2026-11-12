@@ -107,7 +107,7 @@ class MuzzlePlugin : Plugin<Project> {
       instrumentationClasspath.from(reportingDirectives.map { if (it.isEmpty()) emptyList<Any>() else runtimeClasspath })
       lockfile.fileProvider(project.providers.provider { project.file("gradle.lockfile").takeIf { it.exists() } })
       testedRuntimes.convention(project.providers.provider { SupportedVersions.testedRuntimes(project.testSuites()) })
-      supportedVersionsFile.convention(project.layout.buildDirectory.file("supported-versions/${project.pathSlug}.json"))
+      supportedVersionsFile.convention(project.layout.buildDirectory.file("${SupportedVersions.SUPPORTED_VERSIONS_RESULTS}/${project.pathSlug}.json"))
       dependsOn(compileMuzzle)
     }
     project.publishSupportedVersions(supportedVersions.flatMap { it.supportedVersionsFile })
