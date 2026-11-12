@@ -191,7 +191,7 @@ function start_server {
     fi
     # GC log per variant, so test_endpoint can count young GCs inside each measured window. Unified
     # logging (-Xlog) needs JDK 9+; on JDK 8 the YGC/1k column is left empty.
-    run_java_args+=("-Xms$server_heap" "-Xmx$server_heap" "${server_jvm_args[@]}")
+    run_java_args+=("-Xms$server_heap" "-Xmx$server_heap" "${server_jvm_args[@]}" "${variant_jvm_args[@]}")
     gc_log=""
     if [ "$java_major" -ge 9 ] 2>/dev/null; then
         gc_log="/tmp/perf_gc_${variant_label}.log"
@@ -423,13 +423,22 @@ for agent_jar in "${agent_jars[@]}"; do
     assert_expected_agent
     echo "----Testing agent $agent_jar----"
     regime_banner
+    # A variant may carry its own JVM flags as "<jar>|<flags>", e.g. a payload format to compare; they
+    # follow PERF_JVM_ARGS and are appended to the variant's label.
+    variant_jvm_args=()
+    agent_flags=""
+    if [[ "$agent_jar" == *"|"* ]]; then
+        agent_flags="${agent_jar#*|}"
+        agent_jar="${agent_jar%%|*}"
+        read -r -a variant_jvm_args <<< "$agent_flags"
+    fi
     if [ "$agent_jar" == "NoAgent" ]; then
         result_row="NoAgent"
         variant_label="noagent"
         start_server "" "$variant_label"
     else
         agent_version=$(agent_version_of "$agent_jar")
-        result_row="$agent_version"
+        result_row="$agent_version${agent_flags:+ [${agent_flags//,/;}]}"
         # sanitize the version into a filesystem-safe JFR label; fall back to the jar basename. The
         # variant's position keeps two builds reporting the same version from sharing artifacts.
         variant_label=$(echo "$agent_version" | tr -c 'A-Za-z0-9._-' '_' | sed 's/_*$//')

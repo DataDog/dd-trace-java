@@ -135,8 +135,11 @@ resolved=()
 for v in "${variants[@]}"; do
   # resolve_variant runs in a command substitution, where its `exit 1` only leaves the subshell, so
   # check its status here; otherwise a failed build or download would benchmark the wrong jar.
+  # "<variant>|<JVM flags>" gives that variant its own flags; run-perf-test.sh splits them off again.
+  flags=""
+  [[ "$v" == *"|"* ]] && flags="${v#*|}" && v="${v%%|*}"
   jar=$(resolve_variant "$v") || exit 1
-  resolved+=("$jar")
+  resolved+=("$jar${flags:+|$flags}")
 done
 
 if [ "${PETCLINIC_AGENT:-stub}" = "stub" ]; then
