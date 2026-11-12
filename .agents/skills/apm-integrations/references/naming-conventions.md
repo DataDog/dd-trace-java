@@ -4,7 +4,7 @@
 
 ## Module directory name must end with a version OR an allowed suffix
 
-dd-trace-java's `dd-gitlab/check-instrumentation-naming` plugin
+dd-trace-java's `checkInstrumentationNaming` task (run by the `dd-gitlab/spotless` CI job), from the plugin
 (`buildSrc/.../naming/InstrumentationNamingPlugin.kt`) enforces:
 
 > Module name must end with a version (e.g., `2.0`, `3.1`) OR one of: `-common`, `-stubs`, `-iast`

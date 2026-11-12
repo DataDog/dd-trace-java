@@ -35,7 +35,7 @@ Fallbacks: [other vehicles](references/other-vehicles.md).
 - Enabled task names: `spotbugsMain` and `spotbugsMain_java<N>`; tests, benchmarks and smoke-test modules are disabled
   by the convention
 - Run: `./gradlew check -PskipTests` includes all enabled SpotBugs tasks and other checks
-- CI: `check_base` / `check_inst` / `check_profiling` / `check_debugger` run Gradle `check`, which includes those tasks
+- CI: `check_base` (base, profiling and debugger checks) / `check_inst` run Gradle `check`, which includes those tasks
 
 Keep tests, smoke tests (`:dd-smoke-tests`), generated sources, and vendored trees out unless the user explicitly
 expands the filter.

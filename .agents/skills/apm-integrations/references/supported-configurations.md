@@ -4,7 +4,7 @@
 
 ## Two distinct CI checks — different names, different key shapes
 
-- **`super(...)` args in `InstrumenterModule`** → validated by `dd-gitlab/config-inversion-linter` as `DD_TRACE_<NAME>_ENABLED` entries. Every name passed to the constructor must have a `_ENABLED` entry.
+- **`super(...)` args in `InstrumenterModule`** → validated by the `checkConfigurations` task (run by the `dd-gitlab/spotless` CI job) as `DD_TRACE_<NAME>_ENABLED` entries. Every name passed to the constructor must have a `_ENABLED` entry.
 - **`instrumentationNames()` in the decorator** → validated by `checkDecoratorAnalyticsConfigurations` as `DD_TRACE_<NAME>_ANALYTICS_ENABLED` / `DD_TRACE_<NAME>_ANALYTICS_SAMPLE_RATE` entries.
 
 ## `_ENABLED` entry (for each `super(...)` arg)
