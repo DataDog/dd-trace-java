@@ -424,12 +424,8 @@ public class Workload {
       producer.flush();
       double produceMs = (System.nanoTime() - produceStart) / 1_000_000.0;
 
-      // Phase 2: consume all messages, committing synchronously after every
-      // commitEvery consumed messages and after the last one (commitEvery=1 is
-      // a commit per message). Each commit carries the last consumed record's
-      // offset + 1 for its partition (topics have a single partition):
-      // commitSync with an empty map returns without sending an OffsetCommit
-      // request, so it would commit nothing and skip DSM's commit tracking.
+      // Phase 2: consume, commitSync every commitEvery messages and after the last. Explicit
+      // offsets: an empty-map commitSync sends no OffsetCommit, skipping DSM commit tracking.
       long consumeStart = System.nanoTime();
       int consumed = 0;
       long pollDeadline = System.nanoTime() + Duration.ofSeconds(60).toNanos();
@@ -467,10 +463,8 @@ public class Workload {
   }
 
   /**
-   * Joins the consumer group and waits for the partition assignment before anything is produced, so
-   * the group join/rebalance is setup rather than part of the timed consume phase. The topic is
-   * still empty here, so these polls return no records; with auto.offset.reset=earliest the
-   * consumer then starts from offset 0 once messages are produced.
+   * Waits for the partition assignment before producing, keeping the group join out of the timed
+   * consume phase. The topic is empty; auto.offset.reset=earliest then reads from offset 0.
    */
   private static void joinGroup(KafkaConsumer<String, String> consumer, String topic) {
     long deadline = System.nanoTime() + Duration.ofSeconds(60).toNanos();
