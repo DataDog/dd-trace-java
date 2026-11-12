@@ -6,6 +6,6 @@ packages:
 - name: com.typesafe.slick:slick_2.11
 - name: com.typesafe.slick:slick_2.13
 category:
-- db.client
+- other
 systems: []
 creation_date: '2021-04-15'
