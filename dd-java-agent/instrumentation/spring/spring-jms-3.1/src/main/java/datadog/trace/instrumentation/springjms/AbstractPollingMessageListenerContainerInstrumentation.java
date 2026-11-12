@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.springjms;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.rootContext;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static java.util.Collections.singletonMap;
@@ -13,6 +12,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.jms.MessageConsumerState;
 import java.util.Map;
 import javax.jms.MessageConsumer;
@@ -60,7 +60,7 @@ public class AbstractPollingMessageListenerContainerInstrumentation
       if (null != consumerState) {
         boolean finishSpan = consumerState.getSessionState().isAutoAcknowledge();
         if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
-          closePrevious(finishSpan);
+          AgentTracer.get().closePrevious(finishSpan);
         } else {
           final AgentSpan previousSpan = spanFromContext(rootContext().swap());
           if (previousSpan != null) {

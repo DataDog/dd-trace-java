@@ -596,7 +596,7 @@ abstract class SqsClientReceiveIterationTestBase extends AbstractInstrumentation
   @BeforeEach
   void setUpAwsCredentials() {
     if (closePreviousBeforeTest()) {
-      AgentTracer.closePrevious(true);
+      AgentTracer.get().closePrevious(true);
     }
     System.setProperty(SdkSystemSetting.AWS_ACCESS_KEY_ID.property(), "my-access-key");
     System.setProperty(SdkSystemSetting.AWS_SECRET_ACCESS_KEY.property(), "my-secret-key");
