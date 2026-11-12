@@ -8,6 +8,7 @@ import static com.lambdaworks.redis.protocol.CommandType.CONFIG;
 import static com.lambdaworks.redis.protocol.CommandType.DEBUG;
 import static com.lambdaworks.redis.protocol.CommandType.SCRIPT;
 import static com.lambdaworks.redis.protocol.CommandType.SHUTDOWN;
+import static datadog.trace.api.KnownTags.DB_COMMAND_CANCELLED;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
@@ -60,7 +61,7 @@ public final class InstrumentationPoints {
       // the CompletableFuture instrumentation captures context for the finishing lambda.
       asyncCommand.handleAsync((value, ex) -> {
         if (ex instanceof CancellationException) {
-          span.setTag("db.command.cancelled", true);
+          span.setTag(DB_COMMAND_CANCELLED, true);
         } else {
           DECORATE.onError(span, ex);
         }
