@@ -320,16 +320,14 @@ public final class ScopeDiagnostics {
             window.drain(false, 0, false);
             if (window.isNext(pending)) {
               // The common path filters ignored callbacks before even constructing a Throwable.
-              pending.publish(
-                  () ->
-                      handler.accept(
-                          () ->
-                              INSTANCE.event(
-                                  type,
-                                  nanos,
-                                  threadName,
-                                  filter,
-                                  filter.maxFrames() <= 0 ? null : new Throwable())));
+              pending.publish(() ->
+                  handler.accept(() ->
+                      INSTANCE.event(
+                          type,
+                          nanos,
+                          threadName,
+                          filter,
+                          filter.maxFrames() <= 0 ? null : new Throwable())));
               window.drain(false, 0, false);
               return;
             }

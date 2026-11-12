@@ -20,38 +20,37 @@ public class ExposuresRequest {
    * @return the UTF-8 JSON payload.
    */
   public byte[] serialize() {
-    return JsonWriting.write(
-        generator -> {
-          generator.writeStartObject();
-          generator.writeFieldName("context");
-          writeValue(generator, this.context);
-          generator.writeArrayFieldStart("exposures");
-          for (final ExposureEvent exposure : this.exposures) {
-            generator.writeStartObject();
-            generator.writeNumberField("timestamp", exposure.timestamp);
-            writeKeyObject(generator, "allocation", exposure.allocation.key);
-            writeKeyObject(generator, "flag", exposure.flag.key);
-            writeKeyObject(generator, "variant", exposure.variant.key);
-            generator.writeObjectFieldStart("subject");
-            if (exposure.subject.id != null) {
-              generator.writeStringField("id", exposure.subject.id);
-            }
-            if (exposure.subject.attributes != null) {
-              generator.writeFieldName("attributes");
-              writeValue(generator, exposure.subject.attributes);
-            }
-            generator.writeEndObject();
-            if (exposure.serial_id != null) {
-              generator.writeNumberField("serial_id", exposure.serial_id);
-            }
-            if (exposure.features != null && !exposure.features.isEmpty()) {
-              generator.writeFieldName("features");
-              writeValue(generator, exposure.features);
-            }
-            generator.writeEndObject();
-          }
-          generator.writeEndArray();
-          generator.writeEndObject();
-        });
+    return JsonWriting.write(generator -> {
+      generator.writeStartObject();
+      generator.writeFieldName("context");
+      writeValue(generator, this.context);
+      generator.writeArrayFieldStart("exposures");
+      for (final ExposureEvent exposure : this.exposures) {
+        generator.writeStartObject();
+        generator.writeNumberField("timestamp", exposure.timestamp);
+        writeKeyObject(generator, "allocation", exposure.allocation.key);
+        writeKeyObject(generator, "flag", exposure.flag.key);
+        writeKeyObject(generator, "variant", exposure.variant.key);
+        generator.writeObjectFieldStart("subject");
+        if (exposure.subject.id != null) {
+          generator.writeStringField("id", exposure.subject.id);
+        }
+        if (exposure.subject.attributes != null) {
+          generator.writeFieldName("attributes");
+          writeValue(generator, exposure.subject.attributes);
+        }
+        generator.writeEndObject();
+        if (exposure.serial_id != null) {
+          generator.writeNumberField("serial_id", exposure.serial_id);
+        }
+        if (exposure.features != null && !exposure.features.isEmpty()) {
+          generator.writeFieldName("features");
+          writeValue(generator, exposure.features);
+        }
+        generator.writeEndObject();
+      }
+      generator.writeEndArray();
+      generator.writeEndObject();
+    });
   }
 }

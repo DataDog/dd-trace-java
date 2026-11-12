@@ -71,7 +71,10 @@ abstract class ProcessManager extends Specification {
   public static final Set<String> NOISY_ENVIRONMENT_VARIABLES = ImmutableSet.of(
   'CI_COMMIT_TITLE',
   'CI_COMMIT_MESSAGE',
-  'CI_COMMIT_DESCRIPTION')
+  'CI_COMMIT_DESCRIPTION',
+  // These CI settings contain ERROR and trigger log checks when applications print their environment.
+  'CI_TEST_AGENT_SUPPRESS_TRACE_PARSE_ERRORS',
+  'CI_TEST_AGENT_DISABLE_ERROR_RESPONSES')
   private static final DateTimeFormatter LOG_FILE_TIMESTAMP_FORMATTER =
   DateTimeFormatter.ofPattern("yyyy-MM-dd-HHmmss.SSS", Locale.ROOT).withZone(ZoneOffset.UTC)
 

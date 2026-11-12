@@ -13,7 +13,6 @@ muzzle {
 }
 
 addTestSuiteForDir('latestDepTest', 'test')
-addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 
 dependencies {
   testImplementation libs.bundles.junit5

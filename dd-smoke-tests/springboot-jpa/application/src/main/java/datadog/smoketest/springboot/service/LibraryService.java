@@ -25,11 +25,10 @@ public class LibraryService {
     library.getBooks().stream()
         .map(Book::getId)
         .map(this::findBookById)
-        .forEach(
-            book -> {
-              book.getAuthors().forEach(Author::increaseUpdateCount);
-              book.getOwner().increaseUpdateCount();
-            });
+        .forEach(book -> {
+          book.getAuthors().forEach(Author::increaseUpdateCount);
+          book.getOwner().increaseUpdateCount();
+        });
     return em.merge(library);
   }
 

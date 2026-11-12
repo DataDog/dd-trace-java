@@ -3,10 +3,10 @@ package datadog.trace.instrumentation.jdbc;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.api.KnownTags.DD_DBM_TRACE_INJECTED;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
-import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DBM_TRACE_INJECTED;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DATABASE_QUERY;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DECORATE;
@@ -72,7 +72,7 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope onEnter(
         @Advice.Argument(value = 0, readOnly = false) String sql,
-        @Advice.AllArguments() Object[] args,
+        @Advice.AllArguments Object[] args,
         @Advice.This final Statement statement) {
       // TODO consider matching known non-wrapper implementations to avoid this check
       final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(Statement.class);
@@ -127,7 +127,7 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
                 traceParent = W3CTraceParent.from(span);
               }
               // set the dbm trace injected tag on the span
-              span.setTag(DBM_TRACE_INJECTED, true);
+              span.setTag(DD_DBM_TRACE_INJECTED, true);
             }
           }
           // For SQL Server and Oracle, trace context is propagated via

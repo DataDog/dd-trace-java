@@ -10,9 +10,11 @@ import static datadog.trace.lambda.LambdaEventParser.parseResponse;
 import datadog.logging.RatelimitedLogger;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.DDTraceId;
 import datadog.trace.api.KnownTags;
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.TagMap;
+import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.appsec.AppSecContext;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.gateway.BlockResponseFunction;
@@ -22,6 +24,7 @@ import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.internal.TraceSegment;
+import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
@@ -32,11 +35,13 @@ import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.URIUtils;
+import datadog.trace.bootstrap.instrumentation.api.http.ClientIpAddressResolver;
 import datadog.trace.lambda.LambdaEventParser.LambdaRequestData;
 import datadog.trace.lambda.LambdaEventParser.LambdaResponseData;
 import datadog.trace.lambda.LambdaEventParser.LambdaTriggerType;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.net.InetAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
@@ -394,11 +399,11 @@ public class LambdaAppSecHandler {
       return null;
     }
 
-    TagContext tagContext = new TagContext();
-    Object appSecRequestContext;
+    TagContext tagContext = createRequestTagContext(eventData);
+    String clientIp = tagContext.getTags().getString(Tags.HTTP_CLIENT_IP);
 
     // Call requestStarted
-    appSecRequestContext = requestStartedCallback.get().getResult();
+    Object appSecRequestContext = requestStartedCallback.get().getResult();
     tagContext.withRequestContextDataAppSec(appSecRequestContext);
 
     if (appSecRequestContext != null) {
@@ -430,6 +435,17 @@ public class LambdaAppSecHandler {
           }
         } else {
           log.debug("requestHeader callback is null");
+        }
+      }
+
+      // Publish the inferred address before the socket address can trigger WAF evaluation.
+      if (clientIp != null) {
+        BiFunction<RequestContext, String, Flow<Void>> inferredAddrCallback =
+            tracer
+                .getCallbackProvider(RequestContextSlot.APPSEC)
+                .getCallback(EVENTS.requestInferredClientAddress());
+        if (inferredAddrCallback != null) {
+          inferredAddrCallback.apply(requestContext, clientIp);
         }
       }
 
@@ -502,6 +518,44 @@ public class LambdaAppSecHandler {
       }
     }
     return tagContext;
+  }
+
+  /** Creates the request context, resolving the client address with HTTP server precedence. */
+  private static TagContext createRequestTagContext(LambdaRequestData eventData) {
+    Config config = Config.get();
+    if (!config.isClientIpEnabled() && !config.isTraceClientIpResolverEnabled()) {
+      return new TagContext();
+    }
+    TagContext.HttpHeaders headers = new TagContext.HttpHeaders();
+    headers.xForwardedFor = findHeader(eventData.headers, "x-forwarded-for");
+    headers.xRealIp = findHeader(eventData.headers, "x-real-ip");
+    headers.trueClientIp = findHeader(eventData.headers, "true-client-ip");
+    headers.xClientIp = findHeader(eventData.headers, "x-client-ip");
+    headers.forwarded = findHeader(eventData.headers, "forwarded");
+    headers.forwardedFor = findHeader(eventData.headers, "forwarded-for");
+    headers.xClusterClientIp = findHeader(eventData.headers, "x-cluster-client-ip");
+    headers.fastlyClientIp = findHeader(eventData.headers, "fastly-client-ip");
+    headers.cfConnectingIp = findHeader(eventData.headers, "cf-connecting-ip");
+    headers.cfConnectingIpv6 = findHeader(eventData.headers, "cf-connecting-ipv6");
+    String customHeader = config.getTraceClientIpHeader();
+    if (customHeader != null) {
+      headers.customIpHeader = findHeader(eventData.headers, customHeader);
+    }
+    TagContext extracted =
+        new TagContext(
+            null,
+            null,
+            headers,
+            null,
+            PrioritySampling.UNSET,
+            null,
+            TracePropagationStyle.NONE,
+            DDTraceId.ZERO);
+    InetAddress inferred = ClientIpAddressResolver.resolve(extracted, null, eventData.sourceIp);
+    if (inferred != null) {
+      extracted.putTag(Tags.HTTP_CLIENT_IP, inferred.getHostAddress());
+    }
+    return extracted;
   }
 
   /** Sets the current trigger type thread-local. Package-private for use in tests only. */

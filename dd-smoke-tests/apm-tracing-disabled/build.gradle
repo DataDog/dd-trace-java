@@ -12,7 +12,6 @@ smokeTestApp {
     artifactPath = 'libs/apm-tracing-disabled-smoketest.jar'
     sysProperty = 'datadog.smoketest.springboot.shadowJar.path'
   }
-  projectJar('apiJar', project(':dd-trace-api'))
 }
 
 dependencies {
