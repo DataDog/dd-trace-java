@@ -7,6 +7,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.llmobs.LLMObsPropagationValues;
 import datadog.trace.core.propagation.ptags.PTagsFactory;
+import datadog.trace.core.propagation.ptags.W3CTracestate;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -188,10 +189,14 @@ public abstract class PropagationTags {
    */
   public abstract void updateW3CTracestate(String tracestate);
 
-  /** Updates the original W3C tracestate header from {@code source}. */
-  public void updateW3CTracestateFrom(PropagationTags source) {
-    updateW3CTracestate(source.getW3CTracestate());
-  }
+  /**
+   * Takes the W3C tracestate from a trace context extracted alongside this one.
+   *
+   * @param source the trace context's tracestate
+   * @param overridingPriority the trace context's priority when it overrides the tracestate's own
+   *     ({@code s}), otherwise {@link datadog.trace.api.sampling.PrioritySampling#UNSET}
+   */
+  public abstract void updateW3CTracestateFrom(W3CTracestate source, int overridingPriority);
 
   /**
    * Constructs a header value that includes valid propagated _dd.p.* tags and possibly a new
