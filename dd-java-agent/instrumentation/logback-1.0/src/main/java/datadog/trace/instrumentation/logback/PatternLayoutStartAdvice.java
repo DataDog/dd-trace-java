@@ -65,6 +65,11 @@ public class PatternLayoutStartAdvice {
           if ("dd.span_id".equals(key)) {
             presentFields |= LogPatternInjector.SPAN_ID;
           }
+          if ("dd.env".equals(key)) {
+            presentFields |= LogPatternInjector.ENV;
+          } else if ("dd.version".equals(key)) {
+            presentFields |= LogPatternInjector.VERSION;
+          }
           if (presentFields == LogPatternInjector.ALL) {
             break scan;
           }

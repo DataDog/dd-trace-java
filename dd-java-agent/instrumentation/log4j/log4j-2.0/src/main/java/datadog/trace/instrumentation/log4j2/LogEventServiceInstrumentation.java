@@ -18,7 +18,7 @@ import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.matcher.ElementMatcher;
 
-/** Provides the service field on versions predating Log4j2's ContextDataInjector. */
+/** Provides deployment fields on versions predating Log4j2's ContextDataInjector. */
 @AutoService(InstrumenterModule.class)
 public class LogEventServiceInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
@@ -64,22 +64,41 @@ public class LogEventServiceInstrumentation extends InstrumenterModule.Tracing
     public static void onExit(
         @Advice.FieldValue(value = "contextMap", readOnly = false) Map<String, String> context) {
       Config config = Config.get();
-      if (!config.isLogPatternInject()
-          || !traceConfig().isLogsInjectionEnabled()
-          || (context != null && context.containsKey("dd.service"))) {
+      if (!config.isLogPatternInject() || !traceConfig().isLogsInjectionEnabled()) {
         return;
       }
       String service = config.getServiceName();
-      if (service == null || service.isEmpty()) {
+      String env = config.getEnv();
+      String version = config.getVersion();
+      boolean addService =
+          service != null
+              && !service.isEmpty()
+              && (context == null || !context.containsKey("dd.service"));
+      boolean addEnv =
+          env != null && !env.isEmpty() && (context == null || !context.containsKey("dd.env"));
+      boolean addVersion =
+          version != null
+              && !version.isEmpty()
+              && (context == null || !context.containsKey("dd.version"));
+      if (!addService && !addEnv && !addVersion) {
         return;
       }
-      if (context == null || context.isEmpty()) {
+      if ((context == null || context.isEmpty()) && addService && !addEnv && !addVersion) {
         context = singletonMap("dd.service", service);
-      } else {
-        Map<String, String> copy = new HashMap<>(context);
-        copy.put("dd.service", service);
-        context = copy;
+        return;
       }
+      // Copy at most once, and only when a configured deployment field is missing.
+      Map<String, String> copy = context == null ? new HashMap<>(4) : new HashMap<>(context);
+      if (addService) {
+        copy.put("dd.service", service);
+      }
+      if (addEnv) {
+        copy.put("dd.env", env);
+      }
+      if (addVersion) {
+        copy.put("dd.version", version);
+      }
+      context = copy;
     }
   }
 }

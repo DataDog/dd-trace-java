@@ -18,9 +18,18 @@ public class PatternLayoutConstructorAdvice {
       } catch (NoSuchFieldException legacyVersion) {
         format = LogPatternInjector.Format.LOG4J2_LEGACY;
       }
+      // EqualsReplacementConverter was introduced in 2.5; older releases use regex replacement.
+      boolean supportsEquals =
+          PatternLayout.class
+                  .getClassLoader()
+                  .getResource(
+                      "org/apache/logging/log4j/core/pattern/EqualsReplacementConverter.class")
+              != null;
       pattern =
           LogPatternInjector.injectLog4j(
-              pattern == null ? PatternLayout.DEFAULT_CONVERSION_PATTERN : pattern, format);
+              pattern == null ? PatternLayout.DEFAULT_CONVERSION_PATTERN : pattern,
+              format,
+              supportsEquals);
     }
   }
 }

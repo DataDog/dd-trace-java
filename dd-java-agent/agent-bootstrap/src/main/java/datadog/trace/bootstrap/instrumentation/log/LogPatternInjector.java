@@ -5,13 +5,15 @@ public final class LogPatternInjector {
   public static final int SERVICE = 1;
   public static final int TRACE_ID = 2;
   public static final int SPAN_ID = 4;
-  public static final int ALL = SERVICE | TRACE_ID | SPAN_ID;
+  public static final int ENV = 8;
+  public static final int VERSION = 16;
+  public static final int ALL = SERVICE | TRACE_ID | SPAN_ID | ENV | VERSION;
 
   private LogPatternInjector() {}
 
   /** Uses fields discovered by Logback's native parser. */
   public static String injectLogback(String pattern, int presentFields) {
-    return inject(pattern, presentFields, true);
+    return inject(pattern, presentFields, true, false);
   }
 
   /** MDC syntax capabilities of the supported Log4j releases. */
@@ -27,11 +29,11 @@ public final class LogPatternInjector {
   }
 
   /** Recognizes MDC converters using the syntax supported by the running framework. */
-  public static String injectLog4j(String pattern, Format format) {
+  public static String injectLog4j(String pattern, Format format, boolean supportsEquals) {
     if (pattern == null || pattern.isEmpty()) {
       return pattern;
     }
-    return inject(pattern, fields(pattern, 0, pattern.length(), format), false);
+    return inject(pattern, fields(pattern, 0, pattern.length(), format), false, supportsEquals);
   }
 
   private static int field(String key) {
@@ -41,7 +43,13 @@ public final class LogPatternInjector {
     if ("dd.trace_id".equals(key)) {
       return TRACE_ID;
     }
-    return "dd.span_id".equals(key) ? SPAN_ID : 0;
+    if ("dd.span_id".equals(key)) {
+      return SPAN_ID;
+    }
+    if ("dd.env".equals(key)) {
+      return ENV;
+    }
+    return "dd.version".equals(key) ? VERSION : 0;
   }
 
   private static int fields(String pattern, int start, int end, Format format) {
@@ -136,7 +144,8 @@ public final class LogPatternInjector {
         && (logback || i + 2 == pattern.length() || !Character.isLetter(pattern.charAt(i + 2)));
   }
 
-  private static String inject(String pattern, int presentFields, boolean logback) {
+  private static String inject(
+      String pattern, int presentFields, boolean logback, boolean supportsEquals) {
     if (pattern == null || pattern.isEmpty() || presentFields == ALL) {
       return pattern;
     }
@@ -230,10 +239,26 @@ public final class LogPatternInjector {
       result.append("dd.service=%X{dd.service} ");
     }
     if ((presentFields & TRACE_ID) == 0) {
-      result.append("dd.trace_id=%X{dd.trace_id} ");
+      result.append(
+          logback
+              ? "dd.trace_id=%X{dd.trace_id:-0} "
+              : supportsEquals
+                  ? "dd.trace_id=%equals{%X{dd.trace_id}}{}{0} "
+                  : "dd.trace_id=%replace{%X{dd.trace_id}}{^$}{0} ");
     }
     if ((presentFields & SPAN_ID) == 0) {
-      result.append("dd.span_id=%X{dd.span_id} ");
+      result.append(
+          logback
+              ? "dd.span_id=%X{dd.span_id:-0} "
+              : supportsEquals
+                  ? "dd.span_id=%equals{%X{dd.span_id}}{}{0} "
+                  : "dd.span_id=%replace{%X{dd.span_id}}{^$}{0} ");
+    }
+    if ((presentFields & ENV) == 0) {
+      result.append("dd.env=%X{dd.env} ");
+    }
+    if ((presentFields & VERSION) == 0) {
+      result.append("dd.version=%X{dd.version} ");
     }
     if (insertion == pattern.length()
         || isLineBreak(pattern, insertion, logback)

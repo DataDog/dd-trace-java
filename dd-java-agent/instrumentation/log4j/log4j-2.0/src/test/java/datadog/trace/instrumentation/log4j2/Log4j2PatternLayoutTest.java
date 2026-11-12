@@ -25,9 +25,19 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 @WithConfig(key = "logs.pattern.inject", value = "true")
 @WithConfig(key = "service", value = "pattern-test")
+@WithConfig(key = "env", value = "test-env")
+@WithConfig(key = "version", value = "1.2.3")
 class Log4j2PatternLayoutTest extends AbstractInstrumentationTest {
   private static final String FIELDS =
-      "dd.service=%X{dd.service} dd.trace_id=%X{dd.trace_id} dd.span_id=%X{dd.span_id}";
+      Log4j2PatternLayoutTest.class
+                  .getClassLoader()
+                  .getResource(
+                      "org/apache/logging/log4j/core/pattern/EqualsReplacementConverter.class")
+              != null
+          ? "dd.service=%X{dd.service} dd.trace_id=%equals{%X{dd.trace_id}}{}{0} "
+              + "dd.span_id=%equals{%X{dd.span_id}}{}{0} dd.env=%X{dd.env} dd.version=%X{dd.version}"
+          : "dd.service=%X{dd.service} dd.trace_id=%replace{%X{dd.trace_id}}{^$}{0} "
+              + "dd.span_id=%replace{%X{dd.span_id}}{^$}{0} dd.env=%X{dd.env} dd.version=%X{dd.version}";
 
   @BeforeEach
   @AfterEach
@@ -71,16 +81,17 @@ class Log4j2PatternLayoutTest extends AbstractInstrumentationTest {
             + traceId
             + " dd.span_id="
             + spanId
-            + " message"
+            + " dd.env=test-env dd.version=1.2.3 message"
             + System.lineSeparator(),
         layout.toSerializable(captured));
   }
 
   @Test
-  protected void keepsServiceWithoutInventingIds() {
+  protected void keepsDeploymentFieldsWithZeroIds() {
     PatternLayout layout = PatternLayout.newBuilder().withPattern("%p %m%n").build();
     assertEquals(
-        "INFO dd.service=pattern-test dd.trace_id= dd.span_id= message" + System.lineSeparator(),
+        "INFO dd.service=pattern-test dd.trace_id=0 dd.span_id=0 dd.env=test-env dd.version=1.2.3 message"
+            + System.lineSeparator(),
         layout.toSerializable(Events.event("message")));
   }
 
@@ -89,7 +100,7 @@ class Log4j2PatternLayoutTest extends AbstractInstrumentationTest {
     ThreadContext.put("dd.service", "application-service");
     PatternLayout layout = PatternLayout.newBuilder().withPattern("%p %m%n").build();
     assertEquals(
-        "INFO dd.service=application-service dd.trace_id= dd.span_id= message"
+        "INFO dd.service=application-service dd.trace_id=0 dd.span_id=0 dd.env=test-env dd.version=1.2.3 message"
             + System.lineSeparator(),
         layout.toSerializable(Events.event("message")));
   }
@@ -108,6 +119,11 @@ class Log4j2PatternLayoutTest extends AbstractInstrumentationTest {
         "%X{}",
         "%X",
         "%X{dd.service,dd.trace_id,dd.span_id}",
+        "%X{dd.service,dd.trace_id,dd.span_id,dd.env,dd.version}",
+        "%cyan{%X{dd.env}}",
+        "%style{%X{dd.version}}{red}",
+        "%X{dd.env}",
+        "%MDC{dd.version}",
         "%mdc{dd.service}",
         "%MDC{dd.trace_id}",
         "%%X{dd.trace_id}",
@@ -133,12 +149,17 @@ class Log4j2PatternLayoutTest extends AbstractInstrumentationTest {
                   .getResource("org/apache/logging/log4j/core/pattern/MaxLengthConverter.class")
               != null);
     }
+    ThreadContext.put("dd.env", "env-marker");
+    ThreadContext.put("dd.version", "version-marker");
     ThreadContext.put("dd.service", "service-marker");
     ThreadContext.put("dd.trace_id", "trace-marker");
     ThreadContext.put("dd.span_id", "span-marker");
     PatternLayout layout = PatternLayout.newBuilder().withPattern(converter + " %m%n").build();
     String output = layout.toSerializable(Events.event("message"));
-    for (String marker : new String[] {"service-marker", "trace-marker", "span-marker"}) {
+    for (String marker :
+        new String[] {
+          "service-marker", "trace-marker", "span-marker", "env-marker", "version-marker"
+        }) {
       assertEquals(2, output.split(marker, -1).length, output);
     }
   }
@@ -149,7 +170,30 @@ class Log4j2PatternLayoutTest extends AbstractInstrumentationTest {
     ThreadContext.put("dd.service", "application-service");
     PatternLayout layout = PatternLayout.newBuilder().withPattern(pattern).build();
     assertEquals(
-        "message dd.service=application-service dd.trace_id= dd.span_id=" + System.lineSeparator(),
+        "message dd.service=application-service dd.trace_id=0 dd.span_id=0 dd.env=test-env dd.version=1.2.3"
+            + System.lineSeparator(),
+        layout.toSerializable(Events.event("message")));
+  }
+
+  @Test
+  @WithConfig(key = "env", value = "")
+  @WithConfig(key = "version", value = "")
+  void leavesUndefinedDeploymentFieldsEmpty() {
+    PatternLayout layout = PatternLayout.newBuilder().withPattern("%p %m%n").build();
+    assertEquals(
+        "INFO dd.service=pattern-test dd.trace_id=0 dd.span_id=0 dd.env= dd.version= message"
+            + System.lineSeparator(),
+        layout.toSerializable(Events.event("message")));
+  }
+
+  @Test
+  void preservesApplicationDeploymentFields() {
+    ThreadContext.put("dd.env", "application-env");
+    ThreadContext.put("dd.version", "application-version");
+    PatternLayout layout = PatternLayout.newBuilder().withPattern("%p %m%n").build();
+    assertEquals(
+        "INFO dd.service=pattern-test dd.trace_id=0 dd.span_id=0 dd.env=application-env dd.version=application-version message"
+            + System.lineSeparator(),
         layout.toSerializable(Events.event("message")));
   }
 
@@ -179,7 +223,8 @@ class Log4j2PatternLayoutLogsInjectionDisabledTest extends AbstractInstrumentati
           new Log4jLogEvent(
               "test", null, getClass().getName(), Level.INFO, new SimpleMessage("message"), null);
       assertEquals(
-          "INFO dd.service= dd.trace_id= dd.span_id= message" + System.lineSeparator(),
+          "INFO dd.service= dd.trace_id=0 dd.span_id=0 dd.env= dd.version= message"
+              + System.lineSeparator(),
           layout.toSerializable(event));
     } finally {
       span.finish();

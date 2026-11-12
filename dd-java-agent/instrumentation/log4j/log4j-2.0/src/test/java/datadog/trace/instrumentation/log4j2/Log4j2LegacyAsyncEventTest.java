@@ -8,6 +8,7 @@ import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
 import datadog.context.ContextScope;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
@@ -32,6 +33,8 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 @WithConfig(key = "logs.pattern.inject", value = "true")
 @WithConfig(key = "service", value = "pattern-test")
+@WithConfig(key = "env", value = "test-env")
+@WithConfig(key = "version", value = "1.2.3")
 class Log4j2LegacyAsyncEventTest extends AbstractInstrumentationTest {
   @BeforeEach
   @AfterEach
@@ -69,6 +72,7 @@ class Log4j2LegacyAsyncEventTest extends AbstractInstrumentationTest {
             + traceId
             + " dd.span_id="
             + spanId
+            + " dd.env=test-env dd.version=1.2.3"
             + System.lineSeparator(),
         layout().toSerializable(event));
     assertEquals(applicationService, snapshot.get("dd.service"));
@@ -78,7 +82,8 @@ class Log4j2LegacyAsyncEventTest extends AbstractInstrumentationTest {
     populate(event, emptyMap());
     event.mergePropertiesIntoContextMap(null, null);
     assertEquals(
-        "message dd.service=pattern-test dd.trace_id= dd.span_id=" + System.lineSeparator(),
+        "message dd.service=pattern-test dd.trace_id=0 dd.span_id=0 dd.env=test-env dd.version=1.2.3"
+            + System.lineSeparator(),
         layout().toSerializable(event));
     assertFalse(event.getContextMap().containsKey("dd.trace_id"));
   }
@@ -90,6 +95,35 @@ class Log4j2LegacyAsyncEventTest extends AbstractInstrumentationTest {
     event.mergePropertiesIntoContextMap(
         singletonMap(Property.createProperty("dd.service", "logger-service"), false), null);
     assertEquals("logger-service", event.getContextMap().get("dd.service"));
+  }
+
+  @Test
+  void preservesDeploymentFieldsWithoutCopyingCompleteContext() throws Exception {
+    Map<String, String> context = new HashMap<>();
+    context.put("dd.service", "application-service");
+    context.put("dd.env", "application-env");
+    context.put("dd.version", "application-version");
+    RingBufferLogEvent event = new RingBufferLogEvent();
+    populate(event, context);
+    event.mergePropertiesIntoContextMap(null, null);
+    assertSame(context, event.getContextMap());
+    assertEquals(
+        "message dd.service=application-service dd.trace_id=0 dd.span_id=0 dd.env=application-env dd.version=application-version"
+            + System.lineSeparator(),
+        layout().toSerializable(event));
+  }
+
+  @Test
+  void preservesLoggerConfiguredDeploymentFields() throws Exception {
+    RingBufferLogEvent event = new RingBufferLogEvent();
+    populate(event, emptyMap());
+    Map<Property, Boolean> properties = new HashMap<>();
+    properties.put(Property.createProperty("dd.env", "logger-env"), false);
+    properties.put(Property.createProperty("dd.version", "logger-version"), false);
+    event.mergePropertiesIntoContextMap(properties, null);
+    assertEquals("logger-env", event.getContextMap().get("dd.env"));
+    assertEquals("logger-version", event.getContextMap().get("dd.version"));
+    assertEquals("pattern-test", event.getContextMap().get("dd.service"));
   }
 
   private static PatternLayout layout() {

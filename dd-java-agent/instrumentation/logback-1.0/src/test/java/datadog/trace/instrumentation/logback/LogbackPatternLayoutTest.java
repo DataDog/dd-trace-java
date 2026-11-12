@@ -30,12 +30,17 @@ import org.slf4j.MDC;
 import org.tabletest.junit.TableTest;
 
 @WithConfig(key = "service", value = "pattern-test")
+@WithConfig(key = "env", value = "test-env")
+@WithConfig(key = "version", value = "1.2.3")
 @WithConfig(key = "logs.pattern.inject", value = "true")
 @WithConfig(key = "logs.injection.enabled", value = "true")
 class LogbackPatternLayoutTest extends AbstractInstrumentationTest {
-  private static final String SPAN = "dd.span_id=%X{dd.span_id} ";
-  private static final String TRACE = "dd.trace_id=%X{dd.trace_id} ";
+  private static final String SPAN = "dd.span_id=%X{dd.span_id:-0} ";
+  private static final String TRACE = "dd.trace_id=%X{dd.trace_id:-0} ";
   private static final String SERVICE = "dd.service=%X{dd.service} ";
+
+  private static final String ENV = "dd.env=%X{dd.env} ";
+  private static final String VERSION = "dd.version=%X{dd.version} ";
 
   private LogCapture logs;
 
@@ -52,28 +57,36 @@ class LogbackPatternLayoutTest extends AbstractInstrumentationTest {
   }
 
   @TableTest({
-    "Scenario       | Template                                              | Trace | Service | Span ",
-    "plain          | %level @%logger - %msg%n                              | true  | true    | true ",
-    "trace only     | %X{dd.trace_id} @%msg%n                               | false | true    | true ",
-    "service only   | %mdc{dd.service} @%msg%n                              | true  | false   | true ",
-    "both           | %X{dd.trace_id} @%mdc{dd.service} %msg%n              | false | false   | true ",
-    "all MDC        | %X @%msg%n                                            | false | false   | false",
-    "empty options  | %mdc{} @%msg%n                                        | false | false   | false",
-    "empty MDC key  | %X{:-NA} @%msg%n                                      | true  | true    | true ",
-    "default values | %X{dd.trace_id:-NA} @%mdc{dd.service:-NA} %msg%n      | false | false   | true ",
-    "formatted      | %-32X{dd.trace_id} @%20mdc{dd.service} %msg%n         | false | false   | true ",
-    "nested         | %replace(%X{dd.trace_id}){a,b} @%msg%n                | false | true    | true ",
-    "escaped        | \\%X{dd.trace_id} @%msg%n                             | true  | true    | true ",
-    "literal keys   | dd.trace_id @dd.service %msg%n                        | true  | true    | true ",
-    "span only      | %X{dd.span_id} @%msg%n                                | true  | true    | false",
-    "all fields     | %X{dd.service} @%X{dd.trace_id} %X{dd.span_id} %msg%n | false | false   | false",
-    "other MDC      | %X{business.key} @%msg%n                              | true  | true    | true "
+    "Scenario       | Template                                                                        | Trace | Service | Span  | Env   | Version",
+    "plain          | %level @%logger - %msg%n                                                        | true  | true    | true  | true  | true   ",
+    "trace only     | %X{dd.trace_id} @%msg%n                                                         | false | true    | true  | true  | true   ",
+    "service only   | %mdc{dd.service} @%msg%n                                                        | true  | false   | true  | true  | true   ",
+    "both           | %X{dd.trace_id} @%mdc{dd.service} %msg%n                                        | false | false   | true  | true  | true   ",
+    "all MDC        | %X @%msg%n                                                                      | false | false   | false | false | false  ",
+    "empty options  | %mdc{} @%msg%n                                                                  | false | false   | false | false | false  ",
+    "empty MDC key  | %X{:-NA} @%msg%n                                                                | true  | true    | true  | true  | true   ",
+    "default values | %X{dd.trace_id:-NA} @%mdc{dd.service:-NA} %msg%n                                | false | false   | true  | true  | true   ",
+    "formatted      | %-32X{dd.trace_id} @%20mdc{dd.service} %msg%n                                   | false | false   | true  | true  | true   ",
+    "nested         | %replace(%X{dd.trace_id}){a,b} @%msg%n                                          | false | true    | true  | true  | true   ",
+    "escaped        | \\%X{dd.trace_id} @%msg%n                                                       | true  | true    | true  | true  | true   ",
+    "literal keys   | dd.trace_id @dd.service %msg%n                                                  | true  | true    | true  | true  | true   ",
+    "span only      | %X{dd.span_id} @%msg%n                                                          | true  | true    | false | true  | true   ",
+    "all fields     | %X{dd.service} @%X{dd.trace_id} %X{dd.span_id} %X{dd.env} %X{dd.version} %msg%n | false | false   | false | false | false  ",
+    "env only       | %X{dd.env} @%msg%n                                                              | true  | true    | true  | false | true   ",
+    "version only   | %mdc{dd.version:-NA} @%msg%n                                                    | true  | true    | true  | true  | false  ",
+    "other MDC      | %X{business.key} @%msg%n                                                        | true  | true    | true  | true  | true   "
   })
   void addsOnlyMissingFieldsAndDoesNotDuplicateOnRestart(
-      String template, boolean trace, boolean service, boolean span) {
+      String template, boolean trace, boolean service, boolean span, boolean env, boolean version) {
     PatternLayout layout = logs.newLayout(template.replace("@", ""));
     String expected =
-        template.replace("@", (service ? SERVICE : "") + (trace ? TRACE : "") + (span ? SPAN : ""));
+        template.replace(
+            "@",
+            (service ? SERVICE : "")
+                + (trace ? TRACE : "")
+                + (span ? SPAN : "")
+                + (env ? ENV : "")
+                + (version ? VERSION : ""));
     assertEquals(expected, layout.getPattern());
     assertTrue(layout.isStarted());
 
@@ -87,7 +100,7 @@ class LogbackPatternLayoutTest extends AbstractInstrumentationTest {
     String pattern = "%replace(%msg){'message','%X{dd.trace_id} %X{dd.service}'}%n";
     assertEquals(
         "%replace(%msg){'message','%X{dd.trace_id} %X{dd.service}'} "
-            + (SERVICE + TRACE + SPAN).trim()
+            + (SERVICE + TRACE + SPAN + ENV + VERSION).trim()
             + "%n",
         logs.newLayout(pattern).getPattern());
   }
@@ -106,7 +119,8 @@ class LogbackPatternLayoutTest extends AbstractInstrumentationTest {
     PatternLayout layout = logs.newLayout(pattern);
     assertTrue(layout.isStarted());
     assertEquals(
-        firstField + " " + SERVICE + TRACE + SPAN + "[%thread] %msg%n", layout.getPattern());
+        firstField + " " + SERVICE + TRACE + SPAN + ENV + VERSION + "[%thread] %msg%n",
+        layout.getPattern());
   }
 
   @Test
@@ -153,6 +167,7 @@ class LogbackPatternLayoutTest extends AbstractInstrumentationTest {
               + traceId
               + " dd.span_id="
               + spanId
+              + " dd.env=test-env dd.version=1.2.3"
               + System.lineSeparator(),
           output.get());
     } finally {
@@ -162,9 +177,10 @@ class LogbackPatternLayoutTest extends AbstractInstrumentationTest {
   }
 
   @Test
-  void doesNotInventIdsWithoutActiveSpan() {
+  void usesZeroIdsWithoutActiveSpan() {
     assertEquals(
-        "background dd.service=pattern-test dd.trace_id= dd.span_id=" + System.lineSeparator(),
+        "background dd.service=pattern-test dd.trace_id=0 dd.span_id=0 dd.env=test-env dd.version=1.2.3"
+            + System.lineSeparator(),
         logs.newLayout("%msg%n").doLayout(logs.event("background")));
   }
 
@@ -172,7 +188,28 @@ class LogbackPatternLayoutTest extends AbstractInstrumentationTest {
   void preservesAnApplicationProvidedServiceName() {
     MDC.put("dd.service", "application-service");
     assertEquals(
-        "message dd.service=application-service dd.trace_id= dd.span_id=" + System.lineSeparator(),
+        "message dd.service=application-service dd.trace_id=0 dd.span_id=0 dd.env=test-env dd.version=1.2.3"
+            + System.lineSeparator(),
+        logs.newLayout("%msg%n").doLayout(logs.event("message")));
+  }
+
+  @Test
+  @WithConfig(key = "env", value = "")
+  @WithConfig(key = "version", value = "")
+  void leavesUndefinedDeploymentFieldsEmpty() {
+    assertEquals(
+        "message dd.service=pattern-test dd.trace_id=0 dd.span_id=0 dd.env= dd.version="
+            + System.lineSeparator(),
+        logs.newLayout("%msg%n").doLayout(logs.event("message")));
+  }
+
+  @Test
+  void preservesApplicationDeploymentFields() {
+    MDC.put("dd.env", "application-env");
+    MDC.put("dd.version", "application-version");
+    assertEquals(
+        "message dd.service=pattern-test dd.trace_id=0 dd.span_id=0 dd.env=application-env dd.version=application-version"
+            + System.lineSeparator(),
         logs.newLayout("%msg%n").doLayout(logs.event("message")));
   }
 
@@ -203,7 +240,7 @@ class LogbackPatternLayoutTest extends AbstractInstrumentationTest {
 @WithConfig(key = "logs.injection.enabled", value = "false")
 class LogbackPatternLayoutLogsInjectionDisabledTest extends AbstractInstrumentationTest {
   @Test
-  void doesNotInventIdsWhenLogsInjectionIsDisabled() {
+  void usesZeroIdsWhenLogsInjectionIsDisabled() {
     MDC.clear();
     Logger logger = (Logger) LoggerFactory.getLogger(getClass());
     PatternLayout layout = new PatternLayout();
@@ -216,7 +253,8 @@ class LogbackPatternLayoutLogsInjectionDisabledTest extends AbstractInstrumentat
       LoggingEvent event =
           new LoggingEvent(getClass().getName(), logger, Level.INFO, "message", null, null);
       assertEquals(
-          "message dd.service= dd.trace_id= dd.span_id=" + System.lineSeparator(),
+          "message dd.service= dd.trace_id=0 dd.span_id=0 dd.env= dd.version="
+              + System.lineSeparator(),
           layout.doLayout(event));
     } finally {
       span.finish();
