@@ -22,6 +22,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.tabletest.junit.TableTest;
 
 @WithConfig(key = "logs.pattern.inject", value = "true")
 @WithConfig(key = "service", value = "pattern-test")
@@ -36,8 +37,8 @@ class Log4j2PatternLayoutTest extends AbstractInstrumentationTest {
               != null
           ? "dd.service=%X{dd.service} dd.trace_id=%equals{%X{dd.trace_id}}{}{0} "
               + "dd.span_id=%equals{%X{dd.span_id}}{}{0} dd.env=%X{dd.env} dd.version=%X{dd.version}"
-          : "dd.service=%X{dd.service} dd.trace_id=%replace{%X{dd.trace_id}}{^$}{0} "
-              + "dd.span_id=%replace{%X{dd.span_id}}{^$}{0} dd.env=%X{dd.env} dd.version=%X{dd.version}";
+          : "dd.service=%X{dd.service} dd.trace_id=%ddAgentId{dd.trace_id} "
+              + "dd.span_id=%ddAgentId{dd.span_id} dd.env=%X{dd.env} dd.version=%X{dd.version}";
 
   @BeforeEach
   @AfterEach
@@ -49,7 +50,7 @@ class Log4j2PatternLayoutTest extends AbstractInstrumentationTest {
   protected void injectsBuilderPatternAndPreservesPrefix() {
     String pattern = "[%d{yyyy-MM-dd HH:mm:ss}] %p %m%n";
     PatternLayout layout = PatternLayout.newBuilder().withPattern(pattern).build();
-    String expected = "[%d{yyyy-MM-dd HH:mm:ss}] " + FIELDS + " %p %m%n";
+    String expected = "[%d{yyyy-MM-dd HH:mm:ss}] %p " + FIELDS + " %m%n";
     assertEquals(expected, layout.getConversionPattern());
     assertEquals(
         expected, PatternLayout.newBuilder().withPattern(expected).build().getConversionPattern());
@@ -107,9 +108,9 @@ class Log4j2PatternLayoutTest extends AbstractInstrumentationTest {
 
   @Test
   protected void injectsDefaultAndNullBuilderPatterns() {
-    assertEquals("%m " + FIELDS + "%n", PatternLayout.createDefaultLayout().getConversionPattern());
+    assertEquals(FIELDS + " %m%n", PatternLayout.createDefaultLayout().getConversionPattern());
     assertEquals(
-        "%m " + FIELDS + "%n",
+        FIELDS + " %m%n",
         PatternLayout.newBuilder().withPattern(null).build().getConversionPattern());
   }
 
@@ -170,7 +171,7 @@ class Log4j2PatternLayoutTest extends AbstractInstrumentationTest {
     ThreadContext.put("dd.service", "application-service");
     PatternLayout layout = PatternLayout.newBuilder().withPattern(pattern).build();
     assertEquals(
-        "message dd.service=application-service dd.trace_id=0 dd.span_id=0 dd.env=test-env dd.version=1.2.3"
+        "dd.service=application-service dd.trace_id=0 dd.span_id=0 dd.env=test-env dd.version=1.2.3 message"
             + System.lineSeparator(),
         layout.toSerializable(Events.event("message")));
   }
@@ -195,6 +196,41 @@ class Log4j2PatternLayoutTest extends AbstractInstrumentationTest {
         "INFO dd.service=pattern-test dd.trace_id=0 dd.span_id=0 dd.env=application-env dd.version=application-version message"
             + System.lineSeparator(),
         layout.toSerializable(Events.event("message")));
+  }
+
+  @TableTest({
+    "Scenario          | Template                     ",
+    "short message     | %p %c - @%m%n                ",
+    "message alias     | %p %c - @%msg%n              ",
+    "long message      | %p %c - @%message%n          ",
+    "formatted message | %p %c - @%-20m%n             ",
+    "message wrapper   | %p %c - @%replace{%m}{a}{b}%n",
+    "colored message   | %p %c - @%cyan{%m}%n         ",
+    "wrapped prefix    | %cyan{%p %c - @%m}%n         ",
+    "option literal    | %replace{%p}{a}{%m} @%m%n    ",
+    "escaped literal   | %p %%m @%m%n                 ",
+    "newline fallback  | %p %c @%n%t                  ",
+    "no newline        | %p %c@                       ",
+    "wrapped newline   | %cyan{%p @%n}                "
+  })
+  void preservesPrefixAndPlacesFieldsAtTheMessageOrFirstNewline(String template) {
+    String expected = template.replace("@", FIELDS + " ");
+    if (template.endsWith("@") || template.contains("@%n") || template.contains("@\n")) {
+      expected = template.replace("@", template.endsWith("@") ? " " + FIELDS : FIELDS);
+    }
+    assertEquals(
+        expected,
+        PatternLayout.newBuilder()
+            .withPattern(template.replace("@", ""))
+            .build()
+            .getConversionPattern());
+  }
+
+  @Test
+  void insertsBeforeTheFirstLiteralLineBreakWithoutAMessage() {
+    assertEquals(
+        "%p " + FIELDS + "\n%c",
+        PatternLayout.newBuilder().withPattern("%p\n%c").build().getConversionPattern());
   }
 
   private static class Events {

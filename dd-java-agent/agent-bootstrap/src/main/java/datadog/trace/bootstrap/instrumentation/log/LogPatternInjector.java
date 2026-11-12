@@ -1,6 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.log;
 
-/** Adds missing MDC converters after the first complete field of a text logging pattern. */
+/** Adds missing MDC converters before the message of a text logging pattern. */
 public final class LogPatternInjector {
   public static final int SERVICE = 1;
   public static final int TRACE_ID = 2;
@@ -73,13 +73,14 @@ public final class LogPatternInjector {
         i++;
       }
       String name = pattern.substring(nameStart, i);
-      boolean mdc = "X".equals(name) || "mdc".equals(name) || "MDC".equals(name);
+      boolean mdc =
+          "X".equals(name) || "mdc".equals(name) || "MDC".equals(name) || "ddAgentId".equals(name);
       boolean firstOption = true;
       if (mdc && (i == end || pattern.charAt(i) != '{')) {
         return ALL;
       }
       while (i < end && pattern.charAt(i) == '{') {
-        int close = optionEnd(pattern, i, end);
+        int close = optionEnd(pattern, i, end, false);
         if (close < 0) {
           return ALL; // Leave malformed patterns to the framework's validation.
         }
@@ -126,11 +127,40 @@ public final class LogPatternInjector {
         || "encode".equals(name);
   }
 
-  private static int optionEnd(String pattern, int start, int end) {
+  private static int logbackGroupEnd(String pattern, int start, int end) {
     int depth = 1;
     for (int i = start + 1; i < end; i++) {
       char c = pattern.charAt(i);
-      if (c == '{') {
+      if (c == '\\') {
+        i++;
+      } else if (c == '{') {
+        i = optionEnd(pattern, i, end, true);
+        if (i < 0) {
+          return -1;
+        }
+      } else if (c == '(') {
+        depth++;
+      } else if (c == ')' && --depth == 0) {
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  private static int optionEnd(String pattern, int start, int end, boolean logback) {
+    int depth = 1;
+    char quote = 0;
+    for (int i = start + 1; i < end; i++) {
+      char c = pattern.charAt(i);
+      if (logback && c == '\\') {
+        i++;
+      } else if (quote != 0) {
+        if (c == quote) {
+          quote = 0;
+        }
+      } else if (logback && (c == '\'' || c == '"')) {
+        quote = c;
+      } else if (c == '{') {
         depth++;
       } else if (c == '}' && --depth == 0) {
         return i;
@@ -139,9 +169,85 @@ public final class LogPatternInjector {
     return -1;
   }
 
-  private static boolean isLineBreak(String pattern, int i, boolean logback) {
-    return pattern.startsWith("%n", i)
-        && (logback || i + 2 == pattern.length() || !Character.isLetter(pattern.charAt(i + 2)));
+  /** Searches pattern content, skipping literal converter options and escaped percent signs. */
+  private static int findInsertion(
+      String pattern, int start, int end, boolean logback, boolean message, int wrapperStart) {
+    boolean prefixSeen = false;
+    for (int i = start; i < end; ) {
+      char c = pattern.charAt(i);
+      if (logback && c == '\\') {
+        prefixSeen = true;
+        i += 2;
+        continue;
+      }
+      if (c != '%') {
+        if (!message && (c == '\n' || c == '\r')) {
+          return i;
+        }
+        prefixSeen = true;
+        i++;
+        continue;
+      }
+      int tokenStart = i++;
+      if (!logback && i < end && pattern.charAt(i) == '%') {
+        prefixSeen = true;
+        i++;
+        continue;
+      }
+      while (i < end
+          && (pattern.charAt(i) == '-'
+              || pattern.charAt(i) == '.'
+              || Character.isDigit(pattern.charAt(i)))) {
+        i++;
+      }
+      int nameStart = i;
+      while (i < end && Character.isLetter(pattern.charAt(i))) {
+        i++;
+      }
+      String name = pattern.substring(nameStart, i);
+      if (message && ("m".equals(name) || "msg".equals(name) || "message".equals(name))) {
+        return prefixSeen || wrapperStart < 0 ? tokenStart : wrapperStart;
+      }
+      if (!message && "n".equals(name)) {
+        return tokenStart;
+      }
+      int childEnd = -1;
+      if (logback && i < end && pattern.charAt(i) == '(') {
+        childEnd = logbackGroupEnd(pattern, i, end);
+      } else if (!logback && isComposite(name) && i < end && pattern.charAt(i) == '{') {
+        childEnd = optionEnd(pattern, i, end, false);
+      }
+      if (childEnd >= 0) {
+        // Keep message-only wrappers around the message, without transforming the new fields.
+        // If a wrapper also contains a prefix, keep that prefix ahead of the injected fields.
+        int nested =
+            findInsertion(
+                pattern,
+                i + 1,
+                childEnd,
+                logback,
+                message,
+                prefixSeen || wrapperStart < 0 ? tokenStart : wrapperStart);
+        if (nested >= 0) {
+          return nested;
+        }
+        i = childEnd + 1;
+      }
+      while (i < end && pattern.charAt(i) == '{') {
+        int close = optionEnd(pattern, i, end, logback);
+        if (close < 0) {
+          return -1;
+        }
+        i = close + 1;
+      }
+      prefixSeen = true;
+    }
+    return -1;
+  }
+
+  private static boolean isLineBreak(String pattern, int offset) {
+    return pattern.startsWith("%n", offset)
+        && (offset + 2 == pattern.length() || !Character.isLetter(pattern.charAt(offset + 2)));
   }
 
   private static String inject(
@@ -149,80 +255,12 @@ public final class LogPatternInjector {
     if (pattern == null || pattern.isEmpty() || presentFields == ALL) {
       return pattern;
     }
-    // Preserve the first complete field, including date options and presentation wrappers.
-    int insertion = pattern.length();
-    int optionsDepth = 0;
-    int compositeDepth = 0;
-    int bracketDepth = 0;
-    char quote = 0;
-    boolean fieldStarted = false;
-    for (int i = 0; i < pattern.length(); i++) {
-      char c = pattern.charAt(i);
-      if (c == '\\' && logback) {
-        fieldStarted = true;
-        i++;
-        continue;
-      }
-      if (!logback && c == '%' && i + 1 < pattern.length() && pattern.charAt(i + 1) == '%') {
-        fieldStarted = true;
-        i++;
-        continue;
-      }
-      if (optionsDepth > 0) {
-        if (quote != 0) {
-          if (c == quote) {
-            quote = 0;
-          }
-        } else if (logback && (c == '\'' || c == '"')) {
-          quote = c;
-        } else if (c == '{') {
-          optionsDepth++;
-        } else if (c == '}') {
-          optionsDepth--;
-        }
-        continue;
-      }
-      if (c == '{') {
-        optionsDepth++;
-      } else if (logback && c == '(') {
-        compositeDepth++;
-      } else if (logback && c == ')' && compositeDepth > 0) {
-        compositeDepth--;
-      } else if (compositeDepth == 0 && c == '[') {
-        bracketDepth++;
-      } else if (compositeDepth == 0 && c == ']' && bracketDepth > 0) {
-        bracketDepth--;
-      }
-      if (compositeDepth == 0 && fieldStarted) {
-        if (isLineBreak(pattern, i, logback) || c == '\n' || c == '\r') {
-          insertion = i;
-          break;
-        }
-        if (bracketDepth == 0 && (Character.isWhitespace(c) || c == '|' || c == ',' || c == ';')) {
-          insertion = i;
-          // Keep the original separator before the new fields, including delimited logs.
-          while (insertion < pattern.length()
-              && Character.isWhitespace(pattern.charAt(insertion))
-              && pattern.charAt(insertion) != '\n'
-              && pattern.charAt(insertion) != '\r') {
-            insertion++;
-          }
-          if (insertion < pattern.length()
-              && (pattern.charAt(insertion) == '|'
-                  || pattern.charAt(insertion) == ','
-                  || pattern.charAt(insertion) == ';')) {
-            insertion++;
-            while (insertion < pattern.length()
-                && Character.isWhitespace(pattern.charAt(insertion))
-                && pattern.charAt(insertion) != '\n'
-                && pattern.charAt(insertion) != '\r') {
-              insertion++;
-            }
-          }
-          break;
-        }
-      }
-      fieldStarted |= !Character.isWhitespace(c);
+    int insertion = findInsertion(pattern, 0, pattern.length(), logback, true, -1);
+    if (insertion < 0) {
+      insertion = findInsertion(pattern, 0, pattern.length(), logback, false, -1);
+    }
+    if (insertion < 0) {
+      insertion = pattern.length();
     }
     StringBuilder result = new StringBuilder();
     result.append(pattern, 0, insertion);
@@ -244,7 +282,7 @@ public final class LogPatternInjector {
               ? "dd.trace_id=%X{dd.trace_id:-0} "
               : supportsEquals
                   ? "dd.trace_id=%equals{%X{dd.trace_id}}{}{0} "
-                  : "dd.trace_id=%replace{%X{dd.trace_id}}{^$}{0} ");
+                  : "dd.trace_id=%ddAgentId{dd.trace_id} ");
     }
     if ((presentFields & SPAN_ID) == 0) {
       result.append(
@@ -252,7 +290,7 @@ public final class LogPatternInjector {
               ? "dd.span_id=%X{dd.span_id:-0} "
               : supportsEquals
                   ? "dd.span_id=%equals{%X{dd.span_id}}{}{0} "
-                  : "dd.span_id=%replace{%X{dd.span_id}}{^$}{0} ");
+                  : "dd.span_id=%ddAgentId{dd.span_id} ");
     }
     if ((presentFields & ENV) == 0) {
       result.append("dd.env=%X{dd.env} ");
@@ -261,7 +299,7 @@ public final class LogPatternInjector {
       result.append("dd.version=%X{dd.version} ");
     }
     if (insertion == pattern.length()
-        || isLineBreak(pattern, insertion, logback)
+        || isLineBreak(pattern, insertion)
         || pattern.charAt(insertion) == '\n'
         || pattern.charAt(insertion) == '\r') {
       result.setLength(result.length() - 1);

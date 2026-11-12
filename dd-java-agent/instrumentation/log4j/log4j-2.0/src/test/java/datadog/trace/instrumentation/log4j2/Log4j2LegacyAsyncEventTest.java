@@ -66,13 +66,13 @@ class Log4j2LegacyAsyncEventTest extends AbstractInstrumentationTest {
     event.mergePropertiesIntoContextMap(null, null);
     String service = applicationService == null ? "pattern-test" : applicationService;
     assertEquals(
-        "message dd.service="
+        "dd.service="
             + service
             + " dd.trace_id="
             + traceId
             + " dd.span_id="
             + spanId
-            + " dd.env=test-env dd.version=1.2.3"
+            + " dd.env=test-env dd.version=1.2.3 message"
             + System.lineSeparator(),
         layout().toSerializable(event));
     assertEquals(applicationService, snapshot.get("dd.service"));
@@ -82,7 +82,7 @@ class Log4j2LegacyAsyncEventTest extends AbstractInstrumentationTest {
     populate(event, emptyMap());
     event.mergePropertiesIntoContextMap(null, null);
     assertEquals(
-        "message dd.service=pattern-test dd.trace_id=0 dd.span_id=0 dd.env=test-env dd.version=1.2.3"
+        "dd.service=pattern-test dd.trace_id=0 dd.span_id=0 dd.env=test-env dd.version=1.2.3 message"
             + System.lineSeparator(),
         layout().toSerializable(event));
     assertFalse(event.getContextMap().containsKey("dd.trace_id"));
@@ -108,7 +108,7 @@ class Log4j2LegacyAsyncEventTest extends AbstractInstrumentationTest {
     event.mergePropertiesIntoContextMap(null, null);
     assertSame(context, event.getContextMap());
     assertEquals(
-        "message dd.service=application-service dd.trace_id=0 dd.span_id=0 dd.env=application-env dd.version=application-version"
+        "dd.service=application-service dd.trace_id=0 dd.span_id=0 dd.env=application-env dd.version=application-version message"
             + System.lineSeparator(),
         layout().toSerializable(event));
   }

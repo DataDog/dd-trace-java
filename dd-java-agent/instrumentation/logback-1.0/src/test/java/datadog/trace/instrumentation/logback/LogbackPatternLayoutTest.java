@@ -58,20 +58,20 @@ class LogbackPatternLayoutTest extends AbstractInstrumentationTest {
 
   @TableTest({
     "Scenario       | Template                                                                        | Trace | Service | Span  | Env   | Version",
-    "plain          | %level @%logger - %msg%n                                                        | true  | true    | true  | true  | true   ",
+    "plain          | %level %logger - @%msg%n                                                        | true  | true    | true  | true  | true   ",
     "trace only     | %X{dd.trace_id} @%msg%n                                                         | false | true    | true  | true  | true   ",
     "service only   | %mdc{dd.service} @%msg%n                                                        | true  | false   | true  | true  | true   ",
-    "both           | %X{dd.trace_id} @%mdc{dd.service} %msg%n                                        | false | false   | true  | true  | true   ",
+    "both           | %X{dd.trace_id} %mdc{dd.service} @%msg%n                                        | false | false   | true  | true  | true   ",
     "all MDC        | %X @%msg%n                                                                      | false | false   | false | false | false  ",
     "empty options  | %mdc{} @%msg%n                                                                  | false | false   | false | false | false  ",
     "empty MDC key  | %X{:-NA} @%msg%n                                                                | true  | true    | true  | true  | true   ",
-    "default values | %X{dd.trace_id:-NA} @%mdc{dd.service:-NA} %msg%n                                | false | false   | true  | true  | true   ",
-    "formatted      | %-32X{dd.trace_id} @%20mdc{dd.service} %msg%n                                   | false | false   | true  | true  | true   ",
+    "default values | %X{dd.trace_id:-NA} %mdc{dd.service:-NA} @%msg%n                                | false | false   | true  | true  | true   ",
+    "formatted      | %-32X{dd.trace_id} %20mdc{dd.service} @%msg%n                                   | false | false   | true  | true  | true   ",
     "nested         | %replace(%X{dd.trace_id}){a,b} @%msg%n                                          | false | true    | true  | true  | true   ",
     "escaped        | \\%X{dd.trace_id} @%msg%n                                                       | true  | true    | true  | true  | true   ",
-    "literal keys   | dd.trace_id @dd.service %msg%n                                                  | true  | true    | true  | true  | true   ",
+    "literal keys   | dd.trace_id dd.service @%msg%n                                                  | true  | true    | true  | true  | true   ",
     "span only      | %X{dd.span_id} @%msg%n                                                          | true  | true    | false | true  | true   ",
-    "all fields     | %X{dd.service} @%X{dd.trace_id} %X{dd.span_id} %X{dd.env} %X{dd.version} %msg%n | false | false   | false | false | false  ",
+    "all fields     | %X{dd.service} %X{dd.trace_id} %X{dd.span_id} %X{dd.env} %X{dd.version} @%msg%n | false | false   | false | false | false  ",
     "env only       | %X{dd.env} @%msg%n                                                              | true  | true    | true  | false | true   ",
     "version only   | %mdc{dd.version:-NA} @%msg%n                                                    | true  | true    | true  | true  | false  ",
     "other MDC      | %X{business.key} @%msg%n                                                        | true  | true    | true  | true  | true   "
@@ -99,9 +99,12 @@ class LogbackPatternLayoutTest extends AbstractInstrumentationTest {
   void converterOptionsAreNotMistakenForMdcConverters() {
     String pattern = "%replace(%msg){'message','%X{dd.trace_id} %X{dd.service}'}%n";
     assertEquals(
-        "%replace(%msg){'message','%X{dd.trace_id} %X{dd.service}'} "
-            + (SERVICE + TRACE + SPAN + ENV + VERSION).trim()
-            + "%n",
+        SERVICE
+            + TRACE
+            + SPAN
+            + ENV
+            + VERSION
+            + "%replace(%msg){'message','%X{dd.trace_id} %X{dd.service}'}%n",
         logs.newLayout(pattern).getPattern());
   }
 
@@ -119,8 +122,34 @@ class LogbackPatternLayoutTest extends AbstractInstrumentationTest {
     PatternLayout layout = logs.newLayout(pattern);
     assertTrue(layout.isStarted());
     assertEquals(
-        firstField + " " + SERVICE + TRACE + SPAN + ENV + VERSION + "[%thread] %msg%n",
+        firstField + " [%thread] " + SERVICE + TRACE + SPAN + ENV + VERSION + "%msg%n",
         layout.getPattern());
+  }
+
+  @TableTest({
+    "Scenario          | Template                                   ",
+    "short message     | %level %logger - @%m%n                     ",
+    "long message      | %level %logger - @%message%n               ",
+    "formatted message | %level %logger - @%-20msg%n                ",
+    "message wrapper   | %level %logger - @%replace(%msg){'a','b'}%n",
+    "colored message   | %level %logger - @%cyan(%msg)%n            ",
+    "wrapped prefix    | %cyan(%level %logger - @%msg)%n            ",
+    "option literal    | %replace(%level){'a','%msg'} @%msg%n       ",
+    "escaped literal   | %level \\%msg @%msg%n                      ",
+    "newline fallback  | %level %logger @%n%thread                  ",
+    "no newline        | %level %logger@                            ",
+    "wrapped newline   | %cyan(%level @%n)                          "
+  })
+  void preservesPrefixAndPlacesFieldsAtTheMessageOrFirstNewline(String template) {
+    String fields = SERVICE + TRACE + SPAN + ENV + VERSION;
+    String expected = template.replace("@", fields);
+    if (template.endsWith("@") || template.contains("@%n") || template.contains("@\n")) {
+      expected = template.replace("@", fields.trim());
+      if (template.endsWith("@")) {
+        expected = template.replace("@", " " + fields.trim());
+      }
+    }
+    assertEquals(expected, logs.newLayout(template.replace("@", "")).getPattern());
   }
 
   @Test
@@ -163,11 +192,11 @@ class LogbackPatternLayoutTest extends AbstractInstrumentationTest {
       }
       assertTrue(received.await(10, TimeUnit.SECONDS), "async appender did not receive the log");
       assertEquals(
-          "async message dd.service=pattern-test dd.trace_id="
+          "dd.service=pattern-test dd.trace_id="
               + traceId
               + " dd.span_id="
               + spanId
-              + " dd.env=test-env dd.version=1.2.3"
+              + " dd.env=test-env dd.version=1.2.3 async message"
               + System.lineSeparator(),
           output.get());
     } finally {
@@ -179,7 +208,7 @@ class LogbackPatternLayoutTest extends AbstractInstrumentationTest {
   @Test
   void usesZeroIdsWithoutActiveSpan() {
     assertEquals(
-        "background dd.service=pattern-test dd.trace_id=0 dd.span_id=0 dd.env=test-env dd.version=1.2.3"
+        "dd.service=pattern-test dd.trace_id=0 dd.span_id=0 dd.env=test-env dd.version=1.2.3 background"
             + System.lineSeparator(),
         logs.newLayout("%msg%n").doLayout(logs.event("background")));
   }
@@ -188,7 +217,7 @@ class LogbackPatternLayoutTest extends AbstractInstrumentationTest {
   void preservesAnApplicationProvidedServiceName() {
     MDC.put("dd.service", "application-service");
     assertEquals(
-        "message dd.service=application-service dd.trace_id=0 dd.span_id=0 dd.env=test-env dd.version=1.2.3"
+        "dd.service=application-service dd.trace_id=0 dd.span_id=0 dd.env=test-env dd.version=1.2.3 message"
             + System.lineSeparator(),
         logs.newLayout("%msg%n").doLayout(logs.event("message")));
   }
@@ -198,7 +227,7 @@ class LogbackPatternLayoutTest extends AbstractInstrumentationTest {
   @WithConfig(key = "version", value = "")
   void leavesUndefinedDeploymentFieldsEmpty() {
     assertEquals(
-        "message dd.service=pattern-test dd.trace_id=0 dd.span_id=0 dd.env= dd.version="
+        "dd.service=pattern-test dd.trace_id=0 dd.span_id=0 dd.env= dd.version= message"
             + System.lineSeparator(),
         logs.newLayout("%msg%n").doLayout(logs.event("message")));
   }
@@ -208,9 +237,15 @@ class LogbackPatternLayoutTest extends AbstractInstrumentationTest {
     MDC.put("dd.env", "application-env");
     MDC.put("dd.version", "application-version");
     assertEquals(
-        "message dd.service=pattern-test dd.trace_id=0 dd.span_id=0 dd.env=application-env dd.version=application-version"
+        "dd.service=pattern-test dd.trace_id=0 dd.span_id=0 dd.env=application-env dd.version=application-version message"
             + System.lineSeparator(),
         logs.newLayout("%msg%n").doLayout(logs.event("message")));
+  }
+
+  @Test
+  void insertsBeforeTheFirstLiteralLineBreakWithoutAMessage() {
+    String fields = (SERVICE + TRACE + SPAN + ENV + VERSION).trim();
+    assertEquals("%level " + fields + "\n%logger", logs.newLayout("%level\n%logger").getPattern());
   }
 
   private static class LogCapture {
@@ -253,7 +288,7 @@ class LogbackPatternLayoutLogsInjectionDisabledTest extends AbstractInstrumentat
       LoggingEvent event =
           new LoggingEvent(getClass().getName(), logger, Level.INFO, "message", null, null);
       assertEquals(
-          "message dd.service= dd.trace_id=0 dd.span_id=0 dd.env= dd.version="
+          "dd.service= dd.trace_id=0 dd.span_id=0 dd.env= dd.version= message"
               + System.lineSeparator(),
           layout.doLayout(event));
     } finally {
