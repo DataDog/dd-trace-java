@@ -132,8 +132,10 @@ version list accordingly.
 `PETCLINIC_RUNS=N` (default 1) runs the whole variant sweep N times per heap, each a fresh JVM per
 variant, with the variant order (NoAgent included) rotated every run, so drift over a long sweep
 spreads across variants instead of always landing on whichever runs first. Each run's artifacts go
-in `heap-<h>/run-<n>/`, the combined grid gets a `Run` column, and with more than one run a
-`median-grid.csv` of per-variant medians (throughput and KB/req per endpoint) is printed at the end:
+in `heap-<h>/run-<n>/`, the combined grid gets `Run` and `Variant` columns, and with more than one
+run a `median-grid.csv` of per-variant medians (throughput and KB/req per endpoint) is printed at
+the end. `Variant` is a stable ID per variant as given (`v2:current`, `v3:1.62.0`, …): two builds
+can report the same version, so medians are grouped by it rather than by version.
 ```
 PETCLINIC_RUNS=3 PETCLINIC_HEAPS="72m 256m" ./run-petclinic.sh current
 ```

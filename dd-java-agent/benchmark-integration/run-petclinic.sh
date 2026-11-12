@@ -105,11 +105,16 @@ fi
 
 log "resolving ${#variants[@]} variant(s): ${variants[*]}"
 resolved=()
+# A stable ID per variant, assigned before any rotation: its position in the list plus the token it
+# was given as. Two builds can report the same version (a saved jar against `current`), so results
+# are grouped by this ID, never by version.
+variant_ids=()
 for v in "${variants[@]}"; do
   # resolve_variant runs in a command substitution, where its `exit 1` only leaves the subshell, so
   # check its status here; otherwise a failed build or download would benchmark the wrong jar.
   jar=$(resolve_variant "$v") || exit 1
   resolved+=("$jar")
+  variant_ids+=("v${#resolved[@]}:$(basename "$v")")
 done
 
 if [ "${PETCLINIC_AGENT:-stub}" = "stub" ]; then
@@ -173,6 +178,7 @@ for heap in "${heaps[@]}"; do
     mkdir -p "$run_dir"
     rot=$((pass % ${#resolved[@]})); pass=$((pass + 1))
     order=("${resolved[@]:$rot}" "${resolved[@]:0:$rot}")
+    order_ids=("${variant_ids[@]:$rot}" "${variant_ids[@]:0:$rot}")
     rm -f /tmp/perf_*.jfr /tmp/perf_gc_*.log /tmp/perf_results.csv
     log "=== HEAP $heap, run $run/$runs ==="
     (
@@ -183,10 +189,13 @@ for heap in "${heaps[@]}"; do
     cp -f /tmp/perf_results.csv "$run_dir/" 2>/dev/null || true
     cp -f /tmp/perf_*.jfr /tmp/perf_gc_*.log "$run_dir/" 2>/dev/null || true
 
-    # Fold this run into the combined grid CSV with leading Heap and Run columns.
+    # Fold this run into the combined grid CSV with leading Heap, Run and Variant columns.
+    # run-perf-test.sh writes one row per jar, in argument order, so row i is order_ids[i].
     if [ -f /tmp/perf_results.csv ]; then
-      [ -f "$combined_csv" ] || echo "Heap,Run,$(head -1 /tmp/perf_results.csv)" > "$combined_csv"
-      tail -n +2 /tmp/perf_results.csv | sed "s/^/$heap,$run,/" >> "$combined_csv"
+      [ -f "$combined_csv" ] || echo "Heap,Run,Variant,$(head -1 /tmp/perf_results.csv)" > "$combined_csv"
+      tail -n +2 /tmp/perf_results.csv \
+        | awk -v prefix="$heap,$run," -v ids="$(IFS='|'; echo "${order_ids[*]}")" \
+            'BEGIN { split(ids, id, "|") } { print prefix id[NR] "," $0 }' >> "$combined_csv"
     fi
 
     echo
@@ -205,13 +214,14 @@ done
 
 if [ ${#heaps[@]} -gt 1 ] || [ "$runs" -gt 1 ]; then
   echo
-  echo "================ COMBINED GRID (heap x run x version) ================"
+  echo "================ COMBINED GRID (heap x run x variant) ================"
   cat "$combined_csv" 2>/dev/null || true
 fi
 if [ "$runs" -gt 1 ] && [ -f "$combined_csv" ]; then
   echo
   echo "================ MEDIAN OF $runs RUNS: THROUGHPUT and KB/req ================"
-  # Median per (heap, version) of every "<endpoint> Throughput" and "<endpoint> KB/req" column.
+  # Median per (heap, variant) of every "<endpoint> Throughput" and "<endpoint> KB/req" column,
+  # keyed by the stable variant ID (column 3) and showing its reported version (column 4).
   awk -F',' '
     function median(list,   n, v, i, j, t) {
       n = split(list, v, " ")
@@ -219,18 +229,18 @@ if [ "$runs" -gt 1 ] && [ -f "$combined_csv" ]; then
       return n % 2 ? v[(n + 1) / 2] : (v[n / 2] + v[n / 2 + 1]) / 2
     }
     NR == 1 {
-      out = "Heap,Version"
-      for (c = 4; c <= NF; c++) if ($c ~ / Throughput$/ || $c ~ / KB\/req$/) { cols[++nc] = c; out = out "," $c }
+      out = "Heap,Variant,Version"
+      for (c = 5; c <= NF; c++) if ($c ~ / Throughput$/ || $c ~ / KB\/req$/) { cols[++nc] = c; out = out "," $c }
       print out; next
     }
     {
       key = $1 "," $3
-      if (!(key in seen)) { seen[key] = 1; keys[++nk] = key }
+      if (!(key in seen)) { seen[key] = 1; keys[++nk] = key; version[key] = $4 }
       for (k = 1; k <= nc; k++) vals[key, k] = vals[key, k] " " $(cols[k])
     }
     END {
       for (i = 1; i <= nk; i++) {
-        out = keys[i]
+        out = keys[i] "," version[keys[i]]
         for (k = 1; k <= nc; k++) out = out "," sprintf("%.2f", median(vals[keys[i], k]))
         print out
       }
