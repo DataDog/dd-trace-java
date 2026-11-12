@@ -1,0 +1,16 @@
+_v: 1
+name: kafka
+display_name: Apache Kafka
+description: Instruments Kafka publishing and record processing, including Kafka Streams and Connect, with Data Streams Monitoring, Confluent schema-registry codec telemetry and IAST message taint tracking.
+packages:
+  - name: io.confluent:kafka-schema-registry-client
+  - name: org.apache.kafka:connect-runtime
+  - name: org.apache.kafka:kafka-clients
+  - name: org.apache.kafka:kafka-streams
+category:
+  - messaging.consumer
+  - messaging.producer
+  - serialization
+systems:
+  - kafka
+creation_date: '2018-01-30'

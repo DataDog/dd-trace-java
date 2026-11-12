@@ -1,0 +1,15 @@
+_v: 1
+name: jms
+display_name: Jakarta Messaging API
+description: Instruments Javax and Jakarta JMS message sending, receiving, listener delivery and acknowledgment lifecycles, with trace propagation and IBM MQ Data Streams Monitoring.
+packages:
+  - name: jakarta.jms:jakarta.jms-api
+  - name: javax.jms:javax.jms-api
+  - name: javax.jms:jms-api
+  - name: org.springframework:spring-jms
+category:
+  - messaging.consumer
+  - messaging.producer
+systems:
+  - jms
+creation_date: '2017-06-20'
