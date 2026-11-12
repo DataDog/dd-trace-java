@@ -35,8 +35,8 @@ import org.slf4j.Logger;
  * StatusLogger}, each named after its environment variable.
  *
  * <p>The exporter settings of a signal are only written when that signal is exported over OTLP.
- * Header values are redacted, and endpoints drop their user info, query and fragment, which may
- * hold credentials.
+ * Header values are redacted, and endpoints are written as the senders parse them, without their
+ * user info, query and fragment, which may hold credentials.
  */
 final class OtelStartupLogSettingsWriter {
   static final String REDACTED = "<redacted>";
@@ -264,10 +264,9 @@ final class OtelStartupLogSettingsWriter {
   }
 
   /**
-   * Drops the user info, query and fragment of an endpoint, which may hold credentials. The
-   * endpoint is parsed like the OTLP senders parse it, so they agree on where the credentials are,
-   * and it is redacted when it cannot be parsed. An endpoint without credentials is returned as
-   * configured, since parsing normalizes it.
+   * Returns the URL the OTLP senders parse from an endpoint, without the user info, query and
+   * fragment, which may hold credentials. Parsing it the same way means they agree on where the
+   * credentials are; an endpoint that cannot be parsed is redacted.
    */
   static String sanitizeEndpoint(String endpoint) {
     if (endpoint.startsWith("unix://")) {
@@ -276,12 +275,6 @@ final class OtelStartupLogSettingsWriter {
     HttpUrl url = HttpUrl.parse(endpoint);
     if (url == null) {
       return REDACTED;
-    }
-    if (url.encodedUsername().isEmpty()
-        && url.encodedPassword().isEmpty()
-        && url.encodedQuery() == null
-        && url.encodedFragment() == null) {
-      return endpoint;
     }
     return url.newBuilder().username("").password("").query(null).fragment(null).build().toString();
   }

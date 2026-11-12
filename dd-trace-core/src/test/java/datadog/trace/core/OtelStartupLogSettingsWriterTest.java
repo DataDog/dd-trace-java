@@ -98,7 +98,7 @@ class OtelStartupLogSettingsWriterTest extends DDJavaSpecification {
     assertExporter(startupLog, "OTEL_EXPORTER_OTLP_TRACES", "http://agent:4318/v1/traces");
     assertExporter(startupLog, "OTEL_EXPORTER_OTLP_METRICS", "http://agent:4318/v1/metrics");
     assertExporter(startupLog, "OTEL_EXPORTER_OTLP_LOGS", "http://agent:4318/v1/logs");
-    assertExporter(startupLog, "OTEL_EXPORTER_OTLP", "http://agent:4318");
+    assertExporter(startupLog, "OTEL_EXPORTER_OTLP", "http://agent:4318/");
 
     assertEquals(10_000, number(startupLog, "OTEL_METRIC_EXPORT_INTERVAL"));
     assertEquals("delta", startupLog.get("OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE"));
@@ -115,10 +115,10 @@ class OtelStartupLogSettingsWriterTest extends DDJavaSpecification {
   void exporterEndpointsDefaultToAgentHost() throws IOException {
     Map<String, Object> startupLog = startupLog();
 
-    assertEquals("http://my-agent:4317", startupLog.get("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"));
+    assertEquals("http://my-agent:4317/", startupLog.get("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"));
     assertEquals("grpc", startupLog.get("OTEL_EXPORTER_OTLP_TRACES_PROTOCOL"));
     // OpenTelemetry settings are ignored, so the general settings keep their defaults
-    assertEquals("http://my-agent:4318", startupLog.get("OTEL_EXPORTER_OTLP_ENDPOINT"));
+    assertEquals("http://my-agent:4318/", startupLog.get("OTEL_EXPORTER_OTLP_ENDPOINT"));
     assertEquals("http/protobuf", startupLog.get("OTEL_EXPORTER_OTLP_PROTOCOL"));
   }
 
@@ -130,9 +130,9 @@ class OtelStartupLogSettingsWriterTest extends DDJavaSpecification {
   void generalGrpcEndpointDefaultsToAgentGrpcPort() throws IOException {
     Map<String, Object> startupLog = startupLog();
 
-    assertEquals("http://my-agent:4317", startupLog.get("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"));
+    assertEquals("http://my-agent:4317/", startupLog.get("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"));
     assertEquals("grpc", startupLog.get("OTEL_EXPORTER_OTLP_TRACES_PROTOCOL"));
-    assertEquals("http://my-agent:4317", startupLog.get("OTEL_EXPORTER_OTLP_ENDPOINT"));
+    assertEquals("http://my-agent:4317/", startupLog.get("OTEL_EXPORTER_OTLP_ENDPOINT"));
     assertEquals("grpc", startupLog.get("OTEL_EXPORTER_OTLP_PROTOCOL"));
   }
 
@@ -241,7 +241,7 @@ class OtelStartupLogSettingsWriterTest extends DDJavaSpecification {
   @TableTest({
     "scenario      | endpoint                                        | sanitized                           ",
     "plain         | http://agent:4318/v1/traces                     | http://agent:4318/v1/traces         ",
-    "no path       | http://agent:4318                               | http://agent:4318                   ",
+    "no path       | http://agent:4318                               | http://agent:4318/                  ",
     "user info     | https://user:password@collector:4318/v1/traces  | https://collector:4318/v1/traces    ",
     "user only     | http://user@collector                           | http://collector/                   ",
     "query         | http://collector:4318/v1/traces?token=secret    | http://collector:4318/v1/traces     ",
