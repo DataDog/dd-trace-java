@@ -15,6 +15,7 @@ import spock.lang.Shared
 import spock.lang.Timeout
 
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.ExecutionException
 
 @Timeout(10)
 class VertxRxCircuitBreakerWebClientForkedTest extends HttpClientTest implements TestingNettyHttpNamingConventions.ClientV0 {
@@ -51,14 +52,32 @@ class VertxRxCircuitBreakerWebClientForkedTest extends HttpClientTest implements
         command.fail(it)
       }.subscribe()
     }, {
-      callback?.call()
-      if (it.succeeded()) {
-        future.complete(it.result().statusCode())
-      } else {
-        future.completeExceptionally(it.cause())
+      try {
+        callback?.call()
+        if (it.succeeded()) {
+          future.complete(it.result().statusCode())
+        } else {
+          future.completeExceptionally(it.cause())
+        }
+      } catch (Throwable failure) {
+        future.completeExceptionally(failure)
       }
     })
     return future.get()
+  }
+
+  def "callback failure is propagated to the caller"() {
+    when:
+    doRequest("GET", server.address.resolve("/success"), [:], "") {
+      throw callbackFailure
+    }
+
+    then:
+    def failure = thrown(ExecutionException)
+    failure.cause.is(callbackFailure)
+
+    where:
+    callbackFailure << [new IllegalStateException("callback failed"), new AssertionError("callback failed")]
   }
 
   @Override

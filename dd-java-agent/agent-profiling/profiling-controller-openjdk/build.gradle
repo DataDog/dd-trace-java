@@ -15,6 +15,10 @@ dependencies {
   api project(':utils:version-utils')
   api(project(':dd-java-agent:agent-bootstrap')) {
     exclude group: 'com.datadoghq', module: 'agent-logging'
+    // The jar includes the Java 11 JFR classes from the additional source set.
+    attributes {
+      attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, objects.named(LibraryElements, LibraryElements.JAR))
+    }
   }
   api project(':dd-java-agent:agent-profiling:profiling-controller')
   api project(':dd-java-agent:agent-profiling:profiling-controller-jfr')
