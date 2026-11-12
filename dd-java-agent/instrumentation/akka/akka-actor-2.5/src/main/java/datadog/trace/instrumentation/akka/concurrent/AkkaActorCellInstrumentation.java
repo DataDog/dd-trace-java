@@ -79,10 +79,10 @@ public class AkkaActorCellInstrumentation extends InstrumenterModule.ContextTrac
         @Advice.Local("taskScope") ContextScope taskScope,
         @Advice.Enter ContextHandle checkpointContext) {
 
-      if (checkpointContext == null) {
+      if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
         // Clean up any leaking scopes from akka-streams/akka-http etc.
         AgentTracer.get().rollbackActiveToCheckpoint();
-      } else {
+      } else if (checkpointContext != null) {
         checkpointContext.swap();
       }
 

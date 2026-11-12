@@ -56,10 +56,10 @@ public class AkkaMailboxInstrumentation extends InstrumenterModule.ContextTracki
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void exit(@Advice.Enter final ContextHandle checkpointContext) {
-      if (checkpointContext == null) {
+      if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
         // Clean up any leaking scopes from akka-streams/akka-http etc.
         AgentTracer.get().rollbackActiveToCheckpoint();
-      } else {
+      } else if (checkpointContext != null) {
         checkpointContext.swap();
       }
     }
