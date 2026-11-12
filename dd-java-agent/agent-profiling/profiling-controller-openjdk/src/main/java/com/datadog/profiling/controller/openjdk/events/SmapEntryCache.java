@@ -302,7 +302,9 @@ final class SmapEntryCache {
   }
 
   private void collectEvents(List<SmapEntryEvent> events) {
-    // The kernel writes filesystem pathname bytes without charset conversion.
+    // Linux emits pathname bytes without converting them to UTF-8. Consequently, an ISO-8859-1
+    // pathname such as /tmp/café.so gets corrupted by a fixed UTF-8 decoder.
+    // Kernel implementation: https://github.com/torvalds/linux/blob/v6.12/fs/seq_file.c#L406-L462
     try (BufferedReader br =
         new BufferedReader(
             new InputStreamReader(Files.newInputStream(smapsPath), OperatingSystem.nativeCharset()),
