@@ -12,6 +12,7 @@ import static java.util.Arrays.asList;
 import static java.util.Arrays.copyOfRange;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
+import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -23,6 +24,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.WireFormat;
 import datadog.trace.api.Config;
@@ -44,6 +46,7 @@ import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.PropagationTags;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -58,6 +61,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.AdditionalAnswers;
 import org.mockito.MockedStatic;
+import org.msgpack.jackson.dataformat.MessagePackFactory;
 
 /**
  * Tests for {@link OtlpTraceProto} via {@link OtlpTraceProtoCollector#collectTraces}.
@@ -717,6 +721,31 @@ class OtlpTraceProtoTest {
   }
 
   @Test
+  void metaStructReportsAreExportedAsMessagePackBytes() throws IOException {
+    DDSpan span = (DDSpan) TRACER.startSpan("test", "reports");
+    span.setResourceName("reports");
+    Map<String, Object> reports = new LinkedHashMap<>();
+    reports.put("_dd.stack", singletonMap("exploit", asList(singletonMap("id", "stack-1"))));
+    reports.put("ai_guard", singletonMap("messages", asList(singletonMap("content", "hello"))));
+    reports.forEach(span::setMetaStruct);
+    span.setMetaStruct("bad.report", singletonMap(1, "invalid map key"));
+    span.finish();
+
+    OtlpTraceProtoCollector collector = new OtlpTraceProtoCollector();
+    collector.addTrace(asList(span));
+    List<String[]> attributes =
+        parseAttributeListsBySpanName(collector.collectTraces(), 7).get("reports");
+    ObjectMapper messagePack = new ObjectMapper(new MessagePackFactory());
+    for (Map.Entry<String, Object> report : reports.entrySet()) {
+      List<String> values = stringAttributeValues(attributes, report.getKey());
+      assertEquals(1, values.size());
+      assertEquals(
+          report.getValue(),
+          messagePack.readValue(Base64.getDecoder().decode(values.get(0)), Map.class));
+    }
+  }
+
+  @Test
   void poisonedSpanResetsCollectorForNextTrace() {
     // mid-trace exception (e.g. from a malformed span) must not leave partial state behind
     DDSpan realSpan = buildSpans(asList(span("first.span", "op.first", "web"))).get(0);
@@ -970,6 +999,11 @@ class OtlpTraceProtoTest {
    */
   private static Map<String, List<String[]>> parseStringAttributeListsBySpanName(
       OtlpPayload payload) throws IOException {
+    return parseAttributeListsBySpanName(payload, 1);
+  }
+
+  private static Map<String, List<String[]>> parseAttributeListsBySpanName(
+      OtlpPayload payload, int valueField) throws IOException {
     CodedInputStream tracesData = CodedInputStream.newInstance(payload.getContent());
     tracesData.readTag(); // field 1: TracesData.resource_spans
     CodedInputStream resourceSpans = tracesData.readBytes().newCodedInput();
@@ -997,7 +1031,7 @@ class OtlpTraceProtoTest {
               name = spanData.readString();
               break;
             case 9:
-              String[] attribute = readStringKeyValue(spanData.readBytes().newCodedInput());
+              String[] attribute = readKeyValue(spanData.readBytes().newCodedInput(), valueField);
               if (attribute != null) {
                 attributes.add(attribute);
               }
@@ -1012,11 +1046,9 @@ class OtlpTraceProtoTest {
     return result;
   }
 
-  /**
-   * Reads a {@code KeyValue { string key = 1; AnyValue value = 2; }} as {key, value} when its value
-   * is an {@code AnyValue { string string_value = 1; }}, otherwise returns null.
-   */
-  private static String[] readStringKeyValue(CodedInputStream keyValue) throws IOException {
+  /** Reads string values (field 1) or base64-encoded byte values (field 7), keeping duplicates. */
+  private static String[] readKeyValue(CodedInputStream keyValue, int valueField)
+      throws IOException {
     String key = null;
     String value = null;
     while (!keyValue.isAtEnd()) {
@@ -1029,8 +1061,11 @@ class OtlpTraceProtoTest {
           CodedInputStream anyValue = keyValue.readBytes().newCodedInput();
           while (!anyValue.isAtEnd()) {
             int valueTag = anyValue.readTag();
-            if (WireFormat.getTagFieldNumber(valueTag) == 1) {
-              value = anyValue.readString();
+            if (WireFormat.getTagFieldNumber(valueTag) == valueField) {
+              value =
+                  valueField == 7
+                      ? Base64.getEncoder().encodeToString(anyValue.readByteArray())
+                      : anyValue.readString();
             } else {
               anyValue.skipField(valueTag);
             }
