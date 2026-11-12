@@ -269,3 +269,38 @@ class TinylogNestedLoggingForkedTest extends AbstractInstrumentationTest {
         MESSAGES.stream().map(message -> message.get("message")).collect(Collectors.toList()));
   }
 }
+
+@WithConfig(key = AGENTLESS_LOG_SUBMISSION_ENABLED, value = "true")
+@WithConfig(key = LOGS_INJECTION_ENABLED, value = "true")
+@WithConfig(key = SERVICE_NAME, value = "tinylog-service")
+@WithConfig(key = "tinylog.writingthread", value = "false", addPrefix = false)
+@WithConfig(key = "tinylog.writer", value = "console", addPrefix = false)
+@WithConfig(key = "tinylog.writer.format", value = "{message}", addPrefix = false)
+class TinylogContextNotRequiredForkedTest extends AbstractInstrumentationTest {
+  static final List<Map<String, Object>> MESSAGES = AbstractTinylogLogsIntakeForkedTest.MESSAGES;
+
+  @BeforeAll
+  static void registerWriter() {
+    LogsIntake.registerWriter(new AbstractTinylogLogsIntakeForkedTest.CapturingLogsWriter());
+  }
+
+  @AfterAll
+  static void unregisterWriter() {
+    LogsIntake.registerWriter(null);
+  }
+
+  @Test
+  void submitsUserContextWhenNoWriterRequiresIt() {
+    ThreadContext.put("custom", "value");
+    try {
+      Logger.warn("message");
+    } finally {
+      ThreadContext.clear();
+    }
+
+    assertEquals(1, MESSAGES.size());
+    Map<?, ?> context = (Map<?, ?>) MESSAGES.get(0).get("contextMap");
+    assertEquals("value", context.get("custom"));
+    assertEquals("tinylog-service", context.get(Tags.DD_SERVICE));
+  }
+}
