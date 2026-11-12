@@ -18,6 +18,7 @@ plugin or task belong beside its source or in local documentation.
 - [Configurations](#gradle-configurations) — Understadning their relations and their role; `api` vs `implementation`
 - [Dependencies](#dependencies) — Use single GAV strings, exclusions, resolution strategies, locking
 - [Convention Plugins](#convention-plugins) — Project and settings plugins in our build logic `buildSrc/`
+- [Cross-Project Configuration](#cross-project-configuration) - Alternatives to `allprojects`, `subprojects` and direct project access
 - [Lazy API](#gradle-lazy-api) — Use `named()`, `register()`, `configureEach()` for performance
 
 **dd-trace-java Specifics:**
@@ -527,7 +528,7 @@ Configurations serve two main purposes:
 > The full flow:
 > 1. You declare dependencies in **declarable** configurations
 > 2. Gradle resolves them into **resolvable** classpaths
-> 3. Two usual consumers:
+> 3. Tasks and other projects use these configurations as follows:
 >    - **Source set** (via tasks) uses **resolvable** classpaths to compile/run
 >    - **Other projects** consume via **consumable** `apiElements`/`runtimeElements`
 
@@ -583,7 +584,7 @@ graph LR
         runtimeElements[runtimeElements]
     end
 
-    %% API flow - exposed to consumers
+    %% API flow - exposed to other projects
     api --> apiElements
     api --> implementation
 
@@ -623,27 +624,27 @@ graph LR
 **Legend:**             
 
 | Block Color | Role       | Description                                                                        |
-|-------------|------------|------------------------------------------------------------------------------------|
+| ----------- | ---------- | ---------------------------------------------------------------------------------- |
 | 🔵 Blue     | Declarable | Where you add dependencies (`api`, `implementation`, `compileOnly`, `runtimeOnly`) |
 | 🟢 Green    | Resolvable | Used by tasks to get files (`compileClasspath`, `runtimeClasspath`)                |
-| 🟡 Yellow   | Consumable | Exposed to consumer projects (`apiElements`, `runtimeElements`)                    |
+| 🟡 Yellow   | Consumable | Exposed to consuming projects (`apiElements`, `runtimeElements`)                   |
 | ⬜ Gray     | Tasks      | Gradle tasks that use the configurations                                           |
 
-| Configuration    | Compile Classpath | Runtime Classpath | Exposed to Consumers | Use Case                                                      |
-|------------------|:-----------------:|:-----------------:|:--------------------:|---------------------------------------------------------------|
-| `api`            |        ✅         |        ✅         |          ✅          | Types in your public API (method signatures, return types)    |
-| `implementation` |        ✅         |        ✅         |          ❌          | Internal dependencies not exposed to consumers                |
-| `compileOnly`    |        ✅         |        ❌         |          ❌          | Provided at runtime by the environment (e.g., `servlet-api`)  |
-| `compileOnlyApi` |        ✅         |        ❌         |          ✅          | Compile-only dependency that's part of the public API         |
-| `runtimeOnly`    |        ❌         |        ✅         |          ❌          | Needed only at runtime (e.g., JDBC drivers, logging backends) |
+| Configuration    | Compile Classpath | Runtime Classpath | Exposed to Consuming Projects | Use Case                                                      |
+| ---------------- | :---------------: | :---------------: | :---------------------------: | ------------------------------------------------------------- |
+| `api`            | ✅                | ✅                | ✅                            | Types in your public API (method signatures, return types)    |
+| `implementation` | ✅                | ✅                | ❌                            | Internal dependencies not exposed to consuming projects       |
+| `compileOnly`    | ✅                | ❌                | ❌                            | Provided at runtime by the environment (e.g., `servlet-api`)  |
+| `compileOnlyApi` | ✅                | ❌                | ✅                            | Compile-only dependency that's part of the public API         |
+| `runtimeOnly`    | ❌                | ✅                | ❌                            | Needed only at runtime (e.g., JDBC drivers, logging backends) |
 
 > [!NOTE]
-> `compileOnlyApi` flows to `apiElements` (so consumers see it at compile time), i.e. the existing `apiElements` 
+> `compileOnlyApi` flows to `apiElements` (so other projects see it at compile time), i.e. the existing `apiElements`
 > handles both `api` and `compileOnlyApi` exposure.
 
 ### The `api` vs `implementation` Distinction
 
-The key difference between `api` and `implementation` is **transitive exposure to consumers**:
+The key difference between `api` and `implementation` is **which dependencies appear on other projects' classpaths**:
 
 ```mermaid
 graph LR
@@ -652,7 +653,7 @@ graph LR
         impl_dep[implementation: OkHttp]
     end
 
-    subgraph "Consuming Project"
+    subgraph "Project Using the Library"
         consumer[depends on Library]
         compile[compileClasspath]
         runtime[runtimeClasspath]
@@ -669,10 +670,10 @@ graph LR
     style runtime fill:#e3f2fd
 ```
 
-| Configuration    | Transitive to Consumers' Compile | Transitive to Consumers' Runtime | When to Use                                                      |
-|------------------|:--------------------------------:|:--------------------------------:|------------------------------------------------------------------|
-| `api`            |                ✅                 |                ✅                 | Types appear in project's public API                             |
-| `implementation` |                ❌                 |                ✅                 | Project's internal implementation detail, not part of public API |
+| Configuration    | Other Projects' Compile Classpath | Other Projects' Runtime Classpath | When to Use                                                      |
+| ---------------- | :-------------------------------: | :-------------------------------: | ---------------------------------------------------------------- |
+| `api`            | ✅                                | ✅                                | Types appear in project's public API                             |
+| `implementation` | ❌                                | ✅                                | Project's internal implementation detail, not part of public API |
 
 **Example:**
 
@@ -706,8 +707,8 @@ public class MyService {
 > [!TIP]
 > **Prefer `implementation` over `api`** when dependencies are internal. Using `implementation` keeps dependencies 
 > hidden from other projects, which:
-> - Reduces consumers' compile classpath (faster compilation)
-> - Allows changing dependencies without breaking consumers
+> - Keeps other projects' compile classpaths smaller (faster compilation)
+> - Allows changing internal dependencies without affecting projects that use the library
 > - Avoids version conflicts in dependent projects
 
 ### Configuration Inheritance with `extendsFrom`
@@ -1283,6 +1284,48 @@ common configuration patterns and can be applied like any other plugin.
 > Convention plugins promote consistency across modules. Instead of copy-pasting configuration,
 > define it once and apply it everywhere.
 
+### Cross-Project Configuration
+
+Cross-project configuration reads or changes another project's mutable state, such as its
+tasks, configurations or extensions. Using `allprojects {}` or `subprojects {}` to configure
+other projects is *configuration injection*: the receiving build scripts do not declare that
+configuration. This creates *configuration-time coupling* and can prevent configuration on
+demand from working correctly. Gradle recommends [avoiding these constructs for shared build
+logic](https://docs.gradle.org/current/userguide/sharing_build_logic_between_subprojects.html#sec:convention_plugins_vs_cross_configuration).
+
+The alternative depends on the interaction:
+
+- Shared build logic belongs in a convention plugin, applied through each participating
+  project's `plugins {}` block. The plugin configures the project it is applied to. Moving
+  an `allprojects {}` block into a plugin retains the cross-project configuration.
+
+- Artifacts and generated files are shared through [outgoing configuration
+  variants](https://docs.gradle.org/current/userguide/how_to_share_outputs_between_projects.html)
+  and project dependencies. The project that produces the files exposes them through an
+  outgoing configuration. The project that uses those files resolves them through its own
+  configuration and wires them into task inputs. Gradle infers dependencies on the tasks
+  that produce the files.
+
+- Aggregate execution uses lifecycle tasks with dependencies on task paths, such as
+  `dependsOn(":library:check")`. This schedules work without accessing another project's
+  task container. Tasks that consume another project's outputs use artifact dependencies.
+
+- Centrally applied project configuration can use [state-isolating lifecycle
+  callbacks](https://docs.gradle.org/current/userguide/isolated_projects.html#sec:isolating_lifecycle_callbacks)
+  registered in settings or a settings plugin. Actions registered through
+  `gradle.lifecycle.beforeProject` run with state isolated for each target project.
+
+Lazy APIs do not remove cross-project access. For example,
+`project(":library").tasks.named("jar")` still accesses the library project's task container.
+`evaluationDependsOn(":library")` forces that project's evaluation. Artifact dependencies
+let Gradle identify the tasks that create the required files without this explicit evaluation
+ordering.
+
+With [Isolated Projects](https://docs.gradle.org/current/userguide/isolated_projects.html#sec:cross_project_access)
+enabled, Gradle rejects access to another project's mutable state during configuration.
+Declared project dependencies and lifecycle task dependencies allow projects to work together
+within those boundaries.
+
 ### Plugin Boundaries
 
 Plugins retain separate responsibilities even within `buildSrc`. Plugin IDs, documented
@@ -1317,14 +1360,15 @@ that need shared `buildSrc` classes still need to land in `buildSrc`; see [Build
 > They belong in the consuming build script unless the dependency is part of the convention;
 > see [Dependencies on Main Projects](#dependencies-on-main-projects).
 
-In this project, convention plugins use the `dd-trace-java.` prefix. For example, `dd-trace-java.configure-tests.gradle.kts` configures test tasks across all subprojects:
+In this project, convention plugins use the `dd-trace-java.` prefix. The following simplified
+`dd-trace-java.configure-tests.gradle.kts` example configures test tasks in the project that applies it:
 
 ```Gradle Kotlin DSL
-// buildSrc/src/main/kotlin/dd-trace-java.configure-tests.gradle.kts (excerpt)
+// buildSrc/src/main/kotlin/dd-trace-java.configure-tests.gradle.kts (simplified)
 
 // Use lazy providers to avoid evaluating the property until it is needed
-val skipTestsProvider = rootProject.providers.gradleProperty("skipTests")
-val skipForkedTestsProvider = rootProject.providers.gradleProperty("skipForkedTests")
+val skipTestsProvider = providers.gradleProperty("skipTests")
+val skipForkedTestsProvider = providers.gradleProperty("skipForkedTests")
 
 // Go through the Test tasks and configure them
 tasks.withType<Test>().configureEach {
@@ -1332,7 +1376,7 @@ tasks.withType<Test>().configureEach {
   onlyIf("skipTests are undefined or false") { !skipTestsProvider.isPresent }
 
   // Set test timeout for 20 minutes
-  timeout = Duration.of(20, ChronoUnit.MINUTES))
+  timeout = Duration.of(20, ChronoUnit.MINUTES)
   
   // ...
 }
@@ -1350,7 +1394,7 @@ plugins {
 ### Module Convention Plugins
 
 Module convention plugins are the preferred entry points for module build files. They are a stable facade over shared
-project setup: consumers use a plugin ID, while the implementation can keep delegating to existing script plugins until
+project setup: projects apply a plugin ID, while the implementation can keep delegating to existing script plugins until
 that build logic is migrated.
 
 Use the most specific module plugin instead of applying `gradle/java.gradle` directly:
@@ -1448,12 +1492,12 @@ Gradle's lazy APIs defer task creation, task configuration and value calculation
 The following methods `register`, `named` and `configureEach` avoid creating and 
 configuring unused tasks. Task configuration still belongs to the configuration phase. 
 The providers defer value calculation until they are queried, which can happen during 
-configuration or execution. Providers backed by task outputs also carry producer 
-dependencies.
+configuration or execution. Providers backed by task outputs also carry dependencies on
+the tasks that create those outputs.
 
 ### Eager vs Lazy API Comparison
 
-| Eager (Don't ❌)                 | Lazy (Prefer ✅)                             | Notes                                                                                  |
+| Eager (Don't ❌)                | Lazy (Prefer ✅)                            | Notes                                                                                  |
 | ------------------------------- | ------------------------------------------- | -------------------------------------------------------------------------------------- |
 | `configurations.getByName("x")` | `configurations.named("x")`                 | Defers realization of the configuration object, not dependency resolution              |
 | `tasks.getByName("x")`          | `tasks.named("x")`                          | Avoids creating and configuring the task during lookup                                 |
@@ -1464,7 +1508,7 @@ dependencies.
 | `collection.all { }`            | `collection.configureEach { }`              | Runs configuration actions only for realized domain objects                            |
 | `collection.forEach { }`        | `collection.configureEach { }`              | Applies to configuration actions, rather than collection transformations               |
 | `file(path).exists()`           | Declared task inputs/outputs                | Tracks file dependencies; configuration-time existence checks may still be necessary   |
-| `configuration.files`           | `inputs.files(configuration)`               | Passes the file collection through and preserves producer dependencies                 |
+| `configuration.files`           | `inputs.files(configuration)`               | Preserves dependencies on the tasks that create the files                              |
 | `exec { }.exitValue`            | `providers.exec { ... }`                    | `exec` runs immediately; `providers.exec` defers execution until its output is queried |
 | `ProcessBuilder(...).start()`   | `providers.exec { ... }`                    | Exposes process output lazily; see the example under Using Providers                   |
 
@@ -1588,7 +1632,7 @@ tasks.register<Copy>("stageJar") {
 }
 ```
 
-The lazy version also carries the producer dependency, so Gradle runs `jar` before `stageJar`.
+The lazy version also carries the dependency on the `jar` task, so Gradle runs `jar` before `stageJar`.
 The eager version passes only a file path and loses that dependency information.
 
 > [!TIP]
@@ -1692,7 +1736,7 @@ For example, this can be used to provide the output of `Jar` tasks (in the below
 `fooJar` and `barJar`) are needed to pass a system property and an environment var.
 
 ```Gradle Kotlin DSL
-// ❌ Eager - reads producer task properties while configuring Test
+// ❌ Eager - reads properties of the tasks that create the JARs while configuring Test
 tasks.withType<Test>().configureEach {
     val fooJarTask = tasks.named<Jar>("fooJar")
     val barJarTask = tasks.named<Jar>("barJar")
@@ -1752,7 +1796,7 @@ dependency for `barJar`; `doFirst` sets `BAR_PATH` before the test process start
 >
 >   The earlier `SmokeTestJvmArguments` properly uses `@InputFile` on a `RegularFileProperty` to track the JAR's contents.
 >
-> * This assignment is deferred, but does not track the JAR's contents or schedule its producer:
+> * This assignment is deferred, but does not track the JAR's contents or schedule the task that creates it:
 >
 >   ```Gradle Kotlin DSL
 >   // ❌ Deferred assignment without a declared file input
