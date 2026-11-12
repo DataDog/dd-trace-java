@@ -49,21 +49,27 @@ public final class TracingListener
   @Override
   public void onExists(final Key key, final boolean exists) {
     if (listener != null) {
-      ((ExistsSequenceListener) listener).onExists(key, exists);
+      try (final ContextScope scope = continuation.context().attach()) {
+        ((ExistsSequenceListener) listener).onExists(key, exists);
+      }
     }
   }
 
   @Override
   public void onRecord(final Key key, final Record record) throws AerospikeException {
     if (listener != null) {
-      ((RecordSequenceListener) listener).onRecord(key, record);
+      try (final ContextScope scope = continuation.context().attach()) {
+        ((RecordSequenceListener) listener).onRecord(key, record);
+      }
     }
   }
 
   @Override
   public void onRecord(final BatchRead record) {
     if (listener != null) {
-      ((BatchSequenceListener) listener).onRecord(record);
+      try (final ContextScope scope = continuation.context().attach()) {
+        ((BatchSequenceListener) listener).onRecord(record);
+      }
     }
   }
 
