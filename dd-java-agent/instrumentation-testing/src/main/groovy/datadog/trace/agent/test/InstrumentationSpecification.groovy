@@ -24,6 +24,7 @@ import com.datadog.debugger.sink.DebuggerSink
 import com.datadog.debugger.sink.ProbeStatusSink
 import com.google.common.collect.Sets
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
+import datadog.context.Context
 import datadog.instrument.classinject.ClassInjector
 import datadog.metrics.agent.AgentMeter
 import datadog.metrics.api.Monitoring
@@ -474,10 +475,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     // even though the agent is already installed
     configurePreAgent()
 
-    if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
-      TEST_TRACER.closePrevious(true) // in case the previous test left a lingering iteration span
-    }
-    assert TEST_TRACER.activeSpan() == null: "Span is active before test has started: " + TEST_TRACER.activeSpan()
+    Context.root().swap()
 
     println "Starting test: ${getSpecificationContext().getCurrentIteration().getName()} from ${specificationContext.currentSpec.name}"
     TEST_TRACER.flush()
@@ -517,6 +515,10 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
 
   void cleanup() {
     try {
+      if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+        TEST_TRACER.closePrevious(true) // finish the last iteration span before checking for leaks
+      }
+
       if (isTestAgentEnabled()) {
         // save Datadog environment to DDAgentWriter header
         addEnvironmentVariablesToHeaders(TEST_AGENT_API)
@@ -554,6 +556,9 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
 
         // check for instrumentation issues while running each test
         assert InstrumentationErrors.noErrors(): InstrumentationErrors.describeErrors()
+
+        final AgentSpan activeSpan = TEST_TRACER.activeSpan()
+        assert activeSpan == null: "Span is active after test has finished: " + activeSpan
       } catch (Throwable cleanupFailure) {
         if (scopeDiagnosticsFailure != null) {
           cleanupFailure.addSuppressed(scopeDiagnosticsFailure)
