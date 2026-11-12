@@ -1,0 +1,10 @@
+_v: 1
+name: opentelemetry-logs
+display_name: OpenTelemetry Java
+description: Instruments OpenTelemetry log APIs to collect application log records with severity, attributes, and trace context.
+packages:
+- name: io.opentelemetry:opentelemetry-api
+category:
+- log.emission
+systems: []
+creation_date: '2026-04-29'

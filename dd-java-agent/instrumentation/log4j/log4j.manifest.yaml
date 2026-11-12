@@ -1,0 +1,12 @@
+_v: 1
+name: log4j
+display_name: Apache Log4j Core
+description: Instruments Log4j logging context and log records for trace correlation and service metadata, and submits Log4j 2 log events to Datadog when enabled.
+packages:
+- name: log4j:log4j
+- name: org.apache.logging.log4j:log4j-api
+- name: org.apache.logging.log4j:log4j-core
+category:
+- log.emission
+systems: []
+creation_date: '2019-06-13'

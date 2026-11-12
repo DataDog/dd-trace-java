@@ -1,0 +1,10 @@
+_v: 1
+name: opentelemetry-metrics
+display_name: OpenTelemetry Java
+description: Instruments OpenTelemetry metrics APIs to record and aggregate counters, gauges, and histograms, including observable instruments.
+packages:
+- name: io.opentelemetry:opentelemetry-api
+category:
+- other
+systems: []
+creation_date: '2026-02-06'

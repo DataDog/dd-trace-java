@@ -1,0 +1,10 @@
+_v: 1
+name: jboss-logmanager
+display_name: JBoss Log Manager
+description: Instruments JBoss Log Manager log records to inject trace-correlation identifiers and service metadata.
+packages:
+- name: org.jboss.logmanager:jboss-logmanager
+category:
+- log.emission
+systems: []
+creation_date: '2020-11-30'

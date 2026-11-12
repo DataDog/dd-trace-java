@@ -1,0 +1,10 @@
+_v: 1
+name: opentelemetry.experimental
+display_name: OpenTelemetry Java
+description: Instruments OpenTelemetry tracing and context APIs to bridge manual spans, scope activation, and trace-context propagation to Datadog.
+packages:
+- name: io.opentelemetry:opentelemetry-api
+category:
+- other
+systems: []
+creation_date: '2023-02-24'

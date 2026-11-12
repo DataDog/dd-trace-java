@@ -1,0 +1,10 @@
+_v: 1
+name: tinylog
+display_name: tinylog implementation
+description: Instruments tinylog log records to inject trace-correlation identifiers and service metadata.
+packages:
+- name: org.tinylog:tinylog-impl
+category:
+- log.emission
+systems: []
+creation_date: '2023-11-30'

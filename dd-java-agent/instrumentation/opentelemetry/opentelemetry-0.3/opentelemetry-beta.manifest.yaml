@@ -1,0 +1,10 @@
+_v: 1
+name: opentelemetry-beta
+display_name: OpenTelemetry Java
+description: Instruments the OpenTelemetry beta tracing API to bridge manual spans, active scopes, and trace-context propagation to Datadog when enabled.
+packages:
+- name: io.opentelemetry:opentelemetry-api
+category:
+- other
+systems: []
+creation_date: '2020-06-17'

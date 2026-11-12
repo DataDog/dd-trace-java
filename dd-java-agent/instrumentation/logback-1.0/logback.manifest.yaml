@@ -1,0 +1,10 @@
+_v: 1
+name: logback
+display_name: Logback Classic Module
+description: Instruments Logback log records to inject trace-correlation identifiers and service metadata, and collects application log events when enabled.
+packages:
+- name: ch.qos.logback:logback-classic
+category:
+- log.emission
+systems: []
+creation_date: '2021-03-01'
