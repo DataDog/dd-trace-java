@@ -389,4 +389,4 @@
 /dd-java-agent/instrumentation/**/gradle.lockfile  @DataDog/apm-java @DataDog/apm-idm-java
 
 # Instrumentation manifests
-**/*.manifest.yaml  @DataDog/apm-idm-java
+**/*.manifest.yaml                                 @DataDog/apm-idm-java
