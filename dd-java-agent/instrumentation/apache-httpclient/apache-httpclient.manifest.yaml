@@ -8,6 +8,5 @@ packages:
 - name: org.apache.httpcomponents:httpclient
 category:
 - http.client
-systems:
-- aws
+systems: []
 creation_date: '2017-05-23'
