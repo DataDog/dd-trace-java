@@ -17,6 +17,15 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /** Adapts newer batch callbacks without linking their interfaces on older clients. */
 public final class BatchTracingListener implements InvocationHandler {
+  private static final ClassValue<Boolean> VALIDATED_INTERFACES =
+      new ClassValue<Boolean>() {
+        @Override
+        protected Boolean computeValue(final Class<?> type) {
+          validateInterface(type);
+          return Boolean.TRUE;
+        }
+      };
+
   private final AgentSpan clientSpan;
   private final ContextContinuation continuation;
   private final Object listener;
@@ -30,19 +39,24 @@ public final class BatchTracingListener implements InvocationHandler {
   }
 
   public static void validate(final Class<?> type) {
+    VALIDATED_INTERFACES.get(type);
+  }
+
+  private static void validateInterface(final Class<?> type) {
     final String name = type.getName();
     final boolean array = "com.aerospike.client.listener.BatchRecordArrayListener".equals(name);
     final boolean sequence =
         "com.aerospike.client.listener.BatchRecordSequenceListener".equals(name);
     final boolean list = "com.aerospike.client.listener.BatchOperateListListener".equals(name);
+    final Method[] methods = type.getMethods();
     if (!(array || sequence || list)
         || !type.isInterface()
         || !Modifier.isPublic(type.getModifiers())
         || type.getInterfaces().length != 0
-        || type.getMethods().length != (sequence ? 3 : 2)) {
+        || methods.length != (sequence ? 3 : 2)) {
       throw new IllegalArgumentException("Unsupported batch listener: " + name);
     }
-    for (final Method method : type.getMethods()) {
+    for (final Method method : methods) {
       final Class<?>[] parameters = method.getParameterTypes();
       final boolean recordArray =
           parameters.length > 0
