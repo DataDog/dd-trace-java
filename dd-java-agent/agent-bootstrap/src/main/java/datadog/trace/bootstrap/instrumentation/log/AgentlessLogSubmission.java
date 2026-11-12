@@ -29,6 +29,9 @@ public final class AgentlessLogSubmission {
   public static final String ERROR = "ERROR";
   public static final String FATAL = "FATAL";
 
+  private static final String ALL = "ALL";
+  private static final String OFF = "OFF";
+
   private static final int MAX_STACKTRACE_STRING_LENGTH = 16 * 1_024;
 
   private static final int SUBMISSION_SEVERITY =
@@ -160,22 +163,23 @@ public final class AgentlessLogSubmission {
 
   static int severity(String level) {
     switch (level == null ? INFO : level.toUpperCase(Locale.ROOT)) {
-      case "ALL":
+      case ALL:
         return 0;
       case TRACE:
         return 1;
       case DEBUG:
         return 2;
+      case INFO:
+      default:
+        return 3;
       case WARN:
         return 4;
       case ERROR:
         return 5;
       case FATAL:
         return 6;
-      case "OFF":
+      case OFF:
         return 7;
-      default:
-        return 3;
     }
   }
 }

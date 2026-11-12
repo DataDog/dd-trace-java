@@ -66,7 +66,7 @@ class AgentlessLogSubmissionTest {
   @TableTest({
     "scenario      | lower | higher",
     "ALL and TRACE | ALL   | TRACE ",
-    "TRACE, DEBUG  | trace | DEBUG ",
+    "TRACE, DEBUG  | TRACE | DEBUG ",
     "DEBUG, INFO   | DEBUG | INFO  ",
     "INFO, WARN    | INFO  | WARN  ",
     "WARN, ERROR   | WARN  | ERROR ",
@@ -75,6 +75,12 @@ class AgentlessLogSubmissionTest {
   })
   void ordersLevels(String lower, String higher) {
     assertTrue(severity(lower) < severity(higher));
+  }
+
+  @Test
+  void ignoresLevelCase() {
+    assertEquals(severity("WARN"), severity("warn"));
+    assertEquals(severity("FATAL"), severity("Fatal"));
   }
 
   @Test
