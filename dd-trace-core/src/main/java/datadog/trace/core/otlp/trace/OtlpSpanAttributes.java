@@ -14,6 +14,7 @@ import static java.util.Collections.singleton;
 
 import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
+import datadog.json.JsonMapper;
 import datadog.trace.api.Config;
 import datadog.trace.api.KnownTagCodec;
 import datadog.trace.api.KnownTags;
@@ -21,12 +22,16 @@ import datadog.trace.api.TagMap;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.core.DDSpan;
 import datadog.trace.core.Metadata;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -112,6 +117,42 @@ final class OtlpSpanAttributes {
   /** The OpenTelemetry-namespace key for a known tag, as named by the registry. */
   private static UTF8BytesString otelKey(long tagId) {
     return UTF8BytesString.create(KnownTagCodec.openTelemetryTagOf(tagId));
+  }
+
+  /** Includes legacy security reports without changing the span or its native export. */
+  static Map<String, Object> reportsToExport(DDSpan span) {
+    Map<String, Object> reports = span.getMetaStruct();
+    Object appsec = reports.containsKey("appsec") ? null : span.getTag("_dd.appsec.json");
+    Object iast = reports.containsKey("iast") ? null : span.getTag("_dd.iast.json");
+    if (appsec == null && iast == null) {
+      return reports;
+    }
+    Map<String, Object> combined = new HashMap<>(reports);
+    addLegacyReport(combined, "appsec", appsec);
+    addLegacyReport(combined, "iast", iast);
+    return combined;
+  }
+
+  private static void addLegacyReport(Map<String, Object> reports, String key, Object value) {
+    if (value != null) {
+      try {
+        // Use the product's JSON serialization to preserve redaction and truncation. The JSON
+        // reader retains integral values as Integer/Long, including span IDs above 2^53.
+        reports.put(key, JsonMapper.fromJsonToMap(value.toString()));
+      } catch (IOException | RuntimeException e) {
+        log.debug("Failed to convert legacy security report {}", key, e);
+      }
+    }
+  }
+
+  /** Suppresses the legacy tag only after its replacement was successfully encoded. */
+  static void addExportedReportKey(Set<String> keys, String key) {
+    keys.add(key);
+    if ("appsec".equals(key)) {
+      keys.add("_dd.appsec.json");
+    } else if ("iast".equals(key)) {
+      keys.add("_dd.iast.json");
+    }
   }
 
   /** Encodes a report like native export, or returns null when that report cannot be serialized. */
