@@ -14,6 +14,10 @@ minimumInstructionCoverage = 0.7
 
 excludedClassesCoverage += ['com.datadog.profiling.controller.oracle.JdkTypeIDs_8']
 
+// TODO: Cover these classes, then remove them from the coverage baseline (APMLP-2263)
+excludedClassesBranchCoverage += ['com.datadog.profiling.controller.oracle.JdkTypeIDs_Old']
+excludedClassesInstructionCoverage += ['com.datadog.profiling.controller.oracle.JdkTypeIDs_Old']
+
 dependencies {
   api libs.slf4j
   api project(':internal-api')
