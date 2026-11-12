@@ -353,6 +353,19 @@ public final class FlagSelectionRequest {
   }
 
   /**
+   * Sanitizes every {@code DD-Flag-Selection-Ignored} response header field. Repeated fields are
+   * joined with ", ", as other SDKs read them, so they are never a known reason.
+   *
+   * @param values the header values, in order; empty if absent.
+   * @return the known reason, {@code unknown} for any other value, or {@code null} if absent or
+   *     empty.
+   */
+  @Nullable
+  static String ignoredReasonOfFields(final List<String> values) {
+    return ignoredReason(values.isEmpty() ? null : String.join(", ", values));
+  }
+
+  /**
    * Sanitizes the {@code DD-Flag-Selection-Ignored} response header, so that only a known reason
    * reaches the log and the metric.
    *

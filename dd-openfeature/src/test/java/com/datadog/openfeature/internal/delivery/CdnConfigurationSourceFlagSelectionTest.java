@@ -162,6 +162,26 @@ class CdnConfigurationSourceFlagSelectionTest {
     assertEquals(singletonList("flag_selection.ignored|1|unknown"), this.metrics.counts);
   }
 
+  @TableTest({
+    "scenario             | first         | second           ",
+    "distinct duplicates  | 'invalid_tag' | 'tag_load_failed'",
+    "identical duplicates | 'invalid_tag' | 'invalid_tag'    ",
+    "empty first value    | ''            | 'invalid_tag'    "
+  })
+  void reportsARepeatedIgnoredHeaderAsUnknown(final String first, final String second) {
+    this.server.enqueue(200, CONFIG, IGNORED, first, IGNORED, second);
+
+    assertTrue(source(SELECTION, this.dispatched::add).pollOnce());
+
+    assertEquals(1, this.dispatched.size());
+    assertEquals(
+        singletonList(
+            "ERROR flagSelection was ignored by the server (unknown). Loaded the full flag"
+                + " configuration."),
+        messages());
+    assertEquals(singletonList("flag_selection.ignored|1|unknown"), this.metrics.counts);
+  }
+
   @Test
   void readsTheIgnoredHeaderOnlyOnAnAppliedConfiguration() {
     this.server

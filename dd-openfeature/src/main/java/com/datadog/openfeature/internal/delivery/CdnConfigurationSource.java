@@ -286,8 +286,8 @@ public final class CdnConfigurationSource implements ConfigurationService {
     }
     final String ignoredReason =
         this.selectionSent
-            ? FlagSelectionRequest.ignoredReason(
-                response.headers().firstValue(FlagSelectionRequest.IGNORED_HEADER).orElse(null))
+            ? FlagSelectionRequest.ignoredReasonOfFields(
+                response.headers().allValues(FlagSelectionRequest.IGNORED_HEADER))
             : null;
     final ServerConfiguration configuration;
     try {
