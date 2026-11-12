@@ -354,6 +354,11 @@ class ConfigProviderTest {
       value = "api-key=secret",
       env = true,
       addPrefix = false)
+  @WithConfig(
+      key = "OTEL_EXPORTER_OTLP_ENDPOINT",
+      value = "https://user:secret@collector:4318",
+      env = true,
+      addPrefix = false)
   void getOtelSettingReportsOtelValuesToTelemetry() {
     ConfigProvider provider = ConfigProvider.createDefault();
     // fails on any lookup of an unsupported name, such as DD_OTEL_EXPORTER_OTLP_PROTOCOL
@@ -362,9 +367,14 @@ class ConfigProviderTest {
 
     assertEquals("grpc", provider.getOtelSetting("otel.exporter.otlp.protocol"));
     assertEquals("api-key=secret", provider.getOtelSetting("otel.exporter.otlp.headers"));
+    assertEquals(
+        "https://user:secret@collector:4318",
+        provider.getOtelSetting("otel.exporter.otlp.endpoint"));
     Map<String, ConfigSetting> collected = ConfigCollector.get().collect().get(ENV);
     assertEquals("grpc", collected.get("otel.exporter.otlp.protocol").stringValue());
+    // sensitive settings, which may hold credentials
     assertEquals("<hidden>", collected.get("otel.exporter.otlp.headers").stringValue());
+    assertEquals("<hidden>", collected.get("otel.exporter.otlp.endpoint").stringValue());
   }
 
   @Test

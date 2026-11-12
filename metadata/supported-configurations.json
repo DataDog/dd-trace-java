@@ -12097,7 +12097,8 @@
         "version": "A",
         "type": "string",
         "default": null,
-        "aliases": []
+        "aliases": [],
+        "sensitive": true
       }
     ],
     "OTEL_EXPORTER_OTLP_HEADERS": [
