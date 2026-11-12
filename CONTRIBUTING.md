@@ -71,7 +71,21 @@ Prefer static imports over class-qualified calls for call-style helpers — JUni
 Same goes for production code: `Collections.emptyList()` is fine, but if you find yourself repeatedly writing
 `Foo.bar(...)` where `Foo` adds no information at the call site, static-import `bar`.
 
-Wildcard imports (`import x.*` or `import static x.*`) are disallowed — see the IntelliJ IDEA settings above.
+Wildcard imports (`import x.*` or `import static x.*`) are disallowed. Spotless enforces this for Java
+with `forbidWildcardImports()`, so `./gradlew spotlessCheck` fails on wildcard imports.
+Use the IntelliJ IDEA settings above to prevent your IDE from introducing them.
+
+### CI scripts
+
+Every `curl` that runs in CI (`.gitlab-ci.yml`, `.gitlab/`, GitHub Actions, the scripts they call, and the Dockerfiles they build) should:
+
+- **Fail on HTTP errors**: pass `-f`/`--fail`. Without it, a 4xx/5xx exits 0 and the error page is used as if it were the real response (e.g. piped into `bash` or `jq`).
+- **Retry transient errors**: pass `--retry 5 --retry-delay 2` (add `--retry-connrefused` for remote endpoints).
+- **Propagate the failure**: the job must stop when curl fails. Never pipe `curl` straight into `bash`/`sh`: download to a file with `-f`, then run it.
+
+Example: `curl -fsSL --retry 5 --retry-delay 2 --retry-connrefused -o out.tar.gz "$url"`
+
+Exception: a script that checks the HTTP status itself (`-w "%{http_code}"`, e.g. [tooling/check_test_agent_results.sh](tooling/check_test_agent_results.sh)) may skip `--fail`, but still needs `--retry`.
 
 ### Troubleshooting
 
@@ -96,6 +110,12 @@ Wildcard imports (`import x.*` or `import static x.*`) are disallowed — see th
 ### Draft first
 
 When opening a pull request, please open it as a [draft](https://github.blog/2019-02-14-introducing-draft-pull-requests/) to not auto-assign reviewers before the pull request is in a reviewable state.
+
+### Description
+
+Follow the section guidance in [the PR template](.github/pull_request_template.md).
+Write for a human reviewer first: short, plain and skimmable. Explain the intent and rationale of the change,
+not its content: the diff already shows the code, so don't walk through it file by file or list the classes and methods touched.
 
 ### Dependency changes
 
@@ -156,7 +176,7 @@ They should be a sentence starting with an infinitive verb and avoid using prefi
 > Do instead: _Fix span sampling rule parsing_
 
 >[!NOTE]
-> If the changes don't make sense for the users, add the [`tag: no release note` label](#labels).
+> If the changes don't make sense for the users, add the [`tag: no release notes` label](#labels).
 
 ### Labels
 
@@ -167,6 +187,8 @@ Both pull requests and issues should be labelled with at least a component or an
 
 >[!TIP]
 > Always add a `comp:` or `inst:` label, and a `type:` label. 
+
+Always add `tag: ai generated` to pull requests containing AI-generated changes.
 
 Labels are used to not only categorize but also alter the continuous integration behavior:
 
