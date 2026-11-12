@@ -159,8 +159,8 @@ public final class TraceInstrumentationConfig {
    * tracing, dispatches may also update the HTTP route and resource name. Disabled by default to
    * preserve the original request's values.
    */
-  public static final String UNDERTOW_DISPATCH_RENAME_RESOURCE =
-      "trace.undertow.dispatch.rename-resource";
+  public static final String UNDERTOW_DISPATCH_USE_TARGET_PATH =
+      "trace.undertow.dispatch.use-target-path";
 
   public static final String SERVLET_ROOT_CONTEXT_SERVICE_NAME =
       "trace.servlet.root-context.service.name";

@@ -255,7 +255,7 @@ class UndertowServletTest extends HttpServerTest<Undertow> {
     }
   }
 
-  def dispatchRenamesResource() {
+  def dispatchUsesTargetPath() {
     false
   }
 
@@ -279,7 +279,7 @@ class UndertowServletTest extends HttpServerTest<Undertow> {
     then:
     // with the opt-out, a forward overwrites servlet.path with its target; an include leaves it alone
     serverSpan.resourceName.toString() == "GET /$CONTEXT$path"
-    serverSpan.tags["servlet.path"] == (dispatchRenamesResource() && dispatch == "forward" ? SUCCESS.path : path)
+    serverSpan.tags["servlet.path"] == (dispatchUsesTargetPath() && dispatch == "forward" ? SUCCESS.path : path)
 
     where:
     dispatch  | path
@@ -288,15 +288,15 @@ class UndertowServletTest extends HttpServerTest<Undertow> {
   }
 }
 
-class UndertowServletDispatchRenameForkedTest extends UndertowServletTest {
+class UndertowServletDispatchTargetPathForkedTest extends UndertowServletTest {
   @Override
-  def dispatchRenamesResource() {
+  def dispatchUsesTargetPath() {
     true
   }
 
   @Override
   protected void configurePreAgent() {
     super.configurePreAgent()
-    injectSysConfig("trace.undertow.dispatch.rename-resource", "true")
+    injectSysConfig("trace.undertow.dispatch.use-target-path", "true")
   }
 }

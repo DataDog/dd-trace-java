@@ -297,7 +297,7 @@ abstract class UndertowServletTest extends HttpServerTest<Undertow> {
     true
   }
 
-  def dispatchRenamesResource() {
+  def dispatchUsesTargetPath() {
     false
   }
 
@@ -361,7 +361,7 @@ abstract class UndertowServletTest extends HttpServerTest<Undertow> {
 
     then:
     // with the opt-out, a forward renames the request to its target; an include leaves the path alone
-    def namedPath = dispatchRenamesResource() && dispatch == "forward" ? SUCCESS.path : path
+    def namedPath = dispatchUsesTargetPath() && dispatch == "forward" ? SUCCESS.path : path
     serverSpan.resourceName.toString() == (generateHttpRoute() ? "GET $namedPath" : "GET /$CONTEXT$path")
     serverSpan.tags["servlet.path"] == namedPath
     serverSpan.tags[Tags.HTTP_ROUTE] == (generateHttpRoute() ? namedPath : null)
@@ -464,15 +464,15 @@ class UndertowServletNoHttpRouteForkedTest extends UndertowServletTest implement
 class UndertowServletV1ForkedTest extends UndertowServletTest implements TestingGenericHttpNamingConventions.ServerV1 {
 }
 
-class UndertowServletDispatchRenameForkedTest extends UndertowServletTest implements TestingGenericHttpNamingConventions.ServerV0 {
+class UndertowServletDispatchTargetPathForkedTest extends UndertowServletTest implements TestingGenericHttpNamingConventions.ServerV0 {
   @Override
-  def dispatchRenamesResource() {
+  def dispatchUsesTargetPath() {
     true
   }
 
   @Override
   protected void configurePreAgent() {
     super.configurePreAgent()
-    injectSysConfig("trace.undertow.dispatch.rename-resource", "true")
+    injectSysConfig("trace.undertow.dispatch.use-target-path", "true")
   }
 }

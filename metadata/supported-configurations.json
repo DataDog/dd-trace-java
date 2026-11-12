@@ -11452,7 +11452,7 @@
         "aliases": ["DD_TRACE_INTEGRATION_UNDERTOW_2_2_ENABLED", "DD_INTEGRATION_UNDERTOW_2_2_ENABLED"]
       }
     ],
-    "DD_TRACE_UNDERTOW_DISPATCH_RENAME_RESOURCE": [
+    "DD_TRACE_UNDERTOW_DISPATCH_USE_TARGET_PATH": [
       {
         "version": "A",
         "type": "boolean",

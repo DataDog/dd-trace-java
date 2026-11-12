@@ -99,7 +99,7 @@ public final class ConfigDefaults {
 
   static final boolean DEFAULT_CLIENT_IP_ENABLED = false;
 
-  static final boolean DEFAULT_UNDERTOW_DISPATCH_RENAME_RESOURCE = false;
+  static final boolean DEFAULT_UNDERTOW_DISPATCH_USE_TARGET_PATH = false;
 
   static final int DEFAULT_CLOCK_SYNC_PERIOD = 30; // seconds
 
