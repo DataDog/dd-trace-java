@@ -1,3 +1,4 @@
+# SDCT-1444 exp-03 experiment branch: not for merge.
 include:
   - local: ".gitlab/one-pipeline.locked.yml"
   - local: ".gitlab/benchmarks.yml"
@@ -529,16 +530,8 @@ spotless:
   script:
     - ./gradlew --version
     # test-published-dependencies's build file needs main version file
-    - ./gradlew spotlessCheck writeMainVersionFile $GRADLE_ARGS
+    - ./gradlew spotlessCheck writeMainVersionFile checkInstrumentationNaming checkConfigurations --continue $GRADLE_ARGS
     - cd test-published-dependencies && ./gradlew spotlessCheck $GRADLE_ARGS
-
-check-instrumentation-naming:
-  extends: .gradle_build
-  stage: tests
-  needs: [ ]
-  script:
-    - ./gradlew --version
-    - ./gradlew checkInstrumentationNaming $GRADLE_ARGS
 
 check-codeowners:
   # The Java builder base includes Python 3 and Git; the generic GBI image does not include Python.
@@ -548,14 +541,6 @@ check-codeowners:
   script:
     - python3 -m unittest discover -s tooling/tests -p 'test_check_codeowners.py'
     - python3 tooling/check_codeowners.py
-
-config-inversion-linter:
-  extends: .gradle_build
-  stage: tests
-  needs: []
-  script:
-    - ./gradlew --version
-    - ./gradlew checkConfigurations $GRADLE_ARGS
 
 test_published_artifacts:
   extends: .gradle_build
@@ -642,7 +627,7 @@ validate_build:
   script:
     - *gitlab_base_ref_params
     - ./gradlew --version
-    - ./gradlew $GRADLE_TARGET -x spotlessCheck $GRADLE_PARAMS -PskipTests -PrunBuildSrcTests -Pslot=$CI_NODE_INDEX/$CI_NODE_TOTAL $GRADLE_ARGS
+    - ./gradlew $GRADLE_TARGET -x spotlessCheck $GRADLE_PARAMS -PskipTests -PrunBuildSrcTests -Pslot=$CI_NODE_INDEX/$CI_NODE_TOTAL $GRADLE_ARGS --continue
   after_script:
     - *container_info
     - *cgroup_info
@@ -678,31 +663,21 @@ check_build_src:
 check_base:
   extends: .check_job
   variables:
-    GRADLE_TARGET: ":baseCheck"
+    GRADLE_TARGET: ":baseCheck :profilingCheck :debuggerCheck"
 
 check_inst:
   extends: .check_job
-  parallel: 4
+  parallel: 2
   variables:
     GRADLE_TARGET: ":instrumentationCheck"
     CACHE_TYPE: "inst"
 
 check_smoke:
   extends: .check_job
-  parallel: 4
+  parallel: 2
   variables:
     GRADLE_TARGET: ":smokeCheck"
     CACHE_TYPE: "smoke"
-
-check_profiling:
-  extends: .check_job
-  variables:
-    GRADLE_TARGET: ":profilingCheck"
-
-check_debugger:
-  extends: .check_job
-  variables:
-    GRADLE_TARGET: ":debuggerCheck"
 
 muzzle:
   extends: .gradle_build
@@ -724,13 +699,13 @@ muzzle:
     - when: on_success
   parallel:
     matrix:
-      - CI_SPLIT: ["1/8", "2/8", "3/8", "4/8", "5/8", "6/8", "7/8", "8/8"]
+      - CI_SPLIT: ["1/4", "2/4", "3/4", "4/4"]
   variables:
     CACHE_TYPE: "inst"
   script:
     - export SKIP_BUILDSCAN="true"
     - ./gradlew --version
-    - ./gradlew :runMuzzle -Pslot=$CI_NODE_INDEX/$CI_NODE_TOTAL $GRADLE_ARGS
+    - ./gradlew :runMuzzle -Pslot=$CI_NODE_INDEX/$CI_NODE_TOTAL $GRADLE_ARGS --continue
   after_script:
     - *container_info
     - *cgroup_info
@@ -1021,7 +996,7 @@ test_base:
     GRADLE_TARGET: ":baseTest"
     CACHE_TYPE: "base"
   parallel:
-    matrix: *test_matrix_4
+    matrix: *test_matrix_2
   script:
     - if [ "$testJvm" == "8" ]; then export GRADLE_PARAMS="-PskipFlakyTests -PcheckCoverage"; fi
     - !reference [.test_job_common, script]
@@ -1032,7 +1007,7 @@ test_base_arm64:
     GRADLE_TARGET: ":baseTest"
     CACHE_TYPE: "base"
   parallel:
-    matrix: *test_matrix_4
+    matrix: *test_matrix_2
 
 test_inst:
   extends: .test_job_amd64_with_test_agent
