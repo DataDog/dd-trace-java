@@ -5,8 +5,10 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_SERVER;
 import static datadog.trace.core.DDSpanContext.SPAN_SAMPLING_MECHANISM_TAG;
 import static datadog.trace.core.otlp.common.OtlpCommonJson.hexSpanId;
 import static datadog.trace.core.otlp.common.OtlpCommonJson.hexTraceId;
+import static datadog.trace.core.otlp.common.OtlpResourceJson.buildTraceResourceFragment;
 import static datadog.trace.core.otlp.common.OtlpTraceFlags.SAMPLED_TRACE_FLAG;
 import static java.util.Arrays.asList;
+import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -25,7 +27,6 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.KnownTags;
 import datadog.trace.api.TracePropagationStyle;
-import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -38,7 +39,6 @@ import datadog.trace.core.DDSpan;
 import datadog.trace.core.otlp.common.OtlpPayload;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.PropagationTags;
-import datadog.trace.test.junit.utils.config.WithConfig;
 import datadog.trace.util.stacktrace.StackTraceEvent;
 import datadog.trace.util.stacktrace.StackTraceFrame;
 import java.io.IOException;
@@ -708,10 +708,10 @@ class OtlpTraceJsonCollectorTest {
   }
 
   @Test
-  @WithConfig(key = GeneralConfig.TRACE_OTEL_SEMANTICS_ENABLED, value = "true")
   void metaStructReportsPreserveNativeObjectsAndIsolateFailures() throws IOException {
     DDSpan span = (DDSpan) TRACER.startSpan("test", "reports");
     span.setResourceName("reports");
+    span.setTag("http.method", "GET");
     StackTraceEvent stack =
         new StackTraceEvent(
             asList(new StackTraceFrame(0, new StackTraceElement("App", "hello", "App.java", 42))),
@@ -739,12 +739,22 @@ class OtlpTraceJsonCollectorTest {
     next.setTag("_dd.iast.json", "[]");
     next.finish();
 
-    OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
-    collector.addTrace(asList(span));
-    collector.addTrace(asList(next));
-    List<Map<String, Object>> spans = allSpans(collector.collectTraces());
+    List<Map<String, Object>> spans;
+    Config realConfig = Config.get();
+    // Initialize the shared resource cache before temporarily changing the export semantics.
+    buildTraceResourceFragment(emptyMap());
+    try (MockedStatic<Config> configMock = mockStatic(Config.class)) {
+      Config config = mock(Config.class, AdditionalAnswers.delegatesTo(realConfig));
+      when(config.isTraceOtelSemanticsEnabled()).thenReturn(true);
+      configMock.when(Config::get).thenReturn(config);
+      OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
+      collector.addTrace(asList(span));
+      collector.addTrace(asList(next));
+      spans = allSpans(collector.collectTraces());
+    }
     assertEquals(2, spans.size());
     Map<String, Object> exported = spanNamed(spans, "reports");
+    assertEquals(asList("GET"), attributeValues(exported, "http.request.method"));
     ObjectMapper messagePack = new ObjectMapper(new MessagePackFactory());
     int reportsSeen = 0;
     for (Object attribute : (List<?>) exported.get("attributes")) {
