@@ -4,6 +4,7 @@ import datadog.gradle.plugin.muzzle.planner.MuzzleTaskPlannerService
 import datadog.gradle.plugin.muzzle.tasks.MuzzleEndTask
 import datadog.gradle.plugin.muzzle.tasks.MuzzleGenerateReportTask
 import datadog.gradle.plugin.muzzle.tasks.MuzzleGetReferencesTask
+import datadog.gradle.plugin.muzzle.tasks.MuzzleSupportedVersionsTask
 import datadog.gradle.plugin.muzzle.tasks.MuzzleTask
 import org.eclipse.aether.artifact.Artifact
 import org.gradle.api.NamedDomainObjectProvider
@@ -100,6 +101,18 @@ class MuzzlePlugin : Plugin<Project> {
       dependsOn(compileMuzzle)
     }
     project.publishMuzzleReport(report.flatMap { it.versionsFile })
+
+    val supportedVersions = project.tasks.register<MuzzleSupportedVersionsTask>("generateSupportedVersions") {
+      reportDirectives.convention(project.providers.provider {
+        extension.directives.filter { it.assertPass && !it.isCoreJdk && !it.skipFromReport && it.versions != null }
+      })
+      instrumentationClasspath.from(reportDirectives.map { if (it.isEmpty()) emptyList<Any>() else runtimeClasspath })
+      lockfile.fileProvider(project.providers.provider { project.file("gradle.lockfile").takeIf { it.exists() } })
+      testedRuntimes.convention(project.providers.provider { SupportedVersions.testedRuntimes(project.testSuites()) })
+      supportedVersionsFile.convention(project.layout.buildDirectory.file("supported-versions/${project.pathSlug}.json"))
+      dependsOn(compileMuzzle)
+    }
+    project.publishSupportedVersions(supportedVersions.flatMap { it.supportedVersionsFile })
 
     val validationTasks = MuzzleValidationTasks(project.providers) {
       val startTime = System.currentTimeMillis()

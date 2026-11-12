@@ -1,6 +1,7 @@
 package datadog.gradle.plugin.muzzle
 
 import datadog.gradle.plugin.muzzle.tasks.MuzzleAggregateReportTask
+import datadog.gradle.plugin.muzzle.tasks.MuzzleAggregateSupportedVersionsTask
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.attributes.Category
@@ -38,6 +39,18 @@ class MuzzleReportAggregationPlugin : Plugin<Project> {
         withVariantReselection()
         attributes.muzzleReportAttributes(project.objects)
       }.files
+    }
+
+    val supportedVersions = results.map { configuration ->
+      configuration.incoming.artifactView {
+        withVariantReselection()
+        attributes.supportedVersionsAttributes(project.objects)
+      }.files
+    }
+
+    project.tasks.register<MuzzleAggregateSupportedVersionsTask>("aggregateSupportedVersions") {
+      supportedVersionsReports.from(supportedVersions)
+      supportedVersionsFile.convention(project.layout.buildDirectory.file("supported-versions/supported_versions.json"))
     }
 
     val report = project.tasks.register<MuzzleAggregateReportTask>("aggregateMuzzleReports") {
