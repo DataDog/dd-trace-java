@@ -553,6 +553,38 @@ class DependentFlagEvaluatorTest {
   }
 
   @Test
+  void missingPrerequisiteKeepsItsErrorWhileConfiguredAncestorsReportGeneral() {
+    final Map<String, Flag> flags = new HashMap<>();
+    flags.put("successful", stringFlag("successful", "on", null, true));
+    flags.put("parent", stringFlag("parent", "on", dependencyRule("missing", "on"), true));
+    flags.put("ancestor", stringFlag("ancestor", "on", dependencyRule("parent", "on"), true));
+    final Rule graph =
+        new Rule(
+            Arrays.asList(
+                new ConditionConfiguration(ONE_OF, null, "successful", singletonList("on")),
+                new ConditionConfiguration(ONE_OF, null, "ancestor", singletonList("on"))));
+    flags.put("root", stringFlag("root", "on", graph, true));
+
+    final FlagEvaluator.EvaluationResult<String> evaluation =
+        evaluator()
+            .evaluateWithTrace(
+                config(flags, null),
+                String.class,
+                "root",
+                "caller-default",
+                new MutableContext("u"));
+
+    assertEquals("caller-default", evaluation.details.getValue());
+    assertEquals(Reason.ERROR.name(), evaluation.details.getReason());
+    assertEquals(ErrorCode.GENERAL, evaluation.details.getErrorCode());
+    assertEquals(
+        Arrays.asList(
+            "successful:on", "ancestor:GENERAL", "parent:GENERAL", "missing:FLAG_NOT_FOUND"),
+        evaluations(evaluation));
+    assertTrue(evaluation.dependencyExposures.isEmpty());
+  }
+
+  @Test
   void prerequisiteWithoutAssignmentAbortsTheGraphAndLaterWaterfallAllocations() {
     final Map<String, Flag> flags = new HashMap<>();
     flags.put(

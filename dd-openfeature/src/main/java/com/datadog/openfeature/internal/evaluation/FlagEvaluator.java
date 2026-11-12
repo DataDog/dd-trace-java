@@ -960,8 +960,13 @@ public final class FlagEvaluator {
         recordExposureTraceOnParent(exposureTrace);
         return details.getVariant();
       } catch (final DependencyGraphException e) {
+        // Only the flag where the failure originates reports its specific error code.
+        final ErrorCode errorCode =
+            e.dependencyKey == null || e.dependencyKey.equals(flagKey)
+                ? e.errorCode
+                : ErrorCode.GENERAL;
         final ProviderEvaluation<Object> failure =
-            error(null, e.errorCode, e.getMessage(), state.observeFullEvaluationData);
+            error(null, errorCode, e.getMessage(), state.observeFullEvaluationData);
         emitEvaluation(flagKey, failure);
         throw e.dependencyKey == null ? e.withDependencyKey(flagKey) : e;
       } catch (final PatternSyntaxException e) {
