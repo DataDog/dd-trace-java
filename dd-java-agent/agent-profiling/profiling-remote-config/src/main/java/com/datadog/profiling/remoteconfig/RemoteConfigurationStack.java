@@ -14,8 +14,10 @@ import org.slf4j.LoggerFactory;
  * The accepted {@link RemoteConfiguration}s, ordered by priority: a feature set by several of them
  * takes the value of the one with the highest priority, see {@link #merged()}.
  *
- * <p>Configurations with the same priority are ordered by config id, so that the outcome doesn't
- * depend on the order they were delivered in.
+ * <p>Among configurations with the same priority, only the most recently pushed one counts, and it
+ * replaces the others entirely, even for the features it doesn't set. A configuration that is
+ * pushed again, i.e. that was updated, becomes the latest. The others are kept, so that they count
+ * again if the latest is removed.
  *
  * <p>Not thread safe.
  */
@@ -26,11 +28,14 @@ public final class RemoteConfigurationStack {
   public static final class Entry {
     private final String configId;
     private final int priority;
+    // the order the entries were pushed in, the greater the later
+    private final long sequence;
     private final RemoteConfiguration configuration;
 
-    private Entry(String configId, int priority, RemoteConfiguration configuration) {
+    private Entry(String configId, int priority, long sequence, RemoteConfiguration configuration) {
       this.configId = configId;
       this.priority = priority;
+      this.sequence = sequence;
       this.configuration = configuration;
     }
 
@@ -52,28 +57,31 @@ public final class RemoteConfigurationStack {
     }
   }
 
+  // by priority, then the oldest first so that the latest overwrites it when merged
   private static final Comparator<Entry> LOWEST_PRIORITY_FIRST =
-      Comparator.comparingInt(Entry::priority).thenComparing(Entry::configId);
+      Comparator.comparingInt(Entry::priority).thenComparingLong(entry -> entry.sequence);
 
   private final Map<String, Entry> entries;
+  private long nextSequence;
 
   public RemoteConfigurationStack() {
-    this(new HashMap<>());
+    this(new HashMap<>(), 0);
   }
 
-  private RemoteConfigurationStack(Map<String, Entry> entries) {
+  private RemoteConfigurationStack(Map<String, Entry> entries, long nextSequence) {
     this.entries = entries;
+    this.nextSequence = nextSequence;
   }
 
   /**
-   * Stores a configuration, replacing the one with the same config id, if any.
+   * Stores a configuration as the latest one, replacing the one with the same config id, if any.
    *
    * @param configId the id of the remote config
    * @param priority the higher, the more it overrides the other configurations
    * @param configuration what it sets
    */
   public void push(String configId, int priority, RemoteConfiguration configuration) {
-    entries.put(configId, new Entry(configId, priority, configuration));
+    entries.put(configId, new Entry(configId, priority, nextSequence++, configuration));
   }
 
   /** Removes the configuration with the config id, if any. */
@@ -97,7 +105,8 @@ public final class RemoteConfigurationStack {
   }
 
   /**
-   * @return the entries, from the lowest to the highest priority
+   * @return the entries, from the lowest to the highest priority; among the same priority, from the
+   *     oldest to the latest
    */
   public List<Entry> lowestToHighestPriority() {
     List<Entry> sorted = new ArrayList<>(entries.values());
@@ -106,17 +115,24 @@ public final class RemoteConfigurationStack {
   }
 
   /**
-   * Merges the configurations into one.
+   * Merges the configurations into one. Of the configurations with the same priority, only the
+   * latest one counts.
    *
    * @return for each feature, the value of the highest priority configuration that sets it; a
    *     feature that none sets is not set. It is {@link RemoteConfiguration#EMPTY} for an empty
    *     stack.
    */
   public RemoteConfiguration merged() {
+    List<Entry> sorted = lowestToHighestPriority();
     // from the lowest to the highest priority, so that the higher ones overwrite the lower ones
     RemoteConfiguration merged = RemoteConfiguration.EMPTY;
-    for (Entry entry : lowestToHighestPriority()) {
-      merged = merged.overriddenBy(entry.configuration);
+    for (int i = 0; i < sorted.size(); i++) {
+      Entry entry = sorted.get(i);
+      boolean latestOfItsPriority =
+          i == sorted.size() - 1 || sorted.get(i + 1).priority != entry.priority;
+      if (latestOfItsPriority) {
+        merged = merged.overriddenBy(entry.configuration);
+      }
     }
     log.debug("Merged APM_PROFILING configs, lowest to highest priority: {} -> {}", this, merged);
     return merged;
@@ -126,7 +142,7 @@ public final class RemoteConfigurationStack {
    * @return an independent copy, that later changes of this stack don't affect
    */
   public RemoteConfigurationStack snapshot() {
-    return new RemoteConfigurationStack(new HashMap<>(entries));
+    return new RemoteConfigurationStack(new HashMap<>(entries), nextSequence);
   }
 
   @Override

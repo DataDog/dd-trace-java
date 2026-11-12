@@ -1,36 +1,31 @@
 package com.datadog.profiling.remoteconfig;
 
 import datadog.trace.api.internal.VisibleForTesting;
-import datadog.trace.util.TagsHelper;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Ranks an {@code APM_PROFILING} payload for this application by its {@code targets} list, e.g.
- * {@code {"targets":[{"env":"staging","service":"my-app"},{"service":"x"}]}}, following
- * dd-trace-js.
+ * Ranks an {@code APM_PROFILING} payload by its {@code targets} list, e.g. {@code
+ * {"targets":[{"env":"staging","service":"my-app"},{"service":"x"}]}}.
  *
- * <p>Remote config only delivers the configs that apply to this application, so every payload is
- * kept and its targets only rank it: the rank is the specificity of its most specific target that
- * is consistent with this application, i.e. whose {@code service} and {@code env} are this
- * application's ones, compared normalized like the backend does, or 0 when there is none, or no
- * target. A missing {@code service} or {@code env}, or the value {@code "*"}, matches anything.
+ * <p>Remote config only delivers the configs that target this application, so every payload is
+ * kept, and its targets only rank it: the rank is the specificity of its most specific target, or 0
+ * when it has no target. A missing {@code service} or {@code env}, or the value {@code "*"}, is not
+ * a condition.
  *
  * <p>A payload is dropped, with {@link #DROPPED}, when its targets can't be trusted: it is
  * unreadable, its {@code targets} is not a list, or it has targets but none is valid. A target that
  * is not valid, e.g. with a {@code service} that is not a string, is skipped, and never matches
  * everything.
  *
- * <p>The tags of a target only have to hold for {@code service:} and {@code env:} tags, which name
- * this application's service and env like the fields do. The other tag conditions are not checked:
- * the agent has matched them, and the tracer doesn't know every tag it is matched by, e.g. the
- * Kubernetes ones. They only rank the payloads.
+ * <p>The conditions of a target are not checked against this application: the agent has matched
+ * them, and the tracer doesn't know every tag it is matched by, e.g. the Kubernetes ones. They only
+ * rank the payloads.
  */
 public final class ProfilingConfigTargets {
   private static final Logger log = LoggerFactory.getLogger(ProfilingConfigTargets.class);
@@ -38,9 +33,9 @@ public final class ProfilingConfigTargets {
   private static final String WILDCARD = "*";
 
   // Specificity levels of a target, from the least to the most specific, following the profiling
-  // Remote Config payload merging ADR, as dd-trace-js does: other tags < env < service < workload <
-  // container name < pod < container ID. The infrastructure levels are recognized by the tag names
-  // the Datadog agent assigns.
+  // Remote Config payload merging ADR: other tags < env < service < workload < container name <
+  // pod < container ID. The infrastructure levels are recognized by the tag names the Datadog agent
+  // assigns.
   private static final int LEVEL_OTHER_TAGS = 1;
   private static final int LEVEL_ENV = 2;
   private static final int LEVEL_SERVICE = 3;
@@ -59,38 +54,6 @@ public final class ProfilingConfigTargets {
       this.service = service;
       this.env = env;
       this.tags = tags;
-    }
-
-    /**
-     * Whether the target is for this application, which only its service and env tell, whether they
-     * are named by the {@code service} and {@code env} fields or by {@code service:} and {@code
-     * env:} tags.
-     */
-    boolean isFor(String appEnv, String appService) {
-      return (service == null || sameNormalized(service, appService))
-          && (env == null || sameNormalized(env, appEnv))
-          && tagsAreFor(appEnv, appService);
-    }
-
-    // The tracer only knows its service and env: when the tags name them, they have to be this
-    // application's. The other tags are assumed to hold, as the agent has matched them.
-    private boolean tagsAreFor(String appEnv, String appService) {
-      for (String tag : tags) {
-        int separator = tag.indexOf(':');
-        if (separator < 0) {
-          continue;
-        }
-        String key = tag.substring(0, separator).toLowerCase(Locale.ROOT);
-        String value = tag.substring(separator + 1);
-        if (WILDCARD.equals(value)) {
-          continue;
-        }
-        if (("service".equals(key) && !sameNormalized(value, appService))
-            || ("env".equals(key) && !sameNormalized(value, appEnv))) {
-          return false;
-        }
-      }
-      return true;
     }
 
     int specificity() {
@@ -141,42 +104,39 @@ public final class ProfilingConfigTargets {
   public static final int DROPPED = -1;
 
   /**
-   * The rank of a payload for this application: the higher, the more specific, and the higher the
-   * priority of its values.
+   * The rank of a payload: the higher, the more specific, and the higher the priority of its
+   * values.
    *
-   * <p>It is the specificity of the most specific target for this application, or 0 if there is
-   * none, or no target. A target ranks by its most specific condition, and then by its number of
-   * conditions.
+   * <p>It is the specificity of its most specific target, or 0 if it has none. A target ranks by
+   * its most specific condition, and then by its number of conditions.
    *
    * @return {@link #DROPPED} if the payload is dropped
    */
   @VisibleForTesting
-  static int rank(String json, String env, String service) {
-    return rank(json, env, service, new ArrayList<>());
+  static int rank(String json) {
+    return rank(json, new ArrayList<>());
   }
 
-  static int rank(String json, String env, String service, List<String> problems) {
+  static int rank(String json, List<String> problems) {
     Map<String, Object> payload = ApmProfilingPayload.read(json, problems);
-    return payload == null ? DROPPED : rank(payload, env, service, problems);
+    return payload == null ? DROPPED : rank(payload, problems);
   }
 
   /**
-   * Same as {@link #rank(String, String, String)}, for a payload that was read already, also
-   * describing the invalid targets.
+   * Same as {@link #rank(String)}, for a payload that was read already, also describing the invalid
+   * targets.
    *
    * @param payload the payload, see {@link ApmProfilingPayload#read}
    * @param problems receives a description of each target that is invalid
    */
-  static int rank(Map<String, Object> payload, String env, String service, List<String> problems) {
+  static int rank(Map<String, Object> payload, List<String> problems) {
     List<Target> targets = readTargets(payload, problems);
     if (targets == null) {
       return DROPPED;
     }
     int rank = 0;
     for (Target target : targets) {
-      if (target.isFor(env, service)) {
-        rank = Math.max(rank, target.specificity());
-      }
+      rank = Math.max(rank, target.specificity());
     }
     return rank;
   }
@@ -256,10 +216,5 @@ public final class ProfilingConfigTargets {
     String name = (separator == -1 ? tag : tag.substring(0, separator)).toLowerCase(Locale.ROOT);
     Integer level = LEVEL_BY_TAG_NAME.get(name);
     return level != null ? level : LEVEL_OTHER_TAGS;
-  }
-
-  // the agent and the backend match normalized values, so compare normalized values too
-  private static boolean sameNormalized(String a, String b) {
-    return Objects.equals(TagsHelper.sanitize(a), TagsHelper.sanitize(b));
   }
 }

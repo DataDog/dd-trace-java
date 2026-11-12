@@ -10,40 +10,13 @@ import org.tabletest.junit.TableTest;
 
 class ProfilingConfigTargetsTest {
 
-  @TableTest({
-    "Scenario             | Env       | Service  | Target env | Target service | Expected",
-    "case and punctuation | 'Prod EU' | 'My App' | prod_eu    | my_app         | 3002    ",
-    "same raw values      | staging   | my-app   | staging    | my-app         | 3002    ",
-    "service differs      | staging   | 'My App' | staging    | my-app         | 0       ",
-    "env differs          | 'Prod EU' | my-app   | prod-eu    | my-app         | 0       "
-  })
-  void valuesAreComparedNormalized(
-      String env, String service, String targetEnv, String targetService, int expected) {
-    String json =
-        "{\"targets\":[{\"env\":\"" + targetEnv + "\",\"service\":\"" + targetService + "\"}]}";
-
-    assertEquals(expected, ProfilingConfigTargets.rank(json, env, service));
-  }
-
-  @Test
-  void applicationWithoutEnvOnlyRanksTargetsForAnyEnv() {
-    String forStaging = "{\"targets\":[{\"env\":\"staging\",\"service\":\"my-app\"}]}";
-    String forAnyEnv = "{\"targets\":[{\"env\":\"*\",\"service\":\"my-app\"}]}";
-
-    assertEquals(0, ProfilingConfigTargets.rank(forStaging, null, "my-app"));
-    assertEquals(3001, ProfilingConfigTargets.rank(forAnyEnv, null, "my-app"));
-  }
-
   @Test
   void invalidTargetsAreReported() {
     List<String> problems = new ArrayList<>();
 
     int rank =
         ProfilingConfigTargets.rank(
-            "{\"targets\":[{\"service\":1},{\"service\":\"my-app\"},\"x\"]}",
-            "staging",
-            "my-app",
-            problems);
+            "{\"targets\":[{\"service\":1},{\"service\":\"my-app\"},\"x\"]}", problems);
 
     assertEquals(3001, rank);
     assertEquals(2, problems.size());
@@ -57,19 +30,17 @@ class ProfilingConfigTargetsTest {
 
     assertEquals(
         ProfilingConfigTargets.DROPPED,
-        ProfilingConfigTargets.rank(
-            "{\"targets\":[{\"service\":1}]}", "staging", "my-app", problems));
+        ProfilingConfigTargets.rank("{\"targets\":[{\"service\":1}]}", problems));
     assertTrue(problems.contains("no valid targets"));
 
     problems.clear();
     assertEquals(
-        ProfilingConfigTargets.DROPPED,
-        ProfilingConfigTargets.rank("{\"targets\":{}}", "staging", "my-app", problems));
+        ProfilingConfigTargets.DROPPED, ProfilingConfigTargets.rank("{\"targets\":{}}", problems));
     assertTrue(problems.contains("targets is not an array"));
   }
 
-  // the specificity is the level of the most specific condition of the most specific target
-  // consistent with the application, times 1000, plus its number of conditions
+  // the specificity is the level of the most specific condition of the most specific target, times
+  // 1000, plus its number of conditions
   @TableTest({
     "Scenario                       | Json                                                                         | Expected",
     "no targets                     | '{\"k\":1}'                                                                  | 0       ",
@@ -82,9 +53,9 @@ class ProfilingConfigTargetsTest {
     "wildcard service and env       | '{\"targets\":[{\"env\":\"staging\",\"service\":\"*\"}]}'                    | 2001    ",
     "other tag                      | '{\"targets\":[{\"tags\":[\"team:x\"]}]}'                                    | 1001    ",
     "two other tags                 | '{\"targets\":[{\"tags\":[\"team:x\",\"tier:y\"]}]}'                         | 1002    ",
-    "service tag of this service    | '{\"targets\":[{\"tags\":[\"service:my-app\"]}]}'                            | 1001    ",
-    "service tag of another service | '{\"targets\":[{\"tags\":[\"service:other\"]}]}'                             | 0       ",
-    "env tag of another env         | '{\"targets\":[{\"service\":\"my-app\",\"tags\":[\"env:prod\"]}]}'           | 0       ",
+    "service tag                    | '{\"targets\":[{\"tags\":[\"service:my-app\"]}]}'                            | 1001    ",
+    "service tag of another service | '{\"targets\":[{\"tags\":[\"service:other\"]}]}'                             | 1001    ",
+    "env tag of another env         | '{\"targets\":[{\"service\":\"my-app\",\"tags\":[\"env:prod\"]}]}'           | 3002    ",
     "workload                       | '{\"targets\":[{\"tags\":[\"kube_deployment:d\"]}]}'                         | 4001    ",
     "workload from the task         | '{\"targets\":[{\"tags\":[\"task_family:t\"]}]}'                             | 4001    ",
     "container name                 | '{\"targets\":[{\"tags\":[\"container_name:c\"]}]}'                          | 5001    ",
@@ -96,11 +67,9 @@ class ProfilingConfigTargetsTest {
     "tag without a value            | '{\"targets\":[{\"tags\":[\"pod_name\"]}]}'                                  | 6001    ",
     "service and container id       | '{\"targets\":[{\"service\":\"my-app\",\"tags\":[\"container_id:i\"]}]}'     | 7002    ",
     "the most specific level counts | '{\"targets\":[{\"env\":\"staging\",\"tags\":[\"pod_name:p\",\"team:x\"]}]}' | 6003    ",
-    "other service                  | '{\"targets\":[{\"service\":\"other\"}]}'                                    | 0       ",
-    "other env                      | '{\"targets\":[{\"env\":\"prod\",\"service\":\"my-app\"}]}'                  | 0       ",
-    "inconsistent target is skipped | '{\"targets\":[{\"env\":\"prod\"},{\"service\":\"my-app\"}]}'                | 3001    ",
+    "other service                  | '{\"targets\":[{\"service\":\"other\"}]}'                                    | 3001    ",
+    "other env                      | '{\"targets\":[{\"env\":\"prod\",\"service\":\"my-app\"}]}'                  | 3002    ",
     "the most specific target wins  | '{\"targets\":[{\"env\":\"staging\"},{\"service\":\"my-app\"}]}'             | 3001    ",
-    "values are compared normalized | '{\"targets\":[{\"service\":\"MY-APP\"}]}'                                   | 3001    ",
     "invalid service is skipped     | '{\"targets\":[{\"service\":1},{\"env\":\"staging\"}]}'                      | 2001    ",
     "null service is invalid        | '{\"targets\":[{\"service\":null}]}'                                         | -1      ",
     "tags not an array              | '{\"targets\":[{\"tags\":\"pod_name:p\"}]}'                                  | -1      ",
@@ -111,6 +80,6 @@ class ProfilingConfigTargetsTest {
     "not an object                  | '[]'                                                                         | -1      "
   })
   void rankOfTargets(String json, int expected) {
-    assertEquals(expected, ProfilingConfigTargets.rank(json, "staging", "my-app"));
+    assertEquals(expected, ProfilingConfigTargets.rank(json));
   }
 }

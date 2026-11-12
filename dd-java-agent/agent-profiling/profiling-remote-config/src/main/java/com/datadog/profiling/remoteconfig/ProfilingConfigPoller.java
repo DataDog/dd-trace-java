@@ -53,8 +53,7 @@ public final class ProfilingConfigPoller {
       return false;
     }
     // the poller itself is started by the agent once all products have been registered
-    poller.addListener(
-        Product.APM_PROFILING, new Updater(config.getEnv(), config.getServiceName()));
+    poller.addListener(Product.APM_PROFILING, new Updater());
     configPoller = poller;
     log.debug("Subscribed to APM_PROFILING remote config");
     return true;
@@ -75,13 +74,6 @@ public final class ProfilingConfigPoller {
    */
   final class Updater implements ProductListener {
     private final RemoteConfigurationStack stack = new RemoteConfigurationStack();
-    private final String env;
-    private final String service;
-
-    Updater(String env, String service) {
-      this.env = env;
-      this.service = service;
-    }
 
     @Override
     public void accept(ConfigKey configKey, byte[] content, PollingRateHinter hinter)
@@ -92,11 +84,11 @@ public final class ProfilingConfigPoller {
       // null for a payload that is not a profiling config: the product is shared
       RemoteConfiguration configuration =
           payload == null ? null : RemoteConfiguration.parse(payload, problems);
-      // the more specific the targets are for this application, the higher the priority
+      // the more specific the targets are, the higher the priority
       int priority =
           configuration == null
               ? ProfilingConfigTargets.DROPPED
-              : ProfilingConfigTargets.rank(payload, env, service, problems);
+              : ProfilingConfigTargets.rank(payload, problems);
       if (priority == ProfilingConfigTargets.DROPPED) {
         // may have been a usable config before, in which case it no longer applies
         stack.remove(configId);

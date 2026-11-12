@@ -97,7 +97,11 @@ class ProfilingConfigPollerTest {
     ProductListener listener = startAndCaptureListener();
 
     listener.accept(configKey("a"), targeted("\"cpuTime\":true"), hinter);
-    listener.accept(configKey("b"), targeted("\"wallTime\":true"), hinter);
+    // a lower rank than a, so that both count
+    listener.accept(
+        configKey("b"),
+        json("{\"profilers\":{\"wallTime\":true},\"targets\":[{\"service\":\"my-app\"}]}"),
+        hinter);
     listener.commit(hinter);
 
     RemoteConfigurationStack stack = committedStack();
@@ -123,7 +127,7 @@ class ProfilingConfigPollerTest {
   void acceptedConfigIsStoredWithThePriorityOfItsTargets() throws Exception {
     ProductListener listener = startAndCaptureListener();
 
-    // the greater config id has the lower priority
+    // the priority doesn't depend on the config id
     listener.accept(
         configKey("a"),
         json("{\"profilers\":{\"cpuTime\":true},\"targets\":[{\"service\":\"my-app\"}]}"),
@@ -181,26 +185,6 @@ class ProfilingConfigPollerTest {
 
     RemoteConfigurationStack stack = committedStack();
     assertEquals(asList("untargeted", "a"), configIds(stack.lowestToHighestPriority()));
-    assertEquals(true, stack.merged().get(CPU_TIME));
-  }
-
-  @Test
-  void configForAnotherServiceOrEnvIsStoredWithTheLowestPriority() throws Exception {
-    ProductListener listener = startAndCaptureListener();
-
-    listener.accept(
-        configKey("other-service"),
-        json("{\"profilers\":{\"cpuTime\":false},\"targets\":[{\"service\":\"other-app\"}]}"),
-        hinter);
-    listener.accept(
-        configKey("other-env"),
-        json("{\"profilers\":{\"cpuTime\":false},\"targets\":[{\"env\":\"prod\"}]}"),
-        hinter);
-    listener.accept(configKey("a"), targeted("\"cpuTime\":true"), hinter);
-    listener.commit(hinter);
-
-    RemoteConfigurationStack stack = committedStack();
-    assertEquals(asList(0, 0, 3002), priorities(stack.lowestToHighestPriority()));
     assertEquals(true, stack.merged().get(CPU_TIME));
   }
 
@@ -344,8 +328,6 @@ class ProfilingConfigPollerTest {
 
   private ProductListener startAndCaptureListener() {
     when(sco.configurationPoller(config)).thenReturn(poller);
-    when(config.getEnv()).thenReturn(ENV);
-    when(config.getServiceName()).thenReturn(SERVICE);
     assertTrue(profilingConfigPoller.start(config, sco), "subscribed");
     verify(poller).addListener(eq(Product.APM_PROFILING), listenerCaptor.capture());
     return listenerCaptor.getValue();

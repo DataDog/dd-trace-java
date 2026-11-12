@@ -36,12 +36,35 @@ class RemoteConfigurationStackTest {
   }
 
   @Test
-  void entriesWithTheSamePriorityAreOrderedByConfigIdWhateverTheOrderTheyWerePushedIn() {
+  void entriesWithTheSamePriorityAreOrderedByTheOrderTheyWerePushedIn() {
     stack.push("c", 5, CPU);
     stack.push("a", 5, CPU);
     stack.push("b", 5, CPU);
 
-    assertEquals(asList("a", "b", "c"), configIds(stack.lowestToHighestPriority()));
+    assertEquals(asList("c", "a", "b"), configIds(stack.lowestToHighestPriority()));
+  }
+
+  @Test
+  void pushingAgainMakesTheEntryTheLatestOfItsPriority() {
+    stack.push("a", 5, CPU);
+    stack.push("b", 5, CPU);
+    stack.push("c", 5, CPU);
+    stack.push("a", 5, WALL);
+
+    assertEquals(asList("b", "c", "a"), configIds(stack.lowestToHighestPriority()));
+  }
+
+  @Test
+  void snapshotKeepsTheOrderAndLaterPushesStayLatest() {
+    stack.push("b", 5, CPU);
+    stack.push("a", 5, CPU);
+
+    RemoteConfigurationStack snapshot = stack.snapshot();
+    snapshot.push("c", 5, CPU);
+    stack.push("d", 5, CPU);
+
+    assertEquals(asList("b", "a", "c"), configIds(snapshot.lowestToHighestPriority()));
+    assertEquals(asList("b", "a", "d"), configIds(stack.lowestToHighestPriority()));
   }
 
   @Test

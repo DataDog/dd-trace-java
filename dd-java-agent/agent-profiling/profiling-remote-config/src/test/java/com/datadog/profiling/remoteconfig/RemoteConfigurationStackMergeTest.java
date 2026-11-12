@@ -30,8 +30,8 @@ class RemoteConfigurationStackMergeTest {
   }
 
   @Test
-  void highestPriorityValueWinsWhateverTheConfigId() {
-    // by config id, "z" would overwrite "a" in both stacks
+  void highestPriorityValueWinsWhateverTheOrderItWasPushedIn() {
+    // by push order, the lower priority one would overwrite the other in the first stack
     stack.push("a", 3001, config("\"cpuTime\":true"));
     stack.push("z", 0, config("\"cpuTime\":false"));
     assertEquals(true, stack.merged().get(CPU_TIME));
@@ -54,12 +54,57 @@ class RemoteConfigurationStackMergeTest {
   }
 
   @Test
-  void equalPriorityGivesTheValueOfTheGreatestConfigId() {
+  void equalPriorityGivesTheValueOfTheLatestPushed() {
+    stack.push("c", 2001, config("\"cpuTime\":true"));
+    stack.push("a", 2001, config("\"cpuTime\":true"));
+    stack.push("b", 2001, config("\"cpuTime\":false"));
+
+    assertEquals(false, stack.merged().get(CPU_TIME), "b is the latest");
+  }
+
+  @Test
+  void updatedConfigurationBecomesTheLatestOfItsPriority() {
+    stack.push("a", 2001, config("\"cpuTime\":true"));
     stack.push("b", 2001, config("\"cpuTime\":false"));
     stack.push("a", 2001, config("\"cpuTime\":true"));
-    stack.push("c", 2001, config("\"cpuTime\":true"));
 
-    assertEquals(true, stack.merged().get(CPU_TIME));
+    assertEquals(true, stack.merged().get(CPU_TIME), "a was updated after b");
+  }
+
+  @Test
+  void latestOfAPriorityReplacesTheEarlierOnesEntirely() {
+    stack.push("a", 2001, config("\"cpuTime\":true,\"wallTime\":true"));
+    stack.push("b", 2001, config("\"cpuTime\":false"));
+
+    RemoteConfiguration merged = stack.merged();
+
+    assertEquals(false, merged.get(CPU_TIME));
+    assertNull(merged.get(WALL_TIME), "a doesn't count, b being later with the same priority");
+  }
+
+  @Test
+  void earlierConfigurationCountsAgainWhenTheLatestOfItsPriorityIsRemoved() {
+    stack.push("a", 2001, config("\"cpuTime\":true,\"wallTime\":true"));
+    stack.push("b", 2001, config("\"cpuTime\":false"));
+    stack.remove("b");
+
+    RemoteConfiguration merged = stack.merged();
+
+    assertEquals(true, merged.get(CPU_TIME));
+    assertEquals(true, merged.get(WALL_TIME));
+  }
+
+  @Test
+  void lowerPriorityStillCountsForTheFeaturesTheLatestDoesNotSet() {
+    stack.push("general", 0, config("\"wallTime\":false"));
+    stack.push("a", 2001, config("\"cpuTime\":true"));
+    stack.push("b", 2001, config("\"allocations\":true"));
+
+    RemoteConfiguration merged = stack.merged();
+
+    assertEquals(false, merged.get(WALL_TIME), "from the lower priority");
+    assertNull(merged.get(CPU_TIME), "a doesn't count");
+    assertEquals(true, merged.get(ALLOCATIONS));
   }
 
   @Test
