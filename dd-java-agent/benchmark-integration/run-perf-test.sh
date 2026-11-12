@@ -398,6 +398,12 @@ function sink_trace_requests {
     curl -s -m 3 "$PERF_SINK_STATS_URL" | awk '$1 ~ /\/traces$/ { n += $2 } END { print n + 0 }'
 }
 
+# Bytes the stub received on trace endpoints. Two variants sending the same payload format can be
+# compared by trace bytes per served request: fewer means the variant dropped (or never sent) traces.
+function sink_trace_bytes {
+    curl -s -m 3 "$PERF_SINK_STATS_URL" | awk '$1 ~ /\/traces$/ { b += $3 } END { printf "%.0f", b + 0 }'
+}
+
 trap 'stop_server; exit' SIGINT
 trap 'kill $server_pid; exit' SIGTERM
 header='Client Version'
@@ -448,7 +454,7 @@ for agent_jar in "${agent_jars[@]}"; do
     fi
 
 
-    [ -n "${PERF_SINK_STATS_URL:-}" ] && sink_before=$(sink_trace_requests)
+    [ -n "${PERF_SINK_STATS_URL:-}" ] && sink_before=$(sink_trace_requests) && sink_bytes_before=$(sink_trace_bytes)
     server_start_cpu=$(cpu_seconds "$server_pid")
     server_start_rss=$(ps -o rss= -p "$server_pid")
 
@@ -523,7 +529,8 @@ for agent_jar in "${agent_jars[@]}"; do
             stop_server
             exit 1
         fi
-        echo "Agent stub received $((sink_after - sink_before)) trace payloads from this variant"
+        sink_bytes_after=$(sink_trace_bytes)
+        echo "Agent stub received $((sink_after - sink_before)) trace payloads, $((sink_bytes_after - sink_bytes_before)) trace bytes from this variant"
     fi
 
     stop_server
