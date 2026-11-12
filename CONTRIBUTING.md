@@ -124,6 +124,15 @@ and include them in the same PR.
 This applies to changes in build scripts and `gradle/libs.versions.toml`.
 Follow the [lockfile update workflow](docs/how_to_work_with_gradle.md#updating-lock-files) before requesting review.
 
+The GitLab `check-lockfile-updates` job fails a pull request that changes a module's external dependencies, or a
+`gradle/libs.versions.toml` entry that module uses, without touching any `gradle.lockfile`. Reproduce it locally with:
+
+```bash
+python3 tooling/check_lockfile_updates.py "$(git merge-base origin/master HEAD)" HEAD
+```
+
+If the change provably cannot alter any lockfile, add `[ci: SKIP_LOCKFILE_CHECK]` to the last commit message.
+
 ### CODEOWNERS changes
 
 New files inherit ownership from matching rules in [.github/CODEOWNERS](.github/CODEOWNERS).
