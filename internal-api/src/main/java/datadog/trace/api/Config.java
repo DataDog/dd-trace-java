@@ -4067,9 +4067,10 @@ public class Config {
   }
 
   public boolean isNativeTracerMetricsEnabled() {
-    if (!isTracerMetricsEnabled() || isOtelTracesSpanMetricsEnabled()) {
-      return false;
-    }
+    return isTracerMetricsEnabled() && !isOtelTracesSpanMetricsEnabled() && hasAgentWriter();
+  }
+
+  public boolean hasAgentWriter() {
     if (!writerType.startsWith(MULTI_WRITER_TYPE)) {
       return isAgentWriterType(writerType);
     }
