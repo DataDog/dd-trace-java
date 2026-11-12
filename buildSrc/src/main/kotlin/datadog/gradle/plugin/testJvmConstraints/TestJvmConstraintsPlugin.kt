@@ -81,6 +81,7 @@ class TestJvmConstraintsPlugin : Plugin<Project> {
       group = LifecycleBasePlugin.VERIFICATION_GROUP
       description = "Checks that no test task has unsatisfiable test JVM constraints."
       testTasks.addAll(project.provider { testTaskConstraints(project) })
+      coverageTestJvmProblem.set(project.provider { project.coverageTestJvmProblem() })
     }
     project.tasks.named(LifecycleBasePlugin.CHECK_TASK_NAME) {
       dependsOn(checkTask)
@@ -184,6 +185,7 @@ class TestJvmConstraintsPlugin : Plugin<Project> {
     taskExtension.excludeJdk.convention(projectExtension.excludeJdk)
     taskExtension.allowReflectiveAccessToJdk.convention(projectExtension.allowReflectiveAccessToJdk)
     taskExtension.nativeImageCapable.convention(projectExtension.nativeImageCapable)
+    taskExtension.coverageTestJvm.convention(projectExtension.coverageTestJvm)
   }
 }
 

@@ -1134,6 +1134,7 @@ tasks.named<Test>("latestDepTest") {
 | `includeJdk`                       | Restricts JDK names. The check fails when no entry is allowed. Set it on the test task: a project-level value is ignored. |
 | `excludeJdk`                       | Rejects listed JDK names, including forced JDKs.                                                                          |
 | `allowReflectiveAccessToJdk`       | Adds `--add-opens` flags for Java 16+ reflective access.                                                                  |
+| `coverageTestJvm`                  | Test JVM to check coverage on in CI, like `ORACLE8`. Defaults to the lowest allowed Java LTS version.                     |
 
 `checkTestJvmConstraints` runs with `check` and rejects unsatisfiable constraints.
 The JDK name lists apply when tests run with `-PtestJvm`.

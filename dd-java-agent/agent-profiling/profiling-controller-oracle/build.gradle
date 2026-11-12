@@ -6,6 +6,7 @@ testJvmConstraints {
   minJavaVersion = JavaVersion.VERSION_1_8
   maxJavaVersion = JavaVersion.VERSION_1_8
   includeJdk = ['ORACLE8']
+  coverageTestJvm = 'ORACLE8'
 }
 
 minimumBranchCoverage = 0.5

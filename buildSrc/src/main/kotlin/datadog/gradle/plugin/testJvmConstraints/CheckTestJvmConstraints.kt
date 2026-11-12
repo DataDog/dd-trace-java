@@ -14,7 +14,8 @@ import org.gradle.work.DisableCachingByDefault
 /**
  * Checks that no test task has unsatisfiable test JVM constraints, such as a minimum Java version
  * above the maximum one. No JVM satisfies such constraints, so the task is skipped everywhere and
- * its tests never run, while the build still passes.
+ * its tests never run, while the build still passes. It also checks that a project with coverage
+ * has a coverage test JVM, see [coverageTestJvm].
  */
 @DisableCachingByDefault(because = "Fast check without outputs")
 abstract class CheckTestJvmConstraints : DefaultTask() {
@@ -27,18 +28,25 @@ abstract class CheckTestJvmConstraints : DefaultTask() {
   @get:Nested
   abstract val testTasks: ListProperty<TestTaskConstraints>
 
+  /** Why the project has no valid coverage test JVM, if so. */
+  @get:Input
+  @get:Optional
+  abstract val coverageTestJvmProblem: Property<String>
+
   @TaskAction
   fun check() {
     val failures = testTasks.get()
       .filter { it.isUnsatisfiable() }
       .map { "  - ${it.taskPath.get()}: ${it.describe()}" }
-    if (failures.isNotEmpty()) {
-      throw GradleException(
-        failures.joinToString(
-          separator = "\n",
-          prefix = "No JVM satisfies the testJvmConstraints of these test tasks, so their tests never run:\n",
-        )
-      )
+    val messages = listOfNotNull(
+      failures.takeIf { it.isNotEmpty() }?.joinToString(
+        separator = "\n",
+        prefix = "No JVM satisfies the testJvmConstraints of these test tasks, so their tests never run:\n",
+      ),
+      coverageTestJvmProblem.orNull,
+    )
+    if (messages.isNotEmpty()) {
+      throw GradleException(messages.joinToString(separator = "\n"))
     }
   }
 
