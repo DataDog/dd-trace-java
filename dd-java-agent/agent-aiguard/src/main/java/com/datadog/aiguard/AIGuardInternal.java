@@ -4,6 +4,7 @@ import static datadog.communication.ddagent.TracerVersion.TRACER_VERSION;
 import static datadog.trace.api.telemetry.WafMetricCollector.AIGuardTruncationType.CONTENT;
 import static datadog.trace.api.telemetry.WafMetricCollector.AIGuardTruncationType.MESSAGES;
 import static datadog.trace.util.Strings.isBlank;
+import static java.util.Arrays.asList;
 
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
@@ -107,13 +108,30 @@ public class AIGuardInternal implements Evaluator {
 
   /**
    * Span tags the backend may not set through {@code extra_tags}, on top of every tag {@code
-   * TagInterceptor} may route (see {@link #isReservedExtraTag(String)}): the tracer-driven sampling
-   * and event markers, and the anomaly detection tags copied from the local root span.
+   * TagInterceptor} may route (see {@link #isReservedExtraTag(String)}): the tags the tracer writes
+   * from the evaluation, the tracer-driven sampling and event markers, and the anomaly detection
+   * tags copied from the local root span. They are refused even when this evaluation does not write
+   * them, so a span never mixes tracer and backend values for one of them.
    */
   static final Set<String> RESERVED_EXTRA_TAGS = reservedExtraTags();
 
+  /**
+   * {@code ai_guard} meta_struct entries the backend may not set through {@code extra_metastruct}:
+   * the ones the tracer writes from the evaluation, refused even when this evaluation has none.
+   */
+  static final Set<String> RESERVED_EXTRA_METASTRUCT =
+      Collections.unmodifiableSet(
+          new HashSet<>(
+              asList(
+                  META_STRUCT_MESSAGES,
+                  META_STRUCT_CATEGORIES,
+                  META_STRUCT_SDS,
+                  META_STRUCT_TAG_PROBS)));
+
   private static Set<String> reservedExtraTags() {
     final Set<String> reserved = new HashSet<>();
+    reserved.addAll(
+        asList(TARGET_TAG, TOOL_TAG, ACTION_TAG, REASON_TAG, BLOCKED_TAG, REDACTED_TAG));
     reserved.add(Tags.AI_GUARD_KEEP);
     reserved.add(Tags.AI_GUARD_EVENT);
     for (final String tag : ANOMALY_DETECTION_TAGS) {
@@ -359,9 +377,11 @@ public class AIGuardInternal implements Evaluator {
    * extra_metastruct} to the {@code ai_guard} span.
    *
    * <p>Keys are used exactly as returned: the backend owns the {@code ai_guard.} prefix, so the
-   * tracer neither adds it nor filters by namespace. Only the tags in {@link #RESERVED_EXTRA_TAGS}
-   * and the ones {@code TagInterceptor} may route are refused. Extras are best effort: malformed
-   * entries are skipped and nothing here can change the evaluation outcome.
+   * tracer neither adds it nor filters by namespace. Only the tracer-owned keys ({@link
+   * #RESERVED_EXTRA_TAGS}, {@link #RESERVED_EXTRA_METASTRUCT}) and the tags {@code TagInterceptor}
+   * may route are refused, so extras can add to the evaluation but never contradict what the tracer
+   * recorded from it. Extras are best effort: malformed entries are skipped and nothing here can
+   * change the evaluation outcome.
    */
   private void applyExtras(
       final AgentSpan span,
@@ -370,7 +390,8 @@ public class AIGuardInternal implements Evaluator {
     try {
       for (final Map.Entry<String, String> tag :
           extraTags(result.get(RESPONSE_EXTRA_TAGS)).entrySet()) {
-        span.setTag(tag.getKey(), tag.getValue());
+        // The Object overload keeps empty strings, which the String overload removes instead.
+        span.setTag(tag.getKey(), (Object) tag.getValue());
       }
       metaStruct.putAll(extraMetaStruct(result.get(RESPONSE_EXTRA_METASTRUCT)));
     } catch (final Exception e) {
@@ -395,6 +416,9 @@ public class AIGuardInternal implements Evaluator {
       }
       final Object value = ((Map<?, ?>) item).get("value");
       if (value instanceof String) {
+        // Moved to the end so tags are written in the order of their last occurrence: aliases of
+        // one tag (a Datadog name and its OpenTelemetry rename) must still let the last entry win.
+        tags.remove(key);
         tags.put(key, (String) value);
       }
     }
@@ -403,8 +427,8 @@ public class AIGuardInternal implements Evaluator {
 
   /**
    * Reads {@code extra_metastruct}: a list of {@code {key, value}} entries whose value (object,
-   * array or scalar) is kept as parsed. Entries without a key or a value are skipped. A later
-   * duplicate wins.
+   * array or scalar) is kept as parsed. Entries without a key or a value, or that target an entry
+   * in {@link #RESERVED_EXTRA_METASTRUCT}, are skipped. A later duplicate wins.
    */
   @VisibleForTesting
   static Map<String, Object> extraMetaStruct(final Object raw) {
@@ -414,7 +438,7 @@ public class AIGuardInternal implements Evaluator {
     final Map<String, Object> entries = new LinkedHashMap<>();
     for (final Object item : (List<?>) raw) {
       final String key = extraKey(item);
-      if (key == null) {
+      if (key == null || RESERVED_EXTRA_METASTRUCT.contains(key)) {
         continue;
       }
       final Object value = ((Map<?, ?>) item).get("value");

@@ -623,10 +623,10 @@ class AIGuardInternalTests {
     Evaluation result = aiguard.evaluate(PROMPT, DEFAULT);
 
     assertEquals(ALLOW, result.getAction());
-    verify(span).setTag("ai_guard.evaluate_id", "evaluation-123");
-    verify(span).setTag("custom_context.note", "");
-    verify(span, never()).setTag(eq("ai_guard.ai_guard.evaluate_id"), anyString());
-    verify(span, never()).setTag(eq("policy_match"), anyString());
+    verify(span).setTag("ai_guard.evaluate_id", (Object) "evaluation-123");
+    verify(span).setTag("custom_context.note", (Object) "");
+    verify(span, never()).setTag(eq("ai_guard.ai_guard.evaluate_id"), (Object) anyString());
+    verify(span, never()).setTag(eq("policy_match"), (Object) anyString());
     assertEquals(policyMatch, receivedMeta.get("policy_match"));
     assertEquals(false, receivedMeta.get("flag"));
     assertEquals(emptyList(), receivedMeta.get("empty"));
@@ -641,7 +641,7 @@ class AIGuardInternalTests {
 
     aiguard.evaluate(PROMPT, DEFAULT);
 
-    verify(span, never()).setTag(eq("ai_guard.evaluate_id"), anyString());
+    verify(span, never()).setTag(eq("ai_guard.evaluate_id"), (Object) anyString());
     assertEquals(singletonList("messages"), new ArrayList<>(receivedMeta.keySet()));
   }
 
@@ -663,13 +663,13 @@ class AIGuardInternalTests {
 
     assertEquals(ALLOW, result.getAction());
     verify(span, never()).addThrowable(any());
-    verify(span, never()).setTag(eq("ai_guard.policy"), anyString());
+    verify(span, never()).setTag(eq("ai_guard.policy"), (Object) anyString());
     assertFalse(receivedMeta.containsKey("ai_guard.policy"));
     if (field.equals("extra_tags")) {
-      verify(span, never()).setTag(eq("ai_guard.evaluate_id"), anyString());
+      verify(span, never()).setTag(eq("ai_guard.evaluate_id"), (Object) anyString());
       assertEquals(true, receivedMeta.get("flag"));
     } else {
-      verify(span).setTag("ai_guard.evaluate_id", "evaluation-123");
+      verify(span).setTag("ai_guard.evaluate_id", (Object) "evaluation-123");
       assertFalse(receivedMeta.containsKey("flag"));
     }
   }
@@ -708,10 +708,10 @@ class AIGuardInternalTests {
 
     assertEquals(ALLOW, result.getAction());
     verify(span, never()).addThrowable(any());
-    verify(span).setTag("ai_guard.evaluate_id", "evaluation-123");
-    verify(span).setTag("custom_context.after_invalid", "kept");
+    verify(span).setTag("ai_guard.evaluate_id", (Object) "evaluation-123");
+    verify(span).setTag("custom_context.after_invalid", (Object) "kept");
     for (String key : asList("", "1", "bad.number", "bad.object", "bad.boolean", "bad.nil")) {
-      verify(span, never()).setTag(eq(key), nullable(String.class));
+      verify(span, never()).setTag(eq(key), nullable(Object.class));
     }
     assertEquals(false, receivedMeta.get("flag"));
     assertEquals(true, receivedMeta.get("after_invalid"));
@@ -736,9 +736,9 @@ class AIGuardInternalTests {
     aiguard.evaluate(PROMPT, DEFAULT);
 
     // keys are neither prefixed nor filtered by namespace, and the last duplicate wins
-    verify(span).setTag("_dd.custom", "value");
-    verify(span).setTag("custom.tag", "second");
-    verify(span, never()).setTag("custom.tag", "first");
+    verify(span).setTag("_dd.custom", (Object) "value");
+    verify(span).setTag("custom.tag", (Object) "second");
+    verify(span, never()).setTag("custom.tag", (Object) "first");
     assertEquals("second", receivedMeta.get("key"));
   }
 
@@ -773,9 +773,65 @@ class AIGuardInternalTests {
 
     aiguard.evaluate(PROMPT, DEFAULT);
 
-    verify(span).setTag("ai_guard.evaluate_id", "evaluation-123");
-    verify(span, never()).setTag(anyString(), eq("forged"));
+    verify(span).setTag("ai_guard.evaluate_id", (Object) "evaluation-123");
+    verify(span, never()).setTag(anyString(), (Object) eq("forged"));
     // the tracer always reports the evaluated conversation
+    assertEquals(PROMPT.size(), receivedMessages().size());
+  }
+
+  @Test
+  void testEvaluateWithExtrasCollidingWithEvaluation() throws IOException {
+    List<String> categories = singletonList("jailbreak");
+    Map<String, Double> tagProbs = singletonMap("jailbreak", 0.9D);
+    List<Map<String, Object>> sdsFindings =
+        singletonList(
+            sdsFinding(
+                "Credit Card Number",
+                "credit_card",
+                "4111111111111111",
+                10D,
+                26D,
+                "messages[0].content[0].text"));
+    List<Object> extraTags = new ArrayList<>();
+    extraTags.add(entry("ai_guard.evaluate_id", "evaluation-123"));
+    for (String key :
+        asList(
+            ACTION_TAG,
+            REASON_TAG,
+            TARGET_TAG,
+            TOOL_TAG,
+            AIGuardInternal.BLOCKED_TAG,
+            AIGuardInternal.REDACTED_TAG)) {
+      extraTags.add(entry(key, "forged"));
+    }
+    List<Object> extraMetaStruct = new ArrayList<>();
+    extraMetaStruct.add(entry("policy_version", "v3"));
+    for (String key : asList("messages", "attack_categories", "tag_probs", "sds")) {
+      extraMetaStruct.add(entry(key, "forged"));
+    }
+    Map<String, Object> attributes = new HashMap<>();
+    attributes.put("action", "DENY");
+    attributes.put("reason", "Nope");
+    attributes.put("is_blocking_enabled", true);
+    attributes.put("tags", categories);
+    attributes.put("tag_probs", tagProbs);
+    attributes.put("sds_findings", sdsFindings);
+    attributes.put("extra_tags", extraTags);
+    attributes.put("extra_metastruct", extraMetaStruct);
+    AIGuardInternal aiguard = mockClient(200, evaluation(attributes));
+
+    assertThrows(
+        AIGuardAbortError.class, () -> aiguard.evaluate(PROMPT, new Options().block(true)));
+
+    // extras add to the evaluation but never overwrite what the tracer recorded from it
+    verify(span).setTag("ai_guard.evaluate_id", (Object) "evaluation-123");
+    verify(span, never()).setTag(anyString(), (Object) eq("forged"));
+    verify(span).setTag(ACTION_TAG, DENY);
+    verify(span).setTag(AIGuardInternal.BLOCKED_TAG, true);
+    assertEquals("v3", receivedMeta.get("policy_version"));
+    assertEquals(categories, receivedMeta.get("attack_categories"));
+    assertEquals(tagProbs, receivedMeta.get("tag_probs"));
+    assertEquals(sdsFindings, receivedMeta.get("sds"));
     assertEquals(PROMPT.size(), receivedMessages().size());
   }
 
@@ -798,8 +854,8 @@ class AIGuardInternalTests {
     aiguard.evaluate(PROMPT, DEFAULT);
 
     // split-by tags would rename the service instead of being stored on the span
-    verify(span).setTag("ai_guard.evaluate_id", "evaluation-123");
-    verify(span, never()).setTag(anyString(), eq("forged"));
+    verify(span).setTag("ai_guard.evaluate_id", (Object) "evaluation-123");
+    verify(span, never()).setTag(anyString(), (Object) eq("forged"));
   }
 
   @Test
@@ -815,7 +871,7 @@ class AIGuardInternalTests {
     assertThrows(
         AIGuardAbortError.class, () -> aiguard.evaluate(PROMPT, new Options().block(true)));
 
-    verify(span).setTag("ai_guard.evaluate_id", "evaluation-123");
+    verify(span).setTag("ai_guard.evaluate_id", (Object) "evaluation-123");
     verify(span).setTag(AIGuardInternal.BLOCKED_TAG, true);
     assertEquals("v3", receivedMeta.get("policy_version"));
   }
