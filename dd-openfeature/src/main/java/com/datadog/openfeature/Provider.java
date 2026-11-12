@@ -8,6 +8,7 @@ import com.datadog.openfeature.internal.FeatureFlagsRuntime.RemoteConfigurationU
 import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
 import com.datadog.openfeature.internal.bridge.v1.AgentBridges;
 import com.datadog.openfeature.internal.config.Settings;
+import com.datadog.openfeature.internal.delivery.FlagSelectionRequest;
 import com.datadog.openfeature.internal.evaluation.ExperimentationOptOut;
 import com.datadog.openfeature.internal.flagevaluation.FlagEvaluationWriter;
 import dev.openfeature.sdk.ErrorCode;
@@ -43,6 +44,7 @@ public class Provider extends EventProvider implements Metadata {
   private final AgentBridge bridge;
   private final Settings settings;
   private final ExperimentationOptOutMode experimentationOptOutMode;
+  private final FlagSelectionRequest flagSelection;
   private final AtomicReference<InitializationState> initializationState =
       new AtomicReference<>(InitializationState.NOT_STARTED);
   private final FlagEvalMetrics flagEvalMetrics;
@@ -87,6 +89,11 @@ public class Provider extends EventProvider implements Metadata {
         this.settings.isEnabled()
             ? ExperimentationOptOut.resolve(options.experimentationOptOutMode, this.settings)
             : ExperimentationOptOutMode.DISABLED;
+    final FlagSelection selection = options.flagSelection;
+    this.flagSelection =
+        selection == null
+            ? FlagSelectionRequest.NONE
+            : FlagSelectionRequest.of(selection.tags, selection.keyPatterns);
     FlagEvalMetrics metrics = null;
     FlagEvalMetricsHook hook = null;
     try {
@@ -294,7 +301,11 @@ public class Provider extends EventProvider implements Metadata {
       return evaluator;
     }
     return new DDEvaluator(
-        this::onConfigurationChange, this.bridge, this.settings, this.experimentationOptOutMode);
+        this::onConfigurationChange,
+        this.bridge,
+        this.settings,
+        this.experimentationOptOutMode,
+        this.flagSelection);
   }
 
   private FlagEvaluationWriter flagEvaluationPipeline() {
@@ -390,6 +401,7 @@ public class Provider extends EventProvider implements Metadata {
     private TimeUnit unit = SECONDS;
     private Boolean evaluationTelemetryOptOutParameterEnabled;
     private ExperimentationOptOutMode experimentationOptOutMode = ExperimentationOptOutMode.DEFAULT;
+    private FlagSelection flagSelection;
 
     /**
      * Sets per-subject experimentation opt-out. {@link ExperimentationOptOutMode#DEFAULT} reads
@@ -446,6 +458,34 @@ public class Provider extends EventProvider implements Metadata {
         return this.evaluationTelemetryOptOutParameterEnabled;
       }
       return settings.isEvaluationTelemetryPerSubjectOptOutEnabled();
+    }
+
+    /**
+     * Loads only the selected flags: the flags that have any of the selection's tags, or whose key
+     * matches any of its key patterns. Evaluating a flag outside the selection returns the default
+     * value with {@code FLAG_NOT_FOUND}. Without a selection, or with an empty one, all the flags
+     * are loaded.
+     *
+     * <p>Leading and trailing Unicode white space is trimmed from every value, empty values are
+     * dropped, and duplicates are removed. A null list is treated as absent. Each list accepts at
+     * most 31 values, and each tag and key pattern is at most 200 UTF-8 bytes after trimming. A
+     * selection over a limit, holding a null or non-String value or an unpaired UTF-16 surrogate,
+     * or making the request URL longer than 8192 bytes once percent-encoded, is not sent: the
+     * provider logs an error and loads all the flags. The server can also ignore a selection, and
+     * then returns all the flags.
+     *
+     * <p>The provider captures the selection at construction. The providers of a class loader share
+     * one flag configuration: the first provider initialized decides the selection until the last
+     * one shuts down, and a later provider with a different selection uses the first one. The first
+     * such provider logs a warning, once per class loader. The {@code remote_config} configuration
+     * source does not support a selection and loads all the flags.
+     *
+     * @param selection the flag selection, or {@code null} for all the flags.
+     * @return these options.
+     */
+    public Options flagSelection(final FlagSelection selection) {
+      this.flagSelection = selection;
+      return this;
     }
 
     /**

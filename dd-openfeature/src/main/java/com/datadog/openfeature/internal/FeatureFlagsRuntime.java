@@ -10,6 +10,7 @@ import com.datadog.openfeature.internal.config.Settings;
 import com.datadog.openfeature.internal.delivery.CdnConfigurationSource;
 import com.datadog.openfeature.internal.delivery.DirectIntakeTransport;
 import com.datadog.openfeature.internal.delivery.FallbackTransport;
+import com.datadog.openfeature.internal.delivery.FlagSelectionRequest;
 import com.datadog.openfeature.internal.delivery.RemoteConfigurationService;
 import com.datadog.openfeature.internal.exposure.ExposureDeduplicationCache;
 import com.datadog.openfeature.internal.exposure.ExposureEvent;
@@ -32,7 +33,8 @@ import org.slf4j.LoggerFactory;
  * The Feature Flags runtime: configuration delivery and event pipelines. A single runtime is shared
  * by all the providers of a class loader, and stopped when the last one releases it, or when the
  * application shuts down: by the Datadog Java agent shutdown when attached, or by a JVM shutdown
- * hook otherwise.
+ * hook otherwise. The flag selection of the provider that starts the runtime applies to all of
+ * them.
  */
 public final class FeatureFlagsRuntime {
   private static final Logger LOGGER = LoggerFactory.getLogger(FeatureFlagsRuntime.class);
@@ -42,6 +44,9 @@ public final class FeatureFlagsRuntime {
   private static int references;
 
   private final ConfigurationService source;
+  private final RuntimeServices services;
+  private final FlagSelectionRequest claimedSelection;
+  private final FlagSelectionRequest sentSelection;
   private final ExposureDeduplicationCache exposureCache = new ExposureDeduplicationCache();
   @Nullable private final ExposurePipeline exposures;
   @Nullable private final FlagEvaluationPipeline evaluations;
@@ -50,13 +55,28 @@ public final class FeatureFlagsRuntime {
   private final AtomicBoolean stopped = new AtomicBoolean();
   @Nullable private volatile AutoCloseable shutdownRegistration;
 
+  /**
+   * @param claimedSelection the selection of the provider starting the runtime.
+   * @param sentSelection what the configuration source does with it: sends it, or reports why not.
+   */
   FeatureFlagsRuntime(
       final ConfigurationService source,
+      final RuntimeServices services,
+      final FlagSelectionRequest claimedSelection,
+      final FlagSelectionRequest sentSelection,
       @Nullable final ExposurePipeline exposures,
       @Nullable final FlagEvaluationPipeline evaluations) {
     this.source = source;
+    this.services = services;
+    this.claimedSelection = claimedSelection;
+    this.sentSelection = sentSelection;
     this.exposures = exposures;
     this.evaluations = evaluations;
+  }
+
+  /** Acquires the shared runtime for a provider without a flag selection. */
+  public static FeatureFlagsRuntime acquire(final AgentBridge bridge, final Settings settings) {
+    return acquire(bridge, settings, FlagSelectionRequest.NONE);
   }
 
   /**
@@ -65,16 +85,22 @@ public final class FeatureFlagsRuntime {
    *
    * @param bridge the bridge to the Datadog Java agent.
    * @param settings the SDK settings.
+   * @param selection the flag selection of the acquiring provider. The first acquisition, which
+   *     starts the runtime, claims its selection until the last release.
    * @return the shared runtime.
    * @throws IllegalStateException if Feature Flags is disabled or misconfigured.
    */
-  public static FeatureFlagsRuntime acquire(final AgentBridge bridge, final Settings settings) {
+  public static FeatureFlagsRuntime acquire(
+      final AgentBridge bridge, final Settings settings, final FlagSelectionRequest selection) {
     synchronized (SHARED_LOCK) {
       if (shared == null) {
-        final FeatureFlagsRuntime created = create(bridge, settings);
+        final FeatureFlagsRuntime created = create(bridge, settings, selection);
+        created.reportSelection(selection);
         created.start();
         created.registerShutdown(bridge);
         shared = created;
+      } else {
+        shared.reportSelection(selection);
       }
       references++;
       return shared;
@@ -95,6 +121,11 @@ public final class FeatureFlagsRuntime {
   }
 
   static FeatureFlagsRuntime create(final AgentBridge bridge, final Settings settings) {
+    return create(bridge, settings, FlagSelectionRequest.NONE);
+  }
+
+  static FeatureFlagsRuntime create(
+      final AgentBridge bridge, final Settings settings, final FlagSelectionRequest selection) {
     final String sourceName = settings.configurationSource();
     if (sourceName == null) {
       throw new IllegalStateException("Feature Flags is disabled");
@@ -103,8 +134,14 @@ public final class FeatureFlagsRuntime {
     LOGGER.debug("Feature Flags runtime starting: configurationSource={}", sourceName);
     final RuntimeServices services = new RuntimeServices(bridge.healthMetrics());
     final ConfigurationService source;
+    final FlagSelectionRequest sentSelection;
     final EventTransport transport;
     if (remoteConfig) {
+      // Before the connector check, so that the warning is logged when the provider falls back to
+      // the caller defaults too.
+      if (!selection.isNone()) {
+        FlagSelectionRequest.warnRemoteConfiguration();
+      }
       final ConfigurationSource remoteConfiguration;
       try {
         remoteConfiguration = bridge.remoteConfiguration();
@@ -115,10 +152,13 @@ public final class FeatureFlagsRuntime {
         throw new RemoteConfigurationUnavailableException(null);
       }
       source = new RemoteConfigurationService(remoteConfiguration);
+      sentSelection = FlagSelectionRequest.NONE;
       // Remote Configuration never falls back to direct intake.
       transport = bridge.eventProxy();
     } else {
-      source = new CdnConfigurationSource(settings, services);
+      final CdnConfigurationSource cdn = new CdnConfigurationSource(settings, services, selection);
+      source = cdn;
+      sentSelection = cdn.selection();
       final EventTransport proxy = bridge.eventProxy();
       final EventTransport direct = DirectIntakeTransport.create(settings);
       transport =
@@ -127,7 +167,7 @@ public final class FeatureFlagsRuntime {
     if (transport == null) {
       LOGGER.warn(
           "Feature Flags event delivery is disabled: set DD_API_KEY or attach the Datadog Java agent");
-      return new FeatureFlagsRuntime(source, null, null);
+      return new FeatureFlagsRuntime(source, services, selection, sentSelection, null, null);
     }
     final Map<String, String> context = eventContext(settings);
     final ExposurePipeline exposures =
@@ -155,7 +195,31 @@ public final class FeatureFlagsRuntime {
         transport.getClass().getSimpleName(),
         exposures != null ? "enabled" : "disabled",
         evaluations != null ? "enabled" : "disabled");
-    return new FeatureFlagsRuntime(source, exposures, evaluations);
+    return new FeatureFlagsRuntime(
+        source, services, selection, sentSelection, exposures, evaluations);
+  }
+
+  /**
+   * Reports what happens to the selection of an acquiring provider: an equal selection is sent, or
+   * not, as the claimed one is. A different one is not used: it reports its own drop, and warns
+   * only if it would load other flags, since a dropped selection and no selection both load every
+   * flag. Remote Configuration uses no selection at all, so only its own warning applies.
+   */
+  private void reportSelection(final FlagSelectionRequest selection) {
+    if (this.source instanceof RemoteConfigurationService) {
+      if (!selection.isNone()) {
+        FlagSelectionRequest.warnRemoteConfiguration();
+      }
+      return;
+    }
+    if (selection.equals(this.claimedSelection)) {
+      this.sentSelection.reportNotSent(this.services);
+      return;
+    }
+    selection.reportNotSent(this.services);
+    if (!selection.selectedFlags().equals(this.sentSelection.selectedFlags())) {
+      FlagSelectionRequest.warnSecondSelection();
+    }
   }
 
   /** Signals an unavailable RC connector before any runtime resources have been started. */
