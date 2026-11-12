@@ -1,0 +1,10 @@
+_v: 1
+name: rmi
+display_name: Java RMI
+description: Instruments Java RMI client calls and server method invocations, with distributed trace-context propagation.
+packages: []
+category:
+  - rpc.client
+  - rpc.server
+systems: []
+creation_date: '2019-12-05'

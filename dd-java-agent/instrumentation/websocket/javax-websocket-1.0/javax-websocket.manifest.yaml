@@ -1,0 +1,11 @@
+_v: 1
+name: javax-websocket
+display_name: WebSocket server API
+description: Instruments Javax WebSocket client and server message sends, receives and connection closes, linking their spans to the handshake trace when WebSocket tracing is enabled.
+packages:
+  - name: javax.websocket:javax.websocket-api
+category:
+  - websocket.client
+  - websocket.server
+systems: []
+creation_date: '2025-03-10'

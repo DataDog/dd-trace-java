@@ -1,0 +1,11 @@
+_v: 1
+name: cxf
+display_name: Apache CXF API
+description: Instruments CXF service invocation to restore the HTTP request trace context during asynchronous request processing.
+packages:
+  - name: org.apache.cxf:cxf-api
+  - name: org.apache.cxf:cxf-core
+category:
+  - other
+systems: []
+creation_date: '2023-12-08'

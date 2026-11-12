@@ -1,0 +1,10 @@
+_v: 1
+name: jakarta-ws
+display_name: Jakarta Web Services Metadata API
+description: Instruments Jakarta Web Services annotated endpoint method invocations, recording SOAP operation duration and errors.
+packages:
+  - name: jakarta.jws:jakarta.jws-api
+category:
+  - rpc.server
+systems: []
+creation_date: '2024-10-31'

@@ -1,0 +1,11 @@
+_v: 1
+name: jakarta-websocket
+display_name: Jakarta WebSocket - Client API
+description: Instruments Jakarta WebSocket client and server message sends, receives and connection closes, linking their spans to the handshake trace when WebSocket tracing is enabled.
+packages:
+  - name: jakarta.websocket:jakarta.websocket-client-api
+category:
+  - websocket.client
+  - websocket.server
+systems: []
+creation_date: '2025-03-10'

@@ -1,0 +1,18 @@
+_v: 1
+name: jax-rs
+display_name: javax.ws.rs-api
+description: Instruments JAX-RS HTTP client requests, resource methods, request-filter aborts and asynchronous responses, with trace propagation and AppSec JSON response-body inspection and blocking.
+packages:
+  - name: com.sun.jersey:jersey-client
+  - name: io.dropwizard:dropwizard-client
+  - name: javax.ws.rs:javax.ws.rs-api
+  - name: javax.ws.rs:jsr311-api
+  - name: org.glassfish.jersey.core:jersey-client
+  - name: org.glassfish.jersey.core:jersey-server
+  - name: org.jboss.resteasy:resteasy-client
+  - name: org.jboss.resteasy:resteasy-jaxrs
+category:
+  - http.client
+  - http.server
+systems: []
+creation_date: '2018-02-12'
