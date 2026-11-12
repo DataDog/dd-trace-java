@@ -44,6 +44,7 @@ import datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers
 import datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnores
 import datadog.trace.api.Config
 import datadog.trace.api.IdGenerationStrategy
+import datadog.trace.api.InstrumenterConfig
 import datadog.trace.api.Pair
 import datadog.trace.api.ProcessTags
 import datadog.trace.api.TraceConfig
@@ -469,12 +470,14 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
 
     assertThreadsEachCleanup = false
 
-    AgentTracer.get().closePrevious(true) // in case the previous test left a lingering iteration span
-    assert TEST_TRACER.activeSpan() == null: "Span is active before test has started: " + TEST_TRACER.activeSpan()
-
     // Config is reset before each test. Thus, configurePreAgent() has to be called before each test
     // even though the agent is already installed
     configurePreAgent()
+
+    if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+      TEST_TRACER.closePrevious(true) // in case the previous test left a lingering iteration span
+    }
+    assert TEST_TRACER.activeSpan() == null: "Span is active before test has started: " + TEST_TRACER.activeSpan()
 
     println "Starting test: ${getSpecificationContext().getCurrentIteration().getName()} from ${specificationContext.currentSpec.name}"
     TEST_TRACER.flush()
