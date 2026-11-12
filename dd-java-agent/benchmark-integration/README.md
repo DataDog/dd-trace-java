@@ -197,6 +197,46 @@ stats, the Datadog agent then drops the unsampled traces before serializing them
 - `PERF_CONNECTIONS` / `PERF_THREADS`: override wrk's connections and threads from the settings file.
   Raise connections until NoAgent's throughput stops rising, or you measure the client, not the
   server.
+- `PERF_WAIT_IDLE=<load>`: before each variant, wait until port 8080 is free and the 1-minute load
+  average stays below `<load>` for `PERF_WAIT_IDLE_CHECKS` (default 3) one-minute checks. Use it for
+  unattended sweeps on a shared machine, so a sweep never runs on top of another benchmark.
+- `PERF_STOP_TIMEOUT` (default 60): seconds to wait for a server to exit before killing it. A JVM
+  thrashing on a too-small heap can take many minutes to run its shutdown hooks.
+
+### Middle- and old-age memory
+Allocation per request (`KB/req`) only measures how fast memory flows through the young
+generation. On small heaps what costs throughput is often how long objects live: in-flight traces
+waiting in the writer's queue survive young collections, get copied and promoted, and die old;
+fixed buffers and caches permanently shrink the heap the application can use. Per endpoint, from
+the GC log (`-Xlog:gc,gc+heap,gc+init`) inside each measured window:
+- `Promoted KB/req`: growth of the old generation per request (G1 `Old regions`, Serial
+  `Tenured`); old-generation shrinkage counts as zero, so this is promotion, not net growth.
+- `Live MB`: median heap occupancy after a collection.
+- `Survivor MB`: mean survivor-space occupancy after a collection.
+
+Two variants that allocate alike can differ a lot here, and at 112–128m heaps it's usually this, not
+`KB/req`, that separates them.
+
+### Drop accounting
+Each agent variant's row ends with `Trace Payloads` and `Trace Bytes`, what the Agent stub received
+during its run. With the same payload format, compare trace bytes per served request: a variant that
+delivers fewer has dropped (or never sent) traces, and its throughput isn't comparable as is.
+
+### Small-container ergonomics
+A 512 MB container with default JVM settings gets a 128 MB heap (`MaxRAMPercentage=25`), and with
+fewer than 2 CPUs or under ~1.8 GB of memory the JVM picks Serial GC instead of G1. To approximate
+that on a larger machine:
+```
+PETCLINIC_HEAPS="128m 112m 96m" PERF_JVM_ARGS="-XX:+UseSerialGC -XX:ActiveProcessorCount=2" ./run-petclinic.sh ...
+```
+`ActiveProcessorCount` sizes the JVM like a 2-CPU machine but doesn't limit its CPU; for a real CPU
+limit use a container (`docker --cpus=2`) or a cgroup on Linux.
+
+### Comparing releases across the client-side stats boundary
+Client-side stats (trace metrics computed by the tracer) became the default for Java 17 services in
+1.54.0 (#9463) and for all services in 1.55.0 (#9740). The harness runs on JDK 17, so releases before
+1.54.0 run without them and later ones with them, unless you set `-Ddd.trace.stats.computation.enabled`
+explicitly for every variant.
 
 ### Profiling a variant
 `profiling/profile-run.sh <label> [agent jar]` warms PetClinic up at saturation, then records a JFR

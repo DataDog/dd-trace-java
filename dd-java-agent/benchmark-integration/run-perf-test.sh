@@ -114,10 +114,71 @@ unzipped_server_path=""
 java_major=$(java -XshowSettings:properties -version 2>&1 \
     | awk -F' = ' '/java.specification.version/ { v = $2; sub(/^1\./, "", v); print v }')
 
-# Heap transitions in a -Xlog:gc log ("... 50M->10M(256M) ..."), one per GC pause.
+# Heap transitions in a -Xlog:gc log ("... 50M->10M(256M) ..."), one per GC pause. Only pause lines
+# count: the gc+heap lines carry per-space transitions too (Serial's "DefNew: 34944K->4352K(...)").
 heap_transition_re='[0-9]+[KMG]->[0-9]+[KMG]\('
 function gc_transitions {
-    grep -cE "$heap_transition_re" "$1" 2>/dev/null || true
+    grep -E "Pause" "$1" 2>/dev/null | grep -cE "$heap_transition_re" || true
+}
+
+# G1 region size in MB from the gc+init header ("Heap Region Size: 1M"), or empty (e.g. Serial GC).
+function gc_region_mb {
+    awk '/Heap Region Size:/ { v = $NF; u = substr(v, length(v)); n = v + 0; print (u == "K" ? n / 1024 : n); exit }' "$1" 2>/dev/null
+}
+
+# Middle- and old-age signals for GC log lines $2 (exclusive) to $3 (inclusive) of log $1, with G1
+# region size $4 MB: "<promoted KB> <median live MB after GC> <mean survivor MB>". Promotion is the
+# growth of the old generation across collections (G1 "Old regions: a->b", Serial "Tenured: a(cap)->b(cap)");
+# shrinking (mixed or full collections) counts as zero, so it's promotion into old, not net growth.
+function gc_window_stats {
+    awk -v lo="$2" -v hi="$3" -v region="${4:-0}" '
+        function kb(x,   n, u) { n = x + 0; u = substr(x, length(x)); return u == "G" ? n * 1048576 : (u == "M" ? n * 1024 : n) }
+        NR <= lo || NR > hi { next }
+        /Pause/ && match($0, /[0-9]+[KMG]->[0-9]+[KMG]\(/) {
+            split(substr($0, RSTART, RLENGTH - 1), heap, "->"); live[++nl] = kb(heap[2]) / 1024
+        }
+        /Old regions:/ && match($0, /[0-9]+->[0-9]+/) {
+            split(substr($0, RSTART, RLENGTH), r, "->"); if (r[2] > r[1]) promoted += (r[2] - r[1]) * region * 1024
+        }
+        # Serial logs "used(capacity)->used(capacity)": "Tenured: 0K(43712K)->2077K(43712K)".
+        /Tenured:/ && match($0, /Tenured: [0-9]+[KMG]\([0-9]+[KMG]\)->[0-9]+[KMG]/) {
+            split(substr($0, RSTART + 9, RLENGTH - 9), t, "->"); sub(/\(.*/, "", t[1])
+            if (kb(t[2]) > kb(t[1])) promoted += kb(t[2]) - kb(t[1])
+        }
+        /Survivor regions:/ && match($0, /[0-9]+->[0-9]+/) {
+            split(substr($0, RSTART, RLENGTH), s, "->"); surv += s[2] * region; ns++
+        }
+        # The Serial survivor space is "From: 0K(2176K)->2176K(2176K)".
+        /From: / && match($0, /From: [0-9]+[KMG]\([0-9]+[KMG]\)->[0-9]+[KMG]/) {
+            split(substr($0, RSTART + 6, RLENGTH - 6), d, "->"); sub(/\(.*/, "", d[1]); surv += kb(d[2]) / 1024; ns++
+        }
+        END {
+            n = asort_live()
+            printf "%.0f %.1f %.1f", promoted, (nl ? median : 0), (ns ? surv / ns : 0)
+        }
+        function asort_live(   i, j, t) {
+            for (i = 2; i <= nl; i++) { t = live[i]; for (j = i - 1; j >= 1 && live[j] > t; j--) live[j + 1] = live[j]; live[j + 1] = t }
+            median = nl % 2 ? live[(nl + 1) / 2] : (live[nl / 2] + live[nl / 2 + 1]) / 2
+            return nl
+        }' "$1"
+}
+
+# PERF_WAIT_IDLE=<load average>: before each variant, wait until port 8080 is free (no other
+# benchmark's server) and the 1-minute load average is below the threshold for 3 one-minute checks,
+# so a sweep never runs on top of another one. Unset, variants start right away.
+function wait_idle {
+    [ -n "${PERF_WAIT_IDLE:-}" ] || return 0
+    local ok=0 load
+    while [ "$ok" -lt "${PERF_WAIT_IDLE_CHECKS:-3}" ]; do
+        load=$(sysctl -n vm.loadavg 2>/dev/null | awk '{ print $2 }')
+        [ -z "$load" ] && load=$(awk '{ print $1 }' /proc/loadavg 2>/dev/null)
+        if ! nc -z localhost 8080 >/dev/null 2>&1 && awk -v l="${load:-0}" -v t="$PERF_WAIT_IDLE" 'BEGIN { exit !(l < t) }'; then
+            ok=$((ok + 1))
+        else
+            ok=0
+        fi
+        [ "$ok" -lt "${PERF_WAIT_IDLE_CHECKS:-3}" ] && sleep 60
+    done
 }
 # KB allocated between transitions $2 (exclusive) and $3 (inclusive) of GC log $1: each GC's heap
 # before it, minus the heap after the previous GC. Off by at most one GC interval at each end, which
@@ -125,7 +186,7 @@ function gc_transitions {
 function gc_allocated_kb {
     awk -v lo="$2" -v hi="$3" '
         function kb(x,   n, u) { n = x + 0; u = substr(x, length(x)); return u == "G" ? n * 1048576 : (u == "M" ? n * 1024 : n) }
-        match($0, /[0-9]+[KMG]->[0-9]+[KMG]\(/) {
+        /Pause/ && match($0, /[0-9]+[KMG]->[0-9]+[KMG]\(/) {
             split(substr($0, RSTART, RLENGTH - 1), heap, "->"); i++
             if (i > lo && i <= hi) total += kb(heap[1]) - after
             after = kb(heap[2])
@@ -196,7 +257,9 @@ function start_server {
     if [ "$java_major" -ge 9 ] 2>/dev/null; then
         gc_log="/tmp/perf_gc_${variant_label}.log"
         rm -f "$gc_log"
-        run_java_args+=("-Xlog:gc:file=$gc_log")
+        # gc+heap adds per-space sizes after each collection (G1 region counts, Serial young/tenured),
+        # and gc+init the G1 region size, for the promotion / live-set / survivor columns.
+        run_java_args+=("-Xlog:gc,gc+heap,gc+init:file=$gc_log")
     fi
 
     if [ "$server_type" = "jar" ]; then
@@ -268,6 +331,16 @@ function start_server {
 function stop_server {
     echo "Stopping $server_pid"
     kill $server_pid
+    # A JVM thrashing on a too-small heap can take many minutes to run its shutdown hooks; don't let
+    # one stall the sweep.
+    local waited=0
+    while kill -0 "$server_pid" 2>/dev/null && [ "$waited" -lt "${PERF_STOP_TIMEOUT:-60}" ]; do
+        sleep 1; waited=$((waited + 1))
+    done
+    if kill -0 "$server_pid" 2>/dev/null; then
+        echo "server $server_pid still running after ${PERF_STOP_TIMEOUT:-60}s -- killing it"
+        kill -9 "$server_pid" 2>/dev/null
+    fi
     wait
     server_pid=""
     # clean up the unzipped server
@@ -291,17 +364,20 @@ function test_endpoint {
     local results=()
     for ((rep = 1; rep <= test_repeats; rep++)); do
         wrk_results=/tmp/wrk_results.$(date +%s%N)
-        local gc_before gc_after heap_before heap_after
+        local gc_before gc_after heap_before heap_after line_before line_after
         if [ -n "$gc_log" ]; then
             gc_before=$(grep -c 'Pause Young' "$gc_log" 2>/dev/null || true)
             heap_before=$(gc_transitions "$gc_log")
+            line_before=$(wc -l < "$gc_log" 2>/dev/null || echo 0)
         fi
         wrk --latency -c $test_num_connections -t$test_num_threads -d ${test_time_seconds}s "${script_args[@]}" $url > "$wrk_results"
         if [ -n "$gc_log" ]; then
             gc_after=$(grep -c 'Pause Young' "$gc_log" 2>/dev/null || true)
             heap_after=$(gc_transitions "$gc_log")
-            # "<young GCs> <KB allocated>" inside this measured window
-            echo "$(( ${gc_after:-0} - ${gc_before:-0} )) $(gc_allocated_kb "$gc_log" "${heap_before:-0}" "${heap_after:-0}")" > "$wrk_results.gc"
+            line_after=$(wc -l < "$gc_log" 2>/dev/null || echo 0)
+            # "<young GCs> <KB allocated> <promoted KB> <median live MB> <mean survivor MB>" inside
+            # this measured window
+            echo "$(( ${gc_after:-0} - ${gc_before:-0} )) $(gc_allocated_kb "$gc_log" "${heap_before:-0}" "${heap_after:-0}") $(gc_window_stats "$gc_log" "${line_before:-0}" "${line_after:-0}" "$(gc_region_mb "$gc_log")")" > "$wrk_results.gc"
         else
             : > "$wrk_results.gc"
         fi
@@ -410,8 +486,9 @@ header='Client Version'
 for label in "${test_order[@]}"; do
     header="$header,$label Latency,$label p90,$label p99,$label Throughput,$label Throughput Stdev,$label YGC/1k,$label KB/req"
     header="$header,$label Fixed Rate,$label Fixed p90 ms,$label Fixed p99 ms,$label Fixed Success"
+    header="$header,$label Promoted KB/req,$label Live MB,$label Survivor MB"
 done
-header="$header,Server CPU Burn,Server Max RSS,Server Start RSS,Server Load Increase RSS"
+header="$header,Server CPU Burn,Server Max RSS,Server Start RSS,Server Load Increase RSS,Trace Payloads,Trace Bytes"
 echo $header > $test_csv_file
 
 variant_index=0
@@ -425,6 +502,7 @@ for agent_jar in "${agent_jars[@]}"; do
     _did_first_variant=1
     # Re-detect the agent before each variant so a mid-sweep agent death aborts (with EXPECT_AGENT)
     # rather than silently degrading later runs to LoggingWriter.
+    wait_idle
     check_agent
     assert_expected_agent
     echo "----Testing agent $agent_jar----"
@@ -478,6 +556,9 @@ for agent_jar in "${agent_jars[@]}"; do
         throughputs=()
         ygcs=()
         kb_per_req=()
+        promoted_per_req=()
+        live_mbs=()
+        survivor_mbs=()
         fixed_rate="" fixed_p90="" fixed_p99="" fixed_success=""
         if [ -s "${test_output_files[0]}.fixed" ]; then
             read -r fixed_rate fixed_p90 fixed_p99 fixed_success < "${test_output_files[0]}.fixed"
@@ -493,9 +574,14 @@ for agent_jar in "${agent_jars[@]}"; do
             throughputs+=("$(awk '$1 == "Requests/sec:" { print $2 }' "$f")")
             requests=$(awk '/requests in/ { print $1 }' "$f")
             if [ -s "$f.gc" ]; then
-                read -r window_ygc window_kb < "$f.gc"
+                read -r window_ygc window_kb window_promoted_kb window_live_mb window_survivor_mb < "$f.gc"
                 ygcs+=("$(echo "scale=2; 1000 * $window_ygc / ${requests:-1}" | bc)")
                 kb_per_req+=("$(echo "scale=2; $window_kb / ${requests:-1}" | bc)")
+                if [ -n "${window_promoted_kb:-}" ]; then
+                    promoted_per_req+=("$(awk -v p="$window_promoted_kb" -v n="${requests:-1}" 'BEGIN { printf "%.3f", p / n }')")
+                    live_mbs+=("$window_live_mb")
+                    survivor_mbs+=("$window_survivor_mb")
+                fi
             fi
             rm -f "$f" "$f.gc"
         done
@@ -506,6 +592,12 @@ for agent_jar in "${agent_jars[@]}"; do
         [ "${#ygcs[@]}" -gt 0 ] && avg_ygc=$(mean_plain "${ygcs[@]}")
         avg_kb_per_req=""
         [ "${#kb_per_req[@]}" -gt 0 ] && avg_kb_per_req=$(mean_plain "${kb_per_req[@]}")
+        avg_promoted="" avg_live="" avg_survivor=""
+        if [ "${#promoted_per_req[@]}" -gt 0 ]; then
+            avg_promoted=$(mean_plain "${promoted_per_req[@]}")
+            avg_live=$(mean_plain "${live_mbs[@]}")
+            avg_survivor=$(mean_plain "${survivor_mbs[@]}")
+        fi
         avg_throughput=$(mean_plain "${throughputs[@]}")
         stdev_throughput=$(stdev_plain "${throughputs[@]}")
         if [ "${#throughputs[@]}" -gt 1 ]; then
@@ -513,6 +605,7 @@ for agent_jar in "${agent_jars[@]}"; do
         fi
         result_row="$result_row,$avg_latency,$avg_p90,$avg_p99,$avg_throughput,$stdev_throughput,$avg_ygc,$avg_kb_per_req"
         result_row="$result_row,$fixed_rate,$fixed_p90,$fixed_p99,$fixed_success"
+        result_row="$result_row,$avg_promoted,$avg_live,$avg_survivor"
     done
 
     server_stop_cpu=$(cpu_seconds "$server_pid")
@@ -522,6 +615,7 @@ for agent_jar in "${agent_jars[@]}"; do
     server_load_increase_rss=$(echo "scale=2; ( $server_total_rss / $server_total_rss_count ) - $server_start_rss" | bc)
 
     # start_server reuses agent_jar (empty for NoAgent), so the baseline is told apart by its label.
+    trace_payloads="" trace_bytes=""
     if [ -n "${PERF_SINK_STATS_URL:-}" ] && [ "$variant_label" != "noagent" ]; then
         sink_after=$(sink_trace_requests)
         if [ "${sink_after:-0}" -le "${sink_before:-0}" ]; then
@@ -530,7 +624,9 @@ for agent_jar in "${agent_jars[@]}"; do
             exit 1
         fi
         sink_bytes_after=$(sink_trace_bytes)
-        echo "Agent stub received $((sink_after - sink_before)) trace payloads, $((sink_bytes_after - sink_bytes_before)) trace bytes from this variant"
+        trace_payloads=$((sink_after - sink_before))
+        trace_bytes=$((sink_bytes_after - sink_bytes_before))
+        echo "Agent stub received $trace_payloads trace payloads, $trace_bytes trace bytes from this variant"
     fi
 
     stop_server
@@ -544,7 +640,7 @@ for agent_jar in "${agent_jars[@]}"; do
     fi
     rm $server_output
 
-    echo "$result_row,$server_cpu,$server_max_rss,$server_start_rss,$server_load_increase_rss" >> $test_csv_file
+    echo "$result_row,$server_cpu,$server_max_rss,$server_start_rss,$server_load_increase_rss,$trace_payloads,$trace_bytes" >> $test_csv_file
     echo "----/Testing agent $agent_jar----"
     echo ""
 done
