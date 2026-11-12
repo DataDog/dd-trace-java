@@ -113,6 +113,17 @@ val Project.isInSelectedSlot: Provider<Boolean>
   }.orElse(true)
 
 /**
+ * Determines if the current test task runs in the selected slot: its override slot, or else its project's slot.
+ *
+ * If the "slot" property is not provided, all test tasks are considered to be in the selected slot.
+ */
+val Task.isInSelectedTestSlot: Provider<Boolean>
+  get() = project.rootProject.providers.gradleProperty("slot").map { slot ->
+    val (selectedSlot, totalSlots) = project.parseSlot(slot) ?: return@map true
+    testTaskSlot(path, totalSlots) == selectedSlot
+  }.orElse(true)
+
+/**
  * Determines if the selected slot is the current project's own slot, ignoring test task overrides.
  *
  * If the "slot" property is not provided, all projects are considered to be in the selected slot.

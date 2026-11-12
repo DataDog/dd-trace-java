@@ -1,5 +1,6 @@
 import datadog.gradle.plugin.ci.isInOwnSlot
 import datadog.gradle.plugin.ci.isInSelectedSlot
+import datadog.gradle.plugin.ci.isInSelectedTestSlot
 import org.gradle.api.tasks.testing.Test
 import java.io.File
 
@@ -18,8 +19,8 @@ if (project != rootProject) {
 allprojects {
   // Enable tests only on the selected slot (if -Pslot=n/t is provided)
   tasks.withType<Test>().configureEach {
-    onlyIf("Project is in selected slot") {
-      project.isInSelectedSlot.get()
+    onlyIf("Test task is in selected slot") {
+      isInSelectedTestSlot.get()
     }
   }
 }
