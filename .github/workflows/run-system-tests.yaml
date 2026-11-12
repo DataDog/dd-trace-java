@@ -91,8 +91,6 @@ jobs:
       scenarios_groups: tracer-release
       excluded_scenarios: APM_TRACING_E2E_OTEL,APM_TRACING_E2E_SINGLE_SPAN,PROFILING  # exclude flaky scenarios
       skip_empty_scenarios: ${{ github.event_name != 'push' && github.event_name != 'schedule' }}
-      # TODO: remove once the system-tests manifest enables Test_OTEL_Startup_Logs for Java
-      force_execute: tests/test_otel_startup_logs.py::Test_OTEL_Startup_Logs
       push_to_test_optimization: true
     secrets:
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
