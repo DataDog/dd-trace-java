@@ -303,7 +303,8 @@ public class JvmOtlpRuntimeMetricsTest {
     }
 
     // Other threads of the test JVM may be blocked at any time, so compare with the value read
-    // while the lock was held instead of expecting 0. Before the fix the value did not drop at all.
+    // while the lock was held instead of expecting 0. This guards against empty states keeping
+    // their last exported count.
     long blockedAfterRelease = blockedNonDaemonThreadCount();
     assertTrue(
         blockedWhileHeld - blockedAfterRelease >= 3,
