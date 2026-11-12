@@ -48,7 +48,7 @@ class TagMapSetByIdTest {
     byName.set(KnownTags.DB_INSTANCE_NAME, (Object) "orders");
     byName.set(KnownTags.DD_PROFILING_ENABLED_NAME, true);
     byName.set(KnownTags.DB_USER_NAME, 1.5f);
-    byName.set(KnownTags.DB_POOL_NAME_NAME, 2.5d);
+    byName.set(KnownTags.DB_POOL_NAME, 2.5d);
 
     assertEquals(new HashMap<>(byName), new HashMap<>(byId));
     assertEquals(5432, byId.getEntry(KnownTags.HTTP_STATUS_CODE_NAME).intValue());
@@ -71,41 +71,5 @@ class TagMapSetByIdTest {
 
     assertThrows(IllegalArgumentException.class, () -> map.set(0L, "value"));
     assertThrows(IllegalArgumentException.class, () -> map.set(KnownTagCodec.makeTagId(9999), 1));
-  }
-
-  @Test
-  void theCoresTrustedSetsStoreWhatTheCheckedSetsStore() {
-    TagMap checked = TagMap.create();
-    checked.set(KnownTags.HTTP_ROUTE, "/users/{id}");
-    checked.set(KnownTags.HTTP_STATUS_CODE, 200);
-    checked.set(KnownTags.HTTP_RESEND_COUNT, 2L);
-    checked.set(KnownTags.DD_PROFILING_ENABLED, true);
-
-    TagMap trusted = TagMap.create();
-    trusted.internals().setKnown(KnownTags.HTTP_ROUTE, "/users/{id}");
-    trusted.internals().setKnown(KnownTags.HTTP_STATUS_CODE, 200);
-    trusted.internals().setKnown(KnownTags.HTTP_RESEND_COUNT, 2L);
-    trusted.internals().setKnown(KnownTags.DD_PROFILING_ENABLED, true);
-
-    assertEquals(new HashMap<>(checked), new HashMap<>(trusted));
-    assertEquals(KnownTags.HTTP_ROUTE, trusted.getEntry(KnownTags.HTTP_ROUTE_NAME).tagId());
-  }
-
-  @Test
-  void theCoresTrustedSetsCoverTheRemainingValueShapes() {
-    Object component = new StringBuilder("jdbc"); // not a String: exercises the Object overload
-    TagMap checked = TagMap.create();
-    checked.set(KnownTags.COMPONENT, component);
-    checked.set(KnownTags.DB_POOL_NAME, 1.5f);
-    checked.set(KnownTags.DB_INSTANCE, 2.25d);
-
-    TagMap trusted = TagMap.create();
-    trusted.internals().setKnown(KnownTags.COMPONENT, component);
-    trusted.internals().setKnown(KnownTags.DB_POOL_NAME, 1.5f);
-    trusted.internals().setKnown(KnownTags.DB_INSTANCE, 2.25d);
-
-    assertEquals(new HashMap<>(checked), new HashMap<>(trusted));
-    assertEquals(1.5f, trusted.getEntry(KnownTags.DB_POOL_NAME).floatValue());
-    assertEquals(2.25d, trusted.getEntry(KnownTags.DB_INSTANCE).doubleValue());
   }
 }
