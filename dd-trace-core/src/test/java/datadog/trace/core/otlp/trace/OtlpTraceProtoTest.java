@@ -724,19 +724,14 @@ class OtlpTraceProtoTest {
   void metaStructReportsAreExportedAsMessagePackBytes() throws IOException {
     DDSpan span = (DDSpan) TRACER.startSpan("test", "reports");
     span.setResourceName("reports");
+    String appsec = "{\"triggers\":[]}";
+    String iast = "{\"vulnerabilities\":[]}";
+    span.setTag("_dd.appsec.json", appsec);
+    span.setTag("_dd.iast.json", iast);
     Map<String, Object> reports = new LinkedHashMap<>();
     reports.put("_dd.stack", singletonMap("exploit", asList(singletonMap("id", "stack-1"))));
     reports.put("ai_guard", singletonMap("messages", asList(singletonMap("content", "hello"))));
     reports.forEach(span::setMetaStruct);
-    String appsec = "{\"triggers\":[{\"span_id\":9007199254740993,\"rule\":{\"id\":\"test\"}}]}";
-    String iast =
-        "{\"vulnerabilities\":[{\"type\":\"SQL_INJECTION\",\"evidence\":{\"valueParts\":[{\"redacted\":true}]}}],\"sources\":[]}";
-    // Product reports use lazy JSON objects rather than String tags.
-    span.spanContext().setDataTop("appsec", new StringBuilder(appsec));
-    span.spanContext().setDataTop("iast", new StringBuilder(iast));
-    ObjectMapper json = new ObjectMapper();
-    reports.put("appsec", json.readValue(appsec, Map.class));
-    reports.put("iast", json.readValue(iast, Map.class));
     span.setMetaStruct("bad.report", singletonMap(1, "invalid map key"));
     span.finish();
 
@@ -753,10 +748,10 @@ class OtlpTraceProtoTest {
           messagePack.readValue(Base64.getDecoder().decode(values.get(0)), Map.class));
     }
     List<String[]> strings = parseAttributeListsBySpanName(payload, 1).get("reports");
-    assertTrue(stringAttributeValues(strings, "_dd.appsec.json").isEmpty());
-    assertTrue(stringAttributeValues(strings, "_dd.iast.json").isEmpty());
-    assertEquals(appsec, span.getTag("_dd.appsec.json").toString());
-    assertEquals(iast, span.getTag("_dd.iast.json").toString());
+    assertEquals(asList(appsec), stringAttributeValues(strings, "_dd.appsec.json"));
+    assertEquals(asList(iast), stringAttributeValues(strings, "_dd.iast.json"));
+    assertTrue(stringAttributeValues(attributes, "appsec").isEmpty());
+    assertTrue(stringAttributeValues(attributes, "iast").isEmpty());
   }
 
   @Test

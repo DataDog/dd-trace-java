@@ -712,6 +712,10 @@ class OtlpTraceJsonCollectorTest {
     DDSpan span = (DDSpan) TRACER.startSpan("test", "reports");
     span.setResourceName("reports");
     span.setTag("http.method", "GET");
+    String appsec = "{\"triggers\":[]}";
+    String iast = "{\"vulnerabilities\":[]}";
+    span.setTag("_dd.appsec.json", appsec);
+    span.setTag("_dd.iast.json", iast);
     StackTraceEvent stack =
         new StackTraceEvent(
             asList(new StackTraceFrame(0, new StackTraceElement("App", "hello", "App.java", 42))),
@@ -721,23 +725,12 @@ class OtlpTraceJsonCollectorTest {
     Map<String, Object> guard = singletonMap("messages", asList(singletonMap("content", "hello")));
     span.setMetaStruct("_dd.stack", singletonMap("exploit", asList(stack)));
     span.setMetaStruct("ai_guard", guard);
-    Map<String, Object> appsec = singletonMap("triggers", asList(singletonMap("id", "typed")));
-    String iast = "{\"vulnerabilities\":[{\"location\":{\"spanId\":9007199254740993}}]}";
-    span.setMetaStruct("appsec", appsec);
-    span.setTag("_dd.appsec.json", "{\"triggers\":[{\"id\":\"legacy\"}]}");
-    span.spanContext().setDataTop("iast", new StringBuilder(iast));
-    span.setTag("iast", "shadowed tag");
-    span.setBaggageItem("iast", "shadowed baggage");
     span.setTag("_dd.stack", "shadowed tag");
     span.setBaggageItem("ai_guard", "shadowed baggage");
     span.setMetaStruct("bad.report", singletonMap(1, "invalid map key"));
     span.setTag("bad.report", "fallback");
     span.finish();
-    DDSpan next = (DDSpan) TRACER.startSpan("test", "next");
-    next.setResourceName("next");
-    next.setTag("_dd.appsec.json", "{invalid");
-    next.setTag("_dd.iast.json", "[]");
-    next.finish();
+    DDSpan next = startAndFinish("next", "next", null);
 
     List<Map<String, Object>> spans;
     Config realConfig = Config.get();
@@ -755,11 +748,15 @@ class OtlpTraceJsonCollectorTest {
     assertEquals(2, spans.size());
     Map<String, Object> exported = spanNamed(spans, "reports");
     assertEquals(asList("GET"), attributeValues(exported, "http.request.method"));
+    assertEquals(asList(appsec), attributeValues(exported, "_dd.appsec.json"));
+    assertEquals(asList(iast), attributeValues(exported, "_dd.iast.json"));
+    assertFalse(attributeKeys(exported).contains("appsec"));
+    assertFalse(attributeKeys(exported).contains("iast"));
     ObjectMapper messagePack = new ObjectMapper(new MessagePackFactory());
     int reportsSeen = 0;
     for (Object attribute : (List<?>) exported.get("attributes")) {
       Map<?, ?> entry = (Map<?, ?>) attribute;
-      if (asList("_dd.stack", "ai_guard", "appsec", "iast").contains(entry.get("key"))) {
+      if ("_dd.stack".equals(entry.get("key")) || "ai_guard".equals(entry.get("key"))) {
         Map<?, ?> value = (Map<?, ?>) entry.get("value");
         JsonNode report =
             messagePack.readTree(Base64.getDecoder().decode((String) value.get("bytesValue")));
@@ -767,27 +764,14 @@ class OtlpTraceJsonCollectorTest {
           assertEquals(
               "hello",
               report.path("exploit").get(0).path("frames").get(0).path("function").asText());
-        } else if ("ai_guard".equals(entry.get("key"))) {
-          assertEquals(messagePack.valueToTree(guard), report);
-        } else if ("appsec".equals(entry.get("key"))) {
-          assertEquals(messagePack.valueToTree(appsec), report);
         } else {
-          assertEquals(
-              9007199254740993L,
-              report.path("vulnerabilities").get(0).path("location").path("spanId").asLong());
+          assertEquals(messagePack.valueToTree(guard), report);
         }
         reportsSeen++;
       }
     }
-    assertEquals(4, reportsSeen);
-    assertTrue(attributeValues(exported, "_dd.appsec.json").isEmpty());
-    assertTrue(attributeValues(exported, "_dd.iast.json").isEmpty());
+    assertEquals(2, reportsSeen);
     assertEquals(asList("fallback"), attributeValues(exported, "bad.report"));
-    Map<String, Object> following = spanNamed(spans, "next");
-    assertEquals(asList("{invalid"), attributeValues(following, "_dd.appsec.json"));
-    assertEquals(asList("[]"), attributeValues(following, "_dd.iast.json"));
-    assertTrue(attributeValues(following, "appsec").isEmpty());
-    assertTrue(attributeValues(following, "iast").isEmpty());
   }
 
   @Test

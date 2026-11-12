@@ -38,10 +38,8 @@ import static datadog.trace.core.otlp.trace.OtlpSpanAttributes.RESOURCE_NAME;
 import static datadog.trace.core.otlp.trace.OtlpSpanAttributes.SERVICE_NAME_KEY;
 import static datadog.trace.core.otlp.trace.OtlpSpanAttributes.SKIPPED_BAGGAGE_KEYS;
 import static datadog.trace.core.otlp.trace.OtlpSpanAttributes.SPAN_TYPE;
-import static datadog.trace.core.otlp.trace.OtlpSpanAttributes.addExportedReportKey;
 import static datadog.trace.core.otlp.trace.OtlpSpanAttributes.encodeMetaStruct;
 import static datadog.trace.core.otlp.trace.OtlpSpanAttributes.isExportedTagKey;
-import static datadog.trace.core.otlp.trace.OtlpSpanAttributes.reportsToExport;
 import static datadog.trace.core.otlp.trace.OtlpSpanKind.spanKind;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Collections.emptySet;
@@ -156,7 +154,7 @@ public final class OtlpTraceProto {
 
     // Export root propagation tags on the span selected by the collector for sampling tags,
     // including when the exported trace contains no local root span.
-    Map<String, Object> reports = reportsToExport(span);
+    Map<String, Object> reports = span.getMetaStruct();
     Set<String> structuredKeys = emptySet();
     if (!reports.isEmpty()) {
       structuredKeys = new HashSet<>(reports.size());
@@ -165,7 +163,7 @@ public final class OtlpTraceProto {
         if (encoded != null) {
           writeTag(buf, 9, LEN_WIRE_TYPE);
           writeBytesAttribute(buf, report.getKey(), encoded);
-          addExportedReportKey(structuredKeys, report.getKey());
+          structuredKeys.add(report.getKey());
         }
       }
     }
