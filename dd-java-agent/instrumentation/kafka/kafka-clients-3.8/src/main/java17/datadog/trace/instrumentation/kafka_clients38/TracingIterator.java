@@ -96,8 +96,11 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
       AgentSpan span, queueSpan = null;
       if (val != null) {
         if (!Config.get().isKafkaClientPropagationDisabledForTopic(val.topic())) {
+          // A record without headers has no context to extract
           final AgentSpanContext spanContext =
-              extractContextAndGetSpanContext(val.headers(), GETTER);
+              Utils.hasHeaders(val.headers())
+                  ? extractContextAndGetSpanContext(val.headers(), GETTER)
+                  : null;
           // Check the flag first, as finding the produce time scans the record's headers
           long timeInQueueStart =
               KafkaDecorator.TIME_IN_QUEUE_ENABLED

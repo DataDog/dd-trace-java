@@ -1,4 +1,3 @@
 plugins {
   id("dd-trace-java.conventions.java")
-  id("dd-trace-java.conventions.testing.groovy")
 }
