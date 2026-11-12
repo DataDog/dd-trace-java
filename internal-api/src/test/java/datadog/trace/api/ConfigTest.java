@@ -77,6 +77,7 @@ import static datadog.trace.api.config.LlmObsConfig.LLMOBS_ENABLED;
 import static datadog.trace.api.config.LlmObsConfig.LLMOBS_ML_APP;
 import static datadog.trace.api.config.OtlpConfig.LOGS_OTEL_ENABLED;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_ENABLED;
+import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_EXPERIMENTAL_ENABLED;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_EXPORTER;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_INTERVAL;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_TIMEOUT;
@@ -94,6 +95,7 @@ import static datadog.trace.api.config.OtlpConfig.Protocol.HTTP_JSON;
 import static datadog.trace.api.config.OtlpConfig.Protocol.HTTP_PROTOBUF;
 import static datadog.trace.api.config.OtlpConfig.TRACE_OTEL_ENABLED;
 import static datadog.trace.api.config.OtlpConfig.TRACE_OTEL_EXPORTER;
+import static datadog.trace.api.config.OtlpConfig.TRACE_OTEL_SDK_SELF_MONITORING_METRICS_ENABLED;
 import static datadog.trace.api.config.OtlpConfig.Temporality.CUMULATIVE;
 import static datadog.trace.api.config.OtlpConfig.Temporality.DELTA;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_AGENTLESS;
@@ -704,6 +706,9 @@ class ConfigTest {
     assertFalse(config.isOtelTracesSpanMetricsEnabled());
     assertFalse(config.isTraceOtelSemanticsEnabled());
     assertEquals(10000, config.getTraceStatsInterval());
+
+    assertFalse(config.isTraceOtelSdkSelfMonitoringMetricsEnabled());
+    assertFalse(config.isOtelSdkSelfMonitoringMetricsActive());
   }
 
   @Test
@@ -1110,6 +1115,75 @@ class ConfigTest {
     assertEquals(expected, config.isOtelTracesSpanMetricsEnabled());
   }
 
+  @TableTest({
+    "scenario        | environment",
+    "env var         | true       ",
+    "system property | false      "
+  })
+  void otelSdkSelfMonitoringMetricsFlagIsReadFromEnvAndSystemProperty(boolean environment)
+      throws Exception {
+    if (environment) {
+      setEnv("DD_TRACE_OTEL_SDK_SELF_MONITORING_METRICS_ENABLED", "true");
+    } else {
+      System.setProperty(PREFIX + TRACE_OTEL_SDK_SELF_MONITORING_METRICS_ENABLED, "true");
+    }
+
+    Config config = newConfig();
+
+    assertTrue(config.isTraceOtelSdkSelfMonitoringMetricsEnabled());
+    // The flag alone is not enough: OTel metrics are off by default
+    assertFalse(config.isOtelSdkSelfMonitoringMetricsActive());
+  }
+
+  @TableTest({
+    "scenario                          | metricsEnabled | metricsExporter | experimental | flag  | expected",
+    "all conditions hold               | true           | otlp            | true         | true  | true    ",
+    "exporter and experimental default | true           |                 |              | true  | true    ",
+    "flag unset defaults to false      | true           | otlp            | true         |       | false   ",
+    "flag disabled                     | true           | otlp            | true         | false | false   ",
+    "otel metrics disabled             | false          | otlp            | true         | true  | false   ",
+    "metrics exporter not otlp         | true           | none            | true         | true  | false   ",
+    "experimental metrics disabled     | true           | otlp            | false        | true  | false   "
+  })
+  void otelSdkSelfMonitoringMetricsActiveOnlyWhenAllConditionsHold(
+      String metricsEnabled,
+      String metricsExporter,
+      String experimental,
+      String flag,
+      boolean expected)
+      throws Exception {
+    System.setProperty(PREFIX + METRICS_OTEL_ENABLED, metricsEnabled);
+    if (metricsExporter != null) {
+      System.setProperty(PREFIX + METRICS_OTEL_EXPORTER, metricsExporter);
+    }
+    if (experimental != null) {
+      System.setProperty(PREFIX + METRICS_OTEL_EXPERIMENTAL_ENABLED, experimental);
+    }
+    if (flag != null) {
+      System.setProperty(PREFIX + TRACE_OTEL_SDK_SELF_MONITORING_METRICS_ENABLED, flag);
+    }
+
+    Config config = newConfig();
+
+    assertEquals(expected, config.isOtelSdkSelfMonitoringMetricsActive());
+  }
+
+  @Test
+  void otelSdkSelfMonitoringMetricsGateIsIndependentOfDogStatsDHealthAndRuntimeMetrics()
+      throws Exception {
+    System.setProperty(PREFIX + METRICS_OTEL_ENABLED, "true");
+    System.setProperty(PREFIX + METRICS_OTEL_EXPORTER, "otlp");
+    System.setProperty(PREFIX + TRACE_OTEL_SDK_SELF_MONITORING_METRICS_ENABLED, "true");
+    System.setProperty(PREFIX + HEALTH_METRICS_ENABLED, "false");
+    System.setProperty(PREFIX + RUNTIME_METRICS_ENABLED, "false");
+
+    Config config = newConfig();
+
+    assertFalse(config.isHealthMetricsEnabled());
+    assertFalse(config.isRuntimeMetricsEnabled());
+    assertTrue(config.isOtelSdkSelfMonitoringMetricsActive());
+  }
+
   @Test
   void otelSdkDisabledOverridesDatadogSignalSettings() throws Exception {
     setEnv(OTEL_SDK_DISABLED_ENV, "true");
@@ -1118,6 +1192,7 @@ class ConfigTest {
     System.setProperty(PREFIX + LOGS_OTEL_ENABLED, "true");
     System.setProperty(PREFIX + OTEL_TRACES_SPAN_METRICS_ENABLED, "true");
     System.setProperty(PREFIX + RUNTIME_METRICS_ENABLED, "true");
+    System.setProperty(PREFIX + TRACE_OTEL_SDK_SELF_MONITORING_METRICS_ENABLED, "true");
 
     Config config = newConfig();
 
@@ -1131,6 +1206,7 @@ class ConfigTest {
     assertFalse(config.isRuntimeMetricsEnabled());
     assertFalse(config.isJmxFetchEnabled());
     assertFalse(config.isHealthMetricsEnabled());
+    assertFalse(config.isOtelSdkSelfMonitoringMetricsActive());
   }
 
   @Test

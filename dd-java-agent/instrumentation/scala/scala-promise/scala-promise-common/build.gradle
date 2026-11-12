@@ -19,6 +19,11 @@ tasks.named("compileTestGroovy", GroovyCompile) {
   classpath += files(sourceSets.test.scala.classesDirectory)
 }
 
+tasks.named("test", Test) {
+  // The test source set only holds the abstract base classes compiled by the scala-promise-2.x modules
+  failOnNoDiscoveredTests = false
+}
+
 dependencies {
   compileOnly group: 'org.scala-lang', name: 'scala-library', version: '2.10.7' // First 2.10 version that accepts target 1.8
   testImplementation group: 'org.scala-lang', name: 'scala-library', version: '2.10.7'

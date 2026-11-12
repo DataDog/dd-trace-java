@@ -123,4 +123,4 @@ org.tabletest:tabletest-parser:1.2.1=testCompileClasspath,testRuntimeClasspath
 org.testcontainers:testcontainers:1.21.4=testCompileClasspath,testRuntimeClasspath
 org.xmlresolver:xmlresolver:5.3.3=spotbugs
 tomcat:tomcat-9:9.0.120=serverFile
-empty=annotationProcessor,runtimeClasspath,spotbugsPlugins,testAnnotationProcessor
+empty=annotationProcessor,runtimeClasspath,smokeTestDiagnosticsClasspath,smokeTestTracerClasspath,spotbugsPlugins,testAnnotationProcessor

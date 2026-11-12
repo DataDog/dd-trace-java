@@ -27,7 +27,7 @@ def scopeDiagnosticsPayloadJar = tasks.register('scopeDiagnosticsPayloadJar', Sh
   relocate 'org.slf4j', 'datadog.slf4j'
 }
 
-tasks.register('scopeDiagnosticsAgentJar', Jar) {
+def scopeDiagnosticsAgentJar = tasks.register('scopeDiagnosticsAgentJar', Jar) {
   archiveClassifier = 'scope-diagnostics-agent'
   manifest {
     attributes 'Premain-Class': 'datadog.trace.agent.test.smoke.ScopeDiagnosticsAgent',
@@ -42,7 +42,13 @@ tasks.register('scopeDiagnosticsAgentJar', Jar) {
     }
     rename '(.*)\\.class', '$1.classdata'
   }
-  dependsOn scopeDiagnosticsPayloadJar
+}
+
+configurations.consumable('scopeDiagnosticsAgentElements') {
+  attributes {
+    attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, objects.named(LibraryElements, 'scope-diagnostics-agent'))
+  }
+  outgoing.artifact(scopeDiagnosticsAgentJar)
 }
 
 dependencies {

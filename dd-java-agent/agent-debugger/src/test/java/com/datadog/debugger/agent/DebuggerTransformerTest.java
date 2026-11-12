@@ -269,15 +269,16 @@ public class DebuggerTransformerTest {
             getClassFileBytes(String.class));
     assertNull(newClassBuffer);
     Assertions.assertNotNull(lastResult.get());
-    assertTrue(lastResult.get().isBlocked());
-    Assertions.assertFalse(lastResult.get().isInstalled());
+    assertTrue(lastResult.get().isBlocked(PROBE_ID));
+    Assertions.assertFalse(lastResult.get().isInstalled(PROBE_ID));
     assertEquals("java.lang.String", lastResult.get().getTypeName());
   }
 
   @Test
   public void classBeingRedefinedNull() {
     Config config = createConfig();
-    LogProbe logProbe = LogProbe.builder().where("ArrayList", "add").probeId("", 0).build();
+    ProbeId probeId = new ProbeId("probe-id", 0);
+    LogProbe logProbe = LogProbe.builder().where("ArrayList", "add").probeId(probeId).build();
     Configuration configuration =
         new Configuration(SERVICE_NAME, Collections.singletonList(logProbe));
     AtomicReference<InstrumentationResult> lastResult = new AtomicReference<>(null);
@@ -298,8 +299,8 @@ public class DebuggerTransformerTest {
             getClassFileBytes(ArrayList.class));
     Assertions.assertNotNull(newClassBuffer);
     Assertions.assertNotNull(lastResult.get());
-    Assertions.assertFalse(lastResult.get().isBlocked());
-    assertTrue(lastResult.get().isInstalled());
+    Assertions.assertFalse(lastResult.get().isBlocked(probeId));
+    assertTrue(lastResult.get().isInstalled(probeId));
     assertEquals("java.util.ArrayList", lastResult.get().getTypeName());
   }
 
@@ -393,7 +394,7 @@ public class DebuggerTransformerTest {
             config,
             configuration,
             (definition, result) -> {
-              if (result.isInstalled()) {
+              if (result.isAtLeastOneInstalled()) {
                 invocationOrder.add(definition);
               }
             },

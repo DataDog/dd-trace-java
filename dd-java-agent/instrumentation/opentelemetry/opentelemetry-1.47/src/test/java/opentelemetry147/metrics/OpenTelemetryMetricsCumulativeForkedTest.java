@@ -1,6 +1,8 @@
 package opentelemetry147.metrics;
 
 import static io.opentelemetry.api.common.AttributeKey.stringKey;
+import static opentelemetry147.metrics.OpenTelemetryMetricsTest.assertStopsExportingUnobservedAttributes;
+import static opentelemetry147.metrics.OpenTelemetryMetricsTest.closeQuietly;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import datadog.metrics.impl.DDSketchHistograms;
@@ -98,6 +100,30 @@ class OpenTelemetryMetricsCumulativeForkedTest extends AbstractInstrumentationTe
   }
 
   @Test
+  void testObservableCounterStopsExportingUnobservedAttributes() {
+    assertStopsExportingUnobservedAttributes(
+        "test:cumulative-observable-counter-unobserved",
+        points,
+        meterReader,
+        meter.counterBuilder("cumulative-observable-counter-unobserved")::buildWithCallback);
+  }
+
+  @Test
+  void testSynchronousCounterKeepsUnrecordedAttributesCumulative() {
+    io.opentelemetry.api.metrics.LongCounter counter =
+        meter.counterBuilder("cumulative-long-counter-unrecorded").build();
+
+    counter.add(2, SOME_ATTRIBUTES);
+    OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
+    assertEquals(2L, points.get("test:cumulative-long-counter-unrecorded" + WITH_ATTRS));
+
+    // cumulative synchronous instruments keep exporting series with no new measurements
+    points.clear();
+    OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
+    assertEquals(2L, points.get("test:cumulative-long-counter-unrecorded" + WITH_ATTRS));
+  }
+
+  @Test
   void testSynchronousLongCounterCumulative() {
     io.opentelemetry.api.metrics.LongCounter counter =
         meter.counterBuilder("cumulative-long-counter").build();
@@ -135,13 +161,5 @@ class OpenTelemetryMetricsCumulativeForkedTest extends AbstractInstrumentationTe
     OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
     assertEquals(1.5, (double) points.get("test:cumulative-double-counter"), 0.001);
     assertEquals(3.5, (double) points.get("test:cumulative-double-counter" + WITH_ATTRS), 0.001);
-  }
-
-  private static void closeQuietly(AutoCloseable closeable) {
-    try {
-      closeable.close();
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
   }
 }
