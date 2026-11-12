@@ -108,7 +108,7 @@ passes any other wrk Lua script.
 ./run-petclinic.sh 1.54.0 1.58.0 1.62.0 current
 ```
 Artifacts (throughput CSV, per-variant JFRs and GC logs) are copied to
-`build/petclinic-results/results-<ts>/`. Per endpoint, the CSV reports mean latency, p99 latency,
+`build/petclinic-results/results-<ts>/`. Per endpoint, the CSV reports mean latency, p90 and p99 latency,
 throughput (mean and stdev across repeats), young GCs per 1,000 requests, and KB allocated per
 request, both inside the measured window.
 
@@ -154,6 +154,61 @@ runtime the same way heaps do -- factor them into the total when combined with a
 
 PetClinic is pinned to a specific commit in `fetch-petclinic.sh` (bump deliberately); JFR is opt-in in
 `run-perf-test.sh` via `PERF_JFR=1`, and endpoints/load live in `perf-test-petclinic-settings.rc`.
+`run-petclinic.sh` turns it on for every run; `PETCLINIC_JFR=0` turns it off, which is what you want
+when comparing throughput and latency, since JFR's profile settings slow every variant.
+
+### Comparing against OpenTelemetry
+The variant `otel` downloads the latest OpenTelemetry Java agent from Maven Central when the sweep
+starts; `otel:<version>` pins one. It exports traces over OTLP/http to the same Agent stub (metrics
+and logs exporters off, agent logging off), and its default sampler follows the upstream
+`traceparent`, as the Datadog agent follows its headers. The stub's "no traces delivered" check
+covers `/v1/traces` too.
+```
+./run-petclinic.sh 1.68.2 current otel
+```
+
+### Latency at a fixed rate
+wrk drives the server as hard as it can, which gives sustained throughput but a poor latency number:
+when the server stalls, wrk's connections just wait, so the requests that would have queued behind
+the stall never show up in the percentiles, and each variant is measured under a different load. Set
+`PERF_FIXED_RATE` (req/s) to add a fixed-rate phase after each endpoint's wrk window: vegeta sends
+requests on schedule whether or not earlier ones have returned, so every variant gets the same
+offered load and stalls show up as latency. The CSV gains `Fixed Rate`, `Fixed p90 ms`,
+`Fixed p99 ms` and `Fixed Success` columns per endpoint.
+```
+PERF_FIXED_RATE=8000 PERF_FIXED_SECONDS=60 ./run-petclinic.sh 1.68.2 otel
+```
+Pick a rate around half of NoAgent's throughput; above a variant's capacity, latency only measures a
+growing queue (watch `Fixed Success`). vegeta's connections are capped (`PERF_FIXED_CONNECTIONS`,
+default 256) so a stall can't snowball into thousands of new connections; requests still start on
+schedule and their wait for a connection counts as latency. Requires `vegeta` (Homebrew or your
+package manager).
+
+### Realistic sampling
+By default every upstream request carries a keep decision, so every trace is sent: the worst case
+for payload volume. `UPSTREAM_SAMPLED_FRACTION=0.1` makes 10% of requests arrive with a keep
+decision and the rest with a drop decision (W3C flags, Datadog priority and the `dd` tracestate
+member agree), as most requests to a mid-chain service do. With the stub advertising client-side
+stats, the Datadog agent then drops the unsampled traces before serializing them.
+
+### Other knobs
+- `PERF_JVM_ARGS`: extra server JVM options for every variant, e.g. `-XX:ActiveProcessorCount=2`.
+  Note that this sizes the JVM's thread pools like a 2-CPU machine but doesn't limit its CPU.
+- `PERF_CONNECTIONS` / `PERF_THREADS`: override wrk's connections and threads from the settings file.
+  Raise connections until NoAgent's throughput stops rising, or you measure the client, not the
+  server.
+
+### Profiling a variant
+`profiling/profile-run.sh <label> [agent jar]` warms PetClinic up at saturation, then records a JFR
+(lock events at a 0 ms threshold) while vegeta holds a fixed rate, by default on owner-detail at
+8,000 req/s for 40s. Analyze the recording with:
+- `profiling/waits.py <recording> <label>`: monitor-enter, park and monitor-wait time on request
+  threads, grouped by what blocked and the first tracer frame, with idle-worker waits left out.
+- `profiling/gc-cpu.py <recording> <label>`: GC pauses, safepoints, and the share of request-thread
+  CPU samples with a tracer frame on the stack.
+
+A cold JVM sent straight to one endpoint needs about 45s before the JIT catches up, so keep the
+warmup (`PROFILE_WARMUP`, default 90s) well above that.
 
 ### Reading the results honestly
 - **Allocation is the anchor; throughput is directional.** Allocation trends are stable across runs;

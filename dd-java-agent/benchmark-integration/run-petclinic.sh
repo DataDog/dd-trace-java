@@ -11,6 +11,10 @@
 #   <path/to/agent.jar>   use that jar as-is
 #   current               build the current checkout's shadow jar
 #   <version> (e.g. 1.62.0)   download that release from Maven Central
+#   otel                  the latest OpenTelemetry Java agent (resolved when the sweep starts)
+#   otel:<version>        that OpenTelemetry Java agent release
+#
+# The OpenTelemetry agent exports OTLP/http to the same stub, so it pays a comparable export cost.
 #
 # With no variants it defaults to `current`. A NoAgent baseline is always run first.
 #
@@ -57,6 +61,26 @@ export JAVA_HOME="$bench_java_home"
 export PATH="$JAVA_HOME/bin:$PATH"
 log "using JDK: $(java -version 2>&1 | head -1)  ($JAVA_HOME)"
 
+otel_maven="https://repo1.maven.org/maven2/io/opentelemetry/javaagent/opentelemetry-javaagent"
+
+# Download the OpenTelemetry Java agent (echoes the jar path). $1 is ":<version>", or empty for the
+# latest release at the time of the sweep. run-perf-test.sh recognizes the jar by its file name.
+resolve_otel_agent() {
+  local version="${1#:}"
+  if [ -z "$version" ]; then
+    version=$(curl -fsSL "$otel_maven/maven-metadata.xml" | sed -n 's:.*<release>\(.*\)</release>.*:\1:p')
+    [ -n "$version" ] || { log "ERROR: could not find the latest OpenTelemetry Java agent version"; exit 1; }
+    log "latest OpenTelemetry Java agent: $version"
+  fi
+  local dest="$agents_dir/opentelemetry-javaagent-$version.jar"
+  if [ ! -f "$dest" ]; then
+    log "downloading opentelemetry-javaagent $version from Maven Central"
+    curl -fsSL "$otel_maven/$version/opentelemetry-javaagent-$version.jar" -o "$dest" \
+      || { log "ERROR: could not download opentelemetry-javaagent $version"; rm -f "$dest"; exit 1; }
+  fi
+  echo "$dest"
+}
+
 # Resolve a variant token to a jar path (echoes the path). "NoAgent" passes through as a baseline
 # marker that run-perf-test.sh understands.
 resolve_variant() {
@@ -79,6 +103,9 @@ resolve_variant() {
       | grep -v -- '-sources' | grep -v -- '-javadoc' | head -1 || true)
     [ -n "$jar" ] || { log "ERROR: shadow jar not found after build"; exit 1; }
     echo "$jar"; return
+  fi
+  if [ "$v" = "otel" ] || [ "${v#otel:}" != "$v" ]; then
+    resolve_otel_agent "${v#otel}"; return
   fi
   # Otherwise treat as a released version -> download from GitHub releases (canonical dd-trace-java
   # release location; the tag is v-prefixed, the asset is not). Maven Central is the fallback.
@@ -165,7 +192,7 @@ combined_csv="$results_dir/throughput-grid.csv"
 # artifacts go in heap-<h>/run-<n>/; the combined grid has a Run column, and with more than one pass
 # a median-per-variant summary is printed at the end.
 runs="${PETCLINIC_RUNS:-1}"
-log "sweeping ${#resolved[@]} variant(s) x ${#heaps[@]} heap(s) [${heaps[*]}] x $runs run(s) x ${PETCLINIC_REPEATS:-1} repeat(s), JFR enabled, settings=$settings"
+log "sweeping ${#resolved[@]} variant(s) x ${#heaps[@]} heap(s) [${heaps[*]}] x $runs run(s) x ${PETCLINIC_REPEATS:-1} repeat(s), JFR $([ "${PETCLINIC_JFR:-1}" = 1 ] && echo on || echo off), settings=$settings"
 pass=0
 for heap in "${heaps[@]}"; do
   for run in $(seq 1 "$runs"); do
@@ -177,7 +204,7 @@ for heap in "${heaps[@]}"; do
     log "=== HEAP $heap, run $run/$runs ==="
     (
       cd "$script_dir"
-      PERF_JFR=1 PERF_HEAP="$heap" PERF_REPEATS="${PETCLINIC_REPEATS:-1}" PERF_SETTINGS="$settings" \
+      PERF_JFR="${PETCLINIC_JFR:-1}" PERF_HEAP="$heap" PERF_REPEATS="${PETCLINIC_REPEATS:-1}" PERF_SETTINGS="$settings" \
         bash ./run-perf-test.sh jar "$petclinic_jar" "${order[@]}"
     )
     cp -f /tmp/perf_results.csv "$run_dir/" 2>/dev/null || true

@@ -86,6 +86,17 @@ echo "server heap: -Xms$server_heap -Xmx$server_heap"
 # instead of a single noisy sample. Override via the settings file (test_repeats=...) or PERF_REPEATS.
 test_repeats="${PERF_REPEATS:-${test_repeats:-1}}"
 echo "repeats per endpoint: $test_repeats"
+
+# wrk load shape. PERF_CONNECTIONS / PERF_THREADS override the settings file, e.g. to find the
+# connection count where the NoAgent baseline stops gaining throughput.
+test_num_connections="${PERF_CONNECTIONS:-$test_num_connections}"
+test_num_threads="${PERF_THREADS:-$test_num_threads}"
+echo "wrk: $test_num_connections connections, $test_num_threads threads"
+
+# Extra server JVM options for every variant (NoAgent included), space-separated -- e.g. a scenario's
+# -XX:ActiveProcessorCount / GC choice. From the settings file (server_jvm_args=...) or PERF_JVM_ARGS.
+read -r -a server_jvm_args <<< "${PERF_JVM_ARGS:-${server_jvm_args:-}}"
+echo "extra server JVM args: ${server_jvm_args[*]:-(none)}"
 echo ""
 echo ""
 
@@ -136,6 +147,21 @@ function kill_tree {
     kill "$1" 2>/dev/null
 }
 
+# True when the jar is the OpenTelemetry Java agent (as named by run-petclinic.sh's otel variant).
+function is_otel_agent {
+    [ -f "$1" ] && [[ "$(basename "$1")" == opentelemetry-javaagent* ]]
+}
+
+# Version label for an agent jar: "otel-<Implementation-Version>" for the OpenTelemetry agent, whose
+# main class doesn't print one; otherwise what the Datadog agent's main class prints.
+function agent_version_of {
+    if is_otel_agent "$1"; then
+        echo "otel-$(unzip -p "$1" META-INF/MANIFEST.MF | awk -F': ' '/^Implementation-Version:/ { print $2 }' | tr -d '\r')"
+    else
+        java -jar "$1" 2>/dev/null
+    fi
+}
+
 # Start up server passed into the script
 # Blocks until server is bound to local port 8080
 function start_server {
@@ -143,7 +169,15 @@ function start_server {
     variant_label="$2"
     # JVM options as an array, so paths with spaces (agent jar, JFR, GC log) stay one argument each.
     run_java_args=()
-    if [ "$agent_jar" != "" -a -f "$agent_jar" ]; then
+    if is_otel_agent "$agent_jar"; then
+        # Traces only, over OTLP/http to the same endpoint the Datadog variants use; metrics and logs
+        # exporters off so neither side pays for signals the other doesn't send. The default sampler
+        # (parentbased_always_on) follows the sampled upstream traceparent, as the Datadog agent does.
+        run_java_args+=("-javaagent:$agent_jar" -Dotel.javaagent.logging=none -Dotel.service.name=perf-test-app
+            -Dotel.traces.exporter=otlp -Dotel.exporter.otlp.protocol=http/protobuf
+            "-Dotel.exporter.otlp.endpoint=http://127.0.0.1:$agent_port"
+            -Dotel.metrics.exporter=none -Dotel.logs.exporter=none)
+    elif [ "$agent_jar" != "" -a -f "$agent_jar" ]; then
         run_java_args+=("-javaagent:$agent_jar" -Ddatadog.slf4j.simpleLogger.defaultLogLevel=off "-Ddd.writer.type=$writer_type" "-Ddd.trace.agent.port=$agent_port" -Ddd.service.name=perf-test-app)
     fi
 
@@ -157,7 +191,7 @@ function start_server {
     fi
     # GC log per variant, so test_endpoint can count young GCs inside each measured window. Unified
     # logging (-Xlog) needs JDK 9+; on JDK 8 the YGC/1k column is left empty.
-    run_java_args+=("-Xms$server_heap" "-Xmx$server_heap")
+    run_java_args+=("-Xms$server_heap" "-Xmx$server_heap" "${server_jvm_args[@]}")
     gc_log=""
     if [ "$java_major" -ge 9 ] 2>/dev/null; then
         gc_log="/tmp/perf_gc_${variant_label}.log"
@@ -281,7 +315,37 @@ function test_endpoint {
         fi
         results+=("$wrk_results")
     done
+    fixed_rate_phase "$url" > "${results[0]}.fixed"
     echo "${results[@]}"
+}
+
+# Fixed-rate latency phase (PERF_FIXED_RATE req/s for PERF_FIXED_SECONDS, default 60): vegeta sends
+# requests on a fixed schedule whether or not earlier ones have returned, so a server stall shows up
+# in the percentiles instead of slowing the client down, and every variant gets the same offered
+# load. wrk at saturation gives neither, which is why the headline p90/p99 come from here. Prints
+# "<achieved rate> <p90 ms> <p99 ms> <success ratio>", or nothing when PERF_FIXED_RATE isn't set.
+# Requests carry upstream trace headers whenever wrk's do (PERF_WRK_SCRIPT set), with the same
+# UPSTREAM_SAMPLED_FRACTION.
+#
+# vegeta opens a new connection whenever every open one is busy, so a brief stall snowballs into
+# thousands of connections and exhausts local ports. -max-connections caps that: workers stay
+# unlimited, so a request still starts on schedule and its wait for a connection counts as latency.
+# "localhost" is replaced by 127.0.0.1 because Go dials ::1 and 127.0.0.1 both.
+function fixed_rate_phase {
+    local url=${1/localhost/127.0.0.1}
+    [ "${PERF_FIXED_RATE:-0}" -gt 0 ] 2>/dev/null || return 0
+    local fraction="${UPSTREAM_SAMPLED_FRACTION:-1}"
+    local targets="/tmp/perf_vegeta_targets.$(echo "$url" | cksum | cut -d' ' -f1)${PERF_WRK_SCRIPT:+.upstream-$fraction}.json"
+    if [ ! -s "$targets" ]; then
+        python3 "$(dirname "${BASH_SOURCE[0]}")/vegeta-targets.py" "$url" \
+            ${PERF_WRK_SCRIPT:+--upstream-headers --sampled-fraction "$fraction"} > "$targets"
+    fi
+    vegeta attack -format=json -targets="$targets" -rate="$PERF_FIXED_RATE" -duration="${PERF_FIXED_SECONDS:-60}s" \
+        -max-connections="${PERF_FIXED_CONNECTIONS:-256}" \
+        | vegeta report -type=json \
+        | python3 -c 'import json, sys
+r = json.load(sys.stdin); l = r["latencies"]
+print("%.2f %.3f %.3f %.4f" % (r["rate"], l["90th"] / 1e6, l["99th"] / 1e6, r["success"]))'
 }
 
 # Mean of plain numeric values (no unit suffix), e.g. throughput.
@@ -338,7 +402,8 @@ trap 'stop_server; exit' SIGINT
 trap 'kill $server_pid; exit' SIGTERM
 header='Client Version'
 for label in "${test_order[@]}"; do
-    header="$header,$label Latency,$label p99,$label Throughput,$label Throughput Stdev,$label YGC/1k,$label KB/req"
+    header="$header,$label Latency,$label p90,$label p99,$label Throughput,$label Throughput Stdev,$label YGC/1k,$label KB/req"
+    header="$header,$label Fixed Rate,$label Fixed p90 ms,$label Fixed p99 ms,$label Fixed Success"
 done
 header="$header,Server CPU Burn,Server Max RSS,Server Start RSS,Server Load Increase RSS"
 echo $header > $test_csv_file
@@ -363,7 +428,7 @@ for agent_jar in "${agent_jars[@]}"; do
         variant_label="noagent"
         start_server "" "$variant_label"
     else
-        agent_version=$(java -jar "$agent_jar" 2>/dev/null)
+        agent_version=$(agent_version_of "$agent_jar")
         result_row="$agent_version"
         # sanitize the version into a filesystem-safe JFR label; fall back to the jar basename. The
         # variant's position keeps two builds reporting the same version from sharing artifacts.
@@ -393,14 +458,22 @@ for agent_jar in "${agent_jars[@]}"; do
         let server_total_rss_count=$server_total_rss_count+1
 
         latencies=()
+        p90s=()
         p99s=()
         throughputs=()
         ygcs=()
         kb_per_req=()
+        fixed_rate="" fixed_p90="" fixed_p99="" fixed_success=""
+        if [ -s "${test_output_files[0]}.fixed" ]; then
+            read -r fixed_rate fixed_p90 fixed_p99 fixed_success < "${test_output_files[0]}.fixed"
+            echo "  $label fixed rate: ${fixed_rate} req/s, p90 ${fixed_p90} ms, p99 ${fixed_p99} ms, success ${fixed_success}"
+        fi
+        rm -f "${test_output_files[0]}.fixed"
         for f in "${test_output_files[@]}"; do
             cat "$f"
             # --latency adds a "Latency Distribution" header line; the mean is on the plain "Latency" line.
             latencies+=("$(awk '$1 == "Latency" && $2 != "Distribution" { print $2 }' "$f")")
+            p90s+=("$(awk '$1 == "90%" { print $2 }' "$f")")
             p99s+=("$(awk '$1 == "99%" { print $2 }' "$f")")
             throughputs+=("$(awk '$1 == "Requests/sec:" { print $2 }' "$f")")
             requests=$(awk '/requests in/ { print $1 }' "$f")
@@ -412,6 +485,7 @@ for agent_jar in "${agent_jars[@]}"; do
             rm -f "$f" "$f.gc"
         done
         avg_latency=$(mean_with_unit "${latencies[@]}")
+        avg_p90=$(mean_with_unit "${p90s[@]}")
         avg_p99=$(mean_with_unit "${p99s[@]}")
         avg_ygc=""
         [ "${#ygcs[@]}" -gt 0 ] && avg_ygc=$(mean_plain "${ygcs[@]}")
@@ -422,7 +496,8 @@ for agent_jar in "${agent_jars[@]}"; do
         if [ "${#throughputs[@]}" -gt 1 ]; then
             echo "  $label: ${#throughputs[@]} repeats, throughput mean=$avg_throughput stdev=$stdev_throughput (${throughputs[*]})"
         fi
-        result_row="$result_row,$avg_latency,$avg_p99,$avg_throughput,$stdev_throughput,$avg_ygc,$avg_kb_per_req"
+        result_row="$result_row,$avg_latency,$avg_p90,$avg_p99,$avg_throughput,$stdev_throughput,$avg_ygc,$avg_kb_per_req"
+        result_row="$result_row,$fixed_rate,$fixed_p90,$fixed_p99,$fixed_success"
     done
 
     server_stop_cpu=$(cpu_seconds "$server_pid")
