@@ -146,6 +146,18 @@ class VertxHttpServerForkedTest extends HttpServerTest<Vertx> {
   }
 
   @Override
+  boolean testBlockFailure() {
+    true
+  }
+
+  @Override
+  BlockFailureVariant blockFailureVariant() {
+    // Path params are published by the vert.x-web instrumentation itself, whereas request headers
+    // are published (and blocked on) by the underlying netty instrumentation.
+    BlockFailureVariant.PATH_PARAMS
+  }
+
+  @Override
   boolean isRequestBodyNoStreaming() {
     true
   }

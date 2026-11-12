@@ -18,6 +18,7 @@ import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
+import org.openjdk.jmh.infra.Blackhole;
 
 /**
  * Measures lookup followed by an atomic counter increment in a shared, pre-populated table. Models
@@ -53,6 +54,28 @@ import org.openjdk.jmh.annotations.Warmup;
  *       embedding the counter directly in the entry — one object instead of two, with no throughput
  *       penalty.
  * </ul>
+ *
+ * <p>Rerun with {@link BenchmarkUtils#warmUpHashDispatch} wired into {@code SharedState.setUp()},
+ * same JDK 17 and machine as the table above. Same-JDK removes one variable, but separate JMH
+ * invocations aren't a controlled A/B -- forks of a single benchmark method run back-to-back, while
+ * the two tables here come from separate {@code ./gradlew jmh} invocations, so a systematic
+ * difference between them (thermal state, background load, where the JIT happened to land) isn't
+ * distinguishable from a pollution effect. Pollution itself is best-effort -- it raises the odds a
+ * shared call site is megamorphic going into measurement, not a guarantee -- so treat this rerun as
+ * illustrative, not as an isolated measurement of the pollution mechanism's effect:
+ *
+ * <pre>{@code
+ * Benchmark                          Score   Units
+ * increment_longAdder                  205   ops/us
+ * increment_atomicLong                  72   ops/us
+ * increment_concurrentHashtable         68   ops/us
+ * }</pre>
+ *
+ * <p>{@code ConcurrentHashtable} and {@code AtomicLong} are still within 6% of each other (68 vs 72
+ * ops/us), unchanged from above. {@code LongAdder}'s score jumped to 205 ops/us, but its error bar
+ * ({@code ±429}) is more than double its own mean -- unusable at this fork count, and not evidence
+ * of a real pollution effect. It equally cannot confirm the earlier within-15% comparison: that
+ * finding rests on the first table's own data, and this run neither supports nor refutes it.
  */
 @Fork(2)
 @Warmup(iterations = 2)
@@ -97,6 +120,14 @@ public class ThreadSafeMapCounterBenchmark {
     ConcurrentHashtable.D1<String, CounterEntry> table;
     ConcurrentHashMap<String, AtomicLong> atomicLongMap;
     ConcurrentHashMap<String, LongAdder> longAdderMap;
+
+    // Front-load pollution once per trial, entirely before JMH's warmup starts: JMH
+    // injects the Blackhole straight into this setup method, so no per-benchmark
+    // scratch state is needed.
+    @Setup(Level.Trial)
+    public void warmUpPollution(Blackhole bh) {
+      BenchmarkUtils.warmUpHashDispatch(bh);
+    }
 
     @Setup(Level.Iteration)
     public void setUp() {

@@ -2,6 +2,7 @@ plugins {
   id 'dd-trace-java.jmh-conventions'
   id 'java-test-fixtures'
   id 'dd-trace-java.module.internal-library'
+  id 'dd-trace-java.conventions.testing.groovy'
 }
 
 apply from: "$rootDir/gradle/tries.gradle"
@@ -75,6 +76,17 @@ tasks.named("compileTest_java11Java") {
 tasks.named("jmh") {
   dependsOn(tasks.named("compileTestJava"))
   outputs.upToDateWhen { false }
+}
+
+tasks.named("jmhJar", Jar) {
+  // includeTests also brings in the test InstrumenterModule services file; drop it so only
+  // the jmh benchmark instrumentations are registered, regardless of copy order
+  def testResourcesDir = sourceSets.test.output.resourcesDir.toPath()
+  filesMatching("META-INF/services/datadog.trace.agent.tooling.InstrumenterModule") {
+    if (it.file.toPath().startsWith(testResourcesDir)) {
+      it.exclude()
+    }
+  }
 }
 
 tasks.withType(Test).configureEach {

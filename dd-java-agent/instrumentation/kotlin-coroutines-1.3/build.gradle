@@ -35,6 +35,10 @@ kotlin {
   }
 }
 
+// Reuse the flow and context-lifecycle tests across intermediate and current releases.
+addTestSuiteForDir('coroutines16Test', 'latestDepTest')
+addTestSuiteForDir('coroutines164Test', 'latestDepTest')
+addTestSuiteForDir('coroutines18Test', 'latestDepTest')
 addTestSuite('latestDepTest')
 
 dependencies {
@@ -44,6 +48,7 @@ dependencies {
 
   testFixturesImplementation libs.kotlin
   testFixturesImplementation libs.coroutines
+  testFixturesImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-slf4j:1.3.0"
   testFixturesApi project(':dd-trace-api')
   testFixturesApi project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
   testFixturesApi project(':dd-java-agent:instrumentation-testing')
@@ -52,10 +57,20 @@ dependencies {
   testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.3.0"
   testImplementation testFixtures(project(':dd-java-agent:instrumentation:kotlin-coroutines-1.3'))
 
+  coroutines16TestImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.1"
+  coroutines16TestImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-slf4j:1.6.1"
+  coroutines164TestImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4"
+  coroutines164TestImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-slf4j:1.6.4"
+  coroutines18TestImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1"
+  coroutines18TestImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-slf4j:1.8.1"
+
   latestDepTestImplementation libs.kotlin
-  latestDepTestImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.6.+"
+  latestDepTestImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.+"
+  latestDepTestImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-slf4j:1.+"
   latestDepTestImplementation testFixtures(project(':dd-java-agent:instrumentation:kotlin-coroutines-1.3'))
 
   testFixturesCompileOnly(libs.bundles.groovy)
   testFixturesCompileOnly(libs.bundles.spock)
+  testFixturesCompileOnly libs.junit.jupiter
+  testFixturesCompileOnly libs.tabletest
 }

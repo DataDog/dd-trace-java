@@ -1,6 +1,7 @@
 package datadog.trace.common.writer;
 
 import static datadog.trace.common.writer.ddagent.Prioritization.ENSURE_TRACE;
+import static datadog.trace.common.writer.ddagent.Prioritization.FAST_LANE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -16,6 +17,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import datadog.communication.http.OkHttpUtils;
 import datadog.communication.serialization.FlushingBuffer;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
@@ -24,6 +26,10 @@ import datadog.metrics.impl.MonitoringImpl;
 import datadog.trace.agent.test.server.http.JavaTestHttpServer;
 import datadog.trace.api.civisibility.CiVisibilityWellKnownTags;
 import datadog.trace.api.intake.TrackType;
+import datadog.trace.api.sampling.PrioritySampling;
+import datadog.trace.api.sampling.SamplingMechanism;
+import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.common.writer.ddintake.DDIntakeApi;
 import datadog.trace.common.writer.ddintake.DDIntakeMapperDiscovery;
 import datadog.trace.core.DDCoreJavaSpecification;
@@ -31,20 +37,26 @@ import datadog.trace.core.DDSpan;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.monitor.TracerHealthMetrics;
 import datadog.trace.test.util.Flaky;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.channels.Channels;
+import java.nio.channels.WritableByteChannel;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Phaser;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
+import org.msgpack.jackson.dataformat.MessagePackFactory;
 
 @Timeout(value = 10, unit = TimeUnit.SECONDS)
 class DDIntakeWriterCombinedTest extends DDCoreJavaSpecification {
@@ -318,9 +330,8 @@ class DDIntakeWriterCombinedTest extends DDCoreJavaSpecification {
     String path = buildIntakePath(trackType, apiVersion);
 
     JavaTestHttpServer intake =
-        JavaTestHttpServer.httpServer(
-            server ->
-                server.handlers(h -> h.post(path, api -> api.getResponse().status(200).send())));
+        JavaTestHttpServer.httpServer(server ->
+            server.handlers(h -> h.post(path, api -> api.getResponse().status(200).send())));
     try {
       HttpUrl hostUrl = HttpUrl.get(intake.getAddress());
       OkHttpClient httpClient = OkHttpUtils.buildHttpClient(hostUrl, 1000);
@@ -355,11 +366,10 @@ class DDIntakeWriterCombinedTest extends DDCoreJavaSpecification {
           .onSend(
               anyInt(),
               anyInt(),
-              argThat(
-                  response ->
-                      response.success()
-                          && response.status().isPresent()
-                          && response.status().getAsInt() == 200));
+              argThat(response ->
+                  response.success()
+                      && response.status().isPresent()
+                      && response.status().getAsInt() == 200));
 
       writer.close();
 
@@ -378,9 +388,8 @@ class DDIntakeWriterCombinedTest extends DDCoreJavaSpecification {
     String path = buildIntakePath(trackType, apiVersion);
 
     JavaTestHttpServer intake =
-        JavaTestHttpServer.httpServer(
-            server ->
-                server.handlers(h -> h.post(path, api -> api.getResponse().status(500).send())));
+        JavaTestHttpServer.httpServer(server ->
+            server.handlers(h -> h.post(path, api -> api.getResponse().status(500).send())));
     try {
       HttpUrl hostUrl = HttpUrl.get(intake.getAddress());
       okhttp3.OkHttpClient httpClient = OkHttpUtils.buildHttpClient(hostUrl, 1000);
@@ -415,11 +424,10 @@ class DDIntakeWriterCombinedTest extends DDCoreJavaSpecification {
           .onFailedSend(
               anyInt(),
               anyInt(),
-              argThat(
-                  response ->
-                      !response.success()
-                          && response.status().isPresent()
-                          && response.status().getAsInt() == 500));
+              argThat(response ->
+                  !response.success()
+                      && response.status().isPresent()
+                      && response.status().getAsInt() == 500));
 
       writer.close();
 
@@ -486,20 +494,18 @@ class DDIntakeWriterCombinedTest extends DDCoreJavaSpecification {
     String path = buildIntakePath(trackType, apiVersion);
 
     JavaTestHttpServer intake =
-        JavaTestHttpServer.httpServer(
-            server ->
-                server.handlers(
-                    h ->
-                        h.post(
-                            path,
-                            api -> {
-                              responseSemaphore.acquire();
-                              try {
-                                api.getResponse().status(200).send();
-                              } finally {
-                                responseSemaphore.release();
-                              }
-                            })));
+        JavaTestHttpServer.httpServer(server ->
+            server.handlers(h ->
+                h.post(
+                    path,
+                    api -> {
+                      responseSemaphore.acquire();
+                      try {
+                        api.getResponse().status(200).send();
+                      } finally {
+                        responseSemaphore.release();
+                      }
+                    })));
 
     // This test focuses just on failed publish, so not verifying every callback
     HealthMetrics healthMetrics = mock(HealthMetrics.class);
@@ -617,9 +623,8 @@ class DDIntakeWriterCombinedTest extends DDCoreJavaSpecification {
     String path = buildIntakePath(trackType, apiVersion);
 
     JavaTestHttpServer intake =
-        JavaTestHttpServer.httpServer(
-            server ->
-                server.handlers(h -> h.post(path, api -> api.getResponse().status(200).send())));
+        JavaTestHttpServer.httpServer(server ->
+            server.handlers(h -> h.post(path, api -> api.getResponse().status(200).send())));
 
     // This test focuses just on failed publish, so not verifying every callback
     HealthMetrics healthMetrics = mock(HealthMetrics.class);
@@ -712,9 +717,8 @@ class DDIntakeWriterCombinedTest extends DDCoreJavaSpecification {
     String path = buildIntakePath(trackType, apiVersion);
 
     JavaTestHttpServer intake =
-        JavaTestHttpServer.httpServer(
-            server ->
-                server.handlers(h -> h.post(path, api -> api.getResponse().status(200).send())));
+        JavaTestHttpServer.httpServer(server ->
+            server.handlers(h -> h.post(path, api -> api.getResponse().status(200).send())));
 
     HealthMetrics healthMetrics = mock(HealthMetrics.class);
     doAnswer(
@@ -806,6 +810,64 @@ class DDIntakeWriterCombinedTest extends DDCoreJavaSpecification {
 
     writer.close();
     healthMetrics.close();
+  }
+
+  /**
+   * With APM tracing disabled every APM trace is sampled out, so the LLM Observability spans only
+   * reach their intake if the writer still serializes p0 traces. Built like the LLMObs writer in
+   * {@link WriterFactory}: no dropping policy and FAST_LANE prioritization.
+   */
+  @SuppressWarnings("unchecked")
+  @Test
+  void sampledOutTraceStillDeliversLlmObsSpans() throws Exception {
+    DDIntakeApi api = mock(DDIntakeApi.class);
+    DDIntakeWriter writer =
+        DDIntakeWriter.builder()
+            .addTrack(TrackType.LLMOBS, api)
+            .prioritization(FAST_LANE)
+            .monitoring(monitoring)
+            .flushIntervalMilliseconds(-1)
+            .alwaysFlush(false)
+            .build();
+    writer.start();
+    clearInvocations(api);
+
+    AtomicReference<byte[]> sent = new AtomicReference<>();
+    doAnswer(
+            invocation -> {
+              sent.set(writeTo(invocation.getArgument(0)));
+              return RemoteApi.Response.success(200);
+            })
+        .when(api)
+        .sendSerializedTraces(any());
+
+    DDSpan span =
+        (DDSpan)
+            dummyTracer
+                .buildSpan("datadog", "openai.request")
+                .withTag("_ml_obs_tag.span.kind", Tags.LLMOBS_LLM_SPAN_KIND)
+                .start();
+    span.setSpanType(InternalSpanTypes.LLMOBS);
+    span.setSamplingPriority(PrioritySampling.SAMPLER_DROP, SamplingMechanism.DEFAULT);
+
+    writer.write(Collections.singletonList(span));
+    writer.flush();
+
+    verify(api, times(1)).sendSerializedTraces(argThat(payload -> payload.traceCount() == 1));
+    Map<String, Object> result =
+        new ObjectMapper(new MessagePackFactory()).readValue(sent.get(), Map.class);
+    List<Map<String, Object>> spans = (List<Map<String, Object>>) result.get("spans");
+    assertEquals(1, spans.size());
+    assertEquals(String.valueOf(span.getSpanId()), spans.get(0).get("span_id"));
+
+    writer.close();
+  }
+
+  private static byte[] writeTo(Payload payload) throws IOException {
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    WritableByteChannel channel = Channels.newChannel(out);
+    payload.writeTo(channel);
+    return out.toByteArray();
   }
 
   static String buildIntakePath(TrackType trackType, String apiVersion) {

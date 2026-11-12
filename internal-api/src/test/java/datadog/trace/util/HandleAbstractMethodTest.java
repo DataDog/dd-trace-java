@@ -17,6 +17,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.SQLException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 import javax.tools.JavaCompiler;
 import javax.tools.ToolProvider;
 import org.junit.jupiter.api.Test;
@@ -286,6 +287,87 @@ class HandleAbstractMethodTest {
 
     assertThrows(IllegalStateException.class, () -> latch.tryApply("x"));
     assertFalse(latch.isLatched("x"));
+  }
+
+  @Test
+  void doesNotLatchAWorkingDefaultMethodAfterInterfaceEvolution(@TempDir Path dir)
+      throws Exception {
+    JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+    assumeTrue(compiler != null, "needs a JDK");
+
+    Path oldDir = Files.createDirectory(dir.resolve("old"));
+    Path newDir = Files.createDirectory(dir.resolve("new"));
+    compile(compiler, oldDir, null, "Added", "public interface Added { }");
+    compile(
+        compiler,
+        oldDir,
+        null,
+        "Defaults",
+        "public interface Defaults {"
+            + " java.util.function.Supplier<String> delegate();"
+            + " default String b() { return delegate().get(); } }");
+    compile(
+        compiler,
+        oldDir,
+        oldDir,
+        "Wrapper",
+        "public class Wrapper implements Added, Defaults {"
+            + " private final java.util.function.Supplier<String> delegate;"
+            + " public Wrapper(java.util.function.Supplier<String> delegate) {"
+            + " this.delegate = delegate; }"
+            + " public java.util.function.Supplier<String> delegate() { return delegate; } }");
+    compile(compiler, newDir, null, "Added", "public interface Added { String b(); }");
+    compile(
+        compiler,
+        newDir,
+        newDir,
+        "Caller",
+        "public class Caller { public static String call(Added value) { return value.b(); } }");
+
+    try (URLClassLoader loader =
+        new URLClassLoader(
+            new URL[] {newDir.toUri().toURL(), oldDir.toUri().toURL()},
+            HandleAbstractMethodTest.class.getClassLoader())) {
+      Class<?> wrapperType = loader.loadClass("Wrapper");
+      Object healthy =
+          wrapperType.getConstructor(Supplier.class).newInstance((Supplier<String>) () -> "ok");
+      Object failing =
+          wrapperType
+              .getConstructor(Supplier.class)
+              .newInstance(
+                  (Supplier<String>)
+                      () -> {
+                        throw new AbstractMethodError();
+                      });
+      Method call = loader.loadClass("Caller").getMethod("call", loader.loadClass("Added"));
+      AtomicInteger calls = new AtomicInteger();
+      Handling<Object, Object, Exception> latch =
+          new Handling<Object, Object, Exception>() {
+            @Override
+            protected String methodName() {
+              return "b";
+            }
+
+            @Override
+            protected Object invoke(Object target) throws Exception {
+              calls.incrementAndGet();
+              try {
+                return call.invoke(null, target);
+              } catch (InvocationTargetException e) {
+                if (e.getCause() instanceof AbstractMethodError) {
+                  throw (AbstractMethodError) e.getCause();
+                }
+                throw e;
+              }
+            }
+          };
+
+      assertEquals("ok", latch.tryApply(healthy));
+      assertNull(latch.tryApply(failing));
+      assertFalse(latch.isLatched(healthy));
+      assertEquals("ok", latch.tryApply(healthy));
+      assertEquals(3, calls.get());
+    }
   }
 
   /**

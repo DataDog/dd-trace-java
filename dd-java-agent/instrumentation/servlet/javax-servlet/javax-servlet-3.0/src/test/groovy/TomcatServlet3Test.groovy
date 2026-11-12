@@ -3,8 +3,6 @@ import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.api.CorrelationIdentifier
-import datadog.trace.api.iast.InstrumentationBridge
-import datadog.trace.api.iast.sink.ApplicationModule
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.servlet3.AsyncDispatcherDecorator
 import datadog.trace.instrumentation.servlet3.TestServlet3
@@ -530,56 +528,5 @@ class TomcatServlet3TestDispatchAsync extends TomcatServlet3Test {
     super.setupServlets(context)
     setupDispatchServlets(context, TestServlet3.DispatchAsync)
     addServlet(context, "/dispatch/recursive", TestServlet3.DispatchRecursive)
-  }
-}
-
-class IastTomcatServlet3ForkedTest extends TomcatServlet3TestSync {
-
-  @Override
-  Class<Servlet> servlet() {
-    return TestServlet3.GetSession
-  }
-
-  @Override
-  void configurePreAgent() {
-    super.configurePreAgent()
-    injectSysConfig('dd.iast.enabled', 'true')
-  }
-
-  void 'test no calls if no modules registered'() {
-    given:
-    final appModule = Mock(ApplicationModule)
-    def request = request(SUCCESS, "GET", null).build()
-
-    when:
-    client.newCall(request).execute()
-
-    then:
-    0 * appModule.onRealPath(_)
-    0 * appModule.checkSessionTrackingModes(_)
-    0 * _
-  }
-
-  void 'test that iast module is called'() {
-    given:
-    final appModule = Mock(ApplicationModule)
-    InstrumentationBridge.registerIastModule(appModule)
-    def request = request(SUCCESS, "GET", null).build()
-
-    when:
-    client.newCall(request).execute()
-
-    then:
-    1 *  appModule.onRealPath(_)
-    1 *  appModule.checkSessionTrackingModes(_)
-    0 * _
-
-    when:
-    client.newCall(request).execute()
-
-    then: //Only call once per application context
-    0 *  appModule.onRealPath(_)
-    0 *  appModule.checkSessionTrackingModes(_)
-    0 * _
   }
 }

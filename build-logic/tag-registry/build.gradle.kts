@@ -48,7 +48,7 @@ testing {
 spotless {
   kotlin {
     target("src/**/*.kt")
-    ktlint(libs.versions.ktlint.get()).editorConfigOverride(
+    ktlint().editorConfigOverride(
       mapOf(
         "indent_size" to "2",
         "ktlint_standard_trailing-comma-on-call-site" to "disabled",
@@ -57,6 +57,6 @@ spotless {
     )
   }
   kotlinGradle {
-    ktlint(libs.versions.ktlint.get()).editorConfigOverride(mapOf("indent_size" to "2"))
+    ktlint().editorConfigOverride(mapOf("indent_size" to "2"))
   }
 }

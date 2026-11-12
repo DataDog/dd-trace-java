@@ -73,6 +73,13 @@ public class LongStringUtils {
     return firstNonZero;
   }
 
+  /**
+   * Parse the decimal representation of the unsigned 64 bit long from the {@code String}.
+   *
+   * @param s String in decimal of unsigned 64-bits long.
+   * @return long
+   * @throws NumberFormatException
+   */
   public static long parseUnsignedLong(String s) throws NumberFormatException {
     if (s == null) {
       throw new NumberFormatException("s can't be null");
@@ -104,7 +111,7 @@ public class LongStringUtils {
         if (ok < 0) {
           throw new NumberFormatException("Illegal character in " + s);
         }
-        if (first > MAX_FIRST_PART) {
+        if (Long.compareUnsigned(first, MAX_FIRST_PART) > 0) {
           throw numberFormatOutOfLongRange(s);
         }
         long guard = first * 10;

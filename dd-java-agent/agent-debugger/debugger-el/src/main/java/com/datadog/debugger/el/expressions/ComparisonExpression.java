@@ -5,9 +5,11 @@ import static com.datadog.debugger.el.expressions.ExpressionHelper.checkTimeout;
 import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.EvaluationTimeOutException;
+import com.datadog.debugger.el.Generated;
 import com.datadog.debugger.el.PrettyPrintVisitor;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.Visitor;
+import java.util.Objects;
 
 /**
  * Takes two {@linkplain ValueExpression} instances and compares them using the given {@link
@@ -61,5 +63,21 @@ public class ComparisonExpression implements BooleanExpression {
 
   public ComparisonOperator getOperator() {
     return operator;
+  }
+
+  @Generated
+  @Override
+  public boolean equals(Object o) {
+    if (o == null || getClass() != o.getClass()) return false;
+    ComparisonExpression that = (ComparisonExpression) o;
+    return Objects.equals(left, that.left)
+        && Objects.equals(right, that.right)
+        && operator == that.operator;
+  }
+
+  @Generated
+  @Override
+  public int hashCode() {
+    return Objects.hash(left, right, operator);
   }
 }

@@ -10,6 +10,11 @@ import java.util.function.Function
 import static java.util.concurrent.TimeUnit.SECONDS
 
 abstract class AbstractStructuredConcurrencyTest extends AbstractSmokeTest {
+  @Override
+  protected boolean expectsProcessAliveBeforeEachTest() {
+    false
+  }
+
   protected static final int TIMEOUT_SECS = 10
   protected abstract String testCaseName()
 

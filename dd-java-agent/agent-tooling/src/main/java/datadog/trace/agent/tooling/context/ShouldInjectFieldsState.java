@@ -1,6 +1,6 @@
 package datadog.trace.agent.tooling.context;
 
-import static datadog.trace.bootstrap.FieldBackedContextStores.getContextStoreId;
+import static datadog.trace.bootstrap.ContextStores.getContextStoreId;
 
 import java.util.BitSet;
 import java.util.HashMap;

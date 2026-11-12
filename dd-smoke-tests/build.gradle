@@ -1,4 +1,4 @@
-import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import java.util.jar.JarFile
 
 plugins {
   id 'dd-trace-java.module.smoke-test'
@@ -27,22 +27,89 @@ allprojects {
   }
 }
 
-subprojects { Project subProj ->
+allprojects { Project subProj ->
   // Don't need javadoc task run for internal projects.
   subProj.tasks.withType(Javadoc).configureEach { enabled = false }
 
-  subProj.evaluationDependsOn ':dd-java-agent'
+  // Bind the lookup to each smoke test project configured by this parent script.
+  def smokeTestAgentFrom = { String name, String producerPath, Attribute<? extends Named> lookupAttribute, String lookupValue ->
+    def agentDependencies = subProj.configurations.dependencyScope(name) {
+      dependencies.add(subProj.dependencies.project(path: producerPath))
+    }
+    def agentClasspath = subProj.configurations.resolvable("${name}Classpath") {
+      extendsFrom(agentDependencies)
+      transitive = false
+      attributes.attribute(lookupAttribute, subProj.objects.named(lookupAttribute.type, lookupValue))
+    }
+    subProj.layout.file(agentClasspath.flatMap { it.elements }.map { files ->
+      assert files.size() == 1 : "Expected one smoke test agent JAR from ${producerPath}"
+      files.first().asFile
+    })
+  }
+
+  def tracerJar = smokeTestAgentFrom(
+    'smokeTestTracer', ':dd-java-agent',
+    Bundling.BUNDLING_ATTRIBUTE, Bundling.SHADOWED)
+  def diagnosticsJar = smokeTestAgentFrom(
+    'smokeTestDiagnostics', ':dd-java-agent:instrumentation-testing',
+    LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, 'scope-diagnostics-agent')
+
   subProj.tasks.withType(Test).configureEach { subTask ->
-    def agentTaskRef = project(':dd-java-agent').tasks.named('shadowJar', ShadowJar)
-    dependsOn agentTaskRef
+    def agentArguments = subProj.objects.newInstance(SmokeAgentArguments)
+    agentArguments.tracerJar.set(tracerJar)
+    agentArguments.tracerVersion.set(subProj.version.toString())
+    agentArguments.diagnosticsJar.set(diagnosticsJar)
+    jvmArgumentProviders.add(agentArguments)
+
+    def quiescenceProperty = 'datadog.smoketest.scopeDiagnostics.quiescenceMillis'
+    systemProperty quiescenceProperty, providers.systemProperty(quiescenceProperty).getOrElse('2000')
 
     // Tests depend on this to know where to run things and what agent jar to use
     jvmArgs "-Ddatadog.smoketest.builddir=${buildDir}"
-    jvmArgumentProviders.add(new CommandLineArgumentProvider() {
-        @Override
-        Iterable<String> asArguments() {
-          return agentTaskRef.map { ["-Ddatadog.smoketest.agent.shadowJar.path=${it.archiveFile.get()}"] }.get()
-        }
-      })
+  }
+}
+
+abstract class SmokeAgentArguments implements CommandLineArgumentProvider {
+  // Runtime classpath hashing tracks classes and resources: .classdata, manifests, instrumentation
+  // indexes, configuration files and native libraries. Changes to normalised contents invalidate tests.
+  @Classpath
+  abstract RegularFileProperty getTracerJar()
+
+  // project.version is the base version (e.g. 1.69.0-SNAPSHOT); WriteVersionFile appends ~<SHA>.
+  // Runtime-classpath normalisation excludes the complete *.version resources.
+  // Tracking the base version separately invalidates results on version changes,
+  // while changing only the commit stamp allows reuse when the other inputs match.
+  @Input
+  abstract Property<String> getTracerVersion()
+
+  // Tracks only the presence of these version files. Their contents remain excluded from the fingerprint.
+  // CI Visibility reads the agent version; missing API/core versions fall back to "unknown".
+  @Input
+  Provider<List<String>> getNeededResourcePaths() {
+    tracerJar.map(existingResourcePaths(
+      'dd-java-agent.version',
+      'dd-trace-api.version',
+      'trace/dd-trace-core.version'
+      ))
+  }
+
+  @InputFile
+  @PathSensitive(PathSensitivity.NONE)
+  abstract RegularFileProperty getDiagnosticsJar()
+
+  @Override
+  Iterable<String> asArguments() {
+    return [
+      '-Ddatadog.smoketest.agent.shadowJar.path=' + tracerJar.get().asFile.absolutePath,
+      '-Ddatadog.smoketest.scopeDiagnostics.agent.path=' + diagnosticsJar.get().asFile.absolutePath
+    ]
+  }
+
+  private static Transformer<List<String>, RegularFile> existingResourcePaths(String... paths) {
+    return { RegularFile file ->
+      new JarFile(file.asFile).withCloseable { jar ->
+        paths.findAll { jar.getJarEntry(it) != null }.sort()
+      }
+    } as Transformer<List<String>, RegularFile>
   }
 }

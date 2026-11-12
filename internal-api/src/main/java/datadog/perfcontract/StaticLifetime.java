@@ -17,26 +17,28 @@ import java.lang.annotation.Target;
  * <p>This marker changes no runtime behavior. The declaration rules below guide AI review; no
  * static checker currently enforces them.
  *
- * <p><b>Checker contract.</b> Inspect only fields annotated {@code @StaticLifetime}:
+ * <p><b>Checker contract.</b> Inspect fields carrying {@code @StaticLifetime}, and fields whose
+ * declared type is listed in this contract's {@link ImpliedFor}, including subtypes:
  *
  * <ul>
  *   <li><b>Accepted:</b> a {@code static final} field, or a {@code final} instance field declared
  *       on a class annotated {@link Singleton}. The singleton declaration is trusted, not verified.
- *   <li><b>Violation:</b> any other annotated field. This includes fields without {@code final} and
+ *   <li><b>Violation:</b> any other inspected field. This includes fields without {@code final} and
  *       instance fields on classes without {@code @Singleton}, even if a class is constructed only
  *       once per session.
- *   <li><b>Out of scope:</b> unannotated fields, how often a value is reused, and replacement of
- *       state inside the referenced object. The check does not follow references through the object
- *       graph.
+ *   <li><b>Out of scope:</b> unannotated fields that {@link ImpliedFor} does not cover, how often a
+ *       value is reused, and replacement of state inside the referenced object. The check does not
+ *       follow references through the object graph.
  * </ul>
  *
  * <p>Requiring {@code final} prevents reassignment from discarding cached state and repeating
  * setup. It does not prevent the referenced object from changing its own state.
  *
- * <p>A shared {@link java.lang.ClassValue} satisfies the same field rules. Its values are cached
- * per class; computation may be repeated under races or after {@link
- * java.lang.ClassValue#remove(Class) remove}. This contract covers the shared holder, not the
- * lifetime of each cached value.
+ * <p>A {@link ClassValue} caches values per class within each holder instance. Creating a new
+ * holder for each owner prevents reuse across owners; an instance field that references an already
+ * shared holder does not recreate its cache. Values may be recomputed under races or after {@link
+ * ClassValue#remove(Class) remove}. This contract covers retention of the holder, not the lifetime
+ * of each cached value.
  *
  * <p>Violation examples: an instance cache on a class without {@code @Singleton}, or a static cache
  * without {@code final}.
@@ -63,6 +65,7 @@ import java.lang.annotation.Target;
  */
 @Documented
 @PerfContract
+@ImpliedFor(ClassValue.class)
 @Retention(RetentionPolicy.CLASS)
 @Target(ElementType.FIELD)
 public @interface StaticLifetime {}

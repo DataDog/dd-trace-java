@@ -4,6 +4,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.Pair;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -60,6 +61,12 @@ public class HttpResourceNames {
       INSTANCE = new HttpResourceNames();
     }
     return INSTANCE;
+  }
+
+  @VisibleForTesting
+  static void reset() {
+    INSTANCE = null;
+    JOINER_CACHE.clear();
   }
 
   private HttpResourceNames() {

@@ -265,6 +265,16 @@ class ProbeStatusSinkTest {
   }
 
   @Test
+  void doNotReemitSameStatusAfterSentIfIntervalHasNotPassed() {
+    probeStatusSink.addInstalled(PROBE_ID);
+    assertEquals(
+        Collections.singletonList(builder.installedMessage(PROBE_ID)),
+        probeStatusSink.getDiagnostics());
+    probeStatusSink.addInstalled(PROBE_ID);
+    assertEquals(Collections.emptyList(), probeStatusSink.getDiagnostics());
+  }
+
+  @Test
   void dropRepeatingDiagnostics() {
     probeStatusSink.addReceived(PROBE_ID);
 

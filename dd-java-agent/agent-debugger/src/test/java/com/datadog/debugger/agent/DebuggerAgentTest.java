@@ -34,6 +34,7 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import okhttp3.HttpUrl;
+import okhttp3.mockwebserver.Dispatcher;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.RecordedRequest;
@@ -64,6 +65,30 @@ public class DebuggerAgentTest {
     } catch (Throwable e) {
       e.printStackTrace();
     }
+  }
+
+  /**
+   * Serves {@code infoContent} for every {@code /info} request and {@code rcContent} (if any) for
+   * {@code /v0.7/config}. Features discovery may hit {@code /info} once or twice depending on the
+   * ordering of the background and the forced discovery, so a queued response is not reliable. Also
+   * sets a positive agent timeout so an unexpected request cannot hang the test forever.
+   */
+  private void serveAgentEndpoints(String infoContent, String rcContent) {
+    when(config.getAgentTimeout()).thenReturn(5);
+    server.setDispatcher(
+        new Dispatcher() {
+          @Override
+          public MockResponse dispatch(RecordedRequest request) {
+            String path = request.getPath();
+            if ("/info".equals(path)) {
+              return new MockResponse().setResponseCode(200).setBody(infoContent);
+            }
+            if (rcContent != null && "/v0.7/config".equals(path)) {
+              return new MockResponse().setResponseCode(200).setBody(rcContent);
+            }
+            return new MockResponse().setResponseCode(404);
+          }
+        });
   }
 
   @BeforeEach
@@ -107,18 +132,15 @@ public class DebuggerAgentTest {
     setFieldInContainerInfo(ContainerInfo.get(), "containerId", "");
     String infoContent =
         "{\"endpoints\": [\"v0.4/traces\", \"debugger/v1/input\", \"debugger/v1/diagnostics\", \"v0.7/config\"] }";
-    server.enqueue(new MockResponse().setResponseCode(200).setBody(infoContent));
-    server.enqueue(new MockResponse().setResponseCode(200).setBody(infoContent));
+    String rcContent;
     try (BufferedReader reader =
         new BufferedReader(
             new InputStreamReader(
                 DebuggerAgentTest.class.getResourceAsStream("/test_probe.json")))) {
       String content = reader.lines().collect(Collectors.joining("\n"));
-      String rcContent = RemoteConfigHelper.encode(content, "petclinic");
-      server.enqueue(new MockResponse().setResponseCode(200).setBody(rcContent));
-    } catch (IOException e) {
-      e.printStackTrace();
+      rcContent = RemoteConfigHelper.encode(content, "petclinic");
     }
+    serveAgentEndpoints(infoContent, rcContent);
     SharedCommunicationObjects sharedCommunicationObjects = new SharedCommunicationObjects();
     DebuggerAgent.run(config, inst, sharedCommunicationObjects);
     ConfigurationPoller configurationPoller =
@@ -143,9 +165,31 @@ public class DebuggerAgentTest {
     when(config.getDynamicInstrumentationUploadBatchSize()).thenReturn(100);
     when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
     String infoContent = "{\"endpoints\": [\"v0.4/traces\"]}";
-    server.enqueue(new MockResponse().setResponseCode(200).setBody(infoContent));
+    serveAgentEndpoints(infoContent, null);
     DebuggerAgent.run(config, inst, new SharedCommunicationObjects());
     verify(inst, never()).addTransformer(any(), eq(true));
+  }
+
+  @Test
+  @EnabledOnJre({JAVA_8, JAVA_11})
+  public void runEnabledWithDatadogAgentWithoutSnapshotEndpoint() throws URISyntaxException {
+    URL res = getClass().getClassLoader().getResource("test_probe_file.json");
+    String probeDefinitionPath = Paths.get(res.toURI()).toFile().getAbsolutePath();
+    when(config.getServiceName()).thenReturn("petclinic");
+    when(config.isDynamicInstrumentationEnabled()).thenReturn(true);
+    when(config.getAgentUrl()).thenReturn(url.toString());
+    when(config.getFinalDebuggerSnapshotUrl())
+        .thenReturn("http://localhost:8126/debugger/v1/input");
+    when(config.getDynamicInstrumentationMaxPayloadSize()).thenReturn(4096L);
+    when(config.getDynamicInstrumentationProbeFile()).thenReturn(probeDefinitionPath);
+    when(config.getDynamicInstrumentationUploadBatchSize()).thenReturn(100);
+    when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
+    // agent only exposes debugger/v1/input: no dedicated snapshot endpoint
+    String infoContent = "{\"endpoints\": [\"v0.4/traces\", \"debugger/v1/input\"] }";
+    serveAgentEndpoints(infoContent, null);
+    when(inst.getAllLoadedClasses()).thenReturn(new Class[0]);
+    DebuggerAgent.run(config, inst, new SharedCommunicationObjects());
+    verify(inst, atLeastOnce()).addTransformer(any(), eq(true));
   }
 
   @Test
@@ -162,7 +206,7 @@ public class DebuggerAgentTest {
     when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
     String infoContent =
         "{\"endpoints\": [\"v0.4/traces\", \"debugger/v1/input\", \"debugger/v1/diagnostics\", \"v0.7/config\"] }";
-    server.enqueue(new MockResponse().setResponseCode(200).setBody(infoContent));
+    serveAgentEndpoints(infoContent, null);
     when(inst.getAllLoadedClasses()).thenReturn(new Class[0]);
     DebuggerAgent.run(config, inst, new SharedCommunicationObjects());
     verify(inst, atLeastOnce()).addTransformer(any(), eq(true));

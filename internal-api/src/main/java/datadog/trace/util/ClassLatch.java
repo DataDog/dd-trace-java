@@ -3,6 +3,9 @@ package datadog.trace.util;
 import datadog.trace.api.function.Strategy;
 import datadog.trace.api.function.StrategyConsumer;
 import datadog.trace.api.function.ThrowingFunction;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.util.Arrays;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 
@@ -29,11 +32,10 @@ import javax.annotation.concurrent.ThreadSafe;
  * wrapper whose contents can differ from one instance to the next; override {@link #keyOf} to
  * return the class of the object that is actually deficient.
  *
- * <p>This is a hint, not a lock. Nothing is stored for a class until it is latched, and until then
- * the cost is one plain flag read. The state is deliberately not atomic. A stale read only costs
- * another failure; a thread always sees its own write, so each thread pays for at most one failure
- * after its own first. Other threads' writes become visible eventually, with no bound on how long
- * that takes. A class is never latched unless the subclass latched it.
+ * <p>The latch provides best-effort per-class skipping. Before any class is latched, the common
+ * path reads one plain flag and avoids per-class lookup. The deliberately non-volatile state allows
+ * another thread to continue performing the operation after a class is latched. Only the subclass
+ * can latch a class.
  *
  * @param <T> the type of the value the operation is applied to
  * @param <R> the type of the result
@@ -128,9 +130,9 @@ public abstract class ClassLatch<T, R, E extends Exception> {
 
   /** Skips the operation for the target's key from now on. */
   protected final void latch(T target) {
+    // Set the per-class value before enabling lookups. Other threads may still observe stale state
+    // and repeat the operation.
     latched.get(keyOf(target))[0] = true;
-    // after the write: a reader that sees the flag can look the class up, and one that sees the
-    // flag but not yet the write just performs the operation once more
     anyLatched = true;
   }
 
@@ -142,11 +144,17 @@ public abstract class ClassLatch<T, R, E extends Exception> {
   }
 
   /**
-   * Latches the target's key if the error's message names that class as the receiver that lacks
-   * {@code methodName}. Returns whether it latched. An error that does not name the key, for
-   * example one thrown inside a wrapper's delegate, is left alone — and so is one that names the
-   * key but for a different method, for example one the guarded method's own implementation calls
-   * internally.
+   * Latches the target's key when {@code error} identifies that key as the receiver that lacks
+   * {@code methodName}. For a message-less error, the key must expose an abstract public method
+   * with that name and no concrete public instance method with it.
+   *
+   * <p>An error attributed to another class or method remains unlatched. This prevents a delegate's
+   * failure from disabling every instance of its wrapper class.
+   *
+   * @param target target whose key may be latched
+   * @param methodName guarded method's name
+   * @param error error to attribute
+   * @return whether the target's key was latched
    */
   protected final boolean latchIfNamed(T target, String methodName, AbstractMethodError error) {
     if (isNamedIn(error, keyOf(target), methodName)) {
@@ -159,10 +167,10 @@ public abstract class ClassLatch<T, R, E extends Exception> {
   /**
    * For a call to a method that some implementations may lack: returns {@link #fallback} if the
    * call raises {@link AbstractMethodError} or {@link UnsupportedOperationException}, latching the
-   * key first in the former case if, and only if, the error names it (see {@link #latchIfNamed}).
-   * An error that does not name the key still yields the fallback; it just is not latched. An
-   * unsupported operation names no class, so it is never latched, and is caught on every call.
-   * Anything else, checked exceptions included, propagates unchanged.
+   * key first in the former case if, and only if, the error is attributed to it (see {@link
+   * #latchIfNamed}). An error that is not attributed to the key still yields the fallback; it just
+   * is not latched. An unsupported operation names no class, so it is never latched, and is caught
+   * on every call. Anything else, checked exceptions included, propagates unchanged.
    *
    * <pre>{@code
    * protected Properties apply(Connection c) throws SQLException {
@@ -236,8 +244,9 @@ public abstract class ClassLatch<T, R, E extends Exception> {
    * classes ({@link AbstractMethodError}): both yield {@link #fallback}, as does {@link
    * UnsupportedOperationException}. This is {@link #handleAbstractMethod} and {@link
    * #handleNoSuchMethod} together, with the same latching rules: an {@link AbstractMethodError}
-   * latches only if its message names the key, and a {@link NoSuchMethodError} latches the target's
-   * key. The two are easy to confuse, so prefer this one unless you know which a call site can see.
+   * latches only if it is attributed to the key (see {@link #latchIfNamed}), and a {@link
+   * NoSuchMethodError} latches the target's key. The two are easy to confuse, so prefer this one
+   * unless you know which a call site can see.
    *
    * <pre>{@code
    * protected Properties apply(Connection c) throws SQLException {
@@ -258,6 +267,73 @@ public abstract class ClassLatch<T, R, E extends Exception> {
   }
 
   /**
+   * Checks whether {@code type} exposes an abstract public method named {@code methodName} and no
+   * concrete public instance method with that name.
+   *
+   * <p>A message-less {@link AbstractMethodError} provides no signature, so any concrete overload
+   * prevents latching. Once initialized, the per-class cache prevents repeated reflection.
+   *
+   * @param type class to inspect
+   * @param methodName method name to find
+   * @return whether the class appears to lack an implementation
+   */
+  static boolean lacksImplementation(Class<?> type, String methodName) {
+    for (final String abstractMethod : ABSTRACT_METHOD_NAMES.get(type)) {
+      if (abstractMethod.equals(methodName)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private static final String[] NO_NAMES = new String[0];
+
+  /**
+   * Caches public method names that have an abstract declaration and no concrete instance
+   * declaration. Entries are initialized only when attributing a message-less {@link
+   * AbstractMethodError}. Values contain only JDK types, so application classes never reference
+   * types from the agent class loader.
+   *
+   * <p>Concrete receiver classes normally expose few abstract candidates, so cache construction
+   * scans the dense array instead of building a hash table. This avoids hashing and the temporary
+   * {@code HashSet} allocation.
+   */
+  private static final ClassValue<String[]> ABSTRACT_METHOD_NAMES =
+      new ClassValue<String[]>() {
+        @Override
+        protected String[] computeValue(Class<?> type) {
+          try {
+            int count = 0;
+            final Method[] methods = type.getMethods();
+            final String[] names = new String[methods.length];
+            for (final Method method : methods) {
+              if (Modifier.isAbstract(method.getModifiers())) {
+                names[count++] = method.getName();
+              }
+            }
+            for (final Method method : methods) {
+              final int modifiers = method.getModifiers();
+              if (!Modifier.isAbstract(modifiers) && !Modifier.isStatic(modifiers)) {
+                final String name = method.getName();
+                for (int i = 0; i < count; ) {
+                  if (name.equals(names[i])) {
+                    names[i] = names[--count];
+                  } else {
+                    i++;
+                  }
+                }
+              }
+            }
+            return count == 0 ? NO_NAMES : Arrays.copyOf(names, count);
+          } catch (final SecurityException | LinkageError ignored) {
+            // cannot tell, so never latch: getMethods() resolves every public signature, and one
+            // that references a class missing from the class path raises NoClassDefFoundError
+            return NO_NAMES;
+          }
+        }
+      };
+
+  /**
    * Matches the receiver class named by HotSpot's message against a class. Two formats exist:
    *
    * <ul>
@@ -271,11 +347,15 @@ public abstract class ClassLatch<T, R, E extends Exception> {
    * method's implementation can call a different, unimplemented method on the very same receiver,
    * raising an error that names the key class but blames a method other than {@code methodName}, so
    * the method name is checked too. An unparseable message never matches.
+   *
+   * <p>JDK 8 omits the message once the call site has dispatched to a class that does implement the
+   * method, which in production is nearly always. Without a message the class itself is checked
+   * instead: see {@link #lacksImplementation}.
    */
   static boolean isNamedIn(AbstractMethodError e, Class<?> type, String methodName) {
     final String message = e.getMessage();
     if (message == null) {
-      return false;
+      return lacksImplementation(type, methodName);
     }
     final String name = type.getName();
     if (message.startsWith(RECEIVER_PREFIX)) {

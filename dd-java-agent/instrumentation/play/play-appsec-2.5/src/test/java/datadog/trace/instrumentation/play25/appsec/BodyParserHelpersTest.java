@@ -228,6 +228,30 @@ class BodyParserHelpersTest {
     fx.brf.assertCommittedOnce(fx.segment);
   }
 
+  /**
+   * Covers {@code doHandleArbitraryPostData} (request-body JSON publishing, {@code
+   * requestBodyProcessed()}): unlike the response-body hooks, this stays fail-open on a failed
+   * commit: same as master, and same as the multipart tests above.
+   */
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  void jsonBodyCallbackBlocks(boolean commitResult) {
+    AppSecFixture fx = new AppSecFixture(commitResult);
+    fx.onRequestBody((ctx, body) -> blockingFlow());
+    fx.register();
+    JsValue json = parse("{\"key\":\"value\"}");
+
+    if (commitResult) {
+      BlockingException ex =
+          assertThrows(
+              BlockingException.class, () -> BodyParserHelpers.getHandleJsonF().apply(json));
+      assertEquals("Blocked request (for json)", ex.getMessage());
+    } else {
+      assertSame(json, BodyParserHelpers.getHandleJsonF().apply(json));
+    }
+    fx.brf.assertCommittedOnce(fx.segment);
+  }
+
   private static Flow<Void> blockingFlow() {
     return new Flow<Void>() {
       @Override
@@ -275,6 +299,10 @@ class BodyParserHelpersTest {
 
     void onFilesContent(BiFunction<RequestContext, List<String>, Flow<Void>> cb) {
       when(cbp.getCallback(EVENTS.requestFilesContent())).thenReturn(cb);
+    }
+
+    void onRequestBody(BiFunction<RequestContext, Object, Flow<Void>> cb) {
+      when(cbp.getCallback(EVENTS.requestBodyProcessed())).thenReturn(cb);
     }
 
     Flow<Void> contentCallbackInvoked() {

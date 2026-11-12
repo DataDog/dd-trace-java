@@ -18,8 +18,8 @@ import javax.annotation.Nullable;
  * plain nullable field. See {@code EscapeShapeBenchmark}'s {@code phiWithStatic} arm for why an
  * {@code EMPTY} singleton would cost 8 B/op on every JDK measured, including 25.
  *
- * <p>This shape -- one allocation site, a plain nullable field, no singleton merge -- scalar-
- * replaces on ordinary escape analysis, on JDK 8/11/17/25, no JDK-21+ {@code
+ * <p>This shape -- one allocation site, a plain nullable field, no singleton merge --
+ * scalar-replaces on ordinary escape analysis, on JDK 8/11/17/25, no JDK-21+ {@code
  * ReduceAllocationMerges} needed (see {@code EscapeShapeBenchmark}). The discipline required of a
  * caller is that the wrapping method itself construct a {@code Maybe} at exactly one call site (fed
  * by a plain nullable local merged through ordinary branches, or by delegating to an
@@ -89,10 +89,9 @@ public final class Maybe<T> {
   }
 
   /**
-   * Primary intended usage: a guard in front of mutation, e.g. {@code
-   * table.tryGetOrCreateAsTry(key, FooEntry::new).update(FooEntry::inc)}. No-op if the operation
-   * was refused (table full) rather than throwing or requiring the caller to branch on {@link
-   * #isPresent()} first.
+   * Primary intended usage: a guard in front of mutation, e.g. {@code table.tryGetOrCreate(key,
+   * FooEntry::new).update(FooEntry::inc)}. No-op if the operation was refused (table full) rather
+   * than throwing or requiring the caller to branch on {@link #isPresent()} first.
    */
   public void update(Consumer<? super T> mutator) {
     if (value != null) {
@@ -118,8 +117,8 @@ public final class Maybe<T> {
    * needs one caller-supplied number (e.g. a duration or count) and boxing it into a captured
    * {@code Long}/generic-context object would be the actual per-call allocation. This exists so a
    * table wrapping a fallible lookup in {@code Maybe} pays for this shape once, here, instead of
-   * once per mutator-flavor per table type -- see {@code Hashtable#tryGetOrUpdate}'s {@code
-   * ObjLongConsumer} overload for the caller-side problem this replaces.
+   * once per mutator-flavor per table type -- a fused, per-table {@code ObjLongConsumer} overload
+   * would otherwise be needed for the same accumulate-a-count shape.
    *
    * <p>Deliberately the <em>only</em> primitive-context overload. An {@code int}/{@code
    * double}/{@code boolean} sibling was tried and reverted: Java's overload resolution can pick

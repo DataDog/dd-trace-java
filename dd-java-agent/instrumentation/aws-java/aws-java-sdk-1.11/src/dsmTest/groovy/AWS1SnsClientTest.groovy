@@ -130,6 +130,7 @@ abstract class AWS1SnsClientTest extends VersionedNamingTestBase {
             "aws.agent" "java-aws-sdk"
             "aws.topic.name" topicName
             "topicname" topicName
+            "aws.topic.arn" topicArn
             "$DDTags.PATHWAY_HASH" { String }
             peerServiceFrom("aws.topic.name")
             defaultTags()

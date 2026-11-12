@@ -243,7 +243,7 @@ public final class CombiningTransformerBuilder
     }
     if (null != contextRequestRewriter) {
       registerContextStoreInjection(member, contextStore);
-      // rewrite context store access to call FieldBackedContextStores with assigned store-id
+      // rewrite context store access to use assigned store-id
       advice.add(contextRequestRewriter);
     }
 

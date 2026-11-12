@@ -14,7 +14,7 @@ import datadog.trace.api.ProductTraceSource
 import datadog.trace.api.TagMap
 import datadog.trace.api.appsec.HttpClientRequest
 import datadog.trace.api.appsec.HttpClientResponse
-import datadog.trace.api.appsec.MediaType
+import datadog.trace.api.http.MediaType
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.function.TriConsumer
 import datadog.trace.api.function.TriFunction

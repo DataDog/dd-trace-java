@@ -55,7 +55,7 @@ final class ResultCollector {
     // Muzzle tests are synthetic and already carry their instrumentation module as the source.
     if (!isMuzzleResult(sourceXml)) {
       reportChangedBeforeFinalStatus =
-          report.addFileAttribute(sourceFileResolver.resolve(sourceXml));
+          report.addFileAttribute(className -> sourceFileResolver.resolve(sourceXml, className));
     }
     // Before normalization: retried attempts are matched on raw classname#name (see
     // JUnitReport#tagRetriedAttempts) so distinct tests sharing a normalized name are not collapsed.

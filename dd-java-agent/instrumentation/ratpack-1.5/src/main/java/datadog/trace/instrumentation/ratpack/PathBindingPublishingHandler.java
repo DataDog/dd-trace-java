@@ -67,7 +67,9 @@ public class PathBindingPublishingHandler implements Handler {
         return true;
       }
       Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-      blockResponseFunction.tryCommitBlockingResponse(requestContext.getTraceSegment(), rba);
+      // effectivelyBlocked() is intentionally absent: Ratpack blocks through Netty's
+      // BlockResponseFunction, whose BlockingResponseHandler already marks the segment.
+      blockResponseFunction.tryCommitBlockingResponse(requestContext, rba);
       return false;
     }
 

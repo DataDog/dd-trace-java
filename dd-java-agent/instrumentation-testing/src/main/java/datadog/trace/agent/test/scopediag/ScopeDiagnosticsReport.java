@@ -344,7 +344,7 @@ public final class ScopeDiagnosticsReport {
           appendScopeLine(sb, "  ", scope);
         }
       }
-      if (terminal == null) {
+      if (failures.contains(ScopeDiagnosticsCheck.LEAKED)) {
         sb.append("  LEAKED   (never finished or released)\n");
       }
     }

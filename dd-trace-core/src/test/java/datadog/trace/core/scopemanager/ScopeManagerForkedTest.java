@@ -35,6 +35,7 @@ import datadog.trace.api.scopemanager.ExtendedScopeListener;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.NoopScope;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.common.writer.ListWriter;
 import datadog.trace.core.CoreTracer;
@@ -121,6 +122,27 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
     scope.close();
 
     assertNull(scopeManager.active());
+  }
+
+  @Test
+  void activatingNullSpanReturnsNoopScopeAndDoesNotCorruptStack() {
+    ContextScope nullScope = scopeManager.activateSpan(null);
+
+    assertInstanceOf(NoopScope.class, nullScope);
+    assertNull(scopeManager.active());
+
+    nullScope.close();
+
+    // a subsequent activation on the same thread must not NPE, even though the noop
+    // activation above never pushed a scope with a null context onto the stack
+    AgentSpan span = tracer.buildSpan("test", "test").start();
+    ContextScope scope = tracer.activateSpan(span);
+
+    assertSame(scope, scopeManager.active());
+    assertSame(span, AgentSpan.fromContext(scope.context()));
+
+    scope.close();
+    span.finish();
   }
 
   @Test
@@ -863,19 +885,18 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
     for (int i = 0; i < numTasks; i++) {
       final int taskIndex = i;
       futures[i] =
-          executor.submit(
-              () -> {
-                ContextScope scope = tracer.activateSpan(span);
-                AgentSpan child = tracer.buildSpan("test", "foo" + taskIndex).start();
-                ContextScope childScope = tracer.activateSpan(child);
-                try {
-                  Thread.sleep(100);
-                } catch (InterruptedException ignored) {
-                  Thread.currentThread().interrupt();
-                }
-                childScope.close();
-                scope.close();
-              });
+          executor.submit(() -> {
+            ContextScope scope = tracer.activateSpan(span);
+            AgentSpan child = tracer.buildSpan("test", "foo" + taskIndex).start();
+            ContextScope childScope = tracer.activateSpan(child);
+            try {
+              Thread.sleep(100);
+            } catch (InterruptedException ignored) {
+              Thread.currentThread().interrupt();
+            }
+            childScope.close();
+            scope.close();
+          });
     }
     for (Future<?> future : futures) {
       future.get();
@@ -1140,13 +1161,12 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
   void captureContextWithoutSpanUsesNoopTraceCollector() {
     ContextKey<String> key = ContextKey.named("test-key");
     Context ctx = Context.root().with(key, "value");
-    assertDoesNotThrow(
-        () -> {
-          // NoopAgentTraceCollector handles capture/release without throwing
-          try (ContextScope scope = ctx.attach()) {
-            Context.current().capture().release();
-          }
-        });
+    assertDoesNotThrow(() -> {
+      // NoopAgentTraceCollector handles capture/release without throwing
+      try (ContextScope scope = ctx.attach()) {
+        Context.current().capture().release();
+      }
+    });
   }
 
   private boolean spanFinished(AgentSpan span) {

@@ -134,7 +134,7 @@ abstract class AppSecPlaySmokeTest extends AbstractAppSecServerSmokeTest {
     return System.getProperty('os.name').toLowerCase().contains('win')
   }
 
-  static class Akka extends AppSecPlaySmokeTest {
+  static class AppSecAkka extends AppSecPlaySmokeTest {
 
     @Override
     String serverProviderName() {
@@ -147,7 +147,7 @@ abstract class AppSecPlaySmokeTest extends AbstractAppSecServerSmokeTest {
     }
   }
 
-  static class Netty extends AppSecPlaySmokeTest {
+  static class AppSecNetty extends AppSecPlaySmokeTest {
     @Override
     String serverProviderName() {
       return "netty"

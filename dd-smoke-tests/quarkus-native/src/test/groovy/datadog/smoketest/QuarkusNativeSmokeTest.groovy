@@ -19,6 +19,11 @@ abstract class QuarkusNativeSmokeTest extends AbstractServerSmokeTest {
   }
 
   @Override
+  protected String skipScopeContinuationCheckReason() {
+    'Native images cannot load the JVM diagnostic companion agent or retransform tracer classes.'
+  }
+
+  @Override
   ProcessBuilder createProcessBuilder() {
     String quarkusNativeExecutable = System.getProperty('datadog.smoketest.quarkus.native.executable')
 

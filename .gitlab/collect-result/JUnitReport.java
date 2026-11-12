@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -35,10 +36,12 @@ final class JUnitReport {
     return new JUnitReport(document);
   }
 
-  boolean addFileAttribute(String sourceFile) {
+  boolean addFileAttribute(Function<String, String> resolveSourceFile) {
     var changed = false;
     for (var testcase : testcases()) {
       if (testcase.hasAttribute("time")) {
+        // Resolve each testcase separately; one report may contain several classes.
+        var sourceFile = resolveSourceFile.apply(testcase.getAttribute("classname"));
         changed |= !sourceFile.equals(testcase.getAttribute("file"));
         testcase.setAttribute("file", sourceFile);
       }

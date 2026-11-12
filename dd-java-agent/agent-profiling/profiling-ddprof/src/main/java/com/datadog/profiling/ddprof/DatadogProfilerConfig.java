@@ -40,6 +40,7 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILE
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_NATIVESOCKET_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_NATIVESOCKET_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_NATIVESOCKET_INTERVAL;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_OPTIONS;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_SAFEMODE;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_SAFEMODE_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_SCHEDULING_EVENT;
@@ -88,6 +89,10 @@ public class DatadogProfilerConfig {
 
   public static String getLibPath() {
     return getLibPath(ConfigProvider.getInstance());
+  }
+
+  public static String getProfilerOptions(ConfigProvider configProvider) {
+    return configProvider.getString(PROFILING_DATADOG_PROFILER_OPTIONS);
   }
 
   public static boolean isCpuProfilerEnabled() {

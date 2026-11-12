@@ -1,8 +1,6 @@
 package datadog.trace.bootstrap;
 
 import datadog.instrument.fieldinject.KeyWithValue;
-import datadog.instrument.fieldinject.ObjectStoreDispatch;
-import datadog.trace.api.InstrumenterConfig;
 import java.util.function.Function;
 
 /**
@@ -10,9 +8,6 @@ import java.util.function.Function;
  * fields. Delegates to a lazy {@link WeakMap} for keys that don't have a field for this store.
  */
 public final class FieldBackedContextStore implements ContextStore<Object, Object> {
-  private static final boolean MAP_PER_STORE =
-      InstrumenterConfig.get().isRuntimeContextMapPerStore();
-
   final int storeId;
 
   FieldBackedContextStore(final int storeId) {
@@ -23,10 +18,8 @@ public final class FieldBackedContextStore implements ContextStore<Object, Objec
   public Object get(final Object key) {
     if (key instanceof KeyWithValue) {
       return ((KeyWithValue) key).$get$__dd_instrument$(storeId);
-    } else if (MAP_PER_STORE) {
-      return weakStore().get(key);
     } else {
-      return ObjectStoreDispatch.get(key, storeId);
+      return weakStore().get(key);
     }
   }
 
@@ -34,10 +27,8 @@ public final class FieldBackedContextStore implements ContextStore<Object, Objec
   public void put(final Object key, final Object context) {
     if (key instanceof KeyWithValue) {
       ((KeyWithValue) key).$put$__dd_instrument$(storeId, context);
-    } else if (MAP_PER_STORE) {
-      weakStore().put(key, context);
     } else {
-      ObjectStoreDispatch.put(key, storeId, context);
+      weakStore().put(key, context);
     }
   }
 
@@ -56,15 +47,14 @@ public final class FieldBackedContextStore implements ContextStore<Object, Objec
         }
       }
       return existingContext;
-    } else if (MAP_PER_STORE) {
-      return weakStore().getOrPut(key, context);
     } else {
-      return ObjectStoreDispatch.getOrPut(key, storeId, context);
+      return weakStore().getOrPut(key, context);
     }
   }
 
   @Override
-  public Object getOrCompute(Object key, Function<? super Object, Object> contextFactory) {
+  public Object getOrCompute(
+      final Object key, final Function<? super Object, Object> contextFactory) {
     if (key instanceof KeyWithValue) {
       final KeyWithValue accessor = (KeyWithValue) key;
       Object existingContext = accessor.$get$__dd_instrument$(storeId);
@@ -78,15 +68,13 @@ public final class FieldBackedContextStore implements ContextStore<Object, Objec
         }
       }
       return existingContext;
-    } else if (MAP_PER_STORE) {
-      return weakStore().getOrCompute(key, contextFactory);
     } else {
-      return ObjectStoreDispatch.getOrCompute(key, storeId, contextFactory);
+      return weakStore().getOrCompute(key, contextFactory);
     }
   }
 
   @Override
-  public Object remove(Object key) {
+  public Object remove(final Object key) {
     if (key instanceof KeyWithValue) {
       final KeyWithValue accessor = (KeyWithValue) key;
       Object existingContext = accessor.$get$__dd_instrument$(storeId);
@@ -99,10 +87,8 @@ public final class FieldBackedContextStore implements ContextStore<Object, Objec
         }
       }
       return existingContext;
-    } else if (MAP_PER_STORE) {
-      return weakStore().remove(key);
     } else {
-      return ObjectStoreDispatch.remove(key, storeId);
+      return weakStore().remove(key);
     }
   }
 

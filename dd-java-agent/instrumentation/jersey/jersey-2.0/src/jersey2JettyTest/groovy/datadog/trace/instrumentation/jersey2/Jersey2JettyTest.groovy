@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.jersey2
 
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
+import datadog.trace.agent.test.naming.TestingOtelHttpSemantics
 
 import javax.ws.rs.NotFoundException
 import javax.ws.rs.core.Response
@@ -88,4 +89,7 @@ class Jersey2JettyTest extends HttpServerTest<JettyServer> {
       Response.status(500).entity(exception.message).build()
     }
   }
+}
+
+class Jersey2OtelSemanticsForkedTest extends Jersey2JettyTest implements TestingOtelHttpSemantics {
 }

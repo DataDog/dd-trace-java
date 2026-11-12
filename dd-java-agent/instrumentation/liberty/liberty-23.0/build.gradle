@@ -39,6 +39,7 @@ dependencies {
   compileOnly group: 'jakarta.servlet', name: 'jakarta.servlet-api', version: '5.0.0'
   compileOnly files(unpackOpenLiberty.map {it.extractedJars.get() })
   implementation project(':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0')
+  implementation project(':dd-java-agent:instrumentation:liberty:liberty-appsec-common')
 
   testImplementation files(unpackOpenLiberty.map {it.extractedJars.get() })
   testImplementation files(unpackOpenLiberty.map {it.wsServerJar.get() })

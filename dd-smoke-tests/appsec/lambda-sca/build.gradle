@@ -1,0 +1,23 @@
+plugins {
+  id 'dd-trace-java.module.smoke-test'
+}
+
+description = 'Lambda SCA reachability smoke test'
+
+dependencies {
+  compileOnly project(':dd-trace-api')
+  implementation group: 'com.amazonaws', name: 'aws-lambda-java-core', version: '1.2.3'
+  runtimeOnly group: 'com.github.junrar', name: 'junrar', version: '7.5.5'
+  testImplementation project(':dd-smoke-tests')
+}
+
+// Launch with the runtime classpath: Junrar must retain its own JAR code source for SCA.
+tasks.withType(Test).configureEach {
+  dependsOn tasks.named('classes')
+  jvmArgumentProviders.add(new CommandLineArgumentProvider() {
+      @Override
+      Iterable<String> asArguments() {
+        return ["-Ddatadog.smoketest.lambda.classpath=${sourceSets.main.runtimeClasspath.asPath}"]
+      }
+    })
+}

@@ -1,0 +1,46 @@
+import static org.gradle.api.JavaVersion.VERSION_11
+
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
+plugins {
+  id 'application'
+  id 'com.gradleup.shadow'
+  id 'dd-trace-java.module.smoke-test'
+}
+
+description = 'Released dd-openfeature provider Smoke Tests.'
+
+testJvmConstraints {
+  minJavaVersion = VERSION_11
+}
+
+java {
+  toolchain {
+    languageVersion = JavaLanguageVersion.of(11)
+  }
+}
+
+tasks.withType(JavaCompile).configureEach {
+  configureCompiler(it, VERSION_11)
+}
+
+application {
+  mainClass = 'datadog.smoketest.openfeature.legacy.LegacyProviderApplication'
+}
+
+dependencies {
+  // A provider released before the SDK bridge, linked to the agent bootstrap API it removed.
+  implementation 'com.datadoghq:dd-openfeature:1.67.1'
+  testImplementation project(':dd-smoke-tests')
+}
+
+tasks.withType(Test).configureEach {
+  def shadowJarTask = tasks.named('shadowJar', ShadowJar)
+  dependsOn shadowJarTask
+  jvmArgumentProviders.add(new CommandLineArgumentProvider() {
+      @Override
+      Iterable<String> asArguments() {
+        return shadowJarTask.map { ["-Ddatadog.smoketest.shadowJar.path=${it.archiveFile.get()}"] }.get()
+      }
+    })
+}

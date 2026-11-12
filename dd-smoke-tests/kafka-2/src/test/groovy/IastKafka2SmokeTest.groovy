@@ -3,6 +3,7 @@ import datadog.trace.agent.test.utils.OkHttpUtils
 import okhttp3.Request
 import org.springframework.kafka.test.EmbeddedKafkaBroker
 import spock.lang.Shared
+import spock.util.concurrent.PollingConditions
 
 import static datadog.trace.api.config.IastConfig.IAST_CONTEXT_MODE
 import static datadog.trace.api.config.IastConfig.IAST_DEBUG_ENABLED
@@ -60,6 +61,20 @@ class IastKafka2SmokeTest extends AbstractIastServerSmokeTest {
       }
     }
     throw new IllegalStateException('Server not properly initialized')
+  }
+
+  def cleanup() {
+    // Successful replies leave their timeout scheduled; let it finish before checking continuations.
+    new PollingConditions(timeout: 10).eventually {
+      final request = new Request.Builder().url("http://localhost:${httpPort}/iast/kafka/timeouts/idle").get().build()
+      final response = client.newCall(request).execute()
+      try {
+        assert response.successful
+        assert response.body().string() == 'true'
+      } finally {
+        response.close()
+      }
+    }
   }
 
   void 'test kafka #endpoint key source'() {

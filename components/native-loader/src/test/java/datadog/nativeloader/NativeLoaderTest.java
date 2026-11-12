@@ -188,10 +188,9 @@ public class NativeLoaderTest {
 
     NativeLoader loader =
         NativeLoader.builder()
-            .libResolver(
-                (pathLocator, platformSpec, component, libName) -> {
-                  throw exception;
-                })
+            .libResolver((pathLocator, platformSpec, component, libName) -> {
+              throw exception;
+            })
             .build();
 
     TestLibraryLoadingListener scopedListener =
@@ -211,10 +210,9 @@ public class NativeLoaderTest {
     NativeLoader loader =
         NativeLoader.builder()
             .addListener(sharedListener)
-            .pathLocator(
-                (comp, path) -> {
-                  throw exception;
-                })
+            .pathLocator((comp, path) -> {
+              throw exception;
+            })
             .build();
 
     sharedListener.expectResolveDynamicFailure("dummy", exception);
@@ -585,17 +583,16 @@ public class NativeLoaderTest {
     try (JarOutputStream jarStream = new JarOutputStream(Files.newOutputStream(jarPath))) {
       Files.walk(dir)
           .filter(path -> !Files.isDirectory(path))
-          .forEach(
-              path -> {
-                try {
-                  JarEntry jarEntry = new JarEntry(dir.relativize(path).toString());
-                  jarStream.putNextEntry(jarEntry);
-                  Files.copy(path, jarStream);
-                  jarStream.closeEntry();
-                } catch (IOException e) {
-                  throw new UncheckedIOException(e);
-                }
-              });
+          .forEach(path -> {
+            try {
+              JarEntry jarEntry = new JarEntry(dir.relativize(path).toString());
+              jarStream.putNextEntry(jarEntry);
+              Files.copy(path, jarStream);
+              jarStream.closeEntry();
+            } catch (IOException e) {
+              throw new UncheckedIOException(e);
+            }
+          });
     }
     return jarPath;
   }

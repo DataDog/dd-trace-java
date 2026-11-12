@@ -47,7 +47,10 @@ public class PathParameterPublishingHelper {
             log.warn("Can't block. Don't know how to block on this server");
           } else {
             Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-            brf.tryCommitBlockingResponse(requestContext.getTraceSegment(), rba);
+            // effectivelyBlocked() is intentionally absent: vertx-web shares Netty's block response
+            // function, which finishes the span synchronously when the blocking response is
+            // committed.
+            brf.tryCommitBlockingResponse(requestContext, rba);
 
             return new BlockingException("Blocked request (for route/matches)");
           }

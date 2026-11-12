@@ -74,7 +74,8 @@ public final class NativeLoader {
 
     /**
      * Searches for the native libraries in the provided {@link ClassLoader} using the specified
-     * <code>baseResource</code>
+     * <code>baseResource
+     * </code>
      */
     public Builder fromClassLoader(ClassLoader classLoader, String baseResource) {
       return this.pathLocator(PathLocators.fromClassLoader(classLoader, baseResource));

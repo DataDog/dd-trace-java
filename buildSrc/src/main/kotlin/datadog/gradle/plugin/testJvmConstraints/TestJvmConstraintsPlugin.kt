@@ -9,6 +9,7 @@ import org.gradle.api.plugins.JavaPlugin
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.testing.Test
 import org.gradle.kotlin.dsl.*
+import org.gradle.language.base.plugins.LifecycleBasePlugin
 import org.gradle.testing.jacoco.plugins.JacocoTaskExtension
 
 class TestJvmConstraintsPlugin : Plugin<Project> {
@@ -63,9 +64,42 @@ class TestJvmConstraintsPlugin : Plugin<Project> {
     project.pluginManager.withPlugin("org.gradle.jacoco") {
       project.tasks.withType<Test>().configureEach {
         configureJacocoForAdditionalTestJvm(
-          testJvmSpec.javaTestLauncher.isPresent,
+          testJvmSpec.javaTestLauncherOverride.isPresent,
           project.rootProject.providers.gradleProperty("checkCoverage").isPresent
         )
+      }
+    }
+
+    registerCheckTask(project)
+  }
+
+  /**
+   * Registers the [CheckTestJvmConstraints] task, run by `check`.
+   */
+  private fun registerCheckTask(project: Project) {
+    val checkTask = project.tasks.register<CheckTestJvmConstraints>(CheckTestJvmConstraints.TASK_NAME) {
+      group = LifecycleBasePlugin.VERIFICATION_GROUP
+      description = "Checks that no test task has unsatisfiable test JVM constraints."
+      testTasks.addAll(project.provider { testTaskConstraints(project) })
+    }
+    project.tasks.named(LifecycleBasePlugin.CHECK_TASK_NAME) {
+      dependsOn(checkTask)
+    }
+  }
+
+  private fun testTaskConstraints(project: Project): List<CheckTestJvmConstraints.TestTaskConstraints> {
+    val testTasks = project.tasks.withType<Test>()
+    // Read the names first: configuring a test task may register other tasks.
+    return testTasks.names.map { name ->
+      val test = testTasks.getByName(name)
+      val constraints = test.extensions.getByType<TestJvmConstraintsExtension>()
+      project.objects.newInstance<CheckTestJvmConstraints.TestTaskConstraints>().apply {
+        taskPath.set(test.path)
+        minJavaVersion.set(constraints.minJavaVersion)
+        maxJavaVersion.set(constraints.maxJavaVersion)
+        includeJdk.set(constraints.includeJdk)
+        excludeJdk.set(constraints.excludeJdk)
+        forceJdk.set(constraints.forceJdk)
       }
     }
   }
@@ -78,13 +112,19 @@ class TestJvmConstraintsPlugin : Plugin<Project> {
     testJvmSpec: TestJvmSpec,
     extension: TestJvmConstraintsExtension
   ) {
-    if (testJvmSpec.javaTestLauncher.isPresent) {
-      javaLauncher.set(testJvmSpec.javaTestLauncher)
+    // If `testJvm` is present
+    if (testJvmSpec.requestedTestJvmLauncher.isPresent) {
+      // Only set Test.javaLauncher when required, i.e. when override is present,
+      // it is redundant when `testJvm` and the project toolchain both select the Gradle daemon JVM.
+      if (testJvmSpec.javaTestLauncherOverride.isPresent) {
+        javaLauncher.set(testJvmSpec.javaTestLauncherOverride)
+      }
+      // Constraints still use the explicit testJvm selection when no override is needed.
       onlyIf("Test JDK is allowed or forced JDK") {
         extension.isTestJvmAllowed(testJvmSpec)
       }
       onlyIf("Test JDK is native-image capable") {
-        extension.isNativeImageCapableTestJvm(testJvmSpec.javaTestLauncher.get())
+        extension.isNativeImageCapableTestJvm(testJvmSpec.requestedTestJvmLauncher.get())
       }
     } else {
       onlyIf("Current Daemon JVM within allowed version range") {
@@ -133,38 +173,16 @@ class TestJvmConstraintsPlugin : Plugin<Project> {
     )
   }
 
-  /**
-   * Configures the convention, this tells Gradle where to look for values.
-   *
-   * Currently, the extension is still configured to look at project's _extra_ properties.
-   */
-  private fun Test.configureConventions(
+  private fun configureConventions(
     taskExtension: TestJvmConstraintsExtension,
     projectExtension: TestJvmConstraintsExtension
   ) {
-    taskExtension.minJavaVersion.convention(projectExtension.minJavaVersion
-      .orElse(project.providers.provider { project.findProperty("${name}MinJavaVersionForTests") as? JavaVersion })
-      .orElse(project.providers.provider { project.findProperty("minJavaVersion") as? JavaVersion })
-    )
-    taskExtension.maxJavaVersion.convention(projectExtension.maxJavaVersion
-      .orElse(project.providers.provider { project.findProperty("${name}MaxJavaVersionForTests") as? JavaVersion })
-      .orElse(project.providers.provider { project.findProperty("maxJavaVersion") as? JavaVersion })
-    )
-    taskExtension.forceJdk.convention(projectExtension.forceJdk
-      .orElse(project.providers.provider {
-        @Suppress("UNCHECKED_CAST")
-        project.findProperty("forceJdk") as? List<String> ?: emptyList()
-      })
-    )
-    taskExtension.excludeJdk.convention(projectExtension.excludeJdk
-      .orElse(project.providers.provider {
-        @Suppress("UNCHECKED_CAST")
-        project.findProperty("excludeJdk") as? List<String> ?: emptyList()
-      })
-    )
-    taskExtension.allowReflectiveAccessToJdk.convention(projectExtension.allowReflectiveAccessToJdk
-      .orElse(project.providers.provider { project.findProperty("allowReflectiveAccessToJdk") as? Boolean })
-    )
+    taskExtension.minJavaVersion.convention(projectExtension.minJavaVersion)
+    taskExtension.maxJavaVersion.convention(projectExtension.maxJavaVersion)
+    taskExtension.forceJdk.convention(projectExtension.forceJdk)
+    taskExtension.includeJdk.convention(projectExtension.includeJdk)
+    taskExtension.excludeJdk.convention(projectExtension.excludeJdk)
+    taskExtension.allowReflectiveAccessToJdk.convention(projectExtension.allowReflectiveAccessToJdk)
     taskExtension.nativeImageCapable.convention(projectExtension.nativeImageCapable)
   }
 }

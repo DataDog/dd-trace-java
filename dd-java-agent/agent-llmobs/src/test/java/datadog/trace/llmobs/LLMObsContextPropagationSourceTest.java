@@ -424,6 +424,117 @@ class LLMObsContextPropagationSourceTest {
     }
   }
 
+  /**
+   * An agent span on the receiving side is its own descendants' nearest agent: the upstream
+   * attribution it received is replaced, for itself and for everything below it, by its own id and
+   * name.
+   */
+  @Test
+  void agentSpanReceivingPropagatedAttributionBecomesTheParentAgent() {
+    Map<String, String> inbound = producerCarrier("checkout", "sess-42");
+    try (ContextScope consumeScope = startLocalChildScope(extractSpan(inbound))) {
+      DDLLMObsSpan workerAgent = newSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "worker-agent", null, null);
+      try {
+        assertEquals(
+            String.valueOf(workerAgent.getSpanId()), LLMObsContext.currentParentAgentSpanId());
+        assertEquals("worker-agent", LLMObsContext.currentParentAgentName());
+        assertEquals("sess-42", LLMObsContext.currentSessionId());
+        assertEquals("checkout", LLMObsContext.currentMlApp());
+      } finally {
+        workerAgent.finish();
+      }
+    }
+  }
+
+  /**
+   * A queue consumer whose previous message left an LLMObs scope open on the thread. The leaked
+   * context is on another trace, so it is ignored and the span takes what arrived with the current
+   * message rather than starting a new LLMObs trace.
+   */
+  @Test
+  void staleContextFromAnotherTraceDoesNotShadowThePropagatedOne() {
+    Map<String, String> inbound = producerCarrier("checkout", "sess-42");
+
+    AgentSpan staleApm = AgentTracer.get().buildSpan("apm", "previous.message").start();
+    try (ContextScope stale = LLMObsContext.attach(staleApm.spanContext(), "stale-session")) {
+      try (ContextScope consumeScope = startLocalChildScope(extractSpan(inbound))) {
+        DDLLMObsSpan worker = newSpan(Tags.LLMOBS_TOOL_SPAN_KIND, "handler", null, null);
+        try {
+          assertEquals("sess-42", LLMObsContext.currentSessionId());
+          assertEquals("checkout", LLMObsContext.currentMlApp());
+          assertEquals("dispatcher", LLMObsContext.currentParentAgentName());
+        } finally {
+          worker.finish();
+        }
+      }
+    } finally {
+      staleApm.finish();
+    }
+  }
+
+  /** An explicit empty session id counts as unset, so the propagated one still applies. */
+  @Test
+  void emptyExplicitSessionIdInheritsThePropagatedOne() {
+    Map<String, String> inbound = producerCarrier("checkout", "sess-42");
+
+    try (ContextScope consumeScope = startLocalChildScope(extractSpan(inbound))) {
+      DDLLMObsSpan worker = newSpan(Tags.LLMOBS_TOOL_SPAN_KIND, "handler", null, "");
+      try {
+        assertEquals("sess-42", LLMObsContext.currentSessionId());
+        // And an in-process child naming an empty session inherits the worker's.
+        DDLLMObsSpan child = newSpan(Tags.LLMOBS_LLM_SPAN_KIND, "generate", null, "");
+        try {
+          assertEquals("sess-42", LLMObsContext.currentSessionId());
+        } finally {
+          child.finish();
+        }
+      } finally {
+        worker.finish();
+      }
+    }
+  }
+
+  /**
+   * A caller with no LLMObs span active still sends its ml_app, session and a trace id of its own,
+   * but a parent id of "undefined". There is nothing to continue, so the worker starts a new LLMObs
+   * trace as its root, with none of the caller's values and a sampling decision of its own,
+   * matching dd-trace-py.
+   */
+  @Test
+  void workerIsARootWhenTheUpstreamSentNoParentSpan() {
+    String upstreamTraceId = "6d0b1e9c00000000a1b2c3d4e5f60718";
+    Map<String, String> inbound = producerCarrier("checkout", "sess-42");
+    inbound.put(
+        "x-datadog-tags",
+        inbound
+            .get("x-datadog-tags")
+            .replaceAll("_dd\\.p\\.llmobs_parent_id=[0-9]+", PARENT_ID_TAG + "=undefined")
+            .replaceAll(
+                "_dd\\.p\\.llmobs_trace_id=[0-9]+",
+                TRACE_ID_TAG + "=" + new BigInteger(upstreamTraceId, 16))
+            .replace(SAMPLE_RATE_TAG + "=1", SAMPLE_RATE_TAG + "=0.1")
+            .replace(SAMPLING_DECISION_TAG + "=1", SAMPLING_DECISION_TAG + "=0"));
+    AgentSpan consumeSpan = extractSpan(inbound);
+    assertEquals("undefined", propagatedParentId(consumeSpan), "precondition");
+
+    try (ContextScope consumeScope = startLocalChildScope(consumeSpan)) {
+      DDLLMObsSpan worker = newSpan(Tags.LLMOBS_TOOL_SPAN_KIND, "handler", null, null);
+      try {
+        assertNotEquals(upstreamTraceId, worker.getLLMObsTraceId());
+        assertNotEquals("checkout", LLMObsContext.currentMlApp());
+        assertNull(LLMObsContext.currentSessionId());
+        assertNull(LLMObsContext.currentParentAgentSpanId());
+        assertNull(LLMObsContext.currentParentAgentName());
+        // Rolled locally at this service's rate of 1.0, not the upstream "0" at 0.1.
+        assertEquals(
+            LLMObsContext.SAMPLING_DECISION_SAMPLED, LLMObsContext.currentSamplingDecision());
+        assertEquals("1", LLMObsContext.currentSampleRate());
+      } finally {
+        worker.finish();
+      }
+    }
+  }
+
   @Test
   void peerSpanDoesNotInheritAFinishedSpansInjectedContext() {
     try (ContextScope apmScope = startRootApmScope()) {

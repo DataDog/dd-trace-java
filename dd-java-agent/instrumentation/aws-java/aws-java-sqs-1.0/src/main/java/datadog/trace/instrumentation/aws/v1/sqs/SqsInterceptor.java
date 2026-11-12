@@ -5,6 +5,7 @@ import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
 import static datadog.trace.api.datastreams.DataStreamsTags.create;
 import static datadog.trace.api.datastreams.PathwayContext.DATADOG_KEY;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.bootstrap.instrumentation.api.URIUtils.urlFileName;
 import static datadog.trace.instrumentation.aws.v1.sqs.MessageAttributeInjector.SETTER;
 
@@ -83,6 +84,10 @@ public class SqsInterceptor extends RequestHandler2 {
 
   private Context newContext(AmazonWebServiceRequest request, String queueUrl) {
     AgentSpan span = newSpan(request);
+    // With DSM off the DSM propagator injects nothing, so skip building its tags and context.
+    if (!traceConfig().isDataStreamsEnabled()) {
+      return span;
+    }
     DataStreamsContext dsmContext = DataStreamsContext.fromTags(getTags(queueUrl));
     return span.with(dsmContext);
   }

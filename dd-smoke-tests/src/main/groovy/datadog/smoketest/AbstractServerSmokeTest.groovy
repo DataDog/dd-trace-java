@@ -14,6 +14,11 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue
 
 abstract class AbstractServerSmokeTest extends AbstractSmokeTest {
 
+  @Override
+  protected boolean scopeDiagnosticsProcessLifetime() {
+    false
+  }
+
   @Shared
   protected int[] httpPorts = (0..<numberOfProcesses).collect {
     PortUtils.randomOpenPort()
@@ -65,6 +70,16 @@ abstract class AbstractServerSmokeTest extends AbstractSmokeTest {
     return expectedTraces()
   }
 
+  @Shared
+  private boolean applicationFeatureExecuted
+
+  def setup() {
+    // Verify expected application traces only if an application feature ran after test filtering.
+    if (specificationContext.currentFeature.featureMethod.reflection.declaringClass != AbstractServerSmokeTest) {
+      applicationFeatureExecuted = true
+    }
+  }
+
   def setupSpec() {
     (0..<numberOfProcesses).each { idx ->
       def port = httpPorts[idx]
@@ -79,6 +94,10 @@ abstract class AbstractServerSmokeTest extends AbstractSmokeTest {
   }
 
   def cleanupSpec() {
+    if (!applicationFeatureExecuted) {
+      return
+    }
+
     (0..<numberOfProcesses).each { idx ->
       File outputFile
       if (null != (outputFile = outputs[idx])) {

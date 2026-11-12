@@ -1,5 +1,6 @@
 package datadog.trace.common.writer;
 
+import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -57,11 +58,10 @@ class PayloadDispatcherImplTest extends DDJavaSpecification {
     when(discovery.getTraceEndpoint()).thenReturn(traceEndpoint);
     DDAgentApi api = mock(DDAgentApi.class);
     when(api.sendSerializedTraces(any()))
-        .thenAnswer(
-            inv -> {
-              flushed.set(true);
-              return RemoteApi.Response.success(200);
-            });
+        .thenAnswer(inv -> {
+          flushed.set(true);
+          return RemoteApi.Response.success(200);
+        });
     PayloadDispatcherImpl dispatcher =
         new PayloadDispatcherImpl(
             new DDAgentMapperDiscovery(discovery), api, healthMetrics, monitoring);
@@ -166,14 +166,14 @@ class PayloadDispatcherImplTest extends DDJavaSpecification {
     dispatcher.addTrace(Collections.emptyList());
     dispatcher.onDroppedTrace(20);
     dispatcher.onDroppedTrace(2);
-    Payload payload = dispatcher.newPayload(1, ByteBuffer.allocate(0));
+    Payload payload = dispatcher.newPayload(1, singletonList(ByteBuffer.allocate(0)));
 
     // dropped counts are accumulated
     assertEquals(22, payload.droppedSpans());
     assertEquals(2, payload.droppedTraces());
 
     // create another payload
-    Payload newPayload = dispatcher.newPayload(1, ByteBuffer.allocate(0));
+    Payload newPayload = dispatcher.newPayload(1, singletonList(ByteBuffer.allocate(0)));
 
     // counts are reset after access
     assertEquals(0, newPayload.droppedSpans());
@@ -181,6 +181,12 @@ class PayloadDispatcherImplTest extends DDJavaSpecification {
   }
 
   DDSpan realSpan() throws Exception {
+    // A real config snapshot, since serialization reads the trace's tag levels from it. Its type
+    // isn't visible from this package, so it's held as an Object and matched by name below.
+    CoreTracer tracer = CoreTracer.builder().writer(new ListWriter()).build();
+    Object traceConfig = tracer.captureTraceConfig();
+    tracer.close();
+
     // getTracer() and mapServiceName() are package-private in TraceCollector; use a custom
     // Answer to handle them at runtime without compile-time accessibility issues
     PendingTrace trace =
@@ -192,6 +198,9 @@ class PayloadDispatcherImplTest extends DDJavaSpecification {
                 // Use RETURNS_DEFAULTS so getTagInterceptor() returns null (matching Groovy Stub
                 // behavior)
                 return mock(CoreTracer.class);
+              }
+              if (returnType.getSimpleName().equals("ConfigSnapshot")) {
+                return traceConfig;
               }
               if (returnType == String.class) {
                 Object[] args = invocation.getArguments();

@@ -90,7 +90,3 @@ configurations {
     exclude group: 'org.eclipse.jetty.http2'
   }
 }
-
-tasks.withType(Test).configureEach {
-  useJUnitPlatform()
-}

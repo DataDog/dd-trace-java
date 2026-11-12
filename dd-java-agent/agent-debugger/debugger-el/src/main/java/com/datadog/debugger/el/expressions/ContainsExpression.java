@@ -5,10 +5,12 @@ import static com.datadog.debugger.el.expressions.ExpressionHelper.checkTimeout;
 
 import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.EvaluationException;
+import com.datadog.debugger.el.Generated;
 import com.datadog.debugger.el.PrettyPrintVisitor;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.Visitor;
 import com.datadog.debugger.el.values.CollectionValue;
+import java.util.Objects;
 
 public class ContainsExpression implements BooleanExpression {
   private final ValueExpression<?> target;
@@ -70,5 +72,19 @@ public class ContainsExpression implements BooleanExpression {
 
   public ValueExpression<?> getValue() {
     return value;
+  }
+
+  @Generated
+  @Override
+  public boolean equals(Object o) {
+    if (o == null || getClass() != o.getClass()) return false;
+    ContainsExpression that = (ContainsExpression) o;
+    return Objects.equals(target, that.target) && Objects.equals(value, that.value);
+  }
+
+  @Generated
+  @Override
+  public int hashCode() {
+    return Objects.hash(target, value);
   }
 }

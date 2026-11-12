@@ -8,19 +8,23 @@ import datadog.context.propagation.CarrierSetter;
 import datadog.trace.api.Config;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.OtelHttpSemantics;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.net.URI;
 import javax.annotation.Nonnull;
 
 public abstract class UriBasedClientDecorator extends ClientDecorator {
+  private static final boolean OTEL_SEMANTICS = Config.get().isTraceOtelSemanticsEnabled();
+
   public void onURI(@Nonnull final AgentSpan span, @Nonnull final URI uri) {
     String host = uri.getHost();
-    int port = uri.getPort();
     if (null != host && !host.isEmpty()) {
       span.setTag(Tags.PEER_HOSTNAME, host);
       if (Config.get().isHttpClientSplitByDomain() && host.charAt(0) >= 'A') {
         span.setServiceName(host, component());
       }
+      // Port tagging must follow domain splitting so split-by-tags keeps its precedence.
+      int port = OTEL_SEMANTICS ? OtelHttpSemantics.serverPort(uri) : uri.getPort();
       if (port > 0) {
         setPeerPort(span, port);
       }

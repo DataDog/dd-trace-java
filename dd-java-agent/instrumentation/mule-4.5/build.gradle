@@ -2,7 +2,6 @@ import datadog.gradle.plugin.HostPlatform
 
 plugins {
   id 'dd-trace-java.module.instrumentation'
-  id 'idea'
 }
 
 def muleVersion = '4.5.0'

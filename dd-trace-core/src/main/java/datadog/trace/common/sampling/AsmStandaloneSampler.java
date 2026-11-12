@@ -51,8 +51,12 @@ public class AsmStandaloneSampler implements Sampler, PrioritySampler {
 
   private boolean shouldSample() {
     long now = clock.millis();
-    return lastSampleTime.updateAndGet(
-            lastTime -> now - lastTime >= RATE_IN_MILLISECONDS ? now : lastTime)
-        == now;
+    // Compare against the time before the update, not after: two traces landing in the same
+    // millisecond as the last sample would both see the updated value equal to now and both be
+    // kept, sending 2 APM traces a minute instead of 1.
+    long lastSample =
+        lastSampleTime.getAndUpdate(
+            lastTime -> now - lastTime >= RATE_IN_MILLISECONDS ? now : lastTime);
+    return now - lastSample >= RATE_IN_MILLISECONDS;
   }
 }

@@ -62,6 +62,7 @@ abstract class AbstractSparkTest extends InstrumentationSpecification {
           assert span.spanContext().getTraceId() != DDTraceId.ZERO
           assert span.spanContext().getSamplingPriority() == PrioritySampling.USER_KEEP
           assert span.spanContext().getPropagationTags().createTagMap()["_dd.p.dm"] == (-SamplingMechanism.DATA_JOBS).toString()
+          assert span.tags["config.spark_serializer"] == "org.apache.spark.serializer.JavaSerializer"
           parent()
         }
         span {
@@ -69,6 +70,7 @@ abstract class AbstractSparkTest extends InstrumentationSpecification {
           resourceName "count at TestSparkComputation.java:19"
           spanType "spark"
           errored false
+          assert span.tags["config.spark_serializer"] == "org.apache.spark.serializer.JavaSerializer"
           childOf(span(0))
         }
         span {
@@ -77,6 +79,7 @@ abstract class AbstractSparkTest extends InstrumentationSpecification {
           spanType "spark"
           errored false
           assert span.tags["parent_stage_ids"] == "[0]"
+          assert span.tags["config.spark_serializer"] == "org.apache.spark.serializer.JavaSerializer"
           childOf(span(1))
         }
         span {
@@ -882,6 +885,7 @@ abstract class AbstractSparkTest extends InstrumentationSpecification {
       .config("database.secret", "value")
       .config("spark.DD-API-KEY", "value")
       .config("spark.shuffle.compress", "false")
+      .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
       .getOrCreate()
 
     sparkSession.stop()
@@ -896,6 +900,7 @@ abstract class AbstractSparkTest extends InstrumentationSpecification {
           assert span.tags["config.database_secret"] == "[redacted]"
           assert span.tags["config.spark_DD-API-KEY"] == "[redacted]"
           assert span.tags["config.spark_shuffle_compress"] == "false"
+          assert span.tags["config.spark_serializer"] == "org.apache.spark.serializer.KryoSerializer"
         }
       }
     }

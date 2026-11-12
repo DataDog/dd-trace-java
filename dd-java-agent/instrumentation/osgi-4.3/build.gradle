@@ -20,4 +20,8 @@ muzzle {
 
 dependencies {
   compileOnly group: 'org.osgi', name: 'org.osgi.core', version: '4.3.0'
+
+  testImplementation group: 'org.osgi', name: 'org.osgi.core', version: '4.3.0'
+  testImplementation libs.bundles.junit5
+  testImplementation libs.bundles.mockito
 }

@@ -35,7 +35,7 @@ public class CompilerAidedSourcePathResolver implements SourcePathResolver {
   }
 
   @Override
-  public @Nullable Collection<String> getResourcePaths(String relativePath) {
+  public Collection<String> getResourcePaths(@Nullable String relativePath) {
     return Collections.emptyList();
   }
 }

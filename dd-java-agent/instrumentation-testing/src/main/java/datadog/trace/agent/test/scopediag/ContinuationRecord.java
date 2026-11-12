@@ -13,7 +13,7 @@ public final class ContinuationRecord {
   public final String spanName;
   public final byte source;
 
-  /** {@code true} when a resume/resolution was seen without a preceding capture in this window. */
+  /** {@code true} when capture was not observed, so this window does not own final resolution. */
   public final boolean orphan;
 
   private final ScopeEvent capture;
@@ -119,7 +119,7 @@ public final class ContinuationRecord {
   }
 
   public synchronized boolean isResolved() {
-    return terminal != null;
+    return terminal != null || !failedActivations.isEmpty();
   }
 
   public synchronized ContinuationStatus status() {
@@ -128,20 +128,23 @@ public final class ContinuationRecord {
           ? ContinuationStatus.RELEASED
           : ContinuationStatus.FINISHED;
     }
-    return ContinuationStatus.LEAKED;
+    if (!failedActivations.isEmpty()) {
+      return ContinuationStatus.RESOLVED;
+    }
+    return orphan ? ContinuationStatus.EXTERNAL : ContinuationStatus.LEAKED;
   }
 
   /** Derives failures, including events after {@code rootWrittenNanos} when provided. */
   public synchronized EnumSet<ScopeDiagnosticsCheck> failures(Long rootWrittenNanos) {
     EnumSet<ScopeDiagnosticsCheck> failures = EnumSet.noneOf(ScopeDiagnosticsCheck.class);
-    if (terminal == null) {
+    if (!orphan && !isResolved()) {
       failures.add(ScopeDiagnosticsCheck.LEAKED);
     }
     if (duplicateTerminalAttempt || !extraTerminals.isEmpty()) {
       failures.add(ScopeDiagnosticsCheck.DOUBLE_FINISH);
     }
     // Cleanup entry timestamps do not order resolution against concurrent successful resumes.
-    if (terminal != null && !failedActivations.isEmpty()) {
+    if (!failedActivations.isEmpty()) {
       failures.add(ScopeDiagnosticsCheck.ACTIVATE_AFTER_RESOLVE);
     }
     if (rootWrittenNanos != null

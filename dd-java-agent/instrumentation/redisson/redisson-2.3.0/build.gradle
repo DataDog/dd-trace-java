@@ -1,5 +1,6 @@
 plugins {
   id 'dd-trace-java.module.instrumentation'
+  id 'dd-trace-java.instrumentation.netty-concurrent-tests'
   id 'dd-trace-java.testcontainers'
 }
 
@@ -14,7 +15,6 @@ muzzle {
 }
 
 addTestSuiteForDir('latestDepTest', 'test')
-addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 
 dependencies {
   compileOnly group: 'org.redisson', name: 'redisson', version: '2.3.0'

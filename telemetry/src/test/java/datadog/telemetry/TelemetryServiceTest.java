@@ -36,6 +36,7 @@ import datadog.trace.api.config.DebuggerConfig;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.telemetry.Endpoint;
 import datadog.trace.api.telemetry.ProductChange;
+import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.test.junit.utils.config.WithConfigExtension;
 import datadog.trace.util.ConfigStrings;
 import java.io.IOException;
@@ -43,6 +44,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.tabletest.junit.TableTest;
@@ -92,6 +95,19 @@ class TelemetryServiceTest {
           .responseBodyType(singletonList("application/json"))
           .responseCode(singletonList(200))
           .authentication(singletonList("JWT"));
+
+  private boolean previousAppSecActive;
+
+  @BeforeEach
+  void setUp() {
+    previousAppSecActive = ActiveSubsystems.APPSEC_ACTIVE;
+    ActiveSubsystems.APPSEC_ACTIVE = false;
+  }
+
+  @AfterEach
+  void tearDown() {
+    ActiveSubsystems.APPSEC_ACTIVE = previousAppSecActive;
+  }
 
   @Test
   void happyPathWithoutData() throws IOException {
@@ -646,17 +662,19 @@ class TelemetryServiceTest {
   }
 
   @TableTest({
-    "scenario                              | appsecConfig | appsecEnabled | profilingConfig | profilingEnabled | dynInstrConfig | dynInstrEnabled",
-    "all products enabled                  | 1            | true          | 1               | true             | 1              | true           ",
-    "dynamic instrumentation disabled      | 1            | true          | 1               | true             | 0              | false          ",
-    "profiling disabled                    | 1            | true          | 0               | false            | 1              | true           ",
-    "profiling and dyn instr disabled      | 1            | true          | 0               | false            | 0              | false          ",
-    "all products disabled                 | 0            | false         | 0               | false            | 0              | false          ",
-    "appsec inactive value treated enabled | inactive     | true          | 0               | false            | 0              | false          "
+    "scenario                          | appsecConfig | appsecActive | profilingConfig | profilingEnabled | dynInstrConfig | dynInstrEnabled",
+    "all products enabled              | 1            | true         | 1               | true             | 1              | true           ",
+    "dynamic instrumentation disabled  | 1            | true         | 1               | true             | 0              | false          ",
+    "profiling disabled                | 1            | true         | 0               | false            | 1              | true           ",
+    "profiling and dyn instr disabled  | 1            | true         | 0               | false            | 0              | false          ",
+    "all products disabled             | 0            | false        | 0               | false            | 0              | false          ",
+    "appsec inactive not activated     | inactive     | false        | 0               | false            | 0              | false          ",
+    "appsec inactive activated by RC   | inactive     | true         | 0               | false            | 0              | false          ",
+    "appsec enabled but startup failed | 1            | false        | 0               | false            | 0              | false          "
   })
   void appStartedMustIncludeActivatedProductsInfo(
       String appsecConfig,
-      boolean appsecEnabled,
+      boolean appsecActive,
       String profilingConfig,
       boolean profilingEnabled,
       String dynInstrConfig,
@@ -668,6 +686,7 @@ class TelemetryServiceTest {
         ConfigStrings.toEnvVar(ProfilingConfig.PROFILING_ENABLED), profilingConfig);
     WithConfigExtension.injectEnvConfig(
         ConfigStrings.toEnvVar(DebuggerConfig.DYNAMIC_INSTRUMENTATION_ENABLED), dynInstrConfig);
+    ActiveSubsystems.APPSEC_ACTIVE = appsecActive;
 
     TestTelemetryRouter testHttpClient = new TestTelemetryRouter();
     TelemetryService telemetryService = new TelemetryService(testHttpClient, 10000, false);
@@ -676,11 +695,11 @@ class TelemetryServiceTest {
     testHttpClient.expectRequest(SUCCESS);
     telemetryService.sendAppStartedEvent();
 
-    // app-started
+    // app-started reports the effective AppSec state, not the configured activation
     testHttpClient
         .assertRequestBody(APP_STARTED)
         .assertPayload()
-        .products(appsecEnabled, profilingEnabled, dynInstrEnabled);
+        .products(appsecActive, profilingEnabled, dynInstrEnabled);
     testHttpClient.assertNoMoreRequests();
   }
 }

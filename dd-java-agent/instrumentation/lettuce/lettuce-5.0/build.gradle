@@ -1,5 +1,6 @@
 plugins {
   id 'dd-trace-java.module.instrumentation'
+  id 'dd-trace-java.instrumentation.netty-concurrent-tests'
   id 'dd-trace-java.jmh-conventions'
   id 'dd-trace-java.testcontainers'
 }
@@ -14,7 +15,6 @@ muzzle {
 }
 
 addTestSuiteForDir('latestDepTest', 'test')
-addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 addTestSuiteForDir('lettuce51Test', 'test')
 addTestSuiteForDir('lettuce60Test', 'test')
 addTestSuiteForDir('lettuce61Test', 'test')
