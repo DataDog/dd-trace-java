@@ -1,0 +1,13 @@
+_v: 1
+name: servlet
+display_name: Java Servlet API
+description: Instruments Servlet HTTP request handling, asynchronous dispatch and response operations, with
+  security request and response hooks and optional RUM script injection.
+packages:
+- name: jakarta.servlet:jakarta.servlet-api
+- name: javax.servlet:javax.servlet-api
+- name: javax.servlet:servlet-api
+category:
+- http.server
+systems: []
+creation_date: '2017-09-20'

@@ -1,0 +1,10 @@
+_v: 1
+name: liberty
+display_name: Open Liberty
+description: Instruments Open Liberty HTTP request handling and response completion, deployment-specific trace
+  tagging, and application-security request inspection and blocking.
+packages: []
+category:
+- http.server
+systems: []
+creation_date: '2021-04-09'

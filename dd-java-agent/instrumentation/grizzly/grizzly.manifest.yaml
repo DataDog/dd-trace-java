@@ -1,0 +1,12 @@
+_v: 1
+name: grizzly
+display_name: grizzly-http-server
+description: Instruments Grizzly HTTP request handling and asynchronous response completion, with request-body
+  collection and blocking hooks for application security.
+packages:
+- name: org.glassfish.grizzly:grizzly-http
+- name: org.glassfish.grizzly:grizzly-http-server
+category:
+- http.server
+systems: []
+creation_date: '2019-08-12'

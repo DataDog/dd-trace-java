@@ -1,0 +1,11 @@
+_v: 1
+name: servlet-filter
+display_name: Java Servlet API
+description: Instruments Servlet filter execution with child spans for filter timing and errors when enabled.
+packages:
+- name: javax.servlet:javax.servlet-api
+- name: javax.servlet:servlet-api
+category:
+- http.server
+systems: []
+creation_date: '2019-10-25'

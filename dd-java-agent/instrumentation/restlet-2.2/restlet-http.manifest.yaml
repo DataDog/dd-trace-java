@@ -1,0 +1,10 @@
+_v: 1
+name: restlet-http
+display_name: Restlet Core - API and Engine
+description: Instruments inbound Restlet HTTP requests and resource handlers, extracting trace context and recording response status, errors, and matched routes.
+packages:
+- name: org.restlet.jse:org.restlet
+category:
+- http.server
+systems: []
+creation_date: '2021-05-04'
