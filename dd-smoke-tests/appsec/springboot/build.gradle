@@ -57,10 +57,11 @@ tasks.register('testRuntimeActivation', Test) {
   // Without this, the task keeps Gradle's default JUnit 4 runner, which discovers none of the
   // Spock specs in this module, so the task passes without running anything.
   useJUnitPlatform()
-  // Limit to the exposure spec: the other specs in this source set expect AppSec active (e.g.
-  // SpringBootSmokeTest asserts 403 blocking responses), which is incompatible with the inactive
-  // mode this task runs under.
+  // SpringBootSmokeTest runs with AppSec activated through remote config, which is enough to cover
+  // runtime activation. OtelContextExposureSmokeTest stays inactive. The other specs test rule
+  // content that goes through the same activation, or do not use AppSec (AIGuard, SCA).
   filter {
+    includeTestsMatching 'datadog.smoketest.appsec.SpringBootSmokeTest'
     includeTestsMatching 'datadog.smoketest.appsec.OtelContextExposureSmokeTest'
   }
   jvmArgs '-Dsmoke_test.appsec.enabled=inactive'
