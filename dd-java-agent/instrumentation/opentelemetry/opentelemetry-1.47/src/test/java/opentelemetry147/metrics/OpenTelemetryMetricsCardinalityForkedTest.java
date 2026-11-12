@@ -52,11 +52,8 @@ class OpenTelemetryMetricsCardinalityForkedTest extends AbstractInstrumentationT
         meter
             .gaugeBuilder("pool-connections")
             .ofLongs()
-            .buildWithCallback(
-                m ->
-                    pools
-                        .get()
-                        .forEach((pool, count) -> m.record(count, Attributes.of(POOL, pool))));
+            .buildWithCallback(m ->
+                pools.get().forEach((pool, count) -> m.record(count, Attributes.of(POOL, pool))));
 
     OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
     assertEquals(expected(pools.get()), exported());

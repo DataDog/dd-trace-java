@@ -382,12 +382,11 @@ class OpenTelemetryMetricsTest extends AbstractInstrumentationTest {
     AutoCloseable observable =
         meter
             .counterBuilder("observable-counter-delta-gap")
-            .buildWithCallback(
-                m -> {
-                  if (report[0]) {
-                    m.record(2);
-                  }
-                });
+            .buildWithCallback(m -> {
+              if (report[0]) {
+                m.record(2);
+              }
+            });
 
     OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
     assertEquals(2L, points.get("test:observable-counter-delta-gap"));
@@ -617,13 +616,12 @@ class OpenTelemetryMetricsTest extends AbstractInstrumentationTest {
       Function<Consumer<ObservableLongMeasurement>, AutoCloseable> register) {
     boolean[] reportAttrs = {true};
     AutoCloseable observable =
-        register.apply(
-            m -> {
-              m.record(1);
-              if (reportAttrs[0]) {
-                m.record(2, SOME_ATTRIBUTES);
-              }
-            });
+        register.apply(m -> {
+          m.record(1);
+          if (reportAttrs[0]) {
+            m.record(2, SOME_ATTRIBUTES);
+          }
+        });
     OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
     assertEquals(1L, points.get(metric));
     assertEquals(2L, points.get(metric + WITH_ATTRS));
