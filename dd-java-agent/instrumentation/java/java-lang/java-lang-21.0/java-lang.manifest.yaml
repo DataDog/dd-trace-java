@@ -1,0 +1,9 @@
+_v: 1
+name: java-lang
+display_name: Java Language APIs
+description: Instruments virtual-thread lifecycles to propagate trace context, maintain profiler context across carrier changes, and prevent JDK I/O pollers from retaining request context.
+packages: []
+category:
+  - other
+systems: []
+creation_date: '2025-12-08'

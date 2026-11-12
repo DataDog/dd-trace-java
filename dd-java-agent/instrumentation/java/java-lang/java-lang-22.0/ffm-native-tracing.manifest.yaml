@@ -1,0 +1,9 @@
+_v: 1
+name: ffm-native-tracing
+display_name: Java Foreign Function and Memory API
+description: Instruments configured native function downcalls through the Java Foreign Function and Memory API to create spans with native library and symbol names.
+packages: []
+category:
+  - other
+systems: []
+creation_date: '2026-03-31'
