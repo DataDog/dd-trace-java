@@ -119,7 +119,7 @@ public final class JvmOtlpRuntimeMetrics {
     return builder.build();
   }
 
-  private static final int THREAD_STATE_COUNT = Thread.State.values().length;
+  private static final int NUM_THREAD_STATES = Thread.State.values().length;
 
   /** The states a live thread can be in; NEW and TERMINATED threads are never counted. */
   private static final Thread.State[] LIVE_THREAD_STATES = {
@@ -395,8 +395,8 @@ public final class JvmOtlpRuntimeMetrics {
       ThreadMXBean threadBean,
       Attributes[] daemonStateAttrs,
       Attributes[] nonDaemonStateAttrs) {
-    long[] daemonCounts = new long[THREAD_STATE_COUNT];
-    long[] nonDaemonCounts = new long[THREAD_STATE_COUNT];
+    long[] daemonCounts = new long[NUM_THREAD_STATES];
+    long[] nonDaemonCounts = new long[NUM_THREAD_STATES];
     long[] ids = threadBean.getAllThreadIds();
     for (ThreadInfo info : threadBean.getThreadInfo(ids)) {
       if (info == null) {
@@ -416,8 +416,8 @@ public final class JvmOtlpRuntimeMetrics {
    */
   private static void collectThreadCountsViaThreadGroup(
       OtelMetricStorage storage, Attributes[] daemonStateAttrs, Attributes[] nonDaemonStateAttrs) {
-    long[] daemonCounts = new long[THREAD_STATE_COUNT];
-    long[] nonDaemonCounts = new long[THREAD_STATE_COUNT];
+    long[] daemonCounts = new long[NUM_THREAD_STATES];
+    long[] nonDaemonCounts = new long[NUM_THREAD_STATES];
     for (Thread thread : enumerateAllThreads()) {
       long[] bucket = thread.isDaemon() ? daemonCounts : nonDaemonCounts;
       bucket[thread.getState().ordinal()]++;
