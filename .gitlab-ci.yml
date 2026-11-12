@@ -897,6 +897,9 @@ muzzle-dep-report:
     # Java 8 JVMs are very slow on AARCH64.
     - if: '$testJvm =~ /^(8|oracle8|zulu8|semeru8|ibm8)$/'
       when: never
+    # Non-blocking, so skip them in the merge queue; master runs them once per merged commit.
+    - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
+      when: never
     # Java 11 is opt-in on arm64; HotSpot has very slow class retransformation.
     # Vendor JVMs still follow the non-default JVM selection rules below.
     - if: '$testJvm == "11" && $CI_COMMIT_MESSAGE =~ /\[ci:[^\]]*\bJAVA11\b[^\]]*\]/'
@@ -904,13 +907,10 @@ muzzle-dep-report:
       allow_failure: true
     - if: '$testJvm =~ /11$/ && $CI_COMMIT_MESSAGE !~ /\[ci:[^\]]*\bJAVA11\b[^\]]*\]/'
       when: never
-    # arm64 tests are newly introduced to the merge queue and master. Keep them
+    # arm64 tests are newly introduced to master. Keep them
     # non-blocking (allow_failure) for now so we can collect stability stats and
     # fix flaky/failing jobs without blocking the whole team. Remove allow_failure
     # once the arm64 suite is proven stable.
-    - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
-      when: on_success
-      allow_failure: true
     - if: '$CI_COMMIT_BRANCH == "master"'
       when: on_success
       allow_failure: true
@@ -1260,7 +1260,7 @@ test_smoke_graalvm_arm64:
     CACHE_TYPE: "smoke"
     CI_NO_SPLIT: "true"
     # Treat the GraalVM JVMs as this job's defaults, so it follows the arm64 rules like the other arm64 jobs:
-    # automatic on master and the merge queue, manual on PRs unless the commit message contains [ci: ARM64].
+    # automatic on master, manual on PRs unless the commit message contains [ci: ARM64].
     DEFAULT_TEST_JVMS: /^graalvm(17|21|25)$/
   parallel:
     matrix:
