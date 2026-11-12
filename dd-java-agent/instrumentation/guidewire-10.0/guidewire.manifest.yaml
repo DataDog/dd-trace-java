@@ -1,0 +1,9 @@
+_v: 1
+name: guidewire
+display_name: Guidewire InsuranceSuite
+description: Propagates trace context into Guidewire WSI worker threads used for outbound asynchronous SOAP calls.
+packages: []
+category:
+  - other
+systems: []
+creation_date: '2026-09-04'

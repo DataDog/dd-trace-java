@@ -1,0 +1,11 @@
+_v: 1
+name: tibco
+display_name: TIBCO BusinessWorks
+description: Instruments TIBCO BusinessWorks process and activity execution, propagating task context and preserving
+  service names for JMS callbacks.
+packages: []
+category:
+  - task.execution
+systems:
+  - jms
+creation_date: '2024-07-02'

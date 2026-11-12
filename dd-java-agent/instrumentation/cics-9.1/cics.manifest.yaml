@@ -1,0 +1,10 @@
+_v: 1
+name: cics
+display_name: IBM CICS Transaction Gateway
+description: Instruments IBM CICS ECI program interactions and Transaction Gateway client flows, recording connection
+  details and errors.
+packages: []
+category:
+  - rpc.client
+systems: []
+creation_date: '2026-01-29'
