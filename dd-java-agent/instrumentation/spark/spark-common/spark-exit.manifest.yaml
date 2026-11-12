@@ -6,6 +6,6 @@ packages:
   - name: org.apache.spark:spark-sql_2.12
   - name: org.apache.spark:spark-sql_2.13
 category:
-  - task.execution
+  - other
 systems: []
 creation_date: '2025-04-01'
