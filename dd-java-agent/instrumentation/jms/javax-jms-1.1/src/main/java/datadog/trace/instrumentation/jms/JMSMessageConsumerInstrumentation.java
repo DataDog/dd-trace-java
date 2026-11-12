@@ -6,8 +6,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.api.datastreams.DataStreamsTags.Direction.INBOUND;
 import static datadog.trace.api.datastreams.DataStreamsTags.create;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateNext;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.rootContext;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
@@ -94,7 +92,7 @@ public final class JMSMessageConsumerInstrumentation
 
       boolean finishSpan = consumerState.getSessionState().isAutoAcknowledge();
       if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
-        closePrevious(finishSpan);
+        AgentTracer.get().closePrevious(finishSpan);
       } else {
         final AgentSpan previousSpan = spanFromContext(rootContext().swap());
         if (previousSpan != null) {
@@ -175,7 +173,8 @@ public final class JMSMessageConsumerInstrumentation
       CONSUMER_DECORATE.onError(span, throwable);
 
       if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
-        activateNext(span); // scope is left open until next message or it times out
+        // scope is left open until next message or it times out
+        AgentTracer.get().activateNext(span);
       } else {
         final AgentSpan previousSpan = spanFromContext(span.swap());
         if (previousSpan != null) {
@@ -207,7 +206,7 @@ public final class JMSMessageConsumerInstrumentation
       if (null != consumerState) {
         boolean finishSpan = consumerState.getSessionState().isAutoAcknowledge();
         if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
-          closePrevious(finishSpan);
+          AgentTracer.get().closePrevious(finishSpan);
         } else {
           final AgentSpan previousSpan = spanFromContext(rootContext().swap());
           if (previousSpan != null) {

@@ -7,7 +7,6 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_SNAPSHOT_URL
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_VERIFY_BYTECODE
 import static datadog.trace.api.config.TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_ENABLED
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious
 import static datadog.trace.util.AgentThreadFactory.AgentThread.TASK_SCHEDULER
 
 import ch.qos.logback.classic.Level
@@ -470,7 +469,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
 
     assertThreadsEachCleanup = false
 
-    closePrevious(true) // in case the previous test left a lingering iteration span
+    AgentTracer.get().closePrevious(true) // in case the previous test left a lingering iteration span
     assert TEST_TRACER.activeSpan() == null: "Span is active before test has started: " + TEST_TRACER.activeSpan()
 
     // Config is reset before each test. Thus, configurePreAgent() has to be called before each test
