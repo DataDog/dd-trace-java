@@ -387,8 +387,9 @@ public class LambdaAppSecHandler {
    * Writes the execution environment's AWS access key ID onto the context that will seed the
    * invocation span, when {@code DD_APPSEC_AWS_ACCESS_KEY_ID_TAG_ENABLED} is on. Called only for
    * invocations AppSec monitors, so every one of them carries the tag, attack or not. With the
-   * Lambda extension in the path, the extension copies this span's meta onto the {@code aws.lambda}
-   * span it builds.
+   * Lambda extension in the path, the extension is expected to copy this span's meta onto the
+   * {@code aws.lambda} span it builds (bottlecap {@code ContextBuffer.add_tracer_span}); system
+   * tests check it end to end.
    */
   static void applyAwsAccessKeyIdTag(TagContext ctx) {
     if (!Config.get().isAppSecAwsAccessKeyIdTagEnabled()) {

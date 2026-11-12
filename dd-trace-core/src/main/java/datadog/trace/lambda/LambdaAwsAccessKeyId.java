@@ -22,6 +22,7 @@ final class LambdaAwsAccessKeyId {
 
   static final String ENV_ACCESS_KEY_ID = "AWS_ACCESS_KEY_ID";
   static final String ENV_INITIALIZATION_TYPE = "AWS_LAMBDA_INITIALIZATION_TYPE";
+  static final String ENV_MICROVM_IMAGE_ARN = "AWS_LAMBDA_MICROVM_IMAGE_ARN";
 
   /** Temporary (ASIA) or long-term (AKIA) key IDs, matched in full by {@code matches()}. */
   private static final Pattern FORMAT = Pattern.compile("(ASIA|AKIA)[A-Z0-9]{16}");
@@ -60,14 +61,19 @@ final class LambdaAwsAccessKeyId {
   /**
    * Reads and validates {@code AWS_ACCESS_KEY_ID}.
    *
-   * <p>On SnapStart the variable is not read: the JVM's environment is the one captured before the
-   * snapshot, so it is either empty or a key that every restored execution environment shares.
+   * <p>On SnapStart, and on environments restored from a MicroVM image, the variable is not read:
+   * the JVM's environment is the one captured before the snapshot, so it is either empty or a key
+   * that every restored execution environment shares. {@code Config} treats the two cases alike for
+   * the same reason.
    *
    * @return the key ID if it is usable, otherwise null
    */
   private static String read(Function<String, String> env) {
-    if ("snap-start".equals(env.apply(ENV_INITIALIZATION_TYPE))) {
-      log.debug("SnapStart function, AWS access key ID tag disabled");
+    String microVmImageArn;
+    if ("snap-start".equals(env.apply(ENV_INITIALIZATION_TYPE))
+        || ((microVmImageArn = env.apply(ENV_MICROVM_IMAGE_ARN)) != null
+            && !microVmImageArn.isEmpty())) {
+      log.debug("Snapshot-restored function, AWS access key ID tag disabled");
       return null;
     }
     String accessKeyId = env.apply(ENV_ACCESS_KEY_ID);

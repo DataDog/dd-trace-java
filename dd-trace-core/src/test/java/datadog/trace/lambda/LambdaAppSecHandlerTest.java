@@ -1,8 +1,10 @@
 package datadog.trace.lambda;
 
 import static datadog.json.JsonMapper.toJson;
+import static datadog.trace.api.TracePropagationStyle.DATADOG;
 import static datadog.trace.api.config.TracerConfig.TRACE_CLIENT_IP_HEADER;
 import static datadog.trace.api.gateway.Events.EVENTS;
+import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
 import static datadog.trace.lambda.LambdaEventParser.detectTriggerType;
 import static datadog.trace.lambda.LambdaEventParser.parseResponse;
 import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectEnvConfig;
@@ -35,6 +37,7 @@ import static org.mockito.Mockito.when;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.DDTraceId;
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.appsec.AppSecContext;
 import datadog.trace.api.function.TriConsumer;
@@ -58,6 +61,8 @@ import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.common.writer.ListWriter;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDCoreJavaSpecification;
+import datadog.trace.core.propagation.ExtractedContext;
+import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.lambda.LambdaEventParser.LambdaResponseData;
 import datadog.trace.lambda.LambdaEventParser.LambdaTriggerType;
 import java.io.ByteArrayInputStream;
@@ -3256,9 +3261,24 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     AgentSpanContext appSecContext =
         LambdaAppSecHandler.processRequestStart(createInputStream(HTTP_EVENTS[0]));
 
-    AgentSpanContext merged = LambdaAppSecHandler.mergeContexts(new TagContext(), appSecContext);
+    // the extension returns an ExtractedContext carrying the trace identity
+    ExtractedContext extensionContext =
+        new ExtractedContext(
+            DDTraceId.ONE, 2, SAMPLER_KEEP, null, PropagationTags.factory().empty(), DATADOG);
 
+    AgentSpanContext merged = LambdaAppSecHandler.mergeContexts(extensionContext, appSecContext);
+    assertSame(extensionContext, merged);
     assertEquals(ACCESS_KEY_ID, tagsOf(merged).get(LambdaAwsAccessKeyId.TAG));
+
+    CoreTracer tracer = CoreTracer.builder().writer(new ListWriter()).build();
+    try {
+      AgentSpan span = tracer.startSpan("java-aws-sdk", "dd-tracer-serverless-span", merged);
+      assertEquals(DDTraceId.ONE, span.getTraceId());
+      assertEquals(ACCESS_KEY_ID, span.getTag(LambdaAwsAccessKeyId.TAG));
+      span.finish();
+    } finally {
+      tracer.close();
+    }
   }
 
   @Test

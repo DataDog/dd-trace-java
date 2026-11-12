@@ -2,12 +2,16 @@ package datadog.trace.lambda;
 
 import static datadog.trace.lambda.LambdaAwsAccessKeyId.ENV_ACCESS_KEY_ID;
 import static datadog.trace.lambda.LambdaAwsAccessKeyId.ENV_INITIALIZATION_TYPE;
+import static datadog.trace.lambda.LambdaAwsAccessKeyId.ENV_MICROVM_IMAGE_ARN;
 import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectEnvConfig;
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
+import datadog.trace.api.ConfigCollector;
+import datadog.trace.api.ConfigSetting;
 import datadog.trace.core.DDCoreJavaSpecification;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -61,7 +65,7 @@ class LambdaAwsAccessKeyIdTest extends DDCoreJavaSpecification {
   }
 
   @Test
-  void readsOnlyTheAccessKeyIdAndTheInitializationType() {
+  void readsOnlyTheAccessKeyIdAndTheSnapshotMarkers() {
     List<String> read = new ArrayList<>();
     Map<String, String> vars = new HashMap<>();
     vars.put(ENV_ACCESS_KEY_ID, KEY_ID);
@@ -75,7 +79,7 @@ class LambdaAwsAccessKeyIdTest extends DDCoreJavaSpecification {
         });
 
     assertEquals(KEY_ID, value);
-    assertEquals(asList(ENV_INITIALIZATION_TYPE, ENV_ACCESS_KEY_ID), read);
+    assertEquals(asList(ENV_INITIALIZATION_TYPE, ENV_MICROVM_IMAGE_ARN, ENV_ACCESS_KEY_ID), read);
   }
 
   @Test
@@ -86,7 +90,7 @@ class LambdaAwsAccessKeyIdTest extends DDCoreJavaSpecification {
 
     assertEquals(KEY_ID, LambdaAwsAccessKeyId.get(first));
     assertEquals(KEY_ID, LambdaAwsAccessKeyId.get(rotated));
-    assertEquals(asList(ENV_INITIALIZATION_TYPE, ENV_ACCESS_KEY_ID), read);
+    assertEquals(asList(ENV_INITIALIZATION_TYPE, ENV_MICROVM_IMAGE_ARN, ENV_ACCESS_KEY_ID), read);
   }
 
   @Test
@@ -95,7 +99,7 @@ class LambdaAwsAccessKeyIdTest extends DDCoreJavaSpecification {
 
     assertNull(LambdaAwsAccessKeyId.get(recording(read, env("bad", null))));
     assertNull(LambdaAwsAccessKeyId.get(recording(read, env(KEY_ID, null))));
-    assertEquals(2, read.size());
+    assertEquals(3, read.size());
   }
 
   @Test
@@ -104,6 +108,32 @@ class LambdaAwsAccessKeyIdTest extends DDCoreJavaSpecification {
 
     assertNull(LambdaAwsAccessKeyId.get(recording(read, env(KEY_ID, "snap-start"))));
     assertEquals(singletonList(ENV_INITIALIZATION_TYPE), read);
+  }
+
+  @Test
+  void neverReadsTheKeyOnAMicroVmImage() {
+    List<String> read = new ArrayList<>();
+    Map<String, String> vars = new HashMap<>();
+    vars.put(ENV_ACCESS_KEY_ID, KEY_ID);
+    vars.put(ENV_MICROVM_IMAGE_ARN, "arn:aws:lambda:us-east-1:123456789012:microvm-image:x");
+
+    assertNull(LambdaAwsAccessKeyId.get(recording(read, vars::get)));
+    assertEquals(asList(ENV_INITIALIZATION_TYPE, ENV_MICROVM_IMAGE_ARN), read);
+  }
+
+  @Test
+  void neverReportsTheValueToConfigurationTelemetry() {
+    injectEnvConfig(ENV_ACCESS_KEY_ID, KEY_ID, false);
+    ConfigCollector.get().collect(); // drain what earlier config builds reported
+
+    assertEquals(KEY_ID, LambdaAwsAccessKeyId.get());
+
+    for (Map<String, ConfigSetting> settings : ConfigCollector.get().collect().values()) {
+      for (ConfigSetting setting : settings.values()) {
+        assertNotEquals(ENV_ACCESS_KEY_ID, setting.key);
+        assertNotEquals(KEY_ID, String.valueOf(setting.value));
+      }
+    }
   }
 
   @ParameterizedTest
