@@ -7,24 +7,29 @@ import datadog.trace.api.sampling.PrioritySampling;
  * without building propagation tags for it. Obtained from {@link #parse(String)}.
  */
 public final class W3CTracestate {
-  static final W3CTracestate NONE = new W3CTracestate(null, null, PrioritySampling.UNSET, null);
+  static final W3CTracestate NONE = new W3CTracestate(null, null, 0, PrioritySampling.UNSET, null);
 
   /** The header value, or null if it's rejected. */
   final String tracestate;
 
-  /** The {@code ot} member, or null if there is none. */
-  final OtelTraceState otelTraceState;
+  /** The {@code ot} member's value, unparsed, or null if there is none. */
+  final CharSequence rawOtelTraceState;
+
+  /** What the {@code ot} member contributes to the size of {@link #tracestate}. */
+  final int otelOriginalSize;
 
   private final int samplingPriority;
   private final CharSequence lastParentId;
 
   W3CTracestate(
       String tracestate,
-      OtelTraceState otelTraceState,
+      CharSequence rawOtelTraceState,
+      int otelOriginalSize,
       int samplingPriority,
       CharSequence lastParentId) {
     this.tracestate = tracestate;
-    this.otelTraceState = otelTraceState;
+    this.rawOtelTraceState = rawOtelTraceState;
+    this.otelOriginalSize = otelOriginalSize;
     this.samplingPriority = samplingPriority;
     this.lastParentId = lastParentId;
   }

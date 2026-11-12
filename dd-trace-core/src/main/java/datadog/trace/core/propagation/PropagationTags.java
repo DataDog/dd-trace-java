@@ -67,6 +67,14 @@ public abstract class PropagationTags {
       return otelTraceState;
     }
 
+    /**
+     * The {@code ot} member as it's written, equal in content to {@link #getOtelTraceState()}. A
+     * subclass may provide it without building the parsed member.
+     */
+    public CharSequence getOtelTraceStateForWrite() {
+      return getOtelTraceState();
+    }
+
     public CharSequence getDecisionMaker() {
       return decisionMaker;
     }
@@ -79,7 +87,7 @@ public abstract class PropagationTags {
       if (tracestate == null) {
         return false;
       }
-      CharSequence otelTraceState = getOtelTraceState();
+      CharSequence otelTraceState = getOtelTraceStateForWrite();
       if (otelTraceState == null) {
         return false;
       }
