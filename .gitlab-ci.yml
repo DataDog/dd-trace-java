@@ -1125,6 +1125,7 @@ test_flaky_inst:
 
 test_profiling:
   extends: .test_job_amd64
+  tags: [ "arch:amd64" ]
   # needs:parallel:matrix limits this job to a specific build_tests combination.
   # Keep matrix vars exact and in build_tests declaration order:
   # https://docs.gitlab.com/ci/yaml/#needsparallelmatrix
@@ -1152,6 +1153,7 @@ test_profiling_arm64:
 # so need to test at least against one J9-based JVM
 test_debugger:
   extends: .test_job_amd64
+  tags: [ "arch:amd64" ]
   variables:
     GRADLE_TARGET: ":debuggerTest"
     CACHE_TYPE: "base"
