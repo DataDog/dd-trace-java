@@ -12,6 +12,9 @@ import kotlin.math.abs
 /** Affected task name standing for every task of a project. */
 internal const val ALL_TASKS = "all"
 
+/** Root project extra property holding the changed files, by the project whose directory contains them. */
+internal const val CHANGED_FILES_BY_PROJECT = "changedFilesByProject"
+
 private const val AFFECTED_TASKS = "affectedTasksByProject"
 
 /**
@@ -93,18 +96,22 @@ internal fun findAffectedTaskPath(baseTask: Task, affectedTasksByProject: Map<Pr
   return null
 }
 
-/** A source directory of a project's source set. */
+/**
+ * A source directory of a project's source set.
+ *
+ * @property buildTaskNames the names of the tasks building the source set: its compile, resources and classes tasks
+ */
 internal data class SourceDirectory<P>(
   val project: P,
   val dir: File,
-  val classesTaskName: String,
+  val buildTaskNames: Set<String>,
   val isMain: Boolean,
 )
 
 /**
  * Maps changed files to the tasks they affect.
  *
- * A changed file affects the classes task of every source set containing it, whichever project declares the source
+ * A changed file affects the tasks building every source set containing it, whichever project declares the source
  * set. A file in a main source set, or in no source set of the project containing it, affects all the tasks of that
  * project.
  *
@@ -124,8 +131,8 @@ internal fun <P> affectedTasks(
         .flatMap { sourceDirectoriesByDir[it].orEmpty() }
         .toList()
       for (sourceDirectory in containing) {
-        val task = if (sourceDirectory.isMain) ALL_TASKS else sourceDirectory.classesTaskName
-        affected.getOrPut(sourceDirectory.project) { mutableSetOf() }.add(task)
+        val tasks = if (sourceDirectory.isMain) setOf(ALL_TASKS) else sourceDirectory.buildTaskNames
+        affected.getOrPut(sourceDirectory.project) { mutableSetOf() }.addAll(tasks)
       }
       if (containing.none { it.project == owner }) {
         affected.getOrPut(owner) { mutableSetOf() }.add(ALL_TASKS)
@@ -145,12 +152,21 @@ private fun Project.affectedTasksByProject(): Map<Project, Set<String>> {
   val extra = rootProject.extra
   if (!extra.has(AFFECTED_TASKS)) {
     @Suppress("UNCHECKED_CAST")
-    val changedFilesByProject = extra.get("changedFilesByProject") as Map<Project, List<File>>
+    val changedFilesByProject = extra.get(CHANGED_FILES_BY_PROJECT) as Map<Project, List<File>>
     val sourceDirectories = rootProject.subprojects.flatMap { subproject ->
       val sourceSets = subproject.extensions.findByType(SourceSetContainer::class.java) ?: return@flatMap emptyList()
       sourceSets.flatMap { sourceSet ->
         val isMain = SourceSet.isMain(sourceSet) || sourceSet.name.startsWith("${SourceSet.MAIN_SOURCE_SET_NAME}_")
-        sourceSet.allSource.srcDirs.map { SourceDirectory(subproject, it, sourceSet.classesTaskName, isMain) }
+        // Some consumers depend on a compile task output rather than on the source set output
+        val buildTaskNames = setOf(
+          sourceSet.classesTaskName,
+          sourceSet.processResourcesTaskName,
+          sourceSet.compileJavaTaskName,
+          sourceSet.getCompileTaskName("groovy"),
+          sourceSet.getCompileTaskName("scala"),
+          sourceSet.getCompileTaskName("kotlin"),
+        )
+        sourceSet.allSource.srcDirs.map { SourceDirectory(subproject, it, buildTaskNames, isMain) }
       }
     }
     val affected = affectedTasks(changedFilesByProject, sourceDirectories)

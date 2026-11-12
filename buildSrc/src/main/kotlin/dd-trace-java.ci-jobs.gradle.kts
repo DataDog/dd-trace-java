@@ -1,6 +1,8 @@
+import datadog.gradle.plugin.ci.CHANGED_FILES_BY_PROJECT
 import datadog.gradle.plugin.ci.isInSelectedSlot
 import org.gradle.api.tasks.testing.Test
 import java.io.File
+import java.nio.file.FileSystems
 
 /*
  * This plugin defines a set of tasks to be used in CI.
@@ -25,6 +27,12 @@ allprojects {
 
 fun relativeToGitRoot(f: File): File {
   return rootProject.projectDir.toPath().relativize(f.absoluteFile.toPath()).toFile()
+}
+
+/** Returns whether a file path, relative to the root project, matches any of the given glob patterns. */
+fun pathMatcher(vararg globs: String): (File) -> Boolean {
+  val matchers = globs.map { FileSystems.getDefault().getPathMatcher("glob:$it") }
+  return { file -> matchers.any { it.matches(relativeToGitRoot(file).toPath()) } }
 }
 
 fun getChangedFiles(baseRef: String, newRef: String): List<File> {
@@ -57,31 +65,28 @@ if (gitBaseRefProvider.isPresent) {
   rootProject.extra.set("changedFiles", changedFiles)
   rootProject.extra.set("useGitChanges", true)
 
-  val ignoredFiles = fileTree(rootProject.projectDir) {
-    include(".gitignore", ".editorconfig")
-    include("*.md", "**/*.md")
-    include("gradlew", "gradlew.bat", "mvnw", "mvnw.cmd")
-    include("NOTICE")
-    include("static-analysis.datadog.yml")
-  }
+  // Match paths rather than file trees: a deleted or renamed file no longer exists and would match no tree
+  val isIgnored = pathMatcher(
+    ".gitignore", ".editorconfig",
+    "*.md", "**/*.md",
+    "gradlew", "gradlew.bat", "mvnw", "mvnw.cmd",
+    "NOTICE",
+    "static-analysis.datadog.yml",
+  )
 
   changedFiles.forEach { f ->
-    if (ignoredFiles.contains(f)) {
+    if (isIgnored(f)) {
       logger.warn("Ignoring changed file: ${relativeToGitRoot(f)}")
     }
   }
 
-  val filteredChangedFiles = changedFiles.filter { !ignoredFiles.contains(it) }
+  val filteredChangedFiles = changedFiles.filter { !isIgnored(it) }
   rootProject.extra.set("changedFiles", filteredChangedFiles)
 
-  val globalEffectFiles = fileTree(rootProject.projectDir) {
-    include(".gitlab/**")
-    include("build.gradle")
-    include("gradle/**")
-  }
+  val hasGlobalEffect = pathMatcher(".gitlab/**", "build.gradle", "gradle/**")
 
   for (f in filteredChangedFiles) {
-    if (globalEffectFiles.contains(f)) {
+    if (hasGlobalEffect(f)) {
       logger.warn("Global effect change: ${relativeToGitRoot(f)} (no tasks will be skipped)")
       rootProject.extra.set("useGitChanges", false)
       break
@@ -107,7 +112,7 @@ if (gitBaseRefProvider.isPresent) {
     }
 
     // Source sets are only known once every project is configured: the aggregate tasks map these files to tasks.
-    rootProject.extra.set("changedFilesByProject", changedFilesByProject)
+    rootProject.extra.set(CHANGED_FILES_BY_PROJECT, changedFilesByProject)
   }
 }
 

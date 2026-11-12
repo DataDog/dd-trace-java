@@ -312,7 +312,17 @@ open class GradleFixture {
     exec(workingDirectory, "git", "config", "user.email", "test@datadoghq.com")
     exec(workingDirectory, "git", "config", "user.name", "Test")
     exec(workingDirectory, "git", "config", "commit.gpgsign", "false")
+    commitAll("A commit", workingDirectory)
+  }
+
+  /**
+   * Stages every change of a git repository and commits it.
+   *
+   * @param message The commit message
+   * @param workingDirectory The directory of the repository
+   */
+  fun commitAll(message: String, workingDirectory: File = projectDir) {
     exec(workingDirectory, "git", "add", "-A")
-    exec(workingDirectory, "git", "commit", "-m", "A commit")
+    exec(workingDirectory, "git", "commit", "-m", message)
   }
 }

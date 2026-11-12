@@ -1247,8 +1247,9 @@ Optimizes CI by skipping tests for projects unaffected by git changes.
 
 The system:
 - Detects changed files via `git diff`
-- Maps each changed file to the classes task of every source set containing it, in any project. A file in a `main`
-  source set, or outside the project's source sets (such as its build script), affects every task of its project.
+- Maps each changed file to the tasks building every source set containing it (compile, resources and classes tasks),
+  in any project. A file in a `main` source set, or outside the project's source sets (such as its build script),
+  affects every task of its project.
 - Skips the aggregated tasks that depend on none of the affected tasks
 - Falls back to running all tests if "global effect" files change (e.g., `gradle/`, `build.gradle`)
 

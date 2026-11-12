@@ -9,8 +9,8 @@ class AffectedTasksTest {
 
   private fun dir(path: String) = File(root, path)
 
-  private fun source(project: String, path: String, classesTaskName: String, isMain: Boolean = false) =
-    SourceDirectory(project, dir(path), classesTaskName, isMain)
+  private fun source(project: String, path: String, buildTaskName: String, isMain: Boolean = false) =
+    SourceDirectory(project, dir(path), setOf(buildTaskName), isMain)
 
   private val instSources = listOf(
     source("inst", "inst/src/main/java", "classes", isMain = true),
@@ -26,6 +26,17 @@ class AffectedTasksTest {
     val affected = affectedTasks(mapOf("inst" to listOf(dir("inst/src/test/groovy/FooTest.groovy"))), instSources)
 
     assertThat(affected).isEqualTo(mapOf("inst" to setOf("testClasses", "latestDepTestClasses")))
+  }
+
+  @Test
+  fun `change affects every task building its source set`() {
+    val sources = listOf(
+      SourceDirectory("inst", dir("inst/src/generator/scala"), setOf("generatorClasses", "compileGeneratorScala"), isMain = false),
+    )
+
+    val affected = affectedTasks(mapOf("inst" to listOf(dir("inst/src/generator/scala/Gen.scala"))), sources)
+
+    assertThat(affected).isEqualTo(mapOf("inst" to setOf("generatorClasses", "compileGeneratorScala")))
   }
 
   @Test

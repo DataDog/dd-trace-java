@@ -45,6 +45,7 @@ class GitChangeTrackingIntegrationTest : GradleFixture() {
       tasks.register("allLatestDepTests") { dependsOn(latestDepTestTask) }
       """,
     )
+    // Tests use a generator source set through its compile task output, like the Play routes generator
     writeFile(
       "other/build.gradle.kts",
       """
@@ -52,6 +53,10 @@ class GitChangeTrackingIntegrationTest : GradleFixture() {
         java
       }
 
+      val generator by sourceSets.creating
+      tasks.test {
+        classpath += files(tasks.named("compileGeneratorJava"))
+      }
       tasks.register("allTests") { dependsOn(tasks.test) }
       """,
     )
@@ -73,6 +78,8 @@ class GitChangeTrackingIntegrationTest : GradleFixture() {
     writeJavaSource("InstTest", "class InstTest {}", sourceSet = "test", projectPath = "inst")
     writeJavaSource("Moved", "class Moved {}", projectPath = "other")
     writeJavaSource("SharedTest", "class SharedTest {}", sourceSet = "test", projectPath = "common")
+    writeJavaSource("Generator", "class Generator {}", sourceSet = "generator", projectPath = "other")
+    writeFile("docs/guide.md", "# Guide")
     initGitRepo()
   }
 
@@ -104,8 +111,21 @@ class GitChangeTrackingIntegrationTest : GradleFixture() {
   }
 
   @Test
+  fun `change in a source set used through its compile task selects its consumers`() {
+    writeJavaSource("Generator", "class Generator { void added() {} }", sourceSet = "generator", projectPath = "other")
+    commitAll("Change a generator")
+
+    val output = runChangeTracking().output
+
+    assertThat(output)
+      .contains("Selecting :other:allTests")
+      .contains("Skipping :inst:allTests")
+      .contains("Skipping :user:allTests")
+  }
+
+  @Test
   fun `moved file selects the project it moved out of`() {
-    file("inst/src/main/java").mkdirs()
+    dir("inst/src/main/java")
     exec("git", "mv", "other/src/main/java/Moved.java", "inst/src/main/java/Moved.java")
     commitAll("Move a class")
 
@@ -118,11 +138,21 @@ class GitChangeTrackingIntegrationTest : GradleFixture() {
       .contains("Skipping :user:allTests")
   }
 
+  @Test
+  fun `moved ignored file keeps change tracking enabled`() {
+    exec("git", "mv", "docs/guide.md", "docs/manual.md")
+    commitAll("Rename a document")
+
+    val output = runChangeTracking().output
+
+    assertThat(output)
+      .contains("Ignoring changed file: docs/guide.md")
+      .contains("Ignoring changed file: docs/manual.md")
+      .contains("Skipping :inst:allTests")
+      .contains("Skipping :other:allTests")
+      .doesNotContain("no task will be skipped")
+  }
+
   private fun runChangeTracking(): BuildResult =
     run("ciTest", "ciLatestDepTest", "--dry-run", "-PgitBaseRef=HEAD~1")
-
-  private fun commitAll(message: String) {
-    exec("git", "add", "-A")
-    exec("git", "commit", "-m", message)
-  }
 }
