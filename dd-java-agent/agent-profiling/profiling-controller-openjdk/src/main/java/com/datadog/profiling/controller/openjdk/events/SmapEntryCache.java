@@ -1,13 +1,13 @@
 package com.datadog.profiling.controller.openjdk.events;
 
 import datadog.environment.JavaVirtualMachine;
+import datadog.environment.OperatingSystem;
 import datadog.trace.api.internal.VisibleForTesting;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.lang.management.ManagementFactory;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -302,9 +302,10 @@ final class SmapEntryCache {
   }
 
   private void collectEvents(List<SmapEntryEvent> events) {
+    // The kernel writes filesystem pathname bytes without charset conversion.
     try (BufferedReader br =
         new BufferedReader(
-            new InputStreamReader(Files.newInputStream(smapsPath), StandardCharsets.UTF_8),
+            new InputStreamReader(Files.newInputStream(smapsPath), OperatingSystem.nativeCharset()),
             64 * 1024)) {
       readEvents(br, events);
       Map<Long, String> regions = getAnnotatedRegions();
