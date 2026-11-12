@@ -1,5 +1,7 @@
 package datadog.trace.civisibility.git.tree;
 
+import static datadog.environment.OperatingSystem.isWindows;
+import static datadog.environment.OperatingSystem.nativeCharset;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import datadog.communication.util.IOUtils;
@@ -231,12 +233,13 @@ public class ShellGitClient implements GitClient {
   @Nullable
   @Override
   public String getGitFolder() throws IOException, TimeoutException, InterruptedException {
+    // Git for Windows uses UTF-8 paths; POSIX Git writes filesystem bytes unchanged.
     return executeCommand(
         Command.OTHER,
         () ->
             commandExecutor
                 .executeCommand(
-                    input -> IOUtils.readFully(input, UTF_8),
+                    input -> IOUtils.readFully(input, isWindows() ? UTF_8 : nativeCharset()),
                     buildGitCommand("rev-parse", "--absolute-git-dir"))
                 .trim());
   }
@@ -258,7 +261,7 @@ public class ShellGitClient implements GitClient {
         () ->
             commandExecutor
                 .executeCommand(
-                    input -> IOUtils.readFully(input, UTF_8),
+                    input -> IOUtils.readFully(input, isWindows() ? UTF_8 : nativeCharset()),
                     buildGitCommand("rev-parse", "--show-toplevel"))
                 .trim());
   }
