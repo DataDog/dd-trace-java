@@ -1,0 +1,12 @@
+_v: 1
+name: rxjava
+display_name: rxjava
+description: Instruments RxJava observable subscriptions and observer signals to propagate trace context
+  and finish spans when asynchronous results terminate.
+packages:
+- name: io.reactivex.rxjava2:rxjava
+- name: io.reactivex.rxjava3:rxjava
+category:
+- other
+systems: []
+creation_date: '2020-11-04'

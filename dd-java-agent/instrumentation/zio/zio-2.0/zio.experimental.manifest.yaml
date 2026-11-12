@@ -1,0 +1,13 @@
+_v: 1
+name: zio.experimental
+display_name: zio
+description: Instruments ZIO fiber creation, suspension, resumption and completion to propagate trace
+  context across fiber execution.
+packages:
+- name: dev.zio:zio_2.12
+- name: dev.zio:zio_2.13
+- name: dev.zio:zio_3
+category:
+- other
+systems: []
+creation_date: '2023-03-05'
