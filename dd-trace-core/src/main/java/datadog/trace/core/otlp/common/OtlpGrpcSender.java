@@ -54,7 +54,8 @@ public final class OtlpGrpcSender implements OtlpSender {
 
   @Override
   public RemoteApi.Response send(OtlpPayload payload) {
-    return OtlpSenderSupport.send(client, retryPolicy, makeRequest(payload), RATELIMITED_LOGGER);
+    return OtlpSenderSupport.send(
+        client, retryPolicy, makeRequest(payload), RATELIMITED_LOGGER, true);
   }
 
   @Override
