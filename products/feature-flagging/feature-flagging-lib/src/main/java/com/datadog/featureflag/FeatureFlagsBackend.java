@@ -29,6 +29,9 @@ public final class FeatureFlagsBackend implements FeatureFlaggingGateway.Backend
   private static final String ENV = "env";
   private static final String SERVICE = "service";
   private static final String VERSION = "version";
+  private static final String SERVICE_TAG = "service";
+  // The name of RuleFlags.Feature.SERVICE_NAME in dd-trace-core.
+  private static final String SERVICE_NAME_RULE = "ServiceNameTagInterceptor";
 
   private final SharedCommunicationObjects sco;
   private final Config config;
@@ -103,12 +106,26 @@ public final class FeatureFlagsBackend implements FeatureFlaggingGateway.Backend
       case ENV:
         return this.config.getEnv();
       case SERVICE:
-        return this.config.getServiceName();
+        return spanService();
       case VERSION:
         return this.config.getVersion();
       default:
         return this.config.configProvider().getString(key);
     }
+  }
+
+  /**
+   * The service of the tracer's spans. The tracer adds the merged span tags to every span, and its
+   * tag interceptor makes a {@code service} tag the span service. Config drops that tag from {@code
+   * DD_TAGS} when the user sets {@code DD_SERVICE}, so the tag wins only where it also wins on
+   * spans.
+   */
+  private String spanService() {
+    final String tagged = this.config.getMergedSpanTags().get(SERVICE_TAG);
+    if (tagged != null && this.config.isRuleEnabled(SERVICE_NAME_RULE)) {
+      return tagged;
+    }
+    return this.config.getServiceName();
   }
 
   @Override

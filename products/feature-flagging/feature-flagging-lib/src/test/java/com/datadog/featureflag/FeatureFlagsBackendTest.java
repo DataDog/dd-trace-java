@@ -80,6 +80,39 @@ class FeatureFlagsBackendTest {
   }
 
   @TableTest({
+    "Scenario                         | Service | Tags                          | Span tags        | Rule  | Expected  ",
+    "DD_SERVICE only                  | svc     |                               |                  |       | svc       ",
+    "DD_TAGS service without a name   |         | 'service:tagged-svc,team:ffe' |                  |       | tagged-svc",
+    "DD_SERVICE beats DD_TAGS         | svc     | service:tagged-svc            |                  |       | svc       ",
+    "span tags beat DD_SERVICE        | svc     |                               | service:span-svc |       | span-svc  ",
+    "tag interceptor off keeps a name | svc     |                               | service:span-svc | false | svc       "
+  })
+  void resolvesTheServiceOfTheTracerSpans(
+      final String service,
+      final String tags,
+      final String spanTags,
+      final String rule,
+      final String expected) {
+    if (service != null) {
+      WithConfigExtension.injectEnvConfig("SERVICE", service);
+    }
+    if (tags != null) {
+      WithConfigExtension.injectEnvConfig("TAGS", tags);
+    }
+    if (spanTags != null) {
+      WithConfigExtension.injectEnvConfig("TRACE_SPAN_TAGS", spanTags);
+    }
+    if (rule != null) {
+      WithConfigExtension.injectEnvConfig("TRACE_SERVICENAMETAGINTERCEPTOR_ENABLED", rule);
+    }
+    final FeatureFlagsBackend backend =
+        new FeatureFlagsBackend(
+            this.sco, Config.get(), this.eventProxy, this.spanEnrichmentWriter, this.metrics, null);
+
+    assertEquals(expected, backend.setting("service"));
+  }
+
+  @TableTest({
     "Scenario                       | Property  | Environment   | Expected     ",
     "blank property masks env       | ' '       | remote_config | agentless    ",
     "property overrides environment | agentless | remote_config | agentless    ",
