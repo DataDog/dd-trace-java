@@ -134,4 +134,4 @@ org.tabletest:tabletest-parser:1.2.1=compileClasspath,runtimeClasspath,testCompi
 org.testcontainers:testcontainers:1.21.4=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 org.xmlresolver:xmlresolver:5.3.3=spotbugs
 org.xmlunit:xmlunit-core:2.10.3=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
-empty=annotationProcessor,spotbugsPlugins,testAnnotationProcessor
+empty=annotationProcessor,smokeTestDiagnosticsClasspath,smokeTestTracerClasspath,spotbugsPlugins,testAnnotationProcessor
