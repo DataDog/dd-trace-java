@@ -1,0 +1,11 @@
+_v: 1
+name: aerospike
+display_name: Aerospike Java Client
+description: Instruments synchronous and asynchronous Aerospike database operations and preserves trace context through completion callbacks.
+packages:
+- name: com.aerospike:aerospike-client
+category:
+- db.client
+systems:
+- aerospike
+creation_date: '2020-11-05'

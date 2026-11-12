@@ -1,0 +1,9 @@
+_v: 1
+name: jdbc-datasource
+display_name: JDBC DataSource
+description: Instruments JDBC DataSource connection acquisition and captures Hikari connection-pool metadata.
+packages: []
+category:
+- db.client
+systems: []
+creation_date: '2019-10-25'

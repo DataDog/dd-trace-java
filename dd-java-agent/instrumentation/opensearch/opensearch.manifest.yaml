@@ -1,0 +1,13 @@
+_v: 1
+name: opensearch
+display_name: rest
+description: Instruments OpenSearch REST requests and transport client actions while preserving trace context through asynchronous callbacks.
+packages:
+- name: org.opensearch.client:opensearch-rest-client
+- name: org.opensearch.client:transport
+- name: org.opensearch:opensearch
+category:
+- db.client
+systems:
+- opensearch
+creation_date: '2023-05-17'

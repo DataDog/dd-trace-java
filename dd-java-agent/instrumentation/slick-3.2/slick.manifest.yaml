@@ -1,0 +1,11 @@
+_v: 1
+name: slick
+display_name: Slick
+description: Instruments Slick asynchronous database execution by propagating trace context into JDBC operations traced by the driver instrumentation.
+packages:
+- name: com.typesafe.slick:slick_2.11
+- name: com.typesafe.slick:slick_2.13
+category:
+- db.client
+systems: []
+creation_date: '2021-04-15'

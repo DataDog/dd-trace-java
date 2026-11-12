@@ -1,0 +1,11 @@
+_v: 1
+name: couchbase
+display_name: Couchbase Java SDK
+description: Instruments Couchbase cluster and bucket operations, including key-value requests and queries, with asynchronous completion and error tracking.
+packages:
+- name: com.couchbase.client:java-client
+category:
+- db.client
+systems:
+- couchbase
+creation_date: '2018-08-24'

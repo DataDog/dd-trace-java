@@ -1,0 +1,14 @@
+_v: 1
+name: elasticsearch
+display_name: rest
+description: Instruments Elasticsearch REST requests and transport client actions with asynchronous response and error tracking.
+packages:
+- name: org.elasticsearch.client:elasticsearch-rest-client
+- name: org.elasticsearch.client:rest
+- name: org.elasticsearch.client:transport
+- name: org.elasticsearch:elasticsearch
+category:
+- db.client
+systems:
+- elasticsearch
+creation_date: '2017-05-23'
