@@ -1,5 +1,10 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
+import static datadog.trace.api.KnownTags.AWS_RDS_ENDPOINT_TYPE;
+import static datadog.trace.api.KnownTags.AWS_RDS_IDENTIFIER;
+import static datadog.trace.api.KnownTags.AWS_REGION;
+import static datadog.trace.api.KnownTags.DBCLUSTERIDENTIFIER;
+import static datadog.trace.api.KnownTags.DBINSTANCEIDENTIFIER;
 import static datadog.trace.api.KnownTags.DB_INSTANCE;
 import static datadog.trace.api.KnownTags.DB_TYPE;
 import static datadog.trace.api.KnownTags.DB_USER;
@@ -19,7 +24,6 @@ import datadog.trace.api.naming.NamingSchema;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
@@ -95,16 +99,16 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
     if (endpoint == null) {
       return;
     }
-    span.setTag(InstrumentationTags.AWS_RDS_IDENTIFIER, endpoint.identifier());
-    span.setTag(InstrumentationTags.AWS_RDS_ENDPOINT_TYPE, endpoint.type().tagValue());
-    span.setTag(InstrumentationTags.AWS_REGION, endpoint.region());
+    span.setTag(AWS_RDS_IDENTIFIER, endpoint.identifier());
+    span.setTag(AWS_RDS_ENDPOINT_TYPE, endpoint.type().tagValue());
+    span.setTag(AWS_REGION, endpoint.region());
     switch (endpoint.type()) {
       case INSTANCE:
-        span.setTag(InstrumentationTags.RDS_DB_INSTANCE_IDENTIFIER, endpoint.identifier());
+        span.setTag(DBINSTANCEIDENTIFIER, endpoint.identifier());
         break;
       case CLUSTER:
       case CLUSTER_READER:
-        span.setTag(InstrumentationTags.RDS_DB_CLUSTER_IDENTIFIER, endpoint.identifier());
+        span.setTag(DBCLUSTERIDENTIFIER, endpoint.identifier());
         break;
       default:
         break;

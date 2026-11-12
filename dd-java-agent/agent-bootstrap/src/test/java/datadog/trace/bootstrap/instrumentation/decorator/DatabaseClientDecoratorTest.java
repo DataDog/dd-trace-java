@@ -1,6 +1,11 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
 import static datadog.appsec.api.blocking.BlockingContentType.AUTO;
+import static datadog.trace.api.KnownTags.AWS_RDS_ENDPOINT_TYPE_NAME;
+import static datadog.trace.api.KnownTags.AWS_RDS_IDENTIFIER_NAME;
+import static datadog.trace.api.KnownTags.AWS_REGION_NAME;
+import static datadog.trace.api.KnownTags.DBCLUSTERIDENTIFIER_NAME;
+import static datadog.trace.api.KnownTags.DBINSTANCEIDENTIFIER_NAME;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_RASP_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_HOST;
@@ -31,7 +36,6 @@ import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
-import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.test.junit.utils.config.WithConfig;
 import java.util.HashMap;
 import java.util.Map;
@@ -170,14 +174,14 @@ class DatabaseClientDecoratorTest extends ClientDecoratorTest {
     // then
     verify(span).setTag(DB_USER, "test-user");
     verify(span).setTag(PEER_HOSTNAME, (CharSequence) hostname);
-    verify(span).setTag(InstrumentationTags.AWS_RDS_IDENTIFIER, identifier);
-    verify(span).setTag(InstrumentationTags.AWS_RDS_ENDPOINT_TYPE, endpointType);
-    verify(span).setTag(InstrumentationTags.AWS_REGION, "us-east-1");
+    verify(span).setTag(AWS_RDS_IDENTIFIER_NAME, identifier);
+    verify(span).setTag(AWS_RDS_ENDPOINT_TYPE_NAME, endpointType);
+    verify(span).setTag(AWS_REGION_NAME, "us-east-1");
     if (instanceIdentifier != null) {
-      verify(span).setTag(InstrumentationTags.RDS_DB_INSTANCE_IDENTIFIER, instanceIdentifier);
+      verify(span).setTag(DBINSTANCEIDENTIFIER_NAME, instanceIdentifier);
     }
     if (clusterIdentifier != null) {
-      verify(span).setTag(InstrumentationTags.RDS_DB_CLUSTER_IDENTIFIER, clusterIdentifier);
+      verify(span).setTag(DBCLUSTERIDENTIFIER_NAME, clusterIdentifier);
     }
     verifyNoMoreInteractions(span);
   }
