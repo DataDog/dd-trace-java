@@ -1,0 +1,11 @@
+_v: 1
+name: jetty-client
+display_name: 'Core :: HTTP Client'
+description: Instruments outbound Jetty HTTP requests, including WebSocket upgrade handshakes, with trace propagation, response callback context, Data Streams tracking, and optional SSRF prevention.
+packages:
+- name: org.eclipse.jetty.websocket:jetty-websocket-core-client
+- name: org.eclipse.jetty:jetty-client
+category:
+- http.client
+systems: []
+creation_date: '2021-04-12'

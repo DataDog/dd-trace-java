@@ -1,0 +1,12 @@
+_v: 1
+name: play-ws
+display_name: play-ahc-ws-standalone
+description: Instruments asynchronous Play WS HTTP requests, including streamed responses, with trace propagation, completion callback context, Data Streams tracking, and optional SSRF prevention.
+packages:
+- name: com.typesafe.play:play-ahc-ws-standalone_2.11
+- name: com.typesafe.play:play-ahc-ws-standalone_2.12
+- name: com.typesafe.play:play-ahc-ws-standalone_2.13
+category:
+- http.client
+systems: []
+creation_date: '2019-10-30'

@@ -1,0 +1,9 @@
+_v: 1
+name: httpurlconnection
+display_name: HttpURLConnection
+description: Instruments outbound HTTP connections and optional URL connection failures, with trace propagation, Data Streams tracking, and URL taint tracking and SSRF checks when security features are enabled.
+packages: []
+category:
+- http.client
+systems: []
+creation_date: '2018-06-01'
