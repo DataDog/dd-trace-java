@@ -1,0 +1,11 @@
+_v: 1
+name: valkey
+display_name: valkey-java
+description: Instruments Valkey Java client command execution with connection metadata and error tracking.
+packages:
+- name: io.valkey:valkey-java
+category:
+- db.client
+systems:
+- valkey
+creation_date: '2025-01-20'

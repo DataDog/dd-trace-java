@@ -1,0 +1,11 @@
+_v: 1
+name: spymemcached
+display_name: Spymemcached
+description: Instruments Spymemcached cache operations, including asynchronous retrieval and mutation, with completion, error, and cache-hit tracking.
+packages:
+- name: net.spy:spymemcached
+category:
+- db.client
+systems:
+- memcached
+creation_date: '2018-06-11'

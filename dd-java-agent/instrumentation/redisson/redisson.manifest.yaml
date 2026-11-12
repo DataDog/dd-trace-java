@@ -1,0 +1,12 @@
+_v: 1
+name: redisson
+display_name: Redisson
+description: Instruments Redisson Redis commands and batches, including topic publishing, with asynchronous completion tracking.
+packages:
+- name: org.redisson:redisson
+category:
+- db.client
+- messaging.producer
+systems:
+- redis
+creation_date: '2022-01-30'

@@ -1,0 +1,10 @@
+_v: 1
+name: caffeine
+display_name: Caffeine cache
+description: Instruments Caffeine cache maintenance scheduling to suppress propagation of application trace context into background cleanup.
+packages:
+- name: com.github.ben-manes.caffeine:caffeine
+category:
+- other
+systems: []
+creation_date: '2021-10-18'

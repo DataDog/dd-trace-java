@@ -1,0 +1,12 @@
+_v: 1
+name: lettuce
+display_name: Lettuce
+description: Instruments Lettuce Redis connections and commands across asynchronous and reactive APIs while preserving callback context.
+packages:
+- name: biz.paluch.redis:lettuce
+- name: io.lettuce:lettuce-core
+category:
+- db.client
+systems:
+- redis
+creation_date: '2018-05-23'
