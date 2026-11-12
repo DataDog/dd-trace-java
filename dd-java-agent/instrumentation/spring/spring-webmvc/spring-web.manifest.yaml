@@ -1,0 +1,14 @@
+_v: 1
+name: spring-web
+display_name: Spring Web MVC
+description: Instruments Spring MVC HTTP request handlers and view rendering, including asynchronous handler completion, route
+  and error enrichment, code-origin capture, API endpoint discovery, AppSec request and response inspection and blocking,
+  and IAST parameter tainting, response vulnerability checks, and escape tracking.
+packages:
+- name: org.jboss.resteasy:resteasy-spring
+- name: org.springframework:spring-webmvc
+category:
+- http.server
+- template.render
+systems: []
+creation_date: '2017-10-30'

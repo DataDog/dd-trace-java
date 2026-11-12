@@ -1,0 +1,12 @@
+_v: 1
+name: jedis
+display_name: Jedis
+description: Instruments Redis commands sent or executed through the Jedis client, creating spans with command names, peer
+  hosts, and errors.
+packages:
+- name: redis.clients:jedis
+category:
+- db.client
+systems:
+- redis
+creation_date: '2018-02-05'
