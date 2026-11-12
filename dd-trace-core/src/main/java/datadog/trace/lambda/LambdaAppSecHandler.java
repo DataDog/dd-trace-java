@@ -126,6 +126,7 @@ public class LambdaAppSecHandler {
       AgentSpanContext context = processAppSecRequestData(eventData, uriAdapter);
       if (context instanceof TagContext) {
         applyHttpTags((TagContext) context, eventData, uriAdapter);
+        applyAwsAccessKeyIdTag((TagContext) context);
       }
       return context;
     } catch (Exception e) {
@@ -379,6 +380,23 @@ public class LambdaAppSecHandler {
     String hostname = forwardedHost != null ? forwardedHost : req.host;
     if (hostname != null) {
       ctx.putTag(Tags.HTTP_HOSTNAME, hostname);
+    }
+  }
+
+  /**
+   * Writes the execution environment's AWS access key ID onto the context that will seed the
+   * invocation span, when {@code DD_APPSEC_AWS_ACCESS_KEY_ID_TAG_ENABLED} is on. Called only for
+   * invocations AppSec monitors, so every one of them carries the tag, attack or not. With the
+   * Lambda extension in the path, the extension copies this span's meta onto the {@code aws.lambda}
+   * span it builds.
+   */
+  static void applyAwsAccessKeyIdTag(TagContext ctx) {
+    if (!Config.get().isAppSecAwsAccessKeyIdTagEnabled()) {
+      return;
+    }
+    String accessKeyId = LambdaAwsAccessKeyId.get();
+    if (accessKeyId != null) {
+      ctx.putTag(LambdaAwsAccessKeyId.TAG, accessKeyId);
     }
   }
 
