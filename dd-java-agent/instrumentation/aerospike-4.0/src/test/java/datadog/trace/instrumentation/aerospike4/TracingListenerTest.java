@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.aerospike4;
 import static datadog.trace.agent.test.assertions.SpanMatcher.span;
 import static datadog.trace.agent.test.assertions.TraceMatcher.trace;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagationEnabled;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -22,6 +23,7 @@ import datadog.context.ContextScope;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.agent.test.scopediag.TrackScopeContinuations;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.NoopContinuation;
 import datadog.trace.core.DDSpan;
 import java.lang.reflect.Proxy;
 import java.util.Collections;
@@ -120,6 +122,71 @@ class TracingListenerTest extends AbstractInstrumentationTest {
     }
     assertEquals(1, continuation.releases);
     assertTraces(trace(span().root().operationName("stream")));
+  }
+
+  @ParameterizedTest
+  @ValueSource(ints = {0, 1, 2})
+  void disabledAsyncPropagationPreservesCallbackContext(int callback) {
+    NoopFixture fixture = new NoopFixture();
+    AtomicInteger calls = new AtomicInteger();
+    RuntimeException failure = new IllegalStateException("delegate failure");
+    try {
+      fixture.captureWithAsyncPropagationDisabled();
+      Object delegate =
+          Proxy.newProxyInstance(
+              getClass().getClassLoader(),
+              new Class<?>[] {
+                ExistsSequenceListener.class,
+                RecordSequenceListener.class,
+                BatchSequenceListener.class
+              },
+              (proxy, method, args) -> {
+                assertSame(fixture.foreign, Context.current());
+                assertSame(fixture.foreignSpan, activeSpan());
+                assertEquals("foreign", Context.current().get(fixture.markerKey));
+                if (calls.incrementAndGet() == 3) {
+                  throw failure;
+                }
+                return null;
+              });
+      TracingListener listener =
+          new TracingListener(fixture.operation, fixture.continuation, delegate);
+      try (ContextScope ignored = fixture.foreign.attach()) {
+        for (int i = 0; i < 2; i++) {
+          invoke(listener, callback);
+          assertSame(fixture.foreign, Context.current());
+          assertSame(fixture.foreignSpan, activeSpan());
+          assertFalse(((DDSpan) fixture.operation).isFinished());
+        }
+        assertSame(failure, assertThrows(RuntimeException.class, () -> invoke(listener, callback)));
+        assertSame(fixture.foreign, Context.current());
+        assertSame(fixture.foreignSpan, activeSpan());
+        assertFalse(((DDSpan) fixture.operation).isFinished());
+      }
+      assertEquals(3, calls.get());
+    } finally {
+      fixture.operation.finish();
+      fixture.foreignSpan.finish();
+    }
+    assertTraces(
+        trace(span().root().operationName("stream")),
+        trace(span().root().operationName("foreign")));
+  }
+
+  private static final class NoopFixture {
+    private final ContextKey<String> markerKey = ContextKey.named("aerospike-noop-test");
+    private final AgentSpan operation = startSpan("test", "stream");
+    private final AgentSpan foreignSpan = startSpan("test", "foreign");
+    private final Context foreign = Context.root().with(foreignSpan).with(markerKey, "foreign");
+    private ContextContinuation continuation;
+
+    private void captureWithAsyncPropagationDisabled() {
+      try (ContextScope ignored = operation.with(markerKey, "operation").attach()) {
+        setAsyncPropagationEnabled(false);
+        continuation = operation.captureWithContext();
+        assertSame(NoopContinuation.INSTANCE, continuation);
+      }
+    }
   }
 
   private void invoke(TracingListener listener, int callback) {

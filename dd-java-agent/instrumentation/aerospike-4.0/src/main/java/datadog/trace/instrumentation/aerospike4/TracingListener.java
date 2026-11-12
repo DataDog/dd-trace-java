@@ -20,6 +20,7 @@ import com.aerospike.client.listener.WriteListener;
 import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.NoopContinuation;
 import java.util.List;
 
 public final class TracingListener
@@ -46,10 +47,16 @@ public final class TracingListener
     this.listener = listener;
   }
 
+  private ContextScope attachContext() {
+    return continuation == NoopContinuation.INSTANCE
+        ? continuation.resume()
+        : continuation.context().attach();
+  }
+
   @Override
   public void onExists(final Key key, final boolean exists) {
     if (listener != null) {
-      try (final ContextScope scope = continuation.context().attach()) {
+      try (final ContextScope scope = attachContext()) {
         ((ExistsSequenceListener) listener).onExists(key, exists);
       }
     }
@@ -58,7 +65,7 @@ public final class TracingListener
   @Override
   public void onRecord(final Key key, final Record record) throws AerospikeException {
     if (listener != null) {
-      try (final ContextScope scope = continuation.context().attach()) {
+      try (final ContextScope scope = attachContext()) {
         ((RecordSequenceListener) listener).onRecord(key, record);
       }
     }
@@ -67,7 +74,7 @@ public final class TracingListener
   @Override
   public void onRecord(final BatchRead record) {
     if (listener != null) {
-      try (final ContextScope scope = continuation.context().attach()) {
+      try (final ContextScope scope = attachContext()) {
         ((BatchSequenceListener) listener).onRecord(record);
       }
     }
