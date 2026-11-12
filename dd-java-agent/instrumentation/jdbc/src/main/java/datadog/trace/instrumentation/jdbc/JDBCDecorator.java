@@ -12,11 +12,14 @@ import static datadog.trace.api.KnownTags.DD_DBM_TRACE_INJECTED;
 import static datadog.trace.api.KnownTags.DD_INSTRUMENTATION_TIME_MS;
 import static datadog.trace.api.KnownTags.DD_PROPAGATED_HASH;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DBM_TRACE_INJECTED;
+import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.INSTRUMENTATION_TIME_MS;
 
 import datadog.context.ContextScope;
 import datadog.trace.api.BaseHash;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.KnownTags;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.api.propagation.W3CTraceParent;
 import datadog.trace.api.telemetry.LogCollector;
@@ -24,6 +27,10 @@ import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
+import datadog.trace.bootstrap.instrumentation.api.SpanData;
+import datadog.trace.bootstrap.instrumentation.api.SpanPrototype;
+import datadog.trace.bootstrap.instrumentation.api.TagExtractor;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.dbm.SQLCommenter;
 import datadog.trace.bootstrap.instrumentation.decorator.DatabaseClientDecorator;
@@ -68,6 +75,63 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       UTF8BytesString.create("java-jdbc-statement");
   private static final UTF8BytesString JDBC_PREPARED_STATEMENT =
       UTF8BytesString.create("java-jdbc-prepared_statement");
+
+  /** Decorates {@code Statement} spans: component and integration name are java-jdbc-statement. */
+  public static final JDBCDecorator STATEMENT_DECORATE = new Variant(JDBC_STATEMENT);
+
+  /** Decorates {@code PreparedStatement} spans: java-jdbc-prepared_statement. */
+  public static final JDBCDecorator PREPARED_STATEMENT_DECORATE =
+      new Variant(JDBC_PREPARED_STATEMENT);
+
+  /**
+   * A JDBC decorator whose prototype carries the statement kind as component and integration name,
+   * so {@code afterStart} stamps them once instead of the query hooks overwriting them per span.
+   * {@link #component()} stays java-jdbc, the service-name source it has always been.
+   */
+  private static final class Variant extends JDBCDecorator {
+    private final CharSequence statementComponent;
+
+    Variant(final CharSequence statementComponent) {
+      this.statementComponent = statementComponent;
+    }
+
+    @Override
+    protected SpanPrototype buildSpanPrototype() {
+      return SpanPrototype.builder()
+          .extends_(super.buildSpanPrototype())
+          .initComponentAndIntegration(statementComponent)
+          .build();
+    }
+  }
+
+  /** A connection's tags, written in one batch: one tag lock instead of one per tag. */
+  private static final class ConnectionTags implements TagExtractor<JDBCConnectionContext> {
+    static final ConnectionTags INSTANCE = new ConnectionTags();
+
+    @Override
+    public void extract(final JDBCConnectionContext connectionContext, final SpanData span) {
+      final DBInfo dbInfo = connectionContext.getDbInfo();
+      setTagIfPresent(span, KnownTags.DB_WAREHOUSE, dbInfo.getWarehouse());
+      setTagIfPresent(span, KnownTags.DB_SCHEMA, dbInfo.getSchema());
+      setTagIfPresent(span, KnownTags.DB_POOL_NAME, connectionContext.getPoolName());
+      span.setTag(KnownTags.DB_USER, dbInfo.getUser());
+      final String instance = instanceOf(dbInfo);
+      if (instance != null) {
+        span.setTag(KnownTags.DB_INSTANCE, instance);
+      }
+      final String host = dbInfo.getHost();
+      if (host != null) {
+        span.setTag(KnownTags.PEER_HOSTNAME, host);
+      }
+    }
+
+    private static void setTagIfPresent(final SpanData span, final long tagId, final String value) {
+      if (value != null && !value.isEmpty()) {
+        span.setTag(tagId, value);
+      }
+    }
+  }
+
   private static final String DEFAULT_SERVICE_NAME =
       SpanNaming.instance().namingSchema().database().service("jdbc");
 
@@ -159,6 +223,10 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
 
   @Override
   protected String dbInstance(final DBInfo info) {
+    return instanceOf(info);
+  }
+
+  private static String instanceOf(final DBInfo info) {
     if (info.getInstance() != null) {
       return info.getInstance();
     } else {
@@ -171,22 +239,22 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     return info.getHost();
   }
 
-  private void setTagIfPresent(final AgentSpan span, final long tagId, final String value) {
-    if (value != null && !value.isEmpty()) {
-      span.setTag(tagId, value);
-    }
-  }
-
   public void onConnection(final AgentSpan span, final JDBCConnectionContext connectionContext) {
     final DBInfo dbInfo = connectionContext.getDbInfo();
     if (dbInfo != null) {
       processDatabaseType(span, dbInfo.getType());
-
-      setTagIfPresent(span, DB_WAREHOUSE, dbInfo.getWarehouse());
-      setTagIfPresent(span, DB_SCHEMA, dbInfo.getSchema());
-      setTagIfPresent(span, DB_POOL_NAME, connectionContext.getPoolName());
+      span.setTagsFrom(connectionContext, ConnectionTags.INSTANCE);
+      // The service-name side effects of DatabaseClientDecorator.onConnection; the batch above
+      // wrote its tags.
+      final String instance = instanceOf(dbInfo);
+      if (instance != null) {
+        onInstanceService(span, instance);
+      }
+      final String host = dbInfo.getHost();
+      if (host != null) {
+        onHostService(span, host);
+      }
     }
-    super.onConnection(span, dbInfo);
   }
 
   public static JDBCConnectionContext parseConnectionContext(
@@ -278,11 +346,11 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
   public void onStatement(AgentSpan span, final String statement) {
     onRawStatement(span, statement);
     DBQueryInfo dbQueryInfo = DBQueryInfo.ofStatement(statement);
-    withQueryInfo(span, dbQueryInfo, JDBC_STATEMENT);
+    withQueryInfo(span, dbQueryInfo);
   }
 
   public void onPreparedStatement(AgentSpan span, DBQueryInfo dbQueryInfo) {
-    withQueryInfo(span, dbQueryInfo, JDBC_PREPARED_STATEMENT);
+    withQueryInfo(span, dbQueryInfo);
   }
 
   /**
@@ -299,15 +367,14 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     }
   }
 
-  private void withQueryInfo(AgentSpan span, DBQueryInfo info, CharSequence component) {
+  /** Component and integration name come from the statement-kind prototype (see Variant). */
+  private void withQueryInfo(AgentSpan span, DBQueryInfo info) {
     if (null != info) {
       span.setResourceName(info.getSql());
-      span.setTag(DB_OPERATION, info.getOperation());
+      span.setTag(KnownTags.DB_OPERATION, info.getOperation());
     } else {
       span.setResourceName(DB_QUERY);
     }
-    span.spanContext().setIntegrationName(component);
-    span.setTag(COMPONENT, component);
   }
 
   public boolean isOracle(final DBInfo dbInfo) {

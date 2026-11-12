@@ -7,6 +7,7 @@ import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.context.Context;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.KnownTags;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
@@ -138,9 +139,9 @@ public class TomcatDecorator
       if (null == contextPath || contextPath.isEmpty()) {
         contextPath = "/";
       }
-      span.setTag("servlet.context", contextPath);
+      span.setTag(KnownTags.SERVLET_CONTEXT, contextPath);
       if (null != servletPath && !servletPath.isEmpty()) {
-        span.setTag("servlet.path", servletPath);
+        span.setTag(KnownTags.SERVLET_PATH, servletPath);
       }
 
       // Used by AsyncContextInstrumentation because the context path may be reset

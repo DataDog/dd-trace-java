@@ -11,6 +11,7 @@ import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.sp
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DATABASE_QUERY;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DECORATE;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.INJECT_COMMENT;
+import static datadog.trace.instrumentation.jdbc.JDBCDecorator.STATEMENT_DECORATE;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -114,7 +115,7 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
           span = startSpan("java-jdbc-statement", DATABASE_QUERY);
         }
 
-        DECORATE.afterStart(span);
+        STATEMENT_DECORATE.afterStart(span);
         DECORATE.onConnection(span, connectionContext);
         final String copy = sql;
         if (span != null && DECORATE.shouldInjectSqlComment(dbInfo)) {

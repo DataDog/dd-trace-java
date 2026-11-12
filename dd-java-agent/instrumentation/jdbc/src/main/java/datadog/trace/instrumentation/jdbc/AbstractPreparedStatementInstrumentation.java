@@ -9,6 +9,7 @@ import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DATABASE_QUERY;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DBM_TRACE_PREPARED_STATEMENTS;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DECORATE;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.INJECT_COMMENT;
+import static datadog.trace.instrumentation.jdbc.JDBCDecorator.PREPARED_STATEMENT_DECORATE;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.logMissingQueryInfo;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.logSQLException;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
@@ -104,7 +105,7 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
         } else {
           span = startSpan("java-jdbc-prepared_statement", DATABASE_QUERY);
         }
-        DECORATE.afterStart(span);
+        PREPARED_STATEMENT_DECORATE.afterStart(span);
         DECORATE.onConnection(span, connectionContext);
         DECORATE.onPreparedStatement(span, queryInfo);
         DECORATE.withBaseHash(span, dbInfo, oracleServiceHash);

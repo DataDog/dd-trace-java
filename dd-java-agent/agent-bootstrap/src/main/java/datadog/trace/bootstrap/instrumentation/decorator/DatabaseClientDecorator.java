@@ -9,6 +9,7 @@ import static datadog.trace.bootstrap.instrumentation.api.ServiceNameSources.DB_
 
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.api.Config;
+import datadog.trace.api.KnownTags;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.gateway.BlockResponseFunction;
@@ -71,26 +72,35 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
    */
   public void onConnection(final AgentSpan span, final CONNECTION connection) {
     if (connection != null) {
-      span.setTag(DB_USER, dbUser(connection));
+      span.setTag(KnownTags.DB_USER, dbUser(connection));
       onInstance(span, dbInstance(connection));
       CharSequence hostName = dbHostname(connection);
       if (hostName != null) {
-        span.setTag(PEER_HOSTNAME, hostName);
-
-        if (Config.get().isDbClientSplitByHost()) {
-          span.setServiceName(hostName.toString(), DB_CLIENT_SPLIT_BY_HOST);
-        }
+        span.setTag(KnownTags.PEER_HOSTNAME, hostName);
+        onHostService(span, hostName);
       }
     }
   }
 
   protected void onInstance(final AgentSpan span, final String dbInstance) {
     if (dbInstance != null) {
-      span.setTag(DB_INSTANCE, dbInstance);
-      String serviceName = dbClientService(dbInstance);
-      if (null != serviceName) {
-        span.setServiceName(serviceName, component());
-      }
+      span.setTag(KnownTags.DB_INSTANCE, dbInstance);
+      onInstanceService(span, dbInstance);
+    }
+  }
+
+  /** The service-name half of {@link #onInstance}, for callers that write the tag themselves. */
+  protected void onInstanceService(final AgentSpan span, final String dbInstance) {
+    String serviceName = dbClientService(dbInstance);
+    if (null != serviceName) {
+      span.setServiceName(serviceName, component());
+    }
+  }
+
+  /** The service-name half of the host tagging in {@link #onConnection}. */
+  protected void onHostService(final AgentSpan span, final CharSequence hostName) {
+    if (Config.get().isDbClientSplitByHost()) {
+      span.setServiceName(hostName.toString(), DB_CLIENT_SPLIT_BY_HOST);
     }
   }
 
@@ -155,7 +165,7 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
     }
 
     final NamingEntry namingEntry = CACHE.computeIfAbsent(dbType, NamingEntry::new);
-    span.setTag(DB_TYPE, namingEntry.dbType);
+    span.setTag(KnownTags.DB_TYPE, namingEntry.dbType);
     postProcessServiceAndOperationName(span, namingEntry);
 
     if (Config.get().isAppSecRaspEnabled()) {
