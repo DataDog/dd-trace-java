@@ -31,7 +31,6 @@ fun getChangedFiles(baseRef: String, newRef: String): List<File> {
   val stdout = StringBuilder()
   val stderr = StringBuilder()
 
-  // Three dots: diff from the merge base, so changes made on the base branch are not counted
   val proc = Runtime.getRuntime().exec(arrayOf("git", "diff", "--name-only", "$baseRef...$newRef"))
   proc.inputStream.bufferedReader().use { stdout.append(it.readText()) }
   proc.errorStream.bufferedReader().use { stderr.append(it.readText()) }
@@ -65,8 +64,6 @@ if (gitBaseRefProvider.isPresent) {
     include("gradlew", "gradlew.bat", "mvnw", "mvnw.cmd")
     include("NOTICE")
     include("static-analysis.datadog.yml")
-    // Agent config do not affect Gradle tests
-    // Github workflows invoke Gradle without `gitBaseRef`
     include(".github/**", ".claude/**", ".agents/**")
   }
 
