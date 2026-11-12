@@ -68,8 +68,9 @@ docs/                     Developer documentation (see below)
 - Dependency changes: when adding, updating, or removing dependencies, regenerate all affected `gradle.lockfile` files
   and include them in the same PR. See [lockfile updates](docs/how_to_work_with_gradle.md#updating-lock-files).
 
-## Review guidelines
+## Code Review Rules
 
+- **SDK review**: run `/sdk-review` over the committed branch changes before pushing or marking a PR ready. It runs one read-only review per lens (correctness, security, design, performance, maintainability, conventions, cross-SDK consistency) — see [.agents/skills/sdk-review/SKILL.md](.agents/skills/sdk-review/SKILL.md).
 - **CI flakiness**: use [reproduce-ci-flakiness](.agents/skills/reproduce-ci-flakiness/SKILL.md) for intermittent timeouts, races, asynchronous test failures, or tests that pass locally but fail in CI.
 - **Technical debt**: run `/techdebt` over branch changes before marking a PR ready to catch code duplication, unnecessary complexity, and dead code (refactor-only, never changes behavior) — see [.agents/skills/techdebt/SKILL.md](.agents/skills/techdebt/SKILL.md).
 - **Performance**: run `/perf-review` over branch changes before marking a PR ready (advisory, not a merge gate) — see [.agents/skills/perf-review/SKILL.md](.agents/skills/perf-review/SKILL.md).
