@@ -22,12 +22,11 @@ class JvmOtlpRuntimeMetricsNoProcessTagsForkedTest {
 
   @Test
   void processTagsAreOmittedWhenProcessTagsAreDisabled() {
-    forEachJvmPoint(
-        (metric, point) -> {
-          for (String key : PROCESS_TAGS) {
-            assertNull(point.attrs.get(key), metric + " " + point.attrs);
-          }
-        });
+    forEachJvmPoint((metric, point) -> {
+      for (String key : PROCESS_TAGS) {
+        assertNull(point.attrs.get(key), metric + " " + point.attrs);
+      }
+    });
 
     JvmOtlpRuntimeMetricsTest.MetricCollector collector =
         new JvmOtlpRuntimeMetricsTest.MetricCollector();

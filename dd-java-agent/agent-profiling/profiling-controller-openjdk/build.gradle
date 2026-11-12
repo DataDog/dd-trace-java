@@ -2,15 +2,8 @@ plugins {
   id 'dd-trace-java.module.internal-library'
 }
 
-tracerJava {
-  addSourceSetFor(JavaVersion.VERSION_11) {
-    // By default tests with be compiled for `minJavaVersion` version,
-    // but in this case we would like to avoid this since we would like to run with ZULU8
-    applyForTestSources = false
-  }
-}
-
 testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_11
   // Zulu has backported profiling support
   forceJdk = ['ZULU8']
   excludeJdk = ['SEMERU11', 'SEMERU17']
@@ -22,6 +15,10 @@ dependencies {
   api project(':utils:version-utils')
   api(project(':dd-java-agent:agent-bootstrap')) {
     exclude group: 'com.datadoghq', module: 'agent-logging'
+    // The jar includes the Java 11 JFR classes from the additional source set.
+    attributes {
+      attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, objects.named(LibraryElements, LibraryElements.JAR))
+    }
   }
   api project(':dd-java-agent:agent-profiling:profiling-controller')
   api project(':dd-java-agent:agent-profiling:profiling-controller-jfr')

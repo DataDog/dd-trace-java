@@ -6,10 +6,9 @@ import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import datadog.trace.test.util.DDJavaSpecification;
 import org.junit.jupiter.api.Test;
 
-class ProductChangeCollectorTest extends DDJavaSpecification {
+class ProductChangeCollectorTest {
 
   @Test
   void updateDrainProductChanges() {

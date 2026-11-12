@@ -68,12 +68,11 @@ Settings are read from the Datadog Java agent configuration when attached, then 
 | `feature_flag.evaluations` OpenTelemetry metric | Yes | Yes |
 | Health metrics | No | Agent telemetry |
 | Span enrichment | No | Yes |
+| `ExposureHook` accessors `getFlagKey()`, `getVariant()`, `getAllocationKey()`, `getTargetingKey()` | The next release after 1.68.1 | The next release after 1.68.1 |
 
 ## Exposures in your own data store
 
-The provider sends exposures to Datadog. It also puts its exposure decision and the selected split's features into the flag metadata of every evaluation, so any OpenFeature hook can record exposures in your own data store (see [Flag metadata](#flag-metadata)).
-
-For convenience, `dd-openfeature` ships `ExposureHook`, which reads that metadata for you. It receives every completed evaluation, with the same exposure decision that the provider uses for Datadog.
+The provider sends exposures to Datadog. To also record exposures in your own data store, register `ExposureHook` from `dd-openfeature`. It receives every completed evaluation, with the same exposure decision that the provider uses for Datadog.
 
 ```java
 import com.datadog.openfeature.ExposureHook;
@@ -86,15 +85,17 @@ OpenFeatureAPI.getInstance().addHooks(new ExposureHook(evaluation -> {
   }
   Map<String, Object> features = evaluation.getFeatures();
   queue.offer(new ExposureRecord(
-      evaluation.getDetails().getFlagKey(),
-      evaluation.getDetails().getVariant(),
-      evaluation.getContext().getTargetingKey(),
+      evaluation.getFlagKey(),
+      evaluation.getVariant(),
+      evaluation.getAllocationKey(),
+      evaluation.getTargetingKey(),
       (String) features.get("holdout.key"),
       (String) features.get("holdout.assignment_group")));
 }));
 // A background thread drains the queue and writes to the data store.
 ```
 
+* Each record needs the flag key, the variant, the allocation key and the targeting key: `getFlagKey()`, `getVariant()`, `getAllocationKey()` and `getTargetingKey()`. The analysis of a selective holdout uses the allocation key. `getVariant()` and `getAllocationKey()` return `null` when the provider selected no allocation, and `getTargetingKey()` returns `null` when the context has no targeting key. `getDetails()` and `getContext()` give the full evaluation details and context.
 * The callback runs on the evaluation thread. Do not write to the data store from the callback. Copy what you need and hand it to a background queue.
 * `shouldSend()` is true for a successful evaluation of an allocation that logs exposures, for a subject not yet exposed to the same allocation, variant and serial id. These are exactly the exposures that the provider sends to Datadog, as long as Datadog logging is on and the provider's own hooks run: evaluate through an OpenFeature client, and inside a `MultiProvider` use OpenFeature SDK 1.23.0 or later. With an older SDK, a provider inside a `MultiProvider` sends no exposures, and `shouldSend()` is true for every exposure.
 * `isExposure()` is true for every successful evaluation of an allocation that logs exposures, including repeats. `isCacheHit()` tells repeats apart.
@@ -114,14 +115,11 @@ The map is empty when the split has no such features. Datadog can add destinatio
 
 ### Flag metadata
 
-The same data is in the evaluation's flag metadata, for hooks that use only the OpenFeature API. Read it in the hook's `finallyAfter` stage, where the details match what the application receives, and skip details that have an error code. `ExposureHook` does both.
+Hooks that use only the OpenFeature API can read the allocation key and the features from the evaluation's flag metadata. Read them in the hook's `finallyAfter` stage, where the details match what the application receives, and skip details that have an error code. The exposure decision (`shouldSend()`, `isExposure()`, `isCacheHit()`) is available only from `ExposureHook`. Other keys that start with `__dd_` are internal and can change without notice.
 
 | Key | Type | Meaning |
 |---|---|---|
-| `allocationKey` | String | The selected allocation |
-| `__dd_do_log` | Boolean | Whether the allocation logs exposures. Present when the allocation logs exposures or span enrichment is on |
-| `__dd_exposure_cache_hit` | Boolean | The subject was already exposed. Present only when `__dd_do_log` is true |
-| `__dd_split_serial_id` | Integer | The split's serial id. Present when `__dd_do_log` is present and the split has a serial id |
+| `allocationKey` | String | The selected allocation. `ExposureHook` also gives it as `getAllocationKey()` |
 | `__dd_feature.<key>` | String, Double or Boolean | One entry for each feature of the selected split that lists the `HOOK` destination |
 
 ### Stop sending exposures to Datadog

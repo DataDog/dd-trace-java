@@ -1,6 +1,5 @@
 package datadog.trace.test.util;
 
-import groovy.lang.Closure;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -38,34 +37,13 @@ public class ThreadUtils {
   public static boolean runConcurrently(
       final int concurrency, final int totalInvocations, final ThrowingRunnable runnable)
       throws Throwable {
-    return runConcurrently(
-        concurrency,
-        totalInvocations,
-        new Closure<Void>(null) {
-          @Override
-          public Void call() {
-            try {
-              runnable.run();
-            } catch (RuntimeException | Error e) {
-              throw e;
-            } catch (Throwable t) {
-              throw new RuntimeException(t);
-            }
-            return null;
-          }
-        });
-  }
-
-  public static boolean runConcurrently(
-      final int concurrency, final int totalInvocations, final Closure<Void> closure)
-      throws Throwable {
     // There is no reason in creating more threads than invocations
     int poolSize = Math.min(concurrency, totalInvocations);
 
-    // If we are not running anything concurrently, then just call the closure directly
+    // If we are not running anything concurrently, then just run the action directly
     if (poolSize == 1) {
       for (int c = 0; c < totalInvocations; c++) {
-        closure.call();
+        runnable.run();
       }
       return true;
     }
@@ -78,28 +56,27 @@ public class ThreadUtils {
     final CountDownLatch endBarrier = new CountDownLatch(poolSize + 1);
     for (int i = 0; i < poolSize; i++) {
       final int invocations = each + (remainder <= 0 ? 0 : 1);
-      executor.execute(
-          () -> {
+      executor.execute(() -> {
+        try {
+          startBarrier.countDown();
+          startBarrier.await();
+          for (int c = 0; c < invocations && throwable.get() == null; c++) {
             try {
-              startBarrier.countDown();
-              startBarrier.await();
-              for (int c = 0; c < invocations && throwable.get() == null; c++) {
-                try {
-                  closure.call();
-                } catch (Throwable t) {
-                  throwable.compareAndSet(null, t);
-                }
-              }
+              runnable.run();
             } catch (Throwable t) {
               throwable.compareAndSet(null, t);
-            } finally {
-              try {
-                endBarrier.countDown();
-              } catch (Throwable t) {
-                throwable.compareAndSet(null, t);
-              }
             }
-          });
+          }
+        } catch (Throwable t) {
+          throwable.compareAndSet(null, t);
+        } finally {
+          try {
+            endBarrier.countDown();
+          } catch (Throwable t) {
+            throwable.compareAndSet(null, t);
+          }
+        }
+      });
       remainder--;
     }
     startBarrier.countDown();

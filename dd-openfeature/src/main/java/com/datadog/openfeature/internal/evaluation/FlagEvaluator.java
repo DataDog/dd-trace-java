@@ -330,17 +330,17 @@ public final class FlagEvaluator {
       case LT:
         return compareNumber(attributeValue, condition.value, (a, b) -> a < b);
       case SEMVER_EQ:
-        return evaluateSemverCondition(attributeValue, condition.semverComparand, (o) -> o == 0);
+        return evaluateSemverCondition(attributeValue, condition.semverComparand, o -> o == 0);
       case SEMVER_NEQ:
-        return evaluateSemverCondition(attributeValue, condition.semverComparand, (o) -> o != 0);
+        return evaluateSemverCondition(attributeValue, condition.semverComparand, o -> o != 0);
       case SEMVER_LT:
-        return evaluateSemverCondition(attributeValue, condition.semverComparand, (o) -> o < 0);
+        return evaluateSemverCondition(attributeValue, condition.semverComparand, o -> o < 0);
       case SEMVER_LTE:
-        return evaluateSemverCondition(attributeValue, condition.semverComparand, (o) -> o <= 0);
+        return evaluateSemverCondition(attributeValue, condition.semverComparand, o -> o <= 0);
       case SEMVER_GT:
-        return evaluateSemverCondition(attributeValue, condition.semverComparand, (o) -> o > 0);
+        return evaluateSemverCondition(attributeValue, condition.semverComparand, o -> o > 0);
       case SEMVER_GTE:
-        return evaluateSemverCondition(attributeValue, condition.semverComparand, (o) -> o >= 0);
+        return evaluateSemverCondition(attributeValue, condition.semverComparand, o -> o >= 0);
       default:
         return false;
     }
@@ -519,15 +519,23 @@ public final class FlagEvaluator {
     }
     return ProviderEvaluation.<T>builder()
         .value(mappedValue)
-        .reason(
-            !isEmpty(allocation.rules)
-                ? Reason.TARGETING_MATCH.name()
-                : allocation.startAt != null || allocation.endAt != null
-                    ? Reason.DEFAULT.name()
-                    : !isEmpty(split.shards) ? Reason.SPLIT.name() : Reason.STATIC.name())
+        .reason(resolveReason(allocation, split))
         .variant(variant.key)
         .flagMetadata(metadataBuilder.build())
         .build();
+  }
+
+  private static String resolveReason(final Allocation allocation, final Split split) {
+    if (!isEmpty(allocation.rules)) {
+      return Reason.TARGETING_MATCH.name();
+    }
+    if ((allocation.startAt != null || allocation.endAt != null)
+        && allocation.splits != null
+        && allocation.splits.size() == 1
+        && isEmpty(split.shards)) {
+      return Reason.DEFAULT.name();
+    }
+    return !isEmpty(split.shards) ? Reason.SPLIT.name() : Reason.STATIC.name();
   }
 
   private static void addSplitFeatures(

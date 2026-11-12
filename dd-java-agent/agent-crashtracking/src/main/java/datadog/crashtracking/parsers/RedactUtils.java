@@ -144,7 +144,8 @@ public final class RedactUtils {
 
   /**
    * Redacts string content in String oop dump lines: <code> - string: "Some string"</code> to
-   * <code> - string: "REDACTED"</code>
+   * <code>
+   *  - string: "REDACTED"</code>
    */
   static String redactStringTypeValue(String line) {
     return STRING_CONTENT.matcher(line).replaceAll("$1\"" + REDACTED_STRING + "\"");

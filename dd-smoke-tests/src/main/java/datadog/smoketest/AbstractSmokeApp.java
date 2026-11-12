@@ -77,7 +77,14 @@ public abstract class AbstractSmokeApp
   private static final String DEFAULT_LOG_LEVEL = "info";
   private static final String DEBUG_LOG_LEVEL = "debug";
   private static final Set<String> NOISY_ENVIRONMENT_VARIABLES =
-      new HashSet<>(asList("CI_COMMIT_TITLE", "CI_COMMIT_MESSAGE", "CI_COMMIT_DESCRIPTION"));
+      new HashSet<>(
+          asList(
+              "CI_COMMIT_TITLE",
+              "CI_COMMIT_MESSAGE",
+              "CI_COMMIT_DESCRIPTION",
+              // These CI settings trigger log checks when applications print their environment.
+              "CI_TEST_AGENT_SUPPRESS_TRACE_PARSE_ERRORS",
+              "CI_TEST_AGENT_DISABLE_ERROR_RESPONSES"));
   private static final String AGENT_JAR_PROPERTY = "datadog.smoketest.agent.shadowJar.path";
   private static final String BUILD_DIR_PROPERTY = "datadog.smoketest.builddir";
   private static final DateTimeFormatter LOG_FILE_TIMESTAMP =

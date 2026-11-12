@@ -128,7 +128,7 @@ public class NettyHttpServerDecorator
     super.doOnError(span, throwable, errorPriority);
   }
 
-  private static boolean isNettyNativeClientAbort(final Throwable throwable) {
+  static boolean isNettyNativeClientAbort(final Throwable throwable) {
     if (throwable == null
         || !NETTY_NATIVE_IO_EXCEPTION_CLASS_NAME.equals(throwable.getClass().getName())) {
       return false;
@@ -204,13 +204,12 @@ public class NettyHttpServerDecorator
         pipeline
             .channel()
             .eventLoop()
-            .execute(
-                () -> {
-                  if (commitBlockingResponse(
-                      segment, statusCode, templateType, extraHeaders, securityResponseId)) {
-                    blockingResponseInitiated = true;
-                  }
-                });
+            .execute(() -> {
+              if (commitBlockingResponse(
+                  segment, statusCode, templateType, extraHeaders, securityResponseId)) {
+                blockingResponseInitiated = true;
+              }
+            });
         return true;
       } catch (RuntimeException rte) {
         log.warn("Failed scheduling blocking handler", rte);

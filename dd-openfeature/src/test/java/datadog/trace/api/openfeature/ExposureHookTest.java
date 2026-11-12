@@ -4,6 +4,7 @@ import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -44,6 +45,10 @@ class ExposureHookTest {
     assertFalse(evaluation.isCacheHit());
     assertTrue(evaluation.shouldSend());
     assertEquals(singletonMap("holdout.key", "holdout"), evaluation.getFeatures());
+    assertEquals("flag", evaluation.getFlagKey());
+    assertEquals("on", evaluation.getVariant());
+    assertEquals("allocation", evaluation.getAllocationKey());
+    assertEquals("user", evaluation.getTargetingKey());
   }
 
   @Test
@@ -58,6 +63,7 @@ class ExposureHookTest {
     assertFalse(evaluation.isCacheHit());
     assertFalse(evaluation.shouldSend());
     assertTrue(evaluation.getFeatures().isEmpty());
+    assertNull(evaluation.getAllocationKey());
   }
 
   @Test

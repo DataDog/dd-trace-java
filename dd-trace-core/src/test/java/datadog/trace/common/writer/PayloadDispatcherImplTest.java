@@ -58,11 +58,10 @@ class PayloadDispatcherImplTest extends DDJavaSpecification {
     when(discovery.getTraceEndpoint()).thenReturn(traceEndpoint);
     DDAgentApi api = mock(DDAgentApi.class);
     when(api.sendSerializedTraces(any()))
-        .thenAnswer(
-            inv -> {
-              flushed.set(true);
-              return RemoteApi.Response.success(200);
-            });
+        .thenAnswer(inv -> {
+          flushed.set(true);
+          return RemoteApi.Response.success(200);
+        });
     PayloadDispatcherImpl dispatcher =
         new PayloadDispatcherImpl(
             new DDAgentMapperDiscovery(discovery), api, healthMetrics, monitoring);
