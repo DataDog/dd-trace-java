@@ -79,10 +79,10 @@ public class PekkoActorCellInstrumentation extends InstrumenterModule.ContextTra
         @Advice.Local("taskScope") ContextScope taskScope,
         @Advice.Enter ContextHandle checkpointContext) {
 
-      if (checkpointContext == null) {
+      if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
         // Clean up any leaking scopes from pekko-streams/pekko-http etc.
         AgentTracer.get().rollbackActiveToCheckpoint();
-      } else {
+      } else if (checkpointContext != null) {
         checkpointContext.swap();
       }
 
