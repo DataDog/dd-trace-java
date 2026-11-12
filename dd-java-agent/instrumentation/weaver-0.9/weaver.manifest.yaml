@@ -1,0 +1,12 @@
+_v: 1
+name: weaver
+display_name: weaver-cats
+description: Instruments Weaver test and suite events from the sbt runner to report test durations, failures,
+  and skipped results for Test Optimization.
+packages:
+- name: com.disneystreaming:weaver-cats_3
+- name: org.typelevel:weaver-cats_3
+category:
+- test.execution
+systems: []
+creation_date: '2025-01-20'

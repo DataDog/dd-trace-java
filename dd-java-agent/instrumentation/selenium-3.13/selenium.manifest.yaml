@@ -1,0 +1,11 @@
+_v: 1
+name: selenium
+display_name: selenium-java
+description: Instruments Selenium browser navigation and shutdown to correlate browser tests with RUM
+  sessions and attach browser metadata to test events.
+packages:
+- name: org.seleniumhq.selenium:selenium-java
+category:
+- other
+systems: []
+creation_date: '2024-04-04'

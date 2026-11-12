@@ -1,0 +1,11 @@
+_v: 1
+name: cucumber
+display_name: 'Cucumber-JVM: Core'
+description: Instruments Cucumber step execution to record step names, locations, and arguments for Test
+  Optimization.
+packages:
+- name: io.cucumber:cucumber-core
+category:
+- test.execution
+systems: []
+creation_date: '2023-08-07'

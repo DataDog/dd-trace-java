@@ -1,0 +1,14 @@
+_v: 1
+name: maven
+display_name: Maven Embedder
+description: Instruments Maven build sessions and plugin and test module lifecycles, configures Test Optimization
+  in test JVMs, and supports optional Surefire JUnit test ordering.
+packages:
+- name: org.apache.maven.surefire:surefire-junit4
+- name: org.apache.maven.surefire:surefire-junit47
+- name: org.apache.maven:maven-embedder
+category:
+- cicd.pipeline
+- test.execution
+systems: []
+creation_date: '2023-04-06'

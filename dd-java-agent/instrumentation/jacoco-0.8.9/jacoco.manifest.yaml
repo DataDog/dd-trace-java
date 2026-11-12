@@ -1,0 +1,11 @@
+_v: 1
+name: jacoco
+display_name: 'JaCoCo :: Agent'
+description: Instruments JaCoCo coverage collection to report session coverage data and per-test line
+  coverage for Test Optimization.
+packages:
+- name: org.jacoco:org.jacoco.agent
+category:
+- other
+systems: []
+creation_date: '2023-06-19'
