@@ -4,7 +4,9 @@ import static datadog.trace.api.CorrelationIdentifier.getSpanId;
 import static datadog.trace.api.CorrelationIdentifier.getTraceId;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import ch.qos.logback.classic.AsyncAppender;
@@ -248,6 +250,61 @@ class LogbackPatternLayoutTest extends AbstractInstrumentationTest {
     assertEquals("%level " + fields + "\n%logger", logs.newLayout("%level\n%logger").getPattern());
   }
 
+  @Test
+  void keepsIdsOutsideReplacementOfThePrefixAndMessage() {
+    MDC.put("dd.trace_id", "123456789");
+    MDC.put("dd.span_id", "987654321");
+    String wrapper = "%replace(%level %msg){'[0-9]','X'}";
+    PatternLayout layout = logs.newLayout(wrapper + "%n");
+    assertEquals(
+        wrapper + " " + (SERVICE + TRACE + SPAN + ENV + VERSION).trim() + "%n",
+        layout.getPattern());
+    assertEquals(
+        "INFO messageXXX dd.service=pattern-test dd.trace_id=123456789"
+            + " dd.span_id=987654321 dd.env=test-env dd.version=1.2.3"
+            + System.lineSeparator(),
+        layout.doLayout(logs.event("message123")));
+  }
+
+  @Test
+  void leavesReplacementWithAnInternalNewlineUnchanged() {
+    String pattern = "%replace(%level %msg%n){'[0-9]','X'}";
+    assertEquals(pattern, logs.newLayout(pattern).getPattern());
+  }
+
+  @Test
+  void enhancesClassicSubclassesInheritingStart() {
+    PatternLayout layout = new PatternLayout() {};
+    layout.setContext(logs.context);
+    layout.setPattern("%level %msg%n");
+    layout.start();
+    assertEquals(
+        "%level " + SERVICE + TRACE + SPAN + ENV + VERSION + "%msg%n", layout.getPattern());
+    layout.stop();
+  }
+
+  @Test
+  void leavesOtherCorePatternLayoutsUnchanged() {
+    ch.qos.logback.core.pattern.PatternLayoutBase<Object> layout =
+        new ch.qos.logback.core.pattern.PatternLayoutBase<Object>() {
+          @Override
+          public java.util.Map<String, String> getDefaultConverterMap() {
+            return java.util.Collections.emptyMap();
+          }
+
+          @Override
+          public String doLayout(Object event) {
+            return "literal";
+          }
+        };
+    layout.setContext(logs.context);
+    layout.setPattern("literal");
+    layout.start();
+    assertEquals("literal", layout.getPattern());
+    assertTrue(layout.isStarted());
+    layout.stop();
+  }
+
   private static class LogCapture {
     private final LoggerContext context = (LoggerContext) LoggerFactory.getILoggerFactory();
     private final Logger logger = context.getLogger(LogbackPatternLayoutTest.class);
@@ -296,5 +353,19 @@ class LogbackPatternLayoutLogsInjectionDisabledTest extends AbstractInstrumentat
       layout.stop();
       MDC.clear();
     }
+  }
+}
+
+@WithConfig(key = "logs.pattern.inject", value = "false")
+class LogbackPatternInstrumentationDisabledTest {
+  @Test
+  void keepsBootstrapEnrichmentAndHelperChangesDisabled() {
+    BootstrapPatternLoggingEventInstrumentation enrichment =
+        new BootstrapPatternLoggingEventInstrumentation();
+    assertFalse(enrichment.defaultEnabled());
+    assertFalse(enrichment.classLoaderMatcher().matches(null));
+    assertArrayEquals(
+        new String[] {"datadog.trace.instrumentation.logback.LogsIntakeHelper"},
+        new LogbackLoggerInstrumentation().helperClassNames());
   }
 }

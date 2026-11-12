@@ -2,6 +2,8 @@ package datadog.trace.bootstrap.instrumentation.log;
 
 /** Adds missing MDC converters before the message of a text logging pattern. */
 public final class LogPatternInjector {
+  private static final int UNSAFE_INSERTION = -2;
+
   public static final int SERVICE = 1;
   public static final int TRACE_ID = 2;
   public static final int SPAN_ID = 4;
@@ -127,6 +129,29 @@ public final class LogPatternInjector {
         || "encode".equals(name);
   }
 
+  /** Only color wrappers can safely include new fields without changing their contents. */
+  private static boolean isPresentation(String name, boolean logback) {
+    return "black".equals(name)
+        || "blue".equals(name)
+        || "cyan".equals(name)
+        || "green".equals(name)
+        || "magenta".equals(name)
+        || "red".equals(name)
+        || "white".equals(name)
+        || "yellow".equals(name)
+        || "highlight".equals(name)
+        || (logback
+            && (name.isEmpty()
+                || "boldRed".equals(name)
+                || "boldBlue".equals(name)
+                || "boldGreen".equals(name)
+                || "boldYellow".equals(name)
+                || "boldMagenta".equals(name)
+                || "boldCyan".equals(name)
+                || "boldWhite".equals(name)))
+        || (!logback && "style".equals(name));
+  }
+
   private static int logbackGroupEnd(String pattern, int start, int end) {
     int depth = 1;
     for (int i = start + 1; i < end; i++) {
@@ -228,8 +253,29 @@ public final class LogPatternInjector {
                 logback,
                 message,
                 prefixSeen || wrapperStart < 0 ? tokenStart : wrapperStart);
+        if (nested == UNSAFE_INSERTION) {
+          return UNSAFE_INSERTION;
+        }
         if (nested >= 0) {
-          return nested;
+          if (nested <= tokenStart
+              || (nameStart == tokenStart + 1 && isPresentation(name, logback))) {
+            return nested;
+          }
+          // A transforming wrapper owns both prefix and message. Keep its output intact,
+          // then add fields outside the wrapper so neither IDs nor the message are changed.
+          // If it owns a newline too, leave it unchanged rather than create a separate line.
+          if (findInsertion(pattern, i + 1, childEnd, logback, false, -1) != -1) {
+            return UNSAFE_INSERTION;
+          }
+          int after = childEnd + 1;
+          while (after < end && pattern.charAt(after) == '{') {
+            int close = optionEnd(pattern, after, end, logback);
+            if (close < 0) {
+              return UNSAFE_INSERTION;
+            }
+            after = close + 1;
+          }
+          return after;
         }
         i = childEnd + 1;
       }
@@ -256,8 +302,14 @@ public final class LogPatternInjector {
       return pattern;
     }
     int insertion = findInsertion(pattern, 0, pattern.length(), logback, true, -1);
+    if (insertion == UNSAFE_INSERTION) {
+      return pattern;
+    }
     if (insertion < 0) {
       insertion = findInsertion(pattern, 0, pattern.length(), logback, false, -1);
+    }
+    if (insertion == UNSAFE_INSERTION) {
+      return pattern;
     }
     if (insertion < 0) {
       insertion = pattern.length();

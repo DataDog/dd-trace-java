@@ -19,8 +19,13 @@ becomes:
 
 Fields are inserted immediately before the message converter (`%m`, `%msg`, or
 `%message`), preserving the existing timestamp, level, logger, and separators.
-Message-only wrappers stay around the message; wrappers containing a prefix keep
-that prefix before the new fields. Without a message converter, fields are added
+Message-only wrappers stay around the message. Color wrappers containing a prefix
+keep that prefix before the new fields. If a transforming wrapper (such as replace,
+encoding, truncation, or a formatted group) contains both a prefix and message, the
+fields are added after the complete wrapper, preserving its original output and
+keeping correlation IDs outside the transformation. Such a wrapper containing an
+internal newline is left unchanged, because adding fields outside it could create
+a separate log line. Without a message converter, fields are added
 before the first newline converter or literal line break, or at the end when no
 line break is present. Existing MDC converters are retained;
 restarting a layout does not add the same converters again. A converter that

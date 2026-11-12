@@ -390,3 +390,5 @@
 /dd-java-agent/instrumentation/log4j/log4j-2.0/src/test/java/ @DataDog/apm-java @DataDog/apm-idm-java
 
 /dd-java-agent/instrumentation/log4j/log4j-2.0/src/main/java/datadog/trace/instrumentation/log4j2/CorrelationIdPatternConverter.java @DataDog/apm-java @DataDog/apm-idm-java
+
+/dd-java-agent/instrumentation/logback-1.0/src/main/java/datadog/trace/instrumentation/logback/BootstrapPatternLoggingEventInstrumentation.java @DataDog/apm-java @DataDog/apm-idm-java

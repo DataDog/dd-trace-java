@@ -18,6 +18,7 @@ import ch.qos.logback.classic.spi.ILoggingEvent;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.Config;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -46,9 +47,12 @@ public class LogbackLoggerInstrumentation extends InstrumenterModule.ContextTrac
 
   @Override
   public String[] helperClassNames() {
-    return InstrumenterConfig.get().isAppLogsCollectionEnabled()
-        ? new String[] {LogsIntakeHelper.class.getName()}
-        : new String[0];
+    // Opt-in bootstrap Logback cannot receive app-classloader helpers. This helper is
+    // referenced only by the logs-intake advice, which is disabled in this case.
+    return Config.get().isLogPatternInject()
+            && !InstrumenterConfig.get().isAppLogsCollectionEnabled()
+        ? new String[0]
+        : new String[] {LogsIntakeHelper.class.getName()};
   }
 
   @Override

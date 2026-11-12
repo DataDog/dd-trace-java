@@ -16,6 +16,9 @@ import org.apache.logging.log4j.ThreadContext;
 import org.apache.logging.log4j.core.LogEvent;
 import org.apache.logging.log4j.core.impl.Log4jLogEvent;
 import org.apache.logging.log4j.core.layout.PatternLayout;
+import org.apache.logging.log4j.core.pattern.LogEventPatternConverter;
+import org.apache.logging.log4j.core.pattern.PatternFormatter;
+import org.apache.logging.log4j.core.pattern.PatternParser;
 import org.apache.logging.log4j.message.SimpleMessage;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -231,6 +234,53 @@ class Log4j2PatternLayoutTest extends AbstractInstrumentationTest {
     assertEquals(
         "%p " + FIELDS + "\n%c",
         PatternLayout.newBuilder().withPattern("%p\n%c").build().getConversionPattern());
+  }
+
+  @TableTest({
+    "Scenario           | Wrapper                               | Message                   ",
+    "replace prefix     | %replace{%p %m}{[0-9]}{X}             | message123                ",
+    "nested replacement | %replace{%cyan{%p %m}}{message}{text} | message123                ",
+    "truncated prefix   | %maxLen{%p %m}{20}                    | abcdefghijklmnopqrstuvwxyz"
+  })
+  void keepsFieldsOutsideTransformingWrappers(String wrapper, String message) {
+    if (wrapper.startsWith("%max")) {
+      assumeTrue(
+          getClass()
+                  .getClassLoader()
+                  .getResource("org/apache/logging/log4j/core/pattern/MaxLengthConverter.class")
+              != null);
+    }
+    ThreadContext.put("dd.trace_id", "123456789");
+    ThreadContext.put("dd.span_id", "987654321");
+    LogEvent event = Events.event(message);
+    // Parse the untouched wrapper directly so the expected rendering follows the native
+    // converter's version-specific behavior (for example truncation with/without ellipsis).
+    StringBuilder original = new StringBuilder();
+    PatternParser parser = new PatternParser(null, "Converter", LogEventPatternConverter.class);
+    for (PatternFormatter formatter : parser.parse(wrapper)) {
+      formatter.format(event, original);
+    }
+    PatternLayout layout = PatternLayout.newBuilder().withPattern(wrapper + "%n").build();
+    assertEquals(wrapper + " " + FIELDS + "%n", layout.getConversionPattern());
+    assertEquals(
+        original
+            + " dd.service=pattern-test dd.trace_id=123456789"
+            + " dd.span_id=987654321 dd.env=test-env dd.version=1.2.3"
+            + System.lineSeparator(),
+        layout.toSerializable(event));
+    assertEquals(
+        layout.getConversionPattern(),
+        PatternLayout.newBuilder()
+            .withPattern(layout.getConversionPattern())
+            .build()
+            .getConversionPattern());
+  }
+
+  @Test
+  void leavesTransformingWrappersWithInternalNewlinesUnchanged() {
+    String pattern = "%replace{%p %m%n}{[0-9]}{X}";
+    assertEquals(
+        pattern, PatternLayout.newBuilder().withPattern(pattern).build().getConversionPattern());
   }
 
   private static class Events {
