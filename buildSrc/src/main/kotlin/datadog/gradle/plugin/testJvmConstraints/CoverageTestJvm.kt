@@ -7,6 +7,15 @@ import org.gradle.api.tasks.testing.Test
 import org.gradle.kotlin.dsl.findByType
 import org.gradle.kotlin.dsl.withType
 
+/** The Gradle property that collects and checks coverage on every test JVM. */
+const val CHECK_COVERAGE = "checkCoverage"
+
+/**
+ * The Gradle property that collects and checks the coverage of each project only on its coverage
+ * test JVM, see [coverageTestJvm]. Without `testJvm`, it behaves like [CHECK_COVERAGE].
+ */
+const val CHECK_COVERAGE_ON_FIRST_TEST_JVM = "checkCoverageOnFirstTestJvm"
+
 /** The Java LTS versions known to Gradle, lowest first. CI tests every LTS version. */
 private val LTS_VERSIONS: List<Int> = JavaVersion.values()
   .filter { it != JavaVersion.VERSION_HIGHER }
@@ -55,6 +64,22 @@ internal fun Project.coverageTestJvmProblem(): String? {
     else -> null
   }
 }
+
+/**
+ * Tells whether the coverage of the project is collected and checked for the requested test JVM.
+ *
+ * @param checkCoverage Whether coverage is checked on every test JVM.
+ * @param checkCoverageOnFirstTestJvm Whether coverage is checked on the coverage test JVM only.
+ * @param testJvm The requested `testJvm`, or `null` when tests run on the Gradle daemon JVM.
+ * @return `true` if coverage is collected and checked.
+ */
+internal fun Project.checksCoverage(
+  checkCoverage: Boolean,
+  checkCoverageOnFirstTestJvm: Boolean,
+  testJvm: String?,
+): Boolean =
+  checkCoverage ||
+    (checkCoverageOnFirstTestJvm && (testJvm == null || testJvm.equals(coverageTestJvm(), ignoreCase = true)))
 
 private fun Project.testTaskConstraints(): TestJvmConstraintsExtension? =
   tasks.withType<Test>()

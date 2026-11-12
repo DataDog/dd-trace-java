@@ -77,6 +77,44 @@ class CoverageTestJvmTest {
     assertThat(project.coverageTestJvm()).isNull()
   }
 
+  @ParameterizedTest(name = "{0}")
+  @CsvSource(
+    delimiter = '|',
+    nullValues = ["-"],
+    value = [
+      "no coverage requested          | false | false | 11     | false",
+      "every test JVM                 | true  | false | 17     | true",
+      "coverage test JVM matches      | false | true  | 11     | true",
+      "vendor JVM of the same version | false | true  | zulu11 | false",
+      "coverage test JVM differs      | false | true  | 8      | false",
+      "no testJvm                     | false | true  | -      | true",
+    ]
+  )
+  fun `coverage is checked on the requested test JVM`(
+    scenario: String,
+    checkCoverage: Boolean,
+    checkCoverageOnFirstTestJvm: Boolean,
+    testJvm: String?,
+    expected: Boolean,
+  ) {
+    val project = projectWithTestJvmConstraints()
+    project.extensions.getByType<TestJvmConstraintsExtension>().minJavaVersion.set(JavaVersion.VERSION_11)
+
+    assertThat(project.checksCoverage(checkCoverage, checkCoverageOnFirstTestJvm, testJvm)).isEqualTo(expected)
+  }
+
+  @Test
+  fun `coverage test JVM set is matched ignoring case`() {
+    val project = projectWithTestJvmConstraints()
+    project.extensions.getByType<TestJvmConstraintsExtension>().apply {
+      maxJavaVersion.set(JavaVersion.VERSION_1_8)
+      includeJdk.set(listOf("ORACLE8"))
+      coverageTestJvm.set("ORACLE8")
+    }
+
+    assertThat(project.checksCoverage(false, true, "oracle8")).isTrue()
+  }
+
   private fun projectWithTestJvmConstraints(): Project {
     val project = ProjectBuilder.builder().build()
     project.pluginManager.apply("dd-trace-java.test-jvm-constraints")

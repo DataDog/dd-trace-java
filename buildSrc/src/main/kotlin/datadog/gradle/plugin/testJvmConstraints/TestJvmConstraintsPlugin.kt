@@ -62,11 +62,19 @@ class TestJvmConstraintsPlugin : Plugin<Project> {
 
     // Jacoco plugin is not applied on every project
     project.pluginManager.withPlugin("org.gradle.jacoco") {
-      project.tasks.withType<Test>().configureEach {
-        configureJacocoForAdditionalTestJvm(
-          testJvmSpec.javaTestLauncherOverride.isPresent,
-          project.rootProject.providers.gradleProperty("checkCoverage").isPresent
+      // The coverage test JVM comes from the test JVM constraints, which are final once evaluated
+      project.afterEvaluate {
+        val checksCoverage = project.checksCoverage(
+          project.rootProject.providers.gradleProperty(CHECK_COVERAGE).isPresent,
+          project.rootProject.providers.gradleProperty(CHECK_COVERAGE_ON_FIRST_TEST_JVM).isPresent,
+          testJvmSpec.testJvmProperty.orNull,
         )
+        project.tasks.withType<Test>().configureEach {
+          configureJacocoForAdditionalTestJvm(
+            testJvmSpec.javaTestLauncherOverride.isPresent,
+            checksCoverage
+          )
+        }
       }
     }
 

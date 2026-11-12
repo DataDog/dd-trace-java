@@ -1275,6 +1275,19 @@ The root `build.gradle.kts` defines aggregate tasks that orchestrate testing acr
 > These root tasks are defined using `testAggregate()` in `build.gradle.kts`. They combine CI slot filtering,
 > git change tracking, and optional JaCoCo coverage into convenient entry points for CI pipelines.
 
+**Coverage:**
+
+- `-PcheckCoverage` collects coverage and runs each project's coverage verification on every test JVM.
+- `-PcheckCoverageOnFirstTestJvm` does the same only on the project's coverage test JVM: the lowest
+  Java LTS version its `test` task accepts, or its `testJvmConstraints.coverageTestJvm` when set.
+  CI tests every LTS version and runs `baseTest` and `profilingTest` with it on every test JVM, so
+  each project is checked once. Without `-PtestJvm`, it checks every project.
+
+```bash
+# Checks the coverage of projects whose tests first run on Java 11, like :dd-openfeature
+./gradlew baseTest -PtestJvm=11 -PcheckCoverageOnFirstTestJvm
+```
+
 ## Convention Plugins
 
 Convention plugins are the recommended way to share _build logic_ across projects. They encapsulate
