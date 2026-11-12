@@ -172,7 +172,7 @@ public final class StatusLogger extends JsonAdapter<Config>
     writer.value(config.isOtlpMetricsExportEnabled());
     writer.name("otlp_logs_export_enabled");
     writer.value(config.isOtlpLogsExportEnabled());
-    OtelStartupLogSettings.write(
+    OtelStartupLogSettingsWriter.write(
         writer, config, sampler, LoggerFactory.getLogger(StatusLogger.class));
 
     writer.name("app_logs_collection_enabled");

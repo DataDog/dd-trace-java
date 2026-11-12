@@ -256,37 +256,6 @@ class OtelEnvironmentConfigSourceTest {
     assertNull(source.get(OTEL_TRACES_SPAN_METRICS_ENABLED));
   }
 
-  @TableTest({
-    "scenario          | traceOtelEnabled | sdkDisabled | setting          ",
-    "OTel enabled      | true             |             | http://agent:4318",
-    "OTel not enabled  | false            |             |                  ",
-    "OTel SDK disabled | true             | true        |                  "
-  })
-  void otelSettingIsOnlyReadWhenOtelIsEnabled(
-      String traceOtelEnabled, String sdkDisabled, String setting) {
-    injectSysConfig(TRACE_OTEL_ENABLED, traceOtelEnabled);
-    if (sdkDisabled != null) {
-      injectEnvConfig("OTEL_SDK_DISABLED", sdkDisabled, false);
-    }
-    injectEnvConfig("OTEL_EXPORTER_OTLP_ENDPOINT", "http://agent:4318", false);
-
-    assertEquals(
-        setting, new OtelEnvironmentConfigSource().getOtelSetting("otel.exporter.otlp.endpoint"));
-  }
-
-  @Test
-  @WithConfig(key = TRACE_OTEL_ENABLED, value = "true")
-  @WithConfig(
-      key = "OTEL_EXPORTER_OTLP_PROTOCOL",
-      value = "http/json",
-      env = true,
-      addPrefix = false)
-  @WithConfig(key = "otel.exporter.otlp.protocol", value = "grpc", addPrefix = false)
-  void otelSettingSystemPropertyTakesPrecedence() {
-    assertEquals(
-        "grpc", new OtelEnvironmentConfigSource().getOtelSetting("otel.exporter.otlp.protocol"));
-  }
-
   @ParameterizedTest
   @ValueSource(strings = {"false", "", "foo"})
   void otelSdkIsOnlyDisabledByTrue(String value) {

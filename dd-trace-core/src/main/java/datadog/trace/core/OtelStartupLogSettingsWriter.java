@@ -27,6 +27,7 @@ import java.util.Set;
 import java.util.StringJoiner;
 import java.util.TreeSet;
 import javax.annotation.Nullable;
+import okhttp3.HttpUrl;
 import org.slf4j.Logger;
 
 /**
@@ -37,10 +38,10 @@ import org.slf4j.Logger;
  * Header values are redacted, and endpoints drop their user info, query and fragment, which may
  * hold credentials.
  */
-final class OtelStartupLogSettings {
+final class OtelStartupLogSettingsWriter {
   static final String REDACTED = "<redacted>";
 
-  private OtelStartupLogSettings() {}
+  private OtelStartupLogSettingsWriter() {}
 
   /** {@code log} writes the startup log, so its level is the one reported. */
   static void write(JsonWriter writer, Config config, Sampler sampler, Logger log)
@@ -262,43 +263,26 @@ final class OtelStartupLogSettings {
     return names;
   }
 
-  /** Drops the user info, query and fragment of an endpoint, which may hold credentials. */
+  /**
+   * Drops the user info, query and fragment of an endpoint, which may hold credentials. The
+   * endpoint is parsed like the OTLP senders parse it, so they agree on where the credentials are,
+   * and it is redacted when it cannot be parsed. An endpoint without credentials is returned as
+   * configured, since parsing normalizes it.
+   */
   static String sanitizeEndpoint(String endpoint) {
-    int end = endpoint.length();
-    int query = endpoint.indexOf('?');
-    if (query >= 0) {
-      end = query;
+    if (endpoint.startsWith("unix://")) {
+      return endpoint; // a socket path
     }
-    int fragment = endpoint.indexOf('#');
-    if (fragment >= 0 && fragment < end) {
-      end = fragment;
+    HttpUrl url = HttpUrl.parse(endpoint);
+    if (url == null) {
+      return REDACTED;
     }
-    String sanitized = endpoint.substring(0, end);
-    int authorityStart;
-    if (sanitized.regionMatches(true, 0, "http:", 0, 5)
-        || sanitized.regionMatches(true, 0, "https:", 0, 6)) {
-      // like OkHttp, which sends OTLP, accept any number of slashes or backslashes before the
-      // authority
-      authorityStart = sanitized.indexOf(':') + 1;
-      while (authorityStart < sanitized.length() && isSlash(sanitized.charAt(authorityStart))) {
-        authorityStart++;
-      }
-    } else {
-      int schemeEnd = sanitized.indexOf("://");
-      authorityStart = schemeEnd < 0 ? 0 : schemeEnd + 3;
+    if (url.encodedUsername().isEmpty()
+        && url.encodedPassword().isEmpty()
+        && url.encodedQuery() == null
+        && url.encodedFragment() == null) {
+      return endpoint;
     }
-    int authorityEnd = authorityStart;
-    while (authorityEnd < sanitized.length() && !isSlash(sanitized.charAt(authorityEnd))) {
-      authorityEnd++;
-    }
-    int userInfoEnd = sanitized.lastIndexOf('@', authorityEnd - 1);
-    if (userInfoEnd >= authorityStart) {
-      sanitized = sanitized.substring(0, authorityStart) + sanitized.substring(userInfoEnd + 1);
-    }
-    return sanitized;
-  }
-
-  private static boolean isSlash(char c) {
-    return c == '/' || c == '\\';
+    return url.newBuilder().username("").password("").query(null).fragment(null).build().toString();
   }
 }

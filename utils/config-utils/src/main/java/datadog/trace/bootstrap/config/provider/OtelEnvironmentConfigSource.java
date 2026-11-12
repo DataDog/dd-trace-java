@@ -128,15 +128,6 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
     return sdkDisabled;
   }
 
-  /**
-   * Returns an OpenTelemetry setting without a Datadog equivalent, such as {@code
-   * otel.exporter.otlp.endpoint}, or {@code null} when it is unset or OpenTelemetry settings are
-   * ignored.
-   */
-  String getOtelSetting(String sysProp) {
-    return enabled ? getOtelProperty(sysProp) : null;
-  }
-
   private void setupOtelEnvironment() {
     // Reports that DD_TRACE_OTEL_ENABLED hides OTEL_SDK_DISABLED, which only applies when true
     getOtelProperty("otel.sdk.disabled", "dd." + TRACE_OTEL_ENABLED);

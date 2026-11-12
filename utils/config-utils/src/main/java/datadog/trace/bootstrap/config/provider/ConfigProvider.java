@@ -77,12 +77,20 @@ public final class ConfigProvider {
   /**
    * Returns an OpenTelemetry setting without a Datadog equivalent, such as {@code
    * otel.exporter.otlp.endpoint}, or {@code null} when it is unset or OpenTelemetry settings are
-   * ignored because no OpenTelemetry signal is enabled.
+   * ignored because no OpenTelemetry signal is enabled. The value is reported to telemetry.
+   *
+   * <p>Unlike {@link #getString(String)}, only the OpenTelemetry names are read: the other sources
+   * would also look up {@code DD_OTEL_*} names, which are not supported configurations.
    */
-  public String getOtelSetting(String sysProp) {
+  public String getOtelSetting(String key) {
     for (ConfigProvider.Source source : sources) {
       if (source instanceof OtelEnvironmentConfigSource) {
-        return ((OtelEnvironmentConfigSource) source).getOtelSetting(sysProp);
+        String value = source.get(key);
+        if (value != null && collectConfig) {
+          ConfigCollector.get()
+              .put(key, value, source.origin(), NON_DEFAULT_SEQ_ID, getConfigIdFromSource(source));
+        }
+        return value;
       }
     }
     return null;

@@ -4,9 +4,10 @@ import static datadog.trace.api.config.OtlpConfig.OTEL_TRACES_SPAN_METRICS_ENABL
 import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_PROTOCOL;
 import static datadog.trace.api.config.OtlpConfig.TRACE_OTEL_EXPORTER;
 import static datadog.trace.api.config.TracerConfig.AGENT_HOST;
-import static datadog.trace.core.OtelStartupLogSettings.REDACTED;
+import static datadog.trace.core.OtelStartupLogSettingsWriter.REDACTED;
 import static datadog.trace.core.StatusLoggerTest.startupLog;
 import static datadog.trace.core.StatusLoggerTest.startupLogJson;
+import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectEnvConfig;
 import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectSysConfig;
 import static java.util.Collections.emptyMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -23,7 +24,7 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
-class OtelStartupLogSettingsTest extends DDJavaSpecification {
+class OtelStartupLogSettingsWriterTest extends DDJavaSpecification {
 
   @Test
   void otelSettingsWithoutOtlpExport() throws IOException {
@@ -135,7 +136,11 @@ class OtelStartupLogSettingsTest extends DDJavaSpecification {
     assertEquals("grpc", startupLog.get("OTEL_EXPORTER_OTLP_PROTOCOL"));
   }
 
-  @Test
+  @TableTest({
+    "scenario            | endpoint                                                                   | sanitized                       ",
+    "user info and query | 'https://user:secret-password@collector:4318/v1/traces?token=secret-token' | https://collector:4318/v1/traces",
+    "leading space       | ' http:///user:secret-password@collector:4318/v1/traces'                   | http://collector:4318/v1/traces "
+  })
   @WithConfig(key = "DD_TRACE_OTEL_ENABLED", value = "true", env = true, addPrefix = false)
   @WithConfig(key = "OTEL_TRACES_EXPORTER", value = "otlp", env = true, addPrefix = false)
   @WithConfig(
@@ -143,12 +148,8 @@ class OtelStartupLogSettingsTest extends DDJavaSpecification {
       value = "api-key=secret-key,other=secret-other",
       env = true,
       addPrefix = false)
-  @WithConfig(
-      key = "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT",
-      value = "https://user:secret-password@collector:4318/v1/traces?token=secret-token",
-      env = true,
-      addPrefix = false)
-  void credentialsAreNotLogged() throws IOException {
+  void credentialsAreNotLogged(String endpoint, String sanitized) throws IOException {
+    injectEnvConfig("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", endpoint, false);
     String json = startupLogJson();
     Map<String, Object> startupLog = JsonMapper.fromJsonToMap(json);
 
@@ -158,8 +159,7 @@ class OtelStartupLogSettingsTest extends DDJavaSpecification {
     redactedHeaders.put("other", REDACTED);
     assertEquals(redactedHeaders, startupLog.get("OTEL_EXPORTER_OTLP_TRACES_HEADERS"));
     assertEquals(redactedHeaders, startupLog.get("OTEL_EXPORTER_OTLP_HEADERS"));
-    assertEquals(
-        "https://collector:4318/v1/traces", startupLog.get("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"));
+    assertEquals(sanitized, startupLog.get("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"));
   }
 
   @Test
@@ -239,22 +239,25 @@ class OtelStartupLogSettingsTest extends DDJavaSpecification {
   }
 
   @TableTest({
-    "scenario    | endpoint                                        | sanitized                           ",
-    "plain       | http://agent:4318/v1/traces                     | http://agent:4318/v1/traces         ",
-    "user info   | https://user:password@collector:4318/v1/traces  | https://collector:4318/v1/traces    ",
-    "user only   | http://user@collector                           | http://collector                    ",
-    "query       | http://collector:4318/v1/traces?token=secret    | http://collector:4318/v1/traces     ",
-    "fragment    | http://collector:4318/v1/traces#secret          | http://collector:4318/v1/traces     ",
-    "@ in path   | http://collector:4318/v1/traces@path            | http://collector:4318/v1/traces@path",
-    "extra slash | http:///user:secret@collector:4318/v1/traces    | http:///collector:4318/v1/traces    ",
-    "no slash    | https:user:secret@collector:4318/v1/traces      | https:collector:4318/v1/traces      ",
-    "backslashes | 'http:\\\\user:secret@collector:4318/v1/traces' | 'http:\\\\collector:4318/v1/traces' ",
-    "upper case  | HTTP:////user:secret@collector:4318             | HTTP:////collector:4318             ",
-    "unix socket | unix:///var/run/otlp.sock                       | unix:///var/run/otlp.sock           ",
-    "no scheme   | collector:4317                                  | collector:4317                      "
+    "scenario      | endpoint                                        | sanitized                           ",
+    "plain         | http://agent:4318/v1/traces                     | http://agent:4318/v1/traces         ",
+    "no path       | http://agent:4318                               | http://agent:4318                   ",
+    "user info     | https://user:password@collector:4318/v1/traces  | https://collector:4318/v1/traces    ",
+    "user only     | http://user@collector                           | http://collector/                   ",
+    "query         | http://collector:4318/v1/traces?token=secret    | http://collector:4318/v1/traces     ",
+    "fragment      | http://collector:4318/v1/traces#secret          | http://collector:4318/v1/traces     ",
+    "@ in path     | http://collector:4318/v1/traces@path            | http://collector:4318/v1/traces@path",
+    "extra slash   | http:///user:secret@collector:4318/v1/traces    | http://collector:4318/v1/traces     ",
+    "no slash      | https:user:secret@collector:4318/v1/traces      | https://collector:4318/v1/traces    ",
+    "backslashes   | 'http:\\\\user:secret@collector:4318/v1/traces' | http://collector:4318/v1/traces     ",
+    "upper case    | HTTP:////user:secret@collector:4318             | http://collector:4318/              ",
+    "leading space | ' http:///user:secret@collector:4318/v1/traces' | http://collector:4318/v1/traces     ",
+    "unix socket   | unix:///var/run/otlp.sock                       | unix:///var/run/otlp.sock           ",
+    "no scheme     | user:secret@collector:4317                      | <redacted>                          ",
+    "other scheme  | ftp://user:secret@collector                     | <redacted>                          "
   })
   void endpointsDropCredentials(String endpoint, String sanitized) {
-    assertEquals(sanitized, OtelStartupLogSettings.sanitizeEndpoint(endpoint));
+    assertEquals(sanitized, OtelStartupLogSettingsWriter.sanitizeEndpoint(endpoint));
   }
 
   private static void assertExporter(
