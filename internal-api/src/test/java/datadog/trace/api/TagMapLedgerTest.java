@@ -23,11 +23,10 @@ public class TagMapLedgerTest {
     assertEquals(SIZE, ledger.estimateSize());
 
     int i = 0;
-    for (TagMap.EntryChange entryChange : ledger) {
-      TagMap.Entry entry = (TagMap.Entry) entryChange;
-
-      assertEquals(key(i), entry.tag());
-      assertEquals(value(i), entry.stringValue());
+    for (TagMap.EntryChangeReader change : ledger) {
+      assertFalse(change.isRemoval());
+      assertEquals(key(i), change.tag());
+      assertEquals(value(i), change.stringValue());
 
       ++i;
     }
@@ -44,13 +43,14 @@ public class TagMapLedgerTest {
     ledger.set("object", (Object) "string");
     ledger.set("string", "string");
 
-    assertEntryRawType(TagMap.Entry.BOOLEAN, ledger, "bool");
-    assertEntryRawType(TagMap.Entry.INT, ledger, "int");
-    assertEntryRawType(TagMap.Entry.LONG, ledger, "long");
-    assertEntryRawType(TagMap.Entry.FLOAT, ledger, "float");
-    assertEntryRawType(TagMap.Entry.DOUBLE, ledger, "double");
-    assertEntryRawType(TagMap.Entry.ANY, ledger, "object");
-    assertEntryRawType(TagMap.Entry.OBJECT, ledger, "string");
+    // The ledger keeps values, not typed entries; what a reader sees is the resolved type.
+    assertEntryType(TagMap.Entry.BOOLEAN, ledger, "bool");
+    assertEntryType(TagMap.Entry.INT, ledger, "int");
+    assertEntryType(TagMap.Entry.LONG, ledger, "long");
+    assertEntryType(TagMap.Entry.FLOAT, ledger, "float");
+    assertEntryType(TagMap.Entry.DOUBLE, ledger, "double");
+    assertEntryType(TagMap.Entry.OBJECT, ledger, "object");
+    assertEntryType(TagMap.Entry.OBJECT, ledger, "string");
   }
 
   @Test
@@ -220,9 +220,13 @@ public class TagMapLedgerTest {
     return "value-" + i;
   }
 
-  static final void assertEntryRawType(byte expectedType, TagMap.Ledger ledger, String tag) {
-    TagMap.Entry entry = ledger.findLastEntry(tag);
-    assertEquals(expectedType, entry.rawType);
+  static final void assertEntryType(byte expectedType, TagMap.Ledger ledger, String tag) {
+    assertEquals(expectedType, ledger.findLastEntry(tag).type());
+    for (TagMap.EntryChangeReader change : ledger) {
+      if (tag.equals(change.tag())) {
+        assertEquals(expectedType, change.type());
+      }
+    }
   }
 
   static final void assertFrozen(TagMap map) {
