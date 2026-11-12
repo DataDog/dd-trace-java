@@ -1,0 +1,12 @@
+_v: 1
+name: pekko-http-route
+display_name: pekko-http
+description: Instruments Apache Pekko HTTP path matching and completed directive branches to attach matched
+  route templates to existing HTTP request spans.
+packages:
+- name: org.apache.pekko:pekko-http_2.12
+- name: org.apache.pekko:pekko-http_2.13
+category:
+- other
+systems: []
+creation_date: '2026-11-09'

@@ -1,0 +1,11 @@
+_v: 1
+name: ratpack
+display_name: ratpack-core
+description: Instruments Ratpack HTTP request handlers and errors, propagating context across execution continuations
+  and exposing request data to application security.
+packages:
+- name: io.ratpack:ratpack-core
+category:
+- http.server
+systems: []
+creation_date: '2018-03-30'

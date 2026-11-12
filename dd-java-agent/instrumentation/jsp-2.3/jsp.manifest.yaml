@@ -1,0 +1,10 @@
+_v: 1
+name: jsp
+display_name: Jasper
+description: Instruments JSP page rendering and Jasper page compilation with page names, timing and errors.
+packages:
+- name: org.apache.tomcat:tomcat-jasper
+category:
+- template.render
+systems: []
+creation_date: '2018-06-13'

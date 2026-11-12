@@ -1,0 +1,11 @@
+_v: 1
+name: graphql-java
+display_name: graphql-java
+description: Instruments GraphQL request execution, parsing, validation and data fetchers with operation, field
+  and error details.
+packages:
+- name: com.graphql-java:graphql-java
+category:
+- graphql.server
+systems: []
+creation_date: '2022-07-27'

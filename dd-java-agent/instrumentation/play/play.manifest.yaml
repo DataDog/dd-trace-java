@@ -1,0 +1,16 @@
+_v: 1
+name: play
+display_name: Play
+description: Instruments Play HTTP action execution and asynchronous responses, with route naming, application-security
+  request inspection and blocking.
+packages:
+- name: com.typesafe.play:play-java_2.11
+- name: com.typesafe.play:play-java_2.12
+- name: com.typesafe.play:play-java_2.13
+- name: com.typesafe.play:play_2.11
+- name: com.typesafe.play:play_2.12
+- name: com.typesafe.play:play_2.13
+category:
+- http.server
+systems: []
+creation_date: '2018-03-28'
