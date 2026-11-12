@@ -1,0 +1,11 @@
+_v: 1
+name: spring-boot
+display_name: spring-boot
+description: Instruments Spring Boot startup to derive service and process metadata from application
+  settings and, when enabled, capture controller code origins.
+packages:
+- name: org.springframework.boot:spring-boot
+category:
+- other
+systems: []
+creation_date: '2024-02-20'

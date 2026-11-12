@@ -1,0 +1,10 @@
+_v: 1
+name: spring-scheduling
+display_name: Spring Context
+description: Instruments Spring scheduled task execution with spans and error recording.
+packages:
+- name: org.springframework:spring-context
+category:
+- task.execution
+systems: []
+creation_date: '2020-01-21'

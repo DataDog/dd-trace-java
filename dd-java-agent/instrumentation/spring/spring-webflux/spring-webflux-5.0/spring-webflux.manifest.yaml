@@ -1,0 +1,14 @@
+_v: 1
+name: spring-webflux
+display_name: Spring WebFlux
+description: Instruments Spring WebFlux inbound handlers and outbound WebClient requests with
+  spans and asynchronous context propagation, and tracks request data for IAST when enabled.
+packages:
+- name: io.projectreactor.ipc:reactor-netty
+- name: io.projectreactor.netty:reactor-netty
+- name: org.springframework:spring-webflux
+category:
+- http.client
+- http.server
+systems: []
+creation_date: '2018-08-24'
