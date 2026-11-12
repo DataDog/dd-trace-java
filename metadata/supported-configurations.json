@@ -8934,9 +8934,9 @@
     ],
     "DD_OTEL_TRACES_SPAN_METRICS_ENABLED": [
       {
-        "version": "A",
+        "version": "B",
         "type": "boolean",
-        "default": null,
+        "default": "false",
         "aliases": []
       }
     ],
@@ -12070,9 +12070,9 @@
     ],
     "OTEL_TRACES_SPAN_METRICS_ENABLED": [
       {
-        "version": "A",
+        "version": "B",
         "type": "boolean",
-        "default": null,
+        "default": "false",
         "aliases": []
       }
     ],
