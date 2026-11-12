@@ -18,6 +18,7 @@ import static datadog.trace.core.CoreSpan.ROOT_PROPAGATION_TAGS;
 import static datadog.trace.core.otlp.common.OtlpCommonJson.hexSpanId;
 import static datadog.trace.core.otlp.common.OtlpCommonJson.hexTraceId;
 import static datadog.trace.core.otlp.common.OtlpCommonJson.writeAttribute;
+import static datadog.trace.core.otlp.common.OtlpCommonJson.writeBytesAttribute;
 import static datadog.trace.core.otlp.common.OtlpTraceFlags.NO_TRACE_FLAGS;
 import static datadog.trace.core.otlp.common.OtlpTraceFlags.REMOTE_TRACE_FLAG;
 import static datadog.trace.core.otlp.common.OtlpTraceFlags.SAMPLED_TRACE_FLAG;
@@ -28,8 +29,10 @@ import static datadog.trace.core.otlp.trace.OtlpSpanAttributes.RESOURCE_NAME;
 import static datadog.trace.core.otlp.trace.OtlpSpanAttributes.SERVICE_NAME_KEY;
 import static datadog.trace.core.otlp.trace.OtlpSpanAttributes.SKIPPED_BAGGAGE_KEYS;
 import static datadog.trace.core.otlp.trace.OtlpSpanAttributes.SPAN_TYPE;
+import static datadog.trace.core.otlp.trace.OtlpSpanAttributes.encodeMetaStruct;
 import static datadog.trace.core.otlp.trace.OtlpSpanAttributes.isExportedTagKey;
 import static datadog.trace.core.otlp.trace.OtlpSpanKind.spanKind;
+import static java.util.Collections.emptySet;
 
 import datadog.json.JsonWriter;
 import datadog.trace.api.Config;
@@ -46,6 +49,7 @@ import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.propagation.PropagationTags.SamplingState;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /** Provides writers for OpenTelemetry's "trace.proto" JSON encoding. */
 public final class OtlpTraceJson {
@@ -101,8 +105,16 @@ public final class OtlpTraceJson {
     }
     // Export root propagation tags on the span selected by the collector for sampling tags,
     // including when the exported trace contains no local root span.
-    span.processTagsAndBaggage(
-        metaWriter, metaWriter.includeSamplingTags ? ROOT_PROPAGATION_TAGS : 0);
+    metaWriter.structuredKeys = span.getMetaStruct().keySet();
+    try {
+      span.processTagsAndBaggage(
+          metaWriter, metaWriter.includeSamplingTags ? ROOT_PROPAGATION_TAGS : 0);
+    } finally {
+      metaWriter.structuredKeys = emptySet();
+    }
+    for (Map.Entry<String, Object> report : span.getMetaStruct().entrySet()) {
+      writeBytesAttribute(writer, report.getKey(), encodeMetaStruct(report.getValue()));
+    }
     writer.endArray();
 
     if (!links.isEmpty()) {
@@ -185,6 +197,7 @@ public final class OtlpTraceJson {
   }
 
   public static class MetaWriter implements MetadataConsumer {
+    private Set<String> structuredKeys = emptySet();
     private final JsonWriter writer;
     private final OtlpSpanAttributes.Writer<JsonWriter> spanTags;
 
@@ -253,7 +266,8 @@ public final class OtlpTraceJson {
       // written directly above win when they are exported under the same key, which keeps OTLP
       // attribute keys unique without dropping baggage whose exported key differs.
       for (Map.Entry<String, String> entry : metadata.getBaggage().entrySet()) {
-        if (SKIPPED_BAGGAGE_KEYS.contains(entry.getKey())
+        if (structuredKeys.contains(entry.getKey())
+            || SKIPPED_BAGGAGE_KEYS.contains(entry.getKey())
             || isExportedTagKey(tags, entry.getKey(), direction, otelSemantics)) {
           continue;
         }
@@ -261,7 +275,7 @@ public final class OtlpTraceJson {
       }
 
       // global tags are left to the resource
-      spanTags.write(metadata, direction);
+      spanTags.write(metadata, direction, structuredKeys);
 
       // reset for next span
       includeProcessTags = false;
