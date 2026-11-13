@@ -25,9 +25,7 @@ allprojects {
   }
 }
 
-fun relativeToGitRoot(f: File): File {
-  return rootProject.projectDir.toPath().relativize(f.absoluteFile.toPath()).toFile()
-}
+fun relativeToGitRoot(f: File): File = rootProject.projectDir.toPath().relativize(f.absoluteFile.toPath()).toFile()
 
 /** Returns whether a file path, relative to the root project, matches any of the given glob patterns. */
 fun pathMatcher(vararg globs: String): (File) -> Boolean {

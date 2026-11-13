@@ -82,20 +82,18 @@ abstract class SmokeTestAppExtension @Inject constructor(
         languageVersion.set(JavaLanguageVersion.of(DEFAULT_NESTED_JAVA_VERSION))
       },
     )
-
   }
 
   /** Provides lazy text contents relative to a directory provider. */
   fun fileContent(
     directory: Provider<String>,
     relativePath: String,
-  ): Provider<String> =
-    project.providers
-      .fileContents(
-        project.layout.projectDirectory
-          .dir(directory)
-          .map { it.file(relativePath) },
-      ).asText
+  ): Provider<String> = project.providers
+    .fileContents(
+      project.layout.projectDirectory
+        .dir(directory)
+        .map { it.file(relativePath) },
+    ).asText
 
   /**
    * Register the nested-build task and wire the produced artifact into every `Test` task as
@@ -229,9 +227,13 @@ abstract class SmokeTestAppExtension @Inject constructor(
     val cfg = createExtraJarConfiguration(propertyName)
     project.dependencies.add(
       cfg.name,
-      if (configuration == null) sourceProject else project.dependencies.project(
-        mapOf("path" to sourceProject.path, "configuration" to configuration),
-      ),
+      if (configuration == null) {
+        sourceProject
+      } else {
+        project.dependencies.project(
+          mapOf("path" to sourceProject.path, "configuration" to configuration),
+        )
+      },
     )
     projectJar(
       propertyName,
@@ -266,15 +268,13 @@ abstract class SmokeTestAppExtension @Inject constructor(
     )
   }
 
-  private fun rootMavenExecutable(): Provider<RegularFile> =
-    project.providers.provider {
-      project.rootProject.layout.projectDirectory.file(NestedMavenBuild.mavenWrapperName())
-    }
+  private fun rootMavenExecutable(): Provider<RegularFile> = project.providers.provider {
+    project.rootProject.layout.projectDirectory.file(NestedMavenBuild.mavenWrapperName())
+  }
 
-  private fun isCiProvider(): Provider<Boolean> =
-    project.providers.environmentVariable("CI")
-      .map { it.equals("true", ignoreCase = true) }
-      .orElse(false)
+  private fun isCiProvider(): Provider<Boolean> = project.providers.environmentVariable("CI")
+    .map { it.equals("true", ignoreCase = true) }
+    .orElse(false)
 }
 
 /** Common DSL for a smoke-test application artifact. */
@@ -336,9 +336,9 @@ abstract class GradleAppSpec @Inject constructor() : ApplicationSpec() {
   abstract val environment: MapProperty<String, String>
 
   /**
-   * Whether to enable the build cache in the nested Gradle invocation. 
-   * Gradle's org.gradle.caching flag is resolved from many sources (project, 
-   * init, gradle user home, environment, command line) and any of them silently 
+   * Whether to enable the build cache in the nested Gradle invocation.
+   * Gradle's org.gradle.caching flag is resolved from many sources (project,
+   * init, gradle user home, environment, command line) and any of them silently
    * enables the build cache for nested builds. For this reasons it defaults to `false`.
    * Opt in only when the inner plugin chain keys its cached outputs on everything that
    * varies between runs (e.g. Quarkus's native-image does not track `GRAALVM_HOME`).
@@ -408,11 +408,10 @@ private class SmokeTestArgProvider(
   private val artifact: Provider<RegularFile>,
   private val extras: Map<String, Provider<RegularFile>>,
 ) : CommandLineArgumentProvider {
-  override fun asArguments(): Iterable<String> =
-    buildList {
-      add("-D$sysProperty=${artifact.get().asFile.absolutePath}")
-      extras.forEach { (key, value) ->
-        add("-D$key=${value.get().asFile.absolutePath}")
-      }
+  override fun asArguments(): Iterable<String> = buildList {
+    add("-D$sysProperty=${artifact.get().asFile.absolutePath}")
+    extras.forEach { (key, value) ->
+      add("-D$key=${value.get().asFile.absolutePath}")
     }
+  }
 }

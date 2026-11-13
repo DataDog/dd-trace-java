@@ -67,17 +67,19 @@ class TestAgentCheckScriptTest {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = [
-    "",
-    "not json",
-    "[]",
-    "null",
-    "{\"x\":1}",
-    "{} {}",
-    "{\"trace_peer_service\":{\"Failed_Checks\":0}}",
-    "{\"trace_peer_service\":{\"Passed_Checks\":0,\"Failed_Checks\":-1,\"Skipped_Checks\":0}}",
-    "{\"trace_peer_service\":{\"Passed_Checks\":0,\"Failed_Checks\":\"0\",\"Skipped_Checks\":0}}",
-  ])
+  @ValueSource(
+    strings = [
+      "",
+      "not json",
+      "[]",
+      "null",
+      "{\"x\":1}",
+      "{} {}",
+      "{\"trace_peer_service\":{\"Failed_Checks\":0}}",
+      "{\"trace_peer_service\":{\"Passed_Checks\":0,\"Failed_Checks\":-1,\"Skipped_Checks\":0}}",
+      "{\"trace_peer_service\":{\"Passed_Checks\":0,\"Failed_Checks\":\"0\",\"Skipped_Checks\":0}}",
+    ]
+  )
   fun `invalid summaries are rejected before claiming success`(summary: String) {
     val result = runScript(summary = summary)
     assertThat(result.exitCode).describedAs(result.output).isNotZero()
