@@ -1,8 +1,8 @@
 _v: 1
 name: java_concurrent
 display_name: Java Concurrency
-description: Instruments Java executors, futures, fork-join tasks, timers and structured concurrency to
-  propagate trace context and support task queueing and backpressure profiling.
+description: Instruments executor, fork-join, future, timer, virtual-thread, and structured-concurrency task lifecycles
+  to propagate trace context, release abandoned work, and support queue-time and backpressure profiling.
 packages: []
 category:
 - other

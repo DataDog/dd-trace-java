@@ -1,8 +1,8 @@
 _v: 1
 name: gax
 display_name: GAX (Google Api eXtensions)
-description: Instruments GAX retrying futures to release captured trace context when retry completion
-  listeners are superseded.
+description: Instruments GAX retry-attempt listener replacement to release trace continuations belonging to superseded
+  listeners.
 packages:
 - name: com.google.api:gax
 category:

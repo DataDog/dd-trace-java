@@ -1,8 +1,8 @@
 _v: 1
 name: netty-concurrent
 display_name: Netty/Common
-description: Instruments Netty promise-task execution and cancellation to propagate trace context and
-  records event-executor queueing time for profiling.
+description: Instruments Netty promise-task execution and cancellation and event-executor queues to preserve trace
+  context, isolate background work, and measure queue time for profiling.
 packages:
 - name: io.netty:netty-common
 category:

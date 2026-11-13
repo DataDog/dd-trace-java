@@ -1,8 +1,8 @@
 _v: 1
 name: guava
 display_name: 'Guava: Google Core Libraries for Java'
-description: Instruments Guava future listeners to propagate trace context and finish spans when asynchronous
-  results complete.
+description: Instruments Guava future listener registration to propagate trace context and tracks asynchronous span
+  completion, failure, and cancellation.
 packages:
 - name: com.google.guava:guava
 category:
