@@ -31,7 +31,7 @@ fun getChangedFiles(baseRef: String, newRef: String): List<File> {
   val stdout = StringBuilder()
   val stderr = StringBuilder()
 
-  val proc = Runtime.getRuntime().exec(arrayOf("git", "diff", "--name-only", "$baseRef..$newRef"))
+  val proc = Runtime.getRuntime().exec(arrayOf("git", "diff", "--name-only", "$baseRef...$newRef"))
   proc.inputStream.bufferedReader().use { stdout.append(it.readText()) }
   proc.errorStream.bufferedReader().use { stderr.append(it.readText()) }
   proc.waitFor()
@@ -64,6 +64,7 @@ if (gitBaseRefProvider.isPresent) {
     include("gradlew", "gradlew.bat", "mvnw", "mvnw.cmd")
     include("NOTICE")
     include("static-analysis.datadog.yml")
+    include(".github/**", ".claude/**", ".agents/**")
   }
 
   changedFiles.forEach { f ->
@@ -90,7 +91,7 @@ if (gitBaseRefProvider.isPresent) {
   }
 
   if (rootProject.extra.get("useGitChanges") as Boolean) {
-    logger.warn("Git change tracking is enabled: $baseRef..$newRef")
+    logger.warn("Git change tracking is enabled: $baseRef...$newRef")
 
     val projects = subprojects.sortedByDescending { it.projectDir.path.length }
     val affectedProjects = mutableMapOf<Project, MutableSet<String>>()
