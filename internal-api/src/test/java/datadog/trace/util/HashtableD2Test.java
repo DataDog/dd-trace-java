@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
@@ -182,6 +183,19 @@ class HashtableD2Test {
     assertEquals(2, seen.size());
     assertTrue(seen.contains("a:1"));
     assertTrue(seen.contains("b:2"));
+  }
+
+  @Test
+  void cursorVisitsBothPairs() {
+    Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createBounded(PairEntry.class, 8);
+    table.insert(new PairEntry("a", 1, 100));
+    table.insert(new PairEntry("b", 2, 200));
+    Set<String> seen = new HashSet<>();
+    Cursor<PairEntry> cursor = table.cursor();
+    for (PairEntry e = cursor.next(); e != null; e = cursor.next()) {
+      seen.add(e.key1 + ":" + e.key2);
+    }
+    assertEquals(new HashSet<>(Arrays.asList("a:1", "b:2")), seen);
   }
 
   @Test
