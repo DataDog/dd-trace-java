@@ -1,7 +1,7 @@
 _v: 1
 name: ignite
 display_name: Apache Ignite
-description: Instruments synchronous and asynchronous Apache Ignite cache operations and cache queries when enabled.
+description: Instruments synchronous and asynchronous Apache Ignite cache operations and cache queries.
 packages:
 - name: org.apache.ignite:ignite-core
 category:

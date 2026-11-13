@@ -1,7 +1,8 @@
 _v: 1
 name: hazelcast
 display_name: hazelcast-all
-description: Instruments Hazelcast distributed data operations, queue and topic messaging, remote task submissions, and client event callbacks when enabled.
+description: Instruments Hazelcast distributed data operations, messaging, synchronization and task submission,
+  including client event handling.
 packages:
 - name: com.hazelcast:hazelcast-all
 category:

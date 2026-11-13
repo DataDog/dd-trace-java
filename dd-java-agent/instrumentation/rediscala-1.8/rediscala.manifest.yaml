@@ -1,7 +1,7 @@
 _v: 1
 name: rediscala
 display_name: rediscala
-description: Instruments Rediscala Redis command execution with asynchronous completion and error tracking.
+description: Instruments asynchronous Redis command execution through Rediscala.
 packages:
 - name: com.github.Ma27:rediscala_2.11
 - name: com.github.Ma27:rediscala_2.12

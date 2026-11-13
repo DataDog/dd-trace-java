@@ -1,7 +1,8 @@
 _v: 1
 name: hazelcast_legacy
 display_name: hazelcast-all
-description: Instruments legacy Hazelcast distributed-object operations, queue and topic messaging, and remote task submissions when enabled.
+description: Instruments Hazelcast distributed data operations, queue and topic messaging, synchronization and distributed
+  task execution.
 packages:
 - name: com.hazelcast:hazelcast-all
 category:

@@ -1,7 +1,8 @@
 _v: 1
 name: lettuce
 display_name: Lettuce
-description: Instruments Lettuce Redis connections and commands across asynchronous and reactive APIs while preserving callback context.
+description: Instruments Redis connections and command execution through Lettuce synchronous, asynchronous and reactive
+  clients.
 packages:
 - name: biz.paluch.redis:lettuce
 - name: io.lettuce:lettuce-core

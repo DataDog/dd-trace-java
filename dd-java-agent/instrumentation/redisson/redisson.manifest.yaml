@@ -1,7 +1,7 @@
 _v: 1
 name: redisson
 display_name: Redisson
-description: Instruments Redisson Redis commands and batches, including topic publishing, with asynchronous completion tracking.
+description: Instruments individual and batched Redis command execution through Redisson.
 packages:
 - name: org.redisson:redisson
 category:
