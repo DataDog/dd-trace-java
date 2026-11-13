@@ -39,6 +39,7 @@ public class SmapEntryEvent extends Event {
   int inodeID;
 
   @Label("Path associated with mapping")
+  @Description("Undecodable bytes use \\xNN escapes; literal backslashes are doubled")
   String pathname;
 
   @Label("Mapping Size")

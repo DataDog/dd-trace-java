@@ -1,5 +1,8 @@
 package com.datadog.profiling.controller.openjdk.events;
 
+import static java.nio.charset.StandardCharsets.ISO_8859_1;
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import datadog.environment.JavaVirtualMachine;
 import datadog.environment.OperatingSystem;
 import datadog.trace.api.internal.VisibleForTesting;
@@ -8,6 +11,9 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.lang.management.ManagementFactory;
+import java.nio.ByteBuffer;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -151,8 +157,10 @@ final class SmapEntryCache {
     return ((firstChar >= '0' && firstChar <= '9') || (firstChar >= 'a' && firstChar <= 'f'));
   }
 
+  /** Parses smaps characters read through ISO-8859-1 to preserve their original bytes. */
   @VisibleForTesting
   static void readEvents(BufferedReader br, List<SmapEntryEvent> events) throws IOException {
+    Charset nativeCharset = OperatingSystem.nativeCharset();
     String line = br.readLine();
     while (line != null) {
       if (!isSmapHeader(line)) {
@@ -178,7 +186,7 @@ final class SmapEntryCache {
       event.dev = parser.nextStringValue();
       event.inodeID = (int) parser.nextLongValue(10);
       String pathname = parser.nextStringValue();
-      event.pathname = pathname == null ? "" : pathname;
+      event.pathname = pathname == null ? "" : decodePathname(pathname, nativeCharset);
       // content lines follow
       while ((line = br.readLine()) != null) {
         if (isSmapHeader(line)) {
@@ -303,12 +311,12 @@ final class SmapEntryCache {
 
   private void collectEvents(List<SmapEntryEvent> events) {
     // Linux emits pathname bytes without converting them to UTF-8. Consequently, an ISO-8859-1
-    // pathname such as /tmp/café.so gets corrupted by a fixed UTF-8 decoder.
+    // pathname such as /tmp/café.so gets corrupted by a fixed UTF-8 decoder. Preserve the bytes
+    // while parsing, then decode each pathname separately.
     // Kernel implementation: https://github.com/torvalds/linux/blob/v6.12/fs/seq_file.c#L406-L462
     try (BufferedReader br =
         new BufferedReader(
-            new InputStreamReader(Files.newInputStream(smapsPath), OperatingSystem.nativeCharset()),
-            64 * 1024)) {
+            new InputStreamReader(Files.newInputStream(smapsPath), ISO_8859_1), 64 * 1024)) {
       readEvents(br, events);
       Map<Long, String> regions = getAnnotatedRegions();
       for (SmapEntryEvent e : events) {
@@ -320,5 +328,49 @@ final class SmapEntryCache {
     } catch (Exception e) {
       log.debug("Failed to parse smap file", e);
     }
+  }
+
+  /** Prefer UTF-8 and native text; escape undecodable bytes and double literal backslashes. */
+  private static String decodePathname(String pathname, Charset nativeCharset) {
+    boolean ascii = true;
+    for (int i = 0; i < pathname.length(); i++) {
+      if (pathname.charAt(i) > 0x7f) {
+        ascii = false;
+        break;
+      }
+    }
+    if (ascii) {
+      return pathname.replace("\\", "\\\\");
+    }
+
+    byte[] bytes = pathname.getBytes(ISO_8859_1);
+    try {
+      return UTF_8.newDecoder().decode(ByteBuffer.wrap(bytes)).toString().replace("\\", "\\\\");
+    } catch (CharacterCodingException ignored) {
+      if (!UTF_8.equals(nativeCharset)) {
+        try {
+          return nativeCharset
+              .newDecoder()
+              .decode(ByteBuffer.wrap(bytes))
+              .toString()
+              .replace("\\", "\\\\");
+        } catch (CharacterCodingException ignoredNative) {
+        }
+      }
+    }
+
+    StringBuilder escaped = new StringBuilder(pathname.length());
+    for (int i = 0; i < pathname.length(); i++) {
+      char value = pathname.charAt(i);
+      if (value > 0x7f) {
+        escaped.append("\\x").append(Character.forDigit(value >>> 4, 16));
+        escaped.append(Character.forDigit(value & 0xf, 16));
+      } else if (value == '\\') {
+        escaped.append("\\\\");
+      } else {
+        escaped.append(value);
+      }
+    }
+    return escaped.toString();
   }
 }
