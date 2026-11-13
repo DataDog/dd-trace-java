@@ -261,3 +261,12 @@ class KarateV2Test extends CiVisibilityInstrumentationTest {
     }
   }
 }
+
+@DisableTestTrace(reason = "avoid self-tracing")
+class ContextSwapKarateV2ForkedTest extends KarateV2Test {
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("legacy.context-manager.enabled", "false")
+  }
+}

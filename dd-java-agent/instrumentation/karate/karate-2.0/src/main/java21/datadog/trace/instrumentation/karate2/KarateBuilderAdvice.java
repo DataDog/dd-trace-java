@@ -15,7 +15,13 @@ public class KarateBuilderAdvice {
   public static void onRunnerBuilderConstructorExit(@Advice.This Runner.Builder builder) {
     ContextStore<Scenario, ExecutionContext> scenarioContext =
         InstrumentationContext.get(Scenario.class, ExecutionContext.class);
-    builder.listener(new KarateTracingListener(scenarioContext));
+    // Keep ScenarioRuntime unloaded until its retry advice can be applied on first use.
+    builder.listener(
+        new KarateTracingListener(
+            scenarioContext,
+            InstrumentationContext.get(
+                "io.karatelabs.core.ScenarioRuntime",
+                "datadog.trace.instrumentation.karate2.KarateTracingListener$StepContext")));
   }
 
   // Karate 2.0.0 and above

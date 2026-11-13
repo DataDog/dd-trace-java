@@ -5,7 +5,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -35,14 +35,18 @@ public class KarateInstrumentation extends InstrumenterModule.CiVisibility
       packageName + ".KarateUtils",
       packageName + ".TestEventsHandlerHolder",
       packageName + ".ExecutionContext",
-      packageName + ".KarateTracingListener"
+      packageName + ".KarateTracingListener",
+      packageName + ".KarateTracingListener$StepContext"
     };
   }
 
   @Override
   public Map<String, String> contextStore() {
-    return Collections.singletonMap(
-        "io.karatelabs.gherkin.Scenario", packageName + ".ExecutionContext");
+    Map<String, String> stores = new HashMap<>();
+    stores.put("io.karatelabs.gherkin.Scenario", packageName + ".ExecutionContext");
+    stores.put(
+        "io.karatelabs.core.ScenarioRuntime", packageName + ".KarateTracingListener$StepContext");
+    return stores;
   }
 
   @Override

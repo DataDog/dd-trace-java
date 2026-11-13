@@ -12,7 +12,9 @@ import com.intuit.karate.core.ScenarioResult;
 import com.intuit.karate.core.ScenarioRuntime;
 import com.intuit.karate.core.Step;
 import com.intuit.karate.core.StepResult;
+import datadog.context.ContextHandle;
 import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
@@ -35,9 +37,23 @@ public class KarateTracingHook implements RuntimeHook {
   public static final String KARATE_STEP_SPAN_NAME = "karate.step";
 
   private final ContextStore<FeatureRuntime, Boolean> manualFeatureHooks;
+  private final ContextStore<ScenarioRuntime, StepContext> stepContexts;
 
-  public KarateTracingHook(ContextStore<FeatureRuntime, Boolean> manualFeatureHooks) {
+  public static final class StepContext {
+    final AgentSpan span;
+    final ContextHandle previousContext;
+
+    StepContext(AgentSpan span) {
+      this.span = span;
+      this.previousContext = span.swap();
+    }
+  }
+
+  public KarateTracingHook(
+      ContextStore<FeatureRuntime, Boolean> manualFeatureHooks,
+      ContextStore<ScenarioRuntime, StepContext> stepContexts) {
     this.manualFeatureHooks = manualFeatureHooks;
+    this.stepContexts = stepContexts;
   }
 
   @Override
@@ -156,6 +172,9 @@ public class KarateTracingHook implements RuntimeHook {
 
   @Override
   public void afterScenario(ScenarioRuntime sr) {
+    if (!InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+      finishStep(sr);
+    }
     if (skipTracking(sr)) {
       return;
     }
@@ -199,11 +218,19 @@ public class KarateTracingHook implements RuntimeHook {
 
   @Override
   public boolean beforeStep(Step step, ScenarioRuntime sr) {
+    if (!InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+      // A veto from another hook skips afterStep, leaving the previous step attached.
+      finishStep(sr);
+    }
     if (skipTracking(step)) {
       return true;
     }
     AgentSpan span = AgentTracer.startSpan("karate", KARATE_STEP_SPAN_NAME);
-    AgentTracer.get().activateSpanWithoutScope(span);
+    if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+      AgentTracer.get().activateSpanWithoutScope(span);
+    } else {
+      stepContexts.put(sr, new StepContext(span));
+    }
     String stepName = step.getPrefix() + " " + step.getText();
     span.setResourceName(stepName);
     span.setTag(Tags.COMPONENT, "karate");
@@ -217,17 +244,27 @@ public class KarateTracingHook implements RuntimeHook {
 
   @Override
   public void afterStep(StepResult result, ScenarioRuntime sr) {
-    if (skipTracking(result.getStep())) {
-      return;
+    if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+      if (skipTracking(result.getStep())) {
+        return;
+      }
+      AgentSpan span = AgentTracer.activeSpan();
+      if (span == null) {
+        return;
+      }
+      AgentTracer.get().closeActive();
+      span.finish();
+    } else {
+      finishStep(sr);
     }
+  }
 
-    AgentSpan span = AgentTracer.activeSpan();
-    if (span == null) {
-      return;
+  private void finishStep(ScenarioRuntime sr) {
+    StepContext stepContext = stepContexts.remove(sr);
+    if (stepContext != null) {
+      stepContext.previousContext.swap();
+      stepContext.span.finish();
     }
-
-    AgentTracer.get().closeActive();
-    span.finish();
   }
 
   private static boolean skipTracking(FeatureRuntime fr) {
