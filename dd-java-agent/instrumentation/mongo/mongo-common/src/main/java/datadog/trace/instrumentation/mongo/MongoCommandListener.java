@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.mongo;
 import static datadog.trace.api.Functions.UTF8_ENCODE;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closeActive;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 
 import com.mongodb.ServerAddress;
@@ -18,6 +17,7 @@ import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.List;
@@ -158,7 +158,7 @@ public final class MongoCommandListener implements CommandListener {
       spanMap.put(event.getRequestId(), new SpanEntry(span));
 
       if (shouldForceCloseSpanScope) {
-        closeActive();
+        AgentTracer.get().closeActive();
       }
     }
   }
