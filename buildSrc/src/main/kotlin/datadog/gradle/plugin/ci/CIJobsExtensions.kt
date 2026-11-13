@@ -9,10 +9,10 @@ import org.gradle.kotlin.dsl.extra
 import java.io.File
 import kotlin.math.abs
 
-/** Affected task name standing for every task of a project. */
+/** Marker for every task of a project. */
 internal const val ALL_TASKS = "all"
 
-/** Root project extra property holding the changed files, by the project whose directory contains them. */
+/** Changed files grouped by their owning projects, stored as an extra property on the root project. */
 internal const val CHANGED_FILES_BY_PROJECT = "changedFilesByProject"
 
 private const val AFFECTED_TASKS = "affectedTasksByProject"
