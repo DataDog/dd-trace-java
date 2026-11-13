@@ -74,7 +74,7 @@ abstract class AerospikeStreamingTest extends AbstractInstrumentationTest {
 
   @Test
   void scanRecordsRetainOperationContextAfterCallerCloses() throws Exception {
-    fixture.scan();
+    fixture.assertScanPreservesContext();
     assertTraces(TraceAssertions.SORT_BY_START_TIME, fixture.expectedTraces(version()));
   }
 
@@ -109,8 +109,8 @@ abstract class AerospikeStreamingTest extends AbstractInstrumentationTest {
       }
     }
 
-    void scan() throws Exception {
-      String setName = "stream_" + UUID.randomUUID().toString().replace("-", "");
+    void assertScanPreservesContext() throws Exception {
+      String setName = "stream_" + UUID.randomUUID();
       for (int i = 1; i <= 3; i++) {
         client.put(null, new Key("test", setName, "key-" + i), new Bin("name", "value-" + i));
       }
