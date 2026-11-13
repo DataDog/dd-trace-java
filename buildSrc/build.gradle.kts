@@ -158,3 +158,22 @@ testing {
     }
   }
 }
+
+spotless {
+  // The ktlint rules are in the repository .editorconfig. Spotless only tracks this build's
+  // root .editorconfig, so point it at the repository one.
+  val editorConfig = rootDir.resolve("../.editorconfig")
+  kotlin {
+    toggleOffOn()
+    target("src/**/*.kt")
+    targetExclude("src/*/resources/**")
+    ktlint().setEditorConfigPath(editorConfig)
+  }
+  kotlinGradle {
+    toggleOffOn()
+    // Include the build scripts of the buildSrc subprojects and the precompiled script plugins.
+    target("*.gradle.kts", "*/*.gradle.kts", "src/**/*.gradle.kts")
+    targetExclude("src/*/resources/**")
+    ktlint().setEditorConfigPath(editorConfig)
+  }
+}
