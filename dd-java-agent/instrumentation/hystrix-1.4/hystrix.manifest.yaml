@@ -1,7 +1,8 @@
 _v: 1
 name: hystrix
 display_name: hystrix-core
-description: Instruments Hystrix command execution and fallback operations with tracing spans.
+description: Instruments Hystrix command execution and fallback handling with spans that follow synchronous and
+  observable results.
 packages:
 - name: com.netflix.hystrix:hystrix-core
 category:

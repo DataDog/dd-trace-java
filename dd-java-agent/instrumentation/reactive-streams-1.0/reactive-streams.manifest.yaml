@@ -1,8 +1,8 @@
 _v: 1
 name: reactive-streams
 display_name: reactive-streams
-description: Instruments Reactive Streams subscriptions and subscriber signals to propagate trace context
-  and finish spans when asynchronous results terminate.
+description: Instruments Reactive Streams publisher subscriptions and subscriber signals to propagate trace context
+  and finish asynchronous spans on completion, failure, or cancellation.
 packages:
 - name: org.reactivestreams:reactive-streams
 category:

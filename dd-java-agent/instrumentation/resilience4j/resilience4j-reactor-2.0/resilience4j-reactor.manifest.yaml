@@ -1,8 +1,8 @@
 _v: 1
 name: resilience4j-reactor
 display_name: resilience4j
-description: Instruments Resilience4j Reactor circuit-breaker, retry and fallback operators with tracing
-  spans and reactive trace-context propagation.
+description: Instruments Resilience4j Reactor circuit-breaker, retry, and fallback operators with spans that propagate
+  through reactive subscriptions and finish with the publisher lifecycle.
 packages:
 - name: io.github.resilience4j:resilience4j-reactor
 category:

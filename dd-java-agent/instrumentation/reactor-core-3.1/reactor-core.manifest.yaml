@@ -1,8 +1,8 @@
 _v: 1
 name: reactor-core
 display_name: Non-Blocking Reactive Foundation for the JVM
-description: Instruments Reactor publisher subscriptions, subscriber signals and blocking operations to
-  propagate trace context and finish spans when asynchronous results terminate.
+description: Instruments Reactor publisher subscriptions, subscriber callbacks, and blocking operations to bridge
+  Reactor context with trace context and finish asynchronous spans on completion, failure, or cancellation.
 packages:
 - name: io.projectreactor:reactor-core
 category:
