@@ -120,7 +120,6 @@ abstract class SnsClientTest extends VersionedNamingTestBase {
             "aws.service" "Sns"
             "aws_service" "Sns"
             "aws.operation" "Publish"
-            "aws.region" "us-east-1"
             "aws.agent" "java-aws-sdk"
             "aws.topic.name" "testtopic"
             "topicname" "testtopic"

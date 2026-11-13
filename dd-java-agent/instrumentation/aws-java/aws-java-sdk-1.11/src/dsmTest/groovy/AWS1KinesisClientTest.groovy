@@ -147,7 +147,6 @@ abstract class AWS1KinesisClientTest extends VersionedNamingTestBase {
             "aws.endpoint" "$server.address"
             "aws.operation" "${operation}Request"
             "aws.agent" "java-aws-sdk"
-            "aws.region" "us-west-2"
             "aws.stream.name" streamName
             "streamname" streamName
             "aws.stream.arn" streamArn

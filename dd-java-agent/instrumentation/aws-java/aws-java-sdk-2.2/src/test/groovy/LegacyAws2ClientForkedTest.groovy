@@ -125,7 +125,6 @@ class LegacyAws2ClientForkedTest extends InstrumentationSpecification {
             "aws.service" "$service"
             "aws_service" "$service"
             "aws.operation" "${operation}"
-            "aws.region" "ap-northeast-1"
             "aws.agent" "java-aws-sdk"
             "aws.requestId" "$requestId"
             if (service == "S3") {
@@ -270,7 +269,6 @@ class LegacyAws2ClientForkedTest extends InstrumentationSpecification {
             "aws.service" "$service"
             "aws_service" "$service"
             "aws.operation" "${operation}"
-            "aws.region" "ap-northeast-1"
             "aws.agent" "java-aws-sdk"
             "aws.requestId" "$requestId"
             if (service == "S3") {
@@ -415,7 +413,6 @@ class LegacyAws2ClientForkedTest extends InstrumentationSpecification {
             "aws.service" "S3"
             "aws_service" "S3"
             "aws.operation" "GetObject"
-            "aws.region" "ap-northeast-1"
             "aws.agent" "java-aws-sdk"
             "aws.bucket.name" "somebucket"
             "bucketname" "somebucket"

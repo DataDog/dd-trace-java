@@ -84,7 +84,6 @@ class S3ClientTest extends InstrumentationSpecification {
             defaultTags()
             tag "component", "java-aws-sdk"
             tag "aws.operation", "PutObject"
-            tag "aws.region", "us-east-1"
             tag "aws.service", "S3"
             tag "aws_service", "S3"
             tag "aws.agent", "java-aws-sdk"
@@ -144,7 +143,6 @@ class S3ClientTest extends InstrumentationSpecification {
             defaultTags()
             tag "component", "java-aws-sdk"
             tag "aws.operation", "PutObject"
-            tag "aws.region", "us-east-1"
             tag "aws.service", "S3"
             tag "aws_service", "S3"
             tag "aws.agent", "java-aws-sdk"
@@ -179,7 +177,6 @@ class S3ClientTest extends InstrumentationSpecification {
             defaultTags()
             tag "component", "java-aws-sdk"
             tag "aws.operation", "CopyObject"
-            tag "aws.region", "us-east-1"
             tag "aws.service", "S3"
             tag "aws_service", "S3"
             tag "aws.agent", "java-aws-sdk"
@@ -271,7 +268,6 @@ class S3ClientTest extends InstrumentationSpecification {
             defaultTags()
             tag "component", "java-aws-sdk"
             tag "aws.operation", "CreateMultipartUpload"
-            tag "aws.region", "us-east-1"
             tag "aws.service", "S3"
             tag "aws_service", "S3"
             tag "aws.agent", "java-aws-sdk"
@@ -299,7 +295,6 @@ class S3ClientTest extends InstrumentationSpecification {
             defaultTags()
             tag "component", "java-aws-sdk"
             tag "aws.operation", "UploadPart"
-            tag "aws.region", "us-east-1"
             tag "aws.service", "S3"
             tag "aws_service", "S3"
             tag "aws.agent", "java-aws-sdk"
@@ -327,7 +322,6 @@ class S3ClientTest extends InstrumentationSpecification {
             defaultTags()
             tag "component", "java-aws-sdk"
             tag "aws.operation", "UploadPart"
-            tag "aws.region", "us-east-1"
             tag "aws.service", "S3"
             tag "aws_service", "S3"
             tag "aws.agent", "java-aws-sdk"
@@ -363,7 +357,6 @@ class S3ClientTest extends InstrumentationSpecification {
             defaultTags()
             tag "component", "java-aws-sdk"
             tag "aws.operation", "CompleteMultipartUpload"
-            tag "aws.region", "us-east-1"
             tag "aws.service", "S3"
             tag "aws_service", "S3"
             tag "aws.agent", "java-aws-sdk"

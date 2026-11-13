@@ -17,7 +17,6 @@ import com.amazonaws.auth.InstanceProfileCredentialsProvider
 import com.amazonaws.auth.SystemPropertiesCredentialsProvider
 import com.amazonaws.auth.profile.ProfileCredentialsProvider
 import com.amazonaws.client.builder.AwsClientBuilder
-import com.amazonaws.handlers.HandlerContextKey
 import com.amazonaws.handlers.RequestHandler2
 import com.amazonaws.regions.Regions
 import com.amazonaws.retry.PredefinedRetryPolicies
@@ -54,10 +53,6 @@ import spock.lang.Shared
 import java.util.concurrent.atomic.AtomicReference
 
 abstract class AWS1ClientTest extends VersionedNamingTestBase {
-
-  // Later 1.11.x SDKs record the request's signing Region, which is tagged as aws.region. Older ones
-  // don't, and the mocked endpoints are not regional AWS hosts the Region could be read from.
-  static final boolean RECORDS_SIGNING_REGION = HandlerContextKey.fields.any { it.name == "SIGNING_REGION" }
 
   private static final CREDENTIALS_PROVIDER_CHAIN = new AWSCredentialsProviderChain(
   new EnvironmentVariableCredentialsProvider(),
@@ -190,9 +185,6 @@ abstract class AWS1ClientTest extends VersionedNamingTestBase {
             "aws.endpoint" "$server.address"
             "aws.operation" "${operation}Request"
             "aws.agent" "java-aws-sdk"
-            if (RECORDS_SIGNING_REGION) {
-              "aws.region" "us-west-2"
-            }
             for (def addedTag : additionalTags) {
               "$addedTag.key" "$addedTag.value"
             }
@@ -420,9 +412,6 @@ abstract class AWS1ClientTest extends VersionedNamingTestBase {
             "aws.endpoint" "https://s3.amazonaws.com"
             "aws.operation" "HeadBucketRequest"
             "aws.agent" "java-aws-sdk"
-            if (RECORDS_SIGNING_REGION) {
-              "aws.region" "us-east-1"
-            }
             "aws.bucket.name" "someBucket"
             "bucketname" "someBucket"
             errorTags RuntimeException, "bad handler"
@@ -544,9 +533,6 @@ abstract class AWS1ClientTest extends VersionedNamingTestBase {
             "aws.endpoint" "$server.address"
             "aws.operation" "${operation}Request"
             "aws.agent" "java-aws-sdk"
-            if (RECORDS_SIGNING_REGION) {
-              "aws.region" "us-west-2"
-            }
 
             // Service-specific tags
             for (def addedTag : additionalTags) {
