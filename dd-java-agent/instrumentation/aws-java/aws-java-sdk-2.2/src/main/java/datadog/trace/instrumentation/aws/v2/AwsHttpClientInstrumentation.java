@@ -6,7 +6,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closeActive;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
@@ -80,10 +79,10 @@ public final class AwsHttpClientInstrumentation
                   .equals(activeSpan.getSpanName()))) {
         if (thiz instanceof MakeAsyncHttpRequestStage) {
           // close async legacy HTTP span to avoid Netty leak...
-          closeActive(); // then drop-through and activate no-op span
+          AgentTracer.get().closeActive(); // then drop-through and activate no-op span
         } else {
           // keep sync legacy HTTP span alive for duration of call
-          return AgentTracer::closeActive;
+          return AgentTracer.get()::closeActive;
         }
       }
       return activateSpan(noopSpan());

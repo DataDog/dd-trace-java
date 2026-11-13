@@ -203,7 +203,7 @@ public class KarateTracingHook implements RuntimeHook {
       return true;
     }
     AgentSpan span = AgentTracer.startSpan("karate", KARATE_STEP_SPAN_NAME);
-    AgentTracer.activateSpanWithoutScope(span);
+    AgentTracer.get().activateSpanWithoutScope(span);
     String stepName = step.getPrefix() + " " + step.getText();
     span.setResourceName(stepName);
     span.setTag(Tags.COMPONENT, "karate");
@@ -226,7 +226,7 @@ public class KarateTracingHook implements RuntimeHook {
       return;
     }
 
-    AgentTracer.closeActive();
+    AgentTracer.get().closeActive();
     span.finish();
   }
 
