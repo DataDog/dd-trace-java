@@ -2,6 +2,8 @@ package datadog.smoketest.backend;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Arrays.asList;
+import static java.util.Collections.singletonMap;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -9,12 +11,18 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.agent.test.server.http.JavaTestHttpServer;
+import datadog.trace.common.writer.DDAgentWriter;
+import datadog.trace.core.CoreTracer;
+import datadog.trace.test.agent.decoder.Decoder;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * Docker-free unit tests for {@link TestAgentBackend} configuration/lifecycle guards. The container
@@ -22,6 +30,74 @@ import org.junit.jupiter.api.Test;
  * TestAgentBackendContainerTest}.
  */
 class TestAgentBackendTest {
+
+  @Test
+  void jobPortReceivesTracesFromTheConfiguredBackend() {
+    AtomicReference<byte[]> payload = new AtomicReference<>();
+    try (JavaTestHttpServer agent =
+        JavaTestHttpServer.httpServer(server ->
+            server.handlers(handlers -> {
+              handlers.prefix(
+                  "/info",
+                  api -> api.getResponse().status(200).send("{\"endpoints\":[\"/v0.4/traces\"]}"));
+              handlers.prefix(
+                  "/v0.4/traces",
+                  api -> {
+                    payload.set(api.getRequest().getBody());
+                    api.getResponse().status(200).send("{}");
+                  });
+              handlers.all(api -> api.getResponse().status(200).send());
+            }))) {
+      Map<String, String> environment = new HashMap<>();
+      environment.put("CI_AGENT_HOST", agent.getAddress().getHost());
+      environment.put("CI_TEST_AGENT_PORT", Integer.toString(agent.getAddress().getPort()));
+      TestAgentBackend backend = new TestAgentBackend.Builder(environment).build();
+      backend.start();
+      try {
+        assertEquals(agent.getAddress().getPort(), backend.port());
+        CoreTracer tracer =
+            CoreTracer.builder()
+                .writer(
+                    DDAgentWriter.builder()
+                        .agentHost(backend.url().getHost())
+                        .traceAgentPort(backend.port())
+                        .build())
+                .build();
+        try {
+          tracer.startSpan("test", "configured-port").finish();
+          tracer.flush();
+        } finally {
+          tracer.close();
+        }
+        assertNotNull(payload.get(), "trace reached the configured job port");
+        assertEquals(
+            "configured-port",
+            Decoder.decodeV04(payload.get()).getTraces().get(0).getSpans().get(0).getName());
+      } finally {
+        backend.close();
+      }
+    }
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"", "0", "-1", "65536", "not-a-port"})
+  void rejectsInvalidJobPorts(String port) {
+    Map<String, String> environment = new HashMap<>();
+    environment.put("CI_AGENT_HOST", "localhost");
+    environment.put("CI_TEST_AGENT_PORT", port);
+    assertThrows(IllegalArgumentException.class, () -> new TestAgentBackend.Builder(environment));
+  }
+
+  @Test
+  void containerConfigurationIgnoresTheJobPort() {
+    Map<String, String> environment = new HashMap<>();
+    environment.put("CI_AGENT_HOST", "localhost");
+    environment.put("CI_TEST_AGENT_PORT", "invalid");
+    environment.put("DATADOG_SMOKETEST_TESTAGENT_IMAGE", "test-agent:local");
+    assertDoesNotThrow(() -> new TestAgentBackend.Builder(environment).build());
+    assertDoesNotThrow(
+        () -> new TestAgentBackend.Builder(singletonMap("CI_TEST_AGENT_PORT", "invalid")).build());
+  }
 
   @Test
   void sessionTokenIsStableAndNonEmpty() {

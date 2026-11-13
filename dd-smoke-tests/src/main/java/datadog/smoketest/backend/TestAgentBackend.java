@@ -1,6 +1,7 @@
 package datadog.smoketest.backend;
 
 import static datadog.smoketest.backend.AgentBackendMessages.decodeMessages;
+import static datadog.trace.agent.test.utils.TestAgentPort.parse;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.squareup.moshi.JsonAdapter;
@@ -201,9 +202,8 @@ public final class TestAgentBackend extends AgentBackend {
   public void close() {
     GenericContainer<?> running = this.container;
     try {
-      // Container backends auto-validate their trace-invariant checks at teardown. External CI
-      // agents are validated by the job-final .gitlab/check_test_agent_results.sh instead, so we
-      // don't check them here. Run before stopping so the agent is still reachable.
+      // Validate container-backed agents before stopping them. External CI agents are validated
+      // by Gradle's post-test action across all sessions.
       if (running != null) {
         assertNoInvariantFailures();
       }
@@ -238,7 +238,7 @@ public final class TestAgentBackend extends AgentBackend {
     try (Response response = this.client.newCall(request).execute()) {
       int code = response.code();
       // 200 => all checks passed; 404 => a real agent is running (no checks). Anything else is a
-      // recorded failure, whose body describes the failing check(s) (see check_test_agent_results).
+      // recorded failure, whose body describes the failing check(s).
       if (code == 200 || code == 404) {
         return;
       }
@@ -392,16 +392,21 @@ public final class TestAgentBackend extends AgentBackend {
     private String sessionToken;
 
     private Builder() {
-      String customImageRef = System.getenv(CUSTOM_IMAGE_REF_PROPERTY);
-      String ciAgentHost = System.getenv(CI_AGENT_HOST_ENV);
+      this(System.getenv());
+    }
+
+    Builder(Map<String, String> environment) {
+      String customImageRef = environment.get(CUSTOM_IMAGE_REF_PROPERTY);
+      String ciAgentHost = environment.get(CI_AGENT_HOST_ENV);
+      this.externalPort = AGENT_PORT;
       if (customImageRef != null) {
         this.image = customImageRef;
       } else if (ciAgentHost != null) {
         this.externalHost = ciAgentHost;
+        this.externalPort = parse(environment.get("CI_TEST_AGENT_PORT"));
       } else {
         this.image = defaultImage();
       }
-      this.externalPort = AGENT_PORT;
     }
 
     /**

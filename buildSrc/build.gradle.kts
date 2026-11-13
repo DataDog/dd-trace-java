@@ -115,6 +115,7 @@ dependencies {
 
   implementation(libs.asm)
   implementation(libs.asm.tree)
+  implementation(libs.testing.okhttp3)
 
   // Keep aligned with build-logic/tag-registry, which shares these Jackson classes.
   implementation(platform("com.fasterxml.jackson:jackson-bom:2.17.2"))
