@@ -143,9 +143,13 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
         @Advice.FieldValue("metadata") Metadata metadata,
         @Advice.Argument(value = 0, readOnly = false) ProducerRecord record,
         @Advice.Argument(value = 1, readOnly = false) Callback callback) {
+      // getOrCreate: where the constructor advice doesn't apply (2.1.1-2.7.x only have Map- and
+      // Properties-first constructors), this creates the state that the metadata update records
+      // the cluster ID on, so the callback can read it for sends before the first update
       MetadataState metadataState =
-          InstrumentationContext.get(Metadata.class, MetadataState.class).get(metadata);
-      String clusterId = metadataState != null ? metadataState.clusterId : null;
+          InstrumentationContext.get(Metadata.class, MetadataState.class)
+              .getOrCreate(metadata, MetadataState::new);
+      String clusterId = metadataState.clusterId;
 
       // Set cluster ID for Schema Registry instrumentation, which only reports to Data Streams
       if (clusterId != null && traceConfig().isDataStreamsEnabled()) {
@@ -173,7 +177,8 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
       PRODUCER_DECORATE.afterStart(span);
       PRODUCER_DECORATE.onProduce(span, record, producerConfig, clusterId);
 
-      callback = new KafkaProducerCallback(callback, callbackParentSpan, span, clusterId);
+      callback =
+          new KafkaProducerCallback(callback, callbackParentSpan, span, clusterId, metadataState);
 
       if (record.value() == null) {
         span.setTag(TOMBSTONE, true);
