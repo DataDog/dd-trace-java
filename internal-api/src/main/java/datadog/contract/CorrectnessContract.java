@@ -8,8 +8,9 @@ import java.lang.annotation.Target;
 
 /**
  * Marks an annotation as a correctness contract for documentation and static analysis. A
- * correctness contract states a rule that code must follow, in the RFC 2119 sense: a violation is a
- * bug, not a tradeoff. Contract annotations change no runtime behavior.
+ * correctness contract states a rule that code must follow, in the <a
+ * href="https://www.rfc-editor.org/info/rfc2119">RFC 2119</a> sense: a violation is a bug, not a
+ * tradeoff. Contract annotations change no runtime behavior.
  *
  * <p>Unlike {@link PerfContract}, a correctness contract has no suppression. A declaration that
  * needs to break the rule shows that the contract is wrong for its type; change the annotation

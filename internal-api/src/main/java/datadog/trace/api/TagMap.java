@@ -2028,29 +2028,35 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
    */
   @Override
   public Spliterator<EntryReader> spliterator() {
-    Iterator<EntryReader> readers = this.iterator();
-    Iterator<EntryReader> entries =
-        new Iterator<EntryReader>() {
-          @Override
-          public boolean hasNext() {
-            return readers.hasNext();
-          }
-
-          @Override
-          public EntryReader next() {
-            return readers.next().entry();
-          }
-        };
     return Spliterators.spliterator(
-        entries, this.size(), Spliterator.DISTINCT | Spliterator.NONNULL);
+        this.entryIterator(), this.size(), Spliterator.DISTINCT | Spliterator.NONNULL);
   }
 
   /**
    * The tags as stable {@link Entry} objects, so collecting them is safe (see {@link
-   * #spliterator}).
+   * #spliterator}). Typed as {@code Entry}, unlike {@link #spliterator}, which {@code Iterable}
+   * fixes to {@code EntryReader}: an {@code Entry} isn't {@link Confined}.
    */
-  public Stream<EntryReader> stream() {
-    return StreamSupport.stream(spliterator(), false);
+  public Stream<Entry> stream() {
+    return StreamSupport.stream(
+        Spliterators.spliterator(
+            this.entryIterator(), this.size(), Spliterator.DISTINCT | Spliterator.NONNULL),
+        false);
+  }
+
+  private Iterator<Entry> entryIterator() {
+    Iterator<EntryReader> readers = this.iterator();
+    return new Iterator<Entry>() {
+      @Override
+      public boolean hasNext() {
+        return readers.hasNext();
+      }
+
+      @Override
+      public Entry next() {
+        return readers.next().entry();
+      }
+    };
   }
 
   @Override
