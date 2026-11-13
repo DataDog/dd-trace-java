@@ -29,6 +29,12 @@ import org.openjdk.jmh.annotations.Warmup;
  * iterate_specialized} is immune: the constant gives exact-type devirt regardless of the profile.
  * That contrast is the point — the specialization turns a profile-dependent inline into a
  * structural one. Confirm with {@code -XX:+PrintInlining}.
+ *
+ * <p>The {@code cursor_*} arms walk the same bucket through {@link FlatHashtable#cursor}, which
+ * shares the iterators' traversal without their look-ahead.
+ *
+ * <p>Measured (MacBook M1, Zulu 17, F3, poisoned profile, all allocation-free): iterate_general
+ * 18.1M, cursor_general 19.8M, iterate_specialized 46.1M, cursor_specialized 46.7M ops/s.
  */
 @Fork(2)
 @Warmup(iterations = 3, time = 1)
@@ -124,7 +130,7 @@ public class FlatHashtableIteratorBenchmark {
     for (int i = 0; i < BUCKET_SIZE; ++i) {
       FlatHashtable.insert(table, new ItEntry(BUCKET_HASH, i)); // all share the hash => one bucket
     }
-    // Poison the shared HashIterator.advanceWith hashOf profile: drive the GENERAL iterator with
+    // Poison the shared HashCursor.nextWith hashOf profile: drive the GENERAL iterator with
     // four distinct strategy types, hot enough that C2 records the site as megamorphic. HotSpot
     // keeps one per-bci profile shared across all inlining contexts (no context-sensitive profiling
     // — tried in Zing, never robust), so those unrelated callers permanently pollute the profile.
@@ -175,6 +181,28 @@ public class FlatHashtableIteratorBenchmark {
     Iterator<ItEntry> it = FlatHashtable.iterator(table, BUCKET_HASH); // Entry overload
     while (it.hasNext()) {
       sum += it.next().value; // hashOf inlined to entry.hash via the constant strategy
+    }
+    return sum;
+  }
+
+  /** {@link #iterate_general} through the cursor: same poisoned {@code hashOf}, no look-ahead. */
+  @Benchmark
+  public long cursor_general() {
+    long sum = 0;
+    Cursor<ItEntry> cursor = FlatHashtable.cursor(table, BUCKET_HASH, ItHashStrategyA.INSTANCE);
+    for (ItEntry e = cursor.next(); e != null; e = cursor.next()) {
+      sum += e.value;
+    }
+    return sum;
+  }
+
+  /** {@link #iterate_specialized} through the cursor: constant strategy, no look-ahead. */
+  @Benchmark
+  public long cursor_specialized() {
+    long sum = 0;
+    Cursor<ItEntry> cursor = FlatHashtable.cursor(table, BUCKET_HASH); // Entry overload
+    for (ItEntry e = cursor.next(); e != null; e = cursor.next()) {
+      sum += e.value;
     }
     return sum;
   }

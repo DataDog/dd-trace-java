@@ -28,16 +28,8 @@ import javax.annotation.Nullable;
  */
 @Restricted(allowedIn = {"datadog.trace.core"})
 public abstract class IdStore {
-  /** Visits a store's visible entries one at a time. */
-  interface Cursor {
-    /**
-     * Advances to the next visible entry.
-     *
-     * @return the next visible entry, or null when there are none left
-     */
-    @Nullable
-    EntryReader next();
-  }
+  /** Visits a store's visible entries one at a time: {@code next()} returns null when done. */
+  interface Cursor extends datadog.trace.util.Cursor<EntryReader> {}
 
   /**
    * Creates an id store for a map.
