@@ -23,21 +23,17 @@ addTestSuiteForDir("jetty11Test", "test/jetty11")
 addTestSuiteExtendingForDir("jetty9LatestDepTest", "latestDepTest", "test/jetty9")
 addTestSuiteExtendingForDir("jetty11LatestDepTest", "latestDepTest", "test/jetty11")
 
-tasks.named("jetty11Test", Test) {
-  testJvmConstraints {
-    minJavaVersion = JavaVersion.VERSION_11
+["jetty11Test", "jetty11LatestDepTest"].each { name ->
+  tasks.named(name, Test) {
+    testJvmConstraints {
+      minJavaVersion = JavaVersion.VERSION_11
+    }
   }
 }
 
 ["compileJetty11TestGroovy", "compileJetty11LatestDepTestGroovy"].each {
   tasks.named(it, GroovyCompile) {
     configureCompiler(it, JavaVersion.VERSION_11)
-  }
-}
-
-["jetty11Test", "jetty11LatestDepTest"].each { name ->
-  tasks.named(name, Test) {
-    javaLauncher = getJavaLauncherFor(11)
   }
 }
 

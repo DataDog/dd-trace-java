@@ -36,7 +36,6 @@ addTestSuiteForDir('latestSpring5Test', 'test')
 
 ["spring6Test", "spring6ForkedTest", "latestDepTest", "latestDepForkedTest"].each { name ->
   tasks.named(name, Test) {
-    javaLauncher = getJavaLauncherFor(17)
     jvmArgs("--add-opens", "java.base/java.util=ALL-UNNAMED")
   }
 }
