@@ -28,13 +28,12 @@
         }
     },
     {
-        "name": "should allow -version as application parameter",
-        "filepath": "/usr/lib/jvm/java-8-openjdk-amd64/jre/bin/java",
+        "name": "should allow supported java versions",
+        "filepath": "/usr/lib/jvm/java-17-openjdk-amd64/bin/java",
         "args": [
             "java",
             "-jar",
-            "app.jar",
-            "-version"
+            "app.jar"
         ],
         "envars": [],
         "host": {
@@ -44,13 +43,12 @@
         }
     },
     {
-        "name": "should allow --version as application parameter",
-        "filepath": "/usr/lib/jvm/java-8-openjdk-amd64/jre/bin/java",
+        "name": "should allow supported java versions",
+        "filepath": "/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.412.b08-1.el7_9.x86_64/jre/bin/java",
         "args": [
             "java",
             "-jar",
-            "app.jar",
-            "--version"
+            "app.jar"
         ],
         "envars": [],
         "host": {

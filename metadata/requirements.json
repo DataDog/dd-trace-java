@@ -3,20 +3,21 @@
   "deny": [
     {
       "id": "unsupported_jvm",
-      "description": "Skip older JVMs",
+      "description": "Exclude older JVMs",
       "os": null,
       "cmds": [
         "**/java-1.5*/**/java",
         "**/java-1.6*/**/java",
+        "**/java-1.7*/**/java",
         "**/java-6*/**/java",
-        "**/java-7/**/java"
+        "**/java-7*/**/java"
       ],
       "args": [],
       "envars": null
     },
     {
       "id": "java8_version",
-      "description": "Skip java -version command",
+      "description": "Exclude java -version command",
       "os": null,
       "cmds": [
         "**/java"
@@ -26,14 +27,14 @@
           "args": [
             "-version"
           ],
-          "position": 1
+          "position": null
         }
       ],
       "envars": null
     },
     {
       "id": "java_version",
-      "description": "Skip java --version command",
+      "description": "Exclude java --version command",
       "os": null,
       "cmds": [
         "**/java"
@@ -43,14 +44,14 @@
           "args": [
             "--version"
           ],
-          "position": 1
+          "position": null
         }
       ],
       "envars": null
     },
     {
       "id": "apache_activemq_artemis",
-      "description": "Skip Apache ActiveMQ Artemis",
+      "description": "Exclude Apache ActiveMQ Artemis",
       "os": null,
       "cmds": [
         "**/java"
@@ -67,7 +68,7 @@
     },
     {
       "id": "apache_cassandra",
-      "description": "Skip Apache Cassandra",
+      "description": "Exclude Apache Cassandra",
       "os": null,
       "cmds": [
         "**/java"
@@ -84,7 +85,7 @@
     },
     {
       "id": "apache_cassandra_debugcql",
-      "description": "Skip Apache Cassandra debug-cql",
+      "description": "Exclude Apache Cassandra debug-cql",
       "os": null,
       "cmds": [
         "**/java"
@@ -101,7 +102,7 @@
     },
     {
       "id": "apache_cassandra_nodetool",
-      "description": "Skip Apache Cassandra nodetool",
+      "description": "Exclude Apache Cassandra nodetool",
       "os": null,
       "cmds": [
         "**/java"
@@ -118,7 +119,7 @@
     },
     {
       "id": "apache_cassandra_sstableloader",
-      "description": "Skip Apache Cassandra sstableloader",
+      "description": "Exclude Apache Cassandra sstableloader",
       "os": null,
       "cmds": [
         "**/java"
@@ -135,7 +136,7 @@
     },
     {
       "id": "apache_cassandra_sstablescrub",
-      "description": "Skip Apache Cassandra stablescrub",
+      "description": "Exclude Apache Cassandra sstablescrub",
       "os": null,
       "cmds": [
         "**/java"
@@ -152,7 +153,7 @@
     },
     {
       "id": "apache_cassandra_sstableupgrade",
-      "description": "Skip Apache Cassandra sstableupgrade",
+      "description": "Exclude Apache Cassandra sstableupgrade",
       "os": null,
       "cmds": [
         "**/java"
@@ -169,7 +170,7 @@
     },
     {
       "id": "apache_cassandra_sstableutil",
-      "description": "Skip Apache Cassandra sstableutil",
+      "description": "Exclude Apache Cassandra sstableutil",
       "os": null,
       "cmds": [
         "**/java"
@@ -186,7 +187,7 @@
     },
     {
       "id": "apache_cassandra_sstableverify",
-      "description": "Skip Apache Cassandra sstableverify",
+      "description": "Exclude Apache Cassandra sstableverify",
       "os": null,
       "cmds": [
         "**/java"
@@ -203,7 +204,7 @@
     },
     {
       "id": "oracle_dbca",
-      "description": "Skip Oracle Database Configuration Assistant",
+      "description": "Exclude Oracle Database Configuration Assistant",
       "os": null,
       "cmds": [
         "**/java"
@@ -220,7 +221,7 @@
     },
     {
       "id": "oracle_dbua",
-      "description": "Skip Oracle Database Upgrade Assistant",
+      "description": "Exclude Oracle Database Upgrade Assistant",
       "os": null,
       "cmds": [
         "**/java"
@@ -237,7 +238,7 @@
     },
     {
       "id": "oracle_emca",
-      "description": "Skip Oracle Enterprise Manager Configuration Assistant",
+      "description": "Exclude Oracle Enterprise Manager Configuration Assistant",
       "os": null,
       "cmds": [
         "**/java"
@@ -254,7 +255,7 @@
     },
     {
       "id": "oracle_invctl",
-      "description": "Skip Oracle Inventory Control",
+      "description": "Exclude Oracle Inventory Control",
       "os": null,
       "cmds": [
         "**/java"
@@ -271,7 +272,7 @@
     },
     {
       "id": "oracle_netca",
-      "description": "Skip Oracle Net Configuration Assistant",
+      "description": "Exclude Oracle Net Configuration Assistant",
       "os": null,
       "cmds": [
         "**/java"
@@ -288,7 +289,7 @@
     },
     {
       "id": "oracle_rconfig",
-      "description": "Skip Oracle RAC Converter",
+      "description": "Exclude Oracle RAC Converter",
       "os": null,
       "cmds": [
         "**/java"
@@ -305,7 +306,7 @@
     },
     {
       "id": "oracle_roohctl",
-      "description": "Skip Oracle Read-Only Oracle Home Control",
+      "description": "Exclude Oracle Read-Only Oracle Home Control",
       "os": null,
       "cmds": [
         "**/java"
@@ -322,7 +323,7 @@
     },
     {
       "id": "oracle_srvctl",
-      "description": "Skip Oracle Server Control Utility",
+      "description": "Exclude Oracle Server Control Utility",
       "os": null,
       "cmds": [
         "**/java"
@@ -339,7 +340,7 @@
     },
     {
       "id": "oracle_diagsetup",
-      "description": "Skip Oracle Setup Diagnostic Tool",
+      "description": "Exclude Oracle Setup Diagnostic Tool",
       "os": null,
       "cmds": [
         "**/java"
@@ -356,7 +357,7 @@
     },
     {
       "id": "oracle_ldifmigrator",
-      "description": "Skip Oracle LDIF Migration Tool",
+      "description": "Exclude Oracle LDIF Migration Tool",
       "os": null,
       "cmds": [
         "**/java"
@@ -373,7 +374,7 @@
     },
     {
       "id": "oracle_trcasst",
-      "description": "Skip Oracle Trace Assistant",
+      "description": "Exclude Oracle Trace Assistant",
       "os": null,
       "cmds": [
         "**/java"
@@ -390,7 +391,7 @@
     },
     {
       "id": "oracle_trcsess",
-      "description": "Skip Oracle Session Tracer",
+      "description": "Exclude Oracle Session Tracer",
       "os": null,
       "cmds": [
         "**/java"
@@ -407,7 +408,7 @@
     },
     {
       "id": "apache_lucene8_luke",
-      "description": "Skip Lucene 8 Luke",
+      "description": "Exclude Apache Lucene 8 Luke",
       "os": null,
       "cmds": [
         "**/java"
@@ -424,7 +425,7 @@
     },
     {
       "id": "apache_lucene9_luke",
-      "description": "Skip Apache Netbeans",
+      "description": "Exclude Apache Lucene 9 Luke",
       "os": null,
       "cmds": [
         "**/java"
@@ -441,7 +442,7 @@
     },
     {
       "id": "apache_netbeans",
-      "description": "Skip Apache Netbeans",
+      "description": "Exclude Apache NetBeans",
       "os": null,
       "cmds": [
         "**/java"
@@ -458,7 +459,7 @@
     },
     {
       "id": "apache_solr8_start",
-      "description": "Skip Apache Solr 8 start command using System Properties",
+      "description": "Exclude Apache Solr 8 start command using System Properties",
       "os": null,
       "cmds": [
         "**/java"
@@ -475,7 +476,7 @@
     },
     {
       "id": "apache_solr8_stop",
-      "description": "Skip Apache Solr 8 stop using path to jar",
+      "description": "Exclude Apache Solr 8 stop using path to jar",
       "os": null,
       "cmds": [
         "**/java"
@@ -492,7 +493,7 @@
     },
     {
       "id": "apache_solr8_tools",
-      "description": "Skip Apache Solr 8 CLI tools",
+      "description": "Exclude Apache Solr 8 CLI tools",
       "os": null,
       "cmds": [
         "**/java"
@@ -509,7 +510,7 @@
     },
     {
       "id": "datadog_jmxfetch",
-      "description": "Skip DataDog JMXFetch",
+      "description": "Exclude Datadog JMXFetch",
       "os": null,
       "cmds": [
         "**/java"
@@ -526,7 +527,7 @@
     },
     {
       "id": "open_liberty_utility_main",
-      "description": "Skip UtilityMain that expected single jar in classpath",
+      "description": "Exclude Open Liberty UtilityMain (expects a single-jar classpath)",
       "os": null,
       "cmds": [
         "**/java"
@@ -543,7 +544,7 @@
     },
     {
       "id": "ibm_ikeycmd",
-      "description": "Skip IBM ikeycmd utility",
+      "description": "Exclude IBM ikeycmd utility",
       "os": null,
       "cmds": [
         "**/java"
@@ -560,7 +561,7 @@
     },
     {
       "id": "ibm_ikeyman",
-      "description": "Skip IBM Ikeyman utility",
+      "description": "Exclude IBM Ikeyman utility",
       "os": null,
       "cmds": [
         "**/java"
@@ -577,7 +578,7 @@
     },
     {
       "id": "elasticsearch7",
-      "description": "Skip Elastic Search 7+ commands",
+      "description": "Exclude Elasticsearch 7+ commands",
       "os": null,
       "cmds": [
         "**/java"
@@ -594,7 +595,7 @@
     },
     {
       "id": "intellij_idea",
-      "description": "Skip Jetbrains IntelliJ IDEA",
+      "description": "Exclude JetBrains IntelliJ IDEA",
       "os": null,
       "cmds": [
         "**/java"
@@ -610,8 +611,42 @@
       "envars": null
     },
     {
+      "id": "java_xshare_dump",
+      "description": "Exclude Java -Xshare:dump",
+      "os": null,
+      "cmds": [
+        "**/java"
+      ],
+      "args": [
+        {
+          "args": [
+            "-Xshare:dump"
+          ],
+          "position": null
+        }
+      ],
+      "envars": null
+    },
+    {
+      "id": "java_ca_certificates_java_jar",
+      "description": "Exclude Java certificate management utility",
+      "os": null,
+      "cmds": [
+        "**/java"
+      ],
+      "args": [
+        {
+          "args": [
+            "/usr/share/ca-certificates-java/ca-certificates-java.jar"
+          ],
+          "position": null
+        }
+      ],
+      "envars": null
+    },
+    {
       "id": "apache_solr9",
-      "description": "Skip Apache Solr 9",
+      "description": "Exclude Apache Solr 9",
       "os": null,
       "cmds": [
         "**/java"
@@ -626,29 +661,35 @@
     "glibc": [
       {
         "arch": "x86",
-        "supported": true
+        "supported": true,
+        "description": "glibc on x86 is fully supported, no minimum version required"
       },
       {
         "arch": "x64",
-        "supported": true
+        "supported": true,
+        "description": "glibc on x64 is fully supported, no minimum version required"
       },
       {
         "arch": "arm64",
-        "supported": true
+        "supported": true,
+        "description": "glibc on arm64 is fully supported, no minimum version required"
       }
     ],
     "musl": [
       {
         "arch": "x86",
-        "supported": true
+        "supported": true,
+        "description": "musl on x86 is fully supported, no minimum version required"
       },
       {
         "arch": "x64",
-        "supported": true
+        "supported": true,
+        "description": "musl on x64 is fully supported, no minimum version required"
       },
       {
         "arch": "arm64",
-        "supported": true
+        "supported": true,
+        "description": "musl on arm64 is fully supported, no minimum version required"
       }
     ]
   }
