@@ -599,11 +599,24 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
               cbp.getCallback(EVENTS.requestHeader()),
               cbp.getCallback(EVENTS.requestHeaderDone()));
       if (null != igKeyClassifier) {
-        getter.forEachKey(carrier, igKeyClassifier);
+        if (hasHeaderConsumer(requestContext)) {
+          getter.forEachKey(carrier, igKeyClassifier);
+        }
         return igKeyClassifier.done();
       }
     }
     return Flow.ResultFlow.empty();
+  }
+
+  /**
+   * Whether a product that reads headers through the gateway (AppSec, IAST) tracks this request.
+   * Their header callbacks do nothing without their request data, and AppSec registers them even
+   * while inactive (its default), so walking the headers then only converts every name and value to
+   * a String for nothing.
+   */
+  private static boolean hasHeaderConsumer(RequestContext requestContext) {
+    return requestContext.getData(RequestContextSlot.APPSEC) != null
+        || requestContext.getData(RequestContextSlot.IAST) != null;
   }
 
   @SuppressWarnings("UnusedReturnValue")
@@ -655,7 +668,9 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
             cbp.getCallback(EVENTS.responseHeader()),
             cbp.getCallback(EVENTS.responseHeaderDone()));
     if (null != igKeyClassifier) {
-      contextVisitor.forEachKey(carrier, igKeyClassifier);
+      if (hasHeaderConsumer(requestContext)) {
+        contextVisitor.forEachKey(carrier, igKeyClassifier);
+      }
       return igKeyClassifier.done();
     }
     return Flow.ResultFlow.empty();

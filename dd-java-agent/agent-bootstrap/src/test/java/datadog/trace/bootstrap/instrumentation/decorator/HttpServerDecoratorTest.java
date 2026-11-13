@@ -555,17 +555,20 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
   }
 
   @TableTest({
-    "scenario                  | reqStarted | reqData | reqHeader | reqHeaderDone | reqStartedCount | reqHeaderCount | reqHeaderDoneCount",
-    "no callbacks              | false      | false   | false     | false         | 0               | 0              | 0                 ",
-    "data without callbacks    | false      | true    | false     | false         | 0               | 0              | 0                 ",
-    "request started           | true       | false   | false     | false         | 1               | 0              | 0                 ",
-    "request started with data | true       | true    | false     | false         | 1               | 0              | 0                 ",
-    "request header            | true       | true    | true      | false         | 1               | 3              | 0                 ",
-    "request header done       | true       | true    | true      | true          | 1               | 3              | 1                 "
+    "scenario                      | reqStarted | reqData | iastData | reqHeader | reqHeaderDone | reqStartedCount | reqHeaderCount | reqHeaderDoneCount",
+    "no callbacks                  | false      | false   | false    | false     | false         | 0               | 0              | 0                 ",
+    "data without callbacks        | false      | true    | false    | false     | false         | 0               | 0              | 0                 ",
+    "request started               | true       | false   | false    | false     | false         | 1               | 0              | 0                 ",
+    "request started with data     | true       | true    | false    | false     | false         | 1               | 0              | 0                 ",
+    "request header                | true       | true    | false    | true      | false         | 1               | 3              | 0                 ",
+    "request header done           | true       | true    | false    | true      | true          | 1               | 3              | 1                 ",
+    "header callbacks without data | true       | false   | false    | true      | true          | 1               | 0              | 1                 ",
+    "header callbacks, IAST data   | true       | false   | true     | true      | true          | 1               | 3              | 1                 "
   })
   void testStartSpanAndInstrumentationGateway(
       boolean reqStarted,
       boolean reqData,
+      boolean iastData,
       boolean reqHeader,
       boolean reqHeaderDone,
       int reqStartedCount,
@@ -591,6 +594,8 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     headers.put("another", "value");
     RequestContext reqCtxt = mock(RequestContext.class);
     when(reqCtxt.getData(APPSEC)).thenReturn(data);
+    // Header callbacks only see headers when AppSec or IAST tracks the request.
+    when(reqCtxt.getData(IAST)).thenReturn(iastData ? new Object() : null);
     AgentSpan mSpan = mock(AgentSpan.class);
     when(mSpan.getRequestContext()).thenReturn(reqCtxt);
     when(mSpan.setMeasured(true)).thenReturn(mSpan);
