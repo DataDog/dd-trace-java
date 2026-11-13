@@ -12,6 +12,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_ENDPOINT_COL
 import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_MAX_DOWNSTREAM_REQUEST_BODY_ANALYSIS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_SAMPLE_DELAY;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_AGENTIC_ONBOARDING;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_AWS_ACCESS_KEY_ID_TAG_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_BODY_PARSING_SIZE_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_MAX_FILE_CONTENT_BYTES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_MAX_FILE_CONTENT_COUNT;
@@ -234,6 +235,7 @@ import static datadog.trace.api.config.AppSecConfig.API_SECURITY_SAMPLE_DELAY;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_AGENTIC_ONBOARDING;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_AUTOMATED_USER_EVENTS_TRACKING;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_AUTO_USER_INSTRUMENTATION_MODE;
+import static datadog.trace.api.config.AppSecConfig.APPSEC_AWS_ACCESS_KEY_ID_TAG_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_BODY_PARSING_SIZE_LIMIT;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE_HTML;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE_JSON;
@@ -1142,6 +1144,7 @@ public class Config {
   private final Boolean appSecScaEnabled;
   private final String appSecScaCveFile;
   private final int appSecScaMaxTrackedDependencies;
+  private final boolean appSecAwsAccessKeyIdTagEnabled;
   private final boolean appSecStackTraceEnabled;
   private final int appSecMaxStackTraces;
   private final int appSecMaxStackTraceDepth;
@@ -2678,6 +2681,9 @@ public class Config {
     appSecScaMaxTrackedDependencies =
         configProvider.getInteger(
             APPSEC_SCA_MAX_TRACKED_DEPENDENCIES, DEFAULT_APPSEC_SCA_MAX_TRACKED_DEPENDENCIES);
+    appSecAwsAccessKeyIdTagEnabled =
+        configProvider.getBoolean(
+            APPSEC_AWS_ACCESS_KEY_ID_TAG_ENABLED, DEFAULT_APPSEC_AWS_ACCESS_KEY_ID_TAG_ENABLED);
     appSecStackTraceEnabled =
         configProvider.getBoolean(
             APPSEC_STACK_TRACE_ENABLED,
@@ -6350,6 +6356,10 @@ public class Config {
     return appSecScaMaxTrackedDependencies;
   }
 
+  public boolean isAppSecAwsAccessKeyIdTagEnabled() {
+    return appSecAwsAccessKeyIdTagEnabled;
+  }
+
   public boolean isAppSecRaspEnabled() {
     return instrumenterConfig.isAppSecRaspEnabled();
   }
@@ -7220,6 +7230,8 @@ public class Config {
         + appSecScaCveFile
         + ", appSecScaMaxTrackedDependencies="
         + appSecScaMaxTrackedDependencies
+        + ", appSecAwsAccessKeyIdTagEnabled="
+        + appSecAwsAccessKeyIdTagEnabled
         + ", appSecRaspEnabled="
         + isAppSecRaspEnabled()
         + ", dataJobsOpenLineageEnabled="
