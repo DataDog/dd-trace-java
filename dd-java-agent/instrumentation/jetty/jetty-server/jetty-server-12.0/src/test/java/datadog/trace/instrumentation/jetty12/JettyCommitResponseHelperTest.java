@@ -64,6 +64,8 @@ class JettyCommitResponseHelperTest {
   private int status;
   private int resets;
   private RuntimeException resetFailure;
+  private RuntimeException writeFailure;
+  private boolean completeWritesInline;
   private int effectivelyBlocked;
   private int blockFailures;
   private int originalSucceeded;
@@ -222,6 +224,72 @@ class JettyCommitResponseHelperTest {
   }
 
   @Test
+  void brfCalledFromAnInlineWriteCompletionIsNotReportedAsFailure() {
+    Response response = response();
+    JettyBlockResponseFunction jettyBrf =
+        new JettyBlockResponseFunction(response.getRequest(), response);
+    brf = jettyBrf;
+    Context context = context(true);
+    attributes.put(DD_CONTEXT_ATTRIBUTE, context);
+    decorator.action = RBA;
+    completeWritesInline = true;
+    RequestContext reqCtx = AgentSpan.fromContext(context).getRequestContext();
+    boolean[] laterBlock = new boolean[1];
+    Callback callingBrf =
+        new Callback() {
+          @Override
+          public void succeeded() {
+            // e.g. an async WriteListener whose next step triggers a RASP block
+            laterBlock[0] = jettyBrf.tryCommitBlockingResponse(reqCtx, RBA);
+          }
+
+          @Override
+          public InvocationType getInvocationType() {
+            return NON_BLOCKING;
+          }
+        };
+
+    assertTrue(JettyCommitResponseHelper.tryBlockOnCommit(decorator, response, callingBrf));
+
+    assertTrue(laterBlock[0], "the later evaluation sees the response-phase block");
+    assertEquals(1, writes.size(), "no second blocking write");
+    assertEquals(1, effectivelyBlocked);
+    assertEquals(0, blockFailures);
+  }
+
+  @Test
+  void synchronousWriteFailureReleasesTheClaim() {
+    Response response = response();
+    JettyBlockResponseFunction jettyBrf =
+        new JettyBlockResponseFunction(response.getRequest(), response);
+    brf = jettyBrf;
+    attributes.put(DD_CONTEXT_ATTRIBUTE, context(true));
+    decorator.action = RBA;
+    writeFailure = new IllegalStateException("write pending");
+
+    assertFalse(JettyCommitResponseHelper.tryBlockOnCommit(decorator, response, original));
+
+    assertFalse(jettyBrf.isBlockingResponseInitiated(), "nothing was accepted");
+    assertEquals(1, blockFailures);
+  }
+
+  @Test
+  void asynchronousWriteFailureKeepsTheClaim() {
+    Response response = response();
+    JettyBlockResponseFunction jettyBrf =
+        new JettyBlockResponseFunction(response.getRequest(), response);
+    brf = jettyBrf;
+    attributes.put(DD_CONTEXT_ATTRIBUTE, context(true));
+    decorator.action = RBA;
+
+    assertTrue(JettyCommitResponseHelper.tryBlockOnCommit(decorator, response, original));
+    writeCallbacks.get(0).failed(new IOException("client gone"));
+
+    assertTrue(jettyBrf.isBlockingResponseInitiated(), "later callers still abort");
+    assertEquals(1, blockFailures);
+  }
+
+  @Test
   void nullOriginalCallbackIsTolerated() {
     attributes.put(DD_CONTEXT_ATTRIBUTE, context(true));
     decorator.action = RBA;
@@ -301,8 +369,15 @@ class JettyCommitResponseHelperTest {
               headers.clear();
               return null;
             case "write":
+              if (writeFailure != null) {
+                throw writeFailure;
+              }
               writes.add((ByteBuffer) args[1]);
               writeCallbacks.add((Callback) args[2]);
+              committed = true;
+              if (completeWritesInline) {
+                ((Callback) args[2]).succeeded();
+              }
               return null;
             default:
               throw new UnsupportedOperationException(name);
