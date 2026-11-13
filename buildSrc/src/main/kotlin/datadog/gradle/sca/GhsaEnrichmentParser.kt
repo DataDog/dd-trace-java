@@ -35,7 +35,7 @@ object GhsaEnrichmentParser {
       if (entry.path("lang").asText() != "maven") continue
 
       val ghsaId =
-          entry.path("vulnerability").path("id").asText().takeIf { it.isNotEmpty() } ?: continue
+        entry.path("vulnerability").path("id").asText().takeIf { it.isNotEmpty() } ?: continue
       val artifact = entry.path("dependency_name").asText().takeIf { it.isNotEmpty() } ?: continue
       val versionRanges = entry.path("package_versions").map { it.asText() }
 
@@ -43,12 +43,12 @@ object GhsaEnrichmentParser {
       if (symbols.isEmpty()) continue
 
       entries +=
-          mapOf(
-              "vuln_id" to ghsaId,
-              "artifact" to artifact,
-              "version_ranges" to versionRanges,
-              "symbols" to symbols,
-          )
+        mapOf(
+          "vuln_id" to ghsaId,
+          "artifact" to artifact,
+          "version_ranges" to versionRanges,
+          "symbols" to symbols,
+        )
     }
 
     return entries
