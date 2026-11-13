@@ -6,6 +6,7 @@ import org.gradle.api.NamedDomainObjectSet
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
+import org.gradle.api.artifacts.component.ProjectComponentIdentifier
 import org.gradle.api.plugins.JavaPlugin
 import org.gradle.api.plugins.JavaPlugin.COMPILE_CLASSPATH_CONFIGURATION_NAME
 import org.gradle.api.plugins.JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME
@@ -130,12 +131,21 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project> {
       val output = csiExtension.targetFolder
       val inputProvider = mainCompileTask.flatMap { it.destinationDirectory }
       val csiOutput = project.sourceSets.named(CSI_SOURCE_SET).map { it.output.files }
+      val currentProjectPath = project.buildTreePath
+      val dependencyClasspaths = project.defaultConfigurations.map { configuration ->
+        configuration.incoming.artifactView {
+          // Own test fixtures depend on classes, which already depends on this generator.
+          componentFilter {
+            it !is ProjectComponentIdentifier || it.buildTreePath != currentProjectPath
+          }
+        }.files
+      }
       val callsitesClassPath = project.files(
         // SourceSetOutput also depends on classes, which depends on this generator.
         project.sourceSets.named(MAIN_SOURCE_SET_NAME).map { it.output.classesDirs },
         project.tasks.named<ProcessResources>(JavaPlugin.PROCESS_RESOURCES_TASK_NAME).map { it.destinationDir },
         project.sourceSets.named(MAIN_SOURCE_SET_NAME).map { it.output.dirs },
-        project.defaultConfigurations,
+        dependencyClasspaths,
         csiExtension.additionalPaths,
       ).filter {
         it !in csiOutput.get() && it != output.get().asFile

@@ -5,6 +5,7 @@ import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.TaskOutcome
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
@@ -140,6 +141,67 @@ class CallSiteInstrumentationPluginTest : GradleFixture() {
     assertEquals(TaskOutcome.UP_TO_DATE, changed.task(":compileJava")?.outcome, changed.output)
     assertEquals(TaskOutcome.FAILED, changed.task(":generateCallSiteJava")?.outcome, changed.output)
     assertTrue(changed.output.contains("UNRESOLVED_METHOD"), changed.output)
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = [true, false])
+  fun `generation supports test fixtures in the same project`(fixturesFirst: Boolean) {
+    val script = if (fixturesFirst) {
+      buildGradle.replace("id(\"java\")", "id(\"java-test-fixtures\")")
+    } else {
+      buildGradle.replace(
+        "id(\"dd-trace-java.call-site-instrumentation\")",
+        "id(\"dd-trace-java.call-site-instrumentation\")\nid(\"java-test-fixtures\")"
+      )
+    }
+    createGradleProject("$script\ndependencies { runtimeOnly(files(\"dependency.jar\")) }", dependencyAdvice)
+    writeDependencyJar("public static void call(String value) {}")
+    writeJavaSource("Fixture", "public class Fixture {}", sourceSet = "testFixtures")
+
+    val result = run("generateCallSiteJava", "--info", "--stacktrace")
+
+    assertEquals(TaskOutcome.SUCCESS, result.task(":generateCallSiteJava")?.outcome, result.output)
+    assertNull(result.task(":testFixturesJar"), result.output)
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = [false, true])
+  fun `generation retains external test fixtures`(composite: Boolean) {
+    val dependency = if (composite) "\"example:dependency:1.0\"" else "project(\":dependency\")"
+    val script = buildGradle.replace("id(\"java\")", "id(\"java-test-fixtures\")")
+    createGradleProject(
+      "$script\ndependencies { testImplementation(testFixtures($dependency)) }",
+      dependencyAdvice
+    )
+    writeJavaSource("OwnFixture", "public class OwnFixture {}", sourceSet = "testFixtures")
+    val dependencyBuild = """
+      plugins { id("java-test-fixtures") }
+      group = "example"
+      version = "1.0"
+      java {
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
+      }
+    """
+    if (composite) {
+      writeSettings("includeBuild(\"dependency\")")
+      writeFile("dependency/settings.gradle.kts", "rootProject.name = \"dependency\"")
+      writeFile("dependency/build.gradle.kts", dependencyBuild)
+    } else {
+      addSubproject("dependency", dependencyBuild)
+    }
+    writeJavaSource(
+      "example.Target",
+      "package example; public class Target { public static void call(String value) {} }",
+      sourceSet = "testFixtures",
+      projectPath = "dependency"
+    )
+
+    val result = run("generateCallSiteJava", "--info", "--stacktrace")
+
+    assertEquals(TaskOutcome.SUCCESS, result.task(":dependency:testFixturesJar")?.outcome, result.output)
+    assertEquals(TaskOutcome.SUCCESS, result.task(":generateCallSiteJava")?.outcome, result.output)
+    assertNull(result.task(":testFixturesJar"), result.output)
   }
 
   @Test
