@@ -114,7 +114,9 @@ for v in "${variants[@]}"; do
   # check its status here; otherwise a failed build or download would benchmark the wrong jar.
   jar=$(resolve_variant "$v") || exit 1
   resolved+=("$jar")
-  variant_ids+=("v${#resolved[@]}:$(basename "$v")")
+  # The ID goes into CSV rows, so keep only characters that can't split or quote a field.
+  variant_name=$(basename "$v")
+  variant_ids+=("v${#resolved[@]}:${variant_name//[!a-zA-Z0-9._-]/_}")
 done
 
 if [ "${PETCLINIC_AGENT:-stub}" = "stub" ]; then
