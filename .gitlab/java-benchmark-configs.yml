@@ -1,3 +1,8 @@
+# Test the unmerged image-cache harness from apm-sdks-benchmarks PR #356.
+.parallel-benchmark-template:
+  variables:
+    APM_SDKS_BENCHMARKS_BRANCH: "alexeyk/cache-java-benchmark-images"
+
 # Benchmarks run on master, merge queue, or when manually triggered.
 .parallel_benchmark_rules: &parallel_benchmark_rules
   - if: '$POPULATE_CACHE'
@@ -14,6 +19,11 @@
   - if: '$CI_COMMIT_BRANCH =~ /^gh-readonly-queue\//'
     when: on_success
     interruptible: true
+  # Temporary: exercise all benchmarks on this validation PR.
+  - if: '$CI_COMMIT_BRANCH == "alexeyk/test-java-benchmark-images"'
+    when: on_success
+    interruptible: true
+    allow_failure: true
   - when: manual
     interruptible: true
     allow_failure: true
@@ -38,34 +48,77 @@
     interruptible: true
     allow_failure: true
 
+# Run publishers whenever their consumers run automatically, including PR startup
+# benchmarks and merge-queue benchmarks. DaCapo remains manual on PR branches.
+build-java-spring-petclinic-image:
+  rules: *parallel_startup_benchmark_rules
+
+build-java-insecure-bank-image:
+  rules: *parallel_startup_benchmark_rules
+
+build-java-dacapo-image:
+  rules: *parallel_benchmark_rules
+
 # Ensure the tracer artifact publish finishes before the benchmark jobs start.
 linux-java-spring-petclinic-parallel:
-  needs: ["publish-artifacts-to-s3"]
+  needs:
+    - job: publish-artifacts-to-s3
+    - job: build-java-spring-petclinic-image
+      artifacts: true
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - if: '$CI_COMMIT_BRANCH == "alexeyk/test-java-benchmark-images"'
+      when: on_success
+      interruptible: true
+      allow_failure: true
+    - !reference [.parallel-benchmark-template, rules]
 
 linux-java-insecure-bank-load-parallel:
-  needs: ["publish-artifacts-to-s3"]
+  needs:
+    - job: publish-artifacts-to-s3
+    - job: build-java-insecure-bank-image
+      artifacts: true
   rules: *parallel_benchmark_rules
 
 linux-java-spring-petclinic-load-parallel:
-  needs: ["publish-artifacts-to-s3"]
+  needs:
+    - job: publish-artifacts-to-s3
+    - job: build-java-spring-petclinic-image
+      artifacts: true
   rules: *parallel_benchmark_rules
 
 linux-java-spring-petclinic-sca-load-parallel:
-  needs: ["publish-artifacts-to-s3"]
+  needs:
+    - job: publish-artifacts-to-s3
+    - job: build-java-spring-petclinic-image
+      artifacts: true
   rules: *parallel_benchmark_rules
 
 linux-java-insecure-bank-startup-parallel:
-  needs: ["publish-artifacts-to-s3"]
+  needs:
+    - job: publish-artifacts-to-s3
+    - job: build-java-insecure-bank-image
+      artifacts: true
   rules: *parallel_startup_benchmark_rules
 
 linux-java-spring-petclinic-startup-parallel:
-  needs: ["publish-artifacts-to-s3"]
+  needs:
+    - job: publish-artifacts-to-s3
+    - job: build-java-spring-petclinic-image
+      artifacts: true
   rules: *parallel_startup_benchmark_rules
 
 linux-java-dacapo-parallel-1:
-  needs: ["publish-artifacts-to-s3"]
+  needs:
+    - job: publish-artifacts-to-s3
+    - job: build-java-dacapo-image
+      artifacts: true
   rules: *parallel_benchmark_rules
 
 linux-java-dacapo-parallel-2:
-  needs: ["publish-artifacts-to-s3"]
+  needs:
+    - job: publish-artifacts-to-s3
+    - job: build-java-dacapo-image
+      artifacts: true
   rules: *parallel_benchmark_rules
