@@ -1,11 +1,12 @@
 _v: 1
 name: spark-openlineage
 display_name: Spark Project SQL
-description: Instruments OpenLineage Spark listener construction to capture configuration for integration with Spark data job telemetry.
+description: Instruments OpenLineage Spark listener construction to capture configuration for correlating lineage
+  with Spark execution.
 packages:
-  - name: org.apache.spark:spark-sql_2.12
-  - name: org.apache.spark:spark-sql_2.13
+- name: org.apache.spark:spark-sql_2.12
+- name: org.apache.spark:spark-sql_2.13
 category:
-  - other
+- other
 systems: []
 creation_date: '2025-04-02'
