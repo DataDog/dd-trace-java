@@ -16,9 +16,9 @@ import org.junit.jupiter.api.Test;
  */
 class StatsMetricsTest {
 
-  private static Map<String, StatsMetrics.TaggedCounter> countersByTag() {
+  private static Map<String, TaggedCounter> countersByTag() {
     return StatsMetrics.getInstance().getTaggedCounters().stream()
-        .collect(Collectors.toMap(StatsMetrics.TaggedCounter::getTag, Function.identity()));
+        .collect(Collectors.toMap(TaggedCounter::getTag, Function.identity()));
   }
 
   @AfterEach
@@ -26,7 +26,7 @@ class StatsMetricsTest {
     // StatsMetrics is a process-wide singleton; these tests leave per-reason deltas behind. Drain
     // every counter so they do not leak into another collector's expectations when tests share a
     // Gradle worker (e.g. CoreMetricCollectorTest asserting an exact span-metric count).
-    for (StatsMetrics.TaggedCounter counter : StatsMetrics.getInstance().getTaggedCounters()) {
+    for (TaggedCounter counter : StatsMetrics.getInstance().getTaggedCounters()) {
       counter.getValueAndReset();
     }
   }
@@ -39,7 +39,7 @@ class StatsMetricsTest {
     metrics.onCollapsedSpans(reason, 3);
     metrics.onCollapsedSpans(reason, 4);
 
-    StatsMetrics.TaggedCounter counter = countersByTag().get(reason);
+    TaggedCounter counter = countersByTag().get(reason);
     assertEquals(StatsMetrics.COLLAPSED_SPANS, counter.getName());
     assertEquals(reason, counter.getTag());
     assertEquals(7, counter.getValue(), "getValue reports the running total");
@@ -61,7 +61,7 @@ class StatsMetricsTest {
     metrics.onCollapsedSpans(collapsed, 2);
     metrics.onCollapsedSpans(oversized, 9);
 
-    Map<String, StatsMetrics.TaggedCounter> counters = countersByTag();
+    Map<String, TaggedCounter> counters = countersByTag();
     assertEquals(2, counters.get(collapsed).getValue());
     assertEquals(9, counters.get(oversized).getValue());
   }
@@ -89,7 +89,7 @@ class StatsMetricsTest {
     StatsMetrics metrics = StatsMetrics.getInstance();
 
     // The whole_key counter is pre-created at construction, so it is always present in the drain.
-    StatsMetrics.TaggedCounter counter = countersByTag().get(StatsMetrics.COLLAPSED_WHOLE_KEY);
+    TaggedCounter counter = countersByTag().get(StatsMetrics.COLLAPSED_WHOLE_KEY);
     assertEquals(StatsMetrics.COLLAPSED_SPANS, counter.getName());
     assertEquals(StatsMetrics.COLLAPSED_WHOLE_KEY, counter.getTag());
 
@@ -112,9 +112,9 @@ class StatsMetricsTest {
     String reason = "collapsed:test_stable";
 
     metrics.onCollapsedSpans(reason, 1);
-    StatsMetrics.TaggedCounter first = countersByTag().get(reason);
+    TaggedCounter first = countersByTag().get(reason);
     metrics.onCollapsedSpans(reason, 1);
-    StatsMetrics.TaggedCounter second = countersByTag().get(reason);
+    TaggedCounter second = countersByTag().get(reason);
 
     assertTrue(first == second, "same reason maps to the same counter instance");
     assertEquals(2, first.getValue());
