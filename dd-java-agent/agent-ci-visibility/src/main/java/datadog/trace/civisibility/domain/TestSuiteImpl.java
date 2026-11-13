@@ -1,7 +1,6 @@
 package datadog.trace.civisibility.domain;
 
 import static datadog.json.JsonMapper.toJson;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpanWithoutScope;
 import static datadog.trace.civisibility.Constants.CI_VISIBILITY_INSTRUMENTATION_NAME;
 
 import datadog.trace.api.Config;
@@ -144,7 +143,7 @@ public class TestSuiteImpl implements DDTestSuite {
     configurationErrors.applyTags(span);
 
     if (!parallelized) {
-      activateSpanWithoutScope(span);
+      AgentTracer.get().activateSpanWithoutScope(span);
     }
 
     metricCollector.add(CiVisibilityCountMetric.EVENT_CREATED, 1, instrumentation, EventType.SUITE);
@@ -225,7 +224,7 @@ public class TestSuiteImpl implements DDTestSuite {
                 + this.span);
       }
 
-      AgentTracer.closeActive();
+      AgentTracer.get().closeActive();
     }
 
     onSpanFinish.accept(span);

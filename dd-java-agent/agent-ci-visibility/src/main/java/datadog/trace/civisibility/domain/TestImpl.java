@@ -1,7 +1,6 @@
 package datadog.trace.civisibility.domain;
 
 import static datadog.json.JsonMapper.toJson;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpanWithoutScope;
 import static datadog.trace.civisibility.Constants.CI_VISIBILITY_INSTRUMENTATION_NAME;
 
 import datadog.trace.api.Config;
@@ -125,7 +124,7 @@ public class TestImpl implements DDTest {
 
     span = spanBuilder.start();
 
-    activateSpanWithoutScope(span);
+    AgentTracer.get().activateSpanWithoutScope(span);
 
     span.setSpanType(InternalSpanTypes.TEST);
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_TEST);
@@ -295,7 +294,7 @@ public class TestImpl implements DDTest {
       executionResults.setHasFailedTestReplayTests();
     }
 
-    AgentTracer.closeActive();
+    AgentTracer.get().closeActive();
 
     onSpanFinish.accept(span);
 
@@ -353,7 +352,7 @@ public class TestImpl implements DDTest {
       }
 
       log.debug("Closing outstanding span: {}", activeSpan);
-      AgentTracer.closeActive();
+      AgentTracer.get().closeActive();
       activeSpan.finish();
     }
   }

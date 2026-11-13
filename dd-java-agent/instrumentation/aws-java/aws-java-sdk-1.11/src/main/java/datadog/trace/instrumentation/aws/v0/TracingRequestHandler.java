@@ -4,7 +4,6 @@ import static datadog.trace.api.datastreams.DataStreamsContext.create;
 import static datadog.trace.api.datastreams.DataStreamsTags.Direction.INBOUND;
 import static datadog.trace.api.datastreams.DataStreamsTags.create;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.XRAY_TRACING_CONCERN;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpanWithoutScope;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.blackholeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
@@ -55,7 +54,7 @@ public class TracingRequestHandler extends RequestHandler2 {
     if (!AWS_LEGACY_TRACING && isPollingRequest(request.getOriginalRequest())) {
       // SQS messages spans are created by aws-java-sqs-1.0 - replace client scope with no-op,
       // so we can tell when receive call is complete without affecting the rest of the trace
-      activateSpanWithoutScope(blackholeSpan());
+      AgentTracer.get().activateSpanWithoutScope(blackholeSpan());
     } else {
       Context context = requestContextStore.remove(request.getOriginalRequest());
       AgentSpan span = AgentSpan.fromContext(context);
@@ -80,9 +79,9 @@ public class TracingRequestHandler extends RequestHandler2 {
       }
       // This scope will be closed by AwsHttpClientInstrumentation
       if (AWS_LEGACY_TRACING) {
-        activateSpanWithoutScope(span);
+        AgentTracer.get().activateSpanWithoutScope(span);
       } else {
-        activateSpanWithoutScope(blackholeSpan());
+        AgentTracer.get().activateSpanWithoutScope(blackholeSpan());
       }
     }
   }

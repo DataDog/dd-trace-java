@@ -85,27 +85,6 @@ public class AgentTracer {
     return get().activeSpan();
   }
 
-  /**
-   * Activate a span which will be closed by {@link #closeActive()} instead of a scope.
-   *
-   * @deprecated This should only be used when the instrumented code doesn't align with a scope.
-   */
-  @Deprecated
-  public static void activateSpanWithoutScope(final AgentSpan span) {
-    get().activateSpanWithoutScope(span);
-  }
-
-  /**
-   * Closes the scope for the currently active span.
-   *
-   * @deprecated This should only be used when the span was previously activated with {@link
-   *     #activateSpanWithoutScope} because the instrumented code didn't align with a scope.
-   */
-  @Deprecated
-  public static void closeActive() {
-    get().closeActive();
-  }
-
   public static TraceConfig traceConfig(final AgentSpan span) {
     return null != span ? span.traceConfig() : traceConfig();
   }
@@ -316,11 +295,6 @@ public class AgentTracer {
 
     AgentSpan activeSpan();
 
-    /** Activate a span which will be closed by {@link #closeActive()} instead of a scope. */
-    void activateSpanWithoutScope(AgentSpan span);
-
-    void closeActive();
-
     // deprecated public Tracer API methods which we can't remove yet for compatibility reasons
 
     @Override
@@ -343,7 +317,13 @@ public class AgentTracer {
       return new TraceScopeContinuationWrapper(capture(current));
     }
 
-    // deprecated temporary methods only used for legacy context manager migration
+    // deprecated scope management methods only supported in legacy context manager mode
+
+    @Deprecated
+    void activateSpanWithoutScope(AgentSpan span);
+
+    @Deprecated
+    void closeActive();
 
     @Deprecated
     void checkpointActiveForRollback();
@@ -356,6 +336,8 @@ public class AgentTracer {
 
     @Deprecated
     ContextScope activateNext(AgentSpan span);
+
+    // deprecated context migration methods only supported in legacy context manager mode
 
     @Deprecated
     Context currentContext();
