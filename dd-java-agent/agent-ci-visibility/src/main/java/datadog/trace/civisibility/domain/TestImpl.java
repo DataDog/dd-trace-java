@@ -1,11 +1,11 @@
 package datadog.trace.civisibility.domain;
 
 import static datadog.json.JsonMapper.toJson;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpanWithoutScope;
 import static datadog.trace.civisibility.Constants.CI_VISIBILITY_INSTRUMENTATION_NAME;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.DDTest;
 import datadog.trace.api.civisibility.InstrumentationTestBridge;
@@ -63,6 +63,8 @@ public class TestImpl implements DDTest {
   private final ExecutionResults executionResults;
   private final TestFrameworkInstrumentation instrumentation;
   private final AgentSpan span;
+  private final ContextActivation contextActivation;
+  private boolean ended;
   private final DDTraceId sessionId;
   private final long suiteId;
   private final Consumer<AgentSpan> onSpanFinish;
@@ -125,7 +127,12 @@ public class TestImpl implements DDTest {
 
     span = spanBuilder.start();
 
-    activateSpanWithoutScope(span);
+    if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+      AgentTracer.get().activateSpanWithoutScope(span);
+      contextActivation = null;
+    } else {
+      contextActivation = ContextActivation.enter(span);
+    }
 
     span.setSpanType(InternalSpanTypes.TEST);
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_TEST);
@@ -256,6 +263,11 @@ public class TestImpl implements DDTest {
 
   @Override
   public void end(@Nullable Long endTime) {
+    if (!InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+      endWithContext(endTime);
+      return;
+    }
+
     closeOutstandingSpans();
 
     final AgentSpan activeSpan = AgentTracer.activeSpan();
@@ -277,9 +289,42 @@ public class TestImpl implements DDTest {
     }
 
     InstrumentationTestBridge.fireBeforeTestEnd(context);
-
     CoveragePerTestBridge.removeThreadLocalCoverageProbes();
+    reportCoverage();
+    AgentTracer.get().closeActive();
+    finishTest(endTime);
+  }
 
+  /**
+   * Finishes the test and restores its saved context without finishing outstanding application
+   * spans.
+   */
+  private void endWithContext(@Nullable Long endTime) {
+    if (ended) {
+      return;
+    }
+    ended = true;
+    boolean cleanupCurrentContext = contextActivation.isCurrent();
+    try {
+      if (cleanupCurrentContext) {
+        span.swap();
+        // Listeners such as Selenium cleanup require this test to be current.
+        try {
+          InstrumentationTestBridge.fireBeforeTestEnd(context);
+        } finally {
+          if (contextActivation.isCurrent()) {
+            CoveragePerTestBridge.removeThreadLocalCoverageProbes();
+          }
+        }
+      }
+      reportCoverage();
+    } finally {
+      contextActivation.exit();
+      finishTest(endTime);
+    }
+  }
+
+  private void reportCoverage() {
     // do not process coverage reports for skipped tests
     if (span.getTag(Tags.TEST_STATUS) != TestStatus.skip) {
       CoverageStore coverageStore = context.getCoverageStore();
@@ -289,13 +334,13 @@ public class TestImpl implements DDTest {
         metricCollector.add(CiVisibilityCountMetric.CODE_COVERAGE_IS_EMPTY, 1);
       }
     }
+  }
 
+  private void finishTest(@Nullable Long endTime) {
     boolean debugInfoCaptured = span.getTag(Tags.ERROR_DEBUG_INFO_CAPTURED) != null;
     if (debugInfoCaptured) {
       executionResults.setHasFailedTestReplayTests();
     }
-
-    AgentTracer.closeActive();
 
     onSpanFinish.accept(span);
 
@@ -340,8 +385,8 @@ public class TestImpl implements DDTest {
    * finalizing an operation properly usually results in its span remaining open. This is something
    * that we have no control over, since this happens in the clients' codebase.
    *
-   * <p>This method attempts to finalize such "dangling" spans: it closes whatever is on top of the
-   * spans stack until it encounters a CI Visibility span or the stack is empty.
+   * <p>In legacy mode, this method attempts to finalize such "dangling" spans: it closes whatever
+   * is on top of the spans stack until it encounters a CI Visibility span or the stack is empty.
    */
   private void closeOutstandingSpans() {
     AgentSpan activeSpan;
@@ -353,7 +398,7 @@ public class TestImpl implements DDTest {
       }
 
       log.debug("Closing outstanding span: {}", activeSpan);
-      AgentTracer.closeActive();
+      AgentTracer.get().closeActive();
       activeSpan.finish();
     }
   }

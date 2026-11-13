@@ -4,7 +4,6 @@ import static datadog.trace.api.datastreams.DataStreamsContext.create;
 import static datadog.trace.api.datastreams.DataStreamsTags.Direction.INBOUND;
 import static datadog.trace.api.datastreams.DataStreamsTags.create;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.XRAY_TRACING_CONCERN;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpanWithoutScope;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.blackholeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
@@ -20,6 +19,7 @@ import com.amazonaws.handlers.RequestHandler2;
 import datadog.context.Context;
 import datadog.context.propagation.Propagators;
 import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.datastreams.AgentDataStreamsMonitoring;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
@@ -55,7 +55,7 @@ public class TracingRequestHandler extends RequestHandler2 {
     if (!AWS_LEGACY_TRACING && isPollingRequest(request.getOriginalRequest())) {
       // SQS messages spans are created by aws-java-sqs-1.0 - replace client scope with no-op,
       // so we can tell when receive call is complete without affecting the rest of the trace
-      activateSpanWithoutScope(blackholeSpan());
+      enterRequest(blackholeSpan());
     } else {
       Context context = requestContextStore.remove(request.getOriginalRequest());
       AgentSpan span = AgentSpan.fromContext(context);
@@ -78,12 +78,20 @@ public class TracingRequestHandler extends RequestHandler2 {
           log.warn("Unable to inject trace header", e);
         }
       }
-      // This scope will be closed by AwsHttpClientInstrumentation
+      // AwsHttpClientInstrumentation restores the caller's context when request execution ends.
       if (AWS_LEGACY_TRACING) {
-        activateSpanWithoutScope(span);
+        enterRequest(span);
       } else {
-        activateSpanWithoutScope(blackholeSpan());
+        enterRequest(blackholeSpan());
       }
+    }
+  }
+
+  private static void enterRequest(AgentSpan span) {
+    if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+      AgentTracer.get().activateSpanWithoutScope(span);
+    } else {
+      span.swap();
     }
   }
 

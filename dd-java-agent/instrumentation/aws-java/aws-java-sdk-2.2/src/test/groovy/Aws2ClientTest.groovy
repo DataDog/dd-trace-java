@@ -784,3 +784,11 @@ class Aws2ClientV1ForkedTest extends Aws2ClientTest {
     1
   }
 }
+
+class ContextSwapAws2ClientForkedTest extends Aws2ClientV0ForkedTest {
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("legacy.context-manager.enabled", "false")
+  }
+}

@@ -2,8 +2,6 @@ package datadog.trace.instrumentation.mongo;
 
 import static datadog.trace.api.Functions.UTF8_ENCODE;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closeActive;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 
 import com.mongodb.ServerAddress;
@@ -126,11 +124,9 @@ public final class MongoCommandListener implements CommandListener {
 
     // If DBM comment injection is enabled, the span is created on the connection instrumentation
     // this is required because the comment injection needs to happen before the command is sent
-    AgentSpan span = activeSpan();
-    boolean shouldForceCloseSpanScope = true;
-    if (span == null || span.getSpanName() != MongoDecorator.OPERATION_NAME) {
+    AgentSpan span = MongoPendingSpan.take();
+    if (span == null) {
       span = startSpan("java-mongo", MongoDecorator.OPERATION_NAME);
-      shouldForceCloseSpanScope = false;
     }
 
     try (final ContextScope scope = activateSpan(span)) {
@@ -156,10 +152,6 @@ public final class MongoCommandListener implements CommandListener {
       }
       decorator.onStatement(span, event.getCommand(), byteBufAccessor);
       spanMap.put(event.getRequestId(), new SpanEntry(span));
-
-      if (shouldForceCloseSpanScope) {
-        closeActive();
-      }
     }
   }
 

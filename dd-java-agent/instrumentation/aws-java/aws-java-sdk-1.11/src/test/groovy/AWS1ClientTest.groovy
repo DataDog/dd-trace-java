@@ -591,3 +591,10 @@ class AWS1ClientV1ForkedTest extends AWS1ClientTest {
   }
 }
 
+class ContextSwapAWS1ClientForkedTest extends AWS1ClientV0Test {
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("legacy.context-manager.enabled", "false")
+  }
+}

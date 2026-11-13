@@ -283,3 +283,15 @@ class KarateTest extends CiVisibilityInstrumentationTest {
     }
   }
 }
+
+@IgnoreIf(reason = "Karate does not support Java 24+ yet", value = {
+  JavaVirtualMachine.isJavaVersionAtLeast(24)
+})
+@DisableTestTrace(reason = "avoid self-tracing")
+class ContextSwapKarateForkedTest extends KarateTest {
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("legacy.context-manager.enabled", "false")
+  }
+}

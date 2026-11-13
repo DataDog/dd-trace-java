@@ -911,6 +911,8 @@ Every swap returns a `ContextHandle` for restoration by swapping back. Handles e
 See the [Context API](../components/context/src/main/java/datadog/context/Context.java) for the
 full contract.
 
+Swapping contexts does not finish spans.
+
 ### Continuation effects
 
 An unresolved continuation keeps `PendingTrace`'s reference count positive and prevents its normal
