@@ -104,6 +104,18 @@ public class DDSpanContext
   private final long spanId;
   private final long parentId;
 
+  /** The span has no parent. */
+  public static final byte PARENT_ORIGIN_NONE = 0;
+
+  /** The parent span was created in this process. */
+  public static final byte PARENT_ORIGIN_LOCAL = 1;
+
+  /** The parent span context was extracted from another process. */
+  public static final byte PARENT_ORIGIN_REMOTE = 2;
+
+  /** Where the parent span came from: one of the {@code PARENT_ORIGIN_*} constants. */
+  private final byte parentOrigin;
+
   private final String parentServiceName;
 
   private final long threadId;
@@ -388,6 +400,64 @@ public class DDSpanContext
       final boolean injectBaggageAsTags,
       final boolean injectLinksAsTags,
       final TagMap readThroughParent) {
+    this(
+        traceId,
+        spanId,
+        parentId,
+        parentServiceName,
+        serviceNameSource,
+        serviceName,
+        operationName,
+        resourceName,
+        samplingPriority,
+        origin,
+        baggageItems,
+        w3cBaggage,
+        errorFlag,
+        spanType,
+        tagsSize,
+        traceCollector,
+        requestContextDataAppSec,
+        requestContextDataIast,
+        CiVisibilityContextData,
+        pathwayContext,
+        disableSamplingMechanismValidation,
+        propagationTags,
+        profilingContextIntegration,
+        injectBaggageAsTags,
+        injectLinksAsTags,
+        readThroughParent,
+        parentId == DDSpanId.ZERO ? PARENT_ORIGIN_NONE : PARENT_ORIGIN_LOCAL);
+  }
+
+  public DDSpanContext(
+      final DDTraceId traceId,
+      final long spanId,
+      final long parentId,
+      final CharSequence parentServiceName,
+      final CharSequence serviceNameSource,
+      final String serviceName,
+      final CharSequence operationName,
+      final CharSequence resourceName,
+      final int samplingPriority,
+      final CharSequence origin,
+      final Map<String, String> baggageItems,
+      final Baggage w3cBaggage,
+      final boolean errorFlag,
+      final CharSequence spanType,
+      final int tagsSize,
+      final TraceCollector traceCollector,
+      final Object requestContextDataAppSec,
+      final Object requestContextDataIast,
+      final Object CiVisibilityContextData,
+      final PathwayContext pathwayContext,
+      final boolean disableSamplingMechanismValidation,
+      final PropagationTags propagationTags,
+      final ProfilingContextIntegration profilingContextIntegration,
+      final boolean injectBaggageAsTags,
+      final boolean injectLinksAsTags,
+      final TagMap readThroughParent,
+      final byte parentOrigin) {
 
     assert traceCollector != null;
     this.traceCollector = traceCollector;
@@ -397,6 +467,7 @@ public class DDSpanContext
     this.traceId = traceId;
     this.spanId = spanId;
     this.parentId = parentId;
+    this.parentOrigin = parentOrigin;
     this.parentServiceName = String.valueOf(parentServiceName);
 
     if (baggageItems == null || baggageItems.isEmpty()) {
@@ -464,6 +535,11 @@ public class DDSpanContext
 
   public long getParentId() {
     return parentId;
+  }
+
+  /** Where the parent span came from: one of the {@code PARENT_ORIGIN_*} constants. */
+  public byte getParentOrigin() {
+    return parentOrigin;
   }
 
   @Override
