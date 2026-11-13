@@ -16,6 +16,10 @@ muzzle {
 addTestSuiteForDir("latestDepTest", "test")
 addTestSuiteForDir("latest7DepTest", "test")
 
+sourceSets.named('latest7DepTest') {
+  java.srcDir 'src/latest7DepTest/java'
+}
+
 tasks.named("latestDepTest", Test) {
   testJvmConstraints {
     minJavaVersion = JavaVersion.VERSION_21
