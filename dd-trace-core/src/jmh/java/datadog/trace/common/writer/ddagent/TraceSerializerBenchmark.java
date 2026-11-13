@@ -44,7 +44,17 @@ import org.openjdk.jmh.annotations.Warmup;
  * request root with a database, an HTTP client and an internal child span, built through the
  * tracer, with its own {@code http.url} value instances, as each request makes them: per-payload
  * deduplication that only works for repeated instances, rather than equal values, shows up here.
- * Several pre-built payloads rotate so the JIT doesn't specialize on one.
+ * Several payloads rotate so the JIT doesn't specialize on one.
+ *
+ * <p>{@code cache} chooses whether the serialized values are fresh. Some value types cache their
+ * rendered form ({@code LazyUrl} its string, {@code UTF8BytesString} its encoding), so serializing
+ * the same spans again skips that work. {@code cold} gives the next payload's spans new {@code
+ * http.url} values before each operation, outside the measured time, so each URL is serialized for
+ * the first time, as in production; {@code warm} keeps the values and leaves the cost of first use
+ * out. Cold refreshes per invocation, so with {@code tracesPerPayload=1} JMH's per-invocation
+ * overhead is a large part of the timing: compare cold results at 100 and 1000 traces. And {@code
+ * -prof gc} counts what the refresh allocates (the new URL values, as each request would make them)
+ * along with what serialization does.
  *
  * <p>{@code urlType} is the {@code http.url} value's type ({@code String}, {@code UTF8BytesString},
  * {@code URIUtils.LazyUrl}, or a {@code StringBuilder} as a CharSequence that neither caches its
@@ -94,12 +104,17 @@ public class TraceSerializerBenchmark {
   @Param({"same", "distinct"})
   String urls;
 
+  @Param({"cold", "warm"})
+  String cache;
+
   private TraceMapper mapper;
   private MsgPackWriter packer;
   private final CountingChannel channel = new CountingChannel();
   private List<List<List<DDSpan>>> payloads;
+  private List<List<UrlTag>> urlTags; // per payload: the http.url tags a cold refresh replaces
   private int next;
   private CoreTracer tracer;
+  private CollectingWriter collected;
 
   @Setup(Level.Trial)
   public void setup() {
@@ -107,16 +122,21 @@ public class TraceSerializerBenchmark {
     packer =
         new MsgPackWriter(new ChunkedStreamingBuffer(mapper.messageBufferSize(), this::dispatch));
 
-    CollectingWriter collected = new CollectingWriter();
+    collected = new CollectingWriter();
     tracer = CoreTracer.builder().writer(collected).strictTraceWrites(true).build();
     payloads = new ArrayList<>(PAYLOADS);
+    urlTags = new ArrayList<>(PAYLOADS);
     for (int p = 0; p < PAYLOADS; p++) {
+      List<UrlTag> tags = new ArrayList<>();
       for (int t = 0; t < tracesPerPayload; t++) {
-        buildTrace(t);
+        buildTrace(t, tags);
       }
       payloads.add(collected.drain());
+      urlTags.add(tags);
     }
     checkUrlType(payloads.get(0).get(0));
+    refreshUrls(urlTags.get(0));
+    checkUrlType(payloads.get(0).get(0)); // a refreshed value must keep its type, too
 
     long before = channel.bytes;
     serializePayload();
@@ -129,6 +149,22 @@ public class TraceSerializerBenchmark {
         urlType,
         bytes,
         (double) bytes / (tracesPerPayload * SPANS_PER_TRACE));
+  }
+
+  /**
+   * For {@code cold}, gives the spans the next operation serializes new {@code http.url} values.
+   */
+  @Setup(Level.Invocation)
+  public void refresh() {
+    if ("cold".equals(cache)) {
+      refreshUrls(urlTags.get(next & (PAYLOADS - 1)));
+    }
+  }
+
+  private void refreshUrls(List<UrlTag> tags) {
+    for (UrlTag tag : tags) {
+      tag.span.spanContext().setTag(Tags.HTTP_URL, url(tag.host, tag.port, tag.path));
+    }
   }
 
   @TearDown(Level.Trial)
@@ -171,13 +207,14 @@ public class TraceSerializerBenchmark {
     }
   }
 
-  private void buildTrace(int index) {
+  private void buildTrace(int index, List<UrlTag> urlTags) {
     String path = "distinct".equals(urls) ? "/owners/" + index : "/owners/1";
     AgentSpan root = tracer.buildSpan("benchmark", "servlet.request").withSpanType("web").start();
     root.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_SERVER);
     root.setTag(Tags.COMPONENT, "tomcat-server");
     root.setTag(Tags.HTTP_METHOD, "GET");
     root.setTag(Tags.HTTP_URL, url("petclinic", 8080, path));
+    urlTags.add(new UrlTag((DDSpan) root, "petclinic", 8080, path));
     root.setTag(Tags.HTTP_ROUTE, "/owners/{ownerId}");
     root.setResourceName("GET /owners/{ownerId}");
     root.setHttpStatusCode(200);
@@ -212,6 +249,7 @@ public class TraceSerializerBenchmark {
     client.setTag(Tags.COMPONENT, "okhttp");
     client.setTag(Tags.HTTP_METHOD, "GET");
     client.setTag(Tags.HTTP_URL, url("visits", 9090, path + "/visits"));
+    urlTags.add(new UrlTag((DDSpan) client, "visits", 9090, path + "/visits"));
     client.setTag(Tags.PEER_HOSTNAME, "visits");
     client.setResourceName("GET /owners/?/visits");
     client.setHttpStatusCode(200);
@@ -266,6 +304,21 @@ public class TraceSerializerBenchmark {
       }
     }
     throw new IllegalStateException("no span in the trace has http.url");
+  }
+
+  /** A span's {@code http.url} tag, with what it takes to make a fresh value for it. */
+  private static final class UrlTag {
+    final DDSpan span;
+    final String host;
+    final int port;
+    final String path;
+
+    UrlTag(DDSpan span, String host, int port, String path) {
+      this.span = span;
+      this.host = host;
+      this.port = port;
+      this.path = path;
+    }
   }
 
   /** Collects finished traces, so payloads are built from what the tracer actually hands over. */
