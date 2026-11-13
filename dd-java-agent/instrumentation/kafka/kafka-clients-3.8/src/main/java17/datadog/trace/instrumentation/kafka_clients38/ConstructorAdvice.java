@@ -38,7 +38,8 @@ public class ConstructorAdvice {
     if (bootstrapServersList != null && !bootstrapServersList.isEmpty()) {
       bootstrapServers = String.join(",", bootstrapServersList);
     }
-    // Metadata kept even with DSM off so remote config can enable DSM later
+    // Metadata kept for a later DSM enable, but group-less consumers built while DSM is off
+    // aren't stored (as on master), so they never get a cluster ID
     KafkaConsumerInfo kafkaConsumerInfo =
         new KafkaConsumerInfo(normalizedConsumerGroup, metadata, bootstrapServers, true);
     // new - searching context for ConsumerDelegate and OffsetCommitCallbackInvoker instead of

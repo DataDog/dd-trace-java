@@ -12,6 +12,7 @@ import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.clients.producer.KafkaProducer
+import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.serialization.StringDeserializer
@@ -25,6 +26,8 @@ import spock.util.concurrent.PollingConditions
 class KafkaDataStreamsRemoteConfigForkedTest extends InstrumentationSpecification {
   static final String TOPIC = "dsm.remote.config"
   static final TopicPartition PARTITION = new TopicPartition(TOPIC, 0)
+  // Frequent metadata updates, which report the pending client configs
+  static final String METADATA_MAX_AGE_MS = "500"
 
   @Shared
   EmbeddedKafkaKraftBroker broker
@@ -76,6 +79,8 @@ class KafkaDataStreamsRemoteConfigForkedTest extends InstrumentationSpecificatio
       assert TEST_DATA_STREAMS_WRITER.groups.find { it.tags.hasAllTags("direction:out", "topic:$TOPIC".toString(), "type:kafka") }
       assert TEST_DATA_STREAMS_WRITER.groups.find { it.tags.hasAllTags("direction:in", "topic:$TOPIC".toString(), "type:kafka") }
     }
+    // Configs captured while DSM was off are kept until a metadata update after the enable
+    waitForKafkaConfigReports(consumer)
 
     when: "remote config disables data streams again"
     toggleDataStreams(false)
@@ -109,7 +114,9 @@ class KafkaDataStreamsRemoteConfigForkedTest extends InstrumentationSpecificatio
   }
 
   KafkaProducer<String, String> newProducer() {
-    return new KafkaProducer<String, String>(KafkaTestUtils.producerProps(broker), new StringSerializer(), new StringSerializer())
+    def properties = KafkaTestUtils.producerProps(broker)
+    properties.put(ProducerConfig.METADATA_MAX_AGE_CONFIG, METADATA_MAX_AGE_MS)
+    return new KafkaProducer<String, String>(properties, new StringSerializer(), new StringSerializer())
   }
 
   KafkaConsumer<String, String> newConsumer(String groupProtocol) {
@@ -117,11 +124,21 @@ class KafkaDataStreamsRemoteConfigForkedTest extends InstrumentationSpecificatio
     properties.remove(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG)
     properties.remove(ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG)
     properties.put(ConsumerConfig.GROUP_PROTOCOL_CONFIG, groupProtocol)
+    properties.put(ConsumerConfig.METADATA_MAX_AGE_CONFIG, METADATA_MAX_AGE_MS)
     def consumer = new KafkaConsumer<String, String>(properties, new StringDeserializer(), new StringDeserializer())
     consumer.assign([PARTITION])
     consumer.seekToEnd([PARTITION])
     consumer.position(PARTITION)
     return consumer
+  }
+
+  /** Polls so client metadata refreshes, until DSM reports the config of each client type. */
+  void waitForKafkaConfigReports(KafkaConsumer<String, String> consumer) {
+    new PollingConditions(timeout: 15).eventually {
+      consumer.poll(Duration.ofMillis(100))
+      def types = TEST_DATA_STREAMS_WRITER.payloads.collectMany { it.kafkaConfigs }.findAll { !it.config.isEmpty() }*.type
+      assert types.containsAll(["kafka_producer", "kafka_consumer"])
+    }
   }
 
   /** Updates the tracer's dynamic config like remote config, then waits for the DSM monitor. */

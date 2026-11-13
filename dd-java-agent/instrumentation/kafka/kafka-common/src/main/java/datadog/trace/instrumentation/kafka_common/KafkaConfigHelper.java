@@ -116,7 +116,7 @@ public class KafkaConfigHelper {
         || memberId.isEmpty()
         || clusterId == null
         || clusterId.isEmpty()
-        // Not reported while DSM is off, so it's retried once remote config enables DSM
+        // Not reported while DSM is off; reported on the next group join after DSM is enabled
         || !traceConfig().isDataStreamsEnabled()) {
       return false;
     }
@@ -133,14 +133,16 @@ public class KafkaConfigHelper {
 
   /** Called from metadata update advice when the cluster ID becomes available. */
   public static void reportPendingConfig(MetadataState state, String clusterId) {
+    if (!traceConfig().isDataStreamsEnabled()) {
+      // Kept pending: reported on the first metadata update after DSM is enabled
+      return;
+    }
     PendingConfig pending = state.takePendingConfig();
     if (pending != null) {
       log.debug("Received cluster ID, reporting {} config", pending.type);
-      if (traceConfig().isDataStreamsEnabled()) {
-        AgentTracer.get()
-            .getDataStreamsMonitoring()
-            .reportKafkaConfig(pending.type, clusterId, pending.consumerGroup, pending.config);
-      }
+      AgentTracer.get()
+          .getDataStreamsMonitoring()
+          .reportKafkaConfig(pending.type, clusterId, pending.consumerGroup, pending.config);
     }
   }
 

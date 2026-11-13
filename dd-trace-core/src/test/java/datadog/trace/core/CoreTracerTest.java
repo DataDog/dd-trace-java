@@ -698,9 +698,13 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
     injectSysConfig(GeneralConfig.DATA_STREAMS_ENABLED, "true");
     CoreTracer tracer = tracerBuilder().build();
 
-    Propagator dsmPropagator =
-        ((DataStreamsMonitoring) tracer.getDataStreamsMonitoring()).propagator();
-    assertSame(dsmPropagator, Propagators.forConcern(DSM_CONCERN));
+    try {
+      Propagator dsmPropagator =
+          ((DataStreamsMonitoring) tracer.getDataStreamsMonitoring()).propagator();
+      assertSame(dsmPropagator, Propagators.forConcern(DSM_CONCERN));
+    } finally {
+      tracer.close();
+    }
   }
 
   /**
