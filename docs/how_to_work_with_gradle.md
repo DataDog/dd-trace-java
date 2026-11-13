@@ -741,7 +741,7 @@ graph LR
 ```Gradle Kotlin DSL
 // Create a declarable configuration for integration tests
 val integrationTestImplementation by configurations.dependencyScope("integrationTestImplementation") {
-    extendsFrom(configurations.named("testImplementation").get())
+    extendsFrom(configurations.named("testImplementation")) // Gradle 9.4.0 accepts providers
 }
 
 dependencies {
@@ -1135,6 +1135,7 @@ tasks.named<Test>("latestDepTest") {
 | `includeJdk`                       | Restricts JDK names. The check fails when no entry is allowed. Set it on the test task: a project-level value is ignored. |
 | `excludeJdk`                       | Rejects listed JDK names, including forced JDKs.                                                                          |
 | `allowReflectiveAccessToJdk`       | Adds `--add-opens` flags for Java 16+ reflective access.                                                                  |
+| `coverageTestJvm`                  | Test JVM to check coverage on in CI, like `ORACLE8`. Defaults to the lowest allowed Java LTS version.                     |
 
 `checkTestJvmConstraints` runs with `check` and rejects unsatisfiable constraints.
 The JDK name lists apply when tests run with `-PtestJvm`.
@@ -1248,8 +1249,8 @@ Optimizes CI by skipping tests for projects unaffected by git changes.
 
 The system:
 - Detects changed files via `git diff`
-- Maps changes to affected projects
-- Skips tests for unchanged projects
+- Maps each changed file to the tasks building every source set containing it (compile, resources and classes tasks) in any project
+- Skips the aggregated tasks that depend on none of the affected tasks
 - Falls back to running all tests if "global effect" files change (e.g., `gradle/`, `build.gradle`)
 
 ### Root Aggregate Tasks
@@ -1275,6 +1276,19 @@ The root `build.gradle.kts` defines aggregate tasks that orchestrate testing acr
 > These root tasks are defined using `testAggregate()` in `build.gradle.kts`. They combine CI slot filtering,
 > git change tracking, and optional JaCoCo coverage into convenient entry points for CI pipelines.
 
+**Coverage:**
+
+- `-PcheckCoverage` collects coverage and runs each project's coverage verification on every test JVM.
+- `-PcheckCoverageOnFirstTestJvm` does the same only on the project's coverage test JVM: the lowest
+  Java LTS version its `test` task accepts, or its `testJvmConstraints.coverageTestJvm` when set.
+  CI tests every LTS version and runs `baseTest` and `profilingTest` with it on every test JVM, so
+  each project is checked once. Without `-PtestJvm`, it checks every project.
+
+```bash
+# Checks the coverage of projects whose tests first run on Java 11, like :dd-openfeature
+./gradlew baseTest -PtestJvm=11 -PcheckCoverageOnFirstTestJvm
+```
+
 ## Convention Plugins
 
 Convention plugins are the recommended way to share _build logic_ across projects. They encapsulate
@@ -1286,40 +1300,136 @@ common configuration patterns and can be applied like any other plugin.
 
 ### Cross-Project Configuration
 
-Cross-project configuration reads or changes another project's mutable state, such as its
-tasks, configurations or extensions. Using `allprojects {}` or `subprojects {}` to configure
-other projects is *configuration injection*: the receiving build scripts do not declare that
-configuration. This creates *configuration-time coupling* and can prevent configuration on
-demand from working correctly. Gradle recommends [avoiding these constructs for shared build
-logic](https://docs.gradle.org/current/userguide/sharing_build_logic_between_subprojects.html#sec:convention_plugins_vs_cross_configuration).
+Each project should configure its own objects (tasks, configurations and extensions), directly or through an applied plugin. Cross-project configuration reads or changes another project's mutable state. Configuration injection commonly uses `allprojects {}`or `subprojects {}`, and the "target" projects did not declare that themseleves.
 
-The alternative depends on the interaction:
+These constructs create *configuration-time coupling* and can prevent 
+configuration on demand from working correctly. Gradle recommends [avoiding these constructs for 
+shared build logic](https://docs.gradle.org/current/userguide/sharing_build_logic_between_subprojects.html#sec:convention_plugins_vs_cross_configuration).
 
-- Shared build logic belongs in a convention plugin, applied through each participating
-  project's `plugins {}` block. The plugin configures the project it is applied to. Moving
-  an `allprojects {}` block into a plugin retains the cross-project configuration.
+`allprojects {}`or `subprojects {}` can be replaced; choose the mechanism according to the intended purpose:
 
-- Artifacts and generated files are shared through [outgoing configuration
-  variants](https://docs.gradle.org/current/userguide/how_to_share_outputs_between_projects.html)
-  and project dependencies. The project that produces the files exposes them through an
-  outgoing configuration. The project that uses those files resolves them through its own
-  configuration and wires them into task inputs. Gradle infers dependencies on the tasks
-  that produce the files.
+- **Configuring projects the same way:** Use a *convention plugin* that configures the project
+  applying it. E.g. in a parent project: 
 
-- Aggregate execution uses lifecycle tasks with dependencies on task paths, such as
-  `dependsOn(":library:check")`. This schedules work without accessing another project's
-  task container. Tasks that consume another project's outputs use artifact dependencies.
+  ```Gradle Kotlin DSL
+  // ❌ parent gradle project configures its child projects
+  subprojects {
+    tasks.matching { it.name.startsWith("forbiddenApis") }.configureEach {
+      enabled = false
+    }
+  }
+  ``` 
+  
+  the parent project don't configure anymore the child projects, each child project instead
+  apply the convention plugin
 
-- Centrally applied project configuration can use [state-isolating lifecycle
-  callbacks](https://docs.gradle.org/current/userguide/isolated_projects.html#sec:isolating_lifecycle_callbacks)
-  registered in settings or a settings plugin. Actions registered through
-  `gradle.lifecycle.beforeProject` run with state isolated for each target project.
+  ```Gradle Kotlin DSL
+  // ✅ child project applies convention
+  plugins {
+    id("forbiddenapis-convention")
+  }
+  ```
+  
+  ```Gradle Kotlin DSL
+  // ✅ Reusable convention
+  tasks.matching { it.name.startsWith("forbiddenApis") }.configureEach {
+    enabled = false
+  }
+  ```
 
-Lazy APIs do not remove cross-project access. For example,
-`project(":library").tasks.named("jar")` still accesses the library project's task container.
-`evaluationDependsOn(":library")` forces that project's evaluation. Artifact dependencies
-let Gradle identify the tasks that create the required files without this explicit evaluation
-ordering.
+- **Sharing outputs:** Expose artifacts or generated files through an
+  [outgoing configuration](https://docs.gradle.org/current/userguide/how_to_share_outputs_between_projects.html)
+  and declare a project dependency. And on the consuming a side a configuration can be wired
+  into task's inputs. Gradle then schedules the producing tasks automatically.
+
+  ```Gradle KOtlin DSL
+  // ❌ app/build.gradle.kts accesses another project's task container
+  tasks.register<Sync>("stageLibraryJar") {
+    from(project(":library").tasks.named<Jar>("jar").flatMap { it.archiveFile })
+    into(layout.buildDirectory.dir("library"))
+  }
+  ```
+  
+  the library's JAR is now exposed through an outgoing configuration
+
+  ```Gradle Kotlin DSL
+  // ✅ library/build.gradle.kts exposes its JAR through an outgoing configuration
+  plugins {
+    java
+  }
+  
+  configurations.consumable("sharedJar") {
+    outgoing.artifact(tasks.named("jar"))
+  }
+  ```
+
+  ```Gradle Kotlin DSL
+  // ✅ app/build.gradle.kts consumes the artifact through a project dependency
+  val libraryJarDependencies = configurations.dependencyScope("libraryJarDependencies")
+  val libraryJar = configurations.resolvable("libraryJar") {
+    extendsFrom(libraryJarDependencies)
+  }
+  
+  dependencies {
+    libraryJarDependencies(project(path = ":library", configuration = "sharedJar"))
+  }
+  
+  tasks.register<Sync>("stageLibraryJar") {
+    from(libraryJar)
+    into(layout.buildDirectory.dir("library"))
+  }
+  ```
+
+- **Running tasks across projects:** Use a _lifecycle task_with dependencies on task paths. 
+  This schedules work without accessing another project's task container. Tasks that consume
+  another project's outputs use artifact dependencies.
+
+  ```Gradle Kotlin DSL
+  // ❌ Root build.gradle.kts accesses another project's task container
+  tasks.register("checkLibraries") {
+    dependsOn(project(":library").tasks.named("check"))
+  }
+  ```
+  
+  ```Gradle Kotlin DSL
+  // ✅ Root build.gradle.kts declares a dependency by task path
+  tasks.register("checkLibraries") {
+    dependsOn(":library:check")
+  }
+  ```
+
+- **Applying defaults from settings:** Register a
+  [`gradle.lifecycle.beforeProject` callback](https://docs.gradle.org/current/userguide/isolated_projects.html#sec:isolating_lifecycle_callbacks)
+  callback in the settings file or a settings plugin. The callback configures each project 
+  separately, including the root project, before its build script is evaluated.
+  
+  ```Gradle Kotlin DSL
+  // ❌ Root build.gradle.kts configures other projects directly
+  allprojects {
+    group = "com.datadog"
+  }
+  ```
+  
+  ```Gradle Kotlin DSL
+  // ✅ settings.gradle.kts configures each project through an isolated callback
+  gradle.lifecycle.beforeProject {
+    group = "com.datadog"
+  }
+  ```
+
+  Without settings or a convention plugin, the root build script has no Isolated Projects-compatible
+  replacement for `allprojects {}`. `project(":child") {}` and `gradle.beforeProject {}` can configure
+  children, but retain cross-project coupling. Changing the API does not remove that boundary.
+  See [Gradle documentation](https://docs.gradle.org/current/userguide/isolated_projects.html#sec:cross_project_access).
+
+> [!NOTE]
+> Lazy APIs do not prevent cross-project access. For example,
+> `project(":library").tasks.named("jar")` still accesses the `library` project's task container.
+> 
+> Also, `evaluationDependsOn(":library")` forces that project's early evaluation. 
+> 
+> Artifact dependencies let Gradle identify the tasks that create the required files 
+> without this explicit evaluation ordering.
 
 With [Isolated Projects](https://docs.gradle.org/current/userguide/isolated_projects.html#sec:cross_project_access)
 enabled, Gradle rejects access to another project's mutable state during configuration.

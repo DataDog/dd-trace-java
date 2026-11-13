@@ -1,5 +1,6 @@
 package datadog.gradle.plugin.muzzle.tasks
 
+import org.assertj.core.api.Assertions.assertThat
 import org.gradle.kotlin.dsl.register
 import org.gradle.testfixtures.ProjectBuilder
 import org.junit.jupiter.api.BeforeEach
@@ -12,7 +13,6 @@ import javax.xml.parsers.DocumentBuilderFactory
 import kotlin.io.path.createDirectories
 import kotlin.io.path.readText
 import kotlin.io.path.writeText
-import org.assertj.core.api.Assertions.assertThat
 
 class MuzzleEndTaskTest {
 

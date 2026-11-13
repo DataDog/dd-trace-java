@@ -216,8 +216,7 @@ class JardiffTaskIntegrationTest : GradleFixture() {
     file(name).also { it.parentFile?.mkdirs() }.writeBytes(content.toByteArray())
   }
 
-  private fun jardiffReport(candidateName: String = "candidate.jar") =
-    buildFile("reports/jardiff/$candidateName.txt")
+  private fun jardiffReport(candidateName: String = "candidate.jar") = buildFile("reports/jardiff/$candidateName.txt")
 
   private fun writeProject(
     taskBody: String = "",

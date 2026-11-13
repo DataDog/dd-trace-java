@@ -45,8 +45,8 @@ class ScaEnrichmentsPluginTest : GradleFixture() {
     val result = run("generateScaCvesJson", "-PrefreshSca", expectFailure = true)
 
     assertThat(result.task(":generateScaCvesJson")?.outcome)
-        .isNotNull
-        .isNotEqualTo(TaskOutcome.SKIPPED)
+      .isNotNull
+      .isNotEqualTo(TaskOutcome.SKIPPED)
   }
 
   @Test
@@ -55,8 +55,8 @@ class ScaEnrichmentsPluginTest : GradleFixture() {
     val result = run("generateScaCvesJson", expectFailure = true)
 
     assertThat(result.task(":generateScaCvesJson")?.outcome)
-        .isNotNull
-        .isNotEqualTo(TaskOutcome.SKIPPED)
+      .isNotNull
+      .isNotEqualTo(TaskOutcome.SKIPPED)
   }
 
   @Test

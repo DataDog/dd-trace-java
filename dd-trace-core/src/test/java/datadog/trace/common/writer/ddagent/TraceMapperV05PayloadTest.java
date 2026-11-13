@@ -35,6 +35,7 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.ProcessTags;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.common.writer.Payload;
 import datadog.trace.common.writer.TraceGenerator.PojoSpan;
@@ -232,6 +233,28 @@ class TraceMapperV05PayloadTest {
       assertTrue(payloadCount.get() > 1, "the dictionary must fill before the trace body");
     }
     assertEquals(dictionarySize, mapper.getDictionary().capacity());
+  }
+
+  @Test
+  void equalCharSequenceTagValuesShareOneDictionaryEntry() {
+    // Each request gets its own LazyUrl: equal content and hash, but identity equality. Keyed as
+    // is,
+    // every span added a dictionary entry, all in one hash bucket that HashMap can't order.
+    String url = "http://localhost:8080/owners/1";
+    TraceMapperV0_5 mapper = new TraceMapperV0_5(64 << 10, 64 << 10);
+    MsgPackWriter packer =
+        new MsgPackWriter(new FlushingBuffer(mapper.messageBufferSize(), (count, buffer) -> {}));
+
+    for (int i = 0; i < 50; i++) {
+      Map<String, Object> tags =
+          singletonMap("http.url", URIUtils.lazyValidURL("http", "localhost", 8080, "/owners/1"));
+      assertTrue(
+          packer.format(singletonList(plainSpan(i + 1, "resource", emptyMap(), tags)), mapper));
+    }
+
+    long urlEntries =
+        mapper.getEncoding().keySet().stream().filter(key -> url.equals(key.toString())).count();
+    assertEquals(1, urlEntries, "equal tag values must share one dictionary entry");
   }
 
   @TableTest({
