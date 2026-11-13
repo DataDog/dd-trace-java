@@ -64,7 +64,8 @@ class ProfilingRemoteConfigHandlerTest {
             localConfig,
             context -> controller,
             mock(RecordingDataListener.class),
-            Duration.ofHours(1),
+            // no startup delay, so that a start is right away where that is safe
+            Duration.ZERO,
             Duration.ofMillis(1),
             Duration.ofHours(1),
             false);
@@ -440,13 +441,43 @@ class ProfilingRemoteConfigHandlerTest {
 
   @Test
   void profilerStartsAfterTheStartupDelayWhenStartingRightAwayIsNotSafe() throws Exception {
-    handler(profilingSystem, false).onConfigsChanged(enabledConfig());
+    ProfilingSystem system = systemWithStartupDelay(Duration.ofHours(1));
+    handler(system, false).onConfigsChanged(enabledConfig());
 
     // it is starting, but only records after the startup delay, which isn't a failure to start
-    assertTrue(profilingSystem.isRunning());
-    assertFalse(profilingSystem.isStarted());
+    assertTrue(system.isRunning());
+    assertFalse(system.isStarted());
     verify(controller).reconfigure(createdConfigs.get(0));
     verify(controller, never()).createRecording(any(), any());
+    system.stop(false);
+  }
+
+  @Test
+  void profilerStartsAfterTheStartupDelayEvenWhenStartingRightAwayIsSafe() throws Exception {
+    ProfilingSystem system = systemWithStartupDelay(Duration.ofHours(1));
+    handler(system, true).onConfigsChanged(enabledConfig());
+
+    assertTrue(system.isRunning());
+    assertFalse(system.isStarted(), "the configured startup delay is not over yet");
+    verify(controller, never()).createRecording(any(), any());
+    system.stop(false);
+  }
+
+  @Test
+  void configChangesBeforeTheFirstRecordingDoNotDelayItAgain() throws Exception {
+    ProfilingSystem system = systemWithStartupDelay(Duration.ofMillis(600));
+    ProfilingRemoteConfigHandler handler = handler(system, false);
+    long startNanos = System.nanoTime();
+    handler.onConfigsChanged(enabledConfig());
+
+    // restarts before the first recording, which keep the deadline of the first start
+    Thread.sleep(300);
+    handler.onConfigsChanged(otherEnabledConfig());
+    awaitTrue(system::isStarted);
+
+    long elapsedMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
+    assertTrue(elapsedMillis < 850, "started after " + elapsedMillis + "ms, not a new delay");
+    system.stop(false);
   }
 
   @Test
@@ -512,7 +543,7 @@ class ProfilingRemoteConfigHandlerTest {
     handler.onConfigsChanged(disabledConfig());
 
     assertFalse(profilingSystem.isRunning());
-    verify(recording).snapshot(any(), eq(ProfilingSnapshot.Kind.ON_SHUTDOWN));
+    verify(recording).snapshot(any(), eq(ProfilingSnapshot.Kind.PERIODIC));
   }
 
   @Test
@@ -523,7 +554,7 @@ class ProfilingRemoteConfigHandlerTest {
     handler.onConfigsChanged(otherEnabledConfig());
 
     assertTrue(profilingSystem.isRunning());
-    verify(recording).snapshot(any(), eq(ProfilingSnapshot.Kind.ON_SHUTDOWN));
+    verify(recording).snapshot(any(), eq(ProfilingSnapshot.Kind.PERIODIC));
   }
 
   @Test

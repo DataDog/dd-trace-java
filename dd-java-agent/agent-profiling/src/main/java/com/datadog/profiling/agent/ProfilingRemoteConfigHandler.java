@@ -1,15 +1,16 @@
 package com.datadog.profiling.agent;
 
+import static com.datadog.profiling.controller.ProfilingSupport.isAllocationSamplerSafe;
+import static com.datadog.profiling.controller.ProfilingSupport.isLiveHeapProfilingSafe;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isWallClockProfilerEnabled;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ALLOCATION_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_ENABLED;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 
-import com.datadog.profiling.controller.ProfilingSupport;
 import com.datadog.profiling.controller.ProfilingSystem;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import com.datadog.profiling.ddprof.DatadogProfiler;
-import com.datadog.profiling.ddprof.DatadogProfilerConfig;
 import com.datadog.profiling.remoteconfig.ProfilingConfigHandler;
 import com.datadog.profiling.remoteconfig.RemoteConfiguration;
 import com.datadog.profiling.remoteconfig.RemoteConfigurationStack;
@@ -59,8 +60,10 @@ import org.slf4j.LoggerFactory;
  * startup delay, the next remote config change applies it again, even if it is the one that was
  * applied before.
  *
- * <p>The startup delay only protects a start from {@code premain}: once a recording has run, the
- * JVM is past that, and the profiler restarts right away.
+ * <p>A start honors the configured startup delay, with its randomization, counted from {@code
+ * premain}: before it is over, the profiler starts when it is, however many times the configuration
+ * changes in the meantime, and after it, right away where that is safe. Once a recording has run,
+ * the JVM is past {@code premain}, and the profiler restarts right away.
  *
  * <p>This handler can be created before the profiler is initialized. Remote config is not delivered
  * again once it was, so the configs received before the profiler is available via {@link
@@ -97,8 +100,9 @@ final class ProfilingRemoteConfigHandler implements ProfilingConfigHandler {
    * Creates a handler without a profiling system. The profiler must be set later via {@link
    * #setProfilingSystem}.
    *
-   * @param startImmediately whether the profiler can start right away, instead of after the usual
-   *     startup delay; not on a JVM where starting before {@code main} has started can crash it
+   * @param startImmediately whether the profiler can start right away once the startup delay is
+   *     over, rather than from the scheduler thread; not on a JVM where starting before {@code
+   *     main} has started can crash it
    */
   ProfilingRemoteConfigHandler(ConfigProvider localConfig, boolean startImmediately) {
     this(
@@ -222,7 +226,8 @@ final class ProfilingRemoteConfigHandler implements ProfilingConfigHandler {
           return;
         }
         profilingSystem.reconfigure(config);
-        final boolean immediately = startImmediately || recordingSeen;
+        final boolean immediately =
+            recordingSeen || (startImmediately && profilingSystem.isPastStartupDelay());
         profilingSystem.start(immediately);
         if (closed) {
           // shut down in the meantime, which is why the profiler didn't start
@@ -256,11 +261,11 @@ final class ProfilingRemoteConfigHandler implements ProfilingConfigHandler {
    * is always allowed.
    */
   static void dropUnsafeEnablement(Map<String, String> values) {
-    if (!ProfilingSupport.isAllocationSamplerSafe()) {
+    if (!isAllocationSamplerSafe()) {
       dropEnablement(values, PROFILING_ALLOCATION_ENABLED);
       dropEnablement(values, PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED);
     }
-    if (!ProfilingSupport.isLiveHeapProfilingSafe()) {
+    if (!isLiveHeapProfilingSafe()) {
       dropEnablement(values, PROFILING_HEAP_ENABLED);
     }
   }
@@ -275,7 +280,7 @@ final class ProfilingRemoteConfigHandler implements ProfilingConfigHandler {
   // the threads are only registered for wall clock profiling when it is enabled at startup
   private void warnIfWallClockCantSample(RemoteConfiguration remote) {
     if (Boolean.TRUE.equals(remote.get(RemoteConfiguration.Feature.WALL_TIME))
-        && !DatadogProfilerConfig.isWallClockProfilerEnabled(localConfig)) {
+        && !isWallClockProfilerEnabled(localConfig)) {
       log.warn(
           "Remote config enables wall clock profiling, which was disabled at startup: no thread is"
               + " registered for it, so the wall clock profile will be empty until the application"

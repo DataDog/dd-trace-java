@@ -4,6 +4,8 @@ import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.profiling.ddprof.DatadogProfiler.RecordingSettings;
@@ -28,6 +30,19 @@ class DatadogProfilerRecordingSettingsTest {
     RecordingSettings wallOnly = RecordingSettings.from(config(false, true, null, null));
     assertFalse(wallOnly.profilingModes.contains(ProfilingMode.CPU));
     assertTrue(wallOnly.profilingModes.contains(ProfilingMode.WALL));
+  }
+
+  @Test
+  void settingsOfTheLastConfigAreNotComputedAgain() {
+    ConfigProvider cpu = config(true, false, null, null);
+    ConfigProvider wall = config(false, true, null, null);
+
+    RecordingSettings cpuSettings = RecordingSettings.of(cpu);
+    assertSame(cpuSettings, RecordingSettings.of(cpu));
+
+    RecordingSettings wallSettings = RecordingSettings.of(wall);
+    assertTrue(wallSettings.profilingModes.contains(ProfilingMode.WALL));
+    assertNotSame(cpuSettings, RecordingSettings.of(cpu), "only the last config is kept");
   }
 
   @Test

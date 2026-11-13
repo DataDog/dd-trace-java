@@ -59,6 +59,9 @@ public final class ProfilingSystem {
   private final Supplier<AgentTaskScheduler> schedulerFactory;
 
   private final Duration startupDelay;
+  // when the startup delay is over, counted from the creation of the system, i.e. from premain, so
+  // that restarting before the first recording doesn't delay it again
+  private final long startupDeadlineNanos;
   private final Duration uploadPeriod;
   private final boolean isStartingFirst;
 
@@ -147,6 +150,7 @@ public final class ProfilingSystem {
     // constructor
     // since it is expected to be thread local.
     startupDelay = randomizeDuration(threadLocalRandom, baseStartupDelay, startupDelayRandomRange);
+    startupDeadlineNanos = System.nanoTime() + startupDelay.toNanos();
   }
 
   /**
@@ -179,8 +183,9 @@ public final class ProfilingSystem {
    * Starts recording and the periodic snapshots, initializing the profiler(s) first if needed.
    * Calling it while already started is a no-op.
    *
-   * @param immediately whether to start recording right away, instead of after the startup delay
-   *     unless starting first; only safe once 'main' has started
+   * @param immediately whether to start recording right away, instead of once the startup delay,
+   *     counted from the creation of the system, is over, unless starting first; only safe once
+   *     'main' has started
    * @throws UnsupportedEnvironmentException if no profiler is supported in this environment
    */
   public synchronized void start(boolean immediately) throws UnsupportedEnvironmentException {
@@ -220,8 +225,8 @@ public final class ProfilingSystem {
       scheduler.schedule(
           system -> system.startProfilingRecording(scheduler),
           this,
-          startupDelay.toMillis(),
-          TimeUnit.MILLISECONDS);
+          Math.max(0, startupDeadlineNanos - System.nanoTime()),
+          TimeUnit.NANOSECONDS);
     }
   }
 
@@ -317,15 +322,17 @@ public final class ProfilingSystem {
    * be restarted needs, and is cheaper in a shutdown hook.
    *
    * <p>If a stop is already in progress, e.g. one triggered by remote config that is uploading its
-   * final snapshot, it returns right away and lets that stop finish, instead of holding up JVM
-   * shutdown until the upload is done.
+   * final snapshot, a shutdown with a snapshot waits for it, so that its upload is not cut off,
+   * which takes at most as long as the final upload of a shutdown with a snapshot. A shutdown
+   * without one, as from a shutdown hook, doesn't upload anything, so it returns right away
+   * instead.
    *
    * @param snapshot whether to take a last snapshot before stopping
    */
   public void shutdown(boolean snapshot) {
     // set before taking the lock, so that a start racing with the in-progress stop is refused
     closed = true;
-    if (stopping) {
+    if (stopping && !snapshot) {
       log.debug("Profiling system is already stopping, not waiting for it to shut down");
       return;
     }
@@ -353,8 +360,12 @@ public final class ProfilingSystem {
         this.snapshotRecording = null;
       }
       if (snapshot && snapshotRecording != null) {
-        // reads this.recording, so it is cleared only after the snapshot
-        snapshotRecording.snapshot(true);
+        // reads this.recording, so it is cleared only after the snapshot. It is uploaded
+        // synchronously either way, but only tagged as a shutdown one when the JVM is going away,
+        // not for a restart
+        snapshotRecording.snapshot(
+            restartable ? ProfilingSnapshot.Kind.PERIODIC : ProfilingSnapshot.Kind.ON_SHUTDOWN,
+            true);
       }
 
       final OngoingRecording recording = this.recording;
@@ -419,6 +430,11 @@ public final class ProfilingSystem {
     return scheduler != null;
   }
 
+  /** Whether the startup delay, counted from the creation of the system, is over. */
+  public boolean isPastStartupDelay() {
+    return System.nanoTime() - startupDeadlineNanos >= 0;
+  }
+
   /** Whether a recording is in progress. */
   public boolean isStarted() {
     return started;
@@ -452,17 +468,18 @@ public final class ProfilingSystem {
     }
 
     public void snapshot() {
-      snapshot(false);
+      snapshot(ProfilingSnapshot.Kind.PERIODIC, false);
     }
 
-    public void snapshot(boolean onShutdown) {
+    /**
+     * @param kind the kind of snapshot, as reported with the profile
+     * @param sync whether to wait for the profile to be handled, e.g. uploaded
+     */
+    public void snapshot(ProfilingSnapshot.Kind kind, boolean sync) {
       final RecordingType recordingType = RecordingType.CONTINUOUS;
       try {
         log.debug("Creating profiler snapshot");
-        final RecordingData recordingData =
-            recording.snapshot(
-                lastSnapshot,
-                onShutdown ? ProfilingSnapshot.Kind.ON_SHUTDOWN : ProfilingSnapshot.Kind.PERIODIC);
+        final RecordingData recordingData = recording.snapshot(lastSnapshot, kind);
         log.debug("Snapshot created: {}", recordingData);
         if (recordingData != null) {
           // To make sure that we don't get data twice, we say that the next start should be
@@ -470,7 +487,7 @@ public final class ProfilingSystem {
           // JFR is filtering the stream it will only discard earlier chunks that have an end
           // time that is before (not before or equal to) the requested start time of the filter.
           lastSnapshot = recordingData.getEnd().plus(ONE_NANO);
-          dataListener.onNewData(recordingType, recordingData, onShutdown);
+          dataListener.onNewData(recordingType, recordingData, sync);
         } else {
           lastSnapshot = Instant.now();
         }

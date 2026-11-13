@@ -17,12 +17,14 @@ package com.datadog.profiling.controller;
 
 import static datadog.trace.api.profiling.RecordingType.CONTINUOUS;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_RECORDING_SCHEDULER;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
@@ -44,6 +46,7 @@ import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.Appender;
 import datadog.environment.JavaVirtualMachine;
+import datadog.trace.api.profiling.ProfilingSnapshot;
 import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.api.profiling.RecordingDataListener;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
@@ -52,6 +55,10 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.AfterEach;
@@ -249,9 +256,36 @@ public class ProfilingSystemTest {
     when(system.createSnapshotRecording(any())).thenReturn(snapshotRecording);
     startProfilingSystem(system);
     verify(controller).createRecording(any(), any());
+    system.shutdown(true);
+
+    verify(snapshotRecording).snapshot(ProfilingSnapshot.Kind.ON_SHUTDOWN, true);
+    verify(recording).close();
+    assertTrue(scheduler.isShutdown());
+  }
+
+  @Test
+  public void testStopWithSnapshotTakesAPeriodicOne() throws Exception {
+    final ProfilingSystem system =
+        spy(
+            new ProfilingSystem(
+                configProvider,
+                controllerFactory,
+                listener,
+                Duration.ofMillis(10),
+                Duration.ZERO,
+                Duration.ofMillis(300),
+                false,
+                () -> scheduler,
+                threadLocalRandom));
+    final ProfilingSystem.SnapshotRecording snapshotRecording =
+        spy(system.createSnapshotRecording(Instant.now()));
+
+    when(system.createSnapshotRecording(any())).thenReturn(snapshotRecording);
+    startProfilingSystem(system);
+    verify(controller).createRecording(any(), any());
     system.stop(true);
 
-    verify(snapshotRecording).snapshot(true);
+    verify(snapshotRecording).snapshot(ProfilingSnapshot.Kind.PERIODIC, true);
     verify(recording).close();
     assertTrue(scheduler.isShutdown());
   }
@@ -946,6 +980,74 @@ public class ProfilingSystemTest {
       generatedRecordingData.add(recordingData);
       return recordingData;
     };
+  }
+
+  @Test
+  public void testShutdownWithSnapshotWaitsForTheUploadOfAStopInProgress() throws Exception {
+    CountDownLatch uploading = new CountDownLatch(1);
+    CountDownLatch proceed = new CountDownLatch(1);
+    ProfilingSystem system = systemStoppingInTheBackground(uploading, proceed);
+    ExecutorService executor = Executors.newSingleThreadExecutor();
+    try {
+      Future<?> shutdown = executor.submit(() -> system.shutdown(true));
+
+      Thread.sleep(200);
+      assertFalse(shutdown.isDone(), "waits for the upload of the stop in progress");
+      proceed.countDown();
+      shutdown.get(REASONABLE_TIMEOUT, MILLISECONDS);
+    } finally {
+      proceed.countDown();
+      executor.shutdownNow();
+    }
+    // the stop in progress took the only snapshot
+    verify(recording, times(1)).snapshot(any(), any());
+  }
+
+  @Test
+  public void testShutdownWithoutSnapshotDoesNotWaitForAStopInProgress() throws Exception {
+    CountDownLatch uploading = new CountDownLatch(1);
+    CountDownLatch proceed = new CountDownLatch(1);
+    try {
+      ProfilingSystem system = systemStoppingInTheBackground(uploading, proceed);
+
+      assertTimeoutPreemptively(Duration.ofSeconds(1), () -> system.shutdown(false));
+    } finally {
+      proceed.countDown();
+    }
+  }
+
+  /**
+   * Starts a system, and stops it on another thread, which is uploading its last snapshot, until
+   * {@code proceed} is counted down, once this returns.
+   */
+  private ProfilingSystem systemStoppingInTheBackground(
+      CountDownLatch uploading, CountDownLatch proceed) throws Exception {
+    when(recording.snapshot(any(), any())).thenReturn(recordingData);
+    doAnswer(
+            invocation -> {
+              uploading.countDown();
+              proceed.await(REASONABLE_TIMEOUT, MILLISECONDS);
+              return null;
+            })
+        .when(listener)
+        .onNewData(any(), any(), anyBoolean());
+    ProfilingSystem system =
+        new ProfilingSystem(
+            configProvider,
+            controllerFactory,
+            listener,
+            Duration.ZERO,
+            Duration.ZERO,
+            Duration.ofHours(1),
+            true,
+            () -> scheduler,
+            threadLocalRandom);
+    startProfilingSystem(system);
+    Thread stopping = new Thread(() -> system.stop(true), "test-stop");
+    stopping.setDaemon(true);
+    stopping.start();
+    assertTrue(uploading.await(REASONABLE_TIMEOUT, MILLISECONDS), "the stop is uploading");
+    return system;
   }
 
   private void startProfilingSystem(final ProfilingSystem system) throws Exception {

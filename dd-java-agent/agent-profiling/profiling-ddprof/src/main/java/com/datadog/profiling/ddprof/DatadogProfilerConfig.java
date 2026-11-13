@@ -1,5 +1,6 @@
 package com.datadog.profiling.ddprof;
 
+import static com.datadog.profiling.controller.ProfilingSupport.isAllocationSamplerSafe;
 import static com.datadog.profiling.controller.ProfilingSupport.isOldObjectSampleAvailable;
 import static datadog.environment.JavaVirtualMachine.isJ9;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ALLOCATION_ENABLED;
@@ -231,7 +232,7 @@ public class DatadogProfilerConfig {
       return false;
     }
     // isJmethodIDSafe() alone is not sufficient — Java 8 is jmethodID-safe but lacks the sampler.
-    boolean isSafe = ProfilingSupport.isAllocationSamplerSafe();
+    boolean isSafe = isAllocationSamplerSafe();
     boolean enableDdprofMemleak =
         getBoolean(
             configProvider,

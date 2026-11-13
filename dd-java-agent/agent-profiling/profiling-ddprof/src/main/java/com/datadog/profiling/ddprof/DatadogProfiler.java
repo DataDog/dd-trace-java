@@ -128,6 +128,10 @@ public final class DatadogProfiler {
    * attributes are not part of it since they can't be changed at runtime.
    */
   static final class RecordingSettings {
+    // the last settings computed: remote config first checks a configuration for enabled modes,
+    // then applies it, which would otherwise compute them, and log their warnings, twice
+    private static volatile RecordingSettings last;
+
     final ConfigProvider configProvider;
     // the experimental raw profiler options, which override the derived ones
     final String profilerOptions;
@@ -145,6 +149,16 @@ public final class DatadogProfiler {
       this.profilerOptions = profilerOptions;
       this.configuredProfilingModes = configuredProfilingModes;
       this.profilingModes = profilingModes;
+    }
+
+    /** The settings of the given configuration, computed again unless it is the last one. */
+    static RecordingSettings of(ConfigProvider configProvider) {
+      RecordingSettings settings = last;
+      if (settings == null || settings.configProvider != configProvider) {
+        settings = from(configProvider);
+        last = settings;
+      }
+      return settings;
     }
 
     static RecordingSettings from(ConfigProvider configProvider) {
@@ -400,7 +414,7 @@ public final class DatadogProfiler {
    *     allocation, ...), including the modes implied by the experimental profiler options
    */
   public static boolean isAnyProfilingModeEnabled(ConfigProvider configProvider) {
-    return !RecordingSettings.from(configProvider).profilingModes.isEmpty();
+    return !RecordingSettings.of(configProvider).profilingModes.isEmpty();
   }
 
   /** The profiling modes of the current settings, as an {@code EnumSet} copy. */
@@ -425,7 +439,7 @@ public final class DatadogProfiler {
           orderedContextAttributes,
           requestedAttributes);
     }
-    RecordingSettings newSettings = RecordingSettings.from(configProvider);
+    RecordingSettings newSettings = RecordingSettings.of(configProvider);
     synchronized (settingsLock) {
       if (recordingFlag.get()) {
         throw new IllegalStateException(

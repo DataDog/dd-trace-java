@@ -241,8 +241,8 @@ public class ProfilingAgent {
     // Subscribe immediately so APM_PROFILING is included in the first poll request.
     // The handler keeps the latest configs until the profiler becomes available.
     // The profiler can be started by remote config as soon as the handler is connected to it,
-    // which can be in premain: it only starts right away where that is safe, as when forced to
-    // start first, and after the startup delay elsewhere.
+    // which can be in premain: it only starts once the startup delay is over, unless forced to
+    // start first.
     ProfilingRemoteConfigHandler handler =
         new ProfilingRemoteConfigHandler(ConfigProvider.getInstance(), isStartForceFirstSafe());
     ProfilingConfigPoller poller = new ProfilingConfigPoller(handler);

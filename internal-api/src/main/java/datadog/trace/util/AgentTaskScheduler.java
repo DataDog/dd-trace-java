@@ -184,10 +184,7 @@ public class AgentTaskScheduler implements Executor {
     return scheduleWithFixedDelay(RunnableTask.INSTANCE, target, initialDelay, period, unit);
   }
 
-  @SuppressFBWarnings({
-    "JLM_JSR166_UTILCONCURRENT_MONITORENTER",
-    "USO_UNSAFE_ACCESSIBLE_OBJECT_SYNCHRONIZATION"
-  })
+  @SuppressFBWarnings("JLM_JSR166_UTILCONCURRENT_MONITORENTER")
   private <T> void scheduleTarget(
       final Task<T> task,
       final Target<T> target,
@@ -278,10 +275,19 @@ public class AgentTaskScheduler implements Executor {
 
   // a scheduler that was shut down doesn't need its hook anymore, and the JVM would otherwise keep
   // it, and the scheduler, forever
+  @SuppressFBWarnings({
+    "JLM_JSR166_UTILCONCURRENT_MONITORENTER",
+    "USO_UNSAFE_ACCESSIBLE_OBJECT_SYNCHRONIZATION"
+  })
   private void removeShutdownHook() {
-    final ShutdownHook hook = shutdownHook;
-    if (hook != null && hook != Thread.currentThread()) {
+    final ShutdownHook hook;
+    // the hook is registered under this lock once 'shutdown' was checked, so taking it after
+    // setting 'shutdown' sees a hook being registered, and the worker it starts
+    synchronized (workQueue) {
+      hook = shutdownHook;
       shutdownHook = null;
+    }
+    if (hook != null && hook != Thread.currentThread()) {
       try {
         Runtime.getRuntime().removeShutdownHook(hook);
       } catch (final IllegalStateException e) {
