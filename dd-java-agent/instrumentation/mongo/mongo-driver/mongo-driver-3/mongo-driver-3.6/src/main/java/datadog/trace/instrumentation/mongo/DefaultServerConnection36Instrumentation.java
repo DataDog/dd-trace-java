@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.mongo;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpanWithoutScope;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -13,6 +12,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import net.bytebuddy.asm.Advice;
 import org.bson.BsonDocument;
 
@@ -72,7 +72,7 @@ public class DefaultServerConnection36Instrumentation extends InstrumenterModule
 
       AgentSpan span = startSpan("java-mongo", MongoDecorator.OPERATION_NAME);
       // scope is going to be closed by the MongoCommandListener
-      activateSpanWithoutScope(span);
+      AgentTracer.get().activateSpanWithoutScope(span);
 
       String hostname = null;
       ConnectionDescription connectionDescription = connection.getDescription();

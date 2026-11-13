@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.aws.v0;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closeActive;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.aws.v0.OnErrorDecorator.CONTEXT_CONTEXT_KEY;
 import static datadog.trace.instrumentation.aws.v0.OnErrorDecorator.DECORATE;
@@ -12,6 +11,7 @@ import com.amazonaws.Request;
 import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import net.bytebuddy.asm.Advice;
 
 /**
@@ -49,7 +49,7 @@ public final class RequestExecutorInstrumentation
       if (activeSpan != null
           && (AwsNameCache.spanName(request).equals(activeSpan.getSpanName())
               || !activeSpan.isValid())) {
-        closeActive();
+        AgentTracer.get().closeActive();
       }
 
       if (throwable != null) {
