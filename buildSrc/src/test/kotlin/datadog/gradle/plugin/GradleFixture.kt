@@ -8,6 +8,7 @@ import org.intellij.lang.annotations.Language
 import org.junit.jupiter.api.io.TempDir
 import org.w3c.dom.Document
 import java.io.File
+import java.io.IOException
 import java.nio.file.Files
 import javax.xml.parsers.DocumentBuilderFactory
 
@@ -273,4 +274,55 @@ open class GradleFixture {
    * Does NOT create parent dirs — these paths are read after a Gradle build produces them.
    */
   fun buildFile(path: String): File = File(buildDir, path)
+
+  /**
+   * Runs a command and fails when it exits with a non-zero code.
+   *
+   * @param workingDirectory The directory to run the command from
+   * @param args The command and its arguments
+   * @throws IOException if the command exits with a non-zero code
+   */
+  fun exec(workingDirectory: File, vararg args: String) {
+    val exitCode = ProcessBuilder()
+      .command(*args)
+      .directory(workingDirectory)
+      .inheritIO()
+      .start()
+      .waitFor()
+    if (exitCode != 0) {
+      throw IOException("Process failed: ${args.joinToString(" ")} (exit code $exitCode)")
+    }
+  }
+
+  /**
+   * Runs a command from the project directory and fails when it exits with a non-zero code.
+   *
+   * @param args The command and its arguments
+   * @throws IOException if the command exits with a non-zero code
+   */
+  fun exec(vararg args: String) = exec(projectDir, *args)
+
+  /**
+   * Initializes a git repository on the `main` branch and commits every file in it.
+   *
+   * @param workingDirectory The directory of the repository
+   */
+  fun initGitRepo(workingDirectory: File = projectDir) {
+    exec(workingDirectory, "git", "init", "--initial-branch", "main")
+    exec(workingDirectory, "git", "config", "user.email", "test@datadoghq.com")
+    exec(workingDirectory, "git", "config", "user.name", "Test")
+    exec(workingDirectory, "git", "config", "commit.gpgsign", "false")
+    commitAll("A commit", workingDirectory)
+  }
+
+  /**
+   * Stages every change of a git repository and commits it.
+   *
+   * @param message The commit message
+   * @param workingDirectory The directory of the repository
+   */
+  fun commitAll(message: String, workingDirectory: File = projectDir) {
+    exec(workingDirectory, "git", "add", "-A")
+    exec(workingDirectory, "git", "commit", "-m", message)
+  }
 }
