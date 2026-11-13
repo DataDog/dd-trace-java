@@ -1,11 +1,12 @@
 _v: 1
 name: openai-java
 display_name: OpenAI API
-description: Instruments OpenAI Java SDK chat and text completions, embeddings, and response generation, including streaming and asynchronous generation calls and optional LLM Observability data capture.
+description: Instruments OpenAI Java chat completions, text completions, response creation, and embeddings, including
+  streaming and asynchronous calls, with LLM Observability input, output, and token usage capture.
 packages:
-  - name: com.openai:openai-java
+- name: com.openai:openai-java
 category:
-  - gen_ai
+- gen_ai
 systems:
-  - openai
+- openai
 creation_date: '2026-01-30'
