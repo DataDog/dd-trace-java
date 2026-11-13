@@ -29,8 +29,7 @@ private val LTS_VERSIONS: List<Int> = JavaVersion.values()
  * @param majorVersion The major Java version.
  * @return `true` for an LTS version.
  */
-internal fun isLongTermSupport(majorVersion: Int): Boolean =
-  majorVersion == 8 || majorVersion == 11 || (majorVersion >= 17 && (majorVersion - 17) % 4 == 0)
+internal fun isLongTermSupport(majorVersion: Int): Boolean = majorVersion == 8 || majorVersion == 11 || (majorVersion >= 17 && (majorVersion - 17) % 4 == 0)
 
 /**
  * Returns the coverage test JVM of the project: the [TestJvmConstraintsExtension.coverageTestJvm]
@@ -59,8 +58,10 @@ internal fun Project.coverageTestJvmProblem(): String? {
   return when {
     coverageTestJvm != null && !constraints.allows(coverageTestJvm) ->
       "$testPath: its coverageTestJvm=$coverageTestJvm is not allowed by its testJvmConstraints, so its coverage is never checked in CI."
+
     coverageTestJvm == null && constraints.lowestAllowedLts() == null ->
       "$testPath: no Java LTS version satisfies its testJvmConstraints, so its coverage is never checked in CI. Set testJvmConstraints.coverageTestJvm to the test JVM to check it on."
+
     else -> null
   }
 }
@@ -77,15 +78,13 @@ internal fun Project.checksCoverage(
   checkCoverage: Boolean,
   checkCoverageOnFirstTestJvm: Boolean,
   testJvm: String?,
-): Boolean =
-  checkCoverage ||
-    (checkCoverageOnFirstTestJvm && (testJvm == null || testJvm.equals(coverageTestJvm(), ignoreCase = true)))
+): Boolean = checkCoverage ||
+  (checkCoverageOnFirstTestJvm && (testJvm == null || testJvm.equals(coverageTestJvm(), ignoreCase = true)))
 
-private fun Project.testTaskConstraints(): TestJvmConstraintsExtension? =
-  tasks.withType<Test>()
-    .findByName(JavaPlugin.TEST_TASK_NAME)
-    ?.extensions
-    ?.findByType<TestJvmConstraintsExtension>()
+private fun Project.testTaskConstraints(): TestJvmConstraintsExtension? = tasks.withType<Test>()
+  .findByName(JavaPlugin.TEST_TASK_NAME)
+  ?.extensions
+  ?.findByType<TestJvmConstraintsExtension>()
 
 internal fun TestJvmConstraintsExtension.coverageTestJvmOrLowestLts(): String? {
   if (nativeImageCapable.getOrElse(false)) {
@@ -94,8 +93,7 @@ internal fun TestJvmConstraintsExtension.coverageTestJvmOrLowestLts(): String? {
   return coverageTestJvm.orNull ?: lowestAllowedLts()
 }
 
-private fun TestJvmConstraintsExtension.lowestAllowedLts(): String? =
-  LTS_VERSIONS.map(Int::toString).firstOrNull(::allows)
+private fun TestJvmConstraintsExtension.lowestAllowedLts(): String? = LTS_VERSIONS.map(Int::toString).firstOrNull(::allows)
 
 private fun TestJvmConstraintsExtension.allows(testJvm: String): Boolean {
   val version = TEST_JVM_NAME.matchEntire(testJvm)?.groupValues?.get(2) ?: return false

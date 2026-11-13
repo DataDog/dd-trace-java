@@ -8,7 +8,12 @@ import org.gradle.api.Project
 import org.gradle.api.plugins.JavaPlugin
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.testing.Test
-import org.gradle.kotlin.dsl.*
+import org.gradle.kotlin.dsl.configure
+import org.gradle.kotlin.dsl.create
+import org.gradle.kotlin.dsl.getByType
+import org.gradle.kotlin.dsl.newInstance
+import org.gradle.kotlin.dsl.register
+import org.gradle.kotlin.dsl.withType
 import org.gradle.language.base.plugins.LifecycleBasePlugin
 import org.gradle.testing.jacoco.plugins.JacocoTaskExtension
 
@@ -30,18 +35,21 @@ class TestJvmConstraintsPlugin : Plugin<Project> {
 
       inputs.property("testJvm", testJvmSpec.testJvmProperty).optional(true)
       // Gradle tracks the language version, but not the resolved vendor or full JVM versions.
-      inputs.property("jvmIdentity", javaLauncher.map { launcher ->
-        with(launcher.metadata) {
-          mapOf(
-            "languageVersion" to languageVersion.asInt().toString(),
-            "vendor" to vendor,
-            "runtimeVersion" to javaRuntimeVersion,
-            "vmVersion" to jvmVersion,
-            "operatingSystem" to System.getProperty("os.name"),
-            "architecture" to System.getProperty("os.arch"),
-          )
+      inputs.property(
+        "jvmIdentity",
+        javaLauncher.map { launcher ->
+          with(launcher.metadata) {
+            mapOf(
+              "languageVersion" to languageVersion.asInt().toString(),
+              "vendor" to vendor,
+              "runtimeVersion" to javaRuntimeVersion,
+              "vmVersion" to jvmVersion,
+              "operatingSystem" to System.getProperty("os.name"),
+              "architecture" to System.getProperty("os.arch"),
+            )
+          }
         }
-      })
+      )
 
       val taskExtension = project.objects.newInstance<TestJvmConstraintsExtension>().also {
         configureConventions(it, projectExtension)

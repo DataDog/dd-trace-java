@@ -9,8 +9,7 @@ class AffectedTasksTest {
 
   private fun dir(path: String) = File(root, path)
 
-  private fun source(project: String, path: String, buildTaskName: String, isMain: Boolean = false) =
-    SourceDirectory(project, dir(path), setOf(buildTaskName), isMain)
+  private fun source(project: String, path: String, buildTaskName: String, isMain: Boolean = false) = SourceDirectory(project, dir(path), setOf(buildTaskName), isMain)
 
   private val instSources = listOf(
     source("inst", "inst/src/main/java", "classes", isMain = true),

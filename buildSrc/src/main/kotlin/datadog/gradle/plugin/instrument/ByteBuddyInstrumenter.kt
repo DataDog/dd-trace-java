@@ -56,12 +56,11 @@ object ByteBuddyInstrumenter {
           Plugin.Engine.ErrorHandler.Enforcing.ALL_TYPES_RESOLVED,
           Plugin.Engine.ErrorHandler.Enforcing.NO_LIVE_INITIALIZERS,
           object : Plugin.Engine.ErrorHandler by Plugin.Engine.ErrorHandler.Failing.FAIL_LAST {
-            override fun onError(throwables: MutableMap<TypeDescription, MutableList<Throwable>>) {
-              throw IllegalStateException("Failed to transform at least one type: $throwables").apply {
-                throwables.values.flatten().forEach(::addSuppressed)
-              }
+            override fun onError(throwables: MutableMap<TypeDescription, MutableList<Throwable>>): Unit = throw IllegalStateException("Failed to transform at least one type: $throwables").apply {
+              throwables.values.flatten().forEach(::addSuppressed)
             }
-          })
+          }
+        )
         .with(Plugin.Engine.Dispatcher.ForSerialTransformation.Factory.INSTANCE)
         .apply(source, target, factories)
 

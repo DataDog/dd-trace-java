@@ -12,19 +12,17 @@ private val logger = Logging.getLogger("TestJvmConstraintsUtils")
 /** Matches a `testJvm` name, like `8` or `zulu11`: group 1 is the distribution, group 2 the major version. */
 internal val TEST_JVM_NAME = Regex("([a-zA-Z]*)([0-9]+)")
 
-internal fun TestJvmConstraintsExtension.isJavaVersionAllowed(version: JavaVersion): Boolean =
-  isWithinAllowedRange(version, minJavaVersion.orNull, maxJavaVersion.orNull)
+internal fun TestJvmConstraintsExtension.isJavaVersionAllowed(version: JavaVersion): Boolean = isWithinAllowedRange(version, minJavaVersion.orNull, maxJavaVersion.orNull)
 
-internal fun TestJvmConstraintsExtension.isTestJvmAllowed(testJvmSpec: TestJvmSpec): Boolean =
-  isTestJvmAllowed(
-    testJvmSpec.normalizedTestJvm.get(),
-    { JavaVersion.toVersion(testJvmSpec.requestedTestJvmLauncher.get().metadata.languageVersion.asInt()) },
-    includeJdk.get(),
-    excludeJdk.get(),
-    forceJdk.get(),
-    minJavaVersion.orNull,
-    maxJavaVersion.orNull,
-  )
+internal fun TestJvmConstraintsExtension.isTestJvmAllowed(testJvmSpec: TestJvmSpec): Boolean = isTestJvmAllowed(
+  testJvmSpec.normalizedTestJvm.get(),
+  { JavaVersion.toVersion(testJvmSpec.requestedTestJvmLauncher.get().metadata.languageVersion.asInt()) },
+  includeJdk.get(),
+  excludeJdk.get(),
+  forceJdk.get(),
+  minJavaVersion.orNull,
+  maxJavaVersion.orNull,
+)
 
 /**
  * Tells whether a test JVM satisfies the test JVM constraints: it must be in [includeJdk] when set,
@@ -82,10 +80,9 @@ internal fun TestJvmConstraintsExtension.isNativeImageCapableDaemon(): Boolean {
   return hasNativeImage(File(System.getProperty("java.home")).toPath())
 }
 
-private fun hasNativeImage(installPath: Path): Boolean =
-  Files.exists(installPath.resolve("lib/svm/bin/native-image")) ||
-    Files.exists(installPath.resolve("bin/native-image")) ||
-    Files.exists(installPath.resolve("bin/native-image.cmd"))
+private fun hasNativeImage(installPath: Path): Boolean = Files.exists(installPath.resolve("lib/svm/bin/native-image")) ||
+  Files.exists(installPath.resolve("bin/native-image")) ||
+  Files.exists(installPath.resolve("bin/native-image.cmd"))
 
 private fun isWithinAllowedRange(
   currentJvmVersion: JavaVersion,

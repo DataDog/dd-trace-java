@@ -30,6 +30,7 @@ class SpotlessCacheInputsTest : GradleFixture() {
     listOf("spotless.gradle", "libs.versions.toml", "enforcement/spotless-groovy.properties").forEach {
       writeFile("gradle/$it", File("../gradle/$it").readText())
     }
+    writeFile(".editorconfig", File("../.editorconfig").readText())
     writeFile(
       "build.gradle",
       """
@@ -56,7 +57,7 @@ class SpotlessCacheInputsTest : GradleFixture() {
     assertFormats(runChecks(), UP_TO_DATE)
 
     val relocated = file("relocated")
-    listOf("settings.gradle.kts", "build.gradle", "gradle", "candidate.gradle", "candidate.gradle.kts", "dd-java-agent", "other").forEach {
+    listOf("settings.gradle.kts", "build.gradle", ".editorconfig", "gradle", "candidate.gradle", "candidate.gradle.kts", "dd-java-agent", "other").forEach {
       file(it).copyRecursively(relocated.resolve(it))
     }
     val restored = run(

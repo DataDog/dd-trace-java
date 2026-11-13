@@ -144,6 +144,7 @@ testing {
         testTask.configure {
           enabled = providers.gradleProperty("runBuildSrcTests").isPresent or providers.systemProperty("idea.active").isPresent
           inputs.files(
+            "../.editorconfig",
             "../gradle/spotless.gradle",
             "../gradle/libs.versions.toml",
             "../gradle/enforcement/spotless-groovy.properties"
@@ -161,5 +162,24 @@ testing {
         testTask
       }
     }
+  }
+}
+
+spotless {
+  // The ktlint rules are in the repository .editorconfig. Spotless only tracks this build's
+  // root .editorconfig, so point it at the repository one.
+  val editorConfig = rootDir.resolve("../.editorconfig")
+  kotlin {
+    toggleOffOn()
+    target("src/**/*.kt")
+    targetExclude("src/*/resources/**")
+    ktlint().setEditorConfigPath(editorConfig)
+  }
+  kotlinGradle {
+    toggleOffOn()
+    // Include the build scripts of the buildSrc subprojects and the precompiled script plugins.
+    target("*.gradle.kts", "*/*.gradle.kts", "src/**/*.gradle.kts")
+    targetExclude("src/*/resources/**")
+    ktlint().setEditorConfigPath(editorConfig)
   }
 }
