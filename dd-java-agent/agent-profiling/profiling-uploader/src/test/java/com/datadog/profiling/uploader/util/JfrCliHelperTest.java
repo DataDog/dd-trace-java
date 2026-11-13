@@ -1,5 +1,9 @@
 package com.datadog.profiling.uploader.util;
 
+import static java.util.Collections.emptyList;
+import static java.util.Collections.singletonList;
+import static org.junit.jupiter.api.Assumptions.assumeFalse;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -25,10 +29,15 @@ import java.time.Instant;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.zip.GZIPOutputStream;
+import jdk.jfr.AnnotationElement;
+import jdk.jfr.EventFactory;
+import jdk.jfr.Name;
+import jdk.jfr.Recording;
 import org.apache.commons.io.IOUtils;
-import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.stubbing.Answer;
@@ -49,7 +58,7 @@ public class JfrCliHelperTest {
   public void testInvokeOn() throws Exception {
     // J9 may have 'jfr' command present but it requires additional setup
     // Currently we don't support J9 JFR so we can safely skip this test
-    Assumptions.assumeFalse(JavaVirtualMachine.isJ9());
+    assumeFalse(JavaVirtualMachine.isJ9());
     final RecordingData recording = mockRecordingData();
 
     JfrCliHelper.invokeOn(recording, ioLogger);
@@ -77,6 +86,52 @@ public class JfrCliHelperTest {
 
   private boolean hasJfr() {
     return Files.exists(Paths.get(SystemProperties.get("java.home"), "bin", "jfr"));
+  }
+
+  @ParameterizedTest
+  @ValueSource(
+      strings = {
+        "com.example.OrderProcessed",
+        "com.example.CommandeValidée",
+        "com.exemple.café.OrderProcessed",
+        "com.example.订单已处理",
+        "com.例子.OrderProcessed"
+      })
+  public void preservesUnicodeEventNames(String eventName) throws Exception {
+    assumeFalse(JavaVirtualMachine.isJ9());
+    assumeTrue(hasJfr());
+    RecordingData recording = mock(RecordingData.class);
+    try (InputStream input = new ByteArrayInputStream(UnicodeRecording.create(eventName))) {
+      when(recording.getStream()).thenReturn(new RecordingInputStream(input));
+      JfrCliHelper.invokeOn(recording, ioLogger);
+    }
+
+    verify(ioLogger)
+        .error(
+            argThat(message ->
+                message.startsWith("Event: " + eventName + ", size = ")
+                    && message.endsWith(", count = 1")));
+  }
+
+  // Load JFR classes only after the assumptions, so JVMs without JFR can skip the test.
+  private static final class UnicodeRecording {
+    static byte[] create(String eventName) throws IOException {
+      EventFactory factory =
+          EventFactory.create(
+              singletonList(new AnnotationElement(Name.class, eventName)), emptyList());
+      try (Recording recording = new Recording()) {
+        recording.enable(eventName).withoutStackTrace();
+        recording.start();
+        factory.newEvent().commit();
+        recording.stop();
+
+        try (InputStream input = recording.getStream(null, null)) {
+          return IOUtils.toByteArray(input);
+        }
+      } finally {
+        factory.unregister();
+      }
+    }
   }
 
   private RecordingData mockRecordingData() throws IOException {
