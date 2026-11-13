@@ -55,7 +55,6 @@ public class ProfilingAgent {
 
   private static volatile ProfilingSystem profiler;
   private static volatile ProfileUploader uploader;
-  private static volatile ProfilingConfigPoller remoteConfig;
   private static volatile ProfilingRemoteConfigHandler remoteConfigHandler;
 
   private static class DataDumper implements RecordingDataListener {
@@ -236,7 +235,7 @@ public class ProfilingAgent {
       log.debug("Profiling remote config is only enabled with profiling enablement 'armed'");
       return;
     }
-    if (remoteConfig != null) {
+    if (remoteConfigHandler != null) {
       return; // already subscribed
     }
     // Subscribe immediately so APM_PROFILING is included in the first poll request.
@@ -253,7 +252,6 @@ public class ProfilingAgent {
       return;
     }
     remoteConfigHandler = handler;
-    remoteConfig = poller;
     // configs received until then are kept by the handler, and applied once it is connected
     connectRemoteConfigToProfiler();
   }
@@ -296,15 +294,12 @@ public class ProfilingAgent {
   private static void shutdown(
       ProfilingSystem profiler, ProfileUploader uploader, boolean snapshot) {
     if (shutDownFlag.compareAndSet(false, true)) {
-      // a remote config update still in flight must not restart the profiler after it stopped, so
-      // stop reacting to remote config before unsubscribing
+      // a remote config update still in flight must not restart the profiler after it stopped.
+      // Don't unsubscribe from the poller: that waits for its monitor, which it holds while a
+      // config is applied, e.g. during the final upload of a stop, and would hold up JVM shutdown.
       ProfilingRemoteConfigHandler rcHandler = remoteConfigHandler;
       if (rcHandler != null) {
         rcHandler.close();
-      }
-      ProfilingConfigPoller rc = remoteConfig;
-      if (rc != null) {
-        rc.stop();
       }
 
       if (profiler != null) {

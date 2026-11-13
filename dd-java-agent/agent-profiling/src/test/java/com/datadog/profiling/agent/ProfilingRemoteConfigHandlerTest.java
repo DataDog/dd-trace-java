@@ -34,6 +34,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -528,11 +529,32 @@ class ProfilingRemoteConfigHandlerTest {
   @Test
   void closingDoesNotWaitForAConfigurationBeingAppliedAndKeepsItFromStartingTheProfiler()
       throws Exception {
+    // the restart holds the handler, and closing must not wait for it
+    whileARestartIsStopping(ProfilingRemoteConfigHandler::close);
+
+    assertFalse(profilingSystem.isRunning(), "closed during the restart, so it didn't start");
+    verify(controller, times(1)).createRecording(any(), any());
+  }
+
+  @Test
+  void configsReceivedWhileOthersAreAppliedDoNotWaitAndAreAppliedAfterThem() throws Exception {
+    // left to the thread applying the restart, instead of waiting for it
+    whileARestartIsStopping(handler -> handler.onConfigsChanged(disabledConfig()));
+
+    assertFalse(profilingSystem.isRunning(), "the latest configs, applied after the restart");
+    verify(controller, times(2)).createRecording(any(), any());
+  }
+
+  /**
+   * Starts the profiler, restarts it on another thread, and runs the given action, which must not
+   * wait for it, while the restart is uploading its final snapshot.
+   */
+  private void whileARestartIsStopping(Consumer<ProfilingRemoteConfigHandler> action)
+      throws Exception {
     CountDownLatch stopping = new CountDownLatch(1);
     CountDownLatch proceed = new CountDownLatch(1);
     when(recording.snapshot(any(), any()))
         .thenAnswer(invocation -> {
-          // the final snapshot of a restart, which is applying the new configuration
           stopping.countDown();
           proceed.await(10, TimeUnit.SECONDS);
           return null;
@@ -544,17 +566,13 @@ class ProfilingRemoteConfigHandlerTest {
       Future<?> restart = executor.submit(() -> handler.onConfigsChanged(otherEnabledConfig()));
       assertTrue(stopping.await(10, TimeUnit.SECONDS), "the restart is stopping the profiler");
 
-      // the restart holds the handler, and closing must not wait for it
-      assertTimeoutPreemptively(Duration.ofSeconds(5), handler::close);
+      assertTimeoutPreemptively(Duration.ofSeconds(5), () -> action.accept(handler));
       proceed.countDown();
       restart.get(10, TimeUnit.SECONDS);
     } finally {
       proceed.countDown();
       executor.shutdownNow();
     }
-
-    assertFalse(profilingSystem.isRunning(), "closed during the restart, so it didn't start");
-    verify(controller, times(1)).createRecording(any(), any());
   }
 
   private static RemoteConfiguration config(String profilers) {

@@ -16,6 +16,8 @@ import com.datadog.profiling.remoteconfig.RemoteConfigurationStack;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import org.slf4j.Logger;
@@ -67,21 +69,28 @@ import org.slf4j.LoggerFactory;
 final class ProfilingRemoteConfigHandler implements ProfilingConfigHandler {
   private static final Logger log = LoggerFactory.getLogger(ProfilingRemoteConfigHandler.class);
 
+  // set once, never reset to null
   private volatile ProfilingSystem profilingSystem;
   private final ConfigProvider localConfig;
   private final Function<Map<String, String>, ConfigProvider> remoteConfigFactory;
   private final Predicate<ConfigProvider> anyProfilingEnabled;
   private final boolean startImmediately;
 
-  // the latest configs received before the profiler was available, if any
-  private RemoteConfigurationStack pendingStack;
+  // the latest configs not applied yet, e.g. received before the profiler was available
+  private final AtomicReference<RemoteConfigurationStack> latestStack = new AtomicReference<>();
+  // held by the thread applying configs, so that they are applied one at a time without holding a
+  // lock across the profiler's start and stop
+  private final AtomicBoolean applying = new AtomicBoolean();
+
+  // only used by the thread holding the applying flag:
   // the merged configuration currently applied, null when none sets a feature
   private RemoteConfiguration appliedConfiguration;
   // whether the profiler is in the state that appliedConfiguration says; false after a failure
   private boolean stateKnown = true;
   // whether a recording was seen running, which means that the JVM is past premain
   private boolean recordingSeen;
-  // volatile rather than guarded, so that closing doesn't wait for a configuration being applied
+
+  // set from any thread, so that closing doesn't wait for a configuration being applied
   private volatile boolean closed;
 
   /**
@@ -119,40 +128,50 @@ final class ProfilingRemoteConfigHandler implements ProfilingConfigHandler {
    * <p>It can be called from {@code premain}, where the profiler only starts right away if that is
    * safe, see the constructor.
    */
-  synchronized void setProfilingSystem(ProfilingSystem profilingSystem) {
+  void setProfilingSystem(ProfilingSystem profilingSystem) {
     this.profilingSystem = profilingSystem;
-    if (pendingStack != null) {
-      RemoteConfigurationStack pending = pendingStack;
-      pendingStack = null;
-      if (closed) {
-        log.debug(
-            "Profiling is shut down, ignoring the APM_PROFILING remote config received early");
-        return;
-      }
-      log.debug(
-          "Applying the APM_PROFILING remote config received before the profiler was ready: {}",
-          pending.configIds());
-      applyConfigs(pending);
-    }
+    applyLatestConfigs();
   }
 
   @Override
-  public synchronized void onConfigsChanged(RemoteConfigurationStack stack) {
+  public void onConfigsChanged(RemoteConfigurationStack stack) {
     if (closed) {
       log.debug("Profiling is shut down, ignoring APM_PROFILING remote config");
       return;
     }
+    latestStack.set(stack);
     if (profilingSystem == null) {
       log.debug(
           "Profiler not yet initialized, keeping APM_PROFILING remote config {} until it is",
           stack.configIds());
-      pendingStack = stack;
       return;
     }
-    applyConfigs(stack);
+    applyLatestConfigs();
   }
 
-  /** Applies the given configs to the profiling system. Must be called with the lock held. */
+  /**
+   * Applies the latest configs, unless another thread is applying configs, in which case that
+   * thread applies them once it is done. Both the configs and the profiling system are published
+   * before calling this, and checked again after releasing the flag, so that whichever thread comes
+   * last sees both and applies the configs.
+   */
+  private void applyLatestConfigs() {
+    while (!closed
+        && profilingSystem != null
+        && latestStack.get() != null
+        && applying.compareAndSet(false, true)) {
+      try {
+        final RemoteConfigurationStack stack = latestStack.getAndSet(null);
+        if (stack != null) {
+          applyConfigs(stack);
+        }
+      } finally {
+        applying.set(false);
+      }
+    }
+  }
+
+  /** Applies the given configs to the profiling system. Must be called with the flag held. */
   private void applyConfigs(RemoteConfigurationStack stack) {
     // the value of each feature comes from the highest priority configuration that sets it
     final RemoteConfiguration merged = stack.merged();
