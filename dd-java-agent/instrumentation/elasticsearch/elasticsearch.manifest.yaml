@@ -1,7 +1,8 @@
 _v: 1
 name: elasticsearch
 display_name: rest
-description: Instruments Elasticsearch REST requests and transport client actions with asynchronous response and error tracking.
+description: Instruments Elasticsearch search, document and administrative operations through REST and transport
+  clients.
 packages:
 - name: org.elasticsearch.client:elasticsearch-rest-client
 - name: org.elasticsearch.client:rest

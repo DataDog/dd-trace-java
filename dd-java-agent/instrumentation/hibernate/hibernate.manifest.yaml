@@ -1,7 +1,8 @@
 _v: 1
 name: hibernate
 display_name: Hibernate ORM - hibernate-core
-description: Instruments Hibernate sessions, entity operations, queries, criteria, stored procedures, and transaction commits, and checks queries for SQL injection with IAST.
+description: Instruments Hibernate sessions, entity operations, queries, stored procedure calls and transaction
+  commits, with SQL injection checks.
 packages:
 - name: org.hibernate.orm:hibernate-core
 - name: org.hibernate:hibernate-core

@@ -1,7 +1,8 @@
 _v: 1
 name: mongo
 display_name: MongoDB Java Driver Core
-description: Instruments MongoDB commands and their asynchronous callbacks, with optional Database Monitoring comment injection.
+description: Instruments MongoDB database commands and their asynchronous callbacks, with Database Monitoring comment
+  propagation.
 packages:
 - name: org.mongodb:mongo-java-driver
 - name: org.mongodb:mongodb-driver-async

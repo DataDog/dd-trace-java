@@ -1,7 +1,7 @@
 _v: 1
 name: opensearch
 display_name: rest
-description: Instruments OpenSearch REST requests and transport client actions while preserving trace context through asynchronous callbacks.
+description: Instruments OpenSearch search, document and administrative operations through REST and transport clients.
 packages:
 - name: org.opensearch.client:opensearch-rest-client
 - name: org.opensearch.client:transport
