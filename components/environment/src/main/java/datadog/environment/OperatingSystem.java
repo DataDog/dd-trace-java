@@ -69,13 +69,16 @@ public final class OperatingSystem {
     return ARCHITECTURE;
   }
 
-  /** Gets the host charset, falling back to the JVM default when unavailable or unsupported. */
+  /** Gets the host charset, using the JDK's filesystem encoding before the JVM default. */
   public static Charset nativeCharset() {
-    String encoding = SystemProperties.get("native.encoding");
-    if (encoding != null) {
-      try {
-        return Charset.forName(encoding);
-      } catch (IllegalArgumentException ignored) {
+    // native.encoding was introduced in JDK 17; older JDKs expose sun.jnu.encoding.
+    for (String property : new String[] {"native.encoding", "sun.jnu.encoding"}) {
+      String encoding = SystemProperties.get(property);
+      if (encoding != null) {
+        try {
+          return Charset.forName(encoding);
+        } catch (IllegalArgumentException ignored) {
+        }
       }
     }
     return Charset.defaultCharset();

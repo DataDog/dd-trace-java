@@ -22,23 +22,23 @@ import org.junit.jupiter.api.parallel.Resources;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.tabletest.junit.TableTest;
 
 @ResourceLock(Resources.SYSTEM_PROPERTIES)
 class OperatingSystemTest {
   private String previousNativeEncoding;
+  private String previousJnuEncoding;
 
   @BeforeEach
   void saveNativeEncoding() {
     previousNativeEncoding = System.getProperty("native.encoding");
+    previousJnuEncoding = System.getProperty("sun.jnu.encoding");
   }
 
   @AfterEach
   void restoreNativeEncoding() {
-    if (previousNativeEncoding == null) {
-      System.clearProperty("native.encoding");
-    } else {
-      System.setProperty("native.encoding", previousNativeEncoding);
-    }
+    setEncoding("native.encoding", previousNativeEncoding);
+    setEncoding("sun.jnu.encoding", previousJnuEncoding);
   }
 
   @ParameterizedTest
@@ -53,13 +53,43 @@ class OperatingSystemTest {
   @NullSource
   @ValueSource(strings = {"", "unsupported-charset", "invalid charset"})
   void fallsBackToDefaultCharset(String encoding) {
-    if (encoding == null) {
-      System.clearProperty("native.encoding");
-    } else {
-      System.setProperty("native.encoding", encoding);
-    }
+    setEncoding("native.encoding", encoding);
+    System.clearProperty("sun.jnu.encoding");
 
     assertEquals(Charset.defaultCharset(), OperatingSystem.nativeCharset());
+  }
+
+  @TableTest({
+    "Scenario           | Native encoding    | Filesystem encoding | Expected encoding",
+    "native wins        | UTF-8              | ISO-8859-1          | UTF-8            ",
+    "before JDK 17      |                    | ISO-8859-1          | ISO-8859-1       ",
+    "unsupported native | unsupported-native | ISO-8859-1          | ISO-8859-1       ",
+    "invalid native     | invalid charset    | ISO-8859-1          | ISO-8859-1       "
+  })
+  void usesFilesystemEncodingAsFallback(
+      String nativeEncoding, String filesystemEncoding, String expectedEncoding) {
+    setEncoding("native.encoding", nativeEncoding);
+    setEncoding("sun.jnu.encoding", filesystemEncoding);
+
+    assertEquals(Charset.forName(expectedEncoding), OperatingSystem.nativeCharset());
+  }
+
+  @ParameterizedTest
+  @NullSource
+  @ValueSource(strings = {"", "unsupported-charset", "invalid charset"})
+  void fallsBackToDefaultWhenFilesystemEncodingIsUnavailable(String encoding) {
+    System.clearProperty("native.encoding");
+    setEncoding("sun.jnu.encoding", encoding);
+
+    assertEquals(Charset.defaultCharset(), OperatingSystem.nativeCharset());
+  }
+
+  private static void setEncoding(String property, String value) {
+    if (value == null) {
+      System.clearProperty(property);
+    } else {
+      System.setProperty(property, value);
+    }
   }
 
   @Test
