@@ -25,6 +25,7 @@ import org.gradle.kotlin.dsl.create
 import org.gradle.kotlin.dsl.getByType
 import org.gradle.kotlin.dsl.named
 import org.gradle.kotlin.dsl.register
+import org.gradle.kotlin.dsl.withNormalizer
 import org.gradle.kotlin.dsl.withType
 import org.gradle.language.jvm.tasks.ProcessResources
 import org.gradle.testing.base.TestingExtension
@@ -149,7 +150,7 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project> {
       inputs.property("csi.reporters", csiExtension.reporters)
       inputs.files(callsitesClassPath)
         .withPropertyName("csi.callsitesClassPath")
-        .withNormalizer(ClasspathNormalizer::class.java)
+        .withNormalizer(ClasspathNormalizer::class)
       outputs.dir(output)
 
       // JavaExec configuration
