@@ -269,6 +269,36 @@ class HashtableD1Test {
   }
 
   @Test
+  void cursorVisitsTheSameEntriesAsForEach() {
+    // more entries than buckets' worth of spread, so some chains hold several
+    Hashtable.D1<String, StringIntEntry> table =
+        Hashtable.D1.createBounded(StringIntEntry.class, 64);
+    for (int i = 0; i < 40; i++) {
+      table.insert(new StringIntEntry("k" + i, i));
+    }
+    Map<String, Integer> viaForEach = new HashMap<>();
+    table.forEach(e -> viaForEach.put(e.key, e.value));
+
+    Map<String, Integer> viaCursor = new HashMap<>();
+    Cursor<StringIntEntry> cursor = table.cursor();
+    for (StringIntEntry e = cursor.next(); e != null; e = cursor.next()) {
+      assertNull(viaCursor.put(e.key, e.value), "visited twice: " + e.key);
+    }
+    assertEquals(40, viaCursor.size());
+    assertEquals(viaForEach, viaCursor);
+    assertNull(cursor.next(), "stays done");
+  }
+
+  @Test
+  void cursorOnEmptyTableEndsAtOnce() {
+    Hashtable.D1<String, StringIntEntry> table =
+        Hashtable.D1.createBounded(StringIntEntry.class, 8);
+    Cursor<StringIntEntry> cursor = table.cursor();
+    assertNull(cursor.next());
+    assertNull(cursor.next());
+  }
+
+  @Test
   void forEachWithContextOnEmptyTableDoesNothing() {
     Hashtable.D1<String, StringIntEntry> table =
         Hashtable.D1.createBounded(StringIntEntry.class, 8);

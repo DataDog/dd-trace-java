@@ -292,6 +292,17 @@ public class HashtableD2Benchmark {
     s.table.forEach(s.consumer);
   }
 
+  /** {@link #iterate_hashtable} with the loop in this frame: a cursor instead of a consumer. */
+  @Benchmark
+  public void iterate_hashtable_cursor(D2State s, Blackhole bh) {
+    Cursor<D2Counter> cursor = s.table.cursor();
+    for (D2Counter e = cursor.next(); e != null; e = cursor.next()) {
+      bh.consume(e.key1);
+      bh.consume(e.key2);
+      bh.consume(e.count);
+    }
+  }
+
   @Benchmark
   public void iterate_hashMap(D2State s, Blackhole bh) {
     for (Map.Entry<Key2, Long> entry : s.hashMap.entrySet()) {
