@@ -86,6 +86,11 @@ try {
         "--continue"
     )
 
+    # Match the Linux test jobs: bypass both task caches and up-to-date reuse.
+    if ($env:SKIP_BUILD_CACHE -eq "true" -or $env:CI_COMMIT_MESSAGE -cmatch '\[ci:[^]]*\bSKIP_BUILD_CACHE\b[^]]*\]') {
+        $gradleArguments += @("--no-build-cache", "--rerun-tasks")
+    }
+
     & .\gradlew.bat @gradleArguments
     exit $LASTEXITCODE
 }

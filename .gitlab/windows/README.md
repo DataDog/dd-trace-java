@@ -44,6 +44,20 @@ cache that only protected refs write, then push a per-branch, per-partition cach
 A new feature branch therefore starts from the last protected-ref dependency set instead
 of resolving everything separately in every partition.
 
+All four Windows test scopes also use the shared Gradle S3 build cache for task outputs.
+The container inherits `S3_BUILD_CACHE_BUCKET`, `S3_BUILD_CACHE_REGION`, and the optional
+`S3_BUILD_CACHE_PREFIX` override. The shared settings select a Windows-specific prefix;
+tag pipelines retain their pipeline-specific release isolation. Runner-provided AWS
+access key, secret key, and session token environment variables are forwarded by name,
+without putting their values in Docker command arguments. Otherwise the AWS SDK uses
+its default credential chain; the container must have access to the runner's AWS role.
+
+Set `SKIP_BUILD_CACHE=true` or include `[ci: SKIP_BUILD_CACHE]` in the commit message
+to bypass task-output caches and force tasks to execute, matching the Linux test jobs.
+See [the build cache guide](../../docs/gradle_build_cache.md) for cache diagnostics.
+These settings and scripts are read from the checkout, so changing them does not require
+rebuilding the Windows image.
+
 ## Notes on Windows
 
 - All `docker` calls go through `Invoke-Native` in `ci-common.ps1`. PowerShell turns a
