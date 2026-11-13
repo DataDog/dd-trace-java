@@ -178,11 +178,11 @@ The backend is reset before every test method, which is why each test can assert
 
 Three system properties matter, and you only supply the last one:
 
-| Property                                 | Set by                                              | Meaning                                                 |
-|------------------------------------------|-----------------------------------------------------|---------------------------------------------------------|
-| `datadog.smoketest.agent.shadowJar.path` | `dd-smoke-tests/build.gradle` (`subprojects` block) | The agent jar attached as `-javaagent`                  |
-| `datadog.smoketest.builddir`             | `dd-smoke-tests/build.gradle` (`subprojects` block) | Module build dir; app logs land in `<builddir>/reports` |
-| `datadog.smoketest.shadowJar.path`       | Your module's `build.gradle`                        | The application fixture to launch                       |
+| Property                                 | Set by                                   | Meaning                                                 |
+|------------------------------------------|------------------------------------------|---------------------------------------------------------|
+| `datadog.smoketest.agent.shadowJar.path` | `dd-trace-java.module.smoke-test` plugin | The agent jar attached as `-javaagent`                  |
+| `datadog.smoketest.builddir`             | `dd-trace-java.module.smoke-test` plugin | Module build dir; app logs land in `<builddir>/reports` |
+| `datadog.smoketest.shadowJar.path`       | Your module's `build.gradle`             | The application fixture to launch                       |
 
 Run it with:
 
@@ -590,7 +590,7 @@ Repository-wide known-flaky messages are excluded centrally in [`KnownLogExclusi
 > A fixture that needs a build of its own (a Spring Boot `bootJar`, a Maven project, a native image) is built by a nested build instead of being shaded in place.
 > Apply `dd-trace-java.smoke-test-app`, put the application under `<name>/application`, and declare `smokeTestApp { gradleApp { taskName, artifactPath, sysProperty } }`, or `mavenApp { ... }` for Maven.
 
-The parent `dd-smoke-tests/build.gradle` already passes every subproject the agent jar (`datadog.smoketest.agent.shadowJar.path`) and the build directory (`datadog.smoketest.builddir`), so do not re-declare those two.
+The `dd-trace-java.module.smoke-test` convention supplies the agent jar (`datadog.smoketest.agent.shadowJar.path`) and the module's build directory (`datadog.smoketest.builddir`).
 
 ## Running and debugging
 
