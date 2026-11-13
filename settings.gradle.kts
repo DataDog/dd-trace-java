@@ -314,6 +314,7 @@ include(
   ":dd-smoke-tests:websphere-jmx",
   ":dd-smoke-tests:wildfly",
   ":dd-smoke-tests:appsec",
+  ":dd-smoke-tests:appsec:dropwizard-5",
   ":dd-smoke-tests:appsec:spring-tomcat7",
   ":dd-smoke-tests:appsec:lambda-sca",
   ":dd-smoke-tests:appsec:springboot",
