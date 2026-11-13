@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.aws.v2.sqs;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import datadog.trace.agent.tooling.Instrumenter;
@@ -28,7 +29,7 @@ public final class SqsClientInstrumentation
   public static class AwsSqsBuilderAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void methodExit(@Advice.Return final List<ExecutionInterceptor> interceptors) {
-      if (Config.get().isDataStreamsEnabled()
+      if (traceConfig().isDataStreamsEnabled()
           || Config.get().isSqsInjectDatadogAttributeEnabled()) {
         for (ExecutionInterceptor interceptor : interceptors) {
           if (interceptor instanceof SqsInterceptor) {

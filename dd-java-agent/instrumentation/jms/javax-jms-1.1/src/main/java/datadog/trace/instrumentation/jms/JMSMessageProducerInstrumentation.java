@@ -10,6 +10,7 @@ import static datadog.trace.api.datastreams.DataStreamsTags.create;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_PRODUCE;
 import static datadog.trace.instrumentation.jms.JMSDecorator.PRODUCER_DECORATE;
@@ -110,7 +111,7 @@ public final class JMSMessageProducerInstrumentation
 
       if (null != destinationName
           && !destinationName.isEmpty()
-          && Config.get().isDataStreamsEnabled()) {
+          && traceConfig().isDataStreamsEnabled()) {
         final String tech = messageTechnology(message);
         if ("ibmmq".equals(tech)) { // Initial release only supports DSM in JMS for IBM MQ
           DataStreamsTags tags = create(tech, OUTBOUND, destinationName);
@@ -180,7 +181,7 @@ public final class JMSMessageProducerInstrumentation
 
       if (null != destinationName
           && !destinationName.isEmpty()
-          && Config.get().isDataStreamsEnabled()) {
+          && traceConfig().isDataStreamsEnabled()) {
         final String tech = messageTechnology(message);
         if ("ibmmq".equals(tech)) { // Initial release only supports DSM in JMS for IBM MQ
           DataStreamsTags tags = create(tech, OUTBOUND, destinationName);
