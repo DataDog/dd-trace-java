@@ -17,6 +17,11 @@ import javax.annotation.Nullable;
  * {@code hasNext()} and hold it until {@code next()}, so its implementations carry a look-ahead
  * field, an end flag, and priming in the constructor. A cursor keeps only the position.
  *
+ * <p>Where a producer also offers {@code forEach}, that is usually the fastest way to visit every
+ * element: the whole walk stays inside the producer. A cursor is for walks a callback makes
+ * awkward: carrying results out of the loop in locals, stopping early, or walking two sources
+ * together.
+ *
  * <p>Where a caller also needs an {@code Iterator} (a for-each loop, a JDK API), keep the
  * look-ahead in the iterator, not the cursor. On a hot path, share the traversal through a base
  * class that both the cursor and the iterator extend, rather than wrapping a cursor in an iterator:

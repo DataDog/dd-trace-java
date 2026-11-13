@@ -60,7 +60,7 @@ docs/                     Developer documentation (see below)
 - **Formatting**: google-java-format enforced via Spotless. Run `./gradlew spotlessApply` before committing.
 - **Static imports**: Prefer static imports for call-style helpers; no wildcard imports. See [the import guidelines](CONTRIBUTING.md#static-imports).
 - **Documentation**: Use concise Javadoc comments (`/** ... */`) for class, method, and field documentation.
-- **Traversals**: Prefer a `datadog.trace.util.Cursor` (`next()` returns the next element, or null when done) to a hand-written `Iterator`. Add an `Iterator` only when a caller needs one, such as a for-each loop or a JDK API; see `Cursor`'s Javadoc for how to provide both without allocating on a hot path.
+- **Traversals**: Prefer a `datadog.trace.util.Cursor` (`next()` returns the next element, or null when done) to a hand-written `Iterator`. Add an `Iterator` only when a caller needs one, such as a for-each loop or a JDK API; see `Cursor`'s Javadoc for how to provide both without allocating on a hot path. A `forEach` is still the fastest full walk where nothing needs to be carried out of the loop.
 - **Tests**: Write new tests in Java with JUnit 5. Maintain existing Spock tests as needed; new `.groovy` files require an explicit exception. Follow the testing guides above for parameterization, forked tests, and flaky tests.
 
 ## PR conventions
