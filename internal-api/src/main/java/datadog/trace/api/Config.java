@@ -123,6 +123,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_OTEL_BATCH_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_OTEL_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_OTEL_QUEUE_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_OTEL_TIMEOUT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_LOG_PATTERN_INJECT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_OTEL_CARDINALITY_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_OTEL_EXPERIMENTAL_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_OTEL_INTERVAL;
@@ -631,6 +632,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.KAFKA_CLIENT_B
 import static datadog.trace.api.config.TraceInstrumentationConfig.KAFKA_CLIENT_PROPAGATION_DISABLED_TOPICS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_INJECTION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_INJECTION_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_PATTERN_INJECT;
 import static datadog.trace.api.config.TraceInstrumentationConfig.MESSAGE_BROKER_SPLIT_BY_DESTINATION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.OBFUSCATION_QUERY_STRING_REGEXP;
 import static datadog.trace.api.config.TraceInstrumentationConfig.PLAY_REPORT_HTTP_STATUS;
@@ -997,6 +999,7 @@ public class Config {
   private final boolean traceInferredProxyEnabled;
   private final int clockSyncPeriod;
   private final boolean logsInjectionEnabled;
+  private final boolean logPatternInject;
   private final boolean appLogsCollectionEnabled;
 
   private final String dogStatsDNamedPipe;
@@ -1625,6 +1628,7 @@ public class Config {
             TRACE_128_BIT_TRACEID_GENERATION_ENABLED,
             DEFAULT_TRACE_128_BIT_TRACEID_GENERATION_ENABLED);
 
+    logPatternInject = configProvider.getBoolean(LOGS_PATTERN_INJECT, DEFAULT_LOG_PATTERN_INJECT);
     logs128bitTraceIdEnabled =
         configProvider.getBoolean(
             TRACE_128_BIT_TRACEID_LOGGING_ENABLED, DEFAULT_TRACE_128_BIT_TRACEID_LOGGING_ENABLED);
@@ -4140,6 +4144,10 @@ public class Config {
       return defaultLimit;
     }
     return limit;
+  }
+
+  public boolean isLogPatternInject() {
+    return logPatternInject;
   }
 
   public boolean isLogsInjectionEnabled() {
@@ -7136,6 +7144,8 @@ public class Config {
         + injectLinksAsTagsEnabled
         + ", logsInjectionEnabled="
         + logsInjectionEnabled
+        + ", logPatternInject="
+        + logPatternInject
         + ", appLogsCollectionEnabled="
         + appLogsCollectionEnabled
         + ", sparkTaskHistogramEnabled="

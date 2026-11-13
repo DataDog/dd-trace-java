@@ -45,6 +45,8 @@
 /dd-java-agent/cws-tls/                @DataDog/apm-java
 /dd-java-agent/load-generator/         @DataDog/apm-java
 
+/dd-java-agent/agent-bootstrap/src/**/datadog/trace/bootstrap/instrumentation/log/LogPatternInjector* @DataDog/apm-java
+
 # Shared trace protocol
 /utils/test-agent-utils/                                                     @DataDog/apm-java @DataDog/apm-lang-platform-java @DataDog/apm-sdk-capabilities
 /dd-trace-api/src/**/*ProtocolVersion*                                       @DataDog/apm-java @DataDog/apm-lang-platform-java @DataDog/apm-sdk-capabilities
@@ -387,3 +389,9 @@
 **/build.gradle.kts                                @DataDog/apm-java @DataDog/apm-lang-platform-java
 **/gradle.lockfile                                 @DataDog/apm-java @DataDog/apm-lang-platform-java
 /dd-java-agent/instrumentation/**/gradle.lockfile  @DataDog/apm-java @DataDog/apm-idm-java
+
+/dd-java-agent/instrumentation/log4j/log4j-2.0/src/test/java/ @DataDog/apm-java @DataDog/apm-idm-java
+
+/dd-java-agent/instrumentation/log4j/log4j-2.0/src/main/java/datadog/trace/instrumentation/log4j2/CorrelationIdPatternConverter.java @DataDog/apm-java @DataDog/apm-idm-java
+
+/dd-java-agent/instrumentation/logback-1.0/src/main/java/datadog/trace/instrumentation/logback/BootstrapPatternLoggingEventInstrumentation.java @DataDog/apm-java @DataDog/apm-idm-java
