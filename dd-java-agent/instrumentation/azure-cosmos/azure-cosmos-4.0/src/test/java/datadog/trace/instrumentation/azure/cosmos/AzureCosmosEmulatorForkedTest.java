@@ -259,10 +259,10 @@ class AzureCosmosEmulatorForkedTest extends AbstractInstrumentationTest {
       }
     }
     assertTrue(unexpected.isEmpty(), "spans outside Cosmos request spans: " + unexpected);
-    // in gateway mode, each Cosmos request span sends exactly one HTTP request: SDK retries get
-    // their own Cosmos span
+    // in gateway mode, each Cosmos request span sends at least one HTTP request: retries inside the
+    // gateway store model can send more under the same span. Duplicate Cosmos spans for one request
+    // are caught by findInOrder.
     assertEquals(cosmosSpanIds, new HashSet<>(httpChildParents), "Cosmos spans with an HTTP child");
-    assertEquals(cosmosSpanIds.size(), httpChildParents.size(), "HTTP children per Cosmos span");
   }
 
   private static void assertCommonTags(DDSpan span, String db) {
