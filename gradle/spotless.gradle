@@ -73,11 +73,8 @@ spotless {
     toggleOffOn()
     // same as kotlin, but for .gradle.kts files (defaults to '*.gradle.kts')
     target '*.gradle.kts'
-    ktlint().editorConfigOverride([
-      // Disable trailing comma rules to minimize diff.
-      'ktlint_standard_trailing-comma-on-call-site': 'disabled',
-      'ktlint_standard_trailing-comma-on-declaration-site': 'disabled'
-    ])
+    // ktlint rules are in the root .editorconfig
+    ktlint()
     custom 'forbidGradleJavaScriptPlugin', forbidLegacyScriptApplyStep
   }
 
@@ -121,11 +118,8 @@ spotless {
     kotlin {
       toggleOffOn()
       targetExclude(buildDirectory)
-      ktlint().editorConfigOverride([
-        // Disable trailing comma rules to minimize diff.
-        'ktlint_standard_trailing-comma-on-call-site': 'disabled',
-        'ktlint_standard_trailing-comma-on-declaration-site': 'disabled'
-      ])
+      // ktlint rules are in the root .editorconfig
+      ktlint()
     }
   }
 }

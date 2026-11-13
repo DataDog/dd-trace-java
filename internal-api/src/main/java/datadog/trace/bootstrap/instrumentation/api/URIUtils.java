@@ -297,6 +297,20 @@ public class URIUtils {
     public int hashCode() {
       return toString().hashCode();
     }
+
+    /**
+     * Equal to another {@code LazyUrl} that renders the same URL, consistent with {@link
+     * #hashCode()}. Without it, every request's copy of the same URL hashed alike but never
+     * matched, so hash-keyed collections kept them all in one bucket. Never equal to a {@code
+     * String}, which keeps equality symmetric.
+     */
+    @Override
+    public boolean equals(Object obj) {
+      if (this == obj) {
+        return true;
+      }
+      return obj instanceof LazyUrl && toString().equals(obj.toString());
+    }
   }
 
   private static class ValidUrl extends LazyUrl {

@@ -1,13 +1,16 @@
 package datadog.buildlogic.mass
 
-import javax.inject.Inject
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.ProviderFactory
+import javax.inject.Inject
 
 open class MassExtension
 @Inject
-constructor(objects: ObjectFactory, providers: ProviderFactory) {
+constructor(
+  objects: ObjectFactory,
+  providers: ProviderFactory
+) {
   val readUrl: Property<String> =
     objects.property(String::class.java).convention(providers.environmentVariable("MASS_READ_URL"))
 

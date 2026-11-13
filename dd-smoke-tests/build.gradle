@@ -1,6 +1,3 @@
-import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
-import java.util.jar.JarFile
-
 plugins {
   id 'dd-trace-java.module.smoke-test'
 }
@@ -19,79 +16,4 @@ dependencies {
 
   // Checks the mock backend's remote-config payload with the tracer's own response parser.
   testImplementation project(':remote-config:remote-config-core')
-}
-
-// Disable forbiddenApis for all smoke-test modules
-allprojects {
-  tasks.matching { it.name.startsWith('forbiddenApis') }.configureEach {
-    enabled = false
-  }
-}
-
-allprojects { Project subProj ->
-  // Don't need javadoc task run for internal projects.
-  subProj.tasks.withType(Javadoc).configureEach { enabled = false }
-
-  subProj.evaluationDependsOn ':dd-java-agent'
-  subProj.evaluationDependsOn ':dd-java-agent:instrumentation-testing'
-  subProj.tasks.withType(Test).configureEach { subTask ->
-    def agentTaskRef = project(':dd-java-agent').tasks.named('shadowJar', ShadowJar)
-    def diagnosticsTaskRef = project(':dd-java-agent:instrumentation-testing').tasks.named('scopeDiagnosticsAgentJar', Jar)
-    def agentArguments = subProj.objects.newInstance(SmokeAgentArguments)
-    agentArguments.tracerJar.set(agentTaskRef.flatMap { it.archiveFile })
-    agentArguments.tracerVersion.set(subProj.version.toString())
-    agentArguments.diagnosticsJar.set(diagnosticsTaskRef.flatMap { it.archiveFile })
-    jvmArgumentProviders.add(agentArguments)
-
-    def quiescenceProperty = 'datadog.smoketest.scopeDiagnostics.quiescenceMillis'
-    systemProperty quiescenceProperty, providers.systemProperty(quiescenceProperty).getOrElse('2000')
-
-    // Tests depend on this to know where to run things and what agent jar to use
-    jvmArgs "-Ddatadog.smoketest.builddir=${buildDir}"
-  }
-}
-
-abstract class SmokeAgentArguments implements CommandLineArgumentProvider {
-  // Runtime classpath hashing tracks classes and resources: .classdata, manifests, instrumentation
-  // indexes, configuration files and native libraries. Changes to normalised contents invalidate tests.
-  @Classpath
-  abstract RegularFileProperty getTracerJar()
-
-  // project.version is the base version (e.g. 1.69.0-SNAPSHOT); WriteVersionFile appends ~<SHA>.
-  // Runtime-classpath normalisation excludes the complete *.version resources.
-  // Tracking the base version separately invalidates results on version changes,
-  // while changing only the commit stamp allows reuse when the other inputs match.
-  @Input
-  abstract Property<String> getTracerVersion()
-
-  // Tracks only the presence of these version files. Their contents remain excluded from the fingerprint.
-  // CI Visibility reads the agent version; missing API/core versions fall back to "unknown".
-  @Input
-  Provider<List<String>> getNeededResourcePaths() {
-    tracerJar.map(existingResourcePaths(
-      'dd-java-agent.version',
-      'dd-trace-api.version',
-      'trace/dd-trace-core.version'
-      ))
-  }
-
-  @InputFile
-  @PathSensitive(PathSensitivity.NONE)
-  abstract RegularFileProperty getDiagnosticsJar()
-
-  @Override
-  Iterable<String> asArguments() {
-    return [
-      '-Ddatadog.smoketest.agent.shadowJar.path=' + tracerJar.get().asFile.absolutePath,
-      '-Ddatadog.smoketest.scopeDiagnostics.agent.path=' + diagnosticsJar.get().asFile.absolutePath
-    ]
-  }
-
-  private static Transformer<List<String>, RegularFile> existingResourcePaths(String... paths) {
-    return { RegularFile file ->
-      new JarFile(file.asFile).withCloseable { jar ->
-        paths.findAll { jar.getJarEntry(it) != null }.sort()
-      }
-    } as Transformer<List<String>, RegularFile>
-  }
 }

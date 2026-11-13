@@ -2,7 +2,6 @@ plugins {
   `java-gradle-plugin`
   `kotlin-dsl`
   `jvm-test-suite`
-  alias(libs.plugins.spotless)
 }
 
 java {
@@ -42,21 +41,5 @@ testing {
         implementation(gradleTestKit())
       }
     }
-  }
-}
-
-spotless {
-  kotlin {
-    target("src/**/*.kt")
-    ktlint().editorConfigOverride(
-      mapOf(
-        "indent_size" to "2",
-        "ktlint_standard_trailing-comma-on-call-site" to "disabled",
-        "ktlint_standard_trailing-comma-on-declaration-site" to "disabled",
-      ),
-    )
-  }
-  kotlinGradle {
-    ktlint().editorConfigOverride(mapOf("indent_size" to "2"))
   }
 }

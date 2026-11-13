@@ -78,13 +78,15 @@ class MuzzleReportConfigurationCacheTest : MuzzlePluginTestFixture() {
       addSubproject("dd-java-agent:instrumentation:$producer", reportProducerScript)
     }
     writeAggregationProject("first", "second", "third")
-    writeFile("dd-java-agent/instrumentation/first/versions.csv",
+    writeFile(
+      "dd-java-agent/instrumentation/first/versions.csv",
       """
       instrumentation,jarGroupId,jarArtifactId,lowestVersion,highestVersion
       first-instrumentation,com.example,demo,1.0.0,2.0.0
       """
     )
-    writeFile("dd-java-agent/instrumentation/second/versions.csv",
+    writeFile(
+      "dd-java-agent/instrumentation/second/versions.csv",
       """
       instrumentation,jarGroupId,jarArtifactId,lowestVersion,highestVersion
       first-instrumentation,com.example,demo,1.5.0,3.0.0
@@ -119,7 +121,8 @@ class MuzzleReportConfigurationCacheTest : MuzzlePluginTestFixture() {
           "second-instrumentation,com.example,other,3.0.0,4.0.0\n"
       )
 
-    writeFile("dd-java-agent/instrumentation/second/versions.csv",
+    writeFile(
+      "dd-java-agent/instrumentation/second/versions.csv",
       """
       instrumentation,jarGroupId,jarArtifactId,lowestVersion,highestVersion
       first-instrumentation,com.example,demo,1.5.0,2.0.0
@@ -135,7 +138,8 @@ class MuzzleReportConfigurationCacheTest : MuzzlePluginTestFixture() {
         "first-instrumentation,com.example,demo,1.0.0,2.0.0\n"
     )
 
-    writeFile("dd-java-agent/instrumentation/third/versions.csv",
+    writeFile(
+      "dd-java-agent/instrumentation/third/versions.csv",
       """
       instrumentation,jarGroupId,jarArtifactId,lowestVersion,highestVersion
       third-instrumentation,com.example,new,4.0.0,5.0.0
@@ -169,13 +173,15 @@ class MuzzleReportConfigurationCacheTest : MuzzlePluginTestFixture() {
     addSubproject("dd-java-agent:instrumentation:deleted", reportProducerScript)
     writeAggregationProject("demo", "deleted")
 
-    val active = writeFile("dd-java-agent/instrumentation/demo/versions.csv",
+    val active = writeFile(
+      "dd-java-agent/instrumentation/demo/versions.csv",
       """
       instrumentation,jarGroupId,jarArtifactId,lowestVersion,highestVersion
       active-instrumentation,com.example,demo,1.0.0,2.0.0
       """
     )
-    val orphan = writeFile("dd-java-agent/instrumentation/deleted/versions.csv",
+    val orphan = writeFile(
+      "dd-java-agent/instrumentation/deleted/versions.csv",
       """
       instrumentation,jarGroupId,jarArtifactId,lowestVersion,highestVersion
       deleted-instrumentation,com.example,deleted,3.0.0,4.0.0
@@ -208,7 +214,8 @@ class MuzzleReportConfigurationCacheTest : MuzzlePluginTestFixture() {
     writeSettings(currentSettings.replace(":instrumentation:demo", ":instrumentation:renamed"))
     writeFile("dd-java-agent/instrumentation/renamed/build.gradle.kts", reportProducerScript)
     writeAggregationProject("renamed")
-    val renamed = writeFile("dd-java-agent/instrumentation/renamed/versions.csv",
+    val renamed = writeFile(
+      "dd-java-agent/instrumentation/renamed/versions.csv",
       """
       instrumentation,jarGroupId,jarArtifactId,lowestVersion,highestVersion
       renamed-instrumentation,com.example,demo,1.5.0,1.5.0

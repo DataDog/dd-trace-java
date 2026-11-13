@@ -4,6 +4,7 @@ import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import com.datadog.openfeature.internal.FeatureFlagsRuntime;
+import com.datadog.openfeature.internal.FeatureFlagsRuntime.MissingApiKeyException;
 import com.datadog.openfeature.internal.FeatureFlagsRuntime.RemoteConfigurationUnavailableException;
 import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
 import com.datadog.openfeature.internal.bridge.v1.AgentBridges;
@@ -185,6 +186,11 @@ public class Provider extends EventProvider implements Metadata {
             "Provider timed-out while waiting for initial configuration");
       }
       debug("Feature Flagging provider ready");
+    } catch (final MissingApiKeyException e) {
+      // No configuration can arrive, so fail now instead of waiting for the timeout.
+      markInitializationError();
+      error("{}; returning caller defaults", e.getMessage());
+      throw new ProviderNotReadyError(e.getMessage());
     } catch (final RemoteConfigurationUnavailableException e) {
       // No RC connector means no configuration can arrive in this JVM. Complete registration
       // without waiting or switching sources. The evaluator has no runtime/configuration and
@@ -212,6 +218,15 @@ public class Provider extends EventProvider implements Metadata {
   private static void debug(final String message, final Object... arguments) {
     try {
       log.debug(message, arguments);
+    } catch (final RuntimeException | LinkageError ignored) {
+      // Nothing more can be done.
+    }
+  }
+
+  /** Logs a lifecycle error. Like {@link #debug}, a failing logging backend changes no state. */
+  private static void error(final String message, final Object... arguments) {
+    try {
+      log.error(message, arguments);
     } catch (final RuntimeException | LinkageError ignored) {
       // Nothing more can be done.
     }

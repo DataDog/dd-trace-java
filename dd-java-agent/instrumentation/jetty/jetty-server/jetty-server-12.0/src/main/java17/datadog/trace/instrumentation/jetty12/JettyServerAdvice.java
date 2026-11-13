@@ -56,10 +56,13 @@ public class JettyServerAdvice {
         span.setMeasured(true);
         DECORATE.afterStart(span);
         DECORATE.onRequest(span, req, req, parentContext);
+        DECORATE.registerBlockResponseFunction(span, req, channel.getResponse());
 
         req.setAttribute(DD_CONTEXT_ATTRIBUTE, context);
         req.setAttribute(CorrelationIdentifier.getTraceIdKey(), CorrelationIdentifier.getTraceId());
         req.setAttribute(CorrelationIdentifier.getSpanIdKey(), CorrelationIdentifier.getSpanId());
+        // a failed stream never recycles the channel, so ResetAdvice would not finish the span
+        JettyStreamFailureWrapper.install(req, channel.getResponse());
         ret = JettyRunnableWrapper.wrapIfNeeded(ret);
       }
     }
@@ -73,14 +76,13 @@ public class JettyServerAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void stopSpan(@Advice.This final HttpChannelState channel) {
       Request req = channel.getRequest();
-      Object contextObj = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
+      // removing the attribute claims the span, so it is finished at most once
+      Object contextObj = req.removeAttribute(DD_CONTEXT_ATTRIBUTE);
       if (contextObj instanceof Context) {
         final Context context = (Context) contextObj;
         final AgentSpan span = fromContext(context);
         if (span != null) {
-          DECORATE.onResponse(span, channel);
-          DECORATE.beforeFinish(context);
-          span.finish();
+          DECORATE.finishSpan(context, span, req, channel.getResponse());
         }
       }
     }

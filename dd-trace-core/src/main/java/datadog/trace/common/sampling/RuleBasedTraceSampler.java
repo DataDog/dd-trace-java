@@ -137,6 +137,24 @@ public class RuleBasedTraceSampler<T extends CoreSpan<T>> implements Sampler, Pr
         fallbackSampler != null ? fallbackSampler : new RateByServiceTraceSampler());
   }
 
+  /** Returns {@code false} when no rule applies, so the fallback sampler samples every trace. */
+  public boolean hasRules() {
+    return !samplingRules.isEmpty();
+  }
+
+  /**
+   * Returns the rate applied to every trace when the default rate ({@code DD_TRACE_SAMPLE_RATE}) is
+   * the only rule, or {@code null} when other rules apply.
+   */
+  @Nullable
+  public Double getFixedSampleRate() {
+    if (samplingRules.size() == 1
+        && samplingRules.get(0) instanceof RateSamplingRule.AlwaysMatchesSamplingRule) {
+      return samplingRules.get(0).getSampler().getSampleRate();
+    }
+    return null;
+  }
+
   /** Returns the fallback's agent rate sampler, if it uses agent rates. */
   @Override
   @Nullable
