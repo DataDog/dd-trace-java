@@ -113,6 +113,44 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
   }
 
   @Test
+  void createsSpanForCosmosDbTrigger() throws Exception {
+    MiddlewareContext context = contextFor("CosmosDBTrigger", "CosmosFunction");
+
+    new FunctionExecutionMiddleware().invoke(context, mock(MiddlewareChain.class));
+
+    assertTraces(trace(durableSpan("CosmosFunction", "CosmosDB")));
+  }
+
+  @Test
+  void cosmosDbTriggerSpanStartsNewTraceAndRecordsFailure() throws Exception {
+    MiddlewareContext context = contextFor("CosmosDBTrigger", "CosmosFunction");
+    TraceContext traceContext = mock(TraceContext.class);
+    when(traceContext.getTraceparent())
+        .thenReturn("00-0000000000000000000000000000002a-000000000000002b-00");
+    when(context.getTraceContext()).thenReturn(traceContext);
+    MiddlewareChain chain = mock(MiddlewareChain.class);
+    doAnswer(
+            invocation -> {
+              throw new InvocationTargetException(new IllegalStateException("failure"));
+            })
+        .when(chain)
+        .doNext(context);
+
+    assertThrows(
+        InvocationTargetException.class,
+        () -> new FunctionExecutionMiddleware().invoke(context, chain));
+
+    writer.waitForTraces(1);
+    DDSpan span = writer.firstTrace().get(0);
+    assertNotEquals("42", span.getTraceId().toString());
+    assertEquals(0L, span.getParentId());
+    assertNotEquals(SAMPLER_DROP, span.samplingPriority());
+    assertEquals("CosmosDB CosmosFunction", span.getResourceName().toString());
+    assertTrue(span.isError());
+    assertEquals(IllegalStateException.class.getName(), span.getTag("error.type"));
+  }
+
+  @Test
   void doesNotCreateSpanForSuccessfulOrchestrationReplay() throws Exception {
     MiddlewareContext context = contextFor("DurableOrchestrationTrigger", "Orchestrator");
 
