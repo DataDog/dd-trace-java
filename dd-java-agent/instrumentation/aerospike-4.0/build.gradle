@@ -14,6 +14,7 @@ muzzle {
 }
 
 addTestSuiteForDir("latestDepTest", "test")
+addTestSuiteForDir("latest7DepTest", "test")
 
 tasks.named("latestDepTest", Test) {
   testJvmConstraints {
@@ -28,6 +29,7 @@ dependencies {
   testImplementation group: 'com.aerospike', name: 'aerospike-client', version: '4.0.0'
   testImplementation libs.testcontainers
 
+  latest7DepTestImplementation group: 'com.aerospike', name: 'aerospike-client', version: '7.+'
   latestDepTestImplementation group: 'com.aerospike', name: 'aerospike-client', version: '+'
 }
 
