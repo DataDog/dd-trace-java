@@ -132,6 +132,7 @@ open class GradleFixture {
    * @param forwardOutput Forward the build's stdout/stderr to the test's output
    * @param gradleProjectDir Override the project directory used by Gradle (useful for git worktree tests);
    *     defaults to the fixture's project directory.
+   * @param pluginClasspath Override the plugin classpath to test changes to build logic implementations.
    * @return The build result
    */
   fun run(
@@ -141,6 +142,7 @@ open class GradleFixture {
     unsetEnv: Set<String> = emptySet(),
     forwardOutput: Boolean = false,
     gradleProjectDir: File = projectDir,
+    pluginClasspath: List<File>? = null,
   ): BuildResult {
     val runner = GradleRunner.create()
       .withTestKitDir(testKitDir)
@@ -149,6 +151,9 @@ open class GradleFixture {
       // Using withDebug prevents starting a daemon, but it doesn't work with withEnvironment
       .withEnvironment(System.getenv() - unsetEnv + env)
       .withArguments("--init-script", repositoryProxyInitScript.absolutePath, *args)
+    if (pluginClasspath != null) {
+      runner.withPluginClasspath(pluginClasspath)
+    }
     if (forwardOutput) {
       runner.forwardOutput()
     }

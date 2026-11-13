@@ -3,7 +3,7 @@ package datadog.trace.agent.test
 import static datadog.communication.http.OkHttpUtils.buildHttpClient
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_HOST
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_TIMEOUT
-import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT
+import static datadog.trace.agent.test.utils.TestAgentPort.parse
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_SNAPSHOT_URL
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_VERIFY_BYTECODE
 import static datadog.trace.api.config.TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_ENABLED
@@ -393,7 +393,8 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
       }
 
       // emit traces to the APM Test-Agent for Cross-Tracer Testing Trace Checks
-      HttpUrl agentUrl = HttpUrl.get("http://" + agentHost + ":" + DEFAULT_TRACE_AGENT_PORT)
+      int agentPort = parse(System.getenv("CI_TEST_AGENT_PORT"))
+      HttpUrl agentUrl = new HttpUrl.Builder().scheme("http").host(agentHost).port(agentPort).build()
       OkHttpClient client = buildHttpClient(true, null, null, TimeUnit.SECONDS.toMillis(DEFAULT_AGENT_TIMEOUT))
 
       Config cfg = Config.get()
