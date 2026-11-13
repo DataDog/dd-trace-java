@@ -10004,6 +10004,22 @@
         "aliases": []
       }
     ],
+    "DD_TRACE_SAP_JCO_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_SAP_JCO_ENABLED", "DD_INTEGRATION_SAP_JCO_ENABLED"]
+      }
+    ],
+    "DD_TRACE_SAP_JCO_PASSPORT_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_SAP_JCO_PASSPORT_ENABLED"]
+      }
+    ],
     "DD_TRACE_SCALATEST_ENABLED": [
       {
         "version": "A",

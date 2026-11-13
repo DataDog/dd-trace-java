@@ -1,0 +1,22 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
+// No muzzle directives: sapjco3.jar is a licensed artifact not published to any public repository,
+// so there is no coordinate to resolve version ranges against (same as tibco-businessworks and cics).
+// The target JCo types are matched by name at runtime and guarded by the compile-time stubs.
+
+dependencies {
+  // Compile against the hand-written JCo stubs; the real sapjco3.jar provides these at runtime.
+  compileOnly project(':dd-java-agent:instrumentation:sap-jco:sap-jco-stubs')
+
+  testImplementation project(':dd-java-agent:instrumentation:sap-jco:sap-jco-stubs')
+  testImplementation libs.bundles.junit5
+  testImplementation libs.bundles.mockito
+}
+
+// The JCo stubs intentionally model only a subset of the real API, so classes the instrumentation
+// never touches are absent at build time. Don't fail the forbidden-apis check on those.
+forbiddenApisMain {
+  failOnMissingClasses = false
+}

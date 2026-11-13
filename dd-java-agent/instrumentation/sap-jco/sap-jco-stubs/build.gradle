@@ -1,0 +1,9 @@
+plugins {
+  id 'dd-trace-java.conventions.java'
+}
+
+// Hand-written stubs of the subset of the SAP JCo 3.x API (and the SAP jDSR passport interface JCo
+// expects but does not ship) that the sap-jco instrumentation compiles against. sapjco3.jar is a
+// licensed artifact that is not published to any public repository, so — following the pattern used
+// by the tibco-businessworks instrumentation — these stubs stand in at compile time only. The real
+// classes are provided by sapjco3.jar at runtime; the stubs are never shipped in the agent.
