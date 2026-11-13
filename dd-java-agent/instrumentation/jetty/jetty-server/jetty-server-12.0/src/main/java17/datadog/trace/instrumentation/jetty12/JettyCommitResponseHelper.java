@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.jetty12;
 
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_IGNORE_COMMIT_ATTRIBUTE;
+import static datadog.trace.instrumentation.jetty12.JettyBlockResponseHelper.logWriteFailure;
 import static datadog.trace.instrumentation.jetty12.JettyBlockResponseHelper.markEffectivelyBlocked;
 import static datadog.trace.instrumentation.jetty12.JettyBlockResponseHelper.prepareBlockResponse;
 import static datadog.trace.instrumentation.jetty12.JettyBlockResponseHelper.reportBlockFailure;
@@ -148,7 +149,7 @@ public final class JettyCommitResponseHelper {
 
     @Override
     public void failed(Throwable x) {
-      log.debug("Failed to write blocking response on response commit", x);
+      logWriteFailure("Failed to write blocking response on response commit", x);
       reportBlockFailure(reqCtx);
       delegate.failed(x);
     }

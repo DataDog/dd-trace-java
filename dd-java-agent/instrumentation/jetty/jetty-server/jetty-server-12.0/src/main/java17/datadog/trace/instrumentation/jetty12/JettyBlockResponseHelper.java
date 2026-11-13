@@ -295,7 +295,7 @@ public final class JettyBlockResponseHelper {
   }
 
   /** Client-caused I/O failures (e.g. a closed connection) are not reported to telemetry. */
-  private static void logWriteFailure(String message, Throwable failure) {
+  static void logWriteFailure(String message, Throwable failure) {
     if (failure instanceof IOException) {
       log.debug(EXCLUDE_TELEMETRY, message, failure);
     } else {
