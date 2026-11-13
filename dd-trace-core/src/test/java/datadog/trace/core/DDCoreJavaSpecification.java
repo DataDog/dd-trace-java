@@ -1,11 +1,14 @@
 package datadog.trace.core;
 
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+
 import datadog.metrics.api.statsd.StatsDClient;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.datastreams.NoopPathwayContext;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
+import datadog.trace.common.metrics.ClientStatsAggregator;
 import datadog.trace.common.writer.ListWriter;
 import datadog.trace.core.CoreTracer.CoreTracerBuilder;
 import datadog.trace.core.propagation.PropagationTags;
@@ -72,6 +75,16 @@ public abstract class DDCoreJavaSpecification extends DDJavaSpecification {
       builder = builder.statsDClient(StatsDClient.NO_OP);
     }
     return builder.strictTraceWrites(useStrictTraceWrites());
+  }
+
+  /** Waits for asynchronous metrics initialization before a test publishes spans. */
+  protected static void awaitMetricsAggregator(CoreTracer tracer) throws InterruptedException {
+    long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+    while (!(tracer.metricsAggregator instanceof ClientStatsAggregator)
+        && System.nanoTime() - deadline < 0) {
+      Thread.sleep(10);
+    }
+    assertInstanceOf(ClientStatsAggregator.class, tracer.metricsAggregator);
   }
 
   protected DDSpan buildSpan(long timestamp, CharSequence spanType, Map<String, Object> tags) {
