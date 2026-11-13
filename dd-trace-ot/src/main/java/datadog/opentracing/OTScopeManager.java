@@ -3,18 +3,22 @@ package datadog.opentracing;
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.context.TraceScope;
 import io.opentracing.Scope;
 import io.opentracing.ScopeManager;
 import io.opentracing.Span;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** One of the two possible scope managers. See CustomScopeManagerWrapper */
 class OTScopeManager implements ScopeManager {
   static final Logger log = LoggerFactory.getLogger(OTScopeManager.class);
+
+  private static final AtomicBoolean UNSUPPORTED_CLOSE_LOGGED = new AtomicBoolean();
 
   private final TypeConverter converter;
   private final AgentTracer.TracerAPI tracer;
@@ -41,6 +45,10 @@ class OTScopeManager implements ScopeManager {
     return converter.toScope(agentScope, finishSpanOnClose);
   }
 
+  /**
+   * Returns a view of the active span. With the non-legacy context manager, closing this view does
+   * nothing; close the scope returned by {@code activate} to restore the previous context.
+   */
   @Deprecated
   @Override
   public Scope active() {
@@ -122,7 +130,13 @@ class OTScopeManager implements ScopeManager {
     @Override
     public void close() {
       if (agentSpan == tracer.activeSpan()) {
-        tracer.closeActive();
+        if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+          tracer.closeActive();
+        } else if (UNSUPPORTED_CLOSE_LOGGED.compareAndSet(false, true)) {
+          log.warn(
+              "ScopeManager.active().close() has no effect; "
+                  + "close the Scope returned by activate() instead");
+        }
       } else if (Config.get().isScopeStrictMode()) {
         throw new RuntimeException("Tried to close " + agentSpan + " scope when not on top");
       } else {
