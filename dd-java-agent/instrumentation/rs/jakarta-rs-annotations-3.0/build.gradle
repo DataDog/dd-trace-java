@@ -22,7 +22,9 @@ tasks.named("compileLatestDepJava11TestGroovy", GroovyCompile) {
 }
 
 tasks.named("latestDepJava11Test", Test) {
-  javaLauncher = getJavaLauncherFor(11)
+  testJvmConstraints {
+    minJavaVersion = JavaVersion.VERSION_11
+  }
 }
 
 dependencies {
