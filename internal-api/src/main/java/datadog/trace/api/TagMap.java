@@ -1,5 +1,8 @@
 package datadog.trace.api;
 
+import static datadog.contract.Confined.Extent.FRAME;
+
+import datadog.contract.Confined;
 import datadog.contract.Restricted;
 import datadog.trace.api.function.NoEscape;
 import datadog.trace.api.function.TriConsumer;
@@ -146,8 +149,14 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
    * kept past the call that produced it -- not in a field, a collection or a later step. A store
    * may answer with a flyweight it reuses for the next read or write, so a kept reader can later
    * report another tag's value. To keep a tag, call {@link #entry()}: an {@link Entry} is the
-   * keepable form. (To be marked {@code @ScopeBounded}, APMLP-2086.)
+   * keepable form, unconfined when declared as {@code Entry}.
+   *
+   * <p>{@link Confined @Confined(FRAME)} lets review catch a reader stored in a field or
+   * collection, or captured in a lambda. The rule here is narrower than the frame: a reader may
+   * also go stale at the store's next read or write within the same frame, so read it before
+   * touching the map again.
    */
+  @Confined(FRAME)
   public interface EntryReader {
     public static final byte OBJECT = 1;
 
