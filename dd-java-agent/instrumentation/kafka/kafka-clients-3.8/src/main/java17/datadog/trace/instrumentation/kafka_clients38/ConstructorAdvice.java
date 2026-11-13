@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.kafka_clients38;
 
-import datadog.trace.api.Config;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
+
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.instrumentation.kafka_common.KafkaConfigHelper;
 import datadog.trace.instrumentation.kafka_common.MetadataState;
@@ -37,17 +38,13 @@ public class ConstructorAdvice {
     if (bootstrapServersList != null && !bootstrapServersList.isEmpty()) {
       bootstrapServers = String.join(",", bootstrapServersList);
     }
-    KafkaConsumerInfo kafkaConsumerInfo;
-    if (Config.get().isDataStreamsEnabled()) {
-      kafkaConsumerInfo =
-          new KafkaConsumerInfo(normalizedConsumerGroup, metadata, bootstrapServers);
-    } else {
-      kafkaConsumerInfo = new KafkaConsumerInfo(normalizedConsumerGroup, bootstrapServers);
-    }
+    // Metadata kept even with DSM off so remote config can enable DSM later
+    KafkaConsumerInfo kafkaConsumerInfo =
+        new KafkaConsumerInfo(normalizedConsumerGroup, metadata, bootstrapServers, true);
     // new - searching context for ConsumerDelegate and OffsetCommitCallbackInvoker instead of
     // ConsumerCoordinator and KafkaConsumer
     if (kafkaConsumerInfo.getConsumerGroup().isPresent()
-        || kafkaConsumerInfo.getmetadata().isPresent()) {
+        || (kafkaConsumerInfo.getmetadata().isPresent() && traceConfig().isDataStreamsEnabled())) {
       InstrumentationContext.get(ConsumerDelegate.class, KafkaConsumerInfo.class)
           .put(consumer, kafkaConsumerInfo);
     }
@@ -56,13 +53,12 @@ public class ConstructorAdvice {
           .put(offsetCommitCallbackInvoker, kafkaConsumerInfo);
     }
 
-    if (Config.get().isDataStreamsEnabled()) {
-      MetadataState state =
-          InstrumentationContext.get(Metadata.class, MetadataState.class)
-              .getOrCreate(metadata, MetadataState::new);
-      KafkaConfigHelper.storePendingConsumerConfig(
-          state, normalizedConsumerGroup, KafkaConfigHelper.extractConsumerConfig(consumerConfig));
-    }
+    // Captured even with DSM off; only reported while DSM is enabled
+    MetadataState state =
+        InstrumentationContext.get(Metadata.class, MetadataState.class)
+            .getOrCreate(metadata, MetadataState::new);
+    KafkaConfigHelper.storePendingConsumerConfig(
+        state, normalizedConsumerGroup, KafkaConfigHelper.extractConsumerConfig(consumerConfig));
   }
 
   public static void muzzleCheck(ConsumerRecord record) {

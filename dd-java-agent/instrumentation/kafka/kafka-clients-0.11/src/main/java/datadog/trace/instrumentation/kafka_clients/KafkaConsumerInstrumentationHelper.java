@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.kafka_clients;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
+
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.instrumentation.kafka_common.MetadataState;
 import org.apache.kafka.clients.Metadata;
@@ -15,7 +17,8 @@ public class KafkaConsumerInstrumentationHelper {
   public static String extractClusterId(
       KafkaConsumerInfo kafkaConsumerInfo,
       ContextStore<Metadata, MetadataState> metadataContextStore) {
-    if (kafkaConsumerInfo != null) {
+    // Consumer metadata is kept for DSM only: no cluster ID (or its span tag) while DSM is off
+    if (kafkaConsumerInfo != null && traceConfig().isDataStreamsEnabled()) {
       Metadata consumerMetadata = kafkaConsumerInfo.getClientMetadata();
       if (consumerMetadata != null) {
         MetadataState state = metadataContextStore.get(consumerMetadata);

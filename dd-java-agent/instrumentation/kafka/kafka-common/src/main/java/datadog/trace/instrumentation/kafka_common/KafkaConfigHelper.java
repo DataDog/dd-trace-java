@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.kafka_common;
 
-import datadog.trace.api.Config;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
+
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -111,19 +112,22 @@ public class KafkaConfigHelper {
       String memberId,
       int generationId,
       String memberProtocol) {
-    if (memberId == null || memberId.isEmpty() || clusterId == null || clusterId.isEmpty()) {
+    if (memberId == null
+        || memberId.isEmpty()
+        || clusterId == null
+        || clusterId.isEmpty()
+        // Not reported while DSM is off, so it's retried once remote config enables DSM
+        || !traceConfig().isDataStreamsEnabled()) {
       return false;
     }
-    if (Config.get().isDataStreamsEnabled()) {
-      AgentTracer.get()
-          .getDataStreamsMonitoring()
-          .reportKafkaConsumerGroupMember(
-              clusterId,
-              consumerGroup != null ? consumerGroup : "",
-              memberId,
-              generationId,
-              memberProtocol != null ? memberProtocol : "");
-    }
+    AgentTracer.get()
+        .getDataStreamsMonitoring()
+        .reportKafkaConsumerGroupMember(
+            clusterId,
+            consumerGroup != null ? consumerGroup : "",
+            memberId,
+            generationId,
+            memberProtocol != null ? memberProtocol : "");
     return true;
   }
 
@@ -132,7 +136,7 @@ public class KafkaConfigHelper {
     PendingConfig pending = state.takePendingConfig();
     if (pending != null) {
       log.debug("Received cluster ID, reporting {} config", pending.type);
-      if (Config.get().isDataStreamsEnabled()) {
+      if (traceConfig().isDataStreamsEnabled()) {
         AgentTracer.get()
             .getDataStreamsMonitoring()
             .reportKafkaConfig(pending.type, clusterId, pending.consumerGroup, pending.config);

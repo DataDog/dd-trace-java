@@ -21,7 +21,6 @@ import com.google.auto.service.AutoService;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.api.Config;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.kafka_common.ClusterIdHolder;
@@ -141,16 +140,13 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
         bootstrapServers = String.join(",", bootstrapServersList);
       }
 
-      KafkaConsumerInfo kafkaConsumerInfo;
-      if (Config.get().isDataStreamsEnabled()) {
-        kafkaConsumerInfo =
-            new KafkaConsumerInfo(normalizedConsumerGroup, metadata, bootstrapServers);
-      } else {
-        kafkaConsumerInfo = new KafkaConsumerInfo(normalizedConsumerGroup, bootstrapServers);
-      }
+      // Metadata kept even with DSM off so remote config can enable DSM later
+      KafkaConsumerInfo kafkaConsumerInfo =
+          new KafkaConsumerInfo(normalizedConsumerGroup, metadata, bootstrapServers);
 
       if (kafkaConsumerInfo.getConsumerGroup() != null
-          || kafkaConsumerInfo.getClientMetadata() != null) {
+          || (kafkaConsumerInfo.getClientMetadata() != null
+              && traceConfig().isDataStreamsEnabled())) {
         InstrumentationContext.get(KafkaConsumer.class, KafkaConsumerInfo.class)
             .put(consumer, kafkaConsumerInfo);
         if (coordinator != null) {
@@ -159,15 +155,12 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
         }
       }
 
-      if (Config.get().isDataStreamsEnabled()) {
-        MetadataState state =
-            InstrumentationContext.get(Metadata.class, MetadataState.class)
-                .getOrCreate(metadata, MetadataState::new);
-        KafkaConfigHelper.storePendingConsumerConfig(
-            state,
-            normalizedConsumerGroup,
-            KafkaConfigHelper.extractConsumerConfig(consumerConfig));
-      }
+      // Captured even with DSM off; only reported while DSM is enabled
+      MetadataState state =
+          InstrumentationContext.get(Metadata.class, MetadataState.class)
+              .getOrCreate(metadata, MetadataState::new);
+      KafkaConfigHelper.storePendingConsumerConfig(
+          state, normalizedConsumerGroup, KafkaConfigHelper.extractConsumerConfig(consumerConfig));
     }
 
     public static void muzzleCheck(ConsumerRecord record) {
@@ -194,16 +187,13 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
       if (bootstrapServersObj instanceof String) {
         bootstrapServers = (String) bootstrapServersObj;
       }
-      KafkaConsumerInfo kafkaConsumerInfo;
-      if (Config.get().isDataStreamsEnabled()) {
-        kafkaConsumerInfo =
-            new KafkaConsumerInfo(normalizedConsumerGroup, metadata, bootstrapServers);
-      } else {
-        kafkaConsumerInfo = new KafkaConsumerInfo(normalizedConsumerGroup, bootstrapServers);
-      }
+      // Metadata kept even with DSM off so remote config can enable DSM later
+      KafkaConsumerInfo kafkaConsumerInfo =
+          new KafkaConsumerInfo(normalizedConsumerGroup, metadata, bootstrapServers);
 
       if (kafkaConsumerInfo.getConsumerGroup() != null
-          || kafkaConsumerInfo.getClientMetadata() != null) {
+          || (kafkaConsumerInfo.getClientMetadata() != null
+              && traceConfig().isDataStreamsEnabled())) {
         InstrumentationContext.get(KafkaConsumer.class, KafkaConsumerInfo.class)
             .put(consumer, kafkaConsumerInfo);
         if (coordinator != null) {
@@ -212,15 +202,14 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
         }
       }
 
-      if (Config.get().isDataStreamsEnabled()) {
-        MetadataState state =
-            InstrumentationContext.get(Metadata.class, MetadataState.class)
-                .getOrCreate(metadata, MetadataState::new);
-        KafkaConfigHelper.storePendingConsumerConfig(
-            state,
-            normalizedConsumerGroup,
-            KafkaConfigHelper.extractConsumerConfigFromMap(consumerConfig));
-      }
+      // Captured even with DSM off; only reported while DSM is enabled
+      MetadataState state =
+          InstrumentationContext.get(Metadata.class, MetadataState.class)
+              .getOrCreate(metadata, MetadataState::new);
+      KafkaConfigHelper.storePendingConsumerConfig(
+          state,
+          normalizedConsumerGroup,
+          KafkaConfigHelper.extractConsumerConfigFromMap(consumerConfig));
     }
 
     public static void muzzleCheck(ConsumerRecord record) {
@@ -238,10 +227,11 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
   public static class RecordsAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope onEnter(@Advice.This KafkaConsumer consumer) {
+      boolean dataStreamsEnabled = traceConfig().isDataStreamsEnabled();
       // Set cluster ID in ClusterIdHolder for Schema Registry instrumentation
       KafkaConsumerInfo kafkaConsumerInfo =
           InstrumentationContext.get(KafkaConsumer.class, KafkaConsumerInfo.class).get(consumer);
-      if (kafkaConsumerInfo != null && Config.get().isDataStreamsEnabled()) {
+      if (kafkaConsumerInfo != null && dataStreamsEnabled) {
         Metadata consumerMetadata = kafkaConsumerInfo.getClientMetadata();
         if (consumerMetadata != null) {
           MetadataState metadataState =
@@ -253,7 +243,7 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
         }
       }
 
-      if (traceConfig().isDataStreamsEnabled()) {
+      if (dataStreamsEnabled) {
         final AgentSpan span = startSpan(JAVA_KAFKA.toString(), KAFKA_POLL);
         return activateSpan(span);
       }
