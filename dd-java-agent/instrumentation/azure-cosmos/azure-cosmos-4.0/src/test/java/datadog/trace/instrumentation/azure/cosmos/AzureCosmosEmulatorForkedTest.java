@@ -38,6 +38,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -244,7 +245,7 @@ class AzureCosmosEmulatorForkedTest extends AbstractInstrumentationTest {
     for (DDSpan span : cosmosSpans(trace)) {
       cosmosSpanIds.add(span.getSpanId());
     }
-    Set<Long> withHttpChild = new HashSet<>();
+    List<Long> httpChildParents = new ArrayList<>();
     List<String> unexpected = new ArrayList<>();
     for (DDSpan span : trace) {
       if (span.getSpanId() == parentId || cosmosSpanIds.contains(span.getSpanId())) {
@@ -252,14 +253,16 @@ class AzureCosmosEmulatorForkedTest extends AbstractInstrumentationTest {
       }
       if (HTTP_CLIENT_OPERATION_NAME.contentEquals(span.getOperationName())
           && cosmosSpanIds.contains(span.getParentId())) {
-        withHttpChild.add(span.getParentId());
+        httpChildParents.add(span.getParentId());
       } else {
         unexpected.add(span.getOperationName() + " " + span.getResourceName());
       }
     }
     assertTrue(unexpected.isEmpty(), "spans outside Cosmos request spans: " + unexpected);
-    // in gateway mode, each Cosmos request sends at least one HTTP request
-    assertEquals(cosmosSpanIds, withHttpChild, "Cosmos spans with an HTTP client child");
+    // in gateway mode, each Cosmos request span sends exactly one HTTP request: SDK retries get
+    // their own Cosmos span
+    assertEquals(cosmosSpanIds, new HashSet<>(httpChildParents), "Cosmos spans with an HTTP child");
+    assertEquals(cosmosSpanIds.size(), httpChildParents.size(), "HTTP children per Cosmos span");
   }
 
   private static void assertCommonTags(DDSpan span, String db) {
@@ -339,12 +342,18 @@ class AzureCosmosEmulatorForkedTest extends AbstractInstrumentationTest {
   /**
    * Returns the first span matching each resource pattern, each one starting after the previous
    * match. The SDK sends extra metadata requests (container reads, partition key ranges) between
-   * the scenario requests, so the scenario is checked as an ordered subsequence.
+   * the scenario requests, so the scenario is checked as an ordered subsequence. Patterns that
+   * occur once in the scenario must match a single span, so duplicate spans for one request fail.
    */
   private static List<DDSpan> findInOrder(List<DDSpan> spans, Pattern... resources) {
     List<DDSpan> found = new ArrayList<>();
     int next = 0;
     for (Pattern expected : resources) {
+      long expectedCount =
+          Arrays.stream(resources).filter(p -> p.pattern().equals(expected.pattern())).count();
+      long actualCount =
+          spans.stream().filter(span -> expected.matcher(resource(span)).matches()).count();
+      assertEquals(expectedCount, actualCount, "spans with resource " + expected);
       DDSpan match = null;
       while (next < spans.size() && match == null) {
         DDSpan candidate = spans.get(next++);
