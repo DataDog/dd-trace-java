@@ -13,6 +13,7 @@ import spock.lang.Shared
 
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_128_BIT_TRACEID_LOGGING_ENABLED
 import static datadog.trace.api.config.TracerConfig.TRACE_128_BIT_TRACEID_GENERATION_ENABLED
+import static datadog.trace.api.config.TracerConfig.TRACE_SERVICE_DISCOVERY_ENABLED
 import static java.util.concurrent.TimeUnit.SECONDS
 
 /**
@@ -96,6 +97,9 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
       it.startsWith("-Ddd.profiling")
     }
     command.add("-Ddd.profiling.enabled=false")
+    // service discovery loads JNA, whose JUL logger can start Log4j2 on an agent thread and race the
+    // application's own Log4j2 initialization, which drops its first log lines
+    command.add("-Ddd.$TRACE_SERVICE_DISCOVERY_ENABLED=false" as String)
     command.add("-Ddd.remote_config.enabled=true")
     command.add("-Ddd.remote_config.url=http://localhost:${server.address.port}/v0.7/config".toString())
     command.add("-Ddd.remote_config.poll_interval.seconds=0.2")
