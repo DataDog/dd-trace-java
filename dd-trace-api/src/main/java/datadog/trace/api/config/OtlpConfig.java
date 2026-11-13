@@ -33,6 +33,11 @@ public final class OtlpConfig {
 
   public static final String OTEL_TRACES_SPAN_METRICS_ENABLED = "otel.traces.span.metrics.enabled";
 
+  // General OTLP settings, which the signals without their own fall back to
+  public static final String OTEL_EXPORTER_OTLP_ENDPOINT = "otel.exporter.otlp.endpoint";
+  public static final String OTEL_EXPORTER_OTLP_HEADERS = "otel.exporter.otlp.headers";
+  public static final String OTEL_EXPORTER_OTLP_PROTOCOL = "otel.exporter.otlp.protocol";
+
   public static final String TRACE_OTEL_ENABLED = "trace.otel.enabled";
   public static final String TRACE_OTEL_EXPORTER = "trace.otel.exporter";
 

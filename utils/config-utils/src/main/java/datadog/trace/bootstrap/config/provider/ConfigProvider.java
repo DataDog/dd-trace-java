@@ -96,6 +96,14 @@ public final class ConfigProvider {
     return null;
   }
 
+  /**
+   * Like {@link #getOtelSetting(String)}, parsed as a map of {@code key<separator>value} entries,
+   * which is empty when the setting is unset.
+   */
+  public Map<String, String> getOtelSettingMap(String key, char keyValueSeparator) {
+    return ConfigConverter.parseMap(getOtelSetting(key), key, keyValueSeparator);
+  }
+
   // Gets a string value when there is no default value.
   public String getString(String key) {
     return getString(key, null);

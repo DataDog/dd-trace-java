@@ -12,6 +12,7 @@ import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectEn
 import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectSysConfig;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyMap;
+import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -367,6 +368,10 @@ class ConfigProviderTest {
 
     assertEquals("grpc", provider.getOtelSetting("otel.exporter.otlp.protocol"));
     assertEquals("api-key=secret", provider.getOtelSetting("otel.exporter.otlp.headers"));
+    assertEquals(
+        singletonMap("api-key", "secret"),
+        provider.getOtelSettingMap("otel.exporter.otlp.headers", '='));
+    assertEquals(emptyMap(), provider.getOtelSettingMap("otel.exporter.otlp.compression", '='));
     assertEquals(
         "https://user:secret@collector:4318",
         provider.getOtelSetting("otel.exporter.otlp.endpoint"));

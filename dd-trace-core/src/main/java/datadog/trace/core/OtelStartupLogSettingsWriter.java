@@ -1,14 +1,10 @@
 package datadog.trace.core;
 
-import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_GRPC_PORT;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_HTTP_PORT;
-
 import com.squareup.moshi.JsonWriter;
 import datadog.trace.api.Config;
 import datadog.trace.api.TracePropagationBehaviorExtract;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.config.OtlpConfig;
-import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.common.sampling.AllSampler;
 import datadog.trace.common.sampling.ApmTracingDisabledSampler;
 import datadog.trace.common.sampling.AsmStandaloneSampler;
@@ -18,7 +14,6 @@ import datadog.trace.common.sampling.RateByServiceTraceSampler;
 import datadog.trace.common.sampling.RuleBasedTraceSampler;
 import datadog.trace.common.sampling.Sampler;
 import datadog.trace.core.otlp.common.OtlpResourceAttributes;
-import datadog.trace.util.Strings;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -47,13 +42,17 @@ final class OtelStartupLogSettingsWriter {
   static void write(JsonWriter writer, Config config, Sampler sampler, Logger log)
       throws IOException {
     boolean tracesOtlp = config.isTraceEnabled() && config.isOtlpTracesExportEnabled();
+    // OTLP metrics also include the OTLP span metrics, unlike the OpenTelemetry metrics exporter
     boolean metricsOtlp = config.isOtlpMetricsExportEnabled();
+    boolean otelMetricsOtlp =
+        config.isMetricsOtelEnabled() && config.isMetricsOtlpExporterEnabled();
     boolean logsOtlp = config.isOtlpLogsExportEnabled();
 
     writer.name("DD_TRACE_OTEL_ENABLED").value(config.isTraceOtelEnabled());
     writer.name("DD_METRICS_OTEL_ENABLED").value(config.isMetricsOtelEnabled());
     writer.name("DD_LOGS_OTEL_ENABLED").value(config.isLogsOtelEnabled());
     writer.name("OTEL_TRACES_EXPORTER").value(tracesOtlp ? "otlp" : "none");
+    writer.name("OTEL_METRICS_EXPORTER").value(otelMetricsOtlp ? "otlp" : "none");
     writer.name("OTEL_LOGS_EXPORTER").value(logsOtlp ? "otlp" : "none");
     writer.name("OTEL_LOG_LEVEL").value(logLevel(log));
     writer.name("OTEL_SERVICE_NAME").value(config.getServiceName());
@@ -61,7 +60,7 @@ final class OtelStartupLogSettingsWriter {
     StatusLogger.writeMap(writer, OtlpResourceAttributes.resourceAttributes(config));
     // omitted when no single list describes both injection and extraction
     writer.name("OTEL_PROPAGATORS").value(propagators(config));
-    writeSampler(writer, sampler);
+    writeSampler(writer, config, sampler);
 
     if (tracesOtlp) {
       writer
@@ -83,7 +82,7 @@ final class OtelStartupLogSettingsWriter {
       writer.name("OTEL_EXPORTER_OTLP_METRICS_HEADERS");
       writeRedactedHeaders(writer, config.getOtlpMetricsHeaders().keySet());
       // OTLP span metrics are always delta and flushed with the trace stats
-      if (config.isMetricsOtelEnabled() && config.isMetricsOtlpExporterEnabled()) {
+      if (otelMetricsOtlp) {
         writer.name("OTEL_METRIC_EXPORT_INTERVAL").value(config.getMetricsOtelInterval());
         writer
             .name("OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE")
@@ -104,30 +103,13 @@ final class OtelStartupLogSettingsWriter {
       writer.name("OTEL_BLRP_MAX_QUEUE_SIZE").value(config.getLogsOtelQueueSize());
       writer.name("OTEL_BLRP_MAX_EXPORT_BATCH_SIZE").value(config.getLogsOtelBatchSize());
     }
+    // the general settings, which the signals without their own fall back to
     if (tracesOtlp || metricsOtlp || logsOtlp) {
-      writeGeneralExporter(writer, config);
+      writer.name("OTEL_EXPORTER_OTLP_ENDPOINT").value(sanitizeEndpoint(config.getOtlpEndpoint()));
+      writer.name("OTEL_EXPORTER_OTLP_PROTOCOL").value(protocolName(config.getOtlpProtocol()));
+      writer.name("OTEL_EXPORTER_OTLP_HEADERS");
+      writeRedactedHeaders(writer, config.getOtlpHeaders().keySet());
     }
-  }
-
-  /**
-   * Writes the general OTLP settings, which apply to the signals without their own. They default to
-   * the OTLP port of the Datadog Agent, like the signal endpoints.
-   */
-  private static void writeGeneralExporter(JsonWriter writer, Config config) throws IOException {
-    ConfigProvider configProvider = config.configProvider();
-    OtlpConfig.Protocol protocol =
-        parseProtocol(configProvider.getOtelSetting("otel.exporter.otlp.protocol"));
-    String endpoint = configProvider.getOtelSetting("otel.exporter.otlp.endpoint");
-    if (endpoint == null) {
-      String port =
-          protocol == OtlpConfig.Protocol.GRPC ? DEFAULT_OTLP_GRPC_PORT : DEFAULT_OTLP_HTTP_PORT;
-      endpoint = "http://" + config.getAgentHost() + ':' + port;
-    }
-    writer.name("OTEL_EXPORTER_OTLP_ENDPOINT").value(sanitizeEndpoint(endpoint));
-    writer.name("OTEL_EXPORTER_OTLP_PROTOCOL").value(protocolName(protocol));
-    writer.name("OTEL_EXPORTER_OTLP_HEADERS");
-    writeRedactedHeaders(
-        writer, headerNames(configProvider.getOtelSetting("otel.exporter.otlp.headers")));
   }
 
   private static void writeRedactedHeaders(JsonWriter writer, Collection<String> headerNames)
@@ -144,12 +126,15 @@ final class OtelStartupLogSettingsWriter {
    * are never resampled, so every equivalent is parent based. Datadog sampling without an
    * equivalent is named {@code datadog_*}, as in other Datadog SDKs.
    */
-  private static void writeSampler(JsonWriter writer, Sampler sampler) throws IOException {
+  private static void writeSampler(JsonWriter writer, Config config, Sampler sampler)
+      throws IOException {
     Double ratio = null;
+    boolean rateLimited = false;
     String name;
     if (sampler instanceof RuleBasedTraceSampler) {
       RuleBasedTraceSampler<?> ruleBasedSampler = (RuleBasedTraceSampler<?>) sampler;
       Double rate = ruleBasedSampler.getFixedSampleRate();
+      rateLimited = ruleBasedSampler.hasRules();
       if (!ruleBasedSampler.hasRules()) {
         name = "datadog_agent_rates";
       } else if (rate == null) {
@@ -182,6 +167,10 @@ final class OtelStartupLogSettingsWriter {
     writer.name("OTEL_TRACES_SAMPLER").value(name);
     // omitted for the samplers without a ratio
     writer.name("OTEL_TRACES_SAMPLER_ARG").value(ratio);
+    if (rateLimited) {
+      // the traces kept by a rule, including the default rate, are dropped above this limit
+      writer.name("DD_TRACE_RATE_LIMIT").value(config.getTraceRateLimit());
+    }
   }
 
   /**
@@ -231,36 +220,6 @@ final class OtelStartupLogSettingsWriter {
 
   private static String protocolName(OtlpConfig.Protocol protocol) {
     return protocol.name().toLowerCase(Locale.ROOT).replace('_', '/');
-  }
-
-  /** Parses an OTLP protocol the way the signal settings are, defaulting to HTTP/protobuf. */
-  private static OtlpConfig.Protocol parseProtocol(@Nullable String protocol) {
-    if (protocol != null) {
-      try {
-        return OtlpConfig.Protocol.valueOf(protocol.replace('/', '_').toUpperCase(Locale.ROOT));
-      } catch (IllegalArgumentException ignored) {
-        // invalid protocols fall back to the default, like the signal settings
-      }
-    }
-    return OtlpConfig.Protocol.HTTP_PROTOBUF;
-  }
-
-  /** Returns the names of OTLP headers listed as comma-separated {@code name=value} entries. */
-  private static Collection<String> headerNames(@Nullable String headers) {
-    Collection<String> names = new ArrayList<>();
-    if (headers != null) {
-      for (CharSequence subSequence : Strings.split(headers, ',')) {
-        String entry = subSequence.toString();
-        int separator = entry.indexOf('=');
-        if (separator > 0) {
-          String name = entry.substring(0, separator).trim();
-          if (!name.isEmpty()) {
-            names.add(name);
-          }
-        }
-      }
-    }
-    return names;
   }
 
   /**

@@ -34,6 +34,7 @@ class OtelStartupLogSettingsWriterTest extends DDJavaSpecification {
     assertEquals(false, startupLog.get("DD_METRICS_OTEL_ENABLED"));
     assertEquals(false, startupLog.get("DD_LOGS_OTEL_ENABLED"));
     assertEquals("none", startupLog.get("OTEL_TRACES_EXPORTER"));
+    assertEquals("none", startupLog.get("OTEL_METRICS_EXPORTER"));
     assertEquals("none", startupLog.get("OTEL_LOGS_EXPORTER"));
     assertTrue(startupLog.containsKey("OTEL_LOG_LEVEL"));
     assertEquals(Config.get().getServiceName(), startupLog.get("OTEL_SERVICE_NAME"));
@@ -90,6 +91,7 @@ class OtelStartupLogSettingsWriterTest extends DDJavaSpecification {
     assertEquals(true, startupLog.get("DD_METRICS_OTEL_ENABLED"));
     assertEquals(true, startupLog.get("DD_LOGS_OTEL_ENABLED"));
     assertEquals("otlp", startupLog.get("OTEL_TRACES_EXPORTER"));
+    assertEquals("otlp", startupLog.get("OTEL_METRICS_EXPORTER"));
     assertEquals("otlp", startupLog.get("OTEL_LOGS_EXPORTER"));
     assertEquals("tracecontext,baggage", startupLog.get("OTEL_PROPAGATORS"));
     assertEquals("parentbased_always_on", startupLog.get("OTEL_TRACES_SAMPLER"));
@@ -169,6 +171,7 @@ class OtelStartupLogSettingsWriterTest extends DDJavaSpecification {
     Map<String, Object> startupLog = startupLog();
 
     assertTrue(startupLog.containsKey("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT"));
+    assertEquals("none", startupLog.get("OTEL_METRICS_EXPORTER"));
     assertFalse(startupLog.containsKey("OTEL_METRIC_EXPORT_INTERVAL"));
     assertFalse(startupLog.containsKey("OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE"));
   }
@@ -194,20 +197,20 @@ class OtelStartupLogSettingsWriterTest extends DDJavaSpecification {
   }
 
   @TableTest({
-    "scenario        | key                     | value                                       | sampler                      | arg ",
-    "no settings     |                         |                                             | datadog_agent_rates          |     ",
-    "rate 0          | trace.sample.rate       | 0                                           | parentbased_always_off       |     ",
-    "rate 1          | trace.sample.rate       | 1                                           | parentbased_always_on        |     ",
-    "ratio           | trace.sample.rate       | 0.25                                        | parentbased_traceidratio     | 0.25",
-    "rules           | trace.sampling.rules    | '[{\"service\":\"a\",\"sample_rate\":0.5}]' | datadog_custom_rules         |     ",
-    "OTLP export     | trace.otel.exporter     | otlp                                        | parentbased_always_on        |     ",
-    "force keep      | priority.sampling.force | keep                                        | parentbased_always_on        |     ",
-    "force drop      | priority.sampling.force | drop                                        | parentbased_always_off       |     ",
-    "no priority     | priority.sampling       | false                                       | always_on                    |     ",
-    "APM tracing off | apm.tracing.enabled     | false                                       | datadog_apm_tracing_disabled |     "
+    "scenario        | key                     | value                                       | sampler                      | arg  | rateLimit",
+    "no settings     |                         |                                             | datadog_agent_rates          |      |          ",
+    "rate 0          | trace.sample.rate       | 0                                           | parentbased_always_off       |      | 100      ",
+    "rate 1          | trace.sample.rate       | 1                                           | parentbased_always_on        |      | 100      ",
+    "ratio           | trace.sample.rate       | 0.25                                        | parentbased_traceidratio     | 0.25 | 100      ",
+    "rules           | trace.sampling.rules    | '[{\"service\":\"a\",\"sample_rate\":0.5}]' | datadog_custom_rules         |      | 100      ",
+    "OTLP export     | trace.otel.exporter     | otlp                                        | parentbased_always_on        |      |          ",
+    "force keep      | priority.sampling.force | keep                                        | parentbased_always_on        |      |          ",
+    "force drop      | priority.sampling.force | drop                                        | parentbased_always_off       |      |          ",
+    "no priority     | priority.sampling       | false                                       | always_on                    |      |          ",
+    "APM tracing off | apm.tracing.enabled     | false                                       | datadog_apm_tracing_disabled |      |          "
   })
-  void samplerIsTheRootSampler(String key, String value, String sampler, Double arg)
-      throws IOException {
+  void samplerIsTheRootSampler(
+      String key, String value, String sampler, Double arg, Integer rateLimit) throws IOException {
     if (key != null) {
       injectSysConfig(key, value);
     }
@@ -216,6 +219,10 @@ class OtelStartupLogSettingsWriterTest extends DDJavaSpecification {
     assertEquals(sampler, startupLog.get("OTEL_TRACES_SAMPLER"));
     Object samplerArg = startupLog.get("OTEL_TRACES_SAMPLER_ARG");
     assertEquals(arg, samplerArg == null ? null : ((Number) samplerArg).doubleValue());
+    // only the traces kept by rules are rate limited
+    Object samplerRateLimit = startupLog.get("DD_TRACE_RATE_LIMIT");
+    assertEquals(
+        rateLimit, samplerRateLimit == null ? null : ((Number) samplerRateLimit).intValue());
   }
 
   @TableTest({
