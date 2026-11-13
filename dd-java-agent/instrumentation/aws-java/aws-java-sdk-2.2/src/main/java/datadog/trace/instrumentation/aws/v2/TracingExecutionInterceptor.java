@@ -13,6 +13,7 @@ import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.context.propagation.Propagators;
 import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstanceStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -98,6 +99,10 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
   @Override
   public void beforeTransmission(
       final BeforeTransmission context, final ExecutionAttributes executionAttributes) {
+    if (!InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+      // Non-legacy activation is paired with restoration in the HTTP stage advice.
+      return;
+    }
     final AgentSpan span;
     if (!AWS_LEGACY_TRACING) {
       span = blackholeSpan();
@@ -179,6 +184,11 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
     return null != response
         && "software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse"
             .equals(response.getClass().getName());
+  }
+
+  /** Closes the legacy scope activated in {@link #beforeTransmission}. */
+  public static void closeActiveScope() {
+    AgentTracer.get().closeActive();
   }
 
   public static void muzzleCheck() {

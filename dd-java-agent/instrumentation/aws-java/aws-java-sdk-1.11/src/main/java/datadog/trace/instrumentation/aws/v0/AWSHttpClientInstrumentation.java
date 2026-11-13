@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.aws.v0;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.currentContext;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.aws.v0.OnErrorDecorator.CONTEXT_CONTEXT_KEY;
 import static datadog.trace.instrumentation.aws.v0.OnErrorDecorator.DECORATE;
@@ -11,7 +12,9 @@ import com.amazonaws.AmazonClientException;
 import com.amazonaws.Request;
 import com.amazonaws.handlers.RequestHandler2;
 import datadog.context.Context;
+import datadog.context.ContextHandle;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import net.bytebuddy.asm.Advice;
@@ -42,17 +45,29 @@ public class AWSHttpClientInstrumentation
   }
 
   public static class HttpClientAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static ContextHandle methodEnter() {
+      return InstrumenterConfig.get().isLegacyContextManagerEnabled()
+          ? null
+          : currentContext().checkpoint();
+    }
+
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void methodExit(
+        @Advice.Enter final ContextHandle previousContext,
         @Advice.Argument(value = 0, optional = true) final Request<?> request,
         @Advice.Thrown final Throwable throwable) {
 
-      final AgentSpan activeSpan = activeSpan();
-      // check name in case TracingRequestHandler failed to activate the span
-      if (activeSpan != null
-          && (AwsNameCache.spanName(request).equals(activeSpan.getSpanName())
-              || !activeSpan.isValid())) {
-        AgentTracer.get().closeActive();
+      if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+        final AgentSpan activeSpan = activeSpan();
+        // check name in case TracingRequestHandler failed to activate the span
+        if (activeSpan != null
+            && (AwsNameCache.spanName(request).equals(activeSpan.getSpanName())
+                || !activeSpan.isValid())) {
+          AgentTracer.get().closeActive();
+        }
+      } else if (previousContext != null) {
+        previousContext.swap();
       }
 
       if (throwable != null && request != null) {

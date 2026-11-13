@@ -451,3 +451,11 @@ class LegacyAWS1ClientForkedTest extends InstrumentationSpecification {
     server.close()
   }
 }
+
+class ContextSwapLegacyAWS1ClientForkedTest extends LegacyAWS1ClientForkedTest {
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("legacy.context-manager.enabled", "false")
+  }
+}
