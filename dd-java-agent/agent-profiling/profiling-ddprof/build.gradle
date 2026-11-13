@@ -25,6 +25,16 @@ excludedClassesCoverage += [
   'com.datadog.profiling.ddprof.DatadogProfilerRecordingData',
 ]
 
+// TODO: Cover these classes, then remove them from the coverage baseline (APMLP-2263)
+excludedClassesBranchCoverage += [
+  'com.datadog.profiling.ddprof.DatadogProfilingScope',
+  'com.datadog.profiling.ddprof.QueueTimeTracker',
+]
+excludedClassesInstructionCoverage += [
+  'com.datadog.profiling.ddprof.DatadogProfilingIntegration.NoOpEndpointTracker',
+  'com.datadog.profiling.ddprof.QueueTimeTracker',
+]
+
 dependencies {
   api project(':dd-java-agent:agent-profiling:profiling-controller')
   api project(':dd-java-agent:agent-profiling:profiling-utils')

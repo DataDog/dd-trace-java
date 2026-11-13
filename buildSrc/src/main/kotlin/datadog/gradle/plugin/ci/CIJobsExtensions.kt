@@ -1,5 +1,8 @@
 package datadog.gradle.plugin.ci
 
+import datadog.gradle.plugin.testJvmConstraints.CHECK_COVERAGE
+import datadog.gradle.plugin.testJvmConstraints.CHECK_COVERAGE_ON_FIRST_TEST_JVM
+import datadog.gradle.plugin.testJvmConstraints.checksCoverage
 import org.gradle.api.Project
 import org.gradle.api.Task
 import org.gradle.api.provider.Provider
@@ -96,7 +99,9 @@ private fun Project.createRootTask(
   excludePrefixes: List<String>,
   forceCoverage: Boolean
 ) {
-  val coverage = forceCoverage || rootProject.providers.gradleProperty("checkCoverage").isPresent
+  val checkCoverage = forceCoverage || rootProject.providers.gradleProperty(CHECK_COVERAGE).isPresent
+  val checkCoverageOnFirstTestJvm = rootProject.providers.gradleProperty(CHECK_COVERAGE_ON_FIRST_TEST_JVM).isPresent
+  val testJvm = rootProject.providers.gradleProperty("testJvm").orNull
   tasks.register(rootTaskName) {
     subprojects.forEach { subproject ->
       if (
@@ -125,7 +130,7 @@ private fun Project.createRootTask(
           }
         }
 
-        if (isAffected && coverage) {
+        if (isAffected && subproject.checksCoverage(checkCoverage, checkCoverageOnFirstTestJvm, testJvm)) {
           val coverageTask = subproject.tasks.findByName("jacocoTestReport")
           if (coverageTask != null) {
             dependsOn(coverageTask)

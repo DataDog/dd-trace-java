@@ -1020,11 +1020,9 @@ test_base:
   variables:
     GRADLE_TARGET: ":baseTest"
     CACHE_TYPE: "base"
+    GRADLE_PARAMS: "-PskipFlakyTests -PcheckCoverageOnFirstTestJvm"
   parallel:
     matrix: *test_matrix_4
-  script:
-    - if [ "$testJvm" == "8" ]; then export GRADLE_PARAMS="-PskipFlakyTests -PcheckCoverage"; fi
-    - !reference [.test_job_common, script]
 
 test_base_arm64:
   extends: .test_job_arm64
@@ -1137,6 +1135,7 @@ test_profiling:
   variables:
     GRADLE_TARGET: ":profilingTest"
     CACHE_TYPE: "profiling"
+    GRADLE_PARAMS: "-PskipFlakyTests -PcheckCoverageOnFirstTestJvm"
   parallel:
     matrix: *test_matrix
 
