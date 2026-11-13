@@ -6,6 +6,8 @@ import unittest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from benchmark_pr import (
     MARKER_RE,
+    NO_PERF_IMPACT_LABEL,
+    check_pr,
     format_number,
     missing_classes,
     parse_benchmark_list,
@@ -166,6 +168,57 @@ class SectionTest(unittest.TestCase):
         text = self.section([], [result("x.TableBenchmark.added", 5.0)])
         row = [line for line in text.splitlines() if "TableBenchmark.added" in line][0]
         self.assertIn("| – |", row)
+
+
+class CheckTest(unittest.TestCase):
+    RULES = parse_mapping("lib/Table.java :lib TableBenchmark\nlib/Store.java :lib StoreBenchmark\n")
+    HEAD = "c" * 40
+
+    def body(self, benchmarks="TableBenchmark", head=None):
+        return (
+            "Some description.\n\n## Benchmarks\n\n"
+            f"<!-- benchmark-pr: base={'a' * 40} head={head or self.HEAD} benchmarks={benchmarks} -->\n"
+        )
+
+    def check(self, changed, body, labels=(), changed_since=lambda sha: []):
+        return check_pr(self.RULES, changed, body, list(labels), changed_since)
+
+    def test_unmapped_changes_pass_without_a_section(self):
+        self.assertTrue(self.check(["docs/x.md"], "")[0])
+
+    def test_missing_section_fails_and_names_the_benchmarks(self):
+        ok, message = self.check(["lib/Table.java"], "No numbers.")
+        self.assertFalse(ok)
+        self.assertIn("`TableBenchmark`", message)
+
+    def test_section_missing_one_required_benchmark_fails(self):
+        ok, message = self.check(["lib/Table.java", "lib/Store.java"], self.body())
+        self.assertFalse(ok)
+        self.assertIn("`StoreBenchmark`", message)
+
+    def test_current_results_pass(self):
+        self.assertTrue(self.check(["lib/Table.java"], self.body())[0])
+
+    def test_results_for_a_commit_outside_the_history_fail(self):
+        ok, message = self.check(["lib/Table.java"], self.body(), changed_since=lambda sha: None)
+        self.assertFalse(ok)
+        self.assertIn("isn't in this pull request's history", message)
+
+    def test_benchmarked_code_changed_after_the_results_fails(self):
+        ok, message = self.check(
+            ["lib/Table.java"], self.body(), changed_since=lambda sha: ["lib/Table.java", "x.md"]
+        )
+        self.assertFalse(ok)
+        self.assertIn("`lib/Table.java`", message)
+        self.assertNotIn("x.md", message)
+
+    def test_other_changes_after_the_results_pass(self):
+        self.assertTrue(
+            self.check(["lib/Table.java"], self.body(), changed_since=lambda sha: ["README.md"])[0]
+        )
+
+    def test_the_label_skips_the_requirement(self):
+        self.assertTrue(self.check(["lib/Table.java"], "", labels=[NO_PERF_IMPACT_LABEL])[0])
 
 
 if __name__ == "__main__":

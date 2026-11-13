@@ -9,6 +9,7 @@ section for the pull request description.
     tooling/benchmark_pr.py required            # list the benchmarks this branch needs
     tooling/benchmark_pr.py run                 # run them on base and head, print the section
     tooling/benchmark_pr.py run -- -f 1 -wi 2   # extra arguments go to JMH, for a spot check
+    tooling/benchmark_pr.py check ...           # the pull request check (see its --help)
 
 The section starts with a marker comment recording the base and head commits and the benchmarks
 run, so a reader (or a check) can tell which commit the results describe.
@@ -31,6 +32,7 @@ MARKER_RE = re.compile(
     r"\s+benchmarks=(?P<benchmarks>[A-Za-z0-9_,]*)\s*-->"
 )
 ALLOC_METRIC = "gc.alloc.rate.norm"
+NO_PERF_IMPACT_LABEL = "tag: no perf impact"
 
 
 class Rule:
@@ -279,6 +281,73 @@ def environment_line():
     return f"JDK: {jdk}. Machine: {platform.system()} {platform.machine()}, {os.cpu_count()} CPUs."
 
 
+def check_pr(rules, changed, body, labels, changed_since):
+    """Whether a pull request carries the benchmark results its changes require.
+
+    Args:
+      changed: the paths the pull request changes.
+      body: its description.
+      labels: its label names.
+      changed_since: maps a commit to the paths changed between it and the pull request's head, or
+        None when the commit isn't in the head's history.
+
+    Returns:
+      (ok, message), the message saying what is required and what is missing.
+    """
+    required = required_benchmarks(rules, changed)
+    if not required:
+        return True, "This pull request changes no code that requires benchmark results."
+    names = benchmark_names(required)
+    listed = ", ".join(f"`{n}`" for n in names)
+    if NO_PERF_IMPACT_LABEL in labels:
+        return True, f"Required benchmarks ({listed}) skipped: `{NO_PERF_IMPACT_LABEL}` label."
+    marker = MARKER_RE.search(body or "")
+    if not marker:
+        return False, f"No `## Benchmarks` section with results for {listed}."
+    recorded = set(filter(None, marker["benchmarks"].split(",")))
+    missing = [n for n in names if n not in recorded]
+    if missing:
+        return False, "The `## Benchmarks` section has no results for " + ", ".join(
+            f"`{n}`" for n in missing
+        ) + "."
+    since = changed_since(marker["head"])
+    if since is None:
+        return False, (
+            f"The results are for commit `{marker['head'][:10]}`, which isn't in this pull "
+            "request's history. Rerun them."
+        )
+    stale = sorted(p for p in since if any(rule.matches(p) for rule in rules))
+    if stale:
+        return False, (
+            f"Benchmarked code changed after the results (commit `{marker['head'][:10]}`): "
+            + ", ".join(f"`{p}`" for p in stale)
+            + ". Rerun them."
+        )
+    return True, f"Benchmark results present for {listed}."
+
+
+def command_check(args):
+    base = git("merge-base", args.base, args.head)
+
+    def changed_since(sha):
+        try:
+            full = git("rev-parse", "--verify", f"{sha}^{{commit}}")
+            git("merge-base", "--is-ancestor", full, args.head)
+        except subprocess.CalledProcessError:
+            return None
+        return changed_paths(full, args.head)
+
+    ok, message = check_pr(
+        load_rules(),
+        changed_paths(base, args.head),
+        Path(args.body_file).read_text(),
+        [label for label in args.labels.split(",") if label],
+        changed_since,
+    )
+    print(message)
+    return 0 if ok else 1
+
+
 def command_required(args):
     base = merge_base(args.base)
     required = required_benchmarks(load_rules(), changed_paths(base))
@@ -353,8 +422,14 @@ def main(argv=None):
         p = sub.add_parser(name, help=help_text)
         p.add_argument("--base", help="base ref (default: the upstream master's merge base)")
     sub.choices["run"].add_argument("jmh_args", nargs="*", help="extra JMH arguments, after --")
+    check = sub.add_parser("check", help="whether a pull request carries the results it requires")
+    check.add_argument("--base", required=True, help="the pull request's base commit")
+    check.add_argument("--head", required=True, help="the pull request's head commit")
+    check.add_argument("--body-file", required=True, help="a file holding its description")
+    check.add_argument("--labels", default="", help="its labels, comma-separated")
     args = parser.parse_args(argv)
-    return {"required": command_required, "run": command_run}[args.command](args)
+    commands = {"required": command_required, "run": command_run, "check": command_check}
+    return commands[args.command](args)
 
 
 if __name__ == "__main__":
