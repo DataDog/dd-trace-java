@@ -1,7 +1,6 @@
 import com.diffplug.gradle.spotless.GroovyExtension
 import datadog.gradle.plugin.HostPlatform
 import datadog.gradle.plugin.ci.testAggregate
-import datadog.gradle.plugin.testing.CheckTestAgentResults
 
 plugins {
   kotlin("jvm") version libs.versions.kotlin.plugin apply false
@@ -25,8 +24,6 @@ plugins {
 }
 
 description = "dd-trace-java"
-
-tasks.register<CheckTestAgentResults>("checkTestAgentResults")
 
 val isCI = providers.environmentVariable("CI")
 
@@ -177,7 +174,12 @@ allprojects {
 testAggregate("smoke", listOf(":dd-smoke-tests"), emptyList())
 testAggregate("instrumentation", listOf(":dd-java-agent:instrumentation"), emptyList())
 testAggregate("profiling", listOf(":dd-java-agent:agent-profiling"), emptyList())
-testAggregate("debugger", listOf(":dd-java-agent:agent-debugger"), forceCoverage = true)
+// Flaky-only runs do not exercise the full suite required by the coverage thresholds.
+testAggregate(
+  "debugger",
+  listOf(":dd-java-agent:agent-debugger"),
+  forceCoverage = !providers.gradleProperty("runFlakyTests").isPresent
+)
 testAggregate(
   "base",
   listOf(":"),

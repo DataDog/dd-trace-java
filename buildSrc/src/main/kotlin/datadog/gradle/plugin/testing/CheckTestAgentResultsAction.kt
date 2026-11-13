@@ -44,7 +44,7 @@ fun Test.configureTestAgentPostChecks() {
   )
 }
 
-/** Resolves the same job endpoint for per-Test checks and the final live check. */
+/** Resolves the job's Test Agent endpoint. */
 internal fun ProviderFactory.testAgentUrl(): Provider<String> =
   environmentVariable("CI_AGENT_HOST").zip(environmentVariable("CI_TEST_AGENT_PORT").orElse("8126")) { host, value ->
     val port = value.toIntOrNull()?.takeIf { it in 1..65535 }

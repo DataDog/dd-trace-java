@@ -1,5 +1,6 @@
 import datadog.gradle.plugin.testing.GeneratedGroovyClosureSpec
 import datadog.gradle.plugin.testing.configureTestAgentPostChecks
+import datadog.gradle.plugin.testing.configureTestFailurePolicy
 import org.gradle.api.plugins.jvm.JvmTestSuite
 import org.gradle.api.services.BuildService
 import org.gradle.api.services.BuildServiceParameters
@@ -45,6 +46,7 @@ val isMasterBranch = providers.environmentVariable("CI_COMMIT_BRANCH")
 
 // Go through the Test tasks and configure them
 tasks.withType<Test>().configureEach {
+  configureTestFailurePolicy()
   configureTestAgentPostChecks()
 
   // Test suites get the JUnit Platform from `useJUnitJupiter()` above, but tasks registered with
