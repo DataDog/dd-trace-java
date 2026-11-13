@@ -202,9 +202,8 @@ public final class TestAgentBackend extends AgentBackend {
   public void close() {
     GenericContainer<?> running = this.container;
     try {
-      // Container backends auto-validate their trace-invariant checks at teardown. External CI
-      // agents are validated by the job-final .gitlab/check_test_agent_results.sh instead, so we
-      // don't check them here. Run before stopping so the agent is still reachable.
+      // Validate container-backed agents before stopping them. External CI agents are validated
+      // by Gradle's post-test action across all sessions.
       if (running != null) {
         assertNoInvariantFailures();
       }
@@ -239,7 +238,7 @@ public final class TestAgentBackend extends AgentBackend {
     try (Response response = this.client.newCall(request).execute()) {
       int code = response.code();
       // 200 => all checks passed; 404 => a real agent is running (no checks). Anything else is a
-      // recorded failure, whose body describes the failing check(s) (see check_test_agent_results).
+      // recorded failure, whose body describes the failing check(s).
       if (code == 200 || code == 404) {
         return;
       }

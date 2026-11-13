@@ -2,7 +2,7 @@ package datadog.gradle.plugin.testing
 
 import org.gradle.api.tasks.testing.Test
 
-/** Tolerates CI test failures without reusing or caching potentially failing results. */
+/** Tolerates reported test failures for flaky CI jobs without reusing or caching their results. */
 fun Test.configureTestFailurePolicy() {
   val tolerateFailures = project.providers.environmentVariable("CONTINUE_ON_FAILURE")
     .map { it == "true" }.orElse(false)

@@ -3,6 +3,7 @@ package datadog.smoketest.backend;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonMap;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -93,9 +94,9 @@ class TestAgentBackendTest {
     environment.put("CI_AGENT_HOST", "localhost");
     environment.put("CI_TEST_AGENT_PORT", "invalid");
     environment.put("DATADOG_SMOKETEST_TESTAGENT_IMAGE", "test-agent:local");
-    assertNotNull(new TestAgentBackend.Builder(environment).build());
-    assertNotNull(
-        new TestAgentBackend.Builder(singletonMap("CI_TEST_AGENT_PORT", "invalid")).build());
+    assertDoesNotThrow(() -> new TestAgentBackend.Builder(environment).build());
+    assertDoesNotThrow(
+        () -> new TestAgentBackend.Builder(singletonMap("CI_TEST_AGENT_PORT", "invalid")).build());
   }
 
   @Test

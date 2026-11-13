@@ -797,7 +797,7 @@ muzzle-dep-report:
   variables:
     <<: *tier_m_variables
     GRADLE_PARAMS: "-PskipFlakyTests"
-    # Gradle tolerates test assertions only; build and trace-validation failures remain fatal.
+    # When enabled, Gradle tolerates reported test failures; build and trace-validation errors fail the job.
     CONTINUE_ON_FAILURE: "false"
     TEST_JVM_ARGS: ""
     TESTCONTAINERS_CHECKS_DISABLE: "true"

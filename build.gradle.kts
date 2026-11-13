@@ -178,7 +178,8 @@ testAggregate("profiling", listOf(":dd-java-agent:agent-profiling"), emptyList()
 testAggregate(
   "debugger",
   listOf(":dd-java-agent:agent-debugger"),
-  forceCoverage = !providers.gradleProperty("runFlakyTests").isPresent
+  forceCoverage = !providers.gradleProperty("runFlakyTests").isPresent ||
+    providers.gradleProperty("skipFlakyTests").isPresent
 )
 testAggregate(
   "base",
