@@ -4,6 +4,7 @@ import static datadog.trace.api.git.RawParseUtils.decode;
 import static datadog.trace.api.git.RawParseUtils.nextLF;
 
 import datadog.environment.OperatingSystem;
+import datadog.environment.SystemProperties;
 import datadog.trace.util.Strings;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -49,9 +50,20 @@ public class GitUtils {
 
   private static final Logger log = LoggerFactory.getLogger(GitUtils.class);
 
-  /** Charset for Git filesystem paths: UTF-8 on Windows, the native charset elsewhere. */
+  /** Charset for Git filesystem paths: UTF-8 on Windows, the JDK filesystem charset elsewhere. */
   public static Charset getFilesystemCharset() {
-    return OperatingSystem.isWindows() ? StandardCharsets.UTF_8 : OperatingSystem.nativeCharset();
+    if (OperatingSystem.isWindows()) {
+      return StandardCharsets.UTF_8;
+    }
+    // The JDK filesystem charset can differ from native.encoding, notably on macOS.
+    String encoding = SystemProperties.get("sun.jnu.encoding");
+    if (encoding != null) {
+      try {
+        return Charset.forName(encoding);
+      } catch (IllegalArgumentException ignored) {
+      }
+    }
+    return OperatingSystem.nativeCharset();
   }
 
   /** Decode valid UTF-8 metadata first, falling back to the local Git charset for legacy bytes. */
@@ -59,7 +71,9 @@ public class GitUtils {
     try {
       return StandardCharsets.UTF_8.newDecoder().decode(ByteBuffer.wrap(bytes)).toString();
     } catch (CharacterCodingException e) {
-      return new String(bytes, getFilesystemCharset());
+      return new String(
+          bytes,
+          OperatingSystem.isWindows() ? StandardCharsets.UTF_8 : OperatingSystem.nativeCharset());
     }
   }
 

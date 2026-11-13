@@ -63,13 +63,8 @@ class SmapEntryCacheTest {
   void readsPathnameWithoutReplacingBytes(
       String nativeCharset, String pathCharset, String pathname, String expectedPathname)
       throws Exception {
-    System.setProperty("native.encoding", nativeCharset);
-    Path smaps = directory.resolve("smaps");
-    Files.write(smaps, entry(pathname, Charset.forName(pathCharset)));
-
-    SmapEntryCache cache = new SmapEntryCache(Duration.ofHours(1), smaps);
-    cache.invalidate();
-    List<SmapEntryEvent> events = cache.getEvents();
+    List<SmapEntryEvent> events =
+        readSmaps(nativeCharset, entry(pathname, Charset.forName(pathCharset)));
 
     assertEquals(1, events.size());
     assertEquals(expectedPathname, events.get(0).pathname);
@@ -78,15 +73,10 @@ class SmapEntryCacheTest {
 
   @Test
   void preservesMixedPathEncodingsInRecording() throws Exception {
-    System.setProperty("native.encoding", "UTF-8");
     ByteArrayOutputStream contents = new ByteArrayOutputStream();
     contents.write(entry("/tmp/café.so", StandardCharsets.UTF_8));
     contents.write(entry("/tmp/café.so", StandardCharsets.ISO_8859_1));
-    Path smaps = directory.resolve("smaps");
-    Files.write(smaps, contents.toByteArray());
-    SmapEntryCache cache = new SmapEntryCache(Duration.ofHours(1), smaps);
-    cache.invalidate();
-    List<SmapEntryEvent> events = cache.getEvents();
+    List<SmapEntryEvent> events = readSmaps("UTF-8", contents.toByteArray());
     assertEquals(2, events.size());
 
     Path recordingPath = directory.resolve("smaps.jfr");
@@ -114,16 +104,19 @@ class SmapEntryCacheTest {
 
   @Test
   void preservesDecodedPathsWhenLaterMappingIsMalformed() throws Exception {
-    System.setProperty("native.encoding", "UTF-8");
     ByteArrayOutputStream contents = new ByteArrayOutputStream();
     contents.write(entry("/tmp/café.so", StandardCharsets.UTF_8));
     contents.write("00400000-\n".getBytes(StandardCharsets.US_ASCII));
+    assertEquals("/tmp/café.so", readSmaps("UTF-8", contents.toByteArray()).get(0).pathname);
+  }
+
+  private List<SmapEntryEvent> readSmaps(String nativeEncoding, byte[] contents) throws Exception {
+    System.setProperty("native.encoding", nativeEncoding);
     Path smaps = directory.resolve("smaps");
-    Files.write(smaps, contents.toByteArray());
+    Files.write(smaps, contents);
     SmapEntryCache cache = new SmapEntryCache(Duration.ofHours(1), smaps);
     cache.invalidate();
-
-    assertEquals("/tmp/café.so", cache.getEvents().get(0).pathname);
+    return cache.getEvents();
   }
 
   @Test

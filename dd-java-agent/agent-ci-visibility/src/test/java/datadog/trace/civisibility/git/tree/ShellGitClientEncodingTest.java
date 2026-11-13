@@ -3,6 +3,7 @@ package datadog.trace.civisibility.git.tree;
 import static datadog.environment.JavaVirtualMachine.isJavaVersionAtLeast;
 import static datadog.environment.OperatingSystem.isWindows;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
@@ -22,7 +23,6 @@ import java.lang.reflect.Field;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Collections;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -30,79 +30,122 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.api.parallel.ResourceLock;
 import org.junit.jupiter.api.parallel.Resources;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.tabletest.junit.TableTest;
 
 @ResourceLock(Resources.SYSTEM_PROPERTIES)
 class ShellGitClientEncodingTest {
+  private static final int GIT_COMMAND_TIMEOUT_MILLIS = 10_000;
+
   @TempDir Path directory;
   private String previousEncoding;
+  private String previousFilesystemEncoding;
+  private Charset actualFilesystemCharset;
 
   @BeforeEach
   void saveNativeEncoding() {
     previousEncoding = System.getProperty("native.encoding");
+    previousFilesystemEncoding = System.getProperty("sun.jnu.encoding");
+    actualFilesystemCharset =
+        previousFilesystemEncoding == null
+            ? Charset.defaultCharset()
+            : Charset.forName(previousFilesystemEncoding);
   }
 
   @AfterEach
   void restoreNativeEncoding() {
-    if (previousEncoding == null) {
-      System.clearProperty("native.encoding");
+    setEncoding("native.encoding", previousEncoding);
+    setEncoding("sun.jnu.encoding", previousFilesystemEncoding);
+  }
+
+  private static void setEncoding(String property, String encoding) {
+    if (encoding == null) {
+      System.clearProperty(property);
     } else {
-      System.setProperty("native.encoding", previousEncoding);
+      System.setProperty(property, encoding);
     }
   }
 
-  @ParameterizedTest
-  @ValueSource(strings = {"UTF-8", "ISO-8859-1"})
-  void readsFilesystemPathsUsingGitPathEncoding(String nativeEncoding) throws Exception {
-    System.setProperty("native.encoding", nativeEncoding);
-    String pathname = directory.resolve("café").toString();
-    Charset outputCharset = isWindows() ? UTF_8 : Charset.forName(nativeEncoding);
+  @TableTest({
+    "Scenario               | Native encoding     | Filesystem encoding | Expected encoding",
+    "UTF-8 filesystem       | UTF-8               | UTF-8               | UTF-8            ",
+    "Latin-1 filesystem     | ISO-8859-1          | ISO-8859-1          | ISO-8859-1       ",
+    "macOS with C locale    | US-ASCII            | UTF-8               | UTF-8            ",
+    "filesystem wins        | UTF-8               | ISO-8859-1          | ISO-8859-1       ",
+    "missing filesystem     | ISO-8859-1          |                     | ISO-8859-1       ",
+    "unsupported filesystem | ISO-8859-1          | unsupported-charset | ISO-8859-1       ",
+    "invalid filesystem     | ISO-8859-1          | invalid charset     | ISO-8859-1       ",
+    "empty filesystem       | ISO-8859-1          | ''                  | ISO-8859-1       ",
+    "JVM default fallback   | unsupported-charset |                     |                  "
+  })
+  void readsFilesystemPathsUsingGitPathEncoding(
+      String nativeEncoding, String filesystemEncoding, String expectedEncoding) throws Exception {
+    setEncoding("native.encoding", nativeEncoding);
+    setEncoding("sun.jnu.encoding", filesystemEncoding);
+    String pathname = directory + "/café";
+    Charset outputCharset =
+        isWindows()
+            ? UTF_8
+            : expectedEncoding == null
+                ? Charset.defaultCharset()
+                : Charset.forName(expectedEncoding);
+    // The mocked output need not be representable by this JVM's actual filesystem charset.
+    String expectedPathname = new String(pathname.getBytes(outputCharset), outputCharset);
     ShellGitClient client = clientWithOutput((pathname + "\n").getBytes(outputCharset));
 
-    assertEquals(pathname, client.getRepoRoot());
-    assertEquals(pathname, client.getGitFolder());
+    assertEquals(expectedPathname, client.getRepoRoot());
+    assertEquals(expectedPathname, client.getGitFolder());
 
     String diff = "diff --git café.java café.java\n@@ -1 +1 @@\n-old\n+new\n";
     assertTrue(
         GitDiffParser.parse(new ByteArrayInputStream(diff.getBytes(outputCharset)))
-            .contains("café.java", 1, 1));
+            .contains(new String("café.java".getBytes(outputCharset), outputCharset), 1, 1));
   }
 
   @TableTest({
-    "Scenario                | Native encoding | Metadata encoding | Value   ",
-    "UTF-8 host              | UTF-8           | UTF-8             | café    ",
-    "ASCII host              | US-ASCII        | UTF-8             | équipe  ",
-    "Latin-1 host            | ISO-8859-1      | UTF-8             | équipe  ",
-    "ASCII metadata          | US-ASCII        | US-ASCII          | team    ",
-    "legacy Latin-1 metadata | ISO-8859-1      | ISO-8859-1        | café    ",
-    "legacy Windows metadata | windows-1252    | windows-1252      | équipe-€"
+    "Scenario                 | Native encoding | Filesystem encoding | Metadata encoding | Value   ",
+    "UTF-8 host               | UTF-8           | UTF-8               | UTF-8             | café    ",
+    "ASCII host               | US-ASCII        | US-ASCII            | UTF-8             | équipe  ",
+    "Latin-1 host             | ISO-8859-1      | ISO-8859-1          | UTF-8             | équipe  ",
+    "ASCII metadata           | US-ASCII        | US-ASCII            | US-ASCII          | team    ",
+    "legacy Latin-1 metadata  | ISO-8859-1      | ISO-8859-1          | ISO-8859-1        | café    ",
+    "legacy Windows metadata  | windows-1252    | windows-1252        | windows-1252      | équipe-€",
+    "macOS with C locale      | US-ASCII        | UTF-8               | UTF-8             | équipe  ",
+    "legacy text, UTF-8 paths | ISO-8859-1      | UTF-8               | ISO-8859-1        | café    "
   })
   void readsMetadataIndependentOfFilesystemCharset(
-      String nativeEncoding, String metadataEncoding, String value) throws Exception {
+      String nativeEncoding, String filesystemEncoding, String metadataEncoding, String value)
+      throws Exception {
     Charset outputCharset = Charset.forName(metadataEncoding);
     assumeTrue(
         !isWindows() || UTF_8.equals(outputCharset) || "US-ASCII".equals(metadataEncoding),
         "Git for Windows uses UTF-8 for local names and config");
     System.setProperty("native.encoding", nativeEncoding);
+    System.setProperty("sun.jnu.encoding", filesystemEncoding);
     ShellGitClient client = clientWithOutput((value + "\n").getBytes(outputCharset));
 
     assertEquals(value, client.getCurrentBranch());
     assertEquals(value, client.getRemoteUrl("origin"));
-    assertEquals(Collections.singletonList(value), client.getTags("HEAD"));
+    assertEquals(singletonList(value), client.getTags("HEAD"));
     Charset commandCharset =
         isWindows()
             ? UTF_8
-            : isJavaVersionAtLeast(18) ? Charset.forName(nativeEncoding) : Charset.defaultCharset();
+            : isJavaVersionAtLeast(18)
+                ? Charset.forName(filesystemEncoding)
+                : Charset.defaultCharset();
     String commandRef = new String(value.getBytes(outputCharset), commandCharset);
     assertEquals(commandRef, client.getRemoteName());
     assertEquals(commandRef, client.detectDefaultBranch("origin"));
-    assertEquals(
-        Collections.singletonList(commandRef),
-        client.getBaseBranchCandidates(commandRef, "origin"));
+    assertEquals(singletonList(commandRef), client.getBaseBranchCandidates(commandRef, "origin"));
 
-    ShellCommandExecutor executor = new ShellCommandExecutor(directory.toFile(), 10_000);
+    // Property overrides above simulate decoding; the JVM's filesystem charset is fixed at startup.
+    Charset pathCharset = isWindows() ? UTF_8 : Charset.forName(filesystemEncoding);
+    String nativeRef = new String(("refs/heads/" + value).getBytes(outputCharset), pathCharset);
+    assumeTrue(
+        isWindows() || actualFilesystemCharset.newEncoder().canEncode(nativeRef),
+        "Fixture ref must be representable by this JVM's filesystem charset");
+
+    ShellCommandExecutor executor =
+        new ShellCommandExecutor(directory.toFile(), GIT_COMMAND_TIMEOUT_MILLIS);
     String sha = createCommit(executor);
     Path gitDirectory = directory.resolve(".git");
     Files.write(
@@ -111,9 +154,6 @@ class ShellGitClientEncodingTest {
     String remoteUrl = "https://example.com/" + value + "/repo.git";
     Files.write(config, ("[remote \"origin\"]\nurl = " + remoteUrl + "\n").getBytes(outputCharset));
 
-    // Simulate native path decoding without changing this JVM's filesystem charset.
-    Charset pathCharset = isWindows() ? UTF_8 : Charset.forName(nativeEncoding);
-    String nativeRef = new String(("refs/heads/" + value).getBytes(outputCharset), pathCharset);
     Path ref = gitDirectory.resolve(nativeRef);
     Files.createDirectories(ref.getParent());
     Files.write(ref, (sha + "\n").getBytes(UTF_8));
@@ -135,9 +175,7 @@ class ShellGitClientEncodingTest {
         .when(executor)
         .executeCommand(any(), (String[]) any());
 
-    ShellGitClient client =
-        new ShellGitClient(
-            NoOpMetricCollector.INSTANCE, directory.toString(), "1 day ago", 10, 10_000);
+    ShellGitClient client = newClient();
     Field executorField = ShellGitClient.class.getDeclaredField("commandExecutor");
     executorField.setAccessible(true);
     executorField.set(client, executor);
@@ -146,7 +184,15 @@ class ShellGitClientEncodingTest {
 
   @Test
   void preservesRefBytesForSubsequentGitCommands() throws Exception {
-    ShellCommandExecutor executor = new ShellCommandExecutor(directory.toFile(), 10_000);
+    Charset argumentCharset =
+        isWindows() || isJavaVersionAtLeast(18)
+            ? actualFilesystemCharset
+            : Charset.defaultCharset();
+    assumeTrue(
+        argumentCharset.newEncoder().canEncode("équipe"),
+        "Fixture refs must be representable as this JVM's process arguments");
+    ShellCommandExecutor executor =
+        new ShellCommandExecutor(directory.toFile(), GIT_COMMAND_TIMEOUT_MILLIS);
     String sha = createCommit(executor);
     executor.executeCommand(
         ShellCommandExecutor.OutputParser.IGNORE,
@@ -168,9 +214,7 @@ class ShellGitClientEncodingTest {
         directory.resolve(".git/config"),
         "[remote \"équipe\"]\nurl = https://example.com/repo.git\n".getBytes(UTF_8));
 
-    ShellGitClient client =
-        new ShellGitClient(
-            NoOpMetricCollector.INSTANCE, directory.toString(), "1 day ago", 10, 10_000);
+    ShellGitClient client = newClient();
 
     assertEquals("équipe", client.getCurrentBranch());
     assertEquals(sha, client.getBaseCommitSha("main", null));
@@ -183,7 +227,8 @@ class ShellGitClientEncodingTest {
 
   @Test
   void readsUnicodeMetadataAndTagsWithConfiguredLegacyEncoding() throws Exception {
-    ShellCommandExecutor executor = new ShellCommandExecutor(directory.toFile(), 10_000);
+    ShellCommandExecutor executor =
+        new ShellCommandExecutor(directory.toFile(), GIT_COMMAND_TIMEOUT_MILLIS);
     String sha = createCommit(executor);
     executor.executeCommand(
         ShellCommandExecutor.OutputParser.IGNORE,
@@ -198,15 +243,22 @@ class ShellGitClientEncodingTest {
         "update-ref",
         "--stdin");
 
-    ShellGitClient client =
-        new ShellGitClient(
-            NoOpMetricCollector.INSTANCE, directory.toString(), "1 day ago", 10, 10_000);
+    ShellGitClient client = newClient();
     CommitInfo info = client.getCommitInfo(sha, false);
 
     assertEquals("René", info.getAuthor().getName());
     assertEquals("René", info.getCommitter().getName());
     assertEquals("café", info.getFullMessage());
-    assertEquals(Collections.singletonList("édition"), client.getTags(sha));
+    assertEquals(singletonList("édition"), client.getTags(sha));
+  }
+
+  private ShellGitClient newClient() {
+    return new ShellGitClient(
+        NoOpMetricCollector.INSTANCE,
+        directory.toString(),
+        "1 day ago",
+        10,
+        GIT_COMMAND_TIMEOUT_MILLIS);
   }
 
   private String createCommit(ShellCommandExecutor executor) throws Exception {
