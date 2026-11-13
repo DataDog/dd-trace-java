@@ -3,11 +3,15 @@ package datadog.gradle.plugin.testJvmConstraints
 import datadog.gradle.plugin.testJvmConstraints.TestJvmConstraintsExtension.Companion.TEST_JVM_CONSTRAINTS
 import org.assertj.core.api.Assertions.assertThat
 import org.gradle.api.JavaVersion
+import org.gradle.api.Project
+import org.gradle.api.internal.project.ProjectInternal
 import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.tasks.testing.Test as GradleTest
+import org.gradle.kotlin.dsl.getByType
 import org.gradle.testfixtures.ProjectBuilder
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.testing.jacoco.plugins.JacocoTaskExtension
+import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Test
 import java.nio.file.Paths
 
@@ -221,6 +225,61 @@ class TestJvmConstraintsPluginTest {
     )
 
     assertThat(jacocoExtension(testTask).isEnabled).isTrue()
+  }
+
+  @Test
+  fun `jacoco remains enabled on the coverage test JVM when coverage is checked on it`() {
+    val current = JavaVersion.current()
+    assumeTrue(isLongTermSupport(current.majorVersion.toInt()), "The current JVM must be an LTS version")
+    withProjectProperties(mapOf(TestJvmSpec.TEST_JVM to current.majorVersion, CHECK_COVERAGE_ON_FIRST_TEST_JVM to "")) {
+      val project = projectWithJacocoAndAnotherToolchain()
+      // Realize the test task before the constraint is set, as a build script would
+      val testTask = project.tasks.named("test", GradleTest::class.java).get()
+      project.extensions.getByType<TestJvmConstraintsExtension>().minJavaVersion.set(current)
+
+      (project as ProjectInternal).evaluate()
+
+      assertThat(jacocoExtension(testTask).isEnabled).isTrue()
+    }
+  }
+
+  @Test
+  fun `jacoco is disabled on another test JVM when coverage is checked on the coverage test JVM`() {
+    val current = JavaVersion.current()
+    assumeTrue(current.majorVersion != "8", "The current JVM must not be the coverage test JVM")
+    withProjectProperties(mapOf(TestJvmSpec.TEST_JVM to current.majorVersion, CHECK_COVERAGE_ON_FIRST_TEST_JVM to "")) {
+      val project = projectWithJacocoAndAnotherToolchain()
+      val testTask = project.tasks.named("test", GradleTest::class.java).get()
+
+      (project as ProjectInternal).evaluate()
+
+      assertThat(jacocoExtension(testTask).isEnabled).isFalse()
+    }
+  }
+
+  /** Returns a project whose toolchain differs from the current JVM, so `testJvm` overrides the test launcher. */
+  private fun projectWithJacocoAndAnotherToolchain(): Project {
+    val project = ProjectBuilder.builder().build()
+    project.pluginManager.apply("dd-trace-java.test-jvm-constraints")
+    project.pluginManager.apply("jacoco")
+    project.extensions.getByType(JavaPluginExtension::class.java).toolchain.languageVersion.set(JavaLanguageVersion.of(99))
+    return project
+  }
+
+  private fun withProjectProperties(properties: Map<String, String>, assertions: () -> Unit) {
+    val previousValues = properties.keys.associateWith { System.getProperty("org.gradle.project.$it") }
+    properties.forEach { (name, value) -> System.setProperty("org.gradle.project.$name", value) }
+    try {
+      assertions()
+    } finally {
+      previousValues.forEach { (name, previous) ->
+        if (previous == null) {
+          System.clearProperty("org.gradle.project.$name")
+        } else {
+          System.setProperty("org.gradle.project.$name", previous)
+        }
+      }
+    }
   }
 
   private fun testTaskWithJacoco(): GradleTest {

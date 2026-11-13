@@ -750,7 +750,7 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
   })
   void 'rasp blocks on SSRF'() {
     when:
-    String url = "http://localhost:${httpPort}/ssrf/${variant}?domain=169.254.169.254"
+    String url = "http://localhost:${httpPort}/ssrf/${variant}?${param}=" + URLEncoder.encode(value, StandardCharsets.UTF_8.name())
     def request = new Request.Builder()
       .url(url)
       .get()
@@ -783,12 +783,14 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     rootSpan.span.metaStruct.isEmpty()
 
     where:
-    variant               | _
-    'query'               | _
-    'okHttp3'             | _
-    'okHttp2'             | _
-    'apache-httpclient4'  | _
-    'commons-httpclient2' | _
+    variant               | param    | value
+    'query'               | 'domain' | '169.254.169.254'
+    'okHttp3'             | 'domain' | '169.254.169.254'
+    'okHttp2'             | 'domain' | '169.254.169.254'
+    'apache-httpclient4'  | 'domain' | '169.254.169.254'
+    'commons-httpclient2' | 'domain' | '169.254.169.254'
+    // libddwaf#522: the injected authority overlaps the URL scheme
+    'url'                 | 'url'    | 'http://169.254.169.254'
   }
 
   @IgnoreIf(reason = RASP_LFI_BOOT_ONLY, value = { AbstractAppSecServerSmokeTest.RUNTIME_ACTIVATION })

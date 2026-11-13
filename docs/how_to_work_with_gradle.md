@@ -1134,6 +1134,7 @@ tasks.named<Test>("latestDepTest") {
 | `includeJdk`                       | Restricts JDK names. The check fails when no entry is allowed. Set it on the test task: a project-level value is ignored. |
 | `excludeJdk`                       | Rejects listed JDK names, including forced JDKs.                                                                          |
 | `allowReflectiveAccessToJdk`       | Adds `--add-opens` flags for Java 16+ reflective access.                                                                  |
+| `coverageTestJvm`                  | Test JVM to check coverage on in CI, like `ORACLE8`. Defaults to the lowest allowed Java LTS version.                     |
 
 `checkTestJvmConstraints` runs with `check` and rejects unsatisfiable constraints.
 The JDK name lists apply when tests run with `-PtestJvm`.
@@ -1247,8 +1248,8 @@ Optimizes CI by skipping tests for projects unaffected by git changes.
 
 The system:
 - Detects changed files via `git diff`
-- Maps changes to affected projects
-- Skips tests for unchanged projects
+- Maps each changed file to the tasks building every source set containing it (compile, resources and classes tasks) in any project
+- Skips the aggregated tasks that depend on none of the affected tasks
 - Falls back to running all tests if "global effect" files change (e.g., `gradle/`, `build.gradle`)
 
 ### Root Aggregate Tasks
@@ -1273,6 +1274,19 @@ The root `build.gradle.kts` defines aggregate tasks that orchestrate testing acr
 > [!NOTE]
 > These root tasks are defined using `testAggregate()` in `build.gradle.kts`. They combine CI slot filtering,
 > git change tracking, and optional JaCoCo coverage into convenient entry points for CI pipelines.
+
+**Coverage:**
+
+- `-PcheckCoverage` collects coverage and runs each project's coverage verification on every test JVM.
+- `-PcheckCoverageOnFirstTestJvm` does the same only on the project's coverage test JVM: the lowest
+  Java LTS version its `test` task accepts, or its `testJvmConstraints.coverageTestJvm` when set.
+  CI tests every LTS version and runs `baseTest` and `profilingTest` with it on every test JVM, so
+  each project is checked once. Without `-PtestJvm`, it checks every project.
+
+```bash
+# Checks the coverage of projects whose tests first run on Java 11, like :dd-openfeature
+./gradlew baseTest -PtestJvm=11 -PcheckCoverageOnFirstTestJvm
+```
 
 ## Convention Plugins
 

@@ -27,6 +27,42 @@ configure<TestJvmConstraintsExtension> {
   minJavaVersion.set(JavaVersion.VERSION_11)
 }
 
+// TODO: Cover these classes, then remove them from the coverage baseline (APMLP-2264)
+extra["excludedClassesBranchCoverage"] = listOf(
+  "com.datadog.openfeature.DebugLoggingHook",
+  "com.datadog.openfeature.FlagEvalLoggingHook",
+  "com.datadog.openfeature.FlagEvalMetrics",
+  "com.datadog.openfeature.FlagEvalMetricsHook",
+  "com.datadog.openfeature.Provider",
+  "com.datadog.openfeature.SpanEnrichmentHook",
+  "com.datadog.openfeature.internal.EventPipeline",
+  "com.datadog.openfeature.internal.JsonWriting",
+  "com.datadog.openfeature.internal.config.SdkVersion",
+  "com.datadog.openfeature.internal.delivery.CdnConfigurationSource",
+  "com.datadog.openfeature.internal.delivery.DirectIntakeTransport",
+  "com.datadog.openfeature.internal.delivery.HttpCall",
+  "com.datadog.openfeature.internal.delivery.RemoteConfigurationService",
+  "com.datadog.openfeature.internal.delivery.Retries",
+  "com.datadog.openfeature.internal.exposure.ExposureDeduplicationCache.Key",
+  "com.datadog.openfeature.internal.exposure.ExposurePipeline.ExposureSerializingHandler",
+  "com.datadog.openfeature.internal.flagevaluation.FlagEvalEvent",
+  "com.datadog.openfeature.internal.flagevaluation.FlagEvaluationPipeline",
+)
+extra["excludedClassesInstructionCoverage"] = listOf(
+  "com.datadog.openfeature.FlagEvalMetrics",
+  "com.datadog.openfeature.SpanEnrichmentHook",
+  "com.datadog.openfeature.internal.JsonWriting",
+  "com.datadog.openfeature.internal.bridge.v1.HealthMetrics",
+  "com.datadog.openfeature.internal.bridge.v1.SpanEnricher.1",
+  "com.datadog.openfeature.internal.config.SdkVersion",
+  "com.datadog.openfeature.internal.delivery.HttpCall",
+  "com.datadog.openfeature.internal.delivery.HttpCall.CancellableBodySubscriber",
+  "com.datadog.openfeature.internal.exposure.ExposureDeduplicationCache.Sent",
+  "com.datadog.openfeature.internal.flagevaluation.FlagEvalEvent",
+  "com.datadog.openfeature.internal.flagevaluation.FlagEvaluationPipeline.SerializingHandlerForTest",
+  "datadog.trace.api.openfeature.Provider",
+)
+
 java {
   toolchain {
     languageVersion = JavaLanguageVersion.of(11)
