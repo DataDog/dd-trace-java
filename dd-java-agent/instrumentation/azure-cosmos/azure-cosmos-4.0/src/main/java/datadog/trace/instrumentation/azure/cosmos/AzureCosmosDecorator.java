@@ -37,6 +37,11 @@ public class AzureCosmosDecorator
   static final String STATUS_CODE = "db.response.status_code";
   private static final String SUB_STATUS_HEADER = "x-ms-substatus";
   private static final Pair<String, String> NO_NAMES = Pair.of(null, null);
+  private static final int NOT_FOUND = 404;
+  private static final int GONE = 410;
+  private static final int TOO_MANY_REQUESTS = 429;
+  private static final int RETRY_WITH = 449;
+  private static final int PARTITION_KEY_RANGE_GONE = 1002;
 
   public static final AzureCosmosDecorator DECORATE = new AzureCosmosDecorator();
 
@@ -137,17 +142,41 @@ public class AzureCosmosDecorator
 
   @Override
   protected void doOnError(AgentSpan span, Throwable throwable, byte errorPriority) {
-    try {
+    if (!(throwable instanceof CosmosException)) {
       super.doOnError(span, throwable, errorPriority);
-    } finally {
-      if (throwable instanceof CosmosException) {
-        CosmosException cosmosException = (CosmosException) throwable;
-        int subStatus = cosmosException.getSubStatusCode();
-        if (subStatus != 0) {
-          span.setTag(SUB_STATUS_CODE, Integer.toString(subStatus));
-        }
-        span.setTag(STATUS_CODE, Integer.toString(cosmosException.getStatusCode()));
+      return;
+    }
+    CosmosException cosmosException = (CosmosException) throwable;
+    int status = cosmosException.getStatusCode();
+    int subStatus = cosmosException.getSubStatusCode();
+    try {
+      if (!isExpected(status, subStatus)) {
+        super.doOnError(span, throwable, errorPriority);
       }
+    } finally {
+      if (subStatus != 0) {
+        span.setTag(SUB_STATUS_CODE, Integer.toString(subStatus));
+      }
+      span.setTag(STATUS_CODE, Integer.toString(status));
+    }
+  }
+
+  /**
+   * Statuses that don't mark the span as an error: the SDK retries throttling (429), retry-with
+   * (449) and partition key range gone (410 with sub-status 1002) responses, and a 404 is often an
+   * expected result. The span is per request, so a retried attempt would otherwise show as an error
+   * even when the operation succeeds.
+   */
+  static boolean isExpected(int status, int subStatus) {
+    switch (status) {
+      case TOO_MANY_REQUESTS:
+      case RETRY_WITH:
+      case NOT_FOUND:
+        return true;
+      case GONE:
+        return subStatus == PARTITION_KEY_RANGE_GONE;
+      default:
+        return false;
     }
   }
 

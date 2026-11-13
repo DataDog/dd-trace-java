@@ -229,6 +229,40 @@ class AzureCosmosEmulatorForkedTest extends AbstractInstrumentationTest {
 
   @ParameterizedTest
   @ValueSource(strings = {"sync", "async"})
+  void notFoundIsNotTaggedAsError(String api) {
+    String db = newDatabaseName(api);
+    long parentId;
+    try (TestClient client = client(api)) {
+      client.createDatabase(db);
+      try {
+        client.createContainer(db);
+        parentId =
+            runUnderParent(() -> {
+              CosmosException thrown =
+                  assertThrows(CosmosException.class, () -> client.readItem(db, "missing"));
+              assertEquals(404, thrown.getStatusCode());
+            });
+      } finally {
+        client.deleteDatabase(db);
+      }
+    }
+
+    List<DDSpan> spans =
+        findInOrder(
+            cosmosSpans(traceOf(parentId)),
+            exact("Read /dbs/" + db + "/colls/" + CONTAINER + "/docs/?"));
+    DDSpan span = spans.get(0);
+    assertCommonTags(span, db);
+    assertAll(
+        () -> assertEquals(parentId, span.getParentId()),
+        () -> assertTrue(!span.isError(), "span should not be marked as error"),
+        () -> assertEquals("404", span.getTag(AzureCosmosDecorator.STATUS_CODE)),
+        () -> assertNull(span.getTag(DDTags.ERROR_MSG)),
+        () -> assertNull(span.getTag(DDTags.ERROR_TYPE)));
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"sync", "async"})
   void httpClientSpansAreChildrenOfCosmosSpans(String api) {
     String db = newDatabaseName(api);
     long parentId;
