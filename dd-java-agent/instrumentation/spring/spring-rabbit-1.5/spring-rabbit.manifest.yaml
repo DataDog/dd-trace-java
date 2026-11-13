@@ -1,8 +1,8 @@
 _v: 1
 name: spring-rabbit
 display_name: Spring Boot AMQP Starter
-description: Instruments Spring RabbitMQ message delivery and listener execution with trace
-  context propagation and consumer spans.
+description: Instruments RabbitMQ message delivery through Spring AMQP listener containers, carrying trace context
+  into consumer execution spans.
 packages:
 - name: org.springframework.boot:spring-boot-starter-amqp
 category:

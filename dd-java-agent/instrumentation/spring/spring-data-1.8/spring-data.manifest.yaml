@@ -1,8 +1,8 @@
 _v: 1
 name: spring-data
 display_name: Spring Data Core
-description: Instruments Spring Data repository operations with spans, error recording, and
-  optional code-origin capture.
+description: Instruments Spring Data repository operations with execution spans, error tracking, and code-origin
+  capture.
 packages:
 - name: org.springframework.data:spring-data-commons
 - name: org.springframework:spring-aop

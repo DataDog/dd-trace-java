@@ -1,8 +1,8 @@
 _v: 1
 name: spring-messaging
 display_name: Spring Messaging
-description: Instruments Spring message-handler execution with consumer spans, header-based
-  context extraction, and asynchronous context propagation, including Kotlin Kafka listeners.
+description: Instruments Spring message-handler execution with consumer spans and trace-context propagation, including
+  asynchronous results and Kotlin coroutine listeners for Kafka.
 packages:
 - name: org.springframework:spring-messaging
 category:
