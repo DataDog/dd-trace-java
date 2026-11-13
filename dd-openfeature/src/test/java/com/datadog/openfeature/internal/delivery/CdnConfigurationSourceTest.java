@@ -232,16 +232,16 @@ class CdnConfigurationSourceTest {
     if (skipped) {
       assertEquals(Level.DEBUG, logged.get(0).level);
       assertEquals(
-          "Feature Flags: the CDN cannot attribute usage to the APM name of service "
+          "Feature Flags: service "
               + service
-              + "; DD-Service header not sent",
+              + " has no ASCII APM name; DD-Service header not sent",
           logged.get(0).message);
     }
   }
 
   // The headers come from the Agent. Each one is the result of NormalizeService (datadog-agent
-  // v0.82.3), then of the CDN format check. A null header means that the request has no
-  // DD-Service header.
+  // v0.82.3). A null header means that the request has no DD-Service header, because the result is
+  // empty or is not ASCII.
   private static Stream<Arguments> servicesAndTheirHeader() {
     return Stream.of(
         arguments("checkout", "checkout"),
@@ -252,7 +252,7 @@ class CdnConfigurationSourceTest {
         arguments("a\tb", "a_b"),
         arguments("a  b!", "a_b"),
         arguments("svc ", "svc"),
-        arguments(" svc", null),
+        arguments(" svc", "_svc"),
         arguments("a_", "a"),
         arguments("svc-", "svc-"),
         arguments("a..b", "a..b"),
@@ -266,10 +266,10 @@ class CdnConfigurationSourceTest {
         arguments("a" + "b".repeat(100), "a" + "b".repeat(99)),
         arguments("a".repeat(100) + " b", "a".repeat(100)),
         arguments("a".repeat(99) + "é", "a".repeat(99)),
-        arguments("_svc", null),
-        arguments("-svc", null),
-        arguments(".svc", null),
-        arguments(":svc", null),
+        arguments("_svc", "_svc"),
+        arguments("-svc", "-svc"),
+        arguments(".svc", ".svc"),
+        arguments(":svc", ":svc"),
         arguments("café-api", null),
         arguments("Café", null),
         arguments("支付", null),
@@ -277,7 +277,7 @@ class CdnConfigurationSourceTest {
         arguments("İstanbul", null),
         arguments("é".repeat(60), null),
         arguments("___", null),
-        arguments("-", null),
+        arguments("-", "-"),
         arguments("", null),
         arguments("   ", null));
   }
@@ -303,7 +303,7 @@ class CdnConfigurationSourceTest {
   private static Stream<Arguments> tracerServicesAndTheirHeader() {
     return Stream.of(
         arguments("My Service", "my_service"),
-        arguments("_svc", null),
+        arguments("_svc", "_svc"),
         arguments("café-api", null));
   }
 

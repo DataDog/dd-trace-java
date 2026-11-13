@@ -25,7 +25,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.DoubleSupplier;
-import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,8 +42,6 @@ public final class CdnConfigurationSource implements ConfigurationService {
   private static final long SECOND_RETRY_MAX_MILLIS = 30_000;
   private static final double RETRY_JITTER = 0.2;
   private static final long WARNING_INTERVAL_NANOS = TimeUnit.MINUTES.toNanos(5);
-  // The CDN attributes usage to DD-Service only when the value matches this. It drops other values.
-  private static final Pattern USAGE_SERVICE = Pattern.compile("[A-Za-z0-9][A-Za-z0-9_.:/-]{0,99}");
   // The Agent cuts a service to this many bytes of UTF-8.
   private static final int MAX_SERVICE_BYTES = 100;
 
@@ -370,11 +367,12 @@ public final class CdnConfigurationSource implements ConfigurationService {
 
   /**
    * Selects the value of the DD-Service header. The value is the service name that APM shows, so
-   * the usage and APM show the same name. The value is {@code null} when the CDN cannot accept that
-   * name, for example {@code _svc} or {@code café-api}.
+   * the usage and APM show the same name. The value is {@code null} when that name is empty or is
+   * not printable ASCII, for example {@code café-api} or {@code 支付}.
    *
-   * <p>The value is always ASCII and has no line breaks. Thus the HTTP request builder does not
-   * throw, and the polls continue.
+   * <p>The CDN decides which values it attributes usage to, so the SDK does not check their format.
+   * The SDK checks only for ASCII: {@code HttpRequest.Builder} throws on a value like {@code 支付},
+   * and then every poll fails.
    */
   @Nullable
   private static String usageService(@Nullable final String service) {
@@ -382,13 +380,26 @@ public final class CdnConfigurationSource implements ConfigurationService {
       return null;
     }
     final String normalized = normalizeService(service);
-    if (USAGE_SERVICE.matcher(normalized).matches()) {
+    if (isPrintableAscii(normalized)) {
       return normalized;
     }
     LOGGER.debug(
-        "Feature Flags: the CDN cannot attribute usage to the APM name of service {}; DD-Service header not sent",
-        service);
+        "Feature Flags: service {} has no ASCII APM name; DD-Service header not sent", service);
     return null;
+  }
+
+  /** Returns {@code true} if the value is not empty and has only the characters 0x21 to 0x7E. */
+  private static boolean isPrintableAscii(final String value) {
+    if (value.isEmpty()) {
+      return false;
+    }
+    for (int i = 0; i < value.length(); i++) {
+      final char c = value.charAt(i);
+      if (c < 0x21 || c > 0x7E) {
+        return false;
+      }
+    }
+    return true;
   }
 
   /**
