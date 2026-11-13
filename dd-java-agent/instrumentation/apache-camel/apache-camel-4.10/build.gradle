@@ -1,0 +1,25 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
+muzzle {
+  pass {
+    group = 'org.apache.camel'
+    module = 'camel-base-engine'
+    versions = '[4.10.3,4.11.0)'
+    javaVersion = '17'
+  }
+}
+
+testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_17
+}
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  compileOnly 'org.apache.camel:camel-base-engine:4.10.3'
+  testImplementation 'org.apache.camel:camel-core:4.10.3'
+  testRuntimeOnly project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
+  latestDepTestImplementation 'org.apache.camel:camel-core:4.10.+'
+}
