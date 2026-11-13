@@ -1,6 +1,6 @@
 package datadog.trace.api.function;
 
-import datadog.perfcontract.PerfContract;
+import datadog.contract.PerfContract;
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Inherited;
