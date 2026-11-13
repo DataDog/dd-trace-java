@@ -325,12 +325,12 @@ public final class FlagEvaluator {
       final String diagnostic, final RuntimeException failure) {
     try {
       if (failure == null) {
-        LOGGER.warn(
+        LOGGER.debug(
             "Invalid evaluator options ({}); using maxDependencyDepth={}",
             diagnostic,
             DEFAULT_MAX_DEPENDENCY_DEPTH);
       } else {
-        LOGGER.warn(
+        LOGGER.debug(
             "Invalid evaluator options ({}); using maxDependencyDepth={}",
             diagnostic,
             DEFAULT_MAX_DEPENDENCY_DEPTH,

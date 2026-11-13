@@ -242,7 +242,7 @@ class DependentFlagEvaluatorTest {
   }
 
   @Test
-  void warnsAndFallsBackFromInvalidMaximumDependencyDepthForEachRootEvaluation() {
+  void debugsAndFallsBackFromInvalidMaximumDependencyDepthForEachRootEvaluation() {
     final FlagEvaluator evaluator = evaluator();
     final Map<String, Flag> flags = new HashMap<>();
     flags.put("ordinary", stringFlag("ordinary", "on", null, false));
@@ -252,12 +252,12 @@ class DependentFlagEvaluatorTest {
     final ServerConfiguration config = config(flags, evaluatorParams(1.5D));
 
     CapturingServiceProvider.reset();
-    CapturingServiceProvider.enable(FlagEvaluator.class.getName(), Level.WARN);
+    CapturingServiceProvider.enable(FlagEvaluator.class.getName(), Level.DEBUG);
     try {
       final ProviderEvaluation<String> ordinary =
           evaluator.evaluate(config, String.class, "ordinary", "default", new MutableContext("u"));
       assertEquals("on-value", ordinary.getValue());
-      assertEquals(1, CapturingServiceProvider.events().size());
+      assertInvalidEvaluatorOptionsDiagnostics(1);
 
       final FlagEvaluator.EvaluationResult<String> dependent =
           evaluator.evaluateWithTrace(
@@ -265,13 +265,11 @@ class DependentFlagEvaluatorTest {
       assertEquals("on-value", dependent.details.getValue());
       assertNotNull(dependent.details.getFlagMetadata());
       assertEquals(singletonList("dependency:on"), evaluations(dependent));
-      assertEquals(2, CapturingServiceProvider.events().size());
-      assertTrue(
-          CapturingServiceProvider.events().get(0).message.contains("maxDependencyDepth=10"));
+      assertInvalidEvaluatorOptionsDiagnostics(2);
 
       evaluator.evaluateWithTrace(
           config, String.class, "dependent", "default", new MutableContext("another-user"));
-      assertEquals(3, CapturingServiceProvider.events().size());
+      assertInvalidEvaluatorOptionsDiagnostics(3);
     } finally {
       CapturingServiceProvider.reset();
     }
@@ -475,7 +473,7 @@ class DependentFlagEvaluatorTest {
     flags.put("dependency", stringFlag("dependency", "on", null, false));
     flags.put("root", stringFlag("root", "on", dependencyRule("dependency", "on"), false));
     CapturingServiceProvider.reset();
-    CapturingServiceProvider.enable(FlagEvaluator.class.getName(), Level.WARN);
+    CapturingServiceProvider.enable(FlagEvaluator.class.getName(), Level.DEBUG);
     CapturingServiceProvider.failOn("Invalid evaluator options");
     try {
       final ProviderEvaluation<String> evaluation =
@@ -491,6 +489,16 @@ class DependentFlagEvaluatorTest {
     } finally {
       CapturingServiceProvider.reset();
     }
+  }
+
+  private static void assertInvalidEvaluatorOptionsDiagnostics(final long expectedCount) {
+    assertEquals(
+        expectedCount,
+        CapturingServiceProvider.events().stream()
+            .filter(event -> event.message.contains("Invalid evaluator options"))
+            .peek(event -> assertEquals(Level.DEBUG, event.level))
+            .filter(event -> event.message.contains("maxDependencyDepth=10"))
+            .count());
   }
 
   @Test
