@@ -3,10 +3,14 @@ package datadog.trace.api.git;
 import static datadog.trace.api.git.RawParseUtils.decode;
 import static datadog.trace.api.git.RawParseUtils.nextLF;
 
+import datadog.environment.OperatingSystem;
 import datadog.trace.util.Strings;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URI;
+import java.nio.ByteBuffer;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.regex.Pattern;
 import java.util.zip.DataFormatException;
@@ -44,6 +48,20 @@ public class GitUtils {
   private static final int FULL_SHA_LENGTH = 40;
 
   private static final Logger log = LoggerFactory.getLogger(GitUtils.class);
+
+  /** Charset for Git filesystem paths: UTF-8 on Windows, the native charset elsewhere. */
+  public static Charset getFilesystemCharset() {
+    return OperatingSystem.isWindows() ? StandardCharsets.UTF_8 : OperatingSystem.nativeCharset();
+  }
+
+  /** Decode valid UTF-8 metadata first, falling back to the local Git charset for legacy bytes. */
+  public static String decodeMetadata(byte[] bytes) {
+    try {
+      return StandardCharsets.UTF_8.newDecoder().decode(ByteBuffer.wrap(bytes)).toString();
+    } catch (CharacterCodingException e) {
+      return new String(bytes, getFilesystemCharset());
+    }
+  }
 
   /**
    * Normalizes Git tag references:

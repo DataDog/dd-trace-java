@@ -1,7 +1,9 @@
 package datadog.trace.civisibility.git.tree;
 
+import static datadog.environment.JavaVirtualMachine.isJavaVersionAtLeast;
 import static datadog.environment.OperatingSystem.isWindows;
-import static datadog.environment.OperatingSystem.nativeCharset;
+import static datadog.trace.api.git.GitUtils.decodeMetadata;
+import static datadog.trace.api.git.GitUtils.getFilesystemCharset;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import datadog.communication.util.IOUtils;
@@ -15,9 +17,14 @@ import datadog.trace.api.git.GitUtils;
 import datadog.trace.api.git.PersonInfo;
 import datadog.trace.civisibility.diff.LineDiff;
 import datadog.trace.civisibility.utils.ShellCommandExecutor;
+import datadog.trace.civisibility.utils.ShellCommandExecutor.OutputParser;
 import datadog.trace.util.Strings;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.StringReader;
+import java.nio.charset.Charset;
 import java.nio.file.FileStore;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -121,6 +128,23 @@ public class ShellGitClient implements GitClient {
     command[4] = "i18n.logOutputEncoding=UTF-8";
     System.arraycopy(gitArgs, 0, command, 5, gitArgs.length);
     return command;
+  }
+
+  private static String readMetadata(InputStream input) throws IOException {
+    ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+    IOUtils.readFully(input, bytes);
+    return decodeMetadata(bytes.toByteArray());
+  }
+
+  private static List<String> readMetadataLines(InputStream input) throws IOException {
+    return IOUtils.readLines(new StringReader(readMetadata(input)));
+  }
+
+  private static Charset getCommandCharset() {
+    // Preserve ref bytes when ProcessBuilder re-encodes them as arguments.
+    return isWindows() || isJavaVersionAtLeast(18)
+        ? getFilesystemCharset()
+        : Charset.defaultCharset();
   }
 
   /**
@@ -239,7 +263,7 @@ public class ShellGitClient implements GitClient {
         () ->
             commandExecutor
                 .executeCommand(
-                    input -> IOUtils.readFully(input, isWindows() ? UTF_8 : nativeCharset()),
+                    input -> IOUtils.readFully(input, getFilesystemCharset()),
                     buildGitCommand("rev-parse", "--absolute-git-dir"))
                 .trim());
   }
@@ -261,7 +285,7 @@ public class ShellGitClient implements GitClient {
         () ->
             commandExecutor
                 .executeCommand(
-                    input -> IOUtils.readFully(input, isWindows() ? UTF_8 : nativeCharset()),
+                    input -> IOUtils.readFully(input, getFilesystemCharset()),
                     buildGitCommand("rev-parse", "--show-toplevel"))
                 .trim());
   }
@@ -288,7 +312,7 @@ public class ShellGitClient implements GitClient {
         () ->
             commandExecutor
                 .executeCommand(
-                    input -> IOUtils.readFully(input, UTF_8),
+                    ShellGitClient::readMetadata,
                     buildGitCommand("config", "--get", "remote." + remoteName + ".url"))
                 .trim());
   }
@@ -305,13 +329,16 @@ public class ShellGitClient implements GitClient {
   @Nullable
   @Override
   public String getCurrentBranch() throws IOException, TimeoutException, InterruptedException {
+    return getCurrentBranch(ShellGitClient::readMetadata);
+  }
+
+  private String getCurrentBranch(OutputParser<String> parser)
+      throws IOException, TimeoutException, InterruptedException {
     return executeCommand(
         Command.GET_BRANCH,
         () ->
             commandExecutor
-                .executeCommand(
-                    input -> IOUtils.readFully(input, UTF_8),
-                    buildGitCommand("branch", "--show-current"))
+                .executeCommand(parser, buildGitCommand("branch", "--show-current"))
                 .trim());
   }
 
@@ -337,7 +364,7 @@ public class ShellGitClient implements GitClient {
         () -> {
           try {
             return commandExecutor.executeCommand(
-                input -> IOUtils.readLines(input, UTF_8),
+                ShellGitClient::readMetadataLines,
                 buildGitCommand("describe", "--tags", "--exact-match", commit));
           } catch (ShellCommandExecutor.ShellCommandFailedException e) {
             // if provided commit is not tagged,
@@ -615,7 +642,8 @@ public class ShellGitClient implements GitClient {
     return executeCommand(
         Command.BASE_COMMIT_SHA,
         () -> {
-          String sourceBranch = getCurrentBranch();
+          String sourceBranch =
+              getCurrentBranch(input -> IOUtils.readFully(input, getCommandCharset()));
           if (Strings.isBlank(sourceBranch)) {
             return null;
           }
@@ -640,7 +668,7 @@ public class ShellGitClient implements GitClient {
       String remote =
           commandExecutor
               .executeCommand(
-                  input -> IOUtils.readFully(input, UTF_8),
+                  input -> IOUtils.readFully(input, getCommandCharset()),
                   buildGitCommand(
                       "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"))
               .trim();
@@ -655,7 +683,7 @@ public class ShellGitClient implements GitClient {
     try {
       List<String> remotes =
           commandExecutor.executeCommand(
-              input -> IOUtils.readLines(input, UTF_8), buildGitCommand("remote"));
+              input -> IOUtils.readLines(input, getCommandCharset()), buildGitCommand("remote"));
       return remotes.get(0);
     } catch (ShellCommandExecutor.ShellCommandFailedException e) {
       LOGGER.debug("Error getting remotes", e);
@@ -758,7 +786,7 @@ public class ShellGitClient implements GitClient {
       // only consider remote branches
       List<String> branches =
           commandExecutor.executeCommand(
-              input -> IOUtils.readLines(input, UTF_8),
+              input -> IOUtils.readLines(input, getCommandCharset()),
               buildGitCommand(
                   "for-each-ref", "--format=%(refname:short)", "refs/remotes/" + remoteName));
       for (String branch : branches) {
@@ -809,7 +837,7 @@ public class ShellGitClient implements GitClient {
       String defaultRef =
           commandExecutor
               .executeCommand(
-                  input -> IOUtils.readFully(input, UTF_8),
+                  input -> IOUtils.readFully(input, getCommandCharset()),
                   buildGitCommand(
                       "symbolic-ref", "--quiet", "--short", "refs/remotes/" + remoteName + "/HEAD"))
               .trim();
