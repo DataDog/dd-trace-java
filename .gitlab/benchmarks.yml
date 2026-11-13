@@ -1,3 +1,21 @@
+# The debugger-benchmarks CI image is built in-repo from container/ via the shared
+# benchmarking-platform template (manual `build-benchmark-ci-images` job).
+# @see https://github.com/DataDog/benchmarking-platform-tools/blob/main/images/templates/gitlab/build-ci-images.template.yml
+include:
+  - project: 'DataDog/benchmarking-platform-tools'
+    file: 'images/templates/gitlab/build-ci-images.template.yml'
+
+variables:
+  # Debugger benchmarks CI image, consumed by the job below. Repin to the tag pushed
+  # by a `build-benchmark-ci-images` run after changing anything in
+  # `.gitlab/benchmarks/container/` (see `.gitlab/benchmarks/README.md`).
+  DEBUGGER_BENCHMARKS_CI_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:java-debugger
+  # Image build, consumed by the included build-ci-images template. The per-pipeline
+  # suffix pins each build to a unique tag so a rebuild can't shift what older
+  # pipelines pulled.
+  BASE_CI_IMAGE_SUFFIX: dd-trace-java-${CI_PIPELINE_ID}
+  BASE_CI_IMAGE_CONTAINER_DIR: .gitlab/benchmarks/container
+
 .dsm-kafka-benchmarks:
   stage: benchmarks
   # Make these jobs mandatory again once https://github.com/DataDog/benchmarking-platform/pull/318 is merged.
@@ -62,14 +80,14 @@ debugger-benchmarks:
   tags: ["runner:apm-k8s-tweaked-metal"]
   interruptible: true
   timeout: 1h
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:java-debugger
+  image: $DEBUGGER_BENCHMARKS_CI_IMAGE
   needs: ["build", "publish-artifacts-to-s3"]
   script:
     - export ARTIFACTS_DIR="$(pwd)/reports" && mkdir -p "${ARTIFACTS_DIR}"
-    - git clone --branch java/debugger-benchmarks https://github.com/DataDog/benchmarking-platform /platform && cd /platform
-    - numactl --cpunodebind=1 --membind=1 bp-runner bp-runner.yml --debug
-    - "./steps/create-report.sh || :"
-    - "./steps/post-pr-comment.sh || :"
+    - export PATH="$PATH:${CI_PROJECT_DIR}/.gitlab/benchmarks/steps"
+    - numactl --cpunodebind=1 --membind=1 bp-runner .gitlab/benchmarks/bp-runner.yml --debug
+    - "create-report.sh || :"
+    - "post-pr-comment.sh || :"
   artifacts:
     name: "artifacts"
     when: always

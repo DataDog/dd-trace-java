@@ -1,0 +1,7 @@
+# Local-run outputs, see README.md
+.env
+artifacts
+logs
+tracers
+reports
+__pycache__

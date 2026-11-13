@@ -1,0 +1,81 @@
+#!/usr/bin/env python3
+
+import json
+import os
+import sys
+from io import StringIO
+
+import numpy as np
+
+from python_utils import import_benchmark_values, compute_confidence_interval, round_value
+
+CI_INTERVAL = 0.99
+UOM = 'µs'
+CANDIDATE = os.getenv("CANDIDATE_VERSION")
+BASELINE = os.getenv("BASELINE_VERSION")
+SCRIPT_DIR = os.getenv("SCRIPT_DIR")
+
+# input files
+input_folder = sys.argv[1]
+
+
+def _parse_benchmarks(folder: str, build: str, values: dict, scenarios: list):
+    values[build] = dict()
+    with open(f"{folder}/petclinic-{build}.converted.json", "r") as reader:
+        benchmark_json = json.loads(reader.read())
+        benchmarks = list(benchmark_json["benchmarks"])
+        for benchmark in benchmarks:
+            scenario = benchmark["parameters"]["scenario"]
+            scenarios.append(scenario)
+            bench_values = import_benchmark_values(benchmark, "agg_http_req_duration_p50", UOM)
+            values[build][scenario] = bench_values
+
+
+
+
+def _build_application_results(folder: str) -> str:
+    application = os.path.basename(folder)
+    chart = StringIO()
+    tables = {
+        "baseline": StringIO(),
+        "candidate": StringIO()
+    }
+    values = dict()
+    _parse_benchmarks(folder, 'baseline', values, list())
+    scenarios = list()
+    _parse_benchmarks(folder, 'candidate', values, scenarios)
+    chart.write(f'''
+```mermaid
+gantt
+    title {application} - request duration [CI {CI_INTERVAL}] : candidate={CANDIDATE}, baseline={BASELINE}
+    dateFormat X
+    axisFormat %s
+''')
+
+    for build in ("baseline", "candidate"):
+        table = tables[build]
+        table.write(f"\n|Scenario|Request median duration  [CI {CI_INTERVAL}]|\n")
+        table.write(f"|---|---|\n")
+        build_values = values[build]
+        chart.write(f"section {build}\n")
+        for scenario in scenarios:
+            scenario_values = build_values[scenario]
+            mean = float(np.mean(scenario_values))
+            lower, upper = compute_confidence_interval(scenario_values, CI_INTERVAL)
+            chart.write(f"{scenario} ({round_value(mean, UOM)}) : {round(lower)}, {round(upper)}\n")
+            chart.write(f".   : milestone, {round(mean)},\n")
+            table.write(f"|{scenario}|{round_value(mean, UOM)} [{round_value(lower, UOM)}, {round_value(upper, UOM)}]|\n")
+
+    chart.write("```\n")
+
+    result = StringIO()
+    result.write(f"\n\n<details><summary>Request duration reports for {application}</summary>\n")
+    result.write(chart.getvalue())
+    for build, table in tables.items():
+        result.write(f"\n* **{build}** results\n")
+        result.write(table.getvalue())
+    result.write("\n</details>\n")
+    return result.getvalue()
+
+
+print(_build_application_results(input_folder))

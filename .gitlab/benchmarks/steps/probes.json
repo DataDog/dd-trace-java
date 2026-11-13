@@ -1,0 +1,61 @@
+{
+  "id": "petclinic-benchmark",
+  "orgId": 2,
+  "logProbes": [
+    {
+      "id": "04692489-c21a-40d3-a378-a602f8205bb0",
+      "created": "2024-06-14T13:26:52.519150+00:00",
+      "language": "java",
+      "where": {
+        "typeName": "BenchmarkController",
+        "methodName": "basic"
+      },
+      "captureSnapshot": true,
+      "template": "this is a log line."
+    },
+    {
+      "id": "04692489-c21a-40d3-a378-a602f8205bb1",
+      "created": "2024-06-14T13:26:52.519150+00:00",
+      "language": "java",
+      "where": {
+        "typeName": "BenchmarkController$ALotFields",
+        "methodName": "process"
+      },
+      "captureSnapshot": true,
+      "template": "this is a log line."
+    },
+    {
+      "id": "04692489-c21a-40d3-a378-a602f8205bb2",
+      "created": "2024-06-14T13:26:52.519150+00:00",
+      "language": "java",
+      "where": {
+        "typeName": "BenchmarkController$ALotFields",
+        "methodName": "processALotOfArgs"
+      },
+      "captureSnapshot": true,
+      "template": "this is a log line."
+    },
+    {
+        "id": "04692489-c21a-40d3-a378-a602f8205bb3",
+        "created": "2024-06-14T13:26:52.519150+00:00",
+        "language": "java",
+        "where": {
+            "typeName": "BenchmarkController$LargeCollections",
+            "methodName": "process"
+        },
+        "captureSnapshot": true,
+        "template": "this is a log line."
+    },
+    {
+        "id": "04692489-c21a-40d3-a378-a602f8205bb4",
+        "created": "2024-06-14T13:26:52.519150+00:00",
+        "language": "java",
+        "where": {
+            "typeName": "BenchmarkController$LargeCollections",
+            "methodName": "processStrItem"
+        },
+        "captureSnapshot": false,
+        "template": "processStrItem with arg={str}"
+    }
+  ]
+}

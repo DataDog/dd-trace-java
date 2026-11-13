@@ -1,0 +1,56 @@
+global_setup:
+  - name: Hardware and software info
+    run: collect_hardware_software_info
+
+  - name: Setup dd-trace-java
+    run: shell
+    script: .gitlab/benchmarks/steps/setup-dd-trace-java.sh
+
+experiments:
+  - name: baseline
+    env:
+      BUILD_TYPE: baseline
+    setup: &services_setup
+      - name: datadog-agent
+        run: datadog_agent
+        cpus: 27-28
+        config_sh: .gitlab/benchmarks/steps/dd-agent-config.sh
+
+      - name: petclinic
+        run: service
+        # no affinity because JVM deals with GC threads, JIT threads, etc
+        path: .gitlab/benchmarks/steps/start-petclinic.sh
+        healthcheck:
+          period_secs: 1
+          duration_secs: 30
+          url: http://localhost:8080/
+
+    steps: &services_steps
+      - name: k6
+        cpus: 24-26
+        run: shell
+        script: .gitlab/benchmarks/steps/start-k6.sh
+
+  - name: candidate
+    env:
+      BUILD_TYPE: candidate
+    setup: *services_setup
+    steps: *services_steps
+
+global_teardown:
+  - name: S3 uploading
+    run: upload_to_s3
+    # If BP_EXTERNAL_S3_URL is empty, bp-runner uses its default S3 destination.
+    url: $BP_EXTERNAL_S3_URL
+
+  - name: BP API uploading
+    run: upload_to_bp_api
+    retries_on_failure: 2
+    project: dd-trace-java
+
+docker_config_for_local_runs:
+  image_name: bp_java_debugger_benchmarks
+  volumes:
+    - logs/agent/:/var/log/datadog/:rw
+    - steps/:/app/.gitlab/benchmarks/steps/:ro
+  command: bp-runner bp-runner.yml --debug  # You can replace it with "bash" to exec bash instead

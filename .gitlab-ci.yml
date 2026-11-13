@@ -36,6 +36,9 @@ stages:
   - shared-pipeline-test
   - publish-release-artifacts
   - shared-pipeline-publish
+  # Stage for the manual build-benchmark-ci-images job, included by
+  # .gitlab/benchmarks.yml via build-ci-images.template.yml.
+  - ci-image
   - benchmarks
   - tests
   - tests-arm64
