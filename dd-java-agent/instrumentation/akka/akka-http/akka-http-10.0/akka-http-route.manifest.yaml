@@ -1,8 +1,8 @@
 _v: 1
 name: akka-http-route
 display_name: akka-http
-description: Instruments Akka HTTP path matching and completed directive branches to attach matched route templates
-  to existing HTTP request spans.
+description: Instruments Akka HTTP path matching and directive completion to attach the selected route template
+  to existing request spans.
 packages:
 - name: com.typesafe.akka:akka-http_2.11
 - name: com.typesafe.akka:akka-http_2.12

@@ -1,8 +1,8 @@
 _v: 1
 name: graphql-java
 display_name: graphql-java
-description: Instruments GraphQL request execution, parsing, validation and data fetchers with operation, field
-  and error details.
+description: Instruments GraphQL operation execution, parsing, validation, and field resolvers, with request argument
+  capture for application-security inspection.
 packages:
 - name: com.graphql-java:graphql-java
 category:

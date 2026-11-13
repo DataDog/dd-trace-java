@@ -1,8 +1,8 @@
 _v: 1
 name: akka-http
 display_name: akka-http
-description: Instruments Akka HTTP client requests and server request handling, with asynchronous context propagation,
-  application-security blocking and request inspection, and IAST taint tracking.
+description: Instruments Akka HTTP client requests and server request handling, with application-security request
+  inspection, blocking, and taint propagation.
 packages:
 - name: com.typesafe.akka:akka-http_2.11
 - name: com.typesafe.akka:akka-http_2.12

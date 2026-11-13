@@ -1,8 +1,7 @@
 _v: 1
 name: sparkjava
 display_name: Spark
-description: Instruments SparkJava route matching to attach HTTP method and matched route names to existing
-  request spans when enabled.
+description: Instruments Spark HTTP route matching to attach matched routes to existing request spans.
 packages:
 - name: com.sparkjava:spark-core
 category:

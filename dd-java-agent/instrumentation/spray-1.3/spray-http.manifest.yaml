@@ -1,8 +1,8 @@
 _v: 1
 name: spray-http
 display_name: spray-routing
-description: Instruments Spray HTTP route execution and response handling with request spans, propagated context
-  and errors.
+description: Instruments Spray HTTP server route execution, including request context, response completion, and
+  errors.
 packages:
 - name: io.spray:spray-routing_2.11
 category:

@@ -1,8 +1,8 @@
 _v: 1
 name: vertx
 display_name: Vert.x Web
-description: Instruments Vert.x HTTP route handlers, SQL queries and Redis commands, with HTTP client error
-  tagging, asynchronous context propagation and security request and response hooks.
+description: Instruments Vert.x HTTP route handling, SQL queries and cursor reads, and Redis commands, with application-security
+  request and response inspection and HTTP client error attribution.
 packages:
 - name: io.vertx:vertx-mysql-client
 - name: io.vertx:vertx-pg-client

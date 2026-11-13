@@ -1,7 +1,7 @@
 _v: 1
 name: dropwizard
 display_name: Dropwizard Views
-description: Instruments Dropwizard view rendering with template names, rendering time and errors.
+description: Instruments Dropwizard view rendering, including template attribution and rendering errors.
 packages:
 - name: io.dropwizard:dropwizard-views
 category:

@@ -1,8 +1,8 @@
 _v: 1
 name: micronaut
 display_name: Micronaut Framework
-description: Instruments Micronaut HTTP route handling and response completion with controller spans, matched
-  routes, errors and code-origin metadata.
+description: Instruments Micronaut HTTP controller request handling, routing, response completion, and errors, with
+  controller code-origin capture.
 packages:
 - name: io.micronaut:micronaut-http-server-netty
 category:
