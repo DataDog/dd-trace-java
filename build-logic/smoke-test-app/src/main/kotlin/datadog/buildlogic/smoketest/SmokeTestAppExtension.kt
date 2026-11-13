@@ -393,7 +393,7 @@ abstract class MavenAppSpec @Inject constructor() : ApplicationSpec() {
  * because the Spring Boot Gradle plugin pre-3.5.0 calls `Configuration.getUploadTaskName()`,
  * removed in Gradle 9.
  */
-const val DEFAULT_NESTED_GRADLE_VERSION = "8.14.6"
+const val DEFAULT_NESTED_GRADLE_VERSION = "8.14.7"
 
 /**
  * Default JDK language version for the nested build. JDK 21 is the version the root build
