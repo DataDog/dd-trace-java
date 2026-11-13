@@ -33,6 +33,10 @@ Icon?
 ehthumbs.db
 Thumbs.db
 
+# Python #
+############
+__pycache__/
+
 # Intellij Idea #
 #################
 /.idea

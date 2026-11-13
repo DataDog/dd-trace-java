@@ -52,7 +52,7 @@ Then read the check files that apply to the diff:
 | `references/checks/dispatch.md` | #5 polymorphic dispatch, J2 megamorphic (**parked**) | always |
 | `references/checks/contracts.md` | #8 `@NoEscape`, #9 `@StaticLifetime`, #10 `@BackgroundOnly` | always — these fire on code that doesn't name the annotation; check every line Step 1b lists |
 | `references/checks/advice.md` | ByteBuddy Advice idioms | diff touches `dd-java-agent/` or uses `@Advice` |
-| `references/checks/benchmarks.md` | J12 benchmark validity, EA claims over I/O | diff touches `src/jmh/`, or PR text / commits cite benchmark results |
+| `references/checks/benchmarks.md` | J12 benchmark validity, EA claims over I/O, J15 required results, J16 recorded findings | diff touches `src/jmh/`, PR text / commits cite benchmark results, or Step 1c lists a benchmark |
 | `references/remedies.md` | J7, J9, J10, J11 fix routes + toolkit availability; also holds the J7 retention trap and the J9 trigger | always |
 
 Each check has the same parts: **Flag** (the condition to trace), **Not when** (exceptions that
@@ -188,6 +188,20 @@ same simple name (for example `javax.inject.Singleton`) are left out.
 
 If you can't run it (for example, you only have a diff), say in **Scope reviewed** that the contract
 checks ran without it.
+
+### Step 1c — Find the benchmarks that cover the diff
+
+`.github/required-benchmarks.txt` maps hot code to the JMH benchmarks that measure it. List the ones
+this diff requires:
+
+```bash
+python3 tooling/benchmark_pr.py required --base <merge base>
+```
+
+For each benchmark it lists, read the **Findings** section at the top of the benchmark class's
+Javadoc, if it has one (see `checks/benchmarks.md`): recorded conclusions about the code under
+review. Then apply the J15 and J16 checks in `checks/benchmarks.md`. Load that file whenever this
+step lists a benchmark.
 
 ### Step 2 — Map the changed code onto hot paths
 
