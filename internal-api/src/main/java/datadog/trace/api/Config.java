@@ -858,6 +858,12 @@ public class Config {
   private static final Pattern COLON = Pattern.compile(":");
   private static final Pattern COMMA = Pattern.compile(",");
 
+  // General OTLP settings, which the signals without their own fall back to. They have no
+  // DD_-prefixed form, so they are not declared with the Datadog settings in OtlpConfig.
+  private static final String OTEL_EXPORTER_OTLP_ENDPOINT = "otel.exporter.otlp.endpoint";
+  private static final String OTEL_EXPORTER_OTLP_HEADERS = "otel.exporter.otlp.headers";
+  private static final String OTEL_EXPORTER_OTLP_PROTOCOL = "otel.exporter.otlp.protocol";
+
   // Historical conflating-Batch size; used to translate TRACER_METRICS_MAX_PENDING (configured in
   // legacy batch units) into the new per-SpanSnapshot inbox capacity.
   private static final int LEGACY_BATCH_SIZE = 64;
@@ -1052,6 +1058,10 @@ public class Config {
   private final OtlpConfig.Protocol otlpTracesProtocol;
   private final OtlpConfig.Compression otlpTracesCompression;
   private final int otlpTracesTimeout;
+
+  private final String otlpEndpoint;
+  private final Map<String, String> otlpHeaders;
+  private final OtlpConfig.Protocol otlpProtocol;
 
   // These values are default-ed to those of jmx fetch values as needed
   private final boolean healthMetricsEnabled;
@@ -2300,6 +2310,23 @@ public class Config {
     }
     otlpTracesEndpoint = otlpTracesEndpointFromEnvironment;
 
+    // The general OTLP settings have no Datadog equivalent: they only apply through the signal
+    // settings they are the fallback of, and default like them.
+    otlpHeaders =
+        decodeOtlpHeaders(configProvider.getOtelSettingMap(OTEL_EXPORTER_OTLP_HEADERS, '='));
+    otlpProtocol = parseOtlpProtocol(configProvider.getOtelSetting(OTEL_EXPORTER_OTLP_PROTOCOL));
+    String otlpEndpointFromEnvironment = configProvider.getOtelSetting(OTEL_EXPORTER_OTLP_ENDPOINT);
+    if (otlpEndpointFromEnvironment == null) {
+      otlpEndpointFromEnvironment =
+          "http://"
+              + agentHost
+              + ':'
+              + (otlpProtocol == OtlpConfig.Protocol.GRPC
+                  ? DEFAULT_OTLP_GRPC_PORT
+                  : DEFAULT_OTLP_HTTP_PORT);
+    }
+    otlpEndpoint = otlpEndpointFromEnvironment;
+
     // Runtime metrics are disabled if Otel metrics are enabled and the metrics exporter is none.
     // OTEL_SDK_DISABLED=true turns them off, whatever DD_RUNTIME_METRICS_ENABLED says.
     runtimeMetricsEnabled =
@@ -3503,6 +3530,18 @@ public class Config {
         configProvider.getBoolean(AI_GUARD_REDACTION_ENABLED, DEFAULT_AI_GUARD_REDACTION_ENABLED);
 
     log.debug("New instance: {}", this);
+  }
+
+  /** Parses an OTLP protocol like the signal protocols are, defaulting to HTTP/protobuf. */
+  private static OtlpConfig.Protocol parseOtlpProtocol(String protocol) {
+    if (protocol != null) {
+      try {
+        return OtlpConfig.Protocol.valueOf(protocol.replace('/', '_').toUpperCase(Locale.ROOT));
+      } catch (IllegalArgumentException ignored) {
+        // invalid protocols fall back to the default, like the signal protocols
+      }
+    }
+    return OtlpConfig.Protocol.HTTP_PROTOBUF;
   }
 
   /** Decodes resolved OTLP header values after parsing and precedence resolution. */
@@ -6045,6 +6084,21 @@ public class Config {
     return otlpTracesCompression;
   }
 
+  /** The general OTLP endpoint ({@code OTEL_EXPORTER_OTLP_ENDPOINT}). */
+  public String getOtlpEndpoint() {
+    return otlpEndpoint;
+  }
+
+  /** The general OTLP headers ({@code OTEL_EXPORTER_OTLP_HEADERS}). */
+  public Map<String, String> getOtlpHeaders() {
+    return otlpHeaders;
+  }
+
+  /** The general OTLP protocol ({@code OTEL_EXPORTER_OTLP_PROTOCOL}). */
+  public OtlpConfig.Protocol getOtlpProtocol() {
+    return otlpProtocol;
+  }
+
   public int getOtlpTracesTimeout() {
     return otlpTracesTimeout;
   }
@@ -7260,6 +7314,8 @@ public class Config {
         + otlpTracesCompression
         + ", otlpTracesTimeout="
         + otlpTracesTimeout
+        + ", otlpProtocol="
+        + otlpProtocol
         + ", ciVisibilityGradleDependencyVerificationEnabled="
         + ciVisibilityGradleDependencyVerificationEnabled
         + ", ciVisibilityDynamicAtrEnabled="
