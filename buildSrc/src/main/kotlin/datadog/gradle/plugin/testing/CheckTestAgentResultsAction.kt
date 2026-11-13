@@ -27,12 +27,14 @@ fun Test.configureTestAgentPostChecks() {
   inputs.property("ciTestAgentConfiguration", configuration)
   inputs.property("ciTestAgentUrl", agentUrl)
 
-  outputs.files(reportDirectory.map { directory ->
-    listOf(
-      directory.file("summary_response.txt"),
-      directory.file("response.txt")
-    )
-  }).withPropertyName("ciTestAgentPostCheckReports")
+  outputs.files(
+    reportDirectory.map { directory ->
+      listOf(
+        directory.file("summary_response.txt"),
+        directory.file("response.txt")
+      )
+    }
+  ).withPropertyName("ciTestAgentPostCheckReports")
 
   // A failing trace check must fail the Test task before its results enter the cache.
   doLast(
@@ -45,12 +47,11 @@ fun Test.configureTestAgentPostChecks() {
 }
 
 /** Resolves the job's Test Agent endpoint. */
-internal fun ProviderFactory.testAgentUrl(): Provider<String> =
-  environmentVariable("CI_AGENT_HOST").zip(environmentVariable("CI_TEST_AGENT_PORT").orElse("8126")) { host, value ->
-    val port = value.toIntOrNull()?.takeIf { it in 1..65535 }
-      ?: throw InvalidUserDataException("CI_TEST_AGENT_PORT must be an integer between 1 and 65535")
-    HttpUrl.Builder().scheme("http").host(host).port(port).build().toString()
-  }
+internal fun ProviderFactory.testAgentUrl(): Provider<String> = environmentVariable("CI_AGENT_HOST").zip(environmentVariable("CI_TEST_AGENT_PORT").orElse("8126")) { host, value ->
+  val port = value.toIntOrNull()?.takeIf { it in 1..65535 }
+    ?: throw InvalidUserDataException("CI_TEST_AGENT_PORT must be an integer between 1 and 65535")
+  HttpUrl.Builder().scheme("http").host(host).port(port).build().toString()
+}
 
 private val testAgentBooleanVariables = listOf(
   "CI_TEST_AGENT_SUPPRESS_TRACE_PARSE_ERRORS",
@@ -62,12 +63,10 @@ private val testAgentVariables = listOf(
   "CI_TEST_AGENT_ENABLED_CHECKS"
 ) + testAgentBooleanVariables
 
-private fun Test.testAgentEnvironment(): Provider<Map<String, String>> {
-  return project.providers.provider {
-    environment.filterKeys {
-      it == "CI_USE_TEST_AGENT" || it == "CI_AGENT_HOST" || it == "CI_TEST_AGENT_PORT"
-    }.mapValues { it.value.toString() }
-  }
+private fun Test.testAgentEnvironment(): Provider<Map<String, String>> = project.providers.provider {
+  environment.filterKeys {
+    it == "CI_USE_TEST_AGENT" || it == "CI_AGENT_HOST" || it == "CI_TEST_AGENT_PORT"
+  }.mapValues { it.value.toString() }
 }
 
 private fun testAgentConfiguration(

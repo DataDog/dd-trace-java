@@ -44,10 +44,12 @@ open class GradleFixture {
       Files.createTempDirectory("gradle-testkit-").toFile().also { dir ->
         // Register the cleanup hook before anything that can throw, so a failure below
         // does not leak the temp dir.
-        Runtime.getRuntime().addShutdownHook(Thread {
-          stopDaemonsIn(dir)
-          dir.deleteRecursively()
-        })
+        Runtime.getRuntime().addShutdownHook(
+          Thread {
+            stopDaemonsIn(dir)
+            dir.deleteRecursively()
+          }
+        )
         val initScript = File(dir, REPOSITORY_PROXY_INIT_SCRIPT)
         GradleFixture::class.java
           .getResourceAsStream("/$REPOSITORY_PROXY_INIT_SCRIPT")
@@ -91,10 +93,10 @@ open class GradleFixture {
       daemonDir.walkTopDown()
         .filter { it.isFile && it.name.endsWith(".out.log") && !it.name.startsWith("hs_err") }
         .forEach { logFile ->
-          val pid = logFile.nameWithoutExtension  // daemon-12345.out
-            .removeSuffix(".out")                 // daemon-12345
-            .removePrefix("daemon-")              // 12345
-            .toLongOrNull() ?: return@forEach     // skip UUIDs / unparseable names
+          val pid = logFile.nameWithoutExtension // daemon-12345.out
+            .removeSuffix(".out") // daemon-12345
+            .removePrefix("daemon-") // 12345
+            .toLongOrNull() ?: return@forEach // skip UUIDs / unparseable names
 
           val isWindows = System.getProperty("os.name").lowercase().contains("win")
           val killProcess = if (isWindows) {
@@ -171,12 +173,11 @@ open class GradleFixture {
    * @param append If true, appends to any existing file instead of overwriting it.
    *               Safe to call repeatedly to build content up across steps.
    */
-  fun writeFile(path: String, content: String, append: Boolean = false): File =
-    file(path).also {
-      it.parentFile?.mkdirs()
-      val text = content.trimIndent() + "\n"
-      if (append) it.appendText(text) else it.writeText(text)
-    }
+  fun writeFile(path: String, content: String, append: Boolean = false): File = file(path).also {
+    it.parentFile?.mkdirs()
+    val text = content.trimIndent() + "\n"
+    if (append) it.appendText(text) else it.writeText(text)
+  }
 
   /**
    * Adds a subproject to the build by appending an `include` line to settings.gradle.kts
@@ -219,8 +220,7 @@ open class GradleFixture {
    * @param content Properties content (trimIndent applied, trailing newline added)
    * @param append If true, appends to any existing file instead of overwriting
    */
-  fun writeGradleProperties(content: String, append: Boolean = false): File =
-    writeFile("gradle.properties", content, append)
+  fun writeGradleProperties(content: String, append: Boolean = false): File = writeFile("gradle.properties", content, append)
 
   /**
    * Writes the root project's build.gradle.kts file.
@@ -228,8 +228,7 @@ open class GradleFixture {
    * @param buildScript The build script content for the root project
    * @param append If true, appends to any existing file instead of overwriting
    */
-  fun writeRootProject(@Language("kotlin") buildScript: String, append: Boolean = false): File =
-    writeFile("build.gradle.kts", buildScript, append)
+  fun writeRootProject(@Language("kotlin") buildScript: String, append: Boolean = false): File = writeFile("build.gradle.kts", buildScript, append)
 
   /**
    * Writes the root project's settings.gradle.kts file.
@@ -237,8 +236,7 @@ open class GradleFixture {
    * @param settingsScript The settings script content
    * @param append If true, appends to any existing file instead of overwriting
    */
-  fun writeSettings(@Language("kotlin") settingsScript: String, append: Boolean = false): File =
-    writeFile("settings.gradle.kts", settingsScript, append)
+  fun writeSettings(@Language("kotlin") settingsScript: String, append: Boolean = false): File = writeFile("settings.gradle.kts", settingsScript, append)
 
   /**
    * Parses an XML file into a DOM Document.

@@ -71,7 +71,8 @@ internal class TestAgentResultsChecker(
           val count = entry.path(name)
           count.isNumber && count.decimalValue().let { it.signum() >= 0 && it.stripTrailingZeros().scale() <= 0 }
         }
-      }) {
+      }
+    ) {
       throw GradleException("APM Test Agent returned an invalid trace check summary.\n${file.readText()}")
     }
     return summary

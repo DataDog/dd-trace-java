@@ -1,4 +1,4 @@
-/**
+/*
  * Convention plugin for overriding ddprof dependency version with snapshot.
  *
  * When the root project has the property 'ddprofUseSnapshot' set, this plugin:

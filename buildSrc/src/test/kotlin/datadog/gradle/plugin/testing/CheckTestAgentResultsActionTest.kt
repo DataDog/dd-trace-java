@@ -98,13 +98,15 @@ class CheckTestAgentResultsActionTest : GradleFixture() {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = [
-    "CI_TEST_AGENT_IMAGE",
-    "CI_TEST_AGENT_ENABLED_CHECKS",
-    "CI_TEST_AGENT_SUPPRESS_TRACE_PARSE_ERRORS",
-    "CI_TEST_AGENT_POOL_TRACE_CHECK_FAILURES",
-    "CI_TEST_AGENT_DISABLE_ERROR_RESPONSES",
-  ])
+  @ValueSource(
+    strings = [
+      "CI_TEST_AGENT_IMAGE",
+      "CI_TEST_AGENT_ENABLED_CHECKS",
+      "CI_TEST_AGENT_SUPPRESS_TRACE_PARSE_ERRORS",
+      "CI_TEST_AGENT_POOL_TRACE_CHECK_FAILURES",
+      "CI_TEST_AGENT_DISABLE_ERROR_RESPONSES",
+    ]
+  )
   fun `sidecar configuration changes invalidate results with configuration cache reuse`(variable: String) {
     withAgent { server, _, checks ->
       writeProject(server)
@@ -144,13 +146,15 @@ class CheckTestAgentResultsActionTest : GradleFixture() {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = [
-    "CI_TEST_AGENT_IMAGE",
-    "CI_TEST_AGENT_ENABLED_CHECKS",
-    "CI_TEST_AGENT_SUPPRESS_TRACE_PARSE_ERRORS",
-    "CI_TEST_AGENT_POOL_TRACE_CHECK_FAILURES",
-    "CI_TEST_AGENT_DISABLE_ERROR_RESPONSES",
-  ])
+  @ValueSource(
+    strings = [
+      "CI_TEST_AGENT_IMAGE",
+      "CI_TEST_AGENT_ENABLED_CHECKS",
+      "CI_TEST_AGENT_SUPPRESS_TRACE_PARSE_ERRORS",
+      "CI_TEST_AGENT_POOL_TRACE_CHECK_FAILURES",
+      "CI_TEST_AGENT_DISABLE_ERROR_RESPONSES",
+    ]
+  )
   fun `missing sidecar configuration fails before result reuse`(variable: String) {
     withAgent { server, _, checks ->
       writeProject(server)
@@ -164,12 +168,14 @@ class CheckTestAgentResultsActionTest : GradleFixture() {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = [
-    "CI_TEST_AGENT_IMAGE",
-    "CI_TEST_AGENT_SUPPRESS_TRACE_PARSE_ERRORS",
-    "CI_TEST_AGENT_POOL_TRACE_CHECK_FAILURES",
-    "CI_TEST_AGENT_DISABLE_ERROR_RESPONSES",
-  ])
+  @ValueSource(
+    strings = [
+      "CI_TEST_AGENT_IMAGE",
+      "CI_TEST_AGENT_SUPPRESS_TRACE_PARSE_ERRORS",
+      "CI_TEST_AGENT_POOL_TRACE_CHECK_FAILURES",
+      "CI_TEST_AGENT_DISABLE_ERROR_RESPONSES",
+    ]
+  )
   fun `invalid sidecar configuration fails before result reuse`(variable: String) {
     withAgent { server, _, checks ->
       writeProject(server)
@@ -187,9 +193,12 @@ class CheckTestAgentResultsActionTest : GradleFixture() {
   fun `task environment overrides cannot bypass job enabled post checks`() {
     withAgent { server, failing, checks ->
       writeProject(server)
-      writeRootProject("""
+      writeRootProject(
+        """
         tasks.withType<Test>().configureEach { environment("CI_USE_TEST_AGENT", "false") }
-      """, append = true)
+      """,
+        append = true
+      )
       failing.set(true)
       val failed = run("test", "--build-cache", "--configuration-cache", env = agentEnvironment, expectFailure = true)
       assertThat(failed.task(":test")?.outcome).describedAs(failed.output).isEqualTo(FAILED)
@@ -203,9 +212,12 @@ class CheckTestAgentResultsActionTest : GradleFixture() {
       assertThat(file("build/reports/test-agent/test/summary_response.txt")).exists()
       assertThat(file("build/reports/test-agent/test/response.txt")).exists()
 
-      writeRootProject("""
+      writeRootProject(
+        """
         tasks.withType<Test>().configureEach { environment("CI_AGENT_HOST", "another-agent") }
-      """, append = true)
+      """,
+        append = true
+      )
       val wrongHost = run("test", "--build-cache", "--configuration-cache", env = agentEnvironment, expectFailure = true)
       assertThat(wrongHost.task(":test")?.outcome).describedAs(wrongHost.output).isEqualTo(FAILED)
       assertThat(wrongHost.output).contains("CI_AGENT_HOST must match")
@@ -231,12 +243,15 @@ class CheckTestAgentResultsActionTest : GradleFixture() {
       // Change only the native checker, leaving its action and the test inputs unchanged.
       val checkerClass = File(classes, checkerPath)
       val writer = ClassWriter(0)
-      ClassReader(checkerClass.readBytes()).accept(object : ClassVisitor(ASM9, writer) {
-        override fun visitEnd() {
-          super.visitField(ACC_PRIVATE or ACC_STATIC or ACC_FINAL, "validationPolicyVersion", "I", null, 2).visitEnd()
-          super.visitEnd()
-        }
-      }, 0)
+      ClassReader(checkerClass.readBytes()).accept(
+        object : ClassVisitor(ASM9, writer) {
+          override fun visitEnd() {
+            super.visitField(ACC_PRIVATE or ACC_STATIC or ACC_FINAL, "validationPolicyVersion", "I", null, 2).visitEnd()
+            super.visitEnd()
+          }
+        },
+        0
+      )
       checkerClass.writeBytes(writer.toByteArray())
       val changed = run("clean", "test", "--build-cache", "--configuration-cache", env = agentEnvironment, pluginClasspath = pluginClasspath)
       assertThat(changed.task(":test")?.outcome).describedAs(changed.output).isEqualTo(SUCCESS)
@@ -252,9 +267,12 @@ class CheckTestAgentResultsActionTest : GradleFixture() {
   fun `job host changes invalidate the effective test environment`() {
     withAgent { server, _, checks ->
       writeProject(server)
-      writeRootProject("""
+      writeRootProject(
+        """
         tasks.withType<Test>().configureEach { environment("ANOTHER_SETTING", "configured") }
-      """, append = true)
+      """,
+        append = true
+      )
       val first = run("clean", "test", "--build-cache", "--configuration-cache", env = agentEnvironment)
       assertThat(first.task(":test")?.outcome).describedAs(first.output).isEqualTo(SUCCESS)
       val changedEnvironment = agentEnvironment + ("CI_AGENT_HOST" to "localhost")
@@ -371,15 +389,25 @@ class CheckTestAgentResultsActionTest : GradleFixture() {
       writeProject(server)
       writeFailingTest()
       failing.set(traceFailure)
-      writeRootProject("""
+      writeRootProject(
+        """
         tasks.register("later") {
           mustRunAfter(tasks.named("test"))
           doLast { println("Remaining tasks executed") }
         }
-      """, append = true)
+      """,
+        append = true
+      )
 
-      val result = run("test", "later", "--continue", "--build-cache", "--configuration-cache",
-        env = agentEnvironment + ("CONTINUE_ON_FAILURE" to "true"), expectFailure = traceFailure)
+      val result = run(
+        "test",
+        "later",
+        "--continue",
+        "--build-cache",
+        "--configuration-cache",
+        env = agentEnvironment + ("CONTINUE_ON_FAILURE" to "true"),
+        expectFailure = traceFailure
+      )
       assertThat(result.task(":test")?.outcome).describedAs(result.output).isEqualTo(if (traceFailure) FAILED else SUCCESS)
       assertThat(result.task(":later")?.outcome).describedAs(result.output).isEqualTo(SUCCESS)
       assertThat(checks.get()).isEqualTo(1)
@@ -428,8 +456,13 @@ class CheckTestAgentResultsActionTest : GradleFixture() {
     withAgent { server, _, checks ->
       writeProject(server)
       writeJavaSource("Example", "public class Example {")
-      val result = run("test", "--continue", "--configuration-cache",
-        env = agentEnvironment + ("CONTINUE_ON_FAILURE" to "true"), expectFailure = true)
+      val result = run(
+        "test",
+        "--continue",
+        "--configuration-cache",
+        env = agentEnvironment + ("CONTINUE_ON_FAILURE" to "true"),
+        expectFailure = true
+      )
       assertThat(result.task(":compileJava")?.outcome).describedAs(result.output).isEqualTo(FAILED)
       assertThat(result.task(":test")).isNull()
       assertThat(checks.get()).isZero()
@@ -472,9 +505,12 @@ class CheckTestAgentResultsActionTest : GradleFixture() {
       writeProject(server)
       val first = run("test", "--build-cache", "--configuration-cache", env = agentEnvironment)
       assertThat(first.task(":test")?.outcome).describedAs(first.output).isEqualTo(SUCCESS)
-      writeRootProject("""
+      writeRootProject(
+        """
         tasks.withType<Test>().configureEach { environment("CI_TEST_AGENT_PORT", "1") }
-      """, append = true)
+      """,
+        append = true
+      )
       val failed = run("test", "--build-cache", "--configuration-cache", env = agentEnvironment, expectFailure = true)
       assertThat(failed.task(":test")?.outcome).describedAs(failed.output).isEqualTo(FAILED)
       assertThat(failed.output).contains("CI_TEST_AGENT_PORT must match")
@@ -499,9 +535,12 @@ class CheckTestAgentResultsActionTest : GradleFixture() {
   fun `job endpoint defaults to the existing sidecar port`() {
     withAgent { server, _, checks ->
       writeProject(server)
-      writeRootProject("""
+      writeRootProject(
+        """
         println("Test Agent endpoint: " + tasks.named<Test>("test").get().inputs.properties["ciTestAgentUrl"])
-      """, append = true)
+      """,
+        append = true
+      )
       val result = run("help", env = agentEnvironment - "CI_TEST_AGENT_PORT", unsetEnv = setOf("CI_TEST_AGENT_PORT"))
       assertThat(result.output).contains("Test Agent endpoint: http://127.0.0.1:8126/")
       assertThat(checks.get()).isZero()

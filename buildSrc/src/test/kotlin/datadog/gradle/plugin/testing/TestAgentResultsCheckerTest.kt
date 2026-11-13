@@ -75,21 +75,23 @@ class TestAgentResultsCheckerTest {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = [
-    "",
-    "not json",
-    "[]",
-    "null",
-    "{\"x\":1}",
-    "{} {}",
-    "{} garbage",
-    "{\"trace_peer_service\":{\"Failed_Checks\":0}}",
-    "{\"trace_peer_service\":{\"Passed_Checks\":0,\"Failed_Checks\":-1,\"Skipped_Checks\":0}}",
-    "{\"trace_peer_service\":{\"Passed_Checks\":0,\"Failed_Checks\":\"0\",\"Skipped_Checks\":0}}",
-    "{\"trace_peer_service\":{\"Passed_Checks\":0.5,\"Failed_Checks\":0,\"Skipped_Checks\":0}}",
-    "{\"trace_peer_service\":{\"Passed_Checks\":0,\"Failed_Checks\":0,\"Skipped_Checks\":null}}",
-    "{\"trace_peer_service\":{\"Passed_Checks\":false,\"Failed_Checks\":0,\"Skipped_Checks\":0}}",
-  ])
+  @ValueSource(
+    strings = [
+      "",
+      "not json",
+      "[]",
+      "null",
+      "{\"x\":1}",
+      "{} {}",
+      "{} garbage",
+      "{\"trace_peer_service\":{\"Failed_Checks\":0}}",
+      "{\"trace_peer_service\":{\"Passed_Checks\":0,\"Failed_Checks\":-1,\"Skipped_Checks\":0}}",
+      "{\"trace_peer_service\":{\"Passed_Checks\":0,\"Failed_Checks\":\"0\",\"Skipped_Checks\":0}}",
+      "{\"trace_peer_service\":{\"Passed_Checks\":0.5,\"Failed_Checks\":0,\"Skipped_Checks\":0}}",
+      "{\"trace_peer_service\":{\"Passed_Checks\":0,\"Failed_Checks\":0,\"Skipped_Checks\":null}}",
+      "{\"trace_peer_service\":{\"Passed_Checks\":false,\"Failed_Checks\":0,\"Skipped_Checks\":0}}",
+    ]
+  )
   fun `invalid summaries are rejected before claiming success`(summary: String) {
     val result = runCheck(summary = summary)
     assertThat(result.failure).isNotNull()
@@ -151,8 +153,7 @@ class TestAgentResultsCheckerTest {
   fun `automatic service unavailable retries remain bounded`() {
     MockWebServer().use { server ->
       server.setDispatcher(object : Dispatcher() {
-        override fun dispatch(request: RecordedRequest): MockResponse =
-          MockResponse().setResponseCode(503).addHeader("Retry-After", "0").setBody("Not ready")
+        override fun dispatch(request: RecordedRequest): MockResponse = MockResponse().setResponseCode(503).addHeader("Retry-After", "0").setBody("Not ready")
       })
       val failure = assertThrows<GradleException> { check(server, retries = 5) }
       assertThat(failure).hasMessageContaining("summary request failed with response code: 503")
