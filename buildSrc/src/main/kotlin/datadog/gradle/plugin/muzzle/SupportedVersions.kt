@@ -16,7 +16,7 @@ import java.io.File
  * the Java versions that share the same supported range and tested versions into one `versions` entry.
  */
 internal object SupportedVersions {
-  /** The build directory holding the supported versions, read by `.gitlab/generate_supported_versions.sh`. */
+  /** The build directory holding the supported versions. */
   const val SUPPORTED_VERSIONS_RESULTS = "supported-versions"
 
   private val versionScheme = GenericVersionScheme()
