@@ -414,3 +414,11 @@ class DefaultServerConnection38InstrumentationDisabledV1ForkedTest extends Defau
     return V1_DB_TYPE
   }
 }
+
+class ContextSwapDefaultServerConnection38InstrumentationEnabledForkedTest extends DefaultServerConnection38InstrumentationEnabledV0ForkedTest {
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("legacy.context-manager.enabled", "false")
+  }
+}
