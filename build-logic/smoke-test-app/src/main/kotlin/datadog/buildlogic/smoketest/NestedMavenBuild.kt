@@ -182,20 +182,17 @@ abstract class NestedMavenBuild @Inject constructor(
     return env
   }
 
-  private fun mavenCommand(executable: File): MutableList<String> =
-    if (isWindows()) {
-      mutableListOf("cmd", "/c", executable.absolutePath)
-    } else {
-      mutableListOf(executable.absolutePath)
+  private fun mavenCommand(executable: File): MutableList<String> = if (isWindows()) {
+    mutableListOf("cmd", "/c", executable.absolutePath)
+  } else {
+    mutableListOf(executable.absolutePath)
   }
 
   companion object {
-    internal fun mavenWrapperName(osName: String = System.getProperty("os.name")): String =
-      if (isWindows(osName)) {
-        "mvnw.cmd"
-      } else {
-        "mvnw"
-      }
-
+    internal fun mavenWrapperName(osName: String = System.getProperty("os.name")): String = if (isWindows(osName)) {
+      "mvnw.cmd"
+    } else {
+      "mvnw"
+    }
   }
 }

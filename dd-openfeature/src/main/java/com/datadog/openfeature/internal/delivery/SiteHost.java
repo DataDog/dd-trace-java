@@ -25,6 +25,7 @@ final class SiteHost {
     } catch (final URISyntaxException ignored) {
       // Reported below
     }
-    throw new IllegalArgumentException("Invalid Datadog site: " + site);
+    // Like the endpoint URL errors, the message omits the configured value.
+    throw new IllegalArgumentException("Invalid Datadog site");
   }
 }

@@ -31,12 +31,14 @@ fun Test.configureTestAgentPostChecks() {
     .withPropertyName("ciTestAgentCheckScript")
     .withPathSensitivity(PathSensitivity.NONE)
 
-  outputs.files(reportDirectory.map { directory ->
-    listOf(
-      directory.file("summary_response.txt"),
-      directory.file("response.txt")
-    )
-  }).withPropertyName("ciTestAgentPostCheckReports")
+  outputs.files(
+    reportDirectory.map { directory ->
+      listOf(
+        directory.file("summary_response.txt"),
+        directory.file("response.txt")
+      )
+    }
+  ).withPropertyName("ciTestAgentPostCheckReports")
 
   // A failing trace check must fail the Test task before its results enter the cache.
   doLast(
@@ -58,12 +60,10 @@ private val testAgentVariables = listOf(
   "CI_TEST_AGENT_ENABLED_CHECKS"
 ) + testAgentBooleanVariables
 
-private fun Test.testAgentEnvironment(): Provider<Map<String, String>> {
-  return project.providers.provider {
-    environment.filterKeys {
-      it == "CI_USE_TEST_AGENT" || it == "CI_AGENT_HOST"
-    }.mapValues { it.value.toString() }
-  }
+private fun Test.testAgentEnvironment(): Provider<Map<String, String>> = project.providers.provider {
+  environment.filterKeys {
+    it == "CI_USE_TEST_AGENT" || it == "CI_AGENT_HOST"
+  }.mapValues { it.value.toString() }
 }
 
 private fun testAgentConfiguration(

@@ -100,6 +100,12 @@ public final class FeatureFlagsRuntime {
       throw new IllegalStateException("Feature Flags is disabled");
     }
     final boolean remoteConfig = CONFIGURATION_SOURCE_REMOTE_CONFIG.equals(sourceName);
+    // Before any logging or service lookup, so a failing logging backend cannot hide the cause.
+    if (!remoteConfig
+        && CdnConfigurationSource.isManagedEndpoint(settings)
+        && settings.apiKey() == null) {
+      throw new MissingApiKeyException();
+    }
     LOGGER.debug("Feature Flags runtime starting: configurationSource={}", sourceName);
     final RuntimeServices services = new RuntimeServices(bridge.healthMetrics());
     final ConfigurationService source;
@@ -166,6 +172,20 @@ public final class FeatureFlagsRuntime {
               + " Remote Configuration enabled; attach a compatible agent or configure"
               + " DD_FEATURE_FLAGS_CONFIGURATION_SOURCE=agentless for CDN delivery",
           cause);
+    }
+  }
+
+  /**
+   * Signals a missing API key for the managed CDN endpoint, before any runtime resources have been
+   * started: the endpoint rejects unauthenticated requests, so no configuration can arrive.
+   */
+  public static final class MissingApiKeyException extends IllegalStateException {
+    private MissingApiKeyException() {
+      super(
+          "DD_API_KEY is required for the default Datadog Feature Flagging endpoint; set DD_API_KEY,"
+              + " set DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL, or attach"
+              + " dd-java-agent and set DD_FEATURE_FLAGS_CONFIGURATION_SOURCE=remote_config to load"
+              + " flags through the Datadog Agent");
     }
   }
 

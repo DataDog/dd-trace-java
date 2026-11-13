@@ -8924,6 +8924,14 @@
         "aliases": []
       }
     ],
+    "DD_TRACE_OTEL_SDK_SELF_MONITORING_METRICS_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
     "DD_TRACE_OTEL_SEMANTICS_ENABLED": [
       {
         "version": "A",
@@ -12113,7 +12121,8 @@
         "version": "A",
         "type": "string",
         "default": null,
-        "aliases": []
+        "aliases": [],
+        "sensitive": true
       }
     ],
     "OTEL_EXPORTER_OTLP_HEADERS": [

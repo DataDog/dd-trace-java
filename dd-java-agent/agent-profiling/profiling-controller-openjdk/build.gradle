@@ -9,6 +9,37 @@ testJvmConstraints {
   excludeJdk = ['SEMERU11', 'SEMERU17']
 }
 
+// TODO: Cover these classes, then remove them from the coverage baseline (APMLP-2263)
+excludedClassesBranchCoverage += [
+  'com.datadog.profiling.controller.openjdk.JFREventContextIntegration',
+  'com.datadog.profiling.controller.openjdk.JfrProfilerSettings',
+  'com.datadog.profiling.controller.openjdk.OpenJdkController',
+  'com.datadog.profiling.controller.openjdk.OpenJdkOngoingRecording',
+  'com.datadog.profiling.controller.openjdk.events.AggregatedSmapEntryEvent',
+  'com.datadog.profiling.controller.openjdk.events.DeadlockEventFactory',
+  'com.datadog.profiling.controller.openjdk.events.EndpointEvent',
+  'com.datadog.profiling.controller.openjdk.events.QueueTimeEvent',
+  'com.datadog.profiling.controller.openjdk.events.SimpleParser',
+  'com.datadog.profiling.controller.openjdk.events.SmapEntryCache',
+  'com.datadog.profiling.controller.openjdk.events.SmapEntryEvent',
+  'com.datadog.profiling.controller.openjdk.events.SmapEntryFactory',
+  'com.datadog.profiling.controller.openjdk.events.TimelineEvent',
+]
+excludedClassesInstructionCoverage += [
+  'com.datadog.profiling.controller.openjdk.JFREventContextIntegration',
+  'com.datadog.profiling.controller.openjdk.JfrProfilerSettings',
+  'com.datadog.profiling.controller.openjdk.OpenJdkController',
+  'com.datadog.profiling.controller.openjdk.OpenJdkOngoingRecording',
+  'com.datadog.profiling.controller.openjdk.events.AggregatedSmapEntryEvent',
+  'com.datadog.profiling.controller.openjdk.events.DeadlockEvent',
+  'com.datadog.profiling.controller.openjdk.events.EndpointEvent',
+  'com.datadog.profiling.controller.openjdk.events.QueueTimeEvent',
+  'com.datadog.profiling.controller.openjdk.events.SmapEntryCache',
+  'com.datadog.profiling.controller.openjdk.events.SmapEntryEvent',
+  'com.datadog.profiling.controller.openjdk.events.SmapEntryFactory',
+  'com.datadog.profiling.controller.openjdk.events.TimelineEvent',
+]
+
 dependencies {
   api libs.slf4j
   api project(':internal-api')
