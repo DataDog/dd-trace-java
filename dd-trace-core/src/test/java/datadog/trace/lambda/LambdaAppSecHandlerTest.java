@@ -1,10 +1,13 @@
 package datadog.trace.lambda;
 
 import static datadog.json.JsonMapper.toJson;
+import static datadog.trace.api.TracePropagationStyle.DATADOG;
 import static datadog.trace.api.config.TracerConfig.TRACE_CLIENT_IP_HEADER;
 import static datadog.trace.api.gateway.Events.EVENTS;
+import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
 import static datadog.trace.lambda.LambdaEventParser.detectTriggerType;
 import static datadog.trace.lambda.LambdaEventParser.parseResponse;
+import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectEnvConfig;
 import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectSysConfig;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
@@ -34,6 +37,7 @@ import static org.mockito.Mockito.when;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.DDTraceId;
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.appsec.AppSecContext;
 import datadog.trace.api.function.TriConsumer;
@@ -54,8 +58,11 @@ import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
+import datadog.trace.common.writer.ListWriter;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDCoreJavaSpecification;
+import datadog.trace.core.propagation.ExtractedContext;
+import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.lambda.LambdaEventParser.LambdaResponseData;
 import datadog.trace.lambda.LambdaEventParser.LambdaTriggerType;
 import java.io.ByteArrayInputStream;
@@ -110,6 +117,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   void resetTracer() {
     AgentTracer.forceRegister(originalTracer);
     LambdaAppSecHandler.setCurrentTriggerType(null);
+    LambdaAwsAccessKeyId.reset();
   }
 
   // ============================================================================
@@ -3103,6 +3111,191 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
     verify(span, never()).setHttpStatusCode(anyInt());
     verify(span, never()).setError(anyBoolean(), anyByte());
+  }
+
+  // ============================================================================
+  // AWS access key ID tag (DD_APPSEC_AWS_ACCESS_KEY_ID_TAG_ENABLED)
+  // ============================================================================
+
+  private static final String ACCESS_KEY_ID = "ASIAEXAMPLE000000001";
+  private static final String CANARY_SECRET = "canary-secret-6f1d0c";
+  private static final String CANARY_TOKEN = "canary-token-93b2aa";
+
+  private static final String[] HTTP_EVENTS = {
+    // API Gateway REST (v1)
+    "{\"resource\": \"/\", \"path\": \"/\", \"httpMethod\": \"GET\", \"headers\":"
+        + " {\"Host\": \"api.example.com\"}, \"requestContext\": {\"httpMethod\": \"GET\","
+        + " \"domainName\": \"api.example.com\"}}",
+    // API Gateway HTTP (v2) and Function URL
+    "{\"version\": \"2.0\", \"rawPath\": \"/\", \"headers\": {\"host\": \"api.example.com\"},"
+        + " \"requestContext\": {\"domainName\": \"api.example.com\", \"http\": {\"method\":"
+        + " \"GET\", \"path\": \"/\"}}}",
+    // ALB
+    "{\"path\": \"/alb\", \"httpMethod\": \"GET\", \"headers\": {\"host\": \"alb.example.com\"},"
+        + " \"requestContext\": {\"elb\": {\"targetGroupArn\": \"arn:aws:elasticloadbalancing\"}}}"
+  };
+
+  private void enableAccessKeyIdTag() {
+    injectSysConfig("appsec.aws.access.key.id.tag.enabled", "true");
+    injectAwsCredentials();
+  }
+
+  private void injectAwsCredentials() {
+    injectEnvConfig("AWS_ACCESS_KEY_ID", ACCESS_KEY_ID, false);
+    injectEnvConfig("AWS_SECRET_ACCESS_KEY", CANARY_SECRET, false);
+    injectEnvConfig("AWS_SESSION_TOKEN", CANARY_TOKEN, false);
+  }
+
+  @Test
+  void accessKeyIdTagIsOnEveryMonitoredHttpInvocation() {
+    enableAccessKeyIdTag();
+    for (String event : HTTP_EVENTS) {
+      setupMockCallbacks(new Callbacks());
+      Map<String, Object> tags =
+          tagsOf(LambdaAppSecHandler.processRequestStart(createInputStream(event)));
+      assertEquals(ACCESS_KEY_ID, tags.get(LambdaAwsAccessKeyId.TAG), event);
+    }
+  }
+
+  @Test
+  void accessKeyIdTagIsEnabledByItsEnvironmentVariable() {
+    injectAwsCredentials();
+    injectEnvConfig("DD_APPSEC_AWS_ACCESS_KEY_ID_TAG_ENABLED", "true", false);
+    setupMockCallbacks(new Callbacks());
+    Map<String, Object> tags =
+        tagsOf(LambdaAppSecHandler.processRequestStart(createInputStream(HTTP_EVENTS[0])));
+    assertEquals(ACCESS_KEY_ID, tags.get(LambdaAwsAccessKeyId.TAG));
+  }
+
+  @Test
+  void accessKeyIdTagIsOffByDefault() {
+    injectAwsCredentials();
+    setupMockCallbacks(new Callbacks());
+    Map<String, Object> tags =
+        tagsOf(LambdaAppSecHandler.processRequestStart(createInputStream(HTTP_EVENTS[0])));
+    assertFalse(tags.containsKey(LambdaAwsAccessKeyId.TAG));
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"false", "0", "no"})
+  void accessKeyIdTagIsOffWhenDisabled(String enabled) {
+    injectAwsCredentials();
+    injectSysConfig("appsec.aws.access.key.id.tag.enabled", enabled);
+    setupMockCallbacks(new Callbacks());
+    Map<String, Object> tags =
+        tagsOf(LambdaAppSecHandler.processRequestStart(createInputStream(HTTP_EVENTS[0])));
+    assertFalse(tags.containsKey(LambdaAwsAccessKeyId.TAG));
+  }
+
+  @Test
+  void accessKeyIdTagIsNotSetWhenAppSecIsOff() {
+    enableAccessKeyIdTag();
+    ActiveSubsystems.APPSEC_ACTIVE = false;
+    setupMockCallbacks(new Callbacks());
+    assertNull(LambdaAppSecHandler.processRequestStart(createInputStream(HTTP_EVENTS[0])));
+  }
+
+  @Test
+  void accessKeyIdTagIsNotSetForNonHttpTrigger() {
+    enableAccessKeyIdTag();
+    setupMockCallbacks(new Callbacks());
+    assertNull(
+        LambdaAppSecHandler.processRequestStart(
+            createInputStream(
+                "{\"Records\": [{\"eventSource\": \"aws:sqs\", \"body\": \"hello\"}]}")));
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"", "ASIAEXAMPLE00000001", "asiaexample000000001"})
+  void accessKeyIdTagIsNotSetForEmptyOrMalformedValue(String value) {
+    enableAccessKeyIdTag();
+    injectEnvConfig("AWS_ACCESS_KEY_ID", value, false);
+    setupMockCallbacks(new Callbacks());
+    Map<String, Object> tags =
+        tagsOf(LambdaAppSecHandler.processRequestStart(createInputStream(HTTP_EVENTS[0])));
+    assertFalse(tags.containsKey(LambdaAwsAccessKeyId.TAG));
+  }
+
+  @Test
+  void accessKeyIdTagIsNotSetOnSnapStart() {
+    enableAccessKeyIdTag();
+    injectEnvConfig("AWS_LAMBDA_INITIALIZATION_TYPE", "snap-start", false);
+    setupMockCallbacks(new Callbacks());
+    Map<String, Object> tags =
+        tagsOf(LambdaAppSecHandler.processRequestStart(createInputStream(HTTP_EVENTS[0])));
+    assertFalse(tags.containsKey(LambdaAwsAccessKeyId.TAG));
+  }
+
+  @Test
+  void accessKeyIdTagKeepsTheFirstValueAcrossInvocations() {
+    enableAccessKeyIdTag();
+    setupMockCallbacks(new Callbacks());
+    Map<String, Object> first =
+        tagsOf(LambdaAppSecHandler.processRequestStart(createInputStream(HTTP_EVENTS[0])));
+    injectEnvConfig("AWS_ACCESS_KEY_ID", "ASIAEXAMPLE000000002", false);
+    Map<String, Object> second =
+        tagsOf(LambdaAppSecHandler.processRequestStart(createInputStream(HTTP_EVENTS[1])));
+
+    assertEquals(ACCESS_KEY_ID, first.get(LambdaAwsAccessKeyId.TAG));
+    assertEquals(ACCESS_KEY_ID, second.get(LambdaAwsAccessKeyId.TAG));
+  }
+
+  @Test
+  void accessKeyIdTagNeverCarriesTheSecretOrTheToken() {
+    enableAccessKeyIdTag();
+    for (String event : HTTP_EVENTS) {
+      setupMockCallbacks(new Callbacks());
+      for (Object value :
+          tagsOf(LambdaAppSecHandler.processRequestStart(createInputStream(event))).values()) {
+        String text = String.valueOf(value);
+        assertFalse(text.contains(CANARY_SECRET), event);
+        assertFalse(text.contains(CANARY_TOKEN), event);
+      }
+    }
+  }
+
+  @Test
+  void accessKeyIdTagSurvivesTheMergeWithTheExtensionContext() {
+    enableAccessKeyIdTag();
+    setupMockCallbacks(new Callbacks());
+    AgentSpanContext appSecContext =
+        LambdaAppSecHandler.processRequestStart(createInputStream(HTTP_EVENTS[0]));
+
+    // the extension returns an ExtractedContext carrying the trace identity
+    ExtractedContext extensionContext =
+        new ExtractedContext(
+            DDTraceId.ONE, 2, SAMPLER_KEEP, null, PropagationTags.factory().empty(), DATADOG);
+
+    AgentSpanContext merged = LambdaAppSecHandler.mergeContexts(extensionContext, appSecContext);
+    assertSame(extensionContext, merged);
+    assertEquals(ACCESS_KEY_ID, tagsOf(merged).get(LambdaAwsAccessKeyId.TAG));
+
+    CoreTracer tracer = CoreTracer.builder().writer(new ListWriter()).build();
+    try {
+      AgentSpan span = tracer.startSpan("java-aws-sdk", "dd-tracer-serverless-span", merged);
+      assertEquals(DDTraceId.ONE, span.getTraceId());
+      assertEquals(ACCESS_KEY_ID, span.getTag(LambdaAwsAccessKeyId.TAG));
+      span.finish();
+    } finally {
+      tracer.close();
+    }
+  }
+
+  @Test
+  void accessKeyIdTagLandsOnTheInvocationSpan() {
+    enableAccessKeyIdTag();
+    setupMockCallbacks(new Callbacks());
+    AgentSpanContext context =
+        LambdaAppSecHandler.processRequestStart(createInputStream(HTTP_EVENTS[0]));
+
+    CoreTracer tracer = CoreTracer.builder().writer(new ListWriter()).build();
+    try {
+      AgentSpan span = tracer.startSpan("java-aws-sdk", "dd-tracer-serverless-span", context);
+      assertEquals(ACCESS_KEY_ID, span.getTag(LambdaAwsAccessKeyId.TAG));
+      span.finish();
+    } finally {
+      tracer.close();
+    }
   }
 
   // ============================================================================

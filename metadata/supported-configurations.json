@@ -275,6 +275,14 @@
         "aliases": []
       }
     ],
+    "DD_APPSEC_AWS_ACCESS_KEY_ID_TAG_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
     "DD_APPSEC_BODY_PARSING_SIZE_LIMIT": [
       {
         "version": "A",

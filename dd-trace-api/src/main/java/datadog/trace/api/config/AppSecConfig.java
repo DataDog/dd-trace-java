@@ -56,5 +56,12 @@ public final class AppSecConfig {
   public static final String APPSEC_SCA_MAX_TRACKED_DEPENDENCIES =
       "appsec.sca.max-tracked-dependencies";
 
+  /**
+   * Tags each AWS Lambda invocation monitored by tracer AppSec with the execution environment's AWS
+   * access key ID. Off by default: the tag carries a credential identifier.
+   */
+  public static final String APPSEC_AWS_ACCESS_KEY_ID_TAG_ENABLED =
+      "appsec.aws.access.key.id.tag.enabled";
+
   private AppSecConfig() {}
 }
