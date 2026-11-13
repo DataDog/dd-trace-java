@@ -1,8 +1,8 @@
 _v: 1
 name: junit-5
 display_name: JUnit Jupiter API
-description: Instruments JUnit Platform test and suite lifecycles, including Jupiter, Cucumber, and Spock,
-  with setup and teardown tracing and optional test skipping, retries, and ordering for Test Optimization.
+description: Instruments JUnit Platform, Cucumber, and Spock test lifecycles with setup and teardown tracing, test
+  skipping, retries, ordering, and Cucumber feature coverage.
 packages:
 - name: io.cucumber:cucumber-junit-platform-engine
 - name: org.junit.jupiter:junit-jupiter-api

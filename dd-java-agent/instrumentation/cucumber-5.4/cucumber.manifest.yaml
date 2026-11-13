@@ -1,8 +1,7 @@
 _v: 1
 name: cucumber
 display_name: 'Cucumber-JVM: Core'
-description: Instruments Cucumber step execution to record step names, locations, and arguments for Test
-  Optimization.
+description: Instruments Cucumber step execution with step definitions, source locations, and arguments.
 packages:
 - name: io.cucumber:cucumber-core
 category:

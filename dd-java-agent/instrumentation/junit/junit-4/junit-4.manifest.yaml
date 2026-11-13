@@ -1,8 +1,8 @@
 _v: 1
 name: junit-4
 display_name: JUnit
-description: Instruments JUnit 4, Cucumber, and MUnit test and suite lifecycles, setup and teardown hooks,
-  and optional test skipping, retries, and ordering for Test Optimization.
+description: Instruments JUnit 4, Cucumber, and MUnit test lifecycles with setup and teardown tracing, test skipping,
+  retries, ordering, and Cucumber feature coverage.
 packages:
 - name: io.cucumber:cucumber-junit
 - name: junit:junit

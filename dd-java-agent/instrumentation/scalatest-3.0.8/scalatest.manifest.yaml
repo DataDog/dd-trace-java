@@ -1,8 +1,7 @@
 _v: 1
 name: scalatest
 display_name: scalatest
-description: Instruments ScalaTest test and suite lifecycles, including test results and optional test
-  skipping and retries for Test Optimization.
+description: Instruments ScalaTest test and suite lifecycles, test result reporting, skipping, and retries.
 packages:
 - name: org.scalatest:scalatest_2.12
 category:

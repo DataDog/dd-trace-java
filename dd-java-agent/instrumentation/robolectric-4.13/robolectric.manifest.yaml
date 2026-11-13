@@ -1,8 +1,8 @@
 _v: 1
 name: robolectric
 display_name: robolectric
-description: Instruments Robolectric application setup to enrich test events with emulated Android SDK
-  and Robolectric version metadata.
+description: Instruments Robolectric test setup to add emulated Android SDK and Robolectric version metadata to
+  test spans.
 packages:
 - name: org.robolectric:robolectric
 category:

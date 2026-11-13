@@ -1,8 +1,8 @@
 _v: 1
 name: karate
 display_name: karate-core
-description: Instruments Karate feature, scenario, and step execution, including test results and optional
-  skipping and retries for Test Optimization.
+description: Instruments Karate feature, scenario, and step execution with test result reporting, skipping, and
+  retries.
 packages:
 - name: com.intuit.karate:karate-core
 - name: io.karatelabs:karate-core

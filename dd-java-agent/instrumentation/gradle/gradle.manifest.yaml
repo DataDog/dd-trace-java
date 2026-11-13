@@ -1,8 +1,8 @@
 _v: 1
 name: gradle
 display_name: Gradle
-description: Instruments Gradle build sessions and build and test task lifecycles, configures Test Optimization
-  in test JVMs, and supports optional JUnit test ordering.
+description: Instruments Gradle build sessions and build and test tasks, configures test instrumentation and coverage,
+  and orders JUnit test classes.
 packages: []
 category:
 - cicd.pipeline
