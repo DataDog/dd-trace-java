@@ -1,7 +1,9 @@
 _v: 1
 name: aws-sdk
 display_name: AWS SDK for Java - Core
-description: Instruments AWS SDK service requests and SQS message processing, propagates context through SQS, SNS, and Step Functions, and records optional Data Streams checkpoints for messaging and S3 operations.
+description: Instruments AWS SDK service requests, SNS and SQS messaging, Kinesis record production and consumption,
+  S3 object transfers, and Step Functions execution starts with trace propagation, optional payload capture, and
+  Data Streams Monitoring.
 packages:
 - name: com.amazonaws:aws-java-sdk-core
 - name: com.amazonaws:aws-java-sdk-sns

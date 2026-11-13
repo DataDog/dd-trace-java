@@ -1,7 +1,8 @@
 _v: 1
 name: emr-aws-sdk
 display_name: Amazon EMR AWS SDK
-description: Instruments service requests through the AWS SDK repackaged in Amazon EMR, recording request metadata and errors, propagating trace context, and adding optional Data Streams checkpoints.
+description: Instruments AWS service requests through the SDK bundled with Amazon EMR, including S3 object transfers
+  and SNS and Kinesis messaging with Data Streams Monitoring.
 packages: []
 category:
 - cloud_provider.client
