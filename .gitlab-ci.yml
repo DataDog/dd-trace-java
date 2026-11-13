@@ -789,6 +789,12 @@ generate-supported-versions:
 validate-supported-versions:
   allow_failure: true
 
+# TEMPORARY: manual S3 upload on any branch to test in the Integration Portal. Revert before merging.
+publish-supported-versions:
+  rules:
+    - when: manual
+      allow_failure: true
+
 # In Gitlab, DD_* variables are set because the build runner is instrumented with Datadog telemetry
 # To have a pristine environment for the tests, these variables are saved before the test run and restored afterwards
 .prepare_test_env: &prepare_test_env
