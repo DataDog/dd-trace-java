@@ -38,7 +38,7 @@ abstract class AbstractSmokeTest extends ProcessManager {
   private Closure decode = decodedTracesCallback()
 
   @Shared
-  private String remoteConfigResponse
+  private volatile String remoteConfigResponse = "{}"
 
   @Shared
   private Throwable traceDecodingFailure = null

@@ -180,4 +180,4 @@ org.tabletest:tabletest-parser:1.2.1=testCompileClasspath,testRuntimeClasspath
 org.testcontainers:testcontainers:1.21.4=compileClasspath,runtimeClasspath,testCompileClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
 org.xerial.snappy:snappy-java:1.1.8.4=testRuntimeClasspath
 org.xmlresolver:xmlresolver:5.3.3=spotbugs
-empty=annotationProcessor,spotbugsPlugins,testAnnotationProcessor,testFixturesAnnotationProcessor,testFixturesCompileClasspath
+empty=annotationProcessor,smokeTestDiagnosticsClasspath,smokeTestTracerClasspath,spotbugsPlugins,testAnnotationProcessor,testFixturesAnnotationProcessor,testFixturesCompileClasspath

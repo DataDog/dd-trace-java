@@ -23,7 +23,7 @@ java {
 dependencies {
   implementation enforcedPlatform("${quarkusPlatformGroupId}:${quarkusPlatformArtifactId}:${quarkusPlatformVersion}")
   implementation 'io.quarkus:quarkus-resteasy'
-  if (hasProperty('apiJar')) {
+  if (project.hasProperty('apiJar')) {
     implementation files(property('apiJar'))
   } else {
     implementation "com.datadoghq:dd-trace-api:0.68.0"

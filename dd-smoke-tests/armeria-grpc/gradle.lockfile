@@ -149,4 +149,4 @@ org.tabletest:tabletest-junit:1.2.2=testCompileClasspath,testCompileProtoPath,te
 org.tabletest:tabletest-parser:1.2.1=testCompileClasspath,testCompileProtoPath,testRuntimeClasspath
 org.testcontainers:testcontainers:1.21.4=testCompileClasspath,testCompileProtoPath,testRuntimeClasspath
 org.xmlresolver:xmlresolver:5.3.3=spotbugs
-empty=annotationProcessor,protobuf,smokeTestAppExtraJarApiJar,spotbugsPlugins,testAnnotationProcessor,testProtobuf
+empty=annotationProcessor,protobuf,smokeTestAppExtraJarApiJar,smokeTestDiagnosticsClasspath,smokeTestTracerClasspath,spotbugsPlugins,testAnnotationProcessor,testProtobuf

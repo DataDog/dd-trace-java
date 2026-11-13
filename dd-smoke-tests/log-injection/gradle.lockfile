@@ -183,4 +183,4 @@ org.testcontainers:testcontainers:1.21.4=testCompileClasspath,testRuntimeClasspa
 org.wildfly.common:wildfly-common:1.5.1.Final=jbossBackendLatest
 org.xmlresolver:xmlresolver:5.3.3=spotbugs
 org.xmlunit:xmlunit-core:2.10.3=testCompileClasspath,testRuntimeClasspath
-empty=annotationProcessor,loggingAnnotationProcessor,loggingCompileClasspath,loggingRuntimeClasspath,shadow,spotbugsPlugins,testAnnotationProcessor
+empty=annotationProcessor,loggingAnnotationProcessor,loggingCompileClasspath,loggingRuntimeClasspath,shadow,smokeTestDiagnosticsClasspath,smokeTestTracerClasspath,spotbugsPlugins,testAnnotationProcessor

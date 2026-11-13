@@ -24,6 +24,12 @@ class OtelContextExposureSmokeTest extends AbstractAppSecServerSmokeTest {
     'DEBUG'
   }
 
+  // OTel context exposure follows boot-time FULLY_ENABLED only, so RC activation must not run here
+  @Override
+  boolean activateAppSecAtRuntime() {
+    false
+  }
+
   @Override
   ProcessBuilder createProcessBuilder() {
     String springBootShadowJar = System.getProperty("datadog.smoketest.appsec.springboot.shadowJar.path")
@@ -40,7 +46,7 @@ class OtelContextExposureSmokeTest extends AbstractAppSecServerSmokeTest {
 
   void 'OTel process context registration follows AppSec activation, not profiling'() {
     given:
-    boolean appSecFullyEnabled = System.getProperty('smoke_test.appsec.enabled') != 'inactive'
+    boolean appSecFullyEnabled = !RUNTIME_ACTIVATION
     PollingConditions conditions = new PollingConditions(timeout: 30, initialDelay: 1, factor: 1.25)
 
     expect:
