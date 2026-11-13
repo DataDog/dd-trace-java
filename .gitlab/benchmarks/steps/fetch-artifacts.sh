@@ -25,7 +25,10 @@ function fetch_source() {
     mkdir -p "${dest}"
     case "${target}" in
     "current-ci-pipeline")
-      cp -r "${WORKSPACE}"/* "${dest}"
+      # The scratch workspace (tracers/, reports/) lives inside the repo now.
+      # Exclude it from the copy so the copy cannot recurse into itself.
+      # Dotdirs are excluded to match the original glob's behavior.
+      (cd "${WORKSPACE}" && find . -mindepth 1 -maxdepth 1 -not -name '.??*' -not -name 'tracers' -not -name 'reports' -exec cp -r {} "${dest}" \;)
       ;;
     *)
       wget -q "https://codeload.github.com/DataDog/dd-trace-java/tar.gz/refs/heads/${target}" -O - | tar -xz --strip-components=1 -C "${dest}"
