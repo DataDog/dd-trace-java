@@ -41,19 +41,19 @@ final class OtelStartupLogSettingsWriter {
   /** {@code log} writes the startup log, so its level is the one reported. */
   static void write(JsonWriter writer, Config config, Sampler sampler, Logger log)
       throws IOException {
-    boolean tracesOtlp = config.isTraceEnabled() && config.isOtlpTracesExportEnabled();
-    // OTLP metrics also include the OTLP span metrics, unlike the OpenTelemetry metrics exporter
-    boolean metricsOtlp = config.isOtlpMetricsExportEnabled();
-    boolean otelMetricsOtlp =
+    boolean tracesOverOtlp = config.isTraceEnabled() && config.isOtlpTracesExportEnabled();
+    // span metrics share the OTLP metrics transport, but not the OpenTelemetry metrics exporter
+    boolean spanOrOtelMetricsOverOtlp = config.isOtlpMetricsExportEnabled();
+    boolean otelMetricsOverOtlp =
         config.isMetricsOtelEnabled() && config.isMetricsOtlpExporterEnabled();
-    boolean logsOtlp = config.isOtlpLogsExportEnabled();
+    boolean logsOverOtlp = config.isOtlpLogsExportEnabled();
 
     writer.name("DD_TRACE_OTEL_ENABLED").value(config.isTraceOtelEnabled());
     writer.name("DD_METRICS_OTEL_ENABLED").value(config.isMetricsOtelEnabled());
     writer.name("DD_LOGS_OTEL_ENABLED").value(config.isLogsOtelEnabled());
-    writer.name("OTEL_TRACES_EXPORTER").value(tracesOtlp ? "otlp" : "none");
-    writer.name("OTEL_METRICS_EXPORTER").value(otelMetricsOtlp ? "otlp" : "none");
-    writer.name("OTEL_LOGS_EXPORTER").value(logsOtlp ? "otlp" : "none");
+    writer.name("OTEL_TRACES_EXPORTER").value(tracesOverOtlp ? "otlp" : "none");
+    writer.name("OTEL_METRICS_EXPORTER").value(otelMetricsOverOtlp ? "otlp" : "none");
+    writer.name("OTEL_LOGS_EXPORTER").value(logsOverOtlp ? "otlp" : "none");
     writer.name("OTEL_LOG_LEVEL").value(logLevel(log));
     writer.name("OTEL_SERVICE_NAME").value(config.getServiceName());
     writer.name("OTEL_RESOURCE_ATTRIBUTES");
@@ -62,7 +62,7 @@ final class OtelStartupLogSettingsWriter {
     writer.name("OTEL_PROPAGATORS").value(propagators(config));
     writeSampler(writer, config, sampler);
 
-    if (tracesOtlp) {
+    if (tracesOverOtlp) {
       writer
           .name("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT")
           .value(sanitizeEndpoint(config.getOtlpTracesEndpoint()));
@@ -72,7 +72,7 @@ final class OtelStartupLogSettingsWriter {
       writer.name("OTEL_EXPORTER_OTLP_TRACES_HEADERS");
       writeRedactedHeaders(writer, config.getOtlpTracesHeaders().keySet());
     }
-    if (metricsOtlp) {
+    if (spanOrOtelMetricsOverOtlp) {
       writer
           .name("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT")
           .value(sanitizeEndpoint(config.getOtlpMetricsEndpoint()));
@@ -82,14 +82,14 @@ final class OtelStartupLogSettingsWriter {
       writer.name("OTEL_EXPORTER_OTLP_METRICS_HEADERS");
       writeRedactedHeaders(writer, config.getOtlpMetricsHeaders().keySet());
       // OTLP span metrics are always delta and flushed with the trace stats
-      if (otelMetricsOtlp) {
+      if (otelMetricsOverOtlp) {
         writer.name("OTEL_METRIC_EXPORT_INTERVAL").value(config.getMetricsOtelInterval());
         writer
             .name("OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE")
             .value(config.getOtlpMetricsTemporalityPreference().name().toLowerCase(Locale.ROOT));
       }
     }
-    if (logsOtlp) {
+    if (logsOverOtlp) {
       writer
           .name("OTEL_EXPORTER_OTLP_LOGS_ENDPOINT")
           .value(sanitizeEndpoint(config.getOtlpLogsEndpoint()));
@@ -104,7 +104,7 @@ final class OtelStartupLogSettingsWriter {
       writer.name("OTEL_BLRP_MAX_EXPORT_BATCH_SIZE").value(config.getLogsOtelBatchSize());
     }
     // the general settings, which the signals without their own fall back to
-    if (tracesOtlp || metricsOtlp || logsOtlp) {
+    if (tracesOverOtlp || spanOrOtelMetricsOverOtlp || logsOverOtlp) {
       writer.name("OTEL_EXPORTER_OTLP_ENDPOINT").value(sanitizeEndpoint(config.getOtlpEndpoint()));
       writer.name("OTEL_EXPORTER_OTLP_PROTOCOL").value(protocolName(config.getOtlpProtocol()));
       writer.name("OTEL_EXPORTER_OTLP_HEADERS");
