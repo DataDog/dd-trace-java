@@ -1,7 +1,7 @@
 _v: 1
 name: commons-http-client
 display_name: HttpClient
-description: Instruments outbound Commons HttpClient requests, with trace propagation, Data Streams tracking, and optional SSRF taint tracking, detection, and prevention.
+description: Instruments outbound HTTP requests and HTTP method URI taint propagation for SSRF detection.
 packages:
 - name: commons-httpclient:commons-httpclient
 category:

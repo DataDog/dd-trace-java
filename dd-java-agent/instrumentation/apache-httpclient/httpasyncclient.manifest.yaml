@@ -1,7 +1,8 @@
 _v: 1
 name: httpasyncclient
 display_name: Apache HttpAsyncClient
-description: Instruments asynchronous Apache HTTP client requests, propagating trace context through redirects and response callbacks and supporting Data Streams tracking and optional SSRF detection and prevention.
+description: Instruments asynchronous outbound HTTP requests and propagates trace context through redirects and
+  completion callbacks.
 packages:
 - name: org.apache.httpcomponents.client5:httpclient5
 - name: org.apache.httpcomponents:httpasyncclient

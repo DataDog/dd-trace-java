@@ -1,7 +1,7 @@
 _v: 1
 name: grizzly-client
 display_name: Grizzly Async HTTP Client
-description: Instruments asynchronous HTTP requests and response callbacks through the Grizzly and Ning client API when enabled, with trace propagation, Data Streams tracking, and optional SSRF prevention.
+description: Instruments asynchronous outbound HTTP requests and preserves trace context through response callbacks.
 packages:
 - name: com.ning:async-http-client
 - name: org.glassfish.grizzly:grizzly-http-client

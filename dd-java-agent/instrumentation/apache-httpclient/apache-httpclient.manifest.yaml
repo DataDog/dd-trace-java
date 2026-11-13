@@ -1,7 +1,7 @@
 _v: 1
 name: apache-httpclient
 display_name: HttpClient
-description: Instruments outbound Apache HttpClient requests and AWS SDK HTTP client implementations, with trace propagation, Data Streams tracking, and optional SSRF taint tracking, detection, and prevention.
+description: Instruments synchronous outbound HTTP requests and request URI taint propagation for SSRF detection.
 packages:
 - name: io.dropwizard:dropwizard-client
 - name: org.apache.httpcomponents.client5:httpclient5

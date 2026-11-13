@@ -1,7 +1,8 @@
 _v: 1
 name: java-http-client
 display_name: Java HTTP Client
-description: Instruments synchronous and asynchronous Java HTTP Client requests, preserving trace context through response body callbacks and supporting Data Streams tracking and optional SSRF checks.
+description: Instruments synchronous and asynchronous outbound HTTP requests and propagates trace context through
+  request headers and response body callbacks.
 packages: []
 category:
 - http.client

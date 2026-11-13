@@ -1,7 +1,8 @@
 _v: 1
 name: reactor-netty
 display_name: HTTP functionality for the Reactor Netty library
-description: Instruments Reactor Netty HTTP client creation and request lifecycle callbacks to carry the initiating trace context into HTTP request spans created by the Netty instrumentation.
+description: Instruments outbound Reactor Netty HTTP requests by propagating trace context into Netty client spans
+  and clearing request context when connections are released.
 packages:
 - name: io.projectreactor.netty:reactor-netty-http
 category:
