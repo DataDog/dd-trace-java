@@ -23,6 +23,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.datadog.openfeature.Provider.Options;
+import com.datadog.openfeature.internal.FeatureFlagsRuntime;
 import com.datadog.openfeature.internal.JsonReading;
 import com.datadog.openfeature.internal.LocalHttpServer;
 import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
@@ -522,6 +523,22 @@ public class ProviderTest {
     CapturingServiceProvider.reset();
     CapturingServiceProvider.enable(Provider.class.getName(), Level.ERROR);
     CapturingServiceProvider.failOn("DD_API_KEY");
+    try {
+      final ProviderNotReadyError error =
+          assertThrows(ProviderNotReadyError.class, () -> provider.initialize(null));
+      assertThat(error.getMessage(), equalTo(MISSING_API_KEY));
+    } finally {
+      CapturingServiceProvider.reset();
+    }
+  }
+
+  @Test
+  public void testAgentlessWithoutApiKeyFailsInitializationWhenTheRuntimeLogFails() {
+    final Provider provider =
+        newProvider(new Options().initTimeout(30, SECONDS), AgentBridge.NONE, TestSettings.of());
+    CapturingServiceProvider.reset();
+    CapturingServiceProvider.enable(FeatureFlagsRuntime.class.getName(), Level.DEBUG);
+    CapturingServiceProvider.failOn("Feature Flags runtime starting");
     try {
       final ProviderNotReadyError error =
           assertThrows(ProviderNotReadyError.class, () -> provider.initialize(null));

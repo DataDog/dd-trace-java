@@ -100,6 +100,12 @@ public final class FeatureFlagsRuntime {
       throw new IllegalStateException("Feature Flags is disabled");
     }
     final boolean remoteConfig = CONFIGURATION_SOURCE_REMOTE_CONFIG.equals(sourceName);
+    // Before any logging or service lookup, so a failing logging backend cannot hide the cause.
+    if (!remoteConfig
+        && CdnConfigurationSource.isManagedEndpoint(settings)
+        && settings.apiKey() == null) {
+      throw new MissingApiKeyException();
+    }
     LOGGER.debug("Feature Flags runtime starting: configurationSource={}", sourceName);
     final RuntimeServices services = new RuntimeServices(bridge.healthMetrics());
     final ConfigurationService source;
@@ -118,9 +124,6 @@ public final class FeatureFlagsRuntime {
       // Remote Configuration never falls back to direct intake.
       transport = bridge.eventProxy();
     } else {
-      if (CdnConfigurationSource.isManagedEndpoint(settings) && settings.apiKey() == null) {
-        throw new MissingApiKeyException();
-      }
       source = new CdnConfigurationSource(settings, services);
       final EventTransport proxy = bridge.eventProxy();
       final EventTransport direct = DirectIntakeTransport.create(settings);
