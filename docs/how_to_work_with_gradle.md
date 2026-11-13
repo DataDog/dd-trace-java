@@ -741,7 +741,7 @@ graph LR
 ```Gradle Kotlin DSL
 // Create a declarable configuration for integration tests
 val integrationTestImplementation by configurations.dependencyScope("integrationTestImplementation") {
-    extendsFrom(configurations.named("testImplementation").get())
+    extendsFrom(configurations.named("testImplementation")) // Gradle 9.4.0 accepts providers
 }
 
 dependencies {
