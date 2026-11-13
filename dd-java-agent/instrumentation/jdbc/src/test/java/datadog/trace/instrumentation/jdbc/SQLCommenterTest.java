@@ -5,6 +5,7 @@ import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectSy
 import static java.util.Collections.nCopies;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import datadog.trace.agent.test.AbstractInstrumentationTest;
@@ -22,6 +23,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.tabletest.junit.TableTest;
 
 class SQLCommenterTest extends AbstractInstrumentationTest {
 
@@ -30,18 +32,84 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
   private static final String TRACE_PARENT_SAMPLED =
       "00-00000000000000007fffffffffffffff-000000024cb016ea-01";
 
+  @TableTest({
+    "Scenario           | SQL                                             | Expected                                                 ",
+    "compact            | '{call dbo.p(1)}'                               | '{call dbo.p(1 <comment>)}'                              ",
+    "spaced             | '{ call dbo.p(1) }'                             | '{ call dbo.p(1 <comment>) }'                            ",
+    "return value       | '{? = call dbo.p(?)}'                           | '{? = call dbo.p(? <comment>)}'                          ",
+    "lowercase return   | '{ ?=CaLl dbo.p(?) }'                           | '{ ?=CaLl dbo.p(? <comment>) }'                          ",
+    "leading whitespace | ' \t{call dbo.p(1)}'                            | ' \t{call dbo.p(1 <comment>)}'                           ",
+    "empty arguments    | '{call dbo.p()}'                                | '{call dbo.p( <comment>)}'                               ",
+    "no parentheses     | '{call dbo.p}'                                  | '{call dbo.p(<comment>)}'                                ",
+    "no argument spaces | '{ call dbo.p  }'                               | '{ call dbo.p  (<comment>)}'                             ",
+    "no argument return | '{? = call dbo.p}'                              | '{? = call dbo.p(<comment>)}'                            ",
+    "semicolon          | '{call dbo.p(1)}; '                             | '{call dbo.p(1 <comment>)}; '                            ",
+    "nested expression  | \"{call dbo.p(COALESCE(NULLIF(')', ''), 42))}\" | \"{call dbo.p(COALESCE(NULLIF(')', ''), 42) <comment>)}\"",
+    "quoted delimiter   | \"{call dbo.p('x)''}y')}\"                      | \"{call dbo.p('x)''}y' <comment>)}\"                     ",
+    "quoted marker      | \"{call dbo.p('/*ddps=''literal''*/')}\"        | \"{call dbo.p('/*ddps=''literal''*/' <comment>)}\"       ",
+    "bracket name       | '{call [dbo].[p)]]name](42)}'                   | '{call [dbo].[p)]]name](42 <comment>)}'                  ",
+    "double quote name  | '{call \"dbo\".\"p)\"\"name\"(42)}'             | '{call \"dbo\".\"p)\"\"name\"(42 <comment>)}'            ",
+    "customer comment   | '{call dbo.p(42 /* ) } */)}'                    | '{call dbo.p(42 /* ) } */ <comment>)}'                   ",
+    "nested comment     | '{call dbo.p(42 /* outer /* ) */ outer */)}'    | '{call dbo.p(42 /* outer /* ) */ outer */ <comment>)}'   "
+  })
+  void injectsSqlServerEscapeCallComments(String sql, String expected) {
+    assertSqlServerComment(sql, expected);
+  }
+
+  private static void assertSqlServerComment(String sql, String expected) {
+    configureSizingTest();
+    String comment = "/*dddbs='sqlserver',ddh='localhost',dddb='testdb'*/";
+    for (boolean append : new boolean[] {false, true}) {
+      String injected =
+          SQLCommenter.inject(sql, "sqlserver", "sqlserver", "localhost", "testdb", null, append);
+      assertEquals(expected.replace("<comment>", comment), injected);
+      assertSame(
+          injected,
+          SQLCommenter.inject(
+              injected, "sqlserver", "sqlserver", "localhost", "testdb", null, append));
+    }
+  }
+
+  @Test
+  void skipsLineCommentsWhenFindingSqlServerArguments() {
+    assertSqlServerComment("{call dbo.p(42 -- ) }\n)}", "{call dbo.p(42 -- ) }\n <comment>)}");
+  }
+
   @ParameterizedTest
   @ValueSource(
       strings = {
-        "{call dbo.get_user_widgets(1)}",
-        "{ call dbo.get_user_widgets(1) }",
-        "{? = call dbo.get_user_widgets(1)}",
-        " \t{call dbo.get_user_widgets(1)}"
+        "{d '2026-11-10'}",
+        "{fn UCASE('abc')}",
+        "{call}",
+        "{call dbo.p;1(42)}",
+        "{call dbo.p('unterminated)}",
+        "{call dbo.p(\"unterminated)}",
+        "{call dbo.p([unterminated)}",
+        "{call dbo.p(42 /* unterminated)}",
+        "{call dbo.p((42)}",
+        "{call dbo.p(42)",
+        "{call dbo.p(42) unexpected}",
+        "{call dbo.p(42 -- )}",
+        "{? call dbo.p(42)}"
       })
-  void appendsSqlServerEscapeCallComments(String sql) {
+  void appendsSqlServerCommentsWhenEscapeSyntaxIsUnsupported(String sql) {
     configureSizingTest();
     assertEquals(
         sql + " /*dddbs='sqlserver',ddh='localhost',dddb='testdb'*/",
+        SQLCommenter.inject(sql, "sqlserver", "sqlserver", "localhost", "testdb", null, false));
+  }
+
+  @ParameterizedTest
+  @ValueSource(
+      strings = {
+        "{call dbo.p(42 /*ddps='existing'*/)}",
+        "{call dbo.p(/*dddbs='existing'*/ 42)}",
+        "{call dbo.p(42)} /*ddps='existing'*/"
+      })
+  void preservesExistingSqlServerMetadataComments(String sql) {
+    configureSizingTest();
+    assertSame(
+        sql,
         SQLCommenter.inject(sql, "sqlserver", "sqlserver", "localhost", "testdb", null, false));
   }
 
