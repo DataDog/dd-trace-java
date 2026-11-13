@@ -37,12 +37,7 @@ import java.util.Map;
  * <p>When it is a set of commands that is being executed we want to have the information about the
  * number of processed commands - this can be achieved by hooking into {@linkplain
  * io.lettuce.core.RedisPublisher.RedisSubscription#onNext(Object)} method, incrementing the tracked
- * count until the associated subscription command has been cancelled. In order to propagate the
- * parent span active at the time of issuing the Redis command it is necessary to instrument
- * {@linkplain io.lettuce.core.AbstractRedisReactiveCommands}, intercepting all <code>createMono
- * </code> and <code>create*Flux</code> methods - capturing the parent span when {@linkplain
- * reactor.core.publisher.Mono} or {@linkplain reactor.core.publisher.Flux} instance is created and
- * reactivating each time they are subscribed.
+ * count until the associated subscription command has been cancelled.
  */
 @AutoService(InstrumenterModule.class)
 public class LettuceReactiveClientInstrumentation extends InstrumenterModule.Tracing
@@ -56,16 +51,13 @@ public class LettuceReactiveClientInstrumentation extends InstrumenterModule.Tra
   public String[] knownMatchingTypes() {
     return new String[] {
       "io.lettuce.core.RedisPublisher$RedisSubscription",
-      "io.lettuce.core.RedisPublisher$SubscriptionCommand",
-      "io.lettuce.core.AbstractRedisReactiveCommands"
+      "io.lettuce.core.RedisPublisher$SubscriptionCommand"
     };
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".rx.RedisSubscriptionSubscribeAdvice",
-      packageName + ".rx.RedisSubscriptionSubscribeAdvice$State",
       packageName + ".rx.RedisSubscriptionState",
       packageName + ".LettuceInstrumentationUtil",
       packageName + ".LettuceClientDecorator"
