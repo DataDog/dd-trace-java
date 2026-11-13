@@ -11,6 +11,7 @@ import datadog.context.propagation.CarrierSetter;
 import datadog.context.propagation.CarrierVisitor;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -18,6 +19,7 @@ import java.util.function.BiConsumer;
 import org.apache.camel.Exchange;
 import org.apache.camel.Message;
 import org.apache.camel.Route;
+import org.apache.camel.spi.UnitOfWork;
 import org.apache.camel.support.SynchronizationAdapter;
 
 /** A copied exchange shares only immutable parent context, never a mutable route stack. */
@@ -89,7 +91,14 @@ public final class CamelState extends SynchronizationAdapter {
       if (state != null
           && state.routeId.equals(route.getId())
           && state.exchangeId.equals(exchange.getExchangeId())) {
-        state.onDone(exchange);
+        try {
+          UnitOfWork unitOfWork = exchange.getUnitOfWork();
+          if (unitOfWork != null) {
+            unitOfWork.removeSynchronization(state);
+          }
+        } finally {
+          state.onDone(exchange);
+        }
       }
     } catch (Throwable ignored) {
       // Instrumentation must not change route completion.
@@ -147,6 +156,12 @@ public final class CamelState extends SynchronizationAdapter {
 
     @Override
     public void set(Map<String, Object> carrier, String key, String value) {
+      Iterator<String> keys = carrier.keySet().iterator();
+      while (keys.hasNext()) {
+        if (key.equalsIgnoreCase(keys.next())) {
+          keys.remove();
+        }
+      }
       carrier.put(key, value);
     }
 

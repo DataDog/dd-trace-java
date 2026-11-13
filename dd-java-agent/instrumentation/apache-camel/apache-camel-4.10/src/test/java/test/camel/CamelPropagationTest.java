@@ -19,6 +19,7 @@ import org.apache.camel.component.mock.MockEndpoint;
 import org.apache.camel.impl.DefaultCamelContext;
 import org.apache.camel.support.DefaultExchange;
 import org.junit.jupiter.api.Test;
+import org.tabletest.junit.TableTest;
 
 class CamelPropagationTest extends AbstractCamelTest {
   @Test
@@ -52,8 +53,15 @@ class CamelPropagationTest extends AbstractCamelTest {
     assertEquals(1, routeSpans(1).size());
   }
 
-  @Test
-  void transfersOnlyInjectedHeadersToAFreshExchangeOnAnUnrelatedThread() throws Exception {
+  @TableTest({
+    "Scenario   | traceHeader        | parentHeader        | samplingHeader             ",
+    "fresh      |                    |                     |                            ",
+    "lowercase  | x-datadog-trace-id | x-datadog-parent-id | x-datadog-sampling-priority",
+    "title case | X-Datadog-Trace-Id | X-Datadog-Parent-Id | X-Datadog-Sampling-Priority",
+    "mixed case | x-DaTaDoG-tRaCe-Id | X-dAtAdOg-PaReNt-iD | x-DaTaDoG-sAmPlInG-pRiOrItY"
+  })
+  void transfersOnlyInjectedHeadersToAFreshExchangeOnAnUnrelatedThread(
+      String traceHeader, String parentHeader, String samplingHeader) throws Exception {
     AtomicReference<AgentSpan> sending = new AtomicReference<>();
     AtomicReference<AgentSpan> receiving = new AtomicReference<>();
     AtomicReference<Throwable> failure = new AtomicReference<>();
@@ -73,16 +81,35 @@ class CamelPropagationTest extends AbstractCamelTest {
           });
       context.start();
       try (ProducerTemplate producer = context.createProducerTemplate()) {
-        producer.sendBody("direct:outgoing", "payload");
+        assertNull(activeSpan());
+        Exchange outgoing = new DefaultExchange(context);
+        outgoing.getMessage().setBody("payload");
+        outgoing.getMessage().setHeader("application-header", "retained");
+        if (traceHeader != null) {
+          outgoing.getMessage().setHeader(traceHeader, "123456789");
+          outgoing.getMessage().setHeader(parentHeader, "987654321");
+          outgoing.getMessage().setHeader(samplingHeader, "1");
+        }
+        producer.send("direct:outgoing", outgoing);
+        assertNull(outgoing.getException());
         assertNull(activeSpan());
         assertNotNull(sending.get());
+        if (traceHeader != null) {
+          assertEquals(DDTraceId.from("123456789"), sending.get().getTraceId());
+          assertEquals(987654321L, ((DDSpan) sending.get()).getParentId());
+        }
         MockEndpoint wire = context.getEndpoint("mock:wire", MockEndpoint.class);
         assertEquals(1, wire.getReceivedExchanges().size());
         Map<String, Object> headers =
             new HashMap<>(wire.getReceivedExchanges().get(0).getMessage().getHeaders());
-        assertEquals(sending.get().getTraceId().toString(), headers.get("x-datadog-trace-id"));
-        assertEquals(
-            Long.toUnsignedString(sending.get().getSpanId()), headers.get("x-datadog-parent-id"));
+        assertEquals("retained", headers.get("application-header"));
+        assertPropagatedHeader(
+            headers, "x-datadog-trace-id", sending.get().getTraceId().toString());
+        assertPropagatedHeader(
+            headers, "x-datadog-parent-id", Long.toUnsignedString(sending.get().getSpanId()));
+        if (samplingHeader != null) {
+          assertPropagatedHeader(headers, "x-datadog-sampling-priority", "1");
+        }
         Thread receiver =
             new Thread(
                 () -> {
@@ -111,8 +138,22 @@ class CamelPropagationTest extends AbstractCamelTest {
         assertNotNull(receiving.get());
         assertEquals(sending.get().getTraceId(), receiving.get().getTraceId());
         assertEquals(sending.get().getSpanId(), ((DDSpan) receiving.get()).getParentId());
+        assertNull(activeSpan(), "the header transfer must not leave caller context active");
       }
     }
     assertEquals(2, routeSpans(2).size(), "the wire transfer must retain exactly two route spans");
+  }
+
+  private static void assertPropagatedHeader(
+      Map<String, Object> headers, String name, String expected) {
+    assertEquals(
+        1L,
+        headers.keySet().stream().filter(name::equalsIgnoreCase).count(),
+        "propagation must leave exactly one " + name + " header");
+    for (Map.Entry<String, Object> header : headers.entrySet()) {
+      if (name.equalsIgnoreCase(header.getKey())) {
+        assertEquals(expected, header.getValue(), "propagated value of " + header.getKey());
+      }
+    }
   }
 }
