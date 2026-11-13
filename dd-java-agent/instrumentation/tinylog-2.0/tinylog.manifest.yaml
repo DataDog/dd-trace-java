@@ -1,7 +1,8 @@
 _v: 1
 name: tinylog
 display_name: tinylog implementation
-description: Instruments tinylog log records to inject trace-correlation identifiers and service metadata.
+description: Instruments tinylog record output and context access to enrich application logs with trace correlation
+  and service metadata.
 packages:
 - name: org.tinylog:tinylog-impl
 category:

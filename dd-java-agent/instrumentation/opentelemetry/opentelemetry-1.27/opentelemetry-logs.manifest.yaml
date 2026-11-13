@@ -1,7 +1,8 @@
 _v: 1
 name: opentelemetry-logs
 display_name: OpenTelemetry Java
-description: Instruments OpenTelemetry log APIs to collect application log records with severity, attributes, and trace context.
+description: Instruments OpenTelemetry log record creation and emission to capture severity, attributes, and trace
+  context through Datadog's logging bridge.
 packages:
 - name: io.opentelemetry:opentelemetry-api
 category:

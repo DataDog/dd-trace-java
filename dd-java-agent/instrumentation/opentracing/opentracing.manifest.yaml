@@ -1,7 +1,8 @@
 _v: 1
 name: opentracing
 display_name: OpenTracing-util
-description: Instruments the OpenTracing global tracer to bridge manual spans, active scopes, and trace-context propagation to Datadog.
+description: Instruments OpenTracing global tracer registration to bridge manual span creation, scope management,
+  and trace context propagation to Datadog.
 packages:
 - name: io.opentracing:opentracing-util
 category:
