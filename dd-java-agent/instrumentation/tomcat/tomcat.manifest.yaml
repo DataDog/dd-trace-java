@@ -1,8 +1,8 @@
 _v: 1
 name: tomcat
 display_name: Apache Tomcat
-description: Instruments Tomcat HTTP request handling and response completion, deployment-specific trace tagging,
-  WebSocket handshake context propagation, and security request and response hooks.
+description: Instruments Tomcat HTTP request handling and completion, deployment metadata and WebSocket handshake
+  context, with application-security request and response inspection and vulnerability detection.
 packages:
 - name: org.apache.tomcat:catalina-ha
 - name: org.apache.tomcat:coyote

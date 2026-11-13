@@ -1,8 +1,8 @@
 _v: 1
 name: servicetalk
 display_name: servicetalk-concurrent-api
-description: Instruments ServiceTalk asynchronous context capture and restoration to propagate active trace
-  spans through callbacks.
+description: Instruments ServiceTalk asynchronous context capture and restoration to propagate active trace spans
+  through callbacks.
 packages:
 - name: io.servicetalk:servicetalk-concurrent-api
 category:

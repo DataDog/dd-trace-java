@@ -1,8 +1,8 @@
 _v: 1
 name: netty
 display_name: Netty/All-in-One
-description: Instruments Netty HTTP client requests, HTTP server requests and WebSocket server messages, with
-  asynchronous context propagation and security hooks for request bodies and buffers.
+description: Instruments Netty HTTP client and server requests and server WebSocket messages, with connection-error
+  tracing and application-security body inspection and taint propagation.
 packages:
 - name: io.netty:netty
 - name: io.netty:netty-all

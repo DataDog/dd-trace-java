@@ -1,8 +1,7 @@
 _v: 1
 name: servlet-service
 display_name: Java Servlet API
-description: Instruments HttpServlet service and HTTP method handlers with child spans for execution time and
-  errors when enabled.
+description: Instruments HTTP Servlet service and method-specific request handlers as child spans of active requests.
 packages:
 - name: javax.servlet:javax.servlet-api
 - name: javax.servlet:servlet-api
