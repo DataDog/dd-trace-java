@@ -6,11 +6,12 @@ import com.google.auto.service.AutoService;
 import com.intuit.karate.Runner;
 import com.intuit.karate.RuntimeHook;
 import com.intuit.karate.core.FeatureRuntime;
+import com.intuit.karate.core.ScenarioRuntime;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
-import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
@@ -29,9 +30,11 @@ public class KarateInstrumentation extends InstrumenterModule.CiVisibility
 
   @Override
   public Map<String, String> contextStore() {
-    return Collections.singletonMap(
-        "com.intuit.karate.core.FeatureRuntime",
-        "datadog.trace.instrumentation.karate.FeatureSuite");
+    Map<String, String> stores = new HashMap<>();
+    stores.put("com.intuit.karate.core.FeatureRuntime", packageName + ".FeatureSuite");
+    stores.put(
+        "com.intuit.karate.core.ScenarioRuntime", packageName + ".KarateTracingHook$StepContext");
+    return stores;
   }
 
   @Override
@@ -46,7 +49,11 @@ public class KarateInstrumentation extends InstrumenterModule.CiVisibility
         @Advice.This Runner.Builder<?> runnerBuilder) {
       ContextStore<FeatureRuntime, FeatureSuite> featureSuites =
           InstrumentationContext.get(FeatureRuntime.class, FeatureSuite.class);
-      runnerBuilder.hook(new KarateTracingHook(featureSuites));
+      runnerBuilder.hook(
+          new KarateTracingHook(
+              featureSuites,
+              InstrumentationContext.get(
+                  ScenarioRuntime.class, KarateTracingHook.StepContext.class)));
     }
 
     // Karate 1.0.0 and above
