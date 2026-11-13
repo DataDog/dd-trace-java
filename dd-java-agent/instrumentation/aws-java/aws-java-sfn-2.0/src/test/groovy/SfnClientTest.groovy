@@ -84,7 +84,6 @@ abstract class SfnClientTest extends VersionedNamingTestBase {
             "aws.service" "Sfn"
             "aws.state_machine.arn" testStateMachineARN
             "aws.operation" "StartExecution"
-            "aws.region" "us-east-1"
             "aws.agent" "java-aws-sdk"
             "aws.requestId" response.responseMetadata().requestId()
             "aws_service" "Sfn"

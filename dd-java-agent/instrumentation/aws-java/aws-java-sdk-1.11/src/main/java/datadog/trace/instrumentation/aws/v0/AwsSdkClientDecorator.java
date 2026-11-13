@@ -11,7 +11,6 @@ import com.amazonaws.AmazonWebServiceRequest;
 import com.amazonaws.AmazonWebServiceResponse;
 import com.amazonaws.Request;
 import com.amazonaws.Response;
-import com.amazonaws.handlers.HandlerContextKey;
 import com.amazonaws.http.HttpMethodName;
 import datadog.context.ContextScope;
 import datadog.context.propagation.CarrierSetter;
@@ -58,23 +57,8 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
 
   private static final DDCache<String, String> serviceNameCache = DDCaches.newFixedSizeCache(128);
   private static final Pattern AWS_SERVICE_NAME_PATTERN = Pattern.compile("Amazon\\s?(\\w+)");
-
-  /**
-   * {@code HandlerContextKey.SIGNING_REGION}, which only exists in later 1.11.x releases, so it is
-   * looked up reflectively. {@code null} when the SDK does not have it.
-   */
-  private static final HandlerContextKey<String> SIGNING_REGION_KEY = signingRegionKey();
-
-  private static final Pattern AWS_REGION_PATTERN = Pattern.compile("[a-z]{2}(-[a-z]+)+-\\d+");
   private static final Pattern TABLE_ARN_PATTERN =
       Pattern.compile("^arn:[^:]+:dynamodb:[^:]+:[0-9]{12}:table/[^/]+$");
-  private static final String AWS_DOMAIN = ".amazonaws.com";
-  private static final String AWS_CHINA_DOMAIN = ".amazonaws.com.cn";
-  private static final String VPCE_LABEL = "vpce";
-  private static final String LEGACY_S3_PREFIX = "s3-";
-  // endpoint hosts are few per application, but custom endpoints can be many
-  private static final DDCache<String, String> ENDPOINT_REGION_CACHE =
-      DDCaches.newFixedSizeCache(64);
 
   private static final String PUT_RECORD_OPERATION_NAME = "PutRecordRequest";
   private static final String PUT_RECORDS_OPERATION_NAME = "PutRecordsRequest";
@@ -113,10 +97,6 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     span.setTag(InstrumentationTags.TOP_LEVEL_AWS_SERVICE, awsSimplifiedServiceName);
     span.setTag(InstrumentationTags.AWS_OPERATION, awsOperation.getSimpleName());
     span.setTag(InstrumentationTags.AWS_ENDPOINT, endpoint);
-    String region = awsRegion(request);
-    if (null != region) {
-      span.setTag(InstrumentationTags.AWS_REGION, region);
-    }
 
     CharSequence awsRequestName = AwsNameCache.getQualifiedName(request);
     span.setResourceName(awsRequestName, RPC_COMMAND_NAME);
@@ -286,75 +266,6 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
             break;
         }
       }
-    }
-  }
-
-  /**
-   * The Region of the called endpoint: the request's signing Region when the SDK records it,
-   * otherwise the Region in a standard {@code <service>.<region>.amazonaws.com(.cn)} endpoint host.
-   */
-  private static String awsRegion(final Request<?> request) {
-    if (null != SIGNING_REGION_KEY) {
-      String signingRegion = request.getHandlerContext(SIGNING_REGION_KEY);
-      if (null != signingRegion && !signingRegion.isEmpty()) {
-        return signingRegion;
-      }
-    }
-    URI endpoint = request.getEndpoint();
-    String host = null != endpoint ? endpoint.getHost() : null;
-    return null != host
-        ? ENDPOINT_REGION_CACHE.computeIfAbsent(host, AwsSdkClientDecorator::regionFromEndpointHost)
-        : null;
-  }
-
-  /**
-   * Extracts the Region from an AWS endpoint host, only when the label right before {@code
-   * amazonaws.com} (or {@code amazonaws.com.cn}, after a VPC endpoint's {@code vpce} label) is a
-   * Region with a service label before it, or a legacy {@code s3-<region>} label. Global endpoints
-   * ({@code s3.amazonaws.com}) and custom endpoints yield {@code null}.
-   */
-  static String regionFromEndpointHost(final String host) {
-    if (null == host) {
-      return null;
-    }
-    String lowerHost = host.toLowerCase(Locale.ROOT);
-    int labelEnd;
-    if (lowerHost.endsWith(AWS_DOMAIN)) {
-      labelEnd = lowerHost.length() - AWS_DOMAIN.length();
-    } else if (lowerHost.endsWith(AWS_CHINA_DOMAIN)) {
-      labelEnd = lowerHost.length() - AWS_CHINA_DOMAIN.length();
-    } else {
-      return null;
-    }
-    int labelStart = lowerHost.lastIndexOf('.', labelEnd - 1) + 1;
-    if (labelEnd - labelStart == VPCE_LABEL.length()
-        && lowerHost.startsWith(VPCE_LABEL, labelStart)) {
-      // <endpoint-id>.<service>.<region>.vpce.amazonaws.com
-      labelEnd = labelStart - 1;
-      labelStart = lowerHost.lastIndexOf('.', labelEnd - 1) + 1;
-    }
-    if (labelEnd <= labelStart) {
-      return null;
-    }
-    String label = lowerHost.substring(labelStart, labelEnd);
-    if (label.startsWith(LEGACY_S3_PREFIX)) {
-      // legacy s3-<region>.amazonaws.com, also with a bucket before it
-      String region = label.substring(LEGACY_S3_PREFIX.length());
-      return AWS_REGION_PATTERN.matcher(region).matches() ? region : null;
-    }
-    if (labelStart <= 1) {
-      return null; // no service label before the Region
-    }
-    return AWS_REGION_PATTERN.matcher(label).matches() ? label : null;
-  }
-
-  @SuppressWarnings("unchecked")
-  private static HandlerContextKey<String> signingRegionKey() {
-    try {
-      return (HandlerContextKey<String>)
-          HandlerContextKey.class.getField("SIGNING_REGION").get(null);
-    } catch (Throwable ignored) {
-      return null;
     }
   }
 

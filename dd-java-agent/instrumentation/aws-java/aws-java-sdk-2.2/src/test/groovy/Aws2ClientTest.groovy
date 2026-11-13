@@ -149,7 +149,6 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
             "aws.service" "$service"
             "aws_service" "$service"
             "aws.operation" "${operation}"
-            "aws.region" "ap-northeast-1"
             "aws.agent" "java-aws-sdk"
             "aws.requestId" "$requestId"
             if (service == "S3") {
@@ -329,33 +328,6 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
   }
 
 
-  def "aws.region is the client Region, but not a global pseudo-Region (#region)"() {
-    setup:
-    def client = SnsClient.builder()
-      .endpointOverride(server.address)
-      .region(region)
-      .credentialsProvider(CREDENTIALS_PROVIDER)
-      .build()
-    responseBody.set("""<PublishResponse><PublishResult><MessageId>test-message</MessageId></PublishResult></PublishResponse>""")
-
-    when:
-    client.publish(PublishRequest.builder().topicArn("arn:aws:sns:us-east-1:123456789012:test-topic").message("test").build())
-    TEST_WRITER.waitForTraces(1)
-
-    then:
-    def spans = TEST_WRITER.get(0)
-    spans.size() == 1
-    spans[0].getTag("aws.region") == expectedRegion
-
-    cleanup:
-    client.close()
-
-    where:
-    region            | expectedRegion
-    Region.US_EAST_1  | "us-east-1"
-    Region.AWS_GLOBAL | null
-  }
-
   def "DynamoDB table ARN is tagged only for #scenario"() {
     setup:
     def client = DynamoDbClient.builder()
@@ -486,7 +458,6 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
             "aws.service" "$service"
             "aws_service" "$service"
             "aws.operation" "${operation}"
-            "aws.region" "ap-northeast-1"
             "aws.agent" "java-aws-sdk"
             "aws.requestId" "$requestId"
             def checkPeerService = false
@@ -663,7 +634,6 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
             "aws.service" "S3"
             "aws_service" "S3"
             "aws.operation" "GetObject"
-            "aws.region" "ap-northeast-1"
             "aws.agent" "java-aws-sdk"
             "aws.bucket.name" "somebucket"
             "bucketname" "somebucket"
@@ -737,7 +707,6 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
             "aws.service" service
             "aws_service" service
             "aws.operation" operation
-            "aws.region" "us-east-1"
             "aws.agent" "java-aws-sdk"
             "aws.requestId" requestId
 

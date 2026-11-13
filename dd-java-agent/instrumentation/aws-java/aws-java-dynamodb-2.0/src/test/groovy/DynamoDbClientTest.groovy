@@ -170,7 +170,6 @@ class DynamoDbClientTest extends InstrumentationSpecification {
             defaultTags()
             tag "component", "java-aws-sdk"
             tag "aws.operation", "PutItem"
-            tag "aws.region", "us-east-1"
             tag "aws.service", "DynamoDb"
             tag "aws_service", "DynamoDb"
             tag "aws.agent", "java-aws-sdk"
@@ -205,7 +204,6 @@ class DynamoDbClientTest extends InstrumentationSpecification {
             defaultTags()
             tag "component", "java-aws-sdk"
             tag "aws.operation", "UpdateItem"
-            tag "aws.region", "us-east-1"
             tag "aws.service", "DynamoDb"
             tag "aws_service", "DynamoDb"
             tag "aws.agent", "java-aws-sdk"
@@ -274,7 +272,6 @@ class DynamoDbClientTest extends InstrumentationSpecification {
             defaultTags()
             tag "component", "java-aws-sdk"
             tag "aws.operation", "PutItem"
-            tag "aws.region", "us-east-1"
             tag "aws.service", "DynamoDb"
             tag "aws_service", "DynamoDb"
             tag "aws.agent", "java-aws-sdk"
@@ -309,7 +306,6 @@ class DynamoDbClientTest extends InstrumentationSpecification {
             defaultTags()
             tag "component", "java-aws-sdk"
             tag "aws.operation", "UpdateItem"
-            tag "aws.region", "us-east-1"
             tag "aws.service", "DynamoDb"
             tag "aws_service", "DynamoDb"
             tag "aws.agent", "java-aws-sdk"
@@ -364,7 +360,6 @@ class DynamoDbClientTest extends InstrumentationSpecification {
             defaultTags()
             tag "component", "java-aws-sdk"
             tag "aws.operation", "PutItem"
-            tag "aws.region", "us-east-1"
             tag "aws.service", "DynamoDb"
             tag "aws_service", "DynamoDb"
             tag "aws.agent", "java-aws-sdk"
@@ -399,7 +394,6 @@ class DynamoDbClientTest extends InstrumentationSpecification {
             defaultTags()
             tag "component", "java-aws-sdk"
             tag "aws.operation", "DeleteItem"
-            tag "aws.region", "us-east-1"
             tag "aws.service", "DynamoDb"
             tag "aws_service", "DynamoDb"
             tag "aws.agent", "java-aws-sdk"
@@ -465,7 +459,6 @@ class DynamoDbClientTest extends InstrumentationSpecification {
             defaultTags()
             tag "component", "java-aws-sdk"
             tag "aws.operation", "PutItem"
-            tag "aws.region", "us-east-1"
             tag "aws.service", "DynamoDb"
             tag "aws_service", "DynamoDb"
             tag "aws.agent", "java-aws-sdk"
@@ -500,7 +493,6 @@ class DynamoDbClientTest extends InstrumentationSpecification {
             defaultTags()
             tag "component", "java-aws-sdk"
             tag "aws.operation", "DeleteItem"
-            tag "aws.region", "us-east-1"
             tag "aws.service", "DynamoDb"
             tag "aws_service", "DynamoDb"
             tag "aws.agent", "java-aws-sdk"

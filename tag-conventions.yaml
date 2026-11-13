@@ -600,7 +600,6 @@ mixins:
       - { dd-name: aws_service,   type: string, required: recommended }
       - { dd-name: aws.operation, type: string, required: recommended }
       - { dd-name: aws.endpoint,  type: string, required: optional }     # SDK v1 only
-      - { dd-name: aws.region,    type: string, required: optional }     # the called endpoint's Region, when known
       - { dd-name: aws.requestId, type: string, required: optional }
 
   # aws_sqs_queue — the SQS queue, on SQS client spans and on SQS consumer and broker spans.
