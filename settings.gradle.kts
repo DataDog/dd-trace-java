@@ -1,3 +1,5 @@
+import org.gradle.internal.os.OperatingSystem
+
 pluginManagement {
   repositories {
     mavenLocal()
@@ -20,7 +22,7 @@ pluginManagement {
     if (mavenRepositoryProxy == null) {
       mavenCentral()
     }
-    // Hosts gradle-tooling-api, a transitive dep of the build-logic:smoke-test plugin used
+    // Hosts gradle-tooling-api, a transitive dep of the build-logic:smoke-test-app plugin used
     // to run nested Gradle builds for smoke-test applications pinned to older Gradle versions.
     maven {
       url = uri("https://repo.gradle.org/gradle/libs-releases")
@@ -33,11 +35,13 @@ pluginManagement {
 }
 
 plugins {
+  id("com.github.burrunan.s3-build-cache") version "1.9.11"
   id("com.gradle.develocity") version "4.6.1"
   id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
 
 val isCI = providers.environmentVariable("CI")
+val isGitLabCI = providers.environmentVariable("GITLAB_CI")
 val skipBuildscan = providers.environmentVariable("SKIP_BUILDSCAN").map { it.toBoolean() }.orElse(false)
 
 develocity {
@@ -53,6 +57,46 @@ if (isCI.isPresent) {
   buildCache {
     local {
       directory = File(rootDir, "workspace/build-cache")
+    }
+    // Only GitLab CI provides the S3 build cache configuration and credentials.
+    if (isGitLabCI.isPresent) {
+      val defaultCachePrefix = providers.provider {
+        val os = OperatingSystem.current().familyName.replace(' ', '-')
+        val arch = providers.systemProperty("os.arch").get()
+        // Non-tag pipelines share a cache per architecture/OS so that all jobs contribute
+        // outputs and reuse them across jobs and pipelines. Release prefixes can use:
+        // - Pipeline ID (default): jobs share within one pipeline; new pipelines start fresh.
+        // - Tag: pipelines for the same tag share cached outputs.
+        // - Commit hash: pipelines for the same commit share cached outputs.
+        // Pipeline IDs keep separate release runs independent, even for the same tag or commit.
+        if (providers.environmentVariable("CI_COMMIT_TAG").orNull.isNullOrBlank()) {
+          "v1/$arch/$os"
+        } else {
+          val pipelineId = providers.environmentVariable("CI_PIPELINE_ID").orNull
+          require(!pipelineId.isNullOrBlank()) {
+            "CI_PIPELINE_ID must be set for release cache isolation"
+          }
+          "v1/release/$pipelineId/$arch/$os"
+        }
+      }
+      val cachePrefix = providers.environmentVariable("S3_BUILD_CACHE_PREFIX")
+        .map { it.trim().trim('/') }
+        .orElse(defaultCachePrefix)
+        .get()
+      require(cachePrefix.isNotBlank()) {
+        "S3_BUILD_CACHE_PREFIX must be set to a non-empty path in GitLab CI"
+      }
+      remote<com.github.burrunan.s3cache.AwsS3BuildCache> {
+        region = providers.environmentVariable("S3_BUILD_CACHE_REGION").get()
+        bucket = providers.environmentVariable("S3_BUILD_CACHE_BUCKET").get()
+        prefix = "$cachePrefix/"
+        // Trusted CI jobs populate matching cache entries for reuse.
+        isPush = true
+        lookupDefaultAwsCredentials = true
+        isReducedRedundancy = false
+        // Smoke application build entries exceed the plugin's 50 MiB default limit.
+        maximumCachedObjectLength = 256L * 1024 * 1024
+      }
     }
   }
 }
@@ -212,6 +256,7 @@ include(
   ":dd-smoke-tests:lib-injection",
   ":dd-smoke-tests:log-injection",
   ":dd-smoke-tests:maven",
+  ":dd-smoke-tests:native-image-jmx",
   ":dd-smoke-tests:openfeature",
   ":dd-smoke-tests:openfeature-legacy",
   ":dd-smoke-tests:opentracing",
@@ -270,6 +315,7 @@ include(
   ":dd-smoke-tests:wildfly",
   ":dd-smoke-tests:appsec",
   ":dd-smoke-tests:appsec:spring-tomcat7",
+  ":dd-smoke-tests:appsec:lambda-sca",
   ":dd-smoke-tests:appsec:springboot",
   ":dd-smoke-tests:appsec:springboot-grpc",
   ":dd-smoke-tests:appsec:springboot-graphql",

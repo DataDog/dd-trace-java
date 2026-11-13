@@ -10,12 +10,17 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.config.TestIdentifier;
+import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import java.lang.reflect.Method;
 import java.util.List;
 import net.bytebuddy.asm.Advice;
+import org.testng.ITestNGMethod;
+import org.testng.ITestResult;
+import org.testng.Reporter;
 import org.testng.SkipException;
 import org.testng.annotations.DataProvider;
+import org.testng.internal.ConstructorOrMethod;
 
 @AutoService(InstrumenterModule.class)
 public class TestNGSkipInstrumentation extends InstrumenterModule.CiVisibility
@@ -57,14 +62,25 @@ public class TestNGSkipInstrumentation extends InstrumenterModule.CiVisibility
         @Advice.Argument(1) final Object instance,
         @Advice.Argument(2) final Object[] parameters) {
       TestIdentifier testIdentifier = TestNGUtils.toTestIdentifier(method, instance, parameters);
+      ITestResult invocation = Reporter.getCurrentTestResult();
+      ITestNGMethod invocationMethod = invocation != null ? invocation.getMethod() : null;
+      ConstructorOrMethod constructorOrMethod =
+          invocationMethod != null ? invocationMethod.getConstructorOrMethod() : null;
+      List<String> groups =
+          constructorOrMethod != null && method.equals(constructorOrMethod.getMethod())
+              ? TestNGUtils.getGroups(invocation)
+              : TestNGUtils.getGroups(method);
       SkipReason skipReason =
-          TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skipReason(testIdentifier);
+          TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skipReason(
+              testIdentifier,
+              new TestSourceData(
+                  instance != null ? instance.getClass() : method.getDeclaringClass(), method),
+              groups);
       if (skipReason == null) {
         return;
       }
 
       if (skipReason == SkipReason.ITR) {
-        List<String> groups = TestNGUtils.getGroups(method);
         if (groups.contains(CIConstants.Tags.ITR_UNSKIPPABLE_TAG)) {
           return;
         }

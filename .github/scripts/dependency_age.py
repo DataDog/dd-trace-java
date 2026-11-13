@@ -5,6 +5,7 @@ import json
 import os
 import re
 import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -20,6 +21,8 @@ GRADLE_VERSIONS_URL = "https://services.gradle.org/versions/all"
 MAVEN_SEARCH_URL = "https://search.maven.org/solrsearch/select"
 MAVEN_REPO_URL = "https://repo1.maven.org/maven2"
 DEFAULT_MIN_AGE_HOURS = 48
+# Seconds to wait before each retry of a JSON URL fetch: search.maven.org is intermittently slow
+URL_RETRY_DELAYS = (10, 30)
 # Oldest Gradle major release we track a latest-patch for. The legacy Gradle instrumentation
 # targets Gradle 3.0+ (the `gradle-3.0` module), so older majors are never exercised.
 OLDEST_TRACKED_GRADLE_MAJOR = 3
@@ -152,8 +155,17 @@ def load_json(file_path: str | None, url: str | None) -> Any:
         return json.loads(text)
     if not url:
         raise ValueError("either file_path or url is required")
-    with urllib.request.urlopen(url, timeout=30) as response:
-        return json.load(response)
+    for delay in (*URL_RETRY_DELAYS, None):
+        try:
+            with urllib.request.urlopen(url, timeout=30) as response:
+                return json.load(response)
+        except (urllib.error.URLError, TimeoutError, ConnectionError) as exc:
+            # HTTPError is a URLError: only retry throttling and server errors, not e.g. a 404
+            retryable = not isinstance(exc, urllib.error.HTTPError) or exc.code == 429 or exc.code >= 500
+            if delay is None or not retryable:
+                raise
+            print(f"Fetching {url} failed ({exc!r}), retrying in {delay}s", file=sys.stderr)
+            time.sleep(delay)
 
 
 # select latest Gradle release that is at least MIN_DEPENDENCY_AGE_HOURS hours old

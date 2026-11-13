@@ -14,6 +14,7 @@ import com.datadog.debugger.sink.ProbeStatusSink;
 import com.datadog.debugger.sink.SnapshotSink;
 import com.datadog.debugger.sink.SymbolSink;
 import com.datadog.debugger.symbol.AvroFilter;
+import com.datadog.debugger.symbol.JythonFilter;
 import com.datadog.debugger.symbol.ProtoFilter;
 import com.datadog.debugger.symbol.ScopeFilter;
 import com.datadog.debugger.symbol.SymDBEnablement;
@@ -233,7 +234,7 @@ public class DebuggerAgent {
     }
     initClassNameFilter();
     List<ScopeFilter> scopeFilters =
-        Arrays.asList(new AvroFilter(), new ProtoFilter(), new WireFilter());
+        Arrays.asList(new AvroFilter(), new ProtoFilter(), new WireFilter(), new JythonFilter());
     SymbolAggregator symbolAggregator =
         new SymbolAggregator(
             classNameFilter,
@@ -413,14 +414,11 @@ public class DebuggerAgent {
 
   private static String getSnapshotEndpoint(
       Config config, DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery) {
-    if (ddAgentFeaturesDiscovery.supportsDebugger()) {
-      String debuggerSnapshotEndpoint = ddAgentFeaturesDiscovery.getDebuggerSnapshotEndpoint();
-      if (debuggerSnapshotEndpoint == null) {
-        throw new IllegalArgumentException("Cannot find snapshot endpoint on datadog agent");
-      }
-      return ddAgentFeaturesDiscovery.buildUrl(debuggerSnapshotEndpoint).toString();
+    String debuggerSnapshotEndpoint = ddAgentFeaturesDiscovery.getDebuggerSnapshotEndpoint();
+    if (debuggerSnapshotEndpoint == null) {
+      return config.getFinalDebuggerSnapshotUrl();
     }
-    return config.getFinalDebuggerSnapshotUrl();
+    return ddAgentFeaturesDiscovery.buildUrl(debuggerSnapshotEndpoint).toString();
   }
 
   private static String getDiagnosticEndpoint(

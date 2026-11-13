@@ -19,6 +19,7 @@ import datadog.trace.api.KnownTagCodec;
 import datadog.trace.api.KnownTags;
 import datadog.trace.api.ProcessTags;
 import datadog.trace.api.TagMap;
+import datadog.trace.api.TagStore;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.config.TracerConfig;
@@ -37,6 +38,7 @@ import datadog.trace.bootstrap.instrumentation.api.ClientIpAddressData;
 import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
+import datadog.trace.bootstrap.instrumentation.api.SpanKind;
 import datadog.trace.bootstrap.instrumentation.api.SpanPrototype;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -68,7 +70,7 @@ import org.slf4j.LoggerFactory;
  * the associated Span instance
  */
 public class DDSpanContext
-    implements AgentSpanContext, RequestContext, TraceSegment, ProfilerContext {
+    implements AgentSpanContext, RequestContext, TraceSegment, ProfilerContext, TagStore {
   private static final Logger log = LoggerFactory.getLogger(DDSpanContext.class);
 
   public static final String PRIORITY_SAMPLING_KEY = "_sampling_priority_v1";
@@ -628,6 +630,10 @@ public class DDSpanContext
         setSpanType(spanType);
       }
     }
+    final SpanKind kind = prototype.kind();
+    if (kind != null) {
+      seedAbsentSpanKind(kind, prototype.tags());
+    }
     seedAbsentTags(prototype.tags());
     if (this.integrationName == null) {
       final CharSequence integrationName = prototype.integrationName();
@@ -654,6 +660,21 @@ public class DDSpanContext
     final CharSequence integrationName = prototype.integrationName();
     if (integrationName != null) {
       setIntegrationName(integrationName);
+    }
+  }
+
+  /**
+   * Seeds a standard {@code span.kind} if the span has none: sets the kind ordinal straight from
+   * the enum and stores the prototype's own tag entry. That's what interception would do (cache the
+   * ordinal and keep the tag) without comparing strings; {@link #seedAbsentTags} then skips the tag
+   * as already present.
+   */
+  private void seedAbsentSpanKind(final SpanKind kind, final TagMap prototypeTags) {
+    synchronized (unsafeTags) {
+      if (!unsafeTags.containsKey(Tags.SPAN_KIND)) {
+        spanKindOrdinal = spanKindOrdinalOf(kind);
+        unsafeTags.set(prototypeTags.getEntry(Tags.SPAN_KIND));
+      }
     }
   }
 
@@ -876,6 +897,10 @@ public class DDSpanContext
     return traceCollector;
   }
 
+  public TagMap getGlobalTags() {
+    return traceCollector.getTraceConfig().globalTags;
+  }
+
   public RequestContext getRequestContext() {
     return this;
   }
@@ -946,6 +971,25 @@ public class DDSpanContext
       return SPAN_KIND_BROKER;
     } else {
       return SPAN_KIND_CUSTOM;
+    }
+  }
+
+  static byte spanKindOrdinalOf(final SpanKind kind) {
+    switch (kind) {
+      case SERVER:
+        return SPAN_KIND_SERVER;
+      case CLIENT:
+        return SPAN_KIND_CLIENT;
+      case PRODUCER:
+        return SPAN_KIND_PRODUCER;
+      case CONSUMER:
+        return SPAN_KIND_CONSUMER;
+      case INTERNAL:
+        return SPAN_KIND_INTERNAL;
+      case BROKER:
+        return SPAN_KIND_BROKER;
+      default:
+        return SPAN_KIND_CUSTOM;
     }
   }
 
@@ -1025,13 +1069,13 @@ public class DDSpanContext
    * Removes a known tag by id rather than by its name. An id the id-keyed setters ignore is ignored
    * here too.
    *
-   * @param tagId a {@code KnownTags.*_ID} constant
+   * @param tagId a {@code KnownTags} id constant
    */
   public void removeTag(long tagId) {
     if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
-    if (tagId == KnownTags.SPAN_KIND_ID) {
+    if (tagId == KnownTags.SPAN_KIND) {
       spanKindOrdinal = SPAN_KIND_UNSET;
     }
     synchronized (unsafeTags) {
@@ -1395,6 +1439,50 @@ public class DDSpanContext
     }
   }
 
+  /*
+   * TagStore: the span's tags as stored, loaded and stored with no locking, interception or
+   * interpretation -- the storage beneath the span, as a Map was beneath a TagMap. A span isn't
+   * conceptually a TagStore. It implements one so post-processing is handed the span's storage
+   * without allocating: a wrapper would be free only if escape analysis removed it, and the
+   * post-processor chain's dispatch loop defeats that. Callers hold the span's tag lock, as
+   * post-processing does.
+   */
+
+  @Override
+  public Object load(String tag) {
+    return unsafeTags.getObject(tag);
+  }
+
+  @Override
+  public String loadString(String tag) {
+    return unsafeTags.getString(tag);
+  }
+
+  @Override
+  public Object load(long tagId) {
+    return unsafeTags.load(tagId);
+  }
+
+  @Override
+  public String loadString(long tagId) {
+    return unsafeTags.loadString(tagId);
+  }
+
+  @Override
+  public void store(String tag, Object value) {
+    unsafeTags.set(tag, value);
+  }
+
+  @Override
+  public void store(long tagId, Object value) {
+    unsafeTags.set(tagId, value);
+  }
+
+  @Override
+  public void store(TagMap.EntryReader entry) {
+    unsafeTags.set(entry);
+  }
+
   /**
    * This is not thread-safe and must only be used when it can be guaranteed that the context will
    * not be mutated. This is internal API and must not be exposed to users.
@@ -1500,7 +1588,7 @@ public class DDSpanContext
 
   void earlyProcessTags(AppendableSpanLinks links) {
     synchronized (unsafeTags) {
-      TagsPostProcessorFactory.eagerProcessor().processTags(unsafeTags, this, links);
+      TagsPostProcessorFactory.eagerProcessor().processTags(this, this, links);
     }
   }
 

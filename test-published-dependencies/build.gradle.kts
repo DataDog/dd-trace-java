@@ -21,7 +21,7 @@ allprojects {
   spotless {
     kotlinGradle {
       target("*.gradle.kts")
-      ktlint(libs.versions.ktlint.get()).editorConfigOverride(
+      ktlint().editorConfigOverride(
         mapOf(
           // Disable trailing comma rules to minimize diff.
           "ktlint_standard_trailing-comma-on-call-site" to "disabled",
@@ -37,7 +37,7 @@ allprojects {
         target("src/**/*.java")
         removeUnusedImports()
         forbidWildcardImports()
-        googleJavaFormat(libs.versions.google.java.format.get())
+        googleJavaFormat()
       }
     }
   }

@@ -25,9 +25,12 @@ tasks.withType<Test>().configureEach {
   inputs.file(agentJar).withPathSensitivity(org.gradle.api.tasks.PathSensitivity.NONE)
   // Attach lazily so we can skip when the Test JVM already has another -javaagent.
   // doFirst prepends, so this runs after any -javaagent registered later via doFirst.
+  // The JaCoCo coverage agent coexists with this one, so it does not count as foreign.
   doFirst {
     val foreignAgent = allJvmArgs.firstOrNull {
-      it.startsWith("-javaagent:") && !it.contains("modifiable-config-agent")
+      it.startsWith("-javaagent:") &&
+        !it.contains("modifiable-config-agent") &&
+        !it.contains("jacocoagent")
     }
     if (foreignAgent != null) {
       logger.info(

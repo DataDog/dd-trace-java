@@ -11,13 +11,16 @@ import static datadog.trace.api.config.OtlpConfig.OTEL_TRACES_SPAN_METRICS_ENABL
 import static datadog.trace.api.config.TracerConfig.TRACE_REPORT_HOSTNAME;
 import static datadog.trace.core.otlp.common.OtlpResourceAttributes.datadogResourceAttributes;
 import static datadog.trace.core.otlp.common.OtlpResourceAttributes.traceResourceAttributes;
+import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.json.JsonMapper;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProcessTags;
+import datadog.trace.api.TagMap;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -46,6 +49,14 @@ class OtlpResourceJsonTest {
       props.setProperty(keyValues[i], keyValues[i + 1]);
     }
     return props;
+  }
+
+  private static Map<String, String> buildMap(String... keyValues) {
+    Map<String, String> map = new LinkedHashMap<>();
+    for (int i = 0; i < keyValues.length; i += 2) {
+      map.put(keyValues[i], keyValues[i + 1]);
+    }
+    return map;
   }
 
   private static Map<String, Object> attrs(String... keyValues) {
@@ -244,8 +255,36 @@ class OtlpResourceJsonTest {
     assertEquals("true", without.get("_dd.sdk.otlp_export"));
   }
 
+  /** Snapshot global tags are named like span attributes, by the configured semantics. */
+  @Test
+  void snapshotGlobalTagsFollowConfiguredSemantics() throws IOException {
+    // a TagMap stores either spelling under the Datadog name
+    TagMap globalTags =
+        TagMap.fromMapImmutable(buildMap("http.request.method", "GET", "team", "core"));
+
+    Map<String, Object> otel =
+        parseResourceAttributes(
+            OtlpResourceJson.buildResourceFragment(
+                Config.get(props(TRACE_OTEL_SEMANTICS_ENABLED, "true")),
+                globalTags,
+                Collections.emptyMap()));
+    assertEquals("GET", otel.get("http.request.method"));
+    assertEquals("core", otel.get("team"));
+
+    Map<String, Object> datadog =
+        parseResourceAttributes(
+            OtlpResourceJson.buildResourceFragment(
+                Config.get(props(TRACE_OTEL_SEMANTICS_ENABLED, "false")),
+                globalTags,
+                Collections.emptyMap()));
+    assertEquals("GET", datadog.get("http.method"));
+    assertNull(datadog.get("http.request.method"));
+    assertEquals("core", datadog.get("team"));
+  }
+
   @Test
   void cannedFragmentsMatchTheirProtoCounterparts() throws IOException {
+    Map<String, String> globalTags = singletonMap("team", "checkout");
     assertEquals(
         parseResourceAttributesFromProto(OtlpResourceProto.RESOURCE_MESSAGE),
         parseResourceAttributes(OtlpResourceJson.RESOURCE_FRAGMENT));
@@ -253,8 +292,8 @@ class OtlpResourceJsonTest {
         parseResourceAttributesFromProto(OtlpResourceProto.RESOURCE_MESSAGE_WITH_DATADOG_ATTRS),
         parseResourceAttributes(OtlpResourceJson.RESOURCE_FRAGMENT_WITH_DATADOG_ATTRS));
     assertEquals(
-        parseResourceAttributesFromProto(OtlpResourceProto.TRACE_RESOURCE_MESSAGE),
-        parseResourceAttributes(OtlpResourceJson.TRACE_RESOURCE_FRAGMENT));
+        parseResourceAttributesFromProto(OtlpResourceProto.buildTraceResourceMessage(globalTags)),
+        parseResourceAttributes(OtlpResourceJson.buildTraceResourceFragment(globalTags)));
   }
 
   // ── parsing helpers ───────────────────────────────────────────────────────

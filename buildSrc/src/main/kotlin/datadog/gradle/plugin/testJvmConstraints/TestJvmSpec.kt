@@ -78,7 +78,7 @@ class TestJvmSpec(val project: Project) {
    * 2. Lookup via Gradle toolchains.
    */
   private val testJvmLauncher = normalizedTestJvm.flatMap { testJvm ->
-    val (distribution, version) = Regex("([a-zA-Z]*)([0-9]+)").matchEntire(testJvm)?.groupValues?.drop(1) ?: listOf("", "")
+    val (distribution, version) = TEST_JVM_NAME.matchEntire(testJvm)?.groupValues?.drop(1) ?: listOf("", "")
 
     // Allow looking up JAVA_<TESTJVM>_HOME environment variable (e.g., JAVA_IBM8_HOME, JAVA_SEMERU8_HOME),
     // because gradle doesn't offer a way to distinguish ibm8 or semeru8

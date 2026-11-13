@@ -38,7 +38,7 @@ abstract class AbstractSmokeTest extends ProcessManager {
   private Closure decode = decodedTracesCallback()
 
   @Shared
-  private String remoteConfigResponse
+  private volatile String remoteConfigResponse = "{}"
 
   @Shared
   private Throwable traceDecodingFailure = null
@@ -96,7 +96,9 @@ abstract class AbstractSmokeTest extends ProcessManager {
             "Accept-Encoding",
             "Content-Encoding",
             "User-Agent",
-            "DD-CI-PROVIDER-NAME"
+            "DD-CI-PROVIDER-NAME",
+            "DD-EVP-ORIGIN",
+            "DD-EVP-ORIGIN-VERSION"
           ],
           "config": {}
         }""")

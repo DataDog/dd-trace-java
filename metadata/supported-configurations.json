@@ -395,6 +395,14 @@
         "aliases": []
       }
     ],
+    "_DD_APPSEC_SCA_CVE_FILE": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
     "DD_APPSEC_SCA_ENABLED": [
       {
         "version": "B",
@@ -597,9 +605,9 @@
     ],
     "DD_CIVISIBILITY_COMPILER_PLUGIN_VERSION": [
       {
-        "version": "A",
+        "version": "B",
         "type": "string",
-        "default": "0.2.4",
+        "default": "0.2.5",
         "aliases": []
       }
     ],
@@ -1609,6 +1617,14 @@
         "version": "A",
         "type": "boolean",
         "default": "false",
+        "aliases": []
+      }
+    ],
+    "DD_FEATURE_FLAGS_EXPERIMENTATION_OPT_OUT_MODE": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": "disabled",
         "aliases": []
       }
     ],
@@ -4562,6 +4578,14 @@
         "type": "boolean",
         "default": "true",
         "aliases": ["DD_TRACE_INTEGRATION_AKKA_HTTP_ENABLED", "DD_INTEGRATION_AKKA_HTTP_ENABLED"]
+      }
+    ],
+    "DD_TRACE_AKKA_HTTP_ROUTE_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": ["DD_TRACE_INTEGRATION_AKKA_HTTP_ROUTE_ENABLED", "DD_INTEGRATION_AKKA_HTTP_ROUTE_ENABLED"]
       }
     ],
     "DD_TRACE_AKKA_HTTP_SERVER_ANALYTICS_ENABLED": [
@@ -8900,6 +8924,14 @@
         "aliases": []
       }
     ],
+    "DD_TRACE_OTEL_SDK_SELF_MONITORING_METRICS_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
     "DD_TRACE_OTEL_SEMANTICS_ENABLED": [
       {
         "version": "A",
@@ -9090,6 +9122,14 @@
         "type": "boolean",
         "default": "true",
         "aliases": ["DD_TRACE_INTEGRATION_PEKKO_HTTP_ENABLED", "DD_INTEGRATION_PEKKO_HTTP_ENABLED"]
+      }
+    ],
+    "DD_TRACE_PEKKO_HTTP_ROUTE_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": ["DD_TRACE_INTEGRATION_PEKKO_HTTP_ROUTE_ENABLED", "DD_INTEGRATION_PEKKO_HTTP_ROUTE_ENABLED"]
       }
     ],
     "DD_TRACE_PEKKO_HTTP_SERVER_ANALYTICS_ENABLED": [

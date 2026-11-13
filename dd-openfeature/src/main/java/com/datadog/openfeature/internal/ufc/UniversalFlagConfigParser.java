@@ -235,13 +235,17 @@ public final class UniversalFlagConfigParser {
       return null;
     }
     final Map<?, ?> json = asObject(value, "allocation");
+    final Object activation = json.get("randomizationActivatedAt");
+    final Instant parsedActivation = activation instanceof String ? toInstant(activation) : null;
     return new Allocation(
         asString(json.get("key"), "key"),
         toList(json.get("rules"), "rules", UniversalFlagConfigParser::toRule),
         toInstant(json.get("startAt")),
         toInstant(json.get("endAt")),
         toList(json.get("splits"), "splits", UniversalFlagConfigParser::toSplit),
-        lenientBoolean(json.get("doLog")));
+        lenientBoolean(json.get("doLog")),
+        parsedActivation,
+        activation != null && parsedActivation == null);
   }
 
   @Nullable
@@ -486,8 +490,9 @@ public final class UniversalFlagConfigParser {
     }
   }
 
-  /** Validates the required nested UFC fields and SemVer comparands for a flag. */
+  /** Validates the required nested UFC fields and condition operands for a flag. */
   private static void validateFlag(final String flagKey, final Flag flag) {
+    validateNumericVariants(flagKey, flag);
     if (flag.allocations == null) {
       return;
     }
@@ -523,6 +528,24 @@ public final class UniversalFlagConfigParser {
     validateAndCacheSemverComparands(flagKey, flag);
   }
 
+  /** Preserve Java's numeric coercion, but reject values that cannot be mapped at all. */
+  private static void validateNumericVariants(final String flagKey, final Flag flag) {
+    if (flag.variations == null
+        || (flag.variationType != ValueType.INTEGER && flag.variationType != ValueType.NUMERIC)) {
+      return;
+    }
+    for (final Variant variant : flag.variations.values()) {
+      if (variant == null || variant.value == null || variant.value instanceof Number) {
+        continue;
+      }
+      try {
+        Double.parseDouble(String.valueOf(variant.value));
+      } catch (final NumberFormatException e) {
+        throw new IllegalArgumentException("flag \"" + flagKey + "\" has a non-numeric variant");
+      }
+    }
+  }
+
   private static void validateConditionOperands(final String flagKey, final Allocation allocation) {
     if (allocation.rules == null) {
       return;
@@ -536,6 +559,11 @@ public final class UniversalFlagConfigParser {
           continue;
         }
         switch (condition.operator) {
+          case MATCHES:
+          case NOT_MATCHES:
+            // Configuration validity is independent of targeting and experimentation opt-out.
+            condition.regex = ConditionConfiguration.compileRegex(condition.value);
+            break;
           case LT:
           case LTE:
           case GT:

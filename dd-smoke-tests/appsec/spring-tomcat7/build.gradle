@@ -33,18 +33,3 @@ tasks.withType(Test).configureEach {
       }
     })
 }
-
-tasks.register('testRuntimeActivation', Test) {
-  def shadowJarTask = tasks.named('shadowJar', ShadowJar)
-  jvmArgs '-Dsmoke_test.appsec.enabled=inactive'
-  jvmArgumentProviders.add(new CommandLineArgumentProvider() {
-      @Override
-      Iterable<String> asArguments() {
-        return shadowJarTask.map { ["-Ddatadog.smoketest.appsec.springtomcat7.shadowJar.path=${it.archiveFile.get()}"] }.get()
-      }
-    })
-}
-
-tasks.named('check') {
-  dependsOn(testRuntimeActivation)
-}

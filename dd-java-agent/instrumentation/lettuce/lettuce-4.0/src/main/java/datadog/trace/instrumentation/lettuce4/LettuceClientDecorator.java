@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.lettuce4;
 
+import static datadog.trace.api.KnownTags.DB_REDIS_DBINDEX;
 import static datadog.trace.instrumentation.lettuce4.InstrumentationPoints.getCommandResourceName;
 
 import com.lambdaworks.redis.RedisURI;
@@ -64,7 +65,7 @@ public class LettuceClientDecorator extends DBTypeProcessingDatabaseClientDecora
   public void onConnection(final AgentSpan span, final RedisURI connection) {
     if (connection != null) {
       setPeerPort(span, connection.getPort());
-      span.setTag("db.redis.dbIndex", connection.getDatabase());
+      span.setTag(DB_REDIS_DBINDEX, connection.getDatabase());
     }
     super.onConnection(span, connection);
   }

@@ -13,6 +13,8 @@ import static org.mockito.Mockito.when;
 
 import datadog.trace.api.DDTags;
 import datadog.trace.api.KnownTags;
+import datadog.trace.api.TagMap;
+import datadog.trace.api.TagStore;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
@@ -30,8 +32,8 @@ class OtelHttpSemanticsTest {
 
     OtelHttpSemantics.setRequestMethod(span, method);
 
-    verify(span).setTag(KnownTags.HTTP_METHOD_ID, method);
-    verify(span, never()).setTag(eq(KnownTags.HTTP_REQUEST_METHOD_ORIGINAL_ID), anyString());
+    verify(span).setTag(KnownTags.HTTP_METHOD, method);
+    verify(span, never()).setTag(eq(KnownTags.HTTP_REQUEST_METHOD_ORIGINAL), anyString());
   }
 
   @ParameterizedTest
@@ -41,8 +43,8 @@ class OtelHttpSemanticsTest {
 
     OtelHttpSemantics.setRequestMethod(span, method);
 
-    verify(span).setTag(KnownTags.HTTP_METHOD_ID, OtelHttpSemantics.OTHER_METHOD);
-    verify(span).setTag(KnownTags.HTTP_REQUEST_METHOD_ORIGINAL_ID, method);
+    verify(span).setTag(KnownTags.HTTP_METHOD, OtelHttpSemantics.OTHER_METHOD);
+    verify(span).setTag(KnownTags.HTTP_REQUEST_METHOD_ORIGINAL, method);
   }
 
   @TableTest({
@@ -77,6 +79,26 @@ class OtelHttpSemanticsTest {
     tags.put(KnownTags.URL_PATH_NAME, path);
 
     assertEquals(expected, OtelHttpSemantics.urlOrPath(tags));
+  }
+
+  /** From a span's tags as stored, it answers as it does from the same tags as a map. */
+  @TableTest({
+    "Scenario       | Http URL                 | URL path  ",
+    "No URL or path |                          |           ",
+    "URL only       | https://example.com/full |           ",
+    "Path only      |                          | /orders   ",
+    "Prefer URL     | https://example.com/full | /different",
+    "Empty URL      | ''                       | /orders   ",
+    "Empty path     |                          | ''        "
+  })
+  void urlOrPathFromTagStoreMatchesMap(String httpUrl, String path) {
+    TagMap tags = TagMap.create();
+    tags.store(KnownTags.HTTP_URL, httpUrl);
+    tags.store(KnownTags.URL_PATH, path);
+
+    assertEquals(
+        OtelHttpSemantics.urlOrPath((Map<String, Object>) tags),
+        OtelHttpSemantics.urlOrPath((TagStore) tags));
   }
 
   @Test
@@ -166,7 +188,7 @@ class OtelHttpSemanticsTest {
 
     OtelHttpSemantics.setErrorType(span, 500);
 
-    verify(span).setTag(KnownTags.ERROR_TYPE_ID, "500");
+    verify(span).setTag(KnownTags.ERROR_TYPE, "500");
   }
 
   @Test
@@ -176,7 +198,7 @@ class OtelHttpSemanticsTest {
 
     OtelHttpSemantics.setErrorType(span, 500);
 
-    verify(span, never()).setTag(eq(KnownTags.ERROR_TYPE_ID), any(String.class));
+    verify(span, never()).setTag(eq(KnownTags.ERROR_TYPE), any(String.class));
   }
 
   @TableTest({

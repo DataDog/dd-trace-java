@@ -76,29 +76,28 @@ class AIGuardContextPropagationTest {
     Call call = mock(Call.class);
     when(client.newCall(any(Request.class))).thenReturn(call);
     when(call.execute())
-        .thenAnswer(
-            invocation -> {
-              DDSpan span = (DDSpan) tracer.activeSpan();
-              assertEquals(
-                  scopeDepthLimit == 1 ? "parent" : "ai_guard", span.getOperationName().toString());
-              assertFalse(tracer.isAsyncPropagationEnabled());
-              if (outcome == Outcome.ERROR) {
-                throw new IOException("Transport failed");
-              }
-              String action = outcome == Outcome.BLOCK ? "DENY" : "ALLOW";
-              return new Response.Builder()
-                  .request(new Request.Builder().url(url).build())
-                  .protocol(Protocol.HTTP_1_1)
-                  .code(200)
-                  .message("OK")
-                  .body(
-                      ResponseBody.create(
-                          MediaType.get("application/json"),
-                          "{\"data\":{\"attributes\":{\"action\":\""
-                              + action
-                              + "\",\"is_blocking_enabled\":true}}}"))
-                  .build();
-            });
+        .thenAnswer(invocation -> {
+          DDSpan span = (DDSpan) tracer.activeSpan();
+          assertEquals(
+              scopeDepthLimit == 1 ? "parent" : "ai_guard", span.getOperationName().toString());
+          assertFalse(tracer.isAsyncPropagationEnabled());
+          if (outcome == Outcome.ERROR) {
+            throw new IOException("Transport failed");
+          }
+          String action = outcome == Outcome.BLOCK ? "DENY" : "ALLOW";
+          return new Response.Builder()
+              .request(new Request.Builder().url(url).build())
+              .protocol(Protocol.HTTP_1_1)
+              .code(200)
+              .message("OK")
+              .body(
+                  ResponseBody.create(
+                      MediaType.get("application/json"),
+                      "{\"data\":{\"attributes\":{\"action\":\""
+                          + action
+                          + "\",\"is_blocking_enabled\":true}}}"))
+              .build();
+        });
     AIGuardInternal evaluator = new AIGuardInternal(url, emptyMap(), client);
     List<AIGuard.Message> messages = singletonList(AIGuard.Message.message("user", "Hello"));
     AgentSpan parent = tracer.startSpan("test", "parent");

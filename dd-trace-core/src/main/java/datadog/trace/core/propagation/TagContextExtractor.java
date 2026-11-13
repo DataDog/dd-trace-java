@@ -18,9 +18,20 @@ public class TagContextExtractor implements HttpCodec.Extractor {
 
   @Override
   public <C> TagContext extract(final C carrier, final AgentPropagation.ContextVisitor<C> getter) {
+    return interpret(carrier, getter).build();
+  }
+
+  /** This thread's interpreter, as the last {@link #interpret} left it. */
+  protected final ContextInterpreter interpreter() {
+    return this.ctxInterpreter.get();
+  }
+
+  /** Runs this thread's interpreter over the carrier, ready to build. */
+  protected final <C> ContextInterpreter interpret(
+      final C carrier, final AgentPropagation.ContextVisitor<C> getter) {
     ContextInterpreter interpreter = this.ctxInterpreter.get().reset(traceConfigSupplier.get());
     getter.forEachKey(carrier, interpreter);
-    return interpreter.build();
+    return interpreter;
   }
 
   @Override

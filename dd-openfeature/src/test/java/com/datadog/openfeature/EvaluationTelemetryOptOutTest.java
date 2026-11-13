@@ -75,6 +75,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.tabletest.junit.TableTest;
 
 /**
  * Exercises real OpenFeature resolution and the provider telemetry hooks, capturing each output
@@ -599,6 +600,99 @@ class EvaluationTelemetryOptOutTest {
     assertEquals(1, this.customerEvaluations.size());
   }
 
+  @TableTest({
+    "scenario         | mode                    | exclude experimentation | suppress telemetry",
+    "neither          | DISABLED                | false                   | false             ",
+    "telemetry only   | DISABLED                | false                   | true              ",
+    "experiments only | IMMEDIATE               | true                    | false             ",
+    "both             | IMMEDIATE               | true                    | true              ",
+    "retained future  | FUTURE_EXPERIMENTS_ONLY | false                   | false             ",
+    "retained private | FUTURE_EXPERIMENTS_ONLY | false                   | true              "
+  })
+  void experimentationAndEvaluationTelemetryControlsRemainIndependent(
+      final ExperimentationOptOutMode mode,
+      final boolean excludeExperimentation,
+      final boolean suppressTelemetry)
+      throws Exception {
+    this.evaluator =
+        new CapturingEvaluator(
+            experimentationConfiguration("2026-10-19T11:59:59.999999999Z"), mode);
+    this.api.setProviderAndWait(
+        provider(
+            new Provider.Options()
+                .experimentationOptOutMode(mode)
+                .enableEvaluationTelemetryOptOutParameter(suppressTelemetry),
+            this.evaluator));
+    final FlagEvaluationDetails<Integer> details =
+        this.api
+            .getClient()
+            .getIntegerDetails(
+                "flag",
+                0,
+                new MutableContext("subject-1")
+                    .add(PARAMETER, true)
+                    .add("dd_experimentation_opt_out_at", "2026-10-19T12:00:00Z"));
+
+    assertNull(details.getErrorCode());
+    assertEquals(excludeExperimentation ? 2 : 1, details.getValue());
+    assertEquals(excludeExperimentation ? 0 : 1, this.exposures.size());
+    assertTelemetryCounts(suppressTelemetry ? 0 : 1);
+    assertEquals(1, this.customerEvaluations.size());
+  }
+
+  @TableTest({
+    "mode                    | activation           | excluded",
+    "IMMEDIATE               | 2026-10-19T11:59:59Z | true    ",
+    "FUTURE_EXPERIMENTS_ONLY | 2026-10-19T12:00:00Z | true    ",
+    "FUTURE_EXPERIMENTS_ONLY | 2026-10-19T11:59:59Z | false   "
+  })
+  void optOutDoesNotConsumeOrClearExposureDeduplication(
+      final ExperimentationOptOutMode mode, final String activation, final boolean excluded)
+      throws Exception {
+    this.evaluator = new CapturingEvaluator(experimentationConfiguration(activation), mode);
+    this.api.setProviderAndWait(
+        provider(new Provider.Options().experimentationOptOutMode(mode), this.evaluator));
+    final Client client = this.api.getClient();
+    final MutableContext optedOut =
+        new MutableContext("subject").add("dd_experimentation_opt_out_at", "2026-10-19T12:00:00Z");
+    final MutableContext participating = new MutableContext("subject");
+    assertEquals(excluded ? 2 : 1, client.getIntegerValue("flag", 0, optedOut));
+    assertEquals(excluded ? 0 : 1, this.exposures.size());
+    assertEquals(1, client.getIntegerValue("flag", 0, participating));
+    assertEquals(1, this.exposures.size(), "exclusion must not consume the first exposure");
+    assertEquals(excluded ? 2 : 1, client.getIntegerValue("flag", 0, optedOut));
+    assertEquals(1, client.getIntegerValue("flag", 0, participating));
+    assertEquals(1, this.exposures.size(), "exclusion must not clear the previous exposure");
+  }
+
+  private static ServerConfiguration experimentationConfiguration(final String activation) {
+    final ServerConfiguration configuration = defaultConfiguration();
+    final Flag flag = configuration.flags.get("flag");
+    final Allocation original = flag.allocations.get(0);
+    final Allocation experiment =
+        new Allocation(
+            original.key,
+            original.rules,
+            original.startAt,
+            original.endAt,
+            original.splits,
+            original.doLog,
+            java.time.Instant.parse(activation));
+    final Allocation ordinary =
+        new Allocation(
+            "ordinary",
+            null,
+            null,
+            null,
+            singletonList(new Split(emptyList(), "off", emptyMap(), 8)),
+            false);
+    final Map<String, Variant> variants = new HashMap<>(flag.variations);
+    variants.put("off", new Variant("off", 2));
+    final Flag withFallback =
+        new Flag("flag", true, ValueType.INTEGER, variants, asList(experiment, ordinary));
+    return new ServerConfiguration("", "", false, null, singletonMap("flag", withFallback));
+  }
+
   private void start() throws Exception {
     start(new Provider.Options().enableEvaluationTelemetryOptOutParameter(true));
   }
@@ -709,10 +803,16 @@ class EvaluationTelemetryOptOutTest {
    */
   private final class CapturingEvaluator extends DDEvaluator {
     CapturingEvaluator(final ServerConfiguration configuration) {
+      this(configuration, ExperimentationOptOutMode.DISABLED);
+    }
+
+    CapturingEvaluator(
+        final ServerConfiguration configuration, final ExperimentationOptOutMode mode) {
       super(
           () -> {},
           AgentBridge.NONE,
-          TestSettings.of("experimental.flagging.provider.span.enrichment.enabled", "true"));
+          TestSettings.of("experimental.flagging.provider.span.enrichment.enabled", "true"),
+          mode);
       accept(configuration);
     }
 

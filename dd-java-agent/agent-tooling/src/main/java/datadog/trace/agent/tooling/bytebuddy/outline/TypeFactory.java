@@ -108,9 +108,7 @@ final class TypeFactory {
 
   ClassFileLocator classFileLocator;
 
-  String targetName;
-
-  byte[] targetBytecode;
+  private LazyType targetType;
 
   /** Sets the current class-loader context of this type-factory. */
   void switchContext(ClassLoader classLoader) {
@@ -151,8 +149,8 @@ final class TypeFactory {
    * used for matching and restore it afterwards.
    */
   void beginTransform(String name, byte[] bytecode) {
-    targetName = name;
-    targetBytecode = bytecode;
+    targetType = new LazyType(name);
+    targetType.location = new ClassFileLocator.Resolution.Explicit(bytecode);
 
     if (installing) {
       originalClassLoader = currentClassLoader;
@@ -173,7 +171,7 @@ final class TypeFactory {
 
   /** Cleans-up local caches to minimise memory use once we're done with the type-factory. */
   void endTransform() {
-    if (null == targetName) {
+    if (null == targetType) {
       return; // transformation didn't reach resolve step
     }
 
@@ -184,8 +182,7 @@ final class TypeFactory {
       clearReferences();
     }
 
-    targetName = null;
-    targetBytecode = null;
+    targetType = null;
     createOutlines = OUTLINING_ENABLED;
   }
 
@@ -228,12 +225,19 @@ final class TypeFactory {
   }
 
   private TypeDescription deferTypeResolution(String name) {
+    if (null != targetType && name.equals(targetType.name)) {
+      return targetType; // keep target type alive during request
+    }
     return deferredTypes.computeIfAbsent(name, deferType);
   }
 
   /** Attempts to resolve the named type using the current context. */
   TypeDescription resolveType(LazyType request) {
     if (null != classFileLocator) {
+      // deferred references issued before beginTransform should reuse the target's description
+      if (null != targetType && request != targetType && request.name.equals(targetType.name)) {
+        return targetType.doResolve(false);
+      }
       TypeDescription result;
       if (createOutlines) {
         if ("java.lang.Object".equals(request.name)) {
@@ -258,8 +262,10 @@ final class TypeFactory {
     boolean isOutline = typeParser == outlineTypeParser;
     long fromTick = InstrumenterMetrics.tick();
 
+    // the JVM's bytes are authoritative for the target; its LazyType reuses the parsed result
+    SharedTypeInfo<TypeDescription> sharedType = request == targetType ? null : types.find(name);
+
     // existing type description from same classloader?
-    SharedTypeInfo<TypeDescription> sharedType = types.find(name);
     if (null != sharedType
         && (name.startsWith("java.") || sharedType.sameClassLoader(classLoaderId))) {
       InstrumenterMetrics.reuseTypeDescription(fromTick, isOutline);
@@ -369,9 +375,6 @@ final class TypeFactory {
     }
 
     private ClassFileLocator.Resolution locateClassFile() {
-      if (name.equals(targetName)) {
-        return new ClassFileLocator.Resolution.Explicit(targetBytecode);
-      }
       try {
         return classFileLocator.locate(name);
       } catch (Throwable ignored) {

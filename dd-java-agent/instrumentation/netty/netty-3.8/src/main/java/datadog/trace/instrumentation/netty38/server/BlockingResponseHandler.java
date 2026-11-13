@@ -135,16 +135,15 @@ public class BlockingResponseHandler extends SimpleChannelUpstreamHandler {
     segment.effectivelyBlocked();
 
     ChannelFuture future = Channels.future(ctx.getChannel());
-    future.addListener(
-        fut -> {
-          if (!fut.isSuccess()) {
-            log.warn("Write of blocking response failed", fut.getCause());
-          }
-          // close the connection because it can be in an invalid state at this point
-          // For instance, in a POST request we will still be receiving data from the
-          // client
-          fut.getChannel().close();
-        });
+    future.addListener(fut -> {
+      if (!fut.isSuccess()) {
+        log.warn("Write of blocking response failed", fut.getCause());
+      }
+      // close the connection because it can be in an invalid state at this point
+      // For instance, in a POST request we will still be receiving data from the
+      // client
+      fut.getChannel().close();
+    });
     Channels.write(ctxForDownstream, future, response);
   }
 }

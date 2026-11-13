@@ -27,6 +27,42 @@ configure<TestJvmConstraintsExtension> {
   minJavaVersion.set(JavaVersion.VERSION_11)
 }
 
+// TODO: Cover these classes, then remove them from the coverage baseline (APMLP-2264)
+extra["excludedClassesBranchCoverage"] = listOf(
+  "com.datadog.openfeature.DebugLoggingHook",
+  "com.datadog.openfeature.FlagEvalLoggingHook",
+  "com.datadog.openfeature.FlagEvalMetrics",
+  "com.datadog.openfeature.FlagEvalMetricsHook",
+  "com.datadog.openfeature.Provider",
+  "com.datadog.openfeature.SpanEnrichmentHook",
+  "com.datadog.openfeature.internal.EventPipeline",
+  "com.datadog.openfeature.internal.JsonWriting",
+  "com.datadog.openfeature.internal.config.SdkVersion",
+  "com.datadog.openfeature.internal.delivery.CdnConfigurationSource",
+  "com.datadog.openfeature.internal.delivery.DirectIntakeTransport",
+  "com.datadog.openfeature.internal.delivery.HttpCall",
+  "com.datadog.openfeature.internal.delivery.RemoteConfigurationService",
+  "com.datadog.openfeature.internal.delivery.Retries",
+  "com.datadog.openfeature.internal.exposure.ExposureDeduplicationCache.Key",
+  "com.datadog.openfeature.internal.exposure.ExposurePipeline.ExposureSerializingHandler",
+  "com.datadog.openfeature.internal.flagevaluation.FlagEvalEvent",
+  "com.datadog.openfeature.internal.flagevaluation.FlagEvaluationPipeline",
+)
+extra["excludedClassesInstructionCoverage"] = listOf(
+  "com.datadog.openfeature.FlagEvalMetrics",
+  "com.datadog.openfeature.SpanEnrichmentHook",
+  "com.datadog.openfeature.internal.JsonWriting",
+  "com.datadog.openfeature.internal.bridge.v1.HealthMetrics",
+  "com.datadog.openfeature.internal.bridge.v1.SpanEnricher.1",
+  "com.datadog.openfeature.internal.config.SdkVersion",
+  "com.datadog.openfeature.internal.delivery.HttpCall",
+  "com.datadog.openfeature.internal.delivery.HttpCall.CancellableBodySubscriber",
+  "com.datadog.openfeature.internal.exposure.ExposureDeduplicationCache.Sent",
+  "com.datadog.openfeature.internal.flagevaluation.FlagEvalEvent",
+  "com.datadog.openfeature.internal.flagevaluation.FlagEvaluationPipeline.SerializingHandlerForTest",
+  "datadog.trace.api.openfeature.Provider",
+)
+
 java {
   toolchain {
     languageVersion = JavaLanguageVersion.of(11)
@@ -62,7 +98,8 @@ tasks.named<Jar>("jar") {
 
 // The agent bridge SPI versions, with the first SDK release shipping each of them. A released
 // version is frozen (only default methods can be added): check it against that release.
-// TODO Set the v1 baseline once the first SDK release with the agent bridge is published.
+// TODO APMLP-1512 Set the v1 baseline to 1.69.0, the first SDK release with the agent bridge,
+//  once it is published.
 val bridgeSpiBaselines = mapOf<String, String?>(
   "v1" to null,
 )
@@ -101,10 +138,25 @@ val japicmpPublicApi = tasks.register<JapicmpTask>("japicmpPublicApi") {
   packageIncludes.addAll("com.datadog.openfeature", "datadog.trace.api.openfeature")
   failOnModification.set(true)
   failOnSourceIncompatibility.set(true)
-  // TODO Remove once the baseline is 1.69.0 or later: earlier releases link the agent bootstrap API.
+  // TODO APMLP-1512 Remove once the baseline is 1.69.0 or later: earlier releases link the agent
+  //  bootstrap API.
   ignoreMissingClasses.set(true)
   txtOutputFile.set(layout.buildDirectory.file("reports/japicmp/public-api.txt"))
 }
 tasks.named("check") {
   dependsOn(japicmpPublicApi)
+}
+
+// These suites read shared fixtures directly from the smoke-test resources.
+tasks.withType<Test>().configureEach {
+  inputs.dir(
+    rootProject.layout.projectDirectory.dir(
+      "dd-smoke-tests/openfeature/src/test/resources/ffe-system-test-data"
+    )
+  ).withPathSensitivity(PathSensitivity.RELATIVE)
+  inputs.dir(
+    rootProject.layout.projectDirectory.dir(
+      "dd-smoke-tests/openfeature/src/test/resources/experimentation-opt-out"
+    )
+  ).withPathSensitivity(PathSensitivity.RELATIVE)
 }

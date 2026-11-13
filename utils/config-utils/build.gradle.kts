@@ -28,6 +28,7 @@ extra["excludedClassesCoverage"] = listOf(
   "datadog.trace.bootstrap.config.provider.MapConfigSource",
   // tested in internal-api
   "datadog.trace.bootstrap.config.provider.OtelEnvironmentConfigSource",
+  "datadog.trace.bootstrap.config.provider.OtelEnvironmentConfigSource.Exporter",
   "datadog.trace.bootstrap.config.provider.stableconfig.Selector",
   // tested in internal-api
   "datadog.trace.bootstrap.config.provider.StableConfigParser",
