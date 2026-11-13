@@ -441,6 +441,11 @@ public class AgentTracer {
 
     SpanBuilder withSpanType(CharSequence spanType);
 
+    /**
+     * Sets request-scoped data for the local trace this span belongs to. Intended for spans that
+     * start a new local trace; on a span joining an existing local trace, it only fills a slot that
+     * trace has not set.
+     */
     <T> SpanBuilder withRequestContextData(RequestContextSlot slot, T data);
 
     SpanBuilder withLink(AgentSpanLink link);
