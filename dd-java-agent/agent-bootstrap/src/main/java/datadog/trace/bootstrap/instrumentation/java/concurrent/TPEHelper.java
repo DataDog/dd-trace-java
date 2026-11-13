@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE_FUTURE;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.exclude;
 
 import datadog.context.ContextScope;
@@ -9,7 +10,7 @@ import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.ContextStore;
 import java.util.Set;
-import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.RunnableFuture;
 
 /**
  * This class is a helper for the ThreadPoolExecutorInstrumentation. The instrumentation has two
@@ -54,7 +55,7 @@ public final class TPEHelper {
   private static final ClassValue<Boolean> PROPAGATE =
       GenericClassValue.of(input -> !excludedClasses.contains(input.getName()));
 
-  public static boolean shouldPropagate(ThreadPoolExecutor executor) {
+  public static boolean shouldPropagate(Object executor) {
     // avoid tracking threads when building native images as it confuses the scanner
     // (we still want instrumentation applied, so tracking works in the built image)
     return !Platform.isNativeImageBuilder()
@@ -110,5 +111,19 @@ public final class TPEHelper {
       return;
     }
     AdviceUtils.cancelTask(contextStore, task);
+  }
+
+  public static void cancelTask(
+      ContextStore<Runnable, State> runnableStore,
+      ContextStore<RunnableFuture, State> futureStore,
+      Runnable task) {
+    if (task instanceof Wrapper) {
+      ((Wrapper<?>) task).cancel();
+    } else if (task != null) {
+      if (task instanceof RunnableFuture && !exclude(RUNNABLE_FUTURE, task)) {
+        AdviceUtils.cancelTask(futureStore, (RunnableFuture<?>) task);
+      }
+      cancelTask(runnableStore, task);
+    }
   }
 }

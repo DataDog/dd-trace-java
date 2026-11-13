@@ -71,6 +71,7 @@ public class ExecutorModule extends InstrumenterModule.ContextTracking
       instrumenters.add(new RejectedExecutionHandlerInstrumentation());
     }
     instrumenters.add(new ThreadPoolExecutorInstrumentation());
+    instrumenters.add(new TomcatThreadPoolExecutorInstrumentation());
     return instrumenters;
   }
 }
