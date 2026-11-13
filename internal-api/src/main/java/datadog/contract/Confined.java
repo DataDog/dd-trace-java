@@ -13,7 +13,8 @@ import java.lang.annotation.Target;
  * one call.
  *
  * <p>Extents are ordered from narrowest to widest: {@link Extent#CALL}, then {@link Extent#FRAME}.
- * Both imply the instance is never used from another thread. An unannotated type is unconfined.
+ * Both imply the instance is never used from another thread. An unannotated type is assumed
+ * unconfined.
  *
  * <p>This marker changes no runtime behavior. The checker contract below guides AI review; no
  * static checker currently enforces it. As a {@link CorrectnessContract}, it has no exemption.
@@ -38,7 +39,9 @@ import java.lang.annotation.Target;
  *       caller it is returned to inherits the obligation.
  *   <li><b>Accepted:</b> local variables, synchronous calls that receive the instance as an
  *       argument, a creating method returning its new instance, and returning a {@code FRAME}
- *       instance to the caller.
+ *       instance to the caller. Also the code that produces the instances holding, in a field, the
+ *       one it is currently handing out, such as an iterator's look-ahead or a cursor that is its
+ *       own flyweight: the rule binds consumers, and the producer owns the instance it recycles.
  *   <li><b>Out of scope (v1):</b> completion of a {@code FRAME} instance that is not {@link
  *       AutoCloseable}, escape through raw containers, and values stored several calls after they
  *       were obtained. Widen this contract only when a real case shows it is insufficient.
@@ -55,12 +58,18 @@ public @interface Confined {
 
   /** Where a confined instance remains valid, from narrowest to widest. */
   enum Extent {
-    /** Valid only for the duration of the call it was passed into. */
+    /**
+     * Valid only for the duration of the call it was passed into: a borrowed argument. The
+     * receiving method may use it and pass it to helpers, but may not return it; only the method
+     * that created the instance may return it.
+     */
     CALL,
 
     /**
-     * Valid only in the frame that obtained it and the calls that frame makes, and completed on
-     * every path before that frame exits.
+     * Valid only in the frame that obtained it, for local use, and in the calls that frame makes.
+     * The method must complete its use before it returns, or return the instance and hand that
+     * obligation to its caller. For an {@link AutoCloseable} type, completing it means a
+     * try-with-resources, unless the method returns it.
      */
     FRAME
   }
