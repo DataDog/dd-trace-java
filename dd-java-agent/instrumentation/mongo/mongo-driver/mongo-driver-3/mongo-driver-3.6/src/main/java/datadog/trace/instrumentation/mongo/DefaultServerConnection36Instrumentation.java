@@ -12,7 +12,6 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import net.bytebuddy.asm.Advice;
 import org.bson.BsonDocument;
 
@@ -33,6 +32,7 @@ public class DefaultServerConnection36Instrumentation extends InstrumenterModule
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".BsonScrubber",
+      packageName + ".MongoPendingSpan",
       packageName + ".MongoCommentInjector",
       packageName + ".MongoDecorator",
     };
@@ -60,7 +60,8 @@ public class DefaultServerConnection36Instrumentation extends InstrumenterModule
     public static void onEnter(
         @Advice.This Connection connection,
         @Advice.Argument(value = 0) String dbName,
-        @Advice.Argument(value = 1, readOnly = false) BsonDocument originalBsonDocument) {
+        @Advice.Argument(value = 1, readOnly = false) BsonDocument originalBsonDocument,
+        @Advice.Local("commandSpan") AgentSpan span) {
       if (!MongoCommentInjector.INJECT_COMMENT) {
         return;
       }
@@ -70,9 +71,8 @@ public class DefaultServerConnection36Instrumentation extends InstrumenterModule
         return;
       }
 
-      AgentSpan span = startSpan("java-mongo", MongoDecorator.OPERATION_NAME);
-      // scope is going to be closed by the MongoCommandListener
-      AgentTracer.get().activateSpanWithoutScope(span);
+      span = startSpan("java-mongo", MongoDecorator.OPERATION_NAME);
+      MongoPendingSpan.enter(span);
 
       String hostname = null;
       ConnectionDescription connectionDescription = connection.getDescription();
@@ -87,7 +87,9 @@ public class DefaultServerConnection36Instrumentation extends InstrumenterModule
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void onExit() {
+    public static void onExit(
+        @Advice.Local("commandSpan") AgentSpan span, @Advice.Thrown Throwable error) {
+      MongoPendingSpan.onExit(span, error);
       if (!MongoCommentInjector.INJECT_COMMENT) {
         return;
       }
