@@ -1,8 +1,8 @@
 _v: 1
 name: jedis
 display_name: Jedis
-description: Instruments Redis commands sent or executed through the Jedis client, creating spans with command names, peer
-  hosts, and errors.
+description: Instruments Redis command submission and execution through Jedis, recording command names, connection
+  details, and errors.
 packages:
 - name: redis.clients:jedis
 category:

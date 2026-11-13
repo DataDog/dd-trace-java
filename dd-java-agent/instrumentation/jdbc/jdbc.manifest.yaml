@@ -1,8 +1,8 @@
 _v: 1
 name: jdbc
 display_name: JDBC
-description: Instruments JDBC statement execution, including prepared and callable statements, with optional HikariCP and
-  DBCP2 connection pool wait spans, Database Monitoring correlation, and IAST SQL injection checks and result set tainting.
+description: Instruments JDBC SQL statement execution and connection-pool waits, with Database Monitoring correlation,
+  SQL-injection checks, and result-set taint tracking.
 packages: []
 category:
 - db.client
