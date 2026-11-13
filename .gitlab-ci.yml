@@ -1195,7 +1195,7 @@ test_smoke:
     GRADLE_PARAMS: "-PskipFlakyTests"
     CACHE_TYPE: "smoke"
   parallel:
-    matrix: *test_matrix_8
+    matrix: *test_matrix_4
 
 test_smoke_arm64:
   extends: .test_job_arm64_with_test_agent
@@ -1205,7 +1205,7 @@ test_smoke_arm64:
     GRADLE_PARAMS: "-PskipFlakyTests"
     CACHE_TYPE: "smoke"
   parallel:
-    matrix: *test_matrix_8
+    matrix: *test_matrix_4
 
 test_ssi_smoke:
   extends: .test_job_amd64
@@ -1224,7 +1224,7 @@ test_ssi_smoke:
     DD_INJECT_FORCE: "true"
     DD_INJECTION_ENABLED: "tracer"
   parallel:
-    matrix: *test_matrix_8
+    matrix: *test_matrix_4
 
 test_ssi_smoke_arm64:
   extends: .test_job_arm64
@@ -1235,7 +1235,7 @@ test_ssi_smoke_arm64:
     DD_INJECT_FORCE: "true"
     DD_INJECTION_ENABLED: "tracer"
   parallel:
-    matrix: *test_matrix_8
+    matrix: *test_matrix_4
 
 test_smoke_graalvm:
   extends: .test_job_amd64
