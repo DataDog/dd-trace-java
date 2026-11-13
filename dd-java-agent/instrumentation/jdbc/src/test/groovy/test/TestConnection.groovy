@@ -24,6 +24,7 @@ import java.util.concurrent.Executor
 class TestConnection implements Connection {
   public String clientInfoName
   public String clientInfoValue
+  public List<String> clientInfoValues = []
   public int clientInfoSetCount
   public int clientInfoFailuresRemaining
   public boolean clientInfoUnsupported
@@ -249,6 +250,7 @@ class TestConnection implements Connection {
     }
     clientInfoName = name
     clientInfoValue = value
+    clientInfoValues.add(value)
     clientInfoSetCallback?.run()
   }
 
