@@ -1,11 +1,11 @@
 _v: 1
 name: synapse3-server
 display_name: Apache Synapse - Non-blocking HTTP/s Transport
-description: Instruments inbound HTTP request handling through Apache Synapse pass-through transport, propagating
-  trace context and recording responses and failures.
+description: Instruments inbound HTTP requests through Apache Synapse, preserving trace context across asynchronous
+  request handling and response completion.
 packages:
-  - name: org.apache.synapse:synapse-nhttp-transport
+- name: org.apache.synapse:synapse-nhttp-transport
 category:
-  - http.server
+- http.server
 systems: []
 creation_date: '2021-02-11'

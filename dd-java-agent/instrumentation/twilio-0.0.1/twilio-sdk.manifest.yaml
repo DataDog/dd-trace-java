@@ -1,12 +1,12 @@
 _v: 1
 name: twilio-sdk
 display_name: twilio
-description: Instruments synchronous and asynchronous Twilio resource operations, recording results and errors when
-  requests complete.
+description: Instruments synchronous and asynchronous Twilio resource creation, retrieval, updates, and deletion,
+  recording operation results and errors.
 packages:
-  - name: com.twilio.sdk:twilio
+- name: com.twilio.sdk:twilio
 category:
-  - other
+- other
 systems:
-  - twilio
+- twilio
 creation_date: '2019-03-21'
