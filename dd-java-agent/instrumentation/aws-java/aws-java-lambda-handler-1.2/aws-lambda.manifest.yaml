@@ -1,0 +1,12 @@
+_v: 1
+name: aws-lambda
+display_name: AWS Lambda Java Core Library
+description: Instruments AWS Lambda handler invocations with Lambda Extension trace coordination and application
+  security analysis of supported HTTP triggers.
+packages:
+- name: com.amazonaws:aws-lambda-java-core
+category:
+- faas
+systems:
+- aws.lambda
+creation_date: '2022-04-28'
