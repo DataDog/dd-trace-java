@@ -65,6 +65,43 @@ public class LongStringUtils {
     }
   }
 
+  /**
+   * Like {@link #parseUnsignedLongHex(CharSequence, int, int, boolean)}, but never throws: anything
+   * it would reject, such as an illegal character or more than 16 significant digits, yields {@code
+   * 0} instead. For parsing input that is often malformed, such as propagation headers, without the
+   * cost of an exception.
+   *
+   * <p>{@code 0} is also the value of an all-zero input. Callers that accept a zero value must tell
+   * the two apart themselves; for most ids zero is already invalid.
+   *
+   * @param s String in hex of unsigned 64 bits
+   * @param start the start index of the hex value
+   * @param len the len of the hex value
+   * @param lowerCaseOnly if the allowed hex characters are lower case only
+   * @return the parsed value, or {@code 0} if {@code s} is not a valid unsigned 64-bit hex value
+   */
+  public static long parseUnsignedLongHexOrZero(
+      CharSequence s, int start, int len, boolean lowerCaseOnly) {
+    if (s == null || len <= 0 || start < 0 || start + len > s.length()) {
+      return 0;
+    }
+    long result = 0;
+    int significantDigits = 0;
+    for (int i = start, end = start + len; i < end; i++) {
+      char c = s.charAt(i);
+      int digit = Character.digit(c, 16);
+      if (digit < 0 || (lowerCaseOnly && Character.isUpperCase(c))) {
+        return 0;
+      }
+      if ((significantDigits > 0 || digit != 0) && ++significantDigits > 16) {
+        // Unsigned 64 bits max is 16 digits, so this always overflows
+        return 0;
+      }
+      result = result << 4 | digit;
+    }
+    return result;
+  }
+
   private static int firstNonZeroCharacter(CharSequence s, int start) {
     int firstNonZero = start;
     for (; firstNonZero < s.length(); firstNonZero++) {

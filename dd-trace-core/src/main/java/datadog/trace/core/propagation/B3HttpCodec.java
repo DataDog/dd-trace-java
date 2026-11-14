@@ -2,6 +2,8 @@ package datadog.trace.core.propagation;
 
 import static datadog.trace.api.TracePropagationStyle.B3MULTI;
 import static datadog.trace.api.TracePropagationStyle.B3SINGLE;
+import static datadog.trace.api.internal.util.LongStringUtils.parseUnsignedLongHexOrZero;
+import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY;
 import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
 
 import datadog.context.propagation.CarrierSetter;
@@ -183,9 +185,32 @@ class B3HttpCodec {
       super(config);
     }
 
-    protected void setSpanId(final String sId) {
-      spanId = DDSpanId.fromHex(sId);
+    /**
+     * Sets the span id, or returns {@code false} if {@code sId} is malformed, without throwing:
+     * malformed ids are common in this header and an exception per request is costly.
+     */
+    protected boolean setSpanId(final String sId) {
+      long parsed = parseUnsignedLongHexOrZero(sId, 0, sId.length(), false);
+      // zero is also what a malformed id parses to; a literal zero span id is still accepted
+      if (parsed == DDSpanId.ZERO && !isAllZeros(sId)) {
+        log.debug(EXCLUDE_TELEMETRY, "Ignoring context with invalid {}: {}", SPAN_ID_KEY, sId);
+        return false;
+      }
+      spanId = parsed;
       tagLedger().set(B3_SPAN_ID, sId);
+      return true;
+    }
+
+    private static boolean isAllZeros(final String s) {
+      if (s.isEmpty()) {
+        return false;
+      }
+      for (int i = 0; i < s.length(); i++) {
+        if (s.charAt(i) != '0') {
+          return false;
+        }
+      }
+      return true;
     }
 
     protected boolean setTraceId(final String tId) {
@@ -200,6 +225,19 @@ class B3HttpCodec {
       }
       tagLedger().set(B3_TRACE_ID, tId);
       return true;
+    }
+
+    /**
+     * A malformed id or sampling priority sent by a caller surfaces as a {@link
+     * NumberFormatException}. That is expected input, not a tracer failure, so it is kept out of
+     * telemetry; anything else may be a tracer bug and is still reported.
+     */
+    static void logExtractionFailure(RuntimeException e) {
+      if (e instanceof NumberFormatException) {
+        log.debug(EXCLUDE_TELEMETRY, "Exception when extracting context", e);
+      } else {
+        log.debug("Exception when extracting context", e);
+      }
     }
   }
 
@@ -229,7 +267,10 @@ class B3HttpCodec {
               setTraceId(firstHeaderValue(value));
               return true;
             } else if (SPAN_ID_KEY.equalsIgnoreCase(key)) {
-              setSpanId(firstHeaderValue(value));
+              if (!setSpanId(firstHeaderValue(value))) {
+                invalidateContext();
+                return false;
+              }
               return true;
             } else if (SAMPLING_PRIORITY_KEY.equalsIgnoreCase(key)) {
               samplingPriority = convertSamplingPriority(firstHeaderValue(value));
@@ -250,7 +291,7 @@ class B3HttpCodec {
         handleTags(key, value);
       } catch (RuntimeException e) {
         invalidateContext();
-        log.debug("Exception when extracting context", e);
+        logExtractionFailure(e);
         return false;
       }
       return true;
@@ -297,7 +338,7 @@ class B3HttpCodec {
         handleTags(key, value);
       } catch (RuntimeException e) {
         invalidateContext();
-        log.debug("Exception when extracting context", e);
+        logExtractionFailure(e);
         return false;
       }
       return true;
@@ -315,12 +356,15 @@ class B3HttpCodec {
             return false;
           }
         }
-        if (secondIndex == -1) {
-          final String b3SpanId = firstValue.substring(firstIndex + 1);
-          setSpanId(b3SpanId);
-        } else {
-          final String b3SpanId = firstValue.substring(firstIndex + 1, secondIndex);
-          setSpanId(b3SpanId);
+        final String b3SpanId =
+            secondIndex == -1
+                ? firstValue.substring(firstIndex + 1)
+                : firstValue.substring(firstIndex + 1, secondIndex);
+        if (!setSpanId(b3SpanId)) {
+          invalidateContext();
+          return false;
+        }
+        if (secondIndex != -1) {
           final String b3SamplingId = firstValue.substring(secondIndex + 1);
           samplingPriority = convertSamplingPriority(b3SamplingId);
         }

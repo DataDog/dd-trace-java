@@ -1,5 +1,6 @@
 package datadog.trace.core.propagation;
 
+import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY;
 import static datadog.trace.bootstrap.instrumentation.api.ContextVisitors.stringValuesMap;
 import static datadog.trace.core.propagation.B3HttpCodec.B3_KEY;
 import static datadog.trace.core.propagation.B3HttpCodec.B3_SPAN_ID;
@@ -15,17 +16,25 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.test.junit.utils.converter.PrioritySamplingConverter;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.converter.ConvertWith;
+import org.slf4j.LoggerFactory;
 import org.tabletest.junit.TableTest;
 
 class B3HttpExtractorTest extends AbstractHttpExtractorTest {
@@ -237,6 +246,72 @@ class B3HttpExtractorTest extends AbstractHttpExtractorTest {
 
     assertFalse(context instanceof ExtractedContext);
     assertEquals(singletonMap(SOME_TAG, SOME_VALUE), context.getTags());
+  }
+
+  /**
+   * A malformed span id is expected input from a caller: extraction gives the same result as
+   * before, but without an exception, and the debug log is kept out of telemetry.
+   */
+  @TableTest({
+    "scenario                 | traceId | header      | value                ",
+    "oversized multi span id  | '1'     | X-B3-SpanId | '10000000000000000'  ",
+    "oversized single span id |         | b3          | '1-10000000000000000'",
+    "non-hexadecimal span id  | '1'     | X-B3-SpanId | 'spanId'             "
+  })
+  void malformedSpanIdIsRejectedWithoutAnException(String traceId, String header, String value) {
+    Logger logger = (Logger) LoggerFactory.getLogger(B3HttpCodec.class);
+    Level previousLevel = logger.getLevel();
+    ListAppender<ILoggingEvent> appender = new ListAppender<>();
+    appender.start();
+    logger.addAppender(appender);
+    logger.setLevel(Level.DEBUG);
+    try {
+      // spotless:off
+      Map<String, String> headers = headers(
+          TRACE_ID_KEY, traceId,
+          header, value,
+          SOME_HEADER, SOME_VALUE);
+      // spotless:on
+
+      TagContext context = extractor.extract(headers, stringValuesMap());
+
+      // the same outcome as before: no extracted context, only the header tags
+      assertFalse(context instanceof ExtractedContext);
+      assertEquals(singletonMap(SOME_TAG, SOME_VALUE), context.getTags());
+      List<ILoggingEvent> rejections =
+          appender.list.stream()
+              .filter(event -> event.getMessage().startsWith("Ignoring context with invalid"))
+              .collect(Collectors.toList());
+      assertEquals(1, rejections.size(), () -> "logged: " + appender.list);
+      assertEquals(Level.DEBUG, rejections.get(0).getLevel());
+      assertEquals(EXCLUDE_TELEMETRY, rejections.get(0).getMarker());
+      assertTrue(
+          appender.list.stream().allMatch(event -> event.getThrowableProxy() == null),
+          () -> "an exception was logged: " + appender.list);
+    } finally {
+      logger.detachAppender(appender);
+      logger.setLevel(previousLevel);
+    }
+  }
+
+  /** Zero is also what a malformed id parses to, but a literal zero span id is still accepted. */
+  @TableTest({
+    "scenario    | header      | value               ",
+    "multi zero  | X-B3-SpanId | '0000000000000000'  ",
+    "single zero | b3          | '1-0000000000000000'"
+  })
+  void zeroSpanIdIsStillAccepted(String header, String value) {
+    // spotless:off
+    Map<String, String> headers = headers(
+        TRACE_ID_KEY, header.equals(B3_KEY) ? null : "1",
+        header, value);
+    // spotless:on
+
+    TagContext context = extractor.extract(headers, stringValuesMap());
+
+    ExtractedContext extracted = assertInstanceOf(ExtractedContext.class, context);
+    assertEquals(B3TraceId.fromHex("1"), extracted.getTraceId());
+    assertEquals(DDSpanId.ZERO, extracted.getSpanId());
   }
 
   @TableTest({
