@@ -1,0 +1,47 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+  id 'dd-trace-java.instrumentation.netty-concurrent-tests'
+  id 'dd-trace-java.testcontainers'
+}
+
+muzzle {
+  pass {
+    group = 'com.azure'
+    module = 'azure-cosmos'
+    versions = '[4.0.1,)'
+  }
+}
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  compileOnly group: 'com.azure', name: 'azure-cosmos', version: '4.0.1'
+
+  // the Linux-based (vNext) emulator, which ships for amd64 and arm64
+  testContainerImage(image('mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:vnext-EN20261008', 'test.cosmosdb.image'))
+
+  testImplementation group: 'com.azure', name: 'azure-cosmos', version: '4.0.1'
+  testImplementation group: 'org.testcontainers', name: 'azure', version: libs.versions.testcontainers.get()
+  testImplementation project(':dd-java-agent:instrumentation:reactor-core-3.1')
+  testImplementation project(':dd-java-agent:instrumentation:reactive-streams-1.0')
+  // gateway mode talks HTTP through reactor-netty: load those instrumentations to check the HTTP
+  // client spans under the Cosmos spans, as the agent would in production
+  testImplementation project(':dd-java-agent:instrumentation:netty:netty-4.1')
+  testImplementation project(':dd-java-agent:instrumentation:reactor-netty-1.0')
+
+  latestDepTestImplementation group: 'com.azure', name: 'azure-cosmos', version: '4.+'
+}
+
+tasks.withType(Test).configureEach {
+  usesService(testcontainersLimit)
+}
+
+// the emulator tests: on IBM8 the SDK's first gateway request to the emulator fails, and the client
+// can't be built
+["forkedTest", "latestDepForkedTest"].each { name ->
+  tasks.named(name, Test) {
+    testJvmConstraints {
+      excludeJdk = ['IBM8']
+    }
+  }
+}

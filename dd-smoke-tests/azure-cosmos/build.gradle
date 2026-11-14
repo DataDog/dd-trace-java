@@ -1,0 +1,43 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
+plugins {
+  id 'com.gradleup.shadow'
+  id 'dd-trace-java.module.smoke-test'
+  id 'dd-trace-java.testcontainers'
+}
+
+description = 'Azure Cosmos DB client smoke tests.'
+
+tasks.named("jar", Jar) {
+  manifest {
+    attributes('Main-Class': 'datadog.smoketest.cosmos.CosmosApp')
+  }
+}
+
+tasks.named("shadowJar", ShadowJar) {
+  configurations.add(project.configurations.named('runtimeClasspath'))
+}
+
+dependencies {
+  // the Linux-based (vNext) emulator, which ships for amd64 and arm64
+  testContainerImage(image('mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:vnext-EN20261008', 'test.cosmosdb.image'))
+
+  implementation project(':dd-trace-api')
+  implementation group: 'com.azure', name: 'azure-cosmos', version: '4.83.0'
+
+  testImplementation project(':dd-smoke-tests')
+  testImplementation group: 'org.testcontainers', name: 'azure', version: libs.versions.testcontainers.get()
+}
+
+tasks.withType(Test).configureEach {
+  def shadowJarTask = tasks.named('shadowJar', ShadowJar)
+  dependsOn shadowJarTask
+  jvmArgumentProviders.add(new CommandLineArgumentProvider() {
+      @Override
+      Iterable<String> asArguments() {
+        return shadowJarTask.map { ["-Ddatadog.smoketest.cosmos.shadowJar.path=${it.archiveFile.get()}"] }.get()
+      }
+    })
+
+  usesService(testcontainersLimit)
+}
