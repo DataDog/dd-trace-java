@@ -1,0 +1,55 @@
+# DSM overhead benchmark: runs dd-java-agent/benchmark-integration/kafka-dsm via the benchmarking-platform
+# branch java/data-streams-monitoring, against the parent pipeline's dd-java-agent jar.
+stages:
+  - benchmarks
+
+workflow:
+  auto_cancel:
+    on_new_commit: interruptible
+
+variables:
+  DSM_THROUGHPUT_CI_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:dd-trace-java-dsm
+  DSM_BENCHMARKING_BRANCH: java/data-streams-monitoring
+
+dsm_throughput:
+  stage: benchmarks
+  # Report-only benchmark: allow_failure jobs post no GitHub status, so it never blocks PRs.
+  allow_failure: true
+  needs:
+    - pipeline: $PARENT_PIPELINE_ID
+      job: build
+      artifacts: true
+  tags: [ "runner:apm-k8s-same-cpu" ]
+  image: $DSM_THROUGHPUT_CI_IMAGE
+  timeout: 1h
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+      interruptible: false
+    - interruptible: true
+  retry:
+    max: 2
+    when:
+      - unknown_failure
+      - data_integrity_failure
+      - runner_system_failure
+      - scheduler_failure
+      - api_failure
+  script:
+    # The build job's shadow jar is the only dd-java-agent-*.jar in its artifacts. Fail if missing:
+    # never fall back to a source build.
+    - DD_TRACE_JAVA_AGENT_JAR="$(ls "${CI_PROJECT_DIR}"/workspace/dd-java-agent/build/libs/dd-java-agent-*.jar)"
+    - test -f "$DD_TRACE_JAVA_AGENT_JAR"
+    - export DD_TRACE_JAVA_AGENT_JAR
+    - git clone --branch "${DSM_BENCHMARKING_BRANCH}" https://github.com/DataDog/benchmarking-platform platform && cd platform
+    - bp-runner bp-runner.yml --debug
+  artifacts:
+    name: "artifacts"
+    when: always
+    paths:
+      - platform/artifacts/
+    expire_in: 3 months
+  variables:
+    KUBERNETES_SERVICE_ACCOUNT_OVERWRITE: benchmarking-platform
+    FF_USE_LEGACY_KUBERNETES_EXECUTION_STRATEGY: "true"
+    # Workload comes from this checkout and the agent from the build job: no clone, no source build.
+    DD_TRACE_JAVA_SRC_DIR: "${CI_PROJECT_DIR}"
