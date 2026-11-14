@@ -12,6 +12,20 @@ import org.tabletest.junit.TableTest;
 
 class GitUtilsTest {
 
+  @TableTest({
+    "scenario        | revision        | invalid",
+    "all refs option | --all           | true   ",
+    "output option   | --output=result | true   ",
+    "head            | HEAD            | false  ",
+    "branch          | refs/heads/main | false  ",
+    "short SHA       | 123abcd         | false  ",
+    "missing         |                 | true   ",
+    "empty           | ''              | true   "
+  })
+  void testCommitReferenceRejectsOptions(String revision, boolean invalid) {
+    assertEquals(invalid, GitUtils.isNotValidCommit(revision));
+  }
+
   private static final PersonInfo JANE_DOE_PERSON_INFO =
       new PersonInfo("Jane Doe", "jane.doe@email.com");
 
@@ -81,6 +95,65 @@ class GitUtilsTest {
     "scp-like syntax                    | 'git@example.com:repo.git'                                | 'git@example.com:repo.git'                 "
   })
   void testSensitiveInfoFilteringInUrl(String url, String expectedResult) {
+    assertEquals(expectedResult, GitUtils.filterSensitiveInfo(url));
+  }
+
+  @TableTest({
+    "scenario            | url                                                                 | expectedResult                                  ",
+    "ftps credentials    | 'ftps://user:password@host.com/repo.git'                            | 'ftps://host.com/repo.git'                      ",
+    "git custom scheme   | 'git+ssh://user:password@host.com:2222/repo.git'                    | 'git+ssh://host.com:2222/repo.git'              ",
+    "uppercase scheme    | 'HTTPS://user:password@host.com/repo.git'                           | 'HTTPS://host.com/repo.git'                     ",
+    "encoded components  | 'ftps://user%40name:p%3Ass@host.com/repo%2Fpart.git?q=%40#revision' | 'ftps://host.com/repo%2Fpart.git?q=%40#revision'",
+    "network path        | '//user:password@host.com/repo.git'                                 | '//host.com/repo.git'                           ",
+    "IPv6 URI            | 'ftps://user:password@[2001:db8::1]:2121/repo.git'                  | 'ftps://[2001:db8::1]:2121/repo.git'            ",
+    "IPv6 scp            | 'git@[2001:db8::1]:repo.git'                                        | 'git@[2001:db8::1]:repo.git'                    ",
+    "plain CI value      | 'integration test job'                                              | 'integration test job'                          ",
+    "CI value with colon | 'build: integration tests'                                          | 'build: integration tests'                      ",
+    "malformed path      | 'ftps://user:password@host.com/repo name.git'                       |                                                 ",
+    "malformed authority | 'ftps://user:password@@host.com/repo.git'                           |                                                 ",
+    "missing host        | 'ftps://user:password@/repo.git'                                    |                                                 ",
+    "opaque credentials  | 'ftps:user:password@host.com/repo.git'                              |                                                 "
+  })
+  void testCredentialsAreFilteredForAllUriSchemes(String url, String expectedResult) {
+    assertEquals(expectedResult, GitUtils.filterSensitiveInfo(url));
+  }
+
+  @TableTest({
+    "scenario                 | url                                                   | expectedResult                          ",
+    "regional helper          | codecommit::us-east-1://MyDemoRepo                    | codecommit::us-east-1://MyDemoRepo      ",
+    "profile                  | codecommit::us-east-1://demo-profile@MyRepositoryName | codecommit::us-east-1://MyRepositoryName",
+    "nested HTTPS credentials | custom::https://user:secret@host/repo                 | custom::https://host/repo               ",
+    "nested helper            | outer::inner::https://user:secret@host/repo           | outer::inner::https://host/repo         ",
+    "plain helper address     | hg::host/repo                                         | hg::host/repo                           ",
+    "numeric helper           | 1helper::https://user:secret@host/repo                | 1helper::https://host/repo              ",
+    "opaque credentials       | custom::ftps:user:password@host/repo                  |                                         ",
+    "malformed authority      | custom::https://user:secret@@host/repo                |                                         ",
+    "empty address            | codecommit::                                          |                                         "
+  })
+  void testRemoteHelperAddressesKeepTheirSanitizedIdentity(String url, String expectedResult) {
+    assertEquals(expectedResult, GitUtils.filterSensitiveInfo(url));
+  }
+
+  @TableTest({
+    "scenario          | url                                                | expectedResult                                    ",
+    "SSH alias         | 'ssh://git@git_alias/team/repo.git'                | 'ssh://git_alias/team/repo.git'                   ",
+    "alias credentials | 'ssh://user:password@git_alias:2222/team/repo.git' | 'ssh://git_alias:2222/team/repo.git'              ",
+    "custom scheme     | 'git+ssh://git@git_alias/team/repo.git'            | 'git+ssh://git_alias/team/repo.git'               ",
+    "SCP alias path    | 'git_alias:repos/@team/project.git'                | 'git_alias:repos/@team/project.git'               ",
+    "SCP host path     | 'host.com:repos/team@version/project.git'          | 'host.com:repos/team@version/project.git'         ",
+    "SCP leading at    | 'git_alias:@team/project.git'                      | 'git_alias:@team/project.git'                     ",
+    "SCP path at       | 'git_alias:project@version.git'                    | 'git_alias:project@version.git'                   ",
+    "SCP IPv6 path     | '[2001:db8::1]:repos/@team/project.git'            | '[2001:db8::1]:repos/@team/project.git'           ",
+    "SCP path colons   | 'git_alias:repos/release:1@stable/project.git'     | 'git_alias:repos/release:1@stable/project.git'    ",
+    "SCP IPv6 colons   | '[2001:db8::1]:repos/release:1@stable/project.git' | '[2001:db8::1]:repos/release:1@stable/project.git'",
+    "SSH plus alias    | 'ssh://git@git+work/team/repo.git'                 | 'ssh://git+work/team/repo.git'                    ",
+    "plus credentials  | 'ssh://user:password@git+work/team/repo.git'       | 'ssh://git+work/team/repo.git'                    ",
+    "SSH tilde alias   | 'ssh://git@git~work/team/repo.git'                 | 'ssh://git~work/team/repo.git'                    ",
+    "tilde credentials | 'git+ssh://user:password@git~work:2222/repo.git'   | 'git+ssh://git~work:2222/repo.git'                ",
+    "IPv6 first colon  | '[2001:db8::1]:release:1@stable/project.git'       | '[2001:db8::1]:release:1@stable/project.git'      ",
+    "invalid port      | 'ssh://user:password@git_alias:invalid/repo.git'   |                                                   "
+  })
+  void testHostAliasesKeepSanitizedRepositoryIdentity(String url, String expectedResult) {
     assertEquals(expectedResult, GitUtils.filterSensitiveInfo(url));
   }
 
