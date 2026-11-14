@@ -118,6 +118,7 @@ class SmokeTestAppPluginTest {
     val project = ProjectBuilder.builder().build()
     project.apply<JavaPlugin>()
     val task = project.tasks.register("nestedBuild", NestedGradleBuild::class.java).get()
+    task.gradleDistributionBaseUrl.unsetConvention()
     task.applicationDir.set(project.layout.projectDirectory)
     task.applicationBuildDir.set(project.layout.buildDirectory.dir("application"))
     // Resolve the toolchain before simulating interrupted cleanup.
