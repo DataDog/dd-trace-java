@@ -17,6 +17,8 @@ public class KafkaConsumerInfo {
   }
 
   /**
+   * Creates a consumer info whose metadata may be kept only for Data Streams Monitoring.
+   *
    * @param clusterIdForDataStreamsOnly whether the metadata cluster ID is used only while Data
    *     Streams Monitoring is enabled
    */

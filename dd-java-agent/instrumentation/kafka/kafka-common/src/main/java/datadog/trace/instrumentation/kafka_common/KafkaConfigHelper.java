@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.Set;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.common.config.AbstractConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -93,12 +94,22 @@ public class KafkaConfigHelper {
               "default.api.timeout.ms"));
 
   /** Store a producer config to be reported once the cluster ID is known from metadata. */
-  public static void storePendingProducerConfig(MetadataState state, Map<String, String> config) {
-    state.setPendingConfig(new PendingConfig("kafka_producer", "", config));
+  public static void storePendingProducerConfig(
+      MetadataState state, ProducerConfig producerConfig) {
+    state.setPendingConfig(new PendingConfig("kafka_producer", "", producerConfig));
     log.debug("Stored pending producer config (cluster ID not yet known)");
   }
 
   /** Store a consumer config to be reported once the cluster ID is known from metadata. */
+  public static void storePendingConsumerConfig(
+      MetadataState state, String consumerGroup, ConsumerConfig consumerConfig) {
+    state.setPendingConfig(
+        new PendingConfig(
+            "kafka_consumer", consumerGroup != null ? consumerGroup : "", consumerConfig));
+    log.debug("Stored pending consumer config (cluster ID not yet known)");
+  }
+
+  /** Store a consumer config built from a raw map, copied since the caller may change the map. */
   public static void storePendingConsumerConfig(
       MetadataState state, String consumerGroup, Map<String, String> config) {
     state.setPendingConfig(
@@ -140,26 +151,19 @@ public class KafkaConfigHelper {
     PendingConfig pending = state.takePendingConfig();
     if (pending != null) {
       log.debug("Received cluster ID, reporting {} config", pending.type);
+      Map<String, String> config =
+          pending.clientConfig != null ? extractClientConfig(pending.clientConfig) : pending.config;
       AgentTracer.get()
           .getDataStreamsMonitoring()
-          .reportKafkaConfig(pending.type, clusterId, pending.consumerGroup, pending.config);
+          .reportKafkaConfig(pending.type, clusterId, pending.consumerGroup, config);
     }
   }
 
-  public static Map<String, String> extractProducerConfig(ProducerConfig producerConfig) {
+  static Map<String, String> extractClientConfig(AbstractConfig clientConfig) {
     try {
-      return convertToStringMap(producerConfig.values());
+      return convertToStringMap(clientConfig.values());
     } catch (Exception e) {
-      log.debug("Error extracting producer configuration", e);
-      return new LinkedHashMap<>();
-    }
-  }
-
-  public static Map<String, String> extractConsumerConfig(ConsumerConfig consumerConfig) {
-    try {
-      return convertToStringMap(consumerConfig.values());
-    } catch (Exception e) {
-      log.debug("Error extracting consumer configuration", e);
+      log.debug("Error extracting client configuration", e);
       return new LinkedHashMap<>();
     }
   }

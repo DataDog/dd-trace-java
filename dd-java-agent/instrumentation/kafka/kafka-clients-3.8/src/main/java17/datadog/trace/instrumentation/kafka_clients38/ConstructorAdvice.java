@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.kafka_clients38;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.instrumentation.kafka_common.KafkaConfigHelper;
 import datadog.trace.instrumentation.kafka_common.MetadataState;
@@ -38,14 +39,15 @@ public class ConstructorAdvice {
     if (bootstrapServersList != null && !bootstrapServersList.isEmpty()) {
       bootstrapServers = String.join(",", bootstrapServersList);
     }
-    // Metadata kept for a later DSM enable, but group-less consumers built while DSM is off
-    // aren't stored (as on master), so they never get a cluster ID
+    // Group-less consumers built while DSM is off aren't stored, so they never get a cluster ID
     KafkaConsumerInfo kafkaConsumerInfo =
         new KafkaConsumerInfo(normalizedConsumerGroup, metadata, bootstrapServers, true);
     // new - searching context for ConsumerDelegate and OffsetCommitCallbackInvoker instead of
     // ConsumerCoordinator and KafkaConsumer
     if (kafkaConsumerInfo.getConsumerGroup().isPresent()
-        || (kafkaConsumerInfo.getmetadata().isPresent() && traceConfig().isDataStreamsEnabled())) {
+        // Startup config covers consumers built before the tracer is installed
+        || (kafkaConsumerInfo.getmetadata().isPresent()
+            && (Config.get().isDataStreamsEnabled() || traceConfig().isDataStreamsEnabled()))) {
       InstrumentationContext.get(ConsumerDelegate.class, KafkaConsumerInfo.class)
           .put(consumer, kafkaConsumerInfo);
     }
@@ -58,8 +60,7 @@ public class ConstructorAdvice {
     MetadataState state =
         InstrumentationContext.get(Metadata.class, MetadataState.class)
             .getOrCreate(metadata, MetadataState::new);
-    KafkaConfigHelper.storePendingConsumerConfig(
-        state, normalizedConsumerGroup, KafkaConfigHelper.extractConsumerConfig(consumerConfig));
+    KafkaConfigHelper.storePendingConsumerConfig(state, normalizedConsumerGroup, consumerConfig);
   }
 
   public static void muzzleCheck(ConsumerRecord record) {

@@ -17,7 +17,6 @@ public class ProducerConstructorAdvice {
         InstrumentationContext.get(Metadata.class, MetadataState.class)
             .getOrCreate(metadata, MetadataState::new);
     // Captured even with DSM off; only reported while DSM is enabled
-    KafkaConfigHelper.storePendingProducerConfig(
-        state, KafkaConfigHelper.extractProducerConfig(producerConfig));
+    KafkaConfigHelper.storePendingProducerConfig(state, producerConfig);
   }
 }

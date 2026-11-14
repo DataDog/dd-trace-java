@@ -21,6 +21,7 @@ import com.google.auto.service.AutoService;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.kafka_common.ClusterIdHolder;
@@ -140,14 +141,14 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
         bootstrapServers = String.join(",", bootstrapServersList);
       }
 
-      // Metadata kept for a later DSM enable, but group-less consumers built while DSM is off
-      // aren't stored (as on master), so they never get a cluster ID
+      // Group-less consumers built while DSM is off aren't stored, so they never get a cluster ID
       KafkaConsumerInfo kafkaConsumerInfo =
           new KafkaConsumerInfo(normalizedConsumerGroup, metadata, bootstrapServers);
 
       if (kafkaConsumerInfo.getConsumerGroup() != null
           || (kafkaConsumerInfo.getClientMetadata() != null
-              && traceConfig().isDataStreamsEnabled())) {
+              // Startup config covers consumers built before the tracer is installed
+              && (Config.get().isDataStreamsEnabled() || traceConfig().isDataStreamsEnabled()))) {
         InstrumentationContext.get(KafkaConsumer.class, KafkaConsumerInfo.class)
             .put(consumer, kafkaConsumerInfo);
         if (coordinator != null) {
@@ -160,8 +161,7 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
       MetadataState state =
           InstrumentationContext.get(Metadata.class, MetadataState.class)
               .getOrCreate(metadata, MetadataState::new);
-      KafkaConfigHelper.storePendingConsumerConfig(
-          state, normalizedConsumerGroup, KafkaConfigHelper.extractConsumerConfig(consumerConfig));
+      KafkaConfigHelper.storePendingConsumerConfig(state, normalizedConsumerGroup, consumerConfig);
     }
 
     public static void muzzleCheck(ConsumerRecord record) {
@@ -188,14 +188,14 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
       if (bootstrapServersObj instanceof String) {
         bootstrapServers = (String) bootstrapServersObj;
       }
-      // Metadata kept for a later DSM enable, but group-less consumers built while DSM is off
-      // aren't stored (as on master), so they never get a cluster ID
+      // Group-less consumers built while DSM is off aren't stored, so they never get a cluster ID
       KafkaConsumerInfo kafkaConsumerInfo =
           new KafkaConsumerInfo(normalizedConsumerGroup, metadata, bootstrapServers);
 
       if (kafkaConsumerInfo.getConsumerGroup() != null
           || (kafkaConsumerInfo.getClientMetadata() != null
-              && traceConfig().isDataStreamsEnabled())) {
+              // Startup config covers consumers built before the tracer is installed
+              && (Config.get().isDataStreamsEnabled() || traceConfig().isDataStreamsEnabled()))) {
         InstrumentationContext.get(KafkaConsumer.class, KafkaConsumerInfo.class)
             .put(consumer, kafkaConsumerInfo);
         if (coordinator != null) {

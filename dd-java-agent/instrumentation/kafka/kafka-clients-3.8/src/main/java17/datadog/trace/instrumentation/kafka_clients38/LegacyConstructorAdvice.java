@@ -52,8 +52,7 @@ public class LegacyConstructorAdvice {
     MetadataState state =
         InstrumentationContext.get(Metadata.class, MetadataState.class)
             .getOrCreate(metadata, MetadataState::new);
-    KafkaConfigHelper.storePendingConsumerConfig(
-        state, normalizedConsumerGroup, KafkaConfigHelper.extractConsumerConfig(consumerConfig));
+    KafkaConfigHelper.storePendingConsumerConfig(state, normalizedConsumerGroup, consumerConfig);
   }
 
   public static void muzzleCheck(ConsumerRecord record) {
