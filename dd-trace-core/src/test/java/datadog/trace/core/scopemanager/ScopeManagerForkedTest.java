@@ -113,6 +113,20 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
   }
 
   @Test
+  void noActiveScopeDefaultsToAsyncPropagation() {
+    assertNull(scopeManager.active());
+    assertTrue(tracer.isAsyncPropagationEnabled());
+
+    Context context = Context.root().with(ContextKey.named("test-key"), "value");
+    ContextContinuation continuation = tracer.capture(context);
+    try {
+      assertSame(context, continuation.context());
+    } finally {
+      continuation.release();
+    }
+  }
+
+  @Test
   void nonDdspanActivationResultsInAContinuableScope() {
     ContextScope scope = scopeManager.activateSpan(noopSpan());
 
