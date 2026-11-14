@@ -1,4 +1,5 @@
 import datadog.gradle.plugin.testing.GeneratedGroovyClosureSpec
+import datadog.gradle.plugin.testing.configureFlakyTestSelection
 import datadog.gradle.plugin.testing.configureTestAgentPostChecks
 import datadog.gradle.plugin.testing.configureTestFailurePolicy
 import org.gradle.api.plugins.jvm.JvmTestSuite
@@ -128,19 +129,7 @@ tasks.named("check") {
 }
 
 tasks.withType<Test>().configureEach {
-  // Keep suites without test-utils out of flaky-only runs. Runtime extensions refine this tag.
-  if (!skipFlakyTestsProvider.isPresent && runFlakyTestsProvider.isPresent) {
-    useJUnitPlatform {
-      includeTags("flaky")
-    }
-  }
-
-  // Let the JUnit and Spock extensions evaluate @Flaky conditions before selecting tests.
-  if (skipFlakyTestsProvider.isPresent) {
-    jvmArgs("-Drun.flaky.tests=false")
-  } else if (runFlakyTestsProvider.isPresent) {
-    jvmArgs("-Drun.flaky.tests=true")
-  }
+  configureFlakyTestSelection(skipFlakyTestsProvider.isPresent, runFlakyTestsProvider.isPresent)
 }
 
 tasks.withType<Test>().configureEach {
