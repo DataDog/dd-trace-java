@@ -31,6 +31,14 @@ public class ProfilingSupport {
   }
 
   /**
+   * Checks whether the JVMTI allocation sampler, which ddprof allocation and live heap profiling
+   * rely on, is available (since Java 11) and safe to use on the current JVM.
+   */
+  public static boolean isAllocationSamplerSafe() {
+    return isJavaVersionAtLeast(11) && isJmethodIDSafe();
+  }
+
+  /**
    * Checks whether any live heap profiling mechanism is safe to enable on the current platform.
    * Returns true if at least one of ddprof native (jmethodID safe) or JFR OldObjectSample is
    * available.

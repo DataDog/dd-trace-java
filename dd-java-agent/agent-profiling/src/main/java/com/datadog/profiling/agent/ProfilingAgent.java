@@ -13,14 +13,14 @@ import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 
 import com.datadog.profiling.controller.ConfigurationException;
-import com.datadog.profiling.controller.Controller;
-import com.datadog.profiling.controller.ControllerContext;
 import com.datadog.profiling.controller.ProfilerFlareReporter;
 import com.datadog.profiling.controller.ProfilingSystem;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import com.datadog.profiling.controller.jfr.JFRAccess;
+import com.datadog.profiling.remoteconfig.ProfilingConfigPoller;
 import com.datadog.profiling.uploader.ProfileUploader;
 import com.datadog.profiling.utils.Timestamper;
+import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.Platform;
 import datadog.trace.api.config.ProfilingConfig;
@@ -55,6 +55,7 @@ public class ProfilingAgent {
 
   private static volatile ProfilingSystem profiler;
   private static volatile ProfileUploader uploader;
+  private static volatile ProfilingRemoteConfigHandler remoteConfigHandler;
 
   private static class DataDumper implements RecordingDataListener {
     private final Path path;
@@ -140,8 +141,6 @@ public class ProfilingAgent {
       try {
         JFRAccess.setup(inst);
         Timestamper.override(JFRAccess.instance());
-        ControllerContext context = new ControllerContext();
-        final Controller controller = CompositeController.build(configProvider, context);
 
         String dumpPath = configProvider.getString(ProfilingConfig.PROFILING_DEBUG_DUMP_PATH);
         DataDumper dumper = dumpPath != null ? new DataDumper(Paths.get(dumpPath)) : null;
@@ -177,18 +176,25 @@ public class ProfilingAgent {
         // this in the future
         final Duration startupDelayRandomRange = uploadPeriod;
 
-        profiler =
+        final ProfilingSystem system =
             new ProfilingSystem(
                 configProvider,
-                controller,
-                context.snapshot(),
+                context -> CompositeController.build(configProvider, context),
                 listener,
                 startupDelay,
                 startupDelayRandomRange,
                 uploadPeriod,
                 startForceFirst);
-        profiler.start();
-        log.debug("Profiling has started");
+        system.init();
+        profiler = system;
+        if (ProfilingConfigPoller.isEnabled(config)) {
+          // initialized, but recording only starts when requested by remote config
+          log.debug("Profiling lifecycle: initialized -> idle (armed)");
+          connectRemoteConfigToProfiler();
+        } else {
+          system.start();
+          log.debug("Profiling has started");
+        }
 
         try {
           /*
@@ -204,9 +210,59 @@ public class ProfilingAgent {
       } catch (final UnsupportedEnvironmentException | ConfigurationException e) {
         ProfilerFlareLogger.getInstance().log("Failed to initialize profiling agent!", e);
         ProfilerFlareReporter.reportInitializationException(e);
+        if (profiler == null && uploader != null) {
+          uploader.shutdown();
+          uploader = null;
+        }
       }
     }
     return false;
+  }
+
+  /**
+   * Subscribes to profiling remote config. Called reflectively by {@code
+   * datadog.trace.bootstrap.Agent} once the shared communication objects exist. This subscribes
+   * immediately so that APM_PROFILING is included in the first remote config poll request; configs
+   * received before the profiler is initialized are kept, and applied once it is.
+   */
+  @SuppressFBWarnings(
+      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
+      justification =
+          "Agent-internal class; Class object does not escape to app code and lock only guards one-time remote config registration.")
+  public static synchronized void startRemoteConfig(SharedCommunicationObjects sco) {
+    Config config = Config.get();
+    if (!ProfilingConfigPoller.isEnabled(config)) {
+      log.debug("Profiling remote config is only enabled with profiling enablement 'armed'");
+      return;
+    }
+    if (remoteConfigHandler != null) {
+      return; // already subscribed
+    }
+    // Subscribe immediately so APM_PROFILING is included in the first poll request.
+    // The handler keeps the latest configs until the profiler becomes available.
+    // The profiler can be started by remote config as soon as the handler is connected to it,
+    // which can be in premain: it only starts once the startup delay is over, unless forced to
+    // start first.
+    ProfilingRemoteConfigHandler handler =
+        new ProfilingRemoteConfigHandler(ConfigProvider.getInstance(), isStartForceFirstSafe());
+    ProfilingConfigPoller poller = new ProfilingConfigPoller(handler);
+    if (!poller.start(config, sco)) {
+      // nothing will ever ask the profiler to start
+      log.warn("Profiling is armed, but remote config is not enabled: the profiler will not start");
+      return;
+    }
+    remoteConfigHandler = handler;
+    // configs received until then are kept by the handler, and applied once it is connected
+    connectRemoteConfigToProfiler();
+  }
+
+  // called with the class lock held once the profiling system is initialized; connects the
+  // profiler to the remote config handler, if there is one, so that later configs are applied
+  private static void connectRemoteConfigToProfiler() {
+    ProfilingRemoteConfigHandler handler = remoteConfigHandler;
+    if (profiler != null && handler != null) {
+      handler.setProfilingSystem(profiler);
+    }
   }
 
   private static RecordingDataListener wrapWithScrubber(
@@ -238,6 +294,14 @@ public class ProfilingAgent {
   private static void shutdown(
       ProfilingSystem profiler, ProfileUploader uploader, boolean snapshot) {
     if (shutDownFlag.compareAndSet(false, true)) {
+      // a remote config update still in flight must not restart the profiler after it stopped.
+      // Don't unsubscribe from the poller: that waits for its monitor, which it holds while a
+      // config is applied, e.g. during the final upload of a stop, and would hold up JVM shutdown.
+      ProfilingRemoteConfigHandler rcHandler = remoteConfigHandler;
+      if (rcHandler != null) {
+        rcHandler.close();
+      }
+
       if (profiler != null) {
         profiler.shutdown(snapshot);
       }

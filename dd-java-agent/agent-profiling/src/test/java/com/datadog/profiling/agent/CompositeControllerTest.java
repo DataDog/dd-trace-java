@@ -1,10 +1,20 @@
 package com.datadog.profiling.agent;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
+import com.datadog.profiling.controller.Controller;
 import com.datadog.profiling.controller.ControllerContext;
+import com.datadog.profiling.controller.OngoingRecording;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
+import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
+import java.util.Arrays;
 import org.junit.jupiter.api.Test;
 
 /** Note: some additional tests for this class are located in profiling-controller-openjdk module */
@@ -49,5 +59,42 @@ public class CompositeControllerTest {
         expected,
         unsupportedEnvironmentException.getMessage(),
         "'" + javaRuntimeName + "' / '" + javaVendor + "' / '" + javaVersion + "'");
+  }
+
+  @Test
+  public void stopStopsEveryRecordingEvenWhenOneFails() throws Exception {
+    OngoingRecording failing = mock(OngoingRecording.class);
+    OngoingRecording other = mock(OngoingRecording.class);
+    IllegalStateException failure = new IllegalStateException("not running");
+    when(failing.stop()).thenThrow(failure);
+    when(other.stop()).thenReturn(mock(RecordingData.class));
+    OngoingRecording composite = composite(failing, other);
+
+    // the recording after the failing one must still be stopped, or it would keep running
+    assertSame(failure, assertThrows(IllegalStateException.class, composite::stop));
+
+    verify(other).stop();
+  }
+
+  @Test
+  public void stopReleasesTheDataOfTheRecordingsThatStoppedWhenAnotherFails() throws Exception {
+    RecordingData stopped = mock(RecordingData.class);
+    OngoingRecording ok = mock(OngoingRecording.class);
+    OngoingRecording failing = mock(OngoingRecording.class);
+    when(ok.stop()).thenReturn(stopped);
+    when(failing.stop()).thenThrow(new IllegalStateException("not running"));
+
+    assertThrows(IllegalStateException.class, composite(ok, failing)::stop);
+
+    verify(stopped).release();
+  }
+
+  private static OngoingRecording composite(OngoingRecording... recordings) throws Exception {
+    Controller[] controllers = new Controller[recordings.length];
+    for (int i = 0; i < recordings.length; i++) {
+      controllers[i] = mock(Controller.class);
+      when(controllers[i].createRecording(any(), any())).thenReturn(recordings[i]);
+    }
+    return new CompositeController(Arrays.asList(controllers)).createRecording("test", null);
   }
 }

@@ -5,7 +5,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.spy;
 
 import com.datadog.profiling.controller.OngoingRecording;
 import com.datadog.profiling.utils.ProfilingMode;
@@ -682,6 +686,69 @@ class DatadogProfilerTest {
             + " it doesn't overwrite the span-derived value just written to an app-owned offset");
     profiler.clearSpanContext();
     profiler.clearContextValue("foo");
+  }
+
+  @Test
+  void reconfigureChangesStartCommand() throws Exception {
+    DatadogProfiler profiler =
+        DatadogProfiler.newInstance(configProvider(true, false, false, false));
+    Path targetFile = Paths.get("/tmp/target.jfr");
+    String cpuCommand = profiler.cmdStartProfiling(targetFile);
+    assertTrue(cpuCommand.contains(",cpu="), cpuCommand);
+    assertFalse(cpuCommand.contains(",wall="), cpuCommand);
+
+    profiler.reconfigure(configProvider(false, true, false, false));
+
+    String wallCommand = profiler.cmdStartProfiling(targetFile);
+    assertFalse(wallCommand.contains(",cpu="), wallCommand);
+    assertTrue(wallCommand.contains(",wall="), wallCommand);
+    assertTrue(profiler.enabledModes().contains(ProfilingMode.WALL));
+    assertFalse(profiler.enabledModes().contains(ProfilingMode.CPU));
+  }
+
+  @Test
+  void failedStartWhateverTheFailureAllowsALaterStart() throws Exception {
+    DatadogProfiler profiler =
+        spy(DatadogProfiler.newInstance(configProvider(true, false, false, false)));
+    doThrow(new IllegalArgumentException("bad option")).when(profiler).executeProfilerCmd(any());
+
+    assertThrows(IllegalArgumentException.class, profiler::newRecording);
+
+    // the failed start doesn't keep the profiler from being reconfigured, or started again
+    assertDoesNotThrow(() -> profiler.reconfigure(configProvider(false, true, false, false)));
+    assertThrows(IllegalArgumentException.class, profiler::newRecording);
+  }
+
+  @Test
+  void restartWithNewConfiguration() throws Exception {
+    DatadogProfiler profiler =
+        DatadogProfiler.newInstance(configProvider(true, false, false, false));
+    if (profiler.isActive()) {
+      log.warn("Datadog profiler is already running. Skipping the test.");
+      return;
+    }
+
+    OngoingRecording first = profiler.start();
+    assertNotNull(first);
+    try {
+      assertThrows(
+          IllegalStateException.class,
+          () -> profiler.reconfigure(configProvider(false, true, false, false)));
+    } finally {
+      first.stop().release();
+      first.close();
+    }
+
+    profiler.reconfigure(configProvider(false, true, false, false));
+    OngoingRecording second = profiler.start();
+    assertNotNull(second);
+    try {
+      assertTrue(profiler.isActive());
+      assertTrue(profiler.enabledModes().contains(ProfilingMode.WALL));
+    } finally {
+      second.stop().release();
+      second.close();
+    }
   }
 
   private static ConfigProvider configProvider(

@@ -50,6 +50,11 @@ public final class DatadogProfilerController implements Controller {
   }
 
   @Override
+  public void reconfigure(ConfigProvider configProvider) {
+    datadogProfiler.reconfigure(configProvider);
+  }
+
+  @Override
   public void configure(ControllerContext context) {
     context.setDatadogProfilerEnabled(true);
     context.setDatadogProfilingModes(EnumSet.copyOf(datadogProfiler.enabledModes()));

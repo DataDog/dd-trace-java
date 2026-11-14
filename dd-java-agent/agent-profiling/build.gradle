@@ -30,6 +30,7 @@ dependencies {
   api project(':dd-java-agent:agent-profiling:profiling-controller-ddprof')
   api project(':dd-java-agent:agent-profiling:profiling-controller-openjdk')
   api project(':dd-java-agent:agent-profiling:profiling-controller-oracle')
+  implementation project(':dd-java-agent:agent-profiling:profiling-remote-config')
 
   testImplementation libs.bundles.junit5
   testImplementation libs.bundles.mockito
