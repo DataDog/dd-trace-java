@@ -1,5 +1,8 @@
 package datadog.opentelemetry.shim.context;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPropagationEnabled;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagationEnabled;
+
 import datadog.opentelemetry.shim.baggage.OtelBaggage;
 import datadog.opentelemetry.shim.trace.OtelSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -40,7 +43,13 @@ public class OtelContext implements Context {
 
   @Override
   public Scope makeCurrent() {
-    return new OtelScope(Context.super.makeCurrent(), delegate.attach());
+    boolean asyncPropagation = isAsyncPropagationEnabled();
+    Scope scope = new OtelScope(Context.super.makeCurrent(), delegate.attach());
+    // Manual tracing inherits disabled propagation from the active scope.
+    if (!asyncPropagation) {
+      setAsyncPropagationEnabled(false);
+    }
+    return scope;
   }
 
   @Nullable
