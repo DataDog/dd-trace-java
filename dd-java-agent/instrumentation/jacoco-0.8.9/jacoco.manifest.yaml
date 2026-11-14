@@ -1,0 +1,11 @@
+_v: 1
+name: jacoco
+display_name: 'JaCoCo :: Agent'
+description: Instruments JaCoCo class instrumentation and coverage probes to collect per-test line coverage and
+  build coverage data.
+packages:
+- name: org.jacoco:org.jacoco.agent
+category:
+- other
+systems: []
+creation_date: '2023-06-19'

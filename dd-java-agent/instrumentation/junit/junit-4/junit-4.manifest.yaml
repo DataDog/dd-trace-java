@@ -1,0 +1,13 @@
+_v: 1
+name: junit-4
+display_name: JUnit
+description: Instruments JUnit 4, Cucumber, and MUnit test lifecycles with setup and teardown tracing, test skipping,
+  retries, ordering, and Cucumber feature coverage.
+packages:
+- name: io.cucumber:cucumber-junit
+- name: junit:junit
+- name: org.scalameta:munit_2.13
+category:
+- test.execution
+systems: []
+creation_date: '2020-07-08'

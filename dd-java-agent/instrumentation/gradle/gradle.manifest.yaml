@@ -1,0 +1,11 @@
+_v: 1
+name: gradle
+display_name: Gradle
+description: Instruments Gradle build sessions and build and test tasks, configures test instrumentation and coverage,
+  and orders JUnit test classes.
+packages: []
+category:
+- cicd.pipeline
+- test.execution
+systems: []
+creation_date: '2023-03-28'

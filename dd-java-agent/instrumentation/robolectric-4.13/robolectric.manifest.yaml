@@ -1,0 +1,11 @@
+_v: 1
+name: robolectric
+display_name: robolectric
+description: Instruments Robolectric test setup to add emulated Android SDK and Robolectric version metadata to
+  test spans.
+packages:
+- name: org.robolectric:robolectric
+category:
+- test.execution
+systems: []
+creation_date: '2026-07-13'

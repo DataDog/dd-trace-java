@@ -1,0 +1,11 @@
+_v: 1
+name: testng
+display_name: testng
+description: Instruments TestNG test and suite lifecycles, setup and teardown outcomes, and test skipping, retries,
+  and ordering.
+packages:
+- name: org.testng:testng
+category:
+- test.execution
+systems: []
+creation_date: '2020-08-20'

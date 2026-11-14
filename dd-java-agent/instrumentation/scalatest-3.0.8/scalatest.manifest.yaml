@@ -1,0 +1,10 @@
+_v: 1
+name: scalatest
+display_name: scalatest
+description: Instruments ScalaTest test and suite lifecycles, test result reporting, skipping, and retries.
+packages:
+- name: org.scalatest:scalatest_2.12
+category:
+- test.execution
+systems: []
+creation_date: '2023-12-13'
