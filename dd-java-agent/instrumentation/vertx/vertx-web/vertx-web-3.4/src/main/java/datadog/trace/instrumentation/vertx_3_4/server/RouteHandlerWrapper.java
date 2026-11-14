@@ -14,6 +14,7 @@ import io.vertx.core.Handler;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.impl.RouteImpl;
 import io.vertx.ext.web.impl.RouterImpl;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class RouteHandlerWrapper implements Handler<RoutingContext> {
   static final String PARENT_SPAN_CONTEXT_KEY = AgentSpan.class.getName() + ".parent";
@@ -37,14 +38,15 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
 
   @Override
   public void handle(final RoutingContext routingContext) {
-    AgentSpan span = routingContext.get(HANDLER_SPAN_CONTEXT_KEY);
+    final AtomicReference<AgentSpan> spanReference = routingContext.get(HANDLER_SPAN_CONTEXT_KEY);
+    AgentSpan span = spanReference == null ? null : spanReference.get();
     if (spanStarter) {
       if (span == null) {
         AgentSpan parentSpan = activeSpan();
         routingContext.put(PARENT_SPAN_CONTEXT_KEY, parentSpan);
 
         span = startSpan("vertx", INSTRUMENTATION_NAME);
-        routingContext.put(HANDLER_SPAN_CONTEXT_KEY, span);
+        routingContext.put(HANDLER_SPAN_CONTEXT_KEY, new AtomicReference<>(span));
 
         // Register three hooks that fire on response outcome:
         // finishHandlerSpan is idempotent; whichever hook fires first wins.
@@ -71,16 +73,13 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
     }
   }
 
-  // Idempotently finish the route-handler span. Any of the three registered
-  // hooks (EndHandlerWrapper, the addBodyEndHandler fallback, or the
-  // response.exceptionHandler lambda) may call this; the first one to win
-  // clears HANDLER_SPAN_CONTEXT_KEY so the others are no-ops.
+  /** Atomically claim the span so concurrent completion hooks finish it once. */
   static void finishHandlerSpan(final RoutingContext routingContext) {
-    final AgentSpan span = routingContext.get(HANDLER_SPAN_CONTEXT_KEY);
+    final AtomicReference<AgentSpan> spanReference = routingContext.get(HANDLER_SPAN_CONTEXT_KEY);
+    final AgentSpan span = spanReference == null ? null : spanReference.getAndSet(null);
     if (span == null) {
       return;
     }
-    routingContext.put(HANDLER_SPAN_CONTEXT_KEY, null);
     DECORATE.onResponse(span, routingContext.response());
     span.finish();
   }
