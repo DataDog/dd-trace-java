@@ -129,9 +129,16 @@ public final class JMSDecorator extends MessagingClientDecorator {
       return "sqs";
     } else if (messageClass.startsWith("com.ibm")) {
       return "ibmmq";
+    } else if (messageClass.startsWith("com.tibco.tibjms")) {
+      return "tibcoems";
     } else {
       return "unknown";
     }
+  }
+
+  // Limited to brokers that have no dedicated DSM instrumentation, to avoid double-reporting.
+  public static boolean isDataStreamsSupported(String tech) {
+    return "ibmmq".equals(tech) || "tibcoems".equals(tech);
   }
 
   @Override
