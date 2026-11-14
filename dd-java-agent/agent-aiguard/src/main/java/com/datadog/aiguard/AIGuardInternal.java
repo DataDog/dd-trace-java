@@ -4,6 +4,9 @@ import static datadog.communication.ddagent.TracerVersion.TRACER_VERSION;
 import static datadog.trace.api.telemetry.WafMetricCollector.AIGuardTruncationType.CONTENT;
 import static datadog.trace.api.telemetry.WafMetricCollector.AIGuardTruncationType.MESSAGES;
 import static datadog.trace.util.Strings.isBlank;
+import static java.util.Arrays.asList;
+import static java.util.Collections.emptyList;
+import static java.util.Collections.unmodifiableSet;
 
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
@@ -13,6 +16,8 @@ import com.squareup.moshi.Types;
 import datadog.communication.http.OkHttpUtils;
 import datadog.context.ContextScope;
 import datadog.trace.api.Config;
+import datadog.trace.api.DDTags;
+import datadog.trace.api.KnownTagCodec;
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.aiguard.AIGuard;
 import datadog.trace.api.aiguard.AIGuard.AIGuardAbortError;
@@ -34,6 +39,7 @@ import datadog.trace.api.telemetry.WafMetricCollector.AIGuardRedaction;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ClientIpAddressData;
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
@@ -41,6 +47,7 @@ import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -82,6 +89,10 @@ public class AIGuardInternal implements Evaluator {
   static final String REDACTED_TAG = "ai_guard.redacted";
 
   static final String RESPONSE_REDACTION_REPLACEMENTS = "redaction_replacements";
+  static final String EXTRA_TAGS_FIELD = "extra_tags";
+  static final String EXTRA_METASTRUCT_FIELD = "extra_metastruct";
+  private static final String EXTRA_KEY_FIELD = "key";
+  private static final String EXTRA_VALUE_FIELD = "value";
 
   static final String META_STRUCT_TAG = "ai_guard";
   static final String META_STRUCT_MESSAGES = "messages";
@@ -97,6 +108,86 @@ public class AIGuardInternal implements Evaluator {
   static final String[] ANOMALY_DETECTION_TAGS = {
     Tags.HTTP_CLIENT_IP, Tags.NETWORK_CLIENT_IP, Tags.HTTP_USER_AGENT, "usr.id", "usr.session_id"
   };
+
+  private static final String RESERVED_TAG_PREFIX = "_dd";
+
+  private static final Set<String> RESERVED_TAGS = buildReservedTags();
+
+  private static final Set<String> RESERVED_META_STRUCT_KEYS =
+      unmodifiableSet(
+          new HashSet<>(
+              asList(
+                  META_STRUCT_MESSAGES,
+                  META_STRUCT_CATEGORIES,
+                  META_STRUCT_SDS,
+                  META_STRUCT_TAG_PROBS)));
+
+  private static Set<String> buildReservedTags() {
+    final Set<String> reserved =
+        new HashSet<>(
+            asList(
+                // tracer-computed AI Guard tags
+                ACTION_TAG,
+                REASON_TAG,
+                TARGET_TAG,
+                TOOL_TAG,
+                BLOCKED_TAG,
+                REDACTED_TAG,
+                Tags.AI_GUARD_EVENT,
+                Tags.AI_GUARD_KEEP,
+                // keys routed by TagInterceptor to span fields or sampling decisions
+                DDTags.MANUAL_KEEP,
+                DDTags.MANUAL_DROP,
+                Tags.ASM_KEEP,
+                Tags.SAMPLING_PRIORITY,
+                Tags.ERROR,
+                DDTags.SPAN_TYPE,
+                Tags.SPAN_KIND,
+                DDTags.RESOURCE_NAME,
+                "service",
+                DDTags.SERVICE_NAME,
+                Tags.PEER_SERVICE,
+                InstrumentationTags.SERVLET_CONTEXT,
+                Tags.DB_STATEMENT,
+                Tags.HTTP_METHOD,
+                Tags.HTTP_URL,
+                Tags.HTTP_STATUS,
+                // span-level identity keys
+                Tags.VERSION,
+                Tags.ENV,
+                DDTags.LANGUAGE_TAG_KEY,
+                DDTags.RUNTIME_ID_TAG,
+                DDTags.PID_TAG,
+                // tags the tracer sets at span creation or when recording an error
+                DDTags.THREAD_NAME,
+                DDTags.THREAD_ID,
+                DDTags.ERROR_MSG,
+                DDTags.ERROR_TYPE,
+                DDTags.ERROR_STACK));
+    for (final String tag : ANOMALY_DETECTION_TAGS) {
+      reserved.add("ai_guard." + tag);
+    }
+    return unmodifiableSet(reserved);
+  }
+
+  /**
+   * Returns whether a backend extra tag key is reserved: a tracer-owned AI Guard or span tag, a key
+   * that TagInterceptor interprets under any namespace spelling (Datadog or OpenTelemetry, such as
+   * {@code http.response.status_code}), or any key starting with {@code _dd}. This protects
+   * tracer-owned state and is not a namespace filter: backend {@code ai_guard.*} keys such as
+   * {@code ai_guard.evaluate_id} are applied verbatim. Keys configured through split-by-tags
+   * ({@code DD_TRACE_SPLIT_BY_TAGS}) depend on the tracer configuration and are not covered.
+   */
+  private static boolean isReservedTag(final String key) {
+    return RESERVED_TAGS.contains(key)
+        || key.startsWith(RESERVED_TAG_PREFIX)
+        || KnownTagCodec.isIntercepted(KnownTagCodec.keyOf(key));
+  }
+
+  /** Returns whether a backend extra meta_struct key is owned by the tracer. */
+  private static boolean isReservedMetaStructKey(final String key) {
+    return RESERVED_META_STRUCT_KEYS.contains(key);
+  }
 
   public static void install() {
     final Config config = Config.get();
@@ -315,6 +406,113 @@ public class AIGuardInternal implements Evaluator {
     }
   }
 
+  /**
+   * Applies the optional backend-provided {@code extra_tags} and {@code extra_metastruct} lists to
+   * the span and its meta struct. Never throws: malformed or reserved entries are skipped.
+   */
+  private static void applyBackendExtras(
+      final AgentSpan span,
+      final Map<String, Object> metaStruct,
+      final Map<String, Object> result) {
+    try {
+      applyExtraTags(span, result.get(EXTRA_TAGS_FIELD));
+    } catch (final Exception e) {
+      log.debug("AI Guard: could not apply extra_tags", e);
+    }
+    try {
+      applyExtraMetaStruct(metaStruct, result.get(EXTRA_METASTRUCT_FIELD));
+    } catch (final Exception e) {
+      log.debug("AI Guard: could not apply extra_metastruct", e);
+    }
+  }
+
+  private static void applyExtraTags(final AgentSpan span, final Object raw) {
+    for (final Map<?, ?> entry : extraEntries(EXTRA_TAGS_FIELD, raw)) {
+      String key = null;
+      try {
+        key = extraKey(EXTRA_TAGS_FIELD, entry);
+        if (key == null) {
+          continue;
+        }
+        if (isReservedTag(key)) {
+          log.debug("AI Guard: skipping extra tag '{}': reserved key", key);
+          continue;
+        }
+        final Object value = entry.get(EXTRA_VALUE_FIELD);
+        if (!(value instanceof String)) {
+          log.debug("AI Guard: skipping extra tag '{}': value is not a string", key);
+          continue;
+        }
+        span.setTag(key, (String) value);
+      } catch (final Exception e) {
+        // One failing entry must not drop its siblings; the value is never logged
+        log.debug("AI Guard: could not apply extra tag '{}'", key, e);
+      }
+    }
+  }
+
+  private static void applyExtraMetaStruct(final Map<String, Object> metaStruct, final Object raw) {
+    for (final Map<?, ?> entry : extraEntries(EXTRA_METASTRUCT_FIELD, raw)) {
+      String key = null;
+      try {
+        key = extraKey(EXTRA_METASTRUCT_FIELD, entry);
+        if (key == null) {
+          continue;
+        }
+        if (isReservedMetaStructKey(key)) {
+          log.debug("AI Guard: skipping extra meta_struct '{}': reserved key", key);
+          continue;
+        }
+        final Object value = entry.get(EXTRA_VALUE_FIELD);
+        if (value == null) {
+          log.debug("AI Guard: skipping extra meta_struct '{}': value is null", key);
+          continue;
+        }
+        metaStruct.put(key, value);
+      } catch (final Exception e) {
+        // One failing entry must not drop its siblings; the value is never logged
+        log.debug("AI Guard: could not apply extra meta_struct '{}'", key, e);
+      }
+    }
+  }
+
+  /** Returns the {@code {key, value}} entries of an extras list, skipping non-object entries. */
+  private static List<Map<?, ?>> extraEntries(final String field, final Object raw) {
+    if (raw == null) {
+      return emptyList();
+    }
+    if (!(raw instanceof List)) {
+      log.debug("AI Guard: {} is not a list", field);
+      return emptyList();
+    }
+    final List<?> list = (List<?>) raw;
+    final List<Map<?, ?>> entries = new ArrayList<>(list.size());
+    for (final Object item : list) {
+      if (item instanceof Map) {
+        entries.add((Map<?, ?>) item);
+      } else {
+        log.debug("AI Guard: skipping {} entry: not an object", field);
+      }
+    }
+    return entries;
+  }
+
+  /** Returns the entry key when it is a non-empty string, or {@code null} after logging why. */
+  @Nullable
+  private static String extraKey(final String field, final Map<?, ?> entry) {
+    final Object key = entry.get(EXTRA_KEY_FIELD);
+    if (!(key instanceof String)) {
+      log.debug("AI Guard: skipping {} entry: key is not a string", field);
+      return null;
+    }
+    final String stringKey = (String) key;
+    if (stringKey.isEmpty()) {
+      log.debug("AI Guard: skipping {} entry: key is empty", field);
+      return null;
+    }
+    return stringKey;
+  }
+
   @Override
   public Evaluation evaluate(final List<Message> messages, final Options options) {
     if (messages == null || messages.isEmpty()) {
@@ -425,6 +623,8 @@ public class AIGuardInternal implements Evaluator {
         if (sdsFindings != null && !sdsFindings.isEmpty()) {
           metaStruct.put(META_STRUCT_SDS, sdsFindings);
         }
+        // Before the block decision so both the allow and the DENY path carry the backend extras.
+        applyBackendExtras(span, metaStruct, result);
         final boolean shouldBlock =
             isBlockingEnabled(options, result.get("is_blocking_enabled")) && action != Action.ALLOW;
         WafMetricCollector.get().aiGuardRequest(action, shouldBlock, redactionState);
