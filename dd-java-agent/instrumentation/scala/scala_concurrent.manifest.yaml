@@ -1,0 +1,11 @@
+_v: 1
+name: scala_concurrent
+display_name: Scala Library
+description: Instruments Scala fork-join tasks and future or promise callbacks to preserve trace context and release
+  continuations when tasks complete, are cancelled, or lose their callbacks.
+packages:
+- name: org.scala-lang:scala-library
+category:
+- other
+systems: []
+creation_date: '2018-03-06'

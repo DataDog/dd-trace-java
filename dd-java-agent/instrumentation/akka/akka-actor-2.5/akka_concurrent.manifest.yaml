@@ -1,0 +1,11 @@
+_v: 1
+name: akka_concurrent
+display_name: akka-actor
+description: Instruments Akka actor message dispatch and handling and fork-join task execution to propagate trace
+  context, release abandoned message continuations, and isolate actor initialization.
+packages:
+- name: com.typesafe.akka:akka-actor_2.11
+category:
+- other
+systems: []
+creation_date: '2018-03-06'

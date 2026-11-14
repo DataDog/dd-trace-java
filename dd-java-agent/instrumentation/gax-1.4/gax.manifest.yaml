@@ -1,0 +1,11 @@
+_v: 1
+name: gax
+display_name: GAX (Google Api eXtensions)
+description: Instruments GAX retry-attempt listener replacement to release trace continuations belonging to superseded
+  listeners.
+packages:
+- name: com.google.api:gax
+category:
+- other
+systems: []
+creation_date: '2026-06-15'

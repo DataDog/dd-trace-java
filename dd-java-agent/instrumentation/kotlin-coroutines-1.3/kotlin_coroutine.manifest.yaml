@@ -1,0 +1,13 @@
+_v: 1
+name: kotlin_coroutine
+display_name: kotlinx-coroutines-core
+description: Instruments Kotlin coroutine creation, execution, completion, and Flow context transitions to preserve
+  trace context across suspension and thread changes.
+packages:
+- name: org.jetbrains.kotlin:kotlin-stdlib
+- name: org.jetbrains.kotlinx:kotlinx-coroutines-core
+- name: org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm
+category:
+- other
+systems: []
+creation_date: '2023-01-27'

@@ -1,0 +1,10 @@
+_v: 1
+name: jetty-concurrent
+display_name: 'Jetty :: Utilities'
+description: Instruments Jetty queued thread-pool task dispatch and execution to propagate trace context.
+packages:
+- name: org.eclipse.jetty:jetty-util
+category:
+- other
+systems: []
+creation_date: '2019-09-18'
