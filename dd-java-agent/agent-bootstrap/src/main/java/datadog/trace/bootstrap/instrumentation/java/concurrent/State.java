@@ -72,8 +72,7 @@ public final class State {
     if (null == continuation || CLAIMED == continuation) {
       return null;
     }
-    CONTINUATION.compareAndSet(this, continuation, null);
-    return continuation;
+    return CONTINUATION.compareAndSet(this, continuation, null) ? continuation : null;
   }
 
   public void setTiming(Timing timing) {
