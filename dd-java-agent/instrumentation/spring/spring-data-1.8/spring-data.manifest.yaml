@@ -1,0 +1,12 @@
+_v: 1
+name: spring-data
+display_name: Spring Data Core
+description: Instruments Spring Data repository operations with execution spans, error tracking, and code-origin
+  capture.
+packages:
+- name: org.springframework.data:spring-data-commons
+- name: org.springframework:spring-aop
+category:
+- db.client
+systems: []
+creation_date: '2019-06-10'

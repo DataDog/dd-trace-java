@@ -1,0 +1,10 @@
+_v: 1
+name: spring-async
+display_name: Spring Context
+description: Instruments asynchronous Spring method execution with trace-context propagation and execution spans.
+packages:
+- name: org.springframework:spring-context
+category:
+- task.execution
+systems: []
+creation_date: '2020-09-16'

@@ -1,0 +1,11 @@
+_v: 1
+name: spring-boot
+display_name: spring-boot
+description: Instruments Spring Boot initialization and annotated web endpoints for service naming, process tags,
+  and code-origin capture.
+packages:
+- name: org.springframework.boot:spring-boot
+category:
+- other
+systems: []
+creation_date: '2024-02-20'
