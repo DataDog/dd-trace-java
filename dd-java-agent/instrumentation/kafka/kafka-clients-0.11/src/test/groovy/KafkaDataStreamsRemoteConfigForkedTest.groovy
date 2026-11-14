@@ -81,11 +81,14 @@ class KafkaDataStreamsRemoteConfigForkedTest extends InstrumentationSpecificatio
 
     when: "remote config disables data streams again"
     toggleDataStreams(false)
+    int groupsBeforeOffAgain = settledGroupCount()
     def offAgainRecord = produceAndConsume(producer, consumer, "off again")
 
     then:
     offAgainRecord.headers().lastHeader(PROPAGATION_KEY_BASE64) == null
     consumeSpan().getTag(InstrumentationTags.KAFKA_CLUSTER_ID) == null
+    // Stats stop too: no new group is written once DSM is off
+    settledGroupCount() == groupsBeforeOffAgain
 
     cleanup:
     producer?.close()
@@ -99,6 +102,15 @@ class KafkaDataStreamsRemoteConfigForkedTest extends InstrumentationSpecificatio
       def types = TEST_DATA_STREAMS_WRITER.payloads.collectMany { it.kafkaConfigs }.findAll { !it.config.isEmpty() }*.type
       assert types.containsAll(["kafka_producer", "kafka_consumer"])
     }
+  }
+
+  /**
+   * Group count once in-flight flushes have landed. Waits a fixed window since it checks for an
+   * absence; reports run every 50 ms bucket.
+   */
+  int settledGroupCount() {
+    Thread.sleep(500)
+    return TEST_DATA_STREAMS_WRITER.groups.size()
   }
 
   /** Updates the tracer's dynamic config like remote config, then waits for the DSM monitor. */
