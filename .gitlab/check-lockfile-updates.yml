@@ -1,0 +1,23 @@
+# Reviewers repeatedly ask for gradle.lockfile files to be regenerated after a dependency change
+# (CONTRIBUTING.md#dependency-changes). Only the pull request's own changes are checked, never existing code.
+# Reproduce locally: python3 tooling/check_lockfile_updates.py "$(git merge-base origin/master HEAD)" HEAD
+check-lockfile-updates:
+  # Same image as check-codeowners: Python 3 and Git are enough, the check only reads the git diff.
+  image: ${BUILDER_IMAGE_REPO}:${BUILDER_IMAGE_VERSION_PREFIX}base
+  stage: tests
+  needs: []
+  script:
+    - python3 -m unittest discover -s tooling/tests -p 'test_check_lockfile_updates.py'
+    # Escape hatch for changes that cannot alter any lockfile, same convention as [ci: SKIP_BUILD_CACHE].
+    - |
+      if printf '%s\n' "${CI_COMMIT_MESSAGE:-}" | grep -E '\[ci:[^]]*\bSKIP_LOCKFILE_CHECK\b[^]]*\]' > /dev/null; then
+        echo "SKIP_LOCKFILE_CHECK requested in the commit message, skipping."
+        exit 0
+      fi
+    # Only pull request branches have a base ref: master, release and merge queue branches are skipped.
+    - |
+      if ! base_ref=$(.gitlab/find-gh-base-ref.sh); then
+        echo "No pull request base ref found, skipping."
+        exit 0
+      fi
+      python3 tooling/check_lockfile_updates.py "$(git merge-base "origin/${base_ref}" HEAD)" HEAD
