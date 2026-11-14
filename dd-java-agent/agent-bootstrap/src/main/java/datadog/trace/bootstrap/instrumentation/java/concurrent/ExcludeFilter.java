@@ -21,7 +21,8 @@ public class ExcludeFilter {
     FORK_JOIN_TASK,
     RUNNABLE_FUTURE,
     EXECUTOR,
-    COMPLETABLE_FUTURE_CALLBACK;
+    COMPLETABLE_FUTURE_CALLBACK,
+    SCALA_PROMISE_CALLBACK;
 
     public static ExcludeType fromFieldType(String typeName) {
       switch (typeName) {
