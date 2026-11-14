@@ -159,17 +159,15 @@ final class HashIdStore extends IdStore {
   }
 
   @Override
-  public Entry put(EntryReader entryReader) {
+  public void put(EntryReader entryReader) {
     Entry entry = entryReader.entry();
     if (entry == null) {
-      return null; // a reader with no entry is a no-op, as for TagMap.set
+      return; // a reader with no entry is a no-op, as for TagMap.set
     }
     Entry replaced = HashSupport.put(this.buckets, entry);
     if (replaced == null || replaced.tombstone) {
       this.count++; // a tombstone replaced is a removal undone: no prior local entry
-      return null;
     }
-    return replaced;
   }
 
   @Override
@@ -191,7 +189,12 @@ final class HashIdStore extends IdStore {
   }
 
   @Override
-  public Entry remove(long tagId) {
+  public void remove(long tagId) {
+    this.getAndRemove(tagId); // the prior Entry already exists: returning it costs nothing
+  }
+
+  @Override
+  public Entry getAndRemove(long tagId) {
     if (!KnownTagCodec.isKnown(tagId)) {
       throw notKnown(tagId);
     }
