@@ -1,0 +1,9 @@
+_v: 1
+name: cics
+display_name: IBM CICS Transaction Gateway
+description: Instruments IBM CICS remote program interactions and Transaction Gateway request flows.
+packages: []
+category:
+- rpc.client
+systems: []
+creation_date: '2026-01-29'

@@ -1,0 +1,10 @@
+_v: 1
+name: quartz
+display_name: Quartz Enterprise Job Scheduler
+description: Instruments scheduled Quartz job execution with job and trigger metadata and error reporting.
+packages:
+- name: org.quartz-scheduler:quartz
+category:
+- task.execution
+systems: []
+creation_date: '2020-12-17'

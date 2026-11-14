@@ -1,0 +1,9 @@
+_v: 1
+name: guidewire
+display_name: Guidewire InsuranceSuite
+description: Instruments trace context propagation across Guidewire asynchronous SOAP invocation worker threads.
+packages: []
+category:
+- other
+systems: []
+creation_date: '2026-09-04'
