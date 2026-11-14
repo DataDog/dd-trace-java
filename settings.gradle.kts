@@ -348,6 +348,7 @@ include(
   ":dd-java-agent:instrumentation:akka:akka-http:akka-http-10.0",
   ":dd-java-agent:instrumentation:akka:akka-http:akka-http-10.2-iast",
   // dd-java-agent:instrumentation:akka:akka-http:akka-http-10.6 will be included when `akkaRepositoryToken` is present, see next `include` block.
+  ":dd-java-agent:instrumentation:apache-camel:apache-camel-4.10",
   ":dd-java-agent:instrumentation:apache-httpclient:apache-httpasyncclient-4.0",
   ":dd-java-agent:instrumentation:apache-httpclient:apache-httpclient-4.0",
   ":dd-java-agent:instrumentation:apache-httpclient:apache-httpclient-5.0",

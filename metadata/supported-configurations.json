@@ -5212,6 +5212,45 @@
         "aliases": ["DD_TRACE_INTEGRATION_CAFFEINE_ENABLED", "DD_INTEGRATION_CAFFEINE_ENABLED"]
       }
     ],
+    "DD_TRACE_CAMEL_4_10_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_CAMEL_4_10_ENABLED", "DD_INTEGRATION_CAMEL_4_10_ENABLED"]
+      }
+    ],
+    "DD_TRACE_CAMEL_ANALYTICS_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": [
+          "DD_CAMEL_ANALYTICS_ENABLED"
+        ]
+      }
+    ],
+    "DD_TRACE_CAMEL_ANALYTICS_SAMPLE_RATE": [
+      {
+        "version": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": [
+          "DD_CAMEL_ANALYTICS_SAMPLE_RATE"
+        ]
+      }
+    ],
+    "DD_TRACE_CAMEL_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": [
+          "DD_TRACE_INTEGRATION_CAMEL_ENABLED",
+          "DD_INTEGRATION_CAMEL_ENABLED"
+        ]
+      }
+    ],
     "DD_TRACE_CASSANDRA_ANALYTICS_ENABLED": [
       {
         "version": "A",
