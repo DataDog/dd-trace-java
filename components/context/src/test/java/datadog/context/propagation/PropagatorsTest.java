@@ -3,6 +3,7 @@ package datadog.context.propagation;
 import static datadog.context.Context.root;
 import static datadog.context.propagation.Concern.DEFAULT_PRIORITY;
 import static java.util.Objects.requireNonNull;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -13,6 +14,8 @@ import datadog.context.Context;
 import datadog.context.ContextKey;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import javax.annotation.ParametersAreNonnullByDefault;
 import org.junit.jupiter.api.AfterEach;
@@ -153,6 +156,39 @@ class PropagatorsTest {
 
     Propagator cached = Propagators.defaultPropagator();
     assertEquals(composite, cached, "default propagator should be cached");
+  }
+
+  @Test
+  void testConcurrentRegisterAndDefaultPropagator() throws InterruptedException {
+    int count = 500;
+    AtomicBoolean registering = new AtomicBoolean(true);
+    AtomicReference<Throwable> readerFailure = new AtomicReference<>();
+    Thread reader =
+        new Thread(() -> {
+          try {
+            while (registering.get()) {
+              Propagators.defaultPropagator();
+            }
+          } catch (Throwable t) {
+            readerFailure.set(t);
+          }
+        });
+    reader.start();
+    Context context = root();
+    for (int i = 0; i < count; i++) {
+      ContextKey<String> key = ContextKey.named("concurrent-" + i);
+      context = context.with(key, "value");
+      Propagators.register(
+          Concern.named("concurrent-" + i), new BasicPropagator(key, "concurrent-" + i));
+    }
+    registering.set(false);
+    reader.join(SECONDS.toMillis(10));
+    assertFalse(reader.isAlive(), "Reader thread should have stopped");
+    assertNull(readerFailure.get(), "Reader thread should not fail");
+
+    Map<String, String> carrier = new HashMap<>();
+    Propagators.defaultPropagator().inject(context, carrier, ACCESSOR);
+    assertEquals(count, carrier.size(), "All registered propagators should be in the default one");
   }
 
   @Test

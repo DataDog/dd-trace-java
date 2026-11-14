@@ -27,15 +27,20 @@ public final class Propagators {
    */
   public static Propagator defaultPropagator() {
     if (rebuildDefaultPropagator) {
-      Propagator[] propagatorsByPriority =
-          PROPAGATORS.entrySet().stream()
-              .filter(entry -> entry.getValue().isUsedAsDefault())
-              .sorted(comparingInt(entry -> entry.getKey().priority()))
-              .map(Map.Entry::getValue)
-              .map(RegisteredPropagator::propagator)
-              .toArray(Propagator[]::new);
-      defaultPropagator = composite(propagatorsByPriority);
-      rebuildDefaultPropagator = false;
+      // Rebuild under the map lock so a concurrent register() is never iterated nor lost
+      synchronized (PROPAGATORS) {
+        if (rebuildDefaultPropagator) {
+          rebuildDefaultPropagator = false;
+          Propagator[] propagatorsByPriority =
+              PROPAGATORS.entrySet().stream()
+                  .filter(entry -> entry.getValue().isUsedAsDefault())
+                  .sorted(comparingInt(entry -> entry.getKey().priority()))
+                  .map(Map.Entry::getValue)
+                  .map(RegisteredPropagator::propagator)
+                  .toArray(Propagator[]::new);
+          defaultPropagator = composite(propagatorsByPriority);
+        }
+      }
     }
     return defaultPropagator;
   }
@@ -110,16 +115,20 @@ public final class Propagators {
    * @see Propagators#defaultPropagator()
    */
   public static void register(Concern concern, Propagator propagator, boolean usedAsDefault) {
-    PROPAGATORS.put(concern, RegisteredPropagator.of(propagator, usedAsDefault));
-    if (usedAsDefault) {
-      rebuildDefaultPropagator = true;
+    synchronized (PROPAGATORS) {
+      PROPAGATORS.put(concern, RegisteredPropagator.of(propagator, usedAsDefault));
+      if (usedAsDefault) {
+        rebuildDefaultPropagator = true;
+      }
     }
   }
 
   /** Clear all registered propagators. For testing purpose only. */
   static void reset() {
-    PROPAGATORS.clear();
-    rebuildDefaultPropagator = true;
+    synchronized (PROPAGATORS) {
+      PROPAGATORS.clear();
+      rebuildDefaultPropagator = true;
+    }
   }
 
   static class RegisteredPropagator {
