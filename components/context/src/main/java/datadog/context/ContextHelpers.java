@@ -7,7 +7,7 @@ import static java.util.Objects.requireNonNull;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BinaryOperator;
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Static helpers to manipulate context collections.
@@ -126,7 +126,7 @@ public final class ContextHelpers {
         return current;
       }
       // Always store next value otherwise
-      Object[] store =
+      @Nullable Object[] store =
           copyOfRange(
               currentIndexed.store, 0, max(currentIndexed.store.length, nextSingleton.index + 1));
       store[nextSingleton.index] = nextSingleton.value;
@@ -137,7 +137,7 @@ public final class ContextHelpers {
       // * nextIndexed has more values that currentIndexed,
       //   so the additional values will always be kept
       // * nextIndexed has values that currentIndexed do not have
-      Object[] store = null;
+      @Nullable Object[] store = null;
       // Allocate store if nextIndexed has more elements than currentIndexed
       if (nextIndexed.store.length > currentIndexed.store.length) {
         store = copyOfRange(currentIndexed.store, 0, nextIndexed.store.length);

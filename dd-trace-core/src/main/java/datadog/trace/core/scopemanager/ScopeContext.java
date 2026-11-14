@@ -3,7 +3,7 @@ package datadog.trace.core.scopemanager;
 import datadog.context.Context;
 import datadog.context.ContextKey;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /** Wraps a {@link ScopeStack} as a {@link Context} so it can be swapped back later. */
 final class ScopeContext implements Context {
@@ -33,9 +33,8 @@ final class ScopeContext implements Context {
     }
   }
 
-  @Nullable
   @Override
-  public <T> T get(ContextKey<T> key) {
+  public <T> @Nullable T get(ContextKey<T> key) {
     return context.get(key);
   }
 

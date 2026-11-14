@@ -1,4 +1,4 @@
-@ParametersAreNonnullByDefault
+@NullMarked
 package datadog.context.propagation;
 
-import javax.annotation.ParametersAreNonnullByDefault;
+import org.jspecify.annotations.NullMarked;

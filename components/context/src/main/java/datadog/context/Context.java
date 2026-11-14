@@ -3,7 +3,7 @@ package datadog.context;
 import static datadog.context.ContextProviders.binder;
 import static datadog.context.ContextProviders.manager;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Immutable context scoped to an execution unit or carrier object.
@@ -117,8 +117,7 @@ public interface Context {
    * @param key the key used to store the value.
    * @return the value stored under the key; {@code null} if there is none.
    */
-  @Nullable
-  <T> T get(ContextKey<T> key);
+  @Nullable <T> T get(ContextKey<T> key);
 
   /**
    * Creates a copy of this context with the given key-value set.
