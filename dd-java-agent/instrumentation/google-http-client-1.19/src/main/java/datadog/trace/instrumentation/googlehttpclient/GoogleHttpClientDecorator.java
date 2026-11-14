@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.googlehttpclient;
 
 import com.google.api.client.http.HttpRequest;
 import com.google.api.client.http.HttpResponse;
+import com.google.api.client.http.HttpResponseException;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -39,6 +40,21 @@ public class GoogleHttpClientDecorator extends HttpClientDecorator<HttpRequest, 
   @Override
   protected int status(final HttpResponse httpResponse) {
     return httpResponse.getStatusCode();
+  }
+
+  /**
+   * Also tags the HTTP status code when {@code execute()} throws {@link HttpResponseException} for
+   * a non-2xx status, as there is no response to read it from in that case.
+   */
+  @Override
+  protected void doOnError(final AgentSpan span, final Throwable throwable, byte errorPriority) {
+    super.doOnError(span, throwable, errorPriority);
+    if (throwable instanceof HttpResponseException) {
+      final int status = ((HttpResponseException) throwable).getStatusCode();
+      if (status > 0) {
+        span.setHttpStatusCode(status);
+      }
+    }
   }
 
   @Override
