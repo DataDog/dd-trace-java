@@ -1,5 +1,8 @@
 package datadog.trace.civisibility.git;
 
+import static datadog.trace.api.git.GitUtils.decodeMetadata;
+import static datadog.trace.api.git.GitUtils.getFilesystemCharset;
+
 import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitUtils;
@@ -12,6 +15,7 @@ import datadog.trace.civisibility.git.pack.VersionedPackGitInfoExtractor;
 import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -44,8 +48,8 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
   public GitInfo headCommit(final String gitFolder) {
     try {
       final Path gitFolderPath = Paths.get(gitFolder);
-      final String head = readFile(gitFolderPath.resolve("HEAD"));
-      final String ref = extractRef(head);
+      final byte[] head = readFile(gitFolderPath.resolve("HEAD"));
+      final String ref = extractRef(head == null ? null : decodeMetadata(head));
       final String branch = extractBranch(ref);
       final String tag = extractTag(ref);
       final String sha = extractSha(gitFolderPath, head);
@@ -189,7 +193,8 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
       }
 
       // We get the reference in the object getting the bytes until the \n character:
-      final String objectSha = new String(Arrays.copyOfRange(gitObject.getContent(), 0, lf - 1));
+      final String objectSha =
+          new String(Arrays.copyOfRange(gitObject.getContent(), 0, lf - 1), StandardCharsets.UTF_8);
 
       // Here, objectSha = "object $sha1". E.g: "object 44c242675ddf69b7b1f440b4a5d8d24e908d8bef"
       // Split by " " and get the sha in the second position of the array
@@ -235,7 +240,8 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
       // ((byte)32)
       // metadata[0] contains the type (e.g. commit)
       // metadata[1] contains the size (e.g. 261)
-      final String[] metadata = SPACE_PATTERN.split(new String(metadataBytes));
+      final String[] metadata =
+          SPACE_PATTERN.split(new String(metadataBytes, StandardCharsets.UTF_8));
       if (metadata.length != 2) {
         // Unexpected metadata format.
         return GitObject.NOOP;
@@ -282,10 +288,13 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
     }
   }
 
-  private String extractSha(final Path gitFolder, final String head) throws IOException {
-    if (head == null) {
+  private String extractSha(final Path gitFolder, final byte[] rawHead) throws IOException {
+    if (rawHead == null) {
       return null;
     }
+
+    // A ref name must retain its native path representation when locating the reference file.
+    final String head = new String(rawHead, getFilesystemCharset());
 
     // HEAD can contain a reference (e.g.: refs/heads/master) or
     // a SHA (e.g.: 6ba9a670e26a69ae26bafd2409ae200d152afa76)
@@ -301,7 +310,8 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
       if (!ref.exists()) {
         return null;
       }
-      return readFile(ref.toPath());
+      final byte[] sha = readFile(ref.toPath());
+      return sha == null ? null : decodeMetadata(sha);
     }
 
     return head;
@@ -405,14 +415,14 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
     return new PersonInfo(name, email, when * 1000L, tz);
   }
 
-  private String readFile(final Path filepath) throws IOException {
+  private byte[] readFile(final Path filepath) throws IOException {
     if (filepath == null || !filepath.toFile().exists()) {
       return null;
     }
 
-    final String content = new String(Files.readAllBytes(filepath));
-    if (content.endsWith("\n")) {
-      return content.substring(0, content.length() - 1);
+    final byte[] content = Files.readAllBytes(filepath);
+    if (content.length > 0 && content[content.length - 1] == '\n') {
+      return Arrays.copyOf(content, content.length - 1);
     }
 
     return content;

@@ -8,6 +8,17 @@ ext {
 
 minimumBranchCoverage = 0.80
 
+tasks.named('compileTestJava', JavaCompile) {
+  configureCompiler(it, JavaVersion.VERSION_1_8, "Uses public jdk.jfr APIs at Java 8 bytecode")
+}
+
+tasks.named('forkedTest', Test) {
+  // Exercise localised counts and sizes with a different parent JVM default charset.
+  systemProperty 'file.encoding', 'ISO-8859-1'
+  environment 'JAVA_TOOL_OPTIONS',
+    "${environment['JAVA_TOOL_OPTIONS'] ?: ''} -Dfile.encoding=ISO-8859-1 -Duser.language=ar -Duser.country=EG"
+}
+
 excludedClassesCoverage += [
   // Large parts of this class are jvm specific which makes jacoco really confused since we run it only for 'default' jvm
   'com.datadog.profiling.uploader.util.PidHelper',

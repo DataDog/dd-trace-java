@@ -11,6 +11,7 @@ import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.PersonInfo;
 import datadog.trace.civisibility.ci.env.CiEnvironment;
+import datadog.trace.util.Strings;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -73,7 +74,7 @@ class BuildkiteInfo implements CIProviderInfo {
         .ciPipelineNumber(environment.get(BUILDKITE_PIPELINE_NUMBER))
         .ciPipelineUrl(ciPipelineUrl)
         .ciJobId(environment.get(BUILDKITE_JOB_ID))
-        .ciJobUrl(String.format("%s#%s", ciPipelineUrl, environment.get(BUILDKITE_JOB_ID)))
+        .ciJobUrl(Strings.format("%s#%s", ciPipelineUrl, environment.get(BUILDKITE_JOB_ID)))
         .ciWorkspace(expandTilde(environment.get(BUILDKITE_WORKSPACE_PATH)))
         .ciNodeName(environment.get(BUILDKITE_AGENT_ID))
         .ciNodeLabels(buildCiNodeLabels())

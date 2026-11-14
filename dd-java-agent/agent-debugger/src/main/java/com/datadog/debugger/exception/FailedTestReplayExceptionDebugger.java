@@ -8,6 +8,7 @@ import datadog.trace.api.civisibility.domain.TestContext;
 import datadog.trace.api.civisibility.execution.TestExecutionTracker;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.util.Strings;
 import java.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,8 +50,8 @@ public class FailedTestReplayExceptionDebugger extends AbstractExceptionDebugger
       AgentSpan span, Snapshot snapshot, int frameIndex, StackTraceElement stackFrame) {
     super.addStackFrameTags(span, snapshot, frameIndex, stackFrame);
 
-    String fileTag = String.format(TEST_DEBUG_ERROR_FILE_TAG_FMT, frameIndex);
-    String lineTag = String.format(TEST_DEBUG_ERROR_LINE_TAG_FMT, frameIndex);
+    String fileTag = Strings.format(TEST_DEBUG_ERROR_FILE_TAG_FMT, frameIndex);
+    String lineTag = Strings.format(TEST_DEBUG_ERROR_LINE_TAG_FMT, frameIndex);
     span.setTag(fileTag, stackFrame.getFileName());
     span.setTag(lineTag, stackFrame.getLineNumber());
 

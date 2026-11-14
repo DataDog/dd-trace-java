@@ -24,6 +24,7 @@ import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
 import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.util.Strings;
 import datadog.trace.util.TagsHelper;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -268,13 +269,13 @@ public class SpanDecorationProbe extends ProbeDefinition implements CapturedCont
           status.getErrors().addAll(logStatus.getErrors());
           if (logStatus.getErrors().size() > 0) {
             spanStatus.addTag(
-                String.format(EVALERROR_DD_TAGS_FORMAT, tagName),
+                Strings.format(EVALERROR_DD_TAGS_FORMAT, tagName),
                 logStatus.getErrors().get(0).getMessage());
           }
         } else {
           spanStatus.addTag(tagName, tagValue);
         }
-        spanStatus.addTag(String.format(PROBEID_DD_TAGS_FORMAT, tagName), getProbeId().getId());
+        spanStatus.addTag(Strings.format(PROBEID_DD_TAGS_FORMAT, tagName), getProbeId().getId());
       }
     }
   }

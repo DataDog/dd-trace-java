@@ -3,6 +3,7 @@ package datadog.metrics.impl.statsd;
 import com.timgroup.statsd.Event;
 import com.timgroup.statsd.ServiceCheck;
 import datadog.metrics.api.statsd.StatsDClient;
+import java.util.Locale;
 import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -91,7 +92,7 @@ public final class DDAgentStatsDClient implements StatsDClient {
   @Override
   public void recordEvent(
       String type, String source, String eventName, String message, String... tags) {
-    Event.AlertType alertType = Event.AlertType.valueOf(type.toUpperCase());
+    Event.AlertType alertType = Event.AlertType.valueOf(type.toUpperCase(Locale.ROOT));
     Event.Builder eventBuilder =
         Event.builder()
             .withTitle(eventName)

@@ -9,6 +9,7 @@ import io.opentelemetry.api.common.AttributesBuilder;
 import io.opentelemetry.api.metrics.LongCounter;
 import io.opentelemetry.api.metrics.Meter;
 import java.io.Closeable;
+import java.util.Locale;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -132,10 +133,10 @@ class FlagEvalMetrics implements Closeable {
           Attributes.builder()
               .put(ATTR_FLAG_KEY, flagKey)
               .put(ATTR_VARIANT, variant != null ? variant : "")
-              .put(ATTR_REASON, reason != null ? reason.toLowerCase() : "unknown");
+              .put(ATTR_REASON, reason != null ? reason.toLowerCase(Locale.ROOT) : "unknown");
 
       if (errorCode != null) {
-        builder.put(ATTR_ERROR_TYPE, errorCode.name().toLowerCase());
+        builder.put(ATTR_ERROR_TYPE, errorCode.name().toLowerCase(Locale.ROOT));
       }
 
       if (allocationKey != null && !allocationKey.isEmpty()) {

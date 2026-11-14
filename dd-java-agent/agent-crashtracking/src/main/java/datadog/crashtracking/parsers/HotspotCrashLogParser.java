@@ -381,7 +381,7 @@ public final class HotspotCrashLogParser {
           }
           break;
         case MESSAGE:
-          if (line.toLowerCase().contains("core dump")) {
+          if (line.toLowerCase(Locale.ROOT).contains("core dump")) {
             // break out of the message block
             state = State.HEADER;
           } else if (oomMessage == null

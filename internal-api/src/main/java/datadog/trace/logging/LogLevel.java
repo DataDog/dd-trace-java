@@ -1,5 +1,7 @@
 package datadog.trace.logging;
 
+import java.util.Locale;
+
 /** Log level enum. */
 public enum LogLevel {
   TRACE,
@@ -18,7 +20,7 @@ public enum LogLevel {
    * @return the corresponding {@link LogLevel} enum
    */
   public static LogLevel fromString(String level) {
-    String upper = level.toUpperCase();
+    String upper = level.toUpperCase(Locale.ROOT);
     try {
       return Enum.valueOf(LogLevel.class, upper);
     } catch (Throwable t) {

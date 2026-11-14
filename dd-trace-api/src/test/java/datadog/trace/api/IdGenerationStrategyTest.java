@@ -9,13 +9,38 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.security.SecureRandom;
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.ResourceLock;
+import org.junit.jupiter.api.parallel.Resources;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.tabletest.junit.TableTest;
 
 class IdGenerationStrategyTest {
+
+  @Test
+  @ResourceLock(Resources.LOCALE)
+  void parseNamesWithTurkishDefaultLocale() {
+    Locale previous = Locale.getDefault();
+    Locale previousFormat = Locale.getDefault(Locale.Category.FORMAT);
+    Locale previousDisplay = Locale.getDefault(Locale.Category.DISPLAY);
+    try {
+      Locale.setDefault(new Locale("tr", "TR"));
+
+      assertNotNull(IdGenerationStrategy.fromName("sequential"));
+      assertEquals(
+          TracePropagationStyle.B3SINGLE, TracePropagationStyle.valueOfDisplayName("b3single"));
+      assertEquals(
+          TracePropagationStyle.B3SINGLE,
+          TracePropagationStyle.valueOfDisplayName("b3 single header"));
+    } finally {
+      Locale.setDefault(previous);
+      Locale.setDefault(Locale.Category.FORMAT, previousFormat);
+      Locale.setDefault(Locale.Category.DISPLAY, previousDisplay);
+    }
+  }
 
   @TableTest({
     "scenario           | traceId128BitGenerationEnabled | strategyName                       ",

@@ -1,6 +1,7 @@
 package datadog.trace.agent.test.scopediag;
 
 import datadog.trace.api.DDTraceId;
+import datadog.trace.util.Strings;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.LinkedHashMap;
@@ -437,10 +438,10 @@ public final class ScopeDiagnosticsReport {
   }
 
   private String relMillis(long nanos) {
-    return String.format("%.3f", (nanos - t0) / 1_000_000.0);
+    return Strings.format("%.3f", (nanos - t0) / 1_000_000.0);
   }
 
   private static String millis(long nanos) {
-    return String.format("%.3f", nanos / 1_000_000.0);
+    return Strings.format("%.3f", nanos / 1_000_000.0);
   }
 }

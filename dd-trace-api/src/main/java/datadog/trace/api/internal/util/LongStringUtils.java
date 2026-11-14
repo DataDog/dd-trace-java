@@ -3,6 +3,7 @@ package datadog.trace.api.internal.util;
 import static java.nio.charset.StandardCharsets.US_ASCII;
 
 import java.util.Arrays;
+import java.util.Locale;
 
 /**
  * Utility class with common long decimal and hexadecimal parsing, and {@link String} creation
@@ -90,7 +91,7 @@ public class LongStringUtils {
       char firstChar = s.charAt(0);
       if (firstChar == '-') {
         throw new NumberFormatException(
-            String.format("Illegal leading minus sign on unsigned string %s.", s));
+            String.format(Locale.ROOT, "Illegal leading minus sign on unsigned string %s.", s));
       } else {
         if (len <= 18) { // Signed 64 bits max is 19 digits, so this always fits
           return Long.parseLong(s);
@@ -134,7 +135,7 @@ public class LongStringUtils {
    */
   public static NumberFormatException numberFormatOutOfLongRange(CharSequence s) {
     return new NumberFormatException(
-        String.format("String value %s exceeds range of unsigned long.", s));
+        String.format(Locale.ROOT, "String value %s exceeds range of unsigned long.", s));
   }
 
   private static final byte[] HEX_DIGITS = {

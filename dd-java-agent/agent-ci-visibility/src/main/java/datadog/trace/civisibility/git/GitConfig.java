@@ -1,9 +1,14 @@
 package datadog.trace.civisibility.git;
 
+import static datadog.trace.api.git.GitUtils.decodeMetadata;
+
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.BufferedReader;
-import java.io.FileReader;
 import java.io.IOException;
+import java.io.StringReader;
+import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -30,7 +35,8 @@ public class GitConfig {
     //   url = https://some-host/user/repository.git
     // 	 fetch = +refs/heads/*:refs/remotes/origin/*
 
-    try (final BufferedReader br = new BufferedReader(new FileReader(path))) {
+    try (final BufferedReader br =
+        new BufferedReader(new StringReader(decodeMetadata(Files.readAllBytes(Paths.get(path)))))) {
       String line;
       String section = null;
       while ((line = br.readLine()) != null) {
@@ -64,7 +70,7 @@ public class GitConfig {
           }
         }
       }
-    } catch (final IOException e) {
+    } catch (final IOException | InvalidPathException e) {
       // As extract .git config information should be a best-effort approach, we don't want to
       // bother customers with
       // error messages at this point. If .git/config file cannot be parsed, we return the control

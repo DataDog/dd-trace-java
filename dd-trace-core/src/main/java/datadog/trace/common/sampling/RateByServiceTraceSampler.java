@@ -10,6 +10,7 @@ import datadog.trace.api.time.TimeSource;
 import datadog.trace.common.writer.RemoteResponseListener;
 import datadog.trace.core.CoreSpan;
 import java.util.Collections;
+import java.util.Locale;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.function.Function;
@@ -254,8 +255,8 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
     private final String lowerService;
 
     private EnvAndService(String env, String service) {
-      lowerEnv = env.toLowerCase();
-      lowerService = service.toLowerCase();
+      lowerEnv = env.toLowerCase(Locale.ROOT);
+      lowerService = service.toLowerCase(Locale.ROOT);
     }
 
     boolean isFallback() {

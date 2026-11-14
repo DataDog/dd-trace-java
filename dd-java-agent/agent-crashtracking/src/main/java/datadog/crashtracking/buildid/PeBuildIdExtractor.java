@@ -1,5 +1,6 @@
 package datadog.crashtracking.buildid;
 
+import datadog.trace.util.Strings;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
@@ -286,7 +287,7 @@ public class PeBuildIdExtractor implements BuildIdExtractor {
   private String formatBuildId(
       long guidData1, int guidData2, int guidData3, byte[] guidData4, long age) {
     // Format: GUID (uppercase, without dashes) + Age (lowercase hex)
-    return String.format(
+    return Strings.format(
         "%08X%04X%04X%02X%02X%02X%02X%02X%02X%02X%02X%x",
         guidData1,
         guidData2,

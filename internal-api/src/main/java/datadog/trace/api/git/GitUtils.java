@@ -3,10 +3,15 @@ package datadog.trace.api.git;
 import static datadog.trace.api.git.RawParseUtils.decode;
 import static datadog.trace.api.git.RawParseUtils.nextLF;
 
+import datadog.environment.OperatingSystem;
+import datadog.environment.SystemProperties;
 import datadog.trace.util.Strings;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URI;
+import java.nio.ByteBuffer;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.regex.Pattern;
 import java.util.zip.DataFormatException;
@@ -44,6 +49,33 @@ public class GitUtils {
   private static final int FULL_SHA_LENGTH = 40;
 
   private static final Logger log = LoggerFactory.getLogger(GitUtils.class);
+
+  /** Charset for Git filesystem paths: UTF-8 on Windows, the JDK filesystem charset elsewhere. */
+  public static Charset getFilesystemCharset() {
+    if (OperatingSystem.isWindows()) {
+      return StandardCharsets.UTF_8;
+    }
+    // The JDK filesystem charset can differ from native.encoding, notably on macOS.
+    String encoding = SystemProperties.get("sun.jnu.encoding");
+    if (encoding != null) {
+      try {
+        return Charset.forName(encoding);
+      } catch (IllegalArgumentException ignored) {
+      }
+    }
+    return OperatingSystem.nativeCharset();
+  }
+
+  /** Decode valid UTF-8 metadata first, falling back to the local Git charset for legacy bytes. */
+  public static String decodeMetadata(byte[] bytes) {
+    try {
+      return StandardCharsets.UTF_8.newDecoder().decode(ByteBuffer.wrap(bytes)).toString();
+    } catch (CharacterCodingException e) {
+      return new String(
+          bytes,
+          OperatingSystem.isWindows() ? StandardCharsets.UTF_8 : OperatingSystem.nativeCharset());
+    }
+  }
 
   /**
    * Normalizes Git tag references:

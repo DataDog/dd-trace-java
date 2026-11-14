@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.jar.JarFile;
 
@@ -176,7 +177,10 @@ public final class AgentBootstrap {
       case LIB_INJECTION_FORCE_SYS_PROP:
         {
           String envVarName =
-              LIB_INJECTION_FORCE_SYS_PROP.replace('.', '_').replace('-', '_').toUpperCase();
+              LIB_INJECTION_FORCE_SYS_PROP
+                  .replace('.', '_')
+                  .replace('-', '_')
+                  .toUpperCase(Locale.ROOT);
           String injectionForceFlag = EnvironmentVariables.get(envVarName);
           if (injectionForceFlag == null) {
             injectionForceFlag = SystemProperties.get(LIB_INJECTION_FORCE_SYS_PROP);
@@ -376,7 +380,7 @@ public final class AgentBootstrap {
     // If there are 2 agents and one of them is for patching log4j, it's fine
     if (getAgentFilesFromVMArguments().size() == 2) {
       for (File agentFile : getAgentFilesFromVMArguments()) {
-        if (agentFile.getName().toLowerCase().contains("log4j")) {
+        if (agentFile.getName().toLowerCase(Locale.ROOT).contains("log4j")) {
           return false;
         }
       }

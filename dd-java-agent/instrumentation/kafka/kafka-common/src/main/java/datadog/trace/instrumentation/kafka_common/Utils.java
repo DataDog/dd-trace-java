@@ -13,7 +13,8 @@ public final class Utils {
       DSM_TRANSACTION_SOURCE_READER =
           (source, headerName) -> {
             try {
-              return new String(((Headers) source).lastHeader(headerName).value());
+              return new String(
+                  ((Headers) source).lastHeader(headerName).value(), StandardCharsets.UTF_8);
             } catch (Throwable ignored) {
               return null;
             }

@@ -1,6 +1,7 @@
 package datadog.trace.api.civisibility.telemetry.tag;
 
 import datadog.trace.api.civisibility.telemetry.TagValue;
+import java.util.Locale;
 
 public enum GitProviderDiscrepant implements TagValue {
   USER_SUPPLIED,
@@ -11,6 +12,6 @@ public enum GitProviderDiscrepant implements TagValue {
 
   @Override
   public String asString() {
-    return "discrepant_provider:" + name().toLowerCase();
+    return "discrepant_provider:" + name().toLowerCase(Locale.ROOT);
   }
 }

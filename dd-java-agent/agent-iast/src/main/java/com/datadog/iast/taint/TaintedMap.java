@@ -7,6 +7,7 @@ import datadog.trace.api.iast.telemetry.IastMetric;
 import datadog.trace.api.iast.telemetry.IastMetricCollector;
 import datadog.trace.api.iast.telemetry.Verbosity;
 import datadog.trace.util.AgentTaskScheduler;
+import datadog.trace.util.Strings;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Arrays;
 import java.util.Collections;
@@ -420,7 +421,7 @@ public interface TaintedMap extends Iterable<TaintedObject> {
     }
 
     private static String percentage(final long actual, final long total) {
-      return String.format("%2.2f%%", total == 0 ? 0 : (actual * 100D / total));
+      return Strings.format("%2.2f%%", total == 0 ? 0 : (actual * 100D / total));
     }
 
     /** Computes different percentiles, values array MUST be sorted beforehand */
@@ -442,11 +443,11 @@ public interface TaintedMap extends Iterable<TaintedObject> {
           value = values[Math.round(values.length * percentile / 100F)];
           break;
       }
-      return String.format("%s:%s", prefix, value);
+      return Strings.format("%s:%s", prefix, value);
     }
 
     private static String average(final int[] values) {
-      return String.format("avg:%2.2f", Arrays.stream(values).sum() / (double) values.length);
+      return Strings.format("avg:%2.2f", Arrays.stream(values).sum() / (double) values.length);
     }
   }
 

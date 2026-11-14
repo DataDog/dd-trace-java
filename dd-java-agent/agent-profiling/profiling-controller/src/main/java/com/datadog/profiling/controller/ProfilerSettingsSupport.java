@@ -241,7 +241,9 @@ public abstract class ProfilerSettingsSupport {
           // we are expecting just a single line output from `getenforce`, so we can avoid draining
           // stdout/stderr asynchronously
           try (BufferedReader reader =
-              new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+              new BufferedReader(
+                  new InputStreamReader(
+                      process.getInputStream(), OperatingSystem.nativeCharset()))) {
             String line = reader.readLine();
 
             if (line != null) {

@@ -1,5 +1,7 @@
 package datadog.trace.logging.simplelogger;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import datadog.trace.logging.LogLevel;
 import datadog.trace.logging.LogReporter;
 import datadog.trace.logging.PrintStreamWrapper;
@@ -111,7 +113,9 @@ public class SLCompatSettings {
     private final DateFormat dateFormat;
 
     public LegacyDTFormatter(String dateTimeFormat) {
-      this.dateFormat = new SimpleDateFormat(dateTimeFormat);
+      // User-configured log timestamps follow the JVM's formatting locale.
+      this.dateFormat =
+          new SimpleDateFormat(dateTimeFormat, Locale.getDefault(Locale.Category.FORMAT));
     }
 
     @Override
@@ -189,7 +193,7 @@ public class SLCompatSettings {
             parentFile.mkdirs();
           }
           outputStream = new FileOutputStream(outputFile);
-          PrintStream printStream = new PrintStream(outputStream, true);
+          PrintStream printStream = new PrintStream(outputStream, true, UTF_8.name());
           LogReporter.register(outputFile);
           return printStream;
         } catch (IOException | SecurityException e) {

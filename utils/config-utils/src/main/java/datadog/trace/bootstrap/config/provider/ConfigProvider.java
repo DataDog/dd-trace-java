@@ -667,6 +667,7 @@ public final class ConfigProvider {
       return properties;
     }
 
+    // Retain the platform encoding for existing configuration files.
     try (final FileReader fileReader = new FileReader(configurationFile)) {
       properties.load(fileReader);
     } catch (final FileNotFoundException fnf) {
