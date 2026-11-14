@@ -7,7 +7,6 @@ import static datadog.trace.agent.test.utils.TestAgentPort.parse
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_SNAPSHOT_URL
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_VERIFY_BYTECODE
 import static datadog.trace.api.config.TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_ENABLED
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious
 import static datadog.trace.util.AgentThreadFactory.AgentThread.TASK_SCHEDULER
 
 import ch.qos.logback.classic.Level
@@ -25,6 +24,7 @@ import com.datadog.debugger.sink.DebuggerSink
 import com.datadog.debugger.sink.ProbeStatusSink
 import com.google.common.collect.Sets
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
+import datadog.context.Context
 import datadog.instrument.classinject.ClassInjector
 import datadog.metrics.agent.AgentMeter
 import datadog.metrics.api.Monitoring
@@ -45,6 +45,7 @@ import datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers
 import datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnores
 import datadog.trace.api.Config
 import datadog.trace.api.IdGenerationStrategy
+import datadog.trace.api.InstrumenterConfig
 import datadog.trace.api.Pair
 import datadog.trace.api.ProcessTags
 import datadog.trace.api.TraceConfig
@@ -471,12 +472,11 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
 
     assertThreadsEachCleanup = false
 
-    closePrevious(true) // in case the previous test left a lingering iteration span
-    assert TEST_TRACER.activeSpan() == null: "Span is active before test has started: " + TEST_TRACER.activeSpan()
-
     // Config is reset before each test. Thus, configurePreAgent() has to be called before each test
     // even though the agent is already installed
     configurePreAgent()
+
+    Context.root().swap()
 
     println "Starting test: ${getSpecificationContext().getCurrentIteration().getName()} from ${specificationContext.currentSpec.name}"
     TEST_TRACER.flush()
@@ -516,6 +516,10 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
 
   void cleanup() {
     try {
+      if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+        TEST_TRACER.closePrevious(true) // finish the last iteration span before checking for leaks
+      }
+
       if (isTestAgentEnabled()) {
         // save Datadog environment to DDAgentWriter header
         addEnvironmentVariablesToHeaders(TEST_AGENT_API)
@@ -553,6 +557,9 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
 
         // check for instrumentation issues while running each test
         assert InstrumentationErrors.noErrors(): InstrumentationErrors.describeErrors()
+
+        final AgentSpan activeSpan = TEST_TRACER.activeSpan()
+        assert activeSpan == null: "Span is active after test has finished: " + activeSpan
       } catch (Throwable cleanupFailure) {
         if (scopeDiagnosticsFailure != null) {
           cleanupFailure.addSuppressed(scopeDiagnosticsFailure)

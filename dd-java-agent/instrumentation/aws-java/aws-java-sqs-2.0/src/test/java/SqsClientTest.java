@@ -16,7 +16,6 @@ import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.config.TraceInstrumentationConfig;
 import datadog.trace.api.config.TracerConfig;
 import datadog.trace.api.naming.SpanNaming;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.DDSpan;
@@ -596,7 +595,7 @@ abstract class SqsClientReceiveIterationTestBase extends AbstractInstrumentation
   @BeforeEach
   void setUpAwsCredentials() {
     if (closePreviousBeforeTest()) {
-      AgentTracer.closePrevious(true);
+      tracer.closePrevious(true);
     }
     System.setProperty(SdkSystemSetting.AWS_ACCESS_KEY_ID.property(), "my-access-key");
     System.setProperty(SdkSystemSetting.AWS_SECRET_ACCESS_KEY.property(), "my-secret-key");

@@ -81,6 +81,10 @@ public class AgentTracer {
     return get().activateSpan(span);
   }
 
+  public static AgentSpan activeSpan() {
+    return get().activeSpan();
+  }
+
   /**
    * Activate a span which will be closed by {@link #closeActive()} instead of a scope.
    *
@@ -89,30 +93,6 @@ public class AgentTracer {
   @Deprecated
   public static void activateSpanWithoutScope(final AgentSpan span) {
     get().activateSpanWithoutScope(span);
-  }
-
-  /**
-   * Checkpoints the active scope. A subsequent call to {@link #rollbackActiveToCheckpoint()} closes
-   * outstanding scopes up to but not including the most recent checkpointed scope.
-   *
-   * @deprecated This should only be used when scopes might leak onto the scope stack which cannot
-   *     be cleaned up by other means.
-   */
-  @Deprecated
-  public static void checkpointActiveForRollback() {
-    get().checkpointActiveForRollback();
-  }
-
-  /**
-   * Closes outstanding scopes up to but not including the most recent scope checkpointed with
-   * {@link #checkpointActiveForRollback()}. Closes all scopes if none have been checkpointed.
-   *
-   * @deprecated This should only be used when scopes have leaked onto the scope stack that cannot
-   *     be cleaned up by other means.
-   */
-  @Deprecated
-  public static void rollbackActiveToCheckpoint() {
-    get().rollbackActiveToCheckpoint();
   }
 
   /**
@@ -126,33 +106,12 @@ public class AgentTracer {
     get().closeActive();
   }
 
-  /**
-   * Closes the immediately previous iteration scope. Should be called before creating a new span
-   * for {@link #activateNext(AgentSpan)}.
-   */
-  public static void closePrevious(final boolean finishSpan) {
-    get().closePrevious(finishSpan);
-  }
-
-  /**
-   * Activates a new iteration scope; closes automatically after a fixed period.
-   *
-   * @see datadog.trace.api.config.TracerConfig#SCOPE_ITERATION_KEEP_ALIVE
-   */
-  public static ContextScope activateNext(final AgentSpan span) {
-    return get().activateNext(span);
-  }
-
   public static TraceConfig traceConfig(final AgentSpan span) {
     return null != span ? span.traceConfig() : traceConfig();
   }
 
   public static TraceConfig traceConfig() {
     return get().captureTraceConfig();
-  }
-
-  public static AgentSpan activeSpan() {
-    return get().activeSpan();
   }
 
   /**
@@ -264,50 +223,13 @@ public class AgentTracer {
         AgentSpanContext parent,
         long startTimeMicros);
 
-    /** Activate a span from inside auto-instrumentation. */
-    ContextScope activateSpan(AgentSpan span);
-
-    /** Activate a span from outside auto-instrumentation, i.e. a manual or custom span. */
-    ContextScope activateManualSpan(AgentSpan span);
-
-    /** Activate a span which will be closed by {@link #closeActive()} instead of a scope. */
-    void activateSpanWithoutScope(AgentSpan span);
-
-    @Override
-    default boolean isAsyncPropagationEnabled() {
-      return Context.isCaptureEnabled();
-    }
-
-    @Override
-    default void setAsyncPropagationEnabled(boolean asyncPropagationEnabled) {
-      Context.setCaptureEnabled(asyncPropagationEnabled);
-    }
-
-    @Override
-    default TraceScope.Continuation captureActiveSpan() {
-      Context current = currentContext();
-      if (AgentSpan.fromContext(current) == null) {
-        return NoopTraceScope.NoopContinuation.INSTANCE;
-      }
-      // captureActiveSpan is deprecated; use a best-effort wrapper
-      return new TraceScopeContinuationWrapper(capture(current));
-    }
-
-    void checkpointActiveForRollback();
-
-    void rollbackActiveToCheckpoint();
-
-    void closeActive();
-
-    void closePrevious(boolean finishSpan);
-
-    ContextScope activateNext(AgentSpan span);
-
-    AgentSpan activeSpan();
-
-    default AgentSpan blackholeSpan() {
-      final AgentSpan active = activeSpan();
-      return new BlackHoleSpan(active != null ? active.getTraceId() : DDTraceId.ZERO);
+    /**
+     * Creates and starts a span seeded from a {@link SpanPrototype}. This is the
+     * auto-instrumentation entry point mirroring {@link #startSpan(String, CharSequence)}; see
+     * {@link #buildSpan(SpanPrototype, CharSequence)}.
+     */
+    default AgentSpan startSpan(@Nonnull SpanPrototype prototype, CharSequence operationName) {
+      return buildSpan(prototype, operationName).start();
     }
 
     /**
@@ -333,21 +255,15 @@ public class AgentTracer {
     }
 
     /**
-     * Creates and starts a span seeded from a {@link SpanPrototype}. This is the
-     * auto-instrumentation entry point mirroring {@link #startSpan(String, CharSequence)}; see
-     * {@link #buildSpan(SpanPrototype, CharSequence)}.
-     */
-    default AgentSpan startSpan(@Nonnull SpanPrototype prototype, CharSequence operationName) {
-      return buildSpan(prototype, operationName).start();
-    }
-
-    /**
      * Returns a SpanBuilder that can be used to produce one and only one span. By imposing the
      * single span creation limitation, this method is more efficient than {@link #buildSpan}
      */
     SpanBuilder singleSpanBuilder(String instrumentationName, CharSequence spanName);
 
-    void close();
+    default AgentSpan blackholeSpan() {
+      final AgentSpan active = activeSpan();
+      return new BlackHoleSpan(active != null ? active.getTraceId() : DDTraceId.ZERO);
+    }
 
     /**
      * Attach a scope listener to the global scope manager
@@ -388,7 +304,58 @@ public class AgentTracer {
 
     void addShutdownListener(Runnable listener);
 
-    // these methods are only used for legacy context manager migration
+    void close();
+
+    // internal scope methods which will soon be replaced with their Context equivalents
+
+    /** Activate a span from inside auto-instrumentation. */
+    ContextScope activateSpan(AgentSpan span);
+
+    /** Activate a span from outside auto-instrumentation, i.e. a manual or custom span. */
+    ContextScope activateManualSpan(AgentSpan span);
+
+    AgentSpan activeSpan();
+
+    /** Activate a span which will be closed by {@link #closeActive()} instead of a scope. */
+    void activateSpanWithoutScope(AgentSpan span);
+
+    void closeActive();
+
+    // deprecated public Tracer API methods which we can't remove yet for compatibility reasons
+
+    @Override
+    default boolean isAsyncPropagationEnabled() {
+      return Context.isCaptureEnabled();
+    }
+
+    @Override
+    default void setAsyncPropagationEnabled(boolean asyncPropagationEnabled) {
+      Context.setCaptureEnabled(asyncPropagationEnabled);
+    }
+
+    @Override
+    default TraceScope.Continuation captureActiveSpan() {
+      Context current = currentContext();
+      if (AgentSpan.fromContext(current) == null) {
+        return NoopTraceScope.NoopContinuation.INSTANCE;
+      }
+      // captureActiveSpan is deprecated; use a best-effort wrapper
+      return new TraceScopeContinuationWrapper(capture(current));
+    }
+
+    // deprecated temporary methods only used for legacy context manager migration
+
+    @Deprecated
+    void checkpointActiveForRollback();
+
+    @Deprecated
+    void rollbackActiveToCheckpoint();
+
+    @Deprecated
+    void closePrevious(boolean finishSpan);
+
+    @Deprecated
+    ContextScope activateNext(AgentSpan span);
 
     @Deprecated
     Context currentContext();
