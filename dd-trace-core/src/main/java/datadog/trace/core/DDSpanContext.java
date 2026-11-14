@@ -1099,7 +1099,7 @@ public class DDSpanContext
     if (null == tag) {
       return;
     }
-    final long tagId = KnownTagCodec.keyOf(tag);
+    final long tagId = KnownTagCodec.idOf(tag);
     if (tagId != 0) {
       setTag(tagId, value);
     } else if (null == value) {
@@ -1115,7 +1115,7 @@ public class DDSpanContext
     if (null == tag) {
       return;
     }
-    final long tagId = KnownTagCodec.keyOf(tag);
+    final long tagId = KnownTagCodec.idOf(tag);
     if (tagId != 0) {
       setTag(tagId, value);
     } else if (null == value) {
@@ -1262,7 +1262,7 @@ public class DDSpanContext
     if (null == tag) {
       return;
     }
-    final long tagId = KnownTagCodec.keyOf(tag);
+    final long tagId = KnownTagCodec.idOf(tag);
     if (tagId != 0) {
       setTag(tagId, value);
     } else if (!tagInterceptor.needsInterceptCustomTag(tag)
@@ -1277,7 +1277,7 @@ public class DDSpanContext
     if (null == tag) {
       return;
     }
-    final long tagId = KnownTagCodec.keyOf(tag);
+    final long tagId = KnownTagCodec.idOf(tag);
     if (tagId != 0) {
       setTag(tagId, value);
     } else if (!tagInterceptor.needsInterceptCustomTag(tag)
@@ -1292,7 +1292,7 @@ public class DDSpanContext
     if (null == tag) {
       return;
     }
-    final long tagId = KnownTagCodec.keyOf(tag);
+    final long tagId = KnownTagCodec.idOf(tag);
     if (tagId != 0) {
       setTag(tagId, value);
     } else if (!tagInterceptor.needsInterceptCustomTag(tag)
@@ -1307,7 +1307,7 @@ public class DDSpanContext
     if (null == tag) {
       return;
     }
-    final long tagId = KnownTagCodec.keyOf(tag);
+    final long tagId = KnownTagCodec.idOf(tag);
     if (tagId != 0) {
       setTag(tagId, value);
     } else if (!tagInterceptor.needsInterceptCustomTag(tag)
@@ -1322,7 +1322,7 @@ public class DDSpanContext
     if (null == tag) {
       return;
     }
-    final long tagId = KnownTagCodec.keyOf(tag);
+    final long tagId = KnownTagCodec.idOf(tag);
     if (tagId != 0) {
       setTag(tagId, value);
     } else if (!tagInterceptor.needsInterceptCustomTag(tag)
@@ -1506,7 +1506,7 @@ public class DDSpanContext
     if (direction == KnownTagCodec.DIRECTION_UNKNOWN) {
       return null;
     }
-    long tagId = KnownTagCodec.directionalKeyOf(tag, direction);
+    long tagId = KnownTagCodec.directionalIdOf(tag, direction);
     if (tagId == 0) {
       return null;
     }

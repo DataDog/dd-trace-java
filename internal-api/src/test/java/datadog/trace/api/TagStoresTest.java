@@ -230,7 +230,7 @@ class TagStoresTest {
     IdStore ids = IdStore.create(null);
     HashStore names = HashStore.create(null);
     // a direction-scoped OpenTelemetry name is resolved at the OpenTelemetry boundary, not here
-    assertEquals(0L, KnownTagCodec.keyOf("server.address"));
+    assertEquals(0L, KnownTagCodec.idOf("server.address"));
 
     ids.store(KnownTags.HTTP_ROUTE, "/a");
     names.store("my.tag", "custom");
@@ -310,7 +310,7 @@ class TagStoresTest {
   private static java.util.List<Long> knownIds() {
     java.util.List<Long> ids = new java.util.ArrayList<>();
     for (int serial = 1; serial < KnownTagCodec.serialLimit(); serial++) {
-      long id = KnownTagCodec.keyOf(KnownTagCodec.nameOf(KnownTagCodec.makeTagId(serial)));
+      long id = KnownTagCodec.idOf(KnownTagCodec.nameOf(KnownTagCodec.makeTagId(serial)));
       if (id > 0) {
         ids.add(id);
       }

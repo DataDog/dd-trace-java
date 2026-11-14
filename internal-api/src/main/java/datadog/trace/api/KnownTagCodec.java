@@ -19,7 +19,7 @@ public final class KnownTagCodec {
    * hold the tag's slot ({@link #slotOf}), assigned by graph coloring so tags on one span type never
    * share a slot, or {@link #NO_SLOT} for a tag on no modeled span type. Of the low 32 flag bits, bit 2 is
    * the trace/span LEVEL bit (set ⟹ trace-level), and bit 1 is the INTERCEPTED bit. Unknown
-   * (string-only) custom tags are NOT known ids — {@code keyOf} returns 0 for them.
+   * (string-only) custom tags are NOT known ids — {@code idOf} returns 0 for them.
    *
    * <p>There is one id per Datadog name. A tag the conventions declare once per direction, such as
    * {@code peer.port}, is still one tag: only its OpenTelemetry name depends on the span's
@@ -85,7 +85,7 @@ public final class KnownTagCodec {
 
   /**
    * True if the tag has a slot, below {@link #slotCount()}. False for {@code 0L}, the id {@link
-   * #keyOf} gives a custom tag, which would otherwise decode as slot 0.
+   * #idOf} gives a custom tag, which would otherwise decode as slot 0.
    */
   public static boolean hasSlot(long tagId) {
     return tagId != 0L && slotOf(tagId) != NO_SLOT;
@@ -168,10 +168,10 @@ public final class KnownTagCodec {
     String openTelemetryNameOf(long tagId, int direction);
 
     /** The id for {@code name} in ANY namespace (many→one), or 0 when it is not a known tag. */
-    long keyOf(String name);
+    long idOf(String name);
 
-    /** See {@link KnownTagCodec#directionalKeyOf}. */
-    long directionalKeyOf(String name, int direction);
+    /** See {@link KnownTagCodec#directionalIdOf}. */
+    long directionalIdOf(String name, int direction);
   }
 
   /**
@@ -251,8 +251,8 @@ public final class KnownTagCodec {
   }
 
   /** The id for {@code name} in any namespace, or 0 when it is not a known tag. */
-  public static long keyOf(String name) {
-    return Installed.RESOLVER.keyOf(name);
+  public static long idOf(String name) {
+    return Installed.RESOLVER.idOf(name);
   }
 
   /**
@@ -266,7 +266,7 @@ public final class KnownTagCodec {
    * {@link #openTelemetryTagOf}) should see them as different.
    */
   public static String canonicalTagName(String name) {
-    long id = keyOf(name);
+    long id = idOf(name);
     return id != 0 ? nameOf(id) : name;
   }
 
@@ -279,15 +279,15 @@ public final class KnownTagCodec {
    * where it names no tag, or when {@code name} is null. The core stores and reads Datadog names
    * only; this is for the OpenTelemetry side, which knows its span's direction.
    */
-  public static long directionalKeyOf(String name, int direction) {
+  public static long directionalIdOf(String name, int direction) {
     // a null attribute key comes from the application; leave it for the span builder to ignore
-    return name == null ? 0L : Installed.RESOLVER.directionalKeyOf(name, direction);
+    return name == null ? 0L : Installed.RESOLVER.directionalIdOf(name, direction);
   }
 
   /** True if {@code name} denotes a different tag depending on the span's direction. */
   public static boolean isDirectionScoped(String name) {
     for (int direction = DIRECTION_INBOUND; direction <= DIRECTION_NONE; direction++) {
-      if (directionalKeyOf(name, direction) != 0) {
+      if (directionalIdOf(name, direction) != 0) {
         return true;
       }
     }

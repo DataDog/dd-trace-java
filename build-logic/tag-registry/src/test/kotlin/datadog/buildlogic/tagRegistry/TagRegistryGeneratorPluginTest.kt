@@ -248,8 +248,8 @@ class TagRegistryGeneratorPluginTest {
         public interface Resolver {
           String nameOf(long id);
           String openTelemetryNameOf(long id, int direction);
-          long keyOf(String name);
-          long directionalKeyOf(String name, int direction);
+          long idOf(String name);
+          long directionalIdOf(String name, int direction);
         }
         public static final int DIRECTION_UNKNOWN = -1;
         public static final int DIRECTION_INBOUND = 0;

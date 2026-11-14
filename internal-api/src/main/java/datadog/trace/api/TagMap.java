@@ -479,7 +479,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
      */
     private Entry(String tag, byte type, long prim, Object obj) {
       this(0L, tag, type, prim, obj);
-      assert KnownTagCodec.keyOf(tag) == 0 : "'" + tag + "' is a known tag; build it from its id";
+      assert KnownTagCodec.idOf(tag) == 0 : "'" + tag + "' is a known tag; build it from its id";
     }
 
     Entry(long tagId, byte type, long prim, Object obj) {
@@ -514,7 +514,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
     /** The tag hash a name maps to: its id when known, else its {@link #customHash}. */
     static long tagHashOf(String tag) {
-      long tagId = KnownTagCodec.keyOf(tag);
+      long tagId = KnownTagCodec.idOf(tag);
       return tagId != 0 ? tagId : customHash(tag);
     }
 
@@ -1398,7 +1398,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
    * straight from its store, so a store without an Entry per tag builds none.
    */
   public Object getObject(String tag) {
-    long key = KnownTagCodec.keyOf(tag);
+    long key = KnownTagCodec.idOf(tag);
     if (key != 0) {
       return this.knownStore.load(key);
     }
@@ -1412,7 +1412,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
    * #getObject}, a known tag is read straight from its store.
    */
   public String getString(String tag) {
-    long key = KnownTagCodec.keyOf(tag);
+    long key = KnownTagCodec.idOf(tag);
     if (key != 0) {
       return this.knownStore.loadString(key);
     }
@@ -1545,7 +1545,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   public Entry getEntry(String tag) {
     // Entries are stored under their canonical Datadog name (see Entry's constructor); a lookup by
     // an OpenTelemetry rename must resolve to the same id, or it would silently miss the entry.
-    long key = KnownTagCodec.keyOf(tag);
+    long key = KnownTagCodec.idOf(tag);
     if (key != 0) {
       return this.knownStore.getEntry(key);
     }
@@ -1564,7 +1564,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
    * call {@link EntryReader#entry()} to keep one. Safe on a frozen map that several threads read.
    */
   public EntryReader getEntryReader(String tag) {
-    long key = KnownTagCodec.keyOf(tag);
+    long key = KnownTagCodec.idOf(tag);
     if (key != 0) {
       return this.knownStore.getEntryReader(key);
     }
@@ -1602,37 +1602,37 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
    * from its id or a custom tag from its name. (Entry's own name factories are custom-only.)
    */
   static Entry anyEntryFor(String tag, Object value) {
-    long key = KnownTagCodec.keyOf(tag);
+    long key = KnownTagCodec.idOf(tag);
     return key != 0 ? Entry.newAnyEntry(key, value) : Entry.newAnyEntry(tag, value);
   }
 
   static Entry objectEntryFor(String tag, CharSequence value) {
-    long key = KnownTagCodec.keyOf(tag);
+    long key = KnownTagCodec.idOf(tag);
     return key != 0 ? Entry.newObjectEntry(key, value) : Entry.newObjectEntry(tag, value);
   }
 
   static Entry booleanEntryFor(String tag, boolean value) {
-    long key = KnownTagCodec.keyOf(tag);
+    long key = KnownTagCodec.idOf(tag);
     return key != 0 ? Entry.newBooleanEntry(key, value) : Entry.newBooleanEntry(tag, value);
   }
 
   static Entry intEntryFor(String tag, int value) {
-    long key = KnownTagCodec.keyOf(tag);
+    long key = KnownTagCodec.idOf(tag);
     return key != 0 ? Entry.newIntEntry(key, value) : Entry.newIntEntry(tag, value);
   }
 
   static Entry longEntryFor(String tag, long value) {
-    long key = KnownTagCodec.keyOf(tag);
+    long key = KnownTagCodec.idOf(tag);
     return key != 0 ? Entry.newLongEntry(key, value) : Entry.newLongEntry(tag, value);
   }
 
   static Entry floatEntryFor(String tag, float value) {
-    long key = KnownTagCodec.keyOf(tag);
+    long key = KnownTagCodec.idOf(tag);
     return key != 0 ? Entry.newFloatEntry(key, value) : Entry.newFloatEntry(tag, value);
   }
 
   static Entry doubleEntryFor(String tag, double value) {
-    long key = KnownTagCodec.keyOf(tag);
+    long key = KnownTagCodec.idOf(tag);
     return key != 0 ? Entry.newDoubleEntry(key, value) : Entry.newDoubleEntry(tag, value);
   }
 
@@ -1642,7 +1642,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       this.getAndRemove(tag);
       return;
     }
-    long key = KnownTagCodec.keyOf(tag);
+    long key = KnownTagCodec.idOf(tag);
     if (key != 0) {
       this.putKnown(Entry.newAnyEntry(key, value));
     } else {
@@ -1656,7 +1656,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       this.getAndRemove(tag);
       return;
     }
-    long key = KnownTagCodec.keyOf(tag);
+    long key = KnownTagCodec.idOf(tag);
     if (key != 0) {
       this.putKnown(Entry.newObjectEntry(key, value));
     } else {
@@ -1665,7 +1665,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   public void set(@Nonnull String tag, boolean value) {
-    long key = KnownTagCodec.keyOf(tag);
+    long key = KnownTagCodec.idOf(tag);
     if (key != 0) {
       this.putKnown(Entry.newBooleanEntry(key, value));
     } else {
@@ -1674,7 +1674,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   public void set(@Nonnull String tag, int value) {
-    long key = KnownTagCodec.keyOf(tag);
+    long key = KnownTagCodec.idOf(tag);
     if (key != 0) {
       this.putKnown(Entry.newIntEntry(key, value));
     } else {
@@ -1683,7 +1683,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   public void set(@Nonnull String tag, long value) {
-    long key = KnownTagCodec.keyOf(tag);
+    long key = KnownTagCodec.idOf(tag);
     if (key != 0) {
       this.putKnown(Entry.newLongEntry(key, value));
     } else {
@@ -1692,7 +1692,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   public void set(@Nonnull String tag, float value) {
-    long key = KnownTagCodec.keyOf(tag);
+    long key = KnownTagCodec.idOf(tag);
     if (key != 0) {
       this.putKnown(Entry.newFloatEntry(key, value));
     } else {
@@ -1701,7 +1701,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   public void set(@Nonnull String tag, double value) {
-    long key = KnownTagCodec.keyOf(tag);
+    long key = KnownTagCodec.idOf(tag);
     if (key != 0) {
       this.putKnown(Entry.newDoubleEntry(key, value));
     } else {
@@ -1975,7 +1975,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
     // See getEntry: entries are stored under their canonical Datadog name, so a removal by an
     // OpenTelemetry rename must resolve to the id first to find (and tombstone) the right entry.
-    long key = KnownTagCodec.keyOf(tag);
+    long key = KnownTagCodec.idOf(tag);
     return key != 0 ? entryOf(this.knownStore.remove(key)) : this.removeCustom(tag);
   }
 
