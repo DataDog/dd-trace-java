@@ -198,6 +198,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_REPORT_HOSTNAME;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_RESOLVER_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_STATS_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_UNIVERSAL_INSTRUMENTATION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_WEBSOCKET_MESSAGES_INHERIT_SAMPLING;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_WEBSOCKET_MESSAGES_SEPARATE_TRACES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_WEBSOCKET_TAG_SESSION_ID;
@@ -746,6 +747,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_SERVICE_DISCOVERY_ENAB
 import static datadog.trace.api.config.TracerConfig.TRACE_SPAN_ATTRIBUTE_SCHEMA;
 import static datadog.trace.api.config.TracerConfig.TRACE_STRICT_WRITES_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_X_DATADOG_TAGS_MAX_LENGTH;
+import static datadog.trace.api.config.TracerConfig.UNIVERSAL_INSTRUMENTATION;
 import static datadog.trace.api.config.TracerConfig.WRITER_BAGGAGE_INJECT;
 import static datadog.trace.api.config.TracerConfig.WRITER_LINKS_INJECT;
 import static datadog.trace.api.config.TracerConfig.WRITER_TYPE;
@@ -1377,6 +1379,7 @@ public class Config {
   private final boolean secureRandom;
 
   private final boolean lambdaSnapStartClockResyncEnabled;
+  private final boolean universalInstrumentationEnabled;
 
   private final boolean trace128bitTraceIdGenerationEnabled;
   private final boolean logs128bitTraceIdEnabled;
@@ -1610,6 +1613,8 @@ public class Config {
     } else {
       secureRandom = configProvider.getBoolean(SECURE_RANDOM, DEFAULT_SECURE_RANDOM);
     }
+    universalInstrumentationEnabled =
+        parseUniversalInstrumentation(configProvider.getString(UNIVERSAL_INSTRUMENTATION));
     lambdaSnapStartClockResyncEnabled =
         configProvider.getBoolean(
             TRACE_LAMBDA_SNAPSTART_CLOCK_RESYNC_ENABLED,
@@ -5340,6 +5345,36 @@ public class Config {
     return awsServerless;
   }
 
+  /** Whether Lambda invocation tracing is delegated to the extension. */
+  public boolean isUniversalInstrumentationEnabled() {
+    return universalInstrumentationEnabled;
+  }
+
+  private static boolean parseUniversalInstrumentation(String value) {
+    if (value == null || value.isEmpty()) {
+      return DEFAULT_UNIVERSAL_INSTRUMENTATION;
+    }
+    switch (value) {
+      case "1":
+      case "t":
+      case "T":
+      case "true":
+      case "TRUE":
+      case "True":
+        return true;
+      case "0":
+      case "f":
+      case "F":
+      case "false":
+      case "FALSE":
+      case "False":
+        return false;
+      default:
+        log.warn("Invalid DD_UNIVERSAL_INSTRUMENTATION value; using the default");
+        return DEFAULT_UNIVERSAL_INSTRUMENTATION;
+    }
+  }
+
   public boolean isLambdaSnapStartClockResyncEnabled() {
     return lambdaSnapStartClockResyncEnabled;
   }
@@ -6752,7 +6787,9 @@ public class Config {
   @Override
   public String toString() {
     return "Config{"
-        + "instrumenterConfig="
+        + "universalInstrumentationEnabled="
+        + universalInstrumentationEnabled
+        + ", instrumenterConfig="
         + instrumenterConfig
         + ", runtimeId='"
         + getRuntimeId()
