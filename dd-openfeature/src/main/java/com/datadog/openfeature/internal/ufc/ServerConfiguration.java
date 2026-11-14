@@ -13,6 +13,9 @@ public final class ServerConfiguration {
   public final Environment environment;
   public final Map<String, Flag> flags;
 
+  /** Optional evaluator controls retained in their inbound UFC shape. */
+  public final Object evaluatorParams;
+
   // Flags that could not be parsed or validated. The key is the flag key; the value is the error
   // type (e.g. "invalid_semver_comparand"). Set during configuration preprocessing, not from JSON.
   public transient Map<String, String> invalidFlags = Collections.emptyMap();
@@ -23,10 +26,21 @@ public final class ServerConfiguration {
       final Boolean observeFullEvaluationData,
       final Environment environment,
       final Map<String, Flag> flags) {
+    this(createdAt, format, observeFullEvaluationData, environment, flags, null);
+  }
+
+  public ServerConfiguration(
+      final String createdAt,
+      final String format,
+      final Boolean observeFullEvaluationData,
+      final Environment environment,
+      final Map<String, Flag> flags,
+      final Object evaluatorParams) {
     this.createdAt = createdAt;
     this.format = format;
     this.observeFullEvaluationData = observeFullEvaluationData;
     this.environment = environment;
     this.flags = flags;
+    this.evaluatorParams = evaluatorParams;
   }
 }

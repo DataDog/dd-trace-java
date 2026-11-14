@@ -48,6 +48,7 @@ public class Provider extends EventProvider implements Metadata {
       new AtomicReference<>(InitializationState.NOT_STARTED);
   private final FlagEvalMetrics flagEvalMetrics;
   private final FlagEvalMetricsHook flagEvalMetricsHook;
+  private final boolean evaluationTelemetryOptOutEnabled;
   // Span enrichment: null unless the gate is on, so the feature has no idle overhead when off.
   private final SpanEnrichmentHook spanEnrichmentHook;
   // Precomputed hook list returned by getProviderHooks() on every evaluation. Immutable and built
@@ -92,14 +93,15 @@ public class Provider extends EventProvider implements Metadata {
     FlagEvalMetricsHook hook = null;
     try {
       metrics = new FlagEvalMetrics();
-      hook = new FlagEvalMetricsHook(metrics);
+      hook = new FlagEvalMetricsHook(metrics, this::datadogEvaluator);
     } catch (LinkageError | Exception e) {
       // This outer catch fires when the metrics helper itself can't load (OTel API absent).
       log.warn("Evaluation metrics unavailable — OTel API classes not on classpath", e);
     }
     this.flagEvalMetrics = metrics;
     this.flagEvalMetricsHook = hook;
-
+    this.evaluationTelemetryOptOutEnabled =
+        options.isEvaluationTelemetryOptOutParameterEnabled(this.settings);
     // Span enrichment is wired ONLY when the gate is on — off means no capture hook and no idle
     // per-evaluation overhead.
     final boolean spanEnrichmentEnabled =
@@ -117,11 +119,11 @@ public class Provider extends EventProvider implements Metadata {
     }
     // EVP flagevaluation hook: always registered; no-op when the pipeline is absent (killswitch
     // off or provider not initialized). The pipeline is resolved lazily on each call.
-    hooks.add(new FlagEvalLoggingHook<>(this::flagEvaluationPipeline));
+    hooks.add(new FlagEvalLoggingHook<>(this::flagEvaluationPipeline, this::datadogEvaluator));
     if (spanEnrichmentHook != null) {
       hooks.add(spanEnrichmentHook);
     }
-    if (options.isEvaluationTelemetryOptOutParameterEnabled(this.settings)) {
+    if (this.evaluationTelemetryOptOutEnabled) {
       for (int i = 0; i < hooks.size(); i++) {
         hooks.set(i, new EvaluationTelemetryOptOutHook(hooks.get(i)));
       }
@@ -308,8 +310,13 @@ public class Provider extends EventProvider implements Metadata {
     if (evaluator != null) {
       return evaluator;
     }
-    return new DDEvaluator(
-        this::onConfigurationChange, this.bridge, this.settings, this.experimentationOptOutMode);
+    final DDEvaluator built =
+        new DDEvaluator(
+            this::onConfigurationChange,
+            this.bridge,
+            this.settings,
+            this.experimentationOptOutMode);
+    return built;
   }
 
   private FlagEvaluationWriter flagEvaluationPipeline() {

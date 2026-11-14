@@ -23,8 +23,8 @@ final class EvaluationTelemetryOptOutHook implements Hook<Object> {
       final HookContext<Object> context, final Map<String, Object> hints) {
     // Provider before hooks see the merged context, including application before hooks.
     // HookData belongs to this evaluation, including nested and concurrent calls.
-    context.getHookData().set(DECISION, isOptedOut(context.getCtx()));
-    return Optional.empty();
+    HookDataAccessor.set(context, DECISION, isOptedOut(context.getCtx()));
+    return delegate.before(context, hints);
   }
 
   @Override
@@ -32,8 +32,8 @@ final class EvaluationTelemetryOptOutHook implements Hook<Object> {
       final HookContext<Object> context, final Exception error, final Map<String, Object> hints) {
     // A failing application before hook can prevent our before hook from running.
     // Preserve its decision before application error hooks can change the context.
-    if (context.getHookData().get(DECISION) == null) {
-      context.getHookData().set(DECISION, isOptedOut(context.getCtx()));
+    if (HookDataAccessor.get(context, DECISION) == null) {
+      HookDataAccessor.set(context, DECISION, isOptedOut(context.getCtx()));
     }
   }
 
@@ -42,7 +42,8 @@ final class EvaluationTelemetryOptOutHook implements Hook<Object> {
       final HookContext<Object> context,
       final FlagEvaluationDetails<Object> details,
       final Map<String, Object> hints) {
-    if (Boolean.TRUE.equals(context.getHookData().get(DECISION)) || isOptedOut(context.getCtx())) {
+    final Object decision = HookDataAccessor.take(context, DECISION);
+    if (Boolean.TRUE.equals(decision) || isOptedOut(context.getCtx())) {
       return;
     }
     delegate.finallyAfter(context, details, hints);

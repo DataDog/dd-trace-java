@@ -1,5 +1,7 @@
 package com.datadog.openfeature.internal.delivery;
 
+import static java.util.Collections.emptySet;
+import static java.util.Collections.singleton;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -175,6 +177,42 @@ class CdnConfigurationSourceTest {
     assertEquals("gzip", request.header("Accept-Encoding"));
     assertEquals("java", request.header("Datadog-Meta-Lang"));
     assertNull(request.header("If-None-Match"));
+    assertNull(request.header("X-DD-FEATURE-FLAGS-CAPABILITIES"));
+    assertEquals("cap_dependent-flags-variant-key=v1", request.uri.getRawQuery());
+  }
+
+  @Test
+  void doesNotAddCapabilityForUnsupportedEvaluators() {
+    final URI endpoint = URI.create("https://example.com/ufc?token=a%2Bb#section");
+    assertEquals(endpoint, CdnConfigurationSource.requestEndpoint(endpoint, emptySet()));
+    assertEquals(
+        endpoint, CdnConfigurationSource.requestEndpoint(endpoint, singleton("unknown-v1")));
+  }
+
+  @TableTest({
+    "Scenario          | Suffix                                                                      | Expected query                                                                ",
+    "no query          | ''                                                                          | 'cap_dependent-flags-variant-key=v1'                                          ",
+    "empty query       | '?'                                                                         | 'cap_dependent-flags-variant-key=v1'                                          ",
+    "encoded token     | '?token=a%2Bb'                                                              | 'token=a%2Bb&cap_dependent-flags-variant-key=v1'                              ",
+    "old capability    | '?cap_dependent-flags-variant-key=old&token=a%2Bb'                          | 'token=a%2Bb&cap_dependent-flags-variant-key=v1'                              ",
+    "bare capability   | '?cap_dependent-flags-variant-key'                                          | 'cap_dependent-flags-variant-key=v1'                                          ",
+    "duplicates        | '?cap_dependent-flags-variant-key=v1&cap_dependent-flags-variant-key=old'   | 'cap_dependent-flags-variant-key=v1'                                          ",
+    "encoded duplicate | '?cap_dependent-flags-variant-key=v1&%63ap_dependent-flags-variant-key=old' | 'cap_dependent-flags-variant-key=v1'                                          ",
+    "encoded key       | '?cap_dependent%2Dflags-variant-key=old&token=a%2Bb'                        | 'token=a%2Bb&cap_dependent-flags-variant-key=v1'                              ",
+    "unrelated key     | '?cap_dependent-flags-variant-key-extra=old'                                | 'cap_dependent-flags-variant-key-extra=old&cap_dependent-flags-variant-key=v1'"
+  })
+  void normalizesAgentlessCapabilityQuery(final String suffix, final String expectedQuery) {
+    for (final String fragment : new String[] {"", "#section"}) {
+      final URI actual =
+          CdnConfigurationSource.requestEndpoint(
+              URI.create("https://example.com/ufc" + suffix + fragment),
+              singleton("dependent-flag-variant-key-v1"));
+      assertEquals(URI.create("https://example.com/ufc?" + expectedQuery + fragment), actual);
+      assertEquals(
+          actual,
+          CdnConfigurationSource.requestEndpoint(
+              actual, singleton("dependent-flag-variant-key-v1")));
+    }
   }
 
   @Test
