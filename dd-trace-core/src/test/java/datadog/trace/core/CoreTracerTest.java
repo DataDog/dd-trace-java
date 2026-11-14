@@ -693,6 +693,39 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
     }
   }
 
+  /** A remote config DSM enable applied while the tracer is still being constructed is kept. */
+  @Test
+  void remoteConfigDataStreamsEnableDuringConstructionRegistersPropagator() throws Exception {
+    ParsedConfigKey key = ParsedConfigKey.parse("datadog/2/APM_TRACING/config_overrides/config");
+    ConfigurationPoller poller = mock(ConfigurationPoller.class);
+    SharedCommunicationObjects sco = createScoWithPoller(poller);
+
+    // Applied when the poller starts, before the constructor creates Data Streams Monitoring
+    doAnswer(
+            inv -> {
+              ProductListener updater = inv.getArgument(1, ProductListener.class);
+              String json = "{\"lib_config\":{\"data_streams_enabled\": true}}";
+              updater.accept(key, json.getBytes(StandardCharsets.UTF_8), null);
+              updater.commit(null);
+              return null;
+            })
+        .when(poller)
+        .addListener(eq(Product.APM_TRACING), any(ProductListener.class));
+
+    CoreTracer tracer =
+        CoreTracer.builder().sharedCommunicationObjects(sco).pollForTracingConfiguration().build();
+    unclosedTracers.add(tracer);
+
+    try {
+      assertTrue(tracer.captureTraceConfig().isDataStreamsEnabled());
+      Propagator dsmPropagator =
+          ((DataStreamsMonitoring) tracer.getDataStreamsMonitoring()).propagator();
+      assertSame(dsmPropagator, Propagators.forConcern(DSM_CONCERN));
+    } finally {
+      tracer.close();
+    }
+  }
+
   @Test
   void dataStreamsEnabledAtStartupRegistersPropagator() {
     injectSysConfig(GeneralConfig.DATA_STREAMS_ENABLED, "true");
