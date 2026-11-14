@@ -1,0 +1,13 @@
+_v: 1
+name: spring-web
+display_name: Spring Web MVC
+description: Instruments Spring MVC HTTP controller handling and view rendering, with route naming, code-origin
+  capture, API endpoint discovery, request and response security checks, and taint tracking.
+packages:
+- name: org.jboss.resteasy:resteasy-spring
+- name: org.springframework:spring-webmvc
+category:
+- http.server
+- template.render
+systems: []
+creation_date: '2017-10-30'

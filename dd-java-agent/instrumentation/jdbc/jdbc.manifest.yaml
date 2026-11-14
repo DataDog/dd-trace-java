@@ -1,0 +1,27 @@
+_v: 1
+name: jdbc
+display_name: JDBC
+description: Instruments JDBC SQL statement execution and connection-pool waits, with Database Monitoring correlation,
+  SQL-injection checks, and result-set taint tracking.
+packages: []
+category:
+- db.client
+systems:
+- aws.redshift
+- derby
+- h2database
+- hbase
+- hive
+- hsqldb
+- ibm.db2
+- ibm.informix
+- mariadb
+- microsoft.sql_server
+- mysql
+- oracle.db
+- postgresql
+- sap.hana
+- snowflake
+- sqlite
+- vertica
+creation_date: '2017-10-20'
