@@ -1,5 +1,6 @@
 package datadog.trace.core.propagation.ptags;
 
+import datadog.trace.api.llmobs.LLMObsContext;
 import datadog.trace.api.llmobs.LLMObsPropagationValues;
 
 /**
@@ -57,12 +58,12 @@ final class LLMObsTagValues {
   /** The wire-level values an injection supplied, encoded as tags. */
   static LLMObsTagValues from(LLMObsPropagationValues values) {
     return of(
-        toTagValue(values.traceId),
+        toUniqueTagValue(values.traceId),
         toTagValue(values.mlApp),
         toTagValue(values.sessionId),
-        toTagValue(values.parentAgentSpanId),
+        toUniqueTagValue(values.parentAgentSpanId),
         toTagValue(values.parentAgentName),
-        toTagValue(values.parentId),
+        toUniqueTagValue(values.parentId),
         toTagValue(values.sampleRate),
         toTagValue(values.samplingDecision));
   }
@@ -79,6 +80,34 @@ final class LLMObsTagValues {
       return null;
     }
     return TagValue.from(value);
+  }
+
+  /**
+   * Like {@link #toTagValue}, for an id unique to one trace or span, which skips the tag value
+   * cache unless it's the {@link #isRootMarker root marker}.
+   */
+  static TagValue toUniqueTagValue(CharSequence value) {
+    if (value == null || value.length() == 0 || !isRepresentable(value)) {
+      return null;
+    }
+    return isRootMarker(value, 0, value.length()) ? TagValue.from(value) : TagValue.uncached(value);
+  }
+
+  /**
+   * Whether {@code s} between {@code start} and {@code end} is {@link LLMObsContext#ROOT_SPAN_ID},
+   * which LLM Observability sends in place of a parent id at every root, so it repeats.
+   */
+  static boolean isRootMarker(CharSequence s, int start, int end) {
+    String marker = LLMObsContext.ROOT_SPAN_ID;
+    if (s == null || end - start != marker.length()) {
+      return false;
+    }
+    for (int i = 0; i < marker.length(); i++) {
+      if (s.charAt(start + i) != marker.charAt(i)) {
+        return false;
+      }
+    }
+    return true;
   }
 
   /**
