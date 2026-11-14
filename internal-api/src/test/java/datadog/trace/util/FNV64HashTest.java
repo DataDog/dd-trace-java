@@ -3,9 +3,11 @@ package datadog.trace.util;
 import static datadog.trace.util.FNV64Hash.continueHash;
 import static datadog.trace.util.FNV64Hash.generateHash;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Named.named;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import datadog.trace.util.FNV64Hash.Version;
+import java.nio.charset.StandardCharsets;
 import java.util.stream.Stream;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -232,6 +234,37 @@ class FNV64HashTest {
         arguments(repeat(bytes(0x00), 500), "1fe3fce62bd816b5", "1fe3fce62bd816b5"),
         arguments(repeat(bytes(0x07), 500), "0289a488a8df69d9", "c23e9fccd6f70591"),
         arguments(repeat(bytes(0x7f), 500), "e6be57375ad89b99", "39e9f18f2f85e221"));
+  }
+
+  @ParameterizedTest(name = "{index}: {0}")
+  @TableTest({
+    "Scenario      | input       ",
+    "ascii         | topic:orders",
+    "two-byte      | topic:café  ",
+    "three-byte    | topic:注文  ",
+    "supplementary | topic:🚀    "
+  })
+  @MethodSource("unpairedSurrogates")
+  void stringHashMatchesItsUtf8Bytes(String input) {
+    byte[] utf8 = input.getBytes(StandardCharsets.UTF_8);
+    for (Version version : Version.values()) {
+      assertEquals(generateHash(utf8, version), generateHash(input, version), input);
+      assertEquals(
+          continueHash(0x1234_5678_9abc_def0L, utf8, version),
+          continueHash(0x1234_5678_9abc_def0L, input, version),
+          input);
+    }
+  }
+
+  // Inputs a table can't show readably: noncharacters and surrogates that aren't paired
+  static Stream<Arguments> unpairedSurrogates() {
+    return Stream.of(
+        arguments(named("max three-byte", "\uffff")),
+        arguments(named("lone high surrogate", "a\ud83db")),
+        arguments(named("high surrogate at end", "a\ud83d")),
+        arguments(named("lone low surrogate", "a\ude80b")),
+        arguments(named("reversed pair", "\ude80\ud83d")),
+        arguments(named("high surrogate pair then lone", "\ud83d\ude80\ud83d")));
   }
 
   private static String repeat(String value, int times) {
