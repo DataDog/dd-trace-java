@@ -3,6 +3,7 @@ package datadog.context;
 import static datadog.context.Context.root;
 import static datadog.context.ContextTest.STRING_KEY;
 import static datadog.context.ContextTestBase.trackingListener;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -59,6 +60,16 @@ class ContextProvidersForkedTest {
     Context context = root().with(STRING_KEY, "value");
     assertNotEquals(root(), context);
 
+    // should delegate flag changes and suppression to the default manager
+    ContextManager manager = ContextProviders.manager();
+    assertTrue(manager.isCaptureEnabled());
+    manager.setCaptureEnabled(false);
+    assertFalse(manager.isCaptureEnabled());
+    assertNotEquals(context, context.checkpoint());
+    assertSame(root().capture(), context.capture());
+    manager.setCaptureEnabled(true);
+    assertTrue(manager.isCaptureEnabled());
+
     // should delegate to the default manager
     try (ContextScope scope = context.attach()) {
       assertSame(context, scope.context());
@@ -68,7 +79,7 @@ class ContextProvidersForkedTest {
       cont.release();
     }
 
-    Context swapped = context.swap();
+    ContextHandle swapped = context.swap();
     assertSame(root(), swapped);
     assertSame(context, Context.current());
     assertSame(context, swapped.swap());
@@ -88,14 +99,27 @@ class ContextProvidersForkedTest {
           }
 
           @Override
-          public Context swap(@Nonnull Context context) {
+          public ContextHandle swap(@Nonnull ContextHandle context) {
             return root();
+          }
+
+          @Override
+          public ContextHandle checkpoint(@Nonnull Context context) {
+            return context;
           }
 
           @Override
           public ContextContinuation capture(@Nonnull Context context) {
             return new NoopContextContinuation(root());
           }
+
+          @Override
+          public boolean isCaptureEnabled() {
+            return true;
+          }
+
+          @Override
+          public void setCaptureEnabled(boolean enabled) {}
 
           @Override
           public void addListener(@Nonnull ContextListener listener) {}
@@ -114,6 +138,11 @@ class ContextProvidersForkedTest {
     }
 
     // NOOP manager, context will always be root
+    assertTrue(manager.isCaptureEnabled());
+    manager.setCaptureEnabled(false); // custom manager ignores the capture flag
+    assertTrue(manager.isCaptureEnabled());
+    assertSame(context, context.checkpoint());
+
     swapped = context.swap();
     assertSame(root(), swapped);
     assertSame(root(), Context.current());

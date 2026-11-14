@@ -35,7 +35,7 @@ import javax.annotation.Nullable;
  *
  * @see ContextKey
  */
-public interface Context {
+public interface Context extends ContextHandle {
   /**
    * Returns the root context.
    *
@@ -64,12 +64,16 @@ public interface Context {
   }
 
   /**
-   * Swaps this context with the one attached to current execution unit.
+   * Saves this context and the current execution unit's flags for a future {@link #swap}.
    *
-   * @return the previously attached context; {@link #root()} if there was none.
+   * <p>This does not change the current context or execution-unit flags, or keep a trace open.
+   * Capture the original context first if a continuation is needed. Handles returned by swap are
+   * already checkpointed.
+   *
+   * @return a handle to this context and any saved flags for a future swap.
    */
-  default Context swap() {
-    return manager().swap(this);
+  default ContextHandle checkpoint() {
+    return manager().checkpoint(this);
   }
 
   /**
@@ -104,21 +108,38 @@ public interface Context {
   /**
    * Captures this (attached) context so it can be resumed in another execution unit.
    *
-   * @return continuation capturing this context.
+   * @return continuation capturing this context; no-op continuation if capture is disabled.
    */
   default ContextContinuation capture() {
     return manager().capture(this);
   }
 
   /**
-   * Gets the value stored in this context under the given key.
+   * Returns whether the current execution unit can capture contexts. Capture is enabled by default.
    *
-   * @param <T> the type of the value.
-   * @param key the key used to store the value.
-   * @return the value stored under the key; {@code null} if there is none.
+   * <p>Explicit attach and swap operations still work when capture is disabled.
+   *
+   * @return {@code true} if capture is enabled, {@code false} otherwise.
    */
-  @Nullable
-  <T> T get(ContextKey<T> key);
+  static boolean isCaptureEnabled() {
+    return manager().isCaptureEnabled();
+  }
+
+  /**
+   * Enables or disables context capture for the current execution unit.
+   *
+   * <p>Attaching a different context enables capture; closing its scope restores the flag from
+   * before the attach. Reattaching the current context leaves the flag unchanged and does not
+   * restore it on close. When suppressing capture outside an attached scope, save the previous flag
+   * and restore it in {@code finally}.
+   *
+   * <p>See {@link #swap()} for capture flag behavior across swaps.
+   *
+   * @param enabled {@code true} to allow capture, {@code false} to disable it.
+   */
+  static void setCaptureEnabled(boolean enabled) {
+    manager().setCaptureEnabled(enabled);
+  }
 
   /**
    * Creates a copy of this context with the given key-value set.

@@ -8,7 +8,7 @@ import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
-import datadog.context.Context;
+import datadog.context.ContextHandle;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -57,7 +57,7 @@ public class PekkoActorCellInstrumentation extends InstrumenterModule.ContextTra
    */
   public static class InvokeAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static Context enter(
+    public static ContextHandle enter(
         @Advice.Argument(value = 0) Envelope envelope,
         @Advice.Local("taskScope") ContextScope taskScope) {
 
@@ -78,7 +78,7 @@ public class PekkoActorCellInstrumentation extends InstrumenterModule.ContextTra
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void exit(
         @Advice.Local("taskScope") ContextScope taskScope,
-        @Advice.Enter Context checkpointContext) {
+        @Advice.Enter ContextHandle checkpointContext) {
 
       if (checkpointContext == null) {
         // Clean up any leaking scopes from pekko-streams/pekko-http etc.

@@ -883,6 +883,34 @@ in [`HttpClientRequestTracingHandler`](https://github.com/DataDog/dd-trace-java/
 how the Continuation is used to obtain the `parentScope` which is
 finally [closed](https://github.com/DataDog/dd-trace-java/blob/3fe1b2d6010e50f61518fa25af3bdeb03ae7712b/dd-java-agent/instrumentation/netty-4.1/src/main/java/datadog/trace/instrumentation/netty41/client/HttpClientRequestTracingHandler.java#L111).
 
+### Capture controls and context switches
+
+In new instrumentation code, use `Context.isCaptureEnabled()` and
+`Context.setCaptureEnabled(boolean)` to control capture for the current execution unit.
+Capture is enabled by default. When disabled, `Context.capture()` returns a no-op continuation.
+Explicit `attach()` and `swap()` operations still work.
+
+Virtual-thread, coroutine, and fiber instrumentations can still install the context directly when
+capture is disabled. That installation alone does not keep the trace open.
+
+Attaching a different context resets execution-unit flags, enabling capture; closing its scope
+restores the flags from before the attach. Reattaching the current context leaves flags unchanged
+and does not restore them on close.
+When suppressing capture outside an attached scope, save the previous flag and restore it in `finally`.
+
+`Context.checkpoint()` returns a `ContextHandle` saving the context and current execution-unit flags
+for a future `swap()`. It leaves the active context and flags unchanged and does not keep a trace
+open; capture the original context first if a continuation is needed.
+
+Swapping to a different context resets execution-unit flags unless the context is checkpointed,
+in which case its saved flags are restored. A swap to the current context leaves flags unchanged.
+Every swap returns a `ContextHandle` for restoration by swapping back. Handles expose
+`get(ContextKey<T>)` for reading values, including the span used by messaging instrumentations.
+`Context` extends `ContextHandle`, so ordinary contexts can also be swapped directly.
+
+See the [Context API](../components/context/src/main/java/datadog/context/Context.java) for the
+full contract.
+
 ### Continuation effects
 
 An unresolved continuation keeps `PendingTrace`'s reference count positive and prevents its normal

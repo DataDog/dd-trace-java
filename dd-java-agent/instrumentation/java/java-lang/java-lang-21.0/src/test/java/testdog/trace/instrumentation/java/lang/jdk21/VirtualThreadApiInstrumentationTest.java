@@ -1,18 +1,76 @@
 package testdog.trace.instrumentation.java.lang.jdk21;
 
+import static datadog.context.Context.isCaptureEnabled;
+import static datadog.context.Context.setCaptureEnabled;
 import static datadog.trace.agent.test.assertions.SpanMatcher.span;
 import static datadog.trace.agent.test.assertions.TraceMatcher.SORT_BY_START_TIME;
 import static datadog.trace.agent.test.assertions.TraceMatcher.trace;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import datadog.context.Context;
+import datadog.context.ContextScope;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.api.Trace;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeoutException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.tabletest.junit.TableTest;
 
 /** Test the {@code VirtualThread} and {@code Thread.Builder} API. */
 public class VirtualThreadApiInstrumentationTest extends AbstractInstrumentationTest {
+  @TableTest({
+    "Scenario                            | parentCaptureEnabled",
+    "Child suppression stays local       | true                ",
+    "Parent suppression is not inherited | false               "
+  })
+  void captureStartsEnabledAndRetainsLocalSuppressionAcrossRemounts(boolean parentCaptureEnabled)
+      throws InterruptedException {
+    AgentSpan parent = startSpan("test", "parent");
+    try (ContextScope ignored = activateSpan(parent)) {
+      Context context = Context.current();
+      setCaptureEnabled(parentCaptureEnabled);
+      CompletableFuture<Void> result = new CompletableFuture<>();
+      Thread child =
+          Thread.startVirtualThread(
+              new Runnable() {
+                @Override
+                public void run() {
+                  try {
+                    assertSame(context, Context.current());
+                    assertTrue(isCaptureEnabled());
+                    setCaptureEnabled(false);
+                    for (int i = 0; i < 5; i++) {
+                      Thread.sleep(10);
+                      assertSame(context, Context.current());
+                      assertFalse(isCaptureEnabled());
+                    }
+                    result.complete(null);
+                  } catch (Throwable failure) {
+                    result.completeExceptionally(failure);
+                  }
+                }
+              });
+      assertEquals(parentCaptureEnabled, isCaptureEnabled());
+      assertTrue(child.join(Duration.ofSeconds(10)));
+      result.join();
+      assertSame(context, Context.current());
+      assertEquals(parentCaptureEnabled, isCaptureEnabled());
+    } finally {
+      parent.finish();
+    }
+    assertTrue(isCaptureEnabled());
+    assertTraces(trace(span().root().operationName("parent")));
+  }
+
   @DisplayName("test Thread.Builder.OfVirtual.start()")
   @Test
   void testBuilderOfVirtualStart() throws InterruptedException, TimeoutException {
