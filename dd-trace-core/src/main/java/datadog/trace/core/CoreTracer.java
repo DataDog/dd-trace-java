@@ -2608,6 +2608,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     synchronized (dataStreamsPropagatorLock) {
       dataStreamsPropagatorRequested = true;
       if (null != dataStreamsPropagatorSource) {
+        // Kept after a later disable: the default propagator stays a composite even without baggage
         Propagators.register(DSM_CONCERN, dataStreamsPropagatorSource.propagator());
       }
     }
@@ -2653,7 +2654,8 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         sampler = Sampler.Builder.forConfig(CoreTracer.this.initialConfig, this, agentSampler);
       }
 
-      // Registered lazily so DSM costs nothing until enabled
+      // Registered lazily so DSM costs nothing until enabled.
+      // Runs before this snapshot is published.
       if (null != oldSnapshot && isDataStreamsEnabled() && !oldSnapshot.isDataStreamsEnabled()) {
         requestDataStreamsPropagator();
       }
