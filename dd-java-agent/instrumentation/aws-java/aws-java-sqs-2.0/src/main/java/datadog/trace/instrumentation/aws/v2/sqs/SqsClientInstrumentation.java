@@ -29,7 +29,9 @@ public final class SqsClientInstrumentation
   public static class AwsSqsBuilderAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void methodExit(@Advice.Return final List<ExecutionInterceptor> interceptors) {
-      if (traceConfig().isDataStreamsEnabled()
+      // Startup config covers clients built before the tracer (and its live config) is installed
+      if (Config.get().isDataStreamsEnabled()
+          || traceConfig().isDataStreamsEnabled()
           || Config.get().isSqsInjectDatadogAttributeEnabled()) {
         for (ExecutionInterceptor interceptor : interceptors) {
           if (interceptor instanceof SqsInterceptor) {
