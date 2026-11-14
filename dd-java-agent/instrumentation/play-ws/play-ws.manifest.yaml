@@ -1,0 +1,13 @@
+_v: 1
+name: play-ws
+display_name: play-ahc-ws-standalone
+description: Instruments asynchronous outbound HTTP requests, including streamed responses, and propagates trace
+  context through completion callbacks.
+packages:
+- name: com.typesafe.play:play-ahc-ws-standalone_2.11
+- name: com.typesafe.play:play-ahc-ws-standalone_2.12
+- name: com.typesafe.play:play-ahc-ws-standalone_2.13
+category:
+- http.client
+systems: []
+creation_date: '2019-10-30'

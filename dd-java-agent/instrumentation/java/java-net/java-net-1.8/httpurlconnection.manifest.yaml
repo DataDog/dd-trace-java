@@ -1,0 +1,10 @@
+_v: 1
+name: httpurlconnection
+display_name: HttpURLConnection
+description: Instruments outbound HTTP requests, URL connection-opening failures, and URL and URI taint propagation
+  and SSRF checks.
+packages: []
+category:
+- http.client
+systems: []
+creation_date: '2018-06-01'

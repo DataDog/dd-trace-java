@@ -1,0 +1,10 @@
+_v: 1
+name: java-http-client
+display_name: Java HTTP Client
+description: Instruments synchronous and asynchronous outbound HTTP requests and propagates trace context through
+  request headers and response body callbacks.
+packages: []
+category:
+- http.client
+systems: []
+creation_date: '2022-11-21'

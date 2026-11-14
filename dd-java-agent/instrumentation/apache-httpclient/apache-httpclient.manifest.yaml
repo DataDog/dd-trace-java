@@ -1,0 +1,12 @@
+_v: 1
+name: apache-httpclient
+display_name: HttpClient
+description: Instruments synchronous outbound HTTP requests and request URI taint propagation for SSRF detection.
+packages:
+- name: io.dropwizard:dropwizard-client
+- name: org.apache.httpcomponents.client5:httpclient5
+- name: org.apache.httpcomponents:httpclient
+category:
+- http.client
+systems: []
+creation_date: '2017-05-23'

@@ -1,0 +1,11 @@
+_v: 1
+name: grizzly-client
+display_name: Grizzly Async HTTP Client
+description: Instruments asynchronous outbound HTTP requests and preserves trace context through response callbacks.
+packages:
+- name: com.ning:async-http-client
+- name: org.glassfish.grizzly:grizzly-http-client
+category:
+- http.client
+systems: []
+creation_date: '2020-04-10'

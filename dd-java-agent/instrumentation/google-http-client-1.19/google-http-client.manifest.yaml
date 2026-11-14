@@ -1,0 +1,11 @@
+_v: 1
+name: google-http-client
+display_name: Google HTTP Client Library for Java
+description: Instruments synchronous and asynchronous outbound HTTP requests and propagates trace context into request
+  headers.
+packages:
+- name: com.google.http-client:google-http-client
+category:
+- http.client
+systems: []
+creation_date: '2019-07-09'
