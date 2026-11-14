@@ -19,7 +19,7 @@ dependencies {
   // the outer build. Now that the application is in a nested build, the BOM is no longer
   // available here.
   testImplementation('org.springframework.kafka:spring-kafka-test:2.8.11')
-  testImplementation project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests:smoke-test-common')
   testImplementation(testFixtures(project(":dd-smoke-tests:iast-util")))
 }
 

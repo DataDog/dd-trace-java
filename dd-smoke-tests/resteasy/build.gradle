@@ -25,7 +25,7 @@ dependencies {
   implementation "jakarta.xml.bind:jakarta.xml.bind-api:2.3.2"
   implementation "org.glassfish.jaxb:jaxb-runtime:2.3.2"
 
-  testImplementation project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests:smoke-test-common')
   testImplementation(testFixtures(project(":dd-smoke-tests:iast-util")))
   testImplementation project(':dd-smoke-tests:appsec')
 }

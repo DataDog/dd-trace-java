@@ -232,6 +232,7 @@ include(
 
 // smoke tests
 include(
+  ":dd-smoke-tests:smoke-test-common",
   ":dd-smoke-tests:apm-tracing-disabled",
   ":dd-smoke-tests:armeria-grpc",
   ":dd-smoke-tests:backend-mock",

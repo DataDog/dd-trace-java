@@ -26,7 +26,7 @@ dependencies {
   implementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.4.1'
   implementation group: 'org.springframework.boot', name: 'spring-boot-starter-data-mongodb', version: '2.4.1'
 
-  testImplementation project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests:smoke-test-common')
   testImplementation group: 'org.testcontainers', name: 'mongodb', version: libs.versions.testcontainers.get()
 }
 

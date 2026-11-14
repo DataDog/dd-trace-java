@@ -12,7 +12,7 @@ dependencies {
   implementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.4.5'
   implementation libs.okhttp3.mockwebserver
 
-  testImplementation project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests:smoke-test-common')
   testImplementation project(':dd-java-agent:agent-debugger')
   testImplementation project(':dd-java-agent:agent-debugger:debugger-el')
   testImplementation project(':dd-java-agent:agent-debugger:debugger-bootstrap')

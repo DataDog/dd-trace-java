@@ -5,5 +5,5 @@ plugins {
 description = 'JDK Tool Abort Smoke Tests'
 
 dependencies {
-  testImplementation project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests:smoke-test-common')
 }

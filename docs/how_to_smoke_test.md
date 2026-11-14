@@ -540,7 +540,7 @@ There are three ways to keep an expected error message from failing the build:
 | `errorLogFilter(predicate)` | Full control over what counts as an error; replaces the allowlist |
 | `skipErrorLogCheck()`       | Apps that are *about* error cases                                 |
 
-Repository-wide known-flaky messages are excluded centrally in [`KnownLogExclusion`](../dd-smoke-tests/src/main/java/datadog/smoketest/KnownLogExclusion.java).
+Repository-wide known-flaky messages are excluded centrally in [`KnownLogExclusion`](../dd-smoke-tests/smoke-test-common/src/main/java/datadog/smoketest/KnownLogExclusion.java).
 
 > [!IMPORTANT]
 > Add to `KnownLogExclusion` only for issues affecting every suite; use `allowedErrorLogs(...)` for a single smoke-test class.
@@ -568,7 +568,7 @@ Repository-wide known-flaky messages are excluded centrally in [`KnownLogExclusi
    }
 
    dependencies {
-     testImplementation project(':dd-smoke-tests')
+     testImplementation project(':dd-smoke-tests:smoke-test-common')
    }
 
    tasks.withType(Test).configureEach {

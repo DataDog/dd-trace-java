@@ -18,7 +18,7 @@ tasks.named("jar", Jar) {
 }
 
 dependencies {
-  testImplementation project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests:smoke-test-common')
   testImplementation project(':dd-java-agent:agent-profiling:profiling-testing')
   testImplementation project(path: ':dd-java-agent:ddprof-lib', configuration: 'shadow')
 

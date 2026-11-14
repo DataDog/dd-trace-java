@@ -6,7 +6,7 @@ plugins {
 description = 'SpringBoot Open Liberty 20-22 Smoke Tests'
 
 dependencies {
-  testImplementation project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests:smoke-test-common')
 }
 
 def jarName = "demo-open-liberty-app.jar"

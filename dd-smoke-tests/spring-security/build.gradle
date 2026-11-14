@@ -25,7 +25,7 @@ dependencies {
   implementation group: 'org.springframework.security', name: 'spring-security-oauth2-jose', version: '5.8.2'
 
 
-  testImplementation project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests:smoke-test-common')
   implementation project(':dd-smoke-tests:iast-util')
   testImplementation(testFixtures(project(":dd-smoke-tests:iast-util")))
 }
