@@ -141,7 +141,7 @@ public final class ThreadPoolExecutorInstrumentation
   public static final class BeforeExecute {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope beforeExecuteEnter(
-        @Advice.This final ThreadPoolExecutor tpe,
+        @Advice.This final Object tpe,
         @Advice.Argument(readOnly = false, value = 1) Runnable task) {
       if (TPEHelper.shouldPropagate(tpe)) {
         if (TPEHelper.useWrapping(task)) {
@@ -166,7 +166,7 @@ public final class ThreadPoolExecutorInstrumentation
   public static final class AfterExecute {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope afterExecuteEnter(
-        @Advice.This final ThreadPoolExecutor tpe,
+        @Advice.This final Object tpe,
         @Advice.Argument(readOnly = false, value = 0) Runnable task) {
       if (TPEHelper.shouldPropagate(tpe)) {
         if (TPEHelper.useWrapping(task)) {

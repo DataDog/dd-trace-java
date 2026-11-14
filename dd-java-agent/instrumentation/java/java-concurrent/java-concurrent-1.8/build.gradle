@@ -13,12 +13,39 @@ tasks.named("compileJava") {
 }
 
 addTestSuiteForDir('latestDepTest', 'test')
+addTestSuiteForDir('tomcat9Test', 'test')
+addTestSuiteForDir('tomcat10Test', 'test')
+addTestSuiteForDir('tomcat11Test', 'test')
+
+['tomcat9Test', 'tomcat10Test', 'tomcat11Test'].each { suite ->
+  [suite, suite.replace('Test', 'ForkedTest')].each { testTask ->
+    tasks.named(testTask, Test) {
+      filter {
+        includeTestsMatching 'executor.TomcatThreadPoolExecutor*'
+      }
+    }
+  }
+}
+
+tasks.named('tomcat10Test', Test) {
+  testJvmConstraints {
+    minJavaVersion = JavaVersion.VERSION_11
+  }
+}
+
+tasks.named('tomcat11Test', Test) {
+  testJvmConstraints {
+    minJavaVersion = JavaVersion.VERSION_17
+  }
+}
 
 dependencies {
   testImplementation project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
   testImplementation libs.guava
   testImplementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-core', version: '7.0.0'
   // Tomcat 10.1.+ seems to require Java 11. Limit to fix build.
-  // TODO: Tomcat 10.0.10 has a copy of the JSR166 ThreadPoolExecutor so it needs special instrumentation
   latestDepTestImplementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-core', version: '10.0.8'
+  tomcat9TestImplementation 'org.apache.tomcat.embed:tomcat-embed-core:9.0.52'
+  tomcat10TestImplementation 'org.apache.tomcat.embed:tomcat-embed-core:10.1.+'
+  tomcat11TestImplementation 'org.apache.tomcat.embed:tomcat-embed-core:11.+'
 }
