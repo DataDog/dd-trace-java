@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
@@ -17,10 +18,13 @@ import static org.mockito.Mockito.verify;
 
 import com.datadog.openfeature.internal.LocalHttpServer;
 import com.datadog.openfeature.internal.RuntimeServices;
+import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
 import com.datadog.openfeature.internal.bridge.v1.HealthMetrics;
+import com.datadog.openfeature.internal.config.SdkVersion;
 import com.datadog.openfeature.internal.config.Settings;
 import com.datadog.openfeature.internal.config.TestSettings;
 import com.datadog.openfeature.internal.ufc.ServerConfiguration;
+import com.datadog.openfeature.testlog.CapturingServiceProvider;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
@@ -34,10 +38,16 @@ import java.util.concurrent.FutureTask;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.slf4j.event.Level;
 import org.tabletest.junit.TableTest;
 
 class CdnConfigurationSourceTest {
@@ -60,6 +70,7 @@ class CdnConfigurationSourceTest {
 
   @AfterEach
   void tearDown() {
+    CapturingServiceProvider.reset();
     this.server.close();
   }
 
@@ -174,7 +185,137 @@ class CdnConfigurationSourceTest {
     assertEquals("secret", request.header("DD-API-KEY"));
     assertEquals("gzip", request.header("Accept-Encoding"));
     assertEquals("java", request.header("Datadog-Meta-Lang"));
+    assertEquals("java", request.header("DD-Client-Library-Language"));
+    assertEquals(SdkVersion.VERSION, request.header("DD-Client-Library-Version"));
     assertNull(request.header("If-None-Match"));
+  }
+
+  @Test
+  void sendsServiceOnEveryPoll() {
+    this.server.enqueue(200, CONFIG, "ETag", "\"v1\"").enqueue(304, null);
+    final CdnConfigurationSource source = source(null, "checkout");
+
+    assertTrue(source.pollOnce());
+    assertTrue(source.pollOnce());
+
+    assertEquals("checkout", this.server.requests().get(0).header("DD-Service"));
+    assertEquals("checkout", this.server.requests().get(1).header("DD-Service"));
+    assertEquals("\"v1\"", this.server.requests().get(1).header("If-None-Match"));
+  }
+
+  @Test
+  void sendsConfiguredServiceToCustomEndpoint() {
+    final LocalHttpServer.Request request = pollWithService("checkout");
+
+    assertEquals(CdnConfigurationSource.UFC_RULES_BASED_SERVER_PATH, request.uri.getPath());
+    assertEquals("checkout", request.header("DD-Service"));
+  }
+
+  @TableTest({
+    "scenario | service",
+    "unset    |        ",
+    "empty    | ''     ",
+    "blank    | '   '  "
+  })
+  void omitsServiceWhenNotConfigured(final String service) {
+    final LocalHttpServer.Request request = pollWithService(service);
+
+    assertFalse(request.headers.containsKey("DD-Service"));
+    assertEquals(1, this.dispatched.size());
+  }
+
+  @ParameterizedTest
+  @MethodSource("servicesAndTheirHeader")
+  void sendsTheApmNameOfTheServiceOrNoHeader(final String service, final String header) {
+    CapturingServiceProvider.enable(CdnConfigurationSource.class.getName(), Level.DEBUG);
+
+    final LocalHttpServer.Request request = pollWithService(service);
+
+    assertEquals(header, request.header("DD-Service"));
+    assertEquals(1, this.dispatched.size());
+    final List<CapturingServiceProvider.Event> logged =
+        CapturingServiceProvider.events().stream()
+            .filter(e -> e.message.contains("DD-Service"))
+            .collect(Collectors.toList());
+    // A blank service is not set. Thus the SDK does not log it.
+    final boolean skipped = header == null && !service.trim().isEmpty();
+    assertEquals(skipped ? 1 : 0, logged.size(), logged.toString());
+    if (skipped) {
+      assertEquals(Level.DEBUG, logged.get(0).level);
+      assertEquals(
+          "Feature Flags: service "
+              + service
+              + " has no ASCII APM name; DD-Service header not sent",
+          logged.get(0).message);
+    }
+  }
+
+  // The headers come from the Agent. Each one is the result of NormalizeService (datadog-agent
+  // v0.82.3). A null header means that the request has no DD-Service header, because the result is
+  // empty or is not ASCII.
+  private static Stream<Arguments> servicesAndTheirHeader() {
+    return Stream.of(
+        arguments("checkout", "checkout"),
+        arguments("My Service", "my_service"),
+        arguments("My-API", "my-api"),
+        arguments("UPPER", "upper"),
+        arguments("bad\nvalue", "bad_value"),
+        arguments("a\tb", "a_b"),
+        arguments("a  b!", "a_b"),
+        arguments("svc ", "svc"),
+        arguments(" svc", "_svc"),
+        arguments("a_", "a"),
+        arguments("svc-", "svc-"),
+        arguments("a..b", "a..b"),
+        arguments("2fa-service", "2fa-service"),
+        arguments("9lives", "9lives"),
+        arguments("unnamed-service", "unnamed-service"),
+        arguments("svc_name.v2:api/edge-1", "svc_name.v2:api/edge-1"),
+        arguments("my__service", "my_service"),
+        arguments("Default Web Site/Shop", "default_web_site/shop"),
+        arguments("a" + "b".repeat(99), "a" + "b".repeat(99)),
+        arguments("a" + "b".repeat(100), "a" + "b".repeat(99)),
+        arguments("a".repeat(100) + " b", "a".repeat(100)),
+        arguments("a".repeat(99) + "é", "a".repeat(99)),
+        arguments("_svc", "_svc"),
+        arguments("-svc", "-svc"),
+        arguments(".svc", ".svc"),
+        arguments(":svc", ":svc"),
+        arguments("café-api", null),
+        arguments("Café", null),
+        arguments("支付", null),
+        arguments("a🐶b", "a_b"),
+        arguments("İstanbul", null),
+        arguments("é".repeat(60), null),
+        arguments("___", null),
+        arguments("-", "-"),
+        arguments("", null),
+        arguments("   ", null));
+  }
+
+  @ParameterizedTest
+  @MethodSource("tracerServicesAndTheirHeader")
+  void cleansUpOnlyTheServiceItSendsNotTheTracerService(final String service, final String header) {
+    final AgentBridge agent = mock(AgentBridge.class);
+    doReturn(service).when(agent).setting("service");
+    final Settings settings =
+        TestSettings.of(
+            agent,
+            "feature.flags.configuration.source.agentless.base.url",
+            this.server.uri("/").toString());
+
+    final LocalHttpServer.Request request = pollWith(settings);
+
+    assertEquals(header, request.header("DD-Service"));
+    assertEquals(1, this.dispatched.size());
+    assertEquals(service, settings.service());
+  }
+
+  private static Stream<Arguments> tracerServicesAndTheirHeader() {
+    return Stream.of(
+        arguments("My Service", "my_service"),
+        arguments("_svc", "_svc"),
+        arguments("café-api", null));
   }
 
   @Test
@@ -438,6 +579,7 @@ class CdnConfigurationSourceTest {
         new CdnConfigurationSource(
             this.server.uri("/ufc"),
             null,
+            null,
             TimeUnit.MINUTES.toMillis(10),
             Duration.ofSeconds(5),
             HttpClient.newHttpClient(),
@@ -479,6 +621,7 @@ class CdnConfigurationSourceTest {
           new CdnConfigurationSource(
               stalled.uri(),
               null,
+              null,
               POLL_INTERVAL_MILLIS,
               Duration.ofMillis(500),
               HttpClient.newHttpClient(),
@@ -510,6 +653,7 @@ class CdnConfigurationSourceTest {
       final CdnConfigurationSource source =
           new CdnConfigurationSource(
               stalled.uri(),
+              null,
               null,
               POLL_INTERVAL_MILLIS,
               Duration.ofMinutes(1),
@@ -546,18 +690,31 @@ class CdnConfigurationSourceTest {
   }
 
   private CdnConfigurationSource source(final String apiKey) {
+    return source(apiKey, null);
+  }
+
+  private CdnConfigurationSource source(final String apiKey, final String service) {
     final CdnConfigurationSource source =
-        source(this.server.uri("/ufc"), apiKey, mock(ScheduledExecutorService.class));
+        source(this.server.uri("/ufc"), apiKey, service, mock(ScheduledExecutorService.class));
     source.setListenerForTest(this.dispatched::add);
     return source;
   }
 
   private CdnConfigurationSource source(
       final URI endpoint, final String apiKey, final ScheduledExecutorService executor) {
+    return source(endpoint, apiKey, null, executor);
+  }
+
+  private CdnConfigurationSource source(
+      final URI endpoint,
+      final String apiKey,
+      final String service,
+      final ScheduledExecutorService executor) {
     final CdnConfigurationSource source =
         new CdnConfigurationSource(
             endpoint,
             apiKey,
+            service,
             POLL_INTERVAL_MILLIS,
             Duration.ofSeconds(5),
             HttpClient.newHttpClient(),
@@ -566,5 +723,29 @@ class CdnConfigurationSourceTest {
             () -> 1.0);
     source.setListenerForTest(this.dispatched::add);
     return source;
+  }
+
+  /** Polls once. The service is {@code dd.service}, and the endpoint is the local server. */
+  private LocalHttpServer.Request pollWithService(final String service) {
+    return pollWith(
+        TestSettings.of(
+            "feature.flags.configuration.source.agentless.base.url",
+            this.server.uri("/").toString(),
+            "service",
+            service));
+  }
+
+  /** Builds the source from the settings like the SDK does, then polls once. */
+  private LocalHttpServer.Request pollWith(final Settings settings) {
+    this.server.enqueue(200, CONFIG);
+    final CdnConfigurationSource source =
+        new CdnConfigurationSource(settings, new RuntimeServices(HealthMetrics.NOOP));
+    try {
+      source.start(this.dispatched::add);
+    } finally {
+      source.close();
+    }
+    assertEquals(1, this.server.requests().size());
+    return this.server.requests().get(0);
   }
 }

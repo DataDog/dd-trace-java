@@ -42,9 +42,12 @@ public final class CdnConfigurationSource implements ConfigurationService {
   private static final long SECOND_RETRY_MAX_MILLIS = 30_000;
   private static final double RETRY_JITTER = 0.2;
   private static final long WARNING_INTERVAL_NANOS = TimeUnit.MINUTES.toNanos(5);
+  // The Agent cuts a service to this many bytes of UTF-8.
+  private static final int MAX_SERVICE_BYTES = 100;
 
   private final URI endpoint;
   @Nullable private final String apiKey;
+  @Nullable private final String service;
   private final long pollIntervalMillis;
   private final Duration requestTimeout;
   private final HttpClient httpClient;
@@ -66,6 +69,7 @@ public final class CdnConfigurationSource implements ConfigurationService {
     this(
         endpoint(settings),
         isManagedEndpoint(settings) ? settings.apiKey() : null,
+        usageService(settings.untrimmedService()),
         TimeUnit.SECONDS.toMillis(settings.agentlessPollIntervalSeconds()),
         Duration.ofSeconds(settings.agentlessRequestTimeoutSeconds()),
         HttpClient.newBuilder()
@@ -81,6 +85,7 @@ public final class CdnConfigurationSource implements ConfigurationService {
   CdnConfigurationSource(
       final URI endpoint,
       @Nullable final String apiKey,
+      @Nullable final String service,
       final long pollIntervalMillis,
       final Duration requestTimeout,
       final HttpClient httpClient,
@@ -89,6 +94,7 @@ public final class CdnConfigurationSource implements ConfigurationService {
       final DoubleSupplier jitter) {
     this.endpoint = endpoint;
     this.apiKey = apiKey;
+    this.service = service;
     this.pollIntervalMillis = pollIntervalMillis;
     this.requestTimeout = requestTimeout;
     this.httpClient = httpClient;
@@ -298,8 +304,13 @@ public final class CdnConfigurationSource implements ConfigurationService {
             .timeout(this.requestTimeout)
             .header("Accept-Encoding", "gzip");
     Headers.addMetadata(request);
+    Headers.addClientLibrary(request);
     if (this.apiKey != null) {
       request.header("DD-API-KEY", this.apiKey);
+    }
+    if (this.service != null) {
+      // The CDN attributes the usage of this request to this service.
+      request.header("DD-Service", this.service);
     }
     final String currentEtag = this.etag;
     if (currentEtag != null) {
@@ -353,6 +364,98 @@ public final class CdnConfigurationSource implements ConfigurationService {
 
   public static boolean isManagedEndpoint(final Settings settings) {
     return settings.agentlessBaseUrl() == null;
+  }
+
+  /**
+   * Selects the value of the DD-Service header. The value is the service name that APM shows, so
+   * the usage and APM show the same name. The value is {@code null} when that name is empty or is
+   * not printable ASCII, for example {@code café-api} or {@code 支付}.
+   *
+   * <p>The CDN decides which values it attributes usage to, so the SDK does not check their format.
+   * The SDK checks only for ASCII: {@code HttpRequest.Builder} throws on a value like {@code 支付},
+   * and then every poll fails.
+   */
+  @Nullable
+  private static String usageService(@Nullable final String service) {
+    if (service == null || service.isEmpty()) {
+      return null;
+    }
+    final String normalized = normalizeService(service);
+    if (isPrintableAscii(normalized)) {
+      return normalized;
+    }
+    LOGGER.debug(
+        "Feature Flags: service {} has no ASCII APM name; DD-Service header not sent", service);
+    return null;
+  }
+
+  /** Returns {@code true} if the value is not empty and has only the characters 0x21 to 0x7E. */
+  private static boolean isPrintableAscii(final String value) {
+    if (value.isEmpty()) {
+      return false;
+    }
+    for (int i = 0; i < value.length(); i++) {
+      final char c = value.charAt(i);
+      if (c < 0x21 || c > 0x7E) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /**
+   * Normalizes a service name with the rules of {@code NormalizeService} in the Datadog Agent
+   * (datadog-agent pkg/trace/traceutil/normalize, v0.82.3). The result is the name that APM shows.
+   * The SDK does not depend on internal-api, so it cannot call {@code
+   * TraceUtils.normalizeServiceName}. That helper also follows older Agent rules.
+   *
+   * <ul>
+   *   <li>Cuts the name to 100 bytes of UTF-8, and does not split a character.
+   *   <li>Lowercases the ASCII letters.
+   *   <li>Keeps {@code a-z}, {@code 0-9}, {@code :}, {@code .}, {@code /}, {@code -}, and the
+   *       non-ASCII letters and decimal digits.
+   *   <li>Replaces each run of other characters with one {@code _}, and removes a run at the end.
+   * </ul>
+   */
+  private static String normalizeService(final String service) {
+    final StringBuilder normalized =
+        new StringBuilder(Math.min(service.length(), MAX_SERVICE_BYTES));
+    boolean underscorePending = false;
+    int bytes = 0;
+    for (int i = 0; i < service.length(); ) {
+      int c = service.codePointAt(i);
+      bytes += c < 0x80 ? 1 : c < 0x800 ? 2 : c < 0x10000 ? 3 : 4;
+      if (bytes > MAX_SERVICE_BYTES) {
+        break;
+      }
+      i += Character.charCount(c);
+      if (c >= 'A' && c <= 'Z') {
+        c += 'a' - 'A';
+      }
+      if (isServiceCharacter(c)) {
+        if (underscorePending) {
+          normalized.append('_');
+          underscorePending = false;
+        }
+        normalized.appendCodePoint(c);
+      } else {
+        underscorePending = true;
+      }
+    }
+    return normalized.toString();
+  }
+
+  private static boolean isServiceCharacter(final int c) {
+    if (c < 0x80) {
+      return (c >= 'a' && c <= 'z')
+          || (c >= '0' && c <= '9')
+          || c == ':'
+          || c == '.'
+          || c == '/'
+          || c == '-';
+    }
+    // Like unicode.IsLetter and unicode.IsDigit in Go: the letters and the decimal digits (Nd).
+    return Character.isLetterOrDigit(c);
   }
 
   private static String managedHost(final Settings settings) {

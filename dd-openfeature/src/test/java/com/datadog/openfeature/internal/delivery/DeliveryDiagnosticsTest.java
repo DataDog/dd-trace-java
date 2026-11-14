@@ -200,6 +200,7 @@ class DeliveryDiagnosticsTest {
         new CdnConfigurationSource(
             endpoint,
             apiKey,
+            null,
             30_000,
             Duration.ofSeconds(5),
             HttpClient.newHttpClient(),
