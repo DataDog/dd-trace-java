@@ -13,7 +13,7 @@ import org.gradle.api.plugins.JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME
 import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.plugins.jvm.JvmTestSuite
 import org.gradle.api.tasks.ClasspathNormalizer
-import org.gradle.api.tasks.JavaExec
+import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.SourceSet.MAIN_SOURCE_SET_NAME
 import org.gradle.api.tasks.SourceSet.TEST_SOURCE_SET_NAME
 import org.gradle.api.tasks.SourceSetContainer
@@ -32,7 +32,6 @@ import org.gradle.language.jvm.tasks.ProcessResources
 import org.gradle.testing.base.TestingExtension
 import java.io.File
 import java.nio.file.Files
-import java.nio.file.Paths
 import java.util.Locale
 import javax.inject.Inject
 
@@ -108,16 +107,11 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project> {
     mainCompileTask: TaskProvider<AbstractCompile>
   ) {
     val genTaskName = mainCompileTask.name.replace("compile", "generateCallSite")
-    val pluginJarFile = Paths.get(
-      csiExtension.rootFolder.getOrElse(project.rootDir).toString(),
-      "buildSrc",
-      "call-site-instrumentation-plugin",
-      "build",
-      "libs",
-      "call-site-instrumentation-plugin-all.jar"
-    )
+    val pluginJarFile = csiExtension.rootFolder.orElse(project.rootDir).map {
+      File(it, "buildSrc/call-site-instrumentation-plugin/build/libs/call-site-instrumentation-plugin-all.jar")
+    }
 
-    val callSiteGeneratorTask = project.tasks.register<JavaExec>(genTaskName) {
+    val callSiteGeneratorTask = project.tasks.register<GenerateCallSiteTask>(genTaskName) {
       // Task description
       group = "call site instrumentation"
       description = "Generates call sites from ${mainCompileTask.name}"
@@ -151,22 +145,49 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project> {
         it !in csiOutput.get() && it != output.get().asFile
       }
       inputs.dir(inputProvider)
+        .withPropertyName("csi.classes")
+        .withPathSensitivity(PathSensitivity.RELATIVE)
       inputs.dir(csiExtension.srcFolder)
-      inputs.dir(csiExtension.rootFolder).optional()
-      inputs.file(pluginJarFile)
+        .withPropertyName("csi.sources")
+        .withPathSensitivity(PathSensitivity.RELATIVE)
       inputs.property("csi.suffix", csiExtension.suffix)
       inputs.property("csi.javaVersion", csiExtension.javaVersion)
-      inputs.property("csi.jvmArgs", csiExtension.jvmArgs)
+      // Include inherited locale defaults and values supplied by JVM argument providers.
+      inputs.property("csi.jvmArgs", project.provider { allJvmArgs })
+      // The JVM launcher also reads options directly from these environment variables.
+      inputs.property(
+        "csi.jvmEnvironment",
+        project.provider {
+          listOf("JAVA_TOOL_OPTIONS", "_JAVA_OPTIONS", "JDK_JAVA_OPTIONS").associateWith {
+            environment[it]?.toString().orEmpty()
+          }
+        }
+      )
       inputs.property("csi.reporters", csiExtension.reporters)
       inputs.files(callsitesClassPath)
         .withPropertyName("csi.callsitesClassPath")
         .withNormalizer(ClasspathNormalizer::class)
-      outputs.dir(output)
+      destinationDirectory.set(output)
 
       // JavaExec configuration
       javaLauncher.set(
         javaToolchains.launcherFor {
           languageVersion.set(csiExtension.javaVersion)
+        }
+      )
+      // CSI resolves platform classes through the selected JVM, outside its classpath inputs.
+      inputs.property(
+        "csi.jvmIdentity",
+        javaLauncher.map { launcher ->
+          with(launcher.metadata) {
+            mapOf(
+              "vendor" to vendor,
+              "runtimeVersion" to javaRuntimeVersion,
+              "vmVersion" to jvmVersion,
+              "operatingSystem" to System.getProperty("os.name"),
+              "architecture" to System.getProperty("os.arch"),
+            )
+          }
         }
       )
 
