@@ -55,6 +55,11 @@ abstract class Jetty12Test extends HttpServerTest<Server> implements TestingGene
   }
 
   @Override
+  boolean testBlockingOnResponse() {
+    true
+  }
+
+  @Override
   boolean hasExtraErrorInformation() {
     true
   }
