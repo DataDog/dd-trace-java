@@ -18,7 +18,7 @@ public class CodeOrigin01 {
 
   public static int main(String arg) throws ReflectiveOperationException {
     AgentSpan span = newSpan("main");
-    ContextScope scope = tracerAPI.activateManualSpan(span);
+    ContextScope scope = tracerAPI.activateSpan(span);
     marker();
     captureCodeOrigin(CodeOrigin01.class.getDeclaredMethod("main", String.class), true);
     if (arg.equals("debug_1")) {
@@ -38,13 +38,13 @@ public class CodeOrigin01 {
   @CodeOrigin
   public static void fullTrace() throws NoSuchMethodException {
     AgentSpan span = newSpan("entry");
-    ContextScope scope = tracerAPI.activateManualSpan(span);
+    ContextScope scope = tracerAPI.activateSpan(span);
     entry();
     span.finish();
     scope.close();
 
     span = newSpan("exit");
-    scope = tracerAPI.activateManualSpan(span);
+    scope = tracerAPI.activateSpan(span);
     exit();
     span.finish();
     scope.close();
