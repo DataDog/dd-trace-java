@@ -1,0 +1,10 @@
+_v: 1
+name: ffm-native-tracing
+display_name: Java Foreign Function and Memory API
+description: Instruments configured native function calls through Java’s Foreign Function and Memory API, recording
+  execution spans and errors.
+packages: []
+category:
+- other
+systems: []
+creation_date: '2026-03-31'
