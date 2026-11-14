@@ -1,6 +1,11 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
 import static datadog.appsec.api.blocking.BlockingContentType.AUTO;
+import static datadog.trace.api.KnownTags.AWS_RDS_ENDPOINT_TYPE_NAME;
+import static datadog.trace.api.KnownTags.AWS_RDS_IDENTIFIER_NAME;
+import static datadog.trace.api.KnownTags.AWS_REGION_NAME;
+import static datadog.trace.api.KnownTags.DBCLUSTERIDENTIFIER_NAME;
+import static datadog.trace.api.KnownTags.DBINSTANCEIDENTIFIER_NAME;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_RASP_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_HOST;
@@ -32,6 +37,7 @@ import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
 import datadog.trace.test.junit.utils.config.WithConfig;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.function.BiFunction;
 import org.junit.jupiter.api.AfterEach;
@@ -140,6 +146,59 @@ class DatabaseClientDecoratorTest extends ClientDecoratorTest {
         verify(span).setServiceName(eq(hostname), any());
       }
     }
+    verifyNoMoreInteractions(span);
+  }
+
+  @TableTest({
+    "scenario       | hostname                                                        | identifier | endpointType   | instanceIdentifier | clusterIdentifier",
+    "instance       | orders.c9akciq32bzq.us-east-1.rds.amazonaws.com                 | orders     | instance       | orders             |                  ",
+    "cluster        | orders.cluster-c9akciq32bzq.us-east-1.rds.amazonaws.com         | orders     | cluster        |                    | orders           ",
+    "cluster reader | orders.cluster-ro-c9akciq32bzq.us-east-1.rds.amazonaws.com      | orders     | cluster-ro     |                    | orders           ",
+    "cluster custom | reports.cluster-custom-c9akciq32bzq.us-east-1.rds.amazonaws.com | reports    | cluster-custom |                    |                  ",
+    "proxy          | orders.proxy-c9akciq32bzq.us-east-1.rds.amazonaws.com           | orders     | proxy          |                    |                  "
+  })
+  void testOnConnectionTagsRdsEndpointIdentity(
+      String hostname,
+      String identifier,
+      String endpointType,
+      String instanceIdentifier,
+      String clusterIdentifier) {
+    DatabaseClientDecorator<Map<String, String>> decorator = newDecorator();
+    Map<String, String> session = new HashMap<>();
+    session.put("user", "test-user");
+    session.put("hostname", hostname);
+
+    // when
+    decorator.onConnection(span, session);
+
+    // then
+    verify(span).setTag(DB_USER, "test-user");
+    verify(span).setTag(PEER_HOSTNAME, (CharSequence) hostname);
+    verify(span).setTag(AWS_RDS_IDENTIFIER_NAME, identifier);
+    verify(span).setTag(AWS_RDS_ENDPOINT_TYPE_NAME, endpointType);
+    verify(span).setTag(AWS_REGION_NAME, "us-east-1");
+    if (instanceIdentifier != null) {
+      verify(span).setTag(DBINSTANCEIDENTIFIER_NAME, instanceIdentifier);
+    }
+    if (clusterIdentifier != null) {
+      verify(span).setTag(DBCLUSTERIDENTIFIER_NAME, clusterIdentifier);
+    }
+    verifyNoMoreInteractions(span);
+  }
+
+  @Test
+  void testOnConnectionLeavesNonRdsHostnameUntagged() {
+    DatabaseClientDecorator<Map<String, String>> decorator = newDecorator();
+    Map<String, String> session = new HashMap<>();
+    session.put("user", "test-user");
+    session.put("hostname", "db.internal.example.com");
+
+    // when
+    decorator.onConnection(span, session);
+
+    // then
+    verify(span).setTag(DB_USER, "test-user");
+    verify(span).setTag(PEER_HOSTNAME, (CharSequence) "db.internal.example.com");
     verifyNoMoreInteractions(span);
   }
 
