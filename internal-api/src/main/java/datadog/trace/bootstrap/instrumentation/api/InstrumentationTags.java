@@ -37,6 +37,11 @@ public class InstrumentationTags {
   public static final String AWS_REQUEST_ID = "aws.requestId";
   public static final String AWS_STORAGE_CLASS = "aws.storage.class";
 
+  // Owning account of the addressed resource. aws_account matches the tag dd-trace-py sets and the
+  // dimension tag on the AWS integration metrics.
+  public static final String AWS_ACCOUNT = "aws_account";
+  public static final String AWS_TABLE_ARN = "aws.table.arn";
+
   // Complete resource identity carried by the request.
   public static final String AWS_TOPIC_ARN = "aws.topic.arn";
   public static final String AWS_STREAM_ARN = "aws.stream.arn";
