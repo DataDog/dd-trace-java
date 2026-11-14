@@ -760,6 +760,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     and:
     assertTraces(1) {
       trace(2) {
+        sortSpansByStart()
         basicSpan(it, "parent", null, thrownException)
         clientSpan(it, span(0), method, false, false, uri, null, true, thrownException)
       }
