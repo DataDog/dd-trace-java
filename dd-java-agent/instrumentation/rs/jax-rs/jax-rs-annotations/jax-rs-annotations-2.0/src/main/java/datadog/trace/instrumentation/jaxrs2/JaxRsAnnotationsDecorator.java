@@ -4,6 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourc
 
 import datadog.trace.api.GenericClassValue;
 import datadog.trace.api.Pair;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.ClassHierarchyIterable;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
@@ -12,6 +13,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 import java.lang.annotation.Annotation;
+import java.lang.annotation.AnnotationFormatError;
 import java.lang.reflect.Method;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -89,7 +91,8 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
    *
    * @return The result can be an empty string but will never be {@code null}.
    */
-  private Pair<CharSequence, CharSequence> getHttpMethodAndRoute(
+  @VisibleForTesting
+  Pair<CharSequence, CharSequence> getHttpMethodAndRoute(
       final Class<?> target, final Method method) {
     Map<Method, Pair<CharSequence, CharSequence>> classMap = RESOURCE_NAMES.get(target);
     Pair<CharSequence, CharSequence> httpMethodAndRoute = classMap.get(method);
@@ -126,25 +129,46 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
     return httpMethodAndRoute;
   }
 
+  /*
+   * Reading an element's annotations parses all of them, and throws AnnotationFormatError if any is
+   * malformed in the application's class path, such as a duplicate of a non-repeatable annotation
+   * or an annotation compiled against a different version of its type. Such an element is treated
+   * as unannotated, so the rest of the hierarchy is still searched and the result is still cached:
+   * the JDK only caches annotations it parsed successfully, so otherwise every request would
+   * re-parse them and throw again.
+   */
+
   private String locateHttpMethod(final Method method) {
-    String httpMethod = null;
-    for (final Annotation ann : method.getDeclaredAnnotations()) {
-      final HttpMethod annotation = ann.annotationType().getAnnotation(HttpMethod.class);
-      if (annotation != null) {
-        httpMethod = annotation.value();
-        break;
+    try {
+      for (final Annotation ann : method.getDeclaredAnnotations()) {
+        final HttpMethod annotation = ann.annotationType().getAnnotation(HttpMethod.class);
+        if (annotation != null) {
+          return annotation.value();
+        }
       }
+    } catch (AnnotationFormatError e) {
+      // unreadable annotations: no http method from this method
     }
-    return httpMethod;
+    return null;
   }
 
   private Path findMethodPath(final Method method) {
-    return method.getAnnotation(Path.class);
+    try {
+      return method.getAnnotation(Path.class);
+    } catch (AnnotationFormatError e) {
+      return null;
+    }
   }
 
   private Path findClassPath(final Class<?> target) {
     for (final Class<?> currentClass : new ClassHierarchyIterable(target)) {
-      final Path annotation = currentClass.getAnnotation(Path.class);
+      final Path annotation;
+      try {
+        annotation = currentClass.getAnnotation(Path.class);
+      } catch (AnnotationFormatError e) {
+        // unreadable annotations: look further up the hierarchy
+        continue;
+      }
       if (annotation != null) {
         // Annotation overridden, no need to continue.
         return annotation;
