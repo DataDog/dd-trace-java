@@ -1,0 +1,12 @@
+_v: 1
+name: axis2
+display_name: Apache Axis 2.0 - Kernel
+description: Instruments Axis2 SOAP message sending, receiving, fault handling, and asynchronous continuation with
+  outbound transport tracing and context propagation.
+packages:
+- name: org.apache.axis2:axis2-kernel
+category:
+- rpc.client
+- rpc.server
+systems: []
+creation_date: '2021-02-11'

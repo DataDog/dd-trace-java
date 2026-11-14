@@ -1,0 +1,12 @@
+_v: 1
+name: jakarta-websocket
+display_name: Jakarta WebSocket - Client API
+description: Instruments Jakarta WebSocket client and server message sending, message handling, and connection closing,
+  linking operations to handshake traces.
+packages:
+- name: jakarta.websocket:jakarta.websocket-client-api
+category:
+- websocket.client
+- websocket.server
+systems: []
+creation_date: '2025-03-10'

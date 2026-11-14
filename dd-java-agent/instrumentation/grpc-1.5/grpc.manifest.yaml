@@ -1,0 +1,14 @@
+_v: 1
+name: grpc
+display_name: gRPC
+description: Instruments gRPC client and server calls and streaming message processing, including Armeria, with
+  trace propagation, Data Streams Monitoring, security request callbacks, and transport queue profiling.
+packages:
+- name: com.linecorp.armeria:armeria-grpc
+- name: io.grpc:grpc-core
+category:
+- rpc.client
+- rpc.server
+systems:
+- grpc
+creation_date: '2018-07-19'
