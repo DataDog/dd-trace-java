@@ -2,11 +2,19 @@ package datadog.gradle.plugin.csi
 
 import datadog.gradle.plugin.GradleFixture
 import org.gradle.testkit.runner.BuildResult
+import org.gradle.testkit.runner.TaskOutcome
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import java.io.File
 import java.nio.file.Files
+import java.util.jar.JarEntry
+import java.util.jar.JarOutputStream
+import javax.tools.ToolProvider
 
 class CallSiteInstrumentationPluginTest : GradleFixture() {
   private val buildGradle = """
@@ -32,6 +40,18 @@ class CallSiteInstrumentationPluginTest : GradleFixture() {
     dependencies {
       implementation("net.bytebuddy:byte-buddy:1.18.12")
       implementation("com.google.auto.service:auto-service-annotations:1.1.1")
+    }
+  """
+
+  private val dependencyAdvice = """
+    import datadog.trace.agent.tooling.csi.CallSite;
+    import datadog.trace.agent.tooling.csi.CallSites;
+
+    @CallSite(spi = CallSites.class)
+    public class BeforeAdviceCallSite {
+      @CallSite.Before("void example.Target.call(java.lang.String)")
+      public static void beforeCall(@CallSite.Argument final String value) {
+      }
     }
   """
 
@@ -85,6 +105,143 @@ class CallSiteInstrumentationPluginTest : GradleFixture() {
     val output = result.output
     assertFalse(output.contains("[✓]"))
     assertTrue(output.contains("ADVICE_METHOD_NOT_STATIC_AND_PUBLIC"))
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = ["runtimeOnly", "additionalPaths"])
+  fun `dependency changes invalidate call site generation`(dependencySource: String) {
+    val dependencyConfiguration = if (dependencySource == "runtimeOnly") {
+      """dependencies { runtimeOnly(files("dependency.jar")) }"""
+    } else {
+      """csi { additionalPaths.from(files("dependency.jar")) }"""
+    }
+    createGradleProject(
+      buildGradle + "\n" + dependencyConfiguration,
+      dependencyAdvice
+    )
+    writeJavaSource(
+      "GeneratedCallSiteUsage",
+      "class GeneratedCallSiteUsage { BeforeAdviceCallSites callSites; }",
+      sourceSet = "test"
+    )
+    writeDependencyJar("public static void call(String value) {}")
+
+    val first = buildGradleProject()
+    assertEquals(TaskOutcome.SUCCESS, first.task(":generateCallSiteJava")?.outcome, first.output)
+    assertTrue(buildFile("csi/BeforeAdviceCallSites.java").exists())
+    assertEquals(TaskOutcome.SUCCESS, first.task(":compileCsiJava")?.outcome, first.output)
+    assertEquals(TaskOutcome.SUCCESS, first.task(":compileTestJava")?.outcome, first.output)
+
+    val unchanged = run("generateCallSiteJava", "--info", "--stacktrace")
+    assertEquals(TaskOutcome.UP_TO_DATE, unchanged.task(":generateCallSiteJava")?.outcome, unchanged.output)
+
+    writeDependencyJar("")
+
+    val changed = run("generateCallSiteJava", "--info", "--stacktrace", expectFailure = true)
+    assertEquals(TaskOutcome.UP_TO_DATE, changed.task(":compileJava")?.outcome, changed.output)
+    assertEquals(TaskOutcome.FAILED, changed.task(":generateCallSiteJava")?.outcome, changed.output)
+    assertTrue(changed.output.contains("UNRESOLVED_METHOD"), changed.output)
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = [true, false])
+  fun `generation supports test fixtures in the same project`(fixturesFirst: Boolean) {
+    val script = if (fixturesFirst) {
+      buildGradle.replace("id(\"java\")", "id(\"java-test-fixtures\")")
+    } else {
+      buildGradle.replace(
+        "id(\"dd-trace-java.call-site-instrumentation\")",
+        "id(\"dd-trace-java.call-site-instrumentation\")\nid(\"java-test-fixtures\")"
+      )
+    }
+    createGradleProject("$script\ndependencies { runtimeOnly(files(\"dependency.jar\")) }", dependencyAdvice)
+    writeDependencyJar("public static void call(String value) {}")
+    writeJavaSource("Fixture", "public class Fixture {}", sourceSet = "testFixtures")
+
+    val result = run("generateCallSiteJava", "--info", "--stacktrace")
+
+    assertEquals(TaskOutcome.SUCCESS, result.task(":generateCallSiteJava")?.outcome, result.output)
+    assertNull(result.task(":testFixturesJar"), result.output)
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = [false, true])
+  fun `generation retains external test fixtures`(composite: Boolean) {
+    val dependency = if (composite) "\"example:dependency:1.0\"" else "project(\":dependency\")"
+    val script = buildGradle.replace("id(\"java\")", "id(\"java-test-fixtures\")")
+    createGradleProject(
+      "$script\ndependencies { testImplementation(testFixtures($dependency)) }",
+      dependencyAdvice
+    )
+    writeJavaSource("OwnFixture", "public class OwnFixture {}", sourceSet = "testFixtures")
+    val dependencyBuild = """
+      plugins { id("java-test-fixtures") }
+      group = "example"
+      version = "1.0"
+      java {
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
+      }
+    """
+    if (composite) {
+      writeSettings("includeBuild(\"dependency\")")
+      writeFile("dependency/settings.gradle.kts", "rootProject.name = \"dependency\"")
+      writeFile("dependency/build.gradle.kts", dependencyBuild)
+    } else {
+      addSubproject("dependency", dependencyBuild)
+    }
+    writeJavaSource(
+      "example.Target",
+      "package example; public class Target { public static void call(String value) {} }",
+      sourceSet = "testFixtures",
+      projectPath = "dependency"
+    )
+
+    val result = run("generateCallSiteJava", "--info", "--stacktrace")
+
+    assertEquals(TaskOutcome.SUCCESS, result.task(":dependency:testFixturesJar")?.outcome, result.output)
+    assertEquals(TaskOutcome.SUCCESS, result.task(":generateCallSiteJava")?.outcome, result.output)
+    assertNull(result.task(":testFixturesJar"), result.output)
+  }
+
+  @Test
+  fun `analysis classpath builds runtime project dependencies`() {
+    createGradleProject(
+      buildGradle + "\n" + """dependencies { runtimeOnly(project(":dependency")) }""",
+      dependencyAdvice
+    )
+    addSubproject(
+      "dependency",
+      """
+        plugins { java }
+        java {
+          sourceCompatibility = JavaVersion.VERSION_1_8
+          targetCompatibility = JavaVersion.VERSION_1_8
+        }
+      """
+    )
+    writeJavaSource(
+      "example.Target",
+      "package example; public class Target { public static void call(String value) {} }",
+      projectPath = "dependency"
+    )
+
+    val result = run("generateCallSiteJava", "--info", "--stacktrace")
+
+    assertEquals(TaskOutcome.SUCCESS, result.task(":dependency:jar")?.outcome, result.output)
+    assertEquals(TaskOutcome.SUCCESS, result.task(":generateCallSiteJava")?.outcome, result.output)
+    assertTrue(buildFile("csi/BeforeAdviceCallSites.java").exists())
+  }
+
+  private fun writeDependencyJar(method: String) {
+    val source = writeFile("dependency-src/example/Target.java", "package example; public class Target { $method }")
+    val classes = dir("dependency-classes")
+    assertEquals(0, ToolProvider.getSystemJavaCompiler().run(null, null, null, "-d", classes.path, source.path))
+    JarOutputStream(file("dependency.jar").outputStream()).use { jar ->
+      jar.putNextEntry(JarEntry("example/Target.class"))
+      jar.write(File(classes, "example/Target.class").readBytes())
+      jar.closeEntry()
+    }
   }
 
   private fun createGradleProject(gradleFile: String, advice: String) {
