@@ -768,6 +768,43 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
   }
 
   @Test
+  void oneShotItemEnqueuedRightAfterDynamicEnableIsNotDropped() throws InterruptedException {
+    DDAgentFeaturesDiscovery features = stubFeatures(true);
+    ControllableTimeSource timeSource = new ControllableTimeSource();
+    Sink sink = mock(Sink.class);
+    CapturingPayloadWriter payloadWriter = new CapturingPayloadWriter();
+    boolean[] dsmEnabled = new boolean[] {false};
+    TraceConfig traceConfig = mock(TraceConfig.class, RETURNS_SMART_NULLS);
+    when(traceConfig.isDataStreamsEnabled()).thenAnswer(invocation -> dsmEnabled[0]);
+
+    DefaultDataStreamsMonitoring dataStreams =
+        new DefaultDataStreamsMonitoring(
+            sink,
+            features,
+            timeSource,
+            () -> traceConfig,
+            payloadWriter,
+            DEFAULT_BUCKET_DURATION_NANOS);
+    dataStreams.start();
+    awaitIdle(dataStreams);
+
+    // enabled by remote config, item enqueued before the next report tick
+    dsmEnabled[0] = true;
+    dataStreams.reportKafkaConsumerGroupMember("cluster-1", "test-group", "member-1", 1, "range");
+    awaitIdle(dataStreams);
+    timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS);
+    dataStreams.report();
+
+    awaitBuckets(dataStreams, payloadWriter, 1);
+    List<KafkaConfigReport> kafkaConfigs = payloadWriter.buckets.get(0).getKafkaConfigs();
+    assertEquals(1, kafkaConfigs.size());
+    assertEquals("member-1", kafkaConfigs.get(0).getMemberId());
+
+    payloadWriter.close();
+    dataStreams.close();
+  }
+
+  @Test
   void featureAndDynamicConfigUpgradeInteractions() throws InterruptedException {
     boolean[] supportsDataStreaming = new boolean[] {false};
     DDAgentFeaturesDiscovery features = mock(DDAgentFeaturesDiscovery.class, RETURNS_SMART_NULLS);

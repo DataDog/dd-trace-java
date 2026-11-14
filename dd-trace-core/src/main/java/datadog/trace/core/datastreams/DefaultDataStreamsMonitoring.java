@@ -451,7 +451,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
               flush(Long.MAX_VALUE);
             }
             break;
-          } else if (supportsDataStreams) {
+          } else if (supportsDataStreams || refreshDynamicConfig()) {
             if (payload instanceof StatsPoint) {
               StatsPoint statsPoint = (StatsPoint) payload;
               StatsBucket statsBucket =
@@ -588,6 +588,12 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   private void checkDynamicConfig() {
     configSupportsDataStreams = traceConfigSupplier.get().isDataStreamsEnabled();
     supportsDataStreams = agentSupportsDataStreams && configSupportsDataStreams;
+  }
+
+  /** Re-reads the live config so items enqueued right after a remote enable are not dropped. */
+  private boolean refreshDynamicConfig() {
+    checkDynamicConfig();
+    return supportsDataStreams;
   }
 
   private void checkFeatures() {
