@@ -1,0 +1,18 @@
+_v: 1
+name: netty
+display_name: Netty/All-in-One
+description: Instruments Netty HTTP client and server requests and server WebSocket messages, with connection-error
+  tracing and application-security body inspection and taint propagation.
+packages:
+- name: io.netty:netty
+- name: io.netty:netty-all
+- name: io.netty:netty-buffer
+- name: io.netty:netty-codec-http
+- name: io.netty:netty-codec-http2
+- name: io.vertx:vertx-core
+category:
+- http.client
+- http.server
+- websocket.server
+systems: []
+creation_date: '2018-06-13'

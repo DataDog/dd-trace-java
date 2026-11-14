@@ -1,0 +1,11 @@
+_v: 1
+name: servlet-service
+display_name: Java Servlet API
+description: Instruments HTTP Servlet service and method-specific request handlers as child spans of active requests.
+packages:
+- name: javax.servlet:javax.servlet-api
+- name: javax.servlet:servlet-api
+category:
+- http.server
+systems: []
+creation_date: '2019-10-25'
