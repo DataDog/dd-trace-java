@@ -30,7 +30,7 @@ abstract class MuzzleGenerateReportTask : AbstractMuzzleReportTask() {
 
   @get:Internal
   val reportingDirectives: Provider<List<MuzzleDirective>> = reportDirectives.map { directives ->
-    directives.filter { !it.isCoreJdk && !it.skipFromReport }
+    directives.filter { it.isReportable }
   }
 
   init {

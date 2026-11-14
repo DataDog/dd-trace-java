@@ -207,6 +207,11 @@ public abstract class InstrumenterModule implements Instrumenter {
     return InstrumenterConfig.get().isIntegrationsEnabled();
   }
 
+  /** Whether this module is enabled when no integration-specific configuration is set. */
+  public final boolean isDefaultEnabled() {
+    return defaultEnabled();
+  }
+
   public boolean isEnabled() {
     return enabled;
   }

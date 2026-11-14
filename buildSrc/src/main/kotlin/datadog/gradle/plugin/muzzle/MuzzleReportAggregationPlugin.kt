@@ -1,13 +1,16 @@
 package datadog.gradle.plugin.muzzle
 
 import datadog.gradle.plugin.muzzle.tasks.MuzzleAggregateReportTask
+import datadog.gradle.plugin.muzzle.tasks.MuzzleAggregateSupportedVersionsTask
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.attributes.AttributeContainer
 import org.gradle.api.attributes.Category
 import org.gradle.api.attributes.Usage
 import org.gradle.api.plugins.JavaPlugin.IMPLEMENTATION_CONFIGURATION_NAME
 import org.gradle.kotlin.dsl.create
 import org.gradle.kotlin.dsl.register
+import java.io.File
 
 /** Aggregates dependency reports published by instrumentation projects. */
 class MuzzleReportAggregationPlugin : Plugin<Project> {
@@ -32,12 +35,23 @@ class MuzzleReportAggregationPlugin : Plugin<Project> {
       }
     }
 
-    val reports = results.map { configuration ->
+    fun reportFiles(reportAttributes: AttributeContainer.() -> Unit) = results.map { configuration ->
       configuration.incoming.artifactView {
         // Select reports from the Java graph; plain Java stubs have no matching report variant.
         withVariantReselection()
-        attributes.muzzleReportAttributes(project.objects)
+        attributes(reportAttributes)
       }.files
+    }
+    val reports = reportFiles { muzzleReportAttributes(project.objects) }
+    val supportedVersions = reportFiles { supportedVersionsAttributes(project.objects) }
+
+    project.tasks.register<MuzzleAggregateSupportedVersionsTask>("aggregateSupportedVersions") {
+      supportedVersionsReports.from(supportedVersions)
+      // CI moves build directories, so callers needing a fixed path pass -PsupportedVersionsFile=<path>.
+      supportedVersionsFile.convention(
+        project.layout.file(project.providers.gradleProperty("supportedVersionsFile").map { File(it) })
+          .orElse(project.layout.buildDirectory.file("${SupportedVersions.SUPPORTED_VERSIONS_RESULTS}/supported_versions.json"))
+      )
     }
 
     val report = project.tasks.register<MuzzleAggregateReportTask>("aggregateMuzzleReports") {
