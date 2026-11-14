@@ -27,11 +27,33 @@ URL_RETRY_DELAYS = (10, 30)
 # targets Gradle 3.0+ (the `gradle-3.0` module), so older majors are never exercised.
 OLDEST_TRACKED_GRADLE_MAJOR = 3
 
+# Package Version Updates table rendered in the dependency update PR bodies.
+# The heading and header row are parsed by tooling outside this repo (shared with dd-trace-dotnet), keep them stable.
+BUMP_TABLE_HEADING = "## Package Version Updates"
+BUMP_TABLE_HEADER = "| Package | Integration | Previous | New | Published |\n| --- | --- | --- | --- | --- |"
+BUMP_TABLE_EMPTY = "No latest-dependency version changed."
+# GitHub caps PR bodies at 65536 characters; leave room for the rest of the body (template, age policy summary)
+BUMP_TABLE_MAX_CHARS = 45000
+# configurations resolving the latest versions of a library (latestDepTest, latest7DepForkedTest, boot2LatestDepTest, latest10Test, ...)
+LATEST_CONFIGURATION = re.compile(r"latest", re.IGNORECASE)
+# configurations an instrumentation compiles against; they pin the oldest supported version of the instrumented library
+MAIN_COMPILE_CONFIGURATION = re.compile(r"^(compileClasspath|main_java\d+CompileClasspath)$")
+# internal Datadog artifacts are not third-party libraries under test
+EXCLUDED_BUMP_GROUP_PREFIXES = ("com.datadoghq",)
+
 
 @dataclass(frozen=True)
 class Candidate:
     version: str
     published_at: datetime
+
+
+@dataclass(frozen=True)
+class DependencyBump:
+    package: str  # group:artifact
+    integration: str  # instrumentation module name (lockfile directory name)
+    previous: str | None  # None when the dependency is newly added
+    new: str
 
 
 # Entry point for GitHub Actions workflows
@@ -426,7 +448,16 @@ def validate_lockfiles(args: argparse.Namespace) -> int:
     changed = changed_lockfile_coordinates(baseline_dir=baseline_dir, current_dir=current_dir)
     if not changed:
         print("No dependency version changes detected across Gradle lockfiles.")
-        emit_outputs({"cutoff_at": format_datetime(cutoff), "reverted_files": 0}, args.github_output)
+        empty_table = render_bump_table(bumps=[], published_at={})
+        emit_outputs(
+            {
+                "cutoff_at": format_datetime(cutoff),
+                "reverted_files": 0,
+                "bumps_core": empty_table,
+                "bumps_instrumentation": empty_table,
+            },
+            args.github_output,
+        )
         return 0
 
     baseline_lockfiles = collect_lockfiles(baseline_dir)
@@ -459,6 +490,7 @@ def validate_lockfiles(args: argparse.Namespace) -> int:
                 )
                 if eligible:
                     replacement_gav = f"{group_id}:{artifact_id}:{eligible[0]}"
+                    timestamp_cache[replacement_gav] = (eligible[1], None)
                     replacements_by_file.setdefault(relative_path, {})[gav] = (replacement_gav, hours_remaining)
                     print(f"Latest version {gav} did not meet 48h cooldown requirement, updating to {replacement_gav} instead.")
                 else:
@@ -486,12 +518,24 @@ def validate_lockfiles(args: argparse.Namespace) -> int:
     reverted_files = len(violations_by_file)
     summary_instrumentation = build_validation_summary(violations_by_file=violations_by_file, replacements_by_file=replacements_by_file, baseline_lockfiles=baseline_lockfiles, min_age_hours=args.min_age_hours, path_filter=is_instrumentation_path)
     summary_core = build_validation_summary(violations_by_file=violations_by_file, replacements_by_file=replacements_by_file, baseline_lockfiles=baseline_lockfiles, min_age_hours=args.min_age_hours, path_filter=lambda path: not is_instrumentation_path(path))
+    # built from the lockfiles after downgrades and reverts so the table matches what is committed
+    published_at = {gav: timestamp for gav, (timestamp, _) in timestamp_cache.items() if timestamp is not None}
+    bumps_instrumentation = render_bump_table(
+        bumps=collect_latest_dependency_bumps(baseline_dir=baseline_dir, current_dir=current_dir, path_filter=is_instrumentation_path),
+        published_at=published_at,
+    )
+    bumps_core = render_bump_table(
+        bumps=collect_latest_dependency_bumps(baseline_dir=baseline_dir, current_dir=current_dir, path_filter=lambda path: not is_instrumentation_path(path)),
+        published_at=published_at,
+    )
     emit_outputs(
         {
             "cutoff_at": format_datetime(cutoff),
             "reverted_files": reverted_files,
             "summary_core": summary_core,
             "summary_instrumentation": summary_instrumentation,
+            "bumps_core": bumps_core,
+            "bumps_instrumentation": bumps_instrumentation,
         },
         args.github_output,
     )
@@ -583,6 +627,90 @@ def build_validation_summary(
     if not blocks:  # nothing matched the filter
         return ""
     return "## Dependency age policy\n\n" + "\n\n".join(blocks)
+
+
+# list the latest-dependency versions changed between baseline and current lockfiles, one entry per
+# (module, group:artifact, previous, new). Only "primary" libraries are kept: those the module compiles
+# against (compileClasspath) at a version that did not change. This keeps the instrumented libraries and
+# drops both their transitive dependencies (not on compileClasspath) and build tooling (bumped on
+# compileClasspath too, e.g. forbiddenapis or dd-instrument-java).
+def collect_latest_dependency_bumps(
+    *,
+    baseline_dir: Path,
+    current_dir: Path,
+    path_filter: Callable[[str], bool],
+) -> list[DependencyBump]:
+    baseline_entries = collect_lockfile_entries(baseline_dir)
+    current_entries = collect_lockfile_entries(current_dir)
+    bumps: set[DependencyBump] = set()
+    for relative_path in sorted(set(baseline_entries) | set(current_entries)):
+        if not path_filter(relative_path):
+            continue
+        before = baseline_entries.get(relative_path)
+        after = current_entries.get(relative_path, {})
+        integration = Path(relative_path).parent.name
+        pinned_after = _versions_by_artifact(after, MAIN_COMPILE_CONFIGURATION)
+        # a brand-new lockfile has no baseline to compare the pinned version with
+        pinned_before = pinned_after if before is None else _versions_by_artifact(before, MAIN_COMPILE_CONFIGURATION)
+        latest_before = _latest_versions_by_configuration(before or {})
+        latest_after = _latest_versions_by_configuration(after)
+        for package, configurations in latest_after.items():
+            if package.startswith(EXCLUDED_BUMP_GROUP_PREFIXES):
+                continue
+            if not pinned_after.get(package) or pinned_before.get(package) != pinned_after.get(package):
+                continue
+            previous_configurations = latest_before.get(package, {})
+            for configuration, new_version in configurations.items():
+                previous_version = previous_configurations.get(configuration)
+                if previous_version != new_version:
+                    bumps.add(DependencyBump(package, integration, previous_version, new_version))
+    return sorted(bumps, key=lambda bump: (bump.integration, bump.package, _version_sort_key(bump.new), bump.previous or ""))
+
+
+# group:artifact -> versions of entries resolved in a configuration matching the pattern
+def _versions_by_artifact(entries: dict[str, set[str]], pattern: re.Pattern[str]) -> dict[str, set[str]]:
+    versions: dict[str, set[str]] = {}
+    for gav, configurations in entries.items():
+        if any(pattern.match(configuration) for configuration in configurations):
+            group_id, artifact_id, version = gav.split(":", 2)
+            versions.setdefault(f"{group_id}:{artifact_id}", set()).add(version)
+    return versions
+
+
+# group:artifact -> {latest configuration -> version}; annotation processors are tooling, not the library under test
+def _latest_versions_by_configuration(entries: dict[str, set[str]]) -> dict[str, dict[str, str]]:
+    versions: dict[str, dict[str, str]] = {}
+    for gav, configurations in entries.items():
+        group_id, artifact_id, version = gav.split(":", 2)
+        for configuration in configurations:
+            if LATEST_CONFIGURATION.search(configuration) and not configuration.endswith("AnnotationProcessor"):
+                versions.setdefault(f"{group_id}:{artifact_id}", {})[configuration] = version
+    return versions
+
+
+# render the Package Version Updates markdown table for a PR body, truncated to stay under GitHub's body limit
+def render_bump_table(
+    *,
+    bumps: list[DependencyBump],
+    published_at: dict[str, datetime],
+    max_chars: int = BUMP_TABLE_MAX_CHARS,
+) -> str:
+    if not bumps:
+        return f"{BUMP_TABLE_HEADING}\n\n{BUMP_TABLE_EMPTY}"
+    text = f"{BUMP_TABLE_HEADING}\n\n{BUMP_TABLE_HEADER}"
+    for index, bump in enumerate(bumps):
+        published = published_at.get(f"{bump.package}:{bump.new}")
+        row = (
+            f"\n| {bump.package} | {bump.integration} | {bump.previous or '(new)'} | {bump.new} | "
+            f"{format_date(published) if published else ''} |"
+        )
+        remaining_after_row = len(bumps) - index - 1
+        # unless this is the last row, keep room for the truncation line in case the next rows do not fit
+        reserved = len(f"\n… {remaining_after_row} more rows omitted") if remaining_after_row else 0
+        if len(text) + len(row) + reserved > max_chars:
+            return f"{text}\n… {len(bumps) - index} more rows omitted"
+        text += row
+    return text
 
 
 # replace specific coordinates in lockfiles (for version downgrades)
@@ -780,6 +908,29 @@ def collect_lockfiles(root: Path) -> dict[str, set[str]]:
         str(path.relative_to(root)): parse_lockfile(path)
         for path in root.rglob("gradle.lockfile")
     }
+
+
+# recursively find all gradle.lockfile paths under root and parse them into coordinate -> configurations maps
+def collect_lockfile_entries(root: Path) -> dict[str, dict[str, set[str]]]:
+    if not root.exists():
+        return {}
+    return {
+        str(path.relative_to(root)): parse_lockfile_entries(path)
+        for path in root.rglob("gradle.lockfile")
+    }
+
+
+# parse a lockfile into group:artifact:version -> configurations (skipping comments, empty lines and "empty=" lines)
+def parse_lockfile_entries(path: Path) -> dict[str, set[str]]:
+    entries: dict[str, set[str]] = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        coordinate, _, configurations = line.partition("=")
+        if coordinate.count(":") == 2:
+            entries[coordinate] = {configuration for configuration in configurations.split(",") if configuration}
+    return entries
 
 
 # parse a lockfile into a set of group:artifact:version coordinates (skipping comments and empty lines)
