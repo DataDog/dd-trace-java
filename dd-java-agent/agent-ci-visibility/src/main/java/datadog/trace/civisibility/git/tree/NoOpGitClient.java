@@ -73,6 +73,9 @@ public class NoOpGitClient implements GitClient {
     return CommitInfo.NOOP;
   }
 
+  @Override
+  public void fetchSelectedCommit(String commitReference) {}
+
   @Nonnull
   @Override
   public List<String> getLatestCommits(String commit) {

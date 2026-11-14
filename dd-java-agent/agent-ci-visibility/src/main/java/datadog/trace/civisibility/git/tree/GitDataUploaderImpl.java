@@ -1,5 +1,7 @@
 package datadog.trace.civisibility.git.tree;
 
+import static java.util.Collections.emptyList;
+
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityDistributionMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
@@ -9,6 +11,7 @@ import datadog.trace.api.git.GitUtils;
 import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.civisibility.utils.FileUtils;
 import datadog.trace.util.AgentThreadFactory;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -99,7 +102,27 @@ public class GitDataUploaderImpl implements GitDataUploader {
       GitInfo gitInfo = gitInfoProvider.getGitInfo(repoRoot);
       String remoteUrl = gitInfo.getRepositoryURL();
       String selectedCommit = gitInfo.getCommit().getSha();
-      List<String> latestCommits = gitClient.getLatestCommits(selectedCommit);
+      List<String> latestCommits;
+      try {
+        latestCommits = gitClient.getLatestCommits(selectedCommit);
+      } catch (
+          datadog.trace.civisibility.utils.ShellCommandExecutor.ShellCommandFailedException e) {
+        if (!config.isCiVisibilityGitUnshallowEnabled()) {
+          throw e;
+        }
+        // A previous client's bounded fetch may have stored the tip without its parents.
+        LOGGER.debug("Could not read selected history; attempting configured recovery", e);
+        latestCommits = emptyList();
+      }
+      boolean unshallowed = false;
+      boolean recoveredSelected = false;
+      if (latestCommits.isEmpty() && config.isCiVisibilityGitUnshallowEnabled()) {
+        // HEAD/upstream recovery may not contain an explicitly selected revision.
+        gitClient.fetchSelectedCommit(selectedCommit);
+        recoveredSelected = true;
+        latestCommits = gitClient.getLatestCommits(selectedCommit);
+        unshallowed = !gitClient.isShallow();
+      }
       if (latestCommits.isEmpty()) {
         LOGGER.debug("No commits in the last month, skipping git data upload");
         callback.complete(null);
@@ -115,7 +138,30 @@ public class GitDataUploaderImpl implements GitDataUploader {
         return;
       }
 
-      if (config.isCiVisibilityGitUnshallowDefer() && gitRepoUnshallow.unshallow()) {
+      boolean refreshed = false;
+      if (!recoveredSelected
+          && config.isCiVisibilityGitUnshallowEnabled()
+          && gitClient.isShallow()) {
+        try {
+          gitClient.fetchSelectedCommit(selectedCommit);
+          refreshed = true;
+        } catch (IOException | TimeoutException e) {
+          LOGGER.debug(
+              "Could not fetch local selected commit; continuing with upstream recovery", e);
+        }
+      }
+      if (config.isCiVisibilityGitUnshallowDefer() && !unshallowed) {
+        try {
+          refreshed |= gitRepoUnshallow.unshallow();
+        } catch (datadog.trace.civisibility.utils.ShellCommandExecutor.ShellCommandFailedException
+            | TimeoutException e) {
+          if (!recoveredSelected && !refreshed) {
+            throw e;
+          }
+          LOGGER.debug("Could not recover upstream history; retaining selected revision", e);
+        }
+      }
+      if (refreshed) {
         latestCommits = gitClient.getLatestCommits(selectedCommit);
         commitsToSkip = gitDataApi.searchCommits(remoteUrl, latestCommits);
       }
