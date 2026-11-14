@@ -198,6 +198,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_REPORT_HOSTNAME;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_RESOLVER_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_STATS_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_UNDERTOW_DISPATCH_USE_TARGET_PATH;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_WEBSOCKET_MESSAGES_INHERIT_SAMPLING;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_WEBSOCKET_MESSAGES_SEPARATE_TRACES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_WEBSOCKET_TAG_SESSION_ID;
@@ -654,6 +655,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_RESOURCE
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_WEBSOCKET_MESSAGES_INHERIT_SAMPLING;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_WEBSOCKET_MESSAGES_SEPARATE_TRACES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_WEBSOCKET_TAG_SESSION_ID;
+import static datadog.trace.api.config.TraceInstrumentationConfig.UNDERTOW_DISPATCH_USE_TARGET_PATH;
 import static datadog.trace.api.config.TracerConfig.AGENT_HOST;
 import static datadog.trace.api.config.TracerConfig.AGENT_NAMED_PIPE;
 import static datadog.trace.api.config.TracerConfig.AGENT_PORT_LEGACY;
@@ -1356,6 +1358,7 @@ public class Config {
 
   private final boolean servletPrincipalEnabled;
   private final boolean servletAsyncTimeoutError;
+  private final boolean undertowDispatchUseTargetPath;
 
   private final boolean springDataRepositoryInterfaceResourceName;
 
@@ -3257,6 +3260,9 @@ public class Config {
             TRACE_X_DATADOG_TAGS_MAX_LENGTH, DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH);
 
     servletAsyncTimeoutError = configProvider.getBoolean(SERVLET_ASYNC_TIMEOUT_ERROR, true);
+    undertowDispatchUseTargetPath =
+        configProvider.getBoolean(
+            UNDERTOW_DISPATCH_USE_TARGET_PATH, DEFAULT_UNDERTOW_DISPATCH_USE_TARGET_PATH);
 
     logLevel = configProvider.getString(TRACE_LOG_LEVEL, null, LOG_LEVEL);
     debugEnabled = configProvider.getBoolean(TRACE_DEBUG, false);
@@ -5296,6 +5302,10 @@ public class Config {
     return servletAsyncTimeoutError;
   }
 
+  public boolean isUndertowDispatchUseTargetPath() {
+    return undertowDispatchUseTargetPath;
+  }
+
   public ProtocolVersion getProtocolVersion() {
     return protocolVersion;
   }
@@ -7112,6 +7122,8 @@ public class Config {
         + servletPrincipalEnabled
         + ", servletAsyncTimeoutError="
         + servletAsyncTimeoutError
+        + ", undertowDispatchUseTargetPath="
+        + undertowDispatchUseTargetPath
         + ", datadogTagsLimit="
         + xDatadogTagsMaxLength
         + ", traceAgentProtocolVersion="
