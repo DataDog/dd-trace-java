@@ -1,0 +1,12 @@
+_v: 1
+name: hibernate
+display_name: Hibernate ORM - hibernate-core
+description: Instruments Hibernate sessions, entity operations, queries, stored procedure calls and transaction
+  commits, with SQL injection checks.
+packages:
+- name: org.hibernate.orm:hibernate-core
+- name: org.hibernate:hibernate-core
+category:
+- db.client
+systems: []
+creation_date: '2019-02-11'

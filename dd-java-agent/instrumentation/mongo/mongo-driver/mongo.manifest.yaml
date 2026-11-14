@@ -1,0 +1,16 @@
+_v: 1
+name: mongo
+display_name: MongoDB Java Driver Core
+description: Instruments MongoDB database commands and their asynchronous callbacks, with Database Monitoring comment
+  propagation.
+packages:
+- name: org.mongodb:mongo-java-driver
+- name: org.mongodb:mongodb-driver-async
+- name: org.mongodb:mongodb-driver-core
+- name: org.mongodb:mongodb-driver-reactivestreams
+- name: org.mongodb:mongodb-driver-sync
+category:
+- db.client
+systems:
+- mongodb
+creation_date: '2017-05-23'

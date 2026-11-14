@@ -1,0 +1,12 @@
+_v: 1
+name: cassandra
+display_name: DataStax Java driver for Apache Cassandra(R) - core
+description: Instruments synchronous and asynchronous Cassandra query execution through DataStax driver sessions.
+packages:
+- name: com.datastax.cassandra:cassandra-driver-core
+- name: com.datastax.oss:java-driver-core
+category:
+- db.client
+systems:
+- cassandra
+creation_date: '2017-06-12'

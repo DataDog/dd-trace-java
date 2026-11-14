@@ -1,0 +1,11 @@
+_v: 1
+name: slick
+display_name: Slick
+description: Instruments Slick asynchronous database actions by propagating trace context into their execution.
+packages:
+- name: com.typesafe.slick:slick_2.11
+- name: com.typesafe.slick:slick_2.13
+category:
+- other
+systems: []
+creation_date: '2018-06-05'
