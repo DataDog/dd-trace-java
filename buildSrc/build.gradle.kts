@@ -144,6 +144,12 @@ testing {
       targets.configureEach {
         testTask.configure {
           enabled = providers.gradleProperty("runBuildSrcTests").isPresent or providers.systemProperty("idea.active").isPresent
+          inputs.files(
+            "../.editorconfig",
+            "../gradle/spotless.gradle",
+            "../gradle/libs.versions.toml",
+            "../gradle/enforcement/spotless-groovy.properties"
+          ).withPropertyName("spotlessFixtureInputs").withPathSensitivity(PathSensitivity.RELATIVE)
         }
       }
     }
