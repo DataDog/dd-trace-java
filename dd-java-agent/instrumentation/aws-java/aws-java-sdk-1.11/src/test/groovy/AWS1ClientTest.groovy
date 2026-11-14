@@ -261,6 +261,35 @@ abstract class AWS1ClientTest extends VersionedNamingTestBase {
   }
 
 
+  def "DynamoDB table ARN is tagged only for #scenario"() {
+    setup:
+    def client = AmazonDynamoDBClientBuilder.standard()
+      .withEndpointConfiguration(endpoint)
+      .withCredentials(credentialsProvider)
+      .build()
+    responseBody.set("")
+    jsonPointer.set(null)
+
+    when:
+    client.getItem(new GetItemRequest(tableName, ["attribute": new AttributeValue("somevalue")]))
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    def spans = TEST_WRITER.get(0)
+    spans.size() == 1
+    // the table name tag keeps the request value as before
+    spans[0].getTag("aws.table.name") == tableName
+    spans[0].getTag("aws.table.arn") == expectedArn
+
+    cleanup:
+    client.shutdown()
+
+    where:
+    scenario         | tableName                                                   | expectedArn
+    "a table ARN"    | "arn:aws:dynamodb:us-east-1:123456789012:table/sometable"   | "arn:aws:dynamodb:us-east-1:123456789012:table/sometable"
+    "a name"         | "sometable"                                                 | null
+  }
+
   def "Lambda resource tags normalize #scenario"() {
     setup:
     def client = AWSLambdaClientBuilder.standard()

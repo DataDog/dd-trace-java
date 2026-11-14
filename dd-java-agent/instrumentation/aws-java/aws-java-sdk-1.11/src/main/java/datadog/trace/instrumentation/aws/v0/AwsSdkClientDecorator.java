@@ -57,6 +57,8 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
 
   private static final DDCache<String, String> serviceNameCache = DDCaches.newFixedSizeCache(128);
   private static final Pattern AWS_SERVICE_NAME_PATTERN = Pattern.compile("Amazon\\s?(\\w+)");
+  private static final Pattern TABLE_ARN_PATTERN =
+      Pattern.compile("^arn:[^:]+:dynamodb:[^:]+:[0-9]{12}:table/[^/]+$");
 
   private static final String PUT_RECORD_OPERATION_NAME = "PutRecordRequest";
   private static final String PUT_RECORDS_OPERATION_NAME = "PutRecordsRequest";
@@ -182,6 +184,9 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     }
     String tableName = access.getTableName(originalRequest);
     if (null != tableName) {
+      if (isTableArn(tableName)) {
+        span.setTag(InstrumentationTags.AWS_TABLE_ARN, tableName);
+      }
       span.setTag(InstrumentationTags.AWS_TABLE_NAME, tableName);
       span.setTag(InstrumentationTags.TABLE_NAME, tableName);
       bestPrecursor = InstrumentationTags.AWS_TABLE_NAME;
@@ -262,6 +267,15 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
         }
       }
     }
+  }
+
+  /**
+   * Whether a DynamoDB {@code TableName} is a full table ARN, {@code
+   * arn:<partition>:dynamodb:<region>:<account>:table/<name>}. Cross-account access requires one,
+   * so it names the callee's account and Region.
+   */
+  static boolean isTableArn(String tableName) {
+    return TABLE_ARN_PATTERN.matcher(tableName).matches();
   }
 
   /**

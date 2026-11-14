@@ -46,6 +46,11 @@ abstract class PubSubTest extends VersionedNamingTestBase {
 
   private static final String SUBSCRIPTION_ID = "my-subscription"
 
+  // a subscription in another project, named unlike its topic
+  private static final String OTHER_PROJECT_ID = "dd-trace-java-other"
+
+  private static final String CROSS_PROJECT_SUBSCRIPTION_ID = "warehouse-orders"
+
   @Shared
   PubSubEmulatorContainer emulator
 
@@ -98,6 +103,7 @@ abstract class PubSubTest extends VersionedNamingTestBase {
     transportChannelProvider = FixedTransportChannelProvider.create(GrpcTransportChannel.create(channel))
     createTopic(TOPIC_ID)
     subscriptionName = createSubscription(SUBSCRIPTION_ID, TOPIC_ID).getName()
+    createSubscription(OTHER_PROJECT_ID, CROSS_PROJECT_SUBSCRIPTION_ID, TOPIC_ID)
   }
 
   def cleanupSpec() {
@@ -118,13 +124,17 @@ abstract class PubSubTest extends VersionedNamingTestBase {
   }
 
   def createSubscription(String subscriptionId, String topicId) throws IOException {
+    createSubscription(PROJECT_ID, subscriptionId, topicId)
+  }
+
+  def createSubscription(String projectId, String subscriptionId, String topicId) throws IOException {
     SubscriptionAdminSettings subscriptionAdminSettings = SubscriptionAdminSettings
     .newBuilder()
     .setTransportChannelProvider(transportChannelProvider)
     .setCredentialsProvider(noCredentialsProvider)
     .build()
     try (final SubscriptionAdminClient subscriptionAdminClient = SubscriptionAdminClient.create(subscriptionAdminSettings)) {
-      SubscriptionName subscriptionName = SubscriptionName.of(PROJECT_ID, subscriptionId)
+      SubscriptionName subscriptionName = SubscriptionName.of(projectId, subscriptionId)
       subscriptionAdminClient.createSubscription(subscriptionName, TopicName.of(PROJECT_ID, topicId), PushConfig.getDefaultInstance(), 100)
     }
   }
@@ -189,6 +199,7 @@ abstract class PubSubTest extends VersionedNamingTestBase {
           tags {
             "$Tags.COMPONENT" "java-google-pubsub"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
+            "$InstrumentationTags.GCP_PUBSUB_TOPIC_NAME" "projects/$PROJECT_ID/topics/$TOPIC_ID"
             if ({ isDataStreamsEnabled() }) {
               "$DDTags.PATHWAY_HASH" { String }
             }
@@ -224,6 +235,8 @@ abstract class PubSubTest extends VersionedNamingTestBase {
           tags {
             "$Tags.COMPONENT" "java-google-pubsub"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
+            // the received message does not name its topic, so only the subscription is known
+            "$InstrumentationTags.GCP_PUBSUB_SUBSCRIPTION_NAME" "projects/$PROJECT_ID/subscriptions/$SUBSCRIPTION_ID"
             if ({ isDataStreamsEnabled() }) {
               "$DDTags.PATHWAY_HASH" { String }
             }
@@ -258,6 +271,48 @@ abstract class PubSubTest extends VersionedNamingTestBase {
     subscriber.stopAsync().awaitTerminated()
   }
 
+
+  def "topic and subscription paths keep their own projects"() {
+    setup:
+    def publisher = Publisher
+    .newBuilder(TopicName.of(PROJECT_ID, TOPIC_ID))
+    .setChannelProvider(transportChannelProvider)
+    .setCredentialsProvider(noCredentialsProvider)
+    .build()
+    def crossProjectSubscription = SubscriptionName.of(OTHER_PROJECT_ID, CROSS_PROJECT_SUBSCRIPTION_ID).toString()
+    def latch = new CountDownLatch(1)
+    def subscriber = Subscriber.newBuilder(crossProjectSubscription, createMessageReceiver(latch))
+    .setChannelProvider(transportChannelProvider)
+    .setCredentialsProvider(noCredentialsProvider)
+    .build()
+    subscriber.startAsync().awaitRunning()
+    TEST_WRITER.clear()
+
+    when:
+    publisher.publish(PubsubMessage.newBuilder().setData(ByteString.copyFrom('cross', StandardCharsets.UTF_8)).build()).get()
+    latch.await()
+    def deadline = System.currentTimeMillis() + 10_000
+    def spans = []
+    def produceSpan = null
+    def consumeSpan = null
+    while ((produceSpan == null || consumeSpan == null) && System.currentTimeMillis() < deadline) {
+      spans = TEST_WRITER.flatten()
+      produceSpan = spans.find { it.getTag(Tags.SPAN_KIND) == Tags.SPAN_KIND_PRODUCER }
+      consumeSpan = spans.find { it.getTag(Tags.SPAN_KIND) == Tags.SPAN_KIND_CONSUMER }
+      Thread.sleep(50)
+    }
+
+    then:
+    produceSpan.getTag(InstrumentationTags.GCP_PUBSUB_TOPIC_NAME) == "projects/$PROJECT_ID/topics/$TOPIC_ID".toString()
+    produceSpan.getTag(InstrumentationTags.GCP_PUBSUB_SUBSCRIPTION_NAME) == null
+    consumeSpan.getTag(InstrumentationTags.GCP_PUBSUB_SUBSCRIPTION_NAME) == crossProjectSubscription
+    // the topic is unknown on the consumer and not derived from the subscription
+    consumeSpan.getTag(InstrumentationTags.GCP_PUBSUB_TOPIC_NAME) == null
+
+    cleanup:
+    publisher.shutdown()
+    subscriber.stopAsync().awaitTerminated()
+  }
 
   def grpcSpans(TraceAssert traceAssert, String service = service(), boolean traceRoot = false) {
     traceAssert.span {

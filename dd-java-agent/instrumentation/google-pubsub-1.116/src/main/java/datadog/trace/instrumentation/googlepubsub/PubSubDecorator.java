@@ -17,6 +17,7 @@ import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -72,6 +73,14 @@ public class PubSubDecorator extends MessagingClientDecorator {
       new RegexExtractor("^projects/(.+)/topics/(.+)$", 2).andThen(UTF8BytesString::create);
   private static final Function<CharSequence, CharSequence> SUBSCRIPTION_EXTRACTION_FUNCTION =
       new RegexExtractor("^projects/(.+)/subscriptions/(.+)$", 2).andThen(UTF8BytesString::create);
+
+  // Full resource paths; project, topic and subscription IDs never contain '/'.
+  private static final Pattern FULL_TOPIC_PATH = Pattern.compile("^projects/[^/]+/topics/[^/]+$");
+  private static final Pattern FULL_SUBSCRIPTION_PATH =
+      Pattern.compile("^projects/[^/]+/subscriptions/[^/]+$");
+  private static final DDCache<String, String> TOPIC_PATH_CACHE = DDCaches.newFixedSizeCache(32);
+  private static final DDCache<String, String> SUBSCRIPTION_PATH_CACHE =
+      DDCaches.newFixedSizeCache(32);
 
   public static final PubSubDecorator PRODUCER_DECORATE =
       new PubSubDecorator(
@@ -146,11 +155,36 @@ public class PubSubDecorator extends MessagingClientDecorator {
     afterStart(span);
     span.setResourceName(
         CONSUMER_RESOURCE_NAME_CACHE.computeIfAbsent(parsedSubscription, CONSUMER_PREFIX));
+    // The received message does not name its topic, so only the subscription is known here.
+    final String subscriptionPath =
+        SUBSCRIPTION_PATH_CACHE.computeIfAbsent(
+            subscription, PubSubDecorator::fullSubscriptionPath);
+    if (subscriptionPath != null) {
+      span.setTag(InstrumentationTags.GCP_PUBSUB_SUBSCRIPTION_NAME, subscriptionPath);
+    }
     return span;
   }
 
-  public void onProduce(final AgentSpan span, final CharSequence topic) {
+  public void onProduce(final AgentSpan span, final CharSequence topic, final String fullTopic) {
     span.setResourceName(PRODUCER_RESOURCE_NAME_CACHE.computeIfAbsent(topic, PRODUCER_PREFIX));
+    final String topicPath =
+        TOPIC_PATH_CACHE.computeIfAbsent(fullTopic, PubSubDecorator::fullTopicPath);
+    if (topicPath != null) {
+      span.setTag(InstrumentationTags.GCP_PUBSUB_TOPIC_NAME, topicPath);
+    }
+  }
+
+  /** The name if it is a full {@code projects/<project>/topics/<topic>} path, else {@code null}. */
+  static String fullTopicPath(final String name) {
+    return FULL_TOPIC_PATH.matcher(name).matches() ? name : null;
+  }
+
+  /**
+   * The name if it is a full {@code projects/<project>/subscriptions/<subscription>} path, else
+   * {@code null}.
+   */
+  static String fullSubscriptionPath(final String name) {
+    return FULL_SUBSCRIPTION_PATH.matcher(name).matches() ? name : null;
   }
 
   public CharSequence extractTopic(String fullTopic) {
