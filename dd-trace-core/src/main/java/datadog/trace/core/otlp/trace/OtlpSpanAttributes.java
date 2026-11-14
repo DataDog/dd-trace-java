@@ -12,6 +12,8 @@ import static datadog.trace.common.writer.ddagent.TraceMapper.THREAD_NAME;
 import static java.util.Collections.emptySet;
 import static java.util.Collections.singleton;
 
+import datadog.communication.serialization.GrowableBuffer;
+import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.trace.api.Config;
 import datadog.trace.api.KnownTagCodec;
 import datadog.trace.api.KnownTags;
@@ -20,17 +22,22 @@ import datadog.trace.api.function.TriConsumer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.Metadata;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Span attributes shared by the OTLP protobuf and JSON trace writers: the keys and baggage rules
  * they use, and a {@link Writer} for the tags a span carries as attributes.
  */
 final class OtlpSpanAttributes {
+  private static final Logger log = LoggerFactory.getLogger(OtlpSpanAttributes.class);
 
   static final UTF8BytesString RESOURCE_NAME = UTF8BytesString.create("resource.name");
   static final UTF8BytesString OPERATION_NAME = UTF8BytesString.create("operation.name");
@@ -107,6 +114,23 @@ final class OtlpSpanAttributes {
     return UTF8BytesString.create(KnownTagCodec.openTelemetryTagOf(tagId));
   }
 
+  /** Encodes a report like native export, or returns null when that report cannot be serialized. */
+  @Nullable
+  static byte[] encodeMetaStruct(Object value) {
+    try {
+      GrowableBuffer buffer = new GrowableBuffer(1024);
+      MsgPackWriter writer = new MsgPackWriter(buffer);
+      writer.writeObject(value, null);
+      ByteBuffer encoded = buffer.slice();
+      byte[] bytes = new byte[encoded.remaining()];
+      encoded.get(bytes);
+      return bytes;
+    } catch (RuntimeException e) {
+      log.debug("Failed to serialize structured span report", e);
+      return null;
+    }
+  }
+
   /**
    * Writes the tags an OTLP span carries as attributes: the span's direct tags, plus the span
    * defaults ({@code DD_TRACE_SPAN_TAGS}, {@code env}, ...) it doesn't set itself. The global tags
@@ -126,25 +150,28 @@ final class OtlpSpanAttributes {
     private final T target;
     private final TriConsumer<T, Integer, TagMap.EntryReader> tagWriter;
     private final Set<String> skippedKeys;
+    private final boolean otelSemantics;
 
     // per-span state
     private Integer direction;
     private TagMap spanTags;
     private TagMap spanDefaultTags;
+    private Set<String> structuredKeys = emptySet();
     private final List<String> overriddenDefaults = new ArrayList<>(4);
 
     Writer(T target, TriConsumer<T, Integer, TagMap.EntryReader> tagWriter) {
       this.target = target;
       this.tagWriter = tagWriter;
-      this.skippedKeys =
-          Config.get().isTraceOtelSemanticsEnabled() ? OTEL_SPAN_FIELD_KEYS : emptySet();
+      this.otelSemantics = Config.get().isTraceOtelSemanticsEnabled();
+      this.skippedKeys = otelSemantics ? OTEL_SPAN_FIELD_KEYS : emptySet();
     }
 
     /** Writes the span's attribute tags, naming them for the span's {@code direction}. */
-    void write(Metadata metadata, Integer direction) {
+    void write(Metadata metadata, Integer direction, Set<String> structuredKeys) {
       this.direction = direction;
       this.spanTags = metadata.getTags();
       this.spanDefaultTags = metadata.getSpanDefaultTags();
+      this.structuredKeys = structuredKeys;
       try {
         spanTags.forEachLocal(this, Writer::writeDirectTag);
         if (!spanDefaultTags.isEmpty()) {
@@ -153,6 +180,7 @@ final class OtlpSpanAttributes {
       } finally {
         this.spanTags = null;
         this.spanDefaultTags = null;
+        this.structuredKeys = emptySet();
         overriddenDefaults.clear();
       }
     }
@@ -178,7 +206,10 @@ final class OtlpSpanAttributes {
     }
 
     private boolean isSkipped(TagMap.EntryReader entry) {
-      return !skippedKeys.isEmpty() && skippedKeys.contains(entry.tag());
+      return skippedKeys.contains(entry.tag())
+          || (!structuredKeys.isEmpty()
+              && structuredKeys.contains(
+                  otelSemantics ? entry.openTelemetryTag(direction) : entry.tag()));
     }
   }
 

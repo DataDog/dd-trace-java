@@ -5,8 +5,11 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_SERVER;
 import static datadog.trace.core.DDSpanContext.SPAN_SAMPLING_MECHANISM_TAG;
 import static datadog.trace.core.otlp.common.OtlpCommonJson.hexSpanId;
 import static datadog.trace.core.otlp.common.OtlpCommonJson.hexTraceId;
+import static datadog.trace.core.otlp.common.OtlpResourceJson.buildTraceResourceFragment;
 import static datadog.trace.core.otlp.common.OtlpTraceFlags.SAMPLED_TRACE_FLAG;
 import static java.util.Arrays.asList;
+import static java.util.Collections.emptyMap;
+import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -17,6 +20,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import datadog.json.JsonMapper;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTraceId;
@@ -34,9 +39,12 @@ import datadog.trace.core.DDSpan;
 import datadog.trace.core.otlp.common.OtlpPayload;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.PropagationTags;
+import datadog.trace.util.stacktrace.StackTraceEvent;
+import datadog.trace.util.stacktrace.StackTraceFrame;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -45,6 +53,7 @@ import java.util.function.Consumer;
 import org.junit.jupiter.api.Test;
 import org.mockito.AdditionalAnswers;
 import org.mockito.MockedStatic;
+import org.msgpack.jackson.dataformat.MessagePackFactory;
 import org.tabletest.junit.TableTest;
 
 /**
@@ -696,6 +705,73 @@ class OtlpTraceJsonCollectorTest {
       collector.addTrace(asList((CoreSpan<?>) span));
       return onlySpan(collector.collectTraces());
     }
+  }
+
+  @Test
+  void metaStructReportsPreserveNativeObjectsAndIsolateFailures() throws IOException {
+    DDSpan span = (DDSpan) TRACER.startSpan("test", "reports");
+    span.setResourceName("reports");
+    span.setTag("http.method", "GET");
+    String appsec = "{\"triggers\":[]}";
+    String iast = "{\"vulnerabilities\":[]}";
+    span.setTag("_dd.appsec.json", appsec);
+    span.setTag("_dd.iast.json", iast);
+    StackTraceEvent stack =
+        new StackTraceEvent(
+            asList(new StackTraceFrame(0, new StackTraceElement("App", "hello", "App.java", 42))),
+            "java",
+            "stack-1",
+            "exploit");
+    Map<String, Object> guard = singletonMap("messages", asList(singletonMap("content", "hello")));
+    span.setMetaStruct("_dd.stack", singletonMap("exploit", asList(stack)));
+    span.setMetaStruct("ai_guard", guard);
+    span.setTag("_dd.stack", "shadowed tag");
+    span.setBaggageItem("ai_guard", "shadowed baggage");
+    span.setMetaStruct("bad.report", singletonMap(1, "invalid map key"));
+    span.setTag("bad.report", "fallback");
+    span.finish();
+    DDSpan next = startAndFinish("next", "next", null);
+
+    List<Map<String, Object>> spans;
+    Config realConfig = Config.get();
+    // Initialize the shared resource cache before temporarily changing the export semantics.
+    buildTraceResourceFragment(emptyMap());
+    try (MockedStatic<Config> configMock = mockStatic(Config.class)) {
+      Config config = mock(Config.class, AdditionalAnswers.delegatesTo(realConfig));
+      when(config.isTraceOtelSemanticsEnabled()).thenReturn(true);
+      configMock.when(Config::get).thenReturn(config);
+      OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
+      collector.addTrace(asList(span));
+      collector.addTrace(asList(next));
+      spans = allSpans(collector.collectTraces());
+    }
+    assertEquals(2, spans.size());
+    Map<String, Object> exported = spanNamed(spans, "reports");
+    assertEquals(asList("GET"), attributeValues(exported, "http.request.method"));
+    assertEquals(asList(appsec), attributeValues(exported, "_dd.appsec.json"));
+    assertEquals(asList(iast), attributeValues(exported, "_dd.iast.json"));
+    assertFalse(attributeKeys(exported).contains("appsec"));
+    assertFalse(attributeKeys(exported).contains("iast"));
+    ObjectMapper messagePack = new ObjectMapper(new MessagePackFactory());
+    int reportsSeen = 0;
+    for (Object attribute : (List<?>) exported.get("attributes")) {
+      Map<?, ?> entry = (Map<?, ?>) attribute;
+      if ("_dd.stack".equals(entry.get("key")) || "ai_guard".equals(entry.get("key"))) {
+        Map<?, ?> value = (Map<?, ?>) entry.get("value");
+        JsonNode report =
+            messagePack.readTree(Base64.getDecoder().decode((String) value.get("bytesValue")));
+        if ("_dd.stack".equals(entry.get("key"))) {
+          assertEquals(
+              "hello",
+              report.path("exploit").get(0).path("frames").get(0).path("function").asText());
+        } else {
+          assertEquals(messagePack.valueToTree(guard), report);
+        }
+        reportsSeen++;
+      }
+    }
+    assertEquals(2, reportsSeen);
+    assertEquals(asList("fallback"), attributeValues(exported, "bad.report"));
   }
 
   @Test
