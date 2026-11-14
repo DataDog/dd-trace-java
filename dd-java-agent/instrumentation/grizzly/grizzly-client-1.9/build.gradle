@@ -33,7 +33,6 @@ tasks.named("latest5DepTest", Test) {
   testJvmConstraints {
     minJavaVersion = JavaVersion.VERSION_21
   }
-  javaLauncher = getJavaLauncherFor(21)
 }
 
 tasks.named("compileLatest5DepTestGroovy", GroovyCompile) {

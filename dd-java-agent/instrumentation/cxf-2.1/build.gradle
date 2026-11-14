@@ -37,16 +37,8 @@ tasks.named("compileCxf3LatestDepTestGroovy", GroovyCompile) {
   configureCompiler(it, JavaVersion.VERSION_11)
 }
 
-tasks.named("latestDepTest", Test) {
-  javaLauncher = getJavaLauncherFor(17)
-}
-
 tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
   configureCompiler(it, JavaVersion.VERSION_17)
-}
-
-tasks.named("cxf3LatestDepTest", Test) {
-  javaLauncher = getJavaLauncherFor(11)
 }
 
 dependencies {
