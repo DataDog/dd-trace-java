@@ -2,6 +2,7 @@ plugins {
   id 'dd-trace-java.module.instrumentation'
   id 'dd-trace-java.instrumentation.netty-concurrent-tests'
   id 'dd-trace-java.testcontainers'
+  id 'dd-trace-java.jmh-conventions'
 }
 
 muzzle {
@@ -21,10 +22,16 @@ testJvmConstraints {
 
 addTestSuiteForDir('latestDepTest', 'test')
 
+jmh {
+  jmhVersion = libs.versions.jmh.get()
+  includeTests = false
+}
+
 dependencies {
   testContainerImage(image('cassandra:4', 'test.cassandra.image'))
 
   compileOnly group: 'com.datastax.oss', name: 'java-driver-core', version: '4.0.0'
+  jmh 'com.datastax.oss:java-driver-core:4.0.0'
 
   // ProgrammaticConfig, required to set the timeout, wasn't added until 4.0.1
   testImplementation group: 'com.datastax.oss', name: 'java-driver-core', version: '4.0.1'

@@ -21,7 +21,6 @@ import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.util.AgentThreadFactory;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -90,17 +89,7 @@ public class TracingSession extends SessionWrapper implements CqlSession {
       CompletionStage<AsyncResultSet> completionStage =
           getDelegate().execute(request, Statement.ASYNC);
 
-      return completionStage.whenComplete((result, throwable) -> {
-        if (result != null) {
-          DECORATE.onResponse(span, result);
-        }
-
-        if (throwable instanceof CompletionException) {
-          throwable = throwable.getCause();
-        }
-        DECORATE.onError(span, throwable);
-        span.finish();
-      });
+      return completionStage.whenComplete(new AsyncResultSetConsumer(span));
     }
   }
 
