@@ -12,6 +12,7 @@ import datadog.trace.api.git.PersonInfo;
 import datadog.trace.civisibility.diff.LineDiff;
 import datadog.trace.civisibility.utils.ShellCommandExecutor;
 import datadog.trace.util.Strings;
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -19,13 +20,21 @@ import java.nio.file.FileStore;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.BitSet;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.TimeoutException;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -45,7 +54,7 @@ public class ShellGitClient implements GitClient {
       Arrays.asList("release/", "hotfix/");
   private static final Pattern WHITESPACE_PATTERN = Pattern.compile("\\s+");
   private static final String ORIGIN = "origin";
-  private static final Pattern COMMIT_INFO_SPLIT = Pattern.compile("\",\"");
+  private static final Pattern COMMIT_INFO_SPLIT = Pattern.compile("\\x00");
 
   private final CiVisibilityMetricCollector metricCollector;
   private final String repoRoot;
@@ -320,16 +329,9 @@ public class ShellGitClient implements GitClient {
     }
     return executeCommand(
         Command.OTHER,
-        () -> {
-          try {
-            return commandExecutor.executeCommand(
-                IOUtils::readLines, buildGitCommand("describe", "--tags", "--exact-match", commit));
-          } catch (ShellCommandExecutor.ShellCommandFailedException e) {
-            // if provided commit is not tagged,
-            // command will fail because "--exact-match" is specified
-            return Collections.emptyList();
-          }
-        });
+        () ->
+            commandExecutor.executeCommand(
+                IOUtils::readLines, buildGitCommand("tag", "--no-column", "--points-at", commit)));
   }
 
   /**
@@ -438,14 +440,15 @@ public class ShellGitClient implements GitClient {
                             "show",
                             commit,
                             "-s",
-                            "--format=%H\",\"%an\",\"%ae\",\"%aI\",\"%cn\",\"%ce\",\"%cI\",\"%B"))
+                            "--no-show-signature",
+                            "--format=%H%x00%an%x00%ae%x00%aI%x00%cn%x00%ce%x00%cI%x00%B"))
                     .trim();
           } catch (ShellCommandExecutor.ShellCommandFailedException e) {
             LOGGER.error("Failed to fetch commit info", e);
             return CommitInfo.NOOP;
           }
 
-          String[] fields = COMMIT_INFO_SPLIT.split(info);
+          String[] fields = COMMIT_INFO_SPLIT.split(info, 8);
           if (fields.length < 8) {
             LOGGER.error("Could not parse commit info: {}", info);
             return CommitInfo.NOOP;
@@ -472,17 +475,80 @@ public class ShellGitClient implements GitClient {
   @Override
   public List<String> getLatestCommits()
       throws IOException, TimeoutException, InterruptedException {
-    return executeCommand(
-        Command.GET_LOCAL_COMMITS,
-        () ->
-            commandExecutor.executeCommand(
-                IOUtils::readLines,
-                buildGitCommand(
-                    "log",
-                    "--format=%H",
-                    "-n",
-                    String.valueOf(latestCommitsLimit),
-                    String.format("--since='%s'", latestCommitsSince))));
+    return getLatestCommits(HEAD);
+  }
+
+  @Nonnull
+  @Override
+  public List<String> getLatestCommits(String commit)
+      throws IOException, TimeoutException, InterruptedException {
+    if (latestCommitsLimit <= 0 || GitUtils.isNotValidCommit(commit)) {
+      return Collections.emptyList();
+    }
+    String resolvedCommit = commit;
+    if (GitUtils.isValidCommitShaFull(commit)) {
+      resolvedCommit = commit.toLowerCase(Locale.ROOT);
+    } else if (GitUtils.isValidCommitSha(commit)) {
+      try {
+        resolvedCommit = getSha(commit.toLowerCase(Locale.ROOT));
+      } catch (ShellCommandExecutor.ShellCommandFailedException e) {
+        return Collections.emptyList();
+      }
+    }
+    final String canonicalCommit = resolvedCommit;
+    List<String> commits;
+    try {
+      commits =
+          executeCommand(
+              Command.GET_LOCAL_COMMITS,
+              () -> {
+                String since =
+                    commandExecutor
+                        .executeCommand(
+                            IOUtils::readFully,
+                            buildGitCommand("rev-parse", "--since=" + latestCommitsSince))
+                        .trim();
+                long cutoff = Long.parseUnsignedLong(since.substring("--max-age=".length()));
+                // Git's topological ordering can read the entire graph before applying -n.
+                // Bound discovery first; filter dates afterward so old children do not prune
+                // newer parents.
+                return commandExecutor.executeCommand(
+                    input -> {
+                      List<String> recent = new ArrayList<>();
+                      for (String line : IOUtils.readLines(input)) {
+                        int separator = line.indexOf(' ');
+                        if (Long.compareUnsigned(
+                                Long.parseUnsignedLong(line.substring(separator + 1)), cutoff)
+                            >= 0) {
+                          recent.add(line.substring(0, separator));
+                        }
+                      }
+                      return recent;
+                    },
+                    buildGitCommand(
+                        "log",
+                        "--no-show-signature",
+                        "--format=%H %ct",
+                        "-n",
+                        String.valueOf(latestCommitsLimit),
+                        canonicalCommit,
+                        "--"));
+              });
+    } catch (ShellCommandExecutor.ShellCommandFailedException e) {
+      if (!isCommitPresent(canonicalCommit)) {
+        return Collections.emptyList();
+      }
+      throw e;
+    }
+    if (!HEAD.equals(canonicalCommit)
+        && !commits.contains(canonicalCommit)
+        && isCommitPresent(canonicalCommit)) {
+      if (commits.size() == latestCommitsLimit) {
+        commits.remove(commits.size() - 1);
+      }
+      commits.add(0, canonicalCommit);
+    }
+    return commits;
   }
 
   /**
@@ -505,23 +571,169 @@ public class ShellGitClient implements GitClient {
     return executeCommand(
         Command.GET_OBJECTS,
         () -> {
-          String[] gitArgs = new String[5 + commitsToSkip.size() + commitsToInclude.size()];
-          gitArgs[0] = "rev-list";
-          gitArgs[1] = "--objects";
-          gitArgs[2] = "--no-object-names";
-          gitArgs[3] = "--filter=blob:none";
-          gitArgs[4] = String.format("--since='%s'", latestCommitsSince);
-
-          int count = 5;
-          for (String commitToSkip : commitsToSkip) {
-            gitArgs[count++] = "^" + commitToSkip;
+          LinkedHashSet<String> roots = new LinkedHashSet<>();
+          for (String commit : commitsToInclude) {
+            if (roots.size() >= latestCommitsLimit) {
+              break;
+            }
+            roots.add(commit);
           }
-          for (String commitToInclude : commitsToInclude) {
-            gitArgs[count++] = commitToInclude;
+          if (roots.isEmpty()) {
+            return Collections.emptyList();
           }
-
-          return commandExecutor.executeCommand(IOUtils::readLines, buildGitCommand(gitArgs));
+          List<String> exclusions = new ArrayList<>();
+          for (String commit : commitsToSkip) {
+            exclusions.add("^" + commit);
+          }
+          if (!exclusions.isEmpty()) {
+            Map<String, List<String>> parents = new HashMap<>();
+            Set<String> tips = new LinkedHashSet<>(roots);
+            tips.addAll(commitsToSkip);
+            readCommitParents(tips, false, parents);
+            if (!removeKnownRoots(roots, commitsToSkip, parents)) {
+              readCommitParents(commitsToSkip, true, parents);
+              if (!removeKnownRoots(roots, commitsToSkip, parents)) {
+                // Unrelated roots may need an exact ancestry walk. Keep that fallback off the
+                // incremental path and out of the tracer's buffered stdout and heap.
+                Path knownHistory = Files.createTempFile(DD_TEMP_DIRECTORY_PREFIX, ".commits");
+                try {
+                  List<String> known = new ArrayList<>();
+                  Collections.addAll(
+                      known,
+                      "log",
+                      "--no-show-signature",
+                      "--format=%H",
+                      "--output=" + knownHistory,
+                      "--end-of-options");
+                  known.addAll(commitsToSkip);
+                  known.add("--");
+                  commandExecutor.executeCommand(
+                      ShellCommandExecutor.OutputParser.IGNORE,
+                      buildGitCommand(known.toArray(new String[0])));
+                  try (BufferedReader reader = Files.newBufferedReader(knownHistory)) {
+                    String commit;
+                    while ((commit = reader.readLine()) != null && !roots.isEmpty()) {
+                      roots.remove(commit);
+                    }
+                  }
+                } finally {
+                  Files.deleteIfExists(knownHistory);
+                }
+              }
+            }
+            if (roots.isEmpty()) {
+              return Collections.emptyList();
+            }
+          }
+          List<String> objects = new ArrayList<>();
+          Collections.addAll(
+              objects, "rev-list", "--objects", "--no-object-names", "--filter=blob:none");
+          objects.addAll(exclusions);
+          // Put this after negative refs: parsing a negative ref resets Git's no-walk flag.
+          objects.add("--no-walk=unsorted");
+          objects.addAll(roots);
+          return commandExecutor.executeCommand(
+              IOUtils::readLines, buildGitCommand(objects.toArray(new String[0])));
         });
+  }
+
+  private void readCommitParents(
+      Collection<String> tips, boolean walk, Map<String, List<String>> parents)
+      throws IOException, InterruptedException, TimeoutException {
+    List<String> command = new ArrayList<>();
+    Collections.addAll(command, "log", "--no-show-signature", "--format=%H %P");
+    if (walk) {
+      Collections.addAll(command, "-n", String.valueOf(latestCommitsLimit));
+    } else {
+      command.add("--no-walk=unsorted");
+    }
+    command.add("--end-of-options");
+    command.addAll(tips);
+    command.add("--");
+    for (String line :
+        commandExecutor.executeCommand(
+            IOUtils::readLines, buildGitCommand(command.toArray(new String[0])))) {
+      List<String> commits = Arrays.asList(WHITESPACE_PATTERN.split(line));
+      parents.put(commits.get(0), commits.subList(1, commits.size()));
+    }
+  }
+
+  private static boolean removeKnownRoots(
+      Set<String> roots, Collection<String> known, Map<String, List<String>> parents)
+      throws IOException {
+    Set<String> covered = new HashSet<>();
+    Set<String> frontier = new HashSet<>();
+    ArrayDeque<String> pending = new ArrayDeque<>(known);
+    while (!pending.isEmpty()) {
+      String commit = pending.removeLast();
+      if (!covered.add(commit)) {
+        continue;
+      }
+      List<String> ancestors = parents.get(commit);
+      if (ancestors == null) {
+        frontier.add(commit);
+      } else {
+        pending.addAll(ancestors);
+      }
+    }
+    roots.removeAll(covered);
+    if (roots.isEmpty() || frontier.isEmpty()) {
+      return true;
+    }
+    Map<String, BitSet> reachable = new HashMap<>();
+    int index = 0;
+    for (String commit : frontier) {
+      BitSet bit = new BitSet();
+      bit.set(index++);
+      reachable.put(commit, bit);
+    }
+    boolean classified = true;
+    for (String root : roots) {
+      // An unread frontier only hides ancestors of itself. If every frontier is a strict
+      // ancestor of this root, acyclicity proves that the root cannot be backend-known.
+      if (reachableFrontiers(root, parents, reachable).cardinality() != frontier.size()) {
+        classified = false;
+      }
+    }
+    return classified;
+  }
+
+  private static BitSet reachableFrontiers(
+      String root, Map<String, List<String>> parents, Map<String, BitSet> reachable)
+      throws IOException {
+    ArrayDeque<String> pending = new ArrayDeque<>();
+    Set<String> visiting = new HashSet<>();
+    pending.add(root);
+    while (!pending.isEmpty()) {
+      String commit = pending.peekLast();
+      if (reachable.containsKey(commit)) {
+        pending.removeLast();
+        visiting.remove(commit);
+        continue;
+      }
+      visiting.add(commit);
+      List<String> ancestors = parents.getOrDefault(commit, Collections.emptyList());
+      String missing = null;
+      for (String ancestor : ancestors) {
+        if (!reachable.containsKey(ancestor)) {
+          if (visiting.contains(ancestor)) {
+            throw new IOException("Cyclic Git ancestry");
+          }
+          missing = ancestor;
+          break;
+        }
+      }
+      if (missing != null) {
+        pending.add(missing);
+        continue;
+      }
+      BitSet mask = new BitSet();
+      for (String ancestor : ancestors) {
+        mask.or(reachable.get(ancestor));
+      }
+      reachable.put(commit, mask);
+    }
+    return reachable.get(root);
   }
 
   /**

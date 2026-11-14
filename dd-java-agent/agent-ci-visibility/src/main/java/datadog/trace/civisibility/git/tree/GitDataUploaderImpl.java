@@ -5,6 +5,7 @@ import datadog.trace.api.civisibility.telemetry.CiVisibilityDistributionMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
+import datadog.trace.api.git.GitUtils;
 import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.civisibility.utils.FileUtils;
 import datadog.trace.util.AgentThreadFactory;
@@ -13,6 +14,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -96,7 +98,8 @@ public class GitDataUploaderImpl implements GitDataUploader {
 
       GitInfo gitInfo = gitInfoProvider.getGitInfo(repoRoot);
       String remoteUrl = gitInfo.getRepositoryURL();
-      List<String> latestCommits = gitClient.getLatestCommits();
+      String selectedCommit = gitInfo.getCommit().getSha();
+      List<String> latestCommits = gitClient.getLatestCommits(selectedCommit);
       if (latestCommits.isEmpty()) {
         LOGGER.debug("No commits in the last month, skipping git data upload");
         callback.complete(null);
@@ -113,7 +116,7 @@ public class GitDataUploaderImpl implements GitDataUploader {
       }
 
       if (config.isCiVisibilityGitUnshallowDefer() && gitRepoUnshallow.unshallow()) {
-        latestCommits = gitClient.getLatestCommits();
+        latestCommits = gitClient.getLatestCommits(selectedCommit);
         commitsToSkip = gitDataApi.searchCommits(remoteUrl, latestCommits);
       }
 
@@ -132,7 +135,12 @@ public class GitDataUploaderImpl implements GitDataUploader {
         return;
       }
 
-      String currentCommit = latestCommits.get(0);
+      String currentCommit = gitInfo.getCommit().getSha();
+      if (GitUtils.isValidCommitShaFull(currentCommit)) {
+        currentCommit = currentCommit.toLowerCase(Locale.ROOT);
+      } else if (GitUtils.isValidCommitSha(currentCommit)) {
+        currentCommit = latestCommits.get(0);
+      }
 
       Path packFilesDirectory = gitClient.createPackFiles(objectHashes);
       try {

@@ -274,7 +274,7 @@ public class GitUtils {
 
   /** Checks if the provided string is a valid Git reference (branch, tag, etc.) */
   public static boolean isValidRef(@Nullable String ref) {
-    if (Strings.isBlank(ref)) {
+    if (Strings.isBlank(ref) || ref.charAt(0) == '-') {
       return false;
     }
 
