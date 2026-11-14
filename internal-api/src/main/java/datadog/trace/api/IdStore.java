@@ -1,6 +1,6 @@
 package datadog.trace.api;
 
-import datadog.apicontract.Restricted;
+import datadog.contract.Restricted;
 import datadog.trace.api.TagMap.EntryReader;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.internal.VisibleForTesting;

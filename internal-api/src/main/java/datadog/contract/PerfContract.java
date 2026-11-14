@@ -1,4 +1,4 @@
-package datadog.perfcontract;
+package datadog.contract;
 
 import datadog.trace.api.function.NoEscape;
 import java.lang.annotation.Documented;

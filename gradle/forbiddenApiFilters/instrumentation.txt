@@ -4,12 +4,12 @@
 datadog.trace.bootstrap.instrumentation.api.AgentSpan#setServiceName(java.lang.String)
 
 # TagMap.internals() skips checks the tracer core has already made; it is @Restricted to the core
-# (see datadog.apicontract.Restricted). Instrumentation uses TagMap's checked methods.
+# (see datadog.contract.Restricted). Instrumentation uses TagMap's checked methods.
 @defaultMessage TagMap.internals() is restricted to the tracer core; use TagMap's checked methods instead.
 datadog.trace.api.TagMap#internals()
 
 # A span's tag stores, how it gets them from a parent, and the span's view of them skip checks the tracer
-# core has already made; they are @Restricted to the core (see datadog.apicontract.Restricted).
+# core has already made; they are @Restricted to the core (see datadog.contract.Restricted).
 # Instrumentation uses TagMap's checked methods.
 @defaultMessage Tag stores are restricted to the tracer core; use TagMap's checked methods instead.
 datadog.trace.api.HashStore
