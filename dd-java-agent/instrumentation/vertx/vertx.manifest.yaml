@@ -1,0 +1,19 @@
+_v: 1
+name: vertx
+display_name: Vert.x Web
+description: Instruments Vert.x HTTP route handling, SQL queries and cursor reads, and Redis commands, with application-security
+  request and response inspection and HTTP client error attribution.
+packages:
+- name: io.vertx:vertx-mysql-client
+- name: io.vertx:vertx-pg-client
+- name: io.vertx:vertx-redis-client
+- name: io.vertx:vertx-sql-client
+- name: io.vertx:vertx-web
+category:
+- db.client
+- http.server
+systems:
+- mysql
+- postgresql
+- redis
+creation_date: '2020-11-12'

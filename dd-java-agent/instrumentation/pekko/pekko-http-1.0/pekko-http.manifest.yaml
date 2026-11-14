@@ -1,0 +1,13 @@
+_v: 1
+name: pekko-http
+display_name: pekko-http
+description: Instruments Apache Pekko HTTP client requests and server request handling, with request-data taint
+  propagation for vulnerability detection.
+packages:
+- name: org.apache.pekko:pekko-http_2.12
+- name: org.apache.pekko:pekko-http_2.13
+category:
+- http.client
+- http.server
+systems: []
+creation_date: '2023-09-07'
