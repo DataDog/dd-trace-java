@@ -91,6 +91,7 @@ import datadog.trace.common.sampling.SpanSamplingRules;
 import datadog.trace.common.sampling.TraceSamplingRules;
 import datadog.trace.common.writer.Writer;
 import datadog.trace.common.writer.WriterFactory;
+import datadog.trace.common.writer.ddagent.SpanBudget;
 import datadog.trace.common.writer.ddintake.DDIntakeTraceInterceptor;
 import datadog.trace.context.TraceScope;
 import datadog.trace.core.baggage.BaggagePropagator;
@@ -763,11 +764,15 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
             ? Config.get().getIdGenerationStrategy()
             : idGenerationStrategy;
 
+    // made before health metrics so they can report it; a writer supplied by the caller brings its
+    // own, which health metrics don't see
+    SpanBudget spanBudget =
+        writer == null ? WriterFactory.spanBudget(config) : SpanBudget.unlimited();
     this.healthMetrics =
         healthMetrics != null
             ? healthMetrics
             : (config.isHealthMetricsEnabled()
-                ? new TracerHealthMetrics(AgentMeter.statsDClient())
+                ? new TracerHealthMetrics(AgentMeter.statsDClient(), spanBudget)
                 : HealthMetrics.NO_OP);
     this.healthMetrics.start();
 
@@ -801,7 +806,12 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     if (writer == null) {
       this.writer =
           WriterFactory.createWriter(
-              config, sharedCommunicationObjects, sampler, singleSpanSampler, this.healthMetrics);
+              config,
+              sharedCommunicationObjects,
+              sampler,
+              singleSpanSampler,
+              this.healthMetrics,
+              spanBudget);
     } else {
       this.writer = writer;
     }

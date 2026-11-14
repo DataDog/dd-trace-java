@@ -3,6 +3,7 @@ package datadog.trace.common.writer;
 import static datadog.trace.api.config.TracerConfig.PRIORITIZATION_TYPE;
 import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -22,6 +23,7 @@ import datadog.trace.common.sampling.RateByServiceTraceSampler;
 import datadog.trace.common.sampling.Sampler;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
 import datadog.trace.common.writer.ddagent.Prioritization;
+import datadog.trace.common.writer.ddagent.SpanBudget;
 import datadog.trace.common.writer.ddagent.TraceMapperV0_4;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.test.util.DDJavaSpecification;
@@ -115,7 +117,13 @@ class WriterFactoryTest extends DDJavaSpecification {
 
     Writer writer =
         WriterFactory.createWriter(
-            config, sharedComm, sampler, null, HealthMetrics.NO_OP, configuredType);
+            config,
+            sharedComm,
+            sampler,
+            null,
+            HealthMetrics.NO_OP,
+            SpanBudget.unlimited(),
+            configuredType);
 
     List<Class<?>> expectedApiClasses =
         expectedApiClass != null ? singletonList(expectedApiClass) : null;
@@ -195,7 +203,13 @@ class WriterFactoryTest extends DDJavaSpecification {
 
     Writer writer =
         WriterFactory.createWriter(
-            config, sharedComm, sampler, null, HealthMetrics.NO_OP, configuredType);
+            config,
+            sharedComm,
+            sampler,
+            null,
+            HealthMetrics.NO_OP,
+            SpanBudget.unlimited(),
+            configuredType);
     List<Class<?>> llmObsApiClasses =
         ((RemoteWriter) writer)
             .getApis().stream()
@@ -239,10 +253,12 @@ class WriterFactoryTest extends DDJavaSpecification {
     when(config.getOtlpTracesProtocol()).thenReturn(protocol);
     when(config.getOtlpTracesCompression()).thenReturn(compression);
     when(config.getOtlpTracesTimeout()).thenReturn(5000);
+    stubPrioritization(config, Prioritization.FAST_LANE);
 
     // OTLP branch in WriterFactory does not consult sharedComm or sampler, so nulls are safe here.
     Writer writer =
-        WriterFactory.createWriter(config, null, null, null, HealthMetrics.NO_OP, "OtlpWriter");
+        WriterFactory.createWriter(
+            config, null, null, null, HealthMetrics.NO_OP, SpanBudget.unlimited(), "OtlpWriter");
     Object sender = readField(writer, "sender");
 
     assertEquals(OtlpWriter.class, writer.getClass());
@@ -330,7 +346,13 @@ class WriterFactoryTest extends DDJavaSpecification {
     sharedComm.createRemaining(config);
 
     return WriterFactory.createWriter(
-        config, sharedComm, sampler, null, HealthMetrics.NO_OP, "DDAgentWriter");
+        config,
+        sharedComm,
+        sampler,
+        null,
+        HealthMetrics.NO_OP,
+        SpanBudget.unlimited(),
+        "DDAgentWriter");
   }
 
   private static DDAgentApi onlyApi(Writer writer) {
@@ -383,5 +405,67 @@ class WriterFactoryTest extends DDJavaSpecification {
     Field field = instance.getClass().getDeclaredField(fieldName);
     field.setAccessible(true);
     return field.get(instance);
+  }
+
+  @TableTest({
+    "scenario                    | prioritization | limit | unlimited | expectedLimit",
+    "configured limit            | FAST_LANE      | 20000 | false     | 20000        ",
+    "zero turns the budget off   | FAST_LANE      | 0     | true      | 0            ",
+    "ensure trace doesn't use it | ENSURE_TRACE   | 20000 | true      | 0            "
+  })
+  void testSpanBudgetFollowsConfig(
+      Prioritization prioritization, int limit, boolean unlimited, long expectedLimit) {
+    Config config = mock(Config.class);
+    //noinspection unchecked
+    doReturn(prioritization)
+        .when(config)
+        .getEnumValue(
+            eq(PRIORITIZATION_TYPE),
+            (Class<Prioritization>) any(Class.class),
+            any(Prioritization.class));
+    when(config.getTraceWriterSpanBudget()).thenReturn(limit);
+
+    SpanBudget budget = WriterFactory.spanBudget(config);
+
+    assertEquals(unlimited, budget.isUnlimited());
+    if (!unlimited) {
+      assertEquals(expectedLimit, budget.limit());
+    }
+  }
+
+  @Test
+  void testOtlpWriterKeepsItsSpanBudgetWhenTheConfiguredPrioritizationDoesNotUseOne() {
+    // OTLP always uses FAST_LANE, so ENSURE_TRACE in the config must not take its budget away
+    Config config = mock(Config.class);
+    when(config.getTraceFlushIntervalSeconds()).thenReturn(1.0f);
+    when(config.getOtlpTracesEndpoint()).thenReturn("http://otel-collector:4318/v1/traces");
+    when(config.getOtlpTracesHeaders()).thenReturn(new HashMap<>());
+    when(config.getOtlpTracesProtocol()).thenReturn(OtlpConfig.Protocol.HTTP_PROTOBUF);
+    when(config.getOtlpTracesCompression()).thenReturn(OtlpConfig.Compression.NONE);
+    when(config.getOtlpTracesTimeout()).thenReturn(5000);
+    when(config.getTraceWriterSpanBudget()).thenReturn(20000);
+    stubPrioritization(config, Prioritization.ENSURE_TRACE);
+
+    SpanBudget factoryBudget = WriterFactory.spanBudget(config);
+    OtlpWriter writer =
+        (OtlpWriter)
+            WriterFactory.createWriter(
+                config, null, null, null, HealthMetrics.NO_OP, factoryBudget, "OtlpWriter");
+
+    assertTrue(factoryBudget.isUnlimited());
+    SpanBudget otlpBudget = writer.traceProcessingWorker.spanBudget();
+    assertFalse(otlpBudget.isUnlimited());
+    assertEquals(20000, otlpBudget.limit());
+    writer.close();
+  }
+
+  @SuppressWarnings("unchecked")
+  private static void stubPrioritization(Config config, Prioritization prioritization) {
+    doReturn(prioritization)
+        .when(config)
+        .getEnumValue(
+            eq(PRIORITIZATION_TYPE),
+            (Class<Prioritization>) any(Class.class),
+            any(Prioritization.class));
   }
 }

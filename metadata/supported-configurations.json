@@ -11836,6 +11836,14 @@
         "aliases": ["DD_TRACE_INTEGRATION_WILDFLY_ENABLED", "DD_INTEGRATION_WILDFLY_ENABLED"]
       }
     ],
+    "DD_TRACE_WRITER_SPAN_BUDGET": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "20000",
+        "aliases": []
+      }
+    ],
     "DD_TRACE_X_DATADOG_TAGS_MAX_LENGTH": [
       {
         "version": "A",

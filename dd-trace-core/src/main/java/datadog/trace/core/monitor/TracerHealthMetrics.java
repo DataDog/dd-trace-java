@@ -12,6 +12,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import datadog.metrics.api.statsd.StatsDClient;
 import datadog.trace.api.cache.RadixTreeCache;
 import datadog.trace.common.writer.RemoteApi;
+import datadog.trace.common.writer.ddagent.SpanBudget;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.propagation.opg.OrgGuard;
 import datadog.trace.util.AgentTaskScheduler;
@@ -107,6 +108,10 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
 
   private final StatsDClient statsd;
   private final long interval;
+
+  /** Read on flush, so queue.spans keeps moving while the serializer is stuck in a send. */
+  private final SpanBudget spanBudget;
+
   private final TimeUnit units;
 
   @Override
@@ -119,18 +124,35 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   }
 
   public TracerHealthMetrics(final StatsDClient statsd) {
-    this(statsd, 30, SECONDS);
+    this(statsd, SpanBudget.unlimited());
+  }
+
+  /**
+   * @param spanBudget the writer's span budget, reported as queue.span_limit and queue.spans;
+   *     nothing is reported when it is unlimited
+   */
+  public TracerHealthMetrics(final StatsDClient statsd, final SpanBudget spanBudget) {
+    this(statsd, 30, SECONDS, spanBudget);
   }
 
   public TracerHealthMetrics(final StatsDClient statsd, long interval, TimeUnit units) {
+    this(statsd, interval, units, SpanBudget.unlimited());
+  }
+
+  public TracerHealthMetrics(
+      final StatsDClient statsd, long interval, TimeUnit units, final SpanBudget spanBudget) {
     this.statsd = statsd;
     this.interval = interval;
     this.units = units;
+    this.spanBudget = spanBudget;
   }
 
   @Override
   public void onStart(final int queueCapacity) {
     statsd.gauge("queue.max_length", queueCapacity, NO_TAGS);
+    if (!spanBudget.isUnlimited()) {
+      statsd.gauge("queue.span_limit", spanBudget.limit(), NO_TAGS);
+    }
   }
 
   @Override
@@ -480,6 +502,9 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
             target.statsd, "queue.dropped.spans", target.unsetPriorityDroppedSpans, UNSET_TAG);
 
         reportIfChanged(target.statsd, "queue.enqueued.spans", target.enqueuedSpans, NO_TAGS);
+        if (!target.spanBudget.isUnlimited()) {
+          target.statsd.gauge("queue.spans", target.spanBudget.used(), NO_TAGS);
+        }
         reportIfChanged(target.statsd, "queue.enqueued.bytes", target.enqueuedBytes, NO_TAGS);
         reportIfChanged(target.statsd, "trace.pending.created", target.createdTraces, NO_TAGS);
         reportIfChanged(target.statsd, "span.pending.created", target.createdSpans, NO_TAGS);

@@ -15,6 +15,7 @@ import datadog.trace.common.sampling.SingleSpanSampler;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
 import datadog.trace.common.writer.ddagent.DDAgentMapperDiscovery;
 import datadog.trace.common.writer.ddagent.Prioritization;
+import datadog.trace.common.writer.ddagent.SpanBudget;
 import datadog.trace.core.monitor.HealthMetrics;
 import java.util.concurrent.TimeUnit;
 import okhttp3.HttpUrl;
@@ -36,6 +37,7 @@ public class DDAgentWriter extends RemoteWriter {
     String namedPipe = null;
     long timeoutMillis = TimeUnit.SECONDS.toMillis(DEFAULT_AGENT_TIMEOUT);
     int traceBufferSize = BUFFER_SIZE;
+    SpanBudget spanBudget;
     HealthMetrics healthMetrics = HealthMetrics.NO_OP;
     int flushIntervalMilliseconds = 1000;
     Monitoring monitoring = Monitoring.DISABLED;
@@ -79,6 +81,12 @@ public class DDAgentWriter extends RemoteWriter {
 
     public DDAgentWriterBuilder timeoutMillis(long timeoutMillis) {
       this.timeoutMillis = timeoutMillis;
+      return this;
+    }
+
+    /** The span budget the writer's queues count traces against; by default, the configured one. */
+    public DDAgentWriterBuilder spanBudget(SpanBudget spanBudget) {
+      this.spanBudget = spanBudget;
       return this;
     }
 
@@ -177,6 +185,10 @@ public class DDAgentWriter extends RemoteWriter {
       final TraceProcessingWorker traceProcessingWorker =
           new TraceProcessingWorker(
               traceBufferSize,
+              spanBudget != null
+                  ? spanBudget
+                  : (null == prioritization ? FAST_LANE : prioritization)
+                      .spanBudget(Config.get().getTraceWriterSpanBudget()),
               healthMetrics,
               dispatcher,
               // allow custom dropping policy for OTLP; otherwise fall back to feature discovery

@@ -13,10 +13,12 @@ import static org.mockito.Mockito.when;
 
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.common.sampling.SingleSpanSampler;
+import datadog.trace.common.writer.ddagent.SpanBudget;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.test.util.DDJavaSpecification;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
@@ -35,7 +37,13 @@ class SpanSamplingWorkerTest extends DDJavaSpecification {
     HealthMetrics healthMetrics = mock(HealthMetrics.class);
     SpanSamplingWorker worker =
         SpanSamplingWorker.build(
-            10, primaryQueue, secondaryQueue, singleSpanSampler, healthMetrics, () -> false);
+            10,
+            primaryQueue,
+            secondaryQueue,
+            singleSpanSampler,
+            healthMetrics,
+            SpanBudget.unlimited(),
+            () -> false);
     worker.start();
     DDSpan span1 = mock(DDSpan.class);
     DDSpan span2 = mock(DDSpan.class);
@@ -60,7 +68,13 @@ class SpanSamplingWorkerTest extends DDJavaSpecification {
     HealthMetrics healthMetrics = mock(HealthMetrics.class);
     SpanSamplingWorker worker =
         SpanSamplingWorker.build(
-            10, primaryQueue, secondaryQueue, singleSpanSampler, healthMetrics, () -> false);
+            10,
+            primaryQueue,
+            secondaryQueue,
+            singleSpanSampler,
+            healthMetrics,
+            SpanBudget.unlimited(),
+            () -> false);
     worker.start();
     DDSpan span1 = mock(DDSpan.class);
     DDSpan span2 = mock(DDSpan.class);
@@ -92,7 +106,13 @@ class SpanSamplingWorkerTest extends DDJavaSpecification {
     HealthMetrics healthMetrics = mock(HealthMetrics.class);
     SpanSamplingWorker worker =
         SpanSamplingWorker.build(
-            10, primaryQueue, secondaryQueue, singleSpanSampler, healthMetrics, () -> false);
+            10,
+            primaryQueue,
+            secondaryQueue,
+            singleSpanSampler,
+            healthMetrics,
+            SpanBudget.unlimited(),
+            () -> false);
     worker.start();
     DDSpan span1 = mock(DDSpan.class);
     DDSpan span2 = mock(DDSpan.class);
@@ -129,7 +149,13 @@ class SpanSamplingWorkerTest extends DDJavaSpecification {
     HealthMetrics healthMetrics = mock(HealthMetrics.class);
     SpanSamplingWorker worker =
         SpanSamplingWorker.build(
-            10, primaryQueue, secondaryQueue, singleSpanSampler, healthMetrics, () -> false);
+            10,
+            primaryQueue,
+            secondaryQueue,
+            singleSpanSampler,
+            healthMetrics,
+            SpanBudget.unlimited(),
+            () -> false);
     worker.start();
     DDSpan span1 = mock(DDSpan.class);
     when(singleSpanSampler.setSamplingPriority(span1)).thenReturn(true);
@@ -152,7 +178,13 @@ class SpanSamplingWorkerTest extends DDJavaSpecification {
     CountDownLatch latch = new CountDownLatch(1);
     SpanSamplingWorker worker =
         new SpanSamplingWorker.DefaultSpanSamplingWorker(
-            10, primaryQueue, secondaryQueue, singleSpanSampler, healthMetrics, () -> false) {
+            10,
+            primaryQueue,
+            secondaryQueue,
+            singleSpanSampler,
+            healthMetrics,
+            SpanBudget.unlimited(),
+            () -> false) {
           @Override
           protected void afterOnEvent() {
             latch.countDown();
@@ -189,7 +221,13 @@ class SpanSamplingWorkerTest extends DDJavaSpecification {
     CountDownLatch latch = new CountDownLatch(1);
     SpanSamplingWorker worker =
         new SpanSamplingWorker.DefaultSpanSamplingWorker(
-            10, primaryQueue, secondaryQueue, singleSpanSampler, healthMetrics, () -> false) {
+            10,
+            primaryQueue,
+            secondaryQueue,
+            singleSpanSampler,
+            healthMetrics,
+            SpanBudget.unlimited(),
+            () -> false) {
           @Override
           protected void afterOnEvent() {
             latch.countDown();
@@ -224,7 +262,13 @@ class SpanSamplingWorkerTest extends DDJavaSpecification {
     HealthMetrics healthMetrics = mock(HealthMetrics.class);
     SpanSamplingWorker worker =
         SpanSamplingWorker.build(
-            10, primaryQueue, secondaryQueue, singleSpanSampler, healthMetrics, () -> false);
+            10,
+            primaryQueue,
+            secondaryQueue,
+            singleSpanSampler,
+            healthMetrics,
+            SpanBudget.unlimited(),
+            () -> false);
     worker.start();
     DDSpan span1 = mock(DDSpan.class);
     DDSpan span2 = mock(DDSpan.class);
@@ -255,7 +299,13 @@ class SpanSamplingWorkerTest extends DDJavaSpecification {
     HealthMetrics healthMetrics = mock(HealthMetrics.class);
     SpanSamplingWorker worker =
         SpanSamplingWorker.build(
-            10, primaryQueue, secondaryQueue, singleSpanSampler, healthMetrics, () -> false);
+            10,
+            primaryQueue,
+            secondaryQueue,
+            singleSpanSampler,
+            healthMetrics,
+            SpanBudget.unlimited(),
+            () -> false);
     worker.start();
     DDSpan span1 = mock(DDSpan.class);
     DDSpan span2 = mock(DDSpan.class);
@@ -301,6 +351,7 @@ class SpanSamplingWorkerTest extends DDJavaSpecification {
             secondaryQueue,
             singleSpanSampler,
             healthMetrics,
+            SpanBudget.unlimited(),
             () -> droppingPolicy);
     worker.start();
     DDSpan span1 = mock(DDSpan.class);
@@ -347,6 +398,7 @@ class SpanSamplingWorkerTest extends DDJavaSpecification {
             secondaryQueue,
             singleSpanSampler,
             healthMetrics,
+            SpanBudget.unlimited(),
             () -> droppingPolicy) {
           @Override
           protected void afterOnEvent() {
@@ -367,6 +419,47 @@ class SpanSamplingWorkerTest extends DDJavaSpecification {
     verify(healthMetrics).onFailedPublish(eq((int) PrioritySampling.SAMPLER_DROP), anyInt());
     verify(healthMetrics, never()).onPartialPublish(anyInt());
     verify(healthMetrics, never()).onPublish(any(), anyInt());
+
+    worker.close();
+  }
+
+  @Test
+  void testReleasesBudgetForSpansItDropsAndKeepsItForSpansItForwards() throws InterruptedException {
+    BlockingQueue<Object> primaryQueue = new LinkedBlockingDeque<>(10);
+    BlockingQueue<Object> secondaryQueue = new LinkedBlockingDeque<>(10);
+    SingleSpanSampler singleSpanSampler = mock(SingleSpanSampler.class);
+    HealthMetrics healthMetrics = mock(HealthMetrics.class);
+    SpanBudget budget = SpanBudget.of(1000);
+    CountDownLatch latch = new CountDownLatch(1);
+    SpanSamplingWorker worker =
+        new SpanSamplingWorker.DefaultSpanSamplingWorker(
+            10,
+            primaryQueue,
+            secondaryQueue,
+            singleSpanSampler,
+            healthMetrics,
+            budget,
+            () -> true) {
+          @Override
+          protected void afterOnEvent() {
+            latch.countDown();
+          }
+        };
+    worker.start();
+    DDSpan sampled = mock(DDSpan.class);
+    DDSpan unsampled = mock(DDSpan.class);
+    when(sampled.samplingPriority()).thenReturn((int) PrioritySampling.SAMPLER_DROP);
+    when(singleSpanSampler.setSamplingPriority(sampled)).thenReturn(true);
+    when(singleSpanSampler.setSamplingPriority(unsampled)).thenReturn(false);
+    List<DDSpan> trace = Arrays.asList(sampled, unsampled, unsampled);
+    assertTrue(budget.tryAdmitSampledOut(trace.size()));
+
+    assertTrue(worker.getSpanSamplingQueue().offer(trace));
+
+    assertTrue(latch.await(10, TimeUnit.SECONDS));
+    // the dropping policy discards the two unsampled spans; the sampled one stays counted
+    assertEquals(Collections.singletonList(sampled), primaryQueue.take());
+    assertEquals(1, budget.used());
 
     worker.close();
   }

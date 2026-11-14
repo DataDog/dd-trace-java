@@ -17,6 +17,7 @@ import datadog.trace.common.sampling.SingleSpanSampler;
 import datadog.trace.common.writer.ddagent.FlushEvent;
 import datadog.trace.common.writer.ddagent.Prioritization;
 import datadog.trace.common.writer.ddagent.PrioritizationStrategy;
+import datadog.trace.common.writer.ddagent.SpanBudget;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.monitor.HealthMetrics;
@@ -45,6 +46,7 @@ public class TraceProcessingWorker implements AutoCloseable {
   private final TraceSerializingHandler serializingHandler;
   private final Thread serializerThread;
   private final int capacity;
+  private final SpanBudget spanBudget;
 
   private final SpanSamplingWorker spanSamplingWorker;
 
@@ -53,6 +55,7 @@ public class TraceProcessingWorker implements AutoCloseable {
   private final boolean flushSecondaryQueue =
       ServerlessInfo.get().isRunningInServerlessEnvironment();
 
+  /** Uses the configured writer span budget. */
   public TraceProcessingWorker(
       final int capacity,
       final HealthMetrics healthMetrics,
@@ -62,7 +65,35 @@ public class TraceProcessingWorker implements AutoCloseable {
       final long flushInterval,
       final TimeUnit timeUnit,
       final SingleSpanSampler singleSpanSampler) {
+    this(
+        capacity,
+        prioritization.spanBudget(Config.get().getTraceWriterSpanBudget()),
+        healthMetrics,
+        dispatcher,
+        droppingPolicy,
+        prioritization,
+        flushInterval,
+        timeUnit,
+        singleSpanSampler);
+  }
+
+  /**
+   * @param spanBudget the span budget the queues count traces against, possibly shared with other
+   *     workers and with health metrics; a prioritization that doesn't use one gets an unlimited
+   *     budget instead
+   */
+  public TraceProcessingWorker(
+      final int capacity,
+      final SpanBudget spanBudget,
+      final HealthMetrics healthMetrics,
+      final PayloadDispatcher dispatcher,
+      final DroppingPolicy droppingPolicy,
+      final Prioritization prioritization,
+      final long flushInterval,
+      final TimeUnit timeUnit,
+      final SingleSpanSampler singleSpanSampler) {
     this.capacity = capacity;
+    this.spanBudget = prioritization.usesSpanBudget() ? spanBudget : SpanBudget.unlimited();
     this.primaryQueue = createQueue(capacity);
     this.secondaryQueue = createQueue(capacity);
     this.spanSamplingWorker =
@@ -72,17 +103,25 @@ public class TraceProcessingWorker implements AutoCloseable {
             secondaryQueue,
             singleSpanSampler,
             healthMetrics,
+            this.spanBudget,
             droppingPolicy);
     this.prioritizationStrategy =
         prioritization.create(
             primaryQueue,
             secondaryQueue,
             spanSamplingWorker.getSpanSamplingQueue(),
+            this.spanBudget,
             droppingPolicy);
 
     this.serializingHandler =
         new TraceSerializingHandler(
-            primaryQueue, secondaryQueue, healthMetrics, dispatcher, flushInterval, timeUnit);
+            primaryQueue,
+            secondaryQueue,
+            healthMetrics,
+            dispatcher,
+            flushInterval,
+            timeUnit,
+            this.spanBudget);
     this.serializerThread = newAgentThread(TRACE_PROCESSOR, serializingHandler);
   }
 
@@ -133,6 +172,11 @@ public class TraceProcessingWorker implements AutoCloseable {
     return prioritizationStrategy.publish(root, samplingPriority, trace);
   }
 
+  @VisibleForTesting
+  SpanBudget spanBudget() {
+    return spanBudget;
+  }
+
   public int getCapacity() {
     return capacity;
   }
@@ -164,6 +208,7 @@ public class TraceProcessingWorker implements AutoCloseable {
     private final long ticksRequiredToFlush;
     private final boolean doTimeFlush;
     private final PayloadDispatcher payloadDispatcher;
+    private final SpanBudget spanBudget;
     private long lastTicks;
 
     public TraceSerializingHandler(
@@ -172,7 +217,9 @@ public class TraceProcessingWorker implements AutoCloseable {
         final HealthMetrics healthMetrics,
         final PayloadDispatcher payloadDispatcher,
         final long flushInterval,
-        final TimeUnit timeUnit) {
+        final TimeUnit timeUnit,
+        final SpanBudget spanBudget) {
+      this.spanBudget = spanBudget;
       this.primaryQueue = primaryQueue;
       this.secondaryQueue = secondaryQueue;
       this.healthMetrics = healthMetrics;
@@ -215,9 +262,14 @@ public class TraceProcessingWorker implements AutoCloseable {
       try {
         if (event instanceof List) {
           List<DDSpan> trace = (List<DDSpan>) event;
-          maybeTracePostProcessing(trace);
-          // TODO populate `_sample_rate` metric in a way that accounts for lost/dropped traces
-          payloadDispatcher.addTrace(trace);
+          try {
+            maybeTracePostProcessing(trace);
+            // TODO populate `_sample_rate` metric in a way that accounts for lost/dropped traces
+            payloadDispatcher.addTrace(trace);
+          } finally {
+            // serialized or failed, the writer no longer holds these spans
+            spanBudget.release(trace.size());
+          }
         } else if (event instanceof FlushEvent) {
           // The flush marker only goes to the primary queue, so drain the secondary queue too:
           // sampled-out traces can carry LLM Observability spans that must still be sent.

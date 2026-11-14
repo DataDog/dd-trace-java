@@ -2,6 +2,11 @@ package datadog.trace.core.monitor;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -9,6 +14,7 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import datadog.metrics.api.statsd.StatsDClient;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.common.writer.RemoteApi;
+import datadog.trace.common.writer.ddagent.SpanBudget;
 import datadog.trace.core.DDSpan;
 import java.util.Arrays;
 import java.util.Collections;
@@ -119,6 +125,36 @@ class HealthMetricsTest {
     verify(statsD).count("queue.partial.traces", 1L);
     verify(statsD).count("queue.dropped.spans", (long) droppedSpans, "priority:sampler_drop");
     verifyNoMoreInteractions(statsD);
+  }
+
+  @Test
+  void testReportsSpanLimitOnStartAndUsageOnFlush() throws InterruptedException {
+    SpanBudget budget = SpanBudget.of(1000);
+    assertTrue(budget.tryAdmitKept(300));
+    CountDownLatch latch = new CountDownLatch(3);
+    try (TracerHealthMetrics healthMetrics =
+        new TracerHealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS, budget)) {
+      healthMetrics.onStart(1024);
+      // the limit is constant, so it is reported once, with the queue capacity
+      verify(statsD).gauge("queue.max_length", 1024L);
+      verify(statsD).gauge("queue.span_limit", 1000L);
+      healthMetrics.start();
+      assertTrue(latch.await(10, TimeUnit.SECONDS));
+    }
+    verify(statsD, atLeastOnce()).gauge("queue.spans", 300L);
+    verify(statsD, times(1)).gauge("queue.span_limit", 1000L);
+  }
+
+  @Test
+  void testUnlimitedSpanBudgetReportsNoSpanGauges() throws InterruptedException {
+    try (TracerHealthMetrics healthMetrics =
+        new TracerHealthMetrics(statsD, 100, TimeUnit.MILLISECONDS, SpanBudget.unlimited())) {
+      healthMetrics.onStart(1024);
+      healthMetrics.start();
+      Thread.sleep(300);
+    }
+    verify(statsD, never()).gauge(eq("queue.spans"), anyLong());
+    verify(statsD, never()).gauge(eq("queue.span_limit"), anyLong());
   }
 
   @Test
