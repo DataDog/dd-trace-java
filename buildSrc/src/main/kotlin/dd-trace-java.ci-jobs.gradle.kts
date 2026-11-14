@@ -1,6 +1,8 @@
+import datadog.gradle.plugin.ci.CHANGED_FILES_BY_PROJECT
 import datadog.gradle.plugin.ci.isInSelectedSlot
 import org.gradle.api.tasks.testing.Test
 import java.io.File
+import java.nio.file.FileSystems
 
 /*
  * This plugin defines a set of tasks to be used in CI.
@@ -23,21 +25,24 @@ allprojects {
   }
 }
 
-fun relativeToGitRoot(f: File): File {
-  return rootProject.projectDir.toPath().relativize(f.absoluteFile.toPath()).toFile()
+fun relativeToGitRoot(f: File): File = rootProject.projectDir.toPath().relativize(f.absoluteFile.toPath()).toFile()
+
+/** Returns whether a file path, relative to the root project, matches any of the given glob patterns. */
+fun pathMatcher(vararg globs: String): (File) -> Boolean {
+  val matchers = globs.map { FileSystems.getDefault().getPathMatcher("glob:$it") }
+  return { file -> matchers.any { it.matches(relativeToGitRoot(file).toPath()) } }
 }
 
 fun getChangedFiles(baseRef: String, newRef: String): List<File> {
-  val stdout = StringBuilder()
-  val stderr = StringBuilder()
+  val diff = providers.exec {
+    // List both paths of a renamed file, so that the project it moved out of is affected too
+    commandLine("git", "diff", "--name-only", "--no-renames", "$baseRef..$newRef")
+    workingDir = rootProject.projectDir
+    isIgnoreExitValue = true
+  }
+  require(diff.result.get().exitValue == 0) { "git diff command failed, stderr: ${diff.standardError.asText.get()}" }
 
-  val proc = Runtime.getRuntime().exec(arrayOf("git", "diff", "--name-only", "$baseRef..$newRef"))
-  proc.inputStream.bufferedReader().use { stdout.append(it.readText()) }
-  proc.errorStream.bufferedReader().use { stderr.append(it.readText()) }
-  proc.waitFor()
-  require(proc.exitValue() == 0) { "git diff command failed, stderr: $stderr" }
-
-  val out = stdout.toString().trim()
+  val out = diff.standardOutput.asText.get().trim()
   if (out.isEmpty()) {
     return emptyList()
   }
@@ -58,31 +63,28 @@ if (gitBaseRefProvider.isPresent) {
   rootProject.extra.set("changedFiles", changedFiles)
   rootProject.extra.set("useGitChanges", true)
 
-  val ignoredFiles = fileTree(rootProject.projectDir) {
-    include(".gitignore", ".editorconfig")
-    include("*.md", "**/*.md")
-    include("gradlew", "gradlew.bat", "mvnw", "mvnw.cmd")
-    include("NOTICE")
-    include("static-analysis.datadog.yml")
-  }
+  // Match paths rather than file trees: a deleted or renamed file no longer exists and would match no tree
+  val isIgnored = pathMatcher(
+    ".gitignore", ".editorconfig",
+    "*.md", "**/*.md",
+    "gradlew", "gradlew.bat", "mvnw", "mvnw.cmd",
+    "NOTICE",
+    "static-analysis.datadog.yml",
+  )
 
   changedFiles.forEach { f ->
-    if (ignoredFiles.contains(f)) {
+    if (isIgnored(f)) {
       logger.warn("Ignoring changed file: ${relativeToGitRoot(f)}")
     }
   }
 
-  val filteredChangedFiles = changedFiles.filter { !ignoredFiles.contains(it) }
+  val filteredChangedFiles = changedFiles.filter { !isIgnored(it) }
   rootProject.extra.set("changedFiles", filteredChangedFiles)
 
-  val globalEffectFiles = fileTree(rootProject.projectDir) {
-    include(".gitlab/**")
-    include("build.gradle")
-    include("gradle/**")
-  }
+  val hasGlobalEffect = pathMatcher(".gitlab/**", "build.gradle", "gradle/**")
 
   for (f in filteredChangedFiles) {
-    if (globalEffectFiles.contains(f)) {
+    if (hasGlobalEffect(f)) {
       logger.warn("Global effect change: ${relativeToGitRoot(f)} (no tasks will be skipped)")
       rootProject.extra.set("useGitChanges", false)
       break
@@ -93,15 +95,7 @@ if (gitBaseRefProvider.isPresent) {
     logger.warn("Git change tracking is enabled: $baseRef..$newRef")
 
     val projects = subprojects.sortedByDescending { it.projectDir.path.length }
-    val affectedProjects = mutableMapOf<Project, MutableSet<String>>()
-
-    // Path prefixes mapped to affected task names. A file not matching any of these prefixes will affect all tasks in
-    // the project ("all" can be used a task name to explicitly state the same). Only the first matching prefix is used.
-    val matchers = listOf(
-      mapOf("prefix" to "src/testFixtures/", "task" to "testFixturesClasses"),
-      mapOf("prefix" to "src/test/", "task" to "testClasses"),
-      mapOf("prefix" to "src/jmh/", "task" to "jmhCompileGeneratedClasses")
-    )
+    val changedFilesByProject = mutableMapOf<Project, MutableList<File>>()
 
     for (f in filteredChangedFiles) {
       val p = projects.find { f.toString().startsWith(it.projectDir.path + "/") }
@@ -111,14 +105,12 @@ if (gitBaseRefProvider.isPresent) {
         break
       }
 
-      // Make sure path separator is /
-      val relPath = p.projectDir.toPath().relativize(f.toPath()).joinToString("/")
-      val task = matchers.find { relPath.startsWith(it["prefix"]!!) }?.get("task") ?: "all"
-      logger.warn("Changed file: ${relativeToGitRoot(f)} in project ${p.path} ($task)")
-      affectedProjects.computeIfAbsent(p) { mutableSetOf() }.add(task)
+      logger.warn("Changed file: ${relativeToGitRoot(f)} in project ${p.path}")
+      changedFilesByProject.computeIfAbsent(p) { mutableListOf() }.add(f)
     }
 
-    rootProject.extra.set("affectedProjects", affectedProjects)
+    // Source sets are only known once every project is configured: the aggregate tasks map these files to tasks.
+    rootProject.extra.set(CHANGED_FILES_BY_PROJECT, changedFilesByProject)
   }
 }
 

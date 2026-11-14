@@ -731,7 +731,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
       }
       MethodInfo methodInfo = new MethodInfo(loader, classNode, methodNode, classFileLines);
       InstrumentationResult result = applyInstrumentation(methodInfo, matchingDefs);
-      transformed |= result.isInstalled();
+      transformed |= result.isAtLeastOneInstalled();
       handleInstrumentationResult(matchingDefs, result);
     }
     for (ProbeDefinition definition : remainingDefinitions) {
@@ -755,9 +755,9 @@ public class DebuggerTransformer implements ClassFileTransformer {
       if (!result.getDiagnostics().isEmpty()) {
         addDiagnostics(definition, diagnosticMessages);
       }
-      if (result.isInstalled()) {
+      if (result.isInstalled(definition.getProbeId())) {
         debuggerSink.addInstalled(definition.getProbeId());
-      } else if (result.isBlocked()) {
+      } else if (result.isBlocked(definition.getProbeId())) {
         debuggerSink.addBlocked(definition.getProbeId());
       }
     }
@@ -811,34 +811,46 @@ public class DebuggerTransformer implements ClassFileTransformer {
       probeDefinition.buildLocation(methodInfo);
       diagnostics.put(probeDefinition.getProbeId(), new ArrayList<>());
     });
-    InstrumentationResult.Status status = preCheckInstrumentation(diagnostics, methodInfo);
-    if (status != InstrumentationResult.Status.ERROR) {
+    InstrumentationResult.Status preCheckStatus = preCheckInstrumentation(diagnostics, methodInfo);
+    Map<ProbeId, InstrumentationResult.Status> probeStatuses = new HashMap<>();
+    definitions.forEach(
+        probeDefinition -> probeStatuses.put(probeDefinition.getProbeId(), preCheckStatus));
+    if (preCheckStatus != InstrumentationResult.Status.ERROR) {
       try {
         List<ToInstrumentInfo> toInstruments =
             filterAndSortDefinitions(definitions, methodInfo.getClassFileLines());
         for (ToInstrumentInfo toInstrumentInfo : toInstruments) {
           ProbeDefinition definition = toInstrumentInfo.definition;
           List<DiagnosticMessage> probeDiagnostics = diagnostics.get(definition.getProbeId());
-          status =
+          InstrumentationResult.Status status =
               definition.instrument(methodInfo, probeDiagnostics, toInstrumentInfo.probeIndices);
+          // the instrumented definition may be a merge of several probes (log/span decoration)
+          for (ProbeId probeId : toInstrumentInfo.probeIds) {
+            probeStatuses.put(probeId, status);
+          }
         }
       } catch (Throwable t) {
         LOGGER.warn("Exception during instrumentation: ", t);
-        status = InstrumentationResult.Status.ERROR;
+        probeStatuses.replaceAll((probeId, status) -> InstrumentationResult.Status.ERROR);
         addDiagnosticForAllProbes(
             new DiagnosticMessage(DiagnosticMessage.Kind.ERROR, t), diagnostics);
       }
     }
-    return new InstrumentationResult(status, diagnostics, methodInfo);
+    return new InstrumentationResult(probeStatuses, diagnostics, methodInfo);
   }
 
   static class ToInstrumentInfo {
     final ProbeDefinition definition;
     final List<Integer> probeIndices;
 
-    ToInstrumentInfo(ProbeDefinition definition, List<Integer> probeIndices) {
+    /** ids of all probes instrumented by this definition (several when probes are merged) */
+    final List<ProbeId> probeIds;
+
+    ToInstrumentInfo(
+        ProbeDefinition definition, List<Integer> probeIndices, List<ProbeId> probeIds) {
       this.definition = definition;
       this.probeIndices = probeIndices;
+      this.probeIds = probeIds;
     }
   }
 
@@ -879,7 +891,9 @@ public class DebuggerTransformer implements ClassFileTransformer {
         }
       } else {
         int idx = probeMetadata.addProbe(definition);
-        toInstrument.add(new ToInstrumentInfo(definition, singletonList(idx)));
+        toInstrument.add(
+            new ToInstrumentInfo(
+                definition, singletonList(idx), singletonList(definition.getProbeId())));
       }
     }
     processCapturedContextLineProbes(capturedContextLineProbes, probeMetadata, toInstrument);
@@ -903,12 +917,14 @@ public class DebuggerTransformer implements ClassFileTransformer {
       return;
     }
     List<Integer> probeIndices = new ArrayList<>();
+    List<ProbeId> probeIds = new ArrayList<>();
     for (ProbeDefinition definition : capturedContextProbes) {
       probeIndices.add(probeMetadata.addProbe(definition));
+      probeIds.add(definition.getProbeId());
     }
     ProbeDefinition referenceDefinition =
         selectReferenceDefinition(capturedContextProbes, classFileLines);
-    toInstrument.add(new ToInstrumentInfo(referenceDefinition, probeIndices));
+    toInstrument.add(new ToInstrumentInfo(referenceDefinition, probeIndices, probeIds));
   }
 
   private static void processCapturedContextLineProbes(
@@ -920,10 +936,12 @@ public class DebuggerTransformer implements ClassFileTransformer {
         continue;
       }
       List<Integer> probeIndices = new ArrayList<>();
+      List<ProbeId> probeIds = new ArrayList<>();
       for (ProbeDefinition definition : entry.getValue()) {
         probeIndices.add(probeMetadata.addProbe(definition));
+        probeIds.add(definition.getProbeId());
       }
-      toInstrument.add(new ToInstrumentInfo(entry.getValue().get(0), probeIndices));
+      toInstrument.add(new ToInstrumentInfo(entry.getValue().get(0), probeIndices, probeIds));
     }
   }
 

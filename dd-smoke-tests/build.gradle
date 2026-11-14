@@ -1,5 +1,3 @@
-import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
-
 plugins {
   id 'dd-trace-java.module.smoke-test'
 }
@@ -18,51 +16,4 @@ dependencies {
 
   // Checks the mock backend's remote-config payload with the tracer's own response parser.
   testImplementation project(':remote-config:remote-config-core')
-}
-
-// Disable forbiddenApis for all smoke-test modules
-allprojects {
-  tasks.matching { it.name.startsWith('forbiddenApis') }.configureEach {
-    enabled = false
-  }
-}
-
-allprojects { Project subProj ->
-  // Don't need javadoc task run for internal projects.
-  subProj.tasks.withType(Javadoc).configureEach { enabled = false }
-
-  subProj.evaluationDependsOn ':dd-java-agent'
-  subProj.evaluationDependsOn ':dd-java-agent:instrumentation-testing'
-  subProj.tasks.withType(Test).configureEach { subTask ->
-    def agentTaskRef = project(':dd-java-agent').tasks.named('shadowJar', ShadowJar)
-    def diagnosticsTaskRef = project(':dd-java-agent:instrumentation-testing').tasks.named('scopeDiagnosticsAgentJar', Jar)
-    def agentArguments = subProj.objects.newInstance(SmokeAgentArguments)
-    agentArguments.tracerJar.set(agentTaskRef.flatMap { it.archiveFile })
-    agentArguments.diagnosticsJar.set(diagnosticsTaskRef.flatMap { it.archiveFile })
-    jvmArgumentProviders.add(agentArguments)
-
-    def quiescenceProperty = 'datadog.smoketest.scopeDiagnostics.quiescenceMillis'
-    systemProperty quiescenceProperty, providers.systemProperty(quiescenceProperty).getOrElse('2000')
-
-    // Tests depend on this to know where to run things and what agent jar to use
-    jvmArgs "-Ddatadog.smoketest.builddir=${buildDir}"
-  }
-}
-
-abstract class SmokeAgentArguments implements CommandLineArgumentProvider {
-  @InputFile
-  @PathSensitive(PathSensitivity.NONE)
-  abstract RegularFileProperty getTracerJar()
-
-  @InputFile
-  @PathSensitive(PathSensitivity.NONE)
-  abstract RegularFileProperty getDiagnosticsJar()
-
-  @Override
-  Iterable<String> asArguments() {
-    return [
-      '-Ddatadog.smoketest.agent.shadowJar.path=' + tracerJar.get().asFile.absolutePath,
-      '-Ddatadog.smoketest.scopeDiagnostics.agent.path=' + diagnosticsJar.get().asFile.absolutePath
-    ]
-  }
 }

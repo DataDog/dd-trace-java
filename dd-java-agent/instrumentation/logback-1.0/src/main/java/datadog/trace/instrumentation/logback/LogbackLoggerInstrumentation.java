@@ -9,8 +9,10 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static java.util.Collections.singletonMap;
+import static net.bytebuddy.matcher.ElementMatchers.isBootstrapClassLoader;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
+import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
@@ -18,12 +20,12 @@ import ch.qos.logback.classic.spi.ILoggingEvent;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
+import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class LogbackLoggerInstrumentation extends InstrumenterModule.ContextTracking
@@ -31,6 +33,13 @@ public class LogbackLoggerInstrumentation extends InstrumenterModule.ContextTrac
 
   public LogbackLoggerInstrumentation() {
     super("logback", "logs-intake", "logs-intake-logback");
+  }
+
+  @Override
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
+    // Helpers cannot be injected into the bootstrap class loader, where instrumentation tests load
+    // Logback
+    return not(isBootstrapClassLoader());
   }
 
   @Override
@@ -58,17 +67,6 @@ public class LogbackLoggerInstrumentation extends InstrumenterModule.ContextTrac
             .and(takesArguments(1))
             .and(takesArgument(0, named("ch.qos.logback.classic.spi.ILoggingEvent"))),
         LogbackLoggerInstrumentation.class.getName() + "$CallAppendersAdvice");
-    // this can be moved into a always on instrumenter module if one day context tracking can be
-    // deactivated by config
-    if (InstrumenterConfig.get().isAppLogsCollectionEnabled()) {
-      transformer.applyAdvice(
-          isMethod()
-              .and(isPublic())
-              .and(named("callAppenders"))
-              .and(takesArguments(1))
-              .and(takesArgument(0, named("ch.qos.logback.classic.spi.ILoggingEvent"))),
-          LogbackLoggerInstrumentation.class.getName() + "$CallAppendersAdvice2");
-    }
   }
 
   public static class CallAppendersAdvice {
@@ -83,15 +81,7 @@ public class LogbackLoggerInstrumentation extends InstrumenterModule.ContextTrac
         InstrumentationContext.get(ILoggingEvent.class, AgentSpanContext.class)
             .put(event, span.spanContext());
       }
-    }
-  }
 
-  public static class CallAppendersAdvice2 {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void onEnter(@Advice.Argument(0) ILoggingEvent event) {
-      if (event == null) {
-        return;
-      }
       LogsIntakeHelper.log(event);
     }
   }

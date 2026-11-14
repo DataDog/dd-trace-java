@@ -222,6 +222,11 @@ public class InferredProxySpan implements ImplicitContextKeyed {
     this.registeredServiceEntrySpan = serviceEntrySpan;
   }
 
+  /** Returns the registered application server span, or {@code null} if none is registered. */
+  public AgentSpan getServiceEntrySpan() {
+    return registeredServiceEntrySpan;
+  }
+
   public void finish() {
     finish(null);
   }

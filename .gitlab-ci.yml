@@ -5,7 +5,7 @@ include:
   - local: ".gitlab/ci-visibility-tests.yml"
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-spring-petclinic-parallel.yml'
-    ref: &apm_sdks_benchmarks_sha '646620266c1fcffd279948322af15da0adc7c950' # pinned by .github/workflows/update-apm-sdks-benchmarks-reference.yaml
+    ref: &apm_sdks_benchmarks_sha 'c2459c94ed11668579caf91dc634813856e7f72a' # pinned by .github/workflows/update-apm-sdks-benchmarks-reference.yaml
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-load-parallel.yml'
     ref: *apm_sdks_benchmarks_sha
@@ -540,6 +540,15 @@ check-instrumentation-naming:
     - ./gradlew --version
     - ./gradlew checkInstrumentationNaming $GRADLE_ARGS
 
+check-codeowners:
+  # The Java builder base includes Python 3 and Git; the generic GBI image does not include Python.
+  image: ${BUILDER_IMAGE_REPO}:${BUILDER_IMAGE_VERSION_PREFIX}base
+  stage: tests
+  needs: []
+  script:
+    - python3 -m unittest discover -s tooling/tests -p 'test_check_codeowners.py'
+    - python3 tooling/check_codeowners.py
+
 config-inversion-linter:
   extends: .gradle_build
   stage: tests
@@ -788,6 +797,7 @@ muzzle-dep-report:
   variables:
     <<: *tier_m_variables
     GRADLE_PARAMS: "-PskipFlakyTests"
+    # When enabled, Gradle tolerates reported test failures; build and trace-validation errors fail the job.
     CONTINUE_ON_FAILURE: "false"
     TEST_JVM_ARGS: ""
     TESTCONTAINERS_CHECKS_DISABLE: "true"
@@ -807,7 +817,7 @@ muzzle-dep-report:
     - *prepare_test_env
     - export GRADLE_OPTS="-Dorg.gradle.jvmargs='$TEST_JVM_ARGS -Xms$GRADLE_MEMORY_MIN -Xmx$GRADLE_MEMORY_MAX $PROFILER_COMMAND -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp -Djava.util.prefs.userRoot=/tmp/.java/.userPrefs-${CI_JOB_ID}' -Ddatadog.forkedMinHeapSize=128M -Ddatadog.forkedMaxHeapSize=1024M"
     - ./gradlew --version
-    - ./gradlew $GRADLE_TARGET $GRADLE_PARAMS -PtestJvm=$testJvm -Pslot=$CI_NODE_INDEX/$CI_NODE_TOTAL $GRADLE_ARGS --continue || $CONTINUE_ON_FAILURE
+    - ./gradlew $GRADLE_TARGET $GRADLE_PARAMS -PtestJvm=$testJvm -Pslot=$CI_NODE_INDEX/$CI_NODE_TOTAL $GRADLE_ARGS --continue
   after_script:
     - *restore_pretest_env
     - *set_datadog_api_keys
@@ -963,10 +973,6 @@ muzzle-dep-report:
         KUBERNETES_SERVICE_CPU_REQUEST: "500m"
         KUBERNETES_SERVICE_MEMORY_REQUEST: "2Gi"
         KUBERNETES_SERVICE_MEMORY_LIMIT: "2Gi"
-  script:
-    - !reference [.test_job_common, script]
-    # Check traces from executed tests; cache hits restore results without sending traces.
-    - tooling/check_test_agent_results.sh
 
 .test_job_amd64_with_test_agent:
   extends:
@@ -1011,11 +1017,9 @@ test_base:
   variables:
     GRADLE_TARGET: ":baseTest"
     CACHE_TYPE: "base"
+    GRADLE_PARAMS: "-PskipFlakyTests -PcheckCoverageOnFirstTestJvm"
   parallel:
     matrix: *test_matrix_4
-  script:
-    - if [ "$testJvm" == "8" ]; then export GRADLE_PARAMS="-PskipFlakyTests -PcheckCoverage"; fi
-    - !reference [.test_job_common, script]
 
 test_base_arm64:
   extends: .test_job_arm64
@@ -1128,6 +1132,7 @@ test_profiling:
   variables:
     GRADLE_TARGET: ":profilingTest"
     CACHE_TYPE: "profiling"
+    GRADLE_PARAMS: "-PskipFlakyTests -PcheckCoverageOnFirstTestJvm"
   parallel:
     matrix: *test_matrix
 
@@ -1234,7 +1239,7 @@ test_smoke_graalvm:
   tags: [ "arch:amd64" ]
   variables:
     <<: *tier_l_variables
-    GRADLE_TARGET: "stageMainDist :dd-smoke-test:spring-boot-3.0-native:test :dd-smoke-test:quarkus-native:test"
+    GRADLE_TARGET: "stageMainDist :dd-smoke-test:spring-boot-3.0-native:test :dd-smoke-test:quarkus-native:test :dd-smoke-tests:native-image-jmx:test"
     CACHE_TYPE: "smoke"
     CI_NO_SPLIT: "true"
     NON_DEFAULT_JVMS: "true"
@@ -1247,7 +1252,7 @@ test_smoke_graalvm_arm64:
   tags: [ "arch:arm64" ]
   variables:
     <<: *tier_l_variables
-    GRADLE_TARGET: "stageMainDist :dd-smoke-test:spring-boot-3.0-native:test :dd-smoke-test:quarkus-native:test"
+    GRADLE_TARGET: "stageMainDist :dd-smoke-test:spring-boot-3.0-native:test :dd-smoke-test:quarkus-native:test :dd-smoke-tests:native-image-jmx:test"
     CACHE_TYPE: "smoke"
     CI_NO_SPLIT: "true"
     # Treat the GraalVM JVMs as this job's defaults, so it follows the arm64 rules like the other arm64 jobs:
@@ -1359,6 +1364,9 @@ deploy_to_maven_central:
   rules:
     - if: '$POPULATE_CACHE'
       when: never
+    # Release branches build -rc.N versions, which the publish plugin would push to the release staging repository
+    - if: '$CI_COMMIT_BRANCH =~ /^release\/v/'
+      when: never
     - if: '$CI_COMMIT_BRANCH == "master"'
       when: on_success
     # Do not deploy release candidate versions
@@ -1388,6 +1396,9 @@ deploy_snapshot_with_ddprof_snapshot:
     CACHE_TYPE: "lib"
   rules:
     - if: '$POPULATE_CACHE'
+      when: never
+    # Release branches build -rc.N versions, which the publish plugin would push to the release staging repository
+    - if: '$CI_COMMIT_BRANCH =~ /^release\/v/'
       when: never
     # Manual trigger only - for testing with ddprof snapshot versions
     - when: manual

@@ -29,6 +29,18 @@ tasks.withType<JavaCompile>().configureEach {
 extra["minimumBranchCoverage"] = 0.8
 extra["minimumInstructionCoverage"] = 0.8
 
+// TODO: Cover these classes, then remove them from the coverage baseline (APMLP-2265)
+extra["excludedClassesBranchCoverage"] = listOf(
+  "datadog.trace.util.JDK9ModuleAccess",
+  "datadog.trace.util.stacktrace.JDK9StackWalker",
+)
+extra["excludedClassesInstructionCoverage"] = listOf(
+  "datadog.trace.util.JDK9ExecutableSupplier",
+  "datadog.trace.util.JDK9ModuleAccess",
+  "datadog.trace.util.JDK9PidSupplier",
+  "datadog.trace.util.stacktrace.JDK9StackWalker",
+)
+
 dependencies {
   api(project(":internal-api"))
 

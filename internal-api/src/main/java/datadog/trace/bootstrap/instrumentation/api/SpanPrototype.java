@@ -29,6 +29,7 @@ public final class SpanPrototype {
   private final CharSequence spanType;
   private final CharSequence integrationName;
   private final TagMap tags; // frozen
+  private final SpanKind kind;
 
   private SpanPrototype(final Builder builder) {
     this.instrumentationName = builder.instrumentationName;
@@ -36,6 +37,9 @@ public final class SpanPrototype {
     this.spanType = builder.spanType;
     this.integrationName = builder.integrationName;
     this.tags = builder.tags.immutableCopy();
+    // From the final span.kind tag, so every way of setting it is covered: initKind with either
+    // type, initTag, or a kind inherited through extends_.
+    this.kind = SpanKind.of(tags.getString(Tags.SPAN_KIND));
   }
 
   public String instrumentationName() {
@@ -62,6 +66,15 @@ public final class SpanPrototype {
   /** The frozen constant tags — the internal seed applied at span construction. */
   public TagMap tags() {
     return tags;
+  }
+
+  /**
+   * The {@code span.kind} in {@link #tags()} as a {@link SpanKind}, so the tracer core can set the
+   * span's kind without comparing strings. Null if there's no {@code span.kind} or it isn't a
+   * standard kind.
+   */
+  public SpanKind kind() {
+    return kind;
   }
 
   public static final class Builder {
@@ -119,6 +132,14 @@ public final class SpanPrototype {
     }
 
     /** Sets {@code span.kind}. */
+    public Builder initKind(final SpanKind kind) {
+      return kind == null ? this : initTag(Tags.SPAN_KIND, kind.tagValue());
+    }
+
+    /**
+     * Sets {@code span.kind} from its tag value. A standard value is recognized as its {@link
+     * SpanKind}, the same as {@link #initKind(SpanKind)}; any other value is kept as a custom kind.
+     */
     public Builder initKind(final CharSequence kind) {
       return initTag(Tags.SPAN_KIND, kind);
     }

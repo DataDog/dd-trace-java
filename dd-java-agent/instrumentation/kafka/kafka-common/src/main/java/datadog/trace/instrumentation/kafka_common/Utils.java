@@ -36,6 +36,14 @@ public final class Utils {
     return time;
   }
 
+  /**
+   * Whether {@code headers} holds any header. {@link Headers#toArray()} would copy the headers of
+   * every record that has some, just to check.
+   */
+  public static boolean hasHeaders(Headers headers) {
+    return headers.iterator().hasNext();
+  }
+
   // this method is used in kafka-clients and kafka-streams instrumentations
   public static long computePayloadSizeBytes(ConsumerRecord<?, ?> val) {
     long headersSize = 0;

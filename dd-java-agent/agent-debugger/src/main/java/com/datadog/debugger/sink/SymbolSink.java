@@ -38,7 +38,9 @@ public class SymbolSink {
   static final int CAPACITY = 1024;
   public static final BatchUploader.RetryPolicy RETRY_POLICY = new BatchUploader.RetryPolicy(10);
   private static final JsonAdapter<ServiceVersion> SERVICE_VERSION_ADAPTER =
-      MoshiHelper.createMoshiSymbol().adapter(ServiceVersion.class);
+      new ServiceVersion.ServiceVersionAdapter();
+  private static final JsonAdapter<Scope> SCOPE_ADAPTER =
+      MoshiHelper.createMoshiSymbol().adapter(Scope.class);
   // The upload event message JSON. The "final" field is hard-coded to false:
   // the Java tracer continuously uploads new code as classes get loaded, so
   // there is no defined end-of-upload point.
@@ -56,6 +58,9 @@ public class SymbolSink {
           + "\"attachmentSize\": %d%n"
           + "}";
   static final int MAX_SYMDB_UPLOAD_SIZE = 50 * 1024 * 1024;
+  // min & max cumulative size (in chars) of pre-serialized scopes kept in the queue before flushing
+  static final long MIN_QUEUED_SCOPES_SIZE = 4 * 1024 * 1024;
+  static final long MAX_QUEUED_SCOPES_SIZE = 128 * 1024 * 1024;
 
   private final String serviceName;
   private final String env;
@@ -63,11 +68,15 @@ public class SymbolSink {
   private final String runtimeId;
   private final BatchUploader symbolUploader;
   private final int maxPayloadSize;
+  private final long maxQueuedScopesSize;
   // uploadId is shared by all batches uploaded by this sink. The backend uses
   // it to group batches belonging to the same logical upload.
   private final String uploadId = RandomUtils.randomUUID().toString();
   private final AtomicLong batchNum = new AtomicLong(0);
-  private final BlockingQueue<Scope> scopes = new ArrayBlockingQueue<>(CAPACITY);
+  // jar scopes are kept pre-serialized as JSON to reduce memory footprint while enqueued
+  private final BlockingQueue<String> scopes = new ArrayBlockingQueue<>(CAPACITY);
+  // cumulative length of the serialized scopes currently in the queue
+  private final AtomicLong queuedScopesSize = new AtomicLong(0);
   private final Stats stats = new Stats();
   private final boolean isCompressed;
 
@@ -79,13 +88,25 @@ public class SymbolSink {
   }
 
   SymbolSink(Config config, BatchUploader symbolUploader, int maxPayloadSize) {
+    this(config, symbolUploader, maxPayloadSize, defaultMaxQueuedScopesSize());
+  }
+
+  SymbolSink(
+      Config config, BatchUploader symbolUploader, int maxPayloadSize, long maxQueuedScopesSize) {
     this.serviceName = TagsHelper.sanitize(config.getServiceName());
     this.env = TagsHelper.sanitize(config.getEnv());
     this.version = TagsHelper.sanitize(config.getVersion());
     this.runtimeId = config.getRuntimeId();
     this.symbolUploader = symbolUploader;
     this.maxPayloadSize = maxPayloadSize;
+    this.maxQueuedScopesSize = maxQueuedScopesSize;
     this.isCompressed = config.isSymbolDatabaseCompressed();
+  }
+
+  /** Budget for the queued scopes: 1/64 of the max heap, clamped between 4MB and 128MB. */
+  static long defaultMaxQueuedScopesSize() {
+    long budget = Runtime.getRuntime().maxMemory() / 64;
+    return Math.max(MIN_QUEUED_SCOPES_SIZE, Math.min(MAX_QUEUED_SCOPES_SIZE, budget));
   }
 
   public void stop() {
@@ -93,16 +114,27 @@ public class SymbolSink {
   }
 
   public void addScope(Scope jarScope) {
-    boolean added = scopes.offer(jarScope);
+    String serializedScope = SCOPE_ADAPTER.toJson(jarScope);
+    stats.updateStats(jarScope.getScopes() != null ? jarScope.getScopes().size() : 0, 0);
+    // account for the size before enqueuing so a concurrent drain never makes it negative
+    long queuedSize = queuedScopesSize.addAndGet(serializedScope.length());
+    boolean added = scopes.offer(serializedScope);
     int retries = 10;
     while (!added) {
       // Q is full, flushing synchronously
       flush();
-      added = scopes.offer(jarScope);
+      added = scopes.offer(serializedScope);
       retries--;
       if (retries < 0) {
-        throw new IllegalStateException("Scope cannot be enqueued after 10 retries" + jarScope);
+        queuedScopesSize.addAndGet(-serializedScope.length());
+        throw new IllegalStateException(
+            "Scope cannot be enqueued after 10 retries: " + jarScope.getName());
       }
+    }
+    if (queuedSize >= maxQueuedScopesSize) {
+      LOGGER.debug(
+          "Queued scopes size reached limit: {}/{}, flushing", queuedSize, maxQueuedScopesSize);
+      flush();
     }
   }
 
@@ -110,10 +142,15 @@ public class SymbolSink {
     if (scopes.isEmpty()) {
       return;
     }
-    List<Scope> scopesToSerialize = new ArrayList<>();
+    List<String> scopesToSerialize = new ArrayList<>();
     // ArrayBlockingQueue makes drainTo atomic, so it is safe to call flush from different and
     // concurrent threads
     scopes.drainTo(scopesToSerialize);
+    long drainedSize = 0;
+    for (String scope : scopesToSerialize) {
+      drainedSize += scope.length();
+    }
+    queuedScopesSize.addAndGet(-drainedSize);
     // concurrent calls to flush can result in empty scope to send, we don't want to send empty
     if (scopesToSerialize.isEmpty()) {
       return;
@@ -121,7 +158,7 @@ public class SymbolSink {
     serializeAndUpload(scopesToSerialize);
   }
 
-  private void serializeAndUpload(List<Scope> scopesToSerialize) {
+  private void serializeAndUpload(List<String> scopesToSerialize) {
     // Determine the batch number once so the attachment body and the EvP event
     // message agree on it.
     long currentBatch = batchNum.incrementAndGet();
@@ -150,7 +187,7 @@ public class SymbolSink {
   }
 
   private void doUpload(
-      List<Scope> scopesToSerialize, byte[] payload, boolean isCompressed, long currentBatch) {
+      List<String> scopesToSerialize, byte[] payload, boolean isCompressed, long currentBatch) {
     if (payload.length > maxPayloadSize) {
       LOGGER.warn(
           "Payload is too big: {}/{} isCompressed={}",
@@ -160,7 +197,8 @@ public class SymbolSink {
       splitAndSend(scopesToSerialize);
       return;
     }
-    updateStats(scopesToSerialize, payload.length);
+    stats.updateStats(0, payload.length);
+    LOGGER.debug("SymbolSink stats: {}", stats);
     LOGGER.debug(
         "Sending {} jar scopes size={} isCompressed={} uploadId={} batchNum={}",
         scopesToSerialize.size(),
@@ -213,26 +251,35 @@ public class SymbolSink {
    * first try by splitting the jar scopes, then by splitting the class scopes
    * stopped the recursion when the scopes are small enough to be sent or <2 classes in one scope
    */
-  private void splitAndSend(List<Scope> scopesToSerialize) {
+  private void splitAndSend(List<String> scopesToSerialize) {
     if (scopesToSerialize.size() > 1) {
       // try to split by jar scopes: one scope per request
       if (scopesToSerialize.size() < BatchUploader.MAX_ENQUEUED_REQUESTS) {
-        for (Scope scope : scopesToSerialize) {
+        for (String scope : scopesToSerialize) {
           serializeAndUpload(Collections.singletonList(scope));
         }
       } else {
         // split the list of jar scope in 2 list jar scopes with half of the jar scopes
         int half = scopesToSerialize.size() / 2;
-        List<Scope> firstHalf = scopesToSerialize.subList(0, half);
-        List<Scope> secondHalf = scopesToSerialize.subList(half, scopesToSerialize.size());
+        List<String> firstHalf = scopesToSerialize.subList(0, half);
+        List<String> secondHalf = scopesToSerialize.subList(half, scopesToSerialize.size());
         LOGGER.debug("split jar scope list in 2: {} and {}", firstHalf.size(), secondHalf.size());
         serializeAndUpload(firstHalf);
         serializeAndUpload(secondHalf);
       }
     } else {
-      Scope jarScope = scopesToSerialize.get(0);
-      if (jarScope.getScopes() == null) {
-        LOGGER.debug("No class scopes to send for jar scope {}", jarScope.getName());
+      // rare path: deserialize the jar scope to be able to split it by class scopes
+      Scope jarScope;
+      try {
+        jarScope = SCOPE_ADAPTER.fromJson(scopesToSerialize.get(0));
+      } catch (IOException e) {
+        LOGGER.debug("Error deserializing jar scope", e);
+        return;
+      }
+      if (jarScope == null || jarScope.getScopes() == null) {
+        LOGGER.debug(
+            "No class scopes to send for jar scope {}",
+            jarScope != null ? jarScope.getName() : null);
         return;
       }
       if (jarScope.getScopes().size() < 2) {
@@ -251,22 +298,13 @@ public class SymbolSink {
           secondHalf.size());
       splitAndSend(
           Arrays.asList(
-              createJarScope(jarScope.getName(), firstHalf),
-              createJarScope(jarScope.getName(), secondHalf)));
+              SCOPE_ADAPTER.toJson(createJarScope(jarScope.getName(), firstHalf)),
+              SCOPE_ADAPTER.toJson(createJarScope(jarScope.getName(), secondHalf))));
     }
   }
 
   private static Scope createJarScope(String jarName, List<Scope> classScopes) {
     return Scope.builder(ScopeType.JAR, jarName, 0, 0).name(jarName).scopes(classScopes).build();
-  }
-
-  private void updateStats(List<Scope> scopesToSerialize, long size) {
-    int totalClasses = 0;
-    for (Scope scope : scopesToSerialize) {
-      totalClasses += scope.getScopes() != null ? scope.getScopes().size() : 0;
-    }
-    stats.updateStats(totalClasses, size);
-    LOGGER.debug("SymbolSink stats: {}", stats);
   }
 
   public HttpUrl getUrl() {

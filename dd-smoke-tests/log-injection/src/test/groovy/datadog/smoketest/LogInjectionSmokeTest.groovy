@@ -13,6 +13,7 @@ import spock.lang.Shared
 
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_128_BIT_TRACEID_LOGGING_ENABLED
 import static datadog.trace.api.config.TracerConfig.TRACE_128_BIT_TRACEID_GENERATION_ENABLED
+import static datadog.trace.api.config.TracerConfig.TRACE_SERVICE_DISCOVERY_ENABLED
 import static java.util.concurrent.TimeUnit.SECONDS
 
 /**
@@ -36,6 +37,10 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
   static final int TIMEOUT_SECS = 30
 
   static final String LOG4J2_BACKEND = "Log4j2"
+  static final String LOGBACK_BACKEND = "Logback"
+  static final String JBOSS_BACKEND = "JBoss"
+  static final String LOG4J1_BACKEND = "Log4j1"
+  static final Set<String> DIRECT_LOG_SUBMISSION_BACKENDS = [LOG4J2_BACKEND, LOGBACK_BACKEND, JBOSS_BACKEND, LOG4J1_BACKEND] as Set
 
   @Shared
   File outputLogFile
@@ -94,6 +99,9 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
       it.startsWith("-Ddd.profiling")
     }
     command.add("-Ddd.profiling.enabled=false")
+    // service discovery loads JNA, whose JUL logger can start Log4j2 on an agent thread and race the
+    // application's own Log4j2 initialization, which drops its first log lines
+    command.add("-Ddd.$TRACE_SERVICE_DISCOVERY_ENABLED=false" as String)
     command.add("-Ddd.remote_config.enabled=true")
     command.add("-Ddd.remote_config.url=http://localhost:${server.address.port}/v0.7/config".toString())
     command.add("-Ddd.remote_config.poll_interval.seconds=0.2")
@@ -190,7 +198,7 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
   }
 
   def supportsDirectLogSubmission() {
-    return backend() == LOG4J2_BACKEND
+    return backend() in DIRECT_LOG_SUBMISSION_BACKENDS
   }
 
   def supportsAppLogCollection() {
@@ -517,7 +525,7 @@ class JULInterfaceLog4j2LatestBackend extends JULInterfaceLog4j2Backend {}
 
 class JULInterfaceJBossBackend extends LogInjectionSmokeTest {
   def backend() {
-    "JBoss"
+    JBOSS_BACKEND
   }
   def supportsJson() {
     false
@@ -540,7 +548,7 @@ class JCLInterfaceJULBackend extends JULBackend {
 
 class JCLInterfaceLog4j1Backend extends LogInjectionSmokeTest {
   def backend() {
-    "Log4j1"
+    LOG4J1_BACKEND
   }
   def supportsJson() {
     false
@@ -568,7 +576,7 @@ class JCLInterfaceLog4j2LatestBackend extends JCLInterfaceLog4j2Backend {}
 
 class Log4j1InterfaceLog4j1Backend extends LogInjectionSmokeTest {
   def backend() {
-    "Log4j1"
+    LOG4J1_BACKEND
   }
   def supportsJson() {
     false
@@ -601,7 +609,7 @@ class Log4j2InterfaceLog4j2LatestBackend extends Log4j2InterfaceLog4j2Backend {}
 
 class Slf4jInterfaceLogbackBackend extends LogInjectionSmokeTest {
   def backend() {
-    "Logback"
+    LOGBACK_BACKEND
   }
 }
 
@@ -623,7 +631,7 @@ class Slf4jInterfaceLogbackLatestBackend extends Slf4jInterfaceLogbackBackend {}
 
 class Slf4jInterfaceLog4j1Backend extends LogInjectionSmokeTest {
   def backend() {
-    "Log4j1"
+    LOG4J1_BACKEND
   }
   def supportsJson() {
     false
@@ -677,7 +685,7 @@ class Slf4jInterfaceJULBackend extends JULBackend {
 
 class Slf4jInterfaceJCLToLog4j1Backend extends LogInjectionSmokeTest {
   def backend() {
-    "Log4j1"
+    LOG4J1_BACKEND
   }
   def supportsJson() {
     false
@@ -708,7 +716,7 @@ class JULInterfaceSlf4jToLogbackBackend extends LogInjectionSmokeTest {
   def propertiesFile = File.createTempFile("julConfig", ".properties")
 
   def backend() {
-    "Logback"
+    LOGBACK_BACKEND
   }
 
   def setupSpec() {
@@ -735,7 +743,7 @@ class JULInterfaceSlf4jToLogbackLatestBackend extends JULInterfaceSlf4jToLogback
 
 class JCLInterfaceSlf4jToLogbackBackend extends LogInjectionSmokeTest {
   def backend() {
-    "Logback"
+    LOGBACK_BACKEND
   }
 }
 
@@ -745,7 +753,7 @@ class JCLInterfaceSlf4jToLogbackLatestBackend extends JCLInterfaceSlf4jToLogback
 
 class Log4j1InterfaceSlf4jToLogbackBackend extends LogInjectionSmokeTest {
   def backend() {
-    "Logback"
+    LOGBACK_BACKEND
   }
 }
 
@@ -755,7 +763,7 @@ class Log4j1InterfaceSlf4jToLogbackLatestBackend extends Log4j1InterfaceSlf4jToL
 
 class Log4j2InterfaceSlf4jToLogbackBackend extends LogInjectionSmokeTest {
   def backend() {
-    "Logback"
+    LOGBACK_BACKEND
   }
 }
 
@@ -765,7 +773,7 @@ class Log4j2InterfaceSlf4jToLogbackLatestBackend extends Log4j2InterfaceSlf4jToL
 
 class JBossInterfaceJBossBackend extends LogInjectionSmokeTest {
   def backend() {
-    "JBoss"
+    JBOSS_BACKEND
   }
   def supportsJson() {
     false
@@ -782,7 +790,7 @@ class JBossInterfaceJBossLatestBackend extends JBossInterfaceJBossBackend {}
 
 class JBossInterfaceLog4j1Backend extends LogInjectionSmokeTest {
   def backend() {
-    "Log4j1"
+    LOG4J1_BACKEND
   }
   def supportsJson() {
     false
@@ -805,7 +813,7 @@ class JBossInterfaceLog4j2LatestBackend extends JBossInterfaceLog4j2Backend {}
 
 class JBossInterfaceSlf4jToLogbackBackend extends LogInjectionSmokeTest {
   def backend() {
-    "Logback"
+    LOGBACK_BACKEND
   }
 }
 
@@ -819,7 +827,7 @@ class FloggerInterfaceJULBackend extends JULBackend {}
 
 class FloggerInterfaceSlf4jToLogbackBackend extends LogInjectionSmokeTest {
   def backend() {
-    "Logback"
+    LOGBACK_BACKEND
   }
 
   List additionalArguments() {
