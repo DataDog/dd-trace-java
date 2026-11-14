@@ -235,7 +235,7 @@ public abstract class CiVisibilityTestUtils {
     // String.valueOf before storing it in the replacement map.
     for (Map.Entry<String, ?> e : additionalReplacements.entrySet()) {
       replacementMap.put(
-          labelGenerator.forKey(e.getKey()), "\"" + String.valueOf(e.getValue()) + "\"");
+          labelGenerator.forKey(e.getKey()), serializeJsonString(String.valueOf(e.getValue())));
     }
 
     // ignore provided tags
@@ -460,7 +460,7 @@ public abstract class CiVisibilityTestUtils {
           if (value != null) {
             String stringValue;
             if (value instanceof String) {
-              stringValue = "\"" + ((String) value).replace("\"", "\\\"") + "\"";
+              stringValue = serializeJsonString((String) value);
             } else {
               stringValue = String.valueOf(value);
             }
@@ -476,6 +476,10 @@ public abstract class CiVisibilityTestUtils {
       result.putAll(nonUniqueValues);
       return result;
     }
+  }
+
+  private static String serializeJsonString(String value) {
+    return JSON_MAPPER.valueToTree(value).toString();
   }
 
   private static final class LabelGenerator {

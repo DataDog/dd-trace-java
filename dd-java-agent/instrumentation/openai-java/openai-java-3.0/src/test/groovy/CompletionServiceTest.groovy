@@ -143,6 +143,7 @@ class CompletionServiceTest extends OpenAiTest {
     List<LLMObs.LLMMessage> outputTagsOut = []
     Map<String, Object> metadataOut = [:]
 
+    waitForTraces()
     assertTraces(1) {
       trace(3) {
         sortSpansByStart()

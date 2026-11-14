@@ -365,6 +365,7 @@ class ChatCompletionServiceTest extends OpenAiTest {
     def expectedMetadata = new LinkedHashMap(metadata)
     expectedMetadata.putIfAbsent("stream", isStreaming)
 
+    waitForTraces()
     assertTraces(1) {
       trace(3) {
         sortSpansByStart()

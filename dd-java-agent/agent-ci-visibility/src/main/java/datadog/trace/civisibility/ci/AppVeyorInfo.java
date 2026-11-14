@@ -65,7 +65,8 @@ class AppVeyorInfo implements CIProviderInfo {
     if (messageBody == null) {
       return messageSubject;
     }
-    return String.format("%s%n%s", messageSubject, messageBody);
+    // Git commit messages use LF regardless of the host platform.
+    return messageSubject + '\n' + messageBody;
   }
 
   @Override

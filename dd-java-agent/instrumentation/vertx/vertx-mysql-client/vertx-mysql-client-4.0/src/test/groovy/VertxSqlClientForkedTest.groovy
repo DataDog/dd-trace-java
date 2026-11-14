@@ -1,3 +1,6 @@
+import datadog.environment.OperatingSystem
+import spock.lang.IgnoreIf
+
 import TestDatabases.TestDBInfo
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.asserts.TraceAssert
@@ -29,6 +32,9 @@ import java.util.concurrent.atomic.AtomicReference
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
+@IgnoreIf(reason = "Requires a Docker environment capable of running Linux Testcontainers", inherited = true, value = {
+  OperatingSystem.isWindows()
+})
 class VertxSqlClientForkedTest extends InstrumentationSpecification {
   @AutoCleanup
   @Shared

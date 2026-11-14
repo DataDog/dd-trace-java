@@ -1,3 +1,6 @@
+import datadog.environment.OperatingSystem
+import spock.lang.IgnoreIf
+
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.api.Config
@@ -10,6 +13,9 @@ import org.testcontainers.containers.MongoDBContainer
 import org.testcontainers.utility.DockerImageName
 import spock.lang.Shared
 
+@IgnoreIf(reason = "Requires a Docker environment capable of running Linux Testcontainers", inherited = true, value = {
+  OperatingSystem.isWindows()
+})
 abstract class MongoBaseTest extends VersionedNamingTestBase {
   public static final String V0_DB_TYPE = "mongo"
   public static final String V0_SERVICE = "mongo"

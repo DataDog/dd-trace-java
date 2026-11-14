@@ -16,7 +16,7 @@ class GlobalTagsTest extends OpenAiTest {
     runUnderTrace("parent") {
       openAiClient.chat().completions().create(chatCompletionCreateParams(false))
     }
-    TEST_WRITER.waitForTraces(1)
+    waitForTraces()
     def openAiSpan = TEST_WRITER.flatten().find { it.operationName.toString() == "openai.request" }
 
     then:

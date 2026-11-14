@@ -1,6 +1,7 @@
 import static datadog.trace.api.config.TraceInstrumentationConfig.LEGACY_CONTEXT_MANAGER_ENABLED
 import static org.junit.jupiter.api.Assumptions.assumeTrue
 
+import datadog.environment.OperatingSystem
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
@@ -32,6 +33,7 @@ import javax.jms.TopicSession
 import jms10mock.Jms10ConnectionFactory
 import org.apache.activemq.command.ActiveMQTextMessage
 import org.apache.activemq.junit.EmbeddedActiveMQBroker
+import spock.lang.IgnoreIf
 import spock.lang.Shared
 
 abstract class JMS1Test extends VersionedNamingTestBase {
@@ -120,6 +122,9 @@ abstract class JMS1Test extends VersionedNamingTestBase {
     }
   }
 
+  @IgnoreIf(
+  reason = "Windows scheduling can finish the third consume trace before the intermediate five-trace assertion",
+  value = { OperatingSystem.isWindows() })
   def "sending messages to #destinationType generates spans"() {
     setup:
     def destination = destinationType.create(session)

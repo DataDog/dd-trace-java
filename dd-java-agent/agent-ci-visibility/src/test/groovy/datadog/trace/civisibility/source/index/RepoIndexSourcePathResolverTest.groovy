@@ -134,7 +134,7 @@ class RepoIndexSourcePathResolverTest extends Specification {
 
   def "test file-indexing failure"() {
     setup:
-    def classPath = fileSystem.getPath(generateSourceFileName(RepoIndexSourcePathResolverTest, repoRoot))
+    def classPath = generateSourceFilePath(RepoIndexSourcePathResolverTest, repoRoot)
     packageResolver.getPackage(classPath) >> { throw new IOException() }
 
     Files.createDirectories(classPath.getParent())
@@ -185,7 +185,7 @@ class RepoIndexSourcePathResolverTest extends Specification {
   }
 
   private String givenSourceFile(Class c, String sourceRoot, Language language = Language.GROOVY) {
-    def classPath = fileSystem.getPath(generateSourceFileName(c, sourceRoot, language))
+    def classPath = generateSourceFilePath(c, sourceRoot, language)
     packageResolver.getPackage(classPath) >> fileSystem.getPath(sourceRoot).relativize(classPath).getParent()
 
     givenRepoFile(classPath)
@@ -198,8 +198,9 @@ class RepoIndexSourcePathResolverTest extends Specification {
     Files.write(file, "STUB FILE BODY".getBytes())
   }
 
-  private static String generateSourceFileName(Class c, String sourceRoot, Language language = Language.GROOVY) {
-    return sourceRoot + File.separator + c.getName().replace(".", File.separator) + language.extension
+  private Path generateSourceFilePath(Class c, String sourceRoot, Language language = Language.GROOVY) {
+    def relativePath = c.getName().replace('.' as char, fileSystem.separator.charAt(0)) + language.extension
+    return fileSystem.getPath(sourceRoot).resolve(relativePath)
   }
 
   private static getRepoRoot() {

@@ -38,6 +38,8 @@ public class GitUtils {
               + "|/$" // ends with slash
           );
   private static final Pattern PATH_PATTERN = Pattern.compile("^[a-zA-Z0-9_./-]+$");
+  private static final Pattern WINDOWS_PATH_PATTERN =
+      Pattern.compile("^(?:[a-zA-Z]:[\\\\/]|\\\\\\\\)[a-zA-Z0-9_ .\\\\/-]*$");
   private static final Pattern SHELL_METACHAR_PATTERN = Pattern.compile(".*[`$&|;<>\n\r#].*");
 
   private static final int SHORT_SHA_LENGTH = 7;
@@ -290,7 +292,7 @@ public class GitUtils {
 
   /** Checks if the provided string is a valid system path for Git operations */
   public static boolean isValidPath(@Nonnull String path) {
-    if (!PATH_PATTERN.matcher(path).matches()) {
+    if (!PATH_PATTERN.matcher(path).matches() && !WINDOWS_PATH_PATTERN.matcher(path).matches()) {
       return false;
     }
     // Reject path traversal sequences

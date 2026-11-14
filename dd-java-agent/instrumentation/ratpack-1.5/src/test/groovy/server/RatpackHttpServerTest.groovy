@@ -18,6 +18,8 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
+import static datadog.trace.test.util.PlatformTestUtils.normalizeLocalhostHostname
+import static datadog.trace.test.util.PlatformTestUtils.normalizeLocalhostUrl
 
 class RatpackHttpServerTest extends HttpServerTest<EmbeddedApp> {
 
@@ -34,6 +36,25 @@ class RatpackHttpServerTest extends HttpServerTest<EmbeddedApp> {
   @Override
   String expectedOperationName() {
     "netty.request"
+  }
+
+  @Override
+  String normalizeServerHostname(String value) {
+    normalizeLocalhostHostname(value)
+  }
+
+  @Override
+  String normalizeServerUrl(String value) {
+    normalizeLocalhostUrl(value)
+  }
+
+  @Override
+  String expectedResourceName(ServerEndpoint endpoint, String method, URI address) {
+    if (endpoint == PATH_PARAM) {
+      'GET /path/:id/param'
+    } else {
+      super.expectedResourceName(endpoint, method, address)
+    }
   }
 
   @Override

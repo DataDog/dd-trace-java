@@ -1,3 +1,6 @@
+import datadog.environment.OperatingSystem
+import spock.lang.IgnoreIf
+
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.utils.PortUtils
 import org.testcontainers.containers.RabbitMQContainer
@@ -11,6 +14,9 @@ import java.util.concurrent.TimeUnit
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
+@IgnoreIf(reason = "Requires a Docker environment capable of running Linux Testcontainers", inherited = true, value = {
+  OperatingSystem.isWindows()
+})
 class SpringAmqpTest extends InstrumentationSpecification {
 
   @Shared

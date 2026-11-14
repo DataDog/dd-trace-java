@@ -366,6 +366,7 @@ class ResponseServiceTest extends OpenAiTest {
 
     then:
     List<LLMObs.LLMMessage> outputMessages = []
+    waitForTraces()
     assertTraces(1) {
       trace(3) {
         sortSpansByStart()
@@ -418,6 +419,7 @@ class ResponseServiceTest extends OpenAiTest {
   Map<String, Object> metadataOut,
   boolean expectPromptTag = false,
   List<Map<String, Object>> toolDefinitionsOut = null) {
+    waitForTraces()
     assertTraces(1) {
       trace(3) {
         sortSpansByStart()

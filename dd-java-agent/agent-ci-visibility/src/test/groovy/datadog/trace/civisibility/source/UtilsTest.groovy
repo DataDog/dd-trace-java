@@ -19,6 +19,14 @@ class UtilsTest extends Specification {
     clazz << [UtilsTestClass, Object]
   }
 
+  def "test converts #path to trie key"() {
+    expect:
+    Utils.toTrieKey(path) == 'foo.bar.Baz'
+
+    where:
+    path << ['foo/bar/Baz.java', 'foo\\bar\\Baz.java']
+  }
+
   private byte[] readMagicNumber(InputStream stream) {
     def bytes = new byte[4]
     def totalRead = 0

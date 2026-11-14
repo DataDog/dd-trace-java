@@ -3,6 +3,8 @@ package datadog.trace.logging
 import org.slf4j.Marker
 import spock.lang.Specification
 
+import static datadog.trace.test.util.PlatformTestUtils.normalizeLineEndings
+
 abstract class LogValidatingSpecification extends Specification {
   LogValidator createValidator(String loggerName) {
     new LogValidator(loggerName)
@@ -13,7 +15,7 @@ abstract class LogValidatingSpecification extends Specification {
   }
 
   private static validateLogLine(LogValidator validator, boolean enabled, String level, String marker, String msg, String emsg) {
-    def current = validator.outputStream.toString()
+    def current = normalizeLineEndings(validator.outputStream.toString())
     def expected = ""
     if (enabled) {
       expected = marker == null ? "$level ${validator.name} - $msg\n" : "$marker ${validator.name} - $msg\n"

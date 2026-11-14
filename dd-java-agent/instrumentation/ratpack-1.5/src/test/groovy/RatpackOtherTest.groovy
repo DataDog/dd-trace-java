@@ -8,6 +8,9 @@ import okhttp3.Request
 import ratpack.groovy.test.embed.GroovyEmbeddedApp
 import ratpack.path.PathBinding
 
+import static datadog.trace.test.util.PlatformTestUtils.normalizeLocalhostHostname
+import static datadog.trace.test.util.PlatformTestUtils.normalizeLocalhostUrl
+
 class RatpackOtherTest extends InstrumentationSpecification {
 
   OkHttpClient client = OkHttpUtils.client()
@@ -73,8 +76,14 @@ class RatpackOtherTest extends InstrumentationSpecification {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
             "$Tags.PEER_PORT" Integer
-            "$Tags.HTTP_URL" "${app.address.resolve(path)}"
-            "$Tags.HTTP_HOSTNAME" "${app.address.host}"
+            "$Tags.HTTP_URL" {
+              normalizeLocalhostUrl(it as String) ==
+                normalizeLocalhostUrl("${app.address.resolve(path)}")
+            }
+            "$Tags.HTTP_HOSTNAME" {
+              normalizeLocalhostHostname(it as String) ==
+                normalizeLocalhostHostname("${app.address.host}")
+            }
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 200
             "$Tags.HTTP_ROUTE" "/$route"
@@ -95,8 +104,14 @@ class RatpackOtherTest extends InstrumentationSpecification {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
             "$Tags.PEER_PORT" Integer
-            "$Tags.HTTP_URL" "${app.address.resolve(path)}"
-            "$Tags.HTTP_HOSTNAME" "${app.address.host}"
+            "$Tags.HTTP_URL" {
+              normalizeLocalhostUrl(it as String) ==
+                normalizeLocalhostUrl("${app.address.resolve(path)}")
+            }
+            "$Tags.HTTP_HOSTNAME" {
+              normalizeLocalhostHostname(it as String) ==
+                normalizeLocalhostHostname("${app.address.host}")
+            }
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 200
             "$Tags.HTTP_ROUTE" "/$route"
