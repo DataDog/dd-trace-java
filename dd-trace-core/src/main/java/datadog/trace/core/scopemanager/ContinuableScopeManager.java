@@ -214,15 +214,15 @@ public final class ContinuableScopeManager {
     return scope;
   }
 
-  public boolean isAsyncPropagationEnabled() {
+  public boolean isCaptureEnabled() {
     ContinuableScope activeScope = scopeStack().active();
     return activeScope == null || activeScope.isAsyncPropagating();
   }
 
-  public void setAsyncPropagationEnabled(boolean asyncPropagationEnabled) {
+  public void setCaptureEnabled(boolean enabled) {
     ContinuableScope activeScope = scopeStack().active();
     if (activeScope != null) {
-      activeScope.setAsyncPropagation(asyncPropagationEnabled);
+      activeScope.setAsyncPropagation(enabled);
     }
   }
 

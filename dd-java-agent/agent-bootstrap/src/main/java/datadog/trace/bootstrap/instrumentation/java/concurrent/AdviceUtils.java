@@ -1,6 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPropagationEnabled;
+import static datadog.context.Context.isCaptureEnabled;
 
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
@@ -68,7 +68,7 @@ public class AdviceUtils {
     }
     AgentSpan span = AgentSpan.fromContext(context);
     // propagate contexts with no span or a valid span, when flag is on
-    return (span == null || span.isValid()) && isAsyncPropagationEnabled();
+    return (span == null || span.isValid()) && isCaptureEnabled();
   }
 
   public static <T> void capture(ContextStore<T, State> contextStore, T task) {

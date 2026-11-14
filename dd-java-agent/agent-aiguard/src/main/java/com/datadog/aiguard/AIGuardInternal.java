@@ -1,6 +1,8 @@
 package com.datadog.aiguard;
 
 import static datadog.communication.ddagent.TracerVersion.TRACER_VERSION;
+import static datadog.context.Context.isCaptureEnabled;
+import static datadog.context.Context.setCaptureEnabled;
 import static datadog.trace.api.telemetry.WafMetricCollector.AIGuardTruncationType.CONTENT;
 import static datadog.trace.api.telemetry.WafMetricCollector.AIGuardTruncationType.MESSAGES;
 import static datadog.trace.util.Strings.isBlank;
@@ -365,7 +367,7 @@ public class AIGuardInternal implements Evaluator {
               .url(url)
               .method("POST", new MoshiJsonRequestBody(moshi, messages, meta));
       headers.forEach(request::header);
-      try (final Response response = executeRequest(tracer, request.build())) {
+      try (final Response response = executeRequest(request.build())) {
         final Map<String, Object> result;
         try {
           result = parseResponseBody(response);
@@ -456,15 +458,14 @@ public class AIGuardInternal implements Evaluator {
     }
   }
 
-  private Response executeRequest(final AgentTracer.TracerAPI tracer, final Request request)
-      throws IOException {
-    final boolean asyncPropagation = tracer.isAsyncPropagationEnabled();
+  private Response executeRequest(final Request request) throws IOException {
+    final boolean captureEnabled = isCaptureEnabled();
     try {
       // The synchronous HTTP call must not pass its context to pool maintenance threads.
-      tracer.setAsyncPropagationEnabled(false);
+      setCaptureEnabled(false);
       return client.newCall(request).execute();
     } finally {
-      tracer.setAsyncPropagationEnabled(asyncPropagation);
+      setCaptureEnabled(captureEnabled);
     }
   }
 

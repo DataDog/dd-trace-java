@@ -42,11 +42,11 @@ import java.util.concurrent.Future
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 
+import static datadog.context.Context.isCaptureEnabled
 import static datadog.trace.agent.test.asserts.TagsAssert.codeOriginTags
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPropagationEnabled
 
 abstract class KafkaClientTestBase extends VersionedNamingTestBase {
   static final SHARED_TOPIC = "shared.topic"
@@ -197,7 +197,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     String greeting = "Hello Spring Kafka Sender!"
     runUnderTrace("parent") {
       producer.send(new ProducerRecord(SHARED_TOPIC, greeting)) { meta, ex ->
-        assert isAsyncPropagationEnabled()
+        assert isCaptureEnabled()
         if (ex == null) {
           runUnderTrace("producer callback") {}
         } else {
@@ -356,7 +356,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     String greeting = "Hello Spring Kafka Sender!"
     runUnderTrace("parent") {
       kafkaTemplate.send(SHARED_TOPIC, greeting).whenComplete { meta, ex ->
-        assert isAsyncPropagationEnabled()
+        assert isCaptureEnabled()
         if (ex == null) {
           runUnderTrace("producer callback") {}
         } else {
