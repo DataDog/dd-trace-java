@@ -1,0 +1,11 @@
+_v: 1
+name: ignite
+display_name: Apache Ignite
+description: Instruments synchronous and asynchronous Apache Ignite cache operations and cache queries.
+packages:
+- name: org.apache.ignite:ignite-core
+category:
+- db.client
+systems:
+- ignite
+creation_date: '2021-04-18'

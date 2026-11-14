@@ -1,0 +1,16 @@
+_v: 1
+name: rediscala
+display_name: rediscala
+description: Instruments asynchronous Redis command execution through Rediscala.
+packages:
+- name: com.github.Ma27:rediscala_2.11
+- name: com.github.Ma27:rediscala_2.12
+- name: com.github.Ma27:rediscala_2.13
+- name: com.github.etaty:rediscala_2.11
+- name: com.github.etaty:rediscala_2.12
+- name: com.github.etaty:rediscala_2.13
+category:
+- db.client
+systems:
+- redis
+creation_date: '2019-11-12'

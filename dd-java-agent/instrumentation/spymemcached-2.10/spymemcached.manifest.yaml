@@ -1,0 +1,11 @@
+_v: 1
+name: spymemcached
+display_name: Spymemcached
+description: Instruments Memcached cache reads, bulk reads, writes and counter operations through Spymemcached.
+packages:
+- name: net.spy:spymemcached
+category:
+- db.client
+systems:
+- memcached
+creation_date: '2018-06-11'

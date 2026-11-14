@@ -1,0 +1,11 @@
+_v: 1
+name: caffeine
+display_name: Caffeine cache
+description: Instruments Caffeine cache maintenance scheduling to prevent trace context from propagating into cleanup
+  tasks.
+packages:
+- name: com.github.ben-manes.caffeine:caffeine
+category:
+- other
+systems: []
+creation_date: '2021-10-18'

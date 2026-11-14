@@ -1,0 +1,12 @@
+_v: 1
+name: redisson
+display_name: Redisson
+description: Instruments individual and batched Redis command execution through Redisson.
+packages:
+- name: org.redisson:redisson
+category:
+- db.client
+- messaging.producer
+systems:
+- redis
+creation_date: '2022-01-30'

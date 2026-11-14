@@ -1,0 +1,15 @@
+_v: 1
+name: hazelcast_legacy
+display_name: hazelcast-all
+description: Instruments Hazelcast distributed data operations, queue and topic messaging, synchronization and distributed
+  task execution.
+packages:
+- name: com.hazelcast:hazelcast-all
+category:
+- db.client
+- messaging.consumer
+- messaging.producer
+- task.execution
+systems:
+- hazelcast
+creation_date: '2021-04-21'
