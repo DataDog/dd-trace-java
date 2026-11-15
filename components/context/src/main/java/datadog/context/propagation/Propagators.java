@@ -30,7 +30,6 @@ public final class Propagators {
       // Rebuild under the map lock so a concurrent register() is never iterated nor lost
       synchronized (PROPAGATORS) {
         if (rebuildDefaultPropagator) {
-          rebuildDefaultPropagator = false;
           Propagator[] propagatorsByPriority =
               PROPAGATORS.entrySet().stream()
                   .filter(entry -> entry.getValue().isUsedAsDefault())
@@ -39,6 +38,8 @@ public final class Propagators {
                   .map(RegisteredPropagator::propagator)
                   .toArray(Propagator[]::new);
           defaultPropagator = composite(propagatorsByPriority);
+          // Clear only after publishing so fast-path readers never see a stale or null value
+          rebuildDefaultPropagator = false;
         }
       }
     }
@@ -127,6 +128,7 @@ public final class Propagators {
   static void reset() {
     synchronized (PROPAGATORS) {
       PROPAGATORS.clear();
+      defaultPropagator = null;
       rebuildDefaultPropagator = true;
     }
   }
