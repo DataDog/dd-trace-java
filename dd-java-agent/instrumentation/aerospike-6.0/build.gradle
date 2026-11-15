@@ -1,0 +1,33 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+  id 'dd-trace-java.testcontainers'
+}
+
+muzzle {
+  pass {
+    name = 'aerospike-6.0'
+    group = 'com.aerospike'
+    module = 'aerospike-client'
+    versions = "[6,)"
+    assertInverse = true
+    skipVersions += "4.4.19" // bad release
+  }
+}
+
+addTestSuiteForDir("latestDepTest", "test")
+
+dependencies {
+  compileOnly 'com.aerospike:aerospike-client:6.0.0'
+  implementation project(':dd-java-agent:instrumentation:aerospike-4.0')
+
+  testContainerImage(image('aerospike:ce-6.2.0.2', 'test.aerospike.image'))
+  testImplementation 'com.aerospike:aerospike-client:6.0.0'
+  testImplementation libs.testcontainers
+  testImplementation libs.mokito.core
+
+  latestDepTestImplementation 'com.aerospike:aerospike-client:7.+'
+}
+
+tasks.withType(Test).configureEach {
+  usesService(testcontainersLimit)
+}

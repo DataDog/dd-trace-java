@@ -18,6 +18,5 @@ internal class MavenMuzzleResolutionService(
     return MuzzleMavenRepoUtils.muzzleDirectiveToArtifacts(directive, range)
   }
 
-  override fun inverseOf(directive: MuzzleDirective): Set<MuzzleDirective> =
-    MuzzleMavenRepoUtils.inverseOf(directive, system, session)
+  override fun inverseOf(directive: MuzzleDirective): Set<MuzzleDirective> = MuzzleMavenRepoUtils.inverseOf(directive, system, session)
 }

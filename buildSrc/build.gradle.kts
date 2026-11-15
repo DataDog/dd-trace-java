@@ -115,6 +115,7 @@ dependencies {
 
   implementation(libs.asm)
   implementation(libs.asm.tree)
+  implementation(libs.testing.okhttp3)
 
   // Keep aligned with build-logic/tag-registry, which shares these Jackson classes.
   implementation(platform("com.fasterxml.jackson:jackson-bom:2.17.2"))
@@ -156,5 +157,24 @@ testing {
         testTask
       }
     }
+  }
+}
+
+spotless {
+  // The ktlint rules are in the repository .editorconfig. Spotless only tracks this build's
+  // root .editorconfig, so point it at the repository one.
+  val editorConfig = rootDir.resolve("../.editorconfig")
+  kotlin {
+    toggleOffOn()
+    target("src/**/*.kt")
+    targetExclude("src/*/resources/**")
+    ktlint().setEditorConfigPath(editorConfig)
+  }
+  kotlinGradle {
+    toggleOffOn()
+    // Include the build scripts of the buildSrc subprojects and the precompiled script plugins.
+    target("*.gradle.kts", "*/*.gradle.kts", "src/**/*.gradle.kts")
+    targetExclude("src/*/resources/**")
+    ktlint().setEditorConfigPath(editorConfig)
   }
 }

@@ -287,4 +287,4 @@ org.tabletest:tabletest-parser:1.2.1=testCompileClasspath,testRuntimeClasspath
 org.testcontainers:testcontainers:1.21.4=testCompileClasspath,testRuntimeClasspath
 org.typelevel:macro-compat_2.12:1.1.1=compileClasspath,play,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 org.xmlresolver:xmlresolver:5.3.3=spotbugs
-empty=annotationProcessor,scalaCompilerPlugins,scalaToolchainRuntimeClasspath,spotbugsPlugins,testAnnotationProcessor
+empty=annotationProcessor,scalaCompilerPlugins,scalaToolchainRuntimeClasspath,smokeTestDiagnosticsClasspath,smokeTestTracerClasspath,spotbugsPlugins,testAnnotationProcessor

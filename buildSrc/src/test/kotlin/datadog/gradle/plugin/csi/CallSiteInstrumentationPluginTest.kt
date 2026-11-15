@@ -114,8 +114,7 @@ class CallSiteInstrumentationPluginTest : GradleFixture() {
     }
   }
 
-  private fun buildGradleProject(): BuildResult =
-    run("build", "--info", "--stacktrace", forwardOutput = true)
+  private fun buildGradleProject(): BuildResult = run("build", "--info", "--stacktrace", forwardOutput = true)
 
   private fun parsePackage(advice: String): String {
     val regex = Regex("package\\s+([\\w.]+)\\s*;", RegexOption.DOT_MATCHES_ALL)
