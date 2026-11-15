@@ -15,9 +15,7 @@ fun Test.configureFlakyTestSelection(skipFlakyTests: Boolean, runFlakyTests: Boo
   }
 
   // Let the JUnit and Spock extensions evaluate @Flaky conditions before selecting tests.
-  if (skipFlakyTests) {
-    jvmArgs("-Drun.flaky.tests=false")
-  } else if (runFlakyTests) {
-    jvmArgs("-Drun.flaky.tests=true")
+  if (skipFlakyTests || runFlakyTests) {
+    jvmArgs("-Drun.flaky.tests=${!skipFlakyTests}")
   }
 }

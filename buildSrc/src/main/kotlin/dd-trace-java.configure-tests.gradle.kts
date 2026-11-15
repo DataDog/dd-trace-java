@@ -100,6 +100,8 @@ tasks.withType<Test>().configureEach {
 
   // Set test timeout for 20 minutes. Default job timeout is 1h (configured on CI level).
   timeout.set(Duration.of(20, ChronoUnit.MINUTES))
+
+  configureFlakyTestSelection(skipFlakyTestsProvider.isPresent, runFlakyTestsProvider.isPresent)
 }
 
 // Register a task "allTests" that depends on all non-latest and non-traceAgentTest Test tasks.
@@ -126,10 +128,6 @@ tasks.register("allLatestDepTests") {
 // This means that when running the 'check' task, all Test tasks will run as well.
 tasks.named("check") {
   dependsOn(tasks.withType<Test>())
-}
-
-tasks.withType<Test>().configureEach {
-  configureFlakyTestSelection(skipFlakyTestsProvider.isPresent, runFlakyTestsProvider.isPresent)
 }
 
 tasks.withType<Test>().configureEach {
