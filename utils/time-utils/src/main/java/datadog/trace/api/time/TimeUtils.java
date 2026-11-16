@@ -3,6 +3,7 @@ package datadog.trace.api.time;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import javax.annotation.Nullable;
 
 public abstract class TimeUtils {
 
@@ -15,7 +16,7 @@ public abstract class TimeUtils {
    * @param delayString number followed by an optional time unit
    * @return delay in seconds; -1 if the string cannot be parsed
    */
-  public static long parseSimpleDelay(String delayString) {
+  public static long parseSimpleDelay(@Nullable String delayString) {
     if (null != delayString) {
       Matcher delayMatcher = SIMPLE_DELAY_PATTERN.matcher(delayString);
       if (delayMatcher.matches()) {
