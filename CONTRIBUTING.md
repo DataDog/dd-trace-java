@@ -85,7 +85,7 @@ Every `curl` that runs in CI (`.gitlab-ci.yml`, `.gitlab/`, GitHub Actions, the 
 
 Example: `curl -fsSL --retry 5 --retry-delay 2 --retry-connrefused -o out.tar.gz "$url"`
 
-Exception: a script that checks the HTTP status itself (`-w "%{http_code}"`, e.g. [tooling/check_test_agent_results.sh](tooling/check_test_agent_results.sh)) may skip `--fail`, but still needs `--retry`.
+Exception: a script that checks the HTTP status itself (`-w "%{http_code}"`) may skip `--fail`, but still needs `--retry`.
 
 ### Troubleshooting
 

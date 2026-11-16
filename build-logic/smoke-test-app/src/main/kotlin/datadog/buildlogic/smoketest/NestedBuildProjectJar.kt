@@ -45,16 +45,17 @@ abstract class NestedBuildProjectJar {
    */
   @get:Input
   val neededResourcePaths: Provider<List<String>>
-    get() = file.map(existingResourcePaths(
-      "dd-java-agent.version",
-      "dd-trace-api.version",
-      "trace/dd-trace-core.version",
-    ))
+    get() = file.map(
+      existingResourcePaths(
+        "dd-java-agent.version",
+        "dd-trace-api.version",
+        "trace/dd-trace-core.version",
+      )
+    )
 
-  private fun existingResourcePaths(vararg paths: String): Transformer<List<String>, RegularFile> =
-    Transformer { file ->
-      JarFile(file.asFile).use { jar ->
-        paths.filter { jar.getJarEntry(it)?.isDirectory == false }.sorted()
-      }
+  private fun existingResourcePaths(vararg paths: String): Transformer<List<String>, RegularFile> = Transformer { file ->
+    JarFile(file.asFile).use { jar ->
+      paths.filter { jar.getJarEntry(it)?.isDirectory == false }.sorted()
     }
+  }
 }

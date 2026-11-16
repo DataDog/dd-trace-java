@@ -160,9 +160,11 @@ class SmokeTestAppEndToEndTest {
       JarOutputStream(File(apiDirectory, "input.jar").outputStream()).use { jar ->
         val orderedEntries = if (reverseEntries) entries.entries.reversed() else entries.entries
         orderedEntries.forEach { (name, contents) ->
-          jar.putNextEntry(JarEntry(name).apply {
-            time = timestamp
-          })
+          jar.putNextEntry(
+            JarEntry(name).apply {
+              time = timestamp
+            }
+          )
           jar.write(contents.toByteArray(Charsets.UTF_8))
           jar.closeEntry()
         }
@@ -199,7 +201,10 @@ class SmokeTestAppEndToEndTest {
     }
     writeApiJar(timestamp, reverseEntries)
     val second = runner(
-      "packageApp", "--build-cache", "--configuration-cache", "--no-watch-fs",
+      "packageApp",
+      "--build-cache",
+      "--configuration-cache",
+      "--no-watch-fs",
       "-PapiVersion=$apiVersion",
     ).build()
 
@@ -369,24 +374,24 @@ class SmokeTestAppEndToEndTest {
           artifactPath = artifactPath,
           sysProperty = "sample.path",
           additionalConfig =
-            when {
-              graalvm -> {
-                """
+          when {
+            graalvm -> {
+              """
                 environment.put("GRAALVM_HOME", layout.projectDirectory.dir("graalvm").asFile.absolutePath)
                 inputs {
                   property("graalvmRelease", providers.fileContents(layout.projectDirectory.file("graalvm/release")).asText)
                 }
-                """.trimIndent()
-              }
+              """.trimIndent()
+            }
 
-              extra -> {
-                "additionalSystemProperties.put(\"sample.extra\", \"$extraPath\")"
-              }
+            extra -> {
+              "additionalSystemProperties.put(\"sample.extra\", \"$extraPath\")"
+            }
 
-              else -> {
-                ""
-              }
-            },
+            else -> {
+              ""
+            }
+          },
         )
       }
     writeSmokeTestAppBuild(
@@ -1294,29 +1299,27 @@ class SmokeTestAppEndToEndTest {
     }
   }
 
-  private fun fakeMavenWrapperName(): String =
-    if (isWindows()) {
-      "fake-mvnw.cmd"
-    } else {
-      "fake-mvnw"
-    }
+  private fun fakeMavenWrapperName(): String = if (isWindows()) {
+    "fake-mvnw.cmd"
+  } else {
+    "fake-mvnw"
+  }
 
-  private fun junitClasspath() =
-    listOf(
-      "org.junit.jupiter.api.Test",
-      "org.junit.jupiter.engine.JupiterTestEngine",
-      "org.junit.platform.engine.TestEngine",
-      "org.junit.platform.launcher.Launcher",
-      "org.junit.platform.commons.JUnitException",
-      "org.opentest4j.AssertionFailedError",
-    ).joinToString(", ") {
-      "\"${Path.of(
-        Class
-          .forName(it)
-          .protectionDomain.codeSource.location
-          .toURI(),
-      ).toFile().invariantSeparatorsPath}\""
-    }
+  private fun junitClasspath() = listOf(
+    "org.junit.jupiter.api.Test",
+    "org.junit.jupiter.engine.JupiterTestEngine",
+    "org.junit.platform.engine.TestEngine",
+    "org.junit.platform.launcher.Launcher",
+    "org.junit.platform.commons.JUnitException",
+    "org.opentest4j.AssertionFailedError",
+  ).joinToString(", ") {
+    "\"${Path.of(
+      Class
+        .forName(it)
+        .protectionDomain.codeSource.location
+        .toURI(),
+    ).toFile().invariantSeparatorsPath}\""
+  }
 
   private fun writeInnerSettings(additionalContent: String = "") {
     File(applicationDir, "settings.gradle.kts").writeText(
@@ -1357,8 +1360,7 @@ class SmokeTestAppEndToEndTest {
     }
     """.trimIndent()
 
-  private fun applicationOutput(relativePath: String): File =
-    applicationBuildDir.resolve(relativePath)
+  private fun applicationOutput(relativePath: String): File = applicationBuildDir.resolve(relativePath)
 
   private fun writeMavenArtifact(
     repository: File,
@@ -1385,47 +1387,48 @@ class SmokeTestAppEndToEndTest {
   private fun runner(
     vararg args: String,
     environment: Map<String, String>? = null,
-  ): GradleRunner =
-    GradleRunner.create()
-      .withProjectDir(projectDir.toFile())
-      .withPluginClasspath()
-      .withArguments(*args, "--stacktrace")
-      .withEnvironment(sanitizedGradleEnvironment(environment))
-      .forwardOutput()
+  ): GradleRunner = GradleRunner.create()
+    .withProjectDir(projectDir.toFile())
+    .withPluginClasspath()
+    .withArguments(*args, "--stacktrace")
+    .withEnvironment(sanitizedGradleEnvironment(environment))
+    .forwardOutput()
 
   // Proxy scenarios must not inherit repository settings exported by the CI job.
   private fun sanitizedGradleEnvironment(
     overrides: Map<String, String>? = null,
-  ): Map<String, String> =
-    (System.getenv() - setOf(
+  ): Map<String, String> = (
+    System.getenv() - setOf(
       "MAVEN_REPOSITORY_PROXY",
       "MVNW_REPOURL",
       "ORG_GRADLE_PROJECT_mavenRepositoryProxy",
       "ORG_GRADLE_PROJECT_gradlePluginProxy",
-    )) +
-      mapOf(
-        "GRADLE_ARGS" to "",
-        "GRADLE_OPTS" to "",
-        "GRADLE_USER_HOME" to outerGradleUserHome.absolutePath,
-      ) +
-      (overrides ?: emptyMap())
+    )
+    ) +
+    mapOf(
+      "GRADLE_ARGS" to "",
+      "GRADLE_OPTS" to "",
+      "GRADLE_USER_HOME" to outerGradleUserHome.absolutePath,
+    ) +
+    (overrides ?: emptyMap())
 
-  private fun currentMajorJdk(): Int =
-    System.getProperty("java.specification.version").let {
-      if (it.startsWith("1.")) it.substring(2).toInt() else it.toInt()
-    }
+  private fun currentMajorJdk(): Int = System.getProperty("java.specification.version").let {
+    if (it.startsWith("1.")) it.substring(2).toInt() else it.toInt()
+  }
 
   companion object {
     private val outerGradleUserHome: File by lazy {
       Files.createTempDirectory("smoke-test-app-gradle-user-home-").toFile().also { dir ->
-        Runtime.getRuntime().addShutdownHook(Thread {
-          try {
-            DefaultGradleConnector.close()
-          } catch (_: Exception) {
-            // best effort
+        Runtime.getRuntime().addShutdownHook(
+          Thread {
+            try {
+              DefaultGradleConnector.close()
+            } catch (_: Exception) {
+              // best effort
+            }
+            dir.deleteRecursively()
           }
-          dir.deleteRecursively()
-        })
+        )
       }
     }
 
