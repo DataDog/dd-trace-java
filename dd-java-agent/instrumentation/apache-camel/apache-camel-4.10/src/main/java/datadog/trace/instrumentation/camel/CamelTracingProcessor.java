@@ -17,7 +17,10 @@ public final class CamelTracingProcessor extends DelegateAsyncProcessor {
 
   @Override
   public boolean process(Exchange exchange, AsyncCallback callback) {
-    Context context = CamelState.context(exchange);
+    Context context = CamelState.exchangeContext(exchange);
+    if (context == null) {
+      return processor.process(exchange, callback);
+    }
     ContextScope scope = attach(context);
     try {
       return processor.process(exchange, new Callback(callback, context));

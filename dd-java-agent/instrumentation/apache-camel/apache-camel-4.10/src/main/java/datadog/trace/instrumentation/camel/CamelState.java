@@ -45,6 +45,15 @@ public final class CamelState extends SynchronizationAdapter {
     return exchange.getProperty(KEY, CamelState.class);
   }
 
+  public static Context exchangeContext(Exchange exchange) {
+    try {
+      CamelState state = state(exchange);
+      return state == null ? null : state.context;
+    } catch (Throwable ignored) {
+      return null;
+    }
+  }
+
   public static Context context(Exchange exchange) {
     try {
       CamelState state = state(exchange);
