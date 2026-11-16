@@ -111,18 +111,75 @@ class FlagEvaluatorJsonValueTest {
     assertEquals(18.0, conditionValue);
   }
 
+  @Test
+  void keepsIntegersExactForAFlagKeyedVariations() throws Exception {
+    final ServerConfiguration config = config("variations", "JSON", "{\"n\":5}");
+
+    final Value value =
+        evaluator
+            .evaluate(config, Value.class, "variations", new Value(), new MutableContext("user"))
+            .getValue();
+
+    assertEquals(5, value.asStructure().asObjectMap().get("n"));
+  }
+
+  @Test
+  void keepsIntegersExactInTheJsonApiEnvelope() throws Exception {
+    final ServerConfiguration config =
+        UniversalFlagConfigParser.parseJsonApi(
+            ("{\"data\":{\"type\":\"universal-flag-configuration\",\"attributes\":"
+                    + "{\"createdAt\":\"2024-04-17T19:40:53.716Z\","
+                    + "\"environment\":{\"name\":\"Test\"},"
+                    + flags("f", "JSON", "{\"big\":9007199254740993}")
+                    + "}}}")
+                .getBytes(UTF_8));
+
+    assertEquals(
+        9007199254740993L, evaluate(config).getValue().asStructure().getValue("big").asObject());
+  }
+
+  @Test
+  void keepsDoublesInOtherFlagTypes() throws Exception {
+    final ServerConfiguration integer = config("f", "INTEGER", "5");
+    final ServerConfiguration string = config("f", "STRING", "{\"n\":5,\"l\":[1]}");
+
+    assertEquals(5.0, integer.flags.get("f").variations.get("on").value);
+    assertEquals(
+        "{n=5.0, l=[1.0]}", String.valueOf(string.flags.get("f").variations.get("on").value));
+    assertEquals(null, string.flags.get("f").variations.get("on").frozenValue);
+  }
+
+  @Test
+  void keepsDoublesForIntegersBeyondTheLongRange() throws Exception {
+    final Value value = evaluate(config("{\"n\":9223372036854775808}")).getValue();
+
+    assertEquals(9.223372036854776E18, value.asStructure().getValue("n").asObject());
+  }
+
   private ProviderEvaluation<Value> evaluate(final ServerConfiguration config) {
     return evaluator.evaluate(config, Value.class, "f", new Value(), new MutableContext("user"));
   }
 
   private static ServerConfiguration config(final String variantValue) throws Exception {
+    return config("f", "JSON", variantValue);
+  }
+
+  private static ServerConfiguration config(
+      final String key, final String type, final String variantValue) throws Exception {
     return UniversalFlagConfigParser.parse(
-        ("{\"flags\":{\"f\":{\"key\":\"f\",\"enabled\":true,\"variationType\":\"JSON\","
-                + "\"variations\":{\"on\":{\"key\":\"on\",\"value\":"
-                + variantValue
-                + "}},"
-                + "\"allocations\":[{\"key\":\"a\",\"splits\":[{\"variationKey\":\"on\","
-                + "\"shards\":[]}]}]}}}")
-            .getBytes(UTF_8));
+        ("{" + flags(key, type, variantValue) + "}").getBytes(UTF_8));
+  }
+
+  private static String flags(final String key, final String type, final String variantValue) {
+    return "\"flags\":{\""
+        + key
+        + "\":{\"key\":\""
+        + key
+        + "\",\"enabled\":true,\"variationType\":\""
+        + type
+        + "\",\"variations\":{\"on\":{\"key\":\"on\",\"value\":"
+        + variantValue
+        + "}},\"allocations\":[{\"key\":\"a\",\"splits\":[{\"variationKey\":\"on\","
+        + "\"shards\":[]}]}]}}";
   }
 }

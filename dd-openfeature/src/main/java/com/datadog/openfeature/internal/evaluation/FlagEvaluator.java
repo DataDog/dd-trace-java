@@ -476,7 +476,7 @@ public final class FlagEvaluator {
 
     final T mappedValue;
     try {
-      // A JSON variant is converted once, at parse time: share it instead of a copy per call.
+      // An object or array variant is converted once, at parse time: share it, not a new copy.
       mappedValue =
           target == Value.class && variant.frozenValue != null
               ? target.cast(variant.frozenValue)

@@ -15,12 +15,29 @@ import java.util.Map;
  *
  * <p>Each JSON object becomes a {@link FrozenStructure}: a {@link MutableStructure} over an
  * unmodifiable map, so {@code getValue} returns the shared child without a copy and {@code add}
- * throws {@link UnsupportedOperationException}. The type is the one {@link Value#objectToValue}
- * returns, so {@code equals} and {@code hashCode} are unchanged. Each JSON array becomes an
- * unmodifiable list. A {@link Value} has no setters, so the whole tree cannot change.
+ * throws {@link UnsupportedOperationException}. It extends {@link MutableStructure}, the type that
+ * {@link Value#objectToValue} returns, and does not override {@code equals}, {@code hashCode} or
+ * {@code canEqual}, so equality is unchanged. Each JSON array becomes an unmodifiable list. The
+ * leaves are String, Boolean, Integer, Long, Double or null, and a {@link Value} has no setters, so
+ * no part of the tree can change.
  */
-public final class FrozenValues {
+final class FrozenValues {
+  /**
+   * Tells whether the loaded OpenFeature SDK holds {@link Long} values. SDK 1.22.0 added them: an
+   * older SDK rejects a {@code Long} with a {@code TypeMismatchError}.
+   */
+  static final boolean LONG_VALUES = hasLongValues();
+
   private FrozenValues() {}
+
+  private static boolean hasLongValues() {
+    try {
+      Value.class.getConstructor(Long.class);
+      return true;
+    } catch (final NoSuchMethodException e) {
+      return false;
+    }
+  }
 
   /** Tells whether the value is a JSON object or array, the values that are frozen. */
   static boolean isContainer(final Object value) {
@@ -51,8 +68,18 @@ public final class FrozenValues {
     return Value.objectToValue(tree);
   }
 
+  /**
+   * Returns the plain form of a frozen value: the shared {@code asObjectMap()} map of an object, or
+   * an unmodifiable list of plain values for an array. It is equal to the tree that was frozen.
+   */
+  static Object plain(final Value frozen) {
+    return frozen.isStructure()
+        ? frozen.asStructure().asObjectMap()
+        : FrozenStructure.toObject(frozen);
+  }
+
   private static int capacity(final int size) {
-    return (int) Math.min(Integer.MAX_VALUE, (long) size * 4 / 3 + 1);
+    return (int) Math.min(Integer.MAX_VALUE, ((long) size * 4 + 2) / 3);
   }
 
   /**

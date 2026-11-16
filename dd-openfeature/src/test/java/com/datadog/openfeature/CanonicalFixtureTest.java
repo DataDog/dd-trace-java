@@ -288,7 +288,10 @@ class CanonicalFixtureTest {
     }
   }
 
-  /** Normalizes the integral numbers read as Long to Double, as the UFC parser does. */
+  /**
+   * Normalizes the integral numbers read as Long to Double, as the UFC parser does outside JSON
+   * variant values.
+   */
   private static Object normalize(final Object value) {
     if (value instanceof Long) {
       return ((Long) value).doubleValue();
@@ -356,10 +359,14 @@ class CanonicalFixtureTest {
       this.index = index;
       final Object attributes = normalize(json.get("attributes"));
       this.attributes = attributes == null ? emptyMap() : (Map<String, Object>) attributes;
-      this.defaultValue = normalize(json.get("defaultValue"));
       this.flag = (String) json.get("flag");
       this.targetingKey = (String) json.get("targetingKey");
       this.variationType = (String) json.get("variationType");
+      // The default value of a JSON case uses the same number model as its result.
+      this.defaultValue =
+          "JSON".equals(this.variationType)
+              ? exactIntegers(json.get("defaultValue"))
+              : normalize(json.get("defaultValue"));
       final Map<String, Object> result = (Map<String, Object>) json.get("result");
       requireSupportedKeys(
           result,

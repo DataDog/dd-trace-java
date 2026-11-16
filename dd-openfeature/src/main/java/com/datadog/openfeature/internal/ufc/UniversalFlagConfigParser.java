@@ -7,6 +7,7 @@ import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
+import dev.openfeature.sdk.Value;
 import java.io.IOException;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
@@ -23,9 +24,10 @@ import org.slf4j.LoggerFactory;
  * Parses Universal Flag Configuration (UFC) documents.
  *
  * <p>The document is first read as a generic JSON tree (objects, arrays, strings, {@link Double}
- * numbers, booleans and nulls; integers in variant values stay {@link Integer} or {@link Long}),
- * then mapped onto the UFC model. Malformed flags are dropped individually and reported through
- * {@link ServerConfiguration#invalidFlags}; a malformed envelope fails the whole document.
+ * numbers, booleans and nulls; an integer in a variant value that fits in a long is read as {@link
+ * Integer} or {@link Long}), then mapped onto the UFC model. Malformed flags are dropped
+ * individually and reported through {@link ServerConfiguration#invalidFlags}; a malformed envelope
+ * fails the whole document.
  */
 public final class UniversalFlagConfigParser {
   private static final Logger LOGGER = LoggerFactory.getLogger(UniversalFlagConfigParser.class);
@@ -94,12 +96,16 @@ public final class UniversalFlagConfigParser {
   }
 
   /**
-   * Where the reader is in the document. UFC numbers are read as {@link Double}, but the numbers of
-   * a variant value ({@code variations.<key>.value}) keep their integer type, so that a JSON
-   * variant returns {@code 5} and not {@code 5.0}, and keeps integers above 2^53 exact.
+   * Where the reader is in the document. Numbers are read as {@link Double}, except integers in a
+   * variant value ({@code flags.<flag>.variations.<key>.value}): an integer that fits in a long is
+   * read as {@link Integer} or {@link Long}. So a JSON variant returns {@code 5} and not {@code
+   * 5.0}, and integers from 2^53 to 2^63-1 stay exact. The scopes follow positions, not only field
+   * names, so a flag key such as {@code "variations"} does not change them.
    */
   private enum Scope {
     UFC,
+    FLAGS,
+    FLAG,
     VARIATIONS,
     VARIANT,
     VARIANT_VALUE;
@@ -107,6 +113,10 @@ public final class UniversalFlagConfigParser {
     Scope field(final String name) {
       switch (this) {
         case UFC:
+          return "flags".equals(name) ? FLAGS : UFC;
+        case FLAGS:
+          return FLAG;
+        case FLAG:
           return "variations".equals(name) ? VARIATIONS : UFC;
         case VARIATIONS:
           return VARIANT;
@@ -153,7 +163,11 @@ public final class UniversalFlagConfigParser {
             case INT:
               return parser.getIntValue();
             case LONG:
-              return parser.getLongValue();
+              // OpenFeature SDKs before 1.22.0 have no Long values: keep the double there.
+              if (FrozenValues.LONG_VALUES) {
+                return parser.getLongValue();
+              }
+              break;
             default:
               break;
           }
@@ -276,13 +290,37 @@ public final class UniversalFlagConfigParser {
       return null;
     }
     final Map<?, ?> json = asObject(value, "variant");
-    Object variantValue = json.get("value");
-    // Only JSON values keep exact integers; scalar flags keep the double they always had.
-    if (variationType != ValueType.JSON
-        && (variantValue instanceof Integer || variantValue instanceof Long)) {
-      variantValue = ((Number) variantValue).doubleValue();
+    final String key = asString(json.get("key"), "key");
+    final Object variantValue = json.get("value");
+    if (variationType == ValueType.JSON && FrozenValues.isContainer(variantValue)) {
+      // A JSON object or array is converted once, here: evaluations share it. Its plain form
+      // replaces the parsed tree, so the parsed containers are not kept as well.
+      final Value frozen = FrozenValues.freeze(variantValue);
+      return new Variant(key, FrozenValues.plain(frozen), frozen);
     }
-    return new Variant(asString(json.get("key"), "key"), variantValue);
+    if (variationType == ValueType.JSON) {
+      return new Variant(key, variantValue, null);
+    }
+    // Only JSON flags keep exact integers. Other or missing types get back the doubles they had.
+    return new Variant(key, withDoubles(variantValue), null);
+  }
+
+  /** Replaces each Integer or Long in a variant value with the equal Double. */
+  private static Object withDoubles(@Nullable final Object value) {
+    if (value instanceof Integer || value instanceof Long) {
+      return ((Number) value).doubleValue();
+    }
+    if (value instanceof Map) {
+      final Map<Object, Object> map = new LinkedHashMap<>();
+      ((Map<?, ?>) value).forEach((k, v) -> map.put(k, withDoubles(v)));
+      return map;
+    }
+    if (value instanceof List) {
+      final List<Object> list = new ArrayList<>();
+      ((List<?>) value).forEach(v -> list.add(withDoubles(v)));
+      return list;
+    }
+    return value;
   }
 
   @Nullable
