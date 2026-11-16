@@ -13,6 +13,7 @@ import datadog.trace.common.writer.Payload;
 import datadog.trace.common.writer.Writer;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDSpan;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
@@ -117,6 +118,7 @@ public class TraceSerializerBenchmark {
   private CollectingWriter collected;
 
   @Setup(Level.Trial)
+  @SuppressForbidden // prints each configuration's payload size, half of the comparison
   public void setup() {
     mapper = newMapper(format);
     packer =
