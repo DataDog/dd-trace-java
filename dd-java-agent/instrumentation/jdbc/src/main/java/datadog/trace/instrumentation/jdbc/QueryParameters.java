@@ -1,0 +1,497 @@
+package datadog.trace.instrumentation.jdbc;
+
+import datadog.trace.bootstrap.ContextStore;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import java.io.InputStream;
+import java.io.Reader;
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.net.URL;
+import java.sql.Blob;
+import java.sql.Clob;
+import java.sql.NClob;
+import java.sql.PreparedStatement;
+import java.sql.Ref;
+import java.sql.RowId;
+import java.sql.SQLType;
+import java.sql.SQLXML;
+import java.sql.Struct;
+import java.sql.Time;
+import java.sql.Timestamp;
+import java.sql.Types;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.OffsetDateTime;
+import java.time.OffsetTime;
+import java.util.Arrays;
+import java.util.Calendar;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+/**
+ * The values bound to one prepared or callable statement, put on the database span when the
+ * statement runs. Held per statement instance, since {@code DBQueryInfo} is shared by all the
+ * statements with the same SQL.
+ *
+ * <p>Values are kept as bound and turned into strings only when the statement runs. Streams and
+ * LOBs are never read: only their type is recorded.
+ */
+public final class QueryParameters {
+  static final int MAX_PARAMETERS = 64;
+  static final int MAX_VALUE_LENGTH = 1024;
+
+  static final String VALUE_TAG_PREFIX = "db.query.parameter.";
+  static final String TYPE_TAG_PREFIX = "_dd.dbm.query.parameter_type.";
+  static final String TRUNCATED_TAG = "_dd.dbm.query.parameters_truncated";
+
+  private static final String[] POSITIONAL_VALUE_TAGS = new String[MAX_PARAMETERS];
+  private static final String[] POSITIONAL_TYPE_TAGS = new String[MAX_PARAMETERS];
+
+  static {
+    for (int i = 0; i < MAX_PARAMETERS; i++) {
+      POSITIONAL_VALUE_TAGS[i] = VALUE_TAG_PREFIX + i;
+      POSITIONAL_TYPE_TAGS[i] = TYPE_TAG_PREFIX + i;
+    }
+  }
+
+  /** Replaces values that must not be read, such as streams and LOBs. */
+  private static final Object UNREAD = new Object();
+
+  private static final char[] HEX_DIGITS = "0123456789ABCDEF".toCharArray();
+
+  /** Values by 0-based position, so JDBC index 1 is at 0. */
+  private final Object[] positionalValues = new Object[MAX_PARAMETERS];
+
+  private final String[] positionalTypes = new String[MAX_PARAMETERS];
+
+  /** Bit {@code i} is set when the position {@code i} is bound. */
+  private long boundPositions;
+
+  private Map<String, NamedParameter> namedParameters;
+
+  /** Whether a parameter was dropped when bound, because of the parameter limit. */
+  private boolean dropped;
+
+  public static QueryParameters getOrCreate(
+      ContextStore<PreparedStatement, QueryParameters> store, PreparedStatement statement) {
+    QueryParameters queryParameters = store.get(statement);
+    if (null == queryParameters) {
+      queryParameters = new QueryParameters();
+      store.put(statement, queryParameters);
+    }
+    return queryParameters;
+  }
+
+  /**
+   * Records a value bound by a {@code setXxx} method other than {@code setNull} and the {@code
+   * setObject} variants with a target SQL type.
+   *
+   * @param key the JDBC index ({@link Integer}) or the parameter name ({@link String})
+   */
+  public void bind(Object key, String setter, Object value) {
+    put(key, typeOfSetter(setter, value), value);
+  }
+
+  /** Records a {@code setNull} call. */
+  public void bindNull(Object key, int sqlType) {
+    put(key, sqlTypeName(sqlType), null);
+  }
+
+  /**
+   * Records a {@code setObject} call with a target SQL type.
+   *
+   * @param sqlType an {@link Integer} from {@link Types}, or a {@link SQLType}
+   */
+  public void bindWithSqlType(Object key, Object value, Object sqlType) {
+    String type;
+    if (sqlType instanceof Integer) {
+      type = sqlTypeName((Integer) sqlType);
+    } else if (sqlType instanceof SQLType) {
+      type = ((SQLType) sqlType).getName();
+    } else {
+      type = typeOfValue(value);
+    }
+    put(key, type, value);
+  }
+
+  /** Forgets all the values, like {@code clearParameters}. */
+  public void clear() {
+    Arrays.fill(positionalValues, null);
+    Arrays.fill(positionalTypes, null);
+    boundPositions = 0;
+    if (namedParameters != null) {
+      namedParameters.clear();
+    }
+    dropped = false;
+  }
+
+  /** Puts the bound values and their types on the span. */
+  public void applyTo(AgentSpan span) {
+    boolean truncated = dropped;
+    int count = 0;
+    long positions = boundPositions;
+    while (positions != 0) {
+      int position = Long.numberOfTrailingZeros(positions);
+      positions &= positions - 1;
+      truncated |=
+          tag(
+              span,
+              POSITIONAL_VALUE_TAGS[position],
+              POSITIONAL_TYPE_TAGS[position],
+              positionalTypes[position],
+              positionalValues[position]);
+      count++;
+    }
+    if (namedParameters != null) {
+      for (Map.Entry<String, NamedParameter> entry : namedParameters.entrySet()) {
+        if (count == MAX_PARAMETERS) {
+          truncated = true;
+          break;
+        }
+        String name = entry.getKey();
+        NamedParameter parameter = entry.getValue();
+        truncated |=
+            tag(
+                span,
+                VALUE_TAG_PREFIX + name,
+                TYPE_TAG_PREFIX + name,
+                parameter.type,
+                parameter.value);
+        count++;
+      }
+    }
+    if (truncated) {
+      span.setTag(TRUNCATED_TAG, true);
+    }
+  }
+
+  private void put(Object key, String type, Object value) {
+    Object kept = isUnread(value) ? UNREAD : value;
+    if (key instanceof Integer) {
+      int position = (Integer) key - 1;
+      if (position < 0 || position >= MAX_PARAMETERS) {
+        dropped = true;
+        return;
+      }
+      positionalValues[position] = kept;
+      positionalTypes[position] = type;
+      boundPositions |= 1L << position;
+    } else if (key instanceof String) {
+      if (namedParameters == null) {
+        namedParameters = new LinkedHashMap<>();
+      }
+      String name = (String) key;
+      if (namedParameters.size() >= MAX_PARAMETERS && !namedParameters.containsKey(name)) {
+        dropped = true;
+        return;
+      }
+      namedParameters.put(name, new NamedParameter(type, kept));
+    }
+  }
+
+  /** Returns whether the value was truncated or left out. */
+  private static boolean tag(
+      AgentSpan span, String valueTag, String typeTag, String type, Object value) {
+    if (type != null) {
+      span.setTag(typeTag, type);
+    }
+    if (value == UNREAD) {
+      return true;
+    }
+    String string;
+    try {
+      string = toString(value);
+    } catch (Throwable ignored) {
+      return true;
+    }
+    if (string.length() > MAX_VALUE_LENGTH) {
+      int end = MAX_VALUE_LENGTH;
+      if (Character.isHighSurrogate(string.charAt(end - 1))) {
+        end--;
+      }
+      span.setTag(valueTag, string.substring(0, end));
+      return true;
+    }
+    span.setTag(valueTag, string);
+    return false;
+  }
+
+  private static String toString(Object value) {
+    if (value instanceof byte[]) {
+      return toHex((byte[]) value);
+    }
+    return String.valueOf(value);
+  }
+
+  /** Encodes only what can be kept, plus one byte so that the result is seen as truncated. */
+  private static String toHex(byte[] bytes) {
+    int length = Math.min(bytes.length, MAX_VALUE_LENGTH / 2 + 1);
+    char[] hex = new char[length * 2];
+    for (int i = 0; i < length; i++) {
+      hex[2 * i] = HEX_DIGITS[(bytes[i] >> 4) & 0xF];
+      hex[2 * i + 1] = HEX_DIGITS[bytes[i] & 0xF];
+    }
+    return new String(hex);
+  }
+
+  /** Values that may be read lazily from the database or from a stream. */
+  private static boolean isUnread(Object value) {
+    return value instanceof InputStream
+        || value instanceof Reader
+        || value instanceof Blob
+        || value instanceof Clob
+        || value instanceof SQLXML
+        || value instanceof java.sql.Array
+        || value instanceof Ref
+        || value instanceof Struct;
+  }
+
+  private static String typeOfSetter(String setter, Object value) {
+    switch (setter) {
+      case "setBoolean":
+        return "BOOLEAN";
+      case "setByte":
+        return "TINYINT";
+      case "setShort":
+        return "SMALLINT";
+      case "setInt":
+        return "INTEGER";
+      case "setLong":
+        return "BIGINT";
+      case "setFloat":
+        return "REAL";
+      case "setDouble":
+        return "DOUBLE";
+      case "setBigDecimal":
+        return "NUMERIC";
+      case "setString":
+        return "VARCHAR";
+      case "setNString":
+        return "NVARCHAR";
+      case "setBytes":
+        return "VARBINARY";
+      case "setDate":
+        return "DATE";
+      case "setTime":
+        return "TIME";
+      case "setTimestamp":
+        return "TIMESTAMP";
+      case "setAsciiStream":
+      case "setUnicodeStream":
+      case "setCharacterStream":
+        return "LONGVARCHAR";
+      case "setNCharacterStream":
+        return "LONGNVARCHAR";
+      case "setBinaryStream":
+        return "LONGVARBINARY";
+      case "setBlob":
+        return "BLOB";
+      case "setClob":
+        return "CLOB";
+      case "setNClob":
+        return "NCLOB";
+      case "setArray":
+        return "ARRAY";
+      case "setRef":
+        return "REF";
+      case "setRowId":
+        return "ROWID";
+      case "setSQLXML":
+        return "SQLXML";
+      case "setURL":
+        return "DATALINK";
+      default: // setObject
+        return typeOfValue(value);
+    }
+  }
+
+  /** The SQL type a driver would use for a value given to {@code setObject}. */
+  static String typeOfValue(Object value) {
+    if (value == null) {
+      return "NULL";
+    }
+    if (value instanceof String) {
+      return "VARCHAR";
+    }
+    if (value instanceof Integer) {
+      return "INTEGER";
+    }
+    if (value instanceof Long || value instanceof BigInteger) {
+      return "BIGINT";
+    }
+    if (value instanceof BigDecimal) {
+      return "NUMERIC";
+    }
+    if (value instanceof Boolean) {
+      return "BOOLEAN";
+    }
+    if (value instanceof Short) {
+      return "SMALLINT";
+    }
+    if (value instanceof Byte) {
+      return "TINYINT";
+    }
+    if (value instanceof Double) {
+      return "DOUBLE";
+    }
+    if (value instanceof Float) {
+      return "REAL";
+    }
+    if (value instanceof Character) {
+      return "CHAR";
+    }
+    if (value instanceof byte[]) {
+      return "VARBINARY";
+    }
+    if (value instanceof java.sql.Date || value instanceof LocalDate) {
+      return "DATE";
+    }
+    if (value instanceof Time || value instanceof LocalTime) {
+      return "TIME";
+    }
+    if (value instanceof Timestamp
+        || value instanceof LocalDateTime
+        || value instanceof java.util.Date
+        || value instanceof Calendar) {
+      return "TIMESTAMP";
+    }
+    if (value instanceof OffsetDateTime) {
+      return "TIMESTAMP_WITH_TIMEZONE";
+    }
+    if (value instanceof OffsetTime) {
+      return "TIME_WITH_TIMEZONE";
+    }
+    if (value instanceof NClob) {
+      return "NCLOB";
+    }
+    if (value instanceof Clob) {
+      return "CLOB";
+    }
+    if (value instanceof Blob) {
+      return "BLOB";
+    }
+    if (value instanceof SQLXML) {
+      return "SQLXML";
+    }
+    if (value instanceof java.sql.Array) {
+      return "ARRAY";
+    }
+    if (value instanceof Struct) {
+      return "STRUCT";
+    }
+    if (value instanceof Ref) {
+      return "REF";
+    }
+    if (value instanceof RowId) {
+      return "ROWID";
+    }
+    if (value instanceof URL) {
+      return "DATALINK";
+    }
+    if (value instanceof CharSequence) {
+      return "VARCHAR";
+    }
+    if (value instanceof Reader) {
+      return "LONGVARCHAR";
+    }
+    if (value instanceof InputStream) {
+      return "LONGVARBINARY";
+    }
+    return "JAVA_OBJECT";
+  }
+
+  /** The name of a {@link Types} constant, {@code OTHER} for vendor types. */
+  static String sqlTypeName(int sqlType) {
+    switch (sqlType) {
+      case Types.BIT:
+        return "BIT";
+      case Types.TINYINT:
+        return "TINYINT";
+      case Types.SMALLINT:
+        return "SMALLINT";
+      case Types.INTEGER:
+        return "INTEGER";
+      case Types.BIGINT:
+        return "BIGINT";
+      case Types.FLOAT:
+        return "FLOAT";
+      case Types.REAL:
+        return "REAL";
+      case Types.DOUBLE:
+        return "DOUBLE";
+      case Types.NUMERIC:
+        return "NUMERIC";
+      case Types.DECIMAL:
+        return "DECIMAL";
+      case Types.CHAR:
+        return "CHAR";
+      case Types.VARCHAR:
+        return "VARCHAR";
+      case Types.LONGVARCHAR:
+        return "LONGVARCHAR";
+      case Types.DATE:
+        return "DATE";
+      case Types.TIME:
+        return "TIME";
+      case Types.TIMESTAMP:
+        return "TIMESTAMP";
+      case Types.BINARY:
+        return "BINARY";
+      case Types.VARBINARY:
+        return "VARBINARY";
+      case Types.LONGVARBINARY:
+        return "LONGVARBINARY";
+      case Types.NULL:
+        return "NULL";
+      case Types.JAVA_OBJECT:
+        return "JAVA_OBJECT";
+      case Types.DISTINCT:
+        return "DISTINCT";
+      case Types.STRUCT:
+        return "STRUCT";
+      case Types.ARRAY:
+        return "ARRAY";
+      case Types.BLOB:
+        return "BLOB";
+      case Types.CLOB:
+        return "CLOB";
+      case Types.REF:
+        return "REF";
+      case Types.DATALINK:
+        return "DATALINK";
+      case Types.BOOLEAN:
+        return "BOOLEAN";
+      case Types.ROWID:
+        return "ROWID";
+      case Types.NCHAR:
+        return "NCHAR";
+      case Types.NVARCHAR:
+        return "NVARCHAR";
+      case Types.LONGNVARCHAR:
+        return "LONGNVARCHAR";
+      case Types.NCLOB:
+        return "NCLOB";
+      case Types.SQLXML:
+        return "SQLXML";
+      case Types.REF_CURSOR:
+        return "REF_CURSOR";
+      case Types.TIME_WITH_TIMEZONE:
+        return "TIME_WITH_TIMEZONE";
+      case Types.TIMESTAMP_WITH_TIMEZONE:
+        return "TIMESTAMP_WITH_TIMEZONE";
+      default:
+        return "OTHER";
+    }
+  }
+
+  private static final class NamedParameter {
+    final String type;
+    final Object value;
+
+    NamedParameter(String type, Object value) {
+      this.type = type;
+      this.value = value;
+    }
+  }
+}

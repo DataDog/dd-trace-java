@@ -10,6 +10,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_CODE_ORIGIN_FOR_SPANS_INT
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_JOBS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_INTEGRATIONS_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_JDBC_CAPTURE_QUERY_PARAMETERS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LLM_OBS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_OTEL_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_MEASURE_METHODS;
@@ -71,6 +72,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_URL_CONNE
 import static datadog.trace.api.config.TraceInstrumentationConfig.INSTRUMENTATION_CONFIG_ID;
 import static datadog.trace.api.config.TraceInstrumentationConfig.INTEGRATIONS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JAX_RS_ADDITIONAL_ANNOTATIONS;
+import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_CAPTURE_QUERY_PARAMETERS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_CONNECTION_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_POOL_WAITING_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_PREPARED_STATEMENT_CLASS_NAME;
@@ -196,6 +198,7 @@ public class InstrumenterConfig {
   private final String jdbcPreparedStatementClassName;
   private final String jdbcConnectionClassName;
   private final boolean jdbcPoolWaitingEnabled;
+  private final boolean jdbcCaptureQueryParameters;
 
   private final String httpURLConnectionClassName;
   private final String axisTransportClassName;
@@ -356,6 +359,9 @@ public class InstrumenterConfig {
         configProvider.getString(JDBC_PREPARED_STATEMENT_CLASS_NAME, "");
     jdbcConnectionClassName = configProvider.getString(JDBC_CONNECTION_CLASS_NAME, "");
     jdbcPoolWaitingEnabled = configProvider.getBoolean(JDBC_POOL_WAITING_ENABLED, false);
+    jdbcCaptureQueryParameters =
+        configProvider.getBoolean(
+            JDBC_CAPTURE_QUERY_PARAMETERS, DEFAULT_JDBC_CAPTURE_QUERY_PARAMETERS);
 
     httpURLConnectionClassName = configProvider.getString(HTTP_URL_CONNECTION_CLASS_NAME, "");
     axisTransportClassName = configProvider.getString(AXIS_TRANSPORT_CLASS_NAME, "");
@@ -628,6 +634,10 @@ public class InstrumenterConfig {
     return jdbcPoolWaitingEnabled;
   }
 
+  public boolean isJdbcCaptureQueryParameters() {
+    return jdbcCaptureQueryParameters;
+  }
+
   public String getHttpURLConnectionClassName() {
     return httpURLConnectionClassName;
   }
@@ -894,6 +904,8 @@ public class InstrumenterConfig {
         + '\''
         + ", jdbcPoolWaitingEnabled="
         + jdbcPoolWaitingEnabled
+        + ", jdbcCaptureQueryParameters="
+        + jdbcCaptureQueryParameters
         + ", httpURLConnectionClassName='"
         + httpURLConnectionClassName
         + '\''
