@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.jetty12;
 
 import static datadog.trace.bootstrap.ActiveSubsystems.APPSEC_ACTIVE;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_IGNORE_COMMIT_ATTRIBUTE;
 
 import datadog.context.Context;
 import datadog.trace.api.Config;
@@ -14,6 +15,7 @@ import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.io.Connection;
 import org.eclipse.jetty.io.EndPoint;
 import org.eclipse.jetty.server.ConnectionMetaData;
@@ -150,6 +152,20 @@ public class JettyDecorator extends HttpServerDecorator<Request, Request, Respon
     }
   }
 
+  /**
+   * Response-phase AppSec analysis runs before the commit, see {@code JettyCommitResponseHelper}.
+   */
+  @Override
+  protected boolean isAppSecOnResponseSeparate() {
+    return true;
+  }
+
+  /** Returns the response status, mapping the unset status {@code 0} to the implicit 200. */
+  static int effectiveStatus(final Response response) {
+    final int status = response.getStatus();
+    return status == 0 ? HttpStatus.OK_200 : status;
+  }
+
   /** Decorates the span with the response and finishes it. */
   public void finishSpan(
       final Context context, final AgentSpan span, final Request request, final Response response) {
@@ -179,6 +195,12 @@ public class JettyDecorator extends HttpServerDecorator<Request, Request, Respon
         throwable = throwable.getCause();
       }
       onError(span, throwable);
+    }
+    if (request.getAttribute(DD_IGNORE_COMMIT_ATTRIBUTE) == null) {
+      // the commit hook never saw this response (e.g. a core handler committing it without any
+      // write, or AppSec instrumentation not applied): keep response monitoring, too late to block
+      callIGCallbackResponseAndHeaders(
+          span, response, effectiveStatus(response), ExtractAdapter.Response.GETTER);
     }
     super.onResponse(span, response);
   }

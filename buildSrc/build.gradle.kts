@@ -139,6 +139,7 @@ testing {
     named<JvmTestSuite>("test") {
       dependencies {
         implementation(libs.assertj.core)
+        implementation(libs.tabletest)
         implementation(libs.okhttp3.mockwebserver)
       }
       targets.configureEach {
@@ -169,6 +170,7 @@ spotless {
     target("src/**/*.kt")
     targetExclude("src/*/resources/**")
     ktlint().setEditorConfigPath(editorConfig)
+    tableTestFormatter(libs.versions.tabletest.formatter.get())
   }
   kotlinGradle {
     toggleOffOn()
