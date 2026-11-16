@@ -13,6 +13,7 @@ import datadog.trace.logging.simplelogger.SLCompatSettings;
 import datadog.trace.logging.simplelogger.SLCompatSettings.Defaults;
 import datadog.trace.logging.simplelogger.SLCompatSettings.Keys;
 import datadog.trace.logging.simplelogger.SLCompatSettings.Names;
+import datadog.trace.logging.simplelogger.SLCompatSettingsTestBridge;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -331,9 +332,10 @@ class DDLoggerTest {
     Properties props = new Properties();
     props.setProperty(Keys.DEFAULT_LOG_LEVEL, "DEBUG");
     props.setProperty(Keys.SHOW_THREAD_NAME, "false");
-    try (PrintStream stream = new PrintStream(file);
+    props.setProperty(Keys.LOG_FILE, file.getAbsolutePath());
+    SLCompatSettings settings = new SLCompatSettings(props);
+    try (PrintStream stream = SLCompatSettingsTestBridge.printStream(settings);
         Scanner scanner = new Scanner(file)) {
-      SLCompatSettings settings = new SLCompatSettings(props, null, stream);
       DDLoggerFactory factory = new DDLoggerFactory(new SLCompatFactory(props, settings));
       Logger logger = factory.getLogger("bar.baz");
       logger.trace("test trace");
