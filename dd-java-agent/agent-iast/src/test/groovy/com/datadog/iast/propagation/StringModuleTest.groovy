@@ -22,6 +22,7 @@ import static com.datadog.iast.taint.TaintUtils.getStringFromTaintFormat
 import static com.datadog.iast.taint.TaintUtils.taint
 import static com.datadog.iast.taint.TaintUtils.taintFormat
 import static com.datadog.iast.taint.TaintUtils.taintObject
+import static datadog.trace.test.util.PlatformTestUtils.normalizeLineEndings
 
 @CompileDynamic
 class StringModuleTest extends IastModuleImplTestBase {
@@ -1018,14 +1019,14 @@ class StringModuleTest extends IastModuleImplTestBase {
     }
     final formatted = String.format(format, args as Object[])
     final expected = getStringFromTaintFormat(expectedTainted)
-    assert expected == formatted // validate expectation is OK
+    assert expected == normalizeLineEndings(formatted) // validate expectation is OK
 
     when:
     module.onStringFormat(format, args as Object[], formatted)
 
     then:
     final tainted = to.get(formatted)
-    final formattedResult = taintFormat(formatted, tainted?.ranges)
+    final formattedResult = normalizeLineEndings(taintFormat(formatted, tainted?.ranges))
     assert formattedResult == expectedTainted: tainted?.ranges
 
     where:

@@ -4,7 +4,11 @@ import com.sun.jna.Native
 
 import datadog.trace.api.DD128bTraceId
 import datadog.trace.test.util.DDSpecification
+import spock.lang.IgnoreIf
 
+@IgnoreIf(reason = "CWS eRPC TLS is only supported on Linux", value = {
+  !System.getProperty("os.name").equalsIgnoreCase("Linux")
+})
 class ErpcTlsTest extends DDSpecification {
   def "register trace and span to tls"() {
     setup:

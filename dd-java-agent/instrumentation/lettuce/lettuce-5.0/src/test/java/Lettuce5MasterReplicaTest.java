@@ -23,6 +23,9 @@ import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.utility.DockerImageName;
 
+@org.junit.jupiter.api.condition.DisabledOnOs(
+    value = org.junit.jupiter.api.condition.OS.WINDOWS,
+    disabledReason = "Requires a Docker environment capable of running Linux Testcontainers")
 class Lettuce5MasterReplicaTest extends AbstractInstrumentationTest {
   private RedisContainer redisServer;
   private RedisClient redisClient;

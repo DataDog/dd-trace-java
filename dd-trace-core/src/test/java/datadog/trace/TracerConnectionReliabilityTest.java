@@ -26,10 +26,15 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.testcontainers.containers.FixedHostPortGenericContainer;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 
+@DisabledOnOs(
+    value = OS.WINDOWS,
+    disabledReason = "Requires a Docker environment capable of running Linux containers")
 public class TracerConnectionReliabilityTest extends DDJavaSpecification {
 
   static final int FEATURES_DISCOVERY_MIN_DELAY = 10;

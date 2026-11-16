@@ -1,3 +1,5 @@
+import datadog.gradle.plugin.HostPlatform
+
 plugins {
   id 'dd-trace-java.module.instrumentation'
   id 'dd-trace-java.jmh-conventions'
@@ -24,6 +26,12 @@ muzzle {
 
 addTestSuite('latestDepTest')
 addTestSuite('iastLatestDepTest3')
+
+tasks.named('forkedTest', Test) {
+  onlyIf('Embedded Kafka leaves log files locked and exceeds the task timeout on Windows') {
+    !HostPlatform.isWindows()
+  }
+}
 
 dependencies {
   compileOnly group: 'org.apache.kafka', name: 'kafka-clients', version: '0.11.0.0'
@@ -75,4 +83,3 @@ tasks.named("iastLatestDepTest3", Test) {
   javaLauncher = getJavaLauncherFor(17)
   jvmArgs = ['--add-opens', 'java.base/java.util=ALL-UNNAMED']
 }
-

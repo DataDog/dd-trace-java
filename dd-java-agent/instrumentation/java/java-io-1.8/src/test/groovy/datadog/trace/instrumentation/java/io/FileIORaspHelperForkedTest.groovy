@@ -8,6 +8,7 @@ import datadog.trace.instrumentation.java.lang.FileIORaspHelper
 import java.util.function.BiFunction
 
 import static datadog.trace.api.gateway.Events.EVENTS
+import static datadog.trace.test.util.PlatformTestUtils.normalizePathSeparators
 
 class FileIORaspHelperForkedTest extends BaseIoRaspCallSiteTest {
 
@@ -23,7 +24,9 @@ class FileIORaspHelperForkedTest extends BaseIoRaspCallSiteTest {
 
     then:
     1 * callbackProvider.getCallback(EVENTS.fileLoaded()) >> listener
-    1 * listener.apply(reqCtx, expected) >> flow
+    1 * listener.apply(reqCtx, { actual ->
+      normalizePathSeparators(actual) == expected
+    }) >> flow
 
     where:
     args                                      | expected

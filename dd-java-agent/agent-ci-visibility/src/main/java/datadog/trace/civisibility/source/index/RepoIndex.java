@@ -160,28 +160,34 @@ public class RepoIndex {
 
     final Language language;
 
+    final char separator;
+
     SourceRoot(String relativePath, Language language) {
+      this(relativePath, language, File.separatorChar);
+    }
+
+    SourceRoot(String relativePath, Language language, char separator) {
       this.relativePath = relativePath;
       this.language = language;
+      this.separator = separator;
     }
 
     /** Resolves a trie key (dot-separated) to a full source path relative to the source root. */
     String resolveSourcePath(String trieKey) {
-      return relativePath
-          + File.separatorChar
-          + trieKey.replace('.', File.separatorChar)
-          + language.getExtension();
+      return relativePath + separator + trieKey.replace('.', separator) + language.getExtension();
     }
 
     static void serialize(Serializer s, SourceRoot sourceRoot) {
       s.write(sourceRoot.relativePath);
       s.write(sourceRoot.language.ordinal());
+      s.write(sourceRoot.separator);
     }
 
     static SourceRoot deserialize(ByteBuffer buffer) {
       String relativePath = Serializer.readString(buffer);
       Language language = Language.getByOrdinal(Serializer.readInt(buffer));
-      return new SourceRoot(relativePath, language);
+      char separator = (char) Serializer.readInt(buffer);
+      return new SourceRoot(relativePath, language, separator);
     }
 
     @Override
@@ -193,12 +199,14 @@ public class RepoIndex {
         return false;
       }
       SourceRoot that = (SourceRoot) o;
-      return Objects.equals(relativePath, that.relativePath) && language == that.language;
+      return Objects.equals(relativePath, that.relativePath)
+          && language == that.language
+          && separator == that.separator;
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(relativePath, language);
+      return Objects.hash(relativePath, language, separator);
     }
   }
 }

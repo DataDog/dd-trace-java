@@ -250,6 +250,14 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     return uri
   }
 
+  String normalizeServerHostname(String value) {
+    value
+  }
+
+  String normalizeServerUrl(String value) {
+    value
+  }
+
   Serializable expectedServerSpanRoute(ServerEndpoint endpoint) {
     null
   }
