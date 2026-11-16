@@ -443,7 +443,8 @@ public class AIGuardInternal implements Evaluator {
           log.debug("AI Guard: skipping extra tag '{}': value is not a string", key);
           continue;
         }
-        span.setTag(key, (String) value);
+        // Object overload on purpose: setTag(String, String) removes the tag for empty values
+        span.setTag(key, (Object) value);
       } catch (final Exception e) {
         // One failing entry must not drop its siblings; the value is never logged
         log.debug("AI Guard: could not apply extra tag '{}'", key, e);

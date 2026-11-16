@@ -643,8 +643,8 @@ class AIGuardInternalTests {
     Evaluation result = aiguard.evaluate(PROMPT, DEFAULT);
 
     assertEquals(ALLOW, result.getAction());
-    verify(span).setTag("ai_guard.evaluate_id", "11111111-2222-3333-4444-555555555555");
-    verify(span).setTag("custom.tag", "custom-value");
+    verifyExtraTagSet("ai_guard.evaluate_id", "11111111-2222-3333-4444-555555555555");
+    verifyExtraTagSet("custom.tag", "custom-value");
     // Moshi decodes every JSON number as a Double
     Map<String, Object> expectedPolicy = new HashMap<>();
     expectedPolicy.put("name", "p1");
@@ -677,7 +677,7 @@ class AIGuardInternalTests {
             AIGuardAbortError.class, () -> aiguard.evaluate(PROMPT, new Options().block(true)));
 
     assertEquals(DENY, error.getAction());
-    verify(span).setTag("ai_guard.evaluate_id", "11111111-2222-3333-4444-555555555555");
+    verifyExtraTagSet("ai_guard.evaluate_id", "11111111-2222-3333-4444-555555555555");
     verify(span).setTag(BLOCKED_TAG, true);
     assertEquals(singletonMap("weights", asList(7.0, 8.0)), receivedMeta.get("policy"));
     assertTrue(receivedMeta.containsKey(META_STRUCT_MESSAGES));
@@ -702,13 +702,13 @@ class AIGuardInternalTests {
     aiguard.evaluate(PROMPT, DEFAULT);
 
     // Values are never truncated
-    verify(span).setTag("ai_guard.evaluation_context", evaluationContext);
+    verifyExtraTagSet("ai_guard.evaluation_context", evaluationContext);
     assertEquals(3000, evaluationContext.length());
     // Keys without the ai_guard prefix are not prefixed
-    verify(span).setTag("custom.key", "custom-value");
+    verifyExtraTagSet("custom.key", "custom-value");
     verifyTagNeverSet("ai_guard.custom.key");
     // Keys that already carry the ai_guard prefix are not prefixed twice
-    verify(span).setTag("ai_guard.evaluate_id", "11111111-2222-3333-4444-555555555555");
+    verifyExtraTagSet("ai_guard.evaluate_id", "11111111-2222-3333-4444-555555555555");
     verifyTagNeverSet("ai_guard.ai_guard.evaluate_id");
     // meta_struct keys are kept verbatim too
     assertEquals("policy-value", receivedMeta.get("evaluation_policy"));
@@ -804,7 +804,7 @@ class AIGuardInternalTests {
     verify(span).setTag(REASON_TAG, "It is fine");
     verify(span).setTag(TARGET_TAG, "tool");
     // A non-reserved ai_guard.* key in the same list is still applied
-    verify(span).setTag("ai_guard.evaluate_id", "ok-id");
+    verifyExtraTagSet("ai_guard.evaluate_id", "ok-id");
 
     // messages is the conversation written by the tracer, never the backend value
     assertNotEquals("evil", receivedMeta.get(META_STRUCT_MESSAGES));
@@ -841,13 +841,15 @@ class AIGuardInternalTests {
     assertEquals(ALLOW, result.getAction());
     // The last valid duplicate is the last value set
     InOrder inOrder = inOrder(span);
-    inOrder.verify(span).setTag("dup.k", "first");
-    inOrder.verify(span).setTag("dup.k", "second");
-    inOrder.verify(span, never()).setTag(eq("dup.k"), anyString());
+    inOrder.verify(span).setTag(eq("dup.k"), eq((Object) "first"));
+    inOrder.verify(span).setTag(eq("dup.k"), eq((Object) "second"));
+    inOrder.verify(span, never()).setTag(eq("dup.k"), (Object) any());
+    verify(span, times(2)).setTag(eq("dup.k"), (Object) any());
+    verify(span, never()).setTag(eq("dup.k"), anyString());
     // An invalid later duplicate neither replaces nor removes the earlier valid value
-    verify(span, times(1)).setTag(eq("dup.k2"), anyString());
-    verify(span).setTag("dup.k2", "valid");
-    verify(span, never()).setTag(eq("dup.k2"), (Object) any());
+    verify(span, times(1)).setTag(eq("dup.k2"), (Object) any());
+    verifyExtraTagSet("dup.k2", "valid");
+    verify(span, never()).setTag(eq("dup.k2"), anyString());
     verify(span, never()).setTag(eq("dup.k2"), anyDouble());
     verify(span, never()).setTag(eq("dup.k2"), anyInt());
     assertEquals("b", receivedMeta.get("dup.m"));
@@ -983,7 +985,7 @@ class AIGuardInternalTests {
             AIGuardAbortError.class, () -> aiguard.evaluate(PROMPT, new Options().block(true)));
 
     assertEquals(DENY, error.getAction());
-    verify(span).setTag("t.ok", "v");
+    verifyExtraTagSet("t.ok", "v");
     verifyTagNeverSet("v.number");
     assertFalse(setTagKeys().contains(""));
     Set<String> expectedMetaKeys = new HashSet<>(asList(META_STRUCT_MESSAGES, "m.ok"));
@@ -995,7 +997,7 @@ class AIGuardInternalTests {
   @Test
   void testEvaluateIgnoresFailureWhileApplyingExtras() throws IOException {
     // Only the extra key is stubbed: evaluate() sets its own tags on the span before the extras
-    doThrow(new RuntimeException("boom")).when(span).setTag(eq("x.extra"), anyString());
+    doThrow(new RuntimeException("boom")).when(span).setTag(eq("x.extra"), (Object) any());
     Map<String, Object> attributes = new HashMap<>();
     attributes.put("action", "ALLOW");
     attributes.put("reason", "It is fine");
@@ -1008,8 +1010,8 @@ class AIGuardInternalTests {
 
     assertEquals(ALLOW, result.getAction());
     assertEquals("It is fine", result.getReason());
-    verify(span).setTag("x.extra", "v");
-    verify(span).setTag("y.extra", "v2");
+    verifyExtraTagSet("x.extra", "v");
+    verifyExtraTagSet("y.extra", "v2");
     // extra_metastruct is a separate list, applied despite the extra_tags failure
     assertEquals("v", receivedMeta.get("m.ok"));
     assertTrue(receivedMeta.containsKey(META_STRUCT_MESSAGES));
@@ -1029,7 +1031,7 @@ class AIGuardInternalTests {
             () -> blockingAiguard.evaluate(PROMPT, new Options().block(true)));
 
     assertEquals(DENY, error.getAction());
-    verify(span).setTag("y.extra", "v2");
+    verifyExtraTagSet("y.extra", "v2");
     assertEquals("v", receivedMeta.get("m.ok"));
     assertTrue(receivedMeta.containsKey(META_STRUCT_MESSAGES));
     assertNoErrorTelemetry();
@@ -1083,6 +1085,47 @@ class AIGuardInternalTests {
               "db.query.text")) {
         assertNull(evaluation.getTag(key), key);
       }
+    } finally {
+      AgentTracer.forceRegister(mockedTracer);
+      tracer.close();
+    }
+  }
+
+  @Test
+  void testEvaluateKeepsEmptyStringExtraTagValues() throws Exception {
+    ListWriter writer = new ListWriter();
+    CoreTracer tracer = CoreTracer.builder().writer(writer).strictTraceWrites(true).build();
+    AgentTracer.TracerAPI mockedTracer = AgentTracer.get();
+    AgentTracer.forceRegister(tracer);
+    try {
+      Map<String, Object> attributes = new HashMap<>();
+      attributes.put("action", "ALLOW");
+      attributes.put("reason", "It is fine");
+      attributes.put(
+          EXTRA_TAGS_FIELD,
+          asList(
+              extra("ai_guard.empty", ""),
+              extra("ai_guard.dup", "v"),
+              extra("ai_guard.dup", ""),
+              extra("ai_guard.other", "ok")));
+      AIGuardInternal aiguard = mockClient(200, evaluation(attributes));
+
+      assertEquals(ALLOW, aiguard.evaluate(PROMPT, DEFAULT).getAction());
+
+      writer.waitForTraces(1);
+      DDSpan evaluation =
+          writer.get(0).stream()
+              .filter(it -> "ai_guard".contentEquals(it.getOperationName()))
+              .findFirst()
+              .get();
+      Map<String, Object> tags = evaluation.getTags();
+      // An empty string is a valid value: the tag is present, not removed
+      assertTrue(tags.containsKey("ai_guard.empty"));
+      assertEquals("", tags.get("ai_guard.empty"));
+      // The last valid duplicate wins, even when it is an empty string
+      assertTrue(tags.containsKey("ai_guard.dup"));
+      assertEquals("", tags.get("ai_guard.dup"));
+      assertEquals("ok", tags.get("ai_guard.other"));
     } finally {
       AgentTracer.forceRegister(mockedTracer);
       tracer.close();
@@ -1374,6 +1417,14 @@ class AIGuardInternalTests {
     return entry;
   }
 
+  /**
+   * Verifies that an extra tag was applied with the given value through setTag(String, Object), the
+   * overload that keeps empty strings.
+   */
+  private void verifyExtraTagSet(String key, String value) {
+    verify(span).setTag(eq(key), eq((Object) value));
+  }
+
   /** Verifies that no tag was set on the span with the given key, pinning both setTag overloads. */
   private void verifyTagNeverSet(String key) {
     verify(span, never()).setTag(eq(key), anyString());
@@ -1420,7 +1471,7 @@ class AIGuardInternalTests {
     }
     expectedTagKeys.addAll(expectedTags.keySet());
     assertEquals(expectedTagKeys, setTagKeys(), scenario);
-    expectedTags.forEach((key, value) -> verify(span).setTag(key, value));
+    expectedTags.forEach(this::verifyExtraTagSet);
     Map<String, Object> metaStructExtras = new HashMap<>(receivedMeta);
     assertNotNull(metaStructExtras.remove(META_STRUCT_MESSAGES), scenario);
     assertEquals(expectedMetaStruct, metaStructExtras, scenario);
