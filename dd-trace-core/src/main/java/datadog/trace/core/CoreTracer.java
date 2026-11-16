@@ -933,7 +933,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
     registerClassLoader(ClassLoader.getSystemClassLoader());
 
-    StatusLogger.logStatus(config);
+    StatusLogger.logStatus(config, initialSampler);
 
     this.profilingContextIntegration = profilingContextIntegration;
     this.injectBaggageAsTags = injectBaggageAsTags;

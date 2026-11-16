@@ -20,7 +20,8 @@ open class MuzzlePluginTestFixture : GradleFixture() {
       """
     )
 
-    addSubproject("dd-java-agent:agent-bootstrap",
+    addSubproject(
+      "dd-java-agent:agent-bootstrap",
       """
       plugins {
         id("java")
@@ -30,7 +31,8 @@ open class MuzzlePluginTestFixture : GradleFixture() {
       """
     )
 
-    addSubproject("dd-java-agent:agent-tooling",
+    addSubproject(
+      "dd-java-agent:agent-tooling",
       """
       plugins {
         id("java")
@@ -43,7 +45,8 @@ open class MuzzlePluginTestFixture : GradleFixture() {
 
   /** Writes an aggregation project with optional instrumentation report producers. */
   fun writeAggregationProject(vararg producers: String) {
-    addSubproject("dd-java-agent:instrumentation",
+    addSubproject(
+      "dd-java-agent:instrumentation",
       """
       plugins {
         id("java")
@@ -127,6 +130,5 @@ open class MuzzlePluginTestFixture : GradleFixture() {
   /**
    * Returns the path to a muzzle result file for the given task name.
    */
-  fun resultFile(taskName: String) =
-    projectDir.toPath().resolve("dd-java-agent/instrumentation/demo/build/reports/$taskName.txt")
+  fun resultFile(taskName: String) = projectDir.toPath().resolve("dd-java-agent/instrumentation/demo/build/reports/$taskName.txt")
 }

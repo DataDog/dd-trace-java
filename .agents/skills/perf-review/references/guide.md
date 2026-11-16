@@ -267,11 +267,15 @@ nudges.
 
 ## 6. Domain-Adjusted Severity
 
-**Large-denominator domains.** LLMObs, CI Visibility, DSM instrument large units of work (LLM
+**Large-denominator domains.** LLMObs, CI Visibility, DJM instrument large units of work (LLM
 calls 500 ms+, Spark jobs seconds–minutes, CI test steps milliseconds–minutes). Per-"span"
 CPU/alloc severity collapses. But the risk *inverts*: payload memory (large prompts, job metadata,
 accumulated output) becomes SEV-1. A CPU-weighted reviewer flags the wrong things and misses the
 real one.
+
+**Not DSM, and not a product that's off.** DSM runs on per-message paths, where a Kafka consumer
+does about 0.7 µs of its own work per record, so it gets no relief. Neither does work done for any
+product while it's off: every customer who doesn't use it pays (`checks.md` J14).
 
 **Streaming handlers — large-denominator rule suspends at the chunk level.** The per-call
 denominator applies to costs that fire once per call. Costs inside a streaming handler fire

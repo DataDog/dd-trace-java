@@ -328,18 +328,19 @@ public final class CdnConfigurationSource implements ConfigurationService {
               + UFC_RULES_BASED_SERVER_PATH
               + (env == null ? "" : "?dd_env=" + URLEncoder.encode(env, StandardCharsets.UTF_8)));
     }
+    // The errors omit the URL and its parse error: its userinfo, path, or query can carry a
+    // credential, and the provider reports the error message.
     final URI parsed;
     try {
       parsed = URI.create(configuredBaseUrl);
     } catch (final IllegalArgumentException e) {
-      throw new IllegalArgumentException(
-          "Invalid Feature Flags configuration source URL: " + configuredBaseUrl, e);
+      throw new IllegalArgumentException("Invalid Feature Flags configuration source URL");
     }
     final String scheme = parsed.getScheme();
     if ((!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme))
         || parsed.getHost() == null) {
       throw new IllegalArgumentException(
-          "Invalid Feature Flags configuration source URL: " + configuredBaseUrl);
+          "Feature Flags configuration source URL must use HTTP or HTTPS and include a host");
     }
     final String path = parsed.getRawPath();
     if (path == null || path.isEmpty() || "/".equals(path)) {
@@ -350,7 +351,7 @@ public final class CdnConfigurationSource implements ConfigurationService {
     return parsed;
   }
 
-  private static boolean isManagedEndpoint(final Settings settings) {
+  public static boolean isManagedEndpoint(final Settings settings) {
     return settings.agentlessBaseUrl() == null;
   }
 

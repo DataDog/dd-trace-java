@@ -304,6 +304,125 @@ public class DDEvaluatorTest {
     assertThat(details.getVariant(), equalTo("on"));
   }
 
+  private static final Instant WINDOW_START = Instant.parse("2020-01-01T00:00:00Z");
+  private static final Instant WINDOW_END = Instant.parse("2999-01-01T00:00:00Z");
+
+  private static Shard shard(final String salt, final long start, final long end) {
+    return new Shard(salt, singletonList(new ShardRange(start, end)), MAX_UNSIGNED_INT);
+  }
+
+  private static Split split(final String variant, final Shard... shards) {
+    return new Split(asList(shards), variant, emptyMap(), null);
+  }
+
+  static List<Arguments> reasonTestCases() {
+    final Rule countryRule =
+        new Rule(
+            singletonList(
+                new ConditionConfiguration(ConditionOperator.ONE_OF, "country", asList("US"))));
+    final Shard everyone = shard("traffic", 0, MAX_UNSIGNED_INT);
+    final Shard nobody = shard("split", 0, 0);
+    return asList(
+        Arguments.of(
+            "time window with sharded split",
+            new Allocation(
+                "a", null, WINDOW_START, WINDOW_END, singletonList(split("on", everyone)), false),
+            "SPLIT",
+            "on"),
+        Arguments.of(
+            "start date only with sharded split",
+            new Allocation(
+                "a", null, WINDOW_START, null, singletonList(split("on", everyone)), false),
+            "SPLIT",
+            "on"),
+        Arguments.of(
+            "holdout: time window with sharded splits",
+            new Allocation(
+                "holdout",
+                null,
+                WINDOW_START,
+                WINDOW_END,
+                asList(
+                    split("off", everyone, nobody),
+                    split("on", everyone, shard("split", 0, MAX_UNSIGNED_INT))),
+                true),
+            "SPLIT",
+            "on"),
+        Arguments.of(
+            "time window with one unsharded split",
+            new Allocation("a", null, WINDOW_START, WINDOW_END, singletonList(split("on")), false),
+            "DEFAULT",
+            "on"),
+        Arguments.of(
+            "end date only with one unsharded split",
+            new Allocation("a", null, null, WINDOW_END, singletonList(split("on")), false),
+            "DEFAULT",
+            "on"),
+        Arguments.of(
+            "time window with several unsharded splits",
+            new Allocation(
+                "a", null, WINDOW_START, WINDOW_END, asList(split("on"), split("off")), false),
+            "STATIC",
+            "on"),
+        Arguments.of(
+            "rules with time window and sharded split",
+            new Allocation(
+                "a",
+                singletonList(countryRule),
+                WINDOW_START,
+                WINDOW_END,
+                singletonList(split("on", everyone)),
+                false),
+            "TARGETING_MATCH",
+            "on"),
+        Arguments.of(
+            "rules with time window and one unsharded split",
+            new Allocation(
+                "a",
+                singletonList(countryRule),
+                WINDOW_START,
+                WINDOW_END,
+                singletonList(split("on")),
+                false),
+            "TARGETING_MATCH",
+            "on"),
+        Arguments.of(
+            "no time window with sharded split",
+            new Allocation("a", null, null, null, singletonList(split("on", everyone)), false),
+            "SPLIT",
+            "on"),
+        Arguments.of(
+            "no time window with one unsharded split",
+            new Allocation("a", null, null, null, singletonList(split("on")), false),
+            "STATIC",
+            "on"));
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("reasonTestCases")
+  public void testEvaluationReason(
+      final String scenario,
+      final Allocation allocation,
+      final String expectedReason,
+      final String expectedVariant) {
+    final Map<String, Variant> variations = new HashMap<>();
+    variations.put("on", new Variant("on", true));
+    variations.put("off", new Variant("off", false));
+    final Map<String, Flag> flags = new HashMap<>();
+    flags.put(
+        "flag", new Flag("flag", true, ValueType.BOOLEAN, variations, singletonList(allocation)));
+    final DDEvaluator evaluator = newEvaluator(mock(Runnable.class));
+    evaluator.accept(new ServerConfiguration("", "", false, null, flags));
+
+    final EvaluationContext context =
+        new MutableContext("subject").add("country", "US").setTargetingKey("subject");
+    final ProviderEvaluation<?> details = evaluator.evaluate(Boolean.class, "flag", false, context);
+
+    assertThat(details.getErrorCode(), nullValue());
+    assertThat(details.getReason(), equalTo(expectedReason));
+    assertThat(details.getVariant(), equalTo(expectedVariant));
+  }
+
   // ---- observeFullEvaluationData metadata is stamped from the evaluator's ServerConfiguration
   // ----
   //

@@ -22,12 +22,8 @@ import java.util.Map;
 import java.util.Properties;
 import org.junit.runner.Description;
 import org.junit.runners.ParentRunner;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public abstract class CucumberUtils {
-
-  private static final Logger LOGGER = LoggerFactory.getLogger(CucumberUtils.class);
 
   private static final ClassLoader CUCUMBER_CLASS_LOADER = ClassLoaders.getDefaultClassLoader();
 
@@ -61,6 +57,11 @@ public abstract class CucumberUtils {
       REFLECTION.privateFieldGetter("io.cucumber.junit.PickleRunners$PickleId", "uri");
   private static final MethodHandle PICKLE_ID_LINE_GETTER =
       REFLECTION.privateFieldGetter("io.cucumber.junit.PickleRunners$PickleId", "pickleLine");
+
+  /** The type the pickle ID getters accept; {@code null} if they could not be created. */
+  private static final Class<?> PICKLE_ID_CLASS =
+      PICKLE_ID_URI_GETTER != null ? PICKLE_ID_URI_GETTER.type().parameterType(0) : null;
+
   private static final MethodHandle PICKLE_RUNNER_GET_DESCRIPTION =
       REFLECTION.method("io.cucumber.junit.PickleRunners$PickleRunner", "getDescription");
   private static final MethodHandle PICKLE_RUNNER_NO_STEP_GET_PICKLE =
@@ -93,13 +94,22 @@ public abstract class CucumberUtils {
   }
 
   public static URI getPickleUri(Description scenarioDescription) {
-    Object pickleId = JUnit4Utils.getUniqueId(scenarioDescription);
-    return REFLECTION.invoke(PICKLE_ID_URI_GETTER, pickleId);
+    Object pickleId = getPickleId(scenarioDescription);
+    return pickleId != null ? REFLECTION.invoke(PICKLE_ID_URI_GETTER, pickleId) : null;
   }
 
   public static Integer getPickleLine(Description scenarioDescription) {
-    Object pickleId = JUnit4Utils.getUniqueId(scenarioDescription);
-    return REFLECTION.invoke(PICKLE_ID_LINE_GETTER, pickleId);
+    Object pickleId = getPickleId(scenarioDescription);
+    return pickleId != null ? REFLECTION.invoke(PICKLE_ID_LINE_GETTER, pickleId) : null;
+  }
+
+  /**
+   * The pickle ID a scenario description was created with, or {@code null} when its unique ID is
+   * missing or something else, so that the pickle ID getters are never invoked on it.
+   */
+  private static Object getPickleId(Description scenarioDescription) {
+    Object uniqueId = JUnit4Utils.getUniqueId(scenarioDescription);
+    return PICKLE_ID_CLASS != null && PICKLE_ID_CLASS.isInstance(uniqueId) ? uniqueId : null;
   }
 
   public static String getTestSuiteNameForFeature(Description featureDescription) {
@@ -108,7 +118,7 @@ public abstract class CucumberUtils {
   }
 
   public static String getTestSuiteNameForScenario(Description scenarioDescription) {
-    URI featureUri = getFeatureUri(scenarioDescription);
+    URI featureUri = getPickleUri(scenarioDescription);
     return (featureUri != null ? featureUri + ":" : "")
         + getFeatureNameForScenario(scenarioDescription);
   }
@@ -166,17 +176,6 @@ public abstract class CucumberUtils {
       }
     }
     return -1;
-  }
-
-  private static URI getFeatureUri(Description scenarioDescription) {
-    try {
-      Object pickleId = JUnit4Utils.getUniqueId(scenarioDescription);
-      return REFLECTION.invoke(PICKLE_ID_URI_GETTER, pickleId);
-    } catch (Exception e) {
-      LOGGER.error(
-          "Could not retrieve unique ID from scenario description {}", scenarioDescription, e);
-      return null;
-    }
   }
 
   public static Description getPickleRunnerDescription(

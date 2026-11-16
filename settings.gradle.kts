@@ -22,7 +22,7 @@ pluginManagement {
     if (mavenRepositoryProxy == null) {
       mavenCentral()
     }
-    // Hosts gradle-tooling-api, a transitive dep of the build-logic:smoke-test plugin used
+    // Hosts gradle-tooling-api, a transitive dep of the build-logic:smoke-test-app plugin used
     // to run nested Gradle builds for smoke-test applications pinned to older Gradle versions.
     maven {
       url = uri("https://repo.gradle.org/gradle/libs-releases")
@@ -232,6 +232,7 @@ include(
 
 // smoke tests
 include(
+  ":dd-smoke-tests:smoke-test-common",
   ":dd-smoke-tests:apm-tracing-disabled",
   ":dd-smoke-tests:armeria-grpc",
   ":dd-smoke-tests:backend-mock",
@@ -256,6 +257,7 @@ include(
   ":dd-smoke-tests:lib-injection",
   ":dd-smoke-tests:log-injection",
   ":dd-smoke-tests:maven",
+  ":dd-smoke-tests:native-image-jmx",
   ":dd-smoke-tests:openfeature",
   ":dd-smoke-tests:openfeature-legacy",
   ":dd-smoke-tests:opentracing",
@@ -342,6 +344,7 @@ include(
 // instrumentation:
 include(
   ":dd-java-agent:instrumentation:aerospike-4.0",
+  ":dd-java-agent:instrumentation:aerospike-6.0",
   ":dd-java-agent:instrumentation:akka:akka-actor-2.5",
   ":dd-java-agent:instrumentation:akka:akka-http:akka-http-10.0",
   ":dd-java-agent:instrumentation:akka:akka-http:akka-http-10.2-iast",
