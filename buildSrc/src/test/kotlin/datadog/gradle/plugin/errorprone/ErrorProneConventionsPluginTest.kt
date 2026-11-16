@@ -19,6 +19,7 @@ class ErrorProneConventionsPluginTest : GradleFixture() {
       [libraries]
       errorprone = { module = "com.google.errorprone:error_prone_core", version = "2.50.0" }
       nullaway = { module = "com.uber.nullaway:nullaway", version = "0.14.2" }
+      jspecify = { module = "org.jspecify:jspecify", version = "1.0.1" }
       """
     )
     writeRootProject(
@@ -160,11 +161,143 @@ class ErrorProneConventionsPluginTest : GradleFixture() {
     assertThat(result.task(":compileJava")?.outcome).describedAs(result.output).isEqualTo(SUCCESS)
   }
 
-  private fun writeViolation(sourceSet: String) {
+  @Test
+  fun `JSpecify mode checks nullable type arguments`() {
+    useJSpecify()
     writeJavaSource(
-      "datadog.example.Violation",
+      "datadog.example.GenericContract",
       """
       package datadog.example;
+      import java.util.List;
+      import org.jspecify.annotations.Nullable;
+      public class GenericContract {
+        public List<String> values(List<@Nullable String> values) { return values; }
+      }
+      """
+    )
+
+    val result = run("compileJava", expectFailure = true)
+
+    assertThat(result.task(":compileJava")?.outcome).describedAs(result.output).isEqualTo(FAILED)
+    assertThat(result.output).contains("[NullAway]")
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = ["@Nullable String[]", "@Nullable String..."])
+  fun `JSpecify checks nullable array and varargs elements`(parameterType: String) {
+    useJSpecify()
+    writeJavaSource(
+      "datadog.example.ArrayContract",
+      """
+      package datadog.example;
+      import org.jspecify.annotations.Nullable;
+      public class ArrayContract {
+        public int length($parameterType values) { return values[0].length(); }
+      }
+      """
+    )
+
+    val result = run("compileJava", expectFailure = true)
+
+    assertThat(result.task(":compileJava")?.outcome).describedAs(result.output).isEqualTo(FAILED)
+    assertThat(result.output).contains("[NullAway]")
+  }
+
+  @Test
+  fun `JSpecify permits guarded nullable values and ignores other packages`() {
+    useJSpecify()
+    writeJavaSource(
+      "datadog.example.ArrayContract",
+      """
+      package datadog.example;
+      import org.jspecify.annotations.Nullable;
+      public class ArrayContract {
+        public int length(@Nullable String @Nullable ... values) {
+          if (values == null) return 0;
+          int length = 0;
+          for (String value : values) {
+            if (value != null) length += value.length();
+          }
+          return length;
+        }
+      }
+      """
+    )
+    writeViolation("main_java17", "unchecked.example")
+    writeRootProject("""sourceSets.create("main_java17")""", append = true)
+
+    val result = run("compileJava", "compileMain_java17Java")
+
+    assertThat(result.task(":compileJava")?.outcome).describedAs(result.output).isEqualTo(SUCCESS)
+    assertThat(result.task(":compileMain_java17Java")?.outcome).describedAs(result.output).isEqualTo(SUCCESS)
+  }
+
+  @Test
+  fun `JSpecify reaches consumers for compilation and Java 8 reflection`() {
+    useJSpecify()
+    writeGradleProperties("org.gradle.java.installations.fromEnv=JAVA_8_HOME")
+    writeJavaSource(
+      "datadog.example.Producer",
+      """
+      package datadog.example;
+      import org.jspecify.annotations.Nullable;
+      public class Producer {
+        public @Nullable String value() { return null; }
+      }
+      """
+    )
+    addSubproject(
+      "consumer",
+      """
+      plugins { application }
+      repositories { mavenCentral() }
+      dependencies { implementation(project(":")) }
+      application { mainClass.set("datadog.example.Consumer") }
+      tasks.withType<JavaCompile>().configureEach { options.release = 8 }
+      tasks.named<JavaExec>("run") {
+        javaLauncher.set(javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(8) })
+      }
+      """
+    )
+    writeJavaSource(
+      "datadog.example.Consumer",
+      """
+      package datadog.example;
+      import org.jspecify.annotations.Nullable;
+      public class Consumer {
+        public static void main(String[] args) throws ReflectiveOperationException {
+          if (Producer.class.getMethod("value").getAnnotatedReturnType()
+              .getAnnotation(Nullable.class) == null) {
+            throw new AssertionError("Missing nullable return annotation");
+          }
+        }
+      }
+      """,
+      projectPath = "consumer"
+    )
+
+    val result = run(":consumer:run")
+
+    assertThat(result.task(":consumer:compileJava")?.outcome).describedAs(result.output).isEqualTo(SUCCESS)
+    assertThat(result.task(":consumer:run")?.outcome).describedAs(result.output).isEqualTo(SUCCESS)
+  }
+
+  private fun useJSpecify() {
+    writeRootProject(
+      """
+      plugins { id("dd-trace-java.conventions.jspecify") }
+      repositories { mavenCentral() }
+      nullAway { basePackage = "datadog.example" }
+      tasks.withType<JavaCompile>().configureEach { options.release = 8 }
+      """
+    )
+  }
+
+  private fun writeViolation(sourceSet: String, packageName: String = "datadog.example") {
+    writeJavaSource(
+      "$packageName.Violation",
+      """
+      package $packageName;
       public class Violation {
         public String value() { return null; }
       }

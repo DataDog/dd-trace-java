@@ -87,10 +87,13 @@ public class BootstrapClasspathSetupListener implements LauncherSessionListener 
 
   static {
     TEST_BOOTSTRAP_PREFIXES =
-        Arrays.copyOf(BOOTSTRAP_PACKAGE_PREFIXES_COPY, BOOTSTRAP_PACKAGE_PREFIXES_COPY.length + 3);
+        Arrays.copyOf(BOOTSTRAP_PACKAGE_PREFIXES_COPY, BOOTSTRAP_PACKAGE_PREFIXES_COPY.length + 4);
     TEST_BOOTSTRAP_PREFIXES[BOOTSTRAP_PACKAGE_PREFIXES_COPY.length] = "datadog.logging";
     TEST_BOOTSTRAP_PREFIXES[BOOTSTRAP_PACKAGE_PREFIXES_COPY.length + 1] = "org.slf4j";
     TEST_BOOTSTRAP_PREFIXES[BOOTSTRAP_PACKAGE_PREFIXES_COPY.length + 2] = "ch.qos.logback";
+    // Java 8 reflection needs the type annotations beside the bootstrap-loaded APIs.
+    TEST_BOOTSTRAP_PREFIXES[BOOTSTRAP_PACKAGE_PREFIXES_COPY.length + 3] =
+        "org.jspecify.annotations";
 
     ByteBuddyAgent.install();
     setupBootstrapClasspath();

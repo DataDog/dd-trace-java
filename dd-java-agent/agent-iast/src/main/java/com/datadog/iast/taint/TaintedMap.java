@@ -244,7 +244,12 @@ public interface TaintedMap extends Iterable<TaintedObject> {
 
     private Iterator<TaintedObject> iterator(final int start, final int stop) {
       return new Iterator<TaintedObject>() {
+        @SuppressFBWarnings(
+            value = "AT_NONATOMIC_OPERATIONS_ON_SHARED_VARIABLE",
+            justification =
+                "Each iterator owns its cursor; the map's background purge does not use it.")
         int currentIndex = start;
+
         @Nullable TaintedObject currentSubPos;
 
         @Override
