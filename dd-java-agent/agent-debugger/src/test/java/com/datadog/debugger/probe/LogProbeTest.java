@@ -444,7 +444,7 @@ public class LogProbeTest {
     if (sessionId != null) {
       span.setTag(Tags.PROPAGATED_DEBUG, sessionId + ":1");
     }
-    try (ContextScope scope = tracer.activateManualSpan(span)) {
+    try (ContextScope scope = tracer.activateSpan(span)) {
       Builder builder =
           createLog("Budget testing").probeId(ProbeId.newId()).captureSnapshot(captureSnapshot);
       if (sessionId != null) {
@@ -485,7 +485,7 @@ public class LogProbeTest {
         CoreTracer.builder().idGenerationStrategy(IdGenerationStrategy.fromName("random")).build();
     AgentTracer.registerIfAbsent(tracer);
     AgentSpan span = tracer.startSpan("log probe debug session testing", "test span");
-    try (ContextScope scope = tracer.activateManualSpan(span)) {
+    try (ContextScope scope = tracer.activateSpan(span)) {
       if (status == DebugSessionStatus.ACTIVE) {
         span.setTag(Tags.PROPAGATED_DEBUG, DEBUG_SESSION_ID + ":1");
       } else if (status == DebugSessionStatus.DISABLED) {
@@ -654,7 +654,7 @@ public class LogProbeTest {
         CoreTracer.builder().idGenerationStrategy(IdGenerationStrategy.fromName("random")).build();
     AgentTracer.registerIfAbsent(tracer);
     AgentSpan span = tracer.startSpan("log probe capture expression testing", "test span");
-    try (ContextScope scope = tracer.activateManualSpan(span)) {
+    try (ContextScope scope = tracer.activateSpan(span)) {
       span.setTag(Tags.PROPAGATED_DEBUG, DEBUG_SESSION_ID + ":1");
       // the probe sampler always rejects: the active session decision must still win
       ProbeRateLimiter.setSamplerSupplier(rate -> new ConstantSampler(false));
@@ -697,7 +697,7 @@ public class LogProbeTest {
         CoreTracer.builder().idGenerationStrategy(IdGenerationStrategy.fromName("random")).build();
     AgentTracer.registerIfAbsent(tracer);
     AgentSpan span = tracer.startSpan("coordinated sampling debug session testing", "test span");
-    try (ContextScope scope = tracer.activateManualSpan(span)) {
+    try (ContextScope scope = tracer.activateSpan(span)) {
       // every real sampling decision drops, so the first full-snapshot probe caches a DROP
       // decision for the whole trace before any debug session is active.
       ProbeRateLimiter.setSamplerSupplier(rate -> new ConstantSampler(false));
