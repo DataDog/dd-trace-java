@@ -1,7 +1,6 @@
 package datadog.trace.common.writer.ddagent;
 
 import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
-import static datadog.trace.api.DDTags.SPAN_EVENTS;
 import static datadog.trace.core.CoreSpan.ROOT_PROPAGATION_TAGS;
 import static datadog.trace.core.CoreSpan.STRUCTURED_EVENTS;
 import static datadog.trace.core.CoreSpan.STRUCTURED_LINKS;
@@ -18,6 +17,7 @@ import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.KnownTags;
 import datadog.trace.api.ProcessTags;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.sampling.SamplingMechanism;
@@ -176,13 +176,13 @@ public final class TraceMapperV1 implements TraceMapper {
       // events = 12, a collection of events that occurred during this span
       encodeSpanEvents(writable, 12, meta.getSpanEvents());
       // env = 13, the optional string environment of this span
-      encodeString(writable, 13, tags.getString(Tags.ENV));
+      encodeString(writable, 13, tags.loadString(KnownTags.ENV));
       // version = 14, the optional string version of this span
-      encodeString(writable, 14, tags.getString(Tags.VERSION));
+      encodeString(writable, 14, tags.loadString(KnownTags.VERSION));
       // component = 15, the string component name of this span
-      encodeString(writable, 15, tags.getString(Tags.COMPONENT));
+      encodeString(writable, 15, tags.loadString(KnownTags.COMPONENT));
       // kind = 16, the SpanKind of this span as defined in the OTEL Specification, uint32
-      encodeInt(writable, 16, getSpanKindValue(tags.getString(Tags.SPAN_KIND)));
+      encodeInt(writable, 16, getSpanKindValue(tags.loadString(KnownTags.SPAN_KIND)));
 
       meta = null; // Proceed to next span metadata.
     }
@@ -327,7 +327,8 @@ public final class TraceMapperV1 implements TraceMapper {
     TagMap tags = meta.getTags();
     Map<String, String> baggage = meta.getBaggage();
     UTF8BytesString httpStatusCode = meta.getHttpStatusCodeString();
-    boolean writeHttpStatus = httpStatusCode != null && tags.getString(HTTP_STATUS) == null;
+    boolean writeHttpStatus =
+        httpStatusCode != null && tags.getEntryReader(KnownTags.HTTP_STATUS_CODE) == null;
     boolean writeTopLevel = meta.topLevel();
 
     // Count flattened tags before writing the array header. Explicit callback state keeps both
@@ -376,14 +377,14 @@ public final class TraceMapperV1 implements TraceMapper {
   }
 
   private static void countTagAttributes(TraceMapperV1 mapper, TagMap.EntryReader entry) {
-    if (!SPAN_EVENTS.equals(entry.tag())) {
+    if (entry.tagId() != KnownTags.EVENTS) {
       mapper.tagAttributeCount += mapper.getFlatAttributeCount(entry);
     }
   }
 
   private static void writeTagAttribute(
       TraceMapperV1 mapper, Writable writable, TagMap.EntryReader entry) {
-    if (!SPAN_EVENTS.equals(entry.tag())) {
+    if (entry.tagId() != KnownTags.EVENTS) {
       mapper.writeFlattenedTagAttribute(writable, entry);
     }
   }

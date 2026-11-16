@@ -2,6 +2,7 @@ package datadog.trace.common.writer.ddagent;
 
 import static datadog.trace.api.DDTags.PROCESS_TAGS;
 import static datadog.trace.api.DDTags.SDK_OTLP_EXPORT;
+import static datadog.trace.api.DDTags.SPAN_EVENTS;
 import static datadog.trace.api.DDTags.THREAD_ID;
 import static datadog.trace.api.DDTags.THREAD_NAME;
 import static datadog.trace.api.config.TracerConfig.WRITER_TYPE;
@@ -227,6 +228,26 @@ class TraceMapperV1PayloadTest {
   }
 
   @Test
+  void explicitHttpStatusTagOverridesInterceptedStatus() throws IOException {
+    PojoSpan span = span(singletonMap(HTTP_STATUS, 503), 200);
+
+    Map<String, Object> attributes = readFirstSpan(serializeV1Payload(span)).getAttributes();
+
+    assertAttributeValueEquals(503, attributes.get(HTTP_STATUS), HTTP_STATUS);
+    assertEquals(3, attributes.size(), "Only thread metadata and one HTTP status should remain");
+  }
+
+  @Test
+  void nullHttpStatusTagDoesNotSuppressInterceptedStatus() throws IOException {
+    PojoSpan span = span(singletonMap(HTTP_STATUS, null), 200);
+
+    Map<String, Object> attributes = readFirstSpan(serializeV1Payload(span)).getAttributes();
+
+    assertEquals("200", attributes.get(HTTP_STATUS));
+    assertEquals(3, attributes.size(), "Only thread metadata and one HTTP status should remain");
+  }
+
+  @Test
   void payloadContainsExpectedHeaderAndChunkFields() throws IOException {
     Map<String, Object> tags = new HashMap<>();
     tags.put(ENV, "prod");
@@ -437,6 +458,16 @@ class TraceMapperV1PayloadTest {
     byte[] encoded = serializeV1Payload(span(emptyMap()));
 
     assertTrue(readFirstSpan(encoded).getLinks().isEmpty());
+  }
+
+  @Test
+  void legacySpanEventsTagIsExcludedFromAttributes() throws IOException {
+    PojoSpan span = span(singletonMap(SPAN_EVENTS, "legacy-events"), 0);
+
+    Map<String, Object> attributes = readFirstSpan(serializeV1Payload(span)).getAttributes();
+
+    assertFalse(attributes.containsKey(SPAN_EVENTS));
+    assertEquals(2, attributes.size(), "Only thread metadata should remain");
   }
 
   @Test
