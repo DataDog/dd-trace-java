@@ -1,0 +1,108 @@
+package datadog.trace.core;
+
+import static datadog.trace.agent.test.utils.OtelMetricCollector.collect;
+import static datadog.trace.api.TracePropagationStyle.DATADOG;
+import static java.util.Collections.emptyList;
+import static java.util.Collections.emptyMap;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import datadog.trace.agent.test.utils.OtelMetricCollector;
+import datadog.trace.agent.test.utils.OtelMetricCollector.DataPointEntry;
+import datadog.trace.api.DDTraceId;
+import datadog.trace.api.config.OtlpConfig;
+import datadog.trace.api.sampling.PrioritySampling;
+import datadog.trace.common.writer.ListWriter;
+import datadog.trace.core.monitor.SpanLifecycleMetrics;
+import datadog.trace.core.propagation.ExtractedContext;
+import datadog.trace.core.propagation.PropagationTags;
+import datadog.trace.test.junit.utils.config.WithConfig;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import org.junit.jupiter.api.Test;
+
+// Gate on: the instruments are registered once per JVM, so these tests need their own JVM.
+// Cumulative temporality keeps the asserted values independent of any background collection.
+@WithConfig(key = OtlpConfig.METRICS_OTEL_ENABLED, value = "true")
+@WithConfig(key = OtlpConfig.TRACE_OTEL_SDK_SELF_MONITORING_METRICS_ENABLED, value = "true")
+@WithConfig(key = OtlpConfig.OTLP_METRICS_TEMPORALITY_PREFERENCE, value = "cumulative")
+class CoreTracerSpanLifecycleMetricsForkedTest extends DDCoreJavaSpecification {
+  @Test
+  void gateOnReportsEveryOriginAndTracksSpanLifecycle() {
+    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+    try {
+      SpanLifecycleMetrics metrics = tracer.getSpanLifecycleMetrics();
+      assertNotSame(SpanLifecycleMetrics.NO_OP, metrics);
+
+      // every origin is reported from the first collection, as 0 until a span starts
+      OtelMetricCollector before = collect();
+      assertEquals(byOrigin(0, 0, 0), valuesByOrigin(before, "otel.sdk.span.started"));
+      assertEquals(0L, liveValue(before));
+
+      DDSpan root = (DDSpan) tracer.buildSpan("test", "root").start();
+      DDSpan child = (DDSpan) tracer.buildSpan("test", "child").asChildOf(root).start();
+      DDSpan server =
+          (DDSpan) tracer.buildSpan("test", "server").asChildOf(remoteParentContext()).start();
+      metrics.onSpanStarted(root);
+      metrics.onSpanStarted(child);
+      metrics.onSpanStarted(server);
+      metrics.onSpanEnded(child);
+      OtelMetricCollector collector = collect();
+
+      assertEquals(byOrigin(1, 1, 1), valuesByOrigin(collector, "otel.sdk.span.started"));
+      assertEquals(2L, liveValue(collector));
+
+      // once every span ends, live reports 0
+      metrics.onSpanEnded(root);
+      metrics.onSpanEnded(server);
+      assertEquals(0L, liveValue(collect()));
+
+      server.finish();
+      child.finish();
+      root.finish();
+    } finally {
+      tracer.close();
+    }
+  }
+
+  private static ExtractedContext remoteParentContext() {
+    return new ExtractedContext(
+        DDTraceId.ONE,
+        2,
+        PrioritySampling.SAMPLER_KEEP,
+        null,
+        0,
+        emptyMap(),
+        emptyMap(),
+        null,
+        PropagationTags.factory().empty(),
+        null,
+        DATADOG);
+  }
+
+  private static Map<String, Long> byOrigin(long none, long local, long remote) {
+    Map<String, Long> expected = new HashMap<>();
+    expected.put("none", none);
+    expected.put("local", local);
+    expected.put("remote", remote);
+    return expected;
+  }
+
+  /** The single {@code otel.sdk.span.live} value; the metric carries no attributes. */
+  private static long liveValue(OtelMetricCollector collector) {
+    List<DataPointEntry> points = collector.points.getOrDefault("otel.sdk.span.live", emptyList());
+    assertEquals(1, points.size());
+    assertTrue(points.get(0).attrs.isEmpty());
+    return points.get(0).value.longValue();
+  }
+
+  private static Map<String, Long> valuesByOrigin(OtelMetricCollector collector, String metric) {
+    Map<String, Long> values = new HashMap<>();
+    for (DataPointEntry point : collector.points.getOrDefault(metric, emptyList())) {
+      values.put((String) point.attrs.get("otel.span.parent.origin"), point.value.longValue());
+    }
+    return values;
+  }
+}

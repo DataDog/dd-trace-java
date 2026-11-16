@@ -44,6 +44,7 @@ import datadog.trace.common.writer.DDAgentWriter;
 import datadog.trace.common.writer.ListWriter;
 import datadog.trace.common.writer.LoggingWriter;
 import datadog.trace.core.CoreTracer.ConfigSnapshot;
+import datadog.trace.core.monitor.SpanLifecycleMetrics;
 import datadog.trace.core.tagprocessor.TagsPostProcessorFactory;
 import datadog.trace.test.junit.utils.config.WithConfig;
 import java.lang.reflect.Field;
@@ -239,6 +240,16 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
     CoreTracer tracer = tracerBuilder().build();
     try {
       assertInstanceOf(LoggingWriter.class, tracer.writer);
+    } finally {
+      tracer.close();
+    }
+  }
+
+  @Test
+  void verifySpanLifecycleMetricsAreNoOpWhenGateIsOff() {
+    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+    try {
+      assertSame(SpanLifecycleMetrics.NO_OP, tracer.getSpanLifecycleMetrics());
     } finally {
       tracer.close();
     }
