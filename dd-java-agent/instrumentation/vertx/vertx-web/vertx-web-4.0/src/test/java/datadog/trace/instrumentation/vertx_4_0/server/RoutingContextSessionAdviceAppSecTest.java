@@ -65,11 +65,10 @@ class RoutingContextSessionAdviceAppSecTest {
 
     CallbackProvider callbackProvider = mock(CallbackProvider.class);
     when(callbackProvider.getCallback(EVENTS.requestSession()))
-        .thenReturn(
-            (ctx, id) -> {
-              receivedSessionId = id;
-              return flow;
-            });
+        .thenReturn((ctx, id) -> {
+          receivedSessionId = id;
+          return flow;
+        });
     AgentTracer.TracerAPI tracer = mock(AgentTracer.TracerAPI.class);
     when(tracer.activeSpan()).thenReturn(span);
     when(tracer.getCallbackProvider(RequestContextSlot.APPSEC)).thenReturn(callbackProvider);

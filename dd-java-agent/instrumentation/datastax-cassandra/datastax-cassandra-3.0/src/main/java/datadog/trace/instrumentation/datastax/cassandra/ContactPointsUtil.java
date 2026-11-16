@@ -15,11 +15,10 @@ public class ContactPointsUtil {
   private static final Function<List<InetSocketAddress>, String> ADDER =
       inetSocketAddresses ->
           inetSocketAddresses.stream()
-              .map(
-                  inetSocketAddress ->
-                      inetSocketAddress.getPort() > 0
-                          ? inetSocketAddress.getHostString() + ":" + inetSocketAddress.getPort()
-                          : inetSocketAddress.getHostString())
+              .map(inetSocketAddress ->
+                  inetSocketAddress.getPort() > 0
+                      ? inetSocketAddress.getHostString() + ":" + inetSocketAddress.getPort()
+                      : inetSocketAddress.getHostString())
               .distinct()
               .collect(Collectors.joining(","));
 

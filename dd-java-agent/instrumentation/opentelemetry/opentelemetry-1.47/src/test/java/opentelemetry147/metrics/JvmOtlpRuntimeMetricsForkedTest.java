@@ -1,11 +1,14 @@
 package opentelemetry147.metrics;
 
+import static opentelemetry147.metrics.JvmOtlpRuntimeMetricsTest.assertJavaLangJmxFetchTags;
+import static opentelemetry147.metrics.JvmOtlpRuntimeMetricsTest.assertMemoryJmxFetchTags;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.agent.jmxfetch.JvmOtlpRuntimeMetrics;
-import datadog.trace.bootstrap.otel.metrics.data.OtelMetricRegistry;
+import datadog.trace.agent.test.utils.OtelMetricCollector;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
@@ -23,15 +26,40 @@ class JvmOtlpRuntimeMetricsForkedTest {
 
   @BeforeAll
   static void setUp() {
+    System.setProperty("dd.tags", "_dd.injection.mode:test-injection");
     System.setProperty("dd.metrics.otel.enabled", "true");
     JvmOtlpRuntimeMetrics.start(false);
   }
 
   @Test
+  void allDataPointsHaveInjectionMode() {
+    OtelMetricCollector collector = OtelMetricCollector.collect();
+
+    int dataPointCount = 0;
+    for (List<OtelMetricCollector.DataPointEntry> points : collector.points.values()) {
+      for (OtelMetricCollector.DataPointEntry point : points) {
+        dataPointCount++;
+        assertEquals("test-injection", point.attrs.get("_dd.injection.mode"));
+      }
+    }
+    assertTrue(dataPointCount > 0, "Expected at least one JVM runtime metric data point");
+  }
+
+  @Test
+  void stableMetricsHaveJmxFetchTagsWhenExperimentalMetricsAreDisabled() {
+    OtelMetricCollector collector = OtelMetricCollector.collect();
+
+    for (OtelMetricCollector.DataPointEntry point : collector.points.get("jvm.memory.used")) {
+      assertMemoryJmxFetchTags("jvm.memory.used", point);
+    }
+    assertJavaLangJmxFetchTags(collector, "jvm.thread.count", "Threading");
+    assertJavaLangJmxFetchTags(collector, "jvm.class.count", "ClassLoading");
+    assertJavaLangJmxFetchTags(collector, "jvm.cpu.count", "OperatingSystem");
+  }
+
+  @Test
   void registersOnlyStableMetricsWhenExperimentalDisabled() {
-    JvmOtlpRuntimeMetricsTest.MetricCollector collector =
-        new JvmOtlpRuntimeMetricsTest.MetricCollector();
-    OtelMetricRegistry.INSTANCE.collectMetrics(collector);
+    OtelMetricCollector collector = OtelMetricCollector.collect();
 
     Set<String> names = collector.metricNames;
 
@@ -79,12 +107,10 @@ class JvmOtlpRuntimeMetricsForkedTest {
   void jvmGcDurationDataPointsOmitGcCauseWhenExperimentalDisabled() throws InterruptedException {
     System.gc();
 
-    List<JvmOtlpRuntimeMetricsTest.DataPointEntry> points = null;
+    List<OtelMetricCollector.DataPointEntry> points = null;
     long deadlineNanos = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
     while (System.nanoTime() < deadlineNanos) {
-      JvmOtlpRuntimeMetricsTest.MetricCollector collector =
-          new JvmOtlpRuntimeMetricsTest.MetricCollector();
-      OtelMetricRegistry.INSTANCE.collectMetrics(collector);
+      OtelMetricCollector collector = OtelMetricCollector.collect();
       points = collector.points.get("jvm.gc.duration");
       if (points != null && !points.isEmpty()) {
         break;
@@ -96,11 +122,10 @@ class JvmOtlpRuntimeMetricsForkedTest {
     assertFalse(points.isEmpty(), "jvm.gc.duration should have at least one data point");
     assertTrue(
         points.stream()
-            .allMatch(
-                p ->
-                    p.attrs.containsKey("jvm.gc.name")
-                        && p.attrs.containsKey("jvm.gc.action")
-                        && !p.attrs.containsKey("jvm.gc.cause")),
+            .allMatch(p ->
+                p.attrs.containsKey("jvm.gc.name")
+                    && p.attrs.containsKey("jvm.gc.action")
+                    && !p.attrs.containsKey("jvm.gc.cause")),
         "jvm.gc.duration data points must carry jvm.gc.name and jvm.gc.action, but not jvm.gc.cause"
             + " when experimental disabled");
   }

@@ -99,12 +99,11 @@ class WriterFactoryTest extends DDJavaSpecification {
     Call mockCall = mock(Call.class);
     OkHttpClient mockHttpClient = mock(OkHttpClient.class);
     when(mockCall.execute())
-        .thenAnswer(
-            inv -> {
-              // Add a delay
-              Thread.sleep(400);
-              return response;
-            });
+        .thenAnswer(inv -> {
+          // Add a delay
+          Thread.sleep(400);
+          return response;
+        });
     when(mockHttpClient.newCall(any(Request.class))).thenReturn(mockCall);
 
     // Create SharedCommunicationObjects with mocked HTTP client
@@ -180,12 +179,11 @@ class WriterFactoryTest extends DDJavaSpecification {
     Call mockCall = mock(Call.class);
     OkHttpClient mockHttpClient = mock(OkHttpClient.class);
     when(mockCall.execute())
-        .thenAnswer(
-            inv -> {
-              // Add a delay
-              Thread.sleep(400);
-              return response;
-            });
+        .thenAnswer(inv -> {
+          // Add a delay
+          Thread.sleep(400);
+          return response;
+        });
     when(mockHttpClient.newCall(any(Request.class))).thenReturn(mockCall);
 
     // Create SharedCommunicationObjects with mocked HTTP client
@@ -201,16 +199,15 @@ class WriterFactoryTest extends DDJavaSpecification {
     List<Class<?>> llmObsApiClasses =
         ((RemoteWriter) writer)
             .getApis().stream()
-                .filter(
-                    api -> {
-                      try {
-                        Field trackTypeField = api.getClass().getDeclaredField("trackType");
-                        trackTypeField.setAccessible(true);
-                        return trackTypeField.get(api) == TrackType.LLMOBS;
-                      } catch (Exception e) {
-                        return false;
-                      }
-                    })
+                .filter(api -> {
+                  try {
+                    Field trackTypeField = api.getClass().getDeclaredField("trackType");
+                    trackTypeField.setAccessible(true);
+                    return trackTypeField.get(api) == TrackType.LLMOBS;
+                  } catch (Exception e) {
+                    return false;
+                  }
+                })
                 .map(Object::getClass)
                 .collect(Collectors.toList());
 
@@ -308,13 +305,9 @@ class WriterFactoryTest extends DDJavaSpecification {
   }
 
   private static JavaTestHttpServer tracesAgent() {
-    return JavaTestHttpServer.httpServer(
-        s ->
-            s.handlers(
-                h ->
-                    h.put(
-                        "v0.4/traces",
-                        api -> api.getResponse().status(200).send("{\"hello\":{}}"))));
+    return JavaTestHttpServer.httpServer(s ->
+        s.handlers(h ->
+            h.put("v0.4/traces", api -> api.getResponse().status(200).send("{\"hello\":{}}"))));
   }
 
   private static Writer createDDAgentWriter(JavaTestHttpServer agent, Sampler sampler)

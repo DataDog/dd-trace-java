@@ -88,12 +88,15 @@ class CdnConfigurationSourceTest {
   }
 
   @Test
-  void rejectsInvalidSiteForDatadogUfcCdnEndpoint() {
-    assertThrows(
-        IllegalArgumentException.class,
-        () ->
-            CdnConfigurationSource.endpoint(
-                TestSettings.of("site", "datadoghq.com@other.example")));
+  void rejectsInvalidSiteForDatadogUfcCdnEndpointWithoutTheSite() {
+    final IllegalArgumentException error =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                CdnConfigurationSource.endpoint(
+                    TestSettings.of("site", "datadoghq.com@other.example")));
+
+    assertEquals("Invalid Datadog site", error.getMessage());
   }
 
   @TableTest({
@@ -118,17 +121,25 @@ class CdnConfigurationSourceTest {
   }
 
   @TableTest({
-    "scenario      | baseUrl                ",
-    "no scheme     | 'localhost'            ",
-    "relative path | 'relative/ufc'         ",
-    "invalid       | 'http://[::1'          ",
-    "ftp scheme    | 'ftp://example.com/ufc'"
+    "scenario           | baseUrl                                          | message                                                                           ",
+    "no scheme          | 'localhost'                                      | 'Feature Flags configuration source URL must use HTTP or HTTPS and include a host'",
+    "relative path      | 'relative/ufc'                                   | 'Feature Flags configuration source URL must use HTTP or HTTPS and include a host'",
+    "invalid            | 'http://[::1'                                    | 'Invalid Feature Flags configuration source URL'                                  ",
+    "ftp scheme         | 'ftp://example.com/ufc'                          | 'Feature Flags configuration source URL must use HTTP or HTTPS and include a host'",
+    "invalid credential | 'http://user:secret@[::1/ufc?token=secret'       | 'Invalid Feature Flags configuration source URL'                                  ",
+    "ftp credential     | 'ftp://user:secret@example.com/ufc?token=secret' | 'Feature Flags configuration source URL must use HTTP or HTTPS and include a host'"
   })
-  void rejectsInvalidConfiguredAgentlessBaseUrl(final String baseUrl) {
+  void rejectsInvalidConfiguredAgentlessBaseUrlWithoutTheUrl(
+      final String baseUrl, final String message) {
     final Settings settings =
         TestSettings.of("feature.flags.configuration.source.agentless.base.url", baseUrl);
 
-    assertThrows(IllegalArgumentException.class, () -> CdnConfigurationSource.endpoint(settings));
+    final IllegalArgumentException error =
+        assertThrows(
+            IllegalArgumentException.class, () -> CdnConfigurationSource.endpoint(settings));
+
+    assertEquals(message, error.getMessage());
+    assertNull(error.getCause(), "the parse error repeats the URL");
   }
 
   @Test
@@ -141,7 +152,8 @@ class CdnConfigurationSourceTest {
                 this.server.uri("/").toString(),
                 "api-key",
                 "secret"),
-            new RuntimeServices(HealthMetrics.NOOP));
+            new RuntimeServices(HealthMetrics.NOOP),
+            FlagSelectionRequest.NONE);
     try {
       source.start(this.dispatched::add);
     } finally {
@@ -244,10 +256,9 @@ class CdnConfigurationSourceTest {
     this.server.enqueue(200, CONFIG, "ETag", "\"v1\"").enqueue(200, CONFIG, "ETag", "\"v2\"");
     final CdnConfigurationSource source = source();
     final RuntimeException failure = new IllegalStateException("listener failure");
-    source.setListenerForTest(
-        configuration -> {
-          throw failure;
-        });
+    source.setListenerForTest(configuration -> {
+      throw failure;
+    });
 
     assertThrows(IllegalStateException.class, source::pollOnce);
     source.setListenerForTest(this.dispatched::add);
@@ -399,10 +410,9 @@ class CdnConfigurationSourceTest {
     final ScheduledExecutorService executor = mock(ScheduledExecutorService.class);
     final CdnConfigurationSource source = source(this.server.uri("/ufc"), null, executor);
 
-    source.start(
-        configuration -> {
-          throw new IllegalStateException("listener failure");
-        });
+    source.start(configuration -> {
+      throw new IllegalStateException("listener failure");
+    });
 
     verify(executor)
         .scheduleWithFixedDelay(any(Runnable.class), any(Long.class), any(Long.class), any());
@@ -440,11 +450,10 @@ class CdnConfigurationSourceTest {
             });
     final boolean[] result = {true, true};
     final Thread poller =
-        new Thread(
-            () -> {
-              result[0] = source.pollOnce();
-              result[1] = Thread.currentThread().isInterrupted();
-            });
+        new Thread(() -> {
+          result[0] = source.pollOnce();
+          result[1] = Thread.currentThread().isInterrupted();
+        });
     poller.setDaemon(true);
     poller.start();
     try {
@@ -510,11 +519,10 @@ class CdnConfigurationSourceTest {
               null,
               () -> 1.0);
       final FutureTask<Boolean> initialization =
-          new FutureTask<>(
-              () -> {
-                source.start(this.dispatched::add);
-                return Thread.currentThread().isInterrupted();
-              });
+          new FutureTask<>(() -> {
+            source.start(this.dispatched::add);
+            return Thread.currentThread().isInterrupted();
+          });
       final Thread caller = new Thread(initialization, "provider-initialization");
       caller.setDaemon(true);
       caller.start();

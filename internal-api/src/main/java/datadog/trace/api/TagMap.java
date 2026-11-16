@@ -1,6 +1,6 @@
 package datadog.trace.api;
 
-import datadog.apicontract.Restricted;
+import datadog.contract.Restricted;
 import datadog.trace.api.function.NoEscape;
 import datadog.trace.api.function.TriConsumer;
 import java.util.AbstractCollection;
@@ -283,7 +283,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     }
 
     /*
-     * Id-keyed counterparts of the create overloads above, for a KnownTags.*_ID: same contract (a
+     * Id-keyed counterparts of the create overloads above, for a KnownTags id: same contract (a
      * null or empty value yields no entry), without the name lookup. An id that names no known tag
      * is rejected.
      */
@@ -1710,7 +1710,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   /*
-   * Id-keyed setters: the caller passes a KnownTags.*_ID, so the entry is built under the tag's
+   * Id-keyed setters: the caller passes a KnownTags id, so the entry is built under the tag's
    * canonical name without the name lookup the String setters pay. The id must name a known tag;
    * custom tags have no id and use the String setters.
    */

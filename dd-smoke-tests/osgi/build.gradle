@@ -45,7 +45,7 @@ dependencies {
   bundles 'org.apache.httpcomponents:httpcore-osgi:4.4.14'
   bundles 'org.apache.httpcomponents:httpclient-osgi:4.5.13'
 
-  testImplementation project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests:smoke-test-common')
 }
 
 // The bnd builder plugin modifies the jar task to post process it with bnd.

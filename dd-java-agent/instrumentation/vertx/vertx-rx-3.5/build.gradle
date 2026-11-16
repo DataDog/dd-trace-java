@@ -4,11 +4,6 @@ plugins {
 }
 
 addTestSuiteForDir('latestDepTest', 'test')
-addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
-
-tasks.named("latestDepTest", Test) {
-  finalizedBy 'latestDepForkedTest'
-}
 
 dependencies {
   testImplementation project(':dd-java-agent:instrumentation:netty:netty-4.1')

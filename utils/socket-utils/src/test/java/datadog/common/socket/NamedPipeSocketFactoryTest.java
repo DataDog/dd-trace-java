@@ -37,15 +37,14 @@ class NamedPipeSocketFactoryTest {
     File directory = tempDir.resolve("server").toFile();
     NamedPipeSocketFactory factory = new NamedPipeSocketFactory(new File(directory, "pipe"));
     Thread server =
-        new Thread(
-            () -> {
-              try {
-                Thread.sleep(50);
-              } catch (InterruptedException ignored) {
-                // create the directory now
-              }
-              directory.mkdir();
-            });
+        new Thread(() -> {
+          try {
+            Thread.sleep(50);
+          } catch (InterruptedException ignored) {
+            // create the directory now
+          }
+          directory.mkdir();
+        });
     server.start();
 
     try (Socket socket = factory.createSocket()) {

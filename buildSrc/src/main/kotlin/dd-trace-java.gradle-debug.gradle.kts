@@ -30,17 +30,17 @@ fun inferJdkFromJavaHome(javaHome: String?): String {
   val javaExecutable = File(effectiveJavaHome, "bin/java").absolutePath
   return try {
     val process = ProcessBuilder(javaExecutable, "-version")
-        .redirectErrorStream(true)
-        .start()
+      .redirectErrorStream(true)
+      .start()
     val output = process.inputStream.bufferedReader().readText()
     val versionLine = output.lines().firstOrNull() ?: ""
     val versionMatch = Regex("version\\s+\"([0-9._]+)\"").find(versionLine)
     versionMatch?.let {
-        val version = it.groupValues[1]
-        when {
-            version.startsWith("1.") -> version.substring(2, 3)
-            else -> version.split('.').first()
-        }
+      val version = it.groupValues[1]
+      when {
+        version.startsWith("1.") -> version.substring(2, 3)
+        else -> version.split('.').first()
+      }
     } ?: "unknown"
   } catch (e: Exception) {
     "error: ${e.message}"
@@ -106,9 +106,11 @@ fun printJdkForTasks(tasks: Iterable<Task>, logFile: File) {
 if (ddGradleDebugEnabled) {
   logger.lifecycle("datadog.gradle-debug plugin is enabled")
   // Inspect tasks once the execution graph is ready, when scheduled tasks are fully configured.
-  gradle.taskGraph.whenReady(Action<TaskExecutionGraph> {
-    val logFile = logPath.get().asFile
-    logFile.writeText("")
-    printJdkForTasks(allTasks, logFile)
-  })
+  gradle.taskGraph.whenReady(
+    Action<TaskExecutionGraph> {
+      val logFile = logPath.get().asFile
+      logFile.writeText("")
+      printJdkForTasks(allTasks, logFile)
+    }
+  )
 }

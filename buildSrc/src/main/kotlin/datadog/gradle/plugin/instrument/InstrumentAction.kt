@@ -1,12 +1,12 @@
 package datadog.gradle.plugin.instrument
 
+import org.gradle.api.file.FileSystemOperations
+import org.gradle.api.model.ObjectFactory
+import org.gradle.workers.WorkAction
 import java.io.File
 import java.net.URLClassLoader
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
-import org.gradle.api.file.FileSystemOperations
-import org.gradle.api.model.ObjectFactory
-import org.gradle.workers.WorkAction
 
 abstract class InstrumentAction : WorkAction<InstrumentWorkParameters> {
   @get:Inject
@@ -73,14 +73,13 @@ abstract class InstrumentAction : WorkAction<InstrumentWorkParameters> {
   companion object {
     private val lock = Any()
     private val classLoaderCache = ConcurrentHashMap<String, ClassLoader>()
+
     @Volatile private var lastBuildStamp: Long = 0L
 
     @JvmStatic
     fun createClassLoader(
       cp: Iterable<File>,
       parent: ClassLoader? = InstrumentAction::class.java.classLoader
-    ): ClassLoader {
-      return URLClassLoader(cp.map { it.toURI().toURL() }.toTypedArray(), parent)
-    }
+    ): ClassLoader = URLClassLoader(cp.map { it.toURI().toURL() }.toTypedArray(), parent)
   }
 }

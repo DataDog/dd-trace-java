@@ -132,7 +132,7 @@ public final class KnownTagCodec {
 
   /** The direction of a span with these tags, from its {@code span.kind}. */
   public static int directionOf(TagMap tags) {
-    TagMap.Entry kind = tags.getEntry(KnownTags.SPAN_KIND_ID);
+    TagMap.Entry kind = tags.getEntry(KnownTags.SPAN_KIND);
     return kind == null ? DIRECTION_UNKNOWN : directionOfKind(kind.stringValue());
   }
 

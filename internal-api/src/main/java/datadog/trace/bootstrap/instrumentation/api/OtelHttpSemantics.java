@@ -30,10 +30,10 @@ public final class OtelHttpSemantics {
 
   public static void setRequestMethod(final AgentSpan span, final String method) {
     if (method != null && !KNOWN_METHODS.contains(method)) {
-      span.setTag(KnownTags.HTTP_METHOD_ID, OTHER_METHOD);
-      span.setTag(KnownTags.HTTP_REQUEST_METHOD_ORIGINAL_ID, method);
+      span.setTag(KnownTags.HTTP_METHOD, OTHER_METHOD);
+      span.setTag(KnownTags.HTTP_REQUEST_METHOD_ORIGINAL, method);
     } else {
-      span.setTag(KnownTags.HTTP_METHOD_ID, method);
+      span.setTag(KnownTags.HTTP_METHOD, method);
     }
   }
 
@@ -54,8 +54,8 @@ public final class OtelHttpSemantics {
 
   /** {@link #urlOrPath(Map)}, from a span's tags as stored. */
   public static Object urlOrPath(final TagStore tags) {
-    Object url = tags.load(KnownTags.HTTP_URL_ID);
-    return url != null ? url : tags.load(KnownTags.URL_PATH_ID);
+    Object url = tags.load(KnownTags.HTTP_URL);
+    return url != null ? url : tags.load(KnownTags.URL_PATH);
   }
 
   public static String redactedUrl(final URI url) {
@@ -91,7 +91,7 @@ public final class OtelHttpSemantics {
 
   public static void setErrorType(final AgentSpan span, final int status) {
     if (span.getTag(DDTags.ERROR_TYPE) == null) {
-      span.setTag(KnownTags.ERROR_TYPE_ID, RadixTreeCache.HTTP_STATUSES.get(status).toString());
+      span.setTag(KnownTags.ERROR_TYPE, RadixTreeCache.HTTP_STATUSES.get(status).toString());
     }
   }
 

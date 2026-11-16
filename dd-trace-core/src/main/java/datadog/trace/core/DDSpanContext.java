@@ -38,6 +38,7 @@ import datadog.trace.bootstrap.instrumentation.api.ClientIpAddressData;
 import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
+import datadog.trace.bootstrap.instrumentation.api.SpanKind;
 import datadog.trace.bootstrap.instrumentation.api.SpanPrototype;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -629,6 +630,10 @@ public class DDSpanContext
         setSpanType(spanType);
       }
     }
+    final SpanKind kind = prototype.kind();
+    if (kind != null) {
+      seedAbsentSpanKind(kind, prototype.tags());
+    }
     seedAbsentTags(prototype.tags());
     if (this.integrationName == null) {
       final CharSequence integrationName = prototype.integrationName();
@@ -655,6 +660,21 @@ public class DDSpanContext
     final CharSequence integrationName = prototype.integrationName();
     if (integrationName != null) {
       setIntegrationName(integrationName);
+    }
+  }
+
+  /**
+   * Seeds a standard {@code span.kind} if the span has none: sets the kind ordinal straight from
+   * the enum and stores the prototype's own tag entry. That's what interception would do (cache the
+   * ordinal and keep the tag) without comparing strings; {@link #seedAbsentTags} then skips the tag
+   * as already present.
+   */
+  private void seedAbsentSpanKind(final SpanKind kind, final TagMap prototypeTags) {
+    synchronized (unsafeTags) {
+      if (!unsafeTags.containsKey(Tags.SPAN_KIND)) {
+        spanKindOrdinal = spanKindOrdinalOf(kind);
+        unsafeTags.set(prototypeTags.getEntry(Tags.SPAN_KIND));
+      }
     }
   }
 
@@ -954,6 +974,25 @@ public class DDSpanContext
     }
   }
 
+  static byte spanKindOrdinalOf(final SpanKind kind) {
+    switch (kind) {
+      case SERVER:
+        return SPAN_KIND_SERVER;
+      case CLIENT:
+        return SPAN_KIND_CLIENT;
+      case PRODUCER:
+        return SPAN_KIND_PRODUCER;
+      case CONSUMER:
+        return SPAN_KIND_CONSUMER;
+      case INTERNAL:
+        return SPAN_KIND_INTERNAL;
+      case BROKER:
+        return SPAN_KIND_BROKER;
+      default:
+        return SPAN_KIND_CUSTOM;
+    }
+  }
+
   byte getSpanKindOrdinal() {
     return spanKindOrdinal;
   }
@@ -1030,13 +1069,13 @@ public class DDSpanContext
    * Removes a known tag by id rather than by its name. An id the id-keyed setters ignore is ignored
    * here too.
    *
-   * @param tagId a {@code KnownTags.*_ID} constant
+   * @param tagId a {@code KnownTags} id constant
    */
   public void removeTag(long tagId) {
     if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
-    if (tagId == KnownTags.SPAN_KIND_ID) {
+    if (tagId == KnownTags.SPAN_KIND) {
       spanKindOrdinal = SPAN_KIND_UNSET;
     }
     synchronized (unsafeTags) {

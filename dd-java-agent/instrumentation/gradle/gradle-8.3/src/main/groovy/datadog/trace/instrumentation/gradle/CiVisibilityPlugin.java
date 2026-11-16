@@ -191,10 +191,9 @@ public abstract class CiVisibilityPlugin implements Plugin<Project> {
 
     List<Configuration> jacocoConfigurations =
         project.getConfigurations().stream()
-            .filter(
-                c ->
-                    JACOCO_AGENT_CONFIGURATION_NAME.equals(c.getName())
-                        || JACOCO_ANT_CONFIGURATION_NAME.equals(c.getName()))
+            .filter(c ->
+                JACOCO_AGENT_CONFIGURATION_NAME.equals(c.getName())
+                    || JACOCO_ANT_CONFIGURATION_NAME.equals(c.getName()))
             .collect(Collectors.toList());
     for (Configuration jacocoConfiguration : jacocoConfigurations) {
       disableDependencyVerificationIfConfigured(jacocoConfiguration);

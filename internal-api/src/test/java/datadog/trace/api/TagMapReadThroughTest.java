@@ -584,11 +584,11 @@ class TagMapReadThroughTest {
   @Test
   void getAndSetByIdReturnsTheInheritedEntryOfThatId() {
     TagMap parent = TagMap.create();
-    parent.set(KnownTags.HTTP_ROUTE_ID, "/parent/{id}");
+    parent.set(KnownTags.HTTP_ROUTE, "/parent/{id}");
     TagMap child = TagMap.createFromParent(parent.freeze());
 
     TagMap.Entry prior =
-        child.getAndSet(TagMap.Entry.create(KnownTags.HTTP_ROUTE_ID, (Object) "/child/{id}"));
+        child.getAndSet(TagMap.Entry.create(KnownTags.HTTP_ROUTE, (Object) "/child/{id}"));
 
     assertEquals("/parent/{id}", prior.objectValue());
   }

@@ -149,12 +149,11 @@ class ConsumedHeaderTagMappingTest extends DDJavaSpecification {
 
     assertNotNull(context);
     // The header tag mapped onto each consumed header must be honoured (APMS-20654).
-    consumed.forEach(
-        (header, value) ->
-            assertEquals(
-                value,
-                context.getTags().getString(tagFor(header)),
-                "header tag mapped onto '" + header + "' should be honoured"));
+    consumed.forEach((header, value) ->
+        assertEquals(
+            value,
+            context.getTags().getString(tagFor(header)),
+            "header tag mapped onto '" + header + "' should be honoured"));
 
     // The semantic capture of each header must be preserved.
     assertEquals("test-agent", context.getUserAgent());

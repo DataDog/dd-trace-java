@@ -22,7 +22,7 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
   // By design, listeners are supposed to receive the underlying cause not a LibraryLoadException
   // directly
   static final ThrowableCheck NOT_LIB_LOAD_EXCEPTION =
-      (t) -> {
+      t -> {
         assertFalse(
             t instanceof LibraryLoadException,
             "LibraryLoadException - instead of underlying cause");
@@ -92,7 +92,7 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
   public TestLibraryLoadingListener expectResolveDynamicFailure(
       String expectedLibName, Throwable expectedThrowable) {
     return this.expectResolveDynamicFailure(
-        new LibCheck(expectedLibName), (t) -> assertSame(expectedThrowable, t));
+        new LibCheck(expectedLibName), t -> assertSame(expectedThrowable, t));
   }
 
   private TestLibraryLoadingListener expectResolveDynamicFailure(LibCheck libCheck) {
@@ -282,10 +282,8 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
       String libName,
       boolean isPreloaded,
       URL optionalUrl) {
-    this.nextCheck(
-        check ->
-            check.onResolveDynamic(
-                platformSpec, optionalComponent, libName, isPreloaded, optionalUrl));
+    this.nextCheck(check ->
+        check.onResolveDynamic(platformSpec, optionalComponent, libName, isPreloaded, optionalUrl));
   }
 
   @Override
@@ -294,9 +292,8 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
       String optionalComponent,
       String libName,
       Throwable optionalCause) {
-    this.nextCheck(
-        check ->
-            check.onResolveDynamicFailure(platformSpec, optionalComponent, libName, optionalCause));
+    this.nextCheck(check ->
+        check.onResolveDynamicFailure(platformSpec, optionalComponent, libName, optionalCause));
   }
 
   @Override
@@ -306,9 +303,8 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
       String libName,
       boolean isPreloaded,
       Path optionalLibPath) {
-    this.nextCheck(
-        check ->
-            check.onLoad(platformSpec, optionalComponent, libName, isPreloaded, optionalLibPath));
+    this.nextCheck(check ->
+        check.onLoad(platformSpec, optionalComponent, libName, isPreloaded, optionalLibPath));
   }
 
   @Override
@@ -336,10 +332,9 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
       Path tempDir,
       String libExt,
       Throwable optionalCause) {
-    this.nextCheck(
-        check ->
-            check.onTempFileCreationFailure(
-                platformSpec, optionalComponent, libName, tempDir, libExt, optionalCause));
+    this.nextCheck(check ->
+        check.onTempFileCreationFailure(
+            platformSpec, optionalComponent, libName, tempDir, libExt, optionalCause));
   }
 
   @Override

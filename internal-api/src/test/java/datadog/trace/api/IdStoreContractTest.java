@@ -57,41 +57,41 @@ class IdStoreContractTest {
   @MethodSource("stores")
   void typedSettersRoundTripThroughTheReader(Function<IdStore, IdStore> newStore) {
     IdStore store = newStore.apply(null);
-    store.store(KnownTags.HTTP_ROUTE_ID, (Object) "/users");
-    store.store(KnownTags.HTTP_METHOD_ID, (CharSequence) "GET");
-    store.store(KnownTags.ERROR_ID, true);
-    store.store(KnownTags.HTTP_STATUS_CODE_ID, 200);
-    store.store(KnownTags.PEER_PORT_ID, 5432L);
-    store.store(KnownTags.DD_AGENT_PSR_ID, 0.5f);
-    store.store(KnownTags.DB_TYPE_ID, (Object) "postgres");
-    store.store(KnownTags.COMPONENT_ID, (CharSequence) "jdbc");
-    store.store(KnownTags.SPAN_KIND_ID, (Object) "client");
-    store.store(KnownTags.DB_POOL_NAME_ID, (Object) "pool");
-    store.store(KnownTags.HTTP_URL_ID, (Object) "http://x");
-    store.store(KnownTags.DB_INSTANCE_ID, 2.5d);
+    store.store(KnownTags.HTTP_ROUTE, (Object) "/users");
+    store.store(KnownTags.HTTP_METHOD, (CharSequence) "GET");
+    store.store(KnownTags.ERROR, true);
+    store.store(KnownTags.HTTP_STATUS_CODE, 200);
+    store.store(KnownTags.PEER_PORT, 5432L);
+    store.store(KnownTags.DD_AGENT_PSR, 0.5f);
+    store.store(KnownTags.DB_TYPE, (Object) "postgres");
+    store.store(KnownTags.COMPONENT, (CharSequence) "jdbc");
+    store.store(KnownTags.SPAN_KIND, (Object) "client");
+    store.store(KnownTags.DB_POOL_NAME, (Object) "pool");
+    store.store(KnownTags.HTTP_URL, (Object) "http://x");
+    store.store(KnownTags.DB_INSTANCE, 2.5d);
 
-    assertEquals("/users", store.load(KnownTags.HTTP_ROUTE_ID));
-    assertEquals("GET", store.load(KnownTags.HTTP_METHOD_ID));
+    assertEquals("/users", store.load(KnownTags.HTTP_ROUTE));
+    assertEquals("GET", store.load(KnownTags.HTTP_METHOD));
 
-    EntryReader flag = store.getEntryReader(KnownTags.ERROR_ID);
+    EntryReader flag = store.getEntryReader(KnownTags.ERROR);
     assertTrue(flag.booleanValue());
     assertEquals(EntryReader.BOOLEAN, flag.type());
     assertFalse(flag.isNumber());
 
-    EntryReader status = store.getEntryReader(KnownTags.HTTP_STATUS_CODE_ID);
+    EntryReader status = store.getEntryReader(KnownTags.HTTP_STATUS_CODE);
     assertEquals(200, status.intValue());
     assertEquals(200L, status.longValue());
     assertTrue(status.is(EntryReader.INT));
     assertTrue(status.isNumericPrimitive());
     assertFalse(status.isObject());
-    assertEquals(KnownTags.HTTP_STATUS_CODE_ID, status.tagId());
+    assertEquals(KnownTags.HTTP_STATUS_CODE, status.tagId());
     assertEquals("http.status_code", status.tag());
 
-    assertEquals(5432L, store.getEntryReader(KnownTags.PEER_PORT_ID).longValue());
-    assertEquals(0.5f, store.getEntryReader(KnownTags.DD_AGENT_PSR_ID).floatValue());
-    assertEquals(2.5d, store.getEntryReader(KnownTags.DB_INSTANCE_ID).doubleValue());
+    assertEquals(5432L, store.getEntryReader(KnownTags.PEER_PORT).longValue());
+    assertEquals(0.5f, store.getEntryReader(KnownTags.DD_AGENT_PSR).floatValue());
+    assertEquals(2.5d, store.getEntryReader(KnownTags.DB_INSTANCE).doubleValue());
 
-    EntryReader route = store.getEntryReader(KnownTags.HTTP_ROUTE_ID);
+    EntryReader route = store.getEntryReader(KnownTags.HTTP_ROUTE);
     assertEquals("/users", route.stringValue());
     assertTrue(route.isObject());
     assertEquals("/users", route.entry().objectValue());
@@ -105,22 +105,22 @@ class IdStoreContractTest {
   @MethodSource("stores")
   void putAndGetAndPutReturnThePriorValue(Function<IdStore, IdStore> newStore) {
     IdStore parent = newStore.apply(null);
-    parent.store(KnownTags.HTTP_ROUTE_ID, "/inherited");
+    parent.store(KnownTags.HTTP_ROUTE, "/inherited");
     IdStore store = newStore.apply(parent);
 
-    assertNull(store.put(TagMap.Entry.newAnyEntry(KnownTags.HTTP_METHOD_ID, "GET")));
-    EntryReader prior = store.put(TagMap.Entry.newAnyEntry(KnownTags.HTTP_METHOD_ID, "POST"));
+    assertNull(store.put(TagMap.Entry.newAnyEntry(KnownTags.HTTP_METHOD, "GET")));
+    EntryReader prior = store.put(TagMap.Entry.newAnyEntry(KnownTags.HTTP_METHOD, "POST"));
     assertEquals("GET", prior.objectValue());
 
     // getAndPut reports the prior visible value, inherited included
     EntryReader inherited =
-        store.getAndPut(TagMap.Entry.newAnyEntry(KnownTags.HTTP_ROUTE_ID, "/local"));
+        store.getAndPut(TagMap.Entry.newAnyEntry(KnownTags.HTTP_ROUTE, "/local"));
     assertEquals("/inherited", inherited.objectValue());
-    assertEquals("/local", store.load(KnownTags.HTTP_ROUTE_ID));
+    assertEquals("/local", store.load(KnownTags.HTTP_ROUTE));
     assertEquals(
         "/local",
-        store.getAndPut(TagMap.Entry.newAnyEntry(KnownTags.HTTP_ROUTE_ID, "/again")).objectValue());
-    assertNull(store.getAndPut(TagMap.Entry.newAnyEntry(KnownTags.COMPONENT_ID, "okhttp")));
+        store.getAndPut(TagMap.Entry.newAnyEntry(KnownTags.HTTP_ROUTE, "/again")).objectValue());
+    assertNull(store.getAndPut(TagMap.Entry.newAnyEntry(KnownTags.COMPONENT, "okhttp")));
     store.checkIntegrity();
   }
 
@@ -128,32 +128,32 @@ class IdStoreContractTest {
   @MethodSource("stores")
   void removingAnInheritedTagHidesItUntilItIsSetAgain(Function<IdStore, IdStore> newStore) {
     IdStore parent = newStore.apply(null);
-    parent.store(KnownTags.HTTP_ROUTE_ID, "/inherited");
-    parent.store(KnownTags.COMPONENT_ID, "okhttp");
+    parent.store(KnownTags.HTTP_ROUTE, "/inherited");
+    parent.store(KnownTags.COMPONENT, "okhttp");
     IdStore store = newStore.apply(parent);
-    store.store(KnownTags.HTTP_METHOD_ID, "GET");
+    store.store(KnownTags.HTTP_METHOD, "GET");
     assertTrue(store.hasParent());
     assertEquals(3, store.size());
 
-    assertEquals("/inherited", store.remove(KnownTags.HTTP_ROUTE_ID).objectValue());
-    assertNull(store.load(KnownTags.HTTP_ROUTE_ID));
-    assertNull(store.remove(KnownTags.HTTP_ROUTE_ID), "already hidden");
+    assertEquals("/inherited", store.remove(KnownTags.HTTP_ROUTE).objectValue());
+    assertNull(store.load(KnownTags.HTTP_ROUTE));
+    assertNull(store.remove(KnownTags.HTTP_ROUTE), "already hidden");
     assertEquals(2, store.size());
-    assertEquals("/inherited", parent.load(KnownTags.HTTP_ROUTE_ID), "parent untouched");
+    assertEquals("/inherited", parent.load(KnownTags.HTTP_ROUTE), "parent untouched");
 
     // a local value that also hides an inherited one is removed with its tombstone in place
-    store.store(KnownTags.COMPONENT_ID, "local");
-    assertEquals("local", store.remove(KnownTags.COMPONENT_ID).objectValue());
-    assertNull(store.load(KnownTags.COMPONENT_ID));
+    store.store(KnownTags.COMPONENT, "local");
+    assertEquals("local", store.remove(KnownTags.COMPONENT).objectValue());
+    assertNull(store.load(KnownTags.COMPONENT));
 
-    assertEquals("GET", store.remove(KnownTags.HTTP_METHOD_ID).objectValue());
-    assertNull(store.remove(KnownTags.HTTP_METHOD_ID), "absent");
+    assertEquals("GET", store.remove(KnownTags.HTTP_METHOD).objectValue());
+    assertNull(store.remove(KnownTags.HTTP_METHOD), "absent");
     assertTrue(store.isEmpty());
     assertTrue(store.isDefinitelyEmpty() || store.estimateSize() >= 0);
 
     // setting a hidden tag again revives it
-    store.store(KnownTags.HTTP_ROUTE_ID, "/revived");
-    assertEquals("/revived", store.load(KnownTags.HTTP_ROUTE_ID));
+    store.store(KnownTags.HTTP_ROUTE, "/revived");
+    assertEquals("/revived", store.load(KnownTags.HTTP_ROUTE));
     assertEquals(1, store.size());
     assertFalse(store.isEmpty());
     store.checkIntegrity();
@@ -169,20 +169,20 @@ class IdStoreContractTest {
     assertFalse(empty.hasParent());
 
     IdStore parent = newStore.apply(null);
-    parent.store(KnownTags.HTTP_ROUTE_ID, "/a");
-    parent.store(KnownTags.HTTP_METHOD_ID, "GET");
+    parent.store(KnownTags.HTTP_ROUTE, "/a");
+    parent.store(KnownTags.HTTP_METHOD, "GET");
     IdStore child = newStore.apply(parent);
     assertFalse(child.isEmpty(), "inherits visible tags");
     assertFalse(child.isDefinitelyEmpty());
 
-    child.store(KnownTags.HTTP_METHOD_ID, "POST"); // shadows
-    child.store(KnownTags.COMPONENT_ID, "okhttp");
+    child.store(KnownTags.HTTP_METHOD, "POST"); // shadows
+    child.store(KnownTags.COMPONENT, "okhttp");
     assertEquals(3, child.size());
     assertTrue(child.estimateSize() >= 3);
 
-    child.remove(KnownTags.HTTP_ROUTE_ID);
-    child.remove(KnownTags.HTTP_METHOD_ID);
-    child.remove(KnownTags.COMPONENT_ID);
+    child.remove(KnownTags.HTTP_ROUTE);
+    child.remove(KnownTags.HTTP_METHOD);
+    child.remove(KnownTags.COMPONENT);
     assertTrue(child.isEmpty(), "every inherited tag hidden");
     assertEquals(0, child.size());
   }
@@ -191,13 +191,13 @@ class IdStoreContractTest {
   @MethodSource("stores")
   void everyIterationSeesEachVisibleTagOnce(Function<IdStore, IdStore> newStore) {
     IdStore parent = newStore.apply(null);
-    parent.store(KnownTags.HTTP_ROUTE_ID, "/a");
-    parent.store(KnownTags.HTTP_METHOD_ID, "GET");
-    parent.store(KnownTags.COMPONENT_ID, "okhttp");
+    parent.store(KnownTags.HTTP_ROUTE, "/a");
+    parent.store(KnownTags.HTTP_METHOD, "GET");
+    parent.store(KnownTags.COMPONENT, "okhttp");
     IdStore store = newStore.apply(parent);
-    store.store(KnownTags.HTTP_METHOD_ID, "POST"); // shadows the parent's
-    store.store(KnownTags.SPAN_KIND_ID, "client");
-    store.remove(KnownTags.COMPONENT_ID); // hides the parent's
+    store.store(KnownTags.HTTP_METHOD, "POST"); // shadows the parent's
+    store.store(KnownTags.SPAN_KIND, "client");
+    store.remove(KnownTags.COMPONENT); // hides the parent's
 
     Map<String, Object> expected = new HashMap<>();
     expected.put("http.route", "/a");
@@ -226,19 +226,19 @@ class IdStoreContractTest {
   @MethodSource("stores")
   void aCopyIsIndependent(Function<IdStore, IdStore> newStore) {
     IdStore parent = newStore.apply(null);
-    parent.store(KnownTags.HTTP_ROUTE_ID, "/a");
+    parent.store(KnownTags.HTTP_ROUTE, "/a");
     IdStore store = newStore.apply(parent);
-    store.store(KnownTags.HTTP_METHOD_ID, "GET");
-    store.remove(KnownTags.HTTP_ROUTE_ID);
+    store.store(KnownTags.HTTP_METHOD, "GET");
+    store.remove(KnownTags.HTTP_ROUTE);
 
     IdStore copy = store.copy();
-    copy.store(KnownTags.HTTP_METHOD_ID, "POST");
-    copy.store(KnownTags.HTTP_ROUTE_ID, "/copy");
+    copy.store(KnownTags.HTTP_METHOD, "POST");
+    copy.store(KnownTags.HTTP_ROUTE, "/copy");
 
-    assertEquals("GET", store.load(KnownTags.HTTP_METHOD_ID));
-    assertNull(store.load(KnownTags.HTTP_ROUTE_ID), "the original keeps its tombstone");
-    assertEquals("POST", copy.load(KnownTags.HTTP_METHOD_ID));
-    assertEquals("/copy", copy.load(KnownTags.HTTP_ROUTE_ID));
+    assertEquals("GET", store.load(KnownTags.HTTP_METHOD));
+    assertNull(store.load(KnownTags.HTTP_ROUTE), "the original keeps its tombstone");
+    assertEquals("POST", copy.load(KnownTags.HTTP_METHOD));
+    assertEquals("/copy", copy.load(KnownTags.HTTP_ROUTE));
     copy.checkIntegrity();
   }
 
@@ -246,27 +246,27 @@ class IdStoreContractTest {
   @MethodSource("stores")
   void putAllLocalMergesAnotherStoresTags(Function<IdStore, IdStore> newStore) {
     IdStore source = newStore.apply(null);
-    source.store(KnownTags.HTTP_ROUTE_ID, "/a");
-    source.store(KnownTags.HTTP_METHOD_ID, "GET");
+    source.store(KnownTags.HTTP_ROUTE, "/a");
+    source.store(KnownTags.HTTP_METHOD, "GET");
 
     IdStore empty = newStore.apply(null);
     empty.putAllLocal(source); // nothing here yet
     assertEquals(visible(source), visible(empty));
 
     IdStore merged = newStore.apply(null);
-    merged.store(KnownTags.HTTP_METHOD_ID, "POST");
-    merged.store(KnownTags.COMPONENT_ID, "okhttp");
+    merged.store(KnownTags.HTTP_METHOD, "POST");
+    merged.store(KnownTags.COMPONENT, "okhttp");
     merged.putAllLocal(source);
-    assertEquals("GET", merged.load(KnownTags.HTTP_METHOD_ID), "the source wins");
-    assertEquals("okhttp", merged.load(KnownTags.COMPONENT_ID));
+    assertEquals("GET", merged.load(KnownTags.HTTP_METHOD), "the source wins");
+    assertEquals("okhttp", merged.load(KnownTags.COMPONENT));
     assertEquals(3, merged.size());
 
     IdStore parent = newStore.apply(null);
-    parent.store(KnownTags.HTTP_ROUTE_ID, "/inherited");
+    parent.store(KnownTags.HTTP_ROUTE, "/inherited");
     IdStore tombstoned = newStore.apply(parent);
-    tombstoned.remove(KnownTags.HTTP_ROUTE_ID);
+    tombstoned.remove(KnownTags.HTTP_ROUTE);
     tombstoned.putAllLocal(source); // replaces the tombstone
-    assertEquals("/a", tombstoned.load(KnownTags.HTTP_ROUTE_ID));
+    assertEquals("/a", tombstoned.load(KnownTags.HTTP_ROUTE));
     assertEquals(2, tombstoned.size());
 
     newStore.apply(null).putAllLocal(newStore.apply(null)); // an empty source is a no-op
@@ -278,8 +278,8 @@ class IdStoreContractTest {
   @MethodSource("stores")
   void fillsCopyTheLocalTags(Function<IdStore, IdStore> newStore) {
     IdStore store = newStore.apply(null);
-    store.store(KnownTags.HTTP_ROUTE_ID, "/a");
-    store.store(KnownTags.HTTP_STATUS_CODE_ID, 200);
+    store.store(KnownTags.HTTP_ROUTE, "/a");
+    store.store(KnownTags.HTTP_STATUS_CODE, 200);
 
     Map<String, Object> map = new HashMap<>();
     store.fillMapLocal(map);
@@ -335,13 +335,13 @@ class IdStoreContractTest {
   @MethodSource("stores")
   void getAndPutRevivesARemovedInheritedTag(Function<IdStore, IdStore> newStore) {
     IdStore parent = newStore.apply(null);
-    parent.store(KnownTags.HTTP_ROUTE_ID, "/inherited");
+    parent.store(KnownTags.HTTP_ROUTE, "/inherited");
     IdStore store = newStore.apply(parent);
-    store.remove(KnownTags.HTTP_ROUTE_ID);
+    store.remove(KnownTags.HTTP_ROUTE);
 
     // hidden, so there is no visible prior value
-    assertNull(store.getAndPut(TagMap.Entry.newAnyEntry(KnownTags.HTTP_ROUTE_ID, "/revived")));
-    assertEquals("/revived", store.load(KnownTags.HTTP_ROUTE_ID));
+    assertNull(store.getAndPut(TagMap.Entry.newAnyEntry(KnownTags.HTTP_ROUTE, "/revived")));
+    assertEquals("/revived", store.load(KnownTags.HTTP_ROUTE));
     assertEquals(1, store.size());
     store.checkIntegrity();
   }
@@ -350,16 +350,16 @@ class IdStoreContractTest {
   @MethodSource("stores")
   void readsGoThroughEveryAncestor(Function<IdStore, IdStore> newStore) {
     IdStore grandparent = newStore.apply(null);
-    grandparent.store(KnownTags.HTTP_ROUTE_ID, "/grandparent");
-    grandparent.store(KnownTags.COMPONENT_ID, "okhttp");
+    grandparent.store(KnownTags.HTTP_ROUTE, "/grandparent");
+    grandparent.store(KnownTags.COMPONENT, "okhttp");
     IdStore parent = newStore.apply(grandparent);
-    parent.store(KnownTags.HTTP_METHOD_ID, "GET");
-    parent.remove(KnownTags.COMPONENT_ID);
+    parent.store(KnownTags.HTTP_METHOD, "GET");
+    parent.remove(KnownTags.COMPONENT);
     IdStore store = newStore.apply(parent);
 
-    assertEquals("/grandparent", store.load(KnownTags.HTTP_ROUTE_ID));
-    assertEquals("GET", store.load(KnownTags.HTTP_METHOD_ID));
-    assertNull(store.load(KnownTags.COMPONENT_ID), "hidden by the parent");
+    assertEquals("/grandparent", store.load(KnownTags.HTTP_ROUTE));
+    assertEquals("GET", store.load(KnownTags.HTTP_METHOD));
+    assertNull(store.load(KnownTags.COMPONENT), "hidden by the parent");
     assertEquals(2, store.size());
     Map<String, Object> expected = new HashMap<>();
     expected.put("http.route", "/grandparent");
@@ -371,18 +371,18 @@ class IdStoreContractTest {
   @MethodSource("stores")
   void getStringFormatsTheVisibleValue(Function<IdStore, IdStore> newStore) {
     IdStore parent = newStore.apply(null);
-    parent.store(KnownTags.HTTP_ROUTE_ID, "/inherited");
-    parent.store(KnownTags.COMPONENT_ID, "hidden");
+    parent.store(KnownTags.HTTP_ROUTE, "/inherited");
+    parent.store(KnownTags.COMPONENT, "hidden");
     IdStore store = newStore.apply(parent);
-    store.store(KnownTags.PEER_PORT_ID, 5432);
-    store.store(KnownTags.DB_INSTANCE_ID, 1.5d);
-    store.remove(KnownTags.COMPONENT_ID);
+    store.store(KnownTags.PEER_PORT, 5432);
+    store.store(KnownTags.DB_INSTANCE, 1.5d);
+    store.remove(KnownTags.COMPONENT);
 
-    assertEquals("5432", store.loadString(KnownTags.PEER_PORT_ID));
-    assertEquals("1.5", store.loadString(KnownTags.DB_INSTANCE_ID));
-    assertEquals("/inherited", store.loadString(KnownTags.HTTP_ROUTE_ID));
-    assertNull(store.loadString(KnownTags.COMPONENT_ID), "hidden by the removal");
-    assertNull(store.loadString(KnownTags.HTTP_METHOD_ID));
+    assertEquals("5432", store.loadString(KnownTags.PEER_PORT));
+    assertEquals("1.5", store.loadString(KnownTags.DB_INSTANCE));
+    assertEquals("/inherited", store.loadString(KnownTags.HTTP_ROUTE));
+    assertNull(store.loadString(KnownTags.COMPONENT), "hidden by the removal");
+    assertNull(store.loadString(KnownTags.HTTP_METHOD));
     assertThrows(
         IllegalArgumentException.class, () -> store.loadString(KnownTagCodec.makeTagId(9999)));
   }
@@ -391,8 +391,8 @@ class IdStoreContractTest {
   @MethodSource("stores")
   void aViewReadsValuesFromEitherStore(Function<IdStore, IdStore> newStore) {
     IdStore store = newStore.apply(null);
-    store.store(KnownTags.HTTP_ROUTE_ID, "/a");
-    store.store(KnownTags.PEER_PORT_ID, 5432);
+    store.store(KnownTags.HTTP_ROUTE, "/a");
+    store.store(KnownTags.PEER_PORT, 5432);
     HashStore names = HashStore.create(null);
     names.store("my.tag", 7);
 
@@ -411,9 +411,9 @@ class IdStoreContractTest {
   @MethodSource("stores")
   void aViewReadsPrimitivesThroughAReader(Function<IdStore, IdStore> newStore) {
     IdStore store = newStore.apply(null);
-    store.store(KnownTags.PEER_PORT_ID, 5432);
-    store.store(KnownTags.DB_INSTANCE_ID, 1.5d);
-    store.store(KnownTags.DD_MEASURED_ID, true);
+    store.store(KnownTags.PEER_PORT, 5432);
+    store.store(KnownTags.DB_INSTANCE, 1.5d);
+    store.store(KnownTags.DD_MEASURED, true);
     HashStore names = HashStore.create(null);
     names.store("my.count", 7L);
 
@@ -430,11 +430,11 @@ class IdStoreContractTest {
     assertTrue(view.containsKey("my.count"));
     assertFalse(view.containsKey("other.tag"));
 
-    EntryReader port = view.getEntryReader(KnownTags.PEER_PORT_ID);
+    EntryReader port = view.getEntryReader(KnownTags.PEER_PORT);
     assertEquals(5432, port.intValue());
-    assertEquals(KnownTags.PEER_PORT_ID, port.tagId());
+    assertEquals(KnownTags.PEER_PORT, port.tagId());
     assertEquals(7L, view.getEntryReader("my.count").longValue());
-    assertNull(view.getEntryReader(KnownTags.HTTP_METHOD_ID));
+    assertNull(view.getEntryReader(KnownTags.HTTP_METHOD));
     assertNull(TagMap.viewOf(store, null, false).getEntryReader("my.count"), "no custom store");
   }
 
@@ -442,9 +442,9 @@ class IdStoreContractTest {
   @MethodSource("stores")
   void aStreamYieldsEntriesThatStayValidOnceCollected(Function<IdStore, IdStore> newStore) {
     IdStore store = newStore.apply(null);
-    store.store(KnownTags.HTTP_ROUTE_ID, "/a");
-    store.store(KnownTags.HTTP_METHOD_ID, "GET");
-    store.store(KnownTags.PEER_PORT_ID, 5432);
+    store.store(KnownTags.HTTP_ROUTE, "/a");
+    store.store(KnownTags.HTTP_METHOD, "GET");
+    store.store(KnownTags.PEER_PORT, 5432);
     HashStore names = HashStore.create(null);
     names.store("my.tag", "custom");
     TagMap view = TagMap.viewOf(store, names, false);
@@ -492,12 +492,12 @@ class IdStoreContractTest {
   @MethodSource("stores")
   void aReaderWithNoEntryIsANoOp(Function<IdStore, IdStore> newStore) {
     IdStore store = newStore.apply(null);
-    store.store(KnownTags.HTTP_ROUTE_ID, "/a");
-    NoEntryReader empty = new NoEntryReader("http.route", KnownTags.HTTP_ROUTE_ID);
+    store.store(KnownTags.HTTP_ROUTE, "/a");
+    NoEntryReader empty = new NoEntryReader("http.route", KnownTags.HTTP_ROUTE);
 
     assertNull(store.put(empty));
     assertNull(store.getAndPut(empty));
-    assertEquals("/a", store.load(KnownTags.HTTP_ROUTE_ID), "left as it was");
+    assertEquals("/a", store.load(KnownTags.HTTP_ROUTE), "left as it was");
     assertEquals(1, store.size());
   }
 
@@ -505,22 +505,22 @@ class IdStoreContractTest {
   @MethodSource("stores")
   void getEntryReturnsAnEntryTheCallerMayKeep(Function<IdStore, IdStore> newStore) {
     IdStore parent = newStore.apply(null);
-    parent.store(KnownTags.HTTP_ROUTE_ID, "/inherited");
+    parent.store(KnownTags.HTTP_ROUTE, "/inherited");
     IdStore store = newStore.apply(parent);
-    store.store(KnownTags.HTTP_METHOD_ID, "GET");
+    store.store(KnownTags.HTTP_METHOD, "GET");
 
-    TagMap.Entry method = store.getEntry(KnownTags.HTTP_METHOD_ID);
-    TagMap.Entry route = store.getEntry(KnownTags.HTTP_ROUTE_ID);
-    EntryReader methodReader = store.getEntryReader(KnownTags.HTTP_METHOD_ID);
-    EntryReader routeReader = store.getEntryReader(KnownTags.HTTP_ROUTE_ID);
+    TagMap.Entry method = store.getEntry(KnownTags.HTTP_METHOD);
+    TagMap.Entry route = store.getEntry(KnownTags.HTTP_ROUTE);
+    EntryReader methodReader = store.getEntryReader(KnownTags.HTTP_METHOD);
+    EntryReader routeReader = store.getEntryReader(KnownTags.HTTP_ROUTE);
 
     // kept side by side, each still holds its own tag
     assertEquals("GET", method.objectValue());
-    assertEquals(KnownTags.HTTP_METHOD_ID, method.tagId());
+    assertEquals(KnownTags.HTTP_METHOD, method.tagId());
     assertEquals("/inherited", route.objectValue());
     assertEquals("GET", methodReader.objectValue());
     assertEquals("/inherited", routeReader.objectValue());
-    assertNull(store.getEntry(KnownTags.COMPONENT_ID));
+    assertNull(store.getEntry(KnownTags.COMPONENT));
     assertThrows(
         IllegalArgumentException.class, () -> store.getEntry(KnownTagCodec.makeTagId(9999)));
   }

@@ -1,6 +1,6 @@
 package datadog.trace.api.endpoint;
 
-import static datadog.trace.api.KnownTags.HTTP_ENDPOINT_ID;
+import static datadog.trace.api.KnownTags.HTTP_ENDPOINT;
 
 import datadog.trace.api.TagStore;
 import javax.annotation.Nullable;
@@ -60,7 +60,7 @@ public class EndpointResolver {
     if (alwaysSimplifiedEndpoint) {
       String endpoint = computeEndpoint(httpUrl);
       if (endpoint != null) {
-        unsafeTags.store(HTTP_ENDPOINT_ID, endpoint);
+        unsafeTags.store(HTTP_ENDPOINT, endpoint);
       }
       return endpoint;
     }
@@ -73,7 +73,7 @@ public class EndpointResolver {
     // Compute endpoint from URL and tag the span
     String endpoint = computeEndpoint(httpUrl);
     if (endpoint != null) {
-      unsafeTags.store(HTTP_ENDPOINT_ID, endpoint);
+      unsafeTags.store(HTTP_ENDPOINT, endpoint);
     }
     return endpoint;
   }

@@ -1,7 +1,7 @@
 package datadog.trace.core.tagprocessor;
 
-import static datadog.trace.api.KnownTags.DD_PEER_SERVICE_REMAPPED_FROM_ID;
-import static datadog.trace.api.KnownTags.PEER_SERVICE_ID;
+import static datadog.trace.api.KnownTags.DD_PEER_SERVICE_REMAPPED_FROM;
+import static datadog.trace.api.KnownTags.PEER_SERVICE;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.TagStore;
@@ -36,7 +36,7 @@ public final class PeerServiceCalculator extends EagerTagsPostProcessor {
   @Override
   public void processTags(
       TagStore unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
-    Object peerService = unsafeTags.load(PEER_SERVICE_ID);
+    Object peerService = unsafeTags.load(PEER_SERVICE);
     // the user set it
     if (peerService != null) {
       if (canRemap) {
@@ -47,7 +47,7 @@ public final class PeerServiceCalculator extends EagerTagsPostProcessor {
       // calculate the defaults (if any)
       peerServiceNaming.tags(unsafeTags);
       // only remap if the mapping is not empty (saves one get)
-      remapPeerService(unsafeTags, canRemap ? unsafeTags.load(PEER_SERVICE_ID) : null);
+      remapPeerService(unsafeTags, canRemap ? unsafeTags.load(PEER_SERVICE) : null);
       return;
     }
     // we have no peer.service and we do not compute defaults. Leave the map untouched
@@ -57,8 +57,8 @@ public final class PeerServiceCalculator extends EagerTagsPostProcessor {
     if (value != null) {
       String mapped = peerServiceMapping.get(value);
       if (mapped != null) {
-        unsafeTags.store(PEER_SERVICE_ID, mapped);
-        unsafeTags.store(DD_PEER_SERVICE_REMAPPED_FROM_ID, value);
+        unsafeTags.store(PEER_SERVICE, mapped);
+        unsafeTags.store(DD_PEER_SERVICE_REMAPPED_FROM, value);
       }
     }
   }
