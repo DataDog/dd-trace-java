@@ -66,6 +66,7 @@ variables:
   ORG_GRADLE_PROJECT_ciBuilderImage: "${BUILDER_IMAGE_REPO}:${BUILDER_IMAGE_VERSION_PREFIX}"
   TEST_COUNTS_S3_BUCKET: "dd-trace-java-ci-test-reports"
   REPO_NOTIFICATION_CHANNEL: "#apm-java-escalations"
+  SUPPORTED_VERSIONS_GENERATOR: ".gitlab/generate_supported_versions.sh"
   DEFAULT_TEST_JVMS: /^(8|11|17|21|25|tip)$/ # the latest "tip" version is 27
   PROFILE_TESTS:
     description: "Enable profiling of tests"
@@ -775,6 +776,18 @@ muzzle-dep-report:
     paths:
       - ./reports
       - '.gradle/daemon/*/*.out.log'
+
+# One-pipeline's packaging image has no JDK, so generate the file like the muzzle dependency report.
+generate-supported-versions:
+  extends: .gradle_build
+  needs: *needs_build_tests_inst
+  variables:
+    CACHE_TYPE: "inst"
+  # Don't block pipelines while the generator is new.
+  allow_failure: true
+
+validate-supported-versions:
+  allow_failure: true
 
 # In Gitlab, DD_* variables are set because the build runner is instrumented with Datadog telemetry
 # To have a pristine environment for the tests, these variables are saved before the test run and restored afterwards

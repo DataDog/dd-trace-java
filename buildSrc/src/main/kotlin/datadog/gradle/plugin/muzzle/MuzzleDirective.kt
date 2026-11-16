@@ -83,6 +83,10 @@ open class MuzzleDirective : Serializable {
     }
   }
 
+  /** Whether the dependency reports include this directive. */
+  internal val isReportable: Boolean
+    get() = !isCoreJdk && !skipFromReport
+
   /**
    * Slug of directive name.
    *
