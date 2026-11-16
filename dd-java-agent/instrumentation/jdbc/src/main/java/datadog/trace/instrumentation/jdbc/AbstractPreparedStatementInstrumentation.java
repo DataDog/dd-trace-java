@@ -1,20 +1,14 @@
 package datadog.trace.instrumentation.jdbc;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameEndsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
-import static datadog.trace.api.KnownTags.DD_DBM_TRACE_INJECTED;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
-import static datadog.trace.instrumentation.jdbc.JDBCDecorator.CAPTURE_QUERY_PARAMETERS;
-import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DATABASE_QUERY;
-import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DBM_TRACE_PREPARED_STATEMENTS;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DECORATE;
-import static datadog.trace.instrumentation.jdbc.JDBCDecorator.INJECT_COMMENT;
-import static datadog.trace.instrumentation.jdbc.JDBCDecorator.logMissingQueryInfo;
-import static datadog.trace.instrumentation.jdbc.JDBCDecorator.logSQLException;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
+import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
@@ -25,13 +19,10 @@ import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.JDBCConnectionContext;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
-import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.HashMap;
 import java.util.Map;
@@ -87,16 +78,29 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
     Map<String, String> contextStore = new HashMap<>(4);
     contextStore.put("java.sql.Statement", DBQueryInfo.class.getName());
     contextStore.put("java.sql.Connection", JDBCConnectionContext.class.getName());
-    contextStore.put("java.sql.PreparedStatement", QueryParameters.class.getName());
+    if (InstrumenterConfig.get().isJdbcCaptureQueryParameters()) {
+      contextStore.put("java.sql.PreparedStatement", QueryParameters.class.getName());
+    }
     return contextStore;
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        nameStartsWith("execute").and(takesArguments(0)).and(isPublic()),
-        AbstractPreparedStatementInstrumentation.class.getName() + "$PreparedStatementAdvice");
-    if (InstrumenterConfig.get().isJdbcCaptureQueryParameters()) {
+    ElementMatcher.Junction<MethodDescription> execute =
+        nameStartsWith("execute").and(takesArguments(0)).and(isPublic());
+    if (!InstrumenterConfig.get().isJdbcCaptureQueryParameters()) {
+      transformer.applyAdvice(
+          execute,
+          AbstractPreparedStatementInstrumentation.class.getName() + "$PreparedStatementAdvice");
+    } else {
+      // values are not captured for batches, which run several sets of values
+      transformer.applyAdvice(
+          execute.and(nameEndsWith("Batch")),
+          AbstractPreparedStatementInstrumentation.class.getName() + "$PreparedStatementAdvice");
+      transformer.applyAdvice(
+          execute.and(not(nameEndsWith("Batch"))),
+          AbstractPreparedStatementInstrumentation.class.getName()
+              + "$CaptureQueryParametersAdvice");
       // index for PreparedStatement, name for CallableStatement
       ElementMatcher.Junction<MethodDescription> parameterSetter =
           isPublic().and(takesArgument(0, int.class).or(takesArgument(0, String.class)));
@@ -124,76 +128,60 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
   public static class PreparedStatementAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope onEnter(
-        @Advice.This final Statement statement, @Advice.Origin("#m") final String methodName) {
+    public static ContextScope onEnter(@Advice.This final Statement statement) {
       int depth = CallDepthThreadLocalMap.incrementCallDepth(Statement.class);
       if (depth > 0) {
         return null;
       }
-      try {
-        final Connection connection = statement.getConnection();
-        final DBQueryInfo queryInfo =
-            InstrumentationContext.get(Statement.class, DBQueryInfo.class).get(statement);
-        if (null == queryInfo) {
-          logMissingQueryInfo(statement);
-          return null;
-        }
-        final AgentSpan span;
-        final JDBCConnectionContext connectionContext =
-            JDBCDecorator.parseConnectionContext(
-                connection,
-                InstrumentationContext.get(Connection.class, JDBCConnectionContext.class));
-        final DBInfo dbInfo = connectionContext.getDbInfo();
-        final boolean injectTraceContext = DECORATE.shouldInjectTraceContext(dbInfo);
+      final AgentSpan span =
+          DECORATE.startPreparedStatementSpan(
+              statement,
+              InstrumentationContext.get(Statement.class, DBQueryInfo.class),
+              InstrumentationContext.get(Connection.class, JDBCConnectionContext.class));
+      return null == span ? null : activateSpan(span);
+    }
 
-        final String oracleServiceHash =
-            DECORATE.setServiceHashAction(connection, connectionContext);
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void stopSpan(
+        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
+      CallDepthThreadLocalMap.decrementCallDepth(Statement.class);
+      if (scope == null) {
+        return;
+      }
+      AgentSpan span = spanFromScope(scope);
+      DECORATE.onError(span, throwable);
+      DECORATE.beforeFinish(span);
+      scope.close();
+      span.finish();
+    }
+  }
 
-        if (INJECT_COMMENT && injectTraceContext) {
-          if (DECORATE.isSqlServer(dbInfo)) {
-            // The span ID is pre-determined so that we can reference it when setting the context
-            final long spanID = DECORATE.setContextInfo(connection, connectionContext);
-            // we then force that pre-determined span ID for the span covering the actual query
-            span =
-                AgentTracer.get()
-                    .singleSpanBuilder("java-jdbc-prepared_statement", DATABASE_QUERY)
-                    .withSpanId(spanID)
-                    .start();
-            span.setTag(DD_DBM_TRACE_INJECTED, true);
-          } else if (DECORATE.isPostgres(dbInfo) && DBM_TRACE_PREPARED_STATEMENTS) {
-            span = startSpan("java-jdbc-prepared_statement", DATABASE_QUERY);
-            DECORATE.setApplicationName(span, connection);
-          } else if (DECORATE.isOracle(dbInfo)) {
-            span = startSpan("java-jdbc-prepared_statement", DATABASE_QUERY);
-            DECORATE.setAction(span, connection);
-          } else {
-            span = startSpan("java-jdbc-prepared_statement", DATABASE_QUERY);
-          }
-        } else {
-          span = startSpan("java-jdbc-prepared_statement", DATABASE_QUERY);
-        }
-        DECORATE.afterStart(span);
-        DECORATE.onConnection(span, connectionContext);
-        DECORATE.onPreparedStatement(span, queryInfo);
-        DECORATE.withBaseHash(span, dbInfo, oracleServiceHash);
-        // values are not captured for batches, which run several sets of values
-        if (CAPTURE_QUERY_PARAMETERS
-            && statement instanceof PreparedStatement
-            && !methodName.endsWith("Batch")) {
-          final QueryParameters queryParameters =
-              InstrumentationContext.get(PreparedStatement.class, QueryParameters.class)
-                  .get((PreparedStatement) statement);
-          if (null != queryParameters) {
-            queryParameters.applyTo(span);
-          }
-        }
+  /** {@link PreparedStatementAdvice} that also puts the bound values on the span. */
+  public static class CaptureQueryParametersAdvice {
 
-        return activateSpan(span);
-      } catch (SQLException e) {
-        logSQLException(e);
-        // if we can't get the connection for any reason
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static ContextScope onEnter(@Advice.This final Statement statement) {
+      int depth = CallDepthThreadLocalMap.incrementCallDepth(Statement.class);
+      if (depth > 0) {
         return null;
       }
+      final AgentSpan span =
+          DECORATE.startPreparedStatementSpan(
+              statement,
+              InstrumentationContext.get(Statement.class, DBQueryInfo.class),
+              InstrumentationContext.get(Connection.class, JDBCConnectionContext.class));
+      if (null == span) {
+        return null;
+      }
+      if (statement instanceof PreparedStatement) {
+        final QueryParameters queryParameters =
+            InstrumentationContext.get(PreparedStatement.class, QueryParameters.class)
+                .get((PreparedStatement) statement);
+        if (null != queryParameters) {
+          queryParameters.applyTo(span);
+        }
+      }
+      return activateSpan(span);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

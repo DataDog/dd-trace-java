@@ -6,6 +6,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -35,6 +36,17 @@ import org.postgresql.util.PGobject;
 
 @WithConfig(key = JDBC_CAPTURE_QUERY_PARAMETERS, value = "true")
 class QueryParametersCaptureForkedTest extends QueryParametersTestSupport {
+
+  @Test
+  void statementsGetCaptureState() throws SQLException {
+    assertTrue(
+        new PreparedStatementInstrumentation()
+            .contextStore()
+            .containsKey("java.sql.PreparedStatement"));
+    try (PreparedStatement statement = h2.prepareStatement("SELECT 1")) {
+      assertEquals(1, injectedContextFields(statement.getClass()).size());
+    }
+  }
 
   @Test
   void positionalParametersUseZeroBasedKeys() throws SQLException {

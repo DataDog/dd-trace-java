@@ -12,12 +12,12 @@ import static datadog.trace.api.KnownTags.DD_DBM_TRACE_INJECTED;
 import static datadog.trace.api.KnownTags.DD_INSTRUMENTATION_TIME_MS;
 import static datadog.trace.api.KnownTags.DD_PROPAGATED_HASH;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 
 import datadog.context.ContextScope;
 import datadog.trace.api.BaseHash;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTraceId;
-import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.api.propagation.W3CTraceParent;
 import datadog.trace.api.telemetry.LogCollector;
@@ -98,8 +98,6 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       Config.get().isDbMetadataFetchingOnConnectEnabled();
   private static final boolean FETCH_DB_METADATA_ON_QUERY =
       Config.get().isDbMetadataFetchingOnQueryEnabled();
-  public static final boolean CAPTURE_QUERY_PARAMETERS =
-      InstrumenterConfig.get().isJdbcCaptureQueryParameters();
 
   private volatile boolean warnedAboutDBMPropagationMode = false; // to log a warning only once
   private volatile boolean loggedInjectionError = false;
@@ -277,6 +275,66 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       dbInfo = DBInfo.DEFAULT;
     }
     return dbInfo;
+  }
+
+  /**
+   * Starts the span of a prepared statement execution, after setting the DBM propagation that must
+   * happen before the statement runs.
+   *
+   * @return the span, or {@code null} when the statement can't be traced
+   */
+  public AgentSpan startPreparedStatementSpan(
+      final Statement statement,
+      final ContextStore<Statement, DBQueryInfo> queryInfos,
+      final ContextStore<Connection, JDBCConnectionContext> connectionContexts) {
+    try {
+      final Connection connection = statement.getConnection();
+      final DBQueryInfo queryInfo = queryInfos.get(statement);
+      if (null == queryInfo) {
+        logMissingQueryInfo(statement);
+        return null;
+      }
+      final AgentSpan span;
+      final JDBCConnectionContext connectionContext =
+          parseConnectionContext(connection, connectionContexts);
+      final DBInfo dbInfo = connectionContext.getDbInfo();
+      final boolean injectTraceContext = shouldInjectTraceContext(dbInfo);
+
+      final String oracleServiceHash = setServiceHashAction(connection, connectionContext);
+
+      if (INJECT_COMMENT && injectTraceContext) {
+        if (isSqlServer(dbInfo)) {
+          // The span ID is pre-determined so that we can reference it when setting the context
+          final long spanID = setContextInfo(connection, connectionContext);
+          // we then force that pre-determined span ID for the span covering the actual query
+          span =
+              AgentTracer.get()
+                  .singleSpanBuilder("java-jdbc-prepared_statement", DATABASE_QUERY)
+                  .withSpanId(spanID)
+                  .start();
+          span.setTag(DD_DBM_TRACE_INJECTED, true);
+        } else if (isPostgres(dbInfo) && DBM_TRACE_PREPARED_STATEMENTS) {
+          span = startSpan("java-jdbc-prepared_statement", DATABASE_QUERY);
+          setApplicationName(span, connection);
+        } else if (isOracle(dbInfo)) {
+          span = startSpan("java-jdbc-prepared_statement", DATABASE_QUERY);
+          setAction(span, connection);
+        } else {
+          span = startSpan("java-jdbc-prepared_statement", DATABASE_QUERY);
+        }
+      } else {
+        span = startSpan("java-jdbc-prepared_statement", DATABASE_QUERY);
+      }
+      afterStart(span);
+      onConnection(span, connectionContext);
+      onPreparedStatement(span, queryInfo);
+      withBaseHash(span, dbInfo, oracleServiceHash);
+      return span;
+    } catch (SQLException e) {
+      logSQLException(e);
+      // if we can't get the connection for any reason
+      return null;
+    }
   }
 
   public void onStatement(AgentSpan span, final String statement) {

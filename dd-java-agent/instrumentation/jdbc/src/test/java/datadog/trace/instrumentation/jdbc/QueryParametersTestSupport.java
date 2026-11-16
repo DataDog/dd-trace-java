@@ -4,10 +4,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.core.DDSpan;
+import java.lang.reflect.Field;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -53,6 +55,14 @@ abstract class QueryParametersTestSupport extends AbstractInstrumentationTest {
         .filter(
             span -> "java-jdbc-prepared_statement".equals(String.valueOf(span.getTag("component"))))
         .sorted((a, b) -> Long.compare(a.getStartTime(), b.getStartTime()))
+        .collect(Collectors.toList());
+  }
+
+  /** The context store fields the agent added to the class itself. */
+  static List<String> injectedContextFields(Class<?> type) {
+    return Arrays.stream(type.getDeclaredFields())
+        .map(Field::getName)
+        .filter(name -> name.startsWith("__datadogContext$"))
         .collect(Collectors.toList());
   }
 
