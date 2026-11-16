@@ -24,9 +24,9 @@ class TracerVersionPlugin @Inject constructor(
     val extension = targetProject.extensions.getByType(TracerVersionExtension::class.java)
 
     extension.detectDirty.set(
-     providerFactory.gradleProperty("tracerVersion.dirtiness")
-       .map { it.trim().toBoolean() }
-       .orElse(false)
+      providerFactory.gradleProperty("tracerVersion.dirtiness")
+        .map { it.trim().toBoolean() }
+        .orElse(false)
     )
 
     extension.versionQualifier.set(
@@ -74,15 +74,14 @@ class TracerVersionPlugin @Inject constructor(
 
   private fun currentBranchProvider(
     repoWorkingDirectory: File
-  ): Provider<String> =
-    gitCurrentBranchProvider(repoWorkingDirectory).zip(
-      providerFactory.environmentVariable("CI_COMMIT_BRANCH").orElse("")
-    ) { gitBranch, ciBranch ->
-      // GitLab checks out a detached HEAD, where git reports "HEAD" instead of the branch name.
-      // Pipelines that don't set CI_COMMIT_BRANCH to the release branch itself (merge requests,
-      // merge queue working branches) still get the next minor version.
-      if (gitBranch == "HEAD" && ciBranch.isNotBlank()) ciBranch else gitBranch
-    }
+  ): Provider<String> = gitCurrentBranchProvider(repoWorkingDirectory).zip(
+    providerFactory.environmentVariable("CI_COMMIT_BRANCH").orElse("")
+  ) { gitBranch, ciBranch ->
+    // GitLab checks out a detached HEAD, where git reports "HEAD" instead of the branch name.
+    // Pipelines that don't set CI_COMMIT_BRANCH to the release branch itself (merge requests,
+    // merge queue working branches) still get the next minor version.
+    if (gitBranch == "HEAD" && ciBranch.isNotBlank()) ciBranch else gitBranch
+  }
 
   /**
    * Checks whether a build checked out on that exact tag may use it as the release version.
@@ -94,9 +93,8 @@ class TracerVersionPlugin @Inject constructor(
    * @param tag the tag, with its prefix
    * @return whether the tag can be used as the release version
    */
-  private fun isReleaseTag(tag: String): Boolean =
-    !providerFactory.environmentVariable("GITLAB_CI").isPresent ||
-      tag == providerFactory.environmentVariable("CI_COMMIT_TAG").orNull
+  private fun isReleaseTag(tag: String): Boolean = !providerFactory.environmentVariable("GITLAB_CI").isPresent ||
+    tag == providerFactory.environmentVariable("CI_COMMIT_TAG").orNull
 
   private fun gitCurrentBranchProvider(
     repoWorkingDirectory: File
@@ -159,10 +157,12 @@ class TracerVersionPlugin @Inject constructor(
     val version = Version.parse(lastTagVersion).let {
       when {
         !hasLaterCommits -> it
+
         isReleaseBranch -> {
           logger.info("Incrementing patch because release branch")
           it.nextPatchVersion()
         }
+
         else -> {
           logger.info("Incrementing minor")
           it.nextMinorVersion()
@@ -202,8 +202,7 @@ class TracerVersionPlugin @Inject constructor(
    * `-3-g1234abcd` or `-3-g1234abcd-dirty`. The trailer is blank, or only `-dirty`, on the tagged
    * commit itself.
    */
-  private fun commitsSinceTag(describeTrailer: String): Int =
-    COMMITS_SINCE_TAG_REGEX.find(describeTrailer)?.groupValues?.get(1)?.toInt() ?: 0
+  private fun commitsSinceTag(describeTrailer: String): Int = COMMITS_SINCE_TAG_REGEX.find(describeTrailer)?.groupValues?.get(1)?.toInt() ?: 0
 
   private companion object {
     /** Branches starting with this prefix build the next patch `-rc.N` version. */
