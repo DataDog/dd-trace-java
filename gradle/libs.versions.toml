@@ -52,7 +52,7 @@ jafar = "0.16.0"
 jol = "0.17"
 
 # Web & Network
-jnr-unixsocket = "0.39.6"
+jnr-unixsocket = "0.39.9"
 
 # Cryptography
 cafe_crypto = "0.1.0"
