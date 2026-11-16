@@ -9,6 +9,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import javax.annotation.Nullable;
 import org.apache.hc.core5.concurrent.FutureCallback;
 import org.apache.hc.core5.http.HttpResponse;
+import org.apache.hc.core5.http.Message;
 import org.apache.hc.core5.http.protocol.HttpContext;
 import org.apache.hc.core5.http.protocol.HttpCoreContext;
 
@@ -95,15 +96,34 @@ public class TraceContinuedFutureCallback<T> implements FutureCallback<T> {
   }
 
   @Nullable
-  private HttpResponse extractHttpResponse(Object futureResult) {
+  private HttpResponse extractHttpResponse(@Nullable Object futureResult) {
+    return extractHttpResponse(futureResult, context);
+  }
+
+  /**
+   * Returns the response of this exchange, preferring the one carried by the future result.
+   *
+   * <p>The context is supplied by the application and may be shared across concurrent requests, in
+   * which case its response attribute can belong to another in-flight exchange. It is only used
+   * when the result does not carry a response.
+   */
+  @Nullable
+  static HttpResponse extractHttpResponse(
+      @Nullable Object futureResult, @Nullable HttpContext context) {
+    if (futureResult instanceof HttpResponse) {
+      return (HttpResponse) futureResult;
+    }
+    if (futureResult instanceof Message) {
+      Object head = ((Message<?, ?>) futureResult).getHead();
+      if (head instanceof HttpResponse) {
+        return (HttpResponse) head;
+      }
+    }
     if (context != null) {
       Object fromContext = context.getAttribute(HttpCoreContext.HTTP_RESPONSE);
       if (fromContext instanceof HttpResponse) {
         return (HttpResponse) fromContext;
       }
-    }
-    if (futureResult instanceof HttpResponse) {
-      return (HttpResponse) futureResult;
     }
     return null;
   }
