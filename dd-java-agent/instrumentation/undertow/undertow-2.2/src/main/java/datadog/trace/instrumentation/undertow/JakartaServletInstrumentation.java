@@ -66,11 +66,11 @@ public final class JakartaServletInstrumentation extends InstrumenterModule.Trac
         request.setAttribute(DD_CONTEXT_ATTRIBUTE, continuation.context());
         undertowSpan.setSpanName(SERVLET_REQUEST);
 
-        undertowSpan.setTag(SERVLET_CONTEXT, request.getServletContext().getContextPath());
         // Forward, include, error and async dispatches happen inside the original request, so they
-        // must not overwrite the original servlet path.
+        // must not overwrite its servlet context or path (a cross-context forward switches both).
         if (dispatcherType == DispatcherType.REQUEST
             || UndertowDecorator.UNDERTOW_DISPATCH_USE_TARGET_PATH) {
+          undertowSpan.setTag(SERVLET_CONTEXT, request.getServletContext().getContextPath());
           undertowSpan.setTag(SERVLET_PATH, exchange.getRelativePath());
         }
       }

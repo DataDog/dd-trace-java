@@ -2,6 +2,7 @@ import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.agent.test.base.WebsocketServer
 import datadog.trace.core.DDSpan
+import datadog.trace.instrumentation.undertow.CrossContextForwardingServlet
 import datadog.trace.instrumentation.undertow.ForwardingServlet
 import datadog.trace.instrumentation.undertow.IncludingServlet
 import io.undertow.Handlers
@@ -36,6 +37,7 @@ class UndertowServletTest extends HttpServerTest<Undertow> {
   private static final CONTEXT = "ctx"
   private static final String FORWARDING_PATH = "/dispatch/forward"
   private static final String INCLUDING_PATH = "/dispatch/include"
+  private static final String CROSS_CONTEXT_FORWARDING_PATH = "/dispatch/forward-other"
 
   class UndertowServer implements WebsocketServer {
     def port = 0
@@ -54,6 +56,7 @@ class UndertowServletTest extends HttpServerTest<Undertow> {
         .addServlet(new ServletInfo("ForwardedServlet", ForwardedServlet).addMapping(FORWARDED.getPath()))
         .addServlet(new ServletInfo("ForwardingServlet", ForwardingServlet).addMapping(FORWARDING_PATH))
         .addServlet(new ServletInfo("IncludingServlet", IncludingServlet).addMapping(INCLUDING_PATH))
+        .addServlet(new ServletInfo("CrossContextForwardingServlet", CrossContextForwardingServlet).addMapping(CROSS_CONTEXT_FORWARDING_PATH))
         .addServlet(new ServletInfo("QueryEncodedBothServlet", QueryEncodedBothServlet).addMapping(QUERY_ENCODED_BOTH.getPath()))
         .addServlet(new ServletInfo("QueryEncodedServlet", QueryEncodedServlet).addMapping(QUERY_ENCODED_QUERY.getPath()))
         .addServlet(new ServletInfo("QueryParamServlet", QueryServlet).addMapping(QUERY_PARAM.getPath()))
@@ -70,6 +73,16 @@ class UndertowServletTest extends HttpServerTest<Undertow> {
       DeploymentManager manager = container.addDeployment(builder)
       manager.deploy()
       root.addPrefixPath(builder.getContextPath(), manager.start())
+
+      // A second deployment in the same container, for the cross-context forward
+      DeploymentInfo other = new DeploymentInfo()
+        .setClassLoader(UndertowServletTest.getClassLoader())
+        .setContextPath(CrossContextForwardingServlet.OTHER_CONTEXT)
+        .setDeploymentName("otherContext.war")
+        .addServlet(new ServletInfo("SuccessServlet", SuccessServlet).addMapping(SUCCESS.getPath()))
+      DeploymentManager otherManager = container.addDeployment(other)
+      otherManager.deploy()
+      root.addPrefixPath(other.getContextPath(), otherManager.start())
 
       undertowServer = Undertow.builder()
         .addHttpListener(port, "localhost")
@@ -285,6 +298,29 @@ class UndertowServletTest extends HttpServerTest<Undertow> {
     dispatch  | path
     "forward" | FORWARDING_PATH
     "include" | INCLUDING_PATH
+  }
+
+  def "a cross-context forward keeps the original request's servlet context and path"() {
+    setup:
+    def request = new Request.Builder().url(address.resolve(CROSS_CONTEXT_FORWARDING_PATH.substring(1)).toURL()).get().build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
+    response.code() == SUCCESS.status
+    response.body().string() == SUCCESS.body
+
+    when:
+    TEST_WRITER.waitForTraces(1)
+    DDSpan serverSpan = TEST_WRITER.flatten().find {
+      it.parentId == 0
+    }
+
+    then:
+    // with the opt-out, the forward renames the request to its target, context included
+    serverSpan.tags["servlet.context"] == (dispatchUsesTargetPath() ? CrossContextForwardingServlet.OTHER_CONTEXT : "/$CONTEXT".toString())
+    serverSpan.tags["servlet.path"] == (dispatchUsesTargetPath() ? SUCCESS.path : CROSS_CONTEXT_FORWARDING_PATH)
   }
 }
 

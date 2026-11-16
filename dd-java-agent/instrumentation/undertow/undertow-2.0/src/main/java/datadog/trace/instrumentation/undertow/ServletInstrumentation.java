@@ -74,11 +74,12 @@ public final class ServletInstrumentation extends InstrumenterModule.Tracing
         request.setAttribute(DD_CONTEXT_ATTRIBUTE, continuation.context());
         undertowSpan.setSpanName(SERVLET_REQUEST);
 
-        undertowSpan.setTag(SERVLET_CONTEXT, request.getServletContext().getContextPath());
         // Forward, include, error and async dispatches happen inside the original request, so they
-        // must not rename it: the root span keeps describing what the client asked for.
+        // must not rename it or change its servlet context: the root span keeps describing what the
+        // client asked for (a cross-context forward switches the request to its target's context).
         if (dispatcherType == DispatcherType.REQUEST
             || UndertowDecorator.UNDERTOW_DISPATCH_USE_TARGET_PATH) {
+          undertowSpan.setTag(SERVLET_CONTEXT, request.getServletContext().getContextPath());
           String relativePath = exchange.getRelativePath();
 
           ServletPathMatch servletPathMatch = servletRequestContext.getServletPathMatch();
