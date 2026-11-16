@@ -228,6 +228,58 @@ class ProfilingRemoteConfigHandlerTest {
     verify(controller, never()).createRecording(any(), any());
   }
 
+  /** A handler for which the local configuration keeps something enabled, e.g. native memory. */
+  private ProfilingRemoteConfigHandler handlerWhereTheLocalConfigEnablesProfiling() {
+    return new ProfilingRemoteConfigHandler(
+        profilingSystem, localConfig, ConfigProvider::withRemoteOverride, config -> true, true);
+  }
+
+  @Test
+  void disablingEveryFeatureStopsTheProfilerWhateverTheLocalConfigEnables() throws Exception {
+    ProfilingRemoteConfigHandler handler = handlerWhereTheLocalConfigEnablesProfiling();
+    handler.onConfigsChanged(enabledConfig());
+    assertTrue(profilingSystem.isRunning());
+
+    handler.onConfigsChanged(stackOf(ALL_FEATURES_DISABLED));
+
+    assertFalse(profilingSystem.isRunning());
+    verify(recording).stop();
+    verify(controller, times(1)).createRecording(any(), any());
+  }
+
+  @Test
+  void disablingEveryFeatureAcrossConfigsStopsTheProfilerWhateverTheLocalConfigEnables()
+      throws Exception {
+    ProfilingRemoteConfigHandler handler = handlerWhereTheLocalConfigEnablesProfiling();
+    handler.onConfigsChanged(enabledConfig());
+    RemoteConfigurationStack stack = new RemoteConfigurationStack();
+    stack.push("config-1", 1, config("\"cpuTime\":false,\"wallTime\":false"));
+    stack.push("config-2", 0, config("\"heapObjects\":false,\"allocations\":false"));
+
+    handler.onConfigsChanged(stack);
+
+    assertFalse(profilingSystem.isRunning());
+  }
+
+  @Test
+  void disablingEveryFeatureKeepsTheProfilerIdleWhateverTheLocalConfigEnables() throws Exception {
+    handlerWhereTheLocalConfigEnablesProfiling().onConfigsChanged(stackOf(ALL_FEATURES_DISABLED));
+
+    assertFalse(profilingSystem.isRunning());
+    verify(controller, never()).reconfigure(any());
+    verify(controller, never()).createRecording(any(), any());
+  }
+
+  @Test
+  void disablingSomeFeaturesKeepsWhatTheLocalConfigEnables() throws Exception {
+    ProfilingRemoteConfigHandler handler = handlerWhereTheLocalConfigEnablesProfiling();
+    handler.onConfigsChanged(enabledConfig());
+
+    handler.onConfigsChanged(stackOf("\"cpuTime\":false,\"wallTime\":false,\"heapObjects\":false"));
+
+    assertTrue(profilingSystem.isRunning());
+  }
+
   @Test
   void disablingOnlySomeFeaturesDoesNotStopTheProfiler() throws Exception {
     ProfilingRemoteConfigHandler handler = handlerWithRealFeatureCheck();

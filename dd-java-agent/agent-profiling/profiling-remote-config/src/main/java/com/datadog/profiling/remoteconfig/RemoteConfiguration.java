@@ -124,6 +124,13 @@ public final class RemoteConfiguration {
   }
 
   /**
+   * @return whether this sets all the remote configurable features, and disables them all
+   */
+  public boolean disablesEverything() {
+    return values.size() == Feature.values().length && !values.containsValue(true);
+  }
+
+  /**
    * @param higher a configuration with a higher priority
    * @return a configuration where the features that {@code higher} sets overwrite the ones of this
    */

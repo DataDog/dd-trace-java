@@ -29,13 +29,16 @@ import org.slf4j.LoggerFactory;
  * priority stack, merged into one with the value of each feature coming from the highest priority
  * configuration that sets it. The merged configuration takes precedence over the local one for the
  * features it sets; the others keep their local value. When it sets no feature, the profiler is
- * stopped, as it only runs when remote config asks for it. The profiler is also stopped when the
- * resulting configuration has all profiling features disabled.
+ * stopped, as it only runs when remote config asks for it. When it disables all the remote
+ * configurable features, the profiler is stopped too, without merging the local configuration.
+ * Otherwise, the profiler is also stopped when the resulting configuration has all profiling
+ * features disabled.
  *
  * <p>Whether something is enabled is judged from the modes of the Datadog profiler that the
  * resulting configuration enables, since that is what the remote features map to. A JFR-only setup
- * is not told apart: it follows the same modes. The modes that remote config doesn't set, like
- * native memory, keep their local value and keep the profiler running if they are enabled.
+ * is not told apart: it follows the same modes. Unless remote config disables all the remote
+ * configurable features, the modes that it doesn't set, like native memory, keep their local value
+ * and keep the profiler running if they are enabled.
  *
  * <p>Known limitations:
  *
@@ -194,6 +197,12 @@ final class ProfilingRemoteConfigHandler implements ProfilingConfigHandler {
     final boolean enabled;
     if (remote == null) {
       log.debug("No APM_PROFILING remote config sets a feature");
+      config = localConfig;
+      enabled = false;
+    } else if (remote.disablesEverything()) {
+      // not merged with the local configuration: what it enables doesn't keep the profiler running
+      log.debug(
+          "APM_PROFILING remote config disables all the remote configurable features: {}", remote);
       config = localConfig;
       enabled = false;
     } else {

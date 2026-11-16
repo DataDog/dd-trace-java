@@ -119,6 +119,20 @@ class RemoteConfigurationTest {
     assertEquals(emptyMap(), RemoteConfiguration.EMPTY.toConfigValues());
   }
 
+  @TableTest({
+    "Scenario            | Profilers                                                                          | Disables everything",
+    "all features false  | '\"cpuTime\":false,\"wallTime\":false,\"heapObjects\":false,\"allocations\":false' | true               ",
+    "one feature true    | '\"cpuTime\":false,\"wallTime\":false,\"heapObjects\":false,\"allocations\":true'  | false              ",
+    "one feature not set | '\"cpuTime\":false,\"wallTime\":false,\"heapObjects\":false'                       | false              ",
+    "no feature set      | ''                                                                                 | false              "
+  })
+  void disablesEverythingOnlyWhenEveryFeatureIsSetAndFalse(
+      String profilers, boolean disablesEverything) {
+    assertEquals(
+        disablesEverything,
+        RemoteConfiguration.parse("{\"profilers\":{" + profilers + "}}").disablesEverything());
+  }
+
   @Test
   void ofWithoutFeaturesIsTheEmptyConfiguration() {
     assertSame(RemoteConfiguration.EMPTY, RemoteConfiguration.of(new HashMap<>()));
