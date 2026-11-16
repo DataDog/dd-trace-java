@@ -185,8 +185,8 @@ public final class QueryParameters {
     return truncated;
   }
 
+  /** Keeps the value, turning it into a string only once it is known to be kept. */
   private void put(Object key, String type, Object value) {
-    Object kept = snapshot(value);
     if (key instanceof Integer) {
       if (namedParameters != null && !namedParameters.isEmpty()) {
         namedParameters.clear();
@@ -197,7 +197,7 @@ public final class QueryParameters {
         incomplete = true;
         return;
       }
-      positionalValues[position] = kept;
+      positionalValues[position] = snapshot(value);
       positionalTypes[position] = type;
       boundPositions |= 1L << position;
     } else if (key instanceof String) {
@@ -215,7 +215,7 @@ public final class QueryParameters {
         incomplete = true;
         return;
       }
-      namedParameters.put(name, new NamedParameter(type, kept));
+      namedParameters.put(name, new NamedParameter(type, snapshot(value)));
     }
   }
 

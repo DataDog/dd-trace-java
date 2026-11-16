@@ -1,6 +1,8 @@
 package datadog.trace.instrumentation.jdbc;
 
+import static java.util.Collections.emptyList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -20,5 +22,17 @@ class QueryParametersCaptureDisabledTest extends QueryParametersTestSupport {
     }
 
     assertEquals(new TreeMap<>(), parameterTags(preparedStatementSpans(1).get(0)));
+  }
+
+  @Test
+  void statementsGetNoCaptureState() throws SQLException {
+    assertFalse(
+        new PreparedStatementInstrumentation()
+            .contextStore()
+            .containsKey("java.sql.PreparedStatement"));
+    try (PreparedStatement statement = h2.prepareStatement("SELECT 1")) {
+      // the DBQueryInfo field is on the parent class, which implements Statement
+      assertEquals(emptyList(), injectedContextFields(statement.getClass()));
+    }
   }
 }
