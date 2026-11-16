@@ -28,7 +28,6 @@ import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.DDSpan;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -460,7 +459,7 @@ class AzureCosmosEmulatorForkedTest extends AbstractInstrumentationTest {
           .append(", enabled protocols ")
           .append(Arrays.toString(context.getDefaultSSLParameters().getProtocols()));
     } catch (Throwable t) {
-      out.append(", no default SSLContext: ").append(describe(t));
+      out.append(", no default SSLContext: ").append(CosmosProbe.describe(t));
     }
     try (InputStream in = Files.newInputStream(keyStoreFile)) {
       java.security.KeyStore keyStore = java.security.KeyStore.getInstance("PKCS12");
@@ -472,7 +471,7 @@ class AzureCosmosEmulatorForkedTest extends AbstractInstrumentationTest {
             .append(keyStore.isCertificateEntry(alias) ? " (trusted cert)" : " (other entry)");
       }
     } catch (Throwable t) {
-      out.append(", trust store unreadable: ").append(describe(t));
+      out.append(", trust store unreadable: ").append(CosmosProbe.describe(t));
     }
     try {
       javax.net.ssl.HttpsURLConnection connection =
@@ -483,7 +482,7 @@ class AzureCosmosEmulatorForkedTest extends AbstractInstrumentationTest {
       out.append(" over ").append(connection.getCipherSuite());
       connection.disconnect();
     } catch (Throwable t) {
-      out.append(", JSSE request failed: ").append(describe(t));
+      out.append(", JSSE request failed: ").append(CosmosProbe.describe(t));
     }
     out.append(", with the agent: ").append(CosmosProbe.netty(emulatorUrl()));
     out.append(", without the agent: ").append(probeWithoutAgent(true));
@@ -498,6 +497,7 @@ class AzureCosmosEmulatorForkedTest extends AbstractInstrumentationTest {
   /** Runs {@link CosmosProbe} in a JVM that the tracer isn't installed in. */
   private static String probeWithoutAgent(boolean assertions) {
     try {
+      Path output = Files.createTempFile(tempDir, "cosmos-probe", ".log");
       Process process =
           new ProcessBuilder(
                   Paths.get(System.getProperty("java.home"), "bin", "java").toString(),
@@ -513,29 +513,23 @@ class AzureCosmosEmulatorForkedTest extends AbstractInstrumentationTest {
                   emulatorUrl(),
                   emulator.getEmulatorKey())
               .redirectErrorStream(true)
+              // a file rather than a pipe, so a stalled probe can't block the wait below
+              .redirectOutput(output.toFile())
               .start();
-      ByteArrayOutputStream output = new ByteArrayOutputStream();
-      try (InputStream in = process.getInputStream()) {
-        byte[] buffer = new byte[8192];
-        int read;
-        while ((read = in.read(buffer)) != -1) {
-          output.write(buffer, 0, read);
-        }
-      }
       if (!process.waitFor(2, TimeUnit.MINUTES)) {
         process.destroyForcibly();
         return "timed out";
       }
       // the SDK and Netty log around the result
       String result = "no result";
-      for (String line : output.toString("UTF-8").split("\n")) {
+      for (String line : Files.readAllLines(output)) {
         if (line.startsWith(CosmosProbe.RESULT)) {
           result = line.substring(CosmosProbe.RESULT.length());
         }
       }
       return "exit " + process.exitValue() + ", " + result;
     } catch (Throwable t) {
-      return "couldn't run: " + describe(t);
+      return "couldn't run: " + CosmosProbe.describe(t);
     }
   }
 
@@ -547,9 +541,12 @@ class AzureCosmosEmulatorForkedTest extends AbstractInstrumentationTest {
     static final String RESULT = "cosmos probe: ";
 
     public static void main(String[] args) {
-      StringBuilder out = new StringBuilder("JVM arguments ");
-      // no -javaagent, including from JAVA_TOOL_OPTIONS
-      out.append(java.lang.management.ManagementFactory.getRuntimeMXBean().getInputArguments());
+      // shows any -javaagent, including one from JAVA_TOOL_OPTIONS
+      StringBuilder out = new StringBuilder("agents ");
+      out.append(
+          java.lang.management.ManagementFactory.getRuntimeMXBean().getInputArguments().stream()
+              .filter(arg -> arg.startsWith("-javaagent") || arg.startsWith("-agent"))
+              .collect(toList()));
       out.append(", ").append(netty(args[0]));
       try {
         new CosmosClientBuilder()
@@ -596,18 +593,22 @@ class AzureCosmosEmulatorForkedTest extends AbstractInstrumentationTest {
       }
       return out.toString();
     }
-  }
 
-  /** The exception and its causes, which the build log doesn't always print. */
-  private static String describe(Throwable t) {
-    StringBuilder out = new StringBuilder();
-    for (Throwable cause = t; cause != null; cause = cause.getCause()) {
-      if (cause != t) {
-        out.append(" <- ");
+    /**
+     * The exception and its causes, which the build log doesn't always print. It's here rather than
+     * in the test class: initializing the test class needs the agent, which the probe JVM doesn't
+     * have.
+     */
+    static String describe(Throwable t) {
+      StringBuilder out = new StringBuilder();
+      for (Throwable cause = t; cause != null; cause = cause.getCause()) {
+        if (cause != t) {
+          out.append(" <- ");
+        }
+        out.append(cause);
       }
-      out.append(cause);
+      return out.toString();
     }
-    return out.toString();
   }
 
   /** Relays connections accepted on localhost to the emulator. */
