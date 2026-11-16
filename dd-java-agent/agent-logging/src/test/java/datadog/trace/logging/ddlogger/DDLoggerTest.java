@@ -331,18 +331,20 @@ class DDLoggerTest {
     Properties props = new Properties();
     props.setProperty(Keys.DEFAULT_LOG_LEVEL, "DEBUG");
     props.setProperty(Keys.SHOW_THREAD_NAME, "false");
-    props.setProperty(Keys.LOG_FILE, file.getAbsolutePath());
-    DDLoggerFactory factory = new DDLoggerFactory(new SLCompatFactory(props));
-    Logger logger = factory.getLogger("bar.baz");
-    logger.trace("test trace");
-    logger.debug("test debug");
-    logger.info("test info");
-    logger.warn("test warn");
-    logger.error("test error");
+    try (PrintStream stream = new PrintStream(file);
+        Scanner scanner = new Scanner(file)) {
+      SLCompatSettings settings = new SLCompatSettings(props, null, stream);
+      DDLoggerFactory factory = new DDLoggerFactory(new SLCompatFactory(props, settings));
+      Logger logger = factory.getLogger("bar.baz");
+      logger.trace("test trace");
+      logger.debug("test debug");
+      logger.info("test info");
+      logger.warn("test warn");
+      logger.error("test error");
+      stream.flush();
 
-    // expect
-    assertTrue(file.exists());
-    try (Scanner scanner = new Scanner(file)) {
+      // expect
+      assertTrue(file.exists());
       assertTrue(scanner.hasNextLine());
       // We should not log at trace level
       assertEquals("DEBUG bar.baz - test debug", scanner.nextLine());
