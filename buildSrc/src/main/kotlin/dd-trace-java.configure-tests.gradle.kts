@@ -1,3 +1,4 @@
+import datadog.gradle.plugin.ci.isLatestDepTest
 import datadog.gradle.plugin.testing.GeneratedGroovyClosureSpec
 import datadog.gradle.plugin.testing.configureTestAgentPostChecks
 import org.gradle.api.plugins.jvm.JvmTestSuite
@@ -103,7 +104,7 @@ tasks.withType<Test>().configureEach {
 // This is used when we only want to run the 'main' test sets.
 tasks.register("allTests") {
   dependsOn(tasks.withType<Test>().matching { testTask ->
-    !testTask.name.contains("latest", ignoreCase = true) && testTask.name != "traceAgentTest"
+    !isLatestDepTest(testTask.name) && testTask.name != "traceAgentTest"
   })
 }
 
@@ -111,7 +112,7 @@ tasks.register("allTests") {
 // This is used when we want to run tests against the latest dependency versions.
 tasks.register("allLatestDepTests") {
   dependsOn(tasks.withType<Test>().matching { testTask ->
-    testTask.name.contains("latest", ignoreCase = true)
+    isLatestDepTest(testTask.name)
   })
 }
 

@@ -3,6 +3,7 @@ package datadog.gradle.plugin.muzzle
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.SerializationFeature
+import datadog.gradle.plugin.ci.isLatestDepTest
 import datadog.gradle.plugin.testJvmConstraints.isTestJvmAllowed
 import org.eclipse.aether.util.version.GenericVersionScheme
 import org.gradle.api.JavaVersion
@@ -29,6 +30,7 @@ internal object SupportedVersions {
     val javaVersion: Int?,
     /** Instrumentation name to whether it is enabled by default. */
     val integrations: Map<String, Boolean>,
+    val skipVersions: Set<String> = emptySet(),
   )
 
   /** Muzzle ranges and tested library versions for one Java major version. */
@@ -64,8 +66,7 @@ internal object SupportedVersions {
    */
   fun testedRuntimes(suites: List<TestSuite>): Map<String, Set<Int>> =
     suites.associate { suite ->
-      // Same split as the `allTests` and `allLatestDepTests` tasks CI runs.
-      val ciJavaVersions = if (suite.name.contains("latest", ignoreCase = true)) LATEST_DEP_TEST_JAVA_VERSIONS else TEST_JAVA_VERSIONS
+      val ciJavaVersions = if (isLatestDepTest(suite.name)) LATEST_DEP_TEST_JAVA_VERSIONS else TEST_JAVA_VERSIONS
       "${suite.name}RuntimeClasspath" to ciJavaVersions.filter { javaVersion ->
         isTestJvmAllowed(
           javaVersion.toString(),
@@ -97,7 +98,8 @@ internal object SupportedVersions {
   }
 
   /**
-   * Builds the fragments of one instrumentation project.
+   * Builds the fragments of one instrumentation project. Tested versions outside the supported range are
+   * not reported, and are passed to [warn] so the muzzle range or the tests can be fixed.
    *
    * @param directives The project's pass directives.
    * @param lockfile The project's parsed lockfile, see [parseLockfile].
@@ -107,6 +109,7 @@ internal object SupportedVersions {
     directives: List<Directive>,
     lockfile: Map<String, Map<String, Set<String>>>,
     testedRuntimes: Map<String, Set<Int>>,
+    warn: (String) -> Unit = {},
   ): List<SupportedVersionsFragment> {
     val javaVersions = testedRuntimes.values.flatten().toSortedSet()
     return directives
@@ -114,23 +117,38 @@ internal object SupportedVersions {
       .groupBy { (directive, integration, _) -> directive.libraryName to integration }
       .mapNotNull { (key, matches) ->
         val (libraryName, integrationName) = key
+        val outOfRange = mutableSetOf<String>()
         val runtimes = javaVersions.mapNotNull { javaVersion ->
           val ranges = matches
             .map { it.first }
             .filter { it.javaVersion == null || it.javaVersion <= javaVersion }
-            .map { it.versions }
+            .map { excludeVersions(it.versions, it.skipVersions) }
             .toSet()
           if (ranges.isEmpty()) return@mapNotNull null
-          val tested = lockfile[libraryName].orEmpty()
+          val (tested, untested) = lockfile[libraryName].orEmpty()
             .filterValues { configurations -> configurations.any { javaVersion in testedRuntimes[it].orEmpty() } }
             .keys
+            .partition { inRange(ranges, it) }
+          outOfRange += untested
           // Only report the Java versions a test ran the library on, like the other tracers.
           if (tested.isEmpty()) return@mapNotNull null
-          javaVersion to RuntimeSupport(ranges, tested)
+          javaVersion to RuntimeSupport(ranges, tested.toSet())
         }.toMap()
+        if (outOfRange.isNotEmpty()) {
+          warn(
+            "$libraryName ($integrationName): tested versions ${sortVersions(outOfRange)} are outside the muzzle " +
+              "pass range, so they are not reported. Fix the muzzle range or the tested versions."
+          )
+        }
         if (runtimes.isEmpty()) return@mapNotNull null
         SupportedVersionsFragment(libraryName, integrationName, matches.any { it.third }, runtimes)
       }
+  }
+
+  /** The library and integration pairs of [directives] that no fragment reports, because nothing tests them. */
+  fun untested(directives: List<Directive>, fragments: List<SupportedVersionsFragment>): Set<Pair<String, String>> {
+    val reported = fragments.map { it.libraryName to it.integrationName }.toSet()
+    return directives.flatMap { directive -> directive.integrations.keys.map { directive.libraryName to it } }.toSet() - reported
   }
 
   /** Merges the fragments that several projects wrote for the same library and integration. */
@@ -171,15 +189,9 @@ internal object SupportedVersions {
       )
     }
 
-  /**
-   * Merges Maven ranges into one Maven range union without overlapping intervals. Versions excluded with
-   * `skipVersions` can't be expressed in a Maven range, so they are not reported.
-   */
+  /** Merges Maven ranges into one Maven range union without overlapping intervals. */
   fun supportedRange(ranges: Set<String>): String {
-    val intervals = ranges.flatMap { range ->
-      // A range can itself be a union, like "[1.9,1.16],[5,6)", and a bare version is the only allowed version.
-      INTERVAL.findAll(range).map { parseInterval(it.value) }.toList().ifEmpty { listOf(Interval(range, true, range, true)) }
-    }.sortedWith(Comparator { a, b -> compareLower(a, b) })
+    val intervals = ranges.flatMap { intervals(it) }.sortedWith(Comparator { a, b -> compareLower(a, b) })
     val merged = mutableListOf<Interval>()
     intervals.forEach { next ->
       val last = merged.lastOrNull()
@@ -195,28 +207,51 @@ internal object SupportedVersions {
     return merged.joinToString(",") { it.toString() }
   }
 
+  /** Removes [versions] from a Maven [range], like `[4,8)` without `4.4.19` is `[4,4.4.19),(4.4.19,8)`. */
+  fun excludeVersions(range: String, versions: Set<String>): String {
+    if (versions.isEmpty()) return range
+    return intervals(range).flatMap { interval ->
+      sortVersions(versions).filter { contains(interval, it) }.fold(listOf(interval)) { parts, version ->
+        val last = parts.last()
+        val split = listOf(last.copy(upper = version, upperInclusive = false), last.copy(lower = version, lowerInclusive = false))
+        parts.dropLast(1) + split.filterNot { isEmpty(it) }
+      }
+    }.joinToString(",") { it.toString() }
+  }
+
+  /** Whether [version] is in any of the Maven [ranges]. */
+  fun inRange(ranges: Set<String>, version: String): Boolean =
+    ranges.any { range -> intervals(range).any { contains(it, version) } }
+
   fun sortVersions(versions: Collection<String>): List<String> =
     versions.sortedBy { versionScheme.parseVersion(it) }
 
-  fun writeFragments(file: File, fragments: List<SupportedVersionsFragment>) {
+  /** A project's fragments and the pairs it doesn't report because nothing tests them. */
+  data class ProjectReport(val fragments: List<SupportedVersionsFragment>, val untested: Set<Pair<String, String>>)
+
+  fun writeReport(file: File, report: ProjectReport) {
     file.parentFile.mkdirs()
     mapper.writeValue(
       file,
-      fragments.map { fragment ->
-        linkedMapOf(
-          "libraryName" to fragment.libraryName,
-          "integrationName" to fragment.integrationName,
-          "autoInstrumented" to fragment.autoInstrumented,
-          "runtimes" to fragment.runtimes.mapValues { (_, support) ->
-            linkedMapOf("ranges" to support.ranges.sorted(), "tested" to sortVersions(support.tested))
-          },
-        )
-      },
+      linkedMapOf(
+        "fragments" to report.fragments.map { fragment ->
+          linkedMapOf(
+            "libraryName" to fragment.libraryName,
+            "integrationName" to fragment.integrationName,
+            "autoInstrumented" to fragment.autoInstrumented,
+            "runtimes" to fragment.runtimes.mapValues { (_, support) ->
+              linkedMapOf("ranges" to support.ranges.sorted(), "tested" to sortVersions(support.tested))
+            },
+          )
+        },
+        "untested" to report.untested.sortedWith(compareBy({ it.second }, { it.first })).map { listOf(it.first, it.second) },
+      ),
     )
   }
 
-  fun readFragments(file: File): List<SupportedVersionsFragment> =
-    mapper.readTree(file).map { node ->
+  fun readReport(file: File): ProjectReport {
+    val root = mapper.readTree(file)
+    val fragments = root["fragments"].map { node ->
       SupportedVersionsFragment(
         node["libraryName"].asText(),
         node["integrationName"].asText(),
@@ -226,6 +261,8 @@ internal object SupportedVersions {
         },
       )
     }
+    return ProjectReport(fragments, root["untested"].map { it[0].asText() to it[1].asText() }.toSet())
+  }
 
   fun writeEntries(file: File, entries: List<Map<String, Any>>) {
     file.parentFile.mkdirs()
@@ -244,6 +281,23 @@ internal object SupportedVersions {
       } else {
         "${if (lower != null && lowerInclusive) "[" else "("}${lower.orEmpty()},${upper.orEmpty()}${if (upper != null && upperInclusive) "]" else ")"}"
       }
+  }
+
+  /** Parses a Maven range, which can be a union like `[1.9,1.16],[5,6)` or a bare version, the only one allowed. */
+  private fun intervals(range: String): List<Interval> =
+    INTERVAL.findAll(range).map { parseInterval(it.value) }.toList().ifEmpty { listOf(Interval(range.trim(), true, range.trim(), true)) }
+
+  private fun contains(interval: Interval, version: String): Boolean {
+    val lower = interval.lower?.let { compareVersions(version, it) }
+    val upper = interval.upper?.let { compareVersions(version, it) }
+    return (lower == null || lower > 0 || (lower == 0 && interval.lowerInclusive)) &&
+      (upper == null || upper < 0 || (upper == 0 && interval.upperInclusive))
+  }
+
+  private fun isEmpty(interval: Interval): Boolean {
+    if (interval.lower == null || interval.upper == null) return false
+    val cmp = compareVersions(interval.lower, interval.upper)
+    return cmp > 0 || (cmp == 0 && !(interval.lowerInclusive && interval.upperInclusive))
   }
 
   private fun parseInterval(interval: String): Interval {

@@ -56,7 +56,7 @@ abstract class MuzzleSupportedVersionsTask : AbstractMuzzleTask() {
   fun generate() {
     val reporting = reportingDirectives.get()
     if (reporting.isEmpty()) {
-      SupportedVersions.writeFragments(supportedVersionsFile.get().asFile, emptyList())
+      SupportedVersions.writeReport(supportedVersionsFile.get().asFile, SupportedVersions.ProjectReport(emptyList(), emptySet()))
       return
     }
     val cp = instrumentationClasspath.map { it.toURI().toURL() }.toTypedArray<URL>()
@@ -71,11 +71,13 @@ abstract class MuzzleSupportedVersionsTask : AbstractMuzzleTask() {
           directive.versions!!,
           directive.javaVersion?.let { JavaVersion.toVersion(it).majorVersion.toInt() },
           integrations,
+          directive.skipVersions.toSet(),
         )
       }
     }
     val lockfile = lockfile.orNull?.asFile?.readText()?.let { SupportedVersions.parseLockfile(it) }.orEmpty()
-    val fragments = SupportedVersions.fragments(directives, lockfile, testedRuntimes.get())
-    SupportedVersions.writeFragments(supportedVersionsFile.get().asFile, fragments)
+    val fragments = SupportedVersions.fragments(directives, lockfile, testedRuntimes.get()) { logger.warn(it) }
+    val report = SupportedVersions.ProjectReport(fragments, SupportedVersions.untested(directives, fragments))
+    SupportedVersions.writeReport(supportedVersionsFile.get().asFile, report)
   }
 }

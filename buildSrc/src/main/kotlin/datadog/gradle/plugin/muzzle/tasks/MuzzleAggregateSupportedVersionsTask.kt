@@ -24,8 +24,17 @@ abstract class MuzzleAggregateSupportedVersionsTask : AbstractMuzzleTask() {
 
   @TaskAction
   fun aggregate() {
-    val fragments = supportedVersionsReports.flatMap { SupportedVersions.readFragments(it) }
-    val entries = SupportedVersions.entries(SupportedVersions.merge(fragments))
+    val reports = supportedVersionsReports.map { SupportedVersions.readReport(it) }
+    val merged = SupportedVersions.merge(reports.flatMap { it.fragments })
+    val entries = SupportedVersions.entries(merged)
+    // Another project can test a pair that one project doesn't.
+    val untested = reports.flatMap { it.untested }.toSet() - merged.map { it.libraryName to it.integrationName }.toSet()
+    if (untested.isNotEmpty()) {
+      logger.lifecycle("${untested.size} library and integration pairs have no tested version, so they are not reported (run with --info to list them)")
+      untested.sortedWith(compareBy({ it.second }, { it.first })).forEach { (library, integration) ->
+        logger.info("  not reported: $library ($integration)")
+      }
+    }
     SupportedVersions.writeEntries(supportedVersionsFile.get().asFile, entries)
     logger.info("Wrote ${entries.size} supported versions entries to\n  ${supportedVersionsFile.get().asFile}")
   }

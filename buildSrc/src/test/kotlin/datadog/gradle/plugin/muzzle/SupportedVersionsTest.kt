@@ -182,15 +182,76 @@ class SupportedVersionsTest {
   }
 
   @Test
-  fun `round trips fragments through their file`() {
+  fun `drops and warns about tested versions outside the supported range`() {
+    val warnings = mutableListOf<String>()
+    val fragments = SupportedVersions.fragments(
+      listOf(Directive("com.aerospike:aerospike-client", "[4,8)", null, mapOf("aerospike" to true), setOf("4.4.19"))),
+      mapOf(
+        "com.aerospike:aerospike-client" to mapOf(
+          "4.0.0" to setOf("testRuntimeClasspath"),
+          "4.4.19" to setOf("testRuntimeClasspath"),
+          "8.0.0" to setOf("latestDepTestRuntimeClasspath"),
+        )
+      ),
+      mapOf("testRuntimeClasspath" to setOf(8), "latestDepTestRuntimeClasspath" to setOf(21)),
+    ) { warnings += it }
+
+    assertThat(fragments).containsExactly(
+      SupportedVersionsFragment(
+        "com.aerospike:aerospike-client",
+        "aerospike",
+        true,
+        mapOf(8 to RuntimeSupport(setOf("[4,4.4.19),(4.4.19,8)"), setOf("4.0.0"))),
+      )
+    )
+    assertThat(warnings).singleElement().asString().contains("com.aerospike:aerospike-client (aerospike)", "[4.4.19, 8.0.0]")
+  }
+
+  @Test
+  fun `excludes versions from Maven ranges`() {
+    assertThat(SupportedVersions.excludeVersions("[4,8)", setOf("4.4.19"))).isEqualTo("[4,4.4.19),(4.4.19,8)")
+    assertThat(SupportedVersions.excludeVersions("[4,8)", setOf("5.0", "4.4.19", "9.0"))).isEqualTo("[4,4.4.19),(4.4.19,5.0),(5.0,8)")
+    assertThat(SupportedVersions.excludeVersions("[4,8)", setOf("4"))).isEqualTo("(4,8)")
+    assertThat(SupportedVersions.excludeVersions("[2.0,)", setOf("2.1"))).isEqualTo("[2.0,2.1),(2.1,)")
+    assertThat(SupportedVersions.excludeVersions("[1.0]", setOf("1.0"))).isEmpty()
+  }
+
+  @Test
+  fun `checks whether a version is in Maven ranges`() {
+    assertThat(SupportedVersions.inRange(setOf("[4,8)"), "7.2.3")).isTrue()
+    assertThat(SupportedVersions.inRange(setOf("[4,8)"), "8.0.0")).isFalse()
+    assertThat(SupportedVersions.inRange(setOf("(,8.0.0)"), "13.1.0")).isFalse()
+    assertThat(SupportedVersions.inRange(setOf("[2.5.0,]"), "2.3.16")).isFalse()
+    assertThat(SupportedVersions.inRange(setOf("[1,2)", "[5,6)"), "5.1")).isTrue()
+    assertThat(SupportedVersions.inRange(setOf("[,]"), "0.1")).isTrue()
+  }
+
+  @Test
+  fun `lists pairs no fragment reports`() {
+    val directives = listOf(
+      Directive("org.example:lib", "[1,)", null, mapOf("example" to true)),
+      Directive("org.example:untested", "[1,)", null, mapOf("example" to true)),
+    )
     val fragments = listOf(
-      SupportedVersionsFragment("org.example:lib", "example", true, mapOf(8 to RuntimeSupport(setOf("[1,2)"), setOf("1.0", "1.1")))),
+      SupportedVersionsFragment("org.example:lib", "example", true, mapOf(8 to RuntimeSupport(setOf("[1,)"), setOf("1.0")))),
+    )
+
+    assertThat(SupportedVersions.untested(directives, fragments)).containsExactly("org.example:untested" to "example")
+  }
+
+  @Test
+  fun `round trips project reports through their file`() {
+    val report = SupportedVersions.ProjectReport(
+      listOf(
+        SupportedVersionsFragment("org.example:lib", "example", true, mapOf(8 to RuntimeSupport(setOf("[1,2)"), setOf("1.0", "1.1")))),
+      ),
+      setOf("org.example:untested" to "example"),
     )
     val file = File(tempDir, "fragments/lib.json")
 
-    SupportedVersions.writeFragments(file, fragments)
+    SupportedVersions.writeReport(file, report)
 
-    assertThat(SupportedVersions.readFragments(file)).isEqualTo(fragments)
+    assertThat(SupportedVersions.readReport(file)).isEqualTo(report)
   }
 
   private fun suite(
