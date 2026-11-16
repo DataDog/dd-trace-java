@@ -276,6 +276,7 @@ class HashtableD1Test {
     for (int i = 0; i < 40; i++) {
       table.insert(new StringIntEntry("k" + i, i));
     }
+
     Map<String, Integer> viaForEach = new HashMap<>();
     table.forEach(e -> viaForEach.put(e.key, e.value));
 
@@ -284,6 +285,7 @@ class HashtableD1Test {
     for (StringIntEntry e = cursor.next(); e != null; e = cursor.next()) {
       assertNull(viaCursor.put(e.key, e.value), "visited twice: " + e.key);
     }
+
     assertEquals(40, viaCursor.size());
     assertEquals(viaForEach, viaCursor);
     assertNull(cursor.next(), "stays done");

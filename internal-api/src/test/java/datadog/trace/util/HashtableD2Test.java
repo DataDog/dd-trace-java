@@ -190,11 +190,13 @@ class HashtableD2Test {
     Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createBounded(PairEntry.class, 8);
     table.insert(new PairEntry("a", 1, 100));
     table.insert(new PairEntry("b", 2, 200));
+
     Set<String> seen = new HashSet<>();
     Cursor<PairEntry> cursor = table.cursor();
     for (PairEntry e = cursor.next(); e != null; e = cursor.next()) {
       seen.add(e.key1 + ":" + e.key2);
     }
+
     assertEquals(new HashSet<>(Arrays.asList("a:1", "b:2")), seen);
   }
 

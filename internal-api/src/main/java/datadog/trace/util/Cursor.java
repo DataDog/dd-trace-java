@@ -12,10 +12,12 @@ import javax.annotation.Nullable;
  * }
  * }</pre>
  *
- * <p>Prefer a cursor to an {@link java.util.Iterator} when writing a traversal. One method that
- * advances and answers needs no look-ahead: an {@code Iterator} has to compute the next element in
- * {@code hasNext()} and hold it until {@code next()}, so its implementations carry a look-ahead
- * field, an end flag, and priming in the constructor. A cursor keeps only the position.
+ * <p>Prefer a cursor to an {@link java.util.Iterator} when writing a traversal, especially one that
+ * filters or searches, where the next element isn't known until it's found (such as {@code
+ * FlatHashtable}'s probe walk). There an {@code Iterator}'s {@code hasNext()} has to find the next
+ * element and hold it until {@code next()}, so the iterator carries a prefetched element and probes
+ * for the first one in its constructor. A cursor finds each element only when asked. (An indexed
+ * walk can answer {@code hasNext()} by comparing positions, so there the two cost about the same.)
  *
  * <p>Where a producer also offers {@code forEach}, that is usually the fastest way to visit every
  * element: the whole walk stays inside the producer. A cursor is for walks a callback makes
