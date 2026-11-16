@@ -3,8 +3,8 @@
 ## Exchange state
 
 Route context is temporarily stored in an exchange property. Camel copies exchange
-properties when creating split and multicast branches; each branch starts its own
-route state while retaining its parent context. Completion restores the enclosing
+properties when creating split and multicast branches. Branches inherit parent
+context and start new route state when entering another instrumented route. Completion restores the enclosing
 state or removes the property. Application code that lists exchange properties can
 observe this temporary value.
 

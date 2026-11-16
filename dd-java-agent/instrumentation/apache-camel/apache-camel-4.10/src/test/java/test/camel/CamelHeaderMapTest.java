@@ -13,6 +13,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.apache.camel.Exchange;
 import org.apache.camel.ProducerTemplate;
 import org.apache.camel.builder.RouteBuilder;
+import org.apache.camel.component.mock.MockEndpoint;
 import org.apache.camel.impl.DefaultCamelContext;
 import org.apache.camel.impl.engine.HashMapHeadersMapFactory;
 import org.apache.camel.support.DefaultExchange;
@@ -23,9 +24,8 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 class CamelHeaderMapTest extends AbstractCamelTest {
   @Test
-  void updatesDefaultHeadersInPlaceWithoutChangingACopiedExchange() throws Exception {
+  void updatesDefaultHeadersInPlace() throws Exception {
     AtomicReference<Map<String, Object>> before = new AtomicReference<>();
-    AtomicReference<Exchange> copy = new AtomicReference<>();
     AtomicReference<String> routeParent = new AtomicReference<>();
     try (DefaultCamelContext context = new DefaultCamelContext()) {
       context.addRoutes(
@@ -37,6 +37,37 @@ class CamelHeaderMapTest extends AbstractCamelTest {
                   .process(exchange -> {
                     exchange.getIn().setHeader("X-Datadog-Parent-Id", "123");
                     before.set(exchange.getIn().getHeaders());
+                    routeParent.set(Long.toUnsignedString(activeSpan().getSpanId()));
+                  })
+                  .to("mock:headers");
+            }
+          });
+      context.getEndpoint("mock:headers", MockEndpoint.class).setCopyOnExchange(false);
+      context.start();
+      try (ProducerTemplate producer = context.createProducerTemplate()) {
+        Exchange result = producer.send("direct:headers", new DefaultExchange(context));
+        assertNull(result.getException());
+        assertSame(before.get(), result.getIn().getHeaders());
+        assertEquals(routeParent.get(), result.getIn().getHeader("x-datadog-parent-id"));
+      }
+    }
+    assertEquals(1, routeSpans(1).size());
+  }
+
+  @Test
+  void injectionDoesNotChangeHeadersOnACopiedExchange() throws Exception {
+    AtomicReference<Exchange> copy = new AtomicReference<>();
+    AtomicReference<String> routeParent = new AtomicReference<>();
+    try (DefaultCamelContext context = new DefaultCamelContext()) {
+      context.addRoutes(
+          new RouteBuilder() {
+            @Override
+            public void configure() {
+              from("direct:headers")
+                  .routeId("headers")
+                  .process(exchange -> {
+                    exchange.getIn().setHeader("X-Datadog-Parent-Id", "123");
+                    exchange.getIn().setHeader("application-header", "retained");
                     copy.set(exchange.copy());
                     routeParent.set(Long.toUnsignedString(activeSpan().getSpanId()));
                   })
@@ -47,10 +78,10 @@ class CamelHeaderMapTest extends AbstractCamelTest {
       try (ProducerTemplate producer = context.createProducerTemplate()) {
         Exchange result = producer.send("direct:headers", new DefaultExchange(context));
         assertNull(result.getException());
-        assertSame(before.get(), result.getIn().getHeaders());
-        assertNotSame(before.get(), copy.get().getIn().getHeaders());
         assertEquals(routeParent.get(), result.getIn().getHeader("x-datadog-parent-id"));
         assertEquals("123", copy.get().getIn().getHeader("x-datadog-parent-id"));
+        assertEquals("retained", result.getIn().getHeader("application-header"));
+        assertEquals("retained", copy.get().getIn().getHeader("application-header"));
       }
     }
     assertEquals(1, routeSpans(1).size());
