@@ -1,0 +1,254 @@
+package datadog.trace.instrumentation.jdbc;
+
+import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_CAPTURE_QUERY_PARAMETERS;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
+
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.core.DDSpan;
+import datadog.trace.test.junit.utils.config.WithConfig;
+import java.io.ByteArrayInputStream;
+import java.io.StringReader;
+import java.math.BigDecimal;
+import java.sql.CallableStatement;
+import java.sql.Connection;
+import java.sql.DatabaseMetaData;
+import java.sql.DriverManager;
+import java.sql.JDBCType;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.sql.Timestamp;
+import java.sql.Types;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+import org.junit.jupiter.api.Test;
+
+@WithConfig(key = JDBC_CAPTURE_QUERY_PARAMETERS, value = "true")
+class QueryParametersCaptureForkedTest extends QueryParametersTestSupport {
+
+  @Test
+  void positionalParametersUseZeroBasedKeys() throws SQLException {
+    try (PreparedStatement statement =
+        h2.prepareStatement("SELECT * FROM orders WHERE id = ? AND status = ?")) {
+      statement.setLong(1, 48213L);
+      statement.setString(2, "SHIPPED");
+      statement.executeQuery().close();
+    }
+
+    assertEquals(
+        tags(
+            "db.query.parameter.0", "48213",
+            "_dd.dbm.query.parameter_type.0", "BIGINT",
+            "db.query.parameter.1", "SHIPPED",
+            "_dd.dbm.query.parameter_type.1", "VARCHAR"),
+        parameterTags(preparedStatementSpans(1).get(0)));
+  }
+
+  @Test
+  void typesComeFromTheSetterTheSqlTypeOrTheJavaClass() throws SQLException {
+    Timestamp created = Timestamp.valueOf("2026-01-02 03:04:05.0");
+    try (PreparedStatement statement = h2.prepareStatement("SELECT ?, ?, ?, ?, ?, ?, ?, ?")) {
+      statement.setInt(1, 7);
+      statement.setObject(2, "8", Types.BIGINT);
+      statement.setObject(3, new BigDecimal("9.5"));
+      statement.setNull(4, Types.VARCHAR);
+      statement.setObject(5, null);
+      statement.setBytes(6, new byte[] {0x0A, (byte) 0xFF});
+      statement.setNString(7, "x");
+      statement.setTimestamp(8, created);
+      statement.executeQuery().close();
+    }
+
+    Map<String, Object> tags = parameterTags(preparedStatementSpans(1).get(0));
+    assertEquals("7", tags.get("db.query.parameter.0"));
+    assertEquals("INTEGER", tags.get("_dd.dbm.query.parameter_type.0"));
+    assertEquals("8", tags.get("db.query.parameter.1"));
+    assertEquals("BIGINT", tags.get("_dd.dbm.query.parameter_type.1"));
+    assertEquals("9.5", tags.get("db.query.parameter.2"));
+    assertEquals("NUMERIC", tags.get("_dd.dbm.query.parameter_type.2"));
+    assertEquals("null", tags.get("db.query.parameter.3"));
+    assertEquals("VARCHAR", tags.get("_dd.dbm.query.parameter_type.3"));
+    assertEquals("null", tags.get("db.query.parameter.4"));
+    assertEquals("NULL", tags.get("_dd.dbm.query.parameter_type.4"));
+    assertEquals("0AFF", tags.get("db.query.parameter.5"));
+    assertEquals("VARBINARY", tags.get("_dd.dbm.query.parameter_type.5"));
+    assertEquals("x", tags.get("db.query.parameter.6"));
+    assertEquals("NVARCHAR", tags.get("_dd.dbm.query.parameter_type.6"));
+    assertEquals(created.toString(), tags.get("db.query.parameter.7"));
+    assertEquals("TIMESTAMP", tags.get("_dd.dbm.query.parameter_type.7"));
+    assertEquals(null, tags.get(TRUNCATED_TAG));
+  }
+
+  @Test
+  void sqlTypeObjectsGiveTheirName() {
+    // not every driver implements setObject with a SQLType
+    QueryParameters queryParameters = new QueryParameters();
+    queryParameters.bindWithSqlType(1, "x", JDBCType.NVARCHAR);
+    AgentSpan span = startSpan("test", "query");
+    queryParameters.applyTo(span);
+    span.finish();
+
+    assertEquals("x", span.getTag("db.query.parameter.0"));
+    assertEquals("NVARCHAR", span.getTag("_dd.dbm.query.parameter_type.0"));
+  }
+
+  @Test
+  void longValuesAreTruncated() throws SQLException {
+    StringBuilder status = new StringBuilder();
+    for (int i = 0; i < 2000; i++) {
+      status.append((char) ('a' + i % 26));
+    }
+    try (PreparedStatement statement =
+        h2.prepareStatement("SELECT * FROM orders WHERE status = ?")) {
+      statement.setString(1, status.toString());
+      statement.executeQuery().close();
+    }
+
+    Map<String, Object> tags = parameterTags(preparedStatementSpans(1).get(0));
+    assertEquals(status.substring(0, 1024), tags.get("db.query.parameter.0"));
+    assertEquals(true, tags.get(TRUNCATED_TAG));
+  }
+
+  @Test
+  void parametersBeyondTheLimitAreDropped() throws SQLException {
+    StringBuilder sql = new StringBuilder("SELECT * FROM orders WHERE id IN (?");
+    for (int i = 1; i < 65; i++) {
+      sql.append(", ?");
+    }
+    try (PreparedStatement statement = h2.prepareStatement(sql.append(')').toString())) {
+      for (int i = 1; i <= 65; i++) {
+        statement.setLong(i, i);
+      }
+      statement.executeQuery().close();
+    }
+
+    Map<String, Object> tags = parameterTags(preparedStatementSpans(1).get(0));
+    assertEquals("64", tags.get("db.query.parameter.63"));
+    assertEquals(null, tags.get("db.query.parameter.64"));
+    assertEquals(true, tags.get(TRUNCATED_TAG));
+    assertEquals(64 * 2 + 1, tags.size());
+  }
+
+  @Test
+  void streamsAndLobsKeepOnlyTheirType() throws SQLException {
+    try (PreparedStatement statement =
+        h2.prepareStatement("INSERT INTO orders (id, payload, notes) VALUES (?, ?, ?)")) {
+      statement.setLong(1, 1L);
+      statement.setBinaryStream(2, new ByteArrayInputStream("secret".getBytes(UTF_8)));
+      statement.setClob(3, new StringReader("secret"));
+      statement.executeUpdate();
+    }
+
+    assertEquals(
+        tags(
+            "db.query.parameter.0",
+            "1",
+            "_dd.dbm.query.parameter_type.0",
+            "BIGINT",
+            "_dd.dbm.query.parameter_type.1",
+            "LONGVARBINARY",
+            "_dd.dbm.query.parameter_type.2",
+            "CLOB",
+            TRUNCATED_TAG,
+            true),
+        parameterTags(preparedStatementSpans(1).get(0)));
+  }
+
+  @Test
+  void clearParametersForgetsTheValues() throws SQLException {
+    try (PreparedStatement statement =
+        h2.prepareStatement("SELECT * FROM orders WHERE id = ? AND status = ?")) {
+      statement.setLong(1, 1L);
+      statement.setString(2, "NEW");
+      statement.clearParameters();
+      statement.setLong(1, 2L);
+      // the driver rejects the statement since the second parameter is not set anymore
+      assertThrows(SQLException.class, statement::executeQuery);
+    }
+
+    assertEquals(
+        tags("db.query.parameter.0", "2", "_dd.dbm.query.parameter_type.0", "BIGINT"),
+        parameterTags(preparedStatementSpans(1).get(0)));
+  }
+
+  @Test
+  void reusedStatementReportsTheValuesOfEachExecution() throws SQLException {
+    try (PreparedStatement statement =
+        h2.prepareStatement("UPDATE orders SET status = ? WHERE id = ?")) {
+      statement.setString(1, "NEW");
+      statement.setLong(2, 1L);
+      statement.executeUpdate();
+      statement.setString(1, "SHIPPED");
+      statement.executeUpdate();
+    }
+
+    List<DDSpan> spans = preparedStatementSpans(2);
+    assertEquals("NEW", spans.get(0).getTag("db.query.parameter.0"));
+    assertEquals("1", spans.get(0).getTag("db.query.parameter.1"));
+    assertEquals("SHIPPED", spans.get(1).getTag("db.query.parameter.0"));
+    assertEquals("1", spans.get(1).getTag("db.query.parameter.1"));
+  }
+
+  @Test
+  void batchesAreNotCaptured() throws SQLException {
+    try (PreparedStatement statement =
+        h2.prepareStatement("INSERT INTO orders (id, status) VALUES (?, ?)")) {
+      statement.setLong(1, 1L);
+      statement.setString(2, "NEW");
+      statement.addBatch();
+      statement.setLong(1, 2L);
+      statement.setString(2, "NEW");
+      statement.addBatch();
+      statement.executeBatch();
+    }
+
+    assertEquals(new TreeMap<>(), parameterTags(preparedStatementSpans(1).get(0)));
+  }
+
+  @Test
+  void namedParametersUseTheirName() throws SQLException {
+    try (Connection hsqldb =
+        DriverManager.getConnection("jdbc:hsqldb:mem:qparams_named", "sa", "")) {
+      DatabaseMetaData metaData = hsqldb.getMetaData();
+      assumeTrue(
+          metaData.getDriverMajorVersion() > 2 || metaData.getDriverMinorVersion() >= 5,
+          "HSQLDB supports named parameters from 2.5, run by latestDepForkedTest");
+      try (Statement statement = hsqldb.createStatement()) {
+        statement.execute("CREATE TABLE shipments (id BIGINT, status VARCHAR(20))");
+        statement.execute(
+            "CREATE PROCEDURE ship(IN order_id BIGINT, IN new_status VARCHAR(20)) "
+                + "MODIFIES SQL DATA INSERT INTO shipments VALUES (order_id, new_status)");
+      }
+      writer.clear();
+      try (CallableStatement call = hsqldb.prepareCall("{call ship(?, ?)}")) {
+        call.setLong("ORDER_ID", 48213L);
+        call.setString("NEW_STATUS", "SHIPPED");
+        call.execute();
+      }
+    }
+
+    // only the names are recorded, even if the driver implements the named setters with the
+    // positional ones
+    assertEquals(
+        tags(
+            "db.query.parameter.ORDER_ID", "48213",
+            "_dd.dbm.query.parameter_type.ORDER_ID", "BIGINT",
+            "db.query.parameter.NEW_STATUS", "SHIPPED",
+            "_dd.dbm.query.parameter_type.NEW_STATUS", "VARCHAR"),
+        parameterTags(preparedStatementSpans(1).get(0)));
+  }
+
+  private static Map<String, Object> tags(Object... keysAndValues) {
+    Map<String, Object> tags = new HashMap<>();
+    for (int i = 0; i < keysAndValues.length; i += 2) {
+      tags.put((String) keysAndValues[i], keysAndValues[i + 1]);
+    }
+    return new TreeMap<>(tags);
+  }
+}

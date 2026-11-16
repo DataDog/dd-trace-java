@@ -111,8 +111,7 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
               .and(named("setObject"))
               .and(takesArguments(3).or(takesArguments(4)))
               .and(takesArgument(2, int.class).or(takesArgument(2, named("java.sql.SQLType")))),
-          AbstractPreparedStatementInstrumentation.class.getName()
-              + "$SetObjectWithSqlTypeAdvice");
+          AbstractPreparedStatementInstrumentation.class.getName() + "$SetObjectWithSqlTypeAdvice");
       transformer.applyAdvice(
           parameterSetter.and(named("setNull")).and(takesArgument(1, int.class)),
           AbstractPreparedStatementInstrumentation.class.getName() + "$SetNullAdvice");
