@@ -125,6 +125,11 @@ class SpringBootZuulTest extends HttpServerTest<ConfigurableApplicationContext> 
   }
 
   @Override
+  Serializable expectedNormalizedRoute(ServerEndpoint endpoint) {
+    normalizedRouteOf('', expectedServerSpanRoute(endpoint))
+  }
+
+  @Override
   Map<String, Serializable> expectedExtraServerTags(ServerEndpoint endpoint) {
     ["servlet.path": endpoint.path]
   }

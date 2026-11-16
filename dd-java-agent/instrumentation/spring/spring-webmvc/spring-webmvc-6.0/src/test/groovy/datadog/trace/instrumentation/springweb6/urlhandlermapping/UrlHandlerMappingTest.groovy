@@ -157,6 +157,11 @@ class UrlHandlerMappingTest extends HttpServerTest<ConfigurableApplicationContex
   }
 
   @Override
+  Serializable expectedNormalizedRoute(ServerEndpoint endpoint) {
+    endpoint == PATH_PARAM ? '/path/{id}/param' : null
+  }
+
+  @Override
   String testPathParam() {
     '/path/{id:\\d+}/param'
   }

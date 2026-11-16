@@ -8,6 +8,10 @@ import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourc
 import datadog.context.Context;
 import datadog.trace.api.GenericClassValue;
 import datadog.trace.api.Pair;
+import datadog.trace.api.appsec.route.BoundValuesPresenceResolver;
+import datadog.trace.api.appsec.route.NormalizedRouteHelper;
+import datadog.trace.api.appsec.route.RouteTemplate;
+import datadog.trace.api.appsec.route.SpringRouteParser;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
@@ -17,6 +21,7 @@ import java.lang.reflect.Method;
 import javax.servlet.Servlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import org.springframework.util.AntPathMatcher;
 import org.springframework.web.HttpRequestHandler;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerMapping;
@@ -37,6 +42,12 @@ public class SpringWebHttpServerDecorator
       new SpringWebHttpServerDecorator(UTF8BytesString.create("spring-webmvc"));
   public static final String DD_HANDLER_SPAN_PREFIX_KEY = "dd.handler.span.";
   public static final String DD_HANDLER_SPAN_CONTINUE_SUFFIX = ".continue";
+
+  /** Lookup path cached by Spring 5.3+ {@code UrlPathHelper} (read by name: absent before 5.3). */
+  private static final String URL_PATH_HELPER_PATH_ATTRIBUTE =
+      "org.springframework.web.util.UrlPathHelper.PATH";
+
+  private static final AntPathMatcher PATH_MATCHER = new AntPathMatcher();
 
   private static final ClassValue<Pair<String, String>> HANDLER_SPAN_KEYS =
       GenericClassValue.of(type -> {
@@ -124,9 +135,140 @@ public class SpringWebHttpServerDecorator
       final Object bestMatchingPattern =
           request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE);
       if (method != null && bestMatchingPattern != null && !bestMatchingPattern.equals("/**")) {
-        HTTP_RESOURCE_DECORATOR.withRoute(span, method, bestMatchingPattern.toString());
+        final String pattern = bestMatchingPattern.toString();
+        HTTP_RESOURCE_DECORATOR.withRoute(span, method, pattern);
+        if (NormalizedRouteHelper.isEnabled()) {
+          tagNormalizedRoute(span, request, pattern);
+        }
       }
     }
+  }
+
+  /**
+   * Sets {@code _dd.appsec.normalized_route} from the matched pattern, under the mount prefix
+   * served before Spring's lookup path (see {@link #mountPrefix}).
+   */
+  private static void tagNormalizedRoute(
+      final AgentSpan span, final HttpServletRequest request, final String pattern) {
+    try {
+      final RouteTemplate template = SpringRouteParser.cached(pattern);
+      if (!template.isExpressible()) {
+        return;
+      }
+      final String cachedLookupPath = cachedLookupPath(request);
+      final String prefix = mountPrefix(request, cachedLookupPath);
+      if (template.staticRoute() != null) {
+        // nothing depends on the request: no presence to resolve
+        NormalizedRouteHelper.tag(span, template, prefix, null);
+        return;
+      }
+      final String lookupPath =
+          cachedLookupPath != null ? cachedLookupPath : fallbackLookupPath(request);
+      NormalizedRouteHelper.tag(
+          span,
+          template,
+          prefix,
+          BoundValuesPresenceResolver.fromRaw(
+              template,
+              request.getAttribute(HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE),
+              unnamedCatchAllRemainder(template, pattern, lookupPath),
+              lookupPath != null && lookupPath.endsWith("/")));
+    } catch (final Throwable ignored) {
+      // never break the request: drop the tag
+    }
+  }
+
+  /** Lookup path cached by Spring 5.3+ {@code UrlPathHelper}, or null (older Spring). */
+  private static String cachedLookupPath(final HttpServletRequest request) {
+    final Object lookupPath = request.getAttribute(URL_PATH_HELPER_PATH_ATTRIBUTE);
+    return lookupPath instanceof String ? (String) lookupPath : null;
+  }
+
+  /** Lookup path of Spring's default {@code UrlPathHelper} when it is not cached. */
+  private static String fallbackLookupPath(final HttpServletRequest request) {
+    final String pathInfo = request.getPathInfo();
+    return pathInfo != null ? pathInfo : request.getServletPath();
+  }
+
+  /** Part matched by a trailing {@code **}, computed by Spring's own matcher; null if not used. */
+  private static String unnamedCatchAllRemainder(
+      final RouteTemplate template, final String pattern, final String lookupPath) {
+    if (lookupPath == null || !template.needsUnnamedCatchAllRemainder()) {
+      return null;
+    }
+    return PATH_MATCHER.extractPathWithinPattern(pattern, lookupPath);
+  }
+
+  /**
+   * Decoded path served before the pattern. With Spring's cached lookup path (5.3+) it is the
+   * decoded context path plus the request path within the context minus the lookup path, which also
+   * covers {@code alwaysUseFullPath=true}. Otherwise it mirrors the default {@code UrlPathHelper}:
+   * context path, plus the servlet path when the DispatcherServlet has a path mapping ({@code
+   * /api/*}, pathInfo non-null). Limitation (before 5.3 only): with {@code alwaysUseFullPath=true}
+   * a path-mapped servlet gets its servlet path twice.
+   */
+  private static String mountPrefix(
+      final HttpServletRequest request, final String cachedLookupPath) {
+    final String contextPath = decodedContextPath(request);
+    final String beforeLookupPath = pathBeforeLookupPath(request, cachedLookupPath);
+    if (beforeLookupPath != null) {
+      return contextPath + beforeLookupPath;
+    }
+    final String servletPath = request.getServletPath();
+    if (request.getPathInfo() == null || servletPath == null) {
+      return contextPath;
+    }
+    return contextPath + servletPath;
+  }
+
+  /**
+   * Decoded request path within the context, without {@code ;} parameters, minus the lookup path;
+   * null when there is no lookup path or the request path does not end with it.
+   */
+  private static String pathBeforeLookupPath(
+      final HttpServletRequest request, final String lookupPath) {
+    if (lookupPath == null) {
+      return null;
+    }
+    final String requestUri = request.getRequestURI();
+    final String contextPath = request.getContextPath();
+    if (requestUri == null || (contextPath != null && !requestUri.startsWith(contextPath))) {
+      return null;
+    }
+    final String pathWithinContext =
+        NormalizedRouteHelper.decodePath(
+            removeSemicolonContent(
+                contextPath == null ? requestUri : requestUri.substring(contextPath.length())));
+    if (!pathWithinContext.endsWith(lookupPath)) {
+      return null;
+    }
+    return pathWithinContext.substring(0, pathWithinContext.length() - lookupPath.length());
+  }
+
+  /** Removes {@code ;} path parameters as Spring's {@code UrlPathHelper} does by default. */
+  private static String removeSemicolonContent(final String path) {
+    int semicolon = path.indexOf(';');
+    if (semicolon < 0) {
+      return path;
+    }
+    final StringBuilder sb = new StringBuilder(path.length());
+    int start = 0;
+    while (semicolon >= 0) {
+      sb.append(path, start, semicolon);
+      final int slash = path.indexOf('/', semicolon);
+      if (slash < 0) {
+        return sb.toString();
+      }
+      start = slash;
+      semicolon = path.indexOf(';', start);
+    }
+    return sb.append(path, start, path.length()).toString();
+  }
+
+  /** Servlet containers return the context path undecoded; the route renderer expects decoded. */
+  private static String decodedContextPath(final HttpServletRequest request) {
+    final String contextPath = request.getContextPath();
+    return contextPath == null ? "" : NormalizedRouteHelper.decodePath(contextPath);
   }
 
   public void onHandle(final AgentSpan span, final Object handler) {

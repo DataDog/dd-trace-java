@@ -17,6 +17,7 @@ import test.boot.SecurityConfig
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
+import static datadog.trace.api.appsec.route.NormalizedRouteHelper.NORMALIZED_ROUTE_TAG
 import static java.util.Collections.singletonMap
 
 class DynamicRoutingTest extends HttpServerTest<ConfigurableApplicationContext> {
@@ -216,6 +217,7 @@ class DynamicRoutingTest extends HttpServerTest<ConfigurableApplicationContext> 
           tags {
             "$Tags.COMPONENT" 'java-web-servlet-dispatcher'
             "$Tags.HTTP_ROUTE" '/error'
+            "$NORMALIZED_ROUTE_TAG" '/error'
             'servlet.context' '/'
             'servlet.path' serverEndpoint.path
             "$DDTags.PATHWAY_HASH" String
