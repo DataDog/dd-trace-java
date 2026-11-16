@@ -99,10 +99,12 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
           AbstractPreparedStatementInstrumentation.class.getName() + "$PreparedStatementAdvice",
           AbstractPreparedStatementInstrumentation.class.getName()
               + "$InvalidateQueryParametersAdvice");
-      transformer.applyAdvice(
+      transformer.applyAdvices(
           execute.and(not(nameEndsWith("Batch"))),
           AbstractPreparedStatementInstrumentation.class.getName()
-              + "$CaptureQueryParametersAdvice");
+              + "$CaptureQueryParametersAdvice",
+          AbstractPreparedStatementInstrumentation.class.getName()
+              + "$InvalidateOutParametersAdvice");
       // index for PreparedStatement, name for CallableStatement
       ElementMatcher.Junction<MethodDescription> parameterSetter =
           isPublic().and(takesArgument(0, int.class).or(takesArgument(0, String.class)));
@@ -121,6 +123,9 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
       transformer.applyAdvice(
           parameterSetter.and(named("setNull")).and(takesArgument(1, int.class)),
           AbstractPreparedStatementInstrumentation.class.getName() + "$SetNullAdvice");
+      transformer.applyAdvice(
+          parameterSetter.and(named("registerOutParameter")),
+          AbstractPreparedStatementInstrumentation.class.getName() + "$RegisterOutParameterAdvice");
       transformer.applyAdvice(
           isPublic().and(named("clearParameters")).and(takesArguments(0)),
           AbstractPreparedStatementInstrumentation.class.getName() + "$ClearParametersAdvice");
@@ -288,6 +293,33 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
         if (null != queryParameters) {
           queryParameters.invalidate();
         }
+      }
+    }
+  }
+
+  /** An execution may replace the values of INOUT parameters, without calling a setter. */
+  public static class InvalidateOutParametersAdvice {
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void onExit(@Advice.This final Statement statement) {
+      if (statement instanceof PreparedStatement) {
+        final QueryParameters queryParameters =
+            InstrumentationContext.get(PreparedStatement.class, QueryParameters.class)
+                .get((PreparedStatement) statement);
+        if (null != queryParameters && queryParameters.hasOutParameters()) {
+          queryParameters.invalidate();
+        }
+      }
+    }
+  }
+
+  public static class RegisterOutParameterAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void onExit(@Advice.This final Statement statement) {
+      if (statement instanceof PreparedStatement) {
+        QueryParameters.getOrCreate(
+                InstrumentationContext.get(PreparedStatement.class, QueryParameters.class),
+                (PreparedStatement) statement)
+            .registerOutParameter();
       }
     }
   }

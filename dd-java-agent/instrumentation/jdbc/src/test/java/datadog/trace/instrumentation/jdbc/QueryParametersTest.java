@@ -1,6 +1,8 @@
 package datadog.trace.instrumentation.jdbc;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
@@ -28,6 +30,15 @@ class QueryParametersTest {
 
     assertEquals(1, kept.conversions);
     assertEquals(0, dropped.conversions);
+  }
+
+  @Test
+  void namesThatDifferByCaseOrPrefixMayBeTheSameParameter() {
+    assertTrue(QueryParameters.mayBeSameParameter("ORDER_ID", "order_id"));
+    assertTrue(QueryParameters.mayBeSameParameter("@order_id", "ORDER_ID"));
+    assertTrue(QueryParameters.mayBeSameParameter(":order_id", "order_id"));
+    assertFalse(QueryParameters.mayBeSameParameter("order_id", "order_ids"));
+    assertFalse(QueryParameters.mayBeSameParameter("order_id", "customer_id"));
   }
 
   @Test
