@@ -44,7 +44,7 @@ class ScopeManagerDepthTest extends DDCoreJavaSpecification {
     assertInstanceOf(NoopScope.class, scope);
 
     // activate a noop scope over the limit
-    scope = scopeManager.activateManualSpan(noopSpan());
+    scope = scopeManager.activateSpan(noopSpan());
 
     // still have a noop instance
     assertInstanceOf(NoopScope.class, scope);
@@ -85,7 +85,7 @@ class ScopeManagerDepthTest extends DDCoreJavaSpecification {
     assertEquals(defaultLimit + 1, scopeManager.scopeStack().depth());
 
     // activate a noop span
-    scope = scopeManager.activateManualSpan(noopSpan());
+    scope = scopeManager.activateSpan(noopSpan());
 
     // a real instance is still returned
     assertInstanceOf(ContinuableScope.class, scope);

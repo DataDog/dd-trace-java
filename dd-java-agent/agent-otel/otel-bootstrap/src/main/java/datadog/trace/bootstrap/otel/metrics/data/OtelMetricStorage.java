@@ -48,6 +48,7 @@ public final class OtelMetricStorage {
   private final OtelInstrumentDescriptor descriptor;
   private final boolean resetOnCollect;
   private final boolean toggleRecordings;
+  private final boolean forgetUnobserved;
   private final Function<Object, OtelAggregator> aggregatorSupplier;
   private volatile Recording currentRecording;
 
@@ -58,9 +59,13 @@ public final class OtelMetricStorage {
       OtelInstrumentDescriptor descriptor, Supplier<OtelAggregator> aggregatorSupplier) {
     this.descriptor = descriptor;
     this.resetOnCollect = shouldResetOnCollect(descriptor.getType());
+    boolean observable = descriptor.getType().isObservable();
     // no need to toggle if not resetting on collect, or if it's an observable instrument
     // (observables are always invoked within the collect cycle, so no concurrent writers)
-    this.toggleRecordings = resetOnCollect && !descriptor.getType().isObservable();
+    this.toggleRecordings = resetOnCollect && !observable;
+    // observables must forget attribute sets that their callback stopped reporting: doCollect
+    // clears them all, doCollectAndReset removes the ones not reported in this collection
+    this.forgetUnobserved = observable;
     this.aggregatorSupplier = unused -> aggregatorSupplier.get();
     this.currentRecording = new Recording();
     if (toggleRecordings) {
@@ -184,10 +189,24 @@ public final class OtelMetricStorage {
     ATTRIBUTE_READERS.put(cl, reader);
   }
 
-  /** Collect data for CUMULATIVE temporality, keeping aggregators for future writes. */
+  /**
+   * Collects data points without resetting aggregator values.
+   *
+   * <p>Synchronous instruments keep their aggregators for future writes. Observable instruments
+   * start the next collection empty, so attribute sets that their callback stops reporting are no
+   * longer exported and free their cardinality slots, as the OTel SDK spec specifies for
+   * asynchronous instruments.
+   */
   private void doCollect(OtlpMetricVisitor visitor) {
     // no need to hold writers back if we are not resetting metrics on collect
-    collectDataPoints(currentRecording.aggregators, visitor, OtelAggregator::collect);
+    Map<Object, OtelAggregator> aggregators = currentRecording.aggregators;
+    collectDataPoints(aggregators, visitor, OtelAggregator::collect);
+    if (forgetUnobserved) {
+      // safe without writer coordination: observables are only written by their callbacks,
+      // which OtelMetricRegistry.collectScopedMetrics runs on the collecting thread before
+      // collecting any storage
+      aggregators.clear();
+    }
   }
 
   /**
@@ -213,8 +232,11 @@ public final class OtelMetricStorage {
 
     Map<Object, OtelAggregator> aggregators = recording.aggregators;
 
-    // avoid churn: only remove empty aggregators if we're over cardinality
-    if (aggregators.size() >= CARDINALITY_LIMIT) {
+    // callbacks have already run, so an empty observable aggregator was not reported in this
+    // collection: remove it, so a series reported again later does not compute its delta
+    // against a stale previous value. Otherwise avoid churn: only remove empty aggregators if
+    // we're over cardinality.
+    if (forgetUnobserved || aggregators.size() >= CARDINALITY_LIMIT) {
       aggregators.values().removeIf(OtelAggregator::isEmpty);
     }
 

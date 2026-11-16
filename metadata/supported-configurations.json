@@ -605,9 +605,9 @@
     ],
     "DD_CIVISIBILITY_COMPILER_PLUGIN_VERSION": [
       {
-        "version": "A",
+        "version": "B",
         "type": "string",
-        "default": "0.2.4",
+        "default": "0.2.5",
         "aliases": []
       }
     ],
@@ -8924,6 +8924,14 @@
         "aliases": []
       }
     ],
+    "DD_TRACE_OTEL_SDK_SELF_MONITORING_METRICS_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
     "DD_TRACE_OTEL_SEMANTICS_ENABLED": [
       {
         "version": "A",
@@ -8934,9 +8942,9 @@
     ],
     "DD_OTEL_TRACES_SPAN_METRICS_ENABLED": [
       {
-        "version": "A",
+        "version": "B",
         "type": "boolean",
-        "default": null,
+        "default": "false",
         "aliases": []
       }
     ],
@@ -12070,9 +12078,9 @@
     ],
     "OTEL_TRACES_SPAN_METRICS_ENABLED": [
       {
-        "version": "A",
+        "version": "B",
         "type": "boolean",
-        "default": null,
+        "default": "false",
         "aliases": []
       }
     ],
@@ -12113,7 +12121,8 @@
         "version": "A",
         "type": "string",
         "default": null,
-        "aliases": []
+        "aliases": [],
+        "sensitive": true
       }
     ],
     "OTEL_EXPORTER_OTLP_HEADERS": [

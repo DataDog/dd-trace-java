@@ -933,7 +933,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
     registerClassLoader(ClassLoader.getSystemClassLoader());
 
-    StatusLogger.logStatus(config);
+    StatusLogger.logStatus(config, initialSampler);
 
     this.profilingContextIntegration = profilingContextIntegration;
     this.injectBaggageAsTags = injectBaggageAsTags;
@@ -2319,6 +2319,16 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         requestContextDataIast = builderRequestContextDataIast;
       }
 
+      // a parent span ID implies a resolved parent; extracted contexts report themselves as remote
+      final byte parentOrigin;
+      if (parentSpanId == DDSpanId.ZERO) {
+        parentOrigin = DDSpanContext.PARENT_ORIGIN_NONE;
+      } else if (resolvedParentSpanContext.isRemote()) {
+        parentOrigin = DDSpanContext.PARENT_ORIGIN_REMOTE;
+      } else {
+        parentOrigin = DDSpanContext.PARENT_ORIGIN_LOCAL;
+      }
+
       // some attributes are inherited from the parent
       context =
           new DDSpanContext(
@@ -2346,7 +2356,8 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
               tracer.profilingContextIntegration,
               tracer.injectBaggageAsTags,
               tracer.injectLinksAsTags,
-              mergedTracerTagsNeedsIntercept ? null : mergedTracerTags);
+              mergedTracerTagsNeedsIntercept ? null : mergedTracerTags,
+              parentOrigin);
 
       // By setting the tags on the context we apply decorators to any tags that have been set via
       // the builder. The `mergedTracerTags` are always applied first (the precedence floor:
