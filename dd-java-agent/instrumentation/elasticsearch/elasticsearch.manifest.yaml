@@ -1,6 +1,6 @@
 _v: 1
 name: elasticsearch
-display_name: rest
+display_name: Elasticsearch
 description: Instruments Elasticsearch search, document and administrative operations through REST and transport
   clients.
 packages:
