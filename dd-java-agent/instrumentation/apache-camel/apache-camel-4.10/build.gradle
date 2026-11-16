@@ -20,6 +20,13 @@ addTestSuiteForDir('latestDepTest', 'test')
 dependencies {
   compileOnly 'org.apache.camel:camel-base-engine:4.10.3'
   testImplementation 'org.apache.camel:camel-core:4.10.3'
+  testImplementation 'org.apache.camel:camel-http:4.10.3'
+  testImplementation 'org.apache.camel:camel-jms:4.10.3'
+  testImplementation 'org.apache.activemq:activemq-broker:6.1.4'
+  testRuntimeOnly project(':dd-java-agent:instrumentation:apache-httpclient:apache-httpclient-5.0')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:jms:jakarta-jms-3.0')
   testRuntimeOnly project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
   latestDepTestImplementation 'org.apache.camel:camel-core:4.10.+'
+  latestDepTestImplementation 'org.apache.camel:camel-http:4.10.+'
+  latestDepTestImplementation 'org.apache.camel:camel-jms:4.10.+'
 }
