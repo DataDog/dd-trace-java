@@ -1585,7 +1585,7 @@ public class DDSpanContext
                   ? tagInterceptor.interceptTag(this, tagId, tag.getValue())
                   : tagInterceptor.interceptCustomTag(this, tag.getKey(), tag.getValue());
           if (!intercepted) {
-            unsafeSetTag(tag.getKey(), tag.getValue());
+            routeSet(tagId, tag.getKey(), tag.getValue()); // the id from above: no second lookup
           }
         }
       }
