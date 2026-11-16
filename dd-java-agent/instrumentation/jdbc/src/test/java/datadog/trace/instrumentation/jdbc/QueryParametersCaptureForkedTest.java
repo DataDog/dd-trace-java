@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.jdbc;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_CAPTURE_QUERY_PARAMETERS;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
@@ -16,9 +17,11 @@ import java.math.BigDecimal;
 import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
+import java.sql.Date;
 import java.sql.DriverManager;
 import java.sql.JDBCType;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Timestamp;
@@ -28,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import org.junit.jupiter.api.Test;
+import org.postgresql.util.PGobject;
 
 @WithConfig(key = JDBC_CAPTURE_QUERY_PARAMETERS, value = "true")
 class QueryParametersCaptureForkedTest extends QueryParametersTestSupport {
@@ -212,20 +216,62 @@ class QueryParametersCaptureForkedTest extends QueryParametersTestSupport {
   }
 
   @Test
-  void namedParametersUseTheirName() throws SQLException {
-    try (Connection hsqldb =
-        DriverManager.getConnection("jdbc:hsqldb:mem:qparams_named", "sa", "")) {
-      DatabaseMetaData metaData = hsqldb.getMetaData();
-      assumeTrue(
-          metaData.getDriverMajorVersion() > 2 || metaData.getDriverMinorVersion() >= 5,
-          "HSQLDB supports named parameters from 2.5, run by latestDepForkedTest");
-      try (Statement statement = hsqldb.createStatement()) {
-        statement.execute("CREATE TABLE shipments (id BIGINT, status VARCHAR(20))");
-        statement.execute(
-            "CREATE PROCEDURE ship(IN order_id BIGINT, IN new_status VARCHAR(20)) "
-                + "MODIFIES SQL DATA INSERT INTO shipments VALUES (order_id, new_status)");
+  void valuesThatCannotBeTurnedIntoStringsAreLeftOut() throws SQLException {
+    // a PGobject holding SQL NULL returns null from toString
+    PGobject json = new PGobject();
+    json.setType("json");
+    try (PreparedStatement statement = h2.prepareStatement("SELECT ?, ?")) {
+      statement.setObject(1, json);
+      statement.setLong(2, 1L);
+      statement.executeQuery().close();
+    }
+
+    assertEquals(
+        tags(
+            "_dd.dbm.query.parameter_type.0",
+            "JAVA_OBJECT",
+            "db.query.parameter.1",
+            "1",
+            "_dd.dbm.query.parameter_type.1",
+            "BIGINT",
+            TRUNCATED_TAG,
+            true),
+        parameterTags(preparedStatementSpans(1).get(0)));
+  }
+
+  @Test
+  void valuesChangedAfterBindingAreReportedAsBound() throws SQLException {
+    byte[] bytes = {1, 2};
+    Timestamp timestamp = Timestamp.valueOf("2026-01-02 03:04:05.0");
+    Date date = Date.valueOf("2026-01-02");
+    StringBuilder status = new StringBuilder("NEW");
+    try (PreparedStatement statement = h2.prepareStatement("SELECT ?, ?, ?, ?")) {
+      statement.setBytes(1, bytes);
+      statement.setTimestamp(2, timestamp);
+      statement.setDate(3, date);
+      statement.setObject(4, status);
+      bytes[0] = 3;
+      timestamp.setTime(0L);
+      date.setTime(0L);
+      status.setLength(0);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        resultSet.next();
+        // the database got the values as they were bound
+        assertArrayEquals(new byte[] {1, 2}, resultSet.getBytes(1));
+        assertEquals(Timestamp.valueOf("2026-01-02 03:04:05.0"), resultSet.getTimestamp(2));
       }
-      writer.clear();
+    }
+
+    Map<String, Object> tags = parameterTags(preparedStatementSpans(1).get(0));
+    assertEquals("0102", tags.get("db.query.parameter.0"));
+    assertEquals("2026-01-02 03:04:05.0", tags.get("db.query.parameter.1"));
+    assertEquals("2026-01-02", tags.get("db.query.parameter.2"));
+    assertEquals("NEW", tags.get("db.query.parameter.3"));
+  }
+
+  @Test
+  void namedParametersUseTheirName() throws SQLException {
+    try (Connection hsqldb = shipProcedureDatabase("qparams_named")) {
       try (CallableStatement call = hsqldb.prepareCall("{call ship(?, ?)}")) {
         call.setLong("ORDER_ID", 48213L);
         call.setString("NEW_STATUS", "SHIPPED");
@@ -242,6 +288,74 @@ class QueryParametersCaptureForkedTest extends QueryParametersTestSupport {
             "db.query.parameter.NEW_STATUS", "SHIPPED",
             "_dd.dbm.query.parameter_type.NEW_STATUS", "VARCHAR"),
         parameterTags(preparedStatementSpans(1).get(0)));
+  }
+
+  @Test
+  void bindingByPositionAfterNameLeavesTheNamesOut() throws SQLException {
+    try (Connection hsqldb = shipProcedureDatabase("qparams_named_then_positional")) {
+      try (CallableStatement call = hsqldb.prepareCall("{call ship(?, ?)}")) {
+        call.setLong("ORDER_ID", 1L);
+        call.setString("NEW_STATUS", "SHIPPED");
+        // the same parameter as ORDER_ID
+        call.setLong(1, 2L);
+        call.execute();
+      }
+    }
+
+    // NEW_STATUS is still bound, but a name and a position can't be matched
+    assertEquals(
+        tags(
+            "db.query.parameter.0",
+            "2",
+            "_dd.dbm.query.parameter_type.0",
+            "BIGINT",
+            TRUNCATED_TAG,
+            true),
+        parameterTags(preparedStatementSpans(1).get(0)));
+  }
+
+  @Test
+  void bindingByNameAfterPositionLeavesThePositionsOut() throws SQLException {
+    try (Connection hsqldb = shipProcedureDatabase("qparams_positional_then_named")) {
+      try (CallableStatement call = hsqldb.prepareCall("{call ship(?, ?)}")) {
+        call.setLong(1, 1L);
+        call.setString(2, "SHIPPED");
+        // the same parameter as position 1
+        call.setLong("ORDER_ID", 2L);
+        call.execute();
+      }
+    }
+
+    assertEquals(
+        tags(
+            "db.query.parameter.ORDER_ID",
+            "2",
+            "_dd.dbm.query.parameter_type.ORDER_ID",
+            "BIGINT",
+            TRUNCATED_TAG,
+            true),
+        parameterTags(preparedStatementSpans(1).get(0)));
+  }
+
+  /** Opens an HSQLDB database with a {@code ship} procedure, skipping drivers without names. */
+  private Connection shipProcedureDatabase(String name) throws SQLException {
+    Connection hsqldb = DriverManager.getConnection("jdbc:hsqldb:mem:" + name, "sa", "");
+    DatabaseMetaData metaData = hsqldb.getMetaData();
+    boolean supportsNames =
+        metaData.getDriverMajorVersion() > 2 || metaData.getDriverMinorVersion() >= 5;
+    if (!supportsNames) {
+      hsqldb.close();
+    }
+    assumeTrue(
+        supportsNames, "HSQLDB supports named parameters from 2.5, run by latestDepForkedTest");
+    try (Statement statement = hsqldb.createStatement()) {
+      statement.execute("CREATE TABLE shipments (id BIGINT, status VARCHAR(20))");
+      statement.execute(
+          "CREATE PROCEDURE ship(IN order_id BIGINT, IN new_status VARCHAR(20)) "
+              + "MODIFIES SQL DATA INSERT INTO shipments VALUES (order_id, new_status)");
+    }
+    writer.clear();
+    return hsqldb;
   }
 
   private static Map<String, Object> tags(Object... keysAndValues) {
