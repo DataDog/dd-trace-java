@@ -48,7 +48,7 @@ class TagMapSetByIdTest {
     byName.set(KnownTags.DB_INSTANCE_NAME, (Object) "orders");
     byName.set(KnownTags.DD_PROFILING_ENABLED_NAME, true);
     byName.set(KnownTags.DB_USER_NAME, 1.5f);
-    byName.set(KnownTags.DB_POOL_NAME, 2.5d);
+    byName.set(KnownTags.DB_POOL_NAME_NAME, 2.5d);
 
     assertEquals(new HashMap<>(byName), new HashMap<>(byId));
     assertEquals(5432, byId.getEntry(KnownTags.HTTP_STATUS_CODE_NAME).intValue());
