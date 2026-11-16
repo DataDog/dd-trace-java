@@ -42,6 +42,8 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 
 import datadog.communication.serialization.ByteBufferConsumer;
 import datadog.communication.serialization.FlushingBuffer;
@@ -50,11 +52,13 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.ProcessTags;
+import datadog.trace.api.cache.RadixTreeCache;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
 import datadog.trace.bootstrap.instrumentation.api.SpanLink;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.common.writer.Payload;
 import datadog.trace.common.writer.TraceGenerator.PojoSpan;
 import datadog.trace.common.writer.ddagent.V1PayloadReader.ChunkField;
@@ -183,6 +187,43 @@ class TraceMapperV1PayloadTest {
   })
   void spanKindValueConversion(String scenario, String spanKind, int expectedKind) {
     assertEquals(expectedKind, TraceMapperV1.getSpanKindValue(spanKind));
+  }
+
+  @Test
+  void preEncodedAttributeUsesItsUtf8Bytes() throws IOException {
+    UTF8BytesString url = UTF8BytesString.create("http://localhost/é/東京");
+    SpiedSerialization serialized = serializeV1PayloadWithSpy(span(singletonMap(HTTP_URL, url)));
+
+    verify(serialized.packer).writeUTF8(url);
+    assertEquals(url.toString(), readFirstSpan(serialized.payload).getAttributes().get(HTTP_URL));
+  }
+
+  @Test
+  void preEncodedEventAttributeUsesItsUtf8Bytes() throws IOException {
+    UTF8BytesString value = UTF8BytesString.create("event-value-é");
+    UTF8BytesString item = UTF8BytesString.create("event-item-東京");
+    Map<String, Object> attributes = new HashMap<>();
+    attributes.put("str", value);
+    attributes.put("arr", singletonList(item));
+    List<DDSpanEvent> spanEvents = singletonList(new DDSpanEvent("event", 5L, attributes));
+
+    SpiedSerialization serialized = serializeV1PayloadWithSpy(spanWithEvents(spanEvents));
+
+    verify(serialized.packer).writeUTF8(value);
+    verify(serialized.packer).writeUTF8(item);
+    Map<String, Object> decoded =
+        readFirstSpan(serialized.payload).getEvents().get(0).getAttributes();
+    assertEquals(value.toString(), decoded.get("str"));
+    assertEquals(singletonList(item.toString()), decoded.get("arr"));
+  }
+
+  @Test
+  void httpStatusAttributeUsesCachedUtf8Bytes() throws IOException {
+    UTF8BytesString status = RadixTreeCache.HTTP_STATUSES.get(404);
+    SpiedSerialization serialized = serializeV1PayloadWithSpy(span(emptyMap(), 404));
+
+    verify(serialized.packer).writeUTF8(status);
+    assertEquals("404", readFirstSpan(serialized.payload).getAttributes().get(HTTP_STATUS));
   }
 
   @Test
@@ -890,6 +931,32 @@ class TraceMapperV1PayloadTest {
 
     assertNotNull(capturedBody.payloadBytes);
     return capturedBody.payloadBytes;
+  }
+
+  /**
+   * Exposes writer calls alongside payload bytes: round-trip assertions alone cannot detect
+   * redundant UTF-8 encoding.
+   */
+  private static SpiedSerialization serializeV1PayloadWithSpy(PojoSpan span) {
+    TraceMapperV1 mapper = new TraceMapperV1();
+    CapturedBody capturedBody = new CapturedBody(mapper);
+    MsgPackWriter packer = spy(new MsgPackWriter(new FlushingBuffer(2 << 20, capturedBody)));
+
+    assertTrue(packer.format(singletonList(span), mapper));
+    packer.flush();
+
+    assertNotNull(capturedBody.payloadBytes);
+    return new SpiedSerialization(packer, capturedBody.payloadBytes);
+  }
+
+  private static final class SpiedSerialization {
+    private final MsgPackWriter packer;
+    private final byte[] payload;
+
+    private SpiedSerialization(MsgPackWriter packer, byte[] payload) {
+      this.packer = packer;
+      this.payload = payload;
+    }
   }
 
   private static PojoSpan span(Map<String, Object> tags) {
