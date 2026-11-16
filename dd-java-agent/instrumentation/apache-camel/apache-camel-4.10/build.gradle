@@ -6,7 +6,7 @@ muzzle {
   pass {
     group = 'org.apache.camel'
     module = 'camel-base-engine'
-    versions = '[4.10.3,4.11.0)'
+    versions = '[4.10.3,)'
     javaVersion = '17'
   }
 }
