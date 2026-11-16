@@ -4,6 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -76,8 +77,8 @@ class CamelTransportTest extends AbstractCamelTest {
     blockUntilTracesMatch(traces -> traces.stream().flatMap(List::stream).count() >= 4);
     List<DDSpan> spans = writer.stream().flatMap(List::stream).collect(Collectors.toList());
     assertEquals(4, spans.size(), "one caller, two routes, and one HTTP transport span");
-    DDSpan outer = named(spans, "http-outer");
-    DDSpan inner = named(spans, "http-inner");
+    DDSpan outer = routeSpan(spans, "http-outer");
+    DDSpan inner = routeSpan(spans, "http-inner");
     List<DDSpan> clients =
         spans.stream()
             .filter(span -> "apache-httpclient5".equals(String.valueOf(span.getTag("component"))))
@@ -94,18 +95,11 @@ class CamelTransportTest extends AbstractCamelTest {
     assertNotNull(headers);
     assertEquals("retained", headers.getFirst("application-header"));
     assertEquals(
-        java.util.Collections.singletonList(Long.toUnsignedString(client.getSpanId())),
+        singletonList(Long.toUnsignedString(client.getSpanId())),
         headers.get("x-datadog-parent-id"));
     assertEquals(
-        java.util.Collections.singletonList(Long.toUnsignedString(client.getTraceId().toLong())),
+        singletonList(Long.toUnsignedString(client.getTraceId().toLong())),
         headers.get("x-datadog-trace-id"));
     assertEquals(2, routeSpans(2).size());
-  }
-
-  private static DDSpan named(List<DDSpan> spans, String resource) {
-    return spans.stream()
-        .filter(span -> resource.contentEquals(span.getResourceName()))
-        .findFirst()
-        .orElseThrow(() -> new AssertionError("Missing route " + resource));
   }
 }

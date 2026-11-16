@@ -84,6 +84,8 @@ class CamelMessagingTest extends AbstractCamelTest {
           assertTrue(received.await(10, SECONDS), "the broker must deliver the message");
           assertNull(failure.get(), "receiving route assertions must succeed");
           assertNull(activeSpan());
+          // AUTO_ACKNOWLEDGE consumer spans finish on the next receive iteration.
+          blockUntilTracesMatch(traces -> traces.stream().flatMap(List::stream).count() >= 4);
         }
       }
     } finally {
@@ -93,11 +95,10 @@ class CamelMessagingTest extends AbstractCamelTest {
     assertSame(original, Context.current());
     assertNotEquals(
         sendingExchange.get(), receivingExchange.get(), "only the JMS message crosses the broker");
-    blockUntilTracesMatch(traces -> traces.stream().flatMap(List::stream).count() >= 4);
     List<DDSpan> spans = writer.stream().flatMap(List::stream).collect(Collectors.toList());
     assertEquals(4, spans.size(), "two routes and their JMS producer and consumer spans");
-    DDSpan sending = route(spans, "jms-sending");
-    DDSpan receiving = route(spans, "jms-receiving");
+    DDSpan sending = routeSpan(spans, "jms-sending");
+    DDSpan receiving = routeSpan(spans, "jms-receiving");
     DDSpan producer = transport(spans, "producer");
     DDSpan consumer = transport(spans, "consumer");
     assertEquals(0, sending.getParentId());
@@ -110,13 +111,6 @@ class CamelMessagingTest extends AbstractCamelTest {
       assertFalse(span.isError());
     }
     assertEquals(2, routeSpans(2).size());
-  }
-
-  private static DDSpan route(List<DDSpan> spans, String resource) {
-    return spans.stream()
-        .filter(span -> resource.contentEquals(span.getResourceName()))
-        .findFirst()
-        .orElseThrow(() -> new AssertionError("Missing route " + resource));
   }
 
   private static DDSpan transport(List<DDSpan> spans, String kind) {

@@ -12,6 +12,13 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 abstract class AbstractCamelTest extends AbstractInstrumentationTest {
+  final DDSpan routeSpan(List<DDSpan> spans, String resource) {
+    return spans.stream()
+        .filter(span -> resource.contentEquals(span.getResourceName()))
+        .findFirst()
+        .orElseThrow(() -> new AssertionError("Missing route " + resource));
+  }
+
   final List<DDSpan> routeSpans(int count) {
     blockUntilTracesMatch(traces ->
         traces.stream()
