@@ -36,19 +36,18 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.condition.DisabledIf;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -61,7 +60,15 @@ import org.testcontainers.utility.DockerImageName;
  * with the sync and the async client.
  *
  * <p>Only gateway mode is covered: the emulator doesn't support direct mode.
+ *
+ * <p>On IBM8 the SDK's first request, which reads the database account, fails and the client can't
+ * be built. It fails the same way in a JVM without the agent, while plain JSSE and reactor-netty
+ * requests to the emulator succeed, so the cause is in the SDK on that JVM, not in the
+ * instrumentation.
  */
+@DisabledIf(
+    value = "datadog.environment.JavaVirtualMachine#isIbm8",
+    disabledReason = "the Cosmos SDK can't build a client on IBM8, with or without the agent")
 class AzureCosmosEmulatorForkedTest extends AbstractInstrumentationTest {
   private static final String CONTAINER = "container";
   private static final String OPERATION_NAME = "cosmosdb.query";
@@ -433,182 +440,9 @@ class AzureCosmosEmulatorForkedTest extends AbstractInstrumentationTest {
   }
 
   private static TestClient client(String api) {
-    try {
-      return "async".equals(api)
-          ? new AsyncTestClient(clientBuilder().buildAsyncClient())
-          : new SyncTestClient(clientBuilder().buildClient());
-    } catch (Throwable t) {
-      // TODO temporary: the SDK hides why its first request fails, which only happens on IBM8
-      throw new AssertionError("the client couldn't be built, " + diagnose(), t);
-    }
-  }
-
-  /** The JVM, its TLS defaults, the trust store, and a plain JSSE request to the emulator. */
-  private static String diagnose() {
-    StringBuilder out = new StringBuilder();
-    out.append("java ")
-        .append(System.getProperty("java.vendor"))
-        .append(' ')
-        .append(System.getProperty("java.runtime.version"));
-    try {
-      javax.net.ssl.SSLContext context = javax.net.ssl.SSLContext.getDefault();
-      out.append(", default SSLContext ")
-          .append(context.getProtocol())
-          .append(" from ")
-          .append(context.getProvider())
-          .append(", enabled protocols ")
-          .append(Arrays.toString(context.getDefaultSSLParameters().getProtocols()));
-    } catch (Throwable t) {
-      out.append(", no default SSLContext: ").append(CosmosProbe.describe(t));
-    }
-    try (InputStream in = Files.newInputStream(keyStoreFile)) {
-      java.security.KeyStore keyStore = java.security.KeyStore.getInstance("PKCS12");
-      keyStore.load(in, emulator.getEmulatorKey().toCharArray());
-      out.append(", trust store ").append(keyStore.getProvider()).append(" with");
-      for (String alias : java.util.Collections.list(keyStore.aliases())) {
-        out.append(' ')
-            .append(alias)
-            .append(keyStore.isCertificateEntry(alias) ? " (trusted cert)" : " (other entry)");
-      }
-    } catch (Throwable t) {
-      out.append(", trust store unreadable: ").append(CosmosProbe.describe(t));
-    }
-    try {
-      javax.net.ssl.HttpsURLConnection connection =
-          (javax.net.ssl.HttpsURLConnection) new java.net.URL(emulatorUrl()).openConnection();
-      connection.setConnectTimeout(10_000);
-      connection.setReadTimeout(10_000);
-      out.append(", JSSE request got HTTP ").append(connection.getResponseCode());
-      out.append(" over ").append(connection.getCipherSuite());
-      connection.disconnect();
-    } catch (Throwable t) {
-      out.append(", JSSE request failed: ").append(CosmosProbe.describe(t));
-    }
-    out.append(", with the agent: ").append(CosmosProbe.netty(emulatorUrl()));
-    out.append(", without the agent: ").append(probeWithoutAgent(true));
-    out.append(", without the agent or assertions: ").append(probeWithoutAgent(false));
-    return out.toString();
-  }
-
-  private static String emulatorUrl() {
-    return "https://localhost:" + forwarder.port() + "/";
-  }
-
-  /** Runs {@link CosmosProbe} in a JVM that the tracer isn't installed in. */
-  private static String probeWithoutAgent(boolean assertions) {
-    try {
-      Path output = Files.createTempFile(tempDir, "cosmos-probe", ".log");
-      Process process =
-          new ProcessBuilder(
-                  Paths.get(System.getProperty("java.home"), "bin", "java").toString(),
-                  // the SDK's failure is an assert: the test JVM enables them, production JVMs
-                  // usually don't
-                  assertions ? "-ea" : "-da",
-                  "-cp",
-                  System.getProperty("java.class.path"),
-                  "-Djavax.net.ssl.trustStore=" + keyStoreFile,
-                  "-Djavax.net.ssl.trustStorePassword=" + emulator.getEmulatorKey(),
-                  "-Djavax.net.ssl.trustStoreType=PKCS12",
-                  CosmosProbe.class.getName(),
-                  emulatorUrl(),
-                  emulator.getEmulatorKey())
-              .redirectErrorStream(true)
-              // a file rather than a pipe, so a stalled probe can't block the wait below
-              .redirectOutput(output.toFile())
-              .start();
-      if (!process.waitFor(2, TimeUnit.MINUTES)) {
-        process.destroyForcibly();
-        return "timed out";
-      }
-      // the SDK and Netty log around the result
-      String result = "no result";
-      for (String line : Files.readAllLines(output)) {
-        if (line.startsWith(CosmosProbe.RESULT)) {
-          result = line.substring(CosmosProbe.RESULT.length());
-        }
-      }
-      return "exit " + process.exitValue() + ", " + result;
-    } catch (Throwable t) {
-      return "couldn't run: " + CosmosProbe.describe(t);
-    }
-  }
-
-  /**
-   * Builds a Cosmos client and makes one request through reactor-netty, which the SDK uses, and
-   * prints what happened on one line.
-   */
-  public static final class CosmosProbe {
-    static final String RESULT = "cosmos probe: ";
-
-    public static void main(String[] args) {
-      // shows any -javaagent, including one from JAVA_TOOL_OPTIONS
-      StringBuilder out = new StringBuilder("agents ");
-      out.append(
-          java.lang.management.ManagementFactory.getRuntimeMXBean().getInputArguments().stream()
-              .filter(arg -> arg.startsWith("-javaagent") || arg.startsWith("-agent"))
-              .collect(toList()));
-      out.append(", ").append(netty(args[0]));
-      try {
-        new CosmosClientBuilder()
-            .endpoint(args[0])
-            .key(args[1])
-            .gatewayMode()
-            .endpointDiscoveryEnabled(false)
-            .consistencyLevel(ConsistencyLevel.SESSION)
-            .buildClient()
-            .close();
-        out.append(", Cosmos client built");
-      } catch (Throwable t) {
-        out.append(", Cosmos client failed: ").append(describe(t));
-      }
-      System.out.println();
-      System.out.println(RESULT + out);
-      System.exit(0);
-    }
-
-    static String netty(String url) {
-      StringBuilder out = new StringBuilder();
-      try {
-        java.util.List<String> ciphers =
-            io.netty.handler.ssl.SslContextBuilder.forClient().build().cipherSuites();
-        out.append("Netty ")
-            .append(io.netty.handler.ssl.SslContext.defaultClientProvider())
-            .append(" ciphers ")
-            .append(ciphers);
-      } catch (Throwable t) {
-        out.append("no Netty SslContext: ").append(describe(t));
-      }
-      try {
-        Integer status =
-            reactor.netty.http.client.HttpClient.create()
-                .secure()
-                .get()
-                .uri(url)
-                .responseSingle(
-                    (response, body) -> reactor.core.publisher.Mono.just(response.status().code()))
-                .block(Duration.ofSeconds(30));
-        out.append(", reactor-netty request got HTTP ").append(status);
-      } catch (Throwable t) {
-        out.append(", reactor-netty request failed: ").append(describe(t));
-      }
-      return out.toString();
-    }
-
-    /**
-     * The exception and its causes, which the build log doesn't always print. It's here rather than
-     * in the test class: initializing the test class needs the agent, which the probe JVM doesn't
-     * have.
-     */
-    static String describe(Throwable t) {
-      StringBuilder out = new StringBuilder();
-      for (Throwable cause = t; cause != null; cause = cause.getCause()) {
-        if (cause != t) {
-          out.append(" <- ");
-        }
-        out.append(cause);
-      }
-      return out.toString();
-    }
+    return "async".equals(api)
+        ? new AsyncTestClient(clientBuilder().buildAsyncClient())
+        : new SyncTestClient(clientBuilder().buildClient());
   }
 
   /** Relays connections accepted on localhost to the emulator. */
