@@ -79,6 +79,7 @@ public final class PortableCommand {
     command.add(executable.toString());
     command.add(MIN_HEAP);
     command.add(MAX_HEAP);
+    command.addAll(ForkedTestUtils.childJvmArguments());
     command.add("-cp");
     command.add(classpath.toString());
     command.add(PortableCommandRunner.class.getName());
