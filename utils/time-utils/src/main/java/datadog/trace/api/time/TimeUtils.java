@@ -3,7 +3,7 @@ package datadog.trace.api.time;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 public abstract class TimeUtils {
 
