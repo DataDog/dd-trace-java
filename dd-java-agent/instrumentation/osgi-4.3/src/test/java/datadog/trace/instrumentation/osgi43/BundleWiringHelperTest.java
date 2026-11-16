@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.osgi43;
 
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.osgi.framework.wiring.BundleRevision.PACKAGE_NAMESPACE;
@@ -22,5 +23,41 @@ class BundleWiringHelperTest {
 
     // null tells WidenGetResourceAdvice to let the original getResource call proceed
     assertNull(BundleWiringHelper.probeResource(bundle, "com/example/Foo.class"));
+  }
+
+  @Test
+  void probeFallsBackToStandardLookupWhenBundleIsUninstalled() {
+    Bundle bundle = uninstalledBundle();
+
+    // null tells WidenGetResourceAdvice to let the original getResource call proceed
+    assertNull(BundleWiringHelper.probeResource(bundle, "com/example/Foo.class"));
+  }
+
+  @Test
+  void probeFallsBackToStandardLookupWhenBundleIsUninstalledDuringProbe() {
+    Bundle bundle = mock(Bundle.class);
+    when(bundle.adapt(BundleWiring.class))
+        .thenThrow(new IllegalStateException("Bundle has been uninstalled"));
+
+    assertNull(BundleWiringHelper.probeResource(bundle, "com/example/Foo.class"));
+  }
+
+  @Test
+  void getResourceFindsNothingWhenBundleIsUninstalled() {
+    assertNull(BundleWiringHelper.getResource(uninstalledBundle(), "com/example/Foo.class"));
+  }
+
+  @Test
+  void loadClassFindsNothingWhenBundleIsUninstalled() {
+    assertNull(BundleWiringHelper.loadClass(uninstalledBundle(), "com.example.Foo"));
+  }
+
+  /** Mimics the OSGi contract: an uninstalled bundle throws on getEntry and adapt. */
+  private static Bundle uninstalledBundle() {
+    Bundle bundle = mock(Bundle.class);
+    IllegalStateException uninstalled = new IllegalStateException("Bundle has been uninstalled");
+    when(bundle.getEntry(anyString())).thenThrow(uninstalled);
+    when(bundle.adapt(BundleWiring.class)).thenThrow(uninstalled);
+    return bundle;
   }
 }
