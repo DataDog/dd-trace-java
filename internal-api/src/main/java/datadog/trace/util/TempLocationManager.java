@@ -8,6 +8,7 @@ import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.config.inversion.ConfigHelper;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.nio.file.FileSystems;
 import java.nio.file.FileVisitResult;
@@ -69,6 +70,9 @@ public final class TempLocationManager {
     default void onCleanupStart(long timeout, TimeUnit unit) {}
   }
 
+  @SuppressFBWarnings(
+      value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
+      justification = "Each cleanup creates a visitor used only by its file-walking thread.")
   private final class CleanupVisitor implements FileVisitor<Path> {
     private boolean shouldClean;
 

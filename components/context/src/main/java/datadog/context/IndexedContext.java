@@ -5,13 +5,13 @@ import static java.util.Arrays.copyOfRange;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Arrays;
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /** {@link Context} containing many values. */
 final class IndexedContext implements SelfScopedContext {
-  final Object[] store;
+  final @Nullable Object[] store;
 
-  IndexedContext(Object[] store) {
+  IndexedContext(@Nullable Object[] store) {
     this.store = store;
   }
 
@@ -31,7 +31,7 @@ final class IndexedContext implements SelfScopedContext {
     if (index < this.store.length && this.store[index] == value) {
       return this;
     }
-    Object[] newStore = copyOfRange(this.store, 0, max(this.store.length, index + 1));
+    @Nullable Object[] newStore = copyOfRange(this.store, 0, max(this.store.length, index + 1));
     newStore[index] = value;
     return new IndexedContext(newStore);
   }

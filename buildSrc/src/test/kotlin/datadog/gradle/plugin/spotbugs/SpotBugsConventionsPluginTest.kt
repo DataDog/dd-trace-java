@@ -17,8 +17,11 @@ class SpotBugsConventionsPluginTest : GradleFixture() {
     writeFile(
       "gradle/libs.versions.toml",
       """
+      [versions]
+      spotbugs = "4.10.5"
+
       [libraries]
-      spotbugs-annotations = { module = "com.github.spotbugs:spotbugs-annotations", version = "4.10.4" }
+      spotbugs-annotations = { module = "com.github.spotbugs:spotbugs-annotations", version.ref = "spotbugs" }
       jsr305 = { module = "com.google.code.findbugs:jsr305", version = "3.0.2" }
       """
     )
@@ -32,6 +35,38 @@ class SpotBugsConventionsPluginTest : GradleFixture() {
       tasks.withType<JavaCompile>().configureEach { options.release = 8 }
       """
     )
+  }
+
+  @Test
+  fun `JSpecify overrides cannot tighten nullable parameters`() {
+    writeRootProject(
+      """dependencies { compileOnly("org.jspecify:jspecify:1.0.1") }""",
+      append = true
+    )
+    writeJavaSource(
+      "example.NullableContract",
+      """
+      package example;
+
+      import org.jspecify.annotations.NonNull;
+      import org.jspecify.annotations.Nullable;
+
+      public interface NullableContract {
+        void accept(@Nullable String value);
+      }
+
+      class TightenedContract implements NullableContract {
+        @Override
+        public void accept(@NonNull String value) {}
+      }
+      """
+    )
+
+    val result = run("spotbugsMain", expectFailure = true)
+
+    assertThat(result.task(":spotbugsMain")?.outcome).describedAs(result.output).isEqualTo(FAILED)
+    assertThat(buildFile("reports/spotbugs/spotbugsMain.html"))
+      .exists().content().contains("NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION", "TightenedContract")
   }
 
   @ParameterizedTest
