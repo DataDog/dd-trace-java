@@ -23,8 +23,8 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Data Streams off at startup, then toggled at runtime the way remote config does. Covers the live
- * config gating of JMS checkpoints, not propagator registration: JMS never injects the pathway
- * (also on master), so only stats are checked.
+ * config gating of JMS checkpoints, not propagator registration: JMS never injects the pathway,
+ * so only stats are checked.
  */
 @WithConfig(key = "data.streams.enabled", value = "false")
 class JMSDataStreamsRemoteConfigForkedTest extends AbstractInstrumentationTest {
