@@ -38,7 +38,7 @@ public class GetTagBenchmark {
    * bucket. A power-of-two length lets the index wrap with a mask.
    */
   private static final String[] KNOWN_HELD = {
-    "span.kind",
+    KnownTags.SPAN_KIND_NAME,
     KnownTags.HTTP_ROUTE_NAME,
     KnownTags.PEER_HOSTNAME_NAME,
     KnownTags.HTTP_STATUS_CODE_NAME
@@ -49,7 +49,7 @@ public class GetTagBenchmark {
   @Setup
   public void setup() {
     span = (DDSpan) TRACER.startSpan("benchmark", "get.tag");
-    span.setTag("span.kind", "client");
+    span.setTag(KnownTags.SPAN_KIND_NAME, "client");
     span.setTag(KnownTags.HTTP_ROUTE_NAME, "/users/{id}");
     span.setTag(KnownTags.PEER_HOSTNAME_NAME, "db.example");
     span.setTag(KnownTags.HTTP_STATUS_CODE_NAME, 200);

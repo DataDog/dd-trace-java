@@ -143,33 +143,15 @@ public class DDSpanContext
   private CharSequence serviceNameSource;
 
   /**
-   * The span's known tags, by id. Also the lock for all of the span's tag state. Tags belong to
-   * this span; they don't propagate to its children.
+   * The span's known tags, by id, and the lock for all of its tag state: both stores, {@link
+   * #customTagsBorrowed} and {@link #tagView}. Tags belong to this span; they don't propagate to
+   * its children.
    *
-   * <p><b>Storage.</b> The span owns its tag stores directly. This store holds the known tags and
-   * is created with the span. {@link #customTags} holds the custom tags by name and is created on
-   * the first custom write. Until then it is null, or the read-through parent's custom store,
-   * borrowed read-only while {@link #customTagsBorrowed}. Every read and write is routed by name or
-   * id straight to one of the stores. Internal bulk readers (post-processors, serializers, {@link
-   * #getTags()}) go through the cached {@link #tagView()} instead.
-   *
-   * <p><b>Locking.</b> One lock, this store itself, guards both stores, {@link #customTagsBorrowed}
-   * and {@link #tagView}. It is this store because it always exists, while {@link #customTags} may
-   * be null or borrowed.
-   *
-   * <ul>
-   *   <li>The stores are unsynchronized; they rely on this lock.
-   *   <li>Read-through parents are frozen, so reading through them needs no lock.
-   *   <li>The lock is reentrant, and that matters: code that runs while it is held may call back
-   *       into the span's setters. The tag interceptor does so from {@code setAllTags}, and
-   *       post-processors do so through the view from {@code processTagsAndBaggage}.
-   *   <li>{@link #unsafeGetTag} and {@code unsafeSetTag} skip the lock. Callers either hold it
-   *       already or guarantee that nothing mutates the span concurrently.
-   * </ul>
-   *
-   * <p>A plain lock rather than concurrent structures: tags are rarely read and written by several
-   * threads at once. They are touched by one thread after another, so a lock around each operation,
-   * or around a bulk operation, costs less than atomic operations on every access.
+   * <p>The stores aren't synchronized, so hold this lock to use them; it is this store because it
+   * always exists, unlike {@link #customTags}. The lock is reentrant on purpose: the tag
+   * interceptor and post-processors call back into the setters while it is held. {@link
+   * #unsafeGetTag} and {@code unsafeSetTag} skip it, for callers that hold it already or know
+   * nothing else touches the span.
    */
   @GuardedBy("knownTags")
   private final IdStore knownTags;
