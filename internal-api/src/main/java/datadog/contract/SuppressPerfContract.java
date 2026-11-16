@@ -1,4 +1,4 @@
-package datadog.perfcontract;
+package datadog.contract;
 
 import java.lang.annotation.Annotation;
 import java.lang.annotation.Documented;

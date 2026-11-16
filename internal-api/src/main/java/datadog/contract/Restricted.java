@@ -1,4 +1,4 @@
-package datadog.apicontract;
+package datadog.contract;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
