@@ -41,12 +41,13 @@ class DumpHangedTestPlugin : Plugin<Project> {
   }
 
   /** Executor wrapped with proper Gradle lifecycle. */
-  abstract class DumpSchedulerService : BuildService<BuildServiceParameters.None>, AutoCloseable {
+  abstract class DumpSchedulerService :
+    BuildService<BuildServiceParameters.None>,
+    AutoCloseable {
     private val executor: ScheduledExecutorService =
       Executors.newSingleThreadScheduledExecutor { r -> Thread(r, "hanged-test-dump").apply { isDaemon = true } }
 
-    fun schedule(task: () -> Unit, delay: Duration): ScheduledFuture<*> =
-      executor.schedule(task, delay.toMillis(), TimeUnit.MILLISECONDS)
+    fun schedule(task: () -> Unit, delay: Duration): ScheduledFuture<*> = executor.schedule(task, delay.toMillis(), TimeUnit.MILLISECONDS)
 
     override fun close() {
       executor.shutdownNow()
@@ -152,8 +153,7 @@ class DumpHangedTestPlugin : Plugin<Project> {
     }
   }
 
-  private fun file(baseDir: File, name: String, ext: String = "log") =
-    File(baseDir, "$name-${System.currentTimeMillis()}.$ext")
+  private fun file(baseDir: File, name: String, ext: String = "log") = File(baseDir, "$name-${System.currentTimeMillis()}.$ext")
 
   private fun dumpDirectory(t: Task): File = t.project.layout.buildDirectory
     .dir("dumps")

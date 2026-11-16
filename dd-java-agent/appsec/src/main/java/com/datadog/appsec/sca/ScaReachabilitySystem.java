@@ -17,7 +17,7 @@ import org.slf4j.LoggerFactory;
  * <p>Responsibilities:
  *
  * <ol>
- *   <li>Load {@code sca_cves.json} from the classpath.
+ *   <li>Load the bundled CVE catalog or the configured local file.
  *   <li>Build the class-name index.
  *   <li>Register {@link ScaReachabilityTransformer} with the JVM.
  *   <li>Scan already-loaded classes so that libraries loaded before agent startup are detected.

@@ -35,7 +35,6 @@ import java.lang.management.PlatformManagedObject;
 import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
 import java.util.Arrays;
-import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.List;
@@ -120,6 +119,17 @@ public final class JvmOtlpRuntimeMetrics {
     return builder.build();
   }
 
+  private static final int NUM_THREAD_STATES = Thread.State.values().length;
+
+  /** The states a live thread can be in; NEW and TERMINATED threads are never counted. */
+  private static final Thread.State[] LIVE_THREAD_STATES = {
+    Thread.State.RUNNABLE, Thread.State.BLOCKED, Thread.State.WAITING, Thread.State.TIMED_WAITING
+  };
+
+  /**
+   * Builds the Attributes for each (daemon, Thread.State) pair, indexed by state ordinal, used by
+   * jvm.thread.count. Only the {@link #LIVE_THREAD_STATES} entries are exported.
+   */
   private static Attributes[] buildThreadStateAttrs(
       Attributes legacyJmxAttributes, ThreadMXBean threadBean, boolean daemon) {
     Thread.State[] states = Thread.State.values();
@@ -385,15 +395,15 @@ public final class JvmOtlpRuntimeMetrics {
       ThreadMXBean threadBean,
       Attributes[] daemonStateAttrs,
       Attributes[] nonDaemonStateAttrs) {
-    Map<Thread.State, long[]> daemonCounts = new EnumMap<>(Thread.State.class);
-    Map<Thread.State, long[]> nonDaemonCounts = new EnumMap<>(Thread.State.class);
+    long[] daemonCounts = new long[NUM_THREAD_STATES];
+    long[] nonDaemonCounts = new long[NUM_THREAD_STATES];
     long[] ids = threadBean.getAllThreadIds();
     for (ThreadInfo info : threadBean.getThreadInfo(ids)) {
       if (info == null) {
         continue; // thread terminated between getAllThreadIds and getThreadInfo
       }
-      Map<Thread.State, long[]> bucket = threadInfoIsDaemon(info) ? daemonCounts : nonDaemonCounts;
-      bucket.computeIfAbsent(info.getThreadState(), k -> new long[1])[0]++;
+      long[] bucket = threadInfoIsDaemon(info) ? daemonCounts : nonDaemonCounts;
+      bucket[info.getThreadState().ordinal()]++;
     }
     recordThreadStateCounts(storage, daemonCounts, daemonStateAttrs);
     recordThreadStateCounts(storage, nonDaemonCounts, nonDaemonStateAttrs);
@@ -406,11 +416,11 @@ public final class JvmOtlpRuntimeMetrics {
    */
   private static void collectThreadCountsViaThreadGroup(
       OtelMetricStorage storage, Attributes[] daemonStateAttrs, Attributes[] nonDaemonStateAttrs) {
-    Map<Thread.State, long[]> daemonCounts = new EnumMap<>(Thread.State.class);
-    Map<Thread.State, long[]> nonDaemonCounts = new EnumMap<>(Thread.State.class);
+    long[] daemonCounts = new long[NUM_THREAD_STATES];
+    long[] nonDaemonCounts = new long[NUM_THREAD_STATES];
     for (Thread thread : enumerateAllThreads()) {
-      Map<Thread.State, long[]> bucket = thread.isDaemon() ? daemonCounts : nonDaemonCounts;
-      bucket.computeIfAbsent(thread.getState(), k -> new long[1])[0]++;
+      long[] bucket = thread.isDaemon() ? daemonCounts : nonDaemonCounts;
+      bucket[thread.getState().ordinal()]++;
     }
     recordThreadStateCounts(storage, daemonCounts, daemonStateAttrs);
     recordThreadStateCounts(storage, nonDaemonCounts, nonDaemonStateAttrs);
@@ -447,10 +457,15 @@ public final class JvmOtlpRuntimeMetrics {
     return trimmed;
   }
 
+  /**
+   * Records every live thread state, with 0 for empty states: the metric storage keeps exporting
+   * the last value of a series that a callback stops recording, so skipping an empty state would
+   * leave its last count exported.
+   */
   private static void recordThreadStateCounts(
-      OtelMetricStorage storage, Map<Thread.State, long[]> counts, Attributes[] attrsByState) {
-    for (Map.Entry<Thread.State, long[]> entry : counts.entrySet()) {
-      storage.recordLong(entry.getValue()[0], attrsByState[entry.getKey().ordinal()]);
+      OtelMetricStorage storage, long[] countsByState, Attributes[] attrsByState) {
+    for (Thread.State state : LIVE_THREAD_STATES) {
+      storage.recordLong(countsByState[state.ordinal()], attrsByState[state.ordinal()]);
     }
   }
 

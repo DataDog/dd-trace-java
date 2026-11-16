@@ -37,7 +37,6 @@ import datadog.trace.api.telemetry.WafMetricCollector.WafErrorCode;
 import datadog.trace.api.telemetry.WafMetricCollector.WafInitRawMetric;
 import datadog.trace.api.telemetry.WafMetricCollector.WafMetric;
 import datadog.trace.api.telemetry.WafMetricCollector.WafUpdatesRawMetric;
-import datadog.trace.test.util.DDJavaSpecification;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -63,7 +62,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.tabletest.junit.TableTest;
 
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
-class WafMetricCollectorTest extends DDJavaSpecification {
+class WafMetricCollectorTest {
 
   /**
    * Call-path tags every ai_guard metric carries. Both are constant while a direct SDK call is the

@@ -111,6 +111,18 @@ public class WebController {
     return "EXECUTED";
   }
 
+  @GetMapping("/ssrf/url")
+  public String ssrfUrl(@RequestParam("url") final String url) {
+    try {
+      new URL(url + "/latest/meta-data/").openStream().close();
+    } catch (final BlockingException e) {
+      throw e;
+    } catch (final Throwable e) {
+      // ignore errors opening connection
+    }
+    return "EXECUTED";
+  }
+
   @GetMapping("/ssrf/apache-httpclient4")
   public String apacheHttpClient4(@RequestParam("domain") final String domain) {
     final DefaultHttpClient client = new DefaultHttpClient();

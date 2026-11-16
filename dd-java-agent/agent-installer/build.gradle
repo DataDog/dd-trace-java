@@ -30,6 +30,7 @@ dependencies {
   compileOnly project(':products:metrics:metrics-lib')
 
   testImplementation project(':dd-java-agent:testing')
+  testImplementation libs.bundles.mockito
 }
 
 tasks.named("compileMain_java11Java", JavaCompile) {

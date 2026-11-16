@@ -515,6 +515,7 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
                     tag("request_id", is(REQUEST_ID)),
                     tag("_dd.appsec.serverless.tracer", is(1)),
                     tag(Tags.HTTP_METHOD, is("GET")),
+                    tag(Tags.HTTP_CLIENT_IP, is("127.0.0.1")),
                     // The tracer tags http.url without the query string; QueryObfuscator
                     // obfuscates http.query.string and re-appends it as the trace is serialised
                     tag(Tags.HTTP_URL, is("https://api.example.com/api/users/123?q=hello")),

@@ -17,17 +17,24 @@ import org.junit.jupiter.api.Test;
 class TagMapBucketHashTest {
   private static final int BUCKET_MASK = 15; // TagMap's 16 buckets
 
-  /** Every known tag id the registry generated. */
+  /**
+   * Every known tag id the registry generated: KnownTags' own static long fields, whatever their
+   * names (an id is named after its tag, so no suffix marks it).
+   */
   static List<Long> knownTagIds() throws IllegalAccessException {
     List<Long> ids = new ArrayList<>();
     for (Field field : KnownTags.class.getFields()) {
-      if (Modifier.isStatic(field.getModifiers())
-          && field.getType() == long.class
-          && field.getName().endsWith("_ID")) {
+      if (Modifier.isStatic(field.getModifiers()) && field.getType() == long.class) {
         ids.add(field.getLong(null));
       }
     }
     return ids;
+  }
+
+  @Test
+  void knownTagIdsCoverEveryTag() throws IllegalAccessException {
+    // One id per serial, 1 until SERIAL_LIMIT: catches a helper that silently selects a subset.
+    assertEquals(KnownTags.SERIAL_LIMIT - 1, knownTagIds().size());
   }
 
   @Test

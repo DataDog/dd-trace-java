@@ -1,15 +1,25 @@
 package datadog.trace.instrumentation.play27.server.test
 
+import datadog.context.Context
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
+import datadog.trace.agent.test.naming.TestingOtelHttpSemantics
+import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
+import datadog.trace.api.KnownTags
 import datadog.trace.api.config.TraceInstrumentationConfig
+import datadog.trace.api.gateway.InferredProxySpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.instrumentation.play26.PlayAdvice
 import datadog.trace.instrumentation.play26.PlayHttpServerDecorator
 import datadog.trace.instrumentation.play26.server.TestHttpErrorHandler
 import play.api.BuiltInComponents
+import play.api.libs.typedmap.TypedMap$
+import play.api.mvc.Request as ScalaRequest
+import play.api.routing.HandlerDef
 import play.libs.concurrent.ClassLoaderExecution
 import play.routing.Router
 import spock.lang.Shared
@@ -24,6 +34,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWAR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext
 
 class PlayAsyncServerRoutesScalaWithErrorHandlerTest extends AbstractPlayServer27WithErrorHandlerTest {
   @Shared
@@ -73,10 +84,24 @@ class PlayAsyncServerRoutesScalaWithErrorHandlerTest extends AbstractPlayServer2
     }
   }
 
+  @Override
+  Serializable expectedServerSpanRoute(HttpServerTest.ServerEndpoint endpoint) {
+    Config.get().isTraceOtelSemanticsEnabled() ? routeFor(endpoint) : null
+  }
+
+  @Override
+  Map<String, Serializable> expectedExtraServerTags(HttpServerTest.ServerEndpoint endpoint) {
+    Config.get().isTraceOtelSemanticsEnabled() ? [:] : [(Tags.HTTP_ROUTE): null]
+  }
+
   // we set Tags.HTTP_ROUTE with a routes file; override method for this
   @Override
   void handlerSpan(TraceAssert trace, HttpServerTest.ServerEndpoint endpoint = SUCCESS) {
     def expectedQueryTag = expectedQueryTag(endpoint)
+    def expectedRoute = routeFor(endpoint)
+    def otelSemantics = Config.get().isTraceOtelSemanticsEnabled()
+    def requestUrl = endpoint.resolve(address)
+    def expectedPath = Config.get().isHttpServerRawResource() && supportsRaw() ? requestUrl.rawPath : requestUrl.path
     trace.span {
       serviceName expectedServiceName()
       operationName "play.request"
@@ -89,18 +114,102 @@ class PlayAsyncServerRoutesScalaWithErrorHandlerTest extends AbstractPlayServer2
         "$Tags.PEER_HOST_IPV4" '127.0.0.1'
         "$Tags.HTTP_CLIENT_IP" (endpoint == FORWARDED ? endpoint.body : '127.0.0.1')
         "$Tags.NETWORK_CLIENT_IP" '127.0.0.1'
-        "$Tags.HTTP_URL" String
-        "$Tags.HTTP_HOSTNAME" address.host
+        if (otelSemantics) {
+          "$Tags.HTTP_URL" null
+          "$Tags.HTTP_HOSTNAME" address.host
+          "$KnownTags.SERVER_PORT_NAME" address.port
+          "$KnownTags.URL_PATH_NAME" expectedPath
+          "$KnownTags.URL_SCHEME_NAME" address.scheme
+        } else {
+          "$Tags.HTTP_URL" String
+          "$Tags.HTTP_HOSTNAME" address.host
+        }
         "$Tags.HTTP_METHOD" String
-        "$Tags.HTTP_ROUTE" this.routeFor(endpoint)
+        "$Tags.HTTP_ROUTE" expectedRoute
         if (endpoint == EXCEPTION || endpoint == CUSTOM_EXCEPTION) {
           errorTags(endpoint == CUSTOM_EXCEPTION ? TestHttpErrorHandler.CustomRuntimeException : RuntimeException, endpoint.body)
         }
         if (endpoint.query) {
-          "$DDTags.HTTP_QUERY" expectedQueryTag
+          tag(otelSemantics ? KnownTags.URL_QUERY_NAME : DDTags.HTTP_QUERY, expectedQueryTag)
         }
         defaultTags()
       }
     }
+  }
+}
+
+class PlayAsyncServerRoutesOtelSemanticsForkedTest extends PlayAsyncServerRoutesScalaWithErrorHandlerTest implements TestingOtelHttpSemantics {}
+
+class PlayRouteTracingFilterOtelSemanticsForkedTest extends InstrumentationSpecification {
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig('trace.inferred.proxy.services.enabled', 'true')
+    injectSysConfig('trace.otel.semantics.enabled', 'true')
+  }
+
+  def "application routes preserve gateway routes and skip tracing filters before sampling"() {
+    setup:
+    def handler = Stub(HandlerDef) {
+      path() >> '/items/{param}'
+    }
+    def requestAttributes = TypedMap$.MODULE$.empty().updated(Router.Attrs.HANDLER_DEF.asScala(), handler)
+    def request = Stub(ScalaRequest) {
+      attrs() >> requestAttributes
+      method() >> 'GET'
+      path() >> '/items/value'
+      host() >> 'localhost'
+      remoteAddress() >> '127.0.0.1'
+      rawQueryString() >> ''
+    }
+    request.addAttr(_, _) >> request
+    def inferred = InferredProxySpan.fromHeaders([
+      'x-dd-proxy': 'aws-apigateway',
+      'x-dd-proxy-request-time-ms': Long.toString(System.currentTimeMillis()),
+      'x-dd-proxy-httpmethod': 'GET',
+      'x-dd-proxy-path': '/public/items/value',
+      'x-dd-proxy-resource-path': '/public/{proxy+}'
+    ])
+    def parent = inferredProxy ? Context.root().with(inferred) : Context.root()
+    def serverContext = PlayHttpServerDecorator.DECORATE.startSpan(null, parent)
+    def server = fromContext(serverContext)
+    server.setResourceName('GET')
+    def serverScope = serverContext.attach()
+    def filter = tracingFilter ? TEST_TRACER.startSpan('test', 'filter1') : null
+    filter?.setResourceName('filter1')
+    def filterScope = filter ? TEST_TRACER.activateManualSpan(filter) : null
+    def playScope
+    def play
+
+    when:
+    playScope = PlayAdvice.onEnter(request)
+    play = fromContext(playScope.context())
+
+    then:
+    play.getTag('http.route') == '/items/{param}'
+    server.getTag('http.route') == '/items/{param}'
+    server.resourceName.toString() == 'GET /items/{param}'
+    play.parentId == (filter ?: server).spanId
+    !filter || filter.getTag('http.route') == null
+    !filter || filter.resourceName.toString() == 'filter1'
+    !inferredProxy || server.parentId == server.localRootSpan.spanId
+    !inferredProxy || server.localRootSpan.getTag('http.route') == '/public/{proxy+}'
+    !inferredProxy || server.localRootSpan.resourceName.toString() == 'GET /public/{proxy+}'
+
+    cleanup:
+    playScope?.close()
+    play?.finish()
+    filterScope?.close()
+    filter?.finish()
+    serverScope?.close()
+    server?.finish()
+    inferred?.finish()
+
+    where:
+    inferredProxy | tracingFilter
+    false         | false
+    false         | true
+    true          | false
+    true          | true
   }
 }

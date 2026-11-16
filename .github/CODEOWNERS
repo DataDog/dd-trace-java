@@ -1,5 +1,9 @@
 # CODEOWNERS syntax: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners#codeowners-syntax
 # Note that the apm-java team co-owns some product paths to help with reviews.
+# Explicit file entries should change the owners inherited from preceding rules.
+# CI checks tracked, rooted literal file entries with: python3 tooling/check_codeowners.py
+# Directory and wildcard entries are excluded because they can cover future files.
+# See CONTRIBUTING.md#codeowners-changes for scope and failure recovery.
 
 # Shared core with product overrides below
 /dd-trace-core/                @DataDog/apm-java
@@ -143,7 +147,6 @@
 /setup.sh                                  @DataDog/apm-java @DataDog/apm-lang-platform-java
 /static-analysis.datadog.yml               @DataDog/apm-java @DataDog/apm-lang-platform-java
 /tooling/                                  @DataDog/apm-java @DataDog/apm-lang-platform-java
-/gradle/java_no_deps.gradle                @DataDog/apm-java @DataDog/apm-lang-platform-java
 /gradle/wrapper/                           @DataDog/apm-java @DataDog/apm-lang-platform-java
 /repository.datadog.yaml                   @DataDog/apm-java @DataDog/apm-lang-platform-java
 /utils/test-junit-converter-utils/         @DataDog/apm-java @DataDog/apm-lang-platform-java

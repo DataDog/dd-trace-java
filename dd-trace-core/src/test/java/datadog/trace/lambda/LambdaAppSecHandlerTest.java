@@ -1,9 +1,12 @@
 package datadog.trace.lambda;
 
 import static datadog.json.JsonMapper.toJson;
+import static datadog.trace.api.config.TracerConfig.TRACE_CLIENT_IP_HEADER;
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.lambda.LambdaEventParser.detectTriggerType;
 import static datadog.trace.lambda.LambdaEventParser.parseResponse;
+import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectSysConfig;
+import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -11,6 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -77,6 +81,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.tabletest.junit.TableTest;
 
@@ -483,50 +488,54 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   }
 
   @TableTest({
-    "Scenario               | Header           | Value                           | Expected Ip           ",
-    "xff                    | X-Forwarded-For  | '1.1.1.1'                       | '1.1.1.1'             ",
-    "xff last entry         | X-Forwarded-For  | '10.0.0.1, 1.1.1.1'             | '1.1.1.1'             ",
-    "xff multiple prefixes  | X-Forwarded-For  | '10.0.0.1, 1.1.1.1, 8.8.8.8'    | '8.8.8.8'             ",
-    "xff invalid prefix     | X-Forwarded-For  | 'invalid, 1.1.1.1'              | '1.1.1.1'             ",
-    "xff ipv6               | X-Forwarded-For  | '2001:4860:4860::8888'          | '2001:4860:4860::8888'",
-    "xff ipv6 last entry    | X-Forwarded-For  | 'fd00::1, 2001:4860:4860::8888' | '2001:4860:4860::8888'",
-    "xff private ipv6       | X-Forwarded-For  | 'fd00::1'                       | 'fd00::1'             ",
-    "xff private last entry | X-Forwarded-For  | '1.1.1.1, fd00::1'              | 'fd00::1'             ",
-    "xff padded last entry  | X-Forwarded-For  | '10.0.0.1,  1.1.1.1  '          | '1.1.1.1'             ",
-    "xff empty last entry   | X-Forwarded-For  | '1.1.1.1, '                     |                       ",
-    "ignored forwarded      | Forwarded        | 'for=1.1.1.1'                   |                       ",
-    "ignored real ip        | X-Real-IP        | '1.1.1.1'                       |                       ",
-    "ignored fastly         | Fastly-Client-IP | '1.1.1.1'                       |                       ",
-    "ignored cf             | CF-Connecting-IP | '1.1.1.1'                       |                       ",
-    "empty ip               | X-Forwarded-For  | ''                              |                       ",
-    "missing ip             |                  |                                 |                       "
+    "Scenario               | Header           | Value                           | Expected Ip            | Expected Client Ip           ",
+    "xff                    | X-Forwarded-For  | '1.1.1.1'                       | '1.1.1.1'              | '1.1.1.1'                    ",
+    "xff last entry         | X-Forwarded-For  | '10.0.0.1, 1.1.1.1'             | '1.1.1.1'              | '1.1.1.1'                    ",
+    "xff multiple prefixes  | X-Forwarded-For  | '10.0.0.1, 1.1.1.1, 8.8.8.8'    | '8.8.8.8'              | '1.1.1.1'                    ",
+    "xff invalid prefix     | X-Forwarded-For  | 'invalid, 1.1.1.1'              | '1.1.1.1'              | '1.1.1.1'                    ",
+    "xff ipv6               | X-Forwarded-For  | '2001:4860:4860::8888'          | '2001:4860:4860::8888' | '2001:4860:4860:0:0:0:0:8888'",
+    "xff ipv6 last entry    | X-Forwarded-For  | 'fd00::1, 2001:4860:4860::8888' | '2001:4860:4860::8888' | '2001:4860:4860:0:0:0:0:8888'",
+    "xff private ipv6       | X-Forwarded-For  | 'fd00::1'                       | 'fd00::1'              |                              ",
+    "xff private last entry | X-Forwarded-For  | '1.1.1.1, fd00::1'              | 'fd00::1'              | '1.1.1.1'                    ",
+    "xff padded last entry  | X-Forwarded-For  | '10.0.0.1,  1.1.1.1  '          | '1.1.1.1'              | '1.1.1.1'                    ",
+    "xff empty last entry   | X-Forwarded-For  | '1.1.1.1, '                     |                        | '1.1.1.1'                    ",
+    "ignored forwarded      | Forwarded        | 'for=1.1.1.1'                   |                        | '1.1.1.1'                    ",
+    "ignored real ip        | X-Real-IP        | '1.1.1.1'                       |                        | '1.1.1.1'                    ",
+    "ignored fastly         | Fastly-Client-IP | '1.1.1.1'                       |                        | '1.1.1.1'                    ",
+    "ignored cf             | CF-Connecting-IP | '1.1.1.1'                       |                        | '1.1.1.1'                    ",
+    "empty ip               | X-Forwarded-For  | ''                              |                        |                              ",
+    "missing ip             |                  |                                 |                        |                              "
   })
-  void albReadsSourceIpFromXffOnly(String header, String value, String expectedIp) {
+  // The shared resolver ignores fd00::1; it still remains the unmodified source address.
+  void albReadsSourceIpFromXffOnly(
+      String header, String value, String expectedIp, String expectedClientIp) {
     for (boolean multiValue : new boolean[] {false, true}) {
       String jsonValue = value == null || value.isEmpty() ? "\"\"" : toJson(value);
       String headers =
           header == null
               ? "{}"
               : "{\"" + header + "\": " + (multiValue ? "[" + jsonValue + "]" : jsonValue) + "}";
-      assertAlbClientIp(headers, multiValue, expectedIp);
+      assertAlbSourceAndClientIp(headers, multiValue, expectedIp, expectedClientIp);
     }
   }
 
   @TableTest({
-    "Scenario           | Xff        | Forwarded     | Expected Ip",
-    "xff wins           | '1.1.1.1'  | 'for=8.8.8.8' | '1.1.1.1'  ",
-    "private xff wins   | '10.0.0.1' | 'for=8.8.8.8' | '10.0.0.1' ",
-    "empty xff fallback | ''         | 'for=8.8.8.8' |            "
+    "Scenario           | Xff        | Forwarded     | Expected Ip | Expected Client Ip",
+    "xff wins           | '1.1.1.1'  | 'for=8.8.8.8' | '1.1.1.1'   | '1.1.1.1'         ",
+    "private xff wins   | '10.0.0.1' | 'for=8.8.8.8' | '10.0.0.1'  | '8.8.8.8'         ",
+    "empty xff fallback | ''         | 'for=8.8.8.8' |             | '8.8.8.8'         "
   })
-  void albIgnoresForwardedWhenResolvingSourceIp(String xff, String forwarded, String expectedIp) {
-    assertAlbClientIp(
+  void albIgnoresForwardedWhenResolvingSourceIp(
+      String xff, String forwarded, String expectedIp, String expectedClientIp) {
+    assertAlbSourceAndClientIp(
         "{\"X-Forwarded-For\": "
             + (xff.isEmpty() ? "\"\"" : toJson(xff))
             + ", \"Forwarded\": "
             + toJson(forwarded)
             + "}",
         false,
-        expectedIp);
+        expectedIp,
+        expectedClientIp);
   }
 
   @TableTest({
@@ -537,25 +546,39 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     "websocket    | '{\"headers\":%s,\"requestContext\":{\"connectionId\":\"c1\",\"routeKey\":\"$connect\",\"identity\":{\"sourceIp\":\"9.9.9.9\"}}}'                                                    | '9.9.9.9'  "
   })
   void otherTriggersKeepTheirExplicitEventSourceIp(String eventJson, String expectedIp) {
-    for (String headersJson :
-        new String[] {
-          "{}",
-          "{\"x-forwarded-for\":\"invalid\",\"forwarded\":\"for=unknown\"}",
-          "{\"x-forwarded-for\":\"1.1.1.1\"}",
-          "{\"x-forwarded-for\":\"10.0.0.1\"}",
-          "{\"x-forwarded-for\":\"invalid\",\"forwarded\":\"for=1.1.1.1\"}"
-        }) {
-      String[] peerIp = {null};
-      setupMockCallbacks(new Callbacks().onSocketAddress((ip, port) -> peerIp[0] = ip));
+    String[][] headerCases = {
+      {"{}", expectedIp},
+      {"{\"x-forwarded-for\":\"invalid\",\"forwarded\":\"for=unknown\"}", expectedIp},
+      {"{\"x-forwarded-for\":\"1.1.1.1\"}", "1.1.1.1"},
+      {"{\"x-forwarded-for\":\"10.0.0.1\"}", expectedIp},
+      {"{\"x-forwarded-for\":\"invalid\",\"forwarded\":\"for=1.1.1.1\"}", "1.1.1.1"}
+    };
+    for (boolean resolverEnabled : new boolean[] {true, false}) {
+      injectSysConfig("trace.client-ip.resolver.enabled", String.valueOf(resolverEnabled));
+      injectSysConfig("trace.client-ip.enabled", "false");
+      for (String[] headerCase : headerCases) {
+        String headersJson = headerCase[0];
+        String expectedClientIp = resolverEnabled ? headerCase[1] : null;
+        String[] peerIp = {null};
+        List<String> inferredAddresses = new ArrayList<>();
+        setupMockCallbacks(
+            new Callbacks()
+                .onSocketAddress((ip, port) -> peerIp[0] = ip)
+                .onInferredAddress(inferredAddresses::add));
 
-      AgentSpanContext context =
-          LambdaAppSecHandler.processRequestStart(
-              createInputStream(String.format(eventJson, headersJson)));
+        AgentSpanContext context =
+            LambdaAppSecHandler.processRequestStart(
+                createInputStream(String.format(eventJson, headersJson)));
 
-      assertNotNull(context, headersJson);
-      assertEquals(expectedIp, peerIp[0], headersJson);
-      assertNull(tagsOf(context).get(Tags.HTTP_CLIENT_IP), headersJson);
-      assertNull(tagsOf(context).get(Tags.NETWORK_CLIENT_IP), headersJson);
+        assertNotNull(context, headersJson);
+        assertEquals(expectedIp, peerIp[0], headersJson);
+        assertEquals(expectedClientIp, tagsOf(context).get(Tags.HTTP_CLIENT_IP), headersJson);
+        assertEquals(
+            expectedClientIp == null ? emptyList() : singletonList(expectedClientIp),
+            inferredAddresses,
+            headersJson);
+        assertNull(tagsOf(context).get(Tags.NETWORK_CLIENT_IP), headersJson);
+      }
     }
   }
 
@@ -2828,12 +2851,202 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     assertEquals("alb-agent", tags.get(Tags.HTTP_USER_AGENT));
   }
 
+  @ParameterizedTest
+  @MethodSource("clientIpResolutionCases")
+  void processRequestStartTagsResolvedClientIp(
+      String sourceIp, String headerName, String headerValue, String expectedIp) {
+    setupMockCallbacks(new Callbacks());
+    AgentSpanContext context =
+        LambdaAppSecHandler.processRequestStart(clientIpEvent(sourceIp, headerName, headerValue));
+    assertNotNull(context);
+    assertEquals(expectedIp, tagsOf(context).get(Tags.HTTP_CLIENT_IP));
+  }
+
+  @ParameterizedTest
+  @MethodSource("clientIpResolutionCases")
+  void processRequestStartPublishesResolvedClientIpToAppSec(
+      String sourceIp, String headerName, String headerValue, String expectedIp) {
+    List<String> inferredAddresses = new ArrayList<>();
+    setupMockCallbacks(new Callbacks().onInferredAddress(inferredAddresses::add));
+    AgentSpanContext context =
+        LambdaAppSecHandler.processRequestStart(clientIpEvent(sourceIp, headerName, headerValue));
+    assertNotNull(context);
+    assertEquals(singletonList(expectedIp), inferredAddresses);
+  }
+
+  @ParameterizedTest
+  @MethodSource("clientIpResolutionCases")
+  void processRequestStartSkipsClientIpResolutionWhenDisabled(
+      String sourceIp, String headerName, String headerValue, String expectedIp) {
+    injectSysConfig("trace.client-ip.resolver.enabled", "false");
+    injectSysConfig("trace.client-ip.enabled", "false");
+    assertFalse(Config.get().isTraceClientIpResolverEnabled());
+    assertFalse(Config.get().isClientIpEnabled());
+
+    List<String> inferredAddresses = new ArrayList<>();
+    List<String> sourceAddresses = new ArrayList<>();
+    setupMockCallbacks(
+        new Callbacks()
+            .onInferredAddress(inferredAddresses::add)
+            .onSocketAddress((ip, port) -> sourceAddresses.add(ip)));
+
+    AgentSpanContext context =
+        LambdaAppSecHandler.processRequestStart(clientIpEvent(sourceIp, headerName, headerValue));
+
+    assertNotNull(context);
+    assertNotNull(((TagContext) context).getRequestContextDataAppSec());
+    assertNull(tagsOf(context).get(Tags.HTTP_CLIENT_IP));
+    assertTrue(inferredAddresses.isEmpty());
+    assertEquals(singletonList(sourceIp), sourceAddresses);
+  }
+
+  @Test
+  void processRequestStartHonorsExplicitClientIpOptInWhenResolverIsDisabled() {
+    injectSysConfig("trace.client-ip.resolver.enabled", "false");
+    injectSysConfig("trace.client-ip.enabled", "true");
+    setupMockCallbacks(new Callbacks());
+
+    AgentSpanContext context =
+        LambdaAppSecHandler.processRequestStart(
+            clientIpEvent("10.0.0.5", "x-forwarded-for", "1.2.3.4"));
+
+    assertEquals("1.2.3.4", tagsOf(context).get(Tags.HTTP_CLIENT_IP));
+  }
+
+  @Test
+  void processRequestStartResolvesConfiguredClientIpHeader() {
+    injectSysConfig(TRACE_CLIENT_IP_HEADER, "X-My-Client");
+    setupMockCallbacks(new Callbacks());
+
+    AgentSpanContext context =
+        LambdaAppSecHandler.processRequestStart(
+            clientIpEvent("10.0.0.5", "X-My-Client", "1.2.3.4"));
+
+    assertEquals("1.2.3.4", tagsOf(context).get(Tags.HTTP_CLIENT_IP));
+  }
+
+  @ParameterizedTest
+  @ValueSource(
+      strings = {
+        "x-real-ip",
+        "true-client-ip",
+        "x-client-ip",
+        "forwarded-for",
+        "x-cluster-client-ip",
+        "fastly-client-ip",
+        "cf-connecting-ip",
+        "cf-connecting-ipv6"
+      })
+  void processRequestStartResolvesOtherSupportedClientIpHeaders(String header) {
+    setupMockCallbacks(new Callbacks());
+
+    AgentSpanContext context =
+        LambdaAppSecHandler.processRequestStart(clientIpEvent(null, header, "1.2.3.4"));
+
+    assertEquals("1.2.3.4", tagsOf(context).get(Tags.HTTP_CLIENT_IP));
+  }
+
+  @Test
+  void processRequestStartResolvesForwardedHeader() {
+    setupMockCallbacks(new Callbacks());
+
+    AgentSpanContext context =
+        LambdaAppSecHandler.processRequestStart(
+            clientIpEvent("10.0.0.5", "Forwarded", "for=1.2.3.4;proto=https"));
+
+    assertEquals("1.2.3.4", tagsOf(context).get(Tags.HTTP_CLIENT_IP));
+  }
+
+  @Test
+  void processRequestStartPublishesInferredAddressBeforeSourceAddress() {
+    List<String> addresses = new ArrayList<>();
+    setupMockCallbacks(
+        new Callbacks()
+            .onInferredAddress(ip -> addresses.add("inferred:" + ip))
+            .onSocketAddress((ip, port) -> addresses.add("source:" + ip)));
+
+    AgentSpanContext context =
+        LambdaAppSecHandler.processRequestStart(
+            clientIpEvent("10.0.0.5", "x-forwarded-for", "1.2.3.4"));
+
+    assertNotNull(context);
+    assertEquals(Arrays.asList("inferred:1.2.3.4", "source:10.0.0.5"), addresses);
+  }
+
+  private static Object[][] clientIpResolutionCases() {
+    // Match HTTP instrumentation: prefer a public forwarded address, fall back to the event
+    // source, and prefer a public source over a private forwarded address.
+    return new Object[][] {
+      {"10.0.0.5", "X-Forwarded-For", "1.2.3.4, 10.0.0.2", "1.2.3.4"},
+      {"10.0.0.5", "x-forwarded-for", "1.2.3.4", "1.2.3.4"},
+      {"1.2.3.4", null, null, "1.2.3.4"},
+      {"1.2.3.4", "x-forwarded-for", "invalid", "1.2.3.4"},
+      {"1.2.3.4", "x-forwarded-for", "10.0.0.2", "1.2.3.4"},
+      {"10.0.0.5", "x-forwarded-for", "2001:4860:4860::8888", "2001:4860:4860:0:0:0:0:8888"}
+    };
+  }
+
+  @Test
+  void processRequestStartOmitsClientIpWhenNoAddressIsAvailable() {
+    List<String> inferredAddresses = new ArrayList<>();
+    setupMockCallbacks(new Callbacks().onInferredAddress(inferredAddresses::add));
+    AgentSpanContext context =
+        LambdaAppSecHandler.processRequestStart(clientIpEvent(null, null, null));
+    assertNotNull(context);
+    assertNull(tagsOf(context).get(Tags.HTTP_CLIENT_IP));
+    assertTrue(inferredAddresses.isEmpty());
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  void processRequestStartKeepsContextAndTagsSeparateAcrossInvocations(boolean resolverEnabled) {
+    injectSysConfig("trace.client-ip.resolver.enabled", Boolean.toString(resolverEnabled));
+    injectSysConfig("trace.client-ip.enabled", "false");
+    setupMockCallbacks(new Callbacks());
+
+    TagContext first =
+        (TagContext)
+            LambdaAppSecHandler.processRequestStart(
+                clientIpEvent("10.0.0.5", "x-forwarded-for", "1.2.3.4"));
+    TagContext second =
+        (TagContext)
+            LambdaAppSecHandler.processRequestStart(
+                clientIpEvent("10.0.0.6", "x-forwarded-for", "8.8.8.8"));
+    TagContext withoutAddress =
+        (TagContext) LambdaAppSecHandler.processRequestStart(clientIpEvent(null, null, null));
+
+    assertNotSame(first, second);
+    assertNotSame(second, withoutAddress);
+    assertNotSame(first.getTags(), second.getTags());
+    assertEquals(
+        resolverEnabled ? "1.2.3.4" : null, first.getTags().getString(Tags.HTTP_CLIENT_IP));
+    assertEquals(
+        resolverEnabled ? "8.8.8.8" : null, second.getTags().getString(Tags.HTTP_CLIENT_IP));
+    assertNull(withoutAddress.getTags().getString(Tags.HTTP_CLIENT_IP));
+    assertNotNull(first.getRequestContextDataAppSec());
+    assertNotNull(second.getRequestContextDataAppSec());
+    assertNotNull(withoutAddress.getRequestContextDataAppSec());
+  }
+
+  private static ByteArrayInputStream clientIpEvent(
+      String sourceIp, String headerName, String headerValue) {
+    String headers = headerName == null ? "" : ",\"" + headerName + "\":\"" + headerValue + "\"";
+    String identity = sourceIp == null ? "{}" : "{\"sourceIp\":\"" + sourceIp + "\"}";
+    return createInputStream(
+        "{\"httpMethod\":\"POST\",\"path\":\"/login\",\"headers\":{\"host\":\"api.example.com\""
+            + headers
+            + "},\"requestContext\":{\"httpMethod\":\"POST\",\"identity\":"
+            + identity
+            + "}}");
+  }
+
   @Test
   void mergeContextsCopiesHttpTagsIntoExtensionContext() {
     TagContext appSecContext = new TagContext();
     appSecContext.putTag(Tags.COMPONENT, "aws-lambda");
     appSecContext.putTag(Tags.HTTP_URL, "https://api.example.com/users/42");
     appSecContext.putTag(Tags.HTTP_ROUTE, "/users/{id}");
+    appSecContext.putTag(Tags.HTTP_CLIENT_IP, "1.2.3.4");
     TagContext extensionContext = new TagContext();
 
     AgentSpanContext merged = LambdaAppSecHandler.mergeContexts(extensionContext, appSecContext);
@@ -2843,6 +3056,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     assertEquals("aws-lambda", tags.get(Tags.COMPONENT));
     assertEquals("https://api.example.com/users/42", tags.get(Tags.HTTP_URL));
     assertEquals("/users/{id}", tags.get(Tags.HTTP_ROUTE));
+    assertEquals("1.2.3.4", tags.get(Tags.HTTP_CLIENT_IP));
 
     ((TagContext) merged).putTag(Tags.COMPONENT, "spring-web-controller");
     assertEquals("spring-web-controller", tagsOf(merged).get(Tags.COMPONENT));
@@ -2900,28 +3114,40 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     return new HashMap<>(((TagContext) context).getTags());
   }
 
-  private void assertAlbClientIp(String headersJson, boolean multiValue, String expectedIp) {
+  private void assertAlbSourceAndClientIp(
+      String headersJson, boolean multiValue, String expectedIp, String expectedClientIp) {
     String headerName = multiValue ? "multiValueHeaders" : "headers";
-    String[] peerIp = {null};
     String expectedSourceIp = expectedIp != null ? expectedIp : "0.0.0.0";
-    setupMockCallbacks(
-        new Callbacks()
-            .onSocketAddress((ip, port) -> peerIp[0] = ip)
-            .onHeadersDone(() -> assertEquals(expectedSourceIp, peerIp[0], headerName)));
-    String eventJson =
-        "{\"path\":\"/alb\",\"httpMethod\":\"GET\",\""
-            + headerName
-            + "\":"
-            + headersJson
-            + ",\"requestContext\":{\"elb\":{\"targetGroupArn\":\"arn\"}}}";
+    for (boolean resolverEnabled : new boolean[] {true, false}) {
+      injectSysConfig("trace.client-ip.resolver.enabled", String.valueOf(resolverEnabled));
+      injectSysConfig("trace.client-ip.enabled", "false");
+      String expectedResolvedIp = resolverEnabled ? expectedClientIp : null;
+      String[] peerIp = {null};
+      List<String> inferredAddresses = new ArrayList<>();
+      setupMockCallbacks(
+          new Callbacks()
+              .onSocketAddress((ip, port) -> peerIp[0] = ip)
+              .onInferredAddress(inferredAddresses::add)
+              .onHeadersDone(() -> assertEquals(expectedSourceIp, peerIp[0], headerName)));
+      String eventJson =
+          "{\"path\":\"/alb\",\"httpMethod\":\"GET\",\""
+              + headerName
+              + "\":"
+              + headersJson
+              + ",\"requestContext\":{\"elb\":{\"targetGroupArn\":\"arn\"}}}";
 
-    AgentSpanContext context =
-        LambdaAppSecHandler.processRequestStart(createInputStream(eventJson));
+      AgentSpanContext context =
+          LambdaAppSecHandler.processRequestStart(createInputStream(eventJson));
 
-    assertNotNull(context, headerName);
-    assertEquals(expectedSourceIp, peerIp[0], headerName);
-    assertNull(tagsOf(context).get(Tags.HTTP_CLIENT_IP), headerName);
-    assertNull(tagsOf(context).get(Tags.NETWORK_CLIENT_IP), headerName);
+      assertNotNull(context, headerName);
+      assertEquals(expectedSourceIp, peerIp[0], headerName);
+      assertEquals(expectedResolvedIp, tagsOf(context).get(Tags.HTTP_CLIENT_IP), headerName);
+      assertEquals(
+          expectedResolvedIp == null ? emptyList() : singletonList(expectedResolvedIp),
+          inferredAddresses,
+          headerName);
+      assertNull(tagsOf(context).get(Tags.NETWORK_CLIENT_IP), headerName);
+    }
   }
 
   private static ByteArrayInputStream createInputStream(String json) {
@@ -2942,6 +3168,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     BiConsumer<String, URIDataAdapter> onMethodUri;
     BiConsumer<String, String> onHeader;
     BiConsumer<String, Integer> onSocketAddress;
+    Consumer<String> onInferredAddress;
     Runnable onHeadersDone;
     Consumer<Map<String, Object>> onPathParams;
     Consumer<Object> onBody;
@@ -2964,6 +3191,11 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
     Callbacks onHeadersDone(Runnable cb) {
       this.onHeadersDone = cb;
+      return this;
+    }
+
+    Callbacks onInferredAddress(Consumer<String> cb) {
+      this.onInferredAddress = cb;
       return this;
     }
 
@@ -3028,6 +3260,19 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
           .apply(any(), anyString(), anyInt());
     }
 
+    BiFunction<RequestContext, String, Flow<Void>> inferredAddressCallback = null;
+    if (callbacks.onInferredAddress != null) {
+      inferredAddressCallback = mock(BiFunction.class);
+      Consumer<String> capture = callbacks.onInferredAddress;
+      doAnswer(
+              inv -> {
+                capture.accept(inv.getArgument(1));
+                return Flow.ResultFlow.empty();
+              })
+          .when(inferredAddressCallback)
+          .apply(any(), anyString());
+    }
+
     Function<RequestContext, Flow<Void>> headerDoneCallback = mock(Function.class);
     when(headerDoneCallback.apply(any()))
         .thenAnswer(inv -> {
@@ -3084,6 +3329,8 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     when(mockCallbackProvider.getCallback(EVENTS.requestHeader())).thenReturn(headerCallback);
     when(mockCallbackProvider.getCallback(EVENTS.requestClientSocketAddress()))
         .thenReturn(socketAddressCallback);
+    when(mockCallbackProvider.getCallback(EVENTS.requestInferredClientAddress()))
+        .thenReturn(inferredAddressCallback);
     when(mockCallbackProvider.getCallback(EVENTS.requestHeaderDone()))
         .thenReturn(headerDoneCallback);
     when(mockCallbackProvider.getCallback(EVENTS.requestPathParams()))

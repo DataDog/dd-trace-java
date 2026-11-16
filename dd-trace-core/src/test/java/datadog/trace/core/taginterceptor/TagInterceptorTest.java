@@ -1083,10 +1083,10 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
     TagInterceptor interceptor = splittingInterceptor(configured);
     DDSpanContext span = mock(DDSpanContext.class);
 
-    assertTrue(interceptor.needsIntercept(KnownTags.DB_TYPE_ID));
+    assertTrue(interceptor.needsIntercept(KnownTags.DB_TYPE));
     assertTrue(interceptor.needsIntercept(tag));
-    assertFalse(interceptor.needsIntercept(KnownTags.COMPONENT_ID));
-    assertTrue(interceptor.interceptTag(span, KnownTags.DB_TYPE_ID, "postgres"));
+    assertFalse(interceptor.needsIntercept(KnownTags.COMPONENT));
+    assertTrue(interceptor.interceptTag(span, KnownTags.DB_TYPE, "postgres"));
     assertTrue(interceptor.interceptTag(span, tag, "mysql"));
 
     verify(span).setServiceName("postgres", ServiceNameSources.SPLIT_BY_TAGS);
@@ -1100,7 +1100,7 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
 
     assertTrue(interceptor.needsIntercept("my.custom.tag"));
     assertFalse(interceptor.needsIntercept("other.custom.tag"));
-    assertFalse(interceptor.needsIntercept(KnownTags.COMPONENT_ID));
+    assertFalse(interceptor.needsIntercept(KnownTags.COMPONENT));
     assertTrue(interceptor.interceptTag(span, "my.custom.tag", "split"));
     assertFalse(interceptor.interceptTag(span, "other.custom.tag", "split"));
 
@@ -1111,7 +1111,7 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
   void splitByTagsOnANameDeclaredPerDirectionMatchesItsOneTag() {
     TagInterceptor interceptor = splittingInterceptor(Tags.PEER_PORT);
 
-    assertTrue(interceptor.needsIntercept(KnownTags.PEER_PORT_ID));
+    assertTrue(interceptor.needsIntercept(KnownTags.PEER_PORT));
     assertTrue(interceptor.needsIntercept(Tags.PEER_PORT));
   }
 

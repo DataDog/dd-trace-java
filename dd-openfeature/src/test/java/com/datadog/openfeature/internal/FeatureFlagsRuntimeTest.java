@@ -54,6 +54,10 @@ import org.slf4j.event.Level;
 class FeatureFlagsRuntimeTest {
   private static final byte[] EMPTY_UFC =
       "{\"environment\":{\"name\":\"Test\"},\"flags\":{}}".getBytes(StandardCharsets.UTF_8);
+  // A custom endpoint needs no API key; create() never polls it.
+  private static final String AGENTLESS_BASE_URL =
+      "feature.flags.configuration.source.agentless.base.url";
+  private static final String CUSTOM_ENDPOINT = "http://127.0.0.1:1";
 
   @Test
   void disabledProductIsRejected() {
@@ -81,9 +85,61 @@ class FeatureFlagsRuntimeTest {
   }
 
   @Test
+  void managedEndpointRequiresAnApiKey() {
+    final FeatureFlagsRuntime.MissingApiKeyException error =
+        assertThrows(
+            FeatureFlagsRuntime.MissingApiKeyException.class,
+            () ->
+                FeatureFlagsRuntime.create(
+                    new TestAgentBridge(null, (route, json) -> {}), TestSettings.of()));
+
+    assertEquals(
+        "DD_API_KEY is required for the default Datadog Feature Flagging endpoint; set DD_API_KEY,"
+            + " set DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL, or attach"
+            + " dd-java-agent and set DD_FEATURE_FLAGS_CONFIGURATION_SOURCE=remote_config to load"
+            + " flags through the Datadog Agent",
+        error.getMessage());
+  }
+
+  @Test
+  void blankCustomEndpointRequiresAnApiKey() {
+    assertThrows(
+        FeatureFlagsRuntime.MissingApiKeyException.class,
+        () ->
+            FeatureFlagsRuntime.create(
+                AgentBridge.NONE, TestSettings.of(AGENTLESS_BASE_URL, "  ")));
+  }
+
+  @Test
+  void managedEndpointRejectsABlankApiKey() {
+    assertThrows(
+        FeatureFlagsRuntime.MissingApiKeyException.class,
+        () -> FeatureFlagsRuntime.create(AgentBridge.NONE, TestSettings.of("api-key", "  ")));
+  }
+
+  @Test
+  void managedEndpointChecksTheApiKeyBeforeBuildingTheSource() {
+    // The CDN source rejects this site when it is built, so a check below that fails here.
+    assertThrows(
+        FeatureFlagsRuntime.MissingApiKeyException.class,
+        () ->
+            FeatureFlagsRuntime.create(
+                AgentBridge.NONE, TestSettings.of("site", "datadoghq.com@other.example")));
+  }
+
+  @Test
+  void managedEndpointIsCreatedWithAnApiKey() {
+    final FeatureFlagsRuntime runtime =
+        FeatureFlagsRuntime.create(AgentBridge.NONE, TestSettings.of("api-key", "test-api-key"));
+
+    assertNotNull(runtime.evaluations(), "the API key also enables direct event delivery");
+  }
+
+  @Test
   void agentlessWithoutApiKeyOrProxyDisablesEventDelivery() {
     final FeatureFlagsRuntime runtime =
-        FeatureFlagsRuntime.create(AgentBridge.NONE, TestSettings.of());
+        FeatureFlagsRuntime.create(
+            AgentBridge.NONE, TestSettings.of(AGENTLESS_BASE_URL, CUSTOM_ENDPOINT));
 
     assertNull(runtime.evaluations());
   }
@@ -93,7 +149,11 @@ class FeatureFlagsRuntimeTest {
     final FeatureFlagsRuntime runtime =
         FeatureFlagsRuntime.create(
             new TestAgentBridge(null, (route, json) -> {}),
-            TestSettings.of("flagging.evaluation.counts.enabled", "false"));
+            TestSettings.of(
+                AGENTLESS_BASE_URL,
+                CUSTOM_ENDPOINT,
+                "flagging.evaluation.counts.enabled",
+                "false"));
 
     assertNull(runtime.evaluations());
   }
@@ -103,7 +163,11 @@ class FeatureFlagsRuntimeTest {
     final FeatureFlagsRuntime runtime =
         FeatureFlagsRuntime.create(
             new TestAgentBridge(null, (route, json) -> {}),
-            TestSettings.of("feature.flags.exposures.datadog.logging.enabled", "false"));
+            TestSettings.of(
+                AGENTLESS_BASE_URL,
+                CUSTOM_ENDPOINT,
+                "feature.flags.exposures.datadog.logging.enabled",
+                "false"));
 
     assertFalse(runtime.isExposureDeliveryEnabled());
     assertNotNull(runtime.exposureCache());
@@ -113,7 +177,8 @@ class FeatureFlagsRuntimeTest {
   @Test
   void agentlessWithoutApiKeyOrProxyKeepsTheExposureCache() {
     final FeatureFlagsRuntime runtime =
-        FeatureFlagsRuntime.create(AgentBridge.NONE, TestSettings.of());
+        FeatureFlagsRuntime.create(
+            AgentBridge.NONE, TestSettings.of(AGENTLESS_BASE_URL, CUSTOM_ENDPOINT));
 
     assertFalse(runtime.isExposureDeliveryEnabled());
     assertNotNull(runtime.exposureCache());
@@ -123,7 +188,8 @@ class FeatureFlagsRuntimeTest {
   void eventProxyEnablesBothPipelines() {
     final FeatureFlagsRuntime runtime =
         FeatureFlagsRuntime.create(
-            new TestAgentBridge(null, (route, json) -> {}), TestSettings.of());
+            new TestAgentBridge(null, (route, json) -> {}),
+            TestSettings.of(AGENTLESS_BASE_URL, CUSTOM_ENDPOINT));
 
     assertNotNull(runtime.evaluations());
     assertTrue(runtime.isExposureDeliveryEnabled());
@@ -513,7 +579,8 @@ class FeatureFlagsRuntimeTest {
   @Test
   void recordsExposuresOnlyWhenDeliveryIsEnabled() {
     final FeatureFlagsRuntime runtime =
-        FeatureFlagsRuntime.create(AgentBridge.NONE, TestSettings.of());
+        FeatureFlagsRuntime.create(
+            AgentBridge.NONE, TestSettings.of(AGENTLESS_BASE_URL, CUSTOM_ENDPOINT));
     // Must not throw without an exposure pipeline.
     runtime.recordExposure(
         new com.datadog.openfeature.internal.exposure.ExposureEvent(

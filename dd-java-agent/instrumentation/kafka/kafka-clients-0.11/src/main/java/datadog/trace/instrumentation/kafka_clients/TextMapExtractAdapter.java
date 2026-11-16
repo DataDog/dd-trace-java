@@ -4,11 +4,11 @@ import static datadog.trace.api.Functions.BASE64_DECODE;
 import static datadog.trace.api.Functions.UTF8_BYTES_TO_STRING;
 import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_PRODUCED_KEY;
+import static datadog.trace.instrumentation.kafka_common.Utils.readProducedTime;
 
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation.ContextVisitor;
-import java.nio.ByteBuffer;
 import java.util.Base64;
 import java.util.function.Function;
 import org.apache.kafka.common.header.Header;
@@ -58,10 +58,7 @@ public class TextMapExtractAdapter implements ContextVisitor<Headers> {
     Header header = carrier.lastHeader(KAFKA_PRODUCED_KEY);
     if (null != header) {
       try {
-        ByteBuffer buf = ByteBuffer.allocate(8);
-        buf.put(decoder != null ? decoder.decode(header.value()) : header.value());
-        buf.flip();
-        return buf.getLong();
+        return readProducedTime(decoder != null ? decoder.decode(header.value()) : header.value());
       } catch (Exception e) {
         log.debug(EXCLUDE_TELEMETRY, "Unable to get kafka produced time", e);
       }
