@@ -130,7 +130,7 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project> {
       // Task input & output
       val output = csiExtension.targetFolder
       val inputProvider = mainCompileTask.flatMap { it.destinationDirectory }
-      val csiOutput = project.sourceSets.named(CSI_SOURCE_SET).map { it.output.files }
+      val csiOutput = project.sourceSets.named(CSI_SOURCE_SET).map { it.output }
       val currentProjectPath = project.buildTreePath
       val dependencyClasspaths = project.defaultConfigurations.map { configuration ->
         configuration.incoming.artifactView {
@@ -147,9 +147,7 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project> {
         project.sourceSets.named(MAIN_SOURCE_SET_NAME).map { it.output.dirs },
         dependencyClasspaths,
         csiExtension.additionalPaths,
-      ).filter {
-        it !in csiOutput.get() && it != output.get().asFile
-      }
+      ).minus(project.files(csiOutput, output))
       inputs.dir(inputProvider)
       inputs.dir(csiExtension.srcFolder)
       inputs.dir(csiExtension.rootFolder).optional()

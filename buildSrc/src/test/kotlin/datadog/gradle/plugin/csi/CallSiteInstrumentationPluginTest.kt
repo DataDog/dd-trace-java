@@ -205,9 +205,18 @@ class CallSiteInstrumentationPluginTest : GradleFixture() {
   }
 
   @Test
-  fun `analysis classpath builds runtime project dependencies`() {
+  fun `analysis classpath builds runtime dependencies and excludes generated outputs`() {
     createGradleProject(
-      buildGradle + "\n" + """dependencies { runtimeOnly(project(":dependency")) }""",
+      buildGradle + """
+        dependencies { runtimeOnly(project(":dependency")) }
+        csi {
+          additionalPaths.from(
+            layout.buildDirectory.dir("csi"),
+            layout.buildDirectory.dir("classes/java/csi"),
+            layout.buildDirectory.dir("resources/csi"),
+          )
+        }
+      """,
       dependencyAdvice
     )
     addSubproject(
@@ -231,6 +240,17 @@ class CallSiteInstrumentationPluginTest : GradleFixture() {
     assertEquals(TaskOutcome.SUCCESS, result.task(":dependency:jar")?.outcome, result.output)
     assertEquals(TaskOutcome.SUCCESS, result.task(":generateCallSiteJava")?.outcome, result.output)
     assertTrue(buildFile("csi/BeforeAdviceCallSites.java").exists())
+    assertNull(result.task(":compileCsiJava"), result.output)
+    assertNull(result.task(":processCsiResources"), result.output)
+
+    val unchanged = run("generateCallSiteJava", "--info", "--stacktrace")
+    assertEquals(TaskOutcome.UP_TO_DATE, unchanged.task(":generateCallSiteJava")?.outcome, unchanged.output)
+
+    writeFile("build/classes/java/csi/marker", "changed")
+    writeFile("build/resources/csi/marker", "changed")
+
+    val outputsChanged = run("generateCallSiteJava", "--info", "--stacktrace")
+    assertEquals(TaskOutcome.UP_TO_DATE, outputsChanged.task(":generateCallSiteJava")?.outcome, outputsChanged.output)
   }
 
   private fun writeDependencyJar(method: String) {
