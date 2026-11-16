@@ -695,9 +695,10 @@ class SpringWebfluxHttp11Test extends InstrumentationSpecification {
       }
     }
 
-    // OPTIONS on a GET-only mapping is handled by Spring's internal HttpOptionsHandler. A CORS
-    // preflight is answered by DispatcherHandler itself, so no handler adapter names the span or
-    // sets the route, although the request matched /cors/{id}.
+    // OPTIONS on a GET-only mapping is handled by Spring's internal HttpOptionsHandler.
+    // Current limitation: a CORS preflight gets no route and keeps the DispatcherHandler.handle
+    // name, although it matched /cors/{id}. DispatcherHandler answers it without running a handler
+    // adapter, which is where the route is set. Spring MVC preflights are named.
     where:
     testName           | urlPath   | requestHeaders                                                                       | responseHeader                 | responseHeaderValue           | serverResource    | handlerName                 | handlerType
     "implicit OPTIONS" | "/foo"    | [:]                                                                                  | "Allow"                        | "GET"                         | "OPTIONS /foo"    | "HttpOptionsHandler.handle" | "org.springframework.web.reactive.result.method.RequestMappingInfoHandlerMapping\$HttpOptionsHandler"
