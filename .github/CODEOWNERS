@@ -437,6 +437,7 @@
 /dd-java-agent/agent-bootstrap/src/*/*/datadog/trace/bootstrap/instrumentation/dbm/  @DataDog/database-monitoring @DataDog/apm-idm-java
 
 # @DataDog/rum
+/dd-java-agent/instrumentation/servlet/jakarta-servlet-5.0/src/main/java/datadog/trace/instrumentation/servlet5/RumServletInstrumentation.java @DataDog/rum @DataDog/apm-idm-java
 /internal-api/src/*/*/datadog/trace/api/rum/  @DataDog/rum
 /dd-smoke-tests/rum/                          @DataDog/rum
 /telemetry/src/*/*/datadog/telemetry/rum/     @DataDog/rum
