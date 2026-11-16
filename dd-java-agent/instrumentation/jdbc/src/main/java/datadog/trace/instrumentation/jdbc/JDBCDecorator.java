@@ -17,6 +17,7 @@ import datadog.context.ContextScope;
 import datadog.trace.api.BaseHash;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.api.propagation.W3CTraceParent;
 import datadog.trace.api.telemetry.LogCollector;
@@ -97,6 +98,8 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       Config.get().isDbMetadataFetchingOnConnectEnabled();
   private static final boolean FETCH_DB_METADATA_ON_QUERY =
       Config.get().isDbMetadataFetchingOnQueryEnabled();
+  public static final boolean CAPTURE_QUERY_PARAMETERS =
+      InstrumenterConfig.get().isJdbcCaptureQueryParameters();
 
   private volatile boolean warnedAboutDBMPropagationMode = false; // to log a warning only once
   private volatile boolean loggedInjectionError = false;

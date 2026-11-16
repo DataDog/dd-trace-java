@@ -82,6 +82,9 @@ public final class TraceInstrumentationConfig {
 
   public static final String JDBC_CONNECTION_CLASS_NAME = "trace.jdbc.connection.class.name";
 
+  /** Puts the values bound to prepared and callable statements on the database span. */
+  public static final String JDBC_CAPTURE_QUERY_PARAMETERS = "trace.jdbc.capture.query.parameters";
+
   public static final String JDBC_POOL_WAITING_ENABLED =
       "trace.experimental.jdbc.pool.waiting.enabled";
 

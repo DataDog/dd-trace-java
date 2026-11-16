@@ -79,6 +79,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_DB_DBM_PROPAGATION_ORACLE_ACTION_ONLY_ENABLED = false;
   static final boolean DEFAULT_DB_DBM_TRACE_PREPARED_STATEMENTS = false;
   static final boolean DEFAULT_DB_DBM_ALWAYS_APPEND_SQL_COMMENT = false;
+  static final boolean DEFAULT_JDBC_CAPTURE_QUERY_PARAMETERS = false;
   // Default value is set to 0, it disables the latency trace interceptor
   static final int DEFAULT_TRACE_KEEP_LATENCY_THRESHOLD_MS = 0;
   static final int DEFAULT_SCOPE_DEPTH_LIMIT = 100;
