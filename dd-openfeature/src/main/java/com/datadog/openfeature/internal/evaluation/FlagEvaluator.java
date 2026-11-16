@@ -476,7 +476,11 @@ public final class FlagEvaluator {
 
     final T mappedValue;
     try {
-      mappedValue = mapValue(target, variant.value);
+      // A JSON variant is converted once, at parse time: share it instead of a copy per call.
+      mappedValue =
+          target == Value.class && variant.frozenValue != null
+              ? target.cast(variant.frozenValue)
+              : mapValue(target, variant.value);
     } catch (final NumberFormatException e) {
       return error(
           defaultValue,

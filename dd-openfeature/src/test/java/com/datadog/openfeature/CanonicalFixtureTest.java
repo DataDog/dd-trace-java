@@ -306,6 +306,28 @@ class CanonicalFixtureTest {
     return value;
   }
 
+  /**
+   * Maps the integral numbers read as Long to Integer when they fit, as the UFC parser does for
+   * JSON variant values.
+   */
+  private static Object exactIntegers(final Object value) {
+    if (value instanceof Long) {
+      final long number = (Long) value;
+      return number == (int) number ? (Object) (int) number : value;
+    }
+    if (value instanceof Map) {
+      final Map<String, Object> map = new java.util.LinkedHashMap<>();
+      ((Map<?, ?>) value).forEach((k, v) -> map.put((String) k, exactIntegers(v)));
+      return map;
+    }
+    if (value instanceof List) {
+      final List<Object> list = new ArrayList<>();
+      ((List<?>) value).forEach(v -> list.add(exactIntegers(v)));
+      return list;
+    }
+    return value;
+  }
+
   static final class FixtureCase {
     final Map<String, Object> json;
     final String fileName;
@@ -356,7 +378,10 @@ class CanonicalFixtureTest {
       if (result.containsKey("doLog")) {
         assertNotNull(this.resultDoLog, "A doLog expectation must be a boolean");
       }
-      this.resultValue = normalize(result.get("value"));
+      this.resultValue =
+          "JSON".equals(this.variationType)
+              ? exactIntegers(result.get("value"))
+              : normalize(result.get("value"));
       this.resultReason = (String) result.get("reason");
       this.resultErrorCode = (String) result.get("errorCode");
       if (result.containsKey("errorCode")) {
