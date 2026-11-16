@@ -1,36 +1,12 @@
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.ibm.fake.FakeIbmMqTextMessage;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
-import datadog.trace.agent.test.datastreams.MockFeaturesDiscovery;
-import datadog.trace.agent.test.datastreams.RecordingDatastreamsPayloadWriter;
-import datadog.trace.agent.tooling.TracerInstaller;
-import datadog.trace.api.DynamicConfig;
-import datadog.trace.api.IdGenerationStrategy;
-import datadog.trace.api.Pair;
-import datadog.trace.api.TraceConfig;
-import datadog.trace.api.datastreams.DataStreamsTransactionExtractor;
-import datadog.trace.api.datastreams.NoopPathwayContext;
-import datadog.trace.api.sampling.SamplingRule.SpanSamplingRule;
-import datadog.trace.api.sampling.SamplingRule.TraceSamplingRule;
-import datadog.trace.api.time.SystemTimeSource;
-import datadog.trace.common.metrics.EventListener;
-import datadog.trace.common.metrics.Sink;
-import datadog.trace.core.CoreTracer;
-import datadog.trace.core.datastreams.DefaultDataStreamsMonitoring;
-import datadog.trace.core.datastreams.StatsGroup;
+import datadog.trace.agent.test.datastreams.DataStreamsRemoteConfigTracer;
 import datadog.trace.test.junit.utils.config.WithConfig;
 import datadog.trace.test.util.PollingConditions;
-import java.lang.reflect.Field;
-import java.nio.ByteBuffer;
-import java.util.List;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Supplier;
 import javax.jms.Connection;
 import javax.jms.Message;
 import javax.jms.MessageConsumer;
@@ -45,17 +21,16 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-/** Data Streams off at startup, then toggled at runtime the way remote config does. */
+/**
+ * Data Streams off at startup, then toggled at runtime the way remote config does. Covers the live
+ * config gating of JMS checkpoints, not propagator registration: JMS never injects the pathway
+ * (also on master), so only stats are checked.
+ */
 @WithConfig(key = "data.streams.enabled", value = "false")
 class JMSDataStreamsRemoteConfigForkedTest extends AbstractInstrumentationTest {
   private static final String QUEUE = "dsmremoteconfig";
-  // MessageInjectAdapter replaces '-' in header names, JMS property names cannot contain it
-  private static final String PATHWAY_PROPERTY = "dd__dash__pathway__dash__ctx__dash__base64";
 
-  private static final RecordingDatastreamsPayloadWriter dataStreamsWriter =
-      new RecordingDatastreamsPayloadWriter();
-  private static volatile boolean dataStreamsOn = false;
-  private static DefaultDataStreamsMonitoring dataStreamsMonitoring;
+  private static DataStreamsRemoteConfigTracer dataStreams;
 
   private static EmbeddedActiveMQBroker broker;
   private static Connection connection;
@@ -63,23 +38,8 @@ class JMSDataStreamsRemoteConfigForkedTest extends AbstractInstrumentationTest {
   // AbstractInstrumentationTest has no data streams support: swap in a tracer with a recording DSM
   @BeforeAll
   static void installDataStreamsTracer() {
-    dataStreamsMonitoring =
-        new DefaultDataStreamsMonitoring(
-            new NoopSink(),
-            new MockFeaturesDiscovery(true),
-            SystemTimeSource.INSTANCE,
-            new LiveDataStreamsTraceConfig(),
-            dataStreamsWriter,
-            TimeUnit.MILLISECONDS.toNanos(50));
-    CoreTracer coreTracer =
-        CoreTracer.builder()
-            .writer(writer)
-            .idGenerationStrategy(IdGenerationStrategy.fromName("SEQUENTIAL"))
-            .strictTraceWrites(true)
-            .dataStreamsMonitoring(dataStreamsMonitoring)
-            .build();
-    TracerInstaller.forceInstallGlobalTracer(coreTracer);
-    tracer = coreTracer;
+    dataStreams = DataStreamsRemoteConfigTracer.install(tracer, writer);
+    tracer = dataStreams.tracer();
   }
 
   @BeforeAll
@@ -102,13 +62,12 @@ class JMSDataStreamsRemoteConfigForkedTest extends AbstractInstrumentationTest {
 
   @BeforeEach
   void clearDataStreams() {
-    dataStreamsWriter.clear();
-    dataStreamsMonitoring.clear();
+    dataStreams.clear();
   }
 
   @AfterEach
   void disableDataStreams() throws Exception {
-    toggleDataStreams(false);
+    dataStreams.toggleDataStreams(false);
   }
 
   @Test
@@ -120,157 +79,35 @@ class JMSDataStreamsRemoteConfigForkedTest extends AbstractInstrumentationTest {
       MessageConsumer consumer = session.createConsumer(queue);
 
       // data streams is off
-      assertNull(sendAndReceive(producer, consumer, "off"));
-      assertEquals(0, settledGroupCount());
+      sendAndReceive(producer, consumer, "off");
+      assertEquals(0, dataStreams.settledGroupCount());
 
       // remote config enables data streams
-      toggleDataStreams(true);
-      // JMS sets checkpoints on the span only and never injects the pathway, so check stats
+      dataStreams.toggleDataStreams(true);
       sendAndReceive(producer, consumer, "on");
       new PollingConditions(5)
           .eventually(() -> {
-            assertTrue(hasGroup("direction:out", "topic:" + QUEUE, "type:ibmmq"));
-            assertTrue(hasGroup("direction:in", "topic:" + QUEUE, "type:ibmmq"));
+            assertTrue(dataStreams.hasGroup("direction:out", "topic:" + QUEUE, "type:ibmmq"));
+            assertTrue(dataStreams.hasGroup("direction:in", "topic:" + QUEUE, "type:ibmmq"));
           });
 
       // remote config disables data streams again
-      toggleDataStreams(false);
-      int groupsBeforeOffAgain = settledGroupCount();
-      assertNull(sendAndReceive(producer, consumer, "off again"));
+      dataStreams.toggleDataStreams(false);
+      int groupsBeforeOffAgain = dataStreams.settledGroupCount();
+      sendAndReceive(producer, consumer, "off again");
       // Stats stop too: no new group is written once DSM is off
-      assertEquals(groupsBeforeOffAgain, settledGroupCount());
+      assertEquals(groupsBeforeOffAgain, dataStreams.settledGroupCount());
     } finally {
       session.close();
     }
   }
 
-  /** Sends one message and returns the pathway property of the received copy. */
-  private static String sendAndReceive(
+  /** Sends one message and receives it back. */
+  private static void sendAndReceive(
       MessageProducer producer, MessageConsumer consumer, String text) throws Exception {
     producer.send(new FakeIbmMqTextMessage(text));
     Message received = consumer.receive(TimeUnit.SECONDS.toMillis(5));
     assertTrue(received instanceof FakeIbmMqTextMessage);
     assertEquals(text, ((TextMessage) received).getText());
-    return received.getStringProperty(PATHWAY_PROPERTY);
-  }
-
-  private static boolean hasGroup(String... tags) {
-    for (StatsGroup group : dataStreamsWriter.getGroups()) {
-      if (group.getTags().hasAllTags(tags)) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  /**
-   * Group count once in-flight flushes have landed. Waits a fixed window since it checks for an
-   * absence; reports run every 50 ms bucket.
-   */
-  private static int settledGroupCount() {
-    AtomicInteger count = new AtomicInteger();
-    new PollingConditions()
-        .initialDelay(0.5)
-        .eventually(() -> count.set(dataStreamsWriter.getGroups().size()));
-    return count.get();
-  }
-
-  /** Updates the tracer's dynamic config like remote config, then waits for the DSM monitor. */
-  private static void toggleDataStreams(boolean enabled) throws Exception {
-    dataStreamsOn = enabled;
-    Field dynamicConfig = CoreTracer.class.getDeclaredField("dynamicConfig");
-    dynamicConfig.setAccessible(true);
-    ((DynamicConfig<?>) dynamicConfig.get(tracer)).current().setDataStreamsEnabled(enabled).apply();
-    new PollingConditions(5)
-        .eventually(() ->
-            assertNotEquals(
-                enabled, dataStreamsMonitoring.newPathwayContext() instanceof NoopPathwayContext));
-  }
-
-  private static final class NoopSink implements Sink {
-    @Override
-    public void accept(int messageCount, ByteBuffer buffer) {}
-
-    @Override
-    public void register(EventListener listener) {}
-  }
-
-  /** Reports data streams as enabled only while the test has toggled it on. */
-  private static final class LiveDataStreamsTraceConfig
-      implements TraceConfig, Supplier<TraceConfig> {
-    @Override
-    public TraceConfig get() {
-      return this;
-    }
-
-    @Override
-    public boolean isTraceEnabled() {
-      return true;
-    }
-
-    @Override
-    public boolean isRuntimeMetricsEnabled() {
-      return true;
-    }
-
-    @Override
-    public boolean isLogsInjectionEnabled() {
-      return true;
-    }
-
-    @Override
-    public boolean isDataStreamsEnabled() {
-      return dataStreamsOn;
-    }
-
-    @Override
-    public Map<String, String> getServiceMapping() {
-      return null;
-    }
-
-    @Override
-    public Map<String, String> getRequestHeaderTags() {
-      return null;
-    }
-
-    @Override
-    public Map<String, String> getResponseHeaderTags() {
-      return null;
-    }
-
-    @Override
-    public Map<String, String> getBaggageMapping() {
-      return null;
-    }
-
-    @Override
-    public Double getTraceSampleRate() {
-      return null;
-    }
-
-    @Override
-    public Map<String, String> getTracingTags() {
-      return null;
-    }
-
-    @Override
-    public Pair<String, CharSequence> getPreferredServiceNameAndSource() {
-      return null;
-    }
-
-    @Override
-    public List<? extends SpanSamplingRule> getSpanSamplingRules() {
-      return null;
-    }
-
-    @Override
-    public List<? extends TraceSamplingRule> getTraceSamplingRules() {
-      return null;
-    }
-
-    @Override
-    public List<DataStreamsTransactionExtractor> getDataStreamsTransactionExtractors() {
-      return null;
-    }
   }
 }

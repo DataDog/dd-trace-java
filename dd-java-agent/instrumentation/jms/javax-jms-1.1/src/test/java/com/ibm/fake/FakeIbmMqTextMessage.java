@@ -9,6 +9,7 @@ import org.apache.activemq.command.Message;
  * checkpoints. Keeps its class across the copies made by the in-VM broker.
  */
 public class FakeIbmMqTextMessage extends ActiveMQTextMessage {
+  /** Creates a text message with the given body. */
   public FakeIbmMqTextMessage(String text) throws JMSException {
     setText(text);
   }
