@@ -34,8 +34,10 @@ import java.util.Map;
  * statement runs. Held per statement instance, since {@code DBQueryInfo} is shared by all the
  * statements with the same SQL.
  *
- * <p>Values are kept as bound and turned into strings only when the statement runs. Streams and
- * LOBs are never read: only their type is recorded.
+ * <p>Immutable values are kept as bound and turned into strings when the statement runs. Other
+ * values are turned into strings when bound, since the application may change them before the
+ * statement runs, while drivers usually convert them when bound. Streams and LOBs are never read:
+ * only their type is recorded.
  */
 public final class QueryParameters {
   static final int MAX_PARAMETERS = 64;
@@ -55,7 +57,10 @@ public final class QueryParameters {
     }
   }
 
-  /** Replaces values that must not be read, such as streams and LOBs. */
+  /**
+   * Replaces values that are left out: streams and LOBs, which must not be read, and values that
+   * could not be turned into a string.
+   */
   private static final Object UNREAD = new Object();
 
   private static final char[] HEX_DIGITS = "0123456789ABCDEF".toCharArray();
@@ -70,8 +75,11 @@ public final class QueryParameters {
 
   private Map<String, NamedParameter> namedParameters;
 
-  /** Whether a parameter was dropped when bound, because of the parameter limit. */
-  private boolean dropped;
+  /**
+   * Whether values were left out when bound: beyond the parameter limit, or bound by name then by
+   * position (or the reverse), since a name and a position can be the same parameter.
+   */
+  private boolean incomplete;
 
   public static QueryParameters getOrCreate(
       ContextStore<PreparedStatement, QueryParameters> store, PreparedStatement statement) {
@@ -123,12 +131,25 @@ public final class QueryParameters {
     if (namedParameters != null) {
       namedParameters.clear();
     }
-    dropped = false;
+    incomplete = false;
   }
 
-  /** Puts the bound values and their types on the span. */
+  /** Puts the bound values and their types on the span, never throwing. */
   public void applyTo(AgentSpan span) {
-    boolean truncated = dropped;
+    boolean truncated;
+    try {
+      truncated = tagParameters(span);
+    } catch (Throwable ignored) {
+      truncated = true;
+    }
+    if (truncated) {
+      span.setTag(TRUNCATED_TAG, true);
+    }
+  }
+
+  /** Returns whether anything was truncated or left out. */
+  private boolean tagParameters(AgentSpan span) {
+    boolean truncated = incomplete;
     int count = 0;
     long positions = boundPositions;
     while (positions != 0) {
@@ -161,29 +182,37 @@ public final class QueryParameters {
         count++;
       }
     }
-    if (truncated) {
-      span.setTag(TRUNCATED_TAG, true);
-    }
+    return truncated;
   }
 
   private void put(Object key, String type, Object value) {
-    Object kept = isUnread(value) ? UNREAD : value;
+    Object kept = snapshot(value);
     if (key instanceof Integer) {
+      if (namedParameters != null && !namedParameters.isEmpty()) {
+        namedParameters.clear();
+        incomplete = true;
+      }
       int position = (Integer) key - 1;
       if (position < 0 || position >= MAX_PARAMETERS) {
-        dropped = true;
+        incomplete = true;
         return;
       }
       positionalValues[position] = kept;
       positionalTypes[position] = type;
       boundPositions |= 1L << position;
     } else if (key instanceof String) {
+      if (boundPositions != 0) {
+        Arrays.fill(positionalValues, null);
+        Arrays.fill(positionalTypes, null);
+        boundPositions = 0;
+        incomplete = true;
+      }
       if (namedParameters == null) {
         namedParameters = new LinkedHashMap<>();
       }
       String name = (String) key;
       if (namedParameters.size() >= MAX_PARAMETERS && !namedParameters.containsKey(name)) {
-        dropped = true;
+        incomplete = true;
         return;
       }
       namedParameters.put(name, new NamedParameter(type, kept));
@@ -199,10 +228,8 @@ public final class QueryParameters {
     if (value == UNREAD) {
       return true;
     }
-    String string;
-    try {
-      string = toString(value);
-    } catch (Throwable ignored) {
+    String string = toStringOrNull(value);
+    if (null == string) {
       return true;
     }
     if (string.length() > MAX_VALUE_LENGTH) {
@@ -217,11 +244,59 @@ public final class QueryParameters {
     return false;
   }
 
-  private static String toString(Object value) {
+  /**
+   * Returns the value to keep until the statement runs: immutable values as is, the others as a
+   * string, cut just after the length limit so that they are still seen as truncated.
+   */
+  private static Object snapshot(Object value) {
+    if (null == value || isImmutable(value)) {
+      return value;
+    }
+    if (isUnread(value)) {
+      return UNREAD;
+    }
+    String string = toStringOrNull(value);
+    if (null == string) {
+      return UNREAD;
+    }
+    return string.length() > MAX_VALUE_LENGTH + 1
+        ? string.substring(0, MAX_VALUE_LENGTH + 1)
+        : string;
+  }
+
+  private static boolean isImmutable(Object value) {
+    return value instanceof String
+        || value instanceof Integer
+        || value instanceof Long
+        || value instanceof Short
+        || value instanceof Byte
+        || value instanceof Boolean
+        || value instanceof Character
+        || value instanceof Double
+        || value instanceof Float
+        || value.getClass() == BigDecimal.class
+        || value.getClass() == BigInteger.class
+        || value instanceof LocalDate
+        || value instanceof LocalTime
+        || value instanceof LocalDateTime
+        || value instanceof OffsetTime
+        || value instanceof OffsetDateTime;
+  }
+
+  /** Returns {@code null} when the value can't be turned into a string. */
+  private static String toStringOrNull(Object value) {
     if (value instanceof byte[]) {
       return toHex((byte[]) value);
     }
-    return String.valueOf(value);
+    if (null == value) {
+      return "null";
+    }
+    try {
+      // toString may return null, for example for a PostgreSQL PGobject holding SQL NULL
+      return value.toString();
+    } catch (Throwable ignored) {
+      return null;
+    }
   }
 
   /** Encodes only what can be kept, plus one byte so that the result is seen as truncated. */
