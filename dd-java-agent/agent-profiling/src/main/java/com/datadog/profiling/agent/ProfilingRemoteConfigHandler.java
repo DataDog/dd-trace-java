@@ -57,7 +57,11 @@ import org.slf4j.LoggerFactory;
  * </ul>
  *
  * <p>Stopping a running profiler uploads what it recorded since its last snapshot first. That
- * upload is synchronous, so it holds up the remote config thread for at most the upload timeout.
+ * upload is synchronous, so it holds up the remote config thread, which all the remote config
+ * products share. Before it, the stop waits for the profiler's scheduler thread to end, which is
+ * right away unless that thread is taking a periodic snapshot, and at most 10 seconds. So a stop
+ * holds up the remote config thread for at most 10 seconds plus the upload timeout, and the final
+ * snapshot is skipped if that thread didn't end in time, as it is uploading already.
  *
  * <p>When applying a configuration fails, or the profiler doesn't start, even later after the
  * startup delay, the next remote config change applies it again, even if it is the one that was

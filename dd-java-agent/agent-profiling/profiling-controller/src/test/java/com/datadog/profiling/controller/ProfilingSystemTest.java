@@ -264,6 +264,41 @@ public class ProfilingSystemTest {
   }
 
   @Test
+  public void testStopSkipsTheFinalSnapshotWhenTheSchedulerDidNotTerminate() throws Exception {
+    // as if its thread were still taking a periodic snapshot after the termination timeout
+    final AgentTaskScheduler stuckScheduler =
+        new AgentTaskScheduler(PROFILER_RECORDING_SCHEDULER) {
+          @Override
+          public boolean isTerminated() {
+            return false;
+          }
+        };
+    final ProfilingSystem system =
+        spy(
+            new ProfilingSystem(
+                configProvider,
+                controllerFactory,
+                listener,
+                Duration.ofMillis(10),
+                Duration.ZERO,
+                Duration.ofMillis(300),
+                true,
+                () -> stuckScheduler,
+                threadLocalRandom));
+    final ProfilingSystem.SnapshotRecording snapshotRecording =
+        spy(system.createSnapshotRecording(Instant.now()));
+    when(system.createSnapshotRecording(any())).thenReturn(snapshotRecording);
+    when(recording.stop()).thenReturn(recordingData);
+
+    system.start();
+    system.stop(true);
+
+    verify(snapshotRecording, never()).snapshot(any(), anyBoolean());
+    verify(recording).stop();
+    assertFalse(system.isStarted());
+  }
+
+  @Test
   public void testStopWithSnapshotTakesAPeriodicOne() throws Exception {
     final ProfilingSystem system =
         spy(

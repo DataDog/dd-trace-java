@@ -359,7 +359,11 @@ public final class ProfilingSystem {
         snapshotRecording = this.snapshotRecording;
         this.snapshotRecording = null;
       }
-      if (snapshot && snapshotRecording != null) {
+      if (snapshot && snapshotRecording != null && !scheduler.isTerminated()) {
+        // the scheduler thread is still taking a periodic snapshot, e.g. a slow upload: taking
+        // another one at the same time would upload the same data twice
+        log.debug("Profiling scheduler did not terminate in time, skipping the final snapshot");
+      } else if (snapshot && snapshotRecording != null) {
         // reads this.recording, so it is cleared only after the snapshot. It is uploaded
         // synchronously either way, but only tagged as a shutdown one when the JVM is going away,
         // not for a restart
@@ -477,6 +481,12 @@ public final class ProfilingSystem {
      */
     public void snapshot(ProfilingSnapshot.Kind kind, boolean sync) {
       final RecordingType recordingType = RecordingType.CONTINUOUS;
+      // cleared by stop(), which a scheduler thread that didn't terminate in time can outlive
+      final OngoingRecording recording = ProfilingSystem.this.recording;
+      if (recording == null) {
+        log.debug("Profiling recording is stopped, skipping the snapshot");
+        return;
+      }
       try {
         log.debug("Creating profiler snapshot");
         final RecordingData recordingData = recording.snapshot(lastSnapshot, kind);

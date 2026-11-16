@@ -246,6 +246,15 @@ public class AgentTaskScheduler implements Executor {
     return shutdown;
   }
 
+  /**
+   * @return whether this was shut down and its worker thread, if any, is no longer running a task,
+   *     e.g. because it ended within the timeout given to {@link #shutdown}
+   */
+  public boolean isTerminated() {
+    final Thread t = worker;
+    return shutdown && (t == null || !t.isAlive());
+  }
+
   public static void initialize() {
     AgentTaskScheduler.INSTANCE.dummy();
   }

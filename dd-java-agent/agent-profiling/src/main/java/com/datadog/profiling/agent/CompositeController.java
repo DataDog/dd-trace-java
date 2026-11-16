@@ -119,7 +119,22 @@ public class CompositeController implements Controller {
 
     @Override
     public void close() {
-      recordings.forEach(OngoingRecording::close);
+      // like stop(), every recording must be closed, even when another one fails to
+      RuntimeException failure = null;
+      for (OngoingRecording recording : recordings) {
+        try {
+          recording.close();
+        } catch (RuntimeException e) {
+          if (failure == null) {
+            failure = e;
+          } else {
+            failure.addSuppressed(e);
+          }
+        }
+      }
+      if (failure != null) {
+        throw failure;
+      }
     }
 
     private RecordingData compose(Function<OngoingRecording, RecordingData> recorder) {

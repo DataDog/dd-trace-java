@@ -1,9 +1,11 @@
 package com.datadog.profiling.agent;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -87,6 +89,24 @@ public class CompositeControllerTest {
     assertThrows(IllegalStateException.class, composite(ok, failing)::stop);
 
     verify(stopped).release();
+  }
+
+  @Test
+  public void closeClosesEveryRecordingEvenWhenSomeFail() throws Exception {
+    OngoingRecording failing = mock(OngoingRecording.class);
+    OngoingRecording alsoFailing = mock(OngoingRecording.class);
+    OngoingRecording other = mock(OngoingRecording.class);
+    IllegalStateException failure = new IllegalStateException("first");
+    IllegalStateException otherFailure = new IllegalStateException("second");
+    doThrow(failure).when(failing).close();
+    doThrow(otherFailure).when(alsoFailing).close();
+    OngoingRecording composite = composite(failing, alsoFailing, other);
+
+    // the recordings after a failing one must still be closed, or they would keep running
+    assertSame(failure, assertThrows(IllegalStateException.class, composite::close));
+
+    verify(other).close();
+    assertArrayEquals(new Throwable[] {otherFailure}, failure.getSuppressed());
   }
 
   private static OngoingRecording composite(OngoingRecording... recordings) throws Exception {
