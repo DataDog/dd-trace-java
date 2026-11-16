@@ -182,9 +182,10 @@ span_types:
     tags:
       - { dd-name: test.callback, type: string, required: recommended }  # Before, AfterAll, ...
 
-  # Data Jobs Monitoring: Spark spans (span.kind unset at runtime). DJM is Java only, so its span
-  # types live here. Not modeled: name patterns (the config.* job parameters, spark.source.N.* and
-  # spark.state.N.* streaming progress, runtime tags copied from job properties) can't have ids.
+  # Data Jobs Monitoring: Spark spans emitted by the Java tracer (span.kind unset at runtime), so
+  # their definitions live here. Not modeled: name patterns (the config.* job parameters,
+  # spark.source.N.* and spark.state.N.* streaming progress, runtime tags copied from job properties)
+  # can't have ids.
   #
   # The driver's spans form application > [sql] > job > stage > task; on Databricks a job, or a
   # streaming batch, is the top-level span instead of an application. Executor task spans come from
@@ -236,13 +237,6 @@ span_types:
       - { dd-name: spark.task_with_output_count,  type: long,   required: optional }
       - { dd-name: spark.available_executor_time, type: long,   required: optional }
       - { dd-name: spark.skew_time,               type: long,   required: optional }
-      # Base64 histograms over the tasks, when there were any.
-      - { dd-name: _dd.spark.task_run_time,       type: string, required: optional }
-      - { dd-name: _dd.spark.input_bytes,         type: string, required: optional }
-      - { dd-name: _dd.spark.output_bytes,        type: string, required: optional }
-      - { dd-name: _dd.spark.shuffle_read_bytes,  type: string, required: optional }
-      - { dd-name: _dd.spark.shuffle_write_bytes, type: string, required: optional }
-      - { dd-name: _dd.spark.disk_bytes_spilled,  type: string, required: optional }
 
   spark.application:
     extends: spark.aggregate
@@ -293,6 +287,14 @@ span_types:
       # The stage's part of its SQL plan, when it ran SQL.
       - { dd-name: _dd.spark.sql_parent_stage_ids, type: string, required: optional }
       - { dd-name: _dd.spark.sql_plan,             type: string, required: optional }
+      # Base64 histograms over the stage's tasks, when there were any. Stage only: the driver's other
+      # spans sum their stages' metrics but don't merge these histograms.
+      - { dd-name: _dd.spark.task_run_time,       type: string, required: optional }
+      - { dd-name: _dd.spark.input_bytes,         type: string, required: optional }
+      - { dd-name: _dd.spark.output_bytes,        type: string, required: optional }
+      - { dd-name: _dd.spark.shuffle_read_bytes,  type: string, required: optional }
+      - { dd-name: _dd.spark.shuffle_write_bytes, type: string, required: optional }
+      - { dd-name: _dd.spark.disk_bytes_spilled,  type: string, required: optional }
 
   spark.streaming_batch:
     extends: spark.aggregate
