@@ -6,6 +6,7 @@ import org.apache.camel.NamedNode;
 import org.apache.camel.Processor;
 import org.apache.camel.Route;
 import org.apache.camel.spi.CamelEvent;
+import org.apache.camel.spi.CamelTracingService;
 import org.apache.camel.spi.InterceptStrategy;
 import org.apache.camel.spi.RoutePolicy;
 import org.apache.camel.spi.RoutePolicyFactory;
@@ -16,19 +17,9 @@ import org.apache.camel.support.RoutePolicySupport;
 public final class CamelTracingStrategy extends EventNotifierSupport
     implements RoutePolicyFactory, InterceptStrategy {
   private final CamelContext context;
-  private final Class<?> nativeTracer;
 
   private CamelTracingStrategy(CamelContext context) {
     this.context = context;
-    Class<?> tracer;
-    try {
-      tracer =
-          Class.forName(
-              "org.apache.camel.tracing.Tracer", false, context.getClass().getClassLoader());
-    } catch (ClassNotFoundException | LinkageError | SecurityException ignored) {
-      tracer = null;
-    }
-    nativeTracer = tracer;
     setupIgnore(true);
     setIgnoreExchangeEvents(false);
     setIgnoreExchangeSendingEvents(false);
@@ -53,7 +44,7 @@ public final class CamelTracingStrategy extends EventNotifierSupport
   private boolean nativeTracingPresent() {
     // Camel's tracing adapters register their Tracer as a context service before routing.
     try {
-      return nativeTracer != null && context.hasService(nativeTracer) != null;
+      return context.hasService(CamelTracingService.class) != null;
     } catch (Throwable ignored) {
       return true;
     }
