@@ -392,10 +392,11 @@ public final class QueryParameters {
     if (value instanceof Integer) {
       return "INTEGER";
     }
-    if (value instanceof Long || value instanceof BigInteger) {
+    if (value instanceof Long) {
       return "BIGINT";
     }
-    if (value instanceof BigDecimal) {
+    // arbitrary precision, so drivers bind BigInteger like BigDecimal rather than as BIGINT
+    if (value instanceof BigDecimal || value instanceof BigInteger) {
       return "NUMERIC";
     }
     if (value instanceof Boolean) {
