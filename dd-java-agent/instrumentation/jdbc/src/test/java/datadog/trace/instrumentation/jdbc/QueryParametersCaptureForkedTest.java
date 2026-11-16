@@ -15,6 +15,7 @@ import datadog.trace.test.junit.utils.config.WithConfig;
 import java.io.ByteArrayInputStream;
 import java.io.StringReader;
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
@@ -99,6 +100,21 @@ class QueryParametersCaptureForkedTest extends QueryParametersTestSupport {
     assertEquals(created.toString(), tags.get("db.query.parameter.7"));
     assertEquals("TIMESTAMP", tags.get("_dd.dbm.query.parameter_type.7"));
     assertEquals(null, tags.get(TRUNCATED_TAG));
+  }
+
+  @Test
+  void arbitraryPrecisionIntegersAreNumeric() throws SQLException {
+    BigInteger large = new BigInteger("999999999999999999999999999999");
+    try (PreparedStatement statement = h2.prepareStatement("SELECT ?")) {
+      statement.setObject(1, large);
+      statement.executeQuery().close();
+    }
+
+    assertEquals(
+        tags(
+            "db.query.parameter.0", "999999999999999999999999999999",
+            "_dd.dbm.query.parameter_type.0", "NUMERIC"),
+        parameterTags(preparedStatementSpans(1).get(0)));
   }
 
   @Test
