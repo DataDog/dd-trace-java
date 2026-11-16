@@ -77,7 +77,7 @@ jobs:
       matrix:
         library: [java, java_lambda]
     # If you change the following comment, update the pattern in the update_system_test_reference.sh script to match.
-    uses: DataDog/system-tests/.github/workflows/system-tests.yml@main # system tests are pinned on release branches only
+    uses: DataDog/system-tests/.github/workflows/system-tests.yml@59499fc4f512d8ec399cfa71289000bc02965891 # system tests are pinned on release branches only
     permissions:
       contents: read
       id-token: write
@@ -85,7 +85,7 @@ jobs:
     with:
       library: ${{ matrix.library }}
        # If you change the following comment, update the pattern in the update_system_test_reference.sh script to match.
-      ref: "main" # system tests are pinned on release branches only
+      ref: "59499fc4f512d8ec399cfa71289000bc02965891" # system tests are pinned on release branches only
       binaries_artifact: ${{ matrix.library == 'java_lambda' && 'binaries-lambda' || 'binaries' }}
       desired_execution_time: 900  # 15 minutes
       scenarios_groups: tracer-release
