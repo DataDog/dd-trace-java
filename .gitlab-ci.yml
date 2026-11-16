@@ -783,10 +783,18 @@ generate-supported-versions:
   needs: *needs_build_tests_inst
   variables:
     CACHE_TYPE: "inst"
+  # Skip merge queue pipelines like muzzle-dep-report. The jobs needing this one must skip them too.
+  rules: &supported_versions_rules
+    - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
+      when: never
+    - if: '$CI_COMMIT_BRANCH =~ /^gh-readonly-queue/'
+      when: never
+    - when: on_success
   # Don't block pipelines while the generator is new.
   allow_failure: true
 
 validate-supported-versions:
+  rules: *supported_versions_rules
   allow_failure: true
 
 # TEMPORARY: manual S3 upload on any branch to test in the Integration Portal. Revert before merging.
