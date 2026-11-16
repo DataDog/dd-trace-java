@@ -64,7 +64,7 @@ if (gitBaseRefProvider.isPresent) {
     include("gradlew", "gradlew.bat", "mvnw", "mvnw.cmd")
     include("NOTICE")
     include("static-analysis.datadog.yml")
-    include(".github/**", ".claude/**", ".agents/**")
+    include(".github/**", ".claude/**", ".agents/**", "docs/**")
   }
 
   changedFiles.forEach { f ->
