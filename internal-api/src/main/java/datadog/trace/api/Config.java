@@ -750,8 +750,12 @@ import static datadog.trace.api.config.TracerConfig.WRITER_BAGGAGE_INJECT;
 import static datadog.trace.api.config.TracerConfig.WRITER_LINKS_INJECT;
 import static datadog.trace.api.config.TracerConfig.WRITER_TYPE;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
+import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.DD_INTAKE_WRITER_TYPE;
+import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.LOGGING_WRITER_TYPE;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.MULTI_WRITER_TYPE;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.OTLP_WRITER_TYPE;
+import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.PRINTING_WRITER_TYPE;
+import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.TRACE_STRUCTURE_WRITER_TYPE;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
 import static datadog.trace.util.ConfigStrings.propertyNameToEnvironmentVariableName;
@@ -2269,14 +2273,8 @@ public class Config {
             OtlpConfig.Temporality.class,
             OtlpConfig.Temporality.DELTA);
 
-    // Tri-state default: when unset, SDK-computed OTLP span metrics are emitted iff OTLP trace
-    // export and OTLP metrics export are both enabled. OTEL_SDK_DISABLED=true turns them off.
     otelTracesSpanMetricsEnabled =
-        configProvider.getBoolean(
-                OTEL_TRACES_SPAN_METRICS_ENABLED,
-                isTraceOtlpExporterEnabled()
-                    && isMetricsOtelEnabled()
-                    && isMetricsOtlpExporterEnabled())
+        configProvider.getBoolean(OTEL_TRACES_SPAN_METRICS_ENABLED, false)
             && !configProvider.isOtelSdkDisabled();
 
     otlpTimeout = configProvider.getInteger(OTLP_TRACES_TIMEOUT, DEFAULT_OTLP_TRACES_TIMEOUT);
@@ -4113,6 +4111,32 @@ public class Config {
   public boolean isTracerMetricsEnabled() {
     // When ASM Standalone Billing is enabled metrics should be disabled
     return tracerMetricsEnabled && isApmTracingEnabled();
+  }
+
+  public boolean isNativeTracerMetricsEnabled() {
+    return isTracerMetricsEnabled() && !isOtelTracesSpanMetricsEnabled() && hasAgentWriter();
+  }
+
+  public boolean hasAgentWriter() {
+    if (!writerType.startsWith(MULTI_WRITER_TYPE)) {
+      return isAgentWriterType(writerType);
+    }
+    String multiWriterConfig = Strings.replace(writerType, MULTI_WRITER_TYPE + ":", "");
+    for (String subWriterType : COMMA.split(multiWriterConfig)) {
+      if (isAgentWriterType(subWriterType)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private static boolean isAgentWriterType(String type) {
+    // WriterFactory falls back to DDAgentWriter for unrecognized writer types.
+    return !OTLP_WRITER_TYPE.equals(type)
+        && !DD_INTAKE_WRITER_TYPE.equals(type)
+        && !LOGGING_WRITER_TYPE.equals(type)
+        && !PRINTING_WRITER_TYPE.equals(type)
+        && !type.startsWith(TRACE_STRUCTURE_WRITER_TYPE);
   }
 
   public boolean isTracerMetricsIgnoreAgentVersion() {
