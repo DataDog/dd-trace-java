@@ -7,6 +7,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from benchmark_pr import (
     MARKER_RE,
     format_number,
+    missing_classes,
+    parse_benchmark_list,
     glob_to_regex,
     includes_regex,
     parse_mapping,
@@ -18,10 +20,11 @@ from benchmark_pr import (
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def result(benchmark, score, alloc=None, params=None, error=0.5):
+def result(benchmark, score, alloc=None, params=None, error=0.5, mode="thrpt"):
     secondary = {} if alloc is None else {"gc.alloc.rate.norm": {"score": alloc}}
     return {
         "benchmark": benchmark,
+        "mode": mode,
         "params": params or {},
         "primaryMetric": {"score": score, "scoreError": error, "scoreUnit": "ops/us"},
         "secondaryMetrics": secondary,
@@ -94,6 +97,18 @@ class RunHelpersTest(unittest.TestCase):
         self.assertFalse(regex.search("datadog.trace.util.FlatHashtableD1Benchmark.iterate"))
 
 
+class CoverageTest(unittest.TestCase):
+    def test_classes_without_results_are_missing(self):
+        results = [result("x.TableBenchmark.get", 1.0)]
+        self.assertEqual(
+            missing_classes(["TableBenchmark", "StoreBenchmark"], results), ["StoreBenchmark"]
+        )
+
+    def test_a_jmh_listing_gives_its_classes(self):
+        listing = "Benchmarks: \nx.y.TableBenchmark.get\nx.y.TableBenchmark.put\nx.StoreBenchmark.scan\n"
+        self.assertEqual(parse_benchmark_list(listing), {"TableBenchmark", "StoreBenchmark"})
+
+
 class SectionTest(unittest.TestCase):
     BASE = "a" * 40
     HEAD = "b" * 40
@@ -115,7 +130,7 @@ class SectionTest(unittest.TestCase):
             [result("x.TableBenchmark.get", 110.0, alloc=16.0, params={"size": "8"})],
         )
         row = [line for line in text.splitlines() if "TableBenchmark.get" in line][0]
-        self.assertIn("| size=8 |", row)
+        self.assertIn("| thrpt | size=8 |", row)
         self.assertIn("+10.0%", row)
         self.assertIn("| 0.0 | 16.0 |", row)
 
@@ -130,6 +145,22 @@ class SectionTest(unittest.TestCase):
         self.assertEqual(format_number(11410000), "11.41M")
         self.assertEqual(format_number(254.7), "254.7")
         self.assertEqual(format_number(0.0123), "0.0123")
+
+    def test_each_mode_gets_its_own_row(self):
+        text = self.section(
+            [result("x.TableBenchmark.get", 100.0), result("x.TableBenchmark.get", 0.01, mode="avgt")],
+            [result("x.TableBenchmark.get", 110.0), result("x.TableBenchmark.get", 0.009, mode="avgt")],
+        )
+        rows = [line for line in text.splitlines() if "TableBenchmark.get" in line]
+        self.assertEqual(len(rows), 2)
+        self.assertTrue(any("| thrpt |" in r for r in rows))
+        self.assertTrue(any("| avgt |" in r for r in rows))
+
+    def test_classes_new_on_head_are_named(self):
+        text = render_section(
+            self.BASE, self.HEAD, ["TableBenchmark"], [], [], "JDK: test.", (), ["TableBenchmark"]
+        )
+        self.assertIn("Not on the base commit, added by this change: `TableBenchmark`.", text)
 
     def test_a_benchmark_missing_on_one_side_still_gets_a_row(self):
         text = self.section([], [result("x.TableBenchmark.added", 5.0)])

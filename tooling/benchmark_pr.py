@@ -150,8 +150,40 @@ def build_jar(worktree, project):
     return jars[-1]
 
 
+def benchmark_class(benchmark):
+    """'datadog.trace.util.HashtableD1Benchmark.iterate' -> 'HashtableD1Benchmark'."""
+    return benchmark.split(".")[-2]
+
+
+def parse_benchmark_list(text):
+    """The benchmark classes in the output of a JMH jar's `-l`."""
+    return {
+        benchmark_class(line.strip())
+        for line in text.splitlines()
+        if line.strip().count(".") >= 1 and not line.startswith("Benchmarks:")
+    }
+
+
+def list_classes(jar, names):
+    """Which of `names` the jar contains: a class the change adds isn't on the base commit."""
+    listing = subprocess.run(
+        [java_command(), "-jar", str(jar), "-l", includes_regex(names)],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    return parse_benchmark_list(listing) & set(names)
+
+
+def missing_classes(names, results):
+    """The classes in `names` with no result: a benchmark that failed, or a fork that died."""
+    measured = {benchmark_class(r["benchmark"]) for r in results}
+    return sorted(set(names) - measured)
+
+
 def run_jar(jar, names, result_file, jmh_args):
-    command = [java_command(), "-jar", str(jar), includes_regex(names), "-prof", "gc"]
+    # -foe: without it JMH exits 0 when a benchmark fails, leaving its results out of the file
+    command = [java_command(), "-jar", str(jar), includes_regex(names), "-prof", "gc", "-foe", "true"]
     command += ["-rf", "json", "-rff", str(result_file), *jmh_args]
     print("+ " + " ".join(command), file=sys.stderr)
     subprocess.run(command, check=True, stdout=sys.stderr)
@@ -159,8 +191,9 @@ def run_jar(jar, names, result_file, jmh_args):
 
 
 def result_key(result):
+    """Benchmark, mode and params: a run with several modes (`-bm thrpt,avgt`) has one result each."""
     params = result.get("params") or {}
-    return result["benchmark"], tuple(sorted(params.items()))
+    return result["benchmark"], result.get("mode", ""), tuple(sorted(params.items()))
 
 
 def short_name(benchmark):
@@ -200,7 +233,7 @@ def format_delta(base, head):
 
 
 def render_section(
-    base_sha, head_sha, names, base_results, head_results, environment, jmh_args=()
+    base_sha, head_sha, names, base_results, head_results, environment, jmh_args=(), new_classes=()
 ):
     """The `## Benchmarks` section: marker, conditions, and one row per benchmark and params."""
     settings = "each benchmark's own settings"
@@ -214,15 +247,23 @@ def render_section(
         f"<!-- benchmark-pr: base={base_sha} head={head_sha} benchmarks={','.join(names)} -->",
         f"Base `{base_sha[:10]}` vs head `{head_sha[:10]}`, run one after the other on the same "
         f"machine with {settings} and `-prof gc`. {environment}",
+    ]
+    if new_classes:
+        lines.append(
+            "Not on the base commit, added by this change: "
+            + ", ".join(f"`{n}`" for n in sorted(new_classes))
+            + "."
+        )
+    lines += [
         "",
-        "| Benchmark | Params | Base | Head | Δ | Base B/op | Head B/op |",
-        "|---|---|---|---|---|---|---|",
+        "| Benchmark | Mode | Params | Base | Head | Δ | Base B/op | Head B/op |",
+        "|---|---|---|---|---|---|---|---|",
     ]
     for key in sorted(set(base_by_key) | set(head_by_key)):
         base, head = base_by_key.get(key), head_by_key.get(key)
-        params = ", ".join(f"{k}={v}" for k, v in key[1])
+        params = ", ".join(f"{k}={v}" for k, v in key[2])
         lines.append(
-            f"| {short_name(key[0])} | {params} "
+            f"| {short_name(key[0])} | {key[1]} | {params} "
             f"| {format_score(base and base['primaryMetric'])} "
             f"| {format_score(head and head['primaryMetric'])} "
             f"| {format_delta(base, head)} | {format_alloc(base)} | {format_alloc(head)} |"
@@ -259,6 +300,7 @@ def command_run(args):
     names = benchmark_names(required)
     scratch = Path(tempfile.mkdtemp(prefix="benchmark-pr-"))
     results = {base: [], head: []}
+    expected = {base: [], head: []}  # the classes each commit has and must produce results for
     worktrees = []
     try:
         for sha in (base, head):
@@ -267,15 +309,35 @@ def command_run(args):
             worktrees.append(worktree)
             for project, project_names in required.items():
                 jar = build_jar(worktree, project)
-                out = scratch / f"{sha[:10]}-{project_dir(project).replace('/', '_')}.json"
-                results[sha] += run_jar(jar, project_names, out, args.jmh_args)
+                present = sorted(list_classes(jar, project_names))
+                if sha == head and len(present) < len(project_names):
+                    missing = ", ".join(sorted(set(project_names) - set(present)))
+                    print(f"error: {project} at HEAD has no benchmark {missing}", file=sys.stderr)
+                    return 1
+                expected[sha] += present
+                if present:
+                    out = scratch / f"{sha[:10]}-{project_dir(project).replace('/', '_')}.json"
+                    results[sha] += run_jar(jar, present, out, args.jmh_args)
     finally:
         for worktree in worktrees:
             subprocess.run(["git", "worktree", "remove", "--force", str(worktree)])
         shutil.rmtree(scratch, ignore_errors=True)
+    for sha, label in ((base, "base"), (head, "head")):
+        missing = missing_classes(expected[sha], results[sha])
+        if missing:
+            print(f"error: no {label} results for {', '.join(missing)}", file=sys.stderr)
+            return 1
+    new_classes = sorted(set(names) - set(expected[base]))
     print(
         render_section(
-            base, head, names, results[base], results[head], environment_line(), args.jmh_args
+            base,
+            head,
+            names,
+            results[base],
+            results[head],
+            environment_line(),
+            args.jmh_args,
+            new_classes,
         )
     )
     return 0
