@@ -32,6 +32,7 @@ import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.datastreams.NoopPathwayContext;
 import datadog.trace.api.flare.TracerFlare;
+import datadog.trace.api.time.ControllableTimeSource;
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.propagation.PropagationTags;
@@ -425,82 +426,91 @@ public class PendingTraceBufferTest extends DDJavaSpecification {
     TracerFlare.Reporter dumpReporter = mock(TracerFlare.Reporter.class);
     TracerFlare.addReporter(dumpReporter);
 
-    PendingTrace trace1 = factory.create(DDTraceId.ONE);
-    DDSpan parent1 = newSpanOf(trace1, UNSET, System.currentTimeMillis() * 1000);
-    DDSpan child1 = newSpanOf(parent1);
-    PendingTrace trace2 = factory.create(DDTraceId.from(2));
-    DDSpan parent2 = newSpanOf(trace2, UNSET, System.currentTimeMillis() * 2000);
-    DDSpan child2 = newSpanOf(parent2);
-    // first flare dump with two traces
-    parent1.finish();
-    parent2.finish();
-    buffer.start();
-    Map<String, Object> entries1 = buildAndExtractZip();
+    // The buffer writes out a trace untouched for 500ms, so with a real clock a dump only sees the
+    // traces if it runs sooner, which every other registered reporter can delay. A clock held still
+    // keeps them pending until each dump is done.
+    ControllableTimeSource timeSource = new ControllableTimeSource();
+    PendingTraceBuffer flareBuffer =
+        PendingTraceBuffer.delaying(timeSource, mock(Config.class), null, null);
+    PendingTrace.Factory flareFactory =
+        new PendingTrace.Factory(tracer, flareBuffer, timeSource, false, HealthMetrics.NO_OP);
+    try {
+      PendingTrace trace1 = flareFactory.create(DDTraceId.ONE);
+      DDSpan parent1 = newSpanOf(trace1, UNSET, System.currentTimeMillis() * 1000);
+      DDSpan child1 = newSpanOf(parent1);
+      PendingTrace trace2 = flareFactory.create(DDTraceId.from(2));
+      DDSpan parent2 = newSpanOf(trace2, UNSET, System.currentTimeMillis() * 2000);
+      DDSpan child2 = newSpanOf(parent2);
+      // first flare dump with two traces
+      parent1.finish();
+      parent2.finish();
+      flareBuffer.start();
+      Map<String, Object> entries1 = buildAndExtractZip();
 
-    verify(dumpReporter).prepareForFlare();
-    verify(dumpReporter).addReportToFlare(any());
-    verify(dumpReporter).cleanupAfterFlare();
+      verify(dumpReporter).prepareForFlare();
+      verify(dumpReporter).addReportToFlare(any());
+      verify(dumpReporter).cleanupAfterFlare();
 
-    assertEquals(1, entries1.size());
-    String pendingTraceText1 = (String) entries1.get("pending_traces.txt");
-    assertTrue(
-        pendingTraceText1.startsWith(
-            "[{\"service\":\"fakeService\",\"name\":\"fakeOperation\",\"resource\":\"fakeResource\",\"trace_id\":1,\"span_id\":1,\"parent_id\":0"));
+      assertEquals(1, entries1.size());
+      String pendingTraceText1 = (String) entries1.get("pending_traces.txt");
+      assertTrue(
+          pendingTraceText1.startsWith(
+              "[{\"service\":\"fakeService\",\"name\":\"fakeOperation\",\"resource\":\"fakeResource\",\"trace_id\":1,\"span_id\":1,\"parent_id\":0"));
 
-    List<Map<String, Object>> parsedTraces1 = parseTraceLines(pendingTraceText1);
-    assertEquals(2, parsedTraces1.size());
-    assertEquals(1L, ((Number) parsedTraces1.get(0).get("trace_id")).longValue());
-    assertEquals(2L, ((Number) parsedTraces1.get(1).get("trace_id")).longValue());
-    assertTrue(
-        ((Number) parsedTraces1.get(0).get("start")).longValue()
-            < ((Number) parsedTraces1.get(1).get("start")).longValue());
+      List<Map<String, Object>> parsedTraces1 = parseTraceLines(pendingTraceText1);
+      assertEquals(2, parsedTraces1.size());
+      assertEquals(1L, ((Number) parsedTraces1.get(0).get("trace_id")).longValue());
+      assertEquals(2L, ((Number) parsedTraces1.get(1).get("trace_id")).longValue());
+      assertTrue(
+          ((Number) parsedTraces1.get(0).get("start")).longValue()
+              < ((Number) parsedTraces1.get(1).get("start")).longValue());
 
-    clearInvocations(dumpReporter);
+      clearInvocations(dumpReporter);
 
-    // New pending traces are needed here because generating the first flare takes long enough that
-    // the
-    // earlier pending traces are flushed (within 500ms).
-    // second flare dump with new pending traces
-    // Finish the first set of traces
-    child1.finish();
-    child2.finish();
-    // Create new pending traces
-    PendingTrace trace3 = factory.create(DDTraceId.from(3));
-    DDSpan parent3 = newSpanOf(trace3, UNSET, System.currentTimeMillis() * 3000);
-    DDSpan child3 = newSpanOf(parent3);
-    PendingTrace trace4 = factory.create(DDTraceId.from(4));
-    DDSpan parent4 = newSpanOf(trace4, UNSET, System.currentTimeMillis() * 4000);
-    DDSpan child4 = newSpanOf(parent4);
-    parent3.finish();
-    parent4.finish();
-    Map<String, Object> entries2 = buildAndExtractZip();
+      // second flare dump with new pending traces
+      // Finish the first set of traces
+      child1.finish();
+      child2.finish();
+      // Create new pending traces
+      PendingTrace trace3 = flareFactory.create(DDTraceId.from(3));
+      DDSpan parent3 = newSpanOf(trace3, UNSET, System.currentTimeMillis() * 3000);
+      DDSpan child3 = newSpanOf(parent3);
+      PendingTrace trace4 = flareFactory.create(DDTraceId.from(4));
+      DDSpan parent4 = newSpanOf(trace4, UNSET, System.currentTimeMillis() * 4000);
+      DDSpan child4 = newSpanOf(parent4);
+      parent3.finish();
+      parent4.finish();
+      Map<String, Object> entries2 = buildAndExtractZip();
 
-    verify(dumpReporter).prepareForFlare();
-    verify(dumpReporter).addReportToFlare(any());
-    verify(dumpReporter).cleanupAfterFlare();
+      verify(dumpReporter).prepareForFlare();
+      verify(dumpReporter).addReportToFlare(any());
+      verify(dumpReporter).cleanupAfterFlare();
 
-    assertEquals(1, entries2.size());
-    String pendingTraceText2 = (String) entries2.get("pending_traces.txt");
-    List<Map<String, Object>> parsedTraces2 = parseTraceLines(pendingTraceText2);
-    assertEquals(2, parsedTraces2.size());
+      assertEquals(1, entries2.size());
+      String pendingTraceText2 = (String) entries2.get("pending_traces.txt");
+      List<Map<String, Object>> parsedTraces2 = parseTraceLines(pendingTraceText2);
+      assertEquals(2, parsedTraces2.size());
 
-    child3.finish();
-    child4.finish();
+      child3.finish();
+      child4.finish();
 
-    long deadline = System.currentTimeMillis() + 3000;
-    while ((trace1.size() != 0 || trace2.size() != 0 || trace3.size() != 0 || trace4.size() != 0)
-        && System.currentTimeMillis() < deadline) {
-      Thread.sleep(50);
+      long deadline = System.currentTimeMillis() + 3000;
+      while ((trace1.size() != 0 || trace2.size() != 0 || trace3.size() != 0 || trace4.size() != 0)
+          && System.currentTimeMillis() < deadline) {
+        Thread.sleep(50);
+      }
+
+      assertEquals(0, trace1.size());
+      assertEquals(0, trace1.getPendingReferenceCount());
+      assertEquals(0, trace2.size());
+      assertEquals(0, trace2.getPendingReferenceCount());
+      assertEquals(0, trace3.size());
+      assertEquals(0, trace3.getPendingReferenceCount());
+      assertEquals(0, trace4.size());
+      assertEquals(0, trace4.getPendingReferenceCount());
+    } finally {
+      flareBuffer.close();
     }
-
-    assertEquals(0, trace1.size());
-    assertEquals(0, trace1.getPendingReferenceCount());
-    assertEquals(0, trace2.size());
-    assertEquals(0, trace2.getPendingReferenceCount());
-    assertEquals(0, trace3.size());
-    assertEquals(0, trace3.getPendingReferenceCount());
-    assertEquals(0, trace4.size());
-    assertEquals(0, trace4.getPendingReferenceCount());
   }
 
   private DDSpan addContinuation(DDSpan span) {

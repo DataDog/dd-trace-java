@@ -88,21 +88,9 @@ class ValidatingRequestContextDecorator implements RequestContext {
     }
 
     @Override
-    void setTagCurrent(String key, Object value, boolean sanitize) {
-      check()
-      delegate.setTagCurrent(key, value, sanitize)
-    }
-
-    @Override
     Object getTagTop(String key, boolean sanitize) {
       check()
       return delegate.getTagTop(key, sanitize)
-    }
-
-    @Override
-    Object getTagCurrent(String key, boolean sanitize) {
-      check()
-      return delegate.getTagCurrent(key, sanitize)
     }
 
     @Override
@@ -124,27 +112,9 @@ class ValidatingRequestContextDecorator implements RequestContext {
     }
 
     @Override
-    void setMetaStructCurrent(String key, Object value) {
-      check()
-      delegate.setMetaStructCurrent(key, value)
-    }
-
-    @Override
     void effectivelyBlocked() {
       check()
       delegate.effectivelyBlocked()
-    }
-
-    @Override
-    void setDataCurrent(String key, Object value) {
-      check()
-      delegate.setDataCurrent(key, value)
-    }
-
-    @Override
-    Object getDataCurrent(String key) {
-      check()
-      return delegate.getDataCurrent(key)
     }
   }
 }
