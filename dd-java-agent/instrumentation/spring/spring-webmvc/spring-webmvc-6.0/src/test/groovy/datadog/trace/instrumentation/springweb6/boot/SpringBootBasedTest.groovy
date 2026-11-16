@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.springweb6.boot
 
 import datadog.trace.api.telemetry.Endpoint
+import datadog.trace.api.telemetry.EndpointCollector
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
@@ -69,10 +70,7 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
 
     @Override
     void start() {
-      app.setDefaultProperties(["server.port": 0, "server.context-path": "/$servletContext",
-        "spring.mvc.throw-exception-if-no-handler-found": false,
-        "spring.web.resources.add-mappings"             : false,
-        "server.forward-headers-strategy": "NONE"] + extraServerProperties())
+      app.setDefaultProperties(serverProperties())
       context = app.run()
       port = context.webServer.port // ServletWebServerApplicationContext moved package in Boot 4
       try {
@@ -153,6 +151,13 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
 
   Map<String, Object> extraServerProperties() {
     [:]
+  }
+
+  Map<String, Object> serverProperties() {
+    ["server.port": 0, "server.context-path": "/$servletContext",
+      "spring.mvc.throw-exception-if-no-handler-found": false,
+      "spring.web.resources.add-mappings"             : false,
+      "server.forward-headers-strategy": "NONE"] + extraServerProperties()
   }
 
   /** Matrix variables Spring binds for the {@code MATRIX_PARAM} path {@code /matrix/a=x,y;a=z}. */
@@ -320,6 +325,25 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
   /** Whether the opt-in route-naming filter ({@code spring-path-filter}) is enabled. */
   boolean pathFilterEnabled() {
     false
+  }
+
+  def "an application started during the test reports its endpoints"() {
+    setup:
+    def app = application()
+    app.setDefaultProperties(serverProperties())
+
+    when:
+    ConfigurableApplicationContext started = app.run()
+    // the DispatcherServlet is initialized, and its mappings reported, on the first request
+    def url = new URI("http://localhost:${started.webServer.port}/").resolve(PATH_PARAM.relativePath())
+    client.newCall(new Request.Builder().url(HttpUrl.get(url)).get().build()).execute().close()
+    def endpoints = EndpointCollector.get().drain().toList()
+
+    then:
+    assertEndpoints(endpoints)
+
+    cleanup:
+    started?.close()
   }
 
   def "the opt-in route-naming filters are registered only when enabled"() {
