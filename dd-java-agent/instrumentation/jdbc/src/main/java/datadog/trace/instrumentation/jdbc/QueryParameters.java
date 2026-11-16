@@ -26,6 +26,7 @@ import java.time.OffsetDateTime;
 import java.time.OffsetTime;
 import java.util.Arrays;
 import java.util.Calendar;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -76,6 +77,12 @@ public final class QueryParameters {
   private Map<String, NamedParameter> namedParameters;
 
   /**
+   * Whether an OUT parameter was registered, which can be an INOUT parameter. Kept for the life of
+   * the statement, since drivers keep the registrations after {@code clearParameters}.
+   */
+  private boolean outParameters;
+
+  /**
    * Whether values were left out: beyond the parameter limit, bound by name then by position (or
    * the reverse), since a name and a position can be the same parameter, or replaced by a batch.
    */
@@ -123,6 +130,14 @@ public final class QueryParameters {
     put(key, type, value);
   }
 
+  public void registerOutParameter() {
+    outParameters = true;
+  }
+
+  public boolean hasOutParameters() {
+    return outParameters;
+  }
+
   /** Forgets all the values, like {@code clearParameters}. */
   public void clear() {
     forgetValues();
@@ -130,8 +145,9 @@ public final class QueryParameters {
   }
 
   /**
-   * Forgets the values after a batch, since the driver may have replaced them: the values still
-   * bound in the driver are unknown, and reported as left out until {@code clearParameters}.
+   * Forgets the values after a batch, or after an execution with OUT parameters, since the driver
+   * may have replaced them: the values still bound in the driver are unknown, and reported as left
+   * out until {@code clearParameters}.
    */
   public void invalidate() {
     forgetValues();
@@ -224,12 +240,42 @@ public final class QueryParameters {
         namedParameters = new LinkedHashMap<>();
       }
       String name = (String) key;
-      if (namedParameters.size() >= MAX_PARAMETERS && !namedParameters.containsKey(name)) {
-        incomplete = true;
-        return;
+      if (!namedParameters.containsKey(name)) {
+        removeAliases(name);
+        if (namedParameters.size() >= MAX_PARAMETERS) {
+          incomplete = true;
+          return;
+        }
       }
       namedParameters.put(name, new NamedParameter(type, snapshot(value)));
     }
+  }
+
+  /**
+   * Drivers may resolve different names to the same parameter, for example ignoring the case or an
+   * {@code @} or {@code :} prefix. Since whether they do depends on the driver, the values bound to
+   * a name that may be the same are left out.
+   */
+  private void removeAliases(String name) {
+    Iterator<String> names = namedParameters.keySet().iterator();
+    while (names.hasNext()) {
+      if (mayBeSameParameter(names.next(), name)) {
+        names.remove();
+        incomplete = true;
+      }
+    }
+  }
+
+  static boolean mayBeSameParameter(String name, String other) {
+    int start = parameterNameStart(name);
+    int otherStart = parameterNameStart(other);
+    int length = name.length() - start;
+    return length == other.length() - otherStart
+        && name.regionMatches(true, start, other, otherStart, length);
+  }
+
+  private static int parameterNameStart(String name) {
+    return !name.isEmpty() && (name.charAt(0) == '@' || name.charAt(0) == ':') ? 1 : 0;
   }
 
   /** Returns whether the value was truncated or left out. */

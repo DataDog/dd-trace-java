@@ -420,6 +420,66 @@ class QueryParametersCaptureForkedTest extends QueryParametersTestSupport {
         parameterTags(preparedStatementSpans(1).get(0)));
   }
 
+  @Test
+  void namesThatMayBeTheSameParameterLeaveTheEarlierValueOut() throws SQLException {
+    try (Connection hsqldb = shipProcedureDatabase("qparams_name_aliases")) {
+      try (CallableStatement call = hsqldb.prepareCall("{call ship(?, ?)}")) {
+        call.setLong("ORDER_ID", 1L);
+        call.setString("NEW_STATUS", "SHIPPED");
+        // HSQLDB ignores the case, so this replaces ORDER_ID
+        call.setLong("order_id", 2L);
+        call.execute();
+      }
+      try (Statement query = hsqldb.createStatement();
+          ResultSet shipped = query.executeQuery("SELECT id FROM shipments")) {
+        shipped.next();
+        assertEquals(2L, shipped.getLong(1));
+      }
+    }
+
+    assertEquals(
+        tags(
+            "db.query.parameter.NEW_STATUS",
+            "SHIPPED",
+            "_dd.dbm.query.parameter_type.NEW_STATUS",
+            "VARCHAR",
+            "db.query.parameter.order_id",
+            "2",
+            "_dd.dbm.query.parameter_type.order_id",
+            "BIGINT",
+            TRUNCATED_TAG,
+            true),
+        parameterTags(preparedStatementSpans(1).get(0)));
+  }
+
+  @Test
+  void inoutParametersAreLeftOutAfterTheExecution() throws SQLException {
+    try (Connection hsqldb =
+        DriverManager.getConnection("jdbc:hsqldb:mem:qparams_inout", "sa", "")) {
+      try (Statement statement = hsqldb.createStatement()) {
+        statement.execute(
+            "CREATE PROCEDURE increment(INOUT counter BIGINT) "
+                + "BEGIN ATOMIC SET counter = counter + 1; END");
+      }
+      writer.clear();
+      try (CallableStatement call = hsqldb.prepareCall("{call increment(?)}")) {
+        call.setLong(1, 1L);
+        call.registerOutParameter(1, Types.BIGINT);
+        call.execute();
+        assertEquals(2L, call.getLong(1));
+        // runs with 2, the value the first execution put in the parameter
+        call.execute();
+        assertEquals(3L, call.getLong(1));
+      }
+    }
+
+    List<DDSpan> spans = preparedStatementSpans(2);
+    assertEquals(
+        tags("db.query.parameter.0", "1", "_dd.dbm.query.parameter_type.0", "BIGINT"),
+        parameterTags(spans.get(0)));
+    assertEquals(tags(TRUNCATED_TAG, true), parameterTags(spans.get(1)));
+  }
+
   /** Opens an HSQLDB database with a {@code ship} procedure, skipping drivers without names. */
   private Connection shipProcedureDatabase(String name) throws SQLException {
     Connection hsqldb = DriverManager.getConnection("jdbc:hsqldb:mem:" + name, "sa", "");
