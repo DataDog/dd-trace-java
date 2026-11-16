@@ -21,6 +21,7 @@ import org.apache.camel.Message;
 import org.apache.camel.Route;
 import org.apache.camel.spi.UnitOfWork;
 import org.apache.camel.support.SynchronizationAdapter;
+import org.apache.camel.util.CaseInsensitiveMap;
 
 /** A copied exchange shares only immutable parent context, never a mutable route stack. */
 public final class CamelState extends SynchronizationAdapter {
@@ -150,9 +151,15 @@ public final class CamelState extends SynchronizationAdapter {
       }
       if (AgentSpan.fromContext(context) != null) {
         Message message = exchange.getIn();
-        Map<String, Object> headers = new HashMap<>(message.getHeaders());
-        defaultPropagator().inject(context, headers, Headers.INSTANCE);
-        message.setHeaders(headers);
+        Map<String, Object> headers = message.getHeaders();
+        if (headers.getClass() == CaseInsensitiveMap.class) {
+          defaultPropagator().inject(context, headers, Headers.INSTANCE);
+        } else {
+          // Custom message maps may be immutable or shared with another exchange.
+          headers = new HashMap<>(headers);
+          defaultPropagator().inject(context, headers, Headers.INSTANCE);
+          message.setHeaders(headers);
+        }
       }
     } catch (Throwable ignored) {
       // Preserve sends when headers or propagation are unavailable.
