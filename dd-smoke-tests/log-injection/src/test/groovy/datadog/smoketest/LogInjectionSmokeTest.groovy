@@ -479,7 +479,17 @@ abstract class JULBackend extends LogInjectionSmokeTest {
     false
   }
 
-  def setupSpec() {
+  def cleanupSpec() {
+    propertiesFile?.delete()
+  }
+
+  List additionalArguments() {
+    // The child's LogManager reads this file at startup, so write it before the process starts
+    writeJulConfig()
+    return ["-Djava.util.logging.config.file=${propertiesFile.absolutePath}" as String]
+  }
+
+  protected void writeJulConfig() {
     def isWindows = System.getProperty("os.name").toLowerCase().contains("win")
     def outputLogFilePath = outputLogFile.absolutePath
     if (isWindows) {
@@ -495,14 +505,6 @@ abstract class JULBackend extends LogInjectionSmokeTest {
       it.println "java.util.logging.FileHandler.formatter=java.util.logging.SimpleFormatter"
       it.println "java.util.logging.SimpleFormatter.format=JUL:%1\$tF %1\$tT [%4\$-7s] - %5\$s%n"
     }
-  }
-
-  def cleanupSpec() {
-    propertiesFile?.delete()
-  }
-
-  List additionalArguments() {
-    return ["-Djava.util.logging.config.file=${propertiesFile.absolutePath}" as String]
   }
 }
 
@@ -719,21 +721,23 @@ class JULInterfaceSlf4jToLogbackBackend extends LogInjectionSmokeTest {
     LOGBACK_BACKEND
   }
 
-  def setupSpec() {
+  def cleanupSpec() {
+    propertiesFile?.delete()
+  }
+
+  List additionalArguments() {
+    // The child's LogManager reads this file at startup, so write it before the process starts
+    writeJulConfig()
+    return ["-Djava.util.logging.config.file=${propertiesFile.absolutePath}" as String]
+  }
+
+  protected void writeJulConfig() {
     // JUL doesn't support reading a properties file from the classpath so everything needs
     // to be specified in a temp file
     propertiesFile.withPrintWriter {
       it.println ".level=INFO"
       it.println "handlers=org.slf4j.bridge.SLF4JBridgeHandler"
     }
-  }
-
-  def cleanupSpec() {
-    propertiesFile?.delete()
-  }
-
-  List additionalArguments() {
-    return ["-Djava.util.logging.config.file=${propertiesFile.absolutePath}" as String]
   }
 }
 
