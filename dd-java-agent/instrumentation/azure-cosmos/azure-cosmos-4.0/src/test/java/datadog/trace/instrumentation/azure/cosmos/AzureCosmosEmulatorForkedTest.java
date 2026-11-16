@@ -431,9 +431,71 @@ class AzureCosmosEmulatorForkedTest extends AbstractInstrumentationTest {
   }
 
   private static TestClient client(String api) {
-    return "async".equals(api)
-        ? new AsyncTestClient(clientBuilder().buildAsyncClient())
-        : new SyncTestClient(clientBuilder().buildClient());
+    try {
+      return "async".equals(api)
+          ? new AsyncTestClient(clientBuilder().buildAsyncClient())
+          : new SyncTestClient(clientBuilder().buildClient());
+    } catch (Throwable t) {
+      // TODO temporary: the SDK hides why its first request fails, which only happens on IBM8
+      throw new AssertionError("the client couldn't be built, " + diagnose(), t);
+    }
+  }
+
+  /** The JVM, its TLS defaults, the trust store, and a plain JSSE request to the emulator. */
+  private static String diagnose() {
+    StringBuilder out = new StringBuilder();
+    out.append("java ")
+        .append(System.getProperty("java.vendor"))
+        .append(' ')
+        .append(System.getProperty("java.runtime.version"));
+    try {
+      javax.net.ssl.SSLContext context = javax.net.ssl.SSLContext.getDefault();
+      out.append(", default SSLContext ")
+          .append(context.getProtocol())
+          .append(" from ")
+          .append(context.getProvider())
+          .append(", enabled protocols ")
+          .append(Arrays.toString(context.getDefaultSSLParameters().getProtocols()));
+    } catch (Throwable t) {
+      out.append(", no default SSLContext: ").append(describe(t));
+    }
+    try (InputStream in = Files.newInputStream(keyStoreFile)) {
+      java.security.KeyStore keyStore = java.security.KeyStore.getInstance("PKCS12");
+      keyStore.load(in, emulator.getEmulatorKey().toCharArray());
+      out.append(", trust store ").append(keyStore.getProvider()).append(" with");
+      for (String alias : java.util.Collections.list(keyStore.aliases())) {
+        out.append(' ')
+            .append(alias)
+            .append(keyStore.isCertificateEntry(alias) ? " (trusted cert)" : " (other entry)");
+      }
+    } catch (Throwable t) {
+      out.append(", trust store unreadable: ").append(describe(t));
+    }
+    try {
+      javax.net.ssl.HttpsURLConnection connection =
+          (javax.net.ssl.HttpsURLConnection)
+              new java.net.URL("https://localhost:" + forwarder.port() + "/").openConnection();
+      connection.setConnectTimeout(10_000);
+      connection.setReadTimeout(10_000);
+      out.append(", JSSE request got HTTP ").append(connection.getResponseCode());
+      out.append(" over ").append(connection.getCipherSuite());
+      connection.disconnect();
+    } catch (Throwable t) {
+      out.append(", JSSE request failed: ").append(describe(t));
+    }
+    return out.toString();
+  }
+
+  /** The exception and its causes, which the build log doesn't always print. */
+  private static String describe(Throwable t) {
+    StringBuilder out = new StringBuilder();
+    for (Throwable cause = t; cause != null; cause = cause.getCause()) {
+      if (cause != t) {
+        out.append(" <- ");
+      }
+      out.append(cause);
+    }
+    return out.toString();
   }
 
   /** Relays connections accepted on localhost to the emulator. */
