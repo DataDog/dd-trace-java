@@ -72,7 +72,9 @@ public final class TraceMapperV1 implements TraceMapper {
   private final MsgPackWriter metaStructWriter;
   private final ByteBuffer header;
 
-  // Scratch state for {@link #countTagAttributes}, reset for each span on the serialization thread.
+  /**
+   * Scratch state for {@link #countTagAttributes}, reset for each span on the serialization thread.
+   */
   private int tagAttributeCount;
 
   public TraceMapperV1(int bufferSize) {
@@ -529,7 +531,11 @@ public final class TraceMapperV1 implements TraceMapper {
     if (index != null) {
       writable.writeInt(index);
     } else {
-      writable.writeString(value instanceof UTF8BytesString ? (UTF8BytesString) value : str, null);
+      if (value instanceof UTF8BytesString) {
+        writable.writeUTF8((UTF8BytesString) value);
+      } else {
+        writable.writeString(str, null);
+      }
       stringTable.add(str);
     }
   }
