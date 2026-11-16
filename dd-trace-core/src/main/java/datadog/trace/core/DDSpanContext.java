@@ -1025,6 +1025,11 @@ public class DDSpanContext
     custom.remove(name);
   }
 
+  /*
+   * The route* operations send a tag to the store that holds it: the known store by id, else the
+   * custom store by name. Call them while holding the knownTags lock.
+   */
+
   /** Removes {@code tag}, known or custom. Call under the {@code knownTags} lock. */
   private void routeRemoval(String tag) {
     routeRemoval(KnownTagCodec.keyOf(tag), tag);
@@ -1046,11 +1051,6 @@ public class DDSpanContext
     // custom write
     map.forEach(this, (ctx, entryReader) -> ctx.routePut(entryReader));
   }
-
-  /*
-   * The route* operations send a tag to the store that holds it: the known store by id, else the
-   * custom store by name. Call them while holding the knownTags lock.
-   */
 
   /** A null value removes the tag, as {@code setTag(tag, null)} does; the stores take no nulls. */
   private void routeSet(long key, String tag, Object value) {
@@ -1156,26 +1156,34 @@ public class DDSpanContext
   }
 
   public void setMetric(final CharSequence key, final int value) {
+    String tag = key.toString();
+    long tagId = KnownTagCodec.keyOf(tag); // resolved outside the lock
     synchronized (knownTags) {
-      routeSet(key.toString(), value);
+      routeSet(tagId, tag, value);
     }
   }
 
   public void setMetric(final CharSequence key, final long value) {
+    String tag = key.toString();
+    long tagId = KnownTagCodec.keyOf(tag); // resolved outside the lock
     synchronized (knownTags) {
-      routeSet(key.toString(), value);
+      routeSet(tagId, tag, value);
     }
   }
 
   public void setMetric(final CharSequence key, final float value) {
+    String tag = key.toString();
+    long tagId = KnownTagCodec.keyOf(tag); // resolved outside the lock
     synchronized (knownTags) {
-      routeSet(key.toString(), value);
+      routeSet(tagId, tag, value);
     }
   }
 
   public void setMetric(final CharSequence key, final double value) {
+    String tag = key.toString();
+    long tagId = KnownTagCodec.keyOf(tag); // resolved outside the lock
     synchronized (knownTags) {
-      routeSet(key.toString(), value);
+      routeSet(tagId, tag, value);
     }
   }
 
@@ -1187,34 +1195,6 @@ public class DDSpanContext
     synchronized (knownTags) {
       routePut(entry);
     }
-  }
-
-  /*
-   * Route a tag that interception let through, by name: resolved once to the store that holds it.
-   */
-
-  private void routeSet(String tag, Object value) {
-    routeSet(KnownTagCodec.keyOf(tag), tag, value);
-  }
-
-  private void routeSet(String tag, CharSequence value) {
-    routeSet(KnownTagCodec.keyOf(tag), tag, value);
-  }
-
-  private void routeSet(String tag, int value) {
-    routeSet(KnownTagCodec.keyOf(tag), tag, value);
-  }
-
-  private void routeSet(String tag, long value) {
-    routeSet(KnownTagCodec.keyOf(tag), tag, value);
-  }
-
-  private void routeSet(String tag, float value) {
-    routeSet(KnownTagCodec.keyOf(tag), tag, value);
-  }
-
-  private void routeSet(String tag, double value) {
-    routeSet(KnownTagCodec.keyOf(tag), tag, value);
   }
 
   /** Stores {@code entry}, sharing its Entry where the store keeps Entry objects. */
@@ -1593,19 +1573,19 @@ public class DDSpanContext
   }
 
   void unsafeSetTag(final String tag, final Object value) {
-    routeSet(tag, value);
+    routeSet(KnownTagCodec.keyOf(tag), tag, value);
   }
 
   void unsafeSetTag(final String tag, final CharSequence value) {
-    routeSet(tag, value);
+    routeSet(KnownTagCodec.keyOf(tag), tag, value);
   }
 
   void unsafeSetTag(final String tag, final byte value) {
-    routeSet(tag, value);
+    routeSet(KnownTagCodec.keyOf(tag), tag, value);
   }
 
   void unsafeSetTag(final String tag, final double value) {
-    routeSet(tag, value);
+    routeSet(KnownTagCodec.keyOf(tag), tag, value);
   }
 
   Object getTag(final String key) {
@@ -1676,7 +1656,7 @@ public class DDSpanContext
     if (value == null) {
       routeRemoval(tag);
     } else {
-      routeSet(tag, value);
+      routeSet(KnownTagCodec.keyOf(tag), tag, value);
     }
   }
 
