@@ -302,6 +302,32 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
     }
   }
 
+  @Override
+  void assertEndpoints(final List<Endpoint> endpoints) {
+    final byResource = endpoints.collectEntries { [(it.resource): it] } as Map<String, Endpoint>
+    // a mapping without a method condition is reported for any method
+    final anyMethod = byResource["* ${testPathParam()}"]
+    assert anyMethod.method == Endpoint.Method.ALL
+    assert anyMethod.metadata['handler'] == "${TestController.name}#path_param(Integer)"
+    final getOnly = byResource["GET $MappingEdgeController.GET_ONLY_PATH"]
+    assert getOnly.method == Endpoint.Method.GET
+    assert getOnly.metadata['handler'] == "${MappingEdgeController.name}#getOnly()"
+    final bodyJson = byResource["POST /body-json"]
+    assert bodyJson.requestBodyType == [MediaType.APPLICATION_JSON_VALUE]
+    assert bodyJson.responseBodyType == [MediaType.APPLICATION_JSON_VALUE]
+  }
+
+  /** Whether the opt-in route-naming filter ({@code spring-path-filter}) is enabled. */
+  boolean pathFilterEnabled() {
+    false
+  }
+
+  def "the opt-in route-naming filters are registered only when enabled"() {
+    expect:
+    context.containsBean("ddDispatcherFilter") == pathFilterEnabled()
+    context.containsBean("servletPathRequestFilter") == pathFilterEnabled()
+  }
+
   def "test character encoding of #testPassword"() {
     setup:
     def authProvider = context.getBean(SavingAuthenticationProvider)
@@ -988,5 +1014,10 @@ class SpringBootResourceNameFilterForkedTest extends SpringBootBasedTest {
   protected void configurePreAgent() {
     super.configurePreAgent()
     injectSysConfig("dd.integration.spring-path-filter.enabled", "true")
+  }
+
+  @Override
+  boolean pathFilterEnabled() {
+    true
   }
 }

@@ -2611,6 +2611,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       assert endpoint.operation == Endpoint.Operation.HTTP_REQUEST
     }
     assertEndpointDiscovery(discovered)
+    assertEndpoints(endpoints)
   }
 
 
@@ -2644,6 +2645,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
   // to be overridden for more specific asserts
   void assertEndpointDiscovery(final List<?> endpoints) {}
+
+  // to be overridden for asserts on all the reported endpoints, not only the discovery one
+  void assertEndpoints(final List<Endpoint> endpoints) {}
 
   void controllerSpan(TraceAssert trace, ServerEndpoint endpoint = null) {
     def exception = endpoint == CUSTOM_EXCEPTION ? expectedCustomExceptionType() : expectedExceptionType()
