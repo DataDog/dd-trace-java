@@ -76,8 +76,8 @@ public final class QueryParameters {
   private Map<String, NamedParameter> namedParameters;
 
   /**
-   * Whether values were left out when bound: beyond the parameter limit, or bound by name then by
-   * position (or the reverse), since a name and a position can be the same parameter.
+   * Whether values were left out: beyond the parameter limit, bound by name then by position (or
+   * the reverse), since a name and a position can be the same parameter, or replaced by a batch.
    */
   private boolean incomplete;
 
@@ -125,13 +125,26 @@ public final class QueryParameters {
 
   /** Forgets all the values, like {@code clearParameters}. */
   public void clear() {
+    forgetValues();
+    incomplete = false;
+  }
+
+  /**
+   * Forgets the values after a batch, since the driver may have replaced them: the values still
+   * bound in the driver are unknown, and reported as left out until {@code clearParameters}.
+   */
+  public void invalidate() {
+    forgetValues();
+    incomplete = true;
+  }
+
+  private void forgetValues() {
     Arrays.fill(positionalValues, null);
     Arrays.fill(positionalTypes, null);
     boundPositions = 0;
     if (namedParameters != null) {
       namedParameters.clear();
     }
-    incomplete = false;
   }
 
   /** Puts the bound values and their types on the span, never throwing. */

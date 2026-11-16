@@ -298,6 +298,61 @@ class QueryParametersCaptureForkedTest extends QueryParametersTestSupport {
   }
 
   @Test
+  void valuesBoundBeforeABatchAreLeftOutAfterIt() throws SQLException {
+    try (PreparedStatement statement = h2.prepareStatement("INSERT INTO orders (id) VALUES (?)")) {
+      statement.setLong(1, 1L);
+      statement.addBatch();
+      statement.setLong(1, 2L);
+      statement.executeBatch();
+      // the driver may run with a value of the batch rather than 2
+      statement.executeUpdate();
+      statement.setLong(1, 3L);
+      statement.executeUpdate();
+      statement.clearParameters();
+      statement.setLong(1, 4L);
+      statement.executeUpdate();
+    }
+
+    List<DDSpan> spans = preparedStatementSpans(4);
+    assertEquals(new TreeMap<>(), parameterTags(spans.get(0)));
+    assertEquals(tags(TRUNCATED_TAG, true), parameterTags(spans.get(1)));
+    assertEquals(
+        tags(
+            "db.query.parameter.0",
+            "3",
+            "_dd.dbm.query.parameter_type.0",
+            "BIGINT",
+            TRUNCATED_TAG,
+            true),
+        parameterTags(spans.get(2)));
+    assertEquals(
+        tags("db.query.parameter.0", "4", "_dd.dbm.query.parameter_type.0", "BIGINT"),
+        parameterTags(spans.get(3)));
+  }
+
+  @Test
+  void valuesBoundBeforeAFailedBatchAreLeftOutAfterIt() throws SQLException {
+    try (PreparedStatement statement = h2.prepareStatement("INSERT INTO orders (id) VALUES (?)")) {
+      statement.setString(1, "not a number");
+      statement.addBatch();
+      assertThrows(SQLException.class, statement::executeBatch);
+      statement.setLong(1, 1L);
+      statement.executeUpdate();
+    }
+
+    List<DDSpan> spans = preparedStatementSpans(2);
+    assertEquals(
+        tags(
+            "db.query.parameter.0",
+            "1",
+            "_dd.dbm.query.parameter_type.0",
+            "BIGINT",
+            TRUNCATED_TAG,
+            true),
+        parameterTags(spans.get(1)));
+  }
+
+  @Test
   void namedParametersUseTheirName() throws SQLException {
     try (Connection hsqldb = shipProcedureDatabase("qparams_named")) {
       try (CallableStatement call = hsqldb.prepareCall("{call ship(?, ?)}")) {

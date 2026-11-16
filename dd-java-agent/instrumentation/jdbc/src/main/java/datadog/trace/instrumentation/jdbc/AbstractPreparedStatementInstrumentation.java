@@ -94,9 +94,11 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
           AbstractPreparedStatementInstrumentation.class.getName() + "$PreparedStatementAdvice");
     } else {
       // values are not captured for batches, which run several sets of values
-      transformer.applyAdvice(
+      transformer.applyAdvices(
           execute.and(nameEndsWith("Batch")),
-          AbstractPreparedStatementInstrumentation.class.getName() + "$PreparedStatementAdvice");
+          AbstractPreparedStatementInstrumentation.class.getName() + "$PreparedStatementAdvice",
+          AbstractPreparedStatementInstrumentation.class.getName()
+              + "$InvalidateQueryParametersAdvice");
       transformer.applyAdvice(
           execute.and(not(nameEndsWith("Batch"))),
           AbstractPreparedStatementInstrumentation.class.getName()
@@ -272,6 +274,21 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
       QueryParameters.getOrCreate(
               InstrumentationContext.get(PreparedStatement.class, QueryParameters.class), statement)
           .bindNull(key, sqlType);
+    }
+  }
+
+  /** Drivers may replace the bound values while running a batch, without calling a setter. */
+  public static class InvalidateQueryParametersAdvice {
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void onExit(@Advice.This final Statement statement) {
+      if (statement instanceof PreparedStatement) {
+        final QueryParameters queryParameters =
+            InstrumentationContext.get(PreparedStatement.class, QueryParameters.class)
+                .get((PreparedStatement) statement);
+        if (null != queryParameters) {
+          queryParameters.invalidate();
+        }
+      }
     }
   }
 
