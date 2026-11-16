@@ -1607,11 +1607,10 @@ update_central_configurations_version_range_v2:
       - report-partial.md
       - build/llm-validation/context-growth.md
 
-# A native GitLab monthly schedule selects setup-full and sets LLMVAL_SETUP_ENABLED=true.
-# Other pipelines can opt into calibration with the same enable flag.
+# A GitLab monthly schedule selects setup-full and sets LLMVAL_SETUP_ENABLED=true.
+# Other pipelines can opt in with the same enable flag.
 "llm validation (setup smoke)":
   allow_failure: true
-  # Do not inherit the instruction-change job's merge-base fetch or context-size preflight.
   before_script: []
   variables:
     LLMVAL_SETUP_PRESET: "setup-calibration"

@@ -37,7 +37,7 @@ presets:
       - java-ci-download-guidance-001
       - java-documentation-only-validation-001
       - java-existing-spock-maintenance-001
-  # Explicit calibration selection; extend it as representative workflows are added.
+  # Extend as representative workflows are added.
   setup-calibration:
     runs: 3
     cases:

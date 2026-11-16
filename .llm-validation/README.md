@@ -18,24 +18,7 @@ every instruction is useful.
 `llm validation (setup smoke)` compares the declared repository setup against minimal guidance
 at the same commit. The `setup-full` preset runs every setup-eligible case three times.
 
-After merging, create a schedule in
-[Build > Pipeline schedules](https://gitlab.ddbuild.io/DataDog/apm-reliability/dd-trace-java/-/pipeline_schedules):
-
-| Setting | Value |
-|---|---|
-| Target branch | `master` |
-| Cron | `0 21 1 * *` — 9 p.m. on the 1st of each month |
-| Time zone | `America/New_York` |
-| Variable | `LLMVAL_SETUP_ENABLED=true` |
-| Variable | `LLMVAL_SETUP_PRESET=setup-full` |
-
-Leave case/run overrides and `POPULATE_CACHE` unset. The same variables enable an on-demand
-full run. Other eligible Java CI jobs may run in the scheduled pipeline too.
-
-Review the monthly report and representative answers, including the unrelated Java controls.
-Confirm the evaluation is complete, live, and covers the full suite; retry incomplete runs.
-Record the report link, evaluated commit, and findings on
-[APMLP-2032](https://datadoghq.atlassian.net/browse/APMLP-2032). Setup artifacts are retained for
+Setup artifacts are retained for
 13 months. A result applies to the evaluated commit and tasks, not to every individual skill.
 
 The initial cases use read-only answers and fixtures. They do not measure full implementation
