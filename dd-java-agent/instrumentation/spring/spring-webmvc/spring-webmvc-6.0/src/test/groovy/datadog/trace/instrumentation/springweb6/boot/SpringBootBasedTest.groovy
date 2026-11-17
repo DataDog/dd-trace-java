@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.springweb6.boot
 
 import datadog.trace.api.telemetry.Endpoint
+import datadog.trace.api.telemetry.EndpointCollector
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
@@ -69,10 +70,7 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
 
     @Override
     void start() {
-      app.setDefaultProperties(["server.port": 0, "server.context-path": "/$servletContext",
-        "spring.mvc.throw-exception-if-no-handler-found": false,
-        "spring.web.resources.add-mappings"             : false,
-        "server.forward-headers-strategy": "NONE"] + extraServerProperties())
+      app.setDefaultProperties(serverProperties())
       context = app.run()
       port = context.webServer.port // ServletWebServerApplicationContext moved package in Boot 4
       try {
@@ -153,6 +151,13 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
 
   Map<String, Object> extraServerProperties() {
     [:]
+  }
+
+  Map<String, Object> serverProperties() {
+    ["server.port": 0, "server.context-path": "/$servletContext",
+      "spring.mvc.throw-exception-if-no-handler-found": false,
+      "spring.web.resources.add-mappings"             : false,
+      "server.forward-headers-strategy": "NONE"] + extraServerProperties()
   }
 
   /** Matrix variables Spring binds for the {@code MATRIX_PARAM} path {@code /matrix/a=x,y;a=z}. */
@@ -300,6 +305,51 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
       assert it.responseBodyType.containsAll([MediaType.TEXT_PLAIN_VALUE])
       assert it.metadata['handler'] == 'datadog.trace.instrumentation.springweb6.boot.TestController#discovery()'
     }
+  }
+
+  @Override
+  void assertEndpoints(final List<Endpoint> endpoints) {
+    final byResource = endpoints.collectEntries { [(it.resource): it] } as Map<String, Endpoint>
+    // a mapping without a method condition is reported for any method
+    final anyMethod = byResource["* ${testPathParam()}"]
+    assert anyMethod.method == Endpoint.Method.ALL
+    assert anyMethod.metadata['handler'] == "${TestController.name}#path_param(Integer)"
+    final getOnly = byResource["GET $MappingEdgeController.GET_ONLY_PATH"]
+    assert getOnly.method == Endpoint.Method.GET
+    assert getOnly.metadata['handler'] == "${MappingEdgeController.name}#getOnly()"
+    final bodyJson = byResource["POST /body-json"]
+    assert bodyJson.requestBodyType == [MediaType.APPLICATION_JSON_VALUE]
+    assert bodyJson.responseBodyType == [MediaType.APPLICATION_JSON_VALUE]
+  }
+
+  /** Whether the opt-in route-naming filter ({@code spring-path-filter}) is enabled. */
+  boolean pathFilterEnabled() {
+    false
+  }
+
+  def "an application started during the test reports its endpoints"() {
+    setup:
+    def app = application()
+    app.setDefaultProperties(serverProperties())
+
+    when:
+    ConfigurableApplicationContext started = app.run()
+    // the DispatcherServlet is initialized, and its mappings reported, on the first request
+    def url = new URI("http://localhost:${started.webServer.port}/").resolve(PATH_PARAM.relativePath())
+    client.newCall(new Request.Builder().url(HttpUrl.get(url)).get().build()).execute().close()
+    def endpoints = EndpointCollector.get().drain().toList()
+
+    then:
+    assertEndpoints(endpoints)
+
+    cleanup:
+    started?.close()
+  }
+
+  def "the opt-in route-naming filters are registered only when enabled"() {
+    expect:
+    context.containsBean("ddDispatcherFilter") == pathFilterEnabled()
+    context.containsBean("servletPathRequestFilter") == pathFilterEnabled()
   }
 
   def "test character encoding of #testPassword"() {
@@ -988,5 +1038,10 @@ class SpringBootResourceNameFilterForkedTest extends SpringBootBasedTest {
   protected void configurePreAgent() {
     super.configurePreAgent()
     injectSysConfig("dd.integration.spring-path-filter.enabled", "true")
+  }
+
+  @Override
+  boolean pathFilterEnabled() {
+    true
   }
 }

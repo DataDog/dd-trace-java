@@ -705,6 +705,78 @@ class SpringWebfluxHttp11Test extends InstrumentationSpecification {
     "CORS preflight"   | "/cors/1" | ["Origin": CorsController.ALLOWED_ORIGIN, "Access-Control-Request-Method": "GET"] | "Access-Control-Allow-Origin" | CorsController.ALLOWED_ORIGIN | "OPTIONS /cors/?" | "DispatcherHandler.handle"  | null
   }
 
+  def "WebClient retrieve() with #testName is traced like exchange()"() {
+    setup:
+    String url = "http://localhost:$port$urlPath"
+
+    when:
+    def result = consume.call(client.get().uri(url).retrieve()).map { it as Object }.onErrorResume { Mono.just(it) }.block()
+
+    then:
+    if (error == null) {
+      assert !(result instanceof Throwable)
+    } else {
+      assert error.isInstance(result)
+    }
+
+    and:
+    // Status handlers run synchronously inside the client subscriber's onNext, before the span
+    // finishes. The span takes its status from the ClientResponse, and an error a handler raises
+    // downstream never reaches the subscriber's onError, so retrieve() leaves the span unchanged.
+    assertTraces(2) {
+      def traceParent
+      sortSpansByStart()
+      trace(2) {
+        clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url), status, status >= 400)
+        traceParent = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url), status, status >= 400)
+      }
+      trace(2) {
+        span {
+          resourceName "GET $route"
+          operationName "netty.request"
+          spanType DDSpanTypes.HTTP_SERVER
+          errored false
+          childOf(traceParent)
+          tags {
+            "$Tags.COMPONENT" "netty"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+            "$Tags.PEER_HOST_IPV4" "127.0.0.1"
+            "$Tags.PEER_PORT" Integer
+            this.serverUrlTags(it, url)
+            "$Tags.HTTP_METHOD" "GET"
+            "$Tags.HTTP_STATUS" status
+            "$Tags.HTTP_USER_AGENT" String
+            "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
+            "$Tags.NETWORK_CLIENT_IP" "127.0.0.1"
+            "$Tags.HTTP_ROUTE" route
+            defaultTags(true)
+          }
+        }
+        span {
+          resourceName handlerName
+          operationName handlerName
+          spanType DDSpanTypes.HTTP_SERVER
+          childOf(span(0))
+          errored status >= 400
+          tags {
+            "$Tags.COMPONENT" "spring-webflux-controller"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+            "handler.type" handlerType
+            if (status >= 400) {
+              errorTags(ResponseStatusException, String)
+            }
+            defaultTags()
+          }
+        }
+      }
+    }
+
+    where:
+    testName                  | urlPath           | route                | status | handlerName                       | handlerType              | error                 | consume
+    "bodyToMono"              | "/foo/1"          | "/foo/{id}"          | 200    | "TestController.getFooModel"      | TestController.name      | null                  | { WebClient.ResponseSpec spec -> spec.bodyToMono(String) }
+    "a custom onStatus"       | "/status-error/1" | "/status-error/{id}" | 409    | "ErrorPathController.statusError" | ErrorPathController.name | IllegalStateException | { WebClient.ResponseSpec spec -> spec.onStatus({ it.is4xxClientError() }, { Mono.just(new IllegalStateException("conflict")) }).toBodilessEntity() }
+  }
+
   def "Redirect test"() {
     setup:
     String url = "http://localhost:$port/double-greet-redirect"
