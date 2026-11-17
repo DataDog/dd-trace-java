@@ -83,7 +83,7 @@ RUN bash -c "source $HOME/.sdkman/bin/sdkman-init.sh && cd jackson-databind && m
 RUN git clone -b okhttp_5.3.x https://github.com/square/okhttp.git
 COPY okhttp_exploration-tests.patch .
 RUN cd okhttp && git apply /exploration-tests/okhttp_exploration-tests.patch
-RUN bash -c "source $HOME/.sdkman/bin/sdkman-init.sh && sdk use java ${JAVA_17_VERSION} && cd okhttp && ./gradlew dependencies"
+RUN bash -c "source $HOME/.sdkman/bin/sdkman-init.sh && sdk use java ${JAVA_17_VERSION} && cd okhttp && ./gradlew -Dorg.gradle.java.installations.auto-download=true dependencies"
 
 # Older google-api-client artifacts embed independent Google truststores.
 RUN set -eu; \
