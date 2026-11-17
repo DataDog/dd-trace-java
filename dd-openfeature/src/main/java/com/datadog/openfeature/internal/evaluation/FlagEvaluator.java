@@ -314,9 +314,9 @@ public final class FlagEvaluator {
 
     switch (condition.operator) {
       case MATCHES:
-        return matchesRegex(attributeValue, condition, true);
+        return matchesRegex(attributeValue, condition);
       case NOT_MATCHES:
-        return matchesRegex(attributeValue, condition, false);
+        return !matchesRegex(attributeValue, condition);
       case ONE_OF:
         return isOneOf(attributeValue, condition.value);
       case NOT_ONE_OF:
@@ -346,18 +346,15 @@ public final class FlagEvaluator {
     }
   }
 
-  /** Evaluates MATCHES ({@code expectMatch} true) or NOT_MATCHES ({@code expectMatch} false). */
   private static boolean matchesRegex(
-      final Object attributeValue,
-      final ConditionConfiguration condition,
-      final boolean expectMatch) {
+      final Object attributeValue, final ConditionConfiguration condition) {
     // Parsed configurations cache the validated matcher. Directly constructed configurations
     // retain the same syntax and error handling.
     final RegexMatcher regex =
         condition.regex != null
             ? condition.regex
             : ConditionConfiguration.compileRegex(condition.value);
-    return regex.test(String.valueOf(attributeValue), expectMatch);
+    return regex.matches(String.valueOf(attributeValue));
   }
 
   private static boolean isOneOf(final Object attributeValue, final Object conditionValue) {

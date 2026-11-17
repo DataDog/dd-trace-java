@@ -1,8 +1,12 @@
 package com.datadog.openfeature.internal.ufc;
 
+import static java.util.Arrays.asList;
+import static java.util.Collections.singletonList;
+import static java.util.Collections.unmodifiableList;
+
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
+import java.util.regex.PatternSyntaxException;
 import javax.annotation.Nullable;
 
 /**
@@ -21,16 +25,27 @@ import javax.annotation.Nullable;
  *       finds the literal at Unicode word boundaries.
  *   <li>RE2/J, a linear-time engine with the same syntax family as the Rust {@code regex} crate. It
  *       does not backtrack, so a long input cannot block the thread. A literal prefix ({@code
- *       ^abc...}) or suffix ({@code ...abc$}) that every match needs is checked first.
+ *       ^abc...}) or a set of literal suffixes ({@code ...(?:a|b)$}) that every match needs is
+ *       checked first.
  * </ol>
  *
- * <p>The syntax and semantics are the RE2 and Rust ones, not the {@code java.util.regex} ones. For
- * example, {@code $} matches only at the end of the input, and {@code .} matches any character
- * except a line feed.
+ * <p>The syntax and semantics are those of the Rust {@code regex} crate, which the libdatadog
+ * evaluator uses, not those of {@code java.util.regex}. For example, {@code $} matches only at the
+ * end of the input, {@code .} matches any character except a line feed, and {@code \d} and {@code
+ * \s} are Unicode classes. A pattern that the Rust crate rejects (lookaround, backreferences,
+ * atomic groups, {@code \Q...\E}) is invalid: {@link #compile} throws, and the parser drops the
+ * flag with a parse error, as libdatadog does.
  *
- * <p>A pattern that RE2/J rejects is invalid, also when {@code java.util.regex} accepts it
- * (lookaround, backreferences, possessive quantifiers): {@link #compile} throws, and the parser
- * drops the flag with a parse error. The Rust SDK evaluator (libdatadog) does the same.
+ * <p>Known differences from the Rust crate:
+ *
+ * <ul>
+ *   <li>{@code \w}, {@code \W}, {@code \b} and {@code \B} use ASCII word characters in the RE2/J
+ *       tier. Only the {@code \bliteral} fast path uses Unicode word characters.
+ *   <li>{@code \D} and {@code \S} inside a bracketed class are ASCII classes.
+ *   <li>Class set operations ({@code &&}, {@code --}, {@code ~~}), nested classes, the {@code x}
+ *       and {@code R} flags, {@code \<}, {@code \>}, {@code \b{...}}, and nested repetitions such
+ *       as {@code a*+} are a parse error here; the Rust crate accepts them.
+ * </ul>
  *
  * <p>Instances are immutable and thread safe.
  */
@@ -50,143 +65,62 @@ public abstract class RegexMatcher {
     ENGINE
   }
 
-  private final String pattern;
-
-  RegexMatcher(final String pattern) {
-    this.pattern = pattern;
-  }
-
-  public String pattern() {
-    return pattern;
-  }
+  RegexMatcher() {}
 
   public abstract Kind kind();
 
   /** Tells whether the pattern matches a part of the input. */
-  abstract boolean find(String input);
-
-  /**
-   * Evaluates the condition.
-   *
-   * @param input the attribute value.
-   * @param expectMatch {@code true} for MATCHES, {@code false} for NOT_MATCHES.
-   * @return whether the match result is {@code expectMatch}.
-   */
-  public boolean test(final String input, final boolean expectMatch) {
-    return find(input) == expectMatch;
-  }
+  public abstract boolean matches(String input);
 
   /**
    * Compiles a pattern.
    *
-   * @throws java.util.regex.PatternSyntaxException if RE2/J rejects the pattern.
+   * @throws PatternSyntaxException if the pattern is invalid in the Rust {@code regex} dialect, or
+   *     uses syntax that RE2/J reads differently.
    */
   public static RegexMatcher compile(final String pattern) {
-    // The Rust regex crate has Unicode mode on by default, and accepts the u flag. RE2/J has no u
-    // flag, so remove it.
-    final String re2Pattern = withoutUnicodeFlag(pattern);
+    final String re2Pattern = Dialect.toRe2(pattern);
     final com.google.re2j.Pattern engine;
     try {
       engine = com.google.re2j.Pattern.compile(re2Pattern);
     } catch (final com.google.re2j.PatternSyntaxException e) {
-      throw new java.util.regex.PatternSyntaxException(e.getDescription(), pattern, e.getIndex());
+      throw new PatternSyntaxException(e.getDescription(), pattern, e.getIndex());
     }
     @Nullable final List<Token> tokens = Lexer.tokenize(re2Pattern);
     if (tokens == null) {
-      return new Engine(pattern, engine, null, null);
+      return new Engine(engine, null, null);
     }
-    @Nullable final RegexMatcher fast = FastPath.of(pattern, tokens);
+    @Nullable final RegexMatcher fast = FastPath.of(tokens);
     if (fast != null) {
       return fast;
     }
-    return new Engine(
-        pattern, engine, Prefilter.requiredPrefix(tokens), Prefilter.requiredSuffixes(tokens));
-  }
-
-  /**
-   * Removes the {@code u} flag from inline flag groups: {@code (?u)} is removed, {@code (?iu)}
-   * becomes {@code (?i)}, and {@code (?u:x)} becomes {@code (?:x)}. Classes and escapes are not
-   * changed.
-   */
-  static String withoutUnicodeFlag(final String pattern) {
-    if (pattern.indexOf("(?") < 0) {
-      return pattern;
-    }
-    final StringBuilder out = new StringBuilder(pattern.length());
-    int i = 0;
-    while (i < pattern.length()) {
-      final char c = pattern.charAt(i);
-      if (c == '\\' && i + 1 < pattern.length()) {
-        out.append(c).append(pattern.charAt(i + 1));
-        i += 2;
-      } else if (c == '[') {
-        final int end = Lexer.classEnd(pattern, i);
-        final int stop = end < 0 ? pattern.length() : end + 1;
-        out.append(pattern, i, stop);
-        i = stop;
-      } else if (c == '(' && i + 1 < pattern.length() && pattern.charAt(i + 1) == '?') {
-        int j = i + 2;
-        final StringBuilder flags = new StringBuilder();
-        while (j < pattern.length()
-            && (Character.isLetter(pattern.charAt(j)) || pattern.charAt(j) == '-')) {
-          if (pattern.charAt(j) != 'u') {
-            flags.append(pattern.charAt(j));
-          }
-          j++;
-        }
-        final boolean flagGroup =
-            j > i + 2
-                && j < pattern.length()
-                && (pattern.charAt(j) == ')' || pattern.charAt(j) == ':');
-        if (!flagGroup) {
-          out.append(c);
-          i++;
-        } else if (pattern.charAt(j) == ')' && (flags.length() == 0 || "-".contentEquals(flags))) {
-          i = j + 1;
-        } else {
-          out.append("(?").append(flags).append(pattern.charAt(j));
-          i = j + 1;
-        }
-      } else {
-        out.append(c);
-        i++;
-      }
-    }
-    return out.toString();
+    return new Engine(engine, Prefilter.requiredPrefix(tokens), Prefilter.requiredSuffixes(tokens));
   }
 
   // ---- Matchers ---------------------------------------------------------------------------
 
   /** The empty pattern, or {@code .*}: every input matches. */
   static final class Always extends RegexMatcher {
-    Always(final String pattern) {
-      super(pattern);
-    }
-
     @Override
     public Kind kind() {
       return Kind.ALWAYS;
     }
 
     @Override
-    boolean find(final String input) {
+    public boolean matches(final String input) {
       return true;
     }
   }
 
   /** {@code .+}: the input has a character other than a line feed. */
   static final class AnyCharacter extends RegexMatcher {
-    AnyCharacter(final String pattern) {
-      super(pattern);
-    }
-
     @Override
     public Kind kind() {
       return Kind.ANY_CHARACTER;
     }
 
     @Override
-    boolean find(final String input) {
+    public boolean matches(final String input) {
       for (int i = 0; i < input.length(); i++) {
         if (input.charAt(i) != '\n') {
           return true;
@@ -201,8 +135,7 @@ public abstract class RegexMatcher {
     private final Kind kind;
     private final String[] literals;
 
-    Literals(final String pattern, final Kind kind, final List<String> literals) {
-      super(pattern);
+    Literals(final Kind kind, final List<String> literals) {
       this.kind = kind;
       this.literals = literals.toArray(new String[0]);
     }
@@ -213,11 +146,11 @@ public abstract class RegexMatcher {
     }
 
     List<String> literals() {
-      return Collections.unmodifiableList(java.util.Arrays.asList(literals));
+      return unmodifiableList(asList(literals));
     }
 
     @Override
-    boolean find(final String input) {
+    public boolean matches(final String input) {
       for (final String literal : literals) {
         final boolean hit;
         switch (kind) {
@@ -251,9 +184,7 @@ public abstract class RegexMatcher {
     private final String[] literals;
     private final boolean trailingBoundary;
 
-    WordBoundary(
-        final String pattern, final List<String> literals, final boolean trailingBoundary) {
-      super(pattern);
+    WordBoundary(final List<String> literals, final boolean trailingBoundary) {
       this.literals = literals.toArray(new String[0]);
       this.trailingBoundary = trailingBoundary;
     }
@@ -264,7 +195,7 @@ public abstract class RegexMatcher {
     }
 
     @Override
-    boolean find(final String input) {
+    public boolean matches(final String input) {
       for (final String literal : literals) {
         for (int at = input.indexOf(literal); at >= 0; at = input.indexOf(literal, at + 1)) {
           if (isWordBoundary(input, at)
@@ -310,11 +241,9 @@ public abstract class RegexMatcher {
     @Nullable private final String[] requiredSuffixes;
 
     Engine(
-        final String pattern,
         final com.google.re2j.Pattern engine,
         @Nullable final String requiredPrefix,
         @Nullable final List<String> requiredSuffixes) {
-      super(pattern);
       this.engine = engine;
       this.requiredPrefix = requiredPrefix;
       this.requiredSuffixes =
@@ -333,11 +262,11 @@ public abstract class RegexMatcher {
 
     @Nullable
     List<String> requiredSuffixes() {
-      return requiredSuffixes == null ? null : java.util.Arrays.asList(requiredSuffixes);
+      return requiredSuffixes == null ? null : unmodifiableList(asList(requiredSuffixes));
     }
 
     @Override
-    boolean find(final String input) {
+    public boolean matches(final String input) {
       if (requiredPrefix != null && !input.startsWith(requiredPrefix)) {
         return false;
       }
@@ -357,6 +286,147 @@ public abstract class RegexMatcher {
     }
   }
 
+  // ---- Dialect ----------------------------------------------------------------------------
+
+  /** Translates a pattern from the Rust {@code regex} dialect to RE2/J syntax. */
+  static final class Dialect {
+    /** The Unicode White_Space property, which is {@code \s} in the Rust crate. */
+    static final String WHITE_SPACE =
+        "\\x{9}-\\x{D}\\x{20}\\x{85}\\x{A0}\\x{1680}\\x{2000}-\\x{200A}"
+            + "\\x{2028}\\x{2029}\\x{202F}\\x{205F}\\x{3000}";
+
+    private Dialect() {}
+
+    /**
+     * Translates the pattern:
+     *
+     * <ul>
+     *   <li>{@code \d} and {@code \D} become {@code \p{Nd}} and {@code \P{Nd}}, and {@code \s} and
+     *       {@code \S} become the White_Space class, as in the Rust crate. RE2/J classes are ASCII.
+     *   <li>The {@code u} flag is removed: Unicode mode is the default in the Rust crate, and RE2/J
+     *       has no {@code u} flag.
+     * </ul>
+     *
+     * @throws PatternSyntaxException for {@code \Q}, which the Rust crate rejects, and for class
+     *     set operations and nested classes, which RE2/J reads as literal characters.
+     */
+    static String toRe2(final String pattern) {
+      final StringBuilder out = new StringBuilder(pattern.length() + 16);
+      int i = 0;
+      while (i < pattern.length()) {
+        final char c = pattern.charAt(i);
+        if (c == '\\' && i + 1 < pattern.length()) {
+          i = escape(pattern, i, false, out);
+        } else if (c == '[') {
+          i = bracketClass(pattern, i, out);
+        } else if (c == '(' && i + 1 < pattern.length() && pattern.charAt(i + 1) == '?') {
+          i = flagGroup(pattern, i, out);
+        } else {
+          out.append(c);
+          i++;
+        }
+      }
+      return out.toString();
+    }
+
+    /** Copies the escape at {@code i} and returns the index after it. */
+    private static int escape(
+        final String pattern, final int i, final boolean inClass, final StringBuilder out) {
+      final char e = pattern.charAt(i + 1);
+      switch (e) {
+        case 'Q':
+          throw new PatternSyntaxException("\\Q quoting is not supported", pattern, i);
+        case 'd':
+          out.append("\\p{Nd}");
+          return i + 2;
+        case 's':
+          out.append(inClass ? WHITE_SPACE : "[" + WHITE_SPACE + "]");
+          return i + 2;
+        case 'D':
+          out.append(inClass ? "\\D" : "\\P{Nd}");
+          return i + 2;
+        case 'S':
+          out.append(inClass ? "\\S" : "[^" + WHITE_SPACE + "]");
+          return i + 2;
+        default:
+          out.append('\\').append(e);
+          return i + 2;
+      }
+    }
+
+    /** Copies the bracketed class at {@code start} and returns the index after it. */
+    private static int bracketClass(
+        final String pattern, final int start, final StringBuilder out) {
+      final int end = Lexer.classEnd(pattern, start);
+      if (end < 0) {
+        // Unterminated: RE2/J reports the error.
+        out.append(pattern, start, pattern.length());
+        return pattern.length();
+      }
+      out.append('[');
+      int j = start + 1;
+      if (pattern.charAt(j) == '^') {
+        out.append('^');
+        j++;
+      }
+      if (pattern.charAt(j) == ']') {
+        out.append(']');
+        j++;
+      }
+      while (j < end) {
+        final char c = pattern.charAt(j);
+        if (c == '\\') {
+          j = escape(pattern, j, true, out);
+        } else if (c == '[' && pattern.charAt(j + 1) == ':') {
+          final int close = pattern.indexOf(":]", j + 2) + 2;
+          out.append(pattern, j, close);
+          j = close;
+        } else if (c == '[') {
+          throw new PatternSyntaxException("nested classes are not supported", pattern, j);
+        } else if ((c == '&' || c == '-' || c == '~') && pattern.charAt(j + 1) == c) {
+          throw new PatternSyntaxException("class set operations are not supported", pattern, j);
+        } else {
+          out.append(c);
+          j++;
+        }
+      }
+      out.append(']');
+      return end + 1;
+    }
+
+    /**
+     * Copies the group start at {@code i} without the {@code u} flag: {@code (?u)} is removed,
+     * {@code (?iu)} becomes {@code (?i)}, {@code (?i-u)} becomes {@code (?i)}, and {@code (?u:x)}
+     * becomes {@code (?:x)}. Returns the index after the copied part.
+     */
+    private static int flagGroup(final String pattern, final int i, final StringBuilder out) {
+      int j = i + 2;
+      final StringBuilder flags = new StringBuilder();
+      while (j < pattern.length()
+          && (Character.isLetter(pattern.charAt(j)) || pattern.charAt(j) == '-')) {
+        if (pattern.charAt(j) != 'u') {
+          flags.append(pattern.charAt(j));
+        }
+        j++;
+      }
+      if (j == i + 2
+          || j >= pattern.length()
+          || (pattern.charAt(j) != ')' && pattern.charAt(j) != ':')) {
+        // Not a flag group, for example (?: or (?P<name>.
+        out.append("(?");
+        return i + 2;
+      }
+      if (flags.length() > 0 && flags.charAt(flags.length() - 1) == '-') {
+        flags.setLength(flags.length() - 1);
+      }
+      if (pattern.charAt(j) == ')' && flags.length() == 0) {
+        return j + 1;
+      }
+      out.append("(?").append(flags).append(pattern.charAt(j));
+      return j + 1;
+    }
+  }
+
   // ---- Pattern analysis -------------------------------------------------------------------
 
   /** One lexical token of a pattern. */
@@ -370,7 +440,9 @@ public abstract class RegexMatcher {
     /** {@code (} or {@code (?:}. */
     static final int GROUP = 2;
 
-    /** Any other construct: a class, or an escape such as {@code \d} or {@code \b}. */
+    /**
+     * Any other construct: a class, or an escape such as {@code \d}, {@code \b} or {@code \x41}.
+     */
     static final int OTHER = 3;
 
     final int type;
@@ -414,7 +486,6 @@ public abstract class RegexMatcher {
             return null;
           }
           final char e = pattern.charAt(i + 1);
-          i += 2;
           if (ESCAPABLE.indexOf(e) >= 0) {
             tokens.add(new Token(Token.LITERAL, e));
           } else if (e == 't') {
@@ -426,9 +497,11 @@ public abstract class RegexMatcher {
           } else if (e == 'f') {
             tokens.add(new Token(Token.LITERAL, '\f'));
           } else {
-            // \d, \w, \s, \b, \A, \z, \p{..}, \x.., \Q...\E and others.
+            // \d, \w, \s, \b, \A, \z, \p{..}, \x.., octal and others: one token for the whole
+            // escape.
             tokens.add(new Token(Token.OTHER, e));
           }
+          i = escapeEnd(pattern, i);
         } else if (c == '[') {
           final int end = classEnd(pattern, i);
           if (end < 0) {
@@ -459,6 +532,38 @@ public abstract class RegexMatcher {
       return tokens;
     }
 
+    /**
+     * Returns the index after the escape at {@code i}: {@code \p{..}}, {@code \x{..}}, {@code
+     * \xHH}, {@code \pX}, octal {@code \NNN}, or one escaped character.
+     */
+    private static int escapeEnd(final String pattern, final int i) {
+      final char e = pattern.charAt(i + 1);
+      final int next = i + 2;
+      if ((e == 'p' || e == 'P' || e == 'x')
+          && next < pattern.length()
+          && pattern.charAt(next) == '{') {
+        final int close = pattern.indexOf('}', next);
+        return close < 0 ? pattern.length() : close + 1;
+      }
+      if (e == 'p' || e == 'P') {
+        return Math.min(next + 1, pattern.length());
+      }
+      if (e == 'x') {
+        return Math.min(next + 2, pattern.length());
+      }
+      if (e >= '0' && e <= '7') {
+        int j = next;
+        while (j < pattern.length()
+            && j < next + 2
+            && pattern.charAt(j) >= '0'
+            && pattern.charAt(j) <= '7') {
+          j++;
+        }
+        return j;
+      }
+      return next;
+    }
+
     /** Finds the {@code ]} that closes the class that starts at {@code start}, or -1. */
     static int classEnd(final String pattern, final int start) {
       int j = start + 1;
@@ -486,6 +591,76 @@ public abstract class RegexMatcher {
       }
       return -1;
     }
+
+    /** Splits on {@code |} outside groups. Returns {@code null} for unbalanced groups. */
+    @Nullable
+    static List<List<Token>> splitTopLevel(final List<Token> tokens) {
+      final List<List<Token>> branches = new ArrayList<>();
+      int depth = 0;
+      int start = 0;
+      for (int i = 0; i < tokens.size(); i++) {
+        final Token t = tokens.get(i);
+        if (t.type == Token.GROUP) {
+          depth++;
+        } else if (t.isMeta(')')) {
+          depth--;
+          if (depth < 0) {
+            return null;
+          }
+        } else if (depth == 0 && t.isMeta('|')) {
+          branches.add(tokens.subList(start, i));
+          start = i + 1;
+        }
+      }
+      if (depth != 0) {
+        return null;
+      }
+      branches.add(tokens.subList(start, tokens.size()));
+      return branches;
+    }
+
+    /** Tells whether the pattern is one branch with balanced groups. */
+    static boolean isSingleBranch(final List<Token> tokens) {
+      @Nullable final List<List<Token>> branches = splitTopLevel(tokens);
+      return branches != null && branches.size() == 1;
+    }
+
+    /**
+     * The literal alternatives of a group body (the tokens between {@code (} and {@code )}), or
+     * {@code null} for any other construct or for an empty alternative.
+     */
+    @Nullable
+    static List<String> alternatives(final List<Token> tokens, final int from, final int to) {
+      final List<String> out = new ArrayList<>();
+      StringBuilder current = new StringBuilder();
+      for (int j = from; j < to; j++) {
+        final Token u = tokens.get(j);
+        if (u.type == Token.LITERAL) {
+          current.append(u.value);
+        } else if (u.isMeta('|')) {
+          out.add(current.toString());
+          current = new StringBuilder();
+        } else {
+          return null;
+        }
+      }
+      out.add(current.toString());
+      return out.contains("") ? null : out;
+    }
+
+    /** The index of the {@code )} that closes the group at {@code open}, if the body is flat. */
+    static int flatGroupEnd(final List<Token> tokens, final int open) {
+      for (int j = open + 1; j < tokens.size(); j++) {
+        final Token t = tokens.get(j);
+        if (t.isMeta(')')) {
+          return j;
+        }
+        if (t.type == Token.GROUP) {
+          return -1;
+        }
+      }
+      return -1;
+    }
   }
 
   /** The literal fast paths, and the checks that need no engine. */
@@ -493,34 +668,34 @@ public abstract class RegexMatcher {
     private FastPath() {}
 
     @Nullable
-    static RegexMatcher of(final String pattern, final List<Token> all) {
+    static RegexMatcher of(final List<Token> all) {
       List<Token> tokens = all;
-      if (tokens.isEmpty() || isDotStar(tokens, 0) == tokens.size()) {
-        return new Always(pattern);
+      if (tokens.isEmpty() || dotStarLength(tokens, 0) == tokens.size()) {
+        return new Always();
       }
       if (isDotPlus(tokens)) {
-        return new AnyCharacter(pattern);
+        return new AnyCharacter();
       }
       if (isWordBoundary(tokens.get(0))) {
         final boolean trailing = tokens.size() > 1 && isWordBoundary(tokens.get(tokens.size() - 1));
         @Nullable
         final List<String> literals =
             expand(tokens.subList(1, tokens.size() - (trailing ? 1 : 0)), false);
-        return literals == null ? null : new WordBoundary(pattern, literals, trailing);
+        return literals == null ? null : new WordBoundary(literals, trailing);
       }
       final boolean startAnchored = tokens.get(0).isMeta('^');
       if (startAnchored) {
         tokens = tokens.subList(1, tokens.size());
       } else {
         // find() already tries each start position, so a leading .* changes nothing.
-        tokens = tokens.subList(isDotStar(tokens, 0), tokens.size());
+        tokens = tokens.subList(dotStarLength(tokens, 0), tokens.size());
       }
       final boolean endAnchored = !tokens.isEmpty() && tokens.get(tokens.size() - 1).isMeta('$');
       if (endAnchored) {
         tokens = tokens.subList(0, tokens.size() - 1);
       } else {
         // A trailing .* can match the empty string, so it changes nothing.
-        tokens = tokens.subList(0, tokens.size() - trailingDotStar(tokens));
+        tokens = tokens.subList(0, tokens.size() - trailingDotStarLength(tokens));
       }
       @Nullable final List<String> literals = expand(tokens, !startAnchored && !endAnchored);
       if (literals == null) {
@@ -530,7 +705,7 @@ public abstract class RegexMatcher {
           startAnchored
               ? (endAnchored ? Kind.EQUALS : Kind.STARTS_WITH)
               : (endAnchored ? Kind.ENDS_WITH : Kind.CONTAINS);
-      return new Literals(pattern, kind, literals);
+      return new Literals(kind, literals);
     }
 
     private static boolean isWordBoundary(final Token token) {
@@ -538,7 +713,7 @@ public abstract class RegexMatcher {
     }
 
     /** The length of a {@code .*} or {@code .*?} at {@code index}, or 0. */
-    private static int isDotStar(final List<Token> tokens, final int index) {
+    private static int dotStarLength(final List<Token> tokens, final int index) {
       if (index + 1 < tokens.size()
           && tokens.get(index).isMeta('.')
           && tokens.get(index + 1).isMeta('*')) {
@@ -547,12 +722,12 @@ public abstract class RegexMatcher {
       return 0;
     }
 
-    private static int trailingDotStar(final List<Token> tokens) {
+    private static int trailingDotStarLength(final List<Token> tokens) {
       final int n = tokens.size();
-      if (n >= 3 && isDotStar(tokens, n - 3) == 3) {
+      if (n >= 3 && dotStarLength(tokens, n - 3) == 3) {
         return 3;
       }
-      if (n >= 2 && isDotStar(tokens, n - 2) == 2) {
+      if (n >= 2 && dotStarLength(tokens, n - 2) == 2) {
         return 2;
       }
       return 0;
@@ -578,7 +753,7 @@ public abstract class RegexMatcher {
       if (tokens.isEmpty()) {
         return null;
       }
-      final List<List<Token>> branches = splitTopLevel(tokens);
+      @Nullable final List<List<Token>> branches = Lexer.splitTopLevel(tokens);
       if (branches == null || (branches.size() > 1 && !topLevelAlternation)) {
         return null;
       }
@@ -591,33 +766,6 @@ public abstract class RegexMatcher {
         out.addAll(literals);
       }
       return out;
-    }
-
-    /** Splits on {@code |} outside groups. Returns {@code null} for unbalanced groups. */
-    @Nullable
-    private static List<List<Token>> splitTopLevel(final List<Token> tokens) {
-      final List<List<Token>> branches = new ArrayList<>();
-      int depth = 0;
-      int start = 0;
-      for (int i = 0; i < tokens.size(); i++) {
-        final Token t = tokens.get(i);
-        if (t.type == Token.GROUP) {
-          depth++;
-        } else if (t.isMeta(')')) {
-          depth--;
-          if (depth < 0) {
-            return null;
-          }
-        } else if (depth == 0 && t.isMeta('|')) {
-          branches.add(tokens.subList(start, i));
-          start = i + 1;
-        }
-      }
-      if (depth != 0) {
-        return null;
-      }
-      branches.add(tokens.subList(start, tokens.size()));
-      return branches;
     }
 
     @Nullable
@@ -636,25 +784,13 @@ public abstract class RegexMatcher {
           }
           i++;
         } else if (t.type == Token.GROUP) {
-          final List<String> alternatives = new ArrayList<>();
-          StringBuilder current = new StringBuilder();
-          int j = i + 1;
-          for (; j < tokens.size() && !tokens.get(j).isMeta(')'); j++) {
-            final Token u = tokens.get(j);
-            if (u.type == Token.LITERAL) {
-              current.append(u.value);
-            } else if (u.isMeta('|')) {
-              alternatives.add(current.toString());
-              current = new StringBuilder();
-            } else {
-              return null;
-            }
-          }
-          alternatives.add(current.toString());
-          if (j >= tokens.size() || quantified(tokens, j + 1) || alternatives.contains("")) {
-            return null;
-          }
-          if (product.size() * alternatives.size() > MAX_LITERALS) {
+          final int close = Lexer.flatGroupEnd(tokens, i);
+          @Nullable
+          final List<String> alternatives =
+              close < 0 ? null : Lexer.alternatives(tokens, i + 1, close);
+          if (alternatives == null
+              || quantified(tokens, close + 1)
+              || product.size() * alternatives.size() > MAX_LITERALS) {
             return null;
           }
           final List<StringBuilder> next = new ArrayList<>(product.size() * alternatives.size());
@@ -664,7 +800,7 @@ public abstract class RegexMatcher {
             }
           }
           product = next;
-          i = j + 1;
+          i = close + 1;
         } else {
           return null;
         }
@@ -694,7 +830,7 @@ public abstract class RegexMatcher {
      */
     @Nullable
     static String requiredPrefix(final List<Token> tokens) {
-      if (tokens.isEmpty() || !tokens.get(0).isMeta('^') || hasTopLevelAlternation(tokens)) {
+      if (tokens.isEmpty() || !tokens.get(0).isMeta('^') || !Lexer.isSingleBranch(tokens)) {
         return null;
       }
       final StringBuilder prefix = new StringBuilder();
@@ -706,7 +842,13 @@ public abstract class RegexMatcher {
           && i < tokens.size()
           && tokens.get(i).isQuantifier()
           && !tokens.get(i).isMeta('+')) {
-        prefix.setLength(prefix.length() - 1);
+        // The quantifier applies to the whole last code point, which can be a surrogate pair.
+        final int last = prefix.length() - 1;
+        final boolean pair =
+            last > 0
+                && Character.isLowSurrogate(prefix.charAt(last))
+                && Character.isHighSurrogate(prefix.charAt(last - 1));
+        prefix.setLength(pair ? last - 1 : last);
       }
       return prefix.length() == 0 ? null : prefix.toString();
     }
@@ -721,7 +863,7 @@ public abstract class RegexMatcher {
     @Nullable
     static List<String> requiredSuffixes(final List<Token> tokens) {
       final int last = tokens.size() - 1;
-      if (last < 1 || !tokens.get(last).isMeta('$') || hasTopLevelAlternation(tokens)) {
+      if (last < 1 || !tokens.get(last).isMeta('$') || !Lexer.isSingleBranch(tokens)) {
         return null;
       }
       // The parts before $, from the last one back. Each part is a list of alternatives.
@@ -730,7 +872,7 @@ public abstract class RegexMatcher {
       while (i >= 0) {
         final Token t = tokens.get(i);
         if (t.type == Token.LITERAL) {
-          parts.add(Collections.singletonList(String.valueOf(t.value)));
+          parts.add(singletonList(String.valueOf(t.value)));
           i--;
           continue;
         }
@@ -741,14 +883,15 @@ public abstract class RegexMatcher {
         while (open >= 0 && tokens.get(open).type != Token.GROUP) {
           open--;
         }
-        @Nullable final List<String> alternatives = alternatives(tokens, open + 1, i);
-        if (open < 0 || alternatives == null) {
+        @Nullable
+        final List<String> alternatives = open < 0 ? null : Lexer.alternatives(tokens, open + 1, i);
+        if (alternatives == null) {
           break;
         }
         parts.add(alternatives);
         i = open - 1;
       }
-      List<String> suffixes = Collections.singletonList("");
+      List<String> suffixes = singletonList("");
       for (final List<String> part : parts) {
         if (suffixes.size() * part.size() > MAX_LITERALS) {
           break;
@@ -762,41 +905,6 @@ public abstract class RegexMatcher {
         suffixes = next;
       }
       return suffixes.get(0).isEmpty() ? null : suffixes;
-    }
-
-    /** The literal alternatives between two tokens, or {@code null} for any other construct. */
-    @Nullable
-    private static List<String> alternatives(
-        final List<Token> tokens, final int from, final int to) {
-      final List<String> out = new ArrayList<>();
-      StringBuilder current = new StringBuilder();
-      for (int j = from; j < to; j++) {
-        final Token u = tokens.get(j);
-        if (u.type == Token.LITERAL) {
-          current.append(u.value);
-        } else if (u.isMeta('|')) {
-          out.add(current.toString());
-          current = new StringBuilder();
-        } else {
-          return null;
-        }
-      }
-      out.add(current.toString());
-      return out.contains("") ? null : out;
-    }
-
-    private static boolean hasTopLevelAlternation(final List<Token> tokens) {
-      int depth = 0;
-      for (final Token t : tokens) {
-        if (t.type == Token.GROUP) {
-          depth++;
-        } else if (t.isMeta(')')) {
-          depth--;
-        } else if (depth == 0 && t.isMeta('|')) {
-          return true;
-        }
-      }
-      return false;
     }
   }
 }

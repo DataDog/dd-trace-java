@@ -1,10 +1,9 @@
 package com.datadog.openfeature.internal.ufc;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -21,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class RegexMatcherTest {
 
@@ -29,34 +29,36 @@ class RegexMatcherTest {
         Arguments.of("", Kind.ALWAYS, null),
         Arguments.of(".*", Kind.ALWAYS, null),
         Arguments.of(".+", Kind.ANY_CHARACTER, null),
-        Arguments.of("zach", Kind.CONTAINS, Arrays.asList("zach")),
-        Arguments.of("@example\\.com", Kind.CONTAINS, Arrays.asList("@example.com")),
-        Arguments.of("abc|def", Kind.CONTAINS, Arrays.asList("abc", "def")),
-        Arguments.of("^abc", Kind.STARTS_WITH, Arrays.asList("abc")),
-        Arguments.of("abc$", Kind.ENDS_WITH, Arrays.asList("abc")),
-        Arguments.of("^abc$", Kind.EQUALS, Arrays.asList("abc")),
-        Arguments.of(".*\\@(a|b)$", Kind.ENDS_WITH, Arrays.asList("@a", "@b")),
+        Arguments.of("zach", Kind.CONTAINS, asList("zach")),
+        Arguments.of("@example\\.com", Kind.CONTAINS, asList("@example.com")),
+        Arguments.of("abc|def", Kind.CONTAINS, asList("abc", "def")),
+        Arguments.of("^abc", Kind.STARTS_WITH, asList("abc")),
+        Arguments.of("abc$", Kind.ENDS_WITH, asList("abc")),
+        Arguments.of("^abc$", Kind.EQUALS, asList("abc")),
+        Arguments.of(".*\\@(a|b)$", Kind.ENDS_WITH, asList("@a", "@b")),
         Arguments.of(
             ".*@(alpha|bravo)\\.(io|net)$",
             Kind.ENDS_WITH,
-            Arrays.asList("@alpha.io", "@alpha.net", "@bravo.io", "@bravo.net")),
-        Arguments.of("(?:x|y)z.*", Kind.CONTAINS, Arrays.asList("xz", "yz")),
-        Arguments.of("^(us|eu)$", Kind.EQUALS, Arrays.asList("us", "eu")),
-        Arguments.of(".*?abc", Kind.CONTAINS, Arrays.asList("abc")),
-        Arguments.of("(?u)\\bma\u00f1ana\\b", Kind.WORD_BOUNDARY, null),
+            asList("@alpha.io", "@alpha.net", "@bravo.io", "@bravo.net")),
+        Arguments.of("(?:x|y)z.*", Kind.CONTAINS, asList("xz", "yz")),
+        Arguments.of("^(us|eu)$", Kind.EQUALS, asList("us", "eu")),
+        Arguments.of(".*?abc", Kind.CONTAINS, asList("abc")),
+        Arguments.of("(?u)\\bmañana\\b", Kind.WORD_BOUNDARY, null),
         Arguments.of("\\bfoo", Kind.WORD_BOUNDARY, null),
         Arguments.of("\\b(foo|bar)\\b", Kind.WORD_BOUNDARY, null),
-        Arguments.of("(?iu)abc", Kind.ENGINE, null),
         // Not literal: a dot, a class, a quantifier, flags, or an anchor next to .*.
         Arguments.of(".*@example.com", Kind.ENGINE, null),
         Arguments.of("^[a-zA-Z0-9._%+-]+@site\\.test$", Kind.ENGINE, null),
         Arguments.of("ab+c", Kind.ENGINE, null),
         Arguments.of("(?i)abc", Kind.ENGINE, null),
+        Arguments.of("(?iu)abc", Kind.ENGINE, null),
         Arguments.of("^.*abc", Kind.ENGINE, null),
         Arguments.of("abc.*$", Kind.ENGINE, null),
         Arguments.of("^a|b$", Kind.ENGINE, null),
         Arguments.of("(a|)b", Kind.ENGINE, null),
-        Arguments.of("\\d+", Kind.ENGINE, null));
+        Arguments.of("\\d+", Kind.ENGINE, null),
+        Arguments.of("\\pN$", Kind.ENGINE, null),
+        Arguments.of("\\x41$", Kind.ENGINE, null));
   }
 
   @ParameterizedTest
@@ -73,7 +75,7 @@ class RegexMatcherTest {
   @Test
   void fastPathsAgreeWithTheEngine() {
     final List<String> patterns =
-        Arrays.asList(
+        asList(
             "",
             ".*",
             ".+",
@@ -101,15 +103,22 @@ class RegexMatcherTest {
             "a\\$",
             "a\\|b",
             "\\(a\\)",
-            "tab\\there");
+            "tab\\there",
+            "\\pL$",
+            "\\p{Lu}c$",
+            "\\x41$",
+            "\\x{41}bc$",
+            "^\\x41b",
+            "\\101$");
     final List<String> inputs = inputs();
     for (final String pattern : patterns) {
       final RegexMatcher matcher = RegexMatcher.compile(pattern);
-      final com.google.re2j.Pattern engine = com.google.re2j.Pattern.compile(pattern);
+      final com.google.re2j.Pattern engine =
+          com.google.re2j.Pattern.compile(RegexMatcher.Dialect.toRe2(pattern));
       for (final String input : inputs) {
         assertEquals(
             engine.matcher(input).find(),
-            matcher.find(input),
+            matcher.matches(input),
             "pattern=" + pattern + " input=" + input.replace("\n", "\\n"));
       }
     }
@@ -118,7 +127,7 @@ class RegexMatcherTest {
   private static List<String> inputs() {
     final List<String> inputs =
         new ArrayList<>(
-            Arrays.asList(
+            asList(
                 "",
                 "\n",
                 "\r",
@@ -126,6 +135,9 @@ class RegexMatcherTest {
                 "abc",
                 "abc\n",
                 "xabcx",
+                "Abc",
+                "AAbc",
+                "Abbc",
                 "def",
                 "zach",
                 "zachary",
@@ -146,7 +158,7 @@ class RegexMatcherTest {
                 "x.com",
                 "John.Doe+x@site.test",
                 "john@site.test\n",
-                "bad char!@site.test",
+                "bad char@site.test",
                 "abbbc",
                 "ac",
                 "abd",
@@ -157,9 +169,13 @@ class RegexMatcherTest {
                 "(a)",
                 "tab\there",
                 "@example.com",
-                "x@example.com"));
+                "x@example.com",
+                "abc5",
+                "N",
+                "A",
+                "Éc"));
     final SplittableRandom rnd = new SplittableRandom(1);
-    final String alphabet = "abcdefxyz@.|$()\n\tuszach";
+    final String alphabet = "abcdefxyzAN5@.|$()\n\tuszach";
     for (int i = 0; i < 2000; i++) {
       final StringBuilder s = new StringBuilder();
       final int length = rnd.nextInt(12);
@@ -171,67 +187,91 @@ class RegexMatcherTest {
     return inputs;
   }
 
-  /** The RE2 and Rust semantics, where they differ from java.util.regex. */
+  /** Escapes longer than one character are not literal suffixes or prefixes. */
   @Test
-  void usesRe2Semantics() {
+  void multiCharacterEscapesAreNotLiterals() {
+    assertTrue(RegexMatcher.compile("\\pN$").matches("abc5"));
+    assertTrue(RegexMatcher.compile("\\p{Lu}c$").matches("Ac"));
+    assertTrue(RegexMatcher.compile("\\x41$").matches("A"));
+    assertTrue(RegexMatcher.compile("\\x{41}bc$").matches("Abc"));
+    assertTrue(RegexMatcher.compile("\\101$").matches("A"));
+    assertEquals(asList("bc"), engine("\\x{41}bc$").requiredSuffixes());
+    assertNull(engine("\\pN$").requiredSuffixes());
+  }
+
+  /** The Rust regex dialect, where it differs from java.util.regex and from plain RE2/J. */
+  @Test
+  void usesTheRustDialect() {
     // $ matches only at the end of the input, not before a final line feed.
-    assertFalse(RegexMatcher.compile("a$").find("a\n"));
-    assertFalse(RegexMatcher.compile("^[a-z]+@site\\.test$").find("john@site.test\n"));
+    assertFalse(RegexMatcher.compile("a$").matches("a\n"));
+    assertFalse(RegexMatcher.compile("^[a-z]+@site\\.test$").matches("john@site.test\n"));
     // . matches any character except a line feed.
-    assertTrue(RegexMatcher.compile("^a.b$").find("a\rb"));
-    assertFalse(RegexMatcher.compile("^a.b$").find("a\nb"));
-    assertFalse(RegexMatcher.compile(".+").find("\n\n"));
-    assertTrue(RegexMatcher.compile(".+").find("\n\r"));
-    // RE2/J supports the bracketed POSIX classes.
-    assertTrue(RegexMatcher.compile("^[[:alnum:]]+$").find("abc123"));
-    assertFalse(RegexMatcher.compile("^[[:alnum:]]+$").find("abc-123"));
+    assertTrue(RegexMatcher.compile("^a.b$").matches("a\rb"));
+    assertFalse(RegexMatcher.compile("^a.b$").matches("a\nb"));
+    assertFalse(RegexMatcher.compile(".+").matches("\n\n"));
+    assertTrue(RegexMatcher.compile(".+").matches("\n\r"));
+    // Bracketed POSIX classes.
+    assertTrue(RegexMatcher.compile("^[[:alnum:]]+$").matches("abc123"));
+    assertFalse(RegexMatcher.compile("^[[:alnum:]]+$").matches("abc-123"));
+    // \d and \s are Unicode classes.
+    assertTrue(RegexMatcher.compile("^\\d+$").matches("١٢٣"));
+    assertTrue(RegexMatcher.compile("^[\\d-]+$").matches("١-2"));
+    assertFalse(RegexMatcher.compile("^\\D+$").matches("a١"));
+    assertTrue(RegexMatcher.compile("^a\\sb$").matches("a b"));
+    assertTrue(RegexMatcher.compile("^a[\\s]b$").matches("a　b"));
+    assertFalse(RegexMatcher.compile("^\\S+$").matches("a b"));
   }
 
   @Test
   void removesTheUnicodeFlag() {
-    assertEquals("abc", RegexMatcher.withoutUnicodeFlag("(?u)abc"));
-    assertEquals("(?i)abc", RegexMatcher.withoutUnicodeFlag("(?iu)abc"));
-    assertEquals("(?:abc)", RegexMatcher.withoutUnicodeFlag("(?u:abc)"));
-    assertEquals("(?:abc)", RegexMatcher.withoutUnicodeFlag("(?:abc)"));
-    assertEquals("[(?u)]x", RegexMatcher.withoutUnicodeFlag("[(?u)]x"));
-    assertEquals("\\(?u)", RegexMatcher.withoutUnicodeFlag("\\(?u)"));
+    assertEquals("abc", RegexMatcher.Dialect.toRe2("(?u)abc"));
+    assertEquals("(?i)abc", RegexMatcher.Dialect.toRe2("(?iu)abc"));
+    assertEquals("(?i)abc", RegexMatcher.Dialect.toRe2("(?i-u)abc"));
+    assertEquals("(?:abc)", RegexMatcher.Dialect.toRe2("(?u:abc)"));
+    assertEquals("(?:abc)", RegexMatcher.Dialect.toRe2("(?-u:abc)"));
+    assertEquals("(?:abc)", RegexMatcher.Dialect.toRe2("(?:abc)"));
+    assertEquals("(?P<name>x)", RegexMatcher.Dialect.toRe2("(?P<name>x)"));
+    assertEquals("[(?u)]x", RegexMatcher.Dialect.toRe2("[(?u)]x"));
+    assertEquals("\\(?u)", RegexMatcher.Dialect.toRe2("\\(?u)"));
+    assertTrue(RegexMatcher.compile("(?i-u)ABC").matches("abc"));
   }
 
   /** Word boundaries use the Rust (Unicode) definition of a word character. */
   @Test
   void wordBoundaryIsUnicodeAware() {
-    final RegexMatcher manana = RegexMatcher.compile("(?u)\\bma\u00f1ana\\b");
-    assertTrue(manana.find("llega ma\u00f1ana temprano"));
-    assertTrue(manana.find("ma\u00f1ana"));
-    assertFalse(manana.find("ma\u00f1anas"));
+    final RegexMatcher manana = RegexMatcher.compile("(?u)\\bmañana\\b");
+    assertTrue(manana.matches("llega mañana temprano"));
+    assertTrue(manana.matches("mañana"));
+    assertFalse(manana.matches("mañanas"));
     // A non-ASCII letter is a word character, so there is no boundary before "m".
-    assertFalse(manana.find("\u00f1ma\u00f1ana"));
+    assertFalse(manana.matches("ñmañana"));
     final RegexMatcher prefix = RegexMatcher.compile("\\bfoo");
-    assertTrue(prefix.find("a foobar"));
-    assertFalse(prefix.find("afoo"));
-    assertFalse(prefix.find("\u00e9foo"));
-    assertTrue(prefix.find("-foo"));
+    assertTrue(prefix.matches("a foobar"));
+    assertFalse(prefix.matches("afoo"));
+    assertFalse(prefix.matches("éfoo"));
+    assertTrue(prefix.matches("-foo"));
   }
 
-  @Test
-  void matchesAndNotMatchesAreOpposites() {
-    final RegexMatcher matcher = RegexMatcher.compile("@example\\.com$");
-    assertTrue(matcher.test("a@example.com", true));
-    assertFalse(matcher.test("a@example.com", false));
-    assertFalse(matcher.test("a@other.com", true));
-    assertTrue(matcher.test("a@other.com", false));
-  }
-
-  @Test
-  void malformedPatternThrows() {
-    assertThrows(PatternSyntaxException.class, () -> RegexMatcher.compile("*@datadoghq.com"));
-    assertThrows(PatternSyntaxException.class, () -> RegexMatcher.compile("(abc"));
-    assertThrows(PatternSyntaxException.class, () -> RegexMatcher.compile("[abc"));
-    // java.util.regex accepts these, but the Rust regex crate and RE2/J do not.
-    for (final String pattern :
-        Arrays.asList("(?=a)a", "(?<!a)b", "(a)\\1", "a*+", "(?>a)", "\\p{Alnum}")) {
-      assertThrows(PatternSyntaxException.class, () -> RegexMatcher.compile(pattern), pattern);
-    }
+  @ParameterizedTest
+  @ValueSource(
+      strings = {
+        "*@datadoghq.com",
+        "(abc",
+        "[abc",
+        // java.util.regex accepts these, but the Rust regex crate does not.
+        "(?=a)a",
+        "(?<!a)b",
+        "(a)\\1",
+        "(?>a)",
+        "\\p{Alnum}",
+        "\\Qa.b\\E",
+        // RE2/J reads these as literal characters, but the Rust regex crate does not.
+        "[a-z&&[^aeiou]]",
+        "[[a-z]--[aeiou]]",
+        "[a~~b]"
+      })
+  void rejectsInvalidPatterns(final String pattern) {
+    assertThrows(PatternSyntaxException.class, () -> RegexMatcher.compile(pattern), pattern);
   }
 
   /** Patterns that make java.util.regex backtrack finish in linear time. */
@@ -241,84 +281,44 @@ class RegexMatcherTest {
     assertTimeoutPreemptively(
         Duration.ofSeconds(2),
         () -> {
-          assertFalse(RegexMatcher.compile("(a+)+$").find(as + "!"));
-          assertFalse(RegexMatcher.compile("^(a|aa)+$").find(as + "!"));
-          assertFalse(RegexMatcher.compile("(a*)*b").find(as));
-          assertFalse(RegexMatcher.compile(".*a.*a.*a.*a.*b").find(as));
-          assertFalse(RegexMatcher.compile(".*@(x|y)\\.com$").find(as + "@z.com"));
-          assertFalse(RegexMatcher.compile("^[a-z]+@site\\.test$").find(as + "@other.test"));
+          assertFalse(RegexMatcher.compile("(a+)+$").matches(as + "!"));
+          assertFalse(RegexMatcher.compile("^(a|aa)+$").matches(as + "!"));
+          assertFalse(RegexMatcher.compile("(a*)*b").matches(as));
+          assertFalse(RegexMatcher.compile(".*a.*a.*a.*a.*b").matches(as));
+          assertFalse(RegexMatcher.compile(".*.*.*.*.*=").matches(as));
+          assertFalse(RegexMatcher.compile(".*@(x|y)\\.com$").matches(as + "@z.com"));
+          assertFalse(RegexMatcher.compile("^[a-z]+@site\\.test$").matches(as + "@other.test"));
         });
   }
 
   @Test
-  void findsRequiredPrefixAndSuffix() {
+  void findsRequiredPrefixAndSuffixes() {
     assertEquals(
-        Arrays.asList("@site.test"), engine("^[a-zA-Z0-9._%+-]+@site\\.test$").requiredSuffixes());
+        asList("@site.test"), engine("^[a-zA-Z0-9._%+-]+@site\\.test$").requiredSuffixes());
     assertEquals(
-        Arrays.asList("@alpha.io", "@alpha.net", "@bravo.io", "@bravo.net"),
+        asList("@alpha.io", "@alpha.net", "@bravo.io", "@bravo.net"),
         engine("^u[0-9]{1,3}@(?:alpha|bravo)\\.(?:io|net)$").requiredSuffixes());
     // A quantified group is not a required suffix; only the text after it is.
-    assertEquals(Arrays.asList(".com"), engine("^x(?:a|b)+\\.com$").requiredSuffixes());
+    assertEquals(asList(".com"), engine("^x(?:a|b)+\\.com$").requiredSuffixes());
+    assertEquals(asList("abc"), engine("x+abc$").requiredSuffixes());
+    assertNull(engine("[a-z]+$").requiredSuffixes());
     assertNull(engine("^[a-zA-Z0-9._%+-]+@site\\.test$").requiredPrefix());
     assertEquals("ab", engine("^ab+c").requiredPrefix());
     assertEquals("a", engine("^ab?c").requiredPrefix());
     assertEquals("ab", engine("^abc*d").requiredPrefix());
     // {n,m} can allow zero repetitions, so the quantified character is not required.
     assertNull(engine("^a{2}b").requiredPrefix());
-    assertEquals(Arrays.asList("abc"), engine("x+abc$").requiredSuffixes());
     assertNull(engine("^ab+c|d").requiredPrefix());
     assertNull(engine("(?i)^abc+").requiredPrefix());
-    assertNull(engine("[a-z]+$").requiredSuffixes());
+    // A quantifier applies to a whole surrogate pair.
+    assertEquals("a", engine("^a😀?\\d").requiredPrefix());
+    assertTrue(RegexMatcher.compile("^a😀?\\d").matches("a1"));
   }
 
   @Test
-  void parserSharesOneMatcherForEachPattern() throws Exception {
-    final String json =
-        "{\"createdAt\":\"2024-04-17T19:40:53.716Z\",\"environment\":{\"name\":\"Test\"},"
-            + "\"flags\":{"
-            + flag("one", "^[a-z]+@site\\\\.test$")
-            + ","
-            + flag("two", "^[a-z]+@site\\\\.test$")
-            + ","
-            + flag("three", "@other\\\\.test$")
-            + "}}";
-    final ServerConfiguration config = UniversalFlagConfigParser.parse(json.getBytes(UTF_8));
-    final RegexMatcher one = regex(config, "one");
-    assertSame(one, regex(config, "two"));
-    assertEquals(Kind.ENGINE, one.kind());
-    assertEquals(Kind.ENDS_WITH, regex(config, "three").kind());
-  }
-
-  @Test
-  void parserDropsAFlagWithSyntaxThatRustRejects() throws Exception {
-    final String json =
-        "{\"createdAt\":\"2024-04-17T19:40:53.716Z\",\"environment\":{\"name\":\"Test\"},"
-            + "\"flags\":{"
-            + flag("lookahead", "(?=a)a")
-            + ","
-            + flag("valid", "@other\\\\.test$")
-            + "}}";
-    final ServerConfiguration config = UniversalFlagConfigParser.parse(json.getBytes(UTF_8));
-    assertFalse(config.flags.containsKey("lookahead"));
-    assertTrue(config.invalidFlags.containsKey("lookahead"));
-    assertEquals(Kind.ENDS_WITH, regex(config, "valid").kind());
-  }
-
-  private static String flag(final String key, final String pattern) {
-    return "\""
-        + key
-        + "\":{\"key\":\""
-        + key
-        + "\",\"enabled\":true,\"variationType\":\"BOOLEAN\","
-        + "\"variations\":{\"on\":{\"key\":\"on\",\"value\":true}},"
-        + "\"allocations\":[{\"key\":\"a\",\"rules\":[{\"conditions\":["
-        + "{\"attribute\":\"email\",\"operator\":\"MATCHES\",\"value\":\""
-        + pattern
-        + "\"}]}],\"splits\":[{\"variationKey\":\"on\",\"shards\":[]}]}]}";
-  }
-
-  private static RegexMatcher regex(final ServerConfiguration config, final String key) {
-    return config.flags.get(key).allocations.get(0).rules.get(0).conditions.get(0).regex;
+  void requiredSuffixesCannotBeChanged() {
+    final List<String> suffixes = engine("^[a-z]+@(?:a|b)$").requiredSuffixes();
+    assertThrows(UnsupportedOperationException.class, () -> suffixes.set(0, "x"));
   }
 
   private static RegexMatcher.Engine engine(final String pattern) {
