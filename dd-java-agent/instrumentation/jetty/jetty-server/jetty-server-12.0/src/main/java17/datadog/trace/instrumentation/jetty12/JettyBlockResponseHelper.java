@@ -324,6 +324,7 @@ public final class JettyBlockResponseHelper {
    * <p>Never throws an {@code Exception}; an {@code Error} is left to the advice's suppress
    * handler.
    *
+   * @param request the request whose context holds the blocking response function
    * @param callback the callback the handler chain received
    * @return true when {@code callback} is the wrapper, a blocking response was initiated and the
    *     wrapper was completed, in which case the caller must report the request as handled; false
