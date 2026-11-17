@@ -138,9 +138,7 @@ final class TagCardinalityHandler {
       this.collapsedCount++;
       return this.tracerBlockedValue();
     }
-    // Try to find the same raw value in the previous-cycle table so the encoded
-    // UTF8 object can be reused after a reset.
-    // Reuse the previous encoded "tag:value" UTF8 value if present; otherwise
+    // Reuse the previous cycle's encoded "tag:value" UTF8 value if present; otherwise
     // create it from the fixed tag name and the raw value.
     UTF8BytesString prior = findPrior(value, spread);
     UTF8BytesString utf8 = prior != null ? prior : UTF8BytesString.create(this.tag + ":" + value);
