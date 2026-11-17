@@ -21,7 +21,7 @@ import org.junit.jupiter.api.Test;
  * Guards {@code OtelHealthMetrics.ORIGINS} and {@code started} against a new or reordered {@code
  * DDSpanContext.PARENT_ORIGIN_*} constant.
  */
-class OtelHealthMetricsParentOriginTest {
+class OtelHealthMetricsTest {
   private static final String PREFIX = "PARENT_ORIGIN_";
   private static final String FIX =
       "; update OtelHealthMetrics.ORIGINS and started to match the DDSpanContext."
