@@ -19,6 +19,9 @@ final class EvaluationScope {
   private static final int MAX_SCANNED = 8;
 
   final EvaluationContext context;
+  // Most flags read one attribute: it is kept without allocating the arrays.
+  private String firstName;
+  private Object firstValue;
   private String[] names;
   private Object[] values;
   private int size;
@@ -30,6 +33,10 @@ final class EvaluationScope {
 
   /** Returns the attribute's value, or {@code null} when the context does not hold it. */
   Object attribute(final String name) {
+    final String first = firstName;
+    if (first == name || (first != null && first.equals(name))) {
+      return firstValue == NULL ? null : firstValue;
+    }
     for (int i = 0; i < size; i++) {
       final String cached = names[i];
       if (cached == name || cached.equals(name)) {
@@ -57,6 +64,11 @@ final class EvaluationScope {
   }
 
   private void remember(final String name, final Object value) {
+    if (firstName == null) {
+      firstName = name;
+      firstValue = value;
+      return;
+    }
     if (names == null) {
       names = new String[MAX_SCANNED];
       values = new Object[MAX_SCANNED];
