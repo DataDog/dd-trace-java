@@ -10,7 +10,7 @@ import org.eclipse.jetty.util.Callback;
  * skips the handler chain. Otherwise wraps the Handler callback so that a later mid-handler
  * blocking response write is not cut when the request completes, including when a core handler lets
  * a {@code Throwable} escape {@code Server.handle} while that write is in flight (any other
- * escaping {@code Throwable} propagates unchanged).
+ * escaping {@code Throwable} propagates unchanged) or returns {@code false} after initiating it.
  */
 public class JettyServerHandleBlockingAdvice {
 
@@ -28,6 +28,7 @@ public class JettyServerHandleBlockingAdvice {
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void onExit(
       @Advice.Enter final boolean blocked,
+      @Advice.Argument(0) final Request request,
       @Advice.Argument(2) final Callback callback,
       @Advice.Return(readOnly = false) boolean handled,
       @Advice.Thrown(readOnly = false) Throwable thrown) {
@@ -38,6 +39,12 @@ public class JettyServerHandleBlockingAdvice {
       // a block write is in flight and Jetty would fail its own reference to the Handler callback,
       // cutting it: fail it through the wrapper instead and return as handled
       thrown = null;
+      handled = true;
+    } else if (thrown == null
+        && !handled
+        && JettyBlockResponseHelper.completeUnhandledBlock(request, callback)) {
+      // Jetty would write a 404 with its own reference to the Handler callback, over the blocking
+      // response: the wrapper was completed instead, so the request can be reported as handled
       handled = true;
     }
   }

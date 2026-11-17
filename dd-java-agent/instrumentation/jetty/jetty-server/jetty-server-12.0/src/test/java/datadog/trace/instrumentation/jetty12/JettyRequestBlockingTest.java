@@ -325,6 +325,81 @@ class JettyRequestBlockingTest {
     assertTrue(completions.isEmpty(), "Jetty fails its own callback reference");
   }
 
+  @Test
+  void escapedThrowableIsTakenOverWhenACompletionIsAlreadyParked() {
+    ActiveSubsystems.APPSEC_ACTIVE = true;
+    JettyBrfFixture f = new JettyBrfFixture(null);
+    List<Object> completions = new ArrayList<>();
+    Callback callback =
+        JettyBlockResponseHelper.deferCompletion(f.request.proxy, recording(completions));
+    assertTrue(
+        f.brf.tryCommitBlockingResponse(
+            f.segment, 403, BlockingContentType.AUTO, emptyMap(), null));
+    IllegalStateException parked = new IllegalStateException("parked");
+    callback.failed(parked);
+
+    // a core handler that failed the callback and then let a throwable escape
+    assertTrue(
+        JettyBlockResponseHelper.failDeferred(callback, new IllegalStateException("escaped")));
+    assertTrue(completions.isEmpty(), "the parked failure waits for the pending block write");
+
+    f.response.pending.succeeded();
+
+    assertEquals(asList("effectivelyBlocked"), f.events);
+    assertEquals(asList("failed", parked), completions, "only the first outcome is replayed");
+  }
+
+  @Test
+  void unhandledRequestCompletesTheWrapperOnceTheBlockWriteFinishes() {
+    ActiveSubsystems.APPSEC_ACTIVE = true;
+    JettyBrfFixture f = new JettyBrfFixture(null);
+    List<Object> completions = new ArrayList<>();
+    Callback callback =
+        JettyBlockResponseHelper.deferCompletion(f.request.proxy, recording(completions));
+    assertTrue(
+        f.brf.tryCommitBlockingResponse(
+            f.segment, 403, BlockingContentType.AUTO, emptyMap(), null));
+
+    // what the Server.handle exit advice does when a core handler returns false
+    assertTrue(JettyBlockResponseHelper.completeUnhandledBlock(f.request.proxy, callback));
+    assertTrue(completions.isEmpty(), "the completion waits for the pending block write");
+
+    f.response.pending.succeeded();
+
+    assertEquals(asList("effectivelyBlocked"), f.events);
+    assertEquals(asList("succeeded"), completions);
+  }
+
+  @Test
+  void unhandledRequestIsLeftToJettyWhenNoBlockingResponseWasInitiated() {
+    ActiveSubsystems.APPSEC_ACTIVE = true;
+    JettyBrfFixture f = new JettyBrfFixture(null);
+    List<Object> completions = new ArrayList<>();
+    Callback callback =
+        JettyBlockResponseHelper.deferCompletion(f.request.proxy, recording(completions));
+    assertInstanceOf(JettyDeferredCompletion.class, callback);
+
+    assertFalse(JettyBlockResponseHelper.completeUnhandledBlock(f.request.proxy, callback));
+
+    assertTrue(completions.isEmpty(), "Jetty writes its 404 as on master");
+    assertTrue(f.response.writes.isEmpty());
+  }
+
+  @Test
+  void unhandledRequestIsLeftToJettyWithoutTheWrapper() {
+    JettyBrfFixture f = new JettyBrfFixture(null);
+    List<Object> completions = new ArrayList<>();
+    assertTrue(
+        f.brf.tryCommitBlockingResponse(
+            f.segment, 403, BlockingContentType.AUTO, emptyMap(), null));
+
+    assertFalse(
+        JettyBlockResponseHelper.completeUnhandledBlock(f.request.proxy, recording(completions)));
+    assertFalse(JettyBlockResponseHelper.completeUnhandledBlock(f.request.proxy, null));
+
+    assertTrue(completions.isEmpty());
+  }
+
   /** Records {@code succeeded} and {@code failed} calls, followed by the failure, if any. */
   private static Callback recording(List<Object> completions) {
     return proxy(

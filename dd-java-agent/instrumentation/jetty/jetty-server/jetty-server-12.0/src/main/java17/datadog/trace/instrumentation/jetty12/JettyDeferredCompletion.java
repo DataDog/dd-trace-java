@@ -51,7 +51,7 @@ public final class JettyDeferredCompletion implements Callback {
    */
   private volatile Object state = IDLE;
 
-  public JettyDeferredCompletion(final Callback delegate) {
+  JettyDeferredCompletion(final Callback delegate) {
     this.delegate = delegate;
   }
 
@@ -71,19 +71,21 @@ public final class JettyDeferredCompletion implements Callback {
   }
 
   /**
-   * Returns whether a block write is in flight and no completion was parked yet. The answer can be
-   * stale by the time the caller acts on it: a write that finishes meanwhile makes the next
-   * completion forward directly.
+   * Returns whether the wrapper is deferring: a block write is in flight, whether or not a
+   * completion was already parked. While deferring, the delegate is completed only when the write
+   * finishes. The answer can be stale by the time the caller acts on it: a write that finishes
+   * meanwhile makes the next completion forward directly (or be dropped if one was replayed).
    */
-  boolean isBlockWriteInFlight() {
-    return state == WRITING;
+  boolean isDeferring() {
+    final Object current = state;
+    return current != IDLE && current != COMPLETED;
   }
 
   /**
    * Marks a block write as in flight; must be called before the write is issued, since Jetty may
    * run the write callback inside the write call. A no-op once the delegate was completed.
    */
-  public void blockWriteStarted() {
+  void blockWriteStarted() {
     for (; ; ) {
       final Object current = state;
       if (current == IDLE) {
@@ -103,7 +105,7 @@ public final class JettyDeferredCompletion implements Callback {
    * Marks the block write as finished (successfully or not) and replays a parked completion, if
    * any. Runs on Jetty write callback threads: never throws.
    */
-  public void blockWriteFinished() {
+  void blockWriteFinished() {
     for (; ; ) {
       final Object current = state;
       if (current == WRITING) {

@@ -6,7 +6,6 @@ import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.internal.TraceSegment;
-import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
@@ -136,7 +135,7 @@ public class JettyBlockResponseFunction implements BlockResponseFunction {
     return deferred == null ? base : Invocable.combine(base, deferred.getInvocationType());
   }
 
-  @VisibleForTesting
+  /** Returns whether a blocking response write is claimed by one evaluation and has not failed. */
   boolean isBlockingResponseInitiated() {
     return claimed != 0;
   }

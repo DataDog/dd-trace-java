@@ -273,26 +273,30 @@ public final class JettyBlockResponseHelper {
 
   /**
    * Fails the Handler callback wrapper with a {@code Throwable} that escaped {@code Server.handle}
-   * while a blocking response write is in flight.
+   * while the wrapper is deferring (a blocking response write is in flight).
    *
    * <p>Jetty's {@code HandlerInvoker} fails its own reference to the Handler callback with such a
    * throwable, bypassing the wrapper installed by {@link #deferCompletion(Request, Callback)},
    * which would cut the in-flight write. Servlet environments catch {@code BlockingException}
-   * themselves; this covers core handlers that let it escape. With no write in flight Jetty keeps
-   * handling the throwable as it would without the agent. Never throws.
+   * themselves; this covers core handlers that let it escape, including after completing the
+   * wrapper: that first completion stays parked, {@code failure} is dropped as a second completion,
+   * and the parked outcome is replayed when the write finishes. When the wrapper is not deferring
+   * Jetty keeps handling the throwable as it would without the agent.
+   *
+   * <p>Never throws an {@code Exception}; an {@code Error} is left to the advice's suppress
+   * handler.
    *
    * @param callback the callback the handler chain received
-   * @return true when {@code callback} is the wrapper, a block write was in flight and the wrapper
-   *     took the failure, in which case the caller must swallow {@code failure} and report the
-   *     request as handled; false otherwise, including on any failure, in which case {@code
-   *     failure} must propagate unchanged
+   * @return true when {@code callback} is the wrapper and it was deferring, in which case the
+   *     caller must swallow {@code failure} and report the request as handled; false otherwise,
+   *     including on any failure, in which case {@code failure} must propagate unchanged
    */
   public static boolean failDeferred(Callback callback, Throwable failure) {
     if (!(callback instanceof JettyDeferredCompletion)) {
       return false;
     }
     JettyDeferredCompletion deferred = (JettyDeferredCompletion) callback;
-    if (!deferred.isBlockWriteInFlight()) {
+    if (!deferred.isDeferring()) {
       return false;
     }
     try {
@@ -301,6 +305,46 @@ public final class JettyBlockResponseHelper {
       return true;
     } catch (Exception e) {
       log.debug("Failed to fail the deferred request completion", e);
+      return false;
+    }
+  }
+
+  /**
+   * Completes the Handler callback wrapper when {@code Server.handle} returned {@code false} after
+   * a blocking response was initiated on the handler chain.
+   *
+   * <p>On {@code false} Jetty's {@code HandlerInvoker} writes a 404 error with its own reference to
+   * the Handler callback, bypassing the wrapper installed by {@link #deferCompletion(Request,
+   * Callback)}: it would write over the blocking response or complete the request while the block
+   * write is in flight. Since {@code false} means the handler will not complete the callback, the
+   * caller may only report the request as handled once the wrapper was completed here: it is
+   * completed with {@code succeeded()}, parked while the block write is in flight and replayed when
+   * it finishes.
+   *
+   * <p>Never throws an {@code Exception}; an {@code Error} is left to the advice's suppress
+   * handler.
+   *
+   * @param callback the callback the handler chain received
+   * @return true when {@code callback} is the wrapper, a blocking response was initiated and the
+   *     wrapper was completed, in which case the caller must report the request as handled; false
+   *     otherwise, including on any failure, in which case Jetty handles {@code false} unchanged
+   */
+  public static boolean completeUnhandledBlock(Request request, Callback callback) {
+    if (!(callback instanceof JettyDeferredCompletion)) {
+      return false;
+    }
+    try {
+      AgentSpan span = spanFrom(request);
+      RequestContext reqCtx = span == null ? null : span.getRequestContext();
+      BlockResponseFunction brf = reqCtx == null ? null : reqCtx.getBlockResponseFunction();
+      if (!(brf instanceof JettyBlockResponseFunction)
+          || !((JettyBlockResponseFunction) brf).isBlockingResponseInitiated()) {
+        return false;
+      }
+      callback.succeeded();
+      return true;
+    } catch (Exception e) {
+      log.debug("Failed to complete the deferred request completion of an unhandled request", e);
       return false;
     }
   }

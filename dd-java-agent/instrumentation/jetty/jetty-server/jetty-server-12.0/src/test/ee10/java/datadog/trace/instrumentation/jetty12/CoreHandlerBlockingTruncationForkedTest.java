@@ -35,6 +35,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -54,11 +55,13 @@ import org.junit.jupiter.api.io.TempDir;
 
 /**
  * Checks that a large mid-handler blocking response is not truncated when a Jetty 12 core handler
- * (no servlet layer) lets the {@link BlockingException} escape {@code Server.handle}.
+ * (no servlet layer) lets the {@link BlockingException} escape {@code Server.handle}, or returns
+ * {@code false} without completing the callback.
  *
  * <p>Jetty's {@code HandlerInvoker} fails its own reference to the Handler callback with an
- * escaping throwable, so this exercises the {@code Server.handle} exit advice that routes it
- * through the deferring callback wrapper instead.
+ * escaping throwable, and writes a 404 with it on a {@code false} return, so this exercises the
+ * {@code Server.handle} exit advice that routes both through the deferring callback wrapper
+ * instead.
  *
  * <p>Lives in the ee10 suites only because they put core Jetty 12 (12.0.0 and latest) on the
  * classpath. Forked: the custom template, {@code APPSEC_ACTIVE} and the AppSec subscriptions are
@@ -66,6 +69,7 @@ import org.junit.jupiter.api.io.TempDir;
  */
 class CoreHandlerBlockingTruncationForkedTest extends AbstractInstrumentationTest {
   private static final String BLOCK_PATH = "/mid-handler-block";
+  private static final String UNHANDLED_BLOCK_PATH = "/mid-handler-block-unhandled";
   private static final int TEMPLATE_SIZE = 400 * 1024;
   private static final int SMALL_BUFFER_SIZE = 4 * 1024;
   private static final int TIMEOUT_SECONDS = 10;
@@ -111,6 +115,19 @@ class CoreHandlerBlockingTruncationForkedTest extends AbstractInstrumentationTes
 
   @Test
   void coreHandlerBlockingResponseReachesSlowClientInFull() throws Exception {
+    assertFullBlockingPage(BLOCK_PATH, false);
+  }
+
+  @Test
+  void unhandledCoreHandlerBlockingResponseReachesSlowClientInFull() throws Exception {
+    assertFullBlockingPage(UNHANDLED_BLOCK_PATH, true);
+  }
+
+  /**
+   * Requests {@code path} from a slow client and checks the full blocking page arrives, optionally
+   * followed by nothing else (no 404 error response written after it).
+   */
+  private void assertFullBlockingPage(String path, boolean checkNothingFollows) throws Exception {
     try (Socket socket = new Socket()) {
       // small receive window, so the server cannot hand the whole page to the kernel at once
       socket.setReceiveBufferSize(SMALL_BUFFER_SIZE);
@@ -119,18 +136,14 @@ class CoreHandlerBlockingTruncationForkedTest extends AbstractInstrumentationTes
 
       OutputStream out = socket.getOutputStream();
       out.write(
-          ("GET "
-                  + BLOCK_PATH
-                  + " HTTP/1.1\r\nHost: localhost:"
-                  + port
-                  + "\r\nAccept: text/html\r\n\r\n")
+          ("GET " + path + " HTTP/1.1\r\nHost: localhost:" + port + "\r\nAccept: text/html\r\n\r\n")
               .getBytes(US_ASCII));
       out.flush();
 
-      // do not read until the handler threw: the block write is then still pending
+      // do not read until the handler returned: the block write is then still pending
       assertTrue(handlerDone.await(TIMEOUT_SECONDS, SECONDS), "handler did not complete");
       assertNull(handlerFailure, "handler setup failure");
-      // let Jetty process the BlockingException before the client starts reading
+      // let Jetty process the handler outcome before the client starts reading
       Thread.sleep(500);
 
       InputStream in = socket.getInputStream();
@@ -141,11 +154,26 @@ class CoreHandlerBlockingTruncationForkedTest extends AbstractInstrumentationTes
 
       byte[] body = readBody(in, contentLength);
       assertArrayEquals(template, body, "blocking page content");
+
+      if (checkNothingFollows) {
+        assertNothingFollows(socket, in);
+      }
     }
 
     DDSpan serverSpan = awaitSingleServerSpan();
     assertEquals(403, serverSpan.getHttpStatusCode());
     assertEquals("true", String.valueOf(serverSpan.getTag("appsec.blocked")));
+  }
+
+  /** Fails if the server sends anything after the blocking page (e.g. a 404 error response). */
+  private static void assertNothingFollows(Socket socket, InputStream in) throws IOException {
+    socket.setSoTimeout(500);
+    try {
+      int b = in.read();
+      assertEquals(-1, b, "unexpected bytes after the blocking page");
+    } catch (SocketTimeoutException expected) {
+      // the connection stays open and idle: nothing follows the blocking page
+    }
   }
 
   private void enableAppSec() {
@@ -260,7 +288,8 @@ class CoreHandlerBlockingTruncationForkedTest extends AbstractInstrumentationTes
 
   /**
    * Core handler that commits the blocking response mid-handler and then lets the {@link
-   * BlockingException} escape {@code handle}, as a core application calling the blocking SDK would.
+   * BlockingException} escape {@code handle}, as a core application calling the blocking SDK would,
+   * or, for {@link #UNHANDLED_BLOCK_PATH}, returns {@code false} without completing the callback.
    */
   private final class MidHandlerBlockingCoreHandler extends Handler.Abstract {
     @Override
@@ -279,6 +308,9 @@ class CoreHandlerBlockingTruncationForkedTest extends AbstractInstrumentationTes
         if (!committed) {
           handlerFailure = new AssertionError("blocking response was not committed");
           throw new IllegalStateException("blocking response was not committed");
+        }
+        if (UNHANDLED_BLOCK_PATH.equals(request.getHttpURI().getPath())) {
+          return false;
         }
         throw new BlockingException("Blocked mid-handler");
       } finally {
