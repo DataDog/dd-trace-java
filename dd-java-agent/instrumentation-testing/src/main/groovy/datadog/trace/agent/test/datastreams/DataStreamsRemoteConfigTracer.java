@@ -94,10 +94,6 @@ public final class DataStreamsRemoteConfigTracer {
     return dataStreamsMonitoring;
   }
 
-  public RecordingDatastreamsPayloadWriter dataStreamsWriter() {
-    return dataStreamsWriter;
-  }
-
   /** Drops recorded payloads and pending stats. */
   public void clear() {
     dataStreamsWriter.clear();
@@ -167,7 +163,7 @@ public final class DataStreamsRemoteConfigTracer {
   }
 
   /** Written spans named {@code operationName}. */
-  public List<DDSpan> spans(String operationName) {
+  private List<DDSpan> spans(String operationName) {
     List<DDSpan> spans = new ArrayList<>();
     for (List<DDSpan> trace : writer) {
       for (DDSpan span : trace) {
