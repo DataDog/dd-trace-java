@@ -7,7 +7,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
-import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -75,10 +74,6 @@ public class JCoRepositoryInstrumentation
       AgentSpan span = lookup.getSpan();
       if (span == null) {
         return; // cache hit: no RFC was sent, nothing to report
-      }
-      ContextScope scope = lookup.getScope();
-      if (scope != null) {
-        scope.close();
       }
       if (throwable != null) {
         DECORATE.onRfcError(span, throwable);

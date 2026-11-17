@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.sapjco;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.sapjco.JCoClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.sapjco.JCoClientDecorator.METADATA_OPERATION;
@@ -16,9 +15,9 @@ import net.bytebuddy.asm.Advice;
 /**
  * Instruments the internal metadata-send path {@code ClientConnection.execute(JCoFunction,
  * RepositoryProvider)}. It runs only when a repository lookup actually hits SAP (a cache miss), so
- * this is where we open the metadata span — only then is a real RFC sent. The span is opened here
- * so it is active while the RFC goes out (letting the passport bind to it and join SAP into the
- * trace); it is finished by {@link JCoRepositoryInstrumentation}, which knows the queried name and
+ * this is where we open the metadata span — only then is a real RFC sent. The span is stored in
+ * {@link MetadataLookup} (not activated); the passport manager reads it from there for every RFM of
+ * the lookup, and {@link JCoRepositoryInstrumentation} finishes it with the queried name and
  * outcome.
  *
  * <p>Guarded by {@link MetadataLookup}: a span is created only inside an instrumented {@code
@@ -52,10 +51,9 @@ public class JCoMetadataInstrumentation
       AgentSpan span = startSpan("sap-jco", METADATA_OPERATION);
       DECORATE.afterStart(span);
       DECORATE.onMetadata(span, lookup.getFunctionName());
+      // Not activated: the passport manager reads this span from MetadataLookup directly, so every
+      // RFM of the lookup binds to it without holding a scope open across advice methods.
       lookup.setSpan(span);
-      // Keep the span active for the rest of the lookup so every RFM it sends (not just this first
-      // one) carries the passport. The scope is closed by the getFunctionTemplate advice.
-      lookup.setScope(activateSpan(span));
     }
   }
 }

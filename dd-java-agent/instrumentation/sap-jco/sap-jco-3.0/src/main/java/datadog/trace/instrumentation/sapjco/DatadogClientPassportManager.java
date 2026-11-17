@@ -33,7 +33,7 @@ public final class DatadogClientPassportManager implements ClientPassportManager
 
   @Override
   public DsrIPassport callStarted(int callId, String destination, String function) {
-    AgentSpan span = activeSpan();
+    AgentSpan span = spanForPassport();
     if (span == null) {
       log.debug("no active span for {} on {}; sending no passport", function, destination);
       return null;
@@ -61,6 +61,18 @@ public final class DatadogClientPassportManager implements ClientPassportManager
         stringTag(span, "sap.client"),
         function,
         kept);
+  }
+
+  /**
+   * The span the passport should bind to: during a repository metadata lookup it is that lookup's
+   * span (so metadata RFMs nest under it), otherwise the currently active client span.
+   */
+  private static AgentSpan spanForPassport() {
+    MetadataLookup lookup = MetadataLookup.current();
+    if (lookup != null && lookup.getSpan() != null) {
+      return lookup.getSpan();
+    }
+    return activeSpan();
   }
 
   /**

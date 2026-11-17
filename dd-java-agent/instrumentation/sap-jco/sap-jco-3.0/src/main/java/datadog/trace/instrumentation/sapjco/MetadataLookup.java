@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.sapjco;
 
-import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 
 /**
@@ -16,7 +15,6 @@ public final class MetadataLookup {
 
   private final String functionName;
   private AgentSpan span;
-  private ContextScope scope;
 
   private MetadataLookup(String functionName) {
     this.functionName = functionName;
@@ -44,13 +42,5 @@ public final class MetadataLookup {
 
   public void setSpan(AgentSpan span) {
     this.span = span;
-  }
-
-  public ContextScope getScope() {
-    return scope;
-  }
-
-  public void setScope(ContextScope scope) {
-    this.scope = scope;
   }
 }
