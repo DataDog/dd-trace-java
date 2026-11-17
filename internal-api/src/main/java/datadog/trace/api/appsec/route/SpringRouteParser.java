@@ -11,6 +11,8 @@ import datadog.trace.api.internal.VisibleForTesting;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Turns a Spring route pattern ({@code HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE} in MVC, or
@@ -33,41 +35,66 @@ import java.util.function.Function;
  */
 public final class SpringRouteParser {
 
+  private static final Logger log = LoggerFactory.getLogger(SpringRouteParser.class);
+
   /** Route patterns are declared in code, so their cardinality is low; 256 bounds odd apps. */
-  @VisibleForTesting static final int CACHE_CAPACITY = 256;
+  private static final int CACHE_CAPACITY = 256;
 
   private static final DDCache<String, RouteTemplate> CACHE =
       DDCaches.newFixedSizeCache(CACHE_CAPACITY);
 
-  private static final Function<String, RouteTemplate> SAFE_PARSE = SpringRouteParser::safeParse;
+  private static final Function<String, RouteTemplate> SAFE_PARSE =
+      safely(SpringRouteParser::parse);
 
   private SpringRouteParser() {}
 
   /**
    * Same as {@link #parse(String)} but backed by a bounded cache keyed by the pattern, for the
-   * request hot path. Never returns null; a parse failure is cached as {@link
-   * RouteTemplate#NOT_EXPRESSIBLE}.
+   * request hot path. Never returns null or throws.
    */
   public static RouteTemplate cached(String pattern) {
-    return cached(CACHE, pattern);
+    return cached(CACHE, pattern, SAFE_PARSE);
   }
 
   @VisibleForTesting
   static RouteTemplate cached(DDCache<String, RouteTemplate> cache, String pattern) {
+    return cached(cache, pattern, SAFE_PARSE);
+  }
+
+  @VisibleForTesting
+  static RouteTemplate cached(
+      DDCache<String, RouteTemplate> cache,
+      String pattern,
+      Function<String, RouteTemplate> producer) {
     // null cannot be a cache key, and empty is not worth an entry
     if (pattern == null || pattern.isEmpty()) {
       return RouteTemplate.NOT_EXPRESSIBLE;
     }
-    return cache.computeIfAbsent(pattern, SAFE_PARSE);
-  }
-
-  /** Guards the cache against an unexpected parser bug: it is a defect, not an input case. */
-  private static RouteTemplate safeParse(String pattern) {
     try {
-      return parse(pattern);
+      return cache.computeIfAbsent(pattern, producer);
     } catch (Throwable t) {
+      // an Error may be transient (e.g. OutOfMemoryError): the cache stores nothing when the
+      // producer throws, so the next request retries
+      log.debug("Failed to parse route pattern {}", pattern, t);
       return RouteTemplate.NOT_EXPRESSIBLE;
     }
+  }
+
+  /**
+   * Wraps {@code parser} so that a {@link RuntimeException} becomes a cached {@link
+   * RouteTemplate#NOT_EXPRESSIBLE}: parsing is deterministic, so it would fail again for the same
+   * pattern. Errors propagate so that {@link #cached} does not cache them.
+   */
+  @VisibleForTesting
+  static Function<String, RouteTemplate> safely(final Function<String, RouteTemplate> parser) {
+    return pattern -> {
+      try {
+        return parser.apply(pattern);
+      } catch (RuntimeException e) {
+        log.debug("Failed to parse route pattern {}", pattern, e);
+        return RouteTemplate.NOT_EXPRESSIBLE;
+      }
+    };
   }
 
   /**

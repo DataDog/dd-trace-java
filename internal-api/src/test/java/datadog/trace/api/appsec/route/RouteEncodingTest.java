@@ -13,6 +13,7 @@ class RouteEncodingTest {
     "Scenario                 | Text       | Expected      ",
     "unreserved kept          | '~a-b.c_d' | '~a-b.c_d'    ",
     "two-byte UTF-8           | 'café'     | 'caf%C3%A9'   ",
+    "three-byte UTF-8         | '€'        | '%E2%82%AC'   ",
     "four-byte UTF-8          | '😀'       | '%F0%9F%98%80'",
     "colon                    | 'user:me'  | 'user%3Ame'   ",
     "plus                     | 'a+b'      | 'a%2Bb'       ",
@@ -23,6 +24,12 @@ class RouteEncodingTest {
   })
   void encodesLiterals(String text, String expected) {
     assertEquals(expected, RouteEncoding.encodeLiteral(text));
+  }
+
+  @Test
+  void unpairedSurrogateIsEncodedAsReplacementCharacter() {
+    assertEquals("a%EF%BF%BDb", RouteEncoding.encodeLiteral("a\uD800b"));
+    assertEquals("a%EF%BF%BD", RouteEncoding.encodeLiteral("a\uDC00"));
   }
 
   @TableTest({

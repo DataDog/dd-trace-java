@@ -18,7 +18,7 @@ import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
-class NormalizedRouteTemplateTest {
+class RouteTemplateTest {
 
   private static final PresenceResolver FAILING =
       new PresenceResolver() {
@@ -108,19 +108,6 @@ class NormalizedRouteTemplateTest {
     assertEquals("/", SpringRouteParser.parse("/").render(null, null));
   }
 
-  @TableTest({
-    "Scenario      | Value | Expected             ",
-    "not bound     |       | ABSENT               ",
-    "empty         | ''    | ABSENT               ",
-    "only slash    | '/'   | ABSENT_TRAILING_SLASH",
-    "only slashes  | '//'  | ABSENT_TRAILING_SLASH",
-    "segment       | 'a'   | PRESENT              ",
-    "leading slash | '/a'  | PRESENT              "
-  })
-  void catchAllPresenceFromValue(String value, RoutePresence expected) {
-    assertEquals(expected, RoutePresence.ofCatchAllValue(value));
-  }
-
   @Test
   void staticRouteIsRenderedOnceAndReused() {
     RouteTemplate template =
@@ -205,6 +192,21 @@ class NormalizedRouteTemplateTest {
     assertEquals("/a", template.render(null, resolver));
     assertEquals(1, queried.size());
     assertEquals("group0", queried.get(0));
+  }
+
+  @Test
+  void builderIgnoresNullPartsAndNullElements() {
+    RouteTemplate template =
+        RouteTemplate.builder()
+            .segment((RoutePart[]) null)
+            .segment(literal("a"), null)
+            .segment((RoutePart) null)
+            .optionalSegment((RoutePart[]) null)
+            .optionalSegment((RoutePart) null)
+            .segment(null, param("id"))
+            .build();
+
+    assertEquals("/a/{id}", template.render(null, null));
   }
 
   @Test

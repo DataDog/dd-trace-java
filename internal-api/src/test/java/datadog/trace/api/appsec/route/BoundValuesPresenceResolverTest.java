@@ -1,16 +1,18 @@
 package datadog.trace.api.appsec.route;
 
 import static datadog.trace.api.appsec.route.RoutePart.catchAll;
+import static datadog.trace.api.appsec.route.RoutePart.group;
 import static datadog.trace.api.appsec.route.RoutePart.literal;
 import static datadog.trace.api.appsec.route.RoutePart.optionalParam;
+import static datadog.trace.api.appsec.route.RoutePart.param;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
+import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 import java.util.AbstractMap;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -65,7 +67,7 @@ class BoundValuesPresenceResolverTest {
   @Test
   void namedOptionalParamNonStringValues() {
     assertEquals("/p/{id}", render(OPTIONAL_ID, singletonMap("id", 7), null));
-    assertEquals("/p", render(OPTIONAL_ID, Collections.<String, Object>emptyMap(), null));
+    assertEquals("/p", render(OPTIONAL_ID, emptyMap(), null));
     assertEquals("/p", render(OPTIONAL_ID, null, null));
   }
 
@@ -95,6 +97,22 @@ class BoundValuesPresenceResolverTest {
   }
 
   @Test
+  void midPathUnnamedCatchAllFallsBack() {
+    RouteTemplate template = SpringRouteParser.parse("/a/**/b");
+
+    assertEquals("/a/b", render(template, singletonMap("x", "1"), "x/y"));
+    assertEquals("/a/b", render(template, emptyMap(), null));
+  }
+
+  @Test
+  void duplicateValidNamesAreKept() {
+    // RFC-1125 renames only names that had invalid characters replaced
+    RouteTemplate template = SpringRouteParser.parse("/a/{id}/b/{id}");
+
+    assertEquals("/a/{id}/b/{id}", render(template, singletonMap("id", "1"), null));
+  }
+
+  @Test
   void remainderDoesNotAffectNamedCatchAll() {
     RouteTemplate template =
         RouteTemplate.builder().segment(literal("f")).segment(catchAll("path")).build();
@@ -106,7 +124,7 @@ class BoundValuesPresenceResolverTest {
   void groupsAreUnknown() {
     RouteTemplate template =
         RouteTemplate.builder()
-            .segment(literal("posts"), RoutePart.group(literal("."), RoutePart.param("format")))
+            .segment(literal("posts"), group(literal("."), param("format")))
             .build();
 
     assertEquals("/posts", render(template, singletonMap("format", "json"), null));
@@ -131,7 +149,7 @@ class BoundValuesPresenceResolverTest {
     assertSame(PresenceResolver.UNKNOWN, BoundValuesPresenceResolver.of(template, unreadable, "x"));
     assertSame(
         PresenceResolver.UNKNOWN,
-        BoundValuesPresenceResolver.of(template, (Object) unreadable, "x", true));
+        BoundValuesPresenceResolver.fromRaw(template, unreadable, "x", true));
   }
 
   @Test
@@ -156,7 +174,7 @@ class BoundValuesPresenceResolverTest {
     assertEquals(
         expected,
         template.render(
-            null, BoundValuesPresenceResolver.of(template, null, remainder, endsWithSlash)));
+            null, BoundValuesPresenceResolver.fromRaw(template, null, remainder, endsWithSlash)));
   }
 
   @Test
@@ -166,10 +184,10 @@ class BoundValuesPresenceResolverTest {
 
     assertEquals(
         "/files/{path}",
-        template.render(null, BoundValuesPresenceResolver.of(template, vars, null, false)));
+        template.render(null, BoundValuesPresenceResolver.fromRaw(template, vars, null, false)));
     assertSame(
         PresenceResolver.UNKNOWN,
-        BoundValuesPresenceResolver.of(template, "not a map", null, false));
+        BoundValuesPresenceResolver.fromRaw(template, "not a map", null, false));
   }
 
   private static String render(RouteTemplate template, Map<String, ?> vars, String remainder) {

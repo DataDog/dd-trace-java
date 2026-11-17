@@ -8,18 +8,10 @@ import java.util.List;
 
 /**
  * Immutable, framework-agnostic route template used to compute {@code _dd.appsec.normalized_route}
- * (RFC-1125). A route is a list of segments, each one a list of {@link RoutePart}s; a segment made
- * of a single whole-segment {@link RoutePart.Group} is an optional segment that takes its leading
- * {@code /} with it. Templates are thread-safe and meant to be cached; per-request state is only
- * the {@link PresenceResolver} passed to {@link #render(String, PresenceResolver)}.
- *
- * <p>Rendering rules: literals are percent-encoded ({@link RouteEncoding}); names are sanitized and
- * de-duplicated once at build time ({@link RouteNames}); optional parts are kept only when {@link
- * RoutePresence#PRESENT}; a non-optional segment that renders empty (absent catch-all) is dropped
- * together with its {@code /}, except that a catch-all that is {@link
- * RoutePresence#ABSENT_TRAILING_SLASH} leaves a trailing {@code /} when nothing follows it; the
- * route ends with {@code /} when the declared route does. When every segment is dropped and nothing
- * keeps a {@code /}, the route is the prefix alone, or {@code /} without prefix.
+ * (RFC-1125). Framework tokenizers build it once per declared route so that every RFC rule lives in
+ * one renderer; names and literal encoding are resolved at build time, so a cached template only
+ * needs the per-request {@link PresenceResolver} to render. A segment made of a single
+ * whole-segment {@link RoutePart.Group} is optional and takes its leading {@code /} with it.
  */
 public final class RouteTemplate {
 
@@ -100,14 +92,11 @@ public final class RouteTemplate {
   }
 
   /**
-   * True when {@link BoundValuesPresenceResolver} would use an unnamed catch-all remainder: callers
-   * compute the remainder (e.g. with the framework's matcher) only in that case. It holds only when
-   * the route's single unnamed catch-all ({@code **}) is its whole last segment, the route has no
-   * trailing {@code /}, and no earlier parameter is unnamed ({@code *}, {@code ?}) or declared with
-   * a regex constraint. Matchers such as Spring {@code AntPathMatcher.extractPathWithinPattern}
-   * start the remainder at the first segment with a wildcard character, so with an earlier one the
-   * remainder would not be the part matched by {@code **}. Named parameters ({@code {id}}) before
-   * it are fine.
+   * True when callers should compute the matcher remainder for a trailing {@code **} (only then is
+   * it used). The remainder must follow {@code AntPathMatcher.extractPathWithinPattern} semantics,
+   * which start at the first segment with {@code *} or {@code ?}, not {@code PathPattern} ones
+   * (first capture): so it equals the {@code **} match only when no earlier part is a wildcard or a
+   * regex, while plain named params ({@code {id}}) before it are fine.
    */
   public boolean needsUnnamedCatchAllRemainder() {
     return trailingUnnamedCatchAll != null;
@@ -259,16 +248,23 @@ public final class RouteTemplate {
      * encoded as {@code %2F}. A segment without parts is ignored (no empty segments).
      */
     public Builder segment(RoutePart... parts) {
-      if (parts.length > 0) {
-        segments.add(parts.clone());
+      RoutePart[] copy = nonNull(parts);
+      if (copy.length > 0) {
+        segments.add(copy);
       }
       return this;
     }
 
-    /** Adds an optional segment including its leading {@code /}, e.g. {@code [/preview]}. */
+    /**
+     * Adds an optional segment including its leading {@code /}, e.g. {@code [/preview]}. Ignored
+     * without parts.
+     */
     public Builder optionalSegment(RoutePart... parts) {
-      segments.add(
-          new RoutePart[] {new RoutePart.Group(Arrays.asList(parts), true, RoutePart.UNRESOLVED)});
+      RoutePart[] copy = nonNull(parts);
+      if (copy.length > 0) {
+        segments.add(
+            new RoutePart[] {new RoutePart.Group(Arrays.asList(copy), true, RoutePart.UNRESOLVED)});
+      }
       return this;
     }
 
@@ -296,6 +292,27 @@ public final class RouteTemplate {
       }
       return new RouteTemplate(
           resolved, trailingSlash, Collections.unmodifiableList(resolver.params));
+    }
+
+    /** Copy of {@code parts} without null elements; tokenizers must not make the build throw. */
+    private static RoutePart[] nonNull(RoutePart[] parts) {
+      if (parts == null) {
+        return new RoutePart[0];
+      }
+      int count = 0;
+      for (RoutePart part : parts) {
+        if (part != null) {
+          count++;
+        }
+      }
+      RoutePart[] copy = new RoutePart[count];
+      int i = 0;
+      for (RoutePart part : parts) {
+        if (part != null) {
+          copy[i++] = part;
+        }
+      }
+      return copy;
     }
 
     private static void collectParams(List<RoutePart> parts, List<RoutePart.Param> out) {

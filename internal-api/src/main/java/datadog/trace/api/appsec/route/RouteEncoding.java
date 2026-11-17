@@ -4,9 +4,8 @@ import java.nio.charset.StandardCharsets;
 
 /**
  * Percent-encoding rules of RFC-1125: literals and prefixes are encoded as UTF-8 with uppercase
- * hex, keeping only {@code A-Za-z0-9-._~}. A {@code %} in a literal or a prefix is always literal
- * text ({@code %25}); a framework that treats {@code %XX} in its route declarations as escapes
- * would need an option to keep them (RFC-1125).
+ * hex, keeping only {@code A-Za-z0-9-._~}. A {@code %} is always literal text ({@code %25}), as
+ * RFC-1125 requires when the framework's {@code %} handling is unknown.
  */
 final class RouteEncoding {
 

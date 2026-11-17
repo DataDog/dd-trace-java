@@ -5,19 +5,11 @@ import java.util.Map;
 
 /**
  * {@link PresenceResolver} backed by the path variables the framework bound for the current request
- * (e.g. Spring {@code URI_TEMPLATE_VARIABLES_ATTRIBUTE}).
- *
- * <ul>
- *   <li>Named parts: a null map means the framework did not expose them ({@link
- *       RoutePresence#UNKNOWN}); with a map, a missing key or a null value is absent. A {@link
- *       List} value uses its first element; other values use {@link String#valueOf(Object)}.
- *       Optional parameters use {@link RoutePresence#ofBoundValue}, catch-alls {@link
- *       RoutePresence#ofCatchAllValue}.
- *   <li>Unnamed catch-all ({@code **}): {@link RoutePresence#ofCatchAllValue} of the matcher
- *       remainder, only when {@link RouteTemplate#needsUnnamedCatchAllRemainder()}; otherwise
- *       {@link RoutePresence#UNKNOWN}.
- *   <li>Other unnamed optional parameters and groups: {@link RoutePresence#UNKNOWN}.
- * </ul>
+ * (e.g. Spring {@code URI_TEMPLATE_VARIABLES_ATTRIBUTE}), since RFC-1125 presence must come from
+ * the framework's own binding. A null map is {@link RoutePresence#UNKNOWN} (not exposed), while a
+ * missing key or null value is absent. Unnamed parts and groups have no binding, so they are
+ * unknown, except a trailing {@code **} that takes the matcher remainder (see {@link
+ * RouteTemplate#needsUnnamedCatchAllRemainder()}).
  */
 public final class BoundValuesPresenceResolver implements PresenceResolver {
 
@@ -65,7 +57,7 @@ public final class BoundValuesPresenceResolver implements PresenceResolver {
    *     empty remainder then means {@code **} matched only {@code /}
    */
   @SuppressWarnings("unchecked")
-  public static PresenceResolver of(
+  public static PresenceResolver fromRaw(
       RouteTemplate template,
       Object rawVars,
       String rawRemainder,

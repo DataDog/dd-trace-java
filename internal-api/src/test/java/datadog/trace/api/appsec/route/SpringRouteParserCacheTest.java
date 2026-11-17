@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
 import org.junit.jupiter.api.Test;
 
 class SpringRouteParserCacheTest {
@@ -47,6 +48,38 @@ class SpringRouteParserCacheTest {
     assertSame(RouteTemplate.NOT_EXPRESSIBLE, SpringRouteParser.cached(cache, "/a/{id"));
     assertEquals(1, size(cache));
     assertSame(RouteTemplate.NOT_EXPRESSIBLE, SpringRouteParser.cached(cache, "/a/{id"));
+    assertEquals(1, size(cache));
+  }
+
+  @Test
+  void parserRuntimeExceptionIsCachedAsNotExpressible() {
+    DDCache<String, RouteTemplate> cache = DDCaches.newFixedSizeCache(4);
+    AtomicInteger calls = new AtomicInteger();
+    Function<String, RouteTemplate> producer =
+        SpringRouteParser.safely(pattern -> {
+          calls.incrementAndGet();
+          throw new IllegalStateException("parser bug");
+        });
+
+    assertSame(RouteTemplate.NOT_EXPRESSIBLE, SpringRouteParser.cached(cache, "/a", producer));
+    assertSame(RouteTemplate.NOT_EXPRESSIBLE, SpringRouteParser.cached(cache, "/a", producer));
+    assertEquals(1, calls.get());
+    assertEquals(1, size(cache));
+  }
+
+  @Test
+  void parserErrorIsNotCached() {
+    DDCache<String, RouteTemplate> cache = DDCaches.newFixedSizeCache(4);
+    Function<String, RouteTemplate> failing =
+        SpringRouteParser.safely(pattern -> {
+          throw new StackOverflowError("transient");
+        });
+
+    assertSame(RouteTemplate.NOT_EXPRESSIBLE, SpringRouteParser.cached(cache, "/a/{id}", failing));
+    assertEquals(0, size(cache));
+
+    RouteTemplate retried = SpringRouteParser.cached(cache, "/a/{id}");
+    assertEquals("/a/{id}", retried.staticRoute());
     assertEquals(1, size(cache));
   }
 

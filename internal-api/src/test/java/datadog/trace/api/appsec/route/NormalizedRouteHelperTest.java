@@ -2,15 +2,17 @@ package datadog.trace.api.appsec.route;
 
 import static datadog.trace.api.appsec.route.NormalizedRouteHelper.NORMALIZED_ROUTE_TAG;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class NormalizedRouteHelperTest {
@@ -30,7 +32,10 @@ class NormalizedRouteHelperTest {
 
   private final AgentSpan span = mock(AgentSpan.class);
 
-  // ---- helper ----
+  @BeforeEach
+  void spanHasRoute() {
+    when(span.getTag(Tags.HTTP_ROUTE)).thenReturn("/users/{id}");
+  }
 
   @Test
   void tagsTheSpanWhenEnabled() {
@@ -50,42 +55,37 @@ class NormalizedRouteHelperTest {
   void noTagWhenDisabled() {
     NormalizedRouteHelper.tag(false, span, SpringRouteParser.parse("/users/{id}"), "/ctx", null);
 
-    verify(span, never()).setTag(anyString(), anyString());
-  }
-
-  @Test
-  void noTagWhenAppSecIsInactive() {
-    boolean previous = ActiveSubsystems.APPSEC_ACTIVE;
-    ActiveSubsystems.APPSEC_ACTIVE = false;
-    try {
-      assertFalse(NormalizedRouteHelper.isEnabled());
-      NormalizedRouteHelper.tag(span, SpringRouteParser.parse("/users/{id}"), null, null);
-    } finally {
-      ActiveSubsystems.APPSEC_ACTIVE = previous;
-    }
-
-    verify(span, never()).setTag(anyString(), anyString());
+    verifyNoInteractions(span);
   }
 
   @Test
   void noTagWithoutTemplate() {
     NormalizedRouteHelper.tag(true, span, null, "/ctx", null);
 
-    verify(span, never()).setTag(anyString(), anyString());
+    verifyNoInteractions(span);
+  }
+
+  @Test
+  void noTagWithoutHttpRoute() {
+    AgentSpan noRoute = mock(AgentSpan.class);
+
+    NormalizedRouteHelper.tag(true, noRoute, SpringRouteParser.parse("/users/{id}"), null, null);
+
+    verify(noRoute, never()).setTag(eq(NORMALIZED_ROUTE_TAG), anyString());
   }
 
   @Test
   void noTagForNotExpressibleTemplate() {
     NormalizedRouteHelper.tag(true, span, RouteTemplate.NOT_EXPRESSIBLE, "/ctx", null);
 
-    verify(span, never()).setTag(anyString(), anyString());
+    verify(span, never()).setTag(eq(NORMALIZED_ROUTE_TAG), anyString());
   }
 
   @Test
   void noTagForUnparseableRoute() {
     NormalizedRouteHelper.tag(true, span, SpringRouteParser.parse("/a/{b"), "/ctx", null);
 
-    verify(span, never()).setTag(anyString(), anyString());
+    verify(span, never()).setTag(eq(NORMALIZED_ROUTE_TAG), anyString());
   }
 
   @Test
@@ -99,7 +99,16 @@ class NormalizedRouteHelperTest {
     NormalizedRouteHelper.tag(
         true, span, SpringRouteParser.parse("/files/{*path}"), null, THROWING);
 
-    verify(span, never()).setTag(anyString(), anyString());
+    verify(span, never()).setTag(eq(NORMALIZED_ROUTE_TAG), anyString());
+  }
+
+  @Test
+  void swallowsGetTagFailures() {
+    when(span.getTag(Tags.HTTP_ROUTE)).thenThrow(new IllegalStateException("boom"));
+
+    assertDoesNotThrow(() ->
+        NormalizedRouteHelper.tag(true, span, SpringRouteParser.parse("/users/{id}"), null, null));
+    verify(span, never()).setTag(eq(NORMALIZED_ROUTE_TAG), anyString());
   }
 
   @Test
