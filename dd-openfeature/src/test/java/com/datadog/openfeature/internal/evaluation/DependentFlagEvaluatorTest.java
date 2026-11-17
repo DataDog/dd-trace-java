@@ -162,6 +162,69 @@ class DependentFlagEvaluatorTest {
   }
 
   @Test
+  void reportsAnUnexpectedPrerequisiteFailureWithoutAnExceptionMessage() {
+    final Map<String, Variant> variations = new HashMap<>();
+    variations.put("on", new Variant("on", "on-value"));
+    final List<Allocation> failingAllocations =
+        new AbstractList<Allocation>() {
+          @Override
+          public Allocation get(final int index) {
+            throw new IllegalStateException();
+          }
+
+          @Override
+          public int size() {
+            return 1;
+          }
+        };
+    final Map<String, Flag> flags = new HashMap<>();
+    flags.put(
+        "dependency",
+        new Flag("dependency", true, ValueType.STRING, variations, failingAllocations));
+    flags.put("root", stringFlag("root", "on", dependencyRule("dependency", "on"), false));
+
+    final FlagEvaluator.EvaluationResult<String> evaluation =
+        evaluator()
+            .evaluateWithTrace(
+                config(flags, null, true),
+                String.class,
+                "root",
+                "default",
+                new MutableContext("u"));
+
+    assertEquals(ErrorCode.GENERAL, evaluation.details.getErrorCode());
+    assertEquals("GENERAL", evaluation.dependencyEvaluations.get(0).errorMessage);
+  }
+
+  @Test
+  void preservesTheMessageFromAPrerequisiteEvaluationError() {
+    final Map<String, Flag> flags = new HashMap<>();
+    flags.put(
+        "dependency",
+        new Flag(
+            "dependency",
+            true,
+            ValueType.STRING,
+            singletonMap("on", new Variant("on", "on-value")),
+            null));
+    flags.put("root", stringFlag("root", "on", dependencyRule("dependency", "on"), false));
+
+    final FlagEvaluator.EvaluationResult<String> evaluation =
+        evaluator()
+            .evaluateWithTrace(
+                config(flags, null, true),
+                String.class,
+                "root",
+                "default",
+                new MutableContext("u"));
+
+    assertEquals(ErrorCode.GENERAL, evaluation.details.getErrorCode());
+    assertEquals(
+        "Missing allocations for flag dependency",
+        evaluation.dependencyEvaluations.get(0).errorMessage);
+  }
+
+  @Test
   void propagatesCyclesAndEmitsAnErrorForEveryReachedDependency() {
     final FlagEvaluator evaluator = evaluator();
     final Map<String, Flag> flags = new HashMap<>();
@@ -197,6 +260,54 @@ class DependentFlagEvaluatorTest {
 
     assertEquals(ErrorCode.GENERAL, result.getErrorCode());
     assertEquals(Arrays.asList("a:GENERAL", "b:GENERAL"), evaluations(evaluation));
+    assertTrue(evaluation.dependencyExposures.isEmpty());
+  }
+
+  @Test
+  void enforcesDepthBeforeReportingASelfDependency() {
+    final Map<String, Flag> flags = new HashMap<>();
+    flags.put("root", stringFlag("root", "on", dependencyRule("root", "on"), false));
+
+    final FlagEvaluator.EvaluationResult<String> evaluation =
+        evaluator()
+            .evaluateWithTrace(
+                config(flags, evaluatorParams(0D)),
+                String.class,
+                "root",
+                "default",
+                new MutableContext("u"));
+
+    assertEquals(ErrorCode.GENERAL, evaluation.details.getErrorCode());
+    assertTrue(evaluation.dependencyEvaluations.isEmpty());
+  }
+
+  @Test
+  void enforcesDepthBeforeReusingAMemoizedDependency() {
+    final Map<String, Flag> flags = new HashMap<>();
+    flags.put("leaf", stringFlag("leaf", "on", null, true));
+    flags.put("parent", stringFlag("parent", "on", dependencyRule("leaf", "on"), true));
+    flags.put(
+        "root",
+        stringFlag(
+            "root",
+            "on",
+            new Rule(
+                Arrays.asList(
+                    new ConditionConfiguration(ONE_OF, null, "leaf", singletonList("on")),
+                    new ConditionConfiguration(ONE_OF, null, "parent", singletonList("on")))),
+            false));
+
+    final FlagEvaluator.EvaluationResult<String> evaluation =
+        evaluator()
+            .evaluateWithTrace(
+                config(flags, evaluatorParams(1D)),
+                String.class,
+                "root",
+                "default",
+                new MutableContext("u"));
+
+    assertEquals(ErrorCode.GENERAL, evaluation.details.getErrorCode());
+    assertEquals(Arrays.asList("leaf:on", "parent:GENERAL"), evaluations(evaluation));
     assertTrue(evaluation.dependencyExposures.isEmpty());
   }
 
@@ -533,6 +644,66 @@ class DependentFlagEvaluatorTest {
     assertEquals("on-value", evaluation.details.getValue());
     assertEquals(1, allocations.reads);
     assertEquals(singletonList("dependency:on"), evaluations(evaluation));
+  }
+
+  @Test
+  void memoizedExposureTraceIsPublishedOnlyOnce() {
+    final Map<String, Flag> flags = new HashMap<>();
+    flags.put("dependency", stringFlag("dependency", "on", null, true));
+    flags.put(
+        "root",
+        stringFlag(
+            "root",
+            "on",
+            new Rule(
+                Arrays.asList(
+                    new ConditionConfiguration(ONE_OF, null, "dependency", singletonList("on")),
+                    new ConditionConfiguration(ONE_OF, null, "dependency", singletonList("on")))),
+            false));
+
+    final FlagEvaluator.EvaluationResult<String> evaluation =
+        evaluator()
+            .evaluateWithTrace(
+                config(flags, null), String.class, "root", "default", new MutableContext("u"));
+
+    assertEquals(singletonList("dependency:on"), evaluations(evaluation));
+    assertEquals(singletonList("dependency"), exposures(evaluation));
+  }
+
+  @Test
+  void rollsBackChildExposureWhenAParentAllocationIsRejected() {
+    final Map<String, Flag> flags = new HashMap<>();
+    flags.put("child", stringFlag("child", "on", null, true));
+    final Map<String, Variant> parentVariations = new HashMap<>();
+    parentVariations.put("on", new Variant("on", "on-value"));
+    flags.put(
+        "parent",
+        new Flag(
+            "parent",
+            true,
+            ValueType.STRING,
+            parentVariations,
+            Arrays.asList(
+                allocation(
+                    "rejected",
+                    new Rule(
+                        Arrays.asList(
+                            new ConditionConfiguration(ONE_OF, null, "child", singletonList("on")),
+                            new ConditionConfiguration(
+                                ONE_OF, "gate", null, singletonList("open")))),
+                    "on",
+                    true),
+                allocation("fallback", null, "on", true))));
+    flags.put("root", stringFlag("root", "on", dependencyRule("parent", "on"), false));
+
+    final FlagEvaluator.EvaluationResult<String> evaluation =
+        evaluator()
+            .evaluateWithTrace(
+                config(flags, null), String.class, "root", "default", new MutableContext("u"));
+
+    assertEquals("on-value", evaluation.details.getValue());
+    assertEquals(Arrays.asList("parent:on", "child:on"), evaluations(evaluation));
+    assertEquals(singletonList("parent"), exposures(evaluation));
   }
 
   @Test
