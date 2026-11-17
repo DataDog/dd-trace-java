@@ -6,70 +6,51 @@ import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 
 /**
- * Computes the shard hash {@code int(md5("<salt>-<targetingKey>").hexdigest()[:8], 16)} without
- * allocating.
- *
- * <p>Each thread reuses one instance. {@link #begin} starts an evaluation for one targeting key;
- * within that evaluation each distinct salt is hashed once, however many shards, splits and
+ * Computes the shard hash {@code int(md5("<salt>-<targetingKey>").hexdigest()[:8], 16)} of one
+ * evaluation's targeting key, hashing each distinct salt once however many shards, splits and
  * allocations share it.
+ *
+ * <p>An instance belongs to one evaluation. The digest and the encoding buffer are reused per
+ * thread; both are JDK types, so a thread does not keep the application's class loader, and the
+ * buffer is zeroed after each hash, so a thread does not keep a targeting key either.
  */
 final class ShardHasher {
   /** Encoding buffers larger than this are used for one hash and not kept by the thread. */
   private static final int MAX_RETAINED_BYTES = 8 * 1024;
 
-  private static final int INITIAL_CAPACITY = 16;
+  private static final int INITIAL_CAPACITY = 8;
 
-  private static final ThreadLocal<ShardHasher> PER_THREAD =
-      ThreadLocal.withInitial(ShardHasher::new);
+  private static final ThreadLocal<MessageDigest> MD5 =
+      ThreadLocal.withInitial(() -> {
+        try {
+          return MessageDigest.getInstance("MD5");
+        } catch (final NoSuchAlgorithmException e) {
+          throw new RuntimeException("MD5 algorithm not available", e);
+        }
+      });
 
-  private final MessageDigest md5;
-  private final byte[] digest = new byte[16];
-  private byte[] saltBuffer = new byte[256];
-  private byte[] keyBuffer = new byte[256];
+  private static final ThreadLocal<byte[]> BUFFER = ThreadLocal.withInitial(() -> new byte[256]);
 
-  private String targetingKey;
-  private byte[] keyBytes;
-  private int keyLength;
+  private final String targetingKey;
 
-  // Salt cache with open addressing. An entry belongs to the current evaluation when its
-  // generation matches, so starting an evaluation does not clear the table.
-  private String[] salts = new String[INITIAL_CAPACITY];
-  private int[] hashes = new int[INITIAL_CAPACITY];
-  private int[] generations = new int[INITIAL_CAPACITY];
-  private int generation;
+  // The first salt needs no table: most flags have a single salt.
+  private String firstSalt;
+  private int firstHash;
+
+  // Open-addressing table for the other salts, allocated on the second distinct salt.
+  private String[] salts;
+  private int[] hashes;
   private int size;
 
   /** The number of digests this instance computed, for tests. */
-  long digests;
+  int digests;
 
-  ShardHasher() {
-    try {
-      md5 = MessageDigest.getInstance("MD5");
-    } catch (final NoSuchAlgorithmException e) {
-      throw new RuntimeException("MD5 algorithm not available", e);
-    }
-  }
-
-  /** Returns this thread's hasher, ready to hash salts for {@code targetingKey}. */
-  static ShardHasher forEvaluation(final String targetingKey) {
-    return PER_THREAD.get().begin(targetingKey);
-  }
-
-  /** Starts an evaluation for {@code targetingKey}, forgetting the salts of the previous one. */
-  ShardHasher begin(final String targetingKey) {
+  /** Starts hashing for {@code targetingKey}, which must not be null. */
+  ShardHasher(final String targetingKey) {
     this.targetingKey = targetingKey;
-    keyBytes = null;
-    keyLength = -1;
-    if (++generation == 0) {
-      // The generation wrapped around: clear the table so that no stale entry matches.
-      Arrays.fill(generations, 0);
-      generation = 1;
-    }
-    size = 0;
-    return this;
   }
 
-  /** Returns the shard of the evaluation's targeting key for {@code salt}. */
+  /** Returns the shard of the targeting key for {@code salt}. */
   long shard(final String salt, final long totalShards) {
     return (hash(salt) & 0xFFFFFFFFL) % totalShards;
   }
@@ -78,66 +59,69 @@ final class ShardHasher {
   int hash(final String salt) {
     // String concatenation turns a null salt into "null".
     final String key = String.valueOf(salt);
+    if (firstSalt == null) {
+      firstSalt = key;
+      return firstHash = digest(key);
+    }
+    if (key.equals(firstSalt)) {
+      return firstHash;
+    }
+    if (salts == null) {
+      salts = new String[INITIAL_CAPACITY];
+      hashes = new int[INITIAL_CAPACITY];
+    }
     final int mask = salts.length - 1;
     int slot = mix(key.hashCode()) & mask;
-    while (generations[slot] == generation) {
-      if (key.equals(salts[slot])) {
+    for (String cached; (cached = salts[slot]) != null; slot = (slot + 1) & mask) {
+      if (key.equals(cached)) {
         return hashes[slot];
       }
-      slot = (slot + 1) & mask;
     }
     final int hash = digest(key);
     salts[slot] = key;
     hashes[slot] = hash;
-    generations[slot] = generation;
-    if (++size * 2 > salts.length) {
+    if (++size * 4 > salts.length * 3) {
       grow();
     }
     return hash;
   }
 
   private int digest(final String salt) {
-    if (keyLength < 0) {
-      keyBytes = ensureCapacity(keyBuffer, String.valueOf(targetingKey));
-      keyLength = encode(String.valueOf(targetingKey), keyBytes);
-      if (keyBytes.length <= MAX_RETAINED_BYTES) {
-        keyBuffer = keyBytes;
+    // A char takes at most three UTF-8 bytes; a surrogate pair takes four for two chars.
+    final long capacity = (salt.length() + 1L + targetingKey.length()) * 3;
+    byte[] buffer = BUFFER.get();
+    if (buffer.length < capacity) {
+      buffer = new byte[Math.toIntExact(capacity)];
+      if (buffer.length <= MAX_RETAINED_BYTES) {
+        BUFFER.set(buffer);
       }
     }
-    final byte[] saltBytes = ensureCapacity(saltBuffer, salt);
-    final int saltLength = encode(salt, saltBytes);
-    if (saltBytes.length <= MAX_RETAINED_BYTES) {
-      saltBuffer = saltBytes;
-    }
-    md5.update(saltBytes, 0, saltLength);
-    md5.update((byte) '-');
-    md5.update(keyBytes, 0, keyLength);
+    int length = encode(salt, buffer, 0);
+    buffer[length++] = '-';
+    length = encode(targetingKey, buffer, length);
+    final MessageDigest md5 = MD5.get();
+    md5.update(buffer, 0, length);
+    // Overwrite the targeting key; the digest output reuses the start of the buffer.
+    Arrays.fill(buffer, 0, length, (byte) 0);
     try {
-      md5.digest(digest, 0, digest.length);
+      md5.digest(buffer, 0, 16);
     } catch (final DigestException e) {
       throw new IllegalStateException(e);
     }
     digests++;
-    return (digest[0] & 0xFF) << 24
-        | (digest[1] & 0xFF) << 16
-        | (digest[2] & 0xFF) << 8
-        | (digest[3] & 0xFF);
-  }
-
-  /** Returns {@code buffer} if it can hold {@code value} as UTF-8, or a new array that can. */
-  private static byte[] ensureCapacity(final byte[] buffer, final String value) {
-    // A char takes at most three UTF-8 bytes; a surrogate pair takes four for two chars.
-    final long capacity = value.length() * 3L;
-    return buffer.length >= capacity ? buffer : new byte[Math.toIntExact(capacity)];
+    return (buffer[0] & 0xFF) << 24
+        | (buffer[1] & 0xFF) << 16
+        | (buffer[2] & 0xFF) << 8
+        | (buffer[3] & 0xFF);
   }
 
   /**
-   * Encodes {@code value} as UTF-8 into {@code target} and returns the length. Matches {@link
-   * String#getBytes} with UTF-8, which replaces an unpaired surrogate with {@code '?'}.
+   * Encodes {@code value} as UTF-8 into {@code target} from {@code position} and returns the end
+   * position. Matches {@link String#getBytes} with UTF-8, which replaces an unpaired surrogate with
+   * {@code '?'}.
    */
-  static int encode(final String value, final byte[] target) {
+  static int encode(final String value, final byte[] target, int position) {
     final int length = value.length();
-    int position = 0;
     for (int i = 0; i < length; i++) {
       final char c = value.charAt(i);
       if (c < 0x80) {
@@ -167,21 +151,17 @@ final class ShardHasher {
   private void grow() {
     final String[] oldSalts = salts;
     final int[] oldHashes = hashes;
-    final int[] oldGenerations = generations;
-    final int capacity = oldSalts.length * 2;
-    salts = new String[capacity];
-    hashes = new int[capacity];
-    generations = new int[capacity];
-    final int mask = capacity - 1;
+    salts = new String[oldSalts.length * 2];
+    hashes = new int[oldSalts.length * 2];
+    final int mask = salts.length - 1;
     for (int i = 0; i < oldSalts.length; i++) {
-      if (oldGenerations[i] == generation) {
+      if (oldSalts[i] != null) {
         int slot = mix(oldSalts[i].hashCode()) & mask;
-        while (generations[slot] == generation) {
+        while (salts[slot] != null) {
           slot = (slot + 1) & mask;
         }
         salts[slot] = oldSalts[i];
         hashes[slot] = oldHashes[i];
-        generations[slot] = generation;
       }
     }
   }

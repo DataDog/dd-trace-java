@@ -192,7 +192,7 @@ public final class FlagEvaluator {
                     defaultValue, ErrorCode.TARGETING_KEY_MISSING, null, observeFullEvaluationData);
               }
               if (hasher == null) {
-                hasher = ShardHasher.forEvaluation(targetingKey);
+                hasher = new ShardHasher(targetingKey);
               }
               // To match a split, subject must match ALL underlying shards
               boolean allShardsMatch = true;

@@ -2,7 +2,6 @@ package com.datadog.openfeature.internal.evaluation;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.nio.charset.StandardCharsets;
@@ -46,16 +45,15 @@ class ShardHasherTest {
       final String salt, final String targetingKey, final long totalShards, final long shard)
       throws Exception {
     assertEquals(shard, referenceShard(salt, targetingKey, totalShards));
-    assertEquals(shard, new ShardHasher().begin(targetingKey).shard(salt, totalShards));
+    assertEquals(shard, new ShardHasher(targetingKey).shard(salt, totalShards));
   }
 
   @Test
   void matchesTheReferenceAlgorithmForRandomInputs() throws Exception {
     final Random random = new Random(42);
-    final ShardHasher hasher = new ShardHasher();
     for (int i = 0; i < 20_000; i++) {
       final String targetingKey = randomString(random);
-      hasher.begin(targetingKey);
+      final ShardHasher hasher = new ShardHasher(targetingKey);
       for (int j = 0; j < 3; j++) {
         final String salt = randomString(random);
         final long totalShards = randomTotalShards(random);
@@ -70,7 +68,6 @@ class ShardHasherTest {
   @Test
   void hashesLongInputsLikeTheReferenceAlgorithm() throws Exception {
     final Random random = new Random(7);
-    final ShardHasher hasher = new ShardHasher();
     for (final int length : new int[] {255, 256, 3000, 10_000}) {
       final char[] chars = new char[length];
       for (int i = 0; i < length; i++) {
@@ -78,14 +75,13 @@ class ShardHasherTest {
       }
       final String key = new String(chars);
       final String salt = key.substring(length / 2);
-      assertEquals(referenceShard(salt, key, 10_000), hasher.begin(key).shard(salt, 10_000));
+      assertEquals(referenceShard(salt, key, 10_000), new ShardHasher(key).shard(salt, 10_000));
     }
   }
 
   @Test
   void hashesANullSaltAsTheStringNull() throws Exception {
-    assertEquals(
-        referenceShard(null, "alice", 100), new ShardHasher().begin("alice").shard(null, 100));
+    assertEquals(referenceShard(null, "alice", 100), new ShardHasher("alice").shard(null, 100));
   }
 
   @Test
@@ -93,16 +89,18 @@ class ShardHasherTest {
     final Random random = new Random(3);
     for (int i = 0; i < 20_000; i++) {
       final String value = randomString(random);
-      final byte[] target = new byte[value.length() * 3];
-      final int length = ShardHasher.encode(value, target);
+      final byte[] target = new byte[1 + value.length() * 3];
+      final int length = ShardHasher.encode(value, target, 1);
       assertArrayEquals(
-          value.getBytes(StandardCharsets.UTF_8), Arrays.copyOf(target, length), escape(value));
+          value.getBytes(StandardCharsets.UTF_8),
+          Arrays.copyOfRange(target, 1, length),
+          escape(value));
     }
   }
 
   @Test
   void hashesEachSaltOncePerEvaluation() {
-    final ShardHasher hasher = new ShardHasher().begin("alice");
+    final ShardHasher hasher = new ShardHasher("alice");
     final long traffic = hasher.shard("experiment-traffic", 10_000);
     for (int split = 0; split < 100; split++) {
       assertEquals(traffic, hasher.shard("experiment-traffic", 10_000));
@@ -116,7 +114,7 @@ class ShardHasherTest {
 
   @Test
   void reusesTheCachedHashForEveryTotalShards() throws Exception {
-    final ShardHasher hasher = new ShardHasher().begin("alice");
+    final ShardHasher hasher = new ShardHasher("alice");
     for (final long totalShards : new long[] {1, 2, 100, 10_000, 4_294_967_295L}) {
       assertEquals(referenceShard("salt", "alice", totalShards), hasher.shard("salt", totalShards));
     }
@@ -124,26 +122,24 @@ class ShardHasherTest {
   }
 
   @Test
-  void forgetsTheSaltsOfThePreviousEvaluation() throws Exception {
-    final ShardHasher hasher = new ShardHasher();
-    for (final String key : new String[] {"alice", "bob", "alice"}) {
-      hasher.begin(key);
-      for (int salt = 0; salt < 50; salt++) {
-        assertEquals(referenceShard("salt-" + salt, key, 997), hasher.shard("salt-" + salt, 997));
-      }
+  void keepsEachEvaluationApart() throws Exception {
+    final ShardHasher alice = new ShardHasher("alice");
+    final ShardHasher bob = new ShardHasher("bob");
+    for (int salt = 0; salt < 50; salt++) {
+      // Interleaved, as a nested evaluation on the same thread would be.
+      assertEquals(referenceShard("salt-" + salt, "alice", 997), alice.shard("salt-" + salt, 997));
+      assertEquals(referenceShard("salt-" + salt, "bob", 997), bob.shard("salt-" + salt, 997));
     }
-    assertEquals(150, hasher.digests);
-  }
-
-  @Test
-  void reusesOneHasherPerThread() {
-    final ShardHasher first = ShardHasher.forEvaluation("alice");
-    assertSame(first, ShardHasher.forEvaluation("bob"));
+    for (int salt = 0; salt < 50; salt++) {
+      assertEquals(referenceShard("salt-" + salt, "alice", 997), alice.shard("salt-" + salt, 997));
+    }
+    assertEquals(50, alice.digests);
+    assertEquals(50, bob.digests);
   }
 
   @Test
   void rejectsZeroTotalShards() {
-    final ShardHasher hasher = new ShardHasher().begin("alice");
+    final ShardHasher hasher = new ShardHasher("alice");
     assertThrows(ArithmeticException.class, () -> hasher.shard("salt", 0));
   }
 
