@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.jetty12;
 
 import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY;
+import static datadog.trace.bootstrap.ActiveSubsystems.APPSEC_ACTIVE;
 import static datadog.trace.bootstrap.blocking.BlockingActionHelper.determineTemplateType;
 import static datadog.trace.bootstrap.blocking.BlockingActionHelper.getContentType;
 import static datadog.trace.bootstrap.blocking.BlockingActionHelper.getHttpCode;
@@ -109,6 +110,10 @@ public final class JettyBlockResponseHelper {
    * <p>When nothing could be sent the claim is released (and a prepared response restored) and
    * false is returned without reporting: the caller decides how the failure is reported.
    *
+   * <p>When the Handler callback was wrapped ({@link JettyBlockResponseFunction#deferCompletion}),
+   * the write is marked in flight before it is issued and finished on every exit, always before the
+   * claim is released: after the release a retry may start a new write.
+   *
    * @return true once Jetty accepted the write; false if nothing was sent
    */
   static boolean commitBlockingResponse(
@@ -138,11 +143,15 @@ public final class JettyBlockResponseHelper {
       brf.release();
       return false;
     }
+    // null on the request phase: the wrapper is only installed once the handler chain runs
+    JettyDeferredCompletion deferred = brf.getDeferredCompletion();
     Callback writeCallback =
         Callback.from(
             Invocable.getInvocationType(onWritten),
             () -> {
+              // recorded before a parked completion is replayed and the span can finish
               markEffectivelyBlocked(segment);
+              blockWriteFinished(deferred);
               onWritten.succeeded();
             },
             failure -> {
@@ -150,9 +159,14 @@ public final class JettyBlockResponseHelper {
               if (reqCtx != null) {
                 reportBlockFailure(reqCtx);
               }
+              blockWriteFinished(deferred);
               brf.release();
               onWritten.failed(failure);
             });
+    if (deferred != null) {
+      // before the write: Jetty may run the write callback inside write()
+      deferred.blockWriteStarted();
+    }
     try {
       response.write(true, body, writeCallback);
     } catch (Exception e) {
@@ -160,6 +174,7 @@ public final class JettyBlockResponseHelper {
       // means nothing was sent
       log.debug("Failed to write blocking response", e);
       restoreAfterFailedBlock(request, response);
+      blockWriteFinished(deferred);
       brf.release();
       return false;
     }
@@ -235,6 +250,38 @@ public final class JettyBlockResponseHelper {
       log.debug("Failed to complete callback after request blocking response", e);
     }
     return true;
+  }
+
+  /**
+   * Wraps the Jetty Handler {@code callback} with a {@link JettyDeferredCompletion} so that a
+   * mid-handler blocking response write is not cut when the request completes. Must only be called
+   * once the handler chain is going to run (not when {@link #tryBlockRequest} blocked).
+   *
+   * @return the wrapper when AppSec is active and a {@link JettyBlockResponseFunction} is
+   *     registered for {@code request}; {@code callback} otherwise, including on any failure
+   */
+  public static Callback deferCompletion(Request request, Callback callback) {
+    if (!APPSEC_ACTIVE) {
+      return callback;
+    }
+    try {
+      AgentSpan span = spanFrom(request);
+      RequestContext reqCtx = span == null ? null : span.getRequestContext();
+      BlockResponseFunction brf = reqCtx == null ? null : reqCtx.getBlockResponseFunction();
+      if (brf instanceof JettyBlockResponseFunction) {
+        return ((JettyBlockResponseFunction) brf).deferCompletion(callback);
+      }
+    } catch (Exception e) {
+      log.debug("Failed to defer the request completion", e);
+    }
+    return callback;
+  }
+
+  /** Can run inside a Jetty write callback; {@code deferred} may be null. Never throws. */
+  private static void blockWriteFinished(JettyDeferredCompletion deferred) {
+    if (deferred != null) {
+      deferred.blockWriteFinished();
+    }
   }
 
   /**

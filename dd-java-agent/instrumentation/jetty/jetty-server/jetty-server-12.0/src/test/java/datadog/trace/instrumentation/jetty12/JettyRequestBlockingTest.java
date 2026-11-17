@@ -5,6 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecora
 import static datadog.trace.instrumentation.jetty12.JettyFakes.fake;
 import static datadog.trace.instrumentation.jetty12.JettyFakes.proxy;
 import static java.util.Arrays.asList;
+import static java.util.Collections.emptyMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -20,6 +21,7 @@ import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.internal.TraceSegment;
+import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.jetty12.JettyFakes.FakeRequest;
 import datadog.trace.instrumentation.jetty12.JettyFakes.FakeResponse;
@@ -30,6 +32,8 @@ import java.util.List;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.thread.Invocable.InvocationType;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
@@ -45,6 +49,17 @@ class JettyRequestBlockingTest {
   private int blockFailures;
   private int commits;
   private Flow.Action.RequestBlockingAction committedRba;
+  private boolean appSecActiveBefore;
+
+  @BeforeEach
+  void saveAppSecActive() {
+    appSecActiveBefore = ActiveSubsystems.APPSEC_ACTIVE;
+  }
+
+  @AfterEach
+  void restoreAppSecActive() {
+    ActiveSubsystems.APPSEC_ACTIVE = appSecActiveBefore;
+  }
 
   @Test
   void blocksAndCompletesCallbackWhenCommitSucceeds() {
@@ -161,6 +176,97 @@ class JettyRequestBlockingTest {
     assertEquals(asList("effectivelyBlocked", "succeeded"), f.events);
     assertEquals(0, blockFailures);
     assertTrue(f.brf.isBlockingResponseInitiated());
+    assertNull(f.brf.getDeferredCompletion(), "the request phase does not wrap the callback");
+  }
+
+  @Test
+  void deferCompletionWrapsTheCallbackWhenAppSecIsActiveWithJettyBrf() {
+    ActiveSubsystems.APPSEC_ACTIVE = true;
+    JettyBrfFixture f = new JettyBrfFixture();
+    Callback callback = fake(Callback.class);
+
+    Callback result = JettyBlockResponseHelper.deferCompletion(f.request.proxy, callback);
+
+    assertTrue(result instanceof JettyDeferredCompletion);
+    assertSame(result, f.brf.getDeferredCompletion());
+  }
+
+  @TableTest({
+    "Scenario           | AppSec Active | Context | Request Context | BRF    ",
+    "appsec inactive    | false         | true    | true            | jetty  ",
+    "no context         | true          | false   | true            | jetty  ",
+    "no request context | true          | true    | false           | jetty  ",
+    "no BRF             | true          | true    | true            | none   ",
+    "foreign BRF        | true          | true    | true            | foreign"
+  })
+  void deferCompletionKeepsTheCallback(
+      boolean appSecActive, boolean context, boolean requestContext, String brfKind) {
+    ActiveSubsystems.APPSEC_ACTIVE = appSecActive;
+    JettyBlockResponseFunction jettyBrf =
+        new JettyBlockResponseFunction(fake(Request.class), new FakeResponse().proxy);
+    BlockResponseFunction brf;
+    switch (brfKind) {
+      case "jetty":
+        brf = jettyBrf;
+        break;
+      case "foreign":
+        brf = brf(true);
+        break;
+      default:
+        brf = null;
+    }
+    Callback callback = fake(Callback.class);
+
+    assertSame(
+        callback,
+        JettyBlockResponseHelper.deferCompletion(
+            request(context, true, false, requestContext, brf), callback));
+    assertNull(jettyBrf.getDeferredCompletion());
+  }
+
+  @Test
+  void deferCompletionKeepsTheCallbackWhenTheLookupThrows() {
+    ActiveSubsystems.APPSEC_ACTIVE = true;
+    Request request =
+        proxy(
+            Request.class,
+            (name, args) -> {
+              throw new IllegalStateException("recycled");
+            });
+    Callback callback = fake(Callback.class);
+
+    assertSame(callback, JettyBlockResponseHelper.deferCompletion(request, callback));
+  }
+
+  @Test
+  void handlerChainPathDefersCompletionOfAMidHandlerBlock() {
+    ActiveSubsystems.APPSEC_ACTIVE = true;
+    JettyBrfFixture f = new JettyBrfFixture(null);
+    List<String> completions = new ArrayList<>();
+    Callback handlerCallback =
+        proxy(
+            Callback.class,
+            (name, args) -> {
+              if ("succeeded".equals(name) || "failed".equals(name)) {
+                completions.add(name);
+              }
+              return null;
+            });
+
+    // what the Server.handle advice does on the non-skip path
+    assertFalse(JettyBlockResponseHelper.tryBlockRequest(f.request.proxy, handlerCallback));
+    Callback callback = JettyBlockResponseHelper.deferCompletion(f.request.proxy, handlerCallback);
+
+    assertTrue(
+        f.brf.tryCommitBlockingResponse(
+            f.segment, 403, BlockingContentType.AUTO, emptyMap(), null));
+    callback.failed(new IllegalStateException("blocked"));
+    assertTrue(completions.isEmpty(), "the completion waits for the pending block write");
+
+    f.response.pending.succeeded();
+
+    assertEquals(asList("effectivelyBlocked"), f.events);
+    assertEquals(asList("failed"), completions);
   }
 
   @Test
@@ -255,6 +361,10 @@ class JettyRequestBlockingTest {
     Throwable callbackFailure;
 
     JettyBrfFixture() {
+      this(RBA);
+    }
+
+    JettyBrfFixture(Flow.Action.RequestBlockingAction rba) {
       response.completeWrites = false;
       RequestContext reqCtx = requestContext(brf, segment);
       AgentSpan span =
@@ -263,7 +373,7 @@ class JettyRequestBlockingTest {
               (name, args) -> {
                 switch (name) {
                   case "getRequestBlockingAction":
-                    return RBA;
+                    return rba;
                   case "getRequestContext":
                     return reqCtx;
                   default:

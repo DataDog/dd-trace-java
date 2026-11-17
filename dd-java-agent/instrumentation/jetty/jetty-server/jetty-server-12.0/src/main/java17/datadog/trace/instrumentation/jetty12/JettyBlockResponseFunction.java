@@ -26,6 +26,9 @@ import org.eclipse.jetty.util.Callback;
  *
  * <p>The request phase shares the claim of this function through {@link
  * JettyBlockResponseHelper#tryBlockRequest}.
+ *
+ * <p>When the Handler callback was wrapped by {@link #deferCompletion}, the blocking response write
+ * is tracked as in flight so that completing the request does not cut it.
  */
 public class JettyBlockResponseFunction implements BlockResponseFunction {
   private static final AtomicIntegerFieldUpdater<JettyBlockResponseFunction> CLAIMED =
@@ -36,6 +39,9 @@ public class JettyBlockResponseFunction implements BlockResponseFunction {
 
   /** 1 while a blocking response write is owned by one evaluation and has not failed. */
   private volatile int claimed;
+
+  /** Wrapper of the Handler callback, set once on the handler chain path; null if not installed. */
+  private volatile JettyDeferredCompletion deferredCompletion;
 
   public JettyBlockResponseFunction(Request request, Response response) {
     this.request = request;
@@ -67,6 +73,26 @@ public class JettyBlockResponseFunction implements BlockResponseFunction {
 
   Response getResponse() {
     return response;
+  }
+
+  /**
+   * Wraps the Handler callback so its completion waits for an in-flight blocking response write.
+   * Installed at most once per request: later calls return {@code handlerCallback} unchanged.
+   *
+   * @return the callback to pass to the handler chain
+   */
+  Callback deferCompletion(Callback handlerCallback) {
+    if (deferredCompletion != null) {
+      return handlerCallback;
+    }
+    JettyDeferredCompletion wrapper = new JettyDeferredCompletion(handlerCallback);
+    deferredCompletion = wrapper;
+    return wrapper;
+  }
+
+  /** Returns the installed Handler callback wrapper, or {@code null}. */
+  JettyDeferredCompletion getDeferredCompletion() {
+    return deferredCompletion;
   }
 
   @VisibleForTesting

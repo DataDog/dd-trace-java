@@ -4,6 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecora
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_IGNORE_COMMIT_ATTRIBUTE;
 import static datadog.trace.instrumentation.jetty12.JettyFakes.proxy;
 import static datadog.trace.instrumentation.jetty12.JettyFakes.toBytes;
+import static java.util.Arrays.asList;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonMap;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -38,6 +39,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import org.eclipse.jetty.http.HttpHeader;
+import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.thread.Invocable.InvocationType;
 import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
@@ -391,6 +393,166 @@ class JettyBlockResponseHelperTest {
       assertEquals(1, winners);
     } finally {
       executor.shutdownNow();
+    }
+  }
+
+  @Test
+  void deferredCompletionIsParkedFromInsideTheWriteAndReplayedAfterMarking() {
+    FakeResponse response = new FakeResponse();
+    response.completeWrites = false;
+    DeferredFixture f = new DeferredFixture(response);
+    IllegalStateException blocking = new IllegalStateException("blocked");
+    // the write is already in flight when write() runs
+    response.onWrite = () -> f.wrapper.failed(blocking);
+
+    assertTrue(commit(f.brf, f.segment));
+
+    assertTrue(f.events.isEmpty(), "the completion must wait for the pending write");
+    response.pending.succeeded();
+
+    assertEquals(asList("effectivelyBlocked", "failed"), f.events);
+    assertSame(blocking, f.failure, "the parked outcome is replayed unchanged");
+  }
+
+  @Test
+  void deferredCompletionIsReplayedWhenTheWriteCompletesInsideWrite() {
+    FakeResponse response = new FakeResponse();
+    DeferredFixture f = new DeferredFixture(response);
+    response.onWrite = f.wrapper::succeeded;
+
+    assertTrue(commit(f.brf, f.segment));
+
+    assertEquals(asList("effectivelyBlocked", "succeeded"), f.events);
+  }
+
+  @Test
+  void idleDeferredCompletionIsForwardedImmediately() {
+    FakeResponse response = new FakeResponse();
+    DeferredFixture f = new DeferredFixture(response);
+
+    assertTrue(commit(f.brf, f.segment));
+    assertEquals(asList("effectivelyBlocked"), f.events);
+
+    f.wrapper.succeeded();
+
+    assertEquals(asList("effectivelyBlocked", "succeeded"), f.events);
+  }
+
+  @Test
+  void deferredCompletionIsReplayedBeforeTheClaimIsReleasedOnWriteFailure() {
+    FakeResponse response = new FakeResponse();
+    response.completeWrites = false;
+    DeferredFixture f = new DeferredFixture(response);
+    IllegalStateException blocking = new IllegalStateException("blocked");
+
+    assertTrue(commit(f.brf, f.segment));
+    f.wrapper.failed(blocking);
+    assertTrue(f.events.isEmpty());
+
+    response.pending.failed(new IOException("broken pipe"));
+
+    assertEquals(asList("failed"), f.events);
+    assertSame(blocking, f.failure);
+    assertTrue(f.claimedOnCompletion, "the write must be finished before the claim is released");
+    assertFalse(f.brf.isBlockingResponseInitiated());
+  }
+
+  @Test
+  void retryAfterFailedWriteParksTheCompletionAgain() {
+    FakeResponse response = new FakeResponse();
+    response.completeWrites = false;
+    DeferredFixture f = new DeferredFixture(response);
+
+    assertTrue(commit(f.brf, f.segment));
+    response.pending.failed(new IOException("broken pipe"));
+    assertFalse(f.brf.isBlockingResponseInitiated());
+
+    assertTrue(commit(f.brf, f.segment), "the retry writes again");
+    assertEquals(2, response.writes.size());
+    f.wrapper.succeeded();
+    assertTrue(f.events.isEmpty(), "the retried write is in flight");
+
+    response.pending.succeeded();
+
+    assertEquals(asList("effectivelyBlocked", "succeeded"), f.events);
+  }
+
+  @Test
+  void deferredCompletionIsReplayedBeforeTheClaimIsReleasedOnSynchronousWriteThrow() {
+    FakeResponse response = new FakeResponse();
+    response.writeThrows = new WritePendingException();
+    DeferredFixture f = new DeferredFixture(response);
+    response.onWrite = f.wrapper::succeeded;
+
+    assertFalse(commit(f.brf, f.segment));
+
+    assertEquals(asList("succeeded"), f.events);
+    assertTrue(f.claimedOnCompletion, "the write must be finished before the claim is released");
+    assertFalse(f.brf.isBlockingResponseInitiated());
+  }
+
+  @Test
+  void synchronousWriteThrowLeavesTheDeferredCompletionIdle() {
+    FakeResponse response = new FakeResponse();
+    response.writeThrows = new WritePendingException();
+    DeferredFixture f = new DeferredFixture(response);
+
+    assertFalse(commit(f.brf, f.segment));
+    f.wrapper.succeeded();
+
+    assertEquals(asList("succeeded"), f.events, "no write in flight, forwarded immediately");
+  }
+
+  @Test
+  void deferCompletionIsInstalledOnce() {
+    JettyBlockResponseFunction brf = brf(new FakeRequest("GET", null), new FakeResponse());
+    Callback first = JettyFakes.fake(Callback.class);
+    Callback second = JettyFakes.fake(Callback.class);
+
+    assertNull(brf.getDeferredCompletion());
+    Callback wrapper = brf.deferCompletion(first);
+
+    assertTrue(wrapper instanceof JettyDeferredCompletion);
+    assertSame(wrapper, brf.getDeferredCompletion());
+    assertSame(second, brf.deferCompletion(second), "a second install keeps the first wrapper");
+    assertSame(wrapper, brf.getDeferredCompletion());
+  }
+
+  /** A {@link JettyBlockResponseFunction} with an installed {@link JettyDeferredCompletion}. */
+  private static final class DeferredFixture {
+    /** Records {@code effectivelyBlocked()} calls and delegate completions, in order. */
+    final List<String> events = new ArrayList<>();
+
+    final FakeSegment segment = new FakeSegment();
+    final JettyBlockResponseFunction brf;
+    final JettyDeferredCompletion wrapper;
+    Throwable failure;
+    boolean claimedOnCompletion;
+
+    DeferredFixture(FakeResponse response) {
+      brf = new JettyBlockResponseFunction(new FakeRequest("GET", null).proxy, response.proxy);
+      segment.onEffectivelyBlocked = () -> events.add("effectivelyBlocked");
+      Callback delegate =
+          proxy(
+              Callback.class,
+              (name, args) -> {
+                switch (name) {
+                  case "succeeded":
+                    events.add(name);
+                    claimedOnCompletion = brf.isBlockingResponseInitiated();
+                    return null;
+                  case "failed":
+                    events.add(name);
+                    failure = (Throwable) args[0];
+                    claimedOnCompletion = brf.isBlockingResponseInitiated();
+                    return null;
+                  case "getInvocationType":
+                    return InvocationType.NON_BLOCKING;
+                  default:
+                    return null;
+                }
+              });
+      wrapper = (JettyDeferredCompletion) brf.deferCompletion(delegate);
     }
   }
 
