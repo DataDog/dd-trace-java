@@ -644,6 +644,7 @@ public final class UniversalFlagConfigParser {
                         + "\"");
               }
               condition.semverComparand = parsed;
+              flag.hasSemverConditions = true;
               break;
             default:
               // Non-semver operators are not validated here

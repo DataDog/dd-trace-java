@@ -447,6 +447,36 @@ class UniversalFlagConfigParserTest {
     assertTrue(config.invalidFlags.isEmpty());
   }
 
+  @Test
+  void marksOnlyFlagsWithSemverConditions() throws Exception {
+    final ServerConfiguration config =
+        deserialize(
+            "{\"flags\":{"
+                + flagWithCondition("semver", "SEMVER_GTE", "\"1.0.0\"")
+                + ","
+                + flagWithCondition("plain", "ONE_OF", "[\"1.0.0\"]")
+                + "}}");
+
+    assertTrue(config.flags.get("semver").hasSemverConditions);
+    assertFalse(config.flags.get("plain").hasSemverConditions);
+  }
+
+  private static String flagWithCondition(
+      final String key, final String operator, final String value) {
+    return "\""
+        + key
+        + "\":{\"key\":\""
+        + key
+        + "\",\"enabled\":true,\"variationType\":\"STRING\","
+        + "\"variations\":{\"a\":{\"key\":\"a\",\"value\":\"a\"}},\"allocations\":["
+        + "{\"key\":\"rule\",\"rules\":[{\"conditions\":[{\"attribute\":\"version\","
+        + "\"operator\":\""
+        + operator
+        + "\",\"value\":"
+        + value
+        + "}]}],\"splits\":[{\"variationKey\":\"a\",\"shards\":[]}],\"doLog\":false}]}";
+  }
+
   private static ServerConfiguration deserialize(final String json) throws Exception {
     return UniversalFlagConfigParser.parse(json.getBytes(UTF_8));
   }
