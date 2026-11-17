@@ -26,7 +26,7 @@ import org.openjdk.jmh.annotations.Warmup;
 /**
  * Evaluation cost on the opt-in scale suites of the shared FFE fixtures ({@code
  * evaluation-suites/scale} and {@code evaluation-suites/scale-json}): large lists, regex, rules,
- * splits and shards, time windows, many variations and flags, and JSON values up to 10 MB. The
+ * splits and shards, time windows, many variations and flags, and JSON values up to 4 MB. The
  * dimensions are listed in {@code evaluation-suites/scale/AGENTS.md} of the fixtures.
  *
  * <p>Each operation evaluates a case of the selected case file through the provider. With {@code
