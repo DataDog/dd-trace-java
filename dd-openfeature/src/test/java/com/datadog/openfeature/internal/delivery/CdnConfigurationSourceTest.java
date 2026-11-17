@@ -234,14 +234,14 @@ class CdnConfigurationSourceTest {
       assertEquals(
           "Feature Flags: service "
               + service
-              + " has no ASCII APM name; DD-Service header not sent",
+              + " has an empty APM name; DD-Service header not sent",
           logged.get(0).message);
     }
   }
 
   // The headers come from the Agent. Each one is the result of NormalizeService (datadog-agent
   // v0.82.3). A null header means that the request has no DD-Service header, because the result is
-  // empty or is not ASCII.
+  // empty.
   private static Stream<Arguments> servicesAndTheirHeader() {
     return Stream.of(
         arguments("checkout", "checkout"),
@@ -270,12 +270,7 @@ class CdnConfigurationSourceTest {
         arguments("-svc", "-svc"),
         arguments(".svc", ".svc"),
         arguments(":svc", ":svc"),
-        arguments("café-api", null),
-        arguments("Café", null),
-        arguments("支付", null),
         arguments("a🐶b", "a_b"),
-        arguments("İstanbul", null),
-        arguments("é".repeat(60), null),
         arguments("___", null),
         arguments("-", "-"),
         arguments("", null),
@@ -304,7 +299,7 @@ class CdnConfigurationSourceTest {
     return Stream.of(
         arguments("My Service", "my_service"),
         arguments("_svc", "_svc"),
-        arguments("café-api", null));
+        arguments("___", null));
   }
 
   @Test

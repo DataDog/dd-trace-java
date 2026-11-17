@@ -367,12 +367,8 @@ public final class CdnConfigurationSource implements ConfigurationService {
 
   /**
    * Selects the value of the DD-Service header. The value is the service name that APM shows, so
-   * the usage and APM show the same name. The value is {@code null} when that name is empty or is
-   * not printable ASCII, for example {@code café-api} or {@code 支付}.
-   *
-   * <p>The SDK checks only for ASCII, because of the JDK HTTP client. {@code HttpRequest.Builder}
-   * throws on a value like {@code 支付}, and then every poll fails. The client also sends a character
-   * such as {@code é} as {@code ?}, so {@code café-api} would arrive as {@code caf?-api}.
+   * the usage and APM show the same name. The value is {@code null} when that name is empty, for
+   * example from {@code ___}.
    */
   @Nullable
   private static String usageService(@Nullable final String service) {
@@ -380,26 +376,12 @@ public final class CdnConfigurationSource implements ConfigurationService {
       return null;
     }
     final String normalized = normalizeService(service);
-    if (isPrintableAscii(normalized)) {
+    if (!normalized.isEmpty()) {
       return normalized;
     }
     LOGGER.debug(
-        "Feature Flags: service {} has no ASCII APM name; DD-Service header not sent", service);
+        "Feature Flags: service {} has an empty APM name; DD-Service header not sent", service);
     return null;
-  }
-
-  /** Returns {@code true} if the value is not empty and has only the characters 0x21 to 0x7E. */
-  private static boolean isPrintableAscii(final String value) {
-    if (value.isEmpty()) {
-      return false;
-    }
-    for (int i = 0; i < value.length(); i++) {
-      final char c = value.charAt(i);
-      if (c < 0x21 || c > 0x7E) {
-        return false;
-      }
-    }
-    return true;
   }
 
   /**
