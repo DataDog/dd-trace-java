@@ -38,6 +38,9 @@ import static datadog.trace.api.config.AppSecConfig.API_SECURITY_ENDPOINT_COLLEC
 import static datadog.trace.api.config.AppSecConfig.APPSEC_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_RASP_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ENABLED;
+import static datadog.trace.api.config.FeatureFlaggingConfig.EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED;
+import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE;
+import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.AGENTLESS_LOG_SUBMISSION_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.APP_LOGS_COLLECTION_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_ENABLED;
@@ -103,9 +106,6 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_WEBSOCKE
 import static datadog.trace.api.config.TraceInstrumentationConfig.UNSAFE_CLASS_INJECTION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.VISITOR_CLASS_PARSING;
 import static datadog.trace.api.config.UsmConfig.USM_ENABLED;
-import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED;
-import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE;
-import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_ENABLED;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
 import static java.lang.Boolean.FALSE;
@@ -302,10 +302,15 @@ public class InstrumenterConfig {
       featureFlaggingEnabled = true;
       featureFlaggingConfigurationSource = AGENTLESS;
     }
-    traceOtelEnabled = configProvider.getBoolean(TRACE_OTEL_ENABLED, DEFAULT_TRACE_OTEL_ENABLED);
+    // OTEL_SDK_DISABLED=true turns off every OpenTelemetry signal, whatever its Datadog setting
+    final boolean otelSdkEnabled = !configProvider.isOtelSdkDisabled();
+    traceOtelEnabled =
+        configProvider.getBoolean(TRACE_OTEL_ENABLED, DEFAULT_TRACE_OTEL_ENABLED) && otelSdkEnabled;
     metricsOtelEnabled =
-        configProvider.getBoolean(METRICS_OTEL_ENABLED, DEFAULT_METRICS_OTEL_ENABLED);
-    logsOtelEnabled = configProvider.getBoolean(LOGS_OTEL_ENABLED, DEFAULT_LOGS_OTEL_ENABLED);
+        configProvider.getBoolean(METRICS_OTEL_ENABLED, DEFAULT_METRICS_OTEL_ENABLED)
+            && otelSdkEnabled;
+    logsOtelEnabled =
+        configProvider.getBoolean(LOGS_OTEL_ENABLED, DEFAULT_LOGS_OTEL_ENABLED) && otelSdkEnabled;
 
     profilingEnabled =
         ProfilingEnablement.of(

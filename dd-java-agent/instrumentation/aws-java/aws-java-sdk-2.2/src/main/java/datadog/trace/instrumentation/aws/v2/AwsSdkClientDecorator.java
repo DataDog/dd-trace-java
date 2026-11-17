@@ -151,15 +151,14 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     // SQS
     request
         .getValueForField("QueueUrl", String.class)
-        .ifPresent(
-            url -> {
-              span.setTag(InstrumentationTags.AWS_QUEUE_URL, url);
-              setPeerService(span, InstrumentationTags.AWS_QUEUE_URL, url);
-              String queueName = urlFileName(url);
-              if (!queueName.isEmpty()) {
-                setQueueName(span, queueName);
-              }
-            });
+        .ifPresent(url -> {
+          span.setTag(InstrumentationTags.AWS_QUEUE_URL, url);
+          setPeerService(span, InstrumentationTags.AWS_QUEUE_URL, url);
+          String queueName = urlFileName(url);
+          if (!queueName.isEmpty()) {
+            setQueueName(span, queueName);
+          }
+        });
     request.getValueForField("QueueName", String.class).ifPresent(name -> setQueueName(span, name));
 
     // SNS. TargetArn may identify a mobile platform endpoint, so only TopicArn is a topic ARN.
@@ -176,17 +175,16 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
         .getValueForField("StreamName", String.class)
         .ifPresent(name -> setStreamName(span, name));
     Optional<String> kinesisStreamArn = request.getValueForField("StreamARN", String.class);
-    kinesisStreamArn.ifPresent(
-        streamArn -> {
-          span.setTag(InstrumentationTags.AWS_STREAM_ARN, streamArn);
-          if (traceConfig().isDataStreamsEnabled()) {
-            attributes.putAttribute(KINESIS_STREAM_ARN_ATTRIBUTE, streamArn);
-          }
-          int streamNameStart = streamArn.indexOf(":stream/");
-          if (streamNameStart >= 0) {
-            setStreamName(span, streamArn.substring(streamNameStart + 8));
-          }
-        });
+    kinesisStreamArn.ifPresent(streamArn -> {
+      span.setTag(InstrumentationTags.AWS_STREAM_ARN, streamArn);
+      if (traceConfig().isDataStreamsEnabled()) {
+        attributes.putAttribute(KINESIS_STREAM_ARN_ATTRIBUTE, streamArn);
+      }
+      int streamNameStart = streamArn.indexOf(":stream/");
+      if (streamNameStart >= 0) {
+        setStreamName(span, streamArn.substring(streamNameStart + 8));
+      }
+    });
 
     // DynamoDB
     request.getValueForField("TableName", String.class).ifPresent(name -> setTableName(span, name));
@@ -416,41 +414,39 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
         if (null != streamArn) {
           response
               .getValueForField("Records", List.class)
-              .ifPresent(
-                  recordsRaw -> {
-                    //noinspection unchecked
-                    List<SdkPojo> records = (List<SdkPojo>) recordsRaw;
-                    if (!records.isEmpty()) {
-                      DataStreamsTags tags = create("kinesis", INBOUND, streamArn);
-                      if (null == kinesisApproximateArrivalTimestampField) {
-                        Optional<SdkField<?>> maybeField =
-                            records.get(0).sdkFields().stream()
-                                .filter(f -> f.locationName().equals("ApproximateArrivalTimestamp"))
-                                .findFirst();
-                        if (maybeField.isPresent()) {
-                          //noinspection unchecked
-                          kinesisApproximateArrivalTimestampField =
-                              (SdkField<Instant>) maybeField.get();
-                        } else {
-                          // shouldn't be possible
-                          return;
-                        }
-                      }
-                      for (SdkPojo record : records) {
-                        Instant arrivalTime =
-                            kinesisApproximateArrivalTimestampField.getValueOrDefault(record);
-                        AgentDataStreamsMonitoring dataStreamsMonitoring =
-                            AgentTracer.get().getDataStreamsMonitoring();
-                        PathwayContext pathwayContext = dataStreamsMonitoring.newPathwayContext();
-                        pathwayContext.setCheckpoint(
-                            create(tags, arrivalTime.toEpochMilli(), 0),
-                            dataStreamsMonitoring::add);
-                        if (!span.spanContext().getPathwayContext().isStarted()) {
-                          span.spanContext().mergePathwayContext(pathwayContext);
-                        }
-                      }
+              .ifPresent(recordsRaw -> {
+                //noinspection unchecked
+                List<SdkPojo> records = (List<SdkPojo>) recordsRaw;
+                if (!records.isEmpty()) {
+                  DataStreamsTags tags = create("kinesis", INBOUND, streamArn);
+                  if (null == kinesisApproximateArrivalTimestampField) {
+                    Optional<SdkField<?>> maybeField =
+                        records.get(0).sdkFields().stream()
+                            .filter(f -> f.locationName().equals("ApproximateArrivalTimestamp"))
+                            .findFirst();
+                    if (maybeField.isPresent()) {
+                      //noinspection unchecked
+                      kinesisApproximateArrivalTimestampField =
+                          (SdkField<Instant>) maybeField.get();
+                    } else {
+                      // shouldn't be possible
+                      return;
                     }
-                  });
+                  }
+                  for (SdkPojo record : records) {
+                    Instant arrivalTime =
+                        kinesisApproximateArrivalTimestampField.getValueOrDefault(record);
+                    AgentDataStreamsMonitoring dataStreamsMonitoring =
+                        AgentTracer.get().getDataStreamsMonitoring();
+                    PathwayContext pathwayContext = dataStreamsMonitoring.newPathwayContext();
+                    pathwayContext.setCheckpoint(
+                        create(tags, arrivalTime.toEpochMilli(), 0), dataStreamsMonitoring::add);
+                    if (!span.spanContext().getPathwayContext().isStarted()) {
+                      span.spanContext().mergePathwayContext(pathwayContext);
+                    }
+                  }
+                }
+              });
         }
       }
 

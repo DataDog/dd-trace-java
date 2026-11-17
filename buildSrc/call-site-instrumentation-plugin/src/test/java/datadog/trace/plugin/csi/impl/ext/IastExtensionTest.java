@@ -272,33 +272,27 @@ class IastExtensionTest extends BaseCsiPluginTest {
     protected List<AdviceAssert> getAdvices(ClassOrInterfaceDeclaration type) {
       return getMethodCalls(type.getMethodsByName("accept").get(0)).stream()
           .filter(methodCall -> methodCall.getNameAsString().equals("addAdvice"))
-          .map(
-              methodCall -> {
-                String owner = methodCall.getArgument(1).asStringLiteralExpr().asString();
-                String method = methodCall.getArgument(2).asStringLiteralExpr().asString();
-                String descriptor = methodCall.getArgument(3).asStringLiteralExpr().asString();
-                List<com.github.javaparser.ast.stmt.Statement> statements =
-                    methodCall
-                        .getArgument(4)
-                        .asLambdaExpr()
-                        .getBody()
-                        .asBlockStmt()
-                        .getStatements();
-                IfStmt instrumentedStmt = statements.get(0).asIfStmt();
-                IfStmt executedStmt = statements.get(1).asIfStmt();
-                List<String> nonIfStatements =
-                    statements.stream()
-                        .filter(stmt -> !stmt.isIfStmt())
-                        .map(Object::toString)
-                        .collect(Collectors.toList());
-                return new IastExtensionAdviceAssert(
-                    owner,
-                    method,
-                    descriptor,
-                    buildMetricAsserter(instrumentedStmt),
-                    buildMetricAsserter(executedStmt),
-                    nonIfStatements);
-              })
+          .map(methodCall -> {
+            String owner = methodCall.getArgument(1).asStringLiteralExpr().asString();
+            String method = methodCall.getArgument(2).asStringLiteralExpr().asString();
+            String descriptor = methodCall.getArgument(3).asStringLiteralExpr().asString();
+            List<com.github.javaparser.ast.stmt.Statement> statements =
+                methodCall.getArgument(4).asLambdaExpr().getBody().asBlockStmt().getStatements();
+            IfStmt instrumentedStmt = statements.get(0).asIfStmt();
+            IfStmt executedStmt = statements.get(1).asIfStmt();
+            List<String> nonIfStatements =
+                statements.stream()
+                    .filter(stmt -> !stmt.isIfStmt())
+                    .map(Object::toString)
+                    .collect(Collectors.toList());
+            return new IastExtensionAdviceAssert(
+                owner,
+                method,
+                descriptor,
+                buildMetricAsserter(instrumentedStmt),
+                buildMetricAsserter(executedStmt),
+                nonIfStatements);
+          })
           .collect(Collectors.toList());
     }
 

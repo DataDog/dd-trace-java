@@ -1,6 +1,5 @@
 package datadog.communication.serialization;
 
-import datadog.trace.api.internal.VisibleForTesting;
 import java.nio.ByteBuffer;
 
 public final class FlushingBuffer implements StreamingBuffer {
@@ -21,19 +20,28 @@ public final class FlushingBuffer implements StreamingBuffer {
     return buffer.capacity();
   }
 
+  /** Returns a view of complete messages, excluding any unfinished message. */
+  public ByteBuffer completedMessages() {
+    ByteBuffer slice = buffer.duplicate();
+    slice.position(0);
+    slice.limit(mark);
+    return slice;
+  }
+
   @Override
   public boolean isDirty() {
     return mark > 0;
   }
 
   @Override
-  public void mark() {
+  public boolean mark() {
     int current = buffer.position();
     if (current != mark) {
       // count only non-empty messages
       ++messageCount;
       mark = current;
     }
+    return true;
   }
 
   @Override
@@ -100,6 +108,11 @@ public final class FlushingBuffer implements StreamingBuffer {
   }
 
   @Override
+  public void rewind() {
+    buffer.position(mark);
+  }
+
+  @Override
   public void reset() {
     messageCount = 0;
     buffer.position(0);
@@ -107,8 +120,7 @@ public final class FlushingBuffer implements StreamingBuffer {
     mark = 0;
   }
 
-  @VisibleForTesting
-  int getMessageCount() {
+  public int messageCount() {
     return messageCount;
   }
 }

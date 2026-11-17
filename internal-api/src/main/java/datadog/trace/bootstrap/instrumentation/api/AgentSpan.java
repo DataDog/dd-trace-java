@@ -107,7 +107,7 @@ public interface AgentSpan
   AgentSpan setTag(String key, Object value);
 
   /*
-   * Id-keyed setTag family: the caller passes a KnownTags.*_ID instead of a name. The default
+   * Id-keyed setTag family: the caller passes a KnownTags id instead of a name. The default
    * resolves the id to its name and delegates to the String setter, which is correct for every
    * implementation; the core span overrides these to skip the name lookup when storing the tag.
    */
@@ -343,12 +343,11 @@ public interface AgentSpan
     // Prototype tags are fallback defaults: only fill keys this span has not already set.
     prototype
         .tags()
-        .forEach(
-            (tag, value) -> {
-              if (getTag(tag) == null) {
-                setTag(tag, value);
-              }
-            });
+        .forEach((tag, value) -> {
+          if (getTag(tag) == null) {
+            setTag(tag, value);
+          }
+        });
 
     // Never-clobber: only stamp the integration name when the context reports none.
     if (spanContext().getIntegrationName() == null) {

@@ -22,7 +22,6 @@ import org.spockframework.runtime.IterationNode;
 import org.spockframework.runtime.ParameterizedFeatureNode;
 import org.spockframework.runtime.SpockNode;
 import org.spockframework.runtime.model.FeatureInfo;
-import org.spockframework.runtime.model.FeatureMetadata;
 import org.spockframework.runtime.model.SpecElementInfo;
 
 public class SpockUtils {
@@ -44,8 +43,18 @@ public class SpockUtils {
         SpockUtils::toTestIdentifier,
         SpockUtils::toTestSourceData,
         SpockUtils::shouldBeTraced);
+    TestDataFactory.registerTags(JUnitPlatformUtils.ENGINE_ID_SPOCK, SpockUtils::getTestTags);
     RetryDescriptorFactories.register(
         JUnitPlatformUtils.ENGINE_ID_SPOCK, new SpockRetryDescriptorFactory());
+  }
+
+  private static Collection<TestTag> getTestTags(TestDescriptor testDescriptor) {
+    if (testDescriptor instanceof SpockNode
+        && ((SpockNode<?>) testDescriptor).getNodeInfo() instanceof FeatureInfo) {
+      // IterationNode retains its feature metadata but does not expose its tags through getTags().
+      return getTags((SpockNode<?>) testDescriptor);
+    }
+    return testDescriptor.getTags();
   }
 
   /*
@@ -54,6 +63,9 @@ public class SpockUtils {
    * and we support Spock 2.0
    */
   public static Collection<TestTag> getTags(SpockNode<?> spockNode) {
+    if (GET_TEST_TAGS == null || GET_TEST_TAG_VALUE == null) {
+      return spockNode.getTags();
+    }
     try {
       Collection<TestTag> junitPlatformTestTags = new ArrayList<>();
       SpecElementInfo<?, ?> nodeInfo = spockNode.getNodeInfo();
@@ -106,7 +118,7 @@ public class SpockUtils {
     if (testSource instanceof MethodSource) {
       MethodSource methodSource = (MethodSource) testSource;
       Class<?> testClass = methodSource.getJavaClass();
-      Method testMethod = getTestMethod(methodSource);
+      Method testMethod = getTestMethod(testDescriptor);
       String testMethodName = methodSource.getMethodName();
       return new TestSourceData(testClass, testMethod, testMethodName);
     } else {
@@ -122,31 +134,17 @@ public class SpockUtils {
         || testDescriptor.getParent().map(c -> c instanceof ParameterizedFeatureNode).orElse(false);
   }
 
-  private static Method getTestMethod(MethodSource methodSource) {
-    String methodName = methodSource.getMethodName();
-    if (methodName == null) {
+  private static Method getTestMethod(TestDescriptor testDescriptor) {
+    if (!(testDescriptor instanceof SpockNode)) {
       return null;
     }
-
-    Class<?> testClass = methodSource.getJavaClass();
-    if (testClass == null) {
-      return null;
-    }
-
     try {
-      for (Method declaredMethod : testClass.getDeclaredMethods()) {
-        FeatureMetadata featureMetadata = declaredMethod.getAnnotation(FeatureMetadata.class);
-        if (featureMetadata == null) {
-          continue;
-        }
-
-        if (methodName.equals(featureMetadata.name())) {
-          return declaredMethod;
-        }
+      SpecElementInfo<?, ?> nodeInfo = ((SpockNode<?>) testDescriptor).getNodeInfo();
+      if (nodeInfo instanceof FeatureInfo) {
+        return ((FeatureInfo) nodeInfo).getFeatureMethod().getReflection();
       }
-
     } catch (Throwable e) {
-      LOGGER.warn("Could not get test method from method source", e);
+      LOGGER.warn("Could not get test method from Spock node", e);
     }
     return null;
   }

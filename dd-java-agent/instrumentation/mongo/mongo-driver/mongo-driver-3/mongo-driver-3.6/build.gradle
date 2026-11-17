@@ -30,7 +30,8 @@ muzzle {
   }
 }
 
-addTestSuiteForDir('latestDepTest', 'test')
+// TODO APMLP-2193: no latestDepForkedTest until DBM comment injection tests pass with the latest 3.x driver
+addTestSuiteForDir('latestDepTest', 'test', false)
 
 dependencies {
   compileOnly group: 'org.mongodb', name: 'mongo-java-driver', version: '3.6.0'

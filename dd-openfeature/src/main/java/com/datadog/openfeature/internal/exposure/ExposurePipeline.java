@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,6 +30,7 @@ public class ExposurePipeline implements Consumer<ExposureEvent>, EventPipeline 
   private final Thread serializerThread;
   private final Object lifecycleLock = new Object();
   private final AtomicBoolean closed = new AtomicBoolean();
+  private final AtomicLong droppedQueueFull = new AtomicLong();
 
   public ExposurePipeline(
       final int capacity,
@@ -39,7 +41,8 @@ public class ExposurePipeline implements Consumer<ExposureEvent>, EventPipeline 
       final RuntimeServices services) {
     this.queue = new EventQueue<>(capacity);
     this.serializer =
-        new ExposureSerializingHandler(transport, this.queue, flushInterval, timeUnit, context);
+        new ExposureSerializingHandler(
+            transport, this.queue, flushInterval, timeUnit, context, this.droppedQueueFull);
     this.serializerThread = services.newThread("exposures", this.serializer);
   }
 
@@ -56,7 +59,12 @@ public class ExposurePipeline implements Consumer<ExposureEvent>, EventPipeline 
   public void requestShutdown() {
     synchronized (this.lifecycleLock) {
       if (this.closed.compareAndSet(false, true)) {
+        final int queued = this.queue.size();
         this.serializer.requestShutdown();
+        // Logged last: a diagnostic must not keep the worker from being signaled.
+        LOGGER.debug(
+            "Feature Flags exposure shutdown requested: queued={}; pending exposures get a final best-effort flush",
+            queued);
       }
     }
   }
@@ -68,8 +76,9 @@ public class ExposurePipeline implements Consumer<ExposureEvent>, EventPipeline 
 
   @Override
   public void accept(final ExposureEvent event) {
-    if (!this.closed.get()) {
-      this.queue.offer(event);
+    // Runs on the application thread: count the drops, the serializer reports them once per flush.
+    if (!this.closed.get() && !this.queue.offer(event)) {
+      this.droppedQueueFull.incrementAndGet();
     }
   }
 
@@ -91,13 +100,16 @@ public class ExposurePipeline implements Consumer<ExposureEvent>, EventPipeline 
 
     private final List<ExposureEvent> buffer = new ArrayList<>();
     private final AtomicBoolean shutdownRequested = new AtomicBoolean();
+    private final AtomicLong droppedQueueFull;
 
     ExposureSerializingHandler(
         final EventTransport transport,
         final EventQueue<ExposureEvent> queue,
         final long flushInterval,
         final TimeUnit timeUnit,
-        final Map<String, String> context) {
+        final Map<String, String> context,
+        final AtomicLong droppedQueueFull) {
+      this.droppedQueueFull = droppedQueueFull;
       this.queue = queue;
       this.transport = transport;
       this.context = context;
@@ -163,9 +175,16 @@ public class ExposurePipeline implements Consumer<ExposureEvent>, EventPipeline 
     }
 
     private void flush() {
+      final long dropped = this.droppedQueueFull.getAndSet(0);
+      if (dropped > 0) {
+        LOGGER.debug(
+            "Feature Flags exposures dropped since the last flush: queue full, count={}", dropped);
+      }
       if (this.buffer.isEmpty()) {
         return;
       }
+      final int count = this.buffer.size();
+      LOGGER.debug("Feature Flags exposure flush starting: count={}", count);
       final byte[] payload;
       try {
         final ExposuresRequest exposures = new ExposuresRequest(this.context, this.buffer);
@@ -177,8 +196,13 @@ public class ExposurePipeline implements Consumer<ExposureEvent>, EventPipeline 
       }
       try {
         this.transport.post(EXPOSURES_ROUTE, payload);
+        LOGGER.debug("Feature Flags exposure flush delivered: count={}", count);
       } catch (Exception e) {
-        LOGGER.debug("Could not submit exposures", e);
+        LOGGER.debug(
+            "Feature Flags exposure flush failed: {}; dropping the batch of {} exposure(s)",
+            e.toString(),
+            count,
+            e);
       } finally {
         // Best-effort delivery must not retry an ambiguously accepted batch.
         this.buffer.clear();

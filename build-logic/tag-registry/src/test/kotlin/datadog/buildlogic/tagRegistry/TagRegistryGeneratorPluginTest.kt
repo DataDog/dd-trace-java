@@ -222,7 +222,7 @@ class TagRegistryGeneratorPluginTest {
       """
       span_types:
         base:
-          tags: [{dd-name: foo}, {dd-name: foo.name}]
+          tags: [{dd-name: foo}, {dd-name: foo.bar}]
       """
     )
   }

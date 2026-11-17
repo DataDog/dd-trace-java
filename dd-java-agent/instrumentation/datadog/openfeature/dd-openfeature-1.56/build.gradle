@@ -1,0 +1,26 @@
+import static org.gradle.api.JavaVersion.VERSION_11
+
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
+// The providers released before the SDK bridge, linked to the agent bootstrap API it removed.
+muzzle {
+  pass {
+    group = 'com.datadoghq'
+    module = 'dd-openfeature'
+    versions = '[1.56.0,1.69.0)'
+  }
+}
+
+tracerJava {
+  addSourceSetFor(VERSION_11)
+}
+
+dependencies {
+  main_java11CompileOnly 'com.datadoghq:dd-openfeature:1.56.0'
+}
+
+tasks.named("compileMain_java11Java", JavaCompile) {
+  configureCompiler(it, VERSION_11)
+}

@@ -38,7 +38,7 @@ repositories {
       includeGroupAndSubgroups "org.springframework"
     }
   }
-  // Hosts gradle-tooling-api, used by build-logic:smoke-test to run nested
+  // Hosts gradle-tooling-api, used by build-logic:smoke-test-app to run nested
   // Gradle builds for smoke-test applications pinned to older Gradle versions.
   maven {
     url = 'https://repo.gradle.org/gradle/libs-releases'

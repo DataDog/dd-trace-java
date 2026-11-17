@@ -12,7 +12,6 @@ import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.sink.Snapshot;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
-import datadog.trace.test.util.Flaky;
 import datadog.trace.test.util.NonRetryable;
 import datadog.trace.util.TagsHelper;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -24,7 +23,6 @@ import org.junit.jupiter.api.condition.DisabledIf;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
-@Flaky
 @NonRetryable
 public class TracerDebuggerIntegrationTest extends SpringBasedIntegrationTest {
 
@@ -55,23 +53,21 @@ public class TracerDebuggerIntegrationTest extends SpringBasedIntegrationTest {
             .captureSnapshot(true)
             .build();
     AtomicBoolean requestReceived = new AtomicBoolean(false);
-    registerIntakeRequestListener(
-        intakeRequest -> {
-          assertEquals(
-              PROBE_ID.getId(), intakeRequest.getDebugger().getSnapshot().getProbe().getId());
-          assertTrue(Pattern.matches("[0-9a-f]+", intakeRequest.getTraceId()));
-          assertTrue(Pattern.matches("\\d+", intakeRequest.getSpanId()));
-          if (processTagsEnabled) {
-            assertNotNull(intakeRequest.getProcessTags());
-            assertTrue(
-                intakeRequest
-                    .getProcessTags()
-                    .contains("entrypoint.name:" + TagsHelper.sanitize(DEBUGGER_TEST_APP_CLASS)));
-          } else {
-            assertNull(intakeRequest.getProcessTags());
-          }
-          requestReceived.set(true);
-        });
+    registerIntakeRequestListener(intakeRequest -> {
+      assertEquals(PROBE_ID.getId(), intakeRequest.getDebugger().getSnapshot().getProbe().getId());
+      assertTrue(Pattern.matches("[0-9a-f]+", intakeRequest.getTraceId()));
+      assertTrue(Pattern.matches("\\d+", intakeRequest.getSpanId()));
+      if (processTagsEnabled) {
+        assertNotNull(intakeRequest.getProcessTags());
+        assertTrue(
+            intakeRequest
+                .getProcessTags()
+                .contains("entrypoint.name:" + TagsHelper.sanitize(DEBUGGER_TEST_APP_CLASS)));
+      } else {
+        assertNull(intakeRequest.getProcessTags());
+      }
+      requestReceived.set(true);
+    });
     String httpPort = startSpringApp(singletonList(logProbe), processTagsEnabled);
     sendRequest(httpPort, "/greeting");
     processRequests(
@@ -96,17 +92,15 @@ public class TracerDebuggerIntegrationTest extends SpringBasedIntegrationTest {
             .evaluateAt(MethodLocation.EXIT)
             .build();
     AtomicBoolean requestReceived = new AtomicBoolean(false);
-    registerIntakeRequestListener(
-        intakeRequest -> {
-          Snapshot snapshot = intakeRequest.getDebugger().getSnapshot();
-          assertEquals(PROBE_ID.getId(), snapshot.getProbe().getId());
-          assertTrue(Pattern.matches("[0-9a-f]+", intakeRequest.getTraceId()));
-          assertTrue(Pattern.matches("\\d+", intakeRequest.getSpanId()));
-          assertFalse(
-              logHasErrors(
-                  logFilePath, it -> it.contains("TypePool$Resolution$NoSuchTypeException")));
-          requestReceived.set(true);
-        });
+    registerIntakeRequestListener(intakeRequest -> {
+      Snapshot snapshot = intakeRequest.getDebugger().getSnapshot();
+      assertEquals(PROBE_ID.getId(), snapshot.getProbe().getId());
+      assertTrue(Pattern.matches("[0-9a-f]+", intakeRequest.getTraceId()));
+      assertTrue(Pattern.matches("\\d+", intakeRequest.getSpanId()));
+      assertFalse(
+          logHasErrors(logFilePath, it -> it.contains("TypePool$Resolution$NoSuchTypeException")));
+      requestReceived.set(true);
+    });
     String httpPort = startSpringApp(singletonList(logProbe));
     sendRequest(httpPort, "/greeting");
     processRequests(
@@ -127,18 +121,16 @@ public class TracerDebuggerIntegrationTest extends SpringBasedIntegrationTest {
             .captureSnapshot(true)
             .build();
     AtomicBoolean requestReceived = new AtomicBoolean(false);
-    registerIntakeRequestListener(
-        intakeRequest -> {
-          Snapshot snapshot = intakeRequest.getDebugger().getSnapshot();
-          assertEquals(PROBE_ID.getId(), snapshot.getProbe().getId());
-          assertEquals(
-              42, snapshot.getCaptures().getEntry().getArguments().get("argInt").getValue());
-          // no locals captured
-          assertNull(snapshot.getCaptures().getEntry().getLocals());
-          assertTrue(Pattern.matches("[0-9a-f]+", intakeRequest.getTraceId()));
-          assertTrue(Pattern.matches("\\d+", intakeRequest.getSpanId()));
-          requestReceived.set(true);
-        });
+    registerIntakeRequestListener(intakeRequest -> {
+      Snapshot snapshot = intakeRequest.getDebugger().getSnapshot();
+      assertEquals(PROBE_ID.getId(), snapshot.getProbe().getId());
+      assertEquals(42, snapshot.getCaptures().getEntry().getArguments().get("argInt").getValue());
+      // no locals captured
+      assertNull(snapshot.getCaptures().getEntry().getLocals());
+      assertTrue(Pattern.matches("[0-9a-f]+", intakeRequest.getTraceId()));
+      assertTrue(Pattern.matches("\\d+", intakeRequest.getSpanId()));
+      requestReceived.set(true);
+    });
     String httpPort = startSpringApp(singletonList(logProbe));
     sendRequest(httpPort, "/greeting");
     processRequests(
@@ -160,17 +152,15 @@ public class TracerDebuggerIntegrationTest extends SpringBasedIntegrationTest {
             .captureSnapshot(true)
             .build();
     AtomicBoolean requestReceived = new AtomicBoolean(false);
-    registerIntakeRequestListener(
-        intakeRequest -> {
-          Snapshot snapshot = intakeRequest.getDebugger().getSnapshot();
-          assertEquals(PROBE_ID.getId(), snapshot.getProbe().getId());
-          assertEquals(
-              42,
-              snapshot.getCaptures().getLines().get(15).getArguments().get("argInt").getValue());
-          assertTrue(Pattern.matches("[0-9a-f]+", intakeRequest.getTraceId()));
-          assertTrue(Pattern.matches("\\d+", intakeRequest.getSpanId()));
-          requestReceived.set(true);
-        });
+    registerIntakeRequestListener(intakeRequest -> {
+      Snapshot snapshot = intakeRequest.getDebugger().getSnapshot();
+      assertEquals(PROBE_ID.getId(), snapshot.getProbe().getId());
+      assertEquals(
+          42, snapshot.getCaptures().getLines().get(15).getArguments().get("argInt").getValue());
+      assertTrue(Pattern.matches("[0-9a-f]+", intakeRequest.getTraceId()));
+      assertTrue(Pattern.matches("\\d+", intakeRequest.getSpanId()));
+      requestReceived.set(true);
+    });
     String httpPort = startSpringApp(singletonList(logProbe));
     sendRequest(httpPort, "/greeting");
     processRequests(
@@ -194,15 +184,14 @@ public class TracerDebuggerIntegrationTest extends SpringBasedIntegrationTest {
             .captureSnapshot(false)
             .build();
     AtomicBoolean requestReceived = new AtomicBoolean(false);
-    registerIntakeRequestListener(
-        intakeRequest -> {
-          Snapshot snapshot = intakeRequest.getDebugger().getSnapshot();
-          assertEquals(PROBE_ID.getId(), snapshot.getProbe().getId());
-          assertEquals("processWithArg 42", intakeRequest.getMessage());
-          assertTrue(Pattern.matches("[0-9a-f]+", intakeRequest.getTraceId()));
-          assertTrue(Pattern.matches("\\d+", intakeRequest.getSpanId()));
-          requestReceived.set(true);
-        });
+    registerIntakeRequestListener(intakeRequest -> {
+      Snapshot snapshot = intakeRequest.getDebugger().getSnapshot();
+      assertEquals(PROBE_ID.getId(), snapshot.getProbe().getId());
+      assertEquals("processWithArg 42", intakeRequest.getMessage());
+      assertTrue(Pattern.matches("[0-9a-f]+", intakeRequest.getTraceId()));
+      assertTrue(Pattern.matches("\\d+", intakeRequest.getSpanId()));
+      requestReceived.set(true);
+    });
     String httpPort = startSpringApp(singletonList(logProbe));
     sendRequest(httpPort, "/greeting");
     processRequests(

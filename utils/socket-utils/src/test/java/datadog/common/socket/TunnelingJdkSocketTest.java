@@ -383,23 +383,21 @@ public class TunnelingJdkSocketTest {
       OutputStream output = clientSocket.getOutputStream();
       CountDownLatch writing = new CountDownLatch(1);
       Future<?> writer =
-          executor.submit(
-              () -> {
-                writing.countDown();
-                // The server accepts but does not read, so this exceeds the socket's send buffer.
-                output.write(new byte[1024 * 1024]);
-                return null;
-              });
+          executor.submit(() -> {
+            writing.countDown();
+            // The server accepts but does not read, so this exceeds the socket's send buffer.
+            output.write(new byte[1024 * 1024]);
+            return null;
+          });
       assertTrue(writing.await(5, TimeUnit.SECONDS));
       assertThrows(TimeoutException.class, () -> writer.get(100, TimeUnit.MILLISECONDS));
 
       AtomicReference<Thread> inputThread = new AtomicReference<>();
       Future<InputStream> input =
-          executor.submit(
-              () -> {
-                inputThread.set(Thread.currentThread());
-                return clientSocket.getInputStream();
-              });
+          executor.submit(() -> {
+            inputThread.set(Thread.currentThread());
+            return clientSocket.getInputStream();
+          });
       // Wait until input setup is waiting for the channel's blocked writer before closing.
       assertTimeoutPreemptively(
           Duration.ofSeconds(5),

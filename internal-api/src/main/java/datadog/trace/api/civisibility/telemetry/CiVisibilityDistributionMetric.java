@@ -45,6 +45,12 @@ public enum CiVisibilityDistributionMetric {
   KNOWN_TESTS_RESPONSE_BYTES("known_tests.response_bytes", ResponseCompressed.class),
   /** The number of tests received by the known tests endpoint */
   KNOWN_TESTS_RESPONSE_TESTS("known_tests.response_tests"),
+  /** The number of pages fetched during known tests pagination */
+  KNOWN_TESTS_PAGES_FETCHED("known_tests.pages_fetched"),
+  /** The elapsed time to fetch and process all pages of known tests in ms */
+  KNOWN_TESTS_TOTAL_FETCH_MS("known_tests.total_fetch_ms"),
+  /** The sum of known-tests request attempt durations in ms, excluding retry backoff */
+  KNOWN_TESTS_TOTAL_REQUEST_MS("known_tests.total_request_ms"),
   /** The time it takes to get the response of the flaky tests endpoint request in ms */
   FLAKY_TESTS_REQUEST_MS("flaky_tests.request_ms"),
   /** The number of bytes received by the flaky tests endpoint */

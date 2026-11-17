@@ -5,7 +5,7 @@ import java.util.Locale
 
 /**
  * Emits the generated `KnownTags.java` from a [TagRegistry]. Public API first — per-tag
- * `<X>_NAME` (string) + `<X>_ID` (encoded long, literal) couplets with a trailing `// makeTagId(...)`
+ * `<X>` (encoded long id, literal) + `<X>_NAME` (string) couplets with a trailing `// makeTagId(...)`
  * derivation comment — then the `<X>_SERIAL_NUM` constants, the
  * `StringIndex.EmbeddingSupport` keyOf table, the `NAMES_BY_SERIAL` array behind `nameOf`, and the
  * resolver's `openTelemetryNameOf` switch.
@@ -20,24 +20,21 @@ object KnownTagsEmitter {
       return c
     }
 
-    // Collapse a duplicated trailing token so e.g. "resource.name" yields NAME (not NAME_NAME) and
-    // "_dd.parent_id" yields ID (not ID_ID); the non-duplicating pairs (ID + _NAME -> ID_NAME, NAME
-    // + _ID -> NAME_ID) are kept as-is.
-    fun withSuffix(base: String, suffix: String) = if (base.endsWith(suffix)) base else "$base$suffix"
-
-    // NAME/ID/SERIAL_NUM constants are all fields of the same generated class, so uniqueness must be
-    // enforced on these FINAL suffixed identifiers, not on the pre-suffix base: two different base
-    // names can collapse to the same final identifier once a suffix is appended -- e.g. base
-    // "RESOURCE" suffixed with "_NAME" collides with a base that is already "RESOURCE_NAME" (which
-    // withSuffix leaves untouched, since it already ends with "_NAME").
-    val used = HashSet<String>()
-    fun unique(name: String): String {
-      var u = name
-      var n = 2
-      while (!used.add(u)) {
-        u = "${name}_${n++}"
-      }
-      return u
+    // A tag's id is its sanitized name, bare: the id is what instrumentation sets, so
+    // span.setTag(DB_POOL_NAME, ...) reads like the name it replaces. Its other constants add a
+    // suffix, always in full even when the name already ends with it: db.pool.name's name is
+    // DB_POOL_NAME_NAME. Collapsing a doubled suffix would let two tags claim one constant, and
+    // registering a tag later could silently change what an existing constant means.
+    //
+    // The constants are all fields of one class, so a clash that remains (two names that sanitize
+    // alike, or a tag "x.name" whose id is tag "x"'s NAME) fails generation rather than being
+    // numbered, which would make a constant's name depend on registration order. The tracer overlay's
+    // java_names resolves one by giving a name its own constant base.
+    val claimedBy = HashMap<String, String>()
+    fun claim(constant: String, ddName: String): String {
+      val holder = claimedBy.putIfAbsent(constant, ddName)
+      require(holder == null) { clash("Tags '$holder' and '$ddName'", constant, ddName) }
+      return constant
     }
 
     val nameOfConst = HashMap<String, String>()
@@ -45,13 +42,11 @@ object KnownTagsEmitter {
     val serialOfConst = HashMap<String, String>()
     val otelNameOfConst = HashMap<String, String>()
     for (t in reg.tags) {
-      val base = sanitize(t.name)
-      nameOfConst[t.ddName] = unique(withSuffix(base, "_NAME"))
-      idOfConst[t.ddName] = unique(withSuffix(base, "_ID"))
-      serialOfConst[t.ddName] = unique(withSuffix(base, "_SERIAL_NUM"))
-      // Suffix the pre-suffix base (not nameC), same as the other three: suffixing an
-      // already-suffixed identifier would produce a redundant compound like NAME_OTEL_NAME.
-      if (t.otelName != null) otelNameOfConst[t.ddName] = unique(withSuffix(base, "_OTEL_NAME"))
+      val base = reg.javaNames[t.ddName] ?: sanitize(t.name)
+      nameOfConst[t.ddName] = claim("${base}_NAME", t.ddName)
+      idOfConst[t.ddName] = claim(base, t.ddName)
+      serialOfConst[t.ddName] = claim("${base}_SERIAL_NUM", t.ddName)
+      if (t.otelName != null) otelNameOfConst[t.ddName] = claim("${base}_OTEL_NAME", t.ddName)
     }
     fun nameC(ddName: String) = nameOfConst.getValue(ddName)
     fun idC(ddName: String) = idOfConst.getValue(ddName)
@@ -69,7 +64,7 @@ object KnownTagsEmitter {
       }
     }
     return buildString {
-      // Public API first (name + encoded id couplets), so readers see the useful parts up top; the
+      // Public API first (encoded id + name couplets), so readers see the useful parts up top; the
       // serial ids and keyOf/resolver machinery follow below. Derivation is in the trailing comment.
       appendLine(
         """
@@ -86,8 +81,8 @@ object KnownTagsEmitter {
       )
 
       for (t in reg.tags) {
-        appendLine("  public static final String ${nameC(t.ddName)} = \"${escape(t.ddName)}\";")
         appendLine("  public static final long ${idC(t.ddName)} = ${hex(t.id)};")
+        appendLine("  public static final String ${nameC(t.ddName)} = \"${escape(t.ddName)}\";")
         if (t.otelName != null) {
           appendLine("  public static final String ${otelNameC(t.ddName)} = \"${escape(t.otelName)}\";")
         }
@@ -106,7 +101,7 @@ object KnownTagsEmitter {
       // this package (the resolver here, TagInterceptor in core) can name them as case labels.
       // Per-direction aliases: each OpenTelemetry name that names a tag on spans of one direction, as
       // that tag's id. Code that knows its direction writes in OpenTelemetry terms by id
-      // (Outbound.SERVER_ADDRESS_ID is PEER_HOSTNAME_ID) without knowing the Datadog name, and
+      // (Outbound.SERVER_ADDRESS is PEER_HOSTNAME) without knowing the Datadog name, and
       // without a lookup. Direction-free renames are repeated in each, so one class covers a span.
       for (direction in TagConventions.Direction.entries) {
         val aliases = sortedMapOf<String, String>()
@@ -118,11 +113,13 @@ object KnownTagsEmitter {
         val holder = DIRECTION_CLASS.getValue(direction)
         appendLine("  /** OpenTelemetry names on ${DIRECTION_SPANS.getValue(direction)} spans, as the ids of the tags they name. */")
         appendLine("  public static final class $holder {")
-        val local = HashSet<String>()
+        val local = HashMap<String, String>()
         for ((otel, ddName) in aliases) {
-          var constant = withSuffix(sanitize(otel), "_ID")
-          var n = 2
-          while (!local.add(constant)) constant = "${withSuffix(sanitize(otel), "_ID")}_${n++}"
+          val constant = reg.javaNames[otel] ?: sanitize(otel)
+          val previous = local.putIfAbsent(constant, otel)
+          require(previous == null) {
+            clash("OpenTelemetry names '$previous' and '$otel'", "$holder.$constant", otel)
+          }
           appendLine("    /** {@code ${escape(otel)}}: {@code ${escape(ddName)}}. */")
           appendLine("    public static final long $constant = $className.${idC(ddName)};")
         }
@@ -304,6 +301,15 @@ object KnownTagsEmitter {
       TagConventions.Direction.OUTBOUND to "client and producer",
       TagConventions.Direction.NONE to "internal",
     )
+
+  /** Why generation failed on a constant claimed twice, and the overlay entry that fixes it. */
+  private fun clash(names: String, constant: String, rename: String): String =
+    """
+    $names both generate the constant $constant.
+    Give one of them its own constant base in tag-conventions-java.yaml, for example:
+      java_names:
+        $rename: <UPPER_CASE_BASE>
+    """.trimIndent()
 
   private fun hex(id: Long): String = "0x%016XL".format(Locale.ROOT, id)
 

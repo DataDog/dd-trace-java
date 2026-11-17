@@ -1,9 +1,5 @@
 package datadog.gradle.plugin.jardiff
 
-import java.io.ByteArrayOutputStream
-import java.io.File
-import java.security.MessageDigest
-import javax.inject.Inject
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.file.ConfigurableFileCollection
@@ -22,6 +18,10 @@ import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
 import org.gradle.api.tasks.options.Option
 import org.gradle.process.ExecOperations
+import java.io.ByteArrayOutputStream
+import java.io.File
+import java.security.MessageDigest
+import javax.inject.Inject
 
 /**
  * Compares a candidate jar against a reference jar using the
@@ -263,28 +263,28 @@ abstract class JardiffTask @Inject constructor(
     }
   }
 
-  private fun resolveReferenceJar(): File =
-    referenceJarPath.orNull?.takeIf { it.isNotBlank() }?.let(::File)?.let {
-      requireExistingJar(it, "Reference jar")
-    } ?: when {
-      referenceJar.isPresent -> requireExistingJar(referenceJar.get().asFile, "Reference jar")
-      else -> throw GradleException(
-        "No reference jar configured to compare the candidate jar against.\n" +
-          "Provide one via --reference-jar=<path> or -PjardiffReferenceDir=<dir> (the directory " +
-          "holding the `build` job artifacts), or disable this task for modules with no reference.",
-      )
-    }
+  private fun resolveReferenceJar(): File = referenceJarPath.orNull?.takeIf { it.isNotBlank() }?.let(::File)?.let {
+    requireExistingJar(it, "Reference jar")
+  } ?: when {
+    referenceJar.isPresent -> requireExistingJar(referenceJar.get().asFile, "Reference jar")
 
-  private fun resolveCandidateJar(): File =
-    candidateJarPath.orNull?.takeIf { it.isNotBlank() }?.let(::File)?.let {
-      requireExistingJar(it, "Candidate jar")
-    } ?: when {
-      candidateJar.isPresent -> requireExistingJar(candidateJar.get().asFile, "Candidate jar")
-      else -> throw GradleException(
-        "No candidate jar configured to compare against the reference jar.\n" +
-          "Pass an existing jar via --candidate-jar=<path> or configure the task's candidateJar.",
-      )
-    }
+    else -> throw GradleException(
+      "No reference jar configured to compare the candidate jar against.\n" +
+        "Provide one via --reference-jar=<path> or -PjardiffReferenceDir=<dir> (the directory " +
+        "holding the `build` job artifacts), or disable this task for modules with no reference.",
+    )
+  }
+
+  private fun resolveCandidateJar(): File = candidateJarPath.orNull?.takeIf { it.isNotBlank() }?.let(::File)?.let {
+    requireExistingJar(it, "Candidate jar")
+  } ?: when {
+    candidateJar.isPresent -> requireExistingJar(candidateJar.get().asFile, "Candidate jar")
+
+    else -> throw GradleException(
+      "No candidate jar configured to compare against the reference jar.\n" +
+        "Pass an existing jar via --candidate-jar=<path> or configure the task's candidateJar.",
+    )
+  }
 
   private fun requireExistingJar(jar: File, role: String): File {
     if (!jar.isFile) {
@@ -293,14 +293,12 @@ abstract class JardiffTask @Inject constructor(
     return jar
   }
 
-  private fun reportDestination(candidate: File): File =
-    when {
-      reportFile.isPresent -> reportFile.get().asFile
-      else -> reportDir.file("${candidate.name}.txt").get().asFile
-    }
+  private fun reportDestination(candidate: File): File = when {
+    reportFile.isPresent -> reportFile.get().asFile
+    else -> reportDir.file("${candidate.name}.txt").get().asFile
+  }
 
-  private fun sameHash(left: File, right: File): Boolean =
-    left.length() == right.length() && sha256(left).contentEquals(sha256(right))
+  private fun sameHash(left: File, right: File): Boolean = left.length() == right.length() && sha256(left).contentEquals(sha256(right))
 
   private fun sha256(file: File): ByteArray {
     val digest = MessageDigest.getInstance("SHA-256")
