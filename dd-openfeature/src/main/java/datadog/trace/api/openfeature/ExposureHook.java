@@ -7,6 +7,7 @@ import dev.openfeature.sdk.FlagEvaluationDetails;
 import dev.openfeature.sdk.Hook;
 import dev.openfeature.sdk.HookContext;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Consumer;
 
 /**
@@ -29,6 +30,12 @@ public final class ExposureHook implements Hook<Object> {
     this.delegate =
         new com.datadog.openfeature.ExposureHook(
             evaluation -> callback.accept(new Evaluation(evaluation)));
+  }
+
+  @Override
+  public Optional<EvaluationContext> before(
+      final HookContext<Object> context, final Map<String, Object> hints) {
+    return this.delegate.before(context, hints);
   }
 
   @Override

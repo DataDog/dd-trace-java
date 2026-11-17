@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.openfeature;
 
 import com.datadog.openfeature.internal.bridge.v1.ConfigurationSource;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
+import java.util.Set;
 import java.util.function.Consumer;
 
 /** Receives the flag configuration from the agent Remote Configuration client. */
@@ -15,5 +16,10 @@ public final class AgentConfigurationSource implements ConfigurationSource {
   @Override
   public AutoCloseable subscribe(final Consumer<byte[]> listener) {
     return this.backend.subscribeRemoteConfig(listener);
+  }
+
+  @Override
+  public AutoCloseable subscribe(final Consumer<byte[]> listener, final Set<String> capabilities) {
+    return this.backend.subscribeRemoteConfig(listener, capabilities);
   }
 }

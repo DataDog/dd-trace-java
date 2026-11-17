@@ -1,9 +1,11 @@
 package com.datadog.featureflag;
 
+import static datadog.remoteconfig.Capabilities.CAPABILITY_FFE_FLAG_DEPENDENT_FLAG_VARIANT_KEY_V1;
 import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE;
 import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_ENABLED;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Arrays.asList;
+import static java.util.Collections.singleton;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -206,6 +208,20 @@ class FeatureFlagsBackendTest {
 
     verify(this.sco, times(1)).configurationPoller(this.config);
     verify(poller, times(1)).addCapabilities(anyLong());
+  }
+
+  @Test
+  void capabilitySubscriptionDelegatesCapabilitiesToRemoteConfig() throws Exception {
+    final ConfigurationPoller poller = mock(ConfigurationPoller.class);
+    when(this.sco.configurationPoller(this.config)).thenReturn(poller);
+
+    final AutoCloseable subscription =
+        this.backend.subscribeRemoteConfig(
+            content -> {}, singleton("dependent-flag-variant-key-v1"));
+
+    verify(poller).addCapabilities(CAPABILITY_FFE_FLAG_DEPENDENT_FLAG_VARIANT_KEY_V1);
+    subscription.close();
+    verify(poller).removeCapabilities(CAPABILITY_FFE_FLAG_DEPENDENT_FLAG_VARIANT_KEY_V1);
   }
 
   @Test

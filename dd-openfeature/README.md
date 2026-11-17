@@ -126,6 +126,8 @@ OpenFeatureAPI.getInstance().addHooks(new ExposureHook(evaluation -> {
 * `shouldSend()` is true for a successful evaluation of an allocation that logs exposures, for a subject not yet exposed to the same allocation, variant and serial id. These are exactly the exposures that the provider sends to Datadog, as long as Datadog logging is on and the provider's own hooks run: evaluate through an OpenFeature client, and inside a `MultiProvider` use OpenFeature SDK 1.23.0 or later. With an older SDK, a provider inside a `MultiProvider` sends no exposures, and `shouldSend()` is true for every exposure.
 * `isExposure()` is true for every successful evaluation of an allocation that logs exposures, including repeats. `isCacheHit()` tells repeats apart.
 * An evaluation that fails, including one that a later `after` hook fails, is not an exposure.
+* On OpenFeature SDK 1.17, `ExposureHook` receives root evaluations only. Use OpenFeature SDK 1.18
+  or later when the callback must also receive selected prerequisite exposures.
 * An exception from the callback does not affect the evaluation. The first one is logged at warn level, later ones at debug level.
 
 ### Features
@@ -157,6 +159,15 @@ DD_FEATURE_FLAGS_EXPOSURES_DATADOG_LOGGING_ENABLED=false
 The provider then sends no exposures to Datadog. `ExposureHook` callbacks still receive every evaluation, and `shouldSend()` gives the same result as before. The default is `true`.
 
 This setting stops exposures only. Flag evaluation events have their own setting, `DD_FLAGGING_EVALUATION_COUNTS_ENABLED`. The Java provider does not read dd-trace-py's `DD_FFE_INTAKE_ENABLED`.
+
+For dependent flags, the evaluator finishes the graph before the provider's OpenFeature client hooks
+publish prerequisite evaluation events. Those events are parallel to the existing root evaluation
+telemetry and are published synchronously before the client evaluation call returns. Evaluation
+telemetry is best effort and includes reached prerequisites even when the root fails. Prerequisite
+exposures remain transactional: the hooks publish them only when the complete root graph succeeds.
+
+Call through an OpenFeature client when this telemetry is required. A direct call to the provider
+returns resolution details only; it does not run the client-hook sidecar telemetry lifecycle.
 
 ## Per-subject experimentation opt-out
 

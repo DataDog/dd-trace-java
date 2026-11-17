@@ -38,9 +38,11 @@ class CdnConfigurationSourceFlagSelectionTest {
   private static final String IGNORED = "DD-Flag-Selection-Ignored";
   private static final FlagSelectionRequest SELECTION =
       FlagSelectionRequest.of(asList("area:checkout", "a b"), singletonList("checkout.*"));
-  private static final String SELECTION_QUERY =
+  private static final String CAPABILITY_QUERY = "cap_dependent-flags-variant-key=v1";
+  private static final String SELECTION_PARAMETERS =
       "selected_flag_tags=a%20b&selected_flag_tags=area%3Acheckout"
           + "&selected_flag_key_patterns=checkout.%2A";
+  private static final String SELECTION_QUERY = SELECTION_PARAMETERS + "&" + CAPABILITY_QUERY;
 
   private LocalHttpServer server;
   private final RecordingHealthMetrics metrics = new RecordingHealthMetrics();
@@ -67,7 +69,7 @@ class CdnConfigurationSourceFlagSelectionTest {
     assertEquals(
         "https://ufc-server.ff-cdn.datadoghq.com/api/v2/feature-flagging/config/rules-based/server"
             + "?dd_env=a+b&"
-            + SELECTION_QUERY,
+            + SELECTION_PARAMETERS,
         SELECTION.appendTo(managed).toString());
   }
 
@@ -212,7 +214,7 @@ class CdnConfigurationSourceFlagSelectionTest {
 
     assertTrue(source.pollOnce());
 
-    assertEquals("/ufc", this.server.requests().get(0).uri.toString());
+    assertEquals("/ufc?" + CAPABILITY_QUERY, this.server.requests().get(0).uri.toString());
     assertTrue(messages().isEmpty());
     assertTrue(this.metrics.counts.isEmpty());
   }
@@ -247,7 +249,8 @@ class CdnConfigurationSourceFlagSelectionTest {
 
     assertEquals(2, this.server.requests().size());
     for (final LocalHttpServer.Request request : this.server.requests()) {
-      assertEquals("pad=" + new String(padding), request.uri.getRawQuery());
+      assertEquals(
+          "pad=" + new String(padding) + "&" + CAPABILITY_QUERY, request.uri.getRawQuery());
     }
     assertEquals(FlagSelectionRequest.urlTooLong(), source.selection());
     assertTrue(messages().isEmpty(), "the runtime reports the dropped selection");
@@ -262,7 +265,7 @@ class CdnConfigurationSourceFlagSelectionTest {
 
     assertTrue(source.pollOnce());
 
-    assertNull(this.server.requests().get(0).uri.getRawQuery());
+    assertEquals(CAPABILITY_QUERY, this.server.requests().get(0).uri.getRawQuery());
     assertEquals(dropped, source.selection());
     assertTrue(this.metrics.counts.isEmpty());
   }

@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
@@ -26,6 +27,194 @@ class UniversalFlagConfigParserTest {
     assertNotNull(config);
     assertTrue(config.flags.isEmpty());
     assertTrue(config.invalidFlags.isEmpty());
+  }
+
+  @Test
+  void parsesDependentFlagConditionsAndEvaluatorParams() throws Exception {
+    final ServerConfiguration config =
+        deserialize(
+            "{\"evaluatorParams\":{\"maxDependencyDepth\":4,\"futureOption\":true},\"flags\":{\"root\":{"
+                + "\"key\":\"root\",\"allocations\":[{\"key\":\"a\",\"rules\":[{"
+                + "\"conditions\":[{\"operator\":\"ONE_OF\","
+                + "\"flagEvaluation\":{\"key\":\"dependency\"},\"value\":[\"on\"]}]}],"
+                + "\"splits\":[]}]}}}");
+
+    final Map<?, ?> evaluatorParams = (Map<?, ?>) config.evaluatorParams;
+    assertEquals(4.0, evaluatorParams.get("maxDependencyDepth"));
+    assertEquals(Boolean.TRUE, evaluatorParams.get("futureOption"));
+    final ConditionConfiguration condition =
+        config.flags.get("root").allocations.get(0).rules.get(0).conditions.get(0);
+    assertNull(condition.attribute);
+    assertEquals("dependency", condition.flagEvaluationKey);
+    assertEquals(ConditionOperator.ONE_OF, condition.operator);
+  }
+
+  @Test
+  void ignoresUnknownFlagEvaluationFields() throws Exception {
+    final ServerConfiguration config =
+        deserialize(
+            "{\"flags\":{\"root\":{\"key\":\"root\",\"allocations\":[{\"key\":\"a\","
+                + "\"rules\":[{\"conditions\":[{\"operator\":\"ONE_OF\","
+                + "\"flagEvaluation\":{\"key\":\"dependency\",\"property\":\"variant\"},"
+                + "\"value\":[\"on\"]}]}],\"splits\":[]}]}}}");
+
+    assertEquals(
+        "dependency",
+        config
+            .flags
+            .get("root")
+            .allocations
+            .get(0)
+            .rules
+            .get(0)
+            .conditions
+            .get(0)
+            .flagEvaluationKey);
+  }
+
+  @Test
+  void preservesNonObjectEvaluatorParamsForLazyValidation() throws Exception {
+    final List<String> inputs = asList("0", "true", "\"future\"", "[]");
+    final List<Object> expected = asList(0.0, Boolean.TRUE, "future", asList());
+
+    for (int index = 0; index < inputs.size(); index++) {
+      final ServerConfiguration config =
+          deserialize("{\"evaluatorParams\":" + inputs.get(index) + ",\"flags\":{}}");
+
+      assertEquals(expected.get(index), config.evaluatorParams);
+    }
+  }
+
+  @TableTest({
+    "operator   | values        ",
+    "ONE_OF     | '[true, 1]'   ",
+    "NOT_ONE_OF | '[false, 2.5]'"
+  })
+  void preservesBooleanAndNumericAttributeMembership(
+      final ConditionOperator operator, final String values) throws Exception {
+    final ServerConfiguration config =
+        deserialize(
+            "{\"flags\":{\"target\":{\"key\":\"target\",\"allocations\":[{\"key\":\"a\","
+                + "\"rules\":[{\"conditions\":[{\"operator\":\""
+                + operator
+                + "\",\"attribute\":\"value\",\"value\":"
+                + values
+                + "}]}],\"splits\":[]}]}}}");
+
+    assertTrue(config.flags.containsKey("target"));
+    assertTrue(config.invalidFlags.isEmpty());
+  }
+
+  @TableTest({
+    "operator   | values       ",
+    "ONE_OF     | '[true]'     ",
+    "NOT_ONE_OF | '[1, \"on\"]'"
+  })
+  void rejectsNonStringDependentFlagMembership(
+      final ConditionOperator operator, final String values) throws Exception {
+    final ServerConfiguration config =
+        deserialize(
+            "{\"flags\":{\"root\":{\"key\":\"root\",\"allocations\":[{\"key\":\"a\","
+                + "\"rules\":[{\"conditions\":[{\"operator\":\""
+                + operator
+                + "\",\"flagEvaluation\":{\"key\":\"dependency\"},\"value\":"
+                + values
+                + "}]}],\"splits\":[]}]}}}");
+
+    assertFalse(config.flags.containsKey("root"));
+    assertEquals("invalid_flag", config.invalidFlags.get("root"));
+  }
+
+  @Test
+  void distinguishesAbsentEmptyAndExplicitNullMaximumDependencyDepth() throws Exception {
+    final ServerConfiguration absent = deserialize(emptyConfig());
+    final ServerConfiguration empty = deserialize("{\"evaluatorParams\":{},\"flags\":{}}");
+    final ServerConfiguration explicitNull =
+        deserialize("{\"evaluatorParams\":{\"maxDependencyDepth\":null},\"flags\":{}}");
+
+    assertNull(absent.evaluatorParams);
+    assertTrue(((Map<?, ?>) empty.evaluatorParams).isEmpty());
+    assertTrue(((Map<?, ?>) explicitNull.evaluatorParams).containsKey("maxDependencyDepth"));
+    assertNull(((Map<?, ?>) explicitNull.evaluatorParams).get("maxDependencyDepth"));
+  }
+
+  @Test
+  void rejectsConditionsWithBothAttributeAndFlagEvaluation() throws Exception {
+    final ServerConfiguration config =
+        deserialize(
+            "{\"flags\":{\"bad\":{\"key\":\"bad\",\"allocations\":[{\"key\":\"a\","
+                + "\"rules\":[{\"conditions\":[{\"operator\":\"ONE_OF\","
+                + "\"attribute\":\"plan\",\"flagEvaluation\":{\"key\":\"dependency\"},"
+                + "\"value\":[\"on\"]}]}],\"splits\":[]}]}}}");
+
+    assertFalse(config.flags.containsKey("bad"));
+    assertEquals("invalid_flag", config.invalidFlags.get("bad"));
+  }
+
+  @Test
+  void rejectsConditionsWithNeitherAttributeNorFlagEvaluation() throws Exception {
+    final ServerConfiguration config =
+        deserialize(
+            "{\"flags\":{\"bad\":{\"key\":\"bad\",\"allocations\":[{\"key\":\"a\","
+                + "\"rules\":[{\"conditions\":[{\"operator\":\"ONE_OF\",\"value\":[\"on\"]}]}],"
+                + "\"splits\":[]}]}}}");
+
+    assertFalse(config.flags.containsKey("bad"));
+    assertEquals("invalid_flag", config.invalidFlags.get("bad"));
+  }
+
+  @TableTest({
+    "operator   ",
+    "MATCHES    ",
+    "NOT_MATCHES"
+  })
+  void rejectsUnsupportedDependentRegexOperators(final ConditionOperator operator)
+      throws Exception {
+    final ServerConfiguration config =
+        deserialize(
+            "{\"flags\":{\"bad\":{\"key\":\"bad\",\"allocations\":[{\"key\":\"a\","
+                + "\"rules\":[{\"conditions\":[{\"operator\":\""
+                + operator
+                + "\",\"flagEvaluation\":{\"key\":\"dependency\",\"future\":true},"
+                + "\"value\":\"on\"}]}],\"splits\":[]}]}}}");
+
+    assertFalse(config.flags.containsKey("bad"));
+    assertEquals("invalid_flag", config.invalidFlags.get("bad"));
+  }
+
+  @TableTest({
+    "key   ",
+    "'\"\"'",
+    "'1'   ",
+    "'true'"
+  })
+  void rejectsInvalidDependentFlagKeys(final String key) throws Exception {
+    final ServerConfiguration config =
+        deserialize(
+            "{\"flags\":{\"bad\":{\"key\":\"bad\",\"allocations\":[{\"key\":\"a\","
+                + "\"rules\":[{\"conditions\":[{\"operator\":\"ONE_OF\","
+                + "\"flagEvaluation\":{\"key\":"
+                + key
+                + "},\"value\":[\"on\"]}]}],\"splits\":[]}]}}}");
+
+    assertFalse(config.flags.containsKey("bad"));
+    assertEquals("invalid_flag", config.invalidFlags.get("bad"));
+  }
+
+  @Test
+  void rejectsNullDependentFlagKeyAndKeepsSiblingFlag() throws Exception {
+    final ServerConfiguration config =
+        deserialize(
+            "{\"flags\":{"
+                + "\"bad\":{\"key\":\"bad\",\"allocations\":[{\"key\":\"a\","
+                + "\"rules\":[{\"conditions\":[{\"operator\":\"ONE_OF\","
+                + "\"flagEvaluation\":{\"key\":null},\"value\":[\"on\"]}]}],"
+                + "\"splits\":[]}]},"
+                + "\"good\":{\"key\":\"good\",\"enabled\":true}}}");
+
+    assertFalse(config.flags.containsKey("bad"));
+    assertEquals("invalid_flag", config.invalidFlags.get("bad"));
+    assertTrue(config.flags.get("good").enabled);
   }
 
   @Test

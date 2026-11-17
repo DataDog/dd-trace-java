@@ -78,6 +78,36 @@ dependencies {
   testImplementation(libs.bundles.mockito)
 }
 
+val openFeature117Runtime = configurations.create("openFeature117Runtime")
+
+dependencies {
+  openFeature117Runtime("dev.openfeature:sdk:1.17.0")
+}
+
+val testOpenFeature117 = tasks.register<Test>("testOpenFeature117") {
+  description = "Runs the OpenFeature 1.17 binary-compatibility regression test."
+  group = "verification"
+  useJUnitPlatform()
+  testClassesDirs = sourceSets["test"].output.classesDirs
+  classpath =
+    sourceSets["test"].runtimeClasspath.filter {
+      !(it.name.startsWith("sdk-") && it.name.endsWith(".jar"))
+    } + openFeature117Runtime
+  filter {
+    includeTestsMatching("com.datadog.openfeature.OpenFeature117CompatibilityTest")
+  }
+}
+
+tasks.named<Test>("test") {
+  filter {
+    excludeTestsMatching("com.datadog.openfeature.OpenFeature117CompatibilityTest")
+  }
+}
+
+tasks.named("check") {
+  dependsOn(testOpenFeature117)
+}
+
 jmh {
   jmhVersion = libs.versions.jmh.get()
 }

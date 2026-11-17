@@ -14,6 +14,7 @@ import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.telemetry.CoreMetricCollector;
 import java.io.IOException;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
@@ -119,6 +120,12 @@ public final class FeatureFlagsBackend implements FeatureFlaggingGateway.Backend
   @Override
   public AutoCloseable subscribeRemoteConfig(final Consumer<byte[]> listener) {
     return remoteConfig().subscribe(listener);
+  }
+
+  @Override
+  public AutoCloseable subscribeRemoteConfig(
+      final Consumer<byte[]> listener, final Set<String> capabilities) {
+    return remoteConfig().subscribe(listener, capabilities);
   }
 
   private synchronized RemoteConfigServiceImpl remoteConfig() {
