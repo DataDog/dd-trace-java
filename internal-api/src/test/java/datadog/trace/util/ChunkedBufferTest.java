@@ -354,6 +354,65 @@ class ChunkedBufferTest {
   }
 
   @Test
+  void trimDrainsAnIdleBufferToOneChunk() {
+    ChunkedBuffer buffer = new ChunkedBuffer(20 * CHUNK_SIZE, CHUNK_SIZE);
+    buffer.put(new byte[18 * CHUNK_SIZE + 1]);
+    buffer.mark();
+    buffer.reset();
+    assertEquals(19, buffer.allocatedChunks());
+
+    // idle: no writes between trims, and the surplus still halves each time
+    int[] expected = {10, 5, 3, 2, 1, 1};
+    for (int kept : expected) {
+      buffer.trim();
+      assertEquals(kept, buffer.allocatedChunks());
+    }
+  }
+
+  @Test
+  void trimKeepsCompletedMessages() {
+    ChunkedBuffer buffer = new ChunkedBuffer(5 * CHUNK_SIZE, CHUNK_SIZE);
+    buffer.put(new byte[2 * CHUNK_SIZE + 1]);
+    buffer.mark();
+    buffer.trim();
+    assertEquals(3, buffer.allocatedChunks());
+    assertEquals(1, buffer.messageCount());
+    assertEquals(2 * CHUNK_SIZE + 1, buffer.completedBytes());
+  }
+
+  @Test
+  void trimKeepsAnUnfinishedMessage() {
+    ChunkedBuffer buffer = new ChunkedBuffer(5 * CHUNK_SIZE, CHUNK_SIZE);
+    buffer.put(new byte[2 * CHUNK_SIZE + 1]);
+    buffer.mark();
+    buffer.reset();
+    buffer.putInt(7);
+    buffer.trim();
+    assertEquals(3, buffer.allocatedChunks());
+    assertTrue(buffer.mark());
+    assertEquals(7, buffer.completedChunks().get(0).getInt());
+  }
+
+  @Test
+  void trimAfterARewoundMessageReleasesTheSurplus() {
+    ChunkedBuffer buffer = new ChunkedBuffer(5 * CHUNK_SIZE, CHUNK_SIZE);
+    buffer.put(new byte[2 * CHUNK_SIZE + 1]);
+    buffer.mark();
+    buffer.reset();
+    buffer.putInt(7);
+    buffer.rewind();
+    buffer.trim();
+    assertEquals(2, buffer.allocatedChunks());
+  }
+
+  @Test
+  void trimBeforeFirstWriteAllocatesNothing() {
+    ChunkedBuffer buffer = new ChunkedBuffer(5 * CHUNK_SIZE, CHUNK_SIZE);
+    buffer.trim();
+    assertEquals(0, buffer.allocatedChunks());
+  }
+
+  @Test
   void resetReusesRetainedChunks() {
     ChunkedBuffer buffer = new ChunkedBuffer(TWO_CHUNKS, CHUNK_SIZE);
     buffer.put(sequence(CHUNK_SIZE + 10));

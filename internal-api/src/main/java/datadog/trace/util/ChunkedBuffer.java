@@ -1,5 +1,6 @@
 package datadog.trace.util;
 
+import datadog.trace.api.internal.VisibleForTesting;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -44,7 +45,8 @@ import java.util.List;
  * held completed data plus half of any surplus kept from the previous reset, so after a burst the
  * extra chunks drain over a few resets instead of all at once. Payloads that vary in size don't
  * free and reallocate chunks on every cycle, and steady traffic reuses the same chunks. Nothing is
- * allocated before the first write.
+ * allocated before the first write. An owner that resets only when it sends a payload keeps a
+ * burst's chunks while it's idle; {@link #trim()} lets it drain them the same way.
  *
  * <p>Not thread-safe: a buffer is written and read by one thread at a time.
  */
@@ -183,6 +185,17 @@ public class ChunkedBuffer {
   }
 
   /**
+   * Releases chunks an idle buffer no longer needs, halving the surplus as {@link #reset()} does,
+   * so repeated calls drain it to a single chunk. Does nothing while the buffer holds any data,
+   * completed or not, so it's safe to call whenever there was nothing to flush.
+   */
+  public final void trim() {
+    if (messageCount == 0 && current < 0) {
+      reset();
+    }
+  }
+
+  /**
    * Returns views of the completed messages' bytes, one per chunk in write order. Each call returns
    * new views, so reading them doesn't affect the buffer or later calls. The views share the
    * buffer's chunks: they're valid until the next write, rewind or reset.
@@ -301,8 +314,9 @@ public class ChunkedBuffer {
     }
   }
 
-  /** Number of chunks currently held. Visible for tests. */
-  final int allocatedChunks() {
+  /** Number of chunks currently held. */
+  @VisibleForTesting
+  public final int allocatedChunks() {
     return allocatedChunks;
   }
 
