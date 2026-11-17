@@ -1,5 +1,8 @@
 package datadog.trace.common.metrics;
 
+import static datadog.trace.common.metrics.CardinalityTables.capacityFor;
+import static datadog.trace.common.metrics.CardinalityTables.maxCapacity;
+
 import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -18,9 +21,6 @@ final class TagCardinalityHandler {
   // Practical limits are 8..512; this cap is well beyond any realistic configuration.
   private static final int MAX_CARDINALITY_LIMIT = 1 << 29;
 
-  /** The smallest table, holding up to 4 values at the 0.5 load factor. */
-  private static final int MIN_CAPACITY = 8;
-
   private final String tag;
   private final int cardinalityLimit;
   private final int maxValueLength;
@@ -32,7 +32,8 @@ final class TagCardinalityHandler {
   private final boolean useBlockedSentinel;
 
   // Parallel open-addressed tables per cycle, sized to the values seen rather than the budget, as
-  // in PropertyCardinalityHandler: null until the first value, then from MIN_CAPACITY doubling up
+  // in PropertyCardinalityHandler: null until the first value, then from the minimum size doubling
+  // up
   // to maxCapacity, with each reset sizing the next cycle's tables for what the last one held. A
   // peer tag the service never emits costs no tables at all.
   private String[] curKeys;
@@ -84,7 +85,7 @@ final class TagCardinalityHandler {
     this.cardinalityLimit = cardinalityLimit;
     this.useBlockedSentinel = useBlockedSentinel;
     this.maxValueLength = maxValueLength;
-    this.maxCapacity = Integer.highestOneBit(cardinalityLimit * 2 - 1) << 1;
+    this.maxCapacity = maxCapacity(cardinalityLimit);
   }
 
   /**
@@ -92,8 +93,8 @@ final class TagCardinalityHandler {
    * returned as {@link UTF8BytesString#EMPTY}.
    *
    * <p>The spread hash is computed once and masked to each table's own size to give its initial
-   * probe slot. The {@code h ^ (h >>> 16)} calculation folds high hash bits into the low bits, which reduces
-   * clustering when values share similar low-bit hash patterns.
+   * probe slot. The {@code h ^ (h >>> 16)} calculation folds high hash bits into the low bits,
+   * which reduces clustering when values share similar low-bit hash patterns.
    */
   @SuppressFBWarnings(
       value = "ES_COMPARING_PARAMETER_STRING_WITH_EQ",
@@ -180,7 +181,9 @@ final class TagCardinalityHandler {
     String[] oldKeys = this.curKeys;
     UTF8BytesString[] oldValues = this.curValues;
     int capacity =
-        oldKeys == null ? capacityFor(1) : Math.min(this.maxCapacity, oldKeys.length * 2);
+        oldKeys == null
+            ? capacityFor(1, this.maxCapacity)
+            : Math.min(this.maxCapacity, oldKeys.length * 2);
     String[] keys = new String[capacity];
     UTF8BytesString[] values = new UTF8BytesString[capacity];
     if (oldKeys != null) {
@@ -206,12 +209,6 @@ final class TagCardinalityHandler {
       slot = (slot + 1) & mask;
     }
     return slot;
-  }
-
-  /** The table size that holds {@code values} values at the 0.5 load factor. */
-  private int capacityFor(int values) {
-    int capacity = Integer.highestOneBit(values * 2 - 1) << 1;
-    return Math.min(this.maxCapacity, Math.max(MIN_CAPACITY, capacity));
   }
 
   /** The size of the current-cycle table, or 0 while the handler holds none. */
@@ -258,7 +255,7 @@ final class TagCardinalityHandler {
       this.curKeys = null;
       this.curValues = null;
     } else {
-      int capacity = capacityFor(used);
+      int capacity = capacityFor(used, this.maxCapacity);
       if (recycledKeys != null && recycledKeys.length == capacity) {
         Arrays.fill(recycledKeys, null);
         Arrays.fill(recycledValues, null);

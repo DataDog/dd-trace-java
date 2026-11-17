@@ -1,5 +1,8 @@
 package datadog.trace.common.metrics;
 
+import static datadog.trace.common.metrics.CardinalityTables.capacityFor;
+import static datadog.trace.common.metrics.CardinalityTables.maxCapacity;
+
 import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.Arrays;
@@ -30,9 +33,6 @@ final class PropertyCardinalityHandler {
   // Practical limits are 8..512; this cap is well beyond any realistic configuration.
   private static final int MAX_CARDINALITY_LIMIT = 1 << 29;
 
-  /** The smallest table, holding up to 4 values at the 0.5 load factor. */
-  private static final int MIN_CAPACITY = 8;
-
   final String name;
 
   /**
@@ -62,7 +62,8 @@ final class PropertyCardinalityHandler {
   // Single open-addressed table per cycle. The stored UTF8BytesString IS the slot identity --
   // equality is checked by comparing its underlying String against the incoming CharSequence.
   // Tables are sized to the values seen, not the budget: null until the first value, they start
-  // at MIN_CAPACITY and double up to maxCapacity, and each reset sizes the next cycle's table for
+  // at CardinalityTables.MIN_CAPACITY and double up to maxCapacity, and each reset sizes the next
+  // cycle's table for
   // as many values as the cycle just completed held.
   private UTF8BytesString[] curValues;
   // Values from the previous reporting cycle, kept so values that persist across cycles can reuse
@@ -104,7 +105,7 @@ final class PropertyCardinalityHandler {
     this.useBlockedSentinel = useBlockedSentinel;
     // Max capacity = next power of two >= 2 * cardinalityLimit. Linear-probing load factor stays
     // <= 0.5 even when the budget is full, which keeps probe chains short.
-    this.maxCapacity = Integer.highestOneBit(cardinalityLimit * 2 - 1) << 1;
+    this.maxCapacity = maxCapacity(cardinalityLimit);
   }
 
   /**
@@ -113,10 +114,10 @@ final class PropertyCardinalityHandler {
    * pre-check.
    *
    * <p>The spread hash is computed once and masked to each table's own size to give its initial
-   * probe slot. {@code h ^ (h >>> 16)} folds high hash bits into the low bits to reduce collisions for inputs that share
-   * a common low-bit pattern. {@link UTF8BytesString#hashCode} is content-stable with the
-   * underlying String, so a String input and a UTF8BytesString of the same content map to the same
-   * slot.
+   * probe slot. {@code h ^ (h >>> 16)} folds high hash bits into the low bits to reduce collisions
+   * for inputs that share a common low-bit pattern. {@link UTF8BytesString#hashCode} is
+   * content-stable with the underlying String, so a String input and a UTF8BytesString of the same
+   * content map to the same slot.
    */
   UTF8BytesString register(CharSequence value) {
     if (value == null) {
@@ -188,7 +189,8 @@ final class PropertyCardinalityHandler {
 
   /** Doubles the current table, or creates the smallest one, and rehashes its values. */
   private UTF8BytesString[] grow(UTF8BytesString[] old) {
-    int capacity = old == null ? capacityFor(1) : Math.min(this.maxCapacity, old.length * 2);
+    int capacity =
+        old == null ? capacityFor(1, this.maxCapacity) : Math.min(this.maxCapacity, old.length * 2);
     UTF8BytesString[] grown = new UTF8BytesString[capacity];
     if (old != null) {
       for (UTF8BytesString utf8 : old) {
@@ -209,12 +211,6 @@ final class PropertyCardinalityHandler {
       slot = (slot + 1) & mask;
     }
     return slot;
-  }
-
-  /** The table size that holds {@code values} values at the 0.5 load factor. */
-  private int capacityFor(int values) {
-    int capacity = Integer.highestOneBit(values * 2 - 1) << 1;
-    return Math.min(this.maxCapacity, Math.max(MIN_CAPACITY, capacity));
   }
 
   /** The size of the current-cycle table, or 0 while the handler holds none. */
@@ -255,7 +251,7 @@ final class PropertyCardinalityHandler {
     if (used == 0) {
       this.curValues = null;
     } else {
-      int capacity = capacityFor(used);
+      int capacity = capacityFor(used, this.maxCapacity);
       if (recycled != null && recycled.length == capacity) {
         Arrays.fill(recycled, null);
         this.curValues = recycled;
