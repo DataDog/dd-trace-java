@@ -111,3 +111,11 @@ tasks.named("forbiddenApisJmh") {
 nullAway {
   basePackage = 'com.datadog.iast'
 }
+
+// Retain IAST's existing built-in Error Prone errors.
+tasks.named('compileJava') {
+  options.errorprone {
+    disableAllChecks = false
+    disableAllWarnings = true
+  }
+}

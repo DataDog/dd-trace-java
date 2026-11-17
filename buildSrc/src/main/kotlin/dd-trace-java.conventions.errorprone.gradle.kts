@@ -1,5 +1,5 @@
 import net.ltgt.gradle.errorprone.errorprone
-import org.gradle.api.logging.Logging
+import org.gradle.api.GradleException
 import org.gradle.api.provider.Property
 import org.gradle.process.CommandLineArgumentProvider
 
@@ -29,12 +29,11 @@ tasks.withType<JavaCompile>().configureEach {
   }
 
   val basePackage = nullAway.basePackage.filter { it.isNotBlank() }
-  // Some production source sets need older compilers to access JDK internals.
   val compilerVersion = javaCompiler.map { it.metadata.languageVersion.asInt() }
   val compileTaskPath = path
 
   options.errorprone {
-    isEnabled = providers.zip(basePackage, compilerVersion) { _, version -> version >= 21 }.orElse(false)
+    isEnabled = basePackage.map { true }.orElse(false)
     disableAllChecks = true
     error("NullAway")
     checkOptions.put("NullAway:AnnotatedPackages", basePackage)
@@ -42,22 +41,19 @@ tasks.withType<JavaCompile>().configureEach {
     excludedPaths = ".*[/\\\\]build[/\\\\]generated[/\\\\].*"
   }
 
+  val errorProneEnabled = options.errorprone.isEnabled
   options.compilerArgumentProviders.add(
     CommandLineArgumentProvider {
-      if (!basePackage.isPresent) return@CommandLineArgumentProvider emptyList()
+      if (!errorProneEnabled.get()) return@CommandLineArgumentProvider emptyList()
 
       // The configured Error Prone version needs JDK 21+. FLOW lets it analyse
       // methods before javac stops on errors. javac 21 also needs the flag to
       // read type-use annotations from dependency bytecode; later JDKs do not.
       when (val version = compilerVersion.get()) {
-        in 1..20 -> {
-          Logging.getLogger("dd-trace-java.conventions.errorprone").warn(
-            "Error Prone is disabled for {}: compiler is JDK {}, but JDK 21 or later is required.",
-            compileTaskPath,
-            version
-          )
-          emptyList()
-        }
+        in 1..20 -> throw GradleException(
+          "Error Prone requires JDK 21 or later for $compileTaskPath, but its compiler is JDK $version. " +
+            "Use a supported compiler or explicitly disable Error Prone for this task."
+        )
 
         21 -> listOf("--should-stop=ifError=FLOW", "-XDaddTypeAnnotationsToSymbol=true")
 

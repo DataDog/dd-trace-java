@@ -23,6 +23,8 @@ class ErrorProneConventionsPluginTest : GradleFixture() {
     )
     writeRootProject(
       """
+      import net.ltgt.gradle.errorprone.errorprone
+
       plugins { id("dd-trace-java.conventions.errorprone") }
       repositories { mavenCentral() }
       nullAway { basePackage = "datadog.example" }
@@ -70,7 +72,7 @@ class ErrorProneConventionsPluginTest : GradleFixture() {
   }
 
   @Test
-  fun `compliant code compiles while other Error Prone checks stay disabled`() {
+  fun `other Error Prone checks remain disabled by default`() {
     writeJavaSource(
       "datadog.example.Compliant",
       """
@@ -78,7 +80,7 @@ class ErrorProneConventionsPluginTest : GradleFixture() {
       public class Compliant {
         public String value() {
           new IllegalStateException();
-          return "value";
+          return String.format("%d", "value");
         }
       }
       """
@@ -87,8 +89,40 @@ class ErrorProneConventionsPluginTest : GradleFixture() {
     val result = run("compileJava", "--configuration-cache")
 
     assertThat(result.task(":compileJava")?.outcome).describedAs(result.output).isEqualTo(SUCCESS)
-    assertThat(result.output).doesNotContain("[DeadException]")
+    assertThat(result.output).doesNotContain("[DeadException]", "[FormatString]")
     assertThat(run("compileJava", "--configuration-cache").output).contains("Reusing configuration cache")
+  }
+
+  @Test
+  fun `IAST settings retain built-in Error Prone errors`() {
+    writeRootProject(
+      """
+      tasks.named<JavaCompile>("compileJava") {
+        options.errorprone {
+          disableAllChecks = false
+          disableAllWarnings = true
+        }
+      }
+      """,
+      append = true
+    )
+    writeJavaSource(
+      "datadog.example.BadFormat",
+      """
+      package datadog.example;
+      public class BadFormat {
+        public String value() {
+          new IllegalStateException();
+          return String.format("%d", "value");
+        }
+      }
+      """
+    )
+
+    val result = run("compileJava", expectFailure = true)
+
+    assertThat(result.task(":compileJava")?.outcome).describedAs(result.output).isEqualTo(FAILED)
+    assertThat(result.output).contains("[FormatString]", "[DeadException]")
   }
 
   @Test
@@ -103,8 +137,9 @@ class ErrorProneConventionsPluginTest : GradleFixture() {
     assertThat(result.task(":compileJmhJava")?.outcome).describedAs(result.output).isEqualTo(SUCCESS)
   }
 
-  @Test
-  fun `an older production compiler disables the checker with a warning`() {
+  @ParameterizedTest
+  @ValueSource(booleans = [false, true])
+  fun `an older production compiler requires an explicit opt-out`(disabled: Boolean) {
     writeRootProject(
       """
       import net.ltgt.gradle.errorprone.errorprone
@@ -125,18 +160,23 @@ class ErrorProneConventionsPluginTest : GradleFixture() {
         }
       })
 
-      check(!compile.options.errorprone.isEnabled.get())
+      ${if (disabled) "compile.options.errorprone.isEnabled = false" else ""}
       check(compile.options.compilerArgumentProviders.flatMap { it.asArguments() }.isEmpty())
       """
     )
 
-    val result = run("help")
+    val result = run("help", expectFailure = !disabled)
 
-    assertThat(result.task(":help")?.outcome).describedAs(result.output).isEqualTo(SUCCESS)
     assertThat(result.task(":compileJava")).isNull()
-    assertThat(result.output).contains(
-      "Error Prone is disabled for :compileJava: compiler is JDK 11, but JDK 21 or later is required."
-    )
+    if (disabled) {
+      assertThat(result.task(":help")?.outcome).describedAs(result.output).isEqualTo(SUCCESS)
+    } else {
+      assertThat(result.task(":help")).isNull()
+      assertThat(result.output).contains(
+        "Error Prone requires JDK 21 or later for :compileJava, but its compiler is JDK 11.",
+        "explicitly disable Error Prone for this task"
+      )
+    }
   }
 
   @Test
