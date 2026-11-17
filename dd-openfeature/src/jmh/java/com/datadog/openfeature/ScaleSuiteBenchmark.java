@@ -30,9 +30,9 @@ import org.openjdk.jmh.annotations.Warmup;
  * dimensions are listed in {@code evaluation-suites/scale/AGENTS.md} of the fixtures.
  *
  * <p>Each operation evaluates a case of the selected case file through the provider. With {@code
- * index=all}, the operations go through the cases of the file in turn, so a row is the unweighted
- * mean over every case of the file, and its slowest case dominates it. Select one case to measure
- * one shape: the setup prints the index of each case.
+ * index=all}, each benchmark thread goes through the cases of the file in turn, so a row is the
+ * unweighted mean over every case of the file, and its slowest case dominates it. Select one case
+ * to measure one shape: the setup prints the index of each case.
  *
  * <p>The setup evaluates every case once and the teardown again after the measurement. Both fail if
  * a value or reason differs from the expected one, or if an evaluation reports an error, so a run
@@ -95,7 +95,18 @@ public class ScaleSuiteBenchmark {
 
   private Provider provider;
   private ScaleCase[] scaleCases;
-  private int next;
+
+  /** The position of one benchmark thread in the cases, so threads share no mutable state. */
+  @State(Scope.Thread)
+  public static class Cursor {
+    private int next;
+
+    ScaleCase next(final ScaleCase[] scaleCases) {
+      final ScaleCase scaleCase = scaleCases[next];
+      next = next + 1 == scaleCases.length ? 0 : next + 1;
+      return scaleCase;
+    }
+  }
 
   @Setup(Level.Trial)
   @SuppressForbidden
@@ -124,17 +135,14 @@ public class ScaleSuiteBenchmark {
   }
 
   @Benchmark
-  public ProviderEvaluation<?> evaluate() {
-    final ScaleCase scaleCase = scaleCases[next];
-    next = next + 1 == scaleCases.length ? 0 : next + 1;
-    return scaleCase.evaluate(provider);
+  public ProviderEvaluation<?> evaluate(final Cursor cursor) {
+    return cursor.next(scaleCases).evaluate(provider);
   }
 
   /** As {@link #evaluate}, with the fresh layered context that the OpenFeature client builds. */
   @Benchmark
-  public ProviderEvaluation<?> evaluateLayered() {
-    final ScaleCase scaleCase = scaleCases[next];
-    next = next + 1 == scaleCases.length ? 0 : next + 1;
+  public ProviderEvaluation<?> evaluateLayered(final Cursor cursor) {
+    final ScaleCase scaleCase = cursor.next(scaleCases);
     return scaleCase.evaluate(
         provider,
         new LayeredEvaluationContext(
