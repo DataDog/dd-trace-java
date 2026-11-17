@@ -91,8 +91,8 @@ final class TagCardinalityHandler {
    * Returns the UTF8 value to use for {@code value} in the current reporting cycle. Null inputs are
    * returned as {@link UTF8BytesString#EMPTY}.
    *
-   * <p>The value hash is computed once and used as the initial probe slot in both tables. The
-   * {@code h ^ (h >>> 16)} calculation folds high hash bits into the low bits, which reduces
+   * <p>The spread hash is computed once and masked to each table's own size to give its initial
+   * probe slot. The {@code h ^ (h >>> 16)} calculation folds high hash bits into the low bits, which reduces
    * clustering when values share similar low-bit hash patterns.
    */
   @SuppressFBWarnings(

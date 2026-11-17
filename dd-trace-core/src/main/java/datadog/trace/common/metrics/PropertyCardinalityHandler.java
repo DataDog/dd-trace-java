@@ -112,8 +112,8 @@ final class PropertyCardinalityHandler {
    * inputs map to {@link UTF8BytesString#EMPTY} -- {@link AggregateEntry} doesn't need to
    * pre-check.
    *
-   * <p>The value hash is computed once and used as the initial probe slot in both tables. {@code h
-   * ^ (h >>> 16)} folds high hash bits into the low bits to reduce collisions for inputs that share
+   * <p>The spread hash is computed once and masked to each table's own size to give its initial
+   * probe slot. {@code h ^ (h >>> 16)} folds high hash bits into the low bits to reduce collisions for inputs that share
    * a common low-bit pattern. {@link UTF8BytesString#hashCode} is content-stable with the
    * underlying String, so a String input and a UTF8BytesString of the same content map to the same
    * slot.
