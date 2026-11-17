@@ -152,10 +152,7 @@ public final class FlagEvaluator {
       final String targetingKey = context.getTargetingKey();
       EvaluationScope scope = null;
 
-      // Indexed loops: a flag can hold thousands of allocations, scanned on every evaluation.
-      final List<Allocation> allocations = flag.allocations;
-      for (int a = 0; a < allocations.size(); a++) {
-        final Allocation allocation = allocations.get(a);
+      for (final Allocation allocation : flag.allocations) {
         if (experimentationCutoff != null
             && ExperimentationOptOut.excludes(
                 experimentationOptOutMode, experimentationCutoff, allocation)) {
@@ -276,15 +273,14 @@ public final class FlagEvaluator {
   }
 
   private static boolean evaluateRules(final List<Rule> rules, final EvaluationScope scope) {
-    for (int r = 0; r < rules.size(); r++) {
-      final List<ConditionConfiguration> conditions = rules.get(r).conditions;
-      if (isEmpty(conditions)) {
+    for (final Rule rule : rules) {
+      if (isEmpty(rule.conditions)) {
         continue;
       }
 
       boolean allConditionsMatch = true;
-      for (int c = 0; c < conditions.size(); c++) {
-        if (!evaluateCondition(conditions.get(c), scope)) {
+      for (final ConditionConfiguration condition : rule.conditions) {
+        if (!evaluateCondition(condition, scope)) {
           allConditionsMatch = false;
           break;
         }
@@ -510,7 +506,7 @@ public final class FlagEvaluator {
       }
       metadataBuilder.addBoolean(DO_LOG, doLog);
     }
-    split.preparedFeatures.addTo(metadataBuilder);
+    split.preparedFeatures(SplitFeatures::prepare).addTo(metadataBuilder);
     if (doLog) {
       metadataBuilder.addBoolean(
           EXPOSURE_CACHE_HIT,

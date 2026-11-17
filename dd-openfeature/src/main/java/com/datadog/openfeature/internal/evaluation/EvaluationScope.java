@@ -8,6 +8,9 @@ import java.util.Map;
  * The state of one flag evaluation. It resolves each context attribute once, however many
  * conditions read it: a flag with many allocations reads the same attributes in each of them, and
  * resolving one means a context lookup and a value conversion that can allocate.
+ *
+ * <p>An attribute is read from the context the first time a condition needs it. A context that
+ * changes during the evaluation is not read again.
  */
 final class EvaluationScope {
   private static final String ID = "id";

@@ -29,7 +29,7 @@ class SplitFeaturesTest {
   }
 
   @Test
-  void preparesTheEntriesWhenTheSplitIsBuilt() {
+  void preparesTheEntriesOnceForTheSplit() {
     final Split split =
         new Split(
             emptyList(),
@@ -47,8 +47,10 @@ class SplitFeaturesTest {
     expected.put(EVALUATION_FEATURE_PREFIX + "holdout.weight", 0.5);
     expected.put(EXPOSURE_FEATURE_PREFIX + "holdout.enabled", true);
     expected.put(HAS_EVALUATION_FEATURES, true);
-    assertEquals(4, split.preparedFeatures.size());
-    assertEquals(expected, metadata(split.preparedFeatures));
+    final SplitFeatures prepared = split.preparedFeatures(SplitFeatures::prepare);
+    assertSame(prepared, split.preparedFeatures(SplitFeatures::prepare));
+    assertEquals(4, prepared.size());
+    assertEquals(expected, metadata(prepared));
   }
 
   @Test
@@ -87,7 +89,9 @@ class SplitFeaturesTest {
   void sharesTheEmptyPreparationForSplitsWithoutFeatures() {
     assertSame(SplitFeatures.NONE, SplitFeatures.prepare(null));
     assertSame(SplitFeatures.NONE, SplitFeatures.prepare(emptyList()));
-    assertSame(SplitFeatures.NONE, new Split(emptyList(), "on", emptyMap(), null).preparedFeatures);
+    assertSame(
+        SplitFeatures.NONE,
+        new Split(emptyList(), "on", emptyMap(), null).preparedFeatures(SplitFeatures::prepare));
   }
 
   @Test

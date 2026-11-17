@@ -56,6 +56,16 @@ class EvaluationScopeTest {
     assertEquals("explicit", new EvaluationScope(context).attribute("id"));
   }
 
+  @Test
+  void keepsAnExplicitNullIdWithoutFallingBackToTheTargetingKey() {
+    final Map<String, Value> attributes = new HashMap<>();
+    attributes.put("id", new Value());
+    final EvaluationScope scope = new EvaluationScope(new MutableContext("user-1", attributes));
+
+    assertNull(scope.attribute("id"));
+    assertNull(scope.attribute("id"));
+  }
+
   /** Counts the attribute reads of the evaluation. */
   private static final class CountingContext extends MutableContext {
     private final Map<String, Integer> reads = new HashMap<>();

@@ -20,15 +20,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * The metadata entries of a split's features, resolved once when the split is built: the first
- * feature of each key wins, each destination gets its prefixed key, and unknown destinations are
- * dropped. An evaluation then only copies the entries.
+ * The metadata entries of a split's features, resolved when the split is first served and then
+ * cached on it: the first feature of each key wins, each destination gets its prefixed key, and
+ * unknown destinations are dropped. Later evaluations only copy the entries.
  */
-public final class SplitFeatures {
+final class SplitFeatures {
   private static final Logger LOGGER = LoggerFactory.getLogger(SplitFeatures.class);
 
   /** Prepared features of a split without any. */
-  public static final SplitFeatures NONE = new SplitFeatures(new String[0], new Object[0], false);
+  static final SplitFeatures NONE = new SplitFeatures(new String[0], new Object[0], false);
 
   private final String[] keys;
 
@@ -50,7 +50,7 @@ public final class SplitFeatures {
    * @param features the split's features, or {@code null}.
    * @return the prepared entries, {@link #NONE} if there are none.
    */
-  public static SplitFeatures prepare(final List<Feature> features) {
+  static SplitFeatures prepare(final List<Feature> features) {
     if (features == null) {
       return NONE;
     }
