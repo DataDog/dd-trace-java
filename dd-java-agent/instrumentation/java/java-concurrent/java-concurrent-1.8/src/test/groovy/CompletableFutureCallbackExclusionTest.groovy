@@ -36,7 +36,12 @@ class CompletableFutureCallbackExclusionTest extends InstrumentationSpecificatio
     runUnderTrace("registration") {
       try {
         int before = ScopeDiagnostics.report().records().size()
-        register(operation, source, other, callback)
+        if (operation in ["exceptionallyCompose", "exceptionallyComposeAsync"]) {
+          // Call Java 12 APIs dynamically to keep the Java helper compatible with Java 8.
+          source."$operation"(callback)
+        } else {
+          register(operation, source, other, callback)
+        }
         assert ScopeDiagnostics.report().records().size() - before == expected
       } finally {
         source.complete("value")
@@ -64,7 +69,8 @@ class CompletableFutureCallbackExclusionTest extends InstrumentationSpecificatio
         "eitherApply",
         "eitherAccept",
         "eitherRun"
-      ],
+      ] + (JavaVirtualMachine.isJavaVersionAtLeast(12)
+      ? ["exceptionallyCompose", "exceptionallyComposeAsync"] : []),
       [Excluded, UnlistedSubclass, UnlistedSibling]
     ].combinations()
     expected = kind == Excluded ? 0 : 1
