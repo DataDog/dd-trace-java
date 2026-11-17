@@ -83,6 +83,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   private final long liteEpochNanos;
   private long nextLiteEpochNanos;
   private volatile long lastLiteErrorResetNanos;
+  private volatile boolean pendingLiteErrorReset;
   private AgentTaskScheduler.Scheduled<DefaultDataStreamsMonitoring> cancellation;
   private volatile long nextFeatureCheck;
   private volatile boolean supportsDataStreams = false;
@@ -489,6 +490,9 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
             checkDynamicConfig();
             if (lite) {
               startNewLiteEpochIfDue();
+              if (pendingLiteErrorReset) {
+                resetSeenPathwaysAfterError();
+              }
             }
 
             if (supportsDataStreams) {
@@ -613,6 +617,11 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     }
   }
 
+  /**
+   * Resets at most once per interval. A reset that comes too soon is deferred to a later report
+   * rather than dropped: once every pathway is marked seen nothing is flushed, so no further error
+   * would arrive to trigger it.
+   */
   private void resetSeenPathwaysAfterError() {
     if (seenSet == null) {
       return;
@@ -620,7 +629,10 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     long now = timeSource.getCurrentTimeNanos();
     if (now - lastLiteErrorResetNanos >= LITE_ERROR_RESET_INTERVAL_NANOS) {
       lastLiteErrorResetNanos = now;
+      pendingLiteErrorReset = false;
       seenSet.clear();
+    } else {
+      pendingLiteErrorReset = true;
     }
   }
 

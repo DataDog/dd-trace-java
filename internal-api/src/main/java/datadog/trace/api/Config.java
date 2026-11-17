@@ -860,6 +860,7 @@ public class Config {
 
   private static final Logger log = LoggerFactory.getLogger(Config.class);
   private static final int MAX_CODE_COVERAGE_FLAGS = 32;
+  static final int MIN_DATA_STREAMS_LITE_REFRESH_SECONDS = 30;
   private static final int DYNAMIC_ATR_BUCKET_COUNT = 5;
   private static final int MAX_DYNAMIC_ATR_RETRIES_PER_BUCKET = 20;
 
@@ -3299,9 +3300,28 @@ public class Config {
         configProvider.getBoolean(
             DATA_STREAMS_ENABLED, dataStreamsLiteRequested || DEFAULT_DATA_STREAMS_ENABLED);
     dataStreamsLiteEnabled = dataStreamsLiteRequested && dataStreamsEnabled;
-    dataStreamsLiteRefreshSeconds =
+    if (dataStreamsLiteRequested && !dataStreamsEnabled) {
+      log.warn(
+          "{} is ignored because {} is false", DATA_STREAMS_LITE_ENABLED, DATA_STREAMS_ENABLED);
+    }
+    int liteRefreshSeconds =
         configProvider.getInteger(
             DATA_STREAMS_LITE_REFRESH_SECONDS, DEFAULT_DATA_STREAMS_LITE_REFRESH_SECONDS);
+    if (liteRefreshSeconds <= 0) {
+      log.warn(
+          "{} must be positive, using the default of {} seconds",
+          DATA_STREAMS_LITE_REFRESH_SECONDS,
+          DEFAULT_DATA_STREAMS_LITE_REFRESH_SECONDS);
+      liteRefreshSeconds = DEFAULT_DATA_STREAMS_LITE_REFRESH_SECONDS;
+    } else if (liteRefreshSeconds < MIN_DATA_STREAMS_LITE_REFRESH_SECONDS) {
+      log.warn(
+          "{} raised from {} to the minimum of {} seconds",
+          DATA_STREAMS_LITE_REFRESH_SECONDS,
+          liteRefreshSeconds,
+          MIN_DATA_STREAMS_LITE_REFRESH_SECONDS);
+      liteRefreshSeconds = MIN_DATA_STREAMS_LITE_REFRESH_SECONDS;
+    }
+    dataStreamsLiteRefreshSeconds = liteRefreshSeconds;
     dataStreamsBucketDurationSeconds =
         configProvider.getFloat(
             DATA_STREAMS_BUCKET_DURATION_SECONDS, DEFAULT_DATA_STREAMS_BUCKET_DURATION);

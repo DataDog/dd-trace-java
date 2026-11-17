@@ -1,7 +1,7 @@
 package datadog.trace.core.datastreams;
 
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicLongArray;
+import java.util.concurrent.atomic.LongAdder;
 
 /**
  * Fixed-size, lock-free set of pathway aggregation hashes, used by Data Streams lite mode to report
@@ -19,7 +19,7 @@ final class PathwaySeenSet {
   private static final long GOLDEN_RATIO = 0x9E3779B97F4A7C15L;
 
   private final AtomicLongArray slots = new AtomicLongArray(CAPACITY);
-  private final AtomicLong overflows = new AtomicLong();
+  private final LongAdder overflows = new LongAdder();
 
   boolean contains(long hash) {
     long key = key(hash);
@@ -51,7 +51,7 @@ final class PathwaySeenSet {
         }
       }
     }
-    overflows.incrementAndGet();
+    overflows.increment();
   }
 
   void clear() {
@@ -62,7 +62,7 @@ final class PathwaySeenSet {
 
   /** Returns the number of overflowed inserts since the previous call. */
   long drainOverflows() {
-    return overflows.getAndSet(0);
+    return overflows.sumThenReset();
   }
 
   // 0 marks a free slot

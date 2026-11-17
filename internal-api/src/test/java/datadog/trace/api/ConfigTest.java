@@ -50,6 +50,7 @@ import static datadog.trace.api.config.GeneralConfig.API_KEY_FILE;
 import static datadog.trace.api.config.GeneralConfig.CONFIGURATION_FILE;
 import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_LITE_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_LITE_REFRESH_SECONDS;
 import static datadog.trace.api.config.GeneralConfig.ENV;
 import static datadog.trace.api.config.GeneralConfig.GLOBAL_TAGS;
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_ENABLED;
@@ -2153,6 +2154,23 @@ class ConfigTest {
 
     assertEquals(expectEnabled, config.isDataStreamsEnabled());
     assertEquals(expectLite, config.isDataStreamsLiteEnabled());
+  }
+
+  @TableTest({
+    "scenario      | value | expected",
+    "default       |       | 600     ",
+    "valid         | 60    | 60      ",
+    "minimum       | 30    | 30      ",
+    "below minimum | 5     | 30      ",
+    "zero          | 0     | 600     ",
+    "negative      | -1    | 600     "
+  })
+  void dataStreamsLiteRefreshSecondsIsClamped(String value, int expected) throws Exception {
+    if (value != null) {
+      System.setProperty(PREFIX + DATA_STREAMS_LITE_REFRESH_SECONDS, value);
+    }
+
+    assertEquals(expected, newConfig().getDataStreamsLiteRefreshSeconds());
   }
 
   @Test

@@ -178,6 +178,27 @@ class DataStreamsLiteTest extends DDCoreJavaSpecification {
   }
 
   @Test
+  void errorTooSoonAfterAResetIsDeferredToALaterReport() throws InterruptedException {
+    startLiteDataStreams();
+    checkpoint(PRODUCE);
+    dataStreams.onEvent(EventListener.EventType.ERROR, "");
+    checkpoint(PRODUCE);
+    assertEquals(2, queued.size());
+
+    timeSource.advance(SECONDS.toNanos(10));
+    dataStreams.onEvent(EventListener.EventType.ERROR, "");
+    checkpoint(PRODUCE);
+    assertEquals(2, queued.size());
+
+    timeSource.advance(LITE_ERROR_RESET_INTERVAL_NANOS);
+    dataStreams.report();
+    awaitIdle();
+    checkpoint(PRODUCE);
+
+    assertEquals(3, queued.size());
+  }
+
+  @Test
   void nothingIsWrittenWhenNoPathwayIsNew() throws InterruptedException {
     startLiteDataStreams();
     checkpoint(PRODUCE);
