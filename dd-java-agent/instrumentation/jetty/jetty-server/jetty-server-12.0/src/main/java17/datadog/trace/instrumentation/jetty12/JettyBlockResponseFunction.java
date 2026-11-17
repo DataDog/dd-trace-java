@@ -13,6 +13,8 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
 import org.eclipse.jetty.util.Callback;
+import org.eclipse.jetty.util.thread.Invocable;
+import org.eclipse.jetty.util.thread.Invocable.InvocationType;
 
 /**
  * {@link BlockResponseFunction} for Jetty 12 core. Holds the per-request core request and response
@@ -90,9 +92,55 @@ public class JettyBlockResponseFunction implements BlockResponseFunction {
     return wrapper;
   }
 
-  /** Returns the installed Handler callback wrapper, or {@code null}. */
-  JettyDeferredCompletion getDeferredCompletion() {
-    return deferredCompletion;
+  /*
+   * The in-flight tracking below reads the wrapper field on every call instead of capturing it when
+   * the write starts. This is safe because a write cannot start without the wrapper and finish with
+   * it: the wrapper is installed on Server.handle entry, before any handler runs, and the only write
+   * that can start earlier (request phase) either finishes synchronously or skips the handler chain,
+   * so the wrapper is never installed for it.
+   */
+
+  /**
+   * Marks a blocking response write as in flight on the Handler callback wrapper. Must be called
+   * before the write is issued: Jetty may run the write callback inside the write call. A no-op
+   * when no wrapper is installed.
+   */
+  void blockWriteStarted() {
+    JettyDeferredCompletion deferred = deferredCompletion;
+    if (deferred != null) {
+      deferred.blockWriteStarted();
+    }
+  }
+
+  /**
+   * Marks the blocking response write as finished, replaying a request completion parked while it
+   * was in flight. A no-op when no wrapper is installed. Can run on Jetty write callback threads:
+   * never throws.
+   */
+  void blockWriteFinished() {
+    JettyDeferredCompletion deferred = deferredCompletion;
+    if (deferred != null) {
+      deferred.blockWriteFinished();
+    }
+  }
+
+  /**
+   * Finishes the failed blocking response write, then releases the claim. The order matters: after
+   * the release a retry may start a new write, which a late finish would wrongly clear.
+   */
+  void releaseAfterFailedWrite() {
+    blockWriteFinished();
+    release();
+  }
+
+  /**
+   * Returns the invocation type for a blocking response write callback whose own completion is
+   * {@code base}. When a wrapper is installed the write callback may replay the Handler completion,
+   * so its type is combined with the wrapper's.
+   */
+  InvocationType writeCallbackType(InvocationType base) {
+    JettyDeferredCompletion deferred = deferredCompletion;
+    return deferred == null ? base : Invocable.combine(base, deferred.getInvocationType());
   }
 
   @VisibleForTesting

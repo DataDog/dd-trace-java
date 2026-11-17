@@ -12,12 +12,18 @@ import java.util.concurrent.TimeUnit;
 import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.thread.Invocable;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.tabletest.junit.TableTest;
 
 /** Unit tests for {@link JettyDeferredCompletion}. */
 class JettyDeferredCompletionTest {
 
   private static final IOException FAILURE = new IOException("blocked");
+
+  private static final long JOIN_TIMEOUT_MS = TimeUnit.SECONDS.toMillis(10);
+
+  private static final int RACE_ITERATIONS = 2_000;
 
   private final RecordingCallback delegate = new RecordingCallback();
   private final JettyDeferredCompletion completion = new JettyDeferredCompletion(delegate);
@@ -155,12 +161,8 @@ class JettyDeferredCompletionTest {
     wrapper.blockWriteFinished();
   }
 
-  @TableTest({
-    "Scenario     | Type        ",
-    "blocking     | BLOCKING    ",
-    "non blocking | NON_BLOCKING",
-    "either       | EITHER      "
-  })
+  @ParameterizedTest
+  @EnumSource(Invocable.InvocationType.class)
   void delegatesInvocationType(Invocable.InvocationType type) {
     RecordingCallback typed = new RecordingCallback(type);
 
@@ -169,7 +171,7 @@ class JettyDeferredCompletionTest {
 
   @Test
   void raceBetweenCompletionAndWriteFinishedCompletesExactlyOnce() throws Exception {
-    for (int i = 0; i < 2_000; i++) {
+    for (int i = 0; i < RACE_ITERATIONS; i++) {
       boolean succeed = (i & 1) == 0;
       RecordingCallback recording = new RecordingCallback();
       JettyDeferredCompletion wrapper = new JettyDeferredCompletion(recording);
@@ -180,8 +182,8 @@ class JettyDeferredCompletionTest {
       completer.start();
       writer.start();
       start.countDown();
-      completer.join(TimeUnit.SECONDS.toMillis(10));
-      writer.join(TimeUnit.SECONDS.toMillis(10));
+      completer.join(JOIN_TIMEOUT_MS);
+      writer.join(JOIN_TIMEOUT_MS);
 
       assertEquals(List.of(succeed ? "succeeded" : "failed"), recording.calls, "iteration " + i);
       if (!succeed) {
@@ -192,7 +194,7 @@ class JettyDeferredCompletionTest {
 
   @Test
   void raceBetweenTwoCompletionsWhileWritingCompletesExactlyOnce() throws Exception {
-    for (int i = 0; i < 2_000; i++) {
+    for (int i = 0; i < RACE_ITERATIONS; i++) {
       RecordingCallback recording = new RecordingCallback();
       JettyDeferredCompletion wrapper = new JettyDeferredCompletion(recording);
       wrapper.blockWriteStarted();
@@ -202,8 +204,8 @@ class JettyDeferredCompletionTest {
       failer.start();
       succeeder.start();
       start.countDown();
-      failer.join(TimeUnit.SECONDS.toMillis(10));
-      succeeder.join(TimeUnit.SECONDS.toMillis(10));
+      failer.join(JOIN_TIMEOUT_MS);
+      succeeder.join(JOIN_TIMEOUT_MS);
       wrapper.blockWriteFinished();
 
       assertEquals(1, recording.calls.size(), "iteration " + i);

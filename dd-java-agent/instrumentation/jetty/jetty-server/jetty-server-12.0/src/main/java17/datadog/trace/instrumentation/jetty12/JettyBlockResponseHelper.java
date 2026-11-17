@@ -143,15 +143,13 @@ public final class JettyBlockResponseHelper {
       brf.release();
       return false;
     }
-    // null on the request phase: the wrapper is only installed once the handler chain runs
-    JettyDeferredCompletion deferred = brf.getDeferredCompletion();
     Callback writeCallback =
         Callback.from(
-            Invocable.getInvocationType(onWritten),
+            brf.writeCallbackType(Invocable.getInvocationType(onWritten)),
             () -> {
               // recorded before a parked completion is replayed and the span can finish
               markEffectivelyBlocked(segment);
-              blockWriteFinished(deferred);
+              brf.blockWriteFinished();
               onWritten.succeeded();
             },
             failure -> {
@@ -159,14 +157,11 @@ public final class JettyBlockResponseHelper {
               if (reqCtx != null) {
                 reportBlockFailure(reqCtx);
               }
-              blockWriteFinished(deferred);
-              brf.release();
+              brf.releaseAfterFailedWrite();
               onWritten.failed(failure);
             });
-    if (deferred != null) {
-      // before the write: Jetty may run the write callback inside write()
-      deferred.blockWriteStarted();
-    }
+    // before the write: Jetty may run the write callback inside write()
+    brf.blockWriteStarted();
     try {
       response.write(true, body, writeCallback);
     } catch (Exception e) {
@@ -174,8 +169,7 @@ public final class JettyBlockResponseHelper {
       // means nothing was sent
       log.debug("Failed to write blocking response", e);
       restoreAfterFailedBlock(request, response);
-      blockWriteFinished(deferred);
-      brf.release();
+      brf.releaseAfterFailedWrite();
       return false;
     }
     return true;
@@ -300,13 +294,6 @@ public final class JettyBlockResponseHelper {
     } catch (Throwable t) {
       log.debug("Failed to fail the deferred request completion", t);
       return false;
-    }
-  }
-
-  /** Can run inside a Jetty write callback; {@code deferred} may be null. Never throws. */
-  private static void blockWriteFinished(JettyDeferredCompletion deferred) {
-    if (deferred != null) {
-      deferred.blockWriteFinished();
     }
   }
 

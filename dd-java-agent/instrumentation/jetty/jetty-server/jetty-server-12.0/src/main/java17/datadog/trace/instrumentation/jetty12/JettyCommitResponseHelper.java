@@ -79,7 +79,6 @@ public final class JettyCommitResponseHelper {
     Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
 
     JettyBlockResponseFunction claimed = null;
-    JettyDeferredCompletion deferred = null;
     try {
       ByteBuffer body =
           prepareBlockResponse(
@@ -97,23 +96,17 @@ public final class JettyCommitResponseHelper {
       // claim before writing: Jetty can complete the write, and run the original callback, inside
       // write() itself
       claimed = claimBrf(reqCtx);
-      // null when the Handler callback was not wrapped: completions are not deferred
-      deferred = claimed == null ? null : claimed.getDeferredCompletion();
-      BlockingCallback blockingCallback = new BlockingCallback(reqCtx, callback, deferred);
-      if (deferred != null) {
+      BlockingCallback blockingCallback = new BlockingCallback(reqCtx, callback, claimed);
+      if (claimed != null) {
         // before the write: Jetty may run the write callback inside write()
-        deferred.blockWriteStarted();
+        claimed.blockWriteStarted();
       }
       response.write(true, body, blockingCallback);
     } catch (Throwable t) {
       // fail open: nothing was accepted, the original write proceeds
       log.debug("Failed to commit blocking response on response commit", t);
-      if (deferred != null) {
-        // before the release: after it a retry may start a new write
-        deferred.blockWriteFinished();
-      }
       if (claimed != null) {
-        claimed.release();
+        claimed.releaseAfterFailedWrite();
       }
       reportBlockFailure(reqCtx);
       return false;
@@ -155,13 +148,15 @@ public final class JettyCommitResponseHelper {
     private final RequestContext reqCtx;
     private final TraceSegment segment;
     private final Callback delegate;
-    private final JettyDeferredCompletion deferred;
 
-    BlockingCallback(RequestContext reqCtx, Callback delegate, JettyDeferredCompletion deferred) {
+    /** BRF claimed by this write, tracking it as in flight; null when the claim was not taken. */
+    private final JettyBlockResponseFunction claimed;
+
+    BlockingCallback(RequestContext reqCtx, Callback delegate, JettyBlockResponseFunction claimed) {
       this.reqCtx = reqCtx;
       this.segment = reqCtx.getTraceSegment();
       this.delegate = delegate != null ? delegate : Callback.NOOP;
-      this.deferred = deferred;
+      this.claimed = claimed;
     }
 
     @Override
@@ -183,14 +178,15 @@ public final class JettyCommitResponseHelper {
 
     /** Runs on Jetty write callback threads; never throws. */
     private void blockWriteFinished() {
-      if (deferred != null) {
-        deferred.blockWriteFinished();
+      if (claimed != null) {
+        claimed.blockWriteFinished();
       }
     }
 
     @Override
     public InvocationType getInvocationType() {
-      return delegate.getInvocationType();
+      InvocationType base = delegate.getInvocationType();
+      return claimed == null ? base : claimed.writeCallbackType(base);
     }
   }
 }

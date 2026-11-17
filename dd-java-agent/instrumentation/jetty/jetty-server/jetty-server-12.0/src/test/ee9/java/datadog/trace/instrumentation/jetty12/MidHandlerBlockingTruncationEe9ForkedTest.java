@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.jetty12;
 
+import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE_HTML;
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectSysConfig;
 import static datadog.trace.test.junit.utils.config.WithConfigExtension.removeSysConfig;
@@ -62,15 +63,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
- * Reproduces the truncation of a mid-handler blocking response on Jetty 12 ee9 (nested servlet
- * API).
- *
- * <p>A servlet commits the blocking response through the request {@link BlockResponseFunction} and
- * then throws {@link BlockingException}, as RASP and the user blocking SDK do. With a blocking page
- * larger than what the kernel accepts at once (large custom template, small socket buffers, client
- * not reading yet), the block write is still pending when ee9 handles the exception (it attempts a
- * sendError(500) that cannot be written, then aborts), and the full page must still reach the
- * client.
+ * Checks that a large mid-handler blocking response is not truncated on Jetty 12 ee9.
  *
  * <p>Forked: the custom template, {@code APPSEC_ACTIVE} and the AppSec subscriptions are JVM-wide.
  */
@@ -97,7 +90,7 @@ class MidHandlerBlockingTruncationEe9ForkedTest extends AbstractInstrumentationT
     template = largeHtmlTemplate();
     Path templateFile = tempDir.resolve("blocked.html");
     Files.write(templateFile, template);
-    injectSysConfig("appsec.http.blocked.template.html", templateFile.toString());
+    injectSysConfig(APPSEC_HTTP_BLOCKED_TEMPLATE_HTML, templateFile.toString());
     BlockingActionHelper.reset(Config.get());
 
     enableAppSec();
@@ -115,7 +108,7 @@ class MidHandlerBlockingTruncationEe9ForkedTest extends AbstractInstrumentationT
         ((SubscriptionService) subscriptions).reset();
         ActiveSubsystems.APPSEC_ACTIVE = originalAppSecActive;
       }
-      removeSysConfig("appsec.http.blocked.template.html");
+      removeSysConfig(APPSEC_HTTP_BLOCKED_TEMPLATE_HTML);
       BlockingActionHelper.reset(Config.get());
     }
   }
@@ -220,10 +213,7 @@ class MidHandlerBlockingTruncationEe9ForkedTest extends AbstractInstrumentationT
     while (sb.length() + tail.length() < TEMPLATE_SIZE) {
       sb.append(String.format(Locale.ROOT, "<p>blocked line %08d</p>\n", line++));
     }
-    sb.setLength(Math.min(sb.length(), TEMPLATE_SIZE - tail.length()));
-    while (sb.length() < TEMPLATE_SIZE - tail.length()) {
-      sb.append(' ');
-    }
+    sb.setLength(TEMPLATE_SIZE - tail.length());
     return sb.append(tail).toString().getBytes(UTF_8);
   }
 

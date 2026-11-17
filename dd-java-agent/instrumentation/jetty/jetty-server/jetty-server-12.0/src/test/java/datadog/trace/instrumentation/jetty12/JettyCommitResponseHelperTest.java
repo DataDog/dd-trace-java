@@ -7,6 +7,7 @@ import static datadog.trace.instrumentation.jetty12.JettyFakes.proxy;
 import static datadog.trace.instrumentation.jetty12.JettyFakes.toBytes;
 import static java.util.Collections.singletonList;
 import static java.util.Collections.singletonMap;
+import static org.eclipse.jetty.util.thread.Invocable.InvocationType.BLOCKING;
 import static org.eclipse.jetty.util.thread.Invocable.InvocationType.NON_BLOCKING;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -207,16 +208,11 @@ class JettyCommitResponseHelperTest {
   @Test
   void laterBrfBlockAfterResponseBlockIsNotReportedAsFailure() {
     Response response = response();
-    JettyBlockResponseFunction jettyBrf =
-        new JettyBlockResponseFunction(response.getRequest(), response);
-    brf = jettyBrf;
-    Context context = context(true);
-    attributes.put(DD_CONTEXT_ATTRIBUTE, context);
-    decorator.action = RBA;
+    JettyBlockResponseFunction jettyBrf = blockingJettyBrf(response);
     assertTrue(tryBlock());
     // the blocking write is still in flight and has committed the response
     committed = true;
-    RequestContext reqCtx = AgentSpan.fromContext(context).getRequestContext();
+    RequestContext reqCtx = requestContext();
 
     assertTrue(jettyBrf.tryCommitBlockingResponse(reqCtx, RBA));
 
@@ -228,14 +224,9 @@ class JettyCommitResponseHelperTest {
   @Test
   void brfCalledFromAnInlineWriteCompletionIsNotReportedAsFailure() {
     Response response = response();
-    JettyBlockResponseFunction jettyBrf =
-        new JettyBlockResponseFunction(response.getRequest(), response);
-    brf = jettyBrf;
-    Context context = context(true);
-    attributes.put(DD_CONTEXT_ATTRIBUTE, context);
-    decorator.action = RBA;
+    JettyBlockResponseFunction jettyBrf = blockingJettyBrf(response);
     completeWritesInline = true;
-    RequestContext reqCtx = AgentSpan.fromContext(context).getRequestContext();
+    RequestContext reqCtx = requestContext();
     boolean[] laterBlock = new boolean[1];
     Callback callingBrf =
         new Callback() {
@@ -262,11 +253,7 @@ class JettyCommitResponseHelperTest {
   @Test
   void synchronousWriteFailureReleasesTheClaim() {
     Response response = response();
-    JettyBlockResponseFunction jettyBrf =
-        new JettyBlockResponseFunction(response.getRequest(), response);
-    brf = jettyBrf;
-    attributes.put(DD_CONTEXT_ATTRIBUTE, context(true));
-    decorator.action = RBA;
+    JettyBlockResponseFunction jettyBrf = blockingJettyBrf(response);
     writeFailure = new IllegalStateException("write pending");
 
     assertFalse(JettyCommitResponseHelper.tryBlockOnCommit(decorator, response, original));
@@ -278,11 +265,7 @@ class JettyCommitResponseHelperTest {
   @Test
   void asynchronousWriteFailureKeepsTheClaim() {
     Response response = response();
-    JettyBlockResponseFunction jettyBrf =
-        new JettyBlockResponseFunction(response.getRequest(), response);
-    brf = jettyBrf;
-    attributes.put(DD_CONTEXT_ATTRIBUTE, context(true));
-    decorator.action = RBA;
+    JettyBlockResponseFunction jettyBrf = blockingJettyBrf(response);
 
     assertTrue(JettyCommitResponseHelper.tryBlockOnCommit(decorator, response, original));
     writeCallbacks.get(0).failed(new IOException("client gone"));
@@ -294,13 +277,9 @@ class JettyCommitResponseHelperTest {
   @Test
   void completionParkedDuringTheBlockWriteIsReplayedAfterItSucceeds() {
     Response response = response();
-    JettyBlockResponseFunction jettyBrf =
-        new JettyBlockResponseFunction(response.getRequest(), response);
-    brf = jettyBrf;
+    JettyBlockResponseFunction jettyBrf = blockingJettyBrf(response);
     List<String> handlerEvents = new ArrayList<>();
     Callback handlerCallback = jettyBrf.deferCompletion(handlerCallback(handlerEvents));
-    attributes.put(DD_CONTEXT_ATTRIBUTE, context(true));
-    decorator.action = RBA;
 
     assertTrue(JettyCommitResponseHelper.tryBlockOnCommit(decorator, response, original));
     // e.g. an async servlet write returns and the request completes while the block write pends
@@ -319,13 +298,9 @@ class JettyCommitResponseHelperTest {
   @Test
   void completionParkedDuringTheBlockWriteIsReplayedAfterItFails() {
     Response response = response();
-    JettyBlockResponseFunction jettyBrf =
-        new JettyBlockResponseFunction(response.getRequest(), response);
-    brf = jettyBrf;
+    JettyBlockResponseFunction jettyBrf = blockingJettyBrf(response);
     List<String> handlerEvents = new ArrayList<>();
     Callback handlerCallback = jettyBrf.deferCompletion(handlerCallback(handlerEvents));
-    attributes.put(DD_CONTEXT_ATTRIBUTE, context(true));
-    decorator.action = RBA;
     IOException failure = new IOException("client gone");
 
     assertTrue(JettyCommitResponseHelper.tryBlockOnCommit(decorator, response, original));
@@ -344,9 +319,7 @@ class JettyCommitResponseHelperTest {
   @Test
   void synchronousWriteFailureFinishesTheBlockWriteBeforeReleasingTheClaim() {
     Response response = response();
-    JettyBlockResponseFunction jettyBrf =
-        new JettyBlockResponseFunction(response.getRequest(), response);
-    brf = jettyBrf;
+    JettyBlockResponseFunction jettyBrf = blockingJettyBrf(response);
     List<String> handlerEvents = new ArrayList<>();
     Callback handlerCallback =
         jettyBrf.deferCompletion(
@@ -356,8 +329,6 @@ class JettyCommitResponseHelperTest {
                 handlerEvents.add("succeeded claimed=" + jettyBrf.isBlockingResponseInitiated());
               }
             });
-    attributes.put(DD_CONTEXT_ATTRIBUTE, context(true));
-    decorator.action = RBA;
     // a completion racing with the write: parked, since the write is marked in flight before it
     onWrite = handlerCallback::succeeded;
     writeFailure = new IllegalStateException("write pending");
@@ -372,19 +343,52 @@ class JettyCommitResponseHelperTest {
   @Test
   void blockWriteIsNotTrackedWithoutTheWrapper() {
     Response response = response();
+    blockingJettyBrf(response);
+
+    assertTrue(JettyCommitResponseHelper.tryBlockOnCommit(decorator, response, original));
+    assertEquals(
+        NON_BLOCKING,
+        writeCallbacks.get(0).getInvocationType(),
+        "without the wrapper the original callback type is kept");
+    writeCallbacks.get(0).succeeded();
+
+    assertEquals(1, effectivelyBlocked);
+    assertEquals(1, originalSucceeded);
+    assertEquals(0, blockFailures);
+  }
+
+  @Test
+  void blockingCallbackTypeIsCombinedWithTheWrapper() {
+    Response response = response();
+    JettyBlockResponseFunction jettyBrf = blockingJettyBrf(response);
+    // the Handler callback keeps the default BLOCKING type
+    jettyBrf.deferCompletion(handlerCallback(new ArrayList<>()));
+
+    assertTrue(JettyCommitResponseHelper.tryBlockOnCommit(decorator, response, original));
+
+    assertEquals(
+        BLOCKING,
+        writeCallbacks.get(0).getInvocationType(),
+        "the write callback may replay the BLOCKING Handler completion");
+  }
+
+  /**
+   * Registers a {@link JettyBlockResponseFunction} for {@code response} on a request whose response
+   * IG callbacks ask for blocking.
+   */
+  private JettyBlockResponseFunction blockingJettyBrf(Response response) {
     JettyBlockResponseFunction jettyBrf =
         new JettyBlockResponseFunction(response.getRequest(), response);
     brf = jettyBrf;
     attributes.put(DD_CONTEXT_ATTRIBUTE, context(true));
     decorator.action = RBA;
+    return jettyBrf;
+  }
 
-    assertTrue(JettyCommitResponseHelper.tryBlockOnCommit(decorator, response, original));
-    writeCallbacks.get(0).succeeded();
-
-    assertNull(jettyBrf.getDeferredCompletion());
-    assertEquals(1, effectivelyBlocked);
-    assertEquals(1, originalSucceeded);
-    assertEquals(0, blockFailures);
+  /** The request context of the span registered by {@link #blockingJettyBrf}. */
+  private RequestContext requestContext() {
+    return AgentSpan.fromContext((Context) attributes.get(DD_CONTEXT_ATTRIBUTE))
+        .getRequestContext();
   }
 
   /** Records completions with the write callback state seen at that moment. */

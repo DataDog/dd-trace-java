@@ -8,6 +8,7 @@ import static java.util.Arrays.asList;
 import static java.util.Collections.emptyMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -176,7 +177,10 @@ class JettyRequestBlockingTest {
     assertEquals(asList("effectivelyBlocked", "succeeded"), f.events);
     assertEquals(0, blockFailures);
     assertTrue(f.brf.isBlockingResponseInitiated());
-    assertNull(f.brf.getDeferredCompletion(), "the request phase does not wrap the callback");
+    assertInstanceOf(
+        JettyDeferredCompletion.class,
+        f.brf.deferCompletion(fake(Callback.class)),
+        "the request phase does not wrap the callback");
   }
 
   @Test
@@ -187,8 +191,9 @@ class JettyRequestBlockingTest {
 
     Callback result = JettyBlockResponseHelper.deferCompletion(f.request.proxy, callback);
 
-    assertTrue(result instanceof JettyDeferredCompletion);
-    assertSame(result, f.brf.getDeferredCompletion());
+    assertInstanceOf(JettyDeferredCompletion.class, result);
+    Callback other = fake(Callback.class);
+    assertSame(other, f.brf.deferCompletion(other), "the wrapper is installed on the BRF");
   }
 
   @TableTest({
@@ -221,7 +226,10 @@ class JettyRequestBlockingTest {
         callback,
         JettyBlockResponseHelper.deferCompletion(
             request(context, true, false, requestContext, brf), callback));
-    assertNull(jettyBrf.getDeferredCompletion());
+    assertInstanceOf(
+        JettyDeferredCompletion.class,
+        jettyBrf.deferCompletion(fake(Callback.class)),
+        "nothing was installed");
   }
 
   @Test
@@ -242,16 +250,8 @@ class JettyRequestBlockingTest {
   void handlerChainPathDefersCompletionOfAMidHandlerBlock() {
     ActiveSubsystems.APPSEC_ACTIVE = true;
     JettyBrfFixture f = new JettyBrfFixture(null);
-    List<String> completions = new ArrayList<>();
-    Callback handlerCallback =
-        proxy(
-            Callback.class,
-            (name, args) -> {
-              if ("succeeded".equals(name) || "failed".equals(name)) {
-                completions.add(name);
-              }
-              return null;
-            });
+    List<Object> completions = new ArrayList<>();
+    Callback handlerCallback = recording(completions);
 
     // what the Server.handle advice does on the non-skip path
     assertFalse(JettyBlockResponseHelper.tryBlockRequest(f.request.proxy, handlerCallback));
@@ -260,13 +260,14 @@ class JettyRequestBlockingTest {
     assertTrue(
         f.brf.tryCommitBlockingResponse(
             f.segment, 403, BlockingContentType.AUTO, emptyMap(), null));
-    callback.failed(new IllegalStateException("blocked"));
+    IllegalStateException blocking = new IllegalStateException("blocked");
+    callback.failed(blocking);
     assertTrue(completions.isEmpty(), "the completion waits for the pending block write");
 
     f.response.pending.succeeded();
 
     assertEquals(asList("effectivelyBlocked"), f.events);
-    assertEquals(asList("failed"), completions);
+    assertEquals(asList("failed", blocking), completions, "the original failure is replayed");
   }
 
   @Test

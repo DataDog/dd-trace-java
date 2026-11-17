@@ -2,15 +2,19 @@ package datadog.trace.instrumentation.jetty12;
 
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_IGNORE_COMMIT_ATTRIBUTE;
+import static datadog.trace.instrumentation.jetty12.JettyFakes.fake;
 import static datadog.trace.instrumentation.jetty12.JettyFakes.proxy;
 import static datadog.trace.instrumentation.jetty12.JettyFakes.toBytes;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonMap;
 import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.eclipse.jetty.util.thread.Invocable.InvocationType.BLOCKING;
+import static org.eclipse.jetty.util.thread.Invocable.InvocationType.NON_BLOCKING;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -40,7 +44,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.util.Callback;
-import org.eclipse.jetty.util.thread.Invocable.InvocationType;
 import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
@@ -278,7 +281,8 @@ class JettyBlockResponseHelperTest {
 
     assertTrue(commit(brf, segment), "the write was accepted");
     assertNotNull(response.pending, "the write callback is still pending");
-    assertSame(InvocationType.NON_BLOCKING, response.pending.getInvocationType());
+    assertSame(
+        NON_BLOCKING, response.pending.getInvocationType(), "no wrapper: the type of onWritten");
     assertEquals(0, segment.effectivelyBlockedCalls);
     assertTrue(brf.isBlockingResponseInitiated());
 
@@ -506,16 +510,35 @@ class JettyBlockResponseHelperTest {
   @Test
   void deferCompletionIsInstalledOnce() {
     JettyBlockResponseFunction brf = brf(new FakeRequest("GET", null), new FakeResponse());
-    Callback first = JettyFakes.fake(Callback.class);
-    Callback second = JettyFakes.fake(Callback.class);
+    Callback second = fake(Callback.class);
 
-    assertNull(brf.getDeferredCompletion());
-    Callback wrapper = brf.deferCompletion(first);
+    assertSame(NON_BLOCKING, brf.writeCallbackType(NON_BLOCKING), "no wrapper installed yet");
+    Callback wrapper = brf.deferCompletion(blockingCallback());
 
-    assertTrue(wrapper instanceof JettyDeferredCompletion);
-    assertSame(wrapper, brf.getDeferredCompletion());
+    assertInstanceOf(JettyDeferredCompletion.class, wrapper);
+    assertSame(BLOCKING, brf.writeCallbackType(NON_BLOCKING), "combined with the wrapper type");
     assertSame(second, brf.deferCompletion(second), "a second install keeps the first wrapper");
-    assertSame(wrapper, brf.getDeferredCompletion());
+    assertSame(BLOCKING, brf.writeCallbackType(NON_BLOCKING), "still the first wrapper type");
+  }
+
+  @Test
+  void writeCallbackTypeIsCombinedWithTheInstalledWrapper() {
+    FakeResponse response = new FakeResponse();
+    response.completeWrites = false;
+    JettyBlockResponseFunction brf = brf(new FakeRequest("GET", null), response);
+    brf.deferCompletion(blockingCallback());
+
+    assertTrue(commit(brf));
+
+    assertSame(
+        BLOCKING,
+        response.pending.getInvocationType(),
+        "onWritten is NOOP, but the write callback may replay the BLOCKING Handler completion");
+  }
+
+  /** A callback keeping the default {@code BLOCKING} invocation type. */
+  private static Callback blockingCallback() {
+    return new Callback() {};
   }
 
   /** A {@link JettyBlockResponseFunction} with an installed {@link JettyDeferredCompletion}. */
@@ -547,7 +570,7 @@ class JettyBlockResponseHelperTest {
                     claimedOnCompletion = brf.isBlockingResponseInitiated();
                     return null;
                   case "getInvocationType":
-                    return InvocationType.NON_BLOCKING;
+                    return NON_BLOCKING;
                   default:
                     return null;
                 }
