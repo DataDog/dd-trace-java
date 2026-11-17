@@ -1,8 +1,7 @@
 _v: 1
 name: netty-promise
-display_name: Netty/Common
-description: Instruments Netty promise listener registration and completion or progress callbacks to propagate trace
-  context.
+display_name: Netty Promises
+description: Instruments Netty Promise listener callbacks to propagate trace context across asynchronous execution.
 packages:
 - name: io.netty:netty-common
 category:
