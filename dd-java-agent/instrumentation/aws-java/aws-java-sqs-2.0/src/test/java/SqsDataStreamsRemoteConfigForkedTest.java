@@ -37,7 +37,7 @@ class SqsDataStreamsRemoteConfigForkedTest extends AbstractInstrumentationTest {
   private static SQSRestServer server;
   private static URI endpoint;
 
-  // AbstractInstrumentationTest has no data streams support: swap in a tracer with a recording DSM
+  /** Installs a tracer with a recording DSM, since AbstractInstrumentationTest has none. */
   @BeforeAll
   static void installDataStreamsTracer() {
     dataStreams = DataStreamsRemoteConfigTracer.install(tracer, writer);

@@ -35,7 +35,7 @@ class JMSDataStreamsRemoteConfigForkedTest extends AbstractInstrumentationTest {
   private static EmbeddedActiveMQBroker broker;
   private static Connection connection;
 
-  // AbstractInstrumentationTest has no data streams support: swap in a tracer with a recording DSM
+  /** Installs a tracer with a recording DSM, since AbstractInstrumentationTest has none. */
   @BeforeAll
   static void installDataStreamsTracer() {
     dataStreams = DataStreamsRemoteConfigTracer.install(tracer, writer);
