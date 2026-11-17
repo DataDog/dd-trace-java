@@ -13,8 +13,7 @@ import javax.annotation.Nullable;
  * A compiled MATCHES/NOT_MATCHES pattern, with {@code find} semantics: the pattern matches if it
  * matches any part of the input.
  *
- * <p>The design follows the tiers of the libdatadog evaluator. At parse time, each pattern gets the
- * cheapest matcher that gives the same result:
+ * <p>At parse time, each pattern gets the cheapest matcher that gives the same result:
  *
  * <ol>
  *   <li>A literal check ({@code equals}, {@code startsWith}, {@code endsWith}, {@code contains})
