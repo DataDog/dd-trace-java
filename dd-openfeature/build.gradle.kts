@@ -164,6 +164,8 @@ val japicmpPublicApi = tasks.register<JapicmpTask>("japicmpPublicApi") {
   newArchives.from(tasks.named<Jar>("jar"))
   newClasspath.from(configurations.named("runtimeClasspath"))
   packageIncludes.addAll("com.datadog.openfeature", "datadog.trace.api.openfeature")
+  // The legacy evaluator was package-private and depended on agent-only bridge classes.
+  classExcludes.add("datadog.trace.api.openfeature.DDEvaluator")
   failOnModification.set(true)
   failOnSourceIncompatibility.set(true)
   txtOutputFile.set(layout.buildDirectory.file("reports/japicmp/public-api.txt"))

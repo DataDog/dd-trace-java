@@ -419,6 +419,27 @@ class ExposureHookTest {
   }
 
   @Test
+  void providerScopeBindingRequiresTheSameFlagAndEvaluationContext() {
+    final List<ExposureHook.Evaluation> seen = new ArrayList<>();
+    final ExposureHook hook = new ExposureHook(seen::add);
+    final MutableContext evaluationContext = new MutableContext("active");
+    final HookContext<Object> active = hookContext("flag", evaluationContext);
+    final Object scope = new Object();
+    hook.before(active, emptyMap());
+
+    ExposureHook.bindProviderScope(scope, hookContext("other-flag", evaluationContext));
+    ExposureHook.bindProviderScope(scope, hookContext("flag", new MutableContext("active")));
+    ExposureHook.publishDependencies(scope, active, singletonList(dependencyDetails()));
+    assertTrue(seen.isEmpty());
+
+    ExposureHook.bindProviderScope(scope, active);
+    ExposureHook.publishDependencies(scope, active, singletonList(dependencyDetails()));
+    hook.finallyAfter(active, rootDetails(), emptyMap());
+
+    assertEquals(2, seen.size());
+  }
+
+  @Test
   void sameHookNestingKeepsProviderScopesExact() {
     final List<ExposureHook.Evaluation> seen = new ArrayList<>();
     final ExposureHook hook = new ExposureHook(seen::add);
@@ -485,11 +506,16 @@ class ExposureHookTest {
   }
 
   private static HookContext<Object> hookContext(final String targetingKey) {
+    return hookContext("flag", new MutableContext(targetingKey));
+  }
+
+  private static HookContext<Object> hookContext(
+      final String flagKey, final MutableContext evaluationContext) {
     return HookContext.<Object>builder()
-        .flagKey("flag")
+        .flagKey(flagKey)
         .type(FlagValueType.INTEGER)
         .defaultValue(0)
-        .ctx(new MutableContext(targetingKey))
+        .ctx(evaluationContext)
         .hookData(new DefaultHookData())
         .build();
   }

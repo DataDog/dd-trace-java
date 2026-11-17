@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -28,6 +29,8 @@ public class RemoteConfigServiceImpl implements ConfigurationChangesTypedListene
 
   private final ConfigurationPoller configurationPoller;
   private final List<Consumer<byte[]>> subscribers = new CopyOnWriteArrayList<>();
+  private final ReentrantLock capabilityUpdateLock = new ReentrantLock();
+  private final ReentrantLock lifecycleUpdateLock = new ReentrantLock();
   private volatile byte[] current;
 
   /**
@@ -36,9 +39,18 @@ public class RemoteConfigServiceImpl implements ConfigurationChangesTypedListene
    */
   private boolean unvalidated;
 
+  /** Desired and applied lifecycle state, guarded by the subscribers lock. */
   private boolean started;
+
+  private boolean lifecycleStarted;
+  private long refreshGeneration;
+  private long appliedRefreshGeneration;
+  private boolean deliveryStopped;
   private final Map<Consumer<byte[]>, Boolean> dependentFlagSubscribers = new IdentityHashMap<>();
   private boolean dependentFlagsAdvertised;
+
+  /** Guarded by the subscribers lock. */
+  private boolean deliverySuspended;
 
   public RemoteConfigServiceImpl(final ConfigurationPoller configurationPoller) {
     this.configurationPoller = configurationPoller;
@@ -48,15 +60,13 @@ public class RemoteConfigServiceImpl implements ConfigurationChangesTypedListene
    * Registers the Feature Flags product. Registering at agent startup lets the first Remote
    * Configuration poll ask for it.
    */
-  public synchronized void start() {
-    if (this.started) {
-      return;
+  public void start() {
+    synchronized (this.subscribers) {
+      if (!this.started) {
+        this.started = true;
+      }
     }
-    this.started = true;
-    LOGGER.debug("Feature Flagging starting remote_config configuration source");
-    this.configurationPoller.addCapabilities(CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
-    listen();
-    this.configurationPoller.start();
+    updateLifecycle();
   }
 
   private void listen() {
@@ -88,6 +98,7 @@ public class RemoteConfigServiceImpl implements ConfigurationChangesTypedListene
           registered, capabilities.contains("dependent-flag-variant-key-v1"));
       if (this.dependentFlagsAdvertised
           && !capabilities.contains("dependent-flag-variant-key-v1")) {
+        this.deliverySuspended = true;
         this.current = null;
       }
       final byte[] document = this.current;
@@ -102,40 +113,93 @@ public class RemoteConfigServiceImpl implements ConfigurationChangesTypedListene
         this.unvalidated = false;
       }
     }
-    updateDependentFlagCapability();
+    try {
+      updateDependentFlagCapability();
+    } catch (final RuntimeException | Error failure) {
+      synchronized (this.subscribers) {
+        this.subscribers.remove(registered);
+        this.dependentFlagSubscribers.remove(registered);
+        this.current = null;
+      }
+      try {
+        updateDependentFlagCapability();
+      } catch (final RuntimeException | Error rollbackFailure) {
+        failure.addSuppressed(rollbackFailure);
+      }
+      throw failure;
+    }
     if (requestAgain) {
       requestAgain();
     }
     return () -> {
+      final Boolean supported;
       synchronized (this.subscribers) {
         this.subscribers.remove(registered);
-        this.dependentFlagSubscribers.remove(registered);
+        supported = this.dependentFlagSubscribers.remove(registered);
       }
-      updateDependentFlagCapability();
+      if (supported == null) {
+        return;
+      }
+      try {
+        updateDependentFlagCapability();
+      } catch (final RuntimeException | Error failure) {
+        synchronized (this.subscribers) {
+          this.subscribers.add(registered);
+          this.dependentFlagSubscribers.put(registered, supported);
+          this.current = null;
+        }
+        try {
+          updateDependentFlagCapability();
+        } catch (final RuntimeException | Error rollbackFailure) {
+          failure.addSuppressed(rollbackFailure);
+        }
+        throw failure;
+      }
     };
   }
 
-  private synchronized void updateDependentFlagCapability() {
-    final boolean supported;
-    synchronized (this.subscribers) {
-      supported =
-          this.started
-              && !this.dependentFlagSubscribers.isEmpty()
-              && !this.dependentFlagSubscribers.containsValue(false);
-      if (supported == this.dependentFlagsAdvertised) {
-        return;
+  private void updateDependentFlagCapability() {
+    if (!this.capabilityUpdateLock.tryLock()) {
+      return;
+    }
+    boolean locked = true;
+    try {
+      while (true) {
+        final boolean supported;
+        synchronized (this.subscribers) {
+          supported =
+              this.started
+                  && !this.dependentFlagSubscribers.isEmpty()
+                  && !this.dependentFlagSubscribers.containsValue(false);
+          if (supported == this.dependentFlagsAdvertised) {
+            this.deliverySuspended = false;
+            // Unlock before releasing subscribers. A concurrent registration can only proceed
+            // after the updater is available, so it cannot lose its transition request.
+            this.capabilityUpdateLock.unlock();
+            locked = false;
+            return;
+          }
+          this.deliverySuspended = true;
+          this.current = null;
+        }
+        // The poller invokes callbacks under its lock; never acquire it with subscribers locked.
+        if (supported) {
+          this.configurationPoller.addCapabilities(
+              CAPABILITY_FFE_FLAG_DEPENDENT_FLAG_VARIANT_KEY_V1);
+        } else {
+          this.configurationPoller.removeCapabilities(
+              CAPABILITY_FFE_FLAG_DEPENDENT_FLAG_VARIANT_KEY_V1);
+        }
+        synchronized (this.subscribers) {
+          this.dependentFlagsAdvertised = supported;
+        }
+        requestAgain();
       }
-      this.dependentFlagsAdvertised = supported;
-      this.current = null;
+    } finally {
+      if (locked) {
+        this.capabilityUpdateLock.unlock();
+      }
     }
-    // The poller invokes callbacks under its lock; never acquire it with subscribers locked.
-    if (supported) {
-      this.configurationPoller.addCapabilities(CAPABILITY_FFE_FLAG_DEPENDENT_FLAG_VARIANT_KEY_V1);
-    } else {
-      this.configurationPoller.removeCapabilities(
-          CAPABILITY_FFE_FLAG_DEPENDENT_FLAG_VARIANT_KEY_V1);
-    }
-    requestAgain();
   }
 
   /**
@@ -143,34 +207,96 @@ public class RemoteConfigServiceImpl implements ConfigurationChangesTypedListene
    * acknowledged before any subscriber validated it. Registering the product again drops its cached
    * documents. Runs outside the subscribers lock, as the poller notifies under its own lock.
    */
-  private synchronized void requestAgain() {
-    if (!this.started) {
+  private void requestAgain() {
+    synchronized (this.subscribers) {
+      if (!this.started) {
+        return;
+      }
+      this.refreshGeneration++;
+    }
+    updateLifecycle();
+  }
+
+  private void updateLifecycle() {
+    if (!this.lifecycleUpdateLock.tryLock()) {
       return;
     }
-    LOGGER.debug("Requesting the rejected Feature Flags configuration again to report it");
-    this.configurationPoller.removeListeners(FFE_FLAGS);
-    listen();
+    boolean locked = true;
+    try {
+      while (true) {
+        final boolean targetStarted;
+        final boolean appliedStarted;
+        final long refreshVersion;
+        final boolean refresh;
+        synchronized (this.subscribers) {
+          targetStarted = this.started;
+          appliedStarted = this.lifecycleStarted;
+          refreshVersion = this.refreshGeneration;
+          refresh =
+              targetStarted
+                  && targetStarted == appliedStarted
+                  && refreshVersion != this.appliedRefreshGeneration;
+          if (targetStarted == appliedStarted && !refresh) {
+            this.lifecycleUpdateLock.unlock();
+            locked = false;
+            return;
+          }
+        }
+
+        if (targetStarted != appliedStarted) {
+          if (targetStarted) {
+            LOGGER.debug("Feature Flagging starting remote_config configuration source");
+            this.configurationPoller.addCapabilities(CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
+            listen();
+            this.configurationPoller.start();
+          } else {
+            LOGGER.debug("Feature Flagging remote_config configuration source stopped");
+            this.configurationPoller.removeCapabilities(CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
+            this.configurationPoller.removeListeners(FFE_FLAGS);
+            this.configurationPoller.stop();
+          }
+          synchronized (this.subscribers) {
+            this.lifecycleStarted = targetStarted;
+            this.deliveryStopped = !targetStarted;
+            if (this.deliveryStopped) {
+              this.current = null;
+            }
+          }
+        } else {
+          LOGGER.debug("Requesting the rejected Feature Flags configuration again to report it");
+          this.configurationPoller.removeListeners(FFE_FLAGS);
+          listen();
+          synchronized (this.subscribers) {
+            this.appliedRefreshGeneration = refreshVersion;
+          }
+        }
+      }
+    } finally {
+      if (locked) {
+        this.lifecycleUpdateLock.unlock();
+      }
+    }
   }
 
   /**
    * Unregisters the Feature Flags product, releases the poller started by {@link #start()} and
    * drops the subscribers.
    */
-  public synchronized void close() {
-    if (!this.started) {
-      return;
-    }
-    this.started = false;
-    LOGGER.debug("Feature Flagging remote_config configuration source stopped");
-    this.configurationPoller.removeCapabilities(CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
-    this.configurationPoller.removeListeners(FFE_FLAGS);
-    this.configurationPoller.stop();
+  public void close() {
+    final boolean wasStarted;
     synchronized (this.subscribers) {
-      this.subscribers.clear();
-      this.dependentFlagSubscribers.clear();
+      wasStarted = this.started;
+      this.started = false;
+      this.appliedRefreshGeneration = this.refreshGeneration;
+      this.deliveryStopped = true;
+      if (wasStarted) {
+        this.subscribers.clear();
+        this.dependentFlagSubscribers.clear();
+        this.current = null;
+      }
     }
     updateDependentFlagCapability();
-    this.current = null;
+    updateLifecycle();
   }
 
   /**
@@ -189,6 +315,13 @@ public class RemoteConfigServiceImpl implements ConfigurationChangesTypedListene
       final PollingRateHinter pollingRateHinter) {
     final Iterator<Consumer<byte[]>> snapshot;
     synchronized (this.subscribers) {
+      if (this.deliveryStopped) {
+        return;
+      }
+      if (this.deliverySuspended) {
+        throw new IllegalStateException(
+            "Feature Flags configuration changed while evaluator capabilities were updating");
+      }
       this.current = content;
       this.unvalidated = content != null && this.subscribers.isEmpty();
       snapshot = this.subscribers.iterator();
