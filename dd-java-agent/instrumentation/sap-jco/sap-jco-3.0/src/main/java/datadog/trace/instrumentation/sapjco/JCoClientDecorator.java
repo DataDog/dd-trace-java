@@ -22,6 +22,9 @@ public class JCoClientDecorator extends ClientDecorator {
   /** OTel-style RPC system identifier for SAP Remote Function Calls. */
   private static final String RPC_SYSTEM_SAP_RFC = "sap_rfc";
 
+  /** The RFC JCo issues to fetch a function's interface before calling it. */
+  private static final String METADATA_RFM = "RFC_METADATA_GET";
+
   public static final JCoClientDecorator DECORATE = new JCoClientDecorator();
 
   @Override
@@ -65,7 +68,6 @@ public class JCoClientDecorator extends ClientDecorator {
       return;
     }
     setIfPresent(span, "sap.destination", destination.getDestinationName());
-    setIfPresent(span, "sap.system.id", destination.getR3Name());
     setIfPresent(span, "sap.system.number", destination.getSystemNumber());
     setIfPresent(span, "sap.client", destination.getClient());
     setIfPresent(span, "sap.user", destination.getUser());
@@ -77,10 +79,10 @@ public class JCoClientDecorator extends ClientDecorator {
    */
   public void onMetadata(AgentSpan span, String function) {
     span.setTag("rpc.system", RPC_SYSTEM_SAP_RFC);
-    span.setTag("rpc.method", "RFC_METADATA_GET");
-    if (function != null) {
-      span.setResourceName(function);
-    }
+    span.setTag("rpc.method", METADATA_RFM);
+    // Resource reads distinctly from the sap.rfc.call span for the same function (just the function
+    // name): here it is the function qualified as a metadata lookup.
+    span.setResourceName(function == null ? METADATA_RFM : function + " (metadata)");
   }
 
   /** Marks a metadata span as an error when SAP has no such RFC function. */
