@@ -1,6 +1,7 @@
 package datadog.trace.core;
 
 import static datadog.trace.api.sampling.PrioritySampling.UNSET;
+import static java.util.Collections.emptyMap;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -14,7 +15,6 @@ import datadog.trace.api.datastreams.NoopPathwayContext;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.propagation.PropagationTags;
-import java.util.Collections;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -37,7 +37,7 @@ class StreamingTraceCollectorTest {
     tracer = mock(CoreTracer.class);
     CoreTracer.ConfigSnapshot traceConfig = mock(CoreTracer.ConfigSnapshot.class);
     when(tracer.captureTraceConfig()).thenReturn(traceConfig);
-    when(traceConfig.getServiceMapping()).thenReturn(Collections.emptyMap());
+    when(traceConfig.getServiceMapping()).thenReturn(emptyMap());
     healthMetrics = mock(HealthMetrics.class);
     collector =
         new StreamingTraceCollector.Factory(tracer, mock(TimeSource.class), healthMetrics)
@@ -80,7 +80,7 @@ class StreamingTraceCollectorTest {
             "",
             UNSET,
             "",
-            Collections.emptyMap(),
+            emptyMap(),
             false,
             "",
             0,

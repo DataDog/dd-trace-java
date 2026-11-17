@@ -2,6 +2,9 @@ package datadog.trace.core.otlp.sdk;
 
 import static datadog.trace.agent.test.utils.OtelMetricCollector.collect;
 import static datadog.trace.api.TracePropagationStyle.DATADOG;
+import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_ENABLED;
+import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_TEMPORALITY_PREFERENCE;
+import static datadog.trace.api.config.OtlpConfig.TRACE_OTEL_SDK_SELF_MONITORING_METRICS_ENABLED;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -12,7 +15,6 @@ import datadog.trace.agent.test.utils.OtelMetricCollector;
 import datadog.trace.agent.test.utils.OtelMetricCollector.DataPointEntry;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTraceId;
-import datadog.trace.api.config.OtlpConfig;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.common.writer.ListWriter;
 import datadog.trace.core.CoreTracer;
@@ -29,9 +31,9 @@ import org.junit.jupiter.api.Test;
 
 // Gate on: the instruments are registered once per JVM, so these tests need their own JVM.
 // Cumulative temporality keeps the asserted values independent of any background collection.
-@WithConfig(key = OtlpConfig.METRICS_OTEL_ENABLED, value = "true")
-@WithConfig(key = OtlpConfig.TRACE_OTEL_SDK_SELF_MONITORING_METRICS_ENABLED, value = "true")
-@WithConfig(key = OtlpConfig.OTLP_METRICS_TEMPORALITY_PREFERENCE, value = "cumulative")
+@WithConfig(key = METRICS_OTEL_ENABLED, value = "true")
+@WithConfig(key = TRACE_OTEL_SDK_SELF_MONITORING_METRICS_ENABLED, value = "true")
+@WithConfig(key = OTLP_METRICS_TEMPORALITY_PREFERENCE, value = "cumulative")
 class OtelHealthMetricsForkedTest extends DDCoreJavaSpecification {
   @Test
   void gateOnReportsEveryOriginAndTracksSpanLifecycle() {
