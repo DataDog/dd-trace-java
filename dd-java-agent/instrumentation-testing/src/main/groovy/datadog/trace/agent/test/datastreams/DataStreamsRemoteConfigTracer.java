@@ -1,10 +1,14 @@
 package datadog.trace.agent.test.datastreams;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.agent.tooling.TracerInstaller;
 import datadog.trace.api.DynamicConfig;
 import datadog.trace.api.IdGenerationStrategy;
+import datadog.trace.api.datastreams.KafkaConfigReport;
 import datadog.trace.api.datastreams.NoopPathwayContext;
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopTraceConfig;
@@ -13,11 +17,18 @@ import datadog.trace.common.metrics.EventListener;
 import datadog.trace.common.metrics.Sink;
 import datadog.trace.common.writer.ListWriter;
 import datadog.trace.core.CoreTracer;
+import datadog.trace.core.DDSpan;
 import datadog.trace.core.datastreams.DefaultDataStreamsMonitoring;
+import datadog.trace.core.datastreams.StatsBucket;
 import datadog.trace.core.datastreams.StatsGroup;
 import datadog.trace.test.util.PollingConditions;
 import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -28,14 +39,17 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public final class DataStreamsRemoteConfigTracer {
   private final CoreTracer tracer;
+  private final ListWriter writer;
   private final DefaultDataStreamsMonitoring dataStreamsMonitoring;
   private final RecordingDatastreamsPayloadWriter dataStreamsWriter;
 
   private DataStreamsRemoteConfigTracer(
       CoreTracer tracer,
+      ListWriter writer,
       DefaultDataStreamsMonitoring dataStreamsMonitoring,
       RecordingDatastreamsPayloadWriter dataStreamsWriter) {
     this.tracer = tracer;
+    this.writer = writer;
     this.dataStreamsMonitoring = dataStreamsMonitoring;
     this.dataStreamsWriter = dataStreamsWriter;
   }
@@ -68,7 +82,8 @@ public final class DataStreamsRemoteConfigTracer {
             .build();
     tracerRef.set(tracer);
     TracerInstaller.forceInstallGlobalTracer(tracer);
-    return new DataStreamsRemoteConfigTracer(tracer, dataStreamsMonitoring, dataStreamsWriter);
+    return new DataStreamsRemoteConfigTracer(
+        tracer, writer, dataStreamsMonitoring, dataStreamsWriter);
   }
 
   public CoreTracer tracer() {
@@ -122,6 +137,46 @@ public final class DataStreamsRemoteConfigTracer {
         .initialDelay(0.5)
         .eventually(() -> count.set(dataStreamsWriter.getGroups().size()));
     return count.get();
+  }
+
+  /** Runs {@code pollClients} so client metadata refreshes, until both Kafka configs report. */
+  public void waitForKafkaConfigReports(Runnable pollClients) {
+    new PollingConditions(15)
+        .eventually(() -> {
+          pollClients.run();
+          Set<String> types = new HashSet<>();
+          for (StatsBucket bucket : dataStreamsWriter.getPayloads()) {
+            for (KafkaConfigReport report : bucket.getKafkaConfigs()) {
+              if (!report.getConfig().isEmpty()) {
+                types.add(report.getType());
+              }
+            }
+          }
+          assertTrue(types.containsAll(Arrays.asList("kafka_producer", "kafka_consumer")));
+        });
+  }
+
+  /** Waits for, then returns, the single written span named {@code operationName}. */
+  public DDSpan singleSpan(String operationName) {
+    new PollingConditions(5)
+        .delay(0.02)
+        .eventually(() -> assertFalse(spans(operationName).isEmpty()));
+    List<DDSpan> spans = spans(operationName);
+    assertEquals(1, spans.size());
+    return spans.get(0);
+  }
+
+  /** Written spans named {@code operationName}. */
+  public List<DDSpan> spans(String operationName) {
+    List<DDSpan> spans = new ArrayList<>();
+    for (List<DDSpan> trace : writer) {
+      for (DDSpan span : trace) {
+        if (operationName.equals(span.getOperationName().toString())) {
+          spans.add(span);
+        }
+      }
+    }
+    return spans;
   }
 
   private static final class NoopSink implements Sink {

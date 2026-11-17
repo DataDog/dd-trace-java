@@ -1,25 +1,17 @@
 import static datadog.trace.api.datastreams.PathwayContext.PROPAGATION_KEY_BASE64;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.agent.test.datastreams.DataStreamsRemoteConfigTracer;
-import datadog.trace.api.datastreams.KafkaConfigReport;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.core.DDSpan;
-import datadog.trace.core.datastreams.StatsBucket;
 import datadog.trace.test.junit.utils.config.WithConfig;
 import datadog.trace.test.util.PollingConditions;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -106,7 +98,7 @@ class KafkaDataStreamsRemoteConfigForkedTest extends AbstractInstrumentationTest
             assertTrue(dataStreams.hasGroup("direction:in", "topic:" + TOPIC, "type:kafka"));
           });
       // Configs captured while DSM was off are kept until a metadata update after the enable
-      waitForKafkaConfigReports(consumer);
+      dataStreams.waitForKafkaConfigReports(() -> consumer.poll(100));
 
       // remote config disables data streams again
       dataStreams.toggleDataStreams(false);
@@ -118,23 +110,6 @@ class KafkaDataStreamsRemoteConfigForkedTest extends AbstractInstrumentationTest
       // Stats stop too: no new group is written once DSM is off
       assertEquals(groupsBeforeOffAgain, dataStreams.settledGroupCount());
     }
-  }
-
-  /** Polls so client metadata refreshes, until DSM reports the config of each client type. */
-  private static void waitForKafkaConfigReports(KafkaConsumer<String, String> consumer) {
-    new PollingConditions(15)
-        .eventually(() -> {
-          consumer.poll(100);
-          Set<String> types = new HashSet<>();
-          for (StatsBucket bucket : dataStreams.dataStreamsWriter().getPayloads()) {
-            for (KafkaConfigReport report : bucket.getKafkaConfigs()) {
-              if (!report.getConfig().isEmpty()) {
-                types.add(report.getType());
-              }
-            }
-          }
-          assertTrue(types.containsAll(Arrays.asList("kafka_producer", "kafka_consumer")));
-        });
   }
 
   private static ConsumerRecord<String, String> produceAndConsume(
@@ -159,21 +134,6 @@ class KafkaDataStreamsRemoteConfigForkedTest extends AbstractInstrumentationTest
 
   /** The single consume span written since the last {@link #produceAndConsume}. */
   private static DDSpan consumeSpan() {
-    new PollingConditions(5).delay(0.02).eventually(() -> assertFalse(consumeSpans().isEmpty()));
-    List<DDSpan> spans = consumeSpans();
-    assertEquals(1, spans.size());
-    return spans.get(0);
-  }
-
-  private static List<DDSpan> consumeSpans() {
-    List<DDSpan> spans = new ArrayList<>();
-    for (List<DDSpan> trace : writer) {
-      for (DDSpan span : trace) {
-        if ("kafka.consume".equals(span.getOperationName().toString())) {
-          spans.add(span);
-        }
-      }
-    }
-    return spans;
+    return dataStreams.singleSpan("kafka.consume");
   }
 }

@@ -163,7 +163,6 @@ class PropagatorsTest {
   void testConcurrentRegisterAndDefaultPropagator() throws InterruptedException {
     int count = 500;
     int readerCount = 4;
-    Propagators.reset();
     AtomicBoolean registering = new AtomicBoolean(true);
     AtomicReference<Throwable> readerFailure = new AtomicReference<>();
     CountDownLatch readersReady = new CountDownLatch(readerCount);
