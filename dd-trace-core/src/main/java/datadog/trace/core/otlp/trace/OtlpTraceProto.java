@@ -46,6 +46,7 @@ import static java.util.Collections.emptySet;
 
 import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.StreamingBuffer;
+import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
@@ -157,9 +158,11 @@ public final class OtlpTraceProto {
     Map<String, Object> reports = span.getMetaStruct();
     Set<String> structuredKeys = emptySet();
     if (!reports.isEmpty()) {
-      structuredKeys = new HashSet<>(reports.size());
+      structuredKeys = new HashSet<>(reports.size(), 1.0f);
+      GrowableBuffer reportBuffer = new GrowableBuffer(1024);
+      MsgPackWriter reportWriter = new MsgPackWriter(reportBuffer);
       for (Map.Entry<String, Object> report : reports.entrySet()) {
-        byte[] encoded = encodeMetaStruct(report.getValue());
+        byte[] encoded = encodeMetaStruct(report.getValue(), reportWriter, reportBuffer);
         if (encoded != null) {
           writeTag(buf, 9, LEN_WIRE_TYPE);
           writeBytesAttribute(buf, report.getKey(), encoded);

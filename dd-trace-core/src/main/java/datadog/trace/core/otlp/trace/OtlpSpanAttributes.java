@@ -116,10 +116,8 @@ final class OtlpSpanAttributes {
 
   /** Encodes a report like native export, or returns null when that report cannot be serialized. */
   @Nullable
-  static byte[] encodeMetaStruct(Object value) {
+  static byte[] encodeMetaStruct(Object value, MsgPackWriter writer, GrowableBuffer buffer) {
     try {
-      GrowableBuffer buffer = new GrowableBuffer(1024);
-      MsgPackWriter writer = new MsgPackWriter(buffer);
       writer.writeObject(value, null);
       ByteBuffer encoded = buffer.slice();
       byte[] bytes = new byte[encoded.remaining()];
@@ -128,6 +126,8 @@ final class OtlpSpanAttributes {
     } catch (RuntimeException e) {
       log.debug("Failed to serialize structured span report", e);
       return null;
+    } finally {
+      buffer.reset();
     }
   }
 
@@ -206,7 +206,7 @@ final class OtlpSpanAttributes {
     }
 
     private boolean isSkipped(TagMap.EntryReader entry) {
-      return skippedKeys.contains(entry.tag())
+      return (!skippedKeys.isEmpty() && skippedKeys.contains(entry.tag()))
           || (!structuredKeys.isEmpty()
               && structuredKeys.contains(
                   otelSemantics ? entry.openTelemetryTag(direction) : entry.tag()));

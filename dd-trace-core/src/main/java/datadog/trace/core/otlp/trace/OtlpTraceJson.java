@@ -34,6 +34,8 @@ import static datadog.trace.core.otlp.trace.OtlpSpanAttributes.isExportedTagKey;
 import static datadog.trace.core.otlp.trace.OtlpSpanKind.spanKind;
 import static java.util.Collections.emptySet;
 
+import datadog.communication.serialization.GrowableBuffer;
+import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.json.JsonWriter;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
@@ -109,9 +111,11 @@ public final class OtlpTraceJson {
     Map<String, Object> reports = span.getMetaStruct();
     Set<String> structuredKeys = emptySet();
     if (!reports.isEmpty()) {
-      structuredKeys = new HashSet<>(reports.size());
+      structuredKeys = new HashSet<>(reports.size(), 1.0f);
+      GrowableBuffer reportBuffer = new GrowableBuffer(1024);
+      MsgPackWriter reportWriter = new MsgPackWriter(reportBuffer);
       for (Map.Entry<String, Object> report : reports.entrySet()) {
-        byte[] encoded = encodeMetaStruct(report.getValue());
+        byte[] encoded = encodeMetaStruct(report.getValue(), reportWriter, reportBuffer);
         if (encoded != null) {
           writeBytesAttribute(writer, report.getKey(), encoded);
           structuredKeys.add(report.getKey());

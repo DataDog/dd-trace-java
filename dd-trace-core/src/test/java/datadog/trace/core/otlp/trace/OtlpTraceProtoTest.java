@@ -27,6 +27,7 @@ import static org.mockito.Mockito.when;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.WireFormat;
+import datadog.communication.serialization.GrowableBuffer;
 import datadog.trace.api.Config;
 import datadog.trace.api.DD128bTraceId;
 import datadog.trace.api.DDTraceId;
@@ -45,6 +46,7 @@ import datadog.trace.core.otlp.common.OtlpPayload;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.PropagationTags;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
@@ -59,6 +61,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.AdditionalAnswers;
 import org.mockito.MockedStatic;
 import org.msgpack.jackson.dataformat.MessagePackFactory;
@@ -718,6 +721,27 @@ class OtlpTraceProtoTest {
     EncodedSamplingState nonProbability = exportSamplingState(nonProbabilityKeep);
     assertNull(nonProbability.traceState);
     assertEquals(SAMPLED_TRACE_FLAG, nonProbability.flags);
+  }
+
+  @ParameterizedTest
+  @ValueSource(ints = {1024, 128 * 1024})
+  void payloadBoundaryReleasesOnlyOversizedSpanStorage(int reportSize) throws Exception {
+    DDSpan report = (DDSpan) TRACER.startSpan("test", "reports");
+    report.setResourceName("reports");
+    report.setMetaStruct("ai_guard", singletonMap("content", new byte[reportSize]));
+    report.finish();
+    OtlpTraceProtoCollector collector = new OtlpTraceProtoCollector();
+    collector.addTrace(asList(report));
+    collector.addTrace(buildSpans(asList(span("next", "next", "web"))));
+    Field scratch = OtlpTraceProtoCollector.class.getDeclaredField("buf");
+    scratch.setAccessible(true);
+    GrowableBuffer buffer = (GrowableBuffer) scratch.get(collector);
+    int expandedCapacity = buffer.capacity();
+    assertTrue(expandedCapacity >= reportSize);
+    assertEquals(2, parseStringAttributeListsBySpanName(collector.collectTraces()).size());
+    assertEquals(reportSize > 64 * 1024 ? 512 : expandedCapacity, buffer.capacity());
+    collector.addTrace(buildSpans(asList(span("small", "small", "web"))));
+    assertTrue(parseStringAttributeListsBySpanName(collector.collectTraces()).containsKey("small"));
   }
 
   @Test

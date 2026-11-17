@@ -7,21 +7,26 @@ import static datadog.trace.core.otlp.common.OtlpCommonJson.hexSpanId;
 import static datadog.trace.core.otlp.common.OtlpCommonJson.hexTraceId;
 import static datadog.trace.core.otlp.common.OtlpResourceJson.buildTraceResourceFragment;
 import static datadog.trace.core.otlp.common.OtlpTraceFlags.SAMPLED_TRACE_FLAG;
+import static datadog.trace.core.otlp.trace.OtlpSpanAttributes.encodeMetaStruct;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonMap;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.AdditionalAnswers.delegatesTo;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import datadog.communication.serialization.GrowableBuffer;
+import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.json.JsonMapper;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTraceId;
@@ -51,7 +56,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 import org.junit.jupiter.api.Test;
-import org.mockito.AdditionalAnswers;
 import org.mockito.MockedStatic;
 import org.msgpack.jackson.dataformat.MessagePackFactory;
 import org.tabletest.junit.TableTest;
@@ -180,7 +184,7 @@ class OtlpTraceJsonCollectorTest {
       String kind, String tag, String otelName) throws IOException {
     Config realConfig = Config.get();
     try (MockedStatic<Config> configMock = mockStatic(Config.class)) {
-      Config config = mock(Config.class, AdditionalAnswers.delegatesTo(realConfig));
+      Config config = mock(Config.class, delegatesTo(realConfig));
       when(config.isTraceOtelSemanticsEnabled()).thenReturn(true);
       configMock.when(Config::get).thenReturn(config);
 
@@ -233,7 +237,7 @@ class OtlpTraceJsonCollectorTest {
       throws IOException {
     Config realConfig = Config.get();
     try (MockedStatic<Config> configMock = mockStatic(Config.class)) {
-      Config config = mock(Config.class, AdditionalAnswers.delegatesTo(realConfig));
+      Config config = mock(Config.class, delegatesTo(realConfig));
       when(config.isTraceOtelSemanticsEnabled()).thenReturn(true);
       configMock.when(Config::get).thenReturn(config);
 
@@ -275,7 +279,7 @@ class OtlpTraceJsonCollectorTest {
       throws IOException {
     Config realConfig = Config.get();
     try (MockedStatic<Config> configMock = mockStatic(Config.class)) {
-      Config config = mock(Config.class, AdditionalAnswers.delegatesTo(realConfig));
+      Config config = mock(Config.class, delegatesTo(realConfig));
       when(config.isTraceOtelSemanticsEnabled()).thenReturn(otelSemanticsEnabled);
       configMock.when(Config::get).thenReturn(config);
 
@@ -320,7 +324,7 @@ class OtlpTraceJsonCollectorTest {
       throws IOException {
     Config realConfig = Config.get();
     try (MockedStatic<Config> configMock = mockStatic(Config.class)) {
-      Config config = mock(Config.class, AdditionalAnswers.delegatesTo(realConfig));
+      Config config = mock(Config.class, delegatesTo(realConfig));
       when(config.isTraceOtelSemanticsEnabled()).thenReturn(otelSemantics);
       configMock.when(Config::get).thenReturn(config);
 
@@ -691,7 +695,7 @@ class OtlpTraceJsonCollectorTest {
       boolean otelSemanticsEnabled, String kind, String tag, String baggageKey) throws IOException {
     Config realConfig = Config.get();
     try (MockedStatic<Config> configMock = mockStatic(Config.class)) {
-      Config config = mock(Config.class, AdditionalAnswers.delegatesTo(realConfig));
+      Config config = mock(Config.class, delegatesTo(realConfig));
       when(config.isTraceOtelSemanticsEnabled()).thenReturn(otelSemanticsEnabled);
       configMock.when(Config::get).thenReturn(config);
 
@@ -705,6 +709,18 @@ class OtlpTraceJsonCollectorTest {
       collector.addTrace(asList((CoreSpan<?>) span));
       return onlySpan(collector.collectTraces());
     }
+  }
+
+  @Test
+  void metaStructScratchBufferResetsAfterSuccessAndPartialFailure() throws IOException {
+    GrowableBuffer buffer = new GrowableBuffer(1024);
+    MsgPackWriter writer = new MsgPackWriter(buffer);
+    Map<String, Object> report = singletonMap("content", "hello");
+    byte[] encoded = encodeMetaStruct(report, writer, buffer);
+    // The malformed map writes its header before failing on the non-string key.
+    assertNull(encodeMetaStruct(singletonMap(1, "invalid map key"), writer, buffer));
+    assertArrayEquals(encoded, encodeMetaStruct(report, writer, buffer));
+    assertEquals(report, new ObjectMapper(new MessagePackFactory()).readValue(encoded, Map.class));
   }
 
   @Test
@@ -737,7 +753,7 @@ class OtlpTraceJsonCollectorTest {
     // Initialize the shared resource cache before temporarily changing the export semantics.
     buildTraceResourceFragment(emptyMap());
     try (MockedStatic<Config> configMock = mockStatic(Config.class)) {
-      Config config = mock(Config.class, AdditionalAnswers.delegatesTo(realConfig));
+      Config config = mock(Config.class, delegatesTo(realConfig));
       when(config.isTraceOtelSemanticsEnabled()).thenReturn(true);
       configMock.when(Config::get).thenReturn(config);
       OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
