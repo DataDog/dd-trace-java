@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.aerospike4;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.aerospike4.AerospikeClientDecorator.DECORATE;
@@ -32,7 +33,21 @@ public final class AerospikeClientInstrumentation
     transformer.applyAdvice(
         isMethod()
             .and(isPublic())
-            .and(takesArgument(1, nameStartsWith("com.aerospike.client.listener"))),
+            .and(
+                takesArgument(
+                    1,
+                    namedOneOf(
+                        "com.aerospike.client.listener.ExistsListener",
+                        "com.aerospike.client.listener.ExistsSequenceListener",
+                        "com.aerospike.client.listener.ExistsArrayListener",
+                        "com.aerospike.client.listener.RecordListener",
+                        "com.aerospike.client.listener.RecordSequenceListener",
+                        "com.aerospike.client.listener.RecordArrayListener",
+                        "com.aerospike.client.listener.BatchSequenceListener",
+                        "com.aerospike.client.listener.BatchListListener",
+                        "com.aerospike.client.listener.WriteListener",
+                        "com.aerospike.client.listener.ExecuteListener",
+                        "com.aerospike.client.listener.DeleteListener"))),
         getClass().getName() + "$TraceAsyncRequestAdvice");
   }
 

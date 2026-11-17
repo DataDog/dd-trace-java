@@ -21,25 +21,31 @@ tasks.withType<Javadoc>().configureEach {
 
 // These agents are part of every smoke test's execution contract in this repository.
 val agentJar = smokeTestAgentFrom(
-  "smokeTestTracer", ":dd-java-agent",
-  Bundling.BUNDLING_ATTRIBUTE, Bundling.SHADOWED
+  "smokeTestTracer",
+  ":dd-java-agent",
+  Bundling.BUNDLING_ATTRIBUTE,
+  Bundling.SHADOWED
 )
 val diagnosticsAgentJar = smokeTestAgentFrom(
-  "smokeTestDiagnostics", ":dd-java-agent:instrumentation-testing",
-  LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, SCOPE_DIAGNOSTICS_AGENT
+  "smokeTestDiagnostics",
+  ":dd-java-agent:instrumentation-testing",
+  LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE,
+  SCOPE_DIAGNOSTICS_AGENT
 )
 val baseVersion = version.toString()
 val testBuildDirectory = layout.buildDirectory
 val diagnosticsQuiescenceMillis = providers.systemProperty("datadog.smoketest.scopeDiagnostics.quiescenceMillis").orElse("2000")
 
 tasks.withType<Test>().configureEach {
-  jvmArgumentProviders.add(objects.newInstance<SmokeAgentArguments>().apply {
-    tracerJar.set(agentJar)
-    tracerVersion.set(baseVersion)
-    diagnosticsJar.set(diagnosticsAgentJar)
-    buildDirectory.set(testBuildDirectory)
-    quiescenceMillis.set(diagnosticsQuiescenceMillis)
-  })
+  jvmArgumentProviders.add(
+    objects.newInstance<SmokeAgentArguments>().apply {
+      tracerJar.set(agentJar)
+      tracerVersion.set(baseVersion)
+      diagnosticsJar.set(diagnosticsAgentJar)
+      buildDirectory.set(testBuildDirectory)
+      quiescenceMillis.set(diagnosticsQuiescenceMillis)
+    }
+  )
 }
 
 fun <T : Named> smokeTestAgentFrom(

@@ -115,6 +115,7 @@ dependencies {
 
   implementation(libs.asm)
   implementation(libs.asm.tree)
+  implementation(libs.testing.okhttp3)
 
   // Keep aligned with build-logic/tag-registry, which shares these Jackson classes.
   implementation(platform("com.fasterxml.jackson:jackson-bom:2.17.2"))
@@ -138,6 +139,7 @@ testing {
     named<JvmTestSuite>("test") {
       dependencies {
         implementation(libs.assertj.core)
+        implementation(libs.tabletest)
         implementation(libs.okhttp3.mockwebserver)
       }
       targets.configureEach {
@@ -168,6 +170,7 @@ spotless {
     target("src/**/*.kt")
     targetExclude("src/*/resources/**")
     ktlint().setEditorConfigPath(editorConfig)
+    tableTestFormatter(libs.versions.tabletest.formatter.get())
   }
   kotlinGradle {
     toggleOffOn()

@@ -120,16 +120,22 @@ class SmokeTestConventionTest : GradleFixture() {
   @Test
   fun `parent child and late tests consume agent variants with configuration cache reuse`() {
     val args = arrayOf(
-      ":dd-smoke-tests:test", ":dd-smoke-tests:child:test", ":dd-smoke-tests:child:lateSmokeTest",
+      ":dd-smoke-tests:test",
+      ":dd-smoke-tests:child:test",
+      ":dd-smoke-tests:child:lateSmokeTest",
       "-Ddatadog.smoketest.scopeDiagnostics.quiescenceMillis=3210",
-      "--configuration-cache", "--configuration-cache-problems=fail", "--stacktrace"
+      "--configuration-cache",
+      "--configuration-cache-problems=fail",
+      "--stacktrace"
     )
     val first = run(*args)
 
     for (path in listOf(
       ":dd-java-agent:tracerForSmokeTests",
       ":dd-java-agent:instrumentation-testing:diagnosticsForSmokeTests",
-      ":dd-smoke-tests:test", ":dd-smoke-tests:child:test", ":dd-smoke-tests:child:lateSmokeTest"
+      ":dd-smoke-tests:test",
+      ":dd-smoke-tests:child:test",
+      ":dd-smoke-tests:child:lateSmokeTest"
     )) {
       assertThat(first.task(path)?.outcome).describedAs(first.output).isEqualTo(SUCCESS)
     }

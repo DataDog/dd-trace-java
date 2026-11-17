@@ -38,7 +38,9 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
 
   static final String LOG4J2_BACKEND = "Log4j2"
   static final String LOGBACK_BACKEND = "Logback"
-  static final Set<String> DIRECT_LOG_SUBMISSION_BACKENDS = [LOG4J2_BACKEND, LOGBACK_BACKEND] as Set
+  static final String JBOSS_BACKEND = "JBoss"
+  static final String LOG4J1_BACKEND = "Log4j1"
+  static final Set<String> DIRECT_LOG_SUBMISSION_BACKENDS = [LOG4J2_BACKEND, LOGBACK_BACKEND, JBOSS_BACKEND, LOG4J1_BACKEND] as Set
 
   @Shared
   File outputLogFile
@@ -462,10 +464,29 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
   }
 }
 
-abstract class JULBackend extends LogInjectionSmokeTest {
+abstract class JULConfiguredSmokeTest extends LogInjectionSmokeTest {
+  // JUL doesn't support reading a properties file from the classpath so everything needs
+  // to be specified in a temp file
   @Shared
   def propertiesFile = File.createTempFile("julConfig", ".properties")
 
+  def cleanupSpec() {
+    propertiesFile?.delete()
+  }
+
+  List additionalArguments() {
+    // The child's LogManager reads this file at startup, so write it before the process starts
+    propertiesFile.withPrintWriter {
+      it.println ".level=INFO"
+      writeJulProperties(it)
+    }
+    return ["-Djava.util.logging.config.file=${propertiesFile.absolutePath}" as String]
+  }
+
+  protected abstract void writeJulProperties(PrintWriter out)
+}
+
+abstract class JULBackend extends JULConfiguredSmokeTest {
   def backend() {
     "JUL"
   }
@@ -477,30 +498,17 @@ abstract class JULBackend extends LogInjectionSmokeTest {
     false
   }
 
-  def setupSpec() {
+  protected void writeJulProperties(PrintWriter out) {
     def isWindows = System.getProperty("os.name").toLowerCase().contains("win")
     def outputLogFilePath = outputLogFile.absolutePath
     if (isWindows) {
       // FileHandler pattern only uses / as path delimiter
       outputLogFilePath = outputLogFilePath.replace("\\", "/")
     }
-    // JUL doesn't support reading a properties file from the classpath so everything needs
-    // to be specified in a temp file
-    propertiesFile.withPrintWriter {
-      it.println ".level=INFO"
-      it.println "handlers=java.util.logging.FileHandler"
-      it.println "java.util.logging.FileHandler.pattern=${outputLogFilePath}"
-      it.println "java.util.logging.FileHandler.formatter=java.util.logging.SimpleFormatter"
-      it.println "java.util.logging.SimpleFormatter.format=JUL:%1\$tF %1\$tT [%4\$-7s] - %5\$s%n"
-    }
-  }
-
-  def cleanupSpec() {
-    propertiesFile?.delete()
-  }
-
-  List additionalArguments() {
-    return ["-Djava.util.logging.config.file=${propertiesFile.absolutePath}" as String]
+    out.println "handlers=java.util.logging.FileHandler"
+    out.println "java.util.logging.FileHandler.pattern=${outputLogFilePath}"
+    out.println "java.util.logging.FileHandler.formatter=java.util.logging.SimpleFormatter"
+    out.println "java.util.logging.SimpleFormatter.format=JUL:%1\$tF %1\$tT [%4\$-7s] - %5\$s%n"
   }
 }
 
@@ -523,7 +531,7 @@ class JULInterfaceLog4j2LatestBackend extends JULInterfaceLog4j2Backend {}
 
 class JULInterfaceJBossBackend extends LogInjectionSmokeTest {
   def backend() {
-    "JBoss"
+    JBOSS_BACKEND
   }
   def supportsJson() {
     false
@@ -546,7 +554,7 @@ class JCLInterfaceJULBackend extends JULBackend {
 
 class JCLInterfaceLog4j1Backend extends LogInjectionSmokeTest {
   def backend() {
-    "Log4j1"
+    LOG4J1_BACKEND
   }
   def supportsJson() {
     false
@@ -574,7 +582,7 @@ class JCLInterfaceLog4j2LatestBackend extends JCLInterfaceLog4j2Backend {}
 
 class Log4j1InterfaceLog4j1Backend extends LogInjectionSmokeTest {
   def backend() {
-    "Log4j1"
+    LOG4J1_BACKEND
   }
   def supportsJson() {
     false
@@ -629,7 +637,7 @@ class Slf4jInterfaceLogbackLatestBackend extends Slf4jInterfaceLogbackBackend {}
 
 class Slf4jInterfaceLog4j1Backend extends LogInjectionSmokeTest {
   def backend() {
-    "Log4j1"
+    LOG4J1_BACKEND
   }
   def supportsJson() {
     false
@@ -683,7 +691,7 @@ class Slf4jInterfaceJULBackend extends JULBackend {
 
 class Slf4jInterfaceJCLToLog4j1Backend extends LogInjectionSmokeTest {
   def backend() {
-    "Log4j1"
+    LOG4J1_BACKEND
   }
   def supportsJson() {
     false
@@ -709,29 +717,13 @@ class Slf4jInterfaceJCLToLog4j2BackendNoTags extends Slf4jInterfaceJCLToLog4j2Ba
 class Slf4jInterfaceJCLToLog4j2Backend128bTid extends Slf4jInterfaceJCLToLog4j2Backend {}
 class Slf4jInterfaceJCLToLog4j2LatestBackend extends Slf4jInterfaceJCLToLog4j2Backend {}
 
-class JULInterfaceSlf4jToLogbackBackend extends LogInjectionSmokeTest {
-  @Shared
-  def propertiesFile = File.createTempFile("julConfig", ".properties")
-
+class JULInterfaceSlf4jToLogbackBackend extends JULConfiguredSmokeTest {
   def backend() {
     LOGBACK_BACKEND
   }
 
-  def setupSpec() {
-    // JUL doesn't support reading a properties file from the classpath so everything needs
-    // to be specified in a temp file
-    propertiesFile.withPrintWriter {
-      it.println ".level=INFO"
-      it.println "handlers=org.slf4j.bridge.SLF4JBridgeHandler"
-    }
-  }
-
-  def cleanupSpec() {
-    propertiesFile?.delete()
-  }
-
-  List additionalArguments() {
-    return ["-Djava.util.logging.config.file=${propertiesFile.absolutePath}" as String]
+  protected void writeJulProperties(PrintWriter out) {
+    out.println "handlers=org.slf4j.bridge.SLF4JBridgeHandler"
   }
 }
 
@@ -771,7 +763,7 @@ class Log4j2InterfaceSlf4jToLogbackLatestBackend extends Log4j2InterfaceSlf4jToL
 
 class JBossInterfaceJBossBackend extends LogInjectionSmokeTest {
   def backend() {
-    "JBoss"
+    JBOSS_BACKEND
   }
   def supportsJson() {
     false
@@ -788,7 +780,7 @@ class JBossInterfaceJBossLatestBackend extends JBossInterfaceJBossBackend {}
 
 class JBossInterfaceLog4j1Backend extends LogInjectionSmokeTest {
   def backend() {
-    "Log4j1"
+    LOG4J1_BACKEND
   }
   def supportsJson() {
     false
