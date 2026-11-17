@@ -2,11 +2,16 @@ package com.datadog.openfeature.internal.evaluation;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Random;
 import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
@@ -143,6 +148,70 @@ class ShardHasherTest {
     assertThrows(ArithmeticException.class, () -> hasher.shard("salt", 0));
   }
 
+  @Test
+  void sizesTheBufferForThreeByteChars() throws Throwable {
+    onFreshThread(() -> {
+      for (final int n : new int[] {84, 85, 86, 100, 2730}) {
+        final String key = String.join("", Collections.nCopies(n, "日"));
+        assertEquals(referenceShard("日", key, 9973), new ShardHasher(key).shard("日", 9973));
+      }
+    });
+  }
+
+  @Test
+  void forgetsTheKeyAndLargeBuffers() throws Throwable {
+    onFreshThread(() -> {
+      new ShardHasher("secret-user").shard("s", 100);
+      final byte[] buffer = threadBuffer();
+      for (final byte b : buffer) {
+        assertEquals(0, b);
+      }
+      new ShardHasher(String.join("", Collections.nCopies(4000, "日"))).shard("s", 100);
+      assertTrue(threadBuffer().length <= 8 * 1024);
+    });
+  }
+
+  @Test
+  void allocatesNoTableForOneSalt() throws Exception {
+    final ShardHasher hasher = new ShardHasher("alice");
+    final Field salts = ShardHasher.class.getDeclaredField("salts");
+    salts.setAccessible(true);
+    for (int i = 0; i < 10; i++) {
+      hasher.shard("only", 100);
+    }
+    assertNull(salts.get(hasher));
+    hasher.shard("second", 100);
+    assertNotNull(salts.get(hasher));
+  }
+
+  @SuppressWarnings("unchecked")
+  private static byte[] threadBuffer() throws Exception {
+    final Field field = ShardHasher.class.getDeclaredField("BUFFER");
+    field.setAccessible(true);
+    return ((ThreadLocal<byte[]>) field.get(null)).get();
+  }
+
+  private interface Body {
+    void run() throws Exception;
+  }
+
+  private static void onFreshThread(final Body body) throws Throwable {
+    final Throwable[] failure = new Throwable[1];
+    final Thread thread =
+        new Thread(() -> {
+          try {
+            body.run();
+          } catch (final Throwable e) {
+            failure[0] = e;
+          }
+        });
+    thread.start();
+    thread.join();
+    if (failure[0] != null) {
+      throw failure[0];
+    }
+  }
+
   private static long randomTotalShards(final Random random) {
     switch (random.nextInt(4)) {
       case 0:
@@ -152,7 +221,7 @@ class ShardHasherTest {
       case 2:
         return 4_294_967_295L;
       default:
-        return 1 + (random.nextLong() >>> 32);
+        return Math.max(1, random.nextLong() >>> 32);
     }
   }
 

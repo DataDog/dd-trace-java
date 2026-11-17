@@ -11,8 +11,9 @@ import java.util.Arrays;
  * allocations share it.
  *
  * <p>An instance belongs to one evaluation. The digest and the encoding buffer are reused per
- * thread; both are JDK types, so a thread does not keep the application's class loader, and the
- * buffer is zeroed after each hash, so a thread does not keep a targeting key either.
+ * thread; both are JDK types, so a thread does not keep the application's class loader. After each
+ * hash the buffer is zeroed and the digest is reset, which clears the input block it keeps, so a
+ * thread does not keep a targeting key either.
  */
 final class ShardHasher {
   /** Encoding buffers larger than this are used for one hash and not kept by the thread. */
@@ -87,6 +88,7 @@ final class ShardHasher {
   }
 
   private int digest(final String salt) {
+    final MessageDigest md5 = MD5.get();
     // A char takes at most three UTF-8 bytes; a surrogate pair takes four for two chars.
     final long capacity = (salt.length() + 1L + targetingKey.length()) * 3;
     byte[] buffer = BUFFER.get();
@@ -96,23 +98,26 @@ final class ShardHasher {
         BUFFER.set(buffer);
       }
     }
-    int length = encode(salt, buffer, 0);
-    buffer[length++] = '-';
-    length = encode(targetingKey, buffer, length);
-    final MessageDigest md5 = MD5.get();
-    md5.update(buffer, 0, length);
-    // Overwrite the targeting key; the digest output reuses the start of the buffer.
-    Arrays.fill(buffer, 0, length, (byte) 0);
+    int length = 0;
     try {
+      length = encode(salt, buffer, 0);
+      buffer[length++] = '-';
+      length = encode(targetingKey, buffer, length);
+      md5.update(buffer, 0, length);
       md5.digest(buffer, 0, 16);
+      digests++;
+      return (buffer[0] & 0xFF) << 24
+          | (buffer[1] & 0xFF) << 16
+          | (buffer[2] & 0xFF) << 8
+          | (buffer[3] & 0xFF);
     } catch (final DigestException e) {
       throw new IllegalStateException(e);
+    } finally {
+      // Forget the input and its digest. After digest() the MD5 engine still holds the last input
+      // block; reset() zeroes it.
+      Arrays.fill(buffer, 0, Math.max(length, 16), (byte) 0);
+      md5.reset();
     }
-    digests++;
-    return (buffer[0] & 0xFF) << 24
-        | (buffer[1] & 0xFF) << 16
-        | (buffer[2] & 0xFF) << 8
-        | (buffer[3] & 0xFF);
   }
 
   /**
