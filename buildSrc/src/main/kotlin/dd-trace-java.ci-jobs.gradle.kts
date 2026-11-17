@@ -96,6 +96,8 @@ if (gitBaseRefProvider.isPresent) {
 
     val projects = subprojects.sortedByDescending { it.projectDir.path.length }
     val changedFilesByProject = mutableMapOf<Project, MutableList<File>>()
+    val openFeatureCorpus =
+      rootProject.file("dd-smoke-tests/openfeature/src/test/resources/ffe-system-test-data")
 
     for (f in filteredChangedFiles) {
       val p = projects.find { f.toString().startsWith(it.projectDir.path + "/") }
@@ -107,6 +109,12 @@ if (gitBaseRefProvider.isPresent) {
 
       logger.warn("Changed file: ${relativeToGitRoot(f)} in project ${p.path}")
       changedFilesByProject.computeIfAbsent(p) { mutableListOf() }.add(f)
+
+      if (f == openFeatureCorpus) {
+        val openFeatureProject = project(":dd-openfeature")
+        logger.warn("Selecting ${openFeatureProject.path} for shared FFE corpus change")
+        changedFilesByProject.computeIfAbsent(openFeatureProject) { mutableListOf() }.add(f)
+      }
     }
 
     // Source sets are only known once every project is configured: the aggregate tasks map these files to tasks.
