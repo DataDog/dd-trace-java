@@ -116,11 +116,10 @@ class RumInjectionUnclosedWriterForkedTest extends AbstractInstrumentationTest {
       StringWriter body = new StringWriter();
       AtomicBoolean drainedAtPrincipalExtraction = new AtomicBoolean();
       when(request.getUserPrincipal())
-          .thenAnswer(
-              invocation -> {
-                drainedAtPrincipalExtraction.set(PAGE_WITHOUT_HEAD.equals(body.toString()));
-                return (java.security.Principal) () -> "user";
-              });
+          .thenAnswer(invocation -> {
+            drainedAtPrincipalExtraction.set(PAGE_WITHOUT_HEAD.equals(body.toString()));
+            return (java.security.Principal) () -> "user";
+          });
       new PublicHttpServlet(PAGE_WITHOUT_HEAD).service(request, response(body));
       assertEquals(PAGE_WITHOUT_HEAD, body.toString());
       assertTrue(
