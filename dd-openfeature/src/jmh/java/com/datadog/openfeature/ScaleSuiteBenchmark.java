@@ -6,19 +6,12 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
 import com.datadog.openfeature.internal.config.Settings;
 import com.datadog.openfeature.internal.ufc.UniversalFlagConfigParser;
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonToken;
 import dev.openfeature.sdk.EvaluationContext;
 import dev.openfeature.sdk.MutableContext;
 import dev.openfeature.sdk.ProviderEvaluation;
 import dev.openfeature.sdk.Value;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -37,15 +30,23 @@ import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.annotations.Warmup;
 
 /**
- * Evaluation cost on the opt-in scale suite of the shared FFE fixtures ({@code
- * evaluation-suites/scale}): 10,000-entry lists, regex conditions on 2 KB inputs, deep rules, a
- * 200-attribute context and JSON values with hundreds of nodes.
+ * Evaluation cost on the opt-in scale suites of the shared FFE fixtures ({@code
+ * evaluation-suites/scale} and {@code evaluation-suites/scale-json}): large lists, regex, rules,
+ * splits and shards, time windows, many variations and flags, and JSON values up to 10 MB. The
+ * dimensions are listed in {@code evaluation-suites/scale/AGENTS.md} of the fixtures.
  *
- * <p>Each operation evaluates the next case of the selected case file through the provider. The
- * setup first evaluates every case once and fails if a value or reason differs from the expected
- * one, so the benchmark never measures a wrong result.
+ * <p>Each operation evaluates a case of the selected case file through the provider. With {@code
+ * index=all}, the operations go through the cases of the file in turn, so a row is the mean of its
+ * best case, worst case and miss. Select one case to measure one shape: the setup prints the index
+ * of each case.
  *
- * <p>Run: {@code ./gradlew :dd-openfeature:jmh -Pjmh.includes=ScaleSuiteBenchmark}.
+ * <p>The setup first evaluates every case once and fails if a value or reason differs from the
+ * expected one, so the benchmark never measures a wrong result. JSON values are compared by numeric
+ * value: a JSON integer can come back as an integer or as a double.
+ *
+ * <p>Run all case files: {@code ./gradlew :dd-openfeature:jmh -Pjmh.includes=ScaleSuiteBenchmark
+ * -Pjmh.profilers=gc}. Run one case: {@code java -jar dd-openfeature/build/libs/*-jmh.jar
+ * ScaleSuiteBenchmark -p cases=scale/splits -p index=0 -prof gc}.
  */
 @State(Scope.Benchmark)
 @Warmup(iterations = 3, time = 2, timeUnit = SECONDS)
@@ -54,13 +55,31 @@ import org.openjdk.jmh.annotations.Warmup;
 @OutputTimeUnit(NANOSECONDS)
 @Fork(value = 1)
 public class ScaleSuiteBenchmark {
-  private static final String SUITE_PATH =
-      "dd-smoke-tests/openfeature/src/test/resources/ffe-system-test-data/evaluation-suites/scale";
-  private static final JsonFactory JSON_FACTORY = new JsonFactory();
 
-  /** The case file of the scale suite, without the {@code .json} extension. */
-  @Param({"json-values", "one-of", "regex", "rules", "wide-context"})
+  /** A case file, as {@code <suite>/<file>} without the {@code .json} extension. */
+  @Param({
+    "scale/flags",
+    "scale/numeric",
+    "scale/one-of",
+    "scale/one-of-many",
+    "scale/regex",
+    "scale/regex-many",
+    "scale/rules",
+    "scale/rules-sweep",
+    "scale/semver",
+    "scale/splits",
+    "scale/time-windows",
+    "scale/variations",
+    "scale/wide-context",
+    "scale-json/json-shapes",
+    "scale-json/json-sizes",
+    "scale-json/json-values"
+  })
   public String cases;
+
+  /** The index of one case in the file, or {@code all} to go through every case in turn. */
+  @Param({"all"})
+  public String index;
 
   private Provider provider;
   private ScaleCase[] scaleCases;
@@ -68,25 +87,30 @@ public class ScaleSuiteBenchmark {
 
   @Setup(Level.Trial)
   public void setUp() throws IOException {
-    final Path suite = suiteRoot();
+    final int slash = cases.indexOf('/');
+    final ScaleSuites.Suite suite = ScaleSuites.load(cases.substring(0, slash));
     final DDEvaluator evaluator =
         new DDEvaluator(
             () -> {},
             AgentBridge.NONE,
             Settings.load(AgentBridge.NONE),
             ExperimentationOptOutMode.DISABLED);
-    evaluator.accept(
-        UniversalFlagConfigParser.parse(Files.readAllBytes(suite.resolve("ufc-config.json"))));
+    evaluator.accept(UniversalFlagConfigParser.parse(suite.config()));
     provider = new Provider(new Provider.Options(), evaluator, false);
 
     final List<ScaleCase> loaded = new ArrayList<>();
-    for (final Object json : (List<?>) read(suite.resolve("cases").resolve(cases + ".json"))) {
+    for (final Object json : suite.cases(cases.substring(slash + 1))) {
       loaded.add(new ScaleCase((Map<?, ?>) json));
     }
-    scaleCases = loaded.toArray(new ScaleCase[0]);
-    for (final ScaleCase scaleCase : scaleCases) {
+    for (int i = 0; i < loaded.size(); i++) {
+      final ScaleCase scaleCase = loaded.get(i);
       scaleCase.check(scaleCase.evaluate(provider));
+      System.out.println("[" + cases + "] case " + i + ": " + scaleCase.describe());
     }
+    scaleCases =
+        "all".equals(index)
+            ? loaded.toArray(new ScaleCase[0])
+            : new ScaleCase[] {loaded.get(Integer.parseInt(index))};
   }
 
   @TearDown(Level.Trial)
@@ -108,6 +132,7 @@ public class ScaleSuiteBenchmark {
     private final Object defaultValue;
     private final Object expectedValue;
     private final String expectedReason;
+    private final String targetingKey;
     private final EvaluationContext context;
 
     ScaleCase(final Map<?, ?> json) {
@@ -115,11 +140,12 @@ public class ScaleSuiteBenchmark {
       this.variationType = (String) json.get("variationType");
       final Map<?, ?> result = (Map<?, ?>) json.get("result");
       this.defaultValue = typed(json.get("defaultValue"));
-      this.expectedValue = typed(result.get("value"));
+      this.expectedValue = result.get("value");
       this.expectedReason = (String) result.get("reason");
+      this.targetingKey = (String) json.get("targetingKey");
       final MutableContext context =
           new MutableContext(Value.objectToValue(json.get("attributes")).asStructure().asMap());
-      context.setTargetingKey((String) json.get("targetingKey"));
+      context.setTargetingKey(targetingKey);
       this.context = context;
     }
 
@@ -141,23 +167,33 @@ public class ScaleSuiteBenchmark {
     }
 
     void check(final ProviderEvaluation<?> details) {
-      if (!Objects.equals(expectedValue, details.getValue())
+      final Object actual =
+          details.getValue() instanceof Value
+              ? plain((Value) details.getValue())
+              : details.getValue();
+      if (!sameValue(expectedValue, actual)
           || !Objects.equals(expectedReason, details.getReason())) {
         throw new IllegalStateException(
             "Unexpected result for "
                 + flag
-                + ": expected "
+                + " ("
+                + targetingKey
+                + "): expected "
                 + expectedReason
                 + " "
-                + expectedValue
+                + abbreviate(expectedValue)
                 + ", got "
                 + details.getReason()
                 + " "
-                + details.getValue());
+                + abbreviate(actual));
       }
     }
 
-    /** Converts a fixture value to the type that the provider returns for this variation type. */
+    String describe() {
+      return flag + " (" + targetingKey + ") -> " + expectedReason;
+    }
+
+    /** Converts a fixture value to the type that the provider takes for this variation type. */
     private Object typed(final Object value) {
       if (value == null) {
         return null;
@@ -168,84 +204,71 @@ public class ScaleSuiteBenchmark {
         case "NUMERIC":
           return ((Number) value).doubleValue();
         case "JSON":
-          return Value.objectToValue(exactIntegers(value));
+          return Value.objectToValue(value);
         default:
           return value;
       }
     }
   }
 
-  /** Reads integral numbers as Integer when they fit, as the UFC parser does for JSON variants. */
-  private static Object exactIntegers(final Object value) {
-    if (value instanceof Long) {
-      final long number = (Long) value;
-      return number == (int) number ? (Object) (int) number : value;
+  /** Converts a returned value to maps, lists, strings, numbers, booleans and null. */
+  private static Object plain(final Value value) {
+    if (value == null || value.isNull()) {
+      return null;
     }
-    if (value instanceof Map) {
-      final Map<String, Object> map = new LinkedHashMap<>();
-      ((Map<?, ?>) value).forEach((k, v) -> map.put((String) k, exactIntegers(v)));
+    if (value.isStructure()) {
+      final Map<String, Object> map = new java.util.LinkedHashMap<>();
+      value.asStructure().asMap().forEach((k, v) -> map.put(k, plain(v)));
       return map;
     }
-    if (value instanceof List) {
+    if (value.isList()) {
       final List<Object> list = new ArrayList<>();
-      ((List<?>) value).forEach(v -> list.add(exactIntegers(v)));
+      for (final Value item : value.asList()) {
+        list.add(plain(item));
+      }
       return list;
     }
-    return value;
+    return value.asObject();
   }
 
-  /** Reads a JSON file: integral numbers as Long, other numbers as Double. */
-  private static Object read(final Path file) throws IOException {
-    try (JsonParser parser = JSON_FACTORY.createParser(Files.readAllBytes(file))) {
-      parser.nextToken();
-      return readValue(parser);
+  /** Equality that compares numbers by value, so 5 and 5.0 are the same. */
+  private static boolean sameValue(final Object expected, final Object actual) {
+    if (expected instanceof Number && actual instanceof Number) {
+      return new java.math.BigDecimal(expected.toString())
+              .compareTo(new java.math.BigDecimal(actual.toString()))
+          == 0;
     }
-  }
-
-  private static Object readValue(final JsonParser parser) throws IOException {
-    final JsonToken token = parser.currentToken();
-    switch (token) {
-      case START_OBJECT:
-        final Map<String, Object> object = new LinkedHashMap<>();
-        while (parser.nextToken() == JsonToken.FIELD_NAME) {
-          final String name = parser.currentName();
-          parser.nextToken();
-          object.put(name, readValue(parser));
-        }
-        return object;
-      case START_ARRAY:
-        final List<Object> array = new ArrayList<>();
-        while (parser.nextToken() != JsonToken.END_ARRAY) {
-          array.add(readValue(parser));
-        }
-        return array;
-      case VALUE_STRING:
-        return parser.getText();
-      case VALUE_NUMBER_INT:
-        return parser.getLongValue();
-      case VALUE_NUMBER_FLOAT:
-        return parser.getDoubleValue();
-      case VALUE_TRUE:
-        return Boolean.TRUE;
-      case VALUE_FALSE:
-        return Boolean.FALSE;
-      case VALUE_NULL:
-        return null;
-      default:
-        throw new IOException("Unexpected JSON token: " + token);
-    }
-  }
-
-  private static Path suiteRoot() {
-    Path directory = Paths.get("").toAbsolutePath();
-    while (directory != null) {
-      final Path candidate = directory.resolve(SUITE_PATH);
-      if (Files.exists(candidate.resolve("ufc-config.json"))) {
-        return candidate;
+    if (expected instanceof Map && actual instanceof Map) {
+      final Map<?, ?> e = (Map<?, ?>) expected;
+      final Map<?, ?> a = (Map<?, ?>) actual;
+      if (e.size() != a.size()) {
+        return false;
       }
-      directory = directory.getParent();
+      for (final Map.Entry<?, ?> entry : e.entrySet()) {
+        if (!a.containsKey(entry.getKey()) || !sameValue(entry.getValue(), a.get(entry.getKey()))) {
+          return false;
+        }
+      }
+      return true;
     }
-    throw new IllegalStateException(
-        "Unable to find the FFE scale suite: initialize the ffe-system-test-data submodule");
+    if (expected instanceof List && actual instanceof List) {
+      final List<?> e = (List<?>) expected;
+      final List<?> a = (List<?>) actual;
+      if (e.size() != a.size()) {
+        return false;
+      }
+      for (int i = 0; i < e.size(); i++) {
+        if (!sameValue(e.get(i), a.get(i))) {
+          return false;
+        }
+      }
+      return true;
+    }
+    return Objects.equals(expected, actual);
+  }
+
+  private static String abbreviate(final Object value) {
+    final String text = String.valueOf(value);
+    return text.length() <= 200 ? text : text.substring(0, 200) + "... (" + text.length() + ")";
   }
 }
