@@ -304,6 +304,44 @@ public class DDEvaluatorTest {
     assertThat(details.getVariant(), equalTo("on"));
   }
 
+  static List<Arguments> directRegexCases() {
+    return asList(
+        Arguments.of(ConditionOperator.MATCHES, "@example\\.com$", "a@example.com", 1, null),
+        Arguments.of(ConditionOperator.MATCHES, "@example\\.com$", "a@example.com\n", 0, null),
+        Arguments.of(ConditionOperator.NOT_MATCHES, "@example\\.com$", "a@other.com", 1, null),
+        Arguments.of(ConditionOperator.MATCHES, "(?=a)a", "a", 0, ErrorCode.PARSE_ERROR));
+  }
+
+  /** A condition that was not parsed has no cached matcher, so evaluation compiles the pattern. */
+  @ParameterizedTest
+  @MethodSource("directRegexCases")
+  public void testEvaluateDirectlyConstructedRegexCondition(
+      final ConditionOperator operator,
+      final String pattern,
+      final String email,
+      final int expected,
+      final ErrorCode errorCode) {
+    final Map<String, Variant> variations = new HashMap<>();
+    variations.put("on", new Variant("on", 1));
+    final Rule rule =
+        new Rule(singletonList(new ConditionConfiguration(operator, "email", pattern)));
+    final Allocation allocation =
+        new Allocation(
+            "alloc-1", singletonList(rule), null, null, singletonList(split("on")), false);
+    final Map<String, Flag> flags = new HashMap<>();
+    flags.put(
+        "target",
+        new Flag("target", true, ValueType.INTEGER, variations, singletonList(allocation)));
+    final DDEvaluator evaluator = newEvaluator(mock(Runnable.class));
+    evaluator.accept(new ServerConfiguration("", "", false, null, flags));
+
+    final EvaluationContext context = new MutableContext("user").add("email", email);
+    final ProviderEvaluation<?> details = evaluator.evaluate(Integer.class, "target", 0, context);
+
+    assertThat(details.getValue(), equalTo(expected));
+    assertThat(details.getErrorCode(), equalTo(errorCode));
+  }
+
   private static final Instant WINDOW_START = Instant.parse("2020-01-01T00:00:00Z");
   private static final Instant WINDOW_END = Instant.parse("2999-01-01T00:00:00Z");
 

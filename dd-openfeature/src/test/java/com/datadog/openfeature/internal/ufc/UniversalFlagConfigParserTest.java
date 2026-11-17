@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -445,6 +446,70 @@ class UniversalFlagConfigParserTest {
     assertNull(allocation.startAt);
     assertNull(allocation.endAt);
     assertTrue(config.invalidFlags.isEmpty());
+  }
+
+  @Test
+  void sharesOneRegexMatcherForEachPattern() throws Exception {
+    final ServerConfiguration config =
+        deserialize(
+            regexConfig(
+                regexFlag("one", "^[a-z]+@site\\\\.test$"),
+                regexFlag("two", "^[a-z]+@site\\\\.test$"),
+                regexFlag("three", "@other\\\\.test$")));
+    final RegexMatcher one = regex(config, "one");
+    assertSame(one, regex(config, "two"));
+    assertEquals(RegexMatcher.Kind.ENGINE, one.kind());
+    assertEquals(RegexMatcher.Kind.ENDS_WITH, regex(config, "three").kind());
+  }
+
+  @Test
+  void dropsAFlagWithRegexSyntaxThatRustRejects() throws Exception {
+    final ServerConfiguration config =
+        deserialize(
+            regexConfig(regexFlag("lookahead", "(?=a)a"), regexFlag("valid", "@other\\\\.test$")));
+    assertFalse(config.flags.containsKey("lookahead"));
+    assertEquals("unsupported_regex", config.invalidFlags.get("lookahead"));
+    assertEquals(RegexMatcher.Kind.ENDS_WITH, regex(config, "valid").kind());
+  }
+
+  /** A pattern that does not compile is not cached, so each flag that uses it is dropped. */
+  @Test
+  void dropsEveryFlagThatSharesAnUnsupportedPattern() throws Exception {
+    final ServerConfiguration config =
+        deserialize(
+            regexConfig(
+                regexFlag("first", "(?=a)a"),
+                regexFlag("second", "(?=a)a"),
+                regexFlag("valid", "@other\\\\.test$")));
+    assertFalse(config.flags.containsKey("first"));
+    assertFalse(config.flags.containsKey("second"));
+    assertEquals("unsupported_regex", config.invalidFlags.get("first"));
+    assertEquals("unsupported_regex", config.invalidFlags.get("second"));
+    assertTrue(config.flags.containsKey("valid"));
+  }
+
+  private static String regexConfig(final String... flags) {
+    return "{\"createdAt\":\"2024-04-17T19:40:53.716Z\",\"environment\":{\"name\":\"Test\"},"
+        + "\"flags\":{"
+        + String.join(",", flags)
+        + "}}";
+  }
+
+  private static String regexFlag(final String key, final String pattern) {
+    return "\""
+        + key
+        + "\":{\"key\":\""
+        + key
+        + "\",\"enabled\":true,\"variationType\":\"BOOLEAN\","
+        + "\"variations\":{\"on\":{\"key\":\"on\",\"value\":true}},"
+        + "\"allocations\":[{\"key\":\"a\",\"rules\":[{\"conditions\":["
+        + "{\"attribute\":\"email\",\"operator\":\"MATCHES\",\"value\":\""
+        + pattern
+        + "\"}]}],\"splits\":[{\"variationKey\":\"on\",\"shards\":[]}],\"doLog\":true}]}";
+  }
+
+  private static RegexMatcher regex(final ServerConfiguration config, final String key) {
+    return config.flags.get(key).allocations.get(0).rules.get(0).conditions.get(0).regex;
   }
 
   private static ServerConfiguration deserialize(final String json) throws Exception {

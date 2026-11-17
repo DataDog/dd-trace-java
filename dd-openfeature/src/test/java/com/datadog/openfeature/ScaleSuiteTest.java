@@ -17,7 +17,7 @@ import org.junit.jupiter.params.provider.MethodSource;
  * change that resolves a large configuration wrongly fails here instead of only in a manual run.
  */
 class ScaleSuiteTest {
-  private static final List<String> SUITES = Arrays.asList("scale", "scale-json");
+  private static final List<String> SUITES = Arrays.asList("scale", "scale-json", "regex");
 
   /** The case files that {@code ScaleSuiteBenchmark} lists in its {@code cases} parameter. */
   private static final List<String> BENCHMARKED_CASE_FILES =
@@ -38,7 +38,13 @@ class ScaleSuiteTest {
           "scale/wide-context",
           "scale-json/json-shapes",
           "scale-json/json-sizes",
-          "scale-json/json-values");
+          "scale-json/json-values",
+          "regex/backtracking",
+          "regex/literals");
+
+  /** Case files that this test checks but that are not worth benchmarking. */
+  private static final List<String> UNBENCHMARKED_CASE_FILES =
+      Arrays.asList("regex/semantics", "regex/unsupported-syntax");
 
   static Stream<String> caseFiles() throws IOException {
     final List<String> caseFiles = new ArrayList<>();
@@ -54,6 +60,7 @@ class ScaleSuiteTest {
   void benchmarkListsEveryCaseFile() throws IOException {
     final List<String> found = new ArrayList<>();
     caseFiles().forEach(found::add);
+    found.removeAll(UNBENCHMARKED_CASE_FILES);
     assertEquals(BENCHMARKED_CASE_FILES, found);
   }
 
