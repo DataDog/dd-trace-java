@@ -72,6 +72,8 @@ java {
 dependencies {
   api("dev.openfeature:sdk:1.23.0")
   implementation("io.opentelemetry:opentelemetry-api:1.66.0")
+  // Linear-time regex engine for MATCHES and NOT_MATCHES, like the Rust evaluator.
+  implementation(libs.re2j)
   api(libs.jackson.core)
 
   testImplementation(libs.bundles.junit5)

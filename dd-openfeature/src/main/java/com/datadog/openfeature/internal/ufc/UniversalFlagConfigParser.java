@@ -174,12 +174,14 @@ public final class UniversalFlagConfigParser {
       return null;
     }
     final Map<String, Flag> flags = new HashMap<>();
+    // One matcher for each distinct pattern in this configuration.
+    final Map<String, RegexMatcher> regexes = new HashMap<>();
     for (final Map.Entry<?, ?> entry : asObject(value, "flags").entrySet()) {
       final String flagKey = (String) entry.getKey();
       try {
         final Flag flag = toFlag(entry.getValue());
         if (flag != null) {
-          validateFlag(flagKey, flag);
+          validateFlag(flagKey, flag, regexes);
           flags.put(flagKey, flag);
         }
       } catch (final IllegalArgumentException error) {
@@ -491,7 +493,8 @@ public final class UniversalFlagConfigParser {
   }
 
   /** Validates the required nested UFC fields and condition operands for a flag. */
-  private static void validateFlag(final String flagKey, final Flag flag) {
+  private static void validateFlag(
+      final String flagKey, final Flag flag, final Map<String, RegexMatcher> regexes) {
     validateNumericVariants(flagKey, flag);
     if (flag.allocations == null) {
       return;
@@ -500,7 +503,7 @@ public final class UniversalFlagConfigParser {
       if (allocation == null) {
         continue;
       }
-      validateConditionOperands(flagKey, allocation);
+      validateConditionOperands(flagKey, allocation, regexes);
       if (allocation.splits == null) {
         continue;
       }
@@ -528,6 +531,20 @@ public final class UniversalFlagConfigParser {
     validateAndCacheSemverComparands(flagKey, flag);
   }
 
+  /**
+   * Returns the shared matcher for a pattern, and compiles it on first use.
+   *
+   * @throws java.util.regex.PatternSyntaxException if the pattern is malformed.
+   */
+  private static RegexMatcher regex(final String pattern, final Map<String, RegexMatcher> regexes) {
+    RegexMatcher matcher = regexes.get(pattern);
+    if (matcher == null) {
+      matcher = RegexMatcher.compile(pattern);
+      regexes.put(pattern, matcher);
+    }
+    return matcher;
+  }
+
   /** Preserve Java's numeric coercion, but reject values that cannot be mapped at all. */
   private static void validateNumericVariants(final String flagKey, final Flag flag) {
     if (flag.variations == null
@@ -546,7 +563,8 @@ public final class UniversalFlagConfigParser {
     }
   }
 
-  private static void validateConditionOperands(final String flagKey, final Allocation allocation) {
+  private static void validateConditionOperands(
+      final String flagKey, final Allocation allocation, final Map<String, RegexMatcher> regexes) {
     if (allocation.rules == null) {
       return;
     }
@@ -562,7 +580,7 @@ public final class UniversalFlagConfigParser {
           case MATCHES:
           case NOT_MATCHES:
             // Configuration validity is independent of targeting and experimentation opt-out.
-            condition.regex = ConditionConfiguration.compileRegex(condition.value);
+            condition.regex = regex(String.valueOf(condition.value), regexes);
             break;
           case LT:
           case LTE:

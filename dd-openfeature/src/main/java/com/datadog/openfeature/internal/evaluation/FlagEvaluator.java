@@ -19,6 +19,7 @@ import com.datadog.openfeature.internal.ufc.ConditionOperator;
 import com.datadog.openfeature.internal.ufc.Feature;
 import com.datadog.openfeature.internal.ufc.Flag;
 import com.datadog.openfeature.internal.ufc.ParsedSemver;
+import com.datadog.openfeature.internal.ufc.RegexMatcher;
 import com.datadog.openfeature.internal.ufc.Rule;
 import com.datadog.openfeature.internal.ufc.ServerConfiguration;
 import com.datadog.openfeature.internal.ufc.Shard;
@@ -41,7 +42,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -314,9 +314,9 @@ public final class FlagEvaluator {
 
     switch (condition.operator) {
       case MATCHES:
-        return matchesRegex(attributeValue, condition);
+        return matchesRegex(attributeValue, condition, true);
       case NOT_MATCHES:
-        return !matchesRegex(attributeValue, condition);
+        return matchesRegex(attributeValue, condition, false);
       case ONE_OF:
         return isOneOf(attributeValue, condition.value);
       case NOT_ONE_OF:
@@ -346,15 +346,18 @@ public final class FlagEvaluator {
     }
   }
 
+  /** Evaluates MATCHES ({@code expectMatch} true) or NOT_MATCHES ({@code expectMatch} false). */
   private static boolean matchesRegex(
-      final Object attributeValue, final ConditionConfiguration condition) {
-    // Parsed configurations cache the validated pattern. Directly constructed configurations
+      final Object attributeValue,
+      final ConditionConfiguration condition,
+      final boolean expectMatch) {
+    // Parsed configurations cache the validated matcher. Directly constructed configurations
     // retain the same syntax and error handling.
-    final Pattern pattern =
+    final RegexMatcher regex =
         condition.regex != null
             ? condition.regex
             : ConditionConfiguration.compileRegex(condition.value);
-    return pattern.matcher(String.valueOf(attributeValue)).find();
+    return regex.test(String.valueOf(attributeValue), expectMatch);
   }
 
   private static boolean isOneOf(final Object attributeValue, final Object conditionValue) {
