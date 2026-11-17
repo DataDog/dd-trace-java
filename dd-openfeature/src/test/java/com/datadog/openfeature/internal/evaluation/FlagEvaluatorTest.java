@@ -17,6 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import com.datadog.openfeature.internal.ufc.Allocation;
 import com.datadog.openfeature.internal.ufc.ConditionConfiguration;
@@ -250,6 +251,23 @@ class FlagEvaluatorTest {
 
   private static final int SEMVER_STEPS = 10;
 
+  @Test
+  void parsesEachSemverAttributeValueOncePerEvaluation() throws IOException {
+    final Flag ladder = semverLadder().flags.get("ladder");
+    final MutableContext context = new MutableContext("user");
+    context.add("app_version", "1.9.99"); // only the last step matches, so every rule runs
+    context.add("os_version", "2.1.0");
+    final SemverParseCache cache = new SemverParseCache();
+
+    for (final Allocation allocation : ladder.allocations) {
+      if (allocation.rules != null) {
+        FlagEvaluator.evaluateRules(allocation.rules, context, cache);
+      }
+    }
+
+    assertEquals(2, cache.parses());
+  }
+
   @TableTest({
     "scenario                    | appVersion                                             | osVersion | variant",
     "lowest step                 | 1.0.0                                                  | 2.1.0     | v0     ",
@@ -364,7 +382,10 @@ class FlagEvaluatorTest {
             context);
 
     assertEquals(ErrorCode.GENERAL, result.getErrorCode());
-    assertEquals(mapValueFailure(null).getMessage(), result.getErrorMessage());
+    final String expectedMessage = mapValueFailure(null).getMessage();
+    // Before JDK 15 a NullPointerException has no message, so there is nothing to compare.
+    assumeTrue(expectedMessage != null, "helpful NullPointerException messages are unavailable");
+    assertEquals(expectedMessage, result.getErrorMessage());
   }
 
   @Test

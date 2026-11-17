@@ -138,6 +138,8 @@ class ParsedSemverTest {
       {"1.0.0-a.b", "1.0.0-a-b"}, // the identifier "a" is a prefix of "a-b"
       {"1.0.0-rc.1", "1.0.0-rc.1.0"}, // fewer identifiers precede more
       {"1.0.0-18446744073709551616", "1.0.0-18446744073709551617"},
+      {"1.0.0-9.x", "1.0.0-10.x"}, // a numeric identifier that is not last compares by value
+      {"1.0.0-2.beta", "1.0.0-10.beta"},
     };
     for (final String[] pair : ordered) {
       final ParsedSemver left = ParsedSemver.parse(pair[0]);

@@ -45,7 +45,7 @@ public final class ParsedSemver {
       }
       final long component;
       try {
-        component = parseUnsignedDecimal(version, next, end);
+        component = Long.parseUnsignedLong(version, next, end, 10);
       } catch (final NumberFormatException e) {
         return INVALID; // overflow
       }
@@ -87,28 +87,6 @@ public final class ParsedSemver {
       return INVALID;
     }
     return new ParsedSemver(core, coreLength, prerelease);
-  }
-
-  private static final long MAX_UNSIGNED_DIV_10 = Long.divideUnsigned(-1L, 10);
-  private static final long MAX_UNSIGNED_MOD_10 = Long.remainderUnsigned(-1L, 10);
-
-  /**
-   * Parses the ASCII digits {@code [start, end)} as an unsigned 64-bit integer without copying
-   * them, like {@link Long#parseUnsignedLong(String)}.
-   *
-   * @throws NumberFormatException if the value does not fit in 64 unsigned bits
-   */
-  private static long parseUnsignedDecimal(final String value, final int start, final int end) {
-    long result = 0;
-    for (int i = start; i < end; i++) {
-      final int digit = value.charAt(i) - '0';
-      if (Long.compareUnsigned(result, MAX_UNSIGNED_DIV_10) > 0
-          || (result == MAX_UNSIGNED_DIV_10 && digit > MAX_UNSIGNED_MOD_10)) {
-        throw new NumberFormatException("unsigned 64-bit overflow");
-      }
-      result = result * 10 + digit;
-    }
-    return result;
   }
 
   /**

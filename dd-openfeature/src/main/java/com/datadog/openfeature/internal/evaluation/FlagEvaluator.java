@@ -278,7 +278,8 @@ public final class FlagEvaluator {
     return true;
   }
 
-  private static boolean evaluateRules(
+  // Visible for tests: they count the SemVer parses of one evaluation's rules.
+  static boolean evaluateRules(
       final List<Rule> rules, final EvaluationContext context, final SemverParseCache semverCache) {
     for (final Rule rule : rules) {
       if (isEmpty(rule.conditions)) {
@@ -398,8 +399,9 @@ public final class FlagEvaluator {
   }
 
   /**
-   * Converts a comparison operand to a double. Numbers convert without boxing; any other value goes
-   * through {@link #mapValue}, so it fails with the same exception and message.
+   * Converts a comparison operand to a double. A {@link Number} converts without allocating; any
+   * other value, including null, goes through {@link #mapValue}, so it converts or fails with
+   * mapValue's exception and message.
    */
   private static double toDouble(final Object value) {
     if (value instanceof Number) {
