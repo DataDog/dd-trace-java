@@ -1,5 +1,6 @@
 package datadog.trace.util;
 
+import datadog.trace.api.internal.VisibleForTesting;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -314,8 +315,9 @@ public class ChunkedBuffer {
     }
   }
 
-  /** Number of chunks currently held. Visible for tests. */
-  final int allocatedChunks() {
+  /** Number of chunks currently held. */
+  @VisibleForTesting
+  public final int allocatedChunks() {
     return allocatedChunks;
   }
 
