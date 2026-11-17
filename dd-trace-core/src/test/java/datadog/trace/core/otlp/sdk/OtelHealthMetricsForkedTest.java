@@ -2,13 +2,9 @@ package datadog.trace.core.otlp.sdk;
 
 import static datadog.trace.agent.test.utils.OtelMetricCollector.collect;
 import static datadog.trace.api.TracePropagationStyle.DATADOG;
-import static datadog.trace.core.otlp.sdk.OtelHealthMetrics.ORIGINS;
-import static datadog.trace.core.otlp.sdk.OtelHealthMetrics.PARENT_ORIGIN;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
-import static java.util.Locale.ROOT;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -22,18 +18,13 @@ import datadog.trace.common.writer.ListWriter;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDCoreJavaSpecification;
 import datadog.trace.core.DDSpan;
-import datadog.trace.core.DDSpanContext;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.test.junit.utils.config.WithConfig;
-import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 // Gate on: the instruments are registered once per JVM, so these tests need their own JVM.
@@ -42,8 +33,6 @@ import org.junit.jupiter.api.Test;
 @WithConfig(key = OtlpConfig.TRACE_OTEL_SDK_SELF_MONITORING_METRICS_ENABLED, value = "true")
 @WithConfig(key = OtlpConfig.OTLP_METRICS_TEMPORALITY_PREFERENCE, value = "cumulative")
 class OtelHealthMetricsForkedTest extends DDCoreJavaSpecification {
-  private static final String ORIGIN_PREFIX = "PARENT_ORIGIN_";
-
   @Test
   void gateOnReportsEveryOriginAndTracksSpanLifecycle() {
     HealthMetrics metrics = OtelSdkSelfMonitoring.healthMetrics(Config.get());
@@ -80,29 +69,6 @@ class OtelHealthMetricsForkedTest extends DDCoreJavaSpecification {
     } finally {
       tracer.close();
     }
-  }
-
-  /** Every {@code PARENT_ORIGIN_*} constant must index its own adder and attribute value. */
-  @Test
-  void everyParentOriginMapsToDistinctAdderAndAttribute() throws IllegalAccessException {
-    assertEquals(ORIGINS.length, OtelHealthMetrics.INSTANCE.started.length);
-    Set<Byte> indexes = new HashSet<>();
-    for (Field field : DDSpanContext.class.getDeclaredFields()) {
-      int modifiers = field.getModifiers();
-      if (!field.getName().startsWith(ORIGIN_PREFIX)
-          || !Modifier.isStatic(modifiers)
-          || !Modifier.isFinal(modifiers)
-          || field.getType() != byte.class) {
-        continue;
-      }
-      byte origin = field.getByte(null);
-      assertTrue(origin >= 0 && origin < ORIGINS.length, field.getName() + " is out of range");
-      assertTrue(indexes.add(origin), field.getName() + " shares an index");
-      String expected = field.getName().substring(ORIGIN_PREFIX.length()).toLowerCase(ROOT);
-      assertEquals(expected, ORIGINS[origin].get(PARENT_ORIGIN), field.getName());
-    }
-    assertFalse(indexes.isEmpty());
-    assertEquals(ORIGINS.length, indexes.size(), "every origin attribute needs a constant");
   }
 
   private static ExtractedContext remoteParentContext() {

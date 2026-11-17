@@ -26,7 +26,8 @@ final class OtelHealthMetrics extends HealthMetrics {
 
   /**
    * Indexed by {@link DDSpanContext#getParentOrigin()}, as is the {@code started} adder array;
-   * {@code OtelHealthMetricsForkedTest} checks every {@code PARENT_ORIGIN_*} constant maps here.
+   * {@code OtelHealthMetricsParentOriginTest} checks every {@code PARENT_ORIGIN_*} constant maps
+   * here.
    */
   static final Attributes[] ORIGINS = {
     Attributes.of(PARENT_ORIGIN, "none"),
