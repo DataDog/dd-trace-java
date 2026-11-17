@@ -305,14 +305,16 @@ class ProfilingRemoteConfigHandlerTest {
   }
 
   @Test
-  void removingRemoteConfigStopsTheProfilerWhenTheLocalConfigDisablesEverything() throws Exception {
-    ProfilingRemoteConfigHandler handler = handler();
+  void removingRemoteConfigRevertsToIdleWhenArmed() throws Exception {
+    ProfilingRemoteConfigHandler handler = handlerWhereTheLocalConfigEnablesProfiling();
     handler.onConfigsChanged(enabledConfig());
 
     handler.onConfigsChanged(new RemoteConfigurationStack());
 
+    // whatever the local configuration enables
     assertFalse(profilingSystem.isRunning());
     verify(recording).stop();
+    verify(controller, times(1)).createRecording(any(), any());
   }
 
   @Test
@@ -320,10 +322,7 @@ class ProfilingRemoteConfigHandlerTest {
     ProfilingRemoteConfigHandler handler = handler();
     handler.onConfigsChanged(enabledConfig());
 
-    // there are configs, but none sets a feature, so it is as if there were none
-    RemoteConfigurationStack stack = new RemoteConfigurationStack();
-    stack.push("config-1", 0, RemoteConfiguration.EMPTY);
-    handler.onConfigsChanged(stack);
+    handler.onConfigsChanged(stackOfConfigsThatSetNoFeature());
 
     assertFalse(profilingSystem.isRunning());
     verify(recording).stop();
@@ -358,25 +357,13 @@ class ProfilingRemoteConfigHandlerTest {
   }
 
   @Test
-  void noRemoteConfigInitiallyStartsTheProfilerWithTheLocalConfig() throws Exception {
+  void noRemoteConfigInitiallyIsIgnored() throws Exception {
+    // as when the APM_PROFILING payloads received are not profiling configs, or are dropped
     handlerWhereTheLocalConfigEnablesProfiling().onConfigsChanged(new RemoteConfigurationStack());
 
-    assertTrue(profilingSystem.isRunning());
-    verify(controller).reconfigure(localConfig);
-    verify(controller).createRecording(any(), any());
-  }
-
-  @Test
-  void removingRemoteConfigRestartsTheProfilerWithTheLocalConfig() throws Exception {
-    ProfilingRemoteConfigHandler handler = handlerWhereTheLocalConfigEnablesProfiling();
-    handler.onConfigsChanged(enabledConfig());
-
-    handler.onConfigsChanged(new RemoteConfigurationStack());
-
-    assertTrue(profilingSystem.isRunning());
-    verify(recording).stop();
-    verify(controller).reconfigure(localConfig);
-    verify(controller, times(2)).createRecording(any(), any());
+    assertFalse(profilingSystem.isRunning());
+    verify(controller, never()).reconfigure(any());
+    verify(controller, never()).createRecording(any(), any());
   }
 
   @Test
@@ -385,21 +372,26 @@ class ProfilingRemoteConfigHandlerTest {
     handler.onConfigsChanged(stackOf(ALL_FEATURES_DISABLED));
     assertFalse(profilingSystem.isRunning());
 
-    // there are configs, but none sets a feature, so it is as if there were none
-    RemoteConfigurationStack stack = new RemoteConfigurationStack();
-    stack.push("config-1", 0, RemoteConfiguration.EMPTY);
-    handler.onConfigsChanged(stack);
+    handler.onConfigsChanged(stackOfConfigsThatSetNoFeature());
 
     assertTrue(profilingSystem.isRunning());
     verify(controller).reconfigure(localConfig);
   }
 
   @Test
-  void unchangedAbsenceOfRemoteConfigIsIgnored() throws Exception {
-    ProfilingRemoteConfigHandler handler = handlerWhereTheLocalConfigEnablesProfiling();
-    handler.onConfigsChanged(new RemoteConfigurationStack());
+  void configsThatSetNoFeatureInitiallyStartTheProfilerWithTheLocalConfig() throws Exception {
+    handlerWhereTheLocalConfigEnablesProfiling().onConfigsChanged(stackOfConfigsThatSetNoFeature());
 
-    handler.onConfigsChanged(new RemoteConfigurationStack());
+    assertTrue(profilingSystem.isRunning());
+    verify(controller).reconfigure(localConfig);
+  }
+
+  @Test
+  void unchangedConfigsThatSetNoFeatureAreIgnored() throws Exception {
+    ProfilingRemoteConfigHandler handler = handlerWhereTheLocalConfigEnablesProfiling();
+    handler.onConfigsChanged(stackOfConfigsThatSetNoFeature());
+
+    handler.onConfigsChanged(stackOfConfigsThatSetNoFeature());
 
     assertTrue(profilingSystem.isRunning());
     verify(recording, never()).stop();
@@ -407,12 +399,15 @@ class ProfilingRemoteConfigHandlerTest {
   }
 
   @Test
-  void noRemoteConfigInitiallyKeepsTheProfilerIdleWhenTheLocalConfigDisablesEverything()
-      throws Exception {
-    handler().onConfigsChanged(new RemoteConfigurationStack());
+  void removingConfigsThatSetNoFeatureRevertsToIdle() throws Exception {
+    ProfilingRemoteConfigHandler handler = handlerWhereTheLocalConfigEnablesProfiling();
+    handler.onConfigsChanged(stackOfConfigsThatSetNoFeature());
+    assertTrue(profilingSystem.isRunning());
+
+    handler.onConfigsChanged(new RemoteConfigurationStack());
 
     assertFalse(profilingSystem.isRunning());
-    verify(controller, never()).reconfigure(any());
+    verify(recording).stop();
   }
 
   @Test
@@ -715,6 +710,13 @@ class ProfilingRemoteConfigHandlerTest {
   private static RemoteConfigurationStack stackOf(String profilers) {
     RemoteConfigurationStack stack = new RemoteConfigurationStack();
     stack.push("config-1", 0, config(profilers));
+    return stack;
+  }
+
+  /** Configs that are profiling configs, but set no feature, e.g. {@code {"profilers":{}}}. */
+  private static RemoteConfigurationStack stackOfConfigsThatSetNoFeature() {
+    RemoteConfigurationStack stack = new RemoteConfigurationStack();
+    stack.push("config-1", 0, RemoteConfiguration.EMPTY);
     return stack;
   }
 

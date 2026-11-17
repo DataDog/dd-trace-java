@@ -28,11 +28,19 @@ import org.slf4j.LoggerFactory;
  * Starts, restarts or stops the profiler according to the {@link RemoteConfiguration}s of the
  * priority stack, merged into one with the value of each feature coming from the highest priority
  * configuration that sets it. The merged configuration takes precedence over the local one for the
- * features it sets; the others keep their local value. When it sets no feature, e.g. because there
- * is no config, the local configuration applies as is: the profiler runs if it enables something,
- * even if it was idle. When the merged configuration disables all the remote configurable features,
- * the profiler is stopped, without merging the local configuration. Otherwise, the profiler is also
- * stopped when the resulting configuration has all profiling features disabled.
+ * features it sets; the others keep their local value.
+ *
+ * <ul>
+ *   <li>When there is no profiling config, e.g. none was received yet, they were all removed, or
+ *       the payloads received are not profiling configs, the profiler is idle: it only runs when
+ *       remote config asks for it.
+ *   <li>When there are profiling configs, but they set no feature, the local configuration applies
+ *       as is: the profiler runs if it enables something, even if it was idle.
+ *   <li>When the merged configuration disables all the remote configurable features, the profiler
+ *       is stopped, without merging the local configuration.
+ *   <li>Otherwise, the profiler is stopped when the resulting configuration has all profiling
+ *       features disabled.
+ * </ul>
  *
  * <p>Whether something is enabled is judged from the modes of the Datadog profiler that the
  * resulting configuration enables, since that is what the remote features map to. A JFR-only setup
@@ -93,11 +101,12 @@ final class ProfilingRemoteConfigHandler implements ProfilingConfigHandler {
   private final AtomicBoolean applying = new AtomicBoolean();
 
   // only used by the thread holding the applying flag:
-  // the merged configuration currently applied, null when none sets a feature
+  // the merged configuration currently applied, null when there is no profiling config, and
+  // EMPTY when there are some, but none sets a feature
   private RemoteConfiguration appliedConfiguration;
-  // whether the profiler is in the state that appliedConfiguration says; false after a failure,
-  // and before the first configs are applied, so that no config also applies the local one
-  private boolean stateKnown;
+  // whether the profiler is in the state that appliedConfiguration says; false after a failure.
+  // Initially idle, as without profiling config
+  private boolean stateKnown = true;
   // whether a recording was seen running, which means that the JVM is past premain
   private boolean recordingSeen;
 
@@ -185,9 +194,9 @@ final class ProfilingRemoteConfigHandler implements ProfilingConfigHandler {
 
   /** Applies the given configs to the profiling system. Must be called with the flag held. */
   private void applyConfigs(RemoteConfigurationStack stack) {
-    // the value of each feature comes from the highest priority configuration that sets it
-    final RemoteConfiguration merged = stack.merged();
-    final RemoteConfiguration remote = merged.isEmpty() ? null : merged;
+    // the value of each feature comes from the highest priority configuration that sets it. The
+    // stack only holds profiling configs: the payloads that are not, or are dropped, aren't in it
+    final RemoteConfiguration remote = stack.isEmpty() ? null : stack.merged();
     if (profilingSystem.isStarted()) {
       recordingSeen = true;
     }
@@ -201,6 +210,10 @@ final class ProfilingRemoteConfigHandler implements ProfilingConfigHandler {
     final ConfigProvider config;
     final boolean enabled;
     if (remote == null) {
+      log.debug("No APM_PROFILING remote config, the profiler is idle");
+      config = localConfig;
+      enabled = false;
+    } else if (remote.isEmpty()) {
       log.debug("No APM_PROFILING remote config sets a feature, applying the local configuration");
       config = localConfig;
       enabled = anyProfilingEnabled.test(config);
