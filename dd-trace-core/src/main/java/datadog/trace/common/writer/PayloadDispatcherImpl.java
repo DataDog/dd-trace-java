@@ -28,6 +28,7 @@ public class PayloadDispatcherImpl implements ChunkedBufferConsumer, PayloadDisp
 
   private Recording batchTimer;
   private RemoteMapper mapper;
+  private ChunkedStreamingBuffer buffer;
   private WritableFormatter packer;
 
   /**
@@ -55,8 +56,14 @@ public class PayloadDispatcherImpl implements ChunkedBufferConsumer, PayloadDisp
 
   @Override
   public void flush() {
-    if (null != packer) {
+    if (null == packer) {
+      return;
+    }
+    if (buffer.isDirty()) {
       packer.flush();
+    } else {
+      // nothing to send: let the chunks a burst left behind drain while the writer is idle
+      buffer.trim();
     }
   }
 
@@ -123,7 +130,8 @@ public class PayloadDispatcherImpl implements ChunkedBufferConsumer, PayloadDisp
     if (null == packer && null != mapper) {
       batchTimer =
           monitoring.newTimer("tracer.trace.buffer.fill.time", "endpoint:" + mapper.endpoint());
-      packer = new MsgPackWriter(new ChunkedStreamingBuffer(mapper.messageBufferSize(), this));
+      buffer = new ChunkedStreamingBuffer(mapper.messageBufferSize(), this);
+      packer = new MsgPackWriter(buffer);
       batchTimer.start();
     }
   }

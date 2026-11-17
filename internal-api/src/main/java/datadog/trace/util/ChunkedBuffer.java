@@ -44,7 +44,9 @@ import java.util.List;
  * held completed data plus half of any surplus kept from the previous reset, so after a burst the
  * extra chunks drain over a few resets instead of all at once. Payloads that vary in size don't
  * free and reallocate chunks on every cycle, and steady traffic reuses the same chunks. Nothing is
- * allocated before the first write.
+ * allocated before the first write. Resets only happen when payloads do, so a buffer that goes idle
+ * after a burst would keep the burst's chunks indefinitely; {@link #trim()} lets an idle owner
+ * drain them the same way.
  *
  * <p>Not thread-safe: a buffer is written and read by one thread at a time.
  */
@@ -180,6 +182,17 @@ public class ChunkedBuffer {
     messageCount = 0;
     moveTo(-1);
     pos = 0;
+  }
+
+  /**
+   * Releases chunks an idle buffer no longer needs, halving the surplus as {@link #reset()} does,
+   * so repeated calls drain it to a single chunk. Does nothing while the buffer holds any data,
+   * completed or not, so it's safe to call whenever there was nothing to flush.
+   */
+  public final void trim() {
+    if (messageCount == 0 && current < 0) {
+      reset();
+    }
   }
 
   /**
