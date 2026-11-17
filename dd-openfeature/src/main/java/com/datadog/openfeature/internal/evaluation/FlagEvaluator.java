@@ -13,6 +13,7 @@ import com.datadog.openfeature.internal.ufc.Allocation;
 import com.datadog.openfeature.internal.ufc.ConditionConfiguration;
 import com.datadog.openfeature.internal.ufc.ConditionOperator;
 import com.datadog.openfeature.internal.ufc.Flag;
+import com.datadog.openfeature.internal.ufc.MembershipIndex;
 import com.datadog.openfeature.internal.ufc.ParsedSemver;
 import com.datadog.openfeature.internal.ufc.Rule;
 import com.datadog.openfeature.internal.ufc.ServerConfiguration;
@@ -326,9 +327,9 @@ public final class FlagEvaluator {
       case NOT_MATCHES:
         return !matchesRegex(attributeValue, condition);
       case ONE_OF:
-        return isOneOf(attributeValue, condition.value);
+        return isOneOf(attributeValue, condition);
       case NOT_ONE_OF:
-        return !isOneOf(attributeValue, condition.value);
+        return !isOneOf(attributeValue, condition);
       case GTE:
         return compareNumber(attributeValue, condition.value, (a, b) -> a >= b);
       case GT:
@@ -371,7 +372,21 @@ public final class FlagEvaluator {
     return pattern.matcher(String.valueOf(attributeValue)).find();
   }
 
-  private static boolean isOneOf(final Object attributeValue, final Object conditionValue) {
+  private static boolean isOneOf(
+      final Object attributeValue, final ConditionConfiguration condition) {
+    // Parsed configurations index lists of two or more elements; the index gives the same result
+    // as the scan.
+    final MembershipIndex membership = condition.membership;
+    if (membership != null) {
+      final int result = membership.lookup(attributeValue);
+      if (result != MembershipIndex.SCAN) {
+        return result == MembershipIndex.MATCH;
+      }
+    }
+    return scanOneOf(attributeValue, condition.value);
+  }
+
+  private static boolean scanOneOf(final Object attributeValue, final Object conditionValue) {
     if (!(conditionValue instanceof Iterable)) {
       return false;
     }
