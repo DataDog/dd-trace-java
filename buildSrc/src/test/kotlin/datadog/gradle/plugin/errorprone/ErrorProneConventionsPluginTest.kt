@@ -70,14 +70,13 @@ class ErrorProneConventionsPluginTest : GradleFixture() {
   }
 
   @Test
-  fun `compliant code compiles while other Error Prone checks stay disabled`() {
+  fun `warnings stay disabled and configuration cache is reused`() {
     writeJavaSource(
       "datadog.example.Compliant",
       """
       package datadog.example;
       public class Compliant {
-        public String value() {
-          new IllegalStateException();
+        public String toString() {
           return "value";
         }
       }
@@ -87,8 +86,29 @@ class ErrorProneConventionsPluginTest : GradleFixture() {
     val result = run("compileJava", "--configuration-cache")
 
     assertThat(result.task(":compileJava")?.outcome).describedAs(result.output).isEqualTo(SUCCESS)
-    assertThat(result.output).doesNotContain("[DeadException]")
+    assertThat(result.output).doesNotContain("[MissingOverride]")
     assertThat(run("compileJava", "--configuration-cache").output).contains("Reusing configuration cache")
+  }
+
+  @Test
+  fun `built-in Error Prone errors fail compilation by default`() {
+    writeJavaSource(
+      "datadog.example.BadFormat",
+      """
+      package datadog.example;
+      public class BadFormat {
+        public String value() {
+          new IllegalStateException();
+          return String.format("%d", "value");
+        }
+      }
+      """
+    )
+
+    val result = run("compileJava", expectFailure = true)
+
+    assertThat(result.task(":compileJava")?.outcome).describedAs(result.output).isEqualTo(FAILED)
+    assertThat(result.output).contains("[FormatString]", "[DeadException]")
   }
 
   @Test

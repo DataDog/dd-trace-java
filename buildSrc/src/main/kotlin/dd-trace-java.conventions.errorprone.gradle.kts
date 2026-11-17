@@ -1,3 +1,4 @@
+import net.ltgt.gradle.errorprone.CheckSeverity
 import net.ltgt.gradle.errorprone.errorprone
 import org.gradle.api.logging.Logging
 import org.gradle.api.provider.Property
@@ -35,9 +36,9 @@ tasks.withType<JavaCompile>().configureEach {
 
   options.errorprone {
     isEnabled = providers.zip(basePackage, compilerVersion) { _, version -> version >= 21 }.orElse(false)
-    disableAllChecks = true
-    error("NullAway")
-    checkOptions.put("NullAway:AnnotatedPackages", basePackage)
+    check("NullAway", CheckSeverity.ERROR)
+    option("NullAway:AnnotatedPackages", basePackage)
+    disableAllWarnings = true // only errors for now
     option("NullAway:TreatGeneratedAsUnannotated", true)
     excludedPaths = ".*[/\\\\]build[/\\\\]generated[/\\\\].*"
   }
