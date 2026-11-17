@@ -468,8 +468,24 @@ class UniversalFlagConfigParserTest {
         deserialize(
             regexConfig(regexFlag("lookahead", "(?=a)a"), regexFlag("valid", "@other\\\\.test$")));
     assertFalse(config.flags.containsKey("lookahead"));
-    assertTrue(config.invalidFlags.containsKey("lookahead"));
+    assertEquals("unsupported_regex", config.invalidFlags.get("lookahead"));
     assertEquals(RegexMatcher.Kind.ENDS_WITH, regex(config, "valid").kind());
+  }
+
+  /** A pattern that does not compile is not cached, so each flag that uses it is dropped. */
+  @Test
+  void dropsEveryFlagThatSharesAnUnsupportedPattern() throws Exception {
+    final ServerConfiguration config =
+        deserialize(
+            regexConfig(
+                regexFlag("first", "(?=a)a"),
+                regexFlag("second", "(?=a)a"),
+                regexFlag("valid", "@other\\\\.test$")));
+    assertFalse(config.flags.containsKey("first"));
+    assertFalse(config.flags.containsKey("second"));
+    assertEquals("unsupported_regex", config.invalidFlags.get("first"));
+    assertEquals("unsupported_regex", config.invalidFlags.get("second"));
+    assertTrue(config.flags.containsKey("valid"));
   }
 
   private static String regexConfig(final String... flags) {

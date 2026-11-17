@@ -15,6 +15,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.PatternSyntaxException;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,6 +33,7 @@ public final class UniversalFlagConfigParser {
 
   static final String INVALID_FLAG = "invalid_flag";
   static final String INVALID_SEMVER_COMPARAND = "invalid_semver_comparand";
+  static final String UNSUPPORTED_REGEX = "unsupported_regex";
   private static final String UNIVERSAL_FLAG_CONFIGURATION_TYPE = "universal-flag-configuration";
   private static final long MAX_UNSIGNED_INT = 0xffff_ffffL;
 
@@ -184,6 +186,11 @@ public final class UniversalFlagConfigParser {
           validateFlag(flagKey, flag, regexes);
           flags.put(flagKey, flag);
         }
+      } catch (final PatternSyntaxException error) {
+        // The pattern and the error message can contain targeting values: log neither.
+        invalidFlags.put(flagKey, UNSUPPORTED_REGEX);
+        LOGGER.warn(
+            "Dropping FFE flag {}: a MATCHES or NOT_MATCHES pattern is not supported", flagKey);
       } catch (final IllegalArgumentException error) {
         invalidFlags.put(
             flagKey,
@@ -531,20 +538,6 @@ public final class UniversalFlagConfigParser {
     validateAndCacheSemverComparands(flagKey, flag);
   }
 
-  /**
-   * Returns the shared matcher for a pattern, and compiles it on first use.
-   *
-   * @throws java.util.regex.PatternSyntaxException if the pattern is malformed.
-   */
-  private static RegexMatcher regex(final String pattern, final Map<String, RegexMatcher> regexes) {
-    RegexMatcher matcher = regexes.get(pattern);
-    if (matcher == null) {
-      matcher = RegexMatcher.compile(pattern);
-      regexes.put(pattern, matcher);
-    }
-    return matcher;
-  }
-
   /** Preserve Java's numeric coercion, but reject values that cannot be mapped at all. */
   private static void validateNumericVariants(final String flagKey, final Flag flag) {
     if (flag.variations == null
@@ -580,7 +573,8 @@ public final class UniversalFlagConfigParser {
           case MATCHES:
           case NOT_MATCHES:
             // Configuration validity is independent of targeting and experimentation opt-out.
-            condition.regex = regex(String.valueOf(condition.value), regexes);
+            condition.regex =
+                regexes.computeIfAbsent(String.valueOf(condition.value), RegexMatcher::compile);
             break;
           case LT:
           case LTE:
