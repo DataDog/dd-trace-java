@@ -45,7 +45,7 @@ public final class ParsedSemver {
       }
       final long component;
       try {
-        component = Long.parseUnsignedLong(version.substring(next, end));
+        component = parseUnsignedDecimal(version, next, end);
       } catch (final NumberFormatException e) {
         return INVALID; // overflow
       }
@@ -64,32 +64,51 @@ public final class ParsedSemver {
       return new ParsedSemver(core, coreLength, "");
     }
 
-    // Parse prerelease and/or build metadata.
-    String remainder = version.substring(next);
+    // Parse prerelease and/or build metadata in place; only the prerelease is copied.
     String prerelease = "";
-    if (remainder.charAt(0) == '-') {
-      remainder = remainder.substring(1);
-      final int buildStart = remainder.indexOf('+');
-      if (buildStart == -1) {
-        if (!validSemverIdentifiers(remainder, false)) {
-          return INVALID;
-        }
-        return new ParsedSemver(core, coreLength, remainder);
-      }
-      prerelease = remainder.substring(0, buildStart);
-      if (!validSemverIdentifiers(prerelease, false)) {
+    int buildStart;
+    if (version.charAt(next) == '-') {
+      final int prereleaseStart = next + 1;
+      buildStart = version.indexOf('+', prereleaseStart);
+      final int prereleaseEnd = buildStart == -1 ? version.length() : buildStart;
+      if (!validSemverIdentifiers(version, prereleaseStart, prereleaseEnd, false)) {
         return INVALID;
       }
-      remainder = remainder.substring(buildStart + 1);
-    } else if (remainder.charAt(0) == '+') {
-      remainder = remainder.substring(1);
+      prerelease = version.substring(prereleaseStart, prereleaseEnd);
+      if (buildStart == -1) {
+        return new ParsedSemver(core, coreLength, prerelease);
+      }
+    } else if (version.charAt(next) == '+') {
+      buildStart = next;
     } else {
       return INVALID;
     }
-    if (!validSemverIdentifiers(remainder, true)) {
+    if (!validSemverIdentifiers(version, buildStart + 1, version.length(), true)) {
       return INVALID;
     }
     return new ParsedSemver(core, coreLength, prerelease);
+  }
+
+  private static final long MAX_UNSIGNED_DIV_10 = Long.divideUnsigned(-1L, 10);
+  private static final long MAX_UNSIGNED_MOD_10 = Long.remainderUnsigned(-1L, 10);
+
+  /**
+   * Parses the ASCII digits {@code [start, end)} as an unsigned 64-bit integer without copying
+   * them, like {@link Long#parseUnsignedLong(String)}.
+   *
+   * @throws NumberFormatException if the value does not fit in 64 unsigned bits
+   */
+  private static long parseUnsignedDecimal(final String value, final int start, final int end) {
+    long result = 0;
+    for (int i = start; i < end; i++) {
+      final int digit = value.charAt(i) - '0';
+      if (Long.compareUnsigned(result, MAX_UNSIGNED_DIV_10) > 0
+          || (result == MAX_UNSIGNED_DIV_10 && digit > MAX_UNSIGNED_MOD_10)) {
+        throw new NumberFormatException("unsigned 64-bit overflow");
+      }
+      result = result * 10 + digit;
+    }
+    return result;
   }
 
   /**
@@ -153,11 +172,11 @@ public final class ParsedSemver {
    * prerelease identifiers reject them.
    */
   private static boolean validSemverIdentifiers(
-      final String value, final boolean allowLeadingZeros) {
-    int identifierStart = 0;
+      final String value, final int start, final int end, final boolean allowLeadingZeros) {
+    int identifierStart = start;
     boolean identifierNumeric = true;
-    for (int i = 0; i <= value.length(); i++) {
-      if (i == value.length() || value.charAt(i) == '.') {
+    for (int i = start; i <= end; i++) {
+      if (i == end || value.charAt(i) == '.') {
         if (i == identifierStart) {
           return false; // empty identifier
         }
@@ -197,15 +216,13 @@ public final class ParsedSemver {
     int leftPos = 0;
     int rightPos = 0;
     while (true) {
-      // Extract next identifier from each side
-      int leftDot = left.indexOf('.', leftPos);
-      int rightDot = right.indexOf('.', rightPos);
-      final String leftIdentifier =
-          leftDot == -1 ? left.substring(leftPos) : left.substring(leftPos, leftDot);
-      final String rightIdentifier =
-          rightDot == -1 ? right.substring(rightPos) : right.substring(rightPos, rightDot);
+      // Compare the next identifier of each side in place
+      final int leftDot = left.indexOf('.', leftPos);
+      final int rightDot = right.indexOf('.', rightPos);
+      final int leftEnd = leftDot == -1 ? left.length() : leftDot;
+      final int rightEnd = rightDot == -1 ? right.length() : rightDot;
 
-      final int ordering = compareIdentifier(leftIdentifier, rightIdentifier);
+      final int ordering = compareIdentifier(left, leftPos, leftEnd, right, rightPos, rightEnd);
       if (ordering != 0) {
         return ordering;
       }
@@ -224,29 +241,46 @@ public final class ParsedSemver {
     }
   }
 
-  private static int compareIdentifier(final String left, final String right) {
-    final boolean leftNumeric = isNumericIdentifier(left);
-    final boolean rightNumeric = isNumericIdentifier(right);
+  /**
+   * Compares the identifiers {@code left[leftStart, leftEnd)} and {@code right[rightStart,
+   * rightEnd)}.
+   */
+  private static int compareIdentifier(
+      final String left,
+      final int leftStart,
+      final int leftEnd,
+      final String right,
+      final int rightStart,
+      final int rightEnd) {
+    final boolean leftNumeric = isNumericIdentifier(left, leftStart, leftEnd);
+    final boolean rightNumeric = isNumericIdentifier(right, rightStart, rightEnd);
+    final int leftLength = leftEnd - leftStart;
+    final int rightLength = rightEnd - rightStart;
 
     if (leftNumeric && rightNumeric) {
       // Numeric identifiers: compare by length first (longer = larger), then lexicographically
-      if (left.length() < right.length()) {
-        return -1;
+      if (leftLength != rightLength) {
+        return leftLength < rightLength ? -1 : 1;
       }
-      if (left.length() > right.length()) {
-        return 1;
-      }
-      return left.compareTo(right);
     } else if (leftNumeric) {
       return -1; // numeric < alphanumeric
     } else if (rightNumeric) {
       return 1; // alphanumeric > numeric
     }
-    return left.compareTo(right);
+    // Lexicographic by character, then by length, as String.compareTo
+    final int length = Math.min(leftLength, rightLength);
+    for (int i = 0; i < length; i++) {
+      final char l = left.charAt(leftStart + i);
+      final char r = right.charAt(rightStart + i);
+      if (l != r) {
+        return l - r;
+      }
+    }
+    return leftLength - rightLength;
   }
 
-  private static boolean isNumericIdentifier(final String value) {
-    for (int i = 0; i < value.length(); i++) {
+  private static boolean isNumericIdentifier(final String value, final int start, final int end) {
+    for (int i = start; i < end; i++) {
       if (!isASCIIDigit(value.charAt(i))) {
         return false;
       }
