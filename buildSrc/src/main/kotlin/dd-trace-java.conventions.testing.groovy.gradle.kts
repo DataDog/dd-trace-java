@@ -1,4 +1,4 @@
-/**
+/*
  * Adds Groovy/Spock test support and CodeNarc. Apply alongside `dd-trace-java.conventions.java`,
  * which provides the GroovyCompile configuration for projects with the `groovy` plugin.
  */

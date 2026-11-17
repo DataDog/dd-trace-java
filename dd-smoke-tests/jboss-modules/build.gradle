@@ -28,7 +28,7 @@ dependencies {
   jbossModulesV1 'org.jboss.modules:jboss-modules:1.3.0.Final'
   jbossModulesV2 'org.jboss.modules:jboss-modules:2.0.0.Final'
 
-  testImplementation project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests:smoke-test-common')
 }
 
 tasks.register('libraryModules', Copy) {

@@ -10,12 +10,28 @@ extensions.getByName("tracerJava").withGroovyBuilder {
   invokeMethod("addSourceSetFor", arrayOf(JavaVersion.VERSION_17, mapOf("compileOnly" to true)))
 }
 
+// TODO: Cover these classes, then remove them from the coverage baseline (APMLP-2266)
+extra["excludedClassesBranchCoverage"] = listOf(
+  "com.kenai.jffi.PatchInit",
+  "datadog.common.socket.NamedPipeSocket",
+  "datadog.common.socket.NamedPipeSocketFactory",
+  "datadog.common.socket.UnixDomainSocketFactory",
+)
+extra["excludedClassesInstructionCoverage"] = listOf(
+  "com.kenai.jffi.PatchInit",
+  "datadog.common.socket.NamedPipeSocket",
+  "datadog.common.socket.NamedPipeSocketFactory",
+  "datadog.common.socket.TunnelingUnixSocket",
+  "datadog.common.socket.UnixDomainSocketFactory",
+)
+
 dependencies {
   add("main_java17CompileOnly", project(":components:annotations"))
   implementation(project(":components:environment"))
   implementation(project(":utils:logging-utils"))
   implementation(libs.slf4j)
   implementation(libs.jnr.unixsocket)
+  implementation(libs.bundles.asm) // JNR's ASM dependencies are supplied at our controlled version.
   testImplementation(files(sourceSets["main_java17"].output))
   jmhImplementation(files(sourceSets["main_java17"].output))
 }

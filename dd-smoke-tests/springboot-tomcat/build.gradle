@@ -47,7 +47,7 @@ dependencies {
   // ext = serverExtension
   serverFile "${serverName}:${serverModule}:${serverVersion}@${serverExtension}"
 
-  testImplementation project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests:smoke-test-common')
   testImplementation group: 'commons-io', name: 'commons-io', version: '2.11.0'
 }
 

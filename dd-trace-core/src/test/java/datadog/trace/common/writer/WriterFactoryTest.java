@@ -1,8 +1,14 @@
 package datadog.trace.common.writer;
 
+import static datadog.trace.api.config.GeneralConfig.TRACE_STATS_COMPUTATION_ENABLED;
+import static datadog.trace.api.config.OtlpConfig.OTEL_TRACES_SPAN_METRICS_ENABLED;
+import static datadog.trace.api.config.OtlpConfig.TRACE_OTEL_EXPORTER;
 import static datadog.trace.api.config.TracerConfig.PRIORITIZATION_TYPE;
+import static datadog.trace.api.config.TracerConfig.WRITER_TYPE;
+import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectSysConfig;
 import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -18,6 +24,10 @@ import datadog.trace.agent.test.server.http.JavaTestHttpServer;
 import datadog.trace.api.Config;
 import datadog.trace.api.config.OtlpConfig;
 import datadog.trace.api.intake.TrackType;
+import datadog.trace.common.metrics.ClientStatsAggregator;
+import datadog.trace.common.metrics.MetricsAggregator;
+import datadog.trace.common.metrics.MetricsAggregatorFactory;
+import datadog.trace.common.metrics.NoOpMetricsAggregator;
 import datadog.trace.common.sampling.RateByServiceTraceSampler;
 import datadog.trace.common.sampling.Sampler;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
@@ -252,6 +262,87 @@ class WriterFactoryTest extends DDJavaSpecification {
     assertEquals(expectedGzip, readField(sender, "gzip"));
 
     writer.close();
+  }
+
+  @TableTest({
+    "scenario                 | exporter | writerType                             | nativeMetrics | spanMetrics | agentSupportsMetrics | statsWriter | agentWriter",
+    "native default           |          |                                        | true          | false       | true                 | native      | true       ",
+    "native disabled          |          |                                        | false         | false       | true                 | none        | true       ",
+    "agent without stats      |          |                                        | true          | false       | false                | native      | true       ",
+    "OTLP default             | otlp     |                                        | true          | false       | true                 | none        | false      ",
+    "native override          | otlp     | DDAgentWriter                          | true          | false       | true                 | native      | true       ",
+    "native override disabled | otlp     | DDAgentWriter                          | false         | false       | true                 | none        | true       ",
+    "OTLP writer override     |          | OtlpWriter                             | true          | false       | true                 | none        | false      ",
+    "mixed default exporter   |          | 'MultiWriter:DDAgentWriter,OtlpWriter' | true          | false       | true                 | native      | true       ",
+    "mixed OTLP exporter      | otlp     | 'MultiWriter:OtlpWriter,DDAgentWriter' | true          | false       | true                 | native      | true       ",
+    "mixed native disabled    | otlp     | 'MultiWriter:OtlpWriter,DDAgentWriter' | false         | false       | true                 | none        | true       ",
+    "mixed no native writer   | otlp     | 'MultiWriter:OtlpWriter,LoggingWriter' | true          | false       | true                 | none        | false      ",
+    "logging writer           |          | LoggingWriter                          | true          | false       | true                 | none        | false      ",
+    "unknown writer fallback  | otlp     | unknown                                | true          | false       | true                 | native      | true       ",
+    "OTLP stats opt-in        | otlp     |                                        | true          | true        | true                 | otlp        | false      ",
+    "mixed OTLP stats opt-in  | otlp     | 'MultiWriter:OtlpWriter,DDAgentWriter' | true          | true        | true                 | otlp        | true       ",
+    "OTLP stats native off    | otlp     | DDAgentWriter                          | false         | true        | false                | otlp        | true       "
+  })
+  void statsAggregatorMatchesAgentHeader(
+      String exporter,
+      String writerType,
+      boolean nativeMetrics,
+      boolean spanMetrics,
+      boolean agentSupportsMetrics,
+      String statsWriter,
+      boolean agentWriter)
+      throws Exception {
+    if (exporter != null) injectSysConfig(TRACE_OTEL_EXPORTER, exporter);
+    if (writerType != null) injectSysConfig(WRITER_TYPE, writerType);
+    injectSysConfig(TRACE_STATS_COMPUTATION_ENABLED, Boolean.toString(nativeMetrics));
+    injectSysConfig(OTEL_TRACES_SPAN_METRICS_ENABLED, Boolean.toString(spanMetrics));
+    Config config = Config.get();
+
+    try (JavaTestHttpServer agent = tracesAgent()) {
+      DDAgentFeaturesDiscovery discovery = mock(DDAgentFeaturesDiscovery.class);
+      when(discovery.getTraceEndpoint()).thenReturn("v0.4/traces");
+      when(discovery.supportsMetrics()).thenReturn(agentSupportsMetrics);
+      SharedCommunicationObjects comm = new SharedCommunicationObjects();
+      comm.agentUrl = HttpUrl.get(agent.getAddress().toString());
+      comm.setFeaturesDiscovery(discovery);
+      comm.createRemaining(config);
+
+      MetricsAggregator aggregator =
+          MetricsAggregatorFactory.createMetricsAggregator(config, comm, HealthMetrics.NO_OP);
+      try (Writer writer =
+          WriterFactory.createWriter(
+              config, comm, mock(Sampler.class), null, HealthMetrics.NO_OP)) {
+        if ("none".equals(statsWriter)) {
+          assertInstanceOf(NoOpMetricsAggregator.class, aggregator);
+        } else {
+          assertEquals(
+              "otlp".equals(statsWriter),
+              readField(
+                  assertInstanceOf(ClientStatsAggregator.class, aggregator),
+                  "otlpStatsExportEnabled"));
+        }
+        Writer[] writers =
+            writer instanceof MultiWriter
+                ? (Writer[]) readField(writer, "writers")
+                : new Writer[] {writer};
+        boolean sentToAgent = false;
+        for (Writer child : writers) {
+          if (child instanceof DDAgentWriter) {
+            assertTrue(onlyApi(child).sendSerializedTraces(emptyV04Payload()).success());
+            assertEquals(
+                "otlp".equals(statsWriter)
+                    || ("native".equals(statsWriter) && agentSupportsMetrics),
+                "true"
+                    .equals(
+                        agent.getLastRequest().getHeaders().get("Datadog-Client-Computed-Stats")));
+            sentToAgent = true;
+          }
+        }
+        assertEquals(agentWriter, sentToAgent);
+      } finally {
+        aggregator.close();
+      }
+    }
   }
 
   @Test
