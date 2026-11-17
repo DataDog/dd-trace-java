@@ -127,7 +127,8 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
           // no-op, but the arguments were still built (hashed tags, strings) for every record.
           if (traceConfig().isDataStreamsEnabled()) {
             DataStreamsTags tags = create("kafka", INBOUND, val.topic(), group, clusterId);
-            final long payloadSize = Utils.computePayloadSizeBytes(val);
+            final long payloadSize =
+                Config.get().isDataStreamsLiteEnabled() ? 0 : Utils.computePayloadSizeBytes(val);
             if (StreamingContext.STREAMING_CONTEXT.isDisabledForTopic(val.topic())) {
               AgentTracer.get()
                   .getDataStreamsMonitoring()

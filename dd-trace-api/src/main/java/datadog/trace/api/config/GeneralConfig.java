@@ -103,6 +103,9 @@ public final class GeneralConfig {
       "data.jobs.experimental_features.enabled";
 
   public static final String DATA_STREAMS_ENABLED = "data.streams.enabled";
+  public static final String DATA_STREAMS_LITE_ENABLED = "data.streams.lite.enabled";
+  public static final String DATA_STREAMS_LITE_REFRESH_SECONDS =
+      "data.streams.lite.refresh.seconds";
   public static final String DATA_STREAMS_BUCKET_DURATION_SECONDS =
       "data.streams.bucket_duration.seconds";
   public static final String DATA_STREAMS_TRANSACTION_EXTRACTORS =

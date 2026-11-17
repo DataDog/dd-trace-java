@@ -27,6 +27,8 @@ public class DefaultPathwayContext implements PathwayContext {
   private static final Logger log = LoggerFactory.getLogger(DefaultPathwayContext.class);
   private final TimeSource timeSource;
   private final String serviceNameOverride;
+  // Non-null only in Data Streams lite mode
+  private final PathwaySeenSet seenSet;
   private final GrowingByteArrayOutput outputBuffer =
       GrowingByteArrayOutput.withInitialCapacity(20);
 
@@ -45,8 +47,13 @@ public class DefaultPathwayContext implements PathwayContext {
   private DataStreamsTags.Direction previousDirection;
 
   public DefaultPathwayContext(TimeSource timeSource, String serviceNameOverride) {
+    this(timeSource, serviceNameOverride, null);
+  }
+
+  DefaultPathwayContext(TimeSource timeSource, String serviceNameOverride, PathwaySeenSet seenSet) {
     this.timeSource = timeSource;
     this.serviceNameOverride = serviceNameOverride;
+    this.seenSet = seenSet;
   }
 
   private DefaultPathwayContext(
@@ -55,8 +62,9 @@ public class DefaultPathwayContext implements PathwayContext {
       long pathwayStartNanoTicks,
       long edgeStartNanoTicks,
       long hash,
-      String serviceNameOverride) {
-    this(timeSource, serviceNameOverride);
+      String serviceNameOverride,
+      PathwaySeenSet seenSet) {
+    this(timeSource, serviceNameOverride, seenSet);
     this.pathwayStartNanos = pathwayStartNanos;
     this.pathwayStartNanoTicks = pathwayStartNanoTicks;
     this.edgeStartNanoTicks = edgeStartNanoTicks;
@@ -122,6 +130,27 @@ public class DefaultPathwayContext implements PathwayContext {
             context.tags().getAggregationHash(),
             DataStreamsTags.longToBytes(newHash),
             FNV64Hash.Version.v1);
+
+    if (seenSet != null) {
+      long parentHash = hash;
+      edgeStartNanoTicks = nanoTicks;
+      hash = newHash;
+      // Lite measures nothing; the monitoring marks the pathway seen once the point is queued
+      if (!seenSet.contains(aggregationHash)) {
+        pointConsumer.accept(
+            new StatsPoint(
+                context.tags(),
+                newHash,
+                parentHash,
+                aggregationHash,
+                startNanos,
+                0,
+                0,
+                0,
+                serviceNameOverride));
+      }
+      return;
+    }
 
     long pathwayLatencyNano = nanoTicks - pathwayStartNanoTicks;
     long edgeLatencyNano = nanoTicks - edgeStartNanoTicks;
@@ -204,18 +233,21 @@ public class DefaultPathwayContext implements PathwayContext {
   private static class PathwayContextExtractor implements BiConsumer<String, String> {
     private final TimeSource timeSource;
     private final String serviceNameOverride;
+    private final PathwaySeenSet seenSet;
     private DefaultPathwayContext extractedContext;
 
-    PathwayContextExtractor(TimeSource timeSource, String serviceNameOverride) {
+    PathwayContextExtractor(
+        TimeSource timeSource, String serviceNameOverride, PathwaySeenSet seenSet) {
       this.timeSource = timeSource;
       this.serviceNameOverride = serviceNameOverride;
+      this.seenSet = seenSet;
     }
 
     @Override
     public void accept(String key, String value) {
       if (value != null && PROPAGATION_KEY_BASE64.equalsIgnoreCase(key)) {
         try {
-          extractedContext = decode(timeSource, serviceNameOverride, value);
+          extractedContext = decode(timeSource, serviceNameOverride, seenSet, value);
         } catch (Throwable ignored) {
         }
       }
@@ -224,8 +256,17 @@ public class DefaultPathwayContext implements PathwayContext {
 
   static <C> DefaultPathwayContext extract(
       C carrier, CarrierVisitor<C> getter, TimeSource timeSource, String serviceNameOverride) {
+    return extract(carrier, getter, timeSource, serviceNameOverride, null);
+  }
+
+  static <C> DefaultPathwayContext extract(
+      C carrier,
+      CarrierVisitor<C> getter,
+      TimeSource timeSource,
+      String serviceNameOverride,
+      PathwaySeenSet seenSet) {
     PathwayContextExtractor extractor =
-        new PathwayContextExtractor(timeSource, serviceNameOverride);
+        new PathwayContextExtractor(timeSource, serviceNameOverride, seenSet);
     getter.forEachKeyValue(carrier, extractor);
     if (extractor.extractedContext == null) {
       log.debug("No context extracted");
@@ -237,6 +278,12 @@ public class DefaultPathwayContext implements PathwayContext {
 
   protected static DefaultPathwayContext decode(
       TimeSource timeSource, String serviceNameOverride, String base64) throws IOException {
+    return decode(timeSource, serviceNameOverride, null, base64);
+  }
+
+  static DefaultPathwayContext decode(
+      TimeSource timeSource, String serviceNameOverride, PathwaySeenSet seenSet, String base64)
+      throws IOException {
     byte[] base64Bytes = base64.getBytes(UTF_8);
     byte[] bytes = Base64.getDecoder().decode(base64Bytes);
     ByteArrayInput input = ByteArrayInput.wrap(bytes);
@@ -262,7 +309,8 @@ public class DefaultPathwayContext implements PathwayContext {
         pathwayStartNanoTicks,
         edgeStartNanoTicks,
         hash,
-        serviceNameOverride);
+        serviceNameOverride,
+        seenSet);
   }
 
   private long generatePathwayHash(long nodeHash, long parentHash) {

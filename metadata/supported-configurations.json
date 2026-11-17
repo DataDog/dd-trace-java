@@ -1188,6 +1188,22 @@
         "aliases": []
       }
     ],
+    "DD_DATA_STREAMS_LITE_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
+    "DD_DATA_STREAMS_LITE_REFRESH_SECONDS": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "600",
+        "aliases": []
+      }
+    ],
     "DD_DATA_STREAMS_TRANSACTION_EXTRACTORS": [
       {
         "version": "B",

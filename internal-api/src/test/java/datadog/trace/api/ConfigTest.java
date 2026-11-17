@@ -48,6 +48,8 @@ import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_ENABL
 import static datadog.trace.api.config.GeneralConfig.API_KEY;
 import static datadog.trace.api.config.GeneralConfig.API_KEY_FILE;
 import static datadog.trace.api.config.GeneralConfig.CONFIGURATION_FILE;
+import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_LITE_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.ENV;
 import static datadog.trace.api.config.GeneralConfig.GLOBAL_TAGS;
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_ENABLED;
@@ -2127,6 +2129,30 @@ class ConfigTest {
     assertEquals(emptyMap(), config.getServiceMapping());
     assertEquals(emptyMap(), spanTags(config));
     assertEquals(emptyMap(), config.getRequestHeaderTags());
+  }
+
+  @TableTest({
+    "scenario                | enabled | lite  | expectEnabled | expectLite",
+    "default                 |         |       | false         | false     ",
+    "full                    | true    |       | true          | false     ",
+    "lite alone turns DSM on |         | true  | true          | true      ",
+    "lite with DSM on        | true    | true  | true          | true      ",
+    "explicit off wins       | false   | true  | false         | false     ",
+    "lite off                | true    | false | true          | false     "
+  })
+  void dataStreamsLiteMode(String enabled, String lite, boolean expectEnabled, boolean expectLite)
+      throws Exception {
+    if (enabled != null) {
+      System.setProperty(PREFIX + DATA_STREAMS_ENABLED, enabled);
+    }
+    if (lite != null) {
+      System.setProperty(PREFIX + DATA_STREAMS_LITE_ENABLED, lite);
+    }
+
+    Config config = newConfig();
+
+    assertEquals(expectEnabled, config.isDataStreamsEnabled());
+    assertEquals(expectLite, config.isDataStreamsLiteEnabled());
   }
 
   @Test

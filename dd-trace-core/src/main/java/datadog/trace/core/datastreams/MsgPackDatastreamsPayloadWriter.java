@@ -6,6 +6,7 @@ import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.Writable;
 import datadog.communication.serialization.WritableFormatter;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
+import datadog.metrics.api.Histogram;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProcessTags;
 import datadog.trace.api.WellKnownTags;
@@ -14,6 +15,7 @@ import datadog.trace.api.datastreams.KafkaConfigReport;
 import datadog.trace.api.datastreams.TransactionInfo;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.common.metrics.Sink;
+import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -70,6 +72,7 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
   private final WellKnownTags wellKnownTags;
   private final byte[] tracerVersionValue;
   private final byte[] primaryTagValue;
+  private byte[] emptySketch;
 
   public MsgPackDatastreamsPayloadWriter(
       Sink sink, WellKnownTags wellKnownTags, String tracerVersion, String primaryTag) {
@@ -90,11 +93,15 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
   private static final int DSM_PRODUCT = 2; // 00000010
   private static final int DJM_PRODUCT = 4; // 00000100
   private static final int PROFILING_PRODUCT = 8; // 00001000
+  private static final int DSM_LITE_PRODUCT = 16; // 00010000
 
   public long getProductsMask() {
     long productsMask = APM_PRODUCT;
     if (Config.get().isDataStreamsEnabled()) {
       productsMask |= DSM_PRODUCT;
+    }
+    if (Config.get().isDataStreamsLiteEnabled()) {
+      productsMask |= DSM_LITE_PRODUCT;
     }
     if (Config.get().isDataJobsEnabled()) {
       productsMask |= DJM_PRODUCT;
@@ -212,17 +219,29 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
       boolean firstNode = group.getTags().nonNullSize() == 0;
       packer.startMap(firstNode ? 5 : 6);
 
-      /* 1 */
-      packer.writeUTF8(PATHWAY_LATENCY);
-      packer.writeBinary(group.getPathwayLatency().serialize());
+      if (group.hasHistograms()) {
+        /* 1 */
+        packer.writeUTF8(PATHWAY_LATENCY);
+        packer.writeBinary(group.getPathwayLatency().serialize());
 
-      /* 2 */
-      packer.writeUTF8(EDGE_LATENCY);
-      packer.writeBinary(group.getEdgeLatency().serialize());
+        /* 2 */
+        packer.writeUTF8(EDGE_LATENCY);
+        packer.writeBinary(group.getEdgeLatency().serialize());
 
-      /* 3 */
-      packer.writeUTF8(PAYLOAD_SIZE);
-      packer.writeBinary(group.getPayloadSize().serialize());
+        /* 3 */
+        packer.writeUTF8(PAYLOAD_SIZE);
+        packer.writeBinary(group.getPayloadSize().serialize());
+      } else {
+        // The intake rejects the whole payload when a latency sketch is missing, but accepts empty
+        // ones
+        byte[] empty = emptySketch();
+        packer.writeUTF8(PATHWAY_LATENCY);
+        packer.writeBinary(empty);
+        packer.writeUTF8(EDGE_LATENCY);
+        packer.writeBinary(empty);
+        packer.writeUTF8(PAYLOAD_SIZE);
+        packer.writeBinary(empty);
+      }
 
       /* 4 */
       packer.writeUTF8(HASH);
@@ -238,6 +257,16 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
         writeDataStreamsTags(group.getTags(), packer);
       }
     }
+  }
+
+  private byte[] emptySketch() {
+    if (emptySketch == null) {
+      ByteBuffer serialized = Histogram.newLogHistogram().serialize();
+      byte[] bytes = new byte[serialized.remaining()];
+      serialized.get(bytes);
+      emptySketch = bytes;
+    }
+    return emptySketch;
   }
 
   private void writeBacklogs(

@@ -285,6 +285,8 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_DATA_JOBS_EXPERIMENTAL_FEATURES_ENABLED = false;
 
   static final boolean DEFAULT_DATA_STREAMS_ENABLED = false;
+  static final boolean DEFAULT_DATA_STREAMS_LITE_ENABLED = false;
+  static final int DEFAULT_DATA_STREAMS_LITE_REFRESH_SECONDS = 600;
   static final int DEFAULT_DATA_STREAMS_BUCKET_DURATION = 10; // seconds
 
   static final int DEFAULT_RESOLVER_RESET_INTERVAL = 300; // seconds

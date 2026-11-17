@@ -49,6 +49,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import org.jctools.queues.MessagePassingQueue;
@@ -60,6 +61,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
   static final long FEATURE_CHECK_INTERVAL_NANOS = TimeUnit.MINUTES.toNanos(5);
   static final long MAX_TRANSACTION_CONTAINER_SIZE = 1024 * 512;
+  static final long LITE_ERROR_RESET_INTERVAL_NANOS = TimeUnit.MINUTES.toNanos(1);
 
   private static final StatsPoint REPORT =
       new StatsPoint(DataStreamsTags.EMPTY, 0, 0, 0, 0, 0, 0, 0, null);
@@ -75,6 +77,12 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   private final long bucketDurationNanos;
   private final Thread thread;
   private final DataStreamsPropagator propagator;
+  private final boolean lite;
+  // Non-null only in lite mode, which reports each unique pathway once per epoch
+  private final PathwaySeenSet seenSet;
+  private final long liteEpochNanos;
+  private long nextLiteEpochNanos;
+  private volatile long lastLiteErrorResetNanos;
   private AgentTaskScheduler.Scheduled<DefaultDataStreamsMonitoring> cancellation;
   private volatile long nextFeatureCheck;
   private volatile boolean supportsDataStreams = false;
@@ -129,6 +137,24 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       Supplier<TraceConfig> traceConfigSupplier,
       DatastreamsPayloadWriter payloadWriter,
       long bucketDurationNanos) {
+    this(
+        sink,
+        features,
+        timeSource,
+        traceConfigSupplier,
+        payloadWriter,
+        bucketDurationNanos,
+        Config.get().isDataStreamsLiteEnabled());
+  }
+
+  public DefaultDataStreamsMonitoring(
+      Sink sink,
+      DDAgentFeaturesDiscovery features,
+      TimeSource timeSource,
+      Supplier<TraceConfig> traceConfigSupplier,
+      DatastreamsPayloadWriter payloadWriter,
+      long bucketDurationNanos,
+      boolean lite) {
     this.features = features;
     this.timeSource = timeSource;
     this.traceConfigSupplier = traceConfigSupplier;
@@ -138,7 +164,18 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     thread = newAgentThread(DATA_STREAMS_MONITORING, new InboxProcessor());
     sink.register(this);
 
-    this.propagator = new DataStreamsPropagator(this, this.timeSource, serviceNameOverride);
+    this.lite = lite;
+    this.seenSet = lite ? new PathwaySeenSet() : null;
+    this.liteEpochNanos = TimeUnit.SECONDS.toNanos(Config.get().getDataStreamsLiteRefreshSeconds());
+    // Jitter the first epoch so hosts started together don't re-report in lockstep
+    this.nextLiteEpochNanos =
+        timeSource.getCurrentTimeNanos()
+            + (long) (liteEpochNanos * ThreadLocalRandom.current().nextDouble(0.8, 1.2));
+    this.lastLiteErrorResetNanos =
+        timeSource.getCurrentTimeNanos() - LITE_ERROR_RESET_INTERVAL_NANOS;
+
+    this.propagator =
+        new DataStreamsPropagator(this, this.timeSource, serviceNameOverride, seenSet);
     DataStreamsTags.setServiceNameOverride(serviceNameOverride);
   }
 
@@ -157,10 +194,14 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   }
 
   @Override
-  public void add(StatsPoint statsPoint) {
-    if (thread.isAlive()) {
-      inbox.offer(statsPoint);
+  public boolean add(StatsPoint statsPoint) {
+    if (thread.isAlive() && inbox.offer(statsPoint)) {
+      if (seenSet != null) {
+        seenSet.insert(statsPoint.getAggregationHash());
+      }
+      return true;
     }
+    return false;
   }
 
   @Override
@@ -185,6 +226,9 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
   @Override
   public void trackTransaction(String transactionId, String checkpointName) {
+    if (lite) {
+      return;
+    }
     inbox.offer(
         new TransactionInfo(transactionId, timeSource.getCurrentTimeNanos(), checkpointName));
   }
@@ -195,7 +239,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       DataStreamsTransactionExtractor.Type extractorType,
       Object source,
       TransactionSourceReader sourceReader) {
-    if (!supportsDataStreams || source == null || extractorsByType == null) {
+    if (lite || !supportsDataStreams || source == null || extractorsByType == null) {
       return;
     }
 
@@ -222,7 +266,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   @Override
   public PathwayContext newPathwayContext() {
     if (configSupportsDataStreams) {
-      return new DefaultPathwayContext(timeSource, getThreadServiceName());
+      return new DefaultPathwayContext(timeSource, getThreadServiceName(), seenSet);
     } else {
       return NoopPathwayContext.INSTANCE;
     }
@@ -241,7 +285,8 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
               carrier,
               DataStreamsContextCarrierAdapter.INSTANCE,
               this.timeSource,
-              getThreadServiceName());
+              getThreadServiceName(),
+              seenSet);
       ((DDSpan) span).spanContext().mergePathwayContext(pathwayContext);
     }
   }
@@ -249,7 +294,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   @Override
   public void trackBacklog(DataStreamsTags tags, long value) {
     // With Data Streams off the inbox would only drop it
-    if (!traceConfigSupplier.get().isDataStreamsEnabled()) {
+    if (lite || !traceConfigSupplier.get().isDataStreamsEnabled()) {
       return;
     }
     inbox.offer(new Backlog(tags, value, timeSource.getCurrentTimeNanos(), getThreadServiceName()));
@@ -264,7 +309,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       boolean isKey,
       String operation) {
     // With Data Streams off the inbox would only drop it
-    if (!traceConfigSupplier.get().isDataStreamsEnabled()) {
+    if (lite || !traceConfigSupplier.get().isDataStreamsEnabled()) {
       return;
     }
     inbox.offer(
@@ -282,6 +327,9 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   @Override
   public void reportKafkaConfig(
       String type, String kafkaClusterId, String consumerGroup, Map<String, String> config) {
+    if (lite) {
+      return;
+    }
     inbox.offer(
         new KafkaConfigReport(
             type,
@@ -299,6 +347,9 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       String memberId,
       int generationId,
       String memberProtocol) {
+    if (lite) {
+      return;
+    }
     inbox.offer(
         new KafkaConfigReport(
             "kafka_consumer",
@@ -402,7 +453,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       Map<String, StatsBucket> statsBucketMap =
           timeToBucket.computeIfAbsent(bucket, startTime -> new HashMap<>(1));
       return statsBucketMap.computeIfAbsent(
-          serviceNameOverride, s -> new StatsBucket(bucket, bucketDurationNanos));
+          serviceNameOverride, s -> new StatsBucket(bucket, bucketDurationNanos, !lite));
     }
 
     @Override
@@ -436,6 +487,9 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
           if (payload == REPORT) {
             checkDynamicConfig();
+            if (lite) {
+              startNewLiteEpochIfDue();
+            }
 
             if (supportsDataStreams) {
               flush(timeSource.getCurrentTimeNanos());
@@ -529,6 +583,45 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   @Override
   public void clear() {
     timeToBucket.clear();
+    if (seenSet != null) {
+      seenSet.clear();
+    }
+  }
+
+  private void startNewLiteEpochIfDue() {
+    long now = timeSource.getCurrentTimeNanos();
+    if (now < nextLiteEpochNanos) {
+      return;
+    }
+    nextLiteEpochNanos = now + liteEpochNanos;
+    seenSet.clear();
+    long overflows = seenSet.drainOverflows();
+    if (overflows > 0) {
+      log.warn(
+          "Data streams lite: the seen-set was full for {} checkpoints in the last epoch; those"
+              + " pathways were reported on every checkpoint",
+          overflows);
+    } else {
+      log.debug("Data streams lite: starting a new epoch");
+    }
+  }
+
+  /** Lets pathways whose first report may have been lost be reported again. */
+  private void resetSeenPathways() {
+    if (seenSet != null) {
+      seenSet.clear();
+    }
+  }
+
+  private void resetSeenPathwaysAfterError() {
+    if (seenSet == null) {
+      return;
+    }
+    long now = timeSource.getCurrentTimeNanos();
+    if (now - lastLiteErrorResetNanos >= LITE_ERROR_RESET_INTERVAL_NANOS) {
+      lastLiteErrorResetNanos = now;
+      seenSet.clear();
+    }
   }
 
   @VisibleForTesting
@@ -542,12 +635,15 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       case DOWNGRADED:
         log.debug("Agent downgrade was detected");
         checkFeatures();
+        resetSeenPathwaysAfterError();
         break;
       case BAD_PAYLOAD:
         log.debug("bad metrics payload sent to trace agent: {}", message);
+        resetSeenPathwaysAfterError();
         break;
       case ERROR:
         log.debug("trace agent errored receiving metrics payload: {}", message);
+        resetSeenPathwaysAfterError();
         break;
       default:
     }
@@ -555,7 +651,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
   /* updateExtractorsFromConfig can be called to update extractors at runtime */
   private void updateExtractorsFromConfig() {
-    if (!supportsDataStreams) {
+    if (lite || !supportsDataStreams) {
       return;
     }
 
@@ -582,12 +678,17 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   }
 
   private void checkDynamicConfig() {
+    boolean wasEnabledInConfig = configSupportsDataStreams;
     configSupportsDataStreams = traceConfigSupplier.get().isDataStreamsEnabled();
     supportsDataStreams = agentSupportsDataStreams && configSupportsDataStreams;
+    if (!wasEnabledInConfig && configSupportsDataStreams) {
+      resetSeenPathways();
+    }
   }
 
   private void checkFeatures() {
     boolean oldValue = agentSupportsDataStreams;
+    boolean wasSupported = supportsDataStreams;
 
     features.discoverIfOutdated();
     agentSupportsDataStreams = features.supportsDataStreams();
@@ -601,6 +702,9 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     }
 
     supportsDataStreams = agentSupportsDataStreams && configSupportsDataStreams;
+    if (!wasSupported && supportsDataStreams) {
+      resetSeenPathways();
+    }
 
     nextFeatureCheck = timeSource.getCurrentTimeNanos() + FEATURE_CHECK_INTERVAL_NANOS;
   }

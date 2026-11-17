@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.kafka_clients38;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.datastreams.StatsPoint;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import net.bytebuddy.asm.Advice;
@@ -15,6 +16,9 @@ public class PayloadSizeAdvice {
    */
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static void onEnter(@Advice.Argument(value = 0) int estimatedPayloadSize) {
+    if (Config.get().isDataStreamsLiteEnabled()) {
+      return;
+    }
     StatsPoint saved = activeSpan().spanContext().getPathwayContext().getSavedStats();
     if (saved != null) {
       // create new stats including the payload size

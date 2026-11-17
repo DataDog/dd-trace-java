@@ -54,6 +54,8 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_JOBS_OPENLINEAGE_TIM
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_JOBS_PARSE_SPARK_PLAN_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_STREAMS_BUCKET_DURATION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_STREAMS_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_STREAMS_LITE_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_STREAMS_LITE_REFRESH_SECONDS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_HOST;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX;
@@ -395,6 +397,8 @@ import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_OPENLINEAGE_TIMEO
 import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_PARSE_SPARK_PLAN_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_BUCKET_DURATION_SECONDS;
 import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_LITE_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_LITE_REFRESH_SECONDS;
 import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_TRANSACTION_EXTRACTORS;
 import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_ARGS;
 import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_HOST;
@@ -1400,6 +1404,8 @@ public class Config {
   private final boolean dataJobsExperimentalFeaturesEnabled;
 
   private final boolean dataStreamsEnabled;
+  private final boolean dataStreamsLiteEnabled;
+  private final int dataStreamsLiteRefreshSeconds;
   private final float dataStreamsBucketDurationSeconds;
   private final String dataStreamsTransactionExtractors;
 
@@ -3286,8 +3292,16 @@ public class Config {
             DATA_JOBS_EXPERIMENTAL_FEATURES_ENABLED,
             DEFAULT_DATA_JOBS_EXPERIMENTAL_FEATURES_ENABLED);
 
+    boolean dataStreamsLiteRequested =
+        configProvider.getBoolean(DATA_STREAMS_LITE_ENABLED, DEFAULT_DATA_STREAMS_LITE_ENABLED);
+    // Lite turns Data Streams on unless DD_DATA_STREAMS_ENABLED is explicitly false
     dataStreamsEnabled =
-        configProvider.getBoolean(DATA_STREAMS_ENABLED, DEFAULT_DATA_STREAMS_ENABLED);
+        configProvider.getBoolean(
+            DATA_STREAMS_ENABLED, dataStreamsLiteRequested || DEFAULT_DATA_STREAMS_ENABLED);
+    dataStreamsLiteEnabled = dataStreamsLiteRequested && dataStreamsEnabled;
+    dataStreamsLiteRefreshSeconds =
+        configProvider.getInteger(
+            DATA_STREAMS_LITE_REFRESH_SECONDS, DEFAULT_DATA_STREAMS_LITE_REFRESH_SECONDS);
     dataStreamsBucketDurationSeconds =
         configProvider.getFloat(
             DATA_STREAMS_BUCKET_DURATION_SECONDS, DEFAULT_DATA_STREAMS_BUCKET_DURATION);
@@ -5370,6 +5384,14 @@ public class Config {
 
   public boolean isDataStreamsEnabled() {
     return dataStreamsEnabled;
+  }
+
+  public boolean isDataStreamsLiteEnabled() {
+    return dataStreamsLiteEnabled;
+  }
+
+  public int getDataStreamsLiteRefreshSeconds() {
+    return dataStreamsLiteRefreshSeconds;
   }
 
   public float getDataStreamsBucketDurationSeconds() {

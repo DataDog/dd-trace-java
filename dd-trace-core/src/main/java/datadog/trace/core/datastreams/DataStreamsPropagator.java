@@ -26,14 +26,25 @@ public class DataStreamsPropagator implements Propagator {
   private final DataStreamsMonitoring dataStreamsMonitoring;
   private final TimeSource timeSource;
   private final ThreadLocal<String> serviceNameOverride;
+  // Non-null only in Data Streams lite mode
+  private final PathwaySeenSet seenSet;
 
   public DataStreamsPropagator(
       DataStreamsMonitoring dataStreamsMonitoring,
       TimeSource timeSource,
       ThreadLocal<String> serviceNameOverride) {
+    this(dataStreamsMonitoring, timeSource, serviceNameOverride, null);
+  }
+
+  DataStreamsPropagator(
+      DataStreamsMonitoring dataStreamsMonitoring,
+      TimeSource timeSource,
+      ThreadLocal<String> serviceNameOverride,
+      PathwaySeenSet seenSet) {
     this.dataStreamsMonitoring = dataStreamsMonitoring;
     this.timeSource = timeSource;
     this.serviceNameOverride = serviceNameOverride;
+    this.seenSet = seenSet;
   }
 
   @Override
@@ -49,8 +60,12 @@ public class DataStreamsPropagator implements Propagator {
       return;
     }
 
+    // Lite never saves the point for PayloadSizeAdvice: the saved point is not cleared, so every
+    // later record produced under the same span would resend it.
     Consumer<StatsPoint> pointConsumer =
-        dsmContext.sendCheckpoint() ? this.dataStreamsMonitoring::add : pathwayContext::saveStats;
+        dsmContext.sendCheckpoint() || seenSet != null
+            ? this.dataStreamsMonitoring::add
+            : pathwayContext::saveStats;
     pathwayContext.setCheckpoint(dsmContext, pointConsumer);
     boolean injected = injectPathwayContext(pathwayContext, carrier, setter);
     if (injected && pathwayContext.getHash() != 0) {
@@ -105,6 +120,6 @@ public class DataStreamsPropagator implements Propagator {
 
   private <C> PathwayContext extractDsmPathwayContext(C carrier, CarrierVisitor<C> visitor) {
     return DefaultPathwayContext.extract(
-        carrier, visitor, this.timeSource, serviceNameOverride.get());
+        carrier, visitor, this.timeSource, serviceNameOverride.get(), seenSet);
   }
 }

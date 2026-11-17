@@ -1514,6 +1514,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   private static void reportKafkaOffsets(
       final String appName, final AgentSpan span, final SourceProgress progress) {
     if (!traceConfig().isDataStreamsEnabled()
+        || Config.get().isDataStreamsLiteEnabled()
         || progress == null
         || progress.description() == null) {
       return;
