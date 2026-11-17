@@ -378,14 +378,23 @@ public final class CdnConfigurationSource implements ConfigurationService {
       return endpoint;
     }
     final StringBuilder query = new StringBuilder();
-    if (endpoint.getRawQuery() != null) {
-      for (final String item : endpoint.getRawQuery().split("&", -1)) {
+    final String rawQuery = endpoint.getRawQuery();
+    if (rawQuery != null) {
+      int itemStart = 0;
+      while (itemStart <= rawQuery.length()) {
+        final int separator = rawQuery.indexOf('&', itemStart);
+        final String item =
+            separator < 0 ? rawQuery.substring(itemStart) : rawQuery.substring(itemStart, separator);
         if (!isDependentFlagCapability(item)) {
           if (query.length() > 0) {
             query.append('&');
           }
           query.append(item);
         }
+        if (separator < 0) {
+          break;
+        }
+        itemStart = separator + 1;
       }
     }
     if (query.length() > 0) {
