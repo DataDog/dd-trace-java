@@ -272,27 +272,35 @@ public final class JettyBlockResponseHelper {
   }
 
   /**
-   * Fails the Handler callback wrapper with a {@code Throwable} that escaped {@code Server.handle}.
+   * Fails the Handler callback wrapper with a {@code Throwable} that escaped {@code Server.handle}
+   * while a blocking response write is in flight.
    *
    * <p>Jetty's {@code HandlerInvoker} fails its own reference to the Handler callback with such a
    * throwable, bypassing the wrapper installed by {@link #deferCompletion(Request, Callback)},
-   * which would cut an in-flight blocking response write. Servlet environments catch {@code
-   * BlockingException} themselves; this covers core handlers that let it escape. Never throws.
+   * which would cut the in-flight write. Servlet environments catch {@code BlockingException}
+   * themselves; this covers core handlers that let it escape. With no write in flight Jetty keeps
+   * handling the throwable as it would without the agent. Never throws.
    *
    * @param callback the callback the handler chain received
-   * @return true when {@code callback} is the wrapper and took the failure, in which case the
-   *     caller must swallow {@code failure} and report the request as handled; false otherwise,
-   *     including on any failure, in which case {@code failure} must propagate unchanged
+   * @return true when {@code callback} is the wrapper, a block write was in flight and the wrapper
+   *     took the failure, in which case the caller must swallow {@code failure} and report the
+   *     request as handled; false otherwise, including on any failure, in which case {@code
+   *     failure} must propagate unchanged
    */
   public static boolean failDeferred(Callback callback, Throwable failure) {
     if (!(callback instanceof JettyDeferredCompletion)) {
       return false;
     }
+    JettyDeferredCompletion deferred = (JettyDeferredCompletion) callback;
+    if (!deferred.isBlockWriteInFlight()) {
+      return false;
+    }
     try {
-      callback.failed(failure);
+      // if the write finishes meanwhile the wrapper forwards the failure directly
+      deferred.failed(failure);
       return true;
-    } catch (Throwable t) {
-      log.debug("Failed to fail the deferred request completion", t);
+    } catch (Exception e) {
+      log.debug("Failed to fail the deferred request completion", e);
       return false;
     }
   }

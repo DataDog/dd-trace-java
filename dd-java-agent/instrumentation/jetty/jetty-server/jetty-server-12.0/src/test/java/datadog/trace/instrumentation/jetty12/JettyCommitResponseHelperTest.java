@@ -15,6 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.appsec.api.blocking.BlockingContentType;
@@ -289,9 +290,9 @@ class JettyCommitResponseHelperTest {
     writeCallbacks.get(0).succeeded();
 
     assertEquals(
-        singletonList("succeeded effectivelyBlocked=1 originalSucceeded=0"),
+        singletonList("succeeded effectivelyBlocked=1 originalSucceeded=1 originalFailed=false"),
         handlerEvents,
-        "replayed after the segment is marked and before the original write callback");
+        "replayed after the segment is marked and after the original write callback");
     assertEquals(1, originalSucceeded);
   }
 
@@ -308,12 +309,54 @@ class JettyCommitResponseHelperTest {
     writeCallbacks.get(0).failed(failure);
 
     assertEquals(
-        singletonList("succeeded effectivelyBlocked=0 originalSucceeded=0"),
+        singletonList("succeeded effectivelyBlocked=0 originalSucceeded=0 originalFailed=true"),
         handlerEvents,
-        "replayed with its own outcome");
+        "replayed with its own outcome, after the original write callback failed");
     assertEquals(1, blockFailures);
     assertSame(failure, originalFailure);
     assertTrue(jettyBrf.isBlockingResponseInitiated(), "an accepted write keeps the claim");
+  }
+
+  @TableTest({
+    "Scenario | Write Succeeds",
+    "success  | true          ",
+    "failure  | false         "
+  })
+  void parkedCompletionIsReplayedEvenIfTheOriginalWriteCallbackThrows(boolean writeSucceeds) {
+    Response response = response();
+    JettyBlockResponseFunction jettyBrf = blockingJettyBrf(response);
+    List<String> handlerEvents = new ArrayList<>();
+    Callback handlerCallback = jettyBrf.deferCompletion(handlerCallback(handlerEvents));
+    RuntimeException appFailure = new IllegalStateException("app write callback");
+    Callback throwing =
+        new Callback() {
+          @Override
+          public void succeeded() {
+            throw appFailure;
+          }
+
+          @Override
+          public void failed(Throwable x) {
+            throw appFailure;
+          }
+        };
+
+    assertTrue(JettyCommitResponseHelper.tryBlockOnCommit(decorator, response, throwing));
+    handlerCallback.succeeded();
+    Callback writeCallback = writeCallbacks.get(0);
+    RuntimeException thrown =
+        assertThrows(
+            IllegalStateException.class,
+            () -> {
+              if (writeSucceeds) {
+                writeCallback.succeeded();
+              } else {
+                writeCallback.failed(new IOException("client gone"));
+              }
+            });
+
+    assertSame(appFailure, thrown, "the original callback failure still reaches Jetty");
+    assertEquals(1, handlerEvents.size(), "the parked completion is replayed anyway");
   }
 
   @Test
@@ -400,7 +443,9 @@ class JettyCommitResponseHelperTest {
             "succeeded effectivelyBlocked="
                 + effectivelyBlocked
                 + " originalSucceeded="
-                + originalSucceeded);
+                + originalSucceeded
+                + " originalFailed="
+                + (originalFailure != null));
       }
 
       @Override

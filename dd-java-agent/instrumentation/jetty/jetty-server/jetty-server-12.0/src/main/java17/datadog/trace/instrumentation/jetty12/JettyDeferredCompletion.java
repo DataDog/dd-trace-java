@@ -71,6 +71,15 @@ public final class JettyDeferredCompletion implements Callback {
   }
 
   /**
+   * Returns whether a block write is in flight and no completion was parked yet. The answer can be
+   * stale by the time the caller acts on it: a write that finishes meanwhile makes the next
+   * completion forward directly.
+   */
+  boolean isBlockWriteInFlight() {
+    return state == WRITING;
+  }
+
+  /**
    * Marks a block write as in flight; must be called before the write is issued, since Jetty may
    * run the write callback inside the write call. A no-op once the delegate was completed.
    */

@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.jetty12;
 
+import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.eclipse.jetty.util.thread.Invocable.InvocationType.NON_BLOCKING;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -8,9 +10,8 @@ import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 import org.eclipse.jetty.util.Callback;
-import org.eclipse.jetty.util.thread.Invocable;
+import org.eclipse.jetty.util.thread.Invocable.InvocationType;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
@@ -21,7 +22,7 @@ class JettyDeferredCompletionTest {
 
   private static final IOException FAILURE = new IOException("blocked");
 
-  private static final long JOIN_TIMEOUT_MS = TimeUnit.SECONDS.toMillis(10);
+  private static final long JOIN_TIMEOUT_MS = SECONDS.toMillis(10);
 
   private static final int RACE_ITERATIONS = 2_000;
 
@@ -162,8 +163,8 @@ class JettyDeferredCompletionTest {
   }
 
   @ParameterizedTest
-  @EnumSource(Invocable.InvocationType.class)
-  void delegatesInvocationType(Invocable.InvocationType type) {
+  @EnumSource(InvocationType.class)
+  void delegatesInvocationType(InvocationType type) {
     RecordingCallback typed = new RecordingCallback(type);
 
     assertEquals(type, new JettyDeferredCompletion(typed).getInvocationType());
@@ -235,14 +236,14 @@ class JettyDeferredCompletionTest {
 
   private static final class RecordingCallback implements Callback {
     final List<String> calls = new CopyOnWriteArrayList<>();
-    final Invocable.InvocationType type;
+    final InvocationType type;
     volatile Throwable failure;
 
     RecordingCallback() {
-      this(Invocable.InvocationType.NON_BLOCKING);
+      this(NON_BLOCKING);
     }
 
-    RecordingCallback(Invocable.InvocationType type) {
+    RecordingCallback(InvocationType type) {
       this.type = type;
     }
 
@@ -258,7 +259,7 @@ class JettyDeferredCompletionTest {
     }
 
     @Override
-    public Invocable.InvocationType getInvocationType() {
+    public InvocationType getInvocationType() {
       return type;
     }
   }

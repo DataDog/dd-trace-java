@@ -9,7 +9,8 @@ import org.eclipse.jetty.util.Callback;
  * request was flagged for blocking during {@code onRequest}, commits the blocking response and
  * skips the handler chain. Otherwise wraps the Handler callback so that a later mid-handler
  * blocking response write is not cut when the request completes, including when a core handler lets
- * a {@code Throwable} escape {@code Server.handle}.
+ * a {@code Throwable} escape {@code Server.handle} while that write is in flight (any other
+ * escaping {@code Throwable} propagates unchanged).
  */
 public class JettyServerHandleBlockingAdvice {
 
@@ -34,8 +35,8 @@ public class JettyServerHandleBlockingAdvice {
       // a false return makes Jetty write a 404 on top of the blocking response
       handled = true;
     } else if (thrown != null && JettyBlockResponseHelper.failDeferred(callback, thrown)) {
-      // Jetty would fail its own reference to the Handler callback, bypassing the wrapper: fail it
-      // through the wrapper instead and return as handled, the callback is now completed
+      // a block write is in flight and Jetty would fail its own reference to the Handler callback,
+      // cutting it: fail it through the wrapper instead and return as handled
       thrown = null;
       handled = true;
     }

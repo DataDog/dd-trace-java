@@ -141,8 +141,9 @@ public final class JettyCommitResponseHelper {
   /**
    * Completes the original write callback once the blocking response write completes, marking the
    * segment as effectively blocked on success and reporting {@code block_failure} on failure. Both
-   * outcomes first finish the in-flight write on the Handler callback wrapper, if any, replaying a
-   * request completion parked while the write was pending.
+   * outcomes then finish the in-flight write on the Handler callback wrapper, if any, replaying a
+   * request completion parked while the write was pending: the write callback runs before the
+   * request completes, as in Jetty without the wrapper.
    */
   static final class BlockingCallback implements Callback {
     private final RequestContext reqCtx;
@@ -163,17 +164,23 @@ public final class JettyCommitResponseHelper {
     public void succeeded() {
       // recorded before a parked completion is replayed and the span can finish
       markEffectivelyBlocked(segment);
-      blockWriteFinished();
-      delegate.succeeded();
+      try {
+        delegate.succeeded();
+      } finally {
+        blockWriteFinished();
+      }
     }
 
     @Override
     public void failed(Throwable x) {
       logWriteFailure("Failed to write blocking response on response commit", x);
       reportBlockFailure(reqCtx);
-      // the claim is kept (see claimBrf), so no retry can start a new write
-      blockWriteFinished();
-      delegate.failed(x);
+      try {
+        delegate.failed(x);
+      } finally {
+        // the claim is kept (see claimBrf), so no retry can start a new write
+        blockWriteFinished();
+      }
     }
 
     /** Runs on Jetty write callback threads; never throws. */

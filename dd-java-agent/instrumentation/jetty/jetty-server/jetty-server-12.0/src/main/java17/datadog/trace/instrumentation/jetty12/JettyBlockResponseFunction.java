@@ -92,18 +92,11 @@ public class JettyBlockResponseFunction implements BlockResponseFunction {
     return wrapper;
   }
 
-  /*
-   * The in-flight tracking below reads the wrapper field on every call instead of capturing it when
-   * the write starts. This is safe because a write cannot start without the wrapper and finish with
-   * it: the wrapper is installed on Server.handle entry, before any handler runs, and the only write
-   * that can start earlier (request phase) either finishes synchronously or skips the handler chain,
-   * so the wrapper is never installed for it.
-   */
-
   /**
    * Marks a blocking response write as in flight on the Handler callback wrapper. Must be called
    * before the write is issued: Jetty may run the write callback inside the write call. A no-op
-   * when no wrapper is installed.
+   * when no wrapper is installed. Reading the wrapper on each call is safe: it is installed on
+   * {@code Server.handle} entry, before any write that can outlive the handler chain starts.
    */
   void blockWriteStarted() {
     JettyDeferredCompletion deferred = deferredCompletion;

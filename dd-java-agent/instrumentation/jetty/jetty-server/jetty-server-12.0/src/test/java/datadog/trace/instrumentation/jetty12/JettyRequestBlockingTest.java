@@ -293,14 +293,24 @@ class JettyRequestBlockingTest {
   }
 
   @Test
-  void escapedThrowableIsForwardedWhenNoBlockWriteIsInFlight() {
+  void escapedThrowableIsLeftToJettyWhenNoBlockWriteIsInFlight() {
     List<Object> completions = new ArrayList<>();
     Callback callback = new JettyDeferredCompletion(recording(completions));
-    IllegalStateException thrown = new IllegalStateException("boom");
 
-    assertTrue(JettyBlockResponseHelper.failDeferred(callback, thrown));
+    assertFalse(JettyBlockResponseHelper.failDeferred(callback, new IllegalStateException("boom")));
 
-    assertEquals(asList("failed", thrown), completions);
+    assertTrue(completions.isEmpty(), "Jetty fails its own callback reference, as on master");
+  }
+
+  @Test
+  void escapedThrowableIsLeftToJettyOnceTheWrapperCompleted() {
+    List<Object> completions = new ArrayList<>();
+    JettyDeferredCompletion callback = new JettyDeferredCompletion(recording(completions));
+    callback.succeeded();
+
+    assertFalse(JettyBlockResponseHelper.failDeferred(callback, new IllegalStateException("boom")));
+
+    assertEquals(asList("succeeded"), completions);
   }
 
   @Test
@@ -313,20 +323,6 @@ class JettyRequestBlockingTest {
     assertFalse(JettyBlockResponseHelper.failDeferred(null, new IllegalStateException("boom")));
 
     assertTrue(completions.isEmpty(), "Jetty fails its own callback reference");
-  }
-
-  @Test
-  void escapedThrowableIsLeftToJettyWhenTheWrapperThrows() {
-    Callback throwing =
-        proxy(
-            Callback.class,
-            (name, args) -> {
-              throw new IllegalStateException("already completed");
-            });
-
-    assertFalse(
-        JettyBlockResponseHelper.failDeferred(
-            new JettyDeferredCompletion(throwing), new IllegalStateException("boom")));
   }
 
   /** Records {@code succeeded} and {@code failed} calls, followed by the failure, if any. */
