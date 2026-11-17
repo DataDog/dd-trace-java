@@ -27,7 +27,9 @@ import org.openjdk.jmh.annotations.Warmup;
  * Evaluation cost on the opt-in scale suites of the shared FFE fixtures ({@code
  * evaluation-suites/scale} and {@code evaluation-suites/scale-json}): large lists, regex, rules,
  * splits and shards, time windows, many variations and flags, and JSON values up to 4 MB. The
- * dimensions are listed in {@code evaluation-suites/scale/AGENTS.md} of the fixtures.
+ * dimensions are listed in {@code evaluation-suites/scale/AGENTS.md} of the fixtures. The {@code
+ * regex} suite adds literal patterns and inputs that make a backtracking engine slow; it needs the
+ * linear-time matcher.
  *
  * <p>Each operation evaluates a case of the selected case file through the provider. With {@code
  * index=all}, the operations go through the cases of the file in turn, so a row is the unweighted
@@ -85,7 +87,9 @@ public class ScaleSuiteBenchmark {
     "scale/wide-context",
     "scale-json/json-shapes",
     "scale-json/json-sizes",
-    "scale-json/json-values"
+    "scale-json/json-values",
+    "regex/backtracking",
+    "regex/literals"
   })
   public String cases;
 
