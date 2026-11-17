@@ -1,7 +1,6 @@
 package datadog.trace.core.datastreams;
 
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V01_DATASTREAMS_ENDPOINT;
-import static datadog.trace.api.DDTags.PATHWAY_HASH;
 import static datadog.trace.api.datastreams.DataStreamsContext.fromTags;
 import static datadog.trace.api.datastreams.DataStreamsTags.Direction.INBOUND;
 import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
@@ -78,6 +77,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   private final Thread thread;
   private final DataStreamsPropagator propagator;
   private final boolean lite;
+  private final boolean pathwayHashSampledOnly;
   // Non-null only in lite mode, which reports each unique pathway once per epoch
   private final PathwaySeenSet seenSet;
   private final long liteEpochNanos;
@@ -156,6 +156,26 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       DatastreamsPayloadWriter payloadWriter,
       long bucketDurationNanos,
       boolean lite) {
+    this(
+        sink,
+        features,
+        timeSource,
+        traceConfigSupplier,
+        payloadWriter,
+        bucketDurationNanos,
+        lite,
+        lite && Config.get().isDataStreamsPathwayHashTagSampledOnly());
+  }
+
+  DefaultDataStreamsMonitoring(
+      Sink sink,
+      DDAgentFeaturesDiscovery features,
+      TimeSource timeSource,
+      Supplier<TraceConfig> traceConfigSupplier,
+      DatastreamsPayloadWriter payloadWriter,
+      long bucketDurationNanos,
+      boolean lite,
+      boolean pathwayHashSampledOnly) {
     this.features = features;
     this.timeSource = timeSource;
     this.traceConfigSupplier = traceConfigSupplier;
@@ -166,6 +186,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     sink.register(this);
 
     this.lite = lite;
+    this.pathwayHashSampledOnly = pathwayHashSampledOnly;
     this.seenSet = lite ? new PathwaySeenSet() : null;
     this.liteEpochNanos = TimeUnit.SECONDS.toNanos(Config.get().getDataStreamsLiteRefreshSeconds());
     // Jitter the first epoch so hosts started together don't re-report in lockstep
@@ -176,7 +197,8 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
         timeSource.getCurrentTimeNanos() - LITE_ERROR_RESET_INTERVAL_NANOS;
 
     this.propagator =
-        new DataStreamsPropagator(this, this.timeSource, serviceNameOverride, seenSet);
+        new DataStreamsPropagator(
+            this, this.timeSource, serviceNameOverride, seenSet, pathwayHashSampledOnly);
     DataStreamsTags.setServiceNameOverride(serviceNameOverride);
   }
 
@@ -369,10 +391,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     PathwayContext pathwayContext = span.spanContext().getPathwayContext();
     if (pathwayContext != null) {
       pathwayContext.setCheckpoint(context, this::add);
-      long pathwayHash = pathwayContext.getHash();
-      if (pathwayHash != 0) {
-        span.setTag(PATHWAY_HASH, Long.toUnsignedString(pathwayHash));
-      }
+      PathwayHashTag.set(span, pathwayContext.getHash(), pathwayHashSampledOnly);
     }
   }
 

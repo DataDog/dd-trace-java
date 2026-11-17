@@ -2,7 +2,10 @@ import static datadog.trace.api.datastreams.PathwayContext.PROPAGATION_KEY_BASE6
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -10,19 +13,25 @@ import datadog.context.ContextScope;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.agent.test.datastreams.MockFeaturesDiscovery;
 import datadog.trace.agent.tooling.TracerInstaller;
+import datadog.trace.api.DDTags;
 import datadog.trace.api.IdGenerationStrategy;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.datastreams.StatsPoint;
+import datadog.trace.api.sampling.PrioritySampling;
+import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.common.metrics.EventListener;
 import datadog.trace.common.metrics.Sink;
 import datadog.trace.core.CoreTracer;
+import datadog.trace.core.DDSpan;
 import datadog.trace.core.datastreams.DefaultDataStreamsMonitoring;
 import datadog.trace.test.junit.utils.config.WithConfig;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -34,6 +43,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.junit.jupiter.api.AfterEach;
@@ -127,6 +137,81 @@ class KafkaDataStreamsLiteForkedTest extends AbstractInstrumentationTest {
   void consumingManyRecordsFromOneTopicQueuesOnePointPerGroup() throws Exception {
     produceUnderOneSpan();
 
+    assertEquals(RECORDS, consumeAll());
+    assertEquals(
+        1, queued("topic:" + TOPIC + " direction:in group:" + GROUP), queuedDetails.toString());
+  }
+
+  @Test
+  void liteCreatesNoPollSpansAndNoDsmEnabledTag() throws Exception {
+    produceUnderOneSpan();
+    assertEquals(RECORDS, consumeAll());
+    writer.waitForTracesMax(RECORDS + 1, 10);
+
+    List<DDSpan> spans = allSpans();
+    assertTrue(spans.stream().anyMatch(span -> "kafka.consume".contentEquals(name(span))));
+    for (DDSpan span : spans) {
+      assertFalse("kafka.poll".contentEquals(name(span)), spans.toString());
+      assertNull(span.getTag(DDTags.DSM_ENABLED), span.toString());
+    }
+  }
+
+  @Test
+  void pathwayHashIsOnlyOnSpansOfKeptTracesAndMatchesTheHeader() throws Exception {
+    List<ProducerRecord<String, String>> kept = produceUnderOneSpan(null);
+    writer.waitForTracesMax(1, 10);
+    List<DDSpan> keptSpans = produceSpans();
+    writer.clear();
+    List<ProducerRecord<String, String>> dropped =
+        produceUnderOneSpan((int) PrioritySampling.USER_DROP);
+    writer.waitForTracesMax(1, 10);
+    List<DDSpan> droppedSpans = produceSpans();
+
+    assertEquals(RECORDS, keptSpans.size());
+    for (DDSpan span : keptSpans) {
+      assertEquals(headerHash(kept.get(0)), span.getTag(DDTags.PATHWAY_HASH), span.toString());
+    }
+    assertEquals(RECORDS, droppedSpans.size());
+    for (DDSpan span : droppedSpans) {
+      assertNull(span.getTag(DDTags.PATHWAY_HASH), span.toString());
+    }
+    // Sampling changes the span tag only: the header is still propagated, with the same pathway
+    for (ProducerRecord<String, String> record : dropped) {
+      assertEquals(headerHash(kept.get(0)), headerHash(record));
+    }
+  }
+
+  /** The pathway hash in a record's DSM header, decoded with the JDK base64 decoder. */
+  private static String headerHash(ProducerRecord<String, String> record) {
+    Header header = record.headers().lastHeader(PROPAGATION_KEY_BASE64);
+    assertNotNull(header);
+    byte[] raw = Base64.getDecoder().decode(header.value());
+    return Long.toUnsignedString(ByteBuffer.wrap(raw).order(ByteOrder.LITTLE_ENDIAN).getLong());
+  }
+
+  private static CharSequence name(DDSpan span) {
+    return span.getOperationName();
+  }
+
+  private static List<DDSpan> allSpans() {
+    List<DDSpan> spans = new ArrayList<>();
+    for (List<DDSpan> trace : writer) {
+      spans.addAll(trace);
+    }
+    return spans;
+  }
+
+  private static List<DDSpan> produceSpans() {
+    List<DDSpan> spans = new ArrayList<>();
+    for (DDSpan span : allSpans()) {
+      if ("kafka.produce".contentEquals(name(span))) {
+        spans.add(span);
+      }
+    }
+    return spans;
+  }
+
+  private int consumeAll() {
     Map<String, Object> props =
         KafkaTestUtils.consumerProps(embeddedKafka.getBrokersAsString(), GROUP, "false");
     props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
@@ -141,13 +226,15 @@ class KafkaDataStreamsLiteForkedTest extends AbstractInstrumentationTest {
         }
       }
     }
-
-    assertEquals(RECORDS, consumed);
-    assertEquals(
-        1, queued("topic:" + TOPIC + " direction:in group:" + GROUP), queuedDetails.toString());
+    return consumed;
   }
 
   private List<ProducerRecord<String, String>> produceUnderOneSpan() throws Exception {
+    return produceUnderOneSpan(null);
+  }
+
+  private List<ProducerRecord<String, String>> produceUnderOneSpan(Integer samplingPriority)
+      throws Exception {
     List<ProducerRecord<String, String>> records = new ArrayList<>();
     Map<String, Object> props = KafkaTestUtils.producerProps(embeddedKafka.getBrokersAsString());
     try (KafkaProducer<String, String> producer =
@@ -156,6 +243,9 @@ class KafkaDataStreamsLiteForkedTest extends AbstractInstrumentationTest {
       // pathway
       producer.partitionsFor(TOPIC);
       AgentSpan parent = startSpan("test", "parent");
+      if (samplingPriority != null) {
+        parent.setSamplingPriority(samplingPriority, SamplingMechanism.MANUAL);
+      }
       try (ContextScope ignored = activateSpan(parent)) {
         for (int i = 0; i < RECORDS; i++) {
           ProducerRecord<String, String> record = new ProducerRecord<>(TOPIC, "message-" + i);

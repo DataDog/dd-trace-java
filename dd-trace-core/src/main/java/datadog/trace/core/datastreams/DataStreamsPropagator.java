@@ -1,15 +1,16 @@
 package datadog.trace.core.datastreams;
 
 import static datadog.context.Context.root;
-import static datadog.trace.api.DDTags.PATHWAY_HASH;
 import static datadog.trace.api.datastreams.PathwayContext.PROPAGATION_KEY_BASE64;
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromSpanContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
+import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
 import datadog.context.Context;
 import datadog.context.propagation.CarrierSetter;
 import datadog.context.propagation.CarrierVisitor;
 import datadog.context.propagation.Propagator;
+import datadog.trace.api.datastreams.BinaryCarrierSetter;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.PathwayContext;
 import datadog.trace.api.datastreams.StatsPoint;
@@ -28,6 +29,7 @@ public class DataStreamsPropagator implements Propagator {
   private final ThreadLocal<String> serviceNameOverride;
   // Non-null only in Data Streams lite mode
   private final PathwaySeenSet seenSet;
+  private final boolean pathwayHashSampledOnly;
 
   public DataStreamsPropagator(
       DataStreamsMonitoring dataStreamsMonitoring,
@@ -41,10 +43,20 @@ public class DataStreamsPropagator implements Propagator {
       TimeSource timeSource,
       ThreadLocal<String> serviceNameOverride,
       PathwaySeenSet seenSet) {
+    this(dataStreamsMonitoring, timeSource, serviceNameOverride, seenSet, false);
+  }
+
+  DataStreamsPropagator(
+      DataStreamsMonitoring dataStreamsMonitoring,
+      TimeSource timeSource,
+      ThreadLocal<String> serviceNameOverride,
+      PathwaySeenSet seenSet,
+      boolean pathwayHashSampledOnly) {
     this.dataStreamsMonitoring = dataStreamsMonitoring;
     this.timeSource = timeSource;
     this.serviceNameOverride = serviceNameOverride;
     this.seenSet = seenSet;
+    this.pathwayHashSampledOnly = pathwayHashSampledOnly;
   }
 
   @Override
@@ -68,18 +80,23 @@ public class DataStreamsPropagator implements Propagator {
             : pathwayContext::saveStats;
     pathwayContext.setCheckpoint(dsmContext, pointConsumer);
     boolean injected = injectPathwayContext(pathwayContext, carrier, setter);
-    if (injected && pathwayContext.getHash() != 0) {
-      span.setTag(PATHWAY_HASH, Long.toUnsignedString(pathwayContext.getHash()));
+    if (injected) {
+      PathwayHashTag.set(span, pathwayContext.getHash(), pathwayHashSampledOnly);
     }
   }
 
+  @SuppressWarnings("unchecked")
   private <C> boolean injectPathwayContext(
       PathwayContext pathwayContext, C carrier, CarrierSetter<C> setter) {
     try {
-      String encodedContext = pathwayContext.encode();
+      byte[] encodedContext = pathwayContext.encodeBytes();
       if (encodedContext != null) {
-        // LOGGER.debug("Injecting pathway context {}", pathwayContext);
-        setter.set(carrier, PROPAGATION_KEY_BASE64, encodedContext);
+        if (setter instanceof BinaryCarrierSetter) {
+          ((BinaryCarrierSetter<C>) setter)
+              .setBytes(carrier, PROPAGATION_KEY_BASE64, encodedContext);
+        } else {
+          setter.set(carrier, PROPAGATION_KEY_BASE64, new String(encodedContext, ISO_8859_1));
+        }
         return true;
       }
     } catch (IOException e) {

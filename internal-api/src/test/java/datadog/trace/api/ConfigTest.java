@@ -49,7 +49,10 @@ import static datadog.trace.api.config.GeneralConfig.API_KEY;
 import static datadog.trace.api.config.GeneralConfig.API_KEY_FILE;
 import static datadog.trace.api.config.GeneralConfig.CONFIGURATION_FILE;
 import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_LITE_DSM_TAG_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_LITE_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_LITE_PATHWAY_HASH_TAG;
+import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_LITE_POLL_SPANS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_LITE_REFRESH_SECONDS;
 import static datadog.trace.api.config.GeneralConfig.ENV;
 import static datadog.trace.api.config.GeneralConfig.GLOBAL_TAGS;
@@ -2171,6 +2174,44 @@ class ConfigTest {
     }
 
     assertEquals(expected, newConfig().getDataStreamsLiteRefreshSeconds());
+  }
+
+  @TableTest({
+    "scenario             | lite | pollSpans | dsmTag | hashTag | expectPoll | expectTag | expectSampled",
+    "full mode            |      | false     | false  | sampled | true       | true      | false        ",
+    "lite defaults        | true |           |        |         | false      | false     | true         ",
+    "lite, all re-enabled | true | true      | true   | all     | true       | true      | false        ",
+    "lite, bad hash value | true |           |        | some    | false      | false     | true         "
+  })
+  void dataStreamsLiteOptimisationFlags(
+      String lite,
+      String pollSpans,
+      String dsmTag,
+      String hashTag,
+      boolean expectPoll,
+      boolean expectTag,
+      boolean expectSampled)
+      throws Exception {
+    if (lite != null) {
+      System.setProperty(PREFIX + DATA_STREAMS_LITE_ENABLED, lite);
+    } else {
+      System.setProperty(PREFIX + DATA_STREAMS_ENABLED, "true");
+    }
+    if (pollSpans != null) {
+      System.setProperty(PREFIX + DATA_STREAMS_LITE_POLL_SPANS_ENABLED, pollSpans);
+    }
+    if (dsmTag != null) {
+      System.setProperty(PREFIX + DATA_STREAMS_LITE_DSM_TAG_ENABLED, dsmTag);
+    }
+    if (hashTag != null) {
+      System.setProperty(PREFIX + DATA_STREAMS_LITE_PATHWAY_HASH_TAG, hashTag);
+    }
+
+    Config config = newConfig();
+
+    assertEquals(expectPoll, config.isDataStreamsKafkaPollSpanEnabled());
+    assertEquals(expectTag, config.isDataStreamsSpanTagEnabled());
+    assertEquals(expectSampled, config.isDataStreamsPathwayHashTagSampledOnly());
   }
 
   @Test

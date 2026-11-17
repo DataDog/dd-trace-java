@@ -4,7 +4,6 @@ import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEXT_TRACKING;
 import static datadog.trace.api.datastreams.DataStreamsContext.fromTagsWithoutCheckpoint;
 import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
-import static datadog.trace.api.datastreams.DataStreamsTags.create;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.DSM_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
@@ -17,6 +16,7 @@ import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.api.Config;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
+import datadog.trace.api.datastreams.DataStreamsTagsCache;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.kafka_common.MetadataState;
@@ -45,7 +45,7 @@ public class ProducerContextPropagationAdvice {
     // With DSM off the DSM propagator injects nothing, so skip building its tags and context.
     DataStreamsTags tags =
         traceConfig().isDataStreamsEnabled()
-            ? create("kafka", OUTBOUND, record.topic(), null, clusterId)
+            ? DataStreamsTagsCache.create("kafka", OUTBOUND, record.topic(), null, clusterId)
             : null;
     try {
       defaultPropagator().inject(span, record.headers(), setter);

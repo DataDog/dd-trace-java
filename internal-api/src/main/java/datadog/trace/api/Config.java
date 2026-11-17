@@ -54,7 +54,10 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_JOBS_OPENLINEAGE_TIM
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_JOBS_PARSE_SPARK_PLAN_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_STREAMS_BUCKET_DURATION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_STREAMS_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_STREAMS_LITE_DSM_TAG_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_STREAMS_LITE_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_STREAMS_LITE_PATHWAY_HASH_TAG;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_STREAMS_LITE_POLL_SPANS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_STREAMS_LITE_REFRESH_SECONDS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_HOST;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
@@ -397,7 +400,10 @@ import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_OPENLINEAGE_TIMEO
 import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_PARSE_SPARK_PLAN_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_BUCKET_DURATION_SECONDS;
 import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_LITE_DSM_TAG_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_LITE_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_LITE_PATHWAY_HASH_TAG;
+import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_LITE_POLL_SPANS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_LITE_REFRESH_SECONDS;
 import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_TRANSACTION_EXTRACTORS;
 import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_ARGS;
@@ -1407,6 +1413,9 @@ public class Config {
   private final boolean dataStreamsEnabled;
   private final boolean dataStreamsLiteEnabled;
   private final int dataStreamsLiteRefreshSeconds;
+  private final boolean dataStreamsKafkaPollSpanEnabled;
+  private final boolean dataStreamsSpanTagEnabled;
+  private final boolean dataStreamsPathwayHashTagSampledOnly;
   private final float dataStreamsBucketDurationSeconds;
   private final String dataStreamsTransactionExtractors;
 
@@ -3322,6 +3331,26 @@ public class Config {
       liteRefreshSeconds = MIN_DATA_STREAMS_LITE_REFRESH_SECONDS;
     }
     dataStreamsLiteRefreshSeconds = liteRefreshSeconds;
+    dataStreamsKafkaPollSpanEnabled =
+        !dataStreamsLiteEnabled
+            || configProvider.getBoolean(
+                DATA_STREAMS_LITE_POLL_SPANS_ENABLED, DEFAULT_DATA_STREAMS_LITE_POLL_SPANS_ENABLED);
+    dataStreamsSpanTagEnabled =
+        !dataStreamsLiteEnabled
+            || configProvider.getBoolean(
+                DATA_STREAMS_LITE_DSM_TAG_ENABLED, DEFAULT_DATA_STREAMS_LITE_DSM_TAG_ENABLED);
+    String pathwayHashTag =
+        configProvider.getString(
+            DATA_STREAMS_LITE_PATHWAY_HASH_TAG, DEFAULT_DATA_STREAMS_LITE_PATHWAY_HASH_TAG);
+    if (!"sampled".equalsIgnoreCase(pathwayHashTag) && !"all".equalsIgnoreCase(pathwayHashTag)) {
+      log.warn(
+          "{} must be 'all' or 'sampled', using '{}'",
+          DATA_STREAMS_LITE_PATHWAY_HASH_TAG,
+          DEFAULT_DATA_STREAMS_LITE_PATHWAY_HASH_TAG);
+      pathwayHashTag = DEFAULT_DATA_STREAMS_LITE_PATHWAY_HASH_TAG;
+    }
+    dataStreamsPathwayHashTagSampledOnly =
+        dataStreamsLiteEnabled && "sampled".equalsIgnoreCase(pathwayHashTag);
     dataStreamsBucketDurationSeconds =
         configProvider.getFloat(
             DATA_STREAMS_BUCKET_DURATION_SECONDS, DEFAULT_DATA_STREAMS_BUCKET_DURATION);
@@ -5412,6 +5441,21 @@ public class Config {
 
   public int getDataStreamsLiteRefreshSeconds() {
     return dataStreamsLiteRefreshSeconds;
+  }
+
+  /** False only in lite mode with {@code dd.data.streams.lite.poll.spans.enabled=false}. */
+  public boolean isDataStreamsKafkaPollSpanEnabled() {
+    return dataStreamsKafkaPollSpanEnabled;
+  }
+
+  /** Whether spans carry {@code _dd.dsm.enabled}; lite drops it unless re-enabled. */
+  public boolean isDataStreamsSpanTagEnabled() {
+    return dataStreamsSpanTagEnabled;
+  }
+
+  /** In lite, {@code pathway.hash} goes only on spans whose trace is not already dropped. */
+  public boolean isDataStreamsPathwayHashTagSampledOnly() {
+    return dataStreamsPathwayHashTagSampledOnly;
   }
 
   public float getDataStreamsBucketDurationSeconds() {
