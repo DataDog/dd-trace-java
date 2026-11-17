@@ -54,17 +54,19 @@ class Lettuce5MasterReplicaTest extends AbstractInstrumentationTest {
   }
 
   @AfterEach
-  void cleanUpRedis() {
-    if (connection != null) {
-      connection.close();
-    }
+  void cleanUpRedis() throws Exception {
+    try {
+      if (connection != null) {
+        connection.close();
+      }
 
-    if (redisClient != null) {
-      redisClient.shutdown(5, 10, TimeUnit.SECONDS);
-    }
-
-    if (redisServer != null) {
-      redisServer.stop();
+      if (redisClient != null) {
+        redisClient.shutdownAsync(0, 10, TimeUnit.SECONDS).get(10, TimeUnit.SECONDS);
+      }
+    } finally {
+      if (redisServer != null) {
+        redisServer.stop();
+      }
     }
   }
 

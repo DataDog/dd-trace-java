@@ -1,4 +1,5 @@
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static java.util.concurrent.TimeUnit.SECONDS
 
 import com.redis.testcontainers.RedisContainer
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
@@ -75,14 +76,13 @@ abstract class Lettuce5ClientTestBase extends VersionedNamingTestBase {
   }
 
   def cleanup() {
-    connection.close()
-
     try {
-      redisClient.shutdown(5, 10, TimeUnit.SECONDS)
-    } catch (Throwable ignored) {
-      // No-op.
+      connection?.close()
+      if (redisClient != null) {
+        redisClient.shutdownAsync(0, 10, SECONDS).get(10, SECONDS)
+      }
+    } finally {
+      redisServer.stop()
     }
-
-    redisServer.stop()
   }
 }
