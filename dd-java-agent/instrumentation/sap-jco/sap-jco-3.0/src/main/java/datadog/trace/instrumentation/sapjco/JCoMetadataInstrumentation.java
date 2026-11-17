@@ -22,6 +22,16 @@ import net.bytebuddy.asm.Advice;
  *
  * <p>Guarded by {@link MetadataLookup}: a span is created only inside an instrumented {@code
  * getFunctionTemplate} lookup, so business RFC calls through this class are untouched.
+ *
+ * <p><b>Fragile hook.</b> {@code com.sap.conn.jco.rt.ClientConnection} and its {@code
+ * execute(JCoFunction, RepositoryProvider)} method are JCo internals, not public API, so a future
+ * JCo version could rename or re-sign them. Muzzle does not guard this: it only checks symbols the
+ * advice references in code, and the target here is a type/method matcher, not a code reference
+ * (and there is no muzzle version matrix — sapjco3 is not published to any public repository). If
+ * this stops matching, degradation is soft: the metadata RFC's passport falls back to the active
+ * request span (so it stays in the trace), and we only lose this {@code sap.rfc.metadata} span and
+ * the function-not-found marking. Business tracing ({@code sap.rfc.call}) hooks the public {@code
+ * JCoFunction.execute(JCoDestination)} and is unaffected.
  */
 public class JCoMetadataInstrumentation
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {

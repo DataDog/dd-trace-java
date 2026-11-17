@@ -45,7 +45,11 @@ public final class InboundPassport {
   }
 
   static void set(InboundPassport passport) {
-    CURRENT.set(passport);
+    if (passport == null) {
+      CURRENT.remove(); // a non-Datadog inbound passport decodes to null; don't leave a stale entry
+    } else {
+      CURRENT.set(passport);
+    }
   }
 
   public static InboundPassport getAndClear() {
