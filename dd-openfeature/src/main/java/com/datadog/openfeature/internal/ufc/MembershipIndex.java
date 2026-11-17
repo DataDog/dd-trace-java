@@ -14,21 +14,20 @@ import javax.annotation.Nullable;
  *
  * <ul>
  *   <li>A number attribute is compared numerically with each element. The first element that cannot
- *       be converted to a number (a non-numeric string, a boolean, or {@code null}) throws, unless
- *       an earlier element matched.
+ *       be converted to a number (a non-numeric string, a boolean, a nested list or object, or
+ *       {@code null}) throws, unless an earlier element matched.
  *   <li>A string or boolean attribute is compared numerically with each number element (the
- *       attribute must then parse as a number, else the scan throws), and as a string with each
- *       other element ({@code "true"} matches {@code true}, {@code "null"} matches {@code null}).
+ *       attribute must then parse as a number, else the scan throws at the first number element
+ *       unless an earlier element matched), and as a string with each other element ({@code "true"}
+ *       matches {@code true}, {@code "null"} matches {@code null}).
  * </ul>
  *
  * <p>When the result depends on an exception, or for another attribute type, {@link #lookup}
- * returns {@link #SCAN} and the caller runs the scan, which throws the same exception as before.
+ * returns {@link #SCAN} and the caller runs the scan, which gives the old result, including any
+ * exception.
  */
 public final class MembershipIndex {
-  /**
-   * A one-element list keeps the scan. From two elements, a hash lookup is faster than the scan:
-   * about 2 ns against 8 ns (string attribute) and 24 ns (number attribute).
-   */
+  /** Lists shorter than this keep the scan. */
   static final int MIN_INDEXED_SIZE = 2;
 
   public static final int NO_MATCH = 0;
@@ -42,10 +41,16 @@ public final class MembershipIndex {
   /** {@code String.valueOf} of each element that is not a number, to its first index. */
   private final Map<String, Integer> strings;
 
-  /** Each element that converts to a number (a number, or a numeric string), to its first index. */
+  /**
+   * Each number element, and each numeric string before the first unconvertible element, to its
+   * first index.
+   */
   private final LongIntIndex numeric;
 
-  /** Each element that is a number, to its first index. */
+  /**
+   * Each element that is a number, to its first index; the same table as {@link #numeric} when the
+   * list has no numeric strings.
+   */
   private final LongIntIndex numbers;
 
   /** The first element that does not convert to a number, or {@link #NONE}. */
@@ -93,13 +98,19 @@ public final class MembershipIndex {
       }
     }
     this.numeric = LongIntIndex.of(numericKeys, numericIndexes, numericCount);
-    this.numbers = LongIntIndex.of(numberKeys, numberIndexes, numberCount);
+    // Without numeric strings, both tables hold the same keys and first indexes.
+    this.numbers =
+        numberCount == numericCount
+            ? this.numeric
+            : LongIntIndex.of(numberKeys, numberIndexes, numberCount);
     this.firstUnconvertible = unconvertible;
     this.firstNumber = numberCount == 0 ? NONE : numberIndexes[0];
   }
 
   /**
-   * Builds the index for a condition value.
+   * Builds the index for a condition value. The number elements must be finite, as the parser
+   * guarantees: the scan matches a {@code NaN} element with a {@code NaN} attribute, the index does
+   * not.
    *
    * @return the index, or {@code null} if the value is not a list or is too short to index.
    */
@@ -179,6 +190,7 @@ public final class MembershipIndex {
     private final int[] values;
     private final boolean[] used;
     private final int mask;
+    private final int shift;
 
     private LongIntIndex(final int expected) {
       final int capacity = Integer.highestOneBit(Math.max(1, expected) * 2 - 1) << 1;
@@ -186,6 +198,7 @@ public final class MembershipIndex {
       this.values = new int[capacity];
       this.used = new boolean[capacity];
       this.mask = capacity - 1;
+      this.shift = Long.SIZE - Integer.numberOfTrailingZeros(capacity);
     }
 
     /** Indexes the first {@code count} keys. The first index of a repeated key is kept. */
@@ -222,9 +235,12 @@ public final class MembershipIndex {
       return NONE;
     }
 
-    private int slot(final long key) {
-      final long hash = key * 0x9E3779B97F4A7C15L;
-      return (int) (hash ^ (hash >>> 32)) & this.mask;
+    /**
+     * Fibonacci hashing: the high bits of the product depend on every bit of the key. The low bits
+     * do not: they are zero for small integers and powers of two, whose low mantissa bits are zero.
+     */
+    int slot(final long key) {
+      return (int) ((key * 0x9E3779B97F4A7C15L) >>> this.shift);
     }
   }
 }

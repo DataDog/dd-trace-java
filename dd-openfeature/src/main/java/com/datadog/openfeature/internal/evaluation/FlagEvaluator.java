@@ -360,7 +360,8 @@ public final class FlagEvaluator {
 
   private static boolean isOneOf(
       final Object attributeValue, final ConditionConfiguration condition) {
-    // Parsed configurations index long lists; the index gives the same result as the scan.
+    // Parsed configurations index lists of two or more elements; the index gives the same result
+    // as the scan.
     final MembershipIndex membership = condition.membership;
     if (membership != null) {
       final int result = membership.lookup(attributeValue);

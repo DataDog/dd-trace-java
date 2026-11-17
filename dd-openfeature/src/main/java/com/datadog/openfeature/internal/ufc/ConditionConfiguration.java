@@ -14,7 +14,8 @@ public final class ConditionConfiguration {
   // The validated MATCHES/NOT_MATCHES pattern, prepared when the configuration is parsed.
   public transient Pattern regex;
 
-  // The ONE_OF/NOT_ONE_OF hash index, built when the configuration is parsed; null for short lists.
+  // The ONE_OF/NOT_ONE_OF hash index, built when the configuration is parsed; null for one-element
+  // lists and for configurations that are not parsed.
   public transient MembershipIndex membership;
 
   public ConditionConfiguration(

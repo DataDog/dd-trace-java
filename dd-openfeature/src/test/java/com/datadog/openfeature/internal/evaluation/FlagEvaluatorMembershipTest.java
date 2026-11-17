@@ -19,6 +19,7 @@ import com.datadog.openfeature.internal.ufc.Variant;
 import dev.openfeature.sdk.MutableContext;
 import dev.openfeature.sdk.ProviderEvaluation;
 import dev.openfeature.sdk.Value;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -56,7 +57,9 @@ class FlagEvaluatorMembershipTest {
     7.5,
     Boolean.TRUE,
     Boolean.FALSE,
-    null
+    null,
+    Arrays.asList("42"),
+    Collections.singletonMap("k", 1.0)
   };
 
   /** Attributes of each type that the context can hold. */
@@ -74,6 +77,8 @@ class FlagEvaluatorMembershipTest {
     "NaN",
     "Infinity",
     "acct-1",
+    "[42]",
+    "{k=1.0}",
     42,
     0,
     1000,
@@ -155,6 +160,29 @@ class FlagEvaluatorMembershipTest {
     assertEquals("NO", outcome(evaluate(ConditionOperator.ONE_OF, accounts, "ACCT-00001", true)));
     assertEquals(
         "MATCH", outcome(evaluate(ConditionOperator.NOT_ONE_OF, accounts, "acct-10000", true)));
+  }
+
+  @Test
+  void scansAttributeTypesTheIndexDoesNotHandle() {
+    final Object[] attributes = {
+      Instant.parse("2024-01-01T00:00:00Z"), Arrays.asList("42"), Collections.singletonMap("k", "v")
+    };
+    final List<List<Object>> lists =
+        Arrays.asList(
+            Arrays.asList("2024-01-01T00:00:00Z", "x"),
+            Arrays.asList("[42]", "x"),
+            Arrays.asList("{k=v}", "x"),
+            Arrays.asList(42.0, "x"));
+    for (final ConditionOperator operator :
+        Arrays.asList(ConditionOperator.ONE_OF, ConditionOperator.NOT_ONE_OF)) {
+      for (final List<Object> list : lists) {
+        for (final Object attribute : attributes) {
+          assertSameResult(operator, list, attribute);
+        }
+      }
+    }
+    assertEquals(
+        "ERROR", outcome(evaluate(ConditionOperator.ONE_OF, lists.get(3), attributes[0], true)));
   }
 
   private void assertSameResult(
