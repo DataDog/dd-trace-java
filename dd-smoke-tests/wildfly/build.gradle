@@ -52,7 +52,7 @@ dependencies {
   // organisation = serverName, module = serverModule, revision = serverVersion, ext = serverExtension
   serverFile "${serverName}:${serverModule}:${serverVersion}@${serverExtension}"
 
-  testImplementation project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests:smoke-test-common')
 }
 
 def appBuildDir = layout.buildDirectory.dir("spring-ear")

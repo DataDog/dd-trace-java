@@ -65,7 +65,6 @@ public class PendingTraceTest extends PendingTraceTestBase {
             Collections.emptyMap(),
             false,
             "",
-            0,
             trace,
             null,
             null,

@@ -22,4 +22,4 @@ Run the tests for the module you changed, for example:
 ```
 
 For changes across modules, `./gradlew :build-logic:check` runs the included build's checks
-from the repository root.
+from the repository root. Run `./gradlew -p build-logic spotlessApply` for formatting.

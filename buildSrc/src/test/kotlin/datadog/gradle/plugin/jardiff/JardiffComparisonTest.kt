@@ -1,8 +1,8 @@
 package datadog.gradle.plugin.jardiff
 
-import java.io.File
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
+import java.io.File
 
 class JardiffComparisonTest {
 

@@ -241,6 +241,12 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
           handleWafUpdateResultReport(key, contentMap);
         } catch (AppSecModule.AppSecModuleActivationException e) {
           throw new RuntimeException(e);
+        } catch (RuntimeException e) {
+          if (e.getCause() instanceof InvalidRuleSetException) {
+            // libddwaf >= 2.2.0 unregisters a rejected path: forget the key so defaults can return
+            afterRemove(key);
+          }
+          throw e;
         }
       }
     }
@@ -255,10 +261,11 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
       try {
         maybeInitializeDefaultConfig();
         wafBuilder.removeConfig(key);
-        afterRemove(key);
       } catch (UnclassifiedWafException e) {
-        throw new RuntimeException(e);
+        // libddwaf >= 2.2.0 already unregistered a rejected path; RC drops the key anyway
+        log.debug("Could not remove waf config for config key {}: {}", key, e.getMessage());
       }
+      afterRemove(key);
     }
 
     @Override
