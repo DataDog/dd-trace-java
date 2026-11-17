@@ -1,7 +1,7 @@
 package datadog.trace.core.otlp.sdk;
 
 import datadog.trace.api.Config;
-import datadog.trace.core.monitor.SpanLifecycleMetrics;
+import datadog.trace.core.monitor.HealthMetrics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -16,16 +16,19 @@ public final class OtelSdkSelfMonitoring {
 
   private OtelSdkSelfMonitoring() {}
 
-  /** Returns the OTel span lifecycle recorder when the gate is on, otherwise a no-op. */
-  public static SpanLifecycleMetrics spanLifecycleMetrics(Config config) {
+  /**
+   * Returns the OTel {@link HealthMetrics} when the gate is on and its classes load, otherwise
+   * {@code null}, so callers can skip it when collecting the enabled health metrics delegates.
+   */
+  public static HealthMetrics healthMetrics(Config config) {
     if (!config.isOtelSdkSelfMonitoringMetricsActive()) {
-      return SpanLifecycleMetrics.NO_OP;
+      return null;
     }
     try {
-      return OtelSpanLifecycleMetrics.INSTANCE;
+      return OtelHealthMetrics.INSTANCE;
     } catch (Throwable e) {
       log.debug("OTel SDK self-monitoring span metrics are unavailable", e);
-      return SpanLifecycleMetrics.NO_OP;
+      return null;
     }
   }
 }

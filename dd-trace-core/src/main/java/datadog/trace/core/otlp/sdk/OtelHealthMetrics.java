@@ -11,19 +11,24 @@ import datadog.trace.bootstrap.otel.metrics.OtelInstrumentType;
 import datadog.trace.bootstrap.otel.metrics.data.OtelMetricStorage;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.DDSpanContext;
-import datadog.trace.core.monitor.SpanLifecycleMetrics;
+import datadog.trace.core.monitor.HealthMetrics;
 import java.util.concurrent.atomic.LongAdder;
 
 /**
- * Records {@code otel.sdk.span.started}, split by parent origin, and {@code otel.sdk.span.live},
- * which semantic conventions do not split by parent origin. The hot path only touches {@link
- * LongAdder}s; observable instruments report the adders at collection.
+ * {@link HealthMetrics} that records the OTel SDK self-monitoring metrics {@code
+ * otel.sdk.span.started}, split by parent origin, and {@code otel.sdk.span.live}, which semantic
+ * conventions do not split by parent origin. Only the span create/finish callbacks map to OTel
+ * metrics; every other callback stays a no-op. The hot path only touches {@link LongAdder}s;
+ * observable instruments report the adders at collection.
  */
-final class OtelSpanLifecycleMetrics extends SpanLifecycleMetrics {
+final class OtelHealthMetrics extends HealthMetrics {
   static final AttributeKey<String> PARENT_ORIGIN = stringKey("otel.span.parent.origin");
 
-  /** Indexed by {@link DDSpanContext#getParentOrigin()}, as is the {@code started} adder array. */
-  private static final Attributes[] ORIGINS = {
+  /**
+   * Indexed by {@link DDSpanContext#getParentOrigin()}, as is the {@code started} adder array;
+   * {@code OtelHealthMetricsForkedTest} checks every {@code PARENT_ORIGIN_*} constant maps here.
+   */
+  static final Attributes[] ORIGINS = {
     Attributes.of(PARENT_ORIGIN, "none"),
     Attributes.of(PARENT_ORIGIN, "local"),
     Attributes.of(PARENT_ORIGIN, "remote")
@@ -35,12 +40,12 @@ final class OtelSpanLifecycleMetrics extends SpanLifecycleMetrics {
    * One per JVM: the observables read these adders, and a second set would double-report. Declared
    * after the attribute constants, so they exist before the constructor registers the observables.
    */
-  static final OtelSpanLifecycleMetrics INSTANCE = new OtelSpanLifecycleMetrics();
+  static final OtelHealthMetrics INSTANCE = new OtelHealthMetrics();
 
-  private final LongAdder[] started = {new LongAdder(), new LongAdder(), new LongAdder()};
+  final LongAdder[] started = {new LongAdder(), new LongAdder(), new LongAdder()};
   private final LongAdder live = new LongAdder();
 
-  private OtelSpanLifecycleMetrics() {
+  private OtelHealthMetrics() {
     observe("otel.sdk.span.started", COUNTER, "The number of created spans.", started, ORIGINS);
     observe(
         "otel.sdk.span.live",
@@ -52,13 +57,13 @@ final class OtelSpanLifecycleMetrics extends SpanLifecycleMetrics {
   }
 
   @Override
-  public void onSpanStarted(DDSpan span) {
+  public void onCreateSpan(DDSpan span) {
     started[span.spanContext().getParentOrigin()].increment();
     live.increment();
   }
 
   @Override
-  public void onSpanEnded(DDSpan span) {
+  public void onFinishSpan() {
     live.decrement();
   }
 

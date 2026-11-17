@@ -1,26 +1,39 @@
-package datadog.trace.core;
+package datadog.trace.core.otlp.sdk;
 
 import static datadog.trace.agent.test.utils.OtelMetricCollector.collect;
 import static datadog.trace.api.TracePropagationStyle.DATADOG;
+import static datadog.trace.core.otlp.sdk.OtelHealthMetrics.ORIGINS;
+import static datadog.trace.core.otlp.sdk.OtelHealthMetrics.PARENT_ORIGIN;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
+import static java.util.Locale.ROOT;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.agent.test.utils.OtelMetricCollector;
 import datadog.trace.agent.test.utils.OtelMetricCollector.DataPointEntry;
+import datadog.trace.api.Config;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.config.OtlpConfig;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.common.writer.ListWriter;
-import datadog.trace.core.monitor.SpanLifecycleMetrics;
+import datadog.trace.core.CoreTracer;
+import datadog.trace.core.DDCoreJavaSpecification;
+import datadog.trace.core.DDSpan;
+import datadog.trace.core.DDSpanContext;
+import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.test.junit.utils.config.WithConfig;
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 // Gate on: the instruments are registered once per JVM, so these tests need their own JVM.
@@ -28,14 +41,16 @@ import org.junit.jupiter.api.Test;
 @WithConfig(key = OtlpConfig.METRICS_OTEL_ENABLED, value = "true")
 @WithConfig(key = OtlpConfig.TRACE_OTEL_SDK_SELF_MONITORING_METRICS_ENABLED, value = "true")
 @WithConfig(key = OtlpConfig.OTLP_METRICS_TEMPORALITY_PREFERENCE, value = "cumulative")
-class CoreTracerSpanLifecycleMetricsForkedTest extends DDCoreJavaSpecification {
+class OtelHealthMetricsForkedTest extends DDCoreJavaSpecification {
+  private static final String ORIGIN_PREFIX = "PARENT_ORIGIN_";
+
   @Test
   void gateOnReportsEveryOriginAndTracksSpanLifecycle() {
+    HealthMetrics metrics = OtelSdkSelfMonitoring.healthMetrics(Config.get());
+    assertSame(OtelHealthMetrics.INSTANCE, metrics);
+
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
     try {
-      SpanLifecycleMetrics metrics = tracer.getSpanLifecycleMetrics();
-      assertNotSame(SpanLifecycleMetrics.NO_OP, metrics);
-
       // every origin is reported from the first collection, as 0 until a span starts
       OtelMetricCollector before = collect();
       assertEquals(byOrigin(0, 0, 0), valuesByOrigin(before, "otel.sdk.span.started"));
@@ -45,18 +60,18 @@ class CoreTracerSpanLifecycleMetricsForkedTest extends DDCoreJavaSpecification {
       DDSpan child = (DDSpan) tracer.buildSpan("test", "child").asChildOf(root).start();
       DDSpan server =
           (DDSpan) tracer.buildSpan("test", "server").asChildOf(remoteParentContext()).start();
-      metrics.onSpanStarted(root);
-      metrics.onSpanStarted(child);
-      metrics.onSpanStarted(server);
-      metrics.onSpanEnded(child);
+      metrics.onCreateSpan(root);
+      metrics.onCreateSpan(child);
+      metrics.onCreateSpan(server);
+      metrics.onFinishSpan();
       OtelMetricCollector collector = collect();
 
       assertEquals(byOrigin(1, 1, 1), valuesByOrigin(collector, "otel.sdk.span.started"));
       assertEquals(2L, liveValue(collector));
 
       // once every span ends, live reports 0
-      metrics.onSpanEnded(root);
-      metrics.onSpanEnded(server);
+      metrics.onFinishSpan();
+      metrics.onFinishSpan();
       assertEquals(0L, liveValue(collect()));
 
       server.finish();
@@ -65,6 +80,29 @@ class CoreTracerSpanLifecycleMetricsForkedTest extends DDCoreJavaSpecification {
     } finally {
       tracer.close();
     }
+  }
+
+  /** Every {@code PARENT_ORIGIN_*} constant must index its own adder and attribute value. */
+  @Test
+  void everyParentOriginMapsToDistinctAdderAndAttribute() throws IllegalAccessException {
+    assertEquals(ORIGINS.length, OtelHealthMetrics.INSTANCE.started.length);
+    Set<Byte> indexes = new HashSet<>();
+    for (Field field : DDSpanContext.class.getDeclaredFields()) {
+      int modifiers = field.getModifiers();
+      if (!field.getName().startsWith(ORIGIN_PREFIX)
+          || !Modifier.isStatic(modifiers)
+          || !Modifier.isFinal(modifiers)
+          || field.getType() != byte.class) {
+        continue;
+      }
+      byte origin = field.getByte(null);
+      assertTrue(origin >= 0 && origin < ORIGINS.length, field.getName() + " is out of range");
+      assertTrue(indexes.add(origin), field.getName() + " shares an index");
+      String expected = field.getName().substring(ORIGIN_PREFIX.length()).toLowerCase(ROOT);
+      assertEquals(expected, ORIGINS[origin].get(PARENT_ORIGIN), field.getName());
+    }
+    assertFalse(indexes.isEmpty());
+    assertEquals(ORIGINS.length, indexes.size(), "every origin attribute needs a constant");
   }
 
   private static ExtractedContext remoteParentContext() {

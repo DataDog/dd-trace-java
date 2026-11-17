@@ -242,7 +242,7 @@ class HealthMetricsTest {
     try (TracerHealthMetrics healthMetrics =
         new TracerHealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)) {
       healthMetrics.start();
-      healthMetrics.onCreateSpan();
+      healthMetrics.onCreateSpan(null);
       assertTrue(latch.await(5, TimeUnit.SECONDS));
     }
     verify(statsD).count("span.pending.created", 1L);

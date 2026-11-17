@@ -99,11 +99,9 @@ import datadog.trace.core.datastreams.DataStreamsTransactionExtractors;
 import datadog.trace.core.datastreams.DefaultDataStreamsMonitoring;
 import datadog.trace.core.datastreams.DisabledDataStreamsMonitoring;
 import datadog.trace.core.monitor.HealthMetrics;
-import datadog.trace.core.monitor.SpanLifecycleMetrics;
 import datadog.trace.core.monitor.TracerHealthMetrics;
 import datadog.trace.core.otlp.logs.OtlpLogsService;
 import datadog.trace.core.otlp.metrics.OtlpMetricsService;
-import datadog.trace.core.otlp.sdk.OtelSdkSelfMonitoring;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
 import datadog.trace.core.propagation.InferredProxyPropagator;
@@ -236,7 +234,6 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   private final Monitoring performanceMonitoring;
 
   private final HealthMetrics healthMetrics;
-  private final SpanLifecycleMetrics spanLifecycleMetrics;
   private final Recording traceWriteTimer;
   private final IdGenerationStrategy idGenerationStrategy;
   private final TraceCollector.Factory traceCollectorFactory;
@@ -773,8 +770,6 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
                 ? new TracerHealthMetrics(AgentMeter.statsDClient())
                 : HealthMetrics.NO_OP);
     this.healthMetrics.start();
-    // evaluate the OTel SDK self-monitoring gate once, before any writer or collector is built
-    this.spanLifecycleMetrics = OtelSdkSelfMonitoring.spanLifecycleMetrics(config);
 
     performanceMonitoring =
         config.isPerfMetricsEnabled() ? AgentMeter.monitoring() : Monitoring.DISABLED;
@@ -980,10 +975,6 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     TagMap frozenTags = tags.freeze();
     this.localRootSpanTags =
         new LocalRootSpanTags(frozenTags, this.tagInterceptor.needsIntercept(frozenTags));
-  }
-
-  SpanLifecycleMetrics getSpanLifecycleMetrics() {
-    return spanLifecycleMetrics;
   }
 
   private void startMetricsAggregation(Config config, SharedCommunicationObjects sco) {
