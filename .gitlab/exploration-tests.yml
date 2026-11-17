@@ -214,7 +214,7 @@ exploration-tests-log_method-okhttp:
   script:
     - sdk use java $JAVA_17_VERSION
     - java -XshowSettings:system -version
-    - ./run-exploration-tests.sh "log_method" "$PROJECT" "GRADLE_OPTS=-XX:ActiveProcessorCount=4 ./gradlew --max-workers 4 jvmTest -Dtest.java.version=11" "include_${PROJECT}.txt" "exclude_$PROJECT.txt"
+    - ./run-exploration-tests.sh "log_method" "$PROJECT" "GRADLE_OPTS=-XX:ActiveProcessorCount=4 ./gradlew -Dorg.gradle.java.installations.auto-download=true --max-workers 4 jvmTest -Dtest.java.version=11" "include_${PROJECT}.txt" "exclude_$PROJECT.txt"
   after_script:
     - cp /exploration-tests/${PROJECT}/agent.log ${PROJECT}_agent.log || true
     - gzip ${PROJECT}_agent.log || true
