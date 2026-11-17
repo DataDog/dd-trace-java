@@ -45,9 +45,8 @@ import java.util.List;
  * held completed data plus half of any surplus kept from the previous reset, so after a burst the
  * extra chunks drain over a few resets instead of all at once. Payloads that vary in size don't
  * free and reallocate chunks on every cycle, and steady traffic reuses the same chunks. Nothing is
- * allocated before the first write. Resets only happen when payloads do, so a buffer that goes idle
- * after a burst would keep the burst's chunks indefinitely; {@link #trim()} lets an idle owner
- * drain them the same way.
+ * allocated before the first write. An owner that resets only when it sends a payload keeps a
+ * burst's chunks while it's idle; {@link #trim()} lets it drain them the same way.
  *
  * <p>Not thread-safe: a buffer is written and read by one thread at a time.
  */
