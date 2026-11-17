@@ -2,7 +2,7 @@ package datadog.trace.core;
 
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import org.openjdk.jmh.annotations.Benchmark;
@@ -141,7 +141,7 @@ public class TraceCreationBenchmark {
     root.setTag(Tags.HTTP_STATUS, HTTP_STATUS_VALUE);
     root.setTag(Tags.PEER_PORT, PEER_PORT_VALUE);
 
-    AgentScope scope = tracer.activateSpan(root);
+    ContextScope scope = tracer.activateSpan(root);
     try {
       jdbcChild();
       httpClientChild();
@@ -167,7 +167,7 @@ public class TraceCreationBenchmark {
     root.setTag(Tags.HTTP_STATUS, HTTP_STATUS_VALUE);
     root.setTag(Tags.PEER_PORT, PEER_PORT_VALUE);
 
-    AgentScope scope = tracer.activateSpan(root);
+    ContextScope scope = tracer.activateSpan(root);
     try {
       for (int i = 0; i < childCount; i++) {
         jdbcChild();
