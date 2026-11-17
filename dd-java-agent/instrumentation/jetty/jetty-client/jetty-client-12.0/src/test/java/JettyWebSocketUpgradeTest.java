@@ -132,10 +132,8 @@ class JettyWebSocketUpgradeTest extends AbstractInstrumentationTest {
     server.setHandler(context);
     context.setHandler(
         WebSocketUpgradeHandler.from(server, context)
-            .configure(
-                container ->
-                    container.addMapping(
-                        "/upgrade", (request, response, callback) -> new Endpoint())));
+            .configure(container ->
+                container.addMapping("/upgrade", (request, response, callback) -> new Endpoint())));
     server.start();
     return URI.create(
         "ws://localhost:"

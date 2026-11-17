@@ -16,7 +16,6 @@ tracerJava {
 }
 
 addTestSuiteForDir('latestDepTest', 'test')
-addTestSuiteForDir('latestDepForkedTest', 'test')
 
 dependencies {
   main_java11CompileOnly ("org.eclipse.jetty:jetty-server:11.0.0") {

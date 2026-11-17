@@ -23,7 +23,6 @@ import java.io.IOException;
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -102,7 +101,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
   }
 
   private void writeDictionaryEncoded(final Writable writable, final Object value) {
-    final Object target = null == value ? "" : value;
+    final Object target = dictionaryKey(value);
     final Integer encoded = encoding.get(target);
     if (null == encoded) {
       if (!dictionaryWriter.format(target, dictionaryMapper)) {
@@ -116,6 +115,29 @@ public final class TraceMapperV0_5 implements TraceMapper {
     } else {
       writable.writeInt(encoded);
     }
+  }
+
+  /**
+   * The dictionary key for a value: the dictionary only deduplicates values that are {@code
+   * equals}. {@link String} and {@link UTF8BytesString} compare by content; other {@link
+   * CharSequence}s may not (a {@code URIUtils.LazyUrl} hashes its content but keeps identity
+   * equality), and keyed as is, every request's copy of the same URL became its own entry, all in
+   * one hash bucket that {@link HashMap} can't order, so lookups scanned them all.
+   *
+   * <p>A value longer than the dictionary is left as is: {@link DictionaryMapper} rejects it
+   * without converting it.
+   */
+  private Object dictionaryKey(final Object value) {
+    if (null == value) {
+      return "";
+    }
+    if (value instanceof CharSequence
+        && !(value instanceof String)
+        && !(value instanceof UTF8BytesString)
+        && ((CharSequence) value).length() <= dictionaryMapper.capacity) {
+      return value.toString();
+    }
+    return value;
   }
 
   @Override
@@ -223,15 +245,13 @@ public final class TraceMapperV0_5 implements TraceMapper {
           + msgpackArrayHeaderSize(stringCount)
           + dictionary.remaining()
           + msgpackArrayHeaderSize(traceCount())
-          + body.remaining();
+          + bodySize();
     }
 
     @Override
     public void writeTo(WritableByteChannel channel) throws IOException {
       for (ByteBuffer buffer : toList()) {
-        while (buffer.hasRemaining()) {
-          channel.write(buffer);
-        }
+        writeFully(buffer, channel);
       }
     }
 
@@ -241,13 +261,12 @@ public final class TraceMapperV0_5 implements TraceMapper {
     }
 
     private List<ByteBuffer> toList() {
-      return Arrays.asList(
+      return bodyAfter(
           // msgpack array header with 2 elements (FIXARRAY | 2)
           ByteBuffer.allocate(1).put(0, (byte) 0x92),
           msgpackArrayHeader(stringCount),
-          dictionary,
-          msgpackArrayHeader(traceCount()),
-          body);
+          dictionary.duplicate(),
+          msgpackArrayHeader(traceCount()));
     }
   }
 

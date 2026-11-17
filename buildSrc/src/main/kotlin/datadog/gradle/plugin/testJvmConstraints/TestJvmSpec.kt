@@ -64,7 +64,10 @@ class TestJvmSpec(val project: Project) {
 
       else -> testJvm
     }
-  }.map { project.logger.info("normalized testJvm: {}", it); it }
+  }.map {
+    project.logger.info("normalized testJvm: {}", it)
+    it
+  }
 
   private val defaultJavaLauncher = project.javaToolchains.launcherFor(
     project.extensions.getByType(JavaPluginExtension::class.java).toolchain
@@ -78,7 +81,7 @@ class TestJvmSpec(val project: Project) {
    * 2. Lookup via Gradle toolchains.
    */
   private val testJvmLauncher = normalizedTestJvm.flatMap { testJvm ->
-    val (distribution, version) = Regex("([a-zA-Z]*)([0-9]+)").matchEntire(testJvm)?.groupValues?.drop(1) ?: listOf("", "")
+    val (distribution, version) = TEST_JVM_NAME.matchEntire(testJvm)?.groupValues?.drop(1) ?: listOf("", "")
 
     // Allow looking up JAVA_<TESTJVM>_HOME environment variable (e.g., JAVA_IBM8_HOME, JAVA_SEMERU8_HOME),
     // because gradle doesn't offer a way to distinguish ibm8 or semeru8
@@ -92,6 +95,7 @@ class TestJvmSpec(val project: Project) {
 
     val launcher = when {
       javaHome != null -> javaHome.toLauncher()
+
       version.isNotBlank() -> {
         // Best effort to select a launcher for the passed testJvm
         // `8`, `11`, `ZULU8`, `GRAALVM25`, etc.
@@ -144,9 +148,11 @@ class TestJvmSpec(val project: Project) {
       )
     }
 
-    launcher.orElse(project.providers.provider {
-      throw GradleException("Unable to find launcher for Java '$testJvm'. Does $TEST_JVM point to a JDK?")
-    })
+    launcher.orElse(
+      project.providers.provider {
+        throw GradleException("Unable to find launcher for Java '$testJvm'. Does $TEST_JVM point to a JDK?")
+      }
+    )
   }
 
   /**
@@ -158,7 +164,10 @@ class TestJvmSpec(val project: Project) {
    * Absent when no `testJvm` is supplied.
    */
   val requestedTestJvmLauncher: Provider<JavaLauncher> =
-    testJvmLauncher.map { project.logger.info("testJvm launcher: {}", it.executablePath); it }
+    testJvmLauncher.map {
+      project.logger.info("testJvm launcher: {}", it.executablePath)
+      it
+    }
 
   /**
    * The launcher override required by test tasks.
@@ -190,8 +199,7 @@ class TestJvmSpec(val project: Project) {
     return if (javaHome.endsWith("jre")) javaHome.parent else javaHome
   }
 
-  private fun Path.toLauncher(): Provider<JavaLauncher> =
-    // No public API exists, use internal
+  private fun Path.toLauncher(): Provider<JavaLauncher> = // No public API exists, use internal
     project.javaToolchains.launcherFor(
       SpecificInstallationToolchainSpec(project.serviceOf<PropertyFactory>(), project.file(this))
     )
@@ -207,7 +215,7 @@ class TestJvmSpec(val project: Project) {
     // No public API exists, use internal
     val registry = (project as ProjectInternal).services.get(JavaInstallationRegistry::class.java)
     val versions = registry.toolchains().mapNotNull { installation ->
-        installation.metadata.languageVersion.majorVersion.toInt()
+      installation.metadata.languageVersion.majorVersion.toInt()
     }
 
     return if (versions.isNotEmpty()) {

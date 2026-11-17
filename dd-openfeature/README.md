@@ -46,12 +46,13 @@ Settings are read from the Datadog Java agent configuration when attached, then 
 | Environment variable | Default | Description |
 |---|---|---|
 | `DD_FEATURE_FLAGS_ENABLED` | `true` | Enables Feature Flags. `false` makes the provider fail initialization, so evaluations return defaults. |
-| `DD_FEATURE_FLAGS_CONFIGURATION_SOURCE` | `agentless` | `agentless` polls the configuration from the Datadog CDN. `remote_config` receives it through Remote Configuration and requires `dd-java-agent`. |
-| `DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL` | | Custom configuration endpoint. A URL without a path gets the default path. |
+| `DD_FEATURE_FLAGS_CONFIGURATION_SOURCE` | `agentless` | `agentless` polls the configuration from the Datadog CDN; without `DD_API_KEY` or a custom endpoint, the provider fails initialization, so evaluations return defaults. `remote_config` receives it through Remote Configuration and requires `dd-java-agent`. |
+| `DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL` | | Custom configuration endpoint, such as a proxy. A URL without a path gets the default path. Configuration requests omit the `DD-API-KEY` header, even when `DD_API_KEY` is set. A proxy can supply the key, so the application needs none for configuration loading. |
 | `DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS` | `30` | CDN poll interval. |
 | `DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS` | `5` | CDN request timeout. |
 | `DD_FLAGGING_EVALUATION_COUNTS_ENABLED` | `true` | Sends aggregated flag evaluation counts. |
 | `DD_FEATURE_FLAGS_EXPOSURES_DATADOG_LOGGING_ENABLED` | `true` | Sends exposures to Datadog. See [Stop sending exposures to Datadog](#stop-sending-exposures-to-datadog). |
+| `DD_FEATURE_FLAGS_EXPERIMENTATION_OPT_OUT_MODE` | `disabled` | Controls per-subject experimentation opt-out: `disabled`, `immediate`, or `future_experiments_only`. See [Per-subject experimentation opt-out](#per-subject-experimentation-opt-out). |
 | `DD_FEATURE_FLAGS_EVALUATION_TELEMETRY_PER_SUBJECT_OPT_OUT_ENABLED` | `false` | Lets the `dd_evaluation_telemetry_opt_out` context attribute opt subjects out of evaluation telemetry. See [Per-subject evaluation telemetry opt-out](#per-subject-evaluation-telemetry-opt-out). |
 | `DD_EXPERIMENTAL_FLAGGING_PROVIDER_SPAN_ENRICHMENT_ENABLED` | `false` | Adds flag evaluations to the local root span. Requires `dd-java-agent`. |
 | `DD_API_KEY`, `DD_SITE`, `DD_ENV`, `DD_SERVICE`, `DD_VERSION` | | Credentials and event context. |
@@ -67,12 +68,37 @@ Settings are read from the Datadog Java agent configuration when attached, then 
 | `feature_flag.evaluations` OpenTelemetry metric | Yes | Yes |
 | Health metrics | No | Agent telemetry |
 | Span enrichment | No | Yes |
+| `ExposureHook` accessors `getFlagKey()`, `getVariant()`, `getAllocationKey()`, `getTargetingKey()` | The next release after 1.68.1 | The next release after 1.68.1 |
+
+## Flag selection
+
+To load only part of the flag configuration, give the provider a flag selection. It then loads the flags that have any of the tags, or whose key matches any of the key patterns:
+
+```java
+import com.datadog.openfeature.FlagSelection;
+import com.datadog.openfeature.Provider;
+import dev.openfeature.sdk.OpenFeatureAPI;
+import java.util.List;
+
+OpenFeatureAPI.getInstance().setProviderAndWait(new Provider(new Provider.Options()
+    .flagSelection(new FlagSelection()
+        .tags(List.of("checkout"))
+        .keyPatterns(List.of("checkout.*")))));
+```
+
+* Tags match exactly and case-sensitively. A key pattern matches the whole key, case-sensitively: `*` matches any run of characters, and every other character is literal.
+* Evaluating a flag outside the selection returns the default value with `FLAG_NOT_FOUND`. A selection that matches no flag loads an empty configuration.
+* Leading and trailing Unicode white space is trimmed from every value, and empty and duplicate values are dropped. A null list is treated as absent.
+* Each list accepts at most 31 values, and each tag and key pattern is at most 200 UTF-8 bytes. A selection over a limit, one holding a null or non-`String` value or an unpaired UTF-16 surrogate, or one that would make the request URL longer than 8192 bytes, is not sent. The provider logs an error, for example `flagSelection was not sent (too_many_values: each list accepts at most 31 values). Loading the full flag configuration.`, and loads all the flags.
+* The server can also ignore a selection. It then returns all the flags, and the provider logs `flagSelection was ignored by the server (<reason>). Loaded the full flag configuration.` once per reason. A custom configuration endpoint must forward the `selected_flag_tags` and `selected_flag_key_patterns` query parameters, and the `DD-Flag-Selection-Ignored` response header.
+* The selection is set in code only, and the provider captures it at construction.
+* The providers of a class loader share one flag configuration. The first provider initialized decides the selection, including a provider without one, which loads all the flags. A later provider with a different selection uses the first selection, until the last provider shuts down; the first such provider logs a warning, once per class loader.
+* The `remote_config` source does not support a selection: the provider logs a warning and loads all the flags.
+* With `dd-java-agent`, dropped and ignored selections are also counted in the agent health metrics.
 
 ## Exposures in your own data store
 
-The provider sends exposures to Datadog. It also puts its exposure decision and the selected split's features into the flag metadata of every evaluation, so any OpenFeature hook can record exposures in your own data store (see [Flag metadata](#flag-metadata)).
-
-For convenience, `dd-openfeature` ships `ExposureHook`, which reads that metadata for you. It receives every completed evaluation, with the same exposure decision that the provider uses for Datadog.
+The provider sends exposures to Datadog. To also record exposures in your own data store, register `ExposureHook` from `dd-openfeature`. It receives every completed evaluation, with the same exposure decision that the provider uses for Datadog.
 
 ```java
 import com.datadog.openfeature.ExposureHook;
@@ -85,15 +111,17 @@ OpenFeatureAPI.getInstance().addHooks(new ExposureHook(evaluation -> {
   }
   Map<String, Object> features = evaluation.getFeatures();
   queue.offer(new ExposureRecord(
-      evaluation.getDetails().getFlagKey(),
-      evaluation.getDetails().getVariant(),
-      evaluation.getContext().getTargetingKey(),
+      evaluation.getFlagKey(),
+      evaluation.getVariant(),
+      evaluation.getAllocationKey(),
+      evaluation.getTargetingKey(),
       (String) features.get("holdout.key"),
       (String) features.get("holdout.assignment_group")));
 }));
 // A background thread drains the queue and writes to the data store.
 ```
 
+* Each record needs the flag key, the variant, the allocation key and the targeting key: `getFlagKey()`, `getVariant()`, `getAllocationKey()` and `getTargetingKey()`. The analysis of a selective holdout uses the allocation key. `getVariant()` and `getAllocationKey()` return `null` when the provider selected no allocation, and `getTargetingKey()` returns `null` when the context has no targeting key. `getDetails()` and `getContext()` give the full evaluation details and context.
 * The callback runs on the evaluation thread. Do not write to the data store from the callback. Copy what you need and hand it to a background queue.
 * `shouldSend()` is true for a successful evaluation of an allocation that logs exposures, for a subject not yet exposed to the same allocation, variant and serial id. These are exactly the exposures that the provider sends to Datadog, as long as Datadog logging is on and the provider's own hooks run: evaluate through an OpenFeature client, and inside a `MultiProvider` use OpenFeature SDK 1.23.0 or later. With an older SDK, a provider inside a `MultiProvider` sends no exposures, and `shouldSend()` is true for every exposure.
 * `isExposure()` is true for every successful evaluation of an allocation that logs exposures, including repeats. `isCacheHit()` tells repeats apart.
@@ -113,14 +141,11 @@ The map is empty when the split has no such features. Datadog can add destinatio
 
 ### Flag metadata
 
-The same data is in the evaluation's flag metadata, for hooks that use only the OpenFeature API. Read it in the hook's `finallyAfter` stage, where the details match what the application receives, and skip details that have an error code. `ExposureHook` does both.
+Hooks that use only the OpenFeature API can read the allocation key and the features from the evaluation's flag metadata. Read them in the hook's `finallyAfter` stage, where the details match what the application receives, and skip details that have an error code. The exposure decision (`shouldSend()`, `isExposure()`, `isCacheHit()`) is available only from `ExposureHook`. Other keys that start with `__dd_` are internal and can change without notice.
 
 | Key | Type | Meaning |
 |---|---|---|
-| `allocationKey` | String | The selected allocation |
-| `__dd_do_log` | Boolean | Whether the allocation logs exposures. Present when the allocation logs exposures or span enrichment is on |
-| `__dd_exposure_cache_hit` | Boolean | The subject was already exposed. Present only when `__dd_do_log` is true |
-| `__dd_split_serial_id` | Integer | The split's serial id. Present when `__dd_do_log` is present and the split has a serial id |
+| `allocationKey` | String | The selected allocation. `ExposureHook` also gives it as `getAllocationKey()` |
 | `__dd_feature.<key>` | String, Double or Boolean | One entry for each feature of the selected split that lists the `HOOK` destination |
 
 ### Stop sending exposures to Datadog
@@ -132,6 +157,92 @@ DD_FEATURE_FLAGS_EXPOSURES_DATADOG_LOGGING_ENABLED=false
 The provider then sends no exposures to Datadog. `ExposureHook` callbacks still receive every evaluation, and `shouldSend()` gives the same result as before. The default is `true`.
 
 This setting stops exposures only. Flag evaluation events have their own setting, `DD_FLAGGING_EVALUATION_COUNTS_ENABLED`. The Java provider does not read dd-trace-py's `DD_FFE_INTAKE_ENABLED`.
+
+## Per-subject experimentation opt-out
+
+Set `DD_FEATURE_FLAGS_EXPERIMENTATION_OPT_OUT_MODE=immediate` before constructing the provider.
+The default is `disabled`. Existing configuration delivery and credentials are still required.
+
+```java
+import com.datadog.openfeature.Provider;
+import dev.openfeature.sdk.MutableContext;
+import dev.openfeature.sdk.OpenFeatureAPI;
+
+OpenFeatureAPI api = OpenFeatureAPI.getInstance();
+api.setProviderAndWait(new Provider());
+boolean enabled = api.getClient().getBooleanValue("new-checkout", false,
+    new MutableContext("subject-123")
+        .add("dd_experimentation_opt_out_at", "2026-10-19T12:00:00Z"));
+```
+
+In immediate mode, a valid timestamp string excludes the subject from allocations with `doLog=true`.
+This includes completed-experiment winners that still log exposures; omitted, null, and false `doLog` retain Java's ordinary-allocation behavior.
+Evaluation continues through ordinary feature allocations. If none match, the provider returns the application's default.
+A future timestamp also takes effect immediately. It does not schedule exclusion.
+
+Omit the attribute for subjects who can participate. OpenFeature merges API, transaction, client, and invocation
+contexts. Omitting it from an invocation does not remove an inherited value; remove it from the layer that owns it.
+Setting it to null does not restore participation.
+
+Invalid, null, empty, or non-string values return the application's default with `INVALID_CONTEXT` and a diagnostic.
+This validation runs after configuration readiness and before flag lookup, so it also applies to ordinary and missing
+flags. Before configuration is ready the result remains `PROVIDER_NOT_READY`. Disabled mode ignores the attribute,
+including invalid values. Supply `Instant.toString()` as a string; passing an `Instant` object is invalid.
+
+Java uses `DateTimeFormatter.ISO_OFFSET_DATE_TIME`, also used for allocation `startAt`, `endAt`, and activation.
+It validates calendar dates, accepts up to nine fractional digits and offsets through ±18:00, and rejects leap
+seconds, missing offsets, and surrounding whitespace. Its ISO syntax also accepts lowercase `t`/`z`, omitted
+seconds, an empty fractional part, hour-only or second-bearing offsets, and signed extended years. This is Java's
+existing grammar, not the browser SDK's timestamp grammar.
+
+An explicit option overrides configuration:
+
+```java
+import com.datadog.openfeature.ExperimentationOptOutMode;
+
+Provider provider = new Provider(new Provider.Options()
+    .experimentationOptOutMode(ExperimentationOptOutMode.DISABLED));
+```
+
+`DEFAULT` reads the normal SDK configuration sources, including
+`-Ddd.feature.flags.experimentation.opt.out.mode=immediate`.
+The provider resolves the mode at construction; later changes to options or configuration do not change it.
+Unsupported values throw `IllegalArgumentException` when Feature Flags is enabled. A disabled product skips this
+unused setting's validation and retains its existing initialization behavior. Passing null to the option throws
+`NullPointerException`.
+The deprecated `datadog.trace.api.openfeature.Provider` alias uses the same evaluator
+and accepts the same `com.datadog.openfeature.ExperimentationOptOutMode` options.
+
+This setting is independent of evaluation telemetry opt-out.
+Immediate withdrawal can change an enrolled subject's experience. Account for this change in experiment analysis.
+
+Use `future_experiments_only` or `ExperimentationOptOutMode.FUTURE_EXPERIMENTS_ONLY` to exclude newer experiments.
+Supply the same stored `dd_experimentation_opt_out_at` timestamp with each evaluation.
+For exposure-logging allocations, the provider compares `randomizationActivatedAt` with that timestamp:
+
+| Allocation activation | Behavior |
+| --- | --- |
+| Before the subject's opt-out time | Evaluate normally, including exposure logging |
+| Equal to or after the opt-out time | Skip the allocation and continue ordinary delivery |
+| Missing or null | Skip the allocation because its activation time is unknown |
+
+Ordinary allocations remain available. Missing subject attributes preserve normal evaluation.
+Both enabled modes reject invalid subject timestamps.
+Malformed activation metadata on any allocation, including an ordinary, unreachable, or disabled flag's allocation,
+returns `PARSE_ERROR` for the affected flag only in future mode with a valid subject timestamp.
+Disabled mode, immediate mode, and evaluations without a subject timestamp preserve ordinary evaluation.
+Invalid regex patterns and unconvertible numeric variant values are configuration errors regardless of opt-out:
+the parser rejects only the affected flag, including when the malformed allocation would be skipped.
+Java's existing regex syntax and numeric coercions remain supported.
+Comparisons retain nanosecond precision and account for timezone offsets.
+The cutoff does not depend on the SDK clock. It is not a scheduled change or proof of prior enrollment.
+An older allocation can still assign a subject for the first time.
+
+Enable future mode after the configuration service supplies stable activation timestamps and preserves ordinary fallback allocations.
+Keep the subject's stored opt-out time stable across sessions and SDK instances.
+The provider stores no consent history and emits no new event type. The opt-out attribute remains in the evaluation
+context: existing exposure reports can include it, and evaluation events can include it when full evaluation data
+reporting is enabled. Existing reporting controls and consent settings still apply.
 
 ## Per-subject evaluation telemetry opt-out
 

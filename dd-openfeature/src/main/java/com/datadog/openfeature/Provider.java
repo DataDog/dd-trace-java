@@ -1,12 +1,16 @@
 package com.datadog.openfeature;
 
+import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import com.datadog.openfeature.internal.FeatureFlagsRuntime;
+import com.datadog.openfeature.internal.FeatureFlagsRuntime.MissingApiKeyException;
 import com.datadog.openfeature.internal.FeatureFlagsRuntime.RemoteConfigurationUnavailableException;
 import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
 import com.datadog.openfeature.internal.bridge.v1.AgentBridges;
 import com.datadog.openfeature.internal.config.Settings;
+import com.datadog.openfeature.internal.delivery.FlagSelectionRequest;
+import com.datadog.openfeature.internal.evaluation.ExperimentationOptOut;
 import com.datadog.openfeature.internal.flagevaluation.FlagEvaluationWriter;
 import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.EvaluationContext;
@@ -23,6 +27,7 @@ import dev.openfeature.sdk.exceptions.ProviderNotReadyError;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
@@ -39,6 +44,8 @@ public class Provider extends EventProvider implements Metadata {
   private final Options options;
   private final AgentBridge bridge;
   private final Settings settings;
+  private final ExperimentationOptOutMode experimentationOptOutMode;
+  private final FlagSelectionRequest flagSelection;
   private final AtomicReference<InitializationState> initializationState =
       new AtomicReference<>(InitializationState.NOT_STARTED);
   private final FlagEvalMetrics flagEvalMetrics;
@@ -79,6 +86,15 @@ public class Provider extends EventProvider implements Metadata {
     this.evaluator = evaluator;
     this.bridge = AgentBridges.detect();
     this.settings = Settings.load(this.bridge);
+    this.experimentationOptOutMode =
+        this.settings.isEnabled()
+            ? ExperimentationOptOut.resolve(options.experimentationOptOutMode, this.settings)
+            : ExperimentationOptOutMode.DISABLED;
+    final FlagSelection selection = options.flagSelection;
+    this.flagSelection =
+        selection == null
+            ? FlagSelectionRequest.NONE
+            : FlagSelectionRequest.of(selection.tags, selection.keyPatterns);
     FlagEvalMetrics metrics = null;
     FlagEvalMetricsHook hook = null;
     try {
@@ -145,6 +161,10 @@ public class Provider extends EventProvider implements Metadata {
     } else {
       log.info("{} span enrichment disabled", METADATA);
     }
+    log.info(
+        "{} experimentation opt-out mode: {}",
+        METADATA,
+        this.experimentationOptOutMode.name().toLowerCase(Locale.ROOT));
   }
 
   @Override
@@ -173,6 +193,11 @@ public class Provider extends EventProvider implements Metadata {
             "Provider timed-out while waiting for initial configuration");
       }
       debug("Feature Flagging provider ready");
+    } catch (final MissingApiKeyException e) {
+      // No configuration can arrive, so fail now instead of waiting for the timeout.
+      markInitializationError();
+      error("{}; returning caller defaults", e.getMessage());
+      throw new ProviderNotReadyError(e.getMessage());
     } catch (final RemoteConfigurationUnavailableException e) {
       // No RC connector means no configuration can arrive in this JVM. Complete registration
       // without waiting or switching sources. The evaluator has no runtime/configuration and
@@ -200,6 +225,15 @@ public class Provider extends EventProvider implements Metadata {
   private static void debug(final String message, final Object... arguments) {
     try {
       log.debug(message, arguments);
+    } catch (final RuntimeException | LinkageError ignored) {
+      // Nothing more can be done.
+    }
+  }
+
+  /** Logs a lifecycle error. Like {@link #debug}, a failing logging backend changes no state. */
+  private static void error(final String message, final Object... arguments) {
+    try {
+      log.error(message, arguments);
     } catch (final RuntimeException | LinkageError ignored) {
       // Nothing more can be done.
     }
@@ -281,7 +315,12 @@ public class Provider extends EventProvider implements Metadata {
     if (evaluator != null) {
       return evaluator;
     }
-    return new DDEvaluator(this::onConfigurationChange, this.bridge, this.settings);
+    return new DDEvaluator(
+        this::onConfigurationChange,
+        this.bridge,
+        this.settings,
+        this.experimentationOptOutMode,
+        this.flagSelection);
   }
 
   private FlagEvaluationWriter flagEvaluationPipeline() {
@@ -376,6 +415,36 @@ public class Provider extends EventProvider implements Metadata {
     private long timeout = 30;
     private TimeUnit unit = SECONDS;
     private Boolean evaluationTelemetryOptOutParameterEnabled;
+    private ExperimentationOptOutMode experimentationOptOutMode = ExperimentationOptOutMode.DEFAULT;
+    private FlagSelection flagSelection;
+
+    /**
+     * Sets per-subject experimentation opt-out. {@link ExperimentationOptOutMode#DEFAULT} reads
+     * {@code DD_FEATURE_FLAGS_EXPERIMENTATION_OPT_OUT_MODE}; every other mode, including {@code
+     * DISABLED}, overrides configuration. The provider captures the mode at construction.
+     * Unsupported configured modes throw {@link IllegalArgumentException} unless Feature Flags is
+     * disabled.
+     *
+     * <p>Enabled modes read {@code dd_experimentation_opt_out_at} from the merged evaluation
+     * context. Supply a timestamp String accepted by {@link
+     * java.time.format.DateTimeFormatter#ISO_OFFSET_DATE_TIME}, for example {@code
+     * Instant.now().toString()}. An {@code Instant} object, null, or any other invalid value
+     * returns the application's default with {@code INVALID_CONTEXT} after configuration is ready,
+     * even for ordinary or missing flags. Omit the attribute to permit experimentation; disabled
+     * mode ignores it.
+     *
+     * <p>This controls experiment allocation selection, independently of evaluation telemetry
+     * opt-out. The attribute remains available for targeting and reporting under the existing
+     * exposure and evaluation-data settings.
+     *
+     * @param mode the mode; configure before constructing the provider.
+     * @return these options.
+     * @throws NullPointerException if mode is null.
+     */
+    public Options experimentationOptOutMode(final ExperimentationOptOutMode mode) {
+      this.experimentationOptOutMode = requireNonNull(mode, "mode");
+      return this;
+    }
 
     /**
      * Enables per-evaluation telemetry opt-out through the {@code dd_evaluation_telemetry_opt_out}
@@ -404,6 +473,34 @@ public class Provider extends EventProvider implements Metadata {
         return this.evaluationTelemetryOptOutParameterEnabled;
       }
       return settings.isEvaluationTelemetryPerSubjectOptOutEnabled();
+    }
+
+    /**
+     * Loads only the selected flags: the flags that have any of the selection's tags, or whose key
+     * matches any of its key patterns. Evaluating a flag outside the selection returns the default
+     * value with {@code FLAG_NOT_FOUND}. Without a selection, or with an empty one, all the flags
+     * are loaded.
+     *
+     * <p>Leading and trailing Unicode white space is trimmed from every value, empty values are
+     * dropped, and duplicates are removed. A null list is treated as absent. Each list accepts at
+     * most 31 values, and each tag and key pattern is at most 200 UTF-8 bytes after trimming. A
+     * selection over a limit, holding a null or non-String value or an unpaired UTF-16 surrogate,
+     * or making the request URL longer than 8192 bytes once percent-encoded, is not sent: the
+     * provider logs an error and loads all the flags. The server can also ignore a selection, and
+     * then returns all the flags.
+     *
+     * <p>The provider captures the selection at construction. The providers of a class loader share
+     * one flag configuration: the first provider initialized decides the selection until the last
+     * one shuts down, and a later provider with a different selection uses the first one. The first
+     * such provider logs a warning, once per class loader. The {@code remote_config} configuration
+     * source does not support a selection and loads all the flags.
+     *
+     * @param selection the flag selection, or {@code null} for all the flags.
+     * @return these options.
+     */
+    public Options flagSelection(final FlagSelection selection) {
+      this.flagSelection = selection;
+      return this;
     }
 
     /**

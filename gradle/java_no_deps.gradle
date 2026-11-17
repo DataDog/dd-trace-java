@@ -13,7 +13,6 @@ apply plugin: 'dd-trace-java.test-jvm-constraints'
 apply plugin: 'dd-trace-java.conventions.forbidden-apis'
 apply plugin: 'dd-trace-java.conventions.spotbugs'
 
-apply from: "$rootDir/gradle/codenarc.gradle"
 apply from: "$rootDir/gradle/spotless.gradle"
 apply from: "$rootDir/gradle/repositories.gradle"
 apply from: "$rootDir/gradle/test-suites.gradle"

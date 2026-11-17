@@ -57,13 +57,13 @@ jobs:
             workspace/system-tests-binaries/
 
       - name: Upload artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: binaries
           path: workspace/system-tests-binaries/
 
       - name: Upload Lambda artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: binaries-lambda
           path: workspace/dd-java-agent/build/libs/dd-java-agent-*.jar

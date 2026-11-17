@@ -74,12 +74,11 @@ class Lettuce5ClusterTest extends AbstractInstrumentationTest {
     connection = redisClient.connect();
     new PollingConditions(30)
         .delay(0.5)
-        .eventually(
-            () ->
-                assertEquals(
-                    "OK",
-                    connection.sync().set("DD_CLUSTER_READY", "1"),
-                    "Redis cluster did not become ready"));
+        .eventually(() ->
+            assertEquals(
+                "OK",
+                connection.sync().set("DD_CLUSTER_READY", "1"),
+                "Redis cluster did not become ready"));
 
     tracer.flush();
     writer.clear();
@@ -131,11 +130,10 @@ class Lettuce5ClusterTest extends AbstractInstrumentationTest {
     connection.setReadFrom(ReadFrom.SLAVE);
     new PollingConditions(30)
         .delay(0.5)
-        .eventually(
-            () -> {
-              redisClient.reloadPartitions();
-              assertEquals(TEST_SET_VALUE, connection.sync().get(TEST_SET_KEY));
-            });
+        .eventually(() -> {
+          redisClient.reloadPartitions();
+          assertEquals(TEST_SET_VALUE, connection.sync().get(TEST_SET_KEY));
+        });
 
     blockUntilTracesMatch(traces -> !findCommandSpans(traces, "GET").isEmpty());
     tracer.flush();

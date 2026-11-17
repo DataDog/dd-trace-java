@@ -88,6 +88,7 @@ trace_level:
     - { dd-name: _dd.trace_span_attribute_schema, type: int, required: required }
     - { dd-name: _dd.profiling.ctx,      type: string,  required: optional }     # once the profiling context integration is available
     - { dd-name: process_id,             type: long,    required: required }
+    - { dd-name: _dd.agent_psr,          type: double,  required: optional }     # the agent-provided sampling rate the sampler applied
     - { dd-name: ai_guard.event,         type: boolean, required: optional }     # when the trace holds an AI Guard evaluation span
 
 span_types:
@@ -452,6 +453,8 @@ span_types:
       - { dd-name: test.is_retry, type: boolean, required: optional }
       - { dd-name: test.has_failed_all_retries, type: boolean, required: optional }
       - { dd-name: test.failure_suppressed, type: boolean, required: optional }
+      - { dd-name: test.test_management.no_auto_retry, type: boolean, required: optional }
+      - { dd-name: test.test_management.prevent_failure_suppression, type: boolean, required: optional }
       - { dd-name: test.test_management.is_quarantined, type: boolean, required: optional }
       - { dd-name: test.test_management.is_test_disabled, type: boolean, required: optional }
       - { dd-name: test.test_management.is_attempt_to_fix, type: boolean, required: optional }

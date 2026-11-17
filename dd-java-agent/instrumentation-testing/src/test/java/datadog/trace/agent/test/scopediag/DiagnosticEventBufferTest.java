@@ -77,11 +77,10 @@ class DiagnosticEventBufferTest {
     AtomicInteger consumed = new AtomicInteger();
     buffer
         .reserve()
-        .publish(
-            () -> {
-              consumed.incrementAndGet();
-              buffer.reserve().publish(consumed::incrementAndGet);
-            });
+        .publish(() -> {
+          consumed.incrementAndGet();
+          buffer.reserve().publish(consumed::incrementAndGet);
+        });
     buffer.drain(false, 0, false);
     assertEquals(1, consumed.get());
     assertTrue(buffer.hasPending());
@@ -122,21 +121,20 @@ class DiagnosticEventBufferTest {
     List<FutureTask<Void>> producers = new ArrayList<>();
     for (int i = 0; i < 4; i++) {
       FutureTask<Void> producer =
-          new FutureTask<>(
-              () -> {
-                for (int n = 0; n < 1000; n++) {
-                  DiagnosticEventBuffer.Event event = buffer.reserve();
-                  if (event == null) {
-                    break;
-                  }
-                  admitted.incrementAndGet();
-                  if (n == 0) {
-                    started.countDown();
-                  }
-                  event.publish(consumed::incrementAndGet);
-                }
-                return null;
-              });
+          new FutureTask<>(() -> {
+            for (int n = 0; n < 1000; n++) {
+              DiagnosticEventBuffer.Event event = buffer.reserve();
+              if (event == null) {
+                break;
+              }
+              admitted.incrementAndGet();
+              if (n == 0) {
+                started.countDown();
+              }
+              event.publish(consumed::incrementAndGet);
+            }
+            return null;
+          });
       producers.add(producer);
       Thread thread = new Thread(producer, "diagnostic-producer-" + i);
       thread.setDaemon(true);

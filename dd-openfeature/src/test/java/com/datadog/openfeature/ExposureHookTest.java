@@ -110,6 +110,43 @@ class ExposureHookTest {
     assertFalse(evaluation.isExposure());
     assertFalse(evaluation.isCacheHit());
     assertFalse(evaluation.shouldSend());
+    assertEquals(
+        "allocation",
+        evaluation.getAllocationKey(),
+        "a later hook failure keeps the allocation the provider selected");
+  }
+
+  @Test
+  void exposesTheFieldsOfAnExposureRecord() throws Exception {
+    start(true, configuration(Boolean.TRUE, null));
+
+    evaluate("user-1");
+
+    final ExposureHook.Evaluation evaluation = this.evaluations.get(0);
+    assertEquals("flag", evaluation.getFlagKey());
+    assertEquals("on", evaluation.getVariant());
+    assertEquals("allocation", evaluation.getAllocationKey());
+    assertEquals("user-1", evaluation.getTargetingKey());
+  }
+
+  @Test
+  void recordFieldsAreNullWhenTheEvaluationSelectsNothing() {
+    final ExposureHook.Evaluation evaluation = evaluation(null, null);
+    assertEquals("flag", evaluation.getFlagKey());
+    assertNull(evaluation.getVariant());
+    assertNull(evaluation.getAllocationKey());
+    assertNull(
+        evaluation("on", ImmutableMetadata.builder().addInteger(ALLOCATION_KEY, 1).build())
+            .getAllocationKey());
+    assertNull(
+        new ExposureHook.Evaluation(
+                null, FlagEvaluationDetails.<Object>builder().flagKey("flag").value(1).build())
+            .getTargetingKey());
+    assertNull(
+        new ExposureHook.Evaluation(
+                new MutableContext(),
+                FlagEvaluationDetails.<Object>builder().flagKey("flag").value(1).build())
+            .getTargetingKey());
   }
 
   @Test
@@ -124,6 +161,7 @@ class ExposureHookTest {
     assertFalse(evaluation.shouldSend());
     assertEquals("flag", evaluation.getDetails().getFlagKey());
     assertEquals("user-1", evaluation.getContext().getTargetingKey());
+    assertEquals("allocation", evaluation.getAllocationKey());
   }
 
   @Test
@@ -248,10 +286,9 @@ class ExposureHookTest {
     start(true, configuration(Boolean.TRUE, null));
     OpenFeatureAPI.getInstance()
         .addHooks(
-            new ExposureHook(
-                evaluation -> {
-                  throw new IllegalStateException("warehouse unavailable");
-                }));
+            new ExposureHook(evaluation -> {
+              throw new IllegalStateException("warehouse unavailable");
+            }));
 
     final FlagEvaluationDetails<Integer> details = evaluate("user-1");
 
@@ -313,29 +350,26 @@ class ExposureHookTest {
     final FlagEvaluationDetails<Object> details =
         FlagEvaluationDetails.<Object>builder().flagKey("flag").value(1).build();
 
-    assertDoesNotThrow(
-        () ->
-            new ExposureHook(
-                    evaluation -> {
-                      throw new IllegalStateException("warehouse unavailable");
-                    })
-                .finallyAfter(context, details, emptyMap()));
-    assertDoesNotThrow(
-        () ->
-            new ExposureHook(
-                    evaluation -> {
-                      throw new NoClassDefFoundError("missing class");
-                    })
-                .finallyAfter(context, details, emptyMap()));
+    assertDoesNotThrow(() ->
+        new ExposureHook(
+                evaluation -> {
+                  throw new IllegalStateException("warehouse unavailable");
+                })
+            .finallyAfter(context, details, emptyMap()));
+    assertDoesNotThrow(() ->
+        new ExposureHook(
+                evaluation -> {
+                  throw new NoClassDefFoundError("missing class");
+                })
+            .finallyAfter(context, details, emptyMap()));
   }
 
   @Test
   void keepsContainingCallbackFailuresAfterTheFirstOne() {
     final ExposureHook hook =
-        new ExposureHook(
-            evaluation -> {
-              throw new IllegalStateException("warehouse unavailable");
-            });
+        new ExposureHook(evaluation -> {
+          throw new IllegalStateException("warehouse unavailable");
+        });
     final FlagEvaluationDetails<Object> details =
         FlagEvaluationDetails.<Object>builder().flagKey("flag").value(1).build();
 

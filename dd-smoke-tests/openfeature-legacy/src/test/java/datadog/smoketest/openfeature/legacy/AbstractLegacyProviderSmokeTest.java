@@ -37,10 +37,9 @@ abstract class AbstractLegacyProviderSmokeTest {
               + " default=true reason=ERROR error=PROVIDER_NOT_READY variant=null");
     }
     assertTrue(
-        app.waitForLogLine(
-            line ->
-                line.contains("WARN datadog.trace.api.openfeature.Provider")
-                    && line.contains("incompatible with the Datadog Java agent")),
+        app.waitForLogLine(line ->
+            line.contains("WARN datadog.trace.api.openfeature.Provider")
+                && line.contains("incompatible with the Datadog Java agent")),
         "the agent warns to upgrade the provider");
   }
 

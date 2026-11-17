@@ -14,8 +14,9 @@ muzzle {
   }
 }
 
-addTestSuiteForDir('oldH2Test', 'test')
-addTestSuiteForDir('oldPostgresTest', 'test')
+// The old driver suites check the regular tests against old drivers, so they don't run the forked tests
+addTestSuiteForDir('oldH2Test', 'test', false)
+addTestSuiteForDir('oldPostgresTest', 'test', false)
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteExtendingForDir('latestDepJava11Test', 'latestDepTest', 'test')
 

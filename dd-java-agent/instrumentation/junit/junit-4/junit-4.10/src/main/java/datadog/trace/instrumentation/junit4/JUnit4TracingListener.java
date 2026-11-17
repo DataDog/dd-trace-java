@@ -8,6 +8,8 @@ import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation
 import datadog.trace.bootstrap.ContextStore;
 import java.lang.reflect.Method;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import org.junit.Ignore;
 import org.junit.runner.Description;
 import org.junit.runner.notification.Failure;
@@ -18,6 +20,8 @@ public class JUnit4TracingListener extends TracingListener {
   private static final String FRAMEWORK_VERSION = JUnit4Utils.getVersion();
 
   private final ContextStore<Description, TestExecutionTracker> executionTrackers;
+  private final Map<TestSuiteDescriptor, Boolean> startedSuites = new ConcurrentHashMap<>();
+  private int activeRunners;
 
   public JUnit4TracingListener(ContextStore<Description, TestExecutionTracker> executionTrackers) {
     this.executionTrackers = executionTrackers;
@@ -32,6 +36,24 @@ public class JUnit4TracingListener extends TracingListener {
     }
 
     TestSuiteDescriptor suiteDescriptor = JUnit4Utils.toSuiteDescriptor(description);
+    startTestSuite(suiteDescriptor, description, false);
+  }
+
+  private void startTestSuite(
+      TestSuiteDescriptor suiteDescriptor, Description description, boolean parallelized) {
+    if (startedSuites.containsKey(suiteDescriptor)) {
+      return;
+    }
+    startedSuites.computeIfAbsent(
+        suiteDescriptor,
+        key -> {
+          onTestSuiteStart(key, description, parallelized);
+          return parallelized;
+        });
+  }
+
+  private void onTestSuiteStart(
+      TestSuiteDescriptor suiteDescriptor, Description description, boolean parallelized) {
     Class<?> testClass = description.getTestClass();
     String testSuiteName = JUnit4Utils.getSuiteName(testClass, description);
     List<String> categories = JUnit4Utils.getCategories(testClass, null);
@@ -44,7 +66,7 @@ public class JUnit4TracingListener extends TracingListener {
             FRAMEWORK_VERSION,
             testClass,
             categories,
-            false,
+            parallelized,
             TestFrameworkInstrumentation.JUNIT4,
             null);
   }
@@ -58,9 +80,36 @@ public class JUnit4TracingListener extends TracingListener {
     }
 
     TestSuiteDescriptor suiteDescriptor = JUnit4Utils.toSuiteDescriptor(description);
+    finishTestSuite(suiteDescriptor);
+  }
+
+  private void finishTestSuite(TestSuiteDescriptor suiteDescriptor) {
+    if (startedSuites.remove(suiteDescriptor) == null) {
+      return;
+    }
     TestEventsHandlerHolder.HANDLERS
         .get(TestFrameworkInstrumentation.JUNIT4)
         .onTestSuiteFinish(suiteDescriptor, null);
+  }
+
+  public synchronized void runnerStarted() {
+    activeRunners++;
+  }
+
+  public synchronized void runnerFinished() {
+    if (--activeRunners == 0) {
+      finishTestSuites();
+    }
+  }
+
+  private void finishTestSuites() {
+    // Fallback suites have no thread-bound scope: their callbacks may run on an executor.
+    // Suites with native lifecycle events are finished by their own callbacks.
+    for (Map.Entry<TestSuiteDescriptor, Boolean> suite : startedSuites.entrySet()) {
+      if (suite.getValue()) {
+        finishTestSuite(suite.getKey());
+      }
+    }
   }
 
   @Override
@@ -70,6 +119,7 @@ public class JUnit4TracingListener extends TracingListener {
     }
 
     TestSuiteDescriptor suiteDescriptor = JUnit4Utils.toSuiteDescriptor(description);
+    startTestSuite(suiteDescriptor, description, true);
     TestDescriptor testDescriptor = JUnit4Utils.toTestDescriptor(description);
     TestSourceData testSourceData = JUnit4Utils.toTestSourceData(description);
 
@@ -116,6 +166,7 @@ public class JUnit4TracingListener extends TracingListener {
 
     if (JUnit4Utils.isTestSuiteDescription(description)) {
       TestSuiteDescriptor suiteDescriptor = JUnit4Utils.toSuiteDescriptor(description);
+      startTestSuite(suiteDescriptor, description, true);
       Throwable throwable = failure.getException();
       TestEventsHandlerHolder.HANDLERS
           .get(TestFrameworkInstrumentation.JUNIT4)
@@ -146,6 +197,7 @@ public class JUnit4TracingListener extends TracingListener {
 
     if (JUnit4Utils.isTestSuiteDescription(description)) {
       TestSuiteDescriptor suiteDescriptor = JUnit4Utils.toSuiteDescriptor(description);
+      startTestSuite(suiteDescriptor, description, true);
       TestEventsHandlerHolder.HANDLERS
           .get(TestFrameworkInstrumentation.JUNIT4)
           .onTestSuiteSkip(suiteDescriptor, reason);
@@ -179,21 +231,7 @@ public class JUnit4TracingListener extends TracingListener {
 
       TestSuiteDescriptor suiteDescriptor = JUnit4Utils.toSuiteDescriptor(description);
       Class<?> testClass = description.getTestClass();
-      String testSuiteName = JUnit4Utils.getSuiteName(testClass, description);
-      List<String> categories = JUnit4Utils.getCategories(testClass, null);
-
-      TestEventsHandlerHolder.HANDLERS
-          .get(TestFrameworkInstrumentation.JUNIT4)
-          .onTestSuiteStart(
-              suiteDescriptor,
-              testSuiteName,
-              FRAMEWORK_NAME,
-              FRAMEWORK_VERSION,
-              testClass,
-              categories,
-              false,
-              TestFrameworkInstrumentation.JUNIT4,
-              null);
+      startTestSuite(suiteDescriptor, description, false);
       TestEventsHandlerHolder.HANDLERS
           .get(TestFrameworkInstrumentation.JUNIT4)
           .onTestSuiteSkip(suiteDescriptor, reason);
@@ -203,9 +241,7 @@ public class JUnit4TracingListener extends TracingListener {
         testIgnored(description, testMethod, reason);
       }
 
-      TestEventsHandlerHolder.HANDLERS
-          .get(TestFrameworkInstrumentation.JUNIT4)
-          .onTestSuiteFinish(suiteDescriptor, null);
+      finishTestSuite(suiteDescriptor);
     }
   }
 
@@ -215,6 +251,7 @@ public class JUnit4TracingListener extends TracingListener {
     }
 
     TestSuiteDescriptor suiteDescriptor = JUnit4Utils.toSuiteDescriptor(description);
+    startTestSuite(suiteDescriptor, description, true);
     TestDescriptor testDescriptor = JUnit4Utils.toTestDescriptor(description);
 
     Class<?> testClass = description.getTestClass();

@@ -77,22 +77,19 @@ class FieldBackedContextStoresForkedTest {
       for (int t = 0; t < THREAD_COUNT; t++) {
         // every thread requests the same names in the same order to maximise contention
         results.add(
-            executor.submit(
-                () -> {
-                  start.await();
-                  int[] storeIds = new int[STORE_COUNT];
-                  for (int i = 0; i < STORE_COUNT; i++) {
-                    int storeId =
-                        FieldBackedContextStores.getContextStoreId(keys.get(i), "context");
-                    // store must be visible as soon as its id is returned
-                    FieldBackedContextStore store =
-                        FieldBackedContextStores.getContextStore(storeId);
-                    assertNotNull(store, "Missing store for id " + storeId);
-                    assertEquals(storeId, store.storeId);
-                    storeIds[i] = storeId;
-                  }
-                  return storeIds;
-                }));
+            executor.submit(() -> {
+              start.await();
+              int[] storeIds = new int[STORE_COUNT];
+              for (int i = 0; i < STORE_COUNT; i++) {
+                int storeId = FieldBackedContextStores.getContextStoreId(keys.get(i), "context");
+                // store must be visible as soon as its id is returned
+                FieldBackedContextStore store = FieldBackedContextStores.getContextStore(storeId);
+                assertNotNull(store, "Missing store for id " + storeId);
+                assertEquals(storeId, store.storeId);
+                storeIds[i] = storeId;
+              }
+              return storeIds;
+            }));
       }
       start.countDown();
 
