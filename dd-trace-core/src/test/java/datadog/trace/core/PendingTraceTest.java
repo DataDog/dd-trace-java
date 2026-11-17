@@ -4,7 +4,11 @@ import static datadog.trace.api.sampling.PrioritySampling.UNSET;
 import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -25,6 +29,7 @@ import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
+import org.mockito.ArgumentCaptor;
 
 @Timeout(60)
 public class PendingTraceTest extends PendingTraceTestBase {
@@ -123,6 +128,52 @@ public class PendingTraceTest extends PendingTraceTestBase {
     span.finish();
 
     verify(healthMetrics, times(1)).onCreateTrace();
+  }
+
+  @Test
+  void writingRunningSpansDoesNotCallOnFinishSpan() {
+    CoreTracer stubTracer = mock(CoreTracer.class);
+    CoreTracer.ConfigSnapshot traceConfig = mock(CoreTracer.ConfigSnapshot.class);
+    PendingTraceBuffer buffer = mock(PendingTraceBuffer.class);
+    HealthMetrics healthMetrics = mock(HealthMetrics.class);
+
+    when(stubTracer.captureTraceConfig()).thenReturn(traceConfig);
+    when(traceConfig.getServiceMapping()).thenReturn(Collections.emptyMap());
+    when(buffer.longRunningSpansEnabled()).thenReturn(true);
+
+    PendingTrace trace =
+        new PendingTrace(
+            stubTracer,
+            DDTraceId.from(0),
+            buffer,
+            mock(TimeSource.class),
+            null,
+            false,
+            healthMetrics);
+
+    DDSpan root = createSimpleSpanWithID(trace, 1);
+    trace.registerSpan(root);
+    DDSpan child = createSimpleSpanWithID(trace, 2);
+    trace.registerSpan(child);
+    child.finish();
+    clearInvocations(healthMetrics);
+
+    // write the running root, as the long-running tracker does periodically
+    trace.setLongRunningTrackedState(LongRunningTracesTracker.WRITE_RUNNING_SPANS);
+    trace.write();
+
+    ArgumentCaptor<SpanList> written = ArgumentCaptor.forClass(SpanList.class);
+    verify(stubTracer, atLeastOnce()).write(written.capture());
+    assertTrue(
+        written.getAllValues().stream().anyMatch(spans -> spans.contains(root)),
+        "the running root should have been written");
+    verify(healthMetrics, never()).onCreateSpan(any());
+    verify(healthMetrics, never()).onFinishSpan();
+
+    root.finish();
+
+    verify(healthMetrics, never()).onCreateSpan(any());
+    verify(healthMetrics, times(1)).onFinishSpan();
   }
 
   @Test
