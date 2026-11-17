@@ -58,7 +58,6 @@ public interface DDSpanHelper {
             Collections.<String, String>emptyMap(),
             false,
             UTF8BytesString.create("type"),
-            0,
             traceCollector,
             null,
             null,

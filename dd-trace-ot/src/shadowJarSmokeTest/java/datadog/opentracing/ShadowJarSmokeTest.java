@@ -3,6 +3,7 @@ package datadog.opentracing;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import ddtrot.dd.trace.bootstrap.instrumentation.api.http.ClientIpAddressResolver;
 import io.opentracing.Span;
 import io.opentracing.SpanContext;
 import io.opentracing.propagation.Format;
@@ -10,11 +11,18 @@ import io.opentracing.propagation.TextMapAdapter;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 /** Smoke tests for the shaded OpenTracing distribution and its public dependencies. */
 class ShadowJarSmokeTest {
+  @Test
+  void resolvesClientIpWithoutAgentBootstrap() {
+    assertEquals(
+        "1.2.3.4", ClientIpAddressResolver.resolve(null, null, "1.2.3.4").getHostAddress());
+  }
+
   @ParameterizedTest
   @ValueSource(strings = {"datadog", "tracecontext", "datadog,tracecontext"})
   void injectAndExtractWithoutLlmObservability(String propagationStyle) throws Exception {

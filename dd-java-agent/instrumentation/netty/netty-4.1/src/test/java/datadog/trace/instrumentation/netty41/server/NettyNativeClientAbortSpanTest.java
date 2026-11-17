@@ -24,6 +24,8 @@ import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
+import io.netty.channel.ChannelOutboundHandlerAdapter;
+import io.netty.channel.ChannelPromise;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.ServerChannel;
 import io.netty.channel.SimpleChannelInboundHandler;
@@ -57,10 +59,19 @@ public class NettyNativeClientAbortSpanTest extends AbstractInstrumentationTest 
 
   @Test
   void nativeBrokenPipeFromCancelledResponseDoesNotMarkServerSpanError() throws Exception {
+    assertCancelledResponse(false);
+  }
+
+  @Test
+  void closedChannelWithNativeClientAbortCauseDoesNotMarkServerSpanError() throws Exception {
+    assertCancelledResponse(true);
+  }
+
+  private void assertCancelledResponse(boolean delayTerminalWrite) throws Exception {
     NativeTransport transport = NativeTransport.current();
     assumeTrue(transport.available, transport.unavailableReason);
 
-    NativeBrokenPipeHandler handler = new NativeBrokenPipeHandler();
+    NativeBrokenPipeHandler handler = new NativeBrokenPipeHandler(delayTerminalWrite);
     EventLoopGroup boss = transport.newEventLoopGroup(1);
     EventLoopGroup worker = transport.newEventLoopGroup(1);
     Channel server = null;
@@ -76,6 +87,30 @@ public class NettyNativeClientAbortSpanTest extends AbstractInstrumentationTest 
                   new ChannelInitializer<Channel>() {
                     @Override
                     protected void initChannel(Channel ch) {
+                      if (delayTerminalWrite) {
+                        ch.pipeline()
+                            .addLast(
+                                new ChannelOutboundHandlerAdapter() {
+                                  @Override
+                                  public void write(
+                                      ChannelHandlerContext ctx,
+                                      Object msg,
+                                      ChannelPromise promise) {
+                                    if (handler.terminalWrite) {
+                                      // The tracing listener is already attached. Resume the
+                                      // encoded
+                                      // terminal write after Netty records the native close cause.
+                                      ctx.channel()
+                                          .closeFuture()
+                                          .addListener(closed ->
+                                              ctx.executor()
+                                                  .execute(() -> ctx.writeAndFlush(msg, promise)));
+                                    } else {
+                                      ctx.write(msg, promise);
+                                    }
+                                  }
+                                });
+                      }
                       ch.pipeline().addLast(new HttpServerCodec());
                       ch.pipeline().addLast(handler);
                     }
@@ -86,6 +121,7 @@ public class NettyNativeClientAbortSpanTest extends AbstractInstrumentationTest 
 
       int port = ((InetSocketAddress) server.localAddress()).getPort();
       try (Socket socket = new Socket("127.0.0.1", port)) {
+        socket.setSoTimeout(5000);
         socket.setReceiveBufferSize(1024);
         socket.getOutputStream().write(request().getBytes(US_ASCII));
         socket.getOutputStream().flush();
@@ -95,17 +131,36 @@ public class NettyNativeClientAbortSpanTest extends AbstractInstrumentationTest 
       }
 
       Throwable failure = handler.awaitFailure();
-      assertEquals(NATIVE_IO_EXCEPTION, failure.getClass().getName());
-      assertTrue(
-          isExpectedClientAbortMessage(failure.getMessage()),
-          () -> "unexpected native write failure message: " + failure.getMessage());
+      Throwable nativeFailure = failure;
+      if (delayTerminalWrite) {
+        nativeFailure = failure.getCause();
+        if (Channel.class.getResource("StacklessClosedChannelException.class") != null) {
+          assertEquals(
+              "io.netty.channel.StacklessClosedChannelException", failure.getClass().getName());
+          assertNotNull(
+              nativeFailure, "closed-channel failure must retain the native write failure");
+        } else {
+          // Older Netty versions use a cached exception without retaining the close cause.
+          assertEquals("java.nio.channels.ClosedChannelException", failure.getClass().getName());
+          assertNull(nativeFailure);
+        }
+      }
+      if (nativeFailure != null) {
+        assertEquals(NATIVE_IO_EXCEPTION, nativeFailure.getClass().getName());
+        assertTrue(
+            isExpectedClientAbortMessage(nativeFailure.getMessage()),
+            "unexpected native write failure message: " + nativeFailure.getMessage());
+      }
 
       writer.waitForTraces(1);
       DDSpan span = writer.firstTrace().get(0);
-      assertFalse(span.isError(), "client abort should result in a non-error span");
+      assertEquals("netty.request", span.getOperationName().toString());
       assertEquals(200, span.getTag(Tags.HTTP_STATUS));
-      assertEquals(NATIVE_IO_EXCEPTION, span.getTag(DDTags.ERROR_TYPE));
-      assertEquals(failure.getMessage(), span.getTag(DDTags.ERROR_MSG));
+      assertFalse(span.isError(), "client abort should result in a non-error span: " + failure);
+      if (!delayTerminalWrite) {
+        assertEquals(NATIVE_IO_EXCEPTION, span.getTag(DDTags.ERROR_TYPE));
+        assertEquals(failure.getMessage(), span.getTag(DDTags.ERROR_MSG));
+      }
       assertNull(span.getTag(DDTags.ERROR_STACK));
     } finally {
       if (server != null) {
@@ -131,6 +186,13 @@ public class NettyNativeClientAbortSpanTest extends AbstractInstrumentationTest 
   @ChannelHandler.Sharable
   private static final class NativeBrokenPipeHandler
       extends SimpleChannelInboundHandler<HttpRequest> {
+    private final boolean delayTerminalWrite;
+    private boolean terminalWrite;
+
+    private NativeBrokenPipeHandler(boolean delayTerminalWrite) {
+      this.delayTerminalWrite = delayTerminalWrite;
+    }
+
     private final AtomicBoolean failureRecorded = new AtomicBoolean();
     private final BlockingQueue<Throwable> failures = new LinkedBlockingQueue<>();
 
@@ -154,6 +216,7 @@ public class NettyNativeClientAbortSpanTest extends AbstractInstrumentationTest 
         content.writeZero(content.writableBytes());
         ctx.write(new DefaultHttpContent(content));
       }
+      terminalWrite = delayTerminalWrite;
       ctx.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT)
           .addListener(future -> {
             if (future.isSuccess()) {

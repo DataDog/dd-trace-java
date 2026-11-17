@@ -34,7 +34,7 @@ public class PTagsFactory implements PropagationTags.Factory {
   public PTagsFactory(int xDatadogTagsLimit) {
     this.xDatadogTagsLimit = xDatadogTagsLimit;
     DEC_ENC_MAP.put(DATADOG, new DatadogPTagsCodec(xDatadogTagsLimit));
-    DEC_ENC_MAP.put(W3C, new W3CPTagsCodec());
+    DEC_ENC_MAP.put(W3C, new W3CPTagsCodec(this));
   }
 
   boolean isPropagationTagsDisabled() {
@@ -51,12 +51,25 @@ public class PTagsFactory implements PropagationTags.Factory {
 
   @Override
   public final PropagationTags empty() {
-    return createValid(null, null, null, ProductTraceSource.UNSET, null, LLMObsTagValues.EMPTY);
+    return createValid(
+        null,
+        null,
+        null,
+        ProductTraceSource.UNSET,
+        PrioritySampling.UNSET,
+        null,
+        LLMObsTagValues.EMPTY);
   }
 
   @Override
   public final PropagationTags fromHeaderValue(@Nonnull HeaderType headerType, String value) {
     return DEC_ENC_MAP.get(headerType).fromHeaderValue(this, value);
+  }
+
+  @Override
+  public final PropagationTags fromDatadogHeaderValue(String value, int samplingPriority) {
+    return ((DatadogPTagsCodec) DEC_ENC_MAP.get(DATADOG))
+        .fromHeaderValue(this, value, samplingPriority);
   }
 
   @Override
@@ -72,6 +85,7 @@ public class PTagsFactory implements PropagationTags.Factory {
       TagValue decisionMakerTagValue,
       TagValue traceIdTagValue,
       int productTraceSource,
+      int samplingPriority,
       TagValue orgPropagationMarkerTagValue,
       @Nonnull LLMObsTagValues llmObsTagValues) {
     return new PTags(
@@ -80,8 +94,13 @@ public class PTagsFactory implements PropagationTags.Factory {
         decisionMakerTagValue,
         traceIdTagValue,
         productTraceSource,
+        samplingPriority,
+        null,
+        null,
         orgPropagationMarkerTagValue,
-        llmObsTagValues);
+        llmObsTagValues,
+        null,
+        null);
   }
 
   PropagationTags createInvalid(String error) {
@@ -181,29 +200,6 @@ public class PTagsFactory implements PropagationTags.Factory {
      * {@code null} if not set.
      */
     private volatile CharSequence lastParentId;
-
-    PTags(
-        PTagsFactory factory,
-        List<TagElement> tagPairs,
-        TagValue decisionMakerTagValue,
-        TagValue traceIdTagValue,
-        int traceSource,
-        TagValue orgPropagationMarkerTagValue,
-        @Nonnull LLMObsTagValues llmObsTagValues) {
-      this(
-          factory,
-          tagPairs,
-          decisionMakerTagValue,
-          traceIdTagValue,
-          traceSource,
-          PrioritySampling.UNSET,
-          null,
-          null,
-          orgPropagationMarkerTagValue,
-          llmObsTagValues,
-          null,
-          null);
-    }
 
     // Takes tracestate/otelTraceState up-front to build SamplingState in one allocation.
     PTags(
@@ -902,19 +898,18 @@ public class PTagsFactory implements PropagationTags.Factory {
     }
 
     @Override
-    public void updateW3CTracestateFrom(PropagationTags source) {
-      if (!(source instanceof PTags)) {
-        super.updateW3CTracestateFrom(source);
-        return;
+    public void updateW3CTracestateFrom(W3CTracestate source, int overridingPriority) {
+      OtelTraceState otelTraceState = source.otelTraceState;
+      if (overridingPriority != PrioritySampling.UNSET) {
+        // as the trace context's own priority override reconciles its member
+        otelTraceState =
+            reconcileOtelTraceState(
+                otelTraceState, overridingPriority, SamplingMechanism.EXTERNAL_OVERRIDE);
       }
-      PTags sourcePTags = (PTags) source;
-      SamplingState sourceState = sourcePTags.samplingState();
-      CharSequence sourceOtelTraceState = sourceState.getOtelTraceState();
+      // The parse already found the otel member, so an override that drops it falls back to the
+      // member as parsed rather than scanning the tracestate for it again
       setW3CTracestate(
-          sourceState.getTracestate(),
-          sourceOtelTraceState instanceof OtelTraceState
-              ? (OtelTraceState) sourceOtelTraceState
-              : W3CPTagsCodec.extractOtelTraceState(sourceState.getTracestate()));
+          source.tracestate, otelTraceState != null ? otelTraceState : source.otelTraceState);
     }
 
     private void setW3CTracestate(String tracestate, OtelTraceState otelTraceState) {

@@ -41,10 +41,10 @@ import datadog.trace.bootstrap.instrumentation.api.TagExtractor;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.bootstrap.instrumentation.api.http.ClientIpAddressResolver;
 import datadog.trace.bootstrap.instrumentation.api.http.DatadogServerUrl;
 import datadog.trace.bootstrap.instrumentation.api.http.HttpServerUrl;
 import datadog.trace.bootstrap.instrumentation.api.http.OtelServerUrl;
-import datadog.trace.bootstrap.instrumentation.decorator.http.ClientIpAddressResolver;
 import java.net.InetAddress;
 import java.util.BitSet;
 import java.util.Locale;
@@ -230,6 +230,12 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     }
   }
 
+  /** Returns the application HTTP server span, beneath any inferred proxy span. */
+  protected static AgentSpan getHttpServerSpan(AgentSpan span) {
+    InferredProxySpan inferredProxy = InferredProxySpan.fromContext(Context.current());
+    return inferredProxy != null ? inferredProxy.getServiceEntrySpan() : span.getLocalRootSpan();
+  }
+
   private void resetServiceNameIfUnderInferredProxy(Context parentContext, AgentSpan span) {
     if (InferredProxySpan.fromContext(parentContext) != null) {
       span.setServiceName(Config.get().getServiceName());
@@ -386,20 +392,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     String inferredAddressStr = null;
     boolean clientIpTagged = false;
     if (shouldResolveIp && extracted != null) {
-      InetAddress inferredAddress = ClientIpAddressResolver.resolve(extracted, span);
-      // the peer address should be used if:
-      // 1. the headers yield nothing, regardless of whether it is public or not
-      // 2. it is public and the headers yield a private address
-      if (peerIp != null) {
-        if (inferredAddress == null) {
-          inferredAddress = ClientIpAddressResolver.parseIpAddress(peerIp);
-        } else if (ClientIpAddressResolver.isIpAddrPrivate(inferredAddress)) {
-          InetAddress peerAddress = ClientIpAddressResolver.parseIpAddress(peerIp);
-          if (!ClientIpAddressResolver.isIpAddrPrivate(peerAddress)) {
-            inferredAddress = peerAddress;
-          }
-        }
-      }
+      InetAddress inferredAddress = ClientIpAddressResolver.resolve(extracted, span, peerIp);
       if (inferredAddress != null) {
         inferredAddressStr = inferredAddress.getHostAddress();
         if (shouldTagIps) {
