@@ -370,9 +370,9 @@ public final class CdnConfigurationSource implements ConfigurationService {
    * the usage and APM show the same name. The value is {@code null} when that name is empty or is
    * not printable ASCII, for example {@code café-api} or {@code 支付}.
    *
-   * <p>The CDN decides which values it attributes usage to, so the SDK does not check their format.
-   * The SDK checks only for ASCII: {@code HttpRequest.Builder} throws on a value like {@code 支付},
-   * and then every poll fails.
+   * <p>The SDK checks only for ASCII, because of the JDK HTTP client. {@code HttpRequest.Builder}
+   * throws on a value like {@code 支付}, and then every poll fails. The client also sends a character
+   * such as {@code é} as {@code ?}, so {@code café-api} would arrive as {@code caf?-api}.
    */
   @Nullable
   private static String usageService(@Nullable final String service) {
