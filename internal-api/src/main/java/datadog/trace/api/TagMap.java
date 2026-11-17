@@ -1918,14 +1918,14 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     // See getEntry: entries are stored under their canonical Datadog name, so a removal by an
     // OpenTelemetry rename must resolve to the id first to find (and tombstone) the right entry.
     long key = KnownTagCodec.keyOf(tag);
-    return key != 0 ? entryOf(this.knownStore.remove(key)) : this.removeCustom(tag);
+    return key != 0 ? entryOf(this.knownStore.getAndRemove(key)) : this.removeCustom(tag);
   }
 
   /** Removes the entry for a known tag id; see {@link #getEntry(long)}. */
   public Entry getAndRemove(long tagId) {
     this.checkWriteAccess();
 
-    return entryOf(this.knownStore.remove(tagId));
+    return entryOf(this.knownStore.getAndRemove(tagId));
   }
 
   public TagMap copy() {
@@ -2779,80 +2779,50 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 }
 
+/**
+ * {@link TagMap.Entry}'s type and coercion rules, applied to a boxed value, for readers that hold a
+ * value but no Entry (the dense store's). A reader built on these reports exactly what an Entry of
+ * the same value would: only Boolean, Integer, Long, Float and Double are typed; every other value,
+ * including Short, Byte, BigDecimal and Character, is an OBJECT, which coerces to true (it is
+ * present) and to 0.
+ */
 final class TagValueConversions {
   TagValueConversions() {}
 
   static byte typeOf(Object value) {
-    if (value instanceof Integer) {
+    if (value instanceof Boolean) {
+      return TagMap.EntryReader.BOOLEAN;
+    } else if (value instanceof Integer) {
       return TagMap.EntryReader.INT;
     } else if (value instanceof Long) {
       return TagMap.EntryReader.LONG;
-    } else if (value instanceof Double) {
-      return TagMap.EntryReader.DOUBLE;
     } else if (value instanceof Float) {
       return TagMap.EntryReader.FLOAT;
-    } else if (value instanceof Boolean) {
-      return TagMap.EntryReader.BOOLEAN;
-    } else if (value instanceof Short) {
-      return TagMap.EntryReader.INT;
-    } else if (value instanceof Byte) {
-      return TagMap.EntryReader.INT;
+    } else if (value instanceof Double) {
+      return TagMap.EntryReader.DOUBLE;
     } else {
-      // NOTE: Character is currently deliberately treated as OBJECT
       return TagMap.EntryReader.OBJECT;
     }
   }
 
   static boolean isA(Object value, byte type) {
-    switch (type) {
-      case TagMap.EntryReader.BOOLEAN:
-        return (value instanceof Boolean);
-
-      case TagMap.EntryReader.INT:
-        return (value instanceof Integer) || (value instanceof Short) || (value instanceof Byte);
-
-      case TagMap.EntryReader.LONG:
-        return (value instanceof Long);
-
-      case TagMap.EntryReader.FLOAT:
-        return (value instanceof Float);
-
-      case TagMap.EntryReader.DOUBLE:
-        return (value instanceof Double);
-
-      case TagMap.EntryReader.OBJECT:
-        return true;
-
-      default:
-        return false;
-    }
+    return typeOf(value) == type;
   }
 
   static boolean isNumber(Object value) {
     return (value instanceof Number);
   }
 
+  /** Entry's typed numbers; any other Number (Short, BigDecimal, ...) is an OBJECT. */
   static boolean isNumericPrimitive(Object value) {
     return (value instanceof Integer)
         || (value instanceof Long)
-        || (value instanceof Double)
         || (value instanceof Float)
-        || (value instanceof Short)
-        || (value instanceof Byte);
+        || (value instanceof Double);
   }
 
   static boolean isObject(Object value) {
-    boolean isSupportedPrimitive =
-        (value instanceof Integer)
-            || (value instanceof Long)
-            || (value instanceof Double)
-            || (value instanceof Float)
-            || (value instanceof Boolean)
-            || (value instanceof Short)
-            || (value instanceof Byte);
-
-    // NOTE: Character is just treated as Object
-    return !isSupportedPrimitive;
+    return typeOf(value) == TagMap.EntryReader.OBJECT;
   }
 
   static boolean toBooleanOrDefault(Object value, boolean defaultValue) {
@@ -2862,15 +2832,17 @@ final class TagValueConversions {
   static boolean toBoolean(Object value) {
     if (value instanceof Boolean) {
       return (Boolean) value;
-    } else if (value instanceof Number) {
-      // NOTE: This cannot be intValue() because intValue of larger types is 0 when
-      // the actual value would be less than Integer.MIN_VALUE or for floating point
-      // types is very close to zero, so using doubleValue instead.
-
-      // While this is a bit ugly, coerced toBoolean is uncommon
-      return ((Number) value).doubleValue() != 0D;
+    } else if (value instanceof Integer) {
+      return (Integer) value != 0;
+    } else if (value instanceof Long) {
+      return (Long) value != 0L;
+    } else if (value instanceof Float) {
+      return (Float) value != 0F;
+    } else if (value instanceof Double) {
+      return (Double) value != 0D;
     } else {
-      return false;
+      // An OBJECT is true when present, as Entry has it (a String, a BigDecimal, ...).
+      return value != null;
     }
   }
 
@@ -2879,24 +2851,20 @@ final class TagValueConversions {
   }
 
   static int toInt(Object value) {
-    if (value instanceof Integer) {
-      return (Integer) value;
-    } else if (value instanceof Number) {
-      return ((Number) value).intValue();
-    } else if (value instanceof Boolean) {
+    if (value instanceof Boolean) {
       return (Boolean) value ? 1 : 0;
+    } else if (isNumericPrimitive(value)) {
+      return ((Number) value).intValue();
     } else {
       return 0;
     }
   }
 
   static long toLong(Object value) {
-    if (value instanceof Long) {
-      return (Long) value;
-    } else if (value instanceof Number) {
-      return ((Number) value).longValue();
-    } else if (value instanceof Boolean) {
+    if (value instanceof Boolean) {
       return (Boolean) value ? 1L : 0L;
+    } else if (isNumericPrimitive(value)) {
+      return ((Number) value).longValue();
     } else {
       return 0L;
     }
@@ -2907,12 +2875,10 @@ final class TagValueConversions {
   }
 
   static float toFloat(Object value) {
-    if (value instanceof Float) {
-      return (Float) value;
-    } else if (value instanceof Number) {
-      return ((Number) value).floatValue();
-    } else if (value instanceof Boolean) {
+    if (value instanceof Boolean) {
       return (Boolean) value ? 1F : 0F;
+    } else if (isNumericPrimitive(value)) {
+      return ((Number) value).floatValue();
     } else {
       return 0F;
     }
@@ -2923,12 +2889,10 @@ final class TagValueConversions {
   }
 
   static double toDouble(Object value) {
-    if (value instanceof Double) {
-      return (Double) value;
-    } else if (value instanceof Number) {
-      return ((Number) value).doubleValue();
-    } else if (value instanceof Boolean) {
+    if (value instanceof Boolean) {
       return (Boolean) value ? 1D : 0D;
+    } else if (isNumericPrimitive(value)) {
+      return ((Number) value).doubleValue();
     } else {
       return 0D;
     }
