@@ -1,6 +1,7 @@
 package datadog.trace.core.datastreams;
 
 import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_LITE_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_LITE_ORIGIN_CAP_PER_SECOND;
 import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
@@ -270,6 +271,8 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
   @Test
   void liteWritesEmptySketchesAndTheLiteProductBit() throws InterruptedException, IOException {
     WithConfigExtension.injectSysConfig(DATA_STREAMS_LITE_ENABLED, "true");
+    // Checkpoints straight on a span's pathway context, which the origin cap replaces
+    WithConfigExtension.injectSysConfig(DATA_STREAMS_LITE_ORIGIN_CAP_PER_SECOND, "0");
     try {
       WellKnownTags wellKnownTags =
           new WellKnownTags(

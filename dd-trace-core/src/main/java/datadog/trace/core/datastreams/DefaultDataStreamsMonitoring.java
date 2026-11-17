@@ -80,6 +80,9 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   private final boolean pathwayHashSampledOnly;
   // Non-null only in lite mode, which reports each unique pathway once per epoch
   private final PathwaySeenSet seenSet;
+  // Non-null only in lite mode with an origin cap. Spans then start with the no-op pathway context;
+  // a real one is created only for a sampled message that starts a pathway.
+  private final OriginSampler originSampler;
   private final long liteEpochNanos;
   private long nextLiteEpochNanos;
   private volatile long lastLiteErrorResetNanos;
@@ -164,7 +167,8 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
         payloadWriter,
         bucketDurationNanos,
         lite,
-        lite && Config.get().isDataStreamsPathwayHashTagSampledOnly());
+        lite && Config.get().isDataStreamsPathwayHashTagSampledOnly(),
+        lite ? Config.get().getDataStreamsLiteOriginCapPerSecond() : 0);
   }
 
   DefaultDataStreamsMonitoring(
@@ -175,7 +179,8 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       DatastreamsPayloadWriter payloadWriter,
       long bucketDurationNanos,
       boolean lite,
-      boolean pathwayHashSampledOnly) {
+      boolean pathwayHashSampledOnly,
+      int originCapPerSecond) {
     this.features = features;
     this.timeSource = timeSource;
     this.traceConfigSupplier = traceConfigSupplier;
@@ -188,6 +193,10 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     this.lite = lite;
     this.pathwayHashSampledOnly = pathwayHashSampledOnly;
     this.seenSet = lite ? new PathwaySeenSet() : null;
+    this.originSampler =
+        lite && originCapPerSecond > 0
+            ? new OriginSampler(originCapPerSecond, timeSource.getNanoTicks())
+            : null;
     this.liteEpochNanos = TimeUnit.SECONDS.toNanos(Config.get().getDataStreamsLiteRefreshSeconds());
     // Jitter the first epoch so hosts started together don't re-report in lockstep
     this.nextLiteEpochNanos =
@@ -198,7 +207,12 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
     this.propagator =
         new DataStreamsPropagator(
-            this, this.timeSource, serviceNameOverride, seenSet, pathwayHashSampledOnly);
+            this,
+            this.timeSource,
+            serviceNameOverride,
+            seenSet,
+            pathwayHashSampledOnly,
+            originSampler);
     DataStreamsTags.setServiceNameOverride(serviceNameOverride);
   }
 
@@ -288,7 +302,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
   @Override
   public PathwayContext newPathwayContext() {
-    if (configSupportsDataStreams) {
+    if (configSupportsDataStreams && originSampler == null) {
       return new DefaultPathwayContext(timeSource, getThreadServiceName(), seenSet);
     } else {
       return NoopPathwayContext.INSTANCE;
@@ -389,6 +403,15 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   @Override
   public void setCheckpoint(AgentSpan span, DataStreamsContext context) {
     PathwayContext pathwayContext = span.spanContext().getPathwayContext();
+    if (pathwayContext != null && originSampler != null && !pathwayContext.isStarted()) {
+      // Without incoming context only a sampled produce starts a pathway; a consume does nothing
+      pathwayContext =
+          context.tags().getDirectionValue() == OUTBOUND
+                  && configSupportsDataStreams
+                  && originSampler.sample(context.tags().getHash(), timeSource.getNanoTicks())
+              ? new DefaultPathwayContext(timeSource, getThreadServiceName(), seenSet)
+              : null;
+    }
     if (pathwayContext != null) {
       pathwayContext.setCheckpoint(context, this::add);
       PathwayHashTag.set(span, pathwayContext.getHash(), pathwayHashSampledOnly);

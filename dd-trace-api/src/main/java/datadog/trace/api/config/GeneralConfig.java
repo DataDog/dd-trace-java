@@ -112,6 +112,8 @@ public final class GeneralConfig {
       "data.streams.lite.dsm.tag.enabled";
   public static final String DATA_STREAMS_LITE_PATHWAY_HASH_TAG =
       "data.streams.lite.pathway.hash.tag";
+  public static final String DATA_STREAMS_LITE_ORIGIN_CAP_PER_SECOND =
+      "data.streams.lite.origin.cap.per.second";
   public static final String DATA_STREAMS_BUCKET_DURATION_SECONDS =
       "data.streams.bucket_duration.seconds";
   public static final String DATA_STREAMS_TRANSACTION_EXTRACTORS =

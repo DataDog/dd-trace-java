@@ -30,6 +30,8 @@ public class DataStreamsPropagator implements Propagator {
   // Non-null only in Data Streams lite mode
   private final PathwaySeenSet seenSet;
   private final boolean pathwayHashSampledOnly;
+  // Non-null only in lite mode with an origin cap
+  private final OriginSampler originSampler;
 
   public DataStreamsPropagator(
       DataStreamsMonitoring dataStreamsMonitoring,
@@ -52,6 +54,23 @@ public class DataStreamsPropagator implements Propagator {
       ThreadLocal<String> serviceNameOverride,
       PathwaySeenSet seenSet,
       boolean pathwayHashSampledOnly) {
+    this(
+        dataStreamsMonitoring,
+        timeSource,
+        serviceNameOverride,
+        seenSet,
+        pathwayHashSampledOnly,
+        null);
+  }
+
+  DataStreamsPropagator(
+      DataStreamsMonitoring dataStreamsMonitoring,
+      TimeSource timeSource,
+      ThreadLocal<String> serviceNameOverride,
+      PathwaySeenSet seenSet,
+      boolean pathwayHashSampledOnly,
+      OriginSampler originSampler) {
+    this.originSampler = originSampler;
     this.dataStreamsMonitoring = dataStreamsMonitoring;
     this.timeSource = timeSource;
     this.serviceNameOverride = serviceNameOverride;
@@ -70,6 +89,16 @@ public class DataStreamsPropagator implements Propagator {
         || (dsmContext = DataStreamsContext.fromContext(context)) == null
         || !traceConfig().isDataStreamsEnabled()) {
       return;
+    }
+
+    if (originSampler != null && !pathwayContext.isStarted()) {
+      // A message with no incoming context starts a pathway only if the origin budget allows it.
+      // The new context is not stored on the span, so each origin checkpoint has parent 0, which
+      // is what loop protection gives repeated produces from one span in full mode.
+      if (!originSampler.sample(dsmContext.tags().getHash(), timeSource.getNanoTicks())) {
+        return;
+      }
+      pathwayContext = new DefaultPathwayContext(timeSource, serviceNameOverride.get(), seenSet);
     }
 
     // Lite never saves the point for PayloadSizeAdvice: the saved point is not cleared, so every

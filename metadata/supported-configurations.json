@@ -1204,6 +1204,14 @@
         "aliases": []
       }
     ],
+    "DD_DATA_STREAMS_LITE_ORIGIN_CAP_PER_SECOND": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "1000",
+        "aliases": []
+      }
+    ],
     "DD_DATA_STREAMS_LITE_PATHWAY_HASH_TAG": [
       {
         "version": "A",

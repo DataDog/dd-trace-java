@@ -56,6 +56,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_STREAMS_BUCKET_DURAT
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_STREAMS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_STREAMS_LITE_DSM_TAG_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_STREAMS_LITE_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_STREAMS_LITE_ORIGIN_CAP_PER_SECOND;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_STREAMS_LITE_PATHWAY_HASH_TAG;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_STREAMS_LITE_POLL_SPANS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_STREAMS_LITE_REFRESH_SECONDS;
@@ -402,6 +403,7 @@ import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_BUCKET_DURATIO
 import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_LITE_DSM_TAG_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_LITE_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_LITE_ORIGIN_CAP_PER_SECOND;
 import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_LITE_PATHWAY_HASH_TAG;
 import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_LITE_POLL_SPANS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_LITE_REFRESH_SECONDS;
@@ -1416,6 +1418,7 @@ public class Config {
   private final boolean dataStreamsKafkaPollSpanEnabled;
   private final boolean dataStreamsSpanTagEnabled;
   private final boolean dataStreamsPathwayHashTagSampledOnly;
+  private final int dataStreamsLiteOriginCapPerSecond;
   private final float dataStreamsBucketDurationSeconds;
   private final String dataStreamsTransactionExtractors;
 
@@ -3351,6 +3354,14 @@ public class Config {
     }
     dataStreamsPathwayHashTagSampledOnly =
         dataStreamsLiteEnabled && "sampled".equalsIgnoreCase(pathwayHashTag);
+    dataStreamsLiteOriginCapPerSecond =
+        dataStreamsLiteEnabled
+            ? Math.max(
+                0,
+                configProvider.getInteger(
+                    DATA_STREAMS_LITE_ORIGIN_CAP_PER_SECOND,
+                    DEFAULT_DATA_STREAMS_LITE_ORIGIN_CAP_PER_SECOND))
+            : 0;
     dataStreamsBucketDurationSeconds =
         configProvider.getFloat(
             DATA_STREAMS_BUCKET_DURATION_SECONDS, DEFAULT_DATA_STREAMS_BUCKET_DURATION);
@@ -5456,6 +5467,14 @@ public class Config {
   /** In lite, {@code pathway.hash} goes only on spans whose trace is not already dropped. */
   public boolean isDataStreamsPathwayHashTagSampledOnly() {
     return dataStreamsPathwayHashTagSampledOnly;
+  }
+
+  /**
+   * In lite, the most messages per second, across the whole process, that get a pathway header when
+   * they start a pathway (no incoming context). 0 when lite is off or the cap is disabled.
+   */
+  public int getDataStreamsLiteOriginCapPerSecond() {
+    return dataStreamsLiteOriginCapPerSecond;
   }
 
   public float getDataStreamsBucketDurationSeconds() {

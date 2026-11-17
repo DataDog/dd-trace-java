@@ -13,28 +13,39 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.RETURNS_SMART_NULLS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
+import datadog.context.Context;
 import datadog.metrics.api.Histograms;
 import datadog.metrics.impl.DDSketchHistograms;
 import datadog.trace.api.Config;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
+import datadog.trace.api.datastreams.NoopPathwayContext;
 import datadog.trace.api.datastreams.PathwayContext;
 import datadog.trace.api.datastreams.StatsPoint;
 import datadog.trace.api.time.ControllableTimeSource;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.common.metrics.EventListener;
 import datadog.trace.common.metrics.Sink;
 import datadog.trace.core.DDCoreJavaSpecification;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 import org.junit.jupiter.api.AfterEach;
@@ -301,6 +312,132 @@ class DataStreamsLiteTest extends DDCoreJavaSpecification {
     assertEquals(3, litePoints.size());
   }
 
+  @Test
+  void originProducesOverTheBudgetGetNoHeaderAndNoCheckpoint() throws Exception {
+    dataStreams = liteDataStreams(1);
+    dataStreams.start();
+
+    withTracer(() -> {
+      assertNotNull(injectFromOrigin(PRODUCE), "first message on the edge");
+      assertNotNull(injectFromOrigin(PRODUCE), "within the budget");
+      for (int i = 0; i < 100; i++) {
+        assertNull(injectFromOrigin(PRODUCE));
+      }
+    });
+
+    timeSource.advance(BUCKET_DURATION_NANOS);
+    dataStreams.report();
+    awaitPayloads(1);
+    assertEquals(1, payloadWriter.groups().size());
+  }
+
+  @Test
+  void producesWithIncomingContextAreAlwaysPropagated() throws Exception {
+    dataStreams = liteDataStreams(1);
+    dataStreams.start();
+    DataStreamsTags consume = DataStreamsTags.create("kafka", INBOUND, "orders", "billing", null);
+
+    withTracer(() -> {
+      for (int i = 0; i < 100; i++) {
+        injectFromOrigin(PRODUCE);
+      }
+      for (int i = 0; i < 100; i++) {
+        PathwayContext upstream = new DefaultPathwayContext(timeSource, null);
+        upstream.setCheckpoint(fromTags(consume), point -> {});
+        assertNotNull(inject(upstream, PRODUCE));
+      }
+    });
+  }
+
+  @Test
+  void aConsumeWithoutAHeaderDoesNothing() throws Exception {
+    dataStreams = liteDataStreams(1000);
+    dataStreams.start();
+    PathwayContext spanPathway = dataStreams.newPathwayContext();
+    assertSame(NoopPathwayContext.INSTANCE, spanPathway);
+
+    dataStreams.setCheckpoint(
+        spanWith(spanPathway),
+        fromTags(DataStreamsTags.create("kafka", INBOUND, "orders", "billing", null)));
+
+    assertFalse(spanPathway.isStarted());
+    timeSource.advance(BUCKET_DURATION_NANOS);
+    dataStreams.report();
+    awaitIdle();
+    assertTrue(payloadWriter.buckets.isEmpty());
+  }
+
+  @Test
+  void sampledOriginHeadersAreIdenticalToUncappedLite() throws Exception {
+    timeSource.set(SECONDS.toNanos(1_700_000_000L));
+    DefaultDataStreamsMonitoring uncapped = liteDataStreams(0);
+    uncapped.start();
+    dataStreams = liteDataStreams(1000);
+    dataStreams.start();
+    try {
+      withTracer(() -> {
+        for (int i = 0; i < 3; i++) {
+          String expected =
+              inject(uncapped, uncapped.newPathwayContext(), PRODUCE).get(PROPAGATION_KEY);
+          String actual = injectFromOrigin(PRODUCE);
+          assertNotNull(actual);
+          assertEquals(expected, actual);
+          timeSource.advance(MILLISECONDS.toNanos(7));
+        }
+      });
+    } finally {
+      uncapped.close();
+    }
+  }
+
+  private static final String PROPAGATION_KEY = PathwayContext.PROPAGATION_KEY_BASE64;
+
+  /** Injects for a span with no incoming pathway context; returns the header or null. */
+  private String injectFromOrigin(DataStreamsTags tags) {
+    return inject(dataStreams.newPathwayContext(), tags);
+  }
+
+  private String inject(PathwayContext spanPathway, DataStreamsTags tags) {
+    return inject(dataStreams, spanPathway, tags).get(PROPAGATION_KEY);
+  }
+
+  private static Map<String, String> inject(
+      DefaultDataStreamsMonitoring monitoring, PathwayContext spanPathway, DataStreamsTags tags) {
+    Map<String, String> headers = new HashMap<>();
+    monitoring
+        .propagator()
+        .inject(Context.root().with(fromTags(tags)).with(spanWith(spanPathway)), headers, Map::put);
+    return headers;
+  }
+
+  private static AgentSpan spanWith(PathwayContext pathwayContext) {
+    AgentSpanContext spanContext = mock(AgentSpanContext.class);
+    when(spanContext.getPathwayContext()).thenReturn(pathwayContext);
+    AgentSpan span = mock(AgentSpan.class);
+    when(span.spanContext()).thenReturn(spanContext);
+    when(span.storeInto(any())).thenCallRealMethod();
+    return span;
+  }
+
+  private interface Body {
+    void run() throws Exception;
+  }
+
+  /** The propagator reads whether DSM is on from the registered tracer. */
+  private static void withTracer(Body body) throws Exception {
+    TraceConfig traceConfig = mock(TraceConfig.class, RETURNS_SMART_NULLS);
+    when(traceConfig.isDataStreamsEnabled()).thenReturn(true);
+    AgentTracer.TracerAPI tracer = mock(AgentTracer.TracerAPI.class, RETURNS_SMART_NULLS);
+    when(tracer.captureTraceConfig()).thenReturn(traceConfig);
+    AgentTracer.TracerAPI original = AgentTracer.get();
+    AgentTracer.forceRegister(tracer);
+    try {
+      body.run();
+    } finally {
+      AgentTracer.forceRegister(original);
+    }
+  }
+
   private static void assertSameHeader(DefaultPathwayContext full, DefaultPathwayContext lite)
       throws IOException {
     assertEquals(full.getHash(), lite.getHash());
@@ -318,6 +455,10 @@ class DataStreamsLiteTest extends DDCoreJavaSpecification {
   }
 
   private DefaultDataStreamsMonitoring liteDataStreams() {
+    return liteDataStreams(0);
+  }
+
+  private DefaultDataStreamsMonitoring liteDataStreams(int originCapPerSecond) {
     TraceConfig traceConfig = mock(TraceConfig.class, RETURNS_SMART_NULLS);
     when(traceConfig.isDataStreamsEnabled()).thenReturn(true);
     return new DefaultDataStreamsMonitoring(
@@ -327,7 +468,9 @@ class DataStreamsLiteTest extends DDCoreJavaSpecification {
         () -> traceConfig,
         payloadWriter,
         BUCKET_DURATION_NANOS,
-        true);
+        true,
+        true,
+        originCapPerSecond);
   }
 
   private void startLiteDataStreams() {
