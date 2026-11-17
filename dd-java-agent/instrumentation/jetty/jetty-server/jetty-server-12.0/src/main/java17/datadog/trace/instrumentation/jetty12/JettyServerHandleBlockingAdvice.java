@@ -8,7 +8,8 @@ import org.eclipse.jetty.util.Callback;
  * Request-phase AppSec blocking on {@code Server.handle(Request, Response, Callback)}: when the
  * request was flagged for blocking during {@code onRequest}, commits the blocking response and
  * skips the handler chain. Otherwise wraps the Handler callback so that a later mid-handler
- * blocking response write is not cut when the request completes.
+ * blocking response write is not cut when the request completes, including when a core handler lets
+ * a {@code Throwable} escape {@code Server.handle}.
  */
 public class JettyServerHandleBlockingAdvice {
 
@@ -23,11 +24,19 @@ public class JettyServerHandleBlockingAdvice {
     return false;
   }
 
-  @Advice.OnMethodExit(suppress = Throwable.class)
+  @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void onExit(
-      @Advice.Enter final boolean blocked, @Advice.Return(readOnly = false) boolean handled) {
+      @Advice.Enter final boolean blocked,
+      @Advice.Argument(2) final Callback callback,
+      @Advice.Return(readOnly = false) boolean handled,
+      @Advice.Thrown(readOnly = false) Throwable thrown) {
     if (blocked) {
       // a false return makes Jetty write a 404 on top of the blocking response
+      handled = true;
+    } else if (thrown != null && JettyBlockResponseHelper.failDeferred(callback, thrown)) {
+      // Jetty would fail its own reference to the Handler callback, bypassing the wrapper: fail it
+      // through the wrapper instead and return as handled, the callback is now completed
+      thrown = null;
       handled = true;
     }
   }

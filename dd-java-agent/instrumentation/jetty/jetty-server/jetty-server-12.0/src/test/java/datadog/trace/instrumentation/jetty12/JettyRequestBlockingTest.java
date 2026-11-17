@@ -270,6 +270,80 @@ class JettyRequestBlockingTest {
   }
 
   @Test
+  void escapedThrowableIsParkedWhileAMidHandlerBlockWriteIsInFlight() {
+    ActiveSubsystems.APPSEC_ACTIVE = true;
+    JettyBrfFixture f = new JettyBrfFixture(null);
+    List<Object> completions = new ArrayList<>();
+    Callback callback =
+        JettyBlockResponseHelper.deferCompletion(f.request.proxy, recording(completions));
+    assertTrue(
+        f.brf.tryCommitBlockingResponse(
+            f.segment, 403, BlockingContentType.AUTO, emptyMap(), null));
+    IllegalStateException thrown = new IllegalStateException("blocked");
+
+    // what the Server.handle exit advice does when a core handler lets the throwable escape
+    assertTrue(JettyBlockResponseHelper.failDeferred(callback, thrown));
+    assertTrue(completions.isEmpty(), "the failure waits for the pending block write");
+
+    f.response.pending.succeeded();
+
+    assertEquals(asList("effectivelyBlocked"), f.events);
+    assertEquals(asList("failed", thrown), completions);
+  }
+
+  @Test
+  void escapedThrowableIsForwardedWhenNoBlockWriteIsInFlight() {
+    List<Object> completions = new ArrayList<>();
+    Callback callback = new JettyDeferredCompletion(recording(completions));
+    IllegalStateException thrown = new IllegalStateException("boom");
+
+    assertTrue(JettyBlockResponseHelper.failDeferred(callback, thrown));
+
+    assertEquals(asList("failed", thrown), completions);
+  }
+
+  @Test
+  void escapedThrowableIsLeftToJettyWithoutTheWrapper() {
+    List<Object> completions = new ArrayList<>();
+
+    assertFalse(
+        JettyBlockResponseHelper.failDeferred(
+            recording(completions), new IllegalStateException("boom")));
+    assertFalse(JettyBlockResponseHelper.failDeferred(null, new IllegalStateException("boom")));
+
+    assertTrue(completions.isEmpty(), "Jetty fails its own callback reference");
+  }
+
+  @Test
+  void escapedThrowableIsLeftToJettyWhenTheWrapperThrows() {
+    Callback throwing =
+        proxy(
+            Callback.class,
+            (name, args) -> {
+              throw new IllegalStateException("already completed");
+            });
+
+    assertFalse(
+        JettyBlockResponseHelper.failDeferred(
+            new JettyDeferredCompletion(throwing), new IllegalStateException("boom")));
+  }
+
+  /** Records {@code succeeded} and {@code failed} calls, followed by the failure, if any. */
+  private static Callback recording(List<Object> completions) {
+    return proxy(
+        Callback.class,
+        (name, args) -> {
+          if ("succeeded".equals(name)) {
+            completions.add(name);
+          } else if ("failed".equals(name)) {
+            completions.add(name);
+            completions.add(args[0]);
+          }
+          return null;
+        });
+  }
+
+  @Test
   void jettyBrfWriteFailureReportsAndFailsCallback() {
     JettyBrfFixture f = new JettyBrfFixture();
     IOException failure = new IOException("broken pipe");

@@ -277,6 +277,32 @@ public final class JettyBlockResponseHelper {
     return callback;
   }
 
+  /**
+   * Fails the Handler callback wrapper with a {@code Throwable} that escaped {@code Server.handle}.
+   *
+   * <p>Jetty's {@code HandlerInvoker} fails its own reference to the Handler callback with such a
+   * throwable, bypassing the wrapper installed by {@link #deferCompletion(Request, Callback)},
+   * which would cut an in-flight blocking response write. Servlet environments catch {@code
+   * BlockingException} themselves; this covers core handlers that let it escape. Never throws.
+   *
+   * @param callback the callback the handler chain received
+   * @return true when {@code callback} is the wrapper and took the failure, in which case the
+   *     caller must swallow {@code failure} and report the request as handled; false otherwise,
+   *     including on any failure, in which case {@code failure} must propagate unchanged
+   */
+  public static boolean failDeferred(Callback callback, Throwable failure) {
+    if (!(callback instanceof JettyDeferredCompletion)) {
+      return false;
+    }
+    try {
+      callback.failed(failure);
+      return true;
+    } catch (Throwable t) {
+      log.debug("Failed to fail the deferred request completion", t);
+      return false;
+    }
+  }
+
   /** Can run inside a Jetty write callback; {@code deferred} may be null. Never throws. */
   private static void blockWriteFinished(JettyDeferredCompletion deferred) {
     if (deferred != null) {
