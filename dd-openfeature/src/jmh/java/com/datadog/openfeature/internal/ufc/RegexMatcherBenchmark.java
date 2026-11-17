@@ -18,7 +18,8 @@ import org.openjdk.jmh.annotations.Warmup;
 
 /**
  * Compares {@code java.util.regex} {@code find()}, which the evaluator used before, with {@link
- * RegexMatcher}, for each matcher tier. Each pattern shape comes from real UFC targeting rules.
+ * RegexMatcher}, for each matcher tier. Each pattern shape is a common shape of UFC targeting
+ * rules.
  */
 @State(Scope.Thread)
 @Warmup(iterations = 3, time = 1, timeUnit = SECONDS)

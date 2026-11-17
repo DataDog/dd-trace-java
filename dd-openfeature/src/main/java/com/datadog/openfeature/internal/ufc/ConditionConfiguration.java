@@ -22,7 +22,8 @@ public final class ConditionConfiguration {
   /**
    * Compiles a MATCHES/NOT_MATCHES pattern.
    *
-   * @throws java.util.regex.PatternSyntaxException if the pattern is malformed.
+   * @throws java.util.regex.PatternSyntaxException if the pattern is not valid in the Rust {@code
+   *     regex} dialect.
    */
   public static RegexMatcher compileRegex(final Object value) {
     return RegexMatcher.compile(String.valueOf(value));

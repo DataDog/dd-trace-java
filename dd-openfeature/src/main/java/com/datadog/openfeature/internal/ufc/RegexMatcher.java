@@ -13,8 +13,8 @@ import javax.annotation.Nullable;
  * A compiled MATCHES/NOT_MATCHES pattern, with {@code find} semantics: the pattern matches if it
  * matches any part of the input.
  *
- * <p>The design follows the Rust evaluator (dd-source {@code rkyv/regex.rs}). At parse time, each
- * pattern gets the cheapest matcher that gives the same result:
+ * <p>The design follows the tiers of the libdatadog evaluator. At parse time, each pattern gets the
+ * cheapest matcher that gives the same result:
  *
  * <ol>
  *   <li>A literal check ({@code equals}, {@code startsWith}, {@code endsWith}, {@code contains})
@@ -53,8 +53,8 @@ public abstract class RegexMatcher {
   /** The most literals that a pattern can expand to and still use a literal check. */
   static final int MAX_LITERALS = 64;
 
-  /** The matcher kind, for tests and diagnostics. */
-  public enum Kind {
+  /** The matcher kind, for tests. */
+  enum Kind {
     EQUALS,
     STARTS_WITH,
     ENDS_WITH,
@@ -67,7 +67,7 @@ public abstract class RegexMatcher {
 
   RegexMatcher() {}
 
-  public abstract Kind kind();
+  abstract Kind kind();
 
   /** Tells whether the pattern matches a part of the input. */
   public abstract boolean matches(String input);
@@ -80,11 +80,19 @@ public abstract class RegexMatcher {
    */
   public static RegexMatcher compile(final String pattern) {
     final String re2Pattern = Dialect.toRe2(pattern);
+    Limits.check(pattern, re2Pattern);
     final com.google.re2j.Pattern engine;
     try {
       engine = com.google.re2j.Pattern.compile(re2Pattern);
     } catch (final com.google.re2j.PatternSyntaxException e) {
-      throw new PatternSyntaxException(e.getDescription(), pattern, e.getIndex());
+      final PatternSyntaxException error =
+          new PatternSyntaxException(e.getDescription(), pattern, e.getIndex());
+      error.initCause(e);
+      throw error;
+    } catch (final StackOverflowError e) {
+      // The RE2/J compiler recurses once for each unrolled repetition, for example 1000 times
+      // for x{1,1000}. Reject the pattern instead of failing the whole configuration.
+      throw new PatternSyntaxException("the pattern is too complex", pattern, -1);
     }
     @Nullable final List<Token> tokens = Lexer.tokenize(re2Pattern);
     if (tokens == null) {
@@ -102,7 +110,7 @@ public abstract class RegexMatcher {
   /** The empty pattern, or {@code .*}: every input matches. */
   static final class Always extends RegexMatcher {
     @Override
-    public Kind kind() {
+    Kind kind() {
       return Kind.ALWAYS;
     }
 
@@ -115,7 +123,7 @@ public abstract class RegexMatcher {
   /** {@code .+}: the input has a character other than a line feed. */
   static final class AnyCharacter extends RegexMatcher {
     @Override
-    public Kind kind() {
+    Kind kind() {
       return Kind.ANY_CHARACTER;
     }
 
@@ -141,7 +149,7 @@ public abstract class RegexMatcher {
     }
 
     @Override
-    public Kind kind() {
+    Kind kind() {
       return kind;
     }
 
@@ -177,8 +185,7 @@ public abstract class RegexMatcher {
 
   /**
    * {@code \bliteral} or {@code \bliteral\b}: the literal, at a Unicode word boundary. RE2/J has
-   * only ASCII word boundaries, so this case does not use it. It follows the Rust evaluator's
-   * {@code UnicodeWordBoundaryStartsWithAny}.
+   * only ASCII word boundaries, so this case does not use it.
    */
   static final class WordBoundary extends RegexMatcher {
     private final String[] literals;
@@ -190,7 +197,7 @@ public abstract class RegexMatcher {
     }
 
     @Override
-    public Kind kind() {
+    Kind kind() {
       return Kind.WORD_BOUNDARY;
     }
 
@@ -251,7 +258,7 @@ public abstract class RegexMatcher {
     }
 
     @Override
-    public Kind kind() {
+    Kind kind() {
       return Kind.ENGINE;
     }
 
@@ -336,6 +343,18 @@ public abstract class RegexMatcher {
       switch (e) {
         case 'Q':
           throw new PatternSyntaxException("\\Q quoting is not supported", pattern, i);
+        case '<':
+        case '>':
+          // Word boundaries in the Rust crate; RE2/J reads them as the literal characters.
+          throw new PatternSyntaxException("\\< and \\> are not supported", pattern, i);
+        case 'b':
+        case 'B':
+          if (!inClass && i + 2 < pattern.length() && pattern.charAt(i + 2) == '{') {
+            // \b{start} and the like: RE2/J reads {start} as literal text after \b.
+            throw new PatternSyntaxException("\\b{...} is not supported", pattern, i);
+          }
+          out.append('\\').append(e);
+          return i + 2;
         case 'd':
           out.append("\\p{Nd}");
           return i + 2;
@@ -424,6 +443,102 @@ public abstract class RegexMatcher {
       }
       out.append("(?").append(flags).append(pattern.charAt(j));
       return j + 1;
+    }
+  }
+
+  /**
+   * Size limits, checked before RE2/J compiles the pattern. RE2/J unrolls counted repetitions and
+   * compiles recursively, with no limit, so {@code ((a{1000}){1000}){1000}} would exhaust the heap
+   * and deep nesting would overflow the stack. The Rust crate rejects both (its {@code nest_limit}
+   * and {@code size_limit}).
+   */
+  static final class Limits {
+    /**
+     * The deepest group nesting. It is lower than the default {@code nest_limit} of the Rust crate
+     * (250), so that the recursive RE2/J compiler stays well within a small thread stack.
+     */
+    static final int MAX_NESTING = 100;
+
+    /** The most characters that a pattern can have after its counted repetitions are unrolled. */
+    static final long MAX_SIZE = 100_000;
+
+    private Limits() {}
+
+    /**
+     * @throws PatternSyntaxException if the pattern nests too deeply or unrolls to too many
+     *     characters.
+     */
+    static void check(final String original, final String pattern) {
+      // The size of each enclosing group so far, and of the atom that a repetition applies to.
+      final long[] enclosing = new long[MAX_NESTING + 1];
+      int depth = 0;
+      long size = 0;
+      long atom = 0;
+      int i = 0;
+      while (i < pattern.length()) {
+        final char c = pattern.charAt(i);
+        if (c == '\\' && i + 1 < pattern.length()) {
+          i = Lexer.escapeEnd(pattern, i);
+          atom = 1;
+          size++;
+        } else if (c == '[' && Lexer.classEnd(pattern, i) > 0) {
+          i = Lexer.classEnd(pattern, i) + 1;
+          atom = 1;
+          size++;
+        } else if (c == '(') {
+          if (depth == MAX_NESTING) {
+            throw new PatternSyntaxException("the pattern nests too deeply", original, i);
+          }
+          enclosing[depth++] = size;
+          size = 0;
+          atom = 0;
+          i++;
+        } else if (c == ')' && depth > 0) {
+          atom = size + 1;
+          size = enclosing[--depth] + atom;
+          i++;
+        } else if (c == '{' && repeatMax(pattern, i) >= 0) {
+          final long max = repeatMax(pattern, i);
+          size += atom * (max - 1);
+          atom *= max;
+          i = pattern.indexOf('}', i) + 1;
+        } else {
+          atom = 1;
+          size++;
+          i++;
+        }
+        if (size > MAX_SIZE) {
+          throw new PatternSyntaxException("the pattern is too large", original, -1);
+        }
+      }
+    }
+
+    /** For {@code {n}}, {@code {n,}} or {@code {n,m}} at {@code open}: m, or n + 1; else -1. */
+    private static long repeatMax(final String pattern, final int open) {
+      final int close = pattern.indexOf('}', open);
+      if (close < 0) {
+        return -1;
+      }
+      final String body = pattern.substring(open + 1, close);
+      final int comma = body.indexOf(',');
+      final String max = comma < 0 ? body : body.substring(comma + 1);
+      final String min = comma < 0 ? body : body.substring(0, comma);
+      if (!isNumber(min) || !(max.isEmpty() || isNumber(max))) {
+        return -1;
+      }
+      return max.isEmpty() ? Long.parseLong(min) + 1 : Long.parseLong(max);
+    }
+
+    private static boolean isNumber(final String s) {
+      if (s.isEmpty() || s.length() > 4) {
+        return false;
+      }
+      for (int i = 0; i < s.length(); i++) {
+        if (s.charAt(i) < '0' || s.charAt(i) > '9') {
+          return false;
+        }
+      }
+      return true;
     }
   }
 
@@ -536,7 +651,7 @@ public abstract class RegexMatcher {
      * Returns the index after the escape at {@code i}: {@code \p{..}}, {@code \x{..}}, {@code
      * \xHH}, {@code \pX}, octal {@code \NNN}, or one escaped character.
      */
-    private static int escapeEnd(final String pattern, final int i) {
+    static int escapeEnd(final String pattern, final int i) {
       final char e = pattern.charAt(i + 1);
       final int next = i + 2;
       if ((e == 'p' || e == 'P' || e == 'x')
@@ -879,12 +994,12 @@ public abstract class RegexMatcher {
         if (!t.isMeta(')')) {
           break;
         }
+        // The pattern is one balanced branch, so a group opens before this ).
         int open = i - 1;
-        while (open >= 0 && tokens.get(open).type != Token.GROUP) {
+        while (tokens.get(open).type != Token.GROUP) {
           open--;
         }
-        @Nullable
-        final List<String> alternatives = open < 0 ? null : Lexer.alternatives(tokens, open + 1, i);
+        @Nullable final List<String> alternatives = Lexer.alternatives(tokens, open + 1, i);
         if (alternatives == null) {
           break;
         }
