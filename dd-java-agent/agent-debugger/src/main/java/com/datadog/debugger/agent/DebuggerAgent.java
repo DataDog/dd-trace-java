@@ -14,6 +14,7 @@ import com.datadog.debugger.sink.ProbeStatusSink;
 import com.datadog.debugger.sink.SnapshotSink;
 import com.datadog.debugger.sink.SymbolSink;
 import com.datadog.debugger.symbol.AvroFilter;
+import com.datadog.debugger.symbol.JythonFilter;
 import com.datadog.debugger.symbol.ProtoFilter;
 import com.datadog.debugger.symbol.ScopeFilter;
 import com.datadog.debugger.symbol.SymDBEnablement;
@@ -46,6 +47,7 @@ import java.lang.instrument.Instrumentation;
 import java.lang.ref.WeakReference;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.ProtectionDomain;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -232,7 +234,7 @@ public class DebuggerAgent {
     }
     initClassNameFilter();
     List<ScopeFilter> scopeFilters =
-        Arrays.asList(new AvroFilter(), new ProtoFilter(), new WireFilter());
+        Arrays.asList(new AvroFilter(), new ProtoFilter(), new WireFilter(), new JythonFilter());
     SymbolAggregator symbolAggregator =
         new SymbolAggregator(
             classNameFilter,
@@ -412,14 +414,11 @@ public class DebuggerAgent {
 
   private static String getSnapshotEndpoint(
       Config config, DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery) {
-    if (ddAgentFeaturesDiscovery.supportsDebugger()) {
-      String debuggerSnapshotEndpoint = ddAgentFeaturesDiscovery.getDebuggerSnapshotEndpoint();
-      if (debuggerSnapshotEndpoint == null) {
-        throw new IllegalArgumentException("Cannot find snapshot endpoint on datadog agent");
-      }
-      return ddAgentFeaturesDiscovery.buildUrl(debuggerSnapshotEndpoint).toString();
+    String debuggerSnapshotEndpoint = ddAgentFeaturesDiscovery.getDebuggerSnapshotEndpoint();
+    if (debuggerSnapshotEndpoint == null) {
+      return config.getFinalDebuggerSnapshotUrl();
     }
-    return config.getFinalDebuggerSnapshotUrl();
+    return ddAgentFeaturesDiscovery.buildUrl(debuggerSnapshotEndpoint).toString();
   }
 
   private static String getDiagnosticEndpoint(
@@ -438,8 +437,29 @@ public class DebuggerAgent {
       LOGGER.debug("Source file tracking is disabled");
       return;
     }
-    SourceFileTrackingTransformer sourceFileTrackingTransformer =
-        new SourceFileTrackingTransformer(finder);
+    SourceFileTrackingTransformer sourceFileTrackingTransformer;
+    if (Config.get().isDebuggerSynchronousSourceFileTrackingEnabled()) {
+      class SynchronousSourceFileTrackingTransformer extends SourceFileTrackingTransformer {
+        public SynchronousSourceFileTrackingTransformer(ClassesToRetransformFinder finder) {
+          super(finder);
+          this.classNameFilter = new ClassNameFiltering(Config.get());
+        }
+
+        @Override
+        public byte[] transform(
+            ClassLoader loader,
+            String className,
+            Class<?> classBeingRedefined,
+            ProtectionDomain protectionDomain,
+            byte[] classfileBuffer) {
+          registerSourceFile(className, classfileBuffer);
+          return null;
+        }
+      }
+      sourceFileTrackingTransformer = new SynchronousSourceFileTrackingTransformer(finder);
+    } else {
+      sourceFileTrackingTransformer = new SourceFileTrackingTransformer(finder);
+    }
     sourceFileTrackingTransformer.start();
     instrumentation.addTransformer(sourceFileTrackingTransformer);
   }

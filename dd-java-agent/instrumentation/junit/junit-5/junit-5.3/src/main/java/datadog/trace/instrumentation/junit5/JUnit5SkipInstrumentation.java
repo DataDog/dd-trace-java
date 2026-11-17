@@ -15,12 +15,11 @@ import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
-import java.util.Collection;
+import java.util.List;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.junit.platform.engine.TestDescriptor;
-import org.junit.platform.engine.TestTag;
 import org.junit.platform.engine.support.hierarchical.Node;
 import org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService;
 
@@ -52,13 +51,6 @@ public class JUnit5SkipInstrumentation extends InstrumenterModule.CiVisibility
         .and(not(nameStartsWith("io.cucumber")))
         // Spock has a dedicated instrumentation
         .and(not(nameStartsWith("org.spockframework")));
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".JUnitPlatformUtils", packageName + ".TestEventsHandlerHolder",
-    };
   }
 
   @Override
@@ -95,18 +87,16 @@ public class JUnit5SkipInstrumentation extends InstrumenterModule.CiVisibility
       if (test == null) {
         return;
       }
-      SkipReason skipReason = testEventsHandler.skipReason(test);
+      List<String> tags = JUnitPlatformUtils.getTags(testDescriptor);
+      SkipReason skipReason =
+          testEventsHandler.skipReason(
+              test, JUnitPlatformUtils.toTestSourceData(testDescriptor), tags);
       if (skipReason == null) {
         return;
       }
 
-      if (skipReason == SkipReason.ITR) {
-        Collection<TestTag> tags = testDescriptor.getTags();
-        for (TestTag tag : tags) {
-          if (CIConstants.Tags.ITR_UNSKIPPABLE_TAG.equals(tag.getName())) {
-            return;
-          }
-        }
+      if (skipReason == SkipReason.ITR && tags.contains(CIConstants.Tags.ITR_UNSKIPPABLE_TAG)) {
+        return;
       }
 
       skipResult = Node.SkipResult.skip(skipReason.getDescription());

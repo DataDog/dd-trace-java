@@ -1,8 +1,13 @@
 package datadog.trace.instrumentation.springweb;
 
+import static datadog.trace.api.KnownTags.VIEW_NAME;
+import static datadog.trace.api.KnownTags.VIEW_TYPE;
+import static datadog.trace.api.Pair.of;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
 import datadog.context.Context;
+import datadog.trace.api.GenericClassValue;
+import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
@@ -32,6 +37,17 @@ public class SpringWebHttpServerDecorator
       new SpringWebHttpServerDecorator(UTF8BytesString.create("spring-webmvc"));
   public static final String DD_HANDLER_SPAN_PREFIX_KEY = "dd.handler.span.";
   public static final String DD_HANDLER_SPAN_CONTINUE_SUFFIX = ".continue";
+
+  private static final ClassValue<Pair<String, String>> HANDLER_SPAN_KEYS =
+      GenericClassValue.of(type -> {
+        String spanKey = DD_HANDLER_SPAN_PREFIX_KEY + type.getName();
+        return of(spanKey, spanKey + DD_HANDLER_SPAN_CONTINUE_SUFFIX);
+      });
+
+  /** Returns the span attribute key on the left and the continuation attribute key on the right. */
+  public static Pair<String, String> handlerSpanKeys(Class<?> handlerClass) {
+    return HANDLER_SPAN_KEYS.get(handlerClass);
+  }
 
   public SpringWebHttpServerDecorator(CharSequence component) {
     this.component = component;
@@ -141,11 +157,11 @@ public class SpringWebHttpServerDecorator
   public void onRender(final AgentSpan span, final ModelAndView mv) {
     final String viewName = mv.getViewName();
     if (viewName != null) {
-      span.setTag("view.name", viewName);
+      span.setTag(VIEW_NAME, viewName);
       span.setResourceName(viewName);
     }
     if (mv.getView() != null) {
-      span.setTag("view.type", className(mv.getView().getClass()));
+      span.setTag(VIEW_TYPE, className(mv.getView().getClass()));
     }
   }
 }

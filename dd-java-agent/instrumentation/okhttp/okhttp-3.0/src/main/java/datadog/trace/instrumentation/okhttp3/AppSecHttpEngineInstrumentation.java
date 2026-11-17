@@ -29,13 +29,6 @@ public class AppSecHttpEngineInstrumentation extends InstrumenterModule.AppSec
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".AppSecInterceptor",
-    };
-  }
-
-  @Override
   public void methodAdvice(final MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod().and(named("sendRequest")).and(takesArguments(0)),

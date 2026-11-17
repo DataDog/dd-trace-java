@@ -40,13 +40,6 @@ public class InvokerInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".ServletHelper",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         ElementMatchers.isMethod().and(NameMatchers.named("invoke")),

@@ -486,7 +486,7 @@ public class ASMHelper {
             methodNode.desc,
             ex);
         // when running tests, fails if an exception is thrown during analysis
-        // Gradle is running tests with assertions enbabled
+        // Gradle is running tests with assertions enabled
         assert false;
         break;
       }

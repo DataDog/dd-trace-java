@@ -18,6 +18,7 @@ import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.instrumentation.liberty.appsec.LibertyBlockingHelper;
 import java.util.Collection;
 import java.util.List;
 import java.util.function.BiFunction;
@@ -41,7 +42,11 @@ public class GetPartsInstrumentation extends InstrumenterModule.AppSec
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {"datadog.trace.instrumentation.liberty20.PartHelper"};
+    return new String[] {
+      "datadog.trace.instrumentation.liberty20.PartHelper",
+      "datadog.trace.instrumentation.liberty.appsec.LibertyBlockingHelper",
+      "datadog.trace.instrumentation.liberty.appsec.LibertyBlockingHelper$WsByteBufferImpl",
+    };
   }
 
   @Override
@@ -77,8 +82,8 @@ public class GetPartsInstrumentation extends InstrumenterModule.AppSec
         Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
         BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
         if (brf != null) {
-          brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-          if (t == null) {
+          boolean success = LibertyBlockingHelper.tryCommitBlockingResponse(brf, reqCtx, rba);
+          if (success && t == null) {
             t = new BlockingException("Blocked request (multipart file upload)");
             reqCtx.getTraceSegment().effectivelyBlocked();
           }

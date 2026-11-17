@@ -5,6 +5,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.currentContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.pekkohttp.PekkoHttpClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.pekkohttp.PekkoHttpClientDecorator.PEKKO_CLIENT_REQUEST;
 import static datadog.trace.instrumentation.pekkohttp.PekkoHttpClientDecorator.PEKKO_HTTP_CLIENT;
@@ -13,10 +14,10 @@ import static datadog.trace.instrumentation.pekkohttp.PekkoHttpClientHelpers.Pek
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.annotation.AppliesOn;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 import org.apache.pekko.http.scaladsl.HttpExt;
@@ -67,7 +68,7 @@ public final class PekkoHttpSingleRequestInstrumentation extends InstrumenterMod
 
   public static class SingleRequestAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope methodEnter(
+    public static ContextScope methodEnter(
         @Advice.Argument(value = 0, readOnly = false) HttpRequest request) {
       /*
       Versions 10.0 and 10.1 have slightly different structure that is hard to distinguish so here
@@ -90,13 +91,13 @@ public final class PekkoHttpSingleRequestInstrumentation extends InstrumenterMod
     public static void methodExit(
         @Advice.This final HttpExt thiz,
         @Advice.Return final Future<HttpResponse> responseFuture,
-        @Advice.Enter final AgentScope scope,
+        @Advice.Enter final ContextScope scope,
         @Advice.Thrown final Throwable throwable) {
       if (scope == null) {
         return;
       }
 
-      final AgentSpan span = scope.span();
+      final AgentSpan span = spanFromScope(scope);
 
       if (throwable == null) {
         responseFuture.onComplete(new OnCompleteHandler(span), thiz.system().dispatcher());

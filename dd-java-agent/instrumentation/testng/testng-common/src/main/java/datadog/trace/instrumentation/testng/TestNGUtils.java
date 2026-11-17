@@ -251,10 +251,16 @@ public abstract class TestNGUtils {
   }
 
   @Nonnull
+  public static String getTestName(final ITestResult result) {
+    // TestNG 6.9.10 returns empty names for class-level @Test annotations.
+    String testName = result.getName();
+    return testName != null && !testName.isEmpty() ? testName : result.getMethod().getMethodName();
+  }
+
+  @Nonnull
   public static TestIdentifier toTestIdentifier(ITestResult result) {
     String testSuiteName = result.getInstanceName();
-    String testName =
-        (result.getName() != null) ? result.getName() : result.getMethod().getMethodName();
+    String testName = getTestName(result);
     String testParameters = TestNGUtils.getParameters(result);
     return new TestIdentifier(testSuiteName, testName, testParameters);
   }

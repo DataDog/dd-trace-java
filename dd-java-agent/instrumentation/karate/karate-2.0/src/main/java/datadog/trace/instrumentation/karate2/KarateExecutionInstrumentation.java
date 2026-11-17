@@ -47,10 +47,7 @@ public class KarateExecutionInstrumentation extends InstrumenterModule.CiVisibil
       packageName + ".KarateUtils",
       packageName + ".TestEventsHandlerHolder",
       packageName + ".ExecutionContext",
-      packageName + ".KarateTracingListener",
-      packageName + ".KarateScenarioAdvice",
-      packageName + ".KarateScenarioAdvice$RetryAdvice",
-      packageName + ".KarateScenarioAdvice$SuppressErrorAdvice"
+      packageName + ".KarateTracingListener"
     };
   }
 

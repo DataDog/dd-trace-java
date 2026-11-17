@@ -4,7 +4,9 @@ import static datadog.trace.api.config.TracerConfig.TRACE_RATE_LIMIT;
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLE_RATE;
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_RULES;
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_SERVICE_RULES;
+import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
+import static datadog.trace.api.sampling.SamplingMechanism.AGENT_RATE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -50,9 +52,11 @@ public class KnuthSamplingRateTest extends DDCoreJavaSpecification {
     "0.000001 six decimal boundary             | 0.000001        | 0.000001",
     "0.00000051 rounds up                      | 0.00000051      | 0.000001"
   })
-  void updateKnuthSamplingRateFormatsRateCorrectly(String scenario, double rate, String expected) {
+  void probabilitySamplingDecisionFormatsRateCorrectly(
+      String scenario, double rate, String expected) {
     PropagationTags pTags = PropagationTags.factory().empty();
-    pTags.updateKnuthSamplingRate(rate);
+    int priority = rate == 1.0 ? SAMPLER_KEEP : SAMPLER_DROP;
+    pTags.tryUpdateProbabilitySamplingDecision(priority, AGENT_RATE, rate, false, 1L, false);
     Map<String, String> tagMap = pTags.createTagMap();
     assertEquals(expected, tagMap.get("_dd.p.ksr"));
   }

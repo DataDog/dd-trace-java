@@ -20,7 +20,8 @@ public class ExcludeFilter {
     RUNNABLE,
     FORK_JOIN_TASK,
     RUNNABLE_FUTURE,
-    EXECUTOR;
+    EXECUTOR,
+    COMPLETABLE_FUTURE_CALLBACK;
 
     public static ExcludeType fromFieldType(String typeName) {
       switch (typeName) {
@@ -99,6 +100,8 @@ public class ExcludeFilter {
     SKIP_TYPE_PREFIXES
         .get(ExcludeType.EXECUTOR)
         .add("io.netty.util.concurrent.SingleThreadEventExecutor.");
+    // OkHttp's TaskRunner Runnable is a long-lived worker loop, not a single submitted task.
+    SKIP_TYPE_PREFIXES.get(ExcludeType.RUNNABLE).add("okhttp3.internal.concurrent.TaskRunner$");
     // Don't wrap Runnables belonging to NioEventLoop(s) as they want to propagate CloseException
     // outside of the event loop on close() and wrapping them in FutureTask interferes with that
     SKIP_TYPE_PREFIXES.get(ExcludeType.RUNNABLE).add("com.aerospike.client.async.NioEventLoop");

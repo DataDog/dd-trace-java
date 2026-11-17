@@ -265,17 +265,16 @@ class ConcurrentHashtableStaticsTest {
     Thread[] workers = new Thread[threads];
     for (int i = 0; i < threads; i++) {
       workers[i] =
-          new Thread(
-              () -> {
-                ready.countDown();
-                try {
-                  go.await();
-                } catch (InterruptedException ex) {
-                  Thread.currentThread().interrupt();
-                  return;
-                }
-                table.getOrCreateCounting(7, createCount);
-              });
+          new Thread(() -> {
+            ready.countDown();
+            try {
+              go.await();
+            } catch (InterruptedException ex) {
+              Thread.currentThread().interrupt();
+              return;
+            }
+            table.getOrCreateCounting(7, createCount);
+          });
       workers[i].start();
     }
     ready.await();
@@ -301,16 +300,15 @@ class ConcurrentHashtableStaticsTest {
     AtomicBoolean stop = new AtomicBoolean(false);
     AtomicInteger missed = new AtomicInteger();
     Thread reader =
-        new Thread(
-            () -> {
-              while (!stop.get()) {
-                for (int i = 1; i < n; i++) {
-                  if (table.get(i) == null) {
-                    missed.incrementAndGet();
-                  }
-                }
+        new Thread(() -> {
+          while (!stop.get()) {
+            for (int i = 1; i < n; i++) {
+              if (table.get(i) == null) {
+                missed.incrementAndGet();
               }
-            });
+            }
+          }
+        });
     reader.start();
     for (int r = 0; r < 100_000; r++) {
       table.remove(churn);
@@ -329,7 +327,7 @@ class ConcurrentHashtableStaticsTest {
   }
 
   /** Primitive-{@code int}-key entry: no boxing, keyHash is the key itself. */
-  private static final class IntEntry extends ConcurrentHashtable.Entry {
+  private static final class IntEntry extends ConcurrentHashtable.Entry<IntEntry> {
     final int key;
     final int value;
 
@@ -341,6 +339,11 @@ class ConcurrentHashtableStaticsTest {
 
     boolean matches(int key) {
       return this.key == key;
+    }
+
+    @Override
+    public boolean matches(IntEntry other) {
+      return matches(other.key);
     }
   }
 

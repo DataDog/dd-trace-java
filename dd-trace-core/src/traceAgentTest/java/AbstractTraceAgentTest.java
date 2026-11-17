@@ -12,6 +12,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.startupcheck.MinimumDurationRunningStartupCheckStrategy;
+import org.testcontainers.utility.DockerImageName;
 
 abstract class AbstractTraceAgentTest extends DDJavaSpecification {
 
@@ -30,7 +31,8 @@ abstract class AbstractTraceAgentTest extends DDJavaSpecification {
       env.put("DD_HOSTNAME", "doesnotexist");
       env.put("DD_LOGS_STDOUT", "yes");
       agentContainer =
-          new GenericContainer<>("datadog/agent:7.40.1")
+          new GenericContainer<>(
+                  DockerImageName.parse(System.getProperty("test.datadog.agent.image")))
               .withEnv(env)
               .withExposedPorts(DEFAULT_TRACE_AGENT_PORT)
               .withStartupTimeout(Duration.ofSeconds(120))

@@ -16,7 +16,7 @@ public class InstrumentationResult {
     ERROR
   }
 
-  private final Status status;
+  private final Map<ProbeId, Status> probeStatuses;
   private final Map<ProbeId, List<DiagnosticMessage>> diagnostics;
   private final String sourceFileName;
   private final String typeName;
@@ -32,16 +32,21 @@ public class InstrumentationResult {
     public static InstrumentationResult blocked(
         String className, List<ProbeDefinition> definitions, DiagnosticMessage... messages) {
       Map<ProbeId, List<DiagnosticMessage>> diagnostics = new HashMap<>();
-      definitions.forEach(
-          probeDefinition ->
-              diagnostics.put(probeDefinition.getProbeId(), Arrays.asList(messages)));
+      definitions.forEach(probeDefinition ->
+          diagnostics.put(probeDefinition.getProbeId(), Arrays.asList(messages)));
       return new InstrumentationResult(Status.BLOCKED, diagnostics, null, className, null);
     }
   }
 
+  /**
+   * Builds a result for a method instrumented with several probes. The method is considered
+   * installed if at least one probe is installed, while each probe keeps its own status.
+   */
   public InstrumentationResult(
-      Status status, Map<ProbeId, List<DiagnosticMessage>> diagnostics, MethodInfo methodInfo) {
-    this.status = status;
+      Map<ProbeId, Status> probeStatuses,
+      Map<ProbeId, List<DiagnosticMessage>> diagnostics,
+      MethodInfo methodInfo) {
+    this.probeStatuses = probeStatuses;
     this.diagnostics = diagnostics;
     this.sourceFileName = methodInfo.getSourceFileName();
     this.typeName = methodInfo.getTypeName();
@@ -60,7 +65,11 @@ public class InstrumentationResult {
       String sourceFileName,
       String className,
       String methodName) {
-    this.status = status;
+    Map<ProbeId, Status> statuses = new HashMap<>();
+    if (diagnostics != null) {
+      diagnostics.keySet().forEach(probeId -> statuses.put(probeId, status));
+    }
+    this.probeStatuses = statuses;
     this.diagnostics = diagnostics;
     this.sourceFileName = sourceFileName;
     this.typeName = className;
@@ -69,16 +78,25 @@ public class InstrumentationResult {
     this.signature = null;
   }
 
-  public boolean isError() {
-    return status == Status.ERROR;
+  public boolean isAtLeastOneInstalled() {
+    return probeStatuses.containsValue(Status.INSTALLED);
   }
 
-  public boolean isBlocked() {
-    return status == Status.BLOCKED;
+  /** Returns the status of the given probe, or null if not tracked */
+  private Status getStatus(ProbeId probeId) {
+    return probeStatuses.get(probeId);
   }
 
-  public boolean isInstalled() {
-    return status == Status.INSTALLED;
+  public boolean isError(ProbeId probeId) {
+    return getStatus(probeId) == Status.ERROR;
+  }
+
+  public boolean isBlocked(ProbeId probeId) {
+    return getStatus(probeId) == Status.BLOCKED;
+  }
+
+  public boolean isInstalled(ProbeId probeId) {
+    return getStatus(probeId) == Status.INSTALLED;
   }
 
   public Map<ProbeId, List<DiagnosticMessage>> getDiagnostics() {
@@ -110,7 +128,7 @@ public class InstrumentationResult {
   public String toString() {
     return String.format(
         "InstrumentationResult{typeName='%s', methodName='%s', methodStart=%d, signature='%s',"
-            + " sourceFileName='%s', status=%s. diagnostics=%s}",
-        typeName, methodName, methodStart, signature, sourceFileName, status, diagnostics);
+            + " sourceFileName='%s', probeStatuses=%s, diagnostics=%s}",
+        typeName, methodName, methodStart, signature, sourceFileName, probeStatuses, diagnostics);
   }
 }

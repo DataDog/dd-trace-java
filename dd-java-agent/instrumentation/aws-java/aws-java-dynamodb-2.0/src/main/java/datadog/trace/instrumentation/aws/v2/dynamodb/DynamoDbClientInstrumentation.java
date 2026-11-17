@@ -29,11 +29,6 @@ public final class DynamoDbClientInstrumentation extends InstrumenterModule.Trac
         DynamoDbClientInstrumentation.class.getName() + "$AwsDynamoDbBuilderAdvice");
   }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {packageName + ".DynamoDbInterceptor", packageName + ".DynamoDbUtil"};
-  }
-
   public static class AwsDynamoDbBuilderAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void addHandler(@Advice.Return final List<ExecutionInterceptor> interceptors) {

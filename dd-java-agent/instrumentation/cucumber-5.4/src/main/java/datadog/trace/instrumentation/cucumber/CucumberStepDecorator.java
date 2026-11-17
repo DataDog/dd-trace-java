@@ -1,6 +1,8 @@
 package datadog.trace.instrumentation.cucumber;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
+
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
@@ -26,7 +28,7 @@ public class CucumberStepDecorator extends BaseDecorator {
     return "cucumber";
   }
 
-  public AgentScope onStepStart(StepDefinition step, Object[] arguments) {
+  public ContextScope onStepStart(StepDefinition step, Object[] arguments) {
     AgentSpan span = AgentTracer.startSpan("cucumber", "cucumber.step");
     afterStart(span);
 
@@ -41,8 +43,8 @@ public class CucumberStepDecorator extends BaseDecorator {
     return AgentTracer.activateSpan(span);
   }
 
-  public void onStepFinish(AgentScope scope) {
-    AgentSpan span = scope.span();
+  public void onStepFinish(ContextScope scope) {
+    AgentSpan span = spanFromScope(scope);
     beforeFinish(span);
     scope.close();
     span.finish();

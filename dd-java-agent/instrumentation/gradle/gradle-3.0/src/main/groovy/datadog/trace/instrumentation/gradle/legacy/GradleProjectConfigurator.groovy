@@ -35,11 +35,6 @@ import java.util.regex.Pattern
  */
 class GradleProjectConfigurator {
 
-  /*
-   * Each Groovy Closure in here is a separate class.
-   * When adding or removing a closure, be sure to update {@link GradleBuildListenerInstrumentation#helperClassNames()}
-   */
-
   public static final GradleProjectConfigurator INSTANCE = new GradleProjectConfigurator()
 
   private static final String JACOCO_PLUGIN_ID = 'jacoco'

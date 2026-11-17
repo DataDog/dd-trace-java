@@ -15,6 +15,7 @@ import net.spy.memcached.internal.CheckedOperationTimeoutException
 import net.spy.memcached.ops.Operation
 import net.spy.memcached.ops.OperationQueueFactory
 import org.testcontainers.containers.GenericContainer
+import org.testcontainers.utility.DockerImageName
 import spock.lang.Shared
 
 import java.time.Duration
@@ -56,7 +57,7 @@ abstract class SpymemcachedTest extends VersionedNamingTestBase {
   }
 
   def setupSpec() {
-    memcachedContainer = new GenericContainer('library/memcached:1.6.14-alpine')
+    memcachedContainer = new GenericContainer(DockerImageName.parse(System.getProperty('test.memcached.image')))
       .withExposedPorts(defaultMemcachedPort)
       .withStartupTimeout(Duration.ofSeconds(120))
     memcachedContainer.start()

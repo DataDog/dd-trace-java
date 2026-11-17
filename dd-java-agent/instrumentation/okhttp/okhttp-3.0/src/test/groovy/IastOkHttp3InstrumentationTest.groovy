@@ -3,7 +3,6 @@ import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.propagation.CodecModule
 import datadog.trace.api.iast.propagation.PropagationModule
 import datadog.trace.api.iast.sink.SsrfModule
-import datadog.trace.instrumentation.okhttp3.IastHttpUrlInstrumentation
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import spock.lang.AutoCleanup
@@ -15,8 +14,6 @@ class IastOkHttp3InstrumentationTest extends InstrumentationSpecification {
 
   @Override
   protected void configurePreAgent() {
-    // HttpUrl gets loaded early so we have to disable the advice transformer
-    IastHttpUrlInstrumentation.ENABLE_ADVICE_TRANSFORMER = false
     injectSysConfig('dd.iast.enabled', 'true')
     // disable tracer metrics because it uses OkHttp and class loading is
     // not isolated in tests

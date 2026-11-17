@@ -1,13 +1,13 @@
 package datadog.trace.instrumentation.opentelemetry;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.context.ContextScope;
 import datadog.trace.context.TraceScope;
 import io.opentelemetry.context.Scope;
 
 public class OtelScope implements Scope, TraceScope {
-  private final AgentScope delegate;
+  private final ContextScope delegate;
 
-  OtelScope(final AgentScope delegate) {
+  OtelScope(final ContextScope delegate) {
     this.delegate = delegate;
   }
 

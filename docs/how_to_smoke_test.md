@@ -27,6 +27,78 @@ A smoke test is also how you check what an instrumentation does to a running app
 > The two are complements, not alternatives.
 > Use an instrumentation test to pin the hooks and the trace shape, and a smoke test to check the instrumentation works in an application where every other instrumentation is loaded too.
 
+## Scope and continuation diagnostics
+
+The shared JUnit and Spock smoke harnesses enable scope/continuation diagnostics by default.
+Gradle adds a **test-only companion agent**, after the built Datadog agent, to install the same
+lifecycle probes used by instrumentation tests into the application's tracer class loader.
+The production agent artifact and its strict-write configuration are unchanged.
+
+- `SmokeServerApp` and `AbstractServerSmokeTest` record each test's work, including per-test teardown,
+  then allow a bounded cleanup grace period before checking. Server startup and suite shutdown are
+  outside these windows.
+  Continuations captured outside a window remain visible when used during it, but their outstanding
+  holds are not test-owned leaks. Scopes opened during the window must still be closed, and resuming
+  a resolved continuation is a violation even when it was resolved before the window began.
+- `SmokeCliApp` and other legacy `AbstractSmokeTest` applications record from before `main` until
+  exit, or until the harness checks them before stopping a still-running process. This includes
+  first-use static initialization. Concurrent application shutdown hooks are not guaranteed to finish
+  before the diagnostic snapshot. The grace period returns immediately when no incomplete lifecycles
+  are recorded; increasing it does not ensure that later shutdown-hook work is covered. Tests that
+  require cleanup coverage must complete that cleanup before requesting the snapshot.
+
+Smoke diagnostics allow up to 2 seconds for incomplete lifecycles to finish, returning as soon as
+all recorded lifecycles are complete. Set
+`-Ddatadog.smoketest.scopeDiagnostics.quiescenceMillis=5000` on the Gradle invocation to override
+this budget (0–10000 ms). Instrumentation tests retain their 250 ms default. The grace period
+cannot establish completion for an application that keeps producing background work; tests must
+finish their work before requesting a snapshot.
+
+Legacy applications are checked alive before each feature independently of diagnostics. Batch
+fixtures that may finish before a feature must override `expectsProcessAliveBeforeEachTest()` to return
+`false`; skipping diagnostics does not disable the liveness check.
+
+Leaks and invalid lifecycle operations fail the test with a summary and capture/resume/cleanup
+timeline. Reports are kept under `build/reports/scope-diagnostics-*`. Missing or malformed reports
+and failed probe installation fail explicitly; they are not clean results.
+Legacy launchers must preserve `defaultJavaProperties`, including when passing them through an
+environment variable to a shell wrapper. Each child receives its own diagnostic endpoint.
+Launchers that embed JVM options in a file, such as OpenLiberty's `jvm.options`, override
+`replaceScopeDiagnosticsArgument()` to replace the placeholder in that file and report whether it
+was found. Keep the companion after the Datadog agent in the child JVM's options.
+
+Fix the lifecycle or test ownership problem first. A genuinely intermittent failure may be marked
+`@Flaky` with a tracked explanation. A proven diagnostic incompatibility can use
+`.skipScopeContinuationCheck("specific reason")` on the JUnit builder, or override
+`skipScopeContinuationCheckReason()` in Spock. Blank reasons are rejected. Native-image applications
+cannot run this JVM companion; tests intentionally crashing or aborting before it can report also
+need an explicit exception. JUnit `.noAgent()` launches do not install diagnostics.
+Legacy tests deliberately running without the agent need a documented opt-out, as do injection
+guardrail tests where the companion would itself count as an extra agent and change the scenario.
+Disabling error-log checks does not disable this check, and relaxing strict trace writes is not a fix.
+
+To exclude individual checks from enforcement while preserving their recorded findings, use
+`.disableScopeContinuationChecks("specific reason", LEAKED, NEVER_CLOSED)` on the JUnit builder
+(with static imports from `ScopeDiagnosticsCheck`). In Spock, override
+`disabledScopeContinuationChecks()` and `disabledScopeContinuationChecksReason()`. A nonblank
+reason is required, and selective exclusions cannot be combined with a full recording opt-out.
+All other checks retain the instrumentation diagnostic's enforcement policy. Reports distinguish
+enforced, advisory, and excluded findings and retain the full timeline and exclusion reason.
+
+Custom launchers pass the control directory to the companion:
+
+```text
+-javaagent:/path/scope-diagnostics-agent.jar=/path/control
+```
+
+The directory contains a `config` Java properties file with `mode=cli` or `mode=server`.
+Optional `quiescenceMillis=2000` controls the cleanup budget (0–10000 ms).
+Optional `disabledChecks=LEAKED,NEVER_CLOSED` and `reason=known fixture` entries configure exclusions.
+Unknown checks and missing exclusion reasons fail installation. Supported checks are `LEAKED`,
+`LATE_FINISH`, `DOUBLE_FINISH`, `ACTIVATE_AFTER_RESOLVE`, `CLOSE_WRONG_THREAD`, and `NEVER_CLOSED`.
+`ScopeDiagnosticsClient(reportsDirectory, name, cli, reason, checks...)` writes this configuration;
+`javaAgentArgument()` returns the launch argument. Values need no URL encoding.
+
 ## Your first smoke test
 
 A complete smoke test for a small web application serving two endpoints, with one test method per endpoint:
@@ -106,11 +178,11 @@ The backend is reset before every test method, which is why each test can assert
 
 Three system properties matter, and you only supply the last one:
 
-| Property                                 | Set by                                              | Meaning                                                 |
-|------------------------------------------|-----------------------------------------------------|---------------------------------------------------------|
-| `datadog.smoketest.agent.shadowJar.path` | `dd-smoke-tests/build.gradle` (`subprojects` block) | The agent jar attached as `-javaagent`                  |
-| `datadog.smoketest.builddir`             | `dd-smoke-tests/build.gradle` (`subprojects` block) | Module build dir; app logs land in `<builddir>/reports` |
-| `datadog.smoketest.shadowJar.path`       | Your module's `build.gradle`                        | The application fixture to launch                       |
+| Property                                 | Set by                                   | Meaning                                                 |
+|------------------------------------------|------------------------------------------|---------------------------------------------------------|
+| `datadog.smoketest.agent.shadowJar.path` | `dd-trace-java.module.smoke-test` plugin | The agent jar attached as `-javaagent`                  |
+| `datadog.smoketest.builddir`             | `dd-trace-java.module.smoke-test` plugin | Module build dir; app logs land in `<builddir>/reports` |
+| `datadog.smoketest.shadowJar.path`       | Your module's `build.gradle`             | The application fixture to launch                       |
 
 Run it with:
 
@@ -232,6 +304,41 @@ static final TestAgentBackend agent = AgentBackend.testAgentBuilder().retainAcro
 @RegisterExtension
 static final SmokeServerApp sender = /* ... */;
 ```
+
+## Container images
+
+For application containers or dependencies such as RabbitMQ, apply
+`dd-trace-java.testcontainers` and declare the image in the smoke-test module:
+
+```kotlin
+import datadog.buildlogic.testcontainers.image
+
+plugins {
+  id("dd-trace-java.module.smoke-test")
+  id("dd-trace-java.testcontainers")
+}
+
+dependencies {
+  testImplementation("org.testcontainers:rabbitmq:${libs.versions.testcontainers.get()}")
+  testImplementation("org.testcontainers:junit-jupiter:${libs.versions.testcontainers.get()}")
+  testContainerImage(image("rabbitmq:3.12-management-alpine", "test.rabbitmq.image"))
+}
+```
+
+Read the property when creating the container. Annotate the test class with
+`@Testcontainers` so its `@Container` fields are started and stopped automatically:
+
+```java
+@Container
+private static final RabbitMQContainer RABBIT_MQ_CONTAINER =
+    new RabbitMQContainer(
+        DockerImageName.parse(System.getProperty("test.rabbitmq.image"))
+            .asCompatibleSubstituteFor("rabbitmq"));
+```
+
+With this plugin Gradle can now fingerprint the resolved image digest and passes 
+the immutable image to the test. Also, see the [plugin reference](../build-logic/testcontainers/README.md)
+for inheritance and shared configuration examples.
 
 ## Choosing a backend
 
@@ -433,7 +540,7 @@ There are three ways to keep an expected error message from failing the build:
 | `errorLogFilter(predicate)` | Full control over what counts as an error; replaces the allowlist |
 | `skipErrorLogCheck()`       | Apps that are *about* error cases                                 |
 
-Repository-wide known-flaky messages are excluded centrally in [`KnownLogExclusion`](../dd-smoke-tests/src/main/java/datadog/smoketest/KnownLogExclusion.java).
+Repository-wide known-flaky messages are excluded centrally in [`KnownLogExclusion`](../dd-smoke-tests/smoke-test-common/src/main/java/datadog/smoketest/KnownLogExclusion.java).
 
 > [!IMPORTANT]
 > Add to `KnownLogExclusion` only for issues affecting every suite; use `allowedErrorLogs(...)` for a single smoke-test class.
@@ -461,7 +568,7 @@ Repository-wide known-flaky messages are excluded centrally in [`KnownLogExclusi
    }
 
    dependencies {
-     testImplementation project(':dd-smoke-tests')
+     testImplementation project(':dd-smoke-tests:smoke-test-common')
    }
 
    tasks.withType(Test).configureEach {
@@ -483,7 +590,7 @@ Repository-wide known-flaky messages are excluded centrally in [`KnownLogExclusi
 > A fixture that needs a build of its own (a Spring Boot `bootJar`, a Maven project, a native image) is built by a nested build instead of being shaded in place.
 > Apply `dd-trace-java.smoke-test-app`, put the application under `<name>/application`, and declare `smokeTestApp { gradleApp { taskName, artifactPath, sysProperty } }`, or `mavenApp { ... }` for Maven.
 
-The parent `dd-smoke-tests/build.gradle` already passes every subproject the agent jar (`datadog.smoketest.agent.shadowJar.path`) and the build directory (`datadog.smoketest.builddir`), so do not re-declare those two.
+The `dd-trace-java.module.smoke-test` convention supplies the agent jar (`datadog.smoketest.agent.shadowJar.path`) and the module's build directory (`datadog.smoketest.builddir`).
 
 ## Running and debugging
 

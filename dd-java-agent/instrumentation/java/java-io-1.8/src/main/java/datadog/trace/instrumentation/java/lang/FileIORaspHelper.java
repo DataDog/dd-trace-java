@@ -143,8 +143,10 @@ public class FileIORaspHelper {
         BlockResponseFunction brf = ctx.getBlockResponseFunction();
         if (brf != null) {
           Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-          brf.tryCommitBlockingResponse(ctx.getTraceSegment(), rba);
+          brf.tryCommitBlockingResponse(ctx, rba);
         }
+        // Thrown even without a BlockResponseFunction: RASP must abort the LFI attempt even when
+        // no blocking response can be committed.
         throw new BlockingException("Blocked request (for LFI attempt)");
       }
     } catch (final BlockingException e) {

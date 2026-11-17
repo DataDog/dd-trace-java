@@ -114,11 +114,10 @@ class ClientStatsAggregatorBootstrapTest {
                 cycle1.countDown();
                 return null;
               })
-          .doAnswer(
-              invocation -> {
-                cycle2.countDown();
-                return null;
-              })
+          .doAnswer(invocation -> {
+            cycle2.countDown();
+            return null;
+          })
           .when(writer)
           .finishBucket();
 
@@ -181,11 +180,10 @@ class ClientStatsAggregatorBootstrapTest {
                 cycle1.countDown();
                 return null;
               })
-          .doAnswer(
-              invocation -> {
-                cycle2.countDown();
-                return null;
-              })
+          .doAnswer(invocation -> {
+            cycle2.countDown();
+            return null;
+          })
           .when(writer)
           .finishBucket();
 
@@ -254,11 +252,10 @@ class ClientStatsAggregatorBootstrapTest {
                 cycle1.countDown();
                 return null;
               })
-          .doAnswer(
-              invocation -> {
-                cycle2.countDown();
-                return null;
-              })
+          .doAnswer(invocation -> {
+            cycle2.countDown();
+            return null;
+          })
           .when(writer)
           .finishBucket();
 

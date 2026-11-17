@@ -66,7 +66,8 @@ class ClassLoaderMatchersTest extends DDSpecification {
     loaderName << [
       "org.drools.core.rule.PackageClassLoader",
       "org.drools.wiring.dynamic.PackageClassLoader",
-      "org.drools.core.rule.JavaDialectRuntimeData\$PackageClassLoader"
+      "org.drools.core.rule.JavaDialectRuntimeData\$PackageClassLoader",
+      "org.drools.wiring.dynamic.DynamicProjectClassLoader\$DefaultInternalTypesClassLoader"
     ]
   }
 

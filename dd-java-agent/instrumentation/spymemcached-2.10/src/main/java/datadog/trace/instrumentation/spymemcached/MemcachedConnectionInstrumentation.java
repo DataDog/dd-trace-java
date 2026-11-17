@@ -38,13 +38,6 @@ public class MemcachedConnectionInstrumentation extends InstrumenterModule.Traci
     return "net.spy.memcached.MemcachedConnection";
   }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".MemcacheClientDecorator",
-    };
-  }
-
   public static class AddOperationAdvice {
     @Advice.OnMethodEnter
     public static void methodEnter(@Advice.Argument(0) final MemcachedNode node) {

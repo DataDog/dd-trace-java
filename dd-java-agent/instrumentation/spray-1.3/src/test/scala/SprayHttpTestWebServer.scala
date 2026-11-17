@@ -6,6 +6,8 @@ import datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint
 import datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint._
 import datadog.trace.agent.test.base.{HttpServer, HttpServerTest}
 import datadog.trace.agent.test.utils.PortUtils
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
+import datadog.trace.core.DDSpan
 import groovy.lang.Closure
 import spray.can.Http
 import spray.http.HttpHeaders.RawHeader
@@ -50,10 +52,12 @@ class ServiceActor extends HttpServiceActor with ActorLogging {
   def receive = runRoute {
     path(SUCCESS.relativePath()) {
       get { ctx: RequestContext =>
+        val requestSpan = activeSpan().asInstanceOf[DDSpan]
         HttpServerTest.controller(
           SUCCESS,
           new ControllerHttpResponseToClosureAdapter(ctx, SUCCESS)
         )
+        assert(!requestSpan.isFinished, "request finished before the route scope closed")
       }
     } ~
       path(FORWARDED.relativePath()) {

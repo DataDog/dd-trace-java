@@ -1,5 +1,6 @@
 plugins {
   id 'dd-trace-java.module.instrumentation'
+  id 'dd-trace-java.instrumentation.netty-concurrent-tests'
   id 'scala'
 }
 
@@ -65,7 +66,7 @@ repositories {
 }
 
 tasks.withType(ScalaCompile).configureEach {
-  configureCompiler(it, 8)
+  configureCompiler(it, 8, JavaVersion.VERSION_1_8, "Scala compilers here do not run on modern JDKs")
 }
 
 addTestSuiteForDir('latestDepTest', 'test')
@@ -73,6 +74,8 @@ addTestSuiteForDir('latestDepTest', 'test')
 dependencies {
   compileOnly group: 'com.typesafe.play', name: 'play_2.11', version: '2.5.0'
   implementation(project(':dd-java-agent:instrumentation:play:play-appsec-common'))
+
+  testImplementation libs.bundles.mockito
 
   routeGeneratorImplementation libs.scala211
   routeGeneratorImplementation group: 'com.typesafe.play', name: "routes-compiler_2.11", version: '2.5.0'

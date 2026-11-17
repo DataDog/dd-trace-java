@@ -1,6 +1,9 @@
 package datadog.trace.common.writer.ddagent;
 
+import static datadog.trace.api.config.TracerConfig.WRITER_TYPE;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD_MEASURED;
+import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.MULTI_WRITER_TYPE;
+import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.OTLP_WRITER_TYPE;
 import static datadog.trace.common.writer.TraceGenerator.generateRandomTraces;
 import static datadog.trace.common.writer.ddagent.PayloadVerifiers.assertEqualsWithNullAsEmpty;
 import static datadog.trace.common.writer.ddagent.PayloadVerifiers.unpackNumber;
@@ -23,10 +26,12 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.common.writer.Payload;
 import datadog.trace.common.writer.TraceGenerator.PojoSpan;
 import datadog.trace.core.DDSpanContext;
+import datadog.trace.test.junit.utils.config.WithConfig;
 import datadog.trace.test.junit.utils.config.WithConfigExtension;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -63,9 +68,6 @@ class TraceMapperV04PayloadTest {
       if (!packer.format(trace, traceMapper)) {
         verifier.skipLargeTrace();
         tracesFitInBuffer = false;
-        // in the real like the mapper is always reset each trace.
-        // here we need to force it when we fail since the buffer will be reset as well
-        traceMapper.reset();
       }
     }
     packer.flush();
@@ -101,24 +103,7 @@ class TraceMapperV04PayloadTest {
   @MethodSource("fullSixtyFourBitTraceAndSpanIdentifiersArguments")
   void fullSixtyFourBitTraceAndSpanIdentifiers(
       String scenario, DDTraceId traceId, long spanId, long parentId) {
-    PojoSpan span =
-        new PojoSpan(
-            "service",
-            "operation",
-            "resource",
-            traceId,
-            spanId,
-            parentId,
-            123L,
-            456L,
-            0,
-            Collections.emptyMap(),
-            Collections.emptyMap(),
-            "type",
-            false,
-            0,
-            0,
-            "origin");
+    PojoSpan span = plainSpan(traceId, spanId, parentId);
     List<List<PojoSpan>> traces = Collections.singletonList(Collections.singletonList(span));
     TraceMapperV0_4 traceMapper = new TraceMapperV0_4();
     PayloadVerifier verifier = new PayloadVerifier(traces, traceMapper);
@@ -139,24 +124,7 @@ class TraceMapperV04PayloadTest {
 
   @Test
   void metaStructSupport() {
-    PojoSpan span =
-        new PojoSpan(
-            "service",
-            "operation",
-            "resource",
-            DDTraceId.ONE,
-            1L,
-            -1L,
-            123L,
-            456L,
-            0,
-            Collections.emptyMap(),
-            Collections.emptyMap(),
-            "type",
-            false,
-            0,
-            0,
-            "origin");
+    PojoSpan span = plainSpan(1L);
     List<Map<String, String>> stack = new ArrayList<>();
     for (StackTraceElement element : Thread.currentThread().getStackTrace()) {
       Map<String, String> frame = new HashMap<>();
@@ -200,24 +168,7 @@ class TraceMapperV04PayloadTest {
     assertNotNull(ProcessTags.getTagsForSerialization());
     List<PojoSpan> spans = new ArrayList<>();
     for (long spanId = 1; spanId <= 2; ++spanId) {
-      spans.add(
-          new PojoSpan(
-              "service",
-              "operation",
-              "resource",
-              DDTraceId.ONE,
-              spanId,
-              -1L,
-              123L,
-              456L,
-              0,
-              Collections.emptyMap(),
-              Collections.emptyMap(),
-              "type",
-              false,
-              0,
-              0,
-              "origin"));
+      spans.add(plainSpan(spanId));
     }
 
     List<List<PojoSpan>> traces = Collections.singletonList(spans);
@@ -231,6 +182,75 @@ class TraceMapperV04PayloadTest {
     verifier.verifyTracesConsumed();
   }
 
+  /**
+   * v0.4 has no payload-level field, so the export-mode marker rides on the first span of the first
+   * non-empty chunk and the Agent hoists it onto {@code TracerPayload.tags}.
+   */
+  @Test
+  void otlpExportMarkerOnlyOnFirstSpanOfFirstNonEmptyChunk() {
+    List<List<PojoSpan>> traces =
+        Arrays.asList(
+            Collections.emptyList(),
+            Arrays.asList(plainSpan(1), plainSpan(2)),
+            Collections.singletonList(plainSpan(3)));
+    TraceMapperV0_4 traceMapper = new TraceMapperV0_4();
+    PayloadVerifier verifier = new PayloadVerifier(traces, traceMapper);
+    MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(200 << 10, verifier));
+
+    for (List<PojoSpan> trace : traces) {
+      assertTrue(packer.format(trace, traceMapper));
+    }
+    packer.flush();
+
+    verifier.verifyTracesConsumed();
+    // The verifier already asserts exactly one marker per payload, that it sits on span 0 and that
+    // it holds the expected value; pin down *which chunk* it landed on: the first NON-EMPTY one,
+    // not the leading empty one and not a later one.
+    assertEquals(1, verifier.otlpExportTraceIndex());
+  }
+
+  @Test
+  @WithConfig(
+      key = WRITER_TYPE,
+      value = MULTI_WRITER_TYPE + ":" + OTLP_WRITER_TYPE + ",DDAgentWriter")
+  void otlpExportMarkerIsTrueWhenAlsoExportingOverOtlp() {
+    List<List<PojoSpan>> traces =
+        Collections.singletonList(Collections.singletonList(plainSpan(1)));
+    TraceMapperV0_4 traceMapper = new TraceMapperV0_4();
+    PayloadVerifier verifier = new PayloadVerifier(traces, traceMapper).expectOtlpExport("true");
+    MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(200 << 10, verifier));
+
+    packer.format(traces.get(0), traceMapper);
+    packer.flush();
+
+    verifier.verifyTracesConsumed();
+    assertEquals(0, verifier.otlpExportTraceIndex());
+  }
+
+  private static PojoSpan plainSpan(long spanId) {
+    return plainSpan(DDTraceId.ONE, spanId, -1L);
+  }
+
+  private static PojoSpan plainSpan(DDTraceId traceId, long spanId, long parentId) {
+    return new PojoSpan(
+        "service",
+        "operation",
+        "resource",
+        traceId,
+        spanId,
+        parentId,
+        123L,
+        456L,
+        0,
+        Collections.emptyMap(),
+        Collections.emptyMap(),
+        "type",
+        false,
+        0,
+        0,
+        "origin");
+  }
+
   private static final class PayloadVerifier implements ByteBufferConsumer {
 
     private final List<List<PojoSpan>> expectedTraces;
@@ -240,6 +260,16 @@ class TraceMapperV04PayloadTest {
         new PayloadVerifiers.CapturingChannel(200 << 10);
 
     private int position = 0;
+
+    /** Expected value of the payload-scoped {@code _dd.sdk.otlp_export} marker. */
+    private String expectedOtlpExport = "false";
+
+    /**
+     * Payload-spanning index of the chunk the marker was last seen on, or {@code -1} if it was
+     * never seen. The span index within that chunk is not tracked: {@link #accept} already asserts
+     * the marker only ever rides span 0.
+     */
+    private int otlpExportTraceIndex = -1;
 
     private PayloadVerifier(List<List<PojoSpan>> traces, TraceMapperV0_4 mapper) {
       this(traces, mapper, null);
@@ -254,6 +284,16 @@ class TraceMapperV04PayloadTest {
       this.metaStructVerifier = metaStructVerifier;
     }
 
+    /** Sets the expected {@code _dd.sdk.otlp_export} value (defaults to {@code "false"}). */
+    PayloadVerifier expectOtlpExport(String value) {
+      this.expectedOtlpExport = value;
+      return this;
+    }
+
+    int otlpExportTraceIndex() {
+      return otlpExportTraceIndex;
+    }
+
     void skipLargeTrace() {
       ++position;
     }
@@ -264,6 +304,7 @@ class TraceMapperV04PayloadTest {
         return;
       }
       int processTagsCount = 0;
+      int otlpExportCount = 0;
       try {
         Payload payload = mapper.newPayload().withBody(messageCount, buffer);
         payload.writeTo(channel);
@@ -358,6 +399,14 @@ class TraceMapperV04PayloadTest {
                 assertEquals(0, k);
                 assertEquals(ProcessTags.getTagsForSerialization().toString(), entry.getValue());
                 processTagsCount++;
+              } else if (DDTags.SDK_OTLP_EXPORT.equals(entry.getKey())) {
+                // Payload-scoped: only the first span of the first non-empty chunk carries it.
+                otlpExportCount++;
+                assertEquals(0, k);
+                assertEquals(expectedOtlpExport, entry.getValue());
+                // `position` was post-incremented when this trace was picked up, so the current
+                // trace's payload-spanning index is `position - 1`.
+                otlpExportTraceIndex = position - 1;
               } else {
                 Object tag = expectedSpan.getTag(entry.getKey());
                 if (tag != null) {
@@ -389,6 +438,8 @@ class TraceMapperV04PayloadTest {
         channel.resetForWriting();
         assertEquals(
             Config.get().isExperimentalPropagateProcessTagsEnabled() ? 1 : 0, processTagsCount);
+        // exactly one _dd.sdk.otlp_export per payload, never per span
+        assertEquals(1, otlpExportCount);
       }
     }
 

@@ -1,5 +1,6 @@
 package com.datadog.debugger.instrumentation;
 
+import static com.datadog.debugger.instrumentation.ASMHelper.computeFrames;
 import static com.datadog.debugger.instrumentation.ASMHelper.decodeSignature;
 import static com.datadog.debugger.instrumentation.ASMHelper.emitReflectiveCall;
 import static com.datadog.debugger.instrumentation.ASMHelper.ensureSafeClassLoad;
@@ -124,7 +125,7 @@ public class MetricInstrumenter extends Instrumenter {
       case EXIT:
         {
           Map<AbstractInsnNode, Frame<BasicValue>> frames =
-              ASMHelper.computeFrames(classNode.name, methodNode);
+              computeFrames(classNode.name, methodNode);
           processInstructions(frames);
           addFinallyHandler(returnHandlerLabel);
           installFinallyBlocks();
@@ -150,6 +151,57 @@ public class MetricInstrumenter extends Instrumenter {
     }
     InsnList insnList = callMetric(metricProbe, null);
     createFinallyHandler(durationStartLabel, endLabel, wrapTryCatch(insnList));
+  }
+
+  /**
+   * Checks that a metric call can be inserted at the line label. If the line label is in the middle
+   * of an expression, the operand stack is not empty and may hold uninitialized references that
+   * cannot be saved in locals: jumping from the exception handler of {@link
+   * #wrapLineTryCatch(InsnList, LabelNode)} back to the line with an empty stack would fail
+   * verification. The start of a catch handler is accepted, the caught exception on the stack is
+   * handled by {@link #wrapLineTryCatch(InsnList, LabelNode)}.
+   *
+   * @return the reason why the line cannot be instrumented, or null if it can
+   */
+  private String checkLineLabel(
+      LabelNode lineLabel, Map<AbstractInsnNode, Frame<BasicValue>> frames) {
+    if (lineLabel == null || findCatchHandler(lineLabel) != null) {
+      return null;
+    }
+    Frame<BasicValue> frame = frames.get(lineLabel);
+    if (frame == null) {
+      return "operand stack state cannot be computed";
+    }
+    if (frame.getStackSize() > 0) {
+      return "operand stack is not empty, line is probably in the middle of a statement or expression";
+    }
+    return null;
+  }
+
+  /**
+   * Wraps the metric call in a try/catch like {@link #wrapTryCatch(InsnList)}. If the line label is
+   * the start of a catch handler, the caught exception is still on the operand stack. The exception
+   * handler of the try/catch clears the stack, so the exception is saved in a temporary local
+   * before the call and loaded back after it. This keeps the stack empty at both ends of the
+   * try/catch range. Other line labels must have an empty operand stack, see {@link
+   * #checkLineLabel(LabelNode, Map)}.
+   */
+  private InsnList wrapLineTryCatch(InsnList insnList, LabelNode lineLabel) {
+    InsnList wrapped = wrapTryCatch(insnList);
+    if (wrapped == EMPTY_INSN_LIST) {
+      return wrapped;
+    }
+    TryCatchBlockNode catchHandler = findCatchHandler(lineLabel);
+    if (catchHandler == null) {
+      return wrapped;
+    }
+    int exceptionVar = newVar(OBJECT_TYPE);
+    // stack [exception]
+    wrapped.insert(new VarInsnNode(Opcodes.ASTORE, exceptionVar));
+    // stack []
+    wrapped.add(new VarInsnNode(Opcodes.ALOAD, exceptionVar));
+    // stack [exception]
+    return wrapped;
   }
 
   private InsnList wrapTryCatch(InsnList insnList) {
@@ -385,27 +437,47 @@ public class MetricInstrumenter extends Instrumenter {
       reportError("Missing line debug information.");
       return InstrumentationResult.Status.ERROR;
     }
+    // all lines are checked before any insertion: frames are keyed by the original line labels
+    // and a rejected line must not leave the method partially instrumented
+    Map<AbstractInsnNode, Frame<BasicValue>> frames = computeFrames(classNode.name, methodNode);
     for (Where.SourceLine sourceLine : targetLines) {
-      int from = sourceLine.getFrom();
-      int till = sourceLine.getTill();
-      LabelNode beforeLabel = classFileLines.getLineLabel(from);
-      // single line N capture translates to line range (N, N+1)
-      LabelNode afterLabel =
-          classFileLines.getLineLabel(till + (sourceLine.isSingleLine() ? 1 : 0));
+      String error = checkLineLabel(getBeforeLabel(classFileLines, sourceLine), frames);
+      if (error == null && !sourceLine.isSingleLine()) {
+        error = checkLineLabel(getAfterLabel(classFileLines, sourceLine), frames);
+      }
+      if (error != null) {
+        reportError("Cannot instrument line " + sourceLine + ": " + error);
+        return InstrumentationResult.Status.ERROR;
+      }
+    }
+    for (Where.SourceLine sourceLine : targetLines) {
+      LabelNode beforeLabel = getBeforeLabel(classFileLines, sourceLine);
+      LabelNode afterLabel = getAfterLabel(classFileLines, sourceLine);
       if (beforeLabel == null && afterLabel == null) {
         reportError(
             "No line info for " + (sourceLine.isSingleLine() ? "line " : "range ") + sourceLine);
       }
       if (beforeLabel != null) {
-        InsnList insnList = wrapTryCatch(callMetric(metricProbe, beforeLabel));
+        InsnList insnList = wrapLineTryCatch(callMetric(metricProbe, beforeLabel), beforeLabel);
         methodNode.instructions.insertBefore(beforeLabel.getNext(), insnList);
       }
       if (afterLabel != null && !sourceLine.isSingleLine()) {
-        InsnList insnList = wrapTryCatch(callMetric(metricProbe, afterLabel));
+        InsnList insnList = wrapLineTryCatch(callMetric(metricProbe, afterLabel), afterLabel);
         methodNode.instructions.insert(afterLabel, insnList);
       }
     }
     return InstrumentationResult.Status.INSTALLED;
+  }
+
+  private static LabelNode getBeforeLabel(
+      ClassFileLines classFileLines, Where.SourceLine sourceLine) {
+    return classFileLines.getLineLabel(sourceLine.getFrom());
+  }
+
+  private static LabelNode getAfterLabel(
+      ClassFileLines classFileLines, Where.SourceLine sourceLine) {
+    // single line N capture translates to line range (N, N+1)
+    return classFileLines.getLineLabel(sourceLine.getTill() + (sourceLine.isSingleLine() ? 1 : 0));
   }
 
   private static class VisitorResult {

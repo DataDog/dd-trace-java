@@ -118,6 +118,11 @@ public final class SessionState {
     }
   }
 
+  // only used for testing
+  int getTimeInQueueSpanCount() {
+    return timeInQueueSpanCount;
+  }
+
   /** Finishes the given message span when a message from the same session is acknowledged. */
   public void finishOnAcknowledge(AgentSpan span) {
     captureMessageSpan(span);

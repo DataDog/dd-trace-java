@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.servlet5;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasSuperType;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.api.KnownTags.USER_PRINCIPAL;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_RUM_INJECTED;
@@ -17,7 +18,6 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.ClassloaderConfigurationOverrides;
 import datadog.trace.api.Config;
-import datadog.trace.api.DDTags;
 import datadog.trace.api.rum.RumInjector;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -40,15 +40,6 @@ public class JakartaServletInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String hierarchyMarkerType() {
     return "jakarta.servlet.http.HttpServlet";
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".RumHttpServletRequestWrapper",
-      packageName + ".RumHttpServletResponseWrapper",
-      packageName + ".WrappedServletOutputStream",
-    };
   }
 
   @Override
@@ -129,7 +120,7 @@ public class JakartaServletInstrumentation extends InstrumenterModule.Tracing
           (HttpServletRequest) request; // at this point the cast should be safe
       if (Config.get().isServletPrincipalEnabled()
           && httpServletRequest.getUserPrincipal() != null) {
-        span.setTag(DDTags.USER_NAME, httpServletRequest.getUserPrincipal().getName());
+        span.setTag(USER_PRINCIPAL, httpServletRequest.getUserPrincipal().getName());
       }
     }
   }

@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.osgi43;
 import static org.osgi.framework.wiring.BundleRevision.PACKAGE_NAMESPACE;
 
 import java.net.URL;
+import java.util.ConcurrentModificationException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -33,23 +34,28 @@ public final class BundleWiringHelper {
       return resource;
     }
     // not in the bundle, lets check for a direct import of the containing package
-    BundleWiring wiring = (BundleWiring) origin.adapt(BundleWiring.class);
-    if (null != wiring) {
-      List<BundleWire> importWires = wiring.getRequiredWires(PACKAGE_NAMESPACE);
-      if (null != importWires) {
-        int lastSlash = resourceName.lastIndexOf('/');
-        if (lastSlash > 0) {
-          String pkg = resourceName.substring(0, lastSlash).replace('/', '.');
-          for (BundleWire wire : importWires) {
-            if (pkg.equals(wire.getCapability().getAttributes().get(PACKAGE_NAMESPACE))) {
-              // class resource comes from a transitive import - to avoid cost of finding it, and
-              // because classloader matching/probing just checks existence, we return a resource
-              // we know exists to stand-in for the real resource
-              return origin.getEntry("META-INF/MANIFEST.MF");
+    try {
+      BundleWiring wiring = (BundleWiring) origin.adapt(BundleWiring.class);
+      if (null != wiring) {
+        List<BundleWire> importWires = wiring.getRequiredWires(PACKAGE_NAMESPACE);
+        if (null != importWires) {
+          int lastSlash = resourceName.lastIndexOf('/');
+          if (lastSlash > 0) {
+            String pkg = resourceName.substring(0, lastSlash).replace('/', '.');
+            for (BundleWire wire : importWires) {
+              if (pkg.equals(wire.getCapability().getAttributes().get(PACKAGE_NAMESPACE))) {
+                // class resource comes from a transitive import - to avoid cost of finding it, and
+                // because classloader matching/probing just checks existence, we return a resource
+                // we know exists to stand-in for the real resource
+                return origin.getEntry("META-INF/MANIFEST.MF");
+              }
             }
           }
         }
       }
+    } catch (ConcurrentModificationException e) {
+      // wiring changed under us (e.g. a dynamic import was added) - fall back to standard lookup
+      return null;
     }
     return SKIP_REQUEST;
   }

@@ -2,6 +2,7 @@ package datadog.smoketest;
 
 import static datadog.smoketest.backend.AgentBackend.testAgent;
 import static datadog.smoketest.trace.SmokeTraceAssertions.UNORDERED;
+import static datadog.smoketest.trace.SpanEventMatcher.event;
 import static datadog.smoketest.trace.SpanLinkMatcher.toIndex;
 import static datadog.smoketest.trace.SpanMatcher.span;
 import static datadog.smoketest.trace.TraceMatcher.trace;
@@ -46,7 +47,7 @@ class OpenTelemetrySmokeTest {
                 span()
                     .root()
                     .operationName("Application.loadConfiguration")
-                    .tag("events", validates(events -> events.contains("configuration-loaded")))),
+                    .events(event("configuration-loaded"))),
             // The batch trace:
             //   batch-job                        (tracer, server, root)
             //   ├─ Application.splitBatch        (annotated, main thread)

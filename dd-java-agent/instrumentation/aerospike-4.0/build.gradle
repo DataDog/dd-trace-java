@@ -1,9 +1,11 @@
 plugins {
   id 'dd-trace-java.module.instrumentation'
+  id 'dd-trace-java.testcontainers'
 }
 
 muzzle {
   pass {
+    name = 'aerospike-4.0'
     group = 'com.aerospike'
     module = 'aerospike-client'
     versions = "[4,8)"
@@ -13,8 +15,10 @@ muzzle {
 
 addTestSuiteForDir("latestDepTest", "test")
 addTestSuiteForDir("latest7DepTest", "test")
-addTestSuiteExtendingForDir("latestDepForkedTest", "latestDepTest", "test")
-addTestSuiteExtendingForDir("latest7DepForkedTest", "latest7DepTest", "test")
+
+sourceSets.named('latest7DepTest') {
+  java.srcDir 'src/latest7DepTest/java'
+}
 
 tasks.named("latestDepTest", Test) {
   testJvmConstraints {
@@ -22,14 +26,9 @@ tasks.named("latestDepTest", Test) {
   }
 }
 
-tasks.named("latestDepForkedTest", Test) {
-  testJvmConstraints {
-    minJavaVersion = JavaVersion.VERSION_21
-  }
-}
-
 dependencies {
   compileOnly group: 'com.aerospike', name: 'aerospike-client', version: '4.0.0'
+  testContainerImage(image('aerospike:ce-6.2.0.2', 'test.aerospike.image'))
 
   testImplementation group: 'com.aerospike', name: 'aerospike-client', version: '4.0.0'
   testImplementation libs.testcontainers

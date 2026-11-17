@@ -531,6 +531,78 @@ abstract class AbstractSparkListenerTest extends InstrumentationSpecification {
     }
   }
 
+  def "YARN cluster application waits for exit code #exitCode after Spark stops"() {
+    setup:
+    def conf = new SparkConf(false)
+      .set("spark.master", "yarn")
+      .set("spark.submit.deployMode", "cluster")
+    def listener = getTestDatadogSparkListener(conf)
+    listener.onApplicationStart(applicationStartEvent(1000L))
+
+    when:
+    listener.onApplicationEnd(applicationEndEvent(2000L))
+
+    then:
+    TEST_WRITER.empty
+
+    when:
+    listener.finishApplication(3000L, null, exitCode, message)
+
+    then:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          operationName "spark.application"
+          spanType "spark"
+          errored (exitCode != 0)
+          parent()
+          if (exitCode != 0) {
+            assert span.tags["error.type"] == "Spark Application Failed with exit code " + exitCode
+            assert span.tags["error.message"] == message
+          }
+        }
+      }
+    }
+
+    cleanup:
+    listener.finishApplication(3000L, null, exitCode, message)
+
+    where:
+    exitCode | message
+    1        | "User application exited with status 1"
+    0        | null
+  }
+
+  def "application end still finishes spans for #master in #deployMode mode"() {
+    setup:
+    def conf = new SparkConf(false)
+      .set("spark.master", master)
+      .set("spark.submit.deployMode", deployMode)
+    def listener = getTestDatadogSparkListener(conf)
+    listener.onApplicationStart(applicationStartEvent(1000L))
+
+    when:
+    listener.onApplicationEnd(applicationEndEvent(2000L))
+
+    then:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          operationName "spark.application"
+          spanType "spark"
+          errored false
+          parent()
+        }
+      }
+    }
+
+    where:
+    master  | deployMode
+    "yarn"  | "client"
+    "local" | "client"
+    "local" | "cluster"
+  }
+
   def "test SQL analysis failure marks application span as error"() {
     setup:
     def listener = getTestDatadogSparkListener()

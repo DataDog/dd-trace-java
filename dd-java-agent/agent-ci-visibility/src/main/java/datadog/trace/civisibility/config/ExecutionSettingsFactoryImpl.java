@@ -234,19 +234,15 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
         executor.submit(
             () -> getSkippableTests(tracerEnvironment, itrEnabled, skippableTestsError));
     Future<Map<String, Collection<TestFQN>>> flakyTestsFuture =
-        executor.submit(
-            () ->
-                getFlakyTestsByModule(tracerEnvironment, flakyTestRetriesEnabled, flakyTestsError));
+        executor.submit(() ->
+            getFlakyTestsByModule(tracerEnvironment, flakyTestRetriesEnabled, flakyTestsError));
     Future<Map<String, Collection<TestFQN>>> knownTestsFuture =
         executor.submit(
             () -> getKnownTestsByModule(tracerEnvironment, knownTestsRequest, knownTestsError));
     Future<Map<TestSetting, Map<String, Collection<TestFQN>>>> testManagementTestsFuture =
-        executor.submit(
-            () ->
-                getTestManagementTestsByModule(
-                    tracerEnvironment,
-                    testManagementSettings.isEnabled(),
-                    testManagementTestsError));
+        executor.submit(() ->
+            getTestManagementTestsByModule(
+                tracerEnvironment, testManagementSettings.isEnabled(), testManagementTestsError));
     Future<Diff> pullRequestDiffFuture =
         executor.submit(
             () -> getPullRequestDiff(impactedTestsEnabled, settings.getDefaultBranch()));
@@ -275,6 +271,9 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
             knownTestsError.get(),
             testManagementTestsError.get());
 
+    DynamicAutoTestRetrySettings dynamicAutoTestRetrySettings =
+        createDynamicAutoTestRetrySettings(config, settings, flakyTestRetriesEnabled);
+
     Map<String, ExecutionSettings> settingsByModule = new HashMap<>();
     Set<String> moduleNames =
         getModuleNames(
@@ -299,6 +298,7 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
               earlyFlakeDetectionEnabled
                   ? settings.getEarlyFlakeDetectionSettings()
                   : EarlyFlakeDetectionSettings.DEFAULT,
+              dynamicAutoTestRetrySettings,
               testManagementSettings,
               skippableTests.getCorrelationId(),
               skippableTests
@@ -336,6 +336,14 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
       LOGGER.error("Error while obtaining CI Visibility settings", e);
       return CiVisibilitySettings.SETTINGS_REQUEST_ERROR;
     }
+  }
+
+  private static DynamicAutoTestRetrySettings createDynamicAutoTestRetrySettings(
+      Config config, CiVisibilitySettings settings, boolean flakyTestRetriesEnabled) {
+    return DynamicAutoTestRetrySettings.create(
+        config.isCiVisibilityDynamicAtrEnabled() && flakyTestRetriesEnabled,
+        config.getCiVisibilityDynamicAtrBuckets(),
+        settings.getEarlyFlakeDetectionSettings().getExecutionsByDuration());
   }
 
   private boolean isFeatureEnabled(

@@ -194,11 +194,14 @@ public interface TaintedMap extends Iterable<TaintedObject> {
         entry.generation = generation;
       } else {
         int bucketSize = 1;
-        TaintedObject next;
-        while ((next = next(cur)) != null) {
+        while (true) {
           if (cur.positiveHashCode == entry.positiveHashCode && cur.get() == entry.get()) {
             // Duplicate, exit early.
             return;
+          }
+          final TaintedObject next = next(cur);
+          if (next == null) {
+            break;
           }
           bucketSize++;
           cur = next;

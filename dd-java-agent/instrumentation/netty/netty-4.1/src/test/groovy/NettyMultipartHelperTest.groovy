@@ -426,7 +426,7 @@ class NettyMultipartHelperTest extends Specification {
     NettyMultipartHelper.tryBlock(ctx, flow, 'msg')
 
     then:
-    1 * brf.tryCommitBlockingResponse(segment, rba)
+    1 * brf.tryCommitBlockingResponse(ctx, rba)
   }
 
   void 'tryBlock returns null when brf is null despite blocking action'() {

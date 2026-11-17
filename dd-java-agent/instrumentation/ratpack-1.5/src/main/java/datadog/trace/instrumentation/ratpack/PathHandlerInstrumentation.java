@@ -23,13 +23,6 @@ public class PathHandlerInstrumentation extends InstrumenterModule.AppSec
     return "ratpack.path.internal.PathHandler";
   }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".PathBindingPublishingHandler", packageName + ".TokenPathBinderInspector",
-    };
-  }
-
   private static final Reference TOKEN_PATH_BINDER_TOKEN_NAMES =
       new Reference.Builder("ratpack.path.internal.TokenPathBinder")
           .withField(

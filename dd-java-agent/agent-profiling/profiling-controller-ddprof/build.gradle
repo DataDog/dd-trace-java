@@ -1,14 +1,7 @@
 plugins {
+  // Tests load the native profiler selected for the image's libc variant.
+  id 'dd-trace-java.ci-builder-inputs'
   id 'dd-trace-java.module.internal-library'
-  id 'idea'
-}
-
-tracerJava {
-  addSourceSetFor(JavaVersion.VERSION_11) {
-    // By default tests with be compiled for `minJavaVersion` version,
-    // but in this case we would like to avoid this since we would like to run with ZULU8
-    applyForTestSources = false
-  }
 }
 
 testJvmConstraints {
@@ -24,6 +17,10 @@ excludedClassesCoverage += [
   'com.datadog.profiling.controller.ddprof.DatadogProfilerOngoingRecording',
 ]
 
+// TODO: Cover these classes, then remove them from the coverage baseline (APMLP-2263)
+excludedClassesBranchCoverage += ['com.datadog.profiling.controller.ddprof.DatadogProfilerSettings']
+excludedClassesInstructionCoverage += ['com.datadog.profiling.controller.ddprof.DatadogProfilerSettings']
+
 dependencies {
   api libs.slf4j
   api project(':internal-api')
@@ -37,22 +34,9 @@ dependencies {
   testImplementation project(':dd-java-agent:agent-profiling')
 }
 
-/*
- Setup here is as following:
- * We compile with Java11 compiler to get JFR definitions.
- * We specify source/target as Java8 to get code that is loadable on Java8 - JFR defs are Java8 compatible.
- * We force IDEA to treat this as Java11 project with 'idea' plugin below.
- */
 tasks.withType(AbstractCompile).configureEach {
-  configureCompiler(it, 11, JavaVersion.VERSION_1_8)
   // Disable '-processing' because some annotations are not claimed.
   // Disable '-options' because we are compiling for java8 without specifying bootstrap - intentionally.
   // Disable '-path' because we do not have some of the paths seem to be missing.
   options.compilerArgs.addAll(['-Xlint:all,-processing,-options,-path'/*, '-Werror'*/])
-}
-
-idea {
-  module {
-    jdkName = '11'
-  }
 }

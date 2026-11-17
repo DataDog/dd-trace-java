@@ -43,13 +43,6 @@ public class MarshallingDirectivesInstrumentation extends InstrumenterModule.Ias
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".helpers.TaintUnmarshaller",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()

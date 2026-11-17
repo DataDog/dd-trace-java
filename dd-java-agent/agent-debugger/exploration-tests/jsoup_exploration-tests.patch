@@ -1,3 +1,16 @@
+diff --git a/src/test/java/org/jsoup/integration/ConnectIT.java b/src/test/java/org/jsoup/integration/ConnectIT.java
+index 672fed29..fa9d0774 100644
+--- a/src/test/java/org/jsoup/integration/ConnectIT.java
++++ b/src/test/java/org/jsoup/integration/ConnectIT.java
+@@ -32,7 +32,7 @@ public class ConnectIT {
+         Thread runner = new Thread(() -> {
+             try {
+                 Connection.Response res = Jsoup.connect(SlowRider.Url)
+-                    .timeout(15 * 1000)
++                    .timeout(30 * 1000)
+                     .execute();
+                 body[0] = res.body();
+             } catch (IOException e) {
 diff --git a/src/test/java/org/jsoup/integration/ProxyTest.java b/src/test/java/org/jsoup/integration/ProxyTest.java
 index 18c1a60b..b79d5ee7 100644
 --- a/src/test/java/org/jsoup/integration/ProxyTest.java

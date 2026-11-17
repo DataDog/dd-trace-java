@@ -9,12 +9,11 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import datadog.context.ContextScope;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.test.junit.utils.config.WithConfig;
 import gw.internal.xml.ws.AsyncResponseImpl;
 import gw.internal.xml.ws.UnrelatedWorker;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 
-@WithConfig(key = "integration.guidewire.enabled", value = "true")
 class WsiAsyncResponseInstrumentationTest extends AbstractInstrumentationTest {
 
   @FunctionalInterface
@@ -98,13 +97,18 @@ class WsiAsyncResponseInstrumentationTest extends AbstractInstrumentationTest {
   }
 
   @Test
-  void workerConstructedButNeverRunDoesNotCorruptLaterTraces() throws Exception {
-    // Constructed under an active span but never run: capture happens but is never activated.
-    // Guards that the stranded continuation does not mis-attribute a later, unrelated trace.
-    runUnderTrace("outer", () -> new AsyncResponseImpl());
-    runUnderTrace("independent", () -> {});
+  void delayedWorkerDoesNotCorruptInterveningTrace() throws Exception {
+    AtomicReference<AsyncResponseImpl> response = new AtomicReference<>();
 
-    // 'independent' is a clean, standalone root regardless of the stranded continuation.
-    assertTraces(trace(span().root().operationName("independent")));
+    runUnderTrace("outer", () -> response.set(new AsyncResponseImpl()));
+    runUnderTrace("independent", () -> {});
+    response.get().invokeSync();
+
+    assertTraces(
+        trace(
+            SORT_BY_START_TIME,
+            span().root().operationName("outer"),
+            span().childOfPrevious().operationName("soap.call")),
+        trace(span().root().operationName("independent")));
   }
 }

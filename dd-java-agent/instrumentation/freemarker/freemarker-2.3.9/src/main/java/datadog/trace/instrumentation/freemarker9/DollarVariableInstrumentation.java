@@ -46,11 +46,6 @@ public class DollarVariableInstrumentation extends InstrumenterModule.Iast
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {FREEMARKER_CORE + ".DollarVariable2_3_9Helper"};
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("accept")
@@ -73,6 +68,9 @@ public class DollarVariableInstrumentation extends InstrumenterModule.Iast
         return;
       }
       String charSec = DollarVariable2_3_9Helper.fetchCharSec(self, environment);
+      if (charSec == null) {
+        return;
+      }
       final String templateName = environment.getTemplate().getName();
       final int line = DollarVariable2_3_9Helper.fetchBeginLine(self);
       xssModule.onXss(charSec, templateName, line);

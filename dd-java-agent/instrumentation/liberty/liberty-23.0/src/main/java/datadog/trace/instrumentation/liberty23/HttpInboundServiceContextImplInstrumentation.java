@@ -16,6 +16,7 @@ import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.instrumentation.liberty.appsec.LibertyBlockingHelper;
 import java.util.Collections;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -28,6 +29,14 @@ public class HttpInboundServiceContextImplInstrumentation extends InstrumenterMo
 
   public HttpInboundServiceContextImplInstrumentation() {
     super("liberty");
+  }
+
+  @Override
+  public String[] helperClassNames() {
+    return new String[] {
+      "datadog.trace.instrumentation.liberty.appsec.LibertyBlockingHelper",
+      "datadog.trace.instrumentation.liberty.appsec.LibertyBlockingHelper$WsByteBufferImpl",
+    };
   }
 
   @Override
@@ -50,14 +59,6 @@ public class HttpInboundServiceContextImplInstrumentation extends InstrumenterMo
   @Override
   public String instrumentedType() {
     return "com.ibm.ws.http.channel.internal.inbound.HttpInboundServiceContextImpl";
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".LibertyBlockingHelper",
-      packageName + ".LibertyBlockingHelper$WsByteBufferImpl",
-    };
   }
 
   /**

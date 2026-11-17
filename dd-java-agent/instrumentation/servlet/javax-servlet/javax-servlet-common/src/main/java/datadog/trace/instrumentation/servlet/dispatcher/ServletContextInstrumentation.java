@@ -55,6 +55,10 @@ public final class ServletContextInstrumentation extends InstrumenterModule.Trac
     public static void saveTarget(
         @Advice.Argument(0) final String target,
         @Advice.Return final RequestDispatcher dispatcher) {
+      if (dispatcher == null) {
+        // containers return no dispatcher for an unknown path or servlet name
+        return;
+      }
       InstrumentationContext.get(RequestDispatcher.class, String.class).put(dispatcher, target);
     }
   }

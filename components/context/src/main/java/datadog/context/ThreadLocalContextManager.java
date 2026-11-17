@@ -43,8 +43,8 @@ final class ThreadLocalContextManager implements ContextManager {
     holder.current = context;
     notifyUpdate(listeners, beforeAttach, context);
     return continuation == null
-        ? new ContextScopeImpl(context, holder, beforeAttach)
-        : new ResumedScopeImpl(context, holder, beforeAttach, continuation);
+        ? new ContextScopeImpl(context, beforeAttach)
+        : new ResumedScopeImpl(context, beforeAttach, continuation);
   }
 
   @Override
@@ -117,16 +117,12 @@ final class ThreadLocalContextManager implements ContextManager {
   }
 
   private static class ContextScopeImpl implements ContextScope {
-
     private final Context context;
-    private final ContextHolder holder;
     private final Context beforeAttach;
-
     private boolean closed;
 
-    ContextScopeImpl(Context context, ContextHolder holder, Context beforeAttach) {
+    ContextScopeImpl(Context context, Context beforeAttach) {
       this.context = context;
-      this.holder = holder;
       this.beforeAttach = beforeAttach;
     }
 
@@ -137,11 +133,14 @@ final class ThreadLocalContextManager implements ContextManager {
 
     @Override
     public void close() {
-      // check for out-of-order close to avoid corrupting the current state
-      if (!closed && context == holder.current) {
-        holder.current = beforeAttach;
-        notifyUpdate(INSTANCE.listeners, context, beforeAttach);
-        closed = true;
+      if (!closed) {
+        ContextHolder holder = CONTEXT_HOLDER.get();
+        // check for out-of-order close to avoid corrupting the current state
+        if (context == holder.current) {
+          holder.current = beforeAttach;
+          notifyUpdate(INSTANCE.listeners, context, beforeAttach);
+          closed = true;
+        }
       }
     }
   }
@@ -150,11 +149,8 @@ final class ThreadLocalContextManager implements ContextManager {
     @Nullable private ContextContinuationImpl continuation;
 
     ResumedScopeImpl(
-        Context context,
-        ContextHolder holder,
-        Context beforeAttach,
-        @Nullable ContextContinuationImpl continuation) {
-      super(context, holder, beforeAttach);
+        Context context, Context beforeAttach, @Nullable ContextContinuationImpl continuation) {
+      super(context, beforeAttach);
       this.continuation = continuation;
     }
 
@@ -170,7 +166,6 @@ final class ThreadLocalContextManager implements ContextManager {
   }
 
   private static final class ContextContinuationImpl implements ContextContinuation, ContextScope {
-
     private static final AtomicIntegerFieldUpdater<ContextContinuationImpl> COUNT =
         AtomicIntegerFieldUpdater.newUpdater(ContextContinuationImpl.class, "count");
 

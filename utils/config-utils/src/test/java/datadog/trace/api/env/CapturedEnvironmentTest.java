@@ -1,5 +1,6 @@
 package datadog.trace.api.env;
 
+import static datadog.trace.test.util.ForkedTestUtils.childJvmArguments;
 import static java.io.File.separator;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -37,6 +38,7 @@ public class CapturedEnvironmentTest {
     // Build the command to run a new Java process
     List<String> command = new ArrayList<>();
     command.add(System.getProperty("java.home") + separator + "bin" + separator + "java");
+    command.addAll(childJvmArguments());
     command.add("-cp");
     command.add(System.getProperty("java.class.path"));
     command.add(ServiceNamePrinter.class.getName());
@@ -74,14 +76,13 @@ public class CapturedEnvironmentTest {
     int exitCode = process.waitFor();
     // Dumping state on error
     if (exitCode != 0) {
-      System.out.println(
-          "Error printing service name. Exit code "
+      throw new IllegalStateException(
+          "Process should exit without error, but exited with code "
               + exitCode
-              + " with service name: '"
+              + " with service name '"
               + serviceName
-              + "' and error:\n"
+              + "' and stderr:\n"
               + error);
-      throw new IllegalStateException("Process should exit without error");
     }
     return serviceName;
   }

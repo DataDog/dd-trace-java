@@ -17,6 +17,17 @@ class PlayServerTest extends AbstractPlayServerTest {
     true
   }
 
+  @Override
+  boolean testBlockFailure() {
+    true
+  }
+
+  @Override
+  BlockFailureVariant blockFailureVariant() {
+    // play publishes the blocking path params callback from PathExtractionHelpers
+    BlockFailureVariant.PATH_PARAMS
+  }
+
   def 'test instrumentation gateway xml request body'() {
     setup:
     def request = request(

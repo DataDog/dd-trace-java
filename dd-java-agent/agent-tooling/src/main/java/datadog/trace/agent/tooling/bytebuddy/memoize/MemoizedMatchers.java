@@ -7,7 +7,7 @@ import static datadog.trace.agent.tooling.bytebuddy.memoize.Memoizer.MatcherKind
 import static datadog.trace.agent.tooling.bytebuddy.memoize.Memoizer.MatcherKind.INTERFACE;
 import static datadog.trace.agent.tooling.bytebuddy.memoize.Memoizer.MatcherKind.METHOD;
 import static datadog.trace.agent.tooling.bytebuddy.memoize.Memoizer.MatcherKind.TYPE;
-import static datadog.trace.bootstrap.FieldBackedContextStores.getContextStoreId;
+import static datadog.trace.bootstrap.ContextStores.getContextStoreId;
 
 import datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;

@@ -53,7 +53,7 @@ class ReferenceMatcherTest extends DDSpecification {
 
   def "match safe classpaths"() {
     setup:
-    Reference[] refs = ReferenceCreator.createReferencesFrom(MethodBodyAdvice.getName(), testClasspath).values().toArray(new Reference[0])
+    Reference[] refs = ReferenceCreatorTestSupport.referencesFrom(MethodBodyAdvice).values().toArray(new Reference[0])
     ReferenceMatcher refMatcher = new ReferenceMatcher(refs)
 
     expect:

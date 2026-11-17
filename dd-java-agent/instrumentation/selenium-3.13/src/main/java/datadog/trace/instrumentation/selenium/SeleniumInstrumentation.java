@@ -36,13 +36,6 @@ public class SeleniumInstrumentation extends InstrumenterModule.CiVisibility
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".SeleniumUtils", packageName + ".SeleniumTestListener",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isConstructor(), SeleniumInstrumentation.class.getName() + "$InjectTestListener");

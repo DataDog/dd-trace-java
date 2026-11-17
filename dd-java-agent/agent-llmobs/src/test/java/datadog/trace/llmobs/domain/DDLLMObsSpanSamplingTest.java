@@ -2,10 +2,10 @@ package datadog.trace.llmobs.domain;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.TracerInstaller;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.llmobs.LLMObsSampler;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -82,7 +82,7 @@ class DDLLMObsSpanSamplingTest {
       AgentSpan rootSpan = spanOf(root);
       // Inheritance is gated on the two spans sharing an APM trace, so the root's APM span has to
       // be active for the child to be started under it.
-      try (AgentScope ignored = AgentTracer.activateSpan(rootSpan)) {
+      try (ContextScope ignored = AgentTracer.activateSpan(rootSpan)) {
         DDLLMObsSpan child = newSpan(new LLMObsSampler(0.0));
         try {
           AgentSpan childSpan = spanOf(child);
@@ -106,7 +106,7 @@ class DDLLMObsSpanSamplingTest {
     // is an unambiguous signal, so a child never mistakes an inherited drop for being a root.
     DDLLMObsSpan root = newSpan(new LLMObsSampler(0.0));
     try {
-      try (AgentScope ignored = AgentTracer.activateSpan(spanOf(root))) {
+      try (ContextScope ignored = AgentTracer.activateSpan(spanOf(root))) {
         DDLLMObsSpan child = newSpan(new LLMObsSampler(1.0));
         try {
           AgentSpan childSpan = spanOf(child);

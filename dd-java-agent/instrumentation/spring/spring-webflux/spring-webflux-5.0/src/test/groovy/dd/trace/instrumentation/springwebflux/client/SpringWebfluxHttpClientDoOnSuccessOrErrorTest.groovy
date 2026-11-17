@@ -29,7 +29,7 @@ abstract class SpringWebfluxHttpClientDoOnSuccessOrErrorTest extends SpringWebfl
 
     check()
 
-    response.statusCode().value()
+    consumeResponse(response)
   }
 
   @Override

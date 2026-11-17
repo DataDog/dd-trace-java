@@ -6,6 +6,8 @@ import static java.util.Collections.unmodifiableMap;
 
 import com.squareup.moshi.Json;
 import datadog.trace.test.agent.decoder.DecodedSpan;
+import datadog.trace.test.agent.decoder.DecodedSpanEvent;
+import datadog.trace.test.agent.decoder.DecodedSpanEvents;
 import datadog.trace.test.agent.decoder.DecodedSpanLink;
 import datadog.trace.test.agent.decoder.DecodedSpanLinks;
 import java.util.ArrayList;
@@ -56,6 +58,14 @@ public final class SpanJson implements DecodedSpan {
   // Decoded from span links meta tag or #spanLinks
   // transient so Moshi does not try to decode it
   transient List<DecodedSpanLink> links;
+
+  // Ony present in V1 payload. Decoded from meta by #resolveEvents otherwise
+  @Json(name = "span_events")
+  List<SpanEventJson> spanEvents;
+
+  // Decoded from span events meta tag or #spanEvents
+  // transient so Moshi does not try to decode it
+  transient List<DecodedSpanEvent> events;
 
   @Override
   public String getService() {
@@ -127,6 +137,11 @@ public final class SpanJson implements DecodedSpan {
     return this.links;
   }
 
+  @Override
+  public List<DecodedSpanEvent> getEvents() {
+    return this.events;
+  }
+
   /**
    * Decodes the span links, from the {@code span_links} field when the agent filled it (the tracer
    * submitted a {@code v1.0} payload) and from the meta tag otherwise.
@@ -144,6 +159,25 @@ public final class SpanJson implements DecodedSpan {
       decoded.add(spanLink.toDecodedSpanLink());
     }
     this.links = unmodifiableList(decoded);
+  }
+
+  /**
+   * Decodes the span events, from the {@code span_events} field when the agent filled it (the
+   * tracer submitted a {@code v1.0} payload) and from the meta tag otherwise.
+   */
+  void resolveEvents() {
+    if (this.spanEvents == null) {
+      this.events = DecodedSpanEvents.fromMeta(getMeta());
+      return;
+    }
+    List<DecodedSpanEvent> decoded = new ArrayList<>(this.spanEvents.size());
+    for (SpanEventJson spanEvent : this.spanEvents) {
+      if (spanEvent == null) {
+        throw new IllegalStateException("Malformed span_events with a null event: " + this);
+      }
+      decoded.add(spanEvent.toDecodedSpanEvent());
+    }
+    this.events = unmodifiableList(decoded);
   }
 
   @Override

@@ -1,25 +1,42 @@
 package datadog.trace.common.writer;
 
+import static datadog.trace.api.config.GeneralConfig.TRACE_STATS_COMPUTATION_ENABLED;
+import static datadog.trace.api.config.OtlpConfig.OTEL_TRACES_SPAN_METRICS_ENABLED;
+import static datadog.trace.api.config.OtlpConfig.TRACE_OTEL_EXPORTER;
 import static datadog.trace.api.config.TracerConfig.PRIORITIZATION_TYPE;
+import static datadog.trace.api.config.TracerConfig.WRITER_TYPE;
+import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectSysConfig;
 import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
+import datadog.trace.agent.test.server.http.JavaTestHttpServer;
 import datadog.trace.api.Config;
 import datadog.trace.api.config.OtlpConfig;
 import datadog.trace.api.intake.TrackType;
+import datadog.trace.common.metrics.ClientStatsAggregator;
+import datadog.trace.common.metrics.MetricsAggregator;
+import datadog.trace.common.metrics.MetricsAggregatorFactory;
+import datadog.trace.common.metrics.NoOpMetricsAggregator;
+import datadog.trace.common.sampling.RateByServiceTraceSampler;
 import datadog.trace.common.sampling.Sampler;
+import datadog.trace.common.writer.ddagent.DDAgentApi;
 import datadog.trace.common.writer.ddagent.Prioritization;
+import datadog.trace.common.writer.ddagent.TraceMapperV0_4;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.test.util.DDJavaSpecification;
 import java.lang.reflect.Field;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -34,6 +51,7 @@ import okhttp3.Protocol;
 import okhttp3.Request;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
+import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
 class WriterFactoryTest extends DDJavaSpecification {
@@ -91,12 +109,11 @@ class WriterFactoryTest extends DDJavaSpecification {
     Call mockCall = mock(Call.class);
     OkHttpClient mockHttpClient = mock(OkHttpClient.class);
     when(mockCall.execute())
-        .thenAnswer(
-            inv -> {
-              // Add a delay
-              Thread.sleep(400);
-              return response;
-            });
+        .thenAnswer(inv -> {
+          // Add a delay
+          Thread.sleep(400);
+          return response;
+        });
     when(mockHttpClient.newCall(any(Request.class))).thenReturn(mockCall);
 
     // Create SharedCommunicationObjects with mocked HTTP client
@@ -172,12 +189,11 @@ class WriterFactoryTest extends DDJavaSpecification {
     Call mockCall = mock(Call.class);
     OkHttpClient mockHttpClient = mock(OkHttpClient.class);
     when(mockCall.execute())
-        .thenAnswer(
-            inv -> {
-              // Add a delay
-              Thread.sleep(400);
-              return response;
-            });
+        .thenAnswer(inv -> {
+          // Add a delay
+          Thread.sleep(400);
+          return response;
+        });
     when(mockHttpClient.newCall(any(Request.class))).thenReturn(mockCall);
 
     // Create SharedCommunicationObjects with mocked HTTP client
@@ -193,16 +209,15 @@ class WriterFactoryTest extends DDJavaSpecification {
     List<Class<?>> llmObsApiClasses =
         ((RemoteWriter) writer)
             .getApis().stream()
-                .filter(
-                    api -> {
-                      try {
-                        Field trackTypeField = api.getClass().getDeclaredField("trackType");
-                        trackTypeField.setAccessible(true);
-                        return trackTypeField.get(api) == TrackType.LLMOBS;
-                      } catch (Exception e) {
-                        return false;
-                      }
-                    })
+                .filter(api -> {
+                  try {
+                    Field trackTypeField = api.getClass().getDeclaredField("trackType");
+                    trackTypeField.setAccessible(true);
+                    return trackTypeField.get(api) == TrackType.LLMOBS;
+                  } catch (Exception e) {
+                    return false;
+                  }
+                })
                 .map(Object::getClass)
                 .collect(Collectors.toList());
 
@@ -247,6 +262,174 @@ class WriterFactoryTest extends DDJavaSpecification {
     assertEquals(expectedGzip, readField(sender, "gzip"));
 
     writer.close();
+  }
+
+  @TableTest({
+    "scenario                 | exporter | writerType                             | nativeMetrics | spanMetrics | agentSupportsMetrics | statsWriter | agentWriter",
+    "native default           |          |                                        | true          | false       | true                 | native      | true       ",
+    "native disabled          |          |                                        | false         | false       | true                 | none        | true       ",
+    "agent without stats      |          |                                        | true          | false       | false                | native      | true       ",
+    "OTLP default             | otlp     |                                        | true          | false       | true                 | none        | false      ",
+    "native override          | otlp     | DDAgentWriter                          | true          | false       | true                 | native      | true       ",
+    "native override disabled | otlp     | DDAgentWriter                          | false         | false       | true                 | none        | true       ",
+    "OTLP writer override     |          | OtlpWriter                             | true          | false       | true                 | none        | false      ",
+    "mixed default exporter   |          | 'MultiWriter:DDAgentWriter,OtlpWriter' | true          | false       | true                 | native      | true       ",
+    "mixed OTLP exporter      | otlp     | 'MultiWriter:OtlpWriter,DDAgentWriter' | true          | false       | true                 | native      | true       ",
+    "mixed native disabled    | otlp     | 'MultiWriter:OtlpWriter,DDAgentWriter' | false         | false       | true                 | none        | true       ",
+    "mixed no native writer   | otlp     | 'MultiWriter:OtlpWriter,LoggingWriter' | true          | false       | true                 | none        | false      ",
+    "logging writer           |          | LoggingWriter                          | true          | false       | true                 | none        | false      ",
+    "unknown writer fallback  | otlp     | unknown                                | true          | false       | true                 | native      | true       ",
+    "OTLP stats opt-in        | otlp     |                                        | true          | true        | true                 | otlp        | false      ",
+    "mixed OTLP stats opt-in  | otlp     | 'MultiWriter:OtlpWriter,DDAgentWriter' | true          | true        | true                 | otlp        | true       ",
+    "OTLP stats native off    | otlp     | DDAgentWriter                          | false         | true        | false                | otlp        | true       "
+  })
+  void statsAggregatorMatchesAgentHeader(
+      String exporter,
+      String writerType,
+      boolean nativeMetrics,
+      boolean spanMetrics,
+      boolean agentSupportsMetrics,
+      String statsWriter,
+      boolean agentWriter)
+      throws Exception {
+    if (exporter != null) injectSysConfig(TRACE_OTEL_EXPORTER, exporter);
+    if (writerType != null) injectSysConfig(WRITER_TYPE, writerType);
+    injectSysConfig(TRACE_STATS_COMPUTATION_ENABLED, Boolean.toString(nativeMetrics));
+    injectSysConfig(OTEL_TRACES_SPAN_METRICS_ENABLED, Boolean.toString(spanMetrics));
+    Config config = Config.get();
+
+    try (JavaTestHttpServer agent = tracesAgent()) {
+      DDAgentFeaturesDiscovery discovery = mock(DDAgentFeaturesDiscovery.class);
+      when(discovery.getTraceEndpoint()).thenReturn("v0.4/traces");
+      when(discovery.supportsMetrics()).thenReturn(agentSupportsMetrics);
+      SharedCommunicationObjects comm = new SharedCommunicationObjects();
+      comm.agentUrl = HttpUrl.get(agent.getAddress().toString());
+      comm.setFeaturesDiscovery(discovery);
+      comm.createRemaining(config);
+
+      MetricsAggregator aggregator =
+          MetricsAggregatorFactory.createMetricsAggregator(config, comm, HealthMetrics.NO_OP);
+      try (Writer writer =
+          WriterFactory.createWriter(
+              config, comm, mock(Sampler.class), null, HealthMetrics.NO_OP)) {
+        if ("none".equals(statsWriter)) {
+          assertInstanceOf(NoOpMetricsAggregator.class, aggregator);
+        } else {
+          assertEquals(
+              "otlp".equals(statsWriter),
+              readField(
+                  assertInstanceOf(ClientStatsAggregator.class, aggregator),
+                  "otlpStatsExportEnabled"));
+        }
+        Writer[] writers =
+            writer instanceof MultiWriter
+                ? (Writer[]) readField(writer, "writers")
+                : new Writer[] {writer};
+        boolean sentToAgent = false;
+        for (Writer child : writers) {
+          if (child instanceof DDAgentWriter) {
+            assertTrue(onlyApi(child).sendSerializedTraces(emptyV04Payload()).success());
+            assertEquals(
+                "otlp".equals(statsWriter)
+                    || ("native".equals(statsWriter) && agentSupportsMetrics),
+                "true"
+                    .equals(
+                        agent.getLastRequest().getHeaders().get("Datadog-Client-Computed-Stats")));
+            sentToAgent = true;
+          }
+        }
+        assertEquals(agentWriter, sentToAgent);
+      } finally {
+        aggregator.close();
+      }
+    }
+  }
+
+  @Test
+  void registersAgentSamplerAsResponseListener() throws Exception {
+    try (JavaTestHttpServer agent = tracesAgent()) {
+      RateByServiceTraceSampler agentRateSampler = mock(RateByServiceTraceSampler.class);
+      Sampler sampler = mock(Sampler.class);
+      when(sampler.agentSampler()).thenReturn(agentRateSampler);
+
+      try (Writer writer = createDDAgentWriter(agent, sampler)) {
+        DDAgentApi api = onlyApi(writer);
+        api.sendSerializedTraces(emptyV04Payload());
+
+        verify(agentRateSampler).onResponse(anyString(), any());
+      }
+    }
+  }
+
+  @Test
+  void registersCustomSamplerImplementingRemoteResponseListener() throws Exception {
+    try (JavaTestHttpServer agent = tracesAgent()) {
+      CustomListenerSampler sampler = mock(CustomListenerSampler.class);
+      when(sampler.agentSampler()).thenReturn(null);
+
+      try (Writer writer = createDDAgentWriter(agent, sampler)) {
+        DDAgentApi api = onlyApi(writer);
+        api.sendSerializedTraces(emptyV04Payload());
+
+        verify(sampler).onResponse(anyString(), any());
+      }
+    }
+  }
+
+  private interface CustomListenerSampler extends Sampler, RemoteResponseListener {}
+
+  @Test
+  void skipsResponseListenerRegistrationWhenNoAgentSampler() throws Exception {
+    try (JavaTestHttpServer agent = tracesAgent()) {
+      Sampler sampler = mock(Sampler.class);
+      when(sampler.agentSampler()).thenReturn(null);
+
+      try (Writer writer = createDDAgentWriter(agent, sampler)) {
+        DDAgentApi api = onlyApi(writer);
+        RemoteApi.Response response = api.sendSerializedTraces(emptyV04Payload());
+
+        verify(sampler).agentSampler();
+        // No listener was registered, so a response with a body is handled without error.
+        assertTrue(response.success());
+      }
+    }
+  }
+
+  private static JavaTestHttpServer tracesAgent() {
+    return JavaTestHttpServer.httpServer(s ->
+        s.handlers(h ->
+            h.put("v0.4/traces", api -> api.getResponse().status(200).send("{\"hello\":{}}"))));
+  }
+
+  private static Writer createDDAgentWriter(JavaTestHttpServer agent, Sampler sampler)
+      throws Exception {
+    Config config = mock(Config.class);
+    //noinspection unchecked
+    doReturn(Prioritization.FAST_LANE)
+        .when(config)
+        .getEnumValue(
+            eq(PRIORITIZATION_TYPE),
+            (Class<Prioritization>) any(Class.class),
+            any(Prioritization.class));
+
+    DDAgentFeaturesDiscovery discovery = mock(DDAgentFeaturesDiscovery.class);
+    when(discovery.getTraceEndpoint()).thenReturn("v0.4/traces");
+
+    SharedCommunicationObjects sharedComm = new SharedCommunicationObjects();
+    sharedComm.agentUrl = HttpUrl.get(agent.getAddress().toString());
+    sharedComm.setFeaturesDiscovery(discovery);
+    sharedComm.createRemaining(config);
+
+    return WriterFactory.createWriter(
+        config, sharedComm, sampler, null, HealthMetrics.NO_OP, "DDAgentWriter");
+  }
+
+  private static DDAgentApi onlyApi(Writer writer) {
+    return (DDAgentApi) ((RemoteWriter) writer).getApis().iterator().next();
+  }
+
+  private static Payload emptyV04Payload() {
+    return new TraceMapperV0_4().newPayload().withBody(0, ByteBuffer.allocate(0));
   }
 
   private static Response buildHttpResponse(
