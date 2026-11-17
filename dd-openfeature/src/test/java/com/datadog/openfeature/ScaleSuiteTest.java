@@ -26,6 +26,7 @@ class ScaleSuiteTest {
           "scale/numeric",
           "scale/one-of",
           "scale/one-of-many",
+          "scale/one-of-small-numbers",
           "scale/regex",
           "scale/regex-many",
           "scale/rules",
