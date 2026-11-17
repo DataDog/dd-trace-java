@@ -1,5 +1,6 @@
 package com.datadog.openfeature.internal.ufc;
 
+import com.datadog.openfeature.internal.evaluation.SplitFeatures;
 import java.util.List;
 import java.util.Map;
 
@@ -13,6 +14,9 @@ public final class Split {
 
   /** Null when the UFC split has no features. */
   public final List<Feature> features;
+
+  /** The metadata entries of {@link #features}, resolved once for every evaluation. */
+  public final SplitFeatures preparedFeatures;
 
   public Split(
       final List<Shard> shards,
@@ -33,5 +37,6 @@ public final class Split {
     this.extraLogging = extraLogging;
     this.serialId = serialId;
     this.features = features;
+    this.preparedFeatures = SplitFeatures.prepare(features);
   }
 }
