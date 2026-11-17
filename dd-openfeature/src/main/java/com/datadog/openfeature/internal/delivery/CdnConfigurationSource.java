@@ -384,7 +384,9 @@ public final class CdnConfigurationSource implements ConfigurationService {
       while (itemStart <= rawQuery.length()) {
         final int separator = rawQuery.indexOf('&', itemStart);
         final String item =
-            separator < 0 ? rawQuery.substring(itemStart) : rawQuery.substring(itemStart, separator);
+            separator < 0
+                ? rawQuery.substring(itemStart)
+                : rawQuery.substring(itemStart, separator);
         if (!isDependentFlagCapability(item)) {
           if (query.length() > 0) {
             query.append('&');
