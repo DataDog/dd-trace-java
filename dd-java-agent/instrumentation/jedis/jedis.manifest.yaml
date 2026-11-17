@@ -1,7 +1,7 @@
 _v: 1
 name: jedis
 display_name: Jedis
-description: Instruments Redis commands sent through Jedis client connections.
+description: Instruments Jedis commands to Redis, creating client spans for cache and key-value operations.
 packages:
 - name: redis.clients:jedis
 category:

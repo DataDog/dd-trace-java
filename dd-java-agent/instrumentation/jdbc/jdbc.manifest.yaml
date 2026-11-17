@@ -1,8 +1,8 @@
 _v: 1
 name: jdbc
 display_name: JDBC
-description: Instruments JDBC statement and prepared-statement executions and optional HikariCP/DBCP2 connection-pool wait
-  time, injects Database Monitoring context into SQL, and reports IAST SQL-injection sinks and database-value taint sources.
+description: Instruments JDBC statement and prepared-statement database queries, including optional connection-pool wait spans
+  and Database Monitoring context injection, and identifies SQL-injection sinks and taints result-set values for IAST.
 packages: []
 category:
 - db.client
