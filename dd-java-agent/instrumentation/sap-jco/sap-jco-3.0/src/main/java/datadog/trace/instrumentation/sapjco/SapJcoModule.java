@@ -21,6 +21,11 @@ public class SapJcoModule extends InstrumenterModule.Tracing {
 
   @Override
   public List<Instrumenter> typeInstrumentations() {
-    return asList(new JCoClientInstrumentation(), new JCoServerInstrumentation());
+    return asList(
+        new JCoDestinationInstrumentation(),
+        new JCoClientInstrumentation(),
+        new JCoServerInstrumentation(),
+        new JCoRepositoryInstrumentation(),
+        new JCoMetadataInstrumentation());
   }
 }

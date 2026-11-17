@@ -7,7 +7,6 @@ import com.sap.conn.jco.JCoException;
 import com.sap.conn.jco.JCoFunction;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
 
@@ -17,6 +16,7 @@ import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
 public class JCoClientDecorator extends ClientDecorator {
 
   public static final CharSequence OPERATION_NAME = UTF8BytesString.create("sap.rfc.call");
+  public static final CharSequence METADATA_OPERATION = UTF8BytesString.create("sap.rfc.metadata");
   private static final CharSequence COMPONENT_NAME = UTF8BytesString.create("sap-jco");
 
   /** OTel-style RPC system identifier for SAP Remote Function Calls. */
@@ -41,7 +41,7 @@ public class JCoClientDecorator extends ClientDecorator {
 
   @Override
   protected String service() {
-    return null; // keep the caller's service; peer.service identifies the SAP system
+    return null; // keep the caller's service name
   }
 
   /** Tags the span with the RFC function being called; the function name is the span's resource. */
@@ -64,20 +64,30 @@ public class JCoClientDecorator extends ClientDecorator {
     if (destination == null) {
       return;
     }
-    String systemId = destination.getR3Name();
-    String peerService =
-        systemId != null && !systemId.isEmpty() ? systemId : destination.getDestinationName();
-    setIfPresent(span, Tags.RPC_SERVICE, peerService);
-    setIfPresent(span, Tags.PEER_SERVICE, peerService);
     setIfPresent(span, "sap.destination", destination.getDestinationName());
-    setIfPresent(span, "sap.system.id", systemId);
+    setIfPresent(span, "sap.system.id", destination.getR3Name());
     setIfPresent(span, "sap.system.number", destination.getSystemNumber());
     setIfPresent(span, "sap.client", destination.getClient());
     setIfPresent(span, "sap.user", destination.getUser());
-    String host = destination.getApplicationServerHost();
-    if (host != null) {
-      span.setTag(Tags.PEER_HOSTNAME, host);
+    setIfPresent(span, "sap.host", destination.getApplicationServerHost());
+  }
+
+  /**
+   * Tags a metadata-lookup span (RFC_METADATA_GET) with the function whose interface is fetched.
+   */
+  public void onMetadata(AgentSpan span, String function) {
+    span.setTag("rpc.system", RPC_SYSTEM_SAP_RFC);
+    span.setTag("rpc.method", "RFC_METADATA_GET");
+    if (function != null) {
+      span.setResourceName(function);
     }
+  }
+
+  /** Marks a metadata span as an error when SAP has no such RFC function. */
+  public void onFunctionNotFound(AgentSpan span, String function) {
+    span.setError(true);
+    span.setTag("error.type", "function_not_found");
+    span.setTag("error.message", "SAP has no RFC function " + function);
   }
 
   /** Flags business (ABAP) and transport (JCo) failures on the span. */
