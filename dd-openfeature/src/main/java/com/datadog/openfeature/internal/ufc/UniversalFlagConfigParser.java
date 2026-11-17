@@ -96,11 +96,9 @@ public final class UniversalFlagConfigParser {
   }
 
   /**
-   * Where the reader is in the document. Numbers are read as {@link Double}, except integers in a
-   * variant value ({@code flags.<flag>.variations.<key>.value}): an integer that fits in a long is
-   * read as {@link Integer} or {@link Long}. So a JSON variant returns {@code 5} and not {@code
-   * 5.0}, and integers from 2^53 to 2^63-1 stay exact. The scopes follow positions, not only field
-   * names, so a flag key such as {@code "variations"} does not change them.
+   * Where the reader is in the document. Numbers are read as {@link Double}, except integers in
+   * {@code flags.<flag>.variations.<key>.value} that fit in a long: those are read as {@link
+   * Integer} or {@link Long}, so JSON variants keep exact integers.
    */
   private enum Scope {
     UFC,
@@ -292,17 +290,16 @@ public final class UniversalFlagConfigParser {
     final Map<?, ?> json = asObject(value, "variant");
     final String key = asString(json.get("key"), "key");
     final Object variantValue = json.get("value");
-    if (variationType == ValueType.JSON && FrozenValues.isContainer(variantValue)) {
-      // A JSON object or array is converted once, here: evaluations share it. Its plain form
-      // replaces the parsed tree, so the parsed containers are not kept as well.
-      final Value frozen = FrozenValues.freeze(variantValue);
-      return new Variant(key, FrozenValues.plain(frozen), frozen);
+    if (variationType != ValueType.JSON) {
+      // Only JSON flags keep exact integers.
+      return new Variant(key, withDoubles(variantValue), null);
     }
-    if (variationType == ValueType.JSON) {
+    if (!FrozenValues.isContainer(variantValue)) {
       return new Variant(key, variantValue, null);
     }
-    // Only JSON flags keep exact integers. Other or missing types get back the doubles they had.
-    return new Variant(key, withDoubles(variantValue), null);
+    // Freeze once and share it. Keep its plain form instead of the parsed tree.
+    final Value frozen = FrozenValues.freeze(variantValue);
+    return new Variant(key, FrozenValues.plain(frozen), frozen);
   }
 
   /** Replaces each Integer or Long in a variant value with the equal Double. */

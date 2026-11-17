@@ -2,6 +2,7 @@ package com.datadog.openfeature.internal.evaluation;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -146,7 +147,7 @@ class FlagEvaluatorJsonValueTest {
     assertEquals(5.0, integer.flags.get("f").variations.get("on").value);
     assertEquals(
         "{n=5.0, l=[1.0]}", String.valueOf(string.flags.get("f").variations.get("on").value));
-    assertEquals(null, string.flags.get("f").variations.get("on").frozenValue);
+    assertNull(string.flags.get("f").variations.get("on").frozenValue);
   }
 
   @Test
