@@ -9,6 +9,7 @@ import java.nio.channels.SocketChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.TimeUnit;
+import org.opentest4j.TestAbortedException;
 
 /** A Unix domain socket server that echoes the bytes of each connection, one at a time. */
 final class UnixSocketEchoServer implements AutoCloseable {
@@ -18,7 +19,11 @@ final class UnixSocketEchoServer implements AutoCloseable {
 
   UnixSocketEchoServer(Path path) throws IOException {
     this.path = path;
-    this.serverChannel = ServerSocketChannel.open(StandardProtocolFamily.UNIX);
+    try {
+      this.serverChannel = ServerSocketChannel.open(StandardProtocolFamily.UNIX);
+    } catch (UnsupportedOperationException e) {
+      throw new TestAbortedException("Unix domain sockets are not supported", e);
+    }
     this.serverChannel.bind(UnixDomainSocketAddress.of(path));
     this.acceptor = new Thread(this::echoConnections, "unix-socket-echo-server");
     this.acceptor.setDaemon(true);
