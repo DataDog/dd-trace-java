@@ -14,7 +14,6 @@ final class SemverParseCache {
   private String[] moreValues;
   private ParsedSemver[] moreParsed;
   private int moreSize;
-  private int parses;
 
   /**
    * Returns the parse of {@code value}, or {@code null} if it is not a valid semantic version.
@@ -34,7 +33,6 @@ final class SemverParseCache {
       }
     }
     final ParsedSemver parsed = ParsedSemver.parse(value);
-    parses++;
     if (firstValue == null) {
       firstValue = value;
       firstParsed = parsed;
@@ -54,6 +52,6 @@ final class SemverParseCache {
 
   /** The number of values parsed so far, for tests. */
   int parses() {
-    return parses;
+    return firstValue == null ? 0 : 1 + moreSize;
   }
 }

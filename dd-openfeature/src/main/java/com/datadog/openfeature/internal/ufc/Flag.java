@@ -10,8 +10,11 @@ public final class Flag {
   public final Map<String, Variant> variations;
   public final List<Allocation> allocations;
 
-  // Whether a rule of this flag has a SEMVER_* condition. Set during configuration preprocessing
-  // (not from JSON) so that only these flags remember SemVer parses during an evaluation.
+  /**
+   * Whether a rule of this flag has a SEMVER_* condition, so that only these flags remember SemVer
+   * parses during an evaluation. Set only by the parser while it preprocesses the configuration
+   * (not from JSON), before the {@link ServerConfiguration} is published; never written after.
+   */
   public transient boolean hasSemverConditions;
 
   public Flag(

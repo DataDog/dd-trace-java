@@ -398,14 +398,14 @@ public final class FlagEvaluator {
   }
 
   /**
-   * Converts like {@code mapValue(Double.class, value)} without boxing the result. A null value
-   * fails as the unboxing of that call's null result did.
+   * Converts a comparison operand to a double. Numbers convert without boxing; any other value goes
+   * through {@link #mapValue}, so it fails with the same exception and message.
    */
   private static double toDouble(final Object value) {
     if (value instanceof Number) {
       return ((Number) value).doubleValue();
     }
-    return Double.parseDouble(String.valueOf(Objects.requireNonNull(value)));
+    return mapValue(Double.class, value);
   }
 
   /**
