@@ -283,7 +283,7 @@ public final class JettyBlockResponseHelper {
   }
 
   /** Can run inside a Jetty write callback, so it never lets anything escape. */
-  private static void reportBlockFailure(RequestContext reqCtx) {
+  static void reportBlockFailure(RequestContext reqCtx) {
     try {
       Object appSecCtx = reqCtx.getData(RequestContextSlot.APPSEC);
       if (appSecCtx instanceof AppSecContext) {
@@ -295,7 +295,7 @@ public final class JettyBlockResponseHelper {
   }
 
   /** Client-caused I/O failures (e.g. a closed connection) are not reported to telemetry. */
-  private static void logWriteFailure(String message, Throwable failure) {
+  static void logWriteFailure(String message, Throwable failure) {
     if (failure instanceof IOException) {
       log.debug(EXCLUDE_TELEMETRY, message, failure);
     } else {
