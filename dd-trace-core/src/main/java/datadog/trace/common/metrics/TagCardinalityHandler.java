@@ -33,9 +33,8 @@ final class TagCardinalityHandler {
 
   // Parallel open-addressed tables per cycle, sized to the values seen rather than the budget, as
   // in PropertyCardinalityHandler: null until the first value, then from the minimum size doubling
-  // up
-  // to maxCapacity, with each reset sizing the next cycle's tables for what the last one held. A
-  // peer tag the service never emits costs no tables at all.
+  // up to maxCapacity, with each reset sizing the next cycle's tables for what the last one held.
+  // A peer tag the service never emits costs no tables at all.
   private String[] curKeys;
   private UTF8BytesString[] curValues;
   private String[] priorKeys;

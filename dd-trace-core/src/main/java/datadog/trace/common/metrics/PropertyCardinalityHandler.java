@@ -63,8 +63,7 @@ final class PropertyCardinalityHandler {
   // equality is checked by comparing its underlying String against the incoming CharSequence.
   // Tables are sized to the values seen, not the budget: null until the first value, they start
   // at CardinalityTables.MIN_CAPACITY and double up to maxCapacity, and each reset sizes the next
-  // cycle's table for
-  // as many values as the cycle just completed held.
+  // cycle's table for as many values as the cycle just completed held.
   private UTF8BytesString[] curValues;
   // Values from the previous reporting cycle, kept so values that persist across cycles can reuse
   // their UTF8BytesString instance without re-allocating. Null if that cycle saw no values.
