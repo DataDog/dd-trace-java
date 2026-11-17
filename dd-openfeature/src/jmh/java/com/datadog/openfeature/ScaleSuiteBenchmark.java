@@ -35,10 +35,11 @@ import org.openjdk.jmh.annotations.Warmup;
  * to measure one shape: the setup prints the index of each case.
  *
  * <p>The setup evaluates every case once and the teardown again after the measurement. Both fail if
- * a value or reason differs from the expected one, or if an evaluation reports an error, so a run
- * that resolves a case wrongly fails instead of reporting a number. JSON values are compared by
- * numeric value: a JSON integer can come back as an integer or as a double. This check guards the
- * measurement and is not the conformance check: {@code CanonicalFixtureTest} checks the types.
+ * a value, reason, or expected selection metadata (serial ID, {@code doLog}, split features)
+ * differs from the expected one, or if an evaluation reports an error, so a run that resolves a
+ * case wrongly fails instead of reporting a number. JSON values are compared by numeric value: a
+ * JSON integer can come back as an integer or as a double. This check guards the measurement and is
+ * not the conformance check: {@code CanonicalFixtureTest} checks the types.
  *
  * <p>The provider is called directly: the OpenFeature client, its hooks and exposure logging are
  * not measured. {@code evaluate} passes a reused context. {@code evaluateLayered} passes a fresh
