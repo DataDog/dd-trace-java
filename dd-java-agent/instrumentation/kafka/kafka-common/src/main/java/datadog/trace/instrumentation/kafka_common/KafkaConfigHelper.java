@@ -103,17 +103,26 @@ public class KafkaConfigHelper {
   /** Store a consumer config to be reported once the cluster ID is known from metadata. */
   public static void storePendingConsumerConfig(
       MetadataState state, String consumerGroup, ConsumerConfig consumerConfig) {
-    state.setPendingConfig(
-        new PendingConfig(
-            "kafka_consumer", consumerGroup != null ? consumerGroup : "", consumerConfig));
-    log.debug("Stored pending consumer config (cluster ID not yet known)");
+    storePendingConsumerConfig(state, consumerGroup, consumerConfig, null);
   }
 
-  /** Store a consumer config built from a raw map, copied since the caller may change the map. */
+  /** Store a consumer config the caller already copied from a raw map. */
   public static void storePendingConsumerConfig(
       MetadataState state, String consumerGroup, Map<String, String> config) {
+    storePendingConsumerConfig(state, consumerGroup, null, config);
+  }
+
+  /** Uses {@code config} when set, otherwise {@code clientConfig}. */
+  private static void storePendingConsumerConfig(
+      MetadataState state,
+      String consumerGroup,
+      ConsumerConfig clientConfig,
+      Map<String, String> config) {
+    String group = consumerGroup != null ? consumerGroup : "";
     state.setPendingConfig(
-        new PendingConfig("kafka_consumer", consumerGroup != null ? consumerGroup : "", config));
+        config == null
+            ? new PendingConfig("kafka_consumer", group, clientConfig)
+            : new PendingConfig("kafka_consumer", group, config));
     log.debug("Stored pending consumer config (cluster ID not yet known)");
   }
 

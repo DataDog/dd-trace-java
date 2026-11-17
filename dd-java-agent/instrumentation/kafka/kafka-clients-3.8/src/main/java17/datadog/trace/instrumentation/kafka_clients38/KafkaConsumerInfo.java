@@ -33,10 +33,6 @@ public class KafkaConsumerInfo {
     this.clusterIdForDataStreamsOnly = clusterIdForDataStreamsOnly;
   }
 
-  public KafkaConsumerInfo(String consumerGroup, String bootstrapServers) {
-    this(consumerGroup, null, bootstrapServers, false);
-  }
-
   public Optional<String> getConsumerGroup() {
     return Optional.ofNullable(consumerGroup);
   }
