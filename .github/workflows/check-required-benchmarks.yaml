@@ -23,7 +23,8 @@ jobs:
       - name: Checkout pull request changes
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # 7.0.1
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          # The merge revision (the default), not the head: a branch older than the checker has no
+          # checker, or an older one. The base and head commits are still passed to it explicitly.
           fetch-depth: 0 # The check compares the base, the head and the commit the results name
           filter: blob:none # Only trees are needed to list changed paths
           persist-credentials: false
@@ -38,11 +39,15 @@ jobs:
         run: |
           set -uo pipefail
           printf '%s' "$PR_BODY" > "$RUNNER_TEMP/pr-body.md"
-          python3 tooling/benchmark_pr.py check \
+          # The default shell runs with -e: test the command so a failed check reaches the comment step
+          if python3 tooling/benchmark_pr.py check \
             --base "$BASE_SHA" --head "$HEAD_SHA" \
             --body-file "$RUNNER_TEMP/pr-body.md" --labels "$PR_LABELS" \
-            > "$RUNNER_TEMP/check-message.txt"
-          status=$?
+            > "$RUNNER_TEMP/check-message.txt" 2>&1; then
+            status=0
+          else
+            status=$?
+          fi
           cat "$RUNNER_TEMP/check-message.txt"
           {
             echo "passed=$([ "$status" -eq 0 ] && echo true || echo false)"
