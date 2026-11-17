@@ -291,4 +291,115 @@ class CardinalityHandlerTest {
     Arrays.fill(chars, 'x');
     return new String(chars);
   }
+
+  @Test
+  void propertyHoldsNoTableUntilItsFirstValue() {
+    PropertyCardinalityHandler handler = new PropertyCardinalityHandler("resource", 512);
+    assertEquals(0, handler.tableCapacity());
+    handler.register("a");
+    assertEquals(8, handler.tableCapacity());
+  }
+
+  @Test
+  void propertyTableGrowsToFitItsValuesAndKeepsThemFindable() {
+    PropertyCardinalityHandler handler = new PropertyCardinalityHandler("resource", 512);
+    UTF8BytesString[] first = new UTF8BytesString[100];
+    for (int i = 0; i < first.length; ++i) {
+      first[i] = handler.register("value-" + i);
+    }
+    assertEquals(256, handler.tableCapacity());
+    for (int i = 0; i < first.length; ++i) {
+      assertSame(first[i], handler.register("value-" + i));
+    }
+  }
+
+  @Test
+  void propertyTableStopsGrowingAtTheBudget() {
+    PropertyCardinalityHandler handler = new PropertyCardinalityHandler("resource", 512);
+    for (int i = 0; i < 600; ++i) {
+      handler.register("value-" + i);
+    }
+    assertEquals(1024, handler.tableCapacity());
+    assertEquals("tracer_blocked_value", handler.register("one-more").toString());
+  }
+
+  @Test
+  void propertyResetSizesTheNextTableForTheLastCycle() {
+    PropertyCardinalityHandler handler = new PropertyCardinalityHandler("resource", 512);
+    for (int i = 0; i < 100; ++i) {
+      handler.register("value-" + i);
+    }
+    handler.reset();
+    assertEquals(256, handler.tableCapacity());
+
+    for (int i = 0; i < 3; ++i) {
+      handler.register("value-" + i);
+    }
+    handler.reset();
+    assertEquals(8, handler.tableCapacity());
+
+    // a cycle with no values releases the tables
+    handler.reset();
+    assertEquals(0, handler.tableCapacity());
+  }
+
+  @Test
+  void propertyPriorCycleReuseWorksAcrossTableSizes() {
+    PropertyCardinalityHandler handler = new PropertyCardinalityHandler("resource", 512);
+    UTF8BytesString[] first = new UTF8BytesString[100];
+    for (int i = 0; i < first.length; ++i) {
+      first[i] = handler.register("value-" + i);
+    }
+    handler.reset();
+    for (int i = 0; i < 3; ++i) {
+      assertSame(first[i], handler.register("value-" + i));
+    }
+    // the next table is sized for 3 values, while the prior one still has room for 100
+    handler.reset();
+    assertEquals(8, handler.tableCapacity());
+    assertSame(first[1], handler.register("value-1"));
+  }
+
+  @Test
+  void tagHoldsNoTableUntilItsFirstValue() {
+    TagCardinalityHandler handler = new TagCardinalityHandler("peer.hostname", 512);
+    assertEquals(0, handler.tableCapacity());
+    handler.register("a");
+    assertEquals(8, handler.tableCapacity());
+  }
+
+  @Test
+  void tagTableGrowsToFitItsValuesAndKeepsThemFindable() {
+    TagCardinalityHandler handler = new TagCardinalityHandler("peer.hostname", 512);
+    UTF8BytesString[] first = new UTF8BytesString[100];
+    for (int i = 0; i < first.length; ++i) {
+      first[i] = handler.register("host-" + i);
+    }
+    assertEquals(256, handler.tableCapacity());
+    for (int i = 0; i < first.length; ++i) {
+      assertSame(first[i], handler.register("host-" + i));
+      assertEquals("peer.hostname:host-" + i, first[i].toString());
+    }
+  }
+
+  @Test
+  void tagResetSizesTheNextTableAndReusesAcrossSizes() {
+    TagCardinalityHandler handler = new TagCardinalityHandler("peer.hostname", 512);
+    UTF8BytesString[] first = new UTF8BytesString[100];
+    for (int i = 0; i < first.length; ++i) {
+      first[i] = handler.register("host-" + i);
+    }
+    handler.reset();
+    assertEquals(256, handler.tableCapacity());
+    for (int i = 0; i < 3; ++i) {
+      assertSame(first[i], handler.register("host-" + i));
+    }
+    handler.reset();
+    assertEquals(8, handler.tableCapacity());
+    assertSame(first[2], handler.register("host-2"));
+
+    handler.reset();
+    handler.reset();
+    assertEquals(0, handler.tableCapacity());
+  }
 }
