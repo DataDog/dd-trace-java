@@ -43,16 +43,6 @@ public class KarateExecutionInstrumentation extends InstrumenterModule.CiVisibil
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".KarateUtils",
-      packageName + ".TestEventsHandlerHolder",
-      packageName + ".KarateTracingHook",
-      packageName + ".ExecutionContext"
-    };
-  }
-
-  @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
         "com.intuit.karate.core.Scenario", packageName + ".ExecutionContext");
@@ -82,7 +72,7 @@ public class KarateExecutionInstrumentation extends InstrumenterModule.CiVisibil
 
       ExecutionContext executionContext =
           InstrumentationContext.get(Scenario.class, ExecutionContext.class)
-              .computeIfAbsent(scenarioRuntime.scenario, ExecutionContext::create);
+              .getOrCompute(scenarioRuntime.scenario, ExecutionContext::create);
 
       // Indicate beforehand if the failures should be suppressed. This aligns the ordering with the
       // rest of the frameworks

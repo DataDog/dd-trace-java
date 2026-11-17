@@ -1,0 +1,67 @@
+{
+  "createdAt": "2024-04-17T19:40:53.716Z",
+  "format": "SERVER",
+  "environment": {
+    "name": "Test"
+  },
+  "flags": {
+    "operator-grease-flag": {
+      "key": "operator-grease-flag",
+      "enabled": true,
+      "variationType": "STRING",
+      "variations": {
+        "trap": {
+          "key": "trap",
+          "value": "trap"
+        }
+      },
+      "allocations": [
+        {
+          "key": "grease-allocation",
+          "rules": [
+            {
+              "conditions": [
+                {
+                  "attribute": "country",
+                  "operator": "not-a-real-operator",
+                  "value": "anything"
+                }
+              ]
+            }
+          ],
+          "splits": [
+            {
+              "variationKey": "trap",
+              "shards": []
+            }
+          ],
+          "doLog": true
+        }
+      ]
+    },
+    "valid-flag": {
+      "key": "valid-flag",
+      "enabled": true,
+      "variationType": "STRING",
+      "variations": {
+        "expected": {
+          "key": "expected",
+          "value": "expected"
+        }
+      },
+      "allocations": [
+        {
+          "key": "default-allocation",
+          "rules": [],
+          "splits": [
+            {
+              "variationKey": "expected",
+              "shards": []
+            }
+          ],
+          "doLog": true
+        }
+      ]
+    }
+  }
+}

@@ -1,6 +1,7 @@
 package datadog.trace.agent.tooling;
 
 import datadog.instrument.utils.ClassLoaderValue;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicLongArray;
 import org.slf4j.Logger;
@@ -121,6 +122,10 @@ public final class InstrumenterState {
   }
 
   /** Records that the instrumentation is blocked by default. */
+  @SuppressFBWarnings(
+      value = "USO_UNSAFE_ACCESSIBLE_OBJECT_SYNCHRONIZATION",
+      justification =
+          "resetDefaultState() runs before installing Byte Buddy, so defaultState is never reassigned while this method can run.")
   public static void blockInstrumentation(int instrumentationId) {
     int bitIndex = instrumentationId << 1;
     int wordIndex = bitIndex >> ADDRESS_BITS_PER_WORD;
@@ -169,12 +174,11 @@ public final class InstrumenterState {
 
   public static String summary() {
     StringBuilder summary = new StringBuilder();
-    classLoaderStates.visit(
-        (loader, state) -> {
-          summary.append(loader != null ? loader.getClass().getName() : "<bootstrap>");
-          summarizeState(summary, state);
-          summary.append("\n\n");
-        });
+    classLoaderStates.visit((loader, state) -> {
+      summary.append(loader != null ? loader.getClass().getName() : "<bootstrap>");
+      summarizeState(summary, state);
+      summary.append("\n\n");
+    });
     return summary.toString();
   }
 

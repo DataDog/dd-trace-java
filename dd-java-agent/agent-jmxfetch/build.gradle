@@ -9,11 +9,15 @@ import static java.nio.file.StandardOpenOption.CREATE
 
 plugins {
   id 'com.gradleup.shadow'
+  id 'dd-trace-java.module.product-subsystem'
 }
-apply from: "$rootDir/gradle/java.gradle"
+
+// JMXFetch runs in an agent-loaded JVM: it is tested in :dd-java-agent JMXFetchTest
+minimumBranchCoverage = 0.0
+minimumInstructionCoverage = 0.0
 
 dependencies {
-  api('com.datadoghq:jmxfetch:0.52.0') {
+  api('com.datadoghq:jmxfetch:0.52.1') {
     exclude group: 'org.slf4j', module: 'slf4j-api'
     exclude group: 'org.slf4j', module: 'slf4j-jdk14'
     exclude group: 'com.beust', module: 'jcommander'
@@ -67,6 +71,8 @@ abstract class CopyMetricConfigsTask extends DefaultTask {
     def configDirectoryPath = createConfigDirectory()
     def configPaths = Files.find(this.inputDirectory.toPath(), 10, this::checkMetricsFile)
     .map(p -> copyMetricsFile(configDirectoryPath, p))
+    // Keep the packaged list independent of filesystem traversal order.
+    .sorted()
     .collect(Collectors.toList())
     saveConfig(configDirectoryPath.parent, configPaths)
   }

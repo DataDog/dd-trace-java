@@ -1,12 +1,17 @@
 package com.datadog.debugger.el.expressions;
 
-import static com.datadog.debugger.el.DSL.*;
+import static com.datadog.debugger.el.DSL.and;
+import static com.datadog.debugger.el.DSL.or;
+import static com.datadog.debugger.el.DSL.ref;
 import static com.datadog.debugger.el.EvalContextHelper.TEST_TIMEOUT;
 import static com.datadog.debugger.el.EvalContextHelper.createEvalContext;
 import static com.datadog.debugger.el.EvalContextHelper.createResolver;
 import static com.datadog.debugger.el.PrettyPrintVisitor.print;
 import static com.datadog.debugger.el.TestHelper.setFieldInConfig;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.EvalContext;

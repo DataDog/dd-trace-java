@@ -1,9 +1,8 @@
 plugins {
   id 'java-test-fixtures'
   id 'dd-trace-java.instrumentation.testing-framework-tests'
+  id 'dd-trace-java.module.instrumentation'
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 muzzle {
   pass {
@@ -14,6 +13,9 @@ muzzle {
   }
 }
 
+// TestNG 6.9.10 returns empty result names for class-level @Test annotations.
+addTestSuiteForDir('testng6910Test', 'test')
+
 dependencies {
   compileOnly group: 'org.testng', name: 'testng', version: '6.4'
 
@@ -21,13 +23,15 @@ dependencies {
 
   testImplementation testFixtures(project(':dd-java-agent:instrumentation:testng:testng-common'))
   testImplementation group: 'org.testng', name: 'testng', version: '6.4'
+  testng6910TestImplementation group: 'org.testng', name: 'testng', version: '6.9.10'
 }
 
 // gradle can't downgrade the testng dependencies with `strictly`
 // and IntelliJ IDEA reports an error when importing the project
 configurations.matching({ it.name.startsWith('test') }).configureEach({
+  def testNGVersion = name.startsWith('testng6910Test') ? '6.9.10' : '6.4'
   it.resolutionStrategy {
-    force group: 'org.testng', name: 'testng', version: '6.4'
+    force group: 'org.testng', name: 'testng', version: testNGVersion
   }
 })
 

@@ -1,5 +1,6 @@
-
-apply from: "$rootDir/gradle/java.gradle"
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
 
 def scalaVersion = '2.12'
 
@@ -10,6 +11,11 @@ configurations {
 // Create test artifact so that test base class can be reused
 artifacts {
   testArtifacts testJar
+}
+
+tasks.named('test', Test) {
+  // The test source set only holds the abstract base class reused by the play-ws modules
+  failOnNoDiscoveredTests = false
 }
 
 

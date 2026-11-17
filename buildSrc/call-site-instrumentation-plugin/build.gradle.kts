@@ -4,7 +4,7 @@ import org.gradle.api.file.DuplicatesStrategy.INCLUDE
 
 plugins {
   java
-  id("com.diffplug.spotless") version "8.4.0"
+  alias(libs.plugins.spotless)
   alias(libs.plugins.shadow)
 }
 
@@ -20,7 +20,9 @@ spotless {
     target("src/**/*.java")
     // ignore embedded test projects
     targetExclude("src/test/resources/**")
-    googleJavaFormat("1.35.0")
+    removeUnusedImports()
+    forbidWildcardImports()
+    googleJavaFormat()
   }
 }
 
@@ -38,6 +40,7 @@ dependencies {
 
   testCompileOnly(libs.jsr305)
   testImplementation(libs.bytebuddy)
+  testImplementation(platform(libs.junit.bom))
   testImplementation(libs.bundles.junit5)
   testRuntimeOnly(libs.junit.platform.launcher)
   testImplementation(libs.bundles.mockito)

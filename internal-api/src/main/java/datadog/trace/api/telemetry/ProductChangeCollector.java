@@ -1,5 +1,6 @@
 package datadog.trace.api.telemetry;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
@@ -17,10 +18,18 @@ public class ProductChangeCollector {
     return INSTANCE;
   }
 
+  @SuppressFBWarnings(
+      value = "USO_UNSAFE_METHOD_SYNCHRONIZATION",
+      justification =
+          "All production callers are agent-owned and do not synchronize on this monitor; locking prevents updates from interleaving with draining.")
   public synchronized void update(final ProductChange productChange) {
     productChanges.offer(productChange);
   }
 
+  @SuppressFBWarnings(
+      value = "USO_UNSAFE_METHOD_SYNCHRONIZATION",
+      justification =
+          "All production callers are agent-owned and do not synchronize on this monitor; locking prevents updates from interleaving with draining.")
   public synchronized List<ProductChange> drain() {
     if (productChanges.isEmpty()) {
       return Collections.emptyList();

@@ -1,6 +1,5 @@
 package com.datadog.profiling.ddprof;
 
-import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -52,8 +51,7 @@ public class AppContextSnapshotBenchmark {
   public void setup() {
     source = new DatadogProfiler.AppContextSnapshot(attrCount);
     for (int i = 0; i < attrCount; i++) {
-      byte[] utf8 = ("value-" + i).getBytes(StandardCharsets.UTF_8);
-      source.record(i, i + 1, utf8, "value-" + i);
+      source.record(i, "value-" + i);
     }
     slot = new DatadogProfiler.AppContextSnapshot(attrCount);
     stack = new DatadogProfiler.ScopeStack(attrCount);

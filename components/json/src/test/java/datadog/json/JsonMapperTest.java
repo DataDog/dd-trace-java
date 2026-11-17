@@ -79,6 +79,23 @@ class JsonMapperTest {
             "{\"key1\":null,\"key2\":\"bar\",\"key3\":3,\"key4\":3456789123,\"key5\":3.142,\"key6\":3.141592653589793,\"key7\":true,\"key8\":\"toString\"}"));
   }
 
+  @TableTest({
+    "Scenario | Map                          | Expected                                   ",
+    "null     |                              | '{}'                                       ",
+    "empty    | [:]                          | '{}'                                       ",
+    "default  | [key1: value1, key2: value2] | '{\"key1\":\"value1\",\"key2\":\"value2\"}'"
+  })
+  void testWritingAsJsonValue(
+      @Scenario String ignoredScenario, Map<String, Object> map, String expected) {
+    try (JsonWriter writer = new JsonWriter()) {
+      writer.beginObject();
+      writer.name("map");
+      JsonMapper.writeAsJsonValue(writer, (Map<String, ?>) map);
+      writer.endObject();
+      assertEquals("{\"map\":" + expected + "}", writer.toString());
+    }
+  }
+
   @ParameterizedTest(name = "test mapping to Map from empty JSON object: {0}")
   @NullSource
   @ValueSource(strings = {"null", "", "{}"})
@@ -111,6 +128,23 @@ class JsonMapperTest {
   }
 
   @TableTest({
+    "Scenario | Collection       | Expected                 ",
+    "null     |                  | '[]'                     ",
+    "empty    | []               | '[]'                     ",
+    "default  | [value1, value2] | '[\"value1\",\"value2\"]'"
+  })
+  void testWritingCollectionAsJsonValue(
+      @Scenario String ignoredScenario, List<String> collection, String expected) {
+    try (JsonWriter writer = new JsonWriter()) {
+      writer.beginObject();
+      writer.name("collection");
+      JsonMapper.writeAsJsonValue(collection, writer);
+      writer.endObject();
+      assertEquals("{\"collection\":" + expected + "}", writer.toString());
+    }
+  }
+
+  @TableTest({
     "Scenario       | Input                | Expected                         ",
     "null input     |                      | '[]'                             ",
     "empty array    | []                   | '[]'                             ",
@@ -126,6 +160,23 @@ class JsonMapperTest {
 
     String[] parsed = JsonMapper.fromJsonToList(json).toArray(new String[] {});
     assertArrayEquals(input != null ? input : new String[] {}, parsed);
+  }
+
+  @TableTest({
+    "Scenario | Array            | Expected                 ",
+    "null     |                  | '[]'                     ",
+    "empty    | []               | '[]'                     ",
+    "default  | [value1, value2] | '[\"value1\",\"value2\"]'"
+  })
+  void testWritingArrayAsJsonValue(
+      @Scenario String ignoredScenario, String[] array, String expected) {
+    try (JsonWriter writer = new JsonWriter()) {
+      writer.beginObject();
+      writer.name("array");
+      JsonMapper.writeAsJsonValue(array, writer);
+      writer.endObject();
+      assertEquals("{\"array\":" + expected + "}", writer.toString());
+    }
   }
 
   @ParameterizedTest(name = "test mapping to List from empty JSON object: {0}")

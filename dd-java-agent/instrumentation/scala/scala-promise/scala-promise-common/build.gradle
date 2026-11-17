@@ -1,3 +1,8 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+  id 'scala'
+}
+
 /*
  * Classes that are common to all versions of the Scala promise instrumentation.
  */
@@ -10,11 +15,13 @@ muzzle {
   }
 }
 
-apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'scala'
-
 tasks.named("compileTestGroovy", GroovyCompile) {
   classpath += files(sourceSets.test.scala.classesDirectory)
+}
+
+tasks.named("test", Test) {
+  // The test source set only holds the abstract base classes compiled by the scala-promise-2.x modules
+  failOnNoDiscoveredTests = false
 }
 
 dependencies {

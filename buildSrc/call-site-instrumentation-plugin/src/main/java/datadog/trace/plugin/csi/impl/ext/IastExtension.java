@@ -2,7 +2,10 @@ package datadog.trace.plugin.csi.impl.ext;
 
 import static datadog.trace.plugin.csi.impl.CallSiteFactory.typeResolver;
 import static datadog.trace.plugin.csi.util.CallSiteConstants.OPCODES_FQDN;
-import static datadog.trace.plugin.csi.util.JavaParserUtils.*;
+import static datadog.trace.plugin.csi.util.JavaParserUtils.accessLocalField;
+import static datadog.trace.plugin.csi.util.JavaParserUtils.getPrimaryType;
+import static datadog.trace.plugin.csi.util.JavaParserUtils.implementsInterface;
+import static datadog.trace.plugin.csi.util.JavaParserUtils.intLiteral;
 
 import com.github.javaparser.JavaParser;
 import com.github.javaparser.ParserConfiguration;
@@ -463,11 +466,10 @@ public class IastExtension implements Extension {
     private static AdviceMetadata findAdviceMetadata(final BodyDeclaration<?> target) {
       return target.getAnnotations().stream()
           .filter(AdviceMetadata::isAdviceAnnotation)
-          .map(
-              annotation -> {
-                final Expression tag = getAnnotationExpression(annotation);
-                return new AdviceMetadata(annotation, tag);
-              })
+          .map(annotation -> {
+            final Expression tag = getAnnotationExpression(annotation);
+            return new AdviceMetadata(annotation, tag);
+          })
           .findFirst()
           .orElse(null);
     }

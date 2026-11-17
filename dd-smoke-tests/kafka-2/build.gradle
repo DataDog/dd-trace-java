@@ -1,9 +1,8 @@
 plugins {
   id 'dd-trace-java.smoke-test-app'
+  id 'dd-trace-java.module.smoke-test'
   id 'java-test-fixtures'
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 description = 'Kafka 2.x Smoke Tests.'
 
@@ -13,7 +12,6 @@ smokeTestApp {
     artifactPath = 'libs/kafka-2-smoketest.jar'
     sysProperty = 'datadog.smoketest.springboot.shadowJar.path'
   }
-  projectJar('iastUtilJar', project(':dd-smoke-tests:iast-util'))
 }
 
 dependencies {
@@ -21,7 +19,7 @@ dependencies {
   // the outer build. Now that the application is in a nested build, the BOM is no longer
   // available here.
   testImplementation('org.springframework.kafka:spring-kafka-test:2.8.11')
-  testImplementation project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests:smoke-test-common')
   testImplementation(testFixtures(project(":dd-smoke-tests:iast-util")))
 }
 

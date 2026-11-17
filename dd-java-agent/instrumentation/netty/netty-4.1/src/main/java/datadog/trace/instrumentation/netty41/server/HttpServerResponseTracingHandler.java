@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.netty41.server;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.CONTEXT_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.WEBSOCKET_SENDER_HANDLER_CONTEXT;
 import static datadog.trace.instrumentation.netty41.server.NettyHttpServerDecorator.DECORATE;
+import static datadog.trace.instrumentation.netty41.server.NettyHttpServerDecorator.isNettyNativeClientAbort;
 
 import datadog.context.Context;
 import datadog.context.ContextScope;
@@ -14,9 +15,12 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.http.HttpHeaderNames;
+import io.netty.handler.codec.http.HttpHeaderValues;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.LastHttpContent;
+import io.netty.util.concurrent.Future;
+import java.nio.channels.ClosedChannelException;
 
 @ChannelHandler.Sharable
 public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdapter {
@@ -25,7 +29,8 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
   @Override
   public void write(final ChannelHandlerContext ctx, final Object msg, final ChannelPromise prm) {
     final boolean isResponse = msg instanceof HttpResponse;
-    if (!isResponse && !(msg instanceof LastHttpContent)) {
+    final boolean isLastContent = msg instanceof LastHttpContent;
+    if (!isResponse && !isLastContent) {
       ctx.write(msg, prm);
       return;
     }
@@ -50,57 +55,119 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
       return;
     }
 
-    try (final ContextScope scope = storedContext.attach()) {
+    try (final ContextScope ignored = storedContext.attach()) {
       final HttpResponse response = isResponse ? (HttpResponse) msg : null;
-      final boolean responseComplete = msg instanceof LastHttpContent;
-
+      final boolean websocketUpgrade = response != null && isWebsocketUpgrade(response);
+      final boolean informationalResponse =
+          response != null && isInformationalResponse(response) && !websocketUpgrade;
+      final boolean finishResponseOnWrite = isLastContent && !informationalResponse;
+      final ChannelPromise writePromise =
+          finishResponseOnWrite && prm.isVoid() ? ctx.newPromise() : prm;
       try {
-        ctx.write(msg, prm);
+        if (response != null && !informationalResponse) {
+          onResponse(ctx, span, serverContext, response, websocketUpgrade);
+        }
+        if (finishResponseOnWrite) {
+          removeServerContext(ctx, serverContext);
+          writePromise.addListener(
+              future -> finishSpan(serverContext, storedContext, span, future));
+        }
+        ctx.write(msg, writePromise);
+        if (finishResponseOnWrite && (!writePromise.isDone() || writePromise.isSuccess())) {
+          final ServerRequestContext nextResponse =
+              ServerRequestContext.nextResponse(ctx.channel());
+          BlockingResponseHandler.maybeWriteDeferredBlockResponse(ctx, nextResponse);
+        }
       } catch (final Throwable throwable) {
-        DECORATE.onError(span, throwable);
-        span.setHttpStatusCode(500);
-        span.finish(); // Finish the span manually since finishSpanOnClose was false
-        removeServerContext(ctx, serverContext);
+        if (!finishResponseOnWrite || !writePromise.isDone()) {
+          DECORATE.onError(span, throwable);
+          span.setHttpStatusCode(500);
+          if (!finishResponseOnWrite) {
+            removeServerContext(ctx, serverContext);
+          }
+          finishSpan(serverContext, storedContext, span);
+        }
         throw throwable;
       }
-      if (response != null) {
-        final boolean isWebsocketUpgrade =
-            response.status() == HttpResponseStatus.SWITCHING_PROTOCOLS
-                && "websocket".equals(response.headers().get(HttpHeaderNames.UPGRADE));
-        if (isWebsocketUpgrade) {
-          ctx.channel()
-              .attr(WEBSOCKET_SENDER_HANDLER_CONTEXT)
-              .set(new HandlerContext.Sender(span, ctx.channel().id().asShortText()));
-        }
-        if (isInformational(response) && !isWebsocketUpgrade) {
-          return;
-        }
-        if (serverContext != null) {
-          serverContext.markResponseStarted();
-        }
-        DECORATE.onResponse(span, response);
+    }
+  }
+
+  private static void onResponse(
+      final ChannelHandlerContext ctx,
+      final AgentSpan span,
+      final ServerRequestContext serverContext,
+      final HttpResponse response,
+      final boolean websocketUpgrade) {
+    if (websocketUpgrade) {
+      ctx.channel()
+          .attr(WEBSOCKET_SENDER_HANDLER_CONTEXT)
+          .set(new HandlerContext.Sender(span, ctx.channel().id().asShortText()));
+    }
+    DECORATE.onResponse(span, response);
+    if (serverContext != null) {
+      serverContext.markResponseStarted();
+    }
+  }
+
+  private static boolean isInformationalResponse(final HttpResponse response) {
+    final int statusCode = response.status().code();
+    return statusCode >= 100 && statusCode < 200;
+  }
+
+  private static boolean isWebsocketUpgrade(final HttpResponse response) {
+    return response.status().code() == HttpResponseStatus.SWITCHING_PROTOCOLS.code()
+        && response
+            .headers()
+            .containsValue(HttpHeaderNames.UPGRADE, HttpHeaderValues.WEBSOCKET, true);
+  }
+
+  private static void finishSpan(
+      final ServerRequestContext serverContext,
+      final Context storedContext,
+      final AgentSpan span,
+      final Future<?> future) {
+    // A client disconnect can fail the terminal write after the response has started. Leave any
+    // existing span error intact, and retain failures with an unrelated cause or another subtype.
+    if (!future.isSuccess() && !isClosedChannelClientAbort(future.cause())) {
+      DECORATE.onError(span, future.cause());
+    }
+    finishSpan(serverContext, storedContext, span);
+  }
+
+  private static boolean isClosedChannelClientAbort(final Throwable failure) {
+    // StacklessClosedChannelException is package-private and absent from older Netty versions,
+    // so match it by class name.
+    return failure != null
+        && (failure.getClass() == ClosedChannelException.class
+            || "io.netty.channel.StacklessClosedChannelException"
+                .equals(failure.getClass().getName()))
+        && (failure.getCause() == null || isNettyNativeClientAbort(failure.getCause()));
+  }
+
+  private static void finishSpan(
+      final ServerRequestContext serverContext, final Context storedContext, final AgentSpan span) {
+    try (final ContextScope ignored = storedContext.attach()) {
+      beforeFinish(serverContext, storedContext);
+      span.finish(); // Finish the span manually since finishSpanOnClose was false
+    }
+  }
+
+  private static void beforeFinish(
+      final ServerRequestContext serverContext, final Context storedContext) {
+    if (serverContext == null || !serverContext.isBeforeFinishCalled()) {
+      if (serverContext != null) {
+        serverContext.markBeforeFinishCalled();
       }
-      if (responseComplete) {
-        DECORATE.beforeFinish(scope.context());
-        span.finish(); // Finish the span manually since finishSpanOnClose was false
-        removeServerContext(ctx, serverContext);
-        final ServerRequestContext nextResponse = ServerRequestContext.nextResponse(ctx.channel());
-        BlockingResponseHandler.maybeWriteDeferredBlockResponse(ctx, nextResponse);
-      }
+      DECORATE.beforeFinish(storedContext);
     }
   }
 
   private static void removeServerContext(
       final ChannelHandlerContext ctx, final ServerRequestContext serverContext) {
     if (serverContext == null) {
-      ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).remove();
+      ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(null);
     } else {
       ServerRequestContext.remove(ctx.channel(), serverContext);
     }
-  }
-
-  private static boolean isInformational(final HttpResponse response) {
-    final int statusCode = response.status().code();
-    return statusCode >= 100 && statusCode < 200;
   }
 }

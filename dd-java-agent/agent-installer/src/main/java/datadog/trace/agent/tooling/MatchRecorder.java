@@ -2,6 +2,7 @@ package datadog.trace.agent.tooling;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.ANY_CLASS_LOADER;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
+import static datadog.trace.util.CollectionUtils.arrayContains;
 
 import datadog.trace.agent.tooling.context.FieldBackedContextMatcher;
 import java.util.BitSet;
@@ -136,6 +137,56 @@ abstract class MatchRecorder {
         } else {
           InstrumenterMetrics.narrowTypeHit(fromTick);
         }
+      }
+    }
+  }
+
+  /** Narrows the current match to avoid structural changes on already-loaded classes. */
+  static final class PreserveLoadedStructure extends MatchRecorder {
+    private final Class<?> structuralChangeMarker;
+
+    PreserveLoadedStructure(int id, Class<?> structuralChangeMarker) {
+      super(id);
+      this.structuralChangeMarker = structuralChangeMarker;
+    }
+
+    @Override
+    public void record(
+        TypeDescription type,
+        ClassLoader classLoader,
+        Class<?> classBeingRedefined,
+        BitSet matches) {
+      // don't transform loaded classes unless they directly declare the marker
+      // - we must re-transform those to preserve the original structural change
+      if (matches.get(id)
+          && null != classBeingRedefined
+          && !arrayContains(classBeingRedefined.getInterfaces(), structuralChangeMarker)) {
+        matches.clear(id);
+      }
+    }
+  }
+
+  /** Copies an already-computed match into another id, avoiding a redundant type match. */
+  static final class CopyMatch extends MatchRecorder {
+    private final int fromId;
+
+    CopyMatch(int fromId, int toId) {
+      super(toId);
+      if (toId <= fromId) {
+        // matchers are evaluated in 'id' order; we can only copy from ids strictly before this id
+        throw new IllegalArgumentException("fromId " + fromId + " must be before toId " + toId);
+      }
+      this.fromId = fromId;
+    }
+
+    @Override
+    public void record(
+        TypeDescription type,
+        ClassLoader classLoader,
+        Class<?> classBeingRedefined,
+        BitSet matches) {
+      if (matches.get(fromId)) {
+        matches.set(id);
       }
     }
   }

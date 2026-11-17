@@ -1,3 +1,8 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+  id 'dd-trace-java.instrumentation.netty-concurrent-tests'
+}
+
 muzzle {
   pass {
     group = "org.elasticsearch.client"
@@ -13,8 +18,6 @@ muzzle {
     versions = "[,]"
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuite('latestDepTest')
 

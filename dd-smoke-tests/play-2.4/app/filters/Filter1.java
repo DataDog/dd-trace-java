@@ -1,6 +1,6 @@
 package filters;
 
-import javax.inject.*;
+import javax.inject.Singleton;
 
 @Singleton
 public class Filter1 extends AbstractFilter {

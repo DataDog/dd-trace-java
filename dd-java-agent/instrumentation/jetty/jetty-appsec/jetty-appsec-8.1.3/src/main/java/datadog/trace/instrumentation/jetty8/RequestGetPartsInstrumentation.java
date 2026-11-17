@@ -40,13 +40,6 @@ public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".PartHelper", packageName + ".PartHelper$MpiGetPartsHolder"
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("getParts").and(takesArguments(0)), getClass().getName() + "$GetFilenamesAdvice");

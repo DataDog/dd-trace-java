@@ -33,7 +33,8 @@ public class SpringHelper {
       // scan for getting an already loaded class and get the classloader
       ClassLoader springClassLoader = null;
       for (Class<?> clazz : inst.getAllLoadedClasses()) {
-        if (clazz.getName().startsWith("org.springframework.core")) {
+        // // getAllLoadedClasses can return null classes (Class Unloading)
+        if (clazz != null && clazz.getName().startsWith("org.springframework.core")) {
           springClassLoader = clazz.getClassLoader();
         }
       }

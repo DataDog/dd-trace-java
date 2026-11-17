@@ -97,6 +97,14 @@
         "aliases": []
       }
     ],
+    "DD_AI_GUARD_REDACTION_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": []
+      }
+    ],
     "DD_AI_GUARD_TIMEOUT": [
       {
         "version": "A",
@@ -118,7 +126,8 @@
         "version": "A",
         "type": "string",
         "default": null,
-        "aliases": []
+        "aliases": [],
+        "sensitive": true
       }
     ],
     "DD_API_KEY_FILE": [
@@ -206,7 +215,8 @@
         "version": "A",
         "type": "string",
         "default": null,
-        "aliases": ["DD_APP_KEY"]
+        "aliases": ["DD_APP_KEY"],
+        "sensitive": true
       }
     ],
     "DD_APPLICATION_KEY_FILE": [
@@ -382,6 +392,14 @@
         "version": "C",
         "type": "string",
         "default": "",
+        "aliases": []
+      }
+    ],
+    "_DD_APPSEC_SCA_CVE_FILE": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
         "aliases": []
       }
     ],
@@ -587,9 +605,9 @@
     ],
     "DD_CIVISIBILITY_COMPILER_PLUGIN_VERSION": [
       {
-        "version": "A",
+        "version": "B",
         "type": "string",
-        "default": "0.2.4",
+        "default": "0.2.5",
         "aliases": []
       }
     ],
@@ -638,6 +656,22 @@
         "version": "A",
         "type": "int",
         "default": "5",
+        "aliases": []
+      }
+    ],
+    "DD_CIVISIBILITY_DYNAMIC_ATR_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
+    "DD_CIVISIBILITY_DYNAMIC_ATR_BUCKETS": [
+      {
+        "version": "A",
+        "type": "array",
+        "default": null,
         "aliases": []
       }
     ],
@@ -710,6 +744,14 @@
         "version": "A",
         "type": "int",
         "default": "60000",
+        "aliases": []
+      }
+    ],
+    "DD_CIVISIBILITY_GRADLE_DEPENDENCY_VERIFICATION_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
         "aliases": []
       }
     ],
@@ -1014,7 +1056,8 @@
         "version": "A",
         "type": "string",
         "default": null,
-        "aliases": []
+        "aliases": [],
+        "sensitive": true
       }
     ],
     "DD_CRASHTRACKING_PROXY_PORT": [
@@ -1174,6 +1217,14 @@
         "version": "A",
         "type": "string",
         "default": "disabled",
+        "aliases": []
+      }
+    ],
+    "DD_DBM_PROPAGATION_ORACLE_ACTION_ONLY_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
         "aliases": []
       }
     ],
@@ -1393,6 +1444,14 @@
         "aliases": []
       }
     ],
+    "DD_INTERNAL_DYNAMIC_INSTRUMENTATION_SYNCHRONOUS_SOURCE_FILE_TRACKING_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
     "DD_DYNAMIC_INSTRUMENTATION_UPLOAD_BATCH_SIZE": [
       {
         "version": "A",
@@ -1513,6 +1572,70 @@
         "aliases": []
       }
     ],
+    "DD_FEATURE_FLAGS_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": []
+      }
+    ],
+    "DD_FEATURE_FLAGS_CONFIGURATION_SOURCE": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": "agentless",
+        "aliases": []
+      }
+    ],
+    "DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "30",
+        "aliases": []
+      }
+    ],
+    "DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "5",
+        "aliases": []
+      }
+    ],
+    "DD_FEATURE_FLAGS_EVALUATION_TELEMETRY_PER_SUBJECT_OPT_OUT_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
+    "DD_FEATURE_FLAGS_EXPERIMENTATION_OPT_OUT_MODE": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": "disabled",
+        "aliases": []
+      }
+    ],
+    "DD_FEATURE_FLAGS_EXPOSURES_DATADOG_LOGGING_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": []
+      }
+    ],
     "DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED": [
       {
         "version": "A",
@@ -1532,6 +1655,14 @@
     "DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED": [
       {
         "version": "B",
+        "type": "boolean",
+        "default": "true",
+        "aliases": []
+      }
+    ],
+    "DD_FLAGGING_EVALUATION_COUNTS_ENABLED": [
+      {
+        "version": "A",
         "type": "boolean",
         "default": "true",
         "aliases": []
@@ -2273,6 +2404,14 @@
         "aliases": []
       }
     ],
+    "DD_LLMOBS_SAMPLE_RATE": [
+      {
+        "version": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": []
+      }
+    ],
     "DD_LOGS_INJECTION": [
       {
         "version": "B",
@@ -2350,7 +2489,8 @@
         "version": "A",
         "type": "map",
         "default": null,
-        "aliases": []
+        "aliases": [],
+        "sensitive": true
       }
     ],
     "DD_OTLP_LOGS_PROTOCOL": [
@@ -2486,7 +2626,8 @@
         "version": "B",
         "type": "map",
         "default": null,
-        "aliases": []
+        "aliases": [],
+        "sensitive": true
       }
     ],
     "DD_OTLP_METRICS_PROTOCOL": [
@@ -2534,7 +2675,8 @@
         "version": "B",
         "type": "map",
         "default": null,
-        "aliases": []
+        "aliases": [],
+        "sensitive": true
       }
     ],
     "DD_OTLP_TRACES_PROTOCOL": [
@@ -2630,7 +2772,8 @@
         "version": "A",
         "type": "string",
         "default": null,
-        "aliases": []
+        "aliases": [],
+        "sensitive": true
       }
     ],
     "DD_PROFILING_APIKEY_FILE": [
@@ -2646,7 +2789,8 @@
         "version": "A",
         "type": "string",
         "default": null,
-        "aliases": []
+        "aliases": [],
+        "sensitive": true
       }
     ],
     "DD_PROFILING_API_KEY_FILE": [
@@ -3185,6 +3329,46 @@
         "aliases": []
       }
     ],
+    "DD_PROFILING_EXPERIMENTAL_DDPROF_NATIVEMEM_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
+    "DD_PROFILING_EXPERIMENTAL_DDPROF_NATIVEMEM_INTERVAL": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "524288",
+        "aliases": []
+      }
+    ],
+    "DD_PROFILING_EXPERIMENTAL_DDPROF_NATIVESOCKET_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
+    "DD_PROFILING_EXPERIMENTAL_DDPROF_NATIVESOCKET_INTERVAL": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "DD_PROFILING_EXPERIMENTAL_DDPROF_OPTIONS": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
     "DD_PROFILING_EXPERIMENTAL_DDPROF_SCHEDULING_EVENT": [
       {
         "version": "A",
@@ -3294,7 +3478,8 @@
         "version": "A",
         "type": "string",
         "default": null,
-        "aliases": []
+        "aliases": [],
+        "sensitive": true
       }
     ],
     "DD_PROFILING_PROXY_PORT": [
@@ -3678,7 +3863,8 @@
         "version": "A",
         "type": "string",
         "default": null,
-        "aliases": []
+        "aliases": [],
+        "sensitive": true
       }
     ],
     "DD_RUM_DEFAULT_PRIVACY_LEVEL": [
@@ -3897,6 +4083,14 @@
         "aliases": []
       }
     ],
+    "DD_SPRING_SCHEDULING_MEASURED_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
     "DD_STACK_TRACE_LENGTH_LIMIT": [
       {
         "version": "A",
@@ -4063,6 +4257,15 @@
         "type": "decimal",
         "default": "10.0",
         "aliases": []
+      }
+    ],
+    "DD_TEST_AGENT_SESSION_TOKEN": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": [],
+        "sensitive": true
       }
     ],
     "DD_TEST_FAILED_TEST_REPLAY_ENABLED": [
@@ -4375,6 +4578,14 @@
         "type": "boolean",
         "default": "true",
         "aliases": ["DD_TRACE_INTEGRATION_AKKA_HTTP_ENABLED", "DD_INTEGRATION_AKKA_HTTP_ENABLED"]
+      }
+    ],
+    "DD_TRACE_AKKA_HTTP_ROUTE_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": ["DD_TRACE_INTEGRATION_AKKA_HTTP_ROUTE_ENABLED", "DD_INTEGRATION_AKKA_HTTP_ROUTE_ENABLED"]
       }
     ],
     "DD_TRACE_AKKA_HTTP_SERVER_ANALYTICS_ENABLED": [
@@ -4977,6 +5188,22 @@
         "aliases": []
       }
     ],
+    "DD_TRACE_BEANSHELL_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_BEANSHELL_ENABLED", "DD_INTEGRATION_BEANSHELL_ENABLED"]
+      }
+    ],
+    "DD_TRACE_BUILDER_TAGS_PRECEDENCE_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
     "DD_TRACE_CAFFEINE_ENABLED": [
       {
         "version": "A",
@@ -5118,6 +5345,14 @@
         "version": "A",
         "type": "int",
         "default": "30",
+        "aliases": []
+      }
+    ],
+    "DD_TRACE_LAMBDA_SNAPSTART_CLOCK_RESYNC_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
         "aliases": []
       }
     ],
@@ -5642,6 +5877,14 @@
       }
     ],
     "DD_TRACE_EXECUTORS_ALL": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
+    "DD_TRACE_EXPERIMENTAL_DENSE_TAGS_ENABLED": [
       {
         "version": "A",
         "type": "boolean",
@@ -6215,6 +6458,14 @@
         "type": "boolean",
         "default": "true",
         "aliases": ["DD_TRACE_INTEGRATION_GUAVA_ENABLED", "DD_INTEGRATION_GUAVA_ENABLED"]
+      }
+    ],
+    "DD_TRACE_GUIDEWIRE_ENABLED": [
+      {
+        "version": "B",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_GUIDEWIRE_ENABLED", "DD_INTEGRATION_GUIDEWIRE_ENABLED"]
       }
     ],
     "DD_TRACE_HAZELCAST_ENABLED": [
@@ -8465,6 +8716,14 @@
         "aliases": ["DD_TRACE_INTEGRATION_OPENAI_JAVA_ENABLED", "DD_INTEGRATION_OPENAI_JAVA_ENABLED"]
       }
     ],
+    "DD_TRACE_OPENFEATURE_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_OPENFEATURE_ENABLED", "DD_INTEGRATION_OPENFEATURE_ENABLED"]
+      }
+    ],
     "DD_TRACE_OPENSEARCH_ANALYTICS_ENABLED": [
       {
         "version": "A",
@@ -8673,6 +8932,14 @@
         "aliases": []
       }
     ],
+    "DD_TRACE_OTEL_SDK_SELF_MONITORING_METRICS_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
     "DD_TRACE_OTEL_SEMANTICS_ENABLED": [
       {
         "version": "A",
@@ -8683,9 +8950,9 @@
     ],
     "DD_OTEL_TRACES_SPAN_METRICS_ENABLED": [
       {
-        "version": "A",
+        "version": "B",
         "type": "boolean",
-        "default": null,
+        "default": "false",
         "aliases": []
       }
     ],
@@ -8863,6 +9130,14 @@
         "type": "boolean",
         "default": "true",
         "aliases": ["DD_TRACE_INTEGRATION_PEKKO_HTTP_ENABLED", "DD_INTEGRATION_PEKKO_HTTP_ENABLED"]
+      }
+    ],
+    "DD_TRACE_PEKKO_HTTP_ROUTE_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": ["DD_TRACE_INTEGRATION_PEKKO_HTTP_ROUTE_ENABLED", "DD_INTEGRATION_PEKKO_HTTP_ROUTE_ENABLED"]
       }
     ],
     "DD_TRACE_PEKKO_HTTP_SERVER_ANALYTICS_ENABLED": [
@@ -9191,6 +9466,30 @@
         "type": "boolean",
         "default": "true",
         "aliases": ["DD_TRACE_INTEGRATION_RATPACK_REQUEST_BODY_ENABLED", "DD_INTEGRATION_RATPACK_REQUEST_BODY_ENABLED"]
+      }
+    ],
+    "DD_TRACE_R2DBC_ANALYTICS_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": ["DD_R2DBC_ANALYTICS_ENABLED"]
+      }
+    ],
+    "DD_TRACE_R2DBC_ANALYTICS_SAMPLE_RATE": [
+      {
+        "version": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": ["DD_R2DBC_ANALYTICS_SAMPLE_RATE"]
+      }
+    ],
+    "DD_TRACE_R2DBC_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_R2DBC_ENABLED", "DD_INTEGRATION_R2DBC_ENABLED"]
       }
     ],
     "DD_TRACE_REACTIVE_STREAMS_1_ENABLED": [
@@ -9642,6 +9941,14 @@
       }
     ],
     "DD_TRACE_RUNTIME_CONTEXT_FIELD_INJECTION": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": []
+      }
+    ],
+    "DD_TRACE_RUNTIME_CONTEXT_MAP_PER_STORE": [
       {
         "version": "A",
         "type": "boolean",
@@ -10753,6 +11060,22 @@
         "aliases": []
       }
     ],
+    "DD_TRACE_STATS_ADDITIONAL_TAGS": [
+      {
+        "version": "A",
+        "type": "array",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "DD_TRACE_STATS_ADDITIONAL_TAGS_CARDINALITY_LIMIT": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "100",
+        "aliases": []
+      }
+    ],
     "DD_TRACE_STATUS404DECORATOR_ENABLED": [
       {
         "version": "A",
@@ -11665,6 +11988,38 @@
         "aliases": []
       }
     ],
+    "OTEL_BLRP_SCHEDULE_DELAY": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "1000",
+        "aliases": []
+      }
+    ],
+    "OTEL_BLRP_EXPORT_TIMEOUT": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "30000",
+        "aliases": []
+      }
+    ],
+    "OTEL_BLRP_MAX_QUEUE_SIZE": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "2048",
+        "aliases": []
+      }
+    ],
+    "OTEL_BLRP_MAX_EXPORT_BATCH_SIZE": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "512",
+        "aliases": []
+      }
+    ],
     "OTEL_LOGS_EXPORTER": [
       {
         "version": "A",
@@ -11731,9 +12086,9 @@
     ],
     "OTEL_TRACES_SPAN_METRICS_ENABLED": [
       {
-        "version": "A",
+        "version": "B",
         "type": "boolean",
-        "default": null,
+        "default": "false",
         "aliases": []
       }
     ],
@@ -11774,7 +12129,8 @@
         "version": "A",
         "type": "string",
         "default": null,
-        "aliases": []
+        "aliases": [],
+        "sensitive": true
       }
     ],
     "OTEL_EXPORTER_OTLP_HEADERS": [
@@ -11782,7 +12138,8 @@
         "version": "B",
         "type": "map",
         "default": null,
-        "aliases": []
+        "aliases": [],
+        "sensitive": true
       }
     ],
     "OTEL_EXPORTER_OTLP_PROTOCOL": [
@@ -11822,7 +12179,8 @@
         "version": "A",
         "type": "string",
         "default": null,
-        "aliases": []
+        "aliases": [],
+        "sensitive": true
       }
     ],
     "OTEL_EXPORTER_OTLP_LOGS_PROTOCOL": [
@@ -11862,7 +12220,8 @@
         "version": "B",
         "type": "string",
         "default": null,
-        "aliases": []
+        "aliases": [],
+        "sensitive": true
       }
     ],
     "OTEL_EXPORTER_OTLP_METRICS_PROTOCOL": [
@@ -11918,7 +12277,8 @@
         "version": "A",
         "type": "string",
         "default": null,
-        "aliases": []
+        "aliases": [],
+        "sensitive": true
       }
     ],
     "OTEL_EXPORTER_OTLP_TRACES_PROTOCOL": [
@@ -11970,5 +12330,7 @@
       }
     ]
   },
-  "deprecations": {}
+  "deprecations": {
+    "DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED": "DD_FEATURE_FLAGS_ENABLED"
+  }
 }

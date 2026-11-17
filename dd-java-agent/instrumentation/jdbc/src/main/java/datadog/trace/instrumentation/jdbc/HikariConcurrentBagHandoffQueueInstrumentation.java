@@ -15,7 +15,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 /**
  * Detect blocking for newer Hikari versions starting with commit f0b3c520c (>=2.6.0) by looking for
- * calls to <code>handoffQueue.poll(timeout, NANOSECONDS)</code>.
+ * calls to <code>
+ * handoffQueue.poll(timeout, NANOSECONDS)</code>.
  */
 @AutoService(InstrumenterModule.class)
 public final class HikariConcurrentBagHandoffQueueInstrumentation extends InstrumenterModule.Tracing
@@ -40,13 +41,6 @@ public final class HikariConcurrentBagHandoffQueueInstrumentation extends Instru
   @Override
   public ElementMatcher<TypeDescription> structureMatcher() {
     return declaresField(named("handoffQueue"));
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".HikariBlockedTracker", packageName + ".HikariBlockedTrackingSynchronousQueue",
-    };
   }
 
   @Override

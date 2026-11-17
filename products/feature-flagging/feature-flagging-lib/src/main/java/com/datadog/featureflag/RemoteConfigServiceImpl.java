@@ -1,163 +1,167 @@
 package com.datadog.featureflag;
 
-import com.squareup.moshi.JsonAdapter;
-import com.squareup.moshi.JsonDataException;
-import com.squareup.moshi.JsonReader;
-import com.squareup.moshi.JsonWriter;
-import com.squareup.moshi.Moshi;
-import com.squareup.moshi.Types;
-import datadog.communication.ddagent.SharedCommunicationObjects;
-import datadog.remoteconfig.Capabilities;
+import static datadog.remoteconfig.Capabilities.CAPABILITY_FFE_FLAG_CONFIGURATION_RULES;
+import static datadog.remoteconfig.Product.FFE_FLAGS;
+
 import datadog.remoteconfig.ConfigurationChangesTypedListener;
-import datadog.remoteconfig.ConfigurationDeserializer;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.PollingRateHinter;
-import datadog.remoteconfig.Product;
-import datadog.trace.api.Config;
-import datadog.trace.api.featureflag.FeatureFlaggingGateway;
-import datadog.trace.api.featureflag.ufc.v1.Flag;
-import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.lang.annotation.Annotation;
-import java.lang.reflect.Type;
-import java.time.Instant;
-import java.time.format.DateTimeFormatter;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
-import javax.annotation.Nonnull;
+import java.util.Iterator;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Consumer;
 import javax.annotation.Nullable;
-import okio.Okio;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public class RemoteConfigServiceImpl
-    implements RemoteConfigService, ConfigurationChangesTypedListener<ServerConfiguration> {
+/**
+ * Forwards the raw Feature Flags Remote Configuration documents to the SDK subscribers. The SDK
+ * owns the document format, so the agent does not parse it.
+ */
+public class RemoteConfigServiceImpl implements ConfigurationChangesTypedListener<byte[]> {
+  private static final Logger LOGGER = LoggerFactory.getLogger(RemoteConfigServiceImpl.class);
 
   private final ConfigurationPoller configurationPoller;
+  private final List<Consumer<byte[]>> subscribers = new CopyOnWriteArrayList<>();
+  private volatile byte[] current;
 
-  public RemoteConfigServiceImpl(final SharedCommunicationObjects sco, final Config config) {
-    configurationPoller = sco.configurationPoller(config);
+  /**
+   * Whether the current document was received before any subscriber, so the poller acknowledged it
+   * without validation. Guarded by the subscribers lock.
+   */
+  private boolean unvalidated;
+
+  private boolean started;
+
+  public RemoteConfigServiceImpl(final ConfigurationPoller configurationPoller) {
+    this.configurationPoller = configurationPoller;
   }
 
-  @Override
-  public void init() {
-    configurationPoller.addCapabilities(Capabilities.CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
-    configurationPoller.addListener(
-        Product.FFE_FLAGS, UniversalFlagConfigDeserializer.INSTANCE, this);
-    configurationPoller.start();
+  /**
+   * Registers the Feature Flags product. Registering at agent startup lets the first Remote
+   * Configuration poll ask for it.
+   */
+  public synchronized void start() {
+    if (this.started) {
+      return;
+    }
+    this.started = true;
+    LOGGER.debug("Feature Flagging starting remote_config configuration source");
+    this.configurationPoller.addCapabilities(CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
+    listen();
+    this.configurationPoller.start();
   }
 
-  @Override
-  public void close() {
-    configurationPoller.removeCapabilities(Capabilities.CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
-    configurationPoller.removeListeners(Product.FFE_FLAGS);
-    configurationPoller.stop();
+  private void listen() {
+    // Listen as serialized event to prevent depending on the deserializer from agent
+    this.configurationPoller.addListener(FFE_FLAGS, content -> content, this);
   }
 
+  /**
+   * Subscribes to the configuration documents.
+   *
+   * @param subscriber the subscriber, receiving the current document if any.
+   * @return the handle to close to unsubscribe.
+   */
+  public AutoCloseable subscribe(final Consumer<byte[]> subscriber) {
+    start();
+    boolean requestAgain = false;
+    // Keep registration and replay atomic with notification snapshots.
+    synchronized (this.subscribers) {
+      this.subscribers.add(subscriber);
+      final byte[] document = this.current;
+      if (document != null) {
+        try {
+          subscriber.accept(document);
+        } catch (final RuntimeException e) {
+          // A rejection of a document received with subscribers is already reported.
+          requestAgain = this.unvalidated;
+          LOGGER.debug("Feature Flags configuration subscriber rejected the current document", e);
+        }
+        this.unvalidated = false;
+      }
+    }
+    if (requestAgain) {
+      requestAgain();
+    }
+    return () -> this.subscribers.remove(subscriber);
+  }
+
+  /**
+   * Makes the poller deliver the current document again, so it reports the rejection of a document
+   * acknowledged before any subscriber validated it. Registering the product again drops its cached
+   * documents. Runs outside the subscribers lock, as the poller notifies under its own lock.
+   */
+  private synchronized void requestAgain() {
+    if (!this.started) {
+      return;
+    }
+    LOGGER.debug("Requesting the rejected Feature Flags configuration again to report it");
+    this.configurationPoller.removeListeners(FFE_FLAGS);
+    listen();
+  }
+
+  /**
+   * Unregisters the Feature Flags product, releases the poller started by {@link #start()} and
+   * drops the subscribers.
+   */
+  public synchronized void close() {
+    if (!this.started) {
+      return;
+    }
+    this.started = false;
+    LOGGER.debug("Feature Flagging remote_config configuration source stopped");
+    this.configurationPoller.removeCapabilities(CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
+    this.configurationPoller.removeListeners(FFE_FLAGS);
+    this.configurationPoller.stop();
+    this.subscribers.clear();
+    this.current = null;
+  }
+
+  /**
+   * Forwards a configuration document to every subscriber.
+   *
+   * @param configKey the Remote Configuration key.
+   * @param content the raw document, or {@code null} when the configuration is removed.
+   * @param pollingRateHinter the polling rate hinter.
+   * @throws RuntimeException the first subscriber failure, once every subscriber is notified, so
+   *     the poller reports the document as not applied.
+   */
   @Override
   public void accept(
       final String configKey,
-      @Nullable final ServerConfiguration configuration,
+      @Nullable final byte[] content,
       final PollingRateHinter pollingRateHinter) {
-    FeatureFlaggingGateway.dispatch(configuration);
-  }
-
-  static class UniversalFlagConfigDeserializer
-      implements ConfigurationDeserializer<ServerConfiguration> {
-
-    static final UniversalFlagConfigDeserializer INSTANCE = new UniversalFlagConfigDeserializer();
-
-    private static final Moshi MOSHI =
-        new Moshi.Builder().add(Date.class, new DateAdapter()).add(FlagMapAdapter.FACTORY).build();
-    private static final JsonAdapter<ServerConfiguration> V1_ADAPTER =
-        MOSHI.adapter(ServerConfiguration.class);
-
-    @Override
-    public ServerConfiguration deserialize(final byte[] content) throws IOException {
-      return V1_ADAPTER.fromJson(Okio.buffer(Okio.source(new ByteArrayInputStream(content))));
+    final Iterator<Consumer<byte[]>> snapshot;
+    synchronized (this.subscribers) {
+      this.current = content;
+      this.unvalidated = content != null && this.subscribers.isEmpty();
+      snapshot = this.subscribers.iterator();
     }
-  }
-
-  static class FlagMapAdapter extends JsonAdapter<Map<String, Flag>> {
-
-    private static final Type FLAGS_TYPE =
-        Types.newParameterizedType(Map.class, String.class, Flag.class);
-
-    static final Factory FACTORY =
-        new Factory() {
-          @Nullable
-          @Override
-          public JsonAdapter<?> create(
-              @Nonnull final Type type,
-              @Nonnull final Set<? extends Annotation> annotations,
-              @Nonnull final Moshi moshi) {
-            if (!annotations.isEmpty() || !Types.equals(type, FLAGS_TYPE)) {
-              return null;
-            }
-            return new FlagMapAdapter(moshi.adapter(Flag.class));
-          }
-        };
-
-    private final JsonAdapter<Flag> flagAdapter;
-
-    FlagMapAdapter(final JsonAdapter<Flag> flagAdapter) {
-      this.flagAdapter = flagAdapter;
-    }
-
-    @Nullable
-    @Override
-    public Map<String, Flag> fromJson(@Nonnull final JsonReader reader) throws IOException {
-      if (reader.peek() == JsonReader.Token.NULL) {
-        return reader.nextNull();
-      }
-      final Map<String, Flag> flags = new HashMap<>();
-      reader.beginObject();
-      while (reader.hasNext()) {
-        final String flagKey = reader.nextName();
-        final Object rawFlag = reader.readJsonValue();
-        try {
-          final Flag flag = flagAdapter.fromJsonValue(rawFlag);
-          if (flag != null) {
-            flags.put(flagKey, flag);
-          }
-        } catch (JsonDataException | IllegalArgumentException ignored) {
-          // A malformed flag must not prevent other flags in the same config from evaluating.
+    RuntimeException failure = null;
+    while (snapshot.hasNext()) {
+      final Consumer<byte[]> subscriber = snapshot.next();
+      try {
+        subscriber.accept(content);
+      } catch (final RuntimeException e) {
+        if (failure == null) {
+          failure = e;
+        } else {
+          failure.addSuppressed(e);
         }
       }
-      reader.endObject();
-      return flags;
     }
-
-    @Override
-    public void toJson(@Nonnull final JsonWriter writer, @Nullable final Map<String, Flag> value)
-        throws IOException {
-      throw new UnsupportedOperationException("Reading only adapter");
+    // Logged last: a diagnostic must not get in the way of the delivery.
+    if (content == null) {
+      LOGGER.debug("Feature Flagging remote_config configuration removed: key={}", configKey);
+    } else {
+      LOGGER.debug(
+          "Feature Flagging remote_config configuration received: key={}, bytes={}",
+          configKey,
+          content.length);
     }
-  }
-
-  static class DateAdapter extends JsonAdapter<Date> {
-
-    @Nullable
-    @Override
-    public Date fromJson(@Nonnull final JsonReader reader) throws IOException {
-      final String date = reader.nextString();
-      if (date == null) {
-        return null;
-      }
-      try {
-        final Instant instant = DateTimeFormatter.ISO_OFFSET_DATE_TIME.parse(date, Instant::from);
-        return Date.from(instant);
-      } catch (Exception e) {
-        // ignore wrongly set dates
-        return null;
-      }
-    }
-
-    @Override
-    public void toJson(@Nonnull final JsonWriter writer, @Nullable final Date value)
-        throws IOException {
-      throw new UnsupportedOperationException("Reading only adapter");
+    if (failure != null) {
+      throw failure;
     }
   }
 }

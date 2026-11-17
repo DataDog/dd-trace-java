@@ -1,6 +1,5 @@
 package com.datadog.appsec.ddwaf;
 
-import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static datadog.trace.util.stacktrace.StackTraceEvent.DEFAULT_LANGUAGE;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
@@ -61,6 +60,7 @@ import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.StampedLock;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
@@ -97,6 +97,13 @@ public class WAFModule implements AppSecModule {
   private static class CtxAndAddresses {
     final Collection<Address<?>> addressesOfInterest;
     final WafHandle ctx;
+
+    /**
+     * Read-held while creating a context from {@link #ctx}; write-held while closing it. Keep the
+     * protected section callback-free: StampedLock is not reentrant. This protects context creation
+     * until libddwaf-java locks and checks the handle itself.
+     */
+    final StampedLock handleLock = new StampedLock();
 
     private CtxAndAddresses(Collection<Address<?>> addressesOfInterest, WafHandle ctx) {
       this.addressesOfInterest = addressesOfInterest;
@@ -209,7 +216,13 @@ public class WAFModule implements AppSecModule {
     }
 
     if (prevContextAndAddresses != null) {
-      prevContextAndAddresses.ctx.close();
+      // Context creation must finish acquiring native ruleset ownership before retiring the handle.
+      long stamp = prevContextAndAddresses.handleLock.writeLock();
+      try {
+        prevContextAndAddresses.ctx.close();
+      } finally {
+        prevContextAndAddresses.handleLock.unlockWrite(stamp);
+      }
     }
 
     reconf.reloadSubscriptions();
@@ -312,6 +325,14 @@ public class WAFModule implements AppSecModule {
 
       try {
         resultWithData = doRunWaf(reqCtx, newData, ctxAndAddr, gwCtx);
+        if (resultWithData == null) {
+          // WAF context closed concurrently between the fast-path check and context creation; skip
+          // (APPSEC-69085). raspRuleEval() was already counted above, so don't also count
+          // raspRuleSkipped() here - that counter is reserved for calls that never attempted eval.
+          log.debug("Skipped; the WAF context was closed concurrently");
+          WafMetricCollector.get().wafContextClosedRace();
+          return;
+        }
       } catch (TimeoutWafException tpe) {
         if (gwCtx.isRasp) {
           reqCtx.increaseRaspTimeouts();
@@ -322,10 +343,16 @@ public class WAFModule implements AppSecModule {
         }
         return;
       } catch (UnclassifiedWafException e) {
-        if (!reqCtx.isWafContextClosed()) {
+        if (reqCtx.isWafContextClosed()) {
+          // The context was closed concurrently between getOrCreateWafContext() and this run()
+          // call (APPSEC-69085) - the same benign race already tracked below via
+          // wafContextClosedRace(); avoid double-counting it as a real WAF error.
+          log.debug("Skipped; the WAF context was closed concurrently");
+          WafMetricCollector.get().wafContextClosedRace();
+        } else {
           log.error("Error calling WAF", e);
+          incrementErrorCodeMetric(reqCtx, gwCtx, e.code);
         }
-        incrementErrorCodeMetric(reqCtx, gwCtx, e.code);
         return;
       } catch (AbstractWafException e) {
         incrementErrorCodeMetric(reqCtx, gwCtx, e.code);
@@ -424,10 +451,10 @@ public class WAFModule implements AppSecModule {
           WafMetricCollector.get().raspRuleMatch(gwCtx.raspRuleType, flow.isBlocking());
         }
         Collection<AppSecEvent> events = buildEvents(resultWithData, securityResponseId);
-        boolean isThrottled = reqCtx.isThrottled(rateLimiter);
-
-        if (!isThrottled) {
-          if (resultWithData.keep) {
+        // The limiter gates force-keeping the trace, not WAF execution or event reporting.
+        if (resultWithData.keep) {
+          boolean isThrottled = reqCtx.isThrottled(rateLimiter);
+          if (!isThrottled) {
             reqCtx.setManuallyKept(true);
             AgentSpan activeSpan = AgentTracer.get().activeSpan();
             if (activeSpan != null) {
@@ -443,13 +470,10 @@ public class WAFModule implements AppSecModule {
                   .setTag(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
             }
           } else {
-            // If active span is not available then we need to set manual keep in GatewayBridge
-            log.debug("There is no active span available");
-          }
-        } else {
-          log.debug("Rate limited WAF events");
-          if (!gwCtx.isRasp) {
-            reqCtx.setWafRateLimited();
+            log.debug("Rate limited AppSec trace");
+            if (!gwCtx.isRasp) {
+              reqCtx.setWafRateLimited();
+            }
           }
         }
 
@@ -558,8 +582,35 @@ public class WAFModule implements AppSecModule {
         CtxAndAddresses ctxAndAddr,
         GatewayContext gwCtx)
         throws AbstractWafException {
-      WafContext wafContext =
-          reqCtx.getOrCreateWafContext(ctxAndAddr.ctx, wafMetricsEnabled, gwCtx.isRasp);
+      // Existing contexts own their native ruleset, so using one needs no lock.
+      WafContext wafContext = reqCtx.getWafContextIfReady(wafMetricsEnabled, gwCtx.isRasp);
+      if (wafContext == null) {
+        for (; ; ) {
+          long stamp = ctxAndAddr.handleLock.tryReadLock();
+          if (stamp == 0L) {
+            // Avoid waiting for destruction of a retired handle; retry with the current snapshot.
+            ctxAndAddr = ctxAndAddresses.get();
+            continue;
+          }
+          try {
+            // A callback may have captured this snapshot before remote config replaced it; never
+            // create a context from a retired handle.
+            if (ctxAndAddr == ctxAndAddresses.get()) {
+              wafContext =
+                  reqCtx.getOrCreateWafContext(ctxAndAddr.ctx, wafMetricsEnabled, gwCtx.isRasp);
+              break;
+            }
+          } finally {
+            ctxAndAddr.handleLock.unlockRead(stamp);
+          }
+          ctxAndAddr = ctxAndAddresses.get();
+        }
+      }
+      if (wafContext == null) {
+        // Context closed concurrently with the isWafContextClosed() check in onDataAvailable; skip
+        // (APPSEC-69085).
+        return null;
+      }
       WafMetrics metrics;
       if (gwCtx.isRasp) {
         metrics = reqCtx.getRaspMetrics();
@@ -603,7 +654,10 @@ public class WAFModule implements AppSecModule {
   private Collection<AppSecEvent> buildEvents(
       Waf.ResultWithData actionWithData, String securityResponseId) {
     if (actionWithData.data == null) {
-      log.debug(SEND_TELEMETRY, "WAF result data is null");
+      // Since ruleset 1.14.1, fingerprint processors evaluate unconditionally, so the WAF
+      // returns MATCH with no data (no real rule/event) on every ordinary request, not just on
+      // attacks. This is expected and no longer worth logging (dd-trace-py/dd-trace-go don't log
+      // here either: both gate their equivalent log on non-empty events, not on the return code).
       return Collections.emptyList();
     }
     Collection<WAFResultData> listResults;

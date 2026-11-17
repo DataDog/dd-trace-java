@@ -1,9 +1,8 @@
 plugins {
   id 'dd-trace-java.smoke-test-app'
+  id 'dd-trace-java.module.smoke-test'
   id 'com.google.protobuf' version '0.10.0'
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 testJvmConstraints {
   minJavaVersion = JavaVersion.VERSION_17
@@ -53,7 +52,7 @@ smokeTestApp {
 }
 
 dependencies {
-  testImplementation project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests:smoke-test-common')
 
   implementation 'io.grpc:grpc-protobuf:1.56.0'
   implementation 'io.grpc:grpc-stub:1.56.0'

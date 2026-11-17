@@ -10,7 +10,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestTemplate;
 
 @RestController
@@ -82,22 +87,21 @@ public class Controller {
     // Thread synchronization relies on waitForTraceCount rather than Thread completion, no race
     // issue.
     Thread thread =
-        new Thread(
-            () -> {
-              try {
-                // Sleep past PendingTraceBuffer's 500ms flush delay so the root chunk exports
-                // before this late child.
-                Thread.sleep(3000);
-              } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                return;
-              }
-              try (Scope scope = GlobalTracer.get().activateSpan(span)) {
-                new RestTemplate().getForObject(url, String.class);
-              } catch (Exception e) {
-                log.debug("late outbound call to {} failed", url, e);
-              }
-            });
+        new Thread(() -> {
+          try {
+            // Sleep past PendingTraceBuffer's 500ms flush delay so the root chunk exports
+            // before this late child.
+            Thread.sleep(3000);
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return;
+          }
+          try (Scope scope = GlobalTracer.get().activateSpan(span)) {
+            new RestTemplate().getForObject(url, String.class);
+          } catch (Exception e) {
+            log.debug("late outbound call to {} failed", url, e);
+          }
+        });
     thread.setDaemon(true);
     thread.start();
     return "late-outbound";

@@ -1051,10 +1051,9 @@ class DefaultConfigurationPollerSpecification extends DDJavaSpecification {
     verify(listener2)
         .accept(
             any(),
-            cfgMatches(
-                cfg ->
-                    Double.valueOf(0.1)
-                        .equals(asMap(cfg.get("api_security")).get("request_sample_rate"))),
+            cfgMatches(cfg ->
+                Double.valueOf(0.1)
+                    .equals(asMap(cfg.get("api_security")).get("request_sample_rate"))),
             any());
   }
 
@@ -1153,22 +1152,20 @@ class DefaultConfigurationPollerSpecification extends DDJavaSpecification {
   private void start() {
     when(scheduler.scheduleAtFixedRate(
             any(), eq(poller), eq(0L), eq((long) DEFAULT_POLL_PERIOD), eq(MILLISECONDS)))
-        .thenAnswer(
-            invocation -> {
-              task = invocation.getArgument(0);
-              return scheduled;
-            });
+        .thenAnswer(invocation -> {
+          task = invocation.getArgument(0);
+          return scheduled;
+        });
     poller.start();
     assertNotNull(task);
   }
 
   private void stubHttp(Response... responses) throws IOException {
     when(okHttpClient.newCall(any(Request.class)))
-        .thenAnswer(
-            invocation -> {
-              request = invocation.getArgument(0);
-              return call;
-            });
+        .thenAnswer(invocation -> {
+          request = invocation.getArgument(0);
+          return call;
+        });
     OngoingStubbing<Response> stubbing = when(call.execute());
     for (Response response : responses) {
       stubbing = stubbing.thenReturn(response);

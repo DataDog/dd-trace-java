@@ -28,8 +28,8 @@ class EntryBuilderTest {
     Entry exclusionEntry =
         new EntryBuilder(matcherFactory, "!" + pattern + " " + ownersToString(owners)).parse();
 
-    boolean result = entry.getMatcher().consume(path.toCharArray(), 0) >= 0;
-    boolean exclusionResult = exclusionEntry.getMatcher().consume(path.toCharArray(), 0) >= 0;
+    boolean result = entry.getMatcher().consume(path, 0) >= 0;
+    boolean exclusionResult = exclusionEntry.getMatcher().consume(path, 0) >= 0;
 
     assertEquals(owners, entry.getOwners());
     assertFalse(entry.isExclusion());

@@ -2,9 +2,9 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 plugins {
   id 'com.gradleup.shadow'
+  id 'dd-trace-java.module.smoke-test'
 }
 
-apply from: "$rootDir/gradle/java.gradle"
 description = 'Command Line Application Smoke Tests.'
 
 tasks.named("jar", Jar) {
@@ -16,7 +16,7 @@ tasks.named("jar", Jar) {
 dependencies {
   implementation project(':dd-trace-api')
 
-  testImplementation project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests:smoke-test-common')
 }
 
 tasks.withType(Test).configureEach {

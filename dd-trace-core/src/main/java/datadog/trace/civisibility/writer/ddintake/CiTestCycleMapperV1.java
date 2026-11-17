@@ -3,7 +3,9 @@ package datadog.trace.civisibility.writer.ddintake;
 import static datadog.communication.http.OkHttpUtils.gzippedMsgpackRequestBodyOf;
 import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
 import static datadog.json.JsonMapper.toJson;
+import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 import static datadog.trace.api.civisibility.CIConstants.MAX_META_STRING_VALUE_LENGTH;
+import static datadog.trace.core.CoreSpan.OWN_PROPAGATION_TAGS;
 import static datadog.trace.util.Strings.truncate;
 
 import datadog.communication.serialization.GrowableBuffer;
@@ -29,7 +31,12 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import okhttp3.RequestBody;
 
 public class CiTestCycleMapperV1 implements RemoteMapper {
@@ -216,7 +223,7 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
       writable.writeUTF8(ERROR);
       writable.writeInt(span.getError());
       /* 7 (meta), 8 (metrics) */
-      span.processTagsAndBaggage(metaWriter.withWritable(writable));
+      span.processTagsAndBaggage(metaWriter.withWritable(writable), OWN_PROPAGATION_TAGS);
     }
     eventCount += trace.size();
     serializationTimeMillis += (int) (System.currentTimeMillis() - serializationStartTimestamp);
@@ -328,7 +335,7 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
       int metaSize =
           metadata.getBaggage().size()
               + tags.size()
-              + (null == metadata.getHttpStatusCode() ? 0 : 1);
+              + (UNSET_STATUS == metadata.getHttpStatusCode() ? 0 : 1);
       int metricsSize = 0;
       for (Map.Entry<String, Object> tag : tags.entrySet()) {
         if (tag.getValue() instanceof Number) {
@@ -354,9 +361,10 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
         writable.writeString(entry.getKey(), null);
         writable.writeString(truncate(entry.getValue(), MAX_META_STRING_VALUE_LENGTH), null);
       }
-      if (null != metadata.getHttpStatusCode()) {
+      if (UNSET_STATUS != metadata.getHttpStatusCode()) {
         writable.writeUTF8(HTTP_STATUS);
-        writable.writeUTF8(truncate(metadata.getHttpStatusCode(), MAX_META_STRING_VALUE_LENGTH));
+        writable.writeUTF8(
+            truncate(metadata.getHttpStatusCodeString(), MAX_META_STRING_VALUE_LENGTH));
       }
       for (Map.Entry<String, Object> entry : tags.entrySet()) {
         Object value = entry.getValue();
@@ -394,7 +402,7 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
       if (traceCount() == 0) {
         return msgpackMapHeaderSize(0);
       }
-      int size = body.remaining();
+      int size = bodySize();
       if (header != null) {
         size += header.remaining();
       }
@@ -405,19 +413,12 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
     public void writeTo(WritableByteChannel channel) throws IOException {
       // If traceCount is 0, we write a map with 0 elements in MsgPack format.
       if (traceCount() == 0) {
-        ByteBuffer emptyDict = msgpackMapHeader(0);
-        while (emptyDict.hasRemaining()) {
-          channel.write(emptyDict);
-        }
+        writeFully(msgpackMapHeader(0), channel);
       } else {
         if (header != null) {
-          while (header.hasRemaining()) {
-            channel.write(header);
-          }
+          writeFully(header.duplicate(), channel);
         }
-        while (body.hasRemaining()) {
-          channel.write(body);
-        }
+        writeBody(channel);
       }
     }
 
@@ -427,10 +428,8 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
       List<ByteBuffer> buffers;
       if (traceCount() == 0) {
         buffers = Collections.singletonList(msgpackMapHeader(0));
-      } else if (header != null) {
-        buffers = Arrays.asList(header, body);
       } else {
-        buffers = Collections.singletonList(body);
+        buffers = bodyAfter(header != null ? header.duplicate() : null);
       }
       return compressionEnabled
           ? gzippedMsgpackRequestBodyOf(buffers)

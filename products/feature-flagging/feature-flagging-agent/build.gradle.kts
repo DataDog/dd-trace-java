@@ -1,15 +1,12 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.DependencyFilter
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
-import org.gradle.api.Action
-import org.gradle.kotlin.dsl.project
 
 plugins {
   `java-library`
   id("com.gradleup.shadow")
   id("dd-trace-java.version-file")
+  id("dd-trace-java.module.product-subsystem")
 }
-
-apply(from = "$rootDir/gradle/java.gradle")
 
 description = "Feature flagging agent system"
 

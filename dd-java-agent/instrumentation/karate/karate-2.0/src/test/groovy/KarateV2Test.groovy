@@ -21,6 +21,32 @@ import static org.junit.platform.engine.discovery.DiscoverySelectors.selectClass
 @DisableTestTrace(reason = "avoid self-tracing")
 class KarateV2Test extends CiVisibilityInstrumentationTest {
 
+  def "test automation exclusions preserve a blocking failure and execute once"() {
+    given:
+    def id = new TestFQN("[org/example/test_automation_excluded] automation exclusions", "protected_failure")
+    givenDisabledTests([id])
+    givenQuarantinedTests([id])
+    givenAttemptToFixTests([id])
+    givenFlakyRetryEnabled(true)
+    givenFlakyTests([id])
+    givenEarlyFlakinessDetectionEnabled(true)
+    givenKnownTests([])
+
+    when:
+    runTests([TestAutomationExcludedKarate], false)
+
+    then:
+    TEST_WRITER.toList().flatten().count { it.getTag("test.name") == "protected_failure" } == 1
+    def testSpan = TEST_WRITER.toList().flatten().find { it.getTag("test.name") == "protected_failure" }
+    testSpan != null
+    testSpan.getTag("test.test_management.no_auto_retry") == true
+    testSpan.getTag("test.test_management.prevent_failure_suppression") == true
+    testSpan.getTag("test.test_management.is_test_disabled") == true
+    testSpan.getTag("test.test_management.is_quarantined") == true
+    testSpan.getTag("test.test_management.is_attempt_to_fix") == true
+    testSpan.getTag("test.test_management.attempt_to_fix_passed") == null
+  }
+
   def "test #testcaseName"() {
     runTests(tests, success)
 
@@ -68,6 +94,7 @@ class KarateV2Test extends CiVisibilityInstrumentationTest {
     testcaseName               | success | tests                           | retriedTests
     "test-failed"              | false   | [TestFailedKarate]              | []
     "test-retry-failed"        | false   | [TestFailedKarate]              | [new TestFQN("[org/example/test_failed] test failed", "second scenario")]
+    "test-retry-abort-suite"   | false   | [TestFailedAbortSuiteKarate]    | [new TestFQN("[org/example/test_abort_suite] test abort suite", "aborting scenario")]
     "test-failed-then-succeed" | true    | [TestFailedThenSucceedKarate]   | [new TestFQN("[org/example/test_failed_then_succeed] test failed", "flaky scenario")]
     "test-retry-after-scenario-failed" | false | [TestFailedAfterScenarioKarate] | [
       new TestFQN("[org/example/test_after_scenario_failed] test after scenario failed", "after scenario failed")

@@ -1,2 +1,4 @@
 datadog.trace.agent.tooling.bytebuddy.csi.CalleeBenchmarkInstrumentation
 datadog.trace.agent.tooling.bytebuddy.csi.CallSiteBenchmarkInstrumentation
+datadog.trace.agent.tooling.context.benchmark.ContextStoreBenchmarkInstrumentation
+datadog.trace.agent.tooling.context.benchmark.ContextStoreWorkloadInstrumentation

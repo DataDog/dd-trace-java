@@ -5,7 +5,6 @@ import static datadog.trace.core.datastreams.DefaultDataStreamsMonitoringTestBri
 import static datadog.trace.core.datastreams.DefaultDataStreamsMonitoringTestBridge.isInboxEmpty;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -144,40 +143,34 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     dataStreams.close();
   }
 
-  @Test
-  void schemaSamplerSamplesWithCorrectWeights() {
-    DDAgentFeaturesDiscovery features = stubFeatures(true);
-    ControllableTimeSource timeSource = new ControllableTimeSource();
-    timeSource.set(1000000000000L);
-    DatastreamsPayloadWriter payloadWriter = mock(DatastreamsPayloadWriter.class);
-    Sink sink = mock(Sink.class);
-    TraceConfig traceConfig = stubTraceConfig(true);
+  @TableTest({
+    "scenario | enabledInConfig | queued",
+    "dsm off  | false           | false ",
+    "dsm on   | true            | true  "
+  })
+  void backlogsAndSchemaUsageAreOnlyQueuedWithDataStreamsOn(
+      boolean enabledInConfig, boolean queued) {
+    TraceConfig traceConfig = stubTraceConfig(enabledInConfig);
 
-    DefaultDataStreamsMonitoring dataStreams =
-        new DefaultDataStreamsMonitoring(
-            sink,
-            features,
-            timeSource,
-            () -> traceConfig,
-            payloadWriter,
-            DEFAULT_BUCKET_DURATION_NANOS);
+    DefaultDataStreamsMonitoring dataStreams = unstartedDataStreams(traceConfig);
+    dataStreams.trackBacklog(
+        DataStreamsTags.createWithPartition("kafka_commit", "topic", "0", "cluster", "group"), 1);
+    assertEquals(!queued, isInboxEmpty(dataStreams), "backlog");
 
-    // the first received schema is sampled, with a weight of one.
-    assertTrue(dataStreams.canSampleSchema("schema1"));
-    assertEquals(1, dataStreams.trySampleSchema("schema1"));
-    // the sampling is done by topic, so a schema on a different topic will also be sampled at once,
-    // also with a weight of one.
-    assertTrue(dataStreams.canSampleSchema("schema2"));
-    assertEquals(1, dataStreams.trySampleSchema("schema2"));
-    // no time has passed from the last sampling, so the same schema is not sampled again (two times
-    // in a row).
-    assertFalse(dataStreams.canSampleSchema("schema1"));
-    assertFalse(dataStreams.canSampleSchema("schema1"));
-    timeSource.advance((long) (30 * 1e9));
-    // now, 30 seconds have passed, so the schema is sampled again, with a weight of 3 (so it
-    // includes the two times the schema was not sampled).
-    assertTrue(dataStreams.canSampleSchema("schema1"));
-    assertEquals(3, dataStreams.trySampleSchema("schema1"));
+    dataStreams = unstartedDataStreams(traceConfig);
+    dataStreams.reportSchemaRegistryUsage("topic", "cluster", 1, true, false, "serialize");
+    assertEquals(!queued, isInboxEmpty(dataStreams), "schema registry usage");
+  }
+
+  /** Not started, so nothing drains what's queued. */
+  private static DefaultDataStreamsMonitoring unstartedDataStreams(TraceConfig traceConfig) {
+    return new DefaultDataStreamsMonitoring(
+        mock(Sink.class),
+        stubFeatures(true),
+        new ControllableTimeSource(),
+        () -> traceConfig,
+        mock(DatastreamsPayloadWriter.class),
+        DEFAULT_BUCKET_DURATION_NANOS);
   }
 
   @Test
@@ -1150,6 +1143,46 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     assertEquals("earliest", report.getConfig().get("auto.offset.reset"));
 
     // cleanup
+    payloadWriter.close();
+    dataStreams.close();
+  }
+
+  @Test
+  void kafkaConsumerGroupMemberIsReportedInBucket() throws InterruptedException {
+    DDAgentFeaturesDiscovery features = stubFeatures(true);
+    ControllableTimeSource timeSource = new ControllableTimeSource();
+    Sink sink = mock(Sink.class);
+    CapturingPayloadWriter payloadWriter = new CapturingPayloadWriter();
+    TraceConfig traceConfig = stubTraceConfig(true);
+
+    DefaultDataStreamsMonitoring dataStreams =
+        new DefaultDataStreamsMonitoring(
+            sink,
+            features,
+            timeSource,
+            () -> traceConfig,
+            payloadWriter,
+            DEFAULT_BUCKET_DURATION_NANOS);
+    dataStreams.start();
+    dataStreams.reportKafkaConsumerGroupMember(
+        "cluster-1", "test-group", "consumer-1-abc123", 7, "range");
+    timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS);
+    dataStreams.report();
+
+    awaitBuckets(dataStreams, payloadWriter, 1);
+
+    StatsBucket bucket = payloadWriter.buckets.get(0);
+    List<KafkaConfigReport> kafkaConfigs = bucket.getKafkaConfigs();
+    assertEquals(1, kafkaConfigs.size());
+    KafkaConfigReport report = kafkaConfigs.get(0);
+    assertEquals("kafka_consumer", report.getType());
+    assertEquals("cluster-1", report.getKafkaClusterId());
+    assertEquals("test-group", report.getConsumerGroup());
+    assertEquals("consumer-1-abc123", report.getMemberId());
+    assertEquals(7, report.getGenerationId());
+    assertEquals("range", report.getMemberProtocol());
+    assertTrue(report.getConfig().isEmpty());
+
     payloadWriter.close();
     dataStreams.close();
   }

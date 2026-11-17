@@ -153,6 +153,7 @@ public final class CrashUploader {
     if (!tagsBuilder.toString().isEmpty()) {
       tagsBuilder.append(",");
     }
+    tagsBuilder.append("is_crash:true").append(',');
     tagsBuilder.append(VersionInfo.LIBRARY_VERSION_TAG).append('=').append(VersionInfo.VERSION);
     // PID can be empty if we cannot find it out from the system
     if (!PidHelper.getPid().isEmpty()) {
@@ -358,11 +359,10 @@ public final class CrashUploader {
       return null;
     }
     return Arrays.stream(matcher.group().split(System.lineSeparator()))
-        .filter(
-            s ->
-                !s.equals("# A fatal error has been detected by the Java Runtime Environment:")
-                    && !s.equals(
-                        "# There is insufficient memory for the Java Runtime Environment to continue."))
+        .filter(s ->
+            !s.equals("# A fatal error has been detected by the Java Runtime Environment:")
+                && !s.equals(
+                    "# There is insufficient memory for the Java Runtime Environment to continue."))
         .map(s -> s.replaceFirst("^#\\s*", "").trim())
         .collect(Collectors.joining("\n"))
         .trim();
@@ -446,7 +446,7 @@ public final class CrashUploader {
           writer.name("tags").value(tagsForPing(storedConfig.reportUUID));
         } else {
           writer.name("level").value("ERROR");
-          writer.name("tags").value("severity:crash");
+          writer.name("tags").value("severity:crash,is_crash:true");
           writer.name("is_sensitive").value(true);
           writer.name("is_crash").value(true);
         }

@@ -1,8 +1,13 @@
-apply from: "$rootDir/gradle/java.gradle"
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+  id 'dd-trace-java.testcontainers'
+}
 
 addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
+  testContainerImage(image('mongo:4.4.29', 'test.mongo.image'))
+
   testImplementation group: 'org.testcontainers', name: 'mongodb', version: libs.versions.testcontainers.get()
 
   // We need to pull in this dependency to get the 'suspend span' instrumentation for spock tests

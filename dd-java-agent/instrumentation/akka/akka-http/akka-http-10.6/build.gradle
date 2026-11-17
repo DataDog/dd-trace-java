@@ -1,5 +1,7 @@
-apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'scala'
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+  id 'scala'
+}
 
 tracerJava {
   addSourceSetFor(JavaVersion.VERSION_11)
@@ -37,19 +39,24 @@ repositories {
 
 addTestSuiteForDir('latestDepTest', 'test')
 
-["compileMain_java11Java", "compileTestScala", "compileLatestDepTestScala"].each {
-  tasks.named(it, AbstractCompile) {
-    configureCompiler(it, 11, JavaVersion.VERSION_1_8)
+tasks.named("compileMain_java11Java", JavaCompile) {
+  configureCompiler(it, JavaVersion.VERSION_1_8)
+}
+
+["compileTestScala", "compileLatestDepTestScala"].each {
+  tasks.named(it, ScalaCompile) {
+    // Scala 2.13.11 crashes while emitting classes when its compiler worker runs on JDK 25.
+    configureCompiler(it, 11, JavaVersion.VERSION_1_8, "Scala 2.13.11 compiler is incompatible with JDK 25")
   }
 }
 
 tasks.named("compileTestGroovy", GroovyCompile) {
-  configureCompiler(it, 11)
+  configureCompiler(it, JavaVersion.VERSION_11)
   classpath += files(tasks.named('compileTestScala').map { it.destinationDirectory })
 }
 
 tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
-  configureCompiler(it, 11)
+  configureCompiler(it, JavaVersion.VERSION_11)
   classpath += files(tasks.named('compileLatestDepTestScala').map { it.destinationDirectory })
 }
 
@@ -58,7 +65,6 @@ dependencies {
   main_java11CompileOnly group: 'com.typesafe.akka', name: 'akka-http_2.13', version: '10.6.0'
   main_java11CompileOnly group: 'com.typesafe.akka', name: 'akka-actor_2.13', version: '2.9.0'
 
-  //testImplementation group: 'com.squareup.okhttp3', name: 'okhttp', version: '3.6.0'
   testImplementation group: 'com.typesafe.akka', name: 'akka-http_2.13', version: '10.6.0'
   testImplementation group: 'com.typesafe.akka', name: 'akka-stream_2.13', version: '2.9.0'
   testImplementation group: 'com.typesafe.akka', name: 'akka-http-jackson_2.13', version: '10.6.0'

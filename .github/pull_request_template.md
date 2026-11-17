@@ -1,8 +1,20 @@
 # What Does This Do
 
+<!--
+The intent of the change, what it achieves or which behavior changes. Describe the outcome, not the implementation.
+-->
+
 # Motivation
 
+<!--
+Why this change is needed: the product or business rationale, like the customer problem, the incident, the feature request or the cost it addresses.
+-->
+
 # Additional Notes
+
+<!--
+The design decisions worth a reviewer's attention: the approach picked, the alternatives considered and why they were not picked, and known trade-offs or limitations.
+-->
 
 # Contributor Checklist
 
@@ -12,7 +24,7 @@
   Use `solves` instead, and assign the PR [milestone](https://github.com/DataDog/dd-trace-java/milestones) to the issue
 - Update the [CODEOWNERS](https://github.com/DataDog/dd-trace-java/blob/master/.github/CODEOWNERS) file on source file addition, migration, or deletion
 - Update [public documentation](https://docs.datadoghq.com/tracing/trace_collection/library_config/java/) with any new configuration flags or behaviors
-- Once approved, [use merge queue](https://github.com/DataDog/dd-trace-java/blob/master/CONTRIBUTING#merge-queue) to merge the PR
+- Once approved, [use merge queue](https://github.com/DataDog/dd-trace-java/blob/master/CONTRIBUTING.md#merge-queue) to merge the PR
 
 Jira ticket: [PROJ-IDENT]
 

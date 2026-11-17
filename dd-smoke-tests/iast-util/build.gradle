@@ -1,13 +1,12 @@
 plugins {
   id 'java-test-fixtures'
+  id 'dd-trace-java.module.smoke-test'
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 description = 'iast-smoke-tests-utils'
 
 dependencies {
-  api project(':dd-smoke-tests')
+  api project(':dd-smoke-tests:smoke-test-common')
   compileOnly group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '1.5.18.RELEASE'
   compileOnly group: 'com.google.code.gson', name: 'gson', version: '2.10'
   compileOnly group: 'org.yaml', name: 'snakeyaml', version: '1.33'
@@ -25,6 +24,8 @@ dependencies {
   implementation 'com.sun.mail:jakarta.mail:2.0.1'
   // text sanitization
   implementation group: 'org.apache.commons', name: 'commons-text', version: '1.0'
+  // code injection
+  compileOnly group: 'org.apache-extras.beanshell', name: 'bsh', version: '2.0b6'
 
   testFixturesCompileOnly(libs.bundles.groovy)
   testFixturesCompileOnly(libs.bundles.spock)

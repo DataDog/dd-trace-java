@@ -23,12 +23,6 @@ import static java.util.Collections.singletonMap
 
 class ServletFilterTest extends HttpServerTest<ConfigurableApplicationContext> {
 
-  @Override
-  boolean useStrictTraceWrites() {
-    // TODO fix this by making sure that spans get closed properly
-    return false
-  }
-
   class SpringBootServer implements HttpServer {
     def port = 0
     def context

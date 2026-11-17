@@ -6,12 +6,12 @@ import com.datadog.iast.IastSystem;
 import com.datadog.iast.model.Range;
 import com.datadog.iast.model.Source;
 import com.datadog.iast.taint.TaintedObjects;
+import datadog.context.ContextScope;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.api.gateway.InstrumentationGateway;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.IastContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
@@ -44,7 +44,7 @@ public abstract class AbstractBenchmark<C extends AbstractBenchmark.BenchmarkCon
   private static final Logger LOG = LoggerFactory.getLogger(AbstractBenchmark.class);
 
   private AgentSpan span;
-  private AgentScope scope;
+  private ContextScope scope;
   protected C context;
 
   @Setup(Level.Trial)

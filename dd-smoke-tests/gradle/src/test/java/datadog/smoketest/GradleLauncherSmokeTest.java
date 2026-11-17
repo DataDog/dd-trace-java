@@ -1,7 +1,6 @@
 package datadog.smoketest;
 
 import datadog.communication.util.IOUtils;
-import datadog.environment.JavaVirtualMachine;
 import datadog.trace.civisibility.utils.ShellCommandExecutor;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -10,7 +9,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.opentest4j.AssertionFailedError;
@@ -48,8 +46,6 @@ class GradleLauncherSmokeTest extends AbstractGradleTest {
   @ParameterizedTest
   void testGradleLauncherInjectsTracerIntoGradleDaemon(
       String gradleVersion, String gradleDaemonCmdLineParams) throws Exception {
-    Assumptions.assumeFalse(
-        JavaVirtualMachine.isJavaVersion(27), "JDK 27 TODO: address failing test");
     String resolvedGradleVersion =
         "latest".equals(gradleVersion) ? LATEST_GRADLE_VERSION : gradleVersion;
     String cmdLineParams =
@@ -103,6 +99,7 @@ class GradleLauncherSmokeTest extends AbstractGradleTest {
     Map<String, String> env = new HashMap<>();
     env.put("JAVA_HOME", JAVA_HOME);
     env.put("GRADLE_USER_HOME", gradleUserHome.toString());
+    disableCdsOnLinuxArm64(env);
     env.put("GRADLE_ARGS", "");
     env.put("GRADLE_OPTS", "");
     ShellCommandExecutor shellCommandExecutor =
@@ -119,6 +116,7 @@ class GradleLauncherSmokeTest extends AbstractGradleTest {
     Map<String, String> env = new HashMap<>();
     env.put("JAVA_HOME", JAVA_HOME);
     env.put("GRADLE_USER_HOME", gradleUserHome.toString());
+    disableCdsOnLinuxArm64(env);
     // Avoid inheriting CI Gradle launcher settings that might be incompatible with this wrapper.
     env.put("GRADLE_ARGS", "");
     env.put("GRADLE_OPTS", "");
@@ -145,6 +143,7 @@ class GradleLauncherSmokeTest extends AbstractGradleTest {
     Map<String, String> env = new HashMap<>();
     env.put("JAVA_HOME", JAVA_HOME);
     env.put("GRADLE_USER_HOME", gradleUserHome.toString());
+    disableCdsOnLinuxArm64(env);
     env.put("GRADLE_ARGS", "");
     env.put("GRADLE_OPTS", "-javaagent:" + AGENT_JAR);
     env.put("DD_CIVISIBILITY_ENABLED", "true");

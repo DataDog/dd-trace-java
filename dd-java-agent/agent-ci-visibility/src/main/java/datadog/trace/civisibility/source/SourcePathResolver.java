@@ -15,7 +15,8 @@ public interface SourcePathResolver {
 
   /**
    * @param relativePath Path to a resource in current run's repository, relative to a resource root
-   * @return Candidate paths relative to repository root
+   * @return Candidate paths relative to repository root, or an empty collection if none are
+   *     resolved
    */
   Collection<String> getResourcePaths(@Nullable String relativePath);
 }

@@ -27,7 +27,78 @@ class IastSpringBootSmokeTest extends AbstractIastSpringBootTest {
 
     hasTainted {
       it.value == 'jackie' &&
-        it.ranges[0].source.origin == 'http.request.header'
+      it.ranges[0].source.origin == 'http.request.header'
+    }
+  }
+
+  void 'code injection is present (string)'() {
+    given:
+    final param = 'test'
+    final url = "http://localhost:${httpPort}/code_injection/beanshell?param=${param}"
+    final request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability {
+      vul ->
+      vul.type == 'CODE_INJECTION'
+      && vul.location.method == 'beanshell'
+      && vul.evidence.valueParts.size() == 1
+      && vul.evidence.valueParts[0].value == param
+      && vul.evidence.valueParts[0].source.origin == 'http.request.parameter'
+    }
+  }
+
+  void 'code injection is present (reader)'() {
+    given:
+    final param = 'test'
+    final url = "http://localhost:${httpPort}/code_injection/beanshell_reader?param=${param}"
+    final request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    // The reader is tainted as an object, so the evidence value is the reader identity rather than
+    // the script; assert the type, location and source origin instead of the value.
+    hasVulnerability {
+      vul ->
+      vul.type == 'CODE_INJECTION'
+      && vul.location.method == 'beanshellReader'
+      && vul.evidence.valueParts[0].source.origin == 'http.request.parameter'
+    }
+  }
+
+  void 'code injection is present (remote)'() {
+    given:
+    final script = 'test'
+    final ssrfUrl = 'http://localhost:1/'
+    final url = "http://localhost:${httpPort}/code_injection/beanshell_remote?" +
+    "url=${URLEncoder.encode(ssrfUrl, 'UTF-8')}&script=${script}"
+    final request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then: 'the script is reported as a code injection'
+    hasVulnerability {
+      vul ->
+      vul.type == 'CODE_INJECTION'
+      && vul.location.method == 'beanshellRemote'
+      && vul.evidence.valueParts.size() == 1
+      && vul.evidence.valueParts[0].value == script
+      && vul.evidence.valueParts[0].source.origin == 'http.request.parameter'
+    }
+
+    and: 'the url is reported as an ssrf'
+    hasVulnerability {
+      vul ->
+      vul.type == 'SSRF'
+      && vul.evidence.valueParts.size() == 1
+      && vul.evidence.valueParts[0].value == ssrfUrl
+      && vul.evidence.valueParts[0].source.origin == 'http.request.parameter'
     }
   }
 

@@ -114,7 +114,7 @@ class SymDBEnablementTest {
   @Test
   public void parseLoadedClass() throws ClassNotFoundException, IOException {
     Class<?> testClass = loadSymbolClassFromJar();
-    when(instr.getAllLoadedClasses()).thenReturn(new Class[] {testClass});
+    when(instr.getAllLoadedClasses()).thenReturn(new Class[] {testClass, null});
     when(config.getThirdPartyIncludes())
         .thenReturn(
             Stream.of("com.datadog.debugger.", "org.springframework.samples.")
@@ -233,14 +233,13 @@ class SymDBEnablementTest {
         .when(instr)
         .addTransformer(any(SymbolExtractionTransformer.class), eq(true));
     when(instr.getAllLoadedClasses())
-        .thenAnswer(
-            invocation -> {
-              URL jarFileUrl = getClass().getResource("/debugger-symbol.jar");
-              URL jarUrl = new URL("jar:file:" + jarFileUrl.getFile() + "!/");
-              URLClassLoader urlClassLoader = new URLClassLoader(new URL[] {jarUrl}, null);
-              Class<?> testClass = urlClassLoader.loadClass(Strings.getClassName(CLASS_NAME_PATH));
-              return new Class[] {testClass};
-            });
+        .thenAnswer(invocation -> {
+          URL jarFileUrl = getClass().getResource("/debugger-symbol.jar");
+          URL jarUrl = new URL("jar:file:" + jarFileUrl.getFile() + "!/");
+          URLClassLoader urlClassLoader = new URLClassLoader(new URL[] {jarUrl}, null);
+          Class<?> testClass = urlClassLoader.loadClass(Strings.getClassName(CLASS_NAME_PATH));
+          return new Class[] {testClass};
+        });
     symDBEnablement.startSymbolExtraction();
 
     verify(mockSymbolSink, times(1)).addScope(any());

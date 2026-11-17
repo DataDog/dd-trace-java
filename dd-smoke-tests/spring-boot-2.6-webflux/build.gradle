@@ -3,9 +3,9 @@ import com.github.jengelman.gradle.plugins.shadow.transformers.PropertiesFileTra
 
 plugins {
   id 'com.gradleup.shadow'
+  id 'dd-trace-java.module.smoke-test'
 }
 
-apply from: "$rootDir/gradle/java.gradle"
 description = 'Spring Boot 2.6 Webflux Smoke Tests.'
 
 // The standard spring-boot plugin doesn't play nice with our project
@@ -45,7 +45,7 @@ dependencies {
   implementation group: 'jakarta.xml.bind', name: 'jakarta.xml.bind-api', version: '2.3.3'
   implementation group: 'com.sun.xml.bind', name: 'jaxb-ri', version: '2.3.3'
 
-  testImplementation project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests:smoke-test-common')
 }
 
 tasks.withType(Test).configureEach {

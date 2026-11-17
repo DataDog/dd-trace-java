@@ -86,6 +86,9 @@ public class SingleThreadEventExecutorInstrumentation extends InstrumenterModule
         @Advice.FieldValue("taskQueue") Queue<?> taskQueue,
         @Advice.This EventExecutor executor,
         @Advice.Argument(0) Runnable task) {
+      if (!QueueTimerHelper.isReady()) {
+        return;
+      }
       // should be a PromiseTask which is a RunnableFuture
       if (task instanceof RunnableFuture) {
         // detect double timing - also not interested in queueing time unless the task is traced
@@ -112,6 +115,9 @@ public class SingleThreadEventExecutorInstrumentation extends InstrumenterModule
         @Advice.FieldValue("delayedTaskQueue") Queue<?> delayedTaskQueue,
         @Advice.This EventExecutor executor,
         @Advice.Argument(0) Runnable task) {
+      if (!QueueTimerHelper.isReady()) {
+        return;
+      }
       // should be a PromiseTask which is a RunnableFuture
       if (task instanceof RunnableFuture) {
         // detect double timing - also not interested in queueing time unless the task is traced
@@ -138,6 +144,9 @@ public class SingleThreadEventExecutorInstrumentation extends InstrumenterModule
         @Advice.FieldValue("scheduledTaskQueue") Queue<?> scheduledTaskQueue,
         @Advice.This EventExecutor executor,
         @Advice.Argument(0) Runnable task) {
+      if (!QueueTimerHelper.isReady()) {
+        return;
+      }
       // should be a PromiseTask which is a RunnableFuture
       if (task instanceof RunnableFuture) {
         // detect double timing - also not interested in queueing time unless the task is traced

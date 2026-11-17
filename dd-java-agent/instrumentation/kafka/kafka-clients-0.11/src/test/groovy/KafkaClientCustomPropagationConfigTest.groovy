@@ -37,12 +37,6 @@ class KafkaClientCustomPropagationConfigTest extends InstrumentationSpecificatio
     ]
   }
 
-  @Override
-  boolean useStrictTraceWrites() {
-    // TODO fix this by making sure that spans get closed properly
-    return false
-  }
-
   KafkaEmbedded embeddedKafka
 
   def setup() {

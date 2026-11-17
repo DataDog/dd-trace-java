@@ -1,9 +1,16 @@
 package datadog.trace.test.agent.decoder.v05.raw;
 
+import static java.util.Collections.emptyMap;
+
 import datadog.trace.test.agent.decoder.DecodedSpan;
+import datadog.trace.test.agent.decoder.DecodedSpanEvent;
+import datadog.trace.test.agent.decoder.DecodedSpanEvents;
+import datadog.trace.test.agent.decoder.DecodedSpanLink;
+import datadog.trace.test.agent.decoder.DecodedSpanLinks;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.msgpack.core.MessageIntegerOverflowException;
 import org.msgpack.core.MessageUnpacker;
@@ -66,9 +73,12 @@ public class SpanV05 implements DecodedSpan {
       }
       String type = unpackString(unpacker, dictionary); // index into dictionary
 
+      List<DecodedSpanLink> links = DecodedSpanLinks.fromMeta(meta);
+      List<DecodedSpanEvent> events = DecodedSpanEvents.fromMeta(meta);
+
       return new SpanV05(
           service, name, resource, traceId, spanId, parentId, start, duration, error, meta, metrics,
-          type);
+          type, links, events);
     } catch (Throwable t) {
       if (t instanceof RuntimeException) {
         throw (RuntimeException) t;
@@ -120,6 +130,8 @@ public class SpanV05 implements DecodedSpan {
   private final Map<String, String> meta; // index -> index
   private final Map<String, Number> metrics; // index -> metric
   private final String type; // index into dictionary
+  private final List<DecodedSpanLink> links;
+  private final List<DecodedSpanEvent> events;
 
   public SpanV05(
       String service,
@@ -133,7 +145,9 @@ public class SpanV05 implements DecodedSpan {
       int error,
       Map<String, String> meta,
       Map<String, Number> metrics,
-      String type) {
+      String type,
+      List<DecodedSpanLink> links,
+      List<DecodedSpanEvent> events) {
     this.service = service;
     this.name = name;
     this.resource = resource;
@@ -146,6 +160,8 @@ public class SpanV05 implements DecodedSpan {
     this.meta = Collections.unmodifiableMap(meta);
     this.metrics = Collections.unmodifiableMap(metrics);
     this.type = type;
+    this.links = links;
+    this.events = events;
   }
 
   public String getService() {
@@ -190,7 +206,7 @@ public class SpanV05 implements DecodedSpan {
 
   public Map<String, Object> getMetaStruct() {
     // XXX: meta_struct is not supported in v0.5.
-    return null;
+    return emptyMap();
   }
 
   public Map<String, Number> getMetrics() {
@@ -199,6 +215,16 @@ public class SpanV05 implements DecodedSpan {
 
   public String getType() {
     return type;
+  }
+
+  @Override
+  public List<DecodedSpanLink> getLinks() {
+    return links;
+  }
+
+  @Override
+  public List<DecodedSpanEvent> getEvents() {
+    return events;
   }
 
   @Override
@@ -231,7 +257,10 @@ public class SpanV05 implements DecodedSpan {
         + metrics
         + ", type='"
         + type
-        + '\''
+        + "', links="
+        + links
+        + ", events="
+        + events
         + '}';
   }
 }

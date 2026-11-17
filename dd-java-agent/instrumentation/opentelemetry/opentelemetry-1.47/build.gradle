@@ -1,3 +1,7 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
 def openTelemetryVersion = '1.47.0'
 
 muzzle {
@@ -9,8 +13,6 @@ muzzle {
     skipVersions = ['0.13.0'] // bad release
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 
@@ -24,6 +26,9 @@ dependencies {
   testImplementation project(path: ':dd-java-agent:agent-otel:otel-bootstrap', configuration: 'shadow')
   // JvmOtlpRuntimeMetrics lives in agent-jmxfetch; the test exercises it directly.
   testImplementation project(':dd-java-agent:agent-jmxfetch')
+  // Payload parity test: serialize OTel metrics and capture JMXFetch's DogStatsD output.
+  testImplementation project(':dd-trace-core')
+  testImplementation project(':products:metrics:metrics-lib')
 
   testImplementation group: 'io.opentelemetry', name: 'opentelemetry-api', version: openTelemetryVersion
   latestDepTestImplementation group: 'io.opentelemetry', name: 'opentelemetry-api', version: '1+'

@@ -1,9 +1,8 @@
 plugins {
   id 'dd-trace-java.smoke-test-app'
+  id 'dd-trace-java.module.smoke-test'
   id 'java-test-fixtures'
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 testJvmConstraints {
   minJavaVersion = JavaVersion.VERSION_17
@@ -22,7 +21,7 @@ smokeTestApp {
 dependencies {
   testImplementation('org.springframework.kafka:spring-kafka-test:2.9.13')
 
-  testImplementation project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests:smoke-test-common')
   implementation project(':dd-smoke-tests:iast-util')
   testImplementation(testFixtures(project(":dd-smoke-tests:iast-util")))
 }

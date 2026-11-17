@@ -13,6 +13,7 @@ import com.google.common.io.Files
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
+import datadog.trace.agent.test.naming.TestingOtelHttpSemantics
 import datadog.trace.api.DDTags
 import datadog.trace.instrumentation.servlet3.TestServlet3
 import org.apache.catalina.Context
@@ -343,4 +344,7 @@ class TomcatServletV1ForkedTest extends TomcatServletTest implements TestingGene
   boolean testProcessTags() {
     true
   }
+}
+
+class TomcatServletOtelSemanticsForkedTest extends TomcatServletTest implements TestingGenericHttpNamingConventions.ServerV0, TestingOtelHttpSemantics {
 }

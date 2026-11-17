@@ -1,8 +1,7 @@
 plugins {
   id 'dd-trace-java.smoke-test-app'
+  id 'dd-trace-java.module.smoke-test'
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 description = 'SpringBoot JPA Smoke Tests.'
 
@@ -15,7 +14,7 @@ smokeTestApp {
 }
 
 dependencies {
-  testImplementation project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests:smoke-test-common')
 }
 
 spotless {

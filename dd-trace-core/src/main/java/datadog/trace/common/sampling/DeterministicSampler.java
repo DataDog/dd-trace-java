@@ -38,11 +38,11 @@ public abstract class DeterministicSampler implements RateSampler {
 
   private static final double MAX = Math.pow(2, 64) - 1;
 
-  private final float rate;
+  private final double rate;
   private final long threshold;
 
   public DeterministicSampler(final double rate) {
-    this.rate = (float) rate;
+    this.rate = rate;
     this.threshold = cutoff(rate);
   }
 

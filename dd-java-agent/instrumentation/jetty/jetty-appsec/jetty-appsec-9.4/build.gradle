@@ -1,3 +1,7 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
 muzzle {
   pass {
     name = '9_series'
@@ -21,8 +25,6 @@ muzzle {
     javaVersion = 11
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
   compileOnly group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.4.21.v20190926'

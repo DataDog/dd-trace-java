@@ -5,16 +5,16 @@ import org.gradle.api.Action
 plugins {
   `java-library`
   id("com.gradleup.shadow")
+  id("dd-trace-java.module.product-subsystem")
 }
 
 description = "StatsD client"
-
-apply(from = rootDir.resolve("gradle/java.gradle"))
 
 dependencies {
   api(project(":products:metrics:metrics-api"))
   implementation(libs.slf4j)
   implementation(libs.dogstatsd)
+  implementation(libs.bundles.asm) // DogStatsD uses JNR with our controlled ASM version.
   implementation(project(":internal-api"))
   implementation(project(":utils:filesystem-utils"))
   implementation(project(":utils:logging-utils"))

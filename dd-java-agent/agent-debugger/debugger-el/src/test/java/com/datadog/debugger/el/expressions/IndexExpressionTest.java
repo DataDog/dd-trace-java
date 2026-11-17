@@ -3,7 +3,10 @@ package com.datadog.debugger.el.expressions;
 import static com.datadog.debugger.el.EvalContextHelper.createEvalContext;
 import static com.datadog.debugger.el.PrettyPrintVisitor.print;
 import static com.datadog.debugger.el.TestHelper.setFieldInConfig;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.EvaluationException;

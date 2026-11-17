@@ -45,19 +45,6 @@ public class TestNGInstrumentation extends InstrumenterModule.CiVisibility
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".TestNGUtils",
-      packageName + ".TestNGSuiteListener",
-      packageName + ".TestNGClassListener",
-      packageName + ".TestEventsHandlerHolder",
-      packageName + ".TracingListener",
-      packageName + ".execution.RetryAnalyzer",
-      packageName + ".execution.RetryAnnotationTransformer",
-    };
-  }
-
-  @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
         "org.testng.ITestResult", "datadog.trace.api.civisibility.DDTest");

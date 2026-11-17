@@ -1,7 +1,6 @@
 package datadog.trace.agent.tooling.muzzle
 
 import datadog.trace.test.util.DDSpecification
-import spock.lang.Ignore
 
 import static TestAdviceClasses.InstanceofAdvice
 import static TestAdviceClasses.LdcAdvice
@@ -16,7 +15,7 @@ import static datadog.trace.agent.tooling.muzzle.Reference.EXPECTS_STATIC
 class ReferenceCreatorTest extends DDSpecification {
   def "method body creates references"() {
     setup:
-    Map<String, Reference> references = ReferenceCreator.createReferencesFrom(MethodBodyAdvice.name, this.class.classLoader)
+    Map<String, Reference> references = ReferenceCreatorTestSupport.referencesFrom(MethodBodyAdvice)
 
     expect:
     references.get('datadog.trace.agent.tooling.muzzle.TestAdviceClasses$MethodBodyAdvice$A') != null
@@ -64,7 +63,7 @@ class ReferenceCreatorTest extends DDSpecification {
     // declares the method explicitly or not."
 
     setup:
-    Map<String, Reference> references = ReferenceCreator.createReferencesFrom(CompiledWithInvokeinterfaceForObjectMethods.name, this.class.classLoader)
+    Map<String, Reference> references = ReferenceCreatorTestSupport.referencesFrom(CompiledWithInvokeinterfaceForObjectMethods)
 
     expect:
     references.get(CompiledWithInvokeinterfaceForObjectMethods.DatadogInterface.name) == null
@@ -72,7 +71,7 @@ class ReferenceCreatorTest extends DDSpecification {
 
   def "protected ref test"() {
     setup:
-    Map<String, Reference> references = ReferenceCreator.createReferencesFrom(MethodBodyAdvice.B2.name, this.class.classLoader)
+    Map<String, Reference> references = ReferenceCreatorTestSupport.referencesFrom(MethodBodyAdvice.B2)
 
     expect:
     Set<Reference.Method> bMethods = references.get('datadog.trace.agent.tooling.muzzle.TestAdviceClasses$MethodBodyAdvice$B').methods
@@ -82,7 +81,7 @@ class ReferenceCreatorTest extends DDSpecification {
 
   def "ldc creates references"() {
     setup:
-    Map<String, Reference> references = ReferenceCreator.createReferencesFrom(LdcAdvice.name, this.class.classLoader)
+    Map<String, Reference> references = ReferenceCreatorTestSupport.referencesFrom(LdcAdvice)
 
     expect:
     references.get('datadog.trace.agent.tooling.muzzle.TestAdviceClasses$MethodBodyAdvice$A') != null
@@ -90,7 +89,7 @@ class ReferenceCreatorTest extends DDSpecification {
 
   def "interface impl creates references"() {
     setup:
-    Map<String, Reference> references = ReferenceCreator.createReferencesFrom(MethodBodyAdvice.SomeImplementation.name, this.class.classLoader)
+    Map<String, Reference> references = ReferenceCreatorTestSupport.referencesFrom(MethodBodyAdvice.SomeImplementation)
 
     expect:
     references.get('datadog.trace.agent.tooling.muzzle.TestAdviceClasses$MethodBodyAdvice$SomeInterface') != null
@@ -99,7 +98,7 @@ class ReferenceCreatorTest extends DDSpecification {
 
   def "child class creates references"() {
     setup:
-    Map<String, Reference> references = ReferenceCreator.createReferencesFrom(MethodBodyAdvice.A2.name, this.class.classLoader)
+    Map<String, Reference> references = ReferenceCreatorTestSupport.referencesFrom(MethodBodyAdvice.A2)
 
     expect:
     references.get('datadog.trace.agent.tooling.muzzle.TestAdviceClasses$MethodBodyAdvice$A') != null
@@ -108,17 +107,15 @@ class ReferenceCreatorTest extends DDSpecification {
 
   def "instanceof creates references"() {
     setup:
-    Map<String, Reference> references = ReferenceCreator.createReferencesFrom(InstanceofAdvice.name, this.class.classLoader)
+    Map<String, Reference> references = ReferenceCreatorTestSupport.referencesFrom(InstanceofAdvice)
 
     expect:
     references.get('datadog.trace.agent.tooling.muzzle.TestAdviceClasses$MethodBodyAdvice$A') != null
   }
 
-  // TODO: remove ignore when we drop java 7 support.
-  @Ignore
   def "invokedynamic creates references"() {
     setup:
-    Map<String, Reference> references = ReferenceCreator.createReferencesFrom(TestAdviceClasses.InDyAdvice.name, this.class.classLoader)
+    Map<String, Reference> references = ReferenceCreatorTestSupport.referencesFrom(TestAdviceClasses.InDyAdvice)
 
     expect:
     references.get('datadog.trace.agent.tooling.muzzle.TestAdviceClasses$MethodBodyAdvice$HasMethod') != null

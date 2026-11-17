@@ -1,30 +1,24 @@
 package com.datadog.debugger.agent;
 
-import com.datadog.debugger.probe.LogProbe;
-import com.datadog.debugger.probe.MetricProbe;
+import static com.datadog.debugger.probe.ProbeDefinitionDeserializer.deserializeLogProbe;
+import static com.datadog.debugger.probe.ProbeDefinitionDeserializer.deserializeMetricProbe;
+import static com.datadog.debugger.probe.ProbeDefinitionDeserializer.deserializeSpanDecorationProbe;
+import static com.datadog.debugger.probe.ProbeDefinitionDeserializer.deserializeSpanProbe;
+import static com.datadog.debugger.probe.ProbeDefinitionDeserializer.deserializeTriggerProbe;
+
 import com.datadog.debugger.probe.ProbeDefinition;
-import com.datadog.debugger.probe.SpanDecorationProbe;
-import com.datadog.debugger.probe.SpanProbe;
-import com.datadog.debugger.probe.TriggerProbe;
-import com.datadog.debugger.util.MoshiHelper;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
-import com.squareup.moshi.Moshi;
-import com.squareup.moshi.Types;
 import datadog.trace.util.SizeCheckedInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.annotation.Annotation;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 import okio.Okio;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,9 +40,7 @@ public class ConfigurationFileLoader {
         }
       } while (bytesRead > -1);
       byte[] configContent = outputStream.toByteArray();
-      Moshi moshi = MoshiHelper.createMoshiConfigBuilder().add(new ProbeFileFactory()).build();
-      ParameterizedType type = Types.newParameterizedType(List.class, ProbeDefinition.class);
-      JsonAdapter<List<ProbeDefinition>> adapter = moshi.adapter(type);
+      JsonAdapter<List<ProbeDefinition>> adapter = new ProbeFileAdapter();
       List<ProbeDefinition> probeDefinitions =
           adapter.fromJson(
               JsonReader.of(Okio.buffer(Okio.source(new ByteArrayInputStream(configContent)))));
@@ -59,40 +51,7 @@ public class ConfigurationFileLoader {
     }
   }
 
-  private static class ProbeFileFactory implements JsonAdapter.Factory {
-    @Override
-    public JsonAdapter<?> create(Type type, Set<? extends Annotation> annotations, Moshi moshi) {
-      if (Types.equals(type, Types.newParameterizedType(List.class, ProbeDefinition.class))) {
-        return new ProbeFileAdapter(
-            moshi.adapter(LogProbe.class),
-            moshi.adapter(MetricProbe.class),
-            moshi.adapter(SpanProbe.class),
-            moshi.adapter(SpanDecorationProbe.class),
-            moshi.adapter(TriggerProbe.class));
-      }
-      return null;
-    }
-  }
-
   private static class ProbeFileAdapter extends JsonAdapter<List<ProbeDefinition>> {
-    private final JsonAdapter<LogProbe> logProbeAdapter;
-    private final JsonAdapter<MetricProbe> metricProbeAdapter;
-    private final JsonAdapter<SpanProbe> spanProbeAdapter;
-    private final JsonAdapter<SpanDecorationProbe> spanDecorationProbeAdapter;
-    private final JsonAdapter<TriggerProbe> triggerProbeAdapter;
-
-    public ProbeFileAdapter(
-        JsonAdapter<LogProbe> logProbeAdapter,
-        JsonAdapter<MetricProbe> metricProbeAdapter,
-        JsonAdapter<SpanProbe> spanProbeAdapter,
-        JsonAdapter<SpanDecorationProbe> spanDecorationProbeAdapter,
-        JsonAdapter<TriggerProbe> triggerProbeAdapter) {
-      this.logProbeAdapter = logProbeAdapter;
-      this.metricProbeAdapter = metricProbeAdapter;
-      this.spanProbeAdapter = spanProbeAdapter;
-      this.spanDecorationProbeAdapter = spanDecorationProbeAdapter;
-      this.triggerProbeAdapter = triggerProbeAdapter;
-    }
 
     @Override
     public List<ProbeDefinition> fromJson(JsonReader reader) throws IOException {
@@ -110,19 +69,19 @@ public class ConfigurationFileLoader {
             String type = jsonPeekReader.nextString();
             switch (type) {
               case "LOG_PROBE":
-                probeDefinitions.add(logProbeAdapter.fromJson(reader));
+                probeDefinitions.add(deserializeLogProbe(reader));
                 break;
               case "METRIC_PROBE":
-                probeDefinitions.add(metricProbeAdapter.fromJson(reader));
+                probeDefinitions.add(deserializeMetricProbe(reader));
                 break;
               case "SPAN_PROBE":
-                probeDefinitions.add(spanProbeAdapter.fromJson(reader));
+                probeDefinitions.add(deserializeSpanProbe(reader));
                 break;
               case "SPAN_DECORATION_PROBE":
-                probeDefinitions.add(spanDecorationProbeAdapter.fromJson(reader));
+                probeDefinitions.add(deserializeSpanDecorationProbe(reader));
                 break;
               case "TRIGGER_PROBE":
-                probeDefinitions.add(triggerProbeAdapter.fromJson(reader));
+                probeDefinitions.add(deserializeTriggerProbe(reader));
                 break;
               default:
                 throw new RuntimeException("Unknown type: " + type);

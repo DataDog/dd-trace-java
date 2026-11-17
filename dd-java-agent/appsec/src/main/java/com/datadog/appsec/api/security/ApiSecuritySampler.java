@@ -9,8 +9,11 @@ public interface ApiSecuritySampler {
    * end, and is thread-safe. If a request can potentially be sampled, this method will return true.
    * If this method returns true, the caller MUST call {@link #releaseOne()} once the context is not
    * needed anymore.
+   *
+   * @param ctx the request context
+   * @param framework the web framework handling the request, may be {@code null}
    */
-  boolean preSampleRequest(final @Nonnull AppSecRequestContext ctx);
+  boolean preSampleRequest(final @Nonnull AppSecRequestContext ctx, final String framework);
 
   /** Get the final sampling decision. This method is NOT required to be thread-safe. */
   boolean sampleRequest(AppSecRequestContext ctx);
@@ -20,7 +23,7 @@ public interface ApiSecuritySampler {
 
   final class NoOp implements ApiSecuritySampler {
     @Override
-    public boolean preSampleRequest(@Nonnull AppSecRequestContext ctx) {
+    public boolean preSampleRequest(@Nonnull AppSecRequestContext ctx, String framework) {
       return false;
     }
 

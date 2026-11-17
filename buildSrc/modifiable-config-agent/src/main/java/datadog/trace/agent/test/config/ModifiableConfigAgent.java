@@ -11,9 +11,9 @@ import org.objectweb.asm.FieldVisitor;
 import org.objectweb.asm.Opcodes;
 
 /**
- * Test-only Java agent that rewrites the {@code INSTANCE} field of {@code
- * datadog.trace.api.Config} and {@code datadog.trace.api.InstrumenterConfig} to be public,
- * volatile, and non-final, so tests can swap the singleton with a freshly-built instance.
+ * Test-only Java agent that rewrites the {@code INSTANCE} field of {@code datadog.trace.api.Config}
+ * and {@code datadog.trace.api.InstrumenterConfig} to be public, volatile, and non-final, so tests
+ * can swap the singleton with a freshly-built instance.
  *
  * <p>Unlike a JUnit 5 extension that uses ByteBuddy to retransform the classes, this agent runs
  * before any class is loaded, so the rewrite is guaranteed regardless of which class touches the
@@ -52,8 +52,7 @@ public final class ModifiableConfigAgent {
         reader.accept(new InstanceFieldClassVisitor(writer), 0);
         return writer.toByteArray();
       } catch (Throwable t) {
-        System.err.println(
-            "[modifiable-config-agent] failed to rewrite " + className + ": " + t);
+        System.err.println("[modifiable-config-agent] failed to rewrite " + className + ": " + t);
         return null;
       }
     }

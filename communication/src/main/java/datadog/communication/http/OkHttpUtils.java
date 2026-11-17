@@ -12,6 +12,7 @@ import datadog.trace.api.Config;
 import datadog.trace.util.AgentProxySelector;
 import java.io.File;
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.nio.ByteBuffer;
@@ -20,12 +21,14 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
+import okhttp3.Call;
 import okhttp3.ConnectionPool;
 import okhttp3.ConnectionSpec;
 import okhttp3.Credentials;
 import okhttp3.Dispatcher;
 import okhttp3.EventListener;
 import okhttp3.HttpUrl;
+import okhttp3.Interceptor;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Protocol;
@@ -155,12 +158,11 @@ public final class OkHttpUtils {
     final OkHttpClient.Builder builder = new OkHttpClient.Builder();
 
     try {
-      builder.eventListenerFactory(
-          call -> {
-            Request request = call.request();
-            CustomListener listener = request.tag(CustomListener.class);
-            return listener != null ? listener : EventListener.NONE;
-          });
+      builder.eventListenerFactory(call -> {
+        Request request = call.request();
+        CustomListener listener = request.tag(CustomListener.class);
+        return listener != null ? listener : EventListener.NONE;
+      });
     } catch (NoSuchMethodError e) {
       // A workaround for OKHTTP instrumentation tests
       // where the version of OKHTTP conflicts with the one used in this module.
@@ -182,7 +184,12 @@ public final class OkHttpUtils {
               new File(unixDomainSocketPath), useJdkUnixDomainSocket, agentConfiguredUsingDefault));
       log.debug("Using UnixDomainSocket as http transport");
     } else if (namedPipe != null) {
-      builder.socketFactory(new NamedPipeSocketFactory(namedPipe));
+      builder
+          .socketFactory(new NamedPipeSocketFactory(namedPipe))
+          // the factory opens the pipe whatever the address, so one address means one attempt to
+          // open the pipe per connection rather than one per resolved address
+          .dns(hostname -> Collections.singletonList(InetAddress.getLoopbackAddress()))
+          .addNetworkInterceptor(OkHttpUtils::closeNamedPipeAfterExchange);
       log.debug("Using NamedPipe as http transport");
     }
 
@@ -212,17 +219,12 @@ public final class OkHttpUtils {
     if (proxyHost != null) {
       builder.proxy(new Proxy(Proxy.Type.HTTP, new InetSocketAddress(proxyHost, proxyPort)));
       if (proxyUsername != null) {
-        builder.proxyAuthenticator(
-            (route, response) -> {
-              final String credential =
-                  Credentials.basic(proxyUsername, proxyPassword == null ? "" : proxyPassword);
+        builder.proxyAuthenticator((route, response) -> {
+          final String credential =
+              Credentials.basic(proxyUsername, proxyPassword == null ? "" : proxyPassword);
 
-              return response
-                  .request()
-                  .newBuilder()
-                  .header("Proxy-Authorization", credential)
-                  .build();
-            });
+          return response.request().newBuilder().header("Proxy-Authorization", credential).build();
+        });
       }
     }
 
@@ -235,6 +237,20 @@ public final class OkHttpUtils {
     }
 
     return client;
+  }
+
+  /**
+   * Uses each HTTP/1.1 named pipe connection for one exchange. NamedPipeSocket can't time out a
+   * read, so the health check OkHttp runs before reusing a connection can block forever. This runs
+   * for every exchange, so it also covers a retry or redirect, which reuses its connection without
+   * returning it to the pool.
+   */
+  private static Response closeNamedPipeAfterExchange(Interceptor.Chain chain) throws IOException {
+    Request request = chain.request();
+    if (chain.connection().protocol() == Protocol.HTTP_1_1) {
+      request = request.newBuilder().header("Connection", "close").build();
+    }
+    return chain.proceed(request);
   }
 
   public static Request.Builder prepareRequest(final HttpUrl url, Map<String, String> headers) {
@@ -405,19 +421,39 @@ public final class OkHttpUtils {
   public static Response sendWithRetries(
       OkHttpClient httpClient, HttpRetryPolicy.Factory retryPolicyFactory, Request request)
       throws IOException {
+    return sendWithRetries((Call.Factory) httpClient, retryPolicyFactory, request);
+  }
+
+  public static Response sendWithRetries(
+      Call.Factory callFactory, HttpRetryPolicy.Factory retryPolicyFactory, Request request)
+      throws IOException {
+    return sendWithRetries(callFactory, retryPolicyFactory, request, response -> response);
+  }
+
+  public static <T> T sendWithRetries(
+      Call.Factory callFactory,
+      HttpRetryPolicy.Factory retryPolicyFactory,
+      Request request,
+      ResponseMapper<T> responseMapper)
+      throws IOException {
     try (HttpRetryPolicy retryPolicy = retryPolicyFactory.create()) {
       while (true) {
+        Response response = null;
         try {
-          Response response = httpClient.newCall(request).execute();
+          response = callFactory.newCall(request).execute();
           if (response.isSuccessful()) {
-            return response;
+            return responseMapper.map(response);
           }
           if (!retryPolicy.shouldRetry(response)) {
-            return response;
+            return responseMapper.map(response);
           } else {
             closeQuietly(response);
+            response = null;
           }
         } catch (Exception ex) {
+          if (response != null) {
+            closeQuietly(response);
+          }
           if (!retryPolicy.shouldRetry(ex)) {
             throw ex;
           }
@@ -426,6 +462,11 @@ public final class OkHttpUtils {
         retryPolicy.backoff();
       }
     }
+  }
+
+  @FunctionalInterface
+  public interface ResponseMapper<T> {
+    T map(Response response) throws IOException;
   }
 
   private static void closeQuietly(Response response) {

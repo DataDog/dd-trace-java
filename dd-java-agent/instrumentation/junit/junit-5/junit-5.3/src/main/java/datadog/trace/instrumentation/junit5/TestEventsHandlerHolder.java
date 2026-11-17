@@ -8,6 +8,7 @@ import datadog.trace.api.civisibility.execution.TestExecutionTracker;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.util.ConcurrentEnumMap;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Map;
 import org.junit.platform.engine.TestDescriptor;
 import org.junit.platform.engine.TestEngine;
@@ -22,6 +23,9 @@ public abstract class TestEventsHandlerHolder {
   private static volatile ContextStore<TestDescriptor, TestExecutionTracker>
       EXECUTION_TRACKER_STORE;
 
+  @SuppressFBWarnings(
+      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
+      justification = "Holder class not exposed to application code; locking on its Class is safe")
   public static synchronized void setExecutionTrackerStore(
       ContextStore<TestDescriptor, TestExecutionTracker> executionTrackerStore) {
     if (EXECUTION_TRACKER_STORE == null) {
@@ -44,6 +48,9 @@ public abstract class TestEventsHandlerHolder {
     }
   }
 
+  @SuppressFBWarnings(
+      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
+      justification = "Holder class not exposed to application code; locking on its Class is safe")
   public static synchronized void start(
       TestEngine testEngine,
       ContextStore<TestDescriptor, DDTestSuite> suiteStore,
@@ -62,6 +69,9 @@ public abstract class TestEventsHandlerHolder {
   }
 
   /** Used by instrumentation tests */
+  @SuppressFBWarnings(
+      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
+      justification = "Holder class not exposed to application code; locking on its Class is safe")
   public static synchronized void stop() {
     for (TestEventsHandler<TestDescriptor, TestDescriptor> handler : HANDLERS.values()) {
       handler.close();

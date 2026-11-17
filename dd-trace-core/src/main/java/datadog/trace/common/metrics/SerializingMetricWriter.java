@@ -43,6 +43,7 @@ public final class SerializingMetricWriter implements MetricWriter {
   private static final byte[] IS_TRACE_ROOT = "IsTraceRoot".getBytes(ISO_8859_1);
   private static final byte[] SPAN_KIND = "SpanKind".getBytes(ISO_8859_1);
   private static final byte[] PEER_TAGS = "PeerTags".getBytes(ISO_8859_1);
+  private static final byte[] ADDITIONAL_METRIC_TAGS = "AdditionalMetricTags".getBytes(ISO_8859_1);
   private static final byte[] HTTP_METHOD = "HTTPMethod".getBytes(ISO_8859_1);
   private static final byte[] HTTP_ENDPOINT = "HTTPEndpoint".getBytes(ISO_8859_1);
   private static final byte[] GRPC_STATUS_CODE = "GRPCStatusCode".getBytes(ISO_8859_1);
@@ -62,6 +63,16 @@ public final class SerializingMetricWriter implements MetricWriter {
   private final WellKnownTags wellKnownTags;
   private final WritableFormatter writer;
   private final Sink sink;
+
+  /**
+   * Whether the span-derived additional-tags feature is configured (at least one key). When {@code
+   * true}, the {@code AdditionalMetricTags} field is always emitted -- as an empty array for
+   * entries that matched no configured key -- so the field is present whenever the feature is on,
+   * per the Span-Derived Primary Tags RFC. When {@code false} (the common case: feature off) the
+   * field is omitted entirely, so non-users pay zero payload overhead.
+   */
+  private final boolean additionalTagsConfigured;
+
   private final GrowableBuffer buffer;
   private final DDCache<GitInfo, UTF8BytesString> gitInfoCache =
       DDCaches.newFixedSizeWeakKeyCache(4);
@@ -75,7 +86,12 @@ public final class SerializingMetricWriter implements MetricWriter {
   private byte[] emptyHistogramBytesCache;
 
   public SerializingMetricWriter(WellKnownTags wellKnownTags, Sink sink) {
-    this(wellKnownTags, sink, 512 * 1024);
+    this(wellKnownTags, sink, false);
+  }
+
+  public SerializingMetricWriter(
+      WellKnownTags wellKnownTags, Sink sink, boolean additionalTagsConfigured) {
+    this(wellKnownTags, sink, 512 * 1024, GitInfoProvider.INSTANCE, additionalTagsConfigured);
   }
 
   public SerializingMetricWriter(WellKnownTags wellKnownTags, Sink sink, int initialCapacity) {
@@ -87,11 +103,21 @@ public final class SerializingMetricWriter implements MetricWriter {
       Sink sink,
       int initialCapacity,
       final GitInfoProvider gitInfoProvider) {
+    this(wellKnownTags, sink, initialCapacity, gitInfoProvider, false);
+  }
+
+  public SerializingMetricWriter(
+      WellKnownTags wellKnownTags,
+      Sink sink,
+      int initialCapacity,
+      final GitInfoProvider gitInfoProvider,
+      boolean additionalTagsConfigured) {
     this.wellKnownTags = wellKnownTags;
     this.buffer = new GrowableBuffer(initialCapacity);
     this.writer = new MsgPackWriter(buffer);
     this.sink = sink;
     this.gitInfoProvider = gitInfoProvider;
+    this.additionalTagsConfigured = additionalTagsConfigured;
   }
 
   @Override
@@ -157,12 +183,16 @@ public final class SerializingMetricWriter implements MetricWriter {
     final boolean hasHttpEndpoint = entry.hasHttpEndpoint();
     final boolean hasServiceSource = entry.hasServiceSource();
     final boolean hasGrpcStatusCode = entry.hasGrpcStatusCode();
+    final UTF8BytesString[] additionalTags = entry.getAdditionalTags();
+    // When the feature is configured the field is always emitted (empty array for entries that
+    // matched no key); when it is off the field is omitted entirely so non-users pay nothing.
     final int mapSize =
         15
             + (hasServiceSource ? 1 : 0)
             + (hasHttpMethod ? 1 : 0)
             + (hasHttpEndpoint ? 1 : 0)
-            + (hasGrpcStatusCode ? 1 : 0);
+            + (hasGrpcStatusCode ? 1 : 0)
+            + (additionalTagsConfigured ? 1 : 0);
 
     writer.startMap(mapSize);
 
@@ -196,6 +226,18 @@ public final class SerializingMetricWriter implements MetricWriter {
 
     for (UTF8BytesString peerTag : peerTags) {
       writer.writeUTF8(peerTag);
+    }
+
+    // Emit AdditionalMetricTags as a packed array of pre-built "key:value" UTF8BytesStrings, in
+    // schema (alphabetical-by-key) order. Present whenever the feature is configured -- an empty
+    // array for entries that matched no key -- and omitted entirely when the feature is off, so
+    // spans in non-using deployments pay zero payload overhead.
+    if (additionalTagsConfigured) {
+      writer.writeUTF8(ADDITIONAL_METRIC_TAGS);
+      writer.startArray(additionalTags.length);
+      for (UTF8BytesString slot : additionalTags) {
+        writer.writeUTF8(slot);
+      }
     }
 
     if (hasServiceSource) {

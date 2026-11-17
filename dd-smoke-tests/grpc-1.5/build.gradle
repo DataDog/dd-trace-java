@@ -6,9 +6,8 @@ plugins {
   id 'java-test-fixtures'
   id 'com.google.protobuf' version '0.10.0'
   id 'com.gradleup.shadow'
+  id 'dd-trace-java.module.smoke-test'
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 def grpcVersion = '1.58.0'
 def protobufVersion = '3.24.0'
@@ -18,7 +17,7 @@ def mainClassName = 'datadog.smoketest.grpc.App'
 dependencies {
   implementation "io.grpc:grpc-all:${grpcVersion}"
 
-  testImplementation project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests:smoke-test-common')
   testImplementation(testFixtures(project(":dd-smoke-tests:iast-util")))
 }
 

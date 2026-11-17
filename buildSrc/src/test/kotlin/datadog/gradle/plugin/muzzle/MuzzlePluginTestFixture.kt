@@ -1,7 +1,6 @@
 package datadog.gradle.plugin.muzzle
 
 import datadog.gradle.plugin.GradleFixture
-import datadog.gradle.plugin.MavenRepoFixture
 import org.intellij.lang.annotations.Language
 import java.io.File
 
@@ -10,8 +9,6 @@ import java.io.File
  * Extends GradleFixture with muzzle-specific functionality.
  */
 open class MuzzlePluginTestFixture : GradleFixture() {
-  fun createMavenRepoFixture(): MavenRepoFixture = MavenRepoFixture(projectDir)
-
   /**
    * Writes the basic Gradle project structure for muzzle testing.
    * Creates a multi-project build with agent-bootstrap, agent-tooling, and instrumentation modules.
@@ -23,7 +20,8 @@ open class MuzzlePluginTestFixture : GradleFixture() {
       """
     )
 
-    addSubproject("dd-java-agent:agent-bootstrap",
+    addSubproject(
+      "dd-java-agent:agent-bootstrap",
       """
       plugins {
         id("java")
@@ -33,7 +31,8 @@ open class MuzzlePluginTestFixture : GradleFixture() {
       """
     )
 
-    addSubproject("dd-java-agent:agent-tooling",
+    addSubproject(
+      "dd-java-agent:agent-tooling",
       """
       plugins {
         id("java")
@@ -42,6 +41,31 @@ open class MuzzlePluginTestFixture : GradleFixture() {
     )
 
     addSubproject("dd-java-agent:instrumentation:demo", instrumentationBuildScript)
+  }
+
+  /** Writes an aggregation project with optional instrumentation report producers. */
+  fun writeAggregationProject(vararg producers: String) {
+    addSubproject(
+      "dd-java-agent:instrumentation",
+      """
+      plugins {
+        id("java")
+        id("dd-trace-java.muzzle-report-aggregation")
+      }
+      layout.buildDirectory.set(layout.projectDirectory.dir("relocated/build"))
+      muzzleReports.reportFile.set(layout.buildDirectory.file("muzzle-deps-results/dd-java-agent_instrumentation.csv"))
+      dependencies {
+        ${producers.joinToString("\n") { "implementation(project(\":dd-java-agent:instrumentation:$it\"))" }}
+      }
+      tasks.register("muzzleInstrumentationReport") { dependsOn(tasks.named("aggregateMuzzleReports")) }
+      """
+    )
+    writeRootProject(
+      """
+      plugins { id("dd-trace-java.muzzle-report-aggregation") apply false }
+      layout.buildDirectory.set(layout.projectDirectory.dir("relocated/build"))
+      """
+    )
   }
 
   /**
@@ -64,8 +88,17 @@ open class MuzzlePluginTestFixture : GradleFixture() {
       """
       package datadog.trace.agent.tooling.muzzle;
 
+      import static java.util.Collections.singleton;
+
+      import java.util.Set;
+
       public final class MuzzleVersionScanPlugin {
         private MuzzleVersionScanPlugin() {}
+
+        public static Set<String> listInstrumentationNames(
+            ClassLoader instrumentationClassLoader, String muzzleDirective) {
+          return singleton("test-instrumentation");
+        }
 
         public static void assertInstrumentationMuzzled(
             ClassLoader instrumentationClassLoader,
@@ -97,6 +130,5 @@ open class MuzzlePluginTestFixture : GradleFixture() {
   /**
    * Returns the path to a muzzle result file for the given task name.
    */
-  fun resultFile(taskName: String) =
-    projectDir.toPath().resolve("dd-java-agent/instrumentation/demo/build/reports/$taskName.txt")
+  fun resultFile(taskName: String) = projectDir.toPath().resolve("dd-java-agent/instrumentation/demo/build/reports/$taskName.txt")
 }

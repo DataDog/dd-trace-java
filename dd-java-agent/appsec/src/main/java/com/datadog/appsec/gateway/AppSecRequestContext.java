@@ -1,7 +1,9 @@
 package com.datadog.appsec.gateway;
 
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
+import static java.util.Collections.emptyMap;
 import static java.util.Collections.emptySet;
+import static java.util.Collections.unmodifiableMap;
 
 import com.datadog.appsec.event.data.Address;
 import com.datadog.appsec.event.data.DataBundle;
@@ -124,10 +126,19 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
   private String savedRawURI;
   private String route;
   private String httpUrl;
+  private String apiSecurityFramework;
   private String endpoint;
   private boolean endpointComputed = false;
-  private final Map<String, List<String>> requestHeaders = new LinkedHashMap<>();
-  private final Map<String, List<String>> responseHeaders = new LinkedHashMap<>();
+  // Handed out live to readers that may run on the trace-processing thread (API Security schema
+  // extraction), so close() must release these by nulling the reference, never by clearing the map:
+  // mutating a snapshot mid-iteration corrupts it (APPSEC-70134). Volatile because that release can
+  // happen on a different thread than the header writes.
+  //
+  // null also means "no header seen yet", so an untouched context allocates nothing. Only
+  // addRequestHeader/addResponseHeader materialize, which assumes the single writer the plain
+  // LinkedHashMap already assumes; the getters null-coalesce so no reader allocates.
+  private volatile Map<String, List<String>> requestHeaders;
+  private volatile Map<String, List<String>> responseHeaders;
   private volatile Map<String, List<String>> collectedCookies;
   private boolean finishedRequestHeaders;
   private boolean finishedResponseHeaders;
@@ -149,6 +160,13 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
   private boolean responseBodyPublished;
   private boolean respDataPublished;
   private boolean pathParamsPublished;
+
+  /**
+   * WAF-reported attributes, published copy-on-write: writers publish a fresh unmodifiable copy
+   * instead of mutating in place, so a reader can keep the instance it read without
+   * synchronization. Mutating a published map would break readers running on the trace-processing
+   * thread (APPSEC-70134).
+   */
   private final AtomicReference<Map<String, Object>> derivatives = new AtomicReference<>();
 
   private final AtomicBoolean rateLimited = new AtomicBoolean(false);
@@ -281,6 +299,11 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
     return wafRequestBlockFailure;
   }
 
+  @Override
+  public void reportBlockFailure() {
+    setWafRequestBlockFailure();
+  }
+
   public void setWafRateLimited() {
     this.wafRateLimited = true;
   }
@@ -353,39 +376,73 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
     this.extendedDataCollectionMaxHeaders = extendedDataCollectionMaxHeaders;
   }
 
+  /**
+   * Returns the request's {@link WafContext}, creating it on first use.
+   *
+   * <p>Returns {@code null} when the context has already been closed (see {@link
+   * #closeWafContext()}). Callers MUST treat a {@code null} return as "the WAF must not run for
+   * this request" and skip the evaluation. This prevents a late/async data event (e.g. a RASP
+   * callback on a driver or event-loop thread) from resurrecting a brand-new native {@code
+   * ddwaf_context} on an already-finished request, which would never be closed and would leak
+   * off-heap memory (APPSEC-69085).
+   */
   public WafContext getOrCreateWafContext(
       WafHandle wafHandle, boolean createMetrics, boolean isRasp) {
-    if (createMetrics) {
-      if (wafMetrics == null) {
-        this.wafMetrics = new WafMetrics();
-      }
-      if (isRasp && raspMetrics == null) {
-        this.raspMetrics = new WafMetrics();
-      }
-    }
-
-    WafContext curWafContext;
     synchronized (this) {
-      curWafContext = this.wafContext;
-      if (curWafContext != null) {
-        return curWafContext;
+      // Atomic with respect to closeWafContext(): both run under this monitor.
+      if (wafContextClosed) {
+        return null;
       }
-      curWafContext = new WafContext(wafHandle);
+      if (!metricsReady(createMetrics, isRasp)) {
+        if (wafMetrics == null) {
+          this.wafMetrics = new WafMetrics();
+        }
+        if (isRasp && raspMetrics == null) {
+          this.raspMetrics = new WafMetrics();
+        }
+      }
+      if (this.wafContext != null) {
+        return this.wafContext;
+      }
+      WafContext curWafContext = new WafContext(wafHandle);
       this.wafContext = curWafContext;
+      return curWafContext;
     }
-    return curWafContext;
+  }
+
+  /**
+   * Returns the request's open {@link WafContext} without locking, or {@code null} when it does not
+   * exist yet, is closed, or still lacks metrics that {@link #getOrCreateWafContext} would create.
+   * On {@code null}, callers fall back to {@link #getOrCreateWafContext}.
+   */
+  public WafContext getWafContextIfReady(boolean createMetrics, boolean isRasp) {
+    WafContext curWafContext = this.wafContext;
+    if (curWafContext == null || wafContextClosed) {
+      return null;
+    }
+    return metricsReady(createMetrics, isRasp) ? curWafContext : null;
+  }
+
+  /** Whether the metrics a WAF call with these flags needs already exist. */
+  private boolean metricsReady(boolean createMetrics, boolean isRasp) {
+    return !createMetrics || (wafMetrics != null && (!isRasp || raspMetrics != null));
   }
 
   public void closeWafContext() {
-    if (wafContext != null) {
-      synchronized (this) {
-        if (wafContext != null) {
-          try {
-            wafContextClosed = true;
-            wafContext.close();
-          } finally {
-            wafContext = null;
-          }
+    if (wafContextClosed) {
+      // Fast path for the common case of redundant close() calls (e.g. the generic fallback
+      // close() running after GatewayBridge#onRequestEnded already closed it).
+      return;
+    }
+    synchronized (this) {
+      // Must be set unconditionally, even if the WAF never ran for this request: a late/async
+      // caller of getOrCreateWafContext() must not resurrect a context after close (APPSEC-69085).
+      wafContextClosed = true;
+      if (wafContext != null) {
+        try {
+          wafContext.close();
+        } finally {
+          wafContext = null;
         }
       }
     }
@@ -455,6 +512,20 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
     this.route = route;
   }
 
+  /**
+   * The web framework component (e.g. netty, tomcat) captured at request-end, when the request was
+   * sampled for API Security schema extraction. Read by the deferred post-processing step instead
+   * of the span's local root, since the local root can be an inferred-proxy span (e.g.
+   * aws-apigateway) rather than the actual web framework.
+   */
+  public String getApiSecurityFramework() {
+    return apiSecurityFramework;
+  }
+
+  public void setApiSecurityFramework(String apiSecurityFramework) {
+    this.apiSecurityFramework = apiSecurityFramework;
+  }
+
   public String getHttpUrl() {
     return httpUrl;
   }
@@ -519,9 +590,12 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
       return;
     }
 
-    List<String> strings =
-        requestHeaders.computeIfAbsent(name.toLowerCase(Locale.ROOT), h -> new ArrayList<>(1));
-    strings.add(value);
+    Map<String, List<String>> headers = requestHeaders;
+    if (headers == null) {
+      headers = new LinkedHashMap<>();
+      requestHeaders = headers;
+    }
+    headers.computeIfAbsent(name.toLowerCase(Locale.ROOT), h -> new ArrayList<>(1)).add(value);
   }
 
   void finishRequestHeaders() {
@@ -533,7 +607,8 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
   }
 
   Map<String, List<String>> getRequestHeaders() {
-    return requestHeaders;
+    Map<String, List<String>> headers = requestHeaders;
+    return headers != null ? headers : emptyMap();
   }
 
   void addResponseHeader(String name, String value) {
@@ -545,9 +620,12 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
       return;
     }
 
-    List<String> strings =
-        responseHeaders.computeIfAbsent(name.toLowerCase(Locale.ROOT), h -> new ArrayList<>(1));
-    strings.add(value);
+    Map<String, List<String>> headers = responseHeaders;
+    if (headers == null) {
+      headers = new LinkedHashMap<>();
+      responseHeaders = headers;
+    }
+    headers.computeIfAbsent(name.toLowerCase(Locale.ROOT), h -> new ArrayList<>(1)).add(value);
   }
 
   public void finishResponseHeaders() {
@@ -559,7 +637,8 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
   }
 
   Map<String, List<String>> getResponseHeaders() {
-    return responseHeaders;
+    Map<String, List<String>> headers = responseHeaders;
+    return headers != null ? headers : emptyMap();
   }
 
   void addCookies(Map<String, List<String>> cookies) {
@@ -720,16 +799,16 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
       if (wafContext != null) {
         log.debug(
             SEND_TELEMETRY, "WAF object had not been closed (probably missed request-end event)");
-        closeWafContext();
       }
+      // Always close, even if the WAF never ran for this request: wafContextClosed must be set so
+      // a late/async caller of getOrCreateWafContext() cannot resurrect a context (APPSEC-69085).
+      closeWafContext();
       collectedCookies = null;
-      requestHeaders.clear();
-      responseHeaders.clear();
       persistentData.clear();
-      final Map<String, Object> derivatives = this.derivatives.getAndSet(null);
-      if (derivatives != null) {
-        derivatives.clear();
-      }
+      // Null the reference, never clear in place (APPSEC-70134): see the field declarations.
+      this.requestHeaders = null;
+      this.responseHeaders = null;
+      this.derivatives.set(null);
     }
   }
 
@@ -802,56 +881,56 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
     if (data == null || data.isEmpty()) return;
 
     // Initialize or update derivatives atomically
-    derivatives.updateAndGet(
-        current -> {
-          Map<String, Object> updated = current != null ? new HashMap<>(current) : new HashMap<>();
+    derivatives.updateAndGet(current -> {
+      Map<String, Object> updated = current != null ? new HashMap<>(current) : new HashMap<>();
 
-          // Process each attribute according to the specification
-          for (Map.Entry<String, Object> entry : data.entrySet()) {
-            String attributeKey = entry.getKey();
-            Object attributeConfig = entry.getValue();
+      // Process each attribute according to the specification
+      for (Map.Entry<String, Object> entry : data.entrySet()) {
+        String attributeKey = entry.getKey();
+        Object attributeConfig = entry.getValue();
 
-            if (attributeConfig instanceof Map) {
-              @SuppressWarnings("unchecked")
-              Map<String, Object> config = (Map<String, Object>) attributeConfig;
+        if (attributeConfig instanceof Map) {
+          @SuppressWarnings("unchecked")
+          Map<String, Object> config = (Map<String, Object>) attributeConfig;
 
-              // Check if it's a literal value schema
-              if (config.containsKey("value")) {
-                Object literalValue = config.get("value");
-                if (literalValue != null) {
-                  // Preserve the original type - don't convert to string
-                  updated.put(attributeKey, literalValue);
-                  log.debug(
-                      "Added literal attribute: {} = {} (type: {})",
-                      attributeKey,
-                      literalValue,
-                      literalValue.getClass().getSimpleName());
-                }
-              }
-              // Check if it's a request data schema
-              else if (config.containsKey("address")) {
-                String address = (String) config.get("address");
-                @SuppressWarnings("unchecked")
-                List<String> keyPath = (List<String>) config.get("key_path");
-                @SuppressWarnings("unchecked")
-                List<String> transformers = (List<String>) config.get("transformers");
-
-                Object extractedValue = extractValueFromRequestData(address, keyPath, transformers);
-                if (extractedValue != null) {
-                  // For extracted values, convert to string as they come from request data
-                  updated.put(attributeKey, extractedValue.toString());
-                  log.debug("Added extracted attribute: {} = {}", attributeKey, extractedValue);
-                }
-              }
-            } else {
-              // Handle plain string/numeric values
-              updated.put(attributeKey, attributeConfig);
-              log.debug("Added direct attribute: {} = {}", attributeKey, attributeConfig);
+          // Check if it's a literal value schema
+          if (config.containsKey("value")) {
+            Object literalValue = config.get("value");
+            if (literalValue != null) {
+              // Preserve the original type - don't convert to string
+              updated.put(attributeKey, literalValue);
+              log.debug(
+                  "Added literal attribute: {} = {} (type: {})",
+                  attributeKey,
+                  literalValue,
+                  literalValue.getClass().getSimpleName());
             }
           }
+          // Check if it's a request data schema
+          else if (config.containsKey("address")) {
+            String address = (String) config.get("address");
+            @SuppressWarnings("unchecked")
+            List<String> keyPath = (List<String>) config.get("key_path");
+            @SuppressWarnings("unchecked")
+            List<String> transformers = (List<String>) config.get("transformers");
 
-          return updated;
-        });
+            Object extractedValue = extractValueFromRequestData(address, keyPath, transformers);
+            if (extractedValue != null) {
+              // For extracted values, convert to string as they come from request data
+              updated.put(attributeKey, extractedValue.toString());
+              log.debug("Added extracted attribute: {} = {}", attributeKey, extractedValue);
+            }
+          }
+        } else {
+          // Handle plain string/numeric values
+          updated.put(attributeKey, attributeConfig);
+          log.debug("Added direct attribute: {} = {}", attributeKey, attributeConfig);
+        }
+      }
+
+      // Unmodifiable: readers may hold this instance indefinitely.
+      return unmodifiableMap(updated);
+    });
   }
 
   /**
@@ -894,9 +973,9 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
     // Map common addresses to our data structures
     switch (address) {
       case "server.request.headers":
-        return requestHeaders;
+        return getRequestHeaders();
       case "server.response.headers":
-        return responseHeaders;
+        return getResponseHeaders();
       case "server.request.cookies":
         return collectedCookies;
       case "server.request.uri.raw":
@@ -1036,10 +1115,26 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
     return true;
   }
 
-  // Mainly used for testing and logging
-  Set<String> getDerivativeKeys() {
+  /**
+   * Mainly used for testing and debug logging. The published map is unmodifiable, so its key set is
+   * returned directly as a stable view.
+   */
+  public Set<String> getDerivativeKeys() {
     Map<String, Object> current = derivatives.get();
-    return current == null ? emptySet() : new HashSet<>(current.keySet());
+    return current == null ? emptySet() : current.keySet();
+  }
+
+  /**
+   * Whether any currently reported derivative key starts with the given prefix. Must be called
+   * before {@link #commitDerivatives(TraceSegment)}, which detaches the derivatives map.
+   */
+  public boolean hasDerivativeKeyStartingWith(final String prefix) {
+    for (String key : getDerivativeKeys()) {
+      if (key != null && key.startsWith(prefix)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   public boolean isThrottled(RateLimiter rateLimiter) {

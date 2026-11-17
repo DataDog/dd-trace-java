@@ -1,9 +1,13 @@
 package datadog.trace.api.telemetry;
 
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.metrics.BaggageMetrics;
 import datadog.trace.api.metrics.CoreCounter;
+import datadog.trace.api.metrics.LogsIntakeMetrics;
 import datadog.trace.api.metrics.SpanMetricRegistryImpl;
 import datadog.trace.api.metrics.SpanMetricsImpl;
+import datadog.trace.api.metrics.StatsMetrics;
+import datadog.trace.api.metrics.TaggedCounter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -18,6 +22,12 @@ public class CoreMetricCollector implements MetricCollector<CoreMetricCollector.
   private static final CoreMetricCollector INSTANCE = new CoreMetricCollector();
   private final SpanMetricRegistryImpl spanMetricRegistry = SpanMetricRegistryImpl.getInstance();
   private final BaggageMetrics baggageMetrics = BaggageMetrics.getInstance();
+  private final StatsMetrics statsMetrics = StatsMetrics.getInstance();
+  private final LogsIntakeMetrics logsIntakeMetrics =
+      InstrumenterConfig.get().isAgentlessLogSubmissionEnabled()
+              || InstrumenterConfig.get().isAppLogsCollectionEnabled()
+          ? LogsIntakeMetrics.getInstance()
+          : null;
 
   private final BlockingQueue<CoreMetric> metricsQueue;
 
@@ -29,12 +39,48 @@ public class CoreMetricCollector implements MetricCollector<CoreMetricCollector.
     this.metricsQueue = new ArrayBlockingQueue<>(RAW_QUEUE_SIZE);
   }
 
+  public void count(String metricName, long value, String tag) {
+    if (value <= 0) {
+      return;
+    }
+    this.metricsQueue.offer(
+        new CoreMetric(METRIC_NAMESPACE, true, metricName, "count", value, tag));
+  }
+
   @Override
   public void prepareMetrics() {
+    // Collect the bounded, high-value client-side trace-stats span-collapse counters first, tagged
+    // by collapse reason. There is only a small, fixed set of these; the span-metric registry below
+    // is unbounded (one entry per instrumentation name), so draining it first could fill the queue
+    // and starve the collapse counters indefinitely under high instrumentation counts. Collecting
+    // them up front guarantees they are emitted.
+    for (TaggedCounter counter : this.statsMetrics.getTaggedCounters()) {
+      if (!collect(counter)) {
+        break;
+      }
+    }
+
+    if (this.logsIntakeMetrics != null) {
+      collect(this.logsIntakeMetrics.getDroppedLogs());
+    }
+
     // Collect span metrics
+    spanMetricsLoop:
     for (SpanMetricsImpl spanMetrics : this.spanMetricRegistry.getSpanMetrics()) {
+      if (this.metricsQueue.remainingCapacity() == 0) {
+        // Queue full: stop before touching any more span-metrics entries, not just the counters of
+        // the current one, so a full queue doesn't leave us building tags and iterating counters we
+        // can't enqueue anyway.
+        break;
+      }
       String tag = INTEGRATION_NAME_TAG + spanMetrics.getInstrumentationName();
       for (CoreCounter counter : spanMetrics.getCounters()) {
+        if (this.metricsQueue.remainingCapacity() == 0) {
+          // Queue full: stop before reading any more counters. getValueAndReset() below resets the
+          // counter's delta baseline, so resetting one we then fail to enqueue would drop that
+          // delta for good; the untouched counters are picked up on the next collection cycle.
+          break spanMetricsLoop;
+        }
         long value = counter.getValueAndReset();
         if (value == 0) {
           // Skip not updated counters
@@ -44,13 +90,19 @@ public class CoreMetricCollector implements MetricCollector<CoreMetricCollector.
             new CoreMetric(METRIC_NAMESPACE, true, counter.getName(), "count", value, tag);
         if (!this.metricsQueue.offer(metric)) {
           // Stop adding metrics if the queue is full
-          break;
+          break spanMetricsLoop;
         }
       }
     }
 
     // Collect baggage metrics
     for (BaggageMetrics.TaggedCounter counter : this.baggageMetrics.getTaggedCounters()) {
+      if (this.metricsQueue.remainingCapacity() == 0) {
+        // Queue full: stop before reading any more counters. getValueAndReset() below resets the
+        // counter's delta baseline, so resetting one we then fail to enqueue would drop that
+        // delta for good; the untouched counters are picked up on the next collection cycle.
+        break;
+      }
       long value = counter.getValueAndReset();
       if (value == 0) {
         // Skip not updated counters
@@ -65,6 +117,23 @@ public class CoreMetricCollector implements MetricCollector<CoreMetricCollector.
         break;
       }
     }
+  }
+
+  /** Enqueues the counter's delta, returning {@code false} when the queue is full. */
+  private boolean collect(TaggedCounter counter) {
+    if (this.metricsQueue.remainingCapacity() == 0) {
+      // Queue full: stop before reading the counter. getValueAndReset() resets the counter's delta
+      // baseline, so resetting one we then fail to enqueue would drop that delta for good; the
+      // untouched counters are picked up on the next collection cycle.
+      return false;
+    }
+    long value = counter.getValueAndReset();
+    if (value == 0) {
+      return true;
+    }
+    return this.metricsQueue.offer(
+        new CoreMetric(
+            METRIC_NAMESPACE, true, counter.getName(), "count", value, counter.getTag()));
   }
 
   @Override

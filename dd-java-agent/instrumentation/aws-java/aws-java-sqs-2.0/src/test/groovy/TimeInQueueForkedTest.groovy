@@ -306,6 +306,8 @@ class TimeInQueueForkedTest extends InstrumentationSpecification {
         "aws.operation" "SendMessageBatch"
         "aws.agent" "java-aws-sdk"
         "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
+        "aws.queue.name" "somequeue"
+        "queuename" "somequeue"
         "aws.requestId" { it.trim() == "00000000-0000-0000-0000-000000000000" } // the test server seem messing with request id and insert \n
         urlTags("http://localhost:${address.port}/", ExpectedQueryParams.getExpectedQueryParams("SendMessageBatch"))
         serviceNameSource("java-aws-sdk")
@@ -331,6 +333,8 @@ class TimeInQueueForkedTest extends InstrumentationSpecification {
         "aws.operation" "ReceiveMessage"
         "aws.agent" "java-aws-sdk"
         "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
+        "aws.queue.name" "somequeue"
+        "queuename" "somequeue"
         "aws.requestId" { it.trim() == "00000000-0000-0000-0000-000000000000" } // the test server seem messing with request id and insert \n
         // when using time in queue, the instrumentation always set the service name for the receive span
         // while it's the same as dd-service, forcing a service name means setting the _dd.svc_src tag
@@ -353,6 +357,8 @@ class TimeInQueueForkedTest extends InstrumentationSpecification {
         "$Tags.COMPONENT" "java-aws-sdk"
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_BROKER
         "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
+        "aws.queue.name" "somequeue"
+        "queuename" "somequeue"
         "aws.requestId" { it.trim() == "00000000-0000-0000-0000-000000000000" } // the test server seem messing with request id and insert \n
         defaultTags(true)
       }

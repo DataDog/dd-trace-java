@@ -1,3 +1,7 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
 muzzle {
   pass {
     group = 'org.eclipse.jetty'
@@ -8,18 +12,12 @@ muzzle {
   }
 }
 
-apply from: "$rootDir/gradle/java.gradle"
-
 dependencies {
   compileOnly(group: 'org.eclipse.jetty', name: 'jetty-server', version: '11.0.26') {
     exclude group: 'org.slf4j', module: 'slf4j-api'
   }
   testImplementation(group: 'org.eclipse.jetty.toolchain', name: 'jetty-jakarta-servlet-api', version: '5.0.1')
   testImplementation libs.bundles.mockito
-}
-
-tasks.withType(JavaCompile).configureEach {
-  configureCompiler(it, 11, JavaVersion.VERSION_1_8)
 }
 
 tasks.withType(Test).configureEach {

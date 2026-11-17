@@ -1,7 +1,7 @@
 package com.datadog.debugger.codeorigin;
 
 import static com.datadog.debugger.agent.ConfigurationAcceptor.Source.CODE_ORIGIN;
-import static datadog.trace.api.DDTags.*;
+import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_FRAME_SNAPSHOT_ID;
 
 import com.datadog.debugger.agent.ConfigurationUpdater;
 import com.datadog.debugger.exception.Fingerprinter;
@@ -134,12 +134,11 @@ public class DefaultCodeOriginRecorder implements CodeOriginRecorder {
   }
 
   private StackTraceElement findPlaceInStack() {
-    return StackWalkerFactory.INSTANCE.walk(
-        stream ->
-            stream
-                .filter(element -> !DebuggerContext.isClassNameExcluded(element.getClassName()))
-                .findFirst()
-                .orElse(null));
+    return StackWalkerFactory.INSTANCE.walk(stream ->
+        stream
+            .filter(element -> !DebuggerContext.isClassNameExcluded(element.getClassName()))
+            .findFirst()
+            .orElse(null));
   }
 
   public void installProbes() {

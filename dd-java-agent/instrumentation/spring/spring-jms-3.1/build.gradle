@@ -1,3 +1,7 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
 muzzle {
   pass {
     group = 'org.springframework'
@@ -7,14 +11,7 @@ muzzle {
   }
 }
 
-apply from: "$rootDir/gradle/java.gradle"
-
 addTestSuiteForDir('latestDepTest', 'test')
-addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
-
-tasks.named("latestDepTest", Test) {
-  finalizedBy 'latestDepForkedTest'
-}
 
 dependencies {
   implementation project(':dd-java-agent:instrumentation:jms:javax-jms-1.1')

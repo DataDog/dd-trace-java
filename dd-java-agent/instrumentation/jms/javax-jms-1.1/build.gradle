@@ -1,3 +1,8 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+  id 'java-test-fixtures'
+}
+
 muzzle {
   pass {
     name = "javax.jms"
@@ -13,9 +18,6 @@ muzzle {
   }
 }
 
-apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'java-test-fixtures'
-
 repositories {
   maven {
     // only place that has org.jboss.naming:jnpserver:5.0.3.GA publicly accessible
@@ -24,12 +26,8 @@ repositories {
   }
 }
 
-addTestSuite('latestDepTest')
+addTestSuite('latestDepTest', false) // latestDepForkedTest is declared below from other sources
 addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
-
-tasks.named("latestDepTest", Test) {
-  finalizedBy 'latestDepForkedTest'
-}
 
 dependencies {
   compileOnly group: 'javax.jms', name: 'jms-api', version: '1.1-rev-1'

@@ -5,7 +5,6 @@ import datadog.trace.civisibility.CiVisibilityInstrumentationTest
 import datadog.trace.instrumentation.junit5.JUnitPlatformUtils
 import datadog.trace.instrumentation.junit5.TestEventsHandlerHolder
 import datadog.trace.util.ComparableVersion
-import io.cucumber.core.api.TypeRegistry
 import io.cucumber.core.options.Constants
 import org.junit.platform.engine.DiscoverySelector
 import org.junit.platform.engine.TestExecutionResult
@@ -23,6 +22,33 @@ import static org.junit.platform.engine.discovery.DiscoverySelectors.selectClass
 
 @DisableTestTrace(reason = "avoid self-tracing")
 class CucumberTest extends CiVisibilityInstrumentationTest {
+
+  def "test automation exclusions keep a protected scenario blocking and execute once"() {
+    given:
+    def path = "org/example/cucumber/calculator/automation_excluded.feature"
+    def id = new TestFQN("classpath:${path}:Basic Arithmetic", "Addition")
+    givenDisabledTests([id])
+    givenQuarantinedTests([id])
+    givenAttemptToFixTests([id])
+    givenFlakyRetryEnabled(true)
+    givenFlakyTests([id])
+    givenEarlyFlakinessDetectionEnabled(true)
+    givenKnownTests([])
+
+    when:
+    runFeatures([path], false, false)
+
+    then:
+    def testSpans = TEST_WRITER.toList().flatten().findAll { it.getTag("test.name") == "Addition" }
+    testSpans.size() == 1
+    def testSpan = testSpans.first()
+    testSpan.getTag("test.test_management.no_auto_retry")
+    testSpan.getTag("test.test_management.prevent_failure_suppression")
+    testSpan.getTag("test.test_management.is_test_disabled")
+    testSpan.getTag("test.test_management.is_quarantined")
+    testSpan.getTag("test.test_management.is_attempt_to_fix")
+    testSpan.getTag("test.test_management.attempt_to_fix_passed") == null
+  }
 
   def "test #testcaseName"() {
     runFeatures(features, parallel)
@@ -234,7 +260,7 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
   }
 
   private boolean usesFlatExampleNaming() {
-    def version = TypeRegistry.package.getImplementationVersion()
+    def version = Constants.package.getImplementationVersion()
     // 5.4.0 does not populate the package version; cucumber 7.11.0 switched from the flat
     // "Example #<row>" naming to "Example #<examplesBlock>.<row>".
     return version == null || new ComparableVersion(version) < new ComparableVersion("7.11.0")
@@ -282,7 +308,7 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
 
   @Override
   String instrumentedLibraryVersion() {
-    def version = TypeRegistry.package.getImplementationVersion()
+    def version = Constants.package.getImplementationVersion()
     return version != null ? version : "5.4.0" // older releases do not have package version populated
   }
 

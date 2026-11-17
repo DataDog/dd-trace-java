@@ -2,7 +2,6 @@ package datadog.trace.core.scopemanager;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopScope;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static datadog.trace.core.scopemanager.ContinuableScope.CONTEXT;
 import static datadog.trace.core.scopemanager.ContinuableScope.INSTRUMENTATION;
@@ -20,11 +19,11 @@ import datadog.trace.api.Config;
 import datadog.trace.api.Stateful;
 import datadog.trace.api.scopemanager.ExtendedScopeListener;
 import datadog.trace.api.scopemanager.ScopeListener;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTraceCollector;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.NoopContinuation;
+import datadog.trace.bootstrap.instrumentation.api.NoopScope;
 import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.core.monitor.HealthMetrics;
@@ -52,6 +51,7 @@ public final class ContinuableScopeManager {
   static final RatelimitedLogger ratelimitedLog = new RatelimitedLogger(log, 1, MINUTES);
 
   private static final NoopContinuation ROOT_CONTINUATION = NoopContinuation.INSTANCE;
+  private static final NoopScope INVALID_SCOPE = NoopScope.INSTANCE;
 
   static final long iterationKeepAlive =
       SECONDS.toMillis(Config.get().getScopeIterationKeepAlive());
@@ -99,43 +99,24 @@ public final class ContinuableScopeManager {
         !(profilingContextIntegration instanceof ProfilingContextIntegration.NoOp);
   }
 
-  public AgentScope activateSpan(final AgentSpan span) {
+  public ContextScope activateSpan(final AgentSpan span) {
     return activate(span, INSTRUMENTATION, true, DEFAULT_ASYNC_PROPAGATING);
   }
 
-  public AgentScope activateManualSpan(final AgentSpan span) {
+  public ContextScope activateManualSpan(final AgentSpan span) {
     return activate(span, MANUAL, false, /* ignored */ false);
   }
 
-  @SuppressWarnings("deprecation")
-  public AgentScope.Continuation captureActiveSpan() {
-    ContinuableScope activeScope = scopeStack().active();
-    if (null != activeScope && activeScope.isAsyncPropagating()) {
-      AgentSpan span = activeScope.span();
-      if (span != null) {
-        return captureSpan(activeScope.context, activeScope.source(), span);
-      }
-    }
-    return ROOT_CONTINUATION;
-  }
-
-  public ContextContinuation captureSpan(final AgentSpan span) {
-    ContinuableScope top = scopeStack().top;
-    Context context = top != null ? top.context.with(span) : span;
-    return captureSpan(context, INSTRUMENTATION, span);
-  }
-
-  @SuppressWarnings("deprecation")
-  private AgentScope.Continuation captureSpan(Context context, byte source, AgentSpan span) {
-    AgentTraceCollector traceCollector = span.spanContext().getTraceCollector();
-    return new ScopeContinuation(this, context, source, traceCollector).register();
-  }
-
-  private AgentScope activate(
+  private ContextScope activate(
       final AgentSpan span,
       final byte source,
       final boolean overrideAsyncPropagation,
       final boolean isAsyncPropagating) {
+    if (span == null) {
+      log.debug(SEND_TELEMETRY, "Attempted to activate a null span.  Returning NoopScope.");
+      return INVALID_SCOPE;
+    }
+
     ScopeStack scopeStack = scopeStack();
 
     final ContinuableScope top = scopeStack.top;
@@ -150,11 +131,9 @@ public final class ContinuableScopeManager {
       if (depthLimit <= currentDepth) {
         healthMetrics.onScopeStackOverflow();
         log.debug("Scope depth limit exceeded ({}).  Returning NoopScope.", currentDepth);
-        return noopScope();
+        return INVALID_SCOPE;
       }
     }
-
-    assert span != null;
 
     // Inherit the async propagation from the active scope unless the value is overridden
     boolean asyncPropagation =
@@ -172,7 +151,7 @@ public final class ContinuableScopeManager {
     return scope;
   }
 
-  private AgentScope activate(final Context context) {
+  private ContextScope activate(final Context context) {
     ScopeStack scopeStack = scopeStack();
 
     final ContinuableScope top = scopeStack.top;
@@ -187,7 +166,7 @@ public final class ContinuableScopeManager {
       if (depthLimit <= currentDepth) {
         healthMetrics.onScopeStackOverflow();
         log.debug("Scope depth limit exceeded ({}).  Returning NoopScope.", currentDepth);
-        return noopScope();
+        return INVALID_SCOPE;
       }
     }
 
@@ -273,14 +252,14 @@ public final class ContinuableScopeManager {
     }
   }
 
-  public AgentScope activateNext(final AgentSpan span) {
+  public ContextScope activateNext(final AgentSpan span) {
     ScopeStack scopeStack = scopeStack();
 
     final int currentDepth = scopeStack.depth();
     if (hasDepthLimit && depthLimit <= currentDepth) {
       healthMetrics.onScopeStackOverflow();
       log.debug("Scope depth limit exceeded ({}).  Returning NoopScope.", currentDepth);
-      return noopScope();
+      return INVALID_SCOPE;
     }
 
     assert span != null;
@@ -302,7 +281,7 @@ public final class ContinuableScopeManager {
     return scope;
   }
 
-  public AgentScope active() {
+  public ContextScope active() {
     return scopeStack().active();
   }
 
@@ -416,11 +395,9 @@ public final class ContinuableScopeManager {
       return ROOT_CONTINUATION;
     }
 
-    // respect async propagation flag for Context.current().capture()
+    // respect async propagation flag for any capture requests
     ContinuableScope activeScope = scopeStack().active();
-    if (activeScope != null
-        && !activeScope.isAsyncPropagating()
-        && activeScope.context == context) {
+    if (activeScope != null && !activeScope.isAsyncPropagating()) {
       return ROOT_CONTINUATION;
     }
     AgentSpan span = AgentSpan.fromContext(context);

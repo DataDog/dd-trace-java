@@ -33,16 +33,6 @@ public final class JaxRsClientInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".JaxRsClientDecorator",
-      packageName + ".ClientTracingFeature",
-      packageName + ".ClientTracingFilter",
-      packageName + ".InjectAdapter",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("build").and(returns(hasInterface(named("javax.ws.rs.client.Client")))),

@@ -43,7 +43,10 @@ public class MaybeBlockResponseHandler extends ChannelOutboundHandlerAdapter {
       // block further writes while the blocking response close is still asynchronous
       log.debug("Write suppressed; dropped outbound message");
       ReferenceCountUtil.release(msg);
-      prm.tryFailure(new ClosedChannelException());
+      // Void promise failures can trigger another error response and recurse here.
+      if (!prm.isVoid()) {
+        prm.tryFailure(new ClosedChannelException());
+      }
       return;
     }
 
@@ -70,6 +73,10 @@ public class MaybeBlockResponseHandler extends ChannelOutboundHandlerAdapter {
     }
     HttpResponse origResponse = (HttpResponse) msg;
     int statusCode = origResponse.status().code();
+    // Interim 1xx responses (e.g. 100 Continue, 103 Early Hints) precede the final response.
+    // Analyzing one here would consume the one-shot response analysis before the final response is
+    // written, so its status and headers would never be inspected. Switching Protocols (101) is
+    // terminal, so it is still analyzed.
     if (statusCode >= 100
         && statusCode < 200
         && statusCode != HttpResponseStatus.SWITCHING_PROTOCOLS.code()) {
@@ -117,15 +124,16 @@ public class MaybeBlockResponseHandler extends ChannelOutboundHandlerAdapter {
 
     requestContext.getTraceSegment().effectivelyBlocked();
     log.debug("About to write and flush blocking response {}", response);
-    ctx.writeAndFlush(response, prm)
-        .addListener(
-            fut -> {
-              if (!fut.isSuccess()) {
-                log.warn("Write of blocking response failed", fut.cause());
-              } else {
-                log.debug("Write of blocking response succeeded");
-              }
-              channel.close();
-            });
+    ChannelPromise writePromise = prm.isVoid() ? ctx.newPromise() : prm;
+    ctx.writeAndFlush(response, writePromise)
+        .addListener(fut -> {
+          if (!fut.isSuccess()) {
+            // known gap: this failure is not reported to AppSec block-failure telemetry
+            log.warn("Write of blocking response failed", fut.cause());
+          } else {
+            log.debug("Write of blocking response succeeded");
+          }
+          channel.close();
+        });
   }
 }

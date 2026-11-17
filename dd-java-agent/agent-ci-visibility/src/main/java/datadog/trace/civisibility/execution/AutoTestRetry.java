@@ -12,12 +12,12 @@ import java.util.concurrent.atomic.AtomicInteger;
  * number of times. Stops retrying as soon as the test passes.
  */
 @SuppressFBWarnings(
-    value = {"AT_NONATOMIC_OPERATIONS_ON_SHARED_VARIABLE"},
+    value = {"AT_NONATOMIC_OPERATIONS_ON_SHARED_VARIABLE", "AT_STALE_THREAD_WRITE_OF_PRIMITIVE"},
     justification =
         "TestExecutionPolicy instances are confined to a single thread and are not meant to be thread-safe")
 public class AutoTestRetry implements TestExecutionPolicy {
 
-  private final int maxExecutions;
+  private int maxExecutions;
   private final boolean suppressFailures;
   private int executions;
   private ExecutionAggregation results;
@@ -33,8 +33,15 @@ public class AutoTestRetry implements TestExecutionPolicy {
     this.results = ExecutionAggregation.NONE;
   }
 
+  protected int maxExecutionsForDuration(long durationMillis) {
+    return maxExecutions;
+  }
+
   @Override
-  public ExecutionOutcome registerExecution(TestStatus status, long durationMillis) {
+  public final ExecutionOutcome registerExecution(TestStatus status, long durationMillis) {
+    if (executions == 0) {
+      maxExecutions = maxExecutionsForDuration(durationMillis);
+    }
     ++executions;
     results = results.withExecution(status);
     if (executions > 1) {

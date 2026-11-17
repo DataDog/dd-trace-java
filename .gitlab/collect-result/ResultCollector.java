@@ -50,16 +50,20 @@ final class ResultCollector {
     var targetXml = resultsDir.resolve(aggregatedName);
     System.out.print("- " + toUnixString(sourceXml) + " as " + aggregatedName);
 
-    var sourceFile = sourceFileResolver.resolve(sourceXml);
     var report = JUnitReport.parse(sourceXml);
-    var reportChangedBeforeFinalStatus = report.addFileAttribute(sourceFile);
+    var reportChangedBeforeFinalStatus = false;
+    // Muzzle tests are synthetic and already carry their instrumentation module as the source.
+    if (!isMuzzleResult(sourceXml)) {
+      reportChangedBeforeFinalStatus =
+          report.addFileAttribute(className -> sourceFileResolver.resolve(sourceXml, className));
+    }
     // Before normalization: retried attempts are matched on raw classname#name (see
     // JUnitReport#tagRetriedAttempts) so distinct tests sharing a normalized name are not collapsed.
     report.tagRetriedAttempts();
     reportChangedBeforeFinalStatus |= report.normalizeStableTestNames();
     report.tagSyntheticFailures();
-    // Flaky jobs (CONTINUE_ON_FAILURE=true) never gate CI, so record every test as skip before
-    // assigning natural statuses (APMLP-1267).
+    // Flaky jobs (CONTINUE_ON_FAILURE=true) tolerate reported test failures. Record each test as
+    // skip before assigning natural statuses (APMLP-1267).
     if (continueOnFailure) {
       report.tagAllAsSkipped();
     }
@@ -121,6 +125,11 @@ final class ResultCollector {
   private static String fileName(Path path) {
     var fileName = path.getFileName();
     return fileName == null ? "" : fileName.toString();
+  }
+
+  private static boolean isMuzzleResult(Path sourceXml) {
+    var parent = sourceXml.getParent();
+    return parent != null && "muzzle".equals(fileName(parent));
   }
 
   static String toUnixString(Path path) {

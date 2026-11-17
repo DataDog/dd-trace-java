@@ -32,13 +32,6 @@ public class VertxImplInstrumentation extends InstrumenterModule.AppSec
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".BlockingExceptionHandler", packageName + ".VertxDecorator",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isPublic()

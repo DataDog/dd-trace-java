@@ -26,11 +26,6 @@ public class SaveRawRemoteConnectionInstrumentation extends InstrumenterModule.T
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {packageName + ".RemoteConnectionWithRawAddress"};
-  }
-
-  @Override
   public String instrumentedType() {
     return "play.core.server.common.ForwardedHeaderHandler";
   }

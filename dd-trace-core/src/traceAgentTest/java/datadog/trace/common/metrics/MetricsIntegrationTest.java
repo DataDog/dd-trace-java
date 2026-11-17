@@ -32,6 +32,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.startupcheck.MinimumDurationRunningStartupCheckStrategy;
+import org.testcontainers.utility.DockerImageName;
 
 @ExtendWith(WithConfigExtension.class)
 class MetricsIntegrationTest {
@@ -55,7 +56,8 @@ class MetricsIntegrationTest {
       env.put("DD_HOSTNAME", "doesnotexist");
       env.put("DD_LOGS_STDOUT", "yes");
       agentContainer =
-          new GenericContainer<>("datadog/agent:7.40.1")
+          new GenericContainer<>(
+                  DockerImageName.parse(System.getProperty("test.datadog.agent.image")))
               .withEnv(env)
               .withExposedPorts(ConfigDefaults.DEFAULT_TRACE_AGENT_PORT)
               .withStartupTimeout(Duration.ofSeconds(120))
@@ -76,7 +78,6 @@ class MetricsIntegrationTest {
 
   @BeforeEach
   void setup() {
-    AggregateEntry.resetCardinalityHandlers();
     injectSysConfig(TracerConfig.AGENT_HOST, agentHost());
     injectSysConfig(TracerConfig.TRACE_AGENT_PORT, agentPort());
   }
@@ -134,6 +135,7 @@ class MetricsIntegrationTest {
             null,
             null,
             null,
+            null,
             0L);
     AggregateEntry entry1 = table.findOrInsert(snap1);
     for (long duration : new long[] {2, 1, 2, 250, 4}) {
@@ -153,6 +155,7 @@ class MetricsIntegrationTest {
             "xyzzy",
             schema,
             new String[] {"quux"},
+            null,
             null,
             null,
             null,

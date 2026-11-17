@@ -1,8 +1,10 @@
+plugins {
+  id 'dd-trace-java.module.internal-library'
+}
+
 // Set properties before any plugins get loaded
 ext {
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 minimumBranchCoverage = 0.80
 
@@ -19,6 +21,13 @@ excludedClassesCoverage += [
   'com.datadog.profiling.uploader.util.JfrCliHelper.Event'
 ]
 
+// TODO: Cover these classes, then remove them from the coverage baseline (APMLP-2263)
+excludedClassesBranchCoverage += [
+  'com.datadog.profiling.uploader.CompressingRequestBody',
+  'com.datadog.profiling.uploader.ProfileUploader',
+  'com.datadog.profiling.uploader.ProfileUploader.RecordingDataAdapter',
+]
+
 dependencies {
   implementation libs.slf4j
   implementation project(':communication')
@@ -30,7 +39,7 @@ dependencies {
 
   implementation project(':dd-java-agent:agent-profiling:profiling-controller')
 
-  implementation libs.okhttp
+  implementation libs.datadog.okhttp
   implementation libs.lz4
   implementation libs.aircompressor
 
@@ -39,6 +48,5 @@ dependencies {
   testImplementation libs.bundles.junit5
   testImplementation libs.bundles.mockito
   testImplementation libs.jackson.databind
-  testImplementation group: 'com.squareup.okhttp3', name: 'mockwebserver', version: libs.versions.okhttp.legacy.get()
+  testImplementation libs.okhttp3.mockwebserver
 }
-

@@ -1,5 +1,6 @@
 package datadog.gradle.plugin.muzzle.tasks
 
+import org.assertj.core.api.Assertions.assertThat
 import org.gradle.kotlin.dsl.register
 import org.gradle.testfixtures.ProjectBuilder
 import org.junit.jupiter.api.BeforeEach
@@ -12,7 +13,6 @@ import javax.xml.parsers.DocumentBuilderFactory
 import kotlin.io.path.createDirectories
 import kotlin.io.path.readText
 import kotlin.io.path.writeText
-import org.assertj.core.api.Assertions.assertThat
 
 class MuzzleEndTaskTest {
 
@@ -48,6 +48,7 @@ class MuzzleEndTaskTest {
 
     val task = project.tasks.register<MuzzleEndTask>("muzzle-end").get().apply {
       startTimeMs.set(System.currentTimeMillis() - 1_000)
+      sourceFile.set("lettuce-5.0")
       muzzleResultFiles.from(passReportPath.toFile(), failReportPath.toFile())
     }
 
@@ -74,6 +75,14 @@ class MuzzleEndTaskTest {
     assertThat(suite.getAttribute("failures")).isEqualTo("1")
     assertThat(suite.getAttribute("errors")).isEqualTo("0")
     assertThat(suite.getAttribute("skipped")).isEqualTo("0")
+  }
+
+  @Test
+  fun `junit testcases contain project source path`() {
+    assertThat(findTestCaseByName(junitDoc, "muzzle-pass").getAttribute("file"))
+      .isEqualTo("lettuce-5.0")
+    assertThat(findTestCaseByName(junitDoc, "muzzle-fail").getAttribute("file"))
+      .isEqualTo("lettuce-5.0")
   }
 
   @Test

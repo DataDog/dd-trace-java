@@ -27,10 +27,4 @@ dependencies {
   implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
   implementation group: 'com.h2database', name: 'h2', version: '2.1.214'
   compileOnly group:"com.google.code.findbugs", name:"jsr305", version:"3.0.2"
-
-  if (hasProperty('apiJar')) {
-    implementation files(property('apiJar'))
-  } else {
-    implementation "com.datadoghq:dd-trace-api:1.2.0"
-  }
 }

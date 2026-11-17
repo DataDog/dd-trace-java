@@ -1,7 +1,7 @@
 package com.datadog.debugger.exception;
 
 import static java.util.Collections.emptySet;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.datadog.debugger.util.ClassNameFiltering;
 import org.junit.jupiter.api.Assertions;

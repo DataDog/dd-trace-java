@@ -6,6 +6,7 @@ import datadog.trace.api.env.CapturedEnvironment;
 import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.util.TraceUtils;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collections;
@@ -191,6 +192,10 @@ public class ProcessTags {
       return false;
     }
 
+    @SuppressFBWarnings(
+        value = "USO_UNSAFE_OBJECT_SYNCHRONIZATION",
+        justification =
+            "TAGS is private to this holder and never escapes; the same monitor guards every traversal and mutation.")
     static void calculate() {
       if (serializedForm != null || TAGS.isEmpty()) {
         return;
@@ -198,13 +203,11 @@ public class ProcessTags {
       synchronized (Lazy.TAGS) {
         final Stream<UTF8BytesString> tagStream =
             TAGS.entrySet().stream()
-                .map(
-                    entry ->
-                        UTF8BytesString.create(
-                            entry.getKey()
-                                + ":"
-                                + TraceUtils.normalizeTagValue(
-                                    entry.getValue().replace(':', '_'))));
+                .map(entry ->
+                    UTF8BytesString.create(
+                        entry.getKey()
+                            + ":"
+                            + TraceUtils.normalizeTagValue(entry.getValue().replace(':', '_'))));
         utf8ListForm = Collections.unmodifiableList(tagStream.collect(Collectors.toList()));
         stringListForm =
             Collections.unmodifiableList(

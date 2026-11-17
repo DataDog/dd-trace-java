@@ -1,7 +1,13 @@
 package datadog.trace.instrumentation.undertow;
 
 import io.undertow.server.handlers.form.FormData;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Deque;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 public class FormDataMap implements Map<String, Collection<String>> {
   private final FormData formData;

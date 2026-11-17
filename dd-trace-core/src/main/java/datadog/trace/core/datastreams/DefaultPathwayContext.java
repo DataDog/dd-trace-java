@@ -14,6 +14,7 @@ import datadog.trace.api.datastreams.PathwayContext;
 import datadog.trace.api.datastreams.StatsPoint;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.util.FNV64Hash;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.util.Base64;
 import java.util.concurrent.TimeUnit;
@@ -75,6 +76,10 @@ public class DefaultPathwayContext implements PathwayContext {
   }
 
   @Override
+  @SuppressFBWarnings(
+      value = "USO_UNSAFE_METHOD_SYNCHRONIZATION",
+      justification =
+          "Agent-internal pathway object; instances do not escape to application code that could synchronize on the monitor.")
   public synchronized void setCheckpoint(
       DataStreamsContext context, Consumer<StatsPoint> pointConsumer) {
     long startNanos = timeSource.getCurrentTimeNanos();
@@ -149,6 +154,10 @@ public class DefaultPathwayContext implements PathwayContext {
   }
 
   @Override
+  @SuppressFBWarnings(
+      value = "USO_UNSAFE_METHOD_SYNCHRONIZATION",
+      justification =
+          "Agent-internal pathway object; instances do not escape to application code that could synchronize on the monitor.")
   public synchronized String encode() throws IOException {
     if (!started) {
       throw new IllegalStateException("Context must be started to encode");
@@ -170,6 +179,10 @@ public class DefaultPathwayContext implements PathwayContext {
   }
 
   @Override
+  @SuppressFBWarnings(
+      value = "USO_UNSAFE_METHOD_SYNCHRONIZATION",
+      justification =
+          "Agent-internal pathway object; instances do not escape to application code that could synchronize on the monitor.")
   public synchronized String toString() {
     if (started) {
       return "PathwayContext[ Hash "

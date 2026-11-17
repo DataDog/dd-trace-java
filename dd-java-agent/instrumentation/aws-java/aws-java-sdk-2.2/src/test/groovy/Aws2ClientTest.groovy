@@ -15,6 +15,8 @@ import software.amazon.awssdk.core.interceptor.ExecutionAttributes
 import software.amazon.awssdk.core.interceptor.ExecutionInterceptor
 import software.amazon.awssdk.core.sync.RequestBody
 import software.amazon.awssdk.http.apache.ApacheHttpClient
+import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient
+import software.amazon.awssdk.http.nio.netty.SdkEventLoopGroup
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient
@@ -26,6 +28,9 @@ import software.amazon.awssdk.services.ec2.Ec2AsyncClient
 import software.amazon.awssdk.services.ec2.Ec2Client
 import software.amazon.awssdk.services.kinesis.KinesisClient
 import software.amazon.awssdk.services.kinesis.model.DeleteStreamRequest
+import software.amazon.awssdk.services.lambda.LambdaAsyncClient
+import software.amazon.awssdk.services.lambda.LambdaClient
+import software.amazon.awssdk.services.lambda.model.InvokeRequest
 import software.amazon.awssdk.services.rds.RdsAsyncClient
 import software.amazon.awssdk.services.rds.RdsClient
 import software.amazon.awssdk.services.rds.model.DeleteOptionGroupRequest
@@ -35,12 +40,21 @@ import software.amazon.awssdk.services.s3.model.CreateBucketRequest
 import software.amazon.awssdk.services.s3.model.GetObjectRequest
 import software.amazon.awssdk.services.s3.model.PutObjectRequest
 import software.amazon.awssdk.services.s3.model.StorageClass
+import software.amazon.awssdk.services.sfn.SfnAsyncClient
+import software.amazon.awssdk.services.sfn.SfnClient
+import software.amazon.awssdk.services.sfn.model.DescribeExecutionRequest
+import software.amazon.awssdk.services.sfn.model.StartExecutionRequest
 import software.amazon.awssdk.services.sns.SnsAsyncClient
 import software.amazon.awssdk.services.sns.SnsClient
 import software.amazon.awssdk.services.sns.model.PublishRequest
 import software.amazon.awssdk.services.sqs.SqsAsyncClient
 import software.amazon.awssdk.services.sqs.SqsClient
 import software.amazon.awssdk.services.sqs.model.CreateQueueRequest
+import software.amazon.awssdk.services.sqs.model.DeleteMessageBatchRequest
+import software.amazon.awssdk.services.sqs.model.DeleteMessageBatchRequestEntry
+import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest
+import software.amazon.awssdk.services.sqs.model.SendMessageBatchRequest
+import software.amazon.awssdk.services.sqs.model.SendMessageBatchRequestEntry
 import software.amazon.awssdk.services.sqs.model.SendMessageRequest
 import spock.lang.AutoCleanup
 import spock.lang.Shared
@@ -153,15 +167,24 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
               "queuename" "somequeue"
               peerServiceFrom("aws.queue.name")
               checkPeerService = true
-            } else if (service == "Sqs" && operation == "SendMessage") {
-              "aws.queue.url" "someurl"
-              peerServiceFrom("aws.queue.url")
+            } else if (service == "Sqs" && operation in ["SendMessage", "SendMessageBatch", "DeleteMessage", "DeleteMessageBatch"]) {
+              "aws.queue.url" "https://sqs.eu-west-1.amazonaws.com/123456789012/somequeue"
+              "aws.queue.name" "somequeue"
+              "queuename" "somequeue"
+              peerServiceFrom("aws.queue.name")
               checkPeerService = true
             } else if (service == "Sns" && operation == "Publish") {
               "aws.topic.name" "some-topic"
               "topicname" "some-topic"
+              "aws.topic.arn" "arn:aws:sns::123:some-topic"
               peerServiceFrom("aws.topic.name")
               checkPeerService = true
+            } else if (service == "Sfn" && operation == "StartExecution") {
+              "aws.state_machine.arn" "arn:aws:states:us-east-1:123456789012:stateMachine:somestatemachine"
+            } else if (service == "Sfn" && operation == "DescribeExecution") {
+              "aws.execution.arn" "arn:aws:states:us-east-1:123456789012:execution:somestatemachine:someexecution"
+            } else if (service == "Lambda") {
+              "aws.function.name" "somefunction"
             } else if (service == "DynamoDb") {
               "aws.table.name" "sometable"
               "tablename" "sometable"
@@ -174,7 +197,7 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
               checkPeerService = true
             }
             urlTags("${server.address}${path}", ExpectedQueryParams.getExpectedQueryParams(operation))
-            if (operation == "SendMessage") {
+            if (service == "Sqs" && operation in ["SendMessage", "SendMessageBatch", "DeleteMessage", "DeleteMessageBatch"]) {
               // this is a corner case. The issues is that the aws integration should not set the service name
               // but it's doing it.
               serviceNameSource "java-aws-sdk"
@@ -196,13 +219,16 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
     "DynamoDb" | "GetItem"           | "POST" | "/"                   | "UNKNOWN"                              | DynamoDbClient.builder() | { c -> c.getItem(GetItemRequest.builder().tableName("sometable").key(["attribute": AttributeValue.builder().s("somevalue").build()]).build()) }                 | ""
     "DynamoDb" | "UpdateItem"        | "POST" | "/"                   | "UNKNOWN"                              | DynamoDbClient.builder() | { c -> c.updateItem(UpdateItemRequest.builder().tableName("sometable").key(["attribute": AttributeValue.builder().s("somevalue").build()]).build()) }           | ""
     "Kinesis"  | "DeleteStream"      | "POST" | "/"                   | "UNKNOWN"                              | KinesisClient.builder()  | { c -> c.deleteStream(DeleteStreamRequest.builder().streamName("somestream").build()) }                                                                         | ""
+    "Sfn"      | "StartExecution"    | "POST" | "/"                   | "UNKNOWN"                              | SfnClient.builder()      | { c -> c.startExecution(StartExecutionRequest.builder().stateMachineArn("arn:aws:states:us-east-1:123456789012:stateMachine:somestatemachine").build()) }                                | """{"executionArn":"arn:aws:states:us-east-1:123456789012:execution:somestatemachine:someexecution","startDate":1.0E9}"""
+    "Sfn"      | "DescribeExecution" | "POST" | "/"                   | "UNKNOWN"                              | SfnClient.builder()      | { c -> c.describeExecution(DescribeExecutionRequest.builder().executionArn("arn:aws:states:us-east-1:123456789012:execution:somestatemachine:someexecution").build()) }         | """{"executionArn":"arn:aws:states:us-east-1:123456789012:execution:somestatemachine:someexecution","stateMachineArn":"arn:aws:states:us-east-1:123456789012:stateMachine:somestatemachine","name":"someexecution","status":"SUCCEEDED","startDate":1.0E9}"""
+    "Lambda"   | "Invoke"            | "POST" | "/2015-03-31/functions/somefunction/invocations" | "UNKNOWN" | LambdaClient.builder()  | { c -> c.invoke(InvokeRequest.builder().functionName("somefunction").build()) }                                                                                 | "{}"
     "Sqs"      | "CreateQueue"       | "POST" | "/"                   | "7a62c49f-347e-4fc4-9331-6e8e7a96aa73" | SqsClient.builder()      | { c -> c.createQueue(CreateQueueRequest.builder().queueName("somequeue").build()) }                                                                             | """
         <CreateQueueResponse>
             <CreateQueueResult><QueueUrl>https://queue.amazonaws.com/123456789012/MyQueue</QueueUrl></CreateQueueResult>
             <ResponseMetadata><RequestId>7a62c49f-347e-4fc4-9331-6e8e7a96aa73</RequestId></ResponseMetadata>
         </CreateQueueResponse>
         """
-    "Sqs"      | "SendMessage"       | "POST" | "/"                   | "27daac76-34dd-47df-bd01-1f6e873584a0" | SqsClient.builder()      | { c -> c.sendMessage(SendMessageRequest.builder().queueUrl("someurl").messageBody("").build()) }                                                                | """
+    "Sqs"      | "SendMessage"       | "POST" | "/"                   | "27daac76-34dd-47df-bd01-1f6e873584a0" | SqsClient.builder()      | { c -> c.sendMessage(SendMessageRequest.builder().queueUrl("https://sqs.eu-west-1.amazonaws.com/123456789012/somequeue").messageBody("").build()) }            | """
         <SendMessageResponse>
             <SendMessageResult>
                 <MD5OfMessageBody>d41d8cd98f00b204e9800998ecf8427e</MD5OfMessageBody>
@@ -211,6 +237,31 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
             </SendMessageResult>
             <ResponseMetadata><RequestId>27daac76-34dd-47df-bd01-1f6e873584a0</RequestId></ResponseMetadata>
         </SendMessageResponse>
+        """
+    "Sqs"      | "SendMessageBatch"  | "POST" | "/"                   | "27daac76-34dd-47df-bd01-1f6e873584a4" | SqsClient.builder()      | { c -> c.sendMessageBatch(SendMessageBatchRequest.builder().queueUrl("https://sqs.eu-west-1.amazonaws.com/123456789012/somequeue").entries(SendMessageBatchRequestEntry.builder().id("1").messageBody("body1").build(), SendMessageBatchRequestEntry.builder().id("2").messageBody("body2").build(), SendMessageBatchRequestEntry.builder().id("3").messageBody("body3").build(), SendMessageBatchRequestEntry.builder().id("4").messageBody("body4").build(), SendMessageBatchRequestEntry.builder().id("5").messageBody("body5").build()).build()) } | """
+        <SendMessageBatchResponse>
+            <SendMessageBatchResult>
+                <SendMessageBatchResultEntry><Id>1</Id><MessageId>5fea7756-0ea4-451a-a703-a558b933e274</MessageId><MD5OfMessageBody>d6ed8ba2adae5a938c5a3757bcccf4dd</MD5OfMessageBody></SendMessageBatchResultEntry>
+                <SendMessageBatchResultEntry><Id>2</Id><MessageId>5fea7756-0ea4-451a-a703-a558b933e275</MessageId><MD5OfMessageBody>76af63c5bd77b2a3a2cfcbd52645fa38</MD5OfMessageBody></SendMessageBatchResultEntry>
+                <SendMessageBatchResultEntry><Id>3</Id><MessageId>5fea7756-0ea4-451a-a703-a558b933e276</MessageId><MD5OfMessageBody>5525786dab1a6e4b36a0b49fe1090875</MD5OfMessageBody></SendMessageBatchResultEntry>
+                <SendMessageBatchResultEntry><Id>4</Id><MessageId>5fea7756-0ea4-451a-a703-a558b933e277</MessageId><MD5OfMessageBody>0039fc0a2fa335c82bfd08f6a068ee1c</MD5OfMessageBody></SendMessageBatchResultEntry>
+                <SendMessageBatchResultEntry><Id>5</Id><MessageId>5fea7756-0ea4-451a-a703-a558b933e278</MessageId><MD5OfMessageBody>6cc1cbeba9aa648e1c2f668712b72ddf</MD5OfMessageBody></SendMessageBatchResultEntry>
+            </SendMessageBatchResult>
+            <ResponseMetadata><RequestId>27daac76-34dd-47df-bd01-1f6e873584a4</RequestId></ResponseMetadata>
+        </SendMessageBatchResponse>
+        """
+    "Sqs"      | "DeleteMessage"      | "POST" | "/"                   | "27daac76-34dd-47df-bd01-1f6e873584a3" | SqsClient.builder()      | { c -> c.deleteMessage(DeleteMessageRequest.builder().queueUrl("https://sqs.eu-west-1.amazonaws.com/123456789012/somequeue").receiptHandle("handle").build()) } | """
+        <DeleteMessageResponse>
+            <ResponseMetadata><RequestId>27daac76-34dd-47df-bd01-1f6e873584a3</RequestId></ResponseMetadata>
+        </DeleteMessageResponse>
+        """
+    "Sqs"      | "DeleteMessageBatch" | "POST" | "/"                   | "27daac76-34dd-47df-bd01-1f6e873584a1" | SqsClient.builder()      | { c -> c.deleteMessageBatch(DeleteMessageBatchRequest.builder().queueUrl("https://sqs.eu-west-1.amazonaws.com/123456789012/somequeue").entries(DeleteMessageBatchRequestEntry.builder().id("1").receiptHandle("handle").build()).build()) } | """
+        <DeleteMessageBatchResponse>
+            <DeleteMessageBatchResult>
+                <DeleteMessageBatchResultEntry><Id>1</Id></DeleteMessageBatchResultEntry>
+            </DeleteMessageBatchResult>
+            <ResponseMetadata><RequestId>27daac76-34dd-47df-bd01-1f6e873584a1</RequestId></ResponseMetadata>
+        </DeleteMessageBatchResponse>
         """
     "Sns"      | "Publish"           | "POST" | "/"                   | "d74b8436-ae13-5ab4-a9ff-ce54dfea72a0" | SnsClient.builder()      | { c -> c.publish(PublishRequest.builder().topicArn("arn:aws:sns::123:some-topic").message("").build()) }                                                        | """
         <PublishResponse xmlns="https://sns.amazonaws.com/doc/2010-03-31/">
@@ -232,6 +283,107 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
           <ResponseMetadata><RequestId>0ac9cda2-bbf4-11d3-f92b-31fa5e8dbc99</RequestId></ResponseMetadata>
         </DeleteOptionGroupResponse>
         """
+  }
+
+  def "SNS topic ARN comes from TopicArn for #scenario (async=#async)"() {
+    setup:
+    def eventLoopGroup = async ? SdkEventLoopGroup.builder().numberOfThreads(1).build() : null
+    def builder = async ? SnsAsyncClient.builder()
+      .httpClientBuilder(NettyNioAsyncHttpClient.builder().eventLoopGroup(eventLoopGroup)) : SnsClient.builder()
+    def client = builder
+      .endpointOverride(server.address)
+      .region(Region.US_EAST_1)
+      .credentialsProvider(CREDENTIALS_PROVIDER)
+      .build()
+    responseBody.set("""<PublishResponse><PublishResult><MessageId>test-message</MessageId></PublishResult></PublishResponse>""")
+    def request = PublishRequest.builder().topicArn(topicArn).targetArn(targetArn).message("test").build()
+
+    when:
+    def response = client.publish(request)
+    if (response instanceof Future) {
+      response.get()
+    }
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    def spans = TEST_WRITER.get(0)
+    spans.size() == 1
+    spans[0].getTag("aws.topic.arn") == topicArn
+    spans[0].getTag("aws.topic.name") == expectedTopicName
+
+    cleanup:
+    client.close()
+    if (eventLoopGroup != null) {
+      eventLoopGroup.eventLoopGroup().shutdownGracefully().syncUninterruptibly()
+    }
+
+    where:
+    scenario      | async | topicArn                                      | targetArn                                                   | expectedTopicName
+    "topic"       | false | "arn:aws:sns:us-east-1:123456789012:test-topic" | null                                                        | "test-topic"
+    "endpoint"    | false | null                                          | "arn:aws:sns:us-east-1:123456789012:endpoint/APNS/app/device" | "endpoint/APNS/app/device"
+    "both fields" | false | "arn:aws:sns:us-east-1:123456789012:test-topic" | "arn:aws:sns:us-east-1:123456789012:endpoint/APNS/app/device" | "test-topic"
+    "topic"       | true  | "arn:aws:sns:us-east-1:123456789012:test-topic" | null                                                        | "test-topic"
+    "endpoint"    | true  | null                                          | "arn:aws:sns:us-east-1:123456789012:endpoint/APNS/app/device" | "endpoint/APNS/app/device"
+    "both fields" | true  | "arn:aws:sns:us-east-1:123456789012:test-topic" | "arn:aws:sns:us-east-1:123456789012:endpoint/APNS/app/device" | "test-topic"
+  }
+
+
+  def "Lambda resource tags normalize #scenario (async=#async)"() {
+    setup:
+    def eventLoopGroup = async ? SdkEventLoopGroup.builder().numberOfThreads(1).build() : null
+    def builder = async ? LambdaAsyncClient.builder()
+      .httpClientBuilder(NettyNioAsyncHttpClient.builder().eventLoopGroup(eventLoopGroup)) : LambdaClient.builder()
+    def client = builder
+      .endpointOverride(server.address)
+      .region(Region.US_EAST_1)
+      .credentialsProvider(CREDENTIALS_PROVIDER)
+      .build()
+    responseBody.set("{}")
+    def request = InvokeRequest.builder().functionName(functionName).qualifier(qualifier).build()
+
+    when:
+    def response = client.invoke(request)
+    if (response instanceof Future) {
+      response.get()
+    }
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    def spans = TEST_WRITER.get(0)
+    spans.size() == 1
+    spans[0].getTag("aws.function.name") == expectedName
+    spans[0].getTag("aws.function.arn") == expectedArn
+
+    cleanup:
+    client.close()
+    if (eventLoopGroup != null) {
+      eventLoopGroup.eventLoopGroup().shutdownGracefully().syncUninterruptibly()
+    }
+
+    where:
+    scenario                      | async | functionName                                                             | qualifier | expectedName          | expectedArn
+    "bare name"                   | false | "somefunction"                                                           | null      | "somefunction"        | null
+    "bare name"                   | true  | "somefunction"                                                           | null      | "somefunction"        | null
+    "alias"                       | false | "somefunction:PROD"                                                      | null      | "somefunction"        | null
+    "alias"                       | true  | "somefunction:PROD"                                                      | null      | "somefunction"        | null
+    "version"                     | false | "somefunction:42"                                                        | null      | "somefunction"        | null
+    "version"                     | true  | "somefunction:42"                                                        | null      | "somefunction"        | null
+    "partial ARN"                 | false | "123456789012:function:somefunction"                                     | null      | "somefunction"        | null
+    "partial ARN"                 | true  | "123456789012:function:somefunction"                                     | null      | "somefunction"        | null
+    "qualified partial ARN"       | false | "123456789012:function:somefunction:PROD"                                | null      | "somefunction"        | null
+    "qualified partial ARN"       | true  | "123456789012:function:somefunction:PROD"                                | null      | "somefunction"        | null
+    "full ARN"                    | false | "arn:aws:lambda:us-east-1:123456789012:function:somefunction"            | null      | "somefunction"        | "arn:aws:lambda:us-east-1:123456789012:function:somefunction"
+    "full ARN"                    | true  | "arn:aws:lambda:us-east-1:123456789012:function:somefunction"            | null      | "somefunction"        | "arn:aws:lambda:us-east-1:123456789012:function:somefunction"
+    "qualified full ARN"          | false | "arn:aws:lambda:us-east-1:123456789012:function:somefunction:PROD"       | null      | "somefunction"        | "arn:aws:lambda:us-east-1:123456789012:function:somefunction:PROD"
+    "qualified full ARN"          | true  | "arn:aws:lambda:us-east-1:123456789012:function:somefunction:PROD"       | null      | "somefunction"        | "arn:aws:lambda:us-east-1:123456789012:function:somefunction:PROD"
+    "GovCloud ARN"                | false | "arn:aws-us-gov:lambda:us-gov-west-1:123456789012:function:somefunction" | null      | "somefunction"        | "arn:aws-us-gov:lambda:us-gov-west-1:123456789012:function:somefunction"
+    "GovCloud ARN"                | true  | "arn:aws-us-gov:lambda:us-gov-west-1:123456789012:function:somefunction" | null      | "somefunction"        | "arn:aws-us-gov:lambda:us-gov-west-1:123456789012:function:somefunction"
+    "separate qualifier"          | false | "somefunction"                                                           | "PROD"    | "somefunction"        | null
+    "separate qualifier"          | true  | "somefunction"                                                           | "PROD"    | "somefunction"        | null
+    "ARN with separate qualifier" | false | "arn:aws:lambda:us-east-1:123456789012:function:somefunction"            | "PROD"    | "somefunction"        | "arn:aws:lambda:us-east-1:123456789012:function:somefunction"
+    "ARN with separate qualifier" | true  | "arn:aws:lambda:us-east-1:123456789012:function:somefunction"            | "PROD"    | "somefunction"        | "arn:aws:lambda:us-east-1:123456789012:function:somefunction"
+    "name containing function"    | false | "my-function-handler:PROD"                                               | null      | "my-function-handler" | null
+    "name containing function"    | true  | "my-function-handler:PROD"                                               | null      | "my-function-handler" | null
   }
 
   def "send #operation async request with builder {#builder.class.getName()} mocked response"() {
@@ -293,15 +445,24 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
               "queuename" "somequeue"
               peerServiceFrom("aws.queue.name")
               checkPeerService = true
-            } else if (service == "Sqs" && operation == "SendMessage") {
-              "aws.queue.url" "someurl"
-              peerServiceFrom("aws.queue.url")
+            } else if (service == "Sqs" && operation in ["SendMessage", "SendMessageBatch", "DeleteMessage", "DeleteMessageBatch"]) {
+              "aws.queue.url" "https://sqs.eu-west-1.amazonaws.com/123456789012/somequeue"
+              "aws.queue.name" "somequeue"
+              "queuename" "somequeue"
+              peerServiceFrom("aws.queue.name")
               checkPeerService = true
             } else if (service == "Sns" && operation == "Publish") {
               "aws.topic.name" "some-topic"
               "topicname" "some-topic"
+              "aws.topic.arn" "arn:aws:sns::123:some-topic"
               peerServiceFrom("aws.topic.name")
               checkPeerService = true
+            } else if (service == "Sfn" && operation == "StartExecution") {
+              "aws.state_machine.arn" "arn:aws:states:us-east-1:123456789012:stateMachine:somestatemachine"
+            } else if (service == "Sfn" && operation == "DescribeExecution") {
+              "aws.execution.arn" "arn:aws:states:us-east-1:123456789012:execution:somestatemachine:someexecution"
+            } else if (service == "Lambda") {
+              "aws.function.name" "somefunction"
             } else if (service == "DynamoDb") {
               "aws.table.name" "sometable"
               "tablename" "sometable"
@@ -314,7 +475,7 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
               checkPeerService = true
             }
             urlTags("${server.address}${path}", ExpectedQueryParams.getExpectedQueryParams(operation))
-            if (operation == "SendMessage") {
+            if (service == "Sqs" && operation in ["SendMessage", "SendMessageBatch", "DeleteMessage", "DeleteMessageBatch"]) {
               // this is a corner case. The issues is that the aws integration should not set the service name
               // but it's doing it.
               serviceNameSource "java-aws-sdk"
@@ -336,13 +497,16 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
     "DynamoDb" | "UpdateItem"        | "POST" | "/"                   | "UNKNOWN"                              | DynamoDbAsyncClient.builder() | { c -> c.updateItem(UpdateItemRequest.builder().tableName("sometable").key(["attribute": AttributeValue.builder().s("somevalue").build()]).build()) } | ""
     // Kinesis seems to expect an http2 response which is incompatible with our test server.
     // "Kinesis"  | "DeleteStream"      | "java-aws-sdk" | "POST" | "/"                   | "UNKNOWN"                              | KinesisAsyncClient.builder()  | { c -> c.deleteStream(DeleteStreamRequest.builder().streamName("somestream").build()) }                                          | ""
+    "Sfn"      | "StartExecution"    | "POST" | "/"                   | "UNKNOWN"                              | SfnAsyncClient.builder()      | { c -> c.startExecution(StartExecutionRequest.builder().stateMachineArn("arn:aws:states:us-east-1:123456789012:stateMachine:somestatemachine").build()) }                                | """{"executionArn":"arn:aws:states:us-east-1:123456789012:execution:somestatemachine:someexecution","startDate":1.0E9}"""
+    "Sfn"      | "DescribeExecution" | "POST" | "/"                   | "UNKNOWN"                              | SfnAsyncClient.builder()      | { c -> c.describeExecution(DescribeExecutionRequest.builder().executionArn("arn:aws:states:us-east-1:123456789012:execution:somestatemachine:someexecution").build()) }         | """{"executionArn":"arn:aws:states:us-east-1:123456789012:execution:somestatemachine:someexecution","stateMachineArn":"arn:aws:states:us-east-1:123456789012:stateMachine:somestatemachine","name":"someexecution","status":"SUCCEEDED","startDate":1.0E9}"""
+    "Lambda"   | "Invoke"            | "POST" | "/2015-03-31/functions/somefunction/invocations" | "UNKNOWN" | LambdaAsyncClient.builder()  | { c -> c.invoke(InvokeRequest.builder().functionName("somefunction").build()) }                                                                                 | "{}"
     "Sqs"      | "CreateQueue"       | "POST" | "/"                   | "7a62c49f-347e-4fc4-9331-6e8e7a96aa73" | SqsAsyncClient.builder()      | { c -> c.createQueue(CreateQueueRequest.builder().queueName("somequeue").build()) }                                              | """
         <CreateQueueResponse>
             <CreateQueueResult><QueueUrl>https://queue.amazonaws.com/123456789012/MyQueue</QueueUrl></CreateQueueResult>
             <ResponseMetadata><RequestId>7a62c49f-347e-4fc4-9331-6e8e7a96aa73</RequestId></ResponseMetadata>
         </CreateQueueResponse>
         """
-    "Sqs"      | "SendMessage"       | "POST" | "/"                   | "27daac76-34dd-47df-bd01-1f6e873584a0" | SqsAsyncClient.builder()      | { c -> c.sendMessage(SendMessageRequest.builder().queueUrl("someurl").messageBody("").build()) }                                 | """
+    "Sqs"      | "SendMessage"       | "POST" | "/"                   | "27daac76-34dd-47df-bd01-1f6e873584a0" | SqsAsyncClient.builder()      | { c -> c.sendMessage(SendMessageRequest.builder().queueUrl("https://sqs.eu-west-1.amazonaws.com/123456789012/somequeue").messageBody("").build()) }            | """
         <SendMessageResponse>
             <SendMessageResult>
                 <MD5OfMessageBody>d41d8cd98f00b204e9800998ecf8427e</MD5OfMessageBody>
@@ -351,6 +515,31 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
             </SendMessageResult>
             <ResponseMetadata><RequestId>27daac76-34dd-47df-bd01-1f6e873584a0</RequestId></ResponseMetadata>
         </SendMessageResponse>
+        """
+    "Sqs"      | "SendMessageBatch"  | "POST" | "/"                   | "27daac76-34dd-47df-bd01-1f6e873584a4" | SqsAsyncClient.builder()      | { c -> c.sendMessageBatch(SendMessageBatchRequest.builder().queueUrl("https://sqs.eu-west-1.amazonaws.com/123456789012/somequeue").entries(SendMessageBatchRequestEntry.builder().id("1").messageBody("body1").build(), SendMessageBatchRequestEntry.builder().id("2").messageBody("body2").build(), SendMessageBatchRequestEntry.builder().id("3").messageBody("body3").build(), SendMessageBatchRequestEntry.builder().id("4").messageBody("body4").build(), SendMessageBatchRequestEntry.builder().id("5").messageBody("body5").build()).build()) } | """
+        <SendMessageBatchResponse>
+            <SendMessageBatchResult>
+                <SendMessageBatchResultEntry><Id>1</Id><MessageId>5fea7756-0ea4-451a-a703-a558b933e274</MessageId><MD5OfMessageBody>d6ed8ba2adae5a938c5a3757bcccf4dd</MD5OfMessageBody></SendMessageBatchResultEntry>
+                <SendMessageBatchResultEntry><Id>2</Id><MessageId>5fea7756-0ea4-451a-a703-a558b933e275</MessageId><MD5OfMessageBody>76af63c5bd77b2a3a2cfcbd52645fa38</MD5OfMessageBody></SendMessageBatchResultEntry>
+                <SendMessageBatchResultEntry><Id>3</Id><MessageId>5fea7756-0ea4-451a-a703-a558b933e276</MessageId><MD5OfMessageBody>5525786dab1a6e4b36a0b49fe1090875</MD5OfMessageBody></SendMessageBatchResultEntry>
+                <SendMessageBatchResultEntry><Id>4</Id><MessageId>5fea7756-0ea4-451a-a703-a558b933e277</MessageId><MD5OfMessageBody>0039fc0a2fa335c82bfd08f6a068ee1c</MD5OfMessageBody></SendMessageBatchResultEntry>
+                <SendMessageBatchResultEntry><Id>5</Id><MessageId>5fea7756-0ea4-451a-a703-a558b933e278</MessageId><MD5OfMessageBody>6cc1cbeba9aa648e1c2f668712b72ddf</MD5OfMessageBody></SendMessageBatchResultEntry>
+            </SendMessageBatchResult>
+            <ResponseMetadata><RequestId>27daac76-34dd-47df-bd01-1f6e873584a4</RequestId></ResponseMetadata>
+        </SendMessageBatchResponse>
+        """
+    "Sqs"      | "DeleteMessage"      | "POST" | "/"                   | "27daac76-34dd-47df-bd01-1f6e873584a3" | SqsAsyncClient.builder()      | { c -> c.deleteMessage(DeleteMessageRequest.builder().queueUrl("https://sqs.eu-west-1.amazonaws.com/123456789012/somequeue").receiptHandle("handle").build()) } | """
+        <DeleteMessageResponse>
+            <ResponseMetadata><RequestId>27daac76-34dd-47df-bd01-1f6e873584a3</RequestId></ResponseMetadata>
+        </DeleteMessageResponse>
+        """
+    "Sqs"      | "DeleteMessageBatch" | "POST" | "/"                   | "27daac76-34dd-47df-bd01-1f6e873584a1" | SqsAsyncClient.builder()      | { c -> c.deleteMessageBatch(DeleteMessageBatchRequest.builder().queueUrl("https://sqs.eu-west-1.amazonaws.com/123456789012/somequeue").entries(DeleteMessageBatchRequestEntry.builder().id("1").receiptHandle("handle").build()).build()) } | """
+        <DeleteMessageBatchResponse>
+            <DeleteMessageBatchResult>
+                <DeleteMessageBatchResultEntry><Id>1</Id></DeleteMessageBatchResultEntry>
+            </DeleteMessageBatchResult>
+            <ResponseMetadata><RequestId>27daac76-34dd-47df-bd01-1f6e873584a1</RequestId></ResponseMetadata>
+        </DeleteMessageBatchResponse>
         """
     "Sns"      | "Publish"           | "POST" | "/"                   | "d74b8436-ae13-5ab4-a9ff-ce54dfea72a0" | SnsAsyncClient.builder()      | { c -> c.publish(PublishRequest.builder().topicArn("arn:aws:sns::123:some-topic").message("").build()) }                         | """
         <PublishResponse xmlns="https://sns.amazonaws.com/doc/2010-03-31/">
@@ -510,11 +699,14 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
             } else if (service == "Sqs" && operation == "CreateQueue") {
               "aws.queue.name" "test-queue"
               "queuename" "test-queue"
-            } else if (service == "Sqs" && operation == "SendMessage") {
-              "aws.queue.url" "test-queue-url"
+            } else if (service == "Sqs" && operation in ["SendMessage", "DeleteMessage", "DeleteMessageBatch", "ReceiveMessage"]) {
+              "aws.queue.url" "https://sqs.eu-west-1.amazonaws.com/123456789012/test-queue"
+              "aws.queue.name" "test-queue"
+              "queuename" "test-queue"
             } else if (service == "Sns" && operation == "Publish") {
               "aws.topic.name" "test-topic"
               "topicname" "test-topic"
+              "aws.topic.arn" "arn:aws:sns::123:test-topic"
             } else if (service == "DynamoDb") {
               "aws.table.name" "test-table"
               "tablename" "test-table"
@@ -537,7 +729,7 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
     service    | operation      | method | path                  | builder                  | call                                                                                                              | body                                                                                                                               | requestId
     "S3"       | "CreateBucket" | "PUT"  | "/test-bucket"        | S3Client.builder()       | { c -> c.createBucket(CreateBucketRequest.builder().bucket("test-bucket").build()) }                              | ""                                                                                                                                 | "UNKNOWN"
     "Sqs"      | "CreateQueue"  | "POST" | "/"                   | SqsClient.builder()      | { c -> c.createQueue(CreateQueueRequest.builder().queueName("test-queue").build()) }                              | """<CreateQueueResponse><CreateQueueResult><QueueUrl>https://queue.amazonaws.com/123456789012/test-queue</QueueUrl></CreateQueueResult><ResponseMetadata><RequestId>test-request-id</RequestId></ResponseMetadata></CreateQueueResponse>""" | "test-request-id"
-    "Sqs"      | "SendMessage"  | "POST" | "/"                   | SqsClient.builder()      | { c -> c.sendMessage(SendMessageRequest.builder().queueUrl("test-queue-url").messageBody("test").build()) }       | """<SendMessageResponse><SendMessageResult><MD5OfMessageBody>098f6bcd4621d373cade4e832627b4f6</MD5OfMessageBody><MessageId>test-msg-id</MessageId></SendMessageResult><ResponseMetadata><RequestId>test-request-id</RequestId></ResponseMetadata></SendMessageResponse>""" | "test-request-id"
+    "Sqs"      | "SendMessage"  | "POST" | "/"                   | SqsClient.builder()      | { c -> c.sendMessage(SendMessageRequest.builder().queueUrl("https://sqs.eu-west-1.amazonaws.com/123456789012/test-queue").messageBody("test").build()) } | """<SendMessageResponse><SendMessageResult><MD5OfMessageBody>098f6bcd4621d373cade4e832627b4f6</MD5OfMessageBody><MessageId>test-msg-id</MessageId></SendMessageResult><ResponseMetadata><RequestId>test-request-id</RequestId></ResponseMetadata></SendMessageResponse>""" | "test-request-id"
     "Sns"      | "Publish"      | "POST" | "/"                   | SnsClient.builder()      | { c -> c.publish(PublishRequest.builder().topicArn("arn:aws:sns::123:test-topic").message("test").build()) }     | """<PublishResponse xmlns="https://sns.amazonaws.com/doc/2010-03-31/"><PublishResult><MessageId>test-msg-id</MessageId></PublishResult><ResponseMetadata><RequestId>test-request-id</RequestId></ResponseMetadata></PublishResponse>""" | "test-request-id"
     "DynamoDb" | "CreateTable"  | "POST" | "/"                   | DynamoDbClient.builder() | { c -> c.createTable(CreateTableRequest.builder().tableName("test-table").build()) }                              | ""                                                                                                                                 | "UNKNOWN"
     "Kinesis"  | "DeleteStream" | "POST" | "/"                   | KinesisClient.builder()  | { c -> c.deleteStream(DeleteStreamRequest.builder().streamName("test-stream").build()) }                          | ""                                                                                                                                 | "UNKNOWN"
@@ -556,7 +748,8 @@ class Aws2ClientV0ForkedTest extends Aws2ClientTest {
     if ("Sns" == awsService && "Publish" == awsOperation) {
       return "sns"
     }
-    if ("Sqs" == awsService && "SendMessage" == awsOperation) {
+    if ("Sqs" == awsService
+      && awsOperation in ["SendMessage", "ReceiveMessage", "DeleteMessage", "DeleteMessageBatch", "SendMessageBatch"]) {
       return "sqs"
     }
     return "java-aws-sdk"
@@ -572,7 +765,7 @@ class Aws2ClientV1ForkedTest extends Aws2ClientTest {
 
   @Override
   String expectedOperation(String awsService, String awsOperation) {
-    if (awsService == "Sqs" && awsOperation == "SendMessage") {
+    if (awsService == "Sqs" && awsOperation in ["SendMessage", "SendMessageBatch"]) {
       return "aws.sqs.send"
     }
     if (awsService == "Sns" && awsOperation == "Publish") {

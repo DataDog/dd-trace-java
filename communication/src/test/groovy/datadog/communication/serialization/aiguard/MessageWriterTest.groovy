@@ -224,6 +224,40 @@ class MessageWriterTest extends DDSpecification {
     }
   }
 
+  void 'test write message with empty content'() {
+    given:
+    // The redaction "remove" strategy replaces content with "", which must stay visible as an
+    // empty string rather than being dropped like a message that never carried content.
+    final message = AIGuard.Message.message('user', '')
+
+    when:
+    writer.writeObject(message, encodingCache)
+
+    then:
+    try (final unpacker = MessagePack.newDefaultUnpacker(buffer.slice())) {
+      final value = asStringValueMap(unpacker.unpackValue())
+      assert value.size() == 2
+      assert value.role == 'user'
+      assert value.content == ''
+    }
+  }
+
+  void 'test write message without content'() {
+    given:
+    final message = AIGuard.Message.message('user', (String) null)
+
+    when:
+    writer.writeObject(message, encodingCache)
+
+    then:
+    try (final unpacker = MessagePack.newDefaultUnpacker(buffer.slice())) {
+      final value = asStringValueMap(unpacker.unpackValue())
+      assert value.size() == 1
+      assert value.role == 'user'
+      assert !value.containsKey('content')
+    }
+  }
+
   void 'test backward compatibility with string content'() {
     given:
     final message = AIGuard.Message.message('user', 'Plain text message')

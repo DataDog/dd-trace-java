@@ -1,5 +1,6 @@
 plugins {
   id 'java-test-fixtures'
+  id 'dd-trace-java.module.instrumentation'
 }
 
 muzzle {
@@ -15,10 +16,12 @@ muzzle {
   }
 }
 
-apply from: "$rootDir/gradle/java.gradle"
+testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_11
+}
 
-tracerJava {
-  addSourceSetFor(JavaVersion.VERSION_11)
+tasks.withType(JavaCompile).matching { it.name.contains('Test') }.configureEach {
+  configureCompiler(it, JavaVersion.VERSION_11)
 }
 
 addTestSuiteForDir('latestDepTest', 'test')

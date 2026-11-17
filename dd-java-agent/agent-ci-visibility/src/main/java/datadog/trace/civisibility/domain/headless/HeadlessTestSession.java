@@ -6,11 +6,14 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.civisibility.config.LibraryCapability;
 import datadog.trace.api.civisibility.coverage.CoverageStore;
+import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
+import datadog.trace.api.civisibility.telemetry.tag.HasCustomBuckets;
 import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.codeowners.Codeowners;
+import datadog.trace.civisibility.config.DynamicAutoTestRetrySettings;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.domain.AbstractTestSession;
 import datadog.trace.civisibility.domain.InstrumentationType;
@@ -62,6 +65,15 @@ public class HeadlessTestSession extends AbstractTestSession implements TestFram
     this.executionStrategy = executionStrategy;
     this.coverageStoreFactory = coverageStoreFactory;
     this.capabilities = capabilities;
+
+    DynamicAutoTestRetrySettings dynamicAtrSettings =
+        executionStrategy.getExecutionSettings().getDynamicAutoTestRetrySettings();
+    if (dynamicAtrSettings.isEnabled()) {
+      metricCollector.add(
+          CiVisibilityCountMetric.DYNAMIC_ATR_RETRIES_ENABLED,
+          1,
+          dynamicAtrSettings.isCustom() ? HasCustomBuckets.TRUE : null);
+    }
   }
 
   @Override

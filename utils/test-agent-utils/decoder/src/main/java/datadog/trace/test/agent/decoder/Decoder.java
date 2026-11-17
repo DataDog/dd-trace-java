@@ -1,5 +1,6 @@
 package datadog.trace.test.agent.decoder;
 
+import datadog.trace.test.agent.decoder.json.raw.MessageJson;
 import datadog.trace.test.agent.decoder.v04.raw.MessageV04;
 import datadog.trace.test.agent.decoder.v05.raw.MessageV05;
 import datadog.trace.test.agent.decoder.v1.raw.MessageV1;
@@ -10,6 +11,11 @@ import java.util.List;
 public class Decoder {
   public static DecodedMessage decodeV1(byte[] buffer) {
     return MessageV1.unpack(buffer);
+  }
+
+  /** Decodes the JSON trace format exposed by the dd-apm-test-agent. */
+  public static DecodedMessage decodeJson(String json) {
+    return MessageJson.fromJson(json);
   }
 
   public static DecodedMessage decodeV05(byte[] buffer) {

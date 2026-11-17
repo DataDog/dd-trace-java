@@ -3,6 +3,7 @@ package datadog.trace.common.writer.ddintake;
 import static datadog.trace.common.writer.DDIntakeWriter.DEFAULT_INTAKE_TIMEOUT;
 import static datadog.trace.common.writer.DDIntakeWriter.DEFAULT_INTAKE_VERSION;
 
+import datadog.communication.EvpProxy;
 import datadog.communication.http.HttpRetryPolicy;
 import datadog.communication.http.OkHttpUtils;
 import datadog.trace.api.civisibility.InstrumentationBridge;
@@ -26,7 +27,6 @@ public class DDEvpProxyApi extends RemoteApi {
 
   private static final Logger log = LoggerFactory.getLogger(DDEvpProxyApi.class);
 
-  private static final String DD_EVP_SUBDOMAIN_HEADER = "X-Datadog-EVP-Subdomain";
   private static final String CONTENT_ENCODING_HEADER = "Content-Encoding";
   private static final String GZIP_CONTENT_TYPE = "gzip";
 
@@ -131,7 +131,7 @@ public class DDEvpProxyApi extends RemoteApi {
     Request.Builder builder =
         new Request.Builder()
             .url(proxiedApiUrl)
-            .addHeader(DD_EVP_SUBDOMAIN_HEADER, subdomain)
+            .addHeader(EvpProxy.SUBDOMAIN_HEADER, subdomain)
             .tag(OkHttpUtils.CustomListener.class, telemetryListener);
 
     if (isCompressionEnabled()) {

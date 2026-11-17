@@ -1,7 +1,7 @@
 package datadog.trace.common.writer;
 
-import datadog.communication.serialization.ByteBufferConsumer;
-import datadog.communication.serialization.FlushingBuffer;
+import datadog.communication.serialization.ChunkedBufferConsumer;
+import datadog.communication.serialization.ChunkedStreamingBuffer;
 import datadog.communication.serialization.WritableFormatter;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.metrics.api.Monitoring;
@@ -16,7 +16,7 @@ import java.util.concurrent.atomic.LongAdder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class PayloadDispatcherImpl implements ByteBufferConsumer, PayloadDispatcher {
+public class PayloadDispatcherImpl implements ChunkedBufferConsumer, PayloadDispatcher {
 
   private static final Logger log = LoggerFactory.getLogger(PayloadDispatcherImpl.class);
 
@@ -84,26 +84,26 @@ public class PayloadDispatcherImpl implements ByteBufferConsumer, PayloadDispatc
     if (null == packer && null != mapper) {
       batchTimer =
           monitoring.newTimer("tracer.trace.buffer.fill.time", "endpoint:" + mapper.endpoint());
-      packer = new MsgPackWriter(new FlushingBuffer(mapper.messageBufferSize(), this));
+      packer = new MsgPackWriter(new ChunkedStreamingBuffer(mapper.messageBufferSize(), this));
       batchTimer.start();
     }
   }
 
-  Payload newPayload(int messageCount, ByteBuffer buffer) {
+  Payload newPayload(int messageCount, List<ByteBuffer> chunks) {
     return mapper
         .newPayload()
-        .withBody(messageCount, buffer)
+        .withBody(messageCount, chunks)
         .withDroppedSpans(droppedSpanCount.sumThenReset())
         .withDroppedTraces(droppedTraceCount.sumThenReset());
   }
 
   @Override
-  public void accept(int messageCount, ByteBuffer buffer) {
+  public void accept(int messageCount, List<ByteBuffer> chunks) {
     // the packer calls this when the buffer is full,
     // or when the packer is flushed at a heartbeat
     if (messageCount > 0) {
       batchTimer.reset();
-      Payload payload = newPayload(messageCount, buffer);
+      Payload payload = newPayload(messageCount, chunks);
       final int sizeInBytes = payload.sizeInBytes();
       healthMetrics.onSerialize(sizeInBytes);
       RemoteApi.Response response = api.sendSerializedTraces(payload);

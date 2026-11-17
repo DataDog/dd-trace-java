@@ -36,6 +36,10 @@ import org.openjdk.jmh.infra.Blackhole;
  *   <li>TreeMap — when a custom Comparator is needed (see CaseInsensitiveMapBenchmark)
  *   <li>LinkedHashMap — only when insertion-order iteration is required; cost is paid at
  *       construction and in per-entry memory
+ *   <li>FlatHashtable — a find-or-create table over self-contained entries (not a general Map: no
+ *       arbitrary put/remove). Compared here on the ops it does support — build, get, iterate —
+ *       where its self-contained entry stores the value <i>unboxed</i> (one object per key, no
+ *       {@code Integer}). Fixed-capacity, so it must be sized to the working set up front.
  * </ul>
  *
  * <p><b>Uncontended synchronization tax.</b> A {@link Collections#synchronizedMap} case is included
@@ -46,6 +50,42 @@ import org.openjdk.jmh.infra.Blackhole;
  * unsynchronized {@code hashMap} {@code get}/{@code iterate} methods are the in-harness baseline;
  * the tax is the delta to the {@code synchronizedHashMap} equivalents. Comparing across JVM
  * versions at stock flags shows the biased-locking effect. (Results pending a fresh multi-JVM run.)
+ *
+ * <p>Java 17 results (Apple M1, {@code @Fork(2)}, {@code @Threads(8)}) with the front-loaded {@link
+ * BenchmarkUtils#warmUpHashDispatch} pollution design (M ops/s):
+ *
+ * <pre>{@code
+ * create_flatHashtable          183.4   create_hashMap                 104.7
+ * create_hashMap_sized          110.3   create_linkedHashMap            57.4
+ * create_synchronizedHashMap     52.0   create_tagMap                  103.6
+ * create_tagMap_via_ledger       76.2   create_treeMap                  34.6
+ *
+ * clone_tagMap                  301.8   clone_treeMap                  101.5
+ * clone_hashMap                  61.2   clone_synchronizedHashMap       54.9
+ * clone_linkedHashMap            50.8   (clone B/op: tagMap 208, hashMap 488,
+ *                                        linkedHashMap 536, treeMap 480)
+ *
+ * get_flatHashtable             1583.7  get_hashMap                    1352.1
+ * get_synchronizedHashMap        843.2
+ *
+ * iterate_flatHashtable          182.6  iterate_hashMap                 106.3
+ * iterate_synchronizedHashMap     93.2
+ * }</pre>
+ *
+ * <p>Key findings:
+ *
+ * <ul>
+ *   <li>{@code flatHashtable} dominates {@code create}, {@code get}, and {@code iterate} — the
+ *       unboxed, self-contained entry and comparison-free insert pay off, consistent with every
+ *       other FlatHashtable comparison in this module.
+ *   <li>{@code tagMap} clone (301.8M) is ~4.9x {@code hashMap} clone (61.2M) — the same story
+ *       {@link datadog.trace.api.TagMapAccessBenchmark} reports, by design ({@code TagMap} clone is
+ *       a purpose-built fast path).
+ *   <li>The uncontended synchronization tax is visible even with no contention, consistent with
+ *       Java 15+'s biased locking being disabled by default (JEP 374): {@code get_hashMap}
+ *       (1352.1M) → {@code get_synchronizedHashMap} (843.2M) is a ~38% hit, and {@code iterate}
+ *       (106.3M → 93.2M) is ~12%.
+ * </ul>
  */
 @Fork(2)
 @Warmup(iterations = 2)
@@ -81,16 +121,117 @@ public class SingleThreadedMapBenchmark {
     return map;
   }
 
+  // FlatHashtable is a find-or-create table over self-contained entries — no arbitrary put/remove,
+  // so only the comparable ops appear here: build (via the comparison-free insert of distinct
+  // keys),
+  // get, and iterate. Its entry carries the value UNBOXED (no Integer), one object per key.
+  static final class IntEntry {
+    final String key;
+    final int value;
+
+    IntEntry(String key, int value) {
+      this.key = key;
+      this.value = value;
+    }
+  }
+
+  static final class IntEntryKeyStrategy extends FlatHashtable.EntryStrategy<IntEntry, String> {
+    // Canonical exact-typed singleton: one instance, private ctor => the static-poly discipline is
+    // enforced by the class, not left to each caller to declare correctly.
+    static final IntEntryKeyStrategy INSTANCE = new IntEntryKeyStrategy();
+
+    private IntEntryKeyStrategy() {}
+
+    @Override
+    public boolean matches(IntEntry entry, String key) {
+      return key.equals(entry.key);
+    }
+
+    @Override
+    public long hashOf(IntEntry entry) {
+      return entry.key.hashCode(); // consistent with the default hashKey
+    }
+  }
+
+  // --- CHA-defeat decoys ---------------------------------------------------------------------
+  // Never used to build a table; loaded (in setUp) only so MatchingStrategy.matches and .hashKey
+  // each have >=2 concrete implementors. That denies C2 the single-implementor CHA devirtualization
+  // of matchStrat.hashKey/matches inside get(). If the strategy calls still inline afterward, the
+  // win is structural (the constant INSTANCE's exact type propagated through the inlined get), not
+  // a
+  // CHA bet that would deopt when a second subclass loads.
+
+  // Second matches impl -> MatchingStrategy.matches is polymorphic.
+  static final class DecoyMatchStrategy extends FlatHashtable.EntryStrategy<IntEntry, String> {
+    static final DecoyMatchStrategy INSTANCE = new DecoyMatchStrategy();
+
+    private DecoyMatchStrategy() {}
+
+    @Override
+    public boolean matches(IntEntry entry, String key) {
+      return key == entry.key; // deliberately different body from IntEntryKeyStrategy
+    }
+
+    @Override
+    public long hashOf(IntEntry entry) {
+      return entry.key.hashCode();
+    }
+  }
+
+  // Overrides hashKey -> MatchingStrategy.hashKey is polymorphic too (default + this override).
+  static final class DecoyHashKeyStrategy extends FlatHashtable.EntryStrategy<IntEntry, String> {
+    static final DecoyHashKeyStrategy INSTANCE = new DecoyHashKeyStrategy();
+
+    private DecoyHashKeyStrategy() {}
+
+    @Override
+    public long hashKey(String key) {
+      return key.length();
+    }
+
+    @Override
+    public boolean matches(IntEntry entry, String key) {
+      return key.equals(entry.key);
+    }
+
+    @Override
+    public long hashOf(IntEntry entry) {
+      return entry.key.length();
+    }
+  }
+
+  // Referenced only so these three concrete implementors load at benchmark class-init, before the
+  // hot method compiles — see the CHA-defeat note above.
+  @SuppressWarnings("unused")
+  static final Object[] CHA_DEFEAT = {
+    IntEntryKeyStrategy.INSTANCE, DecoyMatchStrategy.INSTANCE, DecoyHashKeyStrategy.INSTANCE
+  };
+
+  static IntEntry[] newFilledFlat() {
+    // Sized to the key count (FlatHashtable is fixed-capacity, no resize): load factor <= 0.5.
+    IntEntry[] table = FlatHashtable.create(IntEntry.class, INSERTION_KEYS.length);
+    for (int i = 0; i < INSERTION_KEYS.length; ++i) {
+      FlatHashtable.insert(table, new IntEntry(INSERTION_KEYS[i], i), IntEntryKeyStrategy.INSTANCE);
+    }
+    return table;
+  }
+
   // Per-thread prebuilt maps for the read + clone benchmarks (built once per trial, per thread).
   HashMap<String, Integer> hashMap;
   Map<String, Integer> synchronizedHashMap;
   TreeMap<String, Integer> treeMap;
   LinkedHashMap<String, Integer> linkedHashMap;
   TagMap tagMap;
+  IntEntry[] flatTable;
   int index = 0;
 
+  // Front-load pollution once per trial, entirely before JMH's warmup starts: JMH
+  // injects the Blackhole straight into this setup method, so no per-benchmark
+  // scratch state is needed.
   @Setup(Level.Trial)
-  public void setUp() {
+  public void setUp(Blackhole bh) {
+    BenchmarkUtils.warmUpHashDispatch(bh);
+
     hashMap = new HashMap<>();
     fill(hashMap);
     synchronizedHashMap = Collections.synchronizedMap(new HashMap<>(hashMap));
@@ -99,6 +240,7 @@ public class SingleThreadedMapBenchmark {
     linkedHashMap = new LinkedHashMap<>();
     fill(linkedHashMap);
     tagMap = fillTagMap(TagMap.create());
+    flatTable = newFilledFlat();
   }
 
   String nextLookupKey() {
@@ -159,6 +301,11 @@ public class SingleThreadedMapBenchmark {
     return ledger.build();
   }
 
+  @Benchmark
+  public IntEntry[] create_flatHashtable() {
+    return newFilledFlat();
+  }
+
   // ---- copy ----
 
   @Benchmark
@@ -201,6 +348,11 @@ public class SingleThreadedMapBenchmark {
   }
 
   @Benchmark
+  public IntEntry get_flatHashtable() {
+    return FlatHashtable.get(flatTable, nextLookupKey(), IntEntryKeyStrategy.INSTANCE);
+  }
+
+  @Benchmark
   public void iterate_hashMap(Blackhole blackhole) {
     for (Map.Entry<String, Integer> entry : hashMap.entrySet()) {
       blackhole.consume(entry.getKey());
@@ -218,5 +370,17 @@ public class SingleThreadedMapBenchmark {
         blackhole.consume(entry.getValue());
       }
     }
+  }
+
+  @Benchmark
+  public void iterate_flatHashtable(Blackhole blackhole) {
+    // Context-passing forEach: blackhole rides through as context, so the lambda doesn't capture.
+    FlatHashtable.forEach(
+        flatTable,
+        blackhole,
+        (bh, e) -> {
+          bh.consume(e.key);
+          bh.consume(e.value);
+        });
   }
 }

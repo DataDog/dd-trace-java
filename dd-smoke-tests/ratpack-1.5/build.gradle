@@ -2,9 +2,8 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 plugins {
   id "com.gradleup.shadow"
+  id 'dd-trace-java.module.smoke-test'
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 tasks.named("jar", Jar) {
   manifest {
@@ -16,7 +15,7 @@ dependencies {
   implementation 'io.ratpack:ratpack-core:1.5.0'
   implementation 'com.sun.activation:jakarta.activation:1.2.2'
 
-  testImplementation project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests:smoke-test-common')
   testImplementation project(':dd-smoke-tests:appsec')
 }
 

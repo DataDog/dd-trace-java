@@ -1,57 +1,99 @@
 package com.datadog.featureflag;
 
+import static datadog.trace.util.AgentThreadFactory.AgentThread.FEATURE_FLAG_SHUTDOWN;
+import static datadog.trace.util.AgentThreadFactory.newAgentThread;
+
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
+import datadog.trace.api.featureflag.FeatureFlaggingGateway;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Starts the agent Feature Flags backend used by the {@code dd-openfeature} SDK instrumentation.
+ * Apart from registering the Remote Configuration product, the backend does no work until the SDK
+ * uses it.
+ */
 public class FeatureFlaggingSystem {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(FeatureFlaggingSystem.class);
 
-  private static volatile RemoteConfigService CONFIG_SERVICE;
-  private static volatile ExposureWriter EXPOSURE_WRITER;
-  private static volatile SpanEnrichmentWriter SPAN_ENRICHMENT_WRITER;
+  private static volatile FeatureFlagsBackend BACKEND;
+  private static volatile Thread SHUTDOWN_HOOK;
 
   private FeatureFlaggingSystem() {}
 
-  public static void start(final SharedCommunicationObjects sco) {
-    LOGGER.debug("Feature Flagging system starting");
-    final Config config = Config.get();
-
-    if (!config.isRemoteConfigEnabled()) {
-      throw new IllegalStateException("Feature Flagging system started without RC");
+  @SuppressFBWarnings(
+      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
+      justification =
+          "Agent-internal class; Class object does not escape to app code and lock only guards the subsystem lifecycle.")
+  public static synchronized void start(final SharedCommunicationObjects sco) {
+    if (BACKEND != null) {
+      LOGGER.debug("Feature Flagging system already started");
+      return;
     }
-    CONFIG_SERVICE = new RemoteConfigServiceImpl(sco, config);
-    CONFIG_SERVICE.init();
-
-    EXPOSURE_WRITER = new ExposureWriterImpl(sco, config);
-    EXPOSURE_WRITER.init();
-
-    // APM span enrichment: agent-side listener for flag-evaluation seam events. Uses the process-
-    // wide singleton so a subsystem restart reuses the one already-registered trace interceptor
-    // (which the tracer cannot remove) instead of registering a second, rejected one. Cheap: it
-    // only accumulates once the provider's gate-on capture hook dispatches events, and registers
-    // its interceptor lazily on the first such event.
-    SPAN_ENRICHMENT_WRITER = SpanEnrichmentWriter.getInstance();
-    SPAN_ENRICHMENT_WRITER.init();
-
+    final Config config = Config.get();
+    if (!config.isFeatureFlaggingProviderEnabled()) {
+      LOGGER.debug("Feature Flagging system disabled");
+      return;
+    }
+    LOGGER.debug("Feature Flagging enabled; env={}", config.getEnv());
+    // The tracing shutdown path stops the system before the JVM shutdown hooks, but it is missing
+    // when tracing or its shutdown instrumentation is disabled. Stop from a shutdown hook as well
+    // once the SDK subscribes to the shutdown, so it always flushes its pending events.
+    final FeatureFlagsBackend backend =
+        new FeatureFlagsBackend(sco, config, FeatureFlaggingSystem::addShutdownHook);
+    try {
+      backend.start();
+    } catch (final RuntimeException | Error e) {
+      LOGGER.debug(
+          "Feature Flagging system initialization failed: {}", e.getClass().getSimpleName());
+      backend.close();
+      throw e;
+    }
+    BACKEND = backend;
+    FeatureFlaggingGateway.register(backend);
     LOGGER.debug("Feature Flagging system started");
   }
 
-  public static void stop() {
-    if (SPAN_ENRICHMENT_WRITER != null) {
-      SPAN_ENRICHMENT_WRITER.close();
-      SPAN_ENRICHMENT_WRITER = null;
+  @SuppressFBWarnings(
+      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
+      justification =
+          "Agent-internal class; Class object does not escape to app code and lock only guards the subsystem lifecycle.")
+  public static synchronized void stop() {
+    final FeatureFlagsBackend backend = BACKEND;
+    BACKEND = null;
+    final Thread shutdownHook = SHUTDOWN_HOOK;
+    SHUTDOWN_HOOK = null;
+    if (shutdownHook != null && shutdownHook != Thread.currentThread()) {
+      try {
+        Runtime.getRuntime().removeShutdownHook(shutdownHook);
+      } catch (final IllegalStateException ignored) {
+        // The JVM is already shutting down; the hook finds the system stopped.
+      }
     }
-    if (EXPOSURE_WRITER != null) {
-      EXPOSURE_WRITER.close();
-      EXPOSURE_WRITER = null;
-    }
-    if (CONFIG_SERVICE != null) {
-      CONFIG_SERVICE.close();
-      CONFIG_SERVICE = null;
+    FeatureFlaggingGateway.register(null);
+    if (backend != null) {
+      backend.close();
     }
     LOGGER.debug("Feature Flagging system stopped");
+  }
+
+  private static synchronized void addShutdownHook() {
+    if (BACKEND == null || SHUTDOWN_HOOK != null) {
+      return;
+    }
+    final Thread hook = newAgentThread(FEATURE_FLAG_SHUTDOWN, FeatureFlaggingSystem::stop);
+    try {
+      Runtime.getRuntime().addShutdownHook(hook);
+    } catch (final IllegalStateException | SecurityException e) {
+      LOGGER.debug("Could not register the Feature Flagging shutdown hook", e);
+      return;
+    }
+    SHUTDOWN_HOOK = hook;
+  }
+
+  static boolean isShutdownHookRegistered() {
+    return SHUTDOWN_HOOK != null;
   }
 }

@@ -1,8 +1,7 @@
 plugins {
   id 'dd-trace-java.version-file'
+  id 'dd-trace-java.module.testing-support'
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
   api project(':dd-java-agent:appsec')

@@ -1,9 +1,7 @@
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.api.ProcessTags
-import datadog.trace.instrumentation.servlet5.HtmlAsyncRumServlet
 import datadog.trace.instrumentation.servlet5.HtmlRumServlet
 import datadog.trace.instrumentation.servlet5.TestServlet5
-import datadog.trace.instrumentation.servlet5.XmlAsyncRumServlet
 import datadog.trace.instrumentation.servlet5.XmlRumServlet
 import jakarta.servlet.Filter
 import jakarta.servlet.Servlet
@@ -20,6 +18,8 @@ import org.apache.tomcat.util.descriptor.web.ContextEnvironment
 import org.apache.tomcat.util.descriptor.web.FilterDef
 import org.apache.tomcat.util.descriptor.web.FilterMap
 import spock.lang.IgnoreIf
+import test.servlet5.HtmlAsyncRumServlet
+import test.servlet5.XmlAsyncRumServlet
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
@@ -320,7 +320,3 @@ class TomcatAsyncRumInjectionForkedTest extends TomcatRumInjectionForkedTest {
     addServlet(context, "/gimme-xml", XmlAsyncRumServlet)
   }
 }
-
-
-
-

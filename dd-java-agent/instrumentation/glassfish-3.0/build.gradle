@@ -1,3 +1,7 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
 muzzle {
   pass {
     group = 'org.glassfish.main.extras'
@@ -7,8 +11,6 @@ muzzle {
     assertInverse = true
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 testJvmConstraints {
   maxJavaVersion = JavaVersion.VERSION_1_8

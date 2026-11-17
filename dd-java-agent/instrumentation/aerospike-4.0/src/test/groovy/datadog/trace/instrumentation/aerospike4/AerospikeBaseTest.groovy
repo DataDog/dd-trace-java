@@ -11,6 +11,7 @@ import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
 import org.testcontainers.containers.GenericContainer
+import org.testcontainers.utility.DockerImageName
 import spock.lang.Shared
 
 abstract class AerospikeBaseTest extends VersionedNamingTestBase {
@@ -26,7 +27,7 @@ abstract class AerospikeBaseTest extends VersionedNamingTestBase {
 
   def setup() throws Exception {
     // Linux arm64 supported since `ce-6.2.0.2`
-    aerospike = new GenericContainer('aerospike:ce-6.2.0.2')
+    aerospike = new GenericContainer(DockerImageName.parse(System.getProperty('test.aerospike.image')))
       .withExposedPorts(3000)
       // proto-fd-max default is 15000, but container default is 1024.
       // see: https://aerospike.com/docs/database/reference/config#service__proto-fd-max

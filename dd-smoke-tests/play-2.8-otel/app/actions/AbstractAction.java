@@ -5,7 +5,9 @@ import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.context.Scope;
 import java.util.concurrent.CompletionStage;
-import play.mvc.*;
+import play.mvc.Action;
+import play.mvc.Http;
+import play.mvc.Result;
 
 public abstract class AbstractAction extends Action.Simple {
 

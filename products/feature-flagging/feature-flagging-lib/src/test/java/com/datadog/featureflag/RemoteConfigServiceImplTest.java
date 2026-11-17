@@ -1,325 +1,367 @@
 package com.datadog.featureflag;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static java.util.Collections.emptyMap;
-import static java.util.Collections.emptySet;
-import static java.util.Collections.singleton;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
-import com.squareup.moshi.JsonAdapter;
-import com.squareup.moshi.JsonReader;
-import com.squareup.moshi.JsonWriter;
-import com.squareup.moshi.Moshi;
-import com.squareup.moshi.Types;
-import datadog.communication.ddagent.SharedCommunicationObjects;
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import datadog.remoteconfig.Capabilities;
 import datadog.remoteconfig.ConfigurationDeserializer;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.PollingRateHinter;
 import datadog.remoteconfig.Product;
-import datadog.trace.api.Config;
-import datadog.trace.api.featureflag.FeatureFlaggingGateway;
-import datadog.trace.api.featureflag.ufc.v1.Flag;
-import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
-import java.lang.annotation.Annotation;
-import java.lang.reflect.Type;
-import java.time.Instant;
-import java.util.Date;
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.Captor;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.tabletest.junit.TableTest;
+import org.slf4j.LoggerFactory;
 
-@ExtendWith(MockitoExtension.class)
 class RemoteConfigServiceImplTest {
-
-  @Mock private FeatureFlaggingGateway.ConfigListener listener;
-  @Captor private ArgumentCaptor<ConfigurationDeserializer> deserializerCaptor;
-
-  @AfterEach
-  void cleanup() {
-    FeatureFlaggingGateway.removeConfigListener(listener);
-  }
+  private static final byte[] DOCUMENT = "{\"flags\":{}}".getBytes(UTF_8);
 
   @Test
-  void testNewConfigReceived() throws Exception {
+  @SuppressWarnings("unchecked")
+  void subscriptionRegistersTheProductWithARawDeserializer() throws Exception {
     final ConfigurationPoller poller = mock(ConfigurationPoller.class);
-    final SharedCommunicationObjects sco = mock(SharedCommunicationObjects.class);
-    when(sco.configurationPoller(any(Config.class))).thenReturn(poller);
-    FeatureFlaggingGateway.addConfigListener(listener);
-    final RemoteConfigServiceImpl service = new RemoteConfigServiceImpl(sco, Config.get());
+    final RemoteConfigServiceImpl service = new RemoteConfigServiceImpl(poller);
 
-    service.init();
+    service.subscribe(content -> {});
+    service.subscribe(content -> {});
 
     verify(poller).addCapabilities(Capabilities.CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
-    verify(poller).addListener(eq(Product.FFE_FLAGS), deserializerCaptor.capture(), eq(service));
-
-    final ServerConfiguration config = deserializer().deserialize(emptyConfig().getBytes(UTF_8));
-    service.accept("test", config, mock(PollingRateHinter.class));
-
-    verify(listener).accept(any(ServerConfiguration.class));
-
-    service.close();
-
-    verify(poller).removeCapabilities(Capabilities.CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
-    verify(poller).removeListeners(Product.FFE_FLAGS);
+    final ArgumentCaptor<ConfigurationDeserializer<byte[]>> deserializer =
+        ArgumentCaptor.forClass(ConfigurationDeserializer.class);
+    verify(poller).addListener(eq(Product.FFE_FLAGS), deserializer.capture(), eq(service));
+    verify(poller).start();
+    assertArrayEquals(DOCUMENT, deserializer.getValue().deserialize(DOCUMENT));
   }
 
   @Test
-  void skipsMalformedFlagAllocationsAndKeepsValidFlag() throws Exception {
-    final ServerConfiguration config =
-        deserialize(
-            "{"
-                + "\"createdAt\":\"2024-04-17T19:40:53.716Z\","
-                + "\"format\":\"SERVER\","
-                + "\"environment\":{\"name\":\"Test\"},"
-                + "\"flags\":{"
-                + "\"malformed-flag\":{"
-                + "\"key\":\"malformed-flag\","
-                + "\"enabled\":true,"
-                + "\"variationType\":\"STRING\","
-                + "\"variations\":{\"on\":{\"key\":\"on\",\"value\":\"on\"}},"
-                + "\"allocations\":\"this-is-not-a-list\""
-                + "},"
-                + "\"valid-flag\":{"
-                + "\"key\":\"valid-flag\","
-                + "\"enabled\":true,"
-                + "\"variationType\":\"STRING\","
-                + "\"variations\":{\"expected\":{\"key\":\"expected\",\"value\":\"expected\"}},"
-                + "\"allocations\":[{"
-                + "\"key\":\"default-allocation\","
-                + "\"rules\":[],"
-                + "\"splits\":[{\"variationKey\":\"expected\",\"shards\":[]}],"
-                + "\"doLog\":true"
-                + "}]"
-                + "}"
-                + "}"
-                + "}");
+  void forwardsDocumentsAndRemovalsToAllSubscribers() {
+    final RemoteConfigServiceImpl service =
+        new RemoteConfigServiceImpl(mock(ConfigurationPoller.class));
+    final List<byte[]> first = new ArrayList<>();
+    final List<byte[]> second = new ArrayList<>();
+    service.subscribe(first::add);
+    service.subscribe(second::add);
 
-    assertNotNull(config);
-    assertFalse(config.flags.containsKey("malformed-flag"));
-    assertTrue(config.flags.containsKey("valid-flag"));
-    assertEquals("expected", config.flags.get("valid-flag").variations.get("expected").value);
+    service.accept("key", DOCUMENT, mock(PollingRateHinter.class));
+    service.accept("key", null, mock(PollingRateHinter.class));
+
+    assertEquals(2, first.size());
+    assertArrayEquals(DOCUMENT, first.get(0));
+    assertNull(first.get(1));
+    assertEquals(2, second.size());
   }
 
   @Test
-  void ignoresUnknownTopLevelFields() throws Exception {
-    final ServerConfiguration config =
-        deserialize(
-            "{"
-                + "\"createdAt\":\"2024-04-17T19:40:53.716Z\","
-                + "\"format\":\"SERVER\","
-                + "\"environment\":{\"name\":\"Test\"},"
-                + "\"segments\":{\"new-schema-key\":{\"ignored\":true}},"
-                + "\"flags\":{}"
-                + "}");
+  void reportsRejectedDocumentsOnceEverySubscriberIsNotified() {
+    final RemoteConfigServiceImpl service =
+        new RemoteConfigServiceImpl(mock(ConfigurationPoller.class));
+    final IllegalArgumentException rejection = new IllegalArgumentException("malformed");
+    final IllegalStateException otherRejection = new IllegalStateException("malformed too");
+    final List<byte[]> received = new ArrayList<>();
+    service.subscribe(content -> {
+      throw rejection;
+    });
+    service.subscribe(received::add);
+    service.subscribe(content -> {
+      throw otherRejection;
+    });
 
-    assertNotNull(config);
-    assertEquals("2024-04-17T19:40:53.716Z", config.createdAt);
-    assertEquals("SERVER", config.format);
-    assertNotNull(config.environment);
-    assertEquals("Test", config.environment.name);
-    assertTrue(config.flags.isEmpty());
+    final IllegalArgumentException reported =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> service.accept("key", DOCUMENT, mock(PollingRateHinter.class)));
+
+    assertSame(rejection, reported);
+    assertArrayEquals(new Throwable[] {otherRejection}, reported.getSuppressed());
+    assertEquals(1, received.size());
+    assertArrayEquals(DOCUMENT, received.get(0));
   }
 
   @Test
-  void skipsUnknownOperatorFlagAndKeepsValidFlag() throws Exception {
-    final ServerConfiguration config =
-        deserialize(
-            "{"
-                + "\"createdAt\":\"2024-04-17T19:40:53.716Z\","
-                + "\"format\":\"SERVER\","
-                + "\"environment\":{\"name\":\"Test\"},"
-                + "\"flags\":{"
-                + "\"operator-grease-flag\":{"
-                + "\"key\":\"operator-grease-flag\","
-                + "\"enabled\":true,"
-                + "\"variationType\":\"STRING\","
-                + "\"variations\":{\"trap\":{\"key\":\"trap\",\"value\":\"trap\"}},"
-                + "\"allocations\":[{"
-                + "\"key\":\"grease-allocation\","
-                + "\"rules\":[{\"conditions\":[{"
-                + "\"attribute\":\"country\","
-                + "\"operator\":\"not-a-real-operator\","
-                + "\"value\":\"anything\""
-                + "}]}],"
-                + "\"splits\":[{\"variationKey\":\"trap\",\"shards\":[]}],"
-                + "\"doLog\":true"
-                + "}]"
-                + "},"
-                + "\"valid-flag\":{"
-                + "\"key\":\"valid-flag\","
-                + "\"enabled\":true,"
-                + "\"variationType\":\"STRING\","
-                + "\"variations\":{\"expected\":{\"key\":\"expected\",\"value\":\"expected\"}},"
-                + "\"allocations\":[{"
-                + "\"key\":\"default-allocation\","
-                + "\"rules\":[],"
-                + "\"splits\":[{\"variationKey\":\"expected\",\"shards\":[]}],"
-                + "\"doLog\":true"
-                + "}]"
-                + "}"
-                + "}"
-                + "}");
+  void lateSubscribersRejectingTheCurrentDocumentStaySubscribed() throws Exception {
+    final RemoteConfigServiceImpl service =
+        new RemoteConfigServiceImpl(mock(ConfigurationPoller.class));
+    service.accept("key", DOCUMENT, mock(PollingRateHinter.class));
+    final List<byte[]> received = new ArrayList<>();
 
-    assertNotNull(config);
-    assertFalse(config.flags.containsKey("operator-grease-flag"));
-    assertTrue(config.flags.containsKey("valid-flag"));
-    assertEquals("expected", config.flags.get("valid-flag").variations.get("expected").value);
+    final AutoCloseable subscription =
+        service.subscribe(content -> {
+          if (content != null) {
+            throw new IllegalArgumentException("malformed");
+          }
+          received.add(null);
+        });
+    service.accept("key", null, mock(PollingRateHinter.class));
+    subscription.close();
+
+    assertEquals(1, received.size());
+    assertNull(received.get(0));
   }
 
   @Test
-  void flagMapAdapterFactoryOnlyCreatesFlagMapAdapterForFlagMapType() {
-    final Moshi moshi = moshi();
-    final Type flagsType = Types.newParameterizedType(Map.class, String.class, Flag.class);
+  @SuppressWarnings("unchecked")
+  void requestsADocumentReceivedBeforeAnySubscriberAgainWhenRejected() {
+    final ConfigurationPoller poller = mock(ConfigurationPoller.class);
+    final RemoteConfigServiceImpl service = new RemoteConfigServiceImpl(poller);
+    service.start();
+    service.accept("key", DOCUMENT, mock(PollingRateHinter.class));
 
-    final JsonAdapter<?> adapter =
-        RemoteConfigServiceImpl.FlagMapAdapter.FACTORY.create(flagsType, emptySet(), moshi);
+    service.subscribe(content -> {
+      throw new IllegalArgumentException("malformed");
+    });
+    service.subscribe(content -> {
+      throw new IllegalArgumentException("malformed");
+    });
 
-    assertNotNull(adapter);
-    assertTrue(adapter instanceof RemoteConfigServiceImpl.FlagMapAdapter);
-    assertNull(
-        RemoteConfigServiceImpl.FlagMapAdapter.FACTORY.create(String.class, emptySet(), moshi));
-    assertNull(
-        RemoteConfigServiceImpl.FlagMapAdapter.FACTORY.create(
-            flagsType, singleton(mock(Annotation.class)), moshi));
+    verify(poller, times(1)).removeListeners(Product.FFE_FLAGS);
+    verify(poller, times(2))
+        .addListener(eq(Product.FFE_FLAGS), any(ConfigurationDeserializer.class), eq(service));
   }
 
   @Test
-  void allowsNullFlagMap() throws Exception {
-    final ServerConfiguration config =
-        deserialize(
-            "{"
-                + "\"createdAt\":\"2024-04-17T19:40:53.716Z\","
-                + "\"format\":\"SERVER\","
-                + "\"environment\":{\"name\":\"Test\"},"
-                + "\"flags\":null"
-                + "}");
+  void keepsADocumentReceivedBeforeAnySubscriberWhenAccepted() {
+    final ConfigurationPoller poller = mock(ConfigurationPoller.class);
+    final RemoteConfigServiceImpl service = new RemoteConfigServiceImpl(poller);
+    service.start();
+    service.accept("key", DOCUMENT, mock(PollingRateHinter.class));
 
-    assertNotNull(config);
-    assertNull(config.flags);
+    service.subscribe(content -> {});
+
+    verify(poller, never()).removeListeners(any());
   }
 
   @Test
-  void skipsNullFlagAndKeepsValidFlag() throws Exception {
-    final ServerConfiguration config =
-        deserialize(
-            "{"
-                + "\"createdAt\":\"2024-04-17T19:40:53.716Z\","
-                + "\"format\":\"SERVER\","
-                + "\"environment\":{\"name\":\"Test\"},"
-                + "\"flags\":{"
-                + "\"null-flag\":null,"
-                + "\"valid-flag\":{"
-                + "\"key\":\"valid-flag\","
-                + "\"enabled\":true,"
-                + "\"variationType\":\"STRING\","
-                + "\"variations\":{\"expected\":{\"key\":\"expected\",\"value\":\"expected\"}},"
-                + "\"allocations\":[{"
-                + "\"key\":\"default-allocation\","
-                + "\"rules\":[],"
-                + "\"splits\":[{\"variationKey\":\"expected\",\"shards\":[]}],"
-                + "\"doLog\":true"
-                + "}]"
-                + "}"
-                + "}"
-                + "}");
-
-    assertNotNull(config);
-    assertFalse(config.flags.containsKey("null-flag"));
-    assertTrue(config.flags.containsKey("valid-flag"));
-    assertEquals("expected", config.flags.get("valid-flag").variations.get("expected").value);
-  }
-
-  @Test
-  void flagMapAdapterIsReadOnly() {
-    final RemoteConfigServiceImpl.FlagMapAdapter adapter =
-        new RemoteConfigServiceImpl.FlagMapAdapter(moshi().adapter(Flag.class));
-
+  void doesNotRequestAgainADocumentAlreadyRejectedOnDelivery() {
+    final ConfigurationPoller poller = mock(ConfigurationPoller.class);
+    final RemoteConfigServiceImpl service = new RemoteConfigServiceImpl(poller);
+    service.subscribe(content -> {
+      throw new IllegalArgumentException("malformed");
+    });
     assertThrows(
-        UnsupportedOperationException.class,
-        () -> adapter.toJson(mock(JsonWriter.class), emptyMap()));
+        IllegalArgumentException.class,
+        () -> service.accept("key", DOCUMENT, mock(PollingRateHinter.class)));
+
+    service.subscribe(content -> {
+      throw new IllegalArgumentException("malformed");
+    });
+
+    verify(poller, never()).removeListeners(any());
   }
 
-  @TableTest({
-    "scenario                                  | value                            | expectedEpochMilli",
-    "utc second                                | '2023-01-01T00:00:00Z'           | 1672531200000     ",
-    "utc end of year                           | '2023-12-31T23:59:59Z'           | 1704067199000     ",
-    "leap day                                  | '2024-02-29T12:00:00Z'           | 1709208000000     ",
-    "millisecond precision                     | '2023-01-01T00:00:00.000Z'       | 1672531200000     ",
-    "three fractional digits                   | '2023-06-15T14:30:45.123Z'       | 1686839445123     ",
-    "six fractional digits truncate to millis  | '2023-06-15T14:30:45.123456Z'    | 1686839445123     ",
-    "six fractional digits preserve millis     | '2023-06-15T14:30:45.235982Z'    | 1686839445235     ",
-    "nine fractional digits truncate to millis | '2023-06-15T14:30:45.123456789Z' | 1686839445123     ",
-    "one fractional digit                      | '2023-06-15T14:30:45.1Z'         | 1686839445100     ",
-    "two fractional digits                     | '2023-06-15T14:30:45.12Z'        | 1686839445120     ",
-    "positive offset                           | '2023-01-01T01:00:00+01:00'      | 1672531200000     ",
-    "negative offset                           | '2023-01-01T00:00:00-05:00'      | 1672549200000     ",
-    "date only                                 | '2023-01-01'                     |                   ",
-    "invalid                                   | 'invalid-date'                   |                   ",
-    "empty string                              | ''                               |                   ",
-    "not a date                                | 'not-a-date'                     |                   ",
-    "slash date                                | '2023/01/01T00:00:00Z'           |                   ",
-    "null                                      |                                  |                   "
-  })
-  void testDateParsing(final String value, final Long expectedEpochMilli) throws Exception {
-    final JsonReader reader = mock(JsonReader.class);
-    when(reader.nextString()).thenReturn(value);
-    final RemoteConfigServiceImpl.DateAdapter adapter = new RemoteConfigServiceImpl.DateAdapter();
+  @Test
+  void replaysTheCurrentDocumentToLateSubscribers() {
+    final RemoteConfigServiceImpl service =
+        new RemoteConfigServiceImpl(mock(ConfigurationPoller.class));
+    service.subscribe(content -> {});
+    service.accept("key", DOCUMENT, mock(PollingRateHinter.class));
 
-    final Date parsed = adapter.fromJson(reader);
-    if (expectedEpochMilli == null) {
-      assertNull(parsed);
-    } else {
-      assertNotNull(parsed);
-      assertEquals(Instant.ofEpochMilli(expectedEpochMilli), parsed.toInstant());
+    final List<byte[]> late = new ArrayList<>();
+    service.subscribe(late::add);
+
+    assertEquals(1, late.size());
+    assertArrayEquals(DOCUMENT, late.get(0));
+  }
+
+  @Test
+  void concurrentRemovalIsDeliveredAfterTheInitialReplay() throws Exception {
+    final RemoteConfigServiceImpl service =
+        new RemoteConfigServiceImpl(mock(ConfigurationPoller.class));
+    service.accept("key", DOCUMENT, null);
+    final List<byte[]> received = new CopyOnWriteArrayList<>();
+    final CountDownLatch replayStarted = new CountDownLatch(1);
+    final CountDownLatch finishReplay = new CountDownLatch(1);
+    final CountDownLatch removalStarted = new CountDownLatch(1);
+    final ExecutorService executor = Executors.newFixedThreadPool(2);
+    try {
+      final Future<AutoCloseable> subscription =
+          executor.submit(() ->
+              service.subscribe(content -> {
+                if (content != null) {
+                  replayStarted.countDown();
+                  try {
+                    assertTrue(finishReplay.await(5, SECONDS));
+                  } catch (final InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new AssertionError(e);
+                  }
+                }
+                received.add(content);
+              }));
+      assertTrue(replayStarted.await(5, SECONDS));
+      final Future<?> removal =
+          executor.submit(() -> {
+            removalStarted.countDown();
+            service.accept("key", null, null);
+          });
+      assertTrue(removalStarted.await(5, SECONDS));
+      assertThrows(TimeoutException.class, () -> removal.get(100, MILLISECONDS));
+
+      finishReplay.countDown();
+      removal.get(5, SECONDS);
+      subscription.get(5, SECONDS).close();
+
+      assertEquals(2, received.size());
+      assertArrayEquals(DOCUMENT, received.get(0));
+      assertNull(received.get(1));
+    } finally {
+      finishReplay.countDown();
+      executor.shutdownNow();
+      service.close();
     }
   }
 
   @Test
-  void testParsingOnlyAdapter() {
-    final RemoteConfigServiceImpl.DateAdapter adapter = new RemoteConfigServiceImpl.DateAdapter();
+  void startRegistersTheProductOnceBeforeAnySubscription() {
+    final ConfigurationPoller poller = mock(ConfigurationPoller.class);
+    final RemoteConfigServiceImpl service = new RemoteConfigServiceImpl(poller);
 
-    assertThrows(
-        UnsupportedOperationException.class,
-        () -> adapter.toJson(mock(JsonWriter.class), new Date()));
+    service.start();
+    service.start();
+    service.subscribe(content -> {});
+
+    verify(poller, times(1)).addCapabilities(Capabilities.CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
+    verify(poller, times(1)).start();
   }
 
-  @SuppressWarnings("unchecked")
-  private ConfigurationDeserializer<ServerConfiguration> deserializer() {
-    return deserializerCaptor.getValue();
+  @Test
+  void unsubscribedSubscribersStopReceivingDocuments() throws Exception {
+    final ConfigurationPoller poller = mock(ConfigurationPoller.class);
+    final RemoteConfigServiceImpl service = new RemoteConfigServiceImpl(poller);
+    final List<byte[]> received = new ArrayList<>();
+    final AutoCloseable subscription = service.subscribe(received::add);
+
+    subscription.close();
+    service.accept("key", DOCUMENT, mock(PollingRateHinter.class));
+
+    assertEquals(0, received.size());
+    verify(poller, never()).removeListeners(any());
   }
 
-  private static ServerConfiguration deserialize(final String json) throws Exception {
-    return RemoteConfigServiceImpl.UniversalFlagConfigDeserializer.INSTANCE.deserialize(
-        json.getBytes(UTF_8));
+  @Test
+  void closeUnregistersTheProductAndDropsSubscribers() {
+    final ConfigurationPoller poller = mock(ConfigurationPoller.class);
+    final RemoteConfigServiceImpl service = new RemoteConfigServiceImpl(poller);
+    final List<byte[]> received = new ArrayList<>();
+    service.subscribe(received::add);
+
+    service.close();
+    service.close();
+    service.accept("key", DOCUMENT, mock(PollingRateHinter.class));
+
+    verify(poller, times(1))
+        .removeCapabilities(Capabilities.CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
+    verify(poller, times(1)).removeListeners(Product.FFE_FLAGS);
+    verify(poller, times(1)).stop();
+    assertEquals(0, received.size());
   }
 
-  private static Moshi moshi() {
-    return new Moshi.Builder().add(Date.class, new RemoteConfigServiceImpl.DateAdapter()).build();
+  @Test
+  void restartsBalancePollerReferences() {
+    final ConfigurationPoller poller = mock(ConfigurationPoller.class);
+    final RemoteConfigServiceImpl service = new RemoteConfigServiceImpl(poller);
+
+    service.start();
+    service.close();
+    service.subscribe(content -> {});
+    service.close();
+
+    verify(poller, times(2)).start();
+    verify(poller, times(2)).stop();
   }
 
-  private static String emptyConfig() {
-    return "{"
-        + "\"createdAt\":\"2024-04-17T19:40:53.716Z\","
-        + "\"format\":\"SERVER\","
-        + "\"environment\":{\"name\":\"Test\"},"
-        + "\"flags\":{}"
-        + "}";
+  @Nested
+  class Diagnostics {
+    private final Logger logger = (Logger) LoggerFactory.getLogger(RemoteConfigServiceImpl.class);
+    private final ListAppender<ILoggingEvent> appender = new ListAppender<>();
+    private Level previousLevel;
+    private RemoteConfigServiceImpl service;
+
+    @BeforeEach
+    void captureLogs() {
+      previousLevel = logger.getLevel();
+      logger.setLevel(Level.DEBUG);
+      appender.start();
+      logger.addAppender(appender);
+      service = new RemoteConfigServiceImpl(mock(ConfigurationPoller.class));
+    }
+
+    @AfterEach
+    void restoreLogging() {
+      logger.detachAppender(appender);
+      appender.stop();
+      logger.setLevel(previousLevel);
+    }
+
+    @Test
+    void reportsLifecycle() {
+      service.start();
+      service.close();
+
+      assertLogged("starting remote_config configuration source");
+      assertLogged("remote_config configuration source stopped");
+    }
+
+    @Test
+    void reportsReceivedConfiguration() {
+      service.accept("config", DOCUMENT, mock(PollingRateHinter.class));
+
+      assertLogged("configuration received: key=config, bytes=" + DOCUMENT.length);
+    }
+
+    @Test
+    void reportsRemovedConfiguration() {
+      service.accept("config", null, mock(PollingRateHinter.class));
+
+      assertLogged("configuration removed: key=config");
+    }
+
+    @Test
+    void reportsTheDocumentOnlyOnceItIsDelivered() {
+      final AtomicBoolean loggedBeforeDelivery = new AtomicBoolean(true);
+      service.subscribe(content ->
+          loggedBeforeDelivery.set(
+              appender.list.stream()
+                  .anyMatch(e -> e.getFormattedMessage().contains("configuration received"))));
+
+      service.accept("config", DOCUMENT, mock(PollingRateHinter.class));
+
+      assertFalse(loggedBeforeDelivery.get(), "The log must not delay the delivery");
+      assertLogged("configuration received: key=config, bytes=" + DOCUMENT.length);
+    }
+
+    private void assertLogged(final String text) {
+      assertTrue(
+          appender.list.stream().anyMatch(e -> e.getFormattedMessage().contains(text)),
+          "Missing log: " + text);
+    }
   }
 }

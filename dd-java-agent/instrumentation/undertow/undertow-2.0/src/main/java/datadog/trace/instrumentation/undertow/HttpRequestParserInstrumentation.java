@@ -28,6 +28,8 @@ public class HttpRequestParserInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public String hierarchyMarkerType() {
+    // removed in https://github.com/undertow-io/undertow/pull/1949/changes
+    // see RequestParserInstrumentation for the new type
     return "io.undertow.server.protocol.http.HttpRequestParser";
   }
 

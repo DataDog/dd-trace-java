@@ -118,8 +118,7 @@ public class SessionInstrumentation
             ackMode = Session.AUTO_ACKNOWLEDGE;
           }
           sessionState =
-              sessionStateStore.putIfAbsent(
-                  session, new SessionState(ackMode, TIME_IN_QUEUE_ENABLED));
+              sessionStateStore.getOrPut(session, new SessionState(ackMode, TIME_IN_QUEUE_ENABLED));
         }
 
         boolean isQueue = PRODUCER_DECORATE.isQueue(destination);
@@ -159,8 +158,7 @@ public class SessionInstrumentation
             ackMode = Session.AUTO_ACKNOWLEDGE;
           }
           sessionState =
-              sessionStateStore.putIfAbsent(
-                  session, new SessionState(ackMode, TIME_IN_QUEUE_ENABLED));
+              sessionStateStore.getOrPut(session, new SessionState(ackMode, TIME_IN_QUEUE_ENABLED));
         }
 
         boolean isQueue = CONSUMER_DECORATE.isQueue(destination);

@@ -2,12 +2,11 @@ plugins {
   `java-library`
   `java-test-fixtures`
   id("dd-trace-java.supported-config-generator")
+  id("dd-trace-java.module.internal-library")
 }
 
-apply(from = "$rootDir/gradle/java.gradle")
-
-extra["minimumBranchCoverage"] = 0.7
-extra["minimumInstructionCoverage"] = 0.7
+val minimumBranchCoverage by extra(0.7)
+val minimumInstructionCoverage by extra(0.7)
 
 extra["excludedClassesCoverage"] = listOf(
   "datadog.trace.api.ConfigCollector",
@@ -29,6 +28,7 @@ extra["excludedClassesCoverage"] = listOf(
   "datadog.trace.bootstrap.config.provider.MapConfigSource",
   // tested in internal-api
   "datadog.trace.bootstrap.config.provider.OtelEnvironmentConfigSource",
+  "datadog.trace.bootstrap.config.provider.OtelEnvironmentConfigSource.Exporter",
   "datadog.trace.bootstrap.config.provider.stableconfig.Selector",
   // tested in internal-api
   "datadog.trace.bootstrap.config.provider.StableConfigParser",
@@ -61,5 +61,5 @@ dependencies {
 
   testImplementation(project(":utils:test-utils"))
   testImplementation("org.snakeyaml:snakeyaml-engine:2.9")
-  testImplementation("com.squareup.okhttp3:mockwebserver:${libs.versions.okhttp.legacy.get()}")
+  testImplementation(libs.okhttp3.mockwebserver)
 }

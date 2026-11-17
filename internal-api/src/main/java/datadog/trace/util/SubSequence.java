@@ -1,11 +1,13 @@
 package datadog.trace.util;
 
+import datadog.trace.api.function.NoEscape;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  * A <code>CharSequence</code> that is a view into a sub-sequence of a <code>String</code>. Unlike
- * <code>String.subSequence</code>, this class doesn't allocate an additional <code>String</code>,
- * <code>char[]</code>, or <code>byte[]</code>.
+ * <code>
+ * String.subSequence</code>, this class doesn't allocate an additional <code>String</code>, <code>
+ * char[]</code>, or <code>byte[]</code>.
  *
  * <p>Why that matters: <code>String.substring</code> / <code>subSequence</code> copy the selected
  * range into a fresh backing array on every call, so scanning or splitting a string into many
@@ -14,8 +16,15 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
  * (an offset + length into the existing backing array), so the same parse allocates nothing per
  * slice. Use it for transient, read-only views; materialize a real <code>String</code> only when
  * the value must be retained or handed off.
+ *
+ * <p>{@link NoEscape}: because a <code>SubSequence</code> shares its parent <code>String</code>'s
+ * backing array, holding one anywhere longer-lived than the call that produced it (a field, a
+ * cache, a collection) pins the entire parent string alive for as long as the view survives.
  */
+@NoEscape
 public final class SubSequence implements CharSequence {
+  // @NoEscape exemption: backed by the interned "" literal, which is already permanently
+  // retained by the JVM -- holding this instance pins nothing beyond what's already immortal.
   public static final SubSequence EMPTY = new SubSequence("", 0, 0);
 
   /**
@@ -29,6 +38,15 @@ public final class SubSequence implements CharSequence {
   /**
    * SubSequence from <code>beginIndex</code> inclusive to <code>endIndex</code> exclusive of <code>
    * str</code> Equivalent to str.subSequence(str, startIndex, endIndex)
+   *
+   * <p>Unlike {@code String.substring}, this always allocates a view, even when <code>startIndex
+   * == endIndex</code> -- there is no free empty case here, because returning {@link #EMPTY}
+   * instead would mean this factory sometimes returns the singleton and sometimes a fresh instance,
+   * which defeats escape analysis at the call site (see {@link NoEscape}). {@code String.substring}
+   * pays no such cost for an empty range: it returns the interned {@code ""} literal
+   * unconditionally, independent of whether escape analysis succeeds. So on an empty range
+   * specifically, this is a real allocation with no offsetting copy avoided; use {@link #EMPTY}
+   * directly when the range is known to be empty.
    */
   public static final SubSequence of(String str, int startIndex, int endIndex) {
     return new SubSequence(str, startIndex, endIndex);

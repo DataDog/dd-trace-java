@@ -1,5 +1,6 @@
-apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'idea'
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
 
 testJvmConstraints {
   minJavaVersion = JavaVersion.VERSION_17
@@ -15,21 +16,6 @@ muzzle {
   }
 }
 
-idea {
-  module {
-    jdkName = '17'
-  }
-}
-
-project.tasks.withType(AbstractCompile).configureEach {
-  configureCompiler(
-    it,
-    17,
-    JavaVersion.VERSION_1_8,
-    "Set all compile tasks to use JDK17 but let instrumentation code target 1.8 compatibility"
-    )
-}
-
 addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
@@ -38,4 +24,3 @@ dependencies {
   testImplementation group: 'io.github.resilience4j', name: 'resilience4j-all', version: '2.0.0'
   latestDepTestImplementation group: 'io.github.resilience4j', name: 'resilience4j-all', version: '2.+'
 }
-

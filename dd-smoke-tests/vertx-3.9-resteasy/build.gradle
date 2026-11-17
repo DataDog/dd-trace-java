@@ -1,9 +1,8 @@
 plugins {
   id 'dd-trace-java.smoke-test-app'
+  id 'dd-trace-java.module.smoke-test'
   id 'idea'
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 description = 'Vert.x 3.9 RestEasy Smoke Tests.'
 
@@ -14,11 +13,10 @@ smokeTestApp {
     artifactPath = 'libs/vertx-3.9-resteasy-1.0.0-SNAPSHOT-fat.jar'
     sysProperty = 'datadog.smoketest.vertx.uberJar.path'
   }
-  projectJar('apiJar', project(':dd-trace-api'))
 }
 
 dependencies {
-  testImplementation project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests:smoke-test-common')
 }
 
 tasks.named("compileTestGroovy", GroovyCompile) {

@@ -46,11 +46,6 @@ public class DatadogProfilingScope implements ProfilingScope {
     // Restores the app-managed context slots that were active when this scope opened.
     // Span context slots are NOT touched here; they are managed independently by the
     // tracer via DatadogProfilingIntegration.activate()/close().
-    //
-    // Prior to ddprof 1.45.0 this method was a no-op: ddprof 1.41.0 removed the
-    // int-encoding setter that the previous snapshot/restore relied on, leaving no
-    // supported API for restoring context. The new setContextValuesByIdAndBytes API
-    // (1.45.0) makes targeted per-slot restore possible again — for app slots only.
     profiler.restoreAppContext(savedAppContext);
     profiler.syncNativeAppContext();
   }

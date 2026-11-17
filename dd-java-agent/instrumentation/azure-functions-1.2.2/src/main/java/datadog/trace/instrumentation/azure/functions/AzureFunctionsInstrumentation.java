@@ -49,13 +49,6 @@ public class AzureFunctionsInstrumentation extends InstrumenterModule.Tracing
         isAnnotatedWith(named("com.microsoft.azure.functions.annotation.FunctionName")));
   }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".AzureFunctionsDecorator", packageName + ".HttpRequestMessageExtractAdapter"
-    };
-  }
-
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvices(
         isMethod()

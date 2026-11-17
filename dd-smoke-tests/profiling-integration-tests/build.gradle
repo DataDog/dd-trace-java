@@ -2,9 +2,8 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 plugins {
   id 'com.gradleup.shadow'
+  id 'dd-trace-java.module.smoke-test'
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 testJvmConstraints {
   excludeJdk = ['IBM8']
@@ -26,7 +25,7 @@ dependencies {
   implementation libs.aircompressor
   implementation 'org.xerial.snappy:snappy-java:1.1.8.4'
 
-  testImplementation project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests:smoke-test-common')
   testImplementation project(':dd-java-agent:agent-profiling:profiling-controller')
   testImplementation project(':dd-java-agent:agent-profiling:profiling-testing')
   testImplementation libs.bundles.junit5

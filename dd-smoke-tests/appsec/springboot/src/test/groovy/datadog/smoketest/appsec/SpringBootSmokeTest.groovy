@@ -10,12 +10,15 @@ import okhttp3.MediaType
 import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.Response
+import spock.lang.IgnoreIf
 import spock.lang.Shared
 
 import java.nio.charset.StandardCharsets
 import java.util.zip.GZIPInputStream
 
 class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
+
+  static final String RASP_LFI_BOOT_ONLY = 'RASP LFI uses call-site instrumentation applied only when AppSec is enabled at boot (InstrumenterConfig.isRaspEnabled)'
 
   @Override
   def logLevel() {
@@ -699,7 +702,7 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
       }
     }
     assert trigger != null, 'test trigger not found'
-    rootSpan.span.metaStruct != null
+    !rootSpan.span.metaStruct.isEmpty()
     def stack = rootSpan.span.metaStruct.get('_dd.stack')
     assert stack != null, 'stack is not set'
     def exploit = stack.get('exploit')
@@ -742,9 +745,12 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     assert trigger != null, 'test trigger not found'
   }
 
+  @IgnoreIf(reason = 'java.net.URL SSRF goes through the RASP call site (URLSinkCallSite), applied only when AppSec is enabled at boot (InstrumenterConfig.isRaspEnabled)', value = {
+    AbstractAppSecServerSmokeTest.RUNTIME_ACTIVATION && data.variant == 'query'
+  })
   void 'rasp blocks on SSRF'() {
     when:
-    String url = "http://localhost:${httpPort}/ssrf/${variant}?domain=169.254.169.254"
+    String url = "http://localhost:${httpPort}/ssrf/${variant}?${param}=" + URLEncoder.encode(value, StandardCharsets.UTF_8.name())
     def request = new Request.Builder()
       .url(url)
       .get()
@@ -774,17 +780,20 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
       }
     }
     assert trigger != null, 'test trigger not found'
-    rootSpan.span.metaStruct == null
+    rootSpan.span.metaStruct.isEmpty()
 
     where:
-    variant               | _
-    'query'               | _
-    'okHttp3'             | _
-    'okHttp2'             | _
-    'apache-httpclient4'  | _
-    'commons-httpclient2' | _
+    variant               | param    | value
+    'query'               | 'domain' | '169.254.169.254'
+    'okHttp3'             | 'domain' | '169.254.169.254'
+    'okHttp2'             | 'domain' | '169.254.169.254'
+    'apache-httpclient4'  | 'domain' | '169.254.169.254'
+    'commons-httpclient2' | 'domain' | '169.254.169.254'
+    // libddwaf#522: the injected authority overlaps the URL scheme
+    'url'                 | 'url'    | 'http://169.254.169.254'
   }
 
+  @IgnoreIf(reason = RASP_LFI_BOOT_ONLY, value = { AbstractAppSecServerSmokeTest.RUNTIME_ACTIVATION })
   void 'rasp blocks on LFI for #variant'() {
     when:
     String url = "http://localhost:${httpPort}/lfi/"+variant+"?path=." + URLEncoder.encode("../../../etc/passwd", StandardCharsets.UTF_8.name())
@@ -814,7 +823,7 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
       }
     }
     assert trigger != null, 'test trigger not found'
-    rootSpan.span.metaStruct == null
+    rootSpan.span.metaStruct.isEmpty()
 
     where:
     variant | _
@@ -823,6 +832,7 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     'path'    | _
   }
 
+  @IgnoreIf(reason = RASP_LFI_BOOT_ONLY, value = { AbstractAppSecServerSmokeTest.RUNTIME_ACTIVATION })
   void 'rasp blocks on LFI write'() {
     when:
     String url = "http://localhost:${httpPort}/lfi/fileoutputstream?path=." + URLEncoder.encode("../../../etc/passwd", StandardCharsets.UTF_8.name())
@@ -853,7 +863,7 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
       }
     }
     assert trigger != null, 'test trigger not found'
-    rootSpan.span.metaStruct == null
+    rootSpan.span.metaStruct.isEmpty()
   }
 
   def findFirstMatchingSpan(String resource) {
@@ -939,7 +949,7 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
       }
     }
     assert trigger != null, 'test trigger not found'
-    rootSpan.span.metaStruct == null
+    rootSpan.span.metaStruct.isEmpty()
 
     where:
     endpoint                    | cmd                              | params
@@ -990,7 +1000,7 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
       }
     }
     assert trigger != null, 'test trigger not found'
-    rootSpan.span.metaStruct == null
+    rootSpan.span.metaStruct.isEmpty()
 
     where:
     endpoint           | cmd                                  | params

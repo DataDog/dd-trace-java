@@ -5,11 +5,14 @@ import datadog.appsec.api.blocking.BlockingException
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.agent.test.utils.OkHttpUtils
+import datadog.trace.api.appsec.AppSecContext
 import datadog.trace.api.function.TriConsumer
+import datadog.trace.api.gateway.BlockResponseFunction
 import datadog.trace.api.gateway.Events
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
+import datadog.trace.api.internal.TraceSegment
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import okhttp3.HttpUrl
 import okhttp3.MultipartBody
@@ -53,8 +56,12 @@ abstract class AbstractResteasyAppsecTest extends InstrumentationSpecification {
   abstract void startServer()
   abstract void stopServer()
 
-  static class TestCtx {
+  static class TestCtx implements AppSecContext {
+    /** Set from the last request that reported a block failure. Reset by each test that reads it. */
+    static volatile boolean blockFailureReported
+
     boolean block
+    boolean failBlocking
 
     Flow<Void> getFlow() {
       if (block) {
@@ -63,6 +70,39 @@ abstract class AbstractResteasyAppsecTest extends InstrumentationSpecification {
         Flow.ResultFlow.empty()
       }
     }
+
+    @Override
+    boolean isManuallyKept() {
+      false
+    }
+
+    @Override
+    void reportBlockFailure() {
+      blockFailureReported = true
+    }
+  }
+
+  /** Simulates a server that cannot commit the blocking response. */
+  enum FailingBlockResponseFunction implements BlockResponseFunction {
+    INSTANCE
+
+    @Override
+    boolean tryCommitBlockingResponse(TraceSegment segment, int statusCode, BlockingContentType templateType,
+      Map<String, String> extraHeaders, String securityResponseId) {
+      false
+    }
+  }
+
+  /**
+   * Replaces the server's block response function with one that fails to commit, so that the
+   * instrumentation reports a block failure on the AppSec context.
+   */
+  static Flow<Void> flowWithOptionalBlockFailure(RequestContext ctx) {
+    TestCtx testCtx = ctx.getData(RequestContextSlot.APPSEC)
+    if (testCtx.failBlocking) {
+      ctx.blockResponseFunction = FailingBlockResponseFunction.INSTANCE
+    }
+    testCtx.flow
   }
 
   enum BlockingFlow implements Flow<Void> {
@@ -83,18 +123,20 @@ abstract class AbstractResteasyAppsecTest extends InstrumentationSpecification {
       if (name == 'x-block') {
         TestCtx testCtx = ctx.getData(RequestContextSlot.APPSEC)
         testCtx.block = true
+      } else if (name == 'x-block-fail') {
+        TestCtx testCtx = ctx.getData(RequestContextSlot.APPSEC)
+        testCtx.block = true
+        testCtx.failBlocking = true
       }
     } as TriConsumer<RequestContext, String, String>)
     ig.registerCallback(events.requestStarted(), { -> new Flow.ResultFlow<Object>(new TestCtx()) } as Supplier<Flow<Object>>)
     ig.registerCallback(events.requestBodyProcessed(), { RequestContext ctx, Object obj ->
       ctx.traceSegment.setTagTop('request.body.converted', obj as String)
-      TestCtx testCtx = ctx.getData(RequestContextSlot.APPSEC)
-      testCtx.flow
+      flowWithOptionalBlockFailure(ctx)
     } as BiFunction<RequestContext, Object, Flow<Void>>)
     ig.registerCallback(events.requestPathParams(), { RequestContext ctx, Map<String, ?> stringMap ->
       ctx.traceSegment.setTagTop('request.path_params', stringMap as String)
-      TestCtx testCtx = ctx.getData(RequestContextSlot.APPSEC)
-      testCtx.flow
+      flowWithOptionalBlockFailure(ctx)
     } as BiFunction<RequestContext, Map<String, ?>, Flow<Void>>)
 
     startServer()
@@ -242,6 +284,71 @@ abstract class AbstractResteasyAppsecTest extends InstrumentationSpecification {
       it.error &&
         it.tags['error.type'] == BlockingException.name
     } != null
+  }
+
+  def 'test block failure is reported for path params when the blocking response cannot be committed'() {
+    setup:
+    TestCtx.blockFailureReported = false
+    def url = HttpUrl.get(address.resolve('/paramString/foobar'))
+    def request = new Request.Builder().url(url)
+      .header('x-block-fail', 'true')
+      .method('GET', null).build()
+
+    when:
+    def response = executeIgnoringIoErrors(request)
+
+    then:
+    response == null || response.code() != 403
+    TestCtx.blockFailureReported
+  }
+
+  def 'test block failure is reported for urlencoded request body when the blocking response cannot be committed'() {
+    setup:
+    TestCtx.blockFailureReported = false
+    def request = request(
+      BODY_URLENCODED, 'POST',
+      RequestBody.create(okhttp3.MediaType.get('application/x-www-form-urlencoded'), 'a=x'))
+      .header('x-block-fail', 'true')
+      .build()
+
+    when:
+    def response = executeIgnoringIoErrors(request)
+
+    then:
+    response == null || response.code() != 403
+    TestCtx.blockFailureReported
+  }
+
+  def 'test block failure is reported for json request body when the blocking response cannot be committed'() {
+    setup:
+    TestCtx.blockFailureReported = false
+    def request = request(
+      BODY_JSON, 'POST',
+      RequestBody.create(okhttp3.MediaType.get('application/json'), '{"a":"x"}\n'))
+      .header('x-block-fail', 'true')
+      .build()
+
+    when:
+    def response = executeIgnoringIoErrors(request)
+
+    then:
+    response == null || response.code() != 403
+    TestCtx.blockFailureReported
+  }
+
+  /**
+   * When the blocking response cannot be committed the server has no response to write, so the
+   * connection may be closed without a complete HTTP response.
+   */
+  private okhttp3.Response executeIgnoringIoErrors(Request request) {
+    try {
+      def response = client.newCall(request).execute()
+      response.body().bytes()
+      response.close()
+      response
+    } catch (IOException ignored) {
+      null
+    }
   }
 
   def 'test instrumentation gateway multipart request body endpoint #endpoint'() {

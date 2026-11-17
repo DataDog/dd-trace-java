@@ -1,4 +1,7 @@
-apply from: "$rootDir/gradle/java.gradle"
+plugins {
+  id 'dd-trace-java.module.smoke-test'
+}
+
 description = 'Tracer Flare Smoke Tests.'
 
 tasks.named("jar", Jar) {
@@ -8,7 +11,7 @@ tasks.named("jar", Jar) {
 }
 
 dependencies {
-  testImplementation project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests:smoke-test-common')
 }
 
 tasks.withType(Test).configureEach {

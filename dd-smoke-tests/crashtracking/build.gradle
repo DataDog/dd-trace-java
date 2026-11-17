@@ -2,9 +2,8 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 plugins {
   id 'com.gradleup.shadow'
+  id 'dd-trace-java.module.smoke-test'
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 testJvmConstraints {
   excludeJdk = ['IBM8']
@@ -19,7 +18,7 @@ tasks.named("jar", Jar) {
 }
 
 dependencies {
-  testImplementation project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests:smoke-test-common')
   testImplementation project(':dd-java-agent:agent-profiling:profiling-testing')
   testImplementation project(path: ':dd-java-agent:ddprof-lib', configuration: 'shadow')
 
