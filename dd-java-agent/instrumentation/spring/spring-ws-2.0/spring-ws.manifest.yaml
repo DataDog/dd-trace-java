@@ -1,7 +1,8 @@
 _v: 1
 name: spring-ws
-display_name: Spring WS Core
-description: Instruments Spring Web Services endpoint failures to attach exceptions to the active request trace.
+display_name: Spring Web Services
+description: Instruments Spring Web Services endpoint invocations to attach thrown application exceptions to the local root
+  trace span.
 packages:
 - name: org.springframework.ws:spring-ws-core
 category:

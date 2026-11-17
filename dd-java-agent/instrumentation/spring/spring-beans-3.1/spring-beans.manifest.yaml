@@ -1,8 +1,8 @@
 _v: 1
 name: spring-beans
 display_name: Spring Beans
-description: Instruments Spring bean registration and class resolution to preserve Datadog-injected bean definitions
-  across application class loaders.
+description: Instruments Spring BeanFactory registration and resolution to preserve class references for Datadog-injected
+  bean definitions.
 packages:
 - name: org.springframework:spring-beans
 category:

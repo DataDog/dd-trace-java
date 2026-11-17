@@ -1,7 +1,7 @@
 _v: 1
 name: spring-scheduling
-display_name: Spring Context
-description: Instruments scheduled Spring task execution with spans and error tracking.
+display_name: Spring Scheduling
+description: Instruments Spring scheduled task execution by wrapping task runnables and creating scheduled-call spans.
 packages:
 - name: org.springframework:spring-context
 category:
