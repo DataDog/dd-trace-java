@@ -143,12 +143,11 @@ class ExposurePipelineTest {
         final List<ExposureEvent> partition =
             exposures.subList(index, Math.min(index + exposuresPerThread, exposures.size()));
         futures.add(
-            executor.submit(
-                () -> {
-                  latch.await();
-                  partition.forEach(pipeline);
-                  return true;
-                }));
+            executor.submit(() -> {
+              latch.await();
+              partition.forEach(pipeline);
+              return true;
+            }));
       }
       latch.countDown(); // start threads
       for (final Future<Boolean> future : futures) {

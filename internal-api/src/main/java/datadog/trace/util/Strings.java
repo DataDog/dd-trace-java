@@ -345,13 +345,41 @@ public final class Strings {
    * True if {@code needle} occurs fully within {@code s[beginIndex, endIndex)} -- a range-limited,
    * allocation-free alternative to {@code s.substring(beginIndex, endIndex).contains(needle)}.
    *
-   * <p>{@code indexOf} returns the earliest occurrence at or after {@code beginIndex}; if that one
-   * overshoots {@code endIndex} there is no earlier full occurrence in range, so the bound check is
-   * exact.
+   * <p>The cost depends on the region's length, not the string's. {@code s.indexOf(needle,
+   * beginIndex)} alone would not do: when the needle is missing from the region it keeps searching
+   * to the end of {@code s}, which is slow for a short comment at the start of a long SQL
+   * statement. So {@code indexOf} (a fast JIT intrinsic) is used only when the text after the
+   * region is no longer than the region itself, which caps its extra work at the region's length.
+   * Otherwise a loop that stops at {@code endIndex} is used.
    */
   public static boolean regionContains(String s, int beginIndex, int endIndex, String needle) {
-    int idx = s.indexOf(needle, beginIndex);
-    return idx >= 0 && idx + needle.length() <= endIndex;
+    if (endIndex >= s.length()) {
+      // The region runs to the end of the string, so indexOf has nothing to overshoot.
+      int idx = s.indexOf(needle, beginIndex);
+      return idx >= 0 && idx + needle.length() <= endIndex;
+    }
+    int needleLen = needle.length();
+    int from = Math.max(beginIndex, 0);
+    int end = Math.min(endIndex, s.length());
+    // Last position where the needle can start and still end inside the region.
+    int last = end - needleLen;
+    if (from > last) {
+      return false;
+    }
+    if (needleLen == 0) {
+      return true;
+    }
+    if (s.length() - end <= end - from) {
+      int idx = s.indexOf(needle, from);
+      return idx >= 0 && idx <= last;
+    }
+    char first = needle.charAt(0);
+    for (int i = from; i <= last; i++) {
+      if (s.charAt(i) == first && s.regionMatches(i + 1, needle, 1, needleLen - 1)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /**

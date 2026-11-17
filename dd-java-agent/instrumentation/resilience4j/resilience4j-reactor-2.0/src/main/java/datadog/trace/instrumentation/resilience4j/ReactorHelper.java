@@ -38,7 +38,7 @@ public class ReactorHelper {
   public static Function<Publisher<?>, Publisher<?>> wrapFunction(
       Function<Publisher<?>, Publisher<?>> operator,
       BiConsumer<Publisher<?>, AgentSpan> attachContext) {
-    return (value) -> {
+    return value -> {
       AgentSpan current = Resilience4jSpan.current();
       AgentSpan owned = current == null ? Resilience4jSpan.start() : null;
       Resilience4jSpanDecorator<Void> spanDecorator = Resilience4jSpanDecorator.DECORATE;

@@ -1,6 +1,7 @@
 package datadog.trace.api.llmobs;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.DDTraceId;
 
 /**
  * Head-based retention sampler for LLM Observability traces.
@@ -43,6 +44,16 @@ public final class LLMObsSampler {
   public boolean sample(final long samplingId) {
     // unsigned 64 bit comparison with cutoff/threshold
     return samplingId * KNUTH_FACTOR + Long.MIN_VALUE <= threshold;
+  }
+
+  /**
+   * The sampling decision for the root of an LLMObs trace, in its wire form: {@link
+   * LLMObsContext#SAMPLING_DECISION_SAMPLED} or {@link LLMObsContext#SAMPLING_DECISION_DROPPED}.
+   */
+  public String decide(final DDTraceId traceId) {
+    return sample(traceId.toLong())
+        ? LLMObsContext.SAMPLING_DECISION_SAMPLED
+        : LLMObsContext.SAMPLING_DECISION_DROPPED;
   }
 
   private static long cutoff(final double rate) {

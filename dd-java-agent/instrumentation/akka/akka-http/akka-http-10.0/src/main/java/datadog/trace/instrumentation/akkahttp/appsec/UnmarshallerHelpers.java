@@ -332,15 +332,14 @@ public class UnmarshallerHelpers {
 
   public static akka.http.javadsl.unmarshalling.Unmarshaller transformJacksonUnmarshaller(
       akka.http.javadsl.unmarshalling.Unmarshaller original) {
-    return original.thenApply(
-        ret -> {
-          try {
-            handleArbitraryPostData(ret, "jackson unmarshaller");
-          } catch (Exception e) {
-            handleException(e, "Error in transformJacksonUnmarshaller");
-          }
-          return ret;
-        });
+    return original.thenApply(ret -> {
+      try {
+        handleArbitraryPostData(ret, "jackson unmarshaller");
+      } catch (Exception e) {
+        handleException(e, "Error in transformJacksonUnmarshaller");
+      }
+      return ret;
+    });
   }
 
   public static Unmarshaller transformArbitrarySprayUnmarshaller(Unmarshaller original) {

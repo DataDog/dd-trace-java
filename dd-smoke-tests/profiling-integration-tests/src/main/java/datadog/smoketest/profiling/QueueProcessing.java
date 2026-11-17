@@ -22,21 +22,20 @@ final class QueueProcessing {
               return t;
             });
     for (int i = 0; i < workers; i++) {
-      executor.submit(
-          () -> {
-            ExponentialDistribution distribution = new ExponentialDistribution(meanServiceTimeNs);
-            while (!Thread.currentThread().isInterrupted()) {
-              try {
-                Consumer<Long> item = workQueue.take();
-                long sample = (long) distribution.sample();
-                System.out.println("=== service time: " + sample + "ns");
-                item.accept(sample);
-                System.out.println("=== submitted");
-              } catch (InterruptedException ignored) {
-                Thread.currentThread().interrupt();
-              }
-            }
-          });
+      executor.submit(() -> {
+        ExponentialDistribution distribution = new ExponentialDistribution(meanServiceTimeNs);
+        while (!Thread.currentThread().isInterrupted()) {
+          try {
+            Consumer<Long> item = workQueue.take();
+            long sample = (long) distribution.sample();
+            System.out.println("=== service time: " + sample + "ns");
+            item.accept(sample);
+            System.out.println("=== submitted");
+          } catch (InterruptedException ignored) {
+            Thread.currentThread().interrupt();
+          }
+        }
+      });
     }
   }
 

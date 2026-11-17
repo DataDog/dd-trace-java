@@ -28,14 +28,13 @@ public final class TPEHelper {
   private static final ThreadLocal<ContextScope> threadLocalScope;
 
   private static final ClassValue<Boolean> WRAP =
-      GenericClassValue.of(
-          input -> {
-            String className = input.getName();
-            // We should always wrap anonymous lambda classes since we can't inject fields into
-            // them, and they can never be anything more than a _pure_ Runnable. They have '/' in
-            // their class name which is not allowed in 'normal' classes.
-            return className.indexOf('/', className.lastIndexOf('.')) > 0;
-          });
+      GenericClassValue.of(input -> {
+        String className = input.getName();
+        // We should always wrap anonymous lambda classes since we can't inject fields into
+        // them, and they can never be anything more than a _pure_ Runnable. They have '/' in
+        // their class name which is not allowed in 'normal' classes.
+        return className.indexOf('/', className.lastIndexOf('.')) > 0;
+      });
 
   static {
     InstrumenterConfig config = InstrumenterConfig.get();

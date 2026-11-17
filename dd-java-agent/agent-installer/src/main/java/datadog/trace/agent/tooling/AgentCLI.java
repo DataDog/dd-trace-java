@@ -140,7 +140,7 @@ public final class AgentCLI {
     Method resolveOne = depService.getClass().getMethod("resolveOneDependency");
 
     Consumer<File> invoker =
-        (file) -> {
+        file -> {
           try {
             addUrlMethod.invoke(depService, file.toURI().toURL());
             resolveOne.invoke(depService);
@@ -180,31 +180,30 @@ public final class AgentCLI {
       log.debug("Finding entries in file: {}", file.getName());
 
       jar.stream()
-          .forEach(
-              e -> {
-                if (e.getName().endsWith(".jar") || e.getName().endsWith(".war")) {
-                  try {
-                    log.debug("Jar entry found in file: {} entry: {}", file.getName(), e.getName());
-                    File temp = File.createTempFile("internal", ".jar");
-                    try (InputStream is = jar.getInputStream(e);
-                        OutputStream out = new FileOutputStream(temp)) {
-                      int read;
-                      while ((read = is.read()) != -1) {
-                        out.write(read);
-                      }
-                    }
-                    log.debug("Adding new jar: {}", temp.getAbsolutePath());
-                    recursiveDependencySearch(invoker, temp);
-                    if (!temp.delete()) {
-                      log.error("Error deleting temp file: {}", temp.getAbsolutePath());
-                    }
-                  } catch (Exception ex) {
-                    log.error("Error unzipping file", ex);
+          .forEach(e -> {
+            if (e.getName().endsWith(".jar") || e.getName().endsWith(".war")) {
+              try {
+                log.debug("Jar entry found in file: {} entry: {}", file.getName(), e.getName());
+                File temp = File.createTempFile("internal", ".jar");
+                try (InputStream is = jar.getInputStream(e);
+                    OutputStream out = new FileOutputStream(temp)) {
+                  int read;
+                  while ((read = is.read()) != -1) {
+                    out.write(read);
                   }
-                } else {
-                  log.debug("Entry: {} ignored in file: {}", e.getName(), file.getAbsolutePath());
                 }
-              });
+                log.debug("Adding new jar: {}", temp.getAbsolutePath());
+                recursiveDependencySearch(invoker, temp);
+                if (!temp.delete()) {
+                  log.error("Error deleting temp file: {}", temp.getAbsolutePath());
+                }
+              } catch (Exception ex) {
+                log.error("Error unzipping file", ex);
+              }
+            } else {
+              log.debug("Entry: {} ignored in file: {}", e.getName(), file.getAbsolutePath());
+            }
+          });
     }
   }
 }

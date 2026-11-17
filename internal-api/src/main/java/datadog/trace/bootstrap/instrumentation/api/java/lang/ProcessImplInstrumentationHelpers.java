@@ -172,28 +172,26 @@ public class ProcessImplInstrumentationHelpers {
       }
 
       final ContextContinuation continuation = Context.current().capture();
-      future.whenComplete(
-          (process, thr) -> {
-            if (thr != null) {
-              span.addThrowable(thr);
-            } else {
-              span.setTag("cmd.exit_code", Integer.toString(process.exitValue()));
-            }
-            finishSpan(continuation, span);
-          });
+      future.whenComplete((process, thr) -> {
+        if (thr != null) {
+          span.addThrowable(thr);
+        } else {
+          span.setTag("cmd.exit_code", Integer.toString(process.exitValue()));
+        }
+        finishSpan(continuation, span);
+      });
     } else if (EXECUTOR != null) {
       final ContextContinuation continuation = Context.current().capture();
-      EXECUTOR.execute(
-          () -> {
-            try {
-              int exitCode = p.waitFor();
-              span.setTag("cmd.exit_code", Integer.toString(exitCode));
-            } catch (InterruptedException e) {
-              span.addThrowable(e);
-            } finally {
-              finishSpan(continuation, span);
-            }
-          });
+      EXECUTOR.execute(() -> {
+        try {
+          int exitCode = p.waitFor();
+          span.setTag("cmd.exit_code", Integer.toString(exitCode));
+        } catch (InterruptedException e) {
+          span.addThrowable(e);
+        } finally {
+          finishSpan(continuation, span);
+        }
+      });
     }
   }
 

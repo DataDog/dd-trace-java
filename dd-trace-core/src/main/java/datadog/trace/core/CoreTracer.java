@@ -841,14 +841,12 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     final SharedCommunicationObjects sco = sharedCommunicationObjects;
     // asynchronously create these aggregator/export components to avoid triggering
     // expensive classloading during the tracer initialisation.
-    sharedCommunicationObjects.whenReady(
-        () ->
-            AgentTaskScheduler.get()
-                .execute(
-                    () -> {
-                      startMetricsAggregation(config, sco);
-                      maybeStartLogsExport(config);
-                    }));
+    sharedCommunicationObjects.whenReady(() ->
+        AgentTaskScheduler.get()
+            .execute(() -> {
+              startMetricsAggregation(config, sco);
+              maybeStartLogsExport(config);
+            }));
 
     if (dataStreamsMonitoring == null) {
       // Avoid DSM in bazel hermetic mode
@@ -935,7 +933,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
     registerClassLoader(ClassLoader.getSystemClassLoader());
 
-    StatusLogger.logStatus(config);
+    StatusLogger.logStatus(config, initialSampler);
 
     this.profilingContextIntegration = profilingContextIntegration;
     this.injectBaggageAsTags = injectBaggageAsTags;
@@ -2274,7 +2272,6 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       if (serviceName == null) {
         final Pair<String, CharSequence> serviceNameAndSource =
             traceConfig.getPreferredServiceNameAndSource();
-        ;
         if (serviceNameAndSource != null && serviceNameAndSource.hasLeft()) {
           serviceName = serviceNameAndSource.getLeft();
           serviceNameSource = serviceNameAndSource.getRight();
@@ -2312,13 +2309,6 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       final TagMap mergedTracerTags = traceConfig.mergedTracerTags;
       boolean mergedTracerTagsNeedsIntercept = traceConfig.mergedTracerTagsNeedsIntercept;
 
-      final int tagsSize =
-          mergedTracerTags.size()
-              + (null == tagLedger ? 0 : tagLedger.estimateSize())
-              + (null == coreTags ? 0 : coreTags.size())
-              + (null == rootSpanTags ? 0 : rootSpanTags.size())
-              + (null == contextualTags ? 0 : contextualTags.size());
-
       if (builderRequestContextDataAppSec != null) {
         requestContextDataAppSec = builderRequestContextDataAppSec;
       }
@@ -2327,6 +2317,16 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       }
       if (builderRequestContextDataIast != null) {
         requestContextDataIast = builderRequestContextDataIast;
+      }
+
+      // a parent span ID implies a resolved parent; extracted contexts report themselves as remote
+      final byte parentOrigin;
+      if (parentSpanId == DDSpanId.ZERO) {
+        parentOrigin = DDSpanContext.PARENT_ORIGIN_NONE;
+      } else if (resolvedParentSpanContext.isRemote()) {
+        parentOrigin = DDSpanContext.PARENT_ORIGIN_REMOTE;
+      } else {
+        parentOrigin = DDSpanContext.PARENT_ORIGIN_LOCAL;
       }
 
       // some attributes are inherited from the parent
@@ -2346,7 +2346,6 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
               w3cBaggage,
               errorFlag,
               spanType,
-              tagsSize,
               parentTraceCollector,
               requestContextDataAppSec,
               requestContextDataIast,
@@ -2357,7 +2356,8 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
               tracer.profilingContextIntegration,
               tracer.injectBaggageAsTags,
               tracer.injectLinksAsTags,
-              mergedTracerTagsNeedsIntercept ? null : mergedTracerTags);
+              mergedTracerTagsNeedsIntercept ? null : mergedTracerTags,
+              parentOrigin);
 
       // By setting the tags on the context we apply decorators to any tags that have been set via
       // the builder. The `mergedTracerTags` are always applied first (the precedence floor:
@@ -2461,7 +2461,8 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
      * Resets the {@link ReusableSingleSpanBuilder}, so it may be used to build another single span
      *
      * @returns <code>true</code> if the reset was successful, otherwise <code>false</code> if this
-     *     <code>ReusableSingleSpanBuilder</code> is still "in-use".
+     *     <code>
+     *     ReusableSingleSpanBuilder</code> is still "in-use".
      */
     final boolean reset(String instrumentationName, CharSequence operationName) {
       if (this.inUse) return false;

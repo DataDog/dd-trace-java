@@ -1,9 +1,7 @@
 # Agent context for dd-trace-java
 
-## What is this project?
-
 Datadog Java APM agent (`dd-trace-java`): a Java agent that auto-instruments JVM applications at runtime via bytecode manipulation.
-It ships ~120 integrations (~200 instrumentations) for tracing, profiling, AppSec, IAST, CI Visibility, USM, and LLM Observability.
+The agent provides tracing, profiling, application security (AppSec and IAST), CI Visibility, Universal Service Monitoring (USM), and LLM Observability.
 
 ## Project layout
 
@@ -29,19 +27,20 @@ docs/                     Developer documentation (see below)
 
 | Topic | File |
 |---|---|
-| Architecture & design | [ARCHITECTURE.md](ARCHITECTURE.md) |
+| Project layout & design | [ARCHITECTURE.md](ARCHITECTURE.md) |
 | Building from source | [BUILDING.md](BUILDING.md) |
 | Contributing & PR guidelines | [CONTRIBUTING.md](CONTRIBUTING.md) |
 | How instrumentations work | [docs/how_instrumentations_work.md](docs/how_instrumentations_work.md) |
 | Adding a new instrumentation | [docs/add_new_instrumentation.md](docs/add_new_instrumentation.md) |
 | Adding a new configuration | [docs/add_new_configurations.md](docs/add_new_configurations.md) |
-| Testing guide (6 test types) | [docs/how_to_test.md](docs/how_to_test.md) |
+| Testing | [docs/how_to_test.md](docs/how_to_test.md) |
+| Reproducing timing-sensitive CI flakes | [Reproduction guide](docs/how_to_test.md#reproducing-timing-sensitive-ci-failures) |
 | Writing JUnit tests | [docs/how_to_test_with_junit.md](docs/how_to_test_with_junit.md) |
 | Writing a smoke test | [docs/how_to_smoke_test.md](docs/how_to_smoke_test.md) |
 | Working with Gradle | [docs/how_to_work_with_gradle.md](docs/how_to_work_with_gradle.md) |
 | Bootstrap/premain constraints | [docs/bootstrap_design_guidelines.md](docs/bootstrap_design_guidelines.md) |
 | Instrumentation/advice constraints | [docs/instrumentation_design_guidelines.md](docs/instrumentation_design_guidelines.md) |
-| CI/CD workflows | [.github/workflows/README.md](.github/workflows/README.md) |
+| GitHub Actions workflows | [.github/workflows/README.md](.github/workflows/README.md) |
 
 **When working on a topic above, read the linked file first** — they are the source of truth maintained by humans.
 
@@ -50,7 +49,7 @@ docs/                     Developer documentation (see below)
 ```shell
 ./gradlew clean assemble                  # Build without tests
 ./gradlew :dd-java-agent:shadowJar        # Build agent jar only (dd-java-agent/build/libs/)
-./gradlew :path:to:module:test            # Run tests for a specific module
+./gradlew :path:to:module:test             # Run tests for a specific module
 ./gradlew :path:to:module:test -PtestJvm=11  # Test on a specific JVM version
 ./gradlew spotlessApply                   # Auto-format code (google-java-format)
 ./gradlew spotlessCheck                   # Verify formatting
@@ -59,40 +58,28 @@ docs/                     Developer documentation (see below)
 ## Code conventions
 
 - **Formatting**: google-java-format enforced via Spotless. Run `./gradlew spotlessApply` before committing.
-- **Static imports**: Prefer static imports over class-qualified calls for call-style helpers, in both test (Assertions.assertEquals, Mockito.mock) and production code (Collections.emptyList). Wildcard imports disallowed — see CONTRIBUTING.md.
+- **Static imports**: Prefer static imports for call-style helpers; no wildcard imports. See [the import guidelines](CONTRIBUTING.md#static-imports).
 - **Documentation**: Use concise Javadoc comments (`/** ... */`) for class, method, and field documentation.
-- **Instrumentation layout**: `dd-java-agent/instrumentation/{framework}/{framework}-{minVersion}/`
-- **Instrumentation pattern**: Type matching → Method matching → Advice class (bytecode advice, not AOP)
-- **Test frameworks**: Always use JUnit 5 for unit tests. Only use Groovy / Spock tests for instrumentation and smoke tests.
-- **Parameterized tests**: Prefer `@TableTest` for multi-column literal data, with named scenarios and aligned columns. Prefer a simple `@TypeConverter` over switching to `@MethodSource` when it can turn table values into the required arguments. Use `@MethodSource` for cases requiring complex object construction, builders, or mocks. See [the JUnit testing guide](docs/how_to_test_with_junit.md#parameterized-tests).
-- **Forked tests**: Use `ForkedTest` suffix when tests need a separate JVM
-- **Flaky tests**: Annotate with `@Flaky` — they are skipped in CI by default
+- **Tests**: Write new tests in Java with JUnit 5. Maintain existing Spock tests as needed; new `.groovy` files require an explicit exception. Follow the testing guides above for parameterization, forked tests, and flaky tests.
 
 ## PR conventions
 
-- Title: imperative verb sentence describing user-visible change (e.g. "Fix span sampling rule parsing")
-- Labels: always add `tag: ai generated` and at least one `comp:` or `inst:` label + one `type:` label
-- Use `tag: no release notes` for internal/refactoring changes
-- Open as draft first, convert to ready when reviewable
+- Follow the [contribution guidelines](CONTRIBUTING.md#pull-request-guidelines) and [PR template](.github/pull_request_template.md) for titles, descriptions, size, labels, and draft status.
 - Dependency changes: when adding, updating, or removing dependencies, regenerate all affected `gradle.lockfile` files
   and include them in the same PR. See [lockfile updates](docs/how_to_work_with_gradle.md#updating-lock-files).
 
-## Review Guidelines
+## Code Review Rules
 
+- **SDK review**: run `/sdk-review` over the committed branch changes before pushing or marking a PR ready. It runs one read-only review per lens (correctness, security, design, performance, maintainability, conventions, cross-SDK consistency) — see [.agents/skills/sdk-review/SKILL.md](.agents/skills/sdk-review/SKILL.md).
+- **CI flakiness**: use [reproduce-ci-flakiness](.agents/skills/reproduce-ci-flakiness/SKILL.md) for intermittent timeouts, races, asynchronous test failures, or tests that pass locally but fail in CI.
 - **Technical debt**: run `/techdebt` over branch changes before marking a PR ready to catch code duplication, unnecessary complexity, and dead code (refactor-only, never changes behavior) — see [.agents/skills/techdebt/SKILL.md](.agents/skills/techdebt/SKILL.md).
 - **Performance**: run `/perf-review` over branch changes before marking a PR ready (advisory, not a merge gate) — see [.agents/skills/perf-review/SKILL.md](.agents/skills/perf-review/SKILL.md).
 
-## CI scripts
+### Core performance rules
 
-Every `curl` that runs in CI (`.gitlab-ci.yml`, `.gitlab/`, GitHub Actions, the scripts they call, and the Dockerfiles they build) should:
+These rules are strict for shipped runtime code in `dd-trace-core/src/main/` and `internal-api/src/main/`. Elsewhere, including those modules' tests, benchmarks and build files, treat them as advice.
 
-- **Fail on HTTP errors**: pass `-f`/`--fail`. Without it, a 4xx/5xx exits 0 and the error page is used as if it were the real response (e.g. piped into `bash` or `jq`).
-- **Retry transient errors**: pass `--retry 5 --retry-delay 2` (add `--retry-connrefused` for remote endpoints).
-- **Propagate the failure**: the job must stop when curl fails. Never pipe `curl` straight into `bash`/`sh`: download to a file with `-f`, then run it.
-
-Example: `curl -fsSL --retry 5 --retry-delay 2 --retry-connrefused -o out.tar.gz "$url"`
-
-Exception: a script that checks the HTTP status itself (`-w "%{http_code}"`, e.g. `.gitlab/check_test_agent_results.sh`) may skip `--fail`, but still needs `--retry`.
+- **Measure performance claims.** A PR that claims to be faster or to allocate less must include JMH before/after results from the same machine, JDK, JVM flags and benchmark settings, with time and allocation (`-Pjmh.profilers=gc`). Without them, reviewers should flag the claim as unmeasured and the author should either add numbers or drop the claim.
 
 ## Critical constraints
 

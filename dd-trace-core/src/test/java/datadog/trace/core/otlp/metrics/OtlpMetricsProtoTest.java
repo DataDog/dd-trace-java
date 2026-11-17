@@ -542,19 +542,18 @@ class OtlpMetricsProtoTest {
     OtlpMetricsProtoCollector collector = new OtlpMetricsProtoCollector(timeSource);
     timeSource.set(END_EPOCH_NS); // captured during collection
     OtlpPayload payload =
-        collector.collectMetrics(
-            visitor -> {
-              for (ScopeSpec scope : expectedScopes) {
-                OtlpScopedMetricsVisitor sv = visitor.visitScopedMetrics(scope.toScope());
-                for (MetricSpec metric : scope.metrics) {
-                  OtlpMetricVisitor mv = sv.visitMetric(metric.toDescriptor());
-                  for (AttrSpec attr : metric.attrs) {
-                    mv.visitAttribute(attr.type, attr.key, attr.value);
-                  }
-                  mv.visitDataPoint(metric.point);
-                }
+        collector.collectMetrics(visitor -> {
+          for (ScopeSpec scope : expectedScopes) {
+            OtlpScopedMetricsVisitor sv = visitor.visitScopedMetrics(scope.toScope());
+            for (MetricSpec metric : scope.metrics) {
+              OtlpMetricVisitor mv = sv.visitMetric(metric.toDescriptor());
+              for (AttrSpec attr : metric.attrs) {
+                mv.visitAttribute(attr.type, attr.key, attr.value);
               }
-            });
+              mv.visitDataPoint(metric.point);
+            }
+          }
+        });
 
     // Scopes with no metrics produce no wire output — filter them for verification
     List<ScopeSpec> nonEmptyScopes = new ArrayList<>();

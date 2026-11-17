@@ -330,9 +330,8 @@ class DDIntakeWriterCombinedTest extends DDCoreJavaSpecification {
     String path = buildIntakePath(trackType, apiVersion);
 
     JavaTestHttpServer intake =
-        JavaTestHttpServer.httpServer(
-            server ->
-                server.handlers(h -> h.post(path, api -> api.getResponse().status(200).send())));
+        JavaTestHttpServer.httpServer(server ->
+            server.handlers(h -> h.post(path, api -> api.getResponse().status(200).send())));
     try {
       HttpUrl hostUrl = HttpUrl.get(intake.getAddress());
       OkHttpClient httpClient = OkHttpUtils.buildHttpClient(hostUrl, 1000);
@@ -367,11 +366,10 @@ class DDIntakeWriterCombinedTest extends DDCoreJavaSpecification {
           .onSend(
               anyInt(),
               anyInt(),
-              argThat(
-                  response ->
-                      response.success()
-                          && response.status().isPresent()
-                          && response.status().getAsInt() == 200));
+              argThat(response ->
+                  response.success()
+                      && response.status().isPresent()
+                      && response.status().getAsInt() == 200));
 
       writer.close();
 
@@ -390,9 +388,8 @@ class DDIntakeWriterCombinedTest extends DDCoreJavaSpecification {
     String path = buildIntakePath(trackType, apiVersion);
 
     JavaTestHttpServer intake =
-        JavaTestHttpServer.httpServer(
-            server ->
-                server.handlers(h -> h.post(path, api -> api.getResponse().status(500).send())));
+        JavaTestHttpServer.httpServer(server ->
+            server.handlers(h -> h.post(path, api -> api.getResponse().status(500).send())));
     try {
       HttpUrl hostUrl = HttpUrl.get(intake.getAddress());
       okhttp3.OkHttpClient httpClient = OkHttpUtils.buildHttpClient(hostUrl, 1000);
@@ -427,11 +424,10 @@ class DDIntakeWriterCombinedTest extends DDCoreJavaSpecification {
           .onFailedSend(
               anyInt(),
               anyInt(),
-              argThat(
-                  response ->
-                      !response.success()
-                          && response.status().isPresent()
-                          && response.status().getAsInt() == 500));
+              argThat(response ->
+                  !response.success()
+                      && response.status().isPresent()
+                      && response.status().getAsInt() == 500));
 
       writer.close();
 
@@ -498,20 +494,18 @@ class DDIntakeWriterCombinedTest extends DDCoreJavaSpecification {
     String path = buildIntakePath(trackType, apiVersion);
 
     JavaTestHttpServer intake =
-        JavaTestHttpServer.httpServer(
-            server ->
-                server.handlers(
-                    h ->
-                        h.post(
-                            path,
-                            api -> {
-                              responseSemaphore.acquire();
-                              try {
-                                api.getResponse().status(200).send();
-                              } finally {
-                                responseSemaphore.release();
-                              }
-                            })));
+        JavaTestHttpServer.httpServer(server ->
+            server.handlers(h ->
+                h.post(
+                    path,
+                    api -> {
+                      responseSemaphore.acquire();
+                      try {
+                        api.getResponse().status(200).send();
+                      } finally {
+                        responseSemaphore.release();
+                      }
+                    })));
 
     // This test focuses just on failed publish, so not verifying every callback
     HealthMetrics healthMetrics = mock(HealthMetrics.class);
@@ -629,9 +623,8 @@ class DDIntakeWriterCombinedTest extends DDCoreJavaSpecification {
     String path = buildIntakePath(trackType, apiVersion);
 
     JavaTestHttpServer intake =
-        JavaTestHttpServer.httpServer(
-            server ->
-                server.handlers(h -> h.post(path, api -> api.getResponse().status(200).send())));
+        JavaTestHttpServer.httpServer(server ->
+            server.handlers(h -> h.post(path, api -> api.getResponse().status(200).send())));
 
     // This test focuses just on failed publish, so not verifying every callback
     HealthMetrics healthMetrics = mock(HealthMetrics.class);
@@ -724,9 +717,8 @@ class DDIntakeWriterCombinedTest extends DDCoreJavaSpecification {
     String path = buildIntakePath(trackType, apiVersion);
 
     JavaTestHttpServer intake =
-        JavaTestHttpServer.httpServer(
-            server ->
-                server.handlers(h -> h.post(path, api -> api.getResponse().status(200).send())));
+        JavaTestHttpServer.httpServer(server ->
+            server.handlers(h -> h.post(path, api -> api.getResponse().status(200).send())));
 
     HealthMetrics healthMetrics = mock(HealthMetrics.class);
     doAnswer(

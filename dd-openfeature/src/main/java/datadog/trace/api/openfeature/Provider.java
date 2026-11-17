@@ -40,8 +40,21 @@ public class Provider extends com.datadog.openfeature.Provider {
   @Deprecated
   public static class Options extends com.datadog.openfeature.Provider.Options {
     @Override
+    public Options experimentationOptOutMode(
+        final com.datadog.openfeature.ExperimentationOptOutMode mode) {
+      super.experimentationOptOutMode(mode);
+      return this;
+    }
+
+    @Override
     public Options enableEvaluationTelemetryOptOutParameter(final boolean enabled) {
       super.enableEvaluationTelemetryOptOutParameter(enabled);
+      return this;
+    }
+
+    @Override
+    public Options flagSelection(final com.datadog.openfeature.FlagSelection selection) {
+      super.flagSelection(selection);
       return this;
     }
 

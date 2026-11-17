@@ -75,8 +75,7 @@ public final class SmokeDiagnosticsBridge {
     if (!recording) {
       throw new IllegalStateException("Scope diagnostics have not started recording");
     }
-    ScopeDiagnostics.awaitQuiescence(quiescenceMillis);
-    ScopeDiagnostics.stop();
+    ScopeDiagnostics.stopAfterQuiescence(quiescenceMillis);
     recording = false;
     ScopeDiagnosticsReport report = ScopeDiagnostics.report();
     Properties result = new Properties();

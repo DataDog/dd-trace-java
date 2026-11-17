@@ -21,7 +21,7 @@ smokeTestApp {
 dependencies {
   testImplementation('org.springframework.kafka:spring-kafka-test:2.9.13')
 
-  testImplementation project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests:smoke-test-common')
   implementation project(':dd-smoke-tests:iast-util')
   testImplementation(testFixtures(project(":dd-smoke-tests:iast-util")))
 }

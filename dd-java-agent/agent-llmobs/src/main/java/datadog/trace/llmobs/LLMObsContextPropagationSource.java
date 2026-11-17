@@ -3,8 +3,8 @@ package datadog.trace.llmobs;
 import datadog.trace.api.llmobs.LLMObsContext;
 import datadog.trace.api.llmobs.LLMObsPropagationSource;
 import datadog.trace.api.llmobs.LLMObsPropagationValues;
+import datadog.trace.api.llmobs.LLMObsTraceId;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
-import datadog.trace.llmobs.domain.LLMObsTraceId;
 import javax.annotation.Nullable;
 
 /**

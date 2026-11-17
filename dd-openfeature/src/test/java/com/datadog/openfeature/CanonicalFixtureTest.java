@@ -1,14 +1,24 @@
 package com.datadog.openfeature;
 
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EVALUATION_FEATURE_PREFIX;
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EXPOSURE_FEATURE_PREFIX;
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.FEATURE_PREFIX;
 import static java.util.Collections.emptyMap;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThan;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 
 import com.datadog.openfeature.internal.JsonReading;
 import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
 import com.datadog.openfeature.internal.config.TestSettings;
+import com.datadog.openfeature.internal.evaluation.ExperimentationOptOut;
 import com.datadog.openfeature.internal.ufc.UniversalFlagConfigParser;
 import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.EvaluationContext;
@@ -20,13 +30,17 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * Evaluates the cross-SDK canonical fixtures from the {@code ffe-system-test-data} submodule,
@@ -41,44 +55,173 @@ class CanonicalFixtureTest {
     assertThat(canonicalTestCases().size(), greaterThan(0));
   }
 
+  @ValueSource(strings = {"result", "features", "flagMetadata"})
+  @ParameterizedTest
+  void rejectsUnhandledExpectations(final String location) {
+    final Map<String, Object> result = new java.util.LinkedHashMap<>();
+    result.put("value", false);
+    result.put("reason", "STATIC");
+    if ("result".equals(location)) {
+      result.put("unhandledExpectation", true);
+    } else {
+      result.put(location, Map.of("unhandledExpectation", true));
+    }
+    final AssertionError error =
+        assertThrows(
+            AssertionError.class,
+            () -> new FixtureCase("unsupported.json", 0, Map.of("result", result)));
+    assertTrue(error.getMessage().contains("unhandledExpectation"));
+  }
+
   @MethodSource("canonicalTestCases")
   @ParameterizedTest(name = "{0}")
   void evaluateCanonicalFixture(final FixtureCase testCase) throws IOException {
+    evaluateCanonicalFixture(testCase, ExperimentationOptOutMode.DISABLED);
+  }
+
+  @MethodSource("immediateOptOutTestCases")
+  @ParameterizedTest(name = "immediate: {0}")
+  void evaluateImmediateOptOutFixture(final FixtureCase testCase) throws IOException {
+    evaluateCanonicalFixture(testCase, ExperimentationOptOutMode.IMMEDIATE);
+  }
+
+  @MethodSource("futureOptOutTestCases")
+  @ParameterizedTest(name = "future: {0}")
+  void evaluateFutureOptOutFixture(final FixtureCase testCase) throws IOException {
+    evaluateCanonicalFixture(testCase, ExperimentationOptOutMode.FUTURE_EXPERIMENTS_ONLY);
+  }
+
+  static List<FixtureCase> futureOptOutTestCases() throws IOException {
+    return optOutTestCases("experimentationOptOutFutureExperimentsOnly", 44);
+  }
+
+  static List<FixtureCase> immediateOptOutTestCases() throws IOException {
+    return optOutTestCases("experimentationOptOutImmediate", 28);
+  }
+
+  @SuppressWarnings("unchecked")
+  private static List<FixtureCase> optOutTestCases(final String capability, final int expectedCount)
+      throws IOException {
+    final List<FixtureCase> cases = new ArrayList<>();
+    for (final FixtureCase testCase : canonicalTestCases()) {
+      final Map<String, Object> capabilities =
+          (Map<String, Object>) testCase.json.get("capabilities");
+      if (capabilities != null && capabilities.containsKey(capability)) {
+        final Map<String, Object> json = new java.util.LinkedHashMap<>(testCase.json);
+        json.put("result", capabilities.get(capability));
+        cases.add(new FixtureCase(testCase.fileName, testCase.index, json));
+      }
+    }
+    assertEquals(expectedCount, cases.size(), "The opt-out capability fixtures must execute");
+    return cases;
+  }
+
+  private void evaluateCanonicalFixture(
+      final FixtureCase testCase, final ExperimentationOptOutMode mode) throws IOException {
     final DDEvaluator evaluator =
-        new DDEvaluator(mock(Runnable.class), AgentBridge.NONE, TestSettings.of());
+        new DDEvaluator(
+            mock(Runnable.class),
+            AgentBridge.NONE,
+            TestSettings.of("experimental.flagging.provider.span.enrichment.enabled", "true"),
+            mode);
     evaluator.accept(
         UniversalFlagConfigParser.parse(
             Files.readAllBytes(fixtureRoot().resolve("ufc-config.json"))));
 
     final Class<?> targetType = targetType(testCase.variationType);
-    final Object defaultValue = DDEvaluator.mapValue(targetType, testCase.defaultValue);
-    final Object expectedValue = DDEvaluator.mapValue(targetType, testCase.resultValue);
-    final ProviderEvaluation<?> details =
-        evaluate(evaluator, targetType, testCase.flag, defaultValue, context(testCase));
+    final Object defaultValue = fixtureValue(targetType, testCase.defaultValue);
+    final Object expectedValue = fixtureValue(targetType, testCase.resultValue);
+    final Provider provider =
+        new Provider(new Provider.Options().experimentationOptOutMode(mode), evaluator, false);
+    final ProviderEvaluation<?> details;
+    try {
+      details = evaluate(provider, targetType, testCase.flag, defaultValue, context(testCase));
+    } finally {
+      provider.shutdown();
+    }
 
     assertThat(details.getValue(), equalTo(expectedValue));
     assertThat(details.getReason(), equalTo(testCase.resultReason));
-    if (testCase.resultVariant != null) {
+    if (testCase.checksVariant) {
       assertThat(details.getVariant(), equalTo(testCase.resultVariant));
     }
     if (testCase.resultErrorCode != null) {
       assertThat(details.getErrorCode(), equalTo(ErrorCode.valueOf(testCase.resultErrorCode)));
+      if ("INVALID_CONTEXT".equals(testCase.resultErrorCode)) {
+        assertEquals(ExperimentationOptOut.INVALID_TIMESTAMP, details.getErrorMessage());
+      }
+    } else if (!"ERROR".equals(testCase.resultReason)) {
+      assertNull(details.getErrorCode());
     }
-    if (testCase.resultAllocationKey != null) {
+    final Map<String, Object> metadata = details.getFlagMetadata().asUnmodifiableMap();
+    if (testCase.checksSerialId) {
+      if (testCase.resultSerialId == null) {
+        assertFalse(metadata.containsKey("__dd_split_serial_id"));
+      } else {
+        assertEquals(testCase.resultSerialId.intValue(), metadata.get("__dd_split_serial_id"));
+      }
+    }
+    if (testCase.resultDoLog != null) {
+      assertEquals(testCase.resultDoLog, metadata.get("__dd_do_log"));
+    }
+    if (testCase.checksAllocationKey) {
       assertThat(
           details.getFlagMetadata().getString("allocationKey"),
           equalTo(testCase.resultAllocationKey));
     }
+    if (testCase.resultFeatures != null) {
+      assertEquals(
+          testCase.resultFeatures.get("HOOK"),
+          SplitFeatureMetadata.featuresWithPrefix(details.getFlagMetadata(), FEATURE_PREFIX),
+          "HOOK features for " + testCase);
+      assertEquals(
+          testCase.resultFeatures.get("EXPOSURE"),
+          SplitFeatureMetadata.featuresWithPrefix(
+              details.getFlagMetadata(), EXPOSURE_FEATURE_PREFIX),
+          "EXPOSURE features for " + testCase);
+      assertEquals(
+          testCase.resultFeatures.get("EVALUATION"),
+          SplitFeatureMetadata.featuresWithPrefix(
+              details.getFlagMetadata(), EVALUATION_FEATURE_PREFIX),
+          "EVALUATION features for " + testCase);
+    }
   }
 
-  @SuppressWarnings({"rawtypes", "unchecked"})
+  private static Object fixtureValue(final Class<?> type, final Object value) {
+    if (value == null) {
+      return null;
+    }
+    if (type == Value.class) {
+      return Value.objectToValue(value);
+    }
+    if (type == Integer.class) {
+      return ((Number) value).intValue();
+    }
+    if (type == Double.class) {
+      return ((Number) value).doubleValue();
+    }
+    return value;
+  }
+
   private static ProviderEvaluation<?> evaluate(
-      final DDEvaluator evaluator,
+      final Provider provider,
       final Class<?> targetType,
       final String flag,
       final Object defaultValue,
       final EvaluationContext context) {
-    return evaluator.evaluate((Class) targetType, flag, defaultValue, context);
+    if (targetType == Boolean.class) {
+      return provider.getBooleanEvaluation(flag, (Boolean) defaultValue, context);
+    }
+    if (targetType == Integer.class) {
+      return provider.getIntegerEvaluation(flag, (Integer) defaultValue, context);
+    }
+    if (targetType == Double.class) {
+      return provider.getDoubleEvaluation(flag, (Double) defaultValue, context);
+    }
+    if (targetType == String.class) {
+      return provider.getStringEvaluation(flag, (String) defaultValue, context);
+    }
+    return provider.getObjectEvaluation(flag, (Value) defaultValue, context);
   }
 
   @SuppressWarnings("unchecked")
@@ -164,6 +307,7 @@ class CanonicalFixtureTest {
   }
 
   static final class FixtureCase {
+    final Map<String, Object> json;
     final String fileName;
     final int index;
     final Map<String, Object> attributes;
@@ -175,10 +319,17 @@ class CanonicalFixtureTest {
     final String resultReason;
     final String resultErrorCode;
     final String resultVariant;
+    final boolean checksVariant;
     final String resultAllocationKey;
+    final boolean checksAllocationKey;
+    final boolean checksSerialId;
+    final Number resultSerialId;
+    final Boolean resultDoLog;
+    final Map<String, Map<String, Object>> resultFeatures;
 
     @SuppressWarnings("unchecked")
     FixtureCase(final String fileName, final int index, final Map<String, Object> json) {
+      this.json = json;
       this.fileName = fileName;
       this.index = index;
       final Object attributes = normalize(json.get("attributes"));
@@ -188,13 +339,58 @@ class CanonicalFixtureTest {
       this.targetingKey = (String) json.get("targetingKey");
       this.variationType = (String) json.get("variationType");
       final Map<String, Object> result = (Map<String, Object>) json.get("result");
+      requireSupportedKeys(
+          result,
+          fileName + "[" + index + "].result",
+          "value",
+          "reason",
+          "errorCode",
+          "variant",
+          "flagMetadata",
+          "serialId",
+          "doLog",
+          "features");
+      this.checksSerialId = result.containsKey("serialId");
+      this.resultSerialId = (Number) result.get("serialId");
+      this.resultDoLog = (Boolean) result.get("doLog");
+      if (result.containsKey("doLog")) {
+        assertNotNull(this.resultDoLog, "A doLog expectation must be a boolean");
+      }
       this.resultValue = normalize(result.get("value"));
       this.resultReason = (String) result.get("reason");
       this.resultErrorCode = (String) result.get("errorCode");
+      if (result.containsKey("errorCode")) {
+        assertNotNull(this.resultErrorCode, "An errorCode expectation must be a string");
+      }
+      this.checksVariant = result.containsKey("variant");
       this.resultVariant = (String) result.get("variant");
       final Map<String, Object> metadata = (Map<String, Object>) result.get("flagMetadata");
+      if (result.containsKey("flagMetadata")) {
+        assertNotNull(metadata, "A flagMetadata expectation must be an object");
+        requireSupportedKeys(metadata, "result.flagMetadata", "allocationKey");
+      }
+      this.checksAllocationKey = metadata != null && metadata.containsKey("allocationKey");
       final Object allocationKey = metadata == null ? null : metadata.get("allocationKey");
       this.resultAllocationKey = allocationKey == null ? null : String.valueOf(allocationKey);
+      this.resultFeatures = (Map<String, Map<String, Object>>) normalize(result.get("features"));
+      if (result.containsKey("features")) {
+        assertNotNull(this.resultFeatures, "A features expectation must be an object");
+        assertEquals(
+            Set.of("HOOK", "EXPOSURE", "EVALUATION"),
+            this.resultFeatures.keySet(),
+            "Feature expectations must specify all three destinations");
+        for (final Map<String, Object> features : this.resultFeatures.values()) {
+          assertNotNull(features, "Each feature destination expectation must be an object");
+        }
+      }
+    }
+
+    private static void requireSupportedKeys(
+        final Map<String, ?> values, final String location, final String... supportedKeys) {
+      final Set<String> unhandled = new TreeSet<>(values.keySet());
+      unhandled.removeAll(Arrays.asList(supportedKeys));
+      assertTrue(
+          unhandled.isEmpty(), () -> "Unhandled expectations in " + location + ": " + unhandled);
     }
 
     @Override
