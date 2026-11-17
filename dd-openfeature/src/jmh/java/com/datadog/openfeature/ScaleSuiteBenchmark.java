@@ -3,18 +3,10 @@ package com.datadog.openfeature;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
-import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
-import com.datadog.openfeature.internal.config.Settings;
-import com.datadog.openfeature.internal.ufc.UniversalFlagConfigParser;
-import dev.openfeature.sdk.EvaluationContext;
-import dev.openfeature.sdk.MutableContext;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import dev.openfeature.sdk.ProviderEvaluation;
-import dev.openfeature.sdk.Value;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.Objects;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -36,17 +28,27 @@ import org.openjdk.jmh.annotations.Warmup;
  * dimensions are listed in {@code evaluation-suites/scale/AGENTS.md} of the fixtures.
  *
  * <p>Each operation evaluates a case of the selected case file through the provider. With {@code
- * index=all}, the operations go through the cases of the file in turn, so a row is the mean of its
- * best case, worst case and miss. Select one case to measure one shape: the setup prints the index
- * of each case.
+ * index=all}, the operations go through the cases of the file in turn, so a row is the unweighted
+ * mean over every case of the file, and its slowest case dominates it. Select one case to measure
+ * one shape: the setup prints the index of each case.
  *
- * <p>The setup first evaluates every case once and fails if a value or reason differs from the
- * expected one, so the benchmark never measures a wrong result. JSON values are compared by numeric
- * value: a JSON integer can come back as an integer or as a double.
+ * <p>The setup evaluates every case once and the teardown again after the measurement. Both fail if
+ * a value or reason differs from the expected one, or if an evaluation reports an error, so a run
+ * that resolves a case wrongly fails instead of reporting a number. JSON values are compared by
+ * numeric value: a JSON integer can come back as an integer or as a double. This check guards the
+ * measurement and is not the conformance check: {@code CanonicalFixtureTest} checks the types.
+ *
+ * <p>The provider is called directly with a reused context: the OpenFeature client, its hooks and
+ * exposure logging are not measured.
+ *
+ * <p>The cases and their check are shared with {@code ScaleSuiteTest}, which runs them in the unit
+ * tests. One fork is enough for allocation and for large time differences. For a time difference
+ * under about 15%, run three forks: {@code -Pjmh.forks=3} or {@code -f 3}.
  *
  * <p>Run all case files: {@code ./gradlew :dd-openfeature:jmh -Pjmh.includes=ScaleSuiteBenchmark
- * -Pjmh.profilers=gc}. Run one case: {@code java -jar dd-openfeature/build/libs/*-jmh.jar
- * ScaleSuiteBenchmark -p cases=scale/splits -p index=0 -prof gc}.
+ * -Pjmh.profilers=gc}. Run one case: {@code ./gradlew :dd-openfeature:jmhJar}, then {@code java
+ * -jar dd-openfeature/build/libs/*-jmh.jar ScaleSuiteBenchmark -p cases=scale/splits -p index=0
+ * -prof gc}.
  */
 @State(Scope.Benchmark)
 @Warmup(iterations = 3, time = 2, timeUnit = SECONDS)
@@ -56,7 +58,10 @@ import org.openjdk.jmh.annotations.Warmup;
 @Fork(value = 1)
 public class ScaleSuiteBenchmark {
 
-  /** A case file, as {@code <suite>/<file>} without the {@code .json} extension. */
+  /**
+   * A case file, as {@code <suite>/<file>} without the {@code .json} extension. {@code
+   * ScaleSuiteTest} fails when this list misses a case file of the fixtures.
+   */
   @Param({
     "scale/flags",
     "scale/numeric",
@@ -86,22 +91,12 @@ public class ScaleSuiteBenchmark {
   private int next;
 
   @Setup(Level.Trial)
+  @SuppressForbidden
   public void setUp() throws IOException {
     final int slash = cases.indexOf('/');
     final ScaleSuites.Suite suite = ScaleSuites.load(cases.substring(0, slash));
-    final DDEvaluator evaluator =
-        new DDEvaluator(
-            () -> {},
-            AgentBridge.NONE,
-            Settings.load(AgentBridge.NONE),
-            ExperimentationOptOutMode.DISABLED);
-    evaluator.accept(UniversalFlagConfigParser.parse(suite.config()));
-    provider = new Provider(new Provider.Options(), evaluator, false);
-
-    final List<ScaleCase> loaded = new ArrayList<>();
-    for (final Object json : suite.cases(cases.substring(slash + 1))) {
-      loaded.add(new ScaleCase((Map<?, ?>) json));
-    }
+    provider = suite.provider();
+    final List<ScaleCase> loaded = suite.cases(cases.substring(slash + 1));
     for (int i = 0; i < loaded.size(); i++) {
       final ScaleCase scaleCase = loaded.get(i);
       scaleCase.check(scaleCase.evaluate(provider));
@@ -115,6 +110,9 @@ public class ScaleSuiteBenchmark {
 
   @TearDown(Level.Trial)
   public void tearDown() {
+    for (final ScaleCase scaleCase : scaleCases) {
+      scaleCase.check(scaleCase.evaluate(provider));
+    }
     provider.shutdown();
   }
 
@@ -123,152 +121,5 @@ public class ScaleSuiteBenchmark {
     final ScaleCase scaleCase = scaleCases[next];
     next = next + 1 == scaleCases.length ? 0 : next + 1;
     return scaleCase.evaluate(provider);
-  }
-
-  /** One evaluation case, with its expected value and reason. */
-  private static final class ScaleCase {
-    private final String flag;
-    private final String variationType;
-    private final Object defaultValue;
-    private final Object expectedValue;
-    private final String expectedReason;
-    private final String targetingKey;
-    private final EvaluationContext context;
-
-    ScaleCase(final Map<?, ?> json) {
-      this.flag = (String) json.get("flag");
-      this.variationType = (String) json.get("variationType");
-      final Map<?, ?> result = (Map<?, ?>) json.get("result");
-      this.defaultValue = typed(json.get("defaultValue"));
-      this.expectedValue = result.get("value");
-      this.expectedReason = (String) result.get("reason");
-      this.targetingKey = (String) json.get("targetingKey");
-      final MutableContext context =
-          new MutableContext(Value.objectToValue(json.get("attributes")).asStructure().asMap());
-      context.setTargetingKey(targetingKey);
-      this.context = context;
-    }
-
-    ProviderEvaluation<?> evaluate(final Provider provider) {
-      switch (variationType) {
-        case "BOOLEAN":
-          return provider.getBooleanEvaluation(flag, (Boolean) defaultValue, context);
-        case "INTEGER":
-          return provider.getIntegerEvaluation(flag, (Integer) defaultValue, context);
-        case "NUMERIC":
-          return provider.getDoubleEvaluation(flag, (Double) defaultValue, context);
-        case "STRING":
-          return provider.getStringEvaluation(flag, (String) defaultValue, context);
-        case "JSON":
-          return provider.getObjectEvaluation(flag, (Value) defaultValue, context);
-        default:
-          throw new IllegalArgumentException("Unsupported variationType: " + variationType);
-      }
-    }
-
-    void check(final ProviderEvaluation<?> details) {
-      final Object actual =
-          details.getValue() instanceof Value
-              ? plain((Value) details.getValue())
-              : details.getValue();
-      if (!sameValue(expectedValue, actual)
-          || !Objects.equals(expectedReason, details.getReason())) {
-        throw new IllegalStateException(
-            "Unexpected result for "
-                + flag
-                + " ("
-                + targetingKey
-                + "): expected "
-                + expectedReason
-                + " "
-                + abbreviate(expectedValue)
-                + ", got "
-                + details.getReason()
-                + " "
-                + abbreviate(actual));
-      }
-    }
-
-    String describe() {
-      return flag + " (" + targetingKey + ") -> " + expectedReason;
-    }
-
-    /** Converts a fixture value to the type that the provider takes for this variation type. */
-    private Object typed(final Object value) {
-      if (value == null) {
-        return null;
-      }
-      switch (variationType) {
-        case "INTEGER":
-          return ((Number) value).intValue();
-        case "NUMERIC":
-          return ((Number) value).doubleValue();
-        case "JSON":
-          return Value.objectToValue(value);
-        default:
-          return value;
-      }
-    }
-  }
-
-  /** Converts a returned value to maps, lists, strings, numbers, booleans and null. */
-  private static Object plain(final Value value) {
-    if (value == null || value.isNull()) {
-      return null;
-    }
-    if (value.isStructure()) {
-      final Map<String, Object> map = new java.util.LinkedHashMap<>();
-      value.asStructure().asMap().forEach((k, v) -> map.put(k, plain(v)));
-      return map;
-    }
-    if (value.isList()) {
-      final List<Object> list = new ArrayList<>();
-      for (final Value item : value.asList()) {
-        list.add(plain(item));
-      }
-      return list;
-    }
-    return value.asObject();
-  }
-
-  /** Equality that compares numbers by value, so 5 and 5.0 are the same. */
-  private static boolean sameValue(final Object expected, final Object actual) {
-    if (expected instanceof Number && actual instanceof Number) {
-      return new java.math.BigDecimal(expected.toString())
-              .compareTo(new java.math.BigDecimal(actual.toString()))
-          == 0;
-    }
-    if (expected instanceof Map && actual instanceof Map) {
-      final Map<?, ?> e = (Map<?, ?>) expected;
-      final Map<?, ?> a = (Map<?, ?>) actual;
-      if (e.size() != a.size()) {
-        return false;
-      }
-      for (final Map.Entry<?, ?> entry : e.entrySet()) {
-        if (!a.containsKey(entry.getKey()) || !sameValue(entry.getValue(), a.get(entry.getKey()))) {
-          return false;
-        }
-      }
-      return true;
-    }
-    if (expected instanceof List && actual instanceof List) {
-      final List<?> e = (List<?>) expected;
-      final List<?> a = (List<?>) actual;
-      if (e.size() != a.size()) {
-        return false;
-      }
-      for (int i = 0; i < e.size(); i++) {
-        if (!sameValue(e.get(i), a.get(i))) {
-          return false;
-        }
-      }
-      return true;
-    }
-    return Objects.equals(expected, actual);
-  }
-
-  private static String abbreviate(final Object value) {
-    final String text = String.valueOf(value);
-    return text.length() <= 200 ? text : text.substring(0, 200) + "... (" + text.length() + ")";
   }
 }
