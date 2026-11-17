@@ -299,6 +299,31 @@ public class ProfilingSystemTest {
   }
 
   @Test
+  public void testSnapshotOfAStoppedRecordingIsSkipped() throws Exception {
+    final ProfilingSystem system =
+        new ProfilingSystem(
+            configProvider,
+            controllerFactory,
+            listener,
+            Duration.ofMillis(10),
+            Duration.ZERO,
+            Duration.ofMillis(300),
+            true,
+            () -> scheduler,
+            threadLocalRandom);
+    system.start();
+    final ProfilingSystem.SnapshotRecording snapshotRecording =
+        system.createSnapshotRecording(Instant.now());
+    system.stop(false);
+
+    // as from a scheduler thread that outlived the stop
+    snapshotRecording.snapshot(ProfilingSnapshot.Kind.PERIODIC, false);
+
+    verify(recording, never()).snapshot(any(), any());
+    verify(listener, never()).onNewData(any(), any(), anyBoolean());
+  }
+
+  @Test
   public void testStopWithSnapshotTakesAPeriodicOne() throws Exception {
     final ProfilingSystem system =
         spy(

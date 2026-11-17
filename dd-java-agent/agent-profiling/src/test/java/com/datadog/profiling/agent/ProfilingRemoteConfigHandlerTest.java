@@ -1,5 +1,11 @@
 package com.datadog.profiling.agent;
 
+import static com.datadog.profiling.controller.ProfilingSupport.isAllocationSamplerSafe;
+import static com.datadog.profiling.controller.ProfilingSupport.isLiveHeapProfilingSafe;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_ALLOCATION_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_CPU_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_ENABLED;
 import static java.util.Collections.emptyMap;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -26,6 +32,7 @@ import datadog.trace.api.profiling.RecordingDataListener;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
@@ -278,6 +285,37 @@ class ProfilingRemoteConfigHandlerTest {
     handler.onConfigsChanged(stackOf("\"cpuTime\":false,\"wallTime\":false,\"heapObjects\":false"));
 
     assertTrue(profilingSystem.isRunning());
+  }
+
+  @Test
+  void remoteEnablementIsOnlyKeptWhereItIsSafe() {
+    Map<String, String> values = new HashMap<>();
+    values.put(PROFILING_ALLOCATION_ENABLED, "true");
+    values.put(PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED, "true");
+    values.put(PROFILING_HEAP_ENABLED, "true");
+    values.put(PROFILING_DATADOG_PROFILER_CPU_ENABLED, "true");
+
+    ProfilingRemoteConfigHandler.dropUnsafeEnablement(values);
+
+    assertEquals(isAllocationSamplerSafe(), values.containsKey(PROFILING_ALLOCATION_ENABLED));
+    assertEquals(
+        isAllocationSamplerSafe(), values.containsKey(PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED));
+    assertEquals(isLiveHeapProfilingSafe(), values.containsKey(PROFILING_HEAP_ENABLED));
+    assertEquals("true", values.get(PROFILING_DATADOG_PROFILER_CPU_ENABLED), "always safe");
+  }
+
+  @Test
+  void remoteDisablementIsAlwaysKept() {
+    Map<String, String> values = new HashMap<>();
+    values.put(PROFILING_ALLOCATION_ENABLED, "false");
+    values.put(PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED, "false");
+    values.put(PROFILING_HEAP_ENABLED, "false");
+
+    ProfilingRemoteConfigHandler.dropUnsafeEnablement(values);
+
+    assertEquals("false", values.get(PROFILING_ALLOCATION_ENABLED));
+    assertEquals("false", values.get(PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED));
+    assertEquals("false", values.get(PROFILING_HEAP_ENABLED));
   }
 
   @Test

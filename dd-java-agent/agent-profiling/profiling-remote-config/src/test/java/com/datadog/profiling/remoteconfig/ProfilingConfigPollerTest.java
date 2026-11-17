@@ -163,6 +163,22 @@ class ProfilingConfigPollerTest {
   }
 
   @Test
+  void unreadablePayloadReplacesTheConfigAndIsReported() throws Exception {
+    ProductListener listener = startAndCaptureListener();
+    listener.accept(configKey("a"), targeted("\"cpuTime\":true"), hinter);
+
+    IOException error =
+        assertThrows(
+            IOException.class,
+            () -> listener.accept(configKey("a"), json("{\"profilers\":{"), hinter));
+    listener.commit(hinter);
+
+    assertTrue(error.getMessage().contains("payload is not an object"), error.getMessage());
+    // no longer a usable config
+    assertTrue(committedStack().isEmpty());
+  }
+
+  @Test
   void acceptReplacesConfigWithSameId() throws Exception {
     ProductListener listener = startAndCaptureListener();
 
