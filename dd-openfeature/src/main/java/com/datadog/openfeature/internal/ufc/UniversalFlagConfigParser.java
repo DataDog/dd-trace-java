@@ -7,6 +7,7 @@ import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
+import dev.openfeature.sdk.Value;
 import java.io.IOException;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
@@ -23,7 +24,8 @@ import org.slf4j.LoggerFactory;
  * Parses Universal Flag Configuration (UFC) documents.
  *
  * <p>The document is first read as a generic JSON tree (objects, arrays, strings, {@link Double}
- * numbers, booleans and nulls), then mapped onto the UFC model. Malformed flags are dropped
+ * numbers, booleans and nulls; an integer in a variant value that fits in a long is read as {@link
+ * Integer} or {@link Long}), then mapped onto the UFC model. Malformed flags are dropped
  * individually and reported through {@link ServerConfiguration#invalidFlags}; a malformed envelope
  * fails the whole document.
  */
@@ -85,7 +87,7 @@ public final class UniversalFlagConfigParser {
       if (parser.nextToken() == null) {
         throw new JsonParseException(parser, "Empty document");
       }
-      final Object document = readValue(parser, 1);
+      final Object document = readValue(parser, 1, Scope.UFC);
       if (parser.nextToken() != null) {
         throw new JsonParseException(parser, "Unexpected content after the document");
       }
@@ -93,7 +95,43 @@ public final class UniversalFlagConfigParser {
     }
   }
 
-  private static Object readValue(final JsonParser parser, final int depth) throws IOException {
+  /**
+   * Where the reader is in the document. Numbers are read as {@link Double}, except integers in
+   * {@code flags.<flag>.variations.<key>.value} that fit in a long: those are read as {@link
+   * Integer} or {@link Long}, so JSON variants keep exact integers.
+   */
+  private enum Scope {
+    UFC,
+    FLAGS,
+    FLAG,
+    VARIATIONS,
+    VARIANT,
+    VARIANT_VALUE;
+
+    Scope field(final String name) {
+      switch (this) {
+        case UFC:
+          return "flags".equals(name) ? FLAGS : UFC;
+        case FLAGS:
+          return FLAG;
+        case FLAG:
+          return "variations".equals(name) ? VARIATIONS : UFC;
+        case VARIATIONS:
+          return VARIANT;
+        case VARIANT:
+          return "value".equals(name) ? VARIANT_VALUE : UFC;
+        default:
+          return VARIANT_VALUE;
+      }
+    }
+
+    Scope element() {
+      return this == VARIANT_VALUE ? VARIANT_VALUE : UFC;
+    }
+  }
+
+  private static Object readValue(final JsonParser parser, final int depth, final Scope scope)
+      throws IOException {
     final JsonToken token = parser.currentToken();
     if ((token == JsonToken.START_OBJECT || token == JsonToken.START_ARRAY)
         && depth > MAX_NESTING_DEPTH) {
@@ -105,24 +143,36 @@ public final class UniversalFlagConfigParser {
         while (parser.nextToken() == JsonToken.FIELD_NAME) {
           final String name = parser.currentName();
           parser.nextToken();
-          object.put(name, readValue(parser, depth + 1));
+          object.put(name, readValue(parser, depth + 1, scope.field(name)));
         }
         return object;
       case START_ARRAY:
         final List<Object> array = new ArrayList<>();
         while (parser.nextToken() != JsonToken.END_ARRAY) {
-          array.add(readValue(parser, depth + 1));
+          array.add(readValue(parser, depth + 1, scope.element()));
         }
         return array;
       case VALUE_STRING:
         return parser.getText();
       case VALUE_NUMBER_INT:
-      case VALUE_NUMBER_FLOAT:
-        final double number = parser.getDoubleValue();
-        if (!Double.isFinite(number)) {
-          throw new JsonParseException(parser, "Non-finite JSON number");
+        if (scope == Scope.VARIANT_VALUE) {
+          // OpenFeature values hold Integer, Long or Double: larger integers stay doubles.
+          switch (parser.getNumberType()) {
+            case INT:
+              return parser.getIntValue();
+            case LONG:
+              // OpenFeature SDKs before 1.22.0 have no Long values: keep the double there.
+              if (FrozenValues.LONG_VALUES) {
+                return parser.getLongValue();
+              }
+              break;
+            default:
+              break;
+          }
         }
-        return number;
+        return finiteDouble(parser);
+      case VALUE_NUMBER_FLOAT:
+        return finiteDouble(parser);
       case VALUE_TRUE:
         return Boolean.TRUE;
       case VALUE_FALSE:
@@ -132,6 +182,14 @@ public final class UniversalFlagConfigParser {
       default:
         throw new JsonParseException(parser, "Unexpected token " + token);
     }
+  }
+
+  private static double finiteDouble(final JsonParser parser) throws IOException {
+    final double number = parser.getDoubleValue();
+    if (!Double.isFinite(number)) {
+      throw new JsonParseException(parser, "Non-finite JSON number");
+    }
+    return number;
   }
 
   @Nullable
@@ -200,33 +258,66 @@ public final class UniversalFlagConfigParser {
       return null;
     }
     final Map<?, ?> json = asObject(value, "flag");
+    final ValueType variationType =
+        asEnum(json.get("variationType"), ValueType.class, "variationType");
     return new Flag(
         asString(json.get("key"), "key"),
         strictBoolean(json, "enabled"),
-        asEnum(json.get("variationType"), ValueType.class, "variationType"),
-        toVariants(json.get("variations")),
+        variationType,
+        toVariants(json.get("variations"), variationType),
         toList(json.get("allocations"), "allocations", UniversalFlagConfigParser::toAllocation));
   }
 
   @Nullable
-  private static Map<String, Variant> toVariants(@Nullable final Object value) {
+  private static Map<String, Variant> toVariants(
+      @Nullable final Object value, @Nullable final ValueType variationType) {
     if (value == null) {
       return null;
     }
     final Map<String, Variant> variants = new HashMap<>();
     for (final Map.Entry<?, ?> entry : asObject(value, "variations").entrySet()) {
-      variants.put((String) entry.getKey(), toVariant(entry.getValue()));
+      variants.put((String) entry.getKey(), toVariant(entry.getValue(), variationType));
     }
     return variants;
   }
 
   @Nullable
-  private static Variant toVariant(@Nullable final Object value) {
+  private static Variant toVariant(
+      @Nullable final Object value, @Nullable final ValueType variationType) {
     if (value == null) {
       return null;
     }
     final Map<?, ?> json = asObject(value, "variant");
-    return new Variant(asString(json.get("key"), "key"), json.get("value"));
+    final String key = asString(json.get("key"), "key");
+    final Object variantValue = json.get("value");
+    if (variationType != ValueType.JSON) {
+      // Only JSON flags keep exact integers.
+      return new Variant(key, withDoubles(variantValue), null);
+    }
+    if (!FrozenValues.isContainer(variantValue)) {
+      return new Variant(key, variantValue, null);
+    }
+    // Freeze once and share it. Keep its plain form instead of the parsed tree.
+    final Value frozen = FrozenValues.freeze(variantValue);
+    return new Variant(key, FrozenValues.plain(frozen), frozen);
+  }
+
+  /** Replaces each Integer or Long in a variant value with the equal Double. */
+  private static Object withDoubles(@Nullable final Object value) {
+    if (value instanceof Integer || value instanceof Long) {
+      return ((Number) value).doubleValue();
+    }
+    if (value instanceof Map) {
+      final Map<Object, Object> map = new LinkedHashMap<>();
+      ((Map<?, ?>) value).forEach((k, v) -> map.put(k, withDoubles(v)));
+      return map;
+    }
+    if (value instanceof List) {
+      final List<Object> list = new ArrayList<>();
+      ((List<?>) value).forEach(v -> list.add(withDoubles(v)));
+      return list;
+    }
+    return value;
   }
 
   @Nullable
