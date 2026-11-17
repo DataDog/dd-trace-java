@@ -4,6 +4,8 @@ import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import de.thetaphi.forbiddenapis.SuppressForbidden;
+import dev.openfeature.sdk.ImmutableContext;
+import dev.openfeature.sdk.LayeredEvaluationContext;
 import dev.openfeature.sdk.ProviderEvaluation;
 import java.io.IOException;
 import java.util.List;
@@ -38,8 +40,12 @@ import org.openjdk.jmh.annotations.Warmup;
  * numeric value: a JSON integer can come back as an integer or as a double. This check guards the
  * measurement and is not the conformance check: {@code CanonicalFixtureTest} checks the types.
  *
- * <p>The provider is called directly with a reused context: the OpenFeature client, its hooks and
- * exposure logging are not measured.
+ * <p>The provider is called directly: the OpenFeature client, its hooks and exposure logging are
+ * not measured. {@code evaluate} passes a reused context. {@code evaluateLayered} passes a fresh
+ * {@code LayeredEvaluationContext} around it on each call, as the client does, so it also shows the
+ * cost of reading attributes through the client's context, such as a rule on {@code id} when the
+ * context has no {@code id}. Select one method with {@code
+ * -Pjmh.includes=ScaleSuiteBenchmark.evaluate$}.
  *
  * <p>The cases and their check are shared with {@code ScaleSuiteTest}, which runs them in the unit
  * tests. One fork is enough for allocation and for large time differences. For a time difference
@@ -122,5 +128,16 @@ public class ScaleSuiteBenchmark {
     final ScaleCase scaleCase = scaleCases[next];
     next = next + 1 == scaleCases.length ? 0 : next + 1;
     return scaleCase.evaluate(provider);
+  }
+
+  /** As {@link #evaluate}, with the fresh layered context that the OpenFeature client builds. */
+  @Benchmark
+  public ProviderEvaluation<?> evaluateLayered() {
+    final ScaleCase scaleCase = scaleCases[next];
+    next = next + 1 == scaleCases.length ? 0 : next + 1;
+    return scaleCase.evaluate(
+        provider,
+        new LayeredEvaluationContext(
+            ImmutableContext.EMPTY, ImmutableContext.EMPTY, null, scaleCase.context()));
   }
 }

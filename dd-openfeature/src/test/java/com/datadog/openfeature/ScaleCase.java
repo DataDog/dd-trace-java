@@ -46,6 +46,11 @@ final class ScaleCase {
   }
 
   ProviderEvaluation<?> evaluate(final Provider provider) {
+    return evaluate(provider, context);
+  }
+
+  /** Evaluates this case with another context, such as a layered one wrapping {@link #context}. */
+  ProviderEvaluation<?> evaluate(final Provider provider, final EvaluationContext context) {
     switch (variationType) {
       case "BOOLEAN":
         return provider.getBooleanEvaluation(flag, (Boolean) defaultValue, context);
@@ -84,6 +89,10 @@ final class ScaleCase {
               + " "
               + abbreviate(actual));
     }
+  }
+
+  EvaluationContext context() {
+    return context;
   }
 
   String describe() {
