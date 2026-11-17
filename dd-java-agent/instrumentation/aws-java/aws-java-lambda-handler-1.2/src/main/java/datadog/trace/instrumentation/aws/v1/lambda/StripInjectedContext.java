@@ -29,7 +29,7 @@ public final class StripInjectedContext {
   /** SNS-to-SQS fan-out needs 2 levels of string-encoded JSON; one more is a safety margin. */
   static final int MAX_DEPTH = 3;
 
-  /** Deeper encoded JSON is kept as is, because {@link JsonReader} recurses once per level. */
+  /** Deeper encoded JSON is kept as is. */
   static final int MAX_NESTING = 1000;
 
   private static final String CARRIER_KEY = "_datadog";
@@ -38,6 +38,8 @@ public final class StripInjectedContext {
 
   /** Returned by {@link #carrierRange} when the carrier object never closes (malformed JSON). */
   private static final int[] UNCLOSED = new int[0];
+
+  private static final String[] LITERALS = {"true", "false", "null"};
 
   private StripInjectedContext() {}
 
@@ -194,38 +196,174 @@ public final class StripInjectedContext {
     if (first >= text.length() || text.charAt(first) != '{') {
       return false;
     }
-    int end = objectEnd(text, first);
-    if (end < 0 || skipWhitespace(text, end) != text.length()) {
-      return false;
-    }
-    if (exceedsNesting(text, first, end)) {
-      log.debug("Skipping _datadog strip: encoded JSON nesting exceeds {}", MAX_NESTING);
-      return false;
-    }
-    try {
-      new JsonReader(text.substring(first, end)).nextValue();
-      return true;
-    } catch (IOException | RuntimeException e) {
-      return false;
+    return isStrictJson(text, first);
+  }
+
+  /**
+   * Strict RFC 8259 check of the value at {@code start}, followed only by whitespace. Same grammar
+   * as json.Valid in Go and Utf8JsonReader in .NET. JsonReader is not used because it accepts
+   * missing and trailing commas and recurses once per nesting level. Strings are only scanned here,
+   * never decoded, so decoding still goes through {@link JsonReader#nextString()}.
+   */
+  private static boolean isStrictJson(String text, int start) {
+    boolean[] inArray = new boolean[MAX_NESTING];
+    int depth = 0;
+    int i = start;
+    boolean afterValue = false;
+    while (true) {
+      i = skipWhitespace(text, i);
+      if (afterValue && depth == 0) {
+        return i == text.length();
+      }
+      if (i >= text.length()) {
+        return false;
+      }
+      char c = text.charAt(i);
+      if (afterValue) {
+        boolean array = inArray[depth - 1];
+        if (c == (array ? ']' : '}')) {
+          depth--;
+          i++;
+        } else if (c == ',') {
+          i++;
+          afterValue = false;
+          if (!array) {
+            i = keyEnd(text, i);
+            if (i < 0) {
+              return false;
+            }
+          }
+        } else {
+          return false;
+        }
+      } else if (c == '{' || c == '[') {
+        if (depth == MAX_NESTING) {
+          log.debug("Skipping _datadog strip: encoded JSON nesting exceeds {}", MAX_NESTING);
+          return false;
+        }
+        boolean array = c == '[';
+        inArray[depth++] = array;
+        i = skipWhitespace(text, i + 1);
+        if (i < text.length() && text.charAt(i) == (array ? ']' : '}')) {
+          depth--;
+          i++;
+          afterValue = true;
+        } else if (!array) {
+          i = keyEnd(text, i);
+          if (i < 0) {
+            return false;
+          }
+        }
+      } else {
+        i = scalarEnd(text, i);
+        if (i < 0) {
+          return false;
+        }
+        afterValue = true;
+      }
     }
   }
 
-  /** {@code [start, end)} is a closed object, so every string inside it is terminated. */
-  private static boolean exceedsNesting(String text, int start, int end) {
-    int depth = 0;
-    for (int i = start; i < end; i++) {
-      char c = text.charAt(i);
-      if (c == '"') {
-        i = stringEnd(text, i) - 1;
-      } else if (c == '{' || c == '[') {
-        if (++depth > MAX_NESTING) {
-          return true;
-        }
-      } else if (c == '}' || c == ']') {
-        depth--;
+  /** Returns the index just past the colon that follows the object key at {@code i}, or -1. */
+  private static int keyEnd(String text, int i) {
+    i = skipWhitespace(text, i);
+    if (i >= text.length() || text.charAt(i) != '"') {
+      return -1;
+    }
+    i = strictStringEnd(text, i);
+    if (i < 0) {
+      return -1;
+    }
+    i = skipWhitespace(text, i);
+    return i < text.length() && text.charAt(i) == ':' ? i + 1 : -1;
+  }
+
+  /** Returns the index just past the string, number or literal at {@code i}, or -1. */
+  private static int scalarEnd(String text, int i) {
+    if (text.charAt(i) == '"') {
+      return strictStringEnd(text, i);
+    }
+    for (String literal : LITERALS) {
+      if (text.startsWith(literal, i)) {
+        return i + literal.length();
       }
     }
-    return false;
+    int j = i;
+    if (text.charAt(j) == '-') {
+      j++;
+    }
+    if (j < text.length() && text.charAt(j) == '0') {
+      j++;
+    } else {
+      int digits = digitsEnd(text, j);
+      if (digits == j) {
+        return -1;
+      }
+      j = digits;
+    }
+    if (j < text.length() && text.charAt(j) == '.') {
+      int digits = digitsEnd(text, j + 1);
+      if (digits == j + 1) {
+        return -1;
+      }
+      j = digits;
+    }
+    if (j < text.length() && (text.charAt(j) == 'e' || text.charAt(j) == 'E')) {
+      j++;
+      if (j < text.length() && (text.charAt(j) == '+' || text.charAt(j) == '-')) {
+        j++;
+      }
+      int digits = digitsEnd(text, j);
+      if (digits == j) {
+        return -1;
+      }
+      j = digits;
+    }
+    return j;
+  }
+
+  private static int digitsEnd(String text, int i) {
+    while (i < text.length() && text.charAt(i) >= '0' && text.charAt(i) <= '9') {
+      i++;
+    }
+    return i;
+  }
+
+  /** Like {@link #stringEnd}, but rejects control characters and invalid escapes. */
+  private static int strictStringEnd(String text, int start) {
+    for (int i = start + 1; i < text.length(); i++) {
+      char c = text.charAt(i);
+      if (c == '"') {
+        return i + 1;
+      }
+      if (c < 0x20) {
+        return -1;
+      }
+      if (c == '\\') {
+        if (++i >= text.length()) {
+          return -1;
+        }
+        char escaped = text.charAt(i);
+        if (escaped == 'u') {
+          if (i + 4 >= text.length()) {
+            return -1;
+          }
+          for (int k = 1; k <= 4; k++) {
+            if (!isHexDigit(text.charAt(i + k))) {
+              return -1;
+            }
+          }
+          i += 4;
+        } else if ("\"\\/bfnrt".indexOf(escaped) < 0) {
+          return -1;
+        }
+      }
+    }
+    return -1;
+  }
+
+  private static boolean isHexDigit(char c) {
+    return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
   }
 
   /** Returns the index just past the closing quote of the string opening at {@code start}. */

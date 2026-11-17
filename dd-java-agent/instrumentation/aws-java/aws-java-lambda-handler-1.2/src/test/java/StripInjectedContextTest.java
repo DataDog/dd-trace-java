@@ -2,11 +2,13 @@ package datadog.trace.instrumentation.aws.v1.lambda;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import datadog.json.JsonMapper;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.test.junit.utils.config.WithConfig;
 import datadog.trace.test.util.DDJavaSpecification;
@@ -17,6 +19,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -512,6 +515,51 @@ class StripInjectedContextTest extends DDJavaSpecification {
     String result = new String(StripInjectedContext.stripInternal(input), StandardCharsets.UTF_8);
 
     assertTrue(!result.contains("_datadog"));
+  }
+
+  @ParameterizedTest
+  @ValueSource(
+      strings = {
+        "{\"_datadog\":{},}",
+        "{\"_datadog\":{} \"text\":\"example\"}",
+        "{\"_datadog\":{},\"list\":[1,]}",
+        "{\"_datadog\":{},\"n\":01}",
+        "{\"_datadog\":{},\"s\":\"bad \\x escape\"}",
+        "{\"_datadog\":{},\"b\":tru}"
+      })
+  void keepsEncodedTextThatIsNotStrictJson(String encoded) {
+    byte[] input = bytes("{\"note\":" + JsonMapper.toJson(encoded) + "}");
+
+    assertArrayEquals(input, StripInjectedContext.stripInternal(input));
+  }
+
+  @Test
+  void validatesNestingUpToTheLimitOnASmallStack() throws InterruptedException {
+    int depth = StripInjectedContext.MAX_NESTING - 1;
+    byte[] input =
+        bytes(
+            "{\"body\":\"{\\\"_datadog\\\":{},\\\"a\\\":"
+                + repeat('[', depth)
+                + repeat(']', depth)
+                + "}\"}");
+    AtomicReference<Object> result = new AtomicReference<>();
+    Thread thread =
+        new Thread(
+            null,
+            () -> {
+              try {
+                result.set(StripInjectedContext.stripInternal(input));
+              } catch (Throwable t) {
+                result.set(t);
+              }
+            },
+            "small-stack",
+            64 * 1024);
+    thread.start();
+    thread.join();
+
+    assertTrue(result.get() instanceof byte[], () -> "unexpected result: " + result.get());
+    assertFalse(new String((byte[]) result.get(), StandardCharsets.UTF_8).contains("_datadog"));
   }
 
   private static String repeat(char c, int count) {
