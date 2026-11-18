@@ -50,6 +50,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -346,7 +347,9 @@ class DataStreamsLiteTest extends DDCoreJavaSpecification {
       for (int i = 0; i < 100; i++) {
         PathwayContext upstream = new DefaultPathwayContext(timeSource, null);
         upstream.setCheckpoint(fromTags(consume), point -> {});
-        assertNotNull(inject(upstream, PRODUCE));
+        String header = inject(upstream, PRODUCE);
+        assertNotNull(header);
+        assertNotEquals(UNSAMPLED_HEADER, header);
       }
     });
   }
@@ -453,8 +456,56 @@ class DataStreamsLiteTest extends DDCoreJavaSpecification {
     assertTrue(points.stream().anyMatch(point -> point.service.equals("B")), points.toString());
   }
 
-  /** Every root checkpoint is at a true origin, and every other one continues a recorded one. */
+  @Test
+  void relaysKeepEachMessagesSamplingDecisionAndDoNotSpendTheirOwnOriginBudget() throws Exception {
+    List<RecordedPoint> points = new CopyOnWriteArrayList<>();
+    Service a = new Service("A", true, 1, points);
+    Service b = new Service("B", true, 1, points);
+    Service c = new Service("C", true, 1, points);
+    Service bWithoutRelaying = new Service("B'", true, 1, new CopyOnWriteArrayList<>());
+    List<Boolean> originDecisions = new ArrayList<>();
+    List<Boolean> bOwnDecisions = new ArrayList<>();
+    List<Boolean> expectedOwnDecisions = new ArrayList<>();
+
+    withTracer(() -> {
+      for (int second = 0; second < 5; second++) {
+        for (int i = 0; i < 3; i++) {
+          Map<String, String> toB = a.produce(a.originSpan(), "orders");
+          Map<String, String> toC = b.produce(b.consume(toB, "orders"), "invoices");
+          originDecisions.add(isUnsampled(toB));
+          assertEquals(isUnsampled(toB), isUnsampled(toC), "relayed " + toB + " as " + toC);
+          c.consume(toC, "invoices").finish();
+        }
+        // B is also a true origin for messages from an uninstrumented upstream
+        for (int i = 0; i < 2; i++) {
+          bOwnDecisions.add(isUnsampled(b.produce(b.consume(new HashMap<>(), "raw"), "alerts")));
+          expectedOwnDecisions.add(
+              isUnsampled(
+                  bWithoutRelaying.produce(
+                      bWithoutRelaying.consume(new HashMap<>(), "raw"), "alerts")));
+        }
+        timeSource.advance(SECONDS.toNanos(1));
+      }
+    });
+
+    assertTrue(originDecisions.contains(true) && originDecisions.contains(false));
+    assertTrue(expectedOwnDecisions.contains(true) && expectedOwnDecisions.contains(false));
+    assertEquals(expectedOwnDecisions, bOwnDecisions);
+    assertPathwaysOnlyStartAt(
+        points,
+        point ->
+            point.service.equals("A")
+                || (point.service.equals("B") && point.edge.endsWith("topic:alerts")));
+    assertTrue(points.stream().anyMatch(point -> point.service.equals("C")), points.toString());
+  }
+
   private static void assertPathwaysOnlyStartAt(List<RecordedPoint> points, String origin) {
+    assertPathwaysOnlyStartAt(points, point -> point.service.equals(origin));
+  }
+
+  /** Every root checkpoint is at a true origin, and every other one continues a recorded one. */
+  private static void assertPathwaysOnlyStartAt(
+      List<RecordedPoint> points, Predicate<RecordedPoint> isTrueOrigin) {
     assertFalse(points.isEmpty());
     List<Long> hashes = new ArrayList<>();
     for (RecordedPoint point : points) {
@@ -462,7 +513,7 @@ class DataStreamsLiteTest extends DDCoreJavaSpecification {
     }
     for (RecordedPoint point : points) {
       if (point.parentHash == 0) {
-        assertEquals(origin, point.service, "pathway rooted at " + point + " in " + points);
+        assertTrue(isTrueOrigin.test(point), "pathway rooted at " + point + " in " + points);
       } else {
         assertTrue(hashes.contains(point.parentHash), "orphan " + point + " in " + points);
       }
@@ -562,6 +613,10 @@ class DataStreamsLiteTest extends DDCoreJavaSpecification {
 
   private static final String PROPAGATION_KEY = PathwayContext.PROPAGATION_KEY_BASE64;
   private static final String UNSAMPLED_HEADER = "AAAAAAAAAAA=";
+
+  private static boolean isUnsampled(Map<String, String> headers) {
+    return UNSAMPLED_HEADER.equals(headers.get(PROPAGATION_KEY));
+  }
 
   /** Injects for a span with no incoming pathway context; returns the header or null. */
   private String injectFromOrigin(DataStreamsTags tags) {

@@ -38,6 +38,7 @@ import org.springframework.kafka.test.utils.KafkaTestUtils;
 class KafkaDataStreamsLiteOriginCapForkedTest extends AbstractInstrumentationTest {
   private static final String ORDERS = "cap.orders";
   private static final String INVOICES = "cap.invoices";
+  private static final String RECEIPTS = "cap.receipts";
   private static final int RECORDS = 20;
 
   private static final List<QueuedPoint> queued = new CopyOnWriteArrayList<>();
@@ -78,7 +79,7 @@ class KafkaDataStreamsLiteOriginCapForkedTest extends AbstractInstrumentationTes
   @BeforeEach
   void startBroker() {
     queued.clear();
-    embeddedKafka = new EmbeddedKafkaKraftBroker(1, 1, ORDERS, INVOICES);
+    embeddedKafka = new EmbeddedKafkaKraftBroker(1, 1, ORDERS, INVOICES, RECEIPTS);
     embeddedKafka.afterPropertiesSet();
   }
 
@@ -96,14 +97,17 @@ class KafkaDataStreamsLiteOriginCapForkedTest extends AbstractInstrumentationTes
         new KafkaProducer<>(props, new StringSerializer(), new StringSerializer())) {
       producer.partitionsFor(ORDERS);
       producer.partitionsFor(INVOICES);
+      producer.partitionsFor(RECEIPTS);
       for (int i = 0; i < RECORDS; i++) {
         producer.send(new ProducerRecord<>(ORDERS, "order-" + i)).get();
       }
-      // Each order is forwarded while the span of its consume is active
-      List<String> orders = consume("forwarder", ORDERS, value -> send(producer, value));
-      assertEquals(RECORDS, orders.size());
+      // Each message is forwarded while the span of its consume is active
+      assertEquals(
+          RECORDS, consume("invoicing", ORDERS, value -> send(producer, INVOICES, value)).size());
+      assertEquals(
+          RECORDS, consume("billing", INVOICES, value -> send(producer, RECEIPTS, value)).size());
     }
-    assertEquals(RECORDS, consume("billing", INVOICES, value -> {}).size());
+    assertEquals(RECORDS, consume("archive", RECEIPTS, value -> {}).size());
 
     assertFalse(queued.isEmpty());
     List<Long> hashes = new ArrayList<>();
@@ -119,13 +123,13 @@ class KafkaDataStreamsLiteOriginCapForkedTest extends AbstractInstrumentationTes
       }
     }
     assertTrue(
-        queued.stream().anyMatch(point -> point.edge.equals("direction:in topic:" + INVOICES)),
+        queued.stream().anyMatch(point -> point.edge.equals("direction:in topic:" + RECEIPTS)),
         queued.toString());
   }
 
-  private static void send(KafkaProducer<String, String> producer, String value) {
+  private static void send(KafkaProducer<String, String> producer, String topic, String value) {
     try {
-      producer.send(new ProducerRecord<>(INVOICES, value)).get();
+      producer.send(new ProducerRecord<>(topic, value)).get();
     } catch (Exception e) {
       throw new IllegalStateException(e);
     }
