@@ -256,6 +256,40 @@ public class SpanCreationBenchmark {
   }
 
   /**
+   * Web-server-shaped span the way decorators build it today: started by name, then the decorator's
+   * prototype stamped over it after start ({@code BaseDecorator.afterStart} -> {@code
+   * applyOverwriting}). The baseline the construction-time prototype paths have to beat.
+   */
+  @Benchmark
+  public void webServerSpanRetrofit() {
+    AgentSpan span = tracer.startSpan(INSTRUMENTATION_NAME, SERVER_OPERATION_NAME);
+    span.applyOverwriting(webProto);
+    span.setTag(Tags.HTTP_METHOD, HTTP_METHOD_VALUE);
+    span.setTag(Tags.HTTP_ROUTE, HTTP_ROUTE_VALUE);
+    span.setTag(Tags.HTTP_URL, HTTP_URL_VALUE);
+    span.setTag(Tags.HTTP_STATUS, HTTP_STATUS_VALUE);
+    span.setTag(Tags.PEER_PORT, PEER_PORT_VALUE);
+    span.finish();
+  }
+
+  /**
+   * JDBC-client-shaped span the way decorators build it today: started by name, then the prototype
+   * stamped over it after start; see {@link #webServerSpanRetrofit}.
+   */
+  @Benchmark
+  public void jdbcClientSpanRetrofit() {
+    AgentSpan span = tracer.startSpan(INSTRUMENTATION_NAME, JDBC_OPERATION_NAME);
+    span.applyOverwriting(jdbcProto);
+    span.setTag(Tags.DB_INSTANCE, DB_INSTANCE_VALUE);
+    span.setTag(Tags.DB_USER, DB_USER_VALUE);
+    span.setTag(Tags.DB_OPERATION, DB_OPERATION_VALUE);
+    span.setTag(Tags.DB_STATEMENT, DB_STATEMENT_VALUE);
+    span.setTag(Tags.PEER_HOSTNAME, DB_PEER_HOSTNAME_VALUE);
+    span.setTag(Tags.PEER_PORT, DB_PEER_PORT_VALUE);
+    span.finish();
+  }
+
+  /**
    * JDBC/DB-client-shaped span via {@link SpanPrototype}: component, span.kind, and db.type ride
    * the prototype; the dynamic db.* / peer.* tags are set per-span. Compare against {@link
    * #jdbcClientSpan}.
@@ -263,6 +297,23 @@ public class SpanCreationBenchmark {
   @Benchmark
   public void jdbcClientSpanViaPrototype() {
     AgentSpan span = tracer.buildSpan(jdbcProto, null).start();
+    span.setTag(Tags.DB_INSTANCE, DB_INSTANCE_VALUE);
+    span.setTag(Tags.DB_USER, DB_USER_VALUE);
+    span.setTag(Tags.DB_OPERATION, DB_OPERATION_VALUE);
+    span.setTag(Tags.DB_STATEMENT, DB_STATEMENT_VALUE);
+    span.setTag(Tags.PEER_HOSTNAME, DB_PEER_HOSTNAME_VALUE);
+    span.setTag(Tags.PEER_PORT, DB_PEER_PORT_VALUE);
+    span.finish();
+  }
+
+  /**
+   * JDBC-client-shaped span via {@code singleSpanBuilder(SpanPrototype, ...)}: the thread's
+   * reusable builder carries the prototype. Compare against {@link #jdbcClientSpanViaPrototype} (a
+   * fresh multi-span builder) and {@link #jdbcClientSpanViaPrototypeStartSpan} (no builder).
+   */
+  @Benchmark
+  public void jdbcClientSpanViaPrototypeSingleSpanBuilder() {
+    AgentSpan span = tracer.singleSpanBuilder(jdbcProto, null).start();
     span.setTag(Tags.DB_INSTANCE, DB_INSTANCE_VALUE);
     span.setTag(Tags.DB_USER, DB_USER_VALUE);
     span.setTag(Tags.DB_OPERATION, DB_OPERATION_VALUE);
