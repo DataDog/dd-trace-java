@@ -16,7 +16,7 @@ smokeTestApp {
 }
 
 dependencies {
-  testImplementation project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests:smoke-test-common')
   testImplementation(testFixtures(project(":dd-smoke-tests:iast-util")))
 }
 
