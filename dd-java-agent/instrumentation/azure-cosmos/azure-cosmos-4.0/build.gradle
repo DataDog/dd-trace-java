@@ -24,8 +24,8 @@ dependencies {
   testImplementation group: 'org.testcontainers', name: 'azure', version: libs.versions.testcontainers.get()
   testImplementation project(':dd-java-agent:instrumentation:reactor-core-3.1')
   testImplementation project(':dd-java-agent:instrumentation:reactive-streams-1.0')
-  // gateway mode talks HTTP through reactor-netty: load those instrumentations to catch nested
-  // HTTP client spans, as the agent would in production
+  // gateway mode talks HTTP through reactor-netty: load those instrumentations to check the HTTP
+  // client spans under the Cosmos spans, as the agent would in production
   testImplementation project(':dd-java-agent:instrumentation:netty:netty-4.1')
   testImplementation project(':dd-java-agent:instrumentation:reactor-netty-1.0')
 

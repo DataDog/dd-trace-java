@@ -3,6 +3,7 @@ package datadog.smoketest;
 import static datadog.smoketest.backend.AgentBackend.testAgent;
 import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.stream.Collectors.toList;
+import static java.util.stream.Collectors.toSet;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -23,6 +24,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Pattern;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
@@ -39,6 +41,7 @@ class AzureCosmosSmokeTest {
   private static final int EMULATOR_PORT = 8081;
   private static final int HEALTH_PORT = 8080;
   private static final String COSMOS_SPAN = "cosmosdb.query";
+  private static final String HTTP_CLIENT_SPAN = "netty.client.request";
   private static final String CONTAINER = "container";
 
   private static CosmosDBEmulatorContainer emulator;
@@ -125,15 +128,22 @@ class AzureCosmosSmokeTest {
           "db.instance");
       assertEquals(CONTAINER, scenario.get(2).getMeta().get("cosmosdb.container"));
 
+      Set<Long> cosmosSpanIds = cosmosSpans.stream().map(DecodedSpan::getSpanId).collect(toSet());
       for (DecodedSpan span : trace.getSpans()) {
-        // the HTTP request of each Cosmos request is traced by the Cosmos span only
-        assertTrue(
-            span == root || COSMOS_SPAN.equals(span.getName()),
-            "unexpected span " + span.getName() + " " + span.getResource());
-        // the SDK's own account discovery requests are not traced
-        assertTrue(
-            span == root || span.getResource().contains(" /dbs"),
-            "unexpected Cosmos request " + span.getResource());
+        if (span == root) {
+          continue;
+        }
+        if (COSMOS_SPAN.equals(span.getName())) {
+          // the SDK's own account discovery requests are not traced
+          assertTrue(
+              span.getResource().contains(" /dbs"),
+              "unexpected Cosmos request " + span.getResource());
+        } else {
+          // the HTTP requests of each Cosmos request are traced under its Cosmos span
+          assertTrue(
+              HTTP_CLIENT_SPAN.equals(span.getName()) && cosmosSpanIds.contains(span.getParentId()),
+              "unexpected span " + span.getName() + " " + span.getResource());
+        }
       }
     }
   }
