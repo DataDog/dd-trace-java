@@ -30,6 +30,9 @@ public final class RouteTemplate {
   /** Pre-rendered body when the template has no optional part and renders non-empty. */
   private final String staticRoute;
 
+  /** Unnamed catch-all that may take its presence from the matcher remainder; null otherwise. */
+  private final RoutePart.Param trailingUnnamedCatchAll;
+
   private RouteTemplate(
       RoutePart[][] segments, boolean trailingSlash, List<RoutePart.Param> params) {
     this.segments = segments;
@@ -37,6 +40,7 @@ public final class RouteTemplate {
     this.params = params;
     String body = hasOptionalParts(segments) ? null : renderBody(PresenceResolver.UNKNOWN);
     this.staticRoute = body == null || body.isEmpty() ? null : body;
+    this.trailingUnnamedCatchAll = findTrailingUnnamedCatchAll(segments, trailingSlash, params);
   }
 
   public static Builder builder() {
@@ -78,6 +82,25 @@ public final class RouteTemplate {
 
   public boolean isExpressible() {
     return this != NOT_EXPRESSIBLE;
+  }
+
+  /**
+   * The unnamed catch-all whose presence comes from the path remainder the framework matched, or
+   * null; see {@link #needsUnnamedCatchAllRemainder()}.
+   */
+  RoutePart.Param trailingUnnamedCatchAll() {
+    return trailingUnnamedCatchAll;
+  }
+
+  /**
+   * True when callers should compute the matcher remainder for a trailing {@code **} (only then is
+   * it used). The remainder must follow {@code AntPathMatcher.extractPathWithinPattern} semantics,
+   * which start at the first segment with {@code *} or {@code ?}, not {@code PathPattern} ones
+   * (first capture): so it equals the {@code **} match only when no earlier part is a wildcard or a
+   * regex, while plain named params ({@code {id}}) before it are fine.
+   */
+  public boolean needsUnnamedCatchAllRemainder() {
+    return trailingUnnamedCatchAll != null;
   }
 
   /** Resolved parameters in path order. */
@@ -173,6 +196,29 @@ public final class RouteTemplate {
       }
     }
     return false;
+  }
+
+  /** See {@link #needsUnnamedCatchAllRemainder()} for the rule. */
+  private static RoutePart.Param findTrailingUnnamedCatchAll(
+      RoutePart[][] segments, boolean trailingSlash, List<RoutePart.Param> params) {
+    if (trailingSlash || segments.length == 0) {
+      return null;
+    }
+    RoutePart[] last = segments[segments.length - 1];
+    if (last.length != 1 || !(last[0] instanceof RoutePart.Param)) {
+      return null;
+    }
+    RoutePart.Param candidate = (RoutePart.Param) last[0];
+    if (!candidate.isCatchAll() || candidate.frameworkName() != null) {
+      return null;
+    }
+    for (RoutePart.Param param : params) {
+      // the candidate is the last param: every other one comes before it
+      if (param != candidate && (param.frameworkName() == null || param.hasRegexConstraint())) {
+        return null;
+      }
+    }
+    return candidate;
   }
 
   private static boolean isOptionalSegment(RoutePart[] segment) {
@@ -303,7 +349,12 @@ public final class RouteTemplate {
         int index = params.size();
         RoutePart.Param resolved =
             new RoutePart.Param(
-                p.frameworkName(), p.isOptional(), p.isCatchAll(), index, names[index]);
+                p.frameworkName(),
+                p.isOptional(),
+                p.isCatchAll(),
+                p.hasRegexConstraint(),
+                index,
+                names[index]);
         params.add(resolved);
         return resolved;
       }

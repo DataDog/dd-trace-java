@@ -27,17 +27,25 @@ public abstract class RoutePart {
 
   /** A required parameter; a null or empty name means unnamed ({@code param<N>}). */
   public static Param param(String frameworkName) {
-    return new Param(frameworkName, false, false, UNRESOLVED, null);
+    return new Param(frameworkName, false, false, false, UNRESOLVED, null);
+  }
+
+  /**
+   * A required parameter whose framework declaration had a regex constraint ({@code {id:[0-9]+}}),
+   * which may contain wildcard characters the framework's matcher reacts to.
+   */
+  static Param constrainedParam(String frameworkName) {
+    return new Param(frameworkName, false, false, true, UNRESOLVED, null);
   }
 
   /** An optional parameter, without separator (RFC notation {@code {name?}} minus separator). */
   public static Param optionalParam(String frameworkName) {
-    return new Param(frameworkName, true, false, UNRESOLVED, null);
+    return new Param(frameworkName, true, false, false, UNRESOLVED, null);
   }
 
   /** A catch-all parameter (always optional, rendered as one parameter even if it spans "/"). */
   public static Param catchAll(String frameworkName) {
-    return new Param(frameworkName, true, true, UNRESOLVED, null);
+    return new Param(frameworkName, true, true, false, UNRESOLVED, null);
   }
 
   /** An optional group inside one segment, e.g. {@code (.{format})} or {@code .{ext?}}. */
@@ -76,13 +84,21 @@ public abstract class RoutePart {
     private final String frameworkName;
     private final boolean optional;
     private final boolean catchAll;
+    private final boolean regexConstraint;
     private final int index;
     private final String name;
 
-    Param(String frameworkName, boolean optional, boolean catchAll, int index, String name) {
+    Param(
+        String frameworkName,
+        boolean optional,
+        boolean catchAll,
+        boolean regexConstraint,
+        int index,
+        String name) {
       this.frameworkName = frameworkName == null || frameworkName.isEmpty() ? null : frameworkName;
       this.optional = optional || catchAll;
       this.catchAll = catchAll;
+      this.regexConstraint = regexConstraint;
       this.index = index;
       this.name = name;
     }
@@ -99,6 +115,11 @@ public abstract class RoutePart {
 
     public boolean isCatchAll() {
       return catchAll;
+    }
+
+    /** True when the framework declaration had a regex constraint. */
+    boolean hasRegexConstraint() {
+      return regexConstraint;
     }
 
     /** Zero-based position among all parameters, in path order ({@link #UNRESOLVED} if not). */
