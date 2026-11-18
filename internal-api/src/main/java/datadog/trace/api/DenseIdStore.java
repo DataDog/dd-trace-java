@@ -394,7 +394,10 @@ final class DenseIdStore extends IdStore {
 
   @Override
   public EntryReader getAndPut(EntryReader entryReader) {
-    if (entryReader.objectValue() == null) {
+    // Read once: a slot is reserved below before the store, so a second read that throws would
+    // leave a counted slot with no value.
+    Object value = entryReader.objectValue();
+    if (value == null) {
       return null; // a reader with nothing to store is a no-op
     }
     long tagId = entryReader.tagId();
@@ -414,7 +417,7 @@ final class DenseIdStore extends IdStore {
       prior = this.mayInherit(bit, level) ? this.parent.getVisible(serial, bit, level) : null;
       i = this.appendSlot(serial, bit, level);
     }
-    this.values[i] = entryReader.objectValue(); // the one reference store; see store
+    this.values[i] = value; // the one reference store; see store
     return readerOf(tagId, prior);
   }
 
