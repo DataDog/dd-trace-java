@@ -52,6 +52,10 @@ public final class BundleWiringHelper {
             }
           }
         }
+      } else if (origin.getState() == Bundle.UNINSTALLED) {
+        // uninstalled after getEntry: adapt then returns null rather than throwing, but a class
+        // loader still in use may find the resource, so fall back to standard lookup
+        return null;
       }
     } catch (IllegalStateException e) {
       // bundle was uninstalled after its reference was taken - fall back to standard lookup

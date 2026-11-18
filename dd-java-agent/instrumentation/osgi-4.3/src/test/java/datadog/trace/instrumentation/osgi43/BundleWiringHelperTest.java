@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.osgi43;
 
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -40,6 +41,26 @@ class BundleWiringHelperTest {
         .thenThrow(new IllegalStateException("Bundle has been uninstalled"));
 
     assertNull(BundleWiringHelper.probeResource(bundle, "com/example/Foo.class"));
+  }
+
+  /** OSGi has adapt return null, not throw, for a bundle uninstalled after getEntry. */
+  @Test
+  void probeFallsBackToStandardLookupWhenWiringIsGoneAfterUninstall() {
+    Bundle bundle = mock(Bundle.class);
+    when(bundle.adapt(BundleWiring.class)).thenReturn(null);
+    when(bundle.getState()).thenReturn(Bundle.UNINSTALLED);
+
+    assertNull(BundleWiringHelper.probeResource(bundle, "com/example/Foo.class"));
+  }
+
+  /** An installed bundle that isn't resolved yet has no wiring and imports nothing. */
+  @Test
+  void probeSkipsTheLookupForAnUnresolvedBundle() {
+    Bundle bundle = mock(Bundle.class);
+    when(bundle.adapt(BundleWiring.class)).thenReturn(null);
+    when(bundle.getState()).thenReturn(Bundle.INSTALLED);
+
+    assertNotNull(BundleWiringHelper.probeResource(bundle, "com/example/Foo.class"));
   }
 
   @Test
