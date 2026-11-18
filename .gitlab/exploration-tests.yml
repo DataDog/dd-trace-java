@@ -1,5 +1,7 @@
 variables:
   EXPLORATION_TESTS_IMAGE: registry.ddbuild.io/ci/dd-trace-java:exploration-tests
+  # Digest of the exploration tests image used by test jobs. Update it after running build-exploration-tests-image.
+  EXPLORATION_TESTS_IMAGE_DIGEST: sha256:a52a55789206b6e53b38b042653f27efa2e1116eb769e2c619ffc0630bcc14f6
   # Eclipse Temurin JDK releases (https://adoptium.net/temurin/releases) installed in the exploration tests image
   JAVA_8_VERSION: jdk8u372-b07
   JAVA_11_VERSION: jdk-11.0.32.1+1
@@ -78,7 +80,7 @@ build-exploration-tests-image:
     - tar czf ${PROJECT}_debugger-dumps.tar.gz /tmp/debugger
   stage: exploration-tests
   tags: [ "arch:amd64"]
-  image: $EXPLORATION_TESTS_IMAGE
+  image: $EXPLORATION_TESTS_IMAGE@$EXPLORATION_TESTS_IMAGE_DIGEST
   artifacts:
     when: always
     paths:
