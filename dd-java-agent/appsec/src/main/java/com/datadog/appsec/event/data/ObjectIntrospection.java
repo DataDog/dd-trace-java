@@ -207,13 +207,14 @@ public final class ObjectIntrospection {
 
     // maps
     if (obj instanceof Map) {
-      Map<Object, Object> newMap = new HashMap<>((int) Math.ceil(((Map) obj).size() / .75));
+      Map<Object, Object> newMap =
+          new HashMap<>((int) Math.ceil(boundedCapacity(((Map<?, ?>) obj).size(), state) / .75));
       for (Map.Entry<?, ?> e : ((Map<?, ?>) obj).entrySet()) {
         Object key = e.getKey();
         Object newKey = keyConversion(e.getKey(), state);
         if (newKey == null && key != null) {
-          // probably we're out of elements anyway
-          continue;
+          // out of elements: every following key is dropped too
+          break;
         }
         newMap.put(newKey, guardedConversion(e.getValue(), depth + 1, state));
       }
@@ -228,7 +229,7 @@ public final class ObjectIntrospection {
       if (isMap) {
         Map<Object, Object> newMap;
         if (obj instanceof Collection) {
-          newMap = new HashMap<>(((Collection<?>) obj).size());
+          newMap = new HashMap<>(boundedCapacity(((Collection<?>) obj).size(), state));
         } else {
           newMap = new HashMap<>();
         }
@@ -236,8 +237,8 @@ public final class ObjectIntrospection {
           Object key = e.getKey();
           Object newKey = keyConversion(e.getKey(), state);
           if (newKey == null && key != null) {
-            // probably we're out of elements anyway
-            continue;
+            // out of elements: every following key is dropped too
+            break;
           }
           newMap.put(newKey, guardedConversion(e.getValue(), depth + 1, state));
         }
@@ -245,7 +246,7 @@ public final class ObjectIntrospection {
       } else {
         List<Object> newList;
         if (obj instanceof Collection) {
-          newList = new ArrayList<>(((Collection<?>) obj).size());
+          newList = new ArrayList<>(boundedCapacity(((Collection<?>) obj).size(), state));
         } else {
           newList = new ArrayList<>();
         }
@@ -263,7 +264,7 @@ public final class ObjectIntrospection {
     // arrays
     if (clazz.isArray()) {
       int length = Array.getLength(obj);
-      List<Object> newList = new ArrayList<>(length);
+      List<Object> newList = new ArrayList<>(boundedCapacity(length, state));
       for (int i = 0; i < length && state.elemsLeft > 0; i++) {
         newList.add(guardedConversion(Array.get(obj, i), depth + 1, state));
       }
@@ -408,8 +409,8 @@ public final class ObjectIntrospection {
           final String key = names.next();
           final Object newKey = keyConversion(key, state);
           if (newKey == null && key != null) {
-            // probably we're out of elements anyway
-            continue;
+            // out of elements: every following key is dropped too
+            break;
           }
           final Object value = ctx.getField(node, key);
           newMap.put(newKey, doConversionJacksonNode(ctx, value, depth + 1, state));
