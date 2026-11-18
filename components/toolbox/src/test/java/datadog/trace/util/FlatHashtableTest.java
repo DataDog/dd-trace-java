@@ -158,7 +158,7 @@ class FlatHashtableTest {
 
     @Override
     public long hashOf(TestEntry entry) {
-      return Strings.caseInsensitiveHashCode(entry.key);
+      return HashingUtils.caseInsensitiveHashCode(entry.key);
     }
   }
 
