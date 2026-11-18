@@ -10,7 +10,6 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.condition.JRE.JAVA_20;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
@@ -34,11 +33,13 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.EnabledForJreRange;
 import org.slf4j.LoggerFactory;
 
-/** SecurityManager used in the test is marked for removal and throws exceptions on Java 21+. */
-@EnabledForJreRange(max = JAVA_20)
+/**
+ * Base class for the exception handler tests. The SecurityManager used in the test is marked for
+ * removal and throws exceptions on Java 21+, so concrete subclasses must declare
+ * {@code @EnabledForJreRange(max = JAVA_20)}: JUnit condition annotations are not inherited.
+ */
 abstract class BaseExceptionHandlerTest extends DDJavaSpecification {
   private static final ListAppender<ILoggingEvent> testAppender = new ListAppender<>();
 
