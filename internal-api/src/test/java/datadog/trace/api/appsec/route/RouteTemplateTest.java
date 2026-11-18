@@ -88,24 +88,23 @@ class RouteTemplateTest {
   }
 
   @TableTest({
-    "Scenario                | Prefix | Route      | Present    | Expected     ",
-    "only slash keeps slash  | '/ctx' | '/{*path}' | {'path=/'} | '/ctx/'      ",
-    "present                 | '/ctx' | '/{*path}' | {path}     | '/ctx/{path}'",
-    "absent                  | '/ctx' | '/{*path}' | {}         | '/ctx'       ",
-    "Spring root catch-all   | '/ctx' | '/**'      | {}         | '/ctx'       ",
-    "Spring root, only slash | '/ctx' | '/**'      | {'anon=/'} | '/ctx/'      "
+    "Scenario                 | Prefix | Route      | Present    | Expected     ",
+    "only slash keeps slash   | '/ctx' | '/{*path}' | {'path=/'} | '/ctx/'      ",
+    "present                  | '/ctx' | '/{*path}' | {path}     | '/ctx/{path}'",
+    "absent                   | '/ctx' | '/{*path}' | {}         | '/ctx'       ",
+    "unnamed root catch-all   | '/ctx' | '/**'      | {}         | '/ctx'       ",
+    "unnamed root, only slash | '/ctx' | '/**'      | {'anon=/'} | '/ctx/'      "
   })
   void absentRouteBodyRendersThePrefixAlone(
       String prefix, String route, Set<String> present, String expected) {
-    RouteTemplate template =
-        route.contains("**") ? SpringRouteParser.parse(route) : RfcRouteNotation.parse(route);
+    RouteTemplate template = RfcRouteNotation.parse(route);
     assertEquals(expected, template.render(prefix, RfcRouteNotation.presence(present)));
   }
 
   @Test
   void rootRouteKeepsItsSlashUnderAPrefix() {
-    assertEquals("/ctx/", SpringRouteParser.parse("/").render("/ctx", null));
-    assertEquals("/", SpringRouteParser.parse("/").render(null, null));
+    assertEquals("/ctx/", RouteTemplate.builder().trailingSlash(true).build().render("/ctx", null));
+    assertEquals("/", RouteTemplate.builder().build().render(null, null));
   }
 
   @Test
@@ -135,7 +134,6 @@ class RouteTemplateTest {
     assertFalse(RouteTemplate.NOT_EXPRESSIBLE.isExpressible());
     assertNull(RouteTemplate.NOT_EXPRESSIBLE.render("/ctx", null));
     assertNull(RouteTemplate.NOT_EXPRESSIBLE.staticRoute());
-    assertFalse(RouteTemplate.NOT_EXPRESSIBLE.needsUnnamedCatchAllRemainder());
     assertTrue(RfcRouteNotation.parse("/").isExpressible());
     assertNotNull(RfcRouteNotation.parse("/").render(null, null));
   }

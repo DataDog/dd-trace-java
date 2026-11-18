@@ -18,4 +18,15 @@ class RoutePresenceTest {
   void catchAllPresenceFromValue(String value, RoutePresence expected) {
     assertEquals(expected, RoutePresence.ofCatchAllValue(value));
   }
+
+  @TableTest({
+    "Scenario   | Value | Expected",
+    "not bound  |       | ABSENT  ",
+    "empty      | ''    | ABSENT  ",
+    "only slash | '/'   | PRESENT ",
+    "value      | 'a'   | PRESENT "
+  })
+  void optionalParamPresenceFromValue(String value, RoutePresence expected) {
+    assertEquals(expected, RoutePresence.ofBoundValue(value));
+  }
 }

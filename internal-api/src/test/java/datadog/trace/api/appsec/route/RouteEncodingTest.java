@@ -56,7 +56,7 @@ class RouteEncodingTest {
   @Test
   void decodeReturnsTheSameInstanceWithoutEscapes() {
     String path = new String("/ctx/a+b");
-    assertSame(path, NormalizedRouteHelper.decodePath(path));
-    assertNull(NormalizedRouteHelper.decodePath(null));
+    assertSame(path, RouteEncoding.decodePath(path));
+    assertNull(RouteEncoding.decodePath(null));
   }
 }
