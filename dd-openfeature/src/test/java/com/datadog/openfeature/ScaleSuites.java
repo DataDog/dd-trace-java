@@ -20,7 +20,7 @@ import java.util.Map;
  */
 final class ScaleSuites {
   private static final String SUITES_PATH =
-      "dd-smoke-tests/openfeature/src/test/resources/ffe-system-test-data/evaluation-suites";
+      "dd-openfeature/src/test/fixtures/ffe-system-test-data/evaluation-suites";
 
   private ScaleSuites() {}
 
