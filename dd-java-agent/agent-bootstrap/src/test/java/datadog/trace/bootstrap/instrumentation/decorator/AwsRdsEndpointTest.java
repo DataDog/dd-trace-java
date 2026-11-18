@@ -1,181 +1,55 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
-import static datadog.trace.bootstrap.instrumentation.decorator.AwsRdsEndpoint.Type.CLUSTER;
-import static datadog.trace.bootstrap.instrumentation.decorator.AwsRdsEndpoint.Type.CLUSTER_CUSTOM;
-import static datadog.trace.bootstrap.instrumentation.decorator.AwsRdsEndpoint.Type.CLUSTER_READER;
-import static datadog.trace.bootstrap.instrumentation.decorator.AwsRdsEndpoint.Type.INSTANCE;
-import static datadog.trace.bootstrap.instrumentation.decorator.AwsRdsEndpoint.Type.PROXY;
-import static datadog.trace.bootstrap.instrumentation.decorator.AwsRdsEndpoint.Type.SHARD_GROUP;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.params.provider.Arguments.of;
 
-import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.tabletest.junit.TableTest;
 
 class AwsRdsEndpointTest {
 
   private static final String RDS = "orders-db.c9akciq32bzq.us-east-1.rds.amazonaws.com";
 
-  static Stream<Arguments> parsesRdsEndpointArguments() {
-    return Stream.of(
-        of(RDS, "orders-db", INSTANCE, "us-east-1"),
-        of(
-            "Orders-DB.C9AKCIQ32BZQ.US-EAST-1.RDS.AMAZONAWS.COM",
-            "orders-db",
-            INSTANCE,
-            "us-east-1"),
-        of(RDS + ".", "orders-db", INSTANCE, "us-east-1"),
-        of(RDS + ":5432", "orders-db", INSTANCE, "us-east-1"),
-        of(
-            "orders-db.c9akciq32bzq.us-gov-west-1.rds.amazonaws.com",
-            "orders-db",
-            INSTANCE,
-            "us-gov-west-1"),
-        of(
-            "orders-db.c9akciq32bzq.eu-isoe-west-1.rds.cloud.adc-e.uk",
-            "orders-db",
-            INSTANCE,
-            "eu-isoe-west-1"),
-        of(
-            "orders-db.c9akciq32bzq.us-isof-east-1.rds.csp.hci.ic.gov",
-            "orders-db",
-            INSTANCE,
-            "us-isof-east-1"),
-        of(
-            "orders-proxy.proxy-c9akciq32bzq.us-isof-south-1.rds.csp.hci.ic.gov",
-            "orders-proxy",
-            PROXY,
-            "us-isof-south-1"),
-        of(
-            "orders-db.c9akciq32bzq.eusc-de-east-1.rds.amazonaws.eu",
-            "orders-db",
-            INSTANCE,
-            "eusc-de-east-1"),
-        of(
-            "orders-db.c9akciq32bzq.rds.cn-north-1.amazonaws.com.cn",
-            "orders-db",
-            INSTANCE,
-            "cn-north-1"),
-        // China also hands out the region-before-service layout, same as the commercial partition.
-        of(
-            "orders-db.c9akciq32bzq.cn-north-1.rds.amazonaws.com.cn",
-            "orders-db",
-            INSTANCE,
-            "cn-north-1"),
-        of(
-            "orders-aurora.cluster-c9akciq32bzq.cn-northwest-1.rds.amazonaws.com.cn",
-            "orders-aurora",
-            CLUSTER,
-            "cn-northwest-1"),
-        // ISO partition (aws-iso) RDS endpoints use the c2s.ic.gov DNS suffix.
-        of(
-            "orders-db.c9akciq32bzq.us-iso-east-1.rds.c2s.ic.gov",
-            "orders-db",
-            INSTANCE,
-            "us-iso-east-1"),
-        of(
-            "orders-aurora.cluster-ro-c9akciq32bzq.us-iso-west-1.rds.c2s.ic.gov",
-            "orders-aurora",
-            CLUSTER_READER,
-            "us-iso-west-1"),
-        // ISO-B partition (aws-iso-b) RDS endpoints use the sc2s.sgov.gov DNS suffix.
-        of(
-            "orders-db.c9akciq32bzq.us-isob-east-1.rds.sc2s.sgov.gov",
-            "orders-db",
-            INSTANCE,
-            "us-isob-east-1"),
-        of(
-            "orders-proxy.proxy-c9akciq32bzq.us-isob-east-1.rds.sc2s.sgov.gov",
-            "orders-proxy",
-            PROXY,
-            "us-isob-east-1"),
-        of(
-            "orders-aurora.cluster-c9akciq32bzq.us-west-2.rds.amazonaws.com",
-            "orders-aurora",
-            CLUSTER,
-            "us-west-2"),
-        of(
-            "orders-aurora.cluster-ro-c9akciq32bzq.us-west-2.rds.amazonaws.com",
-            "orders-aurora",
-            CLUSTER_READER,
-            "us-west-2"),
-        of(
-            "reporting.cluster-custom-c9akciq32bzq.us-west-2.rds.amazonaws.com",
-            "reporting",
-            CLUSTER_CUSTOM,
-            "us-west-2"),
-        of(
-            "orders-proxy.proxy-c9akciq32bzq.ap-southeast-2.rds.amazonaws.com",
-            "orders-proxy",
-            PROXY,
-            "ap-southeast-2"),
-        of(
-            "orders-ro.endpoint.proxy-c9akciq32bzq.us-east-1.rds.amazonaws.com",
-            "orders-ro",
-            PROXY,
-            "us-east-1"),
-        // User-defined RDS Proxy endpoint in the ISO partition: the extra "endpoint" label is
-        // normalized away and the c2s.ic.gov suffix is still recognised.
-        of(
-            "orders-ro.endpoint.proxy-c9akciq32bzq.us-iso-east-1.rds.c2s.ic.gov",
-            "orders-ro",
-            PROXY,
-            "us-iso-east-1"),
-        of(
-            "orders-ro.endpoint.proxy-c9akciq32bzq.rds.cn-north-1.amazonaws.com.cn",
-            "orders-ro",
-            PROXY,
-            "cn-north-1"),
-        // Aurora Limitless DB shard group endpoints.
-        of(
-            "orders.shardgrp-c9akciq32bzq.us-east-1.rds.amazonaws.com",
-            "orders",
-            SHARD_GROUP,
-            "us-east-1"),
-        of(
-            "ORDERS.SHARDGRP-C9AKCIQ32BZQ.US-EAST-1.RDS.AMAZONAWS.COM",
-            "orders",
-            SHARD_GROUP,
-            "us-east-1"),
-        of(
-            "orders.shardgrp-c9akciq32bzq.us-east-1.rds.amazonaws.com.",
-            "orders",
-            SHARD_GROUP,
-            "us-east-1"),
-        of(
-            "orders.shardgrp-c9akciq32bzq.us-east-1.rds.amazonaws.com:5432",
-            "orders",
-            SHARD_GROUP,
-            "us-east-1"),
-        of(
-            "orders.shardgrp-c9akciq32bzq.us-gov-west-1.rds.amazonaws.com",
-            "orders",
-            SHARD_GROUP,
-            "us-gov-west-1"),
-        of(
-            "orders.shardgrp-c9akciq32bzq.rds.cn-north-1.amazonaws.com.cn",
-            "orders",
-            SHARD_GROUP,
-            "cn-north-1"),
-        of(
-            "orders.shardgrp-c9akciq32bzq.cn-north-1.rds.amazonaws.com.cn",
-            "orders",
-            SHARD_GROUP,
-            "cn-north-1"));
-  }
-
-  @ParameterizedTest(name = "parses {0}")
-  @MethodSource("parsesRdsEndpointArguments")
+  @TableTest({
+    "scenario                        | hostname                                                               | identifier    | type           | region         ",
+    "instance                        | orders-db.c9akciq32bzq.us-east-1.rds.amazonaws.com                     | orders-db     | INSTANCE       | us-east-1      ",
+    "mixed case                      | Orders-DB.C9AKCIQ32BZQ.US-EAST-1.RDS.AMAZONAWS.COM                     | orders-db     | INSTANCE       | us-east-1      ",
+    "trailing dot                    | orders-db.c9akciq32bzq.us-east-1.rds.amazonaws.com.                    | orders-db     | INSTANCE       | us-east-1      ",
+    "port                            | orders-db.c9akciq32bzq.us-east-1.rds.amazonaws.com:5432                | orders-db     | INSTANCE       | us-east-1      ",
+    "GovCloud instance               | orders-db.c9akciq32bzq.us-gov-west-1.rds.amazonaws.com                 | orders-db     | INSTANCE       | us-gov-west-1  ",
+    "ISO-E instance                  | orders-db.c9akciq32bzq.eu-isoe-west-1.rds.cloud.adc-e.uk               | orders-db     | INSTANCE       | eu-isoe-west-1 ",
+    "ISO-F instance                  | orders-db.c9akciq32bzq.us-isof-east-1.rds.csp.hci.ic.gov               | orders-db     | INSTANCE       | us-isof-east-1 ",
+    "ISO-F proxy                     | orders-proxy.proxy-c9akciq32bzq.us-isof-south-1.rds.csp.hci.ic.gov     | orders-proxy  | PROXY          | us-isof-south-1",
+    "European sovereign instance     | orders-db.c9akciq32bzq.eusc-de-east-1.rds.amazonaws.eu                 | orders-db     | INSTANCE       | eusc-de-east-1 ",
+    "China service before region     | orders-db.c9akciq32bzq.rds.cn-north-1.amazonaws.com.cn                 | orders-db     | INSTANCE       | cn-north-1     ",
+    "China region before service     | orders-db.c9akciq32bzq.cn-north-1.rds.amazonaws.com.cn                 | orders-db     | INSTANCE       | cn-north-1     ",
+    "China cluster                   | orders-aurora.cluster-c9akciq32bzq.cn-northwest-1.rds.amazonaws.com.cn | orders-aurora | CLUSTER        | cn-northwest-1 ",
+    "ISO instance                    | orders-db.c9akciq32bzq.us-iso-east-1.rds.c2s.ic.gov                    | orders-db     | INSTANCE       | us-iso-east-1  ",
+    "ISO cluster reader              | orders-aurora.cluster-ro-c9akciq32bzq.us-iso-west-1.rds.c2s.ic.gov     | orders-aurora | CLUSTER_READER | us-iso-west-1  ",
+    "ISO-B instance                  | orders-db.c9akciq32bzq.us-isob-east-1.rds.sc2s.sgov.gov                | orders-db     | INSTANCE       | us-isob-east-1 ",
+    "ISO-B proxy                     | orders-proxy.proxy-c9akciq32bzq.us-isob-east-1.rds.sc2s.sgov.gov       | orders-proxy  | PROXY          | us-isob-east-1 ",
+    "cluster                         | orders-aurora.cluster-c9akciq32bzq.us-west-2.rds.amazonaws.com         | orders-aurora | CLUSTER        | us-west-2      ",
+    "cluster reader                  | orders-aurora.cluster-ro-c9akciq32bzq.us-west-2.rds.amazonaws.com      | orders-aurora | CLUSTER_READER | us-west-2      ",
+    "custom cluster                  | reporting.cluster-custom-c9akciq32bzq.us-west-2.rds.amazonaws.com      | reporting     | CLUSTER_CUSTOM | us-west-2      ",
+    "proxy                           | orders-proxy.proxy-c9akciq32bzq.ap-southeast-2.rds.amazonaws.com       | orders-proxy  | PROXY          | ap-southeast-2 ",
+    "custom proxy                    | orders-ro.endpoint.proxy-c9akciq32bzq.us-east-1.rds.amazonaws.com      | orders-ro     | PROXY          | us-east-1      ",
+    "ISO custom proxy                | orders-ro.endpoint.proxy-c9akciq32bzq.us-iso-east-1.rds.c2s.ic.gov     | orders-ro     | PROXY          | us-iso-east-1  ",
+    "China custom proxy              | orders-ro.endpoint.proxy-c9akciq32bzq.rds.cn-north-1.amazonaws.com.cn  | orders-ro     | PROXY          | cn-north-1     ",
+    "shard group                     | orders.shardgrp-c9akciq32bzq.us-east-1.rds.amazonaws.com               | orders        | SHARD_GROUP    | us-east-1      ",
+    "uppercase shard group           | ORDERS.SHARDGRP-C9AKCIQ32BZQ.US-EAST-1.RDS.AMAZONAWS.COM               | orders        | SHARD_GROUP    | us-east-1      ",
+    "shard group trailing dot        | orders.shardgrp-c9akciq32bzq.us-east-1.rds.amazonaws.com.              | orders        | SHARD_GROUP    | us-east-1      ",
+    "shard group port                | orders.shardgrp-c9akciq32bzq.us-east-1.rds.amazonaws.com:5432          | orders        | SHARD_GROUP    | us-east-1      ",
+    "GovCloud shard group            | orders.shardgrp-c9akciq32bzq.us-gov-west-1.rds.amazonaws.com           | orders        | SHARD_GROUP    | us-gov-west-1  ",
+    "China shard group service first | orders.shardgrp-c9akciq32bzq.rds.cn-north-1.amazonaws.com.cn           | orders        | SHARD_GROUP    | cn-north-1     ",
+    "China shard group region first  | orders.shardgrp-c9akciq32bzq.cn-north-1.rds.amazonaws.com.cn           | orders        | SHARD_GROUP    | cn-north-1     "
+  })
   void parsesRdsEndpoint(
       String hostname, String identifier, AwsRdsEndpoint.Type type, String region) {
     AwsRdsEndpoint endpoint = AwsRdsEndpoint.parse(hostname);
