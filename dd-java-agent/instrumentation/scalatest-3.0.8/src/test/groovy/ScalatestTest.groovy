@@ -368,14 +368,14 @@ class ScalatestTest extends CiVisibilityInstrumentationTest {
     }
   }
 
-  static void runTestsWithSbtFramework(List<Class<?>> tests, boolean expectSuccess = true) {
+  void runTestsWithSbtFramework(List<Class<?>> tests, boolean expectSuccess = true) {
     def framework = new Framework()
     def fingerprint = framework.fingerprints().find { it instanceof SubclassFingerprint }
     def taskDefs = tests.collect {
       new TaskDef(it.name, fingerprint, false, [new SuiteSelector()] as Selector[])
     } as TaskDef[]
 
-    def runner = framework.runner([] as String[], [] as String[], ScalatestTest.classLoader)
+    def runner = framework.runner([] as String[], [] as String[], getClass().classLoader)
     def events = []
     EventHandler eventHandler = { Event event -> events << event }
     Deque<Task> tasks = new ArrayDeque<>(Arrays.asList(runner.tasks(taskDefs)))
