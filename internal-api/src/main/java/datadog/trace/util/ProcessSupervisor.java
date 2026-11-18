@@ -259,11 +259,16 @@ public class ProcessSupervisor implements Closeable {
       // The supervised agents run only on Windows, where destroy() and destroyForcibly() both call
       // TerminateProcess: the process stops at once, without a chance to flush.
       currentProcess.destroy();
+      boolean interrupted = Thread.interrupted();
       boolean stopped = false;
       try {
         stopped = currentProcess.waitFor(STOP_WAIT_MILLIS, MILLISECONDS);
       } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
+        interrupted = true;
+      } finally {
+        if (interrupted) {
+          Thread.currentThread().interrupt();
+        }
       }
       if (stopped) {
         log.info("Stopped process [{}] with pid {}", imageName, childPid);
