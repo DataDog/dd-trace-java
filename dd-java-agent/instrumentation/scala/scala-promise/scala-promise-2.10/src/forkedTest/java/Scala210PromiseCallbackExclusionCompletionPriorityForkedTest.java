@@ -1,0 +1,2 @@
+class Scala210PromiseCallbackExclusionCompletionPriorityForkedTest
+    extends ScalaPromiseCallbackExclusionCompletionPriorityTestBase {}
