@@ -1,5 +1,7 @@
 package com.datadog.openfeature;
 
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.ALLOCATION_KEY;
+
 import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.FlagEvaluationDetails;
 import dev.openfeature.sdk.Hook;
@@ -30,7 +32,9 @@ class FlagEvalMetricsHook implements Hook<Object> {
       String allocationKey = null;
       ImmutableMetadata metadata = details.getFlagMetadata();
       if (metadata != null) {
-        allocationKey = metadata.getString("allocationKey");
+        // The ImmutableMetadata getters build a debug message for every absent key.
+        final Object allocationValue = metadata.asUnmodifiableMap().get(ALLOCATION_KEY);
+        allocationKey = allocationValue instanceof String ? (String) allocationValue : null;
       }
 
       metrics.record(flagKey, variant, reason, errorCode, allocationKey);
