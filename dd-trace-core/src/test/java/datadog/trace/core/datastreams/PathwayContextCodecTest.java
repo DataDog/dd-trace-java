@@ -68,6 +68,16 @@ class PathwayContextCodecTest {
   }
 
   @Test
+  void theUnsampledHeaderBytesAreAFreshArrayEachTime() {
+    byte[] handedToUserCode = UnsampledPathwayContext.INSTANCE.encodeBytes();
+    Arrays.fill(handedToUserCode, (byte) 'x');
+
+    assertEquals(
+        UnsampledPathwayContext.ENCODED,
+        new String(UnsampledPathwayContext.INSTANCE.encodeBytes(), ISO_8859_1));
+  }
+
+  @Test
   void encodeBytesMatchesEncodeAfterCheckpoints() throws IOException {
     ControllableTimeSource time = new ControllableTimeSource();
     time.set(1_700_000_000_000_000_000L);
