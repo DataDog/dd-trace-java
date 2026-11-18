@@ -21,6 +21,8 @@ public interface SpanData {
 
   SpanData setTag(String key, String value);
 
+  SpanData setTag(String key, CharSequence value);
+
   SpanData setTag(String key, boolean value);
 
   SpanData setTag(String key, int value);
