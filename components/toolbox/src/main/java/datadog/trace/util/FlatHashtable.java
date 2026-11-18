@@ -647,7 +647,7 @@ public final class FlatHashtable {
   public abstract static class CaseInsensitiveStringStrategy<E> extends EntryStrategy<E, String> {
     @Override
     public final long hashKey(String key) {
-      return Strings.caseInsensitiveHashCode(key); // raw; the table spreads before masking
+      return HashingUtils.caseInsensitiveHashCode(key); // raw; the table spreads before masking
     }
   }
 
