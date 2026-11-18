@@ -15,6 +15,7 @@ tasks.named("compileJava") {
 addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
+  testImplementation libs.bundles.mockito
   testImplementation project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
   testImplementation libs.guava
   testImplementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-core', version: '7.0.0'
