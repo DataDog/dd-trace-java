@@ -76,11 +76,10 @@ class SpockLegacyTagsForkedTest {
         assertTrue(((Collection<?>) resolver.invoke(null, new LegacyFeatureNode())).isEmpty());
         assertFalse(
             appender.list.stream()
-                .anyMatch(
-                    log ->
-                        log.getLevel() == Level.WARN
-                            && log.getFormattedMessage()
-                                .contains("Could not get tags from a spock node")));
+                .anyMatch(log ->
+                    log.getLevel() == Level.WARN
+                        && log.getFormattedMessage()
+                            .contains("Could not get tags from a spock node")));
       } finally {
         logger.detachAppender(appender);
         appender.stop();

@@ -43,11 +43,10 @@ class NettyScheduledFutureTaskCancellationForkedTest extends AbstractInstrumenta
             .with(AgentBuilder.Listener.StreamWriting.toSystemError().withErrorsOnly())
             .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
             .type(named("io.netty.util.concurrent.PromiseTask"))
-            .transform(
-                (builder, type, loader, module, domain) ->
-                    builder.visit(
-                        Advice.to(NettyCancellationGate.PauseAdvice.class)
-                            .on(named("setUncancellableInternal"))))
+            .transform((builder, type, loader, module, domain) ->
+                builder.visit(
+                    Advice.to(NettyCancellationGate.PauseAdvice.class)
+                        .on(named("setUncancellableInternal"))))
             .installOn(instrumentation);
     NettyCancellationGate.entered = new CountDownLatch(1);
     NettyCancellationGate.proceed = new CountDownLatch(1);
@@ -56,16 +55,15 @@ class NettyScheduledFutureTaskCancellationForkedTest extends AbstractInstrumenta
       EventExecutor executor = group.next();
       CountDownLatch workerBlocked = new CountDownLatch(1);
       CountDownLatch workerProceed = new CountDownLatch(1);
-      executor.execute(
-          () -> {
-            workerBlocked.countDown();
-            try {
-              assertTrue(workerProceed.await(5, SECONDS));
-            } catch (InterruptedException e) {
-              Thread.currentThread().interrupt();
-              throw new AssertionError(e);
-            }
-          });
+      executor.execute(() -> {
+        workerBlocked.countDown();
+        try {
+          assertTrue(workerProceed.await(5, SECONDS));
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          throw new AssertionError(e);
+        }
+      });
       assertTrue(workerBlocked.await(5, SECONDS));
       AtomicBoolean called = new AtomicBoolean();
       AgentSpan parent = startSpan("test", "parent");

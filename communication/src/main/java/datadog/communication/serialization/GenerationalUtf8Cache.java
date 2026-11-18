@@ -1,5 +1,6 @@
 package datadog.communication.serialization;
 
+import datadog.trace.api.function.BackgroundOnly;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.nio.charset.StandardCharsets;
 import javax.annotation.concurrent.ThreadSafe;
@@ -10,9 +11,9 @@ import javax.annotation.concurrent.ThreadSafe;
  * <p>Cache is designed to take advantage of low cardinality tags to avoid repeated UTF8 encodings
  * while also minimizing cache overhead and churn from high cardinality tags.
  *
- * <p>NOTE: The aim of this cache is to reduce allocation overhead -- not CPU overhead. Using the
- * cache has higher CPU overhead than simply calling {@link
- * String#getBytes(java.nio.charset.Charset)}.
+ * <p>This cache reduces repeated allocations from {@link String#getBytes(java.nio.charset.Charset)}
+ * at the cost of extra CPU work. It is {@link BackgroundOnly} to keep that work off application
+ * threads, where it adds to request latency.
  *
  * <p>The cache is thread safe.
  */
@@ -64,6 +65,7 @@ import javax.annotation.concurrent.ThreadSafe;
  * provide better cache utilization.
  */
 @ThreadSafe
+@BackgroundOnly
 @SuppressFBWarnings(
     value = "IS2_INCONSISTENT_SYNC",
     justification =

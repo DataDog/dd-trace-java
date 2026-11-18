@@ -52,20 +52,16 @@ dependencies {
   // organisation = serverName, module = serverModule, revision = serverVersion, ext = serverExtension
   serverFile "${serverName}:${serverModule}:${serverVersion}@${serverExtension}"
 
-  testImplementation project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests:smoke-test-common')
 }
 
 def appBuildDir = layout.buildDirectory.dir("spring-ear")
-evaluationDependsOn(':dd-trace-api')
-def apiJarTask = project(':dd-trace-api').tasks.named('jar')
 
 // Run the nested EAR build through the Gradle Tooling API.
 tasks.register('earBuild', NestedGradleBuild) {
   applicationDir = layout.projectDirectory.dir("spring-ear")
   applicationBuildDir = appBuildDir
   tasksToRun = ['assemble']
-  projectJar('apiJar', apiJarTask.flatMap { it.archiveFile })
-  dependsOn apiJarTask
 }
 
 tasks.named("compileTestGroovy", GroovyCompile) {

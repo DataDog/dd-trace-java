@@ -133,16 +133,15 @@ public class MetricProbesIntegrationTest extends SimpleAppDebuggerIntegrationTes
     targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
     AtomicBoolean received = new AtomicBoolean();
     AtomicBoolean error = new AtomicBoolean();
-    registerProbeStatusListener(
-        probeStatus -> {
-          if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.RECEIVED) {
-            received.set(true);
-          }
-          if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.ERROR) {
-            assertEquals(expectedMsg, probeStatus.getDiagnostics().getException().getMessage());
-            error.set(true);
-          }
-        });
+    registerProbeStatusListener(probeStatus -> {
+      if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.RECEIVED) {
+        received.set(true);
+      }
+      if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.ERROR) {
+        assertEquals(expectedMsg, probeStatus.getDiagnostics().getException().getMessage());
+        error.set(true);
+      }
+    });
     processRequests(
         () -> received.get() && error.get(),
         () -> String.format("timeout received=%s error=%s", received.get(), error.get()));

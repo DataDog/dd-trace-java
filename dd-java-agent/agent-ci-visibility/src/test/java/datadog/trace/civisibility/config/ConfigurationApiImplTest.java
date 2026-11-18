@@ -86,13 +86,11 @@ class ConfigurationApiImplTest extends AbstractConfigurationApiContractTest {
   @Override
   protected ConfigurationApi apiReturning(Endpoint endpoint, String responseBody) {
     JavaTestHttpServer server =
-        JavaTestHttpServer.httpServer(
-            s ->
-                s.handlers(
-                    h ->
-                        h.prefix(
-                            ENDPOINT_PATHS.get(endpoint),
-                            api -> sendResponseBody(api, responseBody.getBytes()))));
+        JavaTestHttpServer.httpServer(s ->
+            s.handlers(h ->
+                h.prefix(
+                    ENDPOINT_PATHS.get(endpoint),
+                    api -> sendResponseBody(api, responseBody.getBytes()))));
     servers.add(server);
     return givenConfigurationApi(server, true, true);
   }
@@ -217,17 +215,15 @@ class ConfigurationApiImplTest extends AbstractConfigurationApiContractTest {
     List<String> responses = Arrays.asList(page1, page2, page3);
 
     JavaTestHttpServer intakeServer =
-        JavaTestHttpServer.httpServer(
-            s ->
-                s.handlers(
-                    h ->
-                        h.prefix(
-                            "/api/v2/ci/libraries/tests",
-                            api -> {
-                              int current = requestCount.incrementAndGet();
-                              timeSource.advance(REQUEST_DURATION_NANOS);
-                              sendResponseBody(api, responses.get(current - 1).getBytes());
-                            })));
+        JavaTestHttpServer.httpServer(s ->
+            s.handlers(h ->
+                h.prefix(
+                    "/api/v2/ci/libraries/tests",
+                    api -> {
+                      int current = requestCount.incrementAndGet();
+                      timeSource.advance(REQUEST_DURATION_NANOS);
+                      sendResponseBody(api, responses.get(current - 1).getBytes());
+                    })));
     servers.add(intakeServer);
     CiVisibilityMetricCollector metricCollector = mock(CiVisibilityMetricCollector.class);
     ConfigurationApi configurationApi =
@@ -261,21 +257,19 @@ class ConfigurationApiImplTest extends AbstractConfigurationApiContractTest {
   @ValueSource(booleans = {false, true})
   void testKnownTestsSinglePageMetrics(boolean empty) throws IOException {
     JavaTestHttpServer server =
-        JavaTestHttpServer.httpServer(
-            s ->
-                s.handlers(
-                    h ->
-                        h.prefix(
-                            "/api/v2/ci/libraries/tests",
-                            api -> {
-                              timeSource.advance(REQUEST_DURATION_NANOS);
-                              sendResponseBody(
-                                  api,
-                                  ("{\"data\":{\"attributes\":{\"tests\":"
-                                          + (empty ? "{}" : "{\"module\":{\"suite\":[\"test\"]}}")
-                                          + "}}}")
-                                      .getBytes());
-                            })));
+        JavaTestHttpServer.httpServer(s ->
+            s.handlers(h ->
+                h.prefix(
+                    "/api/v2/ci/libraries/tests",
+                    api -> {
+                      timeSource.advance(REQUEST_DURATION_NANOS);
+                      sendResponseBody(
+                          api,
+                          ("{\"data\":{\"attributes\":{\"tests\":"
+                                  + (empty ? "{}" : "{\"module\":{\"suite\":[\"test\"]}}")
+                                  + "}}}")
+                              .getBytes());
+                    })));
     servers.add(server);
     CiVisibilityMetricCollector metricCollector = mock(CiVisibilityMetricCollector.class);
     ConfigurationApi configurationApi = givenConfigurationApi(server, true, true, metricCollector);
@@ -300,22 +294,20 @@ class ConfigurationApiImplTest extends AbstractConfigurationApiContractTest {
   void testKnownTestsFailureDoesNotEmitPaginationMetrics(int failingPage) {
     AtomicInteger requests = new AtomicInteger();
     JavaTestHttpServer server =
-        JavaTestHttpServer.httpServer(
-            s ->
-                s.handlers(
-                    h ->
-                        h.prefix(
-                            "/api/v2/ci/libraries/tests",
-                            api -> {
-                              if (requests.incrementAndGet() == failingPage) {
-                                api.getResponse().status(400).send("bad request".getBytes());
-                              } else {
-                                sendResponseBody(
-                                    api,
-                                    "{\"data\":{\"attributes\":{\"tests\":{},\"page_info\":{\"has_next\":true,\"cursor\":\"next\"}}}}"
-                                        .getBytes());
-                              }
-                            })));
+        JavaTestHttpServer.httpServer(s ->
+            s.handlers(h ->
+                h.prefix(
+                    "/api/v2/ci/libraries/tests",
+                    api -> {
+                      if (requests.incrementAndGet() == failingPage) {
+                        api.getResponse().status(400).send("bad request".getBytes());
+                      } else {
+                        sendResponseBody(
+                            api,
+                            "{\"data\":{\"attributes\":{\"tests\":{},\"page_info\":{\"has_next\":true,\"cursor\":\"next\"}}}}"
+                                .getBytes());
+                      }
+                    })));
     servers.add(server);
     CiVisibilityMetricCollector metricCollector = mock(CiVisibilityMetricCollector.class);
     ConfigurationApi configurationApi = givenConfigurationApi(server, true, true, metricCollector);
@@ -331,13 +323,11 @@ class ConfigurationApiImplTest extends AbstractConfigurationApiContractTest {
   @Test
   void testKnownTestsMalformedResponseDoesNotEmitPaginationMetrics() {
     JavaTestHttpServer server =
-        JavaTestHttpServer.httpServer(
-            s ->
-                s.handlers(
-                    h ->
-                        h.prefix(
-                            "/api/v2/ci/libraries/tests",
-                            api -> sendResponseBody(api, "invalid JSON".getBytes()))));
+        JavaTestHttpServer.httpServer(s ->
+            s.handlers(h ->
+                h.prefix(
+                    "/api/v2/ci/libraries/tests",
+                    api -> sendResponseBody(api, "invalid JSON".getBytes()))));
     servers.add(server);
     CiVisibilityMetricCollector metricCollector = mock(CiVisibilityMetricCollector.class);
     ConfigurationApi configurationApi = givenConfigurationApi(server, true, true, metricCollector);
@@ -386,26 +376,23 @@ class ConfigurationApiImplTest extends AbstractConfigurationApiContractTest {
     String expectedRequestBody = render(requestTemplate, requestData);
     byte[] responseBody = render(responseTemplate, responseData).getBytes();
     JavaTestHttpServer server =
-        JavaTestHttpServer.httpServer(
-            s ->
-                s.handlers(
-                    h ->
-                        h.prefix(
-                            path,
-                            api -> {
-                              JavaTestHttpServer.HandlerApi.ResponseApi response =
-                                  api.getResponse();
-                              try {
-                                JSONAssert.assertEquals(
-                                    expectedRequestBody,
-                                    new String(api.getRequest().getBody()),
-                                    JSONCompareMode.LENIENT);
-                              } catch (AssertionError error) {
-                                response.status(400).send(error.getMessage().getBytes());
-                                return;
-                              }
-                              sendResponseBody(api, responseBody);
-                            })));
+        JavaTestHttpServer.httpServer(s ->
+            s.handlers(h ->
+                h.prefix(
+                    path,
+                    api -> {
+                      JavaTestHttpServer.HandlerApi.ResponseApi response = api.getResponse();
+                      try {
+                        JSONAssert.assertEquals(
+                            expectedRequestBody,
+                            new String(api.getRequest().getBody()),
+                            JSONCompareMode.LENIENT);
+                      } catch (AssertionError error) {
+                        response.status(400).send(error.getMessage().getBytes());
+                        return;
+                      }
+                      sendResponseBody(api, responseBody);
+                    })));
     servers.add(server);
     return server;
   }

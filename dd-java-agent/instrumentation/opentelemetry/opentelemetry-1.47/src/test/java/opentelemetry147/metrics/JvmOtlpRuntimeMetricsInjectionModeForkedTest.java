@@ -20,11 +20,10 @@ class JvmOtlpRuntimeMetricsInjectionModeForkedTest {
 
   @Test
   void onlyInjectionModeIsCopiedFromGlobalTags() {
-    forEachJvmPoint(
-        (metric, point) -> {
-          String context = metric + " " + point.attrs;
-          assertEquals("k8s", point.attrs.get("_dd.injection.mode"), context);
-          assertNull(point.attrs.get("team"), context);
-        });
+    forEachJvmPoint((metric, point) -> {
+      String context = metric + " " + point.attrs;
+      assertEquals("k8s", point.attrs.get("_dd.injection.mode"), context);
+      assertNull(point.attrs.get("team"), context);
+    });
   }
 }

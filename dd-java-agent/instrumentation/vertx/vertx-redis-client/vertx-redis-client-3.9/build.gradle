@@ -15,9 +15,7 @@ muzzle {
 }
 
 addTestSuiteForDir('latestDepTest', 'test')
-addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 addTestSuiteForDir('redis4xTest', 'test')
-addTestSuiteExtendingForDir('redis4xForkedTest', 'redis4xTest', 'test')
 
 
 dependencies {

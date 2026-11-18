@@ -4,12 +4,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
-import datadog.trace.test.util.DDJavaSpecification;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
 
-class InstanceStoreTest extends DDJavaSpecification {
+class InstanceStoreTest {
 
   private static final AtomicInteger COUNTER = new AtomicInteger();
 

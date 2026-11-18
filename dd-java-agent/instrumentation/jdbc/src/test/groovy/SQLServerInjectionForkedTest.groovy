@@ -18,6 +18,29 @@ abstract class InjectionForkedTest extends InstrumentationSpecification {
 }
 
 class SQLServerInjectionForkedTest extends InjectionForkedTest {
+  def "SQL Server appends comment for JDBC escape call #sql"() {
+    setup:
+    def connection = new TestConnection(false)
+    def metadata = new TestDatabaseMetaData()
+    metadata.setURL("jdbc:microsoft:sqlserver://localhost:1433;DatabaseName=testdb;")
+    connection.setMetaData(metadata)
+
+    when:
+    def statement = connection.createStatement() as TestStatement
+    statement.execute(sql)
+
+    then:
+    assert statement.sql == "${sql} /*${serviceInjection}*/"
+
+    where:
+    sql << [
+      "{call dbo.get_user_widgets(1)}",
+      "{ call dbo.get_user_widgets(1) }",
+      "{? = call dbo.get_user_widgets(1)}",
+      " \t{call dbo.get_user_widgets(1)}"
+    ]
+  }
+
   def "SQL Server no trace injection with full propagation mode"() {
     setup:
     def connection = new TestConnection(false)

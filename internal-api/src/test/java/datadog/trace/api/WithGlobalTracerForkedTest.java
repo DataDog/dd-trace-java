@@ -44,10 +44,9 @@ class WithGlobalTracerForkedTest {
     Tracer tracer = mock(Tracer.class);
     WithGlobalTracer.Callback callback = ignored -> {};
 
-    assertDoesNotThrow(
-        () -> {
-          WithGlobalTracer.registerOrExecute(callback);
-          GlobalTracer.registerIfAbsent(tracer);
-        });
+    assertDoesNotThrow(() -> {
+      WithGlobalTracer.registerOrExecute(callback);
+      GlobalTracer.registerIfAbsent(tracer);
+    });
   }
 }

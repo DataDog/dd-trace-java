@@ -113,6 +113,20 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
   }
 
   @Test
+  void noActiveScopeDefaultsToAsyncPropagation() {
+    assertNull(scopeManager.active());
+    assertTrue(tracer.isAsyncPropagationEnabled());
+
+    Context context = Context.root().with(ContextKey.named("test-key"), "value");
+    ContextContinuation continuation = tracer.capture(context);
+    try {
+      assertSame(context, continuation.context());
+    } finally {
+      continuation.release();
+    }
+  }
+
+  @Test
   void nonDdspanActivationResultsInAContinuableScope() {
     ContextScope scope = scopeManager.activateSpan(noopSpan());
 
@@ -885,19 +899,18 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
     for (int i = 0; i < numTasks; i++) {
       final int taskIndex = i;
       futures[i] =
-          executor.submit(
-              () -> {
-                ContextScope scope = tracer.activateSpan(span);
-                AgentSpan child = tracer.buildSpan("test", "foo" + taskIndex).start();
-                ContextScope childScope = tracer.activateSpan(child);
-                try {
-                  Thread.sleep(100);
-                } catch (InterruptedException ignored) {
-                  Thread.currentThread().interrupt();
-                }
-                childScope.close();
-                scope.close();
-              });
+          executor.submit(() -> {
+            ContextScope scope = tracer.activateSpan(span);
+            AgentSpan child = tracer.buildSpan("test", "foo" + taskIndex).start();
+            ContextScope childScope = tracer.activateSpan(child);
+            try {
+              Thread.sleep(100);
+            } catch (InterruptedException ignored) {
+              Thread.currentThread().interrupt();
+            }
+            childScope.close();
+            scope.close();
+          });
     }
     for (Future<?> future : futures) {
       future.get();
@@ -1162,13 +1175,12 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
   void captureContextWithoutSpanUsesNoopTraceCollector() {
     ContextKey<String> key = ContextKey.named("test-key");
     Context ctx = Context.root().with(key, "value");
-    assertDoesNotThrow(
-        () -> {
-          // NoopAgentTraceCollector handles capture/release without throwing
-          try (ContextScope scope = ctx.attach()) {
-            Context.current().capture().release();
-          }
-        });
+    assertDoesNotThrow(() -> {
+      // NoopAgentTraceCollector handles capture/release without throwing
+      try (ContextScope scope = ctx.attach()) {
+        Context.current().capture().release();
+      }
+    });
   }
 
   private boolean spanFinished(AgentSpan span) {

@@ -110,7 +110,8 @@ class AzureCosmosSmokeTest {
       for (int i = 0; i < scenario.size(); i++) {
         DecodedSpan span = scenario.get(i);
         String statusCode = statusCodes[i];
-        boolean error = i == 6 || i == 7;
+        // the 409 conflict is an error, the 404 is not
+        boolean error = i == 6;
         assertAll(
             api + " " + span.getResource(),
             () -> assertEquals(root.getSpanId(), span.getParentId(), "parent"),

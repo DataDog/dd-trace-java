@@ -28,14 +28,13 @@ final class FlagEvaluationPayloads {
 
   // Per-thread SHA-256 instance as hashing runs for every full-tier row without consent.
   private static final ThreadLocal<MessageDigest> SHA_256 =
-      ThreadLocal.withInitial(
-          () -> {
-            try {
-              return MessageDigest.getInstance("SHA-256");
-            } catch (final NoSuchAlgorithmException e) {
-              throw new IllegalStateException("SHA-256 not available", e);
-            }
-          });
+      ThreadLocal.withInitial(() -> {
+        try {
+          return MessageDigest.getInstance("SHA-256");
+        } catch (final NoSuchAlgorithmException e) {
+          throw new IllegalStateException("SHA-256 not available", e);
+        }
+      });
 
   private FlagEvaluationPayloads() {}
 
@@ -92,39 +91,38 @@ final class FlagEvaluationPayloads {
   }
 
   static byte[] encodeEvent(final FlagEvaluationEvent event) {
-    return JsonWriting.write(
-        generator -> {
-          generator.writeStartObject();
-          generator.writeNumberField("timestamp", event.timestamp);
-          writeKeyObject(generator, "flag", event.flag.key);
-          generator.writeNumberField("first_evaluation", event.first_evaluation);
-          generator.writeNumberField("last_evaluation", event.last_evaluation);
-          generator.writeNumberField("evaluation_count", event.evaluation_count);
-          writeKeyObject(generator, "variant", keyOf(event.variant));
-          writeKeyObject(generator, "allocation", keyOf(event.allocation));
-          if (event.targeting_key != null) {
-            generator.writeStringField("targeting_key", event.targeting_key);
-          }
-          if (event.runtime_default_used != null) {
-            generator.writeBooleanField("runtime_default_used", event.runtime_default_used);
-          }
-          if (event.context != null) {
-            generator.writeObjectFieldStart("context");
-            generator.writeFieldName("evaluation");
-            writeValue(generator, event.context.evaluation);
-            generator.writeEndObject();
-          }
-          if (event.error != null) {
-            generator.writeObjectFieldStart("error");
-            generator.writeStringField("message", event.error.message);
-            generator.writeEndObject();
-          }
-          if (event.features != null) {
-            generator.writeFieldName("features");
-            writeValue(generator, event.features);
-          }
-          generator.writeEndObject();
-        });
+    return JsonWriting.write(generator -> {
+      generator.writeStartObject();
+      generator.writeNumberField("timestamp", event.timestamp);
+      writeKeyObject(generator, "flag", event.flag.key);
+      generator.writeNumberField("first_evaluation", event.first_evaluation);
+      generator.writeNumberField("last_evaluation", event.last_evaluation);
+      generator.writeNumberField("evaluation_count", event.evaluation_count);
+      writeKeyObject(generator, "variant", keyOf(event.variant));
+      writeKeyObject(generator, "allocation", keyOf(event.allocation));
+      if (event.targeting_key != null) {
+        generator.writeStringField("targeting_key", event.targeting_key);
+      }
+      if (event.runtime_default_used != null) {
+        generator.writeBooleanField("runtime_default_used", event.runtime_default_used);
+      }
+      if (event.context != null) {
+        generator.writeObjectFieldStart("context");
+        generator.writeFieldName("evaluation");
+        writeValue(generator, event.context.evaluation);
+        generator.writeEndObject();
+      }
+      if (event.error != null) {
+        generator.writeObjectFieldStart("error");
+        generator.writeStringField("message", event.error.message);
+        generator.writeEndObject();
+      }
+      if (event.features != null) {
+        generator.writeFieldName("features");
+        writeValue(generator, event.features);
+      }
+      generator.writeEndObject();
+    });
   }
 
   /**

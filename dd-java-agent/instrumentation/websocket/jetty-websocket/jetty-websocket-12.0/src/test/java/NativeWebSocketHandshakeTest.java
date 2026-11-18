@@ -54,9 +54,8 @@ class NativeWebSocketHandshakeTest extends AbstractInstrumentationTest {
       server.setHandler(context);
       context.setHandler(
           WebSocketUpgradeHandler.from(server, context)
-              .configure(
-                  container ->
-                      container.addMapping("/receive", (request, response, callback) -> endpoint)));
+              .configure(container ->
+                  container.addMapping("/receive", (request, response, callback) -> endpoint)));
       server.start();
       client.start();
       URI uri =

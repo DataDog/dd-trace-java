@@ -1,12 +1,18 @@
 package com.datadog.openfeature;
 
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EVALUATION_FEATURE_PREFIX;
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EXPOSURE_FEATURE_PREFIX;
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.FEATURE_PREFIX;
 import static java.util.Collections.emptyMap;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 
 import com.datadog.openfeature.internal.JsonReading;
@@ -24,13 +30,17 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * Evaluates the cross-SDK canonical fixtures from the {@code ffe-system-test-data} submodule,
@@ -43,6 +53,24 @@ class CanonicalFixtureTest {
   @Test
   void canonicalFixturesArePresent() throws IOException {
     assertThat(canonicalTestCases().size(), greaterThan(0));
+  }
+
+  @ValueSource(strings = {"result", "features", "flagMetadata"})
+  @ParameterizedTest
+  void rejectsUnhandledExpectations(final String location) {
+    final Map<String, Object> result = new java.util.LinkedHashMap<>();
+    result.put("value", false);
+    result.put("reason", "STATIC");
+    if ("result".equals(location)) {
+      result.put("unhandledExpectation", true);
+    } else {
+      result.put(location, Map.of("unhandledExpectation", true));
+    }
+    final AssertionError error =
+        assertThrows(
+            AssertionError.class,
+            () -> new FixtureCase("unsupported.json", 0, Map.of("result", result)));
+    assertTrue(error.getMessage().contains("unhandledExpectation"));
   }
 
   @MethodSource("canonicalTestCases")
@@ -114,7 +142,7 @@ class CanonicalFixtureTest {
 
     assertThat(details.getValue(), equalTo(expectedValue));
     assertThat(details.getReason(), equalTo(testCase.resultReason));
-    if (testCase.resultVariant != null) {
+    if (testCase.checksVariant) {
       assertThat(details.getVariant(), equalTo(testCase.resultVariant));
     }
     if (testCase.resultErrorCode != null) {
@@ -136,10 +164,26 @@ class CanonicalFixtureTest {
     if (testCase.resultDoLog != null) {
       assertEquals(testCase.resultDoLog, metadata.get("__dd_do_log"));
     }
-    if (testCase.resultAllocationKey != null) {
+    if (testCase.checksAllocationKey) {
       assertThat(
           details.getFlagMetadata().getString("allocationKey"),
           equalTo(testCase.resultAllocationKey));
+    }
+    if (testCase.resultFeatures != null) {
+      assertEquals(
+          testCase.resultFeatures.get("HOOK"),
+          SplitFeatureMetadata.featuresWithPrefix(details.getFlagMetadata(), FEATURE_PREFIX),
+          "HOOK features for " + testCase);
+      assertEquals(
+          testCase.resultFeatures.get("EXPOSURE"),
+          SplitFeatureMetadata.featuresWithPrefix(
+              details.getFlagMetadata(), EXPOSURE_FEATURE_PREFIX),
+          "EXPOSURE features for " + testCase);
+      assertEquals(
+          testCase.resultFeatures.get("EVALUATION"),
+          SplitFeatureMetadata.featuresWithPrefix(
+              details.getFlagMetadata(), EVALUATION_FEATURE_PREFIX),
+          "EVALUATION features for " + testCase);
     }
   }
 
@@ -275,10 +319,13 @@ class CanonicalFixtureTest {
     final String resultReason;
     final String resultErrorCode;
     final String resultVariant;
+    final boolean checksVariant;
     final String resultAllocationKey;
+    final boolean checksAllocationKey;
     final boolean checksSerialId;
     final Number resultSerialId;
     final Boolean resultDoLog;
+    final Map<String, Map<String, Object>> resultFeatures;
 
     @SuppressWarnings("unchecked")
     FixtureCase(final String fileName, final int index, final Map<String, Object> json) {
@@ -292,16 +339,58 @@ class CanonicalFixtureTest {
       this.targetingKey = (String) json.get("targetingKey");
       this.variationType = (String) json.get("variationType");
       final Map<String, Object> result = (Map<String, Object>) json.get("result");
+      requireSupportedKeys(
+          result,
+          fileName + "[" + index + "].result",
+          "value",
+          "reason",
+          "errorCode",
+          "variant",
+          "flagMetadata",
+          "serialId",
+          "doLog",
+          "features");
       this.checksSerialId = result.containsKey("serialId");
       this.resultSerialId = (Number) result.get("serialId");
       this.resultDoLog = (Boolean) result.get("doLog");
+      if (result.containsKey("doLog")) {
+        assertNotNull(this.resultDoLog, "A doLog expectation must be a boolean");
+      }
       this.resultValue = normalize(result.get("value"));
       this.resultReason = (String) result.get("reason");
       this.resultErrorCode = (String) result.get("errorCode");
+      if (result.containsKey("errorCode")) {
+        assertNotNull(this.resultErrorCode, "An errorCode expectation must be a string");
+      }
+      this.checksVariant = result.containsKey("variant");
       this.resultVariant = (String) result.get("variant");
       final Map<String, Object> metadata = (Map<String, Object>) result.get("flagMetadata");
+      if (result.containsKey("flagMetadata")) {
+        assertNotNull(metadata, "A flagMetadata expectation must be an object");
+        requireSupportedKeys(metadata, "result.flagMetadata", "allocationKey");
+      }
+      this.checksAllocationKey = metadata != null && metadata.containsKey("allocationKey");
       final Object allocationKey = metadata == null ? null : metadata.get("allocationKey");
       this.resultAllocationKey = allocationKey == null ? null : String.valueOf(allocationKey);
+      this.resultFeatures = (Map<String, Map<String, Object>>) normalize(result.get("features"));
+      if (result.containsKey("features")) {
+        assertNotNull(this.resultFeatures, "A features expectation must be an object");
+        assertEquals(
+            Set.of("HOOK", "EXPOSURE", "EVALUATION"),
+            this.resultFeatures.keySet(),
+            "Feature expectations must specify all three destinations");
+        for (final Map<String, Object> features : this.resultFeatures.values()) {
+          assertNotNull(features, "Each feature destination expectation must be an object");
+        }
+      }
+    }
+
+    private static void requireSupportedKeys(
+        final Map<String, ?> values, final String location, final String... supportedKeys) {
+      final Set<String> unhandled = new TreeSet<>(values.keySet());
+      unhandled.removeAll(Arrays.asList(supportedKeys));
+      assertTrue(
+          unhandled.isEmpty(), () -> "Unhandled expectations in " + location + ": " + unhandled);
     }
 
     @Override
