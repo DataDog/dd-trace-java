@@ -846,7 +846,8 @@ public final class FlatHashtable {
    * {@link HashingUtils} / {@link LongHashingUtils}, or a cached {@link Entry#hash}) — must pass
    * through this one chokepoint before it can influence probe placement.
    */
-  private static final long HASH_SEED = ThreadLocalRandom.current().nextLong();
+  // package-private so tests can check that home applies it
+  static final long HASH_SEED = ThreadLocalRandom.current().nextLong();
 
   /**
    * Placement slot for {@code hash} in a table of {@code mask + 1} slots. The table owns the
