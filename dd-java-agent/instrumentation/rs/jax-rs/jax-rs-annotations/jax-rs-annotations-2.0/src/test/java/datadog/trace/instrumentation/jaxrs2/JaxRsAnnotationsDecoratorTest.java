@@ -31,6 +31,62 @@ class JaxRsAnnotationsDecoratorTest {
     String get();
   }
 
+  /** The route a subclass falls back to when its superclass's class annotations are malformed. */
+  @Path("/parent")
+  public interface Parent {
+    @GET
+    @Path("{id}")
+    String get();
+  }
+
+  /**
+   * A class's annotations are read together with those it inherits, so a superclass carrying two
+   * {@code @Path}s makes the subclass's own {@code @Path} unreadable too, and the route falls back
+   * to the interface's. Pinned either way, in case a JVM reads the subclass's own annotations.
+   */
+  @Test
+  void aMalformedSuperclassFallsBackToTheInterfacesClassPath() throws Exception {
+    Class<?> malformedBase =
+        new ByteBuddy()
+            .with(TypeValidation.DISABLED)
+            .subclass(Object.class)
+            .implement(Parent.class)
+            .annotateType(path("/base"), path("/base"))
+            .defineMethod("get", String.class, Visibility.PUBLIC)
+            .intercept(FixedValue.value("order"))
+            .make()
+            .load(
+                JaxRsAnnotationsDecoratorTest.class.getClassLoader(),
+                ClassLoadingStrategy.Default.WRAPPER)
+            .getLoaded();
+    Class<?> resource =
+        new ByteBuddy()
+            .subclass(malformedBase)
+            .annotateType(path("/orders"))
+            .make()
+            .load(malformedBase.getClassLoader(), ClassLoadingStrategy.Default.WRAPPER)
+            .getLoaded();
+    assertThrows(AnnotationFormatError.class, () -> malformedBase.getAnnotation(Path.class));
+    boolean subclassReadable = isReadable(resource);
+
+    Pair<CharSequence, CharSequence> httpMethodAndRoute =
+        DECORATE.getHttpMethodAndRoute(resource, resource.getMethod("get"));
+
+    assertEquals("GET", String.valueOf(httpMethodAndRoute.getLeft()));
+    assertEquals(
+        subclassReadable ? "/orders/{id}" : "/parent/{id}",
+        String.valueOf(httpMethodAndRoute.getRight()));
+  }
+
+  private static boolean isReadable(Class<?> type) {
+    try {
+      type.getAnnotation(Path.class);
+      return true;
+    } catch (AnnotationFormatError e) {
+      return false;
+    }
+  }
+
   @Test
   void routesByTheInterfaceWhenTheMethodsAnnotationsAreMalformed() throws Exception {
     Class<?> resource = malformedResource(Orders.class);
