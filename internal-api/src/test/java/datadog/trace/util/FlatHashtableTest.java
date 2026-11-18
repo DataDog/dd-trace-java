@@ -401,7 +401,7 @@ class FlatHashtableTest {
 
   @Test
   void cursor_yieldsEveryEntrySharingTheHash() {
-    TestEntry[] table = FlatHashtable.create(TestEntry.class, 4); // COLLIDING sends all to slot 0
+    TestEntry[] table = FlatHashtable.create(4, TestEntry[]::new); // COLLIDING sends all to slot 0
     TestEntry a = FlatHashtable.tryGetOrCreate(table, "a", TestCollidingStrategy.INSTANCE, CREATE);
     TestEntry b = FlatHashtable.tryGetOrCreate(table, "b", TestCollidingStrategy.INSTANCE, CREATE);
     TestEntry c = FlatHashtable.tryGetOrCreate(table, "c", TestCollidingStrategy.INSTANCE, CREATE);
@@ -414,7 +414,7 @@ class FlatHashtableTest {
   @Test
   void cursor_fullTable_yieldsMatchesIncludingTheWrappingSlot() {
     // no empty slot to stop at: the cursor must yield the wrapping slot's entry, then end on wrap
-    TestEntry[] table = FlatHashtable.create(TestEntry.class, 1);
+    TestEntry[] table = FlatHashtable.create(1, TestEntry[]::new);
     TestEntry a = FlatHashtable.tryGetOrCreate(table, "a", TestCollidingStrategy.INSTANCE, CREATE);
     TestEntry b = FlatHashtable.tryGetOrCreate(table, "b", TestCollidingStrategy.INSTANCE, CREATE);
 
@@ -426,7 +426,7 @@ class FlatHashtableTest {
 
   @Test
   void cursor_staysDoneOnceItEnds() {
-    TestEntry[] table = FlatHashtable.create(TestEntry.class, 4);
+    TestEntry[] table = FlatHashtable.create(4, TestEntry[]::new);
     TestEntry a = FlatHashtable.tryGetOrCreate(table, "a", TestCollidingStrategy.INSTANCE, CREATE);
 
     Cursor<TestEntry> cursor = FlatHashtable.cursor(table, 0, TestCollidingStrategy.INSTANCE);
@@ -437,7 +437,7 @@ class FlatHashtableTest {
 
   @Test
   void entryCursor_yieldsOnlyEntriesWithTheHash() {
-    TestHashEntry[] table = FlatHashtable.create(TestHashEntry.class, 4); // 8 slots, mask 7
+    TestHashEntry[] table = FlatHashtable.create(4, TestHashEntry[]::new); // 8 slots, mask 7
     TestHashEntry a = new TestHashEntry("a", 0);
     TestHashEntry b = new TestHashEntry("b", 0);
     FlatHashtable.insert(table, a);
