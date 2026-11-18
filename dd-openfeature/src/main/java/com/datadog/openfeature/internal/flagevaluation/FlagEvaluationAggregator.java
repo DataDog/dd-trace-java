@@ -1,28 +1,31 @@
 package com.datadog.openfeature.internal.flagevaluation;
 
+import datadog.trace.util.FlatHashtable;
+import datadog.trace.util.LongHashingUtils;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.TreeMap;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
+/**
+ * Aggregates the evaluations of a flush window into buckets, on the worker thread.
+ *
+ * <p>Each tier is a toolbox {@link FlatHashtable}, cleared as a whole at every flush. A bucket is
+ * its own table entry, carrying its key and the key's hash, and lookups go through one reused
+ * {@link Lookup}: a bucket costs one object for the whole window, and aggregating an event into an
+ * existing bucket allocates nothing.
+ */
+@SuppressFBWarnings(
+    value = {"AT_NONATOMIC_OPERATIONS_ON_SHARED_VARIABLE", "AT_STALE_THREAD_WRITE_OF_PRIMITIVE"},
+    justification = "the worker thread is the only one aggregating")
 final class FlagEvaluationAggregator {
-  private static int hash(Object first, Object second, Object third) {
-    return 31 * 31 * java.util.Objects.hashCode(first)
-        + 31 * java.util.Objects.hashCode(second)
-        + java.util.Objects.hashCode(third);
-  }
-
-  private static int addToHash(int hash, Object value) {
-    return 31 * hash + java.util.Objects.hashCode(value);
-  }
-
-  private static int addToHash(int hash, boolean value) {
-    return 31 * hash + Boolean.hashCode(value);
-  }
-
   // Design assumptions — document the scale we sized for
   static final int EXPECTED_FLAG_COUNT = 2_500;
   static final int EXPECTED_FULL_BUCKETS_PER_FLAG = 50;
@@ -51,14 +54,23 @@ final class FlagEvaluationAggregator {
   private static final byte CTX_TAG_DOUBLE = 'd';
   private static final byte CTX_TAG_OTHER = 'o';
 
-  final Map<FullKey, EvalBucket> fullTier = new HashMap<>();
-  final Map<DegradedKey, EvalBucket> degradedTier = new HashMap<>();
-  final Map<String, Integer> perFlagCount = new HashMap<>();
+  private static final int INITIAL_BUCKETS = 64;
+  private static final FullTier FULL_TIER = new FullTier();
+  private static final DegradedTier DEGRADED_TIER = new DegradedTier();
+
+  private EvalBucket[] fullTier = FlatHashtable.create(INITIAL_BUCKETS, EvalBucket[]::new);
+  private int fullTierSize;
+  private EvalBucket[] degradedTier = FlatHashtable.create(INITIAL_BUCKETS, EvalBucket[]::new);
+  private int degradedTierSize;
+  final FlatHashtable.D1<String, FlagCount> perFlagCount =
+      FlatHashtable.D1.createGrowable(INITIAL_BUCKETS, FlagCount[]::new);
   final AtomicLong droppedDegradedOverflow = new AtomicLong(0);
-  final AtomicInteger globalFullCount = new AtomicInteger(0);
   // One shared key and map for each distinct feature set in the flush window, so buckets of many
   // subjects do not each keep their own copy until the flush.
-  final Map<String, FeatureSet> featureSets = new HashMap<>();
+  final FlatHashtable.D1<String, FeatureSet> featureSets =
+      FlatHashtable.D1.createGrowable(INITIAL_BUCKETS, FeatureSet[]::new);
+  // The worker is the only thread aggregating, so one lookup serves every event.
+  private final Lookup lookup = new Lookup();
 
   void aggregate(final FlagEvalEvent event) {
     final boolean isDefault = event.variant == null;
@@ -71,21 +83,20 @@ final class FlagEvaluationAggregator {
     // Features come from the flag configuration, not the evaluation context, so they split buckets
     // in both tiers and whatever the consent: rows with different features must not merge.
     final FeatureSet featureSet = featureSet(event.features);
-    final String featuresKey = featureSet.key;
-    final FullKey fullKey = buildFullKey(event, ctxKey, featuresKey);
+    final Lookup lookup = this.lookup.of(event, ctxKey, featureSet.key());
 
-    EvalBucket bucket = fullTier.get(fullKey);
+    EvalBucket bucket = FlatHashtable.get(fullTier, lookup, FULL_TIER);
     if (bucket != null) {
       bucket.merge(event.evalTimeMs, isDefault);
       bucket.observeFullEvaluationData &= observeFullEvaluationData;
       return;
     }
 
-    final int flagCount = perFlagCount.getOrDefault(event.flagKey, 0);
-    if (globalFullCount.get() < GLOBAL_CAP && flagCount < PER_FLAG_CAP) {
-      fullTier.put(
-          fullKey,
+    final FlagCount flagCount = perFlagCount.get(event.flagKey);
+    if (fullTierSize < GLOBAL_CAP && (flagCount == null || flagCount.count < PER_FLAG_CAP)) {
+      insertFull(
           new EvalBucket(
+              lookup.fullTierHash(),
               event.flagKey,
               event.variant,
               event.allocationKey,
@@ -95,24 +106,28 @@ final class FlagEvaluationAggregator {
               isDefault,
               prunedAttrs,
               observeFullEvaluationData,
-              featureSet.features));
-      globalFullCount.incrementAndGet();
-      perFlagCount.put(event.flagKey, flagCount + 1);
+              featureSet.features,
+              ctxKey,
+              featureSet.key()));
+      if (flagCount == null) {
+        perFlagCount.insert(new FlagCount(event.flagKey, 1));
+      } else {
+        flagCount.count++;
+      }
       return;
     }
 
-    final DegradedKey degradedKey = buildDegradedKey(event, featuresKey);
-    bucket = degradedTier.get(degradedKey);
+    bucket = FlatHashtable.get(degradedTier, lookup, DEGRADED_TIER);
     if (bucket != null) {
       bucket.merge(event.evalTimeMs, isDefault);
       bucket.observeFullEvaluationData &= observeFullEvaluationData;
       return;
     }
 
-    if (degradedTier.size() < DEGRADED_CAP) {
-      degradedTier.put(
-          degradedKey,
+    if (degradedTierSize < DEGRADED_CAP) {
+      insertDegraded(
           new EvalBucket(
+              lookup.degradedTierHash(),
               event.flagKey,
               event.variant,
               event.allocationKey,
@@ -122,47 +137,71 @@ final class FlagEvaluationAggregator {
               isDefault,
               null,
               observeFullEvaluationData,
-              featureSet.features));
+              featureSet.features,
+              "",
+              featureSet.key()));
       return;
     }
 
     droppedDegradedOverflow.incrementAndGet();
   }
 
+  private void insertFull(final EvalBucket bucket) {
+    // Grow at half full: open addressing slows down as the table fills.
+    if (fullTierSize >= fullTier.length >> 1) {
+      fullTier = FlatHashtable.resize(fullTier, EvalBucket[]::new);
+    }
+    FlatHashtable.insert(fullTier, bucket);
+    fullTierSize++;
+  }
+
+  private void insertDegraded(final EvalBucket bucket) {
+    if (degradedTierSize >= degradedTier.length >> 1) {
+      degradedTier = FlatHashtable.resize(degradedTier, EvalBucket[]::new);
+    }
+    FlatHashtable.insert(degradedTier, bucket);
+    degradedTierSize++;
+  }
+
   boolean isEmpty() {
-    return fullTier.isEmpty() && degradedTier.isEmpty();
+    return fullTierSize == 0 && degradedTierSize == 0;
   }
 
   int fullTierSize() {
-    return fullTier.size();
+    return fullTierSize;
   }
 
   long degradedEvaluationCount() {
     long count = 0;
-    for (final EvalBucket bucket : degradedTier.values()) {
-      count += bucket.count;
+    for (final EvalBucket bucket : degradedTier) {
+      if (bucket != null) {
+        count += bucket.count;
+      }
     }
     return count;
   }
 
   int bucketCount() {
-    return fullTier.size() + degradedTier.size();
+    return fullTierSize + degradedTierSize;
   }
 
   Iterable<EvalBucket> fullBuckets() {
-    return fullTier.values();
+    final EvalBucket[] table = fullTier;
+    return () -> new Buckets(table);
   }
 
   Iterable<EvalBucket> degradedBuckets() {
-    return degradedTier.values();
+    final EvalBucket[] table = degradedTier;
+    return () -> new Buckets(table);
   }
 
   void clear() {
-    fullTier.clear();
-    degradedTier.clear();
-    this.featureSets.clear();
+    Arrays.fill(fullTier, null);
+    fullTierSize = 0;
+    Arrays.fill(degradedTier, null);
+    degradedTierSize = 0;
+    featureSets.clear();
     perFlagCount.clear();
-    globalFullCount.set(0);
   }
 
   private FeatureSet featureSet(final Map<String, Object> features) {
@@ -173,45 +212,229 @@ final class FlagEvaluationAggregator {
     FeatureSet featureSet = this.featureSets.get(key);
     if (featureSet == null) {
       featureSet = new FeatureSet(key, features);
-      this.featureSets.put(key, featureSet);
+      this.featureSets.insert(featureSet);
     }
     return featureSet;
   }
 
-  static final class FeatureSet {
+  static final class FeatureSet extends FlatHashtable.D1.Entry<String> {
     static final FeatureSet NONE = new FeatureSet("", Collections.<String, Object>emptyMap());
 
-    final String key;
     final Map<String, Object> features;
 
     FeatureSet(final String key, final Map<String, Object> features) {
-      this.key = key;
+      super(key);
       this.features = features;
+    }
+  }
+
+  /** The number of full-tier buckets of a flag in the window. */
+  static final class FlagCount extends FlatHashtable.D1.Entry<String> {
+    int count;
+
+    FlagCount(final String flagKey, final int count) {
+      super(flagKey);
+      this.count = count;
+    }
+  }
+
+  /** The key of the event being aggregated, compared with the buckets in place. */
+  private static final class Lookup {
+    FlagEvalEvent event;
+    String contextKey;
+    String featuresKey;
+    private long fullHash;
+    private long degradedHash;
+    private boolean degradedHashed;
+
+    Lookup of(final FlagEvalEvent event, final String contextKey, final String featuresKey) {
+      this.event = event;
+      this.contextKey = contextKey;
+      this.featuresKey = featuresKey;
+      this.fullHash =
+          fullHash(
+              event.flagKey,
+              event.variant,
+              event.allocationKey,
+              event.errorMessage,
+              event.targetingKey,
+              contextKey,
+              event.observeFullEvaluationData,
+              featuresKey);
+      this.degradedHashed = false;
+      return this;
+    }
+
+    long fullTierHash() {
+      return fullHash;
+    }
+
+    /** Hashed on demand: most events stay in the full tier. */
+    long degradedTierHash() {
+      if (!degradedHashed) {
+        degradedHash =
+            degradedHash(
+                event.flagKey, event.variant, event.allocationKey, event.errorMessage, featuresKey);
+        degradedHashed = true;
+      }
+      return degradedHash;
+    }
+  }
+
+  static long fullHash(
+      final String flagKey,
+      final String variant,
+      final String allocationKey,
+      final String errorMessage,
+      final String targetingKey,
+      final String contextKey,
+      final boolean observeFullEvaluationData,
+      final String featuresKey) {
+    long hash = LongHashingUtils.hash(flagKey, variant, allocationKey, errorMessage, targetingKey);
+    hash = LongHashingUtils.addToHash(hash, contextKey);
+    hash = LongHashingUtils.addToHash(hash, observeFullEvaluationData);
+    return LongHashingUtils.addToHash(hash, featuresKey);
+  }
+
+  static long degradedHash(
+      final String flagKey,
+      final String variant,
+      final String allocationKey,
+      final String errorMessage,
+      final String featuresKey) {
+    return LongHashingUtils.hash(flagKey, variant, allocationKey, errorMessage, featuresKey);
+  }
+
+  /**
+   * A full-tier bucket: every dimension, including the subject, its context and the consent. A null
+   * variant, the runtime default, is a dimension through the variant.
+   */
+  private static final class FullTier
+      implements FlatHashtable.MatchingStrategy<EvalBucket, Lookup> {
+    @Override
+    public long hashKey(final Lookup lookup) {
+      return lookup.fullTierHash();
+    }
+
+    @Override
+    public boolean matches(final EvalBucket bucket, final Lookup lookup) {
+      final FlagEvalEvent event = lookup.event;
+      return bucket.hash == lookup.fullTierHash()
+          && bucket.observeFullEvaluationData == event.observeFullEvaluationData
+          && Objects.equals(bucket.flagKey, event.flagKey)
+          && Objects.equals(bucket.variant, event.variant)
+          && Objects.equals(bucket.allocationKey, event.allocationKey)
+          && Objects.equals(bucket.errorMessage, event.errorMessage)
+          && Objects.equals(bucket.targetingKey, event.targetingKey)
+          && Objects.equals(bucket.contextKey, lookup.contextKey)
+          && Objects.equals(bucket.featuresKey, lookup.featuresKey);
+    }
+  }
+
+  /**
+   * A degraded-tier bucket, without the subject and its context. Unlike the full tier, consent is
+   * NOT a bucket dimension here: the wire serializer for degraded rows (FlagEvaluationPayloads
+   * .FlagEvaluationEvent.fromBucket with isFullTier=false) drops the targeting key and context
+   * unconditionally, so two degraded buckets differing only in consent would emit byte-identical
+   * JSON with evaluation_count split — halving effective DEGRADED_CAP for zero wire fidelity.
+   * Mixed-consent events merge into one bucket; the AND-fold on
+   * EvalBucket.observeFullEvaluationData still runs but has no downstream effect for degraded rows.
+   */
+  private static final class DegradedTier
+      implements FlatHashtable.MatchingStrategy<EvalBucket, Lookup> {
+    @Override
+    public long hashKey(final Lookup lookup) {
+      return lookup.degradedTierHash();
+    }
+
+    @Override
+    public boolean matches(final EvalBucket bucket, final Lookup lookup) {
+      final FlagEvalEvent event = lookup.event;
+      return bucket.hash == lookup.degradedTierHash()
+          && Objects.equals(bucket.flagKey, event.flagKey)
+          && Objects.equals(bucket.variant, event.variant)
+          && Objects.equals(bucket.allocationKey, event.allocationKey)
+          && Objects.equals(bucket.errorMessage, event.errorMessage)
+          && Objects.equals(bucket.featuresKey, lookup.featuresKey);
+    }
+  }
+
+  /** The buckets of a table, for the flush. */
+  private static final class Buckets implements Iterator<EvalBucket> {
+    private final EvalBucket[] table;
+    private int next;
+
+    Buckets(final EvalBucket[] table) {
+      this.table = table;
+      advance();
+    }
+
+    private void advance() {
+      while (next < table.length && table[next] == null) {
+        next++;
+      }
+    }
+
+    @Override
+    public boolean hasNext() {
+      return next < table.length;
+    }
+
+    @Override
+    public EvalBucket next() {
+      if (next >= table.length) {
+        throw new NoSuchElementException();
+      }
+      final EvalBucket bucket = table[next++];
+      advance();
+      return bucket;
     }
   }
 
   AggregatedState snapshot() {
     return new AggregatedState(
-        new HashMap<>(fullTier), new HashMap<>(degradedTier), droppedDegradedOverflow.get());
+        list(fullBuckets()), list(degradedBuckets()), droppedDegradedOverflow.get());
+  }
+
+  private static List<EvalBucket> list(final Iterable<EvalBucket> buckets) {
+    final List<EvalBucket> list = new ArrayList<>();
+    for (final EvalBucket bucket : buckets) {
+      list.add(bucket);
+    }
+    return list;
   }
 
   void simulateFullTierAtCap() {
-    for (int i = globalFullCount.get(); i < GLOBAL_CAP; i++) {
+    for (int i = fullTierSize; i < GLOBAL_CAP; i++) {
       final String key = "synthetic-full-" + i;
-      fullTier.put(
-          new FullKey(key, "on", "alloc", false, null, null, "", false, ""),
-          new EvalBucket(key, "on", "alloc", null, null, 1L, false, null, false, null));
-      globalFullCount.incrementAndGet();
-      perFlagCount.merge(key, 1, Integer::sum);
+      insertFull(
+          new EvalBucket(
+              fullHash(key, "on", "alloc", null, null, "", false, ""),
+              key,
+              "on",
+              "alloc",
+              null,
+              null,
+              1L,
+              false,
+              null,
+              false,
+              null,
+              "",
+              ""));
+      final FlagCount flagCount = perFlagCount.get(key);
+      if (flagCount == null) {
+        perFlagCount.insert(new FlagCount(key, 1));
+      } else {
+        flagCount.count++;
+      }
     }
   }
 
   void simulateDegradedTierAtCap() {
-    for (int i = degradedTier.size(); i < DEGRADED_CAP; i++) {
+    for (int i = degradedTierSize; i < DEGRADED_CAP; i++) {
       final String key = "synthetic-dg-" + i;
-      degradedTier.put(
-          new DegradedKey(key, "on", "alloc", false, null, ""),
-          new EvalBucket(key, "on", "alloc", null, null, 1L, false, null, false, null));
+      addDegradedBucketForTest(key, "on", "alloc", null, 1L);
     }
   }
 
@@ -221,9 +444,9 @@ final class FlagEvaluationAggregator {
       final String allocationKey,
       final String errorMessage,
       final long evalTimeMs) {
-    degradedTier.put(
-        new DegradedKey(flagKey, variant, allocationKey, variant == null, errorMessage, ""),
+    insertDegraded(
         new EvalBucket(
+            degradedHash(flagKey, variant, allocationKey, errorMessage, ""),
             flagKey,
             variant,
             allocationKey,
@@ -233,31 +456,19 @@ final class FlagEvaluationAggregator {
             variant == null,
             null,
             false,
-            null));
+            null,
+            "",
+            ""));
   }
 
-  private static FullKey buildFullKey(
-      final FlagEvalEvent event, final String ctxKey, final String featuresKey) {
-    return new FullKey(
-        event.flagKey,
-        event.variant,
-        event.allocationKey,
-        event.variant == null,
-        event.errorMessage,
-        event.targetingKey,
-        ctxKey,
-        event.observeFullEvaluationData,
-        featuresKey);
-  }
-
-  private static DegradedKey buildDegradedKey(final FlagEvalEvent event, final String featuresKey) {
-    return new DegradedKey(
-        event.flagKey,
-        event.variant,
-        event.allocationKey,
-        event.variant == null,
-        event.errorMessage,
-        featuresKey);
+  /** Sets the number of full-tier buckets of a flag, for tests. */
+  void setFlagCountForTest(final String flagKey, final int count) {
+    final FlagCount flagCount = perFlagCount.get(flagKey);
+    if (flagCount == null) {
+      perFlagCount.insert(new FlagCount(flagKey, count));
+    } else {
+      flagCount.count = count;
+    }
   }
 
   static String canonicalContextKey(final Map<String, Object> prunedAttrs) {
@@ -309,7 +520,11 @@ final class FlagEvaluationAggregator {
     }
   }
 
-  static class EvalBucket {
+  /**
+   * A bucket, and its own entry in its tier's table: it carries its key and the key's hash, so a
+   * bucket is one object.
+   */
+  static class EvalBucket extends FlatHashtable.Entry {
     long count;
     long firstEvalMs;
     long lastEvalMs;
@@ -330,6 +545,10 @@ final class FlagEvaluationAggregator {
     // effect for degraded rows.
     boolean observeFullEvaluationData;
 
+    // The canonical context and features keys, which only identify the bucket.
+    final String contextKey;
+    final String featuresKey;
+
     EvalBucket(
         final String flagKey,
         final String variant,
@@ -341,6 +560,37 @@ final class FlagEvaluationAggregator {
         final Map<String, Object> prunedAttrs,
         final boolean observeFullEvaluationData,
         final Map<String, Object> features) {
+      this(
+          0,
+          flagKey,
+          variant,
+          allocationKey,
+          targetingKey,
+          errorMessage,
+          evalTimeMs,
+          runtimeDefaultUsed,
+          prunedAttrs,
+          observeFullEvaluationData,
+          features,
+          "",
+          "");
+    }
+
+    EvalBucket(
+        final long hash,
+        final String flagKey,
+        final String variant,
+        final String allocationKey,
+        final String targetingKey,
+        final String errorMessage,
+        final long evalTimeMs,
+        final boolean runtimeDefaultUsed,
+        final Map<String, Object> prunedAttrs,
+        final boolean observeFullEvaluationData,
+        final Map<String, Object> features,
+        final String contextKey,
+        final String featuresKey) {
+      super(hash);
       this.flagKey = flagKey;
       this.variant = variant;
       this.allocationKey = allocationKey;
@@ -353,6 +603,8 @@ final class FlagEvaluationAggregator {
       this.prunedAttrs = prunedAttrs;
       this.observeFullEvaluationData = observeFullEvaluationData;
       this.features = features;
+      this.contextKey = contextKey;
+      this.featuresKey = featuresKey;
     }
 
     int prunedContextFieldCount() {
@@ -373,141 +625,14 @@ final class FlagEvaluationAggregator {
     }
   }
 
-  static final class FullKey {
-    private final String flagKey;
-    private final String variant;
-    private final String allocationKey;
-    private final boolean runtimeDefaultUsed;
-    private final String errorMessage;
-    private final String targetingKey;
-    private final String contextKey;
-    // Part of the key so consent-on and consent-off evaluations never share a bucket. The
-    // serializer branches on this to hash the targeting key and drop the context, so events with
-    // different consent produce different wire rows and belong in different buckets.
-    private final boolean observeFullEvaluationData;
-    private final String featuresKey;
-
-    FullKey(
-        final String flagKey,
-        final String variant,
-        final String allocationKey,
-        final boolean runtimeDefaultUsed,
-        final String errorMessage,
-        final String targetingKey,
-        final String contextKey,
-        final boolean observeFullEvaluationData,
-        final String featuresKey) {
-      this.flagKey = flagKey;
-      this.variant = variant;
-      this.allocationKey = allocationKey;
-      this.runtimeDefaultUsed = runtimeDefaultUsed;
-      this.errorMessage = errorMessage;
-      this.targetingKey = targetingKey;
-      this.contextKey = contextKey;
-      this.observeFullEvaluationData = observeFullEvaluationData;
-      this.featuresKey = featuresKey;
-    }
-
-    @Override
-    public boolean equals(final Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (!(o instanceof FullKey)) {
-        return false;
-      }
-      final FullKey fullKey = (FullKey) o;
-      return runtimeDefaultUsed == fullKey.runtimeDefaultUsed
-          && observeFullEvaluationData == fullKey.observeFullEvaluationData
-          && Objects.equals(flagKey, fullKey.flagKey)
-          && Objects.equals(variant, fullKey.variant)
-          && Objects.equals(allocationKey, fullKey.allocationKey)
-          && Objects.equals(errorMessage, fullKey.errorMessage)
-          && Objects.equals(targetingKey, fullKey.targetingKey)
-          && Objects.equals(contextKey, fullKey.contextKey)
-          && Objects.equals(featuresKey, fullKey.featuresKey);
-    }
-
-    @Override
-    public int hashCode() {
-      // HashingUtils avoids the Object[] allocation and boolean boxing that Objects.hash performs
-      // on this hot bucket-lookup path.
-      int result = hash(flagKey, variant, allocationKey);
-      result = addToHash(result, runtimeDefaultUsed);
-      result = addToHash(result, errorMessage);
-      result = addToHash(result, targetingKey);
-      result = addToHash(result, contextKey);
-      result = addToHash(result, observeFullEvaluationData);
-      return addToHash(result, featuresKey);
-    }
-  }
-
-  static final class DegradedKey {
-    // Unlike FullKey, consent is NOT a bucket dimension here: the wire serializer for degraded rows
-    // (FlagEvaluationPayloads.FlagEvaluationEvent.fromBucket with isFullTier=false) drops the
-    // targeting key and context unconditionally, so two degraded buckets differing only in consent
-    // would emit byte-identical JSON with evaluation_count split — halving effective DEGRADED_CAP
-    // for zero wire fidelity. Mixed-consent events merge into one bucket; the AND-fold on
-    // EvalBucket.observeFullEvaluationData still runs but has no downstream effect for degraded
-    // rows.
-    private final String flagKey;
-    private final String variant;
-    private final String allocationKey;
-    private final boolean runtimeDefaultUsed;
-    private final String errorMessage;
-    private final String featuresKey;
-
-    DegradedKey(
-        final String flagKey,
-        final String variant,
-        final String allocationKey,
-        final boolean runtimeDefaultUsed,
-        final String errorMessage,
-        final String featuresKey) {
-      this.flagKey = flagKey;
-      this.variant = variant;
-      this.allocationKey = allocationKey;
-      this.runtimeDefaultUsed = runtimeDefaultUsed;
-      this.errorMessage = errorMessage;
-      this.featuresKey = featuresKey;
-    }
-
-    @Override
-    public boolean equals(final Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (!(o instanceof DegradedKey)) {
-        return false;
-      }
-      final DegradedKey that = (DegradedKey) o;
-      return runtimeDefaultUsed == that.runtimeDefaultUsed
-          && Objects.equals(flagKey, that.flagKey)
-          && Objects.equals(variant, that.variant)
-          && Objects.equals(allocationKey, that.allocationKey)
-          && Objects.equals(errorMessage, that.errorMessage)
-          && Objects.equals(featuresKey, that.featuresKey);
-    }
-
-    @Override
-    public int hashCode() {
-      // HashingUtils avoids the Object[] allocation and boolean boxing that Objects.hash performs
-      // on this hot bucket-lookup path.
-      int result = hash(flagKey, variant, allocationKey);
-      result = addToHash(result, runtimeDefaultUsed);
-      result = addToHash(result, errorMessage);
-      return addToHash(result, featuresKey);
-    }
-  }
-
   static class AggregatedState {
-    final Map<FullKey, EvalBucket> fullTier;
-    final Map<DegradedKey, EvalBucket> degradedTier;
+    final List<EvalBucket> fullTier;
+    final List<EvalBucket> degradedTier;
     final long droppedDegradedOverflow;
 
     AggregatedState(
-        final Map<FullKey, EvalBucket> fullTier,
-        final Map<DegradedKey, EvalBucket> degradedTier,
+        final List<EvalBucket> fullTier,
+        final List<EvalBucket> degradedTier,
         final long droppedDegradedOverflow) {
       this.fullTier = fullTier;
       this.degradedTier = degradedTier;
