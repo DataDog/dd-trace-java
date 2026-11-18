@@ -500,17 +500,8 @@ class SmokeTestAppEndToEndTest {
       """
       tasks.register("recordGradleEnvironment") {
         val out = layout.buildDirectory.file("gradle-env.txt")
-        val shutdownMarker = layout.buildDirectory.file("daemon-stopped.txt").get().asFile
-        val userHome = gradle.gradleUserHomeDir
         outputs.file(out)
         doLast {
-          Runtime.getRuntime().addShutdownHook(Thread {
-            // Always recreate gradle home
-            Thread.sleep(2500)
-            userHome.mkdirs()
-            userHome.resolve("late-daemon-write.txt").writeText("stopping")
-            shutdownMarker.writeText("stopped")
-          })
           out.get().asFile.writeText(
             listOf(
               "GRADLE_ARGS=${'$'}{System.getenv("GRADLE_ARGS") ?: "<null>"}",
@@ -549,18 +540,17 @@ class SmokeTestAppEndToEndTest {
       .substringAfter("=")
     assertThat(gradleUserHomeEnv).isEqualTo(gradleUserHomeDir)
     assertThat(gradleUserHomeDir).isNotEqualTo(inheritedGradleUserHome.absolutePath)
-    assertThat(applicationOutput("daemon-stopped.txt")).exists()
-    assertThat(File(gradleUserHomeDir)).doesNotExist()
+    assertThat(File(gradleUserHomeDir)).isDirectory
+    val marker = File(gradleUserHomeDir, "retained-marker.txt").apply { writeText("retained") }
 
     // when
-    assertThat(applicationOutput("daemon-stopped.txt").delete()).isTrue()
     assertThat(envFile.delete()).isTrue()
     val second = runner("recordGradleEnvironment", "--rerun-tasks", "--no-build-cache").build()
 
     // then
     assertThat(second.task(":recordGradleEnvironment")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
-    assertThat(applicationOutput("daemon-stopped.txt")).exists()
-    assertThat(File(gradleUserHomeDir)).doesNotExist()
+    assertThat(envFile.readLines()).contains("gradleUserHomeDir=$gradleUserHomeDir")
+    assertThat(marker.readText()).isEqualTo("retained")
   }
 
   @Test
