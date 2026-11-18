@@ -81,7 +81,7 @@ import org.slf4j.LoggerFactory;
  * the associated Span instance
  */
 public class DDSpanContext
-    implements AgentSpanContext, RequestContext, TraceSegment, ProfilerContext, TagStore, SpanData {
+    implements AgentSpanContext, RequestContext, TraceSegment, ProfilerContext, TagStore {
   private static final Logger log = LoggerFactory.getLogger(DDSpanContext.class);
 
   public static final String PRIORITY_SAMPLING_KEY = "_sampling_priority_v1";
@@ -679,12 +679,10 @@ public class DDSpanContext
     return measured;
   }
 
-  @Override
-  public DDSpanContext setMeasured(boolean measured) {
+  public void setMeasured(boolean measured) {
     if (measured != this.measured) {
       this.measured = measured;
     }
-    return this;
   }
 
   public boolean isTopLevel() {
@@ -1450,10 +1448,9 @@ public class DDSpanContext
    * @param tag The tag name.
    * @param value The nullable tag value.
    */
-  @Override
-  public DDSpanContext setTag(final String tag, final Object value) {
+  public void setTag(final String tag, final Object value) {
     if (null == tag) {
-      return this;
+      return;
     }
     final long tagId = KnownTagCodec.keyOf(tag);
     if (tagId != 0) {
@@ -1465,18 +1462,11 @@ public class DDSpanContext
         customTagsForWrite().store(tag, value);
       }
     }
-    return this;
   }
 
-  @Override
-  public DDSpanContext setTag(final String tag, final CharSequence value) {
-    return setTag(tag, (Object) value);
-  }
-
-  @Override
-  public DDSpanContext setTag(final String tag, final String value) {
+  public void setTag(final String tag, final String value) {
     if (null == tag) {
-      return this;
+      return;
     }
     final long tagId = KnownTagCodec.keyOf(tag);
     if (tagId != 0) {
@@ -1488,7 +1478,6 @@ public class DDSpanContext
         customTagsForWrite().store(tag, value);
       }
     }
-    return this;
   }
 
   /*
@@ -1496,49 +1485,39 @@ public class DDSpanContext
    * KnownTagCodec.INTERCEPTED test folds, leaving only the split-by-tags table load; an id set never
    * takes the custom-tag path. An id that names no known tag is ignored, like a null tag.
    */
-  @Override
-  public DDSpanContext setTag(final long tagId, final Object value) {
+  public void setTag(final long tagId, final Object value) {
     if (!KnownTagCodec.isKnown(tagId)) {
-      return this;
+      return;
     }
     if (null == value) {
       removeTag(tagId);
-      return this;
+      return;
     }
     if (!tagInterceptor.needsIntercept(tagId) || !tagInterceptor.interceptTag(this, tagId, value)) {
       synchronized (knownTags) {
         knownTags.store(tagId, value);
       }
     }
-    return this;
   }
 
-  @Override
-  public DDSpanContext setTag(final long tagId, final String value) {
-    return setTag(tagId, (CharSequence) value);
-  }
-
-  @Override
-  public DDSpanContext setTag(final long tagId, final CharSequence value) {
+  public void setTag(final long tagId, final CharSequence value) {
     if (!KnownTagCodec.isKnown(tagId)) {
-      return this;
+      return;
     }
     if (null == value) {
       removeTag(tagId);
-      return this;
+      return;
     }
     if (!tagInterceptor.needsIntercept(tagId) || !tagInterceptor.interceptTag(this, tagId, value)) {
       synchronized (knownTags) {
         knownTags.store(tagId, value);
       }
     }
-    return this;
   }
 
-  @Override
-  public DDSpanContext setTag(final long tagId, final boolean value) {
+  public void setTag(final long tagId, final boolean value) {
     if (!KnownTagCodec.isKnown(tagId)) {
-      return this;
+      return;
     }
     if (tagInterceptor.needsIntercept(tagId)) {
       this.setBox(tagId, value);
@@ -1547,13 +1526,11 @@ public class DDSpanContext
         knownTags.store(tagId, value);
       }
     }
-    return this;
   }
 
-  @Override
-  public DDSpanContext setTag(final long tagId, final int value) {
+  public void setTag(final long tagId, final int value) {
     if (!KnownTagCodec.isKnown(tagId)) {
-      return this;
+      return;
     }
     if (tagInterceptor.needsIntercept(tagId)) {
       this.setBox(tagId, value);
@@ -1562,13 +1539,11 @@ public class DDSpanContext
         knownTags.store(tagId, value);
       }
     }
-    return this;
   }
 
-  @Override
-  public DDSpanContext setTag(final long tagId, final long value) {
+  public void setTag(final long tagId, final long value) {
     if (!KnownTagCodec.isKnown(tagId)) {
-      return this;
+      return;
     }
     if (tagInterceptor.needsIntercept(tagId)) {
       this.setBox(tagId, value);
@@ -1577,13 +1552,11 @@ public class DDSpanContext
         knownTags.store(tagId, value);
       }
     }
-    return this;
   }
 
-  @Override
-  public DDSpanContext setTag(final long tagId, final float value) {
+  public void setTag(final long tagId, final float value) {
     if (!KnownTagCodec.isKnown(tagId)) {
-      return this;
+      return;
     }
     if (tagInterceptor.needsIntercept(tagId)) {
       this.setBox(tagId, value);
@@ -1592,13 +1565,11 @@ public class DDSpanContext
         knownTags.store(tagId, value);
       }
     }
-    return this;
   }
 
-  @Override
-  public DDSpanContext setTag(final long tagId, final double value) {
+  public void setTag(final long tagId, final double value) {
     if (!KnownTagCodec.isKnown(tagId)) {
-      return this;
+      return;
     }
     if (tagInterceptor.needsIntercept(tagId)) {
       this.setBox(tagId, value);
@@ -1607,13 +1578,11 @@ public class DDSpanContext
         knownTags.store(tagId, value);
       }
     }
-    return this;
   }
 
-  @Override
-  public DDSpanContext setTag(TagMap.EntryReader entry) {
+  public void setTag(TagMap.EntryReader entry) {
     if (entry == null) {
-      return this;
+      return;
     }
 
     // the interceptor prechecks the entry, to avoid boxing
@@ -1622,7 +1591,6 @@ public class DDSpanContext
         routePut(entry);
       }
     }
-    return this;
   }
 
   /*
@@ -1645,10 +1613,9 @@ public class DDSpanContext
     }
   }
 
-  @Override
-  public DDSpanContext setTag(final String tag, final boolean value) {
+  public void setTag(final String tag, final boolean value) {
     if (null == tag) {
-      return this;
+      return;
     }
     final long tagId = KnownTagCodec.keyOf(tag);
     if (tagId != 0) {
@@ -1659,13 +1626,11 @@ public class DDSpanContext
         customTagsForWrite().store(tag, value);
       }
     }
-    return this;
   }
 
-  @Override
-  public DDSpanContext setTag(final String tag, final int value) {
+  public void setTag(final String tag, final int value) {
     if (null == tag) {
-      return this;
+      return;
     }
     final long tagId = KnownTagCodec.keyOf(tag);
     if (tagId != 0) {
@@ -1676,13 +1641,11 @@ public class DDSpanContext
         customTagsForWrite().store(tag, value);
       }
     }
-    return this;
   }
 
-  @Override
-  public DDSpanContext setTag(final String tag, final long value) {
+  public void setTag(final String tag, final long value) {
     if (null == tag) {
-      return this;
+      return;
     }
     final long tagId = KnownTagCodec.keyOf(tag);
     if (tagId != 0) {
@@ -1693,13 +1656,11 @@ public class DDSpanContext
         customTagsForWrite().store(tag, value);
       }
     }
-    return this;
   }
 
-  @Override
-  public DDSpanContext setTag(final String tag, final float value) {
+  public void setTag(final String tag, final float value) {
     if (null == tag) {
-      return this;
+      return;
     }
     final long tagId = KnownTagCodec.keyOf(tag);
     if (tagId != 0) {
@@ -1710,13 +1671,11 @@ public class DDSpanContext
         customTagsForWrite().store(tag, value);
       }
     }
-    return this;
   }
 
-  @Override
-  public DDSpanContext setTag(final String tag, final double value) {
+  public void setTag(final String tag, final double value) {
     if (null == tag) {
-      return this;
+      return;
     }
     final long tagId = KnownTagCodec.keyOf(tag);
     if (tagId != 0) {
@@ -1727,7 +1686,6 @@ public class DDSpanContext
         customTagsForWrite().store(tag, value);
       }
     }
-    return this;
   }
 
   /*
@@ -1946,34 +1904,7 @@ public class DDSpanContext
   }
 
   Object getTagHoldingLock(final String key) {
-    switch (key) {
-      case DDTags.THREAD_ID:
-        return threadId;
-      case DDTags.THREAD_NAME:
-        // maintain previously observable type of the thread name :|
-        return threadName.toString();
-      case Tags.HTTP_STATUS:
-      case KnownTags.HTTP_STATUS_CODE_OTEL_NAME:
-        return 0 == httpStatusCode ? null : (int) httpStatusCode;
-      case Tags.SPAN_KIND:
-        return getSpanKindString();
-      default:
-        Object value = unsafeGetTag(key);
-        // maintain previously observable type of http url :|
-        return value == null ? null : Tags.HTTP_URL.equals(key) ? value.toString() : value;
-    }
-  }
-
-  @Override
-  public DDSpanContext setResourceName(final CharSequence resourceName) {
-    setResourceName(resourceName, ResourceNamePriorities.DEFAULT);
-    return this;
-  }
-
-  @Override
-  public DDSpanContext setError(final boolean error) {
-    setErrorFlag(error, ErrorPriorities.DEFAULT);
-    return this;
+    return readTag(key, true);
   }
 
   /**
@@ -2147,13 +2078,13 @@ public class DDSpanContext
 
     @Override
     public SpanData setResourceName(CharSequence resourceName) {
-      span().setResourceName(resourceName);
+      span().setResourceName(resourceName, ResourceNamePriorities.DEFAULT);
       return this;
     }
 
     @Override
     public SpanData setError(boolean error) {
-      span().setError(error);
+      span().setErrorFlag(error, ErrorPriorities.DEFAULT);
       return this;
     }
 
@@ -2247,8 +2178,15 @@ public class DDSpanContext
     routeSet(KnownTagCodec.keyOf(tag), tag, value);
   }
 
-  @Override
-  public Object getTag(final String key) {
+  Object getTag(final String key) {
+    return readTag(key, false);
+  }
+
+  /**
+   * {@link #getTag}, with the computed tags and the observable-type quirks in one place. Only the
+   * stored-tag read needs the lock; {@code holdingLock} is constant at each call site, so it folds.
+   */
+  private Object readTag(final String key, final boolean holdingLock) {
     switch (key) {
       case DDTags.THREAD_ID:
         return threadId;
@@ -2262,8 +2200,12 @@ public class DDSpanContext
         return getSpanKindString();
       default:
         Object value;
-        synchronized (knownTags) {
+        if (holdingLock) {
           value = unsafeGetTag(key);
+        } else {
+          synchronized (knownTags) {
+            value = unsafeGetTag(key);
+          }
         }
         // maintain previously observable type of http url :|
         return value == null ? null : Tags.HTTP_URL.equals(key) ? value.toString() : value;
