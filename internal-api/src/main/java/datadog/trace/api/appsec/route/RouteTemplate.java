@@ -1,8 +1,9 @@
 package datadog.trace.api.appsec.route;
 
+import static java.util.Arrays.asList;
+
 import datadog.trace.api.internal.VisibleForTesting;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -118,6 +119,8 @@ public final class RouteTemplate {
       if (isOptionalSegment(segment)) {
         RoutePart.Group group = (RoutePart.Group) segment[0];
         if (resolver.presenceOf(group) != RoutePresence.PRESENT) {
+          // a catch-all that matched "/" keeps its slash only when nothing follows it
+          emptyTail = false;
           continue;
         }
         sb.append('/');
@@ -217,7 +220,7 @@ public final class RouteTemplate {
       RoutePart[] copy = nonNull(parts);
       if (copy.length > 0) {
         segments.add(
-            new RoutePart[] {new RoutePart.Group(Arrays.asList(copy), true, RoutePart.UNRESOLVED)});
+            new RoutePart[] {new RoutePart.Group(asList(copy), true, RoutePart.UNRESOLVED)});
       }
       return this;
     }
@@ -232,7 +235,7 @@ public final class RouteTemplate {
       // pass 1: collect every parameter in path order to resolve names against the whole route
       List<RoutePart.Param> declared = new ArrayList<>();
       for (RoutePart[] segment : segments) {
-        collectParams(Arrays.asList(segment), declared);
+        collectParams(asList(segment), declared);
       }
       Resolver resolver = new Resolver(RouteNames.resolveNames(declared));
       // pass 2: copy into resolved parts

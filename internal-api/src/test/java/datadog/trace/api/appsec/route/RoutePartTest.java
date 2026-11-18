@@ -1,17 +1,19 @@
 package datadog.trace.api.appsec.route;
 
+import static datadog.trace.api.appsec.route.RoutePart.UNRESOLVED;
 import static datadog.trace.api.appsec.route.RoutePart.catchAll;
 import static datadog.trace.api.appsec.route.RoutePart.group;
 import static datadog.trace.api.appsec.route.RoutePart.literal;
 import static datadog.trace.api.appsec.route.RoutePart.optionalParam;
 import static datadog.trace.api.appsec.route.RoutePart.param;
+import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
@@ -63,7 +65,7 @@ class RoutePartTest {
     assertEquals(frameworkName, param.frameworkName());
     assertEquals(optional, param.isOptional());
     assertEquals(catchAll, param.isCatchAll());
-    assertEquals(RoutePart.UNRESOLVED, param.index());
+    assertEquals(UNRESOLVED, param.index());
     assertNull(param.name());
     assertEquals(expected, param.toString());
   }
@@ -93,17 +95,16 @@ class RoutePartTest {
     RoutePart.Param format = param("format");
     RoutePart.Group group = group(dot, format);
 
-    assertEquals(Arrays.<RoutePart>asList(dot, format), group.parts());
+    assertEquals(asList(dot, format), group.parts());
     assertFalse(group.isWholeSegment());
-    assertEquals(RoutePart.UNRESOLVED, group.index());
+    assertEquals(UNRESOLVED, group.index());
     assertEquals("(.{format})", group.toString());
   }
 
   @Test
   void wholeSegmentGroupIncludesTheSeparator() {
     RoutePart.Group group =
-        new RoutePart.Group(
-            Arrays.<RoutePart>asList(literal("page-"), param("n")), true, RoutePart.UNRESOLVED);
+        new RoutePart.Group(asList(literal("page-"), param("n")), true, UNRESOLVED);
 
     assertTrue(group.isWholeSegment());
     assertEquals("(/page-{n})", group.toString());
@@ -122,12 +123,7 @@ class RoutePartTest {
     RoutePart.Group group = new RoutePart.Group(parts, false, 3);
 
     assertEquals(3, group.index());
-    try {
-      group.parts().add(literal("y"));
-      throw new AssertionError("parts must be unmodifiable");
-    } catch (UnsupportedOperationException expected) {
-      // expected
-    }
+    assertThrows(UnsupportedOperationException.class, () -> group.parts().add(literal("y")));
   }
 
   @Test

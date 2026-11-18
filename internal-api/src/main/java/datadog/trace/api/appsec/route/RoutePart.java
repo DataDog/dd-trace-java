@@ -1,6 +1,8 @@
 package datadog.trace.api.appsec.route;
 
-import java.util.Arrays;
+import static java.util.Arrays.asList;
+
+import datadog.trace.api.internal.VisibleForTesting;
 import java.util.Collections;
 import java.util.List;
 
@@ -40,7 +42,7 @@ public abstract class RoutePart {
 
   /** An optional group inside one segment, e.g. {@code (.{format})} or {@code .{ext?}}. */
   public static Group group(RoutePart... parts) {
-    return new Group(Arrays.asList(parts), false, UNRESOLVED);
+    return new Group(asList(parts), false, UNRESOLVED);
   }
 
   /** Static text. */
@@ -100,6 +102,7 @@ public abstract class RoutePart {
     }
 
     /** Zero-based position among all parameters, in path order ({@link #UNRESOLVED} if not). */
+    @VisibleForTesting
     int index() {
       return index;
     }
@@ -140,6 +143,7 @@ public abstract class RoutePart {
     }
 
     /** Zero-based position among all groups, in path order ({@link #UNRESOLVED} if not). */
+    @VisibleForTesting
     int index() {
       return index;
     }
