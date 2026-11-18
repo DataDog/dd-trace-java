@@ -116,7 +116,7 @@ class AgentTestRunnerTest extends InstrumentationSpecification {
     when:
     ContextScope scope
     runUnderTrace("parent") {
-      scope = TEST_TRACER.activateManualSpan(noopSpan())
+      scope = TEST_TRACER.activateSpan(noopSpan())
 
       blockUntilChildSpansFinished(1)
     }

@@ -46,8 +46,8 @@ Settings are read from the Datadog Java agent configuration when attached, then 
 | Environment variable | Default | Description |
 |---|---|---|
 | `DD_FEATURE_FLAGS_ENABLED` | `true` | Enables Feature Flags. `false` makes the provider fail initialization, so evaluations return defaults. |
-| `DD_FEATURE_FLAGS_CONFIGURATION_SOURCE` | `agentless` | `agentless` polls the configuration from the Datadog CDN. `remote_config` receives it through Remote Configuration and requires `dd-java-agent`. |
-| `DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL` | | Custom configuration endpoint. A URL without a path gets the default path. |
+| `DD_FEATURE_FLAGS_CONFIGURATION_SOURCE` | `agentless` | `agentless` polls the configuration from the Datadog CDN; without `DD_API_KEY` or a custom endpoint, the provider fails initialization, so evaluations return defaults. `remote_config` receives it through Remote Configuration and requires `dd-java-agent`. |
+| `DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL` | | Custom configuration endpoint, such as a proxy. A URL without a path gets the default path. Configuration requests omit the `DD-API-KEY` header, even when `DD_API_KEY` is set. A proxy can supply the key, so the application needs none for configuration loading. |
 | `DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS` | `30` | CDN poll interval. |
 | `DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS` | `5` | CDN request timeout. |
 | `DD_FLAGGING_EVALUATION_COUNTS_ENABLED` | `true` | Sends aggregated flag evaluation counts. |
@@ -69,6 +69,32 @@ Settings are read from the Datadog Java agent configuration when attached, then 
 | Health metrics | No | Agent telemetry |
 | Span enrichment | No | Yes |
 | `ExposureHook` accessors `getFlagKey()`, `getVariant()`, `getAllocationKey()`, `getTargetingKey()` | The next release after 1.68.1 | The next release after 1.68.1 |
+
+## Flag selection
+
+To load only part of the flag configuration, give the provider a flag selection. It then loads the flags that have any of the tags, or whose key matches any of the key patterns:
+
+```java
+import com.datadog.openfeature.FlagSelection;
+import com.datadog.openfeature.Provider;
+import dev.openfeature.sdk.OpenFeatureAPI;
+import java.util.List;
+
+OpenFeatureAPI.getInstance().setProviderAndWait(new Provider(new Provider.Options()
+    .flagSelection(new FlagSelection()
+        .tags(List.of("checkout"))
+        .keyPatterns(List.of("checkout.*")))));
+```
+
+* Tags match exactly and case-sensitively. A key pattern matches the whole key, case-sensitively: `*` matches any run of characters, and every other character is literal.
+* Evaluating a flag outside the selection returns the default value with `FLAG_NOT_FOUND`. A selection that matches no flag loads an empty configuration.
+* Leading and trailing Unicode white space is trimmed from every value, and empty and duplicate values are dropped. A null list is treated as absent.
+* Each list accepts at most 31 values, and each tag and key pattern is at most 200 UTF-8 bytes. A selection over a limit, one holding a null or non-`String` value or an unpaired UTF-16 surrogate, or one that would make the request URL longer than 8192 bytes, is not sent. The provider logs an error, for example `flagSelection was not sent (too_many_values: each list accepts at most 31 values). Loading the full flag configuration.`, and loads all the flags.
+* The server can also ignore a selection. It then returns all the flags, and the provider logs `flagSelection was ignored by the server (<reason>). Loaded the full flag configuration.` once per reason. A custom configuration endpoint must forward the `selected_flag_tags` and `selected_flag_key_patterns` query parameters, and the `DD-Flag-Selection-Ignored` response header.
+* The selection is set in code only, and the provider captures it at construction.
+* The providers of a class loader share one flag configuration. The first provider initialized decides the selection, including a provider without one, which loads all the flags. A later provider with a different selection uses the first selection, until the last provider shuts down; the first such provider logs a warning, once per class loader.
+* The `remote_config` source does not support a selection: the provider logs a warning and loads all the flags.
+* With `dd-java-agent`, dropped and ignored selections are also counted in the agent health metrics.
 
 ## Exposures in your own data store
 

@@ -1,7 +1,9 @@
 package datadog.trace.instrumentation.logback;
 
+import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.classic.spi.StackTraceElementProxy;
+import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.logging.intake.LogsIntake;
 import java.util.Arrays;
@@ -11,8 +13,22 @@ import java.util.stream.Collectors;
 
 public class LogsIntakeHelper {
 
+  private static final boolean APP_LOGS_COLLECTION = Config.get().isAppLogsCollectionEnabled();
+  private static final boolean ENABLED =
+      APP_LOGS_COLLECTION
+          || (Config.get().isTraceEnabled() && Config.get().isAgentlessLogSubmissionEnabled());
+  private static final Level SUBMISSION_LEVEL =
+      submissionLevel(Config.get().getAgentlessLogSubmissionLevel());
+
   public static void log(ILoggingEvent event) {
-    LogsIntake.log(map(event));
+    if (!ENABLED) {
+      return;
+    }
+    // App-log collection keeps its existing payload and framework-level filtering, even when
+    // both collection flags are enabled.
+    if (APP_LOGS_COLLECTION || event.getLevel().isGreaterOrEqual(SUBMISSION_LEVEL)) {
+      LogsIntake.log(map(event));
+    }
   }
 
   private static Map<String, Object> map(ILoggingEvent event) {
@@ -32,6 +48,22 @@ public class LogsIntakeHelper {
       thrownLog.put("extendedStackTrace", stackTraceString);
       log.put("thrown", thrownLog);
     }
+    if (!APP_LOGS_COLLECTION) {
+      Map<String, String> mdc = event.getMDCPropertyMap();
+      log.put("contextMap", mdc != null ? new HashMap<>(mdc) : new HashMap<>());
+      log.put("timestamp", event.getTimeStamp());
+    } else {
+      addCorrelationIds(log);
+    }
+    return log;
+  }
+
+  /** Logback has no FATAL level, and ERROR is below a FATAL threshold. */
+  private static Level submissionLevel(String level) {
+    return "FATAL".equalsIgnoreCase(level) ? Level.OFF : Level.toLevel(level, Level.INFO);
+  }
+
+  private static void addCorrelationIds(Map<String, Object> log) {
     String traceId = CorrelationIdentifier.getTraceId();
     if (traceId != null && !traceId.equals("0")) {
       log.put("dd.trace_id", traceId);
@@ -40,6 +72,5 @@ public class LogsIntakeHelper {
     if (spanId != null && !spanId.equals("0")) {
       log.put("dd.span_id", spanId);
     }
-    return log;
   }
 }

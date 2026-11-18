@@ -51,7 +51,7 @@ dependencies {
   implementation 'org.apache.tomcat:annotations-api:6.0.53'
   implementation 'com.google.cloud:google-cloud-spanner:1.61.0'
 
-  testImplementation project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests:smoke-test-common')
 }
 
 tasks.withType(Test).configureEach {

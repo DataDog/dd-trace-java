@@ -18,13 +18,16 @@ class MuzzleJvmCacheInputsTest : MuzzlePluginTestFixture() {
     repo.publishVersions("com.example.test", "demo-lib", listOf("1.0.0"))
     val directive = when (check) {
       "coreJdk" -> "muzzle { pass { coreJdk() } }"
-      "library" -> """
+
+      "library" ->
+        """
         muzzle { pass {
           group = "com.example.test"
           module = "demo-lib"
           versions = "[1.0.0,2.0.0)"
         } }
       """
+
       else -> ""
     }
     writeProject(

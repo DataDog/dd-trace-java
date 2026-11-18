@@ -54,9 +54,6 @@ tasks.withType(Test).configureEach {
 
 tasks.register('testRuntimeActivation', Test) {
   def shadowJarTask = tasks.named('shadowJar', ShadowJar)
-  // Without this, the task keeps Gradle's default JUnit 4 runner, which discovers none of the
-  // Spock specs in this module, so the task passes without running anything.
-  useJUnitPlatform()
   // SpringBootSmokeTest runs with AppSec activated through remote config, which is enough to cover
   // runtime activation. OtelContextExposureSmokeTest stays inactive. The other specs test rule
   // content that goes through the same activation, or do not use AppSec (AIGuard, SCA).

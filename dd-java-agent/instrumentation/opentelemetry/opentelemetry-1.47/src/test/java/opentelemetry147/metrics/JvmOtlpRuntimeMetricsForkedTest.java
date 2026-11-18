@@ -8,7 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.agent.jmxfetch.JvmOtlpRuntimeMetrics;
-import datadog.trace.bootstrap.otel.metrics.data.OtelMetricRegistry;
+import datadog.trace.agent.test.utils.OtelMetricCollector;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
@@ -33,13 +33,11 @@ class JvmOtlpRuntimeMetricsForkedTest {
 
   @Test
   void allDataPointsHaveInjectionMode() {
-    JvmOtlpRuntimeMetricsTest.MetricCollector collector =
-        new JvmOtlpRuntimeMetricsTest.MetricCollector();
-    OtelMetricRegistry.INSTANCE.collectMetrics(collector);
+    OtelMetricCollector collector = OtelMetricCollector.collect();
 
     int dataPointCount = 0;
-    for (List<JvmOtlpRuntimeMetricsTest.DataPointEntry> points : collector.points.values()) {
-      for (JvmOtlpRuntimeMetricsTest.DataPointEntry point : points) {
+    for (List<OtelMetricCollector.DataPointEntry> points : collector.points.values()) {
+      for (OtelMetricCollector.DataPointEntry point : points) {
         dataPointCount++;
         assertEquals("test-injection", point.attrs.get("_dd.injection.mode"));
       }
@@ -49,11 +47,9 @@ class JvmOtlpRuntimeMetricsForkedTest {
 
   @Test
   void stableMetricsHaveJmxFetchTagsWhenExperimentalMetricsAreDisabled() {
-    JvmOtlpRuntimeMetricsTest.MetricCollector collector =
-        new JvmOtlpRuntimeMetricsTest.MetricCollector();
-    OtelMetricRegistry.INSTANCE.collectMetrics(collector);
+    OtelMetricCollector collector = OtelMetricCollector.collect();
 
-    for (JvmOtlpRuntimeMetricsTest.DataPointEntry point : collector.points.get("jvm.memory.used")) {
+    for (OtelMetricCollector.DataPointEntry point : collector.points.get("jvm.memory.used")) {
       assertMemoryJmxFetchTags("jvm.memory.used", point);
     }
     assertJavaLangJmxFetchTags(collector, "jvm.thread.count", "Threading");
@@ -63,9 +59,7 @@ class JvmOtlpRuntimeMetricsForkedTest {
 
   @Test
   void registersOnlyStableMetricsWhenExperimentalDisabled() {
-    JvmOtlpRuntimeMetricsTest.MetricCollector collector =
-        new JvmOtlpRuntimeMetricsTest.MetricCollector();
-    OtelMetricRegistry.INSTANCE.collectMetrics(collector);
+    OtelMetricCollector collector = OtelMetricCollector.collect();
 
     Set<String> names = collector.metricNames;
 
@@ -113,12 +107,10 @@ class JvmOtlpRuntimeMetricsForkedTest {
   void jvmGcDurationDataPointsOmitGcCauseWhenExperimentalDisabled() throws InterruptedException {
     System.gc();
 
-    List<JvmOtlpRuntimeMetricsTest.DataPointEntry> points = null;
+    List<OtelMetricCollector.DataPointEntry> points = null;
     long deadlineNanos = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
     while (System.nanoTime() < deadlineNanos) {
-      JvmOtlpRuntimeMetricsTest.MetricCollector collector =
-          new JvmOtlpRuntimeMetricsTest.MetricCollector();
-      OtelMetricRegistry.INSTANCE.collectMetrics(collector);
+      OtelMetricCollector collector = OtelMetricCollector.collect();
       points = collector.points.get("jvm.gc.duration");
       if (points != null && !points.isEmpty()) {
         break;

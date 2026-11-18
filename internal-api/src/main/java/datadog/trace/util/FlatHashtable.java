@@ -991,7 +991,7 @@ public final class FlatHashtable {
    * feeds the {@link Entry}-hash strategy singleton into the shared traversal template as a <i>
    * constant</i>, so {@code hashOf} devirtualizes to {@code entry.hash} and inlines — a monomorphic
    * call site thus gets a devirtualized pull-based traversal while keeping the plain {@link
-   * Iterator} API and reusing the same core (see the {@link HashIterator} base). Same {@code
+   * Iterator} API and reusing the same core (see the {@link HashTraversal} base). Same {@code
    * Iterator<E>} return type as the general overload; the call site specializes by its own
    * monomorphism.
    */
@@ -1001,91 +1001,88 @@ public final class FlatHashtable {
   }
 
   /**
-   * Shared iterator core. The traversal lives in {@code final} template methods parameterized by
-   * the strategy ({@code advanceWith}/{@code nextWith}); each concrete subclass implements {@link
-   * #next} by handing in its strategy source — a field (general) or a {@code static final} constant
-   * (Entry). Feeding a constant into the {@code final} template is what lets the specialized
-   * subclass inline {@code hashOf} (the CacheHelper static-polymorphism move), so the two share all
-   * the mechanism yet differ only in whether the strategy call devirtualizes.
+   * {@link #iterator(Object[], long, HashStrategy)} as a {@link Cursor}: the matching entries one
+   * at a time, then null. A cursor needs no look-ahead, so prefer it where the caller doesn't need
+   * an {@link Iterator}. The strategy is held in a field, so {@code hashOf} is called virtually;
+   * for {@link Entry}-based tables prefer {@link #cursor(Entry[], long)}.
    */
-  private abstract static class HashIterator<E> implements Iterator<E> {
+  @Nonnull
+  public static <E> Cursor<E> cursor(
+      @Nonnull E[] table, long hash, @Nonnull HashStrategy<E> hashStrat) {
+    return new StrategyHashCursor<>(table, hash, hashStrat);
+  }
+
+  /**
+   * {@link #cursor(Object[], long, HashStrategy)} for {@link Entry}-based tables. Feeds the {@link
+   * Entry}-hash strategy into the traversal as a constant, so {@code hashOf} inlines to {@code
+   * entry.hash} (see {@link #iterator(Entry[], long)}).
+   */
+  @Nonnull
+  public static <E extends Entry> Cursor<E> cursor(@Nonnull E[] table, long hash) {
+    return new EntryHashCursor<>(table, hash);
+  }
+
+  /**
+   * Shared traversal core for the cursors and iterators. The probe walk lives in the {@code final}
+   * template {@code nextWith}, parameterized by the strategy; each concrete class hands in its
+   * strategy source -- a field (general) or a {@code static final} constant (Entry). Feeding a
+   * constant into the {@code final} template is what lets the Entry variants inline {@code hashOf}
+   * (the CacheHelper static-polymorphism move).
+   *
+   * <p>The iterators extend this core rather than wrapping a cursor: a wrapper is a second object
+   * whose fields change in the caller's loop, and C2 didn't scalar-replace that pair (measured 40 B
+   * per walk, vs none for one object), even with everything inlined.
+   */
+  private abstract static class HashTraversal<E> {
     final E[] table;
     final long hash;
     final int start;
     int i;
     boolean done;
-    E lookahead;
 
-    HashIterator(E[] table, long hash) {
+    HashTraversal(E[] table, long hash) {
       this.table = table;
       this.hash = hash;
       this.start = home(hash, table.length - 1);
       this.i = this.start;
-      // Priming advance() is left to the concrete ctor: it needs the subclass's strategy source,
-      // which isn't set until after super().
     }
 
-    /**
-     * Template traversal core, parameterized by the strategy. {@code final} so that a subclass
-     * passing a constant strategy inlines this and devirtualizes {@code hashOf}.
-     */
-    final void advanceWith(HashStrategy<E> hashStrat) {
-      lookahead = null;
+    /** The next entry with the hash, or null once the probe run ends. */
+    final E nextWith(HashStrategy<E> hashStrat) {
       if (done) {
-        return;
+        return null;
       }
       final int mask = table.length - 1;
       for (; ; ) {
         final E e = table[i];
         if (e == null) {
           done = true; // probe run ends at the first empty slot
-          return;
+          return null;
         }
         final boolean match = hashStrat.hashOf(e) == hash;
         i = (i + 1) & mask;
         final boolean wrapped = (i == start);
         if (match) {
-          lookahead = e;
           done = wrapped;
-          return;
+          return e;
         }
         if (wrapped) {
           done = true; // walked the whole table without an empty slot
-          return;
+          return null;
         }
       }
     }
-
-    final E nextWith(HashStrategy<E> hashStrat) {
-      final E e = lookahead;
-      if (e == null) {
-        throw new NoSuchElementException();
-      }
-      advanceWith(hashStrat);
-      return e;
-    }
-
-    @Override
-    public final boolean hasNext() {
-      return lookahead != null;
-    }
-
-    // Abstract so each subclass injects its own strategy source into nextWith(); that binding is
-    // what lets the Entry variant inline hashOf while the general one stays virtual.
-    @Override
-    public abstract E next();
   }
 
-  /** General iterator: strategy held in a field, so {@code hashOf} stays a virtual call. */
-  private static final class StrategyHashIterator<E> extends HashIterator<E> {
-    // Dynamic dispatch on purpose: general iterator fallback partner to EntryHashIterator
+  /** General cursor: strategy held in a field, so {@code hashOf} stays a virtual call. */
+  private static final class StrategyHashCursor<E> extends HashTraversal<E> implements Cursor<E> {
+    // Dynamic dispatch on purpose: general fallback partner to EntryHashCursor
     // (see Strategy's Checker contract).
     private final HashStrategy<E> hashStrat;
 
-    StrategyHashIterator(E[] table, long hash, HashStrategy<E> hashStrat) {
+    StrategyHashCursor(E[] table, long hash, HashStrategy<E> hashStrat) {
       super(table, hash);
       this.hashStrat = hashStrat;
-      advanceWith(hashStrat); // prime
     }
 
     @Override
@@ -1095,18 +1092,72 @@ public final class FlatHashtable {
   }
 
   /**
-   * Entry iterator: feeds the constant {@link #ENTRY_HASH} singleton, so {@code hashOf} inlines to
+   * Entry cursor: feeds the constant {@link #ENTRY_HASH} singleton, so {@code hashOf} inlines to
    * {@code entry.hash}.
    */
-  private static final class EntryHashIterator<E extends Entry> extends HashIterator<E> {
-    EntryHashIterator(E[] table, long hash) {
+  private static final class EntryHashCursor<E extends Entry> extends HashTraversal<E>
+      implements Cursor<E> {
+    EntryHashCursor(E[] table, long hash) {
       super(table, hash);
-      advanceWith(entryHash()); // prime with the constant
     }
 
     @Override
     public E next() {
       return nextWith(entryHash());
+    }
+  }
+
+  /**
+   * The traversal as an {@link Iterator}: the look-ahead {@code hasNext} needs lives here, so the
+   * cursors carry none. Each subclass primes it once its strategy source is set.
+   */
+  private abstract static class HashIterator<E> extends HashTraversal<E> implements Iterator<E> {
+    E lookahead;
+
+    HashIterator(E[] table, long hash) {
+      super(table, hash);
+    }
+
+    @Override
+    public final boolean hasNext() {
+      return lookahead != null;
+    }
+
+    /** Hands out the look-ahead and replaces it with {@code following}. */
+    final E take(E following) {
+      final E e = lookahead;
+      if (e == null) {
+        throw new NoSuchElementException();
+      }
+      lookahead = following;
+      return e;
+    }
+  }
+
+  private static final class StrategyHashIterator<E> extends HashIterator<E> {
+    private final HashStrategy<E> hashStrat;
+
+    StrategyHashIterator(E[] table, long hash, HashStrategy<E> hashStrat) {
+      super(table, hash);
+      this.hashStrat = hashStrat;
+      this.lookahead = nextWith(hashStrat); // prime
+    }
+
+    @Override
+    public E next() {
+      return take(lookahead == null ? null : nextWith(hashStrat));
+    }
+  }
+
+  private static final class EntryHashIterator<E extends Entry> extends HashIterator<E> {
+    EntryHashIterator(E[] table, long hash) {
+      super(table, hash);
+      this.lookahead = nextWith(entryHash()); // prime with the constant
+    }
+
+    @Override
+    public E next() {
+      return take(lookahead == null ? null : nextWith(entryHash()));
     }
   }
 
