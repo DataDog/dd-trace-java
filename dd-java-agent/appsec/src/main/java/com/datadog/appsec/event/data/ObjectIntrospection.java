@@ -190,14 +190,16 @@ public final class ObjectIntrospection {
       return ((Date) obj).getTime();
     }
 
-    // Jackson databind nodes (via reflection)
+    // Jackson 2 and Jackson 3 databind nodes (via reflection)
     Class<?> clazz = obj.getClass();
-    if (clazz.getName().startsWith("com.fasterxml.jackson.databind.node.")) {
+    String className = clazz.getName();
+    boolean jackson2 = className.startsWith("com.fasterxml.jackson.databind.node.");
+    if (jackson2 || className.startsWith("tools.jackson.databind.node.")) {
       try {
         return doConversionJacksonNode(
-            new JacksonContext(clazz.getClassLoader()), obj, depth, state);
+            new JacksonContext(clazz.getClassLoader(), jackson2), obj, depth, state);
       } catch (Throwable e) {
-        // in case of failure let default conversion run
+        // in case of failure the whole node is dropped
         log.debug("Error handling jackson node {}", clazz, e);
         return null;
       }
@@ -359,7 +361,8 @@ public final class ObjectIntrospection {
   /**
    * Converts Jackson databind JsonNode objects to WAF-compatible data structures using reflection.
    *
-   * <p>Jackson databind objects ({@link com.fasterxml.jackson.databind.JsonNode}) implement
+   * <p>Both Jackson 2 ({@code com.fasterxml.jackson.databind.JsonNode}) and Jackson 3 ({@code
+   * tools.jackson.databind.JsonNode}) nodes are supported. Jackson databind objects implement
    * iterable interfaces which interferes with the standard object introspection logic. This method
    * bypasses that by using reflection to directly access JsonNode internals and convert them to
    * appropriate data types.
@@ -436,10 +439,13 @@ public final class ObjectIntrospection {
 
   /**
    * Context class used to cache method resolutions while converting a top level json node class.
+   * Jackson 3 renamed {@code fieldNames()} (an {@link Iterator}) to {@code propertyNames()} (a
+   * {@link Collection}) and {@code textValue()} to {@code stringValue()}.
    */
   private static class JacksonContext {
     private final MethodHandles handles;
     private final Class<?> jsonNode;
+    private final boolean jackson2;
     private MethodHandle nodeType;
     private MethodHandle size;
     private MethodHandle fieldNames;
@@ -448,9 +454,15 @@ public final class ObjectIntrospection {
     private MethodHandle booleanValue;
     private MethodHandle numberValue;
 
-    private JacksonContext(final ClassLoader cl) throws ClassNotFoundException {
+    private JacksonContext(final ClassLoader cl, final boolean jackson2)
+        throws ClassNotFoundException {
       handles = new MethodHandles(cl);
-      jsonNode = cl.loadClass("com.fasterxml.jackson.databind.JsonNode");
+      this.jackson2 = jackson2;
+      jsonNode =
+          cl.loadClass(
+              jackson2
+                  ? "com.fasterxml.jackson.databind.JsonNode"
+                  : "tools.jackson.databind.JsonNode");
     }
 
     private String getNodeType(final Object node) throws Throwable {
@@ -466,8 +478,12 @@ public final class ObjectIntrospection {
 
     @SuppressWarnings("unchecked")
     private Iterator<String> getFieldNames(final Object node) throws Throwable {
-      fieldNames = fieldNames == null ? handles.method(jsonNode, "fieldNames") : fieldNames;
-      return (Iterator<String>) fieldNames.invoke(node);
+      if (fieldNames == null) {
+        fieldNames = handles.method(jsonNode, jackson2 ? "fieldNames" : "propertyNames");
+      }
+      return jackson2
+          ? (Iterator<String>) fieldNames.invoke(node)
+          : ((Collection<String>) fieldNames.invoke(node)).iterator();
     }
 
     private Object getField(final Object node, final String name) throws Throwable {
@@ -476,7 +492,9 @@ public final class ObjectIntrospection {
     }
 
     private String getTextValue(final Object node) throws Throwable {
-      textValue = textValue == null ? handles.method(jsonNode, "textValue") : textValue;
+      if (textValue == null) {
+        textValue = handles.method(jsonNode, jackson2 ? "textValue" : "stringValue");
+      }
       return (String) textValue.invoke(node);
     }
 
