@@ -1,6 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
-import datadog.apicontract.Restricted;
+import datadog.contract.Restricted;
 import datadog.trace.api.TagMap;
 import java.util.ArrayList;
 import java.util.List;
@@ -142,6 +142,14 @@ public final class FrozenTags {
     public SpanData setTag(String key, String value) {
       check(value);
       tags.set(key, (CharSequence) value);
+      writes.add(span -> span.setTag(key, value));
+      return this;
+    }
+
+    @Override
+    public SpanData setTag(String key, CharSequence value) {
+      check(value);
+      tags.set(key, value);
       writes.add(span -> span.setTag(key, value));
       return this;
     }
