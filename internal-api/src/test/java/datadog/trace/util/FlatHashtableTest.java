@@ -389,6 +389,64 @@ class FlatHashtableTest {
   }
 
   @Test
+  void cursor_yieldsEveryEntrySharingTheHash() {
+    TestEntry[] table = FlatHashtable.create(TestEntry.class, 4); // COLLIDING sends all to slot 0
+    TestEntry a = FlatHashtable.tryGetOrCreate(table, "a", TestCollidingStrategy.INSTANCE, CREATE);
+    TestEntry b = FlatHashtable.tryGetOrCreate(table, "b", TestCollidingStrategy.INSTANCE, CREATE);
+    TestEntry c = FlatHashtable.tryGetOrCreate(table, "c", TestCollidingStrategy.INSTANCE, CREATE);
+
+    assertEquals(
+        new HashSet<>(Arrays.asList(a, b, c)),
+        drain(FlatHashtable.cursor(table, 0, TestCollidingStrategy.INSTANCE)));
+  }
+
+  @Test
+  void cursor_fullTable_yieldsMatchesIncludingTheWrappingSlot() {
+    // no empty slot to stop at: the cursor must yield the wrapping slot's entry, then end on wrap
+    TestEntry[] table = FlatHashtable.create(TestEntry.class, 1);
+    TestEntry a = FlatHashtable.tryGetOrCreate(table, "a", TestCollidingStrategy.INSTANCE, CREATE);
+    TestEntry b = FlatHashtable.tryGetOrCreate(table, "b", TestCollidingStrategy.INSTANCE, CREATE);
+
+    assertEquals(
+        new HashSet<>(Arrays.asList(a, b)),
+        drain(FlatHashtable.cursor(table, 0, TestCollidingStrategy.INSTANCE)));
+    assertNull(FlatHashtable.cursor(table, 5, TestCollidingStrategy.INSTANCE).next());
+  }
+
+  @Test
+  void cursor_staysDoneOnceItEnds() {
+    TestEntry[] table = FlatHashtable.create(TestEntry.class, 4);
+    TestEntry a = FlatHashtable.tryGetOrCreate(table, "a", TestCollidingStrategy.INSTANCE, CREATE);
+
+    Cursor<TestEntry> cursor = FlatHashtable.cursor(table, 0, TestCollidingStrategy.INSTANCE);
+    assertSame(a, cursor.next());
+    assertNull(cursor.next());
+    assertNull(cursor.next());
+  }
+
+  @Test
+  void entryCursor_yieldsOnlyEntriesWithTheHash() {
+    TestHashEntry[] table = FlatHashtable.create(TestHashEntry.class, 4); // 8 slots, mask 7
+    TestHashEntry a = new TestHashEntry("a", 0);
+    TestHashEntry b = new TestHashEntry("b", 0);
+    FlatHashtable.insert(table, a);
+    FlatHashtable.insert(table, b);
+    // shares the home slot (0) but a different hash -> must be filtered out
+    FlatHashtable.insert(table, new TestHashEntry("c", hashLandingOn(0, table.length - 1)));
+
+    // 2-arg Entry overload -> the specialized cursor (constant strategy, inlined hashOf)
+    assertEquals(new HashSet<>(Arrays.asList(a, b)), drain(FlatHashtable.cursor(table, 0)));
+  }
+
+  private static <E> Set<E> drain(Cursor<E> cursor) {
+    Set<E> seen = new HashSet<>();
+    for (E e = cursor.next(); e != null; e = cursor.next()) {
+      seen.add(e);
+    }
+    return seen;
+  }
+
+  @Test
   void capacityFor_honorsLoadFactor() {
     // default 0.5 -> >= 2x; LOW 0.25 -> >= 4x.
     assertEquals(8, FlatHashtable.capacityFor(4, FlatHashtable.DEFAULT_LOAD_FACTOR));

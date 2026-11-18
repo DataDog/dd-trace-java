@@ -101,6 +101,11 @@ independent review, except to find performance claims.
 For each changed method, decide *which multiplier applies* before flagging anything,
 using `references/hotness.md`.
 
+**Unchanged code is in scope if the diff changes what it costs** — it now runs more often,
+under a new lock, or on the application thread. Flag it as *carried in by this change*
+(see `references/hotness.md`). **Propagation and header paths: bump severity one notch**
+(see `references/hotness.md` § Hot-path map).
+
 ### Step 3 — Apply the checks
 
 Run the changed hot-path code against the check files in the table above. Load the

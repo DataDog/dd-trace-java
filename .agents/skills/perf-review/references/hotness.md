@@ -3,6 +3,12 @@
 For each changed method, decide *which multiplier applies* before flagging anything.
 **Scope**: the diff × known hot paths. Don't review the world.
 
+**Carried-in code is in scope.** Leave unchanged lines alone unless the diff changes what they
+cost: they now run more often (a hotter path, per-trace → per-span, ahead of a new early return),
+under a new lock, or on the application thread instead of a background one. Flag such code as
+*carried in by this change*, under the normal confidence and severity rules. Example: an existing
+per-trace string concatenation moved inside a new `synchronized` block on the sampling path.
+
 ## Hotness rubric
 
 The key question when reviewing any code: *is this on a hot path?*
@@ -31,6 +37,13 @@ Span lifecycle (create / setTag / finish), tag map ops, serialization/encoding, 
 path, decorators, propagation (header read/write). **Multiplier: per-span × spans/request ×
 requests/sec.** A per-span cost is multiplied massively; a per-process/once cost is negligible.
 The AI must reason about *which multiplier applies* before flagging.
+
+**Propagation and header paths: bump severity one notch** (SEV-3 → SEV-2). This includes the
+propagation state every trace updates even when no header is written: propagation tags at span
+start, trace-id formatting, sampling-decision bookkeeping. Eager work for an optional format
+(W3C/OTel tracestate, hex ids) belongs at inject/export time. Example: building a tracestate
+object under a new lock on every root sampling decision, when only W3C inject and OTLP export
+read it.
 
 ## Domain adjustment
 

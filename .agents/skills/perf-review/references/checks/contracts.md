@@ -20,7 +20,7 @@ Javadoc ("Checker contract") when a diff touches one of the marked types or meth
   "should", not "must" (RFC-2119 sense): a trigger is a presumptive finding, not an automatic
   failure — compliant if the declaration carries either a `// Retained on purpose: <reason>`-style
   comment, or `@SuppressPerfContract(value = NoEscape.class, reason = "...")`
-  (`datadog.perfcontract.SuppressPerfContract` — the generic exemption mechanism shared by every
+  (`datadog.contract.SuppressPerfContract` — the generic exemption mechanism shared by every
   perf-contract marker, not `@NoEscape`-specific), or a named canned-exception annotation itself
   meta-annotated `@SuppressPerfContract` with `NoEscape.class` among its `value` (e.g. a
   hypothetical `@Borrowed`) — treat the meta-annotation's own `reason` as satisfying the
@@ -30,11 +30,11 @@ Javadoc ("Checker contract") when a diff touches one of the marked types or meth
   own javadoc). Current wearers: `SubSequence`, `Maybe` (type form; see J7 in `../remedies.md` for
   `SubSequence`'s specific retention-vs-transient discriminator).
 - **#9 — `@StaticLifetime` field-lifetime violation** — *a field annotated `@StaticLifetime`
-  (`datadog.perfcontract.StaticLifetime`), **or** an unannotated field whose declared type is
-  listed in the contract's `@ImpliedFor` (`datadog.perfcontract.ImpliedFor`; read the types from
+  (`datadog.contract.StaticLifetime`), **or** an unannotated field whose declared type is
+  listed in the contract's `@ImpliedFor` (`datadog.contract.ImpliedFor`; read the types from
   the `@ImpliedFor` on `StaticLifetime` itself, subtypes included), that is neither `static final`
   nor a `final` instance field declared on a class annotated `@Singleton`
-  (`datadog.perfcontract.Singleton`)*. Declaration-scan only, same shape as the `@NoEscape`
+  (`datadog.contract.Singleton`)*. Declaration-scan only, same shape as the `@NoEscape`
   field-storage check above — it does not attempt to prove a field is actually reused enough to be
   worth caching, and it does not catch an unannotated per-instance cache of a non-implied type; it
   only guards fields that opt in or whose type implies the contract. A deliberate per-instance
