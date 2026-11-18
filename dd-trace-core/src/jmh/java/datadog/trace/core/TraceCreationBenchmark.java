@@ -2,6 +2,7 @@ package datadog.trace.core;
 
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 
+import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -117,7 +118,13 @@ public class TraceCreationBenchmark {
 
   @Setup
   public void setup(Blackhole blackhole) {
-    this.tracer = CoreTracer.builder().writer(new DropWriter(blackhole)).build();
+    // Paused and never resumed: no agent discovery, so client-side stats stay off whether or not a
+    // local agent is running, and B/op doesn't depend on the machine.
+    this.tracer =
+        CoreTracer.builder()
+            .writer(new DropWriter(blackhole))
+            .sharedCommunicationObjects(new SharedCommunicationObjects(true))
+            .build();
   }
 
   @TearDown

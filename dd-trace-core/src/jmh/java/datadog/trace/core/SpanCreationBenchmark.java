@@ -2,6 +2,7 @@ package datadog.trace.core;
 
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 
+import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.SpanPrototype;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -166,7 +167,13 @@ public class SpanCreationBenchmark {
   public void setup(Blackhole blackhole) {
     // DropWriter keeps finish() from pulling in serialization / agent I/O, so -prof gc reflects
     // span creation + tagging + PendingTrace completion only.
-    this.tracer = CoreTracer.builder().writer(new DropWriter(blackhole)).build();
+    // Paused and never resumed: no agent discovery, so client-side stats stay off whether or not a
+    // local agent is running, and B/op doesn't depend on the machine.
+    this.tracer =
+        CoreTracer.builder()
+            .writer(new DropWriter(blackhole))
+            .sharedCommunicationObjects(new SharedCommunicationObjects(true))
+            .build();
     this.webProto =
         SpanPrototype.builder()
             .initInstrumentationName(INSTRUMENTATION_NAME)
