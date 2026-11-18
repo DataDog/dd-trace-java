@@ -1,17 +1,25 @@
 package com.datadog.openfeature.internal.exposure;
 
-import java.util.LinkedHashMap;
-import java.util.Map;
+import datadog.trace.util.Hashtable;
 import java.util.Objects;
 
 /**
  * Remembers the last exposure recorded for each (flag, subject). An exposure is sent again only
  * when its allocation, variant or serial id changes. Thread-safe.
+ *
+ * <p>Each subject is one table entry, keyed by both parts without a key object and updated in
+ * place, and linked into the least-recently-used order, so a lookup allocates nothing and a full
+ * cache holds one object per subject.
  */
 public final class ExposureDeduplicationCache {
   static final int CAPACITY = 1 << 16;
 
-  private final Map<Key, Sent> entries;
+  private final Hashtable.D2<String, String, Exposure> entries;
+  private final int capacity;
+
+  // The least and the most recently used entries, the ends of the eviction order.
+  private Exposure eldest;
+  private Exposure youngest;
 
   /** Creates a cache remembering up to 65536 subjects, evicting the least recently used ones. */
   public ExposureDeduplicationCache() {
@@ -19,7 +27,8 @@ public final class ExposureDeduplicationCache {
   }
 
   ExposureDeduplicationCache(final int capacity) {
-    this.entries = new BoundedLru(capacity);
+    this.entries = Hashtable.D2.createBounded(Exposure.class, capacity);
+    this.capacity = capacity;
   }
 
   /**
@@ -38,7 +47,12 @@ public final class ExposureDeduplicationCache {
       final String allocation,
       final String variant,
       final Integer serialId) {
-    return new Sent(allocation, variant, serialId).equals(this.entries.get(new Key(flag, subject)));
+    final Exposure exposure = this.entries.get(flag, subject);
+    if (exposure == null) {
+      return false;
+    }
+    touch(exposure);
+    return exposure.is(allocation, variant, serialId);
   }
 
   /**
@@ -57,8 +71,29 @@ public final class ExposureDeduplicationCache {
       final String allocation,
       final String variant,
       final Integer serialId) {
-    final Sent sent = new Sent(allocation, variant, serialId);
-    return !sent.equals(this.entries.put(new Key(flag, subject), sent));
+    Exposure exposure = this.entries.get(flag, subject);
+    if (exposure != null) {
+      touch(exposure);
+      if (exposure.is(allocation, variant, serialId)) {
+        return false;
+      }
+      exposure.allocation = allocation;
+      exposure.variant = variant;
+      exposure.serialId = serialId;
+      return true;
+    }
+    if (this.entries.size() >= this.capacity) {
+      final Exposure evicted = this.eldest;
+      if (evicted == null) {
+        return true; // a cache without capacity remembers nothing
+      }
+      unlink(evicted);
+      this.entries.remove(evicted.key1(), evicted.key2());
+    }
+    exposure = new Exposure(flag, subject, allocation, variant, serialId);
+    this.entries.insert(exposure);
+    append(exposure);
+    return true;
   }
 
   /**
@@ -73,71 +108,68 @@ public final class ExposureDeduplicationCache {
   /** Forgets every recorded exposure. */
   public synchronized void clear() {
     this.entries.clear();
+    this.eldest = null;
+    this.youngest = null;
   }
 
-  private static final class Key {
-    private final String flag;
-    private final String subject;
-
-    Key(final String flag, final String subject) {
-      this.flag = flag;
-      this.subject = subject;
-    }
-
-    @Override
-    public boolean equals(final Object o) {
-      if (!(o instanceof Key)) {
-        return false;
-      }
-      final Key key = (Key) o;
-      return Objects.equals(this.flag, key.flag) && Objects.equals(this.subject, key.subject);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(this.flag, this.subject);
+  /** Makes an entry the most recently used. */
+  private void touch(final Exposure exposure) {
+    if (exposure != this.youngest) {
+      unlink(exposure);
+      append(exposure);
     }
   }
 
-  private static final class Sent {
-    private final String allocation;
-    private final String variant;
-    private final Integer serialId;
+  private void append(final Exposure exposure) {
+    exposure.older = this.youngest;
+    exposure.newer = null;
+    if (this.youngest == null) {
+      this.eldest = exposure;
+    } else {
+      this.youngest.newer = exposure;
+    }
+    this.youngest = exposure;
+  }
 
-    Sent(final String allocation, final String variant, final Integer serialId) {
+  private void unlink(final Exposure exposure) {
+    if (exposure.older == null) {
+      this.eldest = exposure.newer;
+    } else {
+      exposure.older.newer = exposure.newer;
+    }
+    if (exposure.newer == null) {
+      this.youngest = exposure.older;
+    } else {
+      exposure.newer.older = exposure.older;
+    }
+    exposure.older = null;
+    exposure.newer = null;
+  }
+
+  /** The last exposure of a (flag, subject), linked into the eviction order. */
+  private static final class Exposure extends Hashtable.D2.Entry<String, String> {
+    String allocation;
+    String variant;
+    Integer serialId;
+    Exposure older;
+    Exposure newer;
+
+    Exposure(
+        final String flag,
+        final String subject,
+        final String allocation,
+        final String variant,
+        final Integer serialId) {
+      super(flag, subject);
       this.allocation = allocation;
       this.variant = variant;
       this.serialId = serialId;
     }
 
-    @Override
-    public boolean equals(final Object o) {
-      if (!(o instanceof Sent)) {
-        return false;
-      }
-      final Sent entry = (Sent) o;
-      return Objects.equals(this.allocation, entry.allocation)
-          && Objects.equals(this.variant, entry.variant)
-          && Objects.equals(this.serialId, entry.serialId);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(this.allocation, this.variant, this.serialId);
-    }
-  }
-
-  private static final class BoundedLru extends LinkedHashMap<Key, Sent> {
-    private final int capacity;
-
-    BoundedLru(final int capacity) {
-      super(16, 0.75f, true);
-      this.capacity = capacity;
-    }
-
-    @Override
-    protected boolean removeEldestEntry(final Map.Entry<Key, Sent> eldest) {
-      return size() > this.capacity;
+    boolean is(final String allocation, final String variant, final Integer serialId) {
+      return Objects.equals(this.allocation, allocation)
+          && Objects.equals(this.variant, variant)
+          && Objects.equals(this.serialId, serialId);
     }
   }
 }
