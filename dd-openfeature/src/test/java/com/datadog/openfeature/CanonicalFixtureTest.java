@@ -3,7 +3,10 @@ package com.datadog.openfeature;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EVALUATION_FEATURE_PREFIX;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EXPOSURE_FEATURE_PREFIX;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.FEATURE_PREFIX;
+import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
+import static java.util.Collections.singletonList;
+import static java.util.Collections.singletonMap;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -46,7 +49,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -126,37 +128,29 @@ class CanonicalFixtureTest {
     final Map<String, Object> matcher = new LinkedHashMap<>();
     matcher.put("flag", "expected");
     final Map<String, Object> expectation = new LinkedHashMap<>();
-    expectation.put("evaluationEvents", Collections.singletonList(matcher));
+    expectation.put("evaluationEvents", singletonList(matcher));
     final FixtureExpectations expectations = new FixtureExpectations(expectation);
     final List<FlagEvalEvent> actual =
         Arrays.asList(
             new FlagEvalEvent("unmatched", null, null, null, 0, emptyMap()),
             new FlagEvalEvent("expected", null, null, null, 0, emptyMap()));
 
-    expectations.assertMatches(Collections.emptyList(), actual);
+    expectations.assertMatches(emptyList(), actual);
 
     expectation.put("noUnmatchedEvents", true);
     final FixtureExpectations exactExpectations = new FixtureExpectations(expectation);
-    assertThrows(
-        AssertionError.class,
-        () -> exactExpectations.assertMatches(Collections.emptyList(), actual));
+    assertThrows(AssertionError.class, () -> exactExpectations.assertMatches(emptyList(), actual));
   }
 
   @Test
   void platformSelectorsControlApplicability() {
-    final Map<String, Object> javaSelector =
-        Collections.singletonMap("platform", (Object) PLATFORM);
-    final Map<String, Object> webSelector = Collections.singletonMap("platform", (Object) "web");
+    final Map<String, Object> javaSelector = singletonMap("platform", (Object) PLATFORM);
+    final Map<String, Object> webSelector = singletonMap("platform", (Object) "web");
 
-    assertFalse(
-        isApplicable(Collections.singletonMap("_skip", Collections.singletonList(javaSelector))));
-    assertTrue(
-        isApplicable(
-            Collections.singletonMap("_include", Collections.singletonList(javaSelector))));
-    assertTrue(
-        isApplicable(Collections.singletonMap("_skip", Collections.singletonList(webSelector))));
-    assertFalse(
-        isApplicable(Collections.singletonMap("_include", Collections.singletonList(webSelector))));
+    assertFalse(isApplicable(singletonMap("_skip", singletonList(javaSelector))));
+    assertTrue(isApplicable(singletonMap("_include", singletonList(javaSelector))));
+    assertTrue(isApplicable(singletonMap("_skip", singletonList(webSelector))));
+    assertFalse(isApplicable(singletonMap("_include", singletonList(webSelector))));
   }
 
   @Test
@@ -165,16 +159,14 @@ class CanonicalFixtureTest {
     matcher.put("flag", "expected");
     matcher.put("_count", 2);
     final Map<String, Object> expectation = new LinkedHashMap<>();
-    expectation.put("evaluationEvents", Collections.singletonList(matcher));
+    expectation.put("evaluationEvents", singletonList(matcher));
     expectation.put("noUnmatchedEvents", true);
     final FixtureExpectations expectations = new FixtureExpectations(expectation);
     final FlagEvalEvent event = new FlagEvalEvent("expected", null, null, null, 0, emptyMap());
 
-    expectations.assertMatches(Collections.emptyList(), Arrays.asList(event, event));
+    expectations.assertMatches(emptyList(), Arrays.asList(event, event));
     assertThrows(
-        AssertionError.class,
-        () ->
-            expectations.assertMatches(Collections.emptyList(), Collections.singletonList(event)));
+        AssertionError.class, () -> expectations.assertMatches(emptyList(), singletonList(event)));
   }
 
   @MethodSource("canonicalTestCases")
@@ -698,7 +690,7 @@ class CanonicalFixtureTest {
     @SuppressWarnings("unchecked")
     private static List<EventMatcher> matchers(final List<Object> items) {
       if (items == null) {
-        return Collections.emptyList();
+        return emptyList();
       }
       final List<EventMatcher> result = new ArrayList<>();
       for (final Object item : items) {
