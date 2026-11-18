@@ -39,29 +39,30 @@ public final class PidHelper {
     return PID_AS_LONG;
   }
 
-  private static final Function<Process, String> CHILD_PID = findChildPidFunction();
+  private static final MethodHandle PROCESS_PID = findProcessPid();
 
   /** Returns the PID of a child process, or an empty string when the JVM cannot provide it. */
   public static String getPid(Process process) {
-    if (null == process || null == CHILD_PID) {
-      return "";
-    }
-    return CHILD_PID.apply(process);
-  }
-
-  @SuppressWarnings("unchecked")
-  private static Function<Process, String> findChildPidFunction() {
-    if (JavaVirtualMachine.isJavaVersionAtLeast(9)) {
+    if (process != null && PROCESS_PID != null) {
       try {
-        return (Function<Process, String>)
-            Class.forName("datadog.trace.util.JDK9ProcessPidFunction")
-                .getDeclaredConstructor()
-                .newInstance();
+        return Long.toString((long) PROCESS_PID.invokeExact(process));
       } catch (Throwable e) {
-        log.debug("JDK9ProcessPidFunction not available", e);
+        log.debug("Cannot get child PID through JVM API", e);
       }
     }
-    return null; // Java 8 has no public API for the PID of a child process
+    return "";
+  }
+
+  private static MethodHandle findProcessPid() {
+    if (JavaVirtualMachine.isJavaVersionAtLeast(9)) {
+      try {
+        return MethodHandles.publicLookup()
+            .findVirtual(Process.class, "pid", MethodType.methodType(long.class));
+      } catch (Throwable e) {
+        log.debug("Process.pid() not available", e);
+      }
+    }
+    return null;
   }
 
   @SuppressWarnings("unchecked")
