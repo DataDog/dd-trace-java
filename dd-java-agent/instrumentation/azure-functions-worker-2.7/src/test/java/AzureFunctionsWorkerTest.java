@@ -88,9 +88,10 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
     "scenario      | annotation                  | trigger             ",
     "orchestration | DurableOrchestrationTrigger | DurableOrchestration",
     "activity      | DurableActivityTrigger      | DurableActivity     ",
-    "entity        | DurableEntityTrigger        | DurableEntity       "
+    "entity        | DurableEntityTrigger        | DurableEntity       ",
+    "cosmos db     | CosmosDBTrigger             | CosmosDB            "
   })
-  void createsSpanForDurableTrigger(String annotation, String trigger) throws Exception {
+  void createsSpanForTrigger(String annotation, String trigger) throws Exception {
     MiddlewareContext context = contextFor(annotation, "MyFunction");
 
     if ("DurableOrchestration".equals(trigger)) {
@@ -110,15 +111,6 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
     new FunctionExecutionMiddleware().invoke(context, mock(MiddlewareChain.class));
 
     assertTraces();
-  }
-
-  @Test
-  void createsSpanForCosmosDbTrigger() throws Exception {
-    MiddlewareContext context = contextFor("CosmosDBTrigger", "CosmosFunction");
-
-    new FunctionExecutionMiddleware().invoke(context, mock(MiddlewareChain.class));
-
-    assertTraces(trace(durableSpan("CosmosFunction", "CosmosDB")));
   }
 
   @Test
