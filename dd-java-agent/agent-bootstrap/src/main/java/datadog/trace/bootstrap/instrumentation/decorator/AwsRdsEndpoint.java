@@ -46,8 +46,6 @@ public final class AwsRdsEndpoint {
     }
   }
 
-  private static final AwsRdsEndpoint NOT_RDS = new AwsRdsEndpoint(null, null, null);
-
   // Applications talk to a handful of databases; the cache only needs to absorb the per-span
   // parse of the same few hostnames.
   private static final DDCache<String, AwsRdsEndpoint> CACHE = DDCaches.newFixedSizeCache(16);
@@ -79,8 +77,7 @@ public final class AwsRdsEndpoint {
     if (!isPlausibleRdsHostname(hostnameString)) {
       return null;
     }
-    AwsRdsEndpoint endpoint = CACHE.computeIfAbsent(hostnameString, AwsRdsEndpoint::doParse);
-    return endpoint == NOT_RDS ? null : endpoint;
+    return CACHE.computeIfAbsent(hostnameString, AwsRdsEndpoint::doParse);
   }
 
   // AWS partition DNS suffixes that carry RDS endpoints, from the AWS SDK endpoint partition data.
@@ -192,7 +189,7 @@ public final class AwsRdsEndpoint {
       }
     }
     if (prefix == null) {
-      return NOT_RDS;
+      return null;
     }
 
     String[] labels = new String[5];
@@ -202,7 +199,7 @@ public final class AwsRdsEndpoint {
       int dot;
       while ((dot = prefix.indexOf(".", start)) >= 0) {
         if (labelsCount == labels.length - 1) {
-          return NOT_RDS;
+          return null;
         }
         labels[labelsCount++] = prefix.substring(start, dot);
         start = dot + 1;
@@ -220,7 +217,7 @@ public final class AwsRdsEndpoint {
     // The remaining labels are the identifier, hash, Region and literal "rds". The China
     // partition can put "rds" before the Region; other partitions put it after the Region.
     if (labelsCount != 4 + offset) {
-      return NOT_RDS;
+      return null;
     }
     if ("rds".equals(labels[3 + offset])) {
       return build(labels[0], labels[1 + offset], labels[2 + offset]);
@@ -228,13 +225,13 @@ public final class AwsRdsEndpoint {
     if ("rds".equals(labels[2 + offset])) {
       return build(labels[0], labels[1 + offset], labels[3 + offset]);
     }
-    return NOT_RDS;
+    return null;
   }
 
   private static AwsRdsEndpoint build(
       final String identifier, final String hash, final String region) {
     if (identifier.isEmpty() || !isRegion(region)) {
-      return NOT_RDS;
+      return null;
     }
     Type type;
     String suffix;
@@ -258,7 +255,7 @@ public final class AwsRdsEndpoint {
       suffix = hash;
     }
     if (!isHash(suffix)) {
-      return NOT_RDS;
+      return null;
     }
     return new AwsRdsEndpoint(identifier, type, region);
   }
