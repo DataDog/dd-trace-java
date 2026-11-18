@@ -3,8 +3,6 @@ package datadog.trace.instrumentation.datastax.cassandra4;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.COMPLETABLE_FUTURE_CALLBACK;
-import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.exclude;
 import static java.util.Collections.emptyList;
 
 import com.datastax.oss.driver.api.core.cql.AsyncResultSet;
@@ -52,8 +50,8 @@ import org.openjdk.jmh.annotations.Warmup;
  * <p>Build with this module's compileJmhJava or jmhJar task. Run with a full agent in each fork,
  * {@code -prof gc -t 1}, and {@code -jvmArgsAppend "-javaagent:/path/to/agent.jar
  * -Dbench.patched=true"}. Compare with an otherwise identical agent retaining the named callback
- * but without its provider exclusion and {@code bench.patched=false}. This property checks the
- * variant; it does not enable the production change. Keep JVM, heap, GC and agent configuration
+ * but without its marker support and {@code bench.patched=false}. This property labels the variant;
+ * it does not enable or verify the production change. Keep JVM, heap, GC and agent configuration
  * identical and disable external reporting.
  */
 @BenchmarkMode(Mode.AverageTime)
@@ -108,10 +106,6 @@ public class CassandraCallbackBenchmark {
                   }
                   throw new UnsupportedOperationException(method.getName());
                 });
-    require(
-        exclude(COMPLETABLE_FUTURE_CALLBACK, AsyncResultSetConsumer.class.getName())
-            == Boolean.parseBoolean(patchedProperty),
-        "Cassandra provider registration does not match bench.patched");
     verifyOrdinaryPropagation();
     long before = interceptor.spans.get();
     require(completeRequest(false) == response, "Pending result changed");

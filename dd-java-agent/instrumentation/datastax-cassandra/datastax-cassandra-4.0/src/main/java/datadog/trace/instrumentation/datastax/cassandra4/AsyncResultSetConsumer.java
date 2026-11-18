@@ -4,10 +4,12 @@ import static datadog.trace.instrumentation.datastax.cassandra4.CassandraClientD
 
 import com.datastax.oss.driver.api.core.cql.AsyncResultSet;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.SkipCompletableFutureContextCapture;
 import java.util.concurrent.CompletionException;
 import java.util.function.BiConsumer;
 
-public final class AsyncResultSetConsumer implements BiConsumer<AsyncResultSet, Throwable> {
+public final class AsyncResultSetConsumer
+    implements BiConsumer<AsyncResultSet, Throwable>, SkipCompletableFutureContextCapture {
   private final AgentSpan span;
 
   public AsyncResultSetConsumer(AgentSpan span) {
