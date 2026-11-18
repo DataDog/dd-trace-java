@@ -37,8 +37,9 @@ public final class SpanPrototype {
   /**
    * The dense-store sizing hints for spans that use this prototype's own operation name, in the
    * entry-span and child-span lanes, resolved on first use so later spans skip the table lookup.
-   * Racy by design: a hint is stable for its operation name, so two threads resolving it at once
-   * agree.
+   * Racy by design: two threads resolving a lane at once can get distinct hints if they both miss
+   * the table (see {@link datadog.trace.util.FlatHashtable.D1}); the last write wins, and the other
+   * hint only mis-sizes a span or two.
    */
   private SizingHint entryHint;
 
@@ -95,8 +96,9 @@ public final class SpanPrototype {
    * entry-span or child-span lane; null with the dense store off. Hints are keyed by operation
    * name, like {@link SizingHint#forOperation}: when the span uses the prototype's own operation
    * name, the hint is resolved once per lane and cached here, so the span skips the table lookup; a
-   * span given a different operation name gets that name's hint from the table, so spans of unlike
-   * operations never share one.
+   * span given a different operation name gets that name's hint from the table. Unlike operations
+   * get separate hints while the lane has budget; past it, they share the lane's capped overflow
+   * hint, which never grows.
    */
   @Restricted(allowedIn = {"datadog.trace.core"})
   @Nullable

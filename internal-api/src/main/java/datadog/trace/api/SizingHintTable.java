@@ -6,9 +6,11 @@ import javax.annotation.Nullable;
 /**
  * Process-wide, self-tuning registry of per-operation {@link SizingHint}s, keyed by operation name.
  * Pure static and package-private: the tracer resolves a hint at span build through {@link
- * SizingHint#forOperation} and hands it to the span, which sizes its dense {@link IdStore} from it
- * and records the actual size back when it finishes — the hint converges to the operation's real
- * known-tag high-water mark, so later spans of that operation size correctly.
+ * SizingHint#forOperation} and hands it to the span, which sizes its dense {@link IdStore} from it.
+ * The span records its actual size back once every tag is present: at serialization for a published
+ * trace ({@code DDSpanContext.processTagsAndBaggage}), or in {@code CoreTracer.write} for a dropped
+ * one. The hint converges to the operation's known-tag high-water mark, so later spans of that
+ * operation size correctly.
  *
  * <p>Only meaningful with the dense store on ({@link IdStoreFactory.Default#DENSE}); with it off,
  * {@link #hintFor} returns {@code null} before touching anything, so the default span path does no
