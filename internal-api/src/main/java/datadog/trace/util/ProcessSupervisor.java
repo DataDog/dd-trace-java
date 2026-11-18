@@ -101,11 +101,7 @@ public class ProcessSupervisor implements Closeable {
         } catch (InterruptedException e) {
           currentHealth = INTERRUPTED;
         } catch (Throwable e) {
-          if (failuresInARow++ < QUIET_AFTER_FAILURES) {
-            log.warn("Exception starting process: [{}]", imageName, e);
-          } else {
-            log.debug("Exception starting process: [{}]", imageName, e);
-          }
+          logFailure("Exception starting process: [{}]", imageName, e);
           currentHealth = FAULTED;
         }
         scheduleNextHealthCheck();
@@ -196,13 +192,8 @@ public class ProcessSupervisor implements Closeable {
         childPid,
         code,
         ranMillis);
-    if (failed && ++failuresInARow == QUIET_AFTER_FAILURES) {
-      log.warn(
-          "Process [{}] has failed {} times in a row; "
-              + "further starts and exits are logged at debug level until it stays up for {} seconds",
-          imageName,
-          failuresInARow,
-          MILLISECONDS.toSeconds(STABLE_RUN_MILLIS));
+    if (failed) {
+      recordFailure();
     }
 
     // Process is dead, no longer needs to be tracked
@@ -234,19 +225,11 @@ public class ProcessSupervisor implements Closeable {
   }
 
   private void restartUnhealthyProcess(String childPid) {
-    if (failuresInARow++ < QUIET_AFTER_FAILURES) {
-      log.warn(
-          "Process [{}] with pid {} failed {} health checks in a row; restarting it",
-          imageName,
-          childPid,
-          failedHealthChecks);
-    } else {
-      log.debug(
-          "Process [{}] with pid {} failed {} health checks in a row; restarting it",
-          imageName,
-          childPid,
-          failedHealthChecks);
-    }
+    logFailure(
+        "Process [{}] with pid {} failed {} health checks in a row; restarting it",
+        imageName,
+        childPid,
+        failedHealthChecks);
     stopProcess();
     // The next health check starts a new process through the normal start path, after a backoff
     currentHealth = FAULTED;
@@ -290,6 +273,34 @@ public class ProcessSupervisor implements Closeable {
       log.info(format, arguments);
     } else {
       log.debug(format, arguments);
+    }
+  }
+
+  /**
+   * Counts a failure in a row and logs it at warn level, or at debug level once the log has gone
+   * quiet.
+   */
+  private void logFailure(String format, Object... arguments) {
+    if (failuresInARow < QUIET_AFTER_FAILURES) {
+      log.warn(format, arguments);
+    } else {
+      log.debug(format, arguments);
+    }
+    recordFailure();
+  }
+
+  /**
+   * Counts a failure in a row. When the count reaches {@link #QUIET_AFTER_FAILURES}, says that
+   * lifecycle lines go to debug level until the process stays up.
+   */
+  private void recordFailure() {
+    if (++failuresInARow == QUIET_AFTER_FAILURES) {
+      log.warn(
+          "Process [{}] has failed {} times in a row; "
+              + "further starts and exits are logged at debug level until it stays up for {} seconds",
+          imageName,
+          failuresInARow,
+          MILLISECONDS.toSeconds(STABLE_RUN_MILLIS));
     }
   }
 
