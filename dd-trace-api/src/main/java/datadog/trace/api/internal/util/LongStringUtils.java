@@ -93,7 +93,8 @@ public class LongStringUtils {
       if (digit < 0 || (lowerCaseOnly && Character.isUpperCase(c))) {
         return 0;
       }
-      if ((significantDigits > 0 || digit != 0) && ++significantDigits > 16) {
+      // Only an ASCII '0' is padding, as in parseUnsignedLongHex: other zero digits count.
+      if ((significantDigits > 0 || c != '0') && ++significantDigits > 16) {
         // Unsigned 64 bits max is 16 digits, so this always overflows
         return 0;
       }

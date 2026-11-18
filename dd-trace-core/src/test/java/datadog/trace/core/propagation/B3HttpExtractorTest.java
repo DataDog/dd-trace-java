@@ -253,10 +253,11 @@ class B3HttpExtractorTest extends AbstractHttpExtractorTest {
    * before, but without an exception, and the debug log is kept out of telemetry.
    */
   @TableTest({
-    "scenario                 | traceId | header      | value                ",
-    "oversized multi span id  | '1'     | X-B3-SpanId | '10000000000000000'  ",
-    "oversized single span id |         | b3          | '1-10000000000000000'",
-    "non-hexadecimal span id  | '1'     | X-B3-SpanId | 'spanId'             "
+    "scenario                 | traceId | header      | value                 ",
+    "oversized multi span id  | 1       | X-B3-SpanId | 10000000000000000     ",
+    "oversized single span id |         | b3          | 1-10000000000000000   ",
+    "non-hexadecimal span id  | 1       | X-B3-SpanId | spanId                ",
+    "fullwidth-padded span id | 1       | X-B3-SpanId | \uFF101000000000000000"
   })
   void malformedSpanIdIsRejectedWithoutAnException(String traceId, String header, String value) {
     Logger logger = (Logger) LoggerFactory.getLogger(B3HttpCodec.class);
@@ -296,9 +297,10 @@ class B3HttpExtractorTest extends AbstractHttpExtractorTest {
 
   /** Zero is also what a malformed id parses to, but a literal zero span id is still accepted. */
   @TableTest({
-    "scenario    | header      | value               ",
-    "multi zero  | X-B3-SpanId | '0000000000000000'  ",
-    "single zero | b3          | '1-0000000000000000'"
+    "scenario       | header      | value                ",
+    "multi zero     | X-B3-SpanId | 0000000000000000     ",
+    "single zero    | b3          | 1-0000000000000000   ",
+    "fullwidth zero | X-B3-SpanId | 000000000000000\uFF10"
   })
   void zeroSpanIdIsStillAccepted(String header, String value) {
     // spotless:off
