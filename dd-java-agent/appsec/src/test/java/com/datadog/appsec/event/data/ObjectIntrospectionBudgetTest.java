@@ -8,6 +8,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 
 import com.datadog.appsec.gateway.AppSecRequestContext;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import datadog.trace.api.telemetry.WafMetricCollector;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -54,6 +56,39 @@ class ObjectIntrospectionBudgetTest {
     // one element for the map itself, two for each entry (key and value)
     assertEquals((MAX_ELEMENTS - 1) / 2, map.size());
     assertEquals("v0", map.get("k0"));
+  }
+
+  /** Some JSON libraries expose objects as an iterable of entries rather than as a {@code Map}. */
+  @Test
+  void oversizedEntryCollectionKeepsTheFirstEntriesWithinBudget() {
+    Map<String, Object> entries = new LinkedHashMap<>();
+    for (int i = 0; i < OVERSIZED; i++) {
+      entries.put("k" + i, "v" + i);
+    }
+    List<Map.Entry<String, Object>> body = new ArrayList<>(entries.entrySet());
+
+    Object result = convert(body, ctx);
+
+    assertInstanceOf(Map.class, result);
+    Map<?, ?> map = (Map<?, ?>) result;
+    assertEquals((MAX_ELEMENTS - 1) / 2, map.size());
+    assertEquals("v0", map.get("k0"));
+  }
+
+  @Test
+  void oversizedJacksonObjectNodeKeepsTheFirstFieldsWithinBudget() {
+    ObjectNode body = new ObjectMapper().createObjectNode();
+    for (int i = 0; i < OVERSIZED; i++) {
+      body.put("k" + i, "v" + i);
+    }
+
+    Object result = convert(body, ctx);
+
+    assertInstanceOf(Map.class, result);
+    Map<?, ?> map = (Map<?, ?>) result;
+    assertEquals((MAX_ELEMENTS - 1) / 2, map.size());
+    assertEquals("v0", map.get("k0"));
+    assertEquals("v1", map.get("k1"));
   }
 
   @Test
