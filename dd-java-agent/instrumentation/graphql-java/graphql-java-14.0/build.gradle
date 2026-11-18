@@ -16,6 +16,7 @@ muzzle {
 addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
+  testImplementation libs.bundles.mockito
   compileOnly group: 'com.graphql-java', name: 'graphql-java', version: '14.0'
   implementation project(':dd-java-agent:instrumentation:graphql-java:graphql-java-common')
 
