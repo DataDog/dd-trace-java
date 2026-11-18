@@ -240,13 +240,6 @@ public final class ContinuableScopeManager {
       if (finishSpan && span != null) {
         span.finishWithEndToEnd();
       }
-    } else if (top != null) {
-      log.debug(
-          SEND_TELEMETRY,
-          "Scope found at top of stack has source {} when we expect {}. Current span at the top of the stack {}.",
-          top.source(),
-          ITERATION,
-          top.span());
     }
   }
 
