@@ -9,6 +9,7 @@ import datadog.communication.serialization.Mapper;
 import datadog.communication.serialization.Writable;
 import datadog.communication.serialization.WritableFormatter;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
+import datadog.trace.api.ProtocolVersion;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.TagMap.EntryReader;
 import datadog.trace.api.internal.VisibleForTesting;
@@ -141,8 +142,14 @@ public final class TraceMapperV0_5 implements TraceMapper {
   }
 
   @Override
+  public ProtocolVersion protocolVersion() {
+    return ProtocolVersion.V0_5;
+  }
+
+  @Override
   public Payload newPayload() {
-    return new PayloadV0_5(dictionary.completedMessages(), dictionary.messageCount());
+    return new PayloadV0_5(dictionary.completedMessages(), dictionary.messageCount())
+        .withProtocol(ProtocolVersion.V0_5);
   }
 
   @Override

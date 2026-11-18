@@ -8,6 +8,7 @@ import static datadog.communication.serialization.msgpack.MsgPackWriter.MAP16;
 import static datadog.communication.serialization.msgpack.MsgPackWriter.MAP32;
 import static java.util.Collections.singletonList;
 
+import datadog.trace.api.ProtocolVersion;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
@@ -23,6 +24,7 @@ public abstract class Payload {
   private long droppedTraces = 0;
   private long droppedSpans = 0;
   private List<ByteBuffer> body = singletonList(EMPTY_ARRAY);
+  private ProtocolVersion protocol;
 
   public Payload withBody(int traceCount, ByteBuffer body) {
     return withBody(traceCount, null == body ? null : singletonList(body));
@@ -45,6 +47,20 @@ public abstract class Payload {
   public Payload withDroppedSpans(long droppedSpanCount) {
     this.droppedSpans += droppedSpanCount;
     return this;
+  }
+
+  /** Records the trace protocol the body is encoded in, for payloads sent to the Datadog Agent. */
+  public Payload withProtocol(ProtocolVersion protocol) {
+    this.protocol = protocol;
+    return this;
+  }
+
+  /**
+   * The trace protocol the body is encoded in, or {@code null} for payloads that aren't sent to a
+   * Datadog Agent trace endpoint.
+   */
+  public ProtocolVersion protocol() {
+    return protocol;
   }
 
   public int traceCount() {
