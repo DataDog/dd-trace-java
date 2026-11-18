@@ -8,6 +8,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.SpanPrototype;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.common.writer.Writer;
+import java.util.List;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -50,7 +52,8 @@ import org.openjdk.jmh.infra.Blackhole;
  * outside {@code Integer}'s box cache, so primitive boxing shows up.
  *
  * <p>This copy: 1.68 snapshot (decorators apply a prototype in {@code afterStart}, #12037; peer
- * tags by id, #12715).
+ * tags by id, #12715), with the dense store's per-operation sizing hints, which the writer feeds as
+ * serialization would.
  */
 @State(Scope.Benchmark)
 @Warmup(iterations = 5)
@@ -111,7 +114,7 @@ public class TraceShapeBenchmark {
 
   @Setup
   public void setup(Blackhole blackhole) {
-    this.tracer = CoreTracer.builder().writer(new DropWriter(blackhole)).build();
+    this.tracer = CoreTracer.builder().writer(new SizeRecordingWriter(blackhole)).build();
     // the decorators' prototype chains: Base (type, component) -> Server / Client (kind, language)
     this.serverProto =
         SpanPrototype.builder()
@@ -273,6 +276,41 @@ public class TraceShapeBenchmark {
     }
     server.setHttpStatusCode(STATUS);
     server.finish();
+  }
+
+  /**
+   * {@link DropWriter}, except that it first records each span's dense-store size, as serialization
+   * does for a published trace. Without it the per-operation sizing hints never learn here, and
+   * every span would be presized to the initial hint and then grow.
+   */
+  static final class SizeRecordingWriter implements Writer {
+    private final Blackhole blackhole;
+
+    SizeRecordingWriter(Blackhole blackhole) {
+      this.blackhole = blackhole;
+    }
+
+    @Override
+    public void write(List<DDSpan> trace) {
+      for (DDSpan span : trace) {
+        span.spanContext().recordDenseSize();
+      }
+      blackhole.consume(trace);
+    }
+
+    @Override
+    public void start() {}
+
+    @Override
+    public boolean flush() {
+      return true;
+    }
+
+    @Override
+    public void close() {}
+
+    @Override
+    public void incrementDropCounts(int spanCount) {}
   }
 
   /** The advice's exit: activate around the call, then close and finish. */
