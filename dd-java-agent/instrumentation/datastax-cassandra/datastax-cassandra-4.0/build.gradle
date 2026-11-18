@@ -28,6 +28,7 @@ jmh {
 }
 
 dependencies {
+  testImplementation libs.bundles.mockito
   testContainerImage(image('cassandra:4', 'test.cassandra.image'))
 
   compileOnly group: 'com.datastax.oss', name: 'java-driver-core', version: '4.0.0'
