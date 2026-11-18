@@ -1,6 +1,8 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import datadog.gradle.configureCompiler
 import datadog.gradle.plugin.testJvmConstraints.TestJvmConstraintsExtension
 import me.champeau.gradle.japicmp.JapicmpTask
+import java.util.zip.ZipFile
 
 plugins {
   `java-library`
@@ -69,10 +71,21 @@ java {
   }
 }
 
+val toolbox by configurations.creating {
+  isCanBeConsumed = false
+  isCanBeResolved = true
+}
+
 dependencies {
   api("dev.openfeature:sdk:1.23.0")
   implementation("io.opentelemetry:opentelemetry-api:1.66.0")
   api(libs.jackson.core)
+
+  // Baked into the published jar (see toolboxJar below), so it never appears in the POM.
+  compileOnly(project(":components:toolbox"))
+  toolbox(project(":components:toolbox"))
+  testImplementation(project(":components:toolbox"))
+  "jmhImplementation"(project(":components:toolbox"))
 
   testImplementation(libs.bundles.junit5)
   testImplementation(libs.bundles.mockito)
@@ -91,9 +104,66 @@ tasks.withType<Javadoc>().configureEach {
 }
 
 tasks.named<Jar>("jar") {
+  destinationDirectory = layout.buildDirectory.dir("libs-unbundled")
+  archiveClassifier = "unbundled"
   manifest {
     attributes("Automatic-Module-Name" to "com.datadog.openfeature")
   }
+}
+
+// The SDK has no dependencies of its own: the toolbox primitives it uses are relocated into its
+// own package, so they never collide with the attached agent's copy, and only the classes the
+// SDK reaches are kept. The Shadow plugin is not applied, so the publication and its POM stay
+// those of the java component; only the jar it publishes is replaced.
+val toolboxRelocationPrefix = "com.datadog.openfeature.internal.shaded"
+val toolboxJar = tasks.register<ShadowJar>("toolboxJar") {
+  description = "Builds the published jar, with the toolbox classes it uses relocated into it."
+  group = "build"
+  archiveBaseName = openFeatureArtifactId
+  archiveClassifier = ""
+  destinationDirectory = layout.buildDirectory.dir("libs")
+  from(sourceSets.main.map { it.output })
+  configurations.set(listOf(toolbox))
+  relocate("datadog.trace.util", "$toolboxRelocationPrefix.datadog.trace.util")
+  relocate("datadog.trace.api.function", "$toolboxRelocationPrefix.datadog.trace.api.function")
+  relocate("datadog.contract", "$toolboxRelocationPrefix.datadog.contract")
+  minimize()
+  manifest {
+    attributes("Automatic-Module-Name" to "com.datadog.openfeature")
+  }
+  duplicatesStrategy = DuplicatesStrategy.FAIL
+}
+listOf("apiElements", "runtimeElements").forEach { name ->
+  configurations.named(name) {
+    outgoing.artifacts.clear()
+    outgoing.artifact(toolboxJar)
+  }
+}
+tasks.named("assemble") {
+  dependsOn(toolboxJar)
+}
+
+// Every toolbox class in the published jar must be relocated: an unrelocated one would be shared
+// with whatever agent version is attached and break the SDK's forward-compatibility contract.
+val checkToolboxRelocation = tasks.register("checkToolboxRelocation") {
+  description = "Checks that the published jar holds no unrelocated toolbox classes."
+  group = "verification"
+  val archive = toolboxJar.flatMap { it.archiveFile }
+  inputs.file(archive)
+  doLast {
+    val leaked = ZipFile(archive.get().asFile).use { zip ->
+      zip.entries().asSequence().map { it.name }
+        .filter {
+          it.startsWith("datadog/trace/util/") || it.startsWith("datadog/contract/") ||
+            it.startsWith("datadog/trace/api/function/")
+        }
+        .toList()
+    }
+    check(leaked.isEmpty()) { "Unrelocated toolbox classes in ${archive.get().asFile.name}: $leaked" }
+  }
+}
+tasks.named("check") {
+  dependsOn(checkToolboxRelocation)
 }
 
 // The agent bridge SPI versions, with the first SDK release shipping each of them. A released
@@ -108,7 +178,7 @@ bridgeSpiBaselines.forEach { (spi, baseline) ->
       description = "Checks the agent bridge SPI $spi stays compatible with dd-openfeature $baseline."
       oldArchives.from(configurations.detachedConfiguration(dependencies.create("$baselineSdk@jar")))
       oldClasspath.from(configurations.detachedConfiguration(dependencies.create(baselineSdk)))
-      newArchives.from(tasks.named<Jar>("jar"))
+      newArchives.from(toolboxJar)
       newClasspath.from(configurations.named("runtimeClasspath"))
       packageIncludes.add("com.datadog.openfeature.internal.bridge.$spi")
       // The agent implements the SPI: an abstract method added to an interface breaks it.
@@ -131,7 +201,7 @@ val japicmpPublicApi = tasks.register<JapicmpTask>("japicmpPublicApi") {
   val baselineSdk = "com.datadoghq:dd-openfeature:$publicApiBaseline"
   oldArchives.from(configurations.detachedConfiguration(dependencies.create("$baselineSdk@jar")))
   oldClasspath.from(configurations.detachedConfiguration(dependencies.create(baselineSdk)))
-  newArchives.from(tasks.named<Jar>("jar"))
+  newArchives.from(toolboxJar)
   newClasspath.from(configurations.named("runtimeClasspath"))
   packageIncludes.addAll("com.datadog.openfeature", "datadog.trace.api.openfeature")
   failOnModification.set(true)
