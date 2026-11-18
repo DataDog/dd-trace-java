@@ -226,4 +226,28 @@ class RouteTemplateTest {
     assertTrue(params.get(1).isCatchAll());
     assertTrue(params.get(1).isOptional());
   }
+
+  @Test
+  void slashOnlyCatchAllLosesItsSlashWhenALaterOptionalSegmentIsSkipped() {
+    RouteTemplate template =
+        RouteTemplate.builder()
+            .segment(literal("files"))
+            .segment(catchAll("path"))
+            .optionalSegment(param("x"))
+            .build();
+    PresenceResolver resolver =
+        new PresenceResolver() {
+          @Override
+          public RoutePresence presenceOf(RoutePart.Param param) {
+            return RoutePresence.ABSENT_TRAILING_SLASH;
+          }
+
+          @Override
+          public RoutePresence presenceOf(RoutePart.Group group) {
+            return RoutePresence.ABSENT;
+          }
+        };
+
+    assertEquals("/files", template.render(null, resolver));
+  }
 }
