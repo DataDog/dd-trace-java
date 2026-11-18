@@ -10,6 +10,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.bootstrap.instrumentation.decorator.AwsRdsEndpoint;
 import datadog.trace.bootstrap.instrumentation.decorator.DatabaseClientDecorator;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
@@ -70,6 +71,11 @@ public class VertxSqlClientDecorator extends DatabaseClientDecorator<DBInfo> {
   @Override
   protected String dbHostname(final DBInfo info) {
     return info.getHost();
+  }
+
+  @Override
+  protected AwsRdsEndpoint rdsEndpoint(final DBInfo info, final CharSequence hostname) {
+    return info.getRdsEndpoint();
   }
 
   public <T> AgentSpan startAndDecorateSpanForStatement(
