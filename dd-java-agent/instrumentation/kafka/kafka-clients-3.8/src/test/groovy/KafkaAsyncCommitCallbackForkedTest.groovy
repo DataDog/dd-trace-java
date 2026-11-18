@@ -5,7 +5,6 @@ import org.apache.kafka.clients.consumer.OffsetAndMetadata
 import org.apache.kafka.clients.consumer.OffsetCommitCallback
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.serialization.StringDeserializer
-import org.springframework.kafka.test.EmbeddedKafkaKraftBroker
 import org.springframework.kafka.test.utils.KafkaTestUtils
 import spock.lang.Shared
 import spock.util.concurrent.PollingConditions
@@ -18,10 +17,10 @@ class KafkaAsyncCommitCallbackForkedTest extends VersionedNamingTestBase {
   static final Duration TIMEOUT = Duration.ofSeconds(15)
 
   @Shared
-  EmbeddedKafkaKraftBroker broker
+  KafkaTestBroker broker
 
   def setupSpec() {
-    broker = new EmbeddedKafkaKraftBroker(1, 1, TOPIC)
+    broker = new KafkaTestBroker(1, 1, TOPIC)
     broker.brokerProperty("group.coordinator.rebalance.protocols", "classic,consumer")
     broker.brokerProperty("group.coordinator.new.enable", "true")
     broker.afterPropertiesSet()
@@ -54,7 +53,7 @@ class KafkaAsyncCommitCallbackForkedTest extends VersionedNamingTestBase {
   def "async commit preserves callback and reports backlog during #completion"() {
     setup:
     def group = "async-${UUID.randomUUID()}"
-    def properties = KafkaTestUtils.consumerProps(group, "false", broker)
+    def properties = KafkaTestUtils.consumerProps(broker.getBrokersAsString(), group, "false")
     properties.remove(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG)
     properties.remove(ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG)
     properties.put(ConsumerConfig.GROUP_PROTOCOL_CONFIG, "consumer")
