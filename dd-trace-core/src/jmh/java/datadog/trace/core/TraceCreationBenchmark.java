@@ -68,6 +68,8 @@ import org.openjdk.jmh.infra.Blackhole;
     value = 3,
     jvmArgsAppend = {
       "-DTEST_LOG_LEVEL=warn",
+      // A CI Visibility environment would run agent discovery despite the paused communications.
+      "-Ddd.civisibility.enabled=false",
       // Production-shaped tracer config so mergedTracerTags is a realistically-sized shared bundle
       // (env + 6 global DD_TAGS + runtime-id/language) — the trace-level tags every span merges.
       // Same config as SpanCreationBenchmark so the two benchmarks' numbers stay comparable.
