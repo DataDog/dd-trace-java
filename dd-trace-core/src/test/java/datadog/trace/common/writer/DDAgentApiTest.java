@@ -403,40 +403,26 @@ public class DDAgentApiTest extends DDCoreJavaSpecification {
     }
   }
 
-  @Test
-  void testPayloadEncodedForAnotherProtocolGoesToItsOwnEndpoint() {
-    // the agent was upgraded after the payload was encoded: discovery now says v0.4 is the
-    // tracer's configured choice here, but the payload holds v0.5 bytes
+  // spotless:off
+  @TableTest({
+      "scenario          | v05Status | delivered",
+      "upgraded agent    | 200       | true     ",
+      "downgraded agent  | 404       | false    "
+  })
+  // spotless:on
+  void testPayloadEncodedForAnotherProtocolGoesToItsOwnEndpoint(int v05Status, boolean delivered) {
+    // discovery settles on v0.4 after the payload was encoded as v0.5: the payload goes to
+    // v0.5/traces, which an upgraded agent accepts and a downgraded one rejects, never to v0.4
     JavaTestHttpServer agent =
         JavaTestHttpServer.httpServer(s ->
             s.handlers(h -> {
               h.put("v0.4/traces", api -> api.getResponse().status(200).send());
-              h.put("v0.5/traces", api -> api.getResponse().status(200).send());
+              h.put("v0.5/traces", api -> api.getResponse().status(v05Status).send());
             }));
     try {
       DDAgentApi client = createAgentApi(agent.getAddress().toString(), V0_4).api;
       Payload payload = prepareTraces("v0.5/traces", emptyList());
-      assertTrue(client.sendSerializedTraces(payload).success());
-      assertEquals("/v0.5/traces", agent.getLastRequest().getPath());
-    } finally {
-      agent.close();
-    }
-  }
-
-  @Test
-  void testPayloadIsNotSentToAnEndpointOfAnotherProtocol() {
-    // the agent was downgraded after the payload was encoded: it no longer accepts v0.5, so the
-    // send fails rather than handing v0.5 bytes to the v0.4 endpoint
-    JavaTestHttpServer agent =
-        JavaTestHttpServer.httpServer(s ->
-            s.handlers(h -> {
-              h.put("v0.4/traces", api -> api.getResponse().status(200).send());
-              h.put("v0.5/traces", api -> api.getResponse().status(404).send());
-            }));
-    try {
-      DDAgentApi client = createAgentApi(agent.getAddress().toString(), V0_4).api;
-      Payload payload = prepareTraces("v0.5/traces", emptyList());
-      assertFalse(client.sendSerializedTraces(payload).success());
+      assertEquals(delivered, client.sendSerializedTraces(payload).success());
       assertEquals("/v0.5/traces", agent.getLastRequest().getPath());
     } finally {
       agent.close();
