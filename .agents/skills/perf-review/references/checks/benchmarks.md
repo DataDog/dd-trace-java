@@ -8,8 +8,10 @@ results. These check the evidence a change ships, not production hot paths.
 - **Flag:** a Map or Set JMH benchmark whose measured operation dispatches on a key type that is
   not final, or reaches a strategy or comparator interface with several loaded implementations,
   when its `@Setup` does not pollute the type profile.
-- **Not when:** the receiver type is known at the benchmark's own call site: the key is a final
-  class (`String`) or an exact type from an allocation. C2 then devirtualizes without the profile,
+- **Not when:** the receiver at the dispatch site under review is statically known: the key is a
+  final class (`String`) or an exact type from an allocation, and the call dispatches on the key.
+  A final key type doesn't cover a call through a comparator or strategy interface, such as a
+  `TreeMap`'s `Comparator.compare`. C2 then devirtualizes without the profile,
   and polluting it only adds setup allocation. One key class per benchmark is normal and correct;
   a production `Map<String, V>` call site sees one type too.
 - **Confidence / level:** flag-as-measure. P3.

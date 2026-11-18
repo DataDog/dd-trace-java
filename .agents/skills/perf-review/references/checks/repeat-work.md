@@ -19,8 +19,9 @@ repeated work that allocates, not on pure CPU work like an extra `.equals()`.
   - a buffer sized much larger than its typical result (for example `new StringBuilder(1024)` per
     query for a ~200-character result).
 - **Not when:**
-  - the input has open cardinality, so a cache would rarely hit (see "Not when" on #3 in
-    `memory.md`);
+  - the only fix proposed is memoization and the input has open cardinality, so a cache would
+    rarely hit (see "Not when" on #3 in `memory.md`). Fixes that cache nothing (direct
+    concatenation, a loop instead of a stream, an accurately sized buffer) still apply;
   - the code is cold: startup, a one-time init, or a rare error path;
   - for Streams: the stream is inside a cache-miss body or a length-guarded error path.
 - **Confidence / level:** flag-with-confidence. P3, raised for the per-span core.

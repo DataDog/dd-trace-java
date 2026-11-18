@@ -5,8 +5,9 @@
 - **Flag:** in code reachable from premain or from an instrumentation's static initializer: eager
   class loading, native library loads (`Native.load`), reflection setup, regex compilation for
   config, eager file or network I/O, and thread creation.
-- **Not when:** the work happens lazily on first use, off the startup path, or on a background
-  thread after startup.
+- **Not when:** the work is proven to happen off the startup path: its first use can't be
+  reached from premain, or it runs on a background thread after startup. Lazy isn't enough on
+  its own: if premain reaches the first use, the cost is still paid at startup.
 - **Confidence / level:** flag-with-confidence. P2.
 - **Fix:** defer it to first use off the hot path, or to a background thread after startup.
 - **Why:** "once per process" is not negligible for serverless (cold starts are routine),

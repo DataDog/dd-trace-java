@@ -22,8 +22,9 @@ inlining.
   `indexOf`), parsed or appended, then dropped. Separately, flag a `SubSequence` stored in a
   field, tag, collection or cache: it keeps its whole backing `String` alive, so a small window
   over a large string loses memory.
-- **Not when:** the consumer only takes a `String`. The `toString()` at the boundary undoes the
-  gain, so either add a `CharSequence` or range overload, or skip it.
+- **Not when:** the slice is transient and its consumer only takes a `String`. The `toString()` at
+  the boundary undoes the gain, so either add a `CharSequence` or range overload, or skip it. A
+  retained view is flagged whatever its consumer takes.
 - **Confidence / level:** transient slice: flag-as-measure (it depends on escape analysis), P3.
   Retained view: flag-with-confidence, P3.
 - **Fix:** a `SubSequence` (offset and length) for the transient case. For a retained view, make

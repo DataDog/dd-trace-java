@@ -23,7 +23,9 @@ aggressively: a false positive costs a reviewer a minute, a missed one costs an 
     Retention is then capped at the count times the largest entry, so it can be large but not
     unbounded.
 - **Fix:** bound by count and by bytes, for example
-  `DDCaches.newFixedSizeWeightedCache(n, weigher, maxBytes)`. Or don't cache the input at all.
+  `DDCaches.newFixedSizeWeightedCache(n, weigher, maxBytes)`. Its weigher sees only the value, so
+  when keys are large (SQL text, URLs), the value must carry its key and the weigher count both.
+  Or don't cache the input at all.
 - **Why:** growth tied to traffic ends in an OOM or a container kill, not a slowdown.
 - **Example:** a `LoadingCache` keyed by URL and SQL text with no size or byte limit.
 
@@ -32,9 +34,10 @@ aggressively: a false positive costs a reviewer a minute, a missed one costs an 
 - **Flag:** a config- or user-driven value (tag key or value, resource name, HTTP URL) that feeds
   an aggregator with a per-key budget, such as the conflating metrics aggregator, where each
   distinct key combination is its own aggregate. Also flag any value with open cardinality used as
-  part of an aggregation key or a propagated hash: values that change per message (timestamp,
-  offset, correlation id) and values that come from the data (object or file names such as S3
-  keys, URLs, query text). Check which fields a changed hash actually covers; a loop bound or
+  part of an aggregation key, or of a propagated hash that becomes an aggregation or grouping key
+  downstream: values that change per message (timestamp, offset, correlation id) and values that
+  come from the data (object or file names such as S3 keys, URLs, query text). Trace a propagated
+  hash to that sink first; a hash that is only forwarded has a fixed memory cost. Check which fields a changed hash actually covers; a loop bound or
   index list can pull in a field its comment says is excluded.
 - **Not when:** the value comes from a small fixed set, or is bounded before it reaches the
   aggregator.

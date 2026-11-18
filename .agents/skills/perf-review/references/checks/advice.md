@@ -8,7 +8,10 @@ unconditional and needed is decided the same way as everywhere else (`../posture
 
 - **Flag:** a config lookup on an advised call, including one buried in a helper that the advice
   calls; follow the helpers.
-- **Not when:** it runs in a static initializer, a constructor, or once at install time.
+- **Not when:** it runs in a static initializer, once at install time, or in a constructor that
+  is itself cold, not one that runs on every advised call. What costs is resolving a setting
+  through the config (for example `isIntegrationEnabled(...)`), so follow that, not just the
+  `Config.get()` call.
 - **Confidence / level:** flag-with-confidence. Level as for #2 in `repeat-work.md`.
 - **Fix:** hoist to a `static final` field or compute it once in the constructor. For a feature
   flag, use `@Advice.SkipOn(OnDefaultValue.class)`: compute a `static final boolean` once, return it

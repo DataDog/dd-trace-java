@@ -16,9 +16,10 @@ Lighter wins: `LinkedHashMap` → `HashMap` → a plain record or value class.
     Flag-as-measure: the right size depends on the real distribution. Accurate sizing is the
     target, not generous sizing.
 - **Not when:**
-  - the order is needed (insertion order, or LRU with `accessOrder` and `removeEldestEntry`);
-  - the keys are open-ended or come from outside;
-  - the size isn't known when the collection is created.
+  - for replacing `LinkedHashMap` with `HashMap`: the order is needed (insertion order, or LRU
+    with `accessOrder` and `removeEldestEntry`);
+  - for replacing a map with a record or value class: the keys are open-ended or come from outside;
+  - for pre-sizing a growing collection: the final size isn't known when the collection is created.
 - **Confidence / level:** flag-with-confidence. P3, raised for the per-span core.
 - **Fix:** `HashMap` instead of `LinkedHashMap`; a record or value class instead of a small fixed
   map (denser, type-safe, and scalar-replaceable when it doesn't escape); pre-size accurately.
