@@ -67,7 +67,8 @@ public class ScaleSuiteBenchmark {
 
   /**
    * A case file, as {@code <suite>/<file>} without the {@code .json} extension. {@code
-   * ScaleSuiteTest} fails when this list misses a case file of the fixtures.
+   * ScaleSuiteTest} reads this list and fails unless it names every case file of the fixtures, in
+   * sorted order.
    */
   @Param({
     "scale/flags",

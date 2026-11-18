@@ -155,6 +155,12 @@ tasks.withType<Test>().configureEach {
   inputs.dir(fixtures).withPropertyName("fixtures").withPathSensitivity(PathSensitivity.RELATIVE)
 }
 
+// ScaleSuiteTest checks the case files that ScaleSuiteBenchmark lists in its @Param. It reads the
+// annotation by reflection, as the test source set cannot compile against the jmh one.
+tasks.named<Test>("test") {
+  classpath += sourceSets["jmh"].output + configurations["jmhRuntimeClasspath"]
+}
+
 // The scale benchmarks read the fixtures from disk at run time, so a fixture change reruns them. A
 // file tree rather than a directory: the suites are missing when the submodule is not initialized.
 tasks.named("jmh") {

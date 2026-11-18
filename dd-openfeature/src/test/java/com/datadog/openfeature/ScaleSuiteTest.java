@@ -3,6 +3,8 @@ package com.datadog.openfeature;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.io.IOException;
+import java.lang.annotation.Annotation;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -25,27 +27,6 @@ class ScaleSuiteTest {
   /** One provider per suite, so each configuration is parsed once. */
   private static final Map<String, Provider> PROVIDERS = new HashMap<>();
 
-  /** The case files that {@code ScaleSuiteBenchmark} lists in its {@code cases} parameter. */
-  private static final List<String> BENCHMARKED_CASE_FILES =
-      Arrays.asList(
-          "scale/flags",
-          "scale/numeric",
-          "scale/one-of",
-          "scale/one-of-many",
-          "scale/one-of-small-numbers",
-          "scale/regex",
-          "scale/regex-many",
-          "scale/rules",
-          "scale/rules-sweep",
-          "scale/semver",
-          "scale/splits",
-          "scale/time-windows",
-          "scale/variations",
-          "scale/wide-context",
-          "scale-json/json-shapes",
-          "scale-json/json-sizes",
-          "scale-json/json-values");
-
   static Stream<String> caseFiles() throws IOException {
     final List<String> caseFiles = new ArrayList<>();
     for (final String suite : SUITES) {
@@ -63,10 +44,10 @@ class ScaleSuiteTest {
   }
 
   @Test
-  void benchmarkListsEveryCaseFile() throws IOException {
+  void benchmarkListsEveryCaseFile() throws ReflectiveOperationException, IOException {
     final List<String> found = new ArrayList<>();
     caseFiles().forEach(found::add);
-    assertEquals(BENCHMARKED_CASE_FILES, found);
+    assertEquals(benchmarkedCaseFiles(), found);
   }
 
   @ParameterizedTest(name = "{0}")
@@ -85,5 +66,22 @@ class ScaleSuiteTest {
       scaleCase.check(scaleCase.evaluate(provider));
       scaleCase.check(scaleCase.evaluate(provider));
     }
+  }
+
+  /**
+   * The {@code @Param} values of {@code ScaleSuiteBenchmark.cases}. The test source set cannot
+   * compile against the jmh one, so the build adds the benchmark classes to this test's runtime
+   * classpath and the annotation is read by name.
+   */
+  private static List<String> benchmarkedCaseFiles() throws ReflectiveOperationException {
+    final Field cases =
+        Class.forName("com.datadog.openfeature.ScaleSuiteBenchmark").getField("cases");
+    for (final Annotation annotation : cases.getAnnotations()) {
+      final Class<? extends Annotation> type = annotation.annotationType();
+      if ("org.openjdk.jmh.annotations.Param".equals(type.getName())) {
+        return Arrays.asList((String[]) type.getMethod("value").invoke(annotation));
+      }
+    }
+    throw new AssertionError("ScaleSuiteBenchmark.cases has no @Param");
   }
 }
