@@ -2,6 +2,8 @@ import static datadog.trace.agent.test.assertions.SpanMatcher.span;
 import static datadog.trace.agent.test.assertions.TagsMatcher.defaultTags;
 import static datadog.trace.agent.test.assertions.TagsMatcher.tag;
 import static datadog.trace.api.config.TracerConfig.TRACE_SPAN_ATTRIBUTE_SCHEMA;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.test.junit.utils.assertions.Matchers.is;
 import static datadog.trace.test.junit.utils.assertions.Matchers.isNonNull;
 import static datadog.trace.test.junit.utils.assertions.Matchers.isNull;
@@ -11,6 +13,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import com.redis.testcontainers.RedisContainer;
+import datadog.context.ContextScope;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.agent.test.assertions.SpanMatcher;
 import datadog.trace.agent.test.assertions.TagsMatcher;
@@ -18,6 +21,7 @@ import datadog.trace.agent.test.utils.PortUtils;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.test.junit.utils.config.WithConfig;
 import datadog.trace.test.util.PollingConditions;
@@ -127,6 +131,21 @@ abstract class Lettuce5ClientTestBase extends AbstractInstrumentationTest {
     RedisClient client = RedisClient.create(uri);
     client.setOptions(CLIENT_OPTIONS);
     return client;
+  }
+
+  @FunctionalInterface
+  interface TracedAction<E extends Throwable> {
+    void run() throws E;
+  }
+
+  static <E extends Throwable> void runUnderTrace(String operationName, TracedAction<E> action)
+      throws E {
+    AgentSpan span = startSpan("test", operationName);
+    try (ContextScope scope = activateSpan(span)) {
+      action.run();
+    } finally {
+      span.finish();
+    }
   }
 
   int namingVersion() {
