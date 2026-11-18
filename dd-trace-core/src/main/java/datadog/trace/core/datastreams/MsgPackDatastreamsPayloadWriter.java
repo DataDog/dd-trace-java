@@ -66,7 +66,6 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
   private static final int MAX_PAYLOAD_SIZE = 5 << 20;
 
   private final WritableFormatter writer;
-  private final Sink sink;
   private final ChunkedStreamingBuffer buffer;
   private final WellKnownTags wellKnownTags;
   private final byte[] tracerVersionValue;
@@ -85,7 +84,6 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
       int maxPayloadSize) {
     buffer = new ChunkedStreamingBuffer(maxPayloadSize, sink);
     writer = new MsgPackWriter(buffer);
-    this.sink = sink;
     this.wellKnownTags = wellKnownTags;
     tracerVersionValue = tracerVersion.getBytes(ISO_8859_1);
     primaryTagValue = primaryTag == null ? new byte[0] : primaryTag.getBytes(ISO_8859_1);
@@ -121,7 +119,10 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
     try {
       write(data, serviceNameOverride);
     } catch (BufferOverflowException ignored) {
-      // the buffer discards the rest of the payload, and mark() below reports it
+      // the overflow stops write(); mark() below rewinds the partial payload and reports the drop
+    } catch (RuntimeException | Error e) {
+      buffer.rewind(); // drop the unfinished payload, so the next one isn't appended to it
+      throw e;
     }
     if (buffer.mark()) {
       buffer.flush();
