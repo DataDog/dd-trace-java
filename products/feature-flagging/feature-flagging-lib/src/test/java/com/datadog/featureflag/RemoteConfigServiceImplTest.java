@@ -391,6 +391,99 @@ class RemoteConfigServiceImplTest {
   }
 
   @Test
+  void cachedReplayUnsubscriptionDoesNotInvertPollerAndSubscriberLocks() throws Exception {
+    final ConfigurationPoller poller = mock(ConfigurationPoller.class);
+    final CountDownLatch pollerLocked = new CountDownLatch(1);
+    final CountDownLatch startPoll = new CountDownLatch(1);
+    doAnswer(
+            invocation -> {
+              synchronized (poller) {
+                return null;
+              }
+            })
+        .when(poller)
+        .addCapabilities(Capabilities.CAPABILITY_FFE_FLAG_DEPENDENT_FLAG_VARIANT_KEY_V1);
+    final RemoteConfigServiceImpl service = new RemoteConfigServiceImpl(poller);
+    final AutoCloseable legacy = service.subscribe(content -> {});
+    service.accept("key", DOCUMENT, mock(PollingRateHinter.class));
+    final ExecutorService executor = Executors.newFixedThreadPool(2);
+    try {
+      final Future<?> poll =
+          executor.submit(() -> {
+            synchronized (poller) {
+              pollerLocked.countDown();
+              try {
+                assertTrue(startPoll.await(5, SECONDS));
+              } catch (final InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new AssertionError(e);
+              }
+              assertThrows(
+                  IllegalStateException.class,
+                  () -> service.accept("key", DOCUMENT, mock(PollingRateHinter.class)));
+            }
+          });
+      final Future<AutoCloseable> supported =
+          executor.submit(() ->
+              service.subscribe(
+                  content -> {
+                    try {
+                      assertTrue(pollerLocked.await(5, SECONDS));
+                      startPoll.countDown();
+                      legacy.close();
+                    } catch (final Exception e) {
+                      throw new AssertionError(e);
+                    }
+                  },
+                  Collections.singleton("dependent-flag-variant-key-v1")));
+
+      supported.get(5, SECONDS).close();
+      poll.get(5, SECONDS);
+    } finally {
+      startPoll.countDown();
+      executor.shutdownNow();
+      service.close();
+    }
+  }
+
+  @Test
+  void restartOverlappingCapabilityRemovalResumesDelivery() throws Exception {
+    final ConfigurationPoller poller = mock(ConfigurationPoller.class);
+    final CountDownLatch removalStarted = new CountDownLatch(1);
+    final CountDownLatch finishRemoval = new CountDownLatch(1);
+    doAnswer(
+            invocation -> {
+              removalStarted.countDown();
+              assertTrue(finishRemoval.await(5, SECONDS));
+              return null;
+            })
+        .when(poller)
+        .removeCapabilities(Capabilities.CAPABILITY_FFE_FLAG_DEPENDENT_FLAG_VARIANT_KEY_V1);
+    final RemoteConfigServiceImpl service = new RemoteConfigServiceImpl(poller);
+    service.subscribe(content -> {}, Collections.singleton("dependent-flag-variant-key-v1"));
+    final ExecutorService executor = Executors.newFixedThreadPool(2);
+    final List<byte[]> restartedDocuments = new CopyOnWriteArrayList<>();
+    try {
+      final Future<?> close = executor.submit(service::close);
+      assertTrue(removalStarted.await(5, SECONDS));
+      final Future<AutoCloseable> restarted =
+          executor.submit(() -> service.subscribe(restartedDocuments::add));
+      final AutoCloseable restartedHandle = restarted.get(5, SECONDS);
+
+      finishRemoval.countDown();
+      close.get(5, SECONDS);
+      service.accept("key", DOCUMENT, mock(PollingRateHinter.class));
+
+      assertEquals(1, restartedDocuments.size());
+      restartedHandle.close();
+    } finally {
+      finishRemoval.countDown();
+      executor.shutdownNow();
+      service.close();
+    }
+  }
+
+  @Test
   void unknownEvaluatorCapabilitiesDoNotOptIn() {
     final ConfigurationPoller poller = mock(ConfigurationPoller.class);
     final RemoteConfigServiceImpl service = new RemoteConfigServiceImpl(poller);

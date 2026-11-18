@@ -95,7 +95,8 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
       if (evaluator != null && ctx != null) {
         try {
           evaluator.publishDependencyEvaluations(
-              evaluator.dependencyEvaluationTrace(evaluator.dependencyTelemetryToken(scope(ctx))),
+              evaluator.dependencyEvaluationTrace(
+                  evaluator.dependencyTelemetryToken(scope(ctx, hints))),
               ctx.getCtx(),
               w);
         } catch (final RuntimeException | LinkageError ignored) {
@@ -195,12 +196,12 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
     }
   }
 
-  private Object scope(final HookContext<?> context) {
+  private Object scope(final HookContext<?> context, final Map<String, Object> hints) {
     final Object scope = HookDataAccessor.get(context, DDEvaluator.DEPENDENCY_TELEMETRY_SCOPE);
     if (scope != null || HookDataAccessor.isAvailable() || context == null) {
       return scope;
     }
     final DDEvaluator evaluator = evaluatorSupplier.get();
-    return evaluator == null ? null : evaluator.legacyLifecycleScope(context.getFlagKey());
+    return evaluator == null ? null : evaluator.legacyLifecycleScope(context.getFlagKey(), hints);
   }
 }

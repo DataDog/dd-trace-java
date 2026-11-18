@@ -5,6 +5,8 @@ import dev.openfeature.sdk.FlagEvaluationDetails;
 import dev.openfeature.sdk.Hook;
 import dev.openfeature.sdk.HookContext;
 import dev.openfeature.sdk.Value;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.Map;
 import java.util.Optional;
 
@@ -13,6 +15,7 @@ final class EvaluationTelemetryOptOutHook implements Hook<Object> {
   private static final String PARAMETER = "dd_evaluation_telemetry_opt_out";
   private static final String DECISION = "datadog.evaluationTelemetryOptOut";
   private final Hook<Object> delegate;
+  private final ThreadLocal<Deque<LegacyDecision>> legacyDecisions = new ThreadLocal<>();
 
   EvaluationTelemetryOptOutHook(final Hook<Object> delegate) {
     this.delegate = delegate;
@@ -23,7 +26,15 @@ final class EvaluationTelemetryOptOutHook implements Hook<Object> {
       final HookContext<Object> context, final Map<String, Object> hints) {
     // Provider before hooks see the merged context, including application before hooks.
     // HookData belongs to this evaluation, including nested and concurrent calls.
-    HookDataAccessor.set(context, DECISION, isOptedOut(context.getCtx()));
+    final boolean optedOut = isOptedOut(context.getCtx());
+    if (!HookDataAccessor.set(context, DECISION, optedOut)) {
+      Deque<LegacyDecision> decisions = this.legacyDecisions.get();
+      if (decisions == null) {
+        decisions = new ArrayDeque<>();
+        this.legacyDecisions.set(decisions);
+      }
+      decisions.push(new LegacyDecision(hints, optedOut));
+    }
     return delegate.before(context, hints);
   }
 
@@ -33,7 +44,16 @@ final class EvaluationTelemetryOptOutHook implements Hook<Object> {
     // A failing application before hook can prevent our before hook from running.
     // Preserve its decision before application error hooks can change the context.
     if (HookDataAccessor.get(context, DECISION) == null) {
-      HookDataAccessor.set(context, DECISION, isOptedOut(context.getCtx()));
+      if (!HookDataAccessor.set(context, DECISION, isOptedOut(context.getCtx()))) {
+        Deque<LegacyDecision> decisions = this.legacyDecisions.get();
+        if (decisions == null) {
+          decisions = new ArrayDeque<>();
+          this.legacyDecisions.set(decisions);
+        }
+        if (decisions.isEmpty() || decisions.peek().invocation != hints) {
+          decisions.push(new LegacyDecision(hints, true));
+        }
+      }
     }
   }
 
@@ -42,7 +62,22 @@ final class EvaluationTelemetryOptOutHook implements Hook<Object> {
       final HookContext<Object> context,
       final FlagEvaluationDetails<Object> details,
       final Map<String, Object> hints) {
-    final Object decision = HookDataAccessor.take(context, DECISION);
+    Object decision = HookDataAccessor.take(context, DECISION);
+    final Deque<LegacyDecision> decisions = this.legacyDecisions.get();
+    if (decision == null
+        && decisions != null
+        && !decisions.isEmpty()
+        && decisions.peek().invocation == hints) {
+      decision = decisions.pop().optedOut;
+      if (decisions.isEmpty()) {
+        this.legacyDecisions.remove();
+      }
+    }
+    // If neither HookData nor the legacy invocation stack owns this call, provider before did not
+    // run (or storage failed). Suppress telemetry rather than consuming a nested/outer decision.
+    if (decision == null) {
+      return;
+    }
     if (Boolean.TRUE.equals(decision) || isOptedOut(context.getCtx())) {
       return;
     }
@@ -52,5 +87,15 @@ final class EvaluationTelemetryOptOutHook implements Hook<Object> {
   private static boolean isOptedOut(final EvaluationContext context) {
     final Value value = context == null ? null : context.getValue(PARAMETER);
     return value != null && value.isBoolean() && Boolean.TRUE.equals(value.asBoolean());
+  }
+
+  private static final class LegacyDecision {
+    private final Object invocation;
+    private final boolean optedOut;
+
+    private LegacyDecision(final Object invocation, final boolean optedOut) {
+      this.invocation = invocation;
+      this.optedOut = optedOut;
+    }
   }
 }

@@ -471,7 +471,7 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
   }
 
   /** SDK before 1.18: recover this root lifecycle without HookData support. */
-  Object legacyLifecycleScope(final String rootFlagKey) {
+  Object legacyLifecycleScope(final String rootFlagKey, final Object hookInvocation) {
     final Deque<Object> scopes = dependencyTelemetryScopes.get();
     if (scopes == null || scopes.isEmpty()) {
       return null;
@@ -480,8 +480,15 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
     return scope instanceof DependencyTelemetryToken
             && rootFlagKey != null
             && rootFlagKey.equals(((DependencyTelemetryToken) scope).rootFlagKey)
+            && hookInvocation == ((DependencyTelemetryToken) scope).legacyHookInvocation
         ? scope
         : null;
+  }
+
+  void bindLegacyLifecycleScope(final Object scope, final Object hookInvocation) {
+    if (scope instanceof DependencyTelemetryToken) {
+      ((DependencyTelemetryToken) scope).legacyHookInvocation = hookInvocation;
+    }
   }
 
   DependencyEvaluationTrace dependencyEvaluationTrace(final DependencyTelemetryToken token) {
@@ -628,6 +635,7 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
     private final EvaluationContext evaluationContext;
     private DependencyEvaluationTrace evaluationTrace = DependencyEvaluationTrace.EMPTY;
     private List<FlagEvaluator.DependencyExposure> exposures = Collections.emptyList();
+    private Object legacyHookInvocation;
     private boolean claimed;
     private boolean sealed;
 

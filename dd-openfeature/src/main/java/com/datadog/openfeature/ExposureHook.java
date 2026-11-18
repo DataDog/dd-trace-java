@@ -191,19 +191,16 @@ public final class ExposureHook implements Hook<Object> {
   private static final class Registration {
     private final ExposureHook hook;
     private final String flagKey;
-    private final EvaluationContext evaluationContext;
     private Object providerScope;
     private boolean active = true;
 
     private Registration(final ExposureHook hook, final HookContext<?> context) {
       this.hook = hook;
       this.flagKey = context.getFlagKey();
-      this.evaluationContext = context.getCtx();
     }
 
     private boolean matches(final HookContext<?> context) {
-      return java.util.Objects.equals(this.flagKey, context.getFlagKey())
-          && this.evaluationContext == context.getCtx();
+      return java.util.Objects.equals(this.flagKey, context.getFlagKey());
     }
   }
 

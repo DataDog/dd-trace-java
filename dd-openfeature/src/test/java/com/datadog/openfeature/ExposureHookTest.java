@@ -508,7 +508,7 @@ class ExposureHookTest {
   }
 
   @Test
-  void providerScopeBindingRequiresTheSameFlagAndEvaluationContext() {
+  void providerScopeBindingSurvivesContextEnrichmentForTheSameFlag() {
     final List<ExposureHook.Evaluation> seen = new ArrayList<>();
     final ExposureHook hook = new ExposureHook(seen::add);
     final MutableContext evaluationContext = new MutableContext("active");
@@ -517,11 +517,10 @@ class ExposureHookTest {
     hook.before(active, emptyMap());
 
     ExposureHook.bindProviderScope(scope, hookContext("other-flag", evaluationContext));
-    ExposureHook.bindProviderScope(scope, hookContext("flag", new MutableContext("active")));
     ExposureHook.publishDependencies(scope, active, singletonList(dependencyDetails()));
     assertTrue(seen.isEmpty());
 
-    ExposureHook.bindProviderScope(scope, active);
+    ExposureHook.bindProviderScope(scope, hookContext("flag", new MutableContext("enriched")));
     ExposureHook.publishDependencies(scope, active, singletonList(dependencyDetails()));
     hook.finallyAfter(active, rootDetails(), emptyMap());
 

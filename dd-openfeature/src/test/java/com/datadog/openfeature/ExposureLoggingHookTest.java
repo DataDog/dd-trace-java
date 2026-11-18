@@ -51,6 +51,7 @@ import dev.openfeature.sdk.multiprovider.MultiProvider;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -176,6 +177,28 @@ class ExposureLoggingHookTest {
   }
 
   @Test
+  void customerExposureHookKeepsDependenciesAfterApplicationContextEnrichment() throws Exception {
+    final ExposureTestEvaluator dependent =
+        new ExposureTestEvaluator(dependentConfiguration(true), true);
+    final OpenFeatureAPI api = OpenFeatureAPI.getInstance();
+    api.setProviderAndWait(new Provider(new Options().initTimeout(10, SECONDS), dependent));
+    final List<String> callbacks = new java.util.ArrayList<>();
+    api.addHooks(new ExposureHook(evaluation -> callbacks.add(evaluation.getFlagKey())));
+    api.addHooks(
+        new Hook<Object>() {
+          @Override
+          public Optional<EvaluationContext> before(
+              final HookContext<Object> context, final Map<String, Object> hints) {
+            return Optional.of(new MutableContext().add("enriched", true));
+          }
+        });
+
+    api.getClient().getIntegerDetails("root", 0, new MutableContext("user-1"));
+
+    assertEquals(java.util.Arrays.asList("dependency", "root"), callbacks);
+  }
+
+  @Test
   void doesNotStageIneligibleDependencyExposures() throws Exception {
     final ExposureTestEvaluator dependent =
         new ExposureTestEvaluator(dependentConfiguration(false), true);
@@ -209,17 +232,21 @@ class ExposureLoggingHookTest {
     final MutableContext innerContext = new MutableContext("inner");
 
     assertNull(dependent.currentDependencyTelemetryScope("root", outerContext));
-    assertNull(dependent.legacyLifecycleScope("root"));
+    assertNull(dependent.legacyLifecycleScope("root", null));
+    dependent.bindLegacyLifecycleScope(new Object(), new Object());
     assertTrue(dependent.endDependencyExposureScope(null).isEmpty());
 
     final Object outer = dependent.beginDependencyExposureScope("root", outerContext);
+    final Object outerInvocation = new Object();
+    dependent.bindLegacyLifecycleScope(outer, outerInvocation);
     assertNotNull(outer);
     assertNull(dependent.currentDependencyTelemetryScope("other", outerContext));
     assertNull(dependent.currentDependencyTelemetryScope("root", innerContext));
     assertSame(outer, dependent.currentDependencyTelemetryScope("root", outerContext));
-    assertNull(dependent.legacyLifecycleScope(null));
-    assertNull(dependent.legacyLifecycleScope("other"));
-    assertSame(outer, dependent.legacyLifecycleScope("root"));
+    assertNull(dependent.legacyLifecycleScope(null, outerInvocation));
+    assertNull(dependent.legacyLifecycleScope("other", outerInvocation));
+    assertNull(dependent.legacyLifecycleScope("root", new Object()));
+    assertSame(outer, dependent.legacyLifecycleScope("root", outerInvocation));
     assertNull(dependent.dependencyTelemetryToken(null));
     assertNull(dependent.dependencyTelemetryToken(outer));
 
@@ -238,7 +265,7 @@ class ExposureLoggingHookTest {
     assertEquals(1, dependent.dependencyEvaluationTrace(outerToken).evaluations.size());
     assertEquals(1, dependent.endDependencyExposureScope(outer).size());
     assertTrue(dependent.endDependencyExposureScope().isEmpty());
-    assertNull(dependent.legacyLifecycleScope("root"));
+    assertNull(dependent.legacyLifecycleScope("root", outerInvocation));
   }
 
   @Test

@@ -51,6 +51,7 @@ class ExposureLoggingHook<T> implements Hook<T> {
       if (evaluator != null && ctx != null) {
         final Object scope = evaluator.beginDependencyExposureScope(ctx.getFlagKey(), ctx.getCtx());
         if (scope != null) {
+          evaluator.bindLegacyLifecycleScope(scope, hints);
           ExposureHook.bindProviderScope(scope, ctx);
           HookDataAccessor.set(ctx, DDEvaluator.DEPENDENCY_TELEMETRY_SCOPE, scope);
         }
@@ -70,7 +71,7 @@ class ExposureLoggingHook<T> implements Hook<T> {
       final DDEvaluator evaluator = this.evaluatorSupplier.get();
       Object scope = HookDataAccessor.take(ctx, DDEvaluator.DEPENDENCY_TELEMETRY_SCOPE);
       if (scope == null && !HookDataAccessor.isAvailable() && evaluator != null && ctx != null) {
-        scope = evaluator.legacyLifecycleScope(ctx.getFlagKey());
+        scope = evaluator.legacyLifecycleScope(ctx.getFlagKey(), hints);
       }
       final List<com.datadog.openfeature.internal.evaluation.FlagEvaluator.DependencyExposure>
           dependencyExposures =

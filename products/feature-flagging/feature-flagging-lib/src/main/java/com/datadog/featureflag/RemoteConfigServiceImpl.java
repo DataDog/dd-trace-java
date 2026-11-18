@@ -163,6 +163,12 @@ public class RemoteConfigServiceImpl implements ConfigurationChangesTypedListene
   }
 
   private void updateDependentFlagCapability() {
+    // Cached replay currently runs under the subscribers monitor to stay ordered with poll
+    // delivery. A replay callback may close another subscription; defer its poller update until
+    // the outer subscribe call releases the monitor and invokes this method again.
+    if (Thread.holdsLock(this.subscribers)) {
+      return;
+    }
     if (!this.capabilityUpdateLock.tryLock()) {
       return;
     }
@@ -255,6 +261,7 @@ public class RemoteConfigServiceImpl implements ConfigurationChangesTypedListene
               && !capabilityCleanupPending
               && !listenerCleanupPending
               && !pollerCleanupPending) {
+            this.deliveryStopped = !targetStarted;
             this.lifecycleUpdateLock.unlock();
             locked = false;
             return;
