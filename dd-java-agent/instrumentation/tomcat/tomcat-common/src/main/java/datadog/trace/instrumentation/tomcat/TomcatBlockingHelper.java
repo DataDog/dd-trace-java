@@ -163,6 +163,12 @@ public class TomcatBlockingHelper {
     log.debug("Committing blocking response");
 
     resp.reset();
+    // sendError() (e.g. Tomcat rejecting an encoded slash in CoyoteAdapter.postParseRequest)
+    // suspends the output and reset() does not lift it, so the block page would be dropped
+    // while its headers still go out. Tomcat's own error valves do the same before writing.
+    if (resp.isSuspended()) {
+      resp.setSuspended(false);
+    }
     resp.getRequest().setAttribute(HttpServerDecorator.DD_IGNORE_COMMIT_ATTRIBUTE, Boolean.TRUE);
     resp.setStatus(statusCode);
 
