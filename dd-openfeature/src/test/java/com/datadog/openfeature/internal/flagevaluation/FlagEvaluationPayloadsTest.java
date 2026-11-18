@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.openfeature.internal.JsonReading;
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -179,7 +180,7 @@ class FlagEvaluationPayloadsTest {
             CONTEXT,
             1_000_000);
     final String rawJson =
-        new String(payloads.bodies.get(0), java.nio.charset.StandardCharsets.UTF_8);
+        new String(bytes(payloads.bodies.get(0)), java.nio.charset.StandardCharsets.UTF_8);
 
     // The raw wire bytes must carry the hashed key and must not leak the raw PII value or the
     // per-event evaluation context — these are the exact properties system-tests asserts over the
@@ -191,7 +192,7 @@ class FlagEvaluationPayloadsTest {
     assertFalse(rawJson.contains("jane.doe@datadoghq.com"));
     assertFalse(rawJson.contains("\"evaluation\":"));
 
-    final Map<String, Object> ev = firstEvent(parse(payloads.bodies.get(0)));
+    final Map<String, Object> ev = firstEvent(parse(bytes(payloads.bodies.get(0))));
     assertEquals(
         "sha256_b4698f9b6d186781fa8dc59e533578fa2d8379a46b1cf6db85cda6aa9c99e51b",
         ev.get("targeting_key"));
@@ -213,7 +214,8 @@ class FlagEvaluationPayloadsTest {
 
     assertTrue(payloads.bodies.size() > 1);
     int eventCount = 0;
-    for (final byte[] body : payloads.bodies) {
+    for (final List<ByteBuffer> chunks : payloads.bodies) {
+      final byte[] body = bytes(chunks);
       assertTrue(body.length <= 1_100);
       eventCount += eventCount(parse(body));
     }
@@ -237,10 +239,10 @@ class FlagEvaluationPayloadsTest {
             512);
 
     assertEquals(1, payloads.bodies.size());
-    assertTrue(payloads.bodies.get(0).length <= 512);
+    assertTrue(bytes(payloads.bodies.get(0)).length <= 512);
     assertEquals(0, payloads.droppedPayloadLimit);
     assertEquals(2, payloads.degradedPayloadLimit);
-    final Map<String, Object> ev = firstEvent(parse(payloads.bodies.get(0)));
+    final Map<String, Object> ev = firstEvent(parse(bytes(payloads.bodies.get(0))));
     assertEquals(2.0, ((Number) ev.get("evaluation_count")).doubleValue());
     assertNull(ev.get("targeting_key"));
     assertNull(ev.get("context"));
@@ -263,13 +265,17 @@ class FlagEvaluationPayloadsTest {
                 java.util.Collections.singletonList(first), CONTEXT, 1_000_000)
             .bodies
             .get(0)
-            .length;
+            .stream()
+            .mapToInt(ByteBuffer::remaining)
+            .sum();
     final int degradedPayloadSize =
         FlagEvaluationPayloads.buildPayloads(
                 java.util.Collections.singletonList(degradedSecond), CONTEXT, 1_000_000)
             .bodies
             .get(0)
-            .length;
+            .stream()
+            .mapToInt(ByteBuffer::remaining)
+            .sum();
     final int limit = Math.max(firstPayloadSize, degradedPayloadSize);
 
     final FlagEvaluationPayloads.EncodedPayloads payloads =
@@ -278,8 +284,8 @@ class FlagEvaluationPayloadsTest {
     assertEquals(2, payloads.bodies.size());
     assertEquals(0, payloads.droppedPayloadLimit);
     assertEquals(3, payloads.degradedPayloadLimit);
-    assertEquals(1, eventCount(parse(payloads.bodies.get(0))));
-    final Map<String, Object> ev = firstEvent(parse(payloads.bodies.get(1)));
+    assertEquals(1, eventCount(parse(bytes(payloads.bodies.get(0)))));
+    final Map<String, Object> ev = firstEvent(parse(bytes(payloads.bodies.get(1))));
     assertObjectWithKey(ev.get("flag"), "second-flag");
     assertNull(ev.get("targeting_key"));
     assertNull(ev.get("context"));
@@ -424,7 +430,7 @@ class FlagEvaluationPayloadsTest {
   private static Map<String, Object> firstPayload(
       final FlagEvaluationPayloads.EncodedPayloads payloads) throws Exception {
     assertEquals(1, payloads.bodies.size());
-    return parse(payloads.bodies.get(0));
+    return parse(bytes(payloads.bodies.get(0)));
   }
 
   private static Map<String, Object> parse(final byte[] body) throws Exception {
@@ -500,5 +506,15 @@ class FlagEvaluationPayloadsTest {
     return firstPayload(
         FlagEvaluationPayloads.buildPayloads(
             java.util.Collections.singletonList(row), CONTEXT, 1_000_000));
+  }
+
+  private static byte[] bytes(final List<ByteBuffer> chunks) {
+    final java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+    for (final ByteBuffer chunk : chunks) {
+      final byte[] bytes = new byte[chunk.remaining()];
+      chunk.duplicate().get(bytes);
+      out.write(bytes, 0, bytes.length);
+    }
+    return out.toByteArray();
   }
 }

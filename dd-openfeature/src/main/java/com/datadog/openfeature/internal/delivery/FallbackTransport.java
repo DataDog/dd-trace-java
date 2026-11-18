@@ -3,6 +3,8 @@ package com.datadog.openfeature.internal.delivery;
 import com.datadog.openfeature.internal.bridge.v1.EventProxyUnavailableException;
 import com.datadog.openfeature.internal.bridge.v1.EventTransport;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,6 +27,22 @@ public final class FallbackTransport implements EventTransport {
 
   @Override
   public void post(final String route, final byte[] json) throws IOException {
+    if (!this.proxyUnavailable) {
+      try {
+        this.proxy.post(route, json);
+        return;
+      } catch (final EventProxyUnavailableException e) {
+        switchToDirectIntake();
+      } catch (final IOException e) {
+        switchToDirectIntake();
+        throw e;
+      }
+    }
+    this.direct.post(route, json);
+  }
+
+  @Override
+  public void post(final String route, final List<ByteBuffer> json) throws IOException {
     if (!this.proxyUnavailable) {
       try {
         this.proxy.post(route, json);
