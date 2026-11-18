@@ -148,8 +148,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
 
   @Override
   public Payload newPayload() {
-    return new PayloadV0_5(dictionary.completedMessages(), dictionary.messageCount())
-        .withProtocol(ProtocolVersion.V0_5);
+    return new PayloadV0_5(dictionary.completedMessages(), dictionary.messageCount());
   }
 
   @Override
@@ -244,6 +243,11 @@ public final class TraceMapperV0_5 implements TraceMapper {
     private PayloadV0_5(ByteBuffer dictionary, int stringCount) {
       this.dictionary = dictionary;
       this.stringCount = stringCount;
+    }
+
+    @Override
+    public ProtocolVersion protocol() {
+      return ProtocolVersion.V0_5;
     }
 
     @Override

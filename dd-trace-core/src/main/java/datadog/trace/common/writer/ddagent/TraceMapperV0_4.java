@@ -383,7 +383,7 @@ public final class TraceMapperV0_4 implements TraceMapper {
 
   @Override
   public Payload newPayload() {
-    return new PayloadV0_4().withProtocol(ProtocolVersion.V0_4);
+    return new PayloadV0_4();
   }
 
   @Override
@@ -402,6 +402,11 @@ public final class TraceMapperV0_4 implements TraceMapper {
   }
 
   private static class PayloadV0_4 extends Payload {
+
+    @Override
+    public ProtocolVersion protocol() {
+      return ProtocolVersion.V0_4;
+    }
 
     @Override
     public int sizeInBytes() {

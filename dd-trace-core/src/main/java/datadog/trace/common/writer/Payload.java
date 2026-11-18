@@ -24,7 +24,6 @@ public abstract class Payload {
   private long droppedTraces = 0;
   private long droppedSpans = 0;
   private List<ByteBuffer> body = singletonList(EMPTY_ARRAY);
-  private ProtocolVersion protocol;
 
   public Payload withBody(int traceCount, ByteBuffer body) {
     return withBody(traceCount, null == body ? null : singletonList(body));
@@ -49,18 +48,12 @@ public abstract class Payload {
     return this;
   }
 
-  /** Records the trace protocol the body is encoded in, for payloads sent to the Datadog Agent. */
-  public Payload withProtocol(ProtocolVersion protocol) {
-    this.protocol = protocol;
-    return this;
-  }
-
   /**
    * The trace protocol the body is encoded in, or {@code null} for payloads that aren't sent to a
-   * Datadog Agent trace endpoint.
+   * Datadog Agent trace endpoint. Agent trace payloads override it.
    */
   public ProtocolVersion protocol() {
-    return protocol;
+    return null;
   }
 
   public int traceCount() {

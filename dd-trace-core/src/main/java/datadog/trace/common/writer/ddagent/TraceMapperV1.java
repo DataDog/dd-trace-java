@@ -627,7 +627,7 @@ public final class TraceMapperV1 implements TraceMapper {
 
   @Override
   public Payload newPayload() {
-    return new PayloadV1(header).withProtocol(ProtocolVersion.V1_0);
+    return new PayloadV1(header);
   }
 
   @Override
@@ -693,10 +693,16 @@ public final class TraceMapperV1 implements TraceMapper {
 
   /** Payload implementation for V1.0 format. */
   private static class PayloadV1 extends Payload {
+
     private final ByteBuffer header;
 
     private PayloadV1(ByteBuffer header) {
       this.header = header;
+    }
+
+    @Override
+    public ProtocolVersion protocol() {
+      return ProtocolVersion.V1_0;
     }
 
     @Override
