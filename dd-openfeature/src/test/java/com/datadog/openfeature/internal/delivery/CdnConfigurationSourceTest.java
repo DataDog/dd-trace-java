@@ -309,9 +309,7 @@ class CdnConfigurationSourceTest {
 
   private static Stream<Arguments> tracerServicesAndTheirHeader() {
     return Stream.of(
-        arguments("My Service", "my_service"),
-        arguments("_svc", "_svc"),
-        arguments("___", null));
+        arguments("My Service", "my_service"), arguments("_svc", "_svc"), arguments("___", null));
   }
 
   @Test
