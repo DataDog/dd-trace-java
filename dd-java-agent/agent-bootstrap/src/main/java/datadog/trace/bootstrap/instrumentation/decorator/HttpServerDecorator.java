@@ -668,7 +668,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
             cbp.getCallback(EVENTS.responseHeader()),
             cbp.getCallback(EVENTS.responseHeaderDone()));
     if (null != igKeyClassifier) {
-      if (hasHeaderConsumer(requestContext)) {
+      // Response headers go only to AppSec (IAST registers no response-header callback).
+      if (requestContext.getData(RequestContextSlot.APPSEC) != null) {
         contextVisitor.forEachKey(carrier, igKeyClassifier);
       }
       return igKeyClassifier.done();
