@@ -39,8 +39,23 @@ public abstract class IdStore {
    * @return a fresh, empty id store
    */
   public static IdStore create(TagMap parent) {
-    return IdStoreFactory.Default.INSTANCE.create(parent == null ? null : parent.knownStore);
+    return create(parent, null);
   }
+
+  /**
+   * Like {@link #create(TagMap)}, presized from {@code hint} (see {@link SizingHintTable}); a null
+   * hint, or a store that isn't sized per span, ignores it.
+   */
+  public static IdStore create(TagMap parent, @Nullable SizingHint hint) {
+    return IdStoreFactory.Default.INSTANCE.create(parent == null ? null : parent.knownStore, hint);
+  }
+
+  /**
+   * Feeds this store's size back into the hint it was presized from -- a best-effort, racy max, so
+   * later stores of the same operation are presized to it. A store created without a hint, or with
+   * a capped one, or that isn't sized per span, does nothing.
+   */
+  public void recordSize() {}
 
   /**
    * Builds the exception for an id that names no known tag.
