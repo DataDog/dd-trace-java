@@ -72,7 +72,6 @@ build-exploration-tests-image:
     - cp dd-java-agent/agent-debugger/exploration-tests/exclude_*.txt /exploration-tests
     - cp dd-java-agent/agent-debugger/exploration-tests/include_*.txt /exploration-tests
     - cd /exploration-tests
-    - java -version
   after_script:
     - cp /exploration-tests/${PROJECT}/agent.log ${PROJECT}_agent.log
     - gzip ${PROJECT}_agent.log
