@@ -9,6 +9,8 @@ import static datadog.trace.core.datastreams.DefaultDataStreamsMonitoring.LITE_E
 import static datadog.trace.core.datastreams.DefaultDataStreamsMonitoringTestBridge.getSeenSet;
 import static datadog.trace.core.datastreams.DefaultDataStreamsMonitoringTestBridge.getThreadState;
 import static datadog.trace.core.datastreams.DefaultDataStreamsMonitoringTestBridge.isInboxEmpty;
+import static java.util.Arrays.asList;
+import static java.util.Collections.singletonMap;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -33,6 +35,7 @@ import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.api.datastreams.NoopPathwayContext;
 import datadog.trace.api.datastreams.PathwayContext;
 import datadog.trace.api.datastreams.StatsPoint;
+import datadog.trace.api.experimental.DataStreamsContextCarrier;
 import datadog.trace.api.time.ControllableTimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
@@ -48,6 +51,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -499,6 +503,24 @@ class DataStreamsLiteTest extends DDCoreJavaSpecification {
     assertTrue(points.stream().anyMatch(point -> point.service.equals("C")), points.toString());
   }
 
+  @Test
+  void aBatchKeepsTheSampledPathwayOverUnsampledMessages() throws Exception {
+    Service a = new Service("A", true, 1, new CopyOnWriteArrayList<>());
+    Service b = new Service("B", true, 1, new CopyOnWriteArrayList<>());
+    Map<String, String> unsampled = singletonMap(PROPAGATION_KEY, UNSAMPLED_HEADER);
+    Map<String, String> sampled = new HashMap<>();
+    withTracer(() -> sampled.putAll(a.produce(a.originSpan(), "orders")));
+    assertFalse(isUnsampled(sampled), sampled.toString());
+    long sampledHash =
+        DefaultPathwayContext.decode(timeSource, null, sampled.get(PROPAGATION_KEY)).getHash();
+
+    for (int i = 0; i < 64; i++) {
+      assertEquals(sampledHash, b.consumeBatch(asList(unsampled, sampled)).getHash());
+      assertEquals(sampledHash, b.consumeBatch(asList(sampled, unsampled)).getHash());
+    }
+    assertSame(UnsampledPathwayContext.INSTANCE, b.consumeBatch(asList(unsampled, unsampled)));
+  }
+
   private static void assertPathwaysOnlyStartAt(List<RecordedPoint> points, String origin) {
     assertPathwaysOnlyStartAt(points, point -> point.service.equals(origin));
   }
@@ -595,6 +617,19 @@ class DataStreamsLiteTest extends DDCoreJavaSpecification {
       return span;
     }
 
+    /**
+     * Consumes a batch in one span, merging each message's pathway into it as {@code
+     * setConsumeCheckpoint} does, and returns the span's resulting pathway.
+     */
+    PathwayContext consumeBatch(List<Map<String, String>> messages) {
+      AgentSpan span = tracer.buildSpan("test", "consume-batch").start();
+      for (Map<String, String> headers : messages) {
+        monitoring.mergePathwayContextIntoSpan(span, carrier(headers));
+      }
+      span.finish();
+      return span.spanContext().getPathwayContext();
+    }
+
     /** Produces a message from a child of {@code parent}, then finishes {@code parent}. */
     Map<String, String> produce(AgentSpan parent, String topic) {
       AgentSpan span = tracer.buildSpan("test", "produce").asChildOf(parent).start();
@@ -634,6 +669,20 @@ class DataStreamsLiteTest extends DDCoreJavaSpecification {
         .propagator()
         .inject(Context.root().with(fromTags(tags)).with(spanWith(spanPathway)), headers, Map::put);
     return headers;
+  }
+
+  private static DataStreamsContextCarrier carrier(Map<String, String> headers) {
+    return new DataStreamsContextCarrier() {
+      @Override
+      public Set<Map.Entry<String, Object>> entries() {
+        return new HashMap<String, Object>(headers).entrySet();
+      }
+
+      @Override
+      public void set(String key, String value) {
+        headers.put(key, value);
+      }
+    };
   }
 
   private static AgentSpan spanWith(PathwayContext pathwayContext) {

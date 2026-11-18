@@ -20,8 +20,8 @@ import java.util.function.Consumer;
  * from the epoch, and a value that isn't base64 throws out of extraction in some of them. Using the
  * existing header also means producers that re-inject replace it rather than forwarding it stale.
  */
-final class UnsampledPathwayContext implements PathwayContext {
-  static final UnsampledPathwayContext INSTANCE = new UnsampledPathwayContext();
+public final class UnsampledPathwayContext implements PathwayContext {
+  public static final UnsampledPathwayContext INSTANCE = new UnsampledPathwayContext();
 
   static final String ENCODED = "AAAAAAAAAAA=";
   private static final byte[] ENCODED_BYTES = ENCODED.getBytes(ISO_8859_1);
