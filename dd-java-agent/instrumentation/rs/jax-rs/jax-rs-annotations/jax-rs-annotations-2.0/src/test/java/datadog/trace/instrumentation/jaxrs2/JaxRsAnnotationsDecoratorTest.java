@@ -7,12 +7,16 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import datadog.trace.api.Pair;
 import java.lang.annotation.AnnotationFormatError;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 import java.lang.reflect.Method;
 import javax.ws.rs.GET;
+import javax.ws.rs.HttpMethod;
 import javax.ws.rs.Path;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.description.annotation.AnnotationDescription;
 import net.bytebuddy.description.modifier.Visibility;
+import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
 import net.bytebuddy.dynamic.scaffold.TypeValidation;
 import net.bytebuddy.implementation.FixedValue;
@@ -85,6 +89,54 @@ class JaxRsAnnotationsDecoratorTest {
     } catch (AnnotationFormatError e) {
       return false;
     }
+  }
+
+  /**
+   * The method's own annotations read fine, but one of their annotation types carries malformed
+   * meta-annotations; the http method is still found on the annotations after it.
+   */
+  @Test
+  void findsTheHttpMethodPastAnAnnotationTypeWithMalformedMetaAnnotations() throws Exception {
+    // Described from ByteBuddy's unloaded form: writing the resource then doesn't read the
+    // annotation type's (malformed) annotations through reflection.
+    DynamicType.Unloaded<?> malformedType =
+        new ByteBuddy()
+            .with(TypeValidation.DISABLED)
+            .makeAnnotation()
+            .name("datadog.trace.instrumentation.jaxrs2.MalformedMeta")
+            .annotateType(
+                AnnotationDescription.Builder.ofType(Retention.class)
+                    .define("value", RetentionPolicy.RUNTIME)
+                    .build(),
+                path("/meta"),
+                path("/meta"))
+            .make();
+    Class<?> resource =
+        new ByteBuddy()
+            .with(TypeValidation.DISABLED)
+            .subclass(Object.class)
+            .annotateType(path("/orders"))
+            .defineMethod("get", String.class, Visibility.PUBLIC)
+            .intercept(FixedValue.value("order"))
+            .annotateMethod(
+                AnnotationDescription.Builder.ofType(malformedType.getTypeDescription()).build(),
+                AnnotationDescription.Builder.ofType(GET.class).build(),
+                path("{id}"))
+            .make()
+            .include(malformedType)
+            .load(
+                JaxRsAnnotationsDecoratorTest.class.getClassLoader(),
+                ClassLoadingStrategy.Default.WRAPPER)
+            .getLoaded();
+    Class<?> loadedType =
+        resource.getClassLoader().loadClass(malformedType.getTypeDescription().getName());
+    assertThrows(AnnotationFormatError.class, () -> loadedType.getAnnotation(HttpMethod.class));
+
+    Pair<CharSequence, CharSequence> httpMethodAndRoute =
+        DECORATE.getHttpMethodAndRoute(resource, resource.getMethod("get"));
+
+    assertEquals("GET", String.valueOf(httpMethodAndRoute.getLeft()));
+    assertEquals("/orders/{id}", String.valueOf(httpMethodAndRoute.getRight()));
   }
 
   @Test

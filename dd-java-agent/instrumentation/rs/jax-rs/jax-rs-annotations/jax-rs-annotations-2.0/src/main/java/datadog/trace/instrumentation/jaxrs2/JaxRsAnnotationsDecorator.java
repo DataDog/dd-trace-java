@@ -147,16 +147,27 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
    */
 
   private String locateHttpMethod(final Method method) {
+    final Annotation[] annotations;
     try {
-      for (final Annotation ann : method.getDeclaredAnnotations()) {
-        final HttpMethod annotation = ann.annotationType().getAnnotation(HttpMethod.class);
-        if (annotation != null) {
-          return annotation.value();
-        }
-      }
+      annotations = method.getDeclaredAnnotations();
     } catch (AnnotationFormatError e) {
       // unreadable annotations: ignore them, so no http method from this method
       logMalformed(method, e);
+      return null;
+    }
+    for (final Annotation ann : annotations) {
+      final Class<? extends Annotation> annotationType = ann.annotationType();
+      final HttpMethod annotation;
+      try {
+        annotation = annotationType.getAnnotation(HttpMethod.class);
+      } catch (AnnotationFormatError e) {
+        // an unreadable annotation type: ignore it and keep looking for the http method
+        logMalformed(annotationType, e);
+        continue;
+      }
+      if (annotation != null) {
+        return annotation.value();
+      }
     }
     return null;
   }
