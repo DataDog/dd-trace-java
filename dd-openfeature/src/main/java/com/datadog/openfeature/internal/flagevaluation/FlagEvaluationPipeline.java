@@ -8,6 +8,7 @@ import com.datadog.openfeature.internal.RuntimeServices;
 import com.datadog.openfeature.internal.bridge.v1.EventTransport;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -411,7 +412,7 @@ public class FlagEvaluationPipeline implements FlagEvaluationWriter, EventPipeli
                   + " (best-effort telemetry)",
               payloads.droppedPayloadLimit);
         }
-        for (final byte[] payload : payloads.bodies) {
+        for (final List<ByteBuffer> payload : payloads.bodies) {
           transport.post(FLAG_EVALUATION_ROUTE, payload);
         }
         if (!payloads.bodies.isEmpty()) {
