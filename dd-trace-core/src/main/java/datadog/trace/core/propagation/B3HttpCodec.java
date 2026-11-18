@@ -201,13 +201,17 @@ class B3HttpCodec {
       return true;
     }
 
-    /** Whether every character is a zero digit, as {@code DDSpanId.fromHex} reads them. */
+    /**
+     * Whether {@code s} is a zero id as {@code DDSpanId.fromHex} reads it: every character a zero
+     * digit, with at most 16 digits from the first one that isn't ASCII {@code '0'} padding.
+     */
     private static boolean isAllZeros(final String s) {
       if (s.isEmpty()) {
         return false;
       }
       for (int i = 0; i < s.length(); i++) {
-        if (Character.digit(s.charAt(i), 16) != 0) {
+        char c = s.charAt(i);
+        if (Character.digit(c, 16) != 0 || (c != '0' && s.length() - i > 16)) {
           return false;
         }
       }

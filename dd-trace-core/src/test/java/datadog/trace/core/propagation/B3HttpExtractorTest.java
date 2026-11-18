@@ -257,7 +257,8 @@ class B3HttpExtractorTest extends AbstractHttpExtractorTest {
     "oversized multi span id  | 1       | X-B3-SpanId | 10000000000000000     ",
     "oversized single span id |         | b3          | 1-10000000000000000   ",
     "non-hexadecimal span id  | 1       | X-B3-SpanId | spanId                ",
-    "fullwidth-padded span id | 1       | X-B3-SpanId | \uFF101000000000000000"
+    "fullwidth-padded span id | 1       | X-B3-SpanId | \uFF101000000000000000",
+    "17-digit fullwidth zero  | 1       | X-B3-SpanId | \uFF100000000000000000"
   })
   void malformedSpanIdIsRejectedWithoutAnException(String traceId, String header, String value) {
     Logger logger = (Logger) LoggerFactory.getLogger(B3HttpCodec.class);
