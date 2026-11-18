@@ -10,6 +10,7 @@ import datadog.communication.BackendApiFactory;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.trace.api.Config;
+import datadog.trace.api.TagMap;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.telemetry.CoreMetricCollector;
 import java.io.IOException;
@@ -115,17 +116,23 @@ public final class FeatureFlagsBackend implements FeatureFlaggingGateway.Backend
   }
 
   /**
-   * The service of the tracer's spans. The tracer adds the merged span tags to every span, and its
-   * tag interceptor makes a {@code service} tag the span service. Config drops that tag from {@code
-   * DD_TAGS} when the user sets {@code DD_SERVICE}, so the tag wins only where it also wins on
-   * spans.
+   * The service of the tracer's spans. The tracer merges the global tags and the span tags into a
+   * {@link TagMap}, which stores {@code service.name} as {@code service}, and its tag interceptor
+   * makes that tag the span service. Config drops a {@code service} tag from {@code DD_TAGS} when
+   * the user sets {@code DD_SERVICE}, so the tag wins only where it also wins on spans. The tracer
+   * then applies {@code DD_SERVICE_MAPPING} to the span service, so this method does too.
    */
   private String spanService() {
-    final String tagged = this.config.getMergedSpanTags().get(SERVICE_TAG);
-    if (tagged != null && this.config.isRuleEnabled(SERVICE_NAME_RULE)) {
-      return tagged;
-    }
-    return this.config.getServiceName();
+    // The same merge as the tracer's span defaults: the span tags win over the global tags.
+    final TagMap tags = TagMap.fromMap(this.config.getGlobalTags());
+    tags.putAll(this.config.getSpanTags());
+    final String tagged = tags.getString(SERVICE_TAG);
+    final String service =
+        tagged != null && this.config.isRuleEnabled(SERVICE_NAME_RULE)
+            ? tagged
+            : this.config.getServiceName();
+    // The same lookup as the tracer's TraceCollector.mapServiceName.
+    return this.config.getServiceMapping().getOrDefault(service, service);
   }
 
   @Override
