@@ -1,5 +1,6 @@
 package datadog.trace.core;
 
+import static datadog.trace.core.CoreSpan.OWN_PROPAGATION_TAGS;
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 
 import datadog.context.ContextScope;
@@ -114,7 +115,8 @@ public class TraceShapeBenchmark {
 
   @Setup
   public void setup(Blackhole blackhole) {
-    this.tracer = CoreTracer.builder().writer(new SizeRecordingWriter(blackhole)).build();
+    SizeRecordingWriter writer = new SizeRecordingWriter(blackhole);
+    this.tracer = CoreTracer.builder().writer(writer).build();
     // the decorators' prototype chains: Base (type, component) -> Server / Client (kind, language)
     this.serverProto =
         SpanPrototype.builder()
@@ -139,6 +141,16 @@ public class TraceShapeBenchmark {
             .initOperationName(TRACE_OPERATION)
             .initComponentAndIntegration(TRACE_COMPONENT)
             .build();
+
+    // Train the sizing hints on the tags a published span ends up with: serialization adds some
+    // (such as _dd.integration), and recording only before it would presize every span too small.
+    writer.training = true;
+    for (int i = 0; i < 4; i++) {
+      legacy();
+      normal();
+      newApi();
+    }
+    writer.training = false;
   }
 
   @TearDown
@@ -279,12 +291,16 @@ public class TraceShapeBenchmark {
   }
 
   /**
-   * {@link DropWriter}, except that it first records each span's dense-store size, as serialization
-   * does for a published trace. Without it the per-operation sizing hints never learn here, and
-   * every span would be presized to the initial hint and then grow.
+   * {@link DropWriter}, except that while {@link #training} it runs each span's serialization-time
+   * tag processing, which records the span's full dense-store size, as publishing a trace does.
+   * {@code CoreTracer.write} records sizes before the writer too, but without the tags that
+   * serialization adds; training first keeps the measured traces off the serialization path.
    */
   static final class SizeRecordingWriter implements Writer {
     private final Blackhole blackhole;
+
+    /** Set during setup only; the measured iterations just drop their traces. */
+    volatile boolean training;
 
     SizeRecordingWriter(Blackhole blackhole) {
       this.blackhole = blackhole;
@@ -292,8 +308,10 @@ public class TraceShapeBenchmark {
 
     @Override
     public void write(List<DDSpan> trace) {
-      for (DDSpan span : trace) {
-        span.spanContext().recordDenseSize();
+      if (training) {
+        for (DDSpan span : trace) {
+          span.processTagsAndBaggage(MetadataConsumer.NO_OP, OWN_PROPAGATION_TAGS);
+        }
       }
       blackhole.consume(trace);
     }

@@ -40,10 +40,12 @@ import javax.annotation.Nullable;
 final class SizingHintTable {
   private SizingHintTable() {}
 
-  // Seed for a fresh per-operation hint: a small floor that self-tunes up via best-effort-max
-  // recordSize. Kept small because the hint only grows -- a large seed would lock small spans into
-  // oversized arrays forever; a span that outgrows it pays one doubling.
-  static final int SEED_SIZE = 4;
+  // Seed for a fresh per-operation hint: 0, i.e. untuned -- presize nothing, so until a finished
+  // span records its size the store grows exactly as one without a hint (INIT_CAP, then doubling).
+  // A path that never records then costs only the presizing win, never more than having no hint.
+  // Not a small positive floor either: the hint only grows, and a store presized below its span's
+  // tag count pays extra doublings on every span until the hint is tuned.
+  static final int SEED_SIZE = 0;
 
   // Fixed size for the shared over-budget hint: the untuned default, DenseIdStore's initial
   // capacity (a compile-time constant, so reading it loads no class). Capped (never grown by
