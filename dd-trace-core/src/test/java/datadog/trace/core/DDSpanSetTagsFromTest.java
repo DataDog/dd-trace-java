@@ -65,6 +65,11 @@ class DDSpanSetTagsFromTest extends DDCoreJavaSpecification {
     span.setTag(KnownTags.HTTP_QUERY_STRING, "");
     span.setTag("custom.emptied", "value");
     span.setTag("custom.emptied", "");
+    // So does an empty CharSequence, by id and by name.
+    span.setTag(KnownTags.HTTP_URL, (CharSequence) new StringBuilder("http://host/a"));
+    span.setTag(KnownTags.HTTP_URL, (CharSequence) new StringBuilder());
+    span.setTag("custom.chars", (CharSequence) new StringBuilder("chars"));
+    span.setTag("custom.chars", (CharSequence) new StringBuilder());
   }
 
   @Test
@@ -81,6 +86,8 @@ class DDSpanSetTagsFromTest extends DDCoreJavaSpecification {
       assertNull(batched.getTag("custom.removed"));
       assertNull(batched.getTag(KnownTags.HTTP_QUERY_STRING_NAME));
       assertNull(batched.getTag("custom.emptied"));
+      assertNull(batched.getTag(KnownTags.HTTP_URL_NAME));
+      assertNull(batched.getTag("custom.chars"));
     } finally {
       oneByOne.finish();
       batched.finish();

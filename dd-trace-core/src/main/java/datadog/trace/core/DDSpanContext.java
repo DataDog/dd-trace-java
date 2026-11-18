@@ -1469,6 +1469,11 @@ public class DDSpanContext
   }
 
   @Override
+  public DDSpanContext setTag(final String tag, final CharSequence value) {
+    return setTag(tag, (Object) value);
+  }
+
+  @Override
   public DDSpanContext setTag(final String tag, final String value) {
     if (null == tag) {
       return this;
@@ -2031,6 +2036,17 @@ public class DDSpanContext
     }
 
     @Override
+    public SpanData setTag(String key, CharSequence value) {
+      // As DDSpan.setTag(String, CharSequence): an empty value removes the tag.
+      if (value == null || value.length() == 0) {
+        span().removeTagHoldingLock(key);
+      } else {
+        span().setTagHoldingLock(key, (Object) value);
+      }
+      return this;
+    }
+
+    @Override
     public SpanData setTag(String key, boolean value) {
       span().setTagHoldingLock(key, value);
       return this;
@@ -2079,7 +2095,12 @@ public class DDSpanContext
 
     @Override
     public SpanData setTag(long tagId, CharSequence value) {
-      span().setTagHoldingLock(tagId, value);
+      // As DDSpan.setTag(long, CharSequence): an empty value removes the tag.
+      if (value == null || value.length() == 0) {
+        span().removeTagHoldingLock(tagId);
+      } else {
+        span().setTagHoldingLock(tagId, value);
+      }
       return this;
     }
 
