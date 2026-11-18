@@ -47,5 +47,9 @@ dependencies {
 
   tasks.withType(Test).configureEach {
     usesService(testcontainersLimit)
+    // Each forked test class has its own JVM, so classes can run concurrently.
+    if (name.startsWith('forkedTest') || name.endsWith('ForkedTest')) {
+      maxParallelForks = 2
+    }
   }
 }
