@@ -238,8 +238,8 @@ final class DenseIdStore extends IdStore {
   /**
    * Like {@link #DenseIdStore(IdStore)}, with the arrays allocated up front at {@code hint}'s size.
    * A span's store presized this way never grows on its first tag, so {@link #grow} stays off the
-   * write path. A null hint, or one not yet seeded (a racy reader can see 0), keeps the shared
-   * empty arrays.
+   * write path. A null hint, or one not yet tuned (0, the seed -- also what a racy reader can see),
+   * keeps the shared empty arrays.
    */
   DenseIdStore(IdStore parent, @Nullable SizingHint hint) {
     DenseIdStore dense = (DenseIdStore) parent;
@@ -311,8 +311,11 @@ final class DenseIdStore extends IdStore {
 
   /** Grows the arrays to hold at least {@code minCapacity} slots. Rare, so kept out of line. */
   private void growTo(int minCapacity) {
+    int length = this.serials.length;
     int newCap =
-        Math.max(minCapacity, Math.min(this.serials.length << 1, KnownTagCodec.serialLimit()));
+        length == 0
+            ? Math.max(minCapacity, INIT_CAP)
+            : Math.max(minCapacity, Math.min(length << 1, KnownTagCodec.serialLimit()));
     this.serials = Arrays.copyOf(this.serials, newCap);
     this.values = Arrays.copyOf(this.values, newCap);
   }

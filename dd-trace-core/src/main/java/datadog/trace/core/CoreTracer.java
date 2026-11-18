@@ -40,6 +40,7 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.DynamicConfig;
 import datadog.trace.api.EndpointTracker;
 import datadog.trace.api.IdGenerationStrategy;
+import datadog.trace.api.IdStore;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.Pair;
 import datadog.trace.api.SizingHint;
@@ -1409,9 +1410,18 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
           writtenTrace.get(i).setTag(APM_ENABLED, 0);
         }
       }
-      writer.write(writtenTrace); // serialization records these spans' sizes
+      // Record before handing off: the writer may drop the trace unserialized (client-side stats
+      // drops sampled-out traces by policy, a full queue drops anything), and an operation whose
+      // traces are always dropped would otherwise never tune its hint. Serialization records again,
+      // with the tags it adds.
+      if (IdStore.recordsSizes()) {
+        recordDenseSizes(writtenTrace);
+      }
+      writer.write(writtenTrace);
     } else {
-      recordDenseSizes(writtenTrace);
+      if (IdStore.recordsSizes()) {
+        recordDenseSizes(writtenTrace);
+      }
       // with span streaming this won't work - it needs to be changed
       // to track an effective sampling rate instead, however, tests
       // checking that a hard reference on a continuation prevents
@@ -1424,11 +1434,11 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   }
 
   /**
-   * Tunes each span's per-operation sizing hint, for a trace that is dropped rather than written:
-   * published spans are recorded when they're serialized, with every tag present. Done here rather
-   * than at span finish: the early post-processors and the root's sampling decision add tags after
-   * a span finishes, and a hint that missed them would leave every later span of the operation
-   * growing its store.
+   * Tunes each span's per-operation sizing hint for every trace, written or dropped; written spans
+   * are recorded again when they're serialized, with every tag present. Done here rather than at
+   * span finish: the early post-processors and the root's sampling decision add tags after a span
+   * finishes, and a hint that missed them would leave every later span of the operation growing its
+   * store.
    */
   private static void recordDenseSizes(List<DDSpan> trace) {
     for (int i = 0; i < trace.size(); i++) {

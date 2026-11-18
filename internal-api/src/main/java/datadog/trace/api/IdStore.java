@@ -58,6 +58,14 @@ public abstract class IdStore {
   public void recordSize() {}
 
   /**
+   * Whether this JVM's stores are sized per span (the dense store), so {@link #recordSize} does
+   * anything. Constant for the JVM, so a caller's test folds and skips the walk with it off.
+   */
+  public static boolean recordsSizes() {
+    return IdStoreFactory.Default.DENSE;
+  }
+
+  /**
    * Builds the exception for an id that names no known tag.
    *
    * @param tagId the rejected id

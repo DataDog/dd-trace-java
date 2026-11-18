@@ -195,8 +195,8 @@ class SizingHintTableForkedTest {
 
   @Test
   void fullArraysDoubleUpToTheSerialLimit() {
-    // Presized small: 4 -> 8 -> 16
-    IdStore store = storeFor(new SizingHint("registry.growth"));
+    // Presized small (a tuned hint of 4): 4 -> 8 -> 16
+    IdStore store = storeFor(new SizingHint("registry.growth", 4, false));
     fill(store, 4);
     assertEquals(4, capacity(store));
     fill(store, 5);

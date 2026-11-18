@@ -1931,8 +1931,7 @@ public class DDSpanContext
       }
 
       // Tune the operation's sizing hint now that every tag, serialization-time ones included, is
-      // present. This is where published spans are recorded; CoreTracer.write records only the
-      // spans it drops.
+      // present. CoreTracer.write has already recorded the span without them.
       recordDenseSize();
 
       // Baggage
