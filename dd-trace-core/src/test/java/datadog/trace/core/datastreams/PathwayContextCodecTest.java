@@ -6,10 +6,12 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.api.time.ControllableTimeSource;
 import java.io.ByteArrayOutputStream;
+import java.io.EOFException;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Base64;
@@ -52,6 +54,17 @@ class PathwayContextCodecTest {
     } catch (Throwable e) {
       return null;
     }
+  }
+
+  @Test
+  void theUnsampledHeaderIsRejectedAsTruncatedByBothDecoders() {
+    ControllableTimeSource time = new ControllableTimeSource();
+    String header = UnsampledPathwayContext.INSTANCE.encode();
+
+    assertEquals(8, Base64.getDecoder().decode(header).length);
+    assertThrows(EOFException.class, () -> DefaultPathwayContext.decode(time, null, header));
+    assertNull(DefaultPathwayContext.decodeOrNull(time, null, null, header));
+    assertEquals(header, new String(UnsampledPathwayContext.INSTANCE.encodeBytes(), ISO_8859_1));
   }
 
   @Test

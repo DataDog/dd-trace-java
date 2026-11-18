@@ -13,8 +13,8 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -315,15 +315,15 @@ class DataStreamsLiteTest extends DDCoreJavaSpecification {
   }
 
   @Test
-  void originProducesOverTheBudgetGetNoHeaderAndNoCheckpoint() throws Exception {
+  void originProducesOverTheBudgetGetTheUnsampledHeaderAndNoCheckpoint() throws Exception {
     dataStreams = liteDataStreams(1);
     dataStreams.start();
 
     withTracer(() -> {
-      assertNotNull(injectFromOrigin(PRODUCE), "first message on the edge");
-      assertNotNull(injectFromOrigin(PRODUCE), "within the budget");
+      assertNotEquals(UNSAMPLED_HEADER, injectFromOrigin(PRODUCE), "first message on the edge");
+      assertNotEquals(UNSAMPLED_HEADER, injectFromOrigin(PRODUCE), "within the budget");
       for (int i = 0; i < 100; i++) {
-        assertNull(injectFromOrigin(PRODUCE));
+        assertEquals(UNSAMPLED_HEADER, injectFromOrigin(PRODUCE));
       }
     });
 
@@ -411,6 +411,46 @@ class DataStreamsLiteTest extends DDCoreJavaSpecification {
 
     assertPathwaysOnlyStartAt(points, "A");
     assertTrue(points.stream().anyMatch(point -> point.service.equals("D")), points.toString());
+  }
+
+  @Test
+  void aMessageWithNoHeaderStillStartsAPathway() throws Exception {
+    List<RecordedPoint> points = new CopyOnWriteArrayList<>();
+    Service b = new Service("B", true, 1, points);
+    Service c = new Service("C", true, 1, points);
+
+    withTracer(() -> {
+      for (int i = 0; i < 100; i++) {
+        Map<String, String> fromUninstrumented = new HashMap<>();
+        Map<String, String> toC = b.produce(b.consume(fromUninstrumented, "orders"), "invoices");
+        c.consume(toC, "invoices").finish();
+      }
+    });
+
+    assertPathwaysOnlyStartAt(points, "B");
+    assertTrue(points.stream().anyMatch(point -> point.service.equals("C")), points.toString());
+  }
+
+  @Test
+  void aFullModeServiceRecordsNothingForAnUnsampledMessageAndForwardsIt() throws Exception {
+    List<RecordedPoint> points = new CopyOnWriteArrayList<>();
+    Service a = new Service("A", true, 1, points);
+    Service b = new Service("B", false, 0, points);
+    Service c = new Service("C", true, 1, points);
+
+    withTracer(() -> {
+      for (int i = 0; i < 100; i++) {
+        Map<String, String> toB = a.produce(a.originSpan(), "orders");
+        Map<String, String> toC = b.produce(b.consume(toB, "orders"), "invoices");
+        if (UNSAMPLED_HEADER.equals(toB.get(PROPAGATION_KEY))) {
+          assertEquals(UNSAMPLED_HEADER, toC.get(PROPAGATION_KEY));
+        }
+        c.consume(toC, "invoices").finish();
+      }
+    });
+
+    assertPathwaysOnlyStartAt(points, "A");
+    assertTrue(points.stream().anyMatch(point -> point.service.equals("B")), points.toString());
   }
 
   /** Every root checkpoint is at a true origin, and every other one continues a recorded one. */
@@ -521,6 +561,7 @@ class DataStreamsLiteTest extends DDCoreJavaSpecification {
   }
 
   private static final String PROPAGATION_KEY = PathwayContext.PROPAGATION_KEY_BASE64;
+  private static final String UNSAMPLED_HEADER = "AAAAAAAAAAA=";
 
   /** Injects for a span with no incoming pathway context; returns the header or null. */
   private String injectFromOrigin(DataStreamsTags tags) {

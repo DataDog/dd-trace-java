@@ -91,11 +91,18 @@ public class DataStreamsPropagator implements Propagator {
       return;
     }
 
+    if (pathwayContext == UnsampledPathwayContext.INSTANCE) {
+      injectPathwayContext(pathwayContext, carrier, setter);
+      return;
+    }
+
     if (originSampler != null && !pathwayContext.isStarted()) {
       // A message with no incoming context starts a pathway only if the origin budget allows it.
       // The new context is not stored on the span, so each origin checkpoint has parent 0, which
       // is what loop protection gives repeated produces from one span in full mode.
       if (!originSampler.sample(dsmContext.tags().getHash(), timeSource.getNanoTicks())) {
+        // Tells downstream services this message is on a pathway, so they don't start their own
+        injectPathwayContext(UnsampledPathwayContext.INSTANCE, carrier, setter);
         return;
       }
       pathwayContext = new DefaultPathwayContext(timeSource, serviceNameOverride.get(), seenSet);

@@ -30,7 +30,7 @@ final class OriginSampler {
     this.baseNanoTicks = nanoTicks - TimeUnit.SECONDS.toNanos(1);
   }
 
-  /** Whether a message starting a pathway on the edge with this node hash gets a header. */
+  /** Whether a message starting a pathway on the edge with this node hash is recorded. */
   boolean sample(long edgeHash, long nanoTicks) {
     return firstOnEdge(edgeHash == EMPTY ? 1 : edgeHash) || take(nanoTicks);
   }

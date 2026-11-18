@@ -317,7 +317,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   @Override
   public void mergePathwayContextIntoSpan(AgentSpan span, DataStreamsContextCarrier carrier) {
     if (span instanceof DDSpan) {
-      DefaultPathwayContext pathwayContext =
+      PathwayContext pathwayContext =
           DefaultPathwayContext.extract(
               carrier,
               DataStreamsContextCarrierAdapter.INSTANCE,

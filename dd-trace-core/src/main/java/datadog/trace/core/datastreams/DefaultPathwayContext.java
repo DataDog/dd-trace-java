@@ -348,7 +348,7 @@ public class DefaultPathwayContext implements PathwayContext {
     private final TimeSource timeSource;
     private final String serviceNameOverride;
     private final PathwaySeenSet seenSet;
-    private DefaultPathwayContext extractedContext;
+    private PathwayContext extractedContext;
 
     PathwayContextExtractor(
         TimeSource timeSource, String serviceNameOverride, PathwaySeenSet seenSet) {
@@ -360,6 +360,10 @@ public class DefaultPathwayContext implements PathwayContext {
     @Override
     public void accept(String key, String value) {
       if (value != null && PROPAGATION_KEY_BASE64.equalsIgnoreCase(key)) {
+        if (UnsampledPathwayContext.ENCODED.equals(value)) {
+          extractedContext = UnsampledPathwayContext.INSTANCE;
+          return;
+        }
         DefaultPathwayContext decoded =
             decodeOrNull(timeSource, serviceNameOverride, seenSet, value);
         if (decoded != null) {
@@ -369,12 +373,12 @@ public class DefaultPathwayContext implements PathwayContext {
     }
   }
 
-  static <C> DefaultPathwayContext extract(
+  static <C> PathwayContext extract(
       C carrier, CarrierVisitor<C> getter, TimeSource timeSource, String serviceNameOverride) {
     return extract(carrier, getter, timeSource, serviceNameOverride, null);
   }
 
-  static <C> DefaultPathwayContext extract(
+  static <C> PathwayContext extract(
       C carrier,
       CarrierVisitor<C> getter,
       TimeSource timeSource,

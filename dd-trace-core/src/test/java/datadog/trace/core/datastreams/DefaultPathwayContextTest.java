@@ -25,6 +25,7 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.datastreams.DataStreamsTags;
+import datadog.trace.api.datastreams.PathwayContext;
 import datadog.trace.api.datastreams.StatsPoint;
 import datadog.trace.api.time.ControllableTimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
@@ -336,7 +337,7 @@ public class DefaultPathwayContextTest extends DDCoreJavaSpecification {
     carrier.put(PROPAGATION_KEY_BASE64, encoded);
     carrier.put("someotherkey", "someothervalue");
     timeSource.advance(MILLISECONDS.toNanos(1));
-    DefaultPathwayContext decodedContext =
+    PathwayContext decodedContext =
         DefaultPathwayContext.extract(carrier, contextVisitor, timeSource, null);
     timeSource.advance(MILLISECONDS.toNanos(25));
     context.setCheckpoint(
@@ -362,7 +363,7 @@ public class DefaultPathwayContextTest extends DDCoreJavaSpecification {
     carrier = new HashMap<>();
     carrier.put(PROPAGATION_KEY_BASE64, secondEncode);
     timeSource.advance(MILLISECONDS.toNanos(2));
-    DefaultPathwayContext secondDecode =
+    PathwayContext secondDecode =
         DefaultPathwayContext.extract(carrier, contextVisitor, timeSource, null);
     timeSource.advance(MILLISECONDS.toNanos(30));
     context.setCheckpoint(
@@ -402,7 +403,7 @@ public class DefaultPathwayContextTest extends DDCoreJavaSpecification {
     carrier.put(PROPAGATION_KEY_BASE64, encoded);
     carrier.put("someotherkey", "someothervalue");
     timeSource.advance(MILLISECONDS.toNanos(1));
-    DefaultPathwayContext decodedContext =
+    PathwayContext decodedContext =
         DefaultPathwayContext.extract(carrier, contextVisitor, timeSource, null);
     timeSource.advance(MILLISECONDS.toNanos(25));
     context.setCheckpoint(
@@ -426,7 +427,7 @@ public class DefaultPathwayContextTest extends DDCoreJavaSpecification {
     carrier = new HashMap<>();
     carrier.put(PROPAGATION_KEY_BASE64, secondEncode);
     timeSource.advance(MILLISECONDS.toNanos(2));
-    DefaultPathwayContext secondDecode =
+    PathwayContext secondDecode =
         DefaultPathwayContext.extract(carrier, contextVisitor, timeSource, null);
     timeSource.advance(MILLISECONDS.toNanos(30));
     context.setCheckpoint(
