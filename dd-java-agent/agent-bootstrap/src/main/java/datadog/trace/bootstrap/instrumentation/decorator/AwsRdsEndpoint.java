@@ -195,30 +195,38 @@ public final class AwsRdsEndpoint {
       return NOT_RDS;
     }
 
-    String[] labels = prefix.split("\\.", -1);
-
-    // A user-defined RDS Proxy endpoint carries an extra "endpoint" label:
-    // <name>.endpoint.proxy-<hash>.<region>.rds<suffix>. Drop that label so the proxy name and
-    // Region are read by the same validated branches as the default proxy endpoint.
-    if (labels.length > 3 && "endpoint".equals(labels[1]) && labels[2].startsWith("proxy-")) {
-      String[] normalized = new String[labels.length - 1];
-      normalized[0] = labels[0];
-      System.arraycopy(labels, 2, normalized, 1, labels.length - 2);
-      labels = normalized;
+    String[] labels = new String[5];
+    int labelsCount = 0;
+    {
+      int start = 0;
+      int dot;
+      while ((dot = prefix.indexOf(".", start)) >= 0) {
+        if (labelsCount == labels.length - 1) {
+          return NOT_RDS;
+        }
+        labels[labelsCount++] = prefix.substring(start, dot);
+        start = dot + 1;
+      }
+      labels[labelsCount++] = prefix.substring(start);
     }
 
-    // After stripping the suffix an RDS endpoint is always four labels: the identifier, the hash,
-    // and the Region and the literal "rds" in either order. Commercial, GovCloud and ISO endpoints
-    // put the Region before "rds" (<id>.<hash>.<region>.rds), while the China partition can use
-    // <id>.<hash>.rds.<region>, so accept both orders.
-    if (labels.length != 4) {
+    // Custom proxy endpoints have an extra label before the proxy hash.
+    // <name>.endpoint.proxy-<hash>.<region>.rds<suffix>
+    int offset = 0;
+    if (labelsCount > 3 && "endpoint".equals(labels[1]) && labels[2].startsWith("proxy-")) {
+      offset = 1;
+    }
+
+    // The remaining labels are the identifier, hash, Region and literal "rds". The China
+    // partition can put "rds" before the Region; other partitions put it after the Region.
+    if (labelsCount != 4 + offset) {
       return NOT_RDS;
     }
-    if ("rds".equals(labels[3])) {
-      return build(labels[0], labels[1], labels[2]);
+    if ("rds".equals(labels[3 + offset])) {
+      return build(labels[0], labels[1 + offset], labels[2 + offset]);
     }
-    if ("rds".equals(labels[2])) {
-      return build(labels[0], labels[1], labels[3]);
+    if ("rds".equals(labels[2 + offset])) {
+      return build(labels[0], labels[1 + offset], labels[3 + offset]);
     }
     return NOT_RDS;
   }
