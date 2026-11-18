@@ -36,7 +36,9 @@ class SizingHintTableForkedTest {
   static void checkSetup() throws IllegalAccessException {
     assertTrue(IdStoreFactory.Default.DENSE, "dense store must be on in this JVM");
     for (Field field : KnownTags.class.getFields()) {
-      if (field.getType() != long.class) continue;
+      if (field.getType() != long.class) {
+        continue;
+      }
       long id = field.getLong(null);
       if (KnownTagCodec.isKnown(id) && !KNOWN_IDS.contains(id)) {
         KNOWN_IDS.add(id);
