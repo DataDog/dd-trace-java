@@ -46,8 +46,7 @@ class TraceMapperTest extends DDCoreJavaSpecification {
     // only top-level statements in Spock then-blocks are power assertions;
     // expressions inside for-loops are not, so we only assert the critical outcomes
     assertNotNull(sink.captured);
-    FlushingBuffer dictionaryBuffer = TraceMapperTestBridge.getDictionary(traceMapper);
-    ByteBuffer dictionaryBytes = dictionaryBuffer.completedMessages();
+    ByteBuffer dictionaryBytes = TraceMapperTestBridge.getDictionaryBytes(traceMapper);
     Map<String, String> meta = new HashMap<>();
 
     try (MessageUnpacker dictionaryUnpacker = MessagePack.newDefaultUnpacker(dictionaryBytes)) {
