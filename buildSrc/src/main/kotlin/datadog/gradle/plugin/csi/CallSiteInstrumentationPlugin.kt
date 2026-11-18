@@ -107,9 +107,11 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project> {
     mainCompileTask: TaskProvider<AbstractCompile>
   ) {
     val genTaskName = mainCompileTask.name.replace("compile", "generateCallSite")
-    val pluginJarFile = csiExtension.rootFolder.orElse(project.rootDir).map {
-      File(it, "buildSrc/call-site-instrumentation-plugin/build/libs/call-site-instrumentation-plugin-all.jar")
-    }
+    val pluginJarFile = project.layout
+      .dir(csiExtension.rootFolder.orElse(project.rootDir))
+      .map {
+        it.file("buildSrc/call-site-instrumentation-plugin/build/libs/call-site-instrumentation-plugin-all.jar")
+      }
 
     val callSiteGeneratorTask = project.tasks.register<GenerateCallSiteTask>(genTaskName) {
       // Task description
