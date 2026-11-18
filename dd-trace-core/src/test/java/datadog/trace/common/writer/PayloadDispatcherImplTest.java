@@ -17,6 +17,7 @@ import datadog.metrics.api.statsd.StatsDClient;
 import datadog.metrics.impl.MonitoringImpl;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.ProtocolVersion;
 import datadog.trace.api.datastreams.NoopPathwayContext;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
@@ -36,6 +37,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
+import org.mockito.ArgumentCaptor;
 import org.tabletest.junit.TableTest;
 
 class PayloadDispatcherImplTest extends DDJavaSpecification {
@@ -178,6 +180,82 @@ class PayloadDispatcherImplTest extends DDJavaSpecification {
     // counts are reset after access
     assertEquals(0, newPayload.droppedSpans());
     assertEquals(0, newPayload.droppedTraces());
+  }
+
+  @Test
+  void payloadsAfterTheAgentChangesProtocolUseTheNewProtocol() throws Exception {
+    DDAgentFeaturesDiscovery discovery = mock(DDAgentFeaturesDiscovery.class);
+    when(discovery.getTraceEndpoint()).thenReturn("v0.5/traces");
+    DDAgentApi api = mock(DDAgentApi.class);
+    when(api.sendSerializedTraces(any())).thenReturn(RemoteApi.Response.success(200));
+    PayloadDispatcherImpl dispatcher =
+        new PayloadDispatcherImpl(
+            new DDAgentMapperDiscovery(discovery), api, mock(HealthMetrics.class), monitoring);
+    List<DDSpan> trace = Collections.singletonList(realSpan());
+
+    dispatcher.addTrace(trace);
+    dispatcher.flush();
+    when(discovery.getTraceEndpoint()).thenReturn("v0.4/traces");
+    dispatcher.addTrace(trace);
+    dispatcher.flush();
+
+    List<Payload> sent = sentPayloads(api, 2);
+    assertEquals(ProtocolVersion.V0_5, sent.get(0).protocol());
+    assertEquals(ProtocolVersion.V0_4, sent.get(1).protocol());
+  }
+
+  @Test
+  void aProtocolChangeMidPayloadSwitchesAtTheNextPayload() throws Exception {
+    DDAgentFeaturesDiscovery discovery = mock(DDAgentFeaturesDiscovery.class);
+    when(discovery.getTraceEndpoint()).thenReturn("v0.5/traces");
+    DDAgentApi api = mock(DDAgentApi.class);
+    when(api.sendSerializedTraces(any())).thenReturn(RemoteApi.Response.success(200));
+    PayloadDispatcherImpl dispatcher =
+        new PayloadDispatcherImpl(
+            new DDAgentMapperDiscovery(discovery), api, mock(HealthMetrics.class), monitoring);
+    List<DDSpan> trace = Collections.singletonList(realSpan());
+
+    dispatcher.addTrace(trace);
+    when(discovery.getTraceEndpoint()).thenReturn("v1.0/traces");
+    // the payload in progress stays v0.5 (the API sends it to v0.5/traces); the next one is v1.0
+    dispatcher.addTrace(trace);
+    dispatcher.flush();
+    dispatcher.addTrace(trace);
+    dispatcher.flush();
+
+    List<Payload> sent = sentPayloads(api, 2);
+    assertEquals(ProtocolVersion.V0_5, sent.get(0).protocol());
+    assertEquals(2, sent.get(0).traceCount());
+    assertEquals(ProtocolVersion.V1_0, sent.get(1).protocol());
+    assertEquals(1, sent.get(1).traceCount());
+  }
+
+  @Test
+  void anotherEndpointForTheSameProtocolKeepsTheMapper() throws Exception {
+    DDAgentFeaturesDiscovery discovery = mock(DDAgentFeaturesDiscovery.class);
+    when(discovery.getTraceEndpoint()).thenReturn("v0.4/traces");
+    DDAgentApi api = mock(DDAgentApi.class);
+    when(api.sendSerializedTraces(any())).thenReturn(RemoteApi.Response.success(200));
+    PayloadDispatcherImpl dispatcher =
+        new PayloadDispatcherImpl(
+            new DDAgentMapperDiscovery(discovery), api, mock(HealthMetrics.class), monitoring);
+    List<DDSpan> trace = Collections.singletonList(realSpan());
+
+    dispatcher.addTrace(trace);
+    // the v0.3 fallback takes v0.4 bytes, so the payload carries on
+    when(discovery.getTraceEndpoint()).thenReturn("v0.3/traces");
+    dispatcher.addTrace(trace);
+    dispatcher.flush();
+
+    List<Payload> sent = sentPayloads(api, 1);
+    assertEquals(ProtocolVersion.V0_4, sent.get(0).protocol());
+    assertEquals(2, sent.get(0).traceCount());
+  }
+
+  private static List<Payload> sentPayloads(DDAgentApi api, int count) {
+    ArgumentCaptor<Payload> payloads = ArgumentCaptor.forClass(Payload.class);
+    verify(api, org.mockito.Mockito.times(count)).sendSerializedTraces(payloads.capture());
+    return payloads.getAllValues();
   }
 
   DDSpan realSpan() throws Exception {

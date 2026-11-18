@@ -1,6 +1,7 @@
 package datadog.trace.common.writer;
 
 import static datadog.trace.api.DDTags.SDK_OTLP_EXPORT;
+import static datadog.trace.api.ProtocolVersion.V0_4;
 import static datadog.trace.api.ProtocolVersion.V0_5;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
@@ -397,6 +398,46 @@ public class DDAgentApiTest extends DDCoreJavaSpecification {
       assertEquals(
           String.valueOf(payload.droppedSpans()),
           agent.getLastRequest().getHeaders().get("Datadog-Client-Dropped-P0-Spans"));
+    } finally {
+      agent.close();
+    }
+  }
+
+  @Test
+  void testPayloadEncodedForAnotherProtocolGoesToItsOwnEndpoint() {
+    // the agent was upgraded after the payload was encoded: discovery now says v0.4 is the
+    // tracer's configured choice here, but the payload holds v0.5 bytes
+    JavaTestHttpServer agent =
+        JavaTestHttpServer.httpServer(s ->
+            s.handlers(h -> {
+              h.put("v0.4/traces", api -> api.getResponse().status(200).send());
+              h.put("v0.5/traces", api -> api.getResponse().status(200).send());
+            }));
+    try {
+      DDAgentApi client = createAgentApi(agent.getAddress().toString(), V0_4).api;
+      Payload payload = prepareTraces("v0.5/traces", emptyList());
+      assertTrue(client.sendSerializedTraces(payload).success());
+      assertEquals("/v0.5/traces", agent.getLastRequest().getPath());
+    } finally {
+      agent.close();
+    }
+  }
+
+  @Test
+  void testPayloadIsNotSentToAnEndpointOfAnotherProtocol() {
+    // the agent was downgraded after the payload was encoded: it no longer accepts v0.5, so the
+    // send fails rather than handing v0.5 bytes to the v0.4 endpoint
+    JavaTestHttpServer agent =
+        JavaTestHttpServer.httpServer(s ->
+            s.handlers(h -> {
+              h.put("v0.4/traces", api -> api.getResponse().status(200).send());
+              h.put("v0.5/traces", api -> api.getResponse().status(404).send());
+            }));
+    try {
+      DDAgentApi client = createAgentApi(agent.getAddress().toString(), V0_4).api;
+      Payload payload = prepareTraces("v0.5/traces", emptyList());
+      assertFalse(client.sendSerializedTraces(payload).success());
+      assertEquals("/v0.5/traces", agent.getLastRequest().getPath());
     } finally {
       agent.close();
     }
