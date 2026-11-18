@@ -13,6 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -32,6 +33,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -147,6 +149,73 @@ class RemoteConfigServiceImplTest {
       assertTrue(documents.isEmpty());
     } finally {
       finishStop.countDown();
+      executor.shutdownNow();
+      service.close();
+    }
+  }
+
+  @Test
+  void retriesCleanupAfterFailedStartAndFailedRollback() {
+    final ConfigurationPoller poller = mock(ConfigurationPoller.class);
+    final AtomicBoolean failCleanup = new AtomicBoolean(true);
+    doThrow(new IllegalStateException("start failure")).when(poller).start();
+    doAnswer(
+            invocation -> {
+              if (failCleanup.compareAndSet(true, false)) {
+                throw new IllegalStateException("cleanup failure");
+              }
+              return null;
+            })
+        .when(poller)
+        .removeCapabilities(Capabilities.CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
+    final RemoteConfigServiceImpl service = new RemoteConfigServiceImpl(poller);
+
+    final IllegalStateException failure = assertThrows(IllegalStateException.class, service::start);
+    assertEquals("start failure", failure.getMessage());
+    assertEquals(1, failure.getSuppressed().length);
+
+    service.close();
+
+    verify(poller, times(2))
+        .removeCapabilities(Capabilities.CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
+    verify(poller).removeListeners(Product.FFE_FLAGS);
+    verify(poller).stop();
+  }
+
+  @Test
+  void concurrentStartRetriesAfterTheLifecycleOwnerFails() throws Exception {
+    final ConfigurationPoller poller = mock(ConfigurationPoller.class);
+    final CountDownLatch firstStartEntered = new CountDownLatch(1);
+    final CountDownLatch releaseFirstStart = new CountDownLatch(1);
+    final AtomicBoolean failFirstStart = new AtomicBoolean(true);
+    doAnswer(
+            invocation -> {
+              if (failFirstStart.compareAndSet(true, false)) {
+                firstStartEntered.countDown();
+                assertTrue(releaseFirstStart.await(5, SECONDS));
+                throw new IllegalStateException("start failure");
+              }
+              return null;
+            })
+        .when(poller)
+        .start();
+    final RemoteConfigServiceImpl service = new RemoteConfigServiceImpl(poller);
+    final ExecutorService executor = Executors.newFixedThreadPool(2);
+    try {
+      final Future<?> first = executor.submit(service::start);
+      assertTrue(firstStartEntered.await(5, SECONDS));
+      final Future<?> second = executor.submit(service::start);
+      second.get(5, SECONDS);
+
+      releaseFirstStart.countDown();
+      final ExecutionException failure =
+          assertThrows(ExecutionException.class, () -> first.get(5, SECONDS));
+      assertEquals(IllegalStateException.class, failure.getCause().getClass());
+
+      verify(poller, times(2)).start();
+      verify(poller).stop();
+    } finally {
+      releaseFirstStart.countDown();
       executor.shutdownNow();
       service.close();
     }

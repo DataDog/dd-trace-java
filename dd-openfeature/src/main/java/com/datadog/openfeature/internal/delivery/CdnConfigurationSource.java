@@ -128,8 +128,10 @@ public final class CdnConfigurationSource implements ConfigurationService {
       final DoubleSupplier jitter,
       final RuntimeServices services) {
     // The endpoint is fixed for the life of the source, so the URL check holds for every request.
-    final URI selected = selection.appendTo(endpoint);
-    this.endpoint = selected == null ? endpoint : selected;
+    // Add the capability query before checking the limit because it is part of the request URL.
+    final URI capableEndpoint = requestEndpoint(endpoint, EvaluatorCapabilities.supported());
+    final URI selected = selection.appendTo(capableEndpoint);
+    this.endpoint = selected == null ? capableEndpoint : selected;
     this.selection = selected == null ? FlagSelectionRequest.urlTooLong() : selection;
     this.selectionSent = selected != null && selection.hasValues();
     this.apiKey = apiKey;
@@ -359,7 +361,7 @@ public final class CdnConfigurationSource implements ConfigurationService {
 
   private HttpRequest buildRequest() {
     final HttpRequest.Builder request =
-        HttpRequest.newBuilder(requestEndpoint(this.endpoint, EvaluatorCapabilities.supported()))
+        HttpRequest.newBuilder(this.endpoint)
             .timeout(this.requestTimeout)
             .header("Accept-Encoding", "gzip");
     Headers.addMetadata(request);

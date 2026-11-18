@@ -23,6 +23,9 @@ import com.datadog.openfeature.internal.ufc.ValueType;
 import com.datadog.openfeature.internal.ufc.Variant;
 import dev.openfeature.sdk.Client;
 import dev.openfeature.sdk.EvaluationContext;
+import dev.openfeature.sdk.FlagEvaluationDetails;
+import dev.openfeature.sdk.FlagValueType;
+import dev.openfeature.sdk.HookContext;
 import dev.openfeature.sdk.MutableContext;
 import dev.openfeature.sdk.OpenFeatureAPI;
 import java.util.ArrayList;
@@ -34,6 +37,28 @@ import org.junit.jupiter.api.Test;
 
 /** Runs in a separate Gradle task whose runtime contains OpenFeature SDK 1.17. */
 class OpenFeature117CompatibilityTest {
+  @Test
+  void legacyHookIgnoresIncompleteFinallyCalls() {
+    assertFalse(HookDataAccessor.isAvailable());
+    final List<String> callbacks = new ArrayList<>();
+    final ExposureHook hook =
+        new ExposureHook(evaluation -> callbacks.add(evaluation.getFlagKey()));
+    final HookContext<Object> context =
+        HookContext.<Object>builder()
+            .flagKey("root")
+            .type(FlagValueType.INTEGER)
+            .defaultValue(0)
+            .ctx(new MutableContext("subject"))
+            .build();
+    final FlagEvaluationDetails<Object> details =
+        FlagEvaluationDetails.<Object>builder().flagKey("root").value(1).build();
+
+    hook.finallyAfter(null, details, emptyMap());
+    hook.finallyAfter(context, null, emptyMap());
+
+    assertEquals(0, callbacks.size());
+  }
+
   @Test
   void realClientLifecycleCompletesWithoutHookData() throws Exception {
     assertFalse(HookDataAccessor.isAvailable());

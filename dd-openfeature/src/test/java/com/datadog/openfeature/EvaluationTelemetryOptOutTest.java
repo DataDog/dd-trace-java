@@ -8,6 +8,7 @@ import static java.util.Collections.singletonMap;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -796,6 +797,26 @@ class EvaluationTelemetryOptOutTest {
         this.events.get(1).attrs,
         "dependency events in one batch must reuse the detached snapshot");
     assertEquals("us-east-1", this.events.get(0).attrs.get("region"));
+  }
+
+  @Test
+  void dependencyTelemetryPrunesOversizedContextValues() throws Exception {
+    start(
+        new Provider.Options().enableEvaluationTelemetryOptOutParameter(false),
+        twoDependencyConfiguration(true));
+    final MutableContext context = new MutableContext("subject");
+    final char[] oversized = new char[DDEvaluator.MAX_VALUE_LENGTH + 1];
+    java.util.Arrays.fill(oversized, 'x');
+    context.add("oversized", new String(oversized));
+
+    final FlagEvaluationDetails<Integer> included =
+        this.client.getIntegerDetails("root", 0, context);
+
+    assertEquals(1, included.getValue());
+    assertEquals(3, this.events.size(), "two dependencies and the root evaluation");
+    assertEquals("first", this.events.get(0).flagKey);
+    assertTrue(this.events.get(0).observeFullEvaluationData);
+    assertFalse(this.events.get(0).attrs.containsKey("oversized"));
   }
 
   @Test

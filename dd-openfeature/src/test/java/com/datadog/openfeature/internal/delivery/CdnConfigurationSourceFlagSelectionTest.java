@@ -2,9 +2,11 @@ package com.datadog.openfeature.internal.delivery;
 
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
+import static java.util.Collections.singleton;
 import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -42,7 +44,7 @@ class CdnConfigurationSourceFlagSelectionTest {
   private static final String SELECTION_PARAMETERS =
       "selected_flag_tags=a%20b&selected_flag_tags=area%3Acheckout"
           + "&selected_flag_key_patterns=checkout.%2A";
-  private static final String SELECTION_QUERY = SELECTION_PARAMETERS + "&" + CAPABILITY_QUERY;
+  private static final String SELECTION_QUERY = CAPABILITY_QUERY + "&" + SELECTION_PARAMETERS;
 
   private LocalHttpServer server;
   private final RecordingHealthMetrics metrics = new RecordingHealthMetrics();
@@ -237,12 +239,25 @@ class CdnConfigurationSourceFlagSelectionTest {
 
   @Test
   void sendsNoSelectionWhenTheUrlWouldBeOverTheLimit() {
-    // The endpoint fits in 8192 bytes, but not once the selection is added.
-    final char[] padding = new char[8150];
+    // The endpoint and selection fit exactly, but the capability query pushes them over the limit.
+    final URI unpadded = this.server.uri("/ufc?pad=");
+    final URI unpaddedSelection = SELECTION.appendTo(unpadded);
+    assertNotNull(unpaddedSelection);
+    final char[] padding =
+        new char[FlagSelectionRequest.MAX_URL_BYTES - unpaddedSelection.toASCIIString().length()];
     Arrays.fill(padding, 'x');
+    final URI endpoint = this.server.uri("/ufc?pad=" + new String(padding));
+    final URI selectionWithoutCapability = SELECTION.appendTo(endpoint);
+    assertNotNull(selectionWithoutCapability);
+    assertEquals(
+        FlagSelectionRequest.MAX_URL_BYTES, selectionWithoutCapability.toASCIIString().length());
+    assertNull(
+        SELECTION.appendTo(
+            CdnConfigurationSource.requestEndpoint(
+                endpoint, singleton("dependent-flag-variant-key-v1"))));
+
     this.server.otherwise(200, CONFIG, IGNORED, "invalid_tag");
-    final CdnConfigurationSource source =
-        source(this.server.uri("/ufc?pad=" + new String(padding)), SELECTION, this.dispatched::add);
+    final CdnConfigurationSource source = source(endpoint, SELECTION, this.dispatched::add);
 
     assertTrue(source.pollOnce());
     assertTrue(source.pollOnce());

@@ -43,6 +43,10 @@ public class RemoteConfigServiceImpl implements ConfigurationChangesTypedListene
   private boolean started;
 
   private boolean lifecycleStarted;
+  private boolean capabilityCleanupPending;
+  private boolean listenerCleanupPending;
+  private boolean pollerCleanupPending;
+  private long lifecycleRequestGeneration;
   private long refreshGeneration;
   private long appliedRefreshGeneration;
   private boolean deliveryStopped;
@@ -218,6 +222,10 @@ public class RemoteConfigServiceImpl implements ConfigurationChangesTypedListene
   }
 
   private void updateLifecycle() {
+    final long requestGeneration;
+    synchronized (this.subscribers) {
+      requestGeneration = ++this.lifecycleRequestGeneration;
+    }
     if (!this.lifecycleUpdateLock.tryLock()) {
       return;
     }
@@ -226,29 +234,114 @@ public class RemoteConfigServiceImpl implements ConfigurationChangesTypedListene
       while (true) {
         final boolean targetStarted;
         final boolean appliedStarted;
+        final boolean capabilityCleanupPending;
+        final boolean listenerCleanupPending;
+        final boolean pollerCleanupPending;
         final long refreshVersion;
         final boolean refresh;
         synchronized (this.subscribers) {
           targetStarted = this.started;
           appliedStarted = this.lifecycleStarted;
+          capabilityCleanupPending = this.capabilityCleanupPending;
+          listenerCleanupPending = this.listenerCleanupPending;
+          pollerCleanupPending = this.pollerCleanupPending;
           refreshVersion = this.refreshGeneration;
           refresh =
               targetStarted
                   && targetStarted == appliedStarted
                   && refreshVersion != this.appliedRefreshGeneration;
-          if (targetStarted == appliedStarted && !refresh) {
+          if (targetStarted == appliedStarted
+              && !refresh
+              && !capabilityCleanupPending
+              && !listenerCleanupPending
+              && !pollerCleanupPending) {
             this.lifecycleUpdateLock.unlock();
             locked = false;
             return;
           }
         }
 
-        if (targetStarted != appliedStarted) {
+        if (capabilityCleanupPending || listenerCleanupPending || pollerCleanupPending) {
+          Throwable cleanupFailure = null;
+          boolean capabilityStillPending = capabilityCleanupPending;
+          boolean listenerStillPending = listenerCleanupPending;
+          boolean pollerStillPending = pollerCleanupPending;
+          if (capabilityCleanupPending) {
+            try {
+              this.configurationPoller.removeCapabilities(CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
+              capabilityStillPending = false;
+            } catch (final RuntimeException | Error failure) {
+              cleanupFailure = appendFailure(cleanupFailure, failure);
+            }
+          }
+          if (listenerCleanupPending) {
+            try {
+              this.configurationPoller.removeListeners(FFE_FLAGS);
+              listenerStillPending = false;
+            } catch (final RuntimeException | Error failure) {
+              cleanupFailure = appendFailure(cleanupFailure, failure);
+            }
+          }
+          if (pollerCleanupPending) {
+            try {
+              this.configurationPoller.stop();
+              pollerStillPending = false;
+            } catch (final RuntimeException | Error failure) {
+              cleanupFailure = appendFailure(cleanupFailure, failure);
+            }
+          }
+          synchronized (this.subscribers) {
+            this.lifecycleStarted = false;
+            this.capabilityCleanupPending = capabilityStillPending;
+            this.listenerCleanupPending = listenerStillPending;
+            this.pollerCleanupPending = pollerStillPending;
+            this.deliveryStopped = true;
+            this.current = null;
+          }
+          if (cleanupFailure != null) {
+            rethrow(cleanupFailure);
+          }
+        } else if (targetStarted != appliedStarted) {
           if (targetStarted) {
             LOGGER.debug("Feature Flagging starting remote_config configuration source");
-            this.configurationPoller.addCapabilities(CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
-            listen();
-            this.configurationPoller.start();
+            boolean capabilityAttempted = false;
+            boolean listenerAttempted = false;
+            boolean pollerStartAttempted = false;
+            try {
+              capabilityAttempted = true;
+              this.configurationPoller.addCapabilities(CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
+              listenerAttempted = true;
+              listen();
+              pollerStartAttempted = true;
+              this.configurationPoller.start();
+            } catch (final RuntimeException | Error failure) {
+              boolean capabilityStillPending = capabilityAttempted;
+              boolean listenerStillPending = listenerAttempted;
+              boolean pollerStillPending = pollerStartAttempted;
+              if (capabilityAttempted) {
+                capabilityStillPending =
+                    suppressCleanupFailure(
+                        failure,
+                        () ->
+                            this.configurationPoller.removeCapabilities(
+                                CAPABILITY_FFE_FLAG_CONFIGURATION_RULES));
+              }
+              if (listenerAttempted) {
+                listenerStillPending =
+                    suppressCleanupFailure(
+                        failure, () -> this.configurationPoller.removeListeners(FFE_FLAGS));
+              }
+              if (pollerStartAttempted) {
+                pollerStillPending =
+                    suppressCleanupFailure(failure, this.configurationPoller::stop);
+              }
+              synchronized (this.subscribers) {
+                this.capabilityCleanupPending = capabilityStillPending;
+                this.listenerCleanupPending = listenerStillPending;
+                this.pollerCleanupPending = pollerStillPending;
+              }
+              throw failure;
+            }
           } else {
             LOGGER.debug("Feature Flagging remote_config configuration source stopped");
             this.configurationPoller.removeCapabilities(CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
@@ -271,11 +364,52 @@ public class RemoteConfigServiceImpl implements ConfigurationChangesTypedListene
           }
         }
       }
+    } catch (final RuntimeException | Error failure) {
+      final boolean handoffNeeded;
+      synchronized (this.subscribers) {
+        handoffNeeded = this.lifecycleRequestGeneration != requestGeneration;
+        this.lifecycleUpdateLock.unlock();
+        locked = false;
+      }
+      if (handoffNeeded) {
+        try {
+          updateLifecycle();
+        } catch (final RuntimeException | Error handoffFailure) {
+          failure.addSuppressed(handoffFailure);
+        }
+      }
+      throw failure;
     } finally {
       if (locked) {
         this.lifecycleUpdateLock.unlock();
       }
     }
+  }
+
+  private static boolean suppressCleanupFailure(final Throwable failure, final Runnable cleanup) {
+    try {
+      cleanup.run();
+      return false;
+    } catch (final RuntimeException | Error cleanupFailure) {
+      failure.addSuppressed(cleanupFailure);
+      return true;
+    }
+  }
+
+  private static Throwable appendFailure(
+      @Nullable final Throwable first, final Throwable additional) {
+    if (first == null) {
+      return additional;
+    }
+    first.addSuppressed(additional);
+    return first;
+  }
+
+  private static void rethrow(final Throwable failure) {
+    if (failure instanceof RuntimeException) {
+      throw (RuntimeException) failure;
+    }
+    throw (Error) failure;
   }
 
   /**
