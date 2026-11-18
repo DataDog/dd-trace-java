@@ -70,6 +70,28 @@ class FeatureFlaggingSystemTest {
   }
 
   @Test
+  @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "remote_config")
+  @WithConfig(key = REMOTE_CONFIGURATION_ENABLED, value = "true")
+  void failedStartPreservesTheOriginalFailureWhenCleanupAlsoFails() {
+    final SharedCommunicationObjects sco = mock(SharedCommunicationObjects.class);
+    final ConfigurationPoller poller = mock(ConfigurationPoller.class);
+    final IllegalStateException startFailure = new IllegalStateException("poller failed");
+    final IllegalStateException cleanupFailure = new IllegalStateException("cleanup failed");
+    when(sco.configurationPoller(any())).thenReturn(poller);
+    doThrow(startFailure).when(poller).start();
+    doThrow(cleanupFailure)
+        .when(poller)
+        .removeCapabilities(Capabilities.CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
+
+    final IllegalStateException thrown =
+        assertThrows(IllegalStateException.class, () -> FeatureFlaggingSystem.start(sco));
+
+    assertSame(startFailure, thrown);
+    assertTrue(thrown.getSuppressed().length > 0);
+    verify(poller).removeListeners(Product.FFE_FLAGS);
+  }
+
+  @Test
   @WithConfig(key = TRACE_ENABLED, value = "false")
   void stopsFromAShutdownHookOnceTheSdkSubscribesWhenTracingIsDisabled() {
     FeatureFlaggingSystem.start(mock(SharedCommunicationObjects.class));

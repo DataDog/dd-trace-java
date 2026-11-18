@@ -108,6 +108,18 @@ tasks.named("check") {
   dependsOn(testOpenFeature117)
 }
 
+// The compatibility suite exercises the legacy hook lifecycle that cannot run with the main
+// test task's newer OpenFeature SDK. Include its execution data in this module's coverage gate.
+tasks.named<JacocoReport>("jacocoTestReport") {
+  dependsOn(testOpenFeature117)
+  executionData(layout.buildDirectory.file("jacoco/testOpenFeature117.exec"))
+}
+
+tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
+  dependsOn(testOpenFeature117)
+  executionData(layout.buildDirectory.file("jacoco/testOpenFeature117.exec"))
+}
+
 jmh {
   jmhVersion = libs.versions.jmh.get()
 }

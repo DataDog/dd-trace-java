@@ -81,8 +81,8 @@ class FlagSelectionProviderTest {
     options.flagSelection(null);
 
     assertEquals(
-        "selected_flag_tags=area%3Acheckout&selected_flag_tags=mobile"
-            + "&selected_flag_key_patterns=checkout.%2A&cap_dependent-flags-variant-key=v1",
+        "cap_dependent-flags-variant-key=v1&selected_flag_tags=area%3Acheckout"
+            + "&selected_flag_tags=mobile&selected_flag_key_patterns=checkout.%2A",
         initializeAndGetQuery(provider));
   }
 

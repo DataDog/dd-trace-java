@@ -386,6 +386,95 @@ class ExposureHookTest {
   }
 
   @Test
+  void lifecycleHelpersIgnoreIncompleteAndUnregisteredCalls() {
+    final ExposureHook hook = new ExposureHook(this.evaluations::add);
+    final HookContext<Object> context = hookContext();
+    final Object scope = new Object();
+
+    assertTrue(hook.before(null, emptyMap()).isEmpty());
+    hook.finallyAfter(null, rootDetails(), emptyMap());
+    ExposureHook.bindProviderScope(null, context);
+    ExposureHook.bindProviderScope(scope, null);
+    ExposureHook.bindProviderScope(scope, context);
+    ExposureHook.publishDependencies(null, context, singletonList(dependencyDetails()));
+    ExposureHook.publishDependencies(scope, null, singletonList(dependencyDetails()));
+    ExposureHook.publishDependencies(scope, context, null);
+    ExposureHook.publishDependencies(scope, context, emptyList());
+    ExposureHook.publishDependencies(scope, context, singletonList(dependencyDetails()));
+
+    assertTrue(this.evaluations.isEmpty());
+  }
+
+  @Test
+  void oneHookBindsOnlyItsInnermostMatchingRegistration() {
+    final List<ExposureHook.Evaluation> seen = new ArrayList<>();
+    final ExposureHook hook = new ExposureHook(seen::add);
+    final HookContext<Object> outer = hookContext("same-subject");
+    final HookContext<Object> inner = hookContext("same-subject");
+    final Object scope = new Object();
+
+    hook.before(outer, emptyMap());
+    hook.before(inner, emptyMap());
+    ExposureHook.bindProviderScope(scope, inner);
+    ExposureHook.publishDependencies(scope, inner, singletonList(dependencyDetails()));
+    hook.finallyAfter(inner, rootDetails(), emptyMap());
+    hook.finallyAfter(outer, rootDetails(), emptyMap());
+
+    assertEquals(3, seen.size(), "the dependency is published only for the inner lifecycle");
+  }
+
+  @Test
+  void providerScopeBindingDoesNotReplaceAnExistingBinding() {
+    final List<ExposureHook.Evaluation> firstSeen = new ArrayList<>();
+    final List<ExposureHook.Evaluation> secondSeen = new ArrayList<>();
+    final ExposureHook first = new ExposureHook(firstSeen::add);
+    final ExposureHook second = new ExposureHook(secondSeen::add);
+    final HookContext<Object> context = hookContext("subject");
+    final Object originalScope = new Object();
+    final Object replacementScope = new Object();
+
+    first.before(context, emptyMap());
+    second.before(context, emptyMap());
+    ExposureHook.bindProviderScope(originalScope, context);
+    ExposureHook.bindProviderScope(replacementScope, context);
+    ExposureHook.publishDependencies(replacementScope, context, singletonList(dependencyDetails()));
+    ExposureHook.publishDependencies(originalScope, context, singletonList(dependencyDetails()));
+    second.finallyAfter(context, rootDetails(), emptyMap());
+    first.finallyAfter(context, rootDetails(), emptyMap());
+
+    assertEquals(2, firstSeen.size());
+    assertEquals(2, secondSeen.size());
+  }
+
+  @Test
+  void staleOrForeignLifecycleDataCannotDuplicateCallbacks() throws Exception {
+    final List<ExposureHook.Evaluation> seen = new ArrayList<>();
+    final ExposureHook owner = new ExposureHook(seen::add);
+    final ExposureHook foreign = new ExposureHook(seen::add);
+    final HookContext<Object> context = hookContext("subject");
+    owner.before(context, emptyMap());
+
+    owner.finallyAfter(context, rootDetails(), emptyMap());
+    owner.finallyAfter(context, rootDetails(), emptyMap());
+
+    final java.lang.reflect.Field lifecycleKey =
+        ExposureHook.class.getDeclaredField("lifecycleKey");
+    lifecycleKey.setAccessible(true);
+    final String ownerKey = (String) lifecycleKey.get(owner);
+    final String foreignKey = (String) lifecycleKey.get(foreign);
+    context.getHookData().set(foreignKey, context.getHookData().get(ownerKey));
+    foreign.finallyAfter(context, rootDetails(), emptyMap());
+
+    final HookContext<Object> activeContext = hookContext("active-subject");
+    owner.before(activeContext, emptyMap());
+    activeContext.getHookData().set(foreignKey, activeContext.getHookData().get(ownerKey));
+    foreign.finallyAfter(activeContext, rootDetails(), emptyMap());
+    owner.finallyAfter(activeContext, rootDetails(), emptyMap());
+
+    assertEquals(2, seen.size());
+  }
+
+  @Test
   void skipsTheCallbackWhenThereAreNoDetails() {
     final List<ExposureHook.Evaluation> seen = new ArrayList<>();
     final ExposureHook hook = new ExposureHook(seen::add);

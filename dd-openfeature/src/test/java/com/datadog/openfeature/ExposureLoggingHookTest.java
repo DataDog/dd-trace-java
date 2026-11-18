@@ -2,7 +2,10 @@ package com.datadog.openfeature;
 
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.ALLOCATION_KEY;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.DO_LOG;
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EVALUATION_FEATURE_PREFIX;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EXPOSURE_CACHE_HIT;
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.HAS_EVALUATION_FEATURES;
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.OBSERVE_FULL_EVALUATION_DATA;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.SPLIT_SERIAL_ID;
 import static com.datadog.openfeature.internal.ufc.ConditionOperator.ONE_OF;
 import static java.util.Collections.emptyList;
@@ -19,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.datadog.openfeature.Provider.Options;
 import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
 import com.datadog.openfeature.internal.config.TestSettings;
+import com.datadog.openfeature.internal.evaluation.FlagEvaluator.DependencyEvaluation;
 import com.datadog.openfeature.internal.evaluation.FlagEvaluator.DependencyExposure;
 import com.datadog.openfeature.internal.exposure.ExposureEvent;
 import com.datadog.openfeature.internal.flagevaluation.FlagEvalEvent;
@@ -195,6 +199,374 @@ class ExposureLoggingHookTest {
     assertNull(
         this.evaluator.currentDependencyTelemetryScope(context.getFlagKey(), context.getCtx()));
     assertTrue(this.evaluator.endDependencyExposureScope().isEmpty());
+  }
+
+  @Test
+  void dependencyScopeRejectsMismatchedOwnersAndRestoresTheOuterLifecycle() {
+    final ExposureTestEvaluator dependent =
+        new ExposureTestEvaluator(dependentConfiguration(true), true);
+    final MutableContext outerContext = new MutableContext("outer");
+    final MutableContext innerContext = new MutableContext("inner");
+
+    assertNull(dependent.currentDependencyTelemetryScope("root", outerContext));
+    assertNull(dependent.legacyLifecycleScope("root"));
+    assertTrue(dependent.endDependencyExposureScope(null).isEmpty());
+
+    final Object outer = dependent.beginDependencyExposureScope("root", outerContext);
+    assertNotNull(outer);
+    assertNull(dependent.currentDependencyTelemetryScope("other", outerContext));
+    assertNull(dependent.currentDependencyTelemetryScope("root", innerContext));
+    assertSame(outer, dependent.currentDependencyTelemetryScope("root", outerContext));
+    assertNull(dependent.legacyLifecycleScope(null));
+    assertNull(dependent.legacyLifecycleScope("other"));
+    assertSame(outer, dependent.legacyLifecycleScope("root"));
+    assertNull(dependent.dependencyTelemetryToken(null));
+    assertNull(dependent.dependencyTelemetryToken(outer));
+
+    dependent.evaluate(Integer.class, "root", 0, outerContext);
+    final DDEvaluator.DependencyTelemetryToken outerToken =
+        dependent.dependencyTelemetryToken(outer);
+    assertNotNull(outerToken);
+    assertNull(dependent.currentDependencyTelemetryScope("root", outerContext));
+    assertEquals(1, dependent.dependencyEvaluationTrace(outerToken).evaluations.size());
+
+    final Object inner = dependent.beginDependencyExposureScope("root", innerContext);
+    assertNotNull(inner);
+    assertTrue(dependent.dependencyEvaluationTrace(outerToken).evaluations.isEmpty());
+    assertTrue(dependent.endDependencyExposureScope(outer).isEmpty());
+    assertTrue(dependent.endDependencyExposureScope(inner).isEmpty());
+    assertEquals(1, dependent.dependencyEvaluationTrace(outerToken).evaluations.size());
+    assertEquals(1, dependent.endDependencyExposureScope(outer).size());
+    assertTrue(dependent.endDependencyExposureScope().isEmpty());
+    assertNull(dependent.legacyLifecycleScope("root"));
+  }
+
+  @Test
+  void dependencyConfigurationScanToleratesPartialGraphNodes() {
+    final ExposureTestEvaluator dependent =
+        new ExposureTestEvaluator(new ServerConfiguration("", "", false, null, null), true);
+    final MutableContext context = new MutableContext("subject");
+    assertNull(dependent.beginDependencyExposureScope("root", context));
+
+    final Map<String, Flag> flags = new HashMap<>();
+    flags.put("null-flag", null);
+    flags.put(
+        "null-allocations", new Flag("null-allocations", true, ValueType.INTEGER, null, null));
+    flags.put(
+        "partial",
+        new Flag(
+            "partial",
+            true,
+            ValueType.INTEGER,
+            null,
+            java.util.Arrays.asList(
+                null,
+                new Allocation("no-rules", null, null, null, emptyList(), false),
+                new Allocation(
+                    "partial-rules",
+                    java.util.Arrays.asList(null, new Rule(null)),
+                    null,
+                    null,
+                    emptyList(),
+                    false))));
+    flags.put(
+        "root",
+        new Flag(
+            "root",
+            true,
+            ValueType.INTEGER,
+            null,
+            singletonList(
+                new Allocation(
+                    "root-allocation",
+                    singletonList(
+                        new Rule(
+                            java.util.Arrays.asList(
+                                null,
+                                new ConditionConfiguration(ONE_OF, "country", emptyList()),
+                                new ConditionConfiguration(
+                                    ONE_OF, null, "dependency", singletonList("on"))))),
+                    null,
+                    null,
+                    emptyList(),
+                    false))));
+    flags.put(
+        null,
+        new Flag(
+            null,
+            true,
+            ValueType.INTEGER,
+            null,
+            singletonList(
+                new Allocation(
+                    "null-key",
+                    singletonList(
+                        new Rule(
+                            singletonList(
+                                new ConditionConfiguration(
+                                    ONE_OF, null, "dependency", singletonList("on"))))),
+                    null,
+                    null,
+                    emptyList(),
+                    false))));
+
+    dependent.accept(new ServerConfiguration("", "", false, null, flags));
+
+    assertNull(dependent.beginDependencyExposureScope("partial", context));
+    final Object root = dependent.beginDependencyExposureScope("root", context);
+    assertNotNull(root);
+    assertTrue(dependent.endDependencyExposureScope(root).isEmpty());
+    final Object nullKey = dependent.beginDependencyExposureScope(null, context);
+    assertNotNull(nullKey);
+    assertNull(dependent.currentDependencyTelemetryScope(null, context));
+    assertTrue(dependent.endDependencyExposureScope(nullKey).isEmpty());
+
+    dependent.accept(new ServerConfiguration("", "", false, null, emptyMap()));
+    assertNull(dependent.beginDependencyExposureScope("root", context));
+    dependent.accept(null);
+    assertNull(dependent.beginDependencyExposureScope("root", context));
+  }
+
+  @Test
+  void dependencyTelemetryBackpressureDoesNotAffectEvaluation() {
+    final ExposureTestEvaluator dependent =
+        new ExposureTestEvaluator(dependentConfiguration(true), true);
+    final MutableContext context = new MutableContext("subject");
+    final Object scope = dependent.beginDependencyExposureScope("root", context);
+
+    assertEquals(1, dependent.evaluate(Integer.class, "root", 0, context).getValue());
+    final DDEvaluator.DependencyTelemetryToken token = dependent.dependencyTelemetryToken(scope);
+    final DDEvaluator.DependencyEvaluationTrace trace = dependent.dependencyEvaluationTrace(token);
+    final int[] overflows = {0};
+    final FlagEvaluationWriter fullWriter =
+        new FlagEvaluationWriter() {
+          @Override
+          public boolean hasCapacityForEnqueue() {
+            return false;
+          }
+
+          @Override
+          public void countPreQueueOverflow() {
+            overflows[0]++;
+          }
+
+          @Override
+          public void countContextTruncated(final String reason) {}
+
+          @Override
+          public void enqueue(final FlagEvalEvent event) {
+            throw new AssertionError("a full writer must not enqueue");
+          }
+        };
+
+    dependent.publishDependencyEvaluations(trace, context, null);
+    dependent.publishDependencyEvaluations(trace, context, fullWriter);
+    dependent.recordDependencyMetrics(trace, null);
+
+    assertEquals(1, overflows[0]);
+    assertEquals(1, dependent.endDependencyExposureScope(scope).size());
+  }
+
+  @Test
+  void dependencyTelemetryCapturesFullContextAndReportsTruncation() {
+    final ServerConfiguration base = dependentConfiguration(true);
+    final ExposureTestEvaluator dependent =
+        new ExposureTestEvaluator(new ServerConfiguration("", "", true, null, base.flags), true);
+    final MutableContext context = new MutableContext("subject");
+    final char[] oversized = new char[DDEvaluator.MAX_VALUE_LENGTH + 1];
+    java.util.Arrays.fill(oversized, 'x');
+    context.add("region", "us-east-1");
+    context.add("oversized", new String(oversized));
+    final Object scope = dependent.beginDependencyExposureScope("root", context);
+    dependent.evaluate(Integer.class, "root", 0, context);
+    final DDEvaluator.DependencyEvaluationTrace trace =
+        dependent.dependencyEvaluationTrace(dependent.dependencyTelemetryToken(scope));
+    final List<FlagEvalEvent> events = new java.util.ArrayList<>();
+    final List<String> truncations = new java.util.ArrayList<>();
+    final FlagEvaluationWriter writer =
+        new FlagEvaluationWriter() {
+          @Override
+          public boolean hasCapacityForEnqueue() {
+            return true;
+          }
+
+          @Override
+          public void countPreQueueOverflow() {}
+
+          @Override
+          public void countContextTruncated(final String reason) {
+            truncations.add(reason);
+          }
+
+          @Override
+          public void enqueue(final FlagEvalEvent event) {
+            events.add(event);
+          }
+        };
+
+    dependent.publishDependencyEvaluations(trace, context, writer);
+    dependent.publishDependencyEvaluations(trace, null, writer);
+
+    assertEquals(2, events.size());
+    assertEquals("us-east-1", events.get(0).attrs.get("region"));
+    assertEquals(singletonList("max_value_length"), truncations);
+    assertNull(events.get(1).targetingKey);
+    dependent.endDependencyExposureScope(scope);
+  }
+
+  @Test
+  void dependencyExposureBatchSkipsIncompleteCandidatesAndDeduplicatesValidOnes() throws Exception {
+    final ExposureTestEvaluator dependent =
+        new ExposureTestEvaluator(dependentConfiguration(true), true);
+    final ImmutableMetadata doNotLog =
+        ImmutableMetadata.builder().addBoolean(DO_LOG, false).build();
+    final ImmutableMetadata invalidAllocation =
+        ImmutableMetadata.builder().addBoolean(DO_LOG, true).addInteger(ALLOCATION_KEY, 1).build();
+    final ImmutableMetadata validWithoutSerial =
+        ImmutableMetadata.builder().addBoolean(DO_LOG, true).addString(ALLOCATION_KEY, "a").build();
+    final ImmutableMetadata validWithSerial =
+        ImmutableMetadata.builder()
+            .addBoolean(DO_LOG, true)
+            .addString(ALLOCATION_KEY, "a")
+            .addInteger(SPLIT_SERIAL_ID, 7)
+            .build();
+    final List<DependencyExposure> candidates =
+        java.util.Arrays.asList(
+            dependencyExposure("missing-metadata", "on", null),
+            dependencyExposure("disabled", "on", doNotLog),
+            dependencyExposure("invalid-allocation", "on", invalidAllocation),
+            dependencyExposure("missing-variant", null, validWithoutSerial),
+            dependencyExposure("valid", "on", validWithoutSerial),
+            dependencyExposure("valid", "on", validWithSerial),
+            dependencyExposure("valid", "on", validWithSerial));
+    final MutableContext context = new MutableContext("subject");
+    context.add("region", "us-east-1");
+
+    assertTrue(dependent.recordDependencyExposures(candidates, null).isEmpty());
+    final List<FlagEvaluationDetails<Object>> details =
+        dependent.recordDependencyExposures(candidates, context);
+
+    assertEquals(3, details.size());
+    assertEquals(2, dependent.sentToDatadog.size(), "only the unchanged exposure is deduplicated");
+    assertEquals("us-east-1", dependent.sentToDatadog.get(0).subject.attributes.get("region"));
+
+    final ExposureTestEvaluator deliveryDisabled =
+        new ExposureTestEvaluator(dependentConfiguration(true), false);
+    assertEquals(
+        1,
+        deliveryDisabled
+            .recordDependencyExposures(
+                singletonList(dependencyExposure("not-sent", "on", validWithoutSerial)), context)
+            .size());
+    assertTrue(deliveryDisabled.sentToDatadog.isEmpty());
+
+    final DDEvaluator withoutCache = new DDEvaluator(() -> {}, AgentBridge.NONE, TestSettings.of());
+    assertTrue(withoutCache.recordDependencyExposures(candidates, context).isEmpty());
+  }
+
+  @Test
+  void dependencyEvaluationBatchNormalizesErrorsFeaturesAndMetricsFailures() throws Exception {
+    final ImmutableMetadata fullMetadata =
+        ImmutableMetadata.builder()
+            .addBoolean(OBSERVE_FULL_EVALUATION_DATA, true)
+            .addBoolean(HAS_EVALUATION_FEATURES, true)
+            .addString(EVALUATION_FEATURE_PREFIX + "experiment", "pricing")
+            .build();
+    final List<DependencyEvaluation> dependencies =
+        java.util.Arrays.asList(
+            dependencyEvaluation("missing-metadata", null, ErrorCode.GENERAL, null),
+            dependencyEvaluation("explicit-error", fullMetadata, null, "evaluation failed"),
+            dependencyEvaluation("empty-error", fullMetadata, null, ""));
+    final DDEvaluator.DependencyEvaluationTrace trace = dependencyTrace(dependencies);
+    final ExposureTestEvaluator dependent =
+        new ExposureTestEvaluator(dependentConfiguration(true), true);
+    final List<FlagEvalEvent> events = new java.util.ArrayList<>();
+    final FlagEvaluationWriter writer =
+        new FlagEvaluationWriter() {
+          @Override
+          public boolean hasCapacityForEnqueue() {
+            return true;
+          }
+
+          @Override
+          public void countPreQueueOverflow() {}
+
+          @Override
+          public void countContextTruncated(final String reason) {}
+
+          @Override
+          public void enqueue(final FlagEvalEvent event) {
+            events.add(event);
+          }
+        };
+
+    dependent.publishDependencyEvaluations(trace, new MutableContext("subject"), writer);
+    dependent.recordDependencyMetrics(
+        trace,
+        new FlagEvalMetrics((io.opentelemetry.api.metrics.LongCounter) null) {
+          @Override
+          void record(
+              final String flagKey,
+              final String variant,
+              final String reason,
+              final ErrorCode errorCode,
+              final String allocationKey) {
+            if ("explicit-error".equals(flagKey)) {
+              throw new IllegalStateException("metrics backend failed");
+            }
+          }
+        });
+
+    assertEquals(3, events.size());
+    assertEquals(ErrorCode.GENERAL.name(), events.get(0).errorMessage);
+    assertEquals("evaluation failed", events.get(1).errorMessage);
+    assertEquals("", events.get(2).errorMessage);
+    assertEquals("pricing", events.get(1).features.get("experiment"));
+  }
+
+  private static DependencyExposure dependencyExposure(
+      final String flagKey, final String variant, final ImmutableMetadata metadata)
+      throws Exception {
+    final var builder =
+        ProviderEvaluation.<Object>builder().value(1).variant(variant).reason("TARGETING_MATCH");
+    if (metadata != null) {
+      builder.flagMetadata(metadata);
+    }
+    final java.lang.reflect.Constructor<DependencyExposure> constructor =
+        DependencyExposure.class.getDeclaredConstructor(String.class, ProviderEvaluation.class);
+    constructor.setAccessible(true);
+    return constructor.newInstance(flagKey, builder.build());
+  }
+
+  private static DependencyEvaluation dependencyEvaluation(
+      final String flagKey,
+      final ImmutableMetadata metadata,
+      final ErrorCode errorCode,
+      final String errorMessage)
+      throws Exception {
+    final var builder =
+        ProviderEvaluation.<Object>builder().value(1).variant("on").reason("TARGETING_MATCH");
+    if (metadata != null) {
+      builder.flagMetadata(metadata);
+    }
+    if (errorCode != null) {
+      builder.errorCode(errorCode);
+    }
+    if (errorMessage != null) {
+      builder.errorMessage(errorMessage);
+    }
+    final java.lang.reflect.Constructor<DependencyEvaluation> constructor =
+        DependencyEvaluation.class.getDeclaredConstructor(String.class, ProviderEvaluation.class);
+    constructor.setAccessible(true);
+    return constructor.newInstance(flagKey, builder.build());
+  }
+
+  private static DDEvaluator.DependencyEvaluationTrace dependencyTrace(
+      final List<DependencyEvaluation> evaluations) throws Exception {
+    final java.lang.reflect.Constructor<DDEvaluator.DependencyEvaluationTrace> constructor =
+        DDEvaluator.DependencyEvaluationTrace.class.getDeclaredConstructor(List.class, long.class);
+    constructor.setAccessible(true);
+    return constructor.newInstance(evaluations, 123L);
   }
 
   @Test
@@ -537,6 +909,7 @@ class ExposureLoggingHookTest {
         new ExposureTestEvaluator(configuration("on", Boolean.TRUE), false);
     final ExposureLoggingHook<Object> hook = new ExposureLoggingHook<>(() -> notSending);
 
+    hook.finallyAfter(hookContext(), details("on", exposureMetadata(true, false, "a")), emptyMap());
     hook.finallyAfter(hookContext(), details("on", exposureMetadata(true, false, "a")), emptyMap());
 
     assertTrue(notSending.sentToDatadog.isEmpty());

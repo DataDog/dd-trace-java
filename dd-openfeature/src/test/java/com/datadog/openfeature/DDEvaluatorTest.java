@@ -164,6 +164,8 @@ public class DDEvaluatorTest {
       try {
         assertThat(
             evaluator.initialize(10, MILLISECONDS, mock(EvaluationContext.class)), equalTo(false));
+        assertFalse(evaluator.isExposureDeliveryEnabled());
+        assertFalse(evaluator.initialize(0, MILLISECONDS, mock(EvaluationContext.class)));
         verify(configCallback, times(0)).run();
       } finally {
         evaluator.shutdown();
@@ -930,6 +932,80 @@ public class DDEvaluatorTest {
     }
     assertThat(result.size(), equalTo(1));
     assertThat(result, hasEntry(truncatedKey.toString(), null));
+  }
+
+  @Test
+  public void testSnapshotTruncatesCyclicListsAndStructures() {
+    final List<Value> cyclicList = new ArrayList<>();
+    final Value listValue = new Value(cyclicList);
+    cyclicList.add(listValue);
+    final dev.openfeature.sdk.MutableStructure cyclicStructure =
+        new dev.openfeature.sdk.MutableStructure();
+    cyclicStructure.add("self", new Value(cyclicStructure));
+
+    final Map<String, Object> result =
+        DDEvaluator.flattenContext(
+            new MutableContext().add("list", cyclicList).add("structure", cyclicStructure));
+
+    assertThat(result, hasEntry("list[0]", null));
+    assertThat(result, hasEntry("structure.self", null));
+  }
+
+  @Test
+  public void testSnapshotTruncatesDeepStructures() {
+    dev.openfeature.sdk.MutableStructure nested = new dev.openfeature.sdk.MutableStructure();
+    nested.add("leaf", "value");
+    for (int i = 0; i < DDEvaluator.MAX_SNAPSHOT_DEPTH + 1; i++) {
+      final dev.openfeature.sdk.MutableStructure parent =
+          new dev.openfeature.sdk.MutableStructure();
+      parent.add("child", nested);
+      nested = parent;
+    }
+
+    final Map<String, Object> result =
+        DDEvaluator.flattenContext(new MutableContext().add("structure", nested));
+
+    assertThat(result.size(), equalTo(1));
+    assertThat(result.values().iterator().next(), nullValue());
+  }
+
+  @Test
+  public void testCopyPrunedContextStopsWhenNestedContainersFillTheFieldBudget() {
+    final dev.openfeature.sdk.MutableStructure pair =
+        new dev.openfeature.sdk.MutableStructure().add("first", 1).add("second", 2);
+    final List<Value> list = new ArrayList<>();
+    for (int i = 0; i < DDEvaluator.MAX_CONTEXT_FIELDS; i++) {
+      list.add(new Value(pair));
+    }
+    final DDEvaluator.CopyResult listResult =
+        DDEvaluator.copyPrunedContext(new MutableContext().add("list", list));
+
+    final dev.openfeature.sdk.MutableStructure structure =
+        new dev.openfeature.sdk.MutableStructure();
+    for (int i = 0; i < DDEvaluator.MAX_CONTEXT_FIELDS; i++) {
+      structure.add("p" + i, asList(new Value(1), new Value(2)));
+    }
+    final DDEvaluator.CopyResult structureResult =
+        DDEvaluator.copyPrunedContext(new MutableContext().add("structure", structure));
+
+    assertThat(listResult.attrs.size(), equalTo(DDEvaluator.MAX_CONTEXT_FIELDS));
+    assertThat(listResult.truncatedReason, equalTo("max_context_fields"));
+    assertThat(structureResult.attrs.size(), equalTo(DDEvaluator.MAX_CONTEXT_FIELDS));
+    assertThat(structureResult.truncatedReason, equalTo("max_context_fields"));
+  }
+
+  @Test
+  public void testUnsupportedValuesAreRejectedByFlatteningAndSkippedByPruning() {
+    final Value unsupported = mock(Value.class);
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> DDEvaluator.flattenValues(java.util.Collections.singletonMap("value", unsupported)));
+    final DDEvaluator.CopyResult result =
+        DDEvaluator.copyPrunedContext(
+            new MutableContext(java.util.Collections.singletonMap("value", unsupported)));
+
+    assertTrue(result.attrs.isEmpty());
   }
 
   @Test

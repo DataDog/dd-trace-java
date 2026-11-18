@@ -810,7 +810,7 @@ class FeatureFlagsRuntimeTest {
       FlagSelectionRequest.of(singletonList("area:checkout"), null);
   private static final String CAPABILITY_QUERY = "cap_dependent-flags-variant-key=v1";
   private static final String AREA_CHECKOUT_QUERY =
-      "selected_flag_tags=area%3Acheckout&" + CAPABILITY_QUERY;
+      CAPABILITY_QUERY + "&selected_flag_tags=area%3Acheckout";
   private static final String SECOND_SELECTION_WARNING =
       "WARN flagSelection differs from the flag selection already in use in this process. Using"
           + " the first selection.";
