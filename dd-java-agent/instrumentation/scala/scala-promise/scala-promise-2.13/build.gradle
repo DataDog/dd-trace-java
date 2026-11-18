@@ -40,6 +40,11 @@ addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'forkedTest'
 addTestSuite('scala21317Test')
 
 sourceSets {
+  test.java.srcDir project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-common').sourceSets.test.java
+  test.java.srcDir 'src/forkedTest/java'
+  latestDepTest.java.srcDir project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-common').sourceSets.test.java
+  latestDepForkedTest.java.srcDir project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-common').sourceSets.test.java
+
   latestDepTest.java.srcDir 'src/scala21317Test/java'
 
   test.groovy.srcDir project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-common').sourceSets.test.groovy
