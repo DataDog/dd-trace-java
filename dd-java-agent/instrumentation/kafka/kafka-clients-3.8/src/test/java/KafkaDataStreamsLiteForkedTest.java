@@ -263,7 +263,7 @@ class KafkaDataStreamsLiteForkedTest extends AbstractInstrumentationTest {
     return queuedEdges.stream().filter(edge::equals).count();
   }
 
-  private static final class DataStreamsEnabled implements Supplier<TraceConfig> {
+  static final class DataStreamsEnabled implements Supplier<TraceConfig> {
     private final TraceConfig traceConfig = mock(TraceConfig.class);
 
     DataStreamsEnabled() {
@@ -276,7 +276,7 @@ class KafkaDataStreamsLiteForkedTest extends AbstractInstrumentationTest {
     }
   }
 
-  private static final class NoopSink implements Sink {
+  static final class NoopSink implements Sink {
     @Override
     public void accept(int messageCount, ByteBuffer buffer) {}
 

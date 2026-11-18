@@ -39,6 +39,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.common.metrics.EventListener;
 import datadog.trace.common.metrics.Sink;
+import datadog.trace.common.writer.ListWriter;
+import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDCoreJavaSpecification;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -387,6 +389,134 @@ class DataStreamsLiteTest extends DDCoreJavaSpecification {
       });
     } finally {
       uncapped.close();
+    }
+  }
+
+  @Test
+  void pathwaysOnlyStartAtTrueOriginsWhenOriginsAreOverBudget() throws Exception {
+    List<RecordedPoint> points = new CopyOnWriteArrayList<>();
+    Service a = new Service("A", true, 1, points);
+    Service b = new Service("B", true, 1, points);
+    Service c = new Service("C", true, 1, points);
+    Service d = new Service("D", true, 1, points);
+
+    withTracer(() -> {
+      for (int i = 0; i < 100; i++) {
+        Map<String, String> toB = a.produce(a.originSpan(), "orders");
+        Map<String, String> toC = b.produce(b.consume(toB, "orders"), "invoices");
+        Map<String, String> toD = c.produce(c.consume(toC, "invoices"), "receipts");
+        d.consume(toD, "receipts").finish();
+      }
+    });
+
+    assertPathwaysOnlyStartAt(points, "A");
+    assertTrue(points.stream().anyMatch(point -> point.service.equals("D")), points.toString());
+  }
+
+  /** Every root checkpoint is at a true origin, and every other one continues a recorded one. */
+  private static void assertPathwaysOnlyStartAt(List<RecordedPoint> points, String origin) {
+    assertFalse(points.isEmpty());
+    List<Long> hashes = new ArrayList<>();
+    for (RecordedPoint point : points) {
+      hashes.add(point.hash);
+    }
+    for (RecordedPoint point : points) {
+      if (point.parentHash == 0) {
+        assertEquals(origin, point.service, "pathway rooted at " + point + " in " + points);
+      } else {
+        assertTrue(hashes.contains(point.parentHash), "orphan " + point + " in " + points);
+      }
+    }
+  }
+
+  private static final class RecordedPoint {
+    final String service;
+    final String edge;
+    final long hash;
+    final long parentHash;
+
+    RecordedPoint(String service, StatsPoint point) {
+      this.service = service;
+      this.edge = point.getTags().getDirection() + " " + point.getTags().getTopic();
+      this.hash = point.getHash();
+      this.parentHash = point.getParentHash();
+    }
+
+    @Override
+    public String toString() {
+      return service + "[" + edge + " hash=" + hash + " parent=" + parentHash + "]";
+    }
+  }
+
+  /** One instrumented process: its own tracer, Data Streams monitoring and origin budget. */
+  private final class Service {
+    final String name;
+    final DefaultDataStreamsMonitoring monitoring;
+    final CoreTracer tracer;
+
+    Service(String name, boolean lite, int originCapPerSecond, List<RecordedPoint> points) {
+      this.name = name;
+      TraceConfig traceConfig = mock(TraceConfig.class, RETURNS_SMART_NULLS);
+      when(traceConfig.isDataStreamsEnabled()).thenReturn(true);
+      this.monitoring =
+          new DefaultDataStreamsMonitoring(
+              mock(Sink.class),
+              features,
+              timeSource,
+              () -> traceConfig,
+              payloadWriter,
+              BUCKET_DURATION_NANOS,
+              lite,
+              lite,
+              originCapPerSecond) {
+            @Override
+            public boolean add(StatsPoint point) {
+              boolean queued = super.add(point);
+              if (queued) {
+                points.add(new RecordedPoint(Service.this.name, point));
+              }
+              return queued;
+            }
+          };
+      this.tracer =
+          tracerBuilder().writer(new ListWriter()).dataStreamsMonitoring(monitoring).build();
+    }
+
+    AgentSpan originSpan() {
+      return tracer.buildSpan("test", "origin").start();
+    }
+
+    /** Starts the span that handles a received message, as messaging instrumentations do. */
+    AgentSpan consume(Map<String, String> headers, String topic) {
+      AgentSpan extracted =
+          AgentSpan.fromContext(
+              monitoring
+                  .propagator()
+                  .extract(
+                      Context.root(), headers, (carrier, visitor) -> carrier.forEach(visitor)));
+      AgentSpan span =
+          tracer
+              .buildSpan("test", "consume")
+              .asChildOf(extracted != null ? extracted.spanContext() : null)
+              .start();
+      monitoring.setCheckpoint(
+          span, fromTags(DataStreamsTags.create("kafka", INBOUND, topic, "group", null)));
+      return span;
+    }
+
+    /** Produces a message from a child of {@code parent}, then finishes {@code parent}. */
+    Map<String, String> produce(AgentSpan parent, String topic) {
+      AgentSpan span = tracer.buildSpan("test", "produce").asChildOf(parent).start();
+      Map<String, String> headers = new HashMap<>();
+      monitoring
+          .propagator()
+          .inject(
+              span.with(fromTags(DataStreamsTags.create("kafka", OUTBOUND, topic))),
+              headers,
+              Map::put);
+      span.finish();
+      parent.finish();
+      return headers;
     }
   }
 
