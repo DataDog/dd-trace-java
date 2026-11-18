@@ -1,8 +1,8 @@
 package datadog.gradle.plugin.muzzle
 
+import org.assertj.core.api.Assertions.assertThat
 import org.eclipse.aether.version.Version
 import org.junit.jupiter.api.Test
-import org.assertj.core.api.Assertions.assertThat
 
 class VersionSetTest {
 

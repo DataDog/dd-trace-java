@@ -478,22 +478,21 @@ class TestcontainersPluginTest {
     )
   }
 
-  private fun junitClasspath() =
-    listOf(
-      "org.junit.jupiter.api.Test",
-      "org.junit.jupiter.engine.JupiterTestEngine",
-      "org.junit.platform.engine.TestEngine",
-      "org.junit.platform.launcher.Launcher",
-      "org.junit.platform.commons.JUnitException",
-      "org.opentest4j.AssertionFailedError",
-    ).joinToString(", ") {
-      "\"${Path.of(
-        Class
-          .forName(it)
-          .protectionDomain.codeSource.location
-          .toURI(),
-      )}\""
-    }
+  private fun junitClasspath() = listOf(
+    "org.junit.jupiter.api.Test",
+    "org.junit.jupiter.engine.JupiterTestEngine",
+    "org.junit.platform.engine.TestEngine",
+    "org.junit.platform.launcher.Launcher",
+    "org.junit.platform.commons.JUnitException",
+    "org.opentest4j.AssertionFailedError",
+  ).joinToString(", ") {
+    "\"${Path.of(
+      Class
+        .forName(it)
+        .protectionDomain.codeSource.location
+        .toURI(),
+    )}\""
+  }
 
   private fun runner(vararg arguments: String) = GradleRunner
     .create()

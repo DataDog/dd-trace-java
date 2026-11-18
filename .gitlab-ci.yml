@@ -1,11 +1,14 @@
 include:
+  - project: 'ddoghq/llm-validation-platform'
+    ref: '745818b5d65805d5852b07cbdf4d09c29b3da6c9' # v0.1.6; keep in sync with LLMVAL_PLATFORM_REF
+    file: '/ci/llm-validation.gitlab-ci.yml'
   - local: ".gitlab/one-pipeline.locked.yml"
   - local: ".gitlab/benchmarks.yml"
   - local: ".gitlab/exploration-tests.yml"
   - local: ".gitlab/ci-visibility-tests.yml"
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-spring-petclinic-parallel.yml'
-    ref: &apm_sdks_benchmarks_sha '646620266c1fcffd279948322af15da0adc7c950' # pinned by .github/workflows/update-apm-sdks-benchmarks-reference.yaml
+    ref: &apm_sdks_benchmarks_sha 'a520e39792ddf37ffe7443bfd5ae390df67df854' # pinned by .github/workflows/update-apm-sdks-benchmarks-reference.yaml
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-load-parallel.yml'
     ref: *apm_sdks_benchmarks_sha
@@ -797,6 +800,7 @@ muzzle-dep-report:
   variables:
     <<: *tier_m_variables
     GRADLE_PARAMS: "-PskipFlakyTests"
+    # When enabled, Gradle tolerates reported test failures; build and trace-validation errors fail the job.
     CONTINUE_ON_FAILURE: "false"
     TEST_JVM_ARGS: ""
     TESTCONTAINERS_CHECKS_DISABLE: "true"
@@ -816,7 +820,7 @@ muzzle-dep-report:
     - *prepare_test_env
     - export GRADLE_OPTS="-Dorg.gradle.jvmargs='$TEST_JVM_ARGS -Xms$GRADLE_MEMORY_MIN -Xmx$GRADLE_MEMORY_MAX $PROFILER_COMMAND -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp -Djava.util.prefs.userRoot=/tmp/.java/.userPrefs-${CI_JOB_ID}' -Ddatadog.forkedMinHeapSize=128M -Ddatadog.forkedMaxHeapSize=1024M"
     - ./gradlew --version
-    - ./gradlew $GRADLE_TARGET $GRADLE_PARAMS -PtestJvm=$testJvm -Pslot=$CI_NODE_INDEX/$CI_NODE_TOTAL $GRADLE_ARGS --continue || $CONTINUE_ON_FAILURE
+    - ./gradlew $GRADLE_TARGET $GRADLE_PARAMS -PtestJvm=$testJvm -Pslot=$CI_NODE_INDEX/$CI_NODE_TOTAL $GRADLE_ARGS --continue
   after_script:
     - *restore_pretest_env
     - *set_datadog_api_keys
@@ -972,10 +976,6 @@ muzzle-dep-report:
         KUBERNETES_SERVICE_CPU_REQUEST: "500m"
         KUBERNETES_SERVICE_MEMORY_REQUEST: "2Gi"
         KUBERNETES_SERVICE_MEMORY_LIMIT: "2Gi"
-  script:
-    - !reference [.test_job_common, script]
-    # Check traces from executed tests; cache hits restore results without sending traces.
-    - tooling/check_test_agent_results.sh
 
 .test_job_amd64_with_test_agent:
   extends:
@@ -1020,11 +1020,9 @@ test_base:
   variables:
     GRADLE_TARGET: ":baseTest"
     CACHE_TYPE: "base"
+    GRADLE_PARAMS: "-PskipFlakyTests -PcheckCoverageOnFirstTestJvm"
   parallel:
     matrix: *test_matrix_4
-  script:
-    - if [ "$testJvm" == "8" ]; then export GRADLE_PARAMS="-PskipFlakyTests -PcheckCoverage"; fi
-    - !reference [.test_job_common, script]
 
 test_base_arm64:
   extends: .test_job_arm64
@@ -1137,6 +1135,7 @@ test_profiling:
   variables:
     GRADLE_TARGET: ":profilingTest"
     CACHE_TYPE: "profiling"
+    GRADLE_PARAMS: "-PskipFlakyTests -PcheckCoverageOnFirstTestJvm"
   parallel:
     matrix: *test_matrix
 
@@ -1576,3 +1575,34 @@ update_central_configurations_version_range_v2:
     LANGUAGE_NAME: "java"
     MULTIPLE_RELEASE_LINES: "false"
     SEND_ALIASES: "true"
+
+# Regular instruction-change validation; setup evaluation remains disabled.
+"llm validation":
+  # Advisory during calibration: retain job failures without failing the pipeline.
+  allow_failure: true
+  variables:
+    LLMVAL_PLATFORM_PROJECT: "ddoghq/llm-validation-platform"
+    LLMVAL_PLATFORM_REF: "745818b5d65805d5852b07cbdf4d09c29b3da6c9" # v0.1.6; keep in sync with include ref
+    LLMVAL_GITHUB_REPO: "DataDog/dd-trace-java"
+    LLMVAL_BASE_REF: "master"
+    LLMVAL_CLAUDE_VERSION: "2.1.301"
+    GIT_DEPTH: "0"
+
+  # Report context growth even when unchanged instructions skip evaluation.
+  before_script:
+    - bash .llm-validation/tests/test_context_growth.sh
+    - git fetch --no-tags origin "$LLMVAL_BASE_REF"
+    - instruction_base=$(git merge-base HEAD "origin/$LLMVAL_BASE_REF")
+    - bash .llm-validation/context_growth.sh --base-ref "$instruction_base" --report build/llm-validation/context-growth.md
+  artifacts:
+    # Include shared artifacts because GitLab replaces arrays.
+    paths:
+      - results.json
+      - report.md
+      - report-main.md
+      - details.json
+      - telemetry.json
+      - infrastructure.jsonl
+      - results-partial.json
+      - report-partial.md
+      - build/llm-validation/context-growth.md

@@ -122,7 +122,6 @@ public class InjectorBenchmark {
             Collections.<String, String>emptyMap(),
             false,
             "type",
-            0,
             tracer.createTraceCollector(traceId),
             null,
             null,
