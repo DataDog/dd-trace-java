@@ -28,8 +28,11 @@ public class PayloadDispatcherImpl implements ChunkedBufferConsumer, PayloadDisp
   private Recording batchTimer;
   private RemoteMapper mapper;
   private WritableFormatter packer;
-  // whether the buffer holds traces not yet handed over: the mapper is only re-selected between
-  // payloads, and the API sends a payload by its own protocol if discovery moves mid-payload
+
+  /**
+   * Whether the buffer holds traces not yet handed over. The mapper is only re-selected between
+   * payloads; if discovery moves mid-payload, the API sends that payload by its own protocol.
+   */
   private boolean payloadStarted;
 
   private final LongAdder droppedSpanCount = new LongAdder();

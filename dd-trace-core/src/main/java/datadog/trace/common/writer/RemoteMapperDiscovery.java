@@ -7,8 +7,8 @@ public interface RemoteMapperDiscovery {
 
   /**
    * Whether the mapper {@link #getMapper()} returned no longer suits the destination, so the caller
-   * should send what it has encoded and {@link #discover()} again. Called before encoding each
-   * trace, so it must be cheap.
+   * should {@link #discover()} again before its next payload. Called before encoding the first
+   * trace of each payload.
    */
   default boolean isOutdated() {
     return false;

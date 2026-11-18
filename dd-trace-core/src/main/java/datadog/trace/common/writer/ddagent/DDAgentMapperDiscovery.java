@@ -14,7 +14,8 @@ public class DDAgentMapperDiscovery implements RemoteMapperDiscovery {
 
   private final DDAgentFeaturesDiscovery featuresDiscovery;
   private TraceMapper traceMapper;
-  // the trace endpoint the mapper was chosen for, updated while later endpoints keep its protocol
+
+  /** The trace endpoint the mapper was chosen for, updated while later ones keep its protocol. */
   private String selectedEndpoint;
 
   public DDAgentMapperDiscovery(final DDAgentFeaturesDiscovery featuresDiscovery) {
