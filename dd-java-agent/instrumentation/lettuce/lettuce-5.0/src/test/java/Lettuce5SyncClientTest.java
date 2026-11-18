@@ -23,22 +23,24 @@ import org.junit.jupiter.api.Test;
 abstract class Lettuce5SyncClientTest extends Lettuce5ClientTestBase {
   @Test
   @DisplayName("connect")
-  void connect() {
-    RedisClient testConnectionClient = RedisClient.create(embeddedDbUri);
-    testConnectionClient.setOptions(CLIENT_OPTIONS);
-
+  void connect() throws Exception {
+    RedisClient testConnectionClient = createClient(embeddedDbUri);
     try (StatefulRedisConnection<String, String> testConnection = testConnectionClient.connect()) {
       assertTraces(trace(redisSpan("CONNECT:" + dbAddr)));
+    } finally {
+      shutdown(testConnectionClient);
     }
   }
 
   @Test
   @DisplayName("connect exception")
-  void connectException() {
-    RedisClient testConnectionClient = RedisClient.create(dbUriNonExistent);
-    testConnectionClient.setOptions(CLIENT_OPTIONS);
-
-    assertThrows(RedisConnectionException.class, testConnectionClient::connect);
+  void connectException() throws Exception {
+    RedisClient testConnectionClient = createClient(dbUriNonExistent);
+    try {
+      assertThrows(RedisConnectionException.class, testConnectionClient::connect);
+    } finally {
+      shutdown(testConnectionClient);
+    }
 
     assertTraces(
         trace(

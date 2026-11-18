@@ -1,9 +1,12 @@
 package datadog.trace.agent.test;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static java.util.function.UnaryOperator.identity;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import datadog.context.ContextScope;
 import datadog.instrument.classinject.ClassInjector;
 import datadog.trace.agent.test.assertions.TraceAssertions;
 import datadog.trace.agent.test.assertions.TraceMatcher;
@@ -178,6 +181,22 @@ public abstract class AbstractInstrumentationTest {
   }
 
   /**
+   * Runs an action while a new root span is active, then finishes that span.
+   *
+   * @param operationName The operation name of the root span.
+   * @param action The action to run; it may throw a checked exception, which is rethrown.
+   */
+  protected static <E extends Throwable> void runUnderTrace(
+      String operationName, TracedAction<E> action) throws E {
+    AgentSpan span = startSpan("test", operationName);
+    try (ContextScope scope = activateSpan(span)) {
+      action.run();
+    } finally {
+      span.finish();
+    }
+  }
+
+  /**
    * Blocks the current thread until the traces written match the given predicate or the timeout
    * occurs.
    *
@@ -225,6 +244,12 @@ public abstract class AbstractInstrumentationTest {
         }
       }
     }
+  }
+
+  /** An action run by {@link #runUnderTrace}, which may throw {@code E}. */
+  @FunctionalInterface
+  protected interface TracedAction<E extends Throwable> {
+    void run() throws E;
   }
 
   /** Configuration for {@link AbstractInstrumentationTest}. */

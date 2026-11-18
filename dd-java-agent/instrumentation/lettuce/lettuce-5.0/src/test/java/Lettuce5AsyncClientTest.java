@@ -38,9 +38,7 @@ abstract class Lettuce5AsyncClientTest extends Lettuce5ClientTestBase {
   @Test
   @DisplayName("connect using get on ConnectionFuture")
   void connectUsingFutureGet() throws Exception {
-    RedisClient testConnectionClient = RedisClient.create(embeddedDbUri);
-    testConnectionClient.setOptions(CLIENT_OPTIONS);
-
+    RedisClient testConnectionClient = createClient(embeddedDbUri);
     ConnectionFuture<StatefulRedisConnection<String, String>> connectionFuture =
         testConnectionClient.connectAsync(
             StringCodec.UTF8, new RedisURI(redisServer.getHost(), port, Duration.ofSeconds(3)));
@@ -49,20 +47,24 @@ abstract class Lettuce5AsyncClientTest extends Lettuce5ClientTestBase {
 
       assertNotNull(testConnection);
       assertTraces(trace(redisSpan("CONNECT:" + dbAddr)));
+    } finally {
+      shutdown(testConnectionClient);
     }
   }
 
   @Test
   @DisplayName("connect exception inside the connection future")
-  void connectionFutureException() {
-    RedisClient testConnectionClient = RedisClient.create(dbUriNonExistent);
-    testConnectionClient.setOptions(CLIENT_OPTIONS);
-
-    ConnectionFuture<StatefulRedisConnection<String, String>> connectionFuture =
-        testConnectionClient.connectAsync(
-            StringCodec.UTF8,
-            new RedisURI(redisServer.getHost(), incorrectPort, Duration.ofSeconds(3)));
-    assertThrows(ExecutionException.class, connectionFuture::get);
+  void connectionFutureException() throws Exception {
+    RedisClient testConnectionClient = createClient(dbUriNonExistent);
+    try {
+      ConnectionFuture<StatefulRedisConnection<String, String>> connectionFuture =
+          testConnectionClient.connectAsync(
+              StringCodec.UTF8,
+              new RedisURI(redisServer.getHost(), incorrectPort, Duration.ofSeconds(3)));
+      assertThrows(ExecutionException.class, connectionFuture::get);
+    } finally {
+      shutdown(testConnectionClient);
+    }
 
     assertTraces(
         trace(
@@ -91,14 +93,13 @@ abstract class Lettuce5AsyncClientTest extends Lettuce5ClientTestBase {
     Consumer<String> consumer = result -> assertEquals("TESTVAL", result);
 
     RedisFuture<String> redisFuture = asyncCommands.get("TESTKEY");
-    redisFuture.thenAccept(consumer).toCompletableFuture().get(1, SECONDS);
+    redisFuture.thenAccept(consumer).toCompletableFuture().get(CALLBACK_TIMEOUT_SECONDS, SECONDS);
 
     assertTraces(trace(redisSpan("GET")));
   }
 
-  // to make sure instrumentation's chained completion stages won't interfere with user's, while
-  // still
-  // recording metrics
+  // To make sure instrumentation's chained completion stages won't interfere with user's, while
+  // still recording metrics.
   @Test
   @DisplayName("get non existent key command with handleAsync and chained with thenApply")
   void missingKeyWithHandleAsyncAndThenApply() throws Exception {
@@ -116,7 +117,7 @@ abstract class Lettuce5AsyncClientTest extends Lettuce5ClientTestBase {
           return null;
         })
         .toCompletableFuture()
-        .get(1, SECONDS);
+        .get(CALLBACK_TIMEOUT_SECONDS, SECONDS);
 
     assertTraces(trace(redisSpan("GET")));
   }
@@ -128,7 +129,7 @@ abstract class Lettuce5AsyncClientTest extends Lettuce5ClientTestBase {
     redisFuture
         .whenCompleteAsync((keyRetrieved, failure) -> assertNotNull(keyRetrieved))
         .toCompletableFuture()
-        .get(1, SECONDS);
+        .get(CALLBACK_TIMEOUT_SECONDS, SECONDS);
 
     assertTraces(trace(redisSpan("RANDOMKEY")));
   }
@@ -163,7 +164,7 @@ abstract class Lettuce5AsyncClientTest extends Lettuce5ClientTestBase {
             })
             .thenCompose(ignored -> nestedResult)
             .toCompletableFuture()
-            .get(1, SECONDS);
+            .get(CALLBACK_TIMEOUT_SECONDS, SECONDS);
 
     assertEquals(testHashMap, result);
     assertTraces(trace(redisSpan("HMSET")), trace(redisSpan("HGETALL")));
@@ -189,7 +190,7 @@ abstract class Lettuce5AsyncClientTest extends Lettuce5ClientTestBase {
     connection.setAutoFlushCommands(true);
     assertThrows(Exception.class, redisFuture::get);
 
-    Throwable failure = callbackFailure.get(1, SECONDS);
+    Throwable failure = callbackFailure.get(CALLBACK_TIMEOUT_SECONDS, SECONDS);
     assertInstanceOf(IllegalStateException.class, failure);
     assertEquals("TestException", failure.getMessage());
     assertTrue(completedExceptionally);
@@ -211,7 +212,8 @@ abstract class Lettuce5AsyncClientTest extends Lettuce5ClientTestBase {
     connection.flushCommands();
     connection.setAutoFlushCommands(true);
 
-    assertInstanceOf(CancellationException.class, callbackFailure.get(1, SECONDS));
+    assertInstanceOf(
+        CancellationException.class, callbackFailure.get(CALLBACK_TIMEOUT_SECONDS, SECONDS));
     assertTrue(cancelSuccess);
     assertTraces(trace(redisSpan("SADD", tag("db.command.cancelled", is(true)))));
   }

@@ -3,32 +3,14 @@ package datadog.trace.instrumentation.guidewire;
 import static datadog.trace.agent.test.assertions.SpanMatcher.span;
 import static datadog.trace.agent.test.assertions.TraceMatcher.SORT_BY_START_TIME;
 import static datadog.trace.agent.test.assertions.TraceMatcher.trace;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 
-import datadog.context.ContextScope;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import gw.internal.xml.ws.AsyncResponseImpl;
 import gw.internal.xml.ws.UnrelatedWorker;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 
 class WsiAsyncResponseInstrumentationTest extends AbstractInstrumentationTest {
-
-  @FunctionalInterface
-  interface Body {
-    void run() throws Exception;
-  }
-
-  private static void runUnderTrace(String operationName, Body body) throws Exception {
-    AgentSpan span = startSpan("guidewire-test", operationName);
-    try (ContextScope scope = activateSpan(span)) {
-      body.run();
-    } finally {
-      span.finish();
-    }
-  }
 
   @Test
   void namedWorkerPropagatesContext() throws Exception {

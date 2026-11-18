@@ -61,7 +61,7 @@ class Lettuce5MasterReplicaTest extends AbstractInstrumentationTest {
       }
 
       if (redisClient != null) {
-        redisClient.shutdownAsync(0, 10, TimeUnit.SECONDS).get(10, TimeUnit.SECONDS);
+        redisClient.shutdownAsync(0, 10, TimeUnit.SECONDS).get(15, TimeUnit.SECONDS);
       }
     } finally {
       if (redisServer != null) {

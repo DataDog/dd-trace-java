@@ -2,8 +2,6 @@ import static datadog.trace.agent.test.assertions.SpanMatcher.span;
 import static datadog.trace.agent.test.assertions.TagsMatcher.defaultTags;
 import static datadog.trace.agent.test.assertions.TagsMatcher.tag;
 import static datadog.trace.api.config.TracerConfig.TRACE_SPAN_ATTRIBUTE_SCHEMA;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.test.junit.utils.assertions.Matchers.is;
 import static datadog.trace.test.junit.utils.assertions.Matchers.isNonNull;
 import static datadog.trace.test.junit.utils.assertions.Matchers.isNull;
@@ -13,7 +11,6 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import com.redis.testcontainers.RedisContainer;
-import datadog.context.ContextScope;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.agent.test.assertions.SpanMatcher;
 import datadog.trace.agent.test.assertions.TagsMatcher;
@@ -21,7 +18,6 @@ import datadog.trace.agent.test.utils.PortUtils;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.test.junit.utils.config.WithConfig;
 import datadog.trace.test.util.PollingConditions;
@@ -47,6 +43,8 @@ abstract class Lettuce5ClientTestBase extends AbstractInstrumentationTest {
   static final int DB_INDEX = 0;
   // Disable autoreconnect so we do not get stray traces popping up on server shutdown
   static final ClientOptions CLIENT_OPTIONS = ClientOptions.builder().autoReconnect(false).build();
+  // Upper bound for asynchronous callbacks: generous for slow CI runners, free when they pass.
+  static final long CALLBACK_TIMEOUT_SECONDS = 5;
 
   final Map<String, String> testHashMap = new HashMap<>();
   final RedisContainer redisServer =
@@ -83,8 +81,7 @@ abstract class Lettuce5ClientTestBase extends AbstractInstrumentationTest {
     testHashMap.put("lastname", "Doe");
     testHashMap.put("age", "53");
 
-    redisClient = RedisClient.create(embeddedDbUri);
-    redisClient.setOptions(CLIENT_OPTIONS);
+    redisClient = createClient(embeddedDbUri);
 
     runUnderTrace(
         "setup",
@@ -110,24 +107,30 @@ abstract class Lettuce5ClientTestBase extends AbstractInstrumentationTest {
         connection.close();
       }
       if (redisClient != null) {
-        redisClient.shutdownAsync(0, 10, SECONDS).get(10, SECONDS);
+        shutdown(redisClient);
       }
     } finally {
       redisServer.stop();
     }
   }
 
-  int namingVersion() {
-    return 0;
+  /**
+   * Shuts a client down without a quiet period. The wait exceeds Netty's own shutdown timeout so
+   * that a slow but successful shutdown is not reported as a timeout.
+   */
+  static void shutdown(RedisClient client) throws Exception {
+    client.shutdownAsync(0, 10, SECONDS).get(15, SECONDS);
   }
 
-  void runUnderTrace(String operation, Runnable action) {
-    AgentSpan parent = startSpan("test", operation);
-    try (ContextScope scope = activateSpan(parent)) {
-      action.run();
-    } finally {
-      parent.finish();
-    }
+  /** Creates a client for a single test, with the shared options. */
+  static RedisClient createClient(String uri) {
+    RedisClient client = RedisClient.create(uri);
+    client.setOptions(CLIENT_OPTIONS);
+    return client;
+  }
+
+  int namingVersion() {
+    return 0;
   }
 
   SpanMatcher redisSpan(String resource, TagsMatcher... extraTags) {

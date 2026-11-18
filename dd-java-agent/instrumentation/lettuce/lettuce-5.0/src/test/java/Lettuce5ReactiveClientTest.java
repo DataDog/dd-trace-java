@@ -17,6 +17,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 
 abstract class Lettuce5ReactiveClientTest extends Lettuce5ClientTestBase {
@@ -30,7 +31,7 @@ abstract class Lettuce5ReactiveClientTest extends Lettuce5ClientTestBase {
         .set("TESTSETKEY", "TESTSETVAL")
         .subscribe(consumer, result::completeExceptionally);
 
-    assertEquals("OK", result.get(1, SECONDS));
+    assertEquals("OK", result.get(CALLBACK_TIMEOUT_SECONDS, SECONDS));
     assertTraces(trace(redisSpan("SET")));
   }
 
@@ -43,13 +44,12 @@ abstract class Lettuce5ReactiveClientTest extends Lettuce5ClientTestBase {
         .get("TESTKEY")
         .subscribe(value -> result.complete(value), result::completeExceptionally);
 
-    assertEquals("TESTVAL", result.get(1, SECONDS));
+    assertEquals("TESTVAL", result.get(CALLBACK_TIMEOUT_SECONDS, SECONDS));
     assertTraces(trace(redisSpan("GET")));
   }
 
-  // to make sure instrumentation's chained completion stages won't interfere with user's, while
-  // still
-  // recording metrics
+  // To make sure instrumentation's chained completion stages won't interfere with user's, while
+  // still recording metrics.
   @Test
   @DisplayName("get non existent key command")
   void getNonExistentKey() throws Exception {
@@ -61,7 +61,7 @@ abstract class Lettuce5ReactiveClientTest extends Lettuce5ClientTestBase {
         .defaultIfEmpty(defaultValue)
         .subscribe(value -> result.complete(value), result::completeExceptionally);
 
-    assertEquals(defaultValue, result.get(1, SECONDS));
+    assertEquals(defaultValue, result.get(CALLBACK_TIMEOUT_SECONDS, SECONDS));
     assertTraces(trace(redisSpan("GET")));
   }
 
@@ -74,7 +74,7 @@ abstract class Lettuce5ReactiveClientTest extends Lettuce5ClientTestBase {
         .randomkey()
         .subscribe(value -> result.complete(value), result::completeExceptionally);
 
-    String key = result.get(1, SECONDS);
+    String key = result.get(CALLBACK_TIMEOUT_SECONDS, SECONDS);
     assertTrue("TESTKEY".equals(key) || "TESTHM".equals(key));
     assertTraces(trace(redisSpan("RANDOMKEY")));
   }
@@ -185,16 +185,21 @@ abstract class Lettuce5ReactiveClientTest extends Lettuce5ClientTestBase {
   @Test
   @DisplayName("async subscriber with specific thread pool")
   void asyncSubscriberWithSpecificThreadPool() {
-    runUnderTrace(
-        "test-parent",
-        () -> {
-          reactiveCommands
-              .set("a", "1")
-              .then(reactiveCommands.get("a"))
-              .subscribeOn(Schedulers.newParallel("test"))
-              .subscribe();
-          blockUntilChildSpansFinished(2);
-        });
+    Scheduler scheduler = Schedulers.newParallel("test");
+    try {
+      runUnderTrace(
+          "test-parent",
+          () -> {
+            reactiveCommands
+                .set("a", "1")
+                .then(reactiveCommands.get("a"))
+                .subscribeOn(scheduler)
+                .subscribe();
+            blockUntilChildSpansFinished(2);
+          });
+    } finally {
+      scheduler.dispose();
+    }
 
     assertTraces(
         trace(
