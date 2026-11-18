@@ -15,16 +15,24 @@ public class TestSucceedOverlappingRunnersKarate {
 
   @Test
   public void test() throws Exception {
-    Callable<Results> run =
-        () -> Runner.path("classpath:org/example/test_overlapping_runners.feature").parallel(1);
     ExecutorService executor = Executors.newFixedThreadPool(2);
     try {
-      Future<Results> first = executor.submit(run);
-      Future<Results> second = executor.submit(run);
+      Future<Results> first = executor.submit(run("first"));
+      Future<Results> second = executor.submit(run("second"));
       assertEquals(0, first.get(30, TimeUnit.SECONDS).getFailCount());
       assertEquals(0, second.get(30, TimeUnit.SECONDS).getFailCount());
     } finally {
       executor.shutdownNow();
     }
+  }
+
+  // Karate's report writing is not safe for concurrent runs sharing a report directory
+  private static Callable<Results> run(String name) {
+    return () ->
+        Runner.path("classpath:org/example/test_overlapping_runners.feature")
+            .reportDir("build/karate-reports/overlapping-" + name)
+            .backupReportDir(false)
+            .outputHtmlReport(false)
+            .parallel(1);
   }
 }
