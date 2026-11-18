@@ -403,7 +403,7 @@ public final class ObjectIntrospection {
     }
     switch (type) {
       case "OBJECT":
-        final Map<Object, Object> newMap = new HashMap<>(ctx.getSize(node));
+        final Map<Object, Object> newMap = new HashMap<>(boundedCapacity(ctx.getSize(node), state));
         for (Iterator<String> names = ctx.getFieldNames(node); names.hasNext(); ) {
           final String key = names.next();
           final Object newKey = keyConversion(key, state);
@@ -416,7 +416,7 @@ public final class ObjectIntrospection {
         }
         return newMap;
       case "ARRAY":
-        final List<Object> newList = new ArrayList<>(ctx.getSize(node));
+        final List<Object> newList = new ArrayList<>(boundedCapacity(ctx.getSize(node), state));
         for (Object o : ((Iterable<?>) node)) {
           if (state.elemsLeft <= 0) {
             state.listMapTooLarge = true;
@@ -435,6 +435,14 @@ public final class ObjectIntrospection {
         // return null for the rest
         return null;
     }
+  }
+
+  /**
+   * Caps an initial container capacity to the remaining element budget, so an oversized node does
+   * not allocate slots that the conversion will never fill.
+   */
+  private static int boundedCapacity(final int size, final State state) {
+    return Math.min(size, Math.max(state.elemsLeft, 0));
   }
 
   /**

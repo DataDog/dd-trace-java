@@ -184,6 +184,23 @@ class ObjectIntrospectionJackson3Test {
     assertEquals(asList(1, 2, 3), list.subList(0, 3));
   }
 
+  @Test
+  void largeObjectTriggersElementLimit() {
+    StringBuilder json = new StringBuilder("{");
+    for (int i = 1; i <= MAX_ELEMENTS + 1; i++) {
+      json.append(i > 1 ? "," : "").append("\"k").append(i).append("\":").append(i);
+    }
+    JsonNode node = MAPPER.readTree(json.append('}').toString());
+
+    Object result = convert(node, ctx);
+
+    verify(ctx).setWafTruncated();
+    assertInstanceOf(Map.class, result);
+    Map<?, ?> map = (Map<?, ?>) result;
+    assertTrue(map.size() < MAX_ELEMENTS);
+    assertEquals(1, map.get("k1"));
+  }
+
   /**
    * Counts the nested maps below {@code map}, stopping at an empty map or a dropped (null) child.
    */
