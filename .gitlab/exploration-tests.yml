@@ -1,9 +1,12 @@
 variables:
   EXPLORATION_TESTS_IMAGE: registry.ddbuild.io/ci/dd-trace-java:exploration-tests
-  # JDK versions (sdkman identifiers) installed in the exploration tests image
-  JAVA_11_VERSION: 11.0.32.1+1-tem
-  JAVA_17_VERSION: 17.0.21.0+9-tem
-  JAVA_21_VERSION: 21.0.13.0+9-tem
+  # Eclipse Temurin JDK releases (https://adoptium.net/temurin/releases) installed in the exploration tests image
+  JAVA_8_VERSION: jdk8u372-b07
+  JAVA_11_VERSION: jdk-11.0.32.1+1
+  JAVA_17_VERSION: jdk-17.0.21+9
+  JAVA_21_VERSION: jdk-21.0.13+9
+  # Apache Maven version installed in the exploration tests image
+  MAVEN_VERSION: 3.8.4
 
 build-exploration-tests-image:
   stage: exploration-tests
@@ -19,9 +22,11 @@ build-exploration-tests-image:
     - >
       docker buildx build 
       --tag $EXPLORATION_TESTS_IMAGE 
+      --build-arg JAVA_8_VERSION=$JAVA_8_VERSION 
       --build-arg JAVA_11_VERSION=$JAVA_11_VERSION 
       --build-arg JAVA_17_VERSION=$JAVA_17_VERSION 
       --build-arg JAVA_21_VERSION=$JAVA_21_VERSION 
+      --build-arg MAVEN_VERSION=$MAVEN_VERSION 
       --file dd-java-agent/agent-debugger/exploration-tests/Dockerfile.exploration-tests 
       --push 
       --metadata-file ${METADATA_FILE}
@@ -64,7 +69,6 @@ build-exploration-tests-image:
     - cp dd-java-agent/agent-debugger/exploration-tests/run-exploration-tests.sh /exploration-tests
     - cp dd-java-agent/agent-debugger/exploration-tests/exclude_*.txt /exploration-tests
     - cp dd-java-agent/agent-debugger/exploration-tests/include_*.txt /exploration-tests
-    - source $HOME/.sdkman/bin/sdkman-init.sh && cd / && sdk env
     - cd /exploration-tests
     - java -version
   after_script:
@@ -212,7 +216,7 @@ exploration-tests-log_method-okhttp:
     KUBERNETES_MEMORY_REQUEST: 10Gi
     KUBERNETES_MEMORY_LIMIT: 10Gi
   script:
-    - sdk use java $JAVA_17_VERSION
+    - export JAVA_HOME=$JAVA_17_HOME PATH=$JAVA_17_HOME/bin:$PATH
     - java -XshowSettings:system -version
     - ./run-exploration-tests.sh "log_method" "$PROJECT" "GRADLE_OPTS=-XX:ActiveProcessorCount=4 ./gradlew -Dorg.gradle.java.installations.auto-download=true --max-workers 4 jvmTest -Dtest.java.version=11" "include_${PROJECT}.txt" "exclude_$PROJECT.txt"
   after_script:
