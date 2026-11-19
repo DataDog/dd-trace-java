@@ -46,8 +46,21 @@ import java.util.jar.JarFile;
  */
 public final class AgentBootstrap {
   static final String LIB_INJECTION_ENABLED_ENV_VAR = "DD_INJECTION_ENABLED";
+  static final String LIB_INJECTION_ENABLED_SYS_PROP = "dd.injection.enabled";
   static final String LIB_INJECTION_FORCE_SYS_PROP = "dd.inject.force";
+  static final String LIB_INJECTION_MODE_SYS_PROP = "dd.injection.mode";
+  static final String LIB_INJECTION_MODE_ATTACH = "attach";
   static final String LIB_INSTRUMENTATION_SOURCE_SYS_PROP = "dd.instrumentation.source";
+  static final String TELEMETRY_FORWARDER_PATH_ENV_VAR = "DD_TELEMETRY_FORWARDER_PATH";
+  static final String TELEMETRY_FORWARDER_PATH_SYS_PROP = "dd.telemetry.forwarder.path";
+
+  /** Classes that only ship in other APM agents' jars, not in their public API artifacts. */
+  static final String[] OTHER_APM_AGENT_MARKER_CLASSES = {
+    "io.opentelemetry.javaagent.bootstrap.AgentInitializer",
+    "com.newrelic.bootstrap.BootstrapAgent",
+    "com.singularity.ee.agent.appagent.AgentEntryPoint", // AppDynamics
+    "co.elastic.apm.agent.premain.AgentMain",
+  };
 
   private static final Class<?> thisClass = AgentBootstrap.class;
   private static final int MAX_EXCEPTION_CHAIN_LENGTH = 99;
@@ -65,7 +78,7 @@ public final class AgentBootstrap {
     BootstrapInitializationTelemetry initTelemetry;
 
     try {
-      initTelemetry = createInitializationTelemetry();
+      initTelemetry = createInitializationTelemetry(agentArgs);
     } catch (Throwable t) {
       initTelemetry = BootstrapInitializationTelemetry.noOpInstance();
     }
@@ -90,8 +103,8 @@ public final class AgentBootstrap {
     }
   }
 
-  private static BootstrapInitializationTelemetry createInitializationTelemetry() {
-    String forwarderPath = EnvironmentVariables.get("DD_TELEMETRY_FORWARDER_PATH");
+  private static BootstrapInitializationTelemetry createInitializationTelemetry(String agentArgs) {
+    String forwarderPath = getTelemetryForwarderPath(agentArgs);
     if (forwarderPath == null) {
       return BootstrapInitializationTelemetry.noOpInstance();
     }
@@ -131,12 +144,12 @@ public final class AgentBootstrap {
       initTelemetry.onAbort("jdk_tool");
       return;
     }
-    if (shouldAbortDueToOtherJavaAgents()) {
+    if (shouldAbortDueToOtherJavaAgents(agentArgs, inst)) {
       initTelemetry.onAbort("other-java-agents");
       return;
     }
 
-    if (getConfig(LIB_INJECTION_ENABLED_ENV_VAR)) {
+    if (isInjectionEnabled(agentArgs)) {
       recordInstrumentationSource("ssi");
     } else {
       recordInstrumentationSource("cmd_line");
@@ -169,23 +182,83 @@ public final class AgentBootstrap {
     }
   }
 
-  static boolean getConfig(String configName) {
-    switch (configName) {
-      case LIB_INJECTION_ENABLED_ENV_VAR:
-        return EnvironmentVariables.get(LIB_INJECTION_ENABLED_ENV_VAR) != null;
-      case LIB_INJECTION_FORCE_SYS_PROP:
-        {
-          String envVarName =
-              LIB_INJECTION_FORCE_SYS_PROP.replace('.', '_').replace('-', '_').toUpperCase();
-          String injectionForceFlag = EnvironmentVariables.get(envVarName);
-          if (injectionForceFlag == null) {
-            injectionForceFlag = SystemProperties.get(LIB_INJECTION_FORCE_SYS_PROP);
-          }
-          return "true".equalsIgnoreCase(injectionForceFlag) || "1".equals(injectionForceFlag);
-        }
-      default:
-        return false;
+  static boolean isInjectionEnabled(String agentArgs) {
+    return EnvironmentVariables.get(LIB_INJECTION_ENABLED_ENV_VAR) != null
+        || SystemProperties.get(LIB_INJECTION_ENABLED_SYS_PROP) != null
+        || getAgentArg(agentArgs, LIB_INJECTION_ENABLED_SYS_PROP) != null;
+  }
+
+  static boolean isInjectionForced(String agentArgs) {
+    String injectionForceFlag = EnvironmentVariables.get("DD_INJECT_FORCE");
+    if (injectionForceFlag == null) {
+      injectionForceFlag = SystemProperties.get(LIB_INJECTION_FORCE_SYS_PROP);
     }
+    if (injectionForceFlag == null) {
+      injectionForceFlag = getAgentArg(agentArgs, LIB_INJECTION_FORCE_SYS_PROP);
+    }
+    return "true".equalsIgnoreCase(injectionForceFlag) || "1".equals(injectionForceFlag);
+  }
+
+  static boolean isAttachMode(String agentArgs) {
+    String mode = SystemProperties.get(LIB_INJECTION_MODE_SYS_PROP);
+    if (mode == null) {
+      mode = getAgentArg(agentArgs, LIB_INJECTION_MODE_SYS_PROP);
+    }
+    return LIB_INJECTION_MODE_ATTACH.equalsIgnoreCase(mode);
+  }
+
+  static String getTelemetryForwarderPath(String agentArgs) {
+    String forwarderPath = EnvironmentVariables.get(TELEMETRY_FORWARDER_PATH_ENV_VAR);
+    if (forwarderPath == null) {
+      forwarderPath = getAgentArg(agentArgs, TELEMETRY_FORWARDER_PATH_SYS_PROP);
+    }
+    return forwarderPath;
+  }
+
+  /**
+   * Returns the trimmed value of {@code key} in comma-separated agent arguments, or {@code null} if
+   * it is missing or empty.
+   */
+  static String getAgentArg(String agentArgs, String key) {
+    if (agentArgs == null) {
+      return null;
+    }
+    int length = agentArgs.length();
+    int keyLength = key.length();
+    int start = 0;
+    while (start < length) {
+      int end = agentArgs.indexOf(',', start);
+      if (end < 0) {
+        end = length;
+      }
+      int separator = agentArgs.indexOf('=', start);
+      if (separator >= 0 && separator < end) {
+        int keyStart = skipWhitespace(agentArgs, start, separator);
+        int keyEnd = trimWhitespace(agentArgs, keyStart, separator);
+        if (keyEnd - keyStart == keyLength
+            && agentArgs.regionMatches(keyStart, key, 0, keyLength)) {
+          int valueStart = skipWhitespace(agentArgs, separator + 1, end);
+          int valueEnd = trimWhitespace(agentArgs, valueStart, end);
+          return valueStart < valueEnd ? agentArgs.substring(valueStart, valueEnd) : null;
+        }
+      }
+      start = end + 1;
+    }
+    return null;
+  }
+
+  private static int skipWhitespace(String s, int from, int to) {
+    while (from < to && Character.isWhitespace(s.charAt(from))) {
+      from++;
+    }
+    return from;
+  }
+
+  private static int trimWhitespace(String s, int from, int to) {
+    while (to > from && Character.isWhitespace(s.charAt(to - 1))) {
+      to--;
+    }
+    return to;
   }
 
   private static void recordInstrumentationSource(String source) {
@@ -361,21 +434,46 @@ public final class AgentBootstrap {
     return false;
   }
 
+  static boolean shouldAbortDueToOtherJavaAgents(String agentArgs, Instrumentation inst) {
+    return shouldAbortDueToOtherJavaAgents(agentArgs, inst, getAgentFilesFromVMArguments());
+  }
+
   @SuppressForbidden
-  static boolean shouldAbortDueToOtherJavaAgents() {
+  static boolean shouldAbortDueToOtherJavaAgents(
+      String agentArgs, Instrumentation inst, List<File> javaAgentFiles) {
     // We don't abort if either
     // * We are not using SSI
     // * Injection is forced
-    // * There is only one agent
-    if (!getConfig(LIB_INJECTION_ENABLED_ENV_VAR)
-        || getConfig(LIB_INJECTION_FORCE_SYS_PROP)
-        || getAgentFilesFromVMArguments().size() <= 1) {
+    if (!isInjectionEnabled(agentArgs) || isInjectionForced(agentArgs)) {
       return false;
     }
 
-    // If there are 2 agents and one of them is for patching log4j, it's fine
-    if (getAgentFilesFromVMArguments().size() == 2) {
-      for (File agentFile : getAgentFilesFromVMArguments()) {
+    boolean attachMode = isAttachMode(agentArgs);
+    if (attachMode) {
+      String otherAgentClass =
+          findLoadedClass(inst.getAllLoadedClasses(), OTHER_APM_AGENT_MARKER_CLASSES);
+      if (otherAgentClass != null) {
+        System.err.println(
+            "Info: another APM agent was found at runtime (found class "
+                + otherAgentClass
+                + "). Loading multiple APM/Tracing agent is not a recommended or supported configuration. "
+                + "Please set the environment variable DD_INJECT_FORCE or the system property dd.inject.force to TRUE to load Datadog APM/Tracing agent.");
+        return true;
+      }
+    }
+
+    return hasOtherJavaAgentFiles(javaAgentFiles, attachMode ? 0 : 1);
+  }
+
+  @SuppressForbidden
+  static boolean hasOtherJavaAgentFiles(List<File> javaAgentFiles, int ownAgentFileCount) {
+    if (javaAgentFiles.size() <= ownAgentFileCount) {
+      return false;
+    }
+
+    // If the only other agent is for patching log4j, it's fine
+    if (javaAgentFiles.size() == ownAgentFileCount + 1) {
+      for (File agentFile : javaAgentFiles) {
         if (agentFile.getName().toLowerCase().contains("log4j")) {
           return false;
         }
@@ -386,7 +484,7 @@ public final class AgentBootstrap {
     // Formatting agent file list, Java 7 style
     StringBuilder agentFiles = new StringBuilder();
     boolean first = true;
-    for (File agentFile : getAgentFilesFromVMArguments()) {
+    for (File agentFile : javaAgentFiles) {
       if (first) {
         first = false;
       } else {
@@ -402,6 +500,18 @@ public final class AgentBootstrap {
             + ". Loading multiple APM/Tracing agent is not a recommended or supported configuration."
             + "Please set the environment variable DD_INJECT_FORCE or the system property dd.inject.force to TRUE to load Datadog APM/Tracing agent.");
     return true;
+  }
+
+  static String findLoadedClass(Class<?>[] loadedClasses, String[] classNames) {
+    for (Class<?> loadedClass : loadedClasses) {
+      String name = loadedClass.getName();
+      for (String className : classNames) {
+        if (className.equals(name)) {
+          return className;
+        }
+      }
+    }
+    return null;
   }
 
   public static void main(final String[] args) {
