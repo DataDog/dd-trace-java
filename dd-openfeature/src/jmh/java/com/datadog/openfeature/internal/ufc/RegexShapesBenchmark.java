@@ -113,8 +113,8 @@ public class RegexShapesBenchmark {
         throw new IllegalArgumentException(shape);
     }
     jdk = Pattern.compile(pattern);
-    regexMatcher = RegexMatcher.compile(pattern);
-    prototype = PrototypeRegex.compile(pattern);
+    regexMatcher = RegexMatcher.compileWithoutPrototype(pattern); // #13487 alone
+    prototype = PrototypeRegex.compileStandalone(pattern);
     switch (input) {
       case "hit":
         value = hit;

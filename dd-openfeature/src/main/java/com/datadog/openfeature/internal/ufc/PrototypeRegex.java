@@ -24,31 +24,43 @@ import javax.annotation.Nullable;
  * \w}, {@code \s}) and case folding agree with their ASCII forms. Any other input, and a line feed
  * where {@code .} can't match it, goes to the {@link RegexMatcher} fallback.
  */
-abstract class PrototypeRegex {
+abstract class PrototypeRegex extends RegexMatcher {
   private static final int INF = Integer.MAX_VALUE;
-
-  abstract boolean matches(String input);
 
   /** The tier chosen, for benchmarks and tests. */
   abstract String tier();
 
-  static PrototypeRegex compile(final String pattern) {
-    final RegexMatcher fallback = RegexMatcher.compile(pattern);
+  /** The prototype tiers are engine-free, but stand where RE2/J would. */
+  @Override
+  Kind kind() {
+    return Kind.ENGINE;
+  }
+
+  /**
+   * For tests and benchmarks: #13487's {@link RegexMatcher} alone, or this prototype's tiers in
+   * front of its RE2/J engine.
+   */
+  static PrototypeRegex compileStandalone(final String pattern) {
+    final RegexMatcher fallback = RegexMatcher.compileWithoutPrototype(pattern);
     if (fallback.kind() != RegexMatcher.Kind.ENGINE) {
       return new Delegate(fallback, "regex-matcher:" + fallback.kind());
     }
+    @Nullable final PrototypeRegex engineFree = engineFree(pattern, fallback);
+    return engineFree != null ? engineFree : new Delegate(fallback, "regex-matcher:ENGINE");
+  }
+
+  /** An engine-free matcher for a pattern that would go to RE2/J, or {@code null}. */
+  @Nullable
+  static PrototypeRegex engineFree(final String pattern, final RegexMatcher fallback) {
     @Nullable final Parsed parsed = Parser.parse(pattern);
-    if (parsed != null) {
-      @Nullable final PrototypeRegex segments = SegmentMatcher.of(parsed, fallback);
-      if (segments != null) {
-        return segments;
-      }
-      @Nullable final PrototypeRegex bits = BitParallelMatcher.of(parsed, fallback);
-      if (bits != null) {
-        return bits;
-      }
+    if (parsed == null) {
+      return null;
     }
-    return new Delegate(fallback, "regex-matcher:ENGINE");
+    @Nullable final PrototypeRegex segments = SegmentMatcher.of(parsed, fallback);
+    if (segments != null) {
+      return segments;
+    }
+    return BitParallelMatcher.of(parsed, fallback);
   }
 
   /** Uses {@link RegexMatcher} as it is. */
@@ -62,13 +74,18 @@ abstract class PrototypeRegex {
     }
 
     @Override
-    boolean matches(final String input) {
+    public boolean matches(final String input) {
       return matcher.matches(input);
     }
 
     @Override
     String tier() {
       return tier;
+    }
+
+    @Override
+    Kind kind() {
+      return matcher.kind();
     }
   }
 
@@ -715,7 +732,7 @@ abstract class PrototypeRegex {
     private static final int FALLBACK = -2;
 
     @Override
-    boolean matches(final String s) {
+    public boolean matches(final String s) {
       final int n = s.length();
       if (n < minLength) {
         return false;
@@ -982,7 +999,7 @@ abstract class PrototypeRegex {
     }
 
     @Override
-    boolean matches(final String s) {
+    public boolean matches(final String s) {
       final int n = s.length();
       if (matchesEmpty && (!anchoredStart || !anchoredEnd || n == 0)) {
         return true;

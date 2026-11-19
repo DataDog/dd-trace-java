@@ -74,9 +74,11 @@ class PrototypeRegexTest {
     for (final String pattern : patterns) {
       final PrototypeRegex prototype;
       final RegexMatcher reference;
+      final RegexMatcher wired;
       try {
-        prototype = PrototypeRegex.compile(pattern);
-        reference = RegexMatcher.compile(pattern);
+        prototype = PrototypeRegex.compileStandalone(pattern);
+        reference = RegexMatcher.compileWithoutPrototype(pattern);
+        wired = RegexMatcher.compile(pattern);
       } catch (final PatternSyntaxException e) {
         continue; // invalid in the Rust dialect: the flag is dropped either way
       }
@@ -86,6 +88,10 @@ class PrototypeRegexTest {
             reference.matches(input),
             prototype.matches(input),
             () -> prototype.tier() + " disagrees on /" + pattern + "/ for \"" + input + "\"");
+        assertEquals(
+            reference.matches(input),
+            wired.matches(input),
+            () -> "RegexMatcher.compile disagrees on /" + pattern + "/ for \"" + input + "\"");
         checked++;
       }
     }
