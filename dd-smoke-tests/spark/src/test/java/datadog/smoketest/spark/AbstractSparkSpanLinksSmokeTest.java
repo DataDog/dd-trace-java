@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import datadog.environment.JavaVirtualMachine;
 import datadog.smoketest.SmokeCliApp;
 import datadog.smoketest.backend.AgentBackend;
 import datadog.trace.test.agent.decoder.DecodedSpan;
@@ -78,6 +79,25 @@ abstract class AbstractSparkSpanLinksSmokeTest {
                 "-Ddd.integration.spark.enabled=true",
                 "-Ddd.trace.partial.flush.enabled=false")
             .skipTelemetryCheck();
+    if (JavaVirtualMachine.isJavaVersionAtLeast(16)) {
+      // Spark's launcher normally supplies these opens; SmokeCliApp starts the main class directly.
+      builder.jvmArgs(
+          "--add-opens=java.base/java.lang=ALL-UNNAMED",
+          "--add-opens=java.base/java.lang.invoke=ALL-UNNAMED",
+          "--add-opens=java.base/java.lang.reflect=ALL-UNNAMED",
+          "--add-opens=java.base/java.io=ALL-UNNAMED",
+          "--add-opens=java.base/java.net=ALL-UNNAMED",
+          "--add-opens=java.base/java.nio=ALL-UNNAMED",
+          "--add-opens=java.base/java.util=ALL-UNNAMED",
+          "--add-opens=java.base/java.util.concurrent=ALL-UNNAMED",
+          "--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED",
+          "--add-opens=java.base/jdk.internal.ref=ALL-UNNAMED",
+          "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
+          "--add-opens=java.base/sun.nio.cs=ALL-UNNAMED",
+          "--add-opens=java.base/sun.security.action=ALL-UNNAMED",
+          "--add-opens=java.base/sun.util.calendar=ALL-UNNAMED",
+          "--add-opens=java.security.jgss/sun.security.krb5=ALL-UNNAMED");
+    }
     if (dedicated != null) {
       builder.jvmArgs("-Ddd.data.jobs.spark.span-links=" + dedicated);
     }

@@ -7,6 +7,12 @@ plugins {
 
 description = 'Spark independent application trace smoke tests.'
 
+testJvmConstraints {
+  // Spark 3.5's Hadoop dependency calls Subject.getSubject(), which is unsupported after the
+  // Security Manager removal in JDK 24 (JEP 486).
+  maxJavaVersion = JavaVersion.VERSION_23
+}
+
 dependencies {
   implementation group: 'org.apache.spark', name: 'spark-core_2.12', version: '3.5.9'
   implementation group: 'org.apache.spark', name: 'spark-sql_2.12', version: '3.5.9'

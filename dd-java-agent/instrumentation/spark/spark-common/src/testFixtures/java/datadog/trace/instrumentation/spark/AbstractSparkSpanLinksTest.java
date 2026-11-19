@@ -25,11 +25,13 @@ import java.io.ByteArrayOutputStream;
 import java.lang.reflect.Constructor;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.apache.spark.SparkConf;
 import org.apache.spark.executor.TaskMetrics;
@@ -55,6 +57,7 @@ import org.junit.jupiter.api.Test;
 public abstract class AbstractSparkSpanLinksTest extends AbstractInstrumentationTest {
   private static final String PARENT_RUN_ID = "ad3b6baa-8d88-3b38-8dbe-f06232249a84";
   private static final String ROOT_PARENT_RUN_ID = "01964820-5280-7674-b04e-82fbed085f39";
+  private static final Pattern RUN_TAG_SEPARATOR = Pattern.compile(";");
 
   private SparkSession currentSession;
 
@@ -188,7 +191,7 @@ public abstract class AbstractSparkSpanLinksTest extends AbstractInstrumentation
     List<DDSpan> trace = waitForSingleTrace();
     DDSpan application = onlySpan(trace, "spark.application");
     List<String> runTags =
-        java.util.Arrays.asList(forwardedConf.get("spark.openlineage.run.tags").split(";"));
+        Arrays.asList(RUN_TAG_SEPARATOR.split(forwardedConf.get("spark.openlineage.run.tags")));
 
     assertEquals(1, openLineageListener.applicationStarts.get());
     assertEquals(1, openLineageListener.applicationEnds.get());
