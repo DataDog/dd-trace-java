@@ -8,7 +8,6 @@ import com.datadog.openfeature.internal.RuntimeServices;
 import com.datadog.openfeature.internal.bridge.v1.EventTransport;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -393,31 +392,22 @@ public class FlagEvaluationPipeline implements FlagEvaluationWriter, EventPipeli
         if (events.isEmpty()) {
           return;
         }
-        final FlagEvaluationPayloads.EncodedPayloads payloads =
-            FlagEvaluationPayloads.buildPayloads(events, context, payloadSizeLimitBytes);
-        countMetric(
-            FLAG_EVALUATION_DROPPED_METRIC,
-            payloads.droppedPayloadLimit,
-            DROP_REASON_PAYLOAD_LIMIT);
-        countMetric(
-            FLAG_EVALUATION_DEGRADED_METRIC,
-            payloads.degradedPayloadLimit,
-            DEGRADED_REASON_PAYLOAD_LIMIT);
-        if (payloads.bodies.size() > 1) {
-          countMetric(FLAG_EVALUATION_SPLITS_METRIC, payloads.bodies.size() - 1, null);
+        // Each payload is posted as it closes, so a flush holds one payload at a time.
+        final FlagEvaluationPayloads.PayloadCounts counts =
+            new FlagEvaluationPayloads.PayloadCounts();
+        try {
+          FlagEvaluationPayloads.writePayloads(
+              events,
+              context,
+              payloadSizeLimitBytes,
+              counts,
+              payload -> transport.post(FLAG_EVALUATION_ROUTE, payload));
+        } finally {
+          reportPayloadCounts(counts);
         }
-        if (payloads.droppedPayloadLimit > 0) {
-          LOGGER.warn(
-              "flag evaluation payload too large - dropped {} evaluation(s)"
-                  + " (best-effort telemetry)",
-              payloads.droppedPayloadLimit);
-        }
-        for (final List<ByteBuffer> payload : payloads.bodies) {
-          transport.post(FLAG_EVALUATION_ROUTE, payload);
-        }
-        if (!payloads.bodies.isEmpty()) {
+        if (counts.payloads > 0) {
           LOGGER.debug(
-              "Feature Flags flag evaluation flush delivered: payloads={}", payloads.bodies.size());
+              "Feature Flags flag evaluation flush delivered: payloads={}", counts.payloads);
         }
       } catch (IOException e) {
         // Delivery failures (agent unreachable, timeouts, error responses) are expected
@@ -432,6 +422,24 @@ public class FlagEvaluationPipeline implements FlagEvaluationWriter, EventPipeli
         // customer put in the context) permanently block every subsequent flush.
         aggregator.clear();
         lastTicks = System.nanoTime();
+      }
+    }
+
+    private void reportPayloadCounts(final FlagEvaluationPayloads.PayloadCounts counts) {
+      countMetric(
+          FLAG_EVALUATION_DROPPED_METRIC, counts.droppedPayloadLimit, DROP_REASON_PAYLOAD_LIMIT);
+      countMetric(
+          FLAG_EVALUATION_DEGRADED_METRIC,
+          counts.degradedPayloadLimit,
+          DEGRADED_REASON_PAYLOAD_LIMIT);
+      if (counts.payloads > 1) {
+        countMetric(FLAG_EVALUATION_SPLITS_METRIC, counts.payloads - 1, null);
+      }
+      if (counts.droppedPayloadLimit > 0) {
+        LOGGER.warn(
+            "flag evaluation payload too large - dropped {} evaluation(s)"
+                + " (best-effort telemetry)",
+            counts.droppedPayloadLimit);
       }
     }
 

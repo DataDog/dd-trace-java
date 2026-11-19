@@ -362,6 +362,34 @@ class FlagEvaluationPipelineTest {
     assertEquals(2, setup.transport.posts.size());
   }
 
+  @Test
+  void splitFlushPostsEachPayloadAndCountsTheSplits() throws Exception {
+    final FlagEvaluationTestSupport.TestWriterSetup setup = buildTestWriter(1_100);
+    for (int i = 0; i < 4; i++) {
+      final Map<String, Object> attrs = new HashMap<>();
+      attrs.put("payload", repeat('x', 180));
+      setup.handler.add(event("split-" + i, "on", "alloc1", "user-" + i, 1000L, attrs));
+    }
+
+    setup.handler.drainAndAggregate();
+    setup.handler.flush();
+
+    final int posts = setup.transport.posts.size();
+    assertTrue(posts > 1, "expected a split flush, got " + posts + " post(s)");
+    assertEquals(
+        posts - 1, setup.metrics.sum(FlagEvaluationPipeline.FLAG_EVALUATION_SPLITS_METRIC, null));
+    // Each payload was posted before the next one reused the buffer: all four flags arrived.
+    int flags = 0;
+    for (final FlagEvaluationTestSupport.Post post : setup.transport.posts) {
+      for (int i = 0; i < 4; i++) {
+        if (eventForFlag(readJson(post.body).parsed, "split-" + i) != null) {
+          flags++;
+        }
+      }
+    }
+    assertEquals(4, flags);
+  }
+
   private static final String HASHED_JANE_DOE =
       "sha256_b4698f9b6d186781fa8dc59e533578fa2d8379a46b1cf6db85cda6aa9c99e51b";
 
