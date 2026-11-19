@@ -29,11 +29,27 @@ public class ProcessSupervisor implements Closeable {
     UNHEALTHY
   }
 
+  /**
+   * Checks whether the supervised program is healthy. It runs in two situations:
+   *
+   * <ul>
+   *   <li>While this supervisor has no process of its own, to decide what to do: {@link
+   *       Health#READY_TO_START} starts a process, {@link Health#HEALTHY} uses a process that
+   *       another one started, and {@link Health#UNHEALTHY} waits until that process has failed
+   *       several checks in a row before starting a copy.
+   *   <li>While a process this supervisor started is running, with {@code previousHealth} {@link
+   *       Health#HEALTHY}. Any other result is a failed check, and several in a row restart the
+   *       process.
+   * </ul>
+   *
+   * A supervisor given {@link #ALWAYS_READY} skips the second kind of check.
+   */
   @FunctionalInterface
   public interface HealthCheck {
     Health run(Health previousHealth) throws InterruptedException;
   }
 
+  /** Starts a process whenever none is running, and never checks a running one. */
   public static final HealthCheck ALWAYS_READY = health -> READY_TO_START;
 
   private static final Logger log = LoggerFactory.getLogger(ProcessSupervisor.class);
