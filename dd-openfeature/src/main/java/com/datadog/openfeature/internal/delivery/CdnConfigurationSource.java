@@ -302,11 +302,7 @@ public final class CdnConfigurationSource implements ConfigurationService {
     try {
       body = Gzip.decode(response);
     } catch (final IOException | RuntimeException e) {
-      LOGGER.debug(
-          "Feature Flags configuration endpoint returned a malformed payload ({}); retaining the current configuration",
-          e.getClass().getSimpleName(),
-          e);
-      return false;
+      return malformedPayload(e);
     }
     // An endpoint without ETags (a custom one, for example) gets no 304s, so each poll would parse
     // the whole configuration again and replace it with an identical one: a new graph promoted and
@@ -317,7 +313,7 @@ public final class CdnConfigurationSource implements ConfigurationService {
                 response.headers().allValues(FlagSelectionRequest.IGNORED_HEADER))
             : null;
     final byte[] bodyHash = sha256(body);
-    if (bodyHash != null && Arrays.equals(bodyHash, this.appliedBodyHash)) {
+    if (Arrays.equals(bodyHash, this.appliedBodyHash)) {
       LOGGER.debug("Feature Flags agentless configuration unchanged (same content)");
       recordEtag(response);
       // The configuration is the same, but the server can still report a new reason for ignoring
@@ -331,11 +327,7 @@ public final class CdnConfigurationSource implements ConfigurationService {
     try {
       configuration = UniversalFlagConfigParser.parseJsonApi(body);
     } catch (final IOException | RuntimeException e) {
-      LOGGER.debug(
-          "Feature Flags configuration endpoint returned a malformed payload ({}); retaining the current configuration",
-          e.getClass().getSimpleName(),
-          e);
-      return false;
+      return malformedPayload(e);
     }
     if (configuration == null) {
       LOGGER.debug(
@@ -359,13 +351,20 @@ public final class CdnConfigurationSource implements ConfigurationService {
     this.etag = nextEtag == null || nextEtag.trim().isEmpty() ? null : nextEtag;
   }
 
-  /** The SHA-256 of a body, or {@code null} if the JDK lacks it, which disables the skip. */
-  @Nullable
+  private static boolean malformedPayload(final Exception e) {
+    LOGGER.debug(
+        "Feature Flags configuration endpoint returned a malformed payload ({}); retaining the current configuration",
+        e.getClass().getSimpleName(),
+        e);
+    return false;
+  }
+
+  /** The SHA-256 of a body. Every Java platform is required to provide SHA-256. */
   private static byte[] sha256(final byte[] body) {
     try {
       return MessageDigest.getInstance("SHA-256").digest(body);
     } catch (final NoSuchAlgorithmException e) {
-      return null;
+      throw new IllegalStateException("SHA-256 is unavailable", e);
     }
   }
 
