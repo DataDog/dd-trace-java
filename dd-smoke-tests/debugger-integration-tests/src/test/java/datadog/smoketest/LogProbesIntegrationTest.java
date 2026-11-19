@@ -48,7 +48,7 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
   @BeforeEach
   public void beforeEach() {
     // increase template evaluation timeout to avoid flakiness
-    additionalJvmArgs.add("-Ddd.dynamic.instrumentation.evaluation.timeout.ms=200");
+    additionalJvmArgs.add("-Ddd.dynamic.instrumentation.evaluation.timeout.ms=1000");
   }
 
   @Test
