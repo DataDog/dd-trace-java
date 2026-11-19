@@ -173,10 +173,17 @@ public class ProcessSupervisor implements Closeable {
     if (otherProcessHealthySinceMillis == 0) {
       otherProcessHealthySinceMillis = now;
     }
-    long healthyMillis = now - otherProcessHealthySinceMillis;
-    faultBackoff.recordUptime(healthyMillis);
-    if (healthyMillis >= STABLE_RUN_MILLIS) {
-      failuresInARow = 0;
+    recordUptime(now - otherProcessHealthySinceMillis);
+  }
+
+  /**
+   * Forgets earlier failures, for both the restart backoff and the quiet logging, once a process
+   * has stayed up or healthy for {@link #STABLE_RUN_MILLIS}.
+   */
+  private void recordUptime(long upMillis) {
+    faultBackoff.recordUptime(upMillis);
+    if (upMillis >= STABLE_RUN_MILLIS) {
+      failuresInARow = 0; // log its lifecycle at info level again
     }
   }
 
@@ -213,11 +220,7 @@ public class ProcessSupervisor implements Closeable {
 
     // Keep checking on the process until it exits
     while (!currentProcess.waitFor(HEALTHY_DELAY_MILLIS, MILLISECONDS)) {
-      long upMillis = System.currentTimeMillis() - currentProcessStartedMillis;
-      faultBackoff.recordUptime(upMillis);
-      if (upMillis >= STABLE_RUN_MILLIS) {
-        failuresInARow = 0; // it stayed up, so log its lifecycle at info level again
-      }
+      recordUptime(System.currentTimeMillis() - currentProcessStartedMillis);
       if (healthCheck != ALWAYS_READY && !passesHealthCheck(childPid)) {
         restartUnhealthyProcess(childPid);
         return;
@@ -231,10 +234,7 @@ public class ProcessSupervisor implements Closeable {
     boolean failed = code != 0 || !stayedUp;
     currentHealth = failed ? FAULTED : INTERRUPTED;
 
-    faultBackoff.recordUptime(ranMillis);
-    if (stayedUp) {
-      failuresInARow = 0;
-    }
+    recordUptime(ranMillis);
     logLifecycle(
         "Process [{}] with pid {} exited with code {} after {} ms",
         imageName,
