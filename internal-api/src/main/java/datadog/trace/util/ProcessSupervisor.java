@@ -69,7 +69,6 @@ public class ProcessSupervisor implements Closeable {
   private int otherProcessFailedHealthChecks;
   private long otherProcessHealthySinceMillis;
   private final FaultBackoff faultBackoff = new FaultBackoff();
-  private int failuresInARow;
 
   private volatile boolean stopping = false;
 
@@ -173,18 +172,7 @@ public class ProcessSupervisor implements Closeable {
     if (otherProcessHealthySinceMillis == 0) {
       otherProcessHealthySinceMillis = now;
     }
-    recordUptime(now - otherProcessHealthySinceMillis);
-  }
-
-  /**
-   * Forgets earlier failures, for both the restart backoff and the quiet logging, once a process
-   * has stayed up or healthy for {@link #STABLE_RUN_MILLIS}.
-   */
-  private void recordUptime(long upMillis) {
-    faultBackoff.recordUptime(upMillis);
-    if (upMillis >= STABLE_RUN_MILLIS) {
-      failuresInARow = 0; // log its lifecycle at info level again
-    }
+    faultBackoff.recordUptime(now - otherProcessHealthySinceMillis);
   }
 
   private void scheduleNextHealthCheck() {
@@ -192,7 +180,7 @@ public class ProcessSupervisor implements Closeable {
     if (currentHealth == HEALTHY || currentHealth == UNHEALTHY) {
       nextCheckMillis = now + HEALTHY_DELAY_MILLIS;
     } else if (currentHealth == FAULTED) {
-      nextCheckMillis = now + faultBackoff.recordFault();
+      nextCheckMillis = now + recordFault();
     } else { // interrupted
       nextCheckMillis = Long.max(nextCheckMillis, now + 100);
     }
@@ -223,7 +211,7 @@ public class ProcessSupervisor implements Closeable {
       // Time up counts only while the process passes its checks. One that is failing them, or
       // that did not stop when asked, has not stayed up in a useful way.
       if (failedHealthChecks == 0) {
-        recordUptime(System.currentTimeMillis() - currentProcessStartedMillis);
+        faultBackoff.recordUptime(System.currentTimeMillis() - currentProcessStartedMillis);
       }
       if (healthCheck != ALWAYS_READY && !passesHealthCheck(childPid)) {
         restartUnhealthyProcess(childPid);
@@ -238,16 +226,13 @@ public class ProcessSupervisor implements Closeable {
     boolean failed = code != 0 || !stayedUp;
     currentHealth = failed ? FAULTED : INTERRUPTED;
 
-    recordUptime(ranMillis);
+    faultBackoff.recordUptime(ranMillis);
     logLifecycle(
         "Process [{}] with pid {} exited with code {} after {} ms",
         imageName,
         childPid,
         code,
         ranMillis);
-    if (failed) {
-      recordFailure();
-    }
 
     // Process is dead, no longer needs to be tracked
     currentProcess = null;
@@ -329,39 +314,38 @@ public class ProcessSupervisor implements Closeable {
   }
 
   private void logLifecycle(String format, Object... arguments) {
-    if (failuresInARow < QUIET_AFTER_FAILURES) {
+    if (!faultBackoff.isQuiet()) {
       log.info(format, arguments);
     } else {
       log.debug(format, arguments);
     }
   }
 
-  /**
-   * Counts a failure in a row and logs it at warn level, or at debug level once the log has gone
-   * quiet.
-   */
+  /** Logs a failure at warn level, or at debug level once the log has gone quiet. */
   private void logFailure(String format, Object... arguments) {
-    if (failuresInARow < QUIET_AFTER_FAILURES) {
+    if (!faultBackoff.isQuiet()) {
       log.warn(format, arguments);
     } else {
       log.debug(format, arguments);
     }
-    recordFailure();
   }
 
   /**
-   * Counts a failure in a row. When the count reaches {@link #QUIET_AFTER_FAILURES}, says that
-   * lifecycle lines go to debug level until the process stays up.
+   * Records a fault and returns how long to wait before the next health check. When the faults in a
+   * row reach {@link #QUIET_AFTER_FAILURES}, says that lifecycle lines go to debug level until the
+   * process stays up.
    */
-  private void recordFailure() {
-    if (++failuresInARow == QUIET_AFTER_FAILURES) {
+  private long recordFault() {
+    long delayMillis = faultBackoff.recordFault();
+    if (faultBackoff.faultsInARow() == QUIET_AFTER_FAILURES) {
       log.warn(
           "Process [{}] has failed {} times in a row; "
               + "further starts and exits are logged at debug level until it stays up for {} seconds",
           imageName,
-          failuresInARow,
+          QUIET_AFTER_FAILURES,
           MILLISECONDS.toSeconds(STABLE_RUN_MILLIS));
     }
+    return delayMillis;
   }
 
   private static String pidOrUnknown(Process process) {
@@ -387,9 +371,10 @@ public class ProcessSupervisor implements Closeable {
   }
 
   /**
-   * Counts faults in a row and spaces out the retries that follow them. Faults are forgotten only
-   * once a process has stayed up for {@link #STABLE_RUN_MILLIS}, so an agent that keeps exiting
-   * soon after it starts backs off instead of restarting every few seconds. Retries never stop.
+   * Counts faults in a row, spaces out the retries that follow them, and decides when lifecycle
+   * logging goes quiet. Faults are forgotten only once a process has stayed up for {@link
+   * #STABLE_RUN_MILLIS}, so an agent that keeps exiting soon after it starts backs off instead of
+   * restarting every few seconds. Retries never stop.
    */
   static final class FaultBackoff {
     private static final int MAX_DOUBLINGS = 5;
@@ -401,6 +386,15 @@ public class ProcessSupervisor implements Closeable {
       faults++;
       int doublings = Math.min(faults - 1, MAX_DOUBLINGS);
       return Math.min(FAULTED_DELAY_MILLIS << doublings, MAX_FAULTED_DELAY_MILLIS);
+    }
+
+    int faultsInARow() {
+      return faults;
+    }
+
+    /** Whether lifecycle lines go to debug level, after {@link #QUIET_AFTER_FAILURES} faults. */
+    boolean isQuiet() {
+      return faults >= QUIET_AFTER_FAILURES;
     }
 
     /** Forgets earlier faults once a process has been up for a stable period. */

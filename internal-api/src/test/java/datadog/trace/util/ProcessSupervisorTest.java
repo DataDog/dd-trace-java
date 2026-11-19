@@ -125,6 +125,24 @@ class ProcessSupervisorTest {
   }
 
   @Test
+  void faultBackoffGoesQuietAfterFiveFaultsUntilStableUptime() {
+    ProcessSupervisor.FaultBackoff backoff = new ProcessSupervisor.FaultBackoff();
+    for (int i = 0; i < 4; i++) {
+      backoff.recordFault();
+    }
+    assertFalse(backoff.isQuiet());
+
+    backoff.recordFault();
+    assertTrue(backoff.isQuiet());
+
+    backoff.recordUptime(59_999);
+    assertTrue(backoff.isQuiet());
+
+    backoff.recordUptime(60_000);
+    assertFalse(backoff.isQuiet());
+  }
+
+  @Test
   void processRespawnsWhenKilled() throws InterruptedException {
     ProcessBuilder processBuilder = createProcessBuilder();
     PollingConditions conditions = new PollingConditions(11);
