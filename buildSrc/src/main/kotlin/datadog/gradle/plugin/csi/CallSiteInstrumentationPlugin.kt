@@ -116,6 +116,7 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project> {
       destinationDirectory.convention(csiExtension.targetFolder)
       suffix.convention(csiExtension.suffix)
       reporters.convention(csiExtension.reporters)
+
       val csiOutput = project.sourceSets.named(CSI_SOURCE_SET).map { it.output }
       val currentProjectPath = project.buildTreePath
       val dependencyClasspaths = project.defaultConfigurations.map { configuration ->
@@ -126,15 +127,23 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project> {
           }
         }.files
       }
-      val callsitesClassPath = project.files(
-        // SourceSetOutput also depends on classes, which depends on this generator.
-        project.sourceSets.named(MAIN_SOURCE_SET_NAME).map { it.output.classesDirs },
-        project.tasks.named<ProcessResources>(JavaPlugin.PROCESS_RESOURCES_TASK_NAME).map { it.destinationDir },
-        project.sourceSets.named(MAIN_SOURCE_SET_NAME).map { it.output.dirs },
-        dependencyClasspaths,
-        csiExtension.additionalPaths,
-      ).minus(project.files(csiOutput, csiExtension.targetFolder, destinationDirectory))
-      analysisClasspath.from(callsitesClassPath)
+
+      analysisClasspath.from(
+        project.files(
+          // SourceSetOutput also depends on classes, which depends on this generator.
+          project.sourceSets.named(MAIN_SOURCE_SET_NAME).map { it.output.classesDirs },
+          project.tasks.named<ProcessResources>(JavaPlugin.PROCESS_RESOURCES_TASK_NAME).map { it.destinationDir },
+          project.sourceSets.named(MAIN_SOURCE_SET_NAME).map { it.output.dirs },
+          dependencyClasspaths,
+          csiExtension.additionalPaths,
+        ).minus(
+          project.files(
+            csiOutput,
+            csiExtension.targetFolder,
+            destinationDirectory
+          )
+        )
+      )
 
       inputs.property("csi.javaVersion", csiExtension.javaVersion)
       // Include inherited locale defaults and values supplied by JVM argument providers.
