@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.spark
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_SPARK_SPAN_LINKS
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpanLink.SAMPLED_FLAG
 
 import com.datadoghq.sketch.ddsketch.DDSketchProtoBinding
 import com.datadoghq.sketch.ddsketch.proto.DDSketch
@@ -535,7 +536,7 @@ abstract class AbstractSparkListenerTest extends InstrumentationSpecification {
           parent()
           assert span.context.traceId != externalContext.traceId
           links({
-            link(externalContext.traceId, externalContext.spanId, (byte) 1)
+            link(externalContext.traceId, externalContext.spanId, SAMPLED_FLAG)
           })
           assert span.tags["openlineage_parent_run_id"] == externalContext.parentRunId
           assert listener.openLineageSparkConf
@@ -762,6 +763,31 @@ abstract class AbstractSparkListenerTest extends InstrumentationSpecification {
           assert span.tags["error.type"] == "Spark SQL Failed"
           assert span.tags["error.message"] == "[TABLE_OR_VIEW_NOT_FOUND] The table or view `missing_table` cannot be found."
           assert span.tags["error.stack"] != null
+        }
+      }
+    }
+  }
+
+  def "test SQL analysis failure after application end is ignored"() {
+    setup:
+    def listener = getTestDatadogSparkListener()
+    listener.onApplicationStart(applicationStartEvent(1000L))
+    listener.onApplicationEnd(applicationEndEvent(2000L))
+    def lastSqlFailedField = AbstractDatadogSparkListener.getDeclaredField("lastSqlFailed")
+    lastSqlFailedField.setAccessible(true)
+
+    when:
+    listener.onSqlFailure(new RuntimeException("late SQL error"))
+
+    then:
+    !lastSqlFailedField.getBoolean(listener)
+    assertTraces(1) {
+      trace(1) {
+        span {
+          operationName "spark.application"
+          spanType "spark"
+          errored false
+          parent()
         }
       }
     }

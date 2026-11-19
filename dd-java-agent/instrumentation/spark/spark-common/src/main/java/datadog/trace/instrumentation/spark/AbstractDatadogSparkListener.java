@@ -84,6 +84,12 @@ import scala.collection.JavaConverters;
  * still needed
  */
 public abstract class AbstractDatadogSparkListener extends SparkListener {
+  private enum DatabricksSpanTopology {
+    PARENT,
+    LINK,
+    VALID_LINK
+  }
+
   private static final Logger log = LoggerFactory.getLogger(AbstractDatadogSparkListener.class);
   protected static final ObjectMapper objectMapper = new ObjectMapper();
   public static volatile AbstractDatadogSparkListener listener = null;
@@ -400,7 +406,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
    * has an error signal even when no job/stage/task events fire.
    */
   public synchronized void onSqlFailure(Throwable throwable) {
-    if (shouldIgnoreLateEvent()) {
+    if (applicationEnded) {
       return;
     }
     lastSqlFailed = true;
@@ -576,7 +582,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     captureJobParameters(builder, jobProperties);
 
     if (isRunningOnDatabricks) {
-      addDatabricksSpecificTags(builder, jobProperties, false, false);
+      addDatabricksSpecificTags(builder, jobProperties, DatabricksSpanTopology.LINK);
     }
 
     batchSpan = builder.start();
@@ -586,10 +592,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   }
 
   private void addDatabricksSpecificTags(
-      AgentTracer.SpanBuilder builder,
-      Properties properties,
-      boolean withParentContext,
-      boolean requireValidLink) {
+      AgentTracer.SpanBuilder builder, Properties properties, DatabricksSpanTopology topology) {
     // Databricks has no application span. Adding the parameters to the top level spark span
     captureJobParameters(builder, properties);
 
@@ -611,13 +614,24 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
               getDatabricksJobRunAttempt(properties));
 
       if (parentContext.getTraceId() != DDTraceId.ZERO
-          && (!requireValidLink || parentContext.getSpanId() != 0)) {
-        if (withParentContext) {
+          && (topology != DatabricksSpanTopology.VALID_LINK || parentContext.getSpanId() != 0)) {
+        if (topology == DatabricksSpanTopology.PARENT) {
           builder.asChildOf(parentContext);
         } else {
           builder.withLink(SpanLink.from(parentContext));
         }
       }
+    }
+  }
+
+  private void configureNonStreamingDatabricksSpan(
+      AgentTracer.SpanBuilder builder, Properties properties) {
+    if (spanLinksEnabled) {
+      initApplicationSpanIfNotInitialized();
+      builder.asChildOf(applicationSpan.spanContext());
+      addDatabricksSpecificTags(builder, properties, DatabricksSpanTopology.VALID_LINK);
+    } else {
+      addDatabricksSpecificTags(builder, properties, DatabricksSpanTopology.PARENT);
     }
   }
 
@@ -649,13 +663,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
           getOrCreateStreamingBatchSpan(batchKey, queryStart.time(), jobProperties);
       spanBuilder.asChildOf(batchSpan.spanContext());
     } else if (isRunningOnDatabricks) {
-      if (spanLinksEnabled) {
-        initApplicationSpanIfNotInitialized();
-        spanBuilder.asChildOf(applicationSpan.spanContext());
-        addDatabricksSpecificTags(spanBuilder, jobProperties, false, true);
-      } else {
-        addDatabricksSpecificTags(spanBuilder, jobProperties, true, false);
-      }
+      configureNonStreamingDatabricksSpan(spanBuilder, jobProperties);
     } else {
       initApplicationSpanIfNotInitialized();
       spanBuilder.asChildOf(applicationSpan.spanContext());
@@ -712,13 +720,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
           getOrCreateStreamingBatchSpan(batchKey, jobStart.time(), jobStart.properties());
       jobSpanBuilder.asChildOf(batchSpan.spanContext());
     } else if (isRunningOnDatabricks) {
-      if (spanLinksEnabled) {
-        initApplicationSpanIfNotInitialized();
-        jobSpanBuilder.asChildOf(applicationSpan.spanContext());
-        addDatabricksSpecificTags(jobSpanBuilder, jobStart.properties(), false, true);
-      } else {
-        addDatabricksSpecificTags(jobSpanBuilder, jobStart.properties(), true, false);
-      }
+      configureNonStreamingDatabricksSpan(jobSpanBuilder, jobStart.properties());
     } else {
       // In non-databricks, non-streaming env, the spark application is the local root span
       initApplicationSpanIfNotInitialized();
