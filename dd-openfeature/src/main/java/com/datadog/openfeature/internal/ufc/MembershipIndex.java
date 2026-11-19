@@ -1,6 +1,5 @@
 package com.datadog.openfeature.internal.ufc;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -41,8 +40,11 @@ public final class MembershipIndex {
 
   private static final int NONE = Integer.MAX_VALUE;
 
-  /** {@code String.valueOf} of each element that is not a number, to its first index. */
-  private final Map<String, Integer> strings;
+  /**
+   * {@code String.valueOf} of each element that is not a number, with its first index when the list
+   * has a number element (only then does the index decide a match).
+   */
+  private final StringTable strings;
 
   /**
    * Each number element, and each numeric string before the first unconvertible element, to its
@@ -67,7 +69,10 @@ public final class MembershipIndex {
 
   private MembershipIndex(final List<?> values) {
     final int size = values.size();
-    this.strings = new HashMap<>(capacity(size));
+    // The strings of the elements that are not numbers, in list order.
+    final String[] stringKeys = new String[size];
+    final int[] stringIndexes = new int[size];
+    int stringCount = 0;
     // Keys of the elements that convert to a number, then of the number elements, in list order.
     final long[] numericKeys = new long[size];
     final int[] numericIndexes = new int[size];
@@ -88,7 +93,8 @@ public final class MembershipIndex {
         numberIndexes[numberCount++] = i;
         continue;
       }
-      this.strings.putIfAbsent(String.valueOf(element), i);
+      stringKeys[stringCount] = String.valueOf(element);
+      stringIndexes[stringCount++] = i;
       if (unconvertible != NONE) {
         // The scan throws at the first unconvertible element: later elements never match.
         continue;
@@ -105,6 +111,7 @@ public final class MembershipIndex {
         unconvertible = i;
       }
     }
+    this.strings = StringTable.of(stringKeys, stringIndexes, stringCount, numberCount > 0);
     this.numeric = LongIntIndex.of(numericKeys, numericIndexes, numericCount);
     // Without numeric strings, both tables hold the same keys and first indexes.
     this.numbers =
@@ -169,11 +176,11 @@ public final class MembershipIndex {
   }
 
   private int lookupString(final String attribute) {
-    final Integer index = this.strings.get(attribute);
+    final int index = this.strings.get(attribute);
     if (this.firstNumber == NONE) {
-      return index != null ? MATCH : NO_MATCH;
+      return index != NONE ? MATCH : NO_MATCH;
     }
-    if (index != null && index < this.firstNumber) {
+    if (index < this.firstNumber) {
       return MATCH;
     }
     // The scan parses the attribute at the first number element, and throws if it cannot.
@@ -183,7 +190,7 @@ public final class MembershipIndex {
     } catch (final NumberFormatException e) {
       return throwing(this.firstNumber);
     }
-    if (index != null) {
+    if (index != NONE) {
       return MATCH;
     }
     return !Double.isNaN(number) && this.numbers.get(key(number)) != NONE ? MATCH : NO_MATCH;
@@ -194,8 +201,89 @@ public final class MembershipIndex {
     return Double.doubleToLongBits(number == 0 ? 0d : number);
   }
 
-  private static int capacity(final int size) {
-    return (int) Math.min(Integer.MAX_VALUE, (long) size * 4 / 3 + 1);
+  /**
+   * Open addressing with linear probing over strings, modeled on {@code StringIndex} in {@code
+   * internal-api}, which this module cannot depend on: flat arrays instead of a node and a boxed
+   * index per string. The cached hashes gate {@code equals}, and a zero hash marks an empty slot.
+   * The table is at most half full.
+   */
+  static final class StringTable {
+    /** The table of a list without strings, shared as nothing is ever put in it. */
+    private static final StringTable EMPTY = new StringTable(0, false);
+
+    private final String[] keys;
+    private final int[] hashes;
+
+    /** The first index of each key, or {@code null} if the table keeps no indexes. */
+    @Nullable private final int[] values;
+
+    private StringTable(final int expected, final boolean withValues) {
+      final int capacity = Integer.highestOneBit(Math.max(1, expected) * 2 - 1) << 1;
+      this.keys = new String[capacity];
+      this.hashes = new int[capacity];
+      this.values = withValues ? new int[capacity] : null;
+    }
+
+    /**
+     * Indexes the first {@code count} keys. The first index of a repeated key is kept, and only
+     * when {@code withValues} is set.
+     */
+    static StringTable of(
+        final String[] keys, final int[] values, final int count, final boolean withValues) {
+      if (count == 0) {
+        return EMPTY;
+      }
+      final StringTable table = new StringTable(count, withValues);
+      for (int i = 0; i < count; i++) {
+        table.putIfAbsent(keys[i], values[i]);
+      }
+      return table;
+    }
+
+    void putIfAbsent(final String key, final int value) {
+      final int hash = hash(key);
+      final int mask = this.keys.length - 1;
+      int slot = hash & mask;
+      while (this.hashes[slot] != 0) {
+        if (this.hashes[slot] == hash && this.keys[slot].equals(key)) {
+          return;
+        }
+        slot = (slot + 1) & mask;
+      }
+      this.hashes[slot] = hash;
+      this.keys[slot] = key;
+      if (this.values != null) {
+        this.values[slot] = value;
+      }
+    }
+
+    /**
+     * Returns the first index of the key, or {@link Integer#MAX_VALUE} if the key is absent. A
+     * table without indexes returns 0 for every key it holds.
+     */
+    int get(final String key) {
+      final int hash = hash(key);
+      final int mask = this.keys.length - 1;
+      int slot = hash & mask;
+      int found;
+      while ((found = this.hashes[slot]) != 0) {
+        if (found == hash && this.keys[slot].equals(key)) {
+          return this.values == null ? 0 : this.values[slot];
+        }
+        slot = (slot + 1) & mask;
+      }
+      return NONE;
+    }
+
+    int capacity() {
+      return this.keys.length;
+    }
+
+    /** The spread hash of the key; never 0, which marks an empty slot. */
+    static int hash(final String key) {
+      final int hash = key.hashCode();
+      return hash == 0 ? 0xDD06 : hash ^ (hash >>> 16);
+    }
   }
 
   /**
@@ -203,6 +291,9 @@ public final class MembershipIndex {
    * The table is at most half full.
    */
   static final class LongIntIndex {
+    /** The table of a list without numbers, shared as nothing is ever put in it. */
+    private static final LongIntIndex EMPTY = new LongIntIndex(0);
+
     private final long[] keys;
     private final int[] values;
     private final boolean[] used;
@@ -220,6 +311,9 @@ public final class MembershipIndex {
 
     /** Indexes the first {@code count} keys. The first index of a repeated key is kept. */
     static LongIntIndex of(final long[] keys, final int[] values, final int count) {
+      if (count == 0) {
+        return EMPTY;
+      }
       final LongIntIndex index = new LongIntIndex(count);
       for (int i = 0; i < count; i++) {
         index.putIfAbsent(keys[i], values[i]);
