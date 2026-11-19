@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.spark
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_SPARK_SPAN_LINKS
 
 import com.datadoghq.sketch.ddsketch.DDSketchProtoBinding
 import com.datadoghq.sketch.ddsketch.proto.DDSketch
@@ -508,7 +509,7 @@ abstract class AbstractSparkListenerTest extends InstrumentationSpecification {
 
   def "span links mode creates an independent application trace linked to OpenLineage"() {
     setup:
-    injectSysConfig("dd.data.jobs.spark.span-links", "true")
+    injectSysConfig(DATA_JOBS_SPARK_SPAN_LINKS, "true")
     def conf = new SparkConf()
     conf.set("spark.openlineage.parentRunId", "ad3b6baa-8d88-3b38-8dbe-f06232249a84")
     conf.set("spark.openlineage.parentJobNamespace", "default")
@@ -548,7 +549,7 @@ abstract class AbstractSparkListenerTest extends InstrumentationSpecification {
 
   def "span links mode ignores incomplete OpenLineage link metadata"() {
     setup:
-    injectSysConfig("dd.data.jobs.spark.span-links", "true")
+    injectSysConfig(DATA_JOBS_SPARK_SPAN_LINKS, "true")
     def conf = new SparkConf()
       .set("spark.openlineage.parentRunId", "ad3b6baa-8d88-3b38-8dbe-f06232249a84")
       .set("spark.openlineage.parentJobNamespace", "default")
@@ -576,7 +577,7 @@ abstract class AbstractSparkListenerTest extends InstrumentationSpecification {
 
   def "span links mode ignores an ambient active span"() {
     setup:
-    injectSysConfig("dd.data.jobs.spark.span-links", "true")
+    injectSysConfig(DATA_JOBS_SPARK_SPAN_LINKS, "true")
     def listener = getTestDatadogSparkListener()
 
     when:
@@ -605,7 +606,7 @@ abstract class AbstractSparkListenerTest extends InstrumentationSpecification {
 
   def "span links mode finalizes outstanding children once and ignores late starts"() {
     setup:
-    injectSysConfig("dd.data.jobs.spark.span-links", "true")
+    injectSysConfig(DATA_JOBS_SPARK_SPAN_LINKS, "true")
     def listener = getTestDatadogSparkListener()
     listener.onApplicationStart(applicationStartEvent(1000L))
     listener.onJobStart(jobStartEvent(1, 1200L, [1]))

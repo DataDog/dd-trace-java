@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.spark
 
 import static datadog.trace.api.DDTags.SPAN_LINKS
+import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_SPARK_SPAN_LINKS
 
 import datadog.environment.JavaVirtualMachine
 import datadog.trace.agent.test.InstrumentationSpecification
@@ -465,7 +466,7 @@ abstract class AbstractSparkTest extends InstrumentationSpecification {
 
   def "span links mode keeps Databricks direct jobs in the application trace"() {
     setup:
-    injectSysConfig("dd.data.jobs.spark.span-links", "true")
+    injectSysConfig(DATA_JOBS_SPARK_SPAN_LINKS, "true")
     def sparkSession = SparkSession.builder()
       .config("spark.master", "local")
       .config("spark.default.parallelism", "2")
@@ -518,7 +519,7 @@ abstract class AbstractSparkTest extends InstrumentationSpecification {
 
   def "span links mode links Databricks SQL entries and keeps their jobs local"() {
     setup:
-    injectSysConfig("dd.data.jobs.spark.span-links", "true")
+    injectSysConfig(DATA_JOBS_SPARK_SPAN_LINKS, "true")
     def sparkSession = SparkSession.builder()
       .config("spark.master", "local[2]")
       .config("spark.sql.shuffle.partitions", "2")
