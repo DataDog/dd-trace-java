@@ -105,7 +105,7 @@ public class ScaleSuiteBenchmark {
 
     ScaleCase next(final ScaleCase[] scaleCases) {
       final ScaleCase scaleCase = scaleCases[next];
-      next = next + 1 == scaleCases.length ? 0 : next + 1;
+      next = (next + 1 == scaleCases.length) ? 0 : next + 1;
       return scaleCase;
     }
   }
