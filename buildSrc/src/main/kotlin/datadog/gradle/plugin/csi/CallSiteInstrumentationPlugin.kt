@@ -185,15 +185,16 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project> {
       mainClass.set(CALL_SITE_INSTRUMENTER_MAIN_CLASS)
     }
 
-    // make all sourceSets class tasks depend on call site generator
     val sourceSets = project.sourceSets
+    // Make source generation happens when calling `classes` as a developer convenience,
+    // but it's not required, as the build is correctly wired.
     sourceSets.named(MAIN_SOURCE_SET_NAME) {
       project.tasks.named(classesTaskName) {
         dependsOn(callSiteGeneratorTask)
       }
     }
 
-    // compile generated sources
+    // Compile generated sources
     sourceSets.named(CSI_SOURCE_SET) {
       java.srcDir(callSiteGeneratorTask.flatMap { it.destinationDirectory })
     }
