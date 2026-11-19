@@ -10,5 +10,12 @@ public interface MessageFormatter {
    */
   <T> boolean formatIfRoom(T message, Mapper<T> mapper);
 
+  /**
+   * Retries a message that didn't fit, once the caller has sent what the buffer held: the mapper is
+   * reset and told it's a retry, as {@link #format} does after its own flush. A message larger than
+   * the empty buffer is rejected.
+   */
+  <T> boolean formatAsRetry(T message, Mapper<T> mapper);
+
   void flush();
 }

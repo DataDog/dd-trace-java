@@ -12,11 +12,14 @@ import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.intThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockingDetails;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
+import datadog.communication.serialization.Writable;
 import datadog.metrics.api.statsd.StatsDClient;
 import datadog.metrics.impl.MonitoringImpl;
 import datadog.trace.api.DDSpanId;
@@ -27,6 +30,7 @@ import datadog.trace.common.writer.ddagent.DDAgentApi;
 import datadog.trace.common.writer.ddagent.DDAgentMapperDiscovery;
 import datadog.trace.common.writer.ddagent.TraceMapperV0_4;
 import datadog.trace.common.writer.ddagent.TraceMapperV0_5;
+import datadog.trace.core.CoreSpan;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.DDSpanContext;
@@ -261,6 +265,90 @@ class PayloadDispatcherImplTest extends DDJavaSpecification {
     assertEquals(2, afterSwitch.size(), () -> "payloads after the switch: " + afterSwitch.size());
     assertEquals(V0_5, afterSwitch.get(0).protocol(), "the payload in progress keeps v0.5");
     assertEquals(V0_4, afterSwitch.get(1).protocol(), "the next payload uses the new protocol");
+  }
+
+  /** A trace that overflows a partly filled buffer is retried as a retry, as the writer does. */
+  @Test
+  void aTraceRetriedAfterAFullBufferIsMappedAsARetry() throws Exception {
+    List<DDSpan> trace = singletonList(realSpan());
+    RecordingMapper mapper =
+        new RecordingMapper(new TraceMapperV0_4(2 * payloadSize(new TraceMapperV0_4(), trace)));
+    DDAgentApi api = mock(DDAgentApi.class);
+    when(api.sendSerializedTraces(any())).thenReturn(RemoteApi.Response.success(200));
+    PayloadDispatcherImpl dispatcher =
+        new PayloadDispatcherImpl(
+            new SwitchingDiscovery(mapper), api, mock(HealthMetrics.class), monitoring);
+
+    int sends = 0;
+    for (int i = 0; i < 200 && sends == 0; i++) {
+      dispatcher.addTrace(trace);
+      sends = mockingDetails(api).getInvocations().size();
+    }
+
+    List<Boolean> retries = mapper.retries;
+    assertTrue(sends > 0, "the buffer should have overflowed");
+    // the overflowing trace: a first attempt that didn't fit, then a retry in the empty buffer
+    assertEquals(false, retries.get(retries.size() - 2));
+    assertEquals(true, retries.get(retries.size() - 1));
+  }
+
+  /** A trace too large for an empty buffer is mapped once and rejected; nothing is sent. */
+  @Test
+  void aTraceTooLargeForAnEmptyBufferIsRejectedWithoutARetry() throws Exception {
+    List<DDSpan> trace = singletonList(realSpan());
+    RecordingMapper mapper = new RecordingMapper(new TraceMapperV0_4(16));
+    DDAgentApi api = mock(DDAgentApi.class);
+    HealthMetrics healthMetrics = mock(HealthMetrics.class);
+    PayloadDispatcherImpl dispatcher =
+        new PayloadDispatcherImpl(new SwitchingDiscovery(mapper), api, healthMetrics, monitoring);
+
+    dispatcher.addTrace(trace);
+
+    assertEquals(singletonList(false), mapper.retries);
+    verify(healthMetrics).onFailedPublish(anyInt(), eq(1));
+    verifyNoInteractions(api);
+  }
+
+  /** Records each map call's retry flag, then encodes with {@code delegate}. */
+  private static final class RecordingMapper implements RemoteMapper {
+    private final RemoteMapper delegate;
+    final List<Boolean> retries = new ArrayList<>();
+
+    RecordingMapper(RemoteMapper delegate) {
+      this.delegate = delegate;
+    }
+
+    @Override
+    public void map(List<? extends CoreSpan<?>> trace, Writable packer) {
+      retries.add(false);
+      delegate.map(trace, packer);
+    }
+
+    @Override
+    public void map(List<? extends CoreSpan<?>> trace, Writable packer, boolean retry) {
+      retries.add(retry);
+      delegate.map(trace, packer);
+    }
+
+    @Override
+    public void reset() {
+      delegate.reset();
+    }
+
+    @Override
+    public Payload newPayload() {
+      return delegate.newPayload();
+    }
+
+    @Override
+    public int messageBufferSize() {
+      return delegate.messageBufferSize();
+    }
+
+    @Override
+    public String endpoint() {
+      return delegate.endpoint();
+    }
   }
 
   /** The size of a one-trace payload encoded with {@code mapper}. */

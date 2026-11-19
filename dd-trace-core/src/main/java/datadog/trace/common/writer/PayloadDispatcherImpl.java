@@ -78,13 +78,23 @@ public class PayloadDispatcherImpl implements ChunkedBufferConsumer, PayloadDisp
     // there are alternative approaches to avoid blocking here, such as
     // introducing an unbound queue and another thread to do the IO
     // however, we can't block the application threads from here.
-    boolean written = mapper != null && packer.formatIfRoom(trace, mapper);
-    if (!written && mapper != null) {
-      // The buffer is full: send it, then pick the mapper for the next payload before retrying the
-      // trace, so a protocol change takes effect even when no flush lands between traces.
-      packer.flush();
-      selectMapper();
-      written = mapper != null && packer.format(trace, mapper);
+    boolean written;
+    if (mapper == null) {
+      written = false;
+    } else if (!payloadStarted) {
+      // an empty buffer: nothing to send on overflow, so the writer rejects a trace too large for
+      // it
+      written = packer.format(trace, mapper);
+    } else {
+      written = packer.formatIfRoom(trace, mapper);
+      if (!written) {
+        // The buffer is full: send it, then pick the mapper for the next payload before retrying
+        // the
+        // trace, so a protocol change takes effect even when no flush lands between traces.
+        packer.flush();
+        selectMapper();
+        written = mapper != null && packer.formatAsRetry(trace, mapper);
+      }
     }
     if (!written) {
       healthMetrics.onFailedPublish(
