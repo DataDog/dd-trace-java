@@ -57,8 +57,6 @@ import org.junit.jupiter.api.Test;
 public abstract class AbstractSparkSpanLinksTest extends AbstractInstrumentationTest {
   private static final String PARENT_RUN_ID = "ad3b6baa-8d88-3b38-8dbe-f06232249a84";
   private static final String ROOT_PARENT_RUN_ID = "01964820-5280-7674-b04e-82fbed085f39";
-  private static final Pattern RUN_TAG_SEPARATOR = Pattern.compile(";");
-
   private SparkSession currentSession;
 
   @BeforeEach
@@ -191,7 +189,7 @@ public abstract class AbstractSparkSpanLinksTest extends AbstractInstrumentation
     List<DDSpan> trace = waitForSingleTrace();
     DDSpan application = onlySpan(trace, "spark.application");
     List<String> runTags =
-        Arrays.asList(RUN_TAG_SEPARATOR.split(forwardedConf.get("spark.openlineage.run.tags")));
+        Arrays.asList(Pattern.compile(";").split(forwardedConf.get("spark.openlineage.run.tags")));
 
     assertEquals(1, openLineageListener.applicationStarts.get());
     assertEquals(1, openLineageListener.applicationEnds.get());
