@@ -86,7 +86,7 @@ public final class UniversalFlagConfigParser {
       if (parser.nextToken() == null) {
         throw new JsonParseException(parser, "Empty document");
       }
-      final Object document = readValue(parser, 1, Scope.UFC);
+      final Object document = readValue(parser, 1, Scope.ROOT);
       if (parser.nextToken() != null) {
         throw new JsonParseException(parser, "Unexpected content after the document");
       }
@@ -97,35 +97,46 @@ public final class UniversalFlagConfigParser {
   /**
    * Where the reader is in the document. Numbers are read as {@link Double}, except integers in
    * {@code flags.<flag>.variations.<key>.value} that fit in a long: those are read as {@link
-   * Integer} or {@link Long}, so JSON variants keep exact integers.
+   * Integer} or {@link Long}, so JSON variants keep exact integers. The path starts at the root of
+   * a UFC document or at {@code data.attributes} of the JSON:API envelope, so a {@code "flags"} key
+   * nested anywhere else does not match.
    */
   private enum Scope {
-    UFC,
+    ROOT,
+    DATA,
+    ATTRIBUTES,
     FLAGS,
     FLAG,
     VARIATIONS,
     VARIANT,
-    VARIANT_VALUE;
+    VARIANT_VALUE,
+    OTHER;
 
     Scope field(final String name) {
       switch (this) {
-        case UFC:
-          return "flags".equals(name) ? FLAGS : UFC;
+        case ROOT:
+          return "flags".equals(name) ? FLAGS : "data".equals(name) ? DATA : OTHER;
+        case DATA:
+          return "attributes".equals(name) ? ATTRIBUTES : OTHER;
+        case ATTRIBUTES:
+          return "flags".equals(name) ? FLAGS : OTHER;
         case FLAGS:
           return FLAG;
         case FLAG:
-          return "variations".equals(name) ? VARIATIONS : UFC;
+          return "variations".equals(name) ? VARIATIONS : OTHER;
         case VARIATIONS:
           return VARIANT;
         case VARIANT:
-          return "value".equals(name) ? VARIANT_VALUE : UFC;
-        default:
+          return "value".equals(name) ? VARIANT_VALUE : OTHER;
+        case VARIANT_VALUE:
           return VARIANT_VALUE;
+        default:
+          return OTHER;
       }
     }
 
     Scope element() {
-      return this == VARIANT_VALUE ? VARIANT_VALUE : UFC;
+      return this == VARIANT_VALUE ? VARIANT_VALUE : OTHER;
     }
   }
 

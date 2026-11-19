@@ -3,6 +3,7 @@ package com.datadog.openfeature.internal.ufc;
 import dev.openfeature.sdk.MutableStructure;
 import dev.openfeature.sdk.Structure;
 import dev.openfeature.sdk.Value;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -77,8 +78,13 @@ final class FrozenValues {
     return Value.objectToValue(tree);
   }
 
+  /**
+   * The capacity of a hash map that holds the given number of entries without resizing. It is at
+   * least the default 16, so the map has the same table size, and so the same key order, as the map
+   * that {@link Value#objectToValue} and {@link Structure#asObjectMap} build.
+   */
   private static int capacity(final int size) {
-    return (int) Math.min(Integer.MAX_VALUE, ((long) size * 4 + 2) / 3);
+    return (int) Math.max(16, Math.min(Integer.MAX_VALUE, ((long) size * 4 + 2) / 3));
   }
 
   /**
@@ -90,6 +96,51 @@ final class FrozenValues {
 
     FrozenStructure(final Map<String, Value> attributes) {
       super(attributes);
+    }
+
+    @Override
+    public MutableStructure add(final String key, final Value value) {
+      throw readOnly();
+    }
+
+    @Override
+    public MutableStructure add(final String key, final Boolean value) {
+      throw readOnly();
+    }
+
+    @Override
+    public MutableStructure add(final String key, final String value) {
+      throw readOnly();
+    }
+
+    @Override
+    public MutableStructure add(final String key, final Integer value) {
+      throw readOnly();
+    }
+
+    @Override
+    public MutableStructure add(final String key, final Double value) {
+      throw readOnly();
+    }
+
+    @Override
+    public MutableStructure add(final String key, final Instant value) {
+      throw readOnly();
+    }
+
+    @Override
+    public MutableStructure add(final String key, final Structure value) {
+      throw readOnly();
+    }
+
+    @Override
+    public MutableStructure add(final String key, final List<Value> value) {
+      throw readOnly();
+    }
+
+    private static UnsupportedOperationException readOnly() {
+      return new UnsupportedOperationException(
+          "JSON flag values are shared and read-only: copy the value before you change it");
     }
 
     /**

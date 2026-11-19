@@ -15,7 +15,9 @@ import dev.openfeature.sdk.MutableContext;
 import dev.openfeature.sdk.MutableStructure;
 import dev.openfeature.sdk.ProviderEvaluation;
 import dev.openfeature.sdk.Value;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -100,6 +102,33 @@ class FlagEvaluatorJsonValueTest {
     assertThrows(UnsupportedOperationException.class, () -> map.put("k", "v"));
     assertThrows(UnsupportedOperationException.class, () -> nested.put("k", "v"));
     assertThrows(UnsupportedOperationException.class, () -> items.add(3));
+  }
+
+  @Test
+  void keepsTheKeyOrderOfObjectToValue() throws Exception {
+    final Map<String, Object> source = new LinkedHashMap<>();
+    source.put("b", 1);
+    source.put("i", 2);
+
+    final Value value = evaluate(config("{\"b\":1,\"i\":2}")).getValue();
+
+    assertEquals(
+        new ArrayList<>(Value.objectToValue(source).asStructure().asObjectMap().keySet()),
+        new ArrayList<>(value.asStructure().asObjectMap().keySet()));
+    assertEquals(
+        new ArrayList<>(Value.objectToValue(source).asStructure().keySet()),
+        new ArrayList<>(value.asStructure().keySet()));
+  }
+
+  @Test
+  void explainsWhyAValueCannotBeChanged() throws Exception {
+    final MutableStructure structure =
+        (MutableStructure) evaluate(config(VARIANT)).getValue().asStructure();
+
+    final UnsupportedOperationException error =
+        assertThrows(UnsupportedOperationException.class, () -> structure.add("k", 1));
+
+    assertTrue(error.getMessage().contains("read-only"), error.getMessage());
   }
 
   @Test
