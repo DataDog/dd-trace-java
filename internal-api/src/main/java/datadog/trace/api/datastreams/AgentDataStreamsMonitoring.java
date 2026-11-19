@@ -67,6 +67,11 @@ public interface AgentDataStreamsMonitoring
    */
   void setThreadServiceName(String serviceName);
 
+  /** Returns the service name override for the current thread, or null if none is set. */
+  default String getThreadServiceName() {
+    return null;
+  }
+
   /** clearThreadServiceName clears up service name override for Thread.currentThread() */
   void clearThreadServiceName();
 }
