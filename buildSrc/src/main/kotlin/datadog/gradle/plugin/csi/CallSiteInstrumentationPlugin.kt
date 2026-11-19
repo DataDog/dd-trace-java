@@ -148,15 +148,6 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project> {
       inputs.property("csi.javaVersion", csiExtension.javaVersion)
       // Include inherited locale defaults and values supplied by JVM argument providers.
       inputs.property("csi.jvmArgs", project.provider { allJvmArgs })
-      // The JVM launcher also reads options directly from these environment variables.
-      inputs.property(
-        "csi.jvmEnvironment",
-        project.provider {
-          listOf("JAVA_TOOL_OPTIONS", "_JAVA_OPTIONS", "JDK_JAVA_OPTIONS").associateWith {
-            environment[it]?.toString().orEmpty()
-          }
-        }
-      )
 
       // CSI resolves platform classes through the selected JVM, outside its classpath inputs.
       inputs.property(
@@ -180,7 +171,7 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project> {
           languageVersion.set(csiExtension.javaVersion)
         }
       )
-      jvmArgumentProviders.add({ csiExtension.jvmArgs.get() })
+      jvmArgumentProviders.add { csiExtension.jvmArgs.get() }
       classpath(pluginJarFile)
       mainClass.set(CALL_SITE_INSTRUMENTER_MAIN_CLASS)
     }

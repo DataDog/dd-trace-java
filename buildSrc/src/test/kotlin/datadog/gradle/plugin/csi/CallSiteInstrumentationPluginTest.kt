@@ -387,27 +387,6 @@ class CallSiteInstrumentationPluginTest : GradleFixture() {
     assertEquals(TaskOutcome.SUCCESS, changed.task(":generateCallSiteJava")?.outcome, changed.output)
   }
 
-  @ParameterizedTest
-  @ValueSource(strings = ["JAVA_TOOL_OPTIONS", "_JAVA_OPTIONS", "JDK_JAVA_OPTIONS"])
-  fun `cache follows JVM environment options`(variable: String) {
-    createCachingProject()
-    val optionVariables = setOf("JAVA_TOOL_OPTIONS", "_JAVA_OPTIONS", "JDK_JAVA_OPTIONS")
-
-    val first = run("generateCallSiteJava", "--info", unsetEnv = optionVariables)
-    assertEquals(TaskOutcome.SUCCESS, first.task(":generateCallSiteJava")?.outcome, first.output)
-
-    val restored = run("clean", "generateCallSiteJava", "--info", unsetEnv = optionVariables)
-    assertEquals(TaskOutcome.FROM_CACHE, restored.task(":generateCallSiteJava")?.outcome, restored.output)
-
-    val changed = run(
-      "generateCallSiteJava",
-      "--info",
-      unsetEnv = optionVariables - variable,
-      env = mapOf(variable to "-Dcsi.cache.test=true")
-    )
-    assertEquals(TaskOutcome.SUCCESS, changed.task(":generateCallSiteJava")?.outcome, changed.output)
-  }
-
   @Test
   fun `generation removes outputs that no longer match the suffix`() {
     createCachingProject(
