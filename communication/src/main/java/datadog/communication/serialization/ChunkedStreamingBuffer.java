@@ -25,6 +25,14 @@ public final class ChunkedStreamingBuffer extends ChunkedBuffer implements Strea
   }
 
   /**
+   * A buffer whose chunks start at {@code firstChunkSize} and double, for usually-small payloads.
+   */
+  public ChunkedStreamingBuffer(int maxBytes, int firstChunkSize, ChunkedBufferConsumer consumer) {
+    super(maxBytes, firstChunkSize);
+    this.consumer = consumer;
+  }
+
+  /**
    * Hands the completed messages to the consumer, then resets, which also releases the chunks the
    * payload didn't need.
    */
