@@ -22,7 +22,8 @@ import java.util.stream.Collectors;
 
 /**
  * Test fixture that collects the bootstrap {@link OtelMetricRegistry} into plain maps, so tests can
- * assert metric names, attributes and values. Callers need otel-bootstrap on the test classpath.
+ * assert metric names, scopes, kinds, units, attributes and values. Callers need otel-bootstrap on
+ * the test classpath.
  */
 public final class OtelMetricCollector
     implements OtlpMetricsVisitor, OtlpScopedMetricsVisitor, OtlpMetricVisitor {
@@ -52,7 +53,14 @@ public final class OtelMetricCollector
   /** Data points by metric name. */
   public final Map<String, List<DataPointEntry>> points = new LinkedHashMap<>();
 
+  /** Instrument descriptor (kind, unit, description) by metric name. */
+  public final Map<String, OtelInstrumentDescriptor> descriptors = new LinkedHashMap<>();
+
+  /** Instrumentation scope name by metric name. */
+  public final Map<String, String> scopes = new LinkedHashMap<>();
+
   private final Map<String, Object> currentAttrs = new LinkedHashMap<>();
+  private String currentScope = "";
   private String currentInstrument = "";
 
   private OtelMetricCollector() {}
@@ -66,6 +74,7 @@ public final class OtelMetricCollector
 
   @Override
   public OtlpScopedMetricsVisitor visitScopedMetrics(OtelInstrumentationScope scope) {
+    currentScope = scope.getName().toString();
     return this;
   }
 
@@ -73,6 +82,8 @@ public final class OtelMetricCollector
   public OtlpMetricVisitor visitMetric(OtelInstrumentDescriptor descriptor) {
     currentInstrument = descriptor.getName().toString();
     metricNames.add(currentInstrument);
+    descriptors.put(currentInstrument, descriptor);
+    scopes.put(currentInstrument, currentScope);
     points.computeIfAbsent(currentInstrument, k -> new ArrayList<>());
     return this;
   }
@@ -97,9 +108,14 @@ public final class OtelMetricCollector
         .add(new DataPointEntry(attrs, value, point));
   }
 
+  /** Data points of the given metric, or an empty list. */
+  public List<DataPointEntry> points(String metricName) {
+    return points.getOrDefault(metricName, Collections.emptyList());
+  }
+
   /** Distinct values of one attribute across the given metric's data points. */
   public Set<String> attributeValues(String metricName, String attrKey) {
-    return points.getOrDefault(metricName, Collections.emptyList()).stream()
+    return points(metricName).stream()
         .map(e -> e.attrs.get(attrKey))
         .filter(Objects::nonNull)
         .map(Object::toString)
