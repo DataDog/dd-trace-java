@@ -48,7 +48,7 @@ import org.junit.jupiter.params.provider.ValueSource;
  */
 class CanonicalFixtureTest {
   private static final String CANONICAL_FIXTURE_PATH =
-      "dd-smoke-tests/openfeature/src/test/resources/ffe-system-test-data";
+      "dd-openfeature/src/test/fixtures/ffe-system-test-data";
 
   @Test
   void canonicalFixturesArePresent() throws IOException {
