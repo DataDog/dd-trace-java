@@ -1241,7 +1241,7 @@ test_smoke_graalvm:
   needs: *needs_build_tests_smoke
   tags: [ "arch:amd64" ]
   variables:
-    <<: *tier_l_variables
+    <<: *tier_xl_variables
     GRADLE_TARGET: "stageMainDist :dd-smoke-test:spring-boot-3.0-native:test :dd-smoke-test:quarkus-native:test :dd-smoke-tests:native-image-jmx:test"
     CACHE_TYPE: "smoke"
     CI_NO_SPLIT: "true"
@@ -1254,7 +1254,7 @@ test_smoke_graalvm_arm64:
   extends: .test_job_arm64
   tags: [ "arch:arm64" ]
   variables:
-    <<: *tier_l_variables
+    <<: *tier_xl_variables
     GRADLE_TARGET: "stageMainDist :dd-smoke-test:spring-boot-3.0-native:test :dd-smoke-test:quarkus-native:test :dd-smoke-tests:native-image-jmx:test"
     CACHE_TYPE: "smoke"
     CI_NO_SPLIT: "true"

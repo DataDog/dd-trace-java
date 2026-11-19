@@ -5140,6 +5140,30 @@
         "aliases": ["DD_AXWAY_HTTP_ANALYTICS_SAMPLE_RATE"]
       }
     ],
+    "DD_TRACE_AZURE_COSMOS_ANALYTICS_ENABLED": [
+      {
+        "version": "B",
+        "type": "boolean",
+        "default": "false",
+        "aliases": ["DD_AZURE_COSMOS_ANALYTICS_ENABLED"]
+      }
+    ],
+    "DD_TRACE_AZURE_COSMOS_ANALYTICS_SAMPLE_RATE": [
+      {
+        "version": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": ["DD_AZURE_COSMOS_ANALYTICS_SAMPLE_RATE"]
+      }
+    ],
+    "DD_TRACE_AZURE_COSMOS_ENABLED": [
+      {
+        "version": "B",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_AZURE_COSMOS_ENABLED", "DD_INTEGRATION_AZURE_COSMOS_ENABLED"]
+      }
+    ],
     "DD_TRACE_AZURE_FUNCTIONS_ANALYTICS_ENABLED": [
       {
         "version": "A",
