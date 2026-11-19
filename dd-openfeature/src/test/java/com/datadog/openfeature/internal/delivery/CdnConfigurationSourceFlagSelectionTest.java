@@ -130,7 +130,9 @@ class CdnConfigurationSourceFlagSelectionTest {
     assertTrue(other.pollOnce());
     assertTrue(source.pollOnce());
 
-    assertEquals(3, this.dispatched.size());
+    // The third poll returns the body this source already applied: it is not dispatched again,
+    // but its new ignored reason is still reported.
+    assertEquals(2, this.dispatched.size());
     assertEquals(
         asList(
             "ERROR flagSelection was ignored by the server (too_many_values). Loaded the full flag"
