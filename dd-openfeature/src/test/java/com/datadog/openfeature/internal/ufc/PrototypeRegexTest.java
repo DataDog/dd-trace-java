@@ -75,7 +75,12 @@ class PrototypeRegexTest {
           "^[[:space:]]+$",
           "^[[:cntrl:]]+$",
           "\\S+",
-          "^[^\\s]+$");
+          "^[^\\s]+$",
+          // (?i) folds a class before negating it, as the Rust crate and RE2/J do.
+          "(?i)^[^a-z]+$",
+          "(?i)x[^k]y",
+          "(?i)[^\\d]",
+          "(?i)^[^A-Z0-9]+$");
 
   @Test
   void agreesWithRegexMatcherOnEveryFixtureAndHandPickedPattern() throws IOException {
