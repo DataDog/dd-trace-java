@@ -21,15 +21,15 @@ import java.util.RandomAccess;
  */
 final class CompactList<E> extends AbstractList<E> implements RandomAccess {
   private static final Object[] NO_MORE = new Object[0];
-  private static final CompactList<Object> EMPTY = new CompactList<>(0, null, NO_MORE);
+  // The only list whose `more` is null, so the size needs no field of its own: with AbstractList's
+  // modCount, an extra int field would pad every list from 24 to 32 bytes.
+  private static final CompactList<Object> EMPTY = new CompactList<>(null, null);
 
-  private final int size;
   private final E first;
-  // The elements after the first.
+  // The elements after the first: null for the empty list, NO_MORE for one element.
   private final Object[] more;
 
-  private CompactList(final int size, final E first, final Object[] more) {
-    this.size = size;
+  private CompactList(final E first, final Object[] more) {
     this.first = first;
     this.more = more;
   }
@@ -41,15 +41,16 @@ final class CompactList<E> extends AbstractList<E> implements RandomAccess {
       case 0:
         return (List<E>) EMPTY;
       case 1:
-        return new CompactList<>(1, list.get(0), NO_MORE);
+        return new CompactList<>(list.get(0), NO_MORE);
       default:
-        return new CompactList<>(list.size(), list.get(0), list.subList(1, list.size()).toArray());
+        return new CompactList<>(list.get(0), list.subList(1, list.size()).toArray());
     }
   }
 
   @Override
   @SuppressWarnings("unchecked")
   public E get(final int index) {
+    final int size = size();
     if (index < 0 || index >= size) {
       throw new IndexOutOfBoundsException("Index " + index + " out of bounds for length " + size);
     }
@@ -58,6 +59,6 @@ final class CompactList<E> extends AbstractList<E> implements RandomAccess {
 
   @Override
   public int size() {
-    return size;
+    return more == null ? 0 : more.length + 1;
   }
 }
