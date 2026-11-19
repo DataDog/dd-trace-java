@@ -1,9 +1,12 @@
 package datadog.trace.instrumentation.spark
 
+import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+
 import com.datadoghq.sketch.ddsketch.DDSketchProtoBinding
 import com.datadoghq.sketch.ddsketch.proto.DDSketch
 import com.datadoghq.sketch.ddsketch.store.CollapsingLowestDenseStore
 import datadog.trace.agent.test.InstrumentationSpecification
+import datadog.trace.api.DDTags
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.ProcessTags
 import org.apache.spark.SparkConf
@@ -498,6 +501,139 @@ abstract class AbstractSparkListenerTest extends InstrumentationSpecification {
           operationName "spark.application"
           spanType "spark"
           assert span.context.traceId.toString() == "13959090542865903119"
+        }
+      }
+    }
+  }
+
+  def "span links mode creates an independent application trace linked to OpenLineage"() {
+    setup:
+    injectSysConfig("dd.data.jobs.spark.span-links", "true")
+    def conf = new SparkConf()
+    conf.set("spark.openlineage.parentRunId", "ad3b6baa-8d88-3b38-8dbe-f06232249a84")
+    conf.set("spark.openlineage.parentJobNamespace", "default")
+    conf.set("spark.openlineage.parentJobName", "dag-push-to-s3-spark.upload_to_s3")
+    conf.set("spark.openlineage.rootParentRunId", "01964820-5280-7674-b04e-82fbed085f39")
+    conf.set("spark.openlineage.rootParentJobNamespace", "default")
+    conf.set("spark.openlineage.rootParentJobName", "dag-push-to-s3-spark")
+    def externalContext = OpenlineageParentContext.from(conf).get()
+    def listener = getTestDatadogSparkListener(conf)
+    listener.openLineageSparkListener = Mock(SparkListenerInterface)
+    listener.openLineageSparkConf = new SparkConf()
+
+    when:
+    listener.onApplicationStart(applicationStartEvent(1000L))
+    listener.onApplicationEnd(applicationEndEvent(2000L))
+
+    then:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          operationName "spark.application"
+          spanType "spark"
+          parent()
+          assert span.context.traceId != externalContext.traceId
+          links({
+            link(externalContext.traceId, externalContext.spanId, (byte) 1)
+          })
+          assert span.tags["openlineage_parent_run_id"] == externalContext.parentRunId
+          assert listener.openLineageSparkConf
+          .get("spark.openlineage.run.tags")
+          .split(";")
+          .contains("_dd.trace_id:" + span.context.traceId)
+        }
+      }
+    }
+  }
+
+  def "span links mode ignores incomplete OpenLineage link metadata"() {
+    setup:
+    injectSysConfig("dd.data.jobs.spark.span-links", "true")
+    def conf = new SparkConf()
+      .set("spark.openlineage.parentRunId", "ad3b6baa-8d88-3b38-8dbe-f06232249a84")
+      .set("spark.openlineage.parentJobNamespace", "default")
+      .set("spark.openlineage.parentJobName", "parent")
+      .set("spark.openlineage.rootParentRunId", "01964820-5280-7674-b04e-82fbed085f39")
+      .set("spark.openlineage.rootParentJobName", "root")
+    def listener = getTestDatadogSparkListener(conf)
+
+    when:
+    listener.onApplicationStart(applicationStartEvent(1000L))
+    listener.onApplicationEnd(applicationEndEvent(2000L))
+
+    then:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          operationName "spark.application"
+          spanType "spark"
+          parent()
+          assert !span.tags.containsKey(DDTags.SPAN_LINKS)
+        }
+      }
+    }
+  }
+
+  def "span links mode ignores an ambient active span"() {
+    setup:
+    injectSysConfig("dd.data.jobs.spark.span-links", "true")
+    def listener = getTestDatadogSparkListener()
+
+    when:
+    runUnderTrace("ambient") {
+      listener.onApplicationStart(applicationStartEvent(1000L))
+      listener.onApplicationEnd(applicationEndEvent(2000L))
+    }
+
+    then:
+    assertTraces(2, SORT_TRACES_BY_NAMES) {
+      trace(1) {
+        span {
+          operationName "ambient"
+          parent()
+        }
+      }
+      trace(1) {
+        span {
+          operationName "spark.application"
+          spanType "spark"
+          parent()
+        }
+      }
+    }
+  }
+
+  def "span links mode finalizes outstanding children once and ignores late starts"() {
+    setup:
+    injectSysConfig("dd.data.jobs.spark.span-links", "true")
+    def listener = getTestDatadogSparkListener()
+    listener.onApplicationStart(applicationStartEvent(1000L))
+    listener.onJobStart(jobStartEvent(1, 1200L, [1]))
+    listener.onStageSubmitted(stageSubmittedEvent(1, 1300L))
+
+    when:
+    listener.onApplicationEnd(applicationEndEvent(2000L))
+    listener.onJobStart(jobStartEvent(2, 2100L, [2]))
+    listener.onStageSubmitted(stageSubmittedEvent(2, 2200L))
+    listener.onApplicationEnd(applicationEndEvent(2300L))
+
+    then:
+    assertTraces(1) {
+      trace(3) {
+        span {
+          operationName "spark.application"
+          spanType "spark"
+          parent()
+        }
+        span {
+          operationName "spark.job"
+          spanType "spark"
+          childOf(span(0))
+        }
+        span {
+          operationName "spark.stage"
+          spanType "spark"
+          childOf(span(1))
         }
       }
     }

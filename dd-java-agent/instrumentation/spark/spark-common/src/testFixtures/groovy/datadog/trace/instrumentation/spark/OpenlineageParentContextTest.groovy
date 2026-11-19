@@ -12,10 +12,14 @@ class OpenlineageParentContextTest extends Specification {
     mockSparkConf.contains(OpenlineageParentContext.OPENLINEAGE_PARENT_JOB_NAMESPACE) >> true
     mockSparkConf.contains(OpenlineageParentContext.OPENLINEAGE_PARENT_JOB_NAME) >> true
     mockSparkConf.contains(OpenlineageParentContext.OPENLINEAGE_PARENT_RUN_ID) >> true
+    mockSparkConf.contains(OpenlineageParentContext.OPENLINEAGE_ROOT_PARENT_JOB_NAMESPACE) >> true
+    mockSparkConf.contains(OpenlineageParentContext.OPENLINEAGE_ROOT_PARENT_JOB_NAME) >> true
     mockSparkConf.contains(OpenlineageParentContext.OPENLINEAGE_ROOT_PARENT_RUN_ID) >> true
     mockSparkConf.get(OpenlineageParentContext.OPENLINEAGE_PARENT_JOB_NAMESPACE) >> "default"
     mockSparkConf.get(OpenlineageParentContext.OPENLINEAGE_PARENT_JOB_NAME) >> "dag-push-to-s3-spark.upload_to_s3"
     mockSparkConf.get(OpenlineageParentContext.OPENLINEAGE_PARENT_RUN_ID) >> parentRunId
+    mockSparkConf.get(OpenlineageParentContext.OPENLINEAGE_ROOT_PARENT_JOB_NAMESPACE) >> "root-default"
+    mockSparkConf.get(OpenlineageParentContext.OPENLINEAGE_ROOT_PARENT_JOB_NAME) >> "dag-push-to-s3-spark"
     mockSparkConf.get(OpenlineageParentContext.OPENLINEAGE_ROOT_PARENT_RUN_ID) >> rootParentRunId
 
     then:
@@ -24,6 +28,8 @@ class OpenlineageParentContextTest extends Specification {
 
     parentContext.get().getParentJobNamespace() == "default"
     parentContext.get().getParentJobName() == "dag-push-to-s3-spark.upload_to_s3"
+    parentContext.get().getRootParentJobNamespace() == "root-default"
+    parentContext.get().getRootParentJobName() == "dag-push-to-s3-spark"
     parentContext.get().getRootParentRunId() == rootParentRunId
     parentContext.get().getParentRunId() == parentRunId
 
@@ -120,4 +126,3 @@ class OpenlineageParentContextTest extends Specification {
     "6AFEB6EE-729D-37F7-AD73-B8E6F47CA694" | true
   }
 }
-

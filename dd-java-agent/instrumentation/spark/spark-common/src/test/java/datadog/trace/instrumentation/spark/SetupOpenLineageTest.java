@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.spark;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -8,6 +9,7 @@ import static org.mockito.Mockito.when;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.IdGenerationStrategy;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -24,6 +26,7 @@ import org.apache.spark.sql.execution.metric.SQLMetricInfo;
 import org.apache.spark.util.AccumulatorV2;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
+import org.tabletest.junit.TableTest;
 
 class SetupOpenLineageTest {
 
@@ -46,6 +49,16 @@ class SetupOpenLineageTest {
       applicationEnded.setBoolean(listener, true);
     } catch (ReflectiveOperationException e) {
       throw new IllegalStateException("Could not mark application as ended", e);
+    }
+  }
+
+  private static boolean spanLinksEnabled(AbstractDatadogSparkListener listener) {
+    try {
+      Field field = AbstractDatadogSparkListener.class.getDeclaredField("spanLinksEnabled");
+      field.setAccessible(true);
+      return field.getBoolean(listener);
+    } catch (ReflectiveOperationException e) {
+      throw new IllegalStateException("Could not read the listener's span links mode", e);
     }
   }
 
@@ -82,6 +95,34 @@ class SetupOpenLineageTest {
     assertFalse(
         runTags(listener).stream().anyMatch(tag -> tag.startsWith("_dd.ol_env:")),
         "No _dd.ol_env tag should be set when env is empty");
+  }
+
+  @TableTest({
+    "scenario          | dedicated | experimental | expected",
+    "both disabled     | false     | false        | false   ",
+    "dedicated only    | true      | false        | true    ",
+    "experimental only | false     | true         | true    ",
+    "both enabled      | true      | true         | true    "
+  })
+  void capturesEffectiveSpanLinksModeAtConstruction(
+      boolean dedicated, boolean experimental, boolean expected) {
+    Config config = mock(Config.class);
+    when(config.isDataJobsSparkSpanLinksEnabled()).thenReturn(dedicated);
+    when(config.isDataJobsExperimentalFeaturesEnabled()).thenReturn(experimental);
+    when(config.getIdGenerationStrategy()).thenReturn(IdGenerationStrategy.fromName("random"));
+
+    try (MockedStatic<Config> configMock = mockStatic(Config.class)) {
+      configMock.when(Config::get).thenReturn(config);
+      TestListener listener = new TestListener(new SparkConf(), "some_app_id", "some_version");
+      markApplicationEnded(listener);
+
+      assertEquals(expected, spanLinksEnabled(listener));
+
+      // Configuration changes after construction apply only after a driver restart/new listener.
+      when(config.isDataJobsSparkSpanLinksEnabled()).thenReturn(!dedicated);
+      when(config.isDataJobsExperimentalFeaturesEnabled()).thenReturn(!experimental);
+      assertEquals(expected, spanLinksEnabled(listener));
+    }
   }
 
   /**
