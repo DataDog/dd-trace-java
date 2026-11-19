@@ -83,7 +83,6 @@ class StreamingTraceCollectorTest {
             emptyMap(),
             false,
             "",
-            0,
             collector,
             null,
             null,
