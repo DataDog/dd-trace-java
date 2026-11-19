@@ -7,6 +7,8 @@ import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
+import com.fasterxml.jackson.core.StreamReadFeature;
+import datadog.trace.util.StringCanonicalizer;
 import java.io.IOException;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
@@ -39,7 +41,13 @@ public final class UniversalFlagConfigParser {
   private static final int MAX_NESTING_DEPTH = 32;
 
   private static final JsonFactory JSON_FACTORY =
-      new JsonFactory().enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION);
+      JsonFactory.builder()
+          .enable(StreamReadFeature.STRICT_DUPLICATE_DETECTION)
+          // StringCanonicalizer shares field names within a parse. Interning them would put flag
+          // keys, variation keys and the keys of JSON values, which are customer data, in the
+          // JVM-wide string table.
+          .disable(JsonFactory.Feature.INTERN_FIELD_NAMES)
+          .build();
 
   private UniversalFlagConfigParser() {}
 
@@ -85,7 +93,7 @@ public final class UniversalFlagConfigParser {
       if (parser.nextToken() == null) {
         throw new JsonParseException(parser, "Empty document");
       }
-      final Object document = readValue(parser, 1);
+      final Object document = readValue(parser, 1, new StringCanonicalizer());
       if (parser.nextToken() != null) {
         throw new JsonParseException(parser, "Unexpected content after the document");
       }
@@ -93,7 +101,9 @@ public final class UniversalFlagConfigParser {
     }
   }
 
-  private static Object readValue(final JsonParser parser, final int depth) throws IOException {
+  private static Object readValue(
+      final JsonParser parser, final int depth, final StringCanonicalizer strings)
+      throws IOException {
     final JsonToken token = parser.currentToken();
     if ((token == JsonToken.START_OBJECT || token == JsonToken.START_ARRAY)
         && depth > MAX_NESTING_DEPTH) {
@@ -103,19 +113,22 @@ public final class UniversalFlagConfigParser {
       case START_OBJECT:
         final Map<String, Object> object = new LinkedHashMap<>();
         while (parser.nextToken() == JsonToken.FIELD_NAME) {
-          final String name = parser.currentName();
+          final String name = strings.canonical(parser.currentName());
           parser.nextToken();
-          object.put(name, readValue(parser, depth + 1));
+          object.put(name, readValue(parser, depth + 1, strings));
         }
         return object;
       case START_ARRAY:
         final List<Object> array = new ArrayList<>();
         while (parser.nextToken() != JsonToken.END_ARRAY) {
-          array.add(readValue(parser, depth + 1));
+          array.add(readValue(parser, depth + 1, strings));
         }
         return array;
       case VALUE_STRING:
-        return parser.getText();
+        // Jackson's buffer is only valid until the next token: the canonicalizer copies on a miss,
+        // so a repeated value never allocates a String.
+        return strings.canonical(
+            parser.getTextCharacters(), parser.getTextOffset(), parser.getTextLength());
       case VALUE_NUMBER_INT:
       case VALUE_NUMBER_FLOAT:
         final double number = parser.getDoubleValue();
