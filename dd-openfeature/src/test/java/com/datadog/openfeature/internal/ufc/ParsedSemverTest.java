@@ -6,6 +6,11 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Random;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -245,5 +250,157 @@ class ParsedSemverTest {
     final ParsedSemver right = ParsedSemver.parse("1.0.0+build.2");
     assertTrue(right != null);
     assertEquals(0, ParsedSemver.compare(left, right));
+  }
+
+  // --- In-place comparison of a version string with a parsed comparand ---
+
+  /** Versions beyond the lists above: omitted and extra components, edges of each part. */
+  private static final String[] EDGE_VERSIONS = {
+    "1",
+    "1.2",
+    "1.2.3.4",
+    "1.2.3.0",
+    "1.2.3.0.0-rc.1",
+    "0",
+    "0.0",
+    "1.0.0-0",
+    "1.0.0-0a",
+    "1.0.0-a.0",
+    "1.0.0--",
+    "1.0.0-a-b.c-d",
+    "1.0.0-rc.1+0",
+    "1.0.0-rc.1+00.-.a-b",
+    "1.0.0+-",
+    "1.0.0-18446744073709551615",
+    "18446744073709551615",
+    "18446744073709551615.0.18446744073709551614",
+    "18446744073709551620.0.0",
+    "1.2.3.",
+    "1..2",
+    ".1.2",
+    "1.2.3-rc.",
+    "1.2.3-.rc",
+    "1.2.3+.b",
+    "1.2.3-rc+",
+    "1.2.3+a+b",
+    "1.0.0-rc.1-",
+    "1.0.0x",
+    "1.0.0-rc.01",
+    "1.0.0-rc.00",
+  };
+
+  private static List<String> allVersions() {
+    final List<String> versions = new ArrayList<>();
+    validVersions().forEach(arguments -> versions.add((String) arguments.get()[0]));
+    versions.addAll(invalidVersions().collect(Collectors.toList()));
+    versions.addAll(Arrays.asList(ORDERED_VERSIONS));
+    versions.addAll(Arrays.asList(EDGE_VERSIONS));
+    return versions;
+  }
+
+  @Test
+  void comparesStringsInPlaceExactlyAsParsedVersions() {
+    final List<String> versions = allVersions();
+    for (final String comparandVersion : versions) {
+      final ParsedSemver comparand = ParsedSemver.parse(comparandVersion);
+      if (comparand == null) {
+        continue;
+      }
+      for (final String version : versions) {
+        assertInPlaceComparisonMatchesParse(version, comparand);
+      }
+    }
+  }
+
+  @Test
+  void comparesRandomStringsInPlaceExactlyAsParsedVersions() {
+    final Random random = new Random(13488);
+    final List<ParsedSemver> comparands = new ArrayList<>();
+    for (final String version : allVersions()) {
+      final ParsedSemver parsed = ParsedSemver.parse(version);
+      if (parsed != null) {
+        comparands.add(parsed);
+      }
+    }
+    for (int i = 0; i < 20_000; i++) {
+      final String version = randomVersion(random);
+      final ParsedSemver parsed = ParsedSemver.parse(version);
+      if (parsed != null) {
+        comparands.add(parsed);
+      }
+      for (int j = 0; j < 8; j++) {
+        assertInPlaceComparisonMatchesParse(
+            version, comparands.get(random.nextInt(comparands.size())));
+      }
+    }
+  }
+
+  private static void assertInPlaceComparisonMatchesParse(
+      final String version, final ParsedSemver comparand) {
+    final ParsedSemver parsed = ParsedSemver.parse(version);
+    final int expected =
+        parsed == null ? ParsedSemver.INVALID_ORDERING : ParsedSemver.compare(parsed, comparand);
+    assertEquals(
+        expected, ParsedSemver.compare(version, comparand), version + " against " + comparand);
+  }
+
+  /**
+   * A random string that is often a valid version: mostly digits and separators, with mutations
+   * that produce invalid input.
+   */
+  private static String randomVersion(final Random random) {
+    final StringBuilder version = new StringBuilder();
+    final int coreParts = 1 + random.nextInt(5);
+    for (int i = 0; i < coreParts; i++) {
+      if (i > 0) {
+        version.append('.');
+      }
+      version.append(randomNumber(random));
+    }
+    if (random.nextInt(3) == 0) {
+      version.append('-').append(randomIdentifiers(random));
+    }
+    if (random.nextInt(4) == 0) {
+      version.append('+').append(randomIdentifiers(random));
+    }
+    if (random.nextInt(4) == 0) {
+      final String alphabet = "0123456789.-+aZx_ ";
+      final int at = random.nextInt(version.length() + 1);
+      final char c = alphabet.charAt(random.nextInt(alphabet.length()));
+      if (random.nextBoolean() && at < version.length()) {
+        version.setCharAt(at, c);
+      } else {
+        version.insert(at, c);
+      }
+    }
+    return version.toString();
+  }
+
+  private static String randomNumber(final Random random) {
+    switch (random.nextInt(6)) {
+      case 0:
+        return "0";
+      case 1:
+        return "18446744073709551615";
+      case 2:
+        return "1844674407370955161" + random.nextInt(10);
+      case 3:
+        return Long.toString(random.nextInt(10), 10) + random.nextInt(100);
+      default:
+        return Integer.toString(random.nextInt(12));
+    }
+  }
+
+  private static String randomIdentifiers(final Random random) {
+    final String[] identifiers = {"alpha", "beta", "rc", "0", "1", "2", "11", "01", "a-b", "-", ""};
+    final StringBuilder value = new StringBuilder();
+    final int count = 1 + random.nextInt(4);
+    for (int i = 0; i < count; i++) {
+      if (i > 0) {
+        value.append('.');
+      }
+      value.append(identifiers[random.nextInt(identifiers.length)]);
+    }
+    return value.toString();
   }
 }

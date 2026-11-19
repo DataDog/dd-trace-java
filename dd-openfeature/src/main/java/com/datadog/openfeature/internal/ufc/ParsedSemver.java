@@ -17,6 +17,14 @@ public final class ParsedSemver {
   /** Sentinel returned by {@link #parse(String)} when the input is not a valid semantic version. */
   public static final ParsedSemver INVALID = null;
 
+  /**
+   * Sentinel returned by {@link #compare(String, ParsedSemver)} when the version is not a valid
+   * semantic version. No valid comparison returns it.
+   */
+  public static final int INVALID_ORDERING = Integer.MIN_VALUE;
+
+  private static final long MAX_UNSIGNED_DIV_10 = Long.divideUnsigned(-1L, 10);
+
   private final long[] core; // unsigned, with omitted minor and patch normalized to zero
   private final int coreLength;
   private final String prerelease;
@@ -109,6 +117,84 @@ public final class ParsedSemver {
   }
 
   /**
+   * Compares a version string with a parsed comparand by precedence, without parsing the string
+   * into a {@link ParsedSemver}. The string is validated and compared in one pass: its core
+   * components are read digit by digit and its prerelease is compared as a range of the string.
+   * Build metadata is validated but ignored.
+   *
+   * <p>The result is exactly {@code compare(parse(version), comparand)} when {@code version} is
+   * valid, and {@link #INVALID_ORDERING} when {@link #parse(String)} would reject it.
+   *
+   * @param version the version string to validate and compare
+   * @param comparand the right operand
+   * @return negative, zero or positive as for {@link #compare(ParsedSemver, ParsedSemver)}, or
+   *     {@link #INVALID_ORDERING} if {@code version} is not a valid semantic version
+   */
+  public static int compare(final String version, final ParsedSemver comparand) {
+    final int length = version.length();
+    int ordering = 0;
+    int component = 0;
+    int next = 0;
+    while (true) {
+      // Read one core component with the leading zero and unsigned 64-bit overflow checks of parse
+      if (next >= length || !isASCIIDigit(version.charAt(next))) {
+        return INVALID_ORDERING;
+      }
+      long value = version.charAt(next++) - '0';
+      if (value != 0) {
+        while (next < length && isASCIIDigit(version.charAt(next))) {
+          if (Long.compareUnsigned(value, MAX_UNSIGNED_DIV_10) > 0) {
+            return INVALID_ORDERING; // overflow
+          }
+          final long shifted = value * 10;
+          value = shifted + (version.charAt(next++) - '0');
+          if (Long.compareUnsigned(value, shifted) < 0) {
+            return INVALID_ORDERING; // overflow
+          }
+        }
+      }
+      if (ordering == 0) {
+        ordering = Long.compareUnsigned(value, comparand.coreComponent(component));
+      }
+      component++;
+      if (next == length || version.charAt(next) != '.') {
+        break;
+      }
+      next++;
+    }
+    // Components the version omits are zero
+    for (; ordering == 0 && component < comparand.coreLength; component++) {
+      ordering = Long.compareUnsigned(0, comparand.core[component]);
+    }
+
+    int prereleaseStart = next;
+    int prereleaseEnd = next;
+    if (next < length) {
+      final int buildStart;
+      if (version.charAt(next) == '-') {
+        prereleaseStart = next + 1;
+        buildStart = version.indexOf('+', prereleaseStart);
+        prereleaseEnd = buildStart == -1 ? length : buildStart;
+        if (!validSemverIdentifiers(version, prereleaseStart, prereleaseEnd, false)) {
+          return INVALID_ORDERING;
+        }
+      } else if (version.charAt(next) == '+') {
+        buildStart = next;
+      } else {
+        return INVALID_ORDERING;
+      }
+      if (buildStart != -1 && !validSemverIdentifiers(version, buildStart + 1, length, true)) {
+        return INVALID_ORDERING;
+      }
+    }
+    if (ordering != 0) {
+      return ordering;
+    }
+    final String right = comparand.prerelease;
+    return comparePrerelease(version, prereleaseStart, prereleaseEnd, right, 0, right.length());
+  }
+
+  /**
    * Finds the end of a core version identifier (major, minor, or patch), rejecting leading zeros
    * except for the value zero itself.
    */
@@ -184,23 +270,37 @@ public final class ParsedSemver {
     if (left.equals(right)) {
       return 0;
     }
-    if (left.isEmpty()) {
-      return 1; // release > prerelease
+    return comparePrerelease(left, 0, left.length(), right, 0, right.length());
+  }
+
+  /**
+   * Compares the prereleases {@code left[leftStart, leftEnd)} and {@code right[rightStart,
+   * rightEnd)}, where an empty range is a release.
+   */
+  private static int comparePrerelease(
+      final String left,
+      final int leftStart,
+      final int leftEnd,
+      final String right,
+      final int rightStart,
+      final int rightEnd) {
+    if (leftStart == leftEnd) {
+      return rightStart == rightEnd ? 0 : 1; // release > prerelease
     }
-    if (right.isEmpty()) {
+    if (rightStart == rightEnd) {
       return -1; // prerelease < release
     }
 
-    int leftPos = 0;
-    int rightPos = 0;
+    int leftPos = leftStart;
+    int rightPos = rightStart;
     while (true) {
       // Compare the next identifier of each side in place
-      final int leftDot = left.indexOf('.', leftPos);
-      final int rightDot = right.indexOf('.', rightPos);
-      final int leftEnd = leftDot == -1 ? left.length() : leftDot;
-      final int rightEnd = rightDot == -1 ? right.length() : rightDot;
+      final int leftDot = indexOfDot(left, leftPos, leftEnd);
+      final int rightDot = indexOfDot(right, rightPos, rightEnd);
+      final int leftIdEnd = leftDot == -1 ? leftEnd : leftDot;
+      final int rightIdEnd = rightDot == -1 ? rightEnd : rightDot;
 
-      final int ordering = compareIdentifier(left, leftPos, leftEnd, right, rightPos, rightEnd);
+      final int ordering = compareIdentifier(left, leftPos, leftIdEnd, right, rightPos, rightIdEnd);
       if (ordering != 0) {
         return ordering;
       }
@@ -217,6 +317,12 @@ public final class ParsedSemver {
       leftPos = leftDot + 1;
       rightPos = rightDot + 1;
     }
+  }
+
+  /** Returns the index of the first '.' in {@code value[start, end)}, or -1 if there is none. */
+  private static int indexOfDot(final String value, final int start, final int end) {
+    final int dot = value.indexOf('.', start);
+    return dot < end ? dot : -1;
   }
 
   /**

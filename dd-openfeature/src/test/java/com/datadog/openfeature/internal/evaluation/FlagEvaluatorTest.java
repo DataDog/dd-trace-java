@@ -251,23 +251,6 @@ class FlagEvaluatorTest {
 
   private static final int SEMVER_STEPS = 10;
 
-  @Test
-  void parsesEachSemverAttributeValueOncePerEvaluation() throws IOException {
-    final Flag ladder = semverLadder().flags.get("ladder");
-    final MutableContext context = new MutableContext("user");
-    context.add("app_version", "1.9.99"); // only the last step matches, so every rule runs
-    context.add("os_version", "2.1.0");
-    final SemverParseCache cache = new SemverParseCache();
-
-    for (final Allocation allocation : ladder.allocations) {
-      if (allocation.rules != null) {
-        FlagEvaluator.evaluateRules(allocation.rules, context, cache);
-      }
-    }
-
-    assertEquals(2, cache.parses());
-  }
-
   @TableTest({
     "scenario                    | appVersion                                             | osVersion | variant",
     "lowest step                 | 1.0.0                                                  | 2.1.0     | v0     ",
