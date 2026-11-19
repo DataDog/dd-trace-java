@@ -40,8 +40,10 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.DynamicConfig;
 import datadog.trace.api.EndpointTracker;
 import datadog.trace.api.IdGenerationStrategy;
+import datadog.trace.api.IdStore;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.Pair;
+import datadog.trace.api.SizingHint;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.civisibility.config.BazelMode;
@@ -1126,8 +1128,26 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     if (operationName == null) {
       operationName = prototype.operationName();
     }
-    CoreSpanBuilder builder =
-        createMultiSpanBuilder(prototype.instrumentationName(), operationName);
+    return seedFrom(
+        createMultiSpanBuilder(prototype.instrumentationName(), operationName), prototype);
+  }
+
+  /**
+   * Like {@link #buildSpan(SpanPrototype, CharSequence)}, for one span only: the thread's reusable
+   * builder carries the prototype (see {@link #singleSpanBuilder(String, CharSequence)}), which it
+   * drops when reset for the next span.
+   */
+  @Override
+  public CoreSpanBuilder singleSpanBuilder(
+      @Nonnull final SpanPrototype prototype, CharSequence operationName) {
+    if (operationName == null) {
+      operationName = prototype.operationName();
+    }
+    return seedFrom(singleSpanBuilder(prototype.instrumentationName(), operationName), prototype);
+  }
+
+  /** Seeds {@code builder}'s prototype and span type; its tags are seeded when the span starts. */
+  private static CoreSpanBuilder seedFrom(CoreSpanBuilder builder, SpanPrototype prototype) {
     builder.spanPrototype = prototype;
     if (prototype.spanType() != null) {
       builder.spanType = prototype.spanType();
@@ -1408,8 +1428,18 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
           writtenTrace.get(i).setTag(APM_ENABLED, 0);
         }
       }
+      // Record before handing off: the writer may drop the trace unserialized (client-side stats
+      // drops sampled-out traces by policy, a full queue drops anything), and an operation whose
+      // traces are always dropped would otherwise never tune its hint. Serialization records again,
+      // with the tags it adds.
+      if (IdStore.recordsSizes()) {
+        recordDenseSizes(writtenTrace);
+      }
       writer.write(writtenTrace);
     } else {
+      if (IdStore.recordsSizes()) {
+        recordDenseSizes(writtenTrace);
+      }
       // with span streaming this won't work - it needs to be changed
       // to track an effective sampling rate instead, however, tests
       // checking that a hard reference on a continuation prevents
@@ -1418,6 +1448,19 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     }
     if (null != rootSpan) {
       onRootSpanFinished(rootSpan, rootSpan.getEndpointTracker());
+    }
+  }
+
+  /**
+   * Tunes each span's per-operation sizing hint for every trace, written or dropped; written spans
+   * are recorded again when they're serialized, with every tag present. Done here rather than at
+   * span finish: the early post-processors and the root's sampling decision add tags after a span
+   * finishes, and a hint that missed them would leave every later span of the operation growing its
+   * store.
+   */
+  private static void recordDenseSizes(List<DDSpan> trace) {
+    for (int i = 0; i < trace.size(); i++) {
+      trace.get(i).spanContext().recordDenseSize();
     }
   }
 
@@ -2329,6 +2372,15 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         parentOrigin = DDSpanContext.PARENT_ORIGIN_LOCAL;
       }
 
+      // Per-operation dense-store sizing: an entry (local-root) span carries tags a child doesn't,
+      // so the lane is chosen by whether there's a local parent. A span using its prototype's own
+      // operation name gets the hint cached on the prototype; any other span (including NONE's,
+      // which has no operation name) gets its operation's hint from the table. Null with the dense
+      // store off -- the flag test folds, so the default path does no lookup.
+      final SizingHint sizingHint =
+          spanPrototype.sizingHint(
+              !(resolvedParentSpanContext instanceof DDSpanContext), operationName);
+
       // some attributes are inherited from the parent
       context =
           new DDSpanContext(
@@ -2357,7 +2409,8 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
               tracer.injectBaggageAsTags,
               tracer.injectLinksAsTags,
               mergedTracerTagsNeedsIntercept ? null : mergedTracerTags,
-              parentOrigin);
+              parentOrigin,
+              sizingHint);
 
       // By setting the tags on the context we apply decorators to any tags that have been set via
       // the builder. The `mergedTracerTags` are always applied first (the precedence floor:

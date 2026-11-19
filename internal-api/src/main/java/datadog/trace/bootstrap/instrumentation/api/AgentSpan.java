@@ -27,7 +27,8 @@ public interface AgentSpan
         ImplicitContextKeyed,
         Context,
         IGSpanInfo,
-        WithAgentSpan {
+        WithAgentSpan,
+        SpanData {
 
   /**
    * Extracts the span from the current {@link Context}.
@@ -173,6 +174,18 @@ public interface AgentSpan
   default AgentSpan setTagsFrom(final TagContributor contributor) {
     if (contributor != null) {
       contributor.addTo(this);
+    }
+    return this;
+  }
+
+  /**
+   * Sets tags recorded earlier from a source that outlives the span -- the cached form of {@link
+   * #setTagsFrom(Object, TagExtractor)}: equivalent to replaying the recorded writes, without
+   * reading the source again. See {@link FrozenTags}.
+   */
+  default AgentSpan setTagsFrom(final FrozenTags frozen) {
+    if (frozen != null) {
+      frozen.replay(this);
     }
     return this;
   }

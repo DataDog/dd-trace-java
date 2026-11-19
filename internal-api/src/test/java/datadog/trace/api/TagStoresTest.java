@@ -181,6 +181,179 @@ class TagStoresTest {
     assertEquals("/a", child.load(KnownTags.HTTP_ROUTE));
   }
 
+  /** A frozen-style source: a parentless dense store holding {@code ids}, each set to its name. */
+  private static DenseIdStore denseSource(long... ids) {
+    DenseIdStore source = new DenseIdStore(null);
+    for (long id : ids) {
+      source.store(id, KnownTagCodec.nameOf(id));
+    }
+    return source;
+  }
+
+  @Test
+  void seedAbsentCopiesEveryTagWhenNoneMayBePresent() {
+    DenseIdStore source = denseSource(KnownTags.COMPONENT, KnownTags.SPAN_KIND);
+    DenseIdStore target = new DenseIdStore(null);
+    target.store(KnownTags.HTTP_ROUTE, "/a");
+    assertEquals(
+        0L, source.spanOccupancy & target.spanOccupancy, "test precondition: disjoint slots");
+
+    assertTrue(target.seedAbsent(source));
+    assertEquals(3, target.size());
+    assertEquals("component", target.load(KnownTags.COMPONENT));
+    assertEquals("span.kind", target.load(KnownTags.SPAN_KIND));
+    assertEquals("/a", target.load(KnownTags.HTTP_ROUTE));
+    target.checkIntegrity();
+  }
+
+  @Test
+  void seedAbsentRefusesWhenAnyTagMayBePresent() {
+    DenseIdStore source = denseSource(KnownTags.COMPONENT, KnownTags.SPAN_KIND);
+    DenseIdStore target = new DenseIdStore(null);
+    target.store(KnownTags.COMPONENT, "explicit");
+
+    assertFalse(target.seedAbsent(source));
+    assertEquals(1, target.size(), "nothing copied");
+    assertEquals("explicit", target.load(KnownTags.COMPONENT));
+  }
+
+  @Test
+  void seedAbsentRefusesASourceWithAParentOrTombstones() {
+    DenseIdStore parent = denseSource(KnownTags.COMPONENT);
+    DenseIdStore child = new DenseIdStore(parent);
+    child.store(KnownTags.SPAN_KIND, "server");
+    assertFalse(new DenseIdStore(null).seedAbsent(child), "read-through source");
+
+    DenseIdStore tombstoned = new DenseIdStore(parent);
+    tombstoned.remove(KnownTags.COMPONENT);
+    assertFalse(new DenseIdStore(null).seedAbsent(tombstoned), "tombstoned source");
+  }
+
+  @Test
+  void seedAbsentGrowsTheTargetToFit() {
+    DenseIdStore source =
+        denseSource(KnownTags.COMPONENT, KnownTags.SPAN_KIND, KnownTags.HTTP_ROUTE);
+    DenseIdStore target = new DenseIdStore(null); // shared empty arrays: no room yet
+
+    assertTrue(target.seedAbsent(source));
+    assertEquals(3, target.size());
+    assertEquals("http.route", target.load(KnownTags.HTTP_ROUTE));
+    target.checkIntegrity();
+  }
+
+  @Test
+  void theHashStoreNeverSeedsInBulk() {
+    HashIdStore target = new HashIdStore(null);
+    assertFalse(target.seedAbsent(denseSource(KnownTags.COMPONENT)));
+    assertFalse(target.seedAbsent(new HashIdStore(null)));
+    assertFalse(target.seedPartial(denseSource(KnownTags.COMPONENT), target, TagStoresTest::put));
+  }
+
+  /** The caller's tag-by-tag fallback for a partial seed: an overwriting put. */
+  private static void put(IdStore target, TagMap.EntryReader entry) {
+    target.store(entry.tagId(), entry.objectValue());
+  }
+
+  @Test
+  void partialSeedAppendsTheAbsentAndHandsBackTheRest() {
+    DenseIdStore source =
+        denseSource(KnownTags.COMPONENT, KnownTags.SPAN_KIND, KnownTags.HTTP_ROUTE);
+    DenseIdStore target = new DenseIdStore(null);
+    target.store(KnownTags.COMPONENT, "explicit");
+    long componentBit = DenseIdStore.slotBit(KnownTags.COMPONENT);
+    assertNotEquals(componentBit, DenseIdStore.slotBit(KnownTags.SPAN_KIND), "precondition");
+    assertNotEquals(componentBit, DenseIdStore.slotBit(KnownTags.HTTP_ROUTE), "precondition");
+
+    Map<Long, Object> handedBack = new HashMap<>();
+    assertTrue(
+        target.seedPartial(
+            source,
+            target,
+            (store, entry) -> {
+              handedBack.put(entry.tagId(), entry.objectValue());
+              put(store, entry);
+            }));
+
+    assertEquals(1, handedBack.size());
+    assertEquals("component", handedBack.get(KnownTags.COMPONENT));
+    assertEquals(3, target.size());
+    assertEquals("component", target.load(KnownTags.COMPONENT)); // overwritten by the caller
+    assertEquals("span.kind", target.load(KnownTags.SPAN_KIND));
+    assertEquals("http.route", target.load(KnownTags.HTTP_ROUTE));
+    target.checkIntegrity();
+  }
+
+  @Test
+  void partialSeedCopiesInOneGoWhenNothingMayBePresent() {
+    DenseIdStore source = denseSource(KnownTags.COMPONENT, KnownTags.SPAN_KIND);
+    DenseIdStore target = new DenseIdStore(null);
+
+    assertTrue(
+        target.seedPartial(
+            source,
+            target,
+            (store, entry) -> {
+              throw new AssertionError("nothing may be present: " + entry.tag());
+            }));
+    assertEquals(2, target.size());
+    target.checkIntegrity();
+  }
+
+  @Test
+  void partialSeedHandsBackATagThatOnlySharesASlot() {
+    // a set bit only means "maybe present": a different tag in the same slot still goes the slow
+    // way, and the caller's put then appends it
+    long[] pair = twoSpanLevelTagsInOneSlot();
+    DenseIdStore source = denseSource(pair[0]);
+    DenseIdStore target = new DenseIdStore(null);
+    target.store(pair[1], "other");
+
+    Map<Long, Object> handedBack = new HashMap<>();
+    assertTrue(
+        target.seedPartial(
+            source,
+            target,
+            (store, entry) -> {
+              handedBack.put(entry.tagId(), entry.objectValue());
+              put(store, entry);
+            }));
+
+    assertEquals(1, handedBack.size());
+    assertEquals(2, target.size());
+    assertEquals("other", target.load(pair[1]));
+    assertNotNull(target.load(pair[0]));
+    target.checkIntegrity();
+  }
+
+  /** Two known span-level tags that share an occupancy slot. */
+  private static long[] twoSpanLevelTagsInOneSlot() {
+    Map<Long, Long> bySlot = new HashMap<>();
+    for (int serial = 1; serial < KnownTagCodec.serialLimit(); serial++) {
+      long tagId = KnownTagCodec.idOf((char) serial);
+      if (tagId == 0 || DenseIdStore.levelOf(tagId) != DenseIdStore.SPAN_LEVEL) {
+        continue;
+      }
+      Long earlier = bySlot.putIfAbsent(DenseIdStore.slotBit(tagId), tagId);
+      if (earlier != null) {
+        return new long[] {tagId, earlier};
+      }
+    }
+    assumeTrue(false, "no two span-level tags share a slot");
+    return null;
+  }
+
+  @Test
+  void partialSeedRefusesASourceWithAParentOrTombstones() {
+    DenseIdStore parent = denseSource(KnownTags.COMPONENT);
+    DenseIdStore child = new DenseIdStore(parent);
+    child.store(KnownTags.SPAN_KIND, "server");
+    DenseIdStore target = new DenseIdStore(null);
+    target.store(KnownTags.SPAN_KIND, "client"); // so the all-at-once copy can't take it
+
+    assertFalse(target.seedPartial(child, target, TagStoresTest::put), "read-through source");
+    assertEquals(1, target.size(), "nothing copied");
+  }
+
   @Test
   void aTraceLevelTagDoesNotDefeatADenseSpanLevelMissInTheSameSlot() {
     // A local root span holds trace-level and span-level tags in one store, and the two levels are

@@ -39,7 +39,61 @@ public abstract class IdStore {
    * @return a fresh, empty id store
    */
   public static IdStore create(TagMap parent) {
-    return IdStoreFactory.Default.INSTANCE.create(parent == null ? null : parent.knownStore);
+    return create(parent, null);
+  }
+
+  /**
+   * Like {@link #create(TagMap)}, presized from {@code hint} (see {@link SizingHintTable}); a null
+   * hint, or a store that isn't sized per span, ignores it.
+   */
+  public static IdStore create(TagMap parent, @Nullable SizingHint hint) {
+    return IdStoreFactory.Default.INSTANCE.create(parent == null ? null : parent.knownStore, hint);
+  }
+
+  /**
+   * Feeds this store's size back into the hint it was presized from -- a best-effort, racy max, so
+   * later stores of the same operation are presized to it. A store created without a hint, or with
+   * a capped one, or that isn't sized per span, does nothing.
+   */
+  public void recordSize() {}
+
+  /**
+   * Whether this JVM's stores are sized per span (the dense store), so {@link #recordSize} does
+   * anything. Constant for the JVM, so a caller's test folds and skips the walk with it off.
+   */
+  public static boolean recordsSizes() {
+    return IdStoreFactory.Default.DENSE;
+  }
+
+  /**
+   * Copies every tag of {@code source} in at once if none of them can already be present here --
+   * locally, as a tombstone, or inherited -- and returns true; otherwise copies nothing and returns
+   * false, and the caller seeds tag by tag. A store that can't prove absence in bulk always returns
+   * false. {@code source} must be frozen.
+   */
+  public boolean seedAbsent(IdStore source) {
+    return false;
+  }
+
+  /**
+   * The partial form of {@link #seedAbsent(IdStore)}: copies in the tags of {@code source} that
+   * can't already be present here, hands each of the rest to {@code maybePresent} for the caller to
+   * set tag by tag, and returns true. Returns false, having done nothing, when this store can't
+   * seed in bulk at all or {@code source} isn't a plain frozen list of tags; the caller then sets
+   * every tag itself. {@code source} must be frozen, and {@code maybePresent} must not keep the
+   * entry it is handed.
+   */
+  public <T> boolean seedPartial(
+      IdStore source, T thisObj, BiConsumer<T, ? super EntryReader> maybePresent) {
+    return false;
+  }
+
+  /**
+   * Whether {@link #seedAbsent} can ever succeed for this kind of store, so a caller can skip it,
+   * and the lock it needs, when it can't.
+   */
+  public boolean supportsBulkSeed() {
+    return false;
   }
 
   /**
@@ -217,7 +271,7 @@ public abstract class IdStore {
    *
    * @param consumer receives each visible entry
    */
-  abstract void forEach(Consumer<? super EntryReader> consumer);
+  public abstract void forEach(Consumer<? super EntryReader> consumer);
 
   /**
    * {@link #forEach(Consumer)} with a context object, so the consumer can be a non-capturing lambda
@@ -227,7 +281,7 @@ public abstract class IdStore {
    * @param thisObj passed as the consumer's first argument
    * @param consumer receives {@code thisObj} and each visible entry
    */
-  abstract <T> void forEach(T thisObj, BiConsumer<T, ? super EntryReader> consumer);
+  public abstract <T> void forEach(T thisObj, BiConsumer<T, ? super EntryReader> consumer);
 
   /**
    * {@link #forEach(Object, BiConsumer)} with a second context object: {@code store.forEach(this,
@@ -237,7 +291,7 @@ public abstract class IdStore {
    * @param otherObj passed as the consumer's second argument
    * @param consumer receives both context objects and each visible entry
    */
-  abstract <T, U> void forEach(
+  public abstract <T, U> void forEach(
       T thisObj, U otherObj, TriConsumer<T, U, ? super EntryReader> consumer);
 
   /**

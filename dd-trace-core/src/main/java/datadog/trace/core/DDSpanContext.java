@@ -20,12 +20,14 @@ import datadog.trace.api.IdStore;
 import datadog.trace.api.KnownTagCodec;
 import datadog.trace.api.KnownTags;
 import datadog.trace.api.ProcessTags;
+import datadog.trace.api.SizingHint;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.TagStore;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.config.TracerConfig;
 import datadog.trace.api.datastreams.PathwayContext;
+import datadog.trace.api.function.NoEscape;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
@@ -37,11 +39,16 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AppendableSpanLinks;
 import datadog.trace.bootstrap.instrumentation.api.Baggage;
 import datadog.trace.bootstrap.instrumentation.api.ClientIpAddressData;
+import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
+import datadog.trace.bootstrap.instrumentation.api.FrozenTags;
 import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
+import datadog.trace.bootstrap.instrumentation.api.SpanData;
 import datadog.trace.bootstrap.instrumentation.api.SpanKind;
 import datadog.trace.bootstrap.instrumentation.api.SpanPrototype;
+import datadog.trace.bootstrap.instrumentation.api.TagContributor;
+import datadog.trace.bootstrap.instrumentation.api.TagExtractor;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.propagation.PropagationTags;
@@ -61,6 +68,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Function;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -384,6 +392,10 @@ public class DDSpanContext
         null);
   }
 
+  /**
+   * Without a sizing hint: for tests and benchmarks that build contexts directly. The tracer uses
+   * the constructor that takes one.
+   */
   public DDSpanContext(
       final DDTraceId traceId,
       final long spanId,
@@ -436,7 +448,8 @@ public class DDSpanContext
         injectBaggageAsTags,
         injectLinksAsTags,
         readThroughParent,
-        parentId == DDSpanId.ZERO ? PARENT_ORIGIN_NONE : PARENT_ORIGIN_LOCAL);
+        parentId == DDSpanId.ZERO ? PARENT_ORIGIN_NONE : PARENT_ORIGIN_LOCAL,
+        null);
   }
 
   public DDSpanContext(
@@ -465,7 +478,8 @@ public class DDSpanContext
       final boolean injectBaggageAsTags,
       final boolean injectLinksAsTags,
       final TagMap readThroughParent,
-      final byte parentOrigin) {
+      final byte parentOrigin,
+      @Nullable final SizingHint sizingHint) {
 
     assert traceCollector != null;
     this.traceCollector = traceCollector;
@@ -494,7 +508,7 @@ public class DDSpanContext
 
     // Reads through to the frozen tracer-level tags, if any.
     TagMap parentTags = TagMap.readThroughParent(readThroughParent);
-    this.knownTags = IdStore.create(parentTags);
+    this.knownTags = IdStore.create(parentTags, sizingHint);
     this.customTags = HashStore.inheritedFrom(parentTags);
     this.customTagsBorrowed = this.customTags != null;
 
@@ -699,11 +713,8 @@ public class DDSpanContext
    *
    * <p>This is the construction-time seam ({@code CoreSpanBuilder}) -- see {@link
    * #applyOverwriting} for the decorator {@code afterStart} seam (via {@link
-   * DDSpan#applyOverwriting}), which needs different precedence. The context owns the tag map, so
-   * the eventual cheaper bulk-share path (skipping interception for non-intercepted tags) and the
-   * identity short-circuit will land here, with the dense store; a tag's intercept status is
-   * already on its id ({@link KnownTagCodec#isIntercepted}). Until then each constant tag is
-   * prechecked by the interceptor, identical to the per-tag calls this replaces.
+   * DDSpan#applyOverwriting}), which needs different precedence. The tags are seeded by {@link
+   * #seedPrototypeTags}, in bulk where the store and the prototype allow it.
    */
   public void apply(@Nonnull final SpanPrototype prototype) {
     if (this.spanType == null) {
@@ -712,11 +723,7 @@ public class DDSpanContext
         setSpanType(spanType);
       }
     }
-    final SpanKind kind = prototype.kind();
-    if (kind != null) {
-      seedAbsentSpanKind(kind, prototype.tags());
-    }
-    seedAbsentTags(prototype.tags());
+    seedPrototypeTags(prototype);
     if (this.integrationName == null) {
       final CharSequence integrationName = prototype.integrationName();
       if (integrationName != null) {
@@ -737,7 +744,9 @@ public class DDSpanContext
       setSpanType(spanType);
     }
     final TagMap tags = prototype.tags();
-    setAllTags(tags, true);
+    if (!overwriteInBulk(prototype)) {
+      setAllTags(tags, true);
+    }
     tagInterceptor.resolveSplitByTagsPrecedence(this, tags);
     final CharSequence integrationName = prototype.integrationName();
     if (integrationName != null) {
@@ -746,40 +755,186 @@ public class DDSpanContext
   }
 
   /**
-   * Seeds a standard {@code span.kind} if the span has none: sets the kind ordinal straight from
-   * the enum and stores the prototype's own tag entry. That's what interception would do (cache the
-   * ordinal and keep the tag) without comparing strings; {@link #seedAbsentTags} then skips the tag
-   * as already present.
+   * How a {@link SpanPrototype}'s or {@link FrozenTags}' tags are copied into a span, cached on the
+   * prototype or frozen tags for the interceptor it was checked against ({@link
+   * SpanPrototype#seedPlan}, {@link FrozenTags#applyPlan}).
    */
-  private void seedAbsentSpanKind(final SpanKind kind, final TagMap prototypeTags) {
-    synchronized (knownTags) {
-      if (knownTags.getEntryReader(KnownTags.SPAN_KIND) == null) {
-        spanKindOrdinal = spanKindOrdinalOf(kind);
-        routePut(prototypeTags.getEntry(Tags.SPAN_KIND));
+  private static final class SeedPlan {
+    final TagInterceptor interceptor;
+
+    /**
+     * The store can seed in bulk (the dense store) and no known tag needs the interceptor beyond
+     * span.kind (TagInterceptor#canSeedInBulk). False with the dense store off, so the default path
+     * never tries.
+     */
+    final boolean bulk;
+
+    /** The ordinal of the prototype's span.kind, or SPAN_KIND_UNSET. */
+    final byte kindOrdinal;
+
+    SeedPlan(TagInterceptor interceptor, boolean bulk, byte kindOrdinal) {
+      this.interceptor = interceptor;
+      this.bulk = bulk;
+      this.kindOrdinal = kindOrdinal;
+    }
+  }
+
+  /** The prototype's span.kind ordinal: from its {@link SpanKind} when standard, else its tag. */
+  private static byte kindOrdinalOf(final SpanPrototype prototype) {
+    SpanKind kind = prototype.kind();
+    if (kind != null) {
+      return spanKindOrdinalOf(kind);
+    }
+    TagMap.Entry custom = prototype.tags().getEntry(KnownTags.SPAN_KIND);
+    return custom == null ? SPAN_KIND_UNSET : spanKindOrdinalOf(custom.stringValue());
+  }
+
+  private SeedPlan seedPlanFor(final SpanPrototype prototype) {
+    Object cached = prototype.seedPlan();
+    if (isCurrentPlan(cached)) {
+      return (SeedPlan) cached;
+    }
+    SeedPlan plan = newSeedPlan(prototype.tags(), kindOrdinalOf(prototype));
+    prototype.seedPlan(plan);
+    return plan;
+  }
+
+  private SeedPlan seedPlanFor(final FrozenTags frozen) {
+    Object cached = frozen.applyPlan();
+    if (isCurrentPlan(cached)) {
+      return (SeedPlan) cached;
+    }
+    TagMap tags = frozen.tags();
+    SeedPlan plan = newSeedPlan(tags, kindOrdinalOf(tags));
+    if (plan.bulk && (frozen.isReplayOnly() || anyCustomTagIntercepted(tags))) {
+      // copying the net result in wouldn't be the same as the writes: replay them instead
+      plan = new SeedPlan(tagInterceptor, false, plan.kindOrdinal);
+    }
+    frozen.applyPlan(plan);
+    return plan;
+  }
+
+  /**
+   * Whether split-by-tags routes any of {@code tags}' custom tags. canSeedInBulk leaves custom tags
+   * out, since a prototype seeds them one at a time; frozen tags in bulk set them in no particular
+   * order, which only matters when they're routed, the last routed write deciding the service.
+   */
+  private boolean anyCustomTagIntercepted(final TagMap tags) {
+    HashStore custom = tags.customStore();
+    if (custom == null) {
+      return false;
+    }
+    for (final TagMap.EntryReader tagEntry : tags) {
+      if (tagEntry.tagId() == 0 && tagInterceptor.needsInterceptCustomTag(tagEntry.tag())) {
+        return true;
       }
+    }
+    return false;
+  }
+
+  private boolean isCurrentPlan(final Object cached) {
+    return cached instanceof SeedPlan && ((SeedPlan) cached).interceptor == tagInterceptor;
+  }
+
+  private SeedPlan newSeedPlan(final TagMap tags, final byte kindOrdinal) {
+    return new SeedPlan(
+        tagInterceptor,
+        tags.knownStore().supportsBulkSeed() && tagInterceptor.canSeedInBulk(tags),
+        kindOrdinal);
+  }
+
+  /** The span.kind ordinal of {@code tags}' own span.kind tag, or SPAN_KIND_UNSET. */
+  private static byte kindOrdinalOf(final TagMap tags) {
+    TagMap.Entry kind = tags.getEntry(KnownTags.SPAN_KIND);
+    return kind == null ? SPAN_KIND_UNSET : spanKindOrdinalOf(kind.stringValue());
+  }
+
+  /**
+   * Seeds a prototype's tags where the span doesn't already have them, so explicit tags keep
+   * precedence over the prototype's constant defaults. Two paths:
+   *
+   * <ul>
+   *   <li><b>Bulk</b>, when no known tag needs the interceptor beyond span.kind and none of them
+   *       can already be present: the known tags are copied in at once ({@link
+   *       IdStore#seedAbsent}), and span.kind's one effect, the cached kind ordinal, is set
+   *       directly.
+   *   <li><b>Tag by tag</b> otherwise, through the interceptor, mirroring {@link
+   *       #setAllTags(TagMap, boolean)}'s intercepting path but skipping any tag already set.
+   * </ul>
+   *
+   * Custom tags always go tag by tag.
+   */
+  private void seedPrototypeTags(final SpanPrototype prototype) {
+    final TagMap tags = prototype.tags();
+    final SeedPlan plan = seedPlanFor(prototype);
+    synchronized (knownTags) {
+      if (seedKnownInBulk(plan, tags)) {
+        HashStore custom = tags.customStore();
+        if (custom != null) {
+          // rare: a prototype with custom tags seeds those one at a time
+          custom.forEach(this, (ctx, tagEntry) -> ctx.seedIfAbsent(tagEntry));
+        }
+        return;
+      }
+      tags.forEach(this, (ctx, tagEntry) -> ctx.seedIfAbsent(tagEntry));
     }
   }
 
   /**
-   * Seeds tags that are not already present, routed through the interceptor. Mirrors {@link
-   * #setAllTags(TagMap, boolean)}'s intercepting path but skips any key already set, so explicit
-   * tags keep precedence over the prototype's constant defaults.
+   * The bulk step shared by {@link #seedPrototypeTags} and {@link #overwriteInBulk}: when the plan
+   * allows it and the masks prove none of the prototype's known tags can already be on the span,
+   * copies them in at once ({@link IdStore#seedAbsent}) and sets span.kind's ordinal directly, and
+   * returns true. Otherwise changes nothing and returns false. Call under the {@code knownTags}
+   * lock; custom tags are the caller's.
    */
-  private void seedAbsentTags(final TagMap map) {
-    if (map == null) {
-      return;
+  private boolean seedKnownInBulk(final SeedPlan plan, final TagMap tags) {
+    if (!plan.bulk || !knownTags.seedAbsent(tags.knownStore())) {
+      return false;
     }
+    if (plan.kindOrdinal != SPAN_KIND_UNSET) {
+      spanKindOrdinal = plan.kindOrdinal;
+    }
+    return true;
+  }
+
+  /**
+   * The overwriting counterpart of {@link #seedPrototypeTags}'s bulk path: when the masks prove
+   * none of the prototype's known tags is on the span, overwriting them is just appending them, so
+   * they are copied in at once ({@link IdStore#seedAbsent}) and span.kind's ordinal set directly.
+   * Custom tags go through the interceptor one at a time. Returns false, having changed nothing,
+   * when the prototype needs the interceptor or a tag may already be present; the caller then
+   * overwrites tag by tag.
+   */
+  private boolean overwriteInBulk(final SpanPrototype prototype) {
+    final SeedPlan plan = seedPlanFor(prototype);
+    if (!plan.bulk) {
+      return false; // checked before taking the lock: the caller locks again on its fallback
+    }
+    final TagMap tags = prototype.tags();
     synchronized (knownTags) {
-      map.forEach(
-          this,
-          (ctx, tagEntry) -> {
-            if (ctx.isPresent(tagEntry)) {
-              return;
-            }
-            if (!ctx.tagInterceptor.interceptTag(ctx, tagEntry)) {
-              ctx.routePut(tagEntry);
-            }
-          });
+      if (!seedKnownInBulk(plan, tags)) {
+        return false;
+      }
+      HashStore custom = tags.customStore();
+      if (custom != null) {
+        // rare: a prototype with custom tags overwrites those one at a time
+        custom.forEach(this, (ctx, tagEntry) -> ctx.putIntercepted(tagEntry));
+      }
+      return true;
+    }
+  }
+
+  /** Seeds one tag if the span doesn't have it yet. Call under the {@code knownTags} lock. */
+  private void seedIfAbsent(final TagMap.EntryReader tagEntry) {
+    if (!isPresent(tagEntry)) {
+      putIntercepted(tagEntry);
+    }
+  }
+
+  /** Puts one tag, unless the interceptor routes it. Call under the {@code knownTags} lock. */
+  private void putIntercepted(final TagMap.EntryReader tagEntry) {
+    if (!tagInterceptor.interceptTag(this, tagEntry)) {
+      routePut(tagEntry);
     }
   }
 
@@ -1580,6 +1735,444 @@ public class DDSpanContext
     }
   }
 
+  /*
+   * The *HoldingLock variants: the same tag semantics as setTag / removeTag / getTag (a null value
+   * removes, the tag interceptor runs), for a caller that already holds the knownTags lock, so a
+   * batch takes the lock once. Only HeldSpanData calls them, during setTagsFrom.
+   */
+
+  void setTagHoldingLock(final String tag, final Object value) {
+    if (null == tag) {
+      return;
+    }
+    final long tagId = KnownTagCodec.keyOf(tag);
+    if (tagId != 0) {
+      setTagHoldingLock(tagId, value);
+    } else if (null == value) {
+      removeTagHoldingLock(tag);
+    } else if (!tagInterceptor.interceptCustomTag(this, tag, value)) {
+      customTagsForWrite().store(tag, value); // already known to be custom
+    }
+  }
+
+  void setTagHoldingLock(final String tag, final String value) {
+    if (null == tag) {
+      return;
+    }
+    final long tagId = KnownTagCodec.keyOf(tag);
+    if (tagId != 0) {
+      setTagHoldingLock(tagId, value);
+    } else if (null == value) {
+      removeTagHoldingLock(tag);
+    } else if (!tagInterceptor.interceptCustomTag(this, tag, value)) {
+      customTagsForWrite().store(tag, value); // already known to be custom
+    }
+  }
+
+  void setTagHoldingLock(final long tagId, final Object value) {
+    if (!KnownTagCodec.isKnown(tagId)) {
+      return;
+    }
+    if (null == value) {
+      removeTagHoldingLock(tagId);
+      return;
+    }
+    if (!tagInterceptor.needsIntercept(tagId) || !tagInterceptor.interceptTag(this, tagId, value)) {
+      knownTags.store(tagId, value);
+    }
+  }
+
+  void setTagHoldingLock(final long tagId, final CharSequence value) {
+    if (!KnownTagCodec.isKnown(tagId)) {
+      return;
+    }
+    if (null == value) {
+      removeTagHoldingLock(tagId);
+      return;
+    }
+    if (!tagInterceptor.needsIntercept(tagId) || !tagInterceptor.interceptTag(this, tagId, value)) {
+      knownTags.store(tagId, value);
+    }
+  }
+
+  void setTagHoldingLock(final long tagId, final boolean value) {
+    if (!KnownTagCodec.isKnown(tagId)) {
+      return;
+    }
+    if (tagInterceptor.needsIntercept(tagId)) {
+      this.setBoxHoldingLock(tagId, value);
+    } else {
+      knownTags.store(tagId, value);
+    }
+  }
+
+  void setTagHoldingLock(final long tagId, final int value) {
+    if (!KnownTagCodec.isKnown(tagId)) {
+      return;
+    }
+    if (tagInterceptor.needsIntercept(tagId)) {
+      this.setBoxHoldingLock(tagId, value);
+    } else {
+      knownTags.store(tagId, value);
+    }
+  }
+
+  void setTagHoldingLock(final long tagId, final long value) {
+    if (!KnownTagCodec.isKnown(tagId)) {
+      return;
+    }
+    if (tagInterceptor.needsIntercept(tagId)) {
+      this.setBoxHoldingLock(tagId, value);
+    } else {
+      knownTags.store(tagId, value);
+    }
+  }
+
+  void setTagHoldingLock(final long tagId, final float value) {
+    if (!KnownTagCodec.isKnown(tagId)) {
+      return;
+    }
+    if (tagInterceptor.needsIntercept(tagId)) {
+      this.setBoxHoldingLock(tagId, value);
+    } else {
+      knownTags.store(tagId, value);
+    }
+  }
+
+  void setTagHoldingLock(final long tagId, final double value) {
+    if (!KnownTagCodec.isKnown(tagId)) {
+      return;
+    }
+    if (tagInterceptor.needsIntercept(tagId)) {
+      this.setBoxHoldingLock(tagId, value);
+    } else {
+      knownTags.store(tagId, value);
+    }
+  }
+
+  void setTagHoldingLock(TagMap.EntryReader entry) {
+    if (entry == null) {
+      return;
+    }
+
+    // the interceptor prechecks the entry, to avoid boxing
+    if (!tagInterceptor.interceptTag(this, entry)) {
+      routePut(entry);
+    }
+  }
+
+  void setTagHoldingLock(final String tag, final boolean value) {
+    if (null == tag) {
+      return;
+    }
+    final long tagId = KnownTagCodec.keyOf(tag);
+    if (tagId != 0) {
+      setTagHoldingLock(tagId, value);
+    } else if (!tagInterceptor.needsInterceptCustomTag(tag)
+        || !tagInterceptor.interceptCustomTag(this, tag, value)) {
+      customTagsForWrite().store(tag, value); // already known to be custom
+    }
+  }
+
+  void setTagHoldingLock(final String tag, final int value) {
+    if (null == tag) {
+      return;
+    }
+    final long tagId = KnownTagCodec.keyOf(tag);
+    if (tagId != 0) {
+      setTagHoldingLock(tagId, value);
+    } else if (!tagInterceptor.needsInterceptCustomTag(tag)
+        || !tagInterceptor.interceptCustomTag(this, tag, value)) {
+      customTagsForWrite().store(tag, value); // already known to be custom
+    }
+  }
+
+  void setTagHoldingLock(final String tag, final long value) {
+    if (null == tag) {
+      return;
+    }
+    final long tagId = KnownTagCodec.keyOf(tag);
+    if (tagId != 0) {
+      setTagHoldingLock(tagId, value);
+    } else if (!tagInterceptor.needsInterceptCustomTag(tag)
+        || !tagInterceptor.interceptCustomTag(this, tag, value)) {
+      customTagsForWrite().store(tag, value); // already known to be custom
+    }
+  }
+
+  void setTagHoldingLock(final String tag, final float value) {
+    if (null == tag) {
+      return;
+    }
+    final long tagId = KnownTagCodec.keyOf(tag);
+    if (tagId != 0) {
+      setTagHoldingLock(tagId, value);
+    } else if (!tagInterceptor.needsInterceptCustomTag(tag)
+        || !tagInterceptor.interceptCustomTag(this, tag, value)) {
+      customTagsForWrite().store(tag, value); // already known to be custom
+    }
+  }
+
+  void setTagHoldingLock(final String tag, final double value) {
+    if (null == tag) {
+      return;
+    }
+    final long tagId = KnownTagCodec.keyOf(tag);
+    if (tagId != 0) {
+      setTagHoldingLock(tagId, value);
+    } else if (!tagInterceptor.needsInterceptCustomTag(tag)
+        || !tagInterceptor.interceptCustomTag(this, tag, value)) {
+      customTagsForWrite().store(tag, value); // already known to be custom
+    }
+  }
+
+  void removeTagHoldingLock(String tag) {
+    if (tagEquals(tag, Tags.SPAN_KIND)) {
+      // Clear the cached ordinal; the tag store still needs to be updated below.
+      spanKindOrdinal = SPAN_KIND_UNSET;
+    }
+    routeRemoval(tag);
+  }
+
+  void removeTagHoldingLock(long tagId) {
+    if (!KnownTagCodec.isKnown(tagId)) {
+      return;
+    }
+    if (tagId == KnownTags.SPAN_KIND) {
+      spanKindOrdinal = SPAN_KIND_UNSET;
+    }
+    knownTags.remove(tagId);
+  }
+
+  private void setBoxHoldingLock(long tagId, Object box) {
+    if (!tagInterceptor.interceptTag(this, tagId, box)) {
+      knownTags.store(tagId, box);
+    }
+  }
+
+  Object getTagHoldingLock(final String key) {
+    return readTag(key, true);
+  }
+
+  /**
+   * Applies {@code extractor} to {@code source} holding the tag lock once for the whole call: the
+   * extractor's writes go through a {@link HeldSpanData}, which keeps the span's tag semantics but
+   * doesn't lock again. Kept small so it inlines and each call site sees its exact extractor type.
+   */
+  <T> void setTagsFrom(final T source, final TagExtractor<T> extractor) {
+    synchronized (knownTags) {
+      extractor.extract(source, new HeldSpanData(this));
+    }
+  }
+
+  /** {@link #setTagsFrom(Object, TagExtractor)} for a {@link TagContributor}. */
+  void setTagsFrom(final TagContributor contributor) {
+    synchronized (knownTags) {
+      contributor.addTo(new HeldSpanData(this));
+    }
+  }
+
+  /**
+   * Applies frozen tags as if their recorded writes were made now, under one lock. When the plan
+   * allows bulk -- no write needs the interceptor beyond span.kind, and none removes a tag or sets
+   * an empty value -- their net result is copied in: the known tags the masks prove absent at once,
+   * the ones that may be present (typically set earlier from another source, which these overwrite)
+   * one at a time through the interceptor, as {@code setTag} does (the partial {@code
+   * IdStore.seedPartial}), then span.kind's ordinal directly and the custom tags one at a time.
+   * Otherwise the writes are replayed in order, exactly as the extraction made them. Returns
+   * whether the bulk path was taken, for tests.
+   */
+  boolean setTagsFrom(final FrozenTags frozen) {
+    final SeedPlan plan = seedPlanFor(frozen);
+    final TagMap tags = frozen.tags();
+    synchronized (knownTags) {
+      if (plan.bulk
+          && knownTags.seedPartial(
+              tags.knownStore(), this, (ctx, tagEntry) -> ctx.putIntercepted(tagEntry))) {
+        if (plan.kindOrdinal != SPAN_KIND_UNSET) {
+          spanKindOrdinal = plan.kindOrdinal;
+        }
+        HashStore custom = tags.customStore();
+        if (custom != null) {
+          custom.forEach(this, (ctx, tagEntry) -> ctx.putIntercepted(tagEntry));
+        }
+        return true;
+      }
+      frozen.replay(new HeldSpanData(this));
+      return false;
+    }
+  }
+
+  /** Whether the current thread holds this span's tag lock; for assertions. */
+  boolean holdsTagLock() {
+    return Thread.holdsLock(knownTags);
+  }
+
+  /**
+   * The span as a {@link SpanData} for the length of one {@code setTagsFrom} call, which holds the
+   * tag lock throughout: tag writes and reads skip relocking. It must not outlive the call; with
+   * the contributor's call site monomorphic, it is scalar-replaced.
+   */
+  @NoEscape
+  static final class HeldSpanData implements SpanData {
+    private final DDSpanContext span;
+
+    HeldSpanData(DDSpanContext span) {
+      this.span = span;
+    }
+
+    /** The span, checking (with assertions on) that this is still inside its setTagsFrom call. */
+    private DDSpanContext span() {
+      assert span.holdsTagLock() : "HeldSpanData used outside its setTagsFrom call";
+      return span;
+    }
+
+    @Override
+    public SpanData setTag(String key, Object value) {
+      span().setTagHoldingLock(key, value);
+      return this;
+    }
+
+    @Override
+    public SpanData setTag(String key, String value) {
+      // DDSpan.setTag(String, String) treats an empty string as a removal; so must the held path.
+      if (value == null || value.isEmpty()) {
+        span().removeTagHoldingLock(key);
+      } else {
+        span().setTagHoldingLock(key, value);
+      }
+      return this;
+    }
+
+    @Override
+    public SpanData setTag(String key, CharSequence value) {
+      // As DDSpan.setTag(String, CharSequence): an empty value removes the tag.
+      if (value == null || value.length() == 0) {
+        span().removeTagHoldingLock(key);
+      } else {
+        span().setTagHoldingLock(key, (Object) value);
+      }
+      return this;
+    }
+
+    @Override
+    public SpanData setTag(String key, boolean value) {
+      span().setTagHoldingLock(key, value);
+      return this;
+    }
+
+    @Override
+    public SpanData setTag(String key, int value) {
+      span().setTagHoldingLock(key, value);
+      return this;
+    }
+
+    @Override
+    public SpanData setTag(String key, long value) {
+      span().setTagHoldingLock(key, value);
+      return this;
+    }
+
+    @Override
+    public SpanData setTag(String key, float value) {
+      span().setTagHoldingLock(key, value);
+      return this;
+    }
+
+    @Override
+    public SpanData setTag(String key, double value) {
+      span().setTagHoldingLock(key, value);
+      return this;
+    }
+
+    @Override
+    public SpanData setTag(long tagId, Object value) {
+      span().setTagHoldingLock(tagId, value);
+      return this;
+    }
+
+    @Override
+    public SpanData setTag(long tagId, String value) {
+      // As DDSpan.setTag(long, String): an empty string removes the tag.
+      if (value == null || value.isEmpty()) {
+        span().removeTagHoldingLock(tagId);
+      } else {
+        span().setTagHoldingLock(tagId, (CharSequence) value);
+      }
+      return this;
+    }
+
+    @Override
+    public SpanData setTag(long tagId, CharSequence value) {
+      // As DDSpan.setTag(long, CharSequence): an empty value removes the tag.
+      if (value == null || value.length() == 0) {
+        span().removeTagHoldingLock(tagId);
+      } else {
+        span().setTagHoldingLock(tagId, value);
+      }
+      return this;
+    }
+
+    @Override
+    public SpanData setTag(long tagId, boolean value) {
+      span().setTagHoldingLock(tagId, value);
+      return this;
+    }
+
+    @Override
+    public SpanData setTag(long tagId, int value) {
+      span().setTagHoldingLock(tagId, value);
+      return this;
+    }
+
+    @Override
+    public SpanData setTag(long tagId, long value) {
+      span().setTagHoldingLock(tagId, value);
+      return this;
+    }
+
+    @Override
+    public SpanData setTag(long tagId, float value) {
+      span().setTagHoldingLock(tagId, value);
+      return this;
+    }
+
+    @Override
+    public SpanData setTag(long tagId, double value) {
+      span().setTagHoldingLock(tagId, value);
+      return this;
+    }
+
+    @Override
+    public SpanData setTag(TagMap.EntryReader entry) {
+      span().setTagHoldingLock(entry);
+      return this;
+    }
+
+    @Override
+    public Object getTag(String key) {
+      return span().getTagHoldingLock(key);
+    }
+
+    @Override
+    public SpanData setResourceName(CharSequence resourceName) {
+      span().setResourceName(resourceName, ResourceNamePriorities.DEFAULT);
+      return this;
+    }
+
+    @Override
+    public SpanData setError(boolean error) {
+      span().setErrorFlag(error, ErrorPriorities.DEFAULT);
+      return this;
+    }
+
+    @Override
+    public SpanData setMeasured(boolean measured) {
+      span().setMeasured(measured);
+      return this;
+    }
+  }
+
   void setAllTags(final TagMap map) {
     setAllTags(map, true);
   }
@@ -1594,13 +2187,7 @@ public class DDSpanContext
         // forEach out-performs the iterator of TagMap
         // Taking advantage of ability to pass through other context arguments
         // to avoid using a capturing lambda
-        map.forEach(
-            this,
-            (ctx, tagEntry) -> {
-              if (!ctx.tagInterceptor.interceptTag(ctx, tagEntry)) {
-                ctx.routePut(tagEntry);
-              }
-            });
+        map.forEach(this, (ctx, tagEntry) -> ctx.putIntercepted(tagEntry));
       } else {
         routePutAll(map);
       }
@@ -1670,6 +2257,14 @@ public class DDSpanContext
   }
 
   Object getTag(final String key) {
+    return readTag(key, false);
+  }
+
+  /**
+   * {@link #getTag}, with the computed tags and the observable-type quirks in one place. Only the
+   * stored-tag read needs the lock; {@code holdingLock} is constant at each call site, so it folds.
+   */
+  private Object readTag(final String key, final boolean holdingLock) {
     switch (key) {
       case DDTags.THREAD_ID:
         return threadId;
@@ -1683,8 +2278,12 @@ public class DDSpanContext
         return getSpanKindString();
       default:
         Object value;
-        synchronized (knownTags) {
+        if (holdingLock) {
           value = unsafeGetTag(key);
+        } else {
+          synchronized (knownTags) {
+            value = unsafeGetTag(key);
+          }
         }
         // maintain previously observable type of http url :|
         return value == null ? null : Tags.HTTP_URL.equals(key) ? value.toString() : value;
@@ -1859,6 +2458,15 @@ public class DDSpanContext
     }
   }
 
+  /**
+   * Feeds this span's known-tag count back into its operation's {@link SizingHint}, held by its
+   * dense store, so later spans of the operation are presized. A best-effort racy max; with the
+   * dense store off this does nothing.
+   */
+  void recordDenseSize() {
+    knownTags.recordSize();
+  }
+
   void earlyProcessTags(AppendableSpanLinks links) {
     synchronized (knownTags) {
       TagsPostProcessorFactory.eagerProcessor().processTags(this, this, links);
@@ -1912,6 +2520,10 @@ public class DDSpanContext
           tags.set(SPAN_EVENTS, eventsTag);
         }
       }
+
+      // Tune the operation's sizing hint now that every tag, serialization-time ones included, is
+      // present. CoreTracer.write has already recorded the span without them.
+      recordDenseSize();
 
       // Baggage
       Map<String, String> baggageItemsWithPropagationTags;
