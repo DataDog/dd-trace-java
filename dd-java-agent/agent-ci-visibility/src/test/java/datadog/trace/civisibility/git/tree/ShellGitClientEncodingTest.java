@@ -150,8 +150,9 @@ class ShellGitClientEncodingTest {
     "UTF-8        | UTF-8             | https://example.com/café/東京/repo.git",
     "Windows-1252 | windows-1252      | https://example.com/équipe-€/repo.git "
   })
-  void readsRemoteUrlsWithLegacyWindowsHostCharset(String metadataEncoding, String remoteUrl)
+  void readsRemoteUrlsWithLegacyHostCharset(String metadataEncoding, String remoteUrl)
       throws Exception {
+    // These properties exercise charset fallback, not native Windows process or filesystem APIs.
     System.setProperty("native.encoding", "windows-1252");
     System.setProperty("sun.jnu.encoding", "UTF-8");
     Charset charset = Charset.forName(metadataEncoding);
@@ -161,6 +162,37 @@ class ShellGitClientEncodingTest {
 
     assertEquals(remoteUrl, client.getRemoteUrl("origin"));
     assertEquals(remoteUrl, new GitConfig(config.toString()).getString("remote \"origin\"", "url"));
+  }
+
+  @Test
+  void readsMixedEncodingConfigValuesIndependently() throws Exception {
+    Charset legacyCharset = Charset.forName("windows-1252");
+    System.setProperty("native.encoding", legacyCharset.name());
+    String remoteUrl = "https://example.com/équipe/repo.git";
+    ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+    bytes.write("# café\n[user]\nname = René\n".getBytes(legacyCharset));
+    bytes.write(("[remote \"origin\"]\nurl = " + remoteUrl + "\n").getBytes(UTF_8));
+    Path config = directory.resolve("config");
+    Files.write(config, bytes.toByteArray());
+
+    ShellCommandExecutor executor =
+        new ShellCommandExecutor(directory.toFile(), GIT_COMMAND_TIMEOUT_MILLIS);
+    String gitUrl =
+        executor
+            .executeCommand(
+                input -> IOUtils.readFully(input, UTF_8),
+                "git",
+                "config",
+                "--file",
+                config.toString(),
+                "--get",
+                "remote.origin.url")
+            .trim();
+    GitConfig parsed = new GitConfig(config.toString());
+
+    assertEquals(remoteUrl, gitUrl);
+    assertEquals(remoteUrl, parsed.getString("remote \"origin\"", "url"));
+    assertEquals("René", parsed.getString("user", "name"));
   }
 
   @TableTest({
@@ -322,9 +354,6 @@ class ShellGitClientEncodingTest {
   })
   void readsCommitMetadataOnLegacyHosts(String commitCharset, String encodingHeader)
       throws Exception {
-    assumeTrue(
-        !isWindows() || UTF_8.name().equals(commitCharset) || encodingHeader != null,
-        "Legacy metadata fallback uses the Unix host charset");
     System.setProperty("native.encoding", "ISO-8859-1");
     ShellCommandExecutor executor =
         new ShellCommandExecutor(directory.toFile(), GIT_COMMAND_TIMEOUT_MILLIS);

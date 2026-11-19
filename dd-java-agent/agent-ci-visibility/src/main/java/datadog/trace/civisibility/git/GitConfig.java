@@ -1,11 +1,11 @@
 package datadog.trace.civisibility.git;
 
 import static datadog.trace.api.git.GitUtils.decodeMetadata;
+import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.StringReader;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Paths;
@@ -36,11 +36,13 @@ public class GitConfig {
     // 	 fetch = +refs/heads/*:refs/remotes/origin/*
 
     // Git config retains stored text bytes; i18n.logOutputEncoding does not transcode this file.
-    try (final BufferedReader br =
-        new BufferedReader(new StringReader(decodeMetadata(Files.readAllBytes(Paths.get(path)))))) {
+    // Preserve bytes while splitting lines so a legacy comment or value cannot change how an
+    // unrelated UTF-8 value is decoded.
+    try (final BufferedReader br = Files.newBufferedReader(Paths.get(path), ISO_8859_1)) {
       String line;
       String section = null;
       while ((line = br.readLine()) != null) {
+        line = decodeMetadata(line.getBytes(ISO_8859_1));
 
         // Check if current line matches with the `section` regex:
         int sectionStartIdx = line.indexOf('[');
