@@ -71,6 +71,7 @@ public class JfrCliHelper {
               jfr.toString(),
               "-J-Dfile.encoding=UTF-8",
               "-J-Dstdout.encoding=UTF-8",
+              "-J-Dsun.stdout.encoding=UTF-8",
               "summary",
               tmp.toAbsolutePath().toString());
       builder.redirectInput(ProcessBuilder.Redirect.INHERIT);

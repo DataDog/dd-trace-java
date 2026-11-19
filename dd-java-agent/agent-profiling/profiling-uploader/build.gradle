@@ -13,10 +13,12 @@ tasks.named('compileTestJava', JavaCompile) {
 }
 
 tasks.named('forkedTest', Test) {
-  // Exercise localised counts and sizes with a different parent JVM default charset.
+  // Exercise localised numbers and an inherited override of file.encoding.
   systemProperty 'file.encoding', 'ISO-8859-1'
   environment 'JAVA_TOOL_OPTIONS',
     "${environment['JAVA_TOOL_OPTIONS'] ?: ''} -Dfile.encoding=ISO-8859-1 -Duser.language=ar -Duser.country=EG"
+  environment '_JAVA_OPTIONS',
+    "${environment['_JAVA_OPTIONS'] ?: ''} -Dfile.encoding=ISO-8859-1"
 }
 
 excludedClassesCoverage += [

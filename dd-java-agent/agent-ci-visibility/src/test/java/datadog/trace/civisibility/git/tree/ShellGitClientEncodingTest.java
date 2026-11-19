@@ -19,6 +19,7 @@ import datadog.trace.civisibility.git.GitConfig;
 import datadog.trace.civisibility.git.LocalFSGitInfoExtractor;
 import datadog.trace.civisibility.utils.ShellCommandExecutor;
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.lang.reflect.Field;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
@@ -102,6 +103,45 @@ class ShellGitClientEncodingTest {
   }
 
   @TableTest({
+    "Scenario                    | Filesystem encoding | Filename encoding",
+    "UTF-8 names on ASCII host   | US-ASCII            | UTF-8            ",
+    "UTF-8 names on Latin-1 host | ISO-8859-1          | UTF-8            ",
+    "legacy Latin-1 names        | ISO-8859-1          | ISO-8859-1       "
+  })
+  void readsDiffFilenamesIndependentOfFileContents(
+      String filesystemEncoding, String filenameEncoding) throws Exception {
+    Charset filenameCharset = Charset.forName(filenameEncoding);
+    assumeTrue(!isWindows() || UTF_8.equals(filenameCharset), "Windows pathnames use UTF-8");
+    System.setProperty("native.encoding", filesystemEncoding);
+    System.setProperty("sun.jnu.encoding", filesystemEncoding);
+    ByteArrayOutputStream diff = new ByteArrayOutputStream();
+    diff.write("diff --git CaféTest.java CaféTest.java\n".getBytes(filenameCharset));
+    diff.write("@@ -1 +1 @@\n-old café\n+new café\n".getBytes(Charset.forName("ISO-8859-1")));
+
+    assertTrue(
+        GitDiffParser.parse(new ByteArrayInputStream(diff.toByteArray()))
+            .contains("CaféTest.java", 1, 1));
+  }
+
+  @TableTest({
+    "Scenario     | Metadata encoding | Remote URL                            ",
+    "UTF-8        | UTF-8             | https://example.com/café/東京/repo.git",
+    "Windows-1252 | windows-1252      | https://example.com/équipe-€/repo.git "
+  })
+  void readsRemoteUrlsWithLegacyWindowsHostCharset(String metadataEncoding, String remoteUrl)
+      throws Exception {
+    System.setProperty("native.encoding", "windows-1252");
+    System.setProperty("sun.jnu.encoding", "UTF-8");
+    Charset charset = Charset.forName(metadataEncoding);
+    ShellGitClient client = clientWithOutput((remoteUrl + "\n").getBytes(charset));
+    Path config = directory.resolve("config");
+    Files.write(config, ("[remote \"origin\"]\nurl = " + remoteUrl + "\n").getBytes(charset));
+
+    assertEquals(remoteUrl, client.getRemoteUrl("origin"));
+    assertEquals(remoteUrl, new GitConfig(config.toString()).getString("remote \"origin\"", "url"));
+  }
+
+  @TableTest({
     "Scenario                 | Native encoding | Filesystem encoding | Metadata encoding | Value   ",
     "UTF-8 host               | UTF-8           | UTF-8               | UTF-8             | café    ",
     "ASCII host               | US-ASCII        | US-ASCII            | UTF-8             | équipe  ",
@@ -118,7 +158,7 @@ class ShellGitClientEncodingTest {
     Charset outputCharset = Charset.forName(metadataEncoding);
     assumeTrue(
         !isWindows() || UTF_8.equals(outputCharset) || "US-ASCII".equals(metadataEncoding),
-        "Git for Windows uses UTF-8 for local names and config");
+        "Legacy ref fixtures use Unix pathname bytes");
     System.setProperty("native.encoding", nativeEncoding);
     System.setProperty("sun.jnu.encoding", filesystemEncoding);
     ShellGitClient client = clientWithOutput((value + "\n").getBytes(outputCharset));

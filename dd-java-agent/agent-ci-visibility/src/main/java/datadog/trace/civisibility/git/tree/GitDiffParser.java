@@ -1,12 +1,16 @@
 package datadog.trace.civisibility.git.tree;
 
 import static datadog.trace.api.git.GitUtils.getFilesystemCharset;
+import static java.nio.charset.StandardCharsets.ISO_8859_1;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 import datadog.trace.civisibility.diff.LineDiff;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.ByteBuffer;
+import java.nio.charset.CharacterCodingException;
 import java.util.BitSet;
 import java.util.HashMap;
 import java.util.Map;
@@ -24,9 +28,8 @@ public class GitDiffParser {
   public static @Nonnull LineDiff parse(InputStream input) throws IOException {
     Map<String, BitSet> linesByRelativePath = new HashMap<>();
 
-    // Only filenames and ASCII hunk headers are parsed; file contents may use another charset.
-    BufferedReader bufferedReader =
-        new BufferedReader(new InputStreamReader(input, getFilesystemCharset()));
+    // Preserve pathname bytes while skipping file contents, whose charset may differ.
+    BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(input, ISO_8859_1));
     String changedFile = null;
     BitSet changedLines = null;
 
@@ -37,7 +40,7 @@ public class GitDiffParser {
         if (changedFile != null) {
           linesByRelativePath.put(changedFile, changedLines);
         }
-        changedFile = changedFileMatcher.group("newfilename");
+        changedFile = decodeFilename(changedFileMatcher.group("newfilename"));
         changedLines = new BitSet();
 
       } else {
@@ -62,5 +65,14 @@ public class GitDiffParser {
     }
 
     return new LineDiff(linesByRelativePath);
+  }
+
+  private static String decodeFilename(String filename) {
+    byte[] bytes = filename.getBytes(ISO_8859_1);
+    try {
+      return UTF_8.newDecoder().decode(ByteBuffer.wrap(bytes)).toString();
+    } catch (CharacterCodingException e) {
+      return new String(bytes, getFilesystemCharset());
+    }
   }
 }

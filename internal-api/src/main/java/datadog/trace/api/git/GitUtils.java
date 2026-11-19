@@ -66,14 +66,12 @@ public class GitUtils {
     return OperatingSystem.nativeCharset();
   }
 
-  /** Decode valid UTF-8 metadata first, falling back to the local Git charset for legacy bytes. */
+  /** Decode valid UTF-8 metadata first, falling back to the host charset for legacy bytes. */
   public static String decodeMetadata(byte[] bytes) {
     try {
       return StandardCharsets.UTF_8.newDecoder().decode(ByteBuffer.wrap(bytes)).toString();
     } catch (CharacterCodingException e) {
-      return new String(
-          bytes,
-          OperatingSystem.isWindows() ? StandardCharsets.UTF_8 : OperatingSystem.nativeCharset());
+      return new String(bytes, OperatingSystem.nativeCharset());
     }
   }
 
