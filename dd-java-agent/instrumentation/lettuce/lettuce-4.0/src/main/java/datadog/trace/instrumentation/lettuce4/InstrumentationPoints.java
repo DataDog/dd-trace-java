@@ -8,6 +8,7 @@ import static com.lambdaworks.redis.protocol.CommandType.CONFIG;
 import static com.lambdaworks.redis.protocol.CommandType.DEBUG;
 import static com.lambdaworks.redis.protocol.CommandType.SCRIPT;
 import static com.lambdaworks.redis.protocol.CommandType.SHUTDOWN;
+import static datadog.trace.api.KnownTags.DB_COMMAND_CANCELLED;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
@@ -58,17 +59,16 @@ public final class InstrumentationPoints {
     } else if (expectsResponse(command)) {
       // Register the callback before closing the scope so the active span is correct when
       // the CompletableFuture instrumentation captures context for the finishing lambda.
-      asyncCommand.handleAsync(
-          (value, ex) -> {
-            if (ex instanceof CancellationException) {
-              span.setTag("db.command.cancelled", true);
-            } else {
-              DECORATE.onError(span, ex);
-            }
-            DECORATE.beforeFinish(span);
-            span.finish();
-            return null;
-          });
+      asyncCommand.handleAsync((value, ex) -> {
+        if (ex instanceof CancellationException) {
+          span.setTag(DB_COMMAND_CANCELLED, true);
+        } else {
+          DECORATE.onError(span, ex);
+        }
+        DECORATE.beforeFinish(span);
+        span.finish();
+        return null;
+      });
       scope.close();
     } else {
       // No response is expected, so we must finish the span now.

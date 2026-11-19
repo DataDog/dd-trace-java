@@ -74,11 +74,10 @@ public class JfrCliHelper {
 
       try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
         Future<?> asyncRedirect =
-            executorService.submit(
-                () -> {
-                  redirect(process.getInputStream(), out);
-                  return true;
-                });
+            executorService.submit(() -> {
+              redirect(process.getInputStream(), out);
+              return true;
+            });
 
         if (!process.waitFor(30, TimeUnit.SECONDS)) {
           ioLogger.error("Failed to gather information on recording, `jfr` never finished");
@@ -129,13 +128,12 @@ public class JfrCliHelper {
       events.stream()
           .sorted(Comparator.comparing(Event::getSize).reversed())
           .limit(10)
-          .forEach(
-              event -> {
-                ioLogger.error(
-                    String.format(
-                        "Event: %s, size = %d, count = %d",
-                        event.getType(), event.getSize(), event.getCount()));
-              });
+          .forEach(event -> {
+            ioLogger.error(
+                String.format(
+                    "Event: %s, size = %d, count = %d",
+                    event.getType(), event.getSize(), event.getCount()));
+          });
     } catch (Exception e) {
       ioLogger.error("Failed to gather information on recording", e);
       return;

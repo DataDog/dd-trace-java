@@ -29,11 +29,8 @@ muzzle {
 }
 
 addTestSuiteForDir('latestDepTest', 'test')
-addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 addTestSuiteForDir('graphql20LatestDepTest', 'test')
-addTestSuiteExtendingForDir('graphql20LatestDepForkedTest', 'graphql20LatestDepTest', 'test')
 addTestSuiteForDir('graphql21LatestDepTest', 'test')
-addTestSuiteExtendingForDir('graphql21LatestDepForkedTest', 'graphql21LatestDepTest', 'test')
 
 dependencies {
   compileOnly group: 'com.graphql-java', name: 'graphql-java', version: '20.0'
@@ -52,12 +49,8 @@ dependencies {
 [
   "compileLatestDepTestJava",
   "compileLatestDepTestGroovy",
-  "compileLatestDepForkedTestJava",
-  "compileLatestDepForkedTestGroovy",
   "compileGraphql21LatestDepTestJava",
-  "compileGraphql21LatestDepTestGroovy",
-  "compileGraphql21LatestDepForkedTestJava",
-  "compileGraphql21LatestDepForkedTestGroovy"
+  "compileGraphql21LatestDepTestGroovy"
 ].each {
   tasks.named(it) {
     configureCompiler(it, JavaVersion.VERSION_11)
@@ -65,12 +58,7 @@ dependencies {
 }
 
 tasks.matching {
-  it.name in [
-    "latestDepTest",
-    "latestDepForkedTest",
-    "graphql21LatestDepTest",
-    "graphql21LatestDepForkedTest"
-  ]
+  it.name in ["latestDepTest", "graphql21LatestDepTest"]
 }.configureEach {
   testJvmConstraints {
     minJavaVersion = JavaVersion.VERSION_11

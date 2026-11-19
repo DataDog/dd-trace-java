@@ -442,7 +442,7 @@ class ConfigurationComparerTest {
       resultMap.put(
           PROBE_ID.getId(),
           new InstrumentationResult(
-              InstrumentationResult.Status.INSTALLED,
+              Collections.singletonMap(PROBE_ID, InstrumentationResult.Status.INSTALLED),
               Collections.emptyMap(),
               new MethodInfo(null, classNode, new MethodNode(), null)));
     }

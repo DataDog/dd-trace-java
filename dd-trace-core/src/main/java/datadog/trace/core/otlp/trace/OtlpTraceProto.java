@@ -14,13 +14,14 @@ import static datadog.trace.common.writer.ddagent.TraceMapper.PROCESS_TAGS_KEY;
 import static datadog.trace.common.writer.ddagent.TraceMapper.SAMPLING_PRIORITY_KEY;
 import static datadog.trace.common.writer.ddagent.TraceMapper.THREAD_ID;
 import static datadog.trace.common.writer.ddagent.TraceMapper.THREAD_NAME;
-import static datadog.trace.core.CoreSpan.OWN_PROPAGATION_TAGS;
+import static datadog.trace.core.CoreSpan.ROOT_PROPAGATION_TAGS;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.I32_WIRE_TYPE;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.I64_WIRE_TYPE;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.LEN_WIRE_TYPE;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.VARINT_WIRE_TYPE;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.sizeVarInt;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.writeAttribute;
+import static datadog.trace.core.otlp.common.OtlpCommonProto.writeBytesAttribute;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.writeI32;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.writeI64;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.writeInstrumentationScope;
@@ -30,16 +31,26 @@ import static datadog.trace.core.otlp.common.OtlpCommonProto.writeVarInt;
 import static datadog.trace.core.otlp.common.OtlpTraceFlags.NO_TRACE_FLAGS;
 import static datadog.trace.core.otlp.common.OtlpTraceFlags.REMOTE_TRACE_FLAG;
 import static datadog.trace.core.otlp.common.OtlpTraceFlags.SAMPLED_TRACE_FLAG;
+import static datadog.trace.core.otlp.trace.OtlpSpanAttributes.HTTP_STATUS_CODE_KEY;
+import static datadog.trace.core.otlp.trace.OtlpSpanAttributes.HTTP_STATUS_CODE_KEY_DD;
+import static datadog.trace.core.otlp.trace.OtlpSpanAttributes.OPERATION_NAME;
+import static datadog.trace.core.otlp.trace.OtlpSpanAttributes.RESOURCE_NAME;
+import static datadog.trace.core.otlp.trace.OtlpSpanAttributes.SERVICE_NAME_KEY;
+import static datadog.trace.core.otlp.trace.OtlpSpanAttributes.SKIPPED_BAGGAGE_KEYS;
+import static datadog.trace.core.otlp.trace.OtlpSpanAttributes.SPAN_TYPE;
+import static datadog.trace.core.otlp.trace.OtlpSpanAttributes.encodeMetaStruct;
+import static datadog.trace.core.otlp.trace.OtlpSpanAttributes.isExportedTagKey;
 import static datadog.trace.core.otlp.trace.OtlpSpanKind.spanKind;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.Collections.emptySet;
 
 import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.StreamingBuffer;
+import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.KnownTagCodec;
-import datadog.trace.api.KnownTags;
 import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -51,30 +62,12 @@ import datadog.trace.core.PendingTrace;
 import datadog.trace.core.otlp.common.OtlpProtoBuffer;
 import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.propagation.PropagationTags.SamplingState;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 /** Provides optimized writers for OpenTelemetry's "trace.proto" wire protocol. */
 public final class OtlpTraceProto {
-
-  private static final UTF8BytesString RESOURCE_NAME = UTF8BytesString.create("resource.name");
-  private static final UTF8BytesString OPERATION_NAME = UTF8BytesString.create("operation.name");
-  private static final UTF8BytesString SPAN_TYPE = UTF8BytesString.create("span.type");
-
-  /*
-   * Span fields and intercepted Metadata fields bypass TagMap entry projection. Resolve their
-   * keys through the registry here so OpenTelemetry names stay consistent with entry tags.
-   */
-  private static final UTF8BytesString SERVICE_NAME_KEY = otelKey(KnownTags.SERVICE_ID);
-
-  private static final UTF8BytesString HTTP_STATUS_CODE_KEY =
-      otelKey(KnownTags.HTTP_STATUS_CODE_ID);
-
-  private static final UTF8BytesString HTTP_STATUS_CODE_KEY_DD =
-      UTF8BytesString.create(KnownTags.HTTP_STATUS_CODE_NAME);
-
-  /** The OpenTelemetry-namespace key for a known tag, as named by the registry. */
-  private static UTF8BytesString otelKey(long tagId) {
-    return UTF8BytesString.create(KnownTagCodec.openTelemetryTagOf(tagId));
-  }
 
   private OtlpTraceProto() {}
 
@@ -160,7 +153,30 @@ public final class OtlpTraceProto {
       writeSpanTag(buf, SPAN_TYPE, span.getSpanType());
     }
 
-    span.processTagsAndBaggage(metaWriter, OWN_PROPAGATION_TAGS);
+    // Export root propagation tags on the span selected by the collector for sampling tags,
+    // including when the exported trace contains no local root span.
+    Map<String, Object> reports = span.getMetaStruct();
+    Set<String> structuredKeys = emptySet();
+    if (!reports.isEmpty()) {
+      structuredKeys = new HashSet<>(reports.size(), 1.0f);
+      GrowableBuffer reportBuffer = new GrowableBuffer(1024);
+      MsgPackWriter reportWriter = new MsgPackWriter(reportBuffer);
+      for (Map.Entry<String, Object> report : reports.entrySet()) {
+        byte[] encoded = encodeMetaStruct(report.getValue(), reportWriter, reportBuffer);
+        if (encoded != null) {
+          writeTag(buf, 9, LEN_WIRE_TYPE);
+          writeBytesAttribute(buf, report.getKey(), encoded);
+          structuredKeys.add(report.getKey());
+        }
+      }
+    }
+    metaWriter.structuredKeys = structuredKeys;
+    try {
+      span.processTagsAndBaggage(
+          metaWriter, metaWriter.includeSamplingTags ? ROOT_PROPAGATION_TAGS : 0);
+    } finally {
+      metaWriter.structuredKeys = emptySet();
+    }
 
     if (span.isError()) {
       int stateSize = 2;
@@ -201,11 +217,10 @@ public final class OtlpTraceProto {
     spanLink
         .attributes()
         .asMap()
-        .forEach(
-            (key, value) -> {
-              writeTag(buf, 4, LEN_WIRE_TYPE);
-              writeAttribute(buf, STRING_ATTRIBUTE, key, value);
-            });
+        .forEach((key, value) -> {
+          writeTag(buf, 4, LEN_WIRE_TYPE);
+          writeAttribute(buf, STRING_ATTRIBUTE, key, value);
+        });
 
     writeTag(buf, 6, I32_WIRE_TYPE);
     writeI32(buf, spanLink.traceFlags() & 0xff);
@@ -273,13 +288,16 @@ public final class OtlpTraceProto {
   }
 
   public static class MetaWriter implements MetadataConsumer {
+    private Set<String> structuredKeys = emptySet();
     private final StreamingBuffer buf;
+    private final OtlpSpanAttributes.Writer<StreamingBuffer> spanTags;
 
     private boolean includeProcessTags;
     private boolean includeSamplingTags;
 
     public MetaWriter(StreamingBuffer buf) {
       this.buf = buf;
+      this.spanTags = new OtlpSpanAttributes.Writer<>(buf, OtlpTraceProto::writeSpanTag);
     }
 
     /** Call this to ensure process tags are written out for the next span. */
@@ -329,10 +347,27 @@ public final class OtlpTraceProto {
         writeSpanTag(buf, PROCESS_TAGS_KEY, metadata.processTags());
       }
 
-      // The direction is computed once per span; boxing -1..2 hits the Integer cache.
       TagMap tags = metadata.getTags();
+      // The direction is computed once per span; boxing -1..2 hits the Integer cache.
       Integer direction = KnownTagCodec.directionOf(tags);
-      tags.forEach(buf, direction, OtlpTraceProto::writeSpanTag);
+      boolean otelSemantics = Config.get().isTraceOtelSemanticsEnabled();
+
+      // Baggage carries the propagation tags (e.g. the _dd.p.dm sampling decision maker) and any
+      // baggage items injected as tags, as in the Datadog mappers. Span tags and the attributes
+      // written directly above win when they are exported under the same key, which keeps OTLP
+      // attribute keys unique without dropping baggage whose exported key differs.
+      for (Map.Entry<String, String> entry : metadata.getBaggage().entrySet()) {
+        if (structuredKeys.contains(entry.getKey())
+            || SKIPPED_BAGGAGE_KEYS.contains(entry.getKey())
+            || isExportedTagKey(tags, entry.getKey(), direction, otelSemantics)) {
+          continue;
+        }
+        writeTag(buf, 9, LEN_WIRE_TYPE);
+        writeAttribute(buf, STRING_ATTRIBUTE, entry.getKey(), entry.getValue());
+      }
+
+      // global tags are left to the resource
+      spanTags.write(metadata, direction, structuredKeys);
 
       // reset for next span
       includeProcessTags = false;

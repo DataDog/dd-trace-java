@@ -4,7 +4,8 @@ import java.net.URL;
 
 /**
  * NestedDirLibraryResolver - uses nested directories to provide more specific libraries to load
- * <code>{os} / {arch} / {libc}</code>
+ * <code>
+ * {os} / {arch} / {libc}</code>
  */
 final class NestedDirLibraryResolver implements LibraryResolver {
   public static final NestedDirLibraryResolver INSTANCE = new NestedDirLibraryResolver();

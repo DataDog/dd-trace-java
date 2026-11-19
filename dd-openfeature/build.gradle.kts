@@ -4,23 +4,64 @@ import me.champeau.gradle.japicmp.JapicmpTask
 
 plugins {
   `java-library`
-  idea
-  id("dd-trace-java.conventions.java")
+  id("dd-trace-java.module.distributable.api")
   id("dd-trace-java.version-file")
   id("dd-trace-java.jmh-conventions")
 }
 
 description = "Datadog OpenFeature provider SDK."
 
+// Set both JAR and Maven artifact name
+val openFeatureArtifactId = "dd-openfeature"
+base {
+  archivesName.set(openFeatureArtifactId)
+}
+
+publishing {
+  publications.withType<MavenPublication>().configureEach {
+    artifactId = openFeatureArtifactId
+  }
+}
+
 configure<TestJvmConstraintsExtension> {
   minJavaVersion.set(JavaVersion.VERSION_11)
 }
 
-idea {
-  module {
-    jdkName = "11"
-  }
-}
+// TODO: Cover these classes, then remove them from the coverage baseline (APMLP-2264)
+extra["excludedClassesBranchCoverage"] = listOf(
+  "com.datadog.openfeature.DebugLoggingHook",
+  "com.datadog.openfeature.FlagEvalLoggingHook",
+  "com.datadog.openfeature.FlagEvalMetrics",
+  "com.datadog.openfeature.FlagEvalMetricsHook",
+  "com.datadog.openfeature.Provider",
+  "com.datadog.openfeature.SpanEnrichmentHook",
+  "com.datadog.openfeature.internal.EventPipeline",
+  "com.datadog.openfeature.internal.JsonWriting",
+  "com.datadog.openfeature.internal.config.SdkVersion",
+  "com.datadog.openfeature.internal.delivery.CdnConfigurationSource",
+  "com.datadog.openfeature.internal.delivery.DirectIntakeTransport",
+  "com.datadog.openfeature.internal.delivery.HttpCall",
+  "com.datadog.openfeature.internal.delivery.RemoteConfigurationService",
+  "com.datadog.openfeature.internal.delivery.Retries",
+  "com.datadog.openfeature.internal.exposure.ExposureDeduplicationCache.Key",
+  "com.datadog.openfeature.internal.exposure.ExposurePipeline.ExposureSerializingHandler",
+  "com.datadog.openfeature.internal.flagevaluation.FlagEvalEvent",
+  "com.datadog.openfeature.internal.flagevaluation.FlagEvaluationPipeline",
+)
+extra["excludedClassesInstructionCoverage"] = listOf(
+  "com.datadog.openfeature.FlagEvalMetrics",
+  "com.datadog.openfeature.SpanEnrichmentHook",
+  "com.datadog.openfeature.internal.JsonWriting",
+  "com.datadog.openfeature.internal.bridge.v1.HealthMetrics",
+  "com.datadog.openfeature.internal.bridge.v1.SpanEnricher.1",
+  "com.datadog.openfeature.internal.config.SdkVersion",
+  "com.datadog.openfeature.internal.delivery.HttpCall",
+  "com.datadog.openfeature.internal.delivery.HttpCall.CancellableBodySubscriber",
+  "com.datadog.openfeature.internal.exposure.ExposureDeduplicationCache.Sent",
+  "com.datadog.openfeature.internal.flagevaluation.FlagEvalEvent",
+  "com.datadog.openfeature.internal.flagevaluation.FlagEvaluationPipeline.SerializingHandlerForTest",
+  "datadog.trace.api.openfeature.Provider",
+)
 
 java {
   toolchain {
@@ -45,11 +86,20 @@ tasks.withType<JavaCompile>().configureEach {
   configureCompiler(JavaVersion.VERSION_11)
 }
 
+tasks.withType<Javadoc>().configureEach {
+  javadocTool = javaToolchains.javadocToolFor(java.toolchain)
+}
+
+tasks.named<Jar>("jar") {
+  manifest {
+    attributes("Automatic-Module-Name" to "com.datadog.openfeature")
+  }
+}
+
 // The agent bridge SPI versions, with the first SDK release shipping each of them. A released
 // version is frozen (only default methods can be added): check it against that release.
-// TODO Set the v1 baseline once the first SDK release with the agent bridge is published.
 val bridgeSpiBaselines = mapOf<String, String?>(
-  "v1" to null,
+  "v1" to "1.69.0",
 )
 bridgeSpiBaselines.forEach { (spi, baseline) ->
   if (baseline != null) {
@@ -70,4 +120,46 @@ bridgeSpiBaselines.forEach { (spi, baseline) ->
       dependsOn(check)
     }
   }
+}
+
+// The public API, outside the internal packages, must stay compatible with the previous release:
+// each release keeps the API of all the previous ones. The previous release is the latest one
+// before the version being built, so release branches compare against their own line.
+val publicApiBaseline = "(,${version.toString().removeSuffix("-SNAPSHOT")})"
+val japicmpPublicApi = tasks.register<JapicmpTask>("japicmpPublicApi") {
+  description = "Checks the public API stays compatible with the previous dd-openfeature release."
+  val baselineSdk = "com.datadoghq:dd-openfeature:$publicApiBaseline"
+  oldArchives.from(configurations.detachedConfiguration(dependencies.create("$baselineSdk@jar")))
+  oldClasspath.from(configurations.detachedConfiguration(dependencies.create(baselineSdk)))
+  newArchives.from(tasks.named<Jar>("jar"))
+  newClasspath.from(configurations.named("runtimeClasspath"))
+  packageIncludes.addAll("com.datadog.openfeature", "datadog.trace.api.openfeature")
+  failOnModification.set(true)
+  failOnSourceIncompatibility.set(true)
+  txtOutputFile.set(layout.buildDirectory.file("reports/japicmp/public-api.txt"))
+}
+tasks.named("check") {
+  dependsOn(japicmpPublicApi)
+}
+
+// The shared FFE fixtures live outside any source set, so Gradle neither copies nor packages them:
+// the tests and benchmarks read them from disk, and the smoke tests copy the files they need.
+val fixtures = layout.projectDirectory.dir("src/test/fixtures")
+
+tasks.withType<Test>().configureEach {
+  inputs.dir(fixtures).withPropertyName("fixtures").withPathSensitivity(PathSensitivity.RELATIVE)
+}
+
+// ScaleSuiteTest checks the case files that ScaleSuiteBenchmark lists in its @Param. It reads the
+// annotation by reflection, as the test source set cannot compile against the jmh one.
+tasks.named<Test>("test") {
+  classpath += sourceSets["jmh"].output + configurations["jmhRuntimeClasspath"]
+}
+
+// The scale benchmarks read the fixtures from disk at run time, so a fixture change reruns them. A
+// file tree rather than a directory: the suites are missing when the submodule is not initialized.
+tasks.named("jmh") {
+  inputs.files(
+    fixtures.dir("ffe-system-test-data").asFileTree.matching { include("evaluation-suites/**") }
+  ).withPropertyName("scaleSuites").withPathSensitivity(PathSensitivity.RELATIVE)
 }

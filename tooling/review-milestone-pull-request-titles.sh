@@ -3,7 +3,6 @@ set -euo pipefail
 
 CONVENTIONAL_COMMIT_PREFIX_RE='^(fix|feat|chore|docs|refactor|test|build|ci|perf|style)(\([^)]+\))?:[[:space:]]*'
 TAG_PREFIX_RE='^(\[[A-Z][A-Z0-9_/-]*\][[:space:]]*|[A-Z][A-Z0-9_]*[[:space:]]*-[[:space:]]*)+'
-APM_TICKET_PREFIX_RE='^\[APM[A-Z]*-[0-9]+\][[:space:]]+'
 MAX_LEN=100
 
 check_dependencies() {
@@ -41,26 +40,19 @@ strip_prefixes() {
 }
 
 deterministic_suggest() {
-    local t="$1" prefix=''
-    if [[ "$t" =~ $APM_TICKET_PREFIX_RE ]]; then
-        prefix="${BASH_REMATCH[0]}"
-        t="${t#"$prefix"}"
-    fi
-    t=$(strip_prefixes "$t")
+    local t
+    t=$(strip_prefixes "$1")
     if [ -z "$t" ]; then
         echo "$1"
         return
     fi
     local first="${t:0:1}"
     local rest="${t:1}"
-    echo "$prefix$(tr '[:lower:]' '[:upper:]' <<<"$first")$rest"
+    echo "$(tr '[:lower:]' '[:upper:]' <<<"$first")$rest"
 }
 
 validate_title() {
     local t="$1"
-    if [[ "$t" =~ $APM_TICKET_PREFIX_RE ]]; then
-        t="${t#"${BASH_REMATCH[0]}"}"
-    fi
     local reasons=()
     if [[ "$t" =~ $CONVENTIONAL_COMMIT_PREFIX_RE ]]; then
         reasons+=("conventional-commit prefix")
@@ -73,8 +65,8 @@ validate_title() {
     if [[ "$stripped" =~ ^[a-z] ]]; then
         reasons+=("does not start with a capital")
     fi
-    if [ "${#1}" -gt "$MAX_LEN" ]; then
-        reasons+=("too long (${#1} > $MAX_LEN)")
+    if [ "${#t}" -gt "$MAX_LEN" ]; then
+        reasons+=("too long (${#t} > $MAX_LEN)")
     fi
     if [ ${#reasons[@]} -gt 0 ]; then
         local IFS=", "
@@ -86,7 +78,7 @@ claude_suggest() {
     local original="$1"
     local prompt
     prompt="Rewrite this dd-trace-java PR title to follow our conventions.
-Rules: start with a capital infinitive verb (Add, Fix, Update, Refactor, Improve); no conventional-commit prefix (no \"fix:\", \"feat:\", \"chore(ci):\", etc.); no bracket/tag prefix (no \"[CORE]\", \"PROD -\") except for an APM ticket (e.g. \"[APMSP-2821] \"); keep under ${MAX_LEN} chars; preserve technical specificity.
+Rules: start with a capital infinitive verb (Add, Fix, Update, Refactor, Improve); no conventional-commit prefix (no \"fix:\", \"feat:\", \"chore(ci):\", etc.); no bracket/tag prefix (no \"[CORE]\", \"PROD -\"); keep under ${MAX_LEN} chars; preserve technical specificity.
 Examples of good titles:
   Add support for virtual thread pinning events in JFR profiler
   Fix NPE in Kafka consumer instrumentation under retry

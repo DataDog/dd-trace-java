@@ -141,6 +141,21 @@ class DDLLMObsSpanAgentVersionTest {
   }
 
   @Test
+  void emptyExplicitVersionCountsAsUnsetAndInheritsFromParent() {
+    DDLLMObsSpan agent = llmObsSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "agent1", "v3");
+    try (ContextScope ignored = AgentTracer.activateSpan(spanOf(agent))) {
+      DDLLMObsSpan child = llmObsSpan(Tags.LLMOBS_TOOL_SPAN_KIND, "tool1", "");
+      try {
+        assertEquals("v3", spanOf(child).getTag(AGENT_VERSION_TAG));
+      } finally {
+        child.finish();
+      }
+    } finally {
+      agent.finish();
+    }
+  }
+
+  @Test
   void childDoesNotInheritAgentVersionWhenStaleContextIsFromADifferentTrace()
       throws ReflectiveOperationException {
     // Simulates a stale LLMObsContext (e.g. leaked across an async boundary): the agent's

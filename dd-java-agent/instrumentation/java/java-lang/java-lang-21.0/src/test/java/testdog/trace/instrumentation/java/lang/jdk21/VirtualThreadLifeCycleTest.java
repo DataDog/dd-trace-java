@@ -71,14 +71,13 @@ public class VirtualThreadLifeCycleTest extends AbstractInstrumentationTest {
         spanId[0] = GlobalTracer.get().getSpanId();
 
         Thread thread =
-            Thread.startVirtualThread(
-                () -> {
-                  spanIdBeforeUnmount[0] = GlobalTracer.get().getSpanId();
-                  for (int remount = 0; remount < remountCount; remount++) {
-                    tryUnmount();
-                    spanIdsAfterRemount[remount] = GlobalTracer.get().getSpanId();
-                  }
-                });
+            Thread.startVirtualThread(() -> {
+              spanIdBeforeUnmount[0] = GlobalTracer.get().getSpanId();
+              for (int remount = 0; remount < remountCount; remount++) {
+                tryUnmount();
+                spanIdsAfterRemount[remount] = GlobalTracer.get().getSpanId();
+              }
+            });
         try {
           thread.join(TIMEOUT);
         } catch (InterruptedException e) {
@@ -109,16 +108,15 @@ public class VirtualThreadLifeCycleTest extends AbstractInstrumentationTest {
       @Trace(operationName = "parent")
       public void run() {
         Thread thread =
-            Thread.startVirtualThread(
-                () -> {
-                  tryUnmount();
-                  // Runnable to create child span, not async related
-                  new Runnable() {
-                    @Override
-                    @Trace(operationName = "child")
-                    public void run() {}
-                  }.run();
-                });
+            Thread.startVirtualThread(() -> {
+              tryUnmount();
+              // Runnable to create child span, not async related
+              new Runnable() {
+                @Override
+                @Trace(operationName = "child")
+                public void run() {}
+              }.run();
+            });
         try {
           thread.join(TIMEOUT);
         } catch (InterruptedException e) {
@@ -151,11 +149,10 @@ public class VirtualThreadLifeCycleTest extends AbstractInstrumentationTest {
         for (int i = 0; i < threadCount; i++) {
           int index = i;
           threads.add(
-              Thread.startVirtualThread(
-                  () -> {
-                    tryUnmount();
-                    spanIdsAfterRemount[index] = CorrelationIdentifier.getSpanId();
-                  }));
+              Thread.startVirtualThread(() -> {
+                tryUnmount();
+                spanIdsAfterRemount[index] = CorrelationIdentifier.getSpanId();
+              }));
         }
 
         for (Thread thread : threads) {
@@ -213,12 +210,11 @@ public class VirtualThreadLifeCycleTest extends AbstractInstrumentationTest {
         parentSpanId[0] = GlobalTracer.get().getSpanId();
 
         Thread thread =
-            Thread.startVirtualThread(
-                () -> {
-                  beforeChild[0] = GlobalTracer.get().getSpanId();
-                  childWork(insideChildBeforeUnmount, insideChildAfterRemount);
-                  afterChild[0] = GlobalTracer.get().getSpanId();
-                });
+            Thread.startVirtualThread(() -> {
+              beforeChild[0] = GlobalTracer.get().getSpanId();
+              childWork(insideChildBeforeUnmount, insideChildAfterRemount);
+              afterChild[0] = GlobalTracer.get().getSpanId();
+            });
         try {
           thread.join();
         } catch (InterruptedException e) {

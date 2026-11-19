@@ -151,29 +151,28 @@ class ContextManagerTest extends ContextTestBase {
     try (ContextScope ignored = previous.attach()) {
       try (ContextScope scope = resumed ? context.capture().resume() : context.attach()) {
         executor
-            .submit(
-                () -> {
-                  try {
-                    try (ContextScope workerScope = unrelated.attach()) {
-                      // A foreign close must leave both threads' contexts intact.
-                      scope.close();
-                      assertEquals(unrelated, current());
-                    }
-                    assertEquals(root(), current());
+            .submit(() -> {
+              try {
+                try (ContextScope workerScope = unrelated.attach()) {
+                  // A foreign close must leave both threads' contexts intact.
+                  scope.close();
+                  assertEquals(unrelated, current());
+                }
+                assertEquals(root(), current());
 
-                    // Simulate restoring a coroutine's context on its new thread.
-                    context.swap();
-                    scope.close();
-                    assertEquals(previous, current());
+                // Simulate restoring a coroutine's context on its new thread.
+                context.swap();
+                scope.close();
+                assertEquals(previous, current());
 
-                    // Migrated scope stays closed, even if its context is restored again.
-                    context.swap();
-                    scope.close();
-                    assertEquals(context, current());
-                  } finally {
-                    root().swap();
-                  }
-                })
+                // Migrated scope stays closed, even if its context is restored again.
+                context.swap();
+                scope.close();
+                assertEquals(context, current());
+              } finally {
+                root().swap();
+              }
+            })
             .get(10, TimeUnit.SECONDS);
         assertEquals(context, current());
       } finally {
@@ -199,59 +198,57 @@ class ContextManagerTest extends ContextTestBase {
      * Create first executor.
      */
     Future<?> future1 =
-        executor.submit(
-            () -> {
-              try {
-                // Fist step: check empty context
+        executor.submit(() -> {
+          try {
+            // Fist step: check empty context
+            phaser.arriveAndAwaitAdvance();
+            assertEquals(root(), current());
+            // Second step: set context on first executor
+            Context context1 = root().with(STRING_KEY, "executor1");
+            try (ContextScope ignored1 = context1.attach()) {
+              phaser.arriveAndAwaitAdvance();
+              assertEquals(context1, current());
+              // Third step: set context on second executor
+              phaser.arriveAndAwaitAdvance();
+              assertEquals(context1, current());
+              // Fourth step: set child context on first executor
+              Context context11 = context1.with(STRING_KEY, "executor1.1");
+              try (ContextScope ignored11 = context11.attach()) {
                 phaser.arriveAndAwaitAdvance();
-                assertEquals(root(), current());
-                // Second step: set context on first executor
-                Context context1 = root().with(STRING_KEY, "executor1");
-                try (ContextScope ignored1 = context1.attach()) {
-                  phaser.arriveAndAwaitAdvance();
-                  assertEquals(context1, current());
-                  // Third step: set context on second executor
-                  phaser.arriveAndAwaitAdvance();
-                  assertEquals(context1, current());
-                  // Fourth step: set child context on first executor
-                  Context context11 = context1.with(STRING_KEY, "executor1.1");
-                  try (ContextScope ignored11 = context11.attach()) {
-                    phaser.arriveAndAwaitAdvance();
-                    assertEquals(context11, current());
-                  }
-                }
-              } finally {
-                // Complete the execution
-                phaser.arriveAndDeregister();
+                assertEquals(context11, current());
               }
-            });
+            }
+          } finally {
+            // Complete the execution
+            phaser.arriveAndDeregister();
+          }
+        });
     /*
      * Create second executor.
      */
     Future<?> future2 =
-        executor.submit(
-            () -> {
-              try {
-                // First step: check empty context
-                phaser.arriveAndAwaitAdvance();
-                assertEquals(root(), current());
-                // Second step: set context on first executor
-                phaser.arriveAndAwaitAdvance();
-                assertEquals(root(), current());
-                // Third step: set context on second executor
-                Context context2 = root().with(STRING_KEY, "executor2");
-                try (ContextScope ignored2 = context2.attach()) {
-                  phaser.arriveAndAwaitAdvance();
-                  assertEquals(context2, current());
-                  // Fourth step: set child context on first executor
-                  phaser.arriveAndAwaitAdvance();
-                  assertEquals(context2, current());
-                }
-              } finally {
-                // Complete the execution
-                phaser.arriveAndDeregister();
-              }
-            });
+        executor.submit(() -> {
+          try {
+            // First step: check empty context
+            phaser.arriveAndAwaitAdvance();
+            assertEquals(root(), current());
+            // Second step: set context on first executor
+            phaser.arriveAndAwaitAdvance();
+            assertEquals(root(), current());
+            // Third step: set context on second executor
+            Context context2 = root().with(STRING_KEY, "executor2");
+            try (ContextScope ignored2 = context2.attach()) {
+              phaser.arriveAndAwaitAdvance();
+              assertEquals(context2, current());
+              // Fourth step: set child context on first executor
+              phaser.arriveAndAwaitAdvance();
+              assertEquals(context2, current());
+            }
+          } finally {
+            // Complete the execution
+            phaser.arriveAndDeregister();
+          }
+        });
     /*
      * Run main thread.
      */

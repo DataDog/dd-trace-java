@@ -212,9 +212,9 @@ public class AxwayHTTPPluginDecorator extends HttpServerDecorator<Object, Object
         OtelHttpSemantics.setRequestMethod(span, method);
         OtelHttpSemantics.setMethodResourceName(span, method);
       } else {
-        span.setTag(KnownTags.PEER_HOSTNAME_ID, host);
-        span.setTag(KnownTags.PEER_PORT_ID, port);
-        span.setTag(KnownTags.HTTP_METHOD_ID, method);
+        span.setTag(KnownTags.PEER_HOSTNAME, host);
+        span.setTag(KnownTags.PEER_PORT, port);
+        span.setTag(KnownTags.HTTP_METHOD, method);
       }
       span.setTagsFrom(
           HttpServerUrl.fromTransaction(

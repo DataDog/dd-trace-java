@@ -21,12 +21,11 @@ class ContextListenerExceptionTest extends ContextTestBase {
           }
         });
     Context context = root().with(TEST_KEY, "value");
-    assertDoesNotThrow(
-        () -> {
-          try (ContextScope scope = context.attach()) {
-            assertEquals(context, current());
-          }
-        });
+    assertDoesNotThrow(() -> {
+      try (ContextScope scope = context.attach()) {
+        assertEquals(context, current());
+      }
+    });
   }
 
   @Test
@@ -40,13 +39,12 @@ class ContextListenerExceptionTest extends ContextTestBase {
         });
     Context context = root().with(TEST_KEY, "value");
     try (ContextScope scope = context.attach()) {
-      assertDoesNotThrow(
-          () -> {
-            ContextContinuation continuation = context.capture();
-            assertNotNull(continuation);
-            assertEquals(context, continuation.context());
-            continuation.release();
-          });
+      assertDoesNotThrow(() -> {
+        ContextContinuation continuation = context.capture();
+        assertNotNull(continuation);
+        assertEquals(context, continuation.context());
+        continuation.release();
+      });
     }
   }
 

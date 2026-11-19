@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.debugger;
 
 import datadog.trace.api.sampling.AdaptiveSampler;
 import datadog.trace.api.sampling.ConstantSampler;
+import datadog.trace.api.sampling.IntervalSampler;
 import datadog.trace.api.sampling.Sampler;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
@@ -15,7 +16,6 @@ public class ProbeRateLimiter {
   public static final double DEFAULT_SNAPSHOT_RATE = 1.0;
   public static final double DEFAULT_LOG_RATE = 5000.0;
   private static final Duration ONE_SECOND_WINDOW = Duration.of(1, ChronoUnit.SECONDS);
-  private static final Duration TEN_SECONDS_WINDOW = Duration.of(10, ChronoUnit.SECONDS);
   private static final double DEFAULT_GLOBAL_SNAPSHOT_RATE = DEFAULT_SNAPSHOT_RATE * 100;
   private static final double DEFAULT_GLOBAL_LOG_RATE = 5000.0;
   private static Sampler GLOBAL_SNAPSHOT_SAMPLER =
@@ -61,9 +61,11 @@ public class ProbeRateLimiter {
     if (rate < 0) {
       return new ConstantSampler(true);
     }
+    if (rate == 0) {
+      return new ConstantSampler(false);
+    }
     if (rate < 1) {
-      int intRate = (int) Math.round(rate * 10);
-      return new AdaptiveSampler(TEN_SECONDS_WINDOW, intRate, 180, 16, true);
+      return new IntervalSampler(rate);
     }
     return new AdaptiveSampler(ONE_SECOND_WINDOW, (int) Math.round(rate), 180, 16, true);
   }

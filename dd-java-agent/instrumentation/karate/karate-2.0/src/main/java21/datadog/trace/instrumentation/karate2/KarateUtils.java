@@ -5,7 +5,6 @@ import static datadog.json.JsonMapper.toJson;
 import datadog.trace.api.civisibility.config.LibraryCapability;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.events.TestDescriptor;
-import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
 import datadog.trace.util.Strings;
 import io.karatelabs.core.FeatureRuntime;
 import io.karatelabs.core.Globals;
@@ -161,11 +160,6 @@ public abstract class KarateUtils {
     String scenarioName = getScenarioName(scenario);
     String parameters = getParameters(scenario);
     return new TestDescriptor(featureName, null, scenarioName, parameters, scenarioRuntime);
-  }
-
-  public static TestSuiteDescriptor toSuiteDescriptor(FeatureRuntime featureRuntime) {
-    String featureName = getFeatureNameForReport(featureRuntime.getFeature());
-    return new TestSuiteDescriptor(featureName, null);
   }
 
   public static String getKarateVersion() {

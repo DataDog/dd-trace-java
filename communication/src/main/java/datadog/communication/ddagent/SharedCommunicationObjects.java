@@ -102,14 +102,13 @@ public class SharedCommunicationObjects {
   private OkHttpClient injectTestAgentSessionHeaderInterceptor(String testSessionToken) {
     return agentHttpClient
         .newBuilder()
-        .addInterceptor(
-            chain ->
-                chain.proceed(
-                    chain
-                        .request()
-                        .newBuilder()
-                        .header(X_DATADOG_TEST_SESSION_TOKEN, testSessionToken)
-                        .build()))
+        .addInterceptor(chain ->
+            chain.proceed(
+                chain
+                    .request()
+                    .newBuilder()
+                    .header(X_DATADOG_TEST_SESSION_TOKEN, testSessionToken)
+                    .build()))
         .build();
   }
 

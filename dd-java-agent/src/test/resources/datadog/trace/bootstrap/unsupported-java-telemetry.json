@@ -1,0 +1,20 @@
+{
+  "metadata": {
+    "runtime_name": "jvm",
+    "language_name": "jvm",
+    "runtime_version": "1.6.0_45",
+    "language_version": "1.6.0_45",
+    "tracer_version": "1.50",
+    "result": "abort",
+    "result_class": "unknown",
+    "result_reason": "incompatible_runtime"
+  },
+  "points": [
+    {
+      "name": "library_entrypoint.abort",
+      "tags": [
+        "reason:incompatible_runtime"
+      ]
+    }
+  ]
+}
