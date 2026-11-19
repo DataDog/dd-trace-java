@@ -13,7 +13,12 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import datadog.trace.api.Config;
 import datadog.trace.api.DD64bTraceId;
 import datadog.trace.api.DDSpanId;
@@ -36,6 +41,7 @@ import org.junit.jupiter.params.converter.ArgumentConversionException;
 import org.junit.jupiter.params.converter.ArgumentConverter;
 import org.junit.jupiter.params.converter.ConvertWith;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.slf4j.LoggerFactory;
 import org.tabletest.junit.TableTest;
 
 class W3CHttpExtractorTest extends AbstractHttpExtractorTest {
@@ -95,7 +101,11 @@ class W3CHttpExtractorTest extends AbstractHttpExtractorTest {
     "version ff invalid                    | 'ff-00000000000000000000000000000001-0000000000000001-00'   | false   |                          | 0            | UNSET       ",
     "version fe flags 02                   | 'fe-00000000000000000000000000000001-0000000000000001-02'   | true    | TRACE_ID_ONE             | SPAN_ID_ONE  | SAMPLER_DROP",
     "extra data with version 00            | '00-00000000000000000000000000000001-0000000000000001-03-0' | false   |                          | 0            | UNSET       ",
-    "invalid separator after flags with fe | 'fe-00000000000000000000000000000001-0000000000000001-02.0' | false   |                          | 0            | UNSET       "
+    "invalid separator after flags with fe | 'fe-00000000000000000000000000000001-0000000000000001-02.0' | false   |                          | 0            | UNSET       ",
+    "non-hex version                       | '0g-00000000000000000000000000000001-0000000000000001-01'   | false   |                          | 0            | UNSET       ",
+    "uppercase version                     | 'FE-00000000000000000000000000000001-0000000000000001-02'   | false   |                          | 0            | UNSET       ",
+    "non-hex flags                         | '00-00000000000000000000000000000001-0000000000000001-0g'   | false   |                          | 0            | UNSET       ",
+    "uppercase flags                       | '00-00000000000000000000000000000001-0000000000000001-0A'   | false   |                          | 0            | UNSET       "
   })
   void extractTraceparent(
       String traceparent,
@@ -115,6 +125,43 @@ class W3CHttpExtractorTest extends AbstractHttpExtractorTest {
       assertEquals(priority, context.getSamplingPriority());
     } else {
       assertNull(result);
+    }
+  }
+
+  /**
+   * A malformed traceparent is expected input from a caller: it is rejected, as the cases above
+   * check, without an exception.
+   */
+  @TableTest({
+    "scenario         | traceparent                                              ",
+    "too short        | '00-0000000000000000000000000000001-0000000000000001-01' ",
+    "non-hex trace id | '00-123456789abcdef0ffffffffffffffzf-123456789abcdef0-00'",
+    "all zero span id | '00-00000000000000000000000000000001-0000000000000000-01'",
+    "illegal version  | 'ff-00000000000000000000000000000001-0000000000000001-00'",
+    "non-hex flags    | '00-00000000000000000000000000000001-0000000000000001-0g'"
+  })
+  void malformedTraceparentIsRejectedWithoutAnException(String traceparent) {
+    Logger logger = (Logger) LoggerFactory.getLogger(W3CHttpCodec.class);
+    Level previousLevel = logger.getLevel();
+    ListAppender<ILoggingEvent> appender = new ListAppender<>();
+    appender.start();
+    logger.addAppender(appender);
+    logger.setLevel(Level.DEBUG);
+    try {
+      Map<String, String> headers = headers(TRACE_PARENT_KEY, traceparent);
+
+      assertNull(this.extractor.extract(headers, stringValuesMap()));
+
+      assertTrue(
+          appender.list.stream()
+              .anyMatch(event -> event.getMessage().startsWith("Ignoring invalid traceparent")),
+          () -> "logged: " + appender.list);
+      assertTrue(
+          appender.list.stream().allMatch(event -> event.getThrowableProxy() == null),
+          () -> "an exception was logged: " + appender.list);
+    } finally {
+      logger.detachAppender(appender);
+      logger.setLevel(previousLevel);
     }
   }
 

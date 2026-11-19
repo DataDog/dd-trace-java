@@ -57,7 +57,6 @@ class TypeConverterTest extends InstrumentationSpecification {
       null,
       null,
       NoopPathwayContext.INSTANCE,
-      false,
       PropagationTags.factory().empty()) {
         @Override void setServiceName(final String serviceName) {
           // override this method that is called from the DDSpanContext constructor

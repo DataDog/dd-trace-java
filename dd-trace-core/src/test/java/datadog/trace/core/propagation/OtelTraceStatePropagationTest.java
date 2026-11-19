@@ -68,7 +68,7 @@ class OtelTraceStatePropagationTest {
 
     tags.updateTraceSamplingPriority(USER_KEEP, MANUAL);
 
-    assertEquals("simplefield;blah;foo", tags.samplingState().getOtelTraceState().toString());
+    assertEquals("simplefield;blah;foo", tags.getOtelTraceState(tags.samplingState()).toString());
     assertTrue(tags.headerValue(W3C).contains("ot=simplefield;blah;foo"));
     assertEquals(
         "ot=simplefield;blah;foo,vendor=state", tags.getW3CTracestate(tags.samplingState()));
@@ -211,7 +211,7 @@ class OtelTraceStatePropagationTest {
     tags.forceKeep(MANUAL);
 
     assertEquals(USER_KEEP, tags.samplingState().getSamplingPriority());
-    assertNull(tags.samplingState().getOtelTraceState());
+    assertNull(tags.getOtelTraceState(tags.samplingState()));
   }
 
   @Test
@@ -221,7 +221,7 @@ class OtelTraceStatePropagationTest {
     assertTrue(
         tags.tryUpdateProbabilitySamplingDecision(SAMPLER_DROP, AGENT_RATE, 1.0, true, 1L, false));
 
-    assertNull(tags.samplingState().getOtelTraceState());
+    assertNull(tags.getOtelTraceState(tags.samplingState()));
   }
 
   @Test
@@ -233,7 +233,7 @@ class OtelTraceStatePropagationTest {
         tags.tryUpdateProbabilitySamplingDecision(SAMPLER_KEEP, AGENT_RATE, 1.0, false, 1L, false));
 
     assertEquals(
-        "rv:00000000000000;future:value", tags.samplingState().getOtelTraceState().toString());
+        "rv:00000000000000;future:value", tags.getOtelTraceState(tags.samplingState()).toString());
   }
 
   @Test
@@ -245,7 +245,7 @@ class OtelTraceStatePropagationTest {
         tags.tryUpdateProbabilitySamplingDecision(SAMPLER_KEEP, AGENT_RATE, 0.5, false, 1L, false));
 
     assertEquals(
-        "rv:ffffffffffffff;future:value", tags.samplingState().getOtelTraceState().toString());
+        "rv:ffffffffffffff;future:value", tags.getOtelTraceState(tags.samplingState()).toString());
   }
 
   @Test
@@ -257,7 +257,7 @@ class OtelTraceStatePropagationTest {
         tags.tryUpdateProbabilitySamplingDecision(SAMPLER_KEEP, AGENT_RATE, 0.5, false, 1L, false));
 
     assertEquals(
-        "rv:00000000000000;future:value", tags.samplingState().getOtelTraceState().toString());
+        "rv:00000000000000;future:value", tags.getOtelTraceState(tags.samplingState()).toString());
   }
 
   @Test
@@ -267,7 +267,7 @@ class OtelTraceStatePropagationTest {
     assertTrue(
         tags.tryUpdateProbabilitySamplingDecision(SAMPLER_KEEP, AGENT_RATE, 1.0, false, 1L, false));
 
-    assertEquals("future:value", tags.samplingState().getOtelTraceState().toString());
+    assertEquals("future:value", tags.getOtelTraceState(tags.samplingState()).toString());
   }
 
   @Test

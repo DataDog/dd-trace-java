@@ -126,7 +126,6 @@ public class InjectorBenchmark {
             null,
             null,
             null,
-            false,
             propagationTags);
   }
 

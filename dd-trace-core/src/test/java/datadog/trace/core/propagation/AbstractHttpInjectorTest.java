@@ -55,7 +55,6 @@ abstract class AbstractHttpInjectorTest extends DDCoreJavaSpecification {
         null,
         null,
         NoopPathwayContext.INSTANCE,
-        false,
         propagationTags);
   }
 }

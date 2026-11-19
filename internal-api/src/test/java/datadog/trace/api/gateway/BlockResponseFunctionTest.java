@@ -173,14 +173,6 @@ class BlockResponseFunctionTest {
     }
 
     @Override
-    public void setTagCurrent(String key, Object value, boolean sanitize) {}
-
-    @Override
-    public Object getTagCurrent(String key, boolean sanitize) {
-      return null;
-    }
-
-    @Override
     public void setDataTop(String key, Object value) {}
 
     @Override
@@ -194,18 +186,7 @@ class BlockResponseFunctionTest {
     }
 
     @Override
-    public void setDataCurrent(String key, Object value) {}
-
-    @Override
-    public Object getDataCurrent(String key) {
-      return null;
-    }
-
-    @Override
     public void setMetaStructTop(String field, Object value) {}
-
-    @Override
-    public void setMetaStructCurrent(String field, Object value) {}
   }
 
   private static final class CountingAppSecContext implements AppSecContext {

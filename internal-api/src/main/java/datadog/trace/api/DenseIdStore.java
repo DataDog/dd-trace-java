@@ -309,14 +309,6 @@ final class DenseIdStore extends IdStore {
     this.tombstoneLevels |= (byte) level;
   }
 
-  /** Grows the arrays to hold at least {@code minCapacity} slots. Rare, so kept out of line. */
-  private void growTo(int minCapacity) {
-    int newCap =
-        Math.max(minCapacity, Math.min(this.serials.length << 1, KnownTagCodec.serialLimit()));
-    this.serials = Arrays.copyOf(this.serials, newCap);
-    this.values = Arrays.copyOf(this.values, newCap);
-  }
-
   /**
    * The bulk seed: when {@code source} is a parentless dense store with no tombstones and its
    * occupancy words share no bit with this store's (live, tombstoned or inherited, per level), none

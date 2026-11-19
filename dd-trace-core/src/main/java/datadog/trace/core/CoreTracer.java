@@ -298,6 +298,18 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     ServiceNameCollector.get().addService(serviceName);
   }
 
+  boolean isSamplingMechanismValidationDisabled() {
+    return disableSamplingMechanismValidation;
+  }
+
+  boolean isInjectBaggageAsTags() {
+    return injectBaggageAsTags;
+  }
+
+  boolean isInjectLinksAsTags() {
+    return injectLinksAsTags;
+  }
+
   PropagationTags.Factory getPropagationTagsFactory() {
     return propagationTagsFactory;
   }
@@ -1988,7 +2000,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       if (parentSpanContext != null && parentSpanContext.isRemote()) {
         // Preserve AppSec/IAST request context before dropping the remote parent: when
         // extract=IGNORE or RESTART the TagContext parent is nulled before buildSpanContext
-        // can copy requestContextDataAppSec/Iast into DDSpanContext.
+        // can copy requestContextDataAppSec/Iast onto the trace collector.
         if (parentSpanContext instanceof TagContext) {
           TagContext tc = (TagContext) parentSpanContext;
           if (builderRequestContextDataAppSec == null) {
@@ -2217,18 +2229,13 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         if (serviceName == null) {
           serviceName = parentServiceName;
         }
-        RequestContext requestContext =
-            ((DDSpanContext) resolvedParentSpanContext).getRequestContext();
-        if (requestContext != null) {
-          requestContextDataAppSec = requestContext.getData(RequestContextSlot.APPSEC);
-          requestContextDataIast = requestContext.getData(RequestContextSlot.IAST);
-          ciVisibilityContextData = requestContext.getData(RequestContextSlot.CI_VISIBILITY);
-        } else {
-          requestContextDataAppSec = null;
-          requestContextDataIast = null;
-          ciVisibilityContextData = null;
-        }
-        propagationTags = tracer.propagationTagsFactory.empty();
+        // Request-scoped product data lives on the shared trace collector
+        requestContextDataAppSec = null;
+        requestContextDataIast = null;
+        ciVisibilityContextData = null;
+        // Trace-level propagation state lives on the local root; a child's own instance is only
+        // created on demand (see DDSpanContext#ownPropagationTags)
+        propagationTags = null;
       } else {
         long endToEndStartTime;
 
@@ -2413,11 +2420,8 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
               requestContextDataIast,
               ciVisibilityContextData,
               pathwayContext,
-              tracer.disableSamplingMechanismValidation,
               propagationTags,
               tracer.profilingContextIntegration,
-              tracer.injectBaggageAsTags,
-              tracer.injectLinksAsTags,
               mergedTracerTagsNeedsIntercept ? null : mergedTracerTags,
               parentOrigin,
               sizingHint);

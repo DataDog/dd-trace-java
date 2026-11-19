@@ -53,7 +53,15 @@ class CompoundExtractionGoldenTest extends DDCoreJavaSpecification {
   private static final String DD_SAME_PARENT = Long.toString(Long.parseLong(PARENT, 16));
   private static final String RV = "c8b1e2d3f4a596";
 
-  private static final String[] DD_PRESENCE = {"none", "match", "matchOtherParent", "mismatch"};
+  private static final String[] DD_PRESENCE = {
+    "none",
+    "match",
+    "matchOtherParent",
+    "mismatch",
+    "invalidTraceId",
+    "negativeTraceId",
+    "zeroTraceId"
+  };
 
   private static final String[] DD_PRIORITY_FULL = {null, "0", "1", "2"};
   private static final String[] DD_PRIORITY = {"1", "0"};
@@ -169,7 +177,7 @@ class CompoundExtractionGoldenTest extends DDCoreJavaSpecification {
               }
               Map<String, String> headers = new LinkedHashMap<>();
               if (!"none".equals(presence)) {
-                headers.put("x-datadog-trace-id", "mismatch".equals(presence) ? "42" : DD_TRACE_ID);
+                headers.put("x-datadog-trace-id", datadogTraceId(presence));
                 headers.put(
                     "x-datadog-parent-id",
                     "matchOtherParent".equals(presence) ? "7" : DD_SAME_PARENT);
@@ -185,6 +193,21 @@ class CompoundExtractionGoldenTest extends DDCoreJavaSpecification {
       }
     }
     return corpus;
+  }
+
+  private static String datadogTraceId(String presence) {
+    switch (presence) {
+      case "mismatch":
+        return "42";
+      case "invalidTraceId":
+        return "abc";
+      case "negativeTraceId":
+        return "-1";
+      case "zeroTraceId":
+        return "0";
+      default:
+        return DD_TRACE_ID;
+    }
   }
 
   private static String describe(CoreTracer tracer, Map<String, String> headers) {
