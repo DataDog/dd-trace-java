@@ -477,7 +477,7 @@ public class ShellGitClient implements GitClient {
             info =
                 commandExecutor
                     .executeCommand(
-                        input -> IOUtils.readFully(input, UTF_8),
+                        ShellGitClient::readMetadata,
                         buildGitCommand(
                             "show",
                             commit,

@@ -252,6 +252,30 @@ class ShellGitClientEncodingTest {
     assertEquals(singletonList("édition"), client.getTags(sha));
   }
 
+  @TableTest({
+    "Scenario                  | Commit charset | Encoding header",
+    "UTF-8 on a Latin-1 host   | UTF-8          |                ",
+    "declared Latin-1 commit   | ISO-8859-1     | ISO-8859-1     ",
+    "unlabelled Latin-1 commit | ISO-8859-1     |                "
+  })
+  void readsCommitMetadataOnLegacyHosts(String commitCharset, String encodingHeader)
+      throws Exception {
+    assumeTrue(
+        !isWindows() || UTF_8.name().equals(commitCharset) || encodingHeader != null,
+        "Legacy metadata fallback uses the Unix host charset");
+    System.setProperty("native.encoding", "ISO-8859-1");
+    ShellCommandExecutor executor =
+        new ShellCommandExecutor(directory.toFile(), GIT_COMMAND_TIMEOUT_MILLIS);
+    String sha = createCommit(executor, Charset.forName(commitCharset), encodingHeader);
+
+    CommitInfo info = newClient().getCommitInfo(sha, false);
+
+    assertEquals(sha, info.getSha());
+    assertEquals("René", info.getAuthor().getName());
+    assertEquals("René", info.getCommitter().getName());
+    assertEquals("café", info.getFullMessage());
+  }
+
   private ShellGitClient newClient() {
     return new ShellGitClient(
         NoOpMetricCollector.INSTANCE,
@@ -262,6 +286,11 @@ class ShellGitClientEncodingTest {
   }
 
   private String createCommit(ShellCommandExecutor executor) throws Exception {
+    return createCommit(executor, UTF_8, null);
+  }
+
+  private String createCommit(ShellCommandExecutor executor, Charset charset, String encodingHeader)
+      throws Exception {
     executor.executeCommand(ShellCommandExecutor.OutputParser.IGNORE, "git", "init", "--quiet");
     String tree =
         executor
@@ -280,12 +309,14 @@ class ShellGitClientEncodingTest {
             + tree
             + "\n"
             + "author René <rene@example.com> 1700000000 +0000\n"
-            + "committer René <rene@example.com> 1700000000 +0000\n\n"
+            + "committer René <rene@example.com> 1700000000 +0000\n"
+            + (encodingHeader == null ? "" : "encoding " + encodingHeader + "\n")
+            + "\n"
             + "café\n";
     return executor
         .executeCommand(
             input -> IOUtils.readFully(input, UTF_8),
-            commit.getBytes(UTF_8),
+            commit.getBytes(charset),
             "git",
             "hash-object",
             "-t",
