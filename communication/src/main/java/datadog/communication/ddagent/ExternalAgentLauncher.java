@@ -21,6 +21,8 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeoutException;
 import org.slf4j.Logger;
@@ -110,6 +112,10 @@ public class ExternalAgentLauncher implements Closeable {
     // this needs no synchronization.
     private FutureTask<Boolean> timedOutInfoRequest;
 
+    // Created on first use. A new request is sent only once the previous one has finished, so one
+    // thread is enough.
+    private ExecutorService requestThread;
+
     NamedPipeHealthCheck(String pipeName, boolean checkResponse) {
       this.checkResponse = checkResponse;
       if (pipeName.startsWith(NAMED_PIPE_PREFIX)) {
@@ -154,10 +160,11 @@ public class ExternalAgentLauncher implements Closeable {
     }
 
     /**
-     * Sends a request on another thread and waits up to {@link #RESPONSE_TIMEOUT_MILLIS} for the
-     * answer. Reads from a pipe cannot time out, so a request to a hung agent stays blocked until
-     * the agent exits. Until then later checks fail without sending another request. An answer that
-     * arrives after the timeout still counts at the next check, so a slow agent is not restarted.
+     * Sends a request on the request thread and waits up to {@link #RESPONSE_TIMEOUT_MILLIS} for
+     * the answer. Reads from a pipe cannot time out, so a request to a hung agent stays blocked
+     * until the agent exits. Until then later checks fail without sending another request. An
+     * answer that arrives after the timeout still counts at the next check, so a slow agent is not
+     * restarted.
      */
     private boolean agentResponds() throws InterruptedException {
       FutureTask<Boolean> lateRequest = timedOutInfoRequest;
@@ -171,8 +178,7 @@ public class ExternalAgentLauncher implements Closeable {
         }
       }
       FutureTask<Boolean> infoRequest = new FutureTask<>(this::sendInfoRequest);
-      AgentThreadFactory.newAgentThread(PROCESS_SUPERVISOR, "-health-check", infoRequest, true)
-          .start();
+      requestThread().execute(infoRequest);
       try {
         return infoRequest.get(RESPONSE_TIMEOUT_MILLIS, MILLISECONDS);
       } catch (TimeoutException e) {
@@ -182,6 +188,15 @@ public class ExternalAgentLauncher implements Closeable {
         log.debug("Health check request failed", e.getCause());
         return false;
       }
+    }
+
+    private ExecutorService requestThread() {
+      if (requestThread == null) {
+        requestThread =
+            Executors.newSingleThreadExecutor(task ->
+                AgentThreadFactory.newAgentThread(PROCESS_SUPERVISOR, "-health-check", task, true));
+      }
+      return requestThread;
     }
 
     /** Returns the result of a finished request, without waiting. */
