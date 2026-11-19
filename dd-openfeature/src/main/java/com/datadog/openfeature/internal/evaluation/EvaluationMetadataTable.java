@@ -8,17 +8,21 @@ import java.util.concurrent.atomic.LongAdder;
 import javax.annotation.Nullable;
 
 /**
- * Shares the flag metadata of successful evaluations that resolve the same split in the same
- * millisecond. This is a burst coalescer, not a cache: an entry is only reusable within the
- * millisecond it was built in, because the metadata carries the evaluation timestamp at millisecond
- * resolution. A later millisecond builds and publishes a new entry.
+ * Shares the flag metadata of successful evaluations that resolve the same split in the same time
+ * bucket. With a bounded bucket, this is a burst coalescer, not a cache: an entry is only reusable
+ * within the bucket it was built in, because the metadata carries the evaluation timestamp of the
+ * evaluation that built it. A later bucket builds and publishes a new entry. The default bucket is
+ * one millisecond, the resolution of the timestamp, so the timestamp stays exact. A wider bucket of
+ * {@code W} milliseconds reports the evaluations that reuse an entry up to {@code W - 1}
+ * milliseconds early. The {@link #UNBOUNDED} bucket leaves the timestamp out of the metadata, so
+ * the hooks read their own clock and the entry of a split is reusable until the slot is replaced.
  *
  * <p>The table is a fixed, direct-mapped array of slots. Each slot holds the metadata built last
  * for one key: the {@link Split}, {@link Allocation} and {@link Flag} references, the configuration
- * consent to observe full evaluation data, the exposure state, and the evaluation millisecond.
- * Everything else in the metadata is fixed by the split, its allocation and its flag. The key
- * compares references, so a reloaded configuration, whose objects are new, never matches an entry
- * of the previous one, and no metadata field can be left out of the key.
+ * consent to observe full evaluation data, the exposure state, and the time bucket. Everything else
+ * in the metadata is fixed by the split, its allocation and its flag. The key compares references,
+ * so a reloaded configuration, whose objects are new, never matches an entry of the previous one,
+ * and no metadata field can be left out of the key.
  *
  * <p>The table takes no lock. An entry has only final fields and is published with a single
  * reference store, so a reader sees either a whole entry or none. Two evaluations that miss the
@@ -30,6 +34,18 @@ final class EvaluationMetadataTable {
 
   /** The largest number of slots. */
   static final int MAX_SIZE = 1 << 16;
+
+  /** The default time bucket width: the millisecond resolution of the evaluation timestamp. */
+  static final int DEFAULT_TIME_BUCKET_MS = 1;
+
+  /**
+   * The widest time bucket: the flush interval of the flag evaluation events, which aggregate the
+   * first and last evaluation times of each interval.
+   */
+  static final int MAX_TIME_BUCKET_MS = 10_000;
+
+  /** The time bucket width that leaves the evaluation timestamp out of the metadata. */
+  static final int UNBOUNDED = 0;
 
   /** The evaluation logs no exposure, so the metadata carries no exposure state. */
   static final int NO_EXPOSURE = 0;
@@ -89,6 +105,18 @@ final class EvaluationMetadataTable {
     return requestedSize == 1 ? 1 : Integer.highestOneBit(requestedSize - 1) << 1;
   }
 
+  /**
+   * @param requestedMs the requested time bucket width, in milliseconds.
+   * @return the width used: {@link #UNBOUNDED} for 0, at least 1 and at most {@link
+   *     #MAX_TIME_BUCKET_MS} otherwise.
+   */
+  static int timeBucketMs(final int requestedMs) {
+    if (requestedMs == UNBOUNDED) {
+      return UNBOUNDED;
+    }
+    return Math.max(1, Math.min(requestedMs, MAX_TIME_BUCKET_MS));
+  }
+
   /** The number of slots. */
   int size() {
     return slots.length;
@@ -106,11 +134,11 @@ final class EvaluationMetadataTable {
       final Split split,
       final boolean observeFullEvaluationData,
       final int exposure,
-      final long evalTimestampMs) {
+      final long timeBucket) {
     final Entry entry = slots[index(split, exposure)];
     if (entry != null
         && entry.split == split
-        && entry.evalTimestampMs == evalTimestampMs
+        && entry.timeBucket == timeBucket
         && entry.exposure == exposure
         && entry.observeFullEvaluationData == observeFullEvaluationData
         && entry.allocation == allocation
@@ -130,22 +158,16 @@ final class EvaluationMetadataTable {
       final Split split,
       final boolean observeFullEvaluationData,
       final int exposure,
-      final long evalTimestampMs,
+      final long timeBucket,
       final ImmutableMetadata metadata) {
     slots[index(split, exposure)] =
         new Entry(
-            flag,
-            allocation,
-            split,
-            observeFullEvaluationData,
-            exposure,
-            evalTimestampMs,
-            metadata);
+            flag, allocation, split, observeFullEvaluationData, exposure, timeBucket, metadata);
   }
 
   private int index(final Split split, final int exposure) {
     // The exposure states of a split take neighboring slots, so a subject that was already exposed
-    // does not evict the entry of one that was not. The millisecond is left out: the next one
+    // does not evict the entry of one that was not. The time bucket is left out: the next one
     // replaces the entry of the previous one instead of evicting another split.
     int hash = (System.identityHashCode(split) << 2 | exposure) * 0x9E3779B9;
     hash ^= hash >>> 16;
@@ -159,7 +181,7 @@ final class EvaluationMetadataTable {
     final Split split;
     final boolean observeFullEvaluationData;
     final int exposure;
-    final long evalTimestampMs;
+    final long timeBucket;
     final ImmutableMetadata metadata;
 
     Entry(
@@ -168,14 +190,14 @@ final class EvaluationMetadataTable {
         final Split split,
         final boolean observeFullEvaluationData,
         final int exposure,
-        final long evalTimestampMs,
+        final long timeBucket,
         final ImmutableMetadata metadata) {
       this.flag = flag;
       this.allocation = allocation;
       this.split = split;
       this.observeFullEvaluationData = observeFullEvaluationData;
       this.exposure = exposure;
-      this.evalTimestampMs = evalTimestampMs;
+      this.timeBucket = timeBucket;
       this.metadata = metadata;
     }
   }

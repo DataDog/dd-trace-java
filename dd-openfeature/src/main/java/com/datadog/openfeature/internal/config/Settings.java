@@ -41,6 +41,8 @@ public final class Settings {
   static final String EXPERIMENTATION_OPT_OUT_MODE = "feature.flags.experimentation.opt.out.mode";
   static final String EVALUATION_METADATA_TABLE_SIZE =
       "feature.flags.evaluation.metadata.table.size";
+  static final String EVALUATION_METADATA_TIME_BUCKET_MS =
+      "feature.flags.evaluation.metadata.time.bucket.ms";
   static final String TRACE_DEBUG = "trace.debug";
   static final String API_KEY = "api-key";
   static final String SITE = "site";
@@ -52,6 +54,7 @@ public final class Settings {
   static final int DEFAULT_POLL_INTERVAL_SECONDS = 30;
   static final int DEFAULT_REQUEST_TIMEOUT_SECONDS = 5;
   static final int DEFAULT_EVALUATION_METADATA_TABLE_SIZE = 1024;
+  static final int DEFAULT_EVALUATION_METADATA_TIME_BUCKET_MS = 1;
 
   private final AgentBridge bridge;
   private final UnaryOperator<String> systemProperties;
@@ -194,6 +197,20 @@ public final class Settings {
   public int evaluationMetadataTableSize() {
     return getNonNegativeInt(
         EVALUATION_METADATA_TABLE_SIZE, DEFAULT_EVALUATION_METADATA_TABLE_SIZE);
+  }
+
+  /**
+   * The width of the time bucket in which evaluations of a split share their flag metadata,
+   * including its evaluation timestamp. Evaluations that reuse the metadata report the time of the
+   * evaluation that built it, up to the width minus one millisecond early. The evaluator caps it at
+   * 10,000 milliseconds, the flush interval of the flag evaluation events.
+   *
+   * @return the width in milliseconds (1 by default, which keeps the timestamps exact), or 0 to
+   *     leave the timestamp out of the metadata, so the hooks read their own clock.
+   */
+  public int evaluationMetadataTimeBucketMs() {
+    return getNonNegativeInt(
+        EVALUATION_METADATA_TIME_BUCKET_MS, DEFAULT_EVALUATION_METADATA_TIME_BUCKET_MS);
   }
 
   /**

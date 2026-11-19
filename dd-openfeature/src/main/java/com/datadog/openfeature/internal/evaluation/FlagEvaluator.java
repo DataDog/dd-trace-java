@@ -63,6 +63,7 @@ public final class FlagEvaluator {
   private final ExposureLookup exposureLookup;
   private final ExperimentationOptOutMode experimentationOptOutMode;
   @Nullable private final EvaluationMetadataTable metadataTable;
+  private final int metadataTimeBucketMs;
 
   /**
    * Creates an evaluator.
@@ -82,7 +83,8 @@ public final class FlagEvaluator {
         spanEnrichmentEnabled,
         exposureLookup,
         experimentationOptOutMode,
-        EvaluationMetadataTable.DEFAULT_SIZE);
+        EvaluationMetadataTable.DEFAULT_SIZE,
+        EvaluationMetadataTable.DEFAULT_TIME_BUCKET_MS);
   }
 
   /**
@@ -94,28 +96,36 @@ public final class FlagEvaluator {
    * @param metadataTableSize the number of slots of the table sharing the metadata of evaluations
    *     that resolve the same split in the same millisecond, rounded up to a power of two, or 0 to
    *     build the metadata of each evaluation.
+   * @param metadataTimeBucketMs the width, in milliseconds, of the time bucket in which evaluations
+   *     of a split share their metadata and its {@code __dd_eval_timestamp_ms}, at most {@link
+   *     EvaluationMetadataTable#MAX_TIME_BUCKET_MS}; or 0 to leave the timestamp out of the
+   *     metadata, so the hooks read their own clock.
    */
   public FlagEvaluator(
       final boolean spanEnrichmentEnabled,
       final ExposureLookup exposureLookup,
       final ExperimentationOptOutMode experimentationOptOutMode,
-      final int metadataTableSize) {
+      final int metadataTableSize,
+      final int metadataTimeBucketMs) {
     this(
         spanEnrichmentEnabled,
         exposureLookup,
         experimentationOptOutMode,
-        EvaluationMetadataTable.create(metadataTableSize));
+        EvaluationMetadataTable.create(metadataTableSize),
+        metadataTimeBucketMs);
   }
 
   FlagEvaluator(
       final boolean spanEnrichmentEnabled,
       final ExposureLookup exposureLookup,
       final ExperimentationOptOutMode experimentationOptOutMode,
-      @Nullable final EvaluationMetadataTable metadataTable) {
+      @Nullable final EvaluationMetadataTable metadataTable,
+      final int metadataTimeBucketMs) {
     this.spanEnrichmentEnabled = spanEnrichmentEnabled;
     this.exposureLookup = exposureLookup;
     this.experimentationOptOutMode = experimentationOptOutMode;
     this.metadataTable = metadataTable;
+    this.metadataTimeBucketMs = EvaluationMetadataTable.timeBucketMs(metadataTimeBucketMs);
   }
 
   public <T> ProviderEvaluation<T> evaluate(
@@ -539,26 +549,30 @@ public final class FlagEvaluator {
       exposure = EvaluationMetadataTable.NEW_EXPOSURE;
     }
     // Everything else in the metadata is fixed by the split, so evaluations of the split in the
-    // same millisecond share it.
+    // same time bucket share it.
+    final int bucketMs = this.metadataTimeBucketMs;
+    final long timeBucket =
+        bucketMs == EvaluationMetadataTable.UNBOUNDED
+            ? 0
+            : bucketMs == 1 ? evalTimestampMs : evalTimestampMs / bucketMs;
     final EvaluationMetadataTable table = this.metadataTable;
     ImmutableMetadata metadata =
         table == null
             ? null
-            : table.get(
-                flag, allocation, split, observeFullEvaluationData, exposure, evalTimestampMs);
+            : table.get(flag, allocation, split, observeFullEvaluationData, exposure, timeBucket);
     if (metadata == null) {
       metadata =
           buildMetadata(
-              flag, allocation, split, observeFullEvaluationData, doLog, exposure, evalTimestampMs);
+              flag,
+              allocation,
+              split,
+              observeFullEvaluationData,
+              doLog,
+              exposure,
+              bucketMs == EvaluationMetadataTable.UNBOUNDED ? null : evalTimestampMs);
       if (table != null) {
         table.put(
-            flag,
-            allocation,
-            split,
-            observeFullEvaluationData,
-            exposure,
-            evalTimestampMs,
-            metadata);
+            flag, allocation, split, observeFullEvaluationData, exposure, timeBucket, metadata);
       }
     }
     return ProviderEvaluation.<T>builder()
@@ -576,16 +590,20 @@ public final class FlagEvaluator {
       final boolean observeFullEvaluationData,
       final boolean doLog,
       final int exposure,
-      final long evalTimestampMs) {
-    // Stamp eval-time at the resolution point so first/last_evaluation reflect evaluation time,
-    // not hook-fire time. Passed to the hook via provider metadata "__dd_eval_timestamp_ms".
+      @Nullable final Long evalTimestampMs) {
     final ImmutableMetadata.ImmutableMetadataBuilder metadataBuilder =
         ImmutableMetadata.builder()
             .addString("flagKey", flag.key)
             .addString("variationType", flag.variationType.name())
             .addString(ALLOCATION_KEY, allocation.key)
-            .addLong(EVAL_TIMESTAMP_MS, evalTimestampMs)
             .addBoolean(OBSERVE_FULL_EVALUATION_DATA, observeFullEvaluationData);
+    // Stamp eval-time at the resolution point so first/last_evaluation reflect evaluation time,
+    // not hook-fire time. Passed to the hook via provider metadata "__dd_eval_timestamp_ms".
+    // Without
+    // it, the hook stamps its own time.
+    if (evalTimestampMs != null) {
+      metadataBuilder.addLong(EVAL_TIMESTAMP_MS, evalTimestampMs);
+    }
     // Surface the UFC split's serial id and the allocation's doLog flag for APM span enrichment and
     // for the exposure hook, which sends the exposure after the evaluation succeeds. An evaluation
     // that neither logs exposures nor enriches spans carries neither key.

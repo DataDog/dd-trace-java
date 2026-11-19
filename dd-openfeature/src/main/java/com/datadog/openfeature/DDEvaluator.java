@@ -114,7 +114,8 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
             settings.isSpanEnrichmentEnabled(),
             this::isExposed,
             experimentationOptOutMode,
-            settings.evaluationMetadataTableSize());
+            settings.evaluationMetadataTableSize(),
+            settings.evaluationMetadataTimeBucketMs());
   }
 
   @Override

@@ -1,5 +1,6 @@
 package com.datadog.openfeature.internal.evaluation;
 
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EVAL_TIMESTAMP_MS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
@@ -15,8 +16,13 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.Locale;
+import java.util.SplittableRandom;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.LongAdder;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -30,41 +36,43 @@ import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.TearDown;
-import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
 
 /**
- * Concurrent requests that each evaluate the same {@code flagsPerRequest} flags of the 10,000-flag
- * scale configuration ({@code evaluation-suites/scale}), for a subject and cohort that change on
- * every request, on 12 threads sharing one evaluator. It shows what the evaluation metadata table
- * saves when many threads resolve the same splits in the same millisecond, and whether its slot
- * writes contend. {@code tableSize=0} builds the metadata of every evaluation, as without the
- * table.
+ * Requests that each evaluate {@code flagsPerRequest} flags drawn from 1,000 enabled flags of the
+ * 10,000-flag scale configuration ({@code evaluation-suites/scale}), for a subject and cohort that
+ * change on every request, on threads sharing one evaluator. It sweeps the evaluation metadata
+ * table size and time bucket width. {@code tableSize=0} builds the metadata of every evaluation, as
+ * without the table; {@code timeBucketMs=0} leaves the timestamp out of the metadata.
  *
- * <p>An operation is one request. Each measurement iteration prints the table's hit rate (the share
- * of successful evaluations that reused metadata) and its misses per millisecond. The lowest
- * possible miss rate is one per distinct key per millisecond: a request resolves {@code
- * flagsPerRequest} splits, and a cohort can switch one of them, so about {@code flagsPerRequest +
- * 1} keys. Misses above that come from threads racing on the same slot in the same millisecond, or
- * from keys evicting each other.
+ * <p>{@code popularity=uniform} draws each flag of a request uniformly; {@code skewed} draws it
+ * from a Zipf distribution with exponent 1, so a few flags take most evaluations. An operation is
+ * one request, sampled for its mean and percentiles. Each measurement iteration prints the table's
+ * hit rate, the share of successful evaluations that reused metadata, and how early the reported
+ * {@code __dd_eval_timestamp_ms} was: the clock just before the evaluation minus the reported time,
+ * sampled on every 8th request. Without a timestamp in the metadata, the flag evaluation hook reads
+ * its own clock after the evaluation, so the reported time is never early.
  *
- * <p>Run: {@code ./gradlew :dd-openfeature:jmh -Pjmh.includes=EvaluationMetadataTableBenchmark
- * -Pjmh.profilers=gc}.
+ * <p>Run with the thread count as an option: {@code java -jar dd-openfeature/build/libs/*-jmh.jar
+ * EvaluationMetadataTableBenchmark -t 12 -prof gc}. {@code tableSize=0} ignores the bucket width.
  */
 @State(Scope.Benchmark)
-@Warmup(iterations = 3, time = 2, timeUnit = SECONDS)
-@Measurement(iterations = 5, time = 2, timeUnit = SECONDS)
-@BenchmarkMode(Mode.AverageTime)
+@Warmup(iterations = 2, time = 1, timeUnit = SECONDS)
+@Measurement(iterations = 3, time = 1, timeUnit = SECONDS)
+@BenchmarkMode(Mode.SampleTime)
 @OutputTimeUnit(NANOSECONDS)
-@Threads(12)
 @Fork(value = 1)
 public class EvaluationMetadataTableBenchmark {
   private static final String CONFIG_PATH =
       "dd-openfeature/src/test/fixtures/ffe-system-test-data/evaluation-suites/scale/ufc-config.json";
+  private static final int POPULATION = 1000;
   private static final int CONTEXTS = 1024;
+  private static final int DRAWS = 1 << 16;
+  private static final int ERROR_SAMPLE_MASK = 7;
+  private static final int MAX_ERROR_MS = 10_000;
 
-  /** The number of different flags each request evaluates. */
+  /** The number of flags each request evaluates. */
   @Param({"10", "50"})
   public int flagsPerRequest;
 
@@ -72,22 +80,56 @@ public class EvaluationMetadataTableBenchmark {
   @Param({"0", "256", "1024", "4096"})
   public int tableSize;
 
+  /** The time bucket width in milliseconds, 0 to leave the timestamp out of the metadata. */
+  @Param({"1", "10", "100", "1000", "0"})
+  public int timeBucketMs;
+
+  /** How the flags of a request are drawn: {@code uniform} or {@code skewed} (Zipf). */
+  @Param({"uniform", "skewed"})
+  public String popularity;
+
   private ServerConfiguration config;
   private FlagEvaluator evaluator;
   private String[] flags;
+  private double[] cumulative;
   private EvaluationContext[] contexts;
+  private final AtomicInteger threadSeeds = new AtomicInteger();
+  private final List<Requests> threads = Collections.synchronizedList(new ArrayList<>());
   private final LongAdder misses = new LongAdder();
   private final LongAdder lookups = new LongAdder();
-  private long iterationStart;
 
-  /** The position of one benchmark thread in the contexts. */
+  /** One benchmark thread: its flag draws, its positions, and its timestamp error histogram. */
   @State(Scope.Thread)
   public static class Requests {
-    private int next;
+    private int[] draws;
+    private int nextDraw;
+    private int nextContext;
+    private int requests;
+    private long[] earlyMs;
 
-    EvaluationContext next(final EvaluationContext[] contexts) {
-      final EvaluationContext context = contexts[next];
-      next = (next + 1) & (contexts.length - 1);
+    @Setup(Level.Trial)
+    public void setUp(final EvaluationMetadataTableBenchmark benchmark) {
+      final int seed = benchmark.threadSeeds.incrementAndGet();
+      draws = benchmark.draws(new SplittableRandom(seed));
+      nextContext = (seed * 97) & (CONTEXTS - 1);
+      earlyMs = new long[MAX_ERROR_MS + 1];
+      benchmark.threads.add(this);
+    }
+
+    @Setup(Level.Iteration)
+    public void reset() {
+      Arrays.fill(earlyMs, 0);
+    }
+
+    int nextDraw() {
+      final int draw = draws[nextDraw];
+      nextDraw = (nextDraw + 1) & (DRAWS - 1);
+      return draw;
+    }
+
+    EvaluationContext nextContext(final EvaluationContext[] contexts) {
+      final EvaluationContext context = contexts[nextContext];
+      nextContext = (nextContext + 1) & (CONTEXTS - 1);
       return context;
     }
   }
@@ -100,13 +142,23 @@ public class EvaluationMetadataTableBenchmark {
             false,
             (flag, subject, allocation, variant, serialId) -> false,
             ExperimentationOptOutMode.DISABLED,
-            EvaluationMetadataTable.create(tableSize, misses));
+            EvaluationMetadataTable.create(tableSize, misses),
+            timeBucketMs);
     // Every 10th bulk flag is disabled: skip them, so each evaluation resolves a split.
-    flags = new String[flagsPerRequest];
-    for (int i = 0, flag = 0; i < flagsPerRequest; flag++) {
+    flags = new String[POPULATION];
+    for (int i = 0, flag = 0; i < POPULATION; flag++) {
       if (flag % 10 != 9) {
         flags[i++] = String.format(Locale.ROOT, "scale-bulk-%05d", flag);
       }
+    }
+    cumulative = new double[POPULATION];
+    double sum = 0;
+    for (int i = 0; i < POPULATION; i++) {
+      sum += "skewed".equals(popularity) ? 1.0 / (i + 1) : 1.0;
+      cumulative[i] = sum;
+    }
+    for (int i = 0; i < POPULATION; i++) {
+      cumulative[i] /= sum;
     }
     contexts = new EvaluationContext[CONTEXTS];
     for (int i = 0; i < CONTEXTS; i++) {
@@ -125,37 +177,82 @@ public class EvaluationMetadataTableBenchmark {
     }
   }
 
+  int[] draws(final SplittableRandom random) {
+    final int[] draws = new int[DRAWS];
+    for (int i = 0; i < DRAWS; i++) {
+      final int index = Arrays.binarySearch(cumulative, random.nextDouble());
+      draws[i] = Math.min(index < 0 ? -index - 1 : index, POPULATION - 1);
+    }
+    return draws;
+  }
+
   @Setup(Level.Iteration)
   public void startIteration() {
     misses.reset();
     lookups.reset();
-    iterationStart = System.nanoTime();
   }
 
   @TearDown(Level.Iteration)
   @SuppressForbidden
   public void reportIteration() {
-    final double elapsedMs = (System.nanoTime() - iterationStart) / 1e6;
     final long total = lookups.sum();
     final long missed = tableSize == 0 ? total : misses.sum();
+    final long[] early = new long[MAX_ERROR_MS + 1];
+    synchronized (threads) {
+      for (final Requests thread : threads) {
+        for (int i = 0; i <= MAX_ERROR_MS; i++) {
+          early[i] += thread.earlyMs[i];
+        }
+      }
+    }
+    long samples = 0;
+    int max = 0;
+    for (int i = 0; i <= MAX_ERROR_MS; i++) {
+      samples += early[i];
+      if (early[i] != 0) {
+        max = i;
+      }
+    }
+    int p99 = 0;
+    for (long seen = early[0]; seen < samples * 0.99 && p99 < MAX_ERROR_MS; ) {
+      seen += early[++p99];
+    }
     System.out.printf(
         Locale.ROOT,
-        "%n[table %d, %d flags] lookups %d, misses %d, hit rate %.4f%%, misses/ms %.1f%n",
+        "%n@@ table=%d bucket=%d flags=%d popularity=%s lookups=%d misses=%d hitRate=%.4f"
+            + " earlyP99Ms=%d earlyMaxMs=%d samples=%d%n",
         EvaluationMetadataTable.size(tableSize),
+        timeBucketMs,
         flagsPerRequest,
+        popularity,
         total,
         missed,
-        total == 0 ? 0 : 100.0 * (total - missed) / total,
-        missed / elapsedMs);
+        total == 0 ? 0 : (double) (total - missed) / total,
+        p99,
+        max,
+        samples);
   }
 
   @Benchmark
   public void request(final Requests requests, final Blackhole blackhole) {
-    final EvaluationContext context = requests.next(contexts);
-    for (final String flag : flags) {
-      blackhole.consume(evaluator.evaluate(config, Boolean.class, flag, false, context));
+    final EvaluationContext context = requests.nextContext(contexts);
+    final boolean sample = (requests.requests++ & ERROR_SAMPLE_MASK) == 0;
+    for (int i = 0; i < flagsPerRequest; i++) {
+      final String flag = flags[requests.nextDraw()];
+      if (sample) {
+        final long before = System.currentTimeMillis();
+        final ProviderEvaluation<Boolean> result =
+            evaluator.evaluate(config, Boolean.class, flag, false, context);
+        final Long reported = result.getFlagMetadata().getLong(EVAL_TIMESTAMP_MS);
+        // Without the timestamp, the hook reads its clock after the evaluation: never early.
+        final long early = reported == null ? 0 : before - reported;
+        requests.earlyMs[(int) Math.max(0, Math.min(early, MAX_ERROR_MS))]++;
+        blackhole.consume(result);
+      } else {
+        blackhole.consume(evaluator.evaluate(config, Boolean.class, flag, false, context));
+      }
     }
-    lookups.add(flags.length);
+    lookups.add(flagsPerRequest);
   }
 
   private static Path configFile() {

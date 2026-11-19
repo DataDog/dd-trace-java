@@ -91,6 +91,7 @@ class SettingsTest {
     assertTrue(settings.isExposuresDatadogLoggingEnabled());
     assertEquals("disabled", settings.experimentationOptOutMode());
     assertEquals(1024, settings.evaluationMetadataTableSize());
+    assertEquals(1, settings.evaluationMetadataTimeBucketMs());
   }
 
   @TableTest({
@@ -194,6 +195,20 @@ class SettingsTest {
         size,
         TestSettings.of("feature.flags.evaluation.metadata.table.size", value)
             .evaluationMetadataTableSize());
+  }
+
+  @TableTest({
+    "scenario  | value | width",
+    "unbounded | 0     | 0    ",
+    "custom    | 100   | 100  ",
+    "negative  | -1    | 1    ",
+    "invalid   | ten   | 1    "
+  })
+  void readsTheEvaluationMetadataTimeBucket(final String value, final int width) {
+    assertEquals(
+        width,
+        TestSettings.of("feature.flags.evaluation.metadata.time.bucket.ms", value)
+            .evaluationMetadataTimeBucketMs());
   }
 
   @Test

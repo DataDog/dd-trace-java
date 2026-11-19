@@ -12,7 +12,6 @@ import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -195,15 +194,93 @@ class EvaluationMetadataTableTest {
     }
   }
 
+  @TableTest({
+    "scenario    | requested | width",
+    "unbounded   | 0         | 0    ",
+    "negative    | -5        | 1    ",
+    "millisecond | 1         | 1    ",
+    "wider       | 100       | 100  ",
+    "capped      | 60000     | 10000"
+  })
+  void capsTheTimeBucketWidth(final int requested, final int width) {
+    assertEquals(width, EvaluationMetadataTable.timeBucketMs(requested));
+  }
+
   @Test
-  void neverReturnsTheMetadataOfAnotherKeyUnderContention() throws Exception {
+  void evaluationsInTheSameBucketShareTheMetadataOfTheFirstOne() {
+    final int width = 10;
+    final FlagEvaluator evaluator = evaluator(EvaluationMetadataTable.DEFAULT_SIZE, width);
+    final ServerConfiguration config = config(true, flag("flag", allocation("a", split(), true)));
+    // Start at the beginning of a bucket, so its later milliseconds follow.
+    while (System.currentTimeMillis() % width != 0) {
+      Thread.onSpinWait();
+    }
+    final ImmutableMetadata first = evaluate(evaluator, config, "flag", "user");
+    final long firstMs = first.getLong(EVAL_TIMESTAMP_MS);
+    int laterMilliseconds = 0;
+    long before;
+    ImmutableMetadata later;
+    while (true) {
+      before = System.currentTimeMillis();
+      later = evaluate(evaluator, config, "flag", "user");
+      if (later.getLong(EVAL_TIMESTAMP_MS) / width != firstMs / width) {
+        break;
+      }
+      // A later millisecond of the bucket still reports the time of the first evaluation.
+      assertSame(first, later);
+      if (before > firstMs) {
+        laterMilliseconds++;
+      }
+    }
+
+    assertTrue(laterMilliseconds > 0);
+    assertNotSame(first, later);
+    assertTrue(later.getLong(EVAL_TIMESTAMP_MS) >= before);
+  }
+
+  @Test
+  void anUnboundedBucketLeavesTheTimestampOutAndKeepsTheMetadata() {
+    final FlagEvaluator evaluator =
+        evaluator(EvaluationMetadataTable.DEFAULT_SIZE, EvaluationMetadataTable.UNBOUNDED);
+    final Flag flag = flag("flag", allocation("a", split(), true));
+    final ImmutableMetadata first = evaluate(evaluator, config(true, flag), "flag", "user");
+    final long start = System.currentTimeMillis();
+
+    assertNull(first.getLong(EVAL_TIMESTAMP_MS));
+    assertEquals("a", first.getString(ALLOCATION_KEY));
+    while (System.currentTimeMillis() < start + 3) {
+      assertSame(first, evaluate(evaluator, config(true, flag), "flag", "user"));
+    }
+    assertNotSame(first, evaluate(evaluator, config(false, flag), "flag", "user"));
+  }
+
+  @Test
+  void anUnboundedBucketWithoutTableBuildsTimestamplessMetadata() {
+    final FlagEvaluator evaluator = evaluator(0, EvaluationMetadataTable.UNBOUNDED);
+    final ServerConfiguration config = config(true, flag("flag", allocation("a", split(), true)));
+    final ImmutableMetadata first = evaluate(evaluator, config, "flag", "user");
+    final ImmutableMetadata second = evaluate(evaluator, config, "flag", "user");
+
+    assertNotSame(first, second);
+    assertNull(first.getLong(EVAL_TIMESTAMP_MS));
+    assertEquals(first.asUnmodifiableMap(), second.asUnmodifiableMap());
+  }
+
+  @TableTest({
+    "scenario     | timeBucketMs",
+    "millisecond  | 1           ",
+    "wider bucket | 10          ",
+    "unbounded    | 0           "
+  })
+  void neverReturnsTheMetadataOfAnotherKeyUnderContention(final int timeBucketMs) throws Exception {
     // A single slot makes every key collide.
     final FlagEvaluator evaluator =
         new FlagEvaluator(
             false,
             exposedUser(),
             ExperimentationOptOutMode.DISABLED,
-            EvaluationMetadataTable.create(1));
+            EvaluationMetadataTable.create(1),
+            timeBucketMs);
     final List<Flag> flags = new ArrayList<>();
     for (int i = 0; i < 4; i++) {
       flags.add(flag("flag-" + i, allocation("allocation-" + i, split(), i % 2 == 0)));
@@ -234,8 +311,16 @@ class EvaluationMetadataTableTest {
                 assertEquals(
                     flag % 2 == 0 ? "exposed".equals(subject) : null,
                     metadata.getBoolean(EXPOSURE_CACHE_HIT));
-                final long ms = metadata.getLong(EVAL_TIMESTAMP_MS);
-                assertTrue(before <= ms && ms <= after, ms + " not in " + before + ".." + after);
+                if (timeBucketMs == EvaluationMetadataTable.UNBOUNDED) {
+                  assertNull(metadata.getLong(EVAL_TIMESTAMP_MS));
+                } else {
+                  // A reused entry reports the time of the evaluation that built it, in the same
+                  // bucket.
+                  final long ms = metadata.getLong(EVAL_TIMESTAMP_MS);
+                  final long earliest = before - before % timeBucketMs;
+                  assertTrue(
+                      earliest <= ms && ms <= after, ms + " not in " + earliest + ".." + after);
+                }
               }
               return null;
             }));
@@ -250,7 +335,12 @@ class EvaluationMetadataTableTest {
   }
 
   private static FlagEvaluator evaluator(final int tableSize) {
-    return new FlagEvaluator(false, exposedUser(), ExperimentationOptOutMode.DISABLED, tableSize);
+    return evaluator(tableSize, EvaluationMetadataTable.DEFAULT_TIME_BUCKET_MS);
+  }
+
+  private static FlagEvaluator evaluator(final int tableSize, final int timeBucketMs) {
+    return new FlagEvaluator(
+        false, exposedUser(), ExperimentationOptOutMode.DISABLED, tableSize, timeBucketMs);
   }
 
   private static FlagEvaluator.ExposureLookup exposedUser() {
@@ -266,7 +356,6 @@ class EvaluationMetadataTableTest {
         evaluator
             .evaluate(config, Integer.class, flag, 0, new MutableContext(subject))
             .getFlagMetadata();
-    assertNotNull(metadata.getLong(EVAL_TIMESTAMP_MS));
     return metadata;
   }
 
