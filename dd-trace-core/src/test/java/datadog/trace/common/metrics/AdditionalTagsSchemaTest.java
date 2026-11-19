@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 import datadog.trace.api.metrics.StatsMetrics;
+import datadog.trace.api.metrics.TaggedCounter;
 import datadog.trace.core.monitor.HealthMetrics;
 import java.util.Arrays;
 import java.util.Collections;
@@ -125,7 +126,7 @@ class AdditionalTagsSchemaTest {
 
   /** Reads and resets the telemetry delta for {@code reason}; 0 if no counter exists yet. */
   private static long drainTelemetryDelta(String reason) {
-    for (StatsMetrics.TaggedCounter counter : StatsMetrics.getInstance().getTaggedCounters()) {
+    for (TaggedCounter counter : StatsMetrics.getInstance().getTaggedCounters()) {
       if (reason.equals(counter.getTag())) {
         return counter.getValueAndReset();
       }

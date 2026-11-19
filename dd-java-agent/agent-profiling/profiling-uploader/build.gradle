@@ -1,6 +1,5 @@
 plugins {
   id 'dd-trace-java.module.internal-library'
-  id 'dd-trace-java.conventions.testing.groovy'
 }
 
 // Set properties before any plugins get loaded
@@ -20,6 +19,13 @@ excludedClassesCoverage += [
   // When running on Java 8 without `jfr`, no code is executed
   'com.datadog.profiling.uploader.util.JfrCliHelper',
   'com.datadog.profiling.uploader.util.JfrCliHelper.Event'
+]
+
+// TODO: Cover these classes, then remove them from the coverage baseline (APMLP-2263)
+excludedClassesBranchCoverage += [
+  'com.datadog.profiling.uploader.CompressingRequestBody',
+  'com.datadog.profiling.uploader.ProfileUploader',
+  'com.datadog.profiling.uploader.ProfileUploader.RecordingDataAdapter',
 ]
 
 dependencies {

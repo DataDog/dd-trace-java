@@ -187,6 +187,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LAMBDA_SNAPSTART_CL
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_OTEL_SDK_SELF_MONITORING_METRICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_OTEL_SEMANTICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_POST_PROCESSING_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_PROPAGATION_BEHAVIOR_EXTRACT;
@@ -517,6 +518,7 @@ import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_HEADERS;
 import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_PROTOCOL;
 import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_TIMEOUT;
 import static datadog.trace.api.config.OtlpConfig.TRACE_OTEL_EXPORTER;
+import static datadog.trace.api.config.OtlpConfig.TRACE_OTEL_SDK_SELF_MONITORING_METRICS_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_AGENTLESS;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_AGENTLESS_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_FILE_OLD;
@@ -706,6 +708,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_CLOUD_PAYLOAD_TAGGING_
 import static datadog.trace.api.config.TracerConfig.TRACE_CLOUD_PAYLOAD_TAGGING_SERVICES;
 import static datadog.trace.api.config.TracerConfig.TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING;
 import static datadog.trace.api.config.TracerConfig.TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING;
+import static datadog.trace.api.config.TracerConfig.TRACE_DENSE_TAGS_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_EXPERIMENTAL_FEATURES_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_GIT_METADATA_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_CLIENT_ERROR_STATUSES;
@@ -748,8 +751,12 @@ import static datadog.trace.api.config.TracerConfig.WRITER_BAGGAGE_INJECT;
 import static datadog.trace.api.config.TracerConfig.WRITER_LINKS_INJECT;
 import static datadog.trace.api.config.TracerConfig.WRITER_TYPE;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
+import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.DD_INTAKE_WRITER_TYPE;
+import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.LOGGING_WRITER_TYPE;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.MULTI_WRITER_TYPE;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.OTLP_WRITER_TYPE;
+import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.PRINTING_WRITER_TYPE;
+import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.TRACE_STRUCTURE_WRITER_TYPE;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
 import static datadog.trace.util.ConfigStrings.propertyNameToEnvironmentVariableName;
@@ -855,6 +862,12 @@ public class Config {
 
   private static final Pattern COLON = Pattern.compile(":");
   private static final Pattern COMMA = Pattern.compile(",");
+
+  // General OTLP settings, which the signals without their own fall back to. They have no
+  // DD_-prefixed form, so they are not declared with the Datadog settings in OtlpConfig.
+  private static final String OTEL_EXPORTER_OTLP_ENDPOINT = "otel.exporter.otlp.endpoint";
+  private static final String OTEL_EXPORTER_OTLP_HEADERS = "otel.exporter.otlp.headers";
+  private static final String OTEL_EXPORTER_OTLP_PROTOCOL = "otel.exporter.otlp.protocol";
 
   // Historical conflating-Batch size; used to translate TRACER_METRICS_MAX_PENDING (configured in
   // legacy batch units) into the new per-SpanSnapshot inbox capacity.
@@ -1033,6 +1046,7 @@ public class Config {
   private final int metricsOtelTimeout;
   private final int metricsOtelCardinalityLimit;
   private final boolean metricsOtelExperimentalEnabled;
+  private final boolean traceOtelSdkSelfMonitoringMetricsEnabled;
   private final String otlpMetricsEndpoint;
   private final Map<String, String> otlpMetricsHeaders;
   private final OtlpConfig.Protocol otlpMetricsProtocol;
@@ -1049,6 +1063,10 @@ public class Config {
   private final OtlpConfig.Protocol otlpTracesProtocol;
   private final OtlpConfig.Compression otlpTracesCompression;
   private final int otlpTracesTimeout;
+
+  private final String otlpEndpoint;
+  private final Map<String, String> otlpHeaders;
+  private final OtlpConfig.Protocol otlpProtocol;
 
   // These values are default-ed to those of jmx fetch values as needed
   private final boolean healthMetricsEnabled;
@@ -1458,6 +1476,7 @@ public class Config {
   private final boolean jdkSocketEnabled;
 
   private final boolean spanBuilderReuseEnabled;
+  private final boolean traceDenseTagsEnabled;
   private final int tagNameUtf8CacheSize;
   private final int tagValueUtf8CacheSize;
   private final int stackTraceLengthLimit;
@@ -2212,6 +2231,11 @@ public class Config {
         configProvider.getBoolean(
             METRICS_OTEL_EXPERIMENTAL_ENABLED, DEFAULT_METRICS_OTEL_EXPERIMENTAL_ENABLED);
 
+    traceOtelSdkSelfMonitoringMetricsEnabled =
+        configProvider.getBoolean(
+            TRACE_OTEL_SDK_SELF_MONITORING_METRICS_ENABLED,
+            DEFAULT_TRACE_OTEL_SDK_SELF_MONITORING_METRICS_ENABLED);
+
     // keep OTLP default timeout below the overall export timeout
     int defaultOtlpMetricsTimeout = Math.min(metricsOtelTimeout, DEFAULT_METRICS_OTEL_TIMEOUT);
     otlpTimeout = configProvider.getInteger(OTLP_METRICS_TIMEOUT, defaultOtlpMetricsTimeout);
@@ -2251,14 +2275,8 @@ public class Config {
             OtlpConfig.Temporality.class,
             OtlpConfig.Temporality.DELTA);
 
-    // Tri-state default: when unset, SDK-computed OTLP span metrics are emitted iff OTLP trace
-    // export and OTLP metrics export are both enabled. OTEL_SDK_DISABLED=true turns them off.
     otelTracesSpanMetricsEnabled =
-        configProvider.getBoolean(
-                OTEL_TRACES_SPAN_METRICS_ENABLED,
-                isTraceOtlpExporterEnabled()
-                    && isMetricsOtelEnabled()
-                    && isMetricsOtlpExporterEnabled())
+        configProvider.getBoolean(OTEL_TRACES_SPAN_METRICS_ENABLED, false)
             && !configProvider.isOtelSdkDisabled();
 
     otlpTimeout = configProvider.getInteger(OTLP_TRACES_TIMEOUT, DEFAULT_OTLP_TRACES_TIMEOUT);
@@ -2291,6 +2309,23 @@ public class Config {
       }
     }
     otlpTracesEndpoint = otlpTracesEndpointFromEnvironment;
+
+    // The general OTLP settings have no Datadog equivalent: they only apply through the signal
+    // settings they are the fallback of, and default like them.
+    otlpHeaders =
+        decodeOtlpHeaders(configProvider.getOtelSettingMap(OTEL_EXPORTER_OTLP_HEADERS, '='));
+    otlpProtocol = parseOtlpProtocol(configProvider.getOtelSetting(OTEL_EXPORTER_OTLP_PROTOCOL));
+    String otlpEndpointFromEnvironment = configProvider.getOtelSetting(OTEL_EXPORTER_OTLP_ENDPOINT);
+    if (otlpEndpointFromEnvironment == null) {
+      otlpEndpointFromEnvironment =
+          "http://"
+              + agentHost
+              + ':'
+              + (otlpProtocol == OtlpConfig.Protocol.GRPC
+                  ? DEFAULT_OTLP_GRPC_PORT
+                  : DEFAULT_OTLP_HTTP_PORT);
+    }
+    otlpEndpoint = otlpEndpointFromEnvironment;
 
     // Runtime metrics are disabled if Otel metrics are enabled and the metrics exporter is none.
     // OTEL_SDK_DISABLED=true turns them off, whatever DD_RUNTIME_METRICS_ENABLED says.
@@ -3469,6 +3504,7 @@ public class Config {
 
     this.spanBuilderReuseEnabled =
         configProvider.getBoolean(GeneralConfig.SPAN_BUILDER_REUSE_ENABLED, true);
+    this.traceDenseTagsEnabled = configProvider.getBoolean(TRACE_DENSE_TAGS_ENABLED, false);
     this.tagNameUtf8CacheSize =
         Math.max(configProvider.getInteger(GeneralConfig.TAG_NAME_UTF8_CACHE_SIZE, 128), 0);
     this.tagValueUtf8CacheSize =
@@ -3495,6 +3531,18 @@ public class Config {
         configProvider.getBoolean(AI_GUARD_REDACTION_ENABLED, DEFAULT_AI_GUARD_REDACTION_ENABLED);
 
     log.debug("New instance: {}", this);
+  }
+
+  /** Parses an OTLP protocol like the signal protocols are, defaulting to HTTP/protobuf. */
+  private static OtlpConfig.Protocol parseOtlpProtocol(String protocol) {
+    if (protocol != null) {
+      try {
+        return OtlpConfig.Protocol.valueOf(protocol.replace('/', '_').toUpperCase(Locale.ROOT));
+      } catch (IllegalArgumentException ignored) {
+        // invalid protocols fall back to the default, like the signal protocols
+      }
+    }
+    return OtlpConfig.Protocol.HTTP_PROTOBUF;
   }
 
   /** Decodes resolved OTLP header values after parsing and precedence resolution. */
@@ -4066,6 +4114,32 @@ public class Config {
   public boolean isTracerMetricsEnabled() {
     // When ASM Standalone Billing is enabled metrics should be disabled
     return tracerMetricsEnabled && isApmTracingEnabled();
+  }
+
+  public boolean isNativeTracerMetricsEnabled() {
+    return isTracerMetricsEnabled() && !isOtelTracesSpanMetricsEnabled() && hasAgentWriter();
+  }
+
+  public boolean hasAgentWriter() {
+    if (!writerType.startsWith(MULTI_WRITER_TYPE)) {
+      return isAgentWriterType(writerType);
+    }
+    String multiWriterConfig = Strings.replace(writerType, MULTI_WRITER_TYPE + ":", "");
+    for (String subWriterType : COMMA.split(multiWriterConfig)) {
+      if (isAgentWriterType(subWriterType)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private static boolean isAgentWriterType(String type) {
+    // WriterFactory falls back to DDAgentWriter for unrecognized writer types.
+    return !OTLP_WRITER_TYPE.equals(type)
+        && !DD_INTAKE_WRITER_TYPE.equals(type)
+        && !LOGGING_WRITER_TYPE.equals(type)
+        && !PRINTING_WRITER_TYPE.equals(type)
+        && !type.startsWith(TRACE_STRUCTURE_WRITER_TYPE);
   }
 
   public boolean isTracerMetricsIgnoreAgentVersion() {
@@ -5451,6 +5525,10 @@ public class Config {
     return jdkSocketEnabled;
   }
 
+  public boolean isTraceDenseTagsEnabled() {
+    return traceDenseTagsEnabled;
+  }
+
   public boolean isSpanBuilderReuseEnabled() {
     return spanBuilderReuseEnabled;
   }
@@ -5939,6 +6017,23 @@ public class Config {
     return metricsOtelExperimentalEnabled;
   }
 
+  public boolean isTraceOtelSdkSelfMonitoringMetricsEnabled() {
+    return traceOtelSdkSelfMonitoringMetricsEnabled;
+  }
+
+  /**
+   * Whether OTel SDK self-monitoring metrics ({@code otel.sdk.*}, Development stability) should be
+   * emitted through the OTLP metrics pipeline. Requires OTel metrics with the OTLP exporter,
+   * experimental OTel metrics, and the opt-in flag. Independent of {@link
+   * #isHealthMetricsEnabled()} and runtime metrics.
+   */
+  public boolean isOtelSdkSelfMonitoringMetricsActive() {
+    return isMetricsOtelEnabled()
+        && isMetricsOtlpExporterEnabled()
+        && metricsOtelExperimentalEnabled
+        && traceOtelSdkSelfMonitoringMetricsEnabled;
+  }
+
   public int getMetricsOtelCardinalityLimit() {
     return metricsOtelCardinalityLimit;
   }
@@ -6018,6 +6113,21 @@ public class Config {
 
   public OtlpConfig.Compression getOtlpTracesCompression() {
     return otlpTracesCompression;
+  }
+
+  /** The general OTLP endpoint ({@code OTEL_EXPORTER_OTLP_ENDPOINT}). */
+  public String getOtlpEndpoint() {
+    return otlpEndpoint;
+  }
+
+  /** The general OTLP headers ({@code OTEL_EXPORTER_OTLP_HEADERS}). */
+  public Map<String, String> getOtlpHeaders() {
+    return otlpHeaders;
+  }
+
+  /** The general OTLP protocol ({@code OTEL_EXPORTER_OTLP_PROTOCOL}). */
+  public OtlpConfig.Protocol getOtlpProtocol() {
+    return otlpProtocol;
   }
 
   public int getOtlpTracesTimeout() {
@@ -7203,6 +7313,8 @@ public class Config {
         + metricsOtelCardinalityLimit
         + ", metricsOtelExperimentalEnabled="
         + metricsOtelExperimentalEnabled
+        + ", traceOtelSdkSelfMonitoringMetricsEnabled="
+        + traceOtelSdkSelfMonitoringMetricsEnabled
         + ", otlpMetricsEndpoint="
         + otlpMetricsEndpoint
         + ", otlpMetricsHeaders="
@@ -7233,6 +7345,8 @@ public class Config {
         + otlpTracesCompression
         + ", otlpTracesTimeout="
         + otlpTracesTimeout
+        + ", otlpProtocol="
+        + otlpProtocol
         + ", ciVisibilityGradleDependencyVerificationEnabled="
         + ciVisibilityGradleDependencyVerificationEnabled
         + ", ciVisibilityDynamicAtrEnabled="

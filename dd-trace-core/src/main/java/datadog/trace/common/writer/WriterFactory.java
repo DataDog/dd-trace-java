@@ -194,7 +194,7 @@ public class WriterFactory {
               commObjects.agentUrl,
               featuresDiscovery,
               commObjects.monitoring,
-              config.isTracerMetricsEnabled());
+              config.isNativeTracerMetricsEnabled());
 
       // Register whichever sampler applies agent published rates, regardless of what wraps it.
       final RateByServiceTraceSampler agentRateSampler = sampler.agentSampler();

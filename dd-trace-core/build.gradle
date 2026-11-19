@@ -61,6 +61,8 @@ excludedClassesCoverage += [
   'datadog.trace.core.datastreams.DataStreamPropagator',
   // send() requires live HTTP/2 server
   'datadog.trace.core.otlp.common.OtlpGrpcSender',
+  // exception holder; status codes covered by OtlpGrpcSenderTest
+  'datadog.trace.core.otlp.common.OtlpGrpcStatusException',
   // covered by OTLP system-tests
   'datadog.trace.core.otlp.logs.OtlpLogsService',
   'datadog.trace.core.otlp.metrics.OtlpMetricsSenderFactory',
