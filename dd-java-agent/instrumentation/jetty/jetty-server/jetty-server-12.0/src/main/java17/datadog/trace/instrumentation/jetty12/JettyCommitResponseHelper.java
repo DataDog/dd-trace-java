@@ -96,12 +96,17 @@ public final class JettyCommitResponseHelper {
       // claim before writing: Jetty can complete the write, and run the original callback, inside
       // write() itself
       claimed = claimBrf(reqCtx);
-      response.write(true, body, new BlockingCallback(reqCtx, callback));
+      BlockingCallback blockingCallback = new BlockingCallback(reqCtx, callback, claimed);
+      if (claimed != null) {
+        // before the write: Jetty may run the write callback inside write()
+        claimed.blockWriteStarted();
+      }
+      response.write(true, body, blockingCallback);
     } catch (Throwable t) {
       // fail open: nothing was accepted, the original write proceeds
       log.debug("Failed to commit blocking response on response commit", t);
       if (claimed != null) {
-        claimed.release();
+        claimed.releaseAfterFailedWrite();
       }
       reportBlockFailure(reqCtx);
       return false;
@@ -135,35 +140,60 @@ public final class JettyCommitResponseHelper {
 
   /**
    * Completes the original write callback once the blocking response write completes, marking the
-   * segment as effectively blocked on success and reporting {@code block_failure} on failure.
+   * segment as effectively blocked on success and reporting {@code block_failure} on failure. Both
+   * outcomes then finish the in-flight write on the Handler callback wrapper, if any, replaying a
+   * request completion parked while the write was pending: the write callback runs before the
+   * request completes, as in Jetty without the wrapper.
    */
   static final class BlockingCallback implements Callback {
     private final RequestContext reqCtx;
     private final TraceSegment segment;
     private final Callback delegate;
 
-    BlockingCallback(RequestContext reqCtx, Callback delegate) {
+    /** BRF claimed by this write, tracking it as in flight; null when the claim was not taken. */
+    private final JettyBlockResponseFunction claimed;
+
+    BlockingCallback(RequestContext reqCtx, Callback delegate, JettyBlockResponseFunction claimed) {
       this.reqCtx = reqCtx;
       this.segment = reqCtx.getTraceSegment();
       this.delegate = delegate != null ? delegate : Callback.NOOP;
+      this.claimed = claimed;
     }
 
     @Override
     public void succeeded() {
+      // recorded before a parked completion is replayed and the span can finish
       markEffectivelyBlocked(segment);
-      delegate.succeeded();
+      try {
+        delegate.succeeded();
+      } finally {
+        blockWriteFinished();
+      }
     }
 
     @Override
     public void failed(Throwable x) {
       logWriteFailure("Failed to write blocking response on response commit", x);
       reportBlockFailure(reqCtx);
-      delegate.failed(x);
+      try {
+        delegate.failed(x);
+      } finally {
+        // the claim is kept (see claimBrf), so no retry can start a new write
+        blockWriteFinished();
+      }
+    }
+
+    /** Runs on Jetty write callback threads; never throws. */
+    private void blockWriteFinished() {
+      if (claimed != null) {
+        claimed.blockWriteFinished();
+      }
     }
 
     @Override
     public InvocationType getInvocationType() {
-      return delegate.getInvocationType();
+      InvocationType base = delegate.getInvocationType();
+      return claimed == null ? base : claimed.writeCallbackType(base);
     }
   }
 }

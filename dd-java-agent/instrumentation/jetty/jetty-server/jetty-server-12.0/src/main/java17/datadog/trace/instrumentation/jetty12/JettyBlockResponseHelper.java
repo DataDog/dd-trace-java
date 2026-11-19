@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.jetty12;
 
 import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY;
+import static datadog.trace.bootstrap.ActiveSubsystems.APPSEC_ACTIVE;
 import static datadog.trace.bootstrap.blocking.BlockingActionHelper.determineTemplateType;
 import static datadog.trace.bootstrap.blocking.BlockingActionHelper.getContentType;
 import static datadog.trace.bootstrap.blocking.BlockingActionHelper.getHttpCode;
@@ -109,6 +110,10 @@ public final class JettyBlockResponseHelper {
    * <p>When nothing could be sent the claim is released (and a prepared response restored) and
    * false is returned without reporting: the caller decides how the failure is reported.
    *
+   * <p>When the Handler callback was wrapped ({@link JettyBlockResponseFunction#deferCompletion}),
+   * the write is marked in flight before it is issued and finished on every exit, always before the
+   * claim is released: after the release a retry may start a new write.
+   *
    * @return true once Jetty accepted the write; false if nothing was sent
    */
   static boolean commitBlockingResponse(
@@ -140,9 +145,11 @@ public final class JettyBlockResponseHelper {
     }
     Callback writeCallback =
         Callback.from(
-            Invocable.getInvocationType(onWritten),
+            brf.writeCallbackType(Invocable.getInvocationType(onWritten)),
             () -> {
+              // recorded before a parked completion is replayed and the span can finish
               markEffectivelyBlocked(segment);
+              brf.blockWriteFinished();
               onWritten.succeeded();
             },
             failure -> {
@@ -150,9 +157,11 @@ public final class JettyBlockResponseHelper {
               if (reqCtx != null) {
                 reportBlockFailure(reqCtx);
               }
-              brf.release();
+              brf.releaseAfterFailedWrite();
               onWritten.failed(failure);
             });
+    // before the write: Jetty may run the write callback inside write()
+    brf.blockWriteStarted();
     try {
       response.write(true, body, writeCallback);
     } catch (Exception e) {
@@ -160,7 +169,7 @@ public final class JettyBlockResponseHelper {
       // means nothing was sent
       log.debug("Failed to write blocking response", e);
       restoreAfterFailedBlock(request, response);
-      brf.release();
+      brf.releaseAfterFailedWrite();
       return false;
     }
     return true;
@@ -235,6 +244,110 @@ public final class JettyBlockResponseHelper {
       log.debug("Failed to complete callback after request blocking response", e);
     }
     return true;
+  }
+
+  /**
+   * Wraps the Jetty Handler {@code callback} with a {@link JettyDeferredCompletion} so that a
+   * mid-handler blocking response write is not cut when the request completes. Must only be called
+   * once the handler chain is going to run (not when {@link #tryBlockRequest} blocked).
+   *
+   * @return the wrapper when AppSec is active and a {@link JettyBlockResponseFunction} is
+   *     registered for {@code request}; {@code callback} otherwise, including on any failure
+   */
+  public static Callback deferCompletion(Request request, Callback callback) {
+    if (!APPSEC_ACTIVE) {
+      return callback;
+    }
+    try {
+      AgentSpan span = spanFrom(request);
+      RequestContext reqCtx = span == null ? null : span.getRequestContext();
+      BlockResponseFunction brf = reqCtx == null ? null : reqCtx.getBlockResponseFunction();
+      if (brf instanceof JettyBlockResponseFunction) {
+        return ((JettyBlockResponseFunction) brf).deferCompletion(callback);
+      }
+    } catch (Exception e) {
+      log.debug("Failed to defer the request completion", e);
+    }
+    return callback;
+  }
+
+  /**
+   * Fails the Handler callback wrapper with a {@code Throwable} that escaped {@code Server.handle}
+   * while the wrapper is deferring (a blocking response write is in flight).
+   *
+   * <p>Jetty's {@code HandlerInvoker} fails its own reference to the Handler callback with such a
+   * throwable, bypassing the wrapper installed by {@link #deferCompletion(Request, Callback)},
+   * which would cut the in-flight write. Servlet environments catch {@code BlockingException}
+   * themselves; this covers core handlers that let it escape, including after completing the
+   * wrapper: that first completion stays parked, {@code failure} is dropped as a second completion,
+   * and the parked outcome is replayed when the write finishes. When the wrapper is not deferring
+   * Jetty keeps handling the throwable as it would without the agent.
+   *
+   * <p>Never throws an {@code Exception}; an {@code Error} is left to the advice's suppress
+   * handler.
+   *
+   * @param callback the callback the handler chain received
+   * @return true when {@code callback} is the wrapper and it was deferring, in which case the
+   *     caller must swallow {@code failure} and report the request as handled; false otherwise,
+   *     including on any failure, in which case {@code failure} must propagate unchanged
+   */
+  public static boolean failDeferred(Callback callback, Throwable failure) {
+    if (!(callback instanceof JettyDeferredCompletion)) {
+      return false;
+    }
+    JettyDeferredCompletion deferred = (JettyDeferredCompletion) callback;
+    if (!deferred.isDeferring()) {
+      return false;
+    }
+    try {
+      // if the write finishes meanwhile the wrapper forwards the failure directly
+      deferred.failed(failure);
+      return true;
+    } catch (Exception e) {
+      log.debug("Failed to fail the deferred request completion", e);
+      return false;
+    }
+  }
+
+  /**
+   * Completes the Handler callback wrapper when {@code Server.handle} returned {@code false} after
+   * a blocking response was initiated on the handler chain.
+   *
+   * <p>On {@code false} Jetty's {@code HandlerInvoker} writes a 404 error with its own reference to
+   * the Handler callback, bypassing the wrapper installed by {@link #deferCompletion(Request,
+   * Callback)}: it would write over the blocking response or complete the request while the block
+   * write is in flight. Since {@code false} means the handler will not complete the callback, the
+   * caller may only report the request as handled once the wrapper was completed here: it is
+   * completed with {@code succeeded()}, parked while the block write is in flight and replayed when
+   * it finishes.
+   *
+   * <p>Never throws an {@code Exception}; an {@code Error} is left to the advice's suppress
+   * handler.
+   *
+   * @param request the request whose context holds the blocking response function
+   * @param callback the callback the handler chain received
+   * @return true when {@code callback} is the wrapper, a blocking response was initiated and the
+   *     wrapper was completed, in which case the caller must report the request as handled; false
+   *     otherwise, including on any failure, in which case Jetty handles {@code false} unchanged
+   */
+  public static boolean completeUnhandledBlock(Request request, Callback callback) {
+    if (!(callback instanceof JettyDeferredCompletion)) {
+      return false;
+    }
+    try {
+      AgentSpan span = spanFrom(request);
+      RequestContext reqCtx = span == null ? null : span.getRequestContext();
+      BlockResponseFunction brf = reqCtx == null ? null : reqCtx.getBlockResponseFunction();
+      if (!(brf instanceof JettyBlockResponseFunction)
+          || !((JettyBlockResponseFunction) brf).isBlockingResponseInitiated()) {
+        return false;
+      }
+      callback.succeeded();
+      return true;
+    } catch (Exception e) {
+      log.debug("Failed to complete the deferred request completion of an unhandled request", e);
+      return false;
+    }
   }
 
   /**

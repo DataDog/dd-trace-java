@@ -10,6 +10,7 @@ import datadog.communication.BackendApiFactory;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.trace.api.Config;
+import datadog.trace.api.TagMap;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.telemetry.CoreMetricCollector;
 import java.io.IOException;
@@ -29,6 +30,9 @@ public final class FeatureFlagsBackend implements FeatureFlaggingGateway.Backend
   private static final String ENV = "env";
   private static final String SERVICE = "service";
   private static final String VERSION = "version";
+  private static final String SERVICE_TAG = "service";
+  // The name of RuleFlags.Feature.SERVICE_NAME in dd-trace-core.
+  private static final String SERVICE_NAME_RULE = "ServiceNameTagInterceptor";
 
   private final SharedCommunicationObjects sco;
   private final Config config;
@@ -103,12 +107,32 @@ public final class FeatureFlagsBackend implements FeatureFlaggingGateway.Backend
       case ENV:
         return this.config.getEnv();
       case SERVICE:
-        return this.config.getServiceName();
+        return spanService();
       case VERSION:
         return this.config.getVersion();
       default:
         return this.config.configProvider().getString(key);
     }
+  }
+
+  /**
+   * The service of the tracer's spans. The tracer merges the global tags and the span tags into a
+   * {@link TagMap}, which stores {@code service.name} as {@code service}, and its tag interceptor
+   * makes that tag the span service. Config drops a {@code service} tag from {@code DD_TAGS} when
+   * the user sets {@code DD_SERVICE}, so the tag wins only where it also wins on spans. The tracer
+   * then applies {@code DD_SERVICE_MAPPING} to the span service, so this method does too.
+   */
+  private String spanService() {
+    // The same merge as the tracer's span defaults: the span tags win over the global tags.
+    final TagMap tags = TagMap.fromMap(this.config.getGlobalTags());
+    tags.putAll(this.config.getSpanTags());
+    final String tagged = tags.getString(SERVICE_TAG);
+    final String service =
+        tagged != null && this.config.isRuleEnabled(SERVICE_NAME_RULE)
+            ? tagged
+            : this.config.getServiceName();
+    // The same lookup as the tracer's TraceCollector.mapServiceName.
+    return this.config.getServiceMapping().getOrDefault(service, service);
   }
 
   @Override

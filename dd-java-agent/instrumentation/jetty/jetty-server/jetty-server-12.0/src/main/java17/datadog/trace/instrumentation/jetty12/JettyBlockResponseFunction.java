@@ -6,13 +6,14 @@ import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.internal.TraceSegment;
-import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
 import org.eclipse.jetty.util.Callback;
+import org.eclipse.jetty.util.thread.Invocable;
+import org.eclipse.jetty.util.thread.Invocable.InvocationType;
 
 /**
  * {@link BlockResponseFunction} for Jetty 12 core. Holds the per-request core request and response
@@ -26,6 +27,9 @@ import org.eclipse.jetty.util.Callback;
  *
  * <p>The request phase shares the claim of this function through {@link
  * JettyBlockResponseHelper#tryBlockRequest}.
+ *
+ * <p>When the Handler callback was wrapped by {@link #deferCompletion}, the blocking response write
+ * is tracked as in flight so that completing the request does not cut it.
  */
 public class JettyBlockResponseFunction implements BlockResponseFunction {
   private static final AtomicIntegerFieldUpdater<JettyBlockResponseFunction> CLAIMED =
@@ -36,6 +40,9 @@ public class JettyBlockResponseFunction implements BlockResponseFunction {
 
   /** 1 while a blocking response write is owned by one evaluation and has not failed. */
   private volatile int claimed;
+
+  /** Wrapper of the Handler callback, set once on the handler chain path; null if not installed. */
+  private volatile JettyDeferredCompletion deferredCompletion;
 
   public JettyBlockResponseFunction(Request request, Response response) {
     this.request = request;
@@ -69,7 +76,66 @@ public class JettyBlockResponseFunction implements BlockResponseFunction {
     return response;
   }
 
-  @VisibleForTesting
+  /**
+   * Wraps the Handler callback so its completion waits for an in-flight blocking response write.
+   * Installed at most once per request: later calls return {@code handlerCallback} unchanged.
+   *
+   * @return the callback to pass to the handler chain
+   */
+  Callback deferCompletion(Callback handlerCallback) {
+    if (deferredCompletion != null) {
+      return handlerCallback;
+    }
+    JettyDeferredCompletion wrapper = new JettyDeferredCompletion(handlerCallback);
+    deferredCompletion = wrapper;
+    return wrapper;
+  }
+
+  /**
+   * Marks a blocking response write as in flight on the Handler callback wrapper. Must be called
+   * before the write is issued: Jetty may run the write callback inside the write call. A no-op
+   * when no wrapper is installed. Reading the wrapper on each call is safe: it is installed on
+   * {@code Server.handle} entry, before any write that can outlive the handler chain starts.
+   */
+  void blockWriteStarted() {
+    JettyDeferredCompletion deferred = deferredCompletion;
+    if (deferred != null) {
+      deferred.blockWriteStarted();
+    }
+  }
+
+  /**
+   * Marks the blocking response write as finished, replaying a request completion parked while it
+   * was in flight. A no-op when no wrapper is installed. Can run on Jetty write callback threads:
+   * never throws.
+   */
+  void blockWriteFinished() {
+    JettyDeferredCompletion deferred = deferredCompletion;
+    if (deferred != null) {
+      deferred.blockWriteFinished();
+    }
+  }
+
+  /**
+   * Finishes the failed blocking response write, then releases the claim. The order matters: after
+   * the release a retry may start a new write, which a late finish would wrongly clear.
+   */
+  void releaseAfterFailedWrite() {
+    blockWriteFinished();
+    release();
+  }
+
+  /**
+   * Returns the invocation type for a blocking response write callback whose own completion is
+   * {@code base}. When a wrapper is installed the write callback may replay the Handler completion,
+   * so its type is combined with the wrapper's.
+   */
+  InvocationType writeCallbackType(InvocationType base) {
+    JettyDeferredCompletion deferred = deferredCompletion;
+    return deferred == null ? base : Invocable.combine(base, deferred.getInvocationType());
+  }
+
+  /** Returns whether a blocking response write is claimed by one evaluation and has not failed. */
   boolean isBlockingResponseInitiated() {
     return claimed != 0;
   }
