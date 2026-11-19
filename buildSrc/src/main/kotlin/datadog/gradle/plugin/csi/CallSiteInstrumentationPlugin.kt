@@ -7,12 +7,13 @@ import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.component.ProjectComponentIdentifier
+import org.gradle.api.file.Directory
 import org.gradle.api.plugins.JavaPlugin
 import org.gradle.api.plugins.JavaPlugin.COMPILE_CLASSPATH_CONFIGURATION_NAME
 import org.gradle.api.plugins.JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME
 import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.plugins.jvm.JvmTestSuite
-import org.gradle.api.tasks.ClasspathNormalizer
+import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.SourceSet.MAIN_SOURCE_SET_NAME
 import org.gradle.api.tasks.SourceSet.TEST_SOURCE_SET_NAME
@@ -26,7 +27,6 @@ import org.gradle.kotlin.dsl.create
 import org.gradle.kotlin.dsl.getByType
 import org.gradle.kotlin.dsl.named
 import org.gradle.kotlin.dsl.register
-import org.gradle.kotlin.dsl.withNormalizer
 import org.gradle.kotlin.dsl.withType
 import org.gradle.language.jvm.tasks.ProcessResources
 import org.gradle.testing.base.TestingExtension
@@ -48,19 +48,19 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project> {
 
     // Create plugin extension
     val csiExtension = project.extensions.create<CallSiteInstrumentationExtension>(CSI)
-    configureSourceSets(project, csiExtension)
-    registerGenerateCallSiteTask(project, csiExtension, project.tasks.named<AbstractCompile>("compileJava"))
-    configureTestConfigurations(project, csiExtension)
+
+    configureSourceSets(project)
+    val generator = registerGenerateCallSiteTask(project, csiExtension, project.tasks.named<AbstractCompile>("compileJava"))
+    configureTestConfigurations(project, generator.flatMap { it.destinationDirectory })
   }
 
-  private fun configureSourceSets(project: Project, extension: CallSiteInstrumentationExtension) {
+  private fun configureSourceSets(project: Project) {
     // create a new source set for the csi files
     val sourceSets = project.sourceSets
     val mainSourceSet = sourceSets.named(MAIN_SOURCE_SET_NAME).get()
     val csiSourceSet = sourceSets.create(CSI_SOURCE_SET) {
       compileClasspath += mainSourceSet.output // mainly needed for the plugin tests
       annotationProcessorPath += mainSourceSet.annotationProcessorPath
-      java.srcDir(extension.targetFolder)
     }
 
     project.configurations.named(csiSourceSet.compileClasspathConfigurationName) {
@@ -87,15 +87,15 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project> {
     return file
   }
 
-  private fun configureTestConfigurations(project: Project, csiExtension: CallSiteInstrumentationExtension) {
+  private fun configureTestConfigurations(project: Project, generatedSources: Provider<Directory>) {
     val csiOutput = project.sourceSets.named(CSI_SOURCE_SET).map { it.output }
     // Keep CSI output outside the dependency configurations inspected by the generator.
     project.pluginManager.withPlugin("jvm-test-suite") {
       project.extensions.getByType<TestingExtension>().suites.withType<JvmTestSuite>().configureEach {
-        project.logger.info("Configuring jvm test suite '{}' to use csiExtension.targetFolder", name)
+        project.logger.info("Configuring jvm test suite '{}' to use CSI output", name)
         sources {
-          compileClasspath += project.files(csiOutput, csiExtension.targetFolder)
-          runtimeClasspath += project.files(csiOutput, csiExtension.targetFolder)
+          compileClasspath += project.files(csiOutput, generatedSources)
+          runtimeClasspath += project.files(csiOutput, generatedSources)
         }
       }
     }
@@ -105,7 +105,7 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project> {
     project: Project,
     csiExtension: CallSiteInstrumentationExtension,
     mainCompileTask: TaskProvider<AbstractCompile>
-  ) {
+  ): TaskProvider<GenerateCallSiteTask> {
     val genTaskName = mainCompileTask.name.replace("compile", "generateCallSite")
     val pluginJarFile = project.layout
       .dir(csiExtension.rootFolder.orElse(project.rootDir))
@@ -124,7 +124,7 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project> {
       }
 
       // Task input & output
-      val output = csiExtension.targetFolder
+      destinationDirectory.convention(csiExtension.targetFolder)
       val inputProvider = mainCompileTask.flatMap { it.destinationDirectory }
       val csiOutput = project.sourceSets.named(CSI_SOURCE_SET).map { it.output }
       val currentProjectPath = project.buildTreePath
@@ -143,7 +143,9 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project> {
         project.sourceSets.named(MAIN_SOURCE_SET_NAME).map { it.output.dirs },
         dependencyClasspaths,
         csiExtension.additionalPaths,
-      ).minus(project.files(csiOutput, output))
+      ).minus(project.files(csiOutput, csiExtension.targetFolder, destinationDirectory))
+      analysisClasspath.from(callsitesClassPath)
+
       inputs.dir(inputProvider)
         .withPropertyName("csi.classes")
         .withPathSensitivity(PathSensitivity.RELATIVE)
@@ -164,17 +166,7 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project> {
         }
       )
       inputs.property("csi.reporters", csiExtension.reporters)
-      inputs.files(callsitesClassPath)
-        .withPropertyName("csi.callsitesClassPath")
-        .withNormalizer(ClasspathNormalizer::class)
-      destinationDirectory.set(output)
 
-      // JavaExec configuration
-      javaLauncher.set(
-        javaToolchains.launcherFor {
-          languageVersion.set(csiExtension.javaVersion)
-        }
-      )
       // CSI resolves platform classes through the selected JVM, outside its classpath inputs.
       inputs.property(
         "csi.jvmIdentity",
@@ -191,13 +183,19 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project> {
         }
       )
 
+      // JavaExec configuration
+      javaLauncher.set(
+        javaToolchains.launcherFor {
+          languageVersion.set(csiExtension.javaVersion)
+        }
+      )
       jvmArgumentProviders.add({ csiExtension.jvmArgs.get() })
       classpath(pluginJarFile)
       mainClass.set(CALL_SITE_INSTRUMENTER_MAIN_CLASS)
 
       // Write the call site instrumenter arguments into a temporary file
       doFirst {
-        val classpath = callsitesClassPath.files
+        val classpath = analysisClasspath.files
 
         if (logger.isInfoEnabled) {
           logger.info(
@@ -209,7 +207,7 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project> {
         val argFile = buildList {
           add(csiExtension.srcFolder.get().asFile.toString())
           add(inputProvider.get().asFile.toString())
-          add(output.get().asFile.toString())
+          add(destinationDirectory.get().asFile.toString())
           add(csiExtension.suffix.get())
           add(csiExtension.reporters.get().joinToString(","))
 
@@ -236,10 +234,9 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project> {
 
     // compile generated sources
     sourceSets.named(CSI_SOURCE_SET) {
-      project.tasks.named(compileJavaTaskName) {
-        dependsOn(callSiteGeneratorTask)
-      }
+      java.srcDir(callSiteGeneratorTask.flatMap { it.destinationDirectory })
     }
+    return callSiteGeneratorTask
   }
 
   private val Project.defaultConfigurations: NamedDomainObjectSet<Configuration>

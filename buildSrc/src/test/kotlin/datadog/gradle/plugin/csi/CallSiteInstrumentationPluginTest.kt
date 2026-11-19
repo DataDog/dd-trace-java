@@ -242,6 +242,61 @@ class CallSiteInstrumentationPluginTest : GradleFixture() {
   }
 
   @ParameterizedTest
+  @ValueSource(booleans = [false, true])
+  fun `generation uses its owned output directory throughout`(overrideOutput: Boolean) {
+    val override = if (overrideOutput) {
+      """
+        tasks.named<GenerateCallSiteTask>("generateCallSiteJava") {
+          destinationDirectory.set(layout.projectDirectory.dir("overridden-csi"))
+        }
+      """
+    } else {
+      ""
+    }
+    createCachingProject(
+      """
+        import datadog.gradle.plugin.csi.GenerateCallSiteTask
+        $dependencyBuildGradle
+        csi {
+          targetFolder.set(layout.projectDirectory.dir("shared/csi"))
+          suffix.set(providers.gradleProperty("csiSuffix").orElse("CallSite"))
+        }
+        $override
+        val csiSources = sourceSets.named("csi").map { it.java.srcDirs }
+        tasks.register("reportCsiSources") {
+          doLast {
+            println("CSI sources: ${'$'}{csiSources.get().joinToString { it.absolutePath }}")
+          }
+        }
+      """
+    )
+    val unrelated = writeFile("shared/unrelated.txt", "keep this file")
+    val unrelatedContent = unrelated.readBytes()
+    val output = if (overrideOutput) "overridden-csi" else "shared/csi"
+    val generated = file("$output/BeforeAdviceCallSites.java")
+    writeJavaSource("GeneratedCallSiteUsage", "class GeneratedCallSiteUsage { BeforeAdviceCallSites callSites; }", sourceSet = "test")
+
+    val first = run("compileTestJava", "reportCsiSources", "--info")
+    assertEquals(TaskOutcome.SUCCESS, first.task(":generateCallSiteJava")?.outcome, first.output)
+    assertEquals(TaskOutcome.SUCCESS, first.task(":compileCsiJava")?.outcome, first.output)
+    assertEquals(TaskOutcome.SUCCESS, first.task(":compileTestJava")?.outcome, first.output)
+    assertTrue(generated.exists())
+    assertArrayEquals(unrelatedContent, unrelated.readBytes())
+    val sourceDirectories = first.output.lineSequence().single { it.startsWith("CSI sources: ") }
+    assertTrue(sourceDirectories.contains(file(output).absolutePath), sourceDirectories)
+
+    val restored = run("cleanGenerateCallSiteJava", "generateCallSiteJava", "--info")
+    assertEquals(TaskOutcome.FROM_CACHE, restored.task(":generateCallSiteJava")?.outcome, restored.output)
+    assertTrue(generated.exists())
+    assertArrayEquals(unrelatedContent, unrelated.readBytes())
+
+    val removed = run("generateCallSiteJava", "--info", "-PcsiSuffix=AbsentCallSite")
+    assertEquals(TaskOutcome.SUCCESS, removed.task(":generateCallSiteJava")?.outcome, removed.output)
+    assertFalse(generated.exists())
+    assertArrayEquals(unrelatedContent, unrelated.readBytes())
+  }
+
+  @ParameterizedTest
   @ValueSource(strings = ["vendor", "runtimeVersion", "vmVersion"])
   fun `cache follows the selected generator JVM`(changedField: String) {
     createCachingProject(

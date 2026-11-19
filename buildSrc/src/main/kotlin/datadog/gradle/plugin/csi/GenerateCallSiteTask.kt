@@ -1,8 +1,10 @@
 package datadog.gradle.plugin.csi
 
+import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.FileSystemOperations
 import org.gradle.api.tasks.CacheableTask
+import org.gradle.api.tasks.Classpath
 import org.gradle.api.tasks.JavaExec
 import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.TaskAction
@@ -12,8 +14,12 @@ import javax.inject.Inject
 /** Generates call-site sources from compiled advice. */
 @CacheableTask
 abstract class GenerateCallSiteTask : JavaExec() {
+  /** CSI owns and cleans all files in this directory. */
   @get:OutputDirectory
   abstract val destinationDirectory: DirectoryProperty
+
+  @get:Classpath
+  abstract val analysisClasspath: ConfigurableFileCollection
 
   @get:Inject
   abstract val fileSystemOperations: FileSystemOperations
