@@ -4,6 +4,8 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.InstrumentationContext.get;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.capture;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.TaskScopeStateRegistry.FACTORY;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.TaskScopeStateRegistry.STRUCTURED_TASK_SCOPE_CLASS_NAME;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.TaskScopeStateRegistry.TASK_SCOPE_STATE_REGISTRY_CLASS_NAME;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
@@ -62,9 +64,7 @@ public class StructuredTaskScope25TaskInstrumentation
       State state = stateStore.get(subTaskImpl);
       if (state != null) {
         ContextStore<Object, TaskScopeStateRegistry> registryStore =
-            get(
-                "java.util.concurrent.StructuredTaskScopeImpl",
-                TaskScopeStateRegistry.class.getName());
+            get(STRUCTURED_TASK_SCOPE_CLASS_NAME, TASK_SCOPE_STATE_REGISTRY_CLASS_NAME);
         registryStore.getOrCreate(scope, FACTORY).add(state);
       }
     }
@@ -88,9 +88,7 @@ public class StructuredTaskScope25TaskInstrumentation
       State state = stateStore.get(subTaskImpl);
       if (state != null) {
         ContextStore<Object, TaskScopeStateRegistry> registryStore =
-            get(
-                "java.util.concurrent.StructuredTaskScopeImpl",
-                TaskScopeStateRegistry.class.getName());
+            get(STRUCTURED_TASK_SCOPE_CLASS_NAME, TASK_SCOPE_STATE_REGISTRY_CLASS_NAME);
         TaskScopeStateRegistry registry = registryStore.get(scope);
         if (registry != null) {
           registry.remove(state);

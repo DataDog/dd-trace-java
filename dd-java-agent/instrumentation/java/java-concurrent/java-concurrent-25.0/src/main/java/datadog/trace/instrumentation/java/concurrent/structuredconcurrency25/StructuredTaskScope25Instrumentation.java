@@ -2,6 +2,8 @@ package datadog.trace.instrumentation.java.concurrent.structuredconcurrency25;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.InstrumentationContext.get;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.TaskScopeStateRegistry.STRUCTURED_TASK_SCOPE_CLASS_NAME;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.TaskScopeStateRegistry.TASK_SCOPE_STATE_REGISTRY_CLASS_NAME;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import datadog.trace.agent.tooling.Instrumenter;
@@ -22,7 +24,7 @@ public class StructuredTaskScope25Instrumentation
 
   @Override
   public String instrumentedType() {
-    return "java.util.concurrent.StructuredTaskScopeImpl";
+    return STRUCTURED_TASK_SCOPE_CLASS_NAME;
   }
 
   @Override
@@ -58,9 +60,7 @@ public class StructuredTaskScope25Instrumentation
         return;
       }
       ContextStore<Object, TaskScopeStateRegistry> registryStore =
-          get(
-              "java.util.concurrent.StructuredTaskScopeImpl",
-              TaskScopeStateRegistry.class.getName());
+          get(STRUCTURED_TASK_SCOPE_CLASS_NAME, TASK_SCOPE_STATE_REGISTRY_CLASS_NAME);
       TaskScopeStateRegistry registry = registryStore.remove(scope);
       if (registry != null) {
         registry.cancelAll();

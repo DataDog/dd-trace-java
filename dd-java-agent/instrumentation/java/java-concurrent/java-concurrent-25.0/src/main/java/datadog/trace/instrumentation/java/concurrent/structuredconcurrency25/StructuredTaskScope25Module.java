@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.java.concurrent.structuredconcurrency25;
 
 import static datadog.environment.JavaVirtualMachine.isJavaVersionAtLeast;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.TaskScopeStateRegistry.STRUCTURED_TASK_SCOPE_CLASS_NAME;
 import static java.util.Arrays.asList;
 
 import com.google.auto.service.AutoService;
@@ -34,8 +35,7 @@ public class StructuredTaskScope25Module extends InstrumenterModule.ContextTrack
     // Per-subtask continuation captured at SubtaskImpl creation, restored by Runnable advice.
     contextStores.put(Runnable.class.getName(), State.class.getName());
     // Per-scope registry of subtasks state, swept at scope close to release leaked continuations.
-    contextStores.put(
-        "java.util.concurrent.StructuredTaskScopeImpl", TaskScopeStateRegistry.class.getName());
+    contextStores.put(STRUCTURED_TASK_SCOPE_CLASS_NAME, TaskScopeStateRegistry.class.getName());
     return contextStores;
   }
 
