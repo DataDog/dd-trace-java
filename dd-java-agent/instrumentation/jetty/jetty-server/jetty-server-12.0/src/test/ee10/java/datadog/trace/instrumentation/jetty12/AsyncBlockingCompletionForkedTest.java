@@ -2,9 +2,11 @@ package datadog.trace.instrumentation.jetty12;
 
 import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE_HTML;
 import static datadog.trace.api.gateway.Events.EVENTS;
+import static datadog.trace.instrumentation.jetty12.JettyRawHttp.contentLength;
+import static datadog.trace.instrumentation.jetty12.JettyRawHttp.largeHtmlTemplate;
+import static datadog.trace.instrumentation.jetty12.JettyRawHttp.readHeaders;
 import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectSysConfig;
 import static datadog.trace.test.junit.utils.config.WithConfigExtension.removeSysConfig;
-import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import static java.nio.charset.StandardCharsets.US_ASCII;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -41,7 +43,6 @@ import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -87,7 +88,6 @@ class AsyncBlockingCompletionForkedTest extends AbstractInstrumentationTest {
   private static final String BLOCK_PATH = "/async-block";
   private static final String LISTENER_BLOCK_PATH = "/async-block-listener";
   private static final String OK_PATH = "/ok";
-  private static final int TEMPLATE_SIZE = 400 * 1024;
   private static final int SMALL_BUFFER_SIZE = 4 * 1024;
   private static final int TIMEOUT_SECONDS = 10;
 
@@ -317,42 +317,6 @@ class AsyncBlockingCompletionForkedTest extends AbstractInstrumentationTest {
     int major = Integer.parseInt(version[0]);
     int minor = Integer.parseInt(version[1]);
     return major > 12 || (major == 12 && minor >= 1);
-  }
-
-  private static byte[] largeHtmlTemplate() {
-    String head = "<!DOCTYPE html><html><head><title>Blocked</title></head><body>\n";
-    String tail = "</body></html>\n";
-    StringBuilder sb = new StringBuilder(TEMPLATE_SIZE).append(head);
-    int line = 0;
-    while (sb.length() + tail.length() < TEMPLATE_SIZE) {
-      sb.append(String.format(Locale.ROOT, "<p>blocked line %08d</p>\n", line++));
-    }
-    sb.setLength(TEMPLATE_SIZE - tail.length());
-    return sb.append(tail).toString().getBytes(UTF_8);
-  }
-
-  private static String readHeaders(InputStream in) throws IOException {
-    ByteArrayOutputStream headers = new ByteArrayOutputStream();
-    int matched = 0;
-    while (matched < 4) {
-      int b = in.read();
-      if (b < 0) {
-        fail("connection closed while reading headers: " + headers.toString("ISO-8859-1"));
-      }
-      headers.write(b);
-      matched = (b == "\r\n\r\n".charAt(matched)) ? matched + 1 : (b == '\r' ? 1 : 0);
-    }
-    return new String(headers.toByteArray(), ISO_8859_1);
-  }
-
-  private static int contentLength(String headers) {
-    for (String line : headers.split("\r\n")) {
-      int colon = line.indexOf(':');
-      if (colon > 0 && line.substring(0, colon).trim().equalsIgnoreCase("Content-Length")) {
-        return Integer.parseInt(line.substring(colon + 1).trim());
-      }
-    }
-    return fail("no Content-Length in response headers: " + headers);
   }
 
   /** Reads exactly {@code length} bytes, failing with the received count on EOF or reset. */
