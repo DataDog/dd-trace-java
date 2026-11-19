@@ -1,12 +1,12 @@
 package datadog.gradle.plugin.muzzle
 
+import org.assertj.core.api.Assertions.assertThat
 import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.kotlin.dsl.getByType
 import org.gradle.testfixtures.ProjectBuilder
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
-import org.assertj.core.api.Assertions.assertThat
 
 class MuzzlePluginUtilsTest {
   @Test
@@ -18,10 +18,11 @@ class MuzzlePluginUtilsTest {
   @ParameterizedTest(name = "[{index}] path ''{0}'' → slug ''{1}''")
   @CsvSource(
     value =
-      [
-        "foo,         foo",
-        "foo_bar_baz, foo_bar_baz", // underscores are preserved (only colons are replaced)
-      ])
+    [
+      "foo,         foo",
+      "foo_bar_baz, foo_bar_baz", // underscores are preserved (only colons are replaced)
+    ]
+  )
   fun `pathSlug for single-level child project`(childName: String, expectedSlug: String) {
     val root = ProjectBuilder.builder().withName("root").build()
     val child = ProjectBuilder.builder().withParent(root).withName(childName.trim()).build()

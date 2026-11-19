@@ -197,6 +197,7 @@ span_types:
     tags:
       - { dd-name: aws.table.name, type: string, required: optional }
       - { dd-name: tablename,      type: string, required: optional }
+      - { dd-name: aws.table.arn,  type: string, required: optional }  # when the table is named by ARN
       # Span pointer input, removed before serialization (SpanPointersProcessor).
       - { dd-name: dynamodb.primary_key_1,       type: string, required: optional }
       - { dd-name: dynamodb.primary_key_1_value, type: string, required: optional }
@@ -621,6 +622,14 @@ mixins:
       - { dd-name: offset,                            type: long,    required: optional }
       - { dd-name: tombstone,                         type: boolean, required: optional }     # a null record value
       - { dd-name: processor.name,                    type: string,  required: optional }     # Kafka Streams
+
+  # google_pubsub — Google Cloud Pub/Sub producer and consumer spans: the full paths of the known
+  # resources, each with its own project.
+  google_pubsub:
+    applies: [ messaging.producer, messaging.consumer ]
+    tags:
+      - { dd-name: gcp.pubsub.topic.name,        type: string, required: optional }  # projects/<project>/topics/<topic>, when known
+      - { dd-name: gcp.pubsub.subscription.name, type: string, required: optional }  # projects/<project>/subscriptions/<subscription>, on consumer spans
 
   # amqp — RabbitMQ (AMQP) spans: publish, consume, other commands, and time in queue.
   amqp:

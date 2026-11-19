@@ -12,11 +12,10 @@ import java.io.File
 class ContainerImageArguments(
   @get:Nested @get:Optional val containers: Provider<ContainerImageInputs>,
 ) : CommandLineArgumentProvider {
-  override fun asArguments(): Iterable<String> =
-    containers.orNull
-      ?.images
-      ?.map { (name, image) -> "-D$name=$image" }
-      .orEmpty()
+  override fun asArguments(): Iterable<String> = containers.orNull
+    ?.images
+    ?.map { (name, image) -> "-D$name=$image" }
+    .orEmpty()
 }
 
 class ContainerImageInputs(
