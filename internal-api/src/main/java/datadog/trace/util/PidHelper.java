@@ -129,29 +129,28 @@ public final class PidHelper {
       return stream
           .map(Path::getFileName)
           .map(Path::toString)
-          .filter(
-              (name) -> {
-                // On J9, additional metadata files are present alongside files named $PID.
-                // Additionally, the contents of the ps dir are files with process ID files for
-                // Hotspot,
-                // but they are directories for J9.
-                // This also makes sense as defensive programming.
-                if (name.isEmpty()) {
-                  return false;
-                }
-                char c = name.charAt(0);
-                if (c < '0' || c > '9') {
-                  // Short-circuit - let's not parse as long something that is definitely not a long
-                  // number
-                  return false;
-                }
-                long pid = -1;
-                try {
-                  pid = Long.parseLong(name);
-                } catch (NumberFormatException ignored) {
-                }
-                return pid != -1;
-              })
+          .filter(name -> {
+            // On J9, additional metadata files are present alongside files named $PID.
+            // Additionally, the contents of the ps dir are files with process ID files for
+            // Hotspot,
+            // but they are directories for J9.
+            // This also makes sense as defensive programming.
+            if (name.isEmpty()) {
+              return false;
+            }
+            char c = name.charAt(0);
+            if (c < '0' || c > '9') {
+              // Short-circuit - let's not parse as long something that is definitely not a long
+              // number
+              return false;
+            }
+            long pid = -1;
+            try {
+              pid = Long.parseLong(name);
+            } catch (NumberFormatException ignored) {
+            }
+            return pid != -1;
+          })
           .collect(Collectors.toSet());
     } catch (IOException e) {
       log.debug("Unable to obtain Java PIDs", e);

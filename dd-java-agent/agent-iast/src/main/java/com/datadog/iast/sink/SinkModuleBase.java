@@ -387,13 +387,12 @@ public abstract class SinkModuleBase {
       @Nonnull final Stream<StackTraceElement> stream) {
     final StackTraceElement[] first = new StackTraceElement[1];
     return stream
-        .filter(
-            stack -> {
-              if (first[0] == null) {
-                first[0] = stack;
-              }
-              return IastExclusionTrie.apply(stack.getClassName()) < 1;
-            })
+        .filter(stack -> {
+          if (first[0] == null) {
+            first[0] = stack;
+          }
+          return IastExclusionTrie.apply(stack.getClassName()) < 1;
+        })
         .findFirst()
         .orElse(first[0]);
   }

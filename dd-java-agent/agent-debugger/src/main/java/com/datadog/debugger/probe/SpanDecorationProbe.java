@@ -81,6 +81,21 @@ public class SpanDecorationProbe extends ProbeDefinition implements CapturedCont
     public String toString() {
       return "TagValue{" + "template='" + template + '\'' + ", segments=" + segments + '}';
     }
+
+    @Generated
+    @Override
+    public boolean equals(Object o) {
+      if (o == null || getClass() != o.getClass()) return false;
+      TagValue tagValue = (TagValue) o;
+      return Objects.equals(template, tagValue.template)
+          && Objects.equals(segments, tagValue.segments);
+    }
+
+    @Generated
+    @Override
+    public int hashCode() {
+      return Objects.hash(template, segments);
+    }
   }
 
   public static class Tag {

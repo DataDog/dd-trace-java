@@ -35,6 +35,7 @@ dependencies {
   compileOnly group: 'javax.servlet', name: 'javax.servlet-api', version: '3.0.1'
   compileOnly files(unpackOpenLiberty.map {it.extractedJars.get() })
   implementation project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-iast')
+  implementation project(':dd-java-agent:instrumentation:liberty:liberty-appsec-common')
 
   testImplementation files(unpackOpenLiberty.map {it.wsServerJar.get() })
   testImplementation project(':dd-java-agent:appsec:appsec-test-fixtures')

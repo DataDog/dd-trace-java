@@ -22,6 +22,7 @@ dependencies {
 
   testImplementation group: 'org.scala-lang', name: 'scala-library', version: '2.12.15'
   testImplementation group: 'org.scalatest', name: 'scalatest_2.12', version: '3.1.0'
+  testImplementation group: 'org.scala-sbt', name: 'test-interface', version: '1.0'
 
   latestDepTestImplementation group: 'org.scalatest', name: 'scalatest_2.12', version: '+'
 }

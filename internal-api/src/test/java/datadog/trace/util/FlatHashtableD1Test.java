@@ -57,11 +57,11 @@ class FlatHashtableD1Test {
   }
 
   private static FlatHashtable.D1<String, StringIntEntry> growable(int initialCapacity) {
-    return FlatHashtable.D1.createGrowable(StringIntEntry.class, initialCapacity);
+    return FlatHashtable.D1.createGrowable(initialCapacity, StringIntEntry[]::new);
   }
 
   private static FlatHashtable.D1<String, StringIntEntry> fixed(int maxCapacity) {
-    return FlatHashtable.D1.createFixed(StringIntEntry.class, maxCapacity);
+    return FlatHashtable.D1.createFixed(maxCapacity, StringIntEntry[]::new);
   }
 
   @Test
@@ -171,7 +171,7 @@ class FlatHashtableD1Test {
   void hashCollisionsResolveByEquality() {
     // Two distinct keys with the same hashCode: the probe must distinguish them via matches().
     FlatHashtable.D1<CollidingKey, CollidingKeyEntry> table =
-        FlatHashtable.D1.createGrowable(CollidingKeyEntry.class, 4);
+        FlatHashtable.D1.createGrowable(4, CollidingKeyEntry[]::new);
     CollidingKey k1 = new CollidingKey("first", 17);
     CollidingKey k2 = new CollidingKey("second", 17);
     CollidingKeyEntry e1 = new CollidingKeyEntry(k1, 100);
@@ -188,7 +188,7 @@ class FlatHashtableD1Test {
     FlatHashtable.D1<String, StringIntEntry> table = growable(8);
     int[] createCount = {0};
     StringIntEntry created =
-        table.getOrCreate(
+        table.tryGetOrCreateOrNull(
             "foo",
             k -> {
               createCount[0]++;
@@ -209,7 +209,7 @@ class FlatHashtableD1Test {
     table.insert(seeded);
     int[] createCount = {0};
     StringIntEntry got =
-        table.getOrCreate(
+        table.tryGetOrCreateOrNull(
             "foo",
             k -> {
               createCount[0]++;
@@ -237,7 +237,7 @@ class FlatHashtableD1Test {
   void growableGetOrCreateNeverReturnsNull() {
     FlatHashtable.D1<String, StringIntEntry> table = growable(1);
     for (int i = 0; i < 50; i++) {
-      StringIntEntry e = table.getOrCreate("k" + i, k -> new StringIntEntry(k, 0));
+      StringIntEntry e = table.tryGetOrCreateOrNull("k" + i, k -> new StringIntEntry(k, 0));
       assertNotNull(e);
     }
     assertEquals(50, table.size());
@@ -246,15 +246,36 @@ class FlatHashtableD1Test {
   @Test
   void fixedGetOrCreateCapsWhenFull() {
     FlatHashtable.D1<String, StringIntEntry> table = fixed(2);
-    assertNotNull(table.getOrCreate("a", k -> new StringIntEntry(k, 1)));
-    assertNotNull(table.getOrCreate("b", k -> new StringIntEntry(k, 2)));
+    assertNotNull(table.tryGetOrCreateOrNull("a", k -> new StringIntEntry(k, 1)));
+    assertNotNull(table.tryGetOrCreateOrNull("b", k -> new StringIntEntry(k, 2)));
     assertEquals(2, table.size());
     // At capacity, a new key can't be created -> null (caller's overflow default).
-    assertNull(table.getOrCreate("c", k -> new StringIntEntry(k, 3)));
+    assertNull(table.tryGetOrCreateOrNull("c", k -> new StringIntEntry(k, 3)));
     assertEquals(2, table.size());
     // ...but an existing key still resolves even at capacity (cap blocks creation, not lookup).
     StringIntEntry a = table.get("a");
-    assertSame(a, table.getOrCreate("a", k -> new StringIntEntry(k, 99)));
+    assertSame(a, table.tryGetOrCreateOrNull("a", k -> new StringIntEntry(k, 99)));
+  }
+
+  @Test
+  void fixedGetOrCreateAsMaybeIsAbsentWhenFullButStillReturnsHits() {
+    FlatHashtable.D1<String, StringIntEntry> table = fixed(2);
+    table.tryGetOrCreate("a", k -> new StringIntEntry(k, 1));
+    table.tryGetOrCreate("b", k -> new StringIntEntry(k, 2));
+
+    assertFalse(table.tryGetOrCreate("c", k -> new StringIntEntry(k, 3)).isPresent());
+
+    Maybe<StringIntEntry> hit = table.tryGetOrCreate("a", k -> new StringIntEntry(k, 99));
+    assertEquals(1, hit.getOrNull().value, "existing entry is still returned even at capacity");
+  }
+
+  @Test
+  void growableGetOrCreateAsMaybeIsAlwaysPresent() {
+    FlatHashtable.D1<String, StringIntEntry> table = growable(1);
+    for (int i = 0; i < 50; i++) {
+      assertTrue(table.tryGetOrCreate("k" + i, k -> new StringIntEntry(k, 0)).isPresent());
+    }
+    assertEquals(50, table.size());
   }
 
   @Test

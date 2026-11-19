@@ -19,6 +19,7 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.instrumentation.liberty.appsec.LibertyBlockingHelper;
 import java.util.function.BiFunction;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.asm.AsmVisitorWrapper;
@@ -54,8 +55,8 @@ public class ParseParametersInstrumentation extends InstrumenterModule.AppSec
       packageName + ".ParameterCollector",
       packageName + ".ParameterCollector$ParameterCollectorNoop",
       packageName + ".ParameterCollector$ParameterCollectorImpl",
-      packageName + ".LibertyBlockingHelper",
-      packageName + ".LibertyBlockingHelper$WsByteBufferImpl",
+      "datadog.trace.instrumentation.liberty.appsec.LibertyBlockingHelper",
+      "datadog.trace.instrumentation.liberty.appsec.LibertyBlockingHelper$WsByteBufferImpl",
     };
   }
 

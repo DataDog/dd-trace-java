@@ -41,7 +41,7 @@ class DebuggerMetricCollectorTest {
     Collection<DebuggerMetric> metrics = collector.drain();
     assertEquals(1, metrics.size());
     DebuggerMetric metric = metrics.iterator().next();
-    assertEquals("live_debugger", metric.namespace);
+    assertEquals("debugger", metric.namespace);
     assertEquals("events.dropped", metric.metricName);
     assertEquals("count", metric.type);
     assertTrue(metric.common);
@@ -59,7 +59,7 @@ class DebuggerMetricCollectorTest {
     DebuggerMetric metric = metrics.iterator().next();
     assertEquals("events.skipped", metric.metricName);
     assertEquals(1L, metric.value);
-    assertEquals(Collections.singletonList("reason:evaluationTimeOut"), metric.tags);
+    assertEquals(Collections.singletonList("reason:evaluationTimeout"), metric.tags);
   }
 
   @Test

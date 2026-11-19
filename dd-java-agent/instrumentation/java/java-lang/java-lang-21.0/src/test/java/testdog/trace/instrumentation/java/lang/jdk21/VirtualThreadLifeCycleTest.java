@@ -4,13 +4,20 @@ import static datadog.environment.JavaVirtualMachine.isJavaVersion;
 import static datadog.trace.agent.test.assertions.SpanMatcher.span;
 import static datadog.trace.agent.test.assertions.TraceMatcher.SORT_BY_START_TIME;
 import static datadog.trace.agent.test.assertions.TraceMatcher.trace;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import datadog.context.ContextScope;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.Trace;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.java.lang.VirtualThreadState;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -29,6 +36,26 @@ public class VirtualThreadLifeCycleTest extends AbstractInstrumentationTest {
     assertEquals(isJavaVersion(21), VirtualThreadState.usePerMountContext());
   }
 
+  @Test
+  void propagationDoesNotDependOnInheritableThreadLocals() throws InterruptedException {
+    AgentSpan parent = startSpan("test", "parent");
+    try (ContextScope ignored = activateSpan(parent)) {
+      for (boolean inheritThreadLocals : new boolean[] {true, false}) {
+        AtomicReference<AgentSpan> inherited = new AtomicReference<>();
+        Thread child =
+            Thread.ofVirtual()
+                .inheritInheritableThreadLocals(inheritThreadLocals)
+                .start(() -> inherited.set(activeSpan()));
+        assertTrue(child.join(TIMEOUT));
+        assertSame(parent, inherited.get());
+        assertSame(parent, activeSpan());
+      }
+    } finally {
+      parent.finish();
+    }
+    assertTraces(trace(span().root().operationName("parent")));
+  }
+
   @DisplayName("test context restored after virtual thread remounts")
   @Test
   void testContextRestoredAfterVirtualThreadRemount() {
@@ -44,14 +71,13 @@ public class VirtualThreadLifeCycleTest extends AbstractInstrumentationTest {
         spanId[0] = GlobalTracer.get().getSpanId();
 
         Thread thread =
-            Thread.startVirtualThread(
-                () -> {
-                  spanIdBeforeUnmount[0] = GlobalTracer.get().getSpanId();
-                  for (int remount = 0; remount < remountCount; remount++) {
-                    tryUnmount();
-                    spanIdsAfterRemount[remount] = GlobalTracer.get().getSpanId();
-                  }
-                });
+            Thread.startVirtualThread(() -> {
+              spanIdBeforeUnmount[0] = GlobalTracer.get().getSpanId();
+              for (int remount = 0; remount < remountCount; remount++) {
+                tryUnmount();
+                spanIdsAfterRemount[remount] = GlobalTracer.get().getSpanId();
+              }
+            });
         try {
           thread.join(TIMEOUT);
         } catch (InterruptedException e) {
@@ -82,16 +108,15 @@ public class VirtualThreadLifeCycleTest extends AbstractInstrumentationTest {
       @Trace(operationName = "parent")
       public void run() {
         Thread thread =
-            Thread.startVirtualThread(
-                () -> {
-                  tryUnmount();
-                  // Runnable to create child span, not async related
-                  new Runnable() {
-                    @Override
-                    @Trace(operationName = "child")
-                    public void run() {}
-                  }.run();
-                });
+            Thread.startVirtualThread(() -> {
+              tryUnmount();
+              // Runnable to create child span, not async related
+              new Runnable() {
+                @Override
+                @Trace(operationName = "child")
+                public void run() {}
+              }.run();
+            });
         try {
           thread.join(TIMEOUT);
         } catch (InterruptedException e) {
@@ -124,11 +149,10 @@ public class VirtualThreadLifeCycleTest extends AbstractInstrumentationTest {
         for (int i = 0; i < threadCount; i++) {
           int index = i;
           threads.add(
-              Thread.startVirtualThread(
-                  () -> {
-                    tryUnmount();
-                    spanIdsAfterRemount[index] = CorrelationIdentifier.getSpanId();
-                  }));
+              Thread.startVirtualThread(() -> {
+                tryUnmount();
+                spanIdsAfterRemount[index] = CorrelationIdentifier.getSpanId();
+              }));
         }
 
         for (Thread thread : threads) {
@@ -186,12 +210,11 @@ public class VirtualThreadLifeCycleTest extends AbstractInstrumentationTest {
         parentSpanId[0] = GlobalTracer.get().getSpanId();
 
         Thread thread =
-            Thread.startVirtualThread(
-                () -> {
-                  beforeChild[0] = GlobalTracer.get().getSpanId();
-                  childWork(insideChildBeforeUnmount, insideChildAfterRemount);
-                  afterChild[0] = GlobalTracer.get().getSpanId();
-                });
+            Thread.startVirtualThread(() -> {
+              beforeChild[0] = GlobalTracer.get().getSpanId();
+              childWork(insideChildBeforeUnmount, insideChildAfterRemount);
+              afterChild[0] = GlobalTracer.get().getSpanId();
+            });
         try {
           thread.join();
         } catch (InterruptedException e) {

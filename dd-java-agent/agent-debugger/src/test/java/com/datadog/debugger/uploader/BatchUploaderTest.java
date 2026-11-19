@@ -297,19 +297,18 @@ public class BatchUploaderTest {
     server.shutdown();
     ServerSocket serverSocket = new ServerSocket(port);
     Thread t =
-        new Thread(
-            () -> {
-              try {
-                System.out.println("Accepting connection on port " + port);
-                Socket socket = serverSocket.accept();
-                System.out.println("Accepted connection, closing");
-                socket.setSoLinger(true, 0);
-                socket.close();
-                serverSocket.close();
-              } catch (Exception e) {
-                e.printStackTrace();
-              }
-            });
+        new Thread(() -> {
+          try {
+            System.out.println("Accepting connection on port " + port);
+            Socket socket = serverSocket.accept();
+            System.out.println("Accepted connection, closing");
+            socket.setSoLinger(true, 0);
+            socket.close();
+            serverSocket.close();
+          } catch (Exception e) {
+            e.printStackTrace();
+          }
+        });
     t.start();
     // only upload once. will fail on first attempt, will succeed on retry
     uploader.upload(SNAPSHOT_BUFFER);

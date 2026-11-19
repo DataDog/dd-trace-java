@@ -25,10 +25,4 @@ java {
 dependencies {
   earlib 'org.springframework:spring-webmvc:5.3.0'
   deploy project(path: ':war', configuration: 'archives')
-
-  if (hasProperty('apiJar')) {
-    implementation files(property('apiJar'))
-  } else {
-    implementation "com.datadoghq:dd-trace-api:1.2.0"
-  }
 }

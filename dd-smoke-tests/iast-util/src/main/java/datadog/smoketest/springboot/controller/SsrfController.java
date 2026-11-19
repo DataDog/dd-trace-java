@@ -5,6 +5,7 @@ import com.squareup.okhttp.Request;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URL;
+import java.util.concurrent.TimeUnit;
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.HttpMethod;
 import org.apache.commons.httpclient.methods.GetMethod;
@@ -17,6 +18,7 @@ import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
 import org.apache.http.impl.nio.client.HttpAsyncClients;
 import org.apache.http.message.BasicHttpRequest;
 import org.apache.http.nio.client.methods.HttpAsyncMethods;
+import org.apache.http.nio.protocol.BasicAsyncResponseConsumer;
 import org.apache.http.nio.protocol.HttpAsyncRequestProducer;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -153,13 +155,13 @@ public class SsrfController {
     try {
       if (host != null) {
         final HttpHost httpHost = new HttpHost(host);
-        client.execute(httpHost, new HttpGet("/"), null);
+        client.execute(httpHost, new HttpGet("/"), null).get(10, TimeUnit.SECONDS);
       } else if (url != null) {
         final HttpGet request = new HttpGet(url);
-        client.execute(request, null);
+        client.execute(request, null).get(10, TimeUnit.SECONDS);
       } else if (urlProducer != null) {
         final HttpAsyncRequestProducer producer = HttpAsyncMethods.create(new HttpGet(urlProducer));
-        client.execute(producer, null, null);
+        client.execute(producer, new BasicAsyncResponseConsumer(), null).get(10, TimeUnit.SECONDS);
       }
     } catch (Exception e) {
     } finally {

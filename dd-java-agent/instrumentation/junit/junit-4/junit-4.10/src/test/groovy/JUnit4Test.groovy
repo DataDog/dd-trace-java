@@ -1,19 +1,188 @@
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_COUNT
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_ONLY_KNOWN_FLAKES
+
 import datadog.trace.api.DisableTestTrace
 import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
 import datadog.trace.civisibility.diff.LineDiff
 import datadog.trace.instrumentation.junit4.JUnit4Utils
 import datadog.trace.instrumentation.junit4.TestEventsHandlerHolder
 import org.example.*
 import org.junit.jupiter.api.Assumptions
+import org.junit.experimental.ParallelComputer
+import org.junit.runner.Computer
 import org.junit.runner.JUnitCore
+import org.junit.runner.Request
+import org.junit.runner.Result
+import org.junit.runner.notification.RunNotifier
+
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 @DisableTestTrace(reason = "avoid self-tracing")
 class JUnit4Test extends CiVisibilityInstrumentationTest {
 
   def runner = new JUnitCore()
+
+  def "test runner without suite lifecycle events #testcaseName"() {
+    runTests(tests, success)
+
+    assertSpansData(testcaseName)
+
+    where:
+    testcaseName                                  | success | tests
+    "test-custom-runner"                          | false   | [TestSucceedCustomRunner]
+    "test-custom-runner-suite-failure"            | false   | [TestFailedSuiteCustomRunner]
+    "test-custom-runner-suite-assumption-failure" | true    | [TestSkippedSuiteCustomRunner]
+  }
+
+  def "test multiple runners without suite lifecycle events #mode"() {
+    given:
+    def initialSpan = AgentTracer.activeSpan()
+
+    when:
+    def result = runTestClasses(computer, tests)
+    def events = getEventsAsJson(TEST_WRITER.toList())
+    def suites = events.findAll { it.type == "test_suite_end" }
+
+    then:
+    result.runCount == 4
+    result.ignoreCount == 2
+    result.failures*.description*.methodName == ["existing failure", "existing failure"]
+    result.failures*.exception*.class == [AssertionError, AssertionError]
+    suites*.content*.meta*.get("test.suite").sort() == [TestSucceedCustomRunner.name, TestSucceedCustomRunner.AnotherSuite.name].sort()
+    suites.every { suite -> testStatuses(events, suite) == ["adds": "pass", "existing failure": "fail", "ignored": "skip"] }
+    AgentTracer.activeSpan() == initialSpan
+
+    where:
+    mode                  | computer                          | tests
+    "parallel"            | new ParallelComputer(true, false) | [TestSucceedCustomRunner, TestSucceedCustomRunner.AnotherSuite]
+    "sequential"          | new Computer()                    | [TestSucceedCustomRunner, TestSucceedCustomRunner.AnotherSuite]
+    "sequential reversed" | new Computer()                    | [TestSucceedCustomRunner.AnotherSuite, TestSucceedCustomRunner]
+  }
+
+  def "test executor callbacks without suite lifecycle events"() {
+    given:
+    def executor = Executors.newSingleThreadExecutor()
+    TestSucceedExecutorRunner.executor = executor
+    def initialSpan = AgentTracer.activeSpan()
+    def initialWorkerSpan = CompletableFuture.supplyAsync({ AgentTracer.activeSpan() }, executor).join()
+
+    when:
+    def result = runTestClasses(new Computer(), [TestSucceedExecutorRunner])
+    def workerSpan = CompletableFuture.supplyAsync({ AgentTracer.activeSpan() }, executor).join()
+    def events = getEventsAsJson(TEST_WRITER.toList())
+    def suites = events.findAll { it.type == "test_suite_end" }
+
+    then:
+    workerSpan == initialWorkerSpan
+    AgentTracer.activeSpan() == initialSpan
+    result.runCount == 2
+    result.ignoreCount == 1
+    result.failures*.description*.methodName == ["existing failure"]
+    result.failures*.exception*.class == [AssertionError]
+    suites*.content*.meta*.get("test.suite") == [TestSucceedExecutorRunner.name]
+    testStatuses(events, suites[0]) == ["adds": "pass", "existing failure": "fail", "ignored": "skip"]
+
+    cleanup:
+    executor.shutdownNow()
+    TestSucceedExecutorRunner.executor = null
+  }
+
+  def "test concurrent runners sharing a notifier"() {
+    given:
+    TestSucceedConcurrentRunners.firstStarted = new CountDownLatch(1)
+    TestSucceedConcurrentRunners.secondStarted = new CountDownLatch(1)
+    TestSucceedConcurrentRunners.firstFinished = new CountDownLatch(1)
+    def notifier = new RunNotifier()
+
+    when:
+    TestEventsHandlerHolder.start(TestFrameworkInstrumentation.JUNIT4, JUnit4Utils.capabilities(false))
+    try {
+      def first = Thread.start {
+        Request.aClass(TestSucceedConcurrentRunners.First).getRunner().run(notifier)
+        TestSucceedConcurrentRunners.firstFinished.countDown()
+      }
+      TestSucceedConcurrentRunners.firstStarted.await(10, TimeUnit.SECONDS)
+      def second = Thread.start {
+        Request.aClass(TestSucceedConcurrentRunners.Second).getRunner().run(notifier)
+      }
+      first.join()
+      second.join()
+    } finally {
+      TestEventsHandlerHolder.stop(TestFrameworkInstrumentation.JUNIT4)
+    }
+    def events = getEventsAsJson(TEST_WRITER.toList())
+    def suites = events.findAll { it.type == "test_suite_end" }
+
+    then:
+    suites*.content*.meta*.get("test.suite").sort() == [TestSucceedConcurrentRunners.First.name, TestSucceedConcurrentRunners.Second.name]
+    testStatuses(events, suites.find { it.content.meta["test.suite"] == TestSucceedConcurrentRunners.Second.name }) == ["test_a_outlives_first": "pass", "test_b_after_first": "pass"]
+  }
+
+  def "test automation exclusions preserve a blocking failure and execute once"() {
+    given:
+    TestAutomationExcluded.executions = 0
+    def id = new TestFQN("org.example.TestAutomationExcluded", "protected_failure")
+    givenDisabledTests([id])
+    givenQuarantinedTests([id])
+    givenAttemptToFixTests([id])
+    givenFlakyRetryEnabled(true)
+    givenFlakyTests([id])
+    givenEarlyFlakinessDetectionEnabled(true)
+    givenKnownTests([])
+
+    when:
+    runTests([TestAutomationExcluded], false)
+
+    then:
+    TestAutomationExcluded.executions == 1
+    def testSpan = TEST_WRITER.toList().flatten().find { it.getTag("test.name") == "protected_failure" }
+    testSpan != null
+    testSpan.getTag("test.test_management.no_auto_retry") == true
+    testSpan.getTag("test.test_management.prevent_failure_suppression") == true
+    testSpan.getTag("test.test_management.is_test_disabled") == true
+    testSpan.getTag("test.test_management.is_quarantined") == true
+    testSpan.getTag("test.test_management.is_attempt_to_fix") == true
+    testSpan.getTag("test.test_management.attempt_to_fix_passed") == null
+  }
+
+  def "test automation exclusions with bracketed parameter labels"() {
+    given:
+    TestAutomationExcludedBracketedParameters.excludedExecutions = 0
+    TestAutomationExcludedBracketedParameters.controlExecutions = 0
+    injectSysConfig(CIVISIBILITY_FLAKY_RETRY_ONLY_KNOWN_FLAKES, "false")
+    // Java ATR config counts all executions, including the original attempt.
+    injectSysConfig(CIVISIBILITY_FLAKY_RETRY_COUNT, "3")
+    givenFlakyRetryEnabled(true)
+
+    when:
+    runTests([TestAutomationExcludedBracketedParameters], false)
+
+    then:
+    [excluded: TestAutomationExcludedBracketedParameters.excludedExecutions,
+      control: TestAutomationExcludedBracketedParameters.controlExecutions] == [excluded: 2, control: 6]
+    def testSpans = TEST_WRITER.toList().flatten()
+    def excludedSpans = testSpans.findAll { it.getTag("test.name")?.startsWith("excluded_failure") }
+    def controlSpans = testSpans.findAll { it.getTag("test.name")?.startsWith("control_failure") }
+    excludedSpans.size() == 2
+    controlSpans.size() == 6
+    excludedSpans.every { it.getTag("test.test_management.no_auto_retry") == true }
+    excludedSpans.every { it.getTag("test.is_retry") == null }
+    excludedSpans.every { it.getTag("test.source.method") == "excluded_failure()V" }
+    excludedSpans.collect { [it.getTag("test.name"), it.getTag("test.parameters")] }.toSet() == [
+      ["excluded_failure[", '{"metadata":{"test_name":"excluded_failure[[value]]"}}'],
+      ["excluded_failure", '{"metadata":{"test_name":"excluded_failure[line\\nvalue]"}}']
+    ].toSet()
+    controlSpans.every { it.getTag("test.test_management.no_auto_retry") == null }
+    controlSpans.count { it.getTag("test.is_retry") == true } == 4
+    controlSpans.groupBy { it.getTag("test.parameters") }.values().every { it.size() == 3 }
+  }
 
   def "test #testcaseName"() {
     runTests(tests, success)
@@ -215,22 +384,31 @@ class JUnit4Test extends CiVisibilityInstrumentationTest {
   }
 
   private void runTests(Collection<Class<?>> tests, boolean expectSuccess = true) {
+    def result = runTestClasses(new Computer(), tests)
+    if (expectSuccess) {
+      if (result.getFailureCount() > 0) {
+        throw new AssertionError("Expected successful execution, got following failures: " + result.getFailures())
+      }
+    } else {
+      if (result.getFailureCount() == 0) {
+        throw new AssertionError("Expected a failed execution, got no failures")
+      }
+    }
+  }
+
+  private Result runTestClasses(Computer computer, Collection<Class<?>> tests) {
     TestEventsHandlerHolder.start(TestFrameworkInstrumentation.JUNIT4, JUnit4Utils.capabilities(false))
     try {
-      Class[] array = tests.toArray(new Class[0])
-      def result = runner.run(array)
-      if (expectSuccess) {
-        if (result.getFailureCount() > 0) {
-          throw new AssertionError("Expected successful execution, got following failures: " + result.getFailures())
-        }
-      } else {
-        if (result.getFailureCount() == 0) {
-          throw new AssertionError("Expected a failed execution, got no failures")
-        }
-      }
+      return runner.run(computer, tests as Class[])
     } finally {
       TestEventsHandlerHolder.stop(TestFrameworkInstrumentation.JUNIT4)
     }
+  }
+
+  private static Map<String, String> testStatuses(List<Map> events, Map suite) {
+    return events
+      .findAll { it.type == "test" && it.content.test_suite_id == suite.content.test_suite_id }
+      .collectEntries { [(it.content.meta["test.name"]): it.content.meta["test.status"]] }
   }
 
   @Override

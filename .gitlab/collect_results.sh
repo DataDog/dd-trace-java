@@ -5,11 +5,7 @@
 
 set -euo pipefail
 
-java_bin="${JAVA_25_HOME:-}"
-if [[ -n "$java_bin" ]]; then
-  java_bin="$java_bin/bin/java"
-else
-  java_bin="java"
-fi
+source "$(dirname "$0")/java-utils.sh"
+java_bin=$(resolve_java)
 
 exec "$java_bin" "$(dirname "$0")/collect-result/CollectResults.java" "$@"

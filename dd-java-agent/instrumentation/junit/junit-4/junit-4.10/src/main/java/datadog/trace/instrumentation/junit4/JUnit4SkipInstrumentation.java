@@ -12,6 +12,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.config.TestIdentifier;
+import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -82,18 +83,18 @@ public class JUnit4SkipInstrumentation extends InstrumenterModule.CiVisibility
       }
 
       TestIdentifier test = JUnit4Utils.toTestIdentifier(description);
+      Class<?> testClass = description.getTestClass();
+      Method testMethod = JUnit4Utils.getTestMethod(description);
+      List<String> categories = JUnit4Utils.getCategories(testClass, testMethod);
       SkipReason skipReason =
           TestEventsHandlerHolder.HANDLERS
               .get(TestFrameworkInstrumentation.JUNIT4)
-              .skipReason(test);
+              .skipReason(test, new TestSourceData(testClass, testMethod), categories);
       if (skipReason == null) {
         return null;
       }
 
       if (skipReason == SkipReason.ITR) {
-        Class<?> testClass = description.getTestClass();
-        Method testMethod = JUnit4Utils.getTestMethod(description);
-        List<String> categories = JUnit4Utils.getCategories(testClass, testMethod);
         for (String category : categories) {
           if (category.endsWith(CIConstants.Tags.ITR_UNSKIPPABLE_TAG)) {
             return null;

@@ -36,31 +36,27 @@ public class CompletionDecorator {
     }
 
     // Keep model_name and output shape stable on error paths where no response is available.
-    modelName.ifPresent(
-        str -> {
-          span.setTag(CommonTags.MODEL_NAME, str);
-          span.setTag(CommonTags.OUTPUT, Collections.singletonList(LLMObs.LLMMessage.from("", "")));
-        });
+    modelName.ifPresent(str -> {
+      span.setTag(CommonTags.MODEL_NAME, str);
+      span.setTag(CommonTags.OUTPUT, Collections.singletonList(LLMObs.LLMMessage.from("", "")));
+    });
 
     span.setTag(CommonTags.SPAN_KIND, Tags.LLMOBS_LLM_SPAN_KIND);
     extractPromptText(params)
-        .ifPresent(
-            input ->
-                span.setTag(
-                    CommonTags.INPUT,
-                    Collections.singletonList(LLMObs.LLMMessage.from("", input))));
+        .ifPresent(input ->
+            span.setTag(
+                CommonTags.INPUT, Collections.singletonList(LLMObs.LLMMessage.from("", input))));
 
     Map<String, Object> metadata = new HashMap<>();
     params.maxTokens().ifPresent(v -> metadata.put("max_tokens", v));
     params.temperature().ifPresent(v -> metadata.put("temperature", v));
     params
         .streamOptions()
-        .ifPresent(
-            v -> {
-              if (v.includeUsage().orElse(false)) {
-                metadata.put("stream_options", Collections.singletonMap("include_usage", true));
-              }
-            });
+        .ifPresent(v -> {
+          if (v.includeUsage().orElse(false)) {
+            metadata.put("stream_options", Collections.singletonMap("include_usage", true));
+          }
+        });
     span.setTag(CommonTags.METADATA, metadata);
   }
 
@@ -117,13 +113,12 @@ public class CompletionDecorator {
           ._choices()
           .asKnown()
           .orElse(Collections.emptyList())
-          .forEach(
-              choice -> {
-                long index = choice._index().asKnown().orElse(0L);
-                textByChoiceIndex
-                    .computeIfAbsent(index, k -> new StringBuilder())
-                    .append(choice._text().asString().orElse(""));
-              });
+          .forEach(choice -> {
+            long index = choice._index().asKnown().orElse(0L);
+            textByChoiceIndex
+                .computeIfAbsent(index, k -> new StringBuilder())
+                .append(choice._text().asString().orElse(""));
+          });
     }
 
     List<LLMObs.LLMMessage> output =

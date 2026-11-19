@@ -11,8 +11,7 @@ internal class MuzzleTaskPlanner(
   private val resolutionService: MuzzleResolutionService,
 ) {
   companion object {
-    fun from(system: RepositorySystem, session: RepositorySystemSession): MuzzleTaskPlanner =
-      MuzzleTaskPlanner(MavenMuzzleResolutionService(system, session))
+    fun from(system: RepositorySystem, session: RepositorySystemSession): MuzzleTaskPlanner = MuzzleTaskPlanner(MavenMuzzleResolutionService(system, session))
   }
 
   /**

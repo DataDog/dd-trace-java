@@ -6,12 +6,14 @@ import static com.datadog.debugger.el.expressions.ExpressionHelper.checkTimeout;
 
 import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.EvaluationException;
+import com.datadog.debugger.el.Generated;
 import com.datadog.debugger.el.PrettyPrintVisitor;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.Visitor;
 import com.datadog.debugger.el.values.ListValue;
 import com.datadog.debugger.el.values.MapValue;
 import datadog.trace.bootstrap.debugger.util.Redaction;
+import java.util.Objects;
 
 public class IndexExpression implements ValueExpression<Value<?>> {
 
@@ -80,5 +82,19 @@ public class IndexExpression implements ValueExpression<Value<?>> {
 
   public ValueExpression<?> getKey() {
     return key;
+  }
+
+  @Generated
+  @Override
+  public boolean equals(Object o) {
+    if (o == null || getClass() != o.getClass()) return false;
+    IndexExpression that = (IndexExpression) o;
+    return Objects.equals(target, that.target) && Objects.equals(key, that.key);
+  }
+
+  @Generated
+  @Override
+  public int hashCode() {
+    return Objects.hash(target, key);
   }
 }

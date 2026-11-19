@@ -1,6 +1,7 @@
 package datadog.trace.agent.tooling.stratum;
 
 import datadog.trace.agent.tooling.stratum.parser.Parser;
+import datadog.trace.api.internal.VisibleForTesting;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -21,7 +22,7 @@ public class StratumManager {
 
   private static volatile StratumManager INSTANCE;
 
-  private final LimitedConcurrentHashMap map;
+  @VisibleForTesting final LimitedConcurrentHashMap map;
 
   public static StratumManager init(int sourceMappingLimit, IntConsumer limitReachedCallback) {
     INSTANCE = new StratumManager(sourceMappingLimit, limitReachedCallback);
@@ -32,7 +33,8 @@ public class StratumManager {
     return INSTANCE;
   }
 
-  private StratumManager(int sourceMappingLimit, IntConsumer limitReachedCallback) {
+  @VisibleForTesting
+  StratumManager(int sourceMappingLimit, IntConsumer limitReachedCallback) {
     this.map = new LimitedConcurrentHashMap(sourceMappingLimit, limitReachedCallback);
   }
 

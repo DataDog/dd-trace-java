@@ -120,6 +120,13 @@ public class ProxyTestModule implements TestFrameworkModule {
 
   @Nullable
   @Override
+  public SkipReason skipReason(
+      TestIdentifier test, TestSourceData source, Collection<String> tags) {
+    return executionStrategy.skipReason(test, source, tags);
+  }
+
+  @Nullable
+  @Override
   public SkipReason skipReason(TestIdentifier test) {
     return executionStrategy.skipReason(test);
   }

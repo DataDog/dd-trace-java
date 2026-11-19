@@ -119,7 +119,8 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
       "io.grpc.netty.shaded.io.netty.handler.timeout.IdleStateHandler",
       "com.linecorp.armeria.client.HttpClientFactory",
       "com.linecorp.armeria.client.HttpChannelPool",
-      "akka.http.impl.engine.server.HttpServerBluePrint$TimeoutAccessImpl"
+      "akka.http.impl.engine.server.HttpServerBluePrint$TimeoutAccessImpl",
+      "org.jboss.as.ejb3.timerservice.TimerServiceImpl"
     };
   }
 
@@ -142,6 +143,12 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     String advice = getClass().getName() + "$DisableAsyncAdvice";
+    // EJB calendar timers recur through one-shot Timer.schedule calls. Each timeout must run
+    // independently instead of passing the request context to every subsequent timeout.
+    transformer.applyAdvice(
+        named("scheduleTimeout")
+            .and(isDeclaredBy(named("org.jboss.as.ejb3.timerservice.TimerServiceImpl"))),
+        advice);
     // Timeout cancellation is housekeeping; its request-entity future may never complete.
     transformer.applyAdvice(
         named("clear")
