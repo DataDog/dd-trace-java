@@ -117,6 +117,8 @@ tasks.named<Jar>("jar") {
 // SDK reaches are kept. The Shadow plugin is not applied, so the publication and its POM stay
 // those of the java component; only the jar it publishes is replaced.
 val toolboxRelocationPrefix = "com.datadog.openfeature.internal.shaded"
+// The toolbox packages: relocated below, and checked for leaks by checkToolboxRelocation.
+val toolboxPackages = listOf("datadog.trace.util", "datadog.trace.api.function", "datadog.contract")
 val toolboxJar = tasks.register<ShadowJar>("toolboxJar") {
   description = "Builds the published jar, with the toolbox classes it uses relocated into it."
   group = "build"
@@ -125,9 +127,7 @@ val toolboxJar = tasks.register<ShadowJar>("toolboxJar") {
   destinationDirectory = layout.buildDirectory.dir("libs")
   from(sourceSets.main.map { it.output })
   configurations.set(listOf(toolbox))
-  relocate("datadog.trace.util", "$toolboxRelocationPrefix.datadog.trace.util")
-  relocate("datadog.trace.api.function", "$toolboxRelocationPrefix.datadog.trace.api.function")
-  relocate("datadog.contract", "$toolboxRelocationPrefix.datadog.contract")
+  toolboxPackages.forEach { relocate(it, "$toolboxRelocationPrefix.$it") }
   minimize()
   manifest {
     attributes("Automatic-Module-Name" to "com.datadog.openfeature")
@@ -155,14 +155,12 @@ val checkToolboxRelocation = tasks.register("checkToolboxRelocation") {
   description = "Checks that the published jar holds no unrelocated toolbox classes."
   group = "verification"
   val archive = toolboxJar.flatMap { it.archiveFile }
+  val toolboxPaths = toolboxPackages.map { it.replace('.', '/') + "/" }
   inputs.file(archive)
   doLast {
     val leaked = ZipFile(archive.get().asFile).use { zip ->
       zip.entries().asSequence().map { it.name }
-        .filter {
-          it.startsWith("datadog/trace/util/") || it.startsWith("datadog/contract/") ||
-            it.startsWith("datadog/trace/api/function/")
-        }
+        .filter { name -> toolboxPaths.any { name.startsWith(it) } }
         .toList()
     }
     check(leaked.isEmpty()) { "Unrelocated toolbox classes in ${archive.get().asFile.name}: $leaked" }
