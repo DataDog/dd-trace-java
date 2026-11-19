@@ -6679,11 +6679,13 @@ public class Config {
       }
     }
 
-    // Try hostname command
+    // Decode the OS-owned hostname output with the host charset, independently of file.encoding.
     try (final TraceScope scope = AgentTracer.get().muteTracing();
         final BufferedReader reader =
             new BufferedReader(
-                new InputStreamReader(Runtime.getRuntime().exec("hostname").getInputStream()))) {
+                new InputStreamReader(
+                    Runtime.getRuntime().exec("hostname").getInputStream(),
+                    OperatingSystem.nativeCharset()))) {
       possibleHostname = reader.readLine();
     } catch (final Throwable ignore) {
       // Ignore.  Hostname command is not always available
