@@ -75,11 +75,13 @@ public class JCoClientDecorator extends ClientDecorator {
   }
 
   /**
-   * Tags a metadata-lookup span (RFC_METADATA_GET) with the function whose interface is fetched.
+   * Tags a metadata-lookup span with the function whose interface is fetched and the actual
+   * metadata RFM sent ({@code RFC_METADATA_GET}, or a legacy RFM on older SAP systems).
    */
-  public void onMetadata(AgentSpan span, String function) {
+  public void onMetadata(AgentSpan span, String function, String metadataRfm) {
     span.setTag("rpc.system", RPC_SYSTEM_SAP_RFC);
-    span.setTag("rpc.method", METADATA_RFM);
+    span.setTag(
+        "rpc.method", metadataRfm == null || metadataRfm.isEmpty() ? METADATA_RFM : metadataRfm);
     // Resource reads distinctly from the sap.rfc.call span for the same function (just the function
     // name): here it is the function qualified as a metadata lookup.
     span.setResourceName(function == null ? METADATA_RFM : function + " (metadata)");

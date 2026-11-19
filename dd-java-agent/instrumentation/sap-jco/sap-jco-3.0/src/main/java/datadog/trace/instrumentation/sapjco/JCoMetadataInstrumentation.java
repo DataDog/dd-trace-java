@@ -8,6 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
+import com.sap.conn.jco.JCoFunction;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
@@ -53,14 +54,19 @@ public class JCoMetadataInstrumentation
 
   public static class MetadataSendAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void onEnter() {
+    public static void onEnter(@Advice.Argument(0) JCoFunction metadataFunction) {
       MetadataLookup lookup = MetadataLookup.current();
       if (lookup == null || lookup.getSpan() != null) {
         return;
       }
       AgentSpan span = startSpan("sap-jco", METADATA_OPERATION);
       DECORATE.afterStart(span);
-      DECORATE.onMetadata(span, lookup.getFunctionName());
+      // arg0 is the metadata RFM actually being sent (RFC_METADATA_GET, or a legacy RFM on older
+      // SAP).
+      DECORATE.onMetadata(
+          span,
+          lookup.getFunctionName(),
+          metadataFunction == null ? null : metadataFunction.getName());
       // Not activated: the passport manager reads this span from MetadataLookup directly, so every
       // RFM of the lookup binds to it without holding a scope open across advice methods.
       lookup.setSpan(span);
