@@ -188,3 +188,9 @@ tasks.named("shadowJar", ShadowJar) {
 tasks.named("forbiddenApisWebapp") {
   enabled = false
 }
+
+tasks.named("forkedTest", Test) {
+  // Each test JVM writes its HTTP port to the shared server.xml and restores it after shutdown.
+  // Run one JVM at a time so those writes cannot overlap.
+  maxParallelForks = 1
+}

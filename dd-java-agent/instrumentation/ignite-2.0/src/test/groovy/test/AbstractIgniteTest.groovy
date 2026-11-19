@@ -3,6 +3,7 @@ package test
 
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
+import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -43,13 +44,22 @@ abstract class AbstractIgniteTest extends VersionedNamingTestBase {
 
     clientConfig.setClientMode(true)
 
-    TcpDiscoveryVmIpFinder ipFinder = new TcpDiscoveryVmIpFinder()
-    ipFinder.setAddresses(Collections.singletonList("127.0.0.1:47500..47509"))
-    serverConfig.setDiscoverySpi(new TcpDiscoverySpi().setIpFinder(ipFinder))
-    clientConfig.setDiscoverySpi(new TcpDiscoverySpi().setIpFinder(ipFinder))
+    configureDiscovery(serverConfig, clientConfig)
 
     igniteServer = Ignition.start(serverConfig)
     igniteClient = Ignition.start(clientConfig)
+  }
+
+  static void configureDiscovery(IgniteConfiguration serverConfig, IgniteConfiguration clientConfig) {
+    String loopback = "127.0.0.1"
+    int discoveryPort = PortUtils.randomOpenPort()
+    TcpDiscoveryVmIpFinder ipFinder = new TcpDiscoveryVmIpFinder()
+    ipFinder.setAddresses(Collections.singletonList(loopback + ":" + discoveryPort))
+
+    // The client knows only this endpoint, so the server must bind to that exact port.
+    serverConfig.setDiscoverySpi(new TcpDiscoverySpi().setLocalAddress(loopback)
+      .setLocalPort(discoveryPort).setLocalPortRange(0).setIpFinder(ipFinder))
+    clientConfig.setDiscoverySpi(new TcpDiscoverySpi().setLocalAddress(loopback).setIpFinder(ipFinder))
   }
 
   def cleanupSpec() {

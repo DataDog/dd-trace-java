@@ -9,8 +9,6 @@ import org.apache.ignite.Ignite
 import org.apache.ignite.IgniteCache
 import org.apache.ignite.Ignition
 import org.apache.ignite.configuration.IgniteConfiguration
-import org.apache.ignite.spi.discovery.tcp.TcpDiscoverySpi
-import org.apache.ignite.spi.discovery.tcp.ipfinder.vm.TcpDiscoveryVmIpFinder
 import spock.lang.Shared
 
 import javax.cache.CacheException
@@ -19,6 +17,7 @@ import java.util.concurrent.TimeUnit
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
+import static test.AbstractIgniteTest.configureDiscovery
 
 abstract class IgniteCacheFailureTest extends VersionedNamingTestBase {
 
@@ -48,10 +47,7 @@ abstract class IgniteCacheFailureTest extends VersionedNamingTestBase {
     clientConfig.setClientMode(true)
     clientConfig.setNetworkTimeout(100)
 
-    TcpDiscoveryVmIpFinder ipFinder = new TcpDiscoveryVmIpFinder()
-    ipFinder.setAddresses(Collections.singletonList("127.0.0.1:47500..47509"))
-    serverConfig.setDiscoverySpi(new TcpDiscoverySpi().setIpFinder(ipFinder))
-    clientConfig.setDiscoverySpi(new TcpDiscoverySpi().setIpFinder(ipFinder))
+    configureDiscovery(serverConfig, clientConfig)
 
     igniteServer = Ignition.start(serverConfig)
     igniteClient = Ignition.start(clientConfig)
