@@ -60,6 +60,7 @@ public final class JedisInstrumentation extends InstrumenterModule.Tracing
       } else {
         // Protocol.Command is the only implementation in the Jedis lib as of 3.1 but this will save
         // us if that changes
+        // Display raw command names with Jedis's default UTF-8 text encoding.
         DECORATE.onStatement(span, new String(command.getRaw(), StandardCharsets.UTF_8));
       }
       return activateSpan(span);

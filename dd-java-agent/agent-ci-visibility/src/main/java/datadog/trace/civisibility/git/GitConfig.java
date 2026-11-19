@@ -35,6 +35,7 @@ public class GitConfig {
     //   url = https://some-host/user/repository.git
     // 	 fetch = +refs/heads/*:refs/remotes/origin/*
 
+    // Git config retains stored text bytes; i18n.logOutputEncoding does not transcode this file.
     try (final BufferedReader br =
         new BufferedReader(new StringReader(decodeMetadata(Files.readAllBytes(Paths.get(path)))))) {
       String line;

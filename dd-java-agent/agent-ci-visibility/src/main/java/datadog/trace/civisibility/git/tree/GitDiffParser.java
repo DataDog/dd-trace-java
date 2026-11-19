@@ -21,7 +21,8 @@ import javax.annotation.Nonnull;
 
 public class GitDiffParser {
 
-  // Byte-preserving input can contain U+0085 inside a filename.
+  // ISO-8859-1 maps byte 0x85 to U+0085, which regex dot excludes without DOTALL.
+  // Rejecting that header would leave its hunks attached to the preceding file.
   private static final Pattern CHANGED_FILE_PATTERN =
       Pattern.compile("^diff --git (?<oldfilename>.+) (?<newfilename>.+)$", Pattern.DOTALL);
   private static final Pattern CHANGED_LINES_PATTERN =
@@ -73,12 +74,15 @@ public class GitDiffParser {
     byte[] bytes = filename.getBytes(ISO_8859_1);
     Charset filesystemCharset = getFilesystemCharset();
     try {
-      // Prefer the filesystem interpretation used by the repository index.
+      // Match the repository index's filesystem interpretation. Valid EUC-JP bytes can also be
+      // valid UTF-8 with a different pathname.
       return filesystemCharset.newDecoder().decode(ByteBuffer.wrap(bytes)).toString();
     } catch (CharacterCodingException e) {
       try {
+        // Git can emit UTF-8 pathname bytes that an ASCII filesystem charset rejects.
         return UTF_8.newDecoder().decode(ByteBuffer.wrap(bytes)).toString();
       } catch (CharacterCodingException ignored) {
+        // Retain filesystem replacement behaviour when neither decoder accepts the name.
         return new String(bytes, filesystemCharset);
       }
     }

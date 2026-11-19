@@ -233,6 +233,7 @@ public class JMXFetch {
         return Collections.emptyList();
       }
       log.debug("reading found metricconfigs");
+      // copyMetricConfigs writes this packaged resource list with Files.write's UTF-8 overload.
       Scanner scanner = new Scanner(metricConfigsStream, StandardCharsets.UTF_8.name());
       scanner.useDelimiter("\n");
       final List<String> result = new ArrayList<>();

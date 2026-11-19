@@ -81,6 +81,7 @@ public class ThirdPartyLibraries {
   }
 
   private static InternalConfig readConfig(InputStream inputStream) throws IOException {
+    // The bundled JSON resource uses UTF-8, independently of the application's default charset.
     try (InputStreamReader isr = new InputStreamReader(inputStream, StandardCharsets.UTF_8);
         BufferedReader reader = new BufferedReader(isr)) {
       return ADAPTER.fromJson(reader.lines().collect(Collectors.joining(System.lineSeparator())));

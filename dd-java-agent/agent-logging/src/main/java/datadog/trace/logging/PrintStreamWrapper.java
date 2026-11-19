@@ -16,7 +16,8 @@ public class PrintStreamWrapper extends PrintStream {
   private volatile int currentSize = 0;
   private PrintStream capturingStream = null;
 
-  // JDK 18+ inherits the wrapped stream's charset; older JDKs use the JVM default.
+  // Keep the console wrapper's existing behaviour: JDK 18+ inherits the wrapped stream's charset,
+  // while older JDKs use the JVM default. Forcing UTF-8 would change that runtime-specific choice.
   @SuppressForbidden
   public PrintStreamWrapper(PrintStream ps) {
     super(ps);
@@ -32,9 +33,12 @@ public class PrintStreamWrapper extends PrintStream {
     super.println(x); // log as usual
     if (captureOutput) {
       synchronized (this) {
+        // Count UTF-8 bytes, including println's line ending. Check and write under one lock so
+        // concurrent lines cannot exceed the flare's byte limit.
         int remainingBytes =
             LogReporter.MAX_LOGFILE_SIZE_BYTES - currentSize - LINE_SEPARATOR_LENGTH;
-        // Each UTF-16 code unit needs at least one UTF-8 byte.
+        // UTF-16 length bounds UTF-8 size from below; reject guaranteed oversized lines before
+        // encoding.
         if (x.length() >= remainingBytes) {
           captureOutput = false;
           return;
@@ -63,6 +67,7 @@ public class PrintStreamWrapper extends PrintStream {
       if (filepath != null) {
         String logFile = filepath.toString();
         FileOutputStream fileOutputStream = new FileOutputStream(logFile);
+        // The flare owns this capture file, independently of the application's console encoding.
         capturingStream = new PrintStream(fileOutputStream, true, UTF_8.name());
         captureOutput = true;
       }

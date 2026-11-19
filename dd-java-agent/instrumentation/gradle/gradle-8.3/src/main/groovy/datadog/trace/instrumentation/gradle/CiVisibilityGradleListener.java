@@ -48,6 +48,7 @@ public class CiVisibilityGradleListener extends BuildAdapter
   private static final String TRACER_VERSION;
 
   static {
+    // The bundled tracer version is UTF-8 text, independent of the build JVM's default charset.
     try (BufferedReader reader =
         new BufferedReader(
             new InputStreamReader(

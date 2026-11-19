@@ -21,6 +21,7 @@ public final class Strings {
 
   /** Formats text with {@link Locale#ROOT}. */
   public static String format(String format, Object... args) {
+    // Keep formatted digits, separators and case independent of the application's default locale.
     return String.format(Locale.ROOT, format, args);
   }
 

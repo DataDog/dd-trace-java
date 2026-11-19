@@ -125,11 +125,14 @@ public class ShellGitClient implements GitClient {
     command[1] = "-c";
     command[2] = safeDirectoryOption;
     command[3] = "-c";
+    // This requests UTF-8 commit text; refs, config values and filesystem paths retain their bytes.
     command[4] = "i18n.logOutputEncoding=UTF-8";
     System.arraycopy(gitArgs, 0, command, 5, gitArgs.length);
     return command;
   }
 
+  // Stored text needs the UTF-8-first metadata policy; Git's ASCII hashes, counters and flags
+  // can use UTF-8 readers directly.
   private static String readMetadata(InputStream input) throws IOException {
     ByteArrayOutputStream bytes = new ByteArrayOutputStream();
     IOUtils.readFully(input, bytes);
@@ -141,7 +144,9 @@ public class ShellGitClient implements GitClient {
   }
 
   private static Charset getCommandCharset() {
-    // Preserve ref bytes when ProcessBuilder re-encodes them as arguments.
+    // Internal ref names are passed back to Git, so their argument bytes must round-trip.
+    // Unix ProcessBuilder uses the JVM default before JDK 18, then the filesystem charset from 18.
+    // Git for Windows emits UTF-8 names and receives Unicode command arguments.
     return isWindows() || isJavaVersionAtLeast(18)
         ? getFilesystemCharset()
         : Charset.defaultCharset();
@@ -257,7 +262,7 @@ public class ShellGitClient implements GitClient {
   @Nullable
   @Override
   public String getGitFolder() throws IOException, TimeoutException, InterruptedException {
-    // Git for Windows uses UTF-8 paths; POSIX Git writes filesystem bytes unchanged.
+    // Git for Windows uses UTF-8 paths; Git's log output encoding does not govern pathname output.
     return executeCommand(
         Command.OTHER,
         () ->
@@ -280,6 +285,7 @@ public class ShellGitClient implements GitClient {
   @Nullable
   @Override
   public String getRepoRoot() throws IOException, TimeoutException, InterruptedException {
+    // This path is used for filesystem access, so it needs the pathname policy, not display text.
     return executeCommand(
         Command.OTHER,
         () ->
@@ -474,6 +480,7 @@ public class ShellGitClient implements GitClient {
         () -> {
           String info = "";
           try {
+            // Git can return original bytes for unlabelled commits or failed UTF-8 conversions.
             info =
                 commandExecutor
                     .executeCommand(

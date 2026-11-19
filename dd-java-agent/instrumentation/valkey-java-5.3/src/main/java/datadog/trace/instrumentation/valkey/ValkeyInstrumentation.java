@@ -60,6 +60,7 @@ public final class ValkeyInstrumentation extends InstrumenterModule.Tracing
       if (command instanceof Protocol.Command) {
         DECORATE.onStatement(span, ((Protocol.Command) command).name());
       } else {
+        // Raw command bytes declare no charset; use Valkey's default UTF-8 for their display text.
         DECORATE.onStatement(span, new String(command.getRaw(), StandardCharsets.UTF_8));
       }
       return activateSpan(span);

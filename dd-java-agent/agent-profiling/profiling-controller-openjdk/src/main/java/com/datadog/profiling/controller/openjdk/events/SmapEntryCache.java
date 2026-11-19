@@ -332,6 +332,7 @@ final class SmapEntryCache {
 
   /** Prefer UTF-8 and native text; escape undecodable bytes and double literal backslashes. */
   private static String decodePathname(String pathname, Charset nativeCharset) {
+    // These are display names: readable UTF-8 wins when both charsets accept the same bytes.
     boolean ascii = true;
     for (int i = 0; i < pathname.length(); i++) {
       if (pathname.charAt(i) > 0x7f) {
@@ -359,6 +360,7 @@ final class SmapEntryCache {
       }
     }
 
+    // Replacement characters would lose bytes; byte escapes must also distinguish literal '\'.
     StringBuilder escaped = new StringBuilder(pathname.length());
     for (int i = 0; i < pathname.length(); i++) {
       char value = pathname.charAt(i);

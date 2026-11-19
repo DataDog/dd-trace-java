@@ -68,6 +68,7 @@ public class ASMHelper {
       output = new File(Strings.format("build/%s-%d-%s.txt", method, count++, suffix));
     } while (output.exists());
     output.getParentFile().mkdirs();
+    // The debugger owns these text dumps; UTF-8 preserves names across application charsets.
     try (PrintWriter writer = new PrintWriter(output, StandardCharsets.UTF_8.name())) {
       writer.println(content);
       String absolutePath = output.getAbsolutePath();

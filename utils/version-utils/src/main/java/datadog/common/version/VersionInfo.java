@@ -23,6 +23,7 @@ public class VersionInfo {
       final InputStream is =
           VersionInfo.class.getClassLoader().getResourceAsStream("version-utils.version");
       if (is != null) {
+        // This bundled version resource uses UTF-8, independently of the application JVM default.
         final BufferedReader reader =
             new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8));
         final StringBuilder sb = new StringBuilder();

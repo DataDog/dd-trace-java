@@ -232,7 +232,8 @@ public class ContainerInfo {
   }
 
   static ContainerInfo fromProcFile(Path path) throws IOException, ParseException {
-    // The kernel writes raw pathname bytes; retain the existing JVM-default decoding.
+    // The kernel emits raw cgroup pathname bytes without a charset declaration. Keep the existing
+    // JVM-default decoding for compatibility with deployments that configure file.encoding.
     final String content = new String(Files.readAllBytes(path), Charset.defaultCharset());
     if (content.isEmpty()) {
       log.debug("Proc file is empty");

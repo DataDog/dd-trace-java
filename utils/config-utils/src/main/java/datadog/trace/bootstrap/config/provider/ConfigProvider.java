@@ -667,7 +667,7 @@ public final class ConfigProvider {
       return properties;
     }
 
-    // Retain the platform encoding for existing configuration files.
+    // Preserve the JVM default used for existing user-supplied files; it can differ from the host.
     try (final FileReader fileReader = new FileReader(configurationFile)) {
       properties.load(fileReader);
     } catch (final FileNotFoundException fnf) {

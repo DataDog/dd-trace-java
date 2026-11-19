@@ -151,6 +151,7 @@ public final class CrashUploaderScriptInitializer {
       InputStream template, File scriptFile, String execClass, String crashFile)
       throws IOException {
     if (!scriptFile.exists()) {
+      // The bundled script template and the generated script share the tracer's UTF-8 encoding.
       try (BufferedReader br =
               new BufferedReader(new InputStreamReader(template, StandardCharsets.UTF_8));
           BufferedWriter bw =

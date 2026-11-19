@@ -53,9 +53,11 @@ public class GitUtils {
   /** Charset for Git filesystem paths: UTF-8 on Windows, the JDK filesystem charset elsewhere. */
   public static Charset getFilesystemCharset() {
     if (OperatingSystem.isWindows()) {
+      // Git for Windows translates native Unicode paths to UTF-8.
       return StandardCharsets.UTF_8;
     }
-    // The JDK filesystem charset can differ from native.encoding, notably on macOS.
+    // Git's log encoding does not govern pathnames; use the charset Path uses to access names.
+    // macOS keeps sun.jnu.encoding=UTF-8 even when LC_ALL=C makes native.encoding ASCII.
     String encoding = SystemProperties.get("sun.jnu.encoding");
     if (encoding != null) {
       try {
@@ -68,6 +70,8 @@ public class GitUtils {
 
   /** Decode valid UTF-8 metadata first, falling back to the host charset for legacy bytes. */
   public static String decodeMetadata(byte[] bytes) {
+    // Stored refs and config text can remain UTF-8 under an ASCII host locale. Prefer valid UTF-8
+    // for display, then try the host charset for legacy bytes such as Latin-1 or Windows-1252.
     try {
       return StandardCharsets.UTF_8.newDecoder().decode(ByteBuffer.wrap(bytes)).toString();
     } catch (CharacterCodingException e) {

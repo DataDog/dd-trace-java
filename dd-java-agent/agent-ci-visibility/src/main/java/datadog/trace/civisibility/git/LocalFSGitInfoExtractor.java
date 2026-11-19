@@ -49,6 +49,7 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
     try {
       final Path gitFolderPath = Paths.get(gitFolder);
       final byte[] head = readFile(gitFolderPath.resolve("HEAD"));
+      // Report the ref as metadata; resolving its file below needs a separate filesystem decoding.
       final String ref = extractRef(head == null ? null : decodeMetadata(head));
       final String branch = extractBranch(ref);
       final String tag = extractTag(ref);
@@ -192,7 +193,7 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
         return CommitInfo.NOOP;
       }
 
-      // We get the reference in the object getting the bytes until the \n character:
+      // The tag's object header contains an ASCII object ID, which UTF-8 preserves on every JVM.
       final String objectSha =
           new String(Arrays.copyOfRange(gitObject.getContent(), 0, lf - 1), StandardCharsets.UTF_8);
 
@@ -240,6 +241,7 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
       // ((byte)32)
       // metadata[0] contains the type (e.g. commit)
       // metadata[1] contains the size (e.g. 261)
+      // Git object types and decimal sizes are ASCII, independent of the application's charset.
       final String[] metadata =
           SPACE_PATTERN.split(new String(metadataBytes, StandardCharsets.UTF_8));
       if (metadata.length != 2) {
@@ -293,7 +295,7 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
       return null;
     }
 
-    // A ref name must retain its native path representation when locating the reference file.
+    // Path re-encodes this ref with the filesystem charset; display decoding can change its name.
     final String head = new String(rawHead, getFilesystemCharset());
 
     // HEAD can contain a reference (e.g.: refs/heads/master) or

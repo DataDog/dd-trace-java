@@ -132,6 +132,7 @@ public class ShellCommandExecutor {
         p.getOutputStream().close();
       }
 
+      // Callers choose decoders for parsed output; retain the JVM default for existing diagnostics.
       if (p.waitFor(timeoutMillis, TimeUnit.MILLISECONDS)) {
         int exitValue = p.exitValue();
         if (exitValue != 0) {

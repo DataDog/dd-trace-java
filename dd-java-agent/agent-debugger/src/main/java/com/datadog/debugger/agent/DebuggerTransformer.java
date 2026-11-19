@@ -555,6 +555,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
   }
 
   private synchronized void writeToInstrumentationLog(String classFilePath) {
+    // This debugger-owned log uses UTF-8 so class paths survive application charset overrides.
     try (OutputStreamWriter writer =
         new OutputStreamWriter(
             new FileOutputStream("/tmp/debugger/instrumentation.log", true),

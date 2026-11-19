@@ -6679,7 +6679,7 @@ public class Config {
       }
     }
 
-    // Try hostname command
+    // Decode the OS-owned hostname output with the host charset, independently of file.encoding.
     try (final TraceScope scope = AgentTracer.get().muteTracing();
         final BufferedReader reader =
             new BufferedReader(

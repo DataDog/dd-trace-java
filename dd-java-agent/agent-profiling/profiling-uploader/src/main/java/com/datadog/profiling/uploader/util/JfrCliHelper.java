@@ -65,7 +65,8 @@ public class JfrCliHelper {
 
       String[] stdout;
 
-      // The child JVM's stdout charset can differ from this JVM's default.
+      // Request and decode UTF-8 to preserve event names and localised counts from the child JVM.
+      // JDK 11/17 need sun.stdout.encoding when inherited _JAVA_OPTIONS overrides file.encoding.
       ProcessBuilder builder =
           new ProcessBuilder(
               jfr.toString(),

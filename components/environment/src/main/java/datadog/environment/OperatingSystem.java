@@ -71,7 +71,8 @@ public final class OperatingSystem {
 
   /** Gets the host charset, falling back to the JDK filesystem charset and JVM default. */
   public static Charset nativeCharset() {
-    // native.encoding was introduced in JDK 17; older JDKs expose sun.jnu.encoding.
+    // native.encoding (JDK 17+) follows the host; file.encoding can select another JVM default.
+    // Older OpenJDKs expose the filesystem charset through sun.jnu.encoding instead.
     for (String property : new String[] {"native.encoding", "sun.jnu.encoding"}) {
       String encoding = SystemProperties.get(property);
       if (encoding != null) {
@@ -106,6 +107,7 @@ public final class OperatingSystem {
   }
 
   private static boolean isMuslProcSelfMaps() throws IOException {
+    // Only ASCII library markers matter here; ISO-8859-1 preserves arbitrary pathname bytes.
     try (BufferedReader reader =
         new BufferedReader(
             new InputStreamReader(

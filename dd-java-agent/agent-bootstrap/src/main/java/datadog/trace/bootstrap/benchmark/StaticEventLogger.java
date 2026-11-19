@@ -31,6 +31,7 @@ public class StaticEventLogger {
       String fileName = dir + "startup_" + System.currentTimeMillis() + ".csv";
 
       try {
+        // The tracer owns this CSV format, so its text encoding is independent of the application.
         writer =
             new BufferedWriter(
                 new OutputStreamWriter(new FileOutputStream(fileName), StandardCharsets.UTF_8),

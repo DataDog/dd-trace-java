@@ -240,6 +240,7 @@ public abstract class ProfilerSettingsSupport {
         if (process.waitFor(500, TimeUnit.MILLISECONDS) && process.exitValue() == 0) {
           // we are expecting just a single line output from `getenforce`, so we can avoid draining
           // stdout/stderr asynchronously
+          // Use the host command's charset; the application can select a different JVM default.
           try (BufferedReader reader =
               new BufferedReader(
                   new InputStreamReader(

@@ -14,7 +14,8 @@ public final class Utils {
       DSM_TRANSACTION_SOURCE_READER =
           (source, headerName) -> {
             try {
-              // Header values are application bytes; preserve the configured JVM charset.
+              // Kafka headers declare no charset. Keep the existing JVM default for application
+              // transaction IDs so changing the decoder does not change checkpoint correlation.
               return new String(
                   ((Headers) source).lastHeader(headerName).value(), Charset.defaultCharset());
             } catch (Throwable ignored) {

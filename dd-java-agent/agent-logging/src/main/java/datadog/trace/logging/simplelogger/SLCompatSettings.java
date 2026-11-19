@@ -193,6 +193,7 @@ public class SLCompatSettings {
             parentFile.mkdirs();
           }
           outputStream = new FileOutputStream(outputFile);
+          // Tracer-owned log files use UTF-8, including when collected later in a flare.
           PrintStream printStream = new PrintStream(outputStream, true, UTF_8.name());
           LogReporter.register(outputFile);
           return printStream;
