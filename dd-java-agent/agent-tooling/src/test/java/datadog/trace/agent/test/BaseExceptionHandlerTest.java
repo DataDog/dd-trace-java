@@ -150,7 +150,7 @@ abstract class BaseExceptionHandlerTest extends DDJavaSpecification {
 
     Class<?> someClazz = loader.loadClass(SomeClass.class.getName());
     assertEquals(loader, someClazz.getClassLoader());
-    assertEquals(true, someClazz.getMethod("isInstrumented").invoke(null));
+    assertTrue((boolean) someClazz.getMethod("isInstrumented").invoke(null));
     assertEquals(initLogEvents, testAppender.list.size());
     assertEquals(0, exitStatus.get());
   }
@@ -195,8 +195,7 @@ abstract class BaseExceptionHandlerTest extends DDJavaSpecification {
       int intValue = 3;
       double doubleValue = 32.2d;
       Object object = new Object();
-      System.out.println(
-          "large stack: " + longValue + " " + intValue + " " + doubleValue + " " + object);
+      System.out.printf("large stack: %d %d %f %s", longValue, intValue, doubleValue, object);
     }
 
     public static void blockingException() {
