@@ -112,7 +112,9 @@ public class ExposurePipeline implements Consumer<ExposureEvent>, EventPipeline 
     // flush as compact bytes in reused chunks rather than as event objects. A full payload is sent
     // at once.
     private final ByteBuffer prefix;
-    private final ChunkedBuffer payload;
+    private final int payloadCapacity;
+    // Replaced, not reset, after a failed post: a timed-out request may still be reading it.
+    private ChunkedBuffer payload;
     private int pending;
     private final Consumer<ExposureEvent> add = this::add;
     private final AtomicBoolean shutdownRequested = new AtomicBoolean();
@@ -131,9 +133,9 @@ public class ExposurePipeline implements Consumer<ExposureEvent>, EventPipeline 
 
       final byte[] prefix = ExposuresRequest.prefix(context);
       this.prefix = ByteBuffer.wrap(prefix);
-      this.payload =
-          new ChunkedBuffer(
-              PAYLOAD_SIZE_LIMIT_BYTES - prefix.length - ExposuresRequest.SUFFIX.length);
+      this.payloadCapacity =
+          PAYLOAD_SIZE_LIMIT_BYTES - prefix.length - ExposuresRequest.SUFFIX.length;
+      this.payload = new ChunkedBuffer(this.payloadCapacity);
       this.lastTicks = System.nanoTime();
       this.ticksRequiredToFlush = timeUnit.toNanos(flushInterval);
 
@@ -243,19 +245,19 @@ public class ExposurePipeline implements Consumer<ExposureEvent>, EventPipeline 
       body.add(this.prefix.duplicate());
       body.addAll(chunks);
       body.add(ByteBuffer.wrap(ExposuresRequest.SUFFIX));
+      // Best-effort delivery must not retry an ambiguously accepted batch.
+      this.pending = 0;
       try {
         this.transport.post(EXPOSURES_ROUTE, body);
+        this.payload.reset();
         LOGGER.debug("Feature Flags exposure flush delivered: count={}", count);
       } catch (Exception e) {
+        this.payload = new ChunkedBuffer(this.payloadCapacity);
         LOGGER.debug(
             "Feature Flags exposure flush failed: {}; dropping the batch of {} exposure(s)",
             e.toString(),
             count,
             e);
-      } finally {
-        // Best-effort delivery must not retry an ambiguously accepted batch.
-        this.payload.reset();
-        this.pending = 0;
       }
     }
 
