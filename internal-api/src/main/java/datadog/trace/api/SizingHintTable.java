@@ -84,11 +84,16 @@ final class SizingHintTable {
    * the create path is warmup-rare.
    */
   @Nullable
+  /** The longest operation name that gets a hint. */
+  static final int MAX_OPERATION_NAME_LENGTH = 256;
+
   static SizingHint hintFor(@Nullable CharSequence operationName, boolean entrySpan) {
     if (!IdStoreFactory.Default.DENSE) {
       return null;
     }
-    if (operationName == null) {
+    // Names are kept for the JVM's life, so bound their length as well as their number; a span
+    // with a longer name just grows its store normally.
+    if (operationName == null || operationName.length() > MAX_OPERATION_NAME_LENGTH) {
       return null;
     }
     // O(1) for String / UTF8BytesString (see class doc)

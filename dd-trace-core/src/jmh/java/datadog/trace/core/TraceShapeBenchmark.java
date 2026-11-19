@@ -24,6 +24,7 @@ import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
+import org.openjdk.jmh.infra.BenchmarkParams;
 import org.openjdk.jmh.infra.Blackhole;
 
 /**
@@ -114,7 +115,7 @@ public class TraceShapeBenchmark {
   SpanPrototype traceProto;
 
   @Setup
-  public void setup(Blackhole blackhole) {
+  public void setup(Blackhole blackhole, BenchmarkParams params) {
     SizeRecordingWriter writer = new SizeRecordingWriter(blackhole);
     this.tracer = CoreTracer.builder().writer(writer).build();
     // the decorators' prototype chains: Base (type, component) -> Server / Client (kind, language)
@@ -144,13 +145,30 @@ public class TraceShapeBenchmark {
 
     // Train the sizing hints on the tags a published span ends up with: serialization adds some
     // (such as _dd.integration), and recording only before it would presize every span too small.
+    // Train only the arm this fork measures: the arms share operation names, so another arm's tags
+    // would otherwise presize this one.
+    Runnable arm = armFor(params);
     writer.training = true;
     for (int i = 0; i < 4; i++) {
-      legacy();
-      normal();
-      newApi();
+      arm.run();
     }
     writer.training = false;
+  }
+
+  /** The benchmark method this fork runs, by the name JMH reports for it. */
+  private Runnable armFor(BenchmarkParams params) {
+    String benchmark = params.getBenchmark();
+    String method = benchmark.substring(benchmark.lastIndexOf('.') + 1);
+    switch (method) {
+      case "legacy":
+        return this::legacy;
+      case "normal":
+        return this::normal;
+      case "newApi":
+        return this::newApi;
+      default:
+        throw new IllegalStateException("no training arm for " + benchmark);
+    }
   }
 
   @TearDown
