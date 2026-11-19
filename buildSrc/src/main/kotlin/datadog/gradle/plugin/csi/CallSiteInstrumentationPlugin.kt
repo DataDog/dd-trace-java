@@ -10,11 +10,12 @@ import org.gradle.api.file.Directory
 import org.gradle.api.plugins.JavaPlugin
 import org.gradle.api.plugins.JavaPlugin.COMPILE_CLASSPATH_CONFIGURATION_NAME
 import org.gradle.api.plugins.JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME
+import org.gradle.api.plugins.JavaPlugin.TEST_COMPILE_CLASSPATH_CONFIGURATION_NAME
+import org.gradle.api.plugins.JavaPlugin.TEST_RUNTIME_CLASSPATH_CONFIGURATION_NAME
 import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.plugins.jvm.JvmTestSuite
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.SourceSet.MAIN_SOURCE_SET_NAME
-import org.gradle.api.tasks.SourceSet.TEST_SOURCE_SET_NAME
 import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.tasks.compile.AbstractCompile
@@ -28,7 +29,6 @@ import org.gradle.kotlin.dsl.register
 import org.gradle.kotlin.dsl.withType
 import org.gradle.language.jvm.tasks.ProcessResources
 import org.gradle.testing.base.TestingExtension
-import java.util.Locale
 import javax.inject.Inject
 
 private const val CALL_SITE_INSTRUMENTER_MAIN_CLASS = "datadog.trace.plugin.csi.PluginApplication"
@@ -202,22 +202,12 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project> {
         // Regular main and test source sets
         RUNTIME_CLASSPATH_CONFIGURATION_NAME,
         COMPILE_CLASSPATH_CONFIGURATION_NAME,
-        TEST_SOURCE_SET_NAME + RUNTIME_CLASSPATH_CONFIGURATION_NAME.capitalize(),
-        TEST_SOURCE_SET_NAME + COMPILE_CLASSPATH_CONFIGURATION_NAME.capitalize() -> true
+        TEST_RUNTIME_CLASSPATH_CONFIGURATION_NAME,
+        TEST_COMPILE_CLASSPATH_CONFIGURATION_NAME -> true
 
         else -> false
       }
     }
-
-  private fun String.capitalize(): String = replaceFirstChar {
-    if (it.isLowerCase()) {
-      it.titlecase(
-        Locale.getDefault()
-      )
-    } else {
-      it.toString()
-    }
-  }
 
   private val Project.sourceSets: SourceSetContainer
     get() = project.extensions.getByType<JavaPluginExtension>().sourceSets
