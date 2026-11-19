@@ -6,6 +6,7 @@ import static datadog.trace.util.ProcessSupervisor.Health.FAULTED;
 import static datadog.trace.util.ProcessSupervisor.Health.HEALTHY;
 import static datadog.trace.util.ProcessSupervisor.Health.INTERRUPTED;
 import static datadog.trace.util.ProcessSupervisor.Health.READY_TO_START;
+import static datadog.trace.util.ProcessSupervisor.Health.UNHEALTHY;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import datadog.trace.api.internal.VisibleForTesting;
@@ -23,7 +24,9 @@ public class ProcessSupervisor implements Closeable {
     READY_TO_START,
     INTERRUPTED,
     FAULTED,
-    HEALTHY
+    HEALTHY,
+    /** A process is serving, but did not pass the health check. */
+    UNHEALTHY
   }
 
   @FunctionalInterface
@@ -47,7 +50,8 @@ public class ProcessSupervisor implements Closeable {
 
   private static final long STOP_WAIT_MILLIS = 400;
 
-  // A process this supervisor started is restarted after failing this many health checks in a row
+  // A process this supervisor started is restarted after failing this many health checks in a row.
+  // When a process it did not start fails this many, it starts its own.
   private static final int MAX_FAILED_HEALTH_CHECKS = 3;
 
   private final String imageName;
@@ -61,6 +65,7 @@ public class ProcessSupervisor implements Closeable {
   private Process currentProcess;
   private long currentProcessStartedMillis;
   private int failedHealthChecks;
+  private int otherProcessFailedHealthChecks;
   private final FaultBackoff faultBackoff = new FaultBackoff();
   private int failuresInARow;
 
@@ -94,8 +99,14 @@ public class ProcessSupervisor implements Closeable {
           if (currentProcess == null) {
             currentHealth = healthCheck.run(currentHealth);
             logHealthCheckChange(currentHealth);
+            otherProcessFailedHealthChecks =
+                currentHealth == UNHEALTHY ? otherProcessFailedHealthChecks + 1 : 0;
           }
-          if (currentProcess != null || currentHealth == READY_TO_START) {
+          // A copy started next to a process that is still serving cannot take over until that one
+          // exits, so it is only started once that process has failed several checks in a row.
+          if (currentProcess != null
+              || currentHealth == READY_TO_START
+              || otherProcessFailedHealthChecks >= MAX_FAILED_HEALTH_CHECKS) {
             startProcessAndSupervise();
           }
         } catch (InterruptedException e) {
@@ -117,15 +128,29 @@ public class ProcessSupervisor implements Closeable {
     if (result == previous) {
       return;
     }
+    // These checks only run while this supervisor has no running process of its own,
+    // so a healthy or unhealthy result means another process (usually another worker) is serving.
     if (result == HEALTHY) {
-      // These checks only run while this supervisor has no running process of its own,
-      // so a healthy result means another process (usually another worker) is serving it.
       failuresInARow = 0;
-      log.info(
-          "Process [{}] is already running and was not started by this process (pid {}); using it",
+      if (previous == UNHEALTHY) {
+        log.info(
+            "Process [{}] that this process (pid {}) is using is passing health checks again",
+            imageName,
+            PidHelper.getPid());
+      } else {
+        log.info(
+            "Process [{}] is already running and was not started by this process (pid {}); using it",
+            imageName,
+            PidHelper.getPid());
+      }
+    } else if (result == UNHEALTHY) {
+      logLifecycle(
+          "Process [{}] is running but was not started by this process (pid {}) and failed a health"
+              + " check; starting a new one if it fails {} checks in a row",
           imageName,
-          PidHelper.getPid());
-    } else if (result == READY_TO_START && previous == HEALTHY) {
+          PidHelper.getPid(),
+          MAX_FAILED_HEALTH_CHECKS);
+    } else if (result == READY_TO_START && (previous == HEALTHY || previous == UNHEALTHY)) {
       logLifecycle(
           "Process [{}] that this process (pid {}) was using is no longer available",
           imageName,
@@ -135,7 +160,7 @@ public class ProcessSupervisor implements Closeable {
 
   private void scheduleNextHealthCheck() {
     long now = System.currentTimeMillis();
-    if (currentHealth == HEALTHY) {
+    if (currentHealth == HEALTHY || currentHealth == UNHEALTHY) {
       nextCheckMillis = now + HEALTHY_DELAY_MILLIS;
     } else if (currentHealth == FAULTED) {
       nextCheckMillis = now + faultBackoff.recordFault();
@@ -146,6 +171,7 @@ public class ProcessSupervisor implements Closeable {
 
   private void startProcessAndSupervise() throws Exception {
     if (currentProcess == null) {
+      otherProcessFailedHealthChecks = 0;
       log.debug("Starting process: [{}]", imageName);
       try (TraceScope ignored = AgentTracer.get().muteTracing()) {
         currentProcess = processBuilder.start();

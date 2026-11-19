@@ -3,6 +3,7 @@ package datadog.trace.util;
 import static datadog.trace.util.ProcessSupervisor.Health.FAULTED;
 import static datadog.trace.util.ProcessSupervisor.Health.HEALTHY;
 import static datadog.trace.util.ProcessSupervisor.Health.READY_TO_START;
+import static datadog.trace.util.ProcessSupervisor.Health.UNHEALTHY;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -243,6 +244,30 @@ class ProcessSupervisorTest {
           .eventually(() -> assertEquals(1, countLogs(Level.INFO, "Started process [test]")));
       assertEquals(1, started.size());
       assertEquals(1, countLogs(Level.INFO, "was using is no longer available"));
+    }
+  }
+
+  @Test
+  void startsItsOwnProcessOnlyAfterAProcessItDidNotStartFailsThreeChecksInARow()
+      throws IOException {
+    List<FakeProcess> started = new CopyOnWriteArrayList<>();
+    AtomicInteger checksBeforeStart = new AtomicInteger();
+    HealthCheck otherProcessNeverAnswers =
+        previous -> {
+          if (started.isEmpty()) {
+            checksBeforeStart.incrementAndGet();
+            return UNHEALTHY;
+          }
+          return HEALTHY;
+        };
+
+    try (ProcessSupervisor ignored =
+        new ProcessSupervisor(
+            "test", startsFakeProcesses(started, true), otherProcessNeverAnswers)) {
+      // checks of a process it did not start run ten seconds apart
+      new PollingConditions(30).eventually(() -> assertEquals(1, started.size()));
+      assertEquals(3, checksBeforeStart.get());
+      assertEquals(1, countLogs(Level.INFO, "starting a new one if it fails 3 checks in a row"));
     }
   }
 

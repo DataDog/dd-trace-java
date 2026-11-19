@@ -5,6 +5,7 @@ import static datadog.trace.util.ProcessSupervisor.ALWAYS_READY;
 import static datadog.trace.util.ProcessSupervisor.Health.HEALTHY;
 import static datadog.trace.util.ProcessSupervisor.Health.NEVER_CHECKED;
 import static datadog.trace.util.ProcessSupervisor.Health.READY_TO_START;
+import static datadog.trace.util.ProcessSupervisor.Health.UNHEALTHY;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import datadog.environment.OperatingSystem;
@@ -99,6 +100,8 @@ public class ExternalAgentLauncher implements Closeable {
             .getBytes(StandardCharsets.US_ASCII);
     private static final int MAX_STATUS_LINE_LENGTH = 64;
     private static final long RESPONSE_TIMEOUT_MILLIS = 2_000;
+    // The .NET tracer's default named pipe connect timeout, DD_TRACE_PIPE_TIMEOUT_MS
+    private static final long OPEN_TIMEOUT_MILLIS = 500;
 
     private final File pipe;
     private final boolean checkResponse;
@@ -134,19 +137,20 @@ public class ExternalAgentLauncher implements Closeable {
           delayMillis = delayMillis * 1.75;
         }
 
-        return respondsOrReadyToStart(); // use existing external process if it responds
+        return healthOfBoundProcess(); // use existing external process if it responds
       }
 
       // otherwise just check that the pipe is still bound
       if (pipeExists()) {
-        return respondsOrReadyToStart(); // keep using external process if it responds
+        return healthOfBoundProcess(); // keep using external process if it responds
       } else {
         return READY_TO_START; // start our own process
       }
     }
 
-    private ProcessSupervisor.Health respondsOrReadyToStart() throws InterruptedException {
-      return !checkResponse || agentResponds() ? HEALTHY : READY_TO_START;
+    /** Checks the process that has the pipe, which may or may not be the supervisor's own. */
+    private ProcessSupervisor.Health healthOfBoundProcess() throws InterruptedException {
+      return !checkResponse || agentResponds() ? HEALTHY : UNHEALTHY;
     }
 
     /**
@@ -194,14 +198,11 @@ public class ExternalAgentLauncher implements Closeable {
      *
      * @return true if the agent answers with an HTTP status line, whatever the status
      */
-    private boolean sendInfoRequest() throws IOException {
+    private boolean sendInfoRequest() throws IOException, InterruptedException {
       try (TraceScope ignored = AgentTracer.get().muteTracing()) {
-        RandomAccessFile file;
-        try {
-          file = new RandomAccessFile(pipe, "rw");
-        } catch (FileNotFoundException e) {
-          // a pipe with all instances busy cannot be asked, but an agent is serving it
-          return !isPipeNotFound(e);
+        RandomAccessFile file = openPipe();
+        if (file == null) {
+          return false;
         }
         try {
           file.write(INFO_REQUEST);
@@ -214,6 +215,29 @@ public class ExternalAgentLauncher implements Closeable {
           return statusLine.toString().startsWith("HTTP/1.");
         } finally {
           file.close();
+        }
+      }
+    }
+
+    /**
+     * Opens the pipe, retrying for up to {@link #OPEN_TIMEOUT_MILLIS} like .NET's {@code
+     * NamedPipeClientStream.Connect}. A pipe server creates its next pipe instance only after a
+     * client connects, so an open in between fails with "All pipe instances are busy". An agent
+     * that stops accepting connections keeps its pipe busy, so a pipe still busy after the retries
+     * fails the check.
+     *
+     * @return the opened pipe, or null if it could not be opened in time
+     */
+    private RandomAccessFile openPipe() throws InterruptedException {
+      long deadlineNanos = System.nanoTime() + MILLISECONDS.toNanos(OPEN_TIMEOUT_MILLIS);
+      while (true) {
+        try {
+          return new RandomAccessFile(pipe, "rw");
+        } catch (FileNotFoundException e) {
+          if (System.nanoTime() - deadlineNanos >= 0) {
+            return null;
+          }
+          Thread.sleep(1);
         }
       }
     }
