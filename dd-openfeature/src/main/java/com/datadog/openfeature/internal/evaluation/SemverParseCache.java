@@ -1,6 +1,7 @@
 package com.datadog.openfeature.internal.evaluation;
 
 import com.datadog.openfeature.internal.ufc.ParsedSemver;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Arrays;
 
 /**
@@ -20,6 +21,9 @@ final class SemverParseCache {
    *
    * @param value the attribute value, not null
    */
+  @SuppressFBWarnings(
+      value = "ES_COMPARING_PARAMETER_STRING_WITH_EQ",
+      justification = "an identity check before equals, as a fast path")
   ParsedSemver parse(final String value) {
     if (firstValue != null) {
       if (firstValue == value || firstValue.equals(value)) {

@@ -5,6 +5,7 @@ import com.datadog.openfeature.internal.ufc.ConditionConfiguration;
 import com.datadog.openfeature.internal.ufc.Rule;
 import dev.openfeature.sdk.EvaluationContext;
 import dev.openfeature.sdk.Value;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -79,6 +80,9 @@ final class EvaluationScope {
   }
 
   /** Returns the attribute's value, or {@code null} when the context does not hold it. */
+  @SuppressFBWarnings(
+      value = "ES_COMPARING_PARAMETER_STRING_WITH_EQ",
+      justification = "an identity check before equals, as a fast path")
   Object attribute(final String name) {
     if (!cached || name == null) {
       // A condition without an attribute is read as before, but never kept.
