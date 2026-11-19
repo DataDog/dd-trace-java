@@ -1,7 +1,5 @@
 package com.datadog.openfeature.internal.ufc;
 
-import static java.util.Collections.emptyMap;
-
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonParser;
@@ -408,9 +406,7 @@ public final class UniversalFlagConfigParser {
    * nothing reads these maps in order.
    */
   private static <K, V> Map<K, V> compactMap(final Map<K, V> map) {
-    if (map.isEmpty()) {
-      return emptyMap();
-    }
+    // Map.copyOf returns the shared empty map for an empty one.
     if (map.containsKey(null) || map.containsValue(null)) {
       return map;
     }
