@@ -1,6 +1,7 @@
 package datadog.trace.common.writer.ddagent;
 
 import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
+import static datadog.trace.api.ProtocolVersion.V0_5;
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 import static datadog.trace.core.CoreSpan.ROOT_PROPAGATION_TAGS;
 
@@ -9,6 +10,7 @@ import datadog.communication.serialization.Mapper;
 import datadog.communication.serialization.Writable;
 import datadog.communication.serialization.WritableFormatter;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
+import datadog.trace.api.ProtocolVersion;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.TagMap.EntryReader;
 import datadog.trace.api.internal.VisibleForTesting;
@@ -141,6 +143,11 @@ public final class TraceMapperV0_5 implements TraceMapper {
   }
 
   @Override
+  public ProtocolVersion protocolVersion() {
+    return V0_5;
+  }
+
+  @Override
   public Payload newPayload() {
     return new PayloadV0_5(dictionary.completedMessages(), dictionary.messageCount());
   }
@@ -237,6 +244,11 @@ public final class TraceMapperV0_5 implements TraceMapper {
     private PayloadV0_5(ByteBuffer dictionary, int stringCount) {
       this.dictionary = dictionary;
       this.stringCount = stringCount;
+    }
+
+    @Override
+    public ProtocolVersion protocol() {
+      return V0_5;
     }
 
     @Override

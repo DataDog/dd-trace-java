@@ -10,6 +10,7 @@ import datadog.metrics.api.Counter;
 import datadog.metrics.api.Monitoring;
 import datadog.metrics.api.Recording;
 import datadog.trace.api.Config;
+import datadog.trace.api.ProtocolVersion;
 import datadog.trace.common.writer.Payload;
 import datadog.trace.common.writer.RemoteApi;
 import datadog.trace.common.writer.RemoteResponseListener;
@@ -100,7 +101,7 @@ public class DDAgentApi extends RemoteApi {
       }
     }
 
-    HttpUrl tracesUrl = agentUrl.resolve(tracesEndpoint);
+    HttpUrl tracesUrl = agentUrl.resolve(endpointFor(payload, tracesEndpoint));
     try {
       final Request request =
           prepareRequest(tracesUrl, headers)
@@ -153,6 +154,21 @@ public class DDAgentApi extends RemoteApi {
       countAndLogFailedSend(payload.traceCount(), sizeInBytes, null, e);
       return Response.failed(e);
     }
+  }
+
+  /**
+   * The endpoint a payload goes to: the discovered one, unless the payload was encoded in another
+   * protocol. Discovery can move to another protocol after a payload is encoded, when the agent
+   * restarts as another version; the payload then goes to its own protocol's endpoint, which an
+   * upgraded agent still accepts and a downgraded one rejects, rather than to one that would fail
+   * to decode it.
+   */
+  static String endpointFor(Payload payload, String discoveredEndpoint) {
+    ProtocolVersion encoded = payload.protocol();
+    if (encoded == null || encoded == ProtocolVersion.fromTraceEndpoint(discoveredEndpoint)) {
+      return discoveredEndpoint;
+    }
+    return encoded.endpoint();
   }
 
   private void handleAgentChange(String state) {

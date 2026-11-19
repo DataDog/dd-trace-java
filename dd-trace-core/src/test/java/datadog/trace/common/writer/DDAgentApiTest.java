@@ -1,6 +1,7 @@
 package datadog.trace.common.writer;
 
 import static datadog.trace.api.DDTags.SDK_OTLP_EXPORT;
+import static datadog.trace.api.ProtocolVersion.V0_4;
 import static datadog.trace.api.ProtocolVersion.V0_5;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
@@ -397,6 +398,30 @@ public class DDAgentApiTest extends DDCoreJavaSpecification {
       assertEquals(
           String.valueOf(payload.droppedSpans()),
           agent.getLastRequest().getHeaders().get("Datadog-Client-Dropped-P0-Spans"));
+    } finally {
+      agent.close();
+    }
+  }
+
+  @TableTest({
+    "scenario         | v05Status | delivered",
+    "upgraded agent   | 200       | true     ",
+    "downgraded agent | 404       | false    "
+  })
+  void testPayloadEncodedForAnotherProtocolGoesToItsOwnEndpoint(int v05Status, boolean delivered) {
+    // discovery settles on v0.4 after the payload was encoded as v0.5: the payload goes to
+    // v0.5/traces, which an upgraded agent accepts and a downgraded one rejects, never to v0.4
+    JavaTestHttpServer agent =
+        JavaTestHttpServer.httpServer(s ->
+            s.handlers(h -> {
+              h.put("v0.4/traces", api -> api.getResponse().status(200).send());
+              h.put("v0.5/traces", api -> api.getResponse().status(v05Status).send());
+            }));
+    try {
+      DDAgentApi client = createAgentApi(agent.getAddress().toString(), V0_4).api;
+      Payload payload = prepareTraces("v0.5/traces", emptyList());
+      assertEquals(delivered, client.sendSerializedTraces(payload).success());
+      assertEquals("/v0.5/traces", agent.getLastRequest().getPath());
     } finally {
       agent.close();
     }
