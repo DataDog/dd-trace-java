@@ -2,8 +2,6 @@ package datadog.trace.core.propagation;
 
 import static datadog.trace.api.DDTags.PARENT_ID;
 import static datadog.trace.api.TracePropagationStyle.TRACECONTEXT;
-import static datadog.trace.api.internal.util.LongStringUtils.isUnsignedLongZero;
-import static datadog.trace.api.internal.util.LongStringUtils.parseUnsignedLongOrSentinel;
 import static datadog.trace.core.propagation.DatadogHttpCodec.SPAN_ID_KEY;
 
 import datadog.context.propagation.CarrierSetter;
@@ -225,7 +223,25 @@ public class HttpCodec {
       ExtractionCache<C> extractionCache = new ExtractionCache<>(carrier, getter);
 
       for (final Extractor extractor : this.extractors) {
-        TagContext extracted = extractor.extract(extractionCache, extractionCache);
+        TagContext extracted;
+        if (context != null && extractor instanceof W3CHttpCodec.TraceContextExtractor) {
+          // Merging a trace context only needs a few of its parts, so skip building it whole
+          W3CHttpCodec.TraceContextExtractor traceContextExtractor =
+              (W3CHttpCodec.TraceContextExtractor) extractor;
+          W3CHttpCodec.TraceContextMerge merge =
+              traceContextExtractor.extractForMerge(extractionCache, extractionCache);
+          if (merge == null) {
+            continue;
+          }
+          if (traceIdMatch(context.getTraceId(), merge.traceId)) {
+            applyTraceContextToFirstContext(context, merge, extractionCache);
+            continue;
+          }
+          // A mismatched trace context becomes a span link, which needs all of it
+          extracted = traceContextExtractor.completeExtraction();
+        } else {
+          extracted = extractor.extract(extractionCache, extractionCache);
+        }
         // Check if context is valid
         if (extracted instanceof ExtractedContext) {
           ExtractedContext extractedContext = (ExtractedContext) extracted;
@@ -237,24 +253,17 @@ public class HttpCodec {
               break;
             }
           }
-          // If another valid context is extracted
-          else {
-            if (traceIdMatch(context.getTraceId(), extractedContext.getTraceId())) {
-              boolean comingFromTraceContext = extracted.getPropagationStyle() == TRACECONTEXT;
-              if (comingFromTraceContext) {
-                applyTraceContextToFirstContext(context, extractedContext, extractionCache);
-              }
-            } else {
-              // Terminate extracted context and add it as span link
-              context.addTerminatedSpanLink(
-                  DDSpanLink.from(
-                      (ExtractedContext) extracted,
-                      SpanAttributes.builder()
-                          .put("reason", "terminated_context")
-                          .put("context_headers", extracted.getPropagationStyle().toString())
-                          .build()));
-              // TODO Note: Other vendor tracestate will be lost here
-            }
+          // If another valid context is extracted, for a different trace
+          else if (!traceIdMatch(context.getTraceId(), extractedContext.getTraceId())) {
+            // Terminate extracted context and add it as span link
+            context.addTerminatedSpanLink(
+                DDSpanLink.from(
+                    (ExtractedContext) extracted,
+                    SpanAttributes.builder()
+                        .put("reason", "terminated_context")
+                        .put("context_headers", extracted.getPropagationStyle().toString())
+                        .build()));
+            // TODO Note: Other vendor tracestate will be lost here
           }
         }
         // Check if context is at least partial to keep it as first valid partial context found
@@ -285,16 +294,18 @@ public class HttpCodec {
      */
     private <C> void applyTraceContextToFirstContext(
         ExtractedContext firstContext,
-        ExtractedContext traceContext,
+        W3CHttpCodec.TraceContextMerge traceContext,
         ExtractionCache<C> extractionCache) {
       // Propagate newly extracted W3C tracestate to first valid context
-      firstContext.getPropagationTags().updateW3CTracestateFrom(traceContext.getPropagationTags());
+      firstContext
+          .getPropagationTags()
+          .updateW3CTracestateFrom(traceContext.tracestate, traceContext.overridingPriority);
       // Check if parent spans differ to reconcile them
-      if (firstContext.getSpanId() != traceContext.getSpanId()) {
+      if (firstContext.getSpanId() != traceContext.spanId) {
         // Override parent span id with W3C one
-        firstContext.overrideSpanId(traceContext.getSpanId());
+        firstContext.overrideSpanId(traceContext.spanId);
         // Add last parent ID as a span tag (check W3C first, else Datadog)
-        CharSequence lastParentId = traceContext.getPropagationTags().getLastParentId();
+        CharSequence lastParentId = traceContext.tracestate.getLastParentId();
         if (lastParentId == null) {
           lastParentId = extractionCache.getDatadogSpanIdHex();
         }
@@ -331,14 +342,11 @@ public class HttpCodec {
     }
 
     private void cacheDatadogSpanId(String key, String value) {
-      if (SPAN_ID_KEY.equalsIgnoreCase(key) && value != null) {
-        // Parse numeric header value to format it as 16 hexadecimal character format. Same
-        // non-throwing parse as DatadogHttpCodec, so malformed ids cost no exception and both agree
-        // on which ids are valid.
-        int len = value.length();
-        long spanId = parseUnsignedLongOrSentinel(value, 0, len, DDSpanId.ZERO);
-        if (spanId != DDSpanId.ZERO || isUnsignedLongZero(value, 0, len)) {
-          this.datadogSpanIdHex = DDSpanId.toHexStringPadded(spanId);
+      if (SPAN_ID_KEY.equalsIgnoreCase(key)) {
+        try {
+          // Parse numeric header value to format it as 16 hexadecimal character format
+          this.datadogSpanIdHex = DDSpanId.toHexStringPadded(DDSpanId.from(value));
+        } catch (NumberFormatException ignored) {
         }
       }
     }

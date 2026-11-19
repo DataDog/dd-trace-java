@@ -57,7 +57,7 @@ rootProject.name = "build-logic"
 
 include(
   ":conventions",
-  ":smoke-test",
+  ":smoke-test-app",
   ":tag-registry",
 )
 include(":testcontainers")

@@ -304,7 +304,9 @@ class DDAgentWriterCombinedTest extends DDCoreJavaSpecification {
     }
     writer.flush();
 
-    verify(discovery, times(2)).getTraceEndpoint();
+    // twice to pick the mapper, and once more when the buffer overflows: the dispatcher
+    // rechecks the protocol before the trace that started the next payload
+    verify(discovery, times(3)).getTraceEndpoint();
     verify(api, times(1))
         .sendSerializedTraces(
             argThat(payload -> payload != null && payload.traceCount() == maxedPayloadTraceCount));
@@ -357,10 +359,9 @@ class DDAgentWriterCombinedTest extends DDCoreJavaSpecification {
 
     // DQH -- need to set-up a dummy agent for the final send callback to work
     try (JavaTestHttpServer agent =
-        JavaTestHttpServer.httpServer(
-            server ->
-                server.handlers(
-                    h -> h.put(agentVersion, api -> api.getResponse().status(200).send())))) {
+        JavaTestHttpServer.httpServer(server ->
+            server.handlers(
+                h -> h.put(agentVersion, api -> api.getResponse().status(200).send())))) {
       HttpUrl agentUrl = HttpUrl.get(agent.getAddress());
       okhttp3.OkHttpClient client = OkHttpUtils.buildHttpClient(agentUrl, 1000);
       DDAgentFeaturesDiscovery discovery =
@@ -390,11 +391,10 @@ class DDAgentWriterCombinedTest extends DDCoreJavaSpecification {
           .onSend(
               anyInt(),
               anyInt(),
-              argThat(
-                  response ->
-                      response.success()
-                          && response.status().isPresent()
-                          && response.status().getAsInt() == 200));
+              argThat(response ->
+                  response.success()
+                      && response.status().isPresent()
+                      && response.status().getAsInt() == 200));
 
       writer.close();
 
@@ -414,10 +414,9 @@ class DDAgentWriterCombinedTest extends DDCoreJavaSpecification {
 
     // DQH -- need to set-up a dummy agent for the final send callback to work
     try (JavaTestHttpServer agent =
-        JavaTestHttpServer.httpServer(
-            server ->
-                server.handlers(
-                    h -> h.put(agentVersion, api -> api.getResponse().status(500).send())))) {
+        JavaTestHttpServer.httpServer(server ->
+            server.handlers(
+                h -> h.put(agentVersion, api -> api.getResponse().status(500).send())))) {
       HttpUrl agentUrl = HttpUrl.get(agent.getAddress());
       okhttp3.OkHttpClient client = OkHttpUtils.buildHttpClient(agentUrl, 1000);
       DDAgentFeaturesDiscovery discovery =
@@ -447,11 +446,10 @@ class DDAgentWriterCombinedTest extends DDCoreJavaSpecification {
           .onFailedSend(
               anyInt(),
               anyInt(),
-              argThat(
-                  response ->
-                      !response.success()
-                          && response.status().isPresent()
-                          && response.status().getAsInt() == 500));
+              argThat(response ->
+                  !response.success()
+                      && response.status().isPresent()
+                      && response.status().getAsInt() == 500));
 
       writer.close();
 
@@ -601,20 +599,18 @@ class DDAgentWriterCombinedTest extends DDCoreJavaSpecification {
 
     // Need to set-up a dummy agent for the final send callback to work
     JavaTestHttpServer agent =
-        JavaTestHttpServer.httpServer(
-            server ->
-                server.handlers(
-                    h ->
-                        h.put(
-                            agentVersion,
-                            api -> {
-                              responseSemaphore.acquire();
-                              try {
-                                api.getResponse().status(200).send();
-                              } finally {
-                                responseSemaphore.release();
-                              }
-                            })));
+        JavaTestHttpServer.httpServer(server ->
+            server.handlers(h ->
+                h.put(
+                    agentVersion,
+                    api -> {
+                      responseSemaphore.acquire();
+                      try {
+                        api.getResponse().status(200).send();
+                      } finally {
+                        responseSemaphore.release();
+                      }
+                    })));
 
     // This test focuses just on failed publish, so not verifying every callback
     HealthMetrics healthMetrics = mock(HealthMetrics.class);
@@ -729,10 +725,8 @@ class DDAgentWriterCombinedTest extends DDCoreJavaSpecification {
 
     // Need to set-up a dummy agent for the final send callback to work
     JavaTestHttpServer agent =
-        JavaTestHttpServer.httpServer(
-            server ->
-                server.handlers(
-                    h -> h.put(agentVersion, api -> api.getResponse().status(200).send())));
+        JavaTestHttpServer.httpServer(server ->
+            server.handlers(h -> h.put(agentVersion, api -> api.getResponse().status(200).send())));
 
     // This test focuses just on failed publish, so not verifying every callback
     HealthMetrics healthMetrics = mock(HealthMetrics.class);
@@ -819,10 +813,8 @@ class DDAgentWriterCombinedTest extends DDCoreJavaSpecification {
 
     // Need to set-up a dummy agent for the final send callback to work
     JavaTestHttpServer agent =
-        JavaTestHttpServer.httpServer(
-            server ->
-                server.handlers(
-                    h -> h.put(agentVersion, api -> api.getResponse().status(200).send())));
+        JavaTestHttpServer.httpServer(server ->
+            server.handlers(h -> h.put(agentVersion, api -> api.getResponse().status(200).send())));
 
     HealthMetrics healthMetrics = mock(HealthMetrics.class);
     doAnswer(

@@ -114,6 +114,24 @@ class StoredCharBodyTest {
     brf.assertCommittedOnce(traceSegment);
   }
 
+  /**
+   * Fail-closed invariant: aborting the body read is the only way to stop the attacker-controlled
+   * body from being fully materialized, so the block must happen even without a way to commit a
+   * response consistent with the rest of the pipeline.
+   */
+  @Test
+  void maybeNotifyAndBlockThrowsEvenWithoutABlockResponseFunction() {
+    when(requestContext.getBlockResponseFunction()).thenReturn(null);
+    @SuppressWarnings("unchecked")
+    Flow<Void> blockingFlow = mock(Flow.class);
+    when(blockingFlow.getAction()).thenReturn(RBA);
+    when(endCb.apply(requestContext, storedCharBody)).thenReturn(blockingFlow);
+
+    storedCharBody.appendData("a");
+
+    assertThrows(BlockingException.class, storedCharBody::maybeNotifyAndBlock);
+  }
+
   private static char[] repeat(char value, int count) {
     char[] chars = new char[count];
     Arrays.fill(chars, value);

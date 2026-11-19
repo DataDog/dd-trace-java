@@ -2,7 +2,6 @@ package datadog.trace.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -63,52 +62,13 @@ class DDTraceIdTest {
         "-1",
         "18446744073709551616",
         "18446744073709551625",
+        "99999999999999999999",
         "184467440737095516150",
         "18446744073709551a1",
         "184467440737095511a"
       })
   void failParsingIllegal64BitIdStringRepresentation(String stringId) {
     assertThrows(NumberFormatException.class, () -> DD64bTraceId.from(stringId));
-  }
-
-  @TableTest({
-    "scenario          | stringId               | expectedId           ",
-    "zero              | '0'                    | DD64bTraceId.ZERO    ",
-    "one               | '1'                    | DD64bTraceId.ONE     ",
-    "max               | '18446744073709551615' | DD64bTraceId.MAX     ",
-    "long max          | '9223372036854775807'  | DD64bTraceId.LONG_MAX",
-    "long max plus one | '9223372036854775808'  | DD64bTraceId.LONG_MIN"
-  })
-  @ParameterizedTest(name = "fromOrNull parses valid 64-bit id String representation [{index}]")
-  void fromOrNullParsesValid64BitIdStringRepresentation(String stringId, DD64bTraceId expectedId) {
-    DD64bTraceId ddid = DD64bTraceId.fromOrNull(stringId);
-
-    assertEquals(expectedId, ddid);
-    assertEquals(stringId, ddid.toString());
-  }
-
-  @Test
-  void fromOrNullKeepsTheParsedStringForToString() {
-    String stringId = "1234567890";
-
-    assertSame(stringId, DD64bTraceId.fromOrNull(stringId).toString());
-  }
-
-  @ParameterizedTest(name = "fromOrNull returns null for illegal 64-bit id String [{index}]")
-  @NullSource
-  @ValueSource(
-      strings = {
-        "",
-        "-1",
-        "+1",
-        "18446744073709551616",
-        "18446744073709551625",
-        "184467440737095516150",
-        "18446744073709551a1",
-        "184467440737095511a"
-      })
-  void fromOrNullReturnsNullForIllegal64BitIdString(String stringId) {
-    assertNull(DD64bTraceId.fromOrNull(stringId));
   }
 
   @TableTest({

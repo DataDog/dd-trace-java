@@ -1,8 +1,6 @@
 package datadog.trace.instrumentation.java.concurrent.runnable;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresMethod;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasSuperType;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameEndsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
@@ -35,6 +33,7 @@ import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.RunnableFuture;
 import net.bytebuddy.asm.Advice;
+import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -72,6 +71,13 @@ public final class RunnableFutureInstrumentation extends InstrumenterModule.Cont
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
+    ElementMatcher.Junction<TypeDescription> promiseTask =
+        nameEndsWith(".netty.util.concurrent.PromiseTask");
+    ElementMatcher.Junction<TypeDescription> nettyTask =
+        promiseTask.or(nameEndsWith(".netty.util.concurrent.ScheduledFutureTask"));
+    ElementMatcher.Junction<MethodDescription> nettyCancellation =
+        named("cancel").and(isDeclaredBy(extendsClass(promiseTask)));
+
     // instrument any FutureTask or TrustedListenableFutureTask constructor,
     // but only instrument the PromiseTask constructor with a Callable argument
     transformer.applyAdvice(
@@ -83,22 +89,16 @@ public final class RunnableFutureInstrumentation extends InstrumenterModule.Cont
                                 nameEndsWith(
                                     "com.google.common.util.concurrent.TrustedListenableFutureTask")))
                     .or(
-                        isDeclaredBy(nameEndsWith(".netty.util.concurrent.PromiseTask"))
+                        isDeclaredBy(promiseTask)
                             .and(takesArgument(1, named(Callable.class.getName()))))),
         getClass().getName() + "$Construct");
     transformer.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
-    // Netty 4.1.44+ separates delayed scheduling in run() from execution in runTask().
+    // Netty owns activation and cleanup, using its execution decision for one-shot tasks.
     transformer.applyAdvice(
-        isMethod()
-            .and(named("run"))
-            .and(
-                not(
-                    isDeclaredBy(
-                        nameEndsWith(".netty.util.concurrent.ScheduledFutureTask")
-                            .and(hasSuperType(declaresMethod(named("runTask"))))))),
+        isMethod().and(named("run")).and(not(isDeclaredBy(nettyTask))),
         getClass().getName() + "$Run");
     transformer.applyAdvice(
-        isMethod().and(namedOneOf("cancel", "set", "setException")),
+        isMethod().and(namedOneOf("set", "setException", "cancel")).and(not(nettyCancellation)),
         getClass().getName() + "$Cancel");
   }
 

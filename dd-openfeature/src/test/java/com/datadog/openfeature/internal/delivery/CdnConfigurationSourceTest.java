@@ -1,0 +1,746 @@
+package com.datadog.openfeature.internal.delivery;
+
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+
+import com.datadog.openfeature.internal.LocalHttpServer;
+import com.datadog.openfeature.internal.RuntimeServices;
+import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
+import com.datadog.openfeature.internal.bridge.v1.HealthMetrics;
+import com.datadog.openfeature.internal.config.SdkVersion;
+import com.datadog.openfeature.internal.config.Settings;
+import com.datadog.openfeature.internal.config.TestSettings;
+import com.datadog.openfeature.internal.ufc.ServerConfiguration;
+import com.datadog.openfeature.testlog.CapturingServiceProvider;
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.ServerSocket;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.time.Duration;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.FutureTask;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.slf4j.event.Level;
+import org.tabletest.junit.TableTest;
+
+class CdnConfigurationSourceTest {
+  private static final long POLL_INTERVAL_MILLIS = 30_000;
+  private static final String CONFIG =
+      "{\"data\":{\"type\":\"universal-flag-configuration\",\"attributes\":"
+          + "{\"createdAt\":\"2024-04-17T19:40:53.716Z\",\"environment\":{\"name\":\"Test\"},"
+          + "\"flags\":{}}}}";
+  private static final String RAW_UFC =
+      "{\"createdAt\":\"2024-04-17T19:40:53.716Z\",\"environment\":{\"name\":\"Test\"},\"flags\":{}}";
+
+  private LocalHttpServer server;
+  private final List<ServerConfiguration> dispatched = new CopyOnWriteArrayList<>();
+  private final List<Long> sleeps = new CopyOnWriteArrayList<>();
+
+  @BeforeEach
+  void setUp() throws IOException {
+    this.server = new LocalHttpServer();
+  }
+
+  @AfterEach
+  void tearDown() {
+    CapturingServiceProvider.reset();
+    this.server.close();
+  }
+
+  @Test
+  void derivesDatadogUfcCdnEndpointFromSiteAndEnv() {
+    final URI endpoint =
+        CdnConfigurationSource.endpoint(TestSettings.of("site", "datadoghq.eu", "env", "prod"));
+
+    assertEquals(
+        "https://ufc-server.ff-cdn.datadoghq.eu/api/v2/feature-flagging/config/rules-based/server?dd_env=prod",
+        endpoint.toString());
+  }
+
+  @Test
+  void derivesDatadogUfcCdnEndpointWithoutEnv() {
+    assertEquals(
+        "https://ufc-server.ff-cdn.datadoghq.com/api/v2/feature-flagging/config/rules-based/server",
+        CdnConfigurationSource.endpoint(TestSettings.of()).toString());
+  }
+
+  @Test
+  void encodesEnvInDatadogUfcCdnEndpoint() {
+    assertEquals(
+        "https://ufc-server.ff-cdn.datadoghq.com/api/v2/feature-flagging/config/rules-based/server?dd_env=a+b%26c",
+        CdnConfigurationSource.endpoint(TestSettings.of("env", "a b&c")).toString());
+  }
+
+  @Test
+  void rejectsInvalidSiteForDatadogUfcCdnEndpointWithoutTheSite() {
+    final IllegalArgumentException error =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                CdnConfigurationSource.endpoint(
+                    TestSettings.of("site", "datadoghq.com@other.example")));
+
+    assertEquals("Invalid Datadog site", error.getMessage());
+  }
+
+  @TableTest({
+    "scenario    | baseUrl                              | endpoint                                                                             ",
+    "host only   | 'http://localhost:8080'              | 'http://localhost:8080/api/v2/feature-flagging/config/rules-based/server'            ",
+    "root path   | 'http://localhost:8080/'             | 'http://localhost:8080/api/v2/feature-flagging/config/rules-based/server'            ",
+    "root query  | 'https://proxy.example/?token=a%2Bb' | 'https://proxy.example/api/v2/feature-flagging/config/rules-based/server?token=a%2Bb'",
+    "host query  | 'https://proxy.example?token=a'      | 'https://proxy.example/api/v2/feature-flagging/config/rules-based/server?token=a'    ",
+    "custom path | 'https://proxy.example/ufc.json'     | 'https://proxy.example/ufc.json'                                                     ",
+    "trimmed     | '  https://proxy.example/ufc  '      | 'https://proxy.example/ufc'                                                          "
+  })
+  void resolvesConfiguredAgentlessBaseUrl(final String baseUrl, final String endpoint) {
+    assertEquals(
+        endpoint,
+        CdnConfigurationSource.endpoint(
+                TestSettings.of(
+                    "feature.flags.configuration.source.agentless.base.url",
+                    baseUrl,
+                    "env",
+                    "prod"))
+            .toString());
+  }
+
+  @TableTest({
+    "scenario           | baseUrl                                          | message                                                                           ",
+    "no scheme          | 'localhost'                                      | 'Feature Flags configuration source URL must use HTTP or HTTPS and include a host'",
+    "relative path      | 'relative/ufc'                                   | 'Feature Flags configuration source URL must use HTTP or HTTPS and include a host'",
+    "invalid            | 'http://[::1'                                    | 'Invalid Feature Flags configuration source URL'                                  ",
+    "ftp scheme         | 'ftp://example.com/ufc'                          | 'Feature Flags configuration source URL must use HTTP or HTTPS and include a host'",
+    "invalid credential | 'http://user:secret@[::1/ufc?token=secret'       | 'Invalid Feature Flags configuration source URL'                                  ",
+    "ftp credential     | 'ftp://user:secret@example.com/ufc?token=secret' | 'Feature Flags configuration source URL must use HTTP or HTTPS and include a host'"
+  })
+  void rejectsInvalidConfiguredAgentlessBaseUrlWithoutTheUrl(
+      final String baseUrl, final String message) {
+    final Settings settings =
+        TestSettings.of("feature.flags.configuration.source.agentless.base.url", baseUrl);
+
+    final IllegalArgumentException error =
+        assertThrows(
+            IllegalArgumentException.class, () -> CdnConfigurationSource.endpoint(settings));
+
+    assertEquals(message, error.getMessage());
+    assertNull(error.getCause(), "the parse error repeats the URL");
+  }
+
+  @Test
+  void customEndpointDoesNotSendApiKey() throws Exception {
+    this.server.enqueue(200, CONFIG);
+    final CdnConfigurationSource source =
+        new CdnConfigurationSource(
+            TestSettings.of(
+                "feature.flags.configuration.source.agentless.base.url",
+                this.server.uri("/").toString(),
+                "api-key",
+                "secret"),
+            new RuntimeServices(HealthMetrics.NOOP),
+            FlagSelectionRequest.NONE);
+    try {
+      source.start(this.dispatched::add);
+    } finally {
+      source.close();
+    }
+
+    assertEquals(1, this.dispatched.size());
+    assertNull(this.server.requests().get(0).header("DD-API-KEY"));
+  }
+
+  @Test
+  void sendsApiKeyAndMetadataHeaders() throws Exception {
+    this.server.enqueue(200, CONFIG);
+
+    assertTrue(source("secret").pollOnce());
+
+    final LocalHttpServer.Request request = this.server.requests().get(0);
+    assertEquals("GET", request.method);
+    assertEquals("secret", request.header("DD-API-KEY"));
+    assertEquals("gzip", request.header("Accept-Encoding"));
+    assertEquals("java", request.header("Datadog-Meta-Lang"));
+    assertEquals("java", request.header("DD-Client-Library-Language"));
+    assertEquals(SdkVersion.VERSION, request.header("DD-Client-Library-Version"));
+    assertNull(request.header("If-None-Match"));
+  }
+
+  @Test
+  void sendsServiceOnEveryPoll() {
+    this.server.enqueue(200, CONFIG, "ETag", "\"v1\"").enqueue(304, null);
+    final CdnConfigurationSource source = source(null, "checkout");
+
+    assertTrue(source.pollOnce());
+    assertTrue(source.pollOnce());
+
+    assertEquals("checkout", this.server.requests().get(0).header("DD-Service"));
+    assertEquals("checkout", this.server.requests().get(1).header("DD-Service"));
+    assertEquals("\"v1\"", this.server.requests().get(1).header("If-None-Match"));
+  }
+
+  @Test
+  void sendsConfiguredServiceToCustomEndpoint() {
+    final LocalHttpServer.Request request = pollWithService("checkout");
+
+    assertEquals(CdnConfigurationSource.UFC_RULES_BASED_SERVER_PATH, request.uri.getPath());
+    assertEquals("checkout", request.header("DD-Service"));
+  }
+
+  @TableTest({
+    "scenario | service",
+    "unset    |        ",
+    "empty    | ''     ",
+    "blank    | '   '  "
+  })
+  void omitsServiceWhenNotConfigured(final String service) {
+    final LocalHttpServer.Request request = pollWithService(service);
+
+    assertFalse(request.headers.containsKey("DD-Service"));
+    assertEquals(1, this.dispatched.size());
+  }
+
+  @ParameterizedTest
+  @MethodSource("servicesAndTheirHeader")
+  void sendsTheApmNameOfTheServiceOrNoHeader(final String service, final String header) {
+    CapturingServiceProvider.enable(CdnConfigurationSource.class.getName(), Level.DEBUG);
+
+    final LocalHttpServer.Request request = pollWithService(service);
+
+    assertEquals(header, request.header("DD-Service"));
+    assertEquals(1, this.dispatched.size());
+    final List<CapturingServiceProvider.Event> logged =
+        CapturingServiceProvider.events().stream()
+            .filter(e -> e.message.contains("DD-Service"))
+            .collect(Collectors.toList());
+    // A blank service is not set. Thus the SDK does not log it.
+    final boolean skipped = header == null && !service.trim().isEmpty();
+    assertEquals(skipped ? 1 : 0, logged.size(), logged.toString());
+    if (skipped) {
+      assertEquals(Level.DEBUG, logged.get(0).level);
+      assertEquals(
+          "Feature Flags: service "
+              + service
+              + " has an empty APM name; DD-Service header not sent",
+          logged.get(0).message);
+    }
+  }
+
+  // The headers come from the Agent. Each one is the result of NormalizeService (datadog-agent
+  // v0.82.3). A null header means that the request has no DD-Service header, because the result is
+  // empty.
+  private static Stream<Arguments> servicesAndTheirHeader() {
+    return Stream.of(
+        arguments("checkout", "checkout"),
+        arguments("My Service", "my_service"),
+        arguments("My-API", "my-api"),
+        arguments("UPPER", "upper"),
+        arguments("bad\nvalue", "bad_value"),
+        arguments("a\tb", "a_b"),
+        arguments("a  b!", "a_b"),
+        arguments("svc ", "svc"),
+        arguments(" svc", "_svc"),
+        arguments("a_", "a"),
+        arguments("svc-", "svc-"),
+        arguments("a..b", "a..b"),
+        arguments("2fa-service", "2fa-service"),
+        arguments("9lives", "9lives"),
+        arguments("unnamed-service", "unnamed-service"),
+        arguments("svc_name.v2:api/edge-1", "svc_name.v2:api/edge-1"),
+        arguments("my__service", "my_service"),
+        arguments("Default Web Site/Shop", "default_web_site/shop"),
+        arguments("a" + "b".repeat(99), "a" + "b".repeat(99)),
+        arguments("a" + "b".repeat(100), "a" + "b".repeat(99)),
+        arguments("a".repeat(100) + " b", "a".repeat(100)),
+        arguments("a".repeat(99) + "é", "a".repeat(99)),
+        arguments("_svc", "_svc"),
+        arguments("-svc", "-svc"),
+        arguments(".svc", ".svc"),
+        arguments(":svc", ":svc"),
+        arguments("a🐶b", "a_b"),
+        arguments("___", null),
+        arguments("-", "-"),
+        arguments("", null),
+        arguments("   ", null));
+  }
+
+  @ParameterizedTest
+  @MethodSource("tracerServicesAndTheirHeader")
+  void cleansUpOnlyTheServiceItSendsNotTheTracerService(final String service, final String header) {
+    final AgentBridge agent = mock(AgentBridge.class);
+    doReturn(service).when(agent).setting("service");
+    final Settings settings =
+        TestSettings.of(
+            agent,
+            "feature.flags.configuration.source.agentless.base.url",
+            this.server.uri("/").toString());
+
+    final LocalHttpServer.Request request = pollWith(settings);
+
+    assertEquals(header, request.header("DD-Service"));
+    assertEquals(1, this.dispatched.size());
+    assertEquals(service, settings.service());
+  }
+
+  private static Stream<Arguments> tracerServicesAndTheirHeader() {
+    return Stream.of(
+        arguments("My Service", "my_service"), arguments("_svc", "_svc"), arguments("___", null));
+  }
+
+  @Test
+  void appliesJsonApiConfiguration() {
+    this.server.enqueue(200, CONFIG, "ETag", "\"v1\"");
+
+    assertTrue(source().pollOnce());
+
+    assertEquals(1, this.dispatched.size());
+    assertEquals("Test", this.dispatched.get(0).environment.name);
+  }
+
+  @Test
+  void decodesGzipResponses() {
+    this.server.enqueueGzip(200, CONFIG);
+
+    assertTrue(source().pollOnce());
+
+    assertEquals(1, this.dispatched.size());
+  }
+
+  @Test
+  void keepsLastKnownGoodOnRawUfcAndMalformedPayloads() {
+    this.server.enqueue(200, CONFIG).enqueue(200, RAW_UFC).enqueue(200, "{not json");
+    final CdnConfigurationSource source = source();
+
+    assertTrue(source.pollOnce());
+    assertFalse(source.pollOnce());
+    assertFalse(source.pollOnce());
+
+    assertEquals(1, this.dispatched.size());
+  }
+
+  @Test
+  void usesEtagAndSkipsDispatchOnUnchangedConfig() {
+    this.server.enqueue(200, CONFIG, "ETag", "\"v1\"").enqueue(304, null);
+    final CdnConfigurationSource source = source();
+
+    assertTrue(source.pollOnce());
+    assertTrue(source.pollOnce());
+
+    assertEquals(1, this.dispatched.size());
+    assertEquals("\"v1\"", this.server.requests().get(1).header("If-None-Match"));
+  }
+
+  @Test
+  void ignoresBlankEtagAndClearsPreviousEtag() {
+    this.server
+        .enqueue(200, CONFIG, "ETag", "\"v1\"")
+        .enqueue(200, CONFIG)
+        .enqueue(200, CONFIG, "ETag", " ")
+        .enqueue(200, CONFIG);
+    final CdnConfigurationSource source = source();
+
+    for (int i = 0; i < 4; i++) {
+      assertTrue(source.pollOnce());
+    }
+
+    assertEquals("\"v1\"", this.server.requests().get(1).header("If-None-Match"));
+    assertNull(this.server.requests().get(2).header("If-None-Match"));
+    assertNull(this.server.requests().get(3).header("If-None-Match"));
+  }
+
+  @Test
+  void coldNotModifiedDoesNotEstablishEtag() {
+    this.server.enqueue(304, null, "ETag", "\"v1\"").enqueue(200, CONFIG);
+    final CdnConfigurationSource source = source();
+
+    assertTrue(source.pollOnce());
+    assertTrue(source.pollOnce());
+
+    assertNull(this.server.requests().get(1).header("If-None-Match"));
+    assertEquals(1, this.dispatched.size());
+  }
+
+  @Test
+  void failedDispatchDoesNotAdvanceEtag() {
+    this.server.enqueue(200, CONFIG, "ETag", "\"v1\"").enqueue(200, CONFIG, "ETag", "\"v2\"");
+    final CdnConfigurationSource source = source();
+    final RuntimeException failure = new IllegalStateException("listener failure");
+    source.setListenerForTest(configuration -> {
+      throw failure;
+    });
+
+    assertThrows(IllegalStateException.class, source::pollOnce);
+    source.setListenerForTest(this.dispatched::add);
+    assertTrue(source.pollOnce());
+
+    assertNull(this.server.requests().get(1).header("If-None-Match"));
+  }
+
+  @TableTest({
+    "scenario     | status",
+    "unauthorized | 401   ",
+    "forbidden    | 403   ",
+    "not found    | 404   ",
+    "no content   | 204   "
+  })
+  void keepsLastKnownGoodOnNonOkResponses(final int status) {
+    this.server.enqueue(200, CONFIG).enqueue(status, null);
+    final CdnConfigurationSource source = source();
+
+    assertTrue(source.pollOnce());
+    assertFalse(source.pollOnce());
+
+    assertEquals(1, this.dispatched.size());
+    assertEquals(2, this.server.requests().size());
+  }
+
+  @TableTest({
+    "scenario          | status",
+    "client timeout    | 408   ",
+    "too many requests | 429   ",
+    "server error      | 503   "
+  })
+  void retriesRetryableStatusBeforeApplyingConfig(final int status) {
+    this.server.enqueue(status, null).enqueue(status, null).enqueue(200, CONFIG);
+
+    assertTrue(source().pollOnce());
+
+    assertEquals(3, this.server.requests().size());
+    assertEquals(1, this.dispatched.size());
+    assertEquals(2, this.sleeps.size());
+  }
+
+  @Test
+  void stopsAfterThreeAttemptsOnRetryableStatus() {
+    this.server.otherwise(500, null);
+
+    assertFalse(source().pollOnce());
+
+    assertEquals(CdnConfigurationSource.MAX_ATTEMPTS, this.server.requests().size());
+    assertTrue(this.dispatched.isEmpty());
+  }
+
+  @Test
+  void retriesServerErrorThenKeepsColdStateOnNotModified() {
+    this.server.enqueue(500, null).enqueue(304, null);
+
+    assertTrue(source().pollOnce());
+
+    assertEquals(2, this.server.requests().size());
+    assertTrue(this.dispatched.isEmpty());
+  }
+
+  @Test
+  void retriesIoFailuresUntilAttemptsAreExhausted() throws Exception {
+    final URI unreachable;
+    try (ServerSocket socket = new ServerSocket(0, 1, InetAddress.getLoopbackAddress())) {
+      unreachable = URI.create("http://127.0.0.1:" + socket.getLocalPort() + "/ufc");
+    }
+    final CdnConfigurationSource source =
+        source(unreachable, null, mock(ScheduledExecutorService.class));
+
+    assertFalse(source.pollOnce());
+
+    assertEquals(CdnConfigurationSource.MAX_ATTEMPTS - 1, this.sleeps.size());
+  }
+
+  @Test
+  void usesIntervalAwareRetryBackoff() {
+    this.server.enqueue(503, null).enqueue(503, null).enqueue(200, CONFIG);
+
+    assertTrue(source().pollOnce());
+
+    assertEquals(
+        List.of(
+            CdnConfigurationSource.retryDelayMillis(POLL_INTERVAL_MILLIS, 1, 1.0),
+            CdnConfigurationSource.retryDelayMillis(POLL_INTERVAL_MILLIS, 2, 1.0)),
+        this.sleeps);
+  }
+
+  @TableTest({
+    "scenario            | pollIntervalMillis | attempt | jitter | delay",
+    "first clamped low   | 1000               | 1       | 1.0    | 2000 ",
+    "first proportional  | 30000              | 1       | 1.0    | 5000 ",
+    "first clamped high  | 600000             | 1       | 1.0    | 10000",
+    "second clamped low  | 1000               | 2       | 1.0    | 5000 ",
+    "second proportional | 30000              | 2       | 1.0    | 10000",
+    "second clamped high | 600000             | 2       | 1.0    | 30000",
+    "jitter down         | 30000              | 1       | 0.8    | 4000 ",
+    "jitter up           | 30000              | 2       | 1.2    | 12000"
+  })
+  void clampsAndJittersRetryBackoff(
+      final long pollIntervalMillis, final int attempt, final double jitter, final long delay) {
+    assertEquals(
+        delay, CdnConfigurationSource.retryDelayMillis(pollIntervalMillis, attempt, jitter));
+  }
+
+  @Test
+  void rejectsUnsupportedRetryAttempt() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> CdnConfigurationSource.retryDelayMillis(POLL_INTERVAL_MILLIS, 3, 1.0));
+  }
+
+  @Test
+  void startCompletesFirstPollAndCloseCancelsScheduledPoll() {
+    this.server.enqueue(200, CONFIG);
+    final ScheduledExecutorService executor = mock(ScheduledExecutorService.class);
+    final ScheduledFuture<?> future = mock(ScheduledFuture.class);
+    doReturn(future)
+        .when(executor)
+        .scheduleWithFixedDelay(
+            any(Runnable.class),
+            eq(POLL_INTERVAL_MILLIS),
+            eq(POLL_INTERVAL_MILLIS),
+            eq(MILLISECONDS));
+    final CdnConfigurationSource source = source(this.server.uri("/ufc"), null, executor);
+
+    source.start(this.dispatched::add);
+    source.start(this.dispatched::add);
+
+    assertEquals(1, this.dispatched.size());
+    assertEquals(1, this.server.requests().size());
+    verify(executor, times(1))
+        .scheduleWithFixedDelay(
+            any(Runnable.class),
+            eq(POLL_INTERVAL_MILLIS),
+            eq(POLL_INTERVAL_MILLIS),
+            eq(MILLISECONDS));
+
+    source.close();
+    verify(future).cancel(true);
+    verify(executor).shutdownNow();
+    assertFalse(source.pollOnce());
+  }
+
+  @Test
+  void startSurvivesListenerFailure() {
+    this.server.enqueue(200, CONFIG);
+    final ScheduledExecutorService executor = mock(ScheduledExecutorService.class);
+    final CdnConfigurationSource source = source(this.server.uri("/ufc"), null, executor);
+
+    source.start(configuration -> {
+      throw new IllegalStateException("listener failure");
+    });
+
+    verify(executor)
+        .scheduleWithFixedDelay(any(Runnable.class), any(Long.class), any(Long.class), any());
+  }
+
+  @Test
+  void startAfterCloseDoesNotPoll() {
+    final ScheduledExecutorService executor = mock(ScheduledExecutorService.class);
+    final CdnConfigurationSource source = source(this.server.uri("/ufc"), null, executor);
+
+    source.close();
+    source.start(this.dispatched::add);
+
+    assertTrue(this.server.requests().isEmpty());
+    verify(executor, never())
+        .scheduleWithFixedDelay(any(Runnable.class), any(Long.class), any(Long.class), any());
+  }
+
+  @Test
+  void closeWakesRetryBackoffWithoutInterruptingCaller() throws Exception {
+    this.server.otherwise(503, null);
+    final CountDownLatch backoff = new CountDownLatch(1);
+    final CdnConfigurationSource source =
+        new CdnConfigurationSource(
+            this.server.uri("/ufc"),
+            null,
+            null,
+            TimeUnit.MINUTES.toMillis(10),
+            Duration.ofSeconds(5),
+            HttpClient.newHttpClient(),
+            mock(ScheduledExecutorService.class),
+            null,
+            () -> {
+              backoff.countDown();
+              return 1.0;
+            });
+    final boolean[] result = {true, true};
+    final Thread poller =
+        new Thread(() -> {
+          result[0] = source.pollOnce();
+          result[1] = Thread.currentThread().isInterrupted();
+        });
+    poller.setDaemon(true);
+    poller.start();
+    try {
+      assertTrue(backoff.await(5, SECONDS));
+      source.close();
+      poller.join(SECONDS.toMillis(5));
+
+      assertFalse(poller.isAlive(), "close must wake the retry backoff");
+      assertFalse(result[0]);
+      assertFalse(result[1], "close must not interrupt the caller");
+      assertEquals(1, this.server.requests().size());
+    } finally {
+      source.close();
+      poller.interrupt();
+      poller.join(SECONDS.toMillis(5));
+    }
+  }
+
+  @Test
+  @Timeout(15)
+  void stalledBodyDoesNotBlockPollingIndefinitely() throws Exception {
+    try (StallingHttpServer stalled = new StallingHttpServer(true)) {
+      final CdnConfigurationSource source =
+          new CdnConfigurationSource(
+              stalled.uri(),
+              null,
+              null,
+              POLL_INTERVAL_MILLIS,
+              Duration.ofMillis(500),
+              HttpClient.newHttpClient(),
+              mock(ScheduledExecutorService.class),
+              this.sleeps::add,
+              () -> 1.0);
+      final FutureTask<Boolean> polling = new FutureTask<>(source::pollOnce);
+      final Thread caller = new Thread(polling, "configuration-poll");
+      caller.setDaemon(true);
+      caller.start();
+      try {
+        stalled.awaitRequest();
+
+        assertFalse(polling.get(5, SECONDS));
+        assertTrue(stalled.awaitDisconnect());
+        assertEquals(CdnConfigurationSource.MAX_ATTEMPTS - 1, this.sleeps.size());
+      } finally {
+        source.close();
+        polling.cancel(true);
+        caller.join(SECONDS.toMillis(5));
+      }
+    }
+  }
+
+  @Test
+  @Timeout(15)
+  void closeCancelsInitialPollWithoutInterruptingCaller() throws Exception {
+    try (StallingHttpServer stalled = new StallingHttpServer(true)) {
+      final CdnConfigurationSource source =
+          new CdnConfigurationSource(
+              stalled.uri(),
+              null,
+              null,
+              POLL_INTERVAL_MILLIS,
+              Duration.ofMinutes(1),
+              HttpClient.newHttpClient(),
+              mock(ScheduledExecutorService.class),
+              null,
+              () -> 1.0);
+      final FutureTask<Boolean> initialization =
+          new FutureTask<>(() -> {
+            source.start(this.dispatched::add);
+            return Thread.currentThread().isInterrupted();
+          });
+      final Thread caller = new Thread(initialization, "provider-initialization");
+      caller.setDaemon(true);
+      caller.start();
+      try {
+        stalled.awaitRequest();
+        source.close();
+
+        assertFalse(initialization.get(5, SECONDS), "close must not interrupt initialization");
+        assertTrue(stalled.awaitDisconnect());
+        assertTrue(this.dispatched.isEmpty());
+        assertFalse(source.pollOnce());
+      } finally {
+        source.close();
+        initialization.cancel(true);
+        caller.join(SECONDS.toMillis(5));
+      }
+    }
+  }
+
+  private CdnConfigurationSource source() {
+    return source(null);
+  }
+
+  private CdnConfigurationSource source(final String apiKey) {
+    return source(apiKey, null);
+  }
+
+  private CdnConfigurationSource source(final String apiKey, final String service) {
+    final CdnConfigurationSource source =
+        source(this.server.uri("/ufc"), apiKey, service, mock(ScheduledExecutorService.class));
+    source.setListenerForTest(this.dispatched::add);
+    return source;
+  }
+
+  private CdnConfigurationSource source(
+      final URI endpoint, final String apiKey, final ScheduledExecutorService executor) {
+    return source(endpoint, apiKey, null, executor);
+  }
+
+  private CdnConfigurationSource source(
+      final URI endpoint,
+      final String apiKey,
+      final String service,
+      final ScheduledExecutorService executor) {
+    final CdnConfigurationSource source =
+        new CdnConfigurationSource(
+            endpoint,
+            apiKey,
+            service,
+            POLL_INTERVAL_MILLIS,
+            Duration.ofSeconds(5),
+            HttpClient.newHttpClient(),
+            executor,
+            this.sleeps::add,
+            () -> 1.0);
+    source.setListenerForTest(this.dispatched::add);
+    return source;
+  }
+
+  /** Polls once. The service is {@code dd.service}, and the endpoint is the local server. */
+  private LocalHttpServer.Request pollWithService(final String service) {
+    return pollWith(
+        TestSettings.of(
+            "feature.flags.configuration.source.agentless.base.url",
+            this.server.uri("/").toString(),
+            "service",
+            service));
+  }
+
+  /** Builds the source from the settings like the SDK does, then polls once. */
+  private LocalHttpServer.Request pollWith(final Settings settings) {
+    this.server.enqueue(200, CONFIG);
+    final CdnConfigurationSource source =
+        new CdnConfigurationSource(
+            settings, new RuntimeServices(HealthMetrics.NOOP), FlagSelectionRequest.NONE);
+    try {
+      source.start(this.dispatched::add);
+    } finally {
+      source.close();
+    }
+    assertEquals(1, this.server.requests().size());
+    return this.server.requests().get(0);
+  }
+}

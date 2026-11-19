@@ -3,6 +3,7 @@ package datadog.trace.agent.tooling.muzzle;
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import datadog.trace.agent.tooling.muzzle.Reference.Mismatch;
 import datadog.trace.api.Pair;
+import datadog.trace.api.internal.VisibleForTesting;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -87,7 +88,8 @@ public class ReferenceMatcher {
    *
    * @return A list of mismatched sources. A list of size 0 means the reference matches the class.
    */
-  private static boolean checkReference(
+  @VisibleForTesting
+  static boolean checkReference(
       TypePool typePool, Reference reference, ClassLoader loader, List<Mismatch> mismatches) {
     int previousMismatchCount = mismatches.size();
     if (checkMatch(typePool, reference, loader, mismatches)) {

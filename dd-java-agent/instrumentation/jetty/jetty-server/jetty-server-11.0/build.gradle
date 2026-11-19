@@ -1,6 +1,5 @@
 plugins {
   id 'dd-trace-java.module.instrumentation'
-  id 'idea'
   id 'java-test-fixtures'
 }
 
@@ -17,7 +16,6 @@ tracerJava {
 }
 
 addTestSuiteForDir('latestDepTest', 'test')
-addTestSuiteForDir('latestDepForkedTest', 'test')
 
 dependencies {
   main_java11CompileOnly ("org.eclipse.jetty:jetty-server:11.0.0") {
@@ -82,10 +80,4 @@ tasks.named("compileMain_java11Java", JavaCompile) {
 
 tasks.withType(Test).configureEach {
   javaLauncher = getJavaLauncherFor(11)
-}
-
-idea {
-  module {
-    jdkName = '11'
-  }
 }

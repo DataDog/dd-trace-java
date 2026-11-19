@@ -36,7 +36,7 @@ public class DebuggerMetricCollector
 
   public enum SkippedReason implements Reason {
     RATE_LIMIT("reason:rateLimitProbe"),
-    EVALUATION_TIME_OUT("reason:evaluationTimeOut"),
+    EVALUATION_TIME_OUT("reason:evaluationTimeout"),
     ;
 
     private final String tag;
@@ -101,7 +101,7 @@ public class DebuggerMetricCollector
 
   public static class DebuggerMetric extends MetricCollector.Metric {
 
-    private static final String NAMESPACE = "live_debugger";
+    private static final String NAMESPACE = "debugger";
 
     public DebuggerMetric(String metricName, long value, String... tags) {
       super(NAMESPACE, true, metricName, "count", value, tags);

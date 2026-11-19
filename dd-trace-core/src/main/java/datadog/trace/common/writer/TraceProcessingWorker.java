@@ -4,7 +4,9 @@ import static datadog.trace.util.AgentThreadFactory.AgentThread.TRACE_PROCESSOR;
 import static datadog.trace.util.AgentThreadFactory.THREAD_JOIN_TIMOUT_MS;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
+import datadog.common.container.ServerlessInfo;
 import datadog.common.queue.MessagePassingBlockingQueue;
 import datadog.common.queue.Queues;
 import datadog.communication.ddagent.DroppingPolicy;
@@ -46,6 +48,11 @@ public class TraceProcessingWorker implements AutoCloseable {
 
   private final SpanSamplingWorker spanSamplingWorker;
 
+  // In Lambda the environment can freeze as soon as a flush returns, so also flush the secondary
+  // queue there rather than leaving sampled-out traces for a periodic flush that may never run.
+  private final boolean flushSecondaryQueue =
+      ServerlessInfo.get().isRunningInServerlessEnvironment();
+
   public TraceProcessingWorker(
       final int capacity,
       final HealthMetrics healthMetrics,
@@ -85,18 +92,30 @@ public class TraceProcessingWorker implements AutoCloseable {
   }
 
   public boolean flush(long timeout, TimeUnit timeUnit) {
-    CountDownLatch latch = new CountDownLatch(1);
+    long deadline = System.nanoTime() + timeUnit.toNanos(timeout);
+    CountDownLatch latch = new CountDownLatch(flushSecondaryQueue ? 2 : 1);
     FlushEvent flush = new FlushEvent(latch);
-    boolean offered;
-    do {
-      offered = primaryQueue.offer(flush);
-    } while (!offered && serializerThread.isAlive());
     try {
-      return latch.await(timeout, timeUnit);
+      return offer(primaryQueue, flush, deadline)
+          && (!flushSecondaryQueue || offer(secondaryQueue, flush, deadline))
+          && latch.await(deadline - System.nanoTime(), NANOSECONDS);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       return false;
     }
+  }
+
+  private boolean offer(MessagePassingBlockingQueue<Object> queue, FlushEvent flush, long deadline)
+      throws InterruptedException {
+    // offer before checking the serializer: it may not have started yet (e.g. on IBM JDK 8)
+    while (!queue.offer(flush)) {
+      long remaining = deadline - System.nanoTime();
+      if (remaining <= 0 || !serializerThread.isAlive()) {
+        return false;
+      }
+      NANOSECONDS.sleep(Math.min(remaining, MILLISECONDS.toNanos(1)));
+    }
+    return true;
   }
 
   @Override
@@ -126,6 +145,11 @@ public class TraceProcessingWorker implements AutoCloseable {
   @VisibleForTesting
   MessagePassingBlockingQueue<Object> getPrimaryQueue() {
     return primaryQueue;
+  }
+
+  @VisibleForTesting
+  MessagePassingBlockingQueue<Object> getSecondaryQueue() {
+    return secondaryQueue;
   }
 
   private static MessagePassingBlockingQueue<Object> createQueue(int capacity) {
@@ -195,6 +219,9 @@ public class TraceProcessingWorker implements AutoCloseable {
           // TODO populate `_sample_rate` metric in a way that accounts for lost/dropped traces
           payloadDispatcher.addTrace(trace);
         } else if (event instanceof FlushEvent) {
+          // The flush marker only goes to the primary queue, so drain the secondary queue too:
+          // sampled-out traces can carry LLM Observability spans that must still be sent.
+          consumeFromSecondaryQueue();
           payloadDispatcher.flush();
           ((FlushEvent) event).sync();
         }

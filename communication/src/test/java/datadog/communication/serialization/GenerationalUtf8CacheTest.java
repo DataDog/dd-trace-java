@@ -203,47 +203,45 @@ public class GenerationalUtf8CacheTest {
     Thread[] readers = new Thread[threadCount];
     for (int t = 0; t < threadCount; ++t) {
       readers[t] =
-          new Thread(
-              () -> {
-                try {
-                  start.await();
-                  ThreadLocalRandom random = ThreadLocalRandom.current();
-                  for (int i = 0; i < iterationsPerThread && failure.get() == null; ++i) {
-                    String value = values[random.nextInt(values.length)];
-                    byte[] result = cache.getUtf8(value);
-                    if (!Arrays.equals(value.getBytes(StandardCharsets.UTF_8), result)) {
-                      failure.compareAndSet(
-                          null,
-                          new AssertionError(
-                              "getUtf8(\""
-                                  + value
-                                  + "\") returned bytes for \""
-                                  + new String(result, StandardCharsets.UTF_8)
-                                  + "\""));
-                      return;
-                    }
-                  }
-                } catch (Throwable e) {
-                  failure.compareAndSet(null, e);
-                } finally {
-                  readersRunning.decrementAndGet();
+          new Thread(() -> {
+            try {
+              start.await();
+              ThreadLocalRandom random = ThreadLocalRandom.current();
+              for (int i = 0; i < iterationsPerThread && failure.get() == null; ++i) {
+                String value = values[random.nextInt(values.length)];
+                byte[] result = cache.getUtf8(value);
+                if (!Arrays.equals(value.getBytes(StandardCharsets.UTF_8), result)) {
+                  failure.compareAndSet(
+                      null,
+                      new AssertionError(
+                          "getUtf8(\""
+                              + value
+                              + "\") returned bytes for \""
+                              + new String(result, StandardCharsets.UTF_8)
+                              + "\""));
+                  return;
                 }
-              });
+              }
+            } catch (Throwable e) {
+              failure.compareAndSet(null, e);
+            } finally {
+              readersRunning.decrementAndGet();
+            }
+          });
     }
 
     // Recalibrate in a tight loop for the duration, nulling decayed slots concurrently with reads.
     Thread recalibrator =
-        new Thread(
-            () -> {
-              try {
-                start.await();
-                while (readersRunning.get() > 0 && failure.get() == null) {
-                  cache.recalibrate();
-                }
-              } catch (Throwable e) {
-                failure.compareAndSet(null, e);
-              }
-            });
+        new Thread(() -> {
+          try {
+            start.await();
+            while (readersRunning.get() > 0 && failure.get() == null) {
+              cache.recalibrate();
+            }
+          } catch (Throwable e) {
+            failure.compareAndSet(null, e);
+          }
+        });
 
     for (Thread reader : readers) {
       reader.start();

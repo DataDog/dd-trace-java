@@ -6,11 +6,14 @@ import static java.util.Collections.unmodifiableList;
 import static java.util.Collections.unmodifiableMap;
 
 import datadog.trace.test.agent.decoder.DecodedSpan;
+import datadog.trace.test.agent.decoder.DecodedSpanEvent;
+import datadog.trace.test.agent.decoder.DecodedSpanEvents;
 import datadog.trace.test.agent.decoder.DecodedSpanLink;
 import datadog.trace.test.agent.decoder.DecodedSpanLinks;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.msgpack.core.MessageFormat;
@@ -58,6 +61,11 @@ public class SpanV1 implements DecodedSpan {
   static final int LINK_FIELD_ATTRIBUTES = 3;
   static final int LINK_FIELD_TRACE_STATE = 4;
   static final int LINK_FIELD_TRACE_FLAGS = 5;
+
+  // Span event field IDs
+  static final int EVENT_FIELD_TIME = 1;
+  static final int EVENT_FIELD_NAME = 2;
+  static final int EVENT_FIELD_ATTRIBUTES = 3;
 
   // Attribute value types
   static final int STRING_VALUE_TYPE = 1;
@@ -132,6 +140,7 @@ public class SpanV1 implements DecodedSpan {
       Map<String, Number> metrics = new HashMap<>();
       Map<String, Object> metaStruct = new HashMap<>();
       List<DecodedSpanLink> links = emptyList();
+      List<DecodedSpanEvent> events = emptyList();
 
       for (int i = 0; i < mapSize; i++) {
         int fieldId = unpacker.unpackInt();
@@ -172,10 +181,7 @@ public class SpanV1 implements DecodedSpan {
             links = unpackSpanLinks(unpacker, stringTable);
             break;
           case SPAN_FIELD_SPAN_EVENTS:
-            // TODO Span events are not decoded yet. This blind skip also consumes any streaming
-            // string the events introduced without registering it, desynchronizing the string
-            // table for the rest of the payload (see unpackSpanLinks for the table-aware pattern).
-            unpacker.skipValue();
+            events = unpackSpanEvents(unpacker, stringTable);
             break;
           case SPAN_FIELD_ENV:
             env = unpackStreamingString(unpacker, stringTable);
@@ -224,7 +230,8 @@ public class SpanV1 implements DecodedSpan {
           metrics,
           meta,
           metaStruct.isEmpty() ? null : metaStruct,
-          links);
+          links,
+          events);
     } catch (Throwable t) {
       if (t instanceof RuntimeException) {
         throw (RuntimeException) t;
@@ -394,6 +401,99 @@ public class SpanV1 implements DecodedSpan {
       links.add(DecodedSpanLinks.link(traceId, spanId, traceFlags, traceState, attributes));
     }
     return unmodifiableList(links);
+  }
+
+  /**
+   * Unpacks the structured span events of field {@value #SPAN_FIELD_SPAN_EVENTS}, as {@code
+   * TraceMapperV1.encodeSpanEvents} writes them.
+   *
+   * <p>Event names and attributes are streaming strings, so they must be read through the
+   * table-aware helpers to keep every later string index in the payload in sync.
+   *
+   * @param unpacker The message unpacker.
+   * @param stringTable The shared string table for streaming string decoding.
+   * @return The decoded events.
+   * @throws IOException If unpacking fails.
+   */
+  static List<DecodedSpanEvent> unpackSpanEvents(MessageUnpacker unpacker, List<String> stringTable)
+      throws IOException {
+    int eventCount = unpacker.unpackArrayHeader();
+    if (eventCount == 0) {
+      return emptyList();
+    }
+    List<DecodedSpanEvent> events = new ArrayList<>(eventCount);
+    for (int i = 0; i < eventCount; i++) {
+      int fieldCount = unpacker.unpackMapHeader();
+      Long timeUnixNano = null;
+      String name = null;
+      Map<String, Object> attributes = new LinkedHashMap<>();
+      for (int field = 0; field < fieldCount; field++) {
+        switch (unpacker.unpackInt()) {
+          case EVENT_FIELD_TIME:
+            timeUnixNano = unpacker.unpackLong();
+            break;
+          case EVENT_FIELD_NAME:
+            name = unpackStreamingString(unpacker, stringTable);
+            break;
+          case EVENT_FIELD_ATTRIBUTES:
+            unpackEventAttributes(unpacker, stringTable, attributes);
+            break;
+          default:
+            // Unknown event field; numeric or binary, so it cannot hold a streaming string.
+            unpacker.skipValue();
+            break;
+        }
+      }
+      if (name == null || timeUnixNano == null) {
+        throw new IllegalArgumentException("Span event missing a required field (name, time)");
+      }
+      events.add(DecodedSpanEvents.event(name, timeUnixNano, attributes));
+    }
+    return unmodifiableList(events);
+  }
+
+  /** Collects event attributes with their types, keeping the string table in sync. */
+  private static void unpackEventAttributes(
+      MessageUnpacker unpacker, List<String> stringTable, Map<String, Object> attributes)
+      throws IOException {
+    forEachAttribute(
+        unpacker,
+        stringTable,
+        (attributeUnpacker, table, key, valueType) -> {
+          if (valueType == ARRAY_VALUE_TYPE) {
+            int arraySize = attributeUnpacker.unpackArrayHeader();
+            // Array contains pairs (type, value), so size must be even
+            if (arraySize % 2 != 0) {
+              throw new IllegalArgumentException(
+                  "Array attribute size must be even, got: " + arraySize);
+            }
+            List<Object> values = new ArrayList<>(arraySize / 2);
+            for (int i = 0; i < arraySize / 2; i++) {
+              values.add(
+                  unpackEventAttributeValue(
+                      attributeUnpacker, table, attributeUnpacker.unpackInt()));
+            }
+            attributes.put(key, values);
+          } else {
+            attributes.put(key, unpackEventAttributeValue(attributeUnpacker, table, valueType));
+          }
+        });
+  }
+
+  private static Object unpackEventAttributeValue(
+      MessageUnpacker unpacker, List<String> stringTable, int valueType) throws IOException {
+    switch (valueType) {
+      case STRING_VALUE_TYPE:
+        return unpackStreamingString(unpacker, stringTable);
+      case BOOL_VALUE_TYPE:
+        return unpacker.unpackBoolean();
+      case FLOAT_VALUE_TYPE:
+        return unpacker.unpackDouble();
+      case INT_VALUE_TYPE:
+        return unpacker.unpackLong();
+      default:
+        throw new IllegalArgumentException("Unsupported event attribute value type: " + valueType);
+    }
   }
 
   /**
@@ -603,6 +703,7 @@ public class SpanV1 implements DecodedSpan {
   private final Map<String, Number> metrics;
   private final String type;
   private final List<DecodedSpanLink> links;
+  private final List<DecodedSpanEvent> events;
 
   public SpanV1(
       String service,
@@ -632,6 +733,7 @@ public class SpanV1 implements DecodedSpan {
         metrics,
         meta,
         metaStruct,
+        emptyList(),
         emptyList());
   }
 
@@ -649,8 +751,10 @@ public class SpanV1 implements DecodedSpan {
       Map<String, Number> metrics,
       Map<String, String> meta,
       Map<String, Object> metaStruct,
-      List<DecodedSpanLink> links) {
+      List<DecodedSpanLink> links,
+      List<DecodedSpanEvent> events) {
     this.links = links == null ? emptyList() : links;
+    this.events = events == null ? emptyList() : events;
     this.service = service;
     this.name = name;
     this.resource = resource;
@@ -669,6 +773,11 @@ public class SpanV1 implements DecodedSpan {
   @Override
   public List<DecodedSpanLink> getLinks() {
     return this.links;
+  }
+
+  @Override
+  public List<DecodedSpanEvent> getEvents() {
+    return this.events;
   }
 
   @Override

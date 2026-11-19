@@ -2,6 +2,7 @@ package datadog.trace.common.writer.ddagent;
 
 import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
 import static datadog.trace.api.DDTags.SPAN_EVENTS;
+import static datadog.trace.api.ProtocolVersion.V1_0;
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 import static datadog.trace.core.CoreSpan.ROOT_PROPAGATION_TAGS;
 import static datadog.trace.core.CoreSpan.STRUCTURED_EVENTS;
@@ -20,6 +21,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.ProcessTags;
+import datadog.trace.api.ProtocolVersion;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
@@ -34,19 +36,14 @@ import datadog.trace.core.PendingTrace;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import okhttp3.RequestBody;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Efficient Trace Payload Protocol V1. */
 @SuppressWarnings("SameParameterValue")
 public final class TraceMapperV1 implements TraceMapper {
-  private static final Logger log = LoggerFactory.getLogger(TraceMapperV1.class);
-
   /** Span links and events are encoded natively rather than as tags. */
   private static final int STRUCTURED_LINKS_AND_EVENTS = STRUCTURED_LINKS | STRUCTURED_EVENTS;
 
@@ -326,7 +323,6 @@ public final class TraceMapperV1 implements TraceMapper {
       Writable writable, int fieldId, Metadata meta, Map<String, Object> metaStruct) {
     TagMap tags = meta.getTags();
     Map<String, String> baggage = meta.getBaggage();
-    // Kept as a String: writeAttribute below logs a debug line for any non-String value.
     String httpStatusCode =
         meta.getHttpStatusCode() == UNSET_STATUS ? null : meta.getHttpStatusCodeString().toString();
     boolean writeHttpStatus = httpStatusCode != null && tags.getString(HTTP_STATUS) == null;
@@ -457,9 +453,6 @@ public final class TraceMapperV1 implements TraceMapper {
       return;
     }
 
-    if (!(value instanceof String) && value != null) {
-      log.debug("Not a string value for key: {}, value: {}", key, value);
-    }
     writable.writeInt(VALUE_TYPE_STRING);
     writeStreamingString(writable, value == null ? "" : value.toString());
   }
@@ -629,6 +622,11 @@ public final class TraceMapperV1 implements TraceMapper {
   }
 
   @Override
+  public ProtocolVersion protocolVersion() {
+    return V1_0;
+  }
+
+  @Override
   public Payload newPayload() {
     return new PayloadV1(header);
   }
@@ -696,6 +694,7 @@ public final class TraceMapperV1 implements TraceMapper {
 
   /** Payload implementation for V1.0 format. */
   private static class PayloadV1 extends Payload {
+
     private final ByteBuffer header;
 
     private PayloadV1(ByteBuffer header) {
@@ -703,27 +702,25 @@ public final class TraceMapperV1 implements TraceMapper {
     }
 
     @Override
-    public int sizeInBytes() {
-      return header.remaining() + msgpackArrayHeaderSize(traceCount()) + body.remaining();
+    public ProtocolVersion protocol() {
+      return V1_0;
     }
 
-    private void writeBuffer(ByteBuffer buffer, WritableByteChannel channel) throws IOException {
-      while (buffer.hasRemaining()) {
-        channel.write(buffer);
-      }
+    @Override
+    public int sizeInBytes() {
+      return header.remaining() + msgpackArrayHeaderSize(traceCount()) + bodySize();
     }
 
     @Override
     public void writeTo(WritableByteChannel channel) throws IOException {
-      writeBuffer(header.slice(), channel);
-      writeBuffer(msgpackArrayHeader(traceCount()), channel);
-      writeBuffer(body, channel);
+      writeFully(header.slice(), channel);
+      writeFully(msgpackArrayHeader(traceCount()), channel);
+      writeBody(channel);
     }
 
     @Override
     public RequestBody toRequest() {
-      return msgpackRequestBodyOf(
-          Arrays.asList(header.slice(), msgpackArrayHeader(traceCount()), body));
+      return msgpackRequestBodyOf(bodyAfter(header.slice(), msgpackArrayHeader(traceCount())));
     }
   }
 }

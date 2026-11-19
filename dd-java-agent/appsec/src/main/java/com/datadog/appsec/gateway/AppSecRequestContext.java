@@ -393,7 +393,7 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
       if (wafContextClosed) {
         return null;
       }
-      if (createMetrics) {
+      if (!metricsReady(createMetrics, isRasp)) {
         if (wafMetrics == null) {
           this.wafMetrics = new WafMetrics();
         }
@@ -408,6 +408,24 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
       this.wafContext = curWafContext;
       return curWafContext;
     }
+  }
+
+  /**
+   * Returns the request's open {@link WafContext} without locking, or {@code null} when it does not
+   * exist yet, is closed, or still lacks metrics that {@link #getOrCreateWafContext} would create.
+   * On {@code null}, callers fall back to {@link #getOrCreateWafContext}.
+   */
+  public WafContext getWafContextIfReady(boolean createMetrics, boolean isRasp) {
+    WafContext curWafContext = this.wafContext;
+    if (curWafContext == null || wafContextClosed) {
+      return null;
+    }
+    return metricsReady(createMetrics, isRasp) ? curWafContext : null;
+  }
+
+  /** Whether the metrics a WAF call with these flags needs already exist. */
+  private boolean metricsReady(boolean createMetrics, boolean isRasp) {
+    return !createMetrics || (wafMetrics != null && (!isRasp || raspMetrics != null));
   }
 
   public void closeWafContext() {
@@ -863,57 +881,56 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
     if (data == null || data.isEmpty()) return;
 
     // Initialize or update derivatives atomically
-    derivatives.updateAndGet(
-        current -> {
-          Map<String, Object> updated = current != null ? new HashMap<>(current) : new HashMap<>();
+    derivatives.updateAndGet(current -> {
+      Map<String, Object> updated = current != null ? new HashMap<>(current) : new HashMap<>();
 
-          // Process each attribute according to the specification
-          for (Map.Entry<String, Object> entry : data.entrySet()) {
-            String attributeKey = entry.getKey();
-            Object attributeConfig = entry.getValue();
+      // Process each attribute according to the specification
+      for (Map.Entry<String, Object> entry : data.entrySet()) {
+        String attributeKey = entry.getKey();
+        Object attributeConfig = entry.getValue();
 
-            if (attributeConfig instanceof Map) {
-              @SuppressWarnings("unchecked")
-              Map<String, Object> config = (Map<String, Object>) attributeConfig;
+        if (attributeConfig instanceof Map) {
+          @SuppressWarnings("unchecked")
+          Map<String, Object> config = (Map<String, Object>) attributeConfig;
 
-              // Check if it's a literal value schema
-              if (config.containsKey("value")) {
-                Object literalValue = config.get("value");
-                if (literalValue != null) {
-                  // Preserve the original type - don't convert to string
-                  updated.put(attributeKey, literalValue);
-                  log.debug(
-                      "Added literal attribute: {} = {} (type: {})",
-                      attributeKey,
-                      literalValue,
-                      literalValue.getClass().getSimpleName());
-                }
-              }
-              // Check if it's a request data schema
-              else if (config.containsKey("address")) {
-                String address = (String) config.get("address");
-                @SuppressWarnings("unchecked")
-                List<String> keyPath = (List<String>) config.get("key_path");
-                @SuppressWarnings("unchecked")
-                List<String> transformers = (List<String>) config.get("transformers");
-
-                Object extractedValue = extractValueFromRequestData(address, keyPath, transformers);
-                if (extractedValue != null) {
-                  // For extracted values, convert to string as they come from request data
-                  updated.put(attributeKey, extractedValue.toString());
-                  log.debug("Added extracted attribute: {} = {}", attributeKey, extractedValue);
-                }
-              }
-            } else {
-              // Handle plain string/numeric values
-              updated.put(attributeKey, attributeConfig);
-              log.debug("Added direct attribute: {} = {}", attributeKey, attributeConfig);
+          // Check if it's a literal value schema
+          if (config.containsKey("value")) {
+            Object literalValue = config.get("value");
+            if (literalValue != null) {
+              // Preserve the original type - don't convert to string
+              updated.put(attributeKey, literalValue);
+              log.debug(
+                  "Added literal attribute: {} = {} (type: {})",
+                  attributeKey,
+                  literalValue,
+                  literalValue.getClass().getSimpleName());
             }
           }
+          // Check if it's a request data schema
+          else if (config.containsKey("address")) {
+            String address = (String) config.get("address");
+            @SuppressWarnings("unchecked")
+            List<String> keyPath = (List<String>) config.get("key_path");
+            @SuppressWarnings("unchecked")
+            List<String> transformers = (List<String>) config.get("transformers");
 
-          // Unmodifiable: readers may hold this instance indefinitely.
-          return unmodifiableMap(updated);
-        });
+            Object extractedValue = extractValueFromRequestData(address, keyPath, transformers);
+            if (extractedValue != null) {
+              // For extracted values, convert to string as they come from request data
+              updated.put(attributeKey, extractedValue.toString());
+              log.debug("Added extracted attribute: {} = {}", attributeKey, extractedValue);
+            }
+          }
+        } else {
+          // Handle plain string/numeric values
+          updated.put(attributeKey, attributeConfig);
+          log.debug("Added direct attribute: {} = {}", attributeKey, attributeConfig);
+        }
+      }
+
+      // Unmodifiable: readers may hold this instance indefinitely.
+      return unmodifiableMap(updated);
+    });
   }
 
   /**

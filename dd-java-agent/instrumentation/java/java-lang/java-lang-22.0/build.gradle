@@ -1,5 +1,4 @@
 plugins {
-  id 'idea'
   id 'dd-trace-java.module.instrumentation'
   id 'dd-trace-java.conventions.testing.slf4j-simple'
 }
@@ -13,13 +12,6 @@ muzzle {
 tracerJava {
   addSourceSetFor(JavaVersion.VERSION_25)
 }
-
-idea {
-  module {
-    jdkName = '25'
-  }
-}
-
 
 tasks.named("compileMain_java25Java", JavaCompile) {
   // This advice is loaded only on Java 25, so a follow-up can target Java 25 and restore --release.

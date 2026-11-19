@@ -38,6 +38,8 @@ abstract class PekkoHttpClientInstrumentationTest extends HttpClientTest {
         }
         .toCompletableFuture()
         .get()
+      // Even an empty HEAD entity can carry a stream termination callback.
+      response.discardEntityBytes(system).completionStage().toCompletableFuture().get()
     } finally {
       // Since the spans are completed in an async callback, we need to wait here
       blockUntilChildSpansFinished(1)

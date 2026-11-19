@@ -1,6 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.scala;
 
-import static datadog.trace.bootstrap.FieldBackedContextStores.getContextStore;
+import static datadog.trace.bootstrap.ContextStores.getContextStore;
 
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.concurrent.atomic.AtomicReference;

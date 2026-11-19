@@ -1,8 +1,20 @@
 # What Does This Do
 
+<!--
+The intent of the change, what it achieves or which behavior changes. Describe the outcome, not the implementation.
+-->
+
 # Motivation
 
+<!--
+Why this change is needed: the product or business rationale, like the customer problem, the incident, the feature request or the cost it addresses.
+-->
+
 # Additional Notes
+
+<!--
+The design decisions worth a reviewer's attention: the approach picked, the alternatives considered and why they were not picked, and known trade-offs or limitations.
+-->
 
 # Contributor Checklist
 

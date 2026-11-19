@@ -3,6 +3,7 @@ package datadog.trace.util;
 import static datadog.trace.util.IntStringUtils.ALLOW_LEADING_PLUS;
 import static datadog.trace.util.IntStringUtils.REJECT_LEADING_PLUS;
 import static datadog.trace.util.IntStringUtils.parseNonNegativeInt;
+import static datadog.trace.util.IntStringUtils.parseNonNegativeIntTrimmed;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import org.junit.jupiter.api.Test;
@@ -63,10 +64,28 @@ class IntStringUtilsTest {
     }
   }
 
+  @TableTest({
+    "scenario       | input      | expected",
+    "no padding     | 8443       | 8443    ",
+    "leading space  | ' 8443'    | 8443    ",
+    "trailing space | '8443 '    | 8443    ",
+    "both sides     | '  8443  ' | 8443    ",
+    "tabs           | '\t8443\t' | 8443    ",
+    "blank          | '   '      | -1      ",
+    "empty          | ''         | -1      ",
+    "inner space    | '84 43'    | -1      ",
+    "padded plus    | ' +80'     | -1      ",
+    "padded garbage | ' 80a '    | -1      "
+  })
+  void parseNonNegativeIntTrimmedIgnoresPadding(String input, int expected) {
+    assertEquals(expected, parseNonNegativeIntTrimmed(input, REJECT_LEADING_PLUS));
+  }
+
   @Test
   void parseNonNegativeIntNull() {
     assertEquals(-1, parseNonNegativeInt(null, REJECT_LEADING_PLUS));
     assertEquals(-1, parseNonNegativeInt(null, 0, 0, REJECT_LEADING_PLUS));
     assertEquals(-1, parseNonNegativeInt(null, ALLOW_LEADING_PLUS));
+    assertEquals(-1, parseNonNegativeIntTrimmed(null, REJECT_LEADING_PLUS));
   }
 }

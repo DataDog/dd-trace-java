@@ -227,9 +227,11 @@ public class HashtableD2Benchmark {
       BenchmarkUtils.warmUpHashDispatch(bh);
     }
 
+    // Level.Iteration, not Trial: this rebuilds the table and the HashMap, so each iteration must
+    // start from a fresh, identically-sized state rather than inheriting mutated counters.
     @Setup(Level.Iteration)
     public void setUp() {
-      table = new Hashtable.D2<>(CAPACITY);
+      table = Hashtable.D2.createBounded(D2Counter.class, CAPACITY);
       hashMap = new HashMap<>(CAPACITY);
       k1s = SOURCE_K1;
       k2s = SOURCE_K2;
@@ -288,6 +290,17 @@ public class HashtableD2Benchmark {
   public void iterate_hashtable(D2State s, Blackhole bh) {
     s.consumer.bh = bh;
     s.table.forEach(s.consumer);
+  }
+
+  /** {@link #iterate_hashtable} with the loop in this frame: a cursor instead of a consumer. */
+  @Benchmark
+  public void iterate_hashtable_cursor(D2State s, Blackhole bh) {
+    Cursor<D2Counter> cursor = s.table.cursor();
+    for (D2Counter e = cursor.next(); e != null; e = cursor.next()) {
+      bh.consume(e.key1);
+      bh.consume(e.key2);
+      bh.consume(e.count);
+    }
   }
 
   @Benchmark

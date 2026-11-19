@@ -77,34 +77,32 @@ public class CaseInsensitiveMapBenchmark {
   }
 
   static final String[] UPPER_PREFIXES =
-      init(
-          () -> {
-            String[] upperPrefixes = new String[PREFIXES.length];
-            for (int i = 0; i < PREFIXES.length; ++i) {
-              upperPrefixes[i] = PREFIXES[i].toUpperCase();
-            }
-            return upperPrefixes;
-          });
+      init(() -> {
+        String[] upperPrefixes = new String[PREFIXES.length];
+        for (int i = 0; i < PREFIXES.length; ++i) {
+          upperPrefixes[i] = PREFIXES[i].toUpperCase();
+        }
+        return upperPrefixes;
+      });
 
   // Fixed seed so every arm, in every fork, sees the same case and hit/miss mix -- the upper-case
   // share drives toLowerCase() allocation and suffix NUM_SUFFIXES is a miss, so an unseeded draw
   // would give each arm a different workload.
   static final String[] LOOKUP_KEYS =
-      init(
-          () -> {
-            Random curRandom = new Random(42);
+      init(() -> {
+        Random curRandom = new Random(42);
 
-            String[] keys = new String[32];
-            for (int i = 0; i < keys.length; ++i) {
-              int prefixIndex = curRandom.nextInt(PREFIXES.length);
-              boolean toUpper = curRandom.nextBoolean();
-              int suffixIndex = curRandom.nextInt(NUM_SUFFIXES + 1);
+        String[] keys = new String[32];
+        for (int i = 0; i < keys.length; ++i) {
+          int prefixIndex = curRandom.nextInt(PREFIXES.length);
+          boolean toUpper = curRandom.nextBoolean();
+          int suffixIndex = curRandom.nextInt(NUM_SUFFIXES + 1);
 
-              String key = PREFIXES[prefixIndex] + "-" + suffixIndex;
-              keys[i] = toUpper ? key.toUpperCase() : key.toLowerCase();
-            }
-            return keys;
-          });
+          String key = PREFIXES[prefixIndex] + "-" + suffixIndex;
+          keys[i] = toUpper ? key.toUpperCase() : key.toLowerCase();
+        }
+        return keys;
+      });
 
   // Per-thread (@State(Scope.Thread)) so cycling the lookup key doesn't contend a shared counter.
   // The maps stay static/shared (read-only after class-init); only the index is per-thread. A
@@ -293,7 +291,7 @@ public class CaseInsensitiveMapBenchmark {
   static CIEntry[] _create_flat(float loadFactor) {
     // 16 distinct case-insensitive keys (foo-0..quux-3).
     CIEntry[] table =
-        FlatHashtable.create(CIEntry.class, PREFIXES.length * NUM_SUFFIXES, loadFactor);
+        FlatHashtable.create(PREFIXES.length * NUM_SUFFIXES, loadFactor, CIEntry[]::new);
     for (int suffix = 0; suffix < NUM_SUFFIXES; ++suffix) {
       for (String prefix : PREFIXES) {
         String key = prefix + "-" + suffix;
@@ -302,18 +300,17 @@ public class CaseInsensitiveMapBenchmark {
             table, new CIEntry(key, hash, suffix), CaseInsensitiveKeyStrategy.INSTANCE);
       }
     }
-    // Mirror the HashMap/TreeMap builds' second loop (UPPER_PREFIXES, suffix 0 & 2): 8 case-
-    // insensitive collisions. getOrCreate finds the already-present lower-case entry (a hit -> the
-    // create never fires, nothing allocates) and then the value is overwritten explicitly -- getOr-
-    // Create itself never updates an existing entry, so without this the FlatHashtable arm would do
-    // less work (and end up with different final values) than the maps' overwriting put(), a false
-    // performance advantage. With the overwrite, all three create arms perform the same 24
-    // operations and end up with the same final values.
+    // Mirror the HashMap/TreeMap builds' second loop (UPPER_PREFIXES, suffixes 0 and 2): 8
+    // case-insensitive collisions. tryGetOrCreate finds the existing lower-case entry without
+    // allocating but never updates it, so the value is overwritten explicitly. Without that, the
+    // FlatHashtable arm would do less work than the maps' put() and end with different values. With
+    // it, all three create arms perform the same 24 operations and end with the same values.
     for (int suffix = 0; suffix < NUM_SUFFIXES; suffix += 2) {
       for (String prefix : UPPER_PREFIXES) {
         String key = prefix + "-" + suffix;
         CIEntry entry =
-            FlatHashtable.getOrCreate(table, key, CaseInsensitiveKeyStrategy.INSTANCE, CI_CREATE);
+            FlatHashtable.tryGetOrCreate(
+                table, key, CaseInsensitiveKeyStrategy.INSTANCE, CI_CREATE);
         entry.value = suffix + 1;
       }
     }

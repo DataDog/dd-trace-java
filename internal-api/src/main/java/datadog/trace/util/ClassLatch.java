@@ -32,11 +32,10 @@ import javax.annotation.concurrent.ThreadSafe;
  * wrapper whose contents can differ from one instance to the next; override {@link #keyOf} to
  * return the class of the object that is actually deficient.
  *
- * <p>This is a hint, not a lock. Nothing is stored for a class until it is latched, and until then
- * the cost is one plain flag read. The state is deliberately not atomic. A stale read only costs
- * another failure; a thread always sees its own write, so each thread pays for at most one failure
- * after its own first. Other threads' writes become visible eventually, with no bound on how long
- * that takes. A class is never latched unless the subclass latched it.
+ * <p>The latch provides best-effort per-class skipping. Before any class is latched, the common
+ * path reads one plain flag and avoids per-class lookup. The deliberately non-volatile state allows
+ * another thread to continue performing the operation after a class is latched. Only the subclass
+ * can latch a class.
  *
  * @param <T> the type of the value the operation is applied to
  * @param <R> the type of the result
@@ -131,9 +130,9 @@ public abstract class ClassLatch<T, R, E extends Exception> {
 
   /** Skips the operation for the target's key from now on. */
   protected final void latch(T target) {
+    // Set the per-class value before enabling lookups. Other threads may still observe stale state
+    // and repeat the operation.
     latched.get(keyOf(target))[0] = true;
-    // after the write: a reader that sees the flag can look the class up, and one that sees the
-    // flag but not yet the write just performs the operation once more
     anyLatched = true;
   }
 
@@ -145,12 +144,17 @@ public abstract class ClassLatch<T, R, E extends Exception> {
   }
 
   /**
-   * Latches the target's key if the error's message names that class as the receiver that lacks
-   * {@code methodName}, or, when the JVM gave no message, if that class still has {@code
-   * methodName} as an abstract method. Returns whether it latched. An error that does not name the
-   * key, for example one thrown inside a wrapper's delegate, is left alone — and so is one that
-   * names the key but for a different method, for example one the guarded method's own
-   * implementation calls internally.
+   * Latches the target's key when {@code error} identifies that key as the receiver that lacks
+   * {@code methodName}. For a message-less error, the key must expose an abstract public method
+   * with that name and no concrete public instance method with it.
+   *
+   * <p>An error attributed to another class or method remains unlatched. This prevents a delegate's
+   * failure from disabling every instance of its wrapper class.
+   *
+   * @param target target whose key may be latched
+   * @param methodName guarded method's name
+   * @param error error to attribute
+   * @return whether the target's key was latched
    */
   protected final boolean latchIfNamed(T target, String methodName, AbstractMethodError error) {
     if (isNamedIn(error, keyOf(target), methodName)) {
@@ -263,12 +267,15 @@ public abstract class ClassLatch<T, R, E extends Exception> {
   }
 
   /**
-   * Whether a public method named {@code methodName} is still abstract on {@code type}, as an
-   * interface method that a concrete class never implemented is. This attributes the error to the
-   * class just as a message naming it would: a wrapper that delegates the method has a concrete
-   * implementation, so an error raised by its delegate is not attributed to it. Overloads are not
-   * told apart. Each class is scanned once, whatever the answer, so a class that keeps failing
-   * without being latched does not repeat the reflection.
+   * Checks whether {@code type} exposes an abstract public method named {@code methodName} and no
+   * concrete public instance method with that name.
+   *
+   * <p>A message-less {@link AbstractMethodError} provides no signature, so any concrete overload
+   * prevents latching. Once initialized, the per-class cache prevents repeated reflection.
+   *
+   * @param type class to inspect
+   * @param methodName method name to find
+   * @return whether the class appears to lack an implementation
    */
   static boolean lacksImplementation(Class<?> type, String methodName) {
     for (final String abstractMethod : ABSTRACT_METHOD_NAMES.get(type)) {
@@ -282,8 +289,14 @@ public abstract class ClassLatch<T, R, E extends Exception> {
   private static final String[] NO_NAMES = new String[0];
 
   /**
-   * Per class, the names of its public methods that are still abstract. Only computed for classes
-   * that failed without a message. The value is a JDK type, like {@link #latched}'s.
+   * Caches public method names that have an abstract declaration and no concrete instance
+   * declaration. Entries are initialized only when attributing a message-less {@link
+   * AbstractMethodError}. Values contain only JDK types, so application classes never reference
+   * types from the agent class loader.
+   *
+   * <p>Concrete receiver classes normally expose few abstract candidates, so cache construction
+   * scans the dense array instead of building a hash table. This avoids hashing and the temporary
+   * {@code HashSet} allocation.
    */
   private static final ClassValue<String[]> ABSTRACT_METHOD_NAMES =
       new ClassValue<String[]>() {
@@ -296,6 +309,19 @@ public abstract class ClassLatch<T, R, E extends Exception> {
             for (final Method method : methods) {
               if (Modifier.isAbstract(method.getModifiers())) {
                 names[count++] = method.getName();
+              }
+            }
+            for (final Method method : methods) {
+              final int modifiers = method.getModifiers();
+              if (!Modifier.isAbstract(modifiers) && !Modifier.isStatic(modifiers)) {
+                final String name = method.getName();
+                for (int i = 0; i < count; ) {
+                  if (name.equals(names[i])) {
+                    names[i] = names[--count];
+                  } else {
+                    i++;
+                  }
+                }
               }
             }
             return count == 0 ? NO_NAMES : Arrays.copyOf(names, count);

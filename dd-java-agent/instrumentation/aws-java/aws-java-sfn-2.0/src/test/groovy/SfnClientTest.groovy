@@ -82,6 +82,7 @@ abstract class SfnClientTest extends VersionedNamingTestBase {
             "$Tags.PEER_PORT" localStack.getMappedPort(4566)
             "$Tags.PEER_HOSTNAME" localStack.getHost()
             "aws.service" "Sfn"
+            "aws.state_machine.arn" testStateMachineARN
             "aws.operation" "StartExecution"
             "aws.agent" "java-aws-sdk"
             "aws.requestId" response.responseMetadata().requestId()

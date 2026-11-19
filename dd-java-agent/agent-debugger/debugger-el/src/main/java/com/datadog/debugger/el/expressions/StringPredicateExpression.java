@@ -2,9 +2,11 @@ package com.datadog.debugger.el.expressions;
 
 import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.EvaluationException;
+import com.datadog.debugger.el.Generated;
 import com.datadog.debugger.el.PrettyPrintVisitor;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.values.StringValue;
+import java.util.Objects;
 import java.util.function.BiPredicate;
 
 public class StringPredicateExpression implements BooleanExpression {
@@ -59,5 +61,22 @@ public class StringPredicateExpression implements BooleanExpression {
 
   public String getName() {
     return name;
+  }
+
+  @Generated
+  @Override
+  public boolean equals(Object o) {
+    if (o == null || getClass() != o.getClass()) return false;
+    StringPredicateExpression that = (StringPredicateExpression) o;
+    // predicate is excluded: lambda equality is identity-based, the class and name identify it
+    return Objects.equals(sourceString, that.sourceString)
+        && Objects.equals(str, that.str)
+        && Objects.equals(name, that.name);
+  }
+
+  @Generated
+  @Override
+  public int hashCode() {
+    return Objects.hash(sourceString, str, name);
   }
 }

@@ -7,6 +7,11 @@ import spock.util.concurrent.PollingConditions
 import static java.util.concurrent.TimeUnit.SECONDS
 
 abstract class OpenTracingSmokeTest extends AbstractSmokeTest {
+  @Override
+  protected boolean expectsProcessAliveBeforeEachTest() {
+    false
+  }
+
   // Estimate for the amount of time instrumentation, plus request, plus some extra
   public static final int TIMEOUT_SECS = 30
 
@@ -30,6 +35,11 @@ abstract class OpenTracingSmokeTest extends AbstractSmokeTest {
 }
 
 class OTWithoutAgentTest extends OpenTracingSmokeTest {
+  @Override
+  protected String skipScopeContinuationCheckReason() {
+    'Exercises the standalone OpenTracing tracer without the agent required by the diagnostic companion'
+  }
+
   @Override
   ProcessBuilder createProcessBuilder() {
     List<String> command = baseCommand()

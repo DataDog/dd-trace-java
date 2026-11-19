@@ -56,15 +56,16 @@ public final class ThreadPoolExecutorInstrumentation
         Instrumenter.ForTypeHierarchy,
         Instrumenter.HasMethodAdvice {
 
-  // executors which do their own wrapping before calling super,
-  // leading to double wrapping, once at the child level and once
-  // in ThreadPoolExecutor
+  // These executors inspect or wrap tasks before calling super.execute().
+  // Defer tracing so task markers remain visible to their context checks,
+  // and avoid double wrapping.
   private static final ElementMatcher<MethodDescription> NO_WRAPPING_BEFORE_DELEGATION =
       not(
           isDeclaredBy(
               namedOneOf(
                   "org.elasticsearch.common.util.concurrent.EsThreadPoolExecutor",
-                  "org.opensearch.common.util.concurrent.OpenSearchThreadPoolExecutor")));
+                  "org.opensearch.common.util.concurrent.OpenSearchThreadPoolExecutor",
+                  "com.intellij.util.concurrency.AppScheduledExecutorService$BackendThreadPoolExecutor")));
 
   @Override
   public String hierarchyMarkerType() {
