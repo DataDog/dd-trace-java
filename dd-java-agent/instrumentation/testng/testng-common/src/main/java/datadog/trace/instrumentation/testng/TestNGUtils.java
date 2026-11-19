@@ -13,8 +13,10 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Properties;
+import java.util.Set;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,6 +52,9 @@ public abstract class TestNGUtils {
 
   private static final ComparableVersion testNGv75 = new ComparableVersion("7.5");
   private static final ComparableVersion testNGv70 = new ComparableVersion("7.0");
+
+  private static final boolean SUBCLASS_GROUPS_MISSING =
+      isSubclassGroupsMissing(getTestNGVersion());
 
   private static Class<?> getTestClass(final ITestResult result) {
     IClass testClass = result.getTestClass();
@@ -107,20 +112,43 @@ public abstract class TestNGUtils {
     if (groups == null) {
       return null;
     }
-    return Arrays.asList(groups);
+    if (!SUBCLASS_GROUPS_MISSING) {
+      return Arrays.asList(groups);
+    }
+    // TestNG 6 only takes the class-level groups from the class declaring the method, missing the
+    // groups of the subclasses when the method is inherited
+    List<String> classGroups = getClassGroups(getTestClass(result, method), method.getRealClass());
+    if (classGroups.isEmpty()) {
+      return Arrays.asList(groups);
+    }
+    Set<String> allGroups = new LinkedHashSet<>(Arrays.asList(groups));
+    allGroups.addAll(classGroups);
+    return new ArrayList<>(allGroups);
   }
 
-  public static List<String> getGroups(ITestClass testClass) {
-    Class<?> realClass = testClass.getRealClass();
+  private static Class<?> getTestClass(ITestResult result, ITestNGMethod method) {
+    Object instance = result.getInstance();
+    if (instance != null) {
+      return instance.getClass();
+    }
+    ITestClass testClass = method.getTestClass();
+    return testClass != null ? testClass.getRealClass() : null;
+  }
+
+  private static List<String> getClassGroups(Class<?> clazz, Class<?> stopClass) {
     List<String> groups = new ArrayList<>();
-    while (realClass != null) {
-      Test testAnnotation = realClass.getAnnotation(Test.class);
+    while (clazz != null && clazz != stopClass) {
+      Test testAnnotation = clazz.getAnnotation(Test.class);
       if (testAnnotation != null) {
         Collections.addAll(groups, testAnnotation.groups());
       }
-
-      realClass = realClass.getSuperclass();
+      clazz = clazz.getSuperclass();
     }
+    return groups;
+  }
+
+  public static List<String> getGroups(ITestClass testClass) {
+    List<String> groups = getClassGroups(testClass.getRealClass(), null);
     return !groups.isEmpty() ? groups : null;
   }
 
@@ -278,6 +306,14 @@ public abstract class TestNGUtils {
 
   public static boolean isExceptionSuppressionSupported(String version) {
     return version != null && testNGv75.compareTo(new ComparableVersion(version)) <= 0;
+  }
+
+  public static boolean isTestStartMissingOnSkip(String version) {
+    return version != null && testNGv70.compareTo(new ComparableVersion(version)) > 0;
+  }
+
+  private static boolean isSubclassGroupsMissing(String version) {
+    return version != null && testNGv70.compareTo(new ComparableVersion(version)) > 0;
   }
 
   public static boolean isTestOrderingSupported(String version) {

@@ -2,7 +2,7 @@ package com.datadog.openfeature;
 
 import com.datadog.openfeature.internal.JsonReading;
 import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
-import com.datadog.openfeature.internal.config.Settings;
+import com.datadog.openfeature.internal.config.TestSettings;
 import com.datadog.openfeature.internal.ufc.UniversalFlagConfigParser;
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
@@ -20,7 +20,7 @@ import java.util.Map;
  */
 final class ScaleSuites {
   private static final String SUITES_PATH =
-      "dd-smoke-tests/openfeature/src/test/resources/ffe-system-test-data/evaluation-suites";
+      "dd-openfeature/src/test/fixtures/ffe-system-test-data/evaluation-suites";
 
   private ScaleSuites() {}
 
@@ -36,14 +36,15 @@ final class ScaleSuites {
       return Files.readAllBytes(directory.resolve("ufc-config.json"));
     }
 
-    /** A provider that evaluates against this suite's configuration. */
+    /**
+     * A provider that evaluates against this suite's configuration. Its settings ignore the JVM
+     * system properties and environment, so span enrichment stays off and the expected selection
+     * metadata holds.
+     */
     Provider provider() throws IOException {
       final DDEvaluator evaluator =
           new DDEvaluator(
-              () -> {},
-              AgentBridge.NONE,
-              Settings.load(AgentBridge.NONE),
-              ExperimentationOptOutMode.DISABLED);
+              () -> {}, AgentBridge.NONE, TestSettings.of(), ExperimentationOptOutMode.DISABLED);
       evaluator.accept(UniversalFlagConfigParser.parse(config()));
       return new Provider(new Provider.Options(), evaluator, false);
     }
