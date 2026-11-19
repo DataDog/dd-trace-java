@@ -38,7 +38,8 @@ path, decorators, propagation (header read/write). **Multiplier: per-span × spa
 requests/sec.** A per-span cost is multiplied massively; a per-process/once cost is negligible.
 The AI must reason about *which multiplier applies* before flagging.
 
-**Propagation and header paths: bump severity one notch** (P3 → P2). This includes the
+**Propagation and header paths are on the per-span core**, so the one-level core raise in
+`posture.md` (§ Severity) applies to them; it is not a separate bump. This includes the
 propagation state every trace updates even when no header is written: propagation tags at span
 start, trace-id formatting, sampling-decision bookkeeping. Eager work for an optional format
 (W3C/OTel tracestate, hex ids) belongs at inject/export time. Example: building a tracestate

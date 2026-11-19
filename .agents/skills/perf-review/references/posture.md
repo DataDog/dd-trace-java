@@ -115,13 +115,16 @@ Performance findings top out at `P1`; `P0` is not used for them. How the usual c
 |---|---|---|
 | **P1** | OOM / container kill | Unbounded memory growth, cardinality blowups |
 | **P2** | Response time — median | Expensive work on the critical path (P1 if it blocks, pins a carrier thread, or is unbounded) |
-| **P2** | Response time — tail latency | Allocation rate → GC pauses (shared heap) |
+| **P3** | Response time — tail latency | Allocation rate → GC pauses (shared heap); P2 on the per-span core, P1 when unbounded |
 | **P2** | Startup latency | Eager class loading, init, transformation |
 | **P3** | CPU overhead | General tracer activity, background work |
 
 Each check gives one base level and says when it moves. One rule applies to every check: **raise
-one level when the cost lands on the tracer's own per-span core** (span create / setTag / finish,
-tag-map ops, propagation, serialization), which every integration pays.
+one level when the cost is paid per span or per trace on the tracer's own core path** (span
+create / setTag / finish, tag-map ops, propagation, serialization), which every integration pays.
+A one-time cost in core code, such as startup work or a retained buffer, isn't raised. **Raises
+don't stack:** a finding moves at most one level above its check's base, however many reasons
+apply.
 
 CPU overhead alone is the lowest priority — it's a cost issue, not a correctness one, and
 escalates only when it causes latency.
