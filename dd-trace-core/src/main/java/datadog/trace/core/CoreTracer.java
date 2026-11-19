@@ -1681,10 +1681,16 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     HealthMetrics dd =
         config.isHealthMetricsEnabled() ? new TracerHealthMetrics(AgentMeter.statsDClient()) : null;
     HealthMetrics otel = OtelSdkSelfMonitoring.healthMetrics(config);
-    if (dd == null) {
-      return otel == null ? HealthMetrics.NO_OP : otel;
+    if (dd != null && otel != null) {
+      return new CompositeHealthMetrics(dd, otel);
     }
-    return otel == null ? dd : new CompositeHealthMetrics(dd, otel);
+    if (dd != null) {
+      return dd;
+    }
+    if (otel != null) {
+      return otel;
+    }
+    return HealthMetrics.NO_OP;
   }
 
   /** Spans are built using this builder */

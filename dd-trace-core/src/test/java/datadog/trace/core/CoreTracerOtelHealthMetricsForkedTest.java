@@ -14,6 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.agent.test.utils.OtelMetricCollector;
 import datadog.trace.agent.test.utils.OtelMetricCollector.DataPointEntry;
 import datadog.trace.api.Config;
@@ -33,7 +34,8 @@ import org.junit.jupiter.api.Test;
 
 // Gate on: the instruments are registered once per JVM, so these tests need their own JVM. The
 // counters are shared by every test in it, so each test asserts the change it causes.
-// Cumulative temporality keeps the asserted values independent of any background collection.
+// Cumulative temporality and paused remote communication (no OTLP metrics service) keep the
+// asserted values independent of background collection.
 // DD health metrics stay on by default, so unless a test turns them off the tracer uses both sinks.
 @WithConfig(key = METRICS_OTEL_ENABLED, value = "true")
 @WithConfig(key = TRACE_OTEL_SDK_SELF_MONITORING_METRICS_ENABLED, value = "true")
@@ -44,7 +46,7 @@ class CoreTracerOtelHealthMetricsForkedTest extends DDCoreJavaSpecification {
   void usesOnlyTheOtelSinkWhenDatadogHealthMetricsAreDisabled() {
     HealthMetrics otel = OtelSdkSelfMonitoring.healthMetrics(Config.get());
     assertNotNull(otel);
-    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+    CoreTracer tracer = newTracer();
     try {
       assertSame(otel, tracer.healthMetrics);
     } finally {
@@ -54,7 +56,7 @@ class CoreTracerOtelHealthMetricsForkedTest extends DDCoreJavaSpecification {
 
   @Test
   void combinesBothSinksAndCountsEverySpanCreated() {
-    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+    CoreTracer tracer = newTracer();
     try {
       assertInstanceOf(CompositeHealthMetrics.class, tracer.healthMetrics);
       Snapshot before = Snapshot.take();
@@ -74,7 +76,7 @@ class CoreTracerOtelHealthMetricsForkedTest extends DDCoreJavaSpecification {
 
   @Test
   void countsSpansByParentOriginAndTracksLiveSpans() {
-    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+    CoreTracer tracer = newTracer();
     try {
       Snapshot before = Snapshot.take();
 
@@ -126,6 +128,17 @@ class CoreTracerOtelHealthMetricsForkedTest extends DDCoreJavaSpecification {
     expected.put("local", local);
     expected.put("remote", remote);
     return expected;
+  }
+
+  /**
+   * Builds a tracer whose remote communication stays paused, so the OTLP metrics service never
+   * starts: its periodic collection would race the manual collections these tests assert on.
+   */
+  private CoreTracer newTracer() {
+    return tracerBuilder()
+        .writer(new ListWriter())
+        .sharedCommunicationObjects(new SharedCommunicationObjects(true))
+        .build();
   }
 
   /** One collection of {@code otel.sdk.span.started} by parent origin and {@code live}. */

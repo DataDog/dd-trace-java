@@ -2,6 +2,7 @@ package datadog.trace.core;
 
 import static datadog.trace.api.sampling.PrioritySampling.UNSET;
 import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
+import static java.util.Collections.emptyMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -22,7 +23,6 @@ import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.propagation.PropagationTags;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
 import org.junit.jupiter.api.Assumptions;
@@ -67,7 +67,7 @@ public class PendingTraceTest extends PendingTraceTestBase {
             "",
             UNSET,
             "",
-            Collections.emptyMap(),
+            emptyMap(),
             false,
             "",
             trace,
@@ -108,7 +108,7 @@ public class PendingTraceTest extends PendingTraceTestBase {
     HealthMetrics healthMetrics = mock(HealthMetrics.class);
 
     when(stubTracer.captureTraceConfig()).thenReturn(traceConfig);
-    when(traceConfig.getServiceMapping()).thenReturn(Collections.emptyMap());
+    when(traceConfig.getServiceMapping()).thenReturn(emptyMap());
 
     PendingTrace trace =
         new PendingTrace(
@@ -138,7 +138,7 @@ public class PendingTraceTest extends PendingTraceTestBase {
     HealthMetrics healthMetrics = mock(HealthMetrics.class);
 
     when(stubTracer.captureTraceConfig()).thenReturn(traceConfig);
-    when(traceConfig.getServiceMapping()).thenReturn(Collections.emptyMap());
+    when(traceConfig.getServiceMapping()).thenReturn(emptyMap());
     when(buffer.longRunningSpansEnabled()).thenReturn(true);
 
     PendingTrace trace =
@@ -184,7 +184,7 @@ public class PendingTraceTest extends PendingTraceTestBase {
     HealthMetrics healthMetrics = mock(HealthMetrics.class);
 
     when(stubTracer.captureTraceConfig()).thenReturn(traceConfig);
-    when(traceConfig.getServiceMapping()).thenReturn(Collections.emptyMap());
+    when(traceConfig.getServiceMapping()).thenReturn(emptyMap());
     when(buffer.longRunningSpansEnabled()).thenReturn(true);
 
     PendingTrace trace =
@@ -227,7 +227,7 @@ public class PendingTraceTest extends PendingTraceTestBase {
     HealthMetrics healthMetrics = mock(HealthMetrics.class);
 
     when(stubTracer.captureTraceConfig()).thenReturn(traceConfig);
-    when(traceConfig.getServiceMapping()).thenReturn(Collections.emptyMap());
+    when(traceConfig.getServiceMapping()).thenReturn(emptyMap());
     when(buffer.longRunningSpansEnabled()).thenReturn(true);
 
     PendingTrace trace =
