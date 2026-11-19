@@ -21,6 +21,11 @@ excludedClassesCoverage += [
   'datadog.trace.logging.LogReporter',
 ]
 
+excludedClassesInstructionCoverage += [
+  // The PID lookup has separate Java 8 and Java 9+ paths, and no single JVM runs both
+  'datadog.trace.logging.simplelogger.AasPerProcessLogFile',
+]
+
 dependencies {
   // This is fine since this project is shadowed into the agent-jar by dd-java-agent:agent-bootstrap
   api libs.slf4j
