@@ -78,6 +78,48 @@ dependencies {
   testImplementation(libs.bundles.mockito)
 }
 
+val openFeature117Runtime = configurations.create("openFeature117Runtime")
+
+dependencies {
+  openFeature117Runtime("dev.openfeature:sdk:1.17.0")
+}
+
+val testOpenFeature117 = tasks.register<Test>("testOpenFeature117") {
+  description = "Runs the OpenFeature 1.17 binary-compatibility regression test."
+  group = "verification"
+  useJUnitPlatform()
+  testClassesDirs = sourceSets["test"].output.classesDirs
+  classpath =
+    sourceSets["test"].runtimeClasspath.filter {
+      !(it.name.startsWith("sdk-") && it.name.endsWith(".jar"))
+    } + openFeature117Runtime
+  filter {
+    includeTestsMatching("com.datadog.openfeature.OpenFeature117CompatibilityTest")
+  }
+}
+
+tasks.named<Test>("test") {
+  filter {
+    excludeTestsMatching("com.datadog.openfeature.OpenFeature117CompatibilityTest")
+  }
+}
+
+tasks.named("check") {
+  dependsOn(testOpenFeature117)
+}
+
+// The compatibility suite exercises the legacy hook lifecycle that cannot run with the main
+// test task's newer OpenFeature SDK. Include its execution data in this module's coverage gate.
+tasks.named<JacocoReport>("jacocoTestReport") {
+  dependsOn(testOpenFeature117)
+  executionData(layout.buildDirectory.file("jacoco/testOpenFeature117.exec"))
+}
+
+tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
+  dependsOn(testOpenFeature117)
+  executionData(layout.buildDirectory.file("jacoco/testOpenFeature117.exec"))
+}
+
 jmh {
   jmhVersion = libs.versions.jmh.get()
 }
@@ -134,6 +176,8 @@ val japicmpPublicApi = tasks.register<JapicmpTask>("japicmpPublicApi") {
   newArchives.from(tasks.named<Jar>("jar"))
   newClasspath.from(configurations.named("runtimeClasspath"))
   packageIncludes.addAll("com.datadog.openfeature", "datadog.trace.api.openfeature")
+  // The legacy evaluator was package-private and depended on agent-only bridge classes.
+  classExcludes.add("datadog.trace.api.openfeature.DDEvaluator")
   failOnModification.set(true)
   failOnSourceIncompatibility.set(true)
   txtOutputFile.set(layout.buildDirectory.file("reports/japicmp/public-api.txt"))

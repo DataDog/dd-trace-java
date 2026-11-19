@@ -5,7 +5,6 @@ import static java.util.Collections.singletonList;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 import com.datadog.openfeature.internal.LocalHttpServer;
@@ -82,8 +81,8 @@ class FlagSelectionProviderTest {
     options.flagSelection(null);
 
     assertEquals(
-        "selected_flag_tags=area%3Acheckout&selected_flag_tags=mobile"
-            + "&selected_flag_key_patterns=checkout.%2A",
+        "cap_dependent-flags-variant-key=v1&selected_flag_tags=area%3Acheckout"
+            + "&selected_flag_tags=mobile&selected_flag_key_patterns=checkout.%2A",
         initializeAndGetQuery(provider));
   }
 
@@ -100,7 +99,7 @@ class FlagSelectionProviderTest {
     for (final Function<Provider.Options, Provider.Options> configure : withoutValues) {
       final Provider provider =
           new Provider(configure.apply(new Provider.Options().initTimeout(5, SECONDS)));
-      assertNull(initializeAndGetQuery(provider));
+      assertEquals("cap_dependent-flags-variant-key=v1", initializeAndGetQuery(provider));
     }
     assertEquals(withoutValues.size(), this.cdn.requests().size());
     assertEquals(0, messages().size(), messages().toString());
@@ -118,7 +117,7 @@ class FlagSelectionProviderTest {
                     .initTimeout(5, SECONDS)
                     .flagSelection(new FlagSelection().tags(raw))));
 
-    assertNull(initializeAndGetQuery(provider));
+    assertEquals("cap_dependent-flags-variant-key=v1", initializeAndGetQuery(provider));
     assertEquals(
         singletonList(
             "ERROR flagSelection was not sent (malformed_selection: flagSelection must be an object"

@@ -614,7 +614,7 @@ class FeatureFlagsRuntimeTest {
       assertSame(first, scope.acquire(AREA_CHECKOUT));
 
       assertEquals(singletonList(SECOND_SELECTION_WARNING), scope.messages());
-      assertNull(scope.cdn.requests().get(0).uri.getRawQuery());
+      assertEquals(CAPABILITY_QUERY, scope.cdn.requests().get(0).uri.getRawQuery());
     }
   }
 
@@ -627,7 +627,7 @@ class FeatureFlagsRuntimeTest {
 
       assertNotSame(first, second, "the last release stops the runtime");
       assertTrue(scope.messages().isEmpty(), scope.messages().toString());
-      assertNull(scope.cdn.requests().get(0).uri.getRawQuery());
+      assertEquals(CAPABILITY_QUERY, scope.cdn.requests().get(0).uri.getRawQuery());
       assertEquals(AREA_CHECKOUT_QUERY, scope.cdn.requests().get(1).uri.getRawQuery());
     }
   }
@@ -646,7 +646,7 @@ class FeatureFlagsRuntimeTest {
               + " values). Loading the full flag configuration.";
       assertEquals(asList(notSent, notSent), scope.messages());
       assertEquals(singletonList("flag_selection.dropped|1|too_many_values"), scope.metrics.counts);
-      assertNull(scope.cdn.requests().get(0).uri.getRawQuery());
+      assertEquals(CAPABILITY_QUERY, scope.cdn.requests().get(0).uri.getRawQuery());
     }
   }
 
@@ -664,7 +664,9 @@ class FeatureFlagsRuntimeTest {
               + " bytes). Loading the full flag configuration.";
       assertEquals(asList(notSent, notSent), scope.messages());
       assertEquals(singletonList("flag_selection.dropped|1|too_many_values"), scope.metrics.counts);
-      assertEquals("pad=" + new String(padding), scope.cdn.requests().get(0).uri.getRawQuery());
+      assertEquals(
+          "pad=" + new String(padding) + "&" + CAPABILITY_QUERY,
+          scope.cdn.requests().get(0).uri.getRawQuery());
     }
   }
 
@@ -806,7 +808,9 @@ class FeatureFlagsRuntimeTest {
 
   private static final FlagSelectionRequest AREA_CHECKOUT =
       FlagSelectionRequest.of(singletonList("area:checkout"), null);
-  private static final String AREA_CHECKOUT_QUERY = "selected_flag_tags=area%3Acheckout";
+  private static final String CAPABILITY_QUERY = "cap_dependent-flags-variant-key=v1";
+  private static final String AREA_CHECKOUT_QUERY =
+      CAPABILITY_QUERY + "&selected_flag_tags=area%3Acheckout";
   private static final String SECOND_SELECTION_WARNING =
       "WARN flagSelection differs from the flag selection already in use in this process. Using"
           + " the first selection.";

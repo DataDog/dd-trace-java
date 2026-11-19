@@ -34,6 +34,7 @@ import com.datadog.openfeature.internal.ufc.Split;
 import com.datadog.openfeature.internal.ufc.ValueType;
 import com.datadog.openfeature.internal.ufc.Variant;
 import dev.openfeature.sdk.Client;
+import dev.openfeature.sdk.DefaultHookData;
 import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.FlagEvaluationDetails;
 import dev.openfeature.sdk.FlagValueType;
@@ -46,6 +47,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -349,19 +351,17 @@ class ExposureHookTest {
     final HookContext<Object> context = hookContext();
     final FlagEvaluationDetails<Object> details =
         FlagEvaluationDetails.<Object>builder().flagKey("flag").value(1).build();
+    final ExposureHook runtimeFailure =
+        new ExposureHook(evaluation -> {
+          throw new IllegalStateException("warehouse unavailable");
+        });
+    final ExposureHook linkageFailure =
+        new ExposureHook(evaluation -> {
+          throw new NoClassDefFoundError("missing class");
+        });
 
-    assertDoesNotThrow(() ->
-        new ExposureHook(
-                evaluation -> {
-                  throw new IllegalStateException("warehouse unavailable");
-                })
-            .finallyAfter(context, details, emptyMap()));
-    assertDoesNotThrow(() ->
-        new ExposureHook(
-                evaluation -> {
-                  throw new NoClassDefFoundError("missing class");
-                })
-            .finallyAfter(context, details, emptyMap()));
+    assertDoesNotThrow(() -> runLifecycle(runtimeFailure, context, details));
+    assertDoesNotThrow(() -> runLifecycle(linkageFailure, hookContext(), details));
   }
 
   @Test
@@ -373,9 +373,9 @@ class ExposureHookTest {
     final FlagEvaluationDetails<Object> details =
         FlagEvaluationDetails.<Object>builder().flagKey("flag").value(1).build();
 
-    hook.finallyAfter(hookContext(), details, emptyMap());
+    runLifecycle(hook, hookContext(), details);
 
-    assertDoesNotThrow(() -> hook.finallyAfter(hookContext(), details, emptyMap()));
+    assertDoesNotThrow(() -> runLifecycle(hook, hookContext(), details));
   }
 
   @Test
@@ -386,11 +386,197 @@ class ExposureHookTest {
   }
 
   @Test
+  void lifecycleHelpersIgnoreIncompleteAndUnregisteredCalls() {
+    final ExposureHook hook = new ExposureHook(this.evaluations::add);
+    final HookContext<Object> context = hookContext();
+    final Object scope = new Object();
+
+    assertTrue(hook.before(null, emptyMap()).isEmpty());
+    hook.finallyAfter(null, rootDetails(), emptyMap());
+    ExposureHook.bindProviderScope(null, context);
+    ExposureHook.bindProviderScope(scope, null);
+    ExposureHook.bindProviderScope(scope, context);
+    ExposureHook.publishDependencies(null, context, singletonList(dependencyDetails()));
+    ExposureHook.publishDependencies(scope, null, singletonList(dependencyDetails()));
+    ExposureHook.publishDependencies(scope, context, null);
+    ExposureHook.publishDependencies(scope, context, emptyList());
+    ExposureHook.publishDependencies(scope, context, singletonList(dependencyDetails()));
+
+    assertTrue(this.evaluations.isEmpty());
+  }
+
+  @Test
+  void oneHookBindsOnlyItsInnermostMatchingRegistration() {
+    final List<ExposureHook.Evaluation> seen = new ArrayList<>();
+    final ExposureHook hook = new ExposureHook(seen::add);
+    final HookContext<Object> outer = hookContext("same-subject");
+    final HookContext<Object> inner = hookContext("same-subject");
+    final Object scope = new Object();
+
+    hook.before(outer, emptyMap());
+    hook.before(inner, emptyMap());
+    ExposureHook.bindProviderScope(scope, inner);
+    ExposureHook.publishDependencies(scope, inner, singletonList(dependencyDetails()));
+    hook.finallyAfter(inner, rootDetails(), emptyMap());
+    hook.finallyAfter(outer, rootDetails(), emptyMap());
+
+    assertEquals(3, seen.size(), "the dependency is published only for the inner lifecycle");
+  }
+
+  @Test
+  void providerScopeBindingDoesNotReplaceAnExistingBinding() {
+    final List<ExposureHook.Evaluation> firstSeen = new ArrayList<>();
+    final List<ExposureHook.Evaluation> secondSeen = new ArrayList<>();
+    final ExposureHook first = new ExposureHook(firstSeen::add);
+    final ExposureHook second = new ExposureHook(secondSeen::add);
+    final HookContext<Object> context = hookContext("subject");
+    final Object originalScope = new Object();
+    final Object replacementScope = new Object();
+
+    first.before(context, emptyMap());
+    second.before(context, emptyMap());
+    ExposureHook.bindProviderScope(originalScope, context);
+    ExposureHook.bindProviderScope(replacementScope, context);
+    ExposureHook.publishDependencies(replacementScope, context, singletonList(dependencyDetails()));
+    ExposureHook.publishDependencies(originalScope, context, singletonList(dependencyDetails()));
+    second.finallyAfter(context, rootDetails(), emptyMap());
+    first.finallyAfter(context, rootDetails(), emptyMap());
+
+    assertEquals(2, firstSeen.size());
+    assertEquals(2, secondSeen.size());
+  }
+
+  @Test
+  void staleOrForeignLifecycleDataCannotDuplicateCallbacks() throws Exception {
+    final List<ExposureHook.Evaluation> seen = new ArrayList<>();
+    final ExposureHook owner = new ExposureHook(seen::add);
+    final ExposureHook foreign = new ExposureHook(seen::add);
+    final HookContext<Object> context = hookContext("subject");
+    owner.before(context, emptyMap());
+
+    owner.finallyAfter(context, rootDetails(), emptyMap());
+    owner.finallyAfter(context, rootDetails(), emptyMap());
+
+    final java.lang.reflect.Field lifecycleKey =
+        ExposureHook.class.getDeclaredField("lifecycleKey");
+    lifecycleKey.setAccessible(true);
+    final String ownerKey = (String) lifecycleKey.get(owner);
+    final String foreignKey = (String) lifecycleKey.get(foreign);
+    context.getHookData().set(foreignKey, context.getHookData().get(ownerKey));
+    foreign.finallyAfter(context, rootDetails(), emptyMap());
+
+    final HookContext<Object> activeContext = hookContext("active-subject");
+    owner.before(activeContext, emptyMap());
+    activeContext.getHookData().set(foreignKey, activeContext.getHookData().get(ownerKey));
+    foreign.finallyAfter(activeContext, rootDetails(), emptyMap());
+    owner.finallyAfter(activeContext, rootDetails(), emptyMap());
+
+    assertEquals(2, seen.size());
+  }
+
+  @Test
   void skipsTheCallbackWhenThereAreNoDetails() {
     final List<ExposureHook.Evaluation> seen = new ArrayList<>();
+    final ExposureHook hook = new ExposureHook(seen::add);
 
-    new ExposureHook(seen::add).finallyAfter(hookContext(), null, emptyMap());
+    runLifecycle(hook, hookContext(), null);
 
+    assertTrue(seen.isEmpty());
+  }
+
+  @Test
+  void unmatchedFinallyIsANoOp() {
+    final List<ExposureHook.Evaluation> seen = new ArrayList<>();
+    final ExposureHook hook = new ExposureHook(seen::add);
+    final HookContext<Object> active = hookContext("active");
+    final Object scope = new Object();
+    hook.before(active, emptyMap());
+    ExposureHook.bindProviderScope(scope, active);
+
+    hook.finallyAfter(
+        hookContext("unmatched"),
+        FlagEvaluationDetails.<Object>builder().flagKey("flag").value(1).build(),
+        emptyMap());
+
+    assertTrue(seen.isEmpty());
+    ExposureHook.publishDependencies(scope, active, singletonList(dependencyDetails()));
+    hook.finallyAfter(
+        active,
+        FlagEvaluationDetails.<Object>builder().flagKey("flag").value(1).build(),
+        emptyMap());
+    assertEquals(2, seen.size());
+  }
+
+  @Test
+  void providerScopeBindingSurvivesContextEnrichmentForTheSameFlag() {
+    final List<ExposureHook.Evaluation> seen = new ArrayList<>();
+    final ExposureHook hook = new ExposureHook(seen::add);
+    final MutableContext evaluationContext = new MutableContext("active");
+    final HookContext<Object> active = hookContext("flag", evaluationContext);
+    final Object scope = new Object();
+    hook.before(active, emptyMap());
+
+    ExposureHook.bindProviderScope(scope, hookContext("other-flag", evaluationContext));
+    ExposureHook.publishDependencies(scope, active, singletonList(dependencyDetails()));
+    assertTrue(seen.isEmpty());
+
+    ExposureHook.bindProviderScope(scope, hookContext("flag", new MutableContext("enriched")));
+    ExposureHook.publishDependencies(scope, active, singletonList(dependencyDetails()));
+    hook.finallyAfter(active, rootDetails(), emptyMap());
+
+    assertEquals(2, seen.size());
+  }
+
+  @Test
+  void sameHookNestingKeepsProviderScopesExact() {
+    final List<ExposureHook.Evaluation> seen = new ArrayList<>();
+    final ExposureHook hook = new ExposureHook(seen::add);
+    final HookContext<Object> outer = hookContext("outer");
+    final HookContext<Object> inner = hookContext("inner");
+    final Object outerScope = new Object();
+    final Object innerScope = new Object();
+
+    hook.before(outer, emptyMap());
+    ExposureHook.bindProviderScope(outerScope, outer);
+    hook.before(inner, emptyMap());
+    ExposureHook.bindProviderScope(innerScope, inner);
+    ExposureHook.publishDependencies(innerScope, inner, singletonList(dependencyDetails()));
+    hook.finallyAfter(inner, rootDetails(), emptyMap());
+    ExposureHook.publishDependencies(outerScope, outer, singletonList(dependencyDetails()));
+    hook.finallyAfter(outer, rootDetails(), emptyMap());
+
+    assertEquals(4, seen.size());
+    assertEquals("inner", seen.get(0).getContext().getTargetingKey());
+    assertEquals("inner", seen.get(1).getContext().getTargetingKey());
+    assertEquals("outer", seen.get(2).getContext().getTargetingKey());
+    assertEquals("outer", seen.get(3).getContext().getTargetingKey());
+  }
+
+  @Test
+  void callbackExceptionsAndNullDetailsCannotLeaveStaleRegistrations() {
+    final AtomicInteger attempts = new AtomicInteger();
+    final ExposureHook failing =
+        new ExposureHook(evaluation -> {
+          attempts.incrementAndGet();
+          throw new IllegalStateException("warehouse unavailable");
+        });
+    final HookContext<Object> failed = hookContext("failed");
+    final Object failedScope = new Object();
+    failing.before(failed, emptyMap());
+    ExposureHook.bindProviderScope(failedScope, failed);
+    ExposureHook.publishDependencies(failedScope, failed, singletonList(dependencyDetails()));
+    failing.finallyAfter(failed, rootDetails(), emptyMap());
+    ExposureHook.publishDependencies(failedScope, failed, singletonList(dependencyDetails()));
+    assertEquals(2, attempts.get());
+
+    final List<ExposureHook.Evaluation> seen = new ArrayList<>();
+    final ExposureHook cleaned = new ExposureHook(seen::add);
+    final HookContext<Object> empty = hookContext("empty");
+    final Object emptyScope = new Object();
+    cleaned.before(empty, emptyMap());
+    ExposureHook.bindProviderScope(emptyScope, empty);
+    cleaned.finallyAfter(empty, null, emptyMap());
+    ExposureHook.publishDependencies(emptyScope, empty, singletonList(dependencyDetails()));
     assertTrue(seen.isEmpty());
   }
 
@@ -404,12 +590,48 @@ class ExposureHookTest {
   }
 
   private static HookContext<Object> hookContext() {
+    return hookContext("user-1");
+  }
+
+  private static HookContext<Object> hookContext(final String targetingKey) {
+    return hookContext("flag", new MutableContext(targetingKey));
+  }
+
+  private static HookContext<Object> hookContext(
+      final String flagKey, final MutableContext evaluationContext) {
     return HookContext.<Object>builder()
-        .flagKey("flag")
+        .flagKey(flagKey)
         .type(FlagValueType.INTEGER)
         .defaultValue(0)
-        .ctx(new MutableContext("user-1"))
+        .ctx(evaluationContext)
+        .hookData(new DefaultHookData())
         .build();
+  }
+
+  private static FlagEvaluationDetails<Object> dependencyDetails() {
+    return FlagEvaluationDetails.<Object>builder()
+        .flagKey("dependency")
+        .value(1)
+        .variant("on")
+        .flagMetadata(exposureMetadata("dependency-allocation", true, false))
+        .build();
+  }
+
+  private static FlagEvaluationDetails<Object> rootDetails() {
+    return FlagEvaluationDetails.<Object>builder()
+        .flagKey("root")
+        .value(1)
+        .variant("on")
+        .flagMetadata(exposureMetadata("root-allocation", true, false))
+        .build();
+  }
+
+  private static void runLifecycle(
+      final ExposureHook hook,
+      final HookContext<Object> context,
+      final FlagEvaluationDetails<Object> details) {
+    hook.before(context, emptyMap());
+    hook.finallyAfter(context, details, emptyMap());
   }
 
   private static ExposureHook.Evaluation evaluation(

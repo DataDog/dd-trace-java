@@ -48,7 +48,11 @@ public class FeatureFlaggingSystem {
     } catch (final RuntimeException | Error e) {
       LOGGER.debug(
           "Feature Flagging system initialization failed: {}", e.getClass().getSimpleName());
-      backend.close();
+      try {
+        backend.close();
+      } catch (final RuntimeException | Error cleanupFailure) {
+        e.addSuppressed(cleanupFailure);
+      }
       throw e;
     }
     BACKEND = backend;

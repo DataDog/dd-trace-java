@@ -28,6 +28,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
@@ -208,6 +209,23 @@ class FlagEvaluationPipelineTest {
     handler.flushIfNecessary();
 
     assertEquals(1, queueDrops.get());
+  }
+
+  @Test
+  void workerPreservesAnExistingInterruptAfterItsFinalFlush() throws Exception {
+    final FlagEvaluationTestSupport.TestWriterSetup setup = buildTestWriter();
+    final AtomicBoolean interruptedAfterRun = new AtomicBoolean();
+    final Thread worker =
+        new Thread(() -> {
+          Thread.currentThread().interrupt();
+          setup.handler.run();
+          interruptedAfterRun.set(Thread.currentThread().isInterrupted());
+        });
+
+    worker.start();
+    worker.join();
+
+    assertTrue(interruptedAfterRun.get());
   }
 
   @Test

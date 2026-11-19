@@ -12,6 +12,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -27,14 +29,17 @@ import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.PollingRateHinter;
 import datadog.remoteconfig.Product;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
@@ -44,6 +49,449 @@ import org.slf4j.LoggerFactory;
 
 class RemoteConfigServiceImplTest {
   private static final byte[] DOCUMENT = "{\"flags\":{}}".getBytes(UTF_8);
+
+  @Test
+  void gatesDependentFlagsOnEverySubscriberAndRemovesOnClose() throws Exception {
+    final ConfigurationPoller poller = mock(ConfigurationPoller.class);
+    final RemoteConfigServiceImpl service = new RemoteConfigServiceImpl(poller);
+    service.start();
+    verify(poller, never())
+        .addCapabilities(Capabilities.CAPABILITY_FFE_FLAG_DEPENDENT_FLAG_VARIANT_KEY_V1);
+    final AutoCloseable supported =
+        service.subscribe(content -> {}, Collections.singleton("dependent-flag-variant-key-v1"));
+    verify(poller).addCapabilities(Capabilities.CAPABILITY_FFE_FLAG_DEPENDENT_FLAG_VARIANT_KEY_V1);
+    final AutoCloseable legacy = service.subscribe(content -> {});
+    verify(poller)
+        .removeCapabilities(Capabilities.CAPABILITY_FFE_FLAG_DEPENDENT_FLAG_VARIANT_KEY_V1);
+    legacy.close();
+    verify(poller, times(2))
+        .addCapabilities(Capabilities.CAPABILITY_FFE_FLAG_DEPENDENT_FLAG_VARIANT_KEY_V1);
+    supported.close();
+    verify(poller, times(2))
+        .removeCapabilities(Capabilities.CAPABILITY_FFE_FLAG_DEPENDENT_FLAG_VARIANT_KEY_V1);
+    verify(poller, times(4)).removeListeners(Product.FFE_FLAGS);
+    service.close();
+  }
+
+  @Test
+  void rejectsInFlightDocumentWhileRemovingDependentFlagCapability() throws Exception {
+    final ConfigurationPoller poller = mock(ConfigurationPoller.class);
+    final CountDownLatch removalStarted = new CountDownLatch(1);
+    final CountDownLatch finishRemoval = new CountDownLatch(1);
+    final AtomicBoolean blockRemoval = new AtomicBoolean(true);
+    doAnswer(
+            invocation -> {
+              if (blockRemoval.compareAndSet(true, false)) {
+                removalStarted.countDown();
+                assertTrue(finishRemoval.await(5, SECONDS));
+              }
+              return null;
+            })
+        .when(poller)
+        .removeCapabilities(Capabilities.CAPABILITY_FFE_FLAG_DEPENDENT_FLAG_VARIANT_KEY_V1);
+    final RemoteConfigServiceImpl service = new RemoteConfigServiceImpl(poller);
+    final List<byte[]> supportedDocuments = new CopyOnWriteArrayList<>();
+    final List<byte[]> legacyDocuments = new CopyOnWriteArrayList<>();
+    final AutoCloseable supported =
+        service.subscribe(
+            supportedDocuments::add, Collections.singleton("dependent-flag-variant-key-v1"));
+    final ExecutorService executor = Executors.newSingleThreadExecutor();
+    try {
+      final Future<AutoCloseable> legacy =
+          executor.submit(() -> service.subscribe(legacyDocuments::add));
+      assertTrue(removalStarted.await(5, SECONDS));
+
+      assertThrows(
+          IllegalStateException.class,
+          () -> service.accept("key", DOCUMENT, mock(PollingRateHinter.class)));
+      assertTrue(supportedDocuments.isEmpty());
+      assertTrue(legacyDocuments.isEmpty());
+
+      finishRemoval.countDown();
+      legacy.get(5, SECONDS).close();
+      service.accept("key", DOCUMENT, mock(PollingRateHinter.class));
+      assertEquals(1, supportedDocuments.size());
+    } finally {
+      finishRemoval.countDown();
+      executor.shutdownNow();
+      supported.close();
+      service.close();
+    }
+  }
+
+  @Test
+  void rejectsInFlightDocumentWhileStopping() throws Exception {
+    final ConfigurationPoller poller = mock(ConfigurationPoller.class);
+    final CountDownLatch stopStarted = new CountDownLatch(1);
+    final CountDownLatch finishStop = new CountDownLatch(1);
+    doAnswer(
+            invocation -> {
+              stopStarted.countDown();
+              assertTrue(finishStop.await(5, SECONDS));
+              return null;
+            })
+        .when(poller)
+        .stop();
+    final RemoteConfigServiceImpl service = new RemoteConfigServiceImpl(poller);
+    final List<byte[]> documents = new CopyOnWriteArrayList<>();
+    service.subscribe(documents::add);
+    final ExecutorService executor = Executors.newSingleThreadExecutor();
+    try {
+      final Future<?> close = executor.submit(service::close);
+      assertTrue(stopStarted.await(5, SECONDS));
+
+      service.accept("key", DOCUMENT, mock(PollingRateHinter.class));
+      assertTrue(documents.isEmpty());
+
+      finishStop.countDown();
+      close.get(5, SECONDS);
+      service.subscribe(documents::add);
+      assertTrue(documents.isEmpty());
+    } finally {
+      finishStop.countDown();
+      executor.shutdownNow();
+      service.close();
+    }
+  }
+
+  @Test
+  void retriesCleanupAfterFailedStartAndFailedRollback() {
+    final ConfigurationPoller poller = mock(ConfigurationPoller.class);
+    final AtomicBoolean failCleanup = new AtomicBoolean(true);
+    doThrow(new IllegalStateException("start failure")).when(poller).start();
+    doAnswer(
+            invocation -> {
+              if (failCleanup.compareAndSet(true, false)) {
+                throw new IllegalStateException("cleanup failure");
+              }
+              return null;
+            })
+        .when(poller)
+        .removeCapabilities(Capabilities.CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
+    final RemoteConfigServiceImpl service = new RemoteConfigServiceImpl(poller);
+
+    final IllegalStateException failure = assertThrows(IllegalStateException.class, service::start);
+    assertEquals("start failure", failure.getMessage());
+    assertEquals(1, failure.getSuppressed().length);
+
+    service.close();
+
+    verify(poller, times(2))
+        .removeCapabilities(Capabilities.CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
+    verify(poller).removeListeners(Product.FFE_FLAGS);
+    verify(poller).stop();
+  }
+
+  @Test
+  void concurrentStartRetriesAfterTheLifecycleOwnerFails() throws Exception {
+    final ConfigurationPoller poller = mock(ConfigurationPoller.class);
+    final CountDownLatch firstStartEntered = new CountDownLatch(1);
+    final CountDownLatch releaseFirstStart = new CountDownLatch(1);
+    final AtomicBoolean failFirstStart = new AtomicBoolean(true);
+    doAnswer(
+            invocation -> {
+              if (failFirstStart.compareAndSet(true, false)) {
+                firstStartEntered.countDown();
+                assertTrue(releaseFirstStart.await(5, SECONDS));
+                throw new IllegalStateException("start failure");
+              }
+              return null;
+            })
+        .when(poller)
+        .start();
+    final RemoteConfigServiceImpl service = new RemoteConfigServiceImpl(poller);
+    final ExecutorService executor = Executors.newFixedThreadPool(2);
+    try {
+      final Future<?> first = executor.submit(service::start);
+      assertTrue(firstStartEntered.await(5, SECONDS));
+      final Future<?> second = executor.submit(service::start);
+      second.get(5, SECONDS);
+
+      releaseFirstStart.countDown();
+      final ExecutionException failure =
+          assertThrows(ExecutionException.class, () -> first.get(5, SECONDS));
+      assertEquals(IllegalStateException.class, failure.getCause().getClass());
+
+      verify(poller, times(2)).start();
+      verify(poller).stop();
+    } finally {
+      releaseFirstStart.countDown();
+      executor.shutdownNow();
+      service.close();
+    }
+  }
+
+  @Test
+  void keepsDeliverySuspendedAcrossOverlappingCapabilityTransitions() throws Exception {
+    final ConfigurationPoller poller = mock(ConfigurationPoller.class);
+    final CountDownLatch additionStarted = new CountDownLatch(1);
+    final CountDownLatch finishAddition = new CountDownLatch(1);
+    final CountDownLatch removalStarted = new CountDownLatch(1);
+    final CountDownLatch finishRemoval = new CountDownLatch(1);
+    doAnswer(
+            invocation -> {
+              additionStarted.countDown();
+              assertTrue(finishAddition.await(5, SECONDS));
+              return null;
+            })
+        .when(poller)
+        .addCapabilities(Capabilities.CAPABILITY_FFE_FLAG_DEPENDENT_FLAG_VARIANT_KEY_V1);
+    doAnswer(
+            invocation -> {
+              removalStarted.countDown();
+              assertTrue(finishRemoval.await(5, SECONDS));
+              return null;
+            })
+        .when(poller)
+        .removeCapabilities(Capabilities.CAPABILITY_FFE_FLAG_DEPENDENT_FLAG_VARIANT_KEY_V1);
+    final RemoteConfigServiceImpl service = new RemoteConfigServiceImpl(poller);
+    final ExecutorService executor = Executors.newFixedThreadPool(2);
+    try {
+      final Future<AutoCloseable> supported =
+          executor.submit(() ->
+              service.subscribe(
+                  content -> {}, Collections.singleton("dependent-flag-variant-key-v1")));
+      assertTrue(additionStarted.await(5, SECONDS));
+      final Future<AutoCloseable> legacy = executor.submit(() -> service.subscribe(content -> {}));
+      final AutoCloseable legacyHandle = legacy.get(5, SECONDS);
+
+      finishAddition.countDown();
+      assertTrue(removalStarted.await(5, SECONDS));
+      assertThrows(
+          IllegalStateException.class,
+          () -> service.accept("key", DOCUMENT, mock(PollingRateHinter.class)));
+
+      finishRemoval.countDown();
+      supported.get(5, SECONDS).close();
+      legacyHandle.close();
+    } finally {
+      finishAddition.countDown();
+      finishRemoval.countDown();
+      executor.shutdownNow();
+      service.close();
+    }
+  }
+
+  @Test
+  void rollsBackSubscriptionWhenCapabilityUpdateFails() throws Exception {
+    final ConfigurationPoller poller = mock(ConfigurationPoller.class);
+    final AtomicBoolean failRemoval = new AtomicBoolean(true);
+    doAnswer(
+            invocation -> {
+              if (failRemoval.compareAndSet(true, false)) {
+                throw new IllegalStateException("poller failure");
+              }
+              return null;
+            })
+        .when(poller)
+        .removeCapabilities(Capabilities.CAPABILITY_FFE_FLAG_DEPENDENT_FLAG_VARIANT_KEY_V1);
+    final RemoteConfigServiceImpl service = new RemoteConfigServiceImpl(poller);
+    final List<byte[]> supportedDocuments = new ArrayList<>();
+    final AutoCloseable supported =
+        service.subscribe(
+            supportedDocuments::add, Collections.singleton("dependent-flag-variant-key-v1"));
+
+    assertThrows(IllegalStateException.class, () -> service.subscribe(content -> {}));
+    service.accept("key", DOCUMENT, mock(PollingRateHinter.class));
+
+    assertEquals(1, supportedDocuments.size());
+    assertArrayEquals(DOCUMENT, supportedDocuments.get(0));
+    supported.close();
+    service.close();
+  }
+
+  @Test
+  void rollsBackUnsubscriptionWhenCapabilityUpdateFails() throws Exception {
+    final ConfigurationPoller poller = mock(ConfigurationPoller.class);
+    final AtomicBoolean failAddition = new AtomicBoolean(true);
+    doAnswer(
+            invocation -> {
+              if (failAddition.compareAndSet(true, false)) {
+                throw new IllegalStateException("poller failure");
+              }
+              return null;
+            })
+        .when(poller)
+        .addCapabilities(Capabilities.CAPABILITY_FFE_FLAG_DEPENDENT_FLAG_VARIANT_KEY_V1);
+    final RemoteConfigServiceImpl service = new RemoteConfigServiceImpl(poller);
+    final List<byte[]> legacyDocuments = new ArrayList<>();
+    final List<byte[]> supportedDocuments = new ArrayList<>();
+    final AutoCloseable legacy = service.subscribe(legacyDocuments::add);
+    final AutoCloseable supported =
+        service.subscribe(
+            supportedDocuments::add, Collections.singleton("dependent-flag-variant-key-v1"));
+
+    assertThrows(IllegalStateException.class, legacy::close);
+    service.accept("key", DOCUMENT, mock(PollingRateHinter.class));
+
+    assertEquals(1, legacyDocuments.size());
+    assertEquals(1, supportedDocuments.size());
+    legacy.close();
+    supported.close();
+    service.close();
+  }
+
+  @Test
+  void callbackSubscriptionDoesNotDeadlockCapabilityTransition() throws Exception {
+    final ConfigurationPoller poller = mock(ConfigurationPoller.class);
+    final CountDownLatch callbackStarted = new CountDownLatch(1);
+    final CountDownLatch finishCallback = new CountDownLatch(1);
+    final CountDownLatch transitionStarted = new CountDownLatch(1);
+    doAnswer(
+            invocation -> {
+              transitionStarted.countDown();
+              synchronized (poller) {
+                return null;
+              }
+            })
+        .when(poller)
+        .addCapabilities(Capabilities.CAPABILITY_FFE_FLAG_DEPENDENT_FLAG_VARIANT_KEY_V1);
+    final RemoteConfigServiceImpl service = new RemoteConfigServiceImpl(poller);
+    final AutoCloseable legacy = service.subscribe(content -> {});
+    final AtomicReference<AutoCloseable> callbackSubscription = new AtomicReference<>();
+    service.subscribe(
+        content -> {
+          callbackStarted.countDown();
+          try {
+            assertTrue(finishCallback.await(5, SECONDS));
+            callbackSubscription.set(service.subscribe(ignored -> {}));
+          } catch (final Exception e) {
+            throw new AssertionError(e);
+          }
+        },
+        Collections.singleton("dependent-flag-variant-key-v1"));
+    final ExecutorService executor = Executors.newFixedThreadPool(2);
+    try {
+      final Future<?> delivery =
+          executor.submit(() -> {
+            synchronized (poller) {
+              service.accept("key", DOCUMENT, mock(PollingRateHinter.class));
+            }
+          });
+      assertTrue(callbackStarted.await(5, SECONDS));
+      final Future<?> transition =
+          executor.submit(() -> {
+            try {
+              legacy.close();
+            } catch (final Exception e) {
+              throw new AssertionError(e);
+            }
+          });
+      assertTrue(transitionStarted.await(5, SECONDS));
+
+      finishCallback.countDown();
+      delivery.get(5, SECONDS);
+      transition.get(5, SECONDS);
+      callbackSubscription.get().close();
+    } finally {
+      finishCallback.countDown();
+      executor.shutdownNow();
+      service.close();
+    }
+  }
+
+  @Test
+  void cachedReplayUnsubscriptionDoesNotInvertPollerAndSubscriberLocks() throws Exception {
+    final ConfigurationPoller poller = mock(ConfigurationPoller.class);
+    final CountDownLatch pollerLocked = new CountDownLatch(1);
+    final CountDownLatch startPoll = new CountDownLatch(1);
+    doAnswer(
+            invocation -> {
+              synchronized (poller) {
+                return null;
+              }
+            })
+        .when(poller)
+        .addCapabilities(Capabilities.CAPABILITY_FFE_FLAG_DEPENDENT_FLAG_VARIANT_KEY_V1);
+    final RemoteConfigServiceImpl service = new RemoteConfigServiceImpl(poller);
+    final AutoCloseable legacy = service.subscribe(content -> {});
+    service.accept("key", DOCUMENT, mock(PollingRateHinter.class));
+    final ExecutorService executor = Executors.newFixedThreadPool(2);
+    try {
+      final Future<?> poll =
+          executor.submit(() -> {
+            synchronized (poller) {
+              pollerLocked.countDown();
+              try {
+                assertTrue(startPoll.await(5, SECONDS));
+              } catch (final InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new AssertionError(e);
+              }
+              assertThrows(
+                  IllegalStateException.class,
+                  () -> service.accept("key", DOCUMENT, mock(PollingRateHinter.class)));
+            }
+          });
+      final Future<AutoCloseable> supported =
+          executor.submit(() ->
+              service.subscribe(
+                  content -> {
+                    try {
+                      assertTrue(pollerLocked.await(5, SECONDS));
+                      startPoll.countDown();
+                      legacy.close();
+                    } catch (final Exception e) {
+                      throw new AssertionError(e);
+                    }
+                  },
+                  Collections.singleton("dependent-flag-variant-key-v1")));
+
+      supported.get(5, SECONDS).close();
+      poll.get(5, SECONDS);
+    } finally {
+      startPoll.countDown();
+      executor.shutdownNow();
+      service.close();
+    }
+  }
+
+  @Test
+  void restartOverlappingCapabilityRemovalResumesDelivery() throws Exception {
+    final ConfigurationPoller poller = mock(ConfigurationPoller.class);
+    final CountDownLatch removalStarted = new CountDownLatch(1);
+    final CountDownLatch finishRemoval = new CountDownLatch(1);
+    doAnswer(
+            invocation -> {
+              removalStarted.countDown();
+              assertTrue(finishRemoval.await(5, SECONDS));
+              return null;
+            })
+        .when(poller)
+        .removeCapabilities(Capabilities.CAPABILITY_FFE_FLAG_DEPENDENT_FLAG_VARIANT_KEY_V1);
+    final RemoteConfigServiceImpl service = new RemoteConfigServiceImpl(poller);
+    service.subscribe(content -> {}, Collections.singleton("dependent-flag-variant-key-v1"));
+    final ExecutorService executor = Executors.newFixedThreadPool(2);
+    final List<byte[]> restartedDocuments = new CopyOnWriteArrayList<>();
+    try {
+      final Future<?> close = executor.submit(service::close);
+      assertTrue(removalStarted.await(5, SECONDS));
+      final Future<AutoCloseable> restarted =
+          executor.submit(() -> service.subscribe(restartedDocuments::add));
+      final AutoCloseable restartedHandle = restarted.get(5, SECONDS);
+
+      finishRemoval.countDown();
+      close.get(5, SECONDS);
+      service.accept("key", DOCUMENT, mock(PollingRateHinter.class));
+
+      assertEquals(1, restartedDocuments.size());
+      restartedHandle.close();
+    } finally {
+      finishRemoval.countDown();
+      executor.shutdownNow();
+      service.close();
+    }
+  }
+
+  @Test
+  void unknownEvaluatorCapabilitiesDoNotOptIn() {
+    final ConfigurationPoller poller = mock(ConfigurationPoller.class);
+    final RemoteConfigServiceImpl service = new RemoteConfigServiceImpl(poller);
+    service.subscribe(content -> {}, Collections.singleton("unknown-v1"));
+    verify(poller, never())
+        .addCapabilities(Capabilities.CAPABILITY_FFE_FLAG_DEPENDENT_FLAG_VARIANT_KEY_V1);
+    service.close();
+  }
 
   @Test
   @SuppressWarnings("unchecked")

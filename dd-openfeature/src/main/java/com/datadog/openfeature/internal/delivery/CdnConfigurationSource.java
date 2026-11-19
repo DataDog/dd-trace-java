@@ -6,17 +6,20 @@ import com.datadog.openfeature.internal.ConfigurationService;
 import com.datadog.openfeature.internal.RuntimeServices;
 import com.datadog.openfeature.internal.bridge.v1.HealthMetrics;
 import com.datadog.openfeature.internal.config.Settings;
+import com.datadog.openfeature.internal.evaluation.EvaluatorCapabilities;
 import com.datadog.openfeature.internal.ufc.ServerConfiguration;
 import com.datadog.openfeature.internal.ufc.UniversalFlagConfigParser;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URI;
+import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -36,6 +39,10 @@ public final class CdnConfigurationSource implements ConfigurationService {
 
   static final String UFC_RULES_BASED_SERVER_PATH =
       "/api/v2/feature-flagging/config/rules-based/server";
+  private static final String DEPENDENT_FLAG_VARIANT_KEY_PARAMETER =
+      "cap_dependent-flags-variant-key";
+  static final String DEPENDENT_FLAG_VARIANT_KEY_QUERY =
+      DEPENDENT_FLAG_VARIANT_KEY_PARAMETER + "=v1";
   static final int MAX_ATTEMPTS = 3;
   private static final long FIRST_RETRY_MIN_MILLIS = 2_000;
   private static final long FIRST_RETRY_MAX_MILLIS = 10_000;
@@ -128,8 +135,10 @@ public final class CdnConfigurationSource implements ConfigurationService {
       final DoubleSupplier jitter,
       final RuntimeServices services) {
     // The endpoint is fixed for the life of the source, so the URL check holds for every request.
-    final URI selected = selection.appendTo(endpoint);
-    this.endpoint = selected == null ? endpoint : selected;
+    // Add the capability query before checking the limit because it is part of the request URL.
+    final URI capableEndpoint = requestEndpoint(endpoint, EvaluatorCapabilities.supported());
+    final URI selected = selection.appendTo(capableEndpoint);
+    this.endpoint = selected == null ? capableEndpoint : selected;
     this.selection = selected == null ? FlagSelectionRequest.urlTooLong() : selection;
     this.selectionSent = selected != null && selection.hasValues();
     this.apiKey = apiKey;
@@ -178,7 +187,8 @@ public final class CdnConfigurationSource implements ConfigurationService {
     }
     // Logged last: a diagnostic must not keep the polling from starting.
     LOGGER.debug(
-        "Feature Flags agentless configuration source started: endpoint={}://{}{}, pollIntervalMillis={}, requestTimeout={}",
+        "Feature Flags agentless configuration source started: endpoint={}://{}{},"
+            + " pollIntervalMillis={}, requestTimeout={}",
         // The origin only: the userinfo, the path and the query of a custom endpoint can carry a
         // credential.
         this.endpoint.getScheme(),
@@ -302,14 +312,16 @@ public final class CdnConfigurationSource implements ConfigurationService {
       configuration = UniversalFlagConfigParser.parseJsonApi(Gzip.decode(response));
     } catch (final IOException | RuntimeException e) {
       LOGGER.debug(
-          "Feature Flags configuration endpoint returned a malformed payload ({}); retaining the current configuration",
+          "Feature Flags configuration endpoint returned a malformed payload ({}); retaining the"
+              + " current configuration",
           e.getClass().getSimpleName(),
           e);
       return false;
     }
     if (configuration == null) {
       LOGGER.debug(
-          "Feature Flags configuration endpoint returned no flag data; retaining the current configuration");
+          "Feature Flags configuration endpoint returned no flag data; retaining the current"
+              + " configuration");
       return false;
     }
     this.listener.accept(configuration);
@@ -374,6 +386,54 @@ public final class CdnConfigurationSource implements ConfigurationService {
       request.header("If-None-Match", currentEtag);
     }
     return request.GET().build();
+  }
+
+  static URI requestEndpoint(final URI endpoint, final Set<String> capabilities) {
+    if (!capabilities.contains(EvaluatorCapabilities.DEPENDENT_FLAG_VARIANT_KEY_V1)) {
+      return endpoint;
+    }
+    final StringBuilder query = new StringBuilder();
+    final String rawQuery = endpoint.getRawQuery();
+    if (rawQuery != null) {
+      int itemStart = 0;
+      while (itemStart <= rawQuery.length()) {
+        final int separator = rawQuery.indexOf('&', itemStart);
+        final String item =
+            separator < 0
+                ? rawQuery.substring(itemStart)
+                : rawQuery.substring(itemStart, separator);
+        if (!isDependentFlagCapability(item)) {
+          if (query.length() > 0) {
+            query.append('&');
+          }
+          query.append(item);
+        }
+        if (separator < 0) {
+          break;
+        }
+        itemStart = separator + 1;
+      }
+    }
+    if (query.length() > 0) {
+      query.append('&');
+    }
+    query.append(DEPENDENT_FLAG_VARIANT_KEY_QUERY);
+
+    final String endpointText = endpoint.toString();
+    final int fragmentStart = endpointText.indexOf('#');
+    final String fragment = fragmentStart < 0 ? "" : endpointText.substring(fragmentStart);
+    final String withoutFragment =
+        fragmentStart < 0 ? endpointText : endpointText.substring(0, fragmentStart);
+    final int queryStart = withoutFragment.indexOf('?');
+    final String path = queryStart < 0 ? withoutFragment : withoutFragment.substring(0, queryStart);
+    return URI.create(path + "?" + query + fragment);
+  }
+
+  private static boolean isDependentFlagCapability(final String item) {
+    final int equals = item.indexOf('=');
+    final String key = equals < 0 ? item : item.substring(0, equals);
+    return DEPENDENT_FLAG_VARIANT_KEY_PARAMETER.equals(
+        URLDecoder.decode(key, StandardCharsets.UTF_8));
   }
 
   private synchronized void warn(final String message, final Object... arguments) {
