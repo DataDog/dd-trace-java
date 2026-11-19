@@ -49,8 +49,8 @@ class SpotBugsConventionsPluginTest : GradleFixture() {
   }
 
   @Test
-  fun `test benchmark and smoke sources are not analysed`() {
-    val sourceSets = listOf("test", "integrationTest", "test_java17", "jmh", "otherMain")
+  fun `other non-production and smoke sources are not analysed`() {
+    val sourceSets = listOf("integrationTest", "test_java17", "otherMain")
     sourceSets.forEach {
       writeRootProject("""sourceSets.maybeCreate("$it")""", append = true)
       writeViolation(it)
@@ -60,14 +60,19 @@ class SpotBugsConventionsPluginTest : GradleFixture() {
       """
       plugins { id("dd-trace-java.conventions.spotbugs") }
       sourceSets.create("main_java17")
+      sourceSets.create("jmh")
       """
     )
     writeViolation("main", ":dd-smoke-tests:application")
     writeViolation("main_java17", ":dd-smoke-tests:application")
+    writeViolation("test", ":dd-smoke-tests:application")
+    writeViolation("jmh", ":dd-smoke-tests:application")
     val taskPaths = sourceSets.map { ":spotbugs" + it.replaceFirstChar(Char::uppercaseChar) } +
       listOf(
         ":dd-smoke-tests:application:spotbugsMain",
-        ":dd-smoke-tests:application:spotbugsMain_java17"
+        ":dd-smoke-tests:application:spotbugsMain_java17",
+        ":dd-smoke-tests:application:spotbugsTest",
+        ":dd-smoke-tests:application:spotbugsJmh"
       )
 
     val result = run(*taskPaths.toTypedArray())
