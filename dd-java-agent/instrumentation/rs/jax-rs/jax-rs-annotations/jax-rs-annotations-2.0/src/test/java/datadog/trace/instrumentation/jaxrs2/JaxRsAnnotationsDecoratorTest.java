@@ -4,8 +4,16 @@ import static datadog.trace.instrumentation.jaxrs2.JaxRsAnnotationsDecorator.DEC
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.anyByte;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
+import datadog.trace.api.KnownTags;
 import datadog.trace.api.Pair;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.lang.annotation.AnnotationFormatError;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -137,6 +145,38 @@ class JaxRsAnnotationsDecoratorTest {
 
     assertEquals("GET", String.valueOf(httpMethodAndRoute.getLeft()));
     assertEquals("/orders/{id}", String.valueOf(httpMethodAndRoute.getRight()));
+  }
+
+  /**
+   * With every @Path unreadable and a readable @GET, there's no route: the span keeps its name
+   * rather than being renamed to "GET " with an empty http.route.
+   */
+  @Test
+  void keepsTheSpanNameWhenNoPathIsReadable() throws Exception {
+    Class<?> resource =
+        new ByteBuddy()
+            .with(TypeValidation.DISABLED)
+            .subclass(Object.class)
+            .annotateType(path("/orders"), path("/orders"))
+            .defineMethod("get", String.class, Visibility.PUBLIC)
+            .intercept(FixedValue.value("order"))
+            .annotateMethod(AnnotationDescription.Builder.ofType(GET.class).build())
+            .make()
+            .load(
+                JaxRsAnnotationsDecoratorTest.class.getClassLoader(),
+                ClassLoadingStrategy.Default.WRAPPER)
+            .getLoaded();
+    Method method = resource.getMethod("get");
+
+    Pair<CharSequence, CharSequence> httpMethodAndRoute =
+        DECORATE.getHttpMethodAndRoute(resource, method);
+    assertEquals("GET", String.valueOf(httpMethodAndRoute.getLeft()));
+    assertNull(httpMethodAndRoute.getRight());
+
+    AgentSpan span = mock(AgentSpan.class);
+    DECORATE.onJaxRsSpan(span, null, resource, method);
+    verify(span, never()).setTag(eq(KnownTags.HTTP_ROUTE), nullable(CharSequence.class));
+    verify(span, never()).setResourceName(nullable(CharSequence.class), anyByte());
   }
 
   @Test
