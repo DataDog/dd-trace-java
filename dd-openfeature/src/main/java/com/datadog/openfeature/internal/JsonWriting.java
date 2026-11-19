@@ -57,7 +57,7 @@ public final class JsonWriting {
   }
 
   /** Writes into a buffer: the generator flushes its own buffer into it. */
-  private static final class ChunkedOutput extends OutputStream {
+  static final class ChunkedOutput extends OutputStream {
     private final ChunkedBuffer buffer;
 
     ChunkedOutput(final ChunkedBuffer buffer) {
