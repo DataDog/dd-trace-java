@@ -14,13 +14,16 @@ import com.datadog.openfeature.internal.ufc.UniversalFlagConfigParser;
 import dev.openfeature.sdk.MutableContext;
 import dev.openfeature.sdk.MutableStructure;
 import dev.openfeature.sdk.ProviderEvaluation;
+import dev.openfeature.sdk.Structure;
 import dev.openfeature.sdk.Value;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
 
 /** JSON variants are converted once, at parse time, and shared by every evaluation. */
 class FlagEvaluatorJsonValueTest {
@@ -125,10 +128,22 @@ class FlagEvaluatorJsonValueTest {
     final MutableStructure structure =
         (MutableStructure) evaluate(config(VARIANT)).getValue().asStructure();
 
-    final UnsupportedOperationException error =
-        assertThrows(UnsupportedOperationException.class, () -> structure.add("k", 1));
+    final List<Executable> changes =
+        asList(
+            () -> structure.add("k", new Value("v")),
+            () -> structure.add("k", Boolean.TRUE),
+            () -> structure.add("k", "v"),
+            () -> structure.add("k", 1),
+            () -> structure.add("k", 1.5),
+            () -> structure.add("k", Instant.EPOCH),
+            () -> structure.add("k", (Structure) new MutableStructure()),
+            () -> structure.add("k", asList(new Value(1))));
 
-    assertTrue(error.getMessage().contains("read-only"), error.getMessage());
+    for (final Executable change : changes) {
+      final UnsupportedOperationException error =
+          assertThrows(UnsupportedOperationException.class, change);
+      assertTrue(error.getMessage().contains("read-only"), error.getMessage());
+    }
   }
 
   @Test
