@@ -7,6 +7,7 @@ import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.DDSpan;
+import datadog.trace.test.junit.utils.config.WithConfig;
 import java.lang.reflect.Field;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -32,6 +33,7 @@ import org.springframework.kafka.test.utils.KafkaTestUtils;
  * through ConstructorAdvice, not LegacyConstructorAdvice, so this checks that its spans still get
  * the bootstrap servers and the cluster ID.
  */
+@WithConfig(key = "data.streams.enabled", value = "false")
 class KafkaAsyncConsumerWithoutGroupForkedTest extends AbstractInstrumentationTest {
   private static final String TOPIC = "async-consumer-without-group";
   private static final TopicPartition PARTITION = new TopicPartition(TOPIC, 0);
