@@ -19,6 +19,7 @@ import dev.openfeature.sdk.Value;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -78,9 +79,29 @@ public class ClientEvaluationBenchmark {
   /** The position of one benchmark thread in the cases and subjects. */
   @State(Scope.Thread)
   public static class Cursor {
+    private static final AtomicInteger THREADS = new AtomicInteger();
+
     private int nextCase;
     private int nextSubject;
     private final SubjectContext context = new SubjectContext();
+
+    /**
+     * Threads that start at the same case and subject stay in lockstep, all evaluating the same
+     * flag for the same subject at once. Start each thread at its own offset instead.
+     */
+    @Setup(Level.Trial)
+    public void spread(final ClientEvaluationBenchmark benchmark) {
+      final int thread = THREADS.getAndIncrement();
+      nextCase = offset(thread, benchmark.scaleCases.length);
+      if (benchmark.subjectKeys != null) {
+        nextSubject = offset(thread, benchmark.subjectKeys.length);
+      }
+    }
+
+    /** Fibonacci hashing spreads consecutive thread numbers across the range. */
+    private static int offset(final int thread, final int length) {
+      return (int) (((thread * 0x9E3779B9L) & 0xFFFFFFFFL) * length >>> 32);
+    }
 
     ScaleCase next(final ScaleCase[] scaleCases) {
       final ScaleCase scaleCase = scaleCases[nextCase];
