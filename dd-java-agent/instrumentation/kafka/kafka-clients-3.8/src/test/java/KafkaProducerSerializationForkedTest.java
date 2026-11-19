@@ -14,7 +14,6 @@ import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.core.DDSpan;
-import datadog.trace.test.junit.utils.config.WithConfig;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import org.apache.kafka.clients.producer.KafkaProducer;
@@ -25,7 +24,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.kafka.test.EmbeddedKafkaKraftBroker;
 import org.springframework.kafka.test.utils.KafkaTestUtils;
 
-@WithConfig(key = "trace.span.attribute.schema", value = "v0")
 class KafkaProducerSerializationForkedTest extends AbstractInstrumentationTest {
   @Test
   void serializerFailureFinishesErrorSpanAndRestoresParent() throws Exception {
