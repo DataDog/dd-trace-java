@@ -20,6 +20,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -156,7 +157,7 @@ public class ExternalAgentLauncher implements Closeable {
 
     /** Checks the process that has the pipe, which may or may not be the supervisor's own. */
     private ProcessSupervisor.Health healthOfBoundProcess() throws InterruptedException {
-      return !checkResponse || agentResponds() ? HEALTHY : UNHEALTHY;
+      return !checkResponse || agentResponds(this::sendInfoRequest) ? HEALTHY : UNHEALTHY;
     }
 
     /**
@@ -165,8 +166,10 @@ public class ExternalAgentLauncher implements Closeable {
      * until the agent exits. Until then later checks fail without sending another request. An
      * answer that arrives after the timeout still counts at the next check, so a slow agent is not
      * restarted.
+     *
+     * @param request returns true if the agent answered
      */
-    private boolean agentResponds() throws InterruptedException {
+    boolean agentResponds(Callable<Boolean> request) throws InterruptedException {
       FutureTask<Boolean> lateRequest = timedOutInfoRequest;
       if (lateRequest != null) {
         if (!lateRequest.isDone()) {
@@ -177,7 +180,7 @@ public class ExternalAgentLauncher implements Closeable {
           return true;
         }
       }
-      FutureTask<Boolean> infoRequest = new FutureTask<>(this::sendInfoRequest);
+      FutureTask<Boolean> infoRequest = new FutureTask<>(request);
       requestThread().execute(infoRequest);
       try {
         return infoRequest.get(RESPONSE_TIMEOUT_MILLIS, MILLISECONDS);
