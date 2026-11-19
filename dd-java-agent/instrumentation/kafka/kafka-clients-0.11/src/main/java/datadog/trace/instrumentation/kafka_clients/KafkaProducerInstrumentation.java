@@ -14,6 +14,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.JAVA_KAFKA;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_PRODUCE;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.PRODUCER_DECORATE;
@@ -188,9 +189,19 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
       // Clear cluster ID from Schema Registry instrumentation
       ClusterIdHolder.clear();
 
-      PRODUCER_DECORATE.onError(scope, throwable);
-      PRODUCER_DECORATE.beforeFinish(scope);
+      if (scope == null) {
+        return;
+      }
+      // Kafka can throw before handing the send to its completion callback.
+      AgentSpan span = throwable == null ? null : spanFromScope(scope);
+      if (span != null) {
+        PRODUCER_DECORATE.onError(span, throwable);
+        PRODUCER_DECORATE.beforeFinish(span);
+      }
       scope.close();
+      if (span != null) {
+        span.finish();
+      }
     }
   }
 
