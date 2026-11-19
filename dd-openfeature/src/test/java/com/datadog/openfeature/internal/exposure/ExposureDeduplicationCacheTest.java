@@ -10,6 +10,18 @@ import org.tabletest.junit.TableTest;
 class ExposureDeduplicationCacheTest {
 
   @Test
+  void worksBeforeItsFirstExposure() {
+    // The table is created on the first recorded exposure.
+    final ExposureDeduplicationCache cache = new ExposureDeduplicationCache();
+
+    assertEquals(0, cache.size());
+    assertFalse(cache.contains("flag", "subject", "allocation", "variant", null));
+    cache.clear();
+    assertTrue(cache.recordIfChanged("flag", "subject", "allocation", "variant", null));
+    assertEquals(1, cache.size());
+  }
+
+  @Test
   void recordsANewExposure() {
     final ExposureDeduplicationCache cache = new ExposureDeduplicationCache(5);
 
