@@ -1,8 +1,10 @@
 package com.datadog.openfeature.internal.evaluation;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.Arrays.asList;
+import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -13,6 +15,7 @@ import dev.openfeature.sdk.MutableContext;
 import dev.openfeature.sdk.MutableStructure;
 import dev.openfeature.sdk.ProviderEvaluation;
 import dev.openfeature.sdk.Value;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -37,15 +40,29 @@ class FlagEvaluatorJsonValueTest {
 
   @Test
   void returnsTheValueThatObjectToValueReturns() throws Exception {
-    final ServerConfiguration config = config(VARIANT);
-    final Object tree = config.flags.get("f").variations.get("on").value;
+    final Map<String, Object> nested = new HashMap<>();
+    nested.put("items", asList(1, singletonMap("n", 2)));
+    final Map<String, Object> expected = new HashMap<>();
+    expected.put("name", "blue");
+    expected.put("count", 5);
+    expected.put("big", 9007199254740993L);
+    expected.put("ratio", 1.5);
+    expected.put("on", true);
+    expected.put("none", null);
+    expected.put("tags", asList("a", "b"));
+    expected.put("nested", nested);
 
-    final Value value = evaluate(config).getValue();
+    final Value value = evaluate(config(VARIANT)).getValue();
 
-    assertEquals(Value.objectToValue(tree), value);
-    assertEquals(
-        Value.objectToValue(tree).asStructure().asObjectMap(), value.asStructure().asObjectMap());
+    assertEquals(Value.objectToValue(expected), value);
+    assertEquals(expected, value.asStructure().asObjectMap());
     assertTrue(value.asStructure() instanceof MutableStructure);
+  }
+
+  @Test
+  void returnsAScalarJsonVariant() throws Exception {
+    assertEquals("text", evaluate(config("\"text\"")).getValue().asString());
+    assertEquals(5, evaluate(config("5")).getValue().asObject());
   }
 
   @Test
@@ -147,7 +164,7 @@ class FlagEvaluatorJsonValueTest {
     assertEquals(5.0, integer.flags.get("f").variations.get("on").value);
     assertEquals(
         "{n=5.0, l=[1.0]}", String.valueOf(string.flags.get("f").variations.get("on").value));
-    assertNull(string.flags.get("f").variations.get("on").frozenValue);
+    assertFalse(string.flags.get("f").variations.get("on").value instanceof Value);
   }
 
   @Test

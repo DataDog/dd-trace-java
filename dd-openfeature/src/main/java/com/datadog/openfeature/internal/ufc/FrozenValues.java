@@ -19,16 +19,24 @@ import java.util.Map;
  * Value#objectToValue}. Each JSON array becomes an unmodifiable list.
  */
 final class FrozenValues {
-  /** Tells whether the loaded OpenFeature SDK accepts {@link Long} values (1.22.0 or later). */
+  /**
+   * Tells whether the loaded OpenFeature SDK supports {@link Long} values. 1.22.0 added {@code
+   * Value(Long)}, and 1.22.1 taught {@link Structure#convertValue} to convert it back.
+   */
   static final boolean LONG_VALUES = hasLongValues();
+
+  private static final Value NULL = new Value();
+  private static final Value TRUE = new Value(true);
+  private static final Value FALSE = new Value(false);
 
   private FrozenValues() {}
 
   private static boolean hasLongValues() {
     try {
-      Value.class.getConstructor(Long.class);
-      return true;
-    } catch (final NoSuchMethodException e) {
+      // Not new Value(1L): that constructor is missing before 1.22.0.
+      return Long.valueOf(1L).equals(new MutableStructure().convertValue(Value.objectToValue(1L)));
+    } catch (final RuntimeException e) {
+      // Before 1.22.0 objectToValue rejects a Long; 1.22.0 cannot convert it back.
       return false;
     }
   }
@@ -59,14 +67,14 @@ final class FrozenValues {
       }
       return new Value(Collections.unmodifiableList(items));
     }
+    if (tree == null) {
+      return NULL;
+    }
+    if (tree instanceof Boolean) {
+      // Values cannot change, so the common scalars are shared.
+      return (Boolean) tree ? TRUE : FALSE;
+    }
     return Value.objectToValue(tree);
-  }
-
-  /** Returns the plain form of a frozen value, equal to the tree that was frozen. */
-  static Object plain(final Value frozen) {
-    return frozen.isStructure()
-        ? frozen.asStructure().asObjectMap()
-        : FrozenStructure.toObject(frozen);
   }
 
   private static int capacity(final int size) {
@@ -102,9 +110,7 @@ final class FrozenValues {
     private static Map<String, Object> toObjectMap(final Structure structure) {
       final Map<String, Value> attributes = structure.asUnmodifiableMap();
       final Map<String, Object> map = new HashMap<>(capacity(attributes.size()));
-      for (final Map.Entry<String, Value> entry : attributes.entrySet()) {
-        map.put(entry.getKey(), toObject(entry.getValue()));
-      }
+      attributes.forEach((key, value) -> map.put(key, toObject(value)));
       return Collections.unmodifiableMap(map);
     }
 

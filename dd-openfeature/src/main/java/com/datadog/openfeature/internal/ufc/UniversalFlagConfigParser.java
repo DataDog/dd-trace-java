@@ -7,7 +7,6 @@ import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
-import dev.openfeature.sdk.Value;
 import java.io.IOException;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
@@ -292,30 +291,27 @@ public final class UniversalFlagConfigParser {
     final Object variantValue = json.get("value");
     if (variationType != ValueType.JSON) {
       // Only JSON flags keep exact integers.
-      return new Variant(key, withDoubles(variantValue), null);
+      return new Variant(key, withDoubles(variantValue));
     }
-    if (!FrozenValues.isContainer(variantValue)) {
-      return new Variant(key, variantValue, null);
-    }
-    // Freeze once and share it. Keep its plain form instead of the parsed tree.
-    final Value frozen = FrozenValues.freeze(variantValue);
-    return new Variant(key, FrozenValues.plain(frozen), frozen);
+    // Convert an object or array once, here, so that each evaluation shares it.
+    return new Variant(
+        key,
+        FrozenValues.isContainer(variantValue) ? FrozenValues.freeze(variantValue) : variantValue);
   }
 
-  /** Replaces each Integer or Long in a variant value with the equal Double. */
+  /**
+   * Replaces each Integer or Long in a variant value with the equal Double. The parser built the
+   * maps and lists, so they are changed in place.
+   */
+  @SuppressWarnings("unchecked")
   private static Object withDoubles(@Nullable final Object value) {
     if (value instanceof Integer || value instanceof Long) {
       return ((Number) value).doubleValue();
     }
     if (value instanceof Map) {
-      final Map<Object, Object> map = new LinkedHashMap<>();
-      ((Map<?, ?>) value).forEach((k, v) -> map.put(k, withDoubles(v)));
-      return map;
-    }
-    if (value instanceof List) {
-      final List<Object> list = new ArrayList<>();
-      ((List<?>) value).forEach(v -> list.add(withDoubles(v)));
-      return list;
+      ((Map<Object, Object>) value).replaceAll((k, v) -> withDoubles(v));
+    } else if (value instanceof List) {
+      ((List<Object>) value).replaceAll(UniversalFlagConfigParser::withDoubles);
     }
     return value;
   }
