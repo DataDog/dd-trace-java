@@ -16,6 +16,7 @@ import dev.openfeature.sdk.FlagEvaluationDetails;
 import dev.openfeature.sdk.MutableContext;
 import dev.openfeature.sdk.OpenFeatureAPI;
 import dev.openfeature.sdk.Value;
+import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -41,7 +42,8 @@ import org.openjdk.jmh.annotations.Warmup;
  *
  * <p>The runtime receives the suite's configuration from a fake Remote Configuration source and
  * posts its events to a transport that drops them, so its background threads aggregate and
- * serialize as in production, without network I/O. The OpenTelemetry API is the no-op one.
+ * serialize as in production, without network I/O. The transport takes chunked payloads as they
+ * are, like direct intake. The OpenTelemetry API is the no-op one.
  *
  * <p>{@code subjects=repeated} evaluates each case with its own targeting key, so the exposure of a
  * case is sent once and then deduplicated. {@code subjects=unique} evaluates each case for another
@@ -215,7 +217,14 @@ public class ClientEvaluationBenchmark {
 
     @Override
     public EventTransport eventProxy() {
-      return (route, json) -> {};
+      // Takes the chunks as they are, like the direct intake transport that streams them.
+      return new EventTransport() {
+        @Override
+        public void post(final String route, final byte[] json) {}
+
+        @Override
+        public void post(final String route, final List<ByteBuffer> json) {}
+      };
     }
 
     @Override
