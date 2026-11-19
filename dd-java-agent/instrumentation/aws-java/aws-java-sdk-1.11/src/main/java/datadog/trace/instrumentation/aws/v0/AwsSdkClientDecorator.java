@@ -275,7 +275,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
    * so it names the callee's account and Region.
    */
   static boolean isTableArn(String tableName) {
-    return TABLE_ARN_PATTERN.matcher(tableName).matches();
+    return tableName.startsWith("arn:") && TABLE_ARN_PATTERN.matcher(tableName).matches();
   }
 
   /**

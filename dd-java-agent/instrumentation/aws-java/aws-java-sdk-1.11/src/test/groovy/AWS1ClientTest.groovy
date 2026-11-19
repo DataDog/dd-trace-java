@@ -277,7 +277,7 @@ abstract class AWS1ClientTest extends VersionedNamingTestBase {
     then:
     def spans = TEST_WRITER.get(0)
     spans.size() == 1
-    // the table name tag keeps the request value as before
+    // the table name tag keeps the request value
     spans[0].getTag("aws.table.name") == tableName
     spans[0].getTag("aws.table.arn") == expectedArn
 
