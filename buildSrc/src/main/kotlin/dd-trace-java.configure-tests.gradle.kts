@@ -39,7 +39,6 @@ val skipTestsProvider = rootProject.providers.gradleProperty("skipTests")
 val skipForkedTestsProvider = rootProject.providers.gradleProperty("skipForkedTests")
 val skipFlakyTestsProvider = rootProject.providers.gradleProperty("skipFlakyTests")
 val runFlakyTestsProvider = rootProject.providers.gradleProperty("runFlakyTests")
-val rerunAllTestsProvider = rootProject.providers.gradleProperty("rerun.tests")
 val rerunTestsProperty = "rerun.tests.${project.name}"
 val rerunTestsProvider = rootProject.providers.gradleProperty(rerunTestsProperty)
 val testcontainersMaxParallelForks = providers.gradleProperty("testcontainersMaxParallelForks")
@@ -66,7 +65,6 @@ tasks.withType<Test>().configureEach {
   outputs.upToDateWhen { task ->
     val reason = when {
       isMasterBranch.get() -> "CI_COMMIT_BRANCH=master"
-      rerunAllTestsProvider.isPresent -> "rerun.tests is set"
       rerunTestsProvider.isPresent -> "$rerunTestsProperty is set"
       else -> return@upToDateWhen true
     }

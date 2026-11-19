@@ -100,11 +100,6 @@ workflow:
         SYSTEM_TESTS_RUN_ALL_VMS: "true"
       auto_cancel:
         on_new_commit: none
-    # Temporary full-matrix run to measure Testcontainers concurrency.
-    - if: '$CI_COMMIT_BRANCH == "alexeyk/testcontainers-parallel-forks"'
-      variables:
-        RUN_ALL_TESTS: "true"
-        NON_DEFAULT_JVMS: "true"
     - if: '$CI_COMMIT_BRANCH =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
       auto_cancel:
         on_new_commit: none
@@ -213,15 +208,11 @@ default:
 
 .gitlab_base_ref_params: &gitlab_base_ref_params
   - |
-    if [[ "${RUN_ALL_TESTS:-}" == "true" ]]; then
-      export GRADLE_PARAMS="${GRADLE_PARAMS:-} -Prerun.tests"
+    export GIT_BASE_REF=$(.gitlab/find-gh-base-ref.sh)
+    if [[ -n "$GIT_BASE_REF" ]]; then
+      export GRADLE_PARAMS="$GRADLE_PARAMS -PgitBaseRef=origin/$GIT_BASE_REF"
     else
-      export GIT_BASE_REF=$(.gitlab/find-gh-base-ref.sh)
-      if [[ -n "$GIT_BASE_REF" ]]; then
-        export GRADLE_PARAMS="$GRADLE_PARAMS -PgitBaseRef=origin/$GIT_BASE_REF"
-      else
-        echo "Failed to find base ref for PR" >&2
-      fi
+      echo "Failed to find base ref for PR" >&2
     fi
 
 .gradle_build: &gradle_build
