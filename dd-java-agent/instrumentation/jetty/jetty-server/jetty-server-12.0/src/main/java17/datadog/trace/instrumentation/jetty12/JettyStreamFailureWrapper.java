@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.jetty12;
 import static datadog.trace.bootstrap.ActiveSubsystems.APPSEC_ACTIVE;
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
+import static datadog.trace.instrumentation.jetty12.JettyBlockingExceptions.findBlockingException;
 import static datadog.trace.instrumentation.jetty12.JettyDecorator.DECORATE;
 
 import datadog.appsec.api.blocking.BlockingException;
@@ -29,7 +30,6 @@ import org.slf4j.LoggerFactory;
  */
 public final class JettyStreamFailureWrapper extends HttpStream.Wrapper {
   private static final Logger log = LoggerFactory.getLogger(JettyStreamFailureWrapper.class);
-  private static final int MAX_CAUSE_DEPTH = 16;
 
   private final Request request;
   private final Response response;
@@ -84,25 +84,5 @@ public final class JettyStreamFailureWrapper extends HttpStream.Wrapper {
       DECORATE.onError(span, blockingException);
     }
     DECORATE.finishSpan(context, span, request, response);
-  }
-
-  /** Looks for a {@link BlockingException} in the cause chain and the top-level suppressed list. */
-  static Throwable findBlockingException(final Throwable failure) {
-    if (failure == null) {
-      return null;
-    }
-    Throwable current = failure;
-    for (int depth = 0; current != null && depth < MAX_CAUSE_DEPTH; depth++) {
-      if (current instanceof BlockingException) {
-        return current;
-      }
-      current = current.getCause();
-    }
-    for (final Throwable suppressed : failure.getSuppressed()) {
-      if (suppressed instanceof BlockingException) {
-        return suppressed;
-      }
-    }
-    return null;
   }
 }

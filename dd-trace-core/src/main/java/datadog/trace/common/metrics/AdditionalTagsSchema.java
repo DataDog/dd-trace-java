@@ -1,5 +1,6 @@
 package datadog.trace.common.metrics;
 
+import datadog.trace.api.TagLookup;
 import datadog.trace.api.metrics.StatsMetrics;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.monitor.HealthMetrics;
@@ -33,11 +34,15 @@ final class AdditionalTagsSchema {
 
   final String[] names;
 
+  /** {@link #names}, resolved once for the bulk read on each published span. */
+  final TagLookup lookup;
+
   /** Per-key handlers providing UTF8 caching and per-cycle cardinality limiting. */
   private final TagCardinalityHandler[] handlers;
 
   private AdditionalTagsSchema(String[] names, TagCardinalityHandler[] handlers) {
     this.names = names;
+    this.lookup = TagLookup.of(names);
     this.handlers = handlers;
   }
 

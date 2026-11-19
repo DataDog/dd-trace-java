@@ -261,7 +261,7 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   }
 
   @Override
-  public void onCreateSpan() {
+  public void onCreateSpan(final DDSpan span) {
     createdSpans.increment();
   }
 

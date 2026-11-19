@@ -460,6 +460,50 @@ final class DenseIdStore extends IdStore {
     return this.getVisible((char) KnownTagCodec.serialNum(tagId), slotBit(tagId), levelOf(tagId));
   }
 
+  /**
+   * Two mask tests per level against the lookup's folded slot bits: a store whose live, local or
+   * inherited, slots share no bit with any of the lookup's tags holds none of them.
+   */
+  @Override
+  public boolean mayHoldAny(TagLookup lookup) {
+    long span = lookup.spanMask;
+    long trace = lookup.traceMask;
+    return (this.spanOccupancy & span) != 0L
+        || (this.traceOccupancy & trace) != 0L
+        || ((this.inheritedLevels & SPAN_LEVEL) != 0 && (this.inheritedMask & span) != 0L)
+        || ((this.inheritedLevels & TRACE_LEVEL) != 0 && (this.inheritedMask & trace) != 0L);
+  }
+
+  /**
+   * The bulk read without name resolution or per-call key decoding: the lookup carries each tag's
+   * serial, slot bit and level, and a tag whose slot this store can't hold, locally or through its
+   * parent, costs two bit tests.
+   */
+  @Override
+  public int loadStrings(TagLookup lookup, String[] out) {
+    long[] ids = lookup.ids;
+    char[] serials = lookup.serials;
+    long[] bits = lookup.bits;
+    int[] levels = lookup.levels;
+    int found = 0;
+    for (int i = 0; i < ids.length; i++) {
+      if (ids[i] == 0) {
+        continue;
+      }
+      long bit = bits[i];
+      int level = levels[i];
+      if (!this.mayHaveLocal(bit, level) && !this.mayInherit(bit, level)) {
+        continue;
+      }
+      Object value = this.getVisible(serials[i], bit, level);
+      if (value != null) {
+        out[i] = value.toString();
+        found++;
+      }
+    }
+    return found;
+  }
+
   @Override
   public String loadString(long tagId) {
     Object value = this.load(tagId);

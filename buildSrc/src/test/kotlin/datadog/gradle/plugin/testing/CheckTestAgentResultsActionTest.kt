@@ -40,9 +40,10 @@ class CheckTestAgentResultsActionTest : GradleFixture() {
       failing.set(true)
 
       repeat(2) {
-        val failed = run("clean", "test", "--build-cache", "--configuration-cache", env = agentEnvironment, expectFailure = true)
+        val failed = run("clean", "test", "--build-cache", "--configuration-cache", env = agentEnvironment + ("GITLAB_CI" to "true"), expectFailure = true)
         assertThat(failed.task(":test")?.outcome).describedAs(failed.output).isEqualTo(FAILED)
         assertThat(failed.output).contains("APM Test Agent Check Traces failed")
+        assertThat(failed.output).contains("bad trace").doesNotContain("section_start:")
         if (it == 1) {
           assertThat(failed.task(":compileJava")?.outcome).isEqualTo(FROM_CACHE)
           assertThat(failed.output).contains("Reusing configuration cache")
@@ -67,9 +68,21 @@ class CheckTestAgentResultsActionTest : GradleFixture() {
     }
   }
 
-  @Test
-  fun `parallel test tasks use separate response directories`() {
-    withAgent { server, _, checks ->
+  @ParameterizedTest
+  @ValueSource(booleans = [false, true])
+  fun `parallel test tasks use separate response directories`(gitLabCi: Boolean) {
+    val summary = """{"trace_stall":{"Passed_Checks":1,"Failed_Checks":0,"Skipped_Checks":0}}"""
+    val expectedBody = """
+      APM Test Agent Check Traces Summary Results:
+      {
+        "trace_stall" : {
+          "Passed_Checks" : 1,
+          "Failed_Checks" : 0,
+          "Skipped_Checks" : 0
+        }
+      }
+    """.trimIndent()
+    withAgent(summary) { server, _, checks ->
       writeProject(server)
       addSubproject("second", testBuildScript)
       writeJavaSource(
@@ -84,10 +97,39 @@ class CheckTestAgentResultsActionTest : GradleFixture() {
         projectPath = ":second",
       )
 
-      val result = run("test", "--parallel", "--max-workers=2", "--build-cache", env = agentEnvironment)
+      val result = run(
+        "test",
+        "--parallel",
+        "--max-workers=2",
+        "--build-cache",
+        "--console=colored",
+        env = if (gitLabCi) agentEnvironment + ("GITLAB_CI" to "true") else agentEnvironment,
+        unsetEnv = setOf("GITLAB_CI"),
+      )
       assertThat(result.task(":test")?.outcome).describedAs(result.output).isEqualTo(SUCCESS)
       assertThat(result.task(":second:test")?.outcome).describedAs(result.output).isEqualTo(SUCCESS)
       assertThat(checks.get()).isEqualTo(2)
+      val output = result.output.replace("\r\n", "\n")
+      if (gitLabCi) {
+        val section = Regex(
+          """\u001B\[0Ksection_start:\d+:(apm-test-agent-summary-[\w-]+)\[collapsed=true]\r\u001B\[0K""" +
+            """All APM Test Agent Check Traces returned successful! \(HTTP 200\)\n""" +
+            """([\s\S]*?)\n""" +
+            """\u001B\[0Ksection_end:\d+:\1\r\u001B\[0K"""
+        )
+        val sections = section.findAll(output).toList()
+        assertThat(sections.map { it.groupValues[1] })
+          .describedAs(output)
+          .hasSize(2)
+          .doesNotHaveDuplicates()
+        sections.forEach { match ->
+          assertThat(match.groupValues[2])
+            .describedAs("Body of section %s", match.groupValues[1])
+            .isEqualTo(expectedBody)
+        }
+      } else {
+        assertThat(output).contains(expectedBody).doesNotContain("section_start:", "section_end:")
+      }
       listOf("build/reports/test-agent/test", "second/build/reports/test-agent/test").forEach { directory ->
         assertThat(file("$directory/summary_response.txt")).exists()
         assertThat(file("$directory/response.txt")).exists()
@@ -584,12 +626,15 @@ class CheckTestAgentResultsActionTest : GradleFixture() {
     )
   }
 
-  private fun withAgent(test: (MockWebServer, AtomicBoolean, AtomicInteger) -> Unit) {
+  private fun withAgent(summary: String = "{}", test: (MockWebServer, AtomicBoolean, AtomicInteger) -> Unit) {
     val failing = AtomicBoolean()
     val checks = AtomicInteger()
     MockWebServer().use { server ->
       server.setDispatcher(object : Dispatcher() {
         override fun dispatch(request: RecordedRequest): MockResponse {
+          if (request.requestUrl?.encodedPath() == "/test/trace_check/summary") {
+            return MockResponse().setBody(summary)
+          }
           if (request.requestUrl?.encodedPath() == "/test/trace_check/failures" && request.requestUrl?.queryParameter("return_all") == "true") {
             checks.incrementAndGet()
             if (failing.get()) {

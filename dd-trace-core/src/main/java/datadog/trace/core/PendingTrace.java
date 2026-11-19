@@ -206,7 +206,7 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
       ROOT_SPAN.compareAndSet(this, null, span);
     }
     PENDING_REFERENCE_COUNT.incrementAndGet(this);
-    healthMetrics.onCreateSpan();
+    healthMetrics.onCreateSpan(span);
     if (pendingTraceBuffer.longRunningSpansEnabled()) {
       spans.addFirst(span);
       trackRunningTrace(span);

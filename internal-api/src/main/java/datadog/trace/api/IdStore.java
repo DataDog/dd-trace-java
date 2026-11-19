@@ -145,6 +145,36 @@ public abstract class IdStore {
   public abstract Object load(long tagId);
 
   /**
+   * Whether this store may hold any of {@code lookup}'s known tags, plain or direction-scoped. A
+   * false is definite, so a reader can skip the whole set; a true only means "look". This base
+   * answer is the conservative one: a store that keeps presence masks overrides it.
+   */
+  public boolean mayHoldAny(TagLookup lookup) {
+    return !isDefinitelyEmpty();
+  }
+
+  /**
+   * Bulk read: for each of {@code lookup}'s known tags this store holds, writes its value's string
+   * form to the matching index of {@code out} (same order as the lookup's names), leaving the other
+   * indexes untouched. Custom names and direction-scoped fallbacks are the caller's (see {@link
+   * TagLookup}). Returns how many it wrote.
+   */
+  public int loadStrings(TagLookup lookup, String[] out) {
+    long[] ids = lookup.ids;
+    int found = 0;
+    for (int i = 0; i < ids.length; i++) {
+      if (ids[i] != 0) {
+        Object value = load(ids[i]);
+        if (value != null) {
+          out[i] = value.toString();
+          found++;
+        }
+      }
+    }
+    return found;
+  }
+
+  /**
    * Reads a known tag's value as a String. A store that keeps an Entry per tag answers with the
    * Entry's cached string, so a numeric tag read repeatedly, as the serializer does, is formatted
    * once.
