@@ -1,7 +1,10 @@
 package com.datadog.openfeature.internal.evaluation;
 
+import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
+import static java.util.Collections.nCopies;
 import static java.util.Collections.singletonList;
+import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -22,8 +25,6 @@ import dev.openfeature.sdk.ProviderEvaluation;
 import dev.openfeature.sdk.Value;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -62,8 +63,8 @@ class FlagEvaluatorMembershipTest {
     Boolean.TRUE,
     Boolean.FALSE,
     null,
-    Arrays.asList("42"),
-    Collections.singletonMap("k", 1.0),
+    asList("42"),
+    singletonMap("k", 1.0),
     // Equal to the map attribute below, but printed with the keys in the other order.
     orderedMap("b", 2.0, "a", 1.0)
   };
@@ -99,8 +100,8 @@ class FlagEvaluatorMembershipTest {
     Boolean.TRUE,
     Boolean.FALSE,
     Instant.parse("2024-01-01T00:00:00Z"),
-    Arrays.asList("42"),
-    Collections.singletonMap("k", 1.0),
+    asList("42"),
+    singletonMap("k", 1.0),
     orderedMap("a", 1.0, "b", 2.0)
   };
 
@@ -120,7 +121,7 @@ class FlagEvaluatorMembershipTest {
                 : Integer.toString(random.nextInt(60)));
       }
       for (final ConditionOperator operator :
-          Arrays.asList(ConditionOperator.ONE_OF, ConditionOperator.NOT_ONE_OF)) {
+          asList(ConditionOperator.ONE_OF, ConditionOperator.NOT_ONE_OF)) {
         for (final Object attribute : ATTRIBUTES) {
           assertSameResult(operator, list, attribute);
         }
@@ -140,15 +141,15 @@ class FlagEvaluatorMembershipTest {
   })
   void matchesTheScanForIntegerAttributes(
       final String list, final int attribute, final String indexed, final String scan) {
-    final List<Object> values = new ArrayList<>(Arrays.asList((Object[]) list.split(",")));
+    final List<Object> values = new ArrayList<>(asList((Object[]) list.split(",")));
     assertEquals(scan, outcome(evaluate(ConditionOperator.ONE_OF, values, attribute, false)));
     assertEquals(indexed, outcome(evaluate(ConditionOperator.ONE_OF, values, attribute, true)));
   }
 
   @Test
   void indexesOnlyListsOfTheMinimumSize() {
-    final List<Object> shortList = Collections.nCopies(MembershipIndexSizes.MIN - 1, "x");
-    final List<Object> longList = Collections.nCopies(MembershipIndexSizes.MIN, "x");
+    final List<Object> shortList = nCopies(MembershipIndexSizes.MIN - 1, "x");
+    final List<Object> longList = nCopies(MembershipIndexSizes.MIN, "x");
 
     assertNull(MembershipIndex.build(shortList));
     assertNotNull(MembershipIndex.build(longList));
@@ -175,16 +176,16 @@ class FlagEvaluatorMembershipTest {
   @Test
   void indexesOtherAttributeTypes() {
     final Object[] attributes = {
-      Instant.parse("2024-01-01T00:00:00Z"), Arrays.asList("42"), Collections.singletonMap("k", "v")
+      Instant.parse("2024-01-01T00:00:00Z"), asList("42"), singletonMap("k", "v")
     };
     final List<List<Object>> lists =
-        Arrays.asList(
-            Arrays.asList("2024-01-01T00:00:00Z", "x"),
-            Arrays.asList("[42]", "x"),
-            Arrays.asList("{k=v}", "x"),
-            Arrays.asList(42.0, "x"));
+        asList(
+            asList("2024-01-01T00:00:00Z", "x"),
+            asList("[42]", "x"),
+            asList("{k=v}", "x"),
+            asList(42.0, "x"));
     for (final ConditionOperator operator :
-        Arrays.asList(ConditionOperator.ONE_OF, ConditionOperator.NOT_ONE_OF)) {
+        asList(ConditionOperator.ONE_OF, ConditionOperator.NOT_ONE_OF)) {
       for (final List<Object> list : lists) {
         for (final Object attribute : attributes) {
           assertSameResult(operator, list, attribute);
@@ -200,7 +201,7 @@ class FlagEvaluatorMembershipTest {
     }
     // A map attribute can equal a nested map that prints its keys in another order.
     final MembershipIndex nested =
-        MembershipIndex.build(Arrays.asList(orderedMap("b", 2.0, "a", 1.0), "x"));
+        MembershipIndex.build(asList(orderedMap("b", 2.0, "a", 1.0), "x"));
     assertEquals(MembershipIndex.SCAN, nested.lookup(orderedMap("a", 1.0, "b", 2.0)));
     assertNotEquals(MembershipIndex.SCAN, nested.lookup("{b=2.0, a=1.0}"));
   }
@@ -280,12 +281,12 @@ class FlagEvaluatorMembershipTest {
             FLAG,
             true,
             ValueType.STRING,
-            Collections.singletonMap("in", new Variant("in", "in")),
+            singletonMap("in", new Variant("in", "in")),
             singletonList(allocation));
     final ServerConfiguration config =
-        new ServerConfiguration("", "", null, null, Collections.singletonMap(FLAG, flag));
+        new ServerConfiguration("", "", null, null, singletonMap(FLAG, flag));
     final MutableContext context =
-        new MutableContext("user", Collections.singletonMap("attr", toValue(attribute)));
+        new MutableContext("user", singletonMap("attr", toValue(attribute)));
     return evaluator.evaluate(config, String.class, FLAG, "out", context);
   }
 
@@ -315,7 +316,7 @@ class FlagEvaluatorMembershipTest {
 
     private static int minIndexedSize() {
       for (int size = 1; size < 64; size++) {
-        if (MembershipIndex.build(Collections.nCopies(size, "x")) != null) {
+        if (MembershipIndex.build(nCopies(size, "x")) != null) {
           return size;
         }
       }
