@@ -46,7 +46,7 @@ public class StructuredTaskScope25TaskInstrumentation
 
   public static final class ConstructorAdvice {
     /**
-     * Captures task scope to be restored at the start of VirtualThread.run() method by {@link
+     * Captures task scope to be restored at the start of SubtaskImpl.run() method by {@link
      * Runnable} instrumentation, and registers the subtask in its scope's {@link
      * TaskScopeStateRegistry} to release the continuation at scope close if the subtask never runs.
      *
@@ -60,7 +60,7 @@ public class StructuredTaskScope25TaskInstrumentation
     public static void captureScope(@This Runnable subTaskImpl, @Argument(0) Object scope) {
       ContextStore<Runnable, State> stateStore = get(Runnable.class, State.class);
       capture(stateStore, subTaskImpl);
-      // Ensure state was captured to before recording for cancellation on scope close
+      // Ensure state was captured before recording for cancellation on scope close
       State state = stateStore.get(subTaskImpl);
       if (state != null) {
         ContextStore<Object, TaskScopeStateRegistry> registryStore =
