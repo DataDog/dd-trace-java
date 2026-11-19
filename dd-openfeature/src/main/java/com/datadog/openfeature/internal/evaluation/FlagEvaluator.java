@@ -223,14 +223,10 @@ public final class FlagEvaluator {
     }
   }
 
-  // The metadata of a result without a variant depends only on the consent, so it is shared.
-  private static final ImmutableMetadata CONSENT_ON_METADATA =
-      ImmutableMetadata.builder().addBoolean(OBSERVE_FULL_EVALUATION_DATA, true).build();
-  private static final ImmutableMetadata CONSENT_OFF_METADATA =
-      ImmutableMetadata.builder().addBoolean(OBSERVE_FULL_EVALUATION_DATA, false).build();
-
   private static ImmutableMetadata consentMetadata(final boolean observeFullEvaluationData) {
-    return observeFullEvaluationData ? CONSENT_ON_METADATA : CONSENT_OFF_METADATA;
+    return ImmutableMetadata.builder()
+        .addBoolean(OBSERVE_FULL_EVALUATION_DATA, observeFullEvaluationData)
+        .build();
   }
 
   private static <T> ProviderEvaluation<T> error(
