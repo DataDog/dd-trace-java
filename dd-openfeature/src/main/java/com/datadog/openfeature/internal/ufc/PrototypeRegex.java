@@ -270,7 +270,7 @@ abstract class PrototypeRegex extends RegexMatcher {
           }
           return new Atom(any, true, '\0', false);
         case '[':
-          return new Atom(fold(charClass()), false, '\0', false);
+          return new Atom(charClass(), false, '\0', false);
         case '\\':
           return escape();
         case '(':
@@ -463,6 +463,8 @@ abstract class PrototypeRegex extends RegexMatcher {
           set[low] = true;
         }
       }
+      // Fold before negating, as the Rust crate and RE2/J do: (?i)[^a-z] excludes A-Z too.
+      fold(set);
       if (negated) {
         negate(set);
       }
@@ -1070,8 +1072,13 @@ abstract class PrototypeRegex extends RegexMatcher {
         final long inject = (!anchoredStart || x == 0) ? startBits : 0L;
         final long b = classMasks[classOf[c]];
         d = (((d << 1) | inject) & b) | (d & loops & b);
+        // Epsilon closure over optional positions; stops as soon as nothing new is reachable.
         for (int k = 0; k < optionalRun; k++) {
-          d |= (d << 1) & optional;
+          final long closed = d | ((d << 1) & optional);
+          if (closed == d) {
+            break;
+          }
+          d = closed;
         }
         if ((d & finalBit) != 0 && (!anchoredEnd || x == n - 1)) {
           return true;
