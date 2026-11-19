@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.kafka_common;
 
 import datadog.trace.api.datastreams.DataStreamsTransactionTracker;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.header.Header;
@@ -13,8 +14,9 @@ public final class Utils {
       DSM_TRANSACTION_SOURCE_READER =
           (source, headerName) -> {
             try {
+              // Header values are application bytes; preserve the configured JVM charset.
               return new String(
-                  ((Headers) source).lastHeader(headerName).value(), StandardCharsets.UTF_8);
+                  ((Headers) source).lastHeader(headerName).value(), Charset.defaultCharset());
             } catch (Throwable ignored) {
               return null;
             }

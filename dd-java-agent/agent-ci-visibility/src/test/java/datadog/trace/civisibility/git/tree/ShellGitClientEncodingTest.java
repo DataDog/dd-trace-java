@@ -5,6 +5,7 @@ import static datadog.environment.OperatingSystem.isWindows;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -15,6 +16,7 @@ import datadog.communication.util.IOUtils;
 import datadog.trace.api.civisibility.telemetry.NoOpMetricCollector;
 import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
+import datadog.trace.civisibility.diff.LineDiff;
 import datadog.trace.civisibility.git.GitConfig;
 import datadog.trace.civisibility.git.LocalFSGitInfoExtractor;
 import datadog.trace.civisibility.utils.ShellCommandExecutor;
@@ -103,24 +105,44 @@ class ShellGitClientEncodingTest {
   }
 
   @TableTest({
-    "Scenario                    | Filesystem encoding | Filename encoding",
-    "UTF-8 names on ASCII host   | US-ASCII            | UTF-8            ",
-    "UTF-8 names on Latin-1 host | ISO-8859-1          | UTF-8            ",
-    "legacy Latin-1 names        | ISO-8859-1          | ISO-8859-1       "
+    "Scenario                     | Filesystem encoding | Filename encoding | Filename              | Expected filename    ",
+    "UTF-8 filesystem             | UTF-8               | UTF-8             | CaféTest.java         | CaféTest.java        ",
+    "UTF-8 fallback for ASCII     | US-ASCII            | UTF-8             | CaféTest.java         | CaféTest.java        ",
+    "Latin-1 filesystem wins      | ISO-8859-1          | UTF-8             | CaféTest.java         | CafÃ©Test.java       ",
+    "legacy Latin-1 names         | ISO-8859-1          | ISO-8859-1        | CaféTest.java         | CaféTest.java        ",
+    "ambiguous EUC-JP bytes       | EUC-JP              | EUC-JP            | 息Test.java           | 息Test.java          ",
+    "invalid bytes use filesystem | US-ASCII            | ISO-8859-1        | \u00f0\u009fTest.java | \uFFFD\uFFFDTest.java",
+    "UTF-8 contains NEL byte      | UTF-8               | UTF-8             | ÅTest.java            | ÅTest.java           "
   })
   void readsDiffFilenamesIndependentOfFileContents(
-      String filesystemEncoding, String filenameEncoding) throws Exception {
+      String filesystemEncoding, String filenameEncoding, String filename, String expectedFilename)
+      throws Exception {
     Charset filenameCharset = Charset.forName(filenameEncoding);
-    assumeTrue(!isWindows() || UTF_8.equals(filenameCharset), "Windows pathnames use UTF-8");
+    assumeTrue(
+        !isWindows() || UTF_8.equals(Charset.forName(filesystemEncoding)),
+        "Non-UTF-8 filesystem fixtures apply to Unix");
     System.setProperty("native.encoding", filesystemEncoding);
     System.setProperty("sun.jnu.encoding", filesystemEncoding);
     ByteArrayOutputStream diff = new ByteArrayOutputStream();
-    diff.write("diff --git CaféTest.java CaféTest.java\n".getBytes(filenameCharset));
+    diff.write(("diff --git " + filename + " " + filename + "\n").getBytes(filenameCharset));
     diff.write("@@ -1 +1 @@\n-old café\n+new café\n".getBytes(Charset.forName("ISO-8859-1")));
 
     assertTrue(
         GitDiffParser.parse(new ByteArrayInputStream(diff.toByteArray()))
-            .contains("CaféTest.java", 1, 1));
+            .contains(expectedFilename, 1, 1));
+  }
+
+  @Test
+  void keepsHunksWithTheirFilesWhenUtf8ContainsNelBytes() throws Exception {
+    System.setProperty("sun.jnu.encoding", "UTF-8");
+    String patch =
+        "diff --git ATest.java ATest.java\n@@ -1 +1 @@\n-old\n+new\n"
+            + "diff --git ÅTest.java ÅTest.java\n@@ -2 +2 @@\n-old\n+new\n";
+    LineDiff diff = GitDiffParser.parse(new ByteArrayInputStream(patch.getBytes(UTF_8)));
+
+    assertTrue(diff.contains("ATest.java", 1, 1));
+    assertFalse(diff.contains("ATest.java", 2, 2));
+    assertTrue(diff.contains("ÅTest.java", 2, 2));
   }
 
   @TableTest({

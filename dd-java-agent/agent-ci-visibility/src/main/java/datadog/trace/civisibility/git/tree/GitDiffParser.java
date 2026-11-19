@@ -11,6 +11,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
+import java.nio.charset.Charset;
 import java.util.BitSet;
 import java.util.HashMap;
 import java.util.Map;
@@ -20,8 +21,9 @@ import javax.annotation.Nonnull;
 
 public class GitDiffParser {
 
+  // Byte-preserving input can contain U+0085 inside a filename.
   private static final Pattern CHANGED_FILE_PATTERN =
-      Pattern.compile("^diff --git (?<oldfilename>.+) (?<newfilename>.+)$");
+      Pattern.compile("^diff --git (?<oldfilename>.+) (?<newfilename>.+)$", Pattern.DOTALL);
   private static final Pattern CHANGED_LINES_PATTERN =
       Pattern.compile("^@@ -\\d+(,\\d+)? \\+(?<startline>\\d+)(,(?<count>\\d+))? @@");
 
@@ -69,10 +71,16 @@ public class GitDiffParser {
 
   private static String decodeFilename(String filename) {
     byte[] bytes = filename.getBytes(ISO_8859_1);
+    Charset filesystemCharset = getFilesystemCharset();
     try {
-      return UTF_8.newDecoder().decode(ByteBuffer.wrap(bytes)).toString();
+      // Prefer the filesystem interpretation used by the repository index.
+      return filesystemCharset.newDecoder().decode(ByteBuffer.wrap(bytes)).toString();
     } catch (CharacterCodingException e) {
-      return new String(bytes, getFilesystemCharset());
+      try {
+        return UTF_8.newDecoder().decode(ByteBuffer.wrap(bytes)).toString();
+      } catch (CharacterCodingException ignored) {
+        return new String(bytes, filesystemCharset);
+      }
     }
   }
 }
