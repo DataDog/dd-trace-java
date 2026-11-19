@@ -262,6 +262,9 @@ class PayloadDispatcherImplTest extends DDJavaSpecification {
       ++traces;
     }
     return traces;
+  }
+
+  @Test
   void payloadsAfterTheAgentChangesProtocolUseTheNewProtocol() throws Exception {
     AgentFixture agent = new AgentFixture("v0.5/traces");
     List<DDSpan> trace = singletonList(realSpan());
