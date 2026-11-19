@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.kafka_clients;
 
+import datadog.trace.instrumentation.kafka_common.TracingIterableDelegator;
 import java.util.Iterator;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 

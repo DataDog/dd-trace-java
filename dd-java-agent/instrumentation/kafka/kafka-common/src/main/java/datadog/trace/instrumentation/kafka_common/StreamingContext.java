@@ -56,18 +56,13 @@ public class StreamingContext {
     topics = newTopics;
   }
 
-  public boolean isSinkTopic(final String topic) {
-    return Objects.equals(topics.getOrDefault(topic, UNKNOWN_TOPIC), SINK_TOPIC);
-  }
-
-  public boolean isSourceTopic(final String topic) {
-    return Objects.equals(topics.getOrDefault(topic, UNKNOWN_TOPIC), SOURCE_TOPIC);
-  }
-
-  // Checks if this topic is a part of a streaming topology
-  public boolean isDisabledForTopic(final String topic) {
-    return topics.isEmpty()
-        || Objects.equals(topics.getOrDefault(topic, UNKNOWN_TOPIC), UNKNOWN_TOPIC);
+  /**
+   * Checks if this topic is internal to a streaming topology: a repartition or changelog topic, or
+   * a topic that one sub-topology writes and another reads. DSM skips these, since they are an
+   * implementation detail of the topology.
+   */
+  public boolean isInternalTopic(final String topic) {
+    return Objects.equals(topics.getOrDefault(topic, UNKNOWN_TOPIC), INTERNAL_TOPIC);
   }
 
   private final Set<String> allSourceTopics = ConcurrentHashMap.newKeySet();

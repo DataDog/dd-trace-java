@@ -44,8 +44,7 @@ import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.instrumentation.kafka_clients.TracingIterableDelegator;
+import datadog.trace.instrumentation.kafka_common.TracingIterableDelegator;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -72,7 +71,7 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      "datadog.trace.instrumentation.kafka_clients.TracingIterableDelegator",
+      "datadog.trace.instrumentation.kafka_common.TracingIterableDelegator",
       "datadog.trace.instrumentation.kafka_common.Utils",
       "datadog.trace.instrumentation.kafka_common.StreamingContext",
       packageName + ".KafkaStreamsDecorator",
@@ -298,20 +297,19 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
       if (streamTaskContext != null) {
         applicationId = streamTaskContext.getApplicationId();
       }
-      DataStreamsTags tags = createWithGroup("kafka", INBOUND, applicationId, record.topic());
+      DataStreamsTags tags = createWithGroup("kafka", INBOUND, record.topic(), applicationId);
 
       final long payloadSize =
           traceConfig().isDataStreamsEnabled() ? computePayloadSizeBytes(record.value) : 0;
-      if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())) {
-        AgentTracer.get()
-            .getDataStreamsMonitoring()
-            .setCheckpoint(span, create(tags, record.timestamp, payloadSize));
-      } else {
-        if (STREAMING_CONTEXT.isSourceTopic(record.topic())) {
-          Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
-          DataStreamsContext dsmContext = create(tags, record.timestamp, payloadSize);
-          dsmPropagator.inject(span.with(dsmContext), record, SR_SETTER);
-        }
+      // The one consume checkpoint for this record in this streams hop: UnwrapIterableAdvice keeps
+      // the kafka-clients instrumentation from setting another. Internal topics are skipped, they
+      // are an implementation detail of the topology. The pathway is also written into the record
+      // headers, which Kafka Streams forwards to the records it produces downstream, so that the
+      // produce checkpoint (and a hop on another instance) chains to this consume.
+      if (!STREAMING_CONTEXT.isInternalTopic(record.topic())) {
+        Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
+        DataStreamsContext dsmContext = create(tags, record.timestamp, payloadSize);
+        dsmPropagator.inject(span.with(dsmContext), record, SR_SETTER);
       }
 
       CONSUMER_DECORATE.afterStart(span);
@@ -365,7 +363,7 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
       if (streamTaskContext != null) {
         applicationId = streamTaskContext.getApplicationId();
       }
-      DataStreamsTags tags = createWithGroup("kafka", INBOUND, applicationId, record.topic());
+      DataStreamsTags tags = createWithGroup("kafka", INBOUND, record.topic(), applicationId);
 
       long payloadSize = 0;
       // we have to go through Object to get the RecordMetadata here because the class of `record`
@@ -375,16 +373,15 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
         payloadSize = metadata.serializedKeySize() + metadata.serializedValueSize();
       }
 
-      if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())) {
-        AgentTracer.get()
-            .getDataStreamsMonitoring()
-            .setCheckpoint(span, create(tags, record.timestamp(), payloadSize));
-      } else {
-        if (STREAMING_CONTEXT.isSourceTopic(record.topic())) {
-          Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
-          DataStreamsContext dsmContext = create(tags, record.timestamp(), payloadSize);
-          dsmPropagator.inject(span.with(dsmContext), record, PR_SETTER);
-        }
+      // The one consume checkpoint for this record in this streams hop: UnwrapIterableAdvice keeps
+      // the kafka-clients instrumentation from setting another. Internal topics are skipped, they
+      // are an implementation detail of the topology. The pathway is also written into the record
+      // headers, which Kafka Streams forwards to the records it produces downstream, so that the
+      // produce checkpoint (and a hop on another instance) chains to this consume.
+      if (!STREAMING_CONTEXT.isInternalTopic(record.topic())) {
+        Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
+        DataStreamsContext dsmContext = create(tags, record.timestamp(), payloadSize);
+        dsmPropagator.inject(span.with(dsmContext), record, PR_SETTER);
       }
 
       CONSUMER_DECORATE.afterStart(span);
