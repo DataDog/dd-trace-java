@@ -239,7 +239,8 @@ final class FlagEvaluationAggregator {
   }
 
   /** The key of the event being aggregated, compared with the buckets in place. */
-  private static final class Lookup {
+  // Package-private for FlagEvaluationAggregatorTiersTest.
+  static final class Lookup {
     FlagEvalEvent event;
     String contextKey;
     String featuresKey;
@@ -309,8 +310,7 @@ final class FlagEvaluationAggregator {
    * A full-tier bucket: every dimension, including the subject, its context and the consent. A null
    * variant, the runtime default, is a dimension through the variant.
    */
-  private static final class FullTier
-      implements FlatHashtable.MatchingStrategy<EvalBucket, Lookup> {
+  static final class FullTier implements FlatHashtable.MatchingStrategy<EvalBucket, Lookup> {
     @Override
     public long hashKey(final Lookup lookup) {
       return lookup.fullTierHash();
@@ -340,8 +340,7 @@ final class FlagEvaluationAggregator {
    * Mixed-consent events merge into one bucket; the AND-fold on
    * EvalBucket.observeFullEvaluationData still runs but has no downstream effect for degraded rows.
    */
-  private static final class DegradedTier
-      implements FlatHashtable.MatchingStrategy<EvalBucket, Lookup> {
+  static final class DegradedTier implements FlatHashtable.MatchingStrategy<EvalBucket, Lookup> {
     @Override
     public long hashKey(final Lookup lookup) {
       return lookup.degradedTierHash();
@@ -360,7 +359,7 @@ final class FlagEvaluationAggregator {
   }
 
   /** The buckets of a table, for the flush. */
-  private static final class Buckets implements Iterator<EvalBucket> {
+  static final class Buckets implements Iterator<EvalBucket> {
     private final EvalBucket[] table;
     private int next;
 
