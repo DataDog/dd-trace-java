@@ -308,7 +308,7 @@ class ProcessSupervisorTest {
       new PollingConditions(5).eventually(() -> assertEquals(1, started.size()));
 
       verify(processBuilder, times(2)).start();
-      assertEquals(1, countLogs(Level.WARN, "Exception starting process: [test]"));
+      assertEquals(1, countLogs(Level.WARN, "Exception supervising process: [test]"));
     }
   }
 

@@ -112,7 +112,7 @@ public class ProcessSupervisor implements Closeable {
         } catch (InterruptedException e) {
           currentHealth = INTERRUPTED;
         } catch (Throwable e) {
-          logFailure("Exception starting process: [{}]", imageName, e);
+          logFailure("Exception supervising process: [{}]", imageName, e);
           currentHealth = FAULTED;
         }
         scheduleNextHealthCheck();
