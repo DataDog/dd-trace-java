@@ -48,7 +48,8 @@ public class ProcessSupervisor implements Closeable {
   private static final int QUIET_AFTER_FAILURES = 5;
   private static final long STABLE_RUN_MILLIS = 60_000;
 
-  private static final long STOP_WAIT_MILLIS = 400;
+  // How long to wait after each stop request
+  private static final long STOP_WAIT_MILLIS = 200;
 
   // A process this supervisor started is restarted after failing this many health checks in a row.
   // When a process it did not start fails this many, it starts its own.
@@ -265,15 +266,22 @@ public class ProcessSupervisor implements Closeable {
     if (currentProcess != null) {
       String childPid = pidOrUnknown(currentProcess);
       log.info("Stopping process [{}] with pid {}", imageName, childPid);
-      // The supervised agents run only on Windows, where destroy() and destroyForcibly() both call
-      // TerminateProcess: the process stops at once, without a chance to flush.
-      currentProcess.destroy();
+      // On Windows, where the AAS agents run, destroy() and destroyForcibly() both call
+      // TerminateProcess: the process stops at once, without a chance to flush. Elsewhere
+      // destroy() may ask the process to exit, so destroyForcibly() follows if it is still running.
       boolean interrupted = Thread.interrupted();
       boolean stopped = false;
       try {
+        currentProcess.destroy();
         stopped = currentProcess.waitFor(STOP_WAIT_MILLIS, MILLISECONDS);
+        if (!stopped) {
+          currentProcess.destroyForcibly();
+          stopped = currentProcess.waitFor(STOP_WAIT_MILLIS, MILLISECONDS);
+        }
       } catch (InterruptedException e) {
         interrupted = true;
+        currentProcess.destroyForcibly();
+        stopped = !currentProcess.isAlive();
       } finally {
         if (interrupted) {
           Thread.currentThread().interrupt();

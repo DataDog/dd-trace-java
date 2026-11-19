@@ -292,6 +292,7 @@ class ProcessSupervisorTest {
       assertEquals(1, started.size());
       assertTrue(started.get(0).isAlive());
       assertTrue(started.get(0).stopRequests.get() >= 1, "asks it to stop");
+      assertTrue(started.get(0).forcedStopRequests.get() >= 1, "then forces it to stop");
       assertTrue(countLogs(Level.WARN, "was still running after the stop request") >= 1);
     }
   }
@@ -385,6 +386,7 @@ class ProcessSupervisorTest {
     private final boolean stopsWhenAsked;
     private volatile int exitCode;
     final AtomicInteger stopRequests = new AtomicInteger();
+    final AtomicInteger forcedStopRequests = new AtomicInteger();
 
     FakeProcess(boolean stopsWhenAsked) {
       this.stopsWhenAsked = stopsWhenAsked;
@@ -425,6 +427,15 @@ class ProcessSupervisorTest {
       if (stopsWhenAsked) {
         exit(143);
       }
+    }
+
+    @Override
+    public Process destroyForcibly() {
+      forcedStopRequests.incrementAndGet();
+      if (stopsWhenAsked) {
+        exit(137);
+      }
+      return this;
     }
 
     @Override
