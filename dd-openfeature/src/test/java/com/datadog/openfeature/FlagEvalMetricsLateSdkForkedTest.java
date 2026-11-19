@@ -22,7 +22,7 @@ class FlagEvalMetricsLateSdkForkedTest {
   @Test
   void evaluationBeforeSdkRegistrationDoesNotClaimTheGlobalProvider() {
     GlobalOpenTelemetry.resetForTest();
-    final FlagEvalMetrics metrics = new FlagEvalMetrics();
+    final FlagEvalMetrics metrics = new FlagEvalMetrics(0);
     metrics.record("before", "on", "STATIC", null, null);
     assertFalse(GlobalOpenTelemetry.isSet());
 
