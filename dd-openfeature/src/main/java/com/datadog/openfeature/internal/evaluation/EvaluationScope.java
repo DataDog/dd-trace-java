@@ -4,7 +4,6 @@ import com.datadog.openfeature.internal.ufc.Allocation;
 import com.datadog.openfeature.internal.ufc.ConditionConfiguration;
 import com.datadog.openfeature.internal.ufc.Rule;
 import dev.openfeature.sdk.EvaluationContext;
-import dev.openfeature.sdk.Value;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -106,13 +105,11 @@ final class EvaluationScope {
   }
 
   private Object resolve(final String name) {
-    // getValue is null only for an absent key: an "id" that is not provided is the targeting key.
-    // A context's keySet() is not used for this, as a layered context copies its keys to build it.
-    final Value value = context.getValue(name);
-    if (value == null) {
-      return ID.equals(name) ? context.getTargetingKey() : null;
+    // Special handling for "id" attribute: if not explicitly provided, use targeting key
+    if (ID.equals(name) && !context.keySet().contains(name)) {
+      return context.getTargetingKey();
     }
-    return context.convertValue(value);
+    return context.convertValue(context.getValue(name));
   }
 
   private void remember(final String name, final Object value) {
