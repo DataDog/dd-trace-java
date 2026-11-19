@@ -1,8 +1,8 @@
 _v: 1
 name: s3
-display_name: 'AWS Java SDK :: Services :: Amazon S3'
-description: Instruments S3 object uploads, copies, and multipart-upload completion to add span pointers to AWS
-  SDK request spans.
+display_name: Amazon S3
+description: Instruments AWS SDK for Java Amazon S3 client operations to add span pointers to request spans for object uploads,
+  copies, and completed multipart uploads.
 packages:
 - name: software.amazon.awssdk:s3
 category:

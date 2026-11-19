@@ -1,7 +1,8 @@
 _v: 1
 name: dynamodb
-display_name: 'AWS Java SDK :: Services :: Amazon DynamoDB'
-description: Instruments DynamoDB item updates and deletions to add span pointers to AWS SDK request spans.
+display_name: Amazon DynamoDB
+description: Instruments AWS SDK for Java v2 DynamoDB item update and deletion operations by adding span pointers to their
+  request spans.
 packages:
 - name: software.amazon.awssdk:dynamodb
 category:

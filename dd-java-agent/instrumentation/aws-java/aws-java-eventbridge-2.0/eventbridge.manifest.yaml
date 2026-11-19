@@ -1,7 +1,8 @@
 _v: 1
 name: eventbridge
-display_name: 'AWS Java SDK :: Services :: EventBridge'
-description: Instruments EventBridge event publication with trace-context injection and Data Streams Monitoring.
+display_name: Amazon EventBridge
+description: Instruments AWS SDK for Java EventBridge PutEvents requests to inject trace context and Data Streams Monitoring
+  metadata into event payloads.
 packages:
 - name: software.amazon.awssdk:eventbridge
 category:

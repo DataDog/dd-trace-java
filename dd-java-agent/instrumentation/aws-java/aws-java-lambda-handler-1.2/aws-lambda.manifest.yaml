@@ -1,8 +1,8 @@
 _v: 1
 name: aws-lambda
-display_name: AWS Lambda Java Core Library
-description: Instruments AWS Lambda handler invocations with Lambda Extension trace coordination and application
-  security analysis of supported HTTP triggers.
+display_name: AWS Lambda
+description: Instruments AWS Lambda Java handler invocations, creating serverless spans and reporting invocation lifecycle
+  data to the Datadog Lambda Extension.
 packages:
 - name: com.amazonaws:aws-lambda-java-core
 category:
