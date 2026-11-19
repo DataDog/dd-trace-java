@@ -67,6 +67,7 @@ public class ProcessSupervisor implements Closeable {
   private long currentProcessStartedMillis;
   private int failedHealthChecks;
   private int otherProcessFailedHealthChecks;
+  private long otherProcessHealthySinceMillis;
   private final FaultBackoff faultBackoff = new FaultBackoff();
   private int failuresInARow;
 
@@ -100,8 +101,7 @@ public class ProcessSupervisor implements Closeable {
           if (currentProcess == null) {
             currentHealth = healthCheck.run(currentHealth);
             logHealthCheckChange(currentHealth);
-            otherProcessFailedHealthChecks =
-                currentHealth == UNHEALTHY ? otherProcessFailedHealthChecks + 1 : 0;
+            recordOtherProcessCheck(currentHealth);
           }
           // A copy started next to a process that is still serving cannot take over until that one
           // exits, so it is only started once that process has failed several checks in a row.
@@ -132,7 +132,6 @@ public class ProcessSupervisor implements Closeable {
     // These checks only run while this supervisor has no running process of its own,
     // so a healthy or unhealthy result means another process (usually another worker) is serving.
     if (result == HEALTHY) {
-      failuresInARow = 0;
       if (previous == UNHEALTHY) {
         log.info(
             "Process [{}] that this process (pid {}) is using is passing health checks again",
@@ -159,6 +158,28 @@ public class ProcessSupervisor implements Closeable {
     }
   }
 
+  /**
+   * Tracks a process this supervisor did not start. As with a process it started, earlier failures
+   * are forgotten only once it has stayed healthy for {@link #STABLE_RUN_MILLIS}, so restarts next
+   * to an agent that is only sometimes healthy still back off and their logs stay quiet.
+   */
+  private void recordOtherProcessCheck(Health result) {
+    otherProcessFailedHealthChecks = result == UNHEALTHY ? otherProcessFailedHealthChecks + 1 : 0;
+    if (result != HEALTHY) {
+      otherProcessHealthySinceMillis = 0;
+      return;
+    }
+    long now = System.currentTimeMillis();
+    if (otherProcessHealthySinceMillis == 0) {
+      otherProcessHealthySinceMillis = now;
+    }
+    long healthyMillis = now - otherProcessHealthySinceMillis;
+    faultBackoff.recordUptime(healthyMillis);
+    if (healthyMillis >= STABLE_RUN_MILLIS) {
+      failuresInARow = 0;
+    }
+  }
+
   private void scheduleNextHealthCheck() {
     long now = System.currentTimeMillis();
     if (currentHealth == HEALTHY || currentHealth == UNHEALTHY) {
@@ -173,6 +194,7 @@ public class ProcessSupervisor implements Closeable {
   private void startProcessAndSupervise() throws Exception {
     if (currentProcess == null) {
       otherProcessFailedHealthChecks = 0;
+      otherProcessHealthySinceMillis = 0;
       log.debug("Starting process: [{}]", imageName);
       try (TraceScope ignored = AgentTracer.get().muteTracing()) {
         currentProcess = processBuilder.start();
