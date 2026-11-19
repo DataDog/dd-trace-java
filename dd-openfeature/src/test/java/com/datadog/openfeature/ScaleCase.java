@@ -19,8 +19,9 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * One case of a scale suite of the shared FFE fixtures, with its expected value and reason, and the
- * selected {@code serialId}, {@code doLog}, and split features when the case expects them.
+ * One case of a scale suite of the shared FFE fixtures, with its expected value, reason and error
+ * code, and the selected {@code serialId}, {@code doLog}, and split features when the case expects
+ * them.
  *
  * <p>JSON values are compared by numeric value: a JSON integer can come back as an integer or as a
  * double, so that one check runs on every evaluator. {@code CanonicalFixtureTest} checks the types.
@@ -35,6 +36,7 @@ final class ScaleCase {
   private final Number expectedSerialId;
   private final Boolean expectedDoLog;
   private final Map<?, ?> expectedFeatures;
+  private final String expectedErrorCode;
   private final String targetingKey;
   private final EvaluationContext context;
 
@@ -42,7 +44,7 @@ final class ScaleCase {
     this.flag = (String) json.get("flag");
     this.variationType = (String) json.get("variationType");
     final Map<?, ?> result = (Map<?, ?>) json.get("result");
-    if (!Arrays.asList("value", "reason", "serialId", "doLog", "features")
+    if (!Arrays.asList("value", "reason", "errorCode", "serialId", "doLog", "features")
         .containsAll(result.keySet())) {
       throw new IllegalStateException(
           "Unhandled expectations for " + json.get("flag") + ": " + result.keySet());
@@ -54,6 +56,7 @@ final class ScaleCase {
     this.expectedSerialId = (Number) result.get("serialId");
     this.expectedDoLog = (Boolean) result.get("doLog");
     this.expectedFeatures = (Map<?, ?>) result.get("features");
+    this.expectedErrorCode = (String) result.get("errorCode");
     this.targetingKey = (String) json.get("targetingKey");
     final MutableContext context =
         new MutableContext(Value.objectToValue(json.get("attributes")).asStructure().asMap());
@@ -88,9 +91,10 @@ final class ScaleCase {
         details.getValue() instanceof Value
             ? plain((Value) details.getValue())
             : details.getValue();
+    final String errorCode = details.getErrorCode() == null ? null : details.getErrorCode().name();
     if (!sameValue(expectedValue, actual)
         || !Objects.equals(expectedReason, details.getReason())
-        || details.getErrorCode() != null) {
+        || !Objects.equals(expectedErrorCode, errorCode)) {
       throw new IllegalStateException(
           "Unexpected result for "
               + flag
@@ -99,9 +103,13 @@ final class ScaleCase {
               + "): expected "
               + expectedReason
               + " "
+              + expectedErrorCode
+              + " "
               + abbreviate(expectedValue)
               + ", got "
               + details.getReason()
+              + " "
+              + errorCode
               + " "
               + abbreviate(actual));
     }

@@ -22,10 +22,14 @@ import org.junit.jupiter.params.provider.MethodSource;
  * change that resolves a large configuration wrongly fails here instead of only in a manual run.
  */
 class ScaleSuiteTest {
-  private static final List<String> SUITES = Arrays.asList("scale", "scale-json");
+  private static final List<String> SUITES = Arrays.asList("scale", "scale-json", "regex");
 
   /** One provider per suite, so each configuration is parsed once. */
   private static final Map<String, Provider> PROVIDERS = new HashMap<>();
+
+  /** Case files that this test checks but that are not worth benchmarking. */
+  private static final List<String> UNBENCHMARKED_CASE_FILES =
+      Arrays.asList("regex/semantics", "regex/unsupported-syntax");
 
   static Stream<String> caseFiles() throws IOException {
     final List<String> caseFiles = new ArrayList<>();
@@ -47,6 +51,7 @@ class ScaleSuiteTest {
   void benchmarkListsEveryCaseFile() throws ReflectiveOperationException, IOException {
     final List<String> found = new ArrayList<>();
     caseFiles().forEach(found::add);
+    found.removeAll(UNBENCHMARKED_CASE_FILES);
     assertEquals(benchmarkedCaseFiles(), found);
   }
 
