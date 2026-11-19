@@ -11,6 +11,7 @@ import datadog.communication.serialization.SimpleUtf8Cache;
 import datadog.communication.serialization.Writable;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.trace.api.Config;
+import datadog.trace.api.ProtocolVersion;
 import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -376,6 +377,11 @@ public final class TraceMapperV0_4 implements TraceMapper {
   }
 
   @Override
+  public ProtocolVersion protocolVersion() {
+    return ProtocolVersion.V0_4;
+  }
+
+  @Override
   public Payload newPayload() {
     return new PayloadV0_4();
   }
@@ -396,6 +402,11 @@ public final class TraceMapperV0_4 implements TraceMapper {
   }
 
   private static class PayloadV0_4 extends Payload {
+
+    @Override
+    public ProtocolVersion protocol() {
+      return ProtocolVersion.V0_4;
+    }
 
     @Override
     public int sizeInBytes() {

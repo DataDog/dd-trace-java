@@ -43,6 +43,12 @@ public class PayloadDispatcherImpl implements ChunkedBufferConsumer, PayloadDisp
   // when the last payload was handed over, or the buffer created: the start of any idle period
   private long lastPayloadTicks;
 
+  /**
+   * Whether the buffer holds traces not yet handed over. The mapper is only re-selected between
+   * payloads; if discovery moves mid-payload, the API sends that payload by its own protocol.
+   */
+  private boolean payloadStarted;
+
   private final LongAdder droppedSpanCount = new LongAdder();
   private final LongAdder droppedTraceCount = new LongAdder();
 
@@ -107,10 +113,21 @@ public class PayloadDispatcherImpl implements ChunkedBufferConsumer, PayloadDisp
     if (null == mapper || !packer.format(trace, mapper)) {
       healthMetrics.onFailedPublish(
           trace.isEmpty() ? 0 : trace.get(0).samplingPriority(), trace.size());
+    } else {
+      payloadStarted = true;
     }
   }
 
   private void selectMapper() {
+    if (null != mapper && !payloadStarted && mapperDiscovery.isOutdated()) {
+      // The destination now takes another protocol: encode the next payload with a newly discovered
+      // mapper. This happens between payloads, never inside the buffer's flush, so no trace is
+      // stranded in the old mapper's buffer; the flush is normally a no-op.
+      packer.flush();
+      mapper = null;
+      packer = null;
+      mapperDiscovery.discover();
+    }
     if (null == mapper) {
       if (mapperDiscovery.getMapper() == null) {
         mapperDiscovery.discover();
@@ -141,6 +158,7 @@ public class PayloadDispatcherImpl implements ChunkedBufferConsumer, PayloadDisp
     // or when the packer is flushed at a heartbeat
     if (messageCount > 0) {
       lastPayloadTicks = timeSource.getNanoTicks();
+      payloadStarted = false;
       batchTimer.reset();
       Payload payload = newPayload(messageCount, chunks);
       final int sizeInBytes = payload.sizeInBytes();

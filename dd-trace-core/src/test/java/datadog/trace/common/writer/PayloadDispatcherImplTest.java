@@ -1,6 +1,9 @@
 package datadog.trace.common.writer;
 
 import static datadog.trace.common.writer.PayloadDispatcherImpl.IDLE_TRIM_DELAY_NANOS;
+import static datadog.trace.api.ProtocolVersion.V0_4;
+import static datadog.trace.api.ProtocolVersion.V0_5;
+import static datadog.trace.api.ProtocolVersion.V1_0;
 import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -10,6 +13,7 @@ import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.intThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -38,6 +42,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
+import org.mockito.ArgumentCaptor;
 import org.tabletest.junit.TableTest;
 
 class PayloadDispatcherImplTest extends DDJavaSpecification {
@@ -249,6 +254,60 @@ class PayloadDispatcherImplTest extends DDJavaSpecification {
       ++traces;
     }
     return traces;
+  void payloadsAfterTheAgentChangesProtocolUseTheNewProtocol() throws Exception {
+    AgentFixture agent = new AgentFixture("v0.5/traces");
+    List<DDSpan> trace = singletonList(realSpan());
+
+    agent.dispatcher.addTrace(trace);
+    agent.dispatcher.flush();
+    when(agent.features.getTraceEndpoint()).thenReturn("v0.4/traces");
+    agent.dispatcher.addTrace(trace);
+    agent.dispatcher.flush();
+
+    List<Payload> sent = agent.sentPayloads(2);
+    assertEquals(V0_5, sent.get(0).protocol());
+    assertEquals(V0_4, sent.get(1).protocol());
+  }
+
+  @Test
+  void aProtocolChangeMidPayloadSwitchesAtTheNextPayload() throws Exception {
+    AgentFixture agent = new AgentFixture("v0.5/traces");
+    List<DDSpan> trace = singletonList(realSpan());
+
+    agent.dispatcher.addTrace(trace);
+    when(agent.features.getTraceEndpoint()).thenReturn("v1.0/traces");
+    // the payload in progress stays v0.5 (the API sends it to v0.5/traces); the next one is v1.0
+    agent.dispatcher.addTrace(trace);
+    agent.dispatcher.flush();
+    agent.dispatcher.addTrace(trace);
+    agent.dispatcher.flush();
+
+    List<Payload> sent = agent.sentPayloads(2);
+    assertEquals(V0_5, sent.get(0).protocol());
+    assertEquals(2, sent.get(0).traceCount());
+    assertEquals(V1_0, sent.get(1).protocol());
+    assertEquals(1, sent.get(1).traceCount());
+  }
+
+  /** A dispatcher over a real mapper discovery, with the agent's features and API mocked. */
+  private static final class AgentFixture {
+    final DDAgentFeaturesDiscovery features = mock(DDAgentFeaturesDiscovery.class);
+    final DDAgentApi api = mock(DDAgentApi.class);
+    final PayloadDispatcherImpl dispatcher;
+
+    AgentFixture(String traceEndpoint) {
+      when(features.getTraceEndpoint()).thenReturn(traceEndpoint);
+      when(api.sendSerializedTraces(any())).thenReturn(RemoteApi.Response.success(200));
+      dispatcher =
+          new PayloadDispatcherImpl(
+              new DDAgentMapperDiscovery(features), api, mock(HealthMetrics.class), monitoring);
+    }
+
+    List<Payload> sentPayloads(int count) {
+      ArgumentCaptor<Payload> payloads = ArgumentCaptor.forClass(Payload.class);
+      verify(api, times(count)).sendSerializedTraces(payloads.capture());
+      return payloads.getAllValues();
+    }
   }
 
   DDSpan realSpan() throws Exception {
