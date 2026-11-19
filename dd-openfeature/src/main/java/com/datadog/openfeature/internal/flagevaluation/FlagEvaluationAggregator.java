@@ -87,8 +87,8 @@ final class FlagEvaluationAggregator {
 
     EvalBucket bucket = FlatHashtable.get(fullTier, lookup, FULL_TIER);
     if (bucket != null) {
+      // Consent is a full-tier key dimension, so the bucket's consent is already this event's.
       bucket.merge(event.evalTimeMs, isDefault);
-      bucket.observeFullEvaluationData &= observeFullEvaluationData;
       return;
     }
 
@@ -536,8 +536,8 @@ final class FlagEvaluationAggregator {
     Map<String, Object> prunedAttrs;
     // Identical for every evaluation in the bucket, because the features key is a bucket dimension.
     Map<String, Object> features;
-    // Consent to emit raw PII. For full-tier buckets this is uniform (consent is a FullKey
-    // dimension) and the AND-fold on merge is defensive. For degraded-tier buckets consent is NOT
+    // Consent to emit raw PII. For full-tier buckets this is fixed at creation (consent is a key
+    // dimension), so only degraded merges change it. For degraded-tier buckets consent is NOT
     // a key dimension — mixed-consent events merge here — so the AND-fold produces false whenever
     // any consent-off event lands in the bucket. That's benign because the degraded wire path
     // drops the targeting key and context regardless of consent, so this field has no downstream
