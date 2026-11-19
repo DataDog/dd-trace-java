@@ -2,6 +2,7 @@ package com.datadog.openfeature.internal.flagevaluation;
 
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyMap;
+import static java.util.Collections.singletonList;
 import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -10,7 +11,10 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.openfeature.internal.JsonReading;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -29,7 +33,7 @@ class FlagEvaluationPayloadsTest {
 
     final Map<String, Object> json =
         firstPayload(
-            FlagEvaluationPayloads.buildPayloads(
+            buildPayloads(
                 java.util.Collections.singletonList(
                     event("my-flag", "on", "alloc-x", "user-1", 1, attrs)),
                 CONTEXT,
@@ -85,7 +89,7 @@ class FlagEvaluationPayloadsTest {
 
     final Map<String, Object> json =
         firstPayload(
-            FlagEvaluationPayloads.buildPayloads(
+            buildPayloads(
                 java.util.Collections.singletonList(
                     FlagEvaluationPayloads.FlagEvaluationEvent.fromBucket(
                         bucket, true, true, flushTimeMs)),
@@ -107,7 +111,7 @@ class FlagEvaluationPayloadsTest {
 
     final Map<String, Object> json =
         firstPayload(
-            FlagEvaluationPayloads.buildPayloads(
+            buildPayloads(
                 java.util.Collections.singletonList(
                     FlagEvaluationPayloads.FlagEvaluationEvent.fromBucket(
                         bucket, false, true, EVAL_MS)),
@@ -138,7 +142,7 @@ class FlagEvaluationPayloadsTest {
 
     final Map<String, Object> json =
         firstPayload(
-            FlagEvaluationPayloads.buildPayloads(
+            buildPayloads(
                 java.util.Collections.singletonList(
                     FlagEvaluationPayloads.FlagEvaluationEvent.fromBucket(
                         bucket, true, true, EVAL_MS)),
@@ -172,8 +176,8 @@ class FlagEvaluationPayloadsTest {
             false,
             null);
 
-    final FlagEvaluationPayloads.EncodedPayloads payloads =
-        FlagEvaluationPayloads.buildPayloads(
+    final Encoded payloads =
+        buildPayloads(
             java.util.Collections.singletonList(
                 FlagEvaluationPayloads.FlagEvaluationEvent.fromBucket(
                     bucket, true, false, EVAL_MS)),
@@ -209,8 +213,7 @@ class FlagEvaluationPayloadsTest {
       events.add(event("split-flag-" + i, "on", "alloc1", "user-" + i, 1, attrs));
     }
 
-    final FlagEvaluationPayloads.EncodedPayloads payloads =
-        FlagEvaluationPayloads.buildPayloads(events, CONTEXT, 1_100);
+    final Encoded payloads = buildPayloads(events, CONTEXT, 1_100);
 
     assertTrue(payloads.bodies.size() > 1);
     int eventCount = 0;
@@ -231,8 +234,8 @@ class FlagEvaluationPayloadsTest {
       attrs.put("payload-" + i, repeat('x', 200));
     }
 
-    final FlagEvaluationPayloads.EncodedPayloads payloads =
-        FlagEvaluationPayloads.buildPayloads(
+    final Encoded payloads =
+        buildPayloads(
             java.util.Collections.singletonList(
                 event("oversized-full", "on", "alloc1", "user-1", 2, attrs)),
             CONTEXT,
@@ -261,16 +264,14 @@ class FlagEvaluationPayloadsTest {
     assertNotNull(degradedSecond);
 
     final int firstPayloadSize =
-        FlagEvaluationPayloads.buildPayloads(
-                java.util.Collections.singletonList(first), CONTEXT, 1_000_000)
+        buildPayloads(java.util.Collections.singletonList(first), CONTEXT, 1_000_000)
             .bodies
             .get(0)
             .stream()
             .mapToInt(ByteBuffer::remaining)
             .sum();
     final int degradedPayloadSize =
-        FlagEvaluationPayloads.buildPayloads(
-                java.util.Collections.singletonList(degradedSecond), CONTEXT, 1_000_000)
+        buildPayloads(java.util.Collections.singletonList(degradedSecond), CONTEXT, 1_000_000)
             .bodies
             .get(0)
             .stream()
@@ -278,8 +279,7 @@ class FlagEvaluationPayloadsTest {
             .sum();
     final int limit = Math.max(firstPayloadSize, degradedPayloadSize);
 
-    final FlagEvaluationPayloads.EncodedPayloads payloads =
-        FlagEvaluationPayloads.buildPayloads(Arrays.asList(first, second), CONTEXT, limit);
+    final Encoded payloads = buildPayloads(Arrays.asList(first, second), CONTEXT, limit);
 
     assertEquals(2, payloads.bodies.size());
     assertEquals(0, payloads.droppedPayloadLimit);
@@ -293,8 +293,8 @@ class FlagEvaluationPayloadsTest {
 
   @Test
   void oversizedDegradedPayloadRowIsDropped() {
-    final FlagEvaluationPayloads.EncodedPayloads payloads =
-        FlagEvaluationPayloads.buildPayloads(
+    final Encoded payloads =
+        buildPayloads(
             java.util.Collections.singletonList(
                 event(repeat('f', 512), "on", "alloc1", null, 2, emptyMap())),
             CONTEXT,
@@ -307,8 +307,8 @@ class FlagEvaluationPayloadsTest {
 
   @Test
   void oversizedFullPayloadRowIsDroppedWhenDegradedRowStillExceedsLimit() {
-    final FlagEvaluationPayloads.EncodedPayloads payloads =
-        FlagEvaluationPayloads.buildPayloads(
+    final Encoded payloads =
+        buildPayloads(
             java.util.Collections.singletonList(
                 event(repeat('f', 512), "on", "alloc1", "user-1", 2, emptyMap())),
             CONTEXT,
@@ -323,7 +323,7 @@ class FlagEvaluationPayloadsTest {
   void errorPayloadSerializesErrorObject() throws Exception {
     final Map<String, Object> json =
         firstPayload(
-            FlagEvaluationPayloads.buildPayloads(
+            buildPayloads(
                 java.util.Collections.singletonList(
                     new FlagEvaluationPayloads.FlagEvaluationEvent(
                         EVAL_MS,
@@ -350,8 +350,7 @@ class FlagEvaluationPayloadsTest {
 
   @Test
   void emptyEventListProducesNoPayloads() {
-    final FlagEvaluationPayloads.EncodedPayloads payloads =
-        FlagEvaluationPayloads.buildPayloads(java.util.Collections.emptyList(), CONTEXT, 1_000_000);
+    final Encoded payloads = buildPayloads(java.util.Collections.emptyList(), CONTEXT, 1_000_000);
 
     assertTrue(payloads.bodies.isEmpty());
     assertEquals(0, payloads.droppedPayloadLimit);
@@ -427,8 +426,7 @@ class FlagEvaluationPayloadsTest {
         null);
   }
 
-  private static Map<String, Object> firstPayload(
-      final FlagEvaluationPayloads.EncodedPayloads payloads) throws Exception {
+  private static Map<String, Object> firstPayload(final Encoded payloads) throws Exception {
     assertEquals(1, payloads.bodies.size());
     return parse(bytes(payloads.bodies.get(0)));
   }
@@ -504,8 +502,36 @@ class FlagEvaluationPayloadsTest {
   private static Map<String, Object> onlyPayload(
       final FlagEvaluationPayloads.FlagEvaluationEvent row) throws Exception {
     return firstPayload(
-        FlagEvaluationPayloads.buildPayloads(
-            java.util.Collections.singletonList(row), CONTEXT, 1_000_000));
+        buildPayloads(java.util.Collections.singletonList(row), CONTEXT, 1_000_000));
+  }
+
+  /** The payloads of a flush, each copied, as the next payload reuses the sink's buffers. */
+  private static final class Encoded {
+    final List<List<ByteBuffer>> bodies = new ArrayList<>();
+    long droppedPayloadLimit;
+    long degradedPayloadLimit;
+  }
+
+  private static Encoded buildPayloads(
+      final List<FlagEvaluationPayloads.FlagEvaluationEvent> events,
+      final Map<String, String> context,
+      final int payloadSizeLimitBytes) {
+    final Encoded encoded = new Encoded();
+    final FlagEvaluationPayloads.PayloadCounts counts = new FlagEvaluationPayloads.PayloadCounts();
+    try {
+      FlagEvaluationPayloads.writePayloads(
+          events,
+          context,
+          payloadSizeLimitBytes,
+          counts,
+          payload -> encoded.bodies.add(singletonList(ByteBuffer.wrap(bytes(payload)))));
+    } catch (final IOException e) {
+      throw new UncheckedIOException(e); // the sink here never fails
+    }
+    assertEquals(encoded.bodies.size(), counts.payloads);
+    encoded.droppedPayloadLimit = counts.droppedPayloadLimit;
+    encoded.degradedPayloadLimit = counts.degradedPayloadLimit;
+    return encoded;
   }
 
   private static byte[] bytes(final List<ByteBuffer> chunks) {

@@ -22,7 +22,8 @@ public interface EventTransport {
    *
    * @param route the event platform route, like {@code exposures} or {@code flagevaluation}.
    * @param json the UTF-8 JSON payload, in order; each buffer is read from its position to its
-   *     limit, and left unchanged.
+   *     limit, and left unchanged. The caller may reuse the buffers once this returns normally, but
+   *     not after it throws: a request that timed out can still be reading them.
    * @throws IOException if the payload could not be delivered.
    */
   default void post(final String route, final List<ByteBuffer> json) throws IOException {

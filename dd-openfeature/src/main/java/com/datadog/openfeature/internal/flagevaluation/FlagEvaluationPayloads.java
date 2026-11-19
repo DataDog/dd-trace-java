@@ -42,27 +42,52 @@ final class FlagEvaluationPayloads {
 
   private FlagEvaluationPayloads() {}
 
-  static EncodedPayloads buildPayloads(
+  /** Receives each payload as it closes. */
+  interface PayloadSink {
+    /**
+     * @param payload the chunks of the payload's JSON document, valid only until this returns: the
+     *     next payload reuses them.
+     * @throws IOException to stop writing payloads.
+     */
+    void accept(List<ByteBuffer> payload) throws IOException;
+  }
+
+  /** What writing the payloads of a flush counted: kept when a payload fails to post. */
+  static final class PayloadCounts {
+    /** The payloads the sink accepted. */
+    int payloads;
+
+    long droppedPayloadLimit;
+    long degradedPayloadLimit;
+  }
+
+  /**
+   * Splits events into payloads under the size limit and hands each to the sink as it closes, so a
+   * flush holds one payload at a time however many it takes, rather than all of them at once.
+   *
+   * @throws IOException if the sink fails; the remaining events are not written.
+   */
+  static void writePayloads(
       final List<FlagEvaluationEvent> events,
       final Map<String, String> context,
-      final int payloadSizeLimitBytes) {
-    final Payloads payloads = new Payloads(payloadPrefix(context), payloadSizeLimitBytes);
-    long droppedPayloadLimit = 0;
-    long degradedPayloadLimit = 0;
-
+      final int payloadSizeLimitBytes,
+      final PayloadCounts counts,
+      final PayloadSink sink)
+      throws IOException {
+    final Payloads payloads =
+        new Payloads(payloadPrefix(context), payloadSizeLimitBytes, counts, sink);
     for (final FlagEvaluationEvent event : events) {
       if (payloads.add(event)) {
         continue;
       }
       final FlagEvaluationEvent degraded = event.withoutTargetingKeyAndContext();
       if (degraded != null && payloads.add(degraded)) {
-        degradedPayloadLimit += event.evaluation_count;
+        counts.degradedPayloadLimit += event.evaluation_count;
         continue;
       }
-      droppedPayloadLimit += event.evaluation_count;
+      counts.droppedPayloadLimit += event.evaluation_count;
     }
-
-    return new EncodedPayloads(payloads.close(), droppedPayloadLimit, degradedPayloadLimit);
+    payloads.close();
   }
 
   private static byte[] payloadPrefix(final Map<String, String> context) {
@@ -127,44 +152,34 @@ final class FlagEvaluationPayloads {
     return new String(hex);
   }
 
-  static final class EncodedPayloads {
-    /** Each payload, as the chunks of its JSON document. */
-    final List<List<ByteBuffer>> bodies;
-
-    final long droppedPayloadLimit;
-    final long degradedPayloadLimit;
-
-    private EncodedPayloads(
-        final List<List<ByteBuffer>> bodies,
-        final long droppedPayloadLimit,
-        final long degradedPayloadLimit) {
-      this.bodies = bodies;
-      this.droppedPayloadLimit = droppedPayloadLimit;
-      this.degradedPayloadLimit = degradedPayloadLimit;
-    }
-  }
-
   /**
-   * Splits events into payloads under the size limit. Each payload is written into its own {@link
-   * ChunkedBuffer}, so a payload of several MiB is never one large array.
+   * Splits events into payloads under the size limit, written into one {@link ChunkedBuffer} that
+   * each payload reuses once the sink accepted the previous one, so a payload of several MiB is
+   * never one large array.
    */
   private static final class Payloads {
     private final byte[] prefix;
-    private final int capacity;
-    private final List<List<ByteBuffer>> closed = new ArrayList<>();
-    private ChunkedBuffer current;
+    private final PayloadCounts counts;
+    private final PayloadSink sink;
+    private final ChunkedBuffer current;
 
-    Payloads(final byte[] prefix, final int payloadSizeLimitBytes) {
+    Payloads(
+        final byte[] prefix,
+        final int payloadSizeLimitBytes,
+        final PayloadCounts counts,
+        final PayloadSink sink) {
       this.prefix = prefix;
+      this.counts = counts;
+      this.sink = sink;
       // The events and their separators, between the prefix and the suffix.
-      this.capacity = payloadSizeLimitBytes - prefix.length - PAYLOAD_SUFFIX.length;
-      this.current = new ChunkedBuffer(capacity);
+      this.current =
+          new ChunkedBuffer(payloadSizeLimitBytes - prefix.length - PAYLOAD_SUFFIX.length);
     }
 
     /**
      * @return whether the event was added, to the current payload or to a new one.
      */
-    boolean add(final FlagEvaluationEvent event) {
+    boolean add(final FlagEvaluationEvent event) throws IOException {
       if (append(event)) {
         return true;
       }
@@ -182,21 +197,22 @@ final class FlagEvaluationPayloads {
       return JsonWriting.write(current, generator -> writeEvent(generator, event));
     }
 
-    private void closeCurrent() {
+    private void closeCurrent() throws IOException {
       final List<ByteBuffer> chunks = current.completedChunks();
       final List<ByteBuffer> body = new ArrayList<>(chunks.size() + 2);
       body.add(ByteBuffer.wrap(prefix));
       body.addAll(chunks);
       body.add(ByteBuffer.wrap(PAYLOAD_SUFFIX));
-      closed.add(body);
-      current = new ChunkedBuffer(capacity);
+      // Not reset when the sink fails: a timed-out request may still be reading the chunks.
+      sink.accept(body);
+      counts.payloads++;
+      current.reset();
     }
 
-    List<List<ByteBuffer>> close() {
+    void close() throws IOException {
       if (current.isDirty()) {
         closeCurrent();
       }
-      return closed;
     }
   }
 
