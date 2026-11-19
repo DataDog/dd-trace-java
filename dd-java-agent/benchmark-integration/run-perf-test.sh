@@ -127,7 +127,10 @@ function gc_region_mb {
 }
 
 # Middle- and old-age signals for GC log lines $2 (exclusive) to $3 (inclusive) of log $1, with G1
-# region size $4 MB: "<promoted KB> <median live MB after GC> <mean survivor MB>". Promotion is the
+# region size $4 MB: "<promoted KB> <median live MB after GC> <mean survivor MB> <young pause ms>
+# <max pause ms>". Young pause ms is the summed duration of the young collections, since their cost
+# scales with what survives rather than with how many there are; max pause is the longest
+# stop-the-world pause of any kind (young, full, remark, cleanup). Promotion is the
 # growth of the old generation across collections (G1 "Old regions: a->b", Serial "Tenured: a(cap)->b(cap)");
 # shrinking (mixed or full collections) counts as zero, so it's promotion into old, not net growth.
 function gc_window_stats {
@@ -136,6 +139,12 @@ function gc_window_stats {
         NR <= lo || NR > hi { next }
         /Pause/ && match($0, /[0-9]+[KMG]->[0-9]+[KMG]\(/) {
             split(substr($0, RSTART, RLENGTH - 1), heap, "->"); live[++nl] = kb(heap[2]) / 1024
+        }
+        # Pause lines end with their duration: "Pause Young (Normal) (G1 Evacuation Pause) 60M->20M(112M) 3.456ms".
+        /Pause (Young|Full|Remark|Cleanup)/ && match($0, /[0-9.]+ms *$/) {
+            ms = substr($0, RSTART, RLENGTH) + 0
+            if ($0 ~ /Pause Young/) young += ms
+            if (ms > maxpause) maxpause = ms
         }
         /Old regions:/ && match($0, /[0-9]+->[0-9]+/) {
             split(substr($0, RSTART, RLENGTH), r, "->"); if (r[2] > r[1]) promoted += (r[2] - r[1]) * region * 1024
@@ -154,7 +163,7 @@ function gc_window_stats {
         }
         END {
             n = asort_live()
-            printf "%.0f %.1f %.1f", promoted, (nl ? median : 0), (ns ? surv / ns : 0)
+            printf "%.0f %.1f %.1f %.1f %.1f", promoted, (nl ? median : 0), (ns ? surv / ns : 0), young, maxpause
         }
         function asort_live(   i, j, t) {
             for (i = 2; i <= nl; i++) { t = live[i]; for (j = i - 1; j >= 1 && live[j] > t; j--) live[j + 1] = live[j]; live[j + 1] = t }
@@ -486,7 +495,7 @@ header='Client Version'
 for label in "${test_order[@]}"; do
     header="$header,$label Latency,$label p90,$label p99,$label Throughput,$label Throughput Stdev,$label YGC/1k,$label KB/req"
     header="$header,$label Fixed Rate,$label Fixed p90 ms,$label Fixed p99 ms,$label Fixed Success"
-    header="$header,$label Promoted KB/req,$label Live MB,$label Survivor MB"
+    header="$header,$label Promoted KB/req,$label Live MB,$label Survivor MB,$label Young ms/1k,$label Max Pause ms"
 done
 header="$header,Server CPU Burn,Server Max RSS,Server Start RSS,Server Load Increase RSS,Trace Payloads,Trace Bytes"
 echo $header > $test_csv_file
@@ -559,6 +568,8 @@ for agent_jar in "${agent_jars[@]}"; do
         promoted_per_req=()
         live_mbs=()
         survivor_mbs=()
+        young_ms_per_k=()
+        max_pauses=()
         fixed_rate="" fixed_p90="" fixed_p99="" fixed_success=""
         if [ -s "${test_output_files[0]}.fixed" ]; then
             read -r fixed_rate fixed_p90 fixed_p99 fixed_success < "${test_output_files[0]}.fixed"
@@ -574,13 +585,17 @@ for agent_jar in "${agent_jars[@]}"; do
             throughputs+=("$(awk '$1 == "Requests/sec:" { print $2 }' "$f")")
             requests=$(awk '/requests in/ { print $1 }' "$f")
             if [ -s "$f.gc" ]; then
-                read -r window_ygc window_kb window_promoted_kb window_live_mb window_survivor_mb < "$f.gc"
+                read -r window_ygc window_kb window_promoted_kb window_live_mb window_survivor_mb window_young_ms window_max_pause < "$f.gc"
                 ygcs+=("$(echo "scale=2; 1000 * $window_ygc / ${requests:-1}" | bc)")
                 kb_per_req+=("$(echo "scale=2; $window_kb / ${requests:-1}" | bc)")
                 if [ -n "${window_promoted_kb:-}" ]; then
                     promoted_per_req+=("$(awk -v p="$window_promoted_kb" -v n="${requests:-1}" 'BEGIN { printf "%.3f", p / n }')")
                     live_mbs+=("$window_live_mb")
                     survivor_mbs+=("$window_survivor_mb")
+                fi
+                if [ -n "${window_young_ms:-}" ]; then
+                    young_ms_per_k+=("$(awk -v y="$window_young_ms" -v n="${requests:-1}" 'BEGIN { printf "%.2f", 1000 * y / n }')")
+                    max_pauses+=("$window_max_pause")
                 fi
             fi
             rm -f "$f" "$f.gc"
@@ -598,6 +613,12 @@ for agent_jar in "${agent_jars[@]}"; do
             avg_live=$(mean_plain "${live_mbs[@]}")
             avg_survivor=$(mean_plain "${survivor_mbs[@]}")
         fi
+        avg_young_ms="" max_pause=""
+        if [ "${#young_ms_per_k[@]}" -gt 0 ]; then
+            avg_young_ms=$(mean_plain "${young_ms_per_k[@]}")
+            # the worst pause across repeats, not the average one
+            max_pause=$(printf '%s\n' "${max_pauses[@]}" | sort -g | tail -1)
+        fi
         avg_throughput=$(mean_plain "${throughputs[@]}")
         stdev_throughput=$(stdev_plain "${throughputs[@]}")
         if [ "${#throughputs[@]}" -gt 1 ]; then
@@ -605,7 +626,7 @@ for agent_jar in "${agent_jars[@]}"; do
         fi
         result_row="$result_row,$avg_latency,$avg_p90,$avg_p99,$avg_throughput,$stdev_throughput,$avg_ygc,$avg_kb_per_req"
         result_row="$result_row,$fixed_rate,$fixed_p90,$fixed_p99,$fixed_success"
-        result_row="$result_row,$avg_promoted,$avg_live,$avg_survivor"
+        result_row="$result_row,$avg_promoted,$avg_live,$avg_survivor,$avg_young_ms,$max_pause"
     done
 
     server_stop_cpu=$(cpu_seconds "$server_pid")

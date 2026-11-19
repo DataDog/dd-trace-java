@@ -250,7 +250,7 @@ if [ "$runs" -gt 1 ] && [ -f "$combined_csv" ]; then
     }
     NR == 1 {
       out = "Heap,Version"
-      for (c = 4; c <= NF; c++) if ($c ~ / Throughput$/ || $c ~ / KB\/req$/) { cols[++nc] = c; out = out "," $c }
+      for (c = 4; c <= NF; c++) if ($c ~ / Throughput$/ || $c ~ / KB\/req$/ || $c ~ / Young ms\/1k$/) { cols[++nc] = c; out = out "," $c }
       print out; next
     }
     {
