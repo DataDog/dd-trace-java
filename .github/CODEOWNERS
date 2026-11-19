@@ -390,7 +390,3 @@
 **/build.gradle.kts                                @DataDog/apm-java @DataDog/apm-lang-platform-java
 **/gradle.lockfile                                 @DataDog/apm-java @DataDog/apm-lang-platform-java
 /dd-java-agent/instrumentation/**/gradle.lockfile  @DataDog/apm-java @DataDog/apm-idm-java
-
-# RUM build files retain build ownership and Injection Platform co-ownership.
-/dd-smoke-tests/rum/**/build.gradle*  @DataDog/apm-java @DataDog/apm-lang-platform-java @DataDog/injection-platform
-/dd-smoke-tests/rum/**/gradle.lockfile  @DataDog/apm-java @DataDog/apm-lang-platform-java @DataDog/injection-platform
