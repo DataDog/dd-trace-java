@@ -103,22 +103,22 @@ class SpringWebFluxTestApplication {
 
     Mono<ServerResponse> defaultGreet() {
       return ServerResponse.ok().contentType(MediaType.TEXT_PLAIN)
-        .body(BodyInserters.fromObject(DEFAULT_RESPONSE))
+        .body(BodyInserters.fromValue(DEFAULT_RESPONSE))
     }
 
     Mono<ServerResponse> doubleGreet() {
       return ServerResponse.ok().contentType(MediaType.TEXT_PLAIN)
-        .body(BodyInserters.fromObject(DEFAULT_RESPONSE + DEFAULT_RESPONSE))
+        .body(BodyInserters.fromValue(DEFAULT_RESPONSE + DEFAULT_RESPONSE))
     }
 
     Mono<ServerResponse> customGreet(ServerRequest request) {
       return ServerResponse.ok().contentType(MediaType.TEXT_PLAIN)
-        .body(BodyInserters.fromObject(DEFAULT_RESPONSE + " " + request.pathVariable("name")))
+        .body(BodyInserters.fromValue(DEFAULT_RESPONSE + " " + request.pathVariable("name")))
     }
 
     Mono<ServerResponse> customGreetWithWord(ServerRequest request) {
       return ServerResponse.ok().contentType(MediaType.TEXT_PLAIN)
-        .body(BodyInserters.fromObject(DEFAULT_RESPONSE + " " + request.pathVariable("name") + " " + request.pathVariable("word")))
+        .body(BodyInserters.fromValue(DEFAULT_RESPONSE + " " + request.pathVariable("name") + " " + request.pathVariable("word")))
     }
 
     Mono<ServerResponse> intResponse(Mono<FooModel> mono) {

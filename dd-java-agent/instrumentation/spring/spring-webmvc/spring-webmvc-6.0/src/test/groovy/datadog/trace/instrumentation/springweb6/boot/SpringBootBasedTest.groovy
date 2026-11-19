@@ -14,20 +14,24 @@ import datadog.trace.api.iast.IastContext
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.propagation.PropagationModule
+import datadog.trace.api.iast.sink.UnvalidatedRedirectModule
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
 import datadog.trace.instrumentation.springweb6.SetupSpecHelper
 import datadog.trace.instrumentation.springweb6.SpringWebHttpServerDecorator
 import okhttp3.Credentials
 import okhttp3.FormBody
+import okhttp3.HttpUrl
 import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.Response
 import org.springframework.beans.BeansException
 import org.springframework.boot.SpringApplication
-import org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext
 import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.http.MediaType
+import org.springframework.web.HttpRequestMethodNotSupportedException
+import org.springframework.web.server.ResponseStatusException
+import org.springframework.web.servlet.view.RedirectView
 import org.springframework.web.socket.BinaryMessage
 import org.springframework.web.socket.TextMessage
 import org.springframework.web.socket.WebSocketSession
@@ -52,7 +56,9 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
   Map<String, String> extraServerTags = [:]
 
   SpringApplication application() {
-    return new SpringApplication(SecurityConfig, TestController, AppConfig, WebsocketConfig, FailOnHeaderConfig)
+    return new SpringApplication(SecurityConfig, TestController, AppConfig, WebsocketConfig, FailOnHeaderConfig,
+      RenderTestController, RenderTestConfig, ErrorPathController, ErrorPathControllerAdvice,
+      MappingEdgeController, ForwardTargetController)
   }
 
   class SpringBootServer implements WebsocketServer {
@@ -66,9 +72,9 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
       app.setDefaultProperties(["server.port": 0, "server.context-path": "/$servletContext",
         "spring.mvc.throw-exception-if-no-handler-found": false,
         "spring.web.resources.add-mappings"             : false,
-        "server.forward-headers-strategy": "NONE"])
+        "server.forward-headers-strategy": "NONE"] + extraServerProperties())
       context = app.run()
-      port = (context as ServletWebServerApplicationContext).webServer.port
+      port = context.webServer.port // ServletWebServerApplicationContext moved package in Boot 4
       try {
         endpoint = context.getBean(WebsocketEndpoint)
       } catch (BeansException ignored) {
@@ -143,6 +149,15 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
       endpoint?.activeSession?.setBinaryMessageSizeLimit(size)
       endpoint?.activeSession?.setTextMessageSizeLimit(size)
     }
+  }
+
+  Map<String, Object> extraServerProperties() {
+    [:]
+  }
+
+  /** Matrix variables Spring binds for the {@code MATRIX_PARAM} path {@code /matrix/a=x,y;a=z}. */
+  Map<String, List<String>> expectedMatrixVariables() {
+    [a: ['x', 'y', 'z']]
   }
 
   def setupSpec() {
@@ -259,10 +274,7 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
   }
 
   int spanCount(ServerEndpoint endpoint) {
-    if (endpoint == REDIRECT) {
-      // Spring is generates a RenderView and ResponseSpan for REDIRECT
-      return super.spanCount(endpoint) + 1
-    } else if (endpoint == NOT_FOUND) {
+    if (endpoint == NOT_FOUND) {
       //not found is handled by the application server in this test case
       return super.spanCount(endpoint) - 1
     }
@@ -416,10 +428,10 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
 
     then:
     response.code() == MATRIX_PARAM.status
-    response.body().string() == MATRIX_PARAM.body
+    response.body().string() == expectedMatrixVariables() as String
     //FIXME: tomcat seems removing the part after the ';' on the decodedUri
     // should be  [var:['a=x,y;a=z'
-    span.getTag(IG_PATH_PARAMS_TAG) == [var: ['a=x,y', [a: ['x', 'y', 'z']]]]
+    span.getTag(IG_PATH_PARAMS_TAG) == [var: ['a=x,y', expectedMatrixVariables()]]
   }
 
   void 'tainting on matrix var'() {
@@ -437,10 +449,14 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
     then:
     // spring-security filter (AuthorizationFilter.java:95) causes uri matching to happen twice (or three times in recent spring (6.1+) versions)
     (1.._) * mod.taintString(_ as IastContext, 'a=x,y', SourceTypes.REQUEST_PATH_PARAMETER, 'var') // this version of spring removes ;a=z
-    (1.._) * mod.taintString(_ as IastContext, 'a', SourceTypes.REQUEST_MATRIX_PARAMETER, 'var')
-    (1.._) * mod.taintString(_ as IastContext, 'x', SourceTypes.REQUEST_MATRIX_PARAMETER, 'var')
-    (1.._) * mod.taintString(_ as IastContext, 'y', SourceTypes.REQUEST_MATRIX_PARAMETER, 'var')
-    (1.._) * mod.taintString(_ as IastContext, 'z', SourceTypes.REQUEST_MATRIX_PARAMETER, 'var')
+    interaction {
+      expectedMatrixVariables().each { name, values ->
+        (1.._) * mod.taintString(_ as IastContext, name, SourceTypes.REQUEST_MATRIX_PARAMETER, 'var')
+        values.each { value ->
+          (1.._) * mod.taintString(_ as IastContext, value, SourceTypes.REQUEST_MATRIX_PARAMETER, 'var')
+        }
+      }
+    }
     0 * mod._
 
     cleanup:
@@ -463,20 +479,444 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
     span.isError()
   }
 
-  boolean hasResponseSpan(ServerEndpoint endpoint) {
-    // FIXME: uncomment when jakarta servlet will be instrumented
-    //  endpoint == REDIRECT || endpoint == NOT_FOUND || endpoint == LOGIN
-    false
+  def "view resolved by name is rendered in a response.render span"() {
+    setup:
+    def request = new Request.Builder().url(HttpUrl.get(address.resolve("/render/named"))).get().build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
+    response.code() == 200
+    response.body().string() == RenderTestConfig.TEXT_VIEW_BODY
+
+    and:
+    assertTraces(1) {
+      trace(3) {
+        sortSpansByStart()
+        span {
+          operationName operation()
+          resourceName "GET /render/named"
+          spanType DDSpanTypes.HTTP_SERVER
+          errored false
+          parent()
+          tags(false) {
+            "$Tags.HTTP_STATUS" 200
+            "$Tags.HTTP_ROUTE" "/render/named"
+          }
+        }
+        span {
+          operationName "spring.handler"
+          resourceName "RenderTestController.named"
+          spanType DDSpanTypes.HTTP_SERVER
+          errored false
+          childOf(span(0))
+          tags {
+            "$Tags.COMPONENT" SpringWebHttpServerDecorator.DECORATE.component()
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+            defaultTags()
+          }
+        }
+        span {
+          operationName "response.render"
+          resourceName RenderTestConfig.TEXT_VIEW
+          spanType DDSpanTypes.HTTP_SERVER
+          errored false
+          childOf(span(0))
+          tags {
+            "$Tags.COMPONENT" "spring-webmvc"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+            "view.name" RenderTestConfig.TEXT_VIEW
+            defaultTags()
+          }
+        }
+      }
+    }
   }
 
-  // FIXME: remove me when jakarta servlet instrumentation will be implemented
-  @Override
-  boolean testRedirect() {
-    false
+  def "view rendering failure is recorded on the response.render span"() {
+    setup:
+    def request = new Request.Builder().url(HttpUrl.get(address.resolve("/render/failing"))).get().build()
+
+    when:
+    def response = client.newCall(request).execute()
+    response.close()
+
+    then:
+    response.code() == 500
+
+    and:
+    assertTraces(1) {
+      trace(3) {
+        sortSpansByStart()
+        span {
+          operationName operation()
+          resourceName "GET /render/failing"
+          spanType DDSpanTypes.HTTP_SERVER
+          errored true
+          parent()
+          tags(false) {
+            "$Tags.HTTP_STATUS" 500
+            "$Tags.HTTP_ROUTE" "/render/failing"
+          }
+        }
+        span {
+          operationName "spring.handler"
+          resourceName "RenderTestController.failing"
+          spanType DDSpanTypes.HTTP_SERVER
+          errored false
+          childOf(span(0))
+          tags {
+            "$Tags.COMPONENT" SpringWebHttpServerDecorator.DECORATE.component()
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+            defaultTags()
+          }
+        }
+        span {
+          operationName "response.render"
+          resourceName RenderTestConfig.FAILING_VIEW
+          spanType DDSpanTypes.HTTP_SERVER
+          errored true
+          childOf(span(0))
+          tags {
+            "$Tags.COMPONENT" "spring-webmvc"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+            "view.name" RenderTestConfig.FAILING_VIEW
+            errorTags(IllegalStateException, RenderTestConfig.FAILING_VIEW_MESSAGE)
+            defaultTags()
+          }
+        }
+      }
+    }
+  }
+
+  def "#exceptionType.simpleName resolved to #status is recorded without marking the server span as an error"() {
+    setup:
+    def request = new Request.Builder().url(HttpUrl.get(address.resolve(path))).get().build()
+
+    when:
+    def response = client.newCall(request).execute()
+    response.close()
+
+    then:
+    response.code() == status
+
+    and:
+    assertTraces(1) {
+      trace(2) {
+        sortSpansByStart()
+        span {
+          operationName operation()
+          resourceName "GET $path"
+          spanType DDSpanTypes.HTTP_SERVER
+          // the handler exception is captured, but a client error status does not make it an error
+          errored false
+          parent()
+          tags(false) {
+            "$Tags.HTTP_STATUS" status
+            "$Tags.HTTP_ROUTE" path
+            errorTags(exceptionType, message)
+          }
+        }
+        span {
+          operationName "spring.handler"
+          resourceName "ErrorPathController.$handlerMethod"
+          spanType DDSpanTypes.HTTP_SERVER
+          errored true
+          childOf(span(0))
+          tags {
+            "$Tags.COMPONENT" SpringWebHttpServerDecorator.DECORATE.component()
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+            errorTags(exceptionType, message)
+            defaultTags()
+          }
+        }
+      }
+    }
+
+    where:
+    path                                     | handlerMethod    | status | exceptionType                              | message
+    ErrorPathController.RESPONSE_STATUS_PATH | 'responseStatus' | 409    | ResponseStatusException                    | '409 CONFLICT "response status exception"'
+    ErrorPathController.ADVICE_PATH          | 'advice'         | 400    | ErrorPathController.AdviceHandledException | 'handled by controller advice'
+  }
+
+  def "#method to a GET-only mapping is answered during handler lookup"() {
+    setup:
+    def path = MappingEdgeController.GET_ONLY_PATH
+    def request = new Request.Builder().url(HttpUrl.get(address.resolve(path))).method(method, null).build()
+
+    when:
+    def response = client.newCall(request).execute()
+    response.close()
+
+    then:
+    response.code() == status
+    response.header("Allow") == allow
+
+    and:
+    // No mapping matched, so no route is set and the resource falls back to the request path
+    assertTraces(1) {
+      trace(handlerResource == null ? 1 : 2) {
+        sortSpansByStart()
+        span {
+          operationName operation()
+          resourceName Config.get().isTraceOtelSemanticsEnabled() ? method : "$method $path"
+          spanType DDSpanTypes.HTTP_SERVER
+          errored false
+          parent()
+          tags(false) {
+            "$Tags.HTTP_STATUS" status
+            "$Tags.HTTP_ROUTE" null
+            if (lookupError != null) {
+              errorTags(lookupError, "Request method '$method' is not supported")
+            }
+          }
+        }
+        if (handlerResource != null) {
+          span {
+            operationName "spring.handler"
+            resourceName handlerResource
+            spanType DDSpanTypes.HTTP_SERVER
+            errored false
+            childOf(span(0))
+            tags {
+              "$Tags.COMPONENT" SpringWebHttpServerDecorator.DECORATE.component()
+              "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+              defaultTags()
+            }
+          }
+        }
+      }
+    }
+
+    // DELETE fails in getHandler, so no handler adapter runs; OPTIONS is answered by Spring's
+    // internal HttpOptionsHandler
+    where:
+    method    | status | allow             | handlerResource             | lookupError
+    "DELETE"  | 405    | "GET"             | null                        | HttpRequestMethodNotSupportedException
+    "OPTIONS" | 200    | "GET,HEAD,OPTIONS" | "HttpOptionsHandler.handle" | null
+  }
+
+  def "forward view keeps the route of the original request"() {
+    setup:
+    def request = new Request.Builder().url(HttpUrl.get(address.resolve("/render/forward"))).get().build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
+    response.code() == 200
+    response.body().string() == ForwardTargetController.BODY
+
+    and:
+    assertTraces(1) {
+      trace(4) {
+        sortSpansByStart()
+        span {
+          operationName operation()
+          resourceName "GET /render/forward"
+          spanType DDSpanTypes.HTTP_SERVER
+          errored false
+          parent()
+          tags(false) {
+            "$Tags.HTTP_STATUS" 200
+            // the forwarded dispatch matches another pattern, but the first route is kept
+            "$Tags.HTTP_ROUTE" "/render/forward"
+          }
+        }
+        span {
+          operationName "spring.handler"
+          resourceName "RenderTestController.forward"
+          spanType DDSpanTypes.HTTP_SERVER
+          errored false
+          childOf(span(0))
+          tags {
+            "$Tags.COMPONENT" SpringWebHttpServerDecorator.DECORATE.component()
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+            defaultTags()
+          }
+        }
+        span {
+          operationName "response.render"
+          resourceName "forward:$ForwardTargetController.PATH"
+          spanType DDSpanTypes.HTTP_SERVER
+          errored false
+          childOf(span(0))
+          tags {
+            "$Tags.COMPONENT" "spring-webmvc"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+            "view.name" "forward:$ForwardTargetController.PATH"
+            defaultTags()
+          }
+        }
+        span {
+          operationName "spring.handler"
+          resourceName "ForwardTargetController.target"
+          spanType DDSpanTypes.HTTP_SERVER
+          errored false
+          childOf(span(2))
+          tags {
+            "$Tags.COMPONENT" SpringWebHttpServerDecorator.DECORATE.component()
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+            defaultTags()
+          }
+        }
+      }
+    }
+  }
+
+  def "exception resolved to an error view is rendered in a response.render span"() {
+    setup:
+    def request = new Request.Builder().url(HttpUrl.get(address.resolve("/render/error-view"))).get().build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
+    response.code() == RenderTestConfig.ERROR_VIEW_STATUS
+    response.body().string() == RenderTestConfig.ERROR_VIEW_BODY
+
+    and:
+    assertTraces(1) {
+      trace(3) {
+        sortSpansByStart()
+        span {
+          operationName operation()
+          resourceName "GET /render/error-view"
+          spanType DDSpanTypes.HTTP_SERVER
+          errored true
+          parent()
+          tags(false) {
+            "$Tags.HTTP_STATUS" RenderTestConfig.ERROR_VIEW_STATUS
+            "$Tags.HTTP_ROUTE" "/render/error-view"
+            errorTags(RenderTestController.ErrorViewException, RenderTestController.ERROR_VIEW_MESSAGE)
+          }
+        }
+        span {
+          operationName "spring.handler"
+          resourceName "RenderTestController.errorView"
+          spanType DDSpanTypes.HTTP_SERVER
+          errored true
+          childOf(span(0))
+          tags {
+            "$Tags.COMPONENT" SpringWebHttpServerDecorator.DECORATE.component()
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+            errorTags(RenderTestController.ErrorViewException, RenderTestController.ERROR_VIEW_MESSAGE)
+            defaultTags()
+          }
+        }
+        span {
+          operationName "response.render"
+          resourceName RenderTestConfig.ERROR_VIEW
+          spanType DDSpanTypes.HTTP_SERVER
+          errored false
+          childOf(span(0))
+          tags {
+            "$Tags.COMPONENT" "spring-webmvc"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+            "view.name" RenderTestConfig.ERROR_VIEW
+            defaultTags()
+          }
+        }
+      }
+    }
+  }
+
+  void '#handlerMethod redirect is reported to the IAST unvalidated redirect sink'() {
+    setup:
+    UnvalidatedRedirectModule module = Mock()
+    InstrumentationBridge.registerIastModule(module)
+    def path = "/render/$pathSuffix"
+    def request = new Request.Builder().url(HttpUrl.get(address.resolve(path))).get().build()
+
+    when:
+    def response = client.newCall(request).execute()
+    response.close()
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    response.code() == 302
+    // reported when the return value handler is selected, with the controller method as location
+    1 * module.onRedirect(RenderTestController.REDIRECT_VIEW_NAME, RenderTestController.name, handlerMethod)
+    0 * module.onRedirect(_ as String, _ as String, _ as String)
+
+    and:
+    assertTraces(1) {
+      trace(3) {
+        sortSpansByStart()
+        span {
+          operationName operation()
+          resourceName "GET $path"
+          spanType DDSpanTypes.HTTP_SERVER
+          errored false
+          parent()
+          tags(false) {
+            "$Tags.HTTP_STATUS" 302
+            "$Tags.HTTP_ROUTE" path
+          }
+        }
+        span {
+          operationName "spring.handler"
+          resourceName "RenderTestController.$handlerMethod"
+          spanType DDSpanTypes.HTTP_SERVER
+          errored false
+          childOf(span(0))
+          tags {
+            "$Tags.COMPONENT" SpringWebHttpServerDecorator.DECORATE.component()
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+            defaultTags()
+          }
+        }
+        span {
+          operationName "response.render"
+          resourceName RenderTestController.REDIRECT_VIEW_NAME
+          spanType DDSpanTypes.HTTP_SERVER
+          errored false
+          childOf(span(0))
+          tags {
+            "$Tags.COMPONENT" "spring-webmvc"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+            "view.name" RenderTestController.REDIRECT_VIEW_NAME
+            defaultTags()
+          }
+        }
+      }
+    }
+
+    cleanup:
+    InstrumentationBridge.clearIastModules()
+
+    where:
+    handlerMethod           | pathSuffix
+    "redirectViewName"      | "redirect-view-name"
+    "redirectModelAndView"  | "redirect-model-and-view"
+  }
+
+  boolean hasResponseSpan(ServerEndpoint endpoint) {
+    // Spring renders the RedirectView returned for REDIRECT. There is no servlet.response span
+    // for sendRedirect because the jakarta servlet response is not instrumented.
+    endpoint == REDIRECT
   }
 
   @Override
   void responseSpan(TraceAssert trace, ServerEndpoint endpoint) {
+    if (endpoint == REDIRECT) {
+      // Rendering happens after the handler returns, so the span is a child of the server span
+      trace.span {
+        serviceName expectedServiceName()
+        operationName "response.render"
+        resourceName "response.render"
+        spanType DDSpanTypes.HTTP_SERVER
+        errored false
+        childOf(trace.span(0))
+        tags {
+          "$Tags.COMPONENT" "spring-webmvc"
+          "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+          "view.type" RedirectView.simpleName
+          defaultTags()
+        }
+      }
+    }
   }
 
 
@@ -507,6 +947,24 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
         defaultTags()
       }
     }
+  }
+}
+
+/**
+ * Runs the suite on Spring's default PathPatternParser request matching. The base suite keeps
+ * semicolon content in the lookup path, which switches MVC request mapping to AntPathMatcher; that
+ * mode is deprecated for removal in Spring 7.
+ */
+class SpringBootPathPatternTest extends SpringBootBasedTest {
+  @Override
+  Map<String, Object> extraServerProperties() {
+    [(AppConfig.LEGACY_PATH_MATCHING): "false"]
+  }
+
+  @Override
+  Map<String, List<String>> expectedMatrixVariables() {
+    // PathPatternParser binds "a=x,y" to the template variable and only ";a=z" as matrix content
+    [a: ['z']]
   }
 }
 

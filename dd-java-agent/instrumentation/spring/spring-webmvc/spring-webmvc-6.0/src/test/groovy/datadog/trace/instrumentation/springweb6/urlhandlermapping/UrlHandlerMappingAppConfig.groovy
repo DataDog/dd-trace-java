@@ -4,7 +4,6 @@ import datadog.trace.agent.test.base.HttpServerTest
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import org.springframework.boot.autoconfigure.SpringBootApplication
-import org.springframework.boot.web.servlet.filter.OrderedRequestContextFilter
 import org.springframework.context.annotation.Bean
 import org.springframework.core.Ordered
 import org.springframework.stereotype.Controller
@@ -37,7 +36,16 @@ class UrlHandlerMappingAppConfig implements WebMvcConfigurer {
 
   @Bean
   RequestContextFilter requestContextFilter() {
-    new OrderedRequestContextFilter(order: Ordered.HIGHEST_PRECEDENCE)
+    // OrderedRequestContextFilter moved package in Boot 4 (boot.web.servlet.filter -> boot.servlet.filter)
+    new HighestPrecedenceRequestContextFilter()
+  }
+}
+
+/** Local replacement for OrderedRequestContextFilter to avoid Boot 3/4 package move. */
+class HighestPrecedenceRequestContextFilter extends RequestContextFilter implements Ordered {
+  @Override
+  int getOrder() {
+    Ordered.HIGHEST_PRECEDENCE
   }
 }
 
