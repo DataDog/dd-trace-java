@@ -188,12 +188,20 @@ class ExperimentationOptOutTest {
   }
 
   @Test
-  void rawNullEntryIsPresentAndInvalid() {
+  void nullValueIsPresentAndInvalid() {
     final MutableContext context =
-        new MutableContext(Collections.singletonMap(ExperimentationOptOut.ATTRIBUTE, null));
+        new MutableContext(Collections.singletonMap(ExperimentationOptOut.ATTRIBUTE, new Value()));
     assertThrows(
         ExperimentationOptOut.InvalidTimestampException.class,
         () -> ExperimentationOptOut.cutoff(ExperimentationOptOutMode.IMMEDIATE, context));
+  }
+
+  @Test
+  void rawNullEntryIsAbsent() {
+    // The context's keys are not read, so a raw Java null cannot be told apart from no entry.
+    final MutableContext context =
+        new MutableContext(Collections.singletonMap(ExperimentationOptOut.ATTRIBUTE, null));
+    assertNull(ExperimentationOptOut.cutoff(ExperimentationOptOutMode.IMMEDIATE, context));
   }
 
   @TableTest({

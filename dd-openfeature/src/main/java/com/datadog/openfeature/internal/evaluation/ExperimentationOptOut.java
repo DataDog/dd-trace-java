@@ -45,13 +45,17 @@ public final class ExperimentationOptOut {
 
   /** Parses the cutoff once per evaluation; null means no exclusion. */
   static Instant cutoff(final ExperimentationOptOutMode mode, final EvaluationContext context) {
-    if ((mode != ExperimentationOptOutMode.IMMEDIATE
-            && mode != ExperimentationOptOutMode.FUTURE_EXPERIMENTS_ONLY)
-        || !context.keySet().contains(ATTRIBUTE)) {
+    if (mode != ExperimentationOptOutMode.IMMEDIATE
+        && mode != ExperimentationOptOutMode.FUTURE_EXPERIMENTS_ONLY) {
       return null;
     }
+    // getValue is null only for an absent attribute. keySet() is not used, as a layered context
+    // copies its keys to build it.
     final Value value = context.getValue(ATTRIBUTE);
-    if (value != null && value.isString()) {
+    if (value == null) {
+      return null;
+    }
+    if (value.isString()) {
       try {
         // Use the same timestamp parser as allocation startAt/endAt.
         return DateTimeFormatter.ISO_OFFSET_DATE_TIME.parse(value.asString(), Instant::from);
