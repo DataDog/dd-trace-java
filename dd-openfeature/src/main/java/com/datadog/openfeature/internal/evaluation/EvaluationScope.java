@@ -1,6 +1,7 @@
 package com.datadog.openfeature.internal.evaluation;
 
 import dev.openfeature.sdk.EvaluationContext;
+import dev.openfeature.sdk.Value;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -56,11 +57,13 @@ final class EvaluationScope {
   }
 
   private Object resolve(final String name) {
-    // Special handling for "id" attribute: if not explicitly provided, use targeting key
-    if (ID.equals(name) && !context.keySet().contains(name)) {
-      return context.getTargetingKey();
+    // getValue is null only for an absent key: an "id" that is not provided is the targeting key.
+    // A context's keySet() is not used for this, as a layered context copies its keys to build it.
+    final Value value = context.getValue(name);
+    if (value == null) {
+      return ID.equals(name) ? context.getTargetingKey() : null;
     }
-    return context.convertValue(context.getValue(name));
+    return context.convertValue(value);
   }
 
   private void remember(final String name, final Object value) {

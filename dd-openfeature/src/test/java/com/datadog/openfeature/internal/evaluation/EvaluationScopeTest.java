@@ -66,6 +66,16 @@ class EvaluationScopeTest {
     assertNull(scope.attribute("id"));
   }
 
+  @Test
+  void fallsBackToTheTargetingKeyForARawNullId() {
+    // The context's keys are not read, so a raw Java null cannot be told apart from no entry.
+    final Map<String, Value> attributes = new HashMap<>();
+    attributes.put("id", null);
+    final EvaluationScope scope = new EvaluationScope(new MutableContext("user-1", attributes));
+
+    assertEquals("user-1", scope.attribute("id"));
+  }
+
   /** Counts the attribute reads of the evaluation. */
   private static final class CountingContext extends MutableContext {
     private final Map<String, Integer> reads = new HashMap<>();
