@@ -159,6 +159,8 @@ public final class FlagEvaluator {
       final Instant now = Instant.now();
       final long evalTimestampMs = now.toEpochMilli();
       final String targetingKey = context.getTargetingKey();
+      // Many SemVer conditions can test the same attribute; parse each value once per evaluation.
+      final SemverParseCache semverCache = flag.hasSemverConditions ? new SemverParseCache() : null;
 
       for (final Allocation allocation : flag.allocations) {
         if (experimentationCutoff != null
@@ -171,7 +173,7 @@ public final class FlagEvaluator {
         }
 
         if (!isEmpty(allocation.rules)) {
-          if (!evaluateRules(allocation.rules, context)) {
+          if (!evaluateRules(allocation.rules, context, semverCache)) {
             continue;
           }
         }
@@ -277,7 +279,9 @@ public final class FlagEvaluator {
     return true;
   }
 
-  private static boolean evaluateRules(final List<Rule> rules, final EvaluationContext context) {
+  // Visible for tests: they count the SemVer parses of one evaluation's rules.
+  static boolean evaluateRules(
+      final List<Rule> rules, final EvaluationContext context, final SemverParseCache semverCache) {
     for (final Rule rule : rules) {
       if (isEmpty(rule.conditions)) {
         continue;
@@ -285,7 +289,7 @@ public final class FlagEvaluator {
 
       boolean allConditionsMatch = true;
       for (final ConditionConfiguration condition : rule.conditions) {
-        if (!evaluateCondition(condition, context)) {
+        if (!evaluateCondition(condition, context, semverCache)) {
           allConditionsMatch = false;
           break;
         }
@@ -299,7 +303,9 @@ public final class FlagEvaluator {
   }
 
   private static boolean evaluateCondition(
-      final ConditionConfiguration condition, final EvaluationContext context) {
+      final ConditionConfiguration condition,
+      final EvaluationContext context,
+      final SemverParseCache semverCache) {
     if (condition.operator == ConditionOperator.IS_NULL) {
       final Object value = resolveAttribute(condition.attribute, context);
       boolean isNull = value == null;
@@ -331,17 +337,23 @@ public final class FlagEvaluator {
       case LT:
         return compareNumber(attributeValue, condition.value, (a, b) -> a < b);
       case SEMVER_EQ:
-        return evaluateSemverCondition(attributeValue, condition.semverComparand, o -> o == 0);
+        return evaluateSemverCondition(
+            attributeValue, condition.semverComparand, semverCache, o -> o == 0);
       case SEMVER_NEQ:
-        return evaluateSemverCondition(attributeValue, condition.semverComparand, o -> o != 0);
+        return evaluateSemverCondition(
+            attributeValue, condition.semverComparand, semverCache, o -> o != 0);
       case SEMVER_LT:
-        return evaluateSemverCondition(attributeValue, condition.semverComparand, o -> o < 0);
+        return evaluateSemverCondition(
+            attributeValue, condition.semverComparand, semverCache, o -> o < 0);
       case SEMVER_LTE:
-        return evaluateSemverCondition(attributeValue, condition.semverComparand, o -> o <= 0);
+        return evaluateSemverCondition(
+            attributeValue, condition.semverComparand, semverCache, o -> o <= 0);
       case SEMVER_GT:
-        return evaluateSemverCondition(attributeValue, condition.semverComparand, o -> o > 0);
+        return evaluateSemverCondition(
+            attributeValue, condition.semverComparand, semverCache, o -> o > 0);
       case SEMVER_GTE:
-        return evaluateSemverCondition(attributeValue, condition.semverComparand, o -> o >= 0);
+        return evaluateSemverCondition(
+            attributeValue, condition.semverComparand, semverCache, o -> o >= 0);
       default:
         return false;
     }
@@ -403,24 +415,38 @@ public final class FlagEvaluator {
 
   private static boolean compareNumber(
       final Object attributeValue, final Object conditionValue, NumberComparator comparator) {
-    final double a = mapValue(Double.class, attributeValue);
-    final double b = mapValue(Double.class, conditionValue);
-    return comparator.compare(a, b);
+    return comparator.compare(toDouble(attributeValue), toDouble(conditionValue));
+  }
+
+  /**
+   * Converts a comparison operand to a double. A {@link Number} converts without allocating; any
+   * other value, including null, goes through {@link #mapValue}, so it converts or fails with
+   * mapValue's exception and message.
+   */
+  private static double toDouble(final Object value) {
+    if (value instanceof Number) {
+      return ((Number) value).doubleValue();
+    }
+    return mapValue(Double.class, value);
   }
 
   /**
    * Evaluates a semantic version comparison operator. The attribute value must be a string that is
    * a valid semantic version, and the comparand must have been pre-parsed during configuration
-   * validation. If either is missing or invalid, the condition does not match.
+   * validation. If either is missing or invalid, the condition does not match. The cache, when
+   * present, remembers the attribute's parse for the other conditions of the evaluation.
    */
   private static boolean evaluateSemverCondition(
       final Object attributeValue,
       final ParsedSemver comparand,
+      final SemverParseCache semverCache,
       final SemverComparator comparator) {
     if (!(attributeValue instanceof String) || comparand == null) {
       return false;
     }
-    final ParsedSemver parsedAttribute = ParsedSemver.parse((String) attributeValue);
+    final String version = (String) attributeValue;
+    final ParsedSemver parsedAttribute =
+        semverCache != null ? semverCache.parse(version) : ParsedSemver.parse(version);
     if (parsedAttribute == null) {
       return false;
     }

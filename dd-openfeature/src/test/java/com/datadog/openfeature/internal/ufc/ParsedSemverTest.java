@@ -28,7 +28,13 @@ class ParsedSemverTest {
         Arguments.of("1.2.3-alpha.1", 1L, 2L, 3L, "alpha.1"),
         Arguments.of("1.2.3-18446744073709551616", 1L, 2L, 3L, "18446744073709551616"),
         Arguments.of("1.2.3+build.001", 1L, 2L, 3L, ""),
-        Arguments.of("1.2.3-alpha-1+build.001", 1L, 2L, 3L, "alpha-1"));
+        Arguments.of("1.2.3-alpha-1+build.001", 1L, 2L, 3L, "alpha-1"),
+        Arguments.of(
+            "1.49.3-beta.11.rc-7+build.20261117.sha.0123456789abcdef",
+            1L,
+            49L,
+            3L,
+            "beta.11.rc-7"));
   }
 
   @ParameterizedTest(name = "valid: {0}")
@@ -58,6 +64,8 @@ class ParsedSemverTest {
         "18446744073709551616.0.0",
         "0.18446744073709551616.0",
         "0.0.18446744073709551616",
+        "99999999999999999999.0.0",
+        "1.2.3-+build",
         "1.2.3-",
         "1.2.3+",
         "1.2.3-alpha..1",
@@ -118,6 +126,27 @@ class ParsedSemverTest {
         ParsedSemver.compare(ParsedSemver.parse("18.0.0.0"), ParsedSemver.parse("17.0.0")) > 0);
     assertTrue(
         ParsedSemver.compare(ParsedSemver.parse("18.0.0.0.0"), ParsedSemver.parse("17.0.0")) > 0);
+  }
+
+  @Test
+  void comparesPrereleaseIdentifiersByPrecedence() {
+    final String[][] ordered = {
+      {"1.0.0-abc", "1.0.0-abcd"}, // a prefix precedes the longer identifier
+      {"1.0.0-ab", "1.0.0-b"},
+      {"1.0.0-9", "1.0.0-10"}, // numeric identifiers compare by value
+      {"1.0.0-99", "1.0.0-a"}, // numeric precedes alphanumeric
+      {"1.0.0-a.b", "1.0.0-a-b"}, // the identifier "a" is a prefix of "a-b"
+      {"1.0.0-rc.1", "1.0.0-rc.1.0"}, // fewer identifiers precede more
+      {"1.0.0-18446744073709551616", "1.0.0-18446744073709551617"},
+      {"1.0.0-9.x", "1.0.0-10.x"}, // a numeric identifier that is not last compares by value
+      {"1.0.0-2.beta", "1.0.0-10.beta"},
+    };
+    for (final String[] pair : ordered) {
+      final ParsedSemver left = ParsedSemver.parse(pair[0]);
+      final ParsedSemver right = ParsedSemver.parse(pair[1]);
+      assertTrue(ParsedSemver.compare(left, right) < 0, pair[0] + " should precede " + pair[1]);
+      assertTrue(ParsedSemver.compare(right, left) > 0, pair[1] + " should follow " + pair[0]);
+    }
   }
 
   @Test
