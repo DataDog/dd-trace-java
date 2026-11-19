@@ -220,7 +220,11 @@ public class ProcessSupervisor implements Closeable {
 
     // Keep checking on the process until it exits
     while (!currentProcess.waitFor(HEALTHY_DELAY_MILLIS, MILLISECONDS)) {
-      recordUptime(System.currentTimeMillis() - currentProcessStartedMillis);
+      // Time up counts only while the process passes its checks. One that is failing them, or
+      // that did not stop when asked, has not stayed up in a useful way.
+      if (failedHealthChecks == 0) {
+        recordUptime(System.currentTimeMillis() - currentProcessStartedMillis);
+      }
       if (healthCheck != ALWAYS_READY && !passesHealthCheck(childPid)) {
         restartUnhealthyProcess(childPid);
         return;
