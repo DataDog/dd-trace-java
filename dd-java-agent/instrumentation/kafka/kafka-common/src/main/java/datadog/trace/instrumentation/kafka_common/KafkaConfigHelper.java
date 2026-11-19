@@ -109,13 +109,18 @@ public class KafkaConfigHelper {
   }
 
   /**
-   * Store a raw consumer config map, converted only when reported, unless a config is already
-   * pending.
+   * Store a shallow copy of a raw consumer config map, converted only when reported, unless a
+   * config is already pending.
    */
   public static void storePendingConsumerConfigIfAbsent(
       MetadataState state, String consumerGroup, Map<String, Object> rawConfig) {
+    if (state.hasPendingConfig()) {
+      return;
+    }
+    // Copied so later caller mutations aren't reported nor race with reporting threads
+    Map<String, Object> rawConfigCopy = new LinkedHashMap<>(rawConfig);
     if (state.setPendingConfigIfAbsent(
-        new PendingConfig("kafka_consumer", groupOrEmpty(consumerGroup), rawConfig))) {
+        new PendingConfig("kafka_consumer", groupOrEmpty(consumerGroup), rawConfigCopy))) {
       log.debug("Stored pending raw consumer config (cluster ID not yet known)");
     }
   }

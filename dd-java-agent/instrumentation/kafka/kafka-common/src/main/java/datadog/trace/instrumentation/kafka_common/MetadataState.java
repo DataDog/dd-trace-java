@@ -11,6 +11,10 @@ public class MetadataState {
     pendingConfig.set(config);
   }
 
+  public boolean hasPendingConfig() {
+    return pendingConfig.get() != null;
+  }
+
   /** Sets the pending config only if none is pending; returns whether it was set. */
   public boolean setPendingConfigIfAbsent(PendingConfig config) {
     return pendingConfig.compareAndSet(null, config);

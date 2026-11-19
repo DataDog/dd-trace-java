@@ -69,12 +69,13 @@ class KafkaConfigHelperReportPendingConfigTest {
   }
 
   @Test
-  void rawMapConfigIsKeptPendingWhileOffAndConvertedOnlyWhenReported() {
+  void rawMapConfigIsCopiedWhenStoredAndKeptPendingWhileOff() {
     MetadataState state = new MetadataState();
-    Map<String, Object> rawConfig = props("group.id", "group-1");
+    Map<String, Object> rawConfig = props("group.id", "group-1", "ssl.key.password", "secret");
     KafkaConfigHelper.storePendingConsumerConfigIfAbsent(state, "group-1", rawConfig);
-    // Not converted when stored, so later map changes are reported
-    rawConfig.put("ssl.key.password", "secret");
+    // Copied when stored, so later map changes aren't reported
+    rawConfig.put("group.id", "group-2");
+    rawConfig.put("client.id", "consumer-2");
 
     KafkaConfigHelper.reportPendingConfig(state, "cluster-1");
     verify(dataStreams, never()).reportKafkaConfig(anyString(), anyString(), anyString(), any());

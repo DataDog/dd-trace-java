@@ -209,7 +209,7 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
           InstrumentationContext.get(Metadata.class, MetadataState.class)
               .getOrCreate(metadata, MetadataState::new);
       // Delegating to the ConsumerConfig constructor already stored that config; only Kafka 2.7.x,
-      // which lacks that constructor, stores the raw map
+      // which lacks that constructor, stores a copy of the raw map
       KafkaConfigHelper.storePendingConsumerConfigIfAbsent(
           state, normalizedConsumerGroup, consumerConfig);
     }
