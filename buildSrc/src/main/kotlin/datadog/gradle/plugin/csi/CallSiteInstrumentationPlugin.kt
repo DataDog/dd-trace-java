@@ -1,6 +1,5 @@
 package datadog.gradle.plugin.csi
 
-import org.gradle.api.GradleException
 import org.gradle.api.JavaVersion
 import org.gradle.api.NamedDomainObjectSet
 import org.gradle.api.Plugin
@@ -14,7 +13,6 @@ import org.gradle.api.plugins.JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME
 import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.plugins.jvm.JvmTestSuite
 import org.gradle.api.provider.Provider
-import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.SourceSet.MAIN_SOURCE_SET_NAME
 import org.gradle.api.tasks.SourceSet.TEST_SOURCE_SET_NAME
 import org.gradle.api.tasks.SourceSetContainer
@@ -30,8 +28,6 @@ import org.gradle.kotlin.dsl.register
 import org.gradle.kotlin.dsl.withType
 import org.gradle.language.jvm.tasks.ProcessResources
 import org.gradle.testing.base.TestingExtension
-import java.io.File
-import java.nio.file.Files
 import java.util.Locale
 import javax.inject.Inject
 
@@ -78,15 +74,6 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project> {
     }
   }
 
-  private fun newTempFile(folder: File, name: String): File {
-    val file = File(folder, name)
-    if (!file.exists() && !file.createNewFile()) {
-      throw GradleException("Cannot create temporary file: $file")
-    }
-    file.deleteOnExit()
-    return file
-  }
-
   private fun configureTestConfigurations(project: Project, generatedSources: Provider<Directory>) {
     val csiOutput = project.sourceSets.named(CSI_SOURCE_SET).map { it.output }
     // Keep CSI output outside the dependency configurations inspected by the generator.
@@ -124,8 +111,11 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project> {
       }
 
       // Task input & output
+      sourceDirectory.convention(csiExtension.srcFolder)
+      classesDirectory.convention(mainCompileTask.flatMap { it.destinationDirectory })
       destinationDirectory.convention(csiExtension.targetFolder)
-      val inputProvider = mainCompileTask.flatMap { it.destinationDirectory }
+      suffix.convention(csiExtension.suffix)
+      reporters.convention(csiExtension.reporters)
       val csiOutput = project.sourceSets.named(CSI_SOURCE_SET).map { it.output }
       val currentProjectPath = project.buildTreePath
       val dependencyClasspaths = project.defaultConfigurations.map { configuration ->
@@ -146,13 +136,6 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project> {
       ).minus(project.files(csiOutput, csiExtension.targetFolder, destinationDirectory))
       analysisClasspath.from(callsitesClassPath)
 
-      inputs.dir(inputProvider)
-        .withPropertyName("csi.classes")
-        .withPathSensitivity(PathSensitivity.RELATIVE)
-      inputs.dir(csiExtension.srcFolder)
-        .withPropertyName("csi.sources")
-        .withPathSensitivity(PathSensitivity.RELATIVE)
-      inputs.property("csi.suffix", csiExtension.suffix)
       inputs.property("csi.javaVersion", csiExtension.javaVersion)
       // Include inherited locale defaults and values supplied by JVM argument providers.
       inputs.property("csi.jvmArgs", project.provider { allJvmArgs })
@@ -165,7 +148,6 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project> {
           }
         }
       )
-      inputs.property("csi.reporters", csiExtension.reporters)
 
       // CSI resolves platform classes through the selected JVM, outside its classpath inputs.
       inputs.property(
@@ -192,36 +174,6 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project> {
       jvmArgumentProviders.add({ csiExtension.jvmArgs.get() })
       classpath(pluginJarFile)
       mainClass.set(CALL_SITE_INSTRUMENTER_MAIN_CLASS)
-
-      // Write the call site instrumenter arguments into a temporary file
-      doFirst {
-        val classpath = analysisClasspath.files
-
-        if (logger.isInfoEnabled) {
-          logger.info(
-            "Aggregated CSI classpath:\n{}",
-            classpath.sorted().joinToString("\n") { it.toString() }
-          )
-        }
-
-        val argFile = buildList {
-          add(csiExtension.srcFolder.get().asFile.toString())
-          add(inputProvider.get().asFile.toString())
-          add(destinationDirectory.get().asFile.toString())
-          add(csiExtension.suffix.get())
-          add(csiExtension.reporters.get().joinToString(","))
-
-          // module program classpath
-          addAll(classpath.map { it.toString() })
-        }
-
-        val argumentFile = newTempFile(temporaryDir, "call-site-arguments")
-        Files.write(argumentFile.toPath(), argFile)
-        args(argumentFile.toString())
-      }
-
-      // make task depends on compile
-      dependsOn(mainCompileTask)
     }
 
     // make all sourceSets class tasks depend on call site generator

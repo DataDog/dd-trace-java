@@ -165,10 +165,31 @@ class CallSiteInstrumentationPluginTest : GradleFixture() {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = ["same checkout", "relocated checkout", "relocated IAST checkout"])
+  @ValueSource(strings = ["same checkout", "relocated checkout", "relocated IAST checkout", "relocated standalone task"])
   fun `generated sources are restored from cache`(scenario: String) {
     val iast = scenario == "relocated IAST checkout"
-    createCachingProject(advice = if (iast) iastDependencyAdvice else dependencyAdvice)
+    val standalone = scenario == "relocated standalone task"
+    val taskName = if (standalone) "standaloneGenerateCallSiteJava" else "generateCallSiteJava"
+    val script = if (standalone) {
+      """
+        import datadog.gradle.plugin.csi.GenerateCallSiteTask
+        $dependencyBuildGradle
+
+        tasks.register<GenerateCallSiteTask>("$taskName") {
+          sourceDirectory.set(layout.projectDirectory.dir("src/main/java"))
+          classesDirectory.set(tasks.named<JavaCompile>("compileJava").flatMap { it.destinationDirectory })
+          destinationDirectory.set(layout.buildDirectory.dir("csi"))
+          suffix.set("CallSite")
+          reporters.set(listOf("CONSOLE", "ERROR_CONSOLE"))
+          analysisClasspath.from(classesDirectory, configurations.runtimeClasspath)
+          classpath(files("buildSrc/call-site-instrumentation-plugin/build/libs/call-site-instrumentation-plugin-all.jar"))
+          mainClass.set("datadog.trace.plugin.csi.PluginApplication")
+        }
+      """
+    } else {
+      dependencyBuildGradle
+    }
+    createCachingProject(script, advice = if (iast) iastDependencyAdvice else dependencyAdvice)
     if (iast) {
       val repository = File(System.getProperty("user.dir")).parentFile
       listOf(
@@ -180,15 +201,19 @@ class CallSiteInstrumentationPluginTest : GradleFixture() {
       }
     }
 
-    val first = run("generateCallSiteJava", "--info")
-    assertEquals(TaskOutcome.SUCCESS, first.task(":generateCallSiteJava")?.outcome, first.output)
+    val first = run(taskName, "--info")
+    assertEquals(TaskOutcome.SUCCESS, first.task(":$taskName")?.outcome, first.output)
+    if (standalone) {
+      assertEquals(TaskOutcome.SUCCESS, first.task(":compileJava")?.outcome, first.output)
+      assertNull(first.task(":generateCallSiteJava"), first.output)
+    }
     val expected = buildFile("csi/BeforeAdviceCallSites.java").readBytes()
     if (iast) {
       assertTrue(String(expected, Charsets.UTF_8).contains("INSTRUMENTED_PROPAGATION"))
     }
 
-    val unchanged = run("generateCallSiteJava", "--info")
-    assertEquals(TaskOutcome.UP_TO_DATE, unchanged.task(":generateCallSiteJava")?.outcome, unchanged.output)
+    val unchanged = run(taskName, "--info")
+    assertEquals(TaskOutcome.UP_TO_DATE, unchanged.task(":$taskName")?.outcome, unchanged.output)
 
     val checkout = if (scenario != "same checkout") {
       dir("relocated").also { target ->
@@ -202,13 +227,13 @@ class CallSiteInstrumentationPluginTest : GradleFixture() {
     }
     writeFile("unrelated.txt", "This file is outside the generator inputs.")
 
-    val restored = run("generateCallSiteJava", "--info", gradleProjectDir = checkout)
-    assertEquals(TaskOutcome.FROM_CACHE, restored.task(":generateCallSiteJava")?.outcome, restored.output)
+    val restored = run(taskName, "--info", gradleProjectDir = checkout)
+    assertEquals(TaskOutcome.FROM_CACHE, restored.task(":$taskName")?.outcome, restored.output)
     val generated = File(checkout, "build/csi/BeforeAdviceCallSites.java")
     assertArrayEquals(expected, generated.readBytes())
 
-    val fresh = run("generateCallSiteJava", "--no-build-cache", "--rerun-tasks", gradleProjectDir = checkout)
-    assertEquals(TaskOutcome.SUCCESS, fresh.task(":generateCallSiteJava")?.outcome, fresh.output)
+    val fresh = run(taskName, "--no-build-cache", "--rerun-tasks", gradleProjectDir = checkout)
+    assertEquals(TaskOutcome.SUCCESS, fresh.task(":$taskName")?.outcome, fresh.output)
     assertArrayEquals(expected, generated.readBytes())
   }
 
@@ -387,14 +412,19 @@ class CallSiteInstrumentationPluginTest : GradleFixture() {
   fun `generation removes outputs that no longer match the suffix`() {
     createCachingProject(
       """
+        import datadog.gradle.plugin.csi.GenerateCallSiteTask
         $dependencyBuildGradle
-        csi { suffix.set(providers.gradleProperty("csiSuffix").orElse("CallSite")) }
+        tasks.named<GenerateCallSiteTask>("generateCallSiteJava") {
+          suffix.set(providers.gradleProperty("csiSuffix").orElse("CallSite"))
+          reporters.set(listOf("ERROR_CONSOLE"))
+        }
       """
     )
 
     val first = run("generateCallSiteJava", "--info")
     assertEquals(TaskOutcome.SUCCESS, first.task(":generateCallSiteJava")?.outcome, first.output)
     assertTrue(buildFile("csi/BeforeAdviceCallSites.java").exists())
+    assertFalse(first.output.contains("[✓] @CallSite"), first.output)
 
     val changed = run("generateCallSiteJava", "--info", "-PcsiSuffix=AbsentCallSite")
     assertEquals(TaskOutcome.SUCCESS, changed.task(":generateCallSiteJava")?.outcome, changed.output)
