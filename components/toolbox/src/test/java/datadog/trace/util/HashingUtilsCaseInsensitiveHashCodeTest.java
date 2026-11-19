@@ -1,12 +1,12 @@
 package datadog.trace.util;
 
-import static datadog.trace.util.Strings.caseInsensitiveHashCode;
+import static datadog.trace.util.HashingUtils.caseInsensitiveHashCode;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 import org.junit.jupiter.api.Test;
 
-class StringsCaseInsensitiveHashCodeTest {
+class HashingUtilsCaseInsensitiveHashCodeTest {
 
   @Test
   void equalIgnoringCaseProducesEqualHash() {
