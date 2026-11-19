@@ -388,9 +388,4 @@ public final class Strings {
     }
     return false;
   }
-
-  /** Delegates to {@link HashingUtils#caseInsensitiveHashCode(String)}. */
-  public static int caseInsensitiveHashCode(String s) {
-    return HashingUtils.caseInsensitiveHashCode(s);
-  }
 }

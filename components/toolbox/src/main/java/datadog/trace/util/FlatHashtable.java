@@ -637,7 +637,7 @@ public final class FlatHashtable {
 
   /**
    * {@link EntryStrategy} for {@code String} keys compared case-insensitively: seals {@link
-   * #hashKey} to {@link Strings#caseInsensitiveHashCode} (consistent with {@link
+   * #hashKey} to {@link HashingUtils#caseInsensitiveHashCode} (consistent with {@link
    * String#equalsIgnoreCase}, which callers use in {@link #matches}). Callers still supply {@link
    * #matches} (typically {@code key.equalsIgnoreCase(entry.key)}) and {@link #hashOf} (the same
    * case-insensitive hash of the entry's key, or the cached {@link Entry#hash}).
