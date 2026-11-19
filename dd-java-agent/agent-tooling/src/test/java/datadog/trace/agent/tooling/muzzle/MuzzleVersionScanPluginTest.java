@@ -8,11 +8,17 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.HelperClass.NestedHelperClass;
+import datadog.trace.agent.tooling.muzzle.TestInstrumentationClasses.AdviceParameter;
+import datadog.trace.agent.tooling.muzzle.TestInstrumentationClasses.AdviceReference;
+import datadog.trace.agent.tooling.muzzle.TestInstrumentationClasses.AdviceStaticReference;
 import datadog.trace.agent.tooling.muzzle.TestInstrumentationClasses.BaseInst;
 import datadog.trace.agent.tooling.muzzle.TestInstrumentationClasses.BasicInst;
+import datadog.trace.agent.tooling.muzzle.TestInstrumentationClasses.EmptyInst;
+import datadog.trace.agent.tooling.muzzle.TestInstrumentationClasses.HelperInst;
 import datadog.trace.agent.tooling.muzzle.TestInstrumentationClasses.InvalidMissingHelperInst;
 import datadog.trace.agent.tooling.muzzle.TestInstrumentationClasses.InvalidOrderHelperInst;
 import datadog.trace.agent.tooling.muzzle.TestInstrumentationClasses.SomeAdvice;
+import datadog.trace.agent.tooling.muzzle.TestInstrumentationClasses.ValidHelperInst;
 import datadog.trace.config.inversion.ConfigHelper;
 import datadog.trace.config.inversion.ConfigHelper.StrictnessPolicy;
 import datadog.trace.test.util.DDJavaSpecification;
@@ -24,8 +30,9 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
+import org.tabletest.junit.TypeConverter;
 
-class MuzzleVersionScanPluginTest extends DDJavaSpecification {
+public class MuzzleVersionScanPluginTest extends DDJavaSpecification {
 
   private static StrictnessPolicy previousStrictnessPolicy;
 
@@ -41,15 +48,15 @@ class MuzzleVersionScanPluginTest extends DDJavaSpecification {
   }
 
   @TableTest({
-    "scenario                            | assertPass | instCP                                                                                                                                                                                                                                                                                                                                                                                                    | testCP                                                                                                                                                                                                                                             ",
-    "empty instrumentation               | true       | [datadog.trace.agent.tooling.muzzle.TestInstrumentationClasses$EmptyInst, datadog.trace.agent.tooling.muzzle.TestInstrumentationClasses$EmptyInst$Muzzle]                                                                                                                                                                                                                                                 | []                                                                                                                                                                                                                                                 ",
-    "missing all references              | false      | [datadog.trace.agent.tooling.muzzle.TestInstrumentationClasses$BasicInst, datadog.trace.agent.tooling.muzzle.TestInstrumentationClasses$BasicInst$Muzzle, datadog.trace.agent.tooling.muzzle.TestInstrumentationClasses$SomeAdvice]                                                                                                                                                                       | []                                                                                                                                                                                                                                                 ",
-    "missing advice reference            | false      | [datadog.trace.agent.tooling.muzzle.TestInstrumentationClasses$BasicInst, datadog.trace.agent.tooling.muzzle.TestInstrumentationClasses$BasicInst$Muzzle, datadog.trace.agent.tooling.muzzle.TestInstrumentationClasses$SomeAdvice]                                                                                                                                                                       | [datadog.trace.agent.tooling.muzzle.TestInstrumentationClasses$AdviceParameter, datadog.trace.agent.tooling.muzzle.TestInstrumentationClasses$AdviceStaticReference]                                                                               ",
-    "missing advice static reference     | false      | [datadog.trace.agent.tooling.muzzle.TestInstrumentationClasses$BasicInst, datadog.trace.agent.tooling.muzzle.TestInstrumentationClasses$BasicInst$Muzzle, datadog.trace.agent.tooling.muzzle.TestInstrumentationClasses$SomeAdvice]                                                                                                                                                                       | [datadog.trace.agent.tooling.muzzle.TestInstrumentationClasses$AdviceParameter, datadog.trace.agent.tooling.muzzle.TestInstrumentationClasses$AdviceReference]                                                                                     ",
-    "all references present              | true       | [datadog.trace.agent.tooling.muzzle.TestInstrumentationClasses$BasicInst, datadog.trace.agent.tooling.muzzle.TestInstrumentationClasses$BasicInst$Muzzle, datadog.trace.agent.tooling.muzzle.TestInstrumentationClasses$SomeAdvice]                                                                                                                                                                       | [datadog.trace.agent.tooling.muzzle.TestInstrumentationClasses$AdviceParameter, datadog.trace.agent.tooling.muzzle.TestInstrumentationClasses$AdviceReference, datadog.trace.agent.tooling.muzzle.TestInstrumentationClasses$AdviceStaticReference]",
-    "// Matching applies before helpers are injected                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   ",
-    "references only provided as helpers | false      | [datadog.trace.agent.tooling.muzzle.TestInstrumentationClasses$HelperInst, datadog.trace.agent.tooling.muzzle.TestInstrumentationClasses$HelperInst$Muzzle, datadog.trace.agent.tooling.muzzle.TestInstrumentationClasses$SomeAdvice, datadog.trace.agent.tooling.muzzle.TestInstrumentationClasses$AdviceReference, datadog.trace.agent.tooling.muzzle.TestInstrumentationClasses$AdviceStaticReference] | []                                                                                                                                                                                                                                                 ",
-    "// FIXME: AdviceParameter and AdviceMethodReturn are not validated                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                "
+    "scenario                            | assertPass | instCP                                                                              | testCP                                                   ",
+    "empty instrumentation               | true       | [EmptyInst, EmptyInst.Muzzle]                                                       | []                                                       ",
+    "missing all references              | false      | [BasicInst, BasicInst.Muzzle, SomeAdvice]                                           | []                                                       ",
+    "missing advice reference            | false      | [BasicInst, BasicInst.Muzzle, SomeAdvice]                                           | [AdviceParameter, AdviceStaticReference]                 ",
+    "missing advice static reference     | false      | [BasicInst, BasicInst.Muzzle, SomeAdvice]                                           | [AdviceParameter, AdviceReference]                       ",
+    "all references present              | true       | [BasicInst, BasicInst.Muzzle, SomeAdvice]                                           | [AdviceParameter, AdviceReference, AdviceStaticReference]",
+    "// Matching applies before helpers are injected                                                                                                                                                   ",
+    "references only provided as helpers | false      | [HelperInst, HelperInst.Muzzle, SomeAdvice, AdviceReference, AdviceStaticReference] | []                                                       ",
+    "// FIXME: AdviceParameter and AdviceMethodReturn are not validated                                                                                                                                "
   })
   void assertInstrumentationMuzzledAdvice(
       boolean assertPass, List<Class<?>> instCP, List<Class<?>> testCP) throws Exception {
@@ -81,9 +88,9 @@ class MuzzleVersionScanPluginTest extends DDJavaSpecification {
   }
 
   @TableTest({
-    "scenario             | inst                                                                                 | muzzle                                                                                      | helpers                                                                                                           ",
-    "valid helper order   | datadog.trace.agent.tooling.muzzle.TestInstrumentationClasses$ValidHelperInst        | datadog.trace.agent.tooling.muzzle.TestInstrumentationClasses$ValidHelperInst$Muzzle        | [datadog.trace.agent.tooling.muzzle.HelperClass, datadog.trace.agent.tooling.muzzle.HelperClass$NestedHelperClass]",
-    "invalid helper order | datadog.trace.agent.tooling.muzzle.TestInstrumentationClasses$InvalidOrderHelperInst | datadog.trace.agent.tooling.muzzle.TestInstrumentationClasses$InvalidOrderHelperInst$Muzzle | [datadog.trace.agent.tooling.muzzle.HelperClass, datadog.trace.agent.tooling.muzzle.HelperClass$NestedHelperClass]"
+    "scenario             | inst                   | muzzle                        | helpers                                     ",
+    "valid helper order   | ValidHelperInst        | ValidHelperInst.Muzzle        | [HelperClass, HelperClass.NestedHelperClass]",
+    "invalid helper order | InvalidOrderHelperInst | InvalidOrderHelperInst.Muzzle | [HelperClass, HelperClass.NestedHelperClass]"
   })
   void assertInstrumentationMuzzledHelpers(Class<?> inst, Class<?> muzzle, List<Class<?>> helpers)
       throws Exception {
@@ -116,6 +123,46 @@ class MuzzleVersionScanPluginTest extends DDJavaSpecification {
             + HelperClass.class.getName()
             + " also defined as a helper",
         exception.getMessage());
+  }
+
+  @TypeConverter
+  public static Class<?> toClass(String name) {
+    switch (name) {
+      case "EmptyInst":
+        return EmptyInst.class;
+      case "EmptyInst.Muzzle":
+        return EmptyInst.Muzzle.class;
+      case "BasicInst":
+        return BasicInst.class;
+      case "BasicInst.Muzzle":
+        return BasicInst.Muzzle.class;
+      case "HelperInst":
+        return HelperInst.class;
+      case "HelperInst.Muzzle":
+        return HelperInst.Muzzle.class;
+      case "ValidHelperInst":
+        return ValidHelperInst.class;
+      case "ValidHelperInst.Muzzle":
+        return ValidHelperInst.Muzzle.class;
+      case "InvalidOrderHelperInst":
+        return InvalidOrderHelperInst.class;
+      case "InvalidOrderHelperInst.Muzzle":
+        return InvalidOrderHelperInst.Muzzle.class;
+      case "SomeAdvice":
+        return SomeAdvice.class;
+      case "AdviceParameter":
+        return AdviceParameter.class;
+      case "AdviceReference":
+        return AdviceReference.class;
+      case "AdviceStaticReference":
+        return AdviceStaticReference.class;
+      case "HelperClass":
+        return HelperClass.class;
+      case "HelperClass.NestedHelperClass":
+        return NestedHelperClass.class;
+      default:
+        throw new IllegalArgumentException("Unknown test class: " + name);
+    }
   }
 
   private static ServiceEnabledClassLoader newAdviceInstrumentationLoader(List<Class<?>> instCP)
