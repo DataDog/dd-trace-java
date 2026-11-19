@@ -748,6 +748,8 @@ final class DenseIdStore extends IdStore {
 
   /** Removes slot {@code i}, swapping the last slot into its place. The masks stay as they were. */
   private void removeAt(int i) {
+    // the store is at its peak size until now, so record it before shrinking (removals are rare)
+    this.recordSize();
     int last = --this.used;
     this.serials[i] = this.serials[last];
     this.values[i] = this.values[last];

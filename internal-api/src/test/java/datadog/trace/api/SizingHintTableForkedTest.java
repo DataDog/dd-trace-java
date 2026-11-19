@@ -85,6 +85,19 @@ class SizingHintTableForkedTest {
   }
 
   @Test
+  void overlongOperationNameGetsNoHint() {
+    StringBuilder name = new StringBuilder();
+    while (name.length() <= SizingHintTable.MAX_OPERATION_NAME_LENGTH) {
+      name.append("registry.long.");
+    }
+    // kept for the JVM's life otherwise, so a long name isn't admitted
+    assertNull(SizingHintTable.hintFor(name, true));
+    assertNotNull(
+        SizingHintTable.hintFor(
+            name.substring(0, SizingHintTable.MAX_OPERATION_NAME_LENGTH), true));
+  }
+
+  @Test
   void nonStringCharSequenceIsKeyedByContent() {
     // Operation names are commonly UTF8BytesString, not String; a content-equal name must resolve
     // to the same hint as its String form (keyed by toString(), which is O(1) for these types).
@@ -191,6 +204,17 @@ class SizingHintTableForkedTest {
 
     // A store without a hint records nothing.
     storeFor(null).recordSize();
+  }
+
+  @Test
+  void aRemovalRecordsThePeakBeforeTheStoreShrinks() {
+    SizingHint hint =
+        SizingHintTable.hintFor("registry.peak", true); // the overflow test fills the child lane
+    IdStore store = storeFor(hint);
+    fill(store, 9);
+    store.remove(KNOWN_IDS.get(0)); // a local tag: its slot is freed, so the store shrinks to 8
+    store.recordSize();
+    assertEquals(9, hint.size, "the hint keeps the peak, not the size after a removal");
   }
 
   @Test
