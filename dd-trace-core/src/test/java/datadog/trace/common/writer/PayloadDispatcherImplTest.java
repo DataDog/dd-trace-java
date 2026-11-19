@@ -25,6 +25,8 @@ import datadog.trace.api.datastreams.NoopPathwayContext;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
 import datadog.trace.common.writer.ddagent.DDAgentMapperDiscovery;
+import datadog.trace.common.writer.ddagent.TraceMapperV0_4;
+import datadog.trace.common.writer.ddagent.TraceMapperV0_5;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.DDSpanContext;
@@ -34,6 +36,7 @@ import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.test.util.DDJavaSpecification;
 import java.lang.reflect.Constructor;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -201,24 +204,109 @@ class PayloadDispatcherImplTest extends DDJavaSpecification {
     assertEquals(V0_4, sent.get(1).protocol());
   }
 
+  /** The Agent starts advertising the preferred endpoint while a v0.4 payload is in progress. */
   @Test
   void aProtocolChangeMidPayloadSwitchesAtTheNextPayload() throws Exception {
-    AgentFixture agent = new AgentFixture("v0.5/traces");
+    AgentFixture agent = new AgentFixture("v0.4/traces");
     List<DDSpan> trace = singletonList(realSpan());
 
     agent.dispatcher.addTrace(trace);
     when(agent.features.getTraceEndpoint()).thenReturn("v1.0/traces");
-    // the payload in progress stays v0.5 (the API sends it to v0.5/traces); the next one is v1.0
+    // the payload in progress stays v0.4 (the API sends it to v0.4/traces); the next one is v1.0
     agent.dispatcher.addTrace(trace);
     agent.dispatcher.flush();
     agent.dispatcher.addTrace(trace);
     agent.dispatcher.flush();
 
     List<Payload> sent = agent.sentPayloads(2);
-    assertEquals(V0_5, sent.get(0).protocol());
+    assertEquals(V0_4, sent.get(0).protocol());
     assertEquals(2, sent.get(0).traceCount());
     assertEquals(V1_0, sent.get(1).protocol());
     assertEquals(1, sent.get(1).traceCount());
+  }
+
+  /**
+   * With periodic flushes off, every payload is sent because the buffer filled. The overflow path
+   * must still pick up a protocol change: only the payload in progress keeps the old protocol.
+   */
+  @Test
+  void aProtocolChangeTakesEffectWhenOnlyOverflowSendsPayloads() throws Exception {
+    List<DDSpan> trace = singletonList(realSpan());
+    // small buffers that hold a few traces, so overflow sends payloads without any flush()
+    TraceMapperV0_5 v05 =
+        new TraceMapperV0_5(64 << 10, 2 * payloadSize(new TraceMapperV0_5(), trace));
+    TraceMapperV0_4 v04 = new TraceMapperV0_4(2 * payloadSize(new TraceMapperV0_4(), trace));
+    SwitchingDiscovery discovery = new SwitchingDiscovery(v05);
+    DDAgentApi api = mock(DDAgentApi.class);
+    List<Payload> sent = new ArrayList<>();
+    when(api.sendSerializedTraces(any()))
+        .thenAnswer(invocation -> {
+          sent.add(invocation.getArgument(0));
+          return RemoteApi.Response.success(200);
+        });
+    PayloadDispatcherImpl dispatcher =
+        new PayloadDispatcherImpl(discovery, api, mock(HealthMetrics.class), monitoring);
+
+    for (int i = 0; i < 200 && sent.isEmpty(); i++) {
+      dispatcher.addTrace(trace);
+    }
+    int beforeSwitch = sent.size();
+    assertTrue(beforeSwitch > 0, "the v0.5 buffer should have overflowed");
+    discovery.switchTo(v04);
+    for (int i = 0; i < 200 && sent.size() < beforeSwitch + 2; i++) {
+      dispatcher.addTrace(trace);
+    }
+
+    List<Payload> afterSwitch = sent.subList(beforeSwitch, sent.size());
+    assertEquals(2, afterSwitch.size(), () -> "payloads after the switch: " + afterSwitch.size());
+    assertEquals(V0_5, afterSwitch.get(0).protocol(), "the payload in progress keeps v0.5");
+    assertEquals(V0_4, afterSwitch.get(1).protocol(), "the next payload uses the new protocol");
+  }
+
+  /** The size of a one-trace payload encoded with {@code mapper}. */
+  private int payloadSize(RemoteMapper mapper, List<DDSpan> trace) {
+    DDAgentApi api = mock(DDAgentApi.class);
+    when(api.sendSerializedTraces(any())).thenReturn(RemoteApi.Response.success(200));
+    PayloadDispatcherImpl dispatcher =
+        new PayloadDispatcherImpl(
+            new SwitchingDiscovery(mapper), api, mock(HealthMetrics.class), monitoring);
+    dispatcher.addTrace(trace);
+    dispatcher.flush();
+    ArgumentCaptor<Payload> payload = ArgumentCaptor.forClass(Payload.class);
+    verify(api).sendSerializedTraces(payload.capture());
+    return payload.getValue().sizeInBytes();
+  }
+
+  /** A discovery that reports itself outdated once {@link #switchTo} names a new mapper. */
+  private static final class SwitchingDiscovery implements RemoteMapperDiscovery {
+    private RemoteMapper current;
+    private RemoteMapper next;
+
+    SwitchingDiscovery(RemoteMapper initial) {
+      this.current = initial;
+    }
+
+    void switchTo(RemoteMapper mapper) {
+      this.next = mapper;
+    }
+
+    @Override
+    public void discover() {
+      if (next != null) {
+        current = next;
+        next = null;
+      }
+    }
+
+    @Override
+    public RemoteMapper getMapper() {
+      return current;
+    }
+
+    @Override
+    public boolean isOutdated() {
+      return next != null;
+    }
   }
 
   /** A dispatcher over a real mapper discovery, with the agent's features and API mocked. */

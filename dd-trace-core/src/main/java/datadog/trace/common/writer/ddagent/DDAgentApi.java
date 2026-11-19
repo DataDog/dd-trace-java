@@ -168,11 +168,6 @@ public class DDAgentApi extends RemoteApi {
     if (encoded == null || encoded == ProtocolVersion.fromTraceEndpoint(discoveredEndpoint)) {
       return discoveredEndpoint;
     }
-    log.debug(
-        "Sending a {} payload to {} rather than the discovered {}",
-        encoded,
-        encoded.endpoint(),
-        discoveredEndpoint);
     return encoded.endpoint();
   }
 

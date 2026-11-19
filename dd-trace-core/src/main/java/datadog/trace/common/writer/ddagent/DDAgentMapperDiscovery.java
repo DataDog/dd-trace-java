@@ -69,14 +69,16 @@ public class DDAgentMapperDiscovery implements RemoteMapperDiscovery {
   @Override
   public boolean isOutdated() {
     String endpoint = featuresDiscovery.getTraceEndpoint();
-    if (null == traceMapper || null == endpoint || endpoint.equals(selectedEndpoint)) {
+    if (traceMapper == null || endpoint == null || endpoint.equals(selectedEndpoint)) {
       return false;
     }
+
     if (ProtocolVersion.fromTraceEndpoint(endpoint) == traceMapper.protocolVersion()) {
       // another endpoint for the same protocol, such as the v0.3 fallback: keep the mapper
       selectedEndpoint = endpoint;
       return false;
     }
+
     return true;
   }
 }

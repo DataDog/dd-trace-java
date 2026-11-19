@@ -8,6 +8,7 @@ import datadog.metrics.api.Monitoring;
 import datadog.metrics.api.Recording;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.monitor.HealthMetrics;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.Collections;
@@ -33,6 +34,9 @@ public class PayloadDispatcherImpl implements ChunkedBufferConsumer, PayloadDisp
    * Whether the buffer holds traces not yet handed over. The mapper is only re-selected between
    * payloads; if discovery moves mid-payload, the API sends that payload by its own protocol.
    */
+  @SuppressFBWarnings(
+      value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
+      justification = "confined to the one thread that encodes traces, which also runs the flushes")
   private boolean payloadStarted;
 
   private final LongAdder droppedSpanCount = new LongAdder();
@@ -70,11 +74,19 @@ public class PayloadDispatcherImpl implements ChunkedBufferConsumer, PayloadDisp
   @Override
   public void addTrace(List<? extends CoreSpan<?>> trace) {
     selectMapper();
-    // the call below is blocking and will trigger IO if a flush is necessary
+    // the calls below are blocking and will trigger IO if a flush is necessary
     // there are alternative approaches to avoid blocking here, such as
     // introducing an unbound queue and another thread to do the IO
     // however, we can't block the application threads from here.
-    if (null == mapper || !packer.format(trace, mapper)) {
+    boolean written = mapper != null && packer.formatIfRoom(trace, mapper);
+    if (!written && mapper != null) {
+      // The buffer is full: send it, then pick the mapper for the next payload before retrying the
+      // trace, so a protocol change takes effect even when no flush lands between traces.
+      packer.flush();
+      selectMapper();
+      written = mapper != null && packer.format(trace, mapper);
+    }
+    if (!written) {
       healthMetrics.onFailedPublish(
           trace.isEmpty() ? 0 : trace.get(0).samplingPriority(), trace.size());
     } else {
@@ -83,7 +95,7 @@ public class PayloadDispatcherImpl implements ChunkedBufferConsumer, PayloadDisp
   }
 
   private void selectMapper() {
-    if (null != mapper && !payloadStarted && mapperDiscovery.isOutdated()) {
+    if (mapper != null && !payloadStarted && mapperDiscovery.isOutdated()) {
       // The destination now takes another protocol: encode the next payload with a newly discovered
       // mapper. This happens between payloads, never inside the buffer's flush, so no trace is
       // stranded in the old mapper's buffer; the flush is normally a no-op.

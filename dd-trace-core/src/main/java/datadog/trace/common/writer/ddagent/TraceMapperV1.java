@@ -2,6 +2,7 @@ package datadog.trace.common.writer.ddagent;
 
 import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
 import static datadog.trace.api.DDTags.SPAN_EVENTS;
+import static datadog.trace.api.ProtocolVersion.V1_0;
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 import static datadog.trace.core.CoreSpan.ROOT_PROPAGATION_TAGS;
 import static datadog.trace.core.CoreSpan.STRUCTURED_EVENTS;
@@ -622,7 +623,7 @@ public final class TraceMapperV1 implements TraceMapper {
 
   @Override
   public ProtocolVersion protocolVersion() {
-    return ProtocolVersion.V1_0;
+    return V1_0;
   }
 
   @Override
@@ -702,7 +703,7 @@ public final class TraceMapperV1 implements TraceMapper {
 
     @Override
     public ProtocolVersion protocol() {
-      return ProtocolVersion.V1_0;
+      return V1_0;
     }
 
     @Override

@@ -85,6 +85,11 @@ public class MsgPackWriter implements WritableFormatter {
 
   @Override
   public <T> boolean format(T message, Mapper<T> mapper) {
+    return formatIfRoom(message, mapper) || retryInEmptyBuffer(message, mapper);
+  }
+
+  @Override
+  public <T> boolean formatIfRoom(T message, Mapper<T> mapper) {
     try {
       mapper.map(message, this);
       if (buffer.mark()) {
@@ -97,7 +102,7 @@ public class MsgPackWriter implements WritableFormatter {
       discardFailedMessage(mapper);
       throw failure;
     }
-    return retryInEmptyBuffer(message, mapper);
+    return false;
   }
 
   /**
