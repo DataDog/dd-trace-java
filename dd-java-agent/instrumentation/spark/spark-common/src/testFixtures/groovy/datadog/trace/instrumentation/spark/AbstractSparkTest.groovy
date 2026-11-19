@@ -1,8 +1,9 @@
 package datadog.trace.instrumentation.spark
 
+import static datadog.trace.api.DDTags.SPAN_LINKS
+
 import datadog.environment.JavaVirtualMachine
 import datadog.trace.agent.test.InstrumentationSpecification
-import datadog.trace.api.DDTags
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.sampling.PrioritySampling
@@ -488,7 +489,7 @@ abstract class AbstractSparkTest extends InstrumentationSpecification {
           operationName "spark.application"
           spanType "spark"
           parent()
-          assert !span.tags.containsKey(DDTags.SPAN_LINKS)
+          assert !span.tags.containsKey(SPAN_LINKS)
         }
         span {
           operationName "spark.job"
@@ -541,7 +542,7 @@ abstract class AbstractSparkTest extends InstrumentationSpecification {
           operationName "spark.application"
           spanType "spark"
           parent()
-          assert !span.tags.containsKey(DDTags.SPAN_LINKS)
+          assert !span.tags.containsKey(SPAN_LINKS)
         }
         span {
           operationName "spark.sql"
@@ -555,7 +556,7 @@ abstract class AbstractSparkTest extends InstrumentationSpecification {
           operationName "spark.job"
           spanType "spark"
           childOf(span(1))
-          assert !span.tags.containsKey(DDTags.SPAN_LINKS)
+          assert !span.tags.containsKey(SPAN_LINKS)
         }
         span {
           operationName "spark.stage"

@@ -117,7 +117,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   private final HashMap<Long, AgentSpan> sqlSpans = new HashMap<>();
   private final HashMap<Integer, AgentSpan> jobSpans = new HashMap<>();
   private final HashMap<Long, AgentSpan> stageSpans = new HashMap<>();
-  private final HashMap<Long, String> sqlBatchKeys = new HashMap<>();
+  private final Set<Long> streamingSqlExecutionIds = new HashSet<>();
   private final Set<Integer> streamingJobIds = new HashSet<>();
 
   private final HashMap<Integer, Integer> stageToJob = new HashMap<>();
@@ -193,6 +193,10 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
                 }));
   }
 
+  private boolean shouldIgnoreLateEvent() {
+    return spanLinksEnabled && applicationEnded;
+  }
+
   public void setupOpenLineage(DDTraceId traceId) {
     log.debug("Setting up OpenLineage configuration with trace id {}", traceId);
     if (openLineageSparkListener != null) {
@@ -260,7 +264,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
   @Override
   public synchronized void onApplicationStart(SparkListenerApplicationStart applicationStart) {
-    if (spanLinksEnabled && applicationEnded) {
+    if (shouldIgnoreLateEvent()) {
       return;
     }
     this.applicationStart = applicationStart;
@@ -396,7 +400,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
    * has an error signal even when no job/stage/task events fire.
    */
   public synchronized void onSqlFailure(Throwable throwable) {
-    if (spanLinksEnabled && applicationEnded) {
+    if (shouldIgnoreLateEvent()) {
       return;
     }
     lastSqlFailed = true;
@@ -534,7 +538,6 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       }
 
       AgentSpan jobSpan = jobSpans.remove(jobId);
-      streamingJobIds.remove(jobId);
       SparkAggregatedTaskMetrics metrics = jobMetrics.remove(jobId);
       if (jobSpan == null) {
         continue;
@@ -547,12 +550,11 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
     for (Map.Entry<Long, AgentSpan> entry : new ArrayList<>(sqlSpans.entrySet())) {
       long sqlExecutionId = entry.getKey();
-      if (sqlBatchKeys.get(sqlExecutionId) != null) {
+      if (streamingSqlExecutionIds.contains(sqlExecutionId)) {
         continue;
       }
 
       AgentSpan sqlSpan = sqlSpans.remove(sqlExecutionId);
-      sqlBatchKeys.remove(sqlExecutionId);
       SparkAggregatedTaskMetrics metrics = sqlMetrics.remove(sqlExecutionId);
       sqlQueries.remove(sqlExecutionId);
       sqlPlans.remove(sqlExecutionId);
@@ -627,7 +629,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
   private AgentSpan getOrCreateSqlSpan(
       long sqlExecutionId, String batchKey, Properties jobProperties) {
-    if (spanLinksEnabled && applicationEnded) {
+    if (shouldIgnoreLateEvent()) {
       return null;
     }
     AgentSpan span = sqlSpans.get(sqlExecutionId);
@@ -668,13 +670,15 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     AgentSpan sqlSpan = spanBuilder.start();
     setDataJobsSamplingPriority(sqlSpan);
     sqlSpans.put(sqlExecutionId, sqlSpan);
-    sqlBatchKeys.put(sqlExecutionId, batchKey);
+    if (batchKey != null) {
+      streamingSqlExecutionIds.add(sqlExecutionId);
+    }
     return sqlSpan;
   }
 
   @Override
   public synchronized void onJobStart(SparkListenerJobStart jobStart) {
-    if (spanLinksEnabled && applicationEnded) {
+    if (shouldIgnoreLateEvent()) {
       return;
     }
     jobCount++;
@@ -785,7 +789,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
   @Override
   public synchronized void onStageSubmitted(SparkListenerStageSubmitted stageSubmitted) {
-    if (spanLinksEnabled && applicationEnded) {
+    if (shouldIgnoreLateEvent()) {
       return;
     }
     if (stageSpans.size() > MAX_COLLECTION_SIZE) {
@@ -920,7 +924,59 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     int stageId = taskEnd.stageId();
     int stageAttemptId = taskEnd.stageAttemptId();
     long stageSpanKey = stageSpanKey(stageId, stageAttemptId);
+    boolean qualifyingTaskFailure =
+        taskEnd.reason() instanceof TaskFailedReason
+            && ((TaskFailedReason) taskEnd.reason()).countTowardsTaskFailures();
 
+    if (spanLinksEnabled && qualifyingTaskFailure) {
+      synchronized (this) {
+        boolean ignoreLateEvent = shouldIgnoreLateEvent();
+        if (!ignoreLateEvent) {
+          recordTaskMetrics(taskEnd, stageSpanKey);
+        }
+        notifyOl(x -> openLineageSparkListener.onTaskEnd(x), taskEnd);
+        if (ignoreLateEvent) {
+          return;
+        }
+        sendTaskFailureSpan(taskEnd, stageSpanKey);
+      }
+      return;
+    }
+
+    if (spanLinksEnabled) {
+      synchronized (this) {
+        if (!shouldIgnoreLateEvent()) {
+          recordTaskMetrics(taskEnd, stageSpanKey);
+        }
+      }
+    } else {
+      recordTaskMetrics(taskEnd, stageSpanKey);
+    }
+
+    // OpenLineage call should be prior to method return statements
+    notifyOl(x -> openLineageSparkListener.onTaskEnd(x), taskEnd);
+
+    if (!qualifyingTaskFailure) {
+      return;
+    }
+
+    synchronized (this) {
+      if (shouldIgnoreLateEvent()) {
+        return;
+      }
+      sendTaskFailureSpan(taskEnd, stageSpanKey);
+    }
+  }
+
+  private void sendTaskFailureSpan(SparkListenerTaskEnd taskEnd, long stageSpanKey) {
+    AgentSpan stageSpan = stageSpans.get(stageSpanKey);
+    if (stageSpan != null) {
+      Properties props = stageProperties.get(stageSpanKey);
+      sendTaskSpan(stageSpan, taskEnd, props);
+    }
+  }
+
+  private void recordTaskMetrics(SparkListenerTaskEnd taskEnd, long stageSpanKey) {
     SparkAggregatedTaskMetrics stageMetric = stageMetrics.get(stageSpanKey);
     if (stageMetric != null) {
       // Not happy that we have to extract external accumulators here, but needed as we're dealing
@@ -934,33 +990,6 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       for (SparkAggregatedTaskMetrics aggMetrics : stageMetrics.values()) {
         aggMetrics.recordTotalTaskRunTime(taskRunTime);
       }
-    }
-
-    // OpenLineage call should be prior to method return statements
-    notifyOl(x -> openLineageSparkListener.onTaskEnd(x), taskEnd);
-
-    // Only sending failing tasks
-    if (!(taskEnd.reason() instanceof TaskFailedReason)) {
-      return;
-    }
-
-    // Only sending tasks that can lead to failure
-    TaskFailedReason reason = (TaskFailedReason) taskEnd.reason();
-    if (!reason.countTowardsTaskFailures()) {
-      return;
-    }
-
-    synchronized (this) {
-      if (spanLinksEnabled && applicationEnded) {
-        return;
-      }
-      AgentSpan stageSpan = stageSpans.get(stageSpanKey);
-      if (stageSpan == null) {
-        return;
-      }
-
-      Properties props = stageProperties.get(stageSpanKey);
-      sendTaskSpan(stageSpan, taskEnd, props);
     }
   }
 
@@ -1109,7 +1138,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   }
 
   private synchronized void updateAdaptiveSQLPlan(SparkListenerEvent event) {
-    if (spanLinksEnabled && applicationEnded) {
+    if (shouldIgnoreLateEvent()) {
       return;
     }
     try {
@@ -1124,7 +1153,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   }
 
   private synchronized void onSQLExecutionStart(SparkListenerSQLExecutionStart sqlStart) {
-    if (spanLinksEnabled && applicationEnded) {
+    if (shouldIgnoreLateEvent()) {
       return;
     }
     sqlPlans.put(sqlStart.executionId(), sqlStart.sparkPlanInfo());
@@ -1134,7 +1163,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
   private synchronized void onSQLExecutionEnd(SparkListenerSQLExecutionEnd sqlEnd) {
     AgentSpan span = sqlSpans.remove(sqlEnd.executionId());
-    sqlBatchKeys.remove(sqlEnd.executionId());
+    streamingSqlExecutionIds.remove(sqlEnd.executionId());
     SparkAggregatedTaskMetrics metrics = sqlMetrics.remove(sqlEnd.executionId());
     sqlQueries.remove(sqlEnd.executionId());
     sqlPlans.remove(sqlEnd.executionId());
