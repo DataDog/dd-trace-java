@@ -45,8 +45,9 @@ val forkedTestMaxParallelForks = providers.gradleProperty("forkedTestMaxParallel
   .map(String::toInt)
 val testcontainersMaxParallelForks = providers.gradleProperty("testcontainersMaxParallelForks")
   .map(String::toInt)
-val ciBranchRequiringFreshTests = providers.environmentVariable("CI_COMMIT_BRANCH")
-  .filter { it == "master" || it == "alexeyk/parallelize-forked-tests" }
+val isMasterBranch = providers.environmentVariable("CI_COMMIT_BRANCH")
+  .map { it == "master" }
+  .orElse(false)
 
 // Go through the Test tasks and configure them
 tasks.withType<Test>().configureEach {
@@ -60,11 +61,11 @@ tasks.withType<Test>().configureEach {
   // Disable all tests if skipTests property was specified
   onlyIf("skipTests are undefined or false") { !skipTestsProvider.isPresent }
 
-  // Keep running tests on master for flaky-test signals and on this draft branch
-  // temporarily to validate test parallelism. Successful results still populate the cache.
+  // Keep running tests on master even with the S3 build cache to keep
+  // steady flaky-tests signals. Successful results still populate the cache.
   outputs.upToDateWhen { task ->
     val reason = when {
-      ciBranchRequiringFreshTests.isPresent -> "CI_COMMIT_BRANCH=${ciBranchRequiringFreshTests.get()}"
+      isMasterBranch.get() -> "CI_COMMIT_BRANCH=master"
       rerunTestsProvider.isPresent -> "$rerunTestsProperty is set"
       else -> return@upToDateWhen true
     }
