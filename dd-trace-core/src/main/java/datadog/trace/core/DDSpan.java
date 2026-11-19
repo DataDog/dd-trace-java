@@ -19,6 +19,7 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.EndpointTracker;
 import datadog.trace.api.KnownTags;
+import datadog.trace.api.TagLookup;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.debugger.DebuggerConfigBridge;
@@ -618,6 +619,16 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
   @SuppressWarnings("unchecked")
   public <U> U unsafeGetTag(CharSequence name) {
     return (U) context.unsafeGetTag(String.valueOf(name));
+  }
+
+  @Override
+  public boolean mayHaveAnyTag(TagLookup lookup) {
+    return context.mayHaveAnyTag(lookup);
+  }
+
+  @Override
+  public int unsafeGetTagStrings(TagLookup lookup, String[] out) {
+    return context.unsafeGetTagStrings(lookup, out);
   }
 
   @Override

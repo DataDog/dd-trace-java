@@ -20,6 +20,7 @@ import datadog.trace.api.IdStore;
 import datadog.trace.api.KnownTagCodec;
 import datadog.trace.api.KnownTags;
 import datadog.trace.api.ProcessTags;
+import datadog.trace.api.TagLookup;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.TagStore;
 import datadog.trace.api.cache.DDCache;
@@ -1767,6 +1768,57 @@ public class DDSpanContext
   public Object unsafeGetTag(final String tag) {
     Object value = load(tag);
     return value != null ? value : unsafeGetDirectionScopedTag(tag);
+  }
+
+  /**
+   * Whether this span may hold any of {@code lookup}'s tags. A false is definite (for the dense
+   * store, a few mask tests), so a reader of a fixed tag set can skip spans that hold none of it.
+   */
+  public boolean mayHaveAnyTag(TagLookup lookup) {
+    if (knownTags.mayHoldAny(lookup)) {
+      return true;
+    }
+    HashStore custom = customTags;
+    // any custom store counts as a maybe: custom tags carry no presence mask
+    return lookup.hasCustom() && custom != null;
+  }
+
+  /**
+   * Bulk {@link #unsafeGetTag} over a prebuilt {@link TagLookup}: writes the string form of each of
+   * its tags this span holds to the matching index of {@code out}, leaving the others untouched,
+   * with the same resolution as {@code unsafeGetTag} -- known tags by id, custom tags by name, then
+   * the direction-scoped fallback for this span's kind. Unlocked, like {@code unsafeGetTag}.
+   * Returns how many it wrote.
+   */
+  public int unsafeGetTagStrings(TagLookup lookup, String[] out) {
+    int found = knownTags.loadStrings(lookup, out);
+    HashStore custom = customTags;
+    if (custom != null && lookup.hasCustom()) {
+      for (int k = 0, n = lookup.customCount(); k < n; k++) {
+        int i = lookup.customIndex(k);
+        TagMap.Entry entry = custom.getEntry(lookup.name(i));
+        if (entry != null) {
+          out[i] = entry.stringValue();
+          found++;
+        }
+      }
+    }
+    int direction = directionOfKind(spanKindOrdinal);
+    if (direction != KnownTagCodec.DIRECTION_UNKNOWN) {
+      for (int i = 0, n = lookup.size(); i < n; i++) {
+        if (out[i] == null) {
+          long tagId = lookup.directionalId(i, direction);
+          if (tagId != 0) {
+            Object value = knownTags.load(tagId);
+            if (value != null) {
+              out[i] = value.toString();
+              found++;
+            }
+          }
+        }
+      }
+    }
+    return found;
   }
 
   /**
