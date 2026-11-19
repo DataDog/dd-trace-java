@@ -1,6 +1,7 @@
 package com.datadog.openfeature.internal.ufc;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.openfeature.internal.JsonReading;
@@ -113,6 +114,21 @@ class PrototypeRegexTest {
     }
     System.out.println("prototype tiers: " + tiers + ", inputs checked: " + checked);
     assertTrue(checked > 500_000, "too few inputs: " + checked);
+  }
+
+  @Test
+  void compilesTheFallbackOnlyWhenAnInputNeedsIt() {
+    final PrototypeRegex.LazyFallback fallback =
+        new PrototypeRegex.LazyFallback("^[a-z]+@site\\.test$");
+    final RegexMatcher matcher = PrototypeRegex.engineFree("^[a-z]+@site\\.test$", fallback);
+    assertTrue(matcher instanceof PrototypeRegex.BitParallelMatcher);
+
+    assertTrue(matcher.matches("jane@site.test"));
+    assertFalse(matcher.matches("jane@other.test"));
+    assertFalse(fallback.isCompiled());
+
+    assertFalse(matcher.matches("jan\u00e9@site.test")); // non-ASCII: decided by the fallback
+    assertTrue(fallback.isCompiled());
   }
 
   /** Matching strings, near misses, random ASCII, and line feed / non-ASCII variants. */

@@ -63,6 +63,40 @@ abstract class PrototypeRegex extends RegexMatcher {
     return BitParallelMatcher.of(parsed, fallback);
   }
 
+  /**
+   * The fallback for inputs the engine-free tiers can't decide (non-ASCII, a line feed in a gap).
+   * It keeps only the pattern, which the configuration already holds, and compiles #13487's matcher
+   * on first use, so configurations whose inputs are all ASCII never keep an RE2/J program. A race
+   * compiles it twice at worst; the compiled matcher is immutable.
+   */
+  static final class LazyFallback extends RegexMatcher {
+    private final String pattern;
+    @Nullable private volatile RegexMatcher compiled;
+
+    LazyFallback(final String pattern) {
+      this.pattern = pattern;
+    }
+
+    @Override
+    Kind kind() {
+      return Kind.ENGINE;
+    }
+
+    @Override
+    public boolean matches(final String input) {
+      RegexMatcher matcher = compiled;
+      if (matcher == null) {
+        matcher = RegexMatcher.compileWithoutPrototype(pattern);
+        compiled = matcher;
+      }
+      return matcher.matches(input);
+    }
+
+    boolean isCompiled() {
+      return compiled != null;
+    }
+  }
+
   /** Uses {@link RegexMatcher} as it is. */
   static final class Delegate extends PrototypeRegex {
     private final RegexMatcher matcher;
@@ -874,7 +908,10 @@ abstract class PrototypeRegex extends RegexMatcher {
    * shift and a few masks per input character, and no allocation.
    */
   static final class BitParallelMatcher extends PrototypeRegex {
-    private final long[] masks = new long[128];
+    // Each ASCII character maps to a class, and each class to the positions it matches. Most
+    // patterns have a handful of distinct classes, so this is ~200 B instead of a long[128].
+    private final byte[] classOf = new byte[128];
+    private final long[] classMasks;
     private final long loops;
     private final long optional;
     private final long startBits; // positions reachable from the start by skipping optionals
@@ -895,6 +932,7 @@ abstract class PrototypeRegex extends RegexMatcher {
         final Parsed parsed,
         final RegexMatcher fallback) {
       final int m = sets.size();
+      final long[] masks = new long[128];
       long loops = 0;
       long optional = 0;
       int run = 0;
@@ -917,6 +955,19 @@ abstract class PrototypeRegex extends RegexMatcher {
           run = 0;
         }
       }
+      final long[] distinct = new long[128];
+      int classes = 0;
+      for (int x = 0; x < 128; x++) {
+        int k = 0;
+        while (k < classes && distinct[k] != masks[x]) {
+          k++;
+        }
+        if (k == classes) {
+          distinct[classes++] = masks[x];
+        }
+        classOf[x] = (byte) k;
+      }
+      this.classMasks = java.util.Arrays.copyOf(distinct, classes);
       long start = 0;
       for (int j = 0; j < m; j++) {
         start |= 1L << j;
@@ -1017,7 +1068,7 @@ abstract class PrototypeRegex extends RegexMatcher {
           return fallback.matches(s);
         }
         final long inject = (!anchoredStart || x == 0) ? startBits : 0L;
-        final long b = masks[c];
+        final long b = classMasks[classOf[c]];
         d = (((d << 1) | inject) & b) | (d & loops & b);
         for (int k = 0; k < optionalRun; k++) {
           d |= (d << 1) & optional;

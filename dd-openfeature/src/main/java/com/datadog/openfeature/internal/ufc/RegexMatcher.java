@@ -120,7 +120,11 @@ public abstract class RegexMatcher {
   private static RegexMatcher engineOrPrototype(
       final String pattern, final RegexMatcher engine, final boolean prototype) {
     if (prototype) {
-      @Nullable final RegexMatcher engineFree = PrototypeRegex.engineFree(pattern, engine);
+      // The pattern was compiled once above to validate it. The engine-free tiers don't keep that
+      // program: their fallback compiles it again only if an input needs it.
+      @Nullable
+      final RegexMatcher engineFree =
+          PrototypeRegex.engineFree(pattern, new PrototypeRegex.LazyFallback(pattern));
       if (engineFree != null) {
         return engineFree;
       }
