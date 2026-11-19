@@ -2,12 +2,8 @@ package com.datadog.openfeature.internal.evaluation;
 
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.ALLOCATION_KEY;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.DO_LOG;
-import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EVALUATION_FEATURE_PREFIX;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EVAL_TIMESTAMP_MS;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EXPOSURE_CACHE_HIT;
-import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EXPOSURE_FEATURE_PREFIX;
-import static com.datadog.openfeature.internal.evaluation.MetadataKeys.FEATURE_PREFIX;
-import static com.datadog.openfeature.internal.evaluation.MetadataKeys.HAS_EVALUATION_FEATURES;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.OBSERVE_FULL_EVALUATION_DATA;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.SPLIT_SERIAL_ID;
 import static java.util.Arrays.asList;
@@ -16,7 +12,6 @@ import com.datadog.openfeature.ExperimentationOptOutMode;
 import com.datadog.openfeature.internal.ufc.Allocation;
 import com.datadog.openfeature.internal.ufc.ConditionConfiguration;
 import com.datadog.openfeature.internal.ufc.ConditionOperator;
-import com.datadog.openfeature.internal.ufc.Feature;
 import com.datadog.openfeature.internal.ufc.Flag;
 import com.datadog.openfeature.internal.ufc.MembershipIndex;
 import com.datadog.openfeature.internal.ufc.ParsedSemver;
@@ -41,24 +36,13 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Local evaluation over a single configuration snapshot. No transport dependency. */
 public final class FlagEvaluator {
-  private static final Logger LOGGER = LoggerFactory.getLogger(FlagEvaluator.class);
   private static final Set<Class<?>> SUPPORTED_RESOLUTION_TYPES =
       new HashSet<>(asList(String.class, Boolean.class, Integer.class, Double.class, Value.class));
-  static final String FEATURE_DESTINATION_HOOK = "HOOK";
-  static final String FEATURE_DESTINATION_EXPOSURE = "EXPOSURE";
-  static final String FEATURE_DESTINATION_EVALUATION = "EVALUATION";
-  // A newer UFC can name destinations this SDK does not know; warn once per name, not per
-  // evaluation.
-  static final int MAX_WARNED_FEATURE_DESTINATIONS = 64;
-  static final Set<String> WARNED_FEATURE_DESTINATIONS = ConcurrentHashMap.newKeySet();
   private final boolean spanEnrichmentEnabled;
   private final ExposureLookup exposureLookup;
   private final ExperimentationOptOutMode experimentationOptOutMode;
@@ -161,6 +145,7 @@ public final class FlagEvaluator {
       final String targetingKey = context.getTargetingKey();
       // Many SemVer conditions can test the same attribute; parse each value once per evaluation.
       final SemverParseCache semverCache = flag.hasSemverConditions ? new SemverParseCache() : null;
+      EvaluationScope scope = null;
 
       for (final Allocation allocation : flag.allocations) {
         if (experimentationCutoff != null
@@ -173,7 +158,12 @@ public final class FlagEvaluator {
         }
 
         if (!isEmpty(allocation.rules)) {
-          if (!evaluateRules(allocation.rules, context, semverCache)) {
+          if (scope == null) {
+            scope =
+                new EvaluationScope(
+                    context, flag.preparedRules(EvaluationScope::readsAnAttributeTwice));
+          }
+          if (!evaluateRules(allocation.rules, scope, semverCache)) {
             continue;
           }
         }
@@ -236,10 +226,14 @@ public final class FlagEvaluator {
     }
   }
 
+  // The metadata of a result without a variant depends only on the consent, so it is shared.
+  private static final ImmutableMetadata CONSENT_ON_METADATA =
+      ImmutableMetadata.builder().addBoolean(OBSERVE_FULL_EVALUATION_DATA, true).build();
+  private static final ImmutableMetadata CONSENT_OFF_METADATA =
+      ImmutableMetadata.builder().addBoolean(OBSERVE_FULL_EVALUATION_DATA, false).build();
+
   private static ImmutableMetadata consentMetadata(final boolean observeFullEvaluationData) {
-    return ImmutableMetadata.builder()
-        .addBoolean(OBSERVE_FULL_EVALUATION_DATA, observeFullEvaluationData)
-        .build();
+    return observeFullEvaluationData ? CONSENT_ON_METADATA : CONSENT_OFF_METADATA;
   }
 
   private static <T> ProviderEvaluation<T> error(
@@ -282,6 +276,11 @@ public final class FlagEvaluator {
   // Visible for tests: they count the SemVer parses of one evaluation's rules.
   static boolean evaluateRules(
       final List<Rule> rules, final EvaluationContext context, final SemverParseCache semverCache) {
+    return evaluateRules(rules, new EvaluationScope(context), semverCache);
+  }
+
+  private static boolean evaluateRules(
+      final List<Rule> rules, final EvaluationScope scope, final SemverParseCache semverCache) {
     for (final Rule rule : rules) {
       if (isEmpty(rule.conditions)) {
         continue;
@@ -289,7 +288,7 @@ public final class FlagEvaluator {
 
       boolean allConditionsMatch = true;
       for (final ConditionConfiguration condition : rule.conditions) {
-        if (!evaluateCondition(condition, context, semverCache)) {
+        if (!evaluateCondition(condition, scope, semverCache)) {
           allConditionsMatch = false;
           break;
         }
@@ -304,17 +303,17 @@ public final class FlagEvaluator {
 
   private static boolean evaluateCondition(
       final ConditionConfiguration condition,
-      final EvaluationContext context,
+      final EvaluationScope scope,
       final SemverParseCache semverCache) {
     if (condition.operator == ConditionOperator.IS_NULL) {
-      final Object value = resolveAttribute(condition.attribute, context);
+      final Object value = scope.attribute(condition.attribute);
       boolean isNull = value == null;
       // condition.value determines if we're checking for null (true) or not null (false)
       boolean expectedNull = condition.value instanceof Boolean ? (Boolean) condition.value : true;
       return isNull == expectedNull;
     }
 
-    final Object attributeValue = resolveAttribute(condition.attribute, context);
+    final Object attributeValue = scope.attribute(condition.attribute);
     if (attributeValue == null) {
       return false;
     }
@@ -556,7 +555,7 @@ public final class FlagEvaluator {
       }
       metadataBuilder.addBoolean(DO_LOG, doLog);
     }
-    addSplitFeatures(metadataBuilder, split);
+    split.preparedFeatures(SplitFeatures::prepare).addTo(metadataBuilder);
     if (doLog) {
       metadataBuilder.addBoolean(
           EXPOSURE_CACHE_HIT,
@@ -582,74 +581,6 @@ public final class FlagEvaluator {
       return Reason.DEFAULT.name();
     }
     return !isEmpty(split.shards) ? Reason.SPLIT.name() : Reason.STATIC.name();
-  }
-
-  private static void addSplitFeatures(
-      final ImmutableMetadata.ImmutableMetadataBuilder metadataBuilder, final Split split) {
-    if (split.features == null) {
-      return;
-    }
-    Set<String> seenKeys = null;
-    boolean evaluationFeatures = false;
-    for (final Feature feature : split.features) {
-      if (feature == null || feature.key == null || feature.destinations == null) {
-        continue;
-      }
-      if (seenKeys == null) {
-        seenKeys = new HashSet<>();
-      }
-      // The first feature with a key wins, for every destination.
-      if (!seenKeys.add(feature.key)) {
-        continue;
-      }
-      for (final String destination : feature.destinations) {
-        final String prefix = metadataPrefix(destination);
-        if (prefix != null) {
-          addFeature(metadataBuilder, prefix + feature.key, feature.value);
-          evaluationFeatures |= EVALUATION_FEATURE_PREFIX.equals(prefix);
-        } else if (WARNED_FEATURE_DESTINATIONS.size() < MAX_WARNED_FEATURE_DESTINATIONS
-            && WARNED_FEATURE_DESTINATIONS.add(destination)) {
-          LOGGER.warn("Ignoring unknown feature destination {}", destination);
-        }
-      }
-    }
-    if (evaluationFeatures) {
-      metadataBuilder.addBoolean(HAS_EVALUATION_FEATURES, true);
-    }
-  }
-
-  private static String metadataPrefix(final String destination) {
-    if (FEATURE_DESTINATION_HOOK.equals(destination)) {
-      return FEATURE_PREFIX;
-    }
-    if (FEATURE_DESTINATION_EXPOSURE.equals(destination)) {
-      return EXPOSURE_FEATURE_PREFIX;
-    }
-    if (FEATURE_DESTINATION_EVALUATION.equals(destination)) {
-      return EVALUATION_FEATURE_PREFIX;
-    }
-    return null;
-  }
-
-  private static void addFeature(
-      final ImmutableMetadata.ImmutableMetadataBuilder metadataBuilder,
-      final String key,
-      final Object value) {
-    if (value instanceof String) {
-      metadataBuilder.addString(key, (String) value);
-    } else if (value instanceof Boolean) {
-      metadataBuilder.addBoolean(key, (Boolean) value);
-    } else if (value instanceof Number) {
-      metadataBuilder.addDouble(key, ((Number) value).doubleValue());
-    }
-  }
-
-  private static Object resolveAttribute(final String name, final EvaluationContext context) {
-    // Special handling for "id" attribute: if not explicitly provided, use targeting key
-    if ("id".equals(name) && !context.keySet().contains(name)) {
-      return context.getTargetingKey();
-    }
-    return context.convertValue(context.getValue(name));
   }
 
   public static boolean isTypeCompatible(final Class<?> target, final ValueType variationType) {
