@@ -1,7 +1,7 @@
 _v: 1
 name: valkey
 display_name: valkey-java
-description: Instruments Valkey client command execution.
+description: Instruments Valkey command execution through the valkey-java client.
 packages:
 - name: io.valkey:valkey-java
 category:

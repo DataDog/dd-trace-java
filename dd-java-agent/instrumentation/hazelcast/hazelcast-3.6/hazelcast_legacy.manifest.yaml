@@ -1,8 +1,8 @@
 _v: 1
 name: hazelcast_legacy
-display_name: hazelcast-all
-description: Instruments Hazelcast distributed data operations, queue and topic messaging, synchronization and distributed
-  task execution.
+display_name: Hazelcast
+description: Instruments Hazelcast client distributed-object operations, including map and collection access, queue and topic
+  messaging, and distributed task execution.
 packages:
 - name: com.hazelcast:hazelcast-all
 category:

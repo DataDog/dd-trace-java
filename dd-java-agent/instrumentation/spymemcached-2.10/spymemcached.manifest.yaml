@@ -1,7 +1,8 @@
 _v: 1
 name: spymemcached
 display_name: Spymemcached
-description: Instruments Memcached cache reads, bulk reads, writes and counter operations through Spymemcached.
+description: Instruments Spymemcached client operations against Memcached, including cache reads, writes, deletions, and counter
+  updates.
 packages:
 - name: net.spy:spymemcached
 category:
