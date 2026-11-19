@@ -179,6 +179,7 @@ public class ExternalAgentLauncher implements Closeable {
         timedOutInfoRequest = infoRequest;
         return false;
       } catch (ExecutionException e) {
+        log.debug("Health check request failed", e.getCause());
         return false;
       }
     }
@@ -189,6 +190,7 @@ public class ExternalAgentLauncher implements Closeable {
       try {
         return finishedRequest.get();
       } catch (ExecutionException e) {
+        log.debug("Health check request failed", e.getCause());
         return false;
       }
     }
