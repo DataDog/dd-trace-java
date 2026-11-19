@@ -91,9 +91,6 @@ class AsyncBlockingCompletionForkedTest extends AbstractInstrumentationTest {
   private static final int SMALL_BUFFER_SIZE = 4 * 1024;
   private static final int TIMEOUT_SECONDS = 10;
 
-  /** Jetty 12.1+ keeps the connection open once the agent completes the suspended request. */
-  private static final boolean KEEP_ALIVE_EXPECTED = isJetty121OrLater();
-
   @TempDir Path tempDir;
 
   private final CountDownLatch handlerDone = new CountDownLatch(1);
@@ -127,6 +124,8 @@ class AsyncBlockingCompletionForkedTest extends AbstractInstrumentationTest {
 
   @Test
   void asyncBlockedRequestIsCompletedAndConnectionKeptAlive() throws Exception {
+    // Jetty 12.1+ keeps the connection open once the agent completes the suspended request
+    boolean keepAliveExpected = isJetty121OrLater();
     startServer(false);
     try (Socket socket = connect(false)) {
       sendGet(socket, BLOCK_PATH);
@@ -141,7 +140,7 @@ class AsyncBlockingCompletionForkedTest extends AbstractInstrumentationTest {
       String body = new String(readBody(in, contentLength), UTF_8);
       assertTrue(body.toLowerCase(Locale.ROOT).contains("<html"), "blocking page: " + body);
 
-      if (KEEP_ALIVE_EXPECTED) {
+      if (keepAliveExpected) {
         // without completion the connection is still busy with the suspended request
         sendGet(socket, OK_PATH);
         String okHeaders = readHeaders(in);
@@ -152,9 +151,9 @@ class AsyncBlockingCompletionForkedTest extends AbstractInstrumentationTest {
       }
     }
 
-    List<DDSpan> roots = awaitServerSpans(KEEP_ALIVE_EXPECTED ? 2 : 1);
+    List<DDSpan> roots = awaitServerSpans(keepAliveExpected ? 2 : 1);
     assertSingleBlockedSpan(roots);
-    if (KEEP_ALIVE_EXPECTED) {
+    if (keepAliveExpected) {
       DDSpan okSpan = roots.get(0).getHttpStatusCode() == 403 ? roots.get(1) : roots.get(0);
       assertEquals(200, okSpan.getHttpStatusCode());
     }
