@@ -25,4 +25,15 @@
       <Package name="com.datadog.appsec.report.raw.events" />
     </Or>
   </Match>
+  <!-- Baseline: these gzip test helpers can leak their input stream on a checked exception. -->
+  <Match>
+    <Class name="com.datadog.profiling.uploader.ProfileUploaderTest" />
+    <Method name="recordingStream" params="boolean" />
+    <Bug pattern="OBL_UNSATISFIED_OBLIGATION_EXCEPTION_EDGE" />
+  </Match>
+  <Match>
+    <Class name="com.datadog.profiling.uploader.util.JfrCliHelperTest" />
+    <Method name="recordingStream" params="boolean" />
+    <Bug pattern="OBL_UNSATISFIED_OBLIGATION_EXCEPTION_EDGE" />
+  </Match>
 </FindBugsFilter>
