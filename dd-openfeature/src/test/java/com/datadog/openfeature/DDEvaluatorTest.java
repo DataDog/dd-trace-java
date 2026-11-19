@@ -659,8 +659,7 @@ public class DDEvaluatorTest {
 
   @Test
   public void numericConditionOnTargetingKeyDropsExceptionMessageUnderConsentOff() {
-    // Rule {attribute:"id", operator:GT, value:0} + "id" not in context →
-    // DDEvaluator.resolveAttribute
+    // Rule {attribute:"id", operator:GT, value:0} + "id" not in context → the evaluation
     // falls back to the targeting key, so Double.parseDouble("jane.doe@datadoghq.com") throws
     // NumberFormatException. The exception message echoes the raw context value verbatim, so it
     // must be dropped when observeFullEvaluationData=false.

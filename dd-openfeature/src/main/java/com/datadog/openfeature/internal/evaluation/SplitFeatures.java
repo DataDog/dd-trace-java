@@ -1,10 +1,5 @@
 package com.datadog.openfeature.internal.evaluation;
 
-import static com.datadog.openfeature.internal.evaluation.FlagEvaluator.FEATURE_DESTINATION_EVALUATION;
-import static com.datadog.openfeature.internal.evaluation.FlagEvaluator.FEATURE_DESTINATION_EXPOSURE;
-import static com.datadog.openfeature.internal.evaluation.FlagEvaluator.FEATURE_DESTINATION_HOOK;
-import static com.datadog.openfeature.internal.evaluation.FlagEvaluator.MAX_WARNED_FEATURE_DESTINATIONS;
-import static com.datadog.openfeature.internal.evaluation.FlagEvaluator.WARNED_FEATURE_DESTINATIONS;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EVALUATION_FEATURE_PREFIX;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EXPOSURE_FEATURE_PREFIX;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.FEATURE_PREFIX;
@@ -16,6 +11,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,8 +22,15 @@ import org.slf4j.LoggerFactory;
  */
 final class SplitFeatures {
   private static final Logger LOGGER = LoggerFactory.getLogger(SplitFeatures.class);
+  static final String FEATURE_DESTINATION_HOOK = "HOOK";
+  static final String FEATURE_DESTINATION_EXPOSURE = "EXPOSURE";
+  static final String FEATURE_DESTINATION_EVALUATION = "EVALUATION";
+  // A newer UFC can name destinations this SDK does not know; warn once per name, not per
+  // evaluation.
+  static final int MAX_WARNED_FEATURE_DESTINATIONS = 64;
+  static final Set<String> WARNED_FEATURE_DESTINATIONS = ConcurrentHashMap.newKeySet();
 
-  /** Prepared features of a split without any. */
+  /** The prepared features of a split without metadata entries, shared by all such splits. */
   static final SplitFeatures NONE = new SplitFeatures(new String[0], new Object[0], false);
 
   private final String[] keys;

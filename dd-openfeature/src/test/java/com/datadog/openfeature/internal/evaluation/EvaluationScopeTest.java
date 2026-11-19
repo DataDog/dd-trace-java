@@ -1,8 +1,17 @@
 package com.datadog.openfeature.internal.evaluation;
 
+import static java.util.Arrays.asList;
+import static java.util.Collections.emptyList;
+import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.datadog.openfeature.internal.ufc.Allocation;
+import com.datadog.openfeature.internal.ufc.ConditionConfiguration;
+import com.datadog.openfeature.internal.ufc.ConditionOperator;
+import com.datadog.openfeature.internal.ufc.Rule;
 import dev.openfeature.sdk.MutableContext;
 import dev.openfeature.sdk.Value;
 import java.util.HashMap;
@@ -74,6 +83,53 @@ class EvaluationScopeTest {
     final EvaluationScope scope = new EvaluationScope(new MutableContext("user-1", attributes));
 
     assertEquals("user-1", scope.attribute("id"));
+  }
+
+  @Test
+  void readsAConditionWithoutAnAttributeAsBefore() {
+    final MutableContext context = new MutableContext("user-1");
+    context.add("plan", "pro");
+    context.add("country", "fr");
+    final EvaluationScope scope = new EvaluationScope(context);
+
+    assertEquals("pro", scope.attribute("plan"));
+    assertNull(scope.attribute(null));
+    assertEquals("fr", scope.attribute("country"));
+    assertNull(scope.attribute(null));
+  }
+
+  @Test
+  void readsTheContextEachTimeWhenNotCached() {
+    final CountingContext context = new CountingContext("user-1");
+    context.add("plan", "pro");
+    final EvaluationScope scope = new EvaluationScope(context, false);
+
+    assertEquals("pro", scope.attribute("plan"));
+    assertEquals("pro", scope.attribute("plan"));
+    assertEquals(2, context.reads("plan"));
+  }
+
+  @Test
+  void cachesOnlyWhenTwoConditionsReadTheSameAttribute() {
+    assertFalse(EvaluationScope.readsAnAttributeTwice(null));
+    assertFalse(
+        EvaluationScope.readsAnAttributeTwice(
+            asList(allocation(condition("plan"), condition("country")), allocation())));
+    assertFalse(
+        EvaluationScope.readsAnAttributeTwice(
+            singletonList(allocation(condition(null), condition(null)))));
+    assertTrue(
+        EvaluationScope.readsAnAttributeTwice(
+            asList(allocation(condition("plan")), allocation(condition("plan")))));
+  }
+
+  private static ConditionConfiguration condition(final String attribute) {
+    return new ConditionConfiguration(ConditionOperator.IS_NULL, attribute, true);
+  }
+
+  private static Allocation allocation(final ConditionConfiguration... conditions) {
+    return new Allocation(
+        "allocation", singletonList(new Rule(asList(conditions))), null, null, emptyList(), false);
   }
 
   /** Counts the attribute reads of the evaluation. */

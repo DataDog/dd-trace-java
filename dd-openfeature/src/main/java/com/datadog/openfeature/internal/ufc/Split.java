@@ -42,9 +42,11 @@ public final class Split {
   /**
    * Returns what {@code prepare} derives from the features, computed once for the split. Two
    * evaluations that serve the split first at the same time can both compute it; either result is
-   * kept.
+   * kept. Every caller passes the same function, so the cached result does not depend on which one
+   * ran first.
    *
-   * @param prepare derives the prepared form from {@link #features}, which can be {@code null}.
+   * @param prepare derives the prepared form from {@link #features}, which can be {@code null}. It
+   *     never returns {@code null}.
    * @return the prepared form.
    */
   @SuppressWarnings("unchecked")

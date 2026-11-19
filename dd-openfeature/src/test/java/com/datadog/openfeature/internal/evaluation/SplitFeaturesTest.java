@@ -25,7 +25,7 @@ class SplitFeaturesTest {
 
   @AfterEach
   void tearDown() {
-    FlagEvaluator.WARNED_FEATURE_DESTINATIONS.clear();
+    SplitFeatures.WARNED_FEATURE_DESTINATIONS.clear();
   }
 
   @Test
@@ -103,7 +103,7 @@ class SplitFeaturesTest {
                 new Feature("other", "x", asList("NEW_A", "NEW_B"))));
 
     assertEquals(
-        new HashSet<>(asList("NEW_A", "NEW_B")), FlagEvaluator.WARNED_FEATURE_DESTINATIONS);
+        new HashSet<>(asList("NEW_A", "NEW_B")), SplitFeatures.WARNED_FEATURE_DESTINATIONS);
     assertEquals(singletonMap(FEATURE_PREFIX + "holdout.key", "q4-global"), metadata(features));
     assertTrue(metadata(SplitFeatures.prepare(null)).isEmpty());
   }

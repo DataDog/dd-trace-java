@@ -35,7 +35,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
@@ -43,13 +42,6 @@ import java.util.regex.PatternSyntaxException;
 public final class FlagEvaluator {
   private static final Set<Class<?>> SUPPORTED_RESOLUTION_TYPES =
       new HashSet<>(asList(String.class, Boolean.class, Integer.class, Double.class, Value.class));
-  static final String FEATURE_DESTINATION_HOOK = "HOOK";
-  static final String FEATURE_DESTINATION_EXPOSURE = "EXPOSURE";
-  static final String FEATURE_DESTINATION_EVALUATION = "EVALUATION";
-  // A newer UFC can name destinations this SDK does not know; warn once per name, not per
-  // evaluation.
-  static final int MAX_WARNED_FEATURE_DESTINATIONS = 64;
-  static final Set<String> WARNED_FEATURE_DESTINATIONS = ConcurrentHashMap.newKeySet();
   private final boolean spanEnrichmentEnabled;
   private final ExposureLookup exposureLookup;
   private final ExperimentationOptOutMode experimentationOptOutMode;
@@ -164,7 +156,9 @@ public final class FlagEvaluator {
 
         if (!isEmpty(allocation.rules)) {
           if (scope == null) {
-            scope = new EvaluationScope(context);
+            scope =
+                new EvaluationScope(
+                    context, flag.preparedRules(EvaluationScope::readsAnAttributeTwice));
           }
           if (!evaluateRules(allocation.rules, scope)) {
             continue;
