@@ -39,7 +39,8 @@ import org.mockito.InOrder;
  * Response#getOutputStream()} failed at class initialization), the "response already committed by
  * something other than us" path, and the "write threw" path. In all three, a blocking commit was
  * genuinely attempted and failed, so a {@code block_failure} must be reported on the AppSec context
- * reachable from the Tomcat request.
+ * reachable from the Tomcat request. It also checks that a response suspended by {@code
+ * sendError()} has the suspension lifted before the block page is written.
  *
  * <p>On a real classpath {@code Response#getOutputStream()} always exists, so the field is never
  * {@code null} and the degraded-lookup branch is unreachable by normal means. There is no

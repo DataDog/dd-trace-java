@@ -83,7 +83,8 @@ class TomcatEncodedSlashBlockingForkedTest extends AbstractInstrumentationTest {
     Context context = tomcat.addContext("", baseDir.getAbsolutePath());
     Tomcat.addServlet(context, "recording", new RecordingServlet());
     context.addServletMappingDecoded("/*", "recording");
-    tomcat.getConnector();
+    // pinned so the encoded slash is always rejected with sendError(400), the precondition here
+    tomcat.getConnector().setEncodedSolidusHandling("reject");
     tomcat.start();
     port = tomcat.getConnector().getLocalPort();
   }
