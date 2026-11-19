@@ -167,6 +167,7 @@ include(
   ":components:http:http-api",
   ":components:json",
   ":components:native-loader",
+  ":components:toolbox",
   ":products:metrics:metrics-agent",
   ":products:metrics:metrics-api",
   ":products:metrics:metrics-lib",
