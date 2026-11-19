@@ -21,13 +21,14 @@ final class SemverParseCache {
    * @param value the attribute value, not null
    */
   ParsedSemver parse(final String value) {
+    // String.equals checks identity first, so a repeated lookup of the same instance stays cheap.
     if (firstValue != null) {
-      if (firstValue == value || firstValue.equals(value)) {
+      if (firstValue.equals(value)) {
         return firstParsed;
       }
       for (int i = 0; i < moreSize; i++) {
         final String cached = moreValues[i];
-        if (cached == value || cached.equals(value)) {
+        if (cached.equals(value)) {
           return moreParsed[i];
         }
       }
