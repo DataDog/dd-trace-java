@@ -2,7 +2,6 @@ package datadog.trace.logging;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-import datadog.environment.OperatingSystem;
 import datadog.trace.api.internal.VisibleForTesting;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.FileOutputStream;
@@ -12,7 +11,7 @@ import java.io.PrintStream;
 import java.nio.file.Path;
 
 public class PrintStreamWrapper extends PrintStream {
-  private static final int LINE_SEPARATOR_LENGTH = OperatingSystem.isWindows() ? 2 : 1;
+  private static final int LINE_SEPARATOR_LENGTH = System.lineSeparator().getBytes(UTF_8).length;
   private volatile boolean captureOutput = false;
   private volatile int currentSize = 0;
   private PrintStream capturingStream = null;
@@ -32,14 +31,22 @@ public class PrintStreamWrapper extends PrintStream {
   public void println(String x) {
     super.println(x); // log as usual
     if (captureOutput) {
-      int outputLength = x.length() + LINE_SEPARATOR_LENGTH;
-      if (currentSize + outputLength < LogReporter.MAX_LOGFILE_SIZE_BYTES) {
-        synchronized (this) {
+      synchronized (this) {
+        int remainingBytes =
+            LogReporter.MAX_LOGFILE_SIZE_BYTES - currentSize - LINE_SEPARATOR_LENGTH;
+        // Each UTF-16 code unit needs at least one UTF-8 byte.
+        if (x.length() >= remainingBytes) {
+          captureOutput = false;
+          return;
+        }
+
+        int outputLength = x.getBytes(UTF_8).length + LINE_SEPARATOR_LENGTH;
+        if (currentSize + outputLength < LogReporter.MAX_LOGFILE_SIZE_BYTES) {
           capturingStream.println(x);
           currentSize += outputLength;
+        } else {
+          captureOutput = false;
         }
-      } else {
-        captureOutput = false;
       }
     }
   }
