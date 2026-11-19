@@ -3,7 +3,6 @@ package test.tomcat;
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import static java.nio.charset.StandardCharsets.US_ASCII;
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -63,8 +62,9 @@ class TomcatEncodedSlashBlockingForkedTest extends AbstractInstrumentationTest {
   private static final int TIMEOUT_MILLIS = 5000;
 
   private static final AtomicInteger servletCalls = new AtomicInteger();
-  private static final Queue<String> blockedRawPaths = new ConcurrentLinkedQueue<>();
-  private static final Queue<String> allowedRawPaths = new ConcurrentLinkedQueue<>();
+
+  private final Queue<String> blockedRawPaths = new ConcurrentLinkedQueue<>();
+  private final Queue<String> allowedRawPaths = new ConcurrentLinkedQueue<>();
 
   private static Tomcat tomcat;
   private static int port;
@@ -99,8 +99,6 @@ class TomcatEncodedSlashBlockingForkedTest extends AbstractInstrumentationTest {
   @BeforeEach
   void enableAppSec() {
     servletCalls.set(0);
-    blockedRawPaths.clear();
-    allowedRawPaths.clear();
 
     SubscriptionService ss =
         (SubscriptionService) AgentTracer.get().getSubscriptionService(RequestContextSlot.APPSEC);
@@ -152,20 +150,7 @@ class TomcatEncodedSlashBlockingForkedTest extends AbstractInstrumentationTest {
 
   @Test
   void blockedEncodedSlashPathGetsCompleteBlockPage() throws Exception {
-    String path = BLOCKED_PREFIX + "..%2f..%2fetc%2fpasswd";
-    Response response = get(path, true);
-
-    assertEquals(403, response.status, response.headers);
-    assertArrayEquals(
-        BlockingActionHelper.getTemplate(TemplateType.JSON, null),
-        response.body,
-        "block page content");
-    assertEquals(0, servletCalls.get(), "servlet must not run on a blocked request");
-    assertEquals(path, blockedRawPaths.peek(), "URI callback saw the raw path");
-
-    DDSpan serverSpan = awaitServerSpan();
-    assertEquals(403, serverSpan.getHttpStatusCode());
-    assertEquals("true", String.valueOf(serverSpan.getTag("appsec.blocked")));
+    assertCompleteBlockPage(BLOCKED_PREFIX + "..%2f..%2fetc%2fpasswd");
   }
 
   @Test
@@ -186,7 +171,10 @@ class TomcatEncodedSlashBlockingForkedTest extends AbstractInstrumentationTest {
 
   @Test
   void blockedPlainPathGetsCompleteBlockPage() throws Exception {
-    String path = BLOCKED_PREFIX + "plain";
+    assertCompleteBlockPage(BLOCKED_PREFIX + "plain");
+  }
+
+  private void assertCompleteBlockPage(String path) throws Exception {
     Response response = get(path, true);
 
     assertEquals(403, response.status, response.headers);
@@ -333,11 +321,6 @@ class TomcatEncodedSlashBlockingForkedTest extends AbstractInstrumentationTest {
       this.status = status;
       this.headers = headers;
       this.body = body;
-    }
-
-    @Override
-    public String toString() {
-      return headers + new String(body, UTF_8);
     }
   }
 
