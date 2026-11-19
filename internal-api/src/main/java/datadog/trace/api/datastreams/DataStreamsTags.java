@@ -13,6 +13,9 @@ public class DataStreamsTags {
 
   public static DataStreamsTags EMPTY = DataStreamsTags.create(null, null);
 
+  // base hash and service name override the hashes were seeded with, to detect stale cache entries
+  private final long seedBaseHash;
+  private final String seedServiceName;
   private long hash;
   private long aggregationHash;
   private long completeHash;
@@ -96,21 +99,7 @@ public class DataStreamsTags {
 
   public static DataStreamsTags create(
       String type, Direction direction, String topic, String group, String kafkaClusterId) {
-    return new DataStreamsTags(
-        null,
-        direction,
-        null,
-        topic,
-        type,
-        null,
-        null,
-        null,
-        null,
-        group,
-        null,
-        null,
-        kafkaClusterId,
-        null);
+    return TagsCache.get(type, direction, topic, group, kafkaClusterId, null, null);
   }
 
   public static DataStreamsTags createManual(String type, Direction direction, String topic) {
@@ -125,21 +114,7 @@ public class DataStreamsTags {
 
   public static DataStreamsTags createWithPartition(
       String type, String topic, String partition, String kafkaClusterId, String consumerGroup) {
-    return new DataStreamsTags(
-        null,
-        null,
-        null,
-        topic,
-        type,
-        null,
-        null,
-        null,
-        null,
-        null,
-        consumerGroup,
-        null,
-        kafkaClusterId,
-        partition);
+    return TagsCache.get(type, null, topic, null, kafkaClusterId, consumerGroup, partition);
   }
 
   /// For usage in tests *only*
@@ -233,8 +208,7 @@ public class DataStreamsTags {
 
   public static DataStreamsTags createWithGroup(
       String type, Direction direction, String topic, String group) {
-    return new DataStreamsTags(
-        null, direction, null, topic, type, null, null, null, null, group, null, null, null, null);
+    return TagsCache.get(type, direction, topic, group, null, null, null);
   }
 
   public static DataStreamsTags createWithDataset(
@@ -262,9 +236,7 @@ public class DataStreamsTags {
 
   public static DataStreamsTags createWithClusterId(
       String type, Direction direction, String topic, String clusterId) {
-    return new DataStreamsTags(
-        null, direction, null, topic, type, null, null, null, null, null, null, null, clusterId,
-        null);
+    return TagsCache.get(type, direction, topic, null, clusterId, null, null);
   }
 
   public static DataStreamsTags createWithExchange(
@@ -325,13 +297,11 @@ public class DataStreamsTags {
         kafkaClusterId != null ? KAFKA_CLUSTER_ID_TAG + ":" + kafkaClusterId : null;
     this.partition = partition != null ? PARTITION_TAG + ":" + partition : null;
 
-    this.hash = BaseHash.getBaseHash();
-
-    if (DataStreamsTags.serviceNameOverride != null) {
-      String val = DataStreamsTags.serviceNameOverride.get();
-      if (val != null) {
-        this.hash = FNV64Hash.continueHash(this.hash, val, FNV64Hash.Version.v1);
-      }
+    this.seedBaseHash = BaseHash.getBaseHash();
+    this.seedServiceName = currentServiceNameOverride();
+    this.hash = this.seedBaseHash;
+    if (this.seedServiceName != null) {
+      this.hash = FNV64Hash.continueHash(this.hash, this.seedServiceName, FNV64Hash.Version.v1);
     }
 
     // hashable tags are 0-6: bus, direction, exchange, topic, type, subscription, kafkaClusterId
@@ -363,6 +333,11 @@ public class DataStreamsTags {
         this.completeHash = FNV64Hash.continueHash(this.completeHash, tag, FNV64Hash.Version.v1);
       }
     }
+  }
+
+  private static String currentServiceNameOverride() {
+    ThreadLocal<String> override = DataStreamsTags.serviceNameOverride;
+    return override != null ? override.get() : null;
   }
 
   public int size() {
@@ -530,5 +505,111 @@ public class DataStreamsTags {
         + aggregationHash
         + "', size='"
         + size();
+  }
+
+  /**
+   * Fixed-size cache of the tags built per record by the Kafka instrumentations, whose inputs are
+   * constant per topic, group and cluster. It avoids the string concatenation and hashing of the
+   * constructor. An entry whose seed (base hash or service name override) no longer matches the
+   * current one is rebuilt, so the cached tags are always identical to freshly built ones.
+   *
+   * <p>The cache is thread safe: entries are immutable, and any race is benign since a full entry
+   * is written or read.
+   */
+  private static final class TagsCache {
+    private static final int CAPACITY = 1024; // power of two
+    private static final Entry[] ENTRIES = new Entry[CAPACITY];
+
+    static DataStreamsTags get(
+        String type,
+        Direction direction,
+        String topic,
+        String group,
+        String kafkaClusterId,
+        String consumerGroup,
+        String partition) {
+      int h = direction == null ? 0 : direction.ordinal() + 1;
+      h = 31 * h + Objects.hashCode(type);
+      h = 31 * h + Objects.hashCode(topic);
+      h = 31 * h + Objects.hashCode(group);
+      h = 31 * h + Objects.hashCode(kafkaClusterId);
+      h = 31 * h + Objects.hashCode(consumerGroup);
+      h = 31 * h + Objects.hashCode(partition);
+      int index = (h ^ (h >>> 16)) & (CAPACITY - 1);
+
+      Entry entry = ENTRIES[index];
+      if (entry != null
+          && entry.matches(type, direction, topic, group, kafkaClusterId, consumerGroup, partition)
+          && entry.tags.seedBaseHash == BaseHash.getBaseHash()
+          && Objects.equals(entry.tags.seedServiceName, currentServiceNameOverride())) {
+        return entry.tags;
+      }
+      DataStreamsTags tags =
+          new DataStreamsTags(
+              null,
+              direction,
+              null,
+              topic,
+              type,
+              null,
+              null,
+              null,
+              null,
+              group,
+              consumerGroup,
+              null,
+              kafkaClusterId,
+              partition);
+      ENTRIES[index] =
+          new Entry(type, direction, topic, group, kafkaClusterId, consumerGroup, partition, tags);
+      return tags;
+    }
+
+    private static final class Entry {
+      private final String type;
+      private final Direction direction;
+      private final String topic;
+      private final String group;
+      private final String kafkaClusterId;
+      private final String consumerGroup;
+      private final String partition;
+      final DataStreamsTags tags;
+
+      Entry(
+          String type,
+          Direction direction,
+          String topic,
+          String group,
+          String kafkaClusterId,
+          String consumerGroup,
+          String partition,
+          DataStreamsTags tags) {
+        this.type = type;
+        this.direction = direction;
+        this.topic = topic;
+        this.group = group;
+        this.kafkaClusterId = kafkaClusterId;
+        this.consumerGroup = consumerGroup;
+        this.partition = partition;
+        this.tags = tags;
+      }
+
+      boolean matches(
+          String type,
+          Direction direction,
+          String topic,
+          String group,
+          String kafkaClusterId,
+          String consumerGroup,
+          String partition) {
+        return this.direction == direction
+            && Objects.equals(this.type, type)
+            && Objects.equals(this.topic, topic)
+            && Objects.equals(this.group, group)
+            && Objects.equals(this.kafkaClusterId, kafkaClusterId)
+            && Objects.equals(this.consumerGroup, consumerGroup)
+            && Objects.equals(this.partition, partition);
+      }
+    }
   }
 }

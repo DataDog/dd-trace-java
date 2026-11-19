@@ -6,15 +6,170 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.api.BaseHash;
 import datadog.trace.api.datastreams.DataStreamsTags.Direction;
 import java.nio.ByteBuffer;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class DataStreamsTagsTest {
+  private long originalBaseHash;
+
+  @BeforeEach
+  void saveGlobalState() {
+    originalBaseHash = BaseHash.getBaseHash();
+    DataStreamsTags.setServiceNameOverride(null);
+  }
+
+  @AfterEach
+  void restoreGlobalState() {
+    BaseHash.updateBaseHash(originalBaseHash);
+    DataStreamsTags.setServiceNameOverride(null);
+  }
+
+  private static void assertSameContent(DataStreamsTags expected, DataStreamsTags actual) {
+    assertEquals(expected, actual);
+    assertEquals(expected.getHash(), actual.getHash());
+    assertEquals(expected.getAggregationHash(), actual.getAggregationHash());
+    assertEquals(expected.nonNullSize(), actual.nonNullSize());
+    for (int i = 0; i < expected.size(); i++) {
+      assertEquals(expected.tagByIndex(i), actual.tagByIndex(i));
+    }
+    assertEquals(expected.getDirectionValue(), actual.getDirectionValue());
+  }
+
+  @Test
+  void testCachedTagsMatchUncachedTags() {
+    assertSameContent(
+        new DataStreamsTags(
+            null, OUTBOUND, null, "t", "kafka", null, null, null, null, "g", null, null, "c", null),
+        DataStreamsTags.create("kafka", OUTBOUND, "t", "g", "c"));
+    assertSameContent(
+        new DataStreamsTags(
+            null, OUTBOUND, null, "t", "kafka", null, null, null, null, null, null, null, "c",
+            null),
+        DataStreamsTags.createWithClusterId("kafka", OUTBOUND, "t", "c"));
+    assertSameContent(
+        new DataStreamsTags(
+            null,
+            Direction.INBOUND,
+            null,
+            "t",
+            "kafka",
+            null,
+            null,
+            null,
+            null,
+            "g",
+            null,
+            null,
+            null,
+            null),
+        DataStreamsTags.createWithGroup("kafka", Direction.INBOUND, "t", "g"));
+    assertSameContent(
+        new DataStreamsTags(
+            null,
+            null,
+            null,
+            "t",
+            "kafka_commit",
+            null,
+            null,
+            null,
+            null,
+            null,
+            "g",
+            null,
+            "c",
+            "3"),
+        DataStreamsTags.createWithPartition("kafka_commit", "t", "3", "c", "g"));
+  }
+
+  @Test
+  void testRepeatedCreateReturnsSameInstance() {
+    DataStreamsTags first = DataStreamsTags.create("kafka", OUTBOUND, "t", null, "c");
+    DataStreamsTags second = DataStreamsTags.create("kafka", OUTBOUND, "t", null, "c");
+    // equal but distinct String instances must hit the same entry
+    DataStreamsTags third =
+        DataStreamsTags.create(
+            new String("kafka"), OUTBOUND, new String("t"), null, new String("c"));
+    assertSame(first, second);
+    assertSame(first, third);
+  }
+
+  @Test
+  void testDifferentInputsReturnDifferentTags() {
+    DataStreamsTags base = DataStreamsTags.createWithPartition("kafka_commit", "t", "1", "c", "g");
+    assertNotSame(base, DataStreamsTags.createWithPartition("kafka_commit", "t", "2", "c", "g"));
+    assertNotSame(base, DataStreamsTags.createWithPartition("kafka_commit", "t", "1", "c", "g2"));
+    assertNotSame(base, DataStreamsTags.createWithPartition("kafka_commit", "t2", "1", "c", "g"));
+    assertNotEquals(
+        DataStreamsTags.createWithClusterId("kafka", OUTBOUND, "t", "c"),
+        DataStreamsTags.createWithClusterId("kafka", Direction.INBOUND, "t", "c"));
+  }
+
+  @Test
+  void testCachedTagsFollowBaseHashChange() {
+    DataStreamsTags before = DataStreamsTags.create("kafka", OUTBOUND, "t", null, "c");
+    BaseHash.updateBaseHash(originalBaseHash + 1);
+    DataStreamsTags after = DataStreamsTags.create("kafka", OUTBOUND, "t", null, "c");
+
+    assertNotSame(before, after);
+    assertNotEquals(before.getHash(), after.getHash());
+    assertEquals(
+        new DataStreamsTags(
+                null, OUTBOUND, null, "t", "kafka", null, null, null, null, null, null, null, "c",
+                null)
+            .getHash(),
+        after.getHash());
+    assertSame(after, DataStreamsTags.create("kafka", OUTBOUND, "t", null, "c"));
+  }
+
+  @Test
+  void testCachedTagsFollowServiceNameOverride() {
+    ThreadLocal<String> serviceName = new ThreadLocal<>();
+    DataStreamsTags.setServiceNameOverride(serviceName);
+    DataStreamsTags withoutOverride = DataStreamsTags.create("kafka", OUTBOUND, "t", null, "c");
+    serviceName.set("other-service");
+    DataStreamsTags withOverride = DataStreamsTags.create("kafka", OUTBOUND, "t", null, "c");
+    serviceName.set(null);
+    DataStreamsTags withoutAgain = DataStreamsTags.create("kafka", OUTBOUND, "t", null, "c");
+
+    assertNotEquals(withoutOverride.getHash(), withOverride.getHash());
+    assertEquals(withoutOverride.getHash(), withoutAgain.getHash());
+  }
+
+  @Test
+  void testCacheIsBounded() {
+    // many more distinct inputs than the cache capacity must still all be correct
+    for (int i = 0; i < 5000; i++) {
+      DataStreamsTags cached =
+          DataStreamsTags.createWithPartition("kafka_produce", "topic", "" + i, "c", null);
+      assertSameContent(
+          new DataStreamsTags(
+              null,
+              null,
+              null,
+              "topic",
+              "kafka_produce",
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              "c",
+              "" + i),
+          cached);
+    }
+  }
 
   private static DataStreamsTags getTags(int idx) {
     return new DataStreamsTags(
