@@ -13,7 +13,9 @@ import datadog.trace.test.agent.decoder.DecodedSpan;
 import datadog.trace.test.agent.decoder.DecodedSpanLink;
 import datadog.trace.test.agent.decoder.DecodedTrace;
 import java.util.List;
+import java.util.StringTokenizer;
 import java.util.stream.Collectors;
+import org.apache.spark.launcher.JavaModuleOptions;
 import org.junit.jupiter.api.Test;
 
 abstract class AbstractSparkSpanLinksSmokeTest {
@@ -80,23 +82,13 @@ abstract class AbstractSparkSpanLinksSmokeTest {
                 "-Ddd.trace.partial.flush.enabled=false")
             .skipTelemetryCheck();
     if (JavaVirtualMachine.isJavaVersionAtLeast(16)) {
-      // Spark's launcher normally supplies these opens; SmokeCliApp starts the main class directly.
-      builder.jvmArgs(
-          "--add-opens=java.base/java.lang=ALL-UNNAMED",
-          "--add-opens=java.base/java.lang.invoke=ALL-UNNAMED",
-          "--add-opens=java.base/java.lang.reflect=ALL-UNNAMED",
-          "--add-opens=java.base/java.io=ALL-UNNAMED",
-          "--add-opens=java.base/java.net=ALL-UNNAMED",
-          "--add-opens=java.base/java.nio=ALL-UNNAMED",
-          "--add-opens=java.base/java.util=ALL-UNNAMED",
-          "--add-opens=java.base/java.util.concurrent=ALL-UNNAMED",
-          "--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED",
-          "--add-opens=java.base/jdk.internal.ref=ALL-UNNAMED",
-          "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
-          "--add-opens=java.base/sun.nio.cs=ALL-UNNAMED",
-          "--add-opens=java.base/sun.security.action=ALL-UNNAMED",
-          "--add-opens=java.base/sun.util.calendar=ALL-UNNAMED",
-          "--add-opens=java.security.jgss/sun.security.krb5=ALL-UNNAMED");
+      // Spark's launcher normally supplies these options; SmokeCliApp starts the main class
+      // directly.
+      StringTokenizer sparkJvmOptions =
+          new StringTokenizer(JavaModuleOptions.defaultModuleOptions());
+      while (sparkJvmOptions.hasMoreTokens()) {
+        builder.jvmArgs(sparkJvmOptions.nextToken());
+      }
     }
     if (dedicated != null) {
       builder.jvmArgs("-Ddd.data.jobs.spark.span-links=" + dedicated);
