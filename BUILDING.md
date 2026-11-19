@@ -180,7 +180,7 @@ winget install --id Docker.DockerDesktop
 
 > [!TIP]
 > This will keep the submodules in `dd-java-agent/agent-jmxfetch/integrations-core` and
-> `dd-smoke-tests/openfeature/src/test/resources/ffe-system-test-data` up-to-date.
+> `dd-openfeature/src/test/fixtures/ffe-system-test-data` up-to-date.
 > There is also an automated check when opening a pull request if you are trying to submit a module version change (usually an outdated version).
 
 > [!NOTE]

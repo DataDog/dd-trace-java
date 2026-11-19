@@ -5,9 +5,11 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 
 import com.datadog.openfeature.internal.ufc.ServerConfiguration;
 import com.datadog.openfeature.internal.ufc.UniversalFlagConfigParser;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
+import java.lang.ref.Reference;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -23,11 +25,12 @@ import org.openjdk.jmh.annotations.Warmup;
 
 /**
  * Configuration load cost of the opt-in scale suites: the time to parse each suite's {@code
- * ufc-config.json}. Work that an evaluator moves to load time, such as indexes, compiled patterns
- * or prebuilt JSON values, shows here.
+ * ufc-config.json}. Work that moves into the parser, such as indexes, compiled patterns or prebuilt
+ * JSON values, shows here.
  *
  * <p>The setup also prints the heap that a parsed configuration retains. It is the used heap after
- * a full collection, with and without the parsed configuration, so it is approximate.
+ * a full collection, with and without the parsed configuration, as the smallest of three
+ * measurements, so it is approximate.
  *
  * <p>Run: {@code ./gradlew :dd-openfeature:jmh -Pjmh.includes=ScaleSuiteLoadBenchmark
  * -Pjmh.profilers=gc}.
@@ -46,11 +49,20 @@ public class ScaleSuiteLoadBenchmark {
   private byte[] config;
 
   @Setup(Level.Trial)
+  @SuppressForbidden
   public void setUp() throws IOException {
     config = ScaleSuites.load(suite).config();
-    final long before = usedHeapAfterCollection();
+    // The first parse initializes the parser, so it is left out of the measurement.
     ServerConfiguration retained = UniversalFlagConfigParser.parse(config);
-    final long after = usedHeapAfterCollection();
+    long retainedBytes = Long.MAX_VALUE;
+    for (int i = 0; i < 3; i++) {
+      retained = null;
+      final long before = usedHeapAfterCollection();
+      retained = UniversalFlagConfigParser.parse(config);
+      final long after = usedHeapAfterCollection();
+      Reference.reachabilityFence(retained);
+      retainedBytes = Math.min(retainedBytes, after - before);
+    }
     System.out.println(
         "["
             + suite
@@ -59,9 +71,8 @@ public class ScaleSuiteLoadBenchmark {
             + " KB, "
             + retained.flags.size()
             + " flags, retained heap about "
-            + Math.max(0, after - before) / 1024
+            + retainedBytes / 1024
             + " KB");
-    retained = null;
   }
 
   @Benchmark

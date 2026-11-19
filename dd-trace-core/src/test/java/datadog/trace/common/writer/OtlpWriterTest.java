@@ -74,7 +74,7 @@ class OtlpWriterTest {
       OtlpGrpcSender grpcSender = assertInstanceOf(OtlpGrpcSender.class, writer.getSender());
       assertEquals(
           "/opentelemetry.proto.collector.trace.v1.TraceService/Export",
-          grpcSender.url().encodedPath());
+          grpcSender.destination().encodedPath());
     } finally {
       writer.close();
     }

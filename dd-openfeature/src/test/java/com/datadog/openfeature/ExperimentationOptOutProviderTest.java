@@ -483,7 +483,7 @@ class ExperimentationOptOutProviderTest {
     while (directory != null) {
       final Path candidate =
           directory
-              .resolve("dd-smoke-tests/openfeature/src/test/resources/experimentation-opt-out")
+              .resolve("dd-openfeature/src/test/fixtures/experimentation-opt-out")
               .resolve(name);
       if (Files.isRegularFile(candidate)) {
         return candidate;
