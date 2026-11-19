@@ -40,7 +40,9 @@ class OtelHealthMetricsForkedTest extends DDCoreJavaSpecification {
     HealthMetrics metrics = OtelSdkSelfMonitoring.healthMetrics(Config.get());
     assertSame(OtelHealthMetrics.INSTANCE, metrics);
 
-    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+    // the tracer would otherwise record on the same sink; this test drives the callbacks itself
+    CoreTracer tracer =
+        tracerBuilder().writer(new ListWriter()).healthMetrics(HealthMetrics.NO_OP).build();
     try {
       // every origin is reported from the first collection, as 0 until a span starts
       OtelMetricCollector before = collect();
