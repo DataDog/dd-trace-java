@@ -376,6 +376,7 @@ public class ProcessSupervisor implements Closeable {
    * #STABLE_RUN_MILLIS}, so an agent that keeps exiting soon after it starts backs off instead of
    * restarting every few seconds. Retries never stop.
    */
+  @VisibleForTesting
   static final class FaultBackoff {
     private static final int MAX_DOUBLINGS = 5;
 
