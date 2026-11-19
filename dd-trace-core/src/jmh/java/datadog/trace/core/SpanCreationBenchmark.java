@@ -2,7 +2,9 @@ package datadog.trace.core;
 
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 
+import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.SpanPrototype;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -42,7 +44,10 @@ import org.openjdk.jmh.infra.Blackhole;
  * five-method {@code Writer} interface (implemented as a no-op {@link DropWriter}). If you add to
  * it, keep it inside that stable surface or grafting it onto old tags for the historical curve will
  * stop compiling. (Source rebuilds only reach ~v1.53 — older tags hit dead build-time dependencies;
- * deeper history is a published-jar job.)
+ * deeper history is a published-jar job.) The {@code *ViaPrototype} / {@code
+ * *ViaPrototypeStartSpan} arms are the exception: they exercise {@link SpanPrototype} (new in this
+ * PR) and do not graft onto pre-SpanPrototype tags — the historical table above covers the baseline
+ * arms only.
  *
  * <p>Spans are finished against {@link DropWriter} so the create/tag/finish allocation is isolated
  * from serialization and agent I/O — those live on a different lever and would otherwise leak into
@@ -55,6 +60,14 @@ import org.openjdk.jmh.infra.Blackhole;
  * each release tag and run {@code @Threads(8) -f3 -wi5 -i5 -prof gc} (measured 2026-07). The ~1.59
  * drop is the TagMap 1.0 shared-Entry default flip; the ~1.61 drop is the interceptor/links
  * cluster. Net 1.53 &rarr; 1.64 is -20% to -31% per arm.
+ *
+ * <p><b>Note — baseline reset.</b> The table below was measured on a <em>bare</em> ({@code
+ * CoreTracer.builder().build()}) tracer. As of this commit the fork is production-shaped ({@code
+ * dd.service}/{@code dd.env}/{@code dd.version} + 6 global {@code dd.tags}), which enlarges {@code
+ * mergedTracerTags} — the trace-level bundle every span merges — so tag-scaling wins are actually
+ * exercised. That raises absolute B/op across all arms, so the numbers below are a <em>pre-config
+ * baseline, not comparable</em> to runs on this branch onward; re-baseline going forward rather
+ * than stitching new points onto this curve.
  *
  * <pre>
  * ver    bareStart bareBuild webServer viaBuilder jdbcClient
@@ -98,7 +111,20 @@ import org.openjdk.jmh.infra.Blackhole;
 @BenchmarkMode(Mode.Throughput)
 @Threads(8)
 @OutputTimeUnit(MICROSECONDS)
-@Fork(value = 3, jvmArgsAppend = "-DTEST_LOG_LEVEL=warn")
+@Fork(
+    value = 3,
+    jvmArgsAppend = {
+      "-DTEST_LOG_LEVEL=warn",
+      // A CI Visibility environment would run agent discovery despite the paused communications.
+      "-Ddd.civisibility.enabled=false",
+      // Production-shaped tracer config so mergedTracerTags is a realistically-sized shared bundle
+      // (env + 6 global DD_TAGS + runtime-id/language) — the trace-level tags every span merges.
+      // A bare tracer leaves it near-empty, hiding any win that scales with tags-per-span.
+      "-Ddd.service=petclinic",
+      "-Ddd.env=staging",
+      "-Ddd.version=1.2.3",
+      "-Ddd.tags=team:apm,dc:us1,cluster:prod-1,owner:tracing,tier:backend,region:us-east-1"
+    })
 public class SpanCreationBenchmark {
   private static final String INSTRUMENTATION_NAME = "bench";
   private static final String SERVER_OPERATION_NAME = "servlet.request";
@@ -132,11 +158,39 @@ public class SpanCreationBenchmark {
 
   CoreTracer tracer;
 
+  // Baked-once prototypes carrying only the type-constant subset each baseline sets individually
+  // (component + span.kind; jdbc also db.type). The dynamic tags are set per-span in both arms, so
+  // the *ViaPrototype vs *Span delta isolates the construction-path seeding of just those
+  // constants.
+  SpanPrototype webProto;
+  SpanPrototype jdbcProto;
+
   @Setup
   public void setup(Blackhole blackhole) {
     // DropWriter keeps finish() from pulling in serialization / agent I/O, so -prof gc reflects
     // span creation + tagging + PendingTrace completion only.
-    this.tracer = CoreTracer.builder().writer(new DropWriter(blackhole)).build();
+    // Paused and never resumed: no agent discovery, so client-side stats stay off whether or not a
+    // local agent is running, and B/op doesn't depend on the machine.
+    this.tracer =
+        CoreTracer.builder()
+            .writer(new DropWriter(blackhole))
+            .sharedCommunicationObjects(new SharedCommunicationObjects(true))
+            .build();
+    this.webProto =
+        SpanPrototype.builder()
+            .initInstrumentationName(INSTRUMENTATION_NAME)
+            .initOperationName(SERVER_OPERATION_NAME)
+            .initComponentOnly(COMPONENT_VALUE)
+            .initKind(Tags.SPAN_KIND_SERVER)
+            .build();
+    this.jdbcProto =
+        SpanPrototype.builder()
+            .initInstrumentationName(INSTRUMENTATION_NAME)
+            .initOperationName(JDBC_OPERATION_NAME)
+            .initComponentOnly(DB_COMPONENT_VALUE)
+            .initKind(Tags.SPAN_KIND_CLIENT)
+            .initTag(Tags.DB_TYPE, DB_TYPE_VALUE)
+            .build();
   }
 
   @TearDown
@@ -203,6 +257,71 @@ public class SpanCreationBenchmark {
     span.setTag(Tags.COMPONENT, DB_COMPONENT_VALUE);
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_CLIENT);
     span.setTag(Tags.DB_TYPE, DB_TYPE_VALUE);
+    span.setTag(Tags.DB_INSTANCE, DB_INSTANCE_VALUE);
+    span.setTag(Tags.DB_USER, DB_USER_VALUE);
+    span.setTag(Tags.DB_OPERATION, DB_OPERATION_VALUE);
+    span.setTag(Tags.DB_STATEMENT, DB_STATEMENT_VALUE);
+    span.setTag(Tags.PEER_HOSTNAME, DB_PEER_HOSTNAME_VALUE);
+    span.setTag(Tags.PEER_PORT, DB_PEER_PORT_VALUE);
+    span.finish();
+  }
+
+  /**
+   * Web-server-shaped span via {@link SpanPrototype}: the type-constants (component, span.kind)
+   * ride a baked-once prototype seeded at construction; the dynamic http.* / peer.port tags are set
+   * per-span, as real instrumentation does. Compare against {@link #webServerSpan} (identical tags,
+   * all set individually) to read the prototype's construction-path win on a full span.
+   */
+  @Benchmark
+  public void webServerSpanViaPrototype() {
+    AgentSpan span = tracer.buildSpan(webProto, null).start(); // null -> prototype's operationName
+    span.setTag(Tags.HTTP_METHOD, HTTP_METHOD_VALUE);
+    span.setTag(Tags.HTTP_ROUTE, HTTP_ROUTE_VALUE);
+    span.setTag(Tags.HTTP_URL, HTTP_URL_VALUE);
+    span.setTag(Tags.HTTP_STATUS, HTTP_STATUS_VALUE);
+    span.setTag(Tags.PEER_PORT, PEER_PORT_VALUE);
+    span.finish();
+  }
+
+  /**
+   * JDBC/DB-client-shaped span via {@link SpanPrototype}: component, span.kind, and db.type ride
+   * the prototype; the dynamic db.* / peer.* tags are set per-span. Compare against {@link
+   * #jdbcClientSpan}.
+   */
+  @Benchmark
+  public void jdbcClientSpanViaPrototype() {
+    AgentSpan span = tracer.buildSpan(jdbcProto, null).start();
+    span.setTag(Tags.DB_INSTANCE, DB_INSTANCE_VALUE);
+    span.setTag(Tags.DB_USER, DB_USER_VALUE);
+    span.setTag(Tags.DB_OPERATION, DB_OPERATION_VALUE);
+    span.setTag(Tags.DB_STATEMENT, DB_STATEMENT_VALUE);
+    span.setTag(Tags.PEER_HOSTNAME, DB_PEER_HOSTNAME_VALUE);
+    span.setTag(Tags.PEER_PORT, DB_PEER_PORT_VALUE);
+    span.finish();
+  }
+
+  /**
+   * Web-server-shaped span via {@code startSpan(SpanPrototype, ...)} — the builder-free
+   * construction entry (no MultiSpanBuilder allocation), the auto-instrumentation path. Compare
+   * against {@link #webServerSpanViaPrototype} (same prototype, but {@code buildSpan(...).start()}
+   * allocates a builder) to read the builder-free saving, and against {@link #webServerSpan} for
+   * the full win.
+   */
+  @Benchmark
+  public void webServerSpanViaPrototypeStartSpan() {
+    AgentSpan span = tracer.startSpan(webProto, null); // null -> prototype's operationName
+    span.setTag(Tags.HTTP_METHOD, HTTP_METHOD_VALUE);
+    span.setTag(Tags.HTTP_ROUTE, HTTP_ROUTE_VALUE);
+    span.setTag(Tags.HTTP_URL, HTTP_URL_VALUE);
+    span.setTag(Tags.HTTP_STATUS, HTTP_STATUS_VALUE);
+    span.setTag(Tags.PEER_PORT, PEER_PORT_VALUE);
+    span.finish();
+  }
+
+  /** JDBC/DB-client-shaped span via the builder-free {@code startSpan(SpanPrototype, ...)}. */
+  @Benchmark
+  public void jdbcClientSpanViaPrototypeStartSpan() {
+    AgentSpan span = tracer.startSpan(jdbcProto, null);
     span.setTag(Tags.DB_INSTANCE, DB_INSTANCE_VALUE);
     span.setTag(Tags.DB_USER, DB_USER_VALUE);
     span.setTag(Tags.DB_OPERATION, DB_OPERATION_VALUE);

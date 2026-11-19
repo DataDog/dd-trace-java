@@ -14,13 +14,6 @@ public class Axis2Module extends InstrumenterModule.Tracing {
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".AxisMessageDecorator", packageName + ".TextMapInjectAdapter",
-    };
-  }
-
-  @Override
   public List<Instrumenter> typeInstrumentations() {
     return asList(
         new AxisEngineInstrumentation(),

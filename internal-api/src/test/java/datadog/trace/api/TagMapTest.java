@@ -489,10 +489,9 @@ public class TagMapTest {
 
     map.freeze();
 
-    assertFrozen(
-        () -> {
-          map.remove("foo");
-        });
+    assertFrozen(() -> {
+      map.remove("foo");
+    });
 
     assertEntry("foo", "bar", map);
 
@@ -755,7 +754,7 @@ public class TagMapTest {
     TagMap map = createTagMap(size);
 
     Set<String> keys = new HashSet<>(size);
-    map.forEach((entry) -> keys.add(entry.tag()));
+    map.forEach(entry -> keys.add(entry.tag()));
 
     for (int i = 0; i < size; ++i) {
       // make sure the key was present

@@ -27,12 +27,11 @@ class PollingConditionsTest {
     AtomicInteger attempts = new AtomicInteger();
     new PollingConditions(2)
         .delay(0.01)
-        .eventually(
-            () -> {
-              if (attempts.incrementAndGet() < 5) {
-                fail("not yet");
-              }
-            });
+        .eventually(() -> {
+          if (attempts.incrementAndGet() < 5) {
+            fail("not yet");
+          }
+        });
     assertEquals(5, attempts.get());
   }
 
@@ -71,12 +70,11 @@ class PollingConditionsTest {
     AtomicInteger attempts = new AtomicInteger();
     new PollingConditions(2)
         .delay(0.01)
-        .eventually(
-            () -> {
-              if (attempts.incrementAndGet() < 3) {
-                throw new IOException("not ready");
-              }
-            });
+        .eventually(() -> {
+          if (attempts.incrementAndGet() < 3) {
+            throw new IOException("not ready");
+          }
+        });
     assertEquals(3, attempts.get());
   }
 
@@ -89,12 +87,11 @@ class PollingConditionsTest {
     conditions.delay(0.02).factor(4); // 20ms base delay, multiplied by 4 after each attempt
 
     AtomicInteger attempts = new AtomicInteger();
-    conditions.eventually(
-        () -> {
-          if (attempts.incrementAndGet() < 4) {
-            fail("not yet");
-          }
-        });
+    conditions.eventually(() -> {
+      if (attempts.incrementAndGet() < 4) {
+        fail("not yet");
+      }
+    });
 
     assertEquals(4, attempts.get());
     // Three failed attempts -> three delays, each 4x the previous.

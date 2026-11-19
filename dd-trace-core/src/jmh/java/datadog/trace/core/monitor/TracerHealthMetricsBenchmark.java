@@ -117,13 +117,13 @@ public class TracerHealthMetricsBenchmark {
   @Benchmark
   @Threads(1)
   public void onCreateSpan_lowContention() {
-    metrics.onCreateSpan();
+    metrics.onCreateSpan(null); // the counter ignores the span
   }
 
   @Benchmark
   @Threads(Threads.MAX)
   public void onCreateSpan_highContention() {
-    metrics.onCreateSpan();
+    metrics.onCreateSpan(null); // the counter ignores the span
   }
 
   @Benchmark
@@ -166,7 +166,7 @@ public class TracerHealthMetricsBenchmark {
   @Group("summaryWhileWriting")
   @GroupThreads(4)
   public void summaryWhileWriting_write() {
-    metrics.onCreateSpan();
+    metrics.onCreateSpan(null); // the counter ignores the span
   }
 
   @Benchmark

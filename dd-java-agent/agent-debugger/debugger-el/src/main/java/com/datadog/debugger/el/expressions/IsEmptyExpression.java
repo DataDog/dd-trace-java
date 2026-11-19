@@ -4,11 +4,13 @@ import static com.datadog.debugger.el.expressions.ExpressionHelper.checkTimeout;
 
 import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.EvaluationException;
+import com.datadog.debugger.el.Generated;
 import com.datadog.debugger.el.PrettyPrintVisitor;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.Visitor;
 import com.datadog.debugger.el.values.CollectionValue;
 import com.datadog.debugger.el.values.StringValue;
+import java.util.Objects;
 
 /**
  * Checks whether a {@linkplain Value} is empty.<br>
@@ -49,5 +51,19 @@ public final class IsEmptyExpression implements BooleanExpression {
 
   public ValueExpression<?> getValueExpression() {
     return valueExpression;
+  }
+
+  @Generated
+  @Override
+  public boolean equals(Object o) {
+    if (o == null || getClass() != o.getClass()) return false;
+    IsEmptyExpression that = (IsEmptyExpression) o;
+    return Objects.equals(valueExpression, that.valueExpression);
+  }
+
+  @Generated
+  @Override
+  public int hashCode() {
+    return Objects.hashCode(valueExpression);
   }
 }

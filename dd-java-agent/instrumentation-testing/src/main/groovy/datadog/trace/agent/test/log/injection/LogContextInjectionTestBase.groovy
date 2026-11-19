@@ -2,7 +2,7 @@ package datadog.trace.agent.test.log.injection
 
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.CorrelationIdentifier
-import datadog.trace.bootstrap.instrumentation.api.AgentScope
+import datadog.context.ContextScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 
 import java.util.concurrent.atomic.AtomicReference
@@ -42,7 +42,7 @@ abstract class LogContextInjectionTestBase extends InstrumentationSpecification 
     when:
     put("foo", "bar")
     AgentSpan rootSpan = startSpan("test", "root")
-    AgentScope rootScope = activateSpan(rootSpan)
+    ContextScope rootScope = activateSpan(rootSpan)
 
     then:
     get(CorrelationIdentifier.getTraceIdKey()) == CorrelationIdentifier.getTraceId()
@@ -51,7 +51,7 @@ abstract class LogContextInjectionTestBase extends InstrumentationSpecification 
 
     when:
     AgentSpan childSpan = startSpan("test", "child")
-    AgentScope childScope = activateSpan(childSpan)
+    ContextScope childScope = activateSpan(childSpan)
 
     then:
     get(CorrelationIdentifier.getTraceIdKey()) == CorrelationIdentifier.getTraceId()
@@ -94,7 +94,7 @@ abstract class LogContextInjectionTestBase extends InstrumentationSpecification 
         void run() {
           // other trace in scope
           final AgentSpan thread2Span = startSpan("test", "root2")
-          final AgentScope thread2Scope = activateSpan(thread2Span)
+          final ContextScope thread2Scope = activateSpan(thread2Span)
           try {
             thread2TraceId.set(get(CorrelationIdentifier.getTraceIdKey()))
           } finally {
@@ -105,7 +105,7 @@ abstract class LogContextInjectionTestBase extends InstrumentationSpecification 
       }
 
     final AgentSpan mainSpan = startSpan("test", "root")
-    final AgentScope mainScope = activateSpan(mainSpan)
+    final ContextScope mainScope = activateSpan(mainSpan)
     thread1.start()
     thread2.start()
     final String mainThreadTraceId = get(CorrelationIdentifier.getTraceIdKey())

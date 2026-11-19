@@ -70,7 +70,7 @@ public class UriRoutingContextInstrumentation extends InstrumenterModule.AppSec
         Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
         BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
         if (blockResponseFunction != null) {
-          blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+          blockResponseFunction.tryCommitBlockingResponse(reqCtx, rba);
           t =
               new BlockingException(
                   "Blocked request (for UriRoutingContextInstrumentation/getPathParameters)");

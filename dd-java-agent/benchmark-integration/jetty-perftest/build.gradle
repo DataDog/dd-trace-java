@@ -1,3 +1,9 @@
+plugins {
+  id 'com.gradleup.shadow'
+  id 'dd-trace-java.conventions.java'
+  id 'dd-trace-java.conventions.testing.groovy'
+}
+
 dependencies {
   implementation project(':dd-trace-api')
   implementation project(':dd-java-agent:benchmark-integration')

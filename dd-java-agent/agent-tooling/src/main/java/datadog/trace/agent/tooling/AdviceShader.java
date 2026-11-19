@@ -1,5 +1,6 @@
 package datadog.trace.agent.tooling;
 
+import static java.lang.Integer.toHexString;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 
@@ -47,10 +48,29 @@ public final class AdviceShader {
 
   /** Applies shading before calling the given {@link ClassVisitor}. */
   public ClassVisitor shadeClass(ClassVisitor cv) {
+    return new ClassRemapper(cv, remapper());
+  }
+
+  /** Applies advice relocation rules to a binary class name. */
+  public String shadeClassName(String className) {
+    return remapper().mapType(className.replace('.', '/')).replace('/', '.');
+  }
+
+  /** Applies advice relocation rules to a field/type descriptor. */
+  public String shadeTypeDescriptor(String descriptor) {
+    return remapper().mapDesc(descriptor);
+  }
+
+  /** Applies advice relocation rules to a method descriptor. */
+  public String shadeMethodDescriptor(String descriptor) {
+    return remapper().mapMethodDesc(descriptor);
+  }
+
+  private Remapper remapper() {
     if (null == remapper) {
       remapper = new AdviceMapper();
     }
-    return new ClassRemapper(cv, remapper);
+    return remapper;
   }
 
   /** Returns the result of shading the given bytecode. */
@@ -65,9 +85,10 @@ public final class AdviceShader {
   public String uniqueHelper(String dottedName) {
     int packageEnd = dottedName.lastIndexOf('.');
     if (packageEnd > 0) {
+      // Hex encoding keeps negative hashes valid in Java package names.
       return dottedName.substring(0, packageEnd + 1)
           + "shaded"
-          + relocations.hashCode()
+          + toHexString(relocations.hashCode())
           + dottedName.substring(packageEnd);
     }
     return dottedName;

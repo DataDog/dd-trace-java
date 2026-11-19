@@ -29,7 +29,7 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-public abstract class MultiMapInstrumentation extends InstrumenterModule.Iast
+public abstract class MultiMapInstrumentation extends InstrumenterModule.TaintableIast
     implements Instrumenter.HasTypeAdvice, Instrumenter.HasMethodAdvice {
 
   private final String className = MultiMapInstrumentation.class.getName();

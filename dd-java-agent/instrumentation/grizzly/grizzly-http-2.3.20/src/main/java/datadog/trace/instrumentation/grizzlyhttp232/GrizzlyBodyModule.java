@@ -15,11 +15,6 @@ public class GrizzlyBodyModule extends InstrumenterModule.AppSec {
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {"datadog.trace.instrumentation.grizzlyhttp232.HttpHeaderFetchingHelper"};
-  }
-
-  @Override
   public Map<String, String> contextStore() {
     final Map<String, String> ret = new HashMap<>();
     ret.put(

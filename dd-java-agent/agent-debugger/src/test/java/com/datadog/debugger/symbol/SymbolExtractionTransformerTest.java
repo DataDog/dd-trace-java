@@ -8,6 +8,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static utils.InstrumentationTestHelper.compileAndLoadClass;
 
@@ -19,6 +21,7 @@ import datadog.trace.api.Config;
 import java.io.File;
 import java.io.IOException;
 import java.lang.instrument.ClassFileTransformer;
+import java.lang.instrument.IllegalClassFormatException;
 import java.lang.instrument.Instrumentation;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -1075,6 +1078,22 @@ class SymbolExtractionTransformerTest {
         symbolSinkMock.jarScopes.stream()
             .flatMap(scope -> scope.getScopes().stream())
             .anyMatch(scope -> scope.getName().equals(CLASS_NAME)));
+  }
+
+  @Test
+  public void skipDebuggerInternalClasses() throws IllegalClassFormatException {
+    // Regression test for: DatadogClassLoader attempted duplicate class definition for
+    // com.datadog.debugger.instrumentation.Types (LinkageError). SymbolExtractionTransformer
+    // must never parse debugger-internal classes, since doing so while such a class is still
+    // being loaded/defined can trigger a re-entrant load of the same class on the same thread.
+    ClassNameFiltering classNameFiltering = new ClassNameFiltering(Collections.emptySet());
+    SymbolAggregator symbolAggregator = mock(SymbolAggregator.class);
+    currentTransformer = new SymbolExtractionTransformer(symbolAggregator, classNameFiltering);
+    byte[] classfileBuffer = new byte[0];
+    assertNull(
+        currentTransformer.transform(
+            null, "com/datadog/debugger/instrumentation/Types", null, null, classfileBuffer));
+    verifyNoInteractions(symbolAggregator);
   }
 
   @Test

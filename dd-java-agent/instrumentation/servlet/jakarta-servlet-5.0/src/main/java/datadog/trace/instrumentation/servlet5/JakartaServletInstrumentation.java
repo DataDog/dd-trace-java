@@ -3,9 +3,9 @@ package datadog.trace.instrumentation.servlet5;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasSuperType;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.api.KnownTags.USER_PRINCIPAL;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_RUM_INJECTED;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -17,15 +17,10 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.ClassloaderConfigurationOverrides;
 import datadog.trace.api.Config;
-import datadog.trace.api.DDTags;
-import datadog.trace.api.rum.RumInjector;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.rum.RumControllableResponse;
 import jakarta.servlet.ServletRequest;
-import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -40,15 +35,6 @@ public class JakartaServletInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String hierarchyMarkerType() {
     return "jakarta.servlet.http.HttpServlet";
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".RumHttpServletRequestWrapper",
-      packageName + ".RumHttpServletResponseWrapper",
-      packageName + ".WrappedServletOutputStream",
-    };
   }
 
   @Override
@@ -71,32 +57,9 @@ public class JakartaServletInstrumentation extends InstrumenterModule.Tracing
 
   public static class JakartaServletAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentSpan before(
-        @Advice.Argument(value = 0, readOnly = false) ServletRequest request,
-        @Advice.Argument(value = 1, readOnly = false) ServletResponse response,
-        @Advice.Local("rumServletWrapper") RumControllableResponse rumServletWrapper) {
+    public static AgentSpan before(@Advice.Argument(0) ServletRequest request) {
       if (!(request instanceof HttpServletRequest)) {
         return null;
-      }
-
-      if (response instanceof HttpServletResponse) {
-        final HttpServletRequest httpServletRequest = (HttpServletRequest) request;
-
-        if (RumInjector.get().isEnabled()) {
-          final Object maybeRumWrapper = httpServletRequest.getAttribute(DD_RUM_INJECTED);
-          if (maybeRumWrapper instanceof RumControllableResponse) {
-            rumServletWrapper = (RumControllableResponse) maybeRumWrapper;
-          } else {
-            rumServletWrapper =
-                new RumHttpServletResponseWrapper(
-                    httpServletRequest, (HttpServletResponse) response);
-            httpServletRequest.setAttribute(DD_RUM_INJECTED, rumServletWrapper);
-            response = (ServletResponse) rumServletWrapper;
-            request =
-                new RumHttpServletRequestWrapper(
-                    httpServletRequest, (HttpServletResponse) rumServletWrapper);
-          }
-        }
       }
 
       Object contextAttr = request.getAttribute(DD_CONTEXT_ATTRIBUTE);
@@ -114,22 +77,16 @@ public class JakartaServletInstrumentation extends InstrumenterModule.Tracing
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void after(
-        @Advice.Enter final AgentSpan span,
-        @Advice.Argument(0) final ServletRequest request,
-        @Advice.Local("rumServletWrapper") RumControllableResponse rumServletWrapper) {
+        @Advice.Enter final AgentSpan span, @Advice.Argument(0) final ServletRequest request) {
       if (span == null) {
         return;
       }
-      if (rumServletWrapper != null) {
-        rumServletWrapper.commit();
-      }
-
       CallDepthThreadLocalMap.reset(HttpServletRequest.class);
       final HttpServletRequest httpServletRequest =
           (HttpServletRequest) request; // at this point the cast should be safe
       if (Config.get().isServletPrincipalEnabled()
           && httpServletRequest.getUserPrincipal() != null) {
-        span.setTag(DDTags.USER_NAME, httpServletRequest.getUserPrincipal().getName());
+        span.setTag(USER_PRINCIPAL, httpServletRequest.getUserPrincipal().getName());
       }
     }
   }

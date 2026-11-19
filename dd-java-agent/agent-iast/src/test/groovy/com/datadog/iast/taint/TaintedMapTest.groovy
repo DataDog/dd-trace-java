@@ -72,6 +72,26 @@ class TaintedMapTest extends DDSpecification {
     map.count() == 0
   }
 
+  def 'put deduplicates the last element of a bucket'() {
+    given:
+    // capacity 1 forces every entry into the same bucket chain
+    final map = new TaintedMap.TaintedMapImpl(1)
+    final a = new Object()
+    final b = new Object()
+    final c = new Object()
+    map.put(new TaintedObject(a, [] as Range[]))
+    map.put(new TaintedObject(b, [] as Range[]))
+    final originalC = new TaintedObject(c, [] as Range[])
+    map.put(originalC)
+
+    when:
+    map.put(new TaintedObject(c, [] as Range[]))
+
+    then:
+    map.count() == 3
+    map.get(c) == originalC
+  }
+
   def 'last put always exists'() {
     given:
     int capacity = 256

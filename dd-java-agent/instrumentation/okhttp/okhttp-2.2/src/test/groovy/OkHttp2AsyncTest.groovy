@@ -12,12 +12,6 @@ import static java.util.concurrent.TimeUnit.SECONDS
 
 abstract class OkHttp2AsyncTest extends OkHttp2Test {
   @Override
-  boolean useStrictTraceWrites() {
-    // TODO fix this by making sure that spans get closed properly
-    return false
-  }
-
-  @Override
   int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
     final contentType = headers.remove("Content-Type")
     def reqBody = HttpMethod.requiresRequestBody(method) ? RequestBody.create(MediaType.parse(contentType ?: "text/plain"), body) : null

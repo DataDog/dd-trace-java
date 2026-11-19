@@ -6,6 +6,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.currentContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.googlehttpclient.GoogleHttpClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.googlehttpclient.GoogleHttpClientDecorator.HTTP_REQUEST;
 import static datadog.trace.instrumentation.googlehttpclient.HeadersInjectAdapter.SETTER;
@@ -17,10 +18,10 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.api.client.http.HttpRequest;
 import com.google.api.client.http.HttpResponse;
 import com.google.auto.service.AutoService;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.annotation.AppliesOn;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 
@@ -37,13 +38,6 @@ public class GoogleHttpClientInstrumentation extends InstrumenterModule.Tracing
     // Note: the rest of com.google.api is ignored in the additional ignores
     // of GlobalIgnoresMatcher to speed things up
     return "com.google.api.client.http.HttpRequest";
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".GoogleHttpClientDecorator", packageName + ".HeadersInjectAdapter"
-    };
   }
 
   @Override
@@ -67,7 +61,7 @@ public class GoogleHttpClientInstrumentation extends InstrumenterModule.Tracing
 
   public static class GoogleHttpClientAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope methodEnter(
+    public static ContextScope methodEnter(
         @Advice.This HttpRequest request, @Advice.Local("inherited") AgentSpan inheritedSpan) {
       AgentSpan activeSpan = activeSpan();
       // detect if span was propagated here by java-concurrent handling
@@ -87,11 +81,11 @@ public class GoogleHttpClientInstrumentation extends InstrumenterModule.Tracing
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void methodExit(
-        @Advice.Enter AgentScope scope,
+        @Advice.Enter ContextScope scope,
         @Advice.Local("inherited") AgentSpan inheritedSpan,
         @Advice.Return final HttpResponse response,
         @Advice.Thrown final Throwable throwable) {
-      AgentSpan span = scope != null ? scope.span() : inheritedSpan;
+      AgentSpan span = scope != null ? spanFromScope(scope) : inheritedSpan;
       DECORATE.onError(span, throwable);
       DECORATE.onResponse(span, response);
       DECORATE.beforeFinish(span);
@@ -105,7 +99,7 @@ public class GoogleHttpClientInstrumentation extends InstrumenterModule.Tracing
   public static class GoogleHttpClientAsyncAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope methodEnter(@Advice.This HttpRequest request) {
+    public static ContextScope methodEnter(@Advice.This HttpRequest request) {
       AgentSpan span = startSpan("google-http-client", HTTP_REQUEST);
       DECORATE.prepareSpan(span, request);
       return activateSpan(span);
@@ -113,8 +107,8 @@ public class GoogleHttpClientInstrumentation extends InstrumenterModule.Tracing
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void methodExit(
-        @Advice.Enter AgentScope scope, @Advice.Thrown final Throwable throwable) {
-      final AgentSpan span = scope.span();
+        @Advice.Enter ContextScope scope, @Advice.Thrown final Throwable throwable) {
+      final AgentSpan span = spanFromScope(scope);
       if (throwable != null) {
         DECORATE.onError(span, throwable);
         DECORATE.beforeFinish(span);

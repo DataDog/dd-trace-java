@@ -8,6 +8,7 @@ import static com.datadog.appsec.gateway.AppSecRequestContext.DEFAULT_REQUEST_HE
 import static com.datadog.appsec.gateway.AppSecRequestContext.REQUEST_HEADERS_ALLOW_LIST;
 import static com.datadog.appsec.gateway.AppSecRequestContext.RESPONSE_HEADERS_ALLOW_LIST;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
+import static datadog.trace.bootstrap.instrumentation.api.OtelHttpSemantics.urlOrPath;
 
 import com.datadog.appsec.AppSecSystem;
 import com.datadog.appsec.api.security.ApiSecurityDownstreamSampler;
@@ -37,6 +38,7 @@ import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.api.gateway.Subscription;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.api.internal.TraceSegment;
@@ -133,6 +135,13 @@ public class GatewayBridge {
   private volatile DataSubscriberInfo requestFilesFilenamesSubInfo;
   private volatile DataSubscriberInfo requestFilesContentSubInfo;
 
+  // handles for the conditionally registered IG callbacks; a non-null value means the callback is
+  // already registered, which makes the registration idempotent across configuration reloads
+  private volatile Subscription pathParamsSubscription;
+  private volatile Subscription bodyProcessedSubscription;
+  private volatile Subscription filesFilenamesSubscription;
+  private volatile Subscription filesContentSubscription;
+
   public GatewayBridge(
       SubscriptionService subscriptionService,
       EventProducerService producerService,
@@ -198,20 +207,57 @@ public class GatewayBridge {
     subscriptionService.registerCallback(EVENTS.loginEvent(), this::onLoginEvent);
     subscriptionService.registerCallback(EVENTS.httpRoute(), this::onHttpRoute);
 
-    if (additionalIGEvents.contains(EVENTS.requestPathParams())) {
-      subscriptionService.registerCallback(EVENTS.requestPathParams(), this::onRequestPathParams);
+    registerAdditionalIGCallbacksIfNeeded(additionalIGEvents);
+  }
+
+  /**
+   * Computes the additional IG event types required by the given subscribed data addresses.
+   *
+   * <p>This is a pure function: it is safe to call it repeatedly, in particular on every Remote
+   * Config reload, to recompute the set of conditionally registered callbacks.
+   *
+   * @param addresses the currently subscribed data addresses
+   * @return the additional IG event types required by those addresses
+   */
+  public static Collection<datadog.trace.api.gateway.EventType<?>> additionalIGEventTypes(
+      Collection<Address<?>> addresses) {
+    return IGAppSecEventDependencies.additionalIGEventTypes(addresses);
+  }
+
+  /**
+   * Registers the IG callbacks that are only needed when the current configuration subscribes to
+   * the matching addresses.
+   *
+   * <p>Each registration is idempotent, so this method is intended to be called both from {@link
+   * #init()} at startup and from {@code AppSecSystem} on every Remote Config reload, when a new
+   * ruleset may start requiring addresses that were not subscribed at startup.
+   *
+   * @param additionalIGEvents the already computed set of additional IG event types
+   */
+  public void registerAdditionalIGCallbacksIfNeeded(
+      Collection<datadog.trace.api.gateway.EventType<?>> additionalIGEvents) {
+    if (pathParamsSubscription == null && additionalIGEvents.contains(EVENTS.requestPathParams())) {
+      pathParamsSubscription =
+          subscriptionService.registerCallback(
+              EVENTS.requestPathParams(), this::onRequestPathParams);
     }
-    if (additionalIGEvents.contains(EVENTS.requestBodyProcessed())) {
-      subscriptionService.registerCallback(
-          EVENTS.requestBodyProcessed(), this::onRequestBodyProcessed);
+    if (bodyProcessedSubscription == null
+        && additionalIGEvents.contains(EVENTS.requestBodyProcessed())) {
+      bodyProcessedSubscription =
+          subscriptionService.registerCallback(
+              EVENTS.requestBodyProcessed(), this::onRequestBodyProcessed);
     }
-    if (additionalIGEvents.contains(EVENTS.requestFilesFilenames())) {
-      subscriptionService.registerCallback(
-          EVENTS.requestFilesFilenames(), this::onRequestFilesFilenames);
+    if (filesFilenamesSubscription == null
+        && additionalIGEvents.contains(EVENTS.requestFilesFilenames())) {
+      filesFilenamesSubscription =
+          subscriptionService.registerCallback(
+              EVENTS.requestFilesFilenames(), this::onRequestFilesFilenames);
     }
-    if (additionalIGEvents.contains(EVENTS.requestFilesContent())) {
-      subscriptionService.registerCallback(
-          EVENTS.requestFilesContent(), this::onRequestFilesContent);
+    if (filesContentSubscription == null
+        && additionalIGEvents.contains(EVENTS.requestFilesContent())) {
+      filesContentSubscription =
+          subscriptionService.registerCallback(
+              EVENTS.requestFilesContent(), this::onRequestFilesContent);
     }
   }
 
@@ -1069,13 +1115,12 @@ public class GatewayBridge {
   private boolean maybeSampleForApiSecurity(
       AppSecRequestContext ctx, IGSpanInfo spanInfo, Map<String, Object> tags) {
     log.debug("Checking API Security for end of request handler on span: {}", spanInfo.getSpanId());
-    // API Security sampling requires http.route tag or http.url for endpoint inference.
+    // API Security sampling requires a route or a URL path for endpoint inference.
     final Object route = tags.get(Tags.HTTP_ROUTE);
     if (route != null) {
       ctx.setRoute(route.toString());
     }
-    // Pass http.url to enable endpoint inference when route is absent
-    final Object url = tags.get(Tags.HTTP_URL);
+    Object url = urlOrPath(tags);
     if (url != null) {
       ctx.setHttpUrl(url.toString());
     }
@@ -1149,6 +1194,10 @@ public class GatewayBridge {
 
   public void stop() {
     subscriptionService.reset();
+    pathParamsSubscription = null;
+    bodyProcessedSubscription = null;
+    filesFilenamesSubscription = null;
+    filesContentSubscription = null;
   }
 
   private static boolean hasUserInfo(final TraceSegment traceSegment) {

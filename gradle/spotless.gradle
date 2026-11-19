@@ -7,26 +7,22 @@ boolean groovySkipJavaExclude = project.hasProperty('groovySkipJavaExclude') ? g
 
 def buildDirectory = project.layout.buildDirectory
 
-// Temporary exclusions as conventions are properly setup for these projects.
-def javaGradleApplyExceptions = [
-  ':dd-java-agent',
-  ':dd-java-agent:benchmark',
-  ':dd-java-agent:benchmark-integration',
-  ':dd-java-agent:load-generator',
-] as Set
-boolean forbidJavaGradleApply = project.rootProject.name == 'dd-trace-java' && !javaGradleApplyExceptions.contains(project.path)
-def javaGradleApplyLinePattern = ~/^\s*(?:\w+\.)?apply(?:\s+from\s*:|\s*\(\s*from\s*=).*/
-// Script plugins that must be applied through a 'dd-trace-java.module.*' convention plugin instead.
+def scriptApplyExceptions = [
+  'gradle/publish.gradle': [':dd-java-agent'] as Set,
+]
+boolean forbidLegacyScriptApplies = project.rootProject.name == 'dd-trace-java'
+def legacyScriptApplyLinePattern = ~/^\s*(?:\w+\.)?apply(?:\s+from\s*:|\s*\(\s*from\s*=).*/
+// Script plugins that must be replaced by their corresponding convention plugins.
 def forbiddenScriptApplies = [
-  'gradle/java.gradle'   : 'Apply a \'dd-trace-java.module.*\' convention plugin instead of applying the script plugin \'gradle/java.gradle\' directly.',
+  'gradle/java.gradle'   : 'Apply the \'dd-trace-java.conventions.java\' and \'dd-trace-java.conventions.testing.groovy\' convention plugins instead of applying the script plugin \'gradle/java.gradle\' directly.',
   'gradle/publish.gradle': 'Apply the \'dd-trace-java.module.distributable.*\' convention plugin instead of applying the script plugin \'gradle/publish.gradle\' directly.',
 ]
-def forbidJavaGradleApplyStep = { String text ->
-  if (forbidJavaGradleApply) {
+def forbidLegacyScriptApplyStep = { String text ->
+  if (forbidLegacyScriptApplies) {
     text.readLines().each { line ->
-      if (javaGradleApplyLinePattern.matcher(line).matches()) {
+      if (legacyScriptApplyLinePattern.matcher(line).matches()) {
         forbiddenScriptApplies.each { script, message ->
-          if (line.contains(script)) {
+          if (line.contains(script) && !scriptApplyExceptions.getOrDefault(script, []).contains(project.path)) {
             throw new AssertionError(message)
           }
         }
@@ -53,8 +49,8 @@ spotless {
       targetExclude('src/test/resources/**', buildDirectory)
       removeUnusedImports()
       forbidWildcardImports()
+      googleJavaFormat()
       tableTestFormatter(libs.versions.tabletest.formatter.get())
-      googleJavaFormat(libs.versions.google.java.format.get())
     }
   }
 
@@ -70,19 +66,16 @@ spotless {
       target '*.gradle'
     }
     greclipse(libs.versions.greclipse.get()).configFile(configPath + '/enforcement/spotless-groovy.properties')
-    custom 'forbidGradleJavaScriptPlugin', forbidJavaGradleApplyStep
+    custom 'forbidGradleJavaScriptPlugin', forbidLegacyScriptApplyStep
   }
 
   kotlinGradle {
     toggleOffOn()
     // same as kotlin, but for .gradle.kts files (defaults to '*.gradle.kts')
     target '*.gradle.kts'
-    ktlint(libs.versions.ktlint.get()).editorConfigOverride([
-      // Disable trailing comma rules to minimize diff.
-      'ktlint_standard_trailing-comma-on-call-site': 'disabled',
-      'ktlint_standard_trailing-comma-on-declaration-site': 'disabled'
-    ])
-    custom 'forbidGradleJavaScriptPlugin', forbidJavaGradleApplyStep
+    // ktlint rules are in the root .editorconfig
+    ktlint()
+    custom 'forbidGradleJavaScriptPlugin', forbidLegacyScriptApplyStep
   }
 
   project.pluginManager.withPlugin('groovy') {
@@ -102,7 +95,7 @@ spotless {
     scala {
       toggleOffOn()
       targetExclude(buildDirectory)
-      scalafmt(libs.versions.scalafmt.get()).configFile(configPath + '/enforcement/spotless-scalafmt.conf')
+      scalafmt().configFile(configPath + '/enforcement/spotless-scalafmt.conf')
     }
   }
 
@@ -125,11 +118,8 @@ spotless {
     kotlin {
       toggleOffOn()
       targetExclude(buildDirectory)
-      ktlint(libs.versions.ktlint.get()).editorConfigOverride([
-        // Disable trailing comma rules to minimize diff.
-        'ktlint_standard_trailing-comma-on-call-site': 'disabled',
-        'ktlint_standard_trailing-comma-on-declaration-site': 'disabled'
-      ])
+      // ktlint rules are in the root .editorconfig
+      ktlint()
     }
   }
 }

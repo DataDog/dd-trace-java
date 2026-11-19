@@ -12,7 +12,6 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.lang.instrument.Instrumentation;
-import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
@@ -143,7 +142,7 @@ public class SymDBEnablement implements ProductListener {
       Path jarPath;
       try {
         jarPath = JarScanner.extractJarPath(clazz, symDBReport);
-      } catch (URISyntaxException e) {
+      } catch (Exception | LinkageError e) {
         LOGGER.debug("Failed to extract jar path for class {}", clazz.getTypeName(), e);
         continue;
       }

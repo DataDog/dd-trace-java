@@ -26,13 +26,6 @@ public class DefaultExceptionHandlerInstrumentation extends InstrumenterModule.A
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".MarkSpanAsErroredPF",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()

@@ -13,7 +13,7 @@ import spock.lang.Shared
 
 class AppSecSpanPostProcessorTest extends DDSpecification {
 
-  private static final String SCHEMA_DERIVATIVE_KEY = '_dd.appsec.s.req.body'
+  private static final String SCHEMA_DERIVATIVE_PREFIX = '_dd.appsec.s.'
 
   private static final String FRAMEWORK = 'netty'
 
@@ -55,7 +55,7 @@ class AppSecSpanPostProcessorTest extends DDSpecification {
     1 * subInfo.isEmpty() >> false
     1 * ctx.getApiSecurityFramework() >> FRAMEWORK
     1 * producer.publishDataEvent(_, ctx, _, _)
-    1 * ctx.getDerivativeKeys() >> ([SCHEMA_DERIVATIVE_KEY] as Set)
+    1 * ctx.hasDerivativeKeyStartingWith(SCHEMA_DERIVATIVE_PREFIX) >> true
     1 * wafMetricCollector.apiSecurityRequestSchema(FRAMEWORK)
     1 * ctx.commitDerivatives(traceSegment)
     1 * ctx.setKeepOpenForApiSecurityPostProcessing(false)
@@ -299,7 +299,7 @@ class AppSecSpanPostProcessorTest extends DDSpecification {
     1 * producer.getDataSubscribers(KnownAddresses.WAF_CONTEXT_PROCESSOR) >> subInfo
     1 * subInfo.isEmpty() >> false
     1 * producer.publishDataEvent(_, ctx, _, _)
-    1 * ctx.getDerivativeKeys() >> (derivativeKeys as Set)
+    1 * ctx.hasDerivativeKeyStartingWith(SCHEMA_DERIVATIVE_PREFIX) >> hasSchemaDerivative
     schemaMetrics * wafMetricCollector.apiSecurityRequestSchema(framework)
     noSchemaMetrics * wafMetricCollector.apiSecurityRequestNoSchema(framework)
     1 * ctx.commitDerivatives(traceSegment)
@@ -310,9 +310,8 @@ class AppSecSpanPostProcessorTest extends DDSpecification {
     0 * _
 
     where:
-    scenario                        | derivativeKeys                | framework || schemaMetrics | noSchemaMetrics
-    'no derivatives at all'         | []                            | FRAMEWORK || 0             | 1
-    'no derivative is a schema'     | ['_dd.appsec.fp.http.header'] | FRAMEWORK || 0             | 1
-    'missing component tag'         | [SCHEMA_DERIVATIVE_KEY]       | null      || 1             | 0
+    scenario                        | hasSchemaDerivative | framework || schemaMetrics | noSchemaMetrics
+    'no schema derivative'          | false               | FRAMEWORK || 0             | 1
+    'missing component tag'         | true                | null      || 1             | 0
   }
 }

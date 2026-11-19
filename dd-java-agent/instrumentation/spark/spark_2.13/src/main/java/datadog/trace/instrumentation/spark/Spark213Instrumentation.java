@@ -39,7 +39,6 @@ public class Spark213Instrumentation extends AbstractSparkInstrumentation {
       packageName + ".SparkLauncherListener",
       packageName + ".SparkSQLUtils",
       packageName + ".SparkSQLUtils$SparkPlanInfoForStage",
-      packageName + ".SparkSQLUtils$AccumulatorWithStage",
       packageName + ".Spark213PlanSerializer",
       packageName + ".Spark213PlanUtils"
     };

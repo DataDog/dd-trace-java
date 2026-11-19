@@ -1,22 +1,28 @@
+import org.gradle.internal.os.OperatingSystem
+
 pluginManagement {
   repositories {
     mavenLocal()
 
-    if (settings.extra.has("gradlePluginProxy")) {
+    providers.gradleProperty("gradlePluginProxy").orNull?.let { proxy ->
       maven {
-        url = uri(settings.extra["gradlePluginProxy"] as String)
+        url = uri(proxy)
         isAllowInsecureProtocol = true
       }
     }
-    if (settings.extra.has("mavenRepositoryProxy")) {
+    val mavenRepositoryProxy = providers.gradleProperty("mavenRepositoryProxy").orNull
+    mavenRepositoryProxy?.let { proxy ->
       maven {
-        url = uri(settings.extra["mavenRepositoryProxy"] as String)
+        url = uri(proxy)
         isAllowInsecureProtocol = true
       }
     }
     gradlePluginPortal()
-    mavenCentral()
-    // Hosts gradle-tooling-api, a transitive dep of the build-logic:smoke-test plugin used
+    // TODO: temporary fix for Maven Central rate limiting
+    if (mavenRepositoryProxy == null) {
+      mavenCentral()
+    }
+    // Hosts gradle-tooling-api, a transitive dep of the build-logic:smoke-test-app plugin used
     // to run nested Gradle builds for smoke-test applications pinned to older Gradle versions.
     maven {
       url = uri("https://repo.gradle.org/gradle/libs-releases")
@@ -29,11 +35,13 @@ pluginManagement {
 }
 
 plugins {
-  id("com.gradle.develocity") version "4.5.0"
+  id("com.github.burrunan.s3-build-cache") version "1.9.11"
+  id("com.gradle.develocity") version "4.6.1"
   id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
 
 val isCI = providers.environmentVariable("CI")
+val isGitLabCI = providers.environmentVariable("GITLAB_CI")
 val skipBuildscan = providers.environmentVariable("SKIP_BUILDSCAN").map { it.toBoolean() }.orElse(false)
 
 develocity {
@@ -50,6 +58,46 @@ if (isCI.isPresent) {
     local {
       directory = File(rootDir, "workspace/build-cache")
     }
+    // Only GitLab CI provides the S3 build cache configuration and credentials.
+    if (isGitLabCI.isPresent) {
+      val defaultCachePrefix = providers.provider {
+        val os = OperatingSystem.current().familyName.replace(' ', '-')
+        val arch = providers.systemProperty("os.arch").get()
+        // Non-tag pipelines share a cache per architecture/OS so that all jobs contribute
+        // outputs and reuse them across jobs and pipelines. Release prefixes can use:
+        // - Pipeline ID (default): jobs share within one pipeline; new pipelines start fresh.
+        // - Tag: pipelines for the same tag share cached outputs.
+        // - Commit hash: pipelines for the same commit share cached outputs.
+        // Pipeline IDs keep separate release runs independent, even for the same tag or commit.
+        if (providers.environmentVariable("CI_COMMIT_TAG").orNull.isNullOrBlank()) {
+          "v1/$arch/$os"
+        } else {
+          val pipelineId = providers.environmentVariable("CI_PIPELINE_ID").orNull
+          require(!pipelineId.isNullOrBlank()) {
+            "CI_PIPELINE_ID must be set for release cache isolation"
+          }
+          "v1/release/$pipelineId/$arch/$os"
+        }
+      }
+      val cachePrefix = providers.environmentVariable("S3_BUILD_CACHE_PREFIX")
+        .map { it.trim().trim('/') }
+        .orElse(defaultCachePrefix)
+        .get()
+      require(cachePrefix.isNotBlank()) {
+        "S3_BUILD_CACHE_PREFIX must be set to a non-empty path in GitLab CI"
+      }
+      remote<com.github.burrunan.s3cache.AwsS3BuildCache> {
+        region = providers.environmentVariable("S3_BUILD_CACHE_REGION").get()
+        bucket = providers.environmentVariable("S3_BUILD_CACHE_BUCKET").get()
+        prefix = "$cachePrefix/"
+        // Trusted CI jobs populate matching cache entries for reuse.
+        isPush = true
+        lookupDefaultAwsCredentials = true
+        isReducedRedundancy = false
+        // Smoke application build entries exceed the plugin's 50 MiB default limit.
+        maximumCachedObjectLength = 256L * 1024 * 1024
+      }
+    }
   }
 }
 
@@ -57,6 +105,7 @@ rootProject.name = "dd-trace-java"
 
 // external apis
 include(
+  ":dd-openfeature",
   ":dd-trace-api",
   ":dd-trace-ot",
   ":dd-trace-ot:correlation-id-injection",
@@ -159,9 +208,7 @@ include(":dd-java-agent:agent-aiguard")
 // Feature Flagging
 include(
   ":products:feature-flagging:feature-flagging-agent",
-  ":products:feature-flagging:feature-flagging-api",
   ":products:feature-flagging:feature-flagging-bootstrap",
-  ":products:feature-flagging:feature-flagging-config",
   ":products:feature-flagging:feature-flagging-lib"
 )
 
@@ -185,8 +232,10 @@ include(
 
 // smoke tests
 include(
+  ":dd-smoke-tests:smoke-test-common",
   ":dd-smoke-tests:apm-tracing-disabled",
   ":dd-smoke-tests:armeria-grpc",
+  ":dd-smoke-tests:azure-cosmos",
   ":dd-smoke-tests:backend-mock",
   ":dd-smoke-tests:cli",
   ":dd-smoke-tests:concurrent:java-8",
@@ -209,7 +258,9 @@ include(
   ":dd-smoke-tests:lib-injection",
   ":dd-smoke-tests:log-injection",
   ":dd-smoke-tests:maven",
+  ":dd-smoke-tests:native-image-jmx",
   ":dd-smoke-tests:openfeature",
+  ":dd-smoke-tests:openfeature-legacy",
   ":dd-smoke-tests:opentracing",
   ":dd-smoke-tests:opentelemetry",
   ":dd-smoke-tests:osgi",
@@ -265,7 +316,9 @@ include(
   ":dd-smoke-tests:websphere-jmx",
   ":dd-smoke-tests:wildfly",
   ":dd-smoke-tests:appsec",
+  ":dd-smoke-tests:appsec:dropwizard-5",
   ":dd-smoke-tests:appsec:spring-tomcat7",
+  ":dd-smoke-tests:appsec:lambda-sca",
   ":dd-smoke-tests:appsec:springboot",
   ":dd-smoke-tests:appsec:springboot-grpc",
   ":dd-smoke-tests:appsec:springboot-graphql",
@@ -293,6 +346,7 @@ include(
 // instrumentation:
 include(
   ":dd-java-agent:instrumentation:aerospike-4.0",
+  ":dd-java-agent:instrumentation:aerospike-6.0",
   ":dd-java-agent:instrumentation:akka:akka-actor-2.5",
   ":dd-java-agent:instrumentation:akka:akka-http:akka-http-10.0",
   ":dd-java-agent:instrumentation:akka:akka-http:akka-http-10.2-iast",
@@ -318,7 +372,9 @@ include(
   ":dd-java-agent:instrumentation:aws-java:aws-java-sqs-2.0",
   ":dd-java-agent:instrumentation:axis2-1.3",
   ":dd-java-agent:instrumentation:axway-api-7.5",
+  ":dd-java-agent:instrumentation:azure-cosmos:azure-cosmos-4.0",
   ":dd-java-agent:instrumentation:azure-functions-1.2.2",
+  ":dd-java-agent:instrumentation:azure-functions-worker-2.7",
   ":dd-java-agent:instrumentation:beanshell-2.0",
   ":dd-java-agent:instrumentation:caffeine-1.0",
   ":dd-java-agent:instrumentation:cdi-1.2",
@@ -332,12 +388,15 @@ include(
   ":dd-java-agent:instrumentation:confluent-schema-registry:confluent-schema-registry-4.1",
   ":dd-java-agent:instrumentation:couchbase:couchbase-2.0",
   ":dd-java-agent:instrumentation:couchbase:couchbase-2.6",
+  ":dd-java-agent:instrumentation:couchbase:couchbase-3-common",
   ":dd-java-agent:instrumentation:couchbase:couchbase-3.1",
   ":dd-java-agent:instrumentation:couchbase:couchbase-3.2",
   ":dd-java-agent:instrumentation:cucumber-5.4",
   ":dd-java-agent:instrumentation:cxf-2.1",
   ":dd-java-agent:instrumentation:datadog:asm:iast-instrumenter",
   ":dd-java-agent:instrumentation:datadog:dynamic-instrumentation:span-origin",
+  ":dd-java-agent:instrumentation:datadog:openfeature:dd-openfeature-1.56",
+  ":dd-java-agent:instrumentation:datadog:openfeature:dd-openfeature-1.69",
   ":dd-java-agent:instrumentation:datadog:profiling:enable-wallclock-profiling",
   ":dd-java-agent:instrumentation:datadog:profiling:exception-profiling",
   ":dd-java-agent:instrumentation:datadog:tracing:trace-annotation",
@@ -378,6 +437,7 @@ include(
   ":dd-java-agent:instrumentation:grpc-1.5",
   ":dd-java-agent:instrumentation:gson-1.6",
   ":dd-java-agent:instrumentation:guava-10.0",
+  ":dd-java-agent:instrumentation:guidewire-10.0",
   ":dd-java-agent:instrumentation:hazelcast:hazelcast-3.6",
   ":dd-java-agent:instrumentation:hazelcast:hazelcast-3.9",
   ":dd-java-agent:instrumentation:hazelcast:hazelcast-4.0",
@@ -473,6 +533,7 @@ include(
   ":dd-java-agent:instrumentation:lettuce:lettuce-5.0",
   ":dd-java-agent:instrumentation:liberty:liberty-20.0",
   ":dd-java-agent:instrumentation:liberty:liberty-23.0",
+  ":dd-java-agent:instrumentation:liberty:liberty-appsec-common",
   ":dd-java-agent:instrumentation:log4j:log4j-1.2.4",
   ":dd-java-agent:instrumentation:log4j:log4j-2.0",
   ":dd-java-agent:instrumentation:log4j:log4j-2.7",
@@ -538,6 +599,7 @@ include(
   ":dd-java-agent:instrumentation:quartz-2.0",
   ":dd-java-agent:instrumentation:rabbitmq-amqp-2.7",
   ":dd-java-agent:instrumentation:ratpack-1.5",
+  ":dd-java-agent:instrumentation:r2dbc:r2dbc-1.0",
   ":dd-java-agent:instrumentation:reactive-streams-1.0",
   ":dd-java-agent:instrumentation:reactor-core-3.1",
   ":dd-java-agent:instrumentation:reactor-netty-1.0",

@@ -65,11 +65,6 @@ public class KafkaDeserializerInstrumentation extends InstrumenterModule.Iast
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {packageName + ".KafkaIastHelper"};
-  }
-
-  @Override
   public Reference[] additionalMuzzleReferences() {
     return MUZZLE_CHECK;
   }

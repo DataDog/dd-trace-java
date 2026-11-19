@@ -24,7 +24,7 @@ import io.vertx.ext.web.Cookie;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
-public class CookieImplInstrumentation extends InstrumenterModule.Iast
+public class CookieImplInstrumentation extends InstrumenterModule.TaintableIast
     implements Instrumenter.ForSingleType,
         Instrumenter.HasTypeAdvice,
         Instrumenter.HasMethodAdvice {

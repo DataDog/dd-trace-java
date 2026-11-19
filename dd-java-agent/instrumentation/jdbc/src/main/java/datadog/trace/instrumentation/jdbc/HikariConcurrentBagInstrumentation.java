@@ -1,8 +1,8 @@
 package datadog.trace.instrumentation.jdbc;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.api.KnownTags.DB_POOL_NAME;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_POOL_NAME;
 import static datadog.trace.instrumentation.jdbc.PoolWaitingDecorator.DECORATE;
 import static datadog.trace.instrumentation.jdbc.PoolWaitingDecorator.JAVA_JDBC_POOL_WAITING;
 import static datadog.trace.instrumentation.jdbc.PoolWaitingDecorator.POOL_WAITING;
@@ -50,13 +50,6 @@ public final class HikariConcurrentBagInstrumentation extends InstrumenterModule
   @Override
   public String instrumentedType() {
     return "com.zaxxer.hikari.util.ConcurrentBag";
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".HikariBlockedTracker", packageName + ".PoolWaitingDecorator"
-    };
   }
 
   @Override

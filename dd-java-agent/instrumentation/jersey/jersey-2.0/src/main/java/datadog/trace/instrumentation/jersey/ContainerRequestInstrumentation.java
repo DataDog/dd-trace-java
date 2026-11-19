@@ -39,13 +39,6 @@ public class ContainerRequestInstrumentation extends InstrumenterModule.Iast
     return "org.glassfish.jersey.server.ContainerRequest";
   }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".JerseyTaintHelper",
-    };
-  }
-
   @RequiresRequestContext(RequestContextSlot.IAST)
   public static class SetPropertyAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)

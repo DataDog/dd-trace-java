@@ -29,15 +29,6 @@ public class NettyPromiseInstrumentation extends InstrumenterModule.ContextTrack
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".ListenerWrapper",
-      packageName + ".ListenerWrapper$GenericWrapper",
-      packageName + ".ListenerWrapper$GenericProgressiveWrapper",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("addListener")

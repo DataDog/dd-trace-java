@@ -665,7 +665,11 @@ class ClientStatsAggregatorTest {
     }
   }
 
-  @TableTest({"scenario    | count", "count = 10  | 10   ", "count = 100 | 100  "})
+  @TableTest({
+    "scenario    | count",
+    "count = 10  | 10   ",
+    "count = 100 | 100  "
+  })
   void aggregateRepetitiveSpans(int count) throws Exception {
     MetricWriter writer = mock(MetricWriter.class);
     Sink sink = mock(Sink.class);
@@ -882,11 +886,10 @@ class ClientStatsAggregatorTest {
                 latch.countDown();
                 return null;
               })
-          .doAnswer(
-              invocation -> {
-                latch2.countDown();
-                return null;
-              })
+          .doAnswer(invocation -> {
+            latch2.countDown();
+            return null;
+          })
           .when(writer)
           .finishBucket();
 
@@ -2049,14 +2052,13 @@ class ClientStatsAggregatorTest {
 
       // call forceReport before start
       CompletableFuture<Boolean> async =
-          CompletableFuture.supplyAsync(
-              () -> {
-                try {
-                  return aggregator.forceReport().get();
-                } catch (Exception e) {
-                  throw new RuntimeException(e);
-                }
-              });
+          CompletableFuture.supplyAsync(() -> {
+            try {
+              return aggregator.forceReport().get();
+            } catch (Exception e) {
+              throw new RuntimeException(e);
+            }
+          });
 
       assertThrows(TimeoutException.class, () -> async.get(3, SECONDS));
 

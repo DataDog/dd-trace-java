@@ -14,13 +14,6 @@ public class DatanucleusModule extends InstrumenterModule.Tracing {
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".DatanucleusDecorator",
-    };
-  }
-
-  @Override
   public List<Instrumenter> typeInstrumentations() {
     return asList(
         new ExecutionContextInstrumentation(),

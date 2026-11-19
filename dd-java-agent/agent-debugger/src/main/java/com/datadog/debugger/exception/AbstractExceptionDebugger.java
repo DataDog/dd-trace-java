@@ -55,7 +55,7 @@ public abstract class AbstractExceptionDebugger implements DebuggerContext.Excep
   public void handleException(Throwable t, AgentSpan span) {
     if (!shouldHandleException(t, span)) {
       if (LOGGER.isDebugEnabled()) {
-        LOGGER.debug("Skip handling exception: {}", t.toString());
+        LOGGER.debug("Skip handling exception: {}", t.getClass().getTypeName());
       }
       return;
     }
@@ -75,7 +75,8 @@ public abstract class AbstractExceptionDebugger implements DebuggerContext.Excep
       ExceptionProbeManager.ThrowableState state =
           exceptionProbeManager.getStateByThrowable(innerMostException);
       if (state == null) {
-        LOGGER.debug("Unable to find state for throwable: {}", innerMostException.toString());
+        LOGGER.debug(
+            "Unable to find state for throwable: {}", innerMostException.getClass().getTypeName());
         return;
       }
       processSnapshotsAndSetTags(
@@ -92,9 +93,12 @@ public abstract class AbstractExceptionDebugger implements DebuggerContext.Excep
       Throwable throwable;
       int chainedExceptionIdx = 0;
       while ((throwable = chainedExceptions.pollFirst()) != null) {
+        StackTraceElement[] stackTrace = throwable.getStackTrace();
+        if (stackTrace == null || stackTrace.length == 0) {
+          continue;
+        }
         ExceptionProbeManager.CreationResult creationResult =
-            exceptionProbeManager.createProbesForException(
-                throwable.getStackTrace(), chainedExceptionIdx);
+            exceptionProbeManager.createProbesForException(stackTrace, chainedExceptionIdx);
         if (creationResult.probesCreated > 0) {
           if (!applyConfigAsync) {
             applyExceptionConfiguration(fingerprint);
@@ -141,12 +145,11 @@ public abstract class AbstractExceptionDebugger implements DebuggerContext.Excep
       LOGGER.debug("Clear previous frame tags");
       // already set for this span, clear the frame tags
       span.getTags()
-          .forEach(
-              (k, v) -> {
-                if (k.startsWith(DD_DEBUG_ERROR_PREFIX)) {
-                  span.setTag(k, (String) null);
-                }
-              });
+          .forEach((k, v) -> {
+            if (k.startsWith(DD_DEBUG_ERROR_PREFIX)) {
+              span.setTag(k, (String) null);
+            }
+          });
     }
     boolean snapshotAssigned = false;
     List<Snapshot> snapshots = state.getSnapshots();

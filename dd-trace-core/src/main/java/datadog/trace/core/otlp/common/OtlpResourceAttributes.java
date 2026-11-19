@@ -1,10 +1,13 @@
 package datadog.trace.core.otlp.common;
 
 import static datadog.communication.ddagent.TracerVersion.TRACER_VERSION;
+import static datadog.trace.api.DDTags.SDK_OTLP_EXPORT;
 import static java.util.Arrays.asList;
+import static java.util.Collections.emptyMap;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.ProcessTags;
+import datadog.trace.api.TagMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -14,14 +17,30 @@ import java.util.Set;
 import java.util.function.BiConsumer;
 
 /** Enumerates the resource attributes shared by the proto and JSON "resource.proto" encoders. */
-final class OtlpResourceAttributes {
+public final class OtlpResourceAttributes {
   private OtlpResourceAttributes() {}
+
+  /**
+   * Returns the vendor-neutral resource attributes that every OTLP export carries, before the
+   * signal-specific {@code datadog.*} and {@code _dd.*} attributes.
+   */
+  public static Map<String, String> resourceAttributes(Config config) {
+    Map<String, String> attributes = new LinkedHashMap<>();
+    visitResourceAttributes(
+        config,
+        config.getGlobalTags(),
+        emptyMap(),
+        (key, value) -> attributes.put(key, String.valueOf(value)));
+    return attributes;
+  }
 
   /** Prefix applied to {@code datadog.runtime_id} and process-tag resource attributes. */
   private static final String DATADOG_PREFIX = "datadog.";
 
   /** Marks that the Agent should not recompute trace metrics from the exported spans. */
   private static final String STATS_COMPUTED_KEY = "_dd.stats_computed";
+
+  private static final String SDK_SEMANTICS_KEY = "datadog.sdk.semantics";
 
   private static final Set<String> IGNORED_GLOBAL_TAGS =
       new HashSet<>(
@@ -34,13 +53,23 @@ final class OtlpResourceAttributes {
               "service.version",
               "telemetry.sdk.name",
               "telemetry.sdk.version",
-              "telemetry.sdk.language"));
+              "telemetry.sdk.language",
+              SDK_SEMANTICS_KEY,
+              SDK_OTLP_EXPORT));
 
   /**
    * {@code value} is a {@link String}, except {@code datadog.process_tags}: a {@code List<String>}.
+   *
+   * <p>{@code globalTags} (none when null) are the trace's from its config snapshot, so the trace
+   * resource follows remote config tag changes, or {@code config.getGlobalTags()} for the others. A
+   * {@link TagMap} holds known tags under their Datadog name, so its tags are named like span
+   * attributes: by their OpenTelemetry name under OTel semantics, else their Datadog name.
    */
   static void visitResourceAttributes(
-      Config config, Map<String, Object> extraAttributes, BiConsumer<String, Object> visitor) {
+      Config config,
+      Map<String, ?> globalTags,
+      Map<String, Object> extraAttributes,
+      BiConsumer<String, Object> visitor) {
     String serviceName = config.getServiceName();
     String env = config.getEnv();
     String version = config.getVersion();
@@ -62,18 +91,33 @@ final class OtlpResourceAttributes {
     visitor.accept("telemetry.sdk.version", TRACER_VERSION);
     visitor.accept("telemetry.sdk.language", "java");
 
-    config
-        .getGlobalTags()
-        .forEach(
-            (key, value) -> {
-              // ignore global tags replaced by canonical or extra resource attributes
-              if (!IGNORED_GLOBAL_TAGS.contains(key.toLowerCase(Locale.ROOT))
-                  && !extraAttributes.containsKey(key)) {
-                visitor.accept(key, value);
-              }
-            });
+    if (globalTags instanceof TagMap) {
+      boolean otelSemantics = config.isTraceOtelSemanticsEnabled();
+      ((TagMap) globalTags)
+          .forEach(entry ->
+              visitGlobalTag(
+                  otelSemantics ? entry.openTelemetryTag() : entry.tag(),
+                  entry.stringValue(),
+                  extraAttributes,
+                  visitor));
+    } else if (globalTags != null) {
+      globalTags.forEach(
+          (key, value) -> visitGlobalTag(key, String.valueOf(value), extraAttributes, visitor));
+    }
 
     extraAttributes.forEach(visitor);
+  }
+
+  private static void visitGlobalTag(
+      String key,
+      String value,
+      Map<String, Object> extraAttributes,
+      BiConsumer<String, Object> visitor) {
+    // ignore global tags replaced by canonical or extra resource attributes
+    if (!IGNORED_GLOBAL_TAGS.contains(key.toLowerCase(Locale.ROOT))
+        && !extraAttributes.containsKey(key)) {
+      visitor.accept(key, value);
+    }
   }
 
   private static final String PROCESS_TAGS_KEY = DATADOG_PREFIX + "process_tags";
@@ -81,10 +125,15 @@ final class OtlpResourceAttributes {
   /**
    * Builds the extra resource attributes for the OTLP trace export: the {@code _dd.stats_computed}
    * marker when the SDK is computing OTLP span metrics, so a downstream Agent does not recompute
-   * them from the exported spans.
+   * them from the exported spans; {@code datadog.sdk.semantics}, recording whether the SDK applied
+   * Datadog or OTel semantics; and {@code _dd.sdk.otlp_export}, which is always {@code "true"} here
+   * because reaching this encoder means the payload is leaving over OTLP.
    */
   static Map<String, Object> traceResourceAttributes(Config config) {
     Map<String, Object> attributes = new LinkedHashMap<>();
+    attributes.put(
+        "datadog.sdk.semantics", config.isTraceOtelSemanticsEnabled() ? "otel" : "datadog");
+    attributes.put(SDK_OTLP_EXPORT, "true");
     if (config.isOtelTracesSpanMetricsEnabled()) {
       attributes.put(STATS_COMPUTED_KEY, "true");
     }

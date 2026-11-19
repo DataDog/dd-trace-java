@@ -39,18 +39,6 @@ public class HandlerRegistryBuilderInstrumentation extends InstrumenterModule.Tr
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".GrpcServerDecorator",
-      packageName + ".GrpcServerDecorator$1",
-      packageName + ".GrpcExtractAdapter",
-      packageName + ".TracingServerInterceptor",
-      packageName + ".TracingServerInterceptor$TracingServerCall",
-      packageName + ".TracingServerInterceptor$TracingServerCallListener",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()

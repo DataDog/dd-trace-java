@@ -1,0 +1,8 @@
+plugins {
+  id 'java-test-fixtures'
+  id 'dd-trace-java.module.instrumentation'
+}
+
+dependencies {
+  testFixturesApi group: 'org.testcontainers', name: 'couchbase', version: libs.versions.testcontainers.get()
+}

@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.debugger.util;
 
 import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY;
 import static java.lang.invoke.MethodType.methodType;
+import static java.util.Collections.emptySet;
 
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.bootstrap.debugger.CapturedContext;
@@ -228,6 +229,15 @@ public class WellKnownClasses {
           "org.agrona.collections." // Agrona
           );
 
+  /** Map classes considered safe only on exact match, to exclude subclasses and proxies */
+  private static final Set<String> SAFE_MAP_CLASSES =
+      new HashSet<>(
+          Arrays.asList(
+              // Spring specific
+              "org.springframework.validation.support.BindingAwareModelMap",
+              "org.springframework.util.LinkedMultiValueMap",
+              "org.springframework.util.LinkedCaseInsensitiveMap"));
+
   /**
    * @return true if type is a final class and toString implementation is well known and side effect
    *     free
@@ -250,20 +260,33 @@ public class WellKnownClasses {
    */
   public static boolean isSafe(Collection<?> collection) {
     return isSafe(
-        collection.getClass().getTypeName(), SAFE_COLLECTION_PACKAGES, UNSAFE_COLLECTION_CLASSES);
+        collection.getClass().getTypeName(),
+        SAFE_COLLECTION_PACKAGES,
+        emptySet(),
+        UNSAFE_COLLECTION_CLASSES);
   }
 
   /**
    * @return true if map implementation is safe to call (only in-memory and lock free)
    */
   public static boolean isSafe(Map<?, ?> map) {
-    return isSafe(map.getClass().getTypeName(), SAFE_MAP_PACKAGES, UNSAFE_MAP_CLASSES);
+    return isSafeMap(map.getClass().getTypeName());
+  }
+
+  static boolean isSafeMap(String className) {
+    return isSafe(className, SAFE_MAP_PACKAGES, SAFE_MAP_CLASSES, UNSAFE_MAP_CLASSES);
   }
 
   private static boolean isSafe(
-      String className, List<String> safePackages, Set<String> unsafeClasses) {
+      String className,
+      List<String> safePackages,
+      Set<String> safeClasses,
+      Set<String> unsafeClasses) {
     if (unsafeClasses.contains(className)) {
       return false;
+    }
+    if (safeClasses.contains(className)) {
+      return true;
     }
     for (String safePackage : safePackages) {
       if (className.startsWith(safePackage)) {

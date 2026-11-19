@@ -27,7 +27,6 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collection;
 import java.util.Collections;
@@ -67,6 +66,7 @@ public class CiTestCovMapperV2 implements RemoteMapper {
   @Override
   public void map(List<? extends CoreSpan<?>> trace, Writable writable) {
     long serializationStartTimestamp = System.currentTimeMillis();
+    int written = 0;
 
     for (CoreSpan<?> span : trace) {
       if (!isTestSpan(span)) {
@@ -118,8 +118,11 @@ public class CiTestCovMapperV2 implements RemoteMapper {
         }
       }
 
-      eventCount++;
+      written++;
     }
+    // Count only once the whole trace is written, so a trace that fails part-way and is rewound
+    // doesn't leave the payload's event count too high.
+    eventCount += written;
     serializationTimeMillis += (int) (System.currentTimeMillis() - serializationStartTimestamp);
   }
 
@@ -209,7 +212,7 @@ public class CiTestCovMapperV2 implements RemoteMapper {
       if (traceCount() == 0) {
         return msgpackMapHeaderSize(0);
       }
-      int size = body.remaining();
+      int size = bodySize();
       if (header != null) {
         size += header.remaining();
       }
@@ -220,19 +223,12 @@ public class CiTestCovMapperV2 implements RemoteMapper {
     public void writeTo(WritableByteChannel channel) throws IOException {
       // If traceCount is 0, we write a map with 0 elements in MsgPack format.
       if (traceCount() == 0) {
-        ByteBuffer emptyDict = msgpackMapHeader(0);
-        while (emptyDict.hasRemaining()) {
-          channel.write(emptyDict);
-        }
+        writeFully(msgpackMapHeader(0), channel);
       } else {
         if (header != null) {
-          while (header.hasRemaining()) {
-            channel.write(header);
-          }
+          writeFully(header.duplicate(), channel);
         }
-        while (body.hasRemaining()) {
-          channel.write(body);
-        }
+        writeBody(channel);
       }
     }
 
@@ -242,10 +238,8 @@ public class CiTestCovMapperV2 implements RemoteMapper {
       if (traceCount() == 0) {
         // If traceCount is 0, we write a map with 0 elements in MsgPack format.
         buffers = Collections.singletonList(msgpackMapHeader(0));
-      } else if (header != null) {
-        buffers = Arrays.asList(header, body);
       } else {
-        buffers = Collections.singletonList(body);
+        buffers = bodyAfter(header != null ? header.duplicate() : null);
       }
       RequestBody coverageBody = msgpackRequestBodyOf(buffers);
 

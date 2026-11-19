@@ -5,14 +5,17 @@ import static com.datadog.debugger.el.PrettyPrintVisitor.print;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.EvaluationException;
+import com.datadog.debugger.el.EvaluationTimeOutException;
 import com.datadog.debugger.el.values.StringValue;
 import datadog.trace.bootstrap.debugger.el.Values;
 import java.net.URI;
+import java.time.Duration;
 import org.junit.jupiter.api.Test;
 
 class MatchesExpressionTest {
@@ -62,5 +65,30 @@ class MatchesExpressionTest {
         new MatchesExpression(DSL.ref("uri"), new StringValue("^https?://w{3}\\.datadoghq\\.com$"));
     assertTrue(expression.evaluate(evalContext));
     assertEquals("matches(uri, \"^https?://w{3}\\.datadoghq\\.com$\")", print(expression));
+  }
+
+  @Test
+  void catastrophicBacktrackingTimeout() {
+    // nested quantifiers against a string of 'a's without trailing 'b' backtracks exponentially.
+    // the backreference prevents the JDK (9+) from memoizing the group loop, as it does for (a+)+b
+    StringBuilder sb = new StringBuilder();
+    for (int i = 0; i < 40; i++) {
+      sb.append('a');
+    }
+    sb.append('!');
+    MatchesExpression expression =
+        new MatchesExpression(DSL.value(sb.toString()), new StringValue("((a+)\\2?)+b"));
+    // guard against the regex not being interrupted: without timeout check this would run forever
+    EvaluationException exception =
+        assertTimeoutPreemptively(
+            Duration.ofSeconds(5),
+            () -> {
+              // create the context in the evaluating thread (CPU timeout checker is per thread)
+              EvalContext timeoutEvalContext = createEvalContext(this, Duration.ofMillis(10));
+              return assertThrows(
+                  EvaluationTimeOutException.class, () -> expression.evaluate(timeoutEvalContext));
+            });
+    assertEquals("timeout (10ms)", exception.getMessage());
+    assertEquals("matches(\"" + sb + "\", \"((a+)\\2?)+b\")", print(expression));
   }
 }

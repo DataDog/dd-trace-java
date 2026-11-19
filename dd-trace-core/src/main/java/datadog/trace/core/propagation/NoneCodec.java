@@ -33,26 +33,18 @@ public class NoneCodec {
       char first = Character.toLowerCase(key.charAt(0));
       switch (first) {
         case 'x':
-          if (handledXForwarding(key, value)) {
-            return true;
-          }
+          handledXForwarding(key, value);
           break;
         case 'f':
-          if (handledForwarding(key, value)) {
-            return true;
-          }
+          handledForwarding(key, value);
           break;
         case 'u':
-          if (handledUserAgent(key, value)) {
-            return true;
-          }
+          handledUserAgent(key, value);
           break;
         default:
       }
 
-      if (handledIpHeaders(key, value)) {
-        return true;
-      }
+      handledIpHeaders(key, value);
       if (handleTags(key, value)) {
         return true;
       }

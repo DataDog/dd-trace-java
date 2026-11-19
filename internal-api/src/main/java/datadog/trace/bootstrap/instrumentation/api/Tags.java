@@ -50,7 +50,6 @@ public class Tags {
   public static final String DB_OPERATION = "db.operation";
   public static final String DB_STATEMENT = "db.statement";
   public static final String DB_WAREHOUSE = "db.warehouse";
-  public static final String DB_HOST = "db.host";
   public static final String DB_SCHEMA = "db.schema";
   public static final String MESSAGE_BUS_DESTINATION = "message_bus.destination";
   public static final String DB_POOL_NAME = "db.pool.name";
@@ -113,6 +112,10 @@ public class Tags {
   public static final String TEST_IS_MODIFIED = "test.is_modified";
   public static final String TEST_HAS_FAILED_ALL_RETRIES = "test.has_failed_all_retries";
   public static final String TEST_FAILURE_SUPPRESSED = "test.failure_suppressed";
+  public static final String TEST_TEST_MANAGEMENT_NO_AUTO_RETRY =
+      "test.test_management.no_auto_retry";
+  public static final String TEST_TEST_MANAGEMENT_PREVENT_FAILURE_SUPPRESSION =
+      "test.test_management.prevent_failure_suppression";
   public static final String TEST_TEST_MANAGEMENT_ENABLED = "test.test_management.enabled";
   public static final String TEST_TEST_MANAGEMENT_IS_QUARANTINED =
       "test.test_management.is_quarantined";

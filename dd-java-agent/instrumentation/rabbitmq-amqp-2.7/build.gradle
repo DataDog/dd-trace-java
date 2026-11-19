@@ -1,5 +1,6 @@
 plugins {
   id 'dd-trace-java.module.instrumentation'
+  id 'dd-trace-java.testcontainers'
 }
 
 muzzle {
@@ -18,6 +19,7 @@ addTestSuite('reactorTest')
 
 dependencies {
   compileOnly group: 'com.rabbitmq', name: 'amqp-client', version: '2.7.0'
+  testContainerImage(image('rabbitmq:3.9.20-alpine', 'test.rabbitmq.image'))
 
   testImplementation group: 'com.rabbitmq', name: 'amqp-client', version: '2.7.0'
   testImplementation group: 'org.springframework.amqp', name: 'spring-rabbit', version: '1.1.0.RELEASE'

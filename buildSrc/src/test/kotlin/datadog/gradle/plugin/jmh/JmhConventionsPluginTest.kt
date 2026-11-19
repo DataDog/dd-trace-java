@@ -30,7 +30,7 @@ class JmhConventionsPluginTest {
       project.pluginManager.apply("dd-trace-java.jmh-conventions")
 
       val jmh = project.extensions.getByType(JmhParameters::class.java)
-      val expectedExecutable = TestJvmSpec(project).javaTestLauncher.get().executablePath.asFile.absolutePath
+      val expectedExecutable = TestJvmSpec(project).requestedTestJvmLauncher.get().executablePath.asFile.absolutePath
       assertThat(jmh.jvm.get()).isEqualTo(expectedExecutable)
 
       jmh.jvm.set("module-jvm")
@@ -71,6 +71,7 @@ class JmhConventionsPluginTest {
     project.pluginManager.apply("dd-trace-java.jmh-conventions")
 
     val jmh = project.extensions.getByType(JmhParameters::class.java)
+    assertThat(jmh.jvm.isPresent).isFalse()
     assertThat(jmh.includes.get()).isEmpty()
     assertThat(jmh.profilers.get()).isEmpty()
     assertThat(jmh.fork.isPresent).isFalse()

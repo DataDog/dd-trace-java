@@ -43,13 +43,6 @@ public class SnakeYamlInstrumentation extends InstrumenterModule.Iast
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".SnakeYamlHelper",
-    };
-  }
-
-  @Override
   public String instrumentedType() {
     return "org.yaml.snakeyaml.Yaml";
   }

@@ -5,14 +5,15 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.cics.CicsDecorator.CICS_CLIENT;
 import static datadog.trace.instrumentation.cics.CicsDecorator.DECORATE;
 import static datadog.trace.instrumentation.cics.CicsDecorator.GATEWAY_FLOW_OPERATION;
 
 import com.ibm.connector2.cics.ECIInteraction;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.net.InetAddress;
 import net.bytebuddy.asm.Advice;
@@ -38,7 +39,7 @@ public final class JavaGatewayInterfaceInstrumentation
 
   public static class FlowAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope enter(
+    public static ContextScope enter(
         @Advice.FieldValue("strAddress") final String strAddress,
         @Advice.FieldValue("iPort") final int port,
         @Advice.FieldValue("ipGateway") final InetAddress ipGateway) {
@@ -62,12 +63,12 @@ public final class JavaGatewayInterfaceInstrumentation
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void exit(
-        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
       if (null == scope) {
         return;
       }
 
-      final AgentSpan span = scope.span();
+      final AgentSpan span = spanFromScope(scope);
 
       DECORATE.onError(span, throwable);
       DECORATE.beforeFinish(span);

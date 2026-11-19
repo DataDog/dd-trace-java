@@ -17,7 +17,7 @@ public class TestFailedThenSucceed {
   public void setUp() {
     AgentTracer.TracerAPI agentTracer = AgentTracer.get();
     AgentSpan span = agentTracer.buildSpan("junit-manual", "set-up").start();
-    try (ContextScope scope = agentTracer.activateManualSpan(span)) {
+    try (ContextScope scope = agentTracer.activateSpan(span)) {
       // tracing setup to verify that it is executed for every retry
     }
     span.finish();
@@ -32,7 +32,7 @@ public class TestFailedThenSucceed {
   public void tearDown() {
     AgentTracer.TracerAPI agentTracer = AgentTracer.get();
     AgentSpan span = agentTracer.buildSpan("junit-manual", "tear-down").start();
-    try (ContextScope scope = agentTracer.activateManualSpan(span)) {
+    try (ContextScope scope = agentTracer.activateSpan(span)) {
       // tracing teardown to verify that it is executed for every retry
     }
     span.finish();

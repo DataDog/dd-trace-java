@@ -1,6 +1,9 @@
 package datadog.trace.common.writer.ddagent;
 
 import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
+import static datadog.trace.api.ProtocolVersion.V0_4;
+import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
+import static datadog.trace.core.CoreSpan.ROOT_PROPAGATION_TAGS;
 
 import datadog.communication.serialization.Codec;
 import datadog.communication.serialization.GenerationalUtf8Cache;
@@ -9,6 +12,7 @@ import datadog.communication.serialization.SimpleUtf8Cache;
 import datadog.communication.serialization.Writable;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.trace.api.Config;
+import datadog.trace.api.ProtocolVersion;
 import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -18,9 +22,7 @@ import datadog.trace.core.Metadata;
 import datadog.trace.core.MetadataConsumer;
 import datadog.trace.core.PendingTrace;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import okhttp3.RequestBody;
@@ -100,12 +102,14 @@ public final class TraceMapperV0_4 implements TraceMapper {
       final boolean writeSamplingPriority =
           firstSpanInTrace || lastSpanInTrace || metadata.topLevel();
       final UTF8BytesString processTags = firstSpanInPayload ? metadata.processTags() : null;
+      final UTF8BytesString otlpExport = firstSpanInPayload ? metadata.otlpExportMarker() : null;
       int metaSize =
           metadata.getBaggage().size()
               + tags.size()
-              + (null == metadata.getHttpStatusCode() ? 0 : 1)
+              + (UNSET_STATUS == metadata.getHttpStatusCode() ? 0 : 1)
               + (null == metadata.getOrigin() ? 0 : 1)
               + (null == processTags ? 0 : 1)
+              + (null == otlpExport ? 0 : 1)
               + 1;
       int metricsSize =
           (writeSamplingPriority && metadata.hasSamplingPriority() ? 1 : 0)
@@ -193,9 +197,9 @@ public final class TraceMapperV0_4 implements TraceMapper {
       }
       writable.writeUTF8(THREAD_NAME);
       writable.writeUTF8(metadata.getThreadName());
-      if (null != metadata.getHttpStatusCode()) {
+      if (UNSET_STATUS != metadata.getHttpStatusCode()) {
         writable.writeUTF8(HTTP_STATUS);
-        writable.writeUTF8(metadata.getHttpStatusCode());
+        writable.writeUTF8(metadata.getHttpStatusCodeString());
       }
       if (null != metadata.getOrigin()) {
         writable.writeUTF8(ORIGIN_KEY);
@@ -204,6 +208,10 @@ public final class TraceMapperV0_4 implements TraceMapper {
       if (processTags != null) {
         writable.writeUTF8(PROCESS_TAGS_KEY);
         writable.writeUTF8(processTags);
+      }
+      if (otlpExport != null) {
+        writable.writeUTF8(SDK_OTLP_EXPORT_KEY);
+        writable.writeUTF8(otlpExport);
       }
 
       tags.forEach(
@@ -360,13 +368,18 @@ public final class TraceMapperV0_4 implements TraceMapper {
           metaWriter
               .withWritable(writable)
               .forSpan(i == 0, i == trace.size() - 1, !firstSpanWritten),
-          i == 0);
+          i == 0 ? ROOT_PROPAGATION_TAGS : 0);
       if (!metaStruct.isEmpty()) {
         /* 13 */
         metaStructWriter.withWritable(writable).write(metaStruct);
       }
       firstSpanWritten = true;
     }
+  }
+
+  @Override
+  public ProtocolVersion protocolVersion() {
+    return V0_4;
   }
 
   @Override
@@ -392,24 +405,24 @@ public final class TraceMapperV0_4 implements TraceMapper {
   private static class PayloadV0_4 extends Payload {
 
     @Override
+    public ProtocolVersion protocol() {
+      return V0_4;
+    }
+
+    @Override
     public int sizeInBytes() {
-      return msgpackArrayHeaderSize(traceCount()) + body.remaining();
+      return msgpackArrayHeaderSize(traceCount()) + bodySize();
     }
 
     @Override
     public void writeTo(WritableByteChannel channel) throws IOException {
-      ByteBuffer header = msgpackArrayHeader(traceCount());
-      while (header.hasRemaining()) {
-        channel.write(header);
-      }
-      while (body.hasRemaining()) {
-        channel.write(body);
-      }
+      writeFully(msgpackArrayHeader(traceCount()), channel);
+      writeBody(channel);
     }
 
     @Override
     public RequestBody toRequest() {
-      return msgpackRequestBodyOf(Arrays.asList(msgpackArrayHeader(traceCount()), body));
+      return msgpackRequestBodyOf(bodyAfter(msgpackArrayHeader(traceCount())));
     }
   }
 }

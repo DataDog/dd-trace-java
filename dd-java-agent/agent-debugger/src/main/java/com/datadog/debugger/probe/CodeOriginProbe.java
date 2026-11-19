@@ -126,6 +126,6 @@ public class CodeOriginProbe extends ProbeDefinition {
   public String toString() {
     return String.format(
         "CodeOriginProbe{probeId=%s, entrySpanProbe=%s, signature=%s, where=%s, location=%s}",
-        probeId, entrySpanProbe, signature, where, location);
+        getProbeId(), entrySpanProbe, signature, where, location);
   }
 }

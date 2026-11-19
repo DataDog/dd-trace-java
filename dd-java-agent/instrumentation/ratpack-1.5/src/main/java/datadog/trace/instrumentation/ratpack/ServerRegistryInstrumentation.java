@@ -22,15 +22,6 @@ public class ServerRegistryInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".RatpackServerDecorator",
-      packageName + ".RequestURIAdapterAdapter",
-      packageName + ".TracingHandler",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod().and(isStatic()).and(named("buildBaseRegistry")),

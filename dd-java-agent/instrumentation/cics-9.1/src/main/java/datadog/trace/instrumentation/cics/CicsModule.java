@@ -14,11 +14,6 @@ public class CicsModule extends InstrumenterModule.Tracing {
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {packageName + ".CicsDecorator"};
-  }
-
-  @Override
   public List<Instrumenter> typeInstrumentations() {
     return asList(new ECIInteractionInstrumentation(), new JavaGatewayInterfaceInstrumentation());
   }

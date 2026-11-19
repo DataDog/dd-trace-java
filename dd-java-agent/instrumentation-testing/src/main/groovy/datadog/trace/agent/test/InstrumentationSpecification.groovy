@@ -3,7 +3,7 @@ package datadog.trace.agent.test
 import static datadog.communication.http.OkHttpUtils.buildHttpClient
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_HOST
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_TIMEOUT
-import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT
+import static datadog.trace.agent.test.utils.TestAgentPort.parse
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_SNAPSHOT_URL
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_VERIFY_BYTECODE
 import static datadog.trace.api.config.TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_ENABLED
@@ -33,6 +33,9 @@ import datadog.metrics.impl.DDSketchHistograms
 import datadog.metrics.impl.MonitoringImpl
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.agent.test.asserts.TagsAssert
+import datadog.trace.agent.test.scopediag.ScopeDiagnostics
+import datadog.trace.agent.test.scopediag.ScopeDiagnosticsSpockSupport
+import datadog.trace.agent.test.scopediag.TrackScopeContinuations
 import datadog.trace.agent.test.datastreams.MockFeaturesDiscovery
 import datadog.trace.agent.test.datastreams.RecordingDatastreamsPayloadWriter
 import datadog.trace.agent.tooling.AgentInstaller
@@ -111,7 +114,8 @@ import spock.lang.Shared
 @SuppressWarnings('UnnecessaryDotClass')
 @ExtendWith(TestClassShadowingExtension.class)
 @ExtendWith(TooManyInvocationsErrorHandler.class)
-abstract class InstrumentationSpecification extends DDSpecification implements AgentBuilder.Listener {
+@TrackScopeContinuations
+abstract class InstrumentationSpecification extends DDSpecification implements AgentBuilder.Listener, ScopeDiagnosticsSpockSupport {
   private static final long TIMEOUT_MILLIS = TimeUnit.SECONDS.toMillis(20)
 
   protected static final Instrumentation INSTRUMENTATION = ByteBuddyAgent.getInstrumentation()
@@ -186,6 +190,9 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
 
   @Shared
   boolean isLatestDepTest = Boolean.getBoolean('test.dd.latestDepTest')
+
+  @Shared
+  boolean scopeDiagnosticsSuiteSetupPending
 
   @SuppressWarnings('PropertyName')
   @Shared
@@ -386,7 +393,8 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
       }
 
       // emit traces to the APM Test-Agent for Cross-Tracer Testing Trace Checks
-      HttpUrl agentUrl = HttpUrl.get("http://" + agentHost + ":" + DEFAULT_TRACE_AGENT_PORT)
+      int agentPort = parse(System.getenv("CI_TEST_AGENT_PORT"))
+      HttpUrl agentUrl = new HttpUrl.Builder().scheme("http").host(agentHost).port(agentPort).build()
       OkHttpClient client = buildHttpClient(true, null, null, TimeUnit.SECONDS.toMillis(DEFAULT_AGENT_TIMEOUT))
 
       Config cfg = Config.get()
@@ -400,7 +408,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     .writer(TEST_WRITER)
     .idGenerationStrategy(IdGenerationStrategy.fromName(idGenerationStrategyName()))
     .statsDClient(STATS_D_CLIENT)
-    .strictTraceWrites(useStrictTraceWrites())
+    .strictTraceWrites(true)
     .dataStreamsMonitoring(TEST_DATA_STREAMS_MONITORING)
     .profilingContextIntegration(TEST_PROFILING_CONTEXT_INTEGRATION)
     .build())
@@ -421,10 +429,15 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     .iterator()
     .hasNext(): "No instrumentation found"
     activeTransformer = AgentInstaller.installBytebuddyAgent(
-    INSTRUMENTATION, true, AgentInstaller.getEnabledSystems(), this)
+    INSTRUMENTATION, true, AgentInstaller.getEnabledSystems(), false, this)
 
     // check for instrumentation issues during installation
     assert InstrumentationErrors.noErrors(): InstrumentationErrors.describeErrors()
+
+    if (scopeDiagnosticsSuiteEnabled()) {
+      ScopeDiagnostics.startRecording()
+      scopeDiagnosticsSuiteSetupPending = true
+    }
   }
 
   protected String idGenerationStrategyName() {
@@ -440,6 +453,18 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
   }
 
   void setup() {
+    if (scopeDiagnosticsSuiteEnabled()) {
+      if (scopeDiagnosticsSuiteSetupPending) {
+        scopeDiagnosticsSuiteSetupPending = false
+        def suiteSetupFailure = reportScopeDiagnosticsForPhase(scopeDiagClassConfig(), "suite setup")
+        if (suiteSetupFailure != null) {
+          throw suiteSetupFailure
+        }
+      } else {
+        ScopeDiagnostics.reset()
+      }
+    }
+
     InstrumentationErrors.resetErrors() // reset for each test
 
     configureLoggingLevels()
@@ -467,6 +492,9 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     }
 
     TEST_WRITER.start()
+    if (scopeDiagnosticsEnabled()) {
+      ScopeDiagnostics.startRecording(scopeDiagConfig())
+    }
     TEST_DATA_STREAMS_WRITER.clear()
     TEST_DATA_STREAMS_MONITORING.clear()
 
@@ -487,40 +515,122 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
   }
 
   void cleanup() {
-    if (isTestAgentEnabled()) {
-      // save Datadog environment to DDAgentWriter header
-      addEnvironmentVariablesToHeaders(TEST_AGENT_API)
-
-      // write ListWriter traces to the AgentWriter at cleanup so trace-processing changes occur after span assertions
-      def traces = TEST_WRITER.toArray()
-      for (trace in traces) {
-        TEST_AGENT_WRITER.write(trace as List<DDSpan>)
-      }
-      TEST_AGENT_WRITER.flush()
-    }
-    TEST_TRACER.flush()
-
-    def util = new MockUtil()
-    util.detachMock(STATS_D_CLIENT)
-
-    ActiveSubsystems.APPSEC_ACTIVE = originalAppSecRuntimeValue
-
-    if (Config.get().isDebuggerCodeOriginEnabled()) {
-      injectSysConfig(CODE_ORIGIN_FOR_SPANS_ENABLED, "false", true)
-      rebuildConfig()
-    }
-
     try {
-      if (enabledFinishTimingChecks()) {
-        doCheckRepeatedFinish()
+      if (isTestAgentEnabled()) {
+        // save Datadog environment to DDAgentWriter header
+        addEnvironmentVariablesToHeaders(TEST_AGENT_API)
+
+        // write ListWriter traces to the AgentWriter at cleanup so trace-processing changes occur after span assertions
+        def traces = TEST_WRITER.toArray()
+        for (trace in traces) {
+          TEST_AGENT_WRITER.write(trace as List<DDSpan>)
+        }
+        TEST_AGENT_WRITER.flush()
+      }
+      TEST_TRACER.flush()
+
+      def scopeDiagnosticsFailure = reportScopeDiagnostics()
+
+      try {
+        def util = new MockUtil()
+        util.detachMock(STATS_D_CLIENT)
+
+        ActiveSubsystems.APPSEC_ACTIVE = originalAppSecRuntimeValue
+
+        if (Config.get().isDebuggerCodeOriginEnabled()) {
+          injectSysConfig(CODE_ORIGIN_FOR_SPANS_ENABLED, "false", true)
+          rebuildConfig()
+        }
+
+        try {
+          if (enabledFinishTimingChecks()) {
+            doCheckRepeatedFinish()
+          }
+        } finally {
+          spanFinishLocations.clear()
+          originalToTrackingSpan.clear()
+        }
+
+        // check for instrumentation issues while running each test
+        assert InstrumentationErrors.noErrors(): InstrumentationErrors.describeErrors()
+      } catch (Throwable cleanupFailure) {
+        if (scopeDiagnosticsFailure != null) {
+          cleanupFailure.addSuppressed(scopeDiagnosticsFailure)
+        }
+        throw cleanupFailure
+      }
+      if (scopeDiagnosticsFailure != null) {
+        throw scopeDiagnosticsFailure
       }
     } finally {
-      spanFinishLocations.clear()
-      originalToTrackingSpan.clear()
+      if (scopeDiagnosticsSuiteEnabled()) {
+        ScopeDiagnostics.startRecording()
+      }
     }
+  }
 
-    // check for instrumentation issues while running each test
-    assert InstrumentationErrors.noErrors(): InstrumentationErrors.describeErrors()
+  private TrackScopeContinuations scopeDiagConfig() {
+    def method = specificationContext?.currentFeature?.featureMethod?.reflection
+    def ann = method?.getAnnotation(TrackScopeContinuations)
+    if (ann == null) {
+      ann = this.class.getAnnotation(TrackScopeContinuations)
+    }
+    return ann
+  }
+
+  private TrackScopeContinuations scopeDiagClassConfig() {
+    return this.class.getAnnotation(TrackScopeContinuations)
+  }
+
+  private boolean scopeDiagnosticsSuiteEnabled() {
+    return ScopeDiagnostics.isEnabled(scopeDiagClassConfig())
+  }
+
+  private boolean scopeDiagnosticsEnabled() {
+    return ScopeDiagnostics.isEnabled(scopeDiagConfig())
+  }
+
+  private Throwable reportScopeDiagnostics() {
+    return reportScopeDiagnosticsForPhase(scopeDiagConfig(), null)
+  }
+
+  private Throwable reportScopeDiagnosticsForPhase(TrackScopeContinuations config, String phase) {
+    if (!ScopeDiagnostics.isEnabled(config)) {
+      return null
+    }
+    try {
+      ScopeDiagnostics.stopAfterQuiescence()
+      def report = ScopeDiagnostics.report()
+      if (report.hasFindings()) {
+        if (phase != null) {
+          println("Scope diagnostics for ${phase}:")
+        }
+        println(report.renderTimeline())
+      }
+      ScopeDiagnostics.assertNoViolations(report, config)
+      return null
+    } catch (Throwable failure) {
+      return failure
+    } finally {
+      ScopeDiagnostics.reset()
+    }
+  }
+
+  @Override
+  void onSuiteSetupFailure() {
+    if (!scopeDiagnosticsSuiteSetupPending) {
+      return
+    }
+    scopeDiagnosticsSuiteSetupPending = false
+    def diagnosticFailure = reportScopeDiagnosticsForPhase(scopeDiagClassConfig(), "suite setup")
+    try {
+      if (diagnosticFailure != null) {
+        throw diagnosticFailure
+      }
+    } finally {
+      // A pending setup window implies suite diagnostics are enabled.
+      ScopeDiagnostics.startRecording()
+    }
   }
 
   private void doCheckRepeatedFinish() {
@@ -551,24 +661,31 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
   protected void cleanupAfterAgent() {}
 
   void cleanupSpec() {
-    TEST_TRACER?.close()
-    TEST_AGENT_WRITER?.close()
+    def scopeDiagnosticsFailure = reportScopeDiagnosticsForPhase(scopeDiagClassConfig(), "suite cleanup")
+    try {
+      TEST_TRACER?.close()
+      TEST_AGENT_WRITER?.close()
 
-    if (null != activeTransformer) {
-      INSTRUMENTATION.removeTransformer(activeTransformer)
-      activeTransformer = null
+      if (null != activeTransformer) {
+        INSTRUMENTATION.removeTransformer(activeTransformer)
+        activeTransformer = null
+      }
+
+      cleanupAfterAgent()
+
+      // All cleanup should happen before these assertion.  If not, a failing assertion may prevent cleanup
+      assert TRANSFORMED_CLASSES_TYPES.findAll {
+        GlobalIgnores.isAdditionallyIgnored(it.getActualName())
+      }.isEmpty(): "Transformed classes match global libraries ignore matcher"
+    } catch (Throwable cleanupFailure) {
+      if (scopeDiagnosticsFailure != null) {
+        cleanupFailure.addSuppressed(scopeDiagnosticsFailure)
+      }
+      throw cleanupFailure
     }
-
-    cleanupAfterAgent()
-
-    // All cleanup should happen before these assertion.  If not, a failing assertion may prevent cleanup
-    assert TRANSFORMED_CLASSES_TYPES.findAll {
-      GlobalIgnores.isAdditionallyIgnored(it.getActualName())
-    }.isEmpty(): "Transformed classes match global libraries ignore matcher"
-  }
-
-  boolean useStrictTraceWrites() {
-    return true
+    if (scopeDiagnosticsFailure != null) {
+      throw scopeDiagnosticsFailure
+    }
   }
 
   protected AgentSpan trackStartSpan(AgentSpan span, String instrName, boolean enabledFinishTimingChecks) {
@@ -576,7 +693,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     if (!enabledFinishTimingChecks) {
       return span
     }
-    def trackingSpan = new TrackingSpanDecorator(span, spanFinishLocations, originalToTrackingSpan, useStrictTraceWrites())
+    def trackingSpan = new TrackingSpanDecorator(span, spanFinishLocations, originalToTrackingSpan)
     originalToTrackingSpan[span] = trackingSpan
     return trackingSpan
   }

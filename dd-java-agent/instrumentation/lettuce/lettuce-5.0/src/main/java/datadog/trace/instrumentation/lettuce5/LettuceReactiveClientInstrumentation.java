@@ -68,8 +68,7 @@ public class LettuceReactiveClientInstrumentation extends InstrumenterModule.Tra
       packageName + ".rx.RedisSubscriptionSubscribeAdvice$State",
       packageName + ".rx.RedisSubscriptionState",
       packageName + ".LettuceInstrumentationUtil",
-      packageName + ".LettuceClientDecorator",
-      packageName + ".ConnectionContextBiConsumer"
+      packageName + ".LettuceClientDecorator"
     };
   }
 
@@ -88,6 +87,11 @@ public class LettuceReactiveClientInstrumentation extends InstrumenterModule.Tra
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod().and(named("subscribe")), packageName + ".rx.RedisSubscriptionSubscribeAdvice");
+    transformer.applyAdvice(
+        isMethod()
+            .and(isDeclaredBy(named("io.lettuce.core.RedisPublisher$RedisSubscription")))
+            .and(named("dispatchCommand")),
+        packageName + ".rx.RedisSubscriptionDispatchAdvice");
     transformer.applyAdvice(
         isMethod().and(named("onNext")), packageName + ".rx.RedisSubscriptionAdvanceAdvice");
     transformer.applyAdvice(

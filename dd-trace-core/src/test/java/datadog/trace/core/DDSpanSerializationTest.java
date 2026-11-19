@@ -1,10 +1,13 @@
 package datadog.trace.core;
 
+import static datadog.trace.api.DDTags.SDK_OTLP_EXPORT;
 import static datadog.trace.api.DDTags.SPAN_EVENTS;
 import static datadog.trace.api.DDTags.SPAN_LINKS;
 import static datadog.trace.api.TracePropagationStyle.DATADOG;
 import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_BAGGAGE_TAG_KEYS;
+import static datadog.trace.core.TestSpanEvents.typedAttributes;
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -12,7 +15,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import datadog.communication.serialization.ByteBufferConsumer;
 import datadog.communication.serialization.FlushingBuffer;
-import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
@@ -214,7 +216,6 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
             baggage,
             false,
             null,
-            tags.size(),
             tracer.createTraceCollector(DDTraceId.ONE),
             null,
             null,
@@ -245,7 +246,7 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
         for (int j = 0; j < packedSize; j++) {
           String k = unpacker.unpackString();
           String v = unpacker.unpackString();
-          if (!"thread.name".equals(k) && !"thread.id".equals(k)) {
+          if (!isWrittenByMapper(k)) {
             unpackedMeta.put(k, v);
           }
         }
@@ -291,7 +292,6 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
             baggage,
             false,
             null,
-            tags.size(),
             tracer.createTraceCollector(DDTraceId.ONE),
             null,
             null,
@@ -324,7 +324,7 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
     for (int j = 0; j < packedSize; j++) {
       String k = dictionary[unpacker.unpackInt()];
       String v = dictionary[unpacker.unpackInt()];
-      if (!"thread.name".equals(k) && !"thread.id".equals(k)) {
+      if (!isWrittenByMapper(k)) {
         unpackedMeta.put(k, v);
       }
     }
@@ -350,7 +350,7 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
     w3cBaggageItems.put("ignored", "ignored-value");
 
     DDSpanContext context =
-        createSpanContext(tracer, baggage, Baggage.create(w3cBaggageItems), injectBaggage, true, 1);
+        createSpanContext(tracer, baggage, Baggage.create(w3cBaggageItems), injectBaggage, true);
     context.setTag("span-tag", "span-value");
     DDSpan span = DDSpan.create("test", 0, context, null);
 
@@ -374,7 +374,7 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
   @Test
   void serializeTraceWithSpanLinksAsStructuredLinksOnlyV1() throws Exception {
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
-    DDSpanContext context = createSpanContext(tracer, Collections.emptyMap(), null, true, true, 0);
+    DDSpanContext context = createSpanContext(tracer, Collections.emptyMap(), null, true, true);
     DDSpan span = DDSpan.create("test", 0, context, null);
 
     Map<String, String> linkAttributes = new HashMap<>();
@@ -402,16 +402,12 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
   }
 
   @Test
-  void serializeTraceWithJsonSpanEventsV1() throws Exception {
+  void serializeTraceWithSpanEventsAsStructuredEventsOnlyV1() throws Exception {
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
-    DDSpanContext context = createSpanContext(tracer, Collections.emptyMap(), null, true, true, 1);
-    context.setTag(
-        SPAN_EVENTS,
-        "[{\"time_unix_nano\":1234567890,\"name\":\"event.one\","
-            + "\"attributes\":{\"str\":\"value\",\"int\":42,\"double\":12.5,"
-            + "\"bool\":true,\"arr\":[\"x\",7,2.5,false]}},"
-            + "{\"time_unix_nano\":1234567891,\"name\":\"event.two\"}]");
+    DDSpanContext context = createSpanContext(tracer, Collections.emptyMap(), null, true, true);
     DDSpan span = DDSpan.create("test", 0, context, null);
+    span.addEvent("event.one", typedAttributes(), 1234567890L, NANOSECONDS);
+    span.addEvent("event.two", Collections.emptyMap(), 1234567891L, NANOSECONDS);
 
     V1PayloadReader.V1Span payload = V1PayloadReader.readFirstSpan(serializeV1Payload(span));
 
@@ -433,17 +429,30 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
     tracer.close();
   }
 
-  @Test
-  void serializeTraceWithMalformedJsonSpanEventsAsEmptyV1() throws Exception {
+  @TableTest({
+    "protocol",
+    "v0.4    ",
+    "v0.5    "
+  })
+  void serializeTraceWithSpanEventsAsEventsTag(String protocol) throws Exception {
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
-    DDSpanContext context = createSpanContext(tracer, Collections.emptyMap(), null, true, true, 1);
-    context.setTag(SPAN_EVENTS, "[{");
+    DDSpanContext context = createSpanContext(tracer, Collections.emptyMap(), null, true, true);
     DDSpan span = DDSpan.create("test", 0, context, null);
+    span.addEvent("event.one", typedAttributes(), 1234567890L, NANOSECONDS);
+    span.addEvent("event \"two\"", Collections.emptyMap(), 1234567891L, NANOSECONDS);
 
-    V1PayloadReader.V1Span payload = V1PayloadReader.readFirstSpan(serializeV1Payload(span));
+    List<DDSpan> trace = Collections.singletonList(span);
+    Map<String, ?> metadata =
+        "v0.4".equals(protocol)
+            ? serializeV04Metadata(trace).get(0)
+            : serializeV05Metadata(trace).get(0);
 
-    assertFalse(payload.getAttributes().containsKey(SPAN_EVENTS));
-    assertEquals(Collections.emptyList(), payload.getEvents());
+    assertEquals(
+        "[{\"time_unix_nano\":1234567890,\"name\":\"event.one\",\"attributes\":"
+            + "{\"str\":\"value\",\"int\":42,\"double\":12.5,\"bool\":true,"
+            + "\"arr\":[\"x\",7,2.5,false]}},"
+            + "{\"time_unix_nano\":1234567891,\"name\":\"event \\\"two\\\"\"}]",
+        metadata.get(SPAN_EVENTS));
     tracer.close();
   }
 
@@ -524,7 +533,6 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
             null,
             false,
             null,
-            0,
             tracer.createTraceCollector(DDTraceId.ONE),
             null,
             null,
@@ -562,7 +570,7 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
         for (int j = 0; j < packedSize; j++) {
           String k = unpacker.unpackString();
           String v = unpacker.unpackString();
-          if (!"thread.name".equals(k) && !"thread.id".equals(k)) {
+          if (!isWrittenByMapper(k)) {
             unpackedMeta.put(k, v);
           }
         }
@@ -591,7 +599,6 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
             null,
             false,
             null,
-            0,
             tracer.createTraceCollector(DDTraceId.ONE),
             null,
             null,
@@ -632,12 +639,20 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
     for (int j = 0; j < packedSize; j++) {
       String k = dictionary[unpacker.unpackInt()];
       String v = dictionary[unpacker.unpackInt()];
-      if (!"thread.name".equals(k) && !"thread.id".equals(k)) {
+      if (!isWrittenByMapper(k)) {
         unpackedMeta.put(k, v);
       }
     }
     assertEquals(expectedMeta, unpackedMeta);
     tracer.close();
+  }
+
+  /**
+   * thread.* and the payload-scoped _dd.sdk.otlp_export marker are written by the mapper, not by
+   * the span under test (see TraceMapperV04/V05PayloadTest).
+   */
+  private static boolean isWrittenByMapper(String key) {
+    return "thread.name".equals(key) || "thread.id".equals(key) || SDK_OTLP_EXPORT.equals(key);
   }
 
   private static class CaptureBuffer implements ByteBufferConsumer {
@@ -727,7 +742,6 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
             baggage,
             false,
             spanType,
-            1,
             tracer.createTraceCollector(DDTraceId.ONE),
             null,
             null,
@@ -745,8 +759,7 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
       Map<String, String> baggage,
       Baggage w3cBaggage,
       boolean injectBaggage,
-      boolean injectLinks,
-      int tagsSize) {
+      boolean injectLinks) {
     return new DDSpanContext(
         DDTraceId.ONE,
         1,
@@ -762,7 +775,6 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
         w3cBaggage,
         false,
         "fakeType",
-        tagsSize,
         tracer.createTraceCollector(DDTraceId.ONE),
         null,
         null,
@@ -790,11 +802,11 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
   }
 
   private static String[] buildDictionary(TraceMapperV0_5 mapper) throws Exception {
-    GrowableBuffer dictionaryBuffer = TraceMapperTestBridge.getDictionary(mapper);
+    FlushingBuffer dictionaryBuffer = TraceMapperTestBridge.getDictionary(mapper);
     Map<?, ?> encoding = TraceMapperTestBridge.getEncoding(mapper);
 
     String[] dictionary = new String[encoding.size()];
-    MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(dictionaryBuffer.slice());
+    MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(dictionaryBuffer.completedMessages());
     for (int i = 0; i < dictionary.length; ++i) {
       dictionary[i] = unpacker.unpackString();
     }

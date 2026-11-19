@@ -6,7 +6,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan
 
 import datadog.trace.agent.test.InstrumentationSpecification
-import datadog.trace.bootstrap.instrumentation.api.AgentScope
+import datadog.context.ContextScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import spock.lang.Shared
 
@@ -22,17 +22,12 @@ class TimerTaskContinuationTest extends InstrumentationSpecification {
   CountDownLatch runLatch = new CountDownLatch(1)
 
   @Override
-  boolean useStrictTraceWrites() {
-    false
-  }
-
-  @Override
   def setup() {
     timerTask = new TimerTask() {
         @Override
         void run() {
           AgentSpan span = startSpan("test", "child")
-          AgentScope scope = activateSpan(span)
+          ContextScope scope = activateSpan(span)
           try {
             span.finish()
           } finally {

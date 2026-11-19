@@ -1,8 +1,8 @@
 plugins {
   id 'dd-trace-java.jmh-conventions'
+  id 'dd-trace-java.conventions.java'
+  id 'dd-trace-java.conventions.testing.groovy'
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
   jmh project(':dd-trace-api')
@@ -48,4 +48,3 @@ tasks.named('jmh') {
  (using https://github.com/brendangregg/FlameGraph)
  ./flamegraph.pl --color=java dd-java-agent/benchmark/build/reports/jmh/profiler-cleaned.txt > dd-java-agent/benchmark/build/reports/jmh/jmh-master.svg
  */
-

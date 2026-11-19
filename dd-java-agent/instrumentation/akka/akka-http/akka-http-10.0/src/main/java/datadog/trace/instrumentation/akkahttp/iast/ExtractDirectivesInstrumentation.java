@@ -48,15 +48,6 @@ public class ExtractDirectivesInstrumentation extends InstrumenterModule.Iast
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".helpers.TaintUriFunction",
-      packageName + ".helpers.TaintRequestFunction",
-      packageName + ".helpers.TaintRequestContextFunction",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     instrumentDirective(transformer, "extractUri", "TaintUriDirectiveAdvice");
     instrumentDirective(transformer, "extractRequest", "TaintRequestDirectiveAdvice");

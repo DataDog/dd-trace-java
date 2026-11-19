@@ -18,14 +18,14 @@ class ValidatingRequestContextDecorator implements RequestContext {
   private final RequestContext delegate
   private final TraceSegment traceSegment
 
-  ValidatingRequestContextDecorator(RequestContext delegate, TrackingSpanDecorator spiedAgentSpan, boolean useStrictTraceWrites) {
+  ValidatingRequestContextDecorator(RequestContext delegate, TrackingSpanDecorator spiedAgentSpan) {
     this.delegate = delegate
 
     def segment = delegate.getTraceSegment()
     this.traceSegment = new PreconditionCheckTraceSegment(
       segment, {
         ->
-        if (useStrictTraceWrites && spiedAgentSpan.localRootSpan.durationNano != 0) {
+        if (spiedAgentSpan.localRootSpan.durationNano != 0) {
           throw new AssertionError("Interaction with TraceSegment after root span has already finished: $spiedAgentSpan")
         }
       }

@@ -18,13 +18,16 @@ import datadog.trace.api.TraceConfig;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.internal.util.LongStringUtils;
+import datadog.trace.api.llmobs.LLMObsInternal;
 import datadog.trace.api.propagation.W3CTraceParent;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
+import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.core.DDSpanContext;
+import datadog.trace.core.propagation.PropagationTags.SamplingState;
+import datadog.trace.core.propagation.ptags.W3CTracestate;
 import java.util.Map;
-import java.util.TreeMap;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -66,25 +69,36 @@ class W3CHttpCodec {
     @Override
     public <C> void inject(
         final DDSpanContext context, final C carrier, final CarrierSetter<C> setter) {
-      injectTraceParent(context, carrier, setter);
-      injectTraceState(context, carrier, setter);
+      PropagationTags propagationTags = context.getPropagationTags();
+      SamplingState samplingState = propagationTags.samplingState();
+      injectTraceParent(context, samplingState, carrier, setter);
+      injectTraceState(context, propagationTags, samplingState, carrier, setter);
       injectBaggage(context, carrier, setter);
     }
 
-    private <C> void injectTraceParent(DDSpanContext context, C carrier, CarrierSetter<C> setter) {
+    private <C> void injectTraceParent(
+        DDSpanContext context, SamplingState samplingState, C carrier, CarrierSetter<C> setter) {
       String traceparent =
           W3CTraceParent.from(
-              context.getTraceId(), context.getSpanId(), context.getSamplingPriority() > 0);
+              context.getTraceId(), context.getSpanId(), samplingState.getSamplingPriority() > 0);
       setter.set(carrier, TRACE_PARENT_KEY, traceparent);
     }
 
-    private <C> void injectTraceState(DDSpanContext context, C carrier, CarrierSetter<C> setter) {
-      PropagationTags propagationTags = context.getPropagationTags();
+    private <C> void injectTraceState(
+        DDSpanContext context,
+        PropagationTags propagationTags,
+        SamplingState samplingState,
+        C carrier,
+        CarrierSetter<C> setter) {
       // Supply the injecting span's id for the W3C `p:` as a parameter rather than mutating it into
       // the (possibly trace-level, shared) tags — keeps transient per-injection identity out of
       // shared state, so concurrent sibling injects can't race on it.
       String tracestate =
-          propagationTags.headerValue(W3C, DDSpanId.toHexStringPadded(context.getSpanId()));
+          propagationTags.headerValue(
+              W3C,
+              DDSpanId.toHexStringPadded(context.getSpanId()),
+              LLMObsInternal.propagationValuesFor(context),
+              samplingState);
       if (tracestate != null && !tracestate.isEmpty()) {
         setter.set(carrier, TRACE_STATE_KEY, tracestate);
       }
@@ -106,7 +120,55 @@ class W3CHttpCodec {
 
   public static HttpCodec.Extractor newExtractor(
       Config config, Supplier<TraceConfig> traceConfigSupplier) {
-    return new TagContextExtractor(traceConfigSupplier, () -> new W3CContextInterpreter(config));
+    return new TraceContextExtractor(traceConfigSupplier, config);
+  }
+
+  /**
+   * Whether the trace context's priority, from the {@code traceparent} sampled flag, overrides the
+   * tracestate's own Datadog priority ({@code s}).
+   */
+  static boolean overridesTracestatePriority(int traceparentPriority, int tracestatePriority) {
+    return (traceparentPriority == SAMPLER_DROP && tracestatePriority > 0)
+        || (traceparentPriority == SAMPLER_KEEP && tracestatePriority <= 0)
+        || tracestatePriority == PrioritySampling.UNSET;
+  }
+
+  /** What merging a trace context into a context extracted before it reads from it. */
+  static final class TraceContextMerge {
+    final DDTraceId traceId;
+    final long spanId;
+    final W3CTracestate tracestate;
+
+    /** The traceparent priority when it overrides the tracestate's, otherwise UNSET. */
+    final int overridingPriority;
+
+    private TraceContextMerge(
+        DDTraceId traceId, long spanId, W3CTracestate tracestate, int overridingPriority) {
+      this.traceId = traceId;
+      this.spanId = spanId;
+      this.tracestate = tracestate;
+      this.overridingPriority = overridingPriority;
+    }
+  }
+
+  static final class TraceContextExtractor extends TagContextExtractor {
+    private TraceContextExtractor(Supplier<TraceConfig> traceConfigSupplier, Config config) {
+      super(traceConfigSupplier, () -> new W3CContextInterpreter(config));
+    }
+
+    /**
+     * Extracts only what merging into another extracted context needs, without building propagation
+     * tags. Returns null where {@link #extract} wouldn't return an {@link ExtractedContext}.
+     */
+    <C> TraceContextMerge extractForMerge(
+        final C carrier, final AgentPropagation.ContextVisitor<C> getter) {
+      return ((W3CContextInterpreter) interpret(carrier, getter)).buildForMerge();
+    }
+
+    /** Builds the whole context that {@link #extractForMerge} last returned the merge parts of. */
+    TagContext completeExtraction() {
+      return interpreter().build();
+    }
   }
 
   private static class W3CContextInterpreter extends ContextInterpreter {
@@ -150,9 +212,7 @@ class W3CHttpCodec {
       char first = Character.toLowerCase(key.charAt(0));
       switch (first) {
         case 'f':
-          if (handledForwarding(key, value)) {
-            return true;
-          }
+          handledForwarding(key, value);
           break;
         case 'o':
           lowerCaseKey = toLowerCase(key);
@@ -170,14 +230,10 @@ class W3CHttpCodec {
           }
           break;
         case 'u':
-          if (handledUserAgent(key, value)) {
-            return true;
-          }
+          handledUserAgent(key, value);
           break;
         case 'x':
-          if (handledXForwarding(key, value)) {
-            return true;
-          }
+          handledXForwarding(key, value);
           break;
         default:
       }
@@ -194,13 +250,7 @@ class W3CHttpCodec {
                 endToEndStartTime = extractEndToEndStartTime(firstHeaderValue(value));
                 break;
               case OT_BAGGAGE:
-                {
-                  if (baggage.isEmpty()) {
-                    baggage = new TreeMap<>();
-                  }
-                  baggage.put(
-                      lowerCaseKey.substring(OT_BAGGAGE_PREFIX.length()), HttpCodec.decode(value));
-                }
+                addBaggageItem(lowerCaseKey.substring(OT_BAGGAGE_PREFIX.length()), value);
                 break;
               default:
             }
@@ -211,9 +261,7 @@ class W3CHttpCodec {
           return false;
         }
       } else {
-        if (handledIpHeaders(key, value)) {
-          return true;
-        }
+        handledIpHeaders(key, value);
         if (handleTags(key, value)) {
           return true;
         }
@@ -261,18 +309,9 @@ class W3CHttpCodec {
      */
     @Override
     protected TagContext build() {
-      // If there is neither a traceparent nor a tracestate header, then ignore this
-      if (traceparentHeader == null && tracestateHeader == null) {
-        onlyTagContext();
-      }
-      if (valid && fullContext) {
+      if (canBuildFullContext()) {
         try {
-          if (traceparentHeader == null && tracestateHeader != null) {
-            throw new IllegalStateException(
-                "Found no traceparent header but tracestate header '" + tracestateHeader + "'");
-          }
-          // Now we know that we have at least a traceparent header
-          parseTraceParentHeader(traceparentHeader);
+          parseRequiredTraceParent();
           parseTraceStateHeader(tracestateHeader);
         } catch (RuntimeException e) {
           onlyTagContext();
@@ -280,6 +319,23 @@ class W3CHttpCodec {
         }
       }
       return super.build();
+    }
+
+    /** Whether a full context may be built, which needs a traceparent or tracestate header. */
+    private boolean canBuildFullContext() {
+      if (traceparentHeader == null && tracestateHeader == null) {
+        onlyTagContext();
+      }
+      return valid && fullContext;
+    }
+
+    /** Parses the traceparent header, which a tracestate header is invalid without. */
+    private void parseRequiredTraceParent() {
+      if (traceparentHeader == null) {
+        throw new IllegalStateException(
+            "Found no traceparent header but tracestate header '" + tracestateHeader + "'");
+      }
+      parseTraceParentHeader(traceparentHeader);
     }
 
     void parseTraceParentHeader(String tp) {
@@ -317,6 +373,26 @@ class W3CHttpCodec {
       }
     }
 
+    /** Like {@link #build()}, but for {@link TraceContextExtractor#extractForMerge}. */
+    TraceContextMerge buildForMerge() {
+      if (!canBuildFullContext()) {
+        return null;
+      }
+      W3CTracestate tracestate;
+      try {
+        parseRequiredTraceParent();
+        tracestate = W3CTracestate.parse(tracestateHeader);
+      } catch (RuntimeException e) {
+        log.debug("Exception when building context", e);
+        return null;
+      }
+      int overridingPriority =
+          overridesTracestatePriority(samplingPriority, tracestate.getSamplingPriority())
+              ? samplingPriority
+              : PrioritySampling.UNSET;
+      return new TraceContextMerge(traceId, spanId, tracestate, overridingPriority);
+    }
+
     void parseTraceStateHeader(String tracestate) {
       if (tracestate == null || tracestate.isEmpty()) {
         this.propagationTags = this.propagationTagsFactory.empty();
@@ -326,9 +402,7 @@ class W3CHttpCodec {
       this.lastParentId = this.propagationTags.getLastParentId();
       int ptagsPriority = this.propagationTags.getSamplingPriority();
       int contextPriority = this.samplingPriority;
-      if ((contextPriority == SAMPLER_DROP && ptagsPriority > 0)
-          || (contextPriority == SAMPLER_KEEP && ptagsPriority <= 0)
-          || ptagsPriority == PrioritySampling.UNSET) {
+      if (overridesTracestatePriority(contextPriority, ptagsPriority)) {
         // Override Datadog sampling priority with W3C one
         this.propagationTags.updateTraceSamplingPriority(
             contextPriority, SamplingMechanism.EXTERNAL_OVERRIDE);

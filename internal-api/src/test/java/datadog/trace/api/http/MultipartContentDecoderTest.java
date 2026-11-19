@@ -111,6 +111,54 @@ public class MultipartContentDecoderTest {
     assertEquals(expectedCharset, MultipartContentDecoder.extractCharset(contentType).name());
   }
 
+  @ParameterizedTest
+  @ValueSource(
+      strings = {
+        "text/plain;\tcharset=ISO-8859-1",
+        "text/plain; \tcharset=ISO-8859-1",
+        "text/plain;\t charset=ISO-8859-1"
+      })
+  void extractCharsetAcceptsTabAsParameterBoundary(String contentType) {
+    // RFC 7230 optional whitespace (OWS) allows both space and horizontal tab before a parameter
+    assertEquals("ISO-8859-1", MultipartContentDecoder.extractCharset(contentType).name());
+  }
+
+  @ParameterizedTest
+  @ValueSource(
+      strings = {
+        "text/plain; charset = ISO-8859-1",
+        "text/plain; charset =ISO-8859-1",
+        "text/plain; charset= ISO-8859-1"
+      })
+  void extractCharsetAcceptsWhitespaceAroundEqualsSign(String contentType) {
+    assertEquals("ISO-8859-1", MultipartContentDecoder.extractCharset(contentType).name());
+  }
+
+  @Test
+  void extractCharsetContinuesSearchAfterInvalidCharsetValue() {
+    // The first "charset" parameter is invalid; a later, valid one must still be found.
+    assertEquals(
+        "UTF-8",
+        MultipartContentDecoder.extractCharset("text/plain; charset=NOTACHARSET; charset=UTF-8")
+            .name());
+  }
+
+  @Test
+  void extractCharsetIgnoresCharsetLookingSubstringInsideQuotedParameterValue() {
+    // The quoted boundary value contains "charset=" but must be treated as opaque text, not a
+    // real charset parameter; the actual charset= that follows must be used.
+    assertEquals(
+        "UTF-8",
+        MultipartContentDecoder.extractCharset(
+                "text/plain; boundary=\"charset=oops\"; charset=UTF-8")
+            .name());
+  }
+
+  @Test
+  void extractCharsetReturnsNullWhenOnlyMatchIsInsideQuotedParameterValue() {
+    assertNull(MultipartContentDecoder.extractCharset("text/plain; boundary=\"charset=oops\""));
+  }
+
   @Test
   void extractCharsetIgnoresSubstringMatchInParameterName() {
     // "xcharset=UTF-16" must not match; the real "charset=UTF-8" that follows must be used

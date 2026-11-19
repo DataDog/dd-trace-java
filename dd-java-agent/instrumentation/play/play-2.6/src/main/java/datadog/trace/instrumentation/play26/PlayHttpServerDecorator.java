@@ -153,14 +153,21 @@ public class PlayHttpServerDecorator
             PATH_CACHE.computeIfAbsent(
                 defOption.get().path(), p -> addMissingSlash(p, request.path()));
         HTTP_RESOURCE_DECORATOR.withRoute(span, request.method(), path, true);
+        if (OTEL_SEMANTICS) {
+          final AgentSpan serverSpan = getHttpServerSpan(span);
+          if (serverSpan != null && serverSpan != span) {
+            // Sampling may run inside the action, so set the server route now.
+            HTTP_RESOURCE_DECORATOR.withRoute(serverSpan, request.method(), path, true);
+          }
+        }
         dispatchRoute(span, path);
       }
     }
   }
 
   /**
-   * Play does not set the http.route in the local root span so we need to store it in the context
-   * for API security
+   * Store the route in the context for API security, including when legacy semantics leave it only
+   * on the Play span.
    */
   private void dispatchRoute(final AgentSpan span, final CharSequence route) {
     try {
