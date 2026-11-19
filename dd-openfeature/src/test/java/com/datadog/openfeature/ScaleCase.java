@@ -1,5 +1,11 @@
 package com.datadog.openfeature;
 
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.DO_LOG;
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EVALUATION_FEATURE_PREFIX;
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EXPOSURE_FEATURE_PREFIX;
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.FEATURE_PREFIX;
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.SPLIT_SERIAL_ID;
+
 import dev.openfeature.sdk.EvaluationContext;
 import dev.openfeature.sdk.MutableContext;
 import dev.openfeature.sdk.ProviderEvaluation;
@@ -13,7 +19,8 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * One case of a scale suite of the shared FFE fixtures, with its expected value and reason.
+ * One case of a scale suite of the shared FFE fixtures, with its expected value and reason, and the
+ * selected {@code serialId}, {@code doLog}, and split features when the case expects them.
  *
  * <p>JSON values are compared by numeric value: a JSON integer can come back as an integer or as a
  * double, so that one check runs on every evaluator. {@code CanonicalFixtureTest} checks the types.
@@ -24,6 +31,10 @@ final class ScaleCase {
   private final Object defaultValue;
   private final Object expectedValue;
   private final String expectedReason;
+  private final boolean checksSerialId;
+  private final Number expectedSerialId;
+  private final Boolean expectedDoLog;
+  private final Map<?, ?> expectedFeatures;
   private final String targetingKey;
   private final EvaluationContext context;
 
@@ -31,13 +42,18 @@ final class ScaleCase {
     this.flag = (String) json.get("flag");
     this.variationType = (String) json.get("variationType");
     final Map<?, ?> result = (Map<?, ?>) json.get("result");
-    if (!Arrays.asList("value", "reason").containsAll(result.keySet())) {
+    if (!Arrays.asList("value", "reason", "serialId", "doLog", "features")
+        .containsAll(result.keySet())) {
       throw new IllegalStateException(
           "Unhandled expectations for " + json.get("flag") + ": " + result.keySet());
     }
     this.defaultValue = typed(json.get("defaultValue"));
     this.expectedValue = result.get("value");
     this.expectedReason = (String) result.get("reason");
+    this.checksSerialId = result.containsKey("serialId");
+    this.expectedSerialId = (Number) result.get("serialId");
+    this.expectedDoLog = (Boolean) result.get("doLog");
+    this.expectedFeatures = (Map<?, ?>) result.get("features");
     this.targetingKey = (String) json.get("targetingKey");
     final MutableContext context =
         new MutableContext(Value.objectToValue(json.get("attributes")).asStructure().asMap());
@@ -89,6 +105,51 @@ final class ScaleCase {
               + " "
               + abbreviate(actual));
     }
+    final Map<String, Object> metadata = details.getFlagMetadata().asUnmodifiableMap();
+    if (checksSerialId) {
+      final Object serialId = metadata.get(SPLIT_SERIAL_ID);
+      if (expectedSerialId == null ? serialId != null : !sameValue(expectedSerialId, serialId)) {
+        throw unexpectedMetadata("serialId", expectedSerialId, serialId);
+      }
+    }
+    // Without span enrichment, as the scale suites run, an allocation that does not log carries no
+    // doLog key and no serial ID, so a missing doLog means false.
+    final Object doLog = metadata.getOrDefault(DO_LOG, false);
+    if (expectedDoLog != null && !expectedDoLog.equals(doLog)) {
+      throw unexpectedMetadata("doLog", expectedDoLog, doLog);
+    }
+    if (expectedFeatures != null) {
+      final Map<String, Object> features = new LinkedHashMap<>();
+      features.put(
+          "HOOK",
+          SplitFeatureMetadata.featuresWithPrefix(details.getFlagMetadata(), FEATURE_PREFIX));
+      features.put(
+          "EXPOSURE",
+          SplitFeatureMetadata.featuresWithPrefix(
+              details.getFlagMetadata(), EXPOSURE_FEATURE_PREFIX));
+      features.put(
+          "EVALUATION",
+          SplitFeatureMetadata.featuresWithPrefix(
+              details.getFlagMetadata(), EVALUATION_FEATURE_PREFIX));
+      if (!sameValue(expectedFeatures, features)) {
+        throw unexpectedMetadata("features", expectedFeatures, features);
+      }
+    }
+  }
+
+  private IllegalStateException unexpectedMetadata(
+      final String field, final Object expected, final Object actual) {
+    return new IllegalStateException(
+        "Unexpected "
+            + field
+            + " for "
+            + flag
+            + " ("
+            + targetingKey
+            + "): expected "
+            + abbreviate(expected)
+            + ", got "
+            + abbreviate(actual));
   }
 
   EvaluationContext context() {

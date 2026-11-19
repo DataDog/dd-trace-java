@@ -30,15 +30,16 @@ import org.openjdk.jmh.annotations.Warmup;
  * dimensions are listed in {@code evaluation-suites/scale/AGENTS.md} of the fixtures.
  *
  * <p>Each operation evaluates a case of the selected case file through the provider. With {@code
- * index=all}, the operations go through the cases of the file in turn, so a row is the unweighted
- * mean over every case of the file, and its slowest case dominates it. Select one case to measure
- * one shape: the setup prints the index of each case.
+ * index=all}, each benchmark thread goes through the cases of the file in turn, so a row is the
+ * unweighted mean over every case of the file, and its slowest case dominates it. Select one case
+ * to measure one shape: the setup prints the index of each case.
  *
  * <p>The setup evaluates every case once and the teardown again after the measurement. Both fail if
- * a value or reason differs from the expected one, or if an evaluation reports an error, so a run
- * that resolves a case wrongly fails instead of reporting a number. JSON values are compared by
- * numeric value: a JSON integer can come back as an integer or as a double. This check guards the
- * measurement and is not the conformance check: {@code CanonicalFixtureTest} checks the types.
+ * a value, reason, or expected selection metadata (serial ID, {@code doLog}, split features)
+ * differs from the expected one, or if an evaluation reports an error, so a run that resolves a
+ * case wrongly fails instead of reporting a number. JSON values are compared by numeric value: a
+ * JSON integer can come back as an integer or as a double. This check guards the measurement and is
+ * not the conformance check: {@code CanonicalFixtureTest} checks the types.
  *
  * <p>The provider is called directly: the OpenFeature client, its hooks and exposure logging are
  * not measured. {@code evaluate} passes a reused context. {@code evaluateLayered} passes a fresh
@@ -66,7 +67,8 @@ public class ScaleSuiteBenchmark {
 
   /**
    * A case file, as {@code <suite>/<file>} without the {@code .json} extension. {@code
-   * ScaleSuiteTest} fails when this list misses a case file of the fixtures.
+   * ScaleSuiteTest} reads this list and fails unless it names every case file of the fixtures, in
+   * sorted order.
    */
   @Param({
     "scale/flags",
@@ -95,7 +97,18 @@ public class ScaleSuiteBenchmark {
 
   private Provider provider;
   private ScaleCase[] scaleCases;
-  private int next;
+
+  /** The position of one benchmark thread in the cases, so threads share no mutable state. */
+  @State(Scope.Thread)
+  public static class Cursor {
+    private int next;
+
+    ScaleCase next(final ScaleCase[] scaleCases) {
+      final ScaleCase scaleCase = scaleCases[next];
+      next = (next + 1 == scaleCases.length) ? 0 : next + 1;
+      return scaleCase;
+    }
+  }
 
   @Setup(Level.Trial)
   @SuppressForbidden
@@ -124,17 +137,14 @@ public class ScaleSuiteBenchmark {
   }
 
   @Benchmark
-  public ProviderEvaluation<?> evaluate() {
-    final ScaleCase scaleCase = scaleCases[next];
-    next = next + 1 == scaleCases.length ? 0 : next + 1;
-    return scaleCase.evaluate(provider);
+  public ProviderEvaluation<?> evaluate(final Cursor cursor) {
+    return cursor.next(scaleCases).evaluate(provider);
   }
 
   /** As {@link #evaluate}, with the fresh layered context that the OpenFeature client builds. */
   @Benchmark
-  public ProviderEvaluation<?> evaluateLayered() {
-    final ScaleCase scaleCase = scaleCases[next];
-    next = next + 1 == scaleCases.length ? 0 : next + 1;
+  public ProviderEvaluation<?> evaluateLayered(final Cursor cursor) {
+    final ScaleCase scaleCase = cursor.next(scaleCases);
     return scaleCase.evaluate(
         provider,
         new LayeredEvaluationContext(
