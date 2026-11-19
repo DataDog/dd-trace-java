@@ -84,13 +84,12 @@ final class EvaluationScope {
       // A condition without an attribute is read as before, but never kept.
       return resolve(name);
     }
-    final String first = firstName;
-    if (first == name || (first != null && first.equals(name))) {
+    // String.equals compares the references first, so the same name returns at once.
+    if (name.equals(firstName)) {
       return firstValue == NULL ? null : firstValue;
     }
     for (int i = 0; i < size; i++) {
-      final String cached = names[i];
-      if (cached == name || cached.equals(name)) {
+      if (name.equals(names[i])) {
         final Object value = values[i];
         return value == NULL ? null : value;
       }
