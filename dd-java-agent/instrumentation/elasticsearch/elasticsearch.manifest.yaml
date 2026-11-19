@@ -1,8 +1,7 @@
 _v: 1
 name: elasticsearch
 display_name: Elasticsearch
-description: Instruments Elasticsearch search, document and administrative operations through REST and transport
-  clients.
+description: Instruments Elasticsearch REST and transport client requests.
 packages:
 - name: org.elasticsearch.client:elasticsearch-rest-client
 - name: org.elasticsearch.client:rest
@@ -12,4 +11,4 @@ category:
 - db.client
 systems:
 - elasticsearch
-creation_date: '2017-05-23'
+creation_date: '2018-05-18'

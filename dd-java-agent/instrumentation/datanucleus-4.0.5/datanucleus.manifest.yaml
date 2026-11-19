@@ -1,8 +1,7 @@
 _v: 1
 name: datanucleus
-display_name: DataNucleus Core
-description: Instruments DataNucleus entity persistence and retrieval, query execution and deletion, and transaction
-  commits and rollbacks.
+display_name: DataNucleus
+description: Instruments DataNucleus JDO persistence operations, queries, and transaction commits and rollbacks.
 packages:
 - name: org.datanucleus:datanucleus-api-jdo
 - name: org.datanucleus:datanucleus-core

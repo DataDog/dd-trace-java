@@ -1,7 +1,8 @@
 _v: 1
 name: cassandra
-display_name: DataStax Java driver for Apache Cassandra(R) - core
-description: Instruments synchronous and asynchronous Cassandra query execution through DataStax driver sessions.
+display_name: DataStax Java Driver for Apache Cassandra
+description: Instruments synchronous and asynchronous CQL statement execution through the DataStax Java drivers for Apache
+  Cassandra.
 packages:
 - name: com.datastax.cassandra:cassandra-driver-core
 - name: com.datastax.oss:java-driver-core

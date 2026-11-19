@@ -1,7 +1,8 @@
 _v: 1
 name: jdbc-datasource
 display_name: JDBC DataSource
-description: Instruments JDBC data-source connection acquisition and HikariCP connection-pool attribution.
+description: Instruments JDBC DataSource connection acquisition, creating spans for getConnection calls and associating Hikari
+  pool names with JDBC connections.
 packages: []
 category:
 - db.client

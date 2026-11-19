@@ -1,8 +1,8 @@
 _v: 1
 name: r2dbc
-display_name: Reactive Relational Database Connectivity - SPI
-description: Instruments reactive SQL query and batch execution through R2DBC, with Database Monitoring SQL comment
-  injection.
+display_name: R2DBC
+description: Instruments reactive database query execution through R2DBC and injects Database Monitoring SQL comments when
+  enabled.
 packages:
 - name: io.r2dbc:r2dbc-spi
 category:
