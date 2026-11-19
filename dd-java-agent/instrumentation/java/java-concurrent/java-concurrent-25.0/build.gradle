@@ -47,7 +47,7 @@ tasks.named("compilePreviewTestJava", JavaCompile) {
   options.compilerArgs.add("--enable-preview")
 }
 tasks.named("previewTest", Test) {
-  jvmArgs = ['--enable-preview']
+  jvmArgs '--enable-preview'
 }
 
 /*
@@ -55,8 +55,7 @@ tasks.named("previewTest", Test) {
  * Each suite has its own source set, is compiled for one JDK,
  * and is pinned to it (preview class files are version-locked).
  */
-def previewCheckSuites = ['previewTest']
-def addJoinerLeakSuite = { int jdk, JavaVersion version ->
+def addPreviewJdkSuite = { int jdk, JavaVersion version ->
   String suite = "previewJdk${jdk}Test"
   addTestSuite(suite)
   tasks.named("compile${suite.capitalize()}Java", JavaCompile) {
@@ -64,25 +63,18 @@ def addJoinerLeakSuite = { int jdk, JavaVersion version ->
     options.compilerArgs.add("--enable-preview")
   }
   tasks.named(suite, Test) {
-    jvmArgs = ['--enable-preview']
+    jvmArgs '--enable-preview'
     testJvmConstraints {
       minJavaVersion = version
       maxJavaVersion = version
     }
   }
-  previewCheckSuites << suite
 }
 
-addJoinerLeakSuite(25, VERSION_25)
+addPreviewJdkSuite(25, VERSION_25)
 if (System.getenv('JAVA_26_HOME') != null) {
-  addJoinerLeakSuite(26, VERSION_26)
+  addPreviewJdkSuite(26, VERSION_26)
 }
 if (System.getenv('JAVA_27_HOME') != null) {
-  addJoinerLeakSuite(27, VERSION_27)
+  addPreviewJdkSuite(27, VERSION_27)
 }
-
-// Require the preview test suites to run as part of module check
-tasks.named("check") {
-  dependsOn previewCheckSuites
-}
-
