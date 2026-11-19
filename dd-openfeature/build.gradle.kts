@@ -1,5 +1,6 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import datadog.gradle.configureCompiler
+import datadog.gradle.plugin.jardiff.JardiffTask
 import datadog.gradle.plugin.testJvmConstraints.TestJvmConstraintsExtension
 import me.champeau.gradle.japicmp.JapicmpTask
 import java.util.zip.ZipFile
@@ -132,6 +133,11 @@ val toolboxJar = tasks.register<ShadowJar>("toolboxJar") {
     attributes("Automatic-Module-Name" to "com.datadog.openfeature")
   }
   duplicatesStrategy = DuplicatesStrategy.FAIL
+}
+// The reproducible-build check (jardiff) compares the published jar: the shaded one, not the
+// unbundled plain jar it would pick without the Shadow plugin.
+tasks.named<JardiffTask>("compareToReferenceJar") {
+  candidateJar.set(toolboxJar.flatMap { it.archiveFile })
 }
 listOf("apiElements", "runtimeElements").forEach { name ->
   configurations.named(name) {
