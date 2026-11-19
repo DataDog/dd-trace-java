@@ -658,13 +658,8 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
   }
 
   @Override
-  public boolean mayHaveAnyTag(TagLookup lookup) {
-    return context.mayHaveAnyTag(lookup);
-  }
-
-  @Override
-  public int unsafeGetTagStrings(TagLookup lookup, String[] out) {
-    return context.unsafeGetTagStrings(lookup, out);
+  public String[] unsafeGetTagStrings(TagLookup lookup) {
+    return context.unsafeGetTagStrings(lookup);
   }
 
   @Override

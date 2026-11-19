@@ -116,6 +116,11 @@ public final class TagLookup {
     return customIndexes.length != 0;
   }
 
+  /** Whether any name falls back to a direction-scoped id. */
+  public boolean hasDirectional() {
+    return hasDirectional;
+  }
+
   /** The number of custom names. */
   public int customCount() {
     return customIndexes.length;

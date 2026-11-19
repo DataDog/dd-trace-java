@@ -2,15 +2,13 @@ package datadog.trace.core;
 
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import datadog.trace.api.TagLookup;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.common.writer.ListWriter;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
 /** The span's bulk tag read agrees with reading each name through unsafeGetTag. */
@@ -67,22 +65,38 @@ class TagLookupSpanTest extends DDCoreJavaSpecification {
         expectedFound++;
       }
     }
-    String[] actual = new String[LOOKUP.size()];
-    assertEquals(expectedFound, context.unsafeGetTagStrings(LOOKUP, actual));
-    assertArrayEquals(expected, actual);
+    String[] actual = context.unsafeGetTagStrings(LOOKUP);
+    assertArrayEquals(expectedFound == 0 ? null : expected, actual);
     span.finish();
   }
 
-  @Test
-  void aSpanWithNoneOfTheTagsHasNothingToRead() {
-    AgentSpan span = tracer.buildSpan("datadog", "op").start();
-    DDSpanContext context = (DDSpanContext) span.spanContext();
-    String[] out = new String[LOOKUP.size()];
-    assertEquals(0, context.unsafeGetTagStrings(LOOKUP, out));
-    if (!context.mayHaveAnyTag(TagLookup.of("peer.service", "db.instance"))) {
-      // a false is only possible when the span really holds none of them
-      assertFalse(context.unsafeGetTag("peer.service") != null);
+  /**
+   * Spans holding none of the lookup's tags read nothing and allocate nothing, even when they hold
+   * custom tags (the Kafka consume shape) or known tags whose slots collide with the lookup's.
+   */
+  @TableTest({
+    "scenario                | kind    ",
+    "kafka consume, custom   | consumer",
+    "http server, known tags | server  ",
+    "no tags                 |         "
+  })
+  void aSpanWithNoneOfTheTagsAllocatesNothing(String scenario, String kind) {
+    AgentSpan span =
+        kind == null
+            ? tracer.buildSpan("datadog", "op").start()
+            : tracer.buildSpan("datadog", "op").withTag(SPAN_KIND, kind).start();
+    if ("consumer".equals(kind)) {
+      span.setTag("component", "java-kafka");
+      span.setTag("kafka.partition", 0);
+      span.setTag("kafka.offset", 123456L);
+    } else if ("server".equals(kind)) {
+      span.setTag("component", "tomcat-server");
+      span.setTag("http.method", "GET");
+      span.setTag("http.route", "/owners");
+      span.setTag("http.status_code", 200);
+      span.setTag("http.url", "http://localhost:8080/owners?lastName=");
     }
+    assertNull(((DDSpanContext) span.spanContext()).unsafeGetTagStrings(LOOKUP));
     span.finish();
   }
 }

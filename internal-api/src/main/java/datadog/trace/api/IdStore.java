@@ -155,23 +155,27 @@ public abstract class IdStore {
 
   /**
    * Bulk read: for each of {@code lookup}'s known tags this store holds, writes its value's string
-   * form to the matching index of {@code out} (same order as the lookup's names), leaving the other
-   * indexes untouched. Custom names and direction-scoped fallbacks are the caller's (see {@link
-   * TagLookup}). Returns how many it wrote.
+   * form to the matching index of an array parallel to the lookup's names, allocated on the first
+   * hit (or {@code out}, if non-null), leaving the other indexes untouched. Custom names and
+   * direction-scoped fallbacks are the caller's (see {@link TagLookup}). Returns the array, or
+   * {@code out} unchanged when nothing matched, so a read that finds none of the tags allocates
+   * nothing.
    */
-  public int loadStrings(TagLookup lookup, String[] out) {
+  @Nullable
+  public String[] loadStrings(TagLookup lookup, @Nullable String[] out) {
     long[] ids = lookup.ids;
-    int found = 0;
     for (int i = 0; i < ids.length; i++) {
       if (ids[i] != 0) {
         Object value = load(ids[i]);
         if (value != null) {
+          if (out == null) {
+            out = new String[ids.length];
+          }
           out[i] = value.toString();
-          found++;
         }
       }
     }
-    return found;
+    return out;
   }
 
   /**

@@ -658,17 +658,12 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
   }
 
   /**
-   * One bulk read per span over the schema's prebuilt lookup, instead of a lookup per name: a span
-   * that can't hold any of the tags (a mask test on the dense store) costs no allocation and no
-   * per-name work. Returns null when none of the tags are set.
+   * One bulk read per span over the schema's prebuilt lookup, instead of a lookup per name. The
+   * values array is allocated only when a tag is found, so a span holding none of them allocates
+   * nothing. Returns null when none of the tags are set.
    */
   private static String[] captureTagValues(CoreSpan<?> span, TagLookup lookup) {
-    int n = lookup.size();
-    if (n == 0 || !span.mayHaveAnyTag(lookup)) {
-      return null;
-    }
-    String[] values = new String[n];
-    return span.unsafeGetTagStrings(lookup, values) == 0 ? null : values;
+    return lookup.size() == 0 ? null : span.unsafeGetTagStrings(lookup);
   }
 
   private static boolean isSynthetic(CoreSpan<?> span) {
