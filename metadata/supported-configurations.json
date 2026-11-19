@@ -1208,7 +1208,7 @@
       {
         "version": "A",
         "type": "int",
-        "default": "1000",
+        "default": "500",
         "aliases": []
       }
     ],
