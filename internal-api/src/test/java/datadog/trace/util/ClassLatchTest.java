@@ -300,6 +300,30 @@ class ClassLatchTest {
             new AbstractMethodError(name + ".Inner.getClientInfo()Ljava/util/Properties;"),
             String.class,
             "getClientInfo"));
+    // some HotSpot call paths report "Method <internal class name>.<method><descriptor> is
+    // abstract"
+    String internal = name.replace('.', '/');
+    assertTrue(
+        ClassLatch.isNamedIn(
+            new AbstractMethodError(
+                "Method " + internal + ".getClientInfo()Ljava/util/Properties; is abstract"),
+            String.class,
+            "getClientInfo"));
+    assertFalse(
+        ClassLatch.isNamedIn(
+            new AbstractMethodError(
+                "Method " + internal + ".otherMethod()Ljava/util/Properties; is abstract"),
+            String.class,
+            "getClientInfo"));
+    assertFalse(
+        ClassLatch.isNamedIn(
+            new AbstractMethodError(
+                "Method " + internal + "Builder.getClientInfo()Ljava/util/Properties; is abstract"),
+            String.class,
+            "getClientInfo"));
+    assertFalse(
+        ClassLatch.isNamedIn(
+            new AbstractMethodError("Method " + internal + "."), String.class, "getClientInfo"));
     assertFalse(ClassLatch.isNamedIn(new AbstractMethodError(name), String.class, "getClientInfo"));
     assertFalse(
         ClassLatch.isNamedIn(new AbstractMethodError(name + "."), String.class, "getClientInfo"));
