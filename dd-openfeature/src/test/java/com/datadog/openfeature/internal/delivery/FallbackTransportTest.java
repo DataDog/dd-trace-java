@@ -11,10 +11,15 @@ import static org.mockito.Mockito.verify;
 import com.datadog.openfeature.internal.bridge.v1.EventProxyUnavailableException;
 import com.datadog.openfeature.internal.bridge.v1.EventTransport;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.Collections;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class FallbackTransportTest {
   private static final byte[] PAYLOAD = "{}".getBytes(UTF_8);
+  private static final List<ByteBuffer> CHUNKS =
+      Collections.singletonList(ByteBuffer.wrap(PAYLOAD));
 
   private final EventTransport proxy = mock(EventTransport.class);
   private final EventTransport direct = mock(EventTransport.class);
@@ -52,5 +57,39 @@ class FallbackTransportTest {
 
     verify(this.proxy, times(1)).post("exposures", PAYLOAD);
     verify(this.direct, times(1)).post("exposures", PAYLOAD);
+  }
+
+  @Test
+  void postsChunksThroughTheProxy() throws IOException {
+    this.transport.post("exposures", CHUNKS);
+
+    verify(this.proxy).post("exposures", CHUNKS);
+    verify(this.direct, never()).post("exposures", CHUNKS);
+  }
+
+  @Test
+  void switchesChunksToDirectIntakeForGoodWhenTheProxyIsUnavailable() throws IOException {
+    doThrow(new EventProxyUnavailableException("unavailable"))
+        .when(this.proxy)
+        .post("exposures", CHUNKS);
+
+    this.transport.post("exposures", CHUNKS);
+    this.transport.post("exposures", CHUNKS);
+
+    verify(this.proxy, times(1)).post("exposures", CHUNKS);
+    verify(this.direct, times(2)).post("exposures", CHUNKS);
+  }
+
+  @Test
+  void switchesChunksToDirectIntakeWithoutReplayingAmbiguousProxyFailures() throws IOException {
+    doThrow(new IOException("timeout")).when(this.proxy).post("exposures", CHUNKS);
+
+    assertThrows(IOException.class, () -> this.transport.post("exposures", CHUNKS));
+    verify(this.direct, never()).post("exposures", CHUNKS);
+
+    this.transport.post("exposures", CHUNKS);
+
+    verify(this.proxy, times(1)).post("exposures", CHUNKS);
+    verify(this.direct, times(1)).post("exposures", CHUNKS);
   }
 }
