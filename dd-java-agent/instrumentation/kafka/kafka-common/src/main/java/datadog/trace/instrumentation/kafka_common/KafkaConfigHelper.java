@@ -103,27 +103,25 @@ public class KafkaConfigHelper {
   /** Store a consumer config to be reported once the cluster ID is known from metadata. */
   public static void storePendingConsumerConfig(
       MetadataState state, String consumerGroup, ConsumerConfig consumerConfig) {
-    storePendingConsumerConfig(state, consumerGroup, consumerConfig, null);
-  }
-
-  /** Store a consumer config the caller already copied from a raw map. */
-  public static void storePendingConsumerConfig(
-      MetadataState state, String consumerGroup, Map<String, String> config) {
-    storePendingConsumerConfig(state, consumerGroup, null, config);
-  }
-
-  /** Uses {@code config} when set, otherwise {@code clientConfig}. */
-  private static void storePendingConsumerConfig(
-      MetadataState state,
-      String consumerGroup,
-      ConsumerConfig clientConfig,
-      Map<String, String> config) {
-    String group = consumerGroup != null ? consumerGroup : "";
     state.setPendingConfig(
-        config == null
-            ? new PendingConfig("kafka_consumer", group, clientConfig)
-            : new PendingConfig("kafka_consumer", group, config));
+        new PendingConfig("kafka_consumer", groupOrEmpty(consumerGroup), consumerConfig));
     log.debug("Stored pending consumer config (cluster ID not yet known)");
+  }
+
+  /**
+   * Store a raw consumer config map, converted only when reported, unless a config is already
+   * pending.
+   */
+  public static void storePendingConsumerConfigIfAbsent(
+      MetadataState state, String consumerGroup, Map<String, Object> rawConfig) {
+    if (state.setPendingConfigIfAbsent(
+        new PendingConfig("kafka_consumer", groupOrEmpty(consumerGroup), rawConfig))) {
+      log.debug("Stored pending raw consumer config (cluster ID not yet known)");
+    }
+  }
+
+  private static String groupOrEmpty(String consumerGroup) {
+    return consumerGroup != null ? consumerGroup : "";
   }
 
   public static boolean reportConsumerGroupMember(
@@ -161,7 +159,9 @@ public class KafkaConfigHelper {
     if (pending != null) {
       log.debug("Received cluster ID, reporting {} config", pending.type);
       Map<String, String> config =
-          pending.clientConfig != null ? extractClientConfig(pending.clientConfig) : pending.config;
+          pending.clientConfig != null
+              ? extractClientConfig(pending.clientConfig)
+              : extractConsumerConfigFromMap(pending.rawConfig);
       AgentTracer.get()
           .getDataStreamsMonitoring()
           .reportKafkaConfig(pending.type, clusterId, pending.consumerGroup, config);

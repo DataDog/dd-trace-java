@@ -208,10 +208,10 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
       MetadataState state =
           InstrumentationContext.get(Metadata.class, MetadataState.class)
               .getOrCreate(metadata, MetadataState::new);
-      KafkaConfigHelper.storePendingConsumerConfig(
-          state,
-          normalizedConsumerGroup,
-          KafkaConfigHelper.extractConsumerConfigFromMap(consumerConfig));
+      // Delegating to the ConsumerConfig constructor already stored that config; only Kafka 2.7.x,
+      // which lacks that constructor, stores the raw map
+      KafkaConfigHelper.storePendingConsumerConfigIfAbsent(
+          state, normalizedConsumerGroup, consumerConfig);
     }
 
     public static void muzzleCheck(ConsumerRecord record) {

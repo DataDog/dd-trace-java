@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.kafka_common;
 
-import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -15,8 +14,10 @@ import datadog.trace.api.datastreams.AgentDataStreamsMonitoring;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
+import org.apache.kafka.common.serialization.StringDeserializer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -68,10 +69,12 @@ class KafkaConfigHelperReportPendingConfigTest {
   }
 
   @Test
-  void rawMapConfigIsKeptPendingWhileOffAndReportedOnceWhenOn() {
+  void rawMapConfigIsKeptPendingWhileOffAndConvertedOnlyWhenReported() {
     MetadataState state = new MetadataState();
-    Map<String, String> config = singletonMap("group.id", "group-1");
-    KafkaConfigHelper.storePendingConsumerConfig(state, "group-1", config);
+    Map<String, Object> rawConfig = props("group.id", "group-1");
+    KafkaConfigHelper.storePendingConsumerConfigIfAbsent(state, "group-1", rawConfig);
+    // Not converted when stored, so later map changes are reported
+    rawConfig.put("ssl.key.password", "secret");
 
     KafkaConfigHelper.reportPendingConfig(state, "cluster-1");
     verify(dataStreams, never()).reportKafkaConfig(anyString(), anyString(), anyString(), any());
@@ -80,8 +83,39 @@ class KafkaConfigHelperReportPendingConfigTest {
     KafkaConfigHelper.reportPendingConfig(state, "cluster-1");
     KafkaConfigHelper.reportPendingConfig(state, "cluster-1");
 
+    Map<String, String> expected = new LinkedHashMap<>();
+    expected.put("group.id", "group-1");
+    expected.put("ssl.key.password", KafkaConfigHelper.MASKED_VALUE);
     verify(dataStreams, times(1))
-        .reportKafkaConfig("kafka_consumer", "cluster-1", "group-1", config);
+        .reportKafkaConfig("kafka_consumer", "cluster-1", "group-1", expected);
+  }
+
+  @Test
+  void rawMapConfigDoesNotReplaceAPendingConsumerConfig() {
+    MetadataState state = new MetadataState();
+    Map<String, Object> rawConfig =
+        props(
+            "bootstrap.servers",
+            "localhost:9092",
+            "group.id",
+            "group-1",
+            "key.deserializer",
+            StringDeserializer.class.getName(),
+            "value.deserializer",
+            StringDeserializer.class.getName());
+    ConsumerConfig consumerConfig = new ConsumerConfig(rawConfig);
+    KafkaConfigHelper.storePendingConsumerConfig(state, "group-1", consumerConfig);
+    KafkaConfigHelper.storePendingConsumerConfigIfAbsent(state, "group-1", rawConfig);
+
+    dataStreamsEnabled[0] = true;
+    KafkaConfigHelper.reportPendingConfig(state, "cluster-1");
+
+    verify(dataStreams, times(1))
+        .reportKafkaConfig(
+            "kafka_consumer",
+            "cluster-1",
+            "group-1",
+            KafkaConfigHelper.extractClientConfig(consumerConfig));
   }
 
   private static Map<String, Object> props(String... keyValues) {

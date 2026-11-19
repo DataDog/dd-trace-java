@@ -2,6 +2,7 @@ import static datadog.trace.api.datastreams.PathwayContext.PROPAGATION_KEY_BASE6
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.KAFKA_CLUSTER_ID;
 import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -36,6 +37,8 @@ class KafkaDataStreamsRemoteConfigForkedTest extends AbstractInstrumentationTest
 
   /** Frequent metadata updates, which report the pending client configs. */
   private static final String METADATA_MAX_AGE_MS = "500";
+
+  private static final String MUTATED_CLIENT_ID = "mutated-after-construction";
 
   private static DataStreamsRemoteConfigTracer dataStreams;
 
@@ -81,6 +84,8 @@ class KafkaDataStreamsRemoteConfigForkedTest extends AbstractInstrumentationTest
             new KafkaConsumer<>(
                 consumerProps, new StringDeserializer(), new StringDeserializer())) {
       consumer.assign(singletonList(new TopicPartition(TOPIC, 0)));
+      // The reported config is Kafka's ConsumerConfig, so later map changes don't show
+      consumerProps.put(ConsumerConfig.CLIENT_ID_CONFIG, MUTATED_CLIENT_ID);
 
       // data streams is off
       ConsumerRecord<String, String> offRecord = produceAndConsume(producer, consumer, "off");
@@ -100,6 +105,10 @@ class KafkaDataStreamsRemoteConfigForkedTest extends AbstractInstrumentationTest
           });
       // Configs captured while DSM was off are kept until a metadata update after the enable
       dataStreams.waitForKafkaConfigReports(() -> consumer.poll(100));
+      Map<String, String> consumerConfig = dataStreams.kafkaConfig("kafka_consumer");
+      // Defaults only appear in the ConsumerConfig, not in the caller's map
+      assertTrue(consumerConfig.containsKey(ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG));
+      assertNotEquals(MUTATED_CLIENT_ID, consumerConfig.get(ConsumerConfig.CLIENT_ID_CONFIG));
 
       // remote config disables data streams again
       dataStreams.toggleDataStreams(false);

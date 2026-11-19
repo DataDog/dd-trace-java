@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -150,6 +151,18 @@ public final class DataStreamsRemoteConfigTracer {
           }
           assertTrue(types.containsAll(Arrays.asList("kafka_producer", "kafka_consumer")));
         });
+  }
+
+  /** The first non-empty reported Kafka config of {@code type}, or null if none was reported. */
+  public Map<String, String> kafkaConfig(String type) {
+    for (StatsBucket bucket : dataStreamsWriter.getPayloads()) {
+      for (KafkaConfigReport report : bucket.getKafkaConfigs()) {
+        if (type.equals(report.getType()) && !report.getConfig().isEmpty()) {
+          return report.getConfig();
+        }
+      }
+    }
+    return null;
   }
 
   /** Waits for, then returns, the single written span named {@code operationName}. */
