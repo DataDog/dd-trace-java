@@ -23,7 +23,9 @@ public class BlackholeBuffer implements StreamingBuffer {
   }
 
   @Override
-  public void mark() {}
+  public boolean mark() {
+    return true;
+  }
 
   @Override
   public boolean flush() {
@@ -79,6 +81,9 @@ public class BlackholeBuffer implements StreamingBuffer {
   public void put(ByteBuffer buffer) {
     this.blackhole.consume(buffer);
   }
+
+  @Override
+  public void rewind() {}
 
   @Override
   public void reset() {}

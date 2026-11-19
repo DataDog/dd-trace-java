@@ -1,10 +1,13 @@
 package datadog.trace.instrumentation.jakarta3;
 
+import static datadog.trace.bootstrap.ContextStores.getContextStore;
+import static datadog.trace.bootstrap.ContextStores.getContextStoreId;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
 import datadog.trace.api.GenericClassValue;
 import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.ClassHierarchyIterable;
+import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -38,6 +41,13 @@ public class JakartaRsAnnotationsDecorator extends BaseDecorator {
   private static final ClassValue<ConcurrentHashMap<Method, Pair<CharSequence, CharSequence>>>
       RESOURCE_NAMES = GenericClassValue.constructing(ConcurrentHashMap.class);
 
+  private enum RouteState {
+    SUBRESOURCE
+  }
+
+  private static final ContextStore<Object, Object> ROUTE_STATES =
+      getContextStore(getContextStoreId(AgentSpan.class.getName(), RouteState.class.getName()));
+
   @Override
   protected String[] instrumentationNames() {
     return new String[0];
@@ -68,10 +78,24 @@ public class JakartaRsAnnotationsDecorator extends BaseDecorator {
     } else {
       span.setResourceName(DECORATE.spanNameForMethod(target, method));
 
-      if (parent == parent.getLocalRootSpan()) {
+      final AgentSpan localRoot = parent.getLocalRootSpan();
+      if (parent == localRoot) {
         parent.setTag(Tags.COMPONENT, "jakarta-rs");
         HTTP_RESOURCE_DECORATOR.withRoute(
             parent, httpMethodAndRoute.getLeft(), httpMethodAndRoute.getRight());
+      } else if (localRoot != null
+          && Tags.SPAN_KIND_SERVER.equals(parent.getTag(Tags.SPAN_KIND))
+          && "/".equals(localRoot.getTag(Tags.HTTP_ROUTE))
+          && httpMethodAndRoute.getRight().length() > 0) {
+        if (httpMethodAndRoute.getLeft() == null) {
+          // A locator returns before its subresource is dispatched. Its prefix is unavailable
+          // when decorating that subresource, so keep the fallback route for this request.
+          ROUTE_STATES.put(localRoot, RouteState.SUBRESOURCE);
+        } else if (ROUTE_STATES.get(localRoot) == null) {
+          // Refine a server handler's catch-all route, but not from a nested resource call.
+          HTTP_RESOURCE_DECORATOR.withRoute(
+              localRoot, httpMethodAndRoute.getLeft(), httpMethodAndRoute.getRight());
+        }
       }
     }
   }

@@ -13,11 +13,10 @@ smokeTestApp {
     artifactPath = 'libs/vertx-4.2-1.0.0-SNAPSHOT-fat.jar'
     sysProperty = 'datadog.smoketest.vertx.uberJar.path'
   }
-  projectJar('apiJar', project(':dd-trace-api'))
 }
 
 dependencies {
-  testImplementation project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests:smoke-test-common')
   testImplementation(testFixtures(project(":dd-smoke-tests:iast-util")))
   testImplementation project(':dd-smoke-tests:appsec')
 }

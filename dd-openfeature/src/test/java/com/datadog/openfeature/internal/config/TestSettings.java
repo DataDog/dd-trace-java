@@ -1,6 +1,6 @@
 package com.datadog.openfeature.internal.config;
 
-import com.datadog.openfeature.internal.bridge.AgentBridge;
+import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
 import java.util.HashMap;
 import java.util.Map;
 

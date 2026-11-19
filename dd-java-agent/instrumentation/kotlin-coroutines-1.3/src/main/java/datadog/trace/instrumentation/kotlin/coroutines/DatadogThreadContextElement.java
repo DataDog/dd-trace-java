@@ -31,12 +31,11 @@ public final class DatadogThreadContextElement
 
   /** Coroutines built by coroutineScope, withContext, etc. that their caller waits for. */
   private static final ClassValue<Boolean> SCOPED_COROUTINE =
-      GenericClassValue.of(
-          type ->
-              ScopeCoroutine.class.isAssignableFrom(type)
-                  // older timeout coroutines are scoped but don't extend ScopeCoroutine
-                  || (AbstractCoroutine.class.isAssignableFrom(type)
-                      && "kotlinx.coroutines.TimeoutCoroutine".equals(type.getName())));
+      GenericClassValue.of(type ->
+          ScopeCoroutine.class.isAssignableFrom(type)
+              // older timeout coroutines are scoped but don't extend ScopeCoroutine
+              || (AbstractCoroutine.class.isAssignableFrom(type)
+                  && "kotlinx.coroutines.TimeoutCoroutine".equals(type.getName())));
 
   /** null before the Datadog element, false after it, true once a later hook is found. */
   private static final Function2<Boolean, CoroutineContext.Element, Boolean> HAS_LATER_HOOK =
@@ -195,7 +194,12 @@ public final class DatadogThreadContextElement
   }
 
   public static void cancelDatadogContext(@Nonnull AbstractCoroutine<?> coroutine) {
-    DatadogThreadContextElement datadog = coroutine.getContext().get(DATADOG_KEY);
+    CoroutineContext coroutineContext = coroutine.getContext();
+    if (coroutineContext == null) {
+      // a cancelled parent can complete the coroutine before its constructor assigns the context
+      return;
+    }
+    DatadogThreadContextElement datadog = coroutineContext.get(DATADOG_KEY);
     if (datadog == null || datadog.owner != coroutine) {
       // scoped coroutines share their caller's element, but must not release its trace hold
       return;

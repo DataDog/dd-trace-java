@@ -1,8 +1,9 @@
 package com.datadog.openfeature;
 
 import com.datadog.openfeature.internal.FeatureFlagsRuntime;
-import com.datadog.openfeature.internal.bridge.AgentBridge;
+import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
 import com.datadog.openfeature.internal.config.Settings;
+import com.datadog.openfeature.internal.delivery.FlagSelectionRequest;
 import com.datadog.openfeature.internal.evaluation.ConfigurationStore;
 import com.datadog.openfeature.internal.evaluation.FlagEvaluator;
 import com.datadog.openfeature.internal.exposure.ExposureDeduplicationCache;
@@ -79,17 +80,38 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
   private final Runnable configCallback;
   private final AgentBridge bridge;
   private final Settings settings;
+  private final FlagSelectionRequest flagSelection;
   private final FlagEvaluator core;
   private final ConfigurationStore configuration = new ConfigurationStore();
   private volatile FeatureFlagsRuntime runtime;
 
   DDEvaluator(final Runnable configCallback, final AgentBridge bridge, final Settings settings) {
+    this(configCallback, bridge, settings, ExperimentationOptOutMode.DISABLED);
+  }
+
+  DDEvaluator(
+      final Runnable configCallback,
+      final AgentBridge bridge,
+      final Settings settings,
+      final ExperimentationOptOutMode experimentationOptOutMode) {
+    this(configCallback, bridge, settings, experimentationOptOutMode, FlagSelectionRequest.NONE);
+  }
+
+  DDEvaluator(
+      final Runnable configCallback,
+      final AgentBridge bridge,
+      final Settings settings,
+      final ExperimentationOptOutMode experimentationOptOutMode,
+      final FlagSelectionRequest flagSelection) {
     this.configCallback = configCallback;
     this.bridge = bridge;
     this.settings = settings;
+    this.flagSelection = flagSelection;
     // When span enrichment is off, the __dd_* span-enrichment metadata is attached only to
     // evaluations of allocations logging exposures, for the exposure hook.
-    this.core = new FlagEvaluator(settings.isSpanEnrichmentEnabled(), this::isExposed);
+    this.core =
+        new FlagEvaluator(
+            settings.isSpanEnrichmentEnabled(), this::isExposed, experimentationOptOutMode);
   }
 
   @Override
@@ -100,7 +122,7 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
       if (this.runtime != null) {
         return hasConfiguration();
       }
-      acquired = FeatureFlagsRuntime.acquire(this.bridge, this.settings);
+      acquired = FeatureFlagsRuntime.acquire(this.bridge, this.settings, this.flagSelection);
       this.runtime = acquired;
       acquired.addConfigurationListener(this);
     }

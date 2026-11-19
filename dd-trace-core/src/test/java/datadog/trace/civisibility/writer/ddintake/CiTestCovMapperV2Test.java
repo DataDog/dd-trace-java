@@ -2,8 +2,12 @@ package datadog.trace.civisibility.writer.ddintake;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import datadog.communication.serialization.ChunkedStreamingBuffer;
+import datadog.communication.serialization.FlushingBuffer;
 import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.trace.api.DDTraceId;
@@ -15,11 +19,13 @@ import datadog.trace.api.civisibility.coverage.TestReportFileEntry;
 import datadog.trace.api.civisibility.domain.TestContext;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
+import datadog.trace.common.writer.Payload;
 import datadog.trace.core.DDCoreJavaSpecification;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.propagation.PropagationTags;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
@@ -222,6 +228,91 @@ public class CiTestCovMapperV2Test extends DDCoreJavaSpecification {
         files.get(0), "source", new byte[] {3, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 8});
   }
 
+  @Test
+  void traceThatFailsPartWayIsNotCountedInThePayload() throws Exception {
+    CiTestCovMapperV2 mapper = new CiTestCovMapperV2(false);
+    List<Map<String, Object>> sent = new ArrayList<>();
+    MsgPackWriter writer =
+        new MsgPackWriter(
+            new FlushingBuffer(
+                1024,
+                (messageCount, body) ->
+                    sent.add(decode(mapper.newPayload().withBody(messageCount, body)))));
+
+    assertTrue(
+        writer.format(givenTrace(report(3L, new TestReportFileEntry("sourceA", null))), mapper));
+    // the first report is written in full before the second one fails
+    List<DDSpan> failing =
+        givenTrace(
+            report(4L, new TestReportFileEntry("sourceB", null)),
+            report(5L, new FailingFileEntry()));
+    assertThrows(IllegalStateException.class, () -> writer.format(failing, mapper));
+
+    // the completed trace is sent alone, and its event count must match the coverages written
+    assertEquals(1, sent.size());
+    List<Map<String, Object>> coverages = assertVersionAndGetCoverages(sent.get(0), 2);
+    assertEquals(1, coverages.size());
+    assertCoverage(coverages.get(0), 1, 2, 3);
+  }
+
+  @Test
+  void overflowingAChunkedBufferKeepsEventCountsValid() throws Exception {
+    List<DDSpan> small = givenTrace(report(3L, new TestReportFileEntry("sourceA", null)));
+    List<DDSpan> large =
+        givenTrace(
+            report(4L, new TestReportFileEntry("sourceB", null)),
+            report(5L, new TestReportFileEntry("sourceC", null)));
+    CiTestCovMapperV2 mapper = new CiTestCovMapperV2(false);
+    List<Map<String, Object>> sent = new ArrayList<>();
+    // room for the large trace alone, but not after the small one, so it overflows and retries
+    MsgPackWriter writer =
+        new MsgPackWriter(
+            new ChunkedStreamingBuffer(
+                serializedSize(large),
+                (messageCount, chunks) ->
+                    sent.add(decode(mapper.newPayload().withBody(messageCount, chunks)))));
+
+    assertTrue(writer.format(small, mapper));
+    assertTrue(writer.format(large, mapper));
+    writer.flush();
+
+    // each payload's event count matches the coverages it holds, so it decodes
+    assertEquals(2, sent.size());
+    assertEquals(1, assertVersionAndGetCoverages(sent.get(0), 2).size());
+    assertEquals(2, assertVersionAndGetCoverages(sent.get(1), 2).size());
+  }
+
+  private static int serializedSize(List<DDSpan> trace) {
+    GrowableBuffer buffer = new GrowableBuffer(1024);
+    new CiTestCovMapperV2(false).map(trace, new MsgPackWriter(buffer));
+    return buffer.slice().remaining();
+  }
+
+  private static TestReport report(long spanId, TestReportFileEntry entry) {
+    return new TestReport(DDTraceId.from(1), 2L, spanId, Arrays.asList(entry));
+  }
+
+  private static final class FailingFileEntry extends TestReportFileEntry {
+    FailingFileEntry() {
+      super("failing", null);
+    }
+
+    @Override
+    public String getSourceFileName() {
+      throw new IllegalStateException("failing entry");
+    }
+  }
+
+  private static Map<String, Object> decode(Payload payload) {
+    try {
+      ByteArrayWritableByteChannel channel = new ByteArrayWritableByteChannel();
+      payload.writeTo(channel);
+      return objectMapper.readValue(channel.toByteArray(), Map.class);
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+  }
+
   private List<DDSpan> givenTrace(TestReport... testReports) {
     List<DDSpan> trace = new ArrayList<>();
     for (TestReport testReport : testReports) {
@@ -243,10 +334,7 @@ public class CiTestCovMapperV2Test extends DDCoreJavaSpecification {
     CiTestCovMapperV2 mapper = new CiTestCovMapperV2(false);
     mapper.map(trace, new MsgPackWriter(buffer));
 
-    ByteArrayWritableByteChannel channel = new ByteArrayWritableByteChannel();
-    mapper.newPayload().withBody(1, buffer.slice()).writeTo(channel);
-
-    return objectMapper.readValue(channel.toByteArray(), Map.class);
+    return decode(mapper.newPayload().withBody(1, buffer.slice()));
   }
 
   private List<Map<String, Object>> assertVersionAndGetCoverages(

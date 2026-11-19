@@ -5,8 +5,9 @@ import static com.datadog.openfeature.internal.EventPipeline.awaitThread;
 import com.datadog.openfeature.internal.EventPipeline;
 import com.datadog.openfeature.internal.EventQueue;
 import com.datadog.openfeature.internal.RuntimeServices;
-import com.datadog.openfeature.internal.bridge.EventTransport;
+import com.datadog.openfeature.internal.bridge.v1.EventTransport;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -130,6 +131,8 @@ public class FlagEvaluationPipeline implements FlagEvaluationWriter, EventPipeli
       if (closed.compareAndSet(false, true)) {
         // The worker polls every 100 ms: do not interrupt a current or final HTTP request.
         serializer.requestShutdown();
+        // Logged last: a diagnostic must not keep the worker from being signaled.
+        LOGGER.debug("Feature Flags flag evaluation shutdown requested");
       }
     }
   }
@@ -218,6 +221,10 @@ public class FlagEvaluationPipeline implements FlagEvaluationWriter, EventPipeli
   /** Test seam: returns one queued event without starting the worker. */
   FlagEvalEvent pollQueuedEventForTest() {
     return queue.poll();
+  }
+
+  boolean isSerializerThreadAlive() {
+    return serializerThread.isAlive();
   }
 
   /** Test seam: flushes serializer state without starting the worker. */
@@ -407,6 +414,15 @@ public class FlagEvaluationPipeline implements FlagEvaluationWriter, EventPipeli
         for (final byte[] payload : payloads.bodies) {
           transport.post(FLAG_EVALUATION_ROUTE, payload);
         }
+        if (!payloads.bodies.isEmpty()) {
+          LOGGER.debug(
+              "Feature Flags flag evaluation flush delivered: payloads={}", payloads.bodies.size());
+        }
+      } catch (IOException e) {
+        // Delivery failures (agent unreachable, timeouts, error responses) are expected
+        // environmental conditions for best-effort telemetry, not tracer bugs.
+        LOGGER.debug(
+            "Feature Flags flag evaluation flush failed: {}; dropping the batch", e.toString(), e);
       } catch (Exception e) {
         LOGGER.error("Could not submit flag evaluations", e);
       } finally {

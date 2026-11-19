@@ -11,8 +11,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.openfeature.internal.JsonReading;
 import com.datadog.openfeature.internal.RuntimeServices;
-import com.datadog.openfeature.internal.bridge.EventTransport;
-import com.datadog.openfeature.internal.bridge.HealthMetrics;
+import com.datadog.openfeature.internal.bridge.v1.EventTransport;
+import com.datadog.openfeature.internal.bridge.v1.HealthMetrics;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -143,12 +143,11 @@ class ExposurePipelineTest {
         final List<ExposureEvent> partition =
             exposures.subList(index, Math.min(index + exposuresPerThread, exposures.size()));
         futures.add(
-            executor.submit(
-                () -> {
-                  latch.await();
-                  partition.forEach(pipeline);
-                  return true;
-                }));
+            executor.submit(() -> {
+              latch.await();
+              partition.forEach(pipeline);
+              return true;
+            }));
       }
       latch.countDown(); // start threads
       for (final Future<Boolean> future : futures) {

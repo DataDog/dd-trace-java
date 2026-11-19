@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.instrumentation.decorator;
 
 import datadog.trace.api.KnownTagCodec;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.TagExtractor;
 
 /**
  * An {@link AgentSpan} to mock in tests whose id-keyed {@code setTag} overloads are {@code final}
@@ -10,6 +11,11 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
  * a tag by name or by {@code KnownTags} id.
  */
 public abstract class NameKeyedAgentSpan implements AgentSpan {
+  @Override
+  public final <T> AgentSpan setTagsFrom(T source, TagExtractor<T> extractor) {
+    return AgentSpan.super.setTagsFrom(source, extractor);
+  }
+
   @Override
   public final AgentSpan setTag(long tagId, boolean value) {
     return setTag(KnownTagCodec.nameOf(tagId), value);

@@ -28,7 +28,11 @@ package datadog.buildlogic.tagRegistry
  * direction, as `peer.port` is, is still one tag: only its OpenTelemetry name depends on the span's
  * direction, so direction is applied when a tag is named, never when it is stored.
  */
-class TagRegistry private constructor(val tags: List<Tag>) {
+class TagRegistry private constructor(
+  val tags: List<Tag>,
+  /** KnownTags constant bases that replace a sanitized Datadog or OpenTelemetry name. */
+  val javaNames: Map<String, String> = emptyMap(),
+) {
   data class Tag(
     val ddName: String,
     val type: String,
@@ -106,7 +110,12 @@ class TagRegistry private constructor(val tags: List<Tag>) {
         }
 
       validateOtelNames(tags)
-      return TagRegistry(claimSharedNames(tags))
+      val names = tags.flatMap { listOfNotNull(it.ddName, it.otelName) + it.scopedOtelNames.values }.toSet()
+      val unknownJavaNames = conv.javaNames.keys - names
+      require(unknownJavaNames.isEmpty()) {
+        "java_names names no registered tag or OpenTelemetry name: $unknownJavaNames"
+      }
+      return TagRegistry(claimSharedNames(tags), conv.javaNames)
     }
 
     /**

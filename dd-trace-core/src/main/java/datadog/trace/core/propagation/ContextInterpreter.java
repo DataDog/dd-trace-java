@@ -69,6 +69,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   private final boolean clientIpResolutionEnabled;
   private final boolean collectClientIp;
   private final boolean aiGuardEnabled;
+  private final boolean otelSemanticsEnabled;
   private boolean collectIpHeaders;
   private final boolean requestHeaderTagsCommaAllowed;
   private final int baggageMaxItems;
@@ -87,6 +88,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     this.clientIpResolutionEnabled = config.isTraceClientIpResolverEnabled();
     this.collectClientIp = config.isClientIpEnabled();
     this.aiGuardEnabled = config.isAiGuardEnabled();
+    this.otelSemanticsEnabled = config.isTraceOtelSemanticsEnabled();
     this.propagationTagsFactory = PropagationTags.factory(config);
     this.requestHeaderTagsCommaAllowed = config.isRequestHeaderTagsCommaAllowed();
     this.baggageMaxItems = config.getTraceBaggageMaxItems();
@@ -125,7 +127,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   }
 
   protected final boolean handledXForwarding(String key, String value) {
-    if (value == null || !collectIpHeaders) {
+    if (value == null || (!collectIpHeaders && !otelSemanticsEnabled)) {
       return false;
     }
 
@@ -137,7 +139,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
       getHeaders().xForwardedHost = value;
       return true;
     }
-    if (X_FORWARDED_FOR_KEY.equalsIgnoreCase(key)) {
+    if (collectIpHeaders && X_FORWARDED_FOR_KEY.equalsIgnoreCase(key)) {
       getHeaders().xForwardedFor = value;
       return true;
     }
@@ -334,6 +336,14 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
 
   protected void onlyTagContext() {
     this.fullContext = false;
+  }
+
+  /**
+   * The extracted sampling priority that the trace will inherit, so propagation tags can start from
+   * it, or {@link PrioritySampling#UNSET} when it may not be inherited.
+   */
+  protected int inheritedSamplingPriority() {
+    return apmTracingEnabled ? samplingPriority : PrioritySampling.UNSET;
   }
 
   protected int defaultSamplingPriority() {

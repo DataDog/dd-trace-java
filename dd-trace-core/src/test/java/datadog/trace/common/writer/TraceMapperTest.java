@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.communication.serialization.ByteBufferConsumer;
 import datadog.communication.serialization.FlushingBuffer;
-import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.trace.common.writer.ddagent.TraceMapperTestBridge;
 import datadog.trace.common.writer.ddagent.TraceMapperV0_5;
@@ -47,8 +46,8 @@ class TraceMapperTest extends DDCoreJavaSpecification {
     // only top-level statements in Spock then-blocks are power assertions;
     // expressions inside for-loops are not, so we only assert the critical outcomes
     assertNotNull(sink.captured);
-    GrowableBuffer dictionaryBuffer = TraceMapperTestBridge.getDictionary(traceMapper);
-    ByteBuffer dictionaryBytes = dictionaryBuffer.slice();
+    FlushingBuffer dictionaryBuffer = TraceMapperTestBridge.getDictionary(traceMapper);
+    ByteBuffer dictionaryBytes = dictionaryBuffer.completedMessages();
     Map<String, String> meta = new HashMap<>();
 
     try (MessageUnpacker dictionaryUnpacker = MessagePack.newDefaultUnpacker(dictionaryBytes)) {

@@ -1,7 +1,7 @@
 package com.datadog.openfeature.internal.delivery;
 
-import com.datadog.openfeature.internal.bridge.EventProxyUnavailableException;
-import com.datadog.openfeature.internal.bridge.EventTransport;
+import com.datadog.openfeature.internal.bridge.v1.EventProxyUnavailableException;
+import com.datadog.openfeature.internal.bridge.v1.EventTransport;
 import java.io.IOException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

@@ -238,6 +238,8 @@ public class TraceGenerator {
               Thread.currentThread().getId(),
               UTF8BytesString.create(Thread.currentThread().getName()),
               TagMap.fromMap(tags),
+              TagMap.EMPTY,
+              TagMap.EMPTY,
               baggage,
               samplingPriority,
               measured,

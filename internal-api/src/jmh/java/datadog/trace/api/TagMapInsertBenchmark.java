@@ -54,18 +54,18 @@ public class TagMapInsertBenchmark {
   };
 
   static final long[] KNOWN_IDS = {
-    KnownTags.COMPONENT_ID,
-    KnownTags.SPAN_KIND_ID,
-    KnownTags.HTTP_METHOD_ID,
-    KnownTags.HTTP_URL_ID,
-    KnownTags.HTTP_ROUTE_ID,
-    KnownTags.HTTP_HOSTNAME_ID,
-    KnownTags.HTTP_USERAGENT_ID,
-    KnownTags.HTTP_CLIENT_IP_ID,
-    KnownTags.PEER_HOSTNAME_ID,
-    KnownTags.PEER_IPV4_ID,
-    KnownTags.PEER_IPV6_ID,
-    KnownTags.DD_INTEGRATION_ID,
+    KnownTags.COMPONENT,
+    KnownTags.SPAN_KIND,
+    KnownTags.HTTP_METHOD,
+    KnownTags.HTTP_URL,
+    KnownTags.HTTP_ROUTE,
+    KnownTags.HTTP_HOSTNAME,
+    KnownTags.HTTP_USERAGENT,
+    KnownTags.HTTP_CLIENT_IP,
+    KnownTags.PEER_HOSTNAME,
+    KnownTags.PEER_IPV4,
+    KnownTags.PEER_IPV6,
+    KnownTags.DD_INTEGRATION,
   };
 
   static final String[] CUSTOM_NAMES = new String[KNOWN_NAMES.length];

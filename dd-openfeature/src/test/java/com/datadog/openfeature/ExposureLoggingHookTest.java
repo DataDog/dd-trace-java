@@ -14,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.openfeature.Provider.Options;
-import com.datadog.openfeature.internal.bridge.AgentBridge;
+import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
 import com.datadog.openfeature.internal.config.TestSettings;
 import com.datadog.openfeature.internal.exposure.ExposureEvent;
 import com.datadog.openfeature.internal.ufc.Allocation;
@@ -203,14 +203,12 @@ class ExposureLoggingHookTest {
     final ExposureLoggingHook<Object> withoutRuntime =
         new ExposureLoggingHook<>(() -> uninitialized);
 
-    assertDoesNotThrow(
-        () ->
-            withoutEvaluator.finallyAfter(
-                hookContext(), details("on", exposureMetadata(true, false, "a")), emptyMap()));
-    assertDoesNotThrow(
-        () ->
-            withoutRuntime.finallyAfter(
-                hookContext(), details("on", exposureMetadata(true, false, "a")), emptyMap()));
+    assertDoesNotThrow(() ->
+        withoutEvaluator.finallyAfter(
+            hookContext(), details("on", exposureMetadata(true, false, "a")), emptyMap()));
+    assertDoesNotThrow(() ->
+        withoutRuntime.finallyAfter(
+            hookContext(), details("on", exposureMetadata(true, false, "a")), emptyMap()));
   }
 
   @Test
@@ -244,14 +242,10 @@ class ExposureLoggingHookTest {
     final ExposureLoggingHook<Object> hook = new ExposureLoggingHook<>(() -> failing);
     final HookContext<Object> context = hookContext();
 
-    assertDoesNotThrow(
-        () ->
-            hook.finallyAfter(
-                context, details("on", exposureMetadata(true, false, "a")), emptyMap()));
-    assertDoesNotThrow(
-        () ->
-            hook.finallyAfter(
-                context, details("off", exposureMetadata(true, false, "a")), emptyMap()));
+    assertDoesNotThrow(() ->
+        hook.finallyAfter(context, details("on", exposureMetadata(true, false, "a")), emptyMap()));
+    assertDoesNotThrow(() ->
+        hook.finallyAfter(context, details("off", exposureMetadata(true, false, "a")), emptyMap()));
   }
 
   private static Object cacheHit(final FlagEvaluationDetails<Integer> details) {

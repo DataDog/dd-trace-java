@@ -19,6 +19,7 @@ import datadog.trace.api.Trace;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.netty.util.concurrent.DefaultEventExecutorGroup;
 import io.netty.util.concurrent.EventExecutor;
+import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.ScheduledFuture;
 import java.util.ArrayList;
 import java.util.List;
@@ -274,11 +275,10 @@ class NettyScheduledFutureTaskContextPropagationTest extends AbstractInstrumenta
         parent.finish();
       }
       // Register without a span so listener instrumentation cannot mask early scope closure.
-      future.addListener(
-          done -> {
-            listenerSpan.set(activeSpan());
-            completed.countDown();
-          });
+      future.addListener(done -> {
+        listenerSpan.set(activeSpan());
+        completed.countDown();
+      });
       proceed.countDown();
       assertTrue(completed.await(5, SECONDS));
       assertSame(parent, listenerSpan.get());
@@ -297,9 +297,14 @@ class NettyScheduledFutureTaskContextPropagationTest extends AbstractInstrumenta
     @Override
     public void close() {
       try {
-        shutdownGracefully(0, 1, SECONDS).sync();
+        Future<?> termination = shutdownGracefully(0, 1, SECONDS);
+        assertTrue(
+            termination.await(5, SECONDS),
+            "Netty executor group did not terminate within 5 seconds");
+        termination.sync();
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
+        throw new AssertionError("Interrupted while waiting for Netty executor group shutdown", e);
       }
     }
   }

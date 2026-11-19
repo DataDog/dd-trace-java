@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.anyByte;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import datadog.trace.api.KnownTags;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.endpoint.EndpointResolver;
 import datadog.trace.bootstrap.instrumentation.api.AppendableSpanLinks;
@@ -49,6 +50,21 @@ class HttpEndpointPostProcessorTest {
     tagInput.put(Tags.HTTP_METHOD, "GET");
     tagInput.put(Tags.HTTP_ROUTE, "*"); // catch-all — ineligible per RFC-1051
     tagInput.put(Tags.HTTP_URL, "http://localhost:8080/users/123/orders/456");
+    TagMap tags = TagMap.fromMap(tagInput);
+
+    processor.processTags(tags, mockContext, mockSpanLinks);
+
+    verify(mockContext, never()).setResourceName(any(CharSequence.class), anyByte());
+    assertEquals("/users/{param:int}/orders/{param:int}", tags.get(Tags.HTTP_ENDPOINT));
+  }
+
+  @Test
+  void shouldComputeAndTagHttpEndpointFromOtelUrlPath() {
+    EndpointResolver endpointResolver = new EndpointResolver(true, false);
+    HttpEndpointPostProcessor processor = new HttpEndpointPostProcessor(endpointResolver);
+    Map<String, String> tagInput = new HashMap<>();
+    tagInput.put(KnownTags.HTTP_METHOD_OTEL_NAME, "GET");
+    tagInput.put(KnownTags.URL_PATH_NAME, "/users/123/orders/456");
     TagMap tags = TagMap.fromMap(tagInput);
 
     processor.processTags(tags, mockContext, mockSpanLinks);

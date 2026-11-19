@@ -65,7 +65,6 @@ public class PendingTraceTest extends PendingTraceTestBase {
             Collections.emptyMap(),
             false,
             "",
-            0,
             trace,
             null,
             null,
@@ -119,7 +118,7 @@ public class PendingTraceTest extends PendingTraceTestBase {
     DDSpan span = createSimpleSpan(trace);
     trace.registerSpan(span);
 
-    verify(healthMetrics, times(1)).onCreateSpan();
+    verify(healthMetrics, times(1)).onCreateSpan(span);
 
     span.finish();
 

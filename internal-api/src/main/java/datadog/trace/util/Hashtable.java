@@ -363,6 +363,12 @@ public final class Hashtable {
       return newEntry;
     }
 
+    /** Every entry, one at a time; see {@link Hashtable#cursor(Hashtable.Entry[])}. */
+    @Nonnull
+    public Cursor<TEntry> cursor() {
+      return Hashtable.cursor(this.buckets);
+    }
+
     public void forEach(@Nonnull Consumer<? super TEntry> consumer) {
       Hashtable.forEach(this.buckets, consumer);
     }
@@ -682,6 +688,12 @@ public final class Hashtable {
       insertHeadEntryFor(this.buckets, newEntry.keyHash, newEntry);
       this.sizeManager.increment();
       return newEntry;
+    }
+
+    /** Every entry, one at a time; see {@link Hashtable#cursor(Hashtable.Entry[])}. */
+    @Nonnull
+    public Cursor<TEntry> cursor() {
+      return Hashtable.cursor(this.buckets);
     }
 
     public void forEach(@Nonnull Consumer<? super TEntry> consumer) {
@@ -1100,6 +1112,42 @@ public final class Hashtable {
   /** {@link #clear(SizeManager, Hashtable.Entry[])} over a {@link State}. */
   public static void clear(@Nonnull State<?> state) {
     clear(state.sizeManager, state.buckets);
+  }
+
+  /**
+   * Every entry in {@code buckets}, one at a time, as a {@link Cursor}: the external form of {@link
+   * #forEach(Hashtable.Entry[], Consumer)}, for a caller that wants the loop in its own frame or
+   * may stop early. The table must not change during the walk.
+   */
+  @Nonnull
+  public static <TEntry extends Entry> Cursor<TEntry> cursor(@Nonnull Hashtable.Entry[] buckets) {
+    return new TableCursor<>(buckets);
+  }
+
+  /** Walks the buckets in order, and each bucket's chain from its head. */
+  private static final class TableCursor<TEntry extends Entry> implements Cursor<TEntry> {
+    private final Hashtable.Entry[] buckets;
+    private int nextBucket;
+    private Hashtable.Entry current; // the entry last returned; null before the first
+
+    TableCursor(Hashtable.Entry[] buckets) {
+      this.buckets = buckets;
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public TEntry next() {
+      Hashtable.Entry e = this.current == null ? null : this.current.next();
+      while (e == null) {
+        if (this.nextBucket >= this.buckets.length) {
+          this.current = null;
+          return null;
+        }
+        e = this.buckets[this.nextBucket++];
+      }
+      this.current = e;
+      return (TEntry) e;
+    }
   }
 
   /**

@@ -85,14 +85,13 @@ class ApiSecuritySamplerConcurrencyTest extends DDJavaSpecification {
           ctx.setResponseStatus(200);
           contexts.add(ctx);
           decisions.add(
-              executor.submit(
-                  () -> {
-                    boolean selected = sampler.preSampleRequest(ctx, FRAMEWORK);
-                    if (selected) {
-                      sampler.releaseOne();
-                    }
-                    return selected;
-                  }));
+              executor.submit(() -> {
+                boolean selected = sampler.preSampleRequest(ctx, FRAMEWORK);
+                if (selected) {
+                  sampler.releaseOne();
+                }
+                return selected;
+              }));
         }
         assertTrue(acquired.await(5, SECONDS));
       }
@@ -133,23 +132,22 @@ class ApiSecuritySamplerConcurrencyTest extends DDJavaSpecification {
         List<Future<Boolean>> decisions = new ArrayList<>();
         for (int worker = 0; worker < WORKERS; worker++) {
           decisions.add(
-              executor.submit(
-                  () -> {
-                    ready.countDown();
-                    assertTrue(start.await(5, SECONDS));
-                    AppSecRequestContext ctx = context("same-endpoint");
-                    boolean selected = sampler.preSampleRequest(ctx, FRAMEWORK);
-                    try {
-                      if (!selected) {
-                        assertFalse(ctx.isKeepOpenForApiSecurityPostProcessing());
-                      }
-                      return selected;
-                    } finally {
-                      if (selected) {
-                        sampler.releaseOne();
-                      }
-                    }
-                  }));
+              executor.submit(() -> {
+                ready.countDown();
+                assertTrue(start.await(5, SECONDS));
+                AppSecRequestContext ctx = context("same-endpoint");
+                boolean selected = sampler.preSampleRequest(ctx, FRAMEWORK);
+                try {
+                  if (!selected) {
+                    assertFalse(ctx.isKeepOpenForApiSecurityPostProcessing());
+                  }
+                  return selected;
+                } finally {
+                  if (selected) {
+                    sampler.releaseOne();
+                  }
+                }
+              }));
         }
         assertTrue(ready.await(5, SECONDS));
         start.countDown();
@@ -182,24 +180,23 @@ class ApiSecuritySamplerConcurrencyTest extends DDJavaSpecification {
         for (int worker = 0; worker < WORKERS; worker++) {
           final int offset = worker;
           tasks.add(
-              executor.submit(
-                  () -> {
-                    assertTrue(start.await(5, SECONDS));
-                    for (int request = 0; request < 100; request++) {
-                      AppSecRequestContext ctx = context("endpoint-" + ((request + offset) % 16));
-                      boolean selected = sampler.preSampleRequest(ctx, FRAMEWORK);
-                      try {
-                        if (!selected) {
-                          assertFalse(ctx.isKeepOpenForApiSecurityPostProcessing());
-                        }
-                      } finally {
-                        if (selected) {
-                          sampler.releaseOne();
-                        }
-                      }
+              executor.submit(() -> {
+                assertTrue(start.await(5, SECONDS));
+                for (int request = 0; request < 100; request++) {
+                  AppSecRequestContext ctx = context("endpoint-" + ((request + offset) % 16));
+                  boolean selected = sampler.preSampleRequest(ctx, FRAMEWORK);
+                  try {
+                    if (!selected) {
+                      assertFalse(ctx.isKeepOpenForApiSecurityPostProcessing());
                     }
-                    return null;
-                  }));
+                  } finally {
+                    if (selected) {
+                      sampler.releaseOne();
+                    }
+                  }
+                }
+                return null;
+              }));
         }
         start.countDown();
         for (Future<?> task : tasks) {

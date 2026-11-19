@@ -163,8 +163,8 @@ class InstrumenterConfigTest {
   }
 
   @Test
-  void sharedContextStorageIsDefaultFromJava25() {
-    assertEquals(!isJavaVersionAtLeast(25), InstrumenterConfig.get().isRuntimeContextMapPerStore());
+  void sharedContextStorageIsDefaultFromJava17() {
+    assertEquals(!isJavaVersionAtLeast(17), InstrumenterConfig.get().isRuntimeContextMapPerStore());
   }
 
   @TableTest({

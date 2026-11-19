@@ -18,7 +18,7 @@ spotless {
     targetExclude("src/test/resources/**")
     removeUnusedImports()
     forbidWildcardImports()
-    googleJavaFormat(libs.versions.google.java.format.get())
+    googleJavaFormat()
   }
 }
 
