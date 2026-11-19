@@ -22,9 +22,9 @@ import javax.annotation.Nullable;
  *       matches {@code true}, {@code "null"} matches {@code null}).
  * </ul>
  *
- * <p>When the result depends on an exception, or for another attribute type, {@link #lookup}
- * returns {@link #SCAN} and the caller runs the scan, which gives the old result, including any
- * exception.
+ * <p>Any other attribute is compared as a string, as a string attribute is, unless it can equal a
+ * nested element: then {@link #lookup} returns {@link #SCAN}. When the scan throws, {@link #lookup}
+ * returns the element it throws at, and the caller compares the attribute with that element only.
  */
 public final class MembershipIndex {
   /** Lists shorter than this keep the scan. */
@@ -35,6 +35,9 @@ public final class MembershipIndex {
 
   /** The index cannot decide: run the scan over the list. */
   public static final int SCAN = -1;
+
+  /** Results below this one encode the element where the scan throws: see {@link #throwsAt}. */
+  private static final int THROWS = -2;
 
   private static final int NONE = Integer.MAX_VALUE;
 
@@ -59,6 +62,9 @@ public final class MembershipIndex {
   /** The first element that is a number, or {@link #NONE}. */
   private final int firstNumber;
 
+  /** Whether the list has a nested list or object, which another list or map can equal. */
+  private final boolean hasNested;
+
   private MembershipIndex(final List<?> values) {
     final int size = values.size();
     this.strings = new HashMap<>(capacity(size));
@@ -70,8 +76,10 @@ public final class MembershipIndex {
     final int[] numberIndexes = new int[size];
     int numberCount = 0;
     int unconvertible = NONE;
+    boolean nested = false;
     for (int i = 0; i < size; i++) {
       final Object element = values.get(i);
+      nested |= element instanceof List || element instanceof Map;
       if (element instanceof Number) {
         final long key = key(((Number) element).doubleValue());
         numericKeys[numericCount] = key;
@@ -105,6 +113,7 @@ public final class MembershipIndex {
             : LongIntIndex.of(numberKeys, numberIndexes, numberCount);
     this.firstUnconvertible = unconvertible;
     this.firstNumber = numberCount == 0 ? NONE : numberIndexes[0];
+    this.hasNested = nested;
   }
 
   /**
@@ -125,21 +134,29 @@ public final class MembershipIndex {
   /**
    * Looks up a non-null attribute value.
    *
-   * @return {@link #MATCH}, {@link #NO_MATCH}, or {@link #SCAN} if the caller must scan the list.
+   * @return {@link #MATCH}, {@link #NO_MATCH}, {@link #SCAN} if the caller must scan the list, or a
+   *     result below {@link #SCAN} if the scan throws: {@link #throwsAt} gives the element.
    */
   public int lookup(final Object attribute) {
-    if (attribute instanceof Integer
-        || attribute instanceof Long
-        || attribute instanceof Double
-        || attribute instanceof Float
-        || attribute instanceof Short
-        || attribute instanceof Byte) {
+    // The scan compares a number attribute through doubleValue, whatever its type.
+    if (attribute instanceof Number) {
       return lookupNumber(((Number) attribute).doubleValue());
     }
-    if (attribute instanceof String || attribute instanceof Boolean) {
-      return lookupString(String.valueOf(attribute));
+    // Only a nested element can equal an attribute that is neither a string nor a boolean. Two
+    // equal maps can print their keys in a different order, so the string does not decide.
+    if (this.hasNested && !(attribute instanceof String) && !(attribute instanceof Boolean)) {
+      return SCAN;
     }
-    return SCAN;
+    return lookupString(String.valueOf(attribute));
+  }
+
+  /** The element where the scan throws, for a {@link #lookup} result below {@link #SCAN}. */
+  public static int throwsAt(final int result) {
+    return THROWS - result;
+  }
+
+  private static int throwing(final int element) {
+    return THROWS - element;
   }
 
   private int lookupNumber(final double number) {
@@ -148,7 +165,7 @@ public final class MembershipIndex {
       return MATCH;
     }
     // Without an earlier match, the scan throws at the first element it cannot convert.
-    return this.firstUnconvertible == NONE ? NO_MATCH : SCAN;
+    return this.firstUnconvertible == NONE ? NO_MATCH : throwing(this.firstUnconvertible);
   }
 
   private int lookupString(final String attribute) {
@@ -164,7 +181,7 @@ public final class MembershipIndex {
     try {
       number = Double.parseDouble(attribute);
     } catch (final NumberFormatException e) {
-      return SCAN;
+      return throwing(this.firstNumber);
     }
     if (index != null) {
       return MATCH;

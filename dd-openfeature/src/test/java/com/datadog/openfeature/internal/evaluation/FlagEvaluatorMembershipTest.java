@@ -3,6 +3,7 @@ package com.datadog.openfeature.internal.evaluation;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
@@ -23,7 +24,10 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
@@ -59,7 +63,9 @@ class FlagEvaluatorMembershipTest {
     Boolean.FALSE,
     null,
     Arrays.asList("42"),
-    Collections.singletonMap("k", 1.0)
+    Collections.singletonMap("k", 1.0),
+    // Equal to the map attribute below, but printed with the keys in the other order.
+    orderedMap("b", 2.0, "a", 1.0)
   };
 
   /** Attributes of each type that the context can hold. */
@@ -91,7 +97,11 @@ class FlagEvaluatorMembershipTest {
     7.5,
     Double.NaN,
     Boolean.TRUE,
-    Boolean.FALSE
+    Boolean.FALSE,
+    Instant.parse("2024-01-01T00:00:00Z"),
+    Arrays.asList("42"),
+    Collections.singletonMap("k", 1.0),
+    orderedMap("a", 1.0, "b", 2.0)
   };
 
   private final FlagEvaluator evaluator = new FlagEvaluator(false, (f, s, a, v, id) -> false);
@@ -163,7 +173,7 @@ class FlagEvaluatorMembershipTest {
   }
 
   @Test
-  void scansAttributeTypesTheIndexDoesNotHandle() {
+  void indexesOtherAttributeTypes() {
     final Object[] attributes = {
       Instant.parse("2024-01-01T00:00:00Z"), Arrays.asList("42"), Collections.singletonMap("k", "v")
     };
@@ -183,6 +193,49 @@ class FlagEvaluatorMembershipTest {
     }
     assertEquals(
         "ERROR", outcome(evaluate(ConditionOperator.ONE_OF, lists.get(3), attributes[0], true)));
+    for (final List<Object> list : lists) {
+      for (final Object attribute : attributes) {
+        assertNotEquals(MembershipIndex.SCAN, MembershipIndex.build(list).lookup(attribute));
+      }
+    }
+    // A map attribute can equal a nested map that prints its keys in another order.
+    final MembershipIndex nested =
+        MembershipIndex.build(Arrays.asList(orderedMap("b", 2.0, "a", 1.0), "x"));
+    assertEquals(MembershipIndex.SCAN, nested.lookup(orderedMap("a", 1.0, "b", 2.0)));
+    assertNotEquals(MembershipIndex.SCAN, nested.lookup("{b=2.0, a=1.0}"));
+  }
+
+  @TableTest({
+    "scenario                       | attribute | throwsAt",
+    "integer before a non-number    | 5000      | 999     ",
+    "string before the first number | xyz       | 1000    "
+  })
+  void comparesOnlyTheElementWhereTheScanThrows(final String attribute, final int throwsAt) {
+    final List<Object> values = new ArrayList<>();
+    for (int i = 1; i < 1000; i++) {
+      values.add(Integer.toString(i));
+    }
+    values.add("abc");
+    values.add(7.0);
+    final Object value = attribute.equals("xyz") ? attribute : (Object) Integer.parseInt(attribute);
+    final MembershipIndex index = MembershipIndex.build(values);
+    assertEquals(throwsAt, MembershipIndex.throwsAt(index.lookup(value)));
+
+    // A list that fails when iterated: the evaluator must not scan it.
+    final List<Object> unscannable =
+        new ArrayList<Object>(values) {
+          @Override
+          public Iterator<Object> iterator() {
+            throw new AssertionError("scanned");
+          }
+        };
+    final ProviderEvaluation<String> scan =
+        evaluate(ConditionOperator.ONE_OF, values, value, false);
+    final ProviderEvaluation<String> indexed =
+        evaluate(ConditionOperator.ONE_OF, unscannable, value, true);
+    assertEquals("ERROR", outcome(scan));
+    assertEquals(scan.getErrorCode(), indexed.getErrorCode());
+    assertEquals(scan.getErrorMessage(), indexed.getErrorMessage());
   }
 
   private void assertSameResult(
@@ -193,6 +246,15 @@ class FlagEvaluatorMembershipTest {
     assertEquals(scan.getValue(), indexed.getValue(), where);
     assertEquals(scan.getReason(), indexed.getReason(), where);
     assertEquals(scan.getErrorCode(), indexed.getErrorCode(), where);
+    assertEquals(scan.getErrorMessage(), indexed.getErrorMessage(), where);
+  }
+
+  private static Map<String, Object> orderedMap(
+      final String firstKey, final Object first, final String secondKey, final Object second) {
+    final Map<String, Object> map = new LinkedHashMap<>();
+    map.put(firstKey, first);
+    map.put(secondKey, second);
+    return map;
   }
 
   private ProviderEvaluation<String> evaluate(

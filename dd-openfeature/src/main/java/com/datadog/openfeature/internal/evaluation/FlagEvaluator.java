@@ -365,8 +365,13 @@ public final class FlagEvaluator {
     final MembershipIndex membership = condition.membership;
     if (membership != null) {
       final int result = membership.lookup(attributeValue);
-      if (result != MembershipIndex.SCAN) {
+      if (result > MembershipIndex.SCAN) {
         return result == MembershipIndex.MATCH;
+      }
+      if (result < MembershipIndex.SCAN) {
+        // No earlier element matches, so the comparison with this element throws as the scan does.
+        final Object element = ((List<?>) condition.value).get(MembershipIndex.throwsAt(result));
+        return valuesEqual(attributeValue, element) || scanOneOf(attributeValue, condition.value);
       }
     }
     return scanOneOf(attributeValue, condition.value);
