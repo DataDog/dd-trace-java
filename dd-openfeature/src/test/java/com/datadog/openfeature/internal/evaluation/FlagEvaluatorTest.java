@@ -24,6 +24,7 @@ import com.datadog.openfeature.internal.ufc.ConditionConfiguration;
 import com.datadog.openfeature.internal.ufc.ConditionOperator;
 import com.datadog.openfeature.internal.ufc.Feature;
 import com.datadog.openfeature.internal.ufc.Flag;
+import com.datadog.openfeature.internal.ufc.ParsedSemver;
 import com.datadog.openfeature.internal.ufc.Rule;
 import com.datadog.openfeature.internal.ufc.ServerConfiguration;
 import com.datadog.openfeature.internal.ufc.Split;
@@ -412,5 +413,43 @@ class FlagEvaluatorTest {
     return new FlagEvaluator(false, (flag, subject, alloc, variant, serialId) -> false)
         .evaluate(
             new ServerConfiguration("", "", true, null, flags), Integer.class, "flag", 0, context);
+  }
+
+  @TableTest({
+    "scenario                     | operator   | attribute                | comparand  | matches",
+    "decided less, then invalid   | SEMVER_LT  | 0.9.0-                   | 1.0.0      | false  ",
+    "decided less, then overflow  | SEMVER_LTE | 0.18446744073709551616.0 | 1.0.0      | false  ",
+    "invalid is never unequal     | SEMVER_NEQ | 1.0.0x                   | 1.0.0      | false  ",
+    "extra component decides      | SEMVER_GT  | 1.0.0.1                  | 1.0.0      | true   ",
+    "comparand extra component    | SEMVER_LT  | 1.0.0                    | 1.0.0.1    | true   ",
+    "prerelease then dotted build | SEMVER_EQ  | 1.0.0-rc.1+build.2       | 1.0.0-rc.1 | true   "
+  })
+  void evaluatesSemverConditionsOnTheAttributeString(
+      final ConditionOperator operator,
+      final String attribute,
+      final String comparand,
+      final boolean matches) {
+    final ConditionConfiguration condition =
+        new ConditionConfiguration(operator, "version", comparand);
+    condition.semverComparand = ParsedSemver.parse(comparand);
+    final MutableContext context = new MutableContext("user");
+    context.add("version", attribute);
+
+    final ProviderEvaluation<Integer> result = evaluateCondition(condition, context);
+
+    assertNull(result.getErrorCode());
+    assertEquals(Integer.valueOf(matches ? 1 : 0), result.getValue());
+  }
+
+  @Test
+  void comparesFractionalNumbersWithoutTruncating() {
+    final MutableContext context = new MutableContext("user");
+    context.add("score", 4.5);
+
+    final ProviderEvaluation<Integer> result =
+        evaluateCondition(new ConditionConfiguration(ConditionOperator.GT, "score", 4.2), context);
+
+    assertNull(result.getErrorCode());
+    assertEquals(Integer.valueOf(1), result.getValue());
   }
 }

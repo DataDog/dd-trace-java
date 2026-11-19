@@ -403,4 +403,80 @@ class ParsedSemverTest {
     }
     return value.toString();
   }
+
+  @Test
+  void rejectsNonAsciiDigitsWhenParsingAndInPlace() {
+    final ParsedSemver comparand = ParsedSemver.parse("1.2.3");
+    final String[] versions = {
+      "\u0661.2.3",
+      "1.\u0662.3",
+      "1.2.\u0663",
+      "\uff11.0.0",
+      "1.2.3-\u0661",
+      "1.2.3-rc.\u0661",
+      "1.2.3+\u0661"
+    };
+    for (final String version : versions) {
+      assertNull(ParsedSemver.parse(version), version);
+      assertEquals(
+          ParsedSemver.INVALID_ORDERING, ParsedSemver.compare(version, comparand), version);
+    }
+  }
+
+  @Test
+  void comparesRandomSuffixesOfEqualCoresInPlaceExactlyAsParsedVersions() {
+    final Random random = new Random(13489);
+    final String[] cores = {"1.0.0", "1.0", "1", "1.0.0.0"};
+    for (int i = 0; i < 20_000; i++) {
+      final ParsedSemver comparand =
+          ParsedSemver.parse(cores[random.nextInt(cores.length)] + randomSuffix(random));
+      if (comparand == null) {
+        continue;
+      }
+      assertInPlaceComparisonMatchesParse(
+          cores[random.nextInt(cores.length)] + randomSuffix(random), comparand);
+    }
+  }
+
+  private static String randomSuffix(final Random random) {
+    final StringBuilder suffix = new StringBuilder();
+    if (random.nextInt(4) != 0) {
+      suffix.append('-').append(randomIdentifiers(random));
+    }
+    if (random.nextInt(3) == 0) {
+      suffix.append('+').append(randomIdentifiers(random));
+    }
+    return suffix.toString();
+  }
+
+  @Test
+  void comparesStringsInPlaceByPrecedence() {
+    final String[][] ordered = {
+      {"1.0.0-abc", "1.0.0-abcd"},
+      {"1.0.0-a.b", "1.0.0-a-b"},
+      {"1.0.0-9.x", "1.0.0-10.x"},
+      {"1.0.0-rc.1", "1.0.0-rc.1.0"},
+      {"1.0.0-99", "1.0.0-a"},
+      {"1.0.0-18446744073709551616", "1.0.0-18446744073709551617"},
+      {"1.0.0-a+b.c", "1.0.0-a.b"},
+      {"1.0.0-9+x.1", "1.0.0-10"},
+      {"1.2.3", "1.2.3.1"},
+      {"18446744073709551615", "18446744073709551615.0.18446744073709551615"},
+    };
+    for (final String[] pair : ordered) {
+      assertTrue(ParsedSemver.compare(pair[0], ParsedSemver.parse(pair[1])) < 0, pair[0]);
+      assertTrue(ParsedSemver.compare(pair[1], ParsedSemver.parse(pair[0])) > 0, pair[1]);
+    }
+    for (int i = 0; i < ORDERED_VERSIONS.length; i++) {
+      for (int j = 0; j < ORDERED_VERSIONS.length; j++) {
+        final int ordering =
+            ParsedSemver.compare(
+                ORDERED_VERSIONS[i] + "+build.1", ParsedSemver.parse(ORDERED_VERSIONS[j]));
+        assertEquals(
+            Integer.signum(Integer.compare(i, j)),
+            Integer.signum(ordering),
+            ORDERED_VERSIONS[i] + " vs " + ORDERED_VERSIONS[j]);
+      }
+    }
+  }
 }

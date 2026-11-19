@@ -68,32 +68,13 @@ public final class ParsedSemver {
       next++;
     }
     final int coreLength = Math.max(3, coreSize);
-    if (next == version.length()) {
-      return new ParsedSemver(core, coreLength, "");
-    }
-
-    // Parse prerelease and/or build metadata in place; only the prerelease is copied.
-    String prerelease = "";
-    int buildStart;
-    if (version.charAt(next) == '-') {
-      final int prereleaseStart = next + 1;
-      buildStart = version.indexOf('+', prereleaseStart);
-      final int prereleaseEnd = buildStart == -1 ? version.length() : buildStart;
-      if (!validSemverIdentifiers(version, prereleaseStart, prereleaseEnd, false)) {
-        return INVALID;
-      }
-      prerelease = version.substring(prereleaseStart, prereleaseEnd);
-      if (buildStart == -1) {
-        return new ParsedSemver(core, coreLength, prerelease);
-      }
-    } else if (version.charAt(next) == '+') {
-      buildStart = next;
-    } else {
+    // Validate prerelease and/or build metadata in place; only the prerelease is copied.
+    final int prereleaseEnd = suffixPrereleaseEnd(version, next);
+    if (prereleaseEnd == -1) {
       return INVALID;
     }
-    if (!validSemverIdentifiers(version, buildStart + 1, version.length(), true)) {
-      return INVALID;
-    }
+    final String prerelease =
+        prereleaseEnd == next ? "" : version.substring(next + 1, prereleaseEnd);
     return new ParsedSemver(core, coreLength, prerelease);
   }
 
@@ -118,7 +99,7 @@ public final class ParsedSemver {
 
   /**
    * Compares a version string with a parsed comparand by precedence, without parsing the string
-   * into a {@link ParsedSemver}. The string is validated and compared in one pass: its core
+   * into a {@link ParsedSemver}. The string is validated and compared without allocating: its core
    * components are read digit by digit and its prerelease is compared as a range of the string.
    * Build metadata is validated but ignored.
    *
@@ -167,31 +148,46 @@ public final class ParsedSemver {
       ordering = Long.compareUnsigned(0, comparand.core[component]);
     }
 
-    int prereleaseStart = next;
-    int prereleaseEnd = next;
-    if (next < length) {
-      final int buildStart;
-      if (version.charAt(next) == '-') {
-        prereleaseStart = next + 1;
-        buildStart = version.indexOf('+', prereleaseStart);
-        prereleaseEnd = buildStart == -1 ? length : buildStart;
-        if (!validSemverIdentifiers(version, prereleaseStart, prereleaseEnd, false)) {
-          return INVALID_ORDERING;
-        }
-      } else if (version.charAt(next) == '+') {
-        buildStart = next;
-      } else {
-        return INVALID_ORDERING;
-      }
-      if (buildStart != -1 && !validSemverIdentifiers(version, buildStart + 1, length, true)) {
-        return INVALID_ORDERING;
-      }
+    final int prereleaseEnd = suffixPrereleaseEnd(version, next);
+    if (prereleaseEnd == -1) {
+      return INVALID_ORDERING;
     }
     if (ordering != 0) {
       return ordering;
     }
+    final int prereleaseStart = prereleaseEnd == next ? next : next + 1;
     final String right = comparand.prerelease;
     return comparePrerelease(version, prereleaseStart, prereleaseEnd, right, 0, right.length());
+  }
+
+  /**
+   * Validates the prerelease and build metadata that follow the core, which ends at {@code
+   * coreEnd}. Returns the end of the prerelease, {@code coreEnd} if there is none, or -1 if the
+   * suffix is invalid.
+   */
+  private static int suffixPrereleaseEnd(final String version, final int coreEnd) {
+    final int length = version.length();
+    if (coreEnd == length) {
+      return coreEnd;
+    }
+    final int buildStart;
+    final int prereleaseEnd;
+    if (version.charAt(coreEnd) == '-') {
+      buildStart = version.indexOf('+', coreEnd + 1);
+      prereleaseEnd = buildStart == -1 ? length : buildStart;
+      if (!validSemverIdentifiers(version, coreEnd + 1, prereleaseEnd, false)) {
+        return -1;
+      }
+    } else if (version.charAt(coreEnd) == '+') {
+      buildStart = coreEnd;
+      prereleaseEnd = coreEnd;
+    } else {
+      return -1;
+    }
+    if (buildStart != -1 && !validSemverIdentifiers(version, buildStart + 1, length, true)) {
+      return -1;
+    }
+    return prereleaseEnd;
   }
 
   /**

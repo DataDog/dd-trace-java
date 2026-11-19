@@ -387,9 +387,9 @@ public final class FlagEvaluator {
   }
 
   /**
-   * Converts a comparison operand to a double. A {@link Number} converts without allocating; any
-   * other value, including null, goes through {@link #mapValue}, so it converts or fails with
-   * mapValue's exception and message.
+   * Converts a comparison operand to a double. A {@link Number} converts without allocating. Any
+   * other value goes through {@link #mapValue} as before: a non-numeric value fails with mapValue's
+   * exception, and null fails when its null result is unboxed.
    */
   private static double toDouble(final Object value) {
     if (value instanceof Number) {
@@ -402,7 +402,7 @@ public final class FlagEvaluator {
    * Evaluates a semantic version comparison operator. The attribute value must be a string that is
    * a valid semantic version, and the comparand must have been pre-parsed during configuration
    * validation. If either is missing or invalid, the condition does not match. The attribute is
-   * validated and compared in one pass, without parsing it into a {@link ParsedSemver}.
+   * validated and compared without parsing it into a {@link ParsedSemver}.
    */
   private static boolean evaluateSemverCondition(
       final Object attributeValue,
