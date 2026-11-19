@@ -56,6 +56,10 @@ class CdnConfigurationSourceTest {
       "{\"data\":{\"type\":\"universal-flag-configuration\",\"attributes\":"
           + "{\"createdAt\":\"2024-04-17T19:40:53.716Z\",\"environment\":{\"name\":\"Test\"},"
           + "\"flags\":{}}}}";
+  private static final String CHANGED_CONFIG =
+      "{\"data\":{\"type\":\"universal-flag-configuration\",\"attributes\":"
+          + "{\"createdAt\":\"2024-04-18T08:00:00.000Z\",\"environment\":{\"name\":\"Test\"},"
+          + "\"flags\":{}}}}";
   private static final String RAW_UFC =
       "{\"createdAt\":\"2024-04-17T19:40:53.716Z\",\"environment\":{\"name\":\"Test\"},\"flags\":{}}";
 
@@ -399,6 +403,70 @@ class CdnConfigurationSourceTest {
     assertTrue(source.pollOnce());
 
     assertNull(this.server.requests().get(1).header("If-None-Match"));
+  }
+
+  @Test
+  void skipsParsingAnUnchangedBodyWithoutAnEtag() {
+    this.server.enqueue(200, CONFIG).enqueue(200, CONFIG).enqueueGzip(200, CONFIG);
+    final CdnConfigurationSource source = source();
+
+    assertTrue(source.pollOnce());
+    assertTrue(source.pollOnce());
+    assertTrue(source.pollOnce());
+
+    assertEquals(1, this.dispatched.size());
+  }
+
+  @Test
+  void appliesAChangedBodyWithoutAnEtag() {
+    this.server.enqueue(200, CONFIG).enqueue(200, CHANGED_CONFIG);
+    final CdnConfigurationSource source = source();
+
+    assertTrue(source.pollOnce());
+    assertTrue(source.pollOnce());
+
+    assertEquals(2, this.dispatched.size());
+    assertEquals("2024-04-18T08:00:00.000Z", this.dispatched.get(1).createdAt);
+  }
+
+  @Test
+  void recordsTheEtagOfAnUnchangedBody() {
+    this.server.enqueue(200, CONFIG).enqueue(200, CONFIG, "ETag", "\"v2\"").enqueue(304, null);
+    final CdnConfigurationSource source = source();
+
+    for (int i = 0; i < 3; i++) {
+      assertTrue(source.pollOnce());
+    }
+
+    assertEquals(1, this.dispatched.size());
+    assertEquals("\"v2\"", this.server.requests().get(2).header("If-None-Match"));
+  }
+
+  @Test
+  void parsesTheSameBodyAgainAfterAFailedDispatch() {
+    this.server.enqueue(200, CONFIG).enqueue(200, CONFIG);
+    final CdnConfigurationSource source = source();
+    source.setListenerForTest(configuration -> {
+      throw new IllegalStateException("listener failure");
+    });
+
+    assertThrows(IllegalStateException.class, source::pollOnce);
+    source.setListenerForTest(this.dispatched::add);
+    assertTrue(source.pollOnce());
+
+    assertEquals(1, this.dispatched.size());
+  }
+
+  @Test
+  void keepsTheAppliedBodyCurrentAcrossAMalformedOne() {
+    this.server.enqueue(200, CONFIG).enqueue(200, "{not json").enqueue(200, CONFIG);
+    final CdnConfigurationSource source = source();
+
+    assertTrue(source.pollOnce());
+    assertFalse(source.pollOnce());
+    assertTrue(source.pollOnce());
+
+    assertEquals(1, this.dispatched.size());
   }
 
   @TableTest({
