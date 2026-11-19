@@ -35,6 +35,7 @@ public final class JettyCommitResponseInstrumentation extends InstrumenterModule
       packageName + ".ExtractAdapter$Response",
       packageName + ".JettyDecorator",
       packageName + ".JettyBlockResponseFunction",
+      packageName + ".JettyDeferredCompletion",
       packageName + ".JettyBlockResponseHelper",
       packageName + ".RequestURIDataAdapter",
       packageName + ".JettyCommitResponseHelper",
