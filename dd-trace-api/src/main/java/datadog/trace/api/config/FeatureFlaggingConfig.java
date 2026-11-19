@@ -36,5 +36,14 @@ public final class FeatureFlaggingConfig {
   public static final String FEATURE_FLAGS_EXPERIMENTATION_OPT_OUT_MODE =
       "feature.flags.experimentation.opt.out.mode";
 
+  /**
+   * The number of slots of the table sharing the flag metadata of evaluations that resolve the same
+   * split in the same millisecond, rounded up to a power of two. {@code 0} builds the metadata of
+   * each evaluation. Default: {@code 1024}. Maps to {@code
+   * DD_FEATURE_FLAGS_EVALUATION_METADATA_TABLE_SIZE}.
+   */
+  public static final String FEATURE_FLAGS_EVALUATION_METADATA_TABLE_SIZE =
+      "feature.flags.evaluation.metadata.table.size";
+
   private FeatureFlaggingConfig() {}
 }

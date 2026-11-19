@@ -90,6 +90,7 @@ class SettingsTest {
     assertTrue(settings.isEvaluationCountsEnabled());
     assertTrue(settings.isExposuresDatadogLoggingEnabled());
     assertEquals("disabled", settings.experimentationOptOutMode());
+    assertEquals(1024, settings.evaluationMetadataTableSize());
   }
 
   @TableTest({
@@ -178,6 +179,21 @@ class SettingsTest {
         interval,
         TestSettings.of("feature.flags.configuration.source.agentless.poll.interval.seconds", value)
             .agentlessPollIntervalSeconds());
+  }
+
+  @TableTest({
+    "scenario | value | size",
+    "disabled | 0     | 0   ",
+    "custom   | 300   | 300 ",
+    "negative | -1    | 1024",
+    "invalid  | ten   | 1024",
+    "blank    | ' '   | 1024"
+  })
+  void readsTheEvaluationMetadataTableSize(final String value, final int size) {
+    assertEquals(
+        size,
+        TestSettings.of("feature.flags.evaluation.metadata.table.size", value)
+            .evaluationMetadataTableSize());
   }
 
   @Test

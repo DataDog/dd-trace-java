@@ -43,6 +43,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -61,6 +62,7 @@ public final class FlagEvaluator {
   private final boolean spanEnrichmentEnabled;
   private final ExposureLookup exposureLookup;
   private final ExperimentationOptOutMode experimentationOptOutMode;
+  @Nullable private final EvaluationMetadataTable metadataTable;
 
   /**
    * Creates an evaluator.
@@ -76,9 +78,44 @@ public final class FlagEvaluator {
       final boolean spanEnrichmentEnabled,
       final ExposureLookup exposureLookup,
       final ExperimentationOptOutMode experimentationOptOutMode) {
+    this(
+        spanEnrichmentEnabled,
+        exposureLookup,
+        experimentationOptOutMode,
+        EvaluationMetadataTable.DEFAULT_SIZE);
+  }
+
+  /**
+   * Creates an evaluator.
+   *
+   * @param spanEnrichmentEnabled whether span enrichment is enabled.
+   * @param exposureLookup the lookup telling whether an exposure was already recorded.
+   * @param experimentationOptOutMode the experimentation opt-out mode.
+   * @param metadataTableSize the number of slots of the table sharing the metadata of evaluations
+   *     that resolve the same split in the same millisecond, rounded up to a power of two, or 0 to
+   *     build the metadata of each evaluation.
+   */
+  public FlagEvaluator(
+      final boolean spanEnrichmentEnabled,
+      final ExposureLookup exposureLookup,
+      final ExperimentationOptOutMode experimentationOptOutMode,
+      final int metadataTableSize) {
+    this(
+        spanEnrichmentEnabled,
+        exposureLookup,
+        experimentationOptOutMode,
+        EvaluationMetadataTable.create(metadataTableSize));
+  }
+
+  FlagEvaluator(
+      final boolean spanEnrichmentEnabled,
+      final ExposureLookup exposureLookup,
+      final ExperimentationOptOutMode experimentationOptOutMode,
+      @Nullable final EvaluationMetadataTable metadataTable) {
     this.spanEnrichmentEnabled = spanEnrichmentEnabled;
     this.exposureLookup = exposureLookup;
     this.experimentationOptOutMode = experimentationOptOutMode;
+    this.metadataTable = metadataTable;
   }
 
   public <T> ProviderEvaluation<T> evaluate(
@@ -490,6 +527,56 @@ public final class FlagEvaluator {
           observeFullEvaluationData);
     }
 
+    // The exposure state depends on the subject, so it is part of the metadata table key.
+    final boolean doLog = Boolean.TRUE.equals(allocation.doLog);
+    final int exposure;
+    if (!doLog) {
+      exposure = EvaluationMetadataTable.NO_EXPOSURE;
+    } else if (this.exposureLookup.isExposed(
+        flag.key, context.getTargetingKey(), allocation.key, variant.key, split.serialId)) {
+      exposure = EvaluationMetadataTable.RECORDED_EXPOSURE;
+    } else {
+      exposure = EvaluationMetadataTable.NEW_EXPOSURE;
+    }
+    // Everything else in the metadata is fixed by the split, so evaluations of the split in the
+    // same millisecond share it.
+    final EvaluationMetadataTable table = this.metadataTable;
+    ImmutableMetadata metadata =
+        table == null
+            ? null
+            : table.get(
+                flag, allocation, split, observeFullEvaluationData, exposure, evalTimestampMs);
+    if (metadata == null) {
+      metadata =
+          buildMetadata(
+              flag, allocation, split, observeFullEvaluationData, doLog, exposure, evalTimestampMs);
+      if (table != null) {
+        table.put(
+            flag,
+            allocation,
+            split,
+            observeFullEvaluationData,
+            exposure,
+            evalTimestampMs,
+            metadata);
+      }
+    }
+    return ProviderEvaluation.<T>builder()
+        .value(mappedValue)
+        .reason(resolveReason(allocation, split))
+        .variant(variant.key)
+        .flagMetadata(metadata)
+        .build();
+  }
+
+  private ImmutableMetadata buildMetadata(
+      final Flag flag,
+      final Allocation allocation,
+      final Split split,
+      final boolean observeFullEvaluationData,
+      final boolean doLog,
+      final int exposure,
+      final long evalTimestampMs) {
     // Stamp eval-time at the resolution point so first/last_evaluation reflect evaluation time,
     // not hook-fire time. Passed to the hook via provider metadata "__dd_eval_timestamp_ms".
     final ImmutableMetadata.ImmutableMetadataBuilder metadataBuilder =
@@ -503,7 +590,6 @@ public final class FlagEvaluator {
     // for the exposure hook, which sends the exposure after the evaluation succeeds. An evaluation
     // that neither logs exposures nor enriches spans carries neither key.
     // __dd_split_serial_id is omitted when the split carries no serial id.
-    final boolean doLog = Boolean.TRUE.equals(allocation.doLog);
     if (spanEnrichmentEnabled || doLog) {
       if (split.serialId != null) {
         metadataBuilder.addInteger(SPLIT_SERIAL_ID, split.serialId);
@@ -513,16 +599,9 @@ public final class FlagEvaluator {
     addSplitFeatures(metadataBuilder, split);
     if (doLog) {
       metadataBuilder.addBoolean(
-          EXPOSURE_CACHE_HIT,
-          this.exposureLookup.isExposed(
-              flag.key, context.getTargetingKey(), allocation.key, variant.key, split.serialId));
+          EXPOSURE_CACHE_HIT, exposure == EvaluationMetadataTable.RECORDED_EXPOSURE);
     }
-    return ProviderEvaluation.<T>builder()
-        .value(mappedValue)
-        .reason(resolveReason(allocation, split))
-        .variant(variant.key)
-        .flagMetadata(metadataBuilder.build())
-        .build();
+    return metadataBuilder.build();
   }
 
   private static String resolveReason(final Allocation allocation, final Split split) {

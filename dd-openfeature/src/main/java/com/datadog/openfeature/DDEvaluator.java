@@ -111,7 +111,10 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
     // evaluations of allocations logging exposures, for the exposure hook.
     this.core =
         new FlagEvaluator(
-            settings.isSpanEnrichmentEnabled(), this::isExposed, experimentationOptOutMode);
+            settings.isSpanEnrichmentEnabled(),
+            this::isExposed,
+            experimentationOptOutMode,
+            settings.evaluationMetadataTableSize());
   }
 
   @Override
