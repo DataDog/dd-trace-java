@@ -6,6 +6,7 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import javax.annotation.Nullable;
 
 /**
  * The dense {@link IdStore}: known tags in two parallel arrays -- each tag's 16-bit serial and its
@@ -336,16 +337,20 @@ final class DenseIdStore extends IdStore {
 
   /**
    * The bulk read without name resolution or per-call key decoding: the lookup carries each tag's
-   * serial, slot bit and level, and a tag whose slot this store can't hold, locally or through its
-   * parent, costs two bit tests.
+   * serial, slot bit and level. A store that can't hold any of the tags exits on a mask test, and a
+   * tag whose slot this store can't hold, locally or through its parent, costs two bit tests. The
+   * array is allocated on the first hit.
    */
   @Override
-  public int loadStrings(TagLookup lookup, String[] out) {
+  @Nullable
+  public String[] loadStrings(TagLookup lookup, @Nullable String[] out) {
+    if (!this.mayHoldAny(lookup)) {
+      return out;
+    }
     long[] ids = lookup.ids;
     char[] serials = lookup.serials;
     long[] bits = lookup.bits;
     int[] levels = lookup.levels;
-    int found = 0;
     for (int i = 0; i < ids.length; i++) {
       if (ids[i] == 0) {
         continue;
@@ -357,11 +362,13 @@ final class DenseIdStore extends IdStore {
       }
       Object value = this.getVisible(serials[i], bit, level);
       if (value != null) {
+        if (out == null) {
+          out = new String[ids.length];
+        }
         out[i] = value.toString();
-        found++;
       }
     }
-    return found;
+    return out;
   }
 
   @Override

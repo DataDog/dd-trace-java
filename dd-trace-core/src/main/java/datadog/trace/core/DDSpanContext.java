@@ -62,6 +62,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Function;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1771,54 +1772,49 @@ public class DDSpanContext
   }
 
   /**
-   * Whether this span may hold any of {@code lookup}'s tags. A false is definite (for the dense
-   * store, a few mask tests), so a reader of a fixed tag set can skip spans that hold none of it.
+   * Bulk {@link #unsafeGetTag} over a prebuilt {@link TagLookup}: the string form of each of its
+   * tags this span holds, in an array parallel to the lookup's names, or null when it holds none of
+   * them -- the array is allocated on the first hit, so a span holding none of the tags costs no
+   * allocation. Same resolution as {@code unsafeGetTag}: known tags by id, custom tags by name,
+   * then the direction-scoped fallback for this span's kind. Unlocked, like {@code unsafeGetTag}.
    */
-  public boolean mayHaveAnyTag(TagLookup lookup) {
-    if (knownTags.mayHoldAny(lookup)) {
-      return true;
-    }
-    HashStore custom = customTags;
-    // any custom store counts as a maybe: custom tags carry no presence mask
-    return lookup.hasCustom() && custom != null;
-  }
-
-  /**
-   * Bulk {@link #unsafeGetTag} over a prebuilt {@link TagLookup}: writes the string form of each of
-   * its tags this span holds to the matching index of {@code out}, leaving the others untouched,
-   * with the same resolution as {@code unsafeGetTag} -- known tags by id, custom tags by name, then
-   * the direction-scoped fallback for this span's kind. Unlocked, like {@code unsafeGetTag}.
-   * Returns how many it wrote.
-   */
-  public int unsafeGetTagStrings(TagLookup lookup, String[] out) {
-    int found = knownTags.loadStrings(lookup, out);
+  @Nullable
+  public String[] unsafeGetTagStrings(TagLookup lookup) {
+    int n = lookup.size();
+    String[] out = knownTags.loadStrings(lookup, null);
     HashStore custom = customTags;
     if (custom != null && lookup.hasCustom()) {
-      for (int k = 0, n = lookup.customCount(); k < n; k++) {
+      for (int k = 0, customs = lookup.customCount(); k < customs; k++) {
         int i = lookup.customIndex(k);
         TagMap.Entry entry = custom.getEntry(lookup.name(i));
         if (entry != null) {
+          if (out == null) {
+            out = new String[n];
+          }
           out[i] = entry.stringValue();
-          found++;
         }
       }
     }
-    int direction = directionOfKind(spanKindOrdinal);
-    if (direction != KnownTagCodec.DIRECTION_UNKNOWN) {
-      for (int i = 0, n = lookup.size(); i < n; i++) {
-        if (out[i] == null) {
-          long tagId = lookup.directionalId(i, direction);
-          if (tagId != 0) {
-            Object value = knownTags.load(tagId);
-            if (value != null) {
-              out[i] = value.toString();
-              found++;
+    if (lookup.hasDirectional()) {
+      int direction = directionOfKind(spanKindOrdinal);
+      if (direction != KnownTagCodec.DIRECTION_UNKNOWN) {
+        for (int i = 0; i < n; i++) {
+          if (out == null || out[i] == null) {
+            long tagId = lookup.directionalId(i, direction);
+            if (tagId != 0) {
+              Object value = knownTags.load(tagId);
+              if (value != null) {
+                if (out == null) {
+                  out = new String[n];
+                }
+                out[i] = value.toString();
+              }
             }
           }
         }
       }
     }
-    return found;
+    return out;
   }
 
   /**

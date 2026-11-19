@@ -19,7 +19,7 @@ import org.openjdk.jmh.annotations.Warmup;
 /**
  * Client-side stats' peer-tag capture, as the aggregator does it on every published span: the
  * per-name read (one {@code unsafeGetTag} per advertised peer tag) against the bulk read over a
- * prebuilt {@link TagLookup} ({@code mayHaveAnyTag}, then {@code unsafeGetTagStrings}). Each arm
+ * prebuilt {@link TagLookup} ({@code unsafeGetTagStrings}, which allocates only on a hit). Each arm
  * replicates the capture code exactly, allocation included.
  *
  * <p>Span shapes: a Kafka consume span (a few tags, no peer tags), a JDBC client span (several peer
@@ -148,16 +148,11 @@ public class PeerTagCaptureBenchmark {
     return values;
   }
 
-  /** The capture with TagLookup: one mask pre-check, then one bulk read. */
+  /** The capture with TagLookup: one bulk read, allocating only when a tag is found. */
   @Benchmark
   public String[] bulk() {
     TagLookup lookup = LOOKUP;
-    int n = lookup.size();
-    if (n == 0 || !span.mayHaveAnyTag(lookup)) {
-      return null;
-    }
-    String[] values = new String[n];
-    return span.unsafeGetTagStrings(lookup, values) == 0 ? null : values;
+    return lookup.size() == 0 ? null : span.unsafeGetTagStrings(lookup);
   }
 
   /** The same arms with the dense tag store on. */

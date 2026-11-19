@@ -84,9 +84,9 @@ class TagLookupTest {
           expectedFound++;
         }
       }
-      String[] actual = new String[names.size()];
-      assertEquals(expectedFound, store.loadStrings(lookup, actual), "seed " + seed);
-      assertArrayEquals(expected, actual, "seed " + seed);
+      String[] actual = store.loadStrings(lookup, null);
+      // allocated only on a hit: no tags found, no array
+      assertArrayEquals(expectedFound == 0 ? null : expected, actual, "seed " + seed);
       if (!store.mayHoldAny(lookup)) {
         assertEquals(0, expectedFound, "a false mayHoldAny must be definite (seed " + seed + ")");
       }
