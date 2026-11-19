@@ -7,12 +7,12 @@ import com.squareup.moshi.Moshi;
 import datadog.trace.api.Config;
 import datadog.trace.api.http.MediaType;
 import datadog.trace.lambda.ContentTypeBodyParser.ParseContext;
+import datadog.trace.util.Base64Decoding;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -179,12 +179,12 @@ final class LambdaEventParser {
     // Handle base64 encoding
     Object isBase64EncodedObj = response.get("isBase64Encoded");
     if (Boolean.TRUE.equals(isBase64EncodedObj) || "true".equals(isBase64EncodedObj)) {
-      try {
-        bodyString = new String(Base64.getDecoder().decode(bodyString), StandardCharsets.UTF_8);
-      } catch (Exception e) {
-        log.debug("Failed to decode base64 response body", e);
+      byte[] decoded = Base64Decoding.decode(bodyString);
+      if (decoded == null) {
+        log.debug("Failed to decode base64 response body");
         return null;
       }
+      bodyString = new String(decoded, StandardCharsets.UTF_8);
     }
 
     // A response body is only ever structured as JSON, never as urlencoded or multipart
@@ -709,12 +709,12 @@ final class LambdaEventParser {
     // Check if body is base64 encoded (API Gateway feature)
     Object isBase64EncodedObj = event.get("isBase64Encoded");
     if (Boolean.TRUE.equals(isBase64EncodedObj) || "true".equals(isBase64EncodedObj)) {
-      try {
-        bodyString = new String(Base64.getDecoder().decode(bodyString), StandardCharsets.UTF_8);
-      } catch (Exception e) {
-        log.debug("Failed to decode base64 body", e);
+      byte[] decoded = Base64Decoding.decode(bodyString);
+      if (decoded == null) {
+        log.debug("Failed to decode base64 body");
         return null;
       }
+      bodyString = new String(decoded, StandardCharsets.UTF_8);
     }
 
     return ContentTypeBodyParser.parseBody(bodyString, headers.get("content-type"), parseContext);

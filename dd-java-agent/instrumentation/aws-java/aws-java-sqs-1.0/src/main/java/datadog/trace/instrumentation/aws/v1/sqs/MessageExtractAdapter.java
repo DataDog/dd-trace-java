@@ -11,10 +11,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.messaging.DatadogAttributeParser;
+import datadog.trace.util.Base64Decoding;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -94,8 +94,10 @@ public final class MessageExtractAdapter implements AgentPropagation.ContextVisi
     if ("String".equals(type)) {
       DatadogAttributeParser.forEachProperty(classifier, value);
     } else if ("Binary".equals(type)) {
-      ByteBuffer decodedValue = ByteBuffer.wrap(Base64.getDecoder().decode(value));
-      DatadogAttributeParser.forEachProperty(classifier, decodedValue);
+      byte[] decodedValue = Base64Decoding.decode(value);
+      if (decodedValue != null) {
+        DatadogAttributeParser.forEachProperty(classifier, ByteBuffer.wrap(decodedValue));
+      }
     }
   }
 

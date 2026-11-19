@@ -8,7 +8,7 @@ import static datadog.trace.instrumentation.kafka_common.Utils.readProducedTime;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation.ContextVisitor;
-import java.util.Base64;
+import datadog.trace.util.Base64Decoding;
 import java.util.function.Function;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.Headers;
@@ -22,15 +22,14 @@ public class TextMapExtractAdapter implements ContextVisitor<Headers> {
       new TextMapExtractAdapter(Config.get().isKafkaClientBase64DecodingEnabled());
 
   private final Function<byte[], String> headerValueTransformer;
-  private final Base64.Decoder decoder;
+  private final boolean decodeBase64Headers;
 
   public TextMapExtractAdapter(boolean decodeBase64Headers) {
+    this.decodeBase64Headers = decodeBase64Headers;
     if (decodeBase64Headers) {
       this.headerValueTransformer = BASE64_DECODE;
-      this.decoder = Base64.getDecoder();
     } else {
       this.headerValueTransformer = UTF8_BYTES_TO_STRING;
-      this.decoder = null;
     }
   }
 
@@ -57,7 +56,11 @@ public class TextMapExtractAdapter implements ContextVisitor<Headers> {
     Header header = carrier.lastHeader(KafkaDecorator.KAFKA_PRODUCED_KEY);
     if (null != header) {
       try {
-        return readProducedTime(decoder != null ? decoder.decode(header.value()) : header.value());
+        byte[] value = decodeBase64Headers ? Base64Decoding.decode(header.value()) : header.value();
+        if (value != null) {
+          return readProducedTime(value);
+        }
+        log.debug(EXCLUDE_TELEMETRY, "Unable to get kafka produced time");
       } catch (Exception e) {
         log.debug(EXCLUDE_TELEMETRY, "Unable to get kafka produced time", e);
       }

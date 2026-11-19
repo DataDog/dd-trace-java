@@ -35,7 +35,10 @@ import datadog.trace.core.DDCoreJavaSpecification;
 import datadog.trace.core.propagation.ExtractedContext;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Base64;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -238,6 +241,64 @@ public class DefaultPathwayContextTest extends DDCoreJavaSpecification {
     assertNotEquals(0L, second.getHash());
     assertEquals(MILLISECONDS.toNanos(27), second.getPathwayLatencyNano());
     assertEquals(MILLISECONDS.toNanos(27), second.getEdgeLatencyNano());
+  }
+
+  @Test
+  void decodesLongestValidContext() throws IOException {
+    // 8-byte hash followed by two 9-byte varints, the longest context the encoder produces
+    byte[] raw = new byte[26];
+    Arrays.fill(raw, 8, raw.length, (byte) 0xFF);
+    String encoded = Base64.getEncoder().encodeToString(raw);
+
+    assertEquals(36, encoded.length());
+    assertTrue(encoded.length() <= DefaultPathwayContext.MAX_ENCODED_LENGTH);
+    assertNotNull(DefaultPathwayContext.decode(new ControllableTimeSource(), null, encoded));
+  }
+
+  @Test
+  void decodesValueAtLengthLimit() throws IOException {
+    String atLimit = repeat('A', DefaultPathwayContext.MAX_ENCODED_LENGTH);
+
+    assertNotNull(DefaultPathwayContext.decode(new ControllableTimeSource(), null, atLimit));
+  }
+
+  @Test
+  void ignoresValueOverLengthLimit() throws IOException {
+    String overLimit = repeat('A', DefaultPathwayContext.MAX_ENCODED_LENGTH + 1);
+
+    assertNull(DefaultPathwayContext.decode(new ControllableTimeSource(), null, overLimit));
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"", "AAAAAAAAAAAAA=", "AAAA!AAAAAAAAAAA", "AAAAAAAAAAA="})
+  void ignoresInvalidOrTooShortValue(String value) throws IOException {
+    assertNull(DefaultPathwayContext.decode(new ControllableTimeSource(), null, value));
+  }
+
+  @Test
+  void keepsExtractedContextWhenLaterValueIsInvalid() throws IOException {
+    ControllableTimeSource timeSource = new ControllableTimeSource();
+    DefaultPathwayContext context = new DefaultPathwayContext(timeSource, null);
+    timeSource.advance(MILLISECONDS.toNanos(50));
+    context.setCheckpoint(
+        fromTags(DataStreamsTags.create("internal", DataStreamsTags.Direction.INBOUND)),
+        pointConsumer);
+    Map<String, String> carrier = new LinkedHashMap<>();
+    carrier.put(PROPAGATION_KEY_BASE64, context.encode());
+    carrier.put(PROPAGATION_KEY_BASE64.toUpperCase(), "not base64!");
+
+    DefaultPathwayContext extracted =
+        DefaultPathwayContext.extract(
+            carrier, (c, visitor) -> c.forEach(visitor), timeSource, null);
+
+    assertNotNull(extracted);
+    assertEquals(context.getHash(), extracted.getHash());
+  }
+
+  private static String repeat(char c, int count) {
+    char[] chars = new char[count];
+    Arrays.fill(chars, c);
+    return new String(chars);
   }
 
   @Test
