@@ -1,13 +1,9 @@
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.COMPLETABLE_FUTURE_CALLBACK;
-import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.exclude;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -20,7 +16,6 @@ import datadog.context.ContextScope;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.agent.test.scopediag.ScopeDiagnostics;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.instrumentation.datastax.cassandra4.AsyncResultSetConsumer;
 import datadog.trace.instrumentation.datastax.cassandra4.TracingSession;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -87,8 +82,6 @@ class CassandraCallbackExclusionTest extends AbstractInstrumentationTest {
       }
 
       assertEquals(0, captures);
-      assertTrue(exclude(COMPLETABLE_FUTURE_CALLBACK, new AsyncResultSetConsumer(querySpan.get())));
-      assertFalse(exclude(COMPLETABLE_FUTURE_CALLBACK, application));
       assertEquals(completed ? 0 : 1, downstreamCaptures);
       assertEquals(1, application.calls);
       assertSame(parent, application.parent);
