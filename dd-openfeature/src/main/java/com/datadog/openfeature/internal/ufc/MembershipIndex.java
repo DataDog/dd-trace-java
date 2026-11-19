@@ -235,6 +235,10 @@ public final class MembershipIndex {
       return NONE;
     }
 
+    int capacity() {
+      return this.keys.length;
+    }
+
     /**
      * Fibonacci hashing: the high bits of the product depend on every bit of the key. The low bits
      * do not: they are zero for small integers and powers of two, whose low mantissa bits are zero.
