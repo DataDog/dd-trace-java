@@ -73,7 +73,7 @@ final class JettyRawHttp {
   }
 
   private static String truncated(int received, int length, String reason) {
-    return "blocking page truncated: received "
+    return "response body truncated: received "
         + received
         + " of "
         + length

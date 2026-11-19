@@ -4,6 +4,7 @@ import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.instrumentation.jetty12.JettyRawHttp.contentLength;
 import static datadog.trace.instrumentation.jetty12.JettyRawHttp.largeHtmlTemplate;
+import static datadog.trace.instrumentation.jetty12.JettyRawHttp.readBody;
 import static datadog.trace.instrumentation.jetty12.JettyRawHttp.readHeaders;
 import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectSysConfig;
 import static datadog.trace.test.junit.utils.config.WithConfigExtension.removeSysConfig;
@@ -15,7 +16,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
 
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.appsec.api.blocking.BlockingException;
@@ -317,33 +317,6 @@ class AsyncBlockingCompletionForkedTest extends AbstractInstrumentationTest {
     int major = Integer.parseInt(version[0]);
     int minor = Integer.parseInt(version[1]);
     return major > 12 || (major == 12 && minor >= 1);
-  }
-
-  /** Reads exactly {@code length} bytes, failing with the received count on EOF or reset. */
-  private static byte[] readBody(InputStream in, int length) {
-    byte[] body = new byte[length];
-    int received = 0;
-    try {
-      while (received < length) {
-        int n = in.read(body, received, length - received);
-        if (n < 0) {
-          fail(truncated(received, length, "EOF"));
-        }
-        received += n;
-      }
-    } catch (IOException e) {
-      fail(truncated(received, length, e.toString()), e);
-    }
-    return body;
-  }
-
-  private static String truncated(int received, int length, String reason) {
-    return "response body truncated: received "
-        + received
-        + " of "
-        + length
-        + " bytes before "
-        + reason;
   }
 
   /** Counts down once the blocking servlet returned or threw, rethrowing the failure to Jetty. */
