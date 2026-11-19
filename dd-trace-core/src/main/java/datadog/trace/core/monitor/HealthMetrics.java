@@ -4,6 +4,7 @@ import datadog.trace.common.writer.RemoteApi;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.propagation.opg.OrgGuard;
 import java.util.List;
+import javax.annotation.Nullable;
 
 /**
  * Callback for monitoring the health of the DDAgentWriter. Provides hooks for major lifecycle
@@ -84,6 +85,26 @@ public abstract class HealthMetrics implements AutoCloseable {
 
   public void onFailedSend(
       final int traceCount, final int sizeInBytes, final RemoteApi.Response response) {}
+
+  /**
+   * Reports that {@code exporter} started sending {@code itemCount} items. Called through {@link
+   * ExportRecorder}, which pairs it with exactly one {@link #onExportEnd}.
+   */
+  public void onExportStart(final ExporterId exporter, final long itemCount) {}
+
+  /**
+   * Reports that {@code exporter} finished sending {@code itemCount} items after {@code
+   * durationNanos}, retries included.
+   *
+   * @param response the sender's response, which may report a failure; null when the send threw
+   * @param error the exception the send threw, or null
+   */
+  public void onExportEnd(
+      final ExporterId exporter,
+      final long itemCount,
+      final long durationNanos,
+      @Nullable final RemoteApi.Response response,
+      @Nullable final Throwable error) {}
 
   public void onLongRunningUpdate(final int dropped, final int write, final int expired) {}
 

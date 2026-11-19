@@ -1,28 +1,56 @@
 package datadog.trace.core.otlp.sdk;
 
+import static datadog.trace.bootstrap.otel.api.common.AttributeKey.longKey;
 import static datadog.trace.bootstrap.otel.api.common.AttributeKey.stringKey;
 import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.COUNTER;
+import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.HISTOGRAM;
 import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.UP_DOWN_COUNTER;
+import static java.util.Collections.emptyList;
 
 import datadog.trace.bootstrap.otel.api.common.AttributeKey;
 import datadog.trace.bootstrap.otel.api.common.Attributes;
+import datadog.trace.bootstrap.otel.api.common.AttributesBuilder;
 import datadog.trace.bootstrap.otel.metrics.OtelInstrumentBuilder;
 import datadog.trace.bootstrap.otel.metrics.OtelInstrumentType;
 import datadog.trace.bootstrap.otel.metrics.data.OtelMetricStorage;
+import datadog.trace.common.writer.RemoteApi;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.DDSpanContext;
+import datadog.trace.core.monitor.ExporterId;
+import datadog.trace.core.monitor.ExporterId.Signal;
 import datadog.trace.core.monitor.HealthMetrics;
+import datadog.trace.core.otlp.common.OtlpGrpcStatusException;
+import java.util.EnumMap;
+import java.util.Map;
 import java.util.concurrent.atomic.LongAdder;
+import javax.annotation.Nullable;
 
 /**
- * {@link HealthMetrics} that records the OTel SDK self-monitoring metrics {@code
- * otel.sdk.span.started}, split by parent origin, and {@code otel.sdk.span.live}, which semantic
- * conventions do not split by parent origin. Only the span create/end callbacks map to OTel
- * metrics; every other callback stays a no-op. The hot path only touches {@link LongAdder}s;
- * observable instruments report the adders at collection.
+ * {@link HealthMetrics} that records the OTel SDK self-monitoring metrics:
+ *
+ * <ul>
+ *   <li>{@code otel.sdk.span.started}, split by parent origin, and {@code otel.sdk.span.live},
+ *       which semantic conventions do not split by parent origin. The hot path only touches {@link
+ *       LongAdder}s; observable instruments report the adders at collection.
+ *   <li>{@code otel.sdk.exporter.<signal>.inflight}, {@code .exported} and {@code
+ *       otel.sdk.exporter.operation.duration}, modeled on the OTel Java SDK's {@code
+ *       SemConvExporterMetrics}, one series per {@link ExporterId}.
+ * </ul>
+ *
+ * Every other callback stays a no-op.
  */
 final class OtelHealthMetrics extends HealthMetrics {
   static final AttributeKey<String> PARENT_ORIGIN = stringKey("otel.span.parent.origin");
+  static final AttributeKey<String> COMPONENT_TYPE = stringKey("otel.component.type");
+  static final AttributeKey<String> COMPONENT_NAME = stringKey("otel.component.name");
+  static final AttributeKey<String> ERROR_TYPE = stringKey("error.type");
+  static final AttributeKey<String> SERVER_ADDRESS = stringKey("server.address");
+  static final AttributeKey<Long> SERVER_PORT = longKey("server.port");
+  static final AttributeKey<Long> HTTP_STATUS_CODE = longKey("http.response.status_code");
+  static final AttributeKey<String> RPC_STATUS_CODE = stringKey("rpc.status_code");
+
+  /** The gRPC status name of a successful call. */
+  static final String GRPC_OK = OtlpGrpcStatusException.statusName(0);
 
   /**
    * Indexed by {@link DDSpanContext#getParentOrigin()}, as is the {@code started} adder array;
@@ -45,6 +73,9 @@ final class OtelHealthMetrics extends HealthMetrics {
   final LongAdder[] started = {new LongAdder(), new LongAdder(), new LongAdder()};
   private final LongAdder live = new LongAdder();
 
+  private final Map<Signal, ExportInstruments> exports = new EnumMap<>(Signal.class);
+  private final OtelMetricStorage exportDuration;
+
   private OtelHealthMetrics() {
     observe("otel.sdk.span.started", COUNTER, "The number of created spans.", started, ORIGINS);
     observe(
@@ -54,6 +85,19 @@ final class OtelHealthMetrics extends HealthMetrics {
             + " been called yet.",
         new LongAdder[] {live},
         NO_ATTRIBUTES);
+    exports.put(Signal.SPAN, new ExportInstruments("span", "{span}", "spans"));
+    exports.put(Signal.LOG, new ExportInstruments("log", "{log_record}", "log records"));
+    exports.put(
+        Signal.METRIC_DATA_POINT,
+        new ExportInstruments("metric_data_point", "{data_point}", "metric data points"));
+    exportDuration =
+        OtelSdkRegistry.storage(
+            OtelInstrumentBuilder.ofDoubles("otel.sdk.exporter.operation.duration", HISTOGRAM),
+            false,
+            "The duration of exporting a batch of telemetry records.",
+            "s",
+            // no bucket boundaries: a single bucket with count, sum, min and max
+            descriptor -> OtelMetricStorage.newHistogramStorage(descriptor, emptyList()));
   }
 
   @Override
@@ -66,6 +110,79 @@ final class OtelHealthMetrics extends HealthMetrics {
   @Override
   public void onEndSpan() {
     live.decrement();
+  }
+
+  @Override
+  public void onExportStart(ExporterId exporter, long itemCount) {
+    exports.get(exporter.signal()).inflight.recordLong(itemCount, baseAttributes(exporter));
+  }
+
+  /**
+   * Records the finished export. {@code error.type} is the gRPC status name for a gRPC status
+   * failure, {@code timeout} or the exception class name for other exceptions (see {@link
+   * ErrorTypes}), the HTTP status code for a non-success response, and {@code _OTHER} otherwise.
+   */
+  @Override
+  public void onExportEnd(
+      ExporterId exporter,
+      long itemCount,
+      long durationNanos,
+      @Nullable RemoteApi.Response response,
+      @Nullable Throwable error) {
+    ExportInstruments instruments = exports.get(exporter.signal());
+    Attributes base = baseAttributes(exporter);
+    instruments.inflight.recordLong(-itemCount, base);
+
+    if (error == null && response != null && !response.success()) {
+      error = response.exception().orElse(null);
+    }
+    String errorType = null;
+    String grpcStatus = null;
+    int httpStatus = 0;
+    if (error instanceof OtlpGrpcStatusException) {
+      grpcStatus = ((OtlpGrpcStatusException) error).statusName();
+      errorType = grpcStatus;
+    } else if (error != null) {
+      errorType = ErrorTypes.fromException(error);
+    } else if (response == null) {
+      errorType = ErrorTypes.OTHER;
+    } else {
+      httpStatus = response.status().orElse(0);
+      if (response.success()) {
+        if (exporter.grpc()) {
+          grpcStatus = GRPC_OK;
+        }
+      } else {
+        errorType = httpStatus > 0 ? Integer.toString(httpStatus) : ErrorTypes.OTHER;
+      }
+    }
+
+    Attributes outcome =
+        errorType == null ? base : base.toBuilder().put(ERROR_TYPE, errorType).build();
+    instruments.exported.recordLong(itemCount, outcome);
+    if (exporter.grpc() && grpcStatus != null) {
+      outcome = outcome.toBuilder().put(RPC_STATUS_CODE, grpcStatus).build();
+    } else if (!exporter.grpc() && httpStatus > 0) {
+      outcome = outcome.toBuilder().put(HTTP_STATUS_CODE, httpStatus).build();
+    }
+    exportDuration.recordDouble(durationNanos / 1e9, outcome);
+  }
+
+  /**
+   * {@code otel.component.*}, plus {@code server.*} when the destination is known. Built per call
+   * rather than cached: exports are infrequent, and the sink keeps no per-exporter state.
+   */
+  private static Attributes baseAttributes(ExporterId exporter) {
+    AttributesBuilder builder =
+        Attributes.builder()
+            .put(COMPONENT_TYPE, exporter.component().type())
+            .put(COMPONENT_NAME, exporter.component().name());
+    String serverAddress = exporter.serverAddress();
+    if (serverAddress != null) {
+      builder.put(SERVER_ADDRESS, serverAddress);
+      builder.put(SERVER_PORT, exporter.serverPort());
+    }
+    return builder.build();
   }
 
   /**
@@ -90,5 +207,35 @@ final class OtelHealthMetrics extends HealthMetrics {
         storage.recordLong(adders[i].sum(), attributes[i]);
       }
     });
+  }
+
+  /** The {@code inflight} and {@code exported} instruments of one signal. */
+  private static final class ExportInstruments {
+    final OtelMetricStorage inflight;
+    final OtelMetricStorage exported;
+
+    ExportInstruments(String signal, String unit, String items) {
+      String prefix = "otel.sdk.exporter." + signal;
+      inflight =
+          OtelSdkRegistry.storage(
+              OtelInstrumentBuilder.ofLongs(prefix + ".inflight", UP_DOWN_COUNTER),
+              false,
+              "The number of "
+                  + items
+                  + " which were passed to the exporter, but that have not been exported yet"
+                  + " (neither successful, nor failed).",
+              unit,
+              OtelMetricStorage::newLongSumStorage);
+      exported =
+          OtelSdkRegistry.storage(
+              OtelInstrumentBuilder.ofLongs(prefix + ".exported", COUNTER),
+              false,
+              "The number of "
+                  + items
+                  + " for which the export has finished, either successful"
+                  + " or failed.",
+              unit,
+              OtelMetricStorage::newLongSumStorage);
+    }
   }
 }
