@@ -54,7 +54,23 @@ class PrototypeRegexTest {
           "[^a-z]+",
           "\\D\\W\\S",
           "^tenant-0-[0-9]+$",
-          "^[a-f0-9]{8}-[a-f0-9]{4}$");
+          "^[a-f0-9]{8}-[a-f0-9]{4}$",
+          // (?i) with non-ASCII pattern characters that fold to ASCII: the long s matches s/S,
+          // the Kelvin sign matches k/K. The fast tiers must turn these down.
+          "(?i)\u017f",
+          "(?i)[\u017f]",
+          "(?i)^\u212a+$",
+          "(?i)\\x{17F}",
+          "(?i)[a-z\\x{212A}]+",
+          "(?i)^sk.*end$",
+          // Rust's \s is 0x09-0x0D and the space; 0x1C-0x1F are not White_Space.
+          "^\\s+$",
+          "a\\sb",
+          "^[\\s\\d]+$",
+          "^[[:space:]]+$",
+          "^[[:cntrl:]]+$",
+          "\\S+",
+          "^[^\\s]+$");
 
   @Test
   void agreesWithRegexMatcherOnEveryFixtureAndHandPickedPattern() throws IOException {
@@ -96,7 +112,7 @@ class PrototypeRegexTest {
       }
     }
     System.out.println("prototype tiers: " + tiers + ", inputs checked: " + checked);
-    assertTrue(checked > 100_000, "too few inputs: " + checked);
+    assertTrue(checked > 500_000, "too few inputs: " + checked);
   }
 
   /** Matching strings, near misses, random ASCII, and line feed / non-ASCII variants. */
@@ -116,6 +132,22 @@ class PrototypeRegexTest {
       inputs.add(insert(base, "K", random)); // the Kelvin sign folds to k under (?i)
       inputs.add(insert(base, "😀", random));
       inputs.add(randomString(alphabet, random));
+    }
+    // Every ASCII code point, control characters included: inserted into and substituted in a
+    // generated input, and alone and repeated.
+    final String base = parsed != null ? generate(parsed, random) : randomString(alphabet, random);
+    for (int c = 0; c < 128; c++) {
+      final String ch = String.valueOf((char) c);
+      inputs.add(insert(base, ch, random));
+      inputs.add(base.isEmpty() ? ch : substitute(base, (char) c, random));
+      inputs.add(ch);
+      inputs.add(ch + ch + ch);
+    }
+    for (final String probe :
+        new String[] {"s", "S", "k", "K", "sk", "SK", "\u017f", "\u212a", "skend", "SKEND"}) {
+      inputs.add(probe);
+      inputs.add(base + probe);
+      inputs.add(probe + base);
     }
     inputs.add("");
     return inputs;
@@ -160,6 +192,11 @@ class PrototypeRegexTest {
       default:
         return s.substring(0, at) + c + s.substring(at + 1);
     }
+  }
+
+  private static String substitute(final String s, final char c, final Random random) {
+    final int at = random.nextInt(s.length());
+    return s.substring(0, at) + c + s.substring(at + 1);
   }
 
   private static String insert(final String s, final String extra, final Random random) {
