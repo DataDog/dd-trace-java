@@ -63,12 +63,11 @@ public class StructuredTaskScopeCancelTest extends AbstractInstrumentationTest {
       try (var scope = StructuredTaskScope.open(new CancelOnSecondForkJoiner<>())) {
         var firstStarted = new CountDownLatch(1);
         // The first subtask starts and produces its span before the scope is canceled.
-        scope.fork(
-            () -> {
-              Void result = task();
-              firstStarted.countDown();
-              return result;
-            });
+        scope.fork(() -> {
+          Void result = task();
+          firstStarted.countDown();
+          return result;
+        });
         firstStarted.await();
         // Forking the second subtask cancels the scope, so its thread never starts.
         scope.fork(this::task);
@@ -94,15 +93,14 @@ public class StructuredTaskScopeCancelTest extends AbstractInstrumentationTest {
     // Hold the subtask before its run() until the non-owner close attempt is done
     ThreadFactory gatedFactory =
         subtask ->
-            new Thread(
-                () -> {
-                  try {
-                    subtaskGate.await();
-                  } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                  }
-                  subtask.run();
-                });
+            new Thread(() -> {
+              try {
+                subtaskGate.await();
+              } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+              }
+              subtask.run();
+            });
     var span = tracer.startSpan("test", "parent");
     try (var ignored = tracer.activateSpan(span)) {
       try (var scope =
@@ -111,14 +109,13 @@ public class StructuredTaskScopeCancelTest extends AbstractInstrumentationTest {
         scope.fork(this::task);
         var closeFailure = new AtomicReference<Throwable>();
         var nonOwner =
-            new Thread(
-                () -> {
-                  try {
-                    scope.close();
-                  } catch (Throwable t) {
-                    closeFailure.set(t);
-                  }
-                });
+            new Thread(() -> {
+              try {
+                scope.close();
+              } catch (Throwable t) {
+                closeFailure.set(t);
+              }
+            });
         nonOwner.start();
         nonOwner.join();
         assertInstanceOf(WrongThreadException.class, closeFailure.get());
