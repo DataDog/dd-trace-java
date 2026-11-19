@@ -2,6 +2,7 @@ package com.datadog.openfeature.internal.exposure;
 
 import datadog.trace.util.Hashtable;
 import java.util.Objects;
+import javax.annotation.Nullable;
 
 /**
  * Remembers the last exposure recorded for each (flag, subject). An exposure is sent again only
@@ -14,7 +15,9 @@ import java.util.Objects;
 public final class ExposureDeduplicationCache {
   static final int CAPACITY = 1 << 16;
 
-  private final Hashtable.D2<String, String, Exposure> entries;
+  // Created on the first exposure: at full capacity its bucket array is 512 KiB, a humongous
+  // allocation on a small G1 heap, which a client that records no exposures should not pay for.
+  @Nullable private Hashtable.D2<String, String, Exposure> entries;
   private final int capacity;
 
   // The least and the most recently used entries, the ends of the eviction order.
@@ -27,7 +30,6 @@ public final class ExposureDeduplicationCache {
   }
 
   ExposureDeduplicationCache(final int capacity) {
-    this.entries = Hashtable.D2.createBounded(Exposure.class, capacity);
     this.capacity = capacity;
   }
 
@@ -47,7 +49,7 @@ public final class ExposureDeduplicationCache {
       final String allocation,
       final String variant,
       final Integer serialId) {
-    final Exposure exposure = this.entries.get(flag, subject);
+    final Exposure exposure = this.entries == null ? null : this.entries.get(flag, subject);
     if (exposure == null) {
       return false;
     }
@@ -71,7 +73,11 @@ public final class ExposureDeduplicationCache {
       final String allocation,
       final String variant,
       final Integer serialId) {
-    Exposure exposure = this.entries.get(flag, subject);
+    Hashtable.D2<String, String, Exposure> entries = this.entries;
+    if (entries == null) {
+      entries = this.entries = Hashtable.D2.createBounded(Exposure.class, this.capacity);
+    }
+    Exposure exposure = entries.get(flag, subject);
     if (exposure != null) {
       touch(exposure);
       if (exposure.is(allocation, variant, serialId)) {
@@ -82,16 +88,16 @@ public final class ExposureDeduplicationCache {
       exposure.serialId = serialId;
       return true;
     }
-    if (this.entries.size() >= this.capacity) {
+    if (entries.size() >= this.capacity) {
       final Exposure evicted = this.eldest;
       if (evicted == null) {
         return true; // a cache without capacity remembers nothing
       }
       unlink(evicted);
-      this.entries.remove(evicted.key1(), evicted.key2());
+      entries.remove(evicted.key1(), evicted.key2());
     }
     exposure = new Exposure(flag, subject, allocation, variant, serialId);
-    this.entries.insert(exposure);
+    entries.insert(exposure);
     append(exposure);
     return true;
   }
@@ -102,12 +108,14 @@ public final class ExposureDeduplicationCache {
    * @return the number of (flag, subject) entries.
    */
   public synchronized int size() {
-    return this.entries.size();
+    return this.entries == null ? 0 : this.entries.size();
   }
 
   /** Forgets every recorded exposure. */
   public synchronized void clear() {
-    this.entries.clear();
+    if (this.entries != null) {
+      this.entries.clear();
+    }
     this.eldest = null;
     this.youngest = null;
   }
