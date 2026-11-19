@@ -87,7 +87,6 @@ class StreamingTraceCollectorTest {
             null,
             null,
             NoopPathwayContext.INSTANCE,
-            false,
             PropagationTags.factory().empty()),
         null);
   }
