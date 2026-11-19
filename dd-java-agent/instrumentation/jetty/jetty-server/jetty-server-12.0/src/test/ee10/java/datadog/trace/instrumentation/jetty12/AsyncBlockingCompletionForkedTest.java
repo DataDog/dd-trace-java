@@ -15,6 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.appsec.api.blocking.BlockingContentType;
@@ -48,6 +49,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -69,16 +71,14 @@ import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
- * Checks that a Jetty 12 ee10 request blocked after {@code startAsync()} is answered and completed.
+ * Checks that a Jetty 12 ee10 request blocked after {@code startAsync()} (no timeout) is answered
+ * and completed, see {@code JettyAsyncBlockCompletion}.
  *
- * <p>The servlet starts async (no timeout), commits the blocking response and throws a {@code
- * BlockingException}, like {@code ProxyServlet} with RASP SSRF. From Jetty 12.1 ({@code
- * ee10LatestDepForkedTest}) {@code ServletChannelState.onError} leaves such a request suspended
- * unless the agent completes it, so the keep-alive check (a second request on the same connection)
- * is only made there. Jetty 12.0 ({@code ee10ForkedTest}) aborts the committed request and closes
- * the connection, so only the page and the server span are checked. The Jetty version is read at
- * runtime: the forked tasks do not get the {@code test.dd.latestDepTest} property. Every read is
- * bounded, so a suspended request makes the test fail instead of hang.
+ * <p>On Jetty 12.1+ ({@code ee10LatestDepForkedTest}) the connection is kept alive, so a second
+ * request on it is checked. Jetty 12.0 ({@code ee10ForkedTest}) aborts the committed request and
+ * closes the connection, so only the page and the server span are checked there. The Jetty version
+ * is read at runtime: the forked tasks do not get the {@code test.dd.latestDepTest} property. Every
+ * read is bounded, so a suspended request makes the test fail instead of hang.
  *
  * <p>Forked: the custom template, {@code APPSEC_ACTIVE} and the AppSec subscriptions are JVM-wide.
  */
@@ -87,9 +87,11 @@ class AsyncBlockingCompletionForkedTest extends AbstractInstrumentationTest {
   private static final String CONTEXT_PATH = "/context-path";
   private static final String BLOCK_PATH = "/async-block";
   private static final String LISTENER_BLOCK_PATH = "/async-block-listener";
+  private static final String UNCOMMITTED_BLOCK_PATH = "/async-block-uncommitted";
   private static final String OK_PATH = "/ok";
   private static final int SMALL_BUFFER_SIZE = 4 * 1024;
   private static final int TIMEOUT_SECONDS = 10;
+  private static final int NO_RESPONSE_TIMEOUT_MILLIS = 2000;
 
   @TempDir Path tempDir;
 
@@ -123,7 +125,7 @@ class AsyncBlockingCompletionForkedTest extends AbstractInstrumentationTest {
   }
 
   @Test
-  void asyncBlockedRequestIsCompletedAndConnectionKeptAlive() throws Exception {
+  void asyncBlockedRequestIsAnsweredAndCompleted() throws Exception {
     // Jetty 12.1+ keeps the connection open once the agent completes the suspended request
     boolean keepAliveExpected = isJetty121OrLater();
     startServer(false);
@@ -210,6 +212,32 @@ class AsyncBlockingCompletionForkedTest extends AbstractInstrumentationTest {
     assertSingleBlockedSpan(awaitServerSpans(1));
   }
 
+  /**
+   * The servlet throws a {@code BlockingException} without a committed blocking response (as RASP
+   * does when the commit failed): the agent must not complete it, which would send an empty 200.
+   */
+  @Test
+  void asyncBlockedRequestWithoutBlockingResponseIsNotCompleted() throws Exception {
+    boolean jetty121OrLater = isJetty121OrLater();
+    startServer(false);
+    try (Socket socket = connect(false)) {
+      sendGet(socket, UNCOMMITTED_BLOCK_PATH);
+      assertTrue(handlerDone.await(TIMEOUT_SECONDS, SECONDS), "handler did not complete");
+      assertNull(servletFailure, "servlet setup failure");
+
+      InputStream in = socket.getInputStream();
+      if (jetty121OrLater) {
+        // upstream behaviour: the request stays suspended and nothing is written
+        socket.setSoTimeout(NO_RESPONSE_TIMEOUT_MILLIS);
+        assertThrows(SocketTimeoutException.class, in::read, "no response expected");
+      } else {
+        // Jetty 12.0 sends an error response for an uncommitted async request
+        String headers = readHeaders(in);
+        assertTrue(headers.startsWith("HTTP/1.1 500 "), "unexpected status line: " + headers);
+      }
+    }
+  }
+
   private void enableAppSec() {
     SubscriptionService ss =
         (SubscriptionService) AgentTracer.get().getSubscriptionService(RequestContextSlot.APPSEC);
@@ -239,17 +267,21 @@ class AsyncBlockingCompletionForkedTest extends AbstractInstrumentationTest {
     ServletContextHandler handler = new ServletContextHandler(CONTEXT_PATH);
     handler.addFilter(
         new FilterHolder(new LatchFilter()), "/*", EnumSet.of(DispatcherType.REQUEST));
-    ServletHolder blockHolder = new ServletHolder(new AsyncBlockingServlet(false));
-    blockHolder.setAsyncSupported(true);
-    handler.addServlet(blockHolder, BLOCK_PATH);
-    ServletHolder listenerHolder = new ServletHolder(new AsyncBlockingServlet(true));
-    listenerHolder.setAsyncSupported(true);
-    handler.addServlet(listenerHolder, LISTENER_BLOCK_PATH);
+    addAsyncServlet(handler, new AsyncBlockingServlet(false, true), BLOCK_PATH);
+    addAsyncServlet(handler, new AsyncBlockingServlet(true, true), LISTENER_BLOCK_PATH);
+    addAsyncServlet(handler, new AsyncBlockingServlet(false, false), UNCOMMITTED_BLOCK_PATH);
     handler.addServlet(new ServletHolder(new OkServlet()), OK_PATH);
     server.setHandler(handler);
     server.start();
     port = connector.getLocalPort();
     assertTrue(port > 0, "server port");
+  }
+
+  private static void addAsyncServlet(
+      ServletContextHandler handler, HttpServlet servlet, String path) {
+    ServletHolder holder = new ServletHolder(servlet);
+    holder.setAsyncSupported(true);
+    handler.addServlet(holder, path);
   }
 
   private Socket connect(boolean smallReceiveBuffer) throws IOException {
@@ -336,13 +368,16 @@ class AsyncBlockingCompletionForkedTest extends AbstractInstrumentationTest {
 
   /**
    * Starts async without timeout, commits the blocking response, then throws like RASP SSRF in
-   * {@code ProxyServlet}. Optionally registers an {@code AsyncListener} completing in onError.
+   * {@code ProxyServlet}. Optionally registers an {@code AsyncListener} completing in onError, or
+   * skips the commit to mimic a failed one.
    */
   private final class AsyncBlockingServlet extends HttpServlet {
     private final boolean withListener;
+    private final boolean commitBlockingResponse;
 
-    AsyncBlockingServlet(boolean withListener) {
+    AsyncBlockingServlet(boolean withListener, boolean commitBlockingResponse) {
       this.withListener = withListener;
+      this.commitBlockingResponse = commitBlockingResponse;
     }
 
     @Override
@@ -351,6 +386,9 @@ class AsyncBlockingCompletionForkedTest extends AbstractInstrumentationTest {
       ac.setTimeout(0);
       if (withListener) {
         ac.addListener(new CompletingListener());
+      }
+      if (!commitBlockingResponse) {
+        throw new BlockingException("Blocked after startAsync without a blocking response");
       }
       AgentSpan span = AgentTracer.activeSpan();
       RequestContext reqCtx = span == null ? null : span.getRequestContext();

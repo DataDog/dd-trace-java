@@ -10,13 +10,8 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 
 /**
- * Completes a Jetty ee10 async request left suspended by an AppSec blocking response.
- *
- * <p>From Jetty 12.1, {@code ServletChannelState.onError} returns {@code false} for an ASYNC
- * request without an {@code AsyncListener}: no sendError, no abort, no complete. When a {@code
- * BlockingException} is thrown after {@code startAsync()} (e.g. {@code ProxyServlet} with RASP
- * SSRF), the blocking response is committed but the request stays suspended for ever: the
- * connection hangs and the server span is never finished.
+ * Hooks the exit of {@code ServletChannelState.onError(Throwable)} so that {@code
+ * JettyAsyncBlockCompletion} can complete an ee10 async request suspended by a blocking response.
  *
  * <p>{@code ServletChannelState} with a boolean {@code onError} only exists from ee10 12.0.16,
  * hence the dedicated muzzle directive, so that apps without ee10 keep the other Jetty 12 modules.
@@ -42,7 +37,11 @@ public final class JettyServletChannelStateInstrumentation extends InstrumenterM
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".JettyBlockingExceptions", packageName + ".JettyAsyncBlockCompletion"
+      packageName + ".JettyBlockResponseFunction",
+      packageName + ".JettyDeferredCompletion",
+      packageName + ".JettyBlockResponseHelper",
+      packageName + ".JettyBlockingExceptions",
+      packageName + ".JettyAsyncBlockCompletion"
     };
   }
 

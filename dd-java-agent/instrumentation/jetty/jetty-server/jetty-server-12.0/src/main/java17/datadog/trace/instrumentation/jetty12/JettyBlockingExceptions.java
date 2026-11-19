@@ -6,17 +6,16 @@ import datadog.appsec.api.blocking.BlockingException;
  * Locates a {@link BlockingException} inside a Jetty failure.
  *
  * <p>Kept free of other helper dependencies so that modules which only need the lookup can inject
- * it without pulling {@code JettyDecorator} and its helpers. Public because advice inlined into
- * Jetty classes calls it from another package.
+ * it without pulling {@code JettyDecorator} and its helpers.
  */
-public final class JettyBlockingExceptions {
+final class JettyBlockingExceptions {
   /** Bounds the cause walk so a cyclic or very deep cause chain cannot stall a Jetty thread. */
   private static final int MAX_CAUSE_DEPTH = 16;
 
   private JettyBlockingExceptions() {}
 
   /** Looks for a {@link BlockingException} in the cause chain and the top-level suppressed list. */
-  public static Throwable findBlockingException(final Throwable failure) {
+  static Throwable findBlockingException(final Throwable failure) {
     if (failure == null) {
       return null;
     }
