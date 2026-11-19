@@ -2,6 +2,7 @@ package datadog.trace.common.writer;
 
 import static datadog.trace.common.writer.ddagent.PrioritizationStrategy.PublishResult.ENQUEUED_FOR_SERIALIZATION;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -15,6 +16,7 @@ import datadog.trace.common.writer.ddagent.FlushEvent;
 import datadog.trace.common.writer.ddagent.Prioritization;
 import datadog.trace.common.writer.ddagent.PrioritizationStrategy;
 import datadog.trace.common.writer.ddagent.PrioritizationStrategy.PublishResult;
+import datadog.trace.common.writer.ddagent.SpanBudget;
 import datadog.trace.core.DDSpan;
 import datadog.trace.test.junit.utils.converter.PrioritySamplingConverter;
 import datadog.trace.test.util.DDJavaSpecification;
@@ -22,6 +24,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.TimeUnit;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.converter.ConvertWith;
 import org.tabletest.junit.TableTest;
 
@@ -50,7 +53,8 @@ class PrioritizationTest extends DDJavaSpecification {
     Queue<Object> primary = mock(Queue.class);
     Queue<Object> secondary = mock(Queue.class);
     PrioritizationStrategy blocking =
-        Prioritization.ENSURE_TRACE.create(primary, secondary, null, () -> false);
+        Prioritization.ENSURE_TRACE.create(
+            primary, secondary, null, SpanBudget.unlimited(), () -> false);
     // stub: first offer returns !primaryFull, second offer returns true
     when(primary.offer(trace)).thenReturn(!primaryFull, true);
     when(secondary.offer(trace)).thenReturn(true);
@@ -80,7 +84,8 @@ class PrioritizationTest extends DDJavaSpecification {
     Queue<Object> primary = mock(Queue.class);
     Queue<Object> secondary = mock(Queue.class);
     PrioritizationStrategy fastLane =
-        Prioritization.FAST_LANE.create(primary, secondary, null, () -> false);
+        Prioritization.FAST_LANE.create(
+            primary, secondary, null, SpanBudget.unlimited(), () -> false);
 
     PublishResult publishResult = fastLane.publish(mock(DDSpan.class), priority, trace);
 
@@ -106,7 +111,8 @@ class PrioritizationTest extends DDJavaSpecification {
     Queue<Object> primary = mock(Queue.class);
     Queue<Object> secondary = mock(Queue.class);
     PrioritizationStrategy drop =
-        Prioritization.FAST_LANE.create(primary, secondary, null, () -> true);
+        Prioritization.FAST_LANE.create(
+            primary, secondary, null, SpanBudget.unlimited(), () -> true);
     when(primary.offer(trace)).thenReturn(true);
 
     PublishResult publishResult = drop.publish(mock(DDSpan.class), priority, trace);
@@ -126,7 +132,7 @@ class PrioritizationTest extends DDJavaSpecification {
     Queue<Object> primary = mock(Queue.class);
     Queue<Object> secondary = mock(Queue.class);
     PrioritizationStrategy prioritizationStrategy =
-        strategy.create(primary, secondary, null, () -> false);
+        strategy.create(primary, secondary, null, SpanBudget.unlimited(), () -> false);
     when(primary.offer(any())).thenReturn(true);
 
     prioritizationStrategy.flush(100, TimeUnit.MILLISECONDS);
@@ -144,7 +150,8 @@ class PrioritizationTest extends DDJavaSpecification {
   void testDropStrategyRespectsForceKeep(
       Prioritization strategy, boolean forceKeep, PublishResult expectedResult) {
     Queue<Object> primary = mock(Queue.class);
-    PrioritizationStrategy drop = strategy.create(primary, null, null, () -> true);
+    PrioritizationStrategy drop =
+        strategy.create(primary, null, null, SpanBudget.unlimited(), () -> true);
     DDSpan root = mock(DDSpan.class);
     List<DDSpan> trace = Collections.singletonList(root);
     when(root.isForceKeep()).thenReturn(forceKeep);
@@ -194,7 +201,8 @@ class PrioritizationTest extends DDJavaSpecification {
     Queue<Object> secondary = mock(Queue.class);
     Queue<Object> spanSampling = mock(Queue.class);
     PrioritizationStrategy blocking =
-        Prioritization.ENSURE_TRACE.create(primary, secondary, spanSampling, () -> false);
+        Prioritization.ENSURE_TRACE.create(
+            primary, secondary, spanSampling, SpanBudget.unlimited(), () -> false);
     when(primary.offer(trace)).thenReturn(!primaryFull, true);
     when(spanSampling.offer(trace)).thenReturn(!singleSpanFull);
 
@@ -231,7 +239,8 @@ class PrioritizationTest extends DDJavaSpecification {
     Queue<Object> secondary = mock(Queue.class);
     Queue<Object> spanSampling = mock(Queue.class);
     PrioritizationStrategy fastLane =
-        Prioritization.FAST_LANE.create(primary, secondary, spanSampling, () -> false);
+        Prioritization.FAST_LANE.create(
+            primary, secondary, spanSampling, SpanBudget.unlimited(), () -> false);
     when(primary.offer(trace)).thenReturn(true);
     when(spanSampling.offer(trace)).thenReturn(!singleSpanFull);
 
@@ -262,7 +271,8 @@ class PrioritizationTest extends DDJavaSpecification {
     Queue<Object> secondary = mock(Queue.class);
     Queue<Object> spanSampling = mock(Queue.class);
     PrioritizationStrategy drop =
-        Prioritization.FAST_LANE.create(primary, secondary, spanSampling, () -> true);
+        Prioritization.FAST_LANE.create(
+            primary, secondary, spanSampling, SpanBudget.unlimited(), () -> true);
     when(primary.offer(trace)).thenReturn(true);
     when(spanSampling.offer(trace)).thenReturn(true);
 
@@ -293,7 +303,8 @@ class PrioritizationTest extends DDJavaSpecification {
       PublishResult expectedResult) {
     Queue<Object> primary = mock(Queue.class);
     Queue<Object> spanSampling = mock(Queue.class);
-    PrioritizationStrategy drop = strategy.create(primary, null, spanSampling, () -> true);
+    PrioritizationStrategy drop =
+        strategy.create(primary, null, spanSampling, SpanBudget.unlimited(), () -> true);
     DDSpan root = mock(DDSpan.class);
     List<DDSpan> trace = Collections.singletonList(root);
     when(root.isForceKeep()).thenReturn(forceKeep);
@@ -307,5 +318,73 @@ class PrioritizationTest extends DDJavaSpecification {
     verify(primary, times(forceKeep ? 1 : 0)).offer(trace);
     verify(spanSampling, times(forceKeep ? 0 : 1)).offer(trace);
     verifyNoMoreInteractions(root, primary, spanSampling);
+  }
+
+  @SuppressWarnings("unchecked")
+  @Test
+  void testFastLaneRefusesOverBudgetTraceWithoutOffering() {
+    Queue<Object> primary = mock(Queue.class);
+    Queue<Object> secondary = mock(Queue.class);
+    SpanBudget budget = SpanBudget.of(100);
+    assertTrue(budget.tryAdmitKept(100));
+    PrioritizationStrategy fastLane =
+        Prioritization.FAST_LANE.create(primary, secondary, null, budget, () -> false);
+    List<DDSpan> trace = Collections.nCopies(10, mock(DDSpan.class));
+
+    PublishResult result =
+        fastLane.publish(mock(DDSpan.class), PrioritySampling.SAMPLER_KEEP, trace);
+
+    assertEquals(PublishResult.DROPPED_BUFFER_OVERFLOW, result);
+    verify(primary, never()).offer(any());
+    assertEquals(100, budget.used());
+  }
+
+  @SuppressWarnings("unchecked")
+  @Test
+  void testFastLaneCountsEnqueuedTraceAndReleasesOneTheQueueRefuses() {
+    Queue<Object> primary = mock(Queue.class);
+    Queue<Object> secondary = mock(Queue.class);
+    SpanBudget budget = SpanBudget.of(100);
+    PrioritizationStrategy fastLane =
+        Prioritization.FAST_LANE.create(primary, secondary, null, budget, () -> false);
+    List<DDSpan> trace = Collections.nCopies(10, mock(DDSpan.class));
+    when(primary.offer(trace)).thenReturn(true, false);
+
+    assertEquals(
+        ENQUEUED_FOR_SERIALIZATION,
+        fastLane.publish(mock(DDSpan.class), PrioritySampling.SAMPLER_KEEP, trace));
+    assertEquals(10, budget.used());
+
+    assertEquals(
+        PublishResult.DROPPED_BUFFER_OVERFLOW,
+        fastLane.publish(mock(DDSpan.class), PrioritySampling.SAMPLER_KEEP, trace));
+    assertEquals(10, budget.used());
+  }
+
+  @SuppressWarnings("unchecked")
+  @Test
+  void testFastLaneShedsSampledOutBeforeKept() {
+    Queue<Object> primary = mock(Queue.class);
+    Queue<Object> secondary = mock(Queue.class);
+    when(primary.offer(any())).thenReturn(true);
+    when(secondary.offer(any())).thenReturn(true);
+    SpanBudget budget = SpanBudget.of(100);
+    assertTrue(budget.tryAdmitKept(30));
+    PrioritizationStrategy fastLane =
+        Prioritization.FAST_LANE.create(primary, secondary, null, budget, () -> false);
+    List<DDSpan> trace = Collections.singletonList(mock(DDSpan.class));
+
+    assertEquals(
+        PublishResult.DROPPED_BUFFER_OVERFLOW_SAMPLED_OUT,
+        fastLane.publish(mock(DDSpan.class), PrioritySampling.SAMPLER_DROP, trace));
+    assertEquals(
+        ENQUEUED_FOR_SERIALIZATION,
+        fastLane.publish(mock(DDSpan.class), PrioritySampling.SAMPLER_KEEP, trace));
+  }
+
+  @Test
+  void testEnsureTraceIsOutsideTheSpanBudget() {
+    assertTrue(Prioritization.ENSURE_TRACE.spanBudget(100).isUnlimited());
+    assertEquals(false, Prioritization.FAST_LANE.spanBudget(100).isUnlimited());
   }
 }

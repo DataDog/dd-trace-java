@@ -7,6 +7,7 @@ import datadog.trace.api.civisibility.CiVisibilityWellKnownTags;
 import datadog.trace.api.intake.TrackType;
 import datadog.trace.common.sampling.SingleSpanSampler;
 import datadog.trace.common.writer.ddagent.Prioritization;
+import datadog.trace.common.writer.ddagent.SpanBudget;
 import datadog.trace.common.writer.ddintake.DDIntakeMapperDiscovery;
 import datadog.trace.core.monitor.HealthMetrics;
 import java.util.EnumMap;
@@ -27,6 +28,7 @@ public class DDIntakeWriter extends RemoteWriter {
   public static class DDIntakeWriterBuilder {
     CiVisibilityWellKnownTags wellKnownTags = Config.get().getCiVisibilityWellKnownTags();
     int traceBufferSize = BUFFER_SIZE;
+    SpanBudget spanBudget;
     HealthMetrics healthMetrics = HealthMetrics.NO_OP;
     int flushIntervalMilliseconds = 1000;
     Monitoring monitoring = Monitoring.DISABLED;
@@ -47,6 +49,12 @@ public class DDIntakeWriter extends RemoteWriter {
 
     public DDIntakeWriterBuilder monitoring(final Monitoring monitoring) {
       this.monitoring = monitoring;
+      return this;
+    }
+
+    /** The span budget the writer's queues count traces against; by default, the configured one. */
+    public DDIntakeWriterBuilder spanBudget(SpanBudget spanBudget) {
+      this.spanBudget = spanBudget;
       return this;
     }
 
@@ -116,6 +124,9 @@ public class DDIntakeWriter extends RemoteWriter {
       final TraceProcessingWorker traceProcessingWorker =
           new TraceProcessingWorker(
               traceBufferSize,
+              spanBudget != null
+                  ? spanBudget
+                  : (prioritization).spanBudget(Config.get().getTraceWriterSpanBudget()),
               healthMetrics,
               dispatcher,
               droppingPolicy,
