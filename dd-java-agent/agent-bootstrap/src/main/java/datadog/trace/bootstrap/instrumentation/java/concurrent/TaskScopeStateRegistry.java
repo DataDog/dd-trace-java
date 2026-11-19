@@ -21,6 +21,17 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class TaskScopeStateRegistry {
 
+  /** {@code StructuredTaskScope} implementation class name, the registry context store key. */
+  public static final String STRUCTURED_TASK_SCOPE_CLASS_NAME =
+      "java.util.concurrent.StructuredTaskScopeImpl";
+
+  /**
+   * {@link TaskScopeStateRegistry} class name as string literal. This is mandatory for {@link
+   * ContextStore} API call.
+   */
+  public static final String TASK_SCOPE_STATE_REGISTRY_CLASS_NAME =
+      "datadog.trace.bootstrap.instrumentation.java.concurrent.TaskScopeStateRegistry";
+
   public static final ContextStore.Factory<TaskScopeStateRegistry> FACTORY =
       TaskScopeStateRegistry::new;
 
