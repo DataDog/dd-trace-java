@@ -1,0 +1,3 @@
+import datadog.trace.instrumentation.spark.AbstractSparkPartialFlushDisabledTest;
+
+class SparkPartialFlushDisabledForkedTest extends AbstractSparkPartialFlushDisabledTest {}
