@@ -103,18 +103,23 @@ public class ExternalAgentLauncher implements Closeable {
             .getBytes(StandardCharsets.US_ASCII);
     private static final int MAX_STATUS_LINE_LENGTH = 64;
     private static final long RESPONSE_TIMEOUT_MILLIS = 2_000;
-    // The .NET tracer's default named pipe connect timeout, DD_TRACE_PIPE_TIMEOUT_MS
+
+    /** The .NET tracer's default named pipe connect timeout, {@code DD_TRACE_PIPE_TIMEOUT_MS}. */
     private static final long OPEN_TIMEOUT_MILLIS = 500;
 
     private final File pipe;
     private final boolean checkResponse;
 
-    // A request that got no answer in time. Only the supervisor thread runs the health check, so
-    // this needs no synchronization.
+    /**
+     * A request that got no answer in time. Only the supervisor thread runs the health check, so
+     * this needs no synchronization.
+     */
     private FutureTask<Boolean> timedOutInfoRequest;
 
-    // Created on first use. A new request is sent only once the previous one has finished, so one
-    // thread is enough.
+    /**
+     * Created on first use. A new request is sent only once the previous one has finished, so one
+     * thread is enough.
+     */
     private ExecutorService requestThread;
 
     NamedPipeHealthCheck(String pipeName, boolean checkResponse) {

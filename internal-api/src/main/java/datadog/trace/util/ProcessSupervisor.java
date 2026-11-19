@@ -42,17 +42,23 @@ public class ProcessSupervisor implements Closeable {
   private static final long FAULTED_DELAY_MILLIS = 2_000;
   private static final long MAX_FAULTED_DELAY_MILLIS = 60_000;
 
-  // Lifecycle events are logged at info level. A process that keeps failing quickly would flood
-  // the log, so after this many failures in a row the details go to debug level until the
-  // process stays up for STABLE_RUN_MILLIS.
+  /**
+   * Lifecycle events are logged at info level. A process that keeps failing quickly would flood the
+   * log, so after this many failures in a row the details go to debug level until the process stays
+   * up for {@link #STABLE_RUN_MILLIS}.
+   */
   private static final int QUIET_AFTER_FAILURES = 5;
+
+  /** How long a process must stay up, or healthy, before earlier failures are forgotten. */
   private static final long STABLE_RUN_MILLIS = 60_000;
 
-  // How long to wait after each stop request
+  /** How long to wait after each stop request. */
   private static final long STOP_WAIT_MILLIS = 200;
 
-  // A process this supervisor started is restarted after failing this many health checks in a row.
-  // When a process it did not start fails this many, it starts its own.
+  /**
+   * A process this supervisor started is restarted after failing this many health checks in a row.
+   * When a process it did not start fails this many, it starts its own.
+   */
   private static final int MAX_FAILED_HEALTH_CHECKS = 3;
 
   private final String imageName;
