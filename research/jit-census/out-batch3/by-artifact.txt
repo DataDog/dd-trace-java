@@ -1,0 +1,90 @@
+com.googlecode.owasp-java-html-sanitizer:owasp-java-html-sanitizer:20261110.1  (1 sites excl. split fast path)
+    String.replace(CS,CS)|CONST_TARGET                   1
+com.vaadin:flow-server:25.3.7  (401 sites excl. split fast path)
+    Pattern.compile[in-clinit]|ANCHORED_LITERAL          1
+    Pattern.compile[in-clinit]|CHARCLASS                 1
+    Pattern.compile[in-clinit]|OTHER                    29
+    Pattern.compile[in-ctor]|OTHER                       2
+    Pattern.compile[in-method]|OTHER                     4
+    String.format/formatted|other                        6
+    String.format/formatted|plain-%s-only              191
+    String.format/formatted|plain-%s/%d-only            46
+    String.matches|ALT_LITERALS                          1
+    String.matches|CHARCLASS                             1
+    String.matches|DOTSTAR                               1
+    String.matches|OTHER                                 2
+    String.replace(CS,CS)|CONST_TARGET                  64
+    String.replaceAll|CHARCLASS                          5
+    String.replaceAll|LITERAL                           10
+    String.replaceAll|OTHER                              6
+    String.replaceFirst|ANCHORED_LITERAL                12
+    String.replaceFirst|LITERAL                          2
+    String.replaceFirst|OTHER                            8
+    String.split|CHARCLASS                               5
+    String.split|CHAR_RUN                                4
+io.javalin:javalin:7.2.4  (2 sites excl. split fast path)
+    Pattern.compile[in-ctor]|OTHER                       1
+    String.format/formatted|plain-%s-only                1
+io.quarkus:quarkus-vertx-http:4.0.0  (50 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                    11
+    String.format/formatted|other                        2
+    String.format/formatted|plain-%s-only               27
+    String.format/formatted|plain-%s/%d-only             1
+    String.replace(CS,CS)|CONST_TARGET                   6
+    String.replaceAll|OTHER                              1
+    String.split|LINES                                   2
+org.apache.shiro:shiro-core:3.0.2  (0 sites excl. split fast path)
+org.apache.struts:struts2-core:7.5.0  (87 sites excl. split fast path)
+    Pattern.compile[in-clinit]|CHARCLASS                 2
+    Pattern.compile[in-clinit]|OTHER                     7
+    Pattern.compile[in-ctor]|CHARCLASS                   3
+    Pattern.compile[in-ctor]|OTHER                       3
+    Pattern.compile[in-method]|OTHER                     1
+    String.format/formatted|plain-%s-only               44
+    String.matches|OTHER                                 3
+    String.replace(CS,CS)|CONST_TARGET                   3
+    String.replaceAll|CHARCLASS                          2
+    String.replaceAll|LITERAL                            8
+    String.replaceAll|OTHER                              5
+    String.split|OTHER                                   1
+    String.split|WS_SEP                                  5
+org.apache.wicket:wicket-core:11.0.0  (110 sites excl. split fast path)
+    Pattern.compile[in-clinit]|CHARCLASS                 4
+    Pattern.compile[in-clinit]|OTHER                    11
+    Pattern.compile[in-clinit]|WS_SEP                    3
+    Pattern.compile[in-ctor]|OTHER                      10
+    Pattern.compile[in-method]|OTHER                    11
+    String.format/formatted|other                        4
+    String.format/formatted|plain-%s-only               46
+    String.format/formatted|plain-%s/%d-only             4
+    String.replace(CS,CS)|CONST_TARGET                   4
+    String.replaceAll|ANCHORED_LITERAL                   1
+    String.replaceAll|CHARCLASS                          6
+    String.replaceAll|CHAR_RUN                           1
+    String.replaceAll|LITERAL                            3
+    String.replaceAll|OTHER                              2
+org.glassfish:jakarta.faces:4.1.21  (89 sites excl. split fast path)
+    Pattern.compile[in-clinit]|ALT_LITERALS              3
+    Pattern.compile[in-clinit]|CHARCLASS                 6
+    Pattern.compile[in-clinit]|CHAR_RUN                  1
+    Pattern.compile[in-clinit]|LITERAL                   2
+    Pattern.compile[in-clinit]|OTHER                    25
+    String.format/formatted|plain-%s-only               19
+    String.matches|OTHER                                 1
+    String.replace(CS,CS)|CONST_TARGET                  23
+    String.replaceAll|CHARCLASS                          1
+    String.replaceFirst|LITERAL                          1
+    String.split|CHARCLASS                               5
+    String.split|CHAR_RUN                                1
+    String.split|LITERAL                                 1
+org.keycloak:keycloak-core:26.8.2  (26 sites excl. split fast path)
+    String.format/formatted|plain-%s-only               22
+    String.format/formatted|plain-%s/%d-only             2
+    String.replaceAll|ANCHORED_LITERAL                   1
+    String.split|WS_SEP                                  1
+org.pac4j:pac4j-core:6.6.1  (12 sites excl. split fast path)
+    Pattern.compile[in-clinit]|CHARCLASS                 1
+    Pattern.compile[in-ctor]|OTHER                       2
+    String.format/formatted|plain-%s-only                5
+    String.replace(CS,CS)|CONST_TARGET                   1
+    String.replaceAll|LITERAL                            3

@@ -1,0 +1,78 @@
+artifacts: 10
+classes: 21,538  (87 MB)  unparseable-cp: 0  asm-failed: 0
+
+== Prescan hit rates (fraction of all classes)
+  any target method ref :       616    2.86%
+  String.split          :        82    0.38%
+  String.matches        :        16    0.07%
+  String.replaceAll     :        27    0.13%
+  String.replaceFirst   :         6    0.03%
+  String.replace(CS,CS) :        82    0.38%
+  String.format/formatted:       377    1.75%
+  Pattern.compile       :        96    0.45%
+  Pattern.matches       :         1    0.00%
+  Pattern.quote         :         8    0.04%
+  split + S0-shaped const:         1   0.005%
+
+== Prescan soundness / precision
+  classes with >=1 const site: 559 ; missed by prescan: 0 (must be 0)
+  precision of any-target filter: 90.7% of hits have a const site
+  S0 filter: 1 prescan hits, 0 classes with real S0 site, 0 of those caught
+
+== Rough prescan cost (NOT JMH; sample 21,538 classes, 87 MB): median 854 ns/class, 204.4 ns/KB
+
+== All calls to target methods (const + non-const)
+  Pattern.compile                  183
+  Pattern.matches                    2
+  Pattern.quote                     11
+  String.format/formatted          739
+  String.matches                    33
+  String.replace(CS,CS)            266
+  String.replaceAll                 48
+  String.replaceFirst                6
+  String.split                     115
+
+== Constant-argument sites: method | shape   sites   #artifacts   top constants
+  Pattern.compile[in-clinit]|CHARCLASS                   2      2   "\\s+"x1  "[\\n\\r]"x1
+  Pattern.compile[in-clinit]|LINES                       1      1   "[\\r\\n]+"x1
+  Pattern.compile[in-clinit]|LITERAL                    11      3   "_resteasy_uri_parameter"x2  "\\$\\{basepath\\}"x1  "\\*/"x1  "\\$\\{absoluteuri\\}"x1  "\\$\\{absolutepath\\}"x1  "\\$\\{contextpath\\}"x1
+  Pattern.compile[in-clinit]|OTHER                     111      9   "^([+-])?(\\d+)-(\\d+)$"x1  "%[0-9A-Fa-f][0-9A-Fa-f]"x1  "\\p{Alpha}[-+.\\p{Alnum}]*:.*"x1  "(.*): => (.*)"x1  "Lexical error.*TokenMgrError.*line (\\d+),.*column (\\d+)\\.(.*)"x1  "^([A-Z]+)[ ]*(.*)$"x1
+  Pattern.compile[in-clinit]|WS_SEP                      1      1   "\\s*,\\s*"x1
+  Pattern.compile[in-clinit]|used-directly             126      0   
+  Pattern.compile[in-ctor]|OTHER                         3      1   "(?i)(MERGE|HASH|LOOKUP|INVERTED)\\s+JOIN"x1  "(?i)^\\s*(select\\b.+?\\bfrom\\b)(.+?)(\\bwhere\\b.+?)$"x1  "(?i)\\b(cross|natural\\s+(.*)\\b|(full|left|right)(\\s+outer)?)?\\s+join"x1
+  Pattern.compile[in-ctor]|used-directly                 3      0   
+  Pattern.compile[in-method]|OTHER                      10      6   "([0-9]+)([kKmMgGtT]?)"x1  "(\\s*)(\\d+)\\s*"x1  "[^\\?]*\\?"x1  "([^\n]+?)[ \\t]*?=[ \\t]*?([0-9]+)"x1  "^(/\\{([^:]+):.*\\}[/]?)?"x1  ".*?:\\s*(\\d+)\\D.*?:\\s*(\\d+)\\D.*"x1
+  Pattern.compile[in-method]|used-directly              10      0   
+  Pattern.quote|CONST                                    1      1   "="x1
+  String.format/formatted|other                         32      6   "\\u%04X"x4  "(trunc(%2$s, 'MONTH') + numtoyminterval(%1$s, 'MONTH') + (least(extract(day from %2$s), extract(day from last_day(trunc(%2$s, 'MONTH') + numtoyminterval(%1$s, 'MONTH')))) - 1))"x3  "$0x%04x"x2  "%04x"x2  "%1.3f %1.3f lineto\n"x1  "%.1f %siB"x1
+  String.format/formatted|plain-%s-only                606      8   "Unable to determine TableReference (`%s`) for `%s`"x8  "Could not instantiate named strategy class [%s]"x6  "%s      ;;\n"x4  "%s      type compopt &>/dev/null && compopt -o filenames\n"x4  "%s    %s)\n"x4  "Unable to access stream from jar file [%s] for entry [%s]"x3
+  String.format/formatted|plain-%s/%d-only              67      3   "%s    %s (( currIndex >= %d && currIndex <= %d )); then\n"x3  "Function %s() has %d parameters, but %d arguments given"x2  "Could not deserialize ATN with version %d (expected %d)."x2  "Parameter %d of function '%s()' requires an array type, but argument is of type '%s'"x2  "Parameter %d of function '%s()' has type '%s', but argument is of type '%s'"x2  "%%%%BoundingBox: %d %d %d %d\n"x1
+  String.matches|ALT_LITERALS                            5      1   "fatal|error|warn|info|debug|trace"x3  "error|warn|info|debug|trace"x1  "severe|warning|info|fine|finer|finest"x1
+  String.matches|CHARCLASS                               4      3   "\\w+"x1  "\\d+"x1  "\\s+"x1  "[a-zA-Z0-9\\-_]+"x1
+  String.matches|OTHER                                   9      3   "^/[^/*].*$"x1  "^(with\\b.*?\\bselect|select|explain)\\b.*?"x1  "[^?]*\\?[^?]*"x1  "^(insert|update|delete|merge|replace|upsert|lock)\\b.*?"x1  "^\\s*\\{\\s*(\\?\\s*=\\s*)call.*?"x1  "^(?is:(?:ALTER|BEGIN|COMMENT|CREATE|DECLARE|DELETE|DESCRIBE|DROP|GRANT|INSERT|MERGE|RENAME|REVOKE|SELECT|SET|SHOW|TRUNCATE|UPDATE|USE).*)$"x1
+  String.replace(CS,CS)|CONST_TARGET                   113      6   "\n"x12  "_"x9  "\\"x7  "\""x7  "\r"x6  "\t"x4
+  String.replaceAll|ALT_LITERALS                         2      2   ",|:|=|\n"x2
+  String.replaceAll|CHARCLASS                            1      1   "[-\\(\\)]"x1
+  String.replaceAll|LITERAL                             35      4   "\n"x5  "\r"x5  "\t"x4  " "x1  "\\}"x1  "\""x1
+  String.replaceAll|OTHER                                5      3   "\\s*\\R\\s*"x1  "[^\\/]*?[*?].*"x1  "((\"\\w+\"|\\w+)\\.)+"x1  "\\.0*$"x1  "//[^\\n]*"x1
+  String.replaceFirst|ANCHORED_LITERAL                   1      1   "LinkedHashMap$"x1
+  String.replaceFirst|OTHER                              2      2   "\\*+$"x1  "^(?i:\\s*GENERATED ALWAYS AS\\s*\\((.*)\\))$"x1
+  String.split|ALT_LITERALS                              1      1   "\r\n|\r|\n"x1
+  String.split|CHARCLASS                                 7      3   "[,; ]"x3  "\\s+"x1  "[\\s,]+"x1  "[_ ]"x1  "[;,]"x1
+  String.split|CHAR_RUN                                  2      2   " +"x2
+  String.split|LINES                                     1      1   "\\R"x1
+  String.split|OTHER                                     4      3   ",\\s*}"x1  "(\\[\\])+$"x1  "\\r?\\n|\\r|%n"x1  "|"x1
+  String.split|SPLIT_FASTPATH                           86      5   ","x26  "\\."x13  "\n"x10  "="x8  "/"x7  ";"x6
+  String.split|WS_SEP                                    2      2   ":\\s*"x1  ",\\s*"x1
+
+== Class-file versions of const sites  [<51 | 51-54 (indy ok) | >=55 (condy ok)]
+  Pattern.compile[in-clinit]               1 |      14 |     111
+  Pattern.compile[in-ctor]                 0 |       0 |       3
+  Pattern.compile[in-method]               3 |       4 |       3
+  Pattern.quote                            0 |       1 |       0
+  String.format/formatted                 58 |     113 |     534
+  String.matches                           0 |       2 |      16
+  String.replace(CS,CS)                   13 |      22 |      78
+  String.replaceAll                        4 |      31 |       8
+  String.replaceFirst                      0 |       0 |       3
+  String.split                             6 |      20 |      77

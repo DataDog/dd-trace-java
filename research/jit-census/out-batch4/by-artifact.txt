@@ -1,0 +1,88 @@
+com.squareup.retrofit2:retrofit:3.0.0  (4 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     3
+    String.format/formatted|plain-%s-only                1
+io.github.openfeign:feign-core:13.18  (33 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     8
+    Pattern.compile[in-method]|OTHER                     1
+    String.format/formatted|plain-%s-only               15
+    String.format/formatted|plain-%s/%d-only             2
+    String.matches|OTHER                                 1
+    String.replace(CS,CS)|CONST_TARGET                   2
+    String.replaceAll|LITERAL                            3
+    String.replaceAll|OTHER                              1
+net.sf.ehcache:ehcache:2.10.9.2  (32 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     2
+    Pattern.compile[in-method]|OTHER                     1
+    String.format/formatted|other                        2
+    String.format/formatted|plain-%s-only               23
+    String.replace(CS,CS)|CONST_TARGET                   1
+    String.replaceAll|ALT_LITERALS                       1
+    String.replaceAll|LITERAL                            2
+org.apache.groovy:groovy:6.0.0  (257 sites excl. split fast path)
+    Pattern.compile[in-clinit]|CHARCLASS                 1
+    Pattern.compile[in-clinit]|LITERAL                   1
+    Pattern.compile[in-clinit]|OTHER                    12
+    Pattern.compile[in-method]|OTHER                     4
+    String.format/formatted|other                       21
+    String.format/formatted|plain-%s-only               89
+    String.format/formatted|plain-%s/%d-only            34
+    String.matches|ALT_LITERALS                          5
+    String.replace(CS,CS)|CONST_TARGET                  48
+    String.replaceAll|CHARCLASS                          1
+    String.replaceAll|LITERAL                           28
+    String.replaceAll|OTHER                              2
+    String.replaceFirst|ANCHORED_LITERAL                 1
+    String.replaceFirst|OTHER                            1
+    String.split|ALT_LITERALS                            1
+    String.split|CHARCLASS                               5
+    String.split|OTHER                                   2
+    String.split|WS_SEP                                  1
+org.apache.velocity:velocity:1.7  (1 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     1
+org.ehcache:ehcache:3.12.0  (31 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     2
+    Pattern.compile[in-method]|OTHER                     1
+    Pattern.quote|CONST                                  1
+    String.format/formatted|other                        2
+    String.format/formatted|plain-%s-only               13
+    String.matches|CHARCLASS                             2
+    String.replace(CS,CS)|CONST_TARGET                   7
+    String.replaceAll|ALT_LITERALS                       1
+    String.split|OTHER                                   1
+    String.split|WS_SEP                                  1
+org.hibernate.orm:hibernate-core:7.4.17.Final  (563 sites excl. split fast path)
+    Pattern.compile[in-clinit]|LITERAL                   2
+    Pattern.compile[in-clinit]|OTHER                    26
+    Pattern.compile[in-clinit]|WS_SEP                    1
+    Pattern.compile[in-ctor]|OTHER                       3
+    String.format/formatted|other                        5
+    String.format/formatted|plain-%s-only              456
+    String.format/formatted|plain-%s/%d-only            31
+    String.matches|CHARCLASS                             1
+    String.matches|OTHER                                 1
+    String.replace(CS,CS)|CONST_TARGET                  34
+    String.replaceAll|LITERAL                            2
+    String.split|LINES                                   1
+org.jboss.resteasy:resteasy-core:7.0.6.Final  (33 sites excl. split fast path)
+    Pattern.compile[in-clinit]|LITERAL                   8
+    Pattern.compile[in-clinit]|OTHER                    14
+    Pattern.compile[in-method]|OTHER                     2
+    String.format/formatted|other                        1
+    String.format/formatted|plain-%s-only                4
+    String.matches|CHARCLASS                             1
+    String.split|CHARCLASS                               1
+    String.split|CHAR_RUN                                1
+    String.split|OTHER                                   1
+org.jooq:jooq:3.21.10  (85 sites excl. split fast path)
+    Pattern.compile[in-clinit]|CHARCLASS                 1
+    Pattern.compile[in-clinit]|LINES                     1
+    Pattern.compile[in-clinit]|OTHER                    43
+    Pattern.compile[in-method]|OTHER                     1
+    String.format/formatted|other                        1
+    String.format/formatted|plain-%s-only                5
+    String.matches|OTHER                                 7
+    String.replace(CS,CS)|CONST_TARGET                  21
+    String.replaceAll|OTHER                              2
+    String.replaceFirst|OTHER                            1
+    String.split|CHARCLASS                               1
+    String.split|CHAR_RUN                                1

@@ -31,3 +31,25 @@ org.apache.tomcat.embed:tomcat-embed-core:11.0.29
 org.springframework:spring-core:7.1.0
 org.springframework:spring-web:7.1.0
 org.springframework:spring-webmvc:7.1.0
+# batch3
+com.googlecode.owasp-java-html-sanitizer:owasp-java-html-sanitizer:20261110.1
+com.vaadin:flow-server:25.3.7
+io.javalin:javalin:7.2.4
+io.quarkus:quarkus-vertx-http:4.0.0
+org.apache.shiro:shiro-core:3.0.2
+org.apache.struts:struts2-core:7.5.0
+org.apache.wicket:wicket-core:11.0.0
+org.glassfish:jakarta.faces:4.1.21
+org.keycloak:keycloak-core:26.8.2
+org.pac4j:pac4j-core:6.6.1
+# batch4
+com.squareup.retrofit2:retrofit:3.0.0
+io.github.openfeign:feign-core:13.18
+net.sf.ehcache:ehcache:2.10.9.2
+org.apache.axis:axis:1.4
+org.apache.groovy:groovy:6.0.0
+org.apache.velocity:velocity:1.7
+org.ehcache:ehcache:3.12.0
+org.hibernate.orm:hibernate-core:7.4.17.Final
+org.jboss.resteasy:resteasy-core:7.0.6.Final
+org.jooq:jooq:3.21.10

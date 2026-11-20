@@ -66,12 +66,14 @@ Other corpora: `java -cp asm.jar Census.java <gradle files-2.1 dir> out` (the ba
 | JDK 8 / 11 / 17 / 21 / 25 class libraries | modules | ~25–31k each | `out-jdkNN/`; not a target, see below |
 | Central batch 1 (data / DB / docs) | 10 | 7,332 | `out-batch1/` |
 | Central batch 2 (expressions / templates / parsers) | 10 | 3,886 | `out-batch2/` |
+| Central batch 3 (security / web) | 10 | 6,847 | `out-batch3/`; analysis by Bits, outputs regenerated locally |
+| Central batch 4 (rest of the target list, incl. legacy track) | 10 | 21,538 | `out-batch4/`; analysis by Bits, outputs regenerated locally |
 | Central batch 5 (latest releases of hot target-list libraries) | 10 | 8,560 | `out-batch5/`; re-scan of baseline libraries at their latest stable release |
 
 ## Headline findings so far
 
 1. **`replaceAll` with a literal regex is the top target.** About 51% of constant `replaceAll` sites
-   in the baseline (1,325 / 2,611), and it shows up in 13 of the 20 Central libraries. Rewrite to
+   in the baseline (1,325 / 2,611), and it shows up in 23 of the 50 Central libraries. Rewrite to
    `replace(CharSequence, CharSequence)`. Top constants: `"\\."`, `"\n"`, `"\""`, `"'"`, `"\\\\"`.
 2. **Per-call compiles hide in the `String` API.** About 4,300 implicit per-call compiles (`split`
    off the fast path, `matches`, `replaceAll`, `replaceFirst`) versus 328 explicit
@@ -154,6 +156,22 @@ stand-in for "what customers on old stacks run".
   `PercentEscaper.<init>`). Rewrite: a char loop looking for a member of the class. Trap: `.` does not
   match line terminators, so `matches` is false for any input that contains `\n`, `\r`, `\u0085`,
   ` ` or ` `. The helper has to return false when the input contains one of them.
+- **ANCHORED_CHAR_RUN** (proposed, batch 3): `replaceAll("/*$", "")` (Vaadin
+  `SharedUtil.trimTrailingSlashes`), `replaceFirst("^_*", "")`. The rewrite strips a leading or
+  trailing run of one character. Trap: the same `$`-before-final-line-terminator rule as
+  ANCHORED_LITERAL. The `*` form also matches empty, which is harmless here because the replacement is `""`.
+- **TRUNCATE_AT_CLASS** (proposed, batch 3): `replaceAll("[^0-9].*", "")`, `replaceAll("[-_+].*", "")`
+  (Vaadin version parsing). The rewrite is `substring(0, indexOfFirstCharInClass)`. Trap: `.` doesn't match
+  line terminators, so the helper falls back when the tail contains one. Version strings only, so low priority.
+- **ANCHORED_ALT_PREFIX** (proposed, batch 4, jOOQ): `matches("^(insert|update|delete|merge|…)\\b.*?")`.
+  The rewrite is `regionMatches` against each alternative, plus a word-boundary check on the next character.
+  Trap: in `matches`, `.*?` can't cross a line terminator, so multi-line SQL needs the fallback.
+- **Trap for every LITERAL `replaceAll` → `replace` rewrite (batch 4):** the *replacement* string has its
+  own syntax. `replaceAll("\n", "\\\\n")` inserts a backslash followed by `n`. The rewrite has to
+  un-escape `\\` and `\$` in the replacement and must not fire when it contains a `$n` group reference.
+- **Trap (batch 4):** `split("|")` (RESTEasy) is an empty alternation, so it splits between every character.
+  It is not a literal pipe. The classifier must never treat a bare `|` as a literal.
+- Noted, not proposed: `">\\s+<"` (Struts `Compress`), `"\\s{2,}"` (Vaadin). One site each.
 - **Frame-safety rule:** substitutions must keep the stack the same shape, so no stack map frame
   recomputation and no `getCommonSuperClass`. Every branch lives in the callee (helper or
   `guardWithTest`). Log guards and for-each presizing are the exceptions; they need frame synthesis.
@@ -176,6 +194,54 @@ javaparser-core.
 - Quiet batch: these libraries tokenize by hand or cache their patterns. univocity and beanutils have 0 sites.
 - **OGNL: 15 `replaceAll` with a literal** (16 in the 3.5.0 beta), the same pattern again.
 - javaparser: 7 `split` with LINES (`\\r?\\n`, `\\R`).
+
+### Batch 3: security / web (2026-11-20, analysis by Bits)
+shiro-core 3.0.2, keycloak-core 26.8.2, owasp-java-html-sanitizer 20261110.1, struts2-core 7.5.0,
+wicket-core 11.0.0, flow-server, javalin 7.2.4, quarkus-vertx-http 4.0.0, pac4j-core 6.6.1,
+jakarta.faces 4.1.21. Bits ran it on Temurin 17.0.20.1 but couldn't push (its sandbox can't push to
+any branch), so the outputs were regenerated locally with the stable-version `fetch.sh`. Vaadin is
+now 25.3.7: 401 sites, versus 412 in Bits' 25.4.0-beta1 run. Bits' hot and cold calls below
+refer to the beta, but they're the same code paths.
+- The security libraries are nearly clean. Shiro has 0 sites and the OWASP sanitizer 1 (both tokenize
+  by hand). Keycloak has 26 (24 of them `format`), pac4j 12 and Javalin 2.
+- **Wicket: all 11 in-method `Pattern.compile` sites are in `UrlValidator`** (`isValid`,
+  `isValidAuthority`, `isValidPath`, …), so the regexes are recompiled on every validation. That's hot on
+  form submits, and these are class files ≥55, so a condy constant would fix it. `AutoLabelMarker` formats
+  `"Wicket.DOM.toggleClass('%s', '%s', %s);"` on every AJAX update.
+- **Struts: `replaceAll` LITERAL ×8, some of it per request.** `UIBean.ensureAttributeSafelyNotEscaped`
+  (`"\""` → `"&#34;"`) runs on every tag render, and `ServletRedirectResult.isPathUrl` (`" "` → `"%20"`) on
+  every redirect. `XWorkConverter.removeAllIndexesInPropertyName` (OTHER) runs per request parameter.
+  `DebuggingInterceptor` is dev-only.
+- **Vaadin flow-server: mostly `format`** (error messages, PWA `device-width` ×26 at startup). Per
+  request: `StaticFileServer` `replaceFirst("^/", "")` ×4 (ANCHORED_LITERAL), and
+  `HandlerHelper.isUploadRequest`, an OTHER-shaped `matches` that compiles on every request.
+  `replaceAll("\\\\", "/")` ×7 is dev-mode or bundling, so cold.
+- pac4j `replaceAll("&", "&amp;")` is on the unauthenticated AJAX path. jakarta.faces
+  `RestoreViewPhase.originatesInWebapp` calls `matches("^[a-z]+://.*")` per postback.
+- **Class files: 100% of the regex sites are ≥55**, versus 22% in the baseline. Modern web stacks are condy-eligible.
+
+### Batch 4: rest of the target list, including the legacy track (2026-11-20, analysis by Bits)
+ehcache 3.12.0, net.sf.ehcache 2.10.9.2 (legacy), retrofit 3.0.0, feign-core 13.18, resteasy-core
+7.0.6.Final, axis 1.4 (legacy; its only version, and there's no `<release>`), hibernate-core
+7.4.17.Final, jooq 3.21.10, groovy 6.0.0, velocity 1.7 (legacy). Bits ran it on Temurin 17.0.20.1
+and got pre-releases for hibernate (8.0.0.CR1), RESTEasy (8.0.0.Alpha1) and Feign (14.0-alpha1). It
+couldn't push. The outputs were regenerated locally at the stable versions above. Feign changes the
+most: 13.18 has **33 sites** versus 5 in the 14.0 alpha (9 `Pattern.compile`, 3 `replaceAll` LITERAL). Its hot/cold
+split hasn't been traced. Hibernate is 563 sites at 7.4.17, versus 617 in Bits' 8.0 CR1 run.
+**The target list is complete: 124 of 124** (`top100.md`).
+- **jOOQ `DefaultExecuteContext.type`: 5 `matches("^(insert|update|…)\\b.*?")`-style calls on every
+  query, which is 5 regex compiles per query.** It's the best find of the batch, and it motivates ANCHORED_ALT_PREFIX.
+- RESTEasy: `CookieParser` `split("[;,]")` per request, and `ResteasyUriBuilderImpl` compiles 2 regexes per call.
+- Hibernate is mostly `format` (messages, and SQL templates rendered once per query plan, so cold). The one
+  per-value site is `OsonDocumentReader.getValue` `replaceAll("-", "")` (Oracle OSON only).
+- Groovy: shaded ANTLR `toString` escapes and `isLoggingMethod` run at compile time, so cold. ehcache 3 is config/JMX.
+- **The legacy track contradicts the legacy comparison on class-file versions:** ehcache 2.10.9.2 is
+  all major 52 (rebuilt for Java 8), velocity 1.7 is major 48 with 1 cached `<clinit>` site, and
+  axis 1.4 is major 47 with **0 sites** (no regex, no `format`). Only 1 of 33 legacy-track sites is
+  in a class file <51, versus 49% in `legacy.md`. Legacy libraries that are still maintained get rebuilt,
+  so <51 means *unmaintained* old versions.
+- **Shading carries old class files into modern jars:** Groovy 6's shaded picocli and ASM are major 49,
+  and they account for almost all of this batch's <51 sites.
 
 ### Batch 5: latest releases of hot target-list libraries (2026-11-20, Temurin 21.0.4)
 jackson-databind 2.23.0, jackson-core 2.23.0, guava 33.8.0-jre, commons-lang3 3.22.0, spring-core
