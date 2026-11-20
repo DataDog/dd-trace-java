@@ -126,10 +126,14 @@ class EventBridgeClientTest extends InstrumentationSpecification {
   protected void configurePreAgent() {
     super.configurePreAgent()
     injectSysConfig(GeneralConfig.SERVICE_NAME, "eventbridge")
-    injectSysConfig(GeneralConfig.DATA_STREAMS_ENABLED, "true")
 
     // test propagation styles
     injectSysConfig('dd.trace.propagation.style', 'datadog,b3single,b3multi,haystack,xray,tracecontext')
+  }
+
+  @Override
+  protected boolean isDataStreamsEnabled() {
+    return true
   }
 
   def "trace details propagated via EventBridge to SQS (sync)"() {
