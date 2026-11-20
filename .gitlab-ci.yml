@@ -552,6 +552,14 @@ check-codeowners:
     - python3 -m unittest discover -s tooling/tests -p 'test_check_codeowners.py'
     - python3 tooling/check_codeowners.py
 
+test-perf-review-tooling:
+  # Same image as check-codeowners: it has Python 3 and Git.
+  image: ${BUILDER_IMAGE_REPO}:${BUILDER_IMAGE_VERSION_PREFIX}base
+  stage: tests
+  needs: []
+  script:
+    - python3 -m unittest discover -s tooling/tests -p 'test_contract_lookup.py'
+
 check-required-benchmarks:
   # Validates .github/required-benchmarks.txt (every listed benchmark exists) and the PR tooling.
   image: ${BUILDER_IMAGE_REPO}:${BUILDER_IMAGE_VERSION_PREFIX}base
