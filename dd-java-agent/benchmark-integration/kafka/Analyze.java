@@ -14,9 +14,9 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * Summarizes a run-consumer.sh or run-producer.sh results.csv.
+ * Summarizes a run-consumer.sh, run-enricher.sh or run-producer.sh results.csv.
  *
- * <p>Consumer, per heap and variant: median fetch throughput, the individual runs (so bimodality is
+ * <p>Consumer and enricher, per heap and variant: median fetch throughput, the individual runs (so bimodality is
  * visible), the tracer's cost per record relative to NoAgent in the same session, the change vs a
  * baseline variant, and young GCs per million records.
  *
@@ -55,13 +55,15 @@ public class Analyze {
     }
     String baseline = args.length > 1 ? args[1] : null;
     if (header.contains("fetch_msgs_per_sec")) {
-      consumer(rows, baseline);
+      consumer(rows, "fetch_msgs_per_sec", baseline);
+    } else if (header.contains("msgs_per_sec")) {
+      consumer(rows, "msgs_per_sec", baseline);
     } else {
       producer(rows);
     }
   }
 
-  static void consumer(List<Map<String, String>> rows, String baselineArg) {
+  static void consumer(List<Map<String, String>> rows, String rateColumn, String baselineArg) {
     Map<Key, List<Double>> rates = new HashMap<>();
     Map<Key, List<Double>> gcs = new HashMap<>();
     Map<Key, Integer> failures = new HashMap<>();
@@ -71,11 +73,11 @@ public class Analyze {
       Key key = new Key(r.get("heap"), r.get("variant"));
       heaps.add(key.heap());
       order.add(key.variant());
-      if (r.get("fetch_msgs_per_sec").isEmpty()) {
+      if (r.get(rateColumn).isEmpty()) {
         failures.merge(key, 1, Integer::sum);
         continue;
       }
-      rates.computeIfAbsent(key, k -> new ArrayList<>()).add(parse(r.get("fetch_msgs_per_sec")));
+      rates.computeIfAbsent(key, k -> new ArrayList<>()).add(parse(r.get(rateColumn)));
       double msgs = Math.max(1, parse(r.get("msgs")));
       gcs.computeIfAbsent(key, k -> new ArrayList<>()).add(1e6 * parse(r.get("young_gcs")) / msgs);
     }
