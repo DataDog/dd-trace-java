@@ -1,0 +1,69 @@
+artifacts: 10
+classes: 8,560  (32 MB)  unparseable-cp: 0  asm-failed: 0
+
+== Prescan hit rates (fraction of all classes)
+  any target method ref :       339    3.96%
+  String.split          :        37    0.43%
+  String.matches        :         1    0.01%
+  String.replaceAll     :         4    0.05%
+  String.replaceFirst   :         4    0.05%
+  String.replace(CS,CS) :        18    0.21%
+  String.format/formatted:       227    2.65%
+  Pattern.compile       :        65    0.76%
+  Pattern.matches       :         1    0.01%
+  Pattern.quote         :         8    0.09%
+  split + S0-shaped const:         0   0.000%
+
+== Prescan soundness / precision
+  classes with >=1 const site: 285 ; missed by prescan: 0 (must be 0)
+  precision of any-target filter: 84.1% of hits have a const site
+  S0 filter: 0 prescan hits, 0 classes with real S0 site, 0 of those caught
+
+== Rough prescan cost (NOT JMH; sample 8,560 classes, 32 MB): median 964 ns/class, 247.4 ns/KB
+
+== All calls to target methods (const + non-const)
+  Pattern.compile                  102
+  Pattern.matches                    2
+  Pattern.quote                     15
+  String.format/formatted          470
+  String.matches                     1
+  String.replace(CS,CS)             30
+  String.replaceAll                  4
+  String.replaceFirst                6
+  String.split                      52
+
+== Constant-argument sites: method | shape   sites   #artifacts   top constants
+  Pattern.compile[in-clinit]|ALT_LITERALS                1      1   "GET|HEAD|OPTIONS"x1
+  Pattern.compile[in-clinit]|CHARCLASS                   5      3   "[\n\r]"x1  "[^0-9]"x1  "[^ ]"x1  "[\\r\\t]"x1  "[-_./;:]"x1
+  Pattern.compile[in-clinit]|LINES                       1      1   "\\R"x1
+  Pattern.compile[in-clinit]|LITERAL                     6      3   "\\*/"x1  "\\."x1  "%7E"x1  "!/"x1  "\\*"x1  "\\+"x1
+  Pattern.compile[in-clinit]|OTHER                      32      8   "([^&=]+)(=?)([^&]+)?"x2  "\\{([^/]+?)\\}"x2  "=\\?([0-9a-zA-Z-_]+)\\?Q\\?([!->@-~]+)\\?="x1  "(?i:for)=\"?([^;,\"]+)\"?"x1  "(?i:host)=\"?([^;,\"]+)\"?"x1  "^https?://[^/]+"x1
+  Pattern.compile[in-clinit]|WS_SEP                      1      1   "\\s*,\\s*"x1
+  Pattern.compile[in-clinit]|used-directly              46      0   
+  Pattern.compile[in-ctor]|OTHER                         2      1   "ACCEPT[-0-9A-Z]*|CACHE-CONTROL|COOKIE|HOST|IF-[-0-9A-Z]*|REFERER|USER-AGENT"x1  "[\\w\\Q%;/?:@&,$-.!~*'()\\E]+"x1
+  Pattern.compile[in-ctor]|used-directly                 2      0   
+  Pattern.quote|CONST                                    7      1   "org.springframework."x2  "org.springframework.core.NativeDetector#inNativeImage"x1  "org.apache.commons.logging.LogAdapter"x1  "org.springframework.cglib.core.AbstractClassGenerator#inNativeImage"x1  "reactor.core."x1  "org.springframework.aot.AotDetector#inNativeImage"x1
+  String.format/formatted|other                         55      7   "\\u%04X"x10  "No acceptable code points found in range [%,d, %,d) within %,d attempts."x4  "\\u%04x"x3  "Class name greater than maximum length %,d"x2  "Broken surrogate pair in field name: expected low surrogate, got 0x%04X"x2  "%04o"x2
+  String.format/formatted|plain-%s-only                325     10   "Invalid Object Id definition for %s: cannot find property with name %s"x5  "Invalid delegate-creator definition for %s: value instantiator (%s) returned true for 'canCreateUsingDelegate()', but null for 'getDelegateType()'"x4  "Invalid class name %s"x4  "Invalid delegate-creator definition for %s: value instantiator (%s) returned true for 'canCreateUsingArrayDelegate()', but null for 'getArrayDelegateType()'"x4  "\"%s\""x4  "The value %s is not in the specified exclusive range of %s to %s"x3
+  String.format/formatted|plain-%s/%d-only              55      5   "Failed to access name of field #%d (of %d) of Record type %s"x2  "\"%s\" (truncated to %d chars (from %d))"x2  "Invalid 'offset' (%d) and/or 'len' (%d) arguments for `byte[]` of length %d"x2  "Attempt to write plain `java.math.BigDecimal` (see JsonGenerator.Feature.WRITE_BIGDECIMAL_AS_PLAIN) with illegal scale (%d): needs to be between [-%d, %d]"x2  "Invalid 'offset' (%d) and/or 'len' (%d) arguments for `char[]` of length %d"x2  "Logback %s (port %d)"x1
+  String.matches|OTHER                                   1      1   ".*[0-9A-Za-z].*"x1
+  String.replace(CS,CS)|CONST_TARGET                    29      7   "["x5  "]"x5  "!/"x3  "$"x2  "-"x2  "."x2
+  String.replaceAll|LITERAL                              2      2   "\\."x1  "-"x1
+  String.replaceFirst|ANCHORED_LITERAL                   1      1   "^jar:"x1
+  String.replaceFirst|LITERAL                            1      1   "\\*/"x1
+  String.split|ALT_LITERALS                              1      1   ":|,| "x1
+  String.split|CHARCLASS                                 1      1   "\\s+"x1
+  String.split|LINES                                     1      1   "\\r\\n"x1
+  String.split|OTHER                                     3      2   "[ ]*,[ ]*"x1  "(?=[-+,])"x1  "(?<!\\$)\\$(?!\\$)"x1
+  String.split|SPLIT_FASTPATH                           36      4   ","x20  "\\."x5  ":"x3  ";"x2  "="x2  " "x1
+
+== Class-file versions of const sites  [<51 | 51-54 (indy ok) | >=55 (condy ok)]
+  Pattern.compile[in-clinit]               9 |       7 |      30
+  Pattern.compile[in-ctor]                 0 |       0 |       2
+  Pattern.quote                            0 |       0 |       7
+  String.format/formatted                  4 |     290 |     141
+  String.matches                           0 |       1 |       0
+  String.replace(CS,CS)                    1 |       2 |      26
+  String.replaceAll                        0 |       1 |       1
+  String.replaceFirst                      0 |       0 |       2
+  String.split                             0 |       1 |      41

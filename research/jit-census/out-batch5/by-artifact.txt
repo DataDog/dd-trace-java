@@ -1,0 +1,68 @@
+ch.qos.logback:logback-classic:1.6.8  (12 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     1
+    String.format/formatted|other                        2
+    String.format/formatted|plain-%s-only                8
+    String.format/formatted|plain-%s/%d-only             1
+com.fasterxml.jackson.core:jackson-core:2.23.0  (51 sites excl. split fast path)
+    Pattern.compile[in-clinit]|CHARCLASS                 1
+    String.format/formatted|other                        8
+    String.format/formatted|plain-%s-only               18
+    String.format/formatted|plain-%s/%d-only            23
+    String.replaceAll|LITERAL                            1
+com.fasterxml.jackson.core:jackson-databind:2.23.0  (183 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     2
+    String.format/formatted|other                        5
+    String.format/formatted|plain-%s-only              159
+    String.format/formatted|plain-%s/%d-only            16
+    String.replace(CS,CS)|CONST_TARGET                   1
+com.google.guava:guava:33.8.0-jre  (19 sites excl. split fast path)
+    String.format/formatted|other                        4
+    String.format/formatted|plain-%s-only               13
+    String.matches|OTHER                                 1
+    String.replace(CS,CS)|CONST_TARGET                   1
+io.netty:netty-codec-http:5.0.0.Alpha2  (14 sites excl. split fast path)
+    Pattern.compile[in-clinit]|CHARCLASS                 3
+    Pattern.compile[in-clinit]|LITERAL                   3
+    Pattern.compile[in-clinit]|OTHER                     3
+    String.format/formatted|plain-%s-only                4
+    String.replace(CS,CS)|CONST_TARGET                   1
+org.apache.commons:commons-lang3:3.22.0  (48 sites excl. split fast path)
+    Pattern.compile[in-clinit]|LITERAL                   1
+    Pattern.compile[in-clinit]|OTHER                     3
+    String.format/formatted|other                       13
+    String.format/formatted|plain-%s-only               26
+    String.format/formatted|plain-%s/%d-only             5
+org.apache.tomcat.embed:tomcat-embed-core:11.0.29  (56 sites excl. split fast path)
+    Pattern.compile[in-clinit]|ALT_LITERALS              1
+    Pattern.compile[in-clinit]|LITERAL                   2
+    Pattern.compile[in-clinit]|OTHER                     2
+    Pattern.compile[in-clinit]|WS_SEP                    1
+    Pattern.compile[in-ctor]|OTHER                       2
+    String.format/formatted|other                       15
+    String.format/formatted|plain-%s-only               12
+    String.replace(CS,CS)|CONST_TARGET                  14
+    String.replaceAll|LITERAL                            1
+    String.replaceFirst|ANCHORED_LITERAL                 1
+    String.replaceFirst|LITERAL                          1
+    String.split|ALT_LITERALS                            1
+    String.split|CHARCLASS                               1
+    String.split|OTHER                                   2
+org.springframework:spring-core:7.1.0  (97 sites excl. split fast path)
+    Pattern.compile[in-clinit]|CHARCLASS                 1
+    Pattern.compile[in-clinit]|LINES                     1
+    Pattern.compile[in-clinit]|OTHER                     5
+    Pattern.quote|CONST                                  7
+    String.format/formatted|other                        8
+    String.format/formatted|plain-%s-only               57
+    String.format/formatted|plain-%s/%d-only            10
+    String.replace(CS,CS)|CONST_TARGET                   7
+    String.split|OTHER                                   1
+org.springframework:spring-web:7.1.0  (24 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                    14
+    String.format/formatted|plain-%s-only                7
+    String.replace(CS,CS)|CONST_TARGET                   2
+    String.split|LINES                                   1
+org.springframework:spring-webmvc:7.1.0  (26 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     2
+    String.format/formatted|plain-%s-only               21
+    String.replace(CS,CS)|CONST_TARGET                   3
