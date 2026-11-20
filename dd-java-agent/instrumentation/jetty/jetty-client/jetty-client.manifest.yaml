@@ -1,10 +1,8 @@
 _v: 1
 name: jetty-client
-display_name: 'Core :: HTTP Client'
-description: Instruments outbound HTTP requests and WebSocket HTTP upgrade handshakes, preserving trace context
-  through request and response callbacks.
+display_name: Jetty Client
+description: Instruments outbound HTTP requests made with the Jetty HTTP client.
 packages:
-- name: org.eclipse.jetty.websocket:jetty-websocket-core-client
 - name: org.eclipse.jetty:jetty-client
 category:
 - http.client

@@ -1,7 +1,8 @@
 _v: 1
 name: commons-http-client
-display_name: HttpClient
-description: Instruments outbound HTTP requests and HTTP method URI taint propagation for SSRF detection.
+display_name: Apache Commons HttpClient
+description: Instruments outbound HTTP requests made with Apache Commons HttpClient and propagates IAST taint through HttpMethodBase
+  construction.
 packages:
 - name: commons-httpclient:commons-httpclient
 category:

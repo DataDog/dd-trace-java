@@ -1,8 +1,8 @@
 _v: 1
 name: okhttp
 display_name: OkHttp
-description: Instruments synchronous and asynchronous outbound HTTP requests, URL taint propagation, and application-security
-  analysis of downstream requests, responses, and redirects.
+description: Instruments OkHttp client requests, producing outbound HTTP client spans and injecting trace context, while enabling
+  AppSec downstream request analysis and IAST URL taint propagation.
 packages:
 - name: com.squareup.okhttp3:okhttp
 - name: com.squareup.okhttp:okhttp

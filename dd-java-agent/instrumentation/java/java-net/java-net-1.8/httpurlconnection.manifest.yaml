@@ -1,8 +1,8 @@
 _v: 1
 name: httpurlconnection
 display_name: HttpURLConnection
-description: Instruments outbound HTTP requests, URL connection-opening failures, and URL and URI taint propagation
-  and SSRF checks.
+description: Traces outbound HTTP requests made through Java's HttpURLConnection, propagating distributed trace context in
+  request headers (and, when the urlconnection option is enabled, records error spans for failed URL.openConnection calls).
 packages: []
 category:
 - http.client
