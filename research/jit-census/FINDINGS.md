@@ -63,6 +63,7 @@ Other corpora: `java -cp asm.jar Census.java <gradle files-2.1 dir> out` (the ba
 | JDK 8 / 11 / 17 / 21 / 25 class libraries | modules | ~25–31k each | `out-jdkNN/`; not a target, see below |
 | Central batch 1 (data / DB / docs) | 10 | 7,332 | `out-batch1/` |
 | Central batch 2 (expressions / templates / parsers) | 10 | 3,886 | `out-batch2/` |
+| Central batch 5 (latest releases of hot target-list libraries) | 10 | 8,560 | `out-batch5/`; re-scan of baseline libraries, netty resolves to 5.0.0.Alpha2 |
 
 ## Headline findings so far
 
@@ -128,6 +129,21 @@ stand-in for "what customers on old stacks run".
   (WS_SEP 122 → 171, CHAR_RUN 26).
 - **WS_SEP widened:** literal padded on either side by `\\s*`, `\\s+`, `" *"` or `" +"`
   (`",\\s*"`, `" *, *"`, `"\\s+or\\s+"`).
+- **HEX_PAD** (proposed, from batch 5; `format`, not regex): a format string that is literal text
+  plus one zero-padded hex conversion, e.g. `"\\u%04X"` (×10 in batch 5: Tomcat
+  `StructuredField`, `JSONFilter.escape`; logback `JsonParser.printable`; Jackson), `"\\u%04x"`,
+  and in the baseline `"%02x"` ×49, `"\\u%04x"` ×44, `"0x%08x"` ×34. Rewrite:
+  `prefix + DDStrings.hexPad(value, width, upper)` (`Integer.toHexString` plus left zero padding).
+  Trap: `%X` takes only `Byte`/`Short`/`Integer`/`Long`/`BigInteger`, so a boxed `Character` throws
+  `IllegalFormatConversionException`, and a negative `Byte`/`Short` prints its unsigned 8/16-bit value (`ff`), not the sign-extended
+  `ffffffff` that `Integer.toHexString` gives. The helper has to
+  dispatch on the boxed type, or the rule fires only when the call site boxes an `int`.
+  The win is per-call `Formatter` setup (and the regex parse on JDK 8/11), and the sites are on escape
+  paths, which are warm at best.
+- **CONTAINS_CLASS** (proposed, from batch 5, one site so far): `matches(".*[0-9A-Za-z].*")` (Guava
+  `PercentEscaper.<init>`). Rewrite: a char loop looking for a member of the class. Trap: `.` does not
+  match line terminators, so `matches` is false for any input that contains `\n`, `\r`, `\u0085`,
+  ` ` or ` `. The helper has to return false when the input contains one of them.
 - **Frame-safety rule:** substitutions must keep the stack the same shape, so no stack map frame
   recomputation and no `getCommonSuperClass`. Every branch lives in the callee (helper or
   `guardWithTest`). Log guards and for-each presizing are the exceptions; they need frame synthesis.
@@ -150,6 +166,71 @@ javaparser-core.
 - Quiet batch: these libraries tokenize by hand or cache their patterns. univocity and beanutils have 0 sites.
 - **OGNL: 16 `replaceAll` with a literal**, the same pattern again.
 - javaparser: 7 `split` with LINES (`\\r?\\n`, `\\R`).
+
+### Batch 5: latest releases of hot target-list libraries (2026-11-20, Temurin 21.0.4)
+jackson-databind 2.23.0, jackson-core 2.23.0, guava 33.8.0-jre, commons-lang3 3.22.0, spring-core
+7.1.0, spring-web 7.1.0, spring-webmvc 7.1.0, tomcat-embed-core 11.0.29, netty-codec-http
+5.0.0.Alpha2, logback-classic 1.6.8. All ten are already in the baseline, so this batch checks how
+stale the "latest cached" version is, and which of the sites run per request.
+
+| Library | Latest: sites (per 1k) | Baseline version: sites (per 1k) | Change |
+|---|---:|---:|---|
+| jackson-databind | 2.23.0: 183 (225) | 2.22.3: 181 (223) | +2 `format` |
+| jackson-core | 2.23.0: 51 (239) | 2.22.3: 49 (230) | +2 `format` |
+| guava | 33.8.0: 19 (9.6) | 33.6.0: 18 (9.1) | +1 `format` |
+| commons-lang3 | 3.22.0: 48 (108) | 3.21.0: 48 (109) | none |
+| spring-core | 7.1.0: 97 (78) | 7.1.0-RC1: 97 (78) | none |
+| spring-web | 7.1.0: 24 (17.5) | 7.0.9: 24 (18.1) | none in count; the multipart split moved (below) |
+| spring-webmvc | 7.1.0: 26 (48) | 7.0.9: 26 (48) | 2 `replaceAll` LITERAL became `replace(CS,CS)` |
+| tomcat-embed-core | 11.0.29: 56 (37.6) | 11.0.26: 53 (36.0) | +1 `replaceAll` LITERAL, +1 `split` CHARCLASS, +1 `replace` |
+| netty-codec-http | 5.0.0.Alpha2: 14 (48) | 4.2.19: 14 (37) | different code line; 4.2.21 (scanned off-batch) is identical to 4.2.19 |
+| logback-classic | 1.6.8: 12 (65) | 1.6.5: 11 (62) | +1 `format` |
+
+Sites exclude the split fast path. "Per 1k" is all addressable sites per 1k classes.
+
+- **The baseline is not stale for these libraries.** Moving to the latest release changes each count
+  by 0 to 3 sites, and density by at most 1.6 per 1k (Tomcat). The changes go both ways. Spring
+  did our rewrite by hand: `ResourceHttpRequestHandler.locationToString` went from
+  `replaceAll("class path resource", ...)` to `replace` (cold, it builds a log string). Tomcat
+  went the other way. `SSLHostConfigPreSharedKey.setDigest` adds `replaceAll("-", "")`, and
+  `RandomizedTextRewriteMap.<init>` changed `split(" ")` (fast path) to `split("\\s+")`. Both run at config time.
+- **Central's `<release>` for netty-codec-http is 5.0.0.Alpha2**, the abandoned 2015 alpha, not
+  4.2.21.Final. This is the same trap as OGNL's beta in batch 2. Its row is a different code base,
+  so it shouldn't be compared with the 4.2 baseline. A follow-up for `fetch.sh` is to skip
+  pre-release `<release>` values (proposed here, not changed).
+- **Almost every addressable site here is cold.** On their request paths, these frameworks either
+  tokenize by hand or use a cached static `Pattern` (for example, 14 of spring-web's patterns are
+  compiled in `<clinit>`, including `UriComponentsBuilder`'s query pattern `"([^&=]+)(=?)([^&]+)?"`).
+  There are 11 implicit compiles in the batch, and 10 of them are on config or startup paths:
+  Tomcat `SSLHostConfig.setProtocols` (`split("(?=[-+,])")`), `JAASRealm.parseClassNames`
+  (`"[ ]*,[ ]*"`), `OpenSSLCipherConfigurationParser.parseInternal` (`":|,| "`),
+  `UriUtil.warToJar` / `JarFactory.getJarEntryURL` (`replaceFirst`, jar scanning), Jackson
+  `VersionUtil.mavenVersionFor` (`replaceAll("\\.", "/")`), Guava `PercentEscaper.<init>` (`matches`),
+  and Spring `SimpleTypeReference.of` (AOT). The eleventh is the multipart split below. The `Pattern.compile` sites with constant regexes are all in
+  `<clinit>` or a constructor (Tomcat `CGIServlet.<init>`). The ~325 `plain-%s` `format` sites are
+  nearly all exception messages (Jackson's top constants are "Invalid ... definition for %s" text).
+- **Hot or warm sites, by name:**
+  - spring-web 7.1 `http.converter.multipart.MultipartParser$HeadersState.parseHeaders()`:
+    `split("\\r\\n")` once per multipart part. It's an implicit compile on every part of every
+    multipart request, and it's **new on the servlet stack in 7.1**. In 7.0.9 the same code was the
+    WebFlux `http.codec.multipart` parser. In 7.1 WebFlux switched to a hand scanner that rejects bare CR/LF,
+    and the split-based copy moved to the new converter. This is the best site in the batch.
+    It is classified LINES, but `"\\r\\n"` is a fixed two-character literal, so a literal-split helper covers it.
+  - Tomcat 11.0.29 `RequestUtil.stripPathParams` (`split(";")`) and netty 4.2
+    `HttpContentCompressor.determineWrapper` (`split(",")`, Accept-Encoding) run per request, but they're
+    on the JDK fast path already. Nothing to gain.
+  - Netty 4.2 `HttpPostRequestEncoder.encodeAttribute` (`replace` ×3: `*`, `+`, `~`) and netty 5
+    `QueryStringEncoder.encodeComponent` (`replace("+", "%20")`) run per form attribute on the client. Jackson
+    `ISO8601Utils.parse` (`replace(":", "")`) runs per date when the offset is written without a colon.
+    Spring-web `HttpRequestValues$Builder.appendQueryParams` (`replace(":", "%3A")`) and
+    spring-webmvc `ExtendedServletRequestDataBinder.normalizeHeaderName` (`replace("-", "")`) are also
+    per request. All of these are `replace(CS,CS)`, so they only gain on **JDK 8** (X1). Most of these
+    library versions need JDK 17+ (Spring 7, Tomcat 11), so in practice only Netty 4.2 and Jackson 2.x on JDK 8 benefit.
+  - Escape paths in `format`: Tomcat `JSONFilter.escape(char)` and `juli.LogUtil.escape`, logback
+    `JsonParser.printable` (`"\\u%04X"`), and logback `SyslogStartConverter.computeTimeStampString` (cached per second).
+    These are per control character or per log event, so they're warm at most. See HEX_PAD above.
+- **Proposed shapes:** HEX_PAD (`format`) and CONTAINS_CLASS (`matches(".*[cls].*")`), under
+  Changes to the rule catalog.
 
 ## Open questions / next steps
 
