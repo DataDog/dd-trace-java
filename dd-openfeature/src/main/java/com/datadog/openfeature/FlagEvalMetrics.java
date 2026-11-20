@@ -91,11 +91,13 @@ class FlagEvalMetrics implements Closeable {
     if (now - lastNoopCheckNanos < noopRecheckNanos) {
       return null;
     }
-    lastNoopCheckNanos = now;
     try {
       final OpenTelemetry current = currentOpenTelemetry();
       if (recordsNothing(current)) {
         // Nothing to record into until the application registers an SDK: skip the attributes.
+        // Throttled only once a no-op is seen, so evaluations racing a real SDK's counter
+        // initialization wait for it in initializeCounter rather than going unrecorded.
+        lastNoopCheckNanos = now;
         return null;
       }
       return initializeCounter(current);
