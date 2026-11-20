@@ -18,7 +18,14 @@ public class KarateBuilderAdvice {
         InstrumentationContext.get(Scenario.class, ExecutionContext.class);
     ContextStore<FeatureRuntime, FeatureSuite> featureSuites =
         InstrumentationContext.get(FeatureRuntime.class, FeatureSuite.class);
-    builder.listener(new KarateTracingListener(scenarioContext, featureSuites));
+    // Keep ScenarioRuntime unloaded until its retry advice can be applied on first use.
+    builder.listener(
+        new KarateTracingListener(
+            scenarioContext,
+            featureSuites,
+            InstrumentationContext.get(
+                "io.karatelabs.core.ScenarioRuntime",
+                "datadog.trace.instrumentation.karate2.KarateTracingListener$StepContext")));
   }
 
   // Karate 2.0.0 and above

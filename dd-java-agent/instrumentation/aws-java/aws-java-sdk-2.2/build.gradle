@@ -15,6 +15,7 @@ muzzle {
 
 // TODO APMLP-2196: no latestDepForkedTest until the tests handle S3 moving the bucket name to the hostname (somebucket.localhost)
 addTestSuiteForDir('latestDepTest', 'test', false)
+sourceSets.latestDepTest.java.srcDir('src/latestDepTest/java')
 
 addTestSuite('dsmTest')
 addTestSuiteForDir('latestDsmTest', 'dsmTest')

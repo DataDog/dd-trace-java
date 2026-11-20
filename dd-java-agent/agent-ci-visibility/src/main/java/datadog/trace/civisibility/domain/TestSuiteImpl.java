@@ -1,10 +1,10 @@
 package datadog.trace.civisibility.domain;
 
 import static datadog.json.JsonMapper.toJson;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpanWithoutScope;
 import static datadog.trace.civisibility.Constants.CI_VISIBILITY_INSTRUMENTATION_NAME;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.civisibility.DDTestSuite;
 import datadog.trace.api.civisibility.config.LibraryCapability;
 import datadog.trace.api.civisibility.coverage.CoverageStore;
@@ -38,6 +38,8 @@ public class TestSuiteImpl implements DDTestSuite {
 
   private final AgentSpanContext moduleSpanContext;
   private final AgentSpan span;
+  private final ContextActivation contextActivation;
+  private boolean ended;
   private final String moduleName;
   private final String testSuiteName;
   private final String itrCorrelationId;
@@ -144,7 +146,14 @@ public class TestSuiteImpl implements DDTestSuite {
     configurationErrors.applyTags(span);
 
     if (!parallelized) {
-      activateSpanWithoutScope(span);
+      if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+        AgentTracer.get().activateSpanWithoutScope(span);
+        contextActivation = null;
+      } else {
+        contextActivation = ContextActivation.enter(span);
+      }
+    } else {
+      contextActivation = null;
     }
 
     metricCollector.add(CiVisibilityCountMetric.EVENT_CREATED, 1, instrumentation, EventType.SUITE);
@@ -206,26 +215,36 @@ public class TestSuiteImpl implements DDTestSuite {
 
   @Override
   public void end(@Nullable Long endTime) {
-    if (!parallelized) {
-      final AgentSpan activeSpan = AgentTracer.activeSpan();
-      if (activeSpan == null) {
-        throw new IllegalStateException(
-            "No active span present, it is possible that end() was called multiple times");
-      }
+    if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+      if (!parallelized) {
+        final AgentSpan activeSpan = AgentTracer.activeSpan();
+        if (activeSpan == null) {
+          throw new IllegalStateException(
+              "No active span present, it is possible that end() was called multiple times");
+        }
 
-      if (activeSpan != this.span) {
-        throw new IllegalStateException(
-            "Active span does not correspond to the finished suite, "
-                + "it is possible that end() was called multiple times "
-                + "or an operation that was started by the suite is still in progress; "
-                + "active span is: "
-                + activeSpan
-                + "; "
-                + "expected span is: "
-                + this.span);
-      }
+        if (activeSpan != this.span) {
+          throw new IllegalStateException(
+              "Active span does not correspond to the finished suite, "
+                  + "it is possible that end() was called multiple times "
+                  + "or an operation that was started by the suite is still in progress; "
+                  + "active span is: "
+                  + activeSpan
+                  + "; "
+                  + "expected span is: "
+                  + this.span);
+        }
 
-      AgentTracer.closeActive();
+        AgentTracer.get().closeActive();
+      }
+    } else {
+      if (ended) {
+        return;
+      }
+      ended = true;
+      if (contextActivation != null) {
+        contextActivation.exit();
+      }
     }
 
     onSpanFinish.accept(span);

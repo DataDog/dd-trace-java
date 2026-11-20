@@ -114,9 +114,13 @@ sourceSets {
 
 // karate 1.4.0+ requires Java 11: https://github.com/karatelabs/karate/releases/tag/v1.4.0
 tasks.named("karate141Test", Test) {
-  onlyIf { javaVersion.isJava11Compatible() }
+  testJvmConstraints {
+    minJavaVersion = JavaVersion.VERSION_11
+  }
 }
 
 tasks.named("latestDepTest", Test) {
-  onlyIf { javaVersion >= JavaVersion.VERSION_17 }
+  testJvmConstraints {
+    minJavaVersion = JavaVersion.VERSION_17
+  }
 }

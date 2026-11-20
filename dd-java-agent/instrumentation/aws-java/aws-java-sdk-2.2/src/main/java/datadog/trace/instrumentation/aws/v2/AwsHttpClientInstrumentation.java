@@ -6,24 +6,30 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closeActive;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.blackholeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
+import static datadog.trace.instrumentation.aws.v2.AwsSdkClientDecorator.AWS_LEGACY_TRACING;
+import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
+import datadog.context.Context;
+import datadog.context.ContextHandle;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import net.bytebuddy.asm.Advice;
+import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import software.amazon.awssdk.core.internal.http.RequestExecutionContext;
 import software.amazon.awssdk.core.internal.http.pipeline.stages.MakeAsyncHttpRequestStage;
 
 /**
- * Separate instrumentation class to close aws request scope right after request has been submitted
- * for execution for Sync clients.
+ * Pairs AWS request context activation and restoration around synchronous HTTP calls and
+ * asynchronous submission.
  */
 public final class AwsHttpClientInstrumentation
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
@@ -45,14 +51,37 @@ public final class AwsHttpClientInstrumentation
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
+    ElementMatcher.Junction<MethodDescription> execute =
         isMethod()
             .and(isPublic())
             .and(named("execute"))
             .and(
                 takesArgument(
-                    1, named("software.amazon.awssdk.core.internal.http.RequestExecutionContext"))),
-        AwsHttpClientInstrumentation.class.getName() + "$AwsHttpClientAdvice");
+                    1, named("software.amazon.awssdk.core.internal.http.RequestExecutionContext")));
+
+    if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+      transformer.applyAdvice(
+          execute, AwsHttpClientInstrumentation.class.getName() + "$AwsHttpClientAdvice");
+    } else {
+      transformer.applyAdvice(
+          execute.and(
+              isDeclaredBy(
+                  named(
+                      "software.amazon.awssdk.core.internal.http.pipeline.stages.MakeHttpRequestStage"))),
+          AwsHttpClientInstrumentation.class.getName() + "$SyncHttpRequestAdvice");
+      transformer.applyAdvice(
+          isMethod()
+              .and(named("executeHttpRequest"))
+              .and(
+                  isDeclaredBy(
+                      named(
+                          "software.amazon.awssdk.core.internal.http.pipeline.stages.MakeAsyncHttpRequestStage")))
+              .and(
+                  takesArgument(
+                      1,
+                      named("software.amazon.awssdk.core.internal.http.RequestExecutionContext"))),
+          AwsHttpClientInstrumentation.class.getName() + "$AsyncHttpRequestAdvice");
+    }
   }
 
   public static class AwsHttpClientAdvice {
@@ -80,10 +109,10 @@ public final class AwsHttpClientInstrumentation
                   .equals(activeSpan.getSpanName()))) {
         if (thiz instanceof MakeAsyncHttpRequestStage) {
           // close async legacy HTTP span to avoid Netty leak...
-          closeActive(); // then drop-through and activate no-op span
+          AgentTracer.get().closeActive(); // then drop-through and activate no-op span
         } else {
           // keep sync legacy HTTP span alive for duration of call
-          return AgentTracer::closeActive;
+          return TracingExecutionInterceptor::closeActiveScope;
         }
       }
       return activateSpan(noopSpan());
@@ -91,7 +120,9 @@ public final class AwsHttpClientInstrumentation
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void methodExit(@Advice.Enter final AutoCloseable scope) throws Exception {
-      scope.close();
+      if (scope != null) {
+        scope.close();
+      }
     }
 
     /**
@@ -100,6 +131,46 @@ public final class AwsHttpClientInstrumentation
      */
     public static void muzzleCheck() {
       TracingExecutionInterceptor.muzzleCheck();
+    }
+  }
+
+  public static class SyncHttpRequestAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static ContextHandle methodEnter(
+        @Advice.Argument(1) final RequestExecutionContext requestExecutionContext) {
+      Context context =
+          AWS_LEGACY_TRACING
+              ? requestExecutionContext
+                  .executionAttributes()
+                  .getAttribute(TracingExecutionInterceptor.CONTEXT_ATTRIBUTE)
+              : blackholeSpan();
+      return (context != null ? context : noopSpan()).swap();
+    }
+
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void methodExit(@Advice.Enter final ContextHandle previousContext) {
+      if (previousContext != null) {
+        previousContext.swap();
+      }
+    }
+
+    public static void muzzleCheck() {
+      TracingExecutionInterceptor.muzzleCheck();
+    }
+  }
+
+  public static class AsyncHttpRequestAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static ContextHandle methodEnter() {
+      // This method runs after signing completes, on the thread that submits the HTTP request.
+      return noopSpan().swap();
+    }
+
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void methodExit(@Advice.Enter final ContextHandle previousContext) {
+      if (previousContext != null) {
+        previousContext.swap();
+      }
     }
   }
 }
