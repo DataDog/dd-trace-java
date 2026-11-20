@@ -1,0 +1,12 @@
+_v: 1
+name: lettuce
+display_name: Lettuce
+description: Instruments Redis commands and connections issued through synchronous, asynchronous, and reactive Lettuce clients.
+packages:
+- name: biz.paluch.redis:lettuce
+- name: io.lettuce:lettuce-core
+category:
+- db.client
+systems:
+- redis
+creation_date: '2018-05-23'

@@ -1,0 +1,12 @@
+_v: 1
+name: spymemcached
+display_name: Spymemcached
+description: Instruments Spymemcached client operations against Memcached, including cache reads, writes, deletions, and counter
+  updates.
+packages:
+- name: net.spy:spymemcached
+category:
+- db.client
+systems:
+- memcached
+creation_date: '2018-06-11'

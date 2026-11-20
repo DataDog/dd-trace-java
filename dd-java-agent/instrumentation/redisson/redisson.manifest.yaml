@@ -1,0 +1,11 @@
+_v: 1
+name: redisson
+display_name: Redisson
+description: Instruments Redis commands executed through Redisson.
+packages:
+- name: org.redisson:redisson
+category:
+- db.client
+systems:
+- redis
+creation_date: '2022-01-30'
