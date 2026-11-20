@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.resilience4j;
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.SkipCompletableFutureContextCapture;
 import io.github.resilience4j.core.functions.CheckedConsumer;
 import io.github.resilience4j.core.functions.CheckedFunction;
 import io.github.resilience4j.core.functions.CheckedRunnable;
@@ -214,7 +215,11 @@ public class WrapperWithContext<T> {
     @Override
     public CompletionStage<?> get() {
       try (ContextScope ignore = activateScope()) {
-        return delegate.get().whenComplete(new SpanFinishingCallback(this));
+        return delegate
+            .get()
+            .whenComplete(
+                (BiConsumer<Object, Throwable> & SkipCompletableFutureContextCapture)
+                    (value, error) -> finishSpanIfNeeded());
       }
     }
   }
@@ -234,24 +239,14 @@ public class WrapperWithContext<T> {
       try (ContextScope ignore = activateScope()) {
         Future<?> future = delegate.get();
         if (future instanceof CompletableFuture) {
-          ((CompletableFuture<?>) future).whenComplete(new SpanFinishingCallback(this));
+          ((CompletableFuture<?>) future)
+              .whenComplete(
+                  (BiConsumer<Object, Throwable> & SkipCompletableFutureContextCapture)
+                      (value, error) -> finishSpanIfNeeded());
           return future;
         }
         return new FinishOnGetFuture<>(future, this);
       }
-    }
-  }
-
-  private static final class SpanFinishingCallback implements BiConsumer<Object, Throwable> {
-    private final WrapperWithContext<?> owner;
-
-    SpanFinishingCallback(WrapperWithContext<?> owner) {
-      this.owner = owner;
-    }
-
-    @Override
-    public void accept(Object value, Throwable error) {
-      owner.finishSpanIfNeeded();
     }
   }
 
