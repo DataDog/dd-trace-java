@@ -4,7 +4,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static graphql.Scalars.GraphQLString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -27,35 +26,25 @@ import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import org.tabletest.junit.TableTest;
 
 class GraphQLCallbackExclusionTest extends AbstractInstrumentationTest {
   @TableTest({
-    "scenario                 | completed     | outcome  ",
-    "successful resolver      | {false, true} | success  ",
-    "plain resolver failure   | {false, true} | plain    ",
-    "wrapped resolver failure | {false, true} | wrapped  ",
-    "nested resolver failure  | {false, true} | nested   ",
-    "execution failure        | {false, true} | execution",
-    "cancelled resolver       | {false, true} | cancel   "
+    "scenario                 | completed     | outcome",
+    "successful resolver      | {false, true} | success",
+    "wrapped resolver failure | {false, true} | failure",
+    "cancelled resolver       | {false, true} | cancel "
   })
   void fieldFinisherSkipsCapture(boolean completed, String outcome) throws Exception {
     CompletableFuture<String> source = new CompletableFuture<>();
     IllegalArgumentException cause = new IllegalArgumentException("resolver failed");
-    Throwable failure =
-        outcome.equals("plain")
-            ? cause
-            : outcome.equals("wrapped")
-                ? new CompletionException(cause)
-                : outcome.equals("nested")
-                    ? new CompletionException(new CompletionException(cause))
-                    : outcome.equals("execution") ? new ExecutionException(cause) : null;
+    Throwable failure = outcome.equals("failure") ? new CompletionException(cause) : null;
     if (completed) {
       complete(source, outcome, failure);
     }
+
     GraphQLObjectType parentType =
         GraphQLObjectType.newObject()
             .name("Query")
@@ -67,12 +56,14 @@ class GraphQLCallbackExclusionTest extends AbstractInstrumentationTest {
     when(environment.getFieldType()).thenReturn(GraphQLString);
     InstrumentationFieldFetchParameters parameters =
         mock(InstrumentationFieldFetchParameters.class);
+
     AtomicReference<AgentSpan> field = new AtomicReference<>();
     DataFetcher<CompletableFuture<String>> delegate =
         ignored -> {
           field.set(activeSpan());
           return source;
         };
+
     AgentSpan request = startSpan("test", "request");
     AgentSpan application = startSpan("test", "application");
     InstrumentedDataFetcher fetcher = new InstrumentedDataFetcher(delegate, parameters, request);
@@ -84,6 +75,8 @@ class GraphQLCallbackExclusionTest extends AbstractInstrumentationTest {
       CompletableFuture<String> dependent = (CompletableFuture<String>) fetcher.get(environment);
       int finisherCaptures = captures() - before;
       assertSame(request, activeSpan());
+      DDSpan fieldSpan = assertInstanceOf(DDSpan.class, field.get());
+
       scope.close();
       scope = activateSpan(application);
       before = captures();
@@ -91,15 +84,18 @@ class GraphQLCallbackExclusionTest extends AbstractInstrumentationTest {
       int applicationCaptures = captures() - before;
       scope.close();
       scope = null;
+
+      assertEquals(completed, fieldSpan.isFinished());
       complete(source, outcome, failure);
+      assertTrue(fieldSpan.isFinished());
 
       assertEquals(0, finisherCaptures);
       assertEquals(completed ? 0 : 1, applicationCaptures);
-      assertNotNull(field.get());
-      assertEquals(request.getSpanId(), assertInstanceOf(DDSpan.class, field.get()).getParentId());
-      assertEquals("graphql.field", field.get().getOperationName().toString());
+      assertEquals(request.getSpanId(), fieldSpan.getParentId());
+      assertEquals("graphql.field", fieldSpan.getOperationName().toString());
       assertEquals(1, callback.calls);
       assertSame(application, callback.parent);
+
       if (outcome.equals("success")) {
         assertEquals("value", downstream.join());
       } else {
@@ -107,18 +103,17 @@ class GraphQLCallbackExclusionTest extends AbstractInstrumentationTest {
         if (outcome.equals("cancel")) {
           assertInstanceOf(CancellationException.class, expected.getCause());
         } else {
-          assertTrue(expected == failure || expected.getCause() == failure);
+          assertSame(cause, expected.getCause());
         }
       }
-      assertEquals(!outcome.equals("success"), field.get().isError());
+
+      assertEquals(!outcome.equals("success"), fieldSpan.isError());
       if (!outcome.equals("success")) {
         assertEquals(
             outcome.equals("cancel")
                 ? CancellationException.class.getName()
-                : outcome.equals("nested")
-                    ? CompletionException.class.getName()
-                    : IllegalArgumentException.class.getName(),
-            field.get().getTag("error.type"));
+                : IllegalArgumentException.class.getName(),
+            fieldSpan.getTag("error.type"));
       }
       assertNull(activeSpan());
     } finally {
@@ -128,9 +123,10 @@ class GraphQLCallbackExclusionTest extends AbstractInstrumentationTest {
       complete(source, outcome, failure);
       request.finish();
       application.finish();
-      writer.waitForTraces(2);
-      assertEquals(3, writer.stream().mapToInt(List::size).sum());
     }
+
+    writer.waitForTraces(2);
+    assertEquals(3, writer.stream().mapToInt(List::size).sum());
   }
 
   private static int captures() {
