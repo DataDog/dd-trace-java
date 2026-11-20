@@ -89,8 +89,7 @@ public final class ServletInstrumentation extends InstrumenterModule.Tracing
             // Set the route unless the mapping match is default, this way we prevent setting route
             // for a non-existing resource. Otherwise, it'd set a non-existing resource name with
             // higher priority than 404 resource, so it wouldn't be able to set resource 404 later
-            // in
-            // the onResponse instrumentation.
+            // in the onResponse instrumentation.
             HTTP_RESOURCE_DECORATOR.withRoute(
                 undertowSpan, exchange.getRequestMethod().toString(), relativePath, false);
           }
