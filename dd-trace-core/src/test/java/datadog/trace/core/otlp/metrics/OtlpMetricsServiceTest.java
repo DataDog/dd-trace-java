@@ -1,15 +1,19 @@
 package datadog.trace.core.otlp.metrics;
 
+import static datadog.trace.agent.test.utils.OtelMetricCollector.collect;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_ENDPOINT;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_PROTOCOL;
+import static datadog.trace.api.config.OtlpConfig.Protocol.HTTP_PROTOBUF;
 import static datadog.trace.common.writer.RemoteApi.Response.failed;
 import static datadog.trace.common.writer.RemoteApi.Response.success;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.OTLP_METRICS_EXPORTER;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
+import static java.util.stream.Collectors.toList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -19,12 +23,19 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import datadog.metrics.api.Histograms;
+import datadog.metrics.impl.DDSketchHistograms;
+import datadog.trace.agent.test.utils.OtelMetricCollector;
+import datadog.trace.agent.test.utils.OtelMetricCollector.DataPointEntry;
 import datadog.trace.api.Config;
 import datadog.trace.api.telemetry.OtlpTelemetry;
 import datadog.trace.bootstrap.otel.metrics.data.OtelMetricRegistry;
+import datadog.trace.bootstrap.otlp.metrics.OtlpHistogramPoint;
+import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.otlp.common.OtlpHttpSender;
 import datadog.trace.core.otlp.common.OtlpPayload;
 import datadog.trace.core.otlp.common.OtlpSender;
+import datadog.trace.core.otlp.sdk.OtelSdkSelfMonitoring;
 import datadog.trace.util.AgentTaskScheduler;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -34,13 +45,24 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
+import okhttp3.HttpUrl;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 class OtlpMetricsServiceTest {
   private static final OtlpPayload PAYLOAD =
-      new OtlpPayload(ByteBuffer.wrap(new byte[] {1}), OtlpPayload.PROTOBUF_CONTENT_TYPE);
+      new OtlpPayload(ByteBuffer.wrap(new byte[] {1}), OtlpPayload.PROTOBUF_CONTENT_TYPE, 3);
+  private static final HttpUrl DESTINATION = HttpUrl.get("http://collector:4318/v1/metrics");
+  private static final String INFLIGHT = "otel.sdk.exporter.metric_data_point.inflight";
+  private static final String EXPORTED = "otel.sdk.exporter.metric_data_point.exported";
+  private static final String DURATION = "otel.sdk.exporter.operation.duration";
   private final List<AgentTaskScheduler> schedulers = new ArrayList<>();
+
+  @BeforeAll
+  static void registerHistogramFactory() {
+    Histograms.register(DDSketchHistograms.FACTORY);
+  }
 
   @AfterEach
   void stopSchedulers() {
@@ -204,7 +226,7 @@ class OtlpMetricsServiceTest {
   @Test
   void flushIsSafeWithoutSender() {
     OtlpMetricsService service =
-        new OtlpMetricsService(mock(AgentTaskScheduler.class), null, null, 10_000);
+        new OtlpMetricsService(mock(AgentTaskScheduler.class), null, null, HTTP_PROTOBUF, 10_000);
 
     service.flush();
   }
@@ -232,7 +254,7 @@ class OtlpMetricsServiceTest {
   @Test
   void shutdownIsSafeWithoutSenderOrScheduledTask() {
     OtlpMetricsService service =
-        new OtlpMetricsService(mock(AgentTaskScheduler.class), null, null, 10_000);
+        new OtlpMetricsService(mock(AgentTaskScheduler.class), null, null, HTTP_PROTOBUF, 10_000);
 
     service.shutdown();
   }
@@ -251,6 +273,93 @@ class OtlpMetricsServiceTest {
     verify(test.sender).shutdown();
   }
 
+  @Test
+  void successfulExportRecordsExporterMetrics() {
+    TestService test = service(PAYLOAD, otelSink());
+    when(test.sender.send(PAYLOAD)).thenReturn(success(200));
+
+    assertTrue(test.service.exportThenShutdown(5, SECONDS));
+    OtelMetricCollector collector = collect();
+
+    assertEquals(0L, onlyPoint(collector, INFLIGHT, test.exporterName()).value.longValue());
+    DataPointEntry exported = onlyPoint(collector, EXPORTED, test.exporterName());
+    assertEquals(3L, exported.value.longValue());
+    assertEquals("otlp_http_metric_exporter", exported.attrs.get("otel.component.type"));
+    assertEquals("collector", exported.attrs.get("server.address"));
+    assertEquals("4318", exported.attrs.get("server.port"));
+    assertFalse(exported.attrs.containsKey("error.type"));
+    DataPointEntry duration = onlyPoint(collector, DURATION, test.exporterName());
+    assertEquals("200", duration.attrs.get("http.response.status_code"));
+    assertEquals(1.0, ((OtlpHistogramPoint) duration.point).count);
+  }
+
+  @Test
+  void sendExceptionRecordsTheExceptionAsErrorType() {
+    TestService test = service(PAYLOAD, otelSink());
+    when(test.sender.send(PAYLOAD)).thenThrow(new IllegalStateException("boom"));
+
+    assertTrue(test.service.exportThenShutdown(5, SECONDS));
+    OtelMetricCollector collector = collect();
+
+    assertEquals(0L, onlyPoint(collector, INFLIGHT, test.exporterName()).value.longValue());
+    DataPointEntry exported = onlyPoint(collector, EXPORTED, test.exporterName());
+    assertEquals(3L, exported.value.longValue());
+    assertEquals("java.lang.IllegalStateException", exported.attrs.get("error.type"));
+  }
+
+  @Test
+  void unstartedServiceRecordsNothing() {
+    AgentTaskScheduler scheduler = new AgentTaskScheduler(OTLP_METRICS_EXPORTER);
+    schedulers.add(scheduler);
+    OtlpMetricsCollector collector = mock(OtlpMetricsCollector.class);
+    OtlpSender sender = mock(OtlpSender.class);
+    when(sender.destination()).thenReturn(DESTINATION);
+    when(collector.collectMetrics()).thenReturn(PAYLOAD, OtlpPayload.EMPTY);
+    when(sender.send(PAYLOAD)).thenReturn(success(200));
+    OtlpMetricsService service =
+        new OtlpMetricsService(scheduler, collector, sender, HTTP_PROTOBUF, 60_000);
+    TestService test = new TestService(service, scheduler, collector, sender);
+
+    service.flush();
+    service.flush();
+    // exports run one at a time, so the second collection starts after the first export ended
+    verify(collector, timeout(5_000).times(2)).collectMetrics();
+
+    verify(sender).send(PAYLOAD);
+    assertNothingRecorded(test);
+  }
+
+  private static void assertNothingRecorded(TestService test) {
+    OtelMetricCollector collector = collect();
+    assertTrue(points(collector, INFLIGHT, test.exporterName()).isEmpty());
+    assertTrue(points(collector, EXPORTED, test.exporterName()).isEmpty());
+    assertTrue(points(collector, DURATION, test.exporterName()).isEmpty());
+  }
+
+  /** The OTel SDK self-monitoring sink, as the tracer selects it when the gate is on. */
+  private static HealthMetrics otelSink() {
+    Config config = mock(Config.class);
+    when(config.isOtelSdkSelfMonitoringMetricsActive()).thenReturn(true);
+    HealthMetrics sink = OtelSdkSelfMonitoring.healthMetrics(config);
+    assertNotNull(sink);
+    return sink;
+  }
+
+  /** The points of {@code metric} from the component named {@code componentName}. */
+  private static List<DataPointEntry> points(
+      OtelMetricCollector collector, String metric, String componentName) {
+    return collector.points(metric).stream()
+        .filter(point -> componentName.equals(point.attrs.get("otel.component.name")))
+        .collect(toList());
+  }
+
+  private static DataPointEntry onlyPoint(
+      OtelMetricCollector collector, String metric, String componentName) {
+    List<DataPointEntry> points = points(collector, metric, componentName);
+    assertEquals(1, points.size(), metric + " points of " + componentName);
+    return points.get(0);
+  }
+
   private TestService blockingService() {
     TestService test = service(PAYLOAD);
     when(test.sender.send(PAYLOAD))
@@ -263,13 +372,19 @@ class OtlpMetricsServiceTest {
   }
 
   private TestService service(OtlpPayload payload) {
+    return service(payload, HealthMetrics.NO_OP);
+  }
+
+  private TestService service(OtlpPayload payload, HealthMetrics healthMetrics) {
     AgentTaskScheduler scheduler = new AgentTaskScheduler(OTLP_METRICS_EXPORTER);
     schedulers.add(scheduler);
     OtlpMetricsCollector collector = mock(OtlpMetricsCollector.class);
     OtlpSender sender = mock(OtlpSender.class);
+    when(sender.destination()).thenReturn(DESTINATION);
     when(collector.collectMetrics()).thenReturn(payload);
-    OtlpMetricsService service = new OtlpMetricsService(scheduler, collector, sender, 60_000);
-    service.start();
+    OtlpMetricsService service =
+        new OtlpMetricsService(scheduler, collector, sender, HTTP_PROTOBUF, 60_000);
+    service.start(healthMetrics);
     return new TestService(service, scheduler, collector, sender);
   }
 
@@ -301,6 +416,10 @@ class OtlpMetricsServiceTest {
       this.scheduler = scheduler;
       this.collector = collector;
       this.sender = sender;
+    }
+
+    private String exporterName() {
+      return service.getExporter().component().name();
     }
   }
 }
