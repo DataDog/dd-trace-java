@@ -142,12 +142,16 @@ public class ShellGitClient implements GitClient {
 
   // Stored text needs the UTF-8-first metadata policy; Git's ASCII hashes, counters and flags
   // can use UTF-8 readers directly.
-  private static String readAscii(InputStream input) throws IOException {
+  private static String readUtf8(InputStream input) throws IOException {
     return IOUtils.readFully(input, UTF_8);
   }
 
-  private static List<String> readAsciiLines(InputStream input) throws IOException {
+  private static List<String> readUtf8Lines(InputStream input) throws IOException {
     return IOUtils.readLines(input, UTF_8);
+  }
+
+  private static String readPath(InputStream input) throws IOException {
+    return IOUtils.readFully(input, getFilesystemCharset());
   }
 
   private static String readMetadata(InputStream input) throws IOException {
@@ -186,7 +190,7 @@ public class ShellGitClient implements GitClient {
           String output =
               commandExecutor
                   .executeCommand(
-                      ShellGitClient::readAscii,
+                      ShellGitClient::readUtf8,
                       buildGitCommand("rev-parse", "--is-shallow-repository"))
                   .trim();
           return Boolean.parseBoolean(output);
@@ -214,7 +218,7 @@ public class ShellGitClient implements GitClient {
         () ->
             commandExecutor
                 .executeCommand(
-                    ShellGitClient::readAscii, buildGitCommand("rev-parse", "@{upstream}"))
+                    ShellGitClient::readUtf8, buildGitCommand("rev-parse", "@{upstream}"))
                 .trim());
   }
 
@@ -284,8 +288,7 @@ public class ShellGitClient implements GitClient {
         () ->
             commandExecutor
                 .executeCommand(
-                    input -> IOUtils.readFully(input, getFilesystemCharset()),
-                    buildGitCommand("rev-parse", "--absolute-git-dir"))
+                    ShellGitClient::readPath, buildGitCommand("rev-parse", "--absolute-git-dir"))
                 .trim());
   }
 
@@ -307,8 +310,7 @@ public class ShellGitClient implements GitClient {
         () ->
             commandExecutor
                 .executeCommand(
-                    input -> IOUtils.readFully(input, getFilesystemCharset()),
-                    buildGitCommand("rev-parse", "--show-toplevel"))
+                    ShellGitClient::readPath, buildGitCommand("rev-parse", "--show-toplevel"))
                 .trim());
   }
 
@@ -410,7 +412,7 @@ public class ShellGitClient implements GitClient {
         Command.OTHER,
         () ->
             commandExecutor
-                .executeCommand(ShellGitClient::readAscii, buildGitCommand("rev-parse", reference))
+                .executeCommand(ShellGitClient::readUtf8, buildGitCommand("rev-parse", reference))
                 .trim());
   }
 
@@ -561,7 +563,7 @@ public class ShellGitClient implements GitClient {
                 String since =
                     commandExecutor
                         .executeCommand(
-                            ShellGitClient::readAscii,
+                            ShellGitClient::readUtf8,
                             buildGitCommand("rev-parse", "--since=" + latestCommitsSince))
                         .trim();
                 long cutoff = Long.parseUnsignedLong(since.substring("--max-age=".length()));
@@ -689,7 +691,7 @@ public class ShellGitClient implements GitClient {
           objects.add("--no-walk=unsorted");
           objects.addAll(roots);
           return commandExecutor.executeCommand(
-              ShellGitClient::readAsciiLines, buildGitCommand(objects.toArray(new String[0])));
+              ShellGitClient::readUtf8Lines, buildGitCommand(objects.toArray(new String[0])));
         });
   }
 
@@ -980,7 +982,7 @@ public class ShellGitClient implements GitClient {
       remoteHeads =
           commandExecutor
               .executeCommand(
-                  ShellGitClient::readAscii,
+                  ShellGitClient::readUtf8,
                   buildGitCommand("ls-remote", "--heads", remoteName, shortBranchName))
               .trim();
     } catch (ShellCommandExecutor.ShellCommandFailedException ignored) {
@@ -1134,7 +1136,7 @@ public class ShellGitClient implements GitClient {
         String countsResult =
             commandExecutor
                 .executeCommand(
-                    ShellGitClient::readAscii,
+                    ShellGitClient::readUtf8,
                     buildGitCommand(
                         "rev-list", "--left-right", "--count", candidate + "..." + sourceBranch))
                 .trim();
@@ -1182,7 +1184,7 @@ public class ShellGitClient implements GitClient {
     }
     try {
       return commandExecutor
-          .executeCommand(ShellGitClient::readAscii, buildGitCommand("merge-base", base, source))
+          .executeCommand(ShellGitClient::readUtf8, buildGitCommand("merge-base", base, source))
           .trim();
     } catch (ShellCommandExecutor.ShellCommandFailedException e) {
       LOGGER.debug("Error calculating common ancestor for {} and {}", base, source, e);
