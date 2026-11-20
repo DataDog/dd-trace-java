@@ -22,6 +22,11 @@ import java.io.File
  * ```
  */
 class InstrumentationNamingPlugin : Plugin<Project> {
+  private companion object {
+    /** Suffix of the test-only modules nested in an instrumentation module, which are not checked. */
+    const val TEST_ONLY_SUFFIX = "-test"
+  }
+
   private val versionPattern: Regex = Regex("""\d+\.\d+(\.\d+)?$""")
 
   override fun apply(target: Project) {
@@ -110,6 +115,10 @@ class InstrumentationNamingPlugin : Plugin<Project> {
         }
 
         val childHasBuildFile = hasBuildFile(childDir)
+        // Skip test-only modules, nested in the instrumentation module whose tests they run
+        if (childHasBuildFile && moduleName.endsWith(TEST_ONLY_SUFFIX) && hasBuildFile(currentDir)) {
+          return@childLoop
+        }
         val nestedModules = childDir.listFiles { file -> file.isDirectory }?.filter { hasBuildFile(it) } ?: emptyList()
 
         if (childHasBuildFile && moduleName !in exclusions) {
