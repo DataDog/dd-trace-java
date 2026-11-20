@@ -2,6 +2,7 @@ package datadog.trace.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
 import org.junit.jupiter.api.Test;
@@ -269,5 +270,31 @@ public class HashingUtilsTest {
       clones[i] = clone(strings[i]);
     }
     return clones;
+  }
+
+  @Test
+  void hashSpreadIsTheFibonacciMultiplyFolded() {
+    for (final long hash : new long[] {0L, 1L, -1L, 42L, Integer.MIN_VALUE, Long.MAX_VALUE}) {
+      final long z = hash * 0x9E3779B97F4A7C15L;
+      assertEquals((int) (z ^ (z >>> 32)), HashingUtils.hashSpread(hash));
+    }
+    assertEquals(0, HashingUtils.hashSpread(0));
+    assertNotEquals(HashingUtils.hashSpread(1), HashingUtils.hashSpread(2));
+  }
+
+  @Test
+  void hashSpreadSendsAdjacentHashesToDistantSlots() {
+    final int mask = (1 << 12) - 1;
+    final boolean[] used = new boolean[mask + 1];
+    int distinct = 0;
+    for (int h = 0; h < 1_000; h++) {
+      final int slot = HashingUtils.hashSpread(h) & mask;
+      if (!used[slot]) {
+        used[slot] = true;
+        distinct++;
+      }
+    }
+    // Consecutive hashes would fill 1,000 adjacent slots; spread, few of them share a slot.
+    assertTrue(distinct > 850, "distinct slots " + distinct);
   }
 }
