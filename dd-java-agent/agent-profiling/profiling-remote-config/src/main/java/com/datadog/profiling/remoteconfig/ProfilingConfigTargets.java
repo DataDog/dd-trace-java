@@ -6,8 +6,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Ranks an {@code APM_PROFILING} payload by its {@code targets} list, e.g. {@code
@@ -28,8 +26,6 @@ import org.slf4j.LoggerFactory;
  * rank the payloads.
  */
 public final class ProfilingConfigTargets {
-  private static final Logger log = LoggerFactory.getLogger(ProfilingConfigTargets.class);
-
   private static final String WILDCARD = "*";
 
   // Specificity levels of a target, from the least to the most specific, following the profiling
@@ -39,6 +35,10 @@ public final class ProfilingConfigTargets {
   private static final int LEVEL_OTHER_TAGS = 1;
   private static final int LEVEL_ENV = 2;
   private static final int LEVEL_SERVICE = 3;
+  private static final int LEVEL_WORKLOAD = 4;
+  private static final int LEVEL_CONTAINER_NAME = 5;
+  private static final int LEVEL_POD = 6;
+  private static final int LEVEL_CONTAINER_ID = 7;
   private static final Map<String, Integer> LEVEL_BY_TAG_NAME = levelsByTagName();
   // A target's level outranks any number of conditions, which only break ties within a level.
   private static final int CONDITIONS_PER_LEVEL = 1000;
@@ -71,7 +71,6 @@ public final class ProfilingConfigTargets {
 
   private static Map<String, Integer> levelsByTagName() {
     Map<String, Integer> levels = new HashMap<>();
-    // workload
     for (String name :
         new String[] {
           "kube_deployment",
@@ -84,19 +83,16 @@ public final class ProfilingConfigTargets {
           "oshift_deployment",
           "task_family"
         }) {
-      levels.put(name, 4);
+      levels.put(name, LEVEL_WORKLOAD);
     }
-    // container name
     for (String name :
         new String[] {"kube_container_name", "container_name", "ecs_container_name"}) {
-      levels.put(name, 5);
+      levels.put(name, LEVEL_CONTAINER_NAME);
     }
-    // pod
     for (String name : new String[] {"pod_name", "task_arn"}) {
-      levels.put(name, 6);
+      levels.put(name, LEVEL_POD);
     }
-    // container ID
-    levels.put("container_id", 7);
+    levels.put("container_id", LEVEL_CONTAINER_ID);
     return levels;
   }
 
