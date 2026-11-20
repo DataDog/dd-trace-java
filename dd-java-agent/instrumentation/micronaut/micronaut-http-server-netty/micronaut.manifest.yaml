@@ -1,0 +1,11 @@
+_v: 1
+name: micronaut
+display_name: Micronaut Framework
+description: Instruments Micronaut HTTP controller request handling, routing, response completion, and errors, with
+  controller code-origin capture.
+packages:
+- name: io.micronaut:micronaut-http-server-netty
+category:
+- http.server
+systems: []
+creation_date: '2021-06-03'

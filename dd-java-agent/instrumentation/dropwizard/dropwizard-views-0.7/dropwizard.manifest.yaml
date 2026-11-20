@@ -1,0 +1,10 @@
+_v: 1
+name: dropwizard
+display_name: Dropwizard Views
+description: Instruments Dropwizard view rendering, including template attribution and rendering errors.
+packages:
+- name: io.dropwizard:dropwizard-views
+category:
+- template.render
+systems: []
+creation_date: '2018-10-03'

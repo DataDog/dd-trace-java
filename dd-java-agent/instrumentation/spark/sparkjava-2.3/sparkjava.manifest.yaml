@@ -1,0 +1,10 @@
+_v: 1
+name: sparkjava
+display_name: Spark
+description: Instruments Spark HTTP route matching to attach matched routes to existing request spans.
+packages:
+- name: com.sparkjava:spark-core
+category:
+- other
+systems: []
+creation_date: '2018-04-26'

@@ -1,0 +1,11 @@
+_v: 1
+name: ratpack
+display_name: ratpack-core
+description: Instruments Ratpack HTTP request handlers and asynchronous execution context, with request-body, route-parameter,
+  and response inspection for application-security blocking.
+packages:
+- name: io.ratpack:ratpack-core
+category:
+- http.server
+systems: []
+creation_date: '2018-03-30'
