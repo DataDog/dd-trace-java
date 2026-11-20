@@ -115,6 +115,9 @@ public final class CiVisibilityConfig {
 
   public static final String TEST_SESSION_NAME = "test.session.name";
 
+  /** JSON object that overrides the detected OS and runtime tags, such as {@code os.version}. */
+  public static final String TEST_OPTIMIZATION_RUNTIME_TAGS = "test.optimization.runtime.tags";
+
   /* Bazel support */
   /** Path to the manifest file that enables reading configuration from local JSON files. */
   public static final String TEST_OPTIMIZATION_MANIFEST_FILE = "test.optimization.manifest.file";

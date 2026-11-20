@@ -323,6 +323,7 @@ import static datadog.trace.api.config.CiVisibilityConfig.TEST_MANAGEMENT_ATTEMP
 import static datadog.trace.api.config.CiVisibilityConfig.TEST_MANAGEMENT_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.TEST_OPTIMIZATION_MANIFEST_FILE;
 import static datadog.trace.api.config.CiVisibilityConfig.TEST_OPTIMIZATION_PAYLOADS_IN_FILES;
+import static datadog.trace.api.config.CiVisibilityConfig.TEST_OPTIMIZATION_RUNTIME_TAGS;
 import static datadog.trace.api.config.CiVisibilityConfig.TEST_SESSION_NAME;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS_DEFAULT;
@@ -767,6 +768,7 @@ import static datadog.trace.util.json.JsonPathParser.parseJsonPaths;
 import datadog.environment.JavaVirtualMachine;
 import datadog.environment.OperatingSystem;
 import datadog.environment.SystemProperties;
+import datadog.json.JsonReader;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.CiVisibilityWellKnownTags;
 import datadog.trace.api.config.GeneralConfig;
@@ -789,6 +791,7 @@ import datadog.trace.bootstrap.config.provider.CapturedEnvironmentConfigSource;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.config.inversion.ConfigHelper;
 import datadog.trace.context.TraceScope;
 import datadog.trace.util.ConfigStrings;
@@ -859,6 +862,15 @@ public class Config {
 
   private static final Logger log = LoggerFactory.getLogger(Config.class);
   private static final int MAX_CODE_COVERAGE_FLAGS = 32;
+  private static final Set<String> OVERRIDABLE_RUNTIME_TAGS =
+      new HashSet<>(
+          Arrays.asList(
+              Tags.OS_PLATFORM,
+              Tags.OS_ARCHITECTURE,
+              Tags.OS_VERSION,
+              Tags.RUNTIME_NAME,
+              Tags.RUNTIME_VERSION,
+              Tags.RUNTIME_VENDOR));
   private static final int DYNAMIC_ATR_BUCKET_COUNT = 5;
   private static final int MAX_DYNAMIC_ATR_RETRIES_PER_BUCKET = 20;
 
@@ -1265,6 +1277,7 @@ public class Config {
   private final boolean ciVisibilityFailedTestReplayEnabled;
   private final String testOptimizationManifestFile;
   private final boolean testOptimizationPayloadsInFiles;
+  private final Map<String, String> testOptimizationRuntimeTags;
 
   private final boolean remoteConfigEnabled;
   private final boolean remoteConfigIntegrityCheckEnabled;
@@ -3003,6 +3016,8 @@ public class Config {
     testOptimizationManifestFile = configProvider.getString(TEST_OPTIMIZATION_MANIFEST_FILE);
     testOptimizationPayloadsInFiles =
         configProvider.getBoolean(TEST_OPTIMIZATION_PAYLOADS_IN_FILES, false);
+    testOptimizationRuntimeTags =
+        parseTestOptimizationRuntimeTags(configProvider.getString(TEST_OPTIMIZATION_RUNTIME_TAGS));
 
     // Off by default in AWS Lambda: the Datadog Lambda extension serves no Remote Configuration.
     // Must be kept in sync with Agent.isRemoteConfigEnabled().
@@ -4987,6 +5002,11 @@ public class Config {
     return testOptimizationPayloadsInFiles;
   }
 
+  /** Returns the OS and runtime tag values that replace the detected ones, keyed by tag name. */
+  public Map<String, String> getTestOptimizationRuntimeTags() {
+    return testOptimizationRuntimeTags;
+  }
+
   public String getGitPullRequestBaseBranch() {
     return gitPullRequestBaseBranch;
   }
@@ -5614,13 +5634,18 @@ public class Config {
         getRuntimeId(),
         getEnv(),
         LANGUAGE_TAG_VALUE,
-        SystemProperties.get("java.runtime.name"),
-        SystemProperties.get("java.version"),
-        SystemProperties.get("java.vendor"),
-        SystemProperties.get("os.arch"),
-        SystemProperties.get("os.name"),
-        SystemProperties.get("os.version"),
+        getTestOptimizationRuntimeTag(Tags.RUNTIME_NAME, "java.runtime.name"),
+        getTestOptimizationRuntimeTag(Tags.RUNTIME_VERSION, "java.version"),
+        getTestOptimizationRuntimeTag(Tags.RUNTIME_VENDOR, "java.vendor"),
+        getTestOptimizationRuntimeTag(Tags.OS_ARCHITECTURE, "os.arch"),
+        getTestOptimizationRuntimeTag(Tags.OS_PLATFORM, "os.name"),
+        getTestOptimizationRuntimeTag(Tags.OS_VERSION, "os.version"),
         isServiceNameSetByUser() ? "true" : "false");
+  }
+
+  private String getTestOptimizationRuntimeTag(String tag, String systemProperty) {
+    String override = testOptimizationRuntimeTags.get(tag);
+    return override != null ? override : SystemProperties.get(systemProperty);
   }
 
   public String getPrimaryTag() {
@@ -6608,6 +6633,38 @@ public class Config {
         MAX_DYNAMIC_ATR_RETRIES_PER_BUCKET);
   }
 
+  private static Map<String, String> parseTestOptimizationRuntimeTags(String configuredTags) {
+    if (configuredTags == null || configuredTags.trim().isEmpty()) {
+      return Collections.emptyMap();
+    }
+
+    Map<String, String> tags = new HashMap<>();
+    try (JsonReader reader = new JsonReader(configuredTags)) {
+      reader.beginObject();
+      String tag;
+      while ((tag = reader.nextName()) != null) {
+        if (reader.isNull()) {
+          reader.nextValue();
+          continue;
+        }
+        String value =
+            Strings.truncate(reader.nextString().trim(), CIConstants.MAX_META_STRING_VALUE_LENGTH)
+                .trim();
+        if (OVERRIDABLE_RUNTIME_TAGS.contains(tag) && !value.isEmpty()) {
+          tags.put(tag, value);
+        }
+      }
+      reader.endObject();
+    } catch (IOException | RuntimeException e) {
+      log.warn(
+          "Invalid {} value '{}'; expected a JSON object with string values",
+          propertyNameToEnvironmentVariableName(TEST_OPTIMIZATION_RUNTIME_TAGS),
+          configuredTags);
+      return Collections.emptyMap();
+    }
+    return Collections.unmodifiableMap(tags);
+  }
+
   private static List<String> parseCodeCoverageFlags(List<String> configuredFlags) {
     if (configuredFlags.isEmpty()) {
       return Collections.emptyList();
@@ -6823,6 +6880,8 @@ public class Config {
         + integrationSynapseLegacyOperationName
         + ", codeCoverageFlags="
         + codeCoverageFlags
+        + ", testOptimizationRuntimeTags="
+        + testOptimizationRuntimeTags
         + ", writerType='"
         + writerType
         + '\''
