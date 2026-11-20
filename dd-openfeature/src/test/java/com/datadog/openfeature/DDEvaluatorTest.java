@@ -716,6 +716,124 @@ public class DDEvaluatorTest {
     return evaluator.evaluate(Integer.class, "num-rule", 23, ctx);
   }
 
+  // ---- "targetingKey" rule attribute falls back to the targeting key, like "id" ----
+
+  private static Flag targetingKeyRuleFlag(
+      final String attribute, final ConditionOperator operator, final Object value) {
+    final Rule rule =
+        new Rule(singletonList(new ConditionConfiguration(operator, attribute, value)));
+    final Allocation allocation =
+        new Allocation(
+            "targeted", singletonList(rule), null, null, singletonList(split("on")), false);
+    final Map<String, Variant> variations = new HashMap<>();
+    variations.put("on", new Variant("on", true));
+    return new Flag("flag", true, ValueType.BOOLEAN, variations, singletonList(allocation));
+  }
+
+  private static ProviderEvaluation<Boolean> evaluateTargetingKeyRule(
+      final Flag flag, final EvaluationContext context) {
+    final Map<String, Flag> flags = new HashMap<>();
+    flags.put("flag", flag);
+    final DDEvaluator evaluator = newEvaluator(mock(Runnable.class));
+    evaluator.accept(new ServerConfiguration("", "", false, null, flags));
+    return evaluator.evaluate(Boolean.class, "flag", false, context);
+  }
+
+  static Arguments[] targetingKeyRuleTestCases() {
+    return new Arguments[] {
+      Arguments.of(ConditionOperator.ONE_OF, asList("user-1"), "user-1", true),
+      Arguments.of(ConditionOperator.ONE_OF, asList("user-1"), "user-2", false),
+      Arguments.of(ConditionOperator.ONE_OF, asList("user-1"), null, false),
+      Arguments.of(ConditionOperator.NOT_ONE_OF, asList("user-1"), "user-2", true),
+      Arguments.of(ConditionOperator.NOT_ONE_OF, asList("user-1"), "user-1", false),
+      Arguments.of(ConditionOperator.NOT_ONE_OF, asList("user-1"), null, false),
+      Arguments.of(ConditionOperator.MATCHES, "^user-", "user-1", true),
+      Arguments.of(ConditionOperator.MATCHES, "^admin-", "user-1", false),
+      Arguments.of(ConditionOperator.NOT_MATCHES, "^admin-", "user-1", true),
+      Arguments.of(ConditionOperator.IS_NULL, false, "user-1", true),
+      Arguments.of(ConditionOperator.IS_NULL, true, "user-1", false),
+      Arguments.of(ConditionOperator.IS_NULL, true, null, true),
+    };
+  }
+
+  @ParameterizedTest(name = "{0} {1} with targeting key {2} matches={3}")
+  @MethodSource("targetingKeyRuleTestCases")
+  public void testTargetingKeyRuleAttributeFallsBackToTargetingKey(
+      final ConditionOperator operator,
+      final Object value,
+      final String targetingKey,
+      final boolean expectedMatch) {
+    final EvaluationContext context =
+        targetingKey == null ? new MutableContext() : new MutableContext(targetingKey);
+    final ProviderEvaluation<Boolean> details =
+        evaluateTargetingKeyRule(targetingKeyRuleFlag("targetingKey", operator, value), context);
+
+    assertThat(details.getErrorCode(), nullValue());
+    assertThat(details.getValue(), equalTo(expectedMatch));
+    assertThat(details.getReason(), equalTo(expectedMatch ? "TARGETING_MATCH" : "DEFAULT"));
+  }
+
+  @Test
+  public void testExplicitTargetingKeyAttributeWins() {
+    // The OpenFeature SDK contexts store the targeting key under the "targetingKey" attribute, so
+    // an explicit attribute and the targeting key are the same value there. Use a context whose
+    // targeting key differs from its "targetingKey" attribute to check the attribute wins.
+    final EvaluationContext context = new MutableContext().add("targetingKey", "explicit");
+    final EvaluationContext divergent =
+        new MutableContext(context.asMap()) {
+          @Override
+          public String getTargetingKey() {
+            return "fallback";
+          }
+        };
+    final Flag flag =
+        targetingKeyRuleFlag("targetingKey", ConditionOperator.ONE_OF, asList("explicit"));
+
+    assertThat(evaluateTargetingKeyRule(flag, divergent).getValue(), equalTo(true));
+  }
+
+  @Test
+  public void testIdRuleAttributeStillFallsBackToTargetingKey() {
+    final Flag flag = targetingKeyRuleFlag("id", ConditionOperator.ONE_OF, asList("user-1"));
+
+    assertThat(
+        evaluateTargetingKeyRule(flag, new MutableContext("user-1")).getValue(), equalTo(true));
+    assertThat(
+        evaluateTargetingKeyRule(flag, new MutableContext("user-1").add("id", "other")).getValue(),
+        equalTo(false));
+  }
+
+  @Test
+  public void testTargetingKeyRuleDoesNotChangeBucketing() {
+    // Same salt and range as testEvaluateUnsignedShardRange: "high-shard-user" lands in this shard.
+    final Shard shard =
+        new Shard(
+            "salt",
+            singletonList(new ShardRange(3_699_531_192L, 3_699_531_193L)),
+            MAX_UNSIGNED_INT);
+    final Rule rule =
+        new Rule(
+            singletonList(
+                new ConditionConfiguration(ConditionOperator.MATCHES, "targetingKey", "-user$")));
+    final Allocation allocation =
+        new Allocation(
+            "targeted", singletonList(rule), null, null, singletonList(split("on", shard)), false);
+    final Map<String, Variant> variations = new HashMap<>();
+    variations.put("on", new Variant("on", true));
+    final Flag flag =
+        new Flag("flag", true, ValueType.BOOLEAN, variations, singletonList(allocation));
+
+    final ProviderEvaluation<Boolean> inShard =
+        evaluateTargetingKeyRule(flag, new MutableContext("high-shard-user"));
+    assertThat(inShard.getValue(), equalTo(true));
+    assertThat(inShard.getVariant(), equalTo("on"));
+
+    final ProviderEvaluation<Boolean> outOfShard =
+        evaluateTargetingKeyRule(flag, new MutableContext("other-user"));
+    assertThat(outOfShard.getValue(), equalTo(false));
+    assertThat(outOfShard.getReason(), equalTo("DEFAULT"));
+  }
+
   @Test
   public void testAllocationWindowHonorsMicrosecondPrecision() {
     final Instant startAt = Instant.parse("2024-01-01T00:00:00.123456Z");
