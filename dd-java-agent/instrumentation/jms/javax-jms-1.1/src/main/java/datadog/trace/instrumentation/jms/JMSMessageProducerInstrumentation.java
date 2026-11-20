@@ -5,9 +5,6 @@ import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEX
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
-import static datadog.trace.api.datastreams.DataStreamsTags.create;
-import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.DSM_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -15,22 +12,17 @@ import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.sp
 import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_PRODUCE;
 import static datadog.trace.instrumentation.jms.JMSDecorator.PRODUCER_DECORATE;
 import static datadog.trace.instrumentation.jms.JMSDecorator.TIME_IN_QUEUE_ENABLED;
-import static datadog.trace.instrumentation.jms.JMSDecorator.messageTechnology;
 import static datadog.trace.instrumentation.jms.MessageInjectAdapter.SETTER;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import datadog.context.ContextScope;
-import datadog.context.propagation.Propagators;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.api.Config;
-import datadog.trace.api.datastreams.DataStreamsContext;
-import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.jms.MessageProducerState;
 import javax.jms.Destination;
 import javax.jms.Message;
@@ -110,19 +102,13 @@ public final class JMSMessageProducerInstrumentation
       PRODUCER_DECORATE.afterStart(span);
       PRODUCER_DECORATE.onProduce(span, resourceName);
 
-      if (null != destinationName
-          && !destinationName.isEmpty()
-          && Config.get().isDataStreamsEnabled()) {
-        final String tech = messageTechnology(message);
-        if ("ibmmq".equals(tech)) {
-          DataStreamsTags tags = create(tech, OUTBOUND, destinationName);
-          DataStreamsContext dsmContext = DataStreamsContext.fromTags(tags);
-          AgentTracer.get().getDataStreamsMonitoring().setCheckpoint(span, dsmContext);
-        } else if (JMSDecorator.canInject(message)) {
-          DataStreamsTags tags = create(tech, OUTBOUND, destinationName);
-          DataStreamsContext dsmContext = DataStreamsContext.fromTags(tags);
-          Propagators.forConcern(DSM_CONCERN).inject(span.with(dsmContext), message, SETTER);
-        }
+      if (Config.get().isDataStreamsEnabled()) {
+        JMSDecorator.setOutboundCheckpoint(
+            span,
+            message,
+            destinationName,
+            Config.get().isJmsPropagationEnabled()
+                && (null == producerState || !producerState.isPropagationDisabled()));
       }
 
       if (JMSDecorator.canInject(message) && TIME_IN_QUEUE_ENABLED && null != producerState) {
@@ -184,19 +170,13 @@ public final class JMSMessageProducerInstrumentation
       PRODUCER_DECORATE.afterStart(span);
       PRODUCER_DECORATE.onProduce(span, resourceName);
 
-      if (null != destinationName
-          && !destinationName.isEmpty()
-          && Config.get().isDataStreamsEnabled()) {
-        final String tech = messageTechnology(message);
-        if ("ibmmq".equals(tech)) {
-          DataStreamsTags tags = create(tech, OUTBOUND, destinationName);
-          DataStreamsContext dsmContext = DataStreamsContext.fromTags(tags);
-          AgentTracer.get().getDataStreamsMonitoring().setCheckpoint(span, dsmContext);
-        } else if (JMSDecorator.canInject(message)) {
-          DataStreamsTags tags = create(tech, OUTBOUND, destinationName);
-          DataStreamsContext dsmContext = DataStreamsContext.fromTags(tags);
-          Propagators.forConcern(DSM_CONCERN).inject(span.with(dsmContext), message, SETTER);
-        }
+      if (Config.get().isDataStreamsEnabled()) {
+        JMSDecorator.setOutboundCheckpoint(
+            span,
+            message,
+            destinationName,
+            Config.get().isJmsPropagationEnabled()
+                && !Config.get().isJmsPropagationDisabledForDestination(destinationName));
       }
 
       if (JMSDecorator.canInject(message) && TIME_IN_QUEUE_ENABLED) {

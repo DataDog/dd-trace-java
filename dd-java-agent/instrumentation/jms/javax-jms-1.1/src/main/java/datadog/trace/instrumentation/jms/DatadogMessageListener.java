@@ -8,6 +8,7 @@ import static datadog.trace.instrumentation.jms.JMSDecorator.CONSUMER_DECORATE;
 import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_CONSUME;
 import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_DELIVER;
 import static datadog.trace.instrumentation.jms.JMSDecorator.TIME_IN_QUEUE_ENABLED;
+import static datadog.trace.instrumentation.jms.JMSDecorator.setInboundCheckpoint;
 import static datadog.trace.instrumentation.jms.MessageExtractAdapter.GETTER;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
@@ -62,6 +63,7 @@ public class DatadogMessageListener implements MessageListener {
     }
     CONSUMER_DECORATE.afterStart(span);
     CONSUMER_DECORATE.onConsume(span, message, consumerState.getConsumerResourceName());
+    setInboundCheckpoint(span, message, consumerState.getConsumerBaseResourceName());
     SessionState sessionState = consumerState.getSessionState();
     if (sessionState.isClientAcknowledge()) {
       // consumed spans will be finished by a call to Message.acknowledge

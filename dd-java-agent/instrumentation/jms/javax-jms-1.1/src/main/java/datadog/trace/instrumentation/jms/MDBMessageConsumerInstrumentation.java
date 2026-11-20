@@ -13,6 +13,7 @@ import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.sp
 import static datadog.trace.instrumentation.jms.JMSDecorator.CONSUMER_DECORATE;
 import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_CONSUME;
 import static datadog.trace.instrumentation.jms.JMSDecorator.logJMSException;
+import static datadog.trace.instrumentation.jms.JMSDecorator.setInboundCheckpoint;
 import static datadog.trace.instrumentation.jms.MessageExtractAdapter.GETTER;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
@@ -88,16 +89,18 @@ public final class MDBMessageConsumerInstrumentation
       AgentSpan span = startSpan("jms", JMS_CONSUME);
       CONSUMER_DECORATE.afterStart(span);
       CharSequence consumerResourceName;
+      String destinationName = null;
       try {
         Destination destination = message.getJMSDestination();
         boolean isQueue = CONSUMER_DECORATE.isQueue(destination);
-        String destinationName = CONSUMER_DECORATE.getDestinationName(destination);
+        destinationName = CONSUMER_DECORATE.getDestinationName(destination);
         consumerResourceName = CONSUMER_DECORATE.toResourceName(destinationName, isQueue);
       } catch (JMSException e) {
         logJMSException(e);
         consumerResourceName = "unknown JMS destination";
       }
       CONSUMER_DECORATE.onConsume(span, message, consumerResourceName);
+      setInboundCheckpoint(span, message, destinationName);
       return activateSpan(span);
     }
 

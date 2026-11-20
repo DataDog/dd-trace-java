@@ -1,14 +1,22 @@
 package datadog.trace.instrumentation.jms;
 
+import static datadog.trace.api.datastreams.DataStreamsTags.Direction.INBOUND;
+import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
+import static datadog.trace.api.datastreams.DataStreamsTags.create;
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.DSM_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RECORD_QUEUE_TIME_MS;
 
+import datadog.context.propagation.Propagators;
 import datadog.trace.api.Config;
 import datadog.trace.api.Functions.Join;
 import datadog.trace.api.Functions.PrefixJoin;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
+import datadog.trace.api.datastreams.DataStreamsContext;
+import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -135,6 +143,46 @@ public final class JMSDecorator extends MessagingClientDecorator {
       return "activemq";
     } else {
       return "jms";
+    }
+  }
+
+  public static void setOutboundCheckpoint(
+      AgentSpan span, Message message, String destinationName, boolean propagationEnabled) {
+    if (null == message
+        || null == destinationName
+        || destinationName.isEmpty()
+        || !Config.get().isDataStreamsEnabled()) {
+      return;
+    }
+    final String tech = messageTechnology(message);
+    if (!"sqs".equals(tech)) {
+      DataStreamsTags tags = create(tech, OUTBOUND, destinationName);
+      if ("ibmmq".equals(tech) || !propagationEnabled) {
+        AgentTracer.get()
+            .getDataStreamsMonitoring()
+            .setCheckpoint(span, DataStreamsContext.fromTags(tags));
+      } else {
+        Propagators.forConcern(DSM_CONCERN)
+            .inject(
+                span.with(DataStreamsContext.fromTags(tags)), message, MessageInjectAdapter.SETTER);
+      }
+    }
+  }
+
+  public static void setInboundCheckpoint(
+      AgentSpan span, Message message, CharSequence destinationName) {
+    if (null == message
+        || null == destinationName
+        || destinationName.length() == 0
+        || !Config.get().isDataStreamsEnabled()) {
+      return;
+    }
+    final String tech = messageTechnology(message);
+    if (!"sqs".equals(tech)) {
+      DataStreamsTags tags = create(tech, INBOUND, destinationName.toString());
+      AgentTracer.get()
+          .getDataStreamsMonitoring()
+          .setCheckpoint(span, DataStreamsContext.fromTags(tags));
     }
   }
 
