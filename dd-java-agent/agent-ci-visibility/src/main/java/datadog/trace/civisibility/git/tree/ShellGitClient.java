@@ -4,7 +4,11 @@ import static datadog.environment.JavaVirtualMachine.isJavaVersionAtLeast;
 import static datadog.environment.OperatingSystem.isWindows;
 import static datadog.trace.api.git.GitUtils.decodeMetadata;
 import static datadog.trace.api.git.GitUtils.getFilesystemCharset;
+import static datadog.trace.api.git.GitUtils.isNotValidCommit;
+import static datadog.trace.api.git.GitUtils.isValidCommitSha;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.Collections.addAll;
+import static java.util.Collections.emptyList;
 
 import datadog.communication.util.IOUtils;
 import datadog.trace.api.Config;
@@ -35,7 +39,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -380,8 +383,8 @@ public class ShellGitClient implements GitClient {
   @Override
   public List<String> getTags(String commit)
       throws IOException, TimeoutException, InterruptedException {
-    if (GitUtils.isNotValidCommit(commit)) {
-      return Collections.emptyList();
+    if (isNotValidCommit(commit)) {
+      return emptyList();
     }
     return executeCommand(
         Command.OTHER,
@@ -405,7 +408,7 @@ public class ShellGitClient implements GitClient {
   @Override
   public String getSha(String reference)
       throws IOException, TimeoutException, InterruptedException {
-    if (GitUtils.isNotValidCommit(reference)) {
+    if (isNotValidCommit(reference)) {
       return null;
     }
     return executeCommand(
@@ -419,7 +422,7 @@ public class ShellGitClient implements GitClient {
   /** Checks whether the provided reference object is present or not. */
   private boolean isCommitPresent(String commitReference)
       throws IOException, TimeoutException, InterruptedException {
-    if (GitUtils.isNotValidCommit(commitReference)) {
+    if (isNotValidCommit(commitReference)) {
       return false;
     }
     return executeCommand(
@@ -439,7 +442,7 @@ public class ShellGitClient implements GitClient {
   /** Fetches provided commit object from the server. */
   private void fetchCommit(String remoteCommitReference)
       throws IOException, TimeoutException, InterruptedException {
-    if (GitUtils.isNotValidCommit(remoteCommitReference)) {
+    if (isNotValidCommit(remoteCommitReference)) {
       return;
     }
     executeCommand(
@@ -475,7 +478,7 @@ public class ShellGitClient implements GitClient {
   @Override
   public CommitInfo getCommitInfo(String commit, boolean fetchIfNotPresent)
       throws IOException, InterruptedException, TimeoutException {
-    if (GitUtils.isNotValidCommit(commit)) {
+    if (isNotValidCommit(commit)) {
       return CommitInfo.NOOP;
     }
     if (fetchIfNotPresent) {
@@ -540,17 +543,15 @@ public class ShellGitClient implements GitClient {
   @Override
   public List<String> getLatestCommits(String commit)
       throws IOException, TimeoutException, InterruptedException {
-    if (latestCommitsLimit <= 0 || GitUtils.isNotValidCommit(commit)) {
-      return Collections.emptyList();
+    if (latestCommitsLimit <= 0 || isNotValidCommit(commit)) {
+      return emptyList();
     }
     String resolvedCommit = commit;
-    if (GitUtils.isValidCommitShaFull(commit)) {
-      resolvedCommit = commit.toLowerCase(Locale.ROOT);
-    } else if (GitUtils.isValidCommitSha(commit)) {
+    if (isValidCommitSha(commit)) {
       try {
         resolvedCommit = getSha(commit.toLowerCase(Locale.ROOT));
       } catch (ShellCommandExecutor.ShellCommandFailedException e) {
-        return Collections.emptyList();
+        return emptyList();
       }
     }
     final String canonicalCommit = resolvedCommit;
@@ -594,7 +595,7 @@ public class ShellGitClient implements GitClient {
               });
     } catch (ShellCommandExecutor.ShellCommandFailedException e) {
       if (!isCommitPresent(canonicalCommit)) {
-        return Collections.emptyList();
+        return emptyList();
       }
       throw e;
     }
@@ -637,7 +638,7 @@ public class ShellGitClient implements GitClient {
             roots.add(commit);
           }
           if (roots.isEmpty()) {
-            return Collections.emptyList();
+            return emptyList();
           }
           List<String> exclusions = new ArrayList<>();
           for (String commit : commitsToSkip) {
@@ -656,7 +657,7 @@ public class ShellGitClient implements GitClient {
                 Path knownHistory = Files.createTempFile(DD_TEMP_DIRECTORY_PREFIX, ".commits");
                 try {
                   List<String> known = new ArrayList<>();
-                  Collections.addAll(
+                  addAll(
                       known,
                       "log",
                       "--no-show-signature",
@@ -680,12 +681,11 @@ public class ShellGitClient implements GitClient {
               }
             }
             if (roots.isEmpty()) {
-              return Collections.emptyList();
+              return emptyList();
             }
           }
           List<String> objects = new ArrayList<>();
-          Collections.addAll(
-              objects, "rev-list", "--objects", "--no-object-names", "--filter=blob:none");
+          addAll(objects, "rev-list", "--objects", "--no-object-names", "--filter=blob:none");
           objects.addAll(exclusions);
           // Put this after negative refs: parsing a negative ref resets Git's no-walk flag.
           objects.add("--no-walk=unsorted");
@@ -699,9 +699,9 @@ public class ShellGitClient implements GitClient {
       Collection<String> tips, boolean walk, Map<String, List<String>> parents)
       throws IOException, InterruptedException, TimeoutException {
     List<String> command = new ArrayList<>();
-    Collections.addAll(command, "log", "--no-show-signature", "--format=%H %P");
+    addAll(command, "log", "--no-show-signature", "--format=%H %P");
     if (walk) {
-      Collections.addAll(command, "-n", String.valueOf(latestCommitsLimit));
+      addAll(command, "-n", String.valueOf(latestCommitsLimit));
     } else {
       command.add("--no-walk=unsorted");
     }
@@ -770,7 +770,7 @@ public class ShellGitClient implements GitClient {
         continue;
       }
       visiting.add(commit);
-      List<String> ancestors = parents.getOrDefault(commit, Collections.emptyList());
+      List<String> ancestors = parents.getOrDefault(commit, emptyList());
       String missing = null;
       for (String ancestor : ancestors) {
         if (!reachable.containsKey(ancestor)) {
@@ -1179,7 +1179,7 @@ public class ShellGitClient implements GitClient {
    */
   public String getMergeBase(@Nullable String base, @Nullable String source)
       throws IOException, InterruptedException, TimeoutException {
-    if (GitUtils.isNotValidCommit(base) || GitUtils.isNotValidCommit(source)) {
+    if (isNotValidCommit(base) || isNotValidCommit(source)) {
       return null;
     }
     try {
@@ -1207,10 +1207,10 @@ public class ShellGitClient implements GitClient {
   @Override
   public LineDiff getGitDiff(String baseCommit, String targetCommit)
       throws IOException, TimeoutException, InterruptedException {
-    if (Strings.isBlank(baseCommit) || !GitUtils.isValidCommitSha(baseCommit)) {
+    if (Strings.isBlank(baseCommit) || !isValidCommitSha(baseCommit)) {
       LOGGER.debug("Base commit info is not available, returning empty git diff");
       return null;
-    } else if (Strings.isNotBlank(targetCommit) && GitUtils.isValidCommitSha(targetCommit)) {
+    } else if (Strings.isNotBlank(targetCommit) && isValidCommitSha(targetCommit)) {
       return executeCommand(
           Command.DIFF,
           () ->
