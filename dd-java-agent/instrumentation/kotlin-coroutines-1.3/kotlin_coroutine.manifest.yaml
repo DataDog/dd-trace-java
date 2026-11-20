@@ -1,0 +1,13 @@
+_v: 1
+name: kotlin_coroutine
+display_name: Kotlin Coroutines
+description: Instruments Kotlin coroutines to propagate Datadog context across coroutine creation, execution, thread switches,
+  and completion.
+packages:
+- name: org.jetbrains.kotlin:kotlin-stdlib
+- name: org.jetbrains.kotlinx:kotlinx-coroutines-core
+- name: org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm
+category:
+- other
+systems: []
+creation_date: '2023-01-27'

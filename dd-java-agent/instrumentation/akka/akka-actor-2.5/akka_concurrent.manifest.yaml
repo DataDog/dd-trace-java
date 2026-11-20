@@ -1,0 +1,11 @@
+_v: 1
+name: akka_concurrent
+display_name: Akka Actors
+description: Instruments Akka actor messages and dispatcher ForkJoin tasks to propagate trace context, preventing context
+  leaks and releasing captured context for dead-lettered messages.
+packages:
+- name: com.typesafe.akka:akka-actor_2.11
+category:
+- other
+systems: []
+creation_date: '2019-01-25'

@@ -1,0 +1,10 @@
+_v: 1
+name: jetty-concurrent
+display_name: Jetty QueuedThreadPool
+description: Instruments Jetty's QueuedThreadPool to propagate trace context to dispatched and executed tasks.
+packages:
+- name: org.eclipse.jetty:jetty-util
+category:
+- other
+systems: []
+creation_date: '2019-09-18'

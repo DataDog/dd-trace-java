@@ -1,0 +1,10 @@
+_v: 1
+name: scala_concurrent
+display_name: Scala Concurrent
+description: Instruments Scala concurrent APIs to propagate tracing context across fork-join tasks, futures, and promises.
+packages:
+- name: org.scala-lang:scala-library
+category:
+- other
+systems: []
+creation_date: '2019-01-25'

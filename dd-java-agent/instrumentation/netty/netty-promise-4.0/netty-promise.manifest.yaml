@@ -1,0 +1,10 @@
+_v: 1
+name: netty-promise
+display_name: Netty Promises
+description: Instruments Netty Promise listener callbacks to propagate trace context across asynchronous execution.
+packages:
+- name: io.netty:netty-common
+category:
+- other
+systems: []
+creation_date: '2021-02-09'

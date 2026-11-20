@@ -1,0 +1,10 @@
+_v: 1
+name: gax
+display_name: GAX (Google Api eXtensions)
+description: Instruments GAX retrying futures to prevent abandoned retry listeners from retaining trace continuations.
+packages:
+- name: com.google.api:gax
+category:
+- other
+systems: []
+creation_date: '2026-06-15'

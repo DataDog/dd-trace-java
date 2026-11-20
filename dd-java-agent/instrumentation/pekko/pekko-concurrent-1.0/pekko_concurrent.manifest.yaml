@@ -1,0 +1,11 @@
+_v: 1
+name: pekko_concurrent
+display_name: Apache Pekko
+description: Instruments Apache Pekko actor messages, fork-join tasks, and scheduled tasks to propagate trace context.
+packages:
+- name: org.apache.pekko:pekko-actor_2.12
+- name: org.apache.pekko:pekko-actor_2.13
+category:
+- other
+systems: []
+creation_date: '2023-09-07'
