@@ -1,0 +1,13 @@
+_v: 1
+name: sofarpc
+display_name: SOFARPC
+description: Instruments SOFARPC client calls and server request handling across Bolt, H2C, REST, and Triple transports
+  with trace propagation and error reporting.
+packages:
+- name: com.alipay.sofa:sofa-rpc-all
+category:
+- rpc.client
+- rpc.server
+systems:
+- sofarpc
+creation_date: '2026-04-23'

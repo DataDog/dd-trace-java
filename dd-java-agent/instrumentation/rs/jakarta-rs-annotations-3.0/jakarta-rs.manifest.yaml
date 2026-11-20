@@ -1,0 +1,11 @@
+_v: 1
+name: jakarta-rs
+display_name: jakarta.ws.rs-api
+description: Instruments Jakarta REST resource methods, asynchronous responses, and request filter aborts, with
+  JSON response inspection and blocking for application security.
+packages:
+- name: jakarta.ws.rs:jakarta.ws.rs-api
+category:
+- http.server
+systems: []
+creation_date: '2021-11-16'

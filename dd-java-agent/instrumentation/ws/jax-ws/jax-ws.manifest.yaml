@@ -1,0 +1,12 @@
+_v: 1
+name: jax-ws
+display_name: JAX-WS API Package
+description: Instruments JAX-WS annotated SOAP service methods and provider invocations to trace request handling
+  and errors.
+packages:
+- name: javax.jws:javax.jws-api
+- name: javax.xml.ws:jaxws-api
+category:
+- rpc.server
+systems: []
+creation_date: '2021-03-04'
