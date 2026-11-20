@@ -2,8 +2,10 @@ package com.datadog.profiling.controller.ddprof;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import com.datadog.profiling.ddprof.DatadogProfiler;
+import datadog.environment.OperatingSystem;
 import datadog.libs.ddprof.DdprofLibraryLoader;
 import datadog.trace.api.profiling.RecordingData;
 import java.time.Instant;
@@ -32,6 +34,8 @@ public class DatadogProfilerOngoingRecordingTest {
 
   @BeforeAll
   public static void setupAll() {
+    // the Datadog profiler native library is only shipped for Linux
+    assumeTrue(OperatingSystem.isLinux(), "Datadog profiler is only supported on Linux");
     // If the profiler couldn't be loaded, the reason why is saved.
     // This test assumes the profiler could be loaded.
     assertDoesNotThrow(

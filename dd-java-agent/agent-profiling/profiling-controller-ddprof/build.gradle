@@ -9,8 +9,11 @@ testJvmConstraints {
   excludeJdk = ['SEMERU11', 'SEMERU17']
 }
 
-minimumBranchCoverage = 0.5
-minimumInstructionCoverage = 0.7
+// The tests need the native profiler, which is only available on Linux, so they are skipped
+// elsewhere and can't provide any coverage there.
+def osName = System.getProperty('os.name', '').toLowerCase()
+minimumBranchCoverage = osName.contains("linux") ? 0.5 : 0
+minimumInstructionCoverage = osName.contains("linux") ? 0.7 : 0
 
 excludedClassesCoverage += [
   'com.datadog.profiling.controller.ddprof.DatadogProfilerController',

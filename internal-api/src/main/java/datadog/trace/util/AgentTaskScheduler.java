@@ -91,6 +91,7 @@ public class AgentTaskScheduler implements Executor {
   private final AgentThread agentThread;
   private volatile Thread worker;
   private volatile boolean shutdown;
+  private volatile ShutdownHook shutdownHook;
 
   public AgentTaskScheduler(final AgentThread agentThread) {
     this.agentThread = agentThread;
@@ -183,10 +184,7 @@ public class AgentTaskScheduler implements Executor {
     return scheduleWithFixedDelay(RunnableTask.INSTANCE, target, initialDelay, period, unit);
   }
 
-  @SuppressFBWarnings({
-    "JLM_JSR166_UTILCONCURRENT_MONITORENTER",
-    "USO_UNSAFE_ACCESSIBLE_OBJECT_SYNCHRONIZATION"
-  })
+  @SuppressFBWarnings("JLM_JSR166_UTILCONCURRENT_MONITORENTER")
   private <T> void scheduleTarget(
       final Task<T> task,
       final Target<T> target,
@@ -205,7 +203,9 @@ public class AgentTaskScheduler implements Executor {
           try {
             worker = newAgentThread(agentThread, new Worker());
             // register hook after worker is assigned, but before we start it
-            Runtime.getRuntime().addShutdownHook(new ShutdownHook());
+            final ShutdownHook hook = new ShutdownHook();
+            Runtime.getRuntime().addShutdownHook(hook);
+            shutdownHook = hook;
             worker.start();
           } catch (final IllegalStateException e) {
             shutdown = true; // couldn't add hook, JVM is shutting down
@@ -246,6 +246,15 @@ public class AgentTaskScheduler implements Executor {
     return shutdown;
   }
 
+  /**
+   * @return whether this was shut down and its worker thread, if any, is no longer running a task,
+   *     e.g. because it ended within the timeout given to {@link #shutdown}
+   */
+  public boolean isTerminated() {
+    final Thread t = worker;
+    return shutdown && (t == null || !t.isAlive());
+  }
+
   public static void initialize() {
     AgentTaskScheduler.INSTANCE.dummy();
   }
@@ -259,6 +268,7 @@ public class AgentTaskScheduler implements Executor {
 
   public void shutdown(final long timeout, final TimeUnit unit) {
     shutdown = true;
+    removeShutdownHook();
     final Thread t = worker;
     if (t != null) {
       t.interrupt();
@@ -268,6 +278,31 @@ public class AgentTaskScheduler implements Executor {
         } catch (final InterruptedException e) {
           // continue shutdown...
         }
+      }
+    }
+  }
+
+  /**
+   * Removes the shutdown hook: a scheduler that was shut down doesn't need it anymore, and the JVM
+   * would otherwise keep it, and the scheduler, forever.
+   */
+  @SuppressFBWarnings({
+    "JLM_JSR166_UTILCONCURRENT_MONITORENTER",
+    "USO_UNSAFE_ACCESSIBLE_OBJECT_SYNCHRONIZATION"
+  })
+  private void removeShutdownHook() {
+    final ShutdownHook hook;
+    // the hook is registered under this lock once 'shutdown' was checked, so taking it after
+    // setting 'shutdown' sees a hook being registered, and the worker it starts
+    synchronized (workQueue) {
+      hook = shutdownHook;
+      shutdownHook = null;
+    }
+    if (hook != null && hook != Thread.currentThread()) {
+      try {
+        Runtime.getRuntime().removeShutdownHook(hook);
+      } catch (final IllegalStateException e) {
+        // JVM is already shutting down
       }
     }
   }

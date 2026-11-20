@@ -71,6 +71,33 @@ class AgentTaskSchedulerTest {
   }
 
   @Test
+  void shutdownReleasesTheScheduler() throws InterruptedException {
+    // the JVM keeps the shutdown hook forever, so unless shutdown removes it, it keeps the
+    // scheduler alive: a scheduler per profiler restart would be leaked
+    AgentTaskScheduler shortLived = new AgentTaskScheduler(TASK_SCHEDULER);
+    CountDownLatch ran = new CountDownLatch(1);
+    shortLived.scheduleAtFixedRate(
+        new AgentTaskScheduler.Task<CountDownLatch>() {
+          @Override
+          public void run(CountDownLatch target) {
+            target.countDown();
+          }
+        },
+        ran,
+        0,
+        1000,
+        MILLISECONDS);
+    assertTrue(ran.await(5, SECONDS), "the scheduler started, and so registered its hook");
+    WeakReference<AgentTaskScheduler> weakScheduler = new WeakReference<>(shortLived);
+
+    shortLived.shutdown(5, SECONDS);
+    shortLived = null;
+
+    GCUtils.awaitGC(weakScheduler);
+    assertEquals(null, weakScheduler.get());
+  }
+
+  @Test
   void testDelay() throws InterruptedException {
     CountDownLatch latch = new CountDownLatch(1);
     AgentTaskScheduler.Task<CountDownLatch> task =
@@ -220,7 +247,51 @@ class AgentTaskSchedulerTest {
 
     scheduler.shutdown(1, SECONDS);
     assertTrue(scheduler.isShutdown());
+    assertTrue(scheduler.isTerminated());
     assertEquals(0, scheduler.taskCount());
+  }
+
+  @Test
+  void isTerminatedOnlyOnceTheWorkerEnds() throws InterruptedException {
+    CountDownLatch running = new CountDownLatch(1);
+    CountDownLatch release = new CountDownLatch(1);
+    AgentTaskScheduler.Task<CountDownLatch> task =
+        new AgentTaskScheduler.Task<CountDownLatch>() {
+          @Override
+          public void run(CountDownLatch target) {
+            running.countDown();
+            // ignores the interruption of shutdown, like a task blocked in uninterruptible I/O
+            while (true) {
+              try {
+                target.await();
+                return;
+              } catch (InterruptedException e) {
+                // keep waiting
+              }
+            }
+          }
+        };
+    assertFalse(scheduler.isTerminated(), "not shut down");
+    scheduler.scheduleAtFixedRate(task, release, 0, 1, SECONDS);
+    assertTrue(running.await(5, SECONDS));
+
+    scheduler.shutdown(10, MILLISECONDS);
+
+    assertTrue(scheduler.isShutdown());
+    assertFalse(scheduler.isTerminated(), "the worker is still running the task");
+    release.countDown();
+    long deadline = System.nanoTime() + SECONDS.toNanos(5);
+    while (!scheduler.isTerminated() && System.nanoTime() < deadline) {
+      Thread.sleep(10);
+    }
+    assertTrue(scheduler.isTerminated());
+  }
+
+  @Test
+  void isTerminatedWhenShutDownWithoutEverStartingTheWorker() {
+    scheduler.shutdown(0, SECONDS);
+
+    assertTrue(scheduler.isTerminated());
   }
 
   @Test
