@@ -174,6 +174,10 @@ Drop anything that resolves to benign. Then report in the format below.
 - Either way, the gate is *confidence*, not a count: silence on the uncertain ones is
   what earns the review its credibility.
 
+**After the fixes.** When you or another agent apply the findings, run `/techdebt` over the
+result. A fix that makes the code noticeably harder to read is a cost to weigh against its
+measured win; prefer a toolbox route (`references/remedies.md` § Fix shape).
+
 ## Output format
 
 Follow this structure (see `references/example-review.md` for a full worked instance).
