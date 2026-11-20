@@ -3,6 +3,7 @@ package com.datadog.openfeature.internal.ufc;
 import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -45,6 +46,21 @@ class CompactListTest {
     assertFalse(iterator.hasNext());
     assertThrows(NoSuchElementException.class, iterator::next);
     assertTrue(list instanceof RandomAccess);
+    assertEquals(size == 0, list.isEmpty());
+
+    final List<String> visited = new ArrayList<>();
+    list.forEach(visited::add);
+    assertEquals(source, visited);
+  }
+
+  @Test
+  void returnsANewIteratorEveryTimeEvenWhenEmpty() {
+    // A shared iterator on any path would be a merged allocation, which escape analysis can't
+    // remove.
+    final List<String> empty = CompactList.copyOf(Collections.emptyList());
+    assertNotSame(empty.iterator(), empty.iterator());
+    final List<String> one = CompactList.copyOf(Collections.singletonList("a"));
+    assertNotSame(one.iterator(), one.iterator());
   }
 
   @Test
