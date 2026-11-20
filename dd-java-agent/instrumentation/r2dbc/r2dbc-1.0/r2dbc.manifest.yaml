@@ -1,0 +1,11 @@
+_v: 1
+name: r2dbc
+display_name: R2DBC
+description: Instruments reactive database query execution through R2DBC and injects Database Monitoring SQL comments when
+  enabled.
+packages:
+- name: io.r2dbc:r2dbc-spi
+category:
+- db.client
+systems: []
+creation_date: '2026-10-02'

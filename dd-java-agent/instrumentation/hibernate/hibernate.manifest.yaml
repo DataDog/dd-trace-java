@@ -1,0 +1,12 @@
+_v: 1
+name: hibernate
+display_name: Hibernate ORM
+description: Instruments Hibernate ORM sessions, entity operations, queries, criteria, transactions, and stored-procedure
+  calls, and reports Hibernate query strings to IAST SQL-injection analysis.
+packages:
+- name: org.hibernate.orm:hibernate-core
+- name: org.hibernate:hibernate-core
+category:
+- db.client
+systems: []
+creation_date: '2019-02-11'

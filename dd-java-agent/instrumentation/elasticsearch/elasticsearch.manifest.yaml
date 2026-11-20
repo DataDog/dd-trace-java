@@ -1,0 +1,14 @@
+_v: 1
+name: elasticsearch
+display_name: Elasticsearch
+description: Instruments Elasticsearch REST and transport client requests.
+packages:
+- name: org.elasticsearch.client:elasticsearch-rest-client
+- name: org.elasticsearch.client:rest
+- name: org.elasticsearch.client:transport
+- name: org.elasticsearch:elasticsearch
+category:
+- db.client
+systems:
+- elasticsearch
+creation_date: '2018-05-18'
