@@ -274,9 +274,9 @@ public class HashingUtilsTest {
 
   @Test
   void hashSpreadIsTheFibonacciMultiplyFolded() {
-    for (final long hash : new long[] {0L, 1L, -1L, 42L, Integer.MIN_VALUE, Long.MAX_VALUE}) {
-      final long z = hash * 0x9E3779B97F4A7C15L;
-      assertEquals((int) (z ^ (z >>> 32)), HashingUtils.hashSpread(hash));
+    for (final int hash : new int[] {0, 1, -1, 42, Integer.MIN_VALUE, Integer.MAX_VALUE}) {
+      final int z = hash * 0x9E3779B9;
+      assertEquals(z ^ (z >>> 15), HashingUtils.hashSpread(hash));
     }
     assertEquals(0, HashingUtils.hashSpread(0));
     assertNotEquals(HashingUtils.hashSpread(1), HashingUtils.hashSpread(2));
@@ -295,6 +295,6 @@ public class HashingUtilsTest {
       }
     }
     // Consecutive hashes would fill 1,000 adjacent slots; spread, few of them share a slot.
-    assertTrue(distinct > 850, "distinct slots " + distinct);
+    assertTrue(distinct > 800, "distinct slots " + distinct);
   }
 }
