@@ -51,6 +51,7 @@ public class SQLCommenter {
       return sql;
     }
     boolean appendComment = preferAppend;
+    int sqlServerCommentPosition = SqlServerEscapeCall.UNSUPPORTED;
     if (dbType != null) {
       final SubSequence firstWord = getFirstWord(sql);
 
@@ -63,9 +64,15 @@ public class SQLCommenter {
         return sql;
       }
 
-      // MySQL and SQL Server require JDBC escape calls to start with '{', before any comment.
+      // A leading comment prevents the JDBC driver from translating escape calls.
       if (firstWord.startsWith("{") && ("mysql".equals(dbType) || "sqlserver".equals(dbType))) {
         appendComment = true;
+        if ("sqlserver".equals(dbType)) {
+          sqlServerCommentPosition = SqlServerEscapeCall.commentPosition(sql);
+          if (sqlServerCommentPosition == SqlServerEscapeCall.ALREADY_INJECTED) {
+            return sql;
+          }
+        }
       }
 
       // Both Postgres and MySQL are unhappy with anything before CALL in a stored
@@ -93,6 +100,17 @@ public class SQLCommenter {
     // SQL-specific wrapping with /* */
     StringBuilder sb =
         new StringBuilder(sql.length() + commentContent.length() + SQL_COMMENT_OVERHEAD);
+    if (sqlServerCommentPosition >= 0) {
+      // mssql-jdbc preserves argument text when rewriting {call ...} to EXEC, but drops its suffix.
+      boolean needsParentheses = sql.charAt(sqlServerCommentPosition) == '}';
+      sb.append(sql, 0, sqlServerCommentPosition);
+      sb.append(needsParentheses ? '(' : SPACE);
+      sb.append(OPEN_COMMENT).append(commentContent).append(CLOSE_COMMENT);
+      if (needsParentheses) {
+        sb.append(')');
+      }
+      return sb.append(sql, sqlServerCommentPosition, sql.length()).toString();
+    }
     int closingSemicolonIndex = indexOfClosingSemicolon(sql);
     if (appendComment) {
       if (closingSemicolonIndex > -1) {
