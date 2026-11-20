@@ -26,6 +26,7 @@ public class DataStreamsPropagator implements Propagator {
   private final DataStreamsMonitoring dataStreamsMonitoring;
   private final TimeSource timeSource;
   private final ThreadLocal<String> serviceNameOverride;
+  private final Consumer<StatsPoint> addPoint;
 
   public DataStreamsPropagator(
       DataStreamsMonitoring dataStreamsMonitoring,
@@ -34,6 +35,7 @@ public class DataStreamsPropagator implements Propagator {
     this.dataStreamsMonitoring = dataStreamsMonitoring;
     this.timeSource = timeSource;
     this.serviceNameOverride = serviceNameOverride;
+    this.addPoint = dataStreamsMonitoring::add;
   }
 
   @Override
@@ -50,11 +52,11 @@ public class DataStreamsPropagator implements Propagator {
     }
 
     Consumer<StatsPoint> pointConsumer =
-        dsmContext.sendCheckpoint() ? this.dataStreamsMonitoring::add : pathwayContext::saveStats;
+        dsmContext.sendCheckpoint() ? addPoint : pathwayContext::saveStats;
     pathwayContext.setCheckpoint(dsmContext, pointConsumer);
     boolean injected = injectPathwayContext(pathwayContext, carrier, setter);
     if (injected && pathwayContext.getHash() != 0) {
-      span.setTag(PATHWAY_HASH, Long.toUnsignedString(pathwayContext.getHash()));
+      span.setTag(PATHWAY_HASH, PathwayHashStrings.toUnsignedString(pathwayContext.getHash()));
     }
   }
 
