@@ -7,7 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import datadog.trace.test.util.PollingConditions;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Predicate;
 import org.junit.jupiter.api.Test;
@@ -308,8 +308,7 @@ class ConcurrentHashtableSizeManagerTest {
       clearer.start();
       // Wait until the clear is definitely queued on the lock we hold, so the interleaving under
       // test is the one actually attempted rather than one the scheduler happened to avoid.
-      new PollingConditions()
-          .eventually(() -> assertEquals(Thread.State.WAITING, clearer.getState()));
+      awaitState(clearer, Thread.State.WAITING);
 
       assertTrue(ConcurrentHashtable.tryReserveOrEvict(state, e -> true));
       ConcurrentHashtable.insertReserved(state, 0, new TestEntry(0, "reserved"));
@@ -471,6 +470,18 @@ class ConcurrentHashtableSizeManagerTest {
     @Override
     public boolean matches(TestEntry other) {
       return label.equals(other.label);
+    }
+  }
+
+  /** Polls until {@code thread} reaches {@code state}, failing after 10 seconds. */
+  private static void awaitState(final Thread thread, final Thread.State state)
+      throws InterruptedException {
+    final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+    while (thread.getState() != state) {
+      if (System.nanoTime() > deadline) {
+        throw new AssertionError(thread.getName() + " never reached " + state);
+      }
+      Thread.sleep(1);
     }
   }
 }
