@@ -117,6 +117,14 @@ class ContractLookupTest(unittest.TestCase):
         self.assertEqual(self.hits(paths=[f"{LIB}/MoreNames.java"]), [
             f"{LIB}/MoreNames.java:2: [MoreNames] class MoreNames extends Names {{}}"])
 
+    def test_paths_mode_reads_the_named_commit(self):
+        self.add_to_holder("private final Names names = null;")
+        self.commit()
+        self.add_to_holder()
+        self.assertEqual(self.hits(paths=[f"{LIB}/Holder.java"]), [])
+        self.assertEqual(self.hits(rev="HEAD", paths=[f"{LIB}/Holder.java"]), [
+            f"{LIB}/Holder.java:3: [Names]   private final Names names = null;"])
+
     def test_tests_and_comments_are_skipped(self):
         self.write("lib/src/test/java/lib/HolderTest.java",
                    "package lib;\nclass HolderTest {\n  Names names;\n}\n")
