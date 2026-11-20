@@ -1,0 +1,11 @@
+_v: 1
+name: spring-ws
+display_name: Spring Web Services
+description: Instruments Spring Web Services endpoint invocations to attach thrown application exceptions to the local root
+  trace span.
+packages:
+- name: org.springframework.ws:spring-ws-core
+category:
+- other
+systems: []
+creation_date: '2023-08-01'

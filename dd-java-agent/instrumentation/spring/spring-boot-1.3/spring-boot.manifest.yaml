@@ -1,0 +1,11 @@
+_v: 1
+name: spring-boot
+display_name: Spring Boot
+description: Instruments Spring Boot startup to infer service and process metadata and, when enabled, capture code origin
+  for annotated web handlers.
+packages:
+- name: org.springframework.boot:spring-boot
+category:
+- other
+systems: []
+creation_date: '2024-02-20'

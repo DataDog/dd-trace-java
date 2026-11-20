@@ -1,0 +1,12 @@
+_v: 1
+name: spring-rabbit
+display_name: Spring AMQP
+description: Instruments Spring AMQP RabbitMQ listener message processing by propagating context from deliveries and creating
+  consumer spans.
+packages:
+- name: org.springframework.boot:spring-boot-starter-amqp
+category:
+- messaging.consumer
+systems:
+- rabbitmq
+creation_date: '2021-03-10'

@@ -1,0 +1,11 @@
+_v: 1
+name: spring-cloud-zuul
+display_name: Spring Cloud Netflix Zuul
+description: Instruments Spring Cloud Netflix Zuul to preserve trace propagation headers through proxy forwarding and update
+  forwarded-request server-span routes.
+packages:
+- name: org.springframework.cloud:spring-cloud-netflix-zuul
+category:
+- other
+systems: []
+creation_date: '2020-12-10'

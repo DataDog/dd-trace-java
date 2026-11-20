@@ -1,0 +1,11 @@
+_v: 1
+name: spring-messaging
+display_name: Spring Messaging
+description: Instruments Spring Messaging handler methods, creating message-consumer spans, extracting context from message
+  headers, and preserving context for asynchronous Kotlin Kafka listeners.
+packages:
+- name: org.springframework:spring-messaging
+category:
+- messaging.consumer
+systems: []
+creation_date: '2023-07-31'

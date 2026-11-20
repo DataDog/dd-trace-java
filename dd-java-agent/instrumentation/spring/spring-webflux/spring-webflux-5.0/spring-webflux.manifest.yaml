@@ -1,0 +1,14 @@
+_v: 1
+name: spring-webflux
+display_name: Spring WebFlux
+description: Instruments Spring WebFlux server request handling and WebClient HTTP requests, and propagates IAST taint through
+  request data.
+packages:
+- name: io.projectreactor.ipc:reactor-netty
+- name: io.projectreactor.netty:reactor-netty
+- name: org.springframework:spring-webflux
+category:
+- http.client
+- http.server
+systems: []
+creation_date: '2018-08-24'

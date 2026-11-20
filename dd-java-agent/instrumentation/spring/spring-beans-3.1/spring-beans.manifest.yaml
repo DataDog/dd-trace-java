@@ -1,0 +1,11 @@
+_v: 1
+name: spring-beans
+display_name: Spring Beans
+description: Instruments Spring BeanFactory registration and resolution to preserve class references for Datadog-injected
+  bean definitions.
+packages:
+- name: org.springframework:spring-beans
+category:
+- other
+systems: []
+creation_date: '2020-09-16'
