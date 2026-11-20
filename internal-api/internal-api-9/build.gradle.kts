@@ -28,6 +28,13 @@ tasks.withType<JavaCompile>().configureEach {
 
 extra["minimumBranchCoverage"] = 0.8
 extra["minimumInstructionCoverage"] = 0.8
+// Remaining uncovered code is JVM-specific fallbacks (ProcessHandle failures, IBM J9 frame mapping)
+// that cannot be reached on the test JVMs.
+extra["excludedClassesCoverage"] = listOf(
+  "datadog.trace.util.JDK9ExecutableSupplier",
+  "datadog.trace.util.JDK9PidSupplier",
+  "datadog.trace.util.stacktrace.JDK9StackWalker",
+)
 
 // TODO: Cover these classes, then remove them from the coverage baseline (APMLP-2265)
 extra["excludedClassesBranchCoverage"] = listOf(
