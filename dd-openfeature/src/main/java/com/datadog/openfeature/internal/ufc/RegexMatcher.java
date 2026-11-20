@@ -78,6 +78,15 @@ public abstract class RegexMatcher {
    *     uses syntax that RE2/J reads differently.
    */
   public static RegexMatcher compile(final String pattern) {
+    return compile(pattern, true);
+  }
+
+  /** As {@link #compile}, without the engine-free tiers of {@link PrototypeRegex}: #13487 alone. */
+  static RegexMatcher compileWithoutPrototype(final String pattern) {
+    return compile(pattern, false);
+  }
+
+  private static RegexMatcher compile(final String pattern, final boolean prototype) {
     final String re2Pattern = Dialect.toRe2(pattern);
     Limits.check(pattern, re2Pattern);
     final com.google.re2j.Pattern engine;
@@ -95,13 +104,32 @@ public abstract class RegexMatcher {
     }
     @Nullable final List<Token> tokens = Lexer.tokenize(re2Pattern);
     if (tokens == null) {
-      return new Engine(engine, null, null);
+      return engineOrPrototype(pattern, new Engine(engine, null, null), prototype);
     }
     @Nullable final RegexMatcher fast = FastPath.of(tokens);
     if (fast != null) {
       return fast;
     }
-    return new Engine(engine, Prefilter.requiredPrefix(tokens), Prefilter.requiredSuffixes(tokens));
+    return engineOrPrototype(
+        pattern,
+        new Engine(engine, Prefilter.requiredPrefix(tokens), Prefilter.requiredSuffixes(tokens)),
+        prototype);
+  }
+
+  /** Before RE2/J, tries the engine-free tiers of {@link PrototypeRegex}. */
+  private static RegexMatcher engineOrPrototype(
+      final String pattern, final RegexMatcher engine, final boolean prototype) {
+    if (prototype) {
+      // The pattern was compiled once above to validate it. The engine-free tiers don't keep that
+      // program: their fallback compiles it again only if an input needs it.
+      @Nullable
+      final RegexMatcher engineFree =
+          PrototypeRegex.engineFree(pattern, new PrototypeRegex.LazyFallback(pattern));
+      if (engineFree != null) {
+        return engineFree;
+      }
+    }
+    return engine;
   }
 
   // ---- Matchers ---------------------------------------------------------------------------
@@ -528,7 +556,11 @@ public abstract class RegexMatcher {
       return max.isEmpty() ? Long.parseLong(min) + 1 : Long.parseLong(max);
     }
 
-    private static boolean isNumber(final String s) {
+    /**
+     * Whether a repetition count is 1 to 4 plain digits, with no sign. The prototype tiers also use
+     * it, so they never read a count that wasn't sized here.
+     */
+    static boolean isNumber(final String s) {
       if (s.isEmpty() || s.length() > 4) {
         return false;
       }

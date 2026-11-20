@@ -488,7 +488,8 @@ class RegexMatcherTest {
   }
 
   private static RegexMatcher.Engine engine(final String pattern) {
-    return (RegexMatcher.Engine) RegexMatcher.compile(pattern);
+    return (RegexMatcher.Engine)
+        RegexMatcher.compileWithoutPrototype(pattern); // the RE2/J engine, not a prototype tier
   }
 
   private static String repeat(final char c, final int n) {
