@@ -556,7 +556,11 @@ public abstract class RegexMatcher {
       return max.isEmpty() ? Long.parseLong(min) + 1 : Long.parseLong(max);
     }
 
-    private static boolean isNumber(final String s) {
+    /**
+     * Whether a repetition count is 1 to 4 plain digits, with no sign. The prototype tiers also use
+     * it, so they never read a count that wasn't sized here.
+     */
+    static boolean isNumber(final String s) {
       if (s.isEmpty() || s.length() > 4) {
         return false;
       }

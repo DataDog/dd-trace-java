@@ -45,7 +45,14 @@ class PrototypeRegexParserTest {
     "'a{x}'      | false    ",
     "'a{2'       | false    ",
     "'a**'       | false    ",
-    "'a+?+'      | false    "
+    "'a+?+'      | false    ",
+    "'a{0}'      | true     ",
+    "'a{+2}'     | false    ",
+    "'a{-1}'     | false    ",
+    "'a{0002}'   | false    ",
+    "'a{2,+3}'   | false    ",
+    "'a{3,2}'    | false    ",
+    "'a{12345}'  | false    "
   })
   void supportsOnlyItsSubset(final String pattern, final boolean supported) {
     assertEquals(supported, PrototypeRegex.Parser.parse(pattern) != null, pattern);
@@ -150,6 +157,24 @@ class PrototypeRegexParserTest {
     final boolean[] folded = PrototypeRegex.Parser.parse("(?i)[a-c]").atoms.get(0).set;
     assertTrue(folded['B']);
     assertFalse(folded['d']);
+  }
+
+  @Test
+  void leavesBracesThatAreNotACountToTheEngine() {
+    // RE2/J reads a zero-padded count as literal text, and RegexMatcher.Limits skips counts over 4
+    // digits, so nothing sized it. Reading it as a count of 2^31 used to exhaust the heap at
+    // configuration load. (A signed count like {+2} is a syntax error in RE2/J, so it never gets
+    // here; the parser test pins that the prototype rejects it too.)
+    final RegexMatcher matcher = RegexMatcher.compile("^a{0002147483647}$");
+    assertTrue(matcher.matches("a{0002147483647}"));
+    assertFalse(matcher.matches("aa"));
+  }
+
+  @Test
+  void aCaseInsensitiveClassWithoutLettersIsNotAFoldedLetter() {
+    final RegexMatcher matcher = RegexMatcher.compile("(?i)x[\\x00\\x01]y");
+    assertTrue(matcher.matches("x\u0001y"));
+    assertFalse(matcher.matches("xay"));
   }
 
   @Test

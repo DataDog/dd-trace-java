@@ -76,7 +76,21 @@ class PrototypeRegexTest {
           "(?i)^[^a-z]+$",
           "(?i)x[^k]y",
           "(?i)[^\\d]",
-          "(?i)^[^A-Z0-9]+$");
+          "(?i)^[^A-Z0-9]+$",
+          // Braces the dialect doesn't read as a count are literal text, not a repetition.
+          "a{+2}",
+          "^a{0002147483647}$",
+          "x{0002}y",
+          "x{00002}y",
+          "x{-1}y",
+          "(?i)[\\x00\\x01]",
+          // . and gaps count code points: a non-BMP character is one, though it is two chars.
+          "^.$",
+          "^..$",
+          "^a.{2}b$",
+          "a.{2}b",
+          "a.b.c",
+          "^a.+b$");
 
   @Test
   void agreesWithRegexMatcherOnEveryFixtureAndHandPickedPattern() throws IOException {
@@ -165,7 +179,30 @@ class PrototypeRegexTest {
       inputs.add(ch + ch + ch);
     }
     for (final String probe :
-        new String[] {"s", "S", "k", "K", "sk", "SK", "\u017f", "\u212a", "skend", "SKEND"}) {
+        new String[] {
+          "s",
+          "S",
+          "k",
+          "K",
+          "sk",
+          "SK",
+          "\u017f",
+          "\u212a",
+          "skend",
+          "SKEND",
+          "\ud83d\ude00",
+          "a\ud83d\ude00b",
+          "a\ud83d\ude00\ud83d\ude00b",
+          "a\ud83d\ude00xb",
+          "a{2}",
+          "a{+2}",
+          "x{0002}y",
+          "xy",
+          "x{-1}y",
+          "\u0000",
+          "\u0001",
+          "a\ud83d\ude00b\ud83d\ude00c"
+        }) {
       inputs.add(probe);
       inputs.add(base + probe);
       inputs.add(probe + base);
