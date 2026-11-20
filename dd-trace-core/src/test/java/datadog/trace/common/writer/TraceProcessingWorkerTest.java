@@ -1,6 +1,8 @@
 package datadog.trace.common.writer;
 
+import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
+import static datadog.trace.common.writer.ddagent.Prioritization.ENSURE_TRACE;
 import static datadog.trace.common.writer.ddagent.Prioritization.FAST_LANE;
 import static datadog.trace.common.writer.ddagent.PrioritizationStrategy.PublishResult.ENQUEUED_FOR_SERIALIZATION;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -15,6 +17,7 @@ import datadog.trace.bootstrap.instrumentation.api.SpanPostProcessor;
 import datadog.trace.common.sampling.SingleSpanSampler;
 import datadog.trace.common.writer.ddagent.FlushEvent;
 import datadog.trace.common.writer.ddagent.PrioritizationStrategy.PublishResult;
+import datadog.trace.common.writer.ddagent.SpanBudget;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.DDSpanContext;
@@ -749,5 +752,108 @@ class TraceProcessingWorkerTest extends DDJavaSpecification {
       worker.close();
       caller.shutdownNow();
     }
+  }
+
+  // -------------------------------------------------------------------------
+  // Span budget: a stalled agent holds the serializer, the budget bounds spans
+  // -------------------------------------------------------------------------
+
+  @Test
+  void testSpanBudgetBoundsSpansHeldWhileTheSerializerIsStalled() throws Exception {
+    CountDownLatch stalled = new CountDownLatch(1);
+    CountDownLatch agentRecovers = new CountDownLatch(1);
+    PayloadDispatcherImpl dispatcher = mock(PayloadDispatcherImpl.class);
+    doAnswer(
+            inv -> {
+              // models a send blocked on an unresponsive agent
+              stalled.countDown();
+              agentRecovers.await();
+              return null;
+            })
+        .when(dispatcher)
+        .addTrace(any());
+    int spanLimit = 1000;
+    SpanBudget budget = FAST_LANE.spanBudget(spanLimit);
+    try (TraceProcessingWorker worker =
+        new TraceProcessingWorker(
+            1024,
+            budget,
+            mock(HealthMetrics.class),
+            dispatcher,
+            () -> false,
+            FAST_LANE,
+            100,
+            TimeUnit.SECONDS,
+            null)) {
+      worker.start();
+      DDSpan root = mock(DDSpan.class);
+      assertEquals(ENQUEUED_FOR_SERIALIZATION, worker.publish(root, SAMPLER_KEEP, trace(1)));
+      assertTrue(stalled.await(10, TimeUnit.SECONDS));
+
+      // small kept traces fill to their cutoff, then shed
+      int admittedSmall = 0;
+      for (int i = 0; i < 100; i++) {
+        if (worker.publish(root, SAMPLER_KEEP, trace(10)) == ENQUEUED_FOR_SERIALIZATION) {
+          admittedSmall++;
+        }
+      }
+      assertTrue(admittedSmall < 100, "small traces should shed under the budget");
+      assertEquals(
+          PublishResult.DROPPED_BUFFER_OVERFLOW_SAMPLED_OUT,
+          worker.publish(root, SAMPLER_DROP, trace(1)));
+
+      // a large trace still gets in past the point small ones were shed
+      assertEquals(ENQUEUED_FOR_SERIALIZATION, worker.publish(root, SAMPLER_KEEP, trace(200)));
+      assertTrue(budget.used() <= spanLimit);
+
+      // trace count capacity was never the limit
+      assertTrue(worker.getRemainingCapacity() > 900);
+
+      agentRecovers.countDown();
+      long deadline = System.currentTimeMillis() + 10_000;
+      while (budget.used() > 0 && System.currentTimeMillis() < deadline) {
+        Thread.sleep(10);
+      }
+      assertEquals(0, budget.used());
+    }
+  }
+
+  private static List<DDSpan> trace(int spans) {
+    return Collections.nCopies(spans, mock(DDSpan.class));
+  }
+
+  @Test
+  void testPrioritizationThatDoesNotUseABudgetGetsAnUnlimitedOne() throws Exception {
+    // ENSURE_TRACE never counts traces against a budget, while the serializer still releases to the
+    // worker's budget: given a limited one, releases would push it below zero
+    SpanBudget shared = SpanBudget.of(10);
+    PayloadDispatcherImpl dispatcher = mock(PayloadDispatcherImpl.class);
+    CountDownLatch serialized = new CountDownLatch(1);
+    doAnswer(
+            inv -> {
+              serialized.countDown();
+              return null;
+            })
+        .when(dispatcher)
+        .addTrace(any());
+    try (TraceProcessingWorker worker =
+        new TraceProcessingWorker(
+            10,
+            shared,
+            mock(HealthMetrics.class),
+            dispatcher,
+            () -> false,
+            ENSURE_TRACE,
+            0,
+            TimeUnit.SECONDS,
+            null)) {
+      worker.start();
+      List<DDSpan> trace = trace(50);
+      assertEquals(ENQUEUED_FOR_SERIALIZATION, worker.publish(trace.get(0), SAMPLER_KEEP, trace));
+      assertTrue(serialized.await(5, TimeUnit.SECONDS));
+      Thread.sleep(20);
+    }
+
+    assertEquals(0, shared.used());
   }
 }

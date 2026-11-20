@@ -83,6 +83,7 @@ public final class ConfigDefaults {
   static final int DEFAULT_SCOPE_DEPTH_LIMIT = 100;
   static final int DEFAULT_SCOPE_ITERATION_KEEP_ALIVE = 30; // in seconds
   static final int DEFAULT_PARTIAL_FLUSH_MIN_SPANS = 1000;
+  static final int DEFAULT_TRACE_WRITER_SPAN_BUDGET = 20_000;
   static final boolean DEFAULT_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED = false;
   static final Set<TracePropagationStyle> DEFAULT_TRACE_PROPAGATION_STYLE =
       new LinkedHashSet<>(asList(DATADOG, TRACECONTEXT, BAGGAGE));
