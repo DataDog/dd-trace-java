@@ -15,3 +15,6 @@ branches:
     allow_skip_checks: true
     require_reason_for_skip_checks: true
     allow_custom_commit_message: true
+
+# Increase the window in which one can rerun a failed job in MQ
+wait_for_check_timeout_in_minutes: 240
