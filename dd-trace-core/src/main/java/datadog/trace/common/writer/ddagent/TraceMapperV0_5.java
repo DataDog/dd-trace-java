@@ -1,6 +1,7 @@
 package datadog.trace.common.writer.ddagent;
 
 import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
+import static datadog.trace.api.ProtocolVersion.V0_5;
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 import static datadog.trace.core.CoreSpan.ROOT_PROPAGATION_TAGS;
 
@@ -9,6 +10,7 @@ import datadog.communication.serialization.Mapper;
 import datadog.communication.serialization.Writable;
 import datadog.communication.serialization.WritableFormatter;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
+import datadog.trace.api.ProtocolVersion;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.TagMap.EntryReader;
 import datadog.trace.api.internal.VisibleForTesting;
@@ -101,7 +103,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
   }
 
   private void writeDictionaryEncoded(final Writable writable, final Object value) {
-    final Object target = null == value ? "" : value;
+    final Object target = dictionaryKey(value);
     final Integer encoded = encoding.get(target);
     if (null == encoded) {
       if (!dictionaryWriter.format(target, dictionaryMapper)) {
@@ -115,6 +117,34 @@ public final class TraceMapperV0_5 implements TraceMapper {
     } else {
       writable.writeInt(encoded);
     }
+  }
+
+  /**
+   * The dictionary key for a value: the dictionary only deduplicates values that are {@code
+   * equals}. {@link String} and {@link UTF8BytesString} compare by content; other {@link
+   * CharSequence}s may not (a {@code URIUtils.LazyUrl} hashes its content but keeps identity
+   * equality), and keyed as is, every request's copy of the same URL became its own entry, all in
+   * one hash bucket that {@link HashMap} can't order, so lookups scanned them all.
+   *
+   * <p>A value longer than the dictionary is left as is: {@link DictionaryMapper} rejects it
+   * without converting it.
+   */
+  private Object dictionaryKey(final Object value) {
+    if (null == value) {
+      return "";
+    }
+    if (value instanceof CharSequence
+        && !(value instanceof String)
+        && !(value instanceof UTF8BytesString)
+        && ((CharSequence) value).length() <= dictionaryMapper.capacity) {
+      return value.toString();
+    }
+    return value;
+  }
+
+  @Override
+  public ProtocolVersion protocolVersion() {
+    return V0_5;
   }
 
   @Override
@@ -214,6 +244,11 @@ public final class TraceMapperV0_5 implements TraceMapper {
     private PayloadV0_5(ByteBuffer dictionary, int stringCount) {
       this.dictionary = dictionary;
       this.stringCount = stringCount;
+    }
+
+    @Override
+    public ProtocolVersion protocol() {
+      return V0_5;
     }
 
     @Override

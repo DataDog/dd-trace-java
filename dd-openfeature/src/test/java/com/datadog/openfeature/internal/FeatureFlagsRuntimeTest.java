@@ -1,12 +1,16 @@
 package com.datadog.openfeature.internal;
 
+import static java.util.Arrays.asList;
 import static java.util.Collections.emptyMap;
+import static java.util.Collections.singletonList;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -14,17 +18,25 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
+import com.datadog.openfeature.internal.FeatureFlagsRuntime.RemoteConfigurationUnavailableException;
 import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
 import com.datadog.openfeature.internal.bridge.v1.ConfigurationSource;
 import com.datadog.openfeature.internal.bridge.v1.EventTransport;
 import com.datadog.openfeature.internal.bridge.v1.HealthMetrics;
 import com.datadog.openfeature.internal.bridge.v1.ShutdownSource;
 import com.datadog.openfeature.internal.bridge.v1.SpanEnricher;
+import com.datadog.openfeature.internal.config.Settings;
 import com.datadog.openfeature.internal.config.TestSettings;
+import com.datadog.openfeature.internal.delivery.FlagSelectionRequest;
+import com.datadog.openfeature.internal.delivery.FlagSelectionTestSupport;
+import com.datadog.openfeature.internal.delivery.FlagSelectionTestSupport.RecordingHealthMetrics;
 import com.datadog.openfeature.internal.flagevaluation.FlagEvalEvent;
 import com.datadog.openfeature.internal.ufc.ServerConfiguration;
 import com.datadog.openfeature.testlog.CapturingServiceProvider;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -42,6 +54,10 @@ import org.slf4j.event.Level;
 class FeatureFlagsRuntimeTest {
   private static final byte[] EMPTY_UFC =
       "{\"environment\":{\"name\":\"Test\"},\"flags\":{}}".getBytes(StandardCharsets.UTF_8);
+  // A custom endpoint needs no API key; create() never polls it.
+  private static final String AGENTLESS_BASE_URL =
+      "feature.flags.configuration.source.agentless.base.url";
+  private static final String CUSTOM_ENDPOINT = "http://127.0.0.1:1";
 
   @Test
   void disabledProductIsRejected() {
@@ -69,9 +85,61 @@ class FeatureFlagsRuntimeTest {
   }
 
   @Test
+  void managedEndpointRequiresAnApiKey() {
+    final FeatureFlagsRuntime.MissingApiKeyException error =
+        assertThrows(
+            FeatureFlagsRuntime.MissingApiKeyException.class,
+            () ->
+                FeatureFlagsRuntime.create(
+                    new TestAgentBridge(null, (route, json) -> {}), TestSettings.of()));
+
+    assertEquals(
+        "DD_API_KEY is required for the default Datadog Feature Flagging endpoint; set DD_API_KEY,"
+            + " set DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL, or attach"
+            + " dd-java-agent and set DD_FEATURE_FLAGS_CONFIGURATION_SOURCE=remote_config to load"
+            + " flags through the Datadog Agent",
+        error.getMessage());
+  }
+
+  @Test
+  void blankCustomEndpointRequiresAnApiKey() {
+    assertThrows(
+        FeatureFlagsRuntime.MissingApiKeyException.class,
+        () ->
+            FeatureFlagsRuntime.create(
+                AgentBridge.NONE, TestSettings.of(AGENTLESS_BASE_URL, "  ")));
+  }
+
+  @Test
+  void managedEndpointRejectsABlankApiKey() {
+    assertThrows(
+        FeatureFlagsRuntime.MissingApiKeyException.class,
+        () -> FeatureFlagsRuntime.create(AgentBridge.NONE, TestSettings.of("api-key", "  ")));
+  }
+
+  @Test
+  void managedEndpointChecksTheApiKeyBeforeBuildingTheSource() {
+    // The CDN source rejects this site when it is built, so a check below that fails here.
+    assertThrows(
+        FeatureFlagsRuntime.MissingApiKeyException.class,
+        () ->
+            FeatureFlagsRuntime.create(
+                AgentBridge.NONE, TestSettings.of("site", "datadoghq.com@other.example")));
+  }
+
+  @Test
+  void managedEndpointIsCreatedWithAnApiKey() {
+    final FeatureFlagsRuntime runtime =
+        FeatureFlagsRuntime.create(AgentBridge.NONE, TestSettings.of("api-key", "test-api-key"));
+
+    assertNotNull(runtime.evaluations(), "the API key also enables direct event delivery");
+  }
+
+  @Test
   void agentlessWithoutApiKeyOrProxyDisablesEventDelivery() {
     final FeatureFlagsRuntime runtime =
-        FeatureFlagsRuntime.create(AgentBridge.NONE, TestSettings.of());
+        FeatureFlagsRuntime.create(
+            AgentBridge.NONE, TestSettings.of(AGENTLESS_BASE_URL, CUSTOM_ENDPOINT));
 
     assertNull(runtime.evaluations());
   }
@@ -81,7 +149,11 @@ class FeatureFlagsRuntimeTest {
     final FeatureFlagsRuntime runtime =
         FeatureFlagsRuntime.create(
             new TestAgentBridge(null, (route, json) -> {}),
-            TestSettings.of("flagging.evaluation.counts.enabled", "false"));
+            TestSettings.of(
+                AGENTLESS_BASE_URL,
+                CUSTOM_ENDPOINT,
+                "flagging.evaluation.counts.enabled",
+                "false"));
 
     assertNull(runtime.evaluations());
   }
@@ -91,7 +163,11 @@ class FeatureFlagsRuntimeTest {
     final FeatureFlagsRuntime runtime =
         FeatureFlagsRuntime.create(
             new TestAgentBridge(null, (route, json) -> {}),
-            TestSettings.of("feature.flags.exposures.datadog.logging.enabled", "false"));
+            TestSettings.of(
+                AGENTLESS_BASE_URL,
+                CUSTOM_ENDPOINT,
+                "feature.flags.exposures.datadog.logging.enabled",
+                "false"));
 
     assertFalse(runtime.isExposureDeliveryEnabled());
     assertNotNull(runtime.exposureCache());
@@ -101,7 +177,8 @@ class FeatureFlagsRuntimeTest {
   @Test
   void agentlessWithoutApiKeyOrProxyKeepsTheExposureCache() {
     final FeatureFlagsRuntime runtime =
-        FeatureFlagsRuntime.create(AgentBridge.NONE, TestSettings.of());
+        FeatureFlagsRuntime.create(
+            AgentBridge.NONE, TestSettings.of(AGENTLESS_BASE_URL, CUSTOM_ENDPOINT));
 
     assertFalse(runtime.isExposureDeliveryEnabled());
     assertNotNull(runtime.exposureCache());
@@ -111,7 +188,8 @@ class FeatureFlagsRuntimeTest {
   void eventProxyEnablesBothPipelines() {
     final FeatureFlagsRuntime runtime =
         FeatureFlagsRuntime.create(
-            new TestAgentBridge(null, (route, json) -> {}), TestSettings.of());
+            new TestAgentBridge(null, (route, json) -> {}),
+            TestSettings.of(AGENTLESS_BASE_URL, CUSTOM_ENDPOINT));
 
     assertNotNull(runtime.evaluations());
     assertTrue(runtime.isExposureDeliveryEnabled());
@@ -501,7 +579,8 @@ class FeatureFlagsRuntimeTest {
   @Test
   void recordsExposuresOnlyWhenDeliveryIsEnabled() {
     final FeatureFlagsRuntime runtime =
-        FeatureFlagsRuntime.create(AgentBridge.NONE, TestSettings.of());
+        FeatureFlagsRuntime.create(
+            AgentBridge.NONE, TestSettings.of(AGENTLESS_BASE_URL, CUSTOM_ENDPOINT));
     // Must not throw without an exposure pipeline.
     runtime.recordExposure(
         new com.datadog.openfeature.internal.exposure.ExposureEvent(
@@ -512,6 +591,299 @@ class FeatureFlagsRuntimeTest {
             new com.datadog.openfeature.internal.exposure.Subject("s", emptyMap()),
             null));
   }
+
+  @Test
+  void firstSelectionWinsAndALaterDifferentOneWarnsOnce() throws Exception {
+    try (FlagSelectionScope scope = new FlagSelectionScope()) {
+      final FeatureFlagsRuntime first = scope.acquire(AREA_CHECKOUT);
+      assertSame(first, scope.acquire(FlagSelectionRequest.of(singletonList("area:search"), null)));
+      assertSame(first, scope.acquire(FlagSelectionRequest.NONE));
+      assertSame(first, scope.acquire(FlagSelectionRequest.of(asList(" area:checkout"), null)));
+
+      assertEquals(singletonList(SECOND_SELECTION_WARNING), scope.messages());
+      assertEquals(1, scope.cdn.requests().size());
+      assertEquals(AREA_CHECKOUT_QUERY, scope.cdn.requests().get(0).uri.getRawQuery());
+    }
+  }
+
+  @Test
+  void providerWithoutSelectionClaimsAllTheFlags() throws Exception {
+    try (FlagSelectionScope scope = new FlagSelectionScope()) {
+      final FeatureFlagsRuntime first = scope.acquire(FlagSelectionRequest.NONE);
+      assertSame(first, scope.acquire(FlagSelectionRequest.of(asList(" ", ""), null)));
+      assertSame(first, scope.acquire(AREA_CHECKOUT));
+
+      assertEquals(singletonList(SECOND_SELECTION_WARNING), scope.messages());
+      assertNull(scope.cdn.requests().get(0).uri.getRawQuery());
+    }
+  }
+
+  @Test
+  void lastReleaseFreesTheClaim() throws Exception {
+    try (FlagSelectionScope scope = new FlagSelectionScope()) {
+      final FeatureFlagsRuntime first = scope.acquire(FlagSelectionRequest.NONE);
+      scope.releaseAll();
+      final FeatureFlagsRuntime second = scope.acquire(AREA_CHECKOUT);
+
+      assertNotSame(first, second, "the last release stops the runtime");
+      assertTrue(scope.messages().isEmpty(), scope.messages().toString());
+      assertNull(scope.cdn.requests().get(0).uri.getRawQuery());
+      assertEquals(AREA_CHECKOUT_QUERY, scope.cdn.requests().get(1).uri.getRawQuery());
+    }
+  }
+
+  @Test
+  void droppedSelectionIsReportedAtEachProviderInitAndCountedOnce() throws Exception {
+    final FlagSelectionRequest tooMany = FlagSelectionRequest.of(values(32), null);
+    try (FlagSelectionScope scope = new FlagSelectionScope()) {
+      scope.acquire(tooMany);
+      scope.acquire(FlagSelectionRequest.of(values(33), null));
+      // A dropped selection loads every flag, as no selection does, so they do not differ.
+      scope.acquire(FlagSelectionRequest.NONE);
+
+      final String notSent =
+          "ERROR flagSelection was not sent (too_many_values: each list accepts at most 31"
+              + " values). Loading the full flag configuration.";
+      assertEquals(asList(notSent, notSent), scope.messages());
+      assertEquals(singletonList("flag_selection.dropped|1|too_many_values"), scope.metrics.counts);
+      assertNull(scope.cdn.requests().get(0).uri.getRawQuery());
+    }
+  }
+
+  @Test
+  void overlongUrlIsReportedAsTooManyValues() throws Exception {
+    final char[] padding = new char[8150];
+    Arrays.fill(padding, 'x');
+    try (FlagSelectionScope scope = new FlagSelectionScope("/ufc?pad=" + new String(padding))) {
+      scope.acquire(AREA_CHECKOUT);
+      scope.acquire(AREA_CHECKOUT);
+      scope.acquire(FlagSelectionRequest.NONE);
+
+      final String notSent =
+          "ERROR flagSelection was not sent (too_many_values: the request URL is at most 8192"
+              + " bytes). Loading the full flag configuration.";
+      assertEquals(asList(notSent, notSent), scope.messages());
+      assertEquals(singletonList("flag_selection.dropped|1|too_many_values"), scope.metrics.counts);
+      assertEquals("pad=" + new String(padding), scope.cdn.requests().get(0).uri.getRawQuery());
+    }
+  }
+
+  @Test
+  void remoteConfigurationWarnsOnceWhenASelectionIsSet() {
+    FlagSelectionTestSupport.resetReported();
+    CapturingServiceProvider.enable("com.datadog.openfeature", Level.WARN);
+    final RecordingHealthMetrics metrics = new RecordingHealthMetrics();
+    final TestConfigurationSource source = new TestConfigurationSource();
+    final AgentBridge bridge = new TestAgentBridge(source, null).withHealthMetrics(metrics);
+    final Settings remoteConfig =
+        TestSettings.of("feature.flags.configuration.source", "remote_config");
+    try {
+      FeatureFlagsRuntime.acquire(bridge, remoteConfig, FlagSelectionRequest.NONE);
+      FeatureFlagsRuntime.acquire(bridge, remoteConfig, FlagSelectionRequest.of(asList(" "), null));
+      FeatureFlagsRuntime.release();
+      FeatureFlagsRuntime.release();
+      assertTrue(flagSelectionMessages().isEmpty(), "no selection, no warning");
+
+      final FlagSelectionRequest dropped = FlagSelectionRequest.of(values(32), null);
+      FeatureFlagsRuntime.acquire(bridge, remoteConfig, dropped);
+      FeatureFlagsRuntime.acquire(bridge, remoteConfig, dropped);
+      FeatureFlagsRuntime.release();
+      FeatureFlagsRuntime.release();
+      assertEquals(
+          singletonList(REMOTE_CONFIG_WARNING), flagSelectionMessages(), "an invalid selection");
+      FeatureFlagsRuntime.acquire(bridge, remoteConfig, AREA_CHECKOUT);
+      FeatureFlagsRuntime.release();
+
+      assertEquals(singletonList(REMOTE_CONFIG_WARNING), flagSelectionMessages());
+      assertTrue(metrics.counts.isEmpty());
+    } finally {
+      CapturingServiceProvider.reset();
+      FlagSelectionTestSupport.resetReported();
+    }
+  }
+
+  @Test
+  void remoteConfigurationWarnsAJoiningProviderWithASelection() {
+    FlagSelectionTestSupport.resetReported();
+    CapturingServiceProvider.enable("com.datadog.openfeature", Level.WARN);
+    final AgentBridge bridge = new TestAgentBridge(new TestConfigurationSource(), null);
+    final Settings legacyRemoteConfig =
+        TestSettings.of("experimental.flagging.provider.enabled", "true");
+    try {
+      FeatureFlagsRuntime.acquire(bridge, legacyRemoteConfig, FlagSelectionRequest.NONE);
+      FeatureFlagsRuntime.acquire(bridge, legacyRemoteConfig, AREA_CHECKOUT);
+      FeatureFlagsRuntime.acquire(bridge, legacyRemoteConfig, AREA_CHECKOUT);
+
+      assertEquals(singletonList(REMOTE_CONFIG_WARNING), flagSelectionMessages());
+    } finally {
+      FeatureFlagsRuntime.release();
+      FeatureFlagsRuntime.release();
+      FeatureFlagsRuntime.release();
+      CapturingServiceProvider.reset();
+      FlagSelectionTestSupport.resetReported();
+    }
+  }
+
+  @Test
+  void remoteConfigurationWarningPrecedesTheConnectorCheck() {
+    FlagSelectionTestSupport.resetReported();
+    CapturingServiceProvider.enable("com.datadog.openfeature", Level.WARN);
+    try {
+      assertThrows(
+          RemoteConfigurationUnavailableException.class,
+          () ->
+              FeatureFlagsRuntime.create(
+                  AgentBridge.NONE,
+                  TestSettings.of("feature.flags.configuration.source", "remote_config"),
+                  AREA_CHECKOUT));
+
+      assertEquals(singletonList(REMOTE_CONFIG_WARNING), flagSelectionMessages());
+    } finally {
+      CapturingServiceProvider.reset();
+      FlagSelectionTestSupport.resetReported();
+    }
+  }
+
+  @Test
+  void failingSelectionDiagnosticsDoNotFailTheAcquisition() throws Exception {
+    try (FlagSelectionScope scope = new FlagSelectionScope()) {
+      CapturingServiceProvider.failOn("flagSelection");
+      final FeatureFlagsRuntime first =
+          assertDoesNotThrow(() -> scope.acquire(FlagSelectionRequest.of(values(32), null)));
+      assertSame(first, assertDoesNotThrow(() -> scope.acquire(AREA_CHECKOUT)));
+
+      assertEquals(2, scope.messages().size());
+    }
+  }
+
+  @Test
+  void aDroppedSelectionOfAJoiningProviderIsReportedAndDiffersFromASentOne() throws Exception {
+    try (FlagSelectionScope scope = new FlagSelectionScope()) {
+      scope.acquire(AREA_CHECKOUT);
+      scope.acquire(FlagSelectionRequest.of(values(32), null));
+
+      assertEquals(
+          asList(
+              "ERROR flagSelection was not sent (too_many_values: each list accepts at most 31"
+                  + " values). Loading the full flag configuration.",
+              SECOND_SELECTION_WARNING),
+          scope.messages());
+      assertEquals(singletonList("flag_selection.dropped|1|too_many_values"), scope.metrics.counts);
+    }
+  }
+
+  @Test
+  void aMalformedSelectionOfAJoiningProviderIsReportedWithoutDifferingFromNoSelection()
+      throws Exception {
+    try (FlagSelectionScope scope = new FlagSelectionScope()) {
+      scope.acquire(FlagSelectionRequest.NONE);
+      scope.acquire(FlagSelectionRequest.of(asList("area:checkout", 42), null));
+
+      assertEquals(
+          singletonList(
+              "ERROR flagSelection was not sent (malformed_selection: flagSelection must be an"
+                  + " object with optional tags and keyPatterns string lists). Loading the full flag"
+                  + " configuration."),
+          scope.messages());
+      assertEquals(
+          singletonList("flag_selection.dropped|1|malformed_selection"), scope.metrics.counts);
+    }
+  }
+
+  @Test
+  void noSelectionOfAJoiningProviderDoesNotDifferFromADroppedOne() throws Exception {
+    try (FlagSelectionScope scope = new FlagSelectionScope()) {
+      scope.acquire(FlagSelectionRequest.of(values(32), null));
+      scope.acquire(FlagSelectionRequest.NONE);
+
+      assertEquals(
+          singletonList(
+              "ERROR flagSelection was not sent (too_many_values: each list accepts at most 31"
+                  + " values). Loading the full flag configuration."),
+          scope.messages());
+    }
+  }
+
+  private static final FlagSelectionRequest AREA_CHECKOUT =
+      FlagSelectionRequest.of(singletonList("area:checkout"), null);
+  private static final String AREA_CHECKOUT_QUERY = "selected_flag_tags=area%3Acheckout";
+  private static final String SECOND_SELECTION_WARNING =
+      "WARN flagSelection differs from the flag selection already in use in this process. Using"
+          + " the first selection.";
+  private static final String REMOTE_CONFIG_WARNING =
+      "WARN flagSelection is not supported when flags are delivered through Remote Config. Loading"
+          + " the full flag configuration.";
+
+  private static List<String> values(final int count) {
+    final List<String> values = new ArrayList<>();
+    for (int i = 0; i < count; i++) {
+      values.add("t" + i);
+    }
+    return values;
+  }
+
+  private static List<String> flagSelectionMessages() {
+    return CapturingServiceProvider.events().stream()
+        .filter(e -> e.message.startsWith("flagSelection"))
+        .map(e -> e.level + " " + e.message)
+        .collect(Collectors.toList());
+  }
+
+  /** Acquires agentless runtimes polling a local CDN, and releases them all when closed. */
+  private static final class FlagSelectionScope implements AutoCloseable {
+    final LocalHttpServer cdn = new LocalHttpServer();
+    final RecordingHealthMetrics metrics = new RecordingHealthMetrics();
+    private final AgentBridge bridge = new TestAgentBridge(null, null).withHealthMetrics(metrics);
+    private final Settings settings;
+    private int acquired;
+
+    FlagSelectionScope() throws IOException {
+      this("/ufc");
+    }
+
+    FlagSelectionScope(final String path) throws IOException {
+      this.cdn.otherwise(200, CDN_CONFIG);
+      this.settings =
+          TestSettings.of(
+              "feature.flags.configuration.source.agentless.base.url",
+              this.cdn.uri(path).toString());
+      FlagSelectionTestSupport.resetReported();
+      CapturingServiceProvider.enable("com.datadog.openfeature", Level.WARN);
+    }
+
+    FeatureFlagsRuntime acquire(final FlagSelectionRequest selection) {
+      final FeatureFlagsRuntime runtime =
+          FeatureFlagsRuntime.acquire(this.bridge, this.settings, selection);
+      this.acquired++;
+      return runtime;
+    }
+
+    void releaseAll() {
+      while (this.acquired > 0) {
+        this.acquired--;
+        FeatureFlagsRuntime.release();
+      }
+    }
+
+    List<String> messages() {
+      return flagSelectionMessages();
+    }
+
+    @Override
+    public void close() {
+      try {
+        CapturingServiceProvider.reset();
+        releaseAll();
+      } finally {
+        this.cdn.close();
+        FlagSelectionTestSupport.resetReported();
+      }
+    }
+  }
+
+  private static final String CDN_CONFIG =
+      "{\"data\":{\"type\":\"universal-flag-configuration\",\"attributes\":"
+          + "{\"environment\":{\"name\":\"Test\"},\"flags\":{}}}}";
 
   private static com.datadog.openfeature.internal.exposure.ExposureEvent exposure() {
     return new com.datadog.openfeature.internal.exposure.ExposureEvent(
@@ -539,6 +911,7 @@ class FeatureFlagsRuntimeTest {
     private final EventTransport eventProxy;
     private boolean agentShutdown;
     private RuntimeException shutdownFailure;
+    private HealthMetrics healthMetrics = HealthMetrics.NOOP;
     volatile Runnable shutdownFlush;
     volatile boolean shutdownUnregistered;
 
@@ -565,7 +938,7 @@ class FeatureFlagsRuntimeTest {
 
     @Override
     public HealthMetrics healthMetrics() {
-      return HealthMetrics.NOOP;
+      return this.healthMetrics;
     }
 
     @Override
@@ -585,6 +958,11 @@ class FeatureFlagsRuntimeTest {
         this.shutdownFlush = listener;
         return () -> this.shutdownUnregistered = true;
       };
+    }
+
+    TestAgentBridge withHealthMetrics(final HealthMetrics healthMetrics) {
+      this.healthMetrics = healthMetrics;
+      return this;
     }
 
     TestAgentBridge withAgentShutdown() {

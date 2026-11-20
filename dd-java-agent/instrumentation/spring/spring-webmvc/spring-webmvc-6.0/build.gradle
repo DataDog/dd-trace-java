@@ -17,10 +17,31 @@ tracerJava {
 }
 
 addTestSuiteForDir("latestDepTest", "test")
+// Clean Spring 7 suite: registered directly because the test-suites.gradle helpers require an existing
+// parent suite, and extending 'test' would put Boot 3 and tomcat-embed 10.1 (Servlet 6.0) on the classpath.
+testing {
+  suites {
+    register("spring7Test", JvmTestSuite) {
+      dependencies {
+        implementation project()
+      }
+    }
+  }
+}
 
 ["compileMain_java17Java", "compileTestJava", "compileLatestDepTestJava"].each {
   tasks.named(it, JavaCompile) {
     configureCompiler(it, JavaVersion.VERSION_1_8)
+  }
+}
+
+tasks.named("compileSpring7TestJava", JavaCompile) {
+  configureCompiler(it, JavaVersion.VERSION_17)
+}
+
+tasks.named("spring7Test", Test) {
+  testJvmConstraints {
+    minJavaVersion = JavaVersion.VERSION_17
   }
 }
 
@@ -61,6 +82,17 @@ dependencies {
   latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '3.+'
   latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-security', version: '3.+'
   latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-websocket', version: '3.+'
+
+  spring7TestImplementation(project(':dd-java-agent:instrumentation-testing')) {
+    exclude(module: 'jetty-server') // incompatible servlet api
+  }
+  spring7TestImplementation project(':dd-java-agent:instrumentation:spring:spring-webmvc:spring-webmvc-3.1')
+  spring7TestImplementation libs.junit.jupiter
+  spring7TestImplementation group: 'org.springframework', name: 'spring-webmvc', version: '7.0.7'
+  spring7TestImplementation group: 'org.springframework', name: 'spring-web', version: '7.0.7'
+  spring7TestImplementation group: 'org.springframework', name: 'spring-test', version: '7.0.7'
+  spring7TestImplementation group: 'tools.jackson.core', name: 'jackson-databind', version: '3.1.2'
+  spring7TestImplementation group: 'jakarta.servlet', name: 'jakarta.servlet-api', version: '6.1.0'
 }
 
 

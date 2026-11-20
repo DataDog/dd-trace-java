@@ -1,0 +1,93 @@
+[
+  {
+    "id": "__test_nfd_probe_block",
+    "name": "test rule to block on a 404 response for the probe paths",
+    "tags": {
+      "type": "test",
+      "category": "test",
+      "confidence": "1"
+    },
+    "conditions": [
+      {
+        "parameters": {
+          "inputs": [{"address": "server.response.status"}],
+          "regex": "^404$"
+        },
+        "operator": "match_regex"
+      },
+      {
+        "parameters": {
+          "inputs": [{"address": "server.request.uri.raw"}],
+          "regex": "nfd-probe"
+        },
+        "operator": "match_regex"
+      }
+    ],
+    "transformers": [],
+    "on_match": ["block"]
+  },
+  {
+    "id": "__test_json_body_block",
+    "name": "test rule to block on a JSON request body",
+    "tags": {
+      "type": "test",
+      "category": "test",
+      "confidence": "1"
+    },
+    "conditions": [
+      {
+        "parameters": {
+          "inputs": [{"address": "server.request.body"}],
+          "regex": "dd-test-json-body-block"
+        },
+        "operator": "match_regex"
+      }
+    ],
+    "transformers": [],
+    "on_match": ["block"]
+  },
+  {
+    "id": "rasp-934-100",
+    "name": "Server-side request forgery exploit",
+    "enable": "true",
+    "tags": {
+      "type": "ssrf",
+      "category": "vulnerability_trigger",
+      "cwe": "918",
+      "capec": "1000/225/115/664",
+      "confidence": "0",
+      "module": "rasp"
+    },
+    "conditions": [
+      {
+        "parameters": {
+          "resource": [{"address": "server.io.net.url"}],
+          "params": [{"address": "server.request.query"}]
+        },
+        "operator": "ssrf_detector"
+      }
+    ],
+    "transformers": [],
+    "on_match": ["block"]
+  },
+  {
+    "id": "__test_user_block",
+    "name": "test rule to block on a user id",
+    "tags": {
+      "type": "test",
+      "category": "test",
+      "confidence": "1"
+    },
+    "conditions": [
+      {
+        "parameters": {
+          "inputs": [{"address": "usr.id"}],
+          "regex": "^user-to-block$"
+        },
+        "operator": "match_regex"
+      }
+    ],
+    "transformers": [],
+    "on_match": ["block"]
+  }
+]

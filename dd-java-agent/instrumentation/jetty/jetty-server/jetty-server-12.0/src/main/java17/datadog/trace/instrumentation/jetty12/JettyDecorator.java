@@ -1,7 +1,12 @@
 package datadog.trace.instrumentation.jetty12;
 
+import static datadog.trace.bootstrap.ActiveSubsystems.APPSEC_ACTIVE;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_IGNORE_COMMIT_ATTRIBUTE;
+
+import datadog.context.Context;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
@@ -10,12 +15,12 @@ import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.io.Connection;
 import org.eclipse.jetty.io.EndPoint;
 import org.eclipse.jetty.server.ConnectionMetaData;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
-import org.eclipse.jetty.server.internal.HttpChannelState;
 
 public class JettyDecorator extends HttpServerDecorator<Request, Request, Response, Request> {
   public static final CharSequence JETTY_SERVER = UTF8BytesString.create("jetty-server");
@@ -131,9 +136,45 @@ public class JettyDecorator extends HttpServerDecorator<Request, Request, Respon
     return request.getHeaders().get(key);
   }
 
-  public void onResponse(AgentSpan span, HttpChannelState channel) {
-    Request request = channel.getRequest();
-    Response response = channel.getResponse();
+  /**
+   * Registers the {@link JettyBlockResponseFunction} on the span request context, right after
+   * {@code onRequest}. {@code createBlockResponseFunction} is not used because it only receives the
+   * request, and the core request has no public path to its response.
+   */
+  public void registerBlockResponseFunction(
+      final AgentSpan span, final Request request, final Response response) {
+    if (!APPSEC_ACTIVE || request == null || response == null) {
+      return;
+    }
+    final RequestContext requestContext = span.getRequestContext();
+    if (requestContext != null && requestContext.getBlockResponseFunction() == null) {
+      requestContext.setBlockResponseFunction(new JettyBlockResponseFunction(request, response));
+    }
+  }
+
+  /**
+   * Response-phase AppSec analysis runs before the commit, see {@code JettyCommitResponseHelper}.
+   */
+  @Override
+  protected boolean isAppSecOnResponseSeparate() {
+    return true;
+  }
+
+  /** Returns the response status, mapping the unset status {@code 0} to the implicit 200. */
+  static int effectiveStatus(final Response response) {
+    final int status = response.getStatus();
+    return status == 0 ? HttpStatus.OK_200 : status;
+  }
+
+  /** Decorates the span with the response and finishes it. */
+  public void finishSpan(
+      final Context context, final AgentSpan span, final Request request, final Response response) {
+    onResponse(span, request, response);
+    beforeFinish(context);
+    span.finish();
+  }
+
+  public void onResponse(AgentSpan span, Request request, Response response) {
     if (Config.get().isServletPrincipalEnabled()) {
       final Request.AuthenticationState authenticationState =
           Request.getAuthenticationState(request);
@@ -154,6 +195,12 @@ public class JettyDecorator extends HttpServerDecorator<Request, Request, Respon
         throwable = throwable.getCause();
       }
       onError(span, throwable);
+    }
+    if (request.getAttribute(DD_IGNORE_COMMIT_ATTRIBUTE) == null) {
+      // the commit hook never saw this response (e.g. a core handler committing it without any
+      // write, or AppSec instrumentation not applied): keep response monitoring, too late to block
+      callIGCallbackResponseAndHeaders(
+          span, response, effectiveStatus(response), ExtractAdapter.Response.GETTER);
     }
     super.onResponse(span, response);
   }

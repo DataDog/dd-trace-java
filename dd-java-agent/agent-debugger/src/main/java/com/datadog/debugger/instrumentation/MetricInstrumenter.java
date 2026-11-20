@@ -66,6 +66,7 @@ import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.util.ClassFileLines;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.el.ValueReferences;
+import datadog.trace.util.Strings;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
@@ -357,7 +358,7 @@ public class MetricInstrumenter extends Instrumenter {
               .map(Type::getClassName)
               .collect(Collectors.joining(","));
       reportError(
-          String.format(
+          Strings.format(
               "Incompatible type for expression: %s with expected types: [%s]",
               resultType.getClassName(), expectedTypes));
       return EMPTY_INSN_LIST;
@@ -422,7 +423,7 @@ public class MetricInstrumenter extends Instrumenter {
         }
         return internalCallMetric(metricProbe, targetLocation, returnContext);
       default:
-        reportError(String.format("Unknown metric kind: %s", metricProbe.getKind()));
+        reportError(Strings.format("Unknown metric kind: %s", metricProbe.getKind()));
     }
     return null;
   }

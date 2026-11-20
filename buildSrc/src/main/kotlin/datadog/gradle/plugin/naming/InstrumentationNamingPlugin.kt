@@ -22,7 +22,7 @@ import java.io.File
  * ```
  */
 class InstrumentationNamingPlugin : Plugin<Project> {
-  private val versionPattern : Regex = Regex("""\d+\.\d+(\.\d+)?$""")
+  private val versionPattern: Regex = Regex("""\d+\.\d+(\.\d+)?$""")
 
   override fun apply(target: Project) {
     val extension = target.extensions.create<InstrumentationNamingExtension>("instrumentationNaming")
@@ -47,18 +47,23 @@ class InstrumentationNamingPlugin : Plugin<Project> {
         if (violations.isNotEmpty()) {
           val suffixesStr = suffixes.joinToString("', '", "'", "'")
           val errorMessage = buildString {
-            appendLine("""
+            appendLine(
+              """
             
             Instrumentation naming convention violations found:
             
-            """.trimIndent())
+              """.trimIndent()
+            )
             violations.forEach { violation ->
-              appendLine("""
+              appendLine(
+                """
                 • ${violation.path}
                   ${violation.message}
-              """.trimIndent())
+                """.trimIndent()
+              )
             }
-            append("""
+            append(
+              """
               Naming rules:
                 1. Module name must end with a version (e.g., '2.0', '3.1') OR one of: $suffixesStr
                 2. Module name must include the parent directory name
@@ -69,7 +74,8 @@ class InstrumentationNamingPlugin : Plugin<Project> {
                   exclusions.set(setOf("module-name"))
                   suffixes.set(setOf("-common", "-stubs"))
                 }
-              """.trimIndent())
+              """.trimIndent()
+            )
           }
           throw GradleException(errorMessage)
         } else {
@@ -138,10 +144,12 @@ class InstrumentationNamingPlugin : Plugin<Project> {
 
     // Rule 2: Module name must contain parent directory name (all characters in any order)
     if (!containsAllChars(moduleName, parentName)) {
-      return listOf(NamingViolation(
-        relativePath,
-        "Module name '$moduleName' should contain all characters from parent directory name '$parentName'"
-      ))
+      return listOf(
+        NamingViolation(
+          relativePath,
+          "Module name '$moduleName' should contain all characters from parent directory name '$parentName'"
+        )
+      )
     }
 
     return emptyList()
@@ -155,9 +163,7 @@ class InstrumentationNamingPlugin : Plugin<Project> {
     moduleName: String,
     relativePath: String,
     suffixes: Set<String>
-  ): NamingViolation? {
-    return validateVersionOrSuffix(moduleName, relativePath, suffixes)
-  }
+  ): NamingViolation? = validateVersionOrSuffix(moduleName, relativePath, suffixes)
 
   /**
    * Validates that a module name ends with either a version or one of the configured suffixes.

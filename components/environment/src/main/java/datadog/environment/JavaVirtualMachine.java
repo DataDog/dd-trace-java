@@ -122,7 +122,7 @@ public final class JavaVirtualMachine {
   }
 
   public static boolean isGraalVM() {
-    return runtime.vendorVersion.toLowerCase().contains("graalvm");
+    return runtime.vendorVersion.toLowerCase(Locale.ROOT).contains("graalvm");
   }
 
   public static String getLangVersion() {
