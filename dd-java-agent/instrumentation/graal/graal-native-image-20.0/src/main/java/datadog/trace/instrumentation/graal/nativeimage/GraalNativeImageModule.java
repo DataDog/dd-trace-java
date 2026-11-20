@@ -14,6 +14,9 @@ public class GraalNativeImageModule extends AbstractNativeImageModule {
     return new String[] {
       packageName + ".Target_com_datadog_profiling_agent_ProcessContext",
       packageName + ".Target_datadog_jctools_util_UnsafeRefArrayAccess",
+      packageName + ".Target_javax_management_MBeanServerFactory",
+      packageName + ".Target_com_sun_jmx_mbeanserver_MXBeanLookup",
+      packageName + ".Target_com_sun_jmx_mbeanserver_WeakIdentityHashMap",
       packageName + ".Target_org_datadog_jmxfetch_App",
       packageName + ".Target_org_datadog_jmxfetch_Status",
       packageName + ".Target_org_datadog_jmxfetch_reporter_JsonReporter"
@@ -29,6 +32,9 @@ public class GraalNativeImageModule extends AbstractNativeImageModule {
       // ignore helper class names as usual
       packageName + ".Target_com_datadog_profiling_agent_ProcessContext",
       packageName + ".Target_datadog_jctools_util_UnsafeRefArrayAccess",
+      packageName + ".Target_javax_management_MBeanServerFactory",
+      packageName + ".Target_com_sun_jmx_mbeanserver_MXBeanLookup",
+      packageName + ".Target_com_sun_jmx_mbeanserver_WeakIdentityHashMap",
       packageName + ".Target_org_datadog_jmxfetch_App",
       packageName + ".Target_org_datadog_jmxfetch_Status",
       packageName + ".Target_org_datadog_jmxfetch_reporter_JsonReporter",

@@ -1,5 +1,8 @@
 package datadog.trace.common.metrics;
 
+import static datadog.trace.common.metrics.CardinalityTables.capacityFor;
+import static datadog.trace.common.metrics.CardinalityTables.maxCapacity;
+
 import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.Arrays;
@@ -43,7 +46,9 @@ final class PropertyCardinalityHandler {
   private final String statsDField;
 
   private final int cardinalityLimit;
-  private final int capacityMask;
+
+  /** The largest table, holding a full budget of values at the 0.5 load factor. */
+  private final int maxCapacity;
 
   /**
    * Whether to substitute the {@code tracer_blocked_value} sentinel when the per-cycle budget is
@@ -56,9 +61,12 @@ final class PropertyCardinalityHandler {
 
   // Single open-addressed table per cycle. The stored UTF8BytesString IS the slot identity --
   // equality is checked by comparing its underlying String against the incoming CharSequence.
+  // Tables are sized to the values seen, not the budget: null until the first value, they start
+  // at CardinalityTables.MIN_CAPACITY and double up to maxCapacity, and each reset sizes the next
+  // cycle's table for as many values as the cycle just completed held.
   private UTF8BytesString[] curValues;
   // Values from the previous reporting cycle, kept so values that persist across cycles can reuse
-  // their UTF8BytesString instance without re-allocating.
+  // their UTF8BytesString instance without re-allocating. Null if that cycle saw no values.
   private UTF8BytesString[] priorValues;
   private int curSize;
 
@@ -94,12 +102,9 @@ final class PropertyCardinalityHandler {
     }
     this.cardinalityLimit = cardinalityLimit;
     this.useBlockedSentinel = useBlockedSentinel;
-    // Capacity = next power of two >= 2 * cardinalityLimit. Linear-probing load factor stays
+    // Max capacity = next power of two >= 2 * cardinalityLimit. Linear-probing load factor stays
     // <= 0.5 even when the budget is full, which keeps probe chains short.
-    final int capacity = Integer.highestOneBit(cardinalityLimit * 2 - 1) << 1;
-    this.capacityMask = capacity - 1;
-    this.curValues = new UTF8BytesString[capacity];
-    this.priorValues = new UTF8BytesString[capacity];
+    this.maxCapacity = maxCapacity(cardinalityLimit);
   }
 
   /**
@@ -107,31 +112,34 @@ final class PropertyCardinalityHandler {
    * inputs map to {@link UTF8BytesString#EMPTY} -- {@link AggregateEntry} doesn't need to
    * pre-check.
    *
-   * <p>The value hash is computed once and used as the initial probe slot in both tables. {@code h
-   * ^ (h >>> 16)} folds high hash bits into the low bits to reduce collisions for inputs that share
-   * a common low-bit pattern. {@link UTF8BytesString#hashCode} is content-stable with the
-   * underlying String, so a String input and a UTF8BytesString of the same content map to the same
-   * slot.
+   * <p>The spread hash is computed once and masked to each table's own size to give its initial
+   * probe slot. {@code h ^ (h >>> 16)} folds high hash bits into the low bits to reduce collisions
+   * for inputs that share a common low-bit pattern. The hash is always the content's {@code String}
+   * hash (see {@link #contentHash}), the same one {@link #grow} rehashes stored values by, so any
+   * {@code CharSequence} of the same content maps to the same slot.
    */
   UTF8BytesString register(CharSequence value) {
     if (value == null) {
       return UTF8BytesString.EMPTY;
     }
-    // Initial table slot, used to probe current and prior tables.
-    int h = value.hashCode();
-    int start = (h ^ (h >>> 16)) & this.capacityMask;
+    // Spread hash, used to probe current and prior tables.
+    int h = contentHash(value);
+    int spread = h ^ (h >>> 16);
 
     // First, look in the current-cycle table.
     // If found, this value already consumed cardinality budget in this cycle.
-    int slot = start;
-    UTF8BytesString existing;
-    while ((existing = this.curValues[slot]) != null
-        && existing != value
-        && !existing.toString().contentEquals(value)) {
-      slot = (slot + 1) & this.capacityMask;
-    }
-    if (existing != null) {
-      return existing;
+    UTF8BytesString[] cur = this.curValues;
+    int slot = -1;
+    if (cur != null) {
+      int mask = cur.length - 1;
+      slot = spread & mask;
+      UTF8BytesString existing;
+      while ((existing = cur[slot]) != null) {
+        if (existing == value || existing.toString().contentEquals(value)) {
+          return existing;
+        }
+        slot = (slot + 1) & mask;
+      }
     }
     // This value is new for the current cycle.
     boolean capExhausted = this.curSize >= this.cardinalityLimit;
@@ -144,22 +152,86 @@ final class PropertyCardinalityHandler {
     // Otherwise, try to reuse from the prior cycle if possible to avoid re-allocation.
     // Runs whether or not the current budget is exhausted, so persistent values keep their
     // UTF8BytesString instance across cycles.
-    int priorSlot = start;
-    UTF8BytesString priorMatch;
-    while ((priorMatch = this.priorValues[priorSlot]) != null
-        && priorMatch != value
-        && !priorMatch.toString().contentEquals(value)) {
-      priorSlot = (priorSlot + 1) & this.capacityMask;
-    }
+    UTF8BytesString priorMatch = findPrior(value, spread);
     UTF8BytesString utf8 = priorMatch != null ? priorMatch : UTF8BytesString.create(value);
-    // If there is still budget, remember this value in the current-cycle table.
+    // If there is still budget, remember this value in the current-cycle table, growing it first
+    // if this value would take it past the 0.5 load factor.
     if (!capExhausted) {
-      this.curValues[slot] = utf8;
+      if (cur == null || (this.curSize + 1) * 2 > cur.length) {
+        cur = grow(cur);
+        slot = findFreeSlot(cur, spread);
+      }
+      cur[slot] = utf8;
       this.curSize += 1;
     }
     // If capExhausted && !useBlockedSentinel, this returns the real value but
     // does not cache it in the current cycle.
     return utf8;
+  }
+
+  /**
+   * The {@code String} hash of {@code value}'s content. {@code String} and {@link UTF8BytesString}
+   * already hash that way; other {@code CharSequence}s ({@code StringBuilder}, {@code CharBuffer})
+   * may not, and probing with their own hash would miss a stored value after the table grows.
+   */
+  private static int contentHash(CharSequence value) {
+    if (value instanceof String || value instanceof UTF8BytesString) {
+      return value.hashCode();
+    }
+    int h = 0;
+    for (int i = 0; i < value.length(); i++) {
+      h = 31 * h + value.charAt(i);
+    }
+    return h;
+  }
+
+  private UTF8BytesString findPrior(CharSequence value, int spread) {
+    UTF8BytesString[] prior = this.priorValues;
+    if (prior == null) {
+      return null;
+    }
+    int mask = prior.length - 1;
+    int slot = spread & mask;
+    UTF8BytesString match;
+    while ((match = prior[slot]) != null) {
+      if (match == value || match.toString().contentEquals(value)) {
+        return match;
+      }
+      slot = (slot + 1) & mask;
+    }
+    return null;
+  }
+
+  /** Doubles the current table, or creates the smallest one, and rehashes its values. */
+  private UTF8BytesString[] grow(UTF8BytesString[] old) {
+    int capacity =
+        old == null ? capacityFor(1, this.maxCapacity) : Math.min(this.maxCapacity, old.length * 2);
+    UTF8BytesString[] grown = new UTF8BytesString[capacity];
+    if (old != null) {
+      for (UTF8BytesString utf8 : old) {
+        if (utf8 != null) {
+          int h = utf8.hashCode();
+          grown[findFreeSlot(grown, h ^ (h >>> 16))] = utf8;
+        }
+      }
+    }
+    this.curValues = grown;
+    return grown;
+  }
+
+  private static int findFreeSlot(UTF8BytesString[] table, int spread) {
+    int mask = table.length - 1;
+    int slot = spread & mask;
+    while (table[slot] != null) {
+      slot = (slot + 1) & mask;
+    }
+    return slot;
+  }
+
+  /** The size of the current-cycle table, or 0 while the handler holds none. */
+  @VisibleForTesting
+  int tableCapacity() {
+    return this.curValues == null ? 0 : this.curValues.length;
   }
 
   private UTF8BytesString tracerBlockedValue() {
@@ -184,14 +256,24 @@ final class PropertyCardinalityHandler {
   long reset() {
     long count = this.blockedCount;
     this.blockedCount = 0;
-    // Flip pointers: the just-completed cycle becomes prior; what was prior (2 cycles ago) is
-    // recycled into the new (empty) current.
-    final UTF8BytesString[] tmp = this.priorValues;
-    this.priorValues = this.curValues;
-    this.curValues = tmp;
-    // Null the new current. The values pulled out of prior are still reachable through any
-    // AggregateEntry rows they ended up populating; this just drops the handler's references.
-    Arrays.fill(this.curValues, null);
+    // The just-completed cycle becomes prior. The new current is sized for as many values as that
+    // cycle held, recycling what was prior (2 cycles ago) when it's already that size; a cycle
+    // with no values releases both tables. The values dropped here are still reachable through
+    // any AggregateEntry rows they ended up populating; this just drops the handler's references.
+    final UTF8BytesString[] recycled = this.priorValues;
+    final int used = this.curSize;
+    this.priorValues = used > 0 ? this.curValues : null;
+    if (used == 0) {
+      this.curValues = null;
+    } else {
+      int capacity = capacityFor(used, this.maxCapacity);
+      if (recycled != null && recycled.length == capacity) {
+        Arrays.fill(recycled, null);
+        this.curValues = recycled;
+      } else {
+        this.curValues = new UTF8BytesString[capacity];
+      }
+    }
     this.curSize = 0;
     return count;
   }

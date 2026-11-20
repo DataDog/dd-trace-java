@@ -15,6 +15,10 @@ public class ProbeRateLimiter {
   private static final Logger LOGGER = LoggerFactory.getLogger(ProbeRateLimiter.class);
   public static final double DEFAULT_SNAPSHOT_RATE = 1.0;
   public static final double DEFAULT_LOG_RATE = 5000.0;
+
+  /** Evaluation errors are reported at most once per probe every 5 minutes. */
+  public static final double DEFAULT_EVALUATION_ERROR_RATE = 1.0 / 300;
+
   private static final Duration ONE_SECOND_WINDOW = Duration.of(1, ChronoUnit.SECONDS);
   private static final double DEFAULT_GLOBAL_SNAPSHOT_RATE = DEFAULT_SNAPSHOT_RATE * 100;
   private static final double DEFAULT_GLOBAL_LOG_RATE = 5000.0;

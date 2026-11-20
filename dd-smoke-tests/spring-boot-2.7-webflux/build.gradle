@@ -15,7 +15,7 @@ smokeTestApp {
 }
 
 dependencies {
-  testImplementation project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests:smoke-test-common')
 }
 
 tasks.named("compileTestGroovy", GroovyCompile) {

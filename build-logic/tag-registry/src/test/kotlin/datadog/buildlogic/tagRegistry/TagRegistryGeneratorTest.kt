@@ -63,6 +63,26 @@ class TagRegistryGeneratorTest {
       .contains("ENV = 0x0001000000000004L", "TEST_NAME", "http.request.method")
   }
 
+  @Test
+  fun `keyOf initializer reads the static arrays outside its loop`() {
+    val yaml = directory.conventionsFile(
+      """
+      span_types:
+        http.server:
+          tags: [{dd-name: http.method}]
+      """
+    )
+    val output = File(directory, "generated")
+
+    TagRegistryGenerator.generate(yaml, output)
+
+    val loop = contents(output).getValue("java/datadog/trace/api/KnownTags.java")
+      .substringAfter("static {")
+      .substringAfter("for (")
+      .substringBefore("KEYOF_HASHES =")
+    assertThat(loop).doesNotContain("KEYOF_NAMES", "KEYOF_VALUES")
+  }
+
   @TableTest(
     """
           scenario                 | tag                               | message

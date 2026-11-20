@@ -24,6 +24,7 @@ import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
 import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.util.Strings;
 import datadog.trace.util.TagsHelper;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -268,13 +269,13 @@ public class SpanDecorationProbe extends ProbeDefinition implements CapturedCont
           status.getErrors().addAll(logStatus.getErrors());
           if (logStatus.getErrors().size() > 0) {
             spanStatus.addTag(
-                String.format(EVALERROR_DD_TAGS_FORMAT, tagName),
+                Strings.format(EVALERROR_DD_TAGS_FORMAT, tagName),
                 logStatus.getErrors().get(0).getMessage());
           }
         } else {
           spanStatus.addTag(tagName, tagValue);
         }
-        spanStatus.addTag(String.format(PROBEID_DD_TAGS_FORMAT, tagName), getProbeId().getId());
+        spanStatus.addTag(Strings.format(PROBEID_DD_TAGS_FORMAT, tagName), getProbeId().getId());
       }
     }
   }
@@ -343,8 +344,9 @@ public class SpanDecorationProbe extends ProbeDefinition implements CapturedCont
     if (status.getErrors().isEmpty()) {
       return;
     }
-    boolean sampled = ProbeRateLimiter.tryProbe(errorSampler, true);
-    if (!sampled) {
+    // evaluation errors are reported with a dedicated sampler (1 per probe per 5 minutes),
+    // bypassing the global samplers so failing probes do not take budget from healthy ones
+    if (!errorSampler.sample()) {
       return;
     }
     Snapshot snapshot = new Snapshot(Thread.currentThread(), this, -1);
@@ -367,7 +369,7 @@ public class SpanDecorationProbe extends ProbeDefinition implements CapturedCont
 
   @Override
   public void initSamplers() {
-    errorSampler = ProbeRateLimiter.createSampler(1.0);
+    errorSampler = ProbeRateLimiter.createSampler(ProbeRateLimiter.DEFAULT_EVALUATION_ERROR_RATE);
   }
 
   @Generated

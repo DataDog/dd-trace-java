@@ -19,6 +19,7 @@ tasks.withType<SpotBugsTask>().configureEach {
     project.path.startsWith(":dd-smoke-tests") -> {
       enabled = false
     }
+
     productionTaskName.matches(name) -> {
       omitVisitors = listOf(
         "ConstructorThrow",
@@ -42,8 +43,9 @@ tasks.withType<SpotBugsTask>().configureEach {
         "RuntimeExceptionCapture",
         "SerializableIdiom",
         "UnreadFields",
-        )
+      )
     }
+
     else -> {
       // static-analysis-rules skill: enable selected test tasks here with their own detector configuration.
       enabled = false
