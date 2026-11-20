@@ -324,6 +324,24 @@ Sites exclude the split fast path. "Per 1k" is all addressable sites per 1k clas
 
 ## Open questions / next steps
 
+- **Hotness and cost model (planned 2026-11-20, on hold for a few days at Doug's request):**
+  benefit(site, rule) = frequency(site) × Δcost(rule, shape, JDK, input size) − ongoing cost − risk.
+  - *Δcost:* a JMH suite of original vs rewrite (ns/op and B/op) on JDK 8/17/21, about 10 benchmarks. A good fit for the cloud worker.
+  - *Frequency:* (1) fleet profiles, blocked on the profiling frame filter (see the fleet-hotness thread);
+    (2) a static hotness prior in Census: error path (result flows into a Throwable constructor, or inside a catch block),
+    startup/config (`<clinit>`, constructors, set/parse/configure), eager logging (`format` passed straight into
+    debug/trace), and a weak request-path signal; (3) **our own profiling of real workloads**.
+  - *Workload profiling:* **one short, representative run per workload** (default size, a couple of warmup iterations),
+    under JFR (CPU plus allocation), aggregated by the first frame outside the JDK under the target JDK methods
+    (`Pattern.<init>`/`compile`, `Formatter.parse`, split/replaceAll internals, `CHM.computeIfAbsent`). Results are
+    shares of samples, so a noisy laptop is fine and nothing needs handing off. Start with DaCapo Chopin on JDK 21:
+    tomcat, spring, h2, kafka, cassandra, lusearch, xalan, pmd. Downloads: `dacapo-23.11-MR2-chopin.zip` is 6.0 GB
+    (the minimal variant is 1.4 GB but may lack workload data), and Renaissance 0.16.0 is a 418 MB jar (second suite).
+    TechEmpower needs Docker, so it's local only. The projects' own JMH suites are biased toward already-optimized paths,
+    so use them to validate rewrites, not to find hot sites.
+  - *Hand-off:* only the later with/without timing runs need quiet machines. For those, use a one-command
+    `run-workload.sh <suite> <workload> <jdk>` that prints a small summary, one workload per command, posted before the next.
+
 - **Target list:** `top100.txt` (124 curated runtime libraries, including a legacy track). 110 are
   covered by the baseline, batch 3 covers 4 more, and batch 4 takes the remaining 10.
   Caveat: the baseline covers the *latest cached* version, not necessarily the latest release.
