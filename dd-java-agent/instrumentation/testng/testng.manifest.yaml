@@ -1,8 +1,8 @@
 _v: 1
 name: testng
-display_name: testng
-description: Instruments TestNG test and suite lifecycles, setup and teardown outcomes, and test skipping, retries,
-  and ordering.
+display_name: TestNG
+description: Instruments TestNG test execution and lifecycle events for CI Visibility, including conditional test skipping,
+  retry policies, and fail-fast test ordering.
 packages:
 - name: org.testng:testng
 category:

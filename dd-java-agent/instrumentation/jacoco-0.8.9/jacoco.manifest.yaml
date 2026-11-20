@@ -1,8 +1,7 @@
 _v: 1
 name: jacoco
-display_name: 'JaCoCo :: Agent'
-description: Instruments JaCoCo class instrumentation and coverage probes to collect per-test line coverage and
-  build coverage data.
+display_name: JaCoCo
+description: Instruments the JaCoCo agent to collect per-test line and percentage coverage data for CI Visibility.
 packages:
 - name: org.jacoco:org.jacoco.agent
 category:

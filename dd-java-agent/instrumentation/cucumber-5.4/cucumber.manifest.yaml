@@ -1,7 +1,7 @@
 _v: 1
 name: cucumber
-display_name: 'Cucumber-JVM: Core'
-description: Instruments Cucumber step execution with step definitions, source locations, and arguments.
+display_name: Cucumber
+description: Instruments Cucumber-JVM step-definition execution, creating CI Visibility spans for each executed step.
 packages:
 - name: io.cucumber:cucumber-core
 category:

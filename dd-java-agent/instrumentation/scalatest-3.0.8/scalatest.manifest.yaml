@@ -1,7 +1,8 @@
 _v: 1
 name: scalatest
-display_name: scalatest
-description: Instruments ScalaTest test and suite lifecycles, test result reporting, skipping, and retries.
+display_name: ScalaTest
+description: Instruments ScalaTest test execution and suite/test lifecycle reporting for CI Visibility, including test selection
+  and retry policies.
 packages:
 - name: org.scalatest:scalatest_2.12
 category:
