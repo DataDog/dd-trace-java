@@ -38,4 +38,9 @@ public class TracingIterable implements Iterable<ConsumerRecord<?, ?>>, TracingI
   public Iterable<ConsumerRecord<?, ?>> getDelegate() {
     return delegate;
   }
+
+  @Override
+  public String getClusterId() {
+    return clusterId;
+  }
 }

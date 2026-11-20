@@ -303,6 +303,9 @@ class KafkaStreamsTest extends InstrumentationSpecification {
     def producerFactory = new DefaultKafkaProducerFactory<String, String>(producerProps)
     def kafkaTemplate = new KafkaTemplate<String, String>(producerFactory)
 
+    // fetch the metadata first, so that every produce checkpoint carries the cluster id
+    kafkaTemplate.partitionsFor(DSM_PENDING)
+
     when:
     // several records, so the streams consume of one record cannot chain off another
     kafkaTemplate.send(DSM_PENDING, "ONE")
@@ -315,6 +318,7 @@ class KafkaStreamsTest extends InstrumentationSpecification {
     Thread.sleep(2000)
     TEST_DATA_STREAMS_WRITER.waitForGroups(4)
     def groups = TEST_DATA_STREAMS_WRITER.groups.findAll { it.tags.toString().contains("test.dsm.") || it.tags.toString().contains("dsm-application") }
+    .unique(false) { [it.hash, it.parentHash] } // a pathway node can be flushed in several buckets
 
     then:
     received*.value() == ["one", "two", "three"]
@@ -341,6 +345,10 @@ class KafkaStreamsTest extends InstrumentationSpecification {
     finalConsume.size() == 1
     finalConsume[0].tags.hasAllTags("group:dsm-sender")
     finalConsume[0].parentHash == streamsProduce[0].hash
+
+    // the streams consume carries the cluster id, like the plain kafka-clients consume
+    finalConsume[0].tags.kafkaClusterId != null
+    streamsConsume[0].tags.kafkaClusterId == finalConsume[0].tags.kafkaClusterId
 
     groups.size() == 4
 

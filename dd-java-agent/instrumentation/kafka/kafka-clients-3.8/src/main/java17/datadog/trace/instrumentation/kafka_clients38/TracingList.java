@@ -159,4 +159,9 @@ public class TracingList implements List<ConsumerRecord<?, ?>>, TracingIterableD
   public List<ConsumerRecord<?, ?>> getDelegate() {
     return delegate;
   }
+
+  @Override
+  public String getClusterId() {
+    return clusterId;
+  }
 }

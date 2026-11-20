@@ -12,6 +12,7 @@ import org.apache.kafka.clients.consumer.ConsumerGroupMetadata;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.internals.ConsumerDelegate;
 import org.apache.kafka.clients.consumer.internals.OffsetCommitCallbackInvoker;
+import org.apache.kafka.common.errors.InvalidGroupIdException;
 
 public class ConstructorAdvice {
   // new - capturing OffsetCommitCallbackInvoker instead of the old ConsumerCoordinator
@@ -22,13 +23,20 @@ public class ConstructorAdvice {
       @Advice.FieldValue("offsetCommitCallbackInvoker")
           OffsetCommitCallbackInvoker offsetCommitCallbackInvoker,
       @Advice.FieldValue("metadata") Metadata metadata) {
-    ConsumerGroupMetadata groupMetadata = consumer.groupMetadata();
     String consumerGroup = consumerConfig.getString(ConsumerConfig.GROUP_ID_CONFIG);
     String normalizedConsumerGroup =
         consumerGroup != null && !consumerGroup.isEmpty() ? consumerGroup : null;
     if (normalizedConsumerGroup == null) {
-      if (groupMetadata != null) {
-        normalizedConsumerGroup = groupMetadata.groupId();
+      // groupMetadata() throws InvalidGroupIdException for consumers without a group (such as
+      // the restore and global consumers of Kafka Streams), which would skip the rest of this
+      // advice: no consumer info, so no cluster id for their records.
+      try {
+        ConsumerGroupMetadata groupMetadata = consumer.groupMetadata();
+        if (groupMetadata != null) {
+          normalizedConsumerGroup = groupMetadata.groupId();
+        }
+      } catch (InvalidGroupIdException ignored) {
+        // no group
       }
     }
     List<String> bootstrapServersList =

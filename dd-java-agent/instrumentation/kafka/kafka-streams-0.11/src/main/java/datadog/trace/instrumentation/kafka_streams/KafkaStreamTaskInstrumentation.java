@@ -5,7 +5,7 @@ import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEX
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.api.datastreams.DataStreamsContext.create;
 import static datadog.trace.api.datastreams.DataStreamsTags.Direction.INBOUND;
-import static datadog.trace.api.datastreams.DataStreamsTags.createWithGroup;
+import static datadog.trace.api.datastreams.DataStreamsTags.create;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.DSM_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -50,6 +50,7 @@ import net.bytebuddy.asm.Advice;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.streams.StreamsConfig;
+import org.apache.kafka.streams.processor.ProcessorContext;
 import org.apache.kafka.streams.processor.internals.ProcessorNode;
 import org.apache.kafka.streams.processor.internals.ProcessorRecordContext;
 import org.apache.kafka.streams.processor.internals.StampedRecord;
@@ -111,6 +112,17 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
     transformer.applyAdvice(
         isConstructor().and(takesArgument(6, named("org.apache.kafka.streams.StreamsConfig"))),
         KafkaStreamTaskInstrumentation.class.getName() + "$Constructor6Advice");
+
+    // From 2.6 on the processor context is the 12th argument of StreamTask's constructor. It is the
+    // only source of the application id from 3.2 on, where StreamsConfig is no longer an argument.
+    transformer.applyAdvice(
+        isConstructor()
+            .and(
+                takesArgument(
+                    11,
+                    named(
+                        "org.apache.kafka.streams.processor.internals.InternalProcessorContext"))),
+        KafkaStreamTaskInstrumentation.class.getName() + "$ConstructorProcessorContextAdvice");
 
     transformer.applyAdvice(
         isMethod().and(named("addRecords")).and(takesArgument(1, named("java.lang.Iterable"))),
@@ -205,9 +217,28 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
     }
   }
 
+  public static class ConstructorProcessorContextAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void captureGroup(
+        @Advice.This StreamTask task, @Advice.Argument(11) ProcessorContext processorContext) {
+      String applicationId = processorContext.applicationId();
+
+      if (applicationId != null && !applicationId.isEmpty()) {
+        StreamTaskContext context =
+            InstrumentationContext.get(StreamTask.class, StreamTaskContext.class).get(task);
+        if (context == null) {
+          context = new StreamTaskContext();
+        }
+        context.setApplicationId(applicationId);
+        InstrumentationContext.get(StreamTask.class, StreamTaskContext.class).put(task, context);
+      }
+    }
+  }
+
   public static class UnwrapIterableAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(
+        @Advice.This StreamTask task,
         @Advice.Argument(value = 1, readOnly = false) Iterable<ConsumerRecord<?, ?>> records) {
       // This method adds the records to a queue, so we want to bypass the kafka instrumentation
       // since the resulting spans are very short and uninteresting.
@@ -215,7 +246,21 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
 
       // Expecting a TracingList because TaskManager.addRecordsToTasks calls records(partition).
       if (records instanceof TracingIterableDelegator) {
-        records = ((TracingIterableDelegator) records).getDelegate();
+        TracingIterableDelegator delegator = (TracingIterableDelegator) records;
+        records = delegator.getDelegate();
+        // Keep the cluster id for the consume checkpoints of these records. All the partitions of
+        // a task are read by the same consumer, from the same cluster.
+        String clusterId = delegator.getClusterId();
+        if (clusterId != null) {
+          StreamTaskContext context =
+              InstrumentationContext.get(StreamTask.class, StreamTaskContext.class).get(task);
+          if (context == null) {
+            context = new StreamTaskContext();
+            InstrumentationContext.get(StreamTask.class, StreamTaskContext.class)
+                .put(task, context);
+          }
+          context.setClusterId(clusterId);
+        }
       }
     }
   }
@@ -294,10 +339,13 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
       }
 
       String applicationId = null;
+      String clusterId = null;
       if (streamTaskContext != null) {
         applicationId = streamTaskContext.getApplicationId();
+        clusterId = streamTaskContext.getClusterId();
       }
-      DataStreamsTags tags = createWithGroup("kafka", INBOUND, record.topic(), applicationId);
+      // The application id is the group id of the consumer reading the source topics
+      DataStreamsTags tags = create("kafka", INBOUND, record.topic(), applicationId, clusterId);
 
       final long payloadSize =
           traceConfig().isDataStreamsEnabled() ? computePayloadSizeBytes(record.value) : 0;
@@ -360,10 +408,13 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
       }
 
       String applicationId = null;
+      String clusterId = null;
       if (streamTaskContext != null) {
         applicationId = streamTaskContext.getApplicationId();
+        clusterId = streamTaskContext.getClusterId();
       }
-      DataStreamsTags tags = createWithGroup("kafka", INBOUND, record.topic(), applicationId);
+      // The application id is the group id of the consumer reading the source topics
+      DataStreamsTags tags = create("kafka", INBOUND, record.topic(), applicationId, clusterId);
 
       long payloadSize = 0;
       // we have to go through Object to get the RecordMetadata here because the class of `record`
