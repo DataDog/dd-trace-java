@@ -1607,7 +1607,8 @@ update_central_configurations_version_range_v2:
       - report-partial.md
       - build/llm-validation/context-growth.md
 
-# A GitLab monthly schedule selects setup-full and sets LLMVAL_SETUP_ENABLED=true.
+# Schedule this job every two weeks with LLMVAL_SETUP_PRESET=setup-full and
+# LLMVAL_SETUP_ENABLED=true.
 # Other pipelines can opt in with the same enable flag.
 "llm validation (setup smoke)":
   allow_failure: true
@@ -1621,5 +1622,5 @@ update_central_configurations_version_range_v2:
       when: on_success
     - when: never
   artifacts:
-    # Retain the shared setup artifact paths and preserve monthly evidence for a year.
+    # Retain the shared setup artifact paths.
     expire_in: 13 mos
