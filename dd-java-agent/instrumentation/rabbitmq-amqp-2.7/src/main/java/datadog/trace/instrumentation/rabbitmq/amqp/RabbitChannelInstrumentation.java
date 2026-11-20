@@ -222,9 +222,11 @@ public class RabbitChannelInstrumentation extends InstrumenterModule.Tracing
         final boolean hasRoutingKey = routingKey != null && !routingKey.isEmpty();
         DataStreamsTags tags;
         if (isDefaultExchange && hasRoutingKey) {
-          tags = create("rabbitmq", OUTBOUND, routingKey);
+          tags = create("rabbitmq", OUTBOUND, RabbitDsmNames.normalize(routingKey));
         } else {
-          tags = createWithExchange("rabbitmq", OUTBOUND, exchange, hasRoutingKey);
+          tags =
+              createWithExchange(
+                  "rabbitmq", OUTBOUND, RabbitDsmNames.normalize(exchange), hasRoutingKey);
         }
         context = span.with(DataStreamsContext.fromTags(tags));
       }
