@@ -1,0 +1,11 @@
+_v: 1
+name: resilience4j
+display_name: resilience4j
+description: Instruments Resilience4j circuit-breaker, retry, and fallback protected task execution, including asynchronous
+  results, with spans and resilience metadata.
+packages:
+- name: io.github.resilience4j:resilience4j-all
+category:
+- task.execution
+systems: []
+creation_date: '2025-09-29'
