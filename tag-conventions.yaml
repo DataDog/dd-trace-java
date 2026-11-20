@@ -155,12 +155,17 @@ span_types:
     include: [ peer, peer_address, outbound_peer ]
     tags:
       - { dd-name: http.resend_count, type: int,    required: recommended }
+      # Agent-advertised peer tags (client-side stats' peer aggregation), set by other tracers.
+      - { dd-name: http.host,         type: string, required: optional }
+      - { dd-name: http.server_name,  type: string, required: optional }
 
   # AWS SDK calls: HTTP client spans, one type per AWS service (a span never carries two services'
   # tags). aws.client itself covers the services not modeled below. The request tags shared with SQS
   # consumer spans are the aws_request mixin.
   aws.client:
     extends: http.client
+    tags:
+      - { dd-name: aws.s3.bucket, type: string, required: optional }  # an Agent-advertised peer tag; S3 has no span type of its own
 
   aws.s3:
     extends: aws.client
@@ -229,6 +234,10 @@ span_types:
       # A command's outcome (Redis, Memcached).
       - { dd-name: db.command.cancelled,     type: boolean, required: optional }
       - { dd-name: db.command.results.count, type: int,     required: optional }
+      # Agent-advertised peer tags (client-side stats' peer aggregation), some set only by other tracers.
+      - { dd-name: db.name,                 type: string, required: optional }
+      - { dd-name: db.namespace,            type: string, required: optional }  # see db.instance's TODO(otel)
+      - { dd-name: db.hostname,             type: string, required: optional }
 
   # Relational databases (JDBC, R2DBC).
   db.sql:
@@ -242,6 +251,7 @@ span_types:
     extends: db.client
     tags:
       - { dd-name: db.cassandra.contact.points, type: string, required: optional }
+      - { dd-name: cassandra.keyspace,          type: string, required: optional }  # an Agent-advertised peer tag
 
   db.couchbase:
     extends: db.client
@@ -258,6 +268,8 @@ span_types:
   # MongoDB: no tags of its own, but Database Monitoring applies to it.
   db.mongo:
     extends: db.client
+    tags:
+      - { dd-name: mongodb.db, type: string, required: optional }  # an Agent-advertised peer tag
 
   view.render:
     extends: base
@@ -269,6 +281,12 @@ span_types:
   messaging:
     abstract: true
     extends: base
+    tags:
+      # Agent-advertised peer tags (client-side stats' peer aggregation), some set only by other tracers.
+      - { dd-name: messaging.system,            type: string, required: optional }
+      - { dd-name: messaging.destination,       type: string, required: optional }  # the pre-.name OpenTelemetry name
+      - { dd-name: amqp.destination,            type: string, required: optional }
+      - { dd-name: messaging.rabbitmq.exchange, type: string, required: optional }
 
   messaging.producer:
     extends: messaging
@@ -312,11 +330,14 @@ span_types:
       - { dd-name: message.type,         type: string, required: optional }     # on gRPC message child spans
       - { dd-name: status.code,          type: string, required: conditional }  # gRPC status code name, on close
       - { dd-name: status.description,   type: string, required: optional }
+      - { dd-name: rpc.system,           type: string, required: optional }     # an Agent-advertised peer tag
 
   rpc.client:
     extends: rpc
     span-kind: client
     include: [ peer, peer_address, outbound_peer ]
+    tags:
+      - { dd-name: grpc.host, type: string, required: optional }  # an Agent-advertised peer tag
 
   rpc.server:
     extends: rpc
@@ -547,6 +568,23 @@ mixins:
     tags:
       - { dd-name: peer.hostname, type: string, required: recommended, otel-name: server.address }
       - { dd-name: peer.port,     type: int,    otel-name: server.port }
+      # Agent-advertised peer tags naming the remote host, set by other tracers' integrations.
+      - { dd-name: out.host,                 type: string, required: optional }
+      - { dd-name: net.peer.name,            type: string, required: optional }
+      - { dd-name: network.destination.name, type: string, required: optional }
+      - { dd-name: network.destination.ip,   type: string, required: optional }
+      - { dd-name: hostname,                 type: string, required: optional }
+      - { dd-name: dns.hostname,             type: string, required: optional }
+
+  # other_languages — tags only other languages' integrations set, declared here until their span types
+  # are modeled properly. They are Agent-advertised peer tags, so a tracer reads them from every span
+  # (client-side stats' peer aggregation) and needs ids for them; this mixin applies to no span type,
+  # so they share the overflow presence bit instead of taking slots.
+  other_languages:
+    tags:
+      - { dd-name: active_record.db.vendor, type: string, required: optional }  # Ruby ActiveRecord
+      - { dd-name: sequel.db.vendor,        type: string, required: optional }  # Ruby Sequel
+      - { dd-name: msmq.queue.path,         type: string, required: optional }  # .NET MSMQ
 
   # inbound_peer — the other end of an inbound connection: the client.
   inbound_peer:
