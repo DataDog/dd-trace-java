@@ -21,6 +21,7 @@ import static datadog.environment.OperatingSystem.isWindows;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_RECORDING_SCHEDULER;
 
+import com.datadog.profiling.utils.ProfilingMode;
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.profiling.ProfilerFlareLogger;
@@ -32,6 +33,7 @@ import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.util.AgentTaskScheduler;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
@@ -426,16 +428,19 @@ public final class ProfilingSystem {
    * that the Datadog profiler takes over, as told by the refreshed context.
    *
    * @param configProvider the new configuration
+   * @param modeOverrides the Datadog profiler modes to switch on ({@code true}) or off ({@code
+   *     false}) over what the configuration enables, e.g. by remote config
    * @throws UnsupportedEnvironmentException if no profiler is supported in this environment
    * @throws IllegalStateException if the system is running
    */
-  public synchronized void reconfigure(ConfigProvider configProvider)
+  public synchronized void reconfigure(
+      ConfigProvider configProvider, Map<ProfilingMode, Boolean> modeOverrides)
       throws UnsupportedEnvironmentException {
     if (scheduler != null) {
       throw new IllegalStateException("Profiling system can't be reconfigured while running");
     }
     init();
-    controller.reconfigure(configProvider);
+    controller.reconfigure(configProvider, modeOverrides);
     // refresh the context, e.g. so JFR knows which events the Datadog profiler now takes over
     final ControllerContext controllerContext = new ControllerContext();
     controllerContext.setDatadogProfilerUnavailableReason(

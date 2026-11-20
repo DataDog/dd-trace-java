@@ -30,6 +30,7 @@ import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isWallClockProf
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.omitLineNumbers;
 import static com.datadog.profiling.utils.ProfilingMode.ALLOCATION;
 import static com.datadog.profiling.utils.ProfilingMode.CPU;
+import static com.datadog.profiling.utils.ProfilingMode.LIVEHEAP_SIZE;
 import static com.datadog.profiling.utils.ProfilingMode.MEMLEAK;
 import static com.datadog.profiling.utils.ProfilingMode.NATIVEMEM;
 import static com.datadog.profiling.utils.ProfilingMode.NATIVESOCKET;
@@ -39,6 +40,7 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_DETAILED_DEBUG_
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS_DEFAULT;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
+import static java.util.Collections.emptyMap;
 
 import com.datadog.profiling.controller.OngoingRecording;
 import com.datadog.profiling.utils.ProfilingMode;
@@ -138,6 +140,12 @@ public final class DatadogProfiler {
 
     final ConfigProvider configProvider;
 
+    /**
+     * The modes switched on ({@code true}) or off ({@code false}) over what {@link #configProvider}
+     * enables, e.g. by remote config.
+     */
+    final Map<ProfilingMode, Boolean> modeOverrides;
+
     /** The experimental raw profiler options, which override the derived ones. */
     final String profilerOptions;
 
@@ -149,29 +157,44 @@ public final class DatadogProfiler {
 
     private RecordingSettings(
         ConfigProvider configProvider,
+        Map<ProfilingMode, Boolean> modeOverrides,
         String profilerOptions,
         EnumSet<ProfilingMode> configuredProfilingModes,
         EnumSet<ProfilingMode> profilingModes) {
       this.configProvider = configProvider;
+      this.modeOverrides = modeOverrides;
       this.profilerOptions = profilerOptions;
       this.configuredProfilingModes = configuredProfilingModes;
       this.profilingModes = profilingModes;
     }
 
-    /** The settings of the given configuration, computed again unless it is the last one. */
-    static RecordingSettings of(ConfigProvider configProvider) {
+    /** The settings of the given configuration, computed again unless they are the last ones. */
+    static RecordingSettings of(
+        ConfigProvider configProvider, Map<ProfilingMode, Boolean> modeOverrides) {
       RecordingSettings settings = last;
-      if (settings == null || settings.configProvider != configProvider) {
-        settings = from(configProvider);
+      if (settings == null
+          || settings.configProvider != configProvider
+          || !settings.modeOverrides.equals(modeOverrides)) {
+        settings = from(configProvider, modeOverrides);
         last = settings;
       }
       return settings;
     }
 
     static RecordingSettings from(ConfigProvider configProvider) {
+      return from(configProvider, emptyMap());
+    }
+
+    /**
+     * @param modeOverrides the modes to switch on or off over what the configuration enables.
+     *     Unless it is overridden, {@link ProfilingMode#LIVEHEAP_SIZE} follows live heap profiling:
+     *     it is enabled when {@link ProfilingMode#MEMLEAK} is, and the configuration tracks the
+     *     size of the live heap. Switching it on also enables live heap profiling, even when {@code
+     *     MEMLEAK} is switched off, since the profiler has no size-only mode.
+     */
+    static RecordingSettings from(
+        ConfigProvider configProvider, Map<ProfilingMode, Boolean> modeOverrides) {
       final String profilerOptions = getProfilerOptions(configProvider);
-      // TODO enable/disable events by name (e.g. datadog.ExecutionSample), not flag, so
-      //  configuration can be consistent with JFR event control
       final EnumSet<ProfilingMode> configured = EnumSet.noneOf(ProfilingMode.class);
       if (isAllocationProfilingEnabled(configProvider)) {
         configured.add(ALLOCATION);
@@ -191,9 +214,23 @@ public final class DatadogProfiler {
       if (isNativeSocketProfilingEnabled(configProvider)) {
         configured.add(NATIVESOCKET);
       }
+      for (Map.Entry<ProfilingMode, Boolean> override : modeOverrides.entrySet()) {
+        if (override.getValue()) {
+          configured.add(override.getKey());
+        } else {
+          configured.remove(override.getKey());
+        }
+      }
+      Boolean liveHeapSize = modeOverrides.get(LIVEHEAP_SIZE);
+      if (liveHeapSize == null
+          && configured.contains(MEMLEAK)
+          && isLiveHeapSizeTrackingEnabled(configProvider)) {
+        configured.add(LIVEHEAP_SIZE);
+      }
       final EnumSet<ProfilingMode> effective = EnumSet.copyOf(configured);
       applyProfilerOptionModes(effective, profilerOptions);
-      return new RecordingSettings(configProvider, profilerOptions, configured, effective);
+      return new RecordingSettings(
+          configProvider, modeOverrides, profilerOptions, configured, effective);
     }
   }
 
@@ -421,7 +458,17 @@ public final class DatadogProfiler {
    *     allocation, ...), including the modes implied by the experimental profiler options
    */
   public static boolean isAnyProfilingModeEnabled(ConfigProvider configProvider) {
-    return !RecordingSettings.of(configProvider).profilingModes.isEmpty();
+    return isAnyProfilingModeEnabled(configProvider, emptyMap());
+  }
+
+  /**
+   * @param modeOverrides the modes to switch on or off over what the configuration enables
+   * @return whether the given configuration, with these overrides, enables any Datadog profiler
+   *     mode, including the modes implied by the experimental profiler options
+   */
+  public static boolean isAnyProfilingModeEnabled(
+      ConfigProvider configProvider, Map<ProfilingMode, Boolean> modeOverrides) {
+    return !RecordingSettings.of(configProvider, modeOverrides).profilingModes.isEmpty();
   }
 
   /** The profiling modes of the current settings, as an {@code EnumSet} copy. */
@@ -439,6 +486,20 @@ public final class DatadogProfiler {
    * @throws IllegalStateException if a recording is running
    */
   public void reconfigure(ConfigProvider configProvider) {
+    reconfigure(configProvider, emptyMap());
+  }
+
+  /**
+   * Same as {@link #reconfigure(ConfigProvider)}, with modes switched on or off over what the
+   * configuration enables, e.g. by remote config. See {@link RecordingSettings#from(ConfigProvider,
+   * Map)} for {@link ProfilingMode#LIVEHEAP_SIZE}.
+   *
+   * @param configProvider the new configuration
+   * @param modeOverrides the modes to switch on ({@code true}) or off ({@code false})
+   * @throws IllegalStateException if a recording is running
+   */
+  public void reconfigure(
+      ConfigProvider configProvider, Map<ProfilingMode, Boolean> modeOverrides) {
     List<String> requestedAttributes = getOrderedContextAttributes(configProvider);
     if (!requestedAttributes.equals(orderedContextAttributes)) {
       log.warn(
@@ -446,7 +507,7 @@ public final class DatadogProfiler {
           orderedContextAttributes,
           requestedAttributes);
     }
-    RecordingSettings newSettings = RecordingSettings.of(configProvider);
+    RecordingSettings newSettings = RecordingSettings.of(configProvider, modeOverrides);
     synchronized (settingsLock) {
       if (recordingFlag.get()) {
         throw new IllegalStateException(
@@ -598,16 +659,19 @@ public final class DatadogProfiler {
       }
     }
     cmd.append(",loglevel=").append(getLogLevel(configProvider));
-    if (configuredProfilingModes.contains(ALLOCATION)
-        || configuredProfilingModes.contains(MEMLEAK)) {
+    // live heap size tracking is part of live heap profiling, which it enables
+    final boolean liveHeap =
+        configuredProfilingModes.contains(MEMLEAK)
+            || configuredProfilingModes.contains(LIVEHEAP_SIZE);
+    if (configuredProfilingModes.contains(ALLOCATION) || liveHeap) {
       // allocation profiling or live heap profiling is enabled
       cmd.append(",memory=").append(getAllocationInterval(configProvider)).append('b');
       cmd.append(':');
       if (configuredProfilingModes.contains(ALLOCATION)) {
         cmd.append('a');
       }
-      if (configuredProfilingModes.contains(MEMLEAK)) {
-        cmd.append(isLiveHeapSizeTrackingEnabled(configProvider) ? 'L' : 'l');
+      if (liveHeap) {
+        cmd.append(configuredProfilingModes.contains(LIVEHEAP_SIZE) ? 'L' : 'l');
         cmd.append(':')
             .append(String.format("%.2f", getLiveHeapSamplePercent(configProvider) / 100.0d));
       }
@@ -783,6 +847,7 @@ public final class DatadogProfiler {
   private static void applyMemoryProfilerModes(Set<ProfilingMode> modes, String value) {
     modes.remove(ALLOCATION);
     modes.remove(MEMLEAK);
+    modes.remove(LIVEHEAP_SIZE);
     int separator = value.indexOf(':');
     if (separator < 0) {
       modes.add(ALLOCATION);
@@ -799,6 +864,9 @@ public final class DatadogProfiler {
     }
     if (flags.indexOf('l') >= 0 || flags.indexOf('L') >= 0) {
       modes.add(MEMLEAK);
+    }
+    if (flags.indexOf('L') >= 0) {
+      modes.add(LIVEHEAP_SIZE);
     }
   }
 

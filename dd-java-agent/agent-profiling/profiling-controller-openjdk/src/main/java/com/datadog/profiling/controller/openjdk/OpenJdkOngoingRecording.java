@@ -112,6 +112,7 @@ public class OpenJdkOngoingRecording implements OngoingRecording {
             break;
           }
         case MEMLEAK:
+        case LIVEHEAP_SIZE:
           {
             // memleak profiling will take over these events
             log.debug("Disabling built-in memory leak profiling events");

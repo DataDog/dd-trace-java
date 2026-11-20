@@ -1,12 +1,19 @@
 package com.datadog.profiling.agent;
 
 import static com.datadog.profiling.controller.ProfilingSupport.isAllocationSamplerSafe;
-import static com.datadog.profiling.controller.ProfilingSupport.isLiveHeapProfilingSafe;
+import static com.datadog.profiling.utils.ProfilingMode.ALLOCATION;
+import static com.datadog.profiling.utils.ProfilingMode.CPU;
+import static com.datadog.profiling.utils.ProfilingMode.LIVEHEAP_SIZE;
+import static com.datadog.profiling.utils.ProfilingMode.MEMLEAK;
+import static com.datadog.profiling.utils.ProfilingMode.WALL;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ALLOCATION_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_CPU_ENABLED;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_TRACK_HEAPSIZE;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_ENABLED;
+import static java.lang.Boolean.TRUE;
 import static java.util.Collections.emptyMap;
+import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -27,13 +34,16 @@ import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import com.datadog.profiling.ddprof.DatadogProfiler;
 import com.datadog.profiling.remoteconfig.RemoteConfiguration;
 import com.datadog.profiling.remoteconfig.RemoteConfigurationStack;
+import com.datadog.profiling.utils.ProfilingMode;
+import datadog.trace.api.ConfigCollector;
+import datadog.trace.api.ConfigOrigin;
+import datadog.trace.api.ConfigSetting;
 import datadog.trace.api.profiling.ProfilingSnapshot;
 import datadog.trace.api.profiling.RecordingDataListener;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.IdentityHashMap;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
@@ -47,18 +57,15 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class ProfilingRemoteConfigHandlerTest {
-  // the config name that the cpuTime feature sets, which tells the tests whether anything is on
-  private static final String ENABLED_KEY = "profiling.ddprof.cpu.enabled";
-  private static final String WALL_KEY = "profiling.ddprof.wall.enabled";
   private static final String ALL_FEATURES_DISABLED =
-      "\"cpuTime\":false,\"wallTime\":false,\"heapObjects\":false," + "\"allocations\":false";
+      "\"cpuTime\":false,\"wallTime\":false,\"heapObjects\":false,\"heapSize\":false,"
+          + "\"allocations\":false";
 
   private final ConfigProvider localConfig = ConfigProvider.getInstance();
   private final Controller controller = mock(Controller.class);
   private final OngoingRecording recording = mock(OngoingRecording.class);
-  // the remote values each created provider was built from
-  private final Map<ConfigProvider, Map<String, String>> remoteValues = new IdentityHashMap<>();
-  private final List<ConfigProvider> createdConfigs = new ArrayList<>();
+  // the mode overrides of each configuration checked for enabled profiling, in order
+  private final List<Map<ProfilingMode, Boolean>> appliedOverrides = new ArrayList<>();
 
   private ProfilingSystem profilingSystem;
 
@@ -90,11 +97,7 @@ class ProfilingRemoteConfigHandlerTest {
   /** A handler that decides from the values, like in production, whether anything is enabled. */
   private ProfilingRemoteConfigHandler handlerWithRealFeatureCheck() {
     return new ProfilingRemoteConfigHandler(
-        profilingSystem,
-        localConfig,
-        ConfigProvider::withRemoteOverride,
-        DatadogProfiler::isAnyProfilingModeEnabled,
-        true);
+        profilingSystem, localConfig, DatadogProfiler::isAnyProfilingModeEnabled, true);
   }
 
   private ProfilingRemoteConfigHandler handler(ProfilingSystem system) {
@@ -102,8 +105,8 @@ class ProfilingRemoteConfigHandlerTest {
   }
 
   /**
-   * A handler that records the values it builds the configurations from, and for which only cpuTime
-   * enables anything.
+   * A handler that records the mode overrides it checks, and for which only cpuTime enables
+   * anything.
    *
    * @param startImmediately whether starting right away is safe
    */
@@ -111,13 +114,10 @@ class ProfilingRemoteConfigHandlerTest {
     return new ProfilingRemoteConfigHandler(
         system,
         localConfig,
-        values -> {
-          ConfigProvider config = ConfigProvider.withRemoteOverride(values);
-          remoteValues.put(config, values);
-          createdConfigs.add(config);
-          return config;
+        (config, overrides) -> {
+          appliedOverrides.add(overrides);
+          return TRUE.equals(overrides.get(CPU));
         },
-        config -> "true".equals(remoteValues.getOrDefault(config, emptyMap()).get(ENABLED_KEY)),
         startImmediately);
   }
 
@@ -127,8 +127,8 @@ class ProfilingRemoteConfigHandlerTest {
 
     assertTrue(profilingSystem.isRunning());
     assertTrue(profilingSystem.isStarted(), "started immediately, without the startup delay");
-    assertEquals(1, createdConfigs.size());
-    verify(controller).reconfigure(createdConfigs.get(0));
+    assertEquals(1, appliedOverrides.size());
+    verify(controller).reconfigure(localConfig, appliedOverrides.get(0));
     verify(controller).createRecording(any(), any());
   }
 
@@ -137,7 +137,7 @@ class ProfilingRemoteConfigHandlerTest {
     handler().onConfigsChanged(disabledConfig());
 
     assertFalse(profilingSystem.isRunning());
-    verify(controller, never()).reconfigure(any());
+    verify(controller, never()).reconfigure(any(), any());
     verify(controller, never()).createRecording(any(), any());
   }
 
@@ -149,11 +149,11 @@ class ProfilingRemoteConfigHandlerTest {
     handler.onConfigsChanged(otherEnabledConfig());
 
     assertTrue(profilingSystem.isRunning());
-    assertEquals(2, createdConfigs.size());
+    assertEquals(2, appliedOverrides.size());
     verify(recording).stop();
-    verify(controller).reconfigure(createdConfigs.get(1));
+    verify(controller).reconfigure(localConfig, appliedOverrides.get(1));
     verify(controller, times(2)).createRecording(any(), any());
-    assertEquals("true", remoteValues.get(createdConfigs.get(1)).get(WALL_KEY));
+    assertEquals(true, appliedOverrides.get(1).get(WALL));
   }
 
   @Test
@@ -165,7 +165,7 @@ class ProfilingRemoteConfigHandlerTest {
 
     assertFalse(profilingSystem.isRunning());
     verify(recording).stop();
-    verify(controller, times(1)).reconfigure(any());
+    verify(controller, times(1)).reconfigure(any(), any());
     verify(controller, times(1)).createRecording(any(), any());
   }
 
@@ -195,7 +195,7 @@ class ProfilingRemoteConfigHandlerTest {
     handler().onConfigsChanged(stack);
 
     assertTrue(profilingSystem.isRunning());
-    assertEquals("true", remoteValues.get(createdConfigs.get(0)).get(ENABLED_KEY));
+    assertEquals(true, appliedOverrides.get(0).get(CPU));
   }
 
   @Test
@@ -206,9 +206,9 @@ class ProfilingRemoteConfigHandlerTest {
 
     handler().onConfigsChanged(stack);
 
-    Map<String, String> applied = remoteValues.get(createdConfigs.get(0));
-    assertEquals("true", applied.get(ENABLED_KEY), "from the general configuration");
-    assertEquals("true", applied.get(WALL_KEY), "from the specific configuration");
+    Map<ProfilingMode, Boolean> applied = appliedOverrides.get(0);
+    assertEquals(true, applied.get(CPU), "from the general configuration");
+    assertEquals(true, applied.get(WALL), "from the specific configuration");
   }
 
   // The tests below use the real check of what the merged values enable, which tells that all the
@@ -238,7 +238,7 @@ class ProfilingRemoteConfigHandlerTest {
   /** A handler for which the local configuration keeps something enabled, e.g. native memory. */
   private ProfilingRemoteConfigHandler handlerWhereTheLocalConfigEnablesProfiling() {
     return new ProfilingRemoteConfigHandler(
-        profilingSystem, localConfig, ConfigProvider::withRemoteOverride, config -> true, true);
+        profilingSystem, localConfig, (config, overrides) -> true, true);
   }
 
   @Test
@@ -261,7 +261,8 @@ class ProfilingRemoteConfigHandlerTest {
     handler.onConfigsChanged(enabledConfig());
     RemoteConfigurationStack stack = new RemoteConfigurationStack();
     stack.push("config-1", 1, config("\"cpuTime\":false,\"wallTime\":false"));
-    stack.push("config-2", 0, config("\"heapObjects\":false,\"allocations\":false"));
+    stack.push(
+        "config-2", 0, config("\"heapObjects\":false,\"heapSize\":false,\"allocations\":false"));
 
     handler.onConfigsChanged(stack);
 
@@ -273,7 +274,7 @@ class ProfilingRemoteConfigHandlerTest {
     handlerWhereTheLocalConfigEnablesProfiling().onConfigsChanged(stackOf(ALL_FEATURES_DISABLED));
 
     assertFalse(profilingSystem.isRunning());
-    verify(controller, never()).reconfigure(any());
+    verify(controller, never()).reconfigure(any(), any());
     verify(controller, never()).createRecording(any(), any());
   }
 
@@ -288,34 +289,103 @@ class ProfilingRemoteConfigHandlerTest {
   }
 
   @Test
-  void remoteEnablementIsOnlyKeptWhereItIsSafe() {
-    Map<String, String> values = new HashMap<>();
-    values.put(PROFILING_ALLOCATION_ENABLED, "true");
-    values.put(PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED, "true");
-    values.put(PROFILING_HEAP_ENABLED, "true");
-    values.put(PROFILING_DATADOG_PROFILER_CPU_ENABLED, "true");
+  void featuresSwitchTheirModes() {
+    Map<ProfilingMode, Boolean> overrides =
+        ProfilingRemoteConfigHandler.modeOverrides(
+            config("\"cpuTime\":true,\"wallTime\":false,\"heapObjects\":false,\"heapSize\":false"));
 
-    ProfilingRemoteConfigHandler.dropUnsafeEnablement(values);
+    Map<ProfilingMode, Boolean> expected = new EnumMap<>(ProfilingMode.class);
+    expected.put(CPU, true);
+    expected.put(WALL, false);
+    expected.put(MEMLEAK, false);
+    expected.put(LIVEHEAP_SIZE, false);
+    assertEquals(expected, overrides);
+  }
 
-    assertEquals(isAllocationSamplerSafe(), values.containsKey(PROFILING_ALLOCATION_ENABLED));
+  @Test
+  void featuresNotSetDoNotOverrideTheirModes() {
     assertEquals(
-        isAllocationSamplerSafe(), values.containsKey(PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED));
-    assertEquals(isLiveHeapProfilingSafe(), values.containsKey(PROFILING_HEAP_ENABLED));
-    assertEquals("true", values.get(PROFILING_DATADOG_PROFILER_CPU_ENABLED), "always safe");
+        singletonMap(CPU, true),
+        ProfilingRemoteConfigHandler.modeOverrides(config("\"cpuTime\":true")));
+  }
+
+  @Test
+  void remoteEnablementIsOnlyKeptWhereItIsSafe() {
+    Map<ProfilingMode, Boolean> overrides =
+        ProfilingRemoteConfigHandler.modeOverrides(
+            config("\"cpuTime\":true,\"allocations\":true,\"heapObjects\":true,\"heapSize\":true"));
+
+    // the local configuration decides where it isn't safe
+    assertEquals(isAllocationSamplerSafe(), overrides.containsKey(ALLOCATION));
+    assertEquals(isAllocationSamplerSafe(), overrides.containsKey(MEMLEAK));
+    assertEquals(isAllocationSamplerSafe(), overrides.containsKey(LIVEHEAP_SIZE));
+    assertEquals(true, overrides.get(CPU), "always safe");
   }
 
   @Test
   void remoteDisablementIsAlwaysKept() {
-    Map<String, String> values = new HashMap<>();
-    values.put(PROFILING_ALLOCATION_ENABLED, "false");
-    values.put(PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED, "false");
-    values.put(PROFILING_HEAP_ENABLED, "false");
+    Map<ProfilingMode, Boolean> overrides =
+        ProfilingRemoteConfigHandler.modeOverrides(
+            config("\"allocations\":false,\"heapObjects\":false,\"heapSize\":false"));
 
-    ProfilingRemoteConfigHandler.dropUnsafeEnablement(values);
+    assertEquals(false, overrides.get(ALLOCATION));
+    assertEquals(false, overrides.get(MEMLEAK));
+    assertEquals(false, overrides.get(LIVEHEAP_SIZE));
+  }
 
-    assertEquals("false", values.get(PROFILING_ALLOCATION_ENABLED));
-    assertEquals("false", values.get(PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED));
-    assertEquals("false", values.get(PROFILING_HEAP_ENABLED));
+  @Test
+  void theModeOverridesAreAppliedOverTheLocalConfiguration() throws Exception {
+    handler().onConfigsChanged(stackOf("\"cpuTime\":true,\"wallTime\":false"));
+
+    Map<ProfilingMode, Boolean> expected = new EnumMap<>(ProfilingMode.class);
+    expected.put(CPU, true);
+    expected.put(WALL, false);
+    verify(controller).reconfigure(localConfig, expected);
+  }
+
+  @Test
+  void appliedValuesAreReportedToTelemetryWithTheRemoteConfigOrigin() throws Exception {
+    ConfigCollector.get().collect();
+
+    handler().onConfigsChanged(stackOf("\"cpuTime\":true,\"wallTime\":false,\"heapSize\":false"));
+
+    Map<String, ConfigSetting> reported = ConfigCollector.get().collect().get(ConfigOrigin.REMOTE);
+    assertEquals(true, reported.get(PROFILING_DATADOG_PROFILER_CPU_ENABLED).value);
+    assertEquals(false, reported.get(PROFILING_DATADOG_PROFILER_WALL_ENABLED).value);
+    assertEquals(false, reported.get(PROFILING_DATADOG_PROFILER_LIVEHEAP_TRACK_HEAPSIZE).value);
+    assertEquals(3, reported.size(), String.valueOf(reported));
+  }
+
+  @Test
+  void disablingEveryFeatureIsReportedToTelemetry() throws Exception {
+    ConfigCollector.get().collect();
+
+    handler().onConfigsChanged(stackOf(ALL_FEATURES_DISABLED));
+
+    Map<String, ConfigSetting> reported = ConfigCollector.get().collect().get(ConfigOrigin.REMOTE);
+    assertEquals(false, reported.get(PROFILING_DATADOG_PROFILER_CPU_ENABLED).value);
+    assertEquals(false, reported.get(PROFILING_HEAP_ENABLED).value);
+    assertEquals(false, reported.get(PROFILING_ALLOCATION_ENABLED).value);
+    assertEquals(5, reported.size(), String.valueOf(reported));
+  }
+
+  @Test
+  void configsThatFailToApplyAreNotReportedToTelemetry() throws Exception {
+    when(controller.createRecording(any(), any())).thenThrow(new IllegalStateException("boom"));
+    ConfigCollector.get().collect();
+
+    handler().onConfigsChanged(enabledConfig());
+
+    assertFalse(ConfigCollector.get().collect().containsKey(ConfigOrigin.REMOTE));
+  }
+
+  @Test
+  void noProfilingConfigIsNotReportedToTelemetry() throws Exception {
+    ConfigCollector.get().collect();
+
+    handlerWhereTheLocalConfigEnablesProfiling().onConfigsChanged(stackOfConfigsThatSetNoFeature());
+
+    assertFalse(ConfigCollector.get().collect().containsKey(ConfigOrigin.REMOTE));
   }
 
   @Test
@@ -374,7 +444,7 @@ class ProfilingRemoteConfigHandlerTest {
     handler.onConfigsChanged(enabledConfig());
 
     assertTrue(profilingSystem.isRunning());
-    assertEquals(1, createdConfigs.size());
+    assertEquals(1, appliedOverrides.size());
     verify(recording, never()).stop();
     verify(controller, times(1)).createRecording(any(), any());
   }
@@ -390,7 +460,7 @@ class ProfilingRemoteConfigHandlerTest {
     second.push("a", 3001, config("\"cpuTime\":true"));
     handler.onConfigsChanged(second);
 
-    assertEquals(1, createdConfigs.size());
+    assertEquals(1, appliedOverrides.size());
     verify(recording, never()).stop();
   }
 
@@ -400,7 +470,7 @@ class ProfilingRemoteConfigHandlerTest {
     handlerWhereTheLocalConfigEnablesProfiling().onConfigsChanged(new RemoteConfigurationStack());
 
     assertFalse(profilingSystem.isRunning());
-    verify(controller, never()).reconfigure(any());
+    verify(controller, never()).reconfigure(any(), any());
     verify(controller, never()).createRecording(any(), any());
   }
 
@@ -413,7 +483,7 @@ class ProfilingRemoteConfigHandlerTest {
     handler.onConfigsChanged(stackOfConfigsThatSetNoFeature());
 
     assertTrue(profilingSystem.isRunning());
-    verify(controller).reconfigure(localConfig);
+    verify(controller).reconfigure(localConfig, emptyMap());
   }
 
   @Test
@@ -421,7 +491,7 @@ class ProfilingRemoteConfigHandlerTest {
     handlerWhereTheLocalConfigEnablesProfiling().onConfigsChanged(stackOfConfigsThatSetNoFeature());
 
     assertTrue(profilingSystem.isRunning());
-    verify(controller).reconfigure(localConfig);
+    verify(controller).reconfigure(localConfig, emptyMap());
   }
 
   @Test
@@ -516,13 +586,13 @@ class ProfilingRemoteConfigHandlerTest {
 
     handler.onConfigsChanged(enabledConfig());
     assertFalse(profilingSystem.isRunning());
-    assertTrue(createdConfigs.isEmpty());
+    assertTrue(appliedOverrides.isEmpty());
 
     handler.setProfilingSystem(profilingSystem);
 
     assertTrue(profilingSystem.isRunning());
-    assertEquals(1, createdConfigs.size());
-    verify(controller).reconfigure(createdConfigs.get(0));
+    assertEquals(1, appliedOverrides.size());
+    verify(controller).reconfigure(localConfig, appliedOverrides.get(0));
     verify(controller).createRecording(any(), any());
   }
 
@@ -557,8 +627,8 @@ class ProfilingRemoteConfigHandlerTest {
     handler.setProfilingSystem(profilingSystem);
 
     assertFalse(profilingSystem.isRunning());
-    assertTrue(createdConfigs.isEmpty());
-    verify(controller, never()).reconfigure(any());
+    assertTrue(appliedOverrides.isEmpty());
+    verify(controller, never()).reconfigure(any(), any());
   }
 
   @Test
@@ -570,8 +640,8 @@ class ProfilingRemoteConfigHandlerTest {
     handler.onConfigsChanged(enabledConfig());
 
     assertTrue(profilingSystem.isRunning());
-    assertEquals(2, createdConfigs.size(), "the one received early, and this one");
-    verify(controller).reconfigure(createdConfigs.get(1));
+    assertEquals(2, appliedOverrides.size(), "the one received early, and this one");
+    verify(controller).reconfigure(localConfig, appliedOverrides.get(1));
   }
 
   @Test
@@ -582,7 +652,7 @@ class ProfilingRemoteConfigHandlerTest {
     // it is starting, but only records after the startup delay, which isn't a failure to start
     assertTrue(system.isRunning());
     assertFalse(system.isStarted());
-    verify(controller).reconfigure(createdConfigs.get(0));
+    verify(controller).reconfigure(localConfig, appliedOverrides.get(0));
     verify(controller, never()).createRecording(any(), any());
     system.stop(false);
   }
@@ -611,7 +681,8 @@ class ProfilingRemoteConfigHandlerTest {
     // the same config: the handler is not told that the start failed, but the system is
     handler.onConfigsChanged(enabledConfig());
 
-    assertEquals(2, createdConfigs.size(), "applied again, although it is the same configuration");
+    assertEquals(
+        2, appliedOverrides.size(), "applied again, although it is the same configuration");
     awaitTrue(system::isStarted);
     system.stop(false);
   }

@@ -1,16 +1,10 @@
 package com.datadog.profiling.remoteconfig;
 
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_ALLOCATION_ENABLED;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_CPU_ENABLED;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_ENABLED;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_ENABLED;
 import static java.util.Collections.unmodifiableMap;
 
 import datadog.trace.api.internal.VisibleForTesting;
 import java.util.ArrayList;
 import java.util.EnumMap;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -28,7 +22,13 @@ public final class RemoteConfiguration {
   public enum Feature {
     CPU_TIME("cpuTime"),
     WALL_TIME("wallTime"),
+    /** Samples the live heap objects. */
     HEAP_OBJECTS("heapObjects"),
+    /**
+     * Tracks the size of the live heap. It is part of live heap profiling, so it samples the live
+     * heap objects too, even when {@link #HEAP_OBJECTS} is disabled.
+     */
+    HEAP_SIZE("heapSize"),
     ALLOCATIONS("allocations");
 
     private final String jsonName;
@@ -139,35 +139,6 @@ public final class RemoteConfiguration {
     Map<Feature, Boolean> merged = new EnumMap<>(values);
     merged.putAll(higher.values);
     return new RemoteConfiguration(merged);
-  }
-
-  /**
-   * The profiler configuration that sets the features this sets, and nothing else, so that the
-   * others keep their local value:
-   *
-   * <ul>
-   *   <li>{@code cpuTime}, {@code wallTime} and {@code allocations} enable the Datadog profiler's
-   *       CPU, wall time and allocation profiling;
-   *   <li>{@code heapObjects} enables the live heap (object sampling) profiler.
-   * </ul>
-   *
-   * @return the configuration values by config name
-   */
-  public Map<String, String> toConfigValues() {
-    Map<String, String> config = new HashMap<>();
-    put(config, PROFILING_DATADOG_PROFILER_CPU_ENABLED, get(Feature.CPU_TIME));
-    put(config, PROFILING_DATADOG_PROFILER_WALL_ENABLED, get(Feature.WALL_TIME));
-    put(config, PROFILING_ALLOCATION_ENABLED, get(Feature.ALLOCATIONS));
-    Boolean heapObjects = get(Feature.HEAP_OBJECTS);
-    put(config, PROFILING_HEAP_ENABLED, heapObjects);
-    put(config, PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED, heapObjects);
-    return config;
-  }
-
-  private static void put(Map<String, String> config, String key, Boolean value) {
-    if (value != null) {
-      config.put(key, value.toString());
-    }
   }
 
   @Override

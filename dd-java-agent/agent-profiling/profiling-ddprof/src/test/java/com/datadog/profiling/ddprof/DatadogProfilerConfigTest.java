@@ -214,7 +214,12 @@ class DatadogProfilerConfigTest {
         Arguments.of(
             EnumSet.noneOf(ProfilingMode.class),
             "memory=262144b:aL:0.1",
-            EnumSet.of(ProfilingMode.ALLOCATION, ProfilingMode.MEMLEAK)),
+            EnumSet.of(
+                ProfilingMode.ALLOCATION, ProfilingMode.MEMLEAK, ProfilingMode.LIVEHEAP_SIZE)),
+        Arguments.of(
+            EnumSet.of(ProfilingMode.MEMLEAK, ProfilingMode.LIVEHEAP_SIZE),
+            "memory=262144b:l:0.1",
+            EnumSet.of(ProfilingMode.MEMLEAK)),
         Arguments.of(
             EnumSet.noneOf(ProfilingMode.class),
             "memory=262144b:a,memory=262144b:l",

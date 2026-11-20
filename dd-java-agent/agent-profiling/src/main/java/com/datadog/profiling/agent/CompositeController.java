@@ -11,6 +11,7 @@ import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import com.datadog.profiling.controller.ddprof.DatadogProfilerController;
 import com.datadog.profiling.controller.openjdk.OpenJdkController;
 import com.datadog.profiling.controller.oracle.OracleJdkController;
+import com.datadog.profiling.utils.ProfilingMode;
 import datadog.environment.JavaVirtualMachine;
 import datadog.environment.OperatingSystem;
 import datadog.environment.SystemProperties;
@@ -30,6 +31,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
@@ -74,8 +76,9 @@ public class CompositeController implements Controller {
   }
 
   @Override
-  public void reconfigure(ConfigProvider configProvider) {
-    controllers.forEach(controller -> controller.reconfigure(configProvider));
+  public void reconfigure(
+      ConfigProvider configProvider, Map<ProfilingMode, Boolean> modeOverrides) {
+    controllers.forEach(controller -> controller.reconfigure(configProvider, modeOverrides));
   }
 
   private static class CompositeOngoingRecording implements OngoingRecording {

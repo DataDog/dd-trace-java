@@ -2,6 +2,8 @@ package com.datadog.profiling.ddprof;
 
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
+import static java.util.Collections.emptyMap;
+import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
@@ -14,6 +16,8 @@ import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.EnumMap;
+import java.util.Map;
 import java.util.Properties;
 import org.junit.jupiter.api.Test;
 
@@ -37,12 +41,13 @@ class DatadogProfilerRecordingSettingsTest {
     ConfigProvider cpu = config(true, false, null, null);
     ConfigProvider wall = config(false, true, null, null);
 
-    RecordingSettings cpuSettings = RecordingSettings.of(cpu);
-    assertSame(cpuSettings, RecordingSettings.of(cpu));
+    RecordingSettings cpuSettings = RecordingSettings.of(cpu, emptyMap());
+    assertSame(cpuSettings, RecordingSettings.of(cpu, emptyMap()));
 
-    RecordingSettings wallSettings = RecordingSettings.of(wall);
+    RecordingSettings wallSettings = RecordingSettings.of(wall, emptyMap());
     assertTrue(wallSettings.profilingModes.contains(ProfilingMode.WALL));
-    assertNotSame(cpuSettings, RecordingSettings.of(cpu), "only the last config is kept");
+    assertNotSame(
+        cpuSettings, RecordingSettings.of(cpu, emptyMap()), "only the last config is kept");
   }
 
   @Test
@@ -130,6 +135,116 @@ class DatadogProfilerRecordingSettingsTest {
     assertEquals(settings.configuredProfilingModes, settings.profilingModes);
     assertFalse(
         DatadogProfiler.cmdStartProfiling(settings, emptyList(), FILE).contains(",nativemem="));
+  }
+
+  @Test
+  void modeOverridesSwitchModesOverTheConfig() {
+    Map<ProfilingMode, Boolean> overrides = new EnumMap<>(ProfilingMode.class);
+    overrides.put(ProfilingMode.CPU, false);
+    overrides.put(ProfilingMode.WALL, true);
+
+    RecordingSettings settings = RecordingSettings.from(config(baseProps(true, false)), overrides);
+    String command = DatadogProfiler.cmdStartProfiling(settings, emptyList(), FILE);
+
+    assertFalse(settings.configuredProfilingModes.contains(ProfilingMode.CPU));
+    assertTrue(settings.configuredProfilingModes.contains(ProfilingMode.WALL));
+    assertFalse(command.contains(",cpu="), command);
+    assertTrue(command.contains(",wall="), command);
+  }
+
+  @Test
+  void settingsAreComputedAgainForOtherModeOverrides() {
+    ConfigProvider config = config(baseProps(true, false));
+
+    RecordingSettings local = RecordingSettings.of(config, emptyMap());
+    RecordingSettings overridden =
+        RecordingSettings.of(config, singletonMap(ProfilingMode.CPU, false));
+
+    assertNotSame(local, overridden);
+    assertFalse(overridden.profilingModes.contains(ProfilingMode.CPU));
+    assertSame(overridden, RecordingSettings.of(config, singletonMap(ProfilingMode.CPU, false)));
+  }
+
+  @Test
+  void liveHeapSizeFollowsLiveHeapProfilingUnlessOverridden() {
+    RecordingSettings settings =
+        RecordingSettings.from(
+            config(baseProps(false, false)), singletonMap(ProfilingMode.MEMLEAK, true));
+
+    // the size of the live heap is tracked by default
+    assertTrue(settings.configuredProfilingModes.contains(ProfilingMode.LIVEHEAP_SIZE));
+    String command = DatadogProfiler.cmdStartProfiling(settings, emptyList(), FILE);
+    assertTrue(command.contains("b:L:"), command);
+  }
+
+  @Test
+  void liveHeapSizeTrackingFollowsTheConfigUnlessOverridden() {
+    Properties props = baseProps(false, false);
+    props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_TRACK_HEAPSIZE, "false");
+
+    RecordingSettings settings =
+        RecordingSettings.from(config(props), singletonMap(ProfilingMode.MEMLEAK, true));
+
+    assertFalse(settings.configuredProfilingModes.contains(ProfilingMode.LIVEHEAP_SIZE));
+    String command = DatadogProfiler.cmdStartProfiling(settings, emptyList(), FILE);
+    assertTrue(command.contains("b:l:"), command);
+  }
+
+  @Test
+  void liveHeapSizeSwitchedOffKeepsLiveHeapProfilingWithoutTheSize() {
+    Map<ProfilingMode, Boolean> overrides = new EnumMap<>(ProfilingMode.class);
+    overrides.put(ProfilingMode.MEMLEAK, true);
+    overrides.put(ProfilingMode.LIVEHEAP_SIZE, false);
+
+    RecordingSettings settings = RecordingSettings.from(config(baseProps(false, false)), overrides);
+
+    String command = DatadogProfiler.cmdStartProfiling(settings, emptyList(), FILE);
+    assertTrue(command.contains("b:l:"), command);
+  }
+
+  @Test
+  void liveHeapSizeSwitchedOnEnablesLiveHeapProfiling() {
+    Map<ProfilingMode, Boolean> overrides = new EnumMap<>(ProfilingMode.class);
+    overrides.put(ProfilingMode.MEMLEAK, false);
+    overrides.put(ProfilingMode.LIVEHEAP_SIZE, true);
+
+    RecordingSettings settings = RecordingSettings.from(config(baseProps(false, false)), overrides);
+
+    // the profiler has no size-only mode: the live heap objects are sampled too
+    assertFalse(settings.configuredProfilingModes.contains(ProfilingMode.MEMLEAK));
+    String command = DatadogProfiler.cmdStartProfiling(settings, emptyList(), FILE);
+    assertTrue(command.contains("b:L:"), command);
+    assertTrue(
+        DatadogProfiler.isAnyProfilingModeEnabled(config(baseProps(false, false)), overrides));
+  }
+
+  @Test
+  void liveHeapSwitchedOffDoesNotTrackItsSize() {
+    RecordingSettings settings =
+        RecordingSettings.from(
+            config(baseProps(false, false)), singletonMap(ProfilingMode.MEMLEAK, false));
+
+    assertFalse(settings.configuredProfilingModes.contains(ProfilingMode.LIVEHEAP_SIZE));
+    assertFalse(
+        DatadogProfiler.cmdStartProfiling(settings, emptyList(), FILE).contains(",memory="));
+  }
+
+  @Test
+  void liveHeapSizeProfilerOptionEnablesTheMode() {
+    RecordingSettings settings =
+        settings(withOptions(baseProps(false, false), "memory=524288b:L:0.10"));
+
+    assertTrue(settings.profilingModes.contains(ProfilingMode.MEMLEAK));
+    assertTrue(settings.profilingModes.contains(ProfilingMode.LIVEHEAP_SIZE));
+  }
+
+  @Test
+  void liveHeapProfilerOptionWithoutSizeDoesNotEnableTheMode() {
+    RecordingSettings settings =
+        settings(withOptions(baseProps(false, false), "memory=524288b:l:0.10"));
+
+    assertTrue(settings.profilingModes.contains(ProfilingMode.MEMLEAK));
+    assertFalse(settings.profilingModes.contains(ProfilingMode.LIVEHEAP_SIZE));
   }
 
   /** Flags that leave only cpu and/or wall potentially enabled, whatever the JVM. */

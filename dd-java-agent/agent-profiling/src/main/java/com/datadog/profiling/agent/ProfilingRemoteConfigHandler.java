@@ -1,12 +1,25 @@
 package com.datadog.profiling.agent;
 
 import static com.datadog.profiling.controller.ProfilingSupport.isAllocationSamplerSafe;
-import static com.datadog.profiling.controller.ProfilingSupport.isLiveHeapProfilingSafe;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isWallClockProfilerEnabled;
+import static com.datadog.profiling.remoteconfig.RemoteConfiguration.Feature.ALLOCATIONS;
+import static com.datadog.profiling.remoteconfig.RemoteConfiguration.Feature.CPU_TIME;
+import static com.datadog.profiling.remoteconfig.RemoteConfiguration.Feature.HEAP_OBJECTS;
+import static com.datadog.profiling.remoteconfig.RemoteConfiguration.Feature.HEAP_SIZE;
+import static com.datadog.profiling.remoteconfig.RemoteConfiguration.Feature.WALL_TIME;
+import static com.datadog.profiling.utils.ProfilingMode.ALLOCATION;
+import static com.datadog.profiling.utils.ProfilingMode.CPU;
+import static com.datadog.profiling.utils.ProfilingMode.LIVEHEAP_SIZE;
+import static com.datadog.profiling.utils.ProfilingMode.MEMLEAK;
+import static com.datadog.profiling.utils.ProfilingMode.WALL;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ALLOCATION_ENABLED;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_CPU_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_TRACK_HEAPSIZE;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_ENABLED;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
+import static java.util.Collections.emptyMap;
+import static java.util.Collections.unmodifiableMap;
 
 import com.datadog.profiling.controller.ProfilingSystem;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
@@ -14,13 +27,16 @@ import com.datadog.profiling.ddprof.DatadogProfiler;
 import com.datadog.profiling.remoteconfig.ProfilingConfigHandler;
 import com.datadog.profiling.remoteconfig.RemoteConfiguration;
 import com.datadog.profiling.remoteconfig.RemoteConfigurationStack;
+import com.datadog.profiling.utils.ProfilingMode;
+import datadog.trace.api.ConfigCollector;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
+import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Function;
-import java.util.function.Predicate;
+import java.util.function.BiPredicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,6 +64,14 @@ import org.slf4j.LoggerFactory;
  * configurable features, the modes that it doesn't set, like native memory, keep their local value
  * and keep the profiler running if they are enabled.
  *
+ * <p>The remote features switch Datadog profiler modes on or off over the local configuration,
+ * which still gives every other setting, e.g. the sampling intervals: {@code cpuTime}, {@code
+ * wallTime}, {@code allocations}, {@code heapObjects} and {@code heapSize} switch {@link
+ * ProfilingMode#CPU}, {@link ProfilingMode#WALL}, {@link ProfilingMode#ALLOCATION}, {@link
+ * ProfilingMode#MEMLEAK} and {@link ProfilingMode#LIVEHEAP_SIZE}. The values applied are reported
+ * to config telemetry with the remote config origin, under the names of the local settings they
+ * override.
+ *
  * <p>Known limitations:
  *
  * <ul>
@@ -55,10 +79,14 @@ import org.slf4j.LoggerFactory;
  *       a feature that remote config disables can still be recorded by its JFR events, e.g. {@code
  *       jdk.ExecutionSample} for {@code cpuTime}.
  *   <li>On a JVM where the Datadog profiler can't do allocation or live heap profiling, e.g. Java
- *       8, a configuration that only enables {@code allocations} and/or {@code heapObjects} enables
- *       no Datadog profiler mode, so it doesn't start the profiler.
+ *       8, a configuration that only enables {@code allocations}, {@code heapObjects} and/or {@code
+ *       heapSize} enables no Datadog profiler mode, so it doesn't start the profiler.
  *   <li>Remote config doesn't enable allocation or live heap profiling where they are not
- *       considered safe, see {@link #dropUnsafeEnablement}: a remote {@code true} is ignored there.
+ *       considered safe, see {@link #modeOverrides}: a remote {@code true} is ignored there, and
+ *       the local configuration decides.
+ *   <li>The Datadog profiler only tracks the size of the live heap as part of live heap profiling.
+ *       So {@code heapSize} enabled with {@code heapObjects} disabled still samples the live heap
+ *       objects.
  *   <li>Wall clock profiling only samples the threads registered while tracing, which only happens
  *       when it was enabled locally at startup: enabling it remotely otherwise gives an empty wall
  *       clock profile, which is logged.
@@ -91,8 +119,7 @@ final class ProfilingRemoteConfigHandler implements ProfilingConfigHandler {
   private volatile ProfilingSystem profilingSystem;
 
   private final ConfigProvider localConfig;
-  private final Function<Map<String, String>, ConfigProvider> remoteConfigFactory;
-  private final Predicate<ConfigProvider> anyProfilingEnabled;
+  private final BiPredicate<ConfigProvider, Map<ProfilingMode, Boolean>> anyProfilingEnabled;
   private final boolean startImmediately;
 
   /** The latest configs not applied yet, e.g. received before the profiler was available. */
@@ -133,23 +160,20 @@ final class ProfilingRemoteConfigHandler implements ProfilingConfigHandler {
    *     main} has started can crash it
    */
   ProfilingRemoteConfigHandler(ConfigProvider localConfig, boolean startImmediately) {
-    this(
-        null,
-        localConfig,
-        ConfigProvider::withRemoteOverride,
-        DatadogProfiler::isAnyProfilingModeEnabled,
-        startImmediately);
+    this(null, localConfig, DatadogProfiler::isAnyProfilingModeEnabled, startImmediately);
   }
 
+  /**
+   * @param anyProfilingEnabled whether the local configuration, with the given mode overrides,
+   *     enables any profiling
+   */
   ProfilingRemoteConfigHandler(
       ProfilingSystem profilingSystem,
       ConfigProvider localConfig,
-      Function<Map<String, String>, ConfigProvider> remoteConfigFactory,
-      Predicate<ConfigProvider> anyProfilingEnabled,
+      BiPredicate<ConfigProvider, Map<ProfilingMode, Boolean>> anyProfilingEnabled,
       boolean startImmediately) {
     this.profilingSystem = profilingSystem;
     this.localConfig = localConfig;
-    this.remoteConfigFactory = remoteConfigFactory;
     this.anyProfilingEnabled = anyProfilingEnabled;
     this.startImmediately = startImmediately;
   }
@@ -218,30 +242,26 @@ final class ProfilingRemoteConfigHandler implements ProfilingConfigHandler {
       log.debug("APM_PROFILING remote config unchanged, nothing to do");
       return;
     }
-    final ConfigProvider config;
+    final Map<ProfilingMode, Boolean> overrides =
+        remote == null ? emptyMap() : modeOverrides(remote);
     final boolean enabled;
     if (remote == null) {
       log.debug("No APM_PROFILING remote config, the profiler is idle");
-      config = localConfig;
       enabled = false;
     } else if (remote.isEmpty()) {
       log.debug("No APM_PROFILING remote config sets a feature, applying the local configuration");
-      config = localConfig;
-      enabled = anyProfilingEnabled.test(config);
+      enabled = anyProfilingEnabled.test(localConfig, overrides);
     } else if (remote.disablesEverything()) {
       // not merged with the local configuration: what it enables doesn't keep the profiler running
       log.debug(
           "APM_PROFILING remote config disables all the remote configurable features: {}", remote);
-      config = localConfig;
       enabled = false;
     } else {
-      log.debug("Applying APM_PROFILING remote config: {}", remote);
-      final Map<String, String> values = remote.toConfigValues();
-      dropUnsafeEnablement(values);
+      log.debug(
+          "Applying APM_PROFILING remote config: {}, as mode overrides {}", remote, overrides);
       warnIfWallClockCantSample(remote);
-      config = remoteConfigFactory.apply(values);
-      // the features that the remote config doesn't set keep their local value
-      enabled = anyProfilingEnabled.test(config);
+      // the modes that the remote config doesn't set keep their local value
+      enabled = anyProfilingEnabled.test(localConfig, overrides);
     }
 
     final boolean running = profilingSystem.isRunning();
@@ -263,7 +283,7 @@ final class ProfilingRemoteConfigHandler implements ProfilingConfigHandler {
           log.debug("Profiling is shut down, not starting the profiler");
           return;
         }
-        profilingSystem.reconfigure(config);
+        profilingSystem.reconfigure(localConfig, overrides);
         final boolean immediately =
             recordingSeen || (startImmediately && profilingSystem.isPastStartupDelay());
         profilingSystem.start(immediately);
@@ -284,6 +304,7 @@ final class ProfilingRemoteConfigHandler implements ProfilingConfigHandler {
       }
       appliedConfiguration = remote;
       stateKnown = true;
+      reportToTelemetry(overrides);
     } catch (UnsupportedEnvironmentException | RuntimeException e) {
       // the profiler may have been stopped before the failure, so its state isn't the one of the
       // last applied configuration anymore: apply the next one even if it is the same
@@ -292,27 +313,63 @@ final class ProfilingRemoteConfigHandler implements ProfilingConfigHandler {
     }
   }
 
-  /**
-   * Removes the remote enablement of allocation and live heap profiling on a JVM where they are not
-   * considered safe, e.g. because of jmethodID crash bugs, so that the local default applies there.
-   * An explicit local opt-in is still honored, as the local configuration decides. Disabling them
-   * is always allowed.
-   */
-  static void dropUnsafeEnablement(Map<String, String> values) {
-    if (!isAllocationSamplerSafe()) {
-      dropEnablement(values, PROFILING_ALLOCATION_ENABLED);
-      dropEnablement(values, PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED);
-    }
-    if (!isLiveHeapProfilingSafe()) {
-      dropEnablement(values, PROFILING_HEAP_ENABLED);
-    }
+  /** The local settings that each mode overrides, as reported to config telemetry. */
+  private static final Map<ProfilingMode, String> OVERRIDDEN_SETTINGS = overriddenSettings();
+
+  private static Map<ProfilingMode, String> overriddenSettings() {
+    Map<ProfilingMode, String> settings = new EnumMap<>(ProfilingMode.class);
+    settings.put(CPU, PROFILING_DATADOG_PROFILER_CPU_ENABLED);
+    settings.put(WALL, PROFILING_DATADOG_PROFILER_WALL_ENABLED);
+    settings.put(ALLOCATION, PROFILING_ALLOCATION_ENABLED);
+    settings.put(MEMLEAK, PROFILING_HEAP_ENABLED);
+    settings.put(LIVEHEAP_SIZE, PROFILING_DATADOG_PROFILER_LIVEHEAP_TRACK_HEAPSIZE);
+    return unmodifiableMap(settings);
   }
 
-  private static void dropEnablement(Map<String, String> values, String key) {
-    if ("true".equals(values.get(key))) {
-      values.remove(key);
-      log.debug("Ignoring the remote enablement of {}, which is not safe on this JVM", key);
+  /**
+   * The Datadog profiler modes that a remote configuration switches on or off, one per feature it
+   * sets. A remote {@code true} for allocation or live heap profiling is ignored on a JVM where the
+   * Datadog profiler's allocation sampler is not considered safe, e.g. because of jmethodID crash
+   * bugs, so that the local configuration decides there: an explicit local opt-in is still honored.
+   * Disabling them is always allowed.
+   */
+  static Map<ProfilingMode, Boolean> modeOverrides(RemoteConfiguration remote) {
+    Map<ProfilingMode, Boolean> overrides = new EnumMap<>(ProfilingMode.class);
+    boolean samplerSafe = isAllocationSamplerSafe();
+    override(overrides, CPU, remote.get(CPU_TIME), true);
+    override(overrides, WALL, remote.get(WALL_TIME), true);
+    override(overrides, ALLOCATION, remote.get(ALLOCATIONS), samplerSafe);
+    override(overrides, MEMLEAK, remote.get(HEAP_OBJECTS), samplerSafe);
+    override(overrides, LIVEHEAP_SIZE, remote.get(HEAP_SIZE), samplerSafe);
+    return unmodifiableMap(overrides);
+  }
+
+  private static void override(
+      Map<ProfilingMode, Boolean> overrides,
+      ProfilingMode mode,
+      Boolean value,
+      boolean enablementSafe) {
+    if (value == null) {
+      return;
     }
+    if (value && !enablementSafe) {
+      log.debug("Ignoring the remote enablement of {}, which is not safe on this JVM", mode);
+      return;
+    }
+    overrides.put(mode, value);
+  }
+
+  /**
+   * Reports the mode overrides applied to config telemetry, with the remote config origin, under
+   * the names of the local settings they override.
+   */
+  private static void reportToTelemetry(Map<ProfilingMode, Boolean> overrides) {
+    if (overrides.isEmpty()) {
+      return;
+    }
+    Map<String, Object> values = new HashMap<>();
+    overrides.forEach((mode, enabled) -> values.put(OVERRIDDEN_SETTINGS.get(mode), enabled));
+    ConfigCollector.get().putRemote(values);
   }
 
   /**
