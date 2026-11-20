@@ -140,6 +140,15 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
   private static final AtomicLongFieldUpdater<PendingTrace> LAST_REFERENCED =
       AtomicLongFieldUpdater.newUpdater(PendingTrace.class, "lastReferenced");
 
+  /**
+   * NanoTicks when a chunk of this trace was last handed to the writer, or 0 before the first. A
+   * later chunk overwrites it, so an earlier chunk can look younger than it is, never older.
+   */
+  private volatile long writtenNanos = 0;
+
+  private static final AtomicLongFieldUpdater<PendingTrace> WRITTEN_NANOS =
+      AtomicLongFieldUpdater.newUpdater(PendingTrace.class, "writtenNanos");
+
   @VisibleForTesting
   PendingTrace(
       @Nonnull CoreTracer tracer,
@@ -176,6 +185,12 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
   @Override
   void touch() {
     LAST_REFERENCED.lazySet(this, timeSource.getNanoTicks());
+  }
+
+  @Override
+  public boolean writtenNanosAgo(long nanos) {
+    long written = writtenNanos;
+    return written != 0 && nanos < timeSource.getNanoTicks() - written;
   }
 
   @Override
@@ -398,6 +413,7 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
         }
         if (!trace.isEmpty()) {
           COMPLETED_SPAN_COUNT.addAndGet(this, -completedSpans);
+          WRITTEN_NANOS.lazySet(this, timeSource.getNanoTicks());
           tracer.write(trace);
           healthMetrics.onCreateTrace();
           return completedSpans;
