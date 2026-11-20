@@ -7,12 +7,14 @@ import static datadog.trace.instrumentation.graphqljava.GraphQLDecorator.GRAPHQL
 
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.SkipCompletableFutureContextCapture;
 import graphql.execution.instrumentation.parameters.InstrumentationFieldFetchParameters;
 import graphql.schema.DataFetcher;
 import graphql.schema.DataFetchingEnvironment;
 import graphql.schema.GraphQLOutputType;
 import graphql.schema.GraphQLTypeUtil;
 import java.util.concurrent.CompletionStage;
+import java.util.function.BiConsumer;
 
 public class InstrumentedDataFetcher implements DataFetcher<Object> {
   private final DataFetcher<?> dataFetcher;
@@ -55,7 +57,14 @@ public class InstrumentedDataFetcher implements DataFetcher<Object> {
         throw e;
       }
       if (dataValue instanceof CompletionStage<?>) {
-        return ((CompletionStage<?>) dataValue).whenComplete(new DataFetcherCompletion(fieldSpan));
+        return ((CompletionStage<?>) dataValue)
+            .whenComplete(
+                (BiConsumer<Object, Throwable> & SkipCompletableFutureContextCapture)
+                    (result, throwable) -> {
+                      DECORATE.onError(fieldSpan, AsyncExceptionUnwrapper.unwrap(throwable));
+                      DECORATE.beforeFinish(fieldSpan);
+                      fieldSpan.finish();
+                    });
       }
       DECORATE.beforeFinish(fieldSpan);
       fieldSpan.finish();
