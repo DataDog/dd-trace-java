@@ -51,7 +51,6 @@ abstract class AbstractHttpInjectorTest extends DDCoreJavaSpecification {
         baggage,
         false,
         "fakeType",
-        0,
         this.tracer.createTraceCollector(DDTraceId.ONE),
         null,
         null,

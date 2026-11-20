@@ -14,6 +14,7 @@ dependencies {
   api(project(":products:metrics:metrics-api"))
   implementation(libs.slf4j)
   implementation(libs.dogstatsd)
+  implementation(libs.bundles.asm) // DogStatsD uses JNR with our controlled ASM version.
   implementation(project(":internal-api"))
   implementation(project(":utils:filesystem-utils"))
   implementation(project(":utils:logging-utils"))

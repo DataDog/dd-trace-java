@@ -57,11 +57,11 @@ class FlatHashtableD2Test {
   }
 
   private static FlatHashtable.D2<String, Integer, PairEntry> growable(int initialCapacity) {
-    return FlatHashtable.D2.createGrowable(PairEntry.class, initialCapacity);
+    return FlatHashtable.D2.createGrowable(initialCapacity, PairEntry[]::new);
   }
 
   private static FlatHashtable.D2<String, Integer, PairEntry> fixed(int maxCapacity) {
-    return FlatHashtable.D2.createFixed(PairEntry.class, maxCapacity);
+    return FlatHashtable.D2.createFixed(maxCapacity, PairEntry[]::new);
   }
 
   @Test
@@ -260,7 +260,7 @@ class FlatHashtableD2Test {
   @Test
   void hashCollisionsResolveByKeyEquality() {
     FlatHashtable.D2<CollidingKey, CollidingKey, CollidingPairEntry> table =
-        FlatHashtable.D2.createGrowable(CollidingPairEntry.class, 8);
+        FlatHashtable.D2.createGrowable(8, CollidingPairEntry[]::new);
     CollidingKey key1 = new CollidingKey("a", 7);
     CollidingKey key2 = new CollidingKey("x", 3);
     CollidingPairEntry e = new CollidingPairEntry(key1, key2, 100);

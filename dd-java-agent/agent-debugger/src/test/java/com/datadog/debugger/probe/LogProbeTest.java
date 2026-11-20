@@ -45,7 +45,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.datadog.debugger.agent.DebuggerAgentHelper;
+import com.datadog.debugger.agent.MockSampler;
 import com.datadog.debugger.el.DSL;
+import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.EvaluationTimeOutException;
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.el.ValueScript;
@@ -60,6 +62,7 @@ import datadog.context.ContextScope;
 import datadog.trace.api.Config;
 import datadog.trace.api.IdGenerationStrategy;
 import datadog.trace.api.sampling.ConstantSampler;
+import datadog.trace.api.sampling.IntervalSampler;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.EvaluationError;
 import datadog.trace.bootstrap.debugger.MethodLocation;
@@ -78,6 +81,7 @@ import java.util.function.Supplier;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import javax.annotation.Nonnull;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -90,6 +94,13 @@ public class LogProbeTest {
   private static final ProbeId PROBE_ID = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f8", 0);
   private static final String DEBUG_SESSION_ID = "TestSession";
   private static final int BUDGET_RUNS = 1100;
+
+  private final List<TracerAPI> tracers = new ArrayList<>();
+
+  @AfterEach
+  void closeTracers() {
+    tracers.forEach(TracerAPI::close);
+  }
 
   @Test
   public void testCapture() {
@@ -398,6 +409,7 @@ public class LogProbeTest {
               .idGenerationStrategy(IdGenerationStrategy.fromName("random"))
               .build();
       AgentTracer.registerIfAbsent(tracer);
+      tracers.add(tracer);
       String sessionId = "12345";
 
       Result result = getResult(tracer, sessionId, true, null);
@@ -444,7 +456,7 @@ public class LogProbeTest {
     if (sessionId != null) {
       span.setTag(Tags.PROPAGATED_DEBUG, sessionId + ":1");
     }
-    try (ContextScope scope = tracer.activateManualSpan(span)) {
+    try (ContextScope scope = tracer.activateSpan(span)) {
       Builder builder =
           createLog("Budget testing").probeId(ProbeId.newId()).captureSnapshot(captureSnapshot);
       if (sessionId != null) {
@@ -484,8 +496,9 @@ public class LogProbeTest {
     TracerAPI tracer =
         CoreTracer.builder().idGenerationStrategy(IdGenerationStrategy.fromName("random")).build();
     AgentTracer.registerIfAbsent(tracer);
+    tracers.add(tracer);
     AgentSpan span = tracer.startSpan("log probe debug session testing", "test span");
-    try (ContextScope scope = tracer.activateManualSpan(span)) {
+    try (ContextScope scope = tracer.activateSpan(span)) {
       if (status == DebugSessionStatus.ACTIVE) {
         span.setTag(Tags.PROPAGATED_DEBUG, DEBUG_SESSION_ID + ":1");
       } else if (status == DebugSessionStatus.DISABLED) {
@@ -653,8 +666,9 @@ public class LogProbeTest {
     TracerAPI tracer =
         CoreTracer.builder().idGenerationStrategy(IdGenerationStrategy.fromName("random")).build();
     AgentTracer.registerIfAbsent(tracer);
+    tracers.add(tracer);
     AgentSpan span = tracer.startSpan("log probe capture expression testing", "test span");
-    try (ContextScope scope = tracer.activateManualSpan(span)) {
+    try (ContextScope scope = tracer.activateSpan(span)) {
       span.setTag(Tags.PROPAGATED_DEBUG, DEBUG_SESSION_ID + ":1");
       // the probe sampler always rejects: the active session decision must still win
       ProbeRateLimiter.setSamplerSupplier(rate -> new ConstantSampler(false));
@@ -696,8 +710,9 @@ public class LogProbeTest {
     TracerAPI tracer =
         CoreTracer.builder().idGenerationStrategy(IdGenerationStrategy.fromName("random")).build();
     AgentTracer.registerIfAbsent(tracer);
+    tracers.add(tracer);
     AgentSpan span = tracer.startSpan("coordinated sampling debug session testing", "test span");
-    try (ContextScope scope = tracer.activateManualSpan(span)) {
+    try (ContextScope scope = tracer.activateSpan(span)) {
       // every real sampling decision drops, so the first full-snapshot probe caches a DROP
       // decision for the whole trace before any debug session is active.
       ProbeRateLimiter.setSamplerSupplier(rate -> new ConstantSampler(false));
@@ -783,6 +798,49 @@ public class LogProbeTest {
     assertEquals("timeout after 100ms", status.getErrors().get(0).getMessage());
     verify(sink).skipSnapshot(PROBE_ID.getId(), EVALUATION_TIME_OUT);
     verify(sink, times(1)).skipSnapshot(anyString(), any());
+  }
+
+  @ParameterizedTest(name = "captureSnapshot={0}")
+  @ValueSource(booleans = {true, false})
+  public void conditionErrorsAreRateLimitedWithDedicatedSampler(boolean captureSnapshot) {
+    DebuggerSink sink = spy(new DebuggerSink(getConfig(), mock(ProbeStatusSink.class)));
+    DebuggerAgentHelper.injectSink(sink);
+    List<Double> requestedRates = new ArrayList<>();
+    MockSampler probeSampler = new MockSampler();
+    ProbeRateLimiter.setSamplerSupplier(rate -> {
+      requestedRates.add(rate);
+      // real interval sampler for condition errors: at most 1 sample every 5 minutes
+      return rate < 1 ? new IntervalSampler(rate) : probeSampler;
+    });
+    try {
+      ProbeCondition failingCondition = mock(ProbeCondition.class);
+      when(failingCondition.execute(any(), any()))
+          .thenThrow(new EvaluationException("Cannot dereference field: foo", "foo.bar"));
+      LogProbe logProbe =
+          createLog(null)
+              .evaluateAt(MethodLocation.EXIT)
+              .captureSnapshot(captureSnapshot)
+              .when(failingCondition)
+              .build();
+      assertTrue(requestedRates.contains(ProbeRateLimiter.DEFAULT_EVALUATION_ERROR_RATE));
+
+      LogStatus first = new LogStatus(logProbe);
+      logProbe.evaluate(new CapturedContext(), first, MethodLocation.EXIT, false);
+      assertTrue(first.hasConditionErrors());
+      assertTrue(first.isSampled());
+      assertTrue(first.shouldReportError());
+
+      LogStatus second = new LogStatus(logProbe);
+      logProbe.evaluate(new CapturedContext(), second, MethodLocation.EXIT, false);
+      assertTrue(second.hasConditionErrors());
+      Assertions.assertFalse(second.isSampled());
+      Assertions.assertFalse(second.shouldReportError());
+      verify(sink, times(1)).skipSnapshot(PROBE_ID.getId(), RATE_LIMIT);
+      // condition errors must not consume the regular probe sampler
+      assertEquals(0, probeSampler.getCallCount());
+    } finally {
+      ProbeRateLimiter.setSamplerSupplier(null);
+    }
   }
 
   @Test

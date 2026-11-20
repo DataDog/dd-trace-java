@@ -46,7 +46,7 @@ public abstract class HealthMetrics implements AutoCloseable {
 
   public void onFailedSerialize(final List<DDSpan> trace, final Throwable optionalCause) {}
 
-  public void onCreateSpan() {}
+  public void onCreateSpan(final DDSpan span) {}
 
   public void onFinishSpan() {}
 
