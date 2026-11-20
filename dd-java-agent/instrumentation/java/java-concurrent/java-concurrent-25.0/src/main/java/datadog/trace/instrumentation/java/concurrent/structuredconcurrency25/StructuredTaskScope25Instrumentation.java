@@ -35,24 +35,13 @@ public class StructuredTaskScope25Instrumentation
 
   public static final class CloseAdvice {
     /**
-     * Cleans up the scope's {@link TaskScopeStateRegistry} when it closes, releasing the
-     * continuation of every subtask whose thread never ran.
+     * Releases the continuation of every subtask whose thread never ran, once the scope is closed.
      *
-     * <p>It will run after {@code close()} which joins all started subtasks. It means only
-     * never-started subtasks still hold an unconsumed continuation; releasing an already-consumed
-     * one is a no-op.
-     *
-     * <p>When {@code close()} throws, the registry is swept depending on the exception:
-     *
-     * <ul>
-     *   <li>an {@link IllegalStateException} is thrown after joining (e.g. the owner did not join
-     *       after forking): the scope is closed, so the registry is swept;
-     *   <li>a {@code WrongThreadException} is thrown before joining when called by a non-owner
-     *       thread: subtasks may still be pending, so the registry is kept.
-     * </ul>
-     *
-     * <p>The exception is checked rather than the scope state, as the state constants differ across
-     * JDK versions.
+     * <p>{@code close()} joins all started subtasks, so only never-started subtasks still hold an
+     * unconsumed continuation; releasing an already-consumed one is a no-op. The registry is swept
+     * even when {@code close()} throws after closing the scope (e.g. {@link IllegalStateException}
+     * when the owner did not join), but not on {@code WrongThreadException}: a non-owner call fails
+     * before closing the scope, while subtasks may still run.
      *
      * @param scope The StructuredTaskScopeImpl object (using {@link Object} as the advice is
      *     compiled against Java 8, meaning the type from JDK 25 can't be referred directly).
