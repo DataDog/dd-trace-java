@@ -1,0 +1,11 @@
+_v: 1
+name: jedis
+display_name: Jedis
+description: Instruments Jedis commands to Redis, creating client spans for cache and key-value operations.
+packages:
+- name: redis.clients:jedis
+category:
+- db.client
+systems:
+- redis
+creation_date: '2018-02-05'
