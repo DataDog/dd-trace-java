@@ -557,9 +557,12 @@ class OtlpMetricsProtoTest {
 
     // Scopes with no metrics produce no wire output — filter them for verification
     List<ScopeSpec> nonEmptyScopes = new ArrayList<>();
+    int dataPoints = 0;
     for (ScopeSpec scope : expectedScopes) {
       if (!scope.metrics.isEmpty()) nonEmptyScopes.add(scope);
+      dataPoints += scope.metrics.size(); // one data point per metric
     }
+    assertEquals(dataPoints, payload.getItemCount(), "data point count in case: " + caseName);
 
     if (nonEmptyScopes.isEmpty()) {
       assertEquals(0, payload.getContentLength(), "empty registry must produce empty payload");
