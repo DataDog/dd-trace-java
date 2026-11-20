@@ -47,15 +47,17 @@ public class PlayAdvice {
       @Advice.This final Object thisAction,
       @Advice.Thrown final Throwable throwable,
       @Advice.Argument(0) final Request<?> req,
-      @Advice.Return(readOnly = false) final Future<Result> responseFuture) {
+      @Advice.Return(readOnly = false) Future<Result> responseFuture) {
     final AgentSpan playControllerSpan = spanFromContext(playControllerScope.context());
 
     DECORATE.onRequest(playControllerSpan, req, req, rootContext());
 
     if (throwable == null) {
-      responseFuture.onComplete(
-          new RequestCompleteCallback(playControllerScope),
-          ((Action<?>) thisAction).executionContext());
+      // Finish the Play span before the server can complete the response and finish its root span.
+      responseFuture =
+          responseFuture.andThen(
+              new RequestCompleteCallback(playControllerScope),
+              ((Action<?>) thisAction).executionContext());
     } else {
       DECORATE.onError(playControllerSpan, throwable);
       if (REPORT_HTTP_STATUS) {
