@@ -1,6 +1,7 @@
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.config.GeneralConfig
+import datadog.trace.core.datastreams.StatsGroup
 import groovy.json.JsonSlurper
 import java.time.Duration
 import java.util.concurrent.CompletableFuture
@@ -18,6 +19,7 @@ import software.amazon.awssdk.services.sns.SnsClient
 import software.amazon.awssdk.services.sqs.SqsClient
 import software.amazon.awssdk.services.sqs.model.QueueAttributeName
 import spock.lang.Shared
+import spock.util.concurrent.PollingConditions
 
 class EventBridgeClientTest extends InstrumentationSpecification {
   static final LOCALSTACK = new GenericContainer(DockerImageName.parse(System.getProperty("test.localstack.image")))
@@ -520,5 +522,42 @@ class EventBridgeClientTest extends InstrumentationSpecification {
     assert detail instanceof Map
     assert detail["message"] == "no-inject"
     assert detail["_datadog"] == null
+  }
+
+  def "data streams checkpoints link the EventBridge producer to the SQS consumer"() {
+    when:
+    TEST_WRITER.clear()
+    TEST_DATA_STREAMS_WRITER.clear()
+    eventBridgeClient.putEvents { req ->
+      req.entries(
+        PutEventsRequestEntry.builder()
+        .source("com.example")
+        .detailType("dsm-test")
+        .detail('{"message":"dsm"}')
+        .eventBusName(testBusARN)
+        .build()
+        )
+    }
+
+    def messages = sqsClient.receiveMessage { it.queueUrl(testQueueURL).waitTimeSeconds(3) }.messages()
+    messages.each { }
+
+    then:
+    assert messages.size() == 1
+
+    new PollingConditions(timeout: 5).eventually {
+      List<StatsGroup> producers = TEST_DATA_STREAMS_WRITER.groups.findAll {
+        it.tags.hasAllTags("direction:out", "type:eventbridge", "exchange:testbus", "topic:dsm-test")
+      }
+      assert producers.size() >= 1
+      long producerHash = producers[0].hash
+      assert producerHash != 0
+
+      List<StatsGroup> consumers = TEST_DATA_STREAMS_WRITER.groups.findAll {
+        it.tags.hasAllTags("direction:in", "type:eventbridge", "exchange:testbus", "topic:dsm-test")
+      }
+      assert consumers.size() >= 1
+      consumers.each { assert it.parentHash == producerHash }
+    }
   }
 }
