@@ -1,0 +1,11 @@
+_v: 1
+name: opentelemetry-metrics
+display_name: OpenTelemetry Java
+description: Instruments OpenTelemetry metric instruments to record counters, gauges, and histograms and collect
+  observable measurements through Datadog's metrics bridge.
+packages:
+- name: io.opentelemetry:opentelemetry-api
+category:
+- other
+systems: []
+creation_date: '2026-02-06'

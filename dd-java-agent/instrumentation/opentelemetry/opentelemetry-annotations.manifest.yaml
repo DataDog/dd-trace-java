@@ -1,0 +1,11 @@
+_v: 1
+name: opentelemetry-annotations
+display_name: OpenTelemetry Instrumentation for Java
+description: Instruments OpenTelemetry annotated methods to create spans through synchronous or asynchronous completion
+  and capture annotated arguments on new or active spans.
+packages:
+- name: io.opentelemetry.instrumentation:opentelemetry-instrumentation-annotations
+category:
+- other
+systems: []
+creation_date: '2023-08-23'
