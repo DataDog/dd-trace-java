@@ -5,10 +5,29 @@ import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import java.nio.CharBuffer;
 import java.util.Arrays;
 import org.junit.jupiter.api.Test;
 
 class CardinalityHandlerTest {
+
+  /**
+   * A CharSequence that doesn't hash by content is still found after the table grows, and matches a
+   * stored value of the same content.
+   */
+  @Test
+  void aCharSequenceIsFoundByContentAfterTheTableGrows() {
+    PropertyCardinalityHandler handler = new PropertyCardinalityHandler("resource", 5);
+    CharBuffer buffer = CharBuffer.wrap("a");
+    UTF8BytesString first = handler.register(buffer);
+    for (String value : new String[] {"b", "c", "d", "e"}) {
+      handler.register(value); // the fifth value grows the table past its first 8 slots
+    }
+
+    assertSame(first, handler.register(buffer), "found again, not blocked or counted twice");
+    assertSame(first, handler.register(new StringBuilder("a")));
+    assertSame(first, handler.register("a"));
+  }
 
   @Test
   void propertyReturnsSameInstanceForRepeatedValueUntilLimit() {
@@ -398,6 +417,8 @@ class CardinalityHandlerTest {
     assertEquals(8, handler.tableCapacity());
     assertSame(first[2], handler.register("host-2"));
 
+    // The first reset ends the cycle that registered host-2; the second ends an empty cycle,
+    // which releases the tables.
     handler.reset();
     handler.reset();
     assertEquals(0, handler.tableCapacity());

@@ -147,7 +147,7 @@ final class TagCardinalityHandler {
     if (!capExhausted) {
       if (keys == null || (this.curSize + 1) * 2 > keys.length) {
         keys = grow();
-        slot = freeSlot(keys, spread);
+        slot = findFreeSlot(keys, spread);
       }
       keys[slot] = value;
       this.curValues[slot] = utf8;
@@ -190,7 +190,7 @@ final class TagCardinalityHandler {
         String key = oldKeys[i];
         if (key != null) {
           int h = key.hashCode();
-          int slot = freeSlot(keys, h ^ (h >>> 16));
+          int slot = findFreeSlot(keys, h ^ (h >>> 16));
           keys[slot] = key;
           values[slot] = oldValues[i];
         }
@@ -201,7 +201,7 @@ final class TagCardinalityHandler {
     return keys;
   }
 
-  private static int freeSlot(String[] keys, int spread) {
+  private static int findFreeSlot(String[] keys, int spread) {
     int mask = keys.length - 1;
     int slot = spread & mask;
     while (keys[slot] != null) {
