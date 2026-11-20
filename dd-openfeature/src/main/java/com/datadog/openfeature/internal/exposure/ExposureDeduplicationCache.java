@@ -1,28 +1,21 @@
 package com.datadog.openfeature.internal.exposure;
 
-import datadog.trace.util.Hashtable;
+import datadog.trace.util.LruTable;
 import java.util.Objects;
-import javax.annotation.Nullable;
 
 /**
  * Remembers the last exposure recorded for each (flag, subject). An exposure is sent again only
  * when its allocation, variant or serial id changes. Thread-safe.
  *
- * <p>Each subject is one table entry, keyed by both parts without a key object and updated in
- * place, and linked into the least-recently-used order, so a lookup allocates nothing and a full
- * cache holds one object per subject.
+ * <p>Each subject is one table entry, keyed by both parts without a key object, updated in place
+ * and linked into the least-recently-used order, so a lookup allocates nothing and a full cache
+ * holds one object per subject. The table starts small and grows as subjects arrive, so a cache
+ * that sees few subjects stays small.
  */
 public final class ExposureDeduplicationCache {
   static final int CAPACITY = 1 << 16;
 
-  // Created on the first exposure: at full capacity its bucket array is 512 KiB, a humongous
-  // allocation on a small G1 heap, which a client that records no exposures should not pay for.
-  @Nullable private Hashtable.D2<String, String, Exposure> entries;
-  private final int capacity;
-
-  // The least and the most recently used entries, the ends of the eviction order.
-  private Exposure eldest;
-  private Exposure youngest;
+  private final LruTable.D2<String, String, Exposure> entries;
 
   /** Creates a cache remembering up to 65536 subjects, evicting the least recently used ones. */
   public ExposureDeduplicationCache() {
@@ -30,7 +23,7 @@ public final class ExposureDeduplicationCache {
   }
 
   ExposureDeduplicationCache(final int capacity) {
-    this.capacity = capacity;
+    this.entries = new LruTable.D2<>(capacity);
   }
 
   /**
@@ -49,12 +42,8 @@ public final class ExposureDeduplicationCache {
       final String allocation,
       final String variant,
       final Integer serialId) {
-    final Exposure exposure = this.entries == null ? null : this.entries.get(flag, subject);
-    if (exposure == null) {
-      return false;
-    }
-    touch(exposure);
-    return exposure.is(allocation, variant, serialId);
+    final Exposure exposure = this.entries.get(flag, subject);
+    return exposure != null && exposure.is(allocation, variant, serialId);
   }
 
   /**
@@ -73,13 +62,8 @@ public final class ExposureDeduplicationCache {
       final String allocation,
       final String variant,
       final Integer serialId) {
-    Hashtable.D2<String, String, Exposure> entries = this.entries;
-    if (entries == null) {
-      entries = this.entries = Hashtable.D2.createBounded(Exposure.class, this.capacity);
-    }
-    Exposure exposure = entries.get(flag, subject);
+    final Exposure exposure = this.entries.get(flag, subject);
     if (exposure != null) {
-      touch(exposure);
       if (exposure.is(allocation, variant, serialId)) {
         return false;
       }
@@ -88,17 +72,7 @@ public final class ExposureDeduplicationCache {
       exposure.serialId = serialId;
       return true;
     }
-    if (entries.size() >= this.capacity) {
-      final Exposure evicted = this.eldest;
-      if (evicted == null) {
-        return true; // a cache without capacity remembers nothing
-      }
-      unlink(evicted);
-      entries.remove(evicted.key1(), evicted.key2());
-    }
-    exposure = new Exposure(flag, subject, allocation, variant, serialId);
-    entries.insert(exposure);
-    append(exposure);
+    this.entries.insert(new Exposure(flag, subject, allocation, variant, serialId));
     return true;
   }
 
@@ -108,59 +82,19 @@ public final class ExposureDeduplicationCache {
    * @return the number of (flag, subject) entries.
    */
   public synchronized int size() {
-    return this.entries == null ? 0 : this.entries.size();
+    return this.entries.size();
   }
 
   /** Forgets every recorded exposure. */
   public synchronized void clear() {
-    if (this.entries != null) {
-      this.entries.clear();
-    }
-    this.eldest = null;
-    this.youngest = null;
+    this.entries.clear();
   }
 
-  /** Makes an entry the most recently used. */
-  private void touch(final Exposure exposure) {
-    if (exposure != this.youngest) {
-      unlink(exposure);
-      append(exposure);
-    }
-  }
-
-  private void append(final Exposure exposure) {
-    exposure.older = this.youngest;
-    exposure.newer = null;
-    if (this.youngest == null) {
-      this.eldest = exposure;
-    } else {
-      this.youngest.newer = exposure;
-    }
-    this.youngest = exposure;
-  }
-
-  private void unlink(final Exposure exposure) {
-    if (exposure.older == null) {
-      this.eldest = exposure.newer;
-    } else {
-      exposure.older.newer = exposure.newer;
-    }
-    if (exposure.newer == null) {
-      this.youngest = exposure.older;
-    } else {
-      exposure.newer.older = exposure.older;
-    }
-    exposure.older = null;
-    exposure.newer = null;
-  }
-
-  /** The last exposure of a (flag, subject), linked into the eviction order. */
-  private static final class Exposure extends Hashtable.D2.Entry<String, String> {
+  /** The last exposure of a (flag, subject). */
+  private static final class Exposure extends LruTable.D2.Entry<String, String> {
     String allocation;
     String variant;
     Integer serialId;
-    Exposure older;
-    Exposure newer;
 
     Exposure(
         final String flag,
