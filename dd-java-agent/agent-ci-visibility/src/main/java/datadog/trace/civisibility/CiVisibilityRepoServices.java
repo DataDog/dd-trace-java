@@ -1,5 +1,8 @@
 package datadog.trace.civisibility;
 
+import static datadog.trace.util.Strings.isBlank;
+import static datadog.trace.util.Strings.isNotBlank;
+
 import datadog.communication.BackendApi;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.config.BazelMode;
@@ -40,7 +43,6 @@ import datadog.trace.civisibility.source.NoOpSourcePathResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.source.index.RepoIndexProvider;
 import datadog.trace.civisibility.source.index.RepoIndexSourcePathResolver;
-import datadog.trace.util.Strings;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;
@@ -83,7 +85,7 @@ public class CiVisibilityRepoServices {
     String selectedSha = services.gitInfoProvider.getGitInfo(repoRoot).getCommit().getSha();
     boolean custom =
         checkoutRoot != null
-            && Strings.isNotBlank(ciInfo.getCiWorkspace())
+            && isNotBlank(ciInfo.getCiWorkspace())
             && !GitCheckoutInfo.samePath(checkoutRoot, ciInfo.getCiWorkspace());
     boolean useCiInfo =
         !custom
@@ -91,11 +93,11 @@ public class CiVisibilityRepoServices {
                 || GitCheckoutInfo.sameRevision(
                     selectedSha, services.environment.get(Constants.DDCI_PULL_REQUEST_SOURCE_SHA))
                 || checkoutRoot == null
-                    && Strings.isBlank(ConfigProvider.getInstance().getString("git.commit.sha"))
-                    && Strings.isBlank(services.config.getGlobalTags().get("git.commit.sha"))
-                    && (Strings.isBlank(selectedSha)
-                        || Strings.isBlank(providerGit.getCommit().getSha())
-                            && Strings.isBlank(providerPr.getHeadCommit().getSha())));
+                    && isBlank(ConfigProvider.getInstance().getString("git.commit.sha"))
+                    && isBlank(services.config.getGlobalTags().get("git.commit.sha"))
+                    && (isBlank(selectedSha)
+                        || isBlank(providerGit.getCommit().getSha())
+                            && isBlank(providerPr.getHeadCommit().getSha())));
     PullRequestInfo pullRequestInfo =
         buildPullRequestInfo(
             services.config, services.environment, ciProviderInfo, gitClient, useCiInfo);
@@ -174,7 +176,7 @@ public class CiVisibilityRepoServices {
     PullRequestInfo ciInfo =
         PullRequestInfo.coalesce(userInfo, ciProviderInfo.buildPullRequestInfo());
     String headSha = ciInfo.getHeadCommit().getSha();
-    if (Strings.isNotBlank(headSha)) {
+    if (isNotBlank(headSha)) {
       // if head sha present try to populate author, committer and message info through git client
       try {
         CommitInfo commitInfo = gitClient.getCommitInfo(headSha, true);

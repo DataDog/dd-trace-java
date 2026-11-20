@@ -19,10 +19,24 @@ import datadog.trace.api.civisibility.telemetry.tag.GitProviderDiscrepant;
 import datadog.trace.api.civisibility.telemetry.tag.GitProviderExpected;
 import datadog.trace.api.civisibility.telemetry.tag.GitShaDiscrepancyType;
 import datadog.trace.api.civisibility.telemetry.tag.GitShaMatch;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
 class GitInfoProviderTest {
+
+  private CiVisibilityMetricCollector previousCollector;
+
+  @BeforeEach
+  void saveCollector() {
+    previousCollector = InstrumentationBridge.getMetricCollector();
+  }
+
+  @AfterEach
+  void restoreCollector() {
+    InstrumentationBridge.registerMetricCollector(previousCollector);
+  }
 
   private static final String REPO_PATH = "/repo/path";
 

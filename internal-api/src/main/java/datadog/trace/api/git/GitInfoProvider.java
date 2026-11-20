@@ -1,5 +1,8 @@
 package datadog.trace.api.git;
 
+import static datadog.trace.api.git.GitUtils.filterSensitiveInfo;
+import static datadog.trace.util.Strings.isNotBlank;
+
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.civisibility.InstrumentationBridge;
@@ -69,7 +72,7 @@ public class GitInfoProvider {
     GitInfo gitInfo =
         new GitInfo(
             evaluator.get(
-                gi -> GitUtils.filterSensitiveInfo(gi.getRepositoryURL()),
+                gi -> filterSensitiveInfo(gi.getRepositoryURL()),
                 GitInfoProvider::validateGitRemoteUrl),
             evaluator.get(GitInfo::getBranch, Strings::isNotBlank),
             evaluator.getIfCommitShaMatches(GitInfo::getTag, Strings::isNotBlank),
@@ -106,7 +109,7 @@ public class GitInfoProvider {
 
   private static boolean validateGitRemoteUrl(String s) {
     // we cannot work with URL that uses "file://" protocol
-    return Strings.isNotBlank(s) && !s.startsWith("file:");
+    return isNotBlank(s) && !s.startsWith("file:");
   }
 
   private static final class ShaDiscrepancy {
@@ -157,7 +160,7 @@ public class GitInfoProvider {
    *
    * <p>GitInfo is evaluated at most once for each builder, and the evaluation is lazy: if all
    * required info can be retrieved from a higher-priority builder, those with lower priority will
-   * not be evaluated.
+   * not be evaluated, except CI-provider metadata used to report checkout discrepancies.
    */
   private static final class Evaluator {
     private final String repositoryPath;
@@ -175,7 +178,7 @@ public class GitInfoProvider {
     }
 
     private static String repositoryIdentity(String repositoryUrl) {
-      String sanitized = GitUtils.filterSensitiveInfo(repositoryUrl);
+      String sanitized = filterSensitiveInfo(repositoryUrl);
       if (sanitized == null) {
         return null;
       }
@@ -220,11 +223,11 @@ public class GitInfoProvider {
           entry.setValue(localInfo);
         } else if (entry.getKey().providerAsExpected() == GitProviderExpected.USER_SUPPLIED
             && entry.getValue() != null
-            && Strings.isNotBlank(entry.getValue().getCommit().getSha())) {
+            && isNotBlank(entry.getValue().getCommit().getSha())) {
           explicitSha = entry.getValue().getCommit().getSha();
         }
       }
-      gitClientAvailable = localInfo != null && Strings.isNotBlank(localInfo.getCommit().getSha());
+      gitClientAvailable = localInfo != null && isNotBlank(localInfo.getCommit().getSha());
       if (gitClientAvailable && explicitSha == null) {
         for (Map.Entry<GitInfoBuilder, GitInfo> entry : infos.entrySet()) {
           if (entry.getKey().providerAsExpected() != GitProviderExpected.CI_PROVIDER) {
@@ -233,23 +236,35 @@ public class GitInfoProvider {
           GitInfo ciInfo = entry.getKey().build(repositoryPath);
           entry.setValue(ciInfo);
           String ciSha = ciInfo.getCommit().getSha();
-          if (Strings.isNotBlank(ciSha)
-              && !ciSha.equalsIgnoreCase(localInfo.getCommit().getSha())) {
-            String localRepoUrl = repositoryIdentity(localInfo.getRepositoryURL());
-            String ciRepoUrl = repositoryIdentity(ciInfo.getRepositoryURL());
-            boolean repositoryMismatch =
-                localRepoUrl != null && ciRepoUrl != null && !localRepoUrl.equals(ciRepoUrl);
-            shaDiscrepancies.add(
-                new ShaDiscrepancy(
-                    GitProviderExpected.GIT_CLIENT,
-                    GitProviderDiscrepant.CI_PROVIDER,
-                    repositoryMismatch
-                        ? GitShaDiscrepancyType.REPOSITORY_DISCREPANCY
-                        : GitShaDiscrepancyType.COMMIT_DISCREPANCY));
+          if (isNotBlank(ciSha) && !ciSha.equalsIgnoreCase(localInfo.getCommit().getSha())) {
+            recordDiscrepancy(
+                GitProviderExpected.GIT_CLIENT,
+                GitProviderDiscrepant.CI_PROVIDER,
+                repositoryIdentity(localInfo.getRepositoryURL()),
+                ciInfo);
           }
         }
       }
       return gitClientAvailable;
+    }
+
+    private void recordDiscrepancy(
+        GitProviderExpected expected,
+        GitProviderDiscrepant actual,
+        String expectedRepoIdentity,
+        GitInfo info) {
+      String actualRepoIdentity = repositoryIdentity(info.getRepositoryURL());
+      boolean repositoryMismatch =
+          expectedRepoIdentity != null
+              && actualRepoIdentity != null
+              && !expectedRepoIdentity.equals(actualRepoIdentity);
+      shaDiscrepancies.add(
+          new ShaDiscrepancy(
+              expected,
+              actual,
+              repositoryMismatch
+                  ? GitShaDiscrepancyType.REPOSITORY_DISCREPANCY
+                  : GitShaDiscrepancyType.COMMIT_DISCREPANCY));
     }
 
     private String get(Function<GitInfo, String> function, Predicate<String> validator) {
@@ -293,7 +308,7 @@ public class GitInfoProvider {
         if (checkShaIntegrity) {
           CommitInfo currentCommit = info.getCommit();
           String currentCommitSha = currentCommit != null ? currentCommit.getSha() : null;
-          if (Strings.isNotBlank(currentCommitSha)) {
+          if (isNotBlank(currentCommitSha)) {
             if (expectedCommitSha == null) {
               expectedCommitSha = currentCommitSha;
               expectedRepoUrl = repositoryIdentity(info.getRepositoryURL());
@@ -301,15 +316,8 @@ public class GitInfoProvider {
             } else if (!expectedCommitSha.equalsIgnoreCase(currentCommitSha)) {
               // We already have a commit SHA from source that has higher priority.
               // Commit SHA from current source is different, so we have to skip it
-              GitShaDiscrepancyType discrepancyType = GitShaDiscrepancyType.COMMIT_DISCREPANCY;
-              String repoUrl = repositoryIdentity(info.getRepositoryURL());
-              if (expectedRepoUrl != null && repoUrl != null && !repoUrl.equals(expectedRepoUrl)) {
-                discrepancyType = GitShaDiscrepancyType.REPOSITORY_DISCREPANCY;
-              }
-
-              shaDiscrepancies.add(
-                  new ShaDiscrepancy(
-                      expectedGitProvider, e.getKey().providerAsDiscrepant(), discrepancyType));
+              recordDiscrepancy(
+                  expectedGitProvider, e.getKey().providerAsDiscrepant(), expectedRepoUrl, info);
               continue;
             }
           }

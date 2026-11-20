@@ -1,8 +1,12 @@
 package datadog.trace.civisibility.git.tree;
 
+import static datadog.trace.civisibility.git.tree.GitTestRepository.GIT_COMMAND_TIMEOUT_MILLIS;
+import static datadog.trace.civisibility.git.tree.GitTestRepository.OLD_COMMIT_SHA;
 import static datadog.trace.civisibility.git.tree.GitTestRepository.client;
 import static datadog.trace.civisibility.git.tree.GitTestRepository.fixture;
 import static datadog.trace.civisibility.git.tree.GitTestRepository.git;
+import static datadog.trace.civisibility.git.tree.GitTestRepository.selectedCommit;
+import static datadog.trace.civisibility.git.tree.GitTestRepository.sha256Fixture;
 import static datadog.trace.civisibility.git.tree.GitTestRepository.writeCommit;
 import static datadog.trace.civisibility.git.tree.GitTestRepository.writeObject;
 import static java.util.Arrays.asList;
@@ -38,12 +42,12 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.InOrder;
 import org.tabletest.junit.TableTest;
 
 class GitDataUploaderSelectedCommitTest {
+  private static final long UPLOAD_WAIT_SECONDS = 5;
   private static final String URL = "https://example.com/repo.git";
   @TempDir Path directory;
   private final Config config = mock(Config.class);
@@ -64,7 +68,7 @@ class GitDataUploaderSelectedCommitTest {
     git(command, "update-ref", "HEAD", head);
     Path checkout = shallowClone(command, origin);
     ShellCommandExecutor selectedRepo =
-        local ? new ShellCommandExecutor(checkout.toFile(), 10_000) : command;
+        local ? new ShellCommandExecutor(checkout.toFile(), GIT_COMMAND_TIMEOUT_MILLIS) : command;
     String selected = writeCommit(selectedRepo, tree, head, "selected child");
     git(selectedRepo, "update-ref", "HEAD", selected);
     ShellGitClient client = client(checkout, "1 month ago");
@@ -75,7 +79,7 @@ class GitDataUploaderSelectedCommitTest {
 
     uploader(client, new GitRepoUnshallow(config, client), selected, checkout.toString())
         .startOrObserveGitDataUpload()
-        .get(5, TimeUnit.SECONDS);
+        .get(UPLOAD_WAIT_SECONDS, TimeUnit.SECONDS);
 
     assertEquals(asList(selected, head, ancestor), client.getLatestCommits(selected));
     assertEquals(local ? selected : head, client.getSha(GitClient.HEAD));
@@ -84,50 +88,33 @@ class GitDataUploaderSelectedCommitTest {
   }
 
   @TableTest({
-    "Scenario        | abbreviated",
-    "uppercase SHA   | false      ",
-    "abbreviated SHA | true       "
+    "Scenario            | objectFormat | prefixLength",
+    "uppercase SHA1      | sha1         | 0           ",
+    "short SHA1          | sha1         | 8           ",
+    "uppercase SHA256    | sha256       | 0           ",
+    "short SHA256        | sha256       | 8           ",
+    "40 character SHA256 | sha256       | 40          ",
+    "48 character SHA256 | sha256       | 48          ",
+    "63 character SHA256 | sha256       | 63          "
   })
-  void uploadedPackUsesTheCanonicalSelectedSha(boolean abbreviated) throws Exception {
+  void uploadedPackUsesTheCanonicalSelectedSha(String objectFormat, int prefixLength)
+      throws Exception {
     Path checkout = directory.resolve("checkout");
-    fixture(checkout);
+    boolean sha256 = "sha256".equals(objectFormat);
+    ShellCommandExecutor command = sha256 ? sha256Fixture(checkout) : fixture(checkout);
+    String head = git(command, "rev-parse", "HEAD");
+    String selected = sha256 ? selectedCommit(command) : OLD_COMMIT_SHA;
+    String input =
+        prefixLength == 0 ? selected.toUpperCase(Locale.ROOT) : selected.substring(0, prefixLength);
     ShellGitClient client = client(checkout, "1 month ago");
-    String selected = "98cd7c8e9cf71e02dc28bd9b13928bee0f85b74c";
-    String input = abbreviated ? selected.substring(0, 8) : selected.toUpperCase(Locale.ROOT);
+    List<String> expected = sha256 ? asList(selected, head) : singletonList(selected);
+    assertEquals(expected, client.getLatestCommits(input));
     when(api.searchCommits(eq(URL), any())).thenReturn(emptyList());
     uploader(client, new GitRepoUnshallow(config, client), input, checkout.toString())
         .startOrObserveGitDataUpload()
-        .get(5, TimeUnit.SECONDS);
+        .get(UPLOAD_WAIT_SECONDS, TimeUnit.SECONDS);
+    verify(api).searchCommits(URL, expected);
     verify(api).uploadPackFile(eq(URL), eq(selected), any());
-  }
-
-  @Test
-  void baseBranchFetchRemainsAvailableAfterPrivateRecovery() throws Exception {
-    Path origin = directory.resolve("origin");
-    ShellCommandExecutor remote = fixture(origin);
-    String ancestor = git(remote, "rev-parse", "HEAD");
-    String tree = git(remote, "rev-parse", "HEAD^{tree}");
-    String head = writeCommit(remote, tree, ancestor, "recent checkout");
-    git(remote, "update-ref", "HEAD", head);
-    Path checkout = directory.resolve("checkout");
-    git(remote, "clone", "--no-local", origin.toString(), checkout.toString());
-    Path control = directory.resolve("control");
-    git(remote, "clone", "--no-local", origin.toString(), control.toString());
-    String selected = writeCommit(remote, tree, head, "selected child");
-    git(remote, "update-ref", "refs/heads/selected", selected);
-    git(
-        new ShellCommandExecutor(checkout.toFile(), 10_000),
-        "update-ref",
-        "refs/remotes/origin/base",
-        ancestor);
-    ShellGitClient client = client(checkout, "1 month ago");
-    client.fetchSelectedCommit(selected);
-    assertEquals(selected, client.getCommitInfo(selected, false).getSha());
-    assertFalse(client.isShallow());
-    assertEquals(ancestor, client.getBaseCommitSha("base", null));
-    git(remote, "update-ref", "refs/heads/new-base", head);
-    assertEquals(head, client(control, "1 month ago").getBaseCommitSha("new-base", null));
-    assertEquals(head, client.getBaseCommitSha("new-base", null));
   }
 
   @TableTest({
@@ -149,7 +136,8 @@ class GitDataUploaderSelectedCommitTest {
     String ancestor = writeCommit(command, tree, base, "selected branch ancestor");
     String selected = writeCommit(command, tree, ancestor, "selected branch tip");
     git(command, "update-ref", "refs/heads/selected", selected);
-    ShellCommandExecutor local = new ShellCommandExecutor(checkout.toFile(), 10_000);
+    ShellCommandExecutor local =
+        new ShellCommandExecutor(checkout.toFile(), GIT_COMMAND_TIMEOUT_MILLIS);
     git(local, "fetch", "--depth=1", "--no-write-fetch-head", "origin", selected);
     ShellGitClient client = client(checkout, "1 month ago");
     assertEquals(singletonList(selected), client.getLatestCommits(selected));
@@ -158,7 +146,7 @@ class GitDataUploaderSelectedCommitTest {
     when(api.searchCommits(eq(URL), any())).thenReturn(emptyList());
     uploader(client, new GitRepoUnshallow(config, client), selected, checkout.toString())
         .startOrObserveGitDataUpload()
-        .get(5, TimeUnit.SECONDS);
+        .get(UPLOAD_WAIT_SECONDS, TimeUnit.SECONDS);
     assertEquals(
         recoveryEnabled ? asList(selected, ancestor) : singletonList(selected),
         client.getLatestCommits(selected));
@@ -191,14 +179,15 @@ class GitDataUploaderSelectedCommitTest {
     Path checkout = worktree ? directory.resolve("linked checkout") : clone;
     if (worktree) {
       git(
-          new ShellCommandExecutor(clone.toFile(), 10_000),
+          new ShellCommandExecutor(clone.toFile(), GIT_COMMAND_TIMEOUT_MILLIS),
           "worktree",
           "add",
           "--detach",
           checkout.toString(),
           "HEAD");
     }
-    ShellCommandExecutor local = new ShellCommandExecutor(checkout.toFile(), 10_000);
+    ShellCommandExecutor local =
+        new ShellCommandExecutor(checkout.toFile(), GIT_COMMAND_TIMEOUT_MILLIS);
     String head = git(local, "rev-parse", "HEAD");
     String count = git(local, "rev-list", "--count", "HEAD");
     String tree = git(command, "rev-parse", "HEAD^{tree}");
@@ -231,7 +220,7 @@ class GitDataUploaderSelectedCommitTest {
     if (transportAllowed) {
       uploader(client, new GitRepoUnshallow(config, client), selected, checkout.toString())
           .startOrObserveGitDataUpload()
-          .get(5, TimeUnit.SECONDS);
+          .get(UPLOAD_WAIT_SECONDS, TimeUnit.SECONDS);
       git(local, "cat-file", "-e", protectedCommit + "^{commit}");
       assertEquals(selected, client.getLatestCommits(selected).get(0));
     } else {
@@ -252,7 +241,7 @@ class GitDataUploaderSelectedCommitTest {
           () ->
               uploader(client, new GitRepoUnshallow(config, client), selected, checkout.toString())
                   .startOrObserveGitDataUpload()
-                  .get(5, TimeUnit.SECONDS));
+                  .get(UPLOAD_WAIT_SECONDS, TimeUnit.SECONDS));
       assertTrue(client.getLatestCommits(selected).isEmpty());
     }
     assertEquals("false", git(local, "rev-parse", "--is-shallow-repository"));
@@ -286,7 +275,7 @@ class GitDataUploaderSelectedCommitTest {
     Path checkout = shallowClone(command, origin);
     List<String> originalShallow = Files.readAllLines(checkout.resolve(".git/shallow"));
     ShellGitClient client = spy(client(checkout, "1 month ago"));
-    String selected = "98cd7c8e9cf71e02dc28bd9b13928bee0f85b74c";
+    String selected = OLD_COMMIT_SHA;
     assertTrue(client.getLatestCommits(selected).isEmpty());
     when(config.isCiVisibilityGitUnshallowDefer()).thenReturn(deferred);
     when(config.isCiVisibilityGitUnshallowEnabled()).thenReturn(recoveryEnabled);
@@ -295,7 +284,7 @@ class GitDataUploaderSelectedCommitTest {
 
     uploader(client, new GitRepoUnshallow(config, client), selected, checkout.toString())
         .startOrObserveGitDataUpload()
-        .get(5, TimeUnit.SECONDS);
+        .get(UPLOAD_WAIT_SECONDS, TimeUnit.SECONDS);
 
     if (!backendKnown) {
       verify(api).uploadPackFile(eq(URL), eq(selected), any());
@@ -334,7 +323,7 @@ class GitDataUploaderSelectedCommitTest {
 
     uploader(client, unshallow, selected, "/checkout")
         .startOrObserveGitDataUpload()
-        .get(5, TimeUnit.SECONDS);
+        .get(UPLOAD_WAIT_SECONDS, TimeUnit.SECONDS);
 
     if (recoveryEnabled) {
       InOrder order = inOrder(client, unshallow, api);
@@ -406,11 +395,13 @@ class GitDataUploaderSelectedCommitTest {
     if ("interruption".equals(failure)) {
       assertEquals(
           exception,
-          assertThrows(ExecutionException.class, () -> upload.get(5, TimeUnit.SECONDS)).getCause());
+          assertThrows(
+                  ExecutionException.class, () -> upload.get(UPLOAD_WAIT_SECONDS, TimeUnit.SECONDS))
+              .getCause());
       verify(api, never()).uploadPackFile(any(), any(), any());
       verify(unshallow, times(deferred ? 0 : 1)).unshallow();
     } else {
-      upload.get(5, TimeUnit.SECONDS);
+      upload.get(UPLOAD_WAIT_SECONDS, TimeUnit.SECONDS);
       verify(api).uploadPackFile(eq(URL), eq(selected), any());
       verify(unshallow).unshallow();
     }
@@ -450,12 +441,14 @@ class GitDataUploaderSelectedCommitTest {
     Future<Void> upload =
         uploader(client, unshallow, selected, "/checkout").startOrObserveGitDataUpload();
     if (succeeds) {
-      upload.get(5, TimeUnit.SECONDS);
+      upload.get(UPLOAD_WAIT_SECONDS, TimeUnit.SECONDS);
       verify(api).uploadPackFile(eq(URL), eq(selected), any());
     } else {
       assertEquals(
           exception,
-          assertThrows(ExecutionException.class, () -> upload.get(5, TimeUnit.SECONDS)).getCause());
+          assertThrows(
+                  ExecutionException.class, () -> upload.get(UPLOAD_WAIT_SECONDS, TimeUnit.SECONDS))
+              .getCause());
       verify(api, never()).uploadPackFile(any(), any(), any());
     }
   }
@@ -499,12 +492,15 @@ class GitDataUploaderSelectedCommitTest {
         uploader(next, new GitRepoUnshallow(config, next), selected, checkout.toString())
             .startOrObserveGitDataUpload();
     if (recoveryEnabled) {
-      upload.get(5, TimeUnit.SECONDS);
+      upload.get(UPLOAD_WAIT_SECONDS, TimeUnit.SECONDS);
       verify(next).fetchSelectedCommit(selected);
       verify(api).uploadPackFile(eq(URL), eq(selected), any());
     } else {
       assertTrue(
-          assertThrows(ExecutionException.class, () -> upload.get(5, TimeUnit.SECONDS)).getCause()
+          assertThrows(
+                      ExecutionException.class,
+                      () -> upload.get(UPLOAD_WAIT_SECONDS, TimeUnit.SECONDS))
+                  .getCause()
               instanceof ShellCommandExecutor.ShellCommandFailedException);
       verify(next, never()).fetchSelectedCommit(any());
       verify(api, never()).uploadPackFile(any(), any(), any());

@@ -1,5 +1,6 @@
 package datadog.trace.api.git;
 
+import static datadog.trace.api.git.GitUtils.filterSensitiveInfo;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Named.named;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
@@ -95,7 +96,7 @@ class GitUtilsTest {
     "scp-like syntax                    | 'git@example.com:repo.git'                                | 'git@example.com:repo.git'                 "
   })
   void testSensitiveInfoFilteringInUrl(String url, String expectedResult) {
-    assertEquals(expectedResult, GitUtils.filterSensitiveInfo(url));
+    assertEquals(expectedResult, filterSensitiveInfo(url));
   }
 
   @TableTest({
@@ -115,7 +116,7 @@ class GitUtilsTest {
     "opaque credentials  | 'ftps:user:password@host.com/repo.git'                              |                                                 "
   })
   void testCredentialsAreFilteredForAllUriSchemes(String url, String expectedResult) {
-    assertEquals(expectedResult, GitUtils.filterSensitiveInfo(url));
+    assertEquals(expectedResult, filterSensitiveInfo(url));
   }
 
   @TableTest({
@@ -131,7 +132,7 @@ class GitUtilsTest {
     "empty address            | codecommit::                                          |                                         "
   })
   void testRemoteHelperAddressesKeepTheirSanitizedIdentity(String url, String expectedResult) {
-    assertEquals(expectedResult, GitUtils.filterSensitiveInfo(url));
+    assertEquals(expectedResult, filterSensitiveInfo(url));
   }
 
   @TableTest({
@@ -154,7 +155,7 @@ class GitUtilsTest {
     "invalid port      | 'ssh://user:password@git_alias:invalid/repo.git'   |                                                   "
   })
   void testHostAliasesKeepSanitizedRepositoryIdentity(String url, String expectedResult) {
-    assertEquals(expectedResult, GitUtils.filterSensitiveInfo(url));
+    assertEquals(expectedResult, filterSensitiveInfo(url));
   }
 
   @TableTest({

@@ -1,10 +1,11 @@
 package datadog.trace.civisibility.git.tree;
 
+import static java.util.Collections.emptyList;
+
 import datadog.trace.api.git.CommitInfo;
 import datadog.trace.civisibility.diff.LineDiff;
 import java.nio.file.Path;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -58,7 +59,7 @@ public class NoOpGitClient implements GitClient {
   @Nonnull
   @Override
   public List<String> getTags(String commit) {
-    return Collections.emptyList();
+    return emptyList();
   }
 
   @Nullable
@@ -79,19 +80,19 @@ public class NoOpGitClient implements GitClient {
   @Nonnull
   @Override
   public List<String> getLatestCommits(String commit) {
-    return Collections.emptyList();
+    return emptyList();
   }
 
   @Override
   public List<String> getLatestCommits() {
-    return Collections.emptyList();
+    return emptyList();
   }
 
   @Nonnull
   @Override
   public List<String> getObjects(
       Collection<String> commitsToSkip, Collection<String> commitsToInclude) {
-    return Collections.emptyList();
+    return emptyList();
   }
 
   @Override

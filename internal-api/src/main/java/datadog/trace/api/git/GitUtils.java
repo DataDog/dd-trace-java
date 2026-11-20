@@ -2,10 +2,11 @@ package datadog.trace.api.git;
 
 import static datadog.trace.api.git.RawParseUtils.decode;
 import static datadog.trace.api.git.RawParseUtils.nextLF;
+import static datadog.trace.util.Strings.isBlank;
+import static java.util.regex.Pattern.compile;
 
 import datadog.environment.OperatingSystem;
 import datadog.environment.SystemProperties;
-import datadog.trace.util.Strings;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URI;
@@ -45,8 +46,6 @@ public class GitUtils {
               + "|/$" // ends with slash
           );
   private static final Pattern PATH_PATTERN = Pattern.compile("^[a-zA-Z0-9_./-]+$");
-  private static final Pattern REMOTE_HELPER_PREFIX =
-      Pattern.compile("[a-zA-Z0-9][a-zA-Z0-9+.-]*::");
   private static final Pattern SHELL_METACHAR_PATTERN = Pattern.compile(".*[`$&|;<>\n\r#].*");
 
   private static final int SHORT_SHA_LENGTH = 7;
@@ -143,9 +142,6 @@ public class GitUtils {
     return ref;
   }
 
-  private static final Pattern USER_INFO_WITH_HOST_ALIAS =
-      Pattern.compile("[^@]+@[\\p{L}\\p{N}._+~-]+(?::[0-9]+)?");
-
   /**
    * Removes the user info of a certain URL. E.g: https://user:password@host.com/path ->
    * https://host.com/path
@@ -158,7 +154,8 @@ public class GitUtils {
       return null;
     }
     // Git passes a remote helper's address separately from its transport prefix.
-    Matcher helper = REMOTE_HELPER_PREFIX.matcher(urlStr);
+    Pattern helperPrefix = compile("[a-zA-Z0-9][a-zA-Z0-9+.-]*::");
+    Matcher helper = helperPrefix.matcher(urlStr);
     int addressStart = 0;
     while (helper.region(addressStart, urlStr.length()).lookingAt()) {
       addressStart = helper.end();
@@ -199,7 +196,8 @@ public class GitUtils {
         return null;
       }
       String userInfo = url.getRawUserInfo();
-      if (userInfo == null && USER_INFO_WITH_HOST_ALIAS.matcher(authority).matches()) {
+      if (userInfo == null
+          && compile("[^@]+@[\\p{L}\\p{N}._+~-]+(?::[0-9]+)?").matcher(authority).matches()) {
         // URI's DNS parser rejects valid SSH aliases such as underscores and tildes.
         userInfo = authority.substring(0, authority.indexOf('@'));
       }
@@ -349,7 +347,7 @@ public class GitUtils {
 
   /** Checks if a string that will be used as a Git command argument is valid and safe */
   static boolean isValidArg(@Nullable String arg) {
-    if (Strings.isBlank(arg)) {
+    if (isBlank(arg)) {
       return false;
     }
     return !SHELL_METACHAR_PATTERN.matcher(arg).find();
@@ -357,7 +355,7 @@ public class GitUtils {
 
   /** Checks if the provided string is a valid Git reference (branch, tag, etc.) */
   public static boolean isValidRef(@Nullable String ref) {
-    if (Strings.isBlank(ref) || ref.charAt(0) == '-') {
+    if (isBlank(ref) || ref.charAt(0) == '-') {
       return false;
     }
 

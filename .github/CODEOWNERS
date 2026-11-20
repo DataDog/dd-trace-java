@@ -272,7 +272,6 @@
 
 # @DataDog/ci-app-libraries
 /dd-java-agent/agent-ci-visibility/                                                   @DataDog/apm-java @DataDog/ci-app-libraries
-/dd-java-agent/agent-ci-visibility/src/main/java/datadog/trace/civisibility/ci/GitCheckoutInfo.java @DataDog/apm-java @DataDog/ci-app-libraries
 /dd-smoke-tests/backend-mock/                                                         @DataDog/apm-java @DataDog/ci-app-libraries
 /dd-smoke-tests/gradle/                                                               @DataDog/apm-java @DataDog/ci-app-libraries
 /dd-smoke-tests/junit-console/                                                        @DataDog/apm-java @DataDog/ci-app-libraries

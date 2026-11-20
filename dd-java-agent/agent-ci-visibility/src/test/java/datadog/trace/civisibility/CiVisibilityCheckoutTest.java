@@ -1,5 +1,6 @@
 package datadog.trace.civisibility;
 
+import static datadog.trace.civisibility.git.tree.GitTestRepository.GIT_COMMAND_TIMEOUT_MILLIS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.mock;
@@ -44,7 +45,7 @@ class CiVisibilityCheckoutTest {
     IOUtils.copyFolder(fixture, Files.createDirectory(nested.resolve(".git")));
     Path module = Files.createDirectory(nested.resolve("module"));
     Config config = mock(Config.class);
-    when(config.getCiVisibilityGitCommandTimeoutMillis()).thenReturn(10_000L);
+    when(config.getCiVisibilityGitCommandTimeoutMillis()).thenReturn(GIT_COMMAND_TIMEOUT_MILLIS);
     assertEquals(
         nested.toRealPath().toString(),
         CiVisibilityRepoServices.getRepoRoot(

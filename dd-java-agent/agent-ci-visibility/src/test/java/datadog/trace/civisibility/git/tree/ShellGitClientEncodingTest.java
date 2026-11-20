@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.mock;
 
 import datadog.communication.util.IOUtils;
@@ -261,6 +262,7 @@ class ShellGitClientEncodingTest {
 
   private ShellGitClient clientWithOutput(byte[] output) throws Exception {
     ShellCommandExecutor executor = mock(ShellCommandExecutor.class);
+    doCallRealMethod().when(executor).executeSensitiveCommand(any(), (String[]) any());
     doAnswer(
             invocation -> {
               ShellCommandExecutor.OutputParser<?> parser = invocation.getArgument(0);

@@ -1,10 +1,12 @@
 package datadog.trace.civisibility.ci;
 
+import static datadog.trace.util.Strings.isBlank;
+import static datadog.trace.util.Strings.isNotBlank;
+
 import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitUtils;
 import datadog.trace.civisibility.ci.env.CiEnvironment;
-import datadog.trace.util.Strings;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -15,7 +17,7 @@ public final class GitCheckoutInfo {
   private GitCheckoutInfo() {}
 
   public static boolean samePath(String left, String right) {
-    if (Strings.isBlank(left) || Strings.isBlank(right)) {
+    if (isBlank(left) || isBlank(right)) {
       return false;
     }
     try {
@@ -48,7 +50,7 @@ public final class GitCheckoutInfo {
         break;
       case GITLAB:
         String type = env.get("CI_MERGE_REQUEST_EVENT_TYPE");
-        if (Strings.isNotBlank(env.get("CI_MERGE_REQUEST_IID"))
+        if (isNotBlank(env.get("CI_MERGE_REQUEST_IID"))
             && ("merged_result".equals(type) || "merge_train".equals(type))) {
           sha = env.get("CI_COMMIT_SHA");
         }

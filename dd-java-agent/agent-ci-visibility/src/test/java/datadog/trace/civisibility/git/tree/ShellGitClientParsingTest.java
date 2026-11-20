@@ -1,8 +1,11 @@
 package datadog.trace.civisibility.git.tree;
 
+import static datadog.trace.civisibility.git.tree.GitTestRepository.GIT_COMMAND_TIMEOUT_MILLIS;
+import static datadog.trace.civisibility.git.tree.GitTestRepository.OLD_COMMIT_SHA;
 import static datadog.trace.civisibility.git.tree.GitTestRepository.client;
 import static datadog.trace.civisibility.git.tree.GitTestRepository.fixture;
 import static datadog.trace.civisibility.git.tree.GitTestRepository.git;
+import static datadog.trace.civisibility.git.tree.GitTestRepository.replaceExecutor;
 import static datadog.trace.civisibility.git.tree.GitTestRepository.writeCommit;
 import static datadog.trace.civisibility.git.tree.GitTestRepository.writeObject;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -21,7 +24,6 @@ import datadog.communication.util.IOUtils;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.git.CommitInfo;
 import datadog.trace.civisibility.utils.ShellCommandExecutor;
-import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -77,9 +79,7 @@ class ShellGitClientParsingTest {
               }
               return singletonList("object-hash");
             });
-    Field executor = ShellGitClient.class.getDeclaredField("commandExecutor");
-    executor.setAccessible(true);
-    executor.set(client, command);
+    replaceExecutor(client, command);
 
     List<String> objects =
         client.getObjects(
@@ -190,13 +190,17 @@ class ShellGitClientParsingTest {
     Path trace = checkout.resolve("object-reads.trace");
     ShellGitClient bounded =
         new ShellGitClient(
-            mock(CiVisibilityMetricCollector.class), checkout.toString(), "1 month ago", 1, 10_000);
-    Field executor = ShellGitClient.class.getDeclaredField("commandExecutor");
-    executor.setAccessible(true);
-    executor.set(
+            mock(CiVisibilityMetricCollector.class),
+            checkout.toString(),
+            "1 month ago",
+            1,
+            GIT_COMMAND_TIMEOUT_MILLIS);
+    replaceExecutor(
         bounded,
         new ShellCommandExecutor(
-            checkout.toFile(), 10_000, singletonMap("GIT_TRACE_PACK_ACCESS", trace.toString())));
+            checkout.toFile(),
+            GIT_COMMAND_TIMEOUT_MILLIS,
+            singletonMap("GIT_TRACE_PACK_ACCESS", trace.toString())));
     List<String> excluded = singletonList(known);
     List<String> included = singletonList(selected);
     List<String> result =
@@ -258,9 +262,7 @@ class ShellGitClientParsingTest {
   void tagListingFailuresPropagateInsteadOfReturningNoTags() throws Exception {
     ShellCommandExecutor.ShellCommandFailedException failure =
         new ShellCommandExecutor.ShellCommandFailedException(129, "unsupported tag option");
-    Field executor = ShellGitClient.class.getDeclaredField("commandExecutor");
-    executor.setAccessible(true);
-    executor.set(
+    replaceExecutor(
         client,
         mock(
             ShellCommandExecutor.class,
@@ -290,7 +292,7 @@ class ShellGitClientParsingTest {
   @Test
   void selectedCommitHistoryAndPackObjectsDoNotSubstituteHeadOrDiscardOldCommits()
       throws Exception {
-    String selected = "98cd7c8e9cf71e02dc28bd9b13928bee0f85b74c";
+    String selected = OLD_COMMIT_SHA;
     String head = "5b6f3a6dab5972d73a56dff737bd08d995255c08";
     String parent = git(command, "rev-parse", selected + "^");
 
@@ -340,7 +342,7 @@ class ShellGitClientParsingTest {
   })
   void selectedCommitHistoryUsesOneCanonicalSha(String since) throws Exception {
     client = client(checkout, since);
-    String selected = "98cd7c8e9cf71e02dc28bd9b13928bee0f85b74c";
+    String selected = OLD_COMMIT_SHA;
 
     for (String input : asList(selected.toUpperCase(Locale.ROOT), selected.substring(0, 8))) {
       List<String> commits = client.getLatestCommits(input);
@@ -388,14 +390,14 @@ class ShellGitClientParsingTest {
 
   @Test
   void oldSelectedObjectsRespectExcludedDescendantsWithoutAddingAncestors() throws Exception {
-    String selected = "98cd7c8e9cf71e02dc28bd9b13928bee0f85b74c";
-    String head = git(command, "rev-parse", "HEAD").trim();
-    String parent = git(command, "rev-parse", selected + "^").trim();
+    String selected = OLD_COMMIT_SHA;
+    String head = git(command, "rev-parse", "HEAD");
+    String parent = git(command, "rev-parse", selected + "^");
     assertTrue(client.getObjects(singletonList(head), singletonList(selected)).isEmpty());
     ShellGitClient allHistory = client(checkout, "1970-01-01");
     assertTrue(allHistory.getObjects(singletonList(head), singletonList(selected)).isEmpty());
 
-    String tree = git(command, "rev-parse", "HEAD^{tree}").trim();
+    String tree = git(command, "rev-parse", "HEAD^{tree}");
     String object =
         "tree "
             + tree
@@ -409,7 +411,7 @@ class ShellGitClientParsingTest {
 
   @Test
   void preservesSeparatorsInNamesAndMessagesAndSuppressesSignatureOutput() throws Exception {
-    String tree = git(command, "rev-parse", "HEAD^{tree}").trim();
+    String tree = git(command, "rev-parse", "HEAD^{tree}");
     String author = "Do\",\"Jo";
     String message = "Update [\"a\",\"b\"]\n\nPreserve the complete message.";
     String object =

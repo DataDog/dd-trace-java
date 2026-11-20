@@ -1,5 +1,8 @@
 package datadog.trace.civisibility.git;
 
+import static datadog.trace.util.Strings.coalesce;
+import static datadog.trace.util.Strings.isBlank;
+import static datadog.trace.util.Strings.isNotBlank;
 import static java.util.Collections.emptyList;
 
 import datadog.trace.api.Config;
@@ -13,7 +16,6 @@ import datadog.trace.civisibility.ci.CIProviderInfoFactory;
 import datadog.trace.civisibility.ci.GitCheckoutInfo;
 import datadog.trace.civisibility.git.tree.GitClient;
 import datadog.trace.civisibility.utils.ShellCommandExecutor;
-import datadog.trace.util.Strings;
 import java.nio.file.Paths;
 import java.util.List;
 import javax.annotation.Nullable;
@@ -63,7 +65,7 @@ public class GitClientGitInfoBuilder implements GitInfoBuilder {
       String tag = tags.size() == 1 ? tags.get(0) : null;
 
       CommitInfo commitInfo = gitClient.getCommitInfo(GitClient.HEAD, false);
-      if (Strings.isBlank(branch) && ciProviderInfoFactory != null) {
+      if (isBlank(branch) && ciProviderInfoFactory != null) {
         try {
           CIProviderInfo provider =
               ciProviderInfoFactory.createCIProviderInfo(Paths.get(repositoryPath));
@@ -75,12 +77,9 @@ public class GitClientGitInfoBuilder implements GitInfoBuilder {
                   ci,
                   provider.buildPullRequestInfo(),
                   provider.getMergeCommitSha())) {
-            remoteUrl = Strings.coalesce(ci.getRepositoryURL(), remoteUrl);
-            branch = Strings.coalesce(ci.getBranch(), branch);
-            tag =
-                Strings.isNotBlank(ci.getTag())
-                    ? ci.getTag()
-                    : Strings.isNotBlank(ci.getBranch()) ? null : tag;
+            remoteUrl = coalesce(ci.getRepositoryURL(), remoteUrl);
+            branch = coalesce(ci.getBranch(), branch);
+            tag = isNotBlank(ci.getTag()) ? ci.getTag() : isNotBlank(ci.getBranch()) ? null : tag;
           }
         } catch (InterruptedException e) {
           throw e;

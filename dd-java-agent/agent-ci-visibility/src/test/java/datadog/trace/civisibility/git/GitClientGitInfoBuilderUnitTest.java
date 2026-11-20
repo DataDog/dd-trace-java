@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.git;
 
+import static datadog.trace.civisibility.git.tree.GitTestRepository.GIT_COMMAND_TIMEOUT_MILLIS;
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -41,7 +42,7 @@ class GitClientGitInfoBuilderUnitTest {
     Files.delete(checkout.resolve(".git/config"));
     Config config = mock(Config.class);
     when(config.getCiVisibilityGitRemoteName()).thenReturn("origin");
-    when(config.getCiVisibilityGitCommandTimeoutMillis()).thenReturn(10_000L);
+    when(config.getCiVisibilityGitCommandTimeoutMillis()).thenReturn(GIT_COMMAND_TIMEOUT_MILLIS);
     GitInfo info =
         new GitClientGitInfoBuilder(
                 config, new ShellGitClient.Factory(config, mock(CiVisibilityMetricCollector.class)))
