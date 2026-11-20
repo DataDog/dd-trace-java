@@ -1,5 +1,7 @@
 package datadog.trace.core.propagation;
 
+import static datadog.context.propagation.AsciiDecimal.of;
+import static datadog.context.propagation.AsciiDecimal.ofUnsigned;
 import static datadog.trace.api.TracePropagationStyle.DATADOG;
 import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY;
 import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
@@ -58,10 +60,11 @@ class DatadogHttpCodec {
     public <C> void inject(
         final DDSpanContext context, final C carrier, final CarrierSetter<C> setter) {
 
-      setter.set(carrier, TRACE_ID_KEY, context.getTraceId().toString());
-      setter.set(carrier, SPAN_ID_KEY, DDSpanId.toString(context.getSpanId()));
+      // The ids are unsigned decimal (the low 64 bits of a 128-bit trace id), built as bytes
+      setter.setAscii(carrier, TRACE_ID_KEY, ofUnsigned(context.getTraceId().toLong()));
+      setter.setAscii(carrier, SPAN_ID_KEY, ofUnsigned(context.getSpanId()));
       if (context.lockSamplingPriority()) {
-        setter.set(carrier, SAMPLING_PRIORITY_KEY, String.valueOf(context.getSamplingPriority()));
+        setter.setAscii(carrier, SAMPLING_PRIORITY_KEY, of(context.getSamplingPriority()));
       }
       final CharSequence origin = context.getOrigin();
       if (origin != null) {
@@ -69,7 +72,7 @@ class DatadogHttpCodec {
       }
       long e2eStart = context.getEndToEndStartTime();
       if (e2eStart > 0) {
-        setter.set(carrier, E2E_START_KEY, Long.toString(NANOSECONDS.toMillis(e2eStart)));
+        setter.setAscii(carrier, E2E_START_KEY, of(NANOSECONDS.toMillis(e2eStart)));
       }
 
       for (final Map.Entry<String, String> entry : context.baggageItems()) {

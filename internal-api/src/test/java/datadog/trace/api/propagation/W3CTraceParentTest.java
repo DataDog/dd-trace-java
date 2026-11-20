@@ -24,6 +24,13 @@ public class W3CTraceParentTest {
     assertEquals(expected, W3CTraceParent.from(traceId, spanId, isSampled));
   }
 
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("buildProducesCorrectFormatArguments")
+  void buildAsBytesProducesTheSameValue(
+      String scenario, DDTraceId traceId, long spanId, boolean isSampled, String expected) {
+    assertEquals(expected, W3CTraceParent.build(traceId, spanId, isSampled).toString());
+  }
+
   static Stream<Arguments> buildProducesCorrectFormatArguments() {
     return Stream.of(
         arguments(

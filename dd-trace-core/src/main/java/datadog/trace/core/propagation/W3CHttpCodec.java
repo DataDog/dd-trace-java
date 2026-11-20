@@ -76,10 +76,11 @@ class W3CHttpCodec {
 
     private <C> void injectTraceParent(
         DDSpanContext context, SamplingState samplingState, C carrier, CarrierSetter<C> setter) {
-      String traceparent =
-          W3CTraceParent.from(
-              context.getTraceId(), context.getSpanId(), samplingState.getSamplingPriority() > 0);
-      setter.set(carrier, TRACE_PARENT_KEY, traceparent);
+      setter.setAscii(
+          carrier,
+          TRACE_PARENT_KEY,
+          W3CTraceParent.build(
+              context.getTraceId(), context.getSpanId(), samplingState.getSamplingPriority() > 0));
     }
 
     private <C> void injectTraceState(

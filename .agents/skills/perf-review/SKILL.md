@@ -237,6 +237,8 @@ result, not a failure to find something.
 5. Polymorphic dispatch defeating inlining/devirt — flag-as-measure — SEV-2/3
 6. FFI / native-boundary crossing per-item (not batched) — SEV-1/2
 7. Escape / allocation-elision defeated by a refactor — flag-as-measure — SEV-2/3
+10. Hidden cost at an API boundary (a per-item conversion, or a convenience call that
+    allocates or scans) — read the callee before treating it as fixed cost — SEV-2/3
 
 **Java addendum (JVM-specific — full text + mechanism in `checks.md`):**
 - **J1** escaping allocation defeats Escape Analysis · **J3** JNI crossing + virtual-thread
@@ -246,7 +248,8 @@ result, not a failure to find something.
   external input → RE2J (ReDoS) · **J9** `Objects.hash(...)` varargs/boxing →
   `HashingUtils` · **J10** hot-path `String.format` → `Strings` · **J11** composite-key
   maps → `Hashtable` · **J13** large retained `byte[]` / buffer → `ChunkedBuffer`
-  (retained past 512 KiB = humongous + constant live set, SEV-2).
+  (retained past 512 KiB = humongous + constant live set, SEV-2) · **J14** `String`↔`byte[]`
+  at a carrier boundary (Kafka headers) → build/match bytes, non-allocating header probes.
 - **J2** megamorphic dispatch is **PARKED** — do *not* raise megamorphism findings in
   review yet (kept as author reference only; it needs a standing audit, not per-PR
   flagging). See `checks.md` for why.
