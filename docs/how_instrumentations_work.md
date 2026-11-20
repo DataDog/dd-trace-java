@@ -292,6 +292,16 @@ After the type is selected, the type’s target members(e.g., methods) must next
 class’s `methodAdvice()` method.
 ByteBuddy’s [`ElementMatchers`](https://javadoc.io/doc/net.bytebuddy/byte-buddy/1.4.17/net/bytebuddy/matcher/ElementMatchers.html)
 are used to describe the target members to be instrumented.
+
+With the simple method graph enabled, the framework checks method-only instrumentations against full
+descriptions of the selected type's declared methods and its type initializer, skipping method-advice
+resolution and visitor creation when none of the enabled advice matchers can match.
+Helper injection, context-store request rewriting, and context-field injection retain their existing
+behavior. Instrumentations with type advice are not filtered, except when a structural change has
+been split into its own transformation: only the separate method-advice stack is filtered.
+If a matcher or description lookup fails, the framework keeps the original method-advice transformation;
+the optimization is also disabled when the simple method graph is disabled.
+
 Datadog’s [`DDElementMatchers`](../dd-java-agent/agent-installer/src/main/java/datadog/trace/agent/tooling/bytebuddy/matcher/DDElementMatchers.java)
 class also provides these 10 additional matchers:
 
