@@ -851,7 +851,7 @@ public final class FlatHashtable {
    * Package-private so tests can predict slots.
    */
   static int home(long hash, int mask) {
-    return HashingUtils.hashSpread(hash) & mask;
+    return LongHashingUtils.hashSpread(hash) & mask;
   }
 
   /**

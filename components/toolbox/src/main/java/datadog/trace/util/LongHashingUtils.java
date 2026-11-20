@@ -11,6 +11,21 @@ import javax.annotation.Nullable;
 public final class LongHashingUtils {
   private LongHashingUtils() {}
 
+  /**
+   * Spreads a 64-bit hash into 32 bits, for a table that takes its slot from the low bits. A
+   * golden-ratio (Fibonacci) multiply mixes every input bit into the high half of the product, and
+   * the fold brings that half down, so hashes that differ only slightly land far apart. The
+   * multiplier is odd, so the multiply loses no bits. For a 32-bit hash code, {@link
+   * HashingUtils#hashSpread(int)} is cheaper.
+   *
+   * @param hash a 64-bit hash, such as one combined with {@link #addToHash}.
+   * @return the spread hash: mask it for a slot, or store it.
+   */
+  public static int hashSpread(long hash) {
+    final long z = hash * 0x9E3779B97F4A7C15L; // 2^64 / golden ratio
+    return (int) (z ^ (z >>> 32));
+  }
+
   public static final long hash(Object obj) {
     return obj == null ? Long.MIN_VALUE : obj.hashCode();
   }
