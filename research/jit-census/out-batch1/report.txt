@@ -1,0 +1,88 @@
+artifacts: 10
+classes: 7,332  (29 MB)  unparseable-cp: 0  asm-failed: 0
+
+== Prescan hit rates (fraction of all classes)
+  any target method ref :       510    6.96%
+  String.split          :       113    1.54%
+  String.matches        :        58    0.79%
+  String.replaceAll     :        77    1.05%
+  String.replaceFirst   :        65    0.89%
+  String.replace(CS,CS) :       121    1.65%
+  String.format/formatted:       208    2.84%
+  Pattern.compile       :       116    1.58%
+  Pattern.matches       :         2    0.03%
+  Pattern.quote         :         7    0.10%
+  split + S0-shaped const:         5   0.068%
+
+== Prescan soundness / precision
+  classes with >=1 const site: 452 ; missed by prescan: 0 (must be 0)
+  precision of any-target filter: 88.6% of hits have a const site
+  S0 filter: 5 prescan hits, 2 classes with real S0 site, 2 of those caught
+
+== Rough prescan cost (NOT JMH; sample 7,332 classes, 29 MB): median 1058 ns/class, 260.5 ns/KB
+
+== All calls to target methods (const + non-const)
+  Pattern.compile                  335
+  Pattern.matches                    2
+  Pattern.quote                      7
+  String.format/formatted          547
+  String.matches                    97
+  String.replace(CS,CS)            280
+  String.replaceAll                162
+  String.replaceFirst              162
+  String.split                     183
+
+== Constant-argument sites: method | shape   sites   #artifacts   top constants
+  Pattern.compile[in-clinit]|ALT_LITERALS                1      1   ":name|\\?|:value"x1
+  Pattern.compile[in-clinit]|ANCHORED_LITERAL            1      1   "^/"x1
+  Pattern.compile[in-clinit]|CHARCLASS                  11      4   "\\s+"x4  "[0#]+"x1  "\\s"x1  "[a-zA-Z0-9]+"x1  "[a-zA-Z0-9._]+"x1  "[\\(\\)<>@,;:\\\\\"/\\[\\]\\?=\\s]"x1
+  Pattern.compile[in-clinit]|CHAR_RUN                    1      1   " +"x1
+  Pattern.compile[in-clinit]|LITERAL                    10      3   " "x2  "\\\\"x1  "E"x1  "%"x1  "\\$\\{INPUT_FILE}"x1  "\t"x1
+  Pattern.compile[in-clinit]|OTHER                     194      8   "^CREATE\\s+.*?VIEW\\s+.*?AS\\s+"x3  "\\[([hH]+|[mM]+|[sS]+)]"x2  "-?\\d*\\.\\d*"x2  "-?\\d+"x2  ".*(?:thin|oci)\\:(.+)/@.*"x2  ".*global:(\\S+).*"x1
+  Pattern.compile[in-clinit]|used-directly             218      0   
+  Pattern.compile[in-ctor]|OTHER                        38      1   "(?i)(.*)"x9  "(?i)/(.*)((?=@))"x4  "(?i).+://(.*?)([:])(.*?@)"x3  "(?i)jdbc:oracle:thin(.*)"x3  "(?i).+://(.*?)([:])(.*?)((?=@))"x3  "(?i)jdbc:oracle:thin:(.*?)([/])(.*?)((?=@))"x2
+  Pattern.compile[in-ctor]|used-directly                38      0   
+  Pattern.compile[in-method]|CHARCLASS                   2      1   "[{}, ]+"x1  "[{},= ]+"x1
+  Pattern.compile[in-method]|OTHER                      14      3   "[;&?]password=([^;&]*)(?=[;&])?"x1  "(?:version\\s+)?v?(\\d+\\.\\d+\\.\\d+(?:\\.\\d+)?)"x1  "\"tag_name\"\\s*:\\s*\"v?([^\"]+)\""x1  "(?i).* line ([\\d]+).*"x1  "(.*)!\\{(.*)\\}"x1  "^\\s*?(SELECT\\s|INSERT\\s|UPDATE\\s|DELETE\\s|MERGE\\s)(.*)"x1
+  Pattern.compile[in-method]|used-directly              16      0   
+  Pattern.matches|OTHER                                  1      1   "\\b[0-9a-fA-F]{8}\\b-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-\\b[0-9a-fA-F]{12}\\b"x1
+  Pattern.quote|CONST                                    2      2   "\u0000"x1  "/jre/lib/"x1
+  String.format/formatted|other                         62      6   "No glyph for U+%04X in font %s"x3  "U+%04X ('%s') is not available in the font %s (generic: %s), encoding: %s"x2  "%08X"x2  "(%.2f,%.2f,%.2f)"x2  "(%.2f,%.2f,%.2f,%.2f)"x2  "Tried to read data but the maximum length for this record type is %,d.%nIf the file is not corrupt and not large, please open an issue on bugzilla to request %nincreasing the maximum allowable size for this record type.%nYou can set a higher override value with IOUtils.setByteArrayMaxOverride()."x1
+  String.format/formatted|plain-%s-only                272      9   "Client option '%s' does not support value '%s'."x16  "Invalid value: '%s': %s"x4  "%s class does not implement the 'supports(Database)' method and may incorrectly override other databases changes causing unexpected behavior. Please report this to the Liquibase developers or if you are developing this change please fix it ;)"x4  "%s %s"x4  "Unable to parse empty file: '%s'"x4  "SELECT COUNT(*) FROM %s"x3
+  String.format/formatted|plain-%s/%d-only              50      9   "Too many keys are generated. There are only %d target objects. You either specified a wrong 'keyProperty' or encountered a driver bug like #1523."x3  "line %d: %s"x1  "Tried to allocate an array with length greater than max allowed int (%d); %d was requested."x1  "Incorrect shifting range : %d-%d"x1  "Can only convert indexed images with bit depth <= 8, not %d."x1  "  SELECT\n    CONS.owner,\n    CONS.constrname AS constraint_name,\n    COL.colname AS column_name,\n    CONS.constrtype,\n    %d               AS column_index\n  FROM informix.sysconstraints CONS\n    JOIN informix.sysindexes IDX ON CONS.idxname = IDX.idxname\n    JOIN informix.syscolumns COL ON COL.tabid = CONS.tabid AND COL.colno = IDX.part%d\n"x1
+  String.matches|CHARCLASS                              13      5   "\\d+"x7  "\\w+"x2  "[ \t]*"x1  "[a-zA-Z0-9_]*"x1  "[;/\r\n\\w@\\-]+"x1  "\\d*"x1
+  String.matches|DOTSTAR                                 4      1   "^not required.*"x1  "^ .*$"x1  ".*\\{.*"x1  "^empty.*"x1
+  String.matches|OTHER                                  65      6   "\\[[^]\\[]++\\]"x3  "(?i).*\\s+DESC"x2  "^\\w\\w+:.*"x2  "(?i).*\\s+ASC"x2  "^[A-Za-z]:.*"x2  "-?[0]+[.]*[0]*"x2
+  String.replace(CS,CS)|CONST_TARGET                   231      8   "\\"x21  "-"x13  "\""x10  " "x9  "_"x9  "."x8
+  String.replaceAll|ANCHORED_LITERAL                     4      3   ", $"x2  "\\.$"x1  "'$"x1
+  String.replaceAll|CHARCLASS                           23      6   "\\s+"x4  "\\s"x3  "\\W"x3  "[\\[\\]]"x2  "[/\\\\]+"x2  "[^a-zA-Z0-9_\\-]"x1
+  String.replaceAll|CHAR_RUN                             8      3   "\\.*"x4  ":+"x2  " +"x1  "/+"x1
+  String.replaceAll|LINES                                1      1   "\\r\\n"x1
+  String.replaceAll|LITERAL                             70      7   "\""x19  "'"x11  "\\\\"x3  "\\.\\."x3  "\u0000"x2  "#\\|#"x2
+  String.replaceAll|OTHER                               42      4   "\\(.*"x3  "\\.{2,}"x2  ".*\\."x2  "\\s*\\([^)]*\\)\\s*"x2  "\\A\\.+"x2  "(\\.\\.)+"x1
+  String.replaceAll|WS_SEP                               3      1   "\\s*,\\s*"x2  "\\s*;"x1
+  String.replaceFirst|ANCHORED_LITERAL                  57      2   ",$"x8  "^/"x7  "'$"x5  "^'"x4  "^\\("x4  "\\)$"x4
+  String.replaceFirst|LITERAL                           20      2   "'\\)"x6  "!/"x2  "--"x1  "</databaseChangeLog>"x1  "B'"x1  "b'"x1
+  String.replaceFirst|OTHER                             78      2   ".*?'"x4  "\\.0+$"x4  "',.*"x4  "(?i)\\s+ASC$"x3  "(?i)\\s+DESC$"x3  "^parameter."x3
+  String.split|ALT_LITERALS                              1      1   "\r\n|\n\r"x1
+  String.split|CHARCLASS                                10      5   "\\s+"x3  "[,;]"x3  "[\\\\/]"x1  "[ T]"x1  "[|/\\\\]"x1  "[.\\-+]"x1
+  String.split|LINES                                     2      1   "\\R"x2
+  String.split|LITERAL                                   2      2   "::"x1  "__"x1
+  String.split|OTHER                                     2      1   "\\p{Punct}"x2
+  String.split|QUOTED_LITERAL(S3)                        1      1   "\u0000"x1
+  String.split|S0_FOLD                                   2      2   "\\n"x2
+  String.split|SPLIT_FASTPATH                          126      8   ","x46  "\\."x23  "="x10  ":"x8  ";"x7  "/"x5
+  String.split|WS_SEP                                   25      2   "\\s*,\\s*"x21  ",\\s*"x2  "\\s+or\\s+"x1  "\\s+and\\s+"x1
+
+== Class-file versions of const sites  [<51 | 51-54 (indy ok) | >=55 (condy ok)]
+  Pattern.compile[in-clinit]               0 |      31 |     187
+  Pattern.compile[in-ctor]                 0 |       0 |      38
+  Pattern.compile[in-method]               0 |       0 |      16
+  Pattern.matches                          0 |       1 |       0
+  Pattern.quote                            0 |       0 |       2
+  String.format/formatted                  0 |      99 |     285
+  String.matches                           0 |      12 |      70
+  String.replace(CS,CS)                    0 |      29 |     202
+  String.replaceAll                        0 |      41 |     110
+  String.replaceFirst                      0 |       5 |     150
+  String.split                             0 |      48 |     123

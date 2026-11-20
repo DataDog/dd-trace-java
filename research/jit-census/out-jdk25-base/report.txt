@@ -1,0 +1,70 @@
+artifacts: 1
+classes: 7,353  (27 MB)  unparseable-cp: 0  asm-failed: 0
+
+== Prescan hit rates (fraction of all classes)
+  any target method ref :       292    3.97%
+  String.split          :        64    0.87%
+  String.matches        :         7    0.10%
+  String.replaceAll     :        11    0.15%
+  String.replaceFirst   :        14    0.19%
+  String.replace(CS,CS) :        20    0.27%
+  String.format/formatted:       190    2.58%
+  Pattern.compile       :        33    0.45%
+  Pattern.matches       :         1    0.01%
+  Pattern.quote         :         2    0.03%
+  split + S0-shaped const:         0   0.000%
+
+== Prescan soundness / precision
+  classes with >=1 const site: 275 ; missed by prescan: 0 (must be 0)
+  precision of any-target filter: 94.2% of hits have a const site
+  S0 filter: 0 prescan hits, 0 classes with real S0 site, 0 of those caught
+
+== Rough prescan cost (NOT JMH; sample 7,353 classes, 27 MB): median 973 ns/class, 254.1 ns/KB
+
+== All calls to target methods (const + non-const)
+  Pattern.compile                   68
+  Pattern.matches                    1
+  Pattern.quote                     10
+  String.format/formatted          404
+  String.matches                    11
+  String.replace(CS,CS)             25
+  String.replaceAll                 22
+  String.replaceFirst               24
+  String.split                     105
+
+== Constant-argument sites: method | shape   sites   #artifacts   top constants
+  Pattern.compile[in-clinit]|ALT_LITERALS                1      1   "\\r\\n|\\n|\\r"x1
+  Pattern.compile[in-clinit]|CHARCLASS                   3      1   "\\s+"x2  "[^A-Za-z0-9]"x1
+  Pattern.compile[in-clinit]|OTHER                      33      1   "(\\{[0-9A-Fa-f]+,[0-9A-Fa-f]+})(,\\{[0-9A-Fa-f]+,[0-9A-Fa-f]+})*"x1  "(?<date>G{0,5}y*Q{0,5}M{0,5}w*E{0,5}d{0,2})(?<time>B{0,5}[hHjC]{0,2}m{0,2}s{0,2}[vz]{0,4})"x1  "(\\.)(\\1)+"x1  "(?s).*"x1  "\\{0}(.*?)\\{1}"x1  "(?<VNUM>[1-9][0-9]*(?:(?:\\.0)*\\.[1-9][0-9]*)*)(?:-(?<PRE>[a-zA-Z0-9]+))?(?:(?<PLUS>\\+)(?<BUILD>0|[1-9][0-9]*)?)?(?:-(?<OPT>[-a-zA-Z0-9.]+))?"x1
+  Pattern.compile[in-clinit]|used-directly              37      0   
+  Pattern.compile[in-method]|ALT_LITERALS                1      1   "true|false"x1
+  Pattern.compile[in-method]|OTHER                       8      1   "227 .* \\(?(\\d{1,3},\\d{1,3},\\d{1,3},\\d{1,3}),(\\d{1,3}),(\\d{1,3})\\)?"x1  "^229 .* \\(\\|\\|\\|(\\d+)\\|\\)"x1  "([A-Z]{3})\\s*,\\s*(\\d{3})\\s*,\\s*(\\d+)\\s*,?\\s*(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2})?"x1  "150 Opening .*\\((\\d+) bytes\\)."x1  "([^:]+):([^;]+);"x1  "\r\n|[\n\r\u2028\u2029\u0085]"x1
+  Pattern.compile[in-method]|used-directly               9      0   
+  String.format/formatted|no-specifiers                  1      1   "Range check failed"x1
+  String.format/formatted|other                         47      1   "Not a valid Unicode code point: 0x%X"x6  "invalid type code: %02X"x6  "Bad instruction: %02x"x3  "%02X"x2  "%s{count=%d, sum=%d, min=%d, average=%f, max=%d}"x2  "\\u%04x"x2
+  String.format/formatted|plain-%s-only                184      1   "radix %s greater than Character.MAX_RADIX"x8  "radix %s less than Character.MIN_RADIX"x8  "[%s %s] %s"x7  "Discontinued[OP=%s]"x4  "Failed: %s%n"x3  "ArgumentConstant[OP=%s, val=%s]"x2
+  String.format/formatted|plain-%s/%d-only             121      1   "Accept exceeded fixed size of %d"x4  "Begin size %d is not equal to fixed size %d"x4  "Current size %d is less than fixed size %d"x4  "End size %d is less than fixed size %d"x4  "%s[length=%d, chunks=%d]%s..."x3  "%s[length=%d, chunks=%d]%s"x3
+  String.matches|CHARCLASS                               4      1   "\\d+"x3  "^\\d+$"x1
+  String.matches|OTHER                                   5      1   "^[a-zA-Z]{2}$"x1  "hijrah-config-[^\\.]+\\.properties"x1  "\\d\\d\\d\\d/\\d\\d/\\d\\d"x1  "^[a-zA-Z]{2}[zZ]{4}$"x1  "\\d\\d:\\d\\d:\\d\\d"x1
+  String.replace(CS,CS)|CONST_TARGET                    21      1   "-"x5  "*"x3  "'"x2  "_"x2  "/"x2  " "x1
+  String.replaceAll|ALT_LITERALS                         1      1   "(hijrah-config-|\\.properties)"x1
+  String.replaceAll|CHARCLASS                            3      1   "['\\\\]"x1  "[^M]+"x1  "[^A-Za-z_0-9]"x1
+  String.replaceAll|LITERAL                              9      1   "_"x4  "'"x2  "-"x2  "j"x1
+  String.replaceAll|OTHER                                5      1   "(?<!^)[a-z]"x2  "-[*]"x1  "(.{64})"x1  "\\s*#.*"x1
+  String.replaceFirst|LITERAL                            4      1   "gregorian"x2  "\\{0}"x1  "sslctx"x1
+  String.replaceFirst|OTHER                             18      1   "standalone."x2  "\\[\\]$"x2  "H+"x1  "[^:]+:"x1  "^_iw(_.*)?$"x1  "p-1022$"x1
+  String.split|CHARCLASS                                 9      1   "\\s+"x7  "\\s"x2
+  String.split|LITERAL                                   3      1   "or"x1  ", "x1  "and"x1
+  String.split|OTHER                                     4      1   " +"x3  "[\\p{Blank}\\p{Punct}]+"x1
+  String.split|SPLIT_FASTPATH                           79      1   ","x36  " "x8  "-"x6  "\\|"x5  ";"x5  "/"x4
+  String.split|WS_SEP                                    1      1   "\\s*,\\s*"x1
+
+== Class-file versions of const sites  [<51 | 51-54 (indy ok) | >=55 (condy ok)]
+  Pattern.compile[in-clinit]               0 |       0 |      37
+  Pattern.compile[in-method]               0 |       0 |       9
+  String.format/formatted                  0 |       0 |     353
+  String.matches                           0 |       0 |       9
+  String.replace(CS,CS)                    0 |       0 |      21
+  String.replaceAll                        0 |       0 |      18
+  String.replaceFirst                      0 |       0 |      22
+  String.split                             0 |       0 |      96

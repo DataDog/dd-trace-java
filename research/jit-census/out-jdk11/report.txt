@@ -1,0 +1,81 @@
+artifacts: 72
+classes: 30,734  (128 MB)  unparseable-cp: 0  asm-failed: 0
+
+== Prescan hit rates (fraction of all classes)
+  any target method ref :       767    2.50%
+  String.split          :       214    0.70%
+  String.matches        :        34    0.11%
+  String.replaceAll     :        44    0.14%
+  String.replaceFirst   :        19    0.06%
+  String.replace(CS,CS) :       103    0.34%
+  String.format/formatted:       370    1.20%
+  Pattern.compile       :       115    0.37%
+  Pattern.matches       :         3    0.01%
+  Pattern.quote         :        12    0.04%
+  split + S0-shaped const:         6   0.020%
+
+== Prescan soundness / precision
+  classes with >=1 const site: 661 ; missed by prescan: 0 (must be 0)
+  precision of any-target filter: 86.2% of hits have a const site
+  S0 filter: 6 prescan hits, 3 classes with real S0 site, 3 of those caught
+
+== Rough prescan cost (NOT JMH; sample 30,734 classes, 128 MB): median 1019 ns/class, 237.8 ns/KB
+
+== All calls to target methods (const + non-const)
+  Pattern.compile                  179
+  Pattern.matches                    3
+  Pattern.quote                     23
+  String.format/formatted          777
+  String.matches                    51
+  String.replace(CS,CS)            140
+  String.replaceAll                 79
+  String.replaceFirst               37
+  String.split                     324
+
+== Constant-argument sites: method | shape   sites   #artifacts   top constants
+  Pattern.compile[in-clinit]|ALT_LITERALS                2      1   ",|\\[|\\]"x1  "\\r\\n|\\n|\\r"x1
+  Pattern.compile[in-clinit]|CHARCLASS                   5      4   "\\w+"x1  "[^DT]*"x1  "\\s+"x1  "[\"\\\\/\u0008\u000c\n\r\t\u0000-\u001f]"x1  "[^A-Za-z0-9]"x1
+  Pattern.compile[in-clinit]|LINES                       1      1   "\\R"x1
+  Pattern.compile[in-clinit]|LITERAL                     1      1   "\\{USERNAME\\}"x1
+  Pattern.compile[in-clinit]|OTHER                      54     11   "[A-Z][A-Za-z0-9]+"x2  "%(\\d+\\$)?([-#+ 0,(\\<]*)?(\\d+)?(\\.\\d+)?([tT])?([a-zA-Z%])"x2  "(\\.)(\\1)+"x1  "(\\p{XDigit}+)(?:\\s+(\\p{XDigit}*))?"x1  "(\\P{all})+"x1  "/\\-\\d+( .*)?"x1
+  Pattern.compile[in-clinit]|used-directly              63      0   
+  Pattern.compile[in-ctor]|OTHER                        11      6   "\\p{javaJavaIdentifierStart}\\p{javaJavaIdentifierPart}*"x1  "^[0-9]+$"x1  "^(0x[0-9a-f]+)(/([0-9]*)([a-z]*))?$"x1  "\\{[^\\}]*\\}"x1  "\\[*L(.*);"x1  "[^,\\] ]{2,}"x1
+  Pattern.compile[in-ctor]|used-directly                11      0   
+  Pattern.compile[in-method]|ALT_LITERALS                2      2   "true|false"x1  ",|\\[|\\]"x1
+  Pattern.compile[in-method]|CHARCLASS                   1      1   "[^\u0000\"]+"x1
+  Pattern.compile[in-method]|OTHER                      30     10   ",*[^,].*"x2  "[\\p{Alpha}][\\p{Alnum}_]*"x2  "([^=]+)=(.*)"x1  "\\\\u([0-9a-fA-F]{4})"x1  "((\\d+)d)?\\s*((\\d+)h)?\\s*((\\d+)m)?\\s*((\\d+)s)?"x1  "<string>(.*)</string>"x1
+  Pattern.compile[in-method]|used-directly              33      0   
+  Pattern.quote|CONST                                    2      2   "{@docroot}"x1  "$JShell$"x1
+  String.format/formatted|no-specifiers                 16      7   "%n"x5  "suggested.providers.header"x2  "include-locales.invalidtag"x1  "include-locales.nomatchinglocales"x1  "HTTP/1.1 header parser received no bytes"x1  "Shutdown entered"x1
+  String.format/formatted|other                        188     20   "%02x"x11  "\\u%04x"x7  "Not a valid Unicode code point: 0x%X"x6  "invalid type code: %02X"x6  "#%-10d // %s"x5  "%04x"x5
+  String.format/formatted|plain-%s-only                275     14   "[%s %s] %s"x7  "%s %s"x7  "Illegal leading minus sign on unsigned string %s."x4  "%s %s %s"x4  "Kind mismatch: %s vs. %s, from=%s, to=%s"x3  "SpillMoveFactory: Instruction %s is not allowed to contain operand %s of mode %s"x3
+  String.format/formatted|plain-%s/%d-only             157     19   "%d"x6  "Begin size %d is not equal to fixed size %d"x4  "Current size %d is less than fixed size %d"x4  "Accept exceeded fixed size of %d"x4  "End size %d is less than fixed size %d"x4  "%s[length=%d, chunks=%d]%s..."x3
+  String.matches|ALT_LITERALS                            1      1   "boolean|byte|char|double|float|int|long|short|void"x1
+  String.matches|CHARCLASS                              10      6   "\\d+"x5  "\\w+"x1  "[a-zA-Z0-9_-]+"x1  "^\\d+$"x1  "[0-9]+"x1  "[^Xx]*"x1
+  String.matches|LITERAL                                 2      2   "Non-option arguments"x1  "camlch"x1
+  String.matches|OTHER                                  29     10   "[:]{0,1}[a-zA-Z]{1,}[a-zA-Z0-9_-]*"x2  "\\bMODULE\\b"x1  "[a-zA-Z_]{1,}[a-zA-Z0-9_-]*"x1  "\\.[a-zA-Z_][a-zA-Z0-9_]*"x1  ".*[=:]$"x1  "lab\\(([0-9]+(\\.[0-9]+)?),([0-9]+(\\.[0-9]+)?)\\)"x1
+  String.replace(CS,CS)|CONST_TARGET                   115     24   "/"x15  "\n"x12  "-"x10  "."x7  " "x5  "'"x5
+  String.replaceAll|CHARCLASS                           14      5   "\\s+"x3  "[/$]"x3  "[^/]+"x2  "[^A-Za-z0-9]"x2  "['\\\\]"x1  "[.$]"x1
+  String.replaceAll|LITERAL                             30      9   "_"x5  "-"x3  "/"x3  "\n"x2  "//"x1  "\\\\"x1
+  String.replaceAll|OTHER                               28      8   "."x3  "/+"x3  "^-+"x3  "\\.class$"x2  "\\<.*?>"x2  "-+"x2
+  String.replaceFirst|LITERAL                            6      4   "gregorian"x2  "  "x1  "ipp"x1  "-"x1  "file="x1
+  String.replaceFirst|OTHER                             22      6   "\\[\\]$"x3  "standalone."x2  "^in"x1  "^range="x1  "H+"x1  "/(he(lp?)?|\\?) "x1
+  String.split|CHARCLASS                                35     13   "\\s+"x21  "\\s"x6  "[ ,]+"x2  "[/@]"x2  "[, ]+"x2  "[,: ]+"x1
+  String.split|LINES                                     7      3   "\\r?\\n"x7
+  String.split|LITERAL                                   6      4   "::"x2  ", "x2  ":-"x1  "\" \""x1
+  String.split|OTHER                                    10      4   "\u0000+"x2  ",+"x2  ":(?=\\w)"x1  "\\p{Space}+"x1  ", *"x1  "[\\p{Blank}\\p{Punct}]+"x1
+  String.split|S0_FOLD                                   3      3   "\\n"x2  "\\x00"x1
+  String.split|SPLIT_FASTPATH                          220     32   ","x95  ":"x17  " "x15  "\\."x15  "\n"x14  "\\|"x11
+  String.split|WS_SEP                                    2      2   "\\s*,\\s*"x2
+
+== Class-file versions of const sites  [<51 | 51-54 (indy ok) | >=55 (condy ok)]
+  Pattern.compile[in-clinit]               0 |       0 |      63
+  Pattern.compile[in-ctor]                 0 |       0 |      11
+  Pattern.compile[in-method]               0 |       0 |      33
+  Pattern.quote                            0 |       0 |       2
+  String.format/formatted                  0 |       0 |     636
+  String.matches                           0 |       0 |      42
+  String.replace(CS,CS)                    0 |       0 |     115
+  String.replaceAll                        0 |       0 |      72
+  String.replaceFirst                      0 |       0 |      28
+  String.split                             0 |       0 |     283

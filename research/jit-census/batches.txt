@@ -1,0 +1,22 @@
+# batch1
+com.mysql:mysql-connector-j:26.10.0
+com.opencsv:opencsv:5.12.0
+org.apache.commons:commons-csv:1.14.1
+org.apache.pdfbox:pdfbox:3.0.8
+org.apache.poi:poi:6.0.0
+org.apache.tika:tika-core:4.2.0
+org.apache.velocity:velocity-engine-core:2.4.1
+org.flywaydb:flyway-core:13.13.0
+org.liquibase:liquibase-core:5.0.4
+org.mybatis:mybatis:3.6.0
+# batch2
+com.github.javaparser:javaparser-core:3.28.2
+com.github.jknack:handlebars:4.5.8
+com.github.jsqlparser:jsqlparser:5.4
+com.github.spullara.mustache.java:compiler:0.9.14
+com.univocity:univocity-parsers:2.9.1
+commons-beanutils:commons-beanutils:1.11.0
+ognl:ognl:3.5.0-BETA10
+org.apache.commons:commons-configuration2:2.15.1
+org.apache.commons:commons-jexl3:3.7.1
+org.mvel:mvel2:2.6.0.Final

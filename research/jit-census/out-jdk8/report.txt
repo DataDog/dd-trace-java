@@ -1,0 +1,76 @@
+artifacts: 18
+classes: 24,903  (80 MB)  unparseable-cp: 0  asm-failed: 0
+
+== Prescan hit rates (fraction of all classes)
+  any target method ref :       275    1.10%
+  String.split          :        92    0.37%
+  String.matches        :         7    0.03%
+  String.replaceAll     :        21    0.08%
+  String.replaceFirst   :        18    0.07%
+  String.replace(CS,CS) :        41    0.16%
+  String.format/formatted:        83    0.33%
+  Pattern.compile       :        46    0.18%
+  Pattern.matches       :         3    0.01%
+  Pattern.quote         :         3    0.01%
+  split + S0-shaped const:         1   0.004%
+
+== Prescan soundness / precision
+  classes with >=1 const site: 239 ; missed by prescan: 0 (must be 0)
+  precision of any-target filter: 86.9% of hits have a const site
+  S0 filter: 1 prescan hits, 0 classes with real S0 site, 0 of those caught
+
+== Rough prescan cost (NOT JMH; sample 24,903 classes, 80 MB): median 880 ns/class, 264.8 ns/KB
+
+== All calls to target methods (const + non-const)
+  Pattern.compile                   69
+  Pattern.matches                    4
+  Pattern.quote                     10
+  String.format/formatted          168
+  String.matches                     8
+  String.replace(CS,CS)             46
+  String.replaceAll                 35
+  String.replaceFirst               35
+  String.split                     132
+
+== Constant-argument sites: method | shape   sites   #artifacts   top constants
+  Pattern.compile[in-clinit]|ALT_LITERALS                3      2   ",|\\[|\\]"x1  "\\r\\n|\\n|\\r"x1  "with|and"x1
+  Pattern.compile[in-clinit]|CHARCLASS                   4      3   "[^DT]*"x1  "\\s+"x1  "\\s"x1  "[\"\\\\/\u0008\u000c\n\r\t\u0000-\u001f]"x1
+  Pattern.compile[in-clinit]|LITERAL                     2      1   "\\{USERNAME\\}"x1  "/"x1
+  Pattern.compile[in-clinit]|OTHER                      17      3   "%(\\d+\\$)?([-#+ 0,(\\<]*)?(\\d+)?(\\.\\d+)?([tT])?([a-zA-Z%])"x2  "denyAfter\\s+(\\d{4})-(\\d{2})-(\\d{2})"x1  "(?s).*"x1  "\\s*([\\S&&[^:,]]*)(\\:([\\S&&[^,]]*))?\\s*(\\,(.*))?"x1  "include jdk.disabled.namedCurves"x1  "(\\p{Print}+) \\-\\> (\\p{Print}+)$"x1
+  Pattern.compile[in-clinit]|used-directly              26      0   
+  Pattern.compile[in-ctor]|OTHER                         2      1   "\\{[^\\}]*\\}"x1  "[^,\\] ]{2,}"x1
+  Pattern.compile[in-ctor]|used-directly                 2      0   
+  Pattern.compile[in-method]|ALT_LITERALS                2      2   "true|false"x1  ",|\\[|\\]"x1
+  Pattern.compile[in-method]|OTHER                       8      1   "227 .* \\(?(\\d{1,3},\\d{1,3},\\d{1,3},\\d{1,3}),(\\d{1,3}),(\\d{1,3})\\)?"x1  "^229 .* \\(\\|\\|\\|(\\d+)\\|\\)"x1  "([A-Z]{3})\\s*,\\s*(\\d{3})\\s*,\\s*(\\d+)\\s*,?\\s*(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2})?"x1  "150 Opening .*\\((\\d+) bytes\\)."x1  "\r\n|[\n\r\u2028\u2029\u0085]"x1  ".*(\r\n|[\n\r\u2028\u2029\u0085])|.+$"x1
+  Pattern.compile[in-method]|used-directly              10      0   
+  Pattern.matches|OTHER                                  2      1   "wnn.*setup"x1  "atok.*setup"x1
+  String.format/formatted|no-specifiers                  2      2   "%n"x1  "Range check failed"x1
+  String.format/formatted|other                         35      5   "invalid type code: %02X"x6  "%.3f"x3  "%02X"x2  "%s{count=%d, sum=%d, min=%d, average=%f, max=%d}"x2  "%d/%06d/----/%s"x1  "invalid handle value: %08X"x1
+  String.format/formatted|plain-%s-only                 42      6   "Range check failed: %s"x2  "Type mismatch for lambda expected return: %s is not convertible to %s"x2  "Illegal leading minus sign on unsigned string %s."x2  "library = %s\nname = \"NSS SoftToken KeyStore\"\nslotListIndex = 1\nnssUseSecmodTrust = true\n"x1  "library = %s\nname = \"NSS SoftToken Crypto\"\nslotListIndex = 0\ndisabledMechanisms = { KeyStore }\n"x1  "%s[%s]"x1
+  String.format/formatted|plain-%s/%d-only              58      6   "Accept exceeded fixed size of %d"x4  "Begin size %d is not equal to fixed size %d"x4  "Current size %d is less than fixed size %d"x4  "End size %d is less than fixed size %d"x4  "%s[length=%d, chunks=%d]%s..."x3  "%s[length=%d, chunks=%d]%s"x3
+  String.matches|CHARCLASS                               1      1   "\\d+"x1
+  String.matches|OTHER                                   5      2   "\\d\\d\\d\\d\\/\\d\\d\\/\\d\\d"x1  "^[^:]*(gc|all)[^:]*:.*$"x1  "^[a-z]{3,}:.+"x1  "^file:.*\\.jar$"x1  "\\d\\d:\\d\\d:\\d\\d"x1
+  String.replace(CS,CS)|CONST_TARGET                    40      6   "-"x9  "."x4  "/"x4  "'"x3  " "x2  "_"x2
+  String.replaceAll|ALT_LITERALS                         1      1   "\n|\\|\"|\\*|\\?|:|=|,"x1
+  String.replaceAll|CHARCLASS                            3      1   "['\\\\]"x1  "\\s+"x1  "[\\s,]+"x1
+  String.replaceAll|LITERAL                             22      3   "//"x4  "_"x3  "-"x2  "\\*"x2  " "x1  "\\x2A"x1
+  String.replaceAll|OTHER                                6      2   "/+"x3  "-[*]"x1  "\\s*#.*"x1  "([A-Z])"x1
+  String.replaceFirst|LITERAL                            8      3   "gregorian"x2  "  "x1  "set"x1  "ipp"x1  "is"x1  "-"x1
+  String.replaceFirst|OTHER                             16      2   ">$"x3  "^<"x3  "\\[\\]$"x2  "/.."x2  "/."x2  "p-1022$"x1
+  String.split|CHARCLASS                                15      2   "\\s+"x7  "\\s"x4  "[/@]"x2  "[\\n ]+"x1  "[, ]+"x1
+  String.split|LITERAL                                   2      1   "\" \""x1  ", "x1
+  String.split|OTHER                                     3      1   "\\p{Space}+"x1  "[\\p{Blank}\\p{Punct}]+"x1  "(\\s)+"x1
+  String.split|SPLIT_FASTPATH                          104      8   ","x38  "\\."x13  ":"x9  "\\|"x8  "/"x7  "-"x6
+  String.split|WS_SEP                                    3      1   "\\s*,\\s*"x3
+
+== Class-file versions of const sites  [<51 | 51-54 (indy ok) | >=55 (condy ok)]
+  Pattern.compile[in-clinit]               0 |      26 |       0
+  Pattern.compile[in-ctor]                 0 |       2 |       0
+  Pattern.compile[in-method]               0 |      10 |       0
+  Pattern.matches                          0 |       2 |       0
+  String.format/formatted                  0 |     137 |       0
+  String.matches                           0 |       6 |       0
+  String.replace(CS,CS)                    0 |      40 |       0
+  String.replaceAll                        0 |      32 |       0
+  String.replaceFirst                      0 |      24 |       0
+  String.split                             0 |     127 |       0

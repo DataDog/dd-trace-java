@@ -1,0 +1,66 @@
+artifacts: 10
+classes: 3,886  (17 MB)  unparseable-cp: 0  asm-failed: 0
+
+== Prescan hit rates (fraction of all classes)
+  any target method ref :       151    3.89%
+  String.split          :        29    0.75%
+  String.matches        :         2    0.05%
+  String.replaceAll     :        22    0.57%
+  String.replaceFirst   :         0    0.00%
+  String.replace(CS,CS) :        22    0.57%
+  String.format/formatted:        69    1.78%
+  Pattern.compile       :        30    0.77%
+  Pattern.matches       :         1    0.03%
+  Pattern.quote         :         1    0.03%
+  split + S0-shaped const:         1   0.026%
+
+== Prescan soundness / precision
+  classes with >=1 const site: 128 ; missed by prescan: 0 (must be 0)
+  precision of any-target filter: 84.8% of hits have a const site
+  S0 filter: 1 prescan hits, 0 classes with real S0 site, 0 of those caught
+
+== Rough prescan cost (NOT JMH; sample 3,886 classes, 17 MB): median 979 ns/class, 216.7 ns/KB
+
+== All calls to target methods (const + non-const)
+  Pattern.compile                   38
+  Pattern.matches                    2
+  Pattern.quote                      2
+  String.format/formatted          116
+  String.matches                     9
+  String.replace(CS,CS)             43
+  String.replaceAll                 34
+  String.split                      43
+
+== Constant-argument sites: method | shape   sites   #artifacts   top constants
+  Pattern.compile[in-clinit]|OTHER                      15      3   "\\s+$"x2  "\\p{javaJavaIdentifierStart}\\p{javaJavaIdentifierPart}*"x1  "<K_\\w+:\\s*\"(\\w+)\"\\s*>"x1  "^[+-]?\\d*(\\.\\d*)?([eE][+-]?\\d+)?$"x1  "--\\+ *([^ ].*[^ ])"x1  "\\s|\\p{Punct}&&[^@#$_]"x1
+  Pattern.compile[in-clinit]|used-directly              15      0   
+  Pattern.compile[in-ctor]|OTHER                         4      2   "(?:^|[\\s(;])(let|const)\\s+"x1  "\\<[^>]*>"x1  "\\{(\\d+)\\}"x1  "(\\$)(\\d*)"x1
+  Pattern.compile[in-ctor]|used-directly                 4      0   
+  Pattern.compile[in-method]|OTHER                       2      2   "$"x1  "((?:'[^']*+'|[^\\n])*+)"x1
+  Pattern.compile[in-method]|used-directly               2      0   
+  Pattern.quote|CONST                                    2      1   "./"x1  "../"x1
+  String.format/formatted|plain-%s-only                 92      5   "%s(property:%s)"x7  "L%s;"x4  "SELECT * FROM %s WHERE %s =?"x3  "found: '%s', expected: '%s'"x3  "%s:%s:%s: %s"x2  "Expected to start with '{@'. Text '%s'"x1
+  String.format/formatted|plain-%s/%d-only              11      2   "pushMode(%d)"x1  "inputSize %d larger than max %d"x1  "I could not find child '%s' from position %d. Elements: %s"x1  "precpred(_ctx, %d)"x1  "type(%d)"x1  "channel(%d)"x1
+  String.matches|CHARCLASS                               4      2   "\\d+"x4
+  String.matches|OTHER                                   5      1   "\\.[0-9]+"x2  "(?i)NONE|TEXT|BINARY"x1  "(?i)TEXT|XML|JSON|YAML"x1  "(?i)TRUE|FALSE|ON|OFF|0|1"x1
+  String.replace(CS,CS)|CONST_TARGET                    39      6   "\n"x8  "\r"x7  "\t"x5  "\""x4  "."x4  "'"x2
+  String.replaceAll|ANCHORED_LITERAL                     1      1   "^java\\.lang\\."x1
+  String.replaceAll|CHARCLASS                            4      2   "\\s+"x2  "[\"']"x1  "\\s"x1
+  String.replaceAll|LINES                                1      1   "\\R"x1
+  String.replaceAll|LITERAL                             26      6   "\""x13  " "x3  "\\.\\."x3  "_"x3  "\\-"x2  "\\\\\""x1
+  String.split|ALT_LITERALS                              2      2   "(:|;)"x1  "(\r\n|\r|\n)"x1
+  String.split|CHARCLASS                                 6      5   "\\s+"x3  "[\\s,]+"x1  "\\s"x1  "[.\\-+]"x1
+  String.split|LINES                                     7      1   "\\R"x7
+  String.split|LITERAL                                   1      1   " \\+ "x1
+  String.split|SPLIT_FASTPATH                           24      8   "\\."x11  " "x3  "="x3  "\n"x2  ","x2  "_"x2
+
+== Class-file versions of const sites  [<51 | 51-54 (indy ok) | >=55 (condy ok)]
+  Pattern.compile[in-clinit]               0 |       6 |       9
+  Pattern.compile[in-ctor]                 0 |       0 |       4
+  Pattern.compile[in-method]               0 |       1 |       1
+  Pattern.quote                            0 |       0 |       2
+  String.format/formatted                  0 |      81 |      22
+  String.matches                           0 |       0 |       9
+  String.replace(CS,CS)                    0 |      34 |       5
+  String.replaceAll                        0 |       8 |      24
+  String.split                             2 |      20 |      18

@@ -1,0 +1,52 @@
+com.github.javaparser:javaparser-core:3.28.2  (83 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     4
+    String.format/formatted|plain-%s-only               46
+    String.format/formatted|plain-%s/%d-only             2
+    String.replace(CS,CS)|CONST_TARGET                  18
+    String.replaceAll|LINES                              1
+    String.replaceAll|LITERAL                            4
+    String.split|ALT_LITERALS                            1
+    String.split|LINES                                   7
+com.github.jknack:handlebars:4.5.8  (43 sites excl. split fast path)
+    Pattern.compile[in-ctor]|OTHER                       3
+    Pattern.quote|CONST                                  2
+    String.format/formatted|plain-%s-only               16
+    String.format/formatted|plain-%s/%d-only             9
+    String.replace(CS,CS)|CONST_TARGET                  13
+com.github.jsqlparser:jsqlparser:5.4  (37 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     9
+    Pattern.compile[in-ctor]|OTHER                       1
+    Pattern.compile[in-method]|OTHER                     1
+    String.format/formatted|plain-%s-only               10
+    String.matches|CHARCLASS                             3
+    String.matches|OTHER                                 5
+    String.replaceAll|CHARCLASS                          3
+    String.replaceAll|LITERAL                            2
+    String.split|CHARCLASS                               2
+    String.split|LITERAL                                 1
+com.github.spullara.mustache.java:compiler:0.9.14  (6 sites excl. split fast path)
+    Pattern.compile[in-method]|OTHER                     1
+    String.replace(CS,CS)|CONST_TARGET                   3
+    String.replaceAll|LITERAL                            1
+    String.split|CHARCLASS                               1
+com.univocity:univocity-parsers:2.9.1  (0 sites excl. split fast path)
+ognl:ognl:3.5.0-BETA10  (18 sites excl. split fast path)
+    String.matches|CHARCLASS                             1
+    String.replaceAll|LITERAL                           16
+    String.split|CHARCLASS                               1
+org.apache.commons:commons-configuration2:2.15.1  (19 sites excl. split fast path)
+    String.format/formatted|plain-%s-only               14
+    String.replace(CS,CS)|CONST_TARGET                   2
+    String.replaceAll|CHARCLASS                          1
+    String.replaceAll|LITERAL                            1
+    String.split|CHARCLASS                               1
+org.apache.commons:commons-jexl3:3.7.1  (10 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     2
+    String.format/formatted|plain-%s-only                6
+    String.replace(CS,CS)|CONST_TARGET                   2
+org.mvel:mvel2:2.6.0.Final  (6 sites excl. split fast path)
+    String.replace(CS,CS)|CONST_TARGET                   1
+    String.replaceAll|ANCHORED_LITERAL                   1
+    String.replaceAll|LITERAL                            2
+    String.split|ALT_LITERALS                            1
+    String.split|CHARCLASS                               1
