@@ -85,25 +85,15 @@ public final class AsyncResultExtensions {
   }
 
   public static <T> BiConsumer<T, Throwable> finishSpan(AgentSpan span) {
-    return new SpanFinisher<>(span);
-  }
-
-  private static final class SpanFinisher<T> implements BiConsumer<T, Throwable> {
-    private final AgentSpan span;
-
-    private SpanFinisher(AgentSpan span) {
-      this.span = span;
-    }
-
-    @Override
-    public void accept(T result, Throwable throwable) {
-      if (throwable != null) {
-        span.addThrowable(
-            throwable instanceof ExecutionException || throwable instanceof CompletionException
-                ? throwable.getCause()
-                : throwable);
-      }
-      span.finish();
-    }
+    return (BiConsumer<T, Throwable> & SkipCompletableFutureContextCapture)
+        (result, throwable) -> {
+          if (throwable != null) {
+            span.addThrowable(
+                throwable instanceof ExecutionException || throwable instanceof CompletionException
+                    ? throwable.getCause()
+                    : throwable);
+          }
+          span.finish();
+        };
   }
 }
