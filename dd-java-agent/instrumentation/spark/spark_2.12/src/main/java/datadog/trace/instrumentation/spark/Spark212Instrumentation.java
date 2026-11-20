@@ -26,6 +26,7 @@ public class Spark212Instrumentation extends AbstractSparkInstrumentation {
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".AbstractDatadogSparkListener",
+      packageName + ".AbstractDatadogSparkListener$ConnectSession",
       packageName + ".AbstractSparkPlanSerializer",
       packageName + ".AbstractSparkPlanUtils",
       packageName + ".DatabricksParentContext",

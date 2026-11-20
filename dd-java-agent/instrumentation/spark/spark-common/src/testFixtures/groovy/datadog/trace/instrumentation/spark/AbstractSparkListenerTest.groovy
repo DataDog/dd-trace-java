@@ -844,6 +844,204 @@ abstract class AbstractSparkListenerTest extends InstrumentationSpecification {
     }
   }
 
+  protected connectSessionStartedEvent(String sessionId, String userId, long time) {
+    new org.apache.spark.sql.connect.service.SparkListenerConnectSessionStarted(sessionId, userId, time)
+  }
+
+  protected connectSessionClosedEvent(String sessionId, String userId, long time) {
+    new org.apache.spark.sql.connect.service.SparkListenerConnectSessionClosed(sessionId, userId, time)
+  }
+
+  // A job run by a Spark Connect session: Spark Connect puts the operation tag in spark.job.tags,
+  // next to any tags the client added with SparkSession.addTag.
+  protected connectJobStartEvent(Integer jobId, Long time, String userId, String sessionId, Map<String, String> extraProperties = [:]) {
+    def properties = new Properties()
+    properties.setProperty(
+      "spark.job.tags",
+      "client_tag,SparkConnect_OperationTag_User_${userId}_Session_${sessionId}_Operation_op-${jobId}".toString())
+    extraProperties.each { k, v -> properties.setProperty(k, v) }
+
+    return new SparkListenerJobStart(
+      jobId,
+      time,
+      JavaConverters.asScalaBuffer([]).toSeq(),
+      properties
+      )
+  }
+
+  def "spark connect: one application trace per session, from session start to session close"() {
+    setup:
+    def listener = getTestDatadogSparkListener()
+
+    when:
+    listener.onApplicationStart(applicationStartEvent(1000L))
+    listener.onOtherEvent(connectSessionStartedEvent("session-a", "alice", 2000L))
+    listener.onOtherEvent(connectSessionStartedEvent("session-b", "bob", 2100L))
+    // A session that never runs a job produces no trace.
+    listener.onOtherEvent(connectSessionStartedEvent("session-idle", "carol", 2200L))
+
+    // Session A runs two queries: model_name is set for the whole session, query_id per query.
+    listener.onJobStart(connectJobStartEvent(1, 3000L, "alice", "session-a", ["spark.datadog.tags.model_name": "model_a", "spark.datadog.tags.query_id": "q1"]))
+    listener.onJobStart(connectJobStartEvent(2, 3100L, "bob", "session-b"))
+    listener.onJobEnd(jobEndEvent(1, 3500L))
+    listener.onJobStart(connectJobStartEvent(3, 3600L, "alice", "session-a", ["spark.datadog.tags.model_name": "model_a", "spark.datadog.tags.query_id": "q2"]))
+    listener.onJobEnd(jobEndEvent(3, 4000L))
+    listener.onJobEnd(jobFailedEvent(2, 4100L, "some failure"))
+
+    listener.onOtherEvent(connectSessionClosedEvent("session-a", "alice", 5000L))
+    listener.onOtherEvent(connectSessionClosedEvent("session-b", "bob", 6000L))
+    listener.onOtherEvent(connectSessionClosedEvent("session-idle", "carol", 6500L))
+    listener.onApplicationEnd(applicationEndEvent(9000L))
+
+    then:
+    // No server-wide application trace: every job belonged to a session.
+    assertTraces(2, SORT_TRACES_BY_START) {
+      trace(3) {
+        span {
+          operationName "spark.application"
+          spanType "spark"
+          errored false
+          parent()
+          assert span.startTime == 2000L * 1000 * 1000
+          assert span.durationNano == 3000L * 1000 * 1000
+          assert span.tags["spark_connect.session_id"] == "session-a"
+          assert span.tags["spark_user"] == "alice"
+          assert span.tags["model_name"] == "model_a"
+          assert !span.tags.containsKey("query_id")
+        }
+        span {
+          operationName "spark.job"
+          spanType "spark"
+          childOf(span(0))
+          assert span.tags["job_id"] == 3
+          assert span.tags["query_id"] == "q2"
+        }
+        span {
+          operationName "spark.job"
+          spanType "spark"
+          childOf(span(0))
+          assert span.tags["job_id"] == 1
+          assert span.tags["query_id"] == "q1"
+        }
+      }
+      trace(2) {
+        span {
+          operationName "spark.application"
+          spanType "spark"
+          errored true
+          parent()
+          assert span.startTime == 2100L * 1000 * 1000
+          assert span.durationNano == 3900L * 1000 * 1000
+          assert span.tags["spark_connect.session_id"] == "session-b"
+          assert span.tags["spark_user"] == "bob"
+          assert span.tags["error.type"] == "Spark Application Failed"
+        }
+        span {
+          operationName "spark.job"
+          spanType "spark"
+          errored true
+          childOf(span(0))
+        }
+      }
+    }
+  }
+
+  def "spark connect: sessions still open when the server stops end with it"() {
+    setup:
+    def listener = getTestDatadogSparkListener()
+
+    when:
+    listener.onApplicationStart(applicationStartEvent(1000L))
+    listener.onOtherEvent(connectSessionStartedEvent("session-a", "alice", 2000L))
+    listener.onJobStart(connectJobStartEvent(1, 3000L, "alice", "session-a"))
+    listener.onJobEnd(jobEndEvent(1, 4000L))
+    listener.onApplicationEnd(applicationEndEvent(9000L))
+
+    then:
+    assertTraces(1) {
+      trace(2) {
+        span {
+          operationName "spark.application"
+          spanType "spark"
+          parent()
+          assert span.startTime == 2000L * 1000 * 1000
+          assert span.durationNano == 7000L * 1000 * 1000
+          assert span.tags["spark_connect.session_id"] == "session-a"
+        }
+        span {
+          operationName "spark.job"
+          spanType "spark"
+          childOf(span(0))
+        }
+      }
+    }
+  }
+
+  def "spark connect: jobs outside any session use the global application span"() {
+    setup:
+    def listener = getTestDatadogSparkListener()
+
+    when:
+    listener.onApplicationStart(applicationStartEvent(1000L))
+    listener.onOtherEvent(connectSessionStartedEvent("session-a", "alice", 2000L))
+    listener.onJobStart(connectJobStartEvent(1, 3000L, "alice", "session-a"))
+    listener.onJobEnd(jobEndEvent(1, 4000L))
+    listener.onOtherEvent(connectSessionClosedEvent("session-a", "alice", 5000L))
+    listener.onJobStart(jobStartEvent(2, 6000L, []))
+    listener.onJobEnd(jobEndEvent(2, 7000L))
+    listener.onApplicationEnd(applicationEndEvent(9000L))
+
+    then:
+    assertTraces(2, SORT_TRACES_BY_START) {
+      trace(2) {
+        span {
+          operationName "spark.application"
+          spanType "spark"
+          parent()
+          assert !span.tags.containsKey("spark_connect.session_id")
+          assert span.tags["application_name"] == "some_app_name"
+        }
+        span {
+          operationName "spark.job"
+          spanType "spark"
+          assert span.tags["job_id"] == 2
+          childOf(span(0))
+        }
+      }
+      trace(2) {
+        span {
+          operationName "spark.application"
+          spanType "spark"
+          parent()
+          assert span.tags["spark_connect.session_id"] == "session-a"
+        }
+        span {
+          operationName "spark.job"
+          spanType "spark"
+          assert span.tags["job_id"] == 1
+          childOf(span(0))
+        }
+      }
+    }
+  }
+
+  def "spark connect: session id is read from the operation tag in spark.job.tags"() {
+    expect:
+    def properties = new Properties()
+    if (jobTags != null) {
+      properties.setProperty("spark.job.tags", jobTags)
+    }
+    AbstractDatadogSparkListener.getSparkConnectSessionId(properties) == sessionId
+
+    where:
+    jobTags                                                                  | sessionId
+    "SparkConnect_OperationTag_User_alice_Session_abc-123_Operation_op-1"   | "abc-123"
+    "tag1,SparkConnect_OperationTag_User_a_b_Session_s1_Operation_o1,tag2"  | "s1"
+    "tag1,tag2"                                                              | null
+    "SparkConnect_OperationTag_User_alice_Session__Operation_op-1"          | null
+    null                                                                     | null
+  }
+
   protected validateRelativeError(double value, double expected, double relativeAccuracy) {
     double relativeError = Math.abs(value - expected) / expected
     assert relativeError < relativeAccuracy
