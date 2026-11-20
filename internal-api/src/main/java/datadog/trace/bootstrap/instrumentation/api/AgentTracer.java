@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.instrumentation.api;
 
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
+import datadog.context.ContextHandle;
 import datadog.context.ContextListener;
 import datadog.context.ContextManager;
 import datadog.context.ContextScope;
@@ -410,7 +411,10 @@ public class AgentTracer {
     ContextScope attach(Context context);
 
     @Deprecated
-    Context swap(Context context);
+    ContextHandle checkpoint(Context context);
+
+    @Deprecated
+    ContextHandle swap(ContextHandle context);
 
     @Deprecated
     ContextContinuation capture(Context context);
@@ -683,7 +687,12 @@ public class AgentTracer {
     }
 
     @Override
-    public Context swap(Context context) {
+    public ContextHandle checkpoint(Context context) {
+      return Context.root();
+    }
+
+    @Override
+    public ContextHandle swap(ContextHandle context) {
       return Context.root();
     }
 
@@ -797,6 +806,7 @@ public class AgentTracer {
   }
 
   /** Shim mapping new Context API to legacy scope manager. */
+  @SuppressWarnings("deprecation")
   static final class LegacyContextManager implements ContextManager {
     static final LegacyContextManager INSTANCE = new LegacyContextManager();
 
@@ -811,13 +821,28 @@ public class AgentTracer {
     }
 
     @Override
-    public Context swap(@Nonnull Context context) {
+    public ContextHandle checkpoint(@Nonnull Context context) {
+      return AgentTracer.get().checkpoint(context);
+    }
+
+    @Override
+    public ContextHandle swap(@Nonnull ContextHandle context) {
       return AgentTracer.get().swap(context);
     }
 
     @Override
     public ContextContinuation capture(@Nonnull Context context) {
       return AgentTracer.get().capture(context);
+    }
+
+    @Override
+    public boolean isCaptureEnabled() {
+      return AgentTracer.get().isAsyncPropagationEnabled();
+    }
+
+    @Override
+    public void setCaptureEnabled(boolean enabled) {
+      AgentTracer.get().setAsyncPropagationEnabled(enabled);
     }
 
     @Override

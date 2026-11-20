@@ -4,6 +4,7 @@ import static datadog.environment.JavaVirtualMachine.isJavaVersion;
 
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
+import datadog.context.ContextHandle;
 import datadog.trace.api.Config;
 import datadog.trace.api.GenericClassValue;
 import datadog.trace.api.InstrumenterConfig;
@@ -51,13 +52,13 @@ public final class VirtualThreadState {
           || Config.get().isCwsEnabled();
 
   /** The virtual thread's saved context (scope stack snapshot). */
-  private Context context;
+  private ContextHandle context;
 
   /** Prevents the enclosing context scope from completing before the virtual thread finishes. */
   private final ContextContinuation continuation;
 
   /** The carrier thread's saved context, set between mount and unmount. */
-  private Context previousContext;
+  private ContextHandle previousContext;
 
   public VirtualThreadState(Context context, ContextContinuation continuation) {
     this.context = context;

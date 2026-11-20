@@ -3,6 +3,7 @@ package datadog.trace.core;
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 
 import datadog.context.Context;
+import datadog.context.ContextHandle;
 import datadog.trace.api.EndpointTracker;
 import datadog.trace.api.Stateful;
 import datadog.trace.api.profiling.ProfilingContextAttribute;
@@ -30,7 +31,7 @@ import org.openjdk.jmh.annotations.Warmup;
 
 /**
  * Java allocation and control-flow cost of virtual-thread context propagation: the current full
- * {@link ContinuableScopeManager#swap(Context)} on every mount/unmount versus the proposed
+ * {@link ContinuableScopeManager#swap(ContextHandle)} on every mount/unmount versus the proposed
  * seed-once path (nothing when profiling is off, a profiler rebind/unbind when it is on). The
  * current path retains the context returned by each reverse swap, matching repeated mounts after
  * the first rather than reconstructing the virtual-thread context on every cycle. ddprof's native
@@ -72,8 +73,8 @@ public class VirtualThreadContextBenchmark {
   public static class ThreadState {
     AgentSpan span;
     Context spanContext;
-    Context plainContext;
-    Context profiledContext;
+    ContextHandle plainContext;
+    ContextHandle profiledContext;
 
     @Setup(Level.Trial)
     public void setup(VirtualThreadContextBenchmark bench) {
@@ -93,13 +94,13 @@ public class VirtualThreadContextBenchmark {
 
   @Benchmark
   public void currentCycle_profilingOff(ThreadState t) {
-    Context previous = plainManager.swap(t.plainContext);
+    ContextHandle previous = plainManager.swap(t.plainContext);
     t.plainContext = plainManager.swap(previous);
   }
 
   @Benchmark
   public long currentCycle_profilingOn_javaStub(ThreadState t) {
-    Context previous = profiledManager.swap(t.profiledContext);
+    ContextHandle previous = profiledManager.swap(t.profiledContext);
     t.profiledContext = profiledManager.swap(previous);
     return stubProfiling.currentValue();
   }

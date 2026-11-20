@@ -6,7 +6,7 @@ import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
-import datadog.context.Context;
+import datadog.context.ContextHandle;
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -49,13 +49,13 @@ public final class PollerInstrumentation extends InstrumenterModule.ContextTrack
 
   public static final class StartAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static Context enter() {
+    public static ContextHandle enter() {
       // Swap clears the raw context even when the caller has reached the scope-depth limit.
       return rootContext().swap();
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void exit(@Advice.Enter Context previous) {
+    public static void exit(@Advice.Enter ContextHandle previous) {
       if (previous != null) {
         previous.swap();
       }
