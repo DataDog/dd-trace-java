@@ -302,7 +302,7 @@ public class ProcessSupervisor implements Closeable {
   private void stopProcess() {
     if (currentProcess != null) {
       String childPid = pidOrUnknown(currentProcess);
-      log.info("Stopping process [{}] with pid {}", imageName, childPid);
+      logLifecycle("Stopping process [{}] with pid {}", imageName, childPid);
       // On Windows, where the AAS agents run, destroy() and destroyForcibly() both call
       // TerminateProcess: the process stops at once, without a chance to flush. Elsewhere
       // destroy() may ask the process to exit, so destroyForcibly() follows if it is still running.
@@ -325,11 +325,11 @@ public class ProcessSupervisor implements Closeable {
         }
       }
       if (stopped) {
-        log.info("Stopped process [{}] with pid {}", imageName, childPid);
+        logLifecycle("Stopped process [{}] with pid {}", imageName, childPid);
         currentProcess = null;
       } else {
         // Keep tracking it, so a restart does not start a second copy while this one runs
-        log.warn(
+        logFailure(
             "Process [{}] with pid {} was still running after the stop request",
             imageName,
             childPid);
