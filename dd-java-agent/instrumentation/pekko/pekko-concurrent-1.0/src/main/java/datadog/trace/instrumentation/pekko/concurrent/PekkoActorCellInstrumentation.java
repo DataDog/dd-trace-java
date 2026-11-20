@@ -1,8 +1,6 @@
 package datadog.trace.instrumentation.pekko.concurrent;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.checkpointActiveForRollback;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.rollbackActiveToCheckpoint;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.currentContext;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -14,6 +12,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.Map;
@@ -68,7 +67,7 @@ public class PekkoActorCellInstrumentation extends InstrumenterModule.ContextTra
 
       if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
         // remember the currently active scope so we can roll back to this point
-        checkpointActiveForRollback();
+        AgentTracer.get().checkpointActiveForRollback();
         return null;
       } else {
         return currentContext().swap();
@@ -80,10 +79,10 @@ public class PekkoActorCellInstrumentation extends InstrumenterModule.ContextTra
         @Advice.Local("taskScope") ContextScope taskScope,
         @Advice.Enter ContextHandle checkpointContext) {
 
-      if (checkpointContext == null) {
+      if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
         // Clean up any leaking scopes from pekko-streams/pekko-http etc.
-        rollbackActiveToCheckpoint();
-      } else {
+        AgentTracer.get().rollbackActiveToCheckpoint();
+      } else if (checkpointContext != null) {
         checkpointContext.swap();
       }
 
