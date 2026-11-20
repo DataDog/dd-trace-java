@@ -48,6 +48,13 @@ public abstract class HealthMetrics implements AutoCloseable {
 
   public void onCreateSpan(final DDSpan span) {}
 
+  /**
+   * Called once per span when it ends: on {@code finish()}, or on {@code phasedFinish()} before the
+   * span is published.
+   */
+  public void onEndSpan() {}
+
+  /** Called once per span when it is published to its trace, after it ends. */
   public void onFinishSpan() {}
 
   public void onCreateTrace() {}
