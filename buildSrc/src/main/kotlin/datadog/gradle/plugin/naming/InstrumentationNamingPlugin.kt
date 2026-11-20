@@ -26,6 +26,17 @@ class InstrumentationNamingPlugin : Plugin<Project> {
 
   override fun apply(target: Project) {
     val extension = target.extensions.create<InstrumentationNamingExtension>("instrumentationNaming")
+    val testOnlyDirectories = target.objects.setProperty(File::class.java)
+    target.gradle.projectsEvaluated {
+      testOnlyDirectories.set(
+        target.subprojects
+          .filter {
+            it.pluginManager.hasPlugin("dd-trace-java.module.testing-support") &&
+              !it.pluginManager.hasPlugin("dd-trace-java.module.instrumentation")
+          }
+          .map { it.projectDir }
+      )
+    }
 
     target.tasks.register("checkInstrumentationNaming") {
       group = "verification"
@@ -42,7 +53,7 @@ class InstrumentationNamingPlugin : Plugin<Project> {
           )
         }
 
-        val violations = validateInstrumentations(instrumentationsDir, exclusions, suffixes)
+        val violations = validateInstrumentations(instrumentationsDir, exclusions, suffixes, testOnlyDirectories.get())
 
         if (violations.isNotEmpty()) {
           val suffixesStr = suffixes.joinToString("', '", "'", "'")
@@ -88,7 +99,8 @@ class InstrumentationNamingPlugin : Plugin<Project> {
   private fun validateInstrumentations(
     instrumentationsDir: File,
     exclusions: Set<String>,
-    suffixes: Set<String>
+    suffixes: Set<String>,
+    testOnlyDirectories: Set<File>
   ): List<NamingViolation> {
     val violations = mutableListOf<NamingViolation>()
 
@@ -112,7 +124,7 @@ class InstrumentationNamingPlugin : Plugin<Project> {
         val childHasBuildFile = hasBuildFile(childDir)
         val nestedModules = childDir.listFiles { file -> file.isDirectory }?.filter { hasBuildFile(it) } ?: emptyList()
 
-        if (childHasBuildFile && moduleName !in exclusions) {
+        if (childHasBuildFile && moduleName !in exclusions && childDir !in testOnlyDirectories) {
           val relativePath = childDir.relativeTo(instrumentationsDir).path
           if (parentName == null && nestedModules.isEmpty()) {
             validateLeafModuleName(moduleName, relativePath, suffixes)?.let { violations.add(it) }

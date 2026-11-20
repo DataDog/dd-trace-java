@@ -941,6 +941,7 @@ Instrumentation Gradle modules must follow these naming conventions (enforced by
 since they are not related to a third party library version. 
 They contain instrumentation modules related to internal datadog features, and they are classified by product.
 Examples are: `trace-annotation` (supporting the `tracing` product) or `enable-wallclock-profiling`.
+Test-only subprojects using `dd-trace-java.module.testing-support` are also excluded.
 
 The naming rules can be checked when running `./gradlew checkInstrumentationNaming`.
 
