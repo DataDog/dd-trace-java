@@ -8,6 +8,8 @@ import org.apache.kafka.common.header.Headers;
 public class TextMapInjectAdapter implements TextMapInjectAdapterInterface {
   public static final TextMapInjectAdapter SETTER = new TextMapInjectAdapter();
 
+  private TextMapInjectAdapter() {}
+
   @Override
   public void set(final Headers headers, final String key, final String value) {
     // Codecs can write the same key, so replace it, but probe first: remove allocates an iterator,
