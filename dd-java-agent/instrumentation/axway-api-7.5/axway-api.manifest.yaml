@@ -1,0 +1,9 @@
+_v: 1
+name: axway-api
+display_name: Axway API Gateway
+description: Instruments inbound HTTP request handling and the gateway's transactions with backend services in Axway API Gateway.
+packages: []
+category:
+- http.server
+systems: []
+creation_date: '2020-12-17'

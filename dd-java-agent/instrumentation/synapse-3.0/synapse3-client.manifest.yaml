@@ -1,0 +1,11 @@
+_v: 1
+name: synapse3-client
+display_name: Apache Synapse Client
+description: Instruments Apache Synapse non-blocking transport's outbound HTTP requests, tracing request outcomes and propagating
+  trace context.
+packages:
+- name: org.apache.synapse:synapse-nhttp-transport
+category:
+- http.client
+systems: []
+creation_date: '2021-05-27'

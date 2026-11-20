@@ -1,0 +1,10 @@
+_v: 1
+name: synapse3-server
+display_name: Apache Synapse Server
+description: Instruments inbound HTTP requests handled by Apache Synapse's PassThrough HTTP transport.
+packages:
+- name: org.apache.synapse:synapse-nhttp-transport
+category:
+- http.server
+systems: []
+creation_date: '2021-02-11'

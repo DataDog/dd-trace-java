@@ -1,0 +1,12 @@
+_v: 1
+name: mule
+display_name: Mule
+description: Instruments Mule runtime flow and component executions, creating internal Mule action spans and propagating context
+  across event processing.
+packages:
+- name: org.mule.runtime:mule-core
+- name: org.mule.runtime:mule-tracer-customization-impl
+category:
+- other
+systems: []
+creation_date: '2021-02-26'
