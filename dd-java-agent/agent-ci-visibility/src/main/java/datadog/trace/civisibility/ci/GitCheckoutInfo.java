@@ -43,6 +43,18 @@ public final class GitCheckoutInfo {
   public static String mergeCommitSha(Provider provider, CiEnvironment env) {
     String sha = null;
     switch (provider) {
+      case APPVEYOR:
+        String number = env.get("APPVEYOR_PULL_REQUEST_NUMBER");
+        String head = env.get("APPVEYOR_PULL_REQUEST_HEAD_COMMIT");
+        String build = env.get("APPVEYOR_REPO_COMMIT");
+        if ("github".equals(env.get("APPVEYOR_REPO_PROVIDER"))
+            && number != null
+            && number.matches("[0-9]+")
+            && isFullSha(head)
+            && !head.equalsIgnoreCase(build)) {
+          sha = build;
+        }
+        break;
       case GITHUBACTIONS:
         if (isMergeRef(env.get("GITHUB_REF"))) {
           sha = env.get("GITHUB_SHA");

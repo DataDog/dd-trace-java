@@ -15,6 +15,7 @@ import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.DataFormatException;
@@ -327,6 +328,15 @@ public class GitUtils {
    */
   public static boolean isValidCommitShaFull(final String commitSha) {
     return isValidCommitSha(commitSha, FULL_SHA_LENGTH);
+  }
+
+  /**
+   * Canonicalizes full SHA-1 and SHA-256 object IDs without changing invalid or abbreviated input.
+   */
+  public static String normalizeCommitSha(@Nullable String sha) {
+    return sha != null && (sha.length() == 40 || sha.length() == 64) && isValidCommitShaFull(sha)
+        ? sha.toLowerCase(Locale.ROOT)
+        : sha;
   }
 
   private static boolean isValidCommitSha(final String commitSha, final int minLength) {

@@ -83,6 +83,11 @@ class AppVeyorInfo implements CIProviderInfo {
         .build();
   }
 
+  @Override
+  public String getMergeCommitSha() {
+    return GitCheckoutInfo.mergeCommitSha(getProvider(), environment);
+  }
+
   @Nonnull
   @Override
   public PullRequestInfo buildPullRequestInfo() {

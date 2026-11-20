@@ -13,6 +13,22 @@ public class CommitInfoTest {
   private static final PersonInfo EMPTY_PERSON = new PersonInfo(null, null, null);
 
   @TableTest({
+    "Scenario           | sha                                                              | expected                                                        ",
+    "mixed-case SHA-1   | ABCDEF0123456789abcdef0123456789ABCDEF01                         | abcdef0123456789abcdef0123456789abcdef01                        ",
+    "mixed-case SHA-256 | ABCDEF0123456789abcdef0123456789ABCDEF0123456789abcdef0123456789 | abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+    "lowercase SHA-1    | abcdef0123456789abcdef0123456789abcdef01                         | abcdef0123456789abcdef0123456789abcdef01                        ",
+    "missing SHA        |                                                                  |                                                                 ",
+    "empty SHA          | ''                                                               | ''                                                              ",
+    "abbreviated SHA    | ABCDEF0                                                          | ABCDEF0                                                         ",
+    "invalid full SHA   | ZBCDEF0123456789abcdef0123456789ABCDEF01                         | ZBCDEF0123456789abcdef0123456789ABCDEF01                        ",
+    "unsupported length | ABCDEF0123456789abcdef0123456789ABCDEF012                        | ABCDEF0123456789abcdef0123456789ABCDEF012                       "
+  })
+  void normalizesOnlyFullHexadecimalCommitIds(String sha, String expected) {
+    assertEquals(expected, new CommitInfo(sha).getSha());
+    assertEquals(expected, new CommitInfo(sha, PERSON_A, PERSON_B, "message").getSha());
+  }
+
+  @TableTest({
     "scenario                  | sha | author       | committer    | message | empty",
     "all null                  |     | EMPTY_PERSON | EMPTY_PERSON |         | true ",
     "all empty                 | ''  | EMPTY_PERSON | EMPTY_PERSON | ''      | true ",

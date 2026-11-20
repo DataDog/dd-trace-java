@@ -50,6 +50,40 @@ class GitCheckoutInfoTest {
         env::toString);
   }
 
+  @TableTest({
+    "Scenario                    | repoProvider | number | head    | build   | merge",
+    "GitHub PR without branch    | github       | 42     | head    | build   | true ",
+    "non-GitHub repository       | bitbucket    | 42     | head    | build   | false",
+    "missing provider            |              | 42     | head    | build   | false",
+    "no PR number                | github       |        | head    | build   | false",
+    "non-numeric PR number       | github       | false  | head    | build   | false",
+    "missing PR head             | github       | 42     |         | build   | false",
+    "abbreviated PR head         | github       | 42     | ABCDEF0 | build   | false",
+    "invalid PR head             | github       | 42     | invalid | build   | false",
+    "same revision               | github       | 42     | head    | head    | false",
+    "same revision ignoring case | github       | 42     | head    | upper   | false",
+    "missing build SHA           | github       | 42     | head    |         | false",
+    "invalid build SHA           | github       | 42     | head    | invalid | false"
+  })
+  void appveyorRequiresDistinctFullPrAndBuildRevisions(
+      String repoProvider, String number, String head, String build, boolean merge) {
+    Map<String, String> values = new HashMap<>();
+    values.put("APPVEYOR_REPO_PROVIDER", repoProvider);
+    values.put("APPVEYOR_PULL_REQUEST_NUMBER", number);
+    values.put("APPVEYOR_PULL_REQUEST_HEAD_COMMIT", appveyorSha(head));
+    values.put("APPVEYOR_REPO_COMMIT", appveyorSha(build));
+    assertEquals(
+        merge ? "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" : null,
+        new AppVeyorInfo(new CiEnvironmentImpl(values)).getMergeCommitSha());
+  }
+
+  private static String appveyorSha(String value) {
+    if ("head".equals(value)) return SHA;
+    if ("upper".equals(value)) return SHA.toUpperCase(java.util.Locale.ROOT);
+    if ("build".equals(value)) return "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+    return value;
+  }
+
   @Test
   void readsCheckoutIdentityWhileKeepingCiWorkspace() {
     GitInfoProvider provider = mock(GitInfoProvider.class);

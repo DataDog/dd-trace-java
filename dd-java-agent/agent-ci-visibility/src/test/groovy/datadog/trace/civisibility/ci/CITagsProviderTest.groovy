@@ -4,9 +4,11 @@ import datadog.trace.api.Config
 import datadog.trace.api.git.GitInfoProvider
 import datadog.trace.api.git.UserSuppliedGitInfoBuilder
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.civisibility.CiVisibilityRepoServices
 import datadog.trace.civisibility.ci.env.CiEnvironmentImpl
 import datadog.trace.civisibility.git.CILocalGitInfoBuilder
 import datadog.trace.civisibility.git.CIProviderGitInfoBuilder
+import datadog.trace.civisibility.git.tree.NoOpGitClient
 import datadog.trace.civisibility.git.tree.GitClient
 import datadog.trace.test.util.ControllableEnvironmentVariables
 import spock.lang.Specification
@@ -38,15 +40,23 @@ abstract class CITagsProviderTest extends Specification {
     }
 
     when:
-    CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory(Config.get(), GIT_FOLDER_FOR_TESTS, new CiEnvironmentImpl(env.getAll()))
+    Properties properties = new Properties()
+    properties.setProperty("dd.civisibility.enabled", "true")
+    def config = Config.get(properties)
+    def environment = new CiEnvironmentImpl(env.getAll())
+    CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory(config, GIT_FOLDER_FOR_TESTS, environment)
     def ciProviderInfo = ciProviderInfoFactory.createCIProviderInfo(getWorkspacePath())
     def ciInfo = ciProviderInfo.buildCIInfo()
-    def prInfo = ciProviderInfo.buildPullRequestInfo()
+    def prInfo = CiVisibilityRepoServices.buildPullRequestInfo(config, environment, ciProviderInfo, NoOpGitClient.INSTANCE, true)
     def ciTagsProvider = ciTagsProvider()
     def tags = ciTagsProvider.getCiTags(ciInfo, prInfo)
+    def mergeSha = ciProviderInfo.getMergeCommitSha()
+    if (mergeSha != null) {
+      tags.put("ci.git.merge_commit_sha", mergeSha)
+    }
 
     then:
-    if (isCi()) {
+    if (ciSpec.providerName != UnknownCIInfo.UNKNOWN_PROVIDER_NAME) {
       def tagMismatches = ciSpec.getTagMismatches(tags)
       assert tagMismatches.isEmpty()
     }
