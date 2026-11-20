@@ -82,11 +82,19 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
       }
       if (message != null) {
         AgentSpan queueSpan = null;
+        EventBridgeMessage eventBridgeMessage = null;
+        if (traceConfig().isDataStreamsEnabled() || Config.get().isSqsPropagationEnabled()) {
+          eventBridgeMessage = EventBridgeMessage.tryParseFrom(message);
+        }
         if (batchContext == null) {
           // first grab any incoming distributed context
           AgentSpanContext spanContext =
               Config.get().isSqsPropagationEnabled()
-                  ? extractContextAndGetSpanContext(message, GETTER)
+                  ? (eventBridgeMessage != null
+                      ? extractContextAndGetSpanContext(
+                          eventBridgeMessage.datadogAttributes(),
+                          DatadogAttributesExtractAdapter.GETTER)
+                      : extractContextAndGetSpanContext(message, GETTER))
                   : null;
           // next add a time-in-queue span for non-legacy SQS traces
           if (TIME_IN_QUEUE_ENABLED) {
@@ -113,7 +121,10 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
         // Only build the DSM tags and context when DSM is on: with it off the checkpoint is a
         // no-op, but the arguments were still built for every message.
         if (traceConfig().isDataStreamsEnabled()) {
-          DataStreamsTags tags = create("sqs", INBOUND, queueName);
+          DataStreamsTags tags =
+              eventBridgeMessage != null
+                  ? eventBridgeMessage.consumeTags()
+                  : create("sqs", INBOUND, queueName);
           AgentTracer.get().getDataStreamsMonitoring().setCheckpoint(span, create(tags, 0, 0));
         }
 
