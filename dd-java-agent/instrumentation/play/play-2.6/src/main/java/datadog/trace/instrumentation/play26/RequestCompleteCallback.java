@@ -5,12 +5,14 @@ import static datadog.trace.instrumentation.play26.PlayHttpServerDecorator.REPOR
 
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.SkipScalaPromiseContextCapture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import play.api.mvc.Result;
 import scala.util.Try;
 
-public class RequestCompleteCallback extends scala.runtime.AbstractFunction1<Try<Result>, Object> {
+public class RequestCompleteCallback extends scala.runtime.AbstractFunction1<Try<Result>, Object>
+    implements SkipScalaPromiseContextCapture {
 
   private static final Logger log = LoggerFactory.getLogger(RequestCompleteCallback.class);
 
@@ -24,7 +26,7 @@ public class RequestCompleteCallback extends scala.runtime.AbstractFunction1<Try
 
   @Override
   public Object apply(final Try<Result> result) {
-    try {
+    try (ContextScope ignored = scope.context().attach()) {
       if (result.isFailure()) {
         DECORATE.onError(span, result.failed().get());
       } else {

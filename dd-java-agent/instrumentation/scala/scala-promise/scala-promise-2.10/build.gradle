@@ -30,6 +30,11 @@ addTestSuiteForDir('latestDepTest', 'test', false) // latestDepForkedTest is dec
 addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'forkedTest')
 
 sourceSets {
+  test.java.srcDir project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-common').sourceSets.test.java
+  test.java.srcDir 'src/forkedTest/java'
+  latestDepTest.java.srcDir project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-common').sourceSets.test.java
+  latestDepForkedTest.java.srcDir project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-common').sourceSets.test.java
+
   test.groovy.srcDir project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-common').sourceSets.test.groovy
   test.groovy.srcDir sourceSets.latestDepForkedTest.groovy
   latestDepTest.groovy.srcDir project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-common').sourceSets.test.groovy

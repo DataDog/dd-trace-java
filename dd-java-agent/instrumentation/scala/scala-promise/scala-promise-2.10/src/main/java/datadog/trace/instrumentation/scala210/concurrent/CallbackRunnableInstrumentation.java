@@ -11,6 +11,7 @@ import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.SkipScalaPromiseContextCapture;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import datadog.trace.instrumentation.scala.PromiseHelper;
 import net.bytebuddy.asm.Advice;
@@ -37,6 +38,10 @@ public final class CallbackRunnableInstrumentation
   public static final class Construct {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static <T> void onConstruct(@Advice.This CallbackRunnable<T> task) {
+      Object callback = task.onComplete();
+      if (callback instanceof SkipScalaPromiseContextCapture) {
+        return;
+      }
       capture(InstrumentationContext.get(CallbackRunnable.class, State.class), task);
     }
   }
@@ -58,6 +63,10 @@ public final class CallbackRunnableInstrumentation
     @Advice.OnMethodEnter
     public static <T> void beforeExecute(
         @Advice.This CallbackRunnable<T> task, @Advice.Argument(value = 0) Try<T> resolved) {
+      Object callback = task.onComplete();
+      if (callback instanceof SkipScalaPromiseContextCapture) {
+        return;
+      }
       // About to enter an ExecutionContext so capture the Scope if necessary
       ContextStore<CallbackRunnable, State> contextStore =
           InstrumentationContext.get(CallbackRunnable.class, State.class);
