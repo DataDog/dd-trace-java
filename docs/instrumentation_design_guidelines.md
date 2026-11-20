@@ -84,46 +84,33 @@ Context ctx = currentContext();
 
 ### 4. CompletableFuture callback exclusions
 
-The `CompletableFuture` instrumentation normally captures a continuation when a completion is created,
-then activates it while the callback runs. An agent-owned callback that only finishes a stored span,
-or manages its own context, may not need that extra continuation. Register its class under
-`ExcludeFilter.ExcludeType.COMPLETABLE_FUTURE_CALLBACK` to skip capture.
+**When to skip capture:**
 
-Only exclude callbacks whose tracing behavior is independent of the context active at registration.
-If a callback invokes application code, ensure it activates the required context itself before
-excluding it. The exclusion does not suppress callback execution or finish spans on its behalf.
+An agent callback that already holds the span it finishes may not need its registration context.
+Only opt out when the callback can run without that context. If it invokes application code, it must
+restore the context that code needs itself.
 
-**Registration:**
+**How to opt out:**
 
-Implement `ExcludeFilterProvider` on the owning `InstrumenterModule` and return the callback's binary
-class name from `excludedClasses()`. For example, `Resilience4jModule` registers its named helper:
+Have the callback implement `SkipCompletableFutureContextCapture`. A lambda can implement the marker
+through an intersection cast:
 
 ```java
-import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.COMPLETABLE_FUTURE_CALLBACK;
-import static java.util.Collections.singleton;
-import static java.util.Collections.singletonMap;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.SkipCompletableFutureContextCapture;
+import java.util.function.BiConsumer;
 
-@Override
-public Map<ExcludeFilter.ExcludeType, ? extends Collection<String>> excludedClasses() {
-  return singletonMap(
-      COMPLETABLE_FUTURE_CALLBACK,
-      singleton(packageName + ".WrapperWithContext$SpanFinishingCallback"));
-}
+stage.whenComplete(
+    (BiConsumer<Object, Throwable> & SkipCompletableFutureContextCapture)
+        (result, error) -> {
+          DECORATE.onError(span, error);
+          DECORATE.beforeFinish(span);
+          span.finish();
+        });
 ```
 
-Use a named callback class so its name is stable. Registration matches the callback's exact runtime
-class name; subclasses and sibling classes are not implicitly excluded. Register the callback passed
-to methods such as `whenComplete` or `thenApply`, rather than the future or a JDK completion class.
-This category is separate from `RUNNABLE` and `FORK_JOIN_TASK` exclusions.
+The marker is inherited by subclasses. It skips context capture; the callback still runs and remains
+responsible for its span's lifecycle. Ordinary downstream callbacks and internal completions without
+a callback keep their normal propagation.
 
-The filter is checked after the JDK completion's `fn` field is initialized. Completions without a
-callback, such as internal relay nodes, retain their normal capture behavior. Other callbacks,
-including application callbacks registered downstream, still capture their own context.
-
-**Verification:**
-
-Check that the excluded callback captures no continuation and still finishes its span correctly.
-Cover completion on another thread, success, failure and cancellation, and async variants where used.
-Verify that ordinary downstream callbacks retain their registration context and that no scope leaks
-remain. The [callback exclusion tests](../dd-java-agent/instrumentation/java/java-concurrent/java-concurrent-1.8/src/test/groovy/CompletableFutureCallbackExclusionTest.groovy)
-cover the shared behavior, including exact-name matching and callbacks that throw.
+For Scala promise callbacks, use `SkipScalaPromiseContextCapture`. Runnable and fork-join task
+exclusions remain separate.
