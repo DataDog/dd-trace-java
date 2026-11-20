@@ -1,0 +1,20 @@
+_v: 1
+name: tomcat
+display_name: Apache Tomcat
+description: Instruments Tomcat HTTP request handling and completion, deployment metadata and WebSocket handshake
+  context, with application-security request and response inspection and vulnerability detection.
+packages:
+- name: org.apache.tomcat:catalina-ha
+- name: org.apache.tomcat:coyote
+- name: org.apache.tomcat:tomcat-catalina
+- name: org.apache.tomcat:tomcat-catalina-ha
+- name: org.apache.tomcat:tomcat-coyote
+- name: org.apache.tomcat:tomcat-websocket
+- name: org.glassfish.main.extras:glassfish-embedded-all
+- name: tomcat:catalina
+- name: tomcat:tomcat-coyote
+- name: tomcat:tomcat-util
+category:
+- http.server
+systems: []
+creation_date: '2017-06-15'

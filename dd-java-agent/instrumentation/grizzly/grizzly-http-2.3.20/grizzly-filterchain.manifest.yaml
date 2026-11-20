@@ -1,0 +1,11 @@
+_v: 1
+name: grizzly-filterchain
+display_name: grizzly-http
+description: Instruments Grizzly HTTP filter-chain request processing and response completion, including error handling
+  and application-security blocking.
+packages:
+- name: org.glassfish.grizzly:grizzly-http
+category:
+- http.server
+systems: []
+creation_date: '2020-04-10'

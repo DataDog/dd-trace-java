@@ -1,0 +1,12 @@
+_v: 1
+name: undertow
+display_name: Undertow Servlet
+description: Instruments Undertow HTTP request handling, asynchronous dispatch, and malformed-request failures,
+  with application-security body, upload, and response inspection and blocking.
+packages:
+- name: io.undertow:undertow-servlet
+- name: io.undertow:undertow-servlet-jakarta
+category:
+- http.server
+systems: []
+creation_date: '2022-01-21'

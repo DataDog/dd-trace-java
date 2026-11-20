@@ -1,0 +1,11 @@
+_v: 1
+name: wildfly
+display_name: 'WildFly: EE'
+description: Instruments WildFly deployment environment entries to apply configured web application service names
+  and trace tags.
+packages:
+- name: org.wildfly:wildfly-ee
+category:
+- other
+systems: []
+creation_date: '2025-01-10'
