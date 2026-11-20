@@ -130,7 +130,8 @@ val toolboxJar = tasks.register<ShadowJar>("toolboxJar") {
   toolboxPackages.forEach { relocate(it, "$toolboxRelocationPrefix.$it") }
   minimize()
   manifest {
-    attributes("Automatic-Module-Name" to "com.datadog.openfeature")
+    // The plain jar's manifest: the Implementation-* attributes and the module name.
+    from(tasks.jar.get().manifest)
   }
   duplicatesStrategy = DuplicatesStrategy.FAIL
 }
@@ -147,6 +148,10 @@ listOf("apiElements", "runtimeElements").forEach { name ->
 }
 tasks.named("assemble") {
   dependsOn(toolboxJar)
+}
+// CI builds the published jars with `jar` and collects them from build/libs.
+tasks.named("jar") {
+  finalizedBy(toolboxJar)
 }
 
 // Every toolbox class in the published jar must be relocated: an unrelocated one would be shared
