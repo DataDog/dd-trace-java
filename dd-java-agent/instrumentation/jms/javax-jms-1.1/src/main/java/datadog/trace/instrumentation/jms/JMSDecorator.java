@@ -129,8 +129,12 @@ public final class JMSDecorator extends MessagingClientDecorator {
       return "sqs";
     } else if (messageClass.startsWith("com.ibm")) {
       return "ibmmq";
+    } else if (messageClass.startsWith("org.apache.activemq.artemis")) {
+      return "artemis";
+    } else if (messageClass.startsWith("org.apache.activemq")) {
+      return "activemq";
     } else {
-      return "unknown";
+      return "jms";
     }
   }
 

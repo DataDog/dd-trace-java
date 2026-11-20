@@ -7,6 +7,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.im
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
 import static datadog.trace.api.datastreams.DataStreamsTags.create;
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.DSM_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -20,6 +21,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import datadog.context.ContextScope;
+import datadog.context.propagation.Propagators;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.api.Config;
@@ -112,10 +114,14 @@ public final class JMSMessageProducerInstrumentation
           && !destinationName.isEmpty()
           && Config.get().isDataStreamsEnabled()) {
         final String tech = messageTechnology(message);
-        if ("ibmmq".equals(tech)) { // Initial release only supports DSM in JMS for IBM MQ
+        if ("ibmmq".equals(tech)) {
           DataStreamsTags tags = create(tech, OUTBOUND, destinationName);
           DataStreamsContext dsmContext = DataStreamsContext.fromTags(tags);
           AgentTracer.get().getDataStreamsMonitoring().setCheckpoint(span, dsmContext);
+        } else if (JMSDecorator.canInject(message)) {
+          DataStreamsTags tags = create(tech, OUTBOUND, destinationName);
+          DataStreamsContext dsmContext = DataStreamsContext.fromTags(tags);
+          Propagators.forConcern(DSM_CONCERN).inject(span.with(dsmContext), message, SETTER);
         }
       }
 
@@ -182,10 +188,14 @@ public final class JMSMessageProducerInstrumentation
           && !destinationName.isEmpty()
           && Config.get().isDataStreamsEnabled()) {
         final String tech = messageTechnology(message);
-        if ("ibmmq".equals(tech)) { // Initial release only supports DSM in JMS for IBM MQ
+        if ("ibmmq".equals(tech)) {
           DataStreamsTags tags = create(tech, OUTBOUND, destinationName);
           DataStreamsContext dsmContext = DataStreamsContext.fromTags(tags);
           AgentTracer.get().getDataStreamsMonitoring().setCheckpoint(span, dsmContext);
+        } else if (JMSDecorator.canInject(message)) {
+          DataStreamsTags tags = create(tech, OUTBOUND, destinationName);
+          DataStreamsContext dsmContext = DataStreamsContext.fromTags(tags);
+          Propagators.forConcern(DSM_CONCERN).inject(span.with(dsmContext), message, SETTER);
         }
       }
 
