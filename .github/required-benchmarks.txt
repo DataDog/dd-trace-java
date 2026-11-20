@@ -1,0 +1,27 @@
+# Code whose changes must ship with benchmark results.
+#
+# A pull request that changes a file matching a pattern below must include, in its description, the
+# results of the listed JMH benchmarks for the base and head commits, run on the same machine.
+# `tooling/benchmark-pr.sh` works out which benchmarks a branch needs, runs them on both commits and
+# prints the section to paste. See AGENTS.md, "Core performance rules".
+#
+# Format, one rule per line:
+#   <path pattern>  <Gradle project>  <benchmark class> [<benchmark class> ...]
+#
+# Patterns are repository-relative: `*` matches within a path segment and `**` across segments.
+# Keep this list to hot, measured code: each rule adds a benchmark run to every pull request that
+# touches it.
+
+# Toolbox hash tables
+internal-api/src/main/java/datadog/trace/util/Hashtable.java            :internal-api  HashtableD1Benchmark HashtableD2Benchmark
+internal-api/src/main/java/datadog/trace/util/FlatHashtable.java        :internal-api  FlatHashtableIteratorBenchmark
+internal-api/src/main/java/datadog/trace/util/ConcurrentHashtable.java  :internal-api  ConcurrentHashtableFindBenchmark ConcurrentHashtableDrainBenchmark
+
+# Tag storage
+internal-api/src/main/java/datadog/trace/api/TagMap.java                :internal-api  TagMapAccessBenchmark TagMapInsertBenchmark TagMapReadThroughBenchmark
+internal-api/src/main/java/datadog/trace/api/*IdStore.java              :internal-api  TagMapAccessBenchmark TagMapInsertBenchmark
+internal-api/src/main/java/datadog/trace/api/HashS*.java                :internal-api  TagMapAccessBenchmark TagMapInsertBenchmark
+
+# Span creation and serialization
+dd-trace-core/src/main/java/datadog/trace/core/DDSpanContext.java       :dd-trace-core SpanCreationBenchmark SetTagBenchmark
+dd-trace-core/src/main/java/datadog/trace/common/writer/ddagent/TraceMapper*.java  :dd-trace-core  TraceMapperBenchmark
