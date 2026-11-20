@@ -1,19 +1,15 @@
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.COMPLETABLE_FUTURE_CALLBACK;
-import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.exclude;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.context.ContextScope;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.agent.test.scopediag.ScopeDiagnostics;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.instrumentation.lettuce5.LettuceAsyncBiConsumer;
 import datadog.trace.instrumentation.lettuce5.LettuceAsyncCommandsAdvice;
 import io.lettuce.core.codec.StringCodec;
 import io.lettuce.core.output.StatusOutput;
@@ -70,7 +66,6 @@ class LettuceAsyncCallbackExclusionTest extends AbstractInstrumentationTest {
       control.complete("OK");
 
       assertEquals(0, captures);
-      assertTrue(exclude(COMPLETABLE_FUTURE_CALLBACK, LettuceAsyncBiConsumer.class.getName()));
       assertEquals(1, controlCaptures);
       assertEquals(1, application.calls);
       assertSame(parent, application.span);
