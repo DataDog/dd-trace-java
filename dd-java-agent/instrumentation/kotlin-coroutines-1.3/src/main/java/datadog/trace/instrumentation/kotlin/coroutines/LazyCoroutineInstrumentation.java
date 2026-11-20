@@ -35,7 +35,7 @@ public class LazyCoroutineInstrumentation
   public static class OnStartAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onStart(@Advice.This AbstractCoroutine<?> coroutine) {
-      DatadogThreadContextElement.captureDatadogContext(coroutine);
+      DatadogThreadContextElement.captureLazyDatadogContext(coroutine);
     }
   }
 }
