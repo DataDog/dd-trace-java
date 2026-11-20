@@ -274,9 +274,7 @@ public class Agent {
     appSecFullyDisabled = isFullyDisabled(AgentFeature.APPSEC);
     iastEnabled = isFeatureEnabled(AgentFeature.IAST);
     iastFullyDisabled = isIastFullyDisabled(appSecEnabled);
-    remoteConfigEnabled =
-        isFeatureEnabled(AgentFeature.REMOTE_CONFIG)
-            || isFeatureEnabled(AgentFeature.DEPRECATED_REMOTE_CONFIG);
+    remoteConfigEnabled = isRemoteConfigEnabled();
     cwsEnabled = isFeatureEnabled(AgentFeature.CWS);
     telemetryEnabled = isFeatureEnabled(AgentFeature.TELEMETRY);
     dynamicInstrumentationEnabled = isFeatureEnabled(AgentFeature.DYNAMIC_INSTRUMENTATION);
@@ -1635,6 +1633,18 @@ public class Agent {
     return !EnvironmentVariables.getOrDefault("AWS_LAMBDA_FUNCTION_NAME", "").isEmpty();
   }
 
+  /**
+   * Returns whether Remote Configuration is enabled. In AWS Lambda it is off unless explicitly
+   * enabled, because the Datadog Lambda extension serves no Remote Configuration. Like the other
+   * startup checks, this ignores the {@code DD_TRACE_CONFIG} properties file. Must be kept in sync
+   * with Config.
+   */
+  static boolean isRemoteConfigEnabled() {
+    final boolean enabledByDefault = !isAwsLambdaRuntime();
+    return isFeatureEnabled(AgentFeature.REMOTE_CONFIG, enabledByDefault)
+        || isFeatureEnabled(AgentFeature.DEPRECATED_REMOTE_CONFIG, enabledByDefault);
+  }
+
   private static void shutdownProfilingAgent(final boolean sync) {
     if (AGENT_CLASSLOADER == null) {
       // It wasn't started, so no need to shut it down
@@ -1768,6 +1778,14 @@ public class Agent {
    * @return {@code true} if the agent feature is enabled
    */
   private static boolean isFeatureEnabled(AgentFeature feature) {
+    return isFeatureEnabled(feature, feature.isEnabledByDefault());
+  }
+
+  /**
+   * @return {@code true} if the agent feature is enabled, using {@code enabledByDefault} when it is
+   *     not set
+   */
+  private static boolean isFeatureEnabled(AgentFeature feature, boolean enabledByDefault) {
     // must be kept in sync with logic from Config!
     final String featureConfigKey = feature.getConfigKey();
     final String featureSystemProp = feature.getSystemProp();
@@ -1782,7 +1800,7 @@ public class Agent {
       featureEnabled = getStableConfig(LOCAL, featureConfigKey);
     }
 
-    if (feature.isEnabledByDefault()) {
+    if (enabledByDefault) {
       // true unless it's explicitly set to "false"
       return !("false".equalsIgnoreCase(featureEnabled) || "0".equals(featureEnabled));
     } else {
