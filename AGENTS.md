@@ -60,6 +60,7 @@ docs/                     Developer documentation (see below)
 - **Formatting**: google-java-format enforced via Spotless. Run `./gradlew spotlessApply` before committing.
 - **Static imports**: Prefer static imports for call-style helpers; no wildcard imports. See [the import guidelines](CONTRIBUTING.md#static-imports).
 - **Documentation**: Use concise Javadoc comments (`/** ... */`) for class, method, and field documentation.
+- **Traversals**: Prefer a `datadog.trace.util.Cursor` (`next()` returns the next element, or null when done) to a hand-written `Iterator`. Add an `Iterator` only when a caller needs one, such as a for-each loop or a JDK API; see `Cursor`'s Javadoc for how to provide both without allocating on a hot path. A `forEach` is still the fastest full walk where nothing needs to be carried out of the loop.
 - **Tests**: Write new tests in Java with JUnit 5. Maintain existing Spock tests as needed; new `.groovy` files require an explicit exception. Follow the testing guides above for parameterization, forked tests, and flaky tests.
 
 ## PR conventions
@@ -74,14 +75,15 @@ docs/                     Developer documentation (see below)
 - **CI flakiness**: use [reproduce-ci-flakiness](.agents/skills/reproduce-ci-flakiness/SKILL.md) for intermittent timeouts, races, asynchronous test failures, or tests that pass locally but fail in CI.
 - **Technical debt**: run `/techdebt` over branch changes before marking a PR ready to catch code duplication, unnecessary complexity, and dead code (refactor-only, never changes behavior) — see [.agents/skills/techdebt/SKILL.md](.agents/skills/techdebt/SKILL.md).
 - **Performance**: run `/perf-review` over branch changes before marking a PR ready (advisory, not a merge gate) — see [.agents/skills/perf-review/SKILL.md](.agents/skills/perf-review/SKILL.md).
+- **Correctness contracts**: an annotation meta-annotated `@CorrectnessContract` (in `datadog.contract`, e.g. `@Confined`) states a rule code must follow, with a *Checker contract* in its Javadoc. When a change uses a type that carries one, check the change against that contract: a violation is a bug, and there is no suppression.
 
 ### Core performance rules
 
 These rules are strict for shipped runtime code in `dd-trace-core/src/main/` and `internal-api/src/main/`. Elsewhere, including those modules' tests, benchmarks and build files, treat them as advice.
 
-- **Measure performance claims.** Match the evidence to the claim:
-  - *Allocates less*: a JMH `-Pjmh.profilers=gc` before/after naming both commit SHAs. One run of each is enough, since `gc.alloc.rate.norm` is stable.
-  - *Faster*: JMH before/after from the same machine, JDK, JVM flags and benchmark settings, with enough forks that JMH reports error bars.
+- **Measure performance claims.** Both sides of a before/after use the same JDK, JVM flags, benchmark settings and workload (the same `@Param` values, for example), and name both commit SHAs. Match the rest of the evidence to the claim:
+  - *Allocates less*: a JMH `-Pjmh.profilers=gc` before/after. One run of each is enough, since `gc.alloc.rate.norm` is stable when both runs measure the same work.
+  - *Faster*: a JMH before/after on the same machine, with enough forks that JMH reports error bars. A gain smaller than the run-to-run variance (an unchanged control drifting more than the claimed gain, say) doesn't support the claim.
   - *Structural* changes that only remove work (an allocation, a lookup, a re-encode) may claim the reduction without numbers, but not a speedup.
 
   Reviewers should flag a claim that lacks its matching evidence as advisory, not merge-blocking. The author either adds the numbers or narrows the claim to what the evidence shows.

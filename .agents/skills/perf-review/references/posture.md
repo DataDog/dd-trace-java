@@ -94,25 +94,15 @@ mechanism is certain or the severity is catastrophic.
   **routine adoption of a known-better idiom** (migrating to a lower-overhead builder / API /
   toolkit primitive — no visible downside); or a change that **ships a benchmark/JFR**
   (well-evidenced — recognize it). One line; a nudge, not a code-pattern finding.
-- **Shipped core code is stricter — see the core performance rules in `AGENTS.md`.**
-  For changes to `dd-trace-core/src/main/` or `internal-api/src/main/`, check each
-  performance claim (in the title, description, or commits) against the evidence that kind
-  of claim needs:
-  - **"Allocates less"** — a JMH `-Pjmh.profilers=gc` before/after that names both commit
-    SHAs. One run per side is enough: `gc.alloc.rate.norm` is near-deterministic.
-  - **"Faster"** — before/after on the same machine, JDK, JVM flags and benchmark settings,
-    with enough forks/iterations that JMH reports error bars. A delta smaller than the
-    run-to-run variance (an unchanged control drifting more than the claimed gain, say)
-    doesn't support the claim.
-  - **Structural** — a change that only removes work (an allocation, a lookup, a re-encode,
-    an iterator) may claim the reduction without numbers, but not a speedup.
-
-  A claim missing its evidence is one finding, not a soft nudge — but scope it to the part
-  that's unsupported (e.g. "allocation claim is supported; timing claim isn't"), and label it
-  **advisory, not merge-blocking**: the fix is to add the matching numbers *or* narrow the
-  claim to what the evidence shows. Don't give it a severity level or code-defect weight.
-  Elsewhere, including those modules' tests, benchmarks and build files, keep the softer
-  posture above.
+- **Shipped core code is stricter.** For changes to `dd-trace-core/src/main/` or
+  `internal-api/src/main/`, check each performance claim (in the title, description, or
+  commits) against the evidence `AGENTS.md` ("Measure performance claims") requires for that
+  kind of claim; the full rule lives there, so apply it as written. A claim missing its
+  evidence is one finding, not a soft nudge, but scope it to the part that's unsupported
+  (e.g. "allocation claim is supported; timing claim isn't") and label it **advisory, not
+  merge-blocking**: the fix is to add the matching numbers *or* narrow the claim to what the
+  evidence shows. Don't give it a severity level or code-defect weight. Elsewhere, including
+  those modules' tests, benchmarks and build files, keep the softer posture above.
 
 ## Severity
 
