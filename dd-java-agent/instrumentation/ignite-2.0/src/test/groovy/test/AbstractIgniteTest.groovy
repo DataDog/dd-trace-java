@@ -1,70 +1,16 @@
 package test
 
-
 import datadog.trace.agent.test.asserts.TraceAssert
-import datadog.trace.agent.test.naming.VersionedNamingTestBase
-import datadog.trace.agent.test.utils.PortUtils
-import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import org.apache.ignite.Ignite
-import org.apache.ignite.Ignition
-import org.apache.ignite.configuration.IgniteConfiguration
-import org.apache.ignite.spi.discovery.tcp.TcpDiscoverySpi
-import org.apache.ignite.spi.discovery.tcp.ipfinder.vm.TcpDiscoveryVmIpFinder
-import spock.lang.Shared
 
-abstract class AbstractIgniteTest extends VersionedNamingTestBase {
-  static final String V0_SERVICE = "ignite"
-  static final String V1_SERVICE = Config.get().getServiceName()
-  static final String V0_OPERATION = "ignite.cache"
-  static final String V1_OPERATION = "ignite.command"
-
-  @Shared
-  Ignite igniteServer, igniteClient
-
-  @Override
-  protected void configurePreAgent() {
-    super.configurePreAgent()
-    injectSysConfig("dd.integration.ignite.enabled", "true")
-  }
-
+abstract class AbstractIgniteTest extends IgniteBaseTest {
   def setupSpec() {
-    IgniteConfiguration serverConfig = new IgniteConfiguration()
-    IgniteConfiguration clientConfig = new IgniteConfiguration()
-
-    // Need temporary directories for the files that Ignite creates
-    serverConfig.setWorkDirectory(
-      File.createTempDir("igniteserver", UUID.randomUUID().toString()).toString())
-    clientConfig.setWorkDirectory(
-      File.createTempDir("igniteclient", UUID.randomUUID().toString()).toString())
-
-    serverConfig.setIgniteInstanceName("igniteServer")
-    clientConfig.setIgniteInstanceName("igniteClient")
-
-    clientConfig.setClientMode(true)
-
-    configureDiscovery(serverConfig, clientConfig)
-
-    igniteServer = Ignition.start(serverConfig)
-    igniteClient = Ignition.start(clientConfig)
-  }
-
-  static void configureDiscovery(IgniteConfiguration serverConfig, IgniteConfiguration clientConfig) {
-    String loopback = "127.0.0.1"
-    int discoveryPort = PortUtils.randomOpenPort()
-    TcpDiscoveryVmIpFinder ipFinder = new TcpDiscoveryVmIpFinder()
-    ipFinder.setAddresses(Collections.singletonList(loopback + ":" + discoveryPort))
-
-    // The client knows only this endpoint, so the server must bind to that exact port.
-    serverConfig.setDiscoverySpi(new TcpDiscoverySpi().setLocalAddress(loopback)
-      .setLocalPort(discoveryPort).setLocalPortRange(0).setIpFinder(ipFinder))
-    clientConfig.setDiscoverySpi(new TcpDiscoverySpi().setLocalAddress(loopback).setIpFinder(ipFinder))
+    startIgnite()
   }
 
   def cleanupSpec() {
-    igniteClient?.close()
-    igniteServer?.close()
+    stopIgnite()
   }
 
   void assertIgniteCall(TraceAssert trace, String name, String cacheName, boolean parentSpan = true) {
