@@ -63,12 +63,15 @@ class UniqueTagValueCachingTest {
   @Test
   void rootParentMarkerIsStillCached() {
     String header = "xundefined";
+    TagValue first =
+        PTagsCodec.tagValue(
+            TagElement.Encoding.DATADOG, PTagsCodec.LLMOBS_PARENT_ID_TAG, header, 1, 10);
+    TagValue second =
+        PTagsCodec.tagValue(
+            TagElement.Encoding.DATADOG, PTagsCodec.LLMOBS_PARENT_ID_TAG, header, 1, 10);
 
-    assertSame(
-        PTagsCodec.tagValue(
-            TagElement.Encoding.DATADOG, PTagsCodec.LLMOBS_PARENT_ID_TAG, header, 1, 10),
-        PTagsCodec.tagValue(
-            TagElement.Encoding.DATADOG, PTagsCodec.LLMOBS_PARENT_ID_TAG, header, 1, 10));
+    assertEquals(TagValue.from(TagElement.Encoding.DATADOG, "undefined"), first);
+    assertSame(first, second);
   }
 
   @Test
@@ -84,6 +87,7 @@ class UniqueTagValueCachingTest {
 
     LLMObsTagValues root = LLMObsTagValues.from(injected("0123456789abcdef", "undefined"));
     LLMObsTagValues otherRoot = LLMObsTagValues.from(injected("fedcba9876543210", "undefined"));
+    assertEquals(TagValue.from(TagElement.Encoding.DATADOG, "undefined"), root.parentId);
     assertSame(root.parentId, otherRoot.parentId);
   }
 
