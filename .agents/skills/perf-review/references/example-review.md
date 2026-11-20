@@ -1,7 +1,7 @@
 # Perf Review — PR #11903 (Bucket4j instrumentation, demo)
 
 **PR:** https://github.com/DataDog/dd-trace-java/pull/11903
-**Rubric:** `checks.md` + `guide.md` (this skill's references)
+**Rubric:** this skill's `references/`
 **Scope reviewed:** `Bucket4jDecorator.onConsume` — runs on every `Bucket#tryConsume` call (tracing hot path; multiplier = per-call × calls/sec).
 **Method:** Diff reviewed independently of the PR description (description ignored per request).
 

@@ -5,7 +5,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -29,6 +31,7 @@ import org.apache.catalina.connector.Request;
 import org.apache.catalina.connector.Response;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.InOrder;
 
 /**
  * Tests {@link TomcatBlockingHelper#commitBlockingResponse}'s block-failure reporting: the {@code
@@ -36,7 +39,8 @@ import org.junit.jupiter.api.Test;
  * Response#getOutputStream()} failed at class initialization), the "response already committed by
  * something other than us" path, and the "write threw" path. In all three, a blocking commit was
  * genuinely attempted and failed, so a {@code block_failure} must be reported on the AppSec context
- * reachable from the Tomcat request.
+ * reachable from the Tomcat request. It also checks that a response suspended by {@code
+ * sendError()} has the suspension lifted before the block page is written.
  *
  * <p>On a real classpath {@code Response#getOutputStream()} always exists, so the field is never
  * {@code null} and the degraded-lookup branch is unreachable by normal means. There is no
@@ -231,6 +235,49 @@ class TomcatBlockingHelperTest {
 
     verify(segment).effectivelyBlocked();
     verify(appSecCtx, never()).reportBlockFailure();
+  }
+
+  /**
+   * {@code sendError()} (e.g. Tomcat rejecting an encoded slash in the path) suspends the output
+   * and {@code reset()} does not lift it, so the suspension must be lifted after the reset and
+   * before the block page is written, or the page is silently dropped.
+   */
+  @Test
+  void commitBlockingResponse_responseSuspended_liftsSuspensionBeforeWriting() throws IOException {
+    AppSecContext appSecCtx = mock(AppSecContext.class);
+    RequestContext reqCtx = mock(RequestContext.class);
+    when(reqCtx.getData(RequestContextSlot.APPSEC)).thenReturn(appSecCtx);
+    Request request = mockRequestWithSpan(mockSpan(reqCtx));
+    Response resp = mockResponse(request, false);
+    when(resp.isSuspended()).thenReturn(true);
+    ServletOutputStream os = mock(ServletOutputStream.class);
+    when(resp.getOutputStream()).thenReturn(os);
+    TraceSegment segment = mock(TraceSegment.class);
+
+    assertTrue(commitBlockingResponse(segment, request, resp));
+
+    InOrder inOrder = inOrder(resp, os);
+    inOrder.verify(resp).reset();
+    inOrder.verify(resp).setSuspended(false);
+    inOrder.verify(os).write(any(byte[].class));
+    inOrder.verify(os).close();
+    verify(segment).effectivelyBlocked();
+    verify(appSecCtx, never()).reportBlockFailure();
+  }
+
+  @Test
+  void commitBlockingResponse_responseNotSuspended_doesNotTouchSuspension() throws IOException {
+    Request request = mockRequestWithSpan(mockSpan(mock(RequestContext.class)));
+    Response resp = mockResponse(request, false);
+    ServletOutputStream os = mock(ServletOutputStream.class);
+    when(resp.getOutputStream()).thenReturn(os);
+    TraceSegment segment = mock(TraceSegment.class);
+
+    assertTrue(commitBlockingResponse(segment, request, resp));
+
+    verify(resp, never()).setSuspended(anyBoolean());
+    verify(os).write(any(byte[].class));
+    verify(segment).effectivelyBlocked();
   }
 
   @Test

@@ -42,7 +42,7 @@ updates:
     schedule:
       interval: weekly
     allow:
-      - dependency-name: dd-smoke-tests/openfeature/src/test/resources/ffe-system-test-data
+      - dependency-name: dd-openfeature/src/test/fixtures/ffe-system-test-data
     labels:
       - 'comp: openfeature'
       - 'tag: dependencies'
