@@ -1,5 +1,7 @@
 package com.datadog.openfeature;
 
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.allocationKey;
+
 import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.FlagEvaluationDetails;
 import dev.openfeature.sdk.Hook;
@@ -30,7 +32,7 @@ class FlagEvalMetricsHook implements Hook<Object> {
       String allocationKey = null;
       ImmutableMetadata metadata = details.getFlagMetadata();
       if (metadata != null) {
-        allocationKey = metadata.getString("allocationKey");
+        allocationKey = allocationKey(metadata.asUnmodifiableMap());
       }
 
       metrics.record(flagKey, variant, reason, errorCode, allocationKey);
