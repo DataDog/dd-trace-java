@@ -122,9 +122,11 @@ Performance findings top out at `P1`; `P0` is not used for them. How the usual c
 Each check gives one base level and says when it moves. One rule applies to every check: **raise
 one level when the cost is paid per span or per trace on the tracer's own core path** (span
 create / setTag / finish, tag-map ops, propagation, serialization), which every integration pays.
-A one-time cost in core code, such as startup work or a retained buffer, isn't raised. **Raises
-don't stack:** a finding moves at most one level above its check's base, however many reasons
-apply.
+A one-time cost in core code, such as startup work or a retained buffer, isn't raised. **The
+core raise is one level, however many core reasons apply** (propagation and serialization, say,
+still count once). It is separate from a check's own escalations: when a check sets a level for a
+condition, such as P1 when unbounded, that level applies as written. Findings top out at P1
+either way.
 
 CPU overhead alone is the lowest priority — it's a cost issue, not a correctness one, and
 escalates only when it causes latency.
