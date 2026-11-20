@@ -27,6 +27,7 @@ import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.config.TracerConfig;
 import datadog.trace.api.datastreams.PathwayContext;
+import datadog.trace.api.function.NoEscape;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
@@ -38,11 +39,15 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AppendableSpanLinks;
 import datadog.trace.bootstrap.instrumentation.api.Baggage;
 import datadog.trace.bootstrap.instrumentation.api.ClientIpAddressData;
+import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
+import datadog.trace.bootstrap.instrumentation.api.SpanData;
 import datadog.trace.bootstrap.instrumentation.api.SpanKind;
 import datadog.trace.bootstrap.instrumentation.api.SpanPrototype;
+import datadog.trace.bootstrap.instrumentation.api.TagContributor;
+import datadog.trace.bootstrap.instrumentation.api.TagExtractor;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.propagation.PropagationTags;
@@ -1683,6 +1688,413 @@ public class DDSpanContext
     }
   }
 
+  /*
+   * The *HoldingLock variants: the same tag semantics as setTag / removeTag / getTag (a null value
+   * removes, the tag interceptor runs), for a caller that already holds the knownTags lock, so a
+   * batch takes the lock once. Only HeldSpanData calls them, during setTagsFrom.
+   */
+
+  void setTagHoldingLock(final String tag, final Object value) {
+    if (null == tag) {
+      return;
+    }
+    final long tagId = KnownTagCodec.keyOf(tag);
+    if (tagId != 0) {
+      setTagHoldingLock(tagId, value);
+    } else if (null == value) {
+      removeTagHoldingLock(tag);
+    } else if (!tagInterceptor.interceptCustomTag(this, tag, value)) {
+      customTagsForWrite().store(tag, value); // already known to be custom
+    }
+  }
+
+  void setTagHoldingLock(final String tag, final String value) {
+    if (null == tag) {
+      return;
+    }
+    final long tagId = KnownTagCodec.keyOf(tag);
+    if (tagId != 0) {
+      setTagHoldingLock(tagId, value);
+    } else if (null == value) {
+      removeTagHoldingLock(tag);
+    } else if (!tagInterceptor.interceptCustomTag(this, tag, value)) {
+      customTagsForWrite().store(tag, value); // already known to be custom
+    }
+  }
+
+  void setTagHoldingLock(final long tagId, final Object value) {
+    if (!KnownTagCodec.isKnown(tagId)) {
+      return;
+    }
+    if (null == value) {
+      removeTagHoldingLock(tagId);
+      return;
+    }
+    if (!tagInterceptor.needsIntercept(tagId) || !tagInterceptor.interceptTag(this, tagId, value)) {
+      knownTags.store(tagId, value);
+    }
+  }
+
+  void setTagHoldingLock(final long tagId, final CharSequence value) {
+    if (!KnownTagCodec.isKnown(tagId)) {
+      return;
+    }
+    if (null == value) {
+      removeTagHoldingLock(tagId);
+      return;
+    }
+    if (!tagInterceptor.needsIntercept(tagId) || !tagInterceptor.interceptTag(this, tagId, value)) {
+      knownTags.store(tagId, value);
+    }
+  }
+
+  void setTagHoldingLock(final long tagId, final boolean value) {
+    if (!KnownTagCodec.isKnown(tagId)) {
+      return;
+    }
+    if (tagInterceptor.needsIntercept(tagId)) {
+      this.setBoxHoldingLock(tagId, value);
+    } else {
+      knownTags.store(tagId, value);
+    }
+  }
+
+  void setTagHoldingLock(final long tagId, final int value) {
+    if (!KnownTagCodec.isKnown(tagId)) {
+      return;
+    }
+    if (tagInterceptor.needsIntercept(tagId)) {
+      this.setBoxHoldingLock(tagId, value);
+    } else {
+      knownTags.store(tagId, value);
+    }
+  }
+
+  void setTagHoldingLock(final long tagId, final long value) {
+    if (!KnownTagCodec.isKnown(tagId)) {
+      return;
+    }
+    if (tagInterceptor.needsIntercept(tagId)) {
+      this.setBoxHoldingLock(tagId, value);
+    } else {
+      knownTags.store(tagId, value);
+    }
+  }
+
+  void setTagHoldingLock(final long tagId, final float value) {
+    if (!KnownTagCodec.isKnown(tagId)) {
+      return;
+    }
+    if (tagInterceptor.needsIntercept(tagId)) {
+      this.setBoxHoldingLock(tagId, value);
+    } else {
+      knownTags.store(tagId, value);
+    }
+  }
+
+  void setTagHoldingLock(final long tagId, final double value) {
+    if (!KnownTagCodec.isKnown(tagId)) {
+      return;
+    }
+    if (tagInterceptor.needsIntercept(tagId)) {
+      this.setBoxHoldingLock(tagId, value);
+    } else {
+      knownTags.store(tagId, value);
+    }
+  }
+
+  void setTagHoldingLock(TagMap.EntryReader entry) {
+    if (entry == null) {
+      return;
+    }
+
+    // the interceptor prechecks the entry, to avoid boxing
+    if (!tagInterceptor.interceptTag(this, entry)) {
+      routePut(entry);
+    }
+  }
+
+  void setTagHoldingLock(final String tag, final boolean value) {
+    if (null == tag) {
+      return;
+    }
+    final long tagId = KnownTagCodec.keyOf(tag);
+    if (tagId != 0) {
+      setTagHoldingLock(tagId, value);
+    } else if (!tagInterceptor.needsInterceptCustomTag(tag)
+        || !tagInterceptor.interceptCustomTag(this, tag, value)) {
+      customTagsForWrite().store(tag, value); // already known to be custom
+    }
+  }
+
+  void setTagHoldingLock(final String tag, final int value) {
+    if (null == tag) {
+      return;
+    }
+    final long tagId = KnownTagCodec.keyOf(tag);
+    if (tagId != 0) {
+      setTagHoldingLock(tagId, value);
+    } else if (!tagInterceptor.needsInterceptCustomTag(tag)
+        || !tagInterceptor.interceptCustomTag(this, tag, value)) {
+      customTagsForWrite().store(tag, value); // already known to be custom
+    }
+  }
+
+  void setTagHoldingLock(final String tag, final long value) {
+    if (null == tag) {
+      return;
+    }
+    final long tagId = KnownTagCodec.keyOf(tag);
+    if (tagId != 0) {
+      setTagHoldingLock(tagId, value);
+    } else if (!tagInterceptor.needsInterceptCustomTag(tag)
+        || !tagInterceptor.interceptCustomTag(this, tag, value)) {
+      customTagsForWrite().store(tag, value); // already known to be custom
+    }
+  }
+
+  void setTagHoldingLock(final String tag, final float value) {
+    if (null == tag) {
+      return;
+    }
+    final long tagId = KnownTagCodec.keyOf(tag);
+    if (tagId != 0) {
+      setTagHoldingLock(tagId, value);
+    } else if (!tagInterceptor.needsInterceptCustomTag(tag)
+        || !tagInterceptor.interceptCustomTag(this, tag, value)) {
+      customTagsForWrite().store(tag, value); // already known to be custom
+    }
+  }
+
+  void setTagHoldingLock(final String tag, final double value) {
+    if (null == tag) {
+      return;
+    }
+    final long tagId = KnownTagCodec.keyOf(tag);
+    if (tagId != 0) {
+      setTagHoldingLock(tagId, value);
+    } else if (!tagInterceptor.needsInterceptCustomTag(tag)
+        || !tagInterceptor.interceptCustomTag(this, tag, value)) {
+      customTagsForWrite().store(tag, value); // already known to be custom
+    }
+  }
+
+  void removeTagHoldingLock(String tag) {
+    if (tagEquals(tag, Tags.SPAN_KIND)) {
+      // Clear the cached ordinal; the tag store still needs to be updated below.
+      spanKindOrdinal = SPAN_KIND_UNSET;
+    }
+    routeRemoval(tag);
+  }
+
+  void removeTagHoldingLock(long tagId) {
+    if (!KnownTagCodec.isKnown(tagId)) {
+      return;
+    }
+    if (tagId == KnownTags.SPAN_KIND) {
+      spanKindOrdinal = SPAN_KIND_UNSET;
+    }
+    knownTags.remove(tagId);
+  }
+
+  private void setBoxHoldingLock(long tagId, Object box) {
+    if (!tagInterceptor.interceptTag(this, tagId, box)) {
+      knownTags.store(tagId, box);
+    }
+  }
+
+  Object getTagHoldingLock(final String key) {
+    return readTag(key, true);
+  }
+
+  /**
+   * Applies {@code extractor} to {@code source} holding the tag lock once for the whole call: the
+   * extractor's writes go through a {@link HeldSpanData}, which keeps the span's tag semantics but
+   * doesn't lock again. Kept small so it inlines and each call site sees its exact extractor type.
+   */
+  <T> void setTagsFrom(final T source, final TagExtractor<T> extractor) {
+    synchronized (knownTags) {
+      extractor.extract(source, new HeldSpanData(this));
+    }
+  }
+
+  /** {@link #setTagsFrom(Object, TagExtractor)} for a {@link TagContributor}. */
+  void setTagsFrom(final TagContributor contributor) {
+    synchronized (knownTags) {
+      contributor.addTo(new HeldSpanData(this));
+    }
+  }
+
+  /** Whether the current thread holds this span's tag lock; for assertions. */
+  boolean holdsTagLock() {
+    return Thread.holdsLock(knownTags);
+  }
+
+  /**
+   * The span as a {@link SpanData} for the length of one {@code setTagsFrom} call, which holds the
+   * tag lock throughout: tag writes and reads skip relocking. It must not outlive the call; with
+   * the contributor's call site monomorphic, it is scalar-replaced.
+   */
+  @NoEscape
+  static final class HeldSpanData implements SpanData {
+    private final DDSpanContext span;
+
+    HeldSpanData(DDSpanContext span) {
+      this.span = span;
+    }
+
+    /** The span, checking (with assertions on) that this is still inside its setTagsFrom call. */
+    private DDSpanContext span() {
+      assert span.holdsTagLock() : "HeldSpanData used outside its setTagsFrom call";
+      return span;
+    }
+
+    @Override
+    public SpanData setTag(String key, Object value) {
+      span().setTagHoldingLock(key, value);
+      return this;
+    }
+
+    @Override
+    public SpanData setTag(String key, String value) {
+      // DDSpan.setTag(String, String) treats an empty string as a removal; so must the held path.
+      if (value == null || value.isEmpty()) {
+        span().removeTagHoldingLock(key);
+      } else {
+        span().setTagHoldingLock(key, value);
+      }
+      return this;
+    }
+
+    @Override
+    public SpanData setTag(String key, CharSequence value) {
+      // As DDSpan.setTag(String, CharSequence): an empty value removes the tag.
+      if (value == null || value.length() == 0) {
+        span().removeTagHoldingLock(key);
+      } else {
+        span().setTagHoldingLock(key, (Object) value);
+      }
+      return this;
+    }
+
+    @Override
+    public SpanData setTag(String key, boolean value) {
+      span().setTagHoldingLock(key, value);
+      return this;
+    }
+
+    @Override
+    public SpanData setTag(String key, int value) {
+      span().setTagHoldingLock(key, value);
+      return this;
+    }
+
+    @Override
+    public SpanData setTag(String key, long value) {
+      span().setTagHoldingLock(key, value);
+      return this;
+    }
+
+    @Override
+    public SpanData setTag(String key, float value) {
+      span().setTagHoldingLock(key, value);
+      return this;
+    }
+
+    @Override
+    public SpanData setTag(String key, double value) {
+      span().setTagHoldingLock(key, value);
+      return this;
+    }
+
+    @Override
+    public SpanData setTag(long tagId, Object value) {
+      span().setTagHoldingLock(tagId, value);
+      return this;
+    }
+
+    @Override
+    public SpanData setTag(long tagId, String value) {
+      // As DDSpan.setTag(long, String): an empty string removes the tag.
+      if (value == null || value.isEmpty()) {
+        span().removeTagHoldingLock(tagId);
+      } else {
+        span().setTagHoldingLock(tagId, (CharSequence) value);
+      }
+      return this;
+    }
+
+    @Override
+    public SpanData setTag(long tagId, CharSequence value) {
+      // As DDSpan.setTag(long, CharSequence): an empty value removes the tag.
+      if (value == null || value.length() == 0) {
+        span().removeTagHoldingLock(tagId);
+      } else {
+        span().setTagHoldingLock(tagId, value);
+      }
+      return this;
+    }
+
+    @Override
+    public SpanData setTag(long tagId, boolean value) {
+      span().setTagHoldingLock(tagId, value);
+      return this;
+    }
+
+    @Override
+    public SpanData setTag(long tagId, int value) {
+      span().setTagHoldingLock(tagId, value);
+      return this;
+    }
+
+    @Override
+    public SpanData setTag(long tagId, long value) {
+      span().setTagHoldingLock(tagId, value);
+      return this;
+    }
+
+    @Override
+    public SpanData setTag(long tagId, float value) {
+      span().setTagHoldingLock(tagId, value);
+      return this;
+    }
+
+    @Override
+    public SpanData setTag(long tagId, double value) {
+      span().setTagHoldingLock(tagId, value);
+      return this;
+    }
+
+    @Override
+    public SpanData setTag(TagMap.EntryReader entry) {
+      span().setTagHoldingLock(entry);
+      return this;
+    }
+
+    @Override
+    public Object getTag(String key) {
+      return span().getTagHoldingLock(key);
+    }
+
+    @Override
+    public SpanData setResourceName(CharSequence resourceName) {
+      span().setResourceName(resourceName, ResourceNamePriorities.DEFAULT);
+      return this;
+    }
+
+    @Override
+    public SpanData setError(boolean error) {
+      span().setErrorFlag(error, ErrorPriorities.DEFAULT);
+      return this;
+    }
+
+    @Override
+    public SpanData setMeasured(boolean measured) {
+      span().setMeasured(measured);
+      return this;
+    }
+  }
+
   void setAllTags(final TagMap map) {
     setAllTags(map, true);
   }
@@ -1767,6 +2179,14 @@ public class DDSpanContext
   }
 
   Object getTag(final String key) {
+    return readTag(key, false);
+  }
+
+  /**
+   * {@link #getTag}, with the computed tags and the observable-type quirks in one place. Only the
+   * stored-tag read needs the lock; {@code holdingLock} is constant at each call site, so it folds.
+   */
+  private Object readTag(final String key, final boolean holdingLock) {
     switch (key) {
       case DDTags.THREAD_ID:
         return threadId;
@@ -1780,8 +2200,12 @@ public class DDSpanContext
         return getSpanKindString();
       default:
         Object value;
-        synchronized (knownTags) {
+        if (holdingLock) {
           value = unsafeGetTag(key);
+        } else {
+          synchronized (knownTags) {
+            value = unsafeGetTag(key);
+          }
         }
         // maintain previously observable type of http url :|
         return value == null ? null : Tags.HTTP_URL.equals(key) ? value.toString() : value;

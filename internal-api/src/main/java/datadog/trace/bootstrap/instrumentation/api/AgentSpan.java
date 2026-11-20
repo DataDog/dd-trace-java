@@ -27,7 +27,8 @@ public interface AgentSpan
         ImplicitContextKeyed,
         Context,
         IGSpanInfo,
-        WithAgentSpan {
+        WithAgentSpan,
+        SpanData {
 
   /**
    * Extracts the span from the current {@link Context}.
