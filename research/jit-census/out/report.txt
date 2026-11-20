@@ -1,0 +1,115 @@
+artifacts: 2286
+classes: 854,773  (3,353 MB)  unparseable-cp: 0  asm-failed: 0
+
+== Prescan hit rates (fraction of all classes)
+  any target method ref :    22,242    2.60%
+  String.split          :     3,811    0.45%
+  String.matches        :       604    0.07%
+  String.replaceAll     :     1,280    0.15%
+  String.replaceFirst   :       283    0.03%
+  String.replace(CS,CS) :     1,588    0.19%
+  String.format/formatted:    14,165    1.66%
+  Pattern.compile       :     3,183    0.37%
+  Pattern.matches       :        75    0.01%
+  Pattern.quote         :       187    0.02%
+  split + S0-shaped const:        67   0.008%
+
+== Prescan soundness / precision
+  classes with >=1 const site: 18,747 ; missed by prescan: 0 (must be 0)
+  precision of any-target filter: 84.3% of hits have a const site
+  S0 filter: 67 prescan hits, 32 classes with real S0 site, 32 of those caught
+
+== Rough prescan cost (NOT JMH; sample 307,542 classes, 1,144 MB): median 783 ns/class, 205.6 ns/KB
+
+== All calls to target methods (const + non-const)
+  Pattern.compile                5,478
+  Pattern.matches                  134
+  Pattern.quote                    276
+  String.format/formatted       28,174
+  String.matches                 1,002
+  String.replace(CS,CS)          3,114
+  String.replaceAll              2,611
+  String.replaceFirst              399
+  String.split                   5,587
+
+== Constant-argument sites: method | shape   sites   #artifacts   top constants
+  Pattern.compile[in-clinit]|ALT_LITERALS               47     26   "\r\n|\n|\r"x8  "true|false"x4  "\n|\u0085|\u2028|\u2029"x4  "mandatory|optional"x3  "GET|HEAD|OPTIONS"x2  "/:|/\\{"x2
+  Pattern.compile[in-clinit]|ANCHORED_LITERAL           45     16   "^KN"x6  "^K"x6  "^SCH"x6  "/$"x6  "^MAC"x6  "^\\."x3
+  Pattern.compile[in-clinit]|CHARCLASS                 246    117   "\\s+"x30  "\\s"x22  "\\d+"x15  "[-_./;:]"x12  "[^0-9]"x8  "[ \t]+"x7
+  Pattern.compile[in-clinit]|CHAR_RUN                    5      5   " +"x1  "0+"x1  "`+"x1  "_+"x1  "/+"x1
+  Pattern.compile[in-clinit]|INVALID                    11      8   "${.}"x3  "*"x2  "+"x2  "\\"x2  "${timestamp}"x1  "${topic}"x1
+  Pattern.compile[in-clinit]|LINES                       8      7   "\\r?\\n"x4  "\\R"x3  "\\r\\n|\\r|\\n"x1
+  Pattern.compile[in-clinit]|LITERAL                   211     75   ":"x15  "\\."x14  "'"x11  "\\*"x10  "\\+"x10  " "x7
+  Pattern.compile[in-clinit]|OTHER                   2,794    439   ".*"x16  "-?inf(inity)?"x12  "[a-zA-Z_][0-9a-zA-Z_+-]*+|[.]?[0-9+-][0-9a-zA-Z_.+-]*+|\"([^\"\n\\\\]|\\\\.)*+(\"|\\\\?$)|'([^'\n\\\\]|\\\\.)*+('|\\\\?$)"x12  "-?inf(inity)?f?"x12  "nanf?"x12  "(\\s|(#.*$))++"x12
+  Pattern.compile[in-clinit]|WS_SEP                     38     20   "\\s*,\\s*"x20  "\\s*\\Q\\E@\\s*"x2  ",\\s*"x2  "\\s*\\Q..\\E\\s*"x2  "\\s*and\\s*"x2  "\\s*or\\s*"x2
+  Pattern.compile[in-clinit]|used-directly           3,405      0   
+  Pattern.compile[in-ctor]|ALT_LITERALS                  3      1   "\u2026|\u2013|\u2014|&hellip;|&endash;|&emdash;"x1  "\u201c|\u201d|\u2018|\u2019|\u00ab|\u00bb|&ldquo;|&rdquo;|&lsquo;|&rsquo;|&apos;|&laquo;|&raquo;|\u2026|\u2013|\u2014|&hellip;|&endash;|&emdash;"x1  "\u201c|\u201d|\u2018|\u2019|\u00ab|\u00bb|&ldquo;|&rdquo;|&lsquo;|&rsquo;|&apos;|&laquo;|&raquo;"x1
+  Pattern.compile[in-ctor]|ANCHORED_LITERAL              2      1   "^<!--"x1  "^<!\\[CDATA\\["x1
+  Pattern.compile[in-ctor]|CHARCLASS                    12      6   "[A-Za-z0-9_.-]+"x4  "\\s+"x3  "[a-zA-Z0-9_\\-]+"x2  "[\\r\\n]"x1  "\\s"x1  "[\n\r]+"x1
+  Pattern.compile[in-ctor]|LITERAL                       6      3   "\\]\\]>"x1  " ->"x1  "\\?>"x1  ">"x1  "-->"x1  "\\+"x1
+  Pattern.compile[in-ctor]|OTHER                       104     56   "[a-z][a-z0-9_.@-]*"x4  "^/$"x4  ".*\\$\\{.*\\}.*"x4  "ContainerInitializer\\{(.*),interested=(.*),applicable=(.*),annotated=(.*)\\}"x3  ".*"x3  "^HTTP/1.[01]\\s+(\\d+)\\s+(.*)"x3
+  Pattern.compile[in-ctor]|WS_SEP                        1      1   "\\s*,\\s*"x1
+  Pattern.compile[in-ctor]|used-directly               128      0   
+  Pattern.compile[in-method]|ALT_LITERALS                3      2   "CVS|\\.svn|\\.git|\\.DS_Store|\\.gitignore"x1  "true|false"x1  "Export-Package|-exportcontents"x1
+  Pattern.compile[in-method]|ANCHORED_LITERAL            1      1   "^Bundle-Version"x1
+  Pattern.compile[in-method]|CHARCLASS                  20      8   "\\s+"x4  "[0-9]+"x2  "[^\u0000\"]+"x1  "[a-zA-Z0-9\\-_]+"x1  "[\\\\/$:><\"|?*~]"x1  "[0-9]*"x1
+  Pattern.compile[in-method]|LITERAL                    20      8   "__consumer_offsets"x4  "one"x2  ";"x2  "="x2  "Service-Component"x1  "=>"x1
+  Pattern.compile[in-method]|OTHER                     283    103   ".*"x8  "([1-9][0-9]+)-?bit"x7  "META-INF/.*\\.tld"x6  "\\p{Cntrl}"x6  ".*?:\\s*(\\d+)\\D.*?:\\s*(\\d+)\\D.*"x5  "\\s*(([^,]|\\\\,)+)\\s*[,$]"x5
+  Pattern.compile[in-method]|WS_SEP                      1      1   "\\s*,\\s*"x1
+  Pattern.compile[in-method]|used-directly             328      0   
+  Pattern.matches|CHARCLASS                             16      3   "^[a-zA-Z0-9\\.\\-_]+$"x10  "[0-9]*"x4  "[a-zA-Z_0-9\\.\\-\\(\\)\\%]+"x1  "^[0-9A-Za-z._/@*?\\[\\]\\-]+$"x1
+  Pattern.matches|CHAR_RUN                               8      4   "^e*$"x4  "^l*$"x3  "^l+$"x1
+  Pattern.matches|DOTSTAR                                1      1   ".*\\n at.*"x1
+  Pattern.matches|OTHER                                 21      9   "^e*v+"x4  "^v+e+"x4  "^g+l+$"x3  "^l*g+"x3  "^(text/.*?|application/(json|(x-)?javascript|xml.*?|ecmascript|graphql|x-www-form-urlencoded)|image/svg(\\+xml)?|application/.*?(\\+json|\\+xml))(;\\s*charset=.*)?$"x1  "^g+l+.*"x1
+  Pattern.quote|CONST                                   56     22   "*"x4  "\\"x3  "("x3  ")"x3  "."x3  "$read"x2
+  String.format/formatted|no-specifiers                222     66   "%n"x33  "%n%n"x9  "%n    "x8  "%n  "x7  "------------- ---------------- ---------------%n"x4  "%n    None%n"x4
+  String.format/formatted|other                      2,956    359   "%s@%x"x69  "%02x"x49  "\\u%04x"x44  "%.2f"x39  "   %-29s = %s\n"x37  "0x%08x"x34
+  String.format/formatted|plain-%s-only             14,943    728   "Argument for @NotNull parameter '%s' of %s.%s must not be null"x1143  "@NotNull method %s.%s must not return null"x189  "%s.%s"x84  "values at index %s is greater than listSize %s"x59  "%s:%s"x55  "%s(%s)"x44
+  String.format/formatted|plain-%s/%d-only           3,552    387   "Pos: %d, limit: %d, len: %d"x101  "buffer limit=%d, index=%d, limit=%d"x30  "initialCapacity(%d) > maxCapacity(%d)"x28  "%s:%d"x28  "%d"x26  "Wrong object type used with protocol message reflection.\nField number: %d, field java type: %s, value type: %s\n"x19
+  String.matches|ALT_LITERALS                           53     11   "^(ppc|ppc32)$"x6  "^(arm|arm32)$"x6  "^(sparcv9|sparc64)$"x6  "fatal|error|warn|info|debug|trace"x6  "^(sparc|sparc32)$"x6  "^(x8664|amd64|ia32e|em64t|x64)$"x6
+  String.matches|CASEI_LITERAL                          34      2   "(?i)max-stale"x4  "(?i)no-cache"x4  "(?i)private"x4  "(?i)stale-if-error"x2  "(?i)s-maxage"x2  "(?i)no-store"x2
+  String.matches|CHARCLASS                             137     49   "\\d+"x37  "[0-9]+"x21  "\\w+"x10  "[A-Z_]+"x6  "[ \t]*"x5  "^[0-9]+$"x4
+  String.matches|CHAR_RUN                                6      4   "^0*$"x2  "0+"x2  "w+"x1  "G+"x1
+  String.matches|DOTSTAR                                23     11   "^1\\.4\\..*"x3  ".*=.*"x1  "ARCFOUR.*"x1  ".*filecache_DEL_.*"x1  "DHIES.*"x1  ".*;.*"x1
+  String.matches|LITERAL                                13      9   "camlch"x4  "^\\[a-zA-Z]:"x4  ""x1  "DSA"x1  "DH"x1  "END_KEY"x1
+  String.matches|OTHER                                 494    177   ".*[0-9A-Za-z].*"x24  ".??[a-z,A-Z]\\:\\\\[^\\\\].*"x7  "^(i[3-6]86|x86(_64)?|x64|amd64)$"x7  "-[a-zA-Z]"x6  "^(x8632|x86|i[3-6]86|ia32|x32)$"x6  "[#x][0-9a-fA-F]{6}"x6
+  String.replace(CS,CS)|CONST_TARGET                 2,614    429   "."x206  "\n"x162  "/"x121  "\\"x120  "\""x94  "\r"x68
+  String.replaceAll|ALT_LITERALS                        11      8   ",|:|=|\n"x5  "\\.|\\$"x2  ":|=|\n"x1  "\\[|\\]"x1  "<|>|\n"x1  "\n|\\|\"|\\*|\\?|:|=|,"x1
+  String.replaceAll|ANCHORED_LITERAL                   185     39   "^cough"x12  "^gn"x12  "^h"x12  "^tough"x12  "^enough"x12  "mb$"x12
+  String.replaceAll|CHARCLASS                          341    151   "\\s+"x58  "\\s"x52  "\\W"x26  "[^a-z]"x12  "[aeiou]"x12  "[^a-z0-9]+"x11
+  String.replaceAll|CHAR_RUN                            95     14   "k+"x12  "f+"x12  "t+"x12  "s+"x12  "p+"x12  "n+"x12
+  String.replaceAll|INVALID                              4      2   "*"x2  "\\"x2
+  String.replaceAll|LINES                                6      6   "\\R"x2  "[\\r\\n]+"x2  "\\r?\\n"x2
+  String.replaceAll|LITERAL                          1,325    221   "\\."x102  "\n"x92  "\""x66  "\\\\"x64  "/"x42  " "x40
+  String.replaceAll|OTHER                              427    133   "([\\\\,])"x98  "^[aeiou]"x12  "\\s+$"x8  "\\$[0-9]+"x8  "(?m)^\\s*\\*"x8  "\\s{2,}\\b"x6
+  String.replaceAll|WS_SEP                               9      6   "\\s*,\\s*"x3  " *\n *"x2  ">\r\n\\s*"x1  "\n +"x1  "\\s+;"x1  "\\s*\n\\s*"x1
+  String.replaceFirst|ALT_LITERALS                       3      2   "find|count"x2  "(get|is)"x1
+  String.replaceFirst|ANCHORED_LITERAL                  63     28   "^search"x6  "s$"x6  "^<"x6  ">$"x6  "^#"x3  "^/"x3
+  String.replaceFirst|CHARCLASS                          1      1   "\\s+"x1
+  String.replaceFirst|LITERAL                           94     57   "/"x6  "get"x6  "java"x5  "-"x5  "\\[L"x4  "Impl"x4
+  String.replaceFirst|OTHER                            111     66   "^.*\\."x6  "-(alpha\\d+|beta\\d+|rc\\d+)"x5  "(^.*:)"x4  "^(a|b|old|new)/"x4  "^\\s+"x4  "(\\[\\w)|(\\[)"x3
+  String.replaceFirst|WS_SEP                             2      1   "\\s*\\}"x1  "\\$\\{\\s*"x1
+  String.split|ALT_LITERALS                             24     18   "\r\n|\r|\n"x4  "=|;"x4  ":|,| "x2  "&|;"x2  "\r\n|\n"x2  "\\.| "x2
+  String.split|ANCHORED_LITERAL                          1      1   "\\.9\\.png$"x1
+  String.split|CHARCLASS                               344    133   "\\s+"x161  "\\s"x35  "[/@]"x11  "[@;:]"x9  "[;,]"x9  "[ ]+"x7
+  String.split|CHAR_RUN                                 26     19   " +"x15  "/+"x6  ",+"x2  "\\,+"x1  "\\:+"x1  "-+"x1
+  String.split|LINES                                    33     16   "\\r?\\n"x20  "\\R"x11  "\\r\\n"x1  "[\\n\\r]+"x1
+  String.split|LITERAL                                 141     61   "#/"x24  "::"x11  ", "x8  "__"x7  ": "x7  "->"x7
+  String.split|OTHER                                   101     73   "(?<!\\\\),"x6  "\\r?\\n|\\r|%n"x6  "(\r\n)|(\r)|(\n)"x4  "(\r?\n)|\r"x3  "((?<!\\\\))\\."x3  ",\\s*}"x2
+  String.split|QUOTED_LITERAL(S3)                        8      5   "*"x2  "^"x2  "."x2  "$"x1  "|"x1
+  String.split|S0_FOLD                                  43     24   "\\n"x20  "[.]"x8  "[+]"x4  "[|]"x4  "[,]"x3  "[/]"x1
+  String.split|SPLIT_FASTPATH                        4,280    646   ","x1435  "\\."x478  ":"x458  "/"x328  " "x306  "\n"x259
+  String.split|WS_SEP                                  171     71   "\\s*,\\s*"x77  " *, *"x27  "\\s*=\\s*"x18  ",\\s*"x16  "\\s*:\\s*"x7  "\\s*;\\s*"x7
+
+== Class-file versions of const sites  [<51 | 51-54 (indy ok) | >=55 (condy ok)]
+  Pattern.compile[in-clinit]             610 |   1,943 |     852
+  Pattern.compile[in-ctor]                25 |      81 |      22
+  Pattern.compile[in-method]              66 |     180 |      82
+  Pattern.matches                          0 |      34 |      12
+  Pattern.quote                            8 |      31 |      17
+  String.format/formatted              2,746 |  13,969 |   4,958
+  String.matches                         123 |     536 |     101
+  String.replace(CS,CS)                  518 |   1,723 |     373
+  String.replaceAll                      687 |   1,356 |     360
+  String.replaceFirst                     52 |     180 |      42
+  String.split                         1,073 |   2,878 |   1,221
