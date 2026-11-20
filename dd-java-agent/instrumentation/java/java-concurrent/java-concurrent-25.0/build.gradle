@@ -1,6 +1,4 @@
 import static org.gradle.api.JavaVersion.VERSION_25
-import static org.gradle.api.JavaVersion.VERSION_26
-import static org.gradle.api.JavaVersion.VERSION_27
 
 plugins {
   id 'dd-trace-java.module.instrumentation'
@@ -26,9 +24,9 @@ tasks.named('compileTestJava', JavaCompile) {
 }
 
 /*
- * Declare previewTest, a test suite that requires the Javac/Java --enable-preview feature flag.
- * --enable-preview class files are version-locked to the compiling JDK, so the suite is compiled with
- * the SAME JDK that runs it (the selected test JVM, clamped to >= 25).
+ * Declare previewTest, the Structured Concurrency test suite. The API is a preview feature before
+ * JDK 28, and --enable-preview class files are version-locked to the compiling JDK, so the suite is
+ * compiled with the SAME JDK that runs it (the selected test JVM, clamped to >= 25).
  */
 addTestSuite('previewTest')
 
@@ -37,6 +35,18 @@ def previewTestJvm = tasks.named("previewTest", Test)
   .map { Math.max(25, it.metadata.languageVersion.asInt()) }
   .orElse(25)
 
+// Add the tests of the selected JDK Joiner API, which last changed in JDK 27 before JDK 28 made it final
+def moduleDir = layout.projectDirectory
+sourceSets.named('previewTest') {
+  java.srcDir(previewTestJvm.map { version ->
+    moduleDir.dir("src/previewJdk${Math.min(version, 27)}Test/java")
+  })
+}
+
+// Structured Concurrency is final from JDK 28, earlier JDKs need the preview flag
+def previewFlag = previewTestJvm.map { it < 28 ? ['--enable-preview'] : [] }
+def previewFlagProvider = { previewFlag.get() } as CommandLineArgumentProvider
+
 tasks.named("compilePreviewTestJava", JavaCompile) {
   javaCompiler = javaToolchains.compilerFor {
     languageVersion = previewTestJvm.map {
@@ -44,37 +54,8 @@ tasks.named("compilePreviewTestJava", JavaCompile) {
     }
   }
   options.release = previewTestJvm
-  options.compilerArgs.add("--enable-preview")
+  options.compilerArgumentProviders.add(previewFlagProvider)
 }
 tasks.named("previewTest", Test) {
-  jvmArgs '--enable-preview'
-}
-
-/*
- * Per-JDK suites test:
- * Each suite has its own source set, is compiled for one JDK,
- * and is pinned to it (preview class files are version-locked).
- */
-def addPreviewJdkSuite = { int jdk, JavaVersion version ->
-  String suite = "previewJdk${jdk}Test"
-  addTestSuite(suite)
-  tasks.named("compile${suite.capitalize()}Java", JavaCompile) {
-    configureCompiler(it, jdk, version, "Java preview features must be compiled with the matching JDK $jdk toolchain")
-    options.compilerArgs.add("--enable-preview")
-  }
-  tasks.named(suite, Test) {
-    jvmArgs '--enable-preview'
-    testJvmConstraints {
-      minJavaVersion = version
-      maxJavaVersion = version
-    }
-  }
-}
-
-addPreviewJdkSuite(25, VERSION_25)
-if (System.getenv('JAVA_26_HOME') != null) {
-  addPreviewJdkSuite(26, VERSION_26)
-}
-if (System.getenv('JAVA_27_HOME') != null) {
-  addPreviewJdkSuite(27, VERSION_27)
+  jvmArgumentProviders.add(previewFlagProvider)
 }
