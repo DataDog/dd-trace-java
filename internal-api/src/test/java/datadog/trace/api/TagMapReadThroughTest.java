@@ -2,7 +2,6 @@ package datadog.trace.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -87,14 +86,14 @@ class TagMapReadThroughTest {
 
     TagMap overEmpty = TagMap.createFromParent(emptyFrozen);
     // an empty frozen parent contributes nothing and never will -> dropped, no read-through cost
-    assertNull(overEmpty.parent, "empty parent should be dropped");
+    assertFalse(overEmpty.knownStore.hasParent(), "empty parent should be dropped");
     assertTrue(overEmpty.isDefinitelyEmpty());
     overEmpty.set("x", "x-val"); // still a normal mutable map
     assertEquals("x-val", overEmpty.getString("x"));
 
     // a non-empty parent is still attached
     TagMap overNonEmpty = TagMap.createFromParent(frozenParent());
-    assertNotNull(overNonEmpty.parent, "non-empty parent must be attached");
+    assertTrue(overNonEmpty.knownStore.hasParent(), "non-empty parent must be attached");
     assertEquals("parent-a", overNonEmpty.getString("a"));
   }
 
@@ -583,6 +582,18 @@ class TagMapReadThroughTest {
   }
 
   @Test
+  void getAndSetByIdReturnsTheInheritedEntryOfThatId() {
+    TagMap parent = TagMap.create();
+    parent.set(KnownTags.HTTP_ROUTE, "/parent/{id}");
+    TagMap child = TagMap.createFromParent(parent.freeze());
+
+    TagMap.Entry prior =
+        child.getAndSet(TagMap.Entry.create(KnownTags.HTTP_ROUTE, (Object) "/child/{id}"));
+
+    assertEquals("/parent/{id}", prior.objectValue());
+  }
+
+  @Test
   void setDoesNotReportPriorButStillClearsTombstone() {
     TagMap child = TagMap.createFromParent(frozenParent());
     child.remove("b"); // tombstone
@@ -714,5 +725,19 @@ class TagMapReadThroughTest {
     assertEquals(2, out.size());
     assertEquals("x-val", out.get("x"));
     assertEquals("y-val", out.get("y"));
+  }
+
+  @Test
+  void forEachLocalSkipsParentEntries() {
+    TagMap child = TagMap.createFromParent(frozenParent());
+    child.set("b", "child-b"); // shadows parent "b"
+    child.set("c", "child-c");
+
+    Map<String, Object> out = new HashMap<>();
+    child.forEachLocal(out, (map, entry) -> map.put(entry.tag(), entry.objectValue()));
+
+    assertEquals(2, out.size());
+    assertEquals("child-b", out.get("b"));
+    assertEquals("child-c", out.get("c"));
   }
 }

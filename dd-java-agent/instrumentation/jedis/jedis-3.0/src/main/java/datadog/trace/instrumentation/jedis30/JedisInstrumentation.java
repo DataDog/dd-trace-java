@@ -3,16 +3,18 @@ package datadog.trace.instrumentation.jedis30;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.jedis30.JedisClientDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import java.nio.charset.StandardCharsets;
 import net.bytebuddy.asm.Advice;
 import redis.clients.jedis.Connection;
 import redis.clients.jedis.Protocol;
@@ -24,13 +26,6 @@ public final class JedisInstrumentation extends InstrumenterModule.Tracing
 
   public JedisInstrumentation() {
     super("jedis", "redis");
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".JedisClientDecorator",
-    };
   }
 
   @Override
@@ -51,7 +46,7 @@ public final class JedisInstrumentation extends InstrumenterModule.Tracing
   public static class JedisAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope onEnter(
+    public static ContextScope onEnter(
         @Advice.Argument(0) final ProtocolCommand command, @Advice.This final Connection thiz) {
       if (CallDepthThreadLocalMap.incrementCallDepth(Connection.class) > 0) {
         return null;
@@ -65,22 +60,24 @@ public final class JedisInstrumentation extends InstrumenterModule.Tracing
       } else {
         // Protocol.Command is the only implementation in the Jedis lib as of 3.1 but this will save
         // us if that changes
-        DECORATE.onStatement(span, new String(command.getRaw()));
+        // Display raw command names with Jedis's default UTF-8 text encoding.
+        DECORATE.onStatement(span, new String(command.getRaw(), StandardCharsets.UTF_8));
       }
       return activateSpan(span);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
-        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
       if (scope == null) {
         return;
       }
       CallDepthThreadLocalMap.reset(Connection.class);
-      DECORATE.onError(scope.span(), throwable);
-      DECORATE.beforeFinish(scope.span());
+      AgentSpan span = spanFromScope(scope);
+      DECORATE.onError(span, throwable);
+      DECORATE.beforeFinish(span);
       scope.close();
-      scope.span().finish();
+      span.finish();
     }
   }
 }

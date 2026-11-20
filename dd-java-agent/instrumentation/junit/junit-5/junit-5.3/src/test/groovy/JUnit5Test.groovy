@@ -11,6 +11,7 @@ import datadog.trace.instrumentation.junit5.TestEventsHandlerHolder
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import org.example.TestAssumption
+import org.example.TestAutomationExcluded
 import org.example.TestAssumptionAndSucceed
 import org.example.TestAssumptionLegacy
 import org.example.TestError
@@ -39,12 +40,14 @@ import org.example.TestSucceedUnskippable
 import org.example.TestSucceedUnskippableSuite
 import org.example.TestSucceedVerySlow
 import org.example.TestSucceedWithCategories
+import org.example.TestSucceedWithReportEntry
 import org.example.TestSuiteSetUpAssumption
 import org.example.TestTemplate
 import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.engine.JupiterTestEngine
 import org.junit.platform.engine.DiscoverySelector
 import org.junit.platform.engine.TestExecutionResult
+import org.junit.platform.engine.reporting.ReportEntry
 import org.junit.platform.launcher.TestExecutionListener
 import org.junit.platform.launcher.core.LauncherConfig
 import org.junit.platform.launcher.core.LauncherDiscoveryRequestBuilder
@@ -67,6 +70,33 @@ class JUnit5Test extends CiVisibilityInstrumentationTest {
 
     then:
     TEST_WRITER.size() == 0
+  }
+
+  def "test automation exclusions preserve a blocking failure and execute once"() {
+    given:
+    TestAutomationExcluded.executions = 0
+    def id = new TestFQN("org.example.TestAutomationExcluded", "protected_failure")
+    givenDisabledTests([id])
+    givenQuarantinedTests([id])
+    givenAttemptToFixTests([id])
+    givenFlakyRetryEnabled(true)
+    givenFlakyTests([id])
+    givenEarlyFlakinessDetectionEnabled(true)
+    givenKnownTests([])
+
+    when:
+    runTests([TestAutomationExcluded], false)
+
+    then:
+    TestAutomationExcluded.executions == 1
+    def testSpan = TEST_WRITER.toList().flatten().find { it.getTag("test.name") == "protected_failure" }
+    testSpan != null
+    testSpan.getTag("test.test_management.no_auto_retry") == true
+    testSpan.getTag("test.test_management.prevent_failure_suppression") == true
+    testSpan.getTag("test.test_management.is_test_disabled") == true
+    testSpan.getTag("test.test_management.is_quarantined") == true
+    testSpan.getTag("test.test_management.is_attempt_to_fix") == true
+    testSpan.getTag("test.test_management.attempt_to_fix_passed") == null
   }
 
   def "test #testcaseName"() {
@@ -260,6 +290,15 @@ class JUnit5Test extends CiVisibilityInstrumentationTest {
     "test-attempt-to-fix-disabled-succeeded"    | true    | [TestSucceed] | [new TestFQN("org.example.TestSucceed", "test_succeed")] | []                                                       | [new TestFQN("org.example.TestSucceed", "test_succeed")]
   }
 
+  def "forwards report entries to the launcher listeners"() {
+    when:
+    def listener = runTests([TestSucceedWithReportEntry])
+
+    then:
+    listener.reportEntries*.keyValuePairs == [["key": "value"]]
+    listener.dynamicTests.isEmpty()
+  }
+
   def "test capabilities tagging #testcaseName"() {
     setup:
     Assumptions.assumeTrue(!JUnitPlatformUtils.isJunitTestOrderingSupported(instrumentedLibraryVersion()))
@@ -269,7 +308,7 @@ class JUnit5Test extends CiVisibilityInstrumentationTest {
     assertCapabilities(JUnitPlatformUtils.JUNIT_CAPABILITIES_BASE, 4)
   }
 
-  protected void runTests(List<Class<?>> tests, boolean expectSuccess = true) {
+  protected TestResultListener runTests(List<Class<?>> tests, boolean expectSuccess = true) {
     DiscoverySelector[] selectors = new DiscoverySelector[tests.size()]
     for (i in 0..<tests.size()) {
       selectors[i] = selectClass(tests[i])
@@ -301,6 +340,7 @@ class JUnit5Test extends CiVisibilityInstrumentationTest {
           throw new AssertionError("Expected a failed execution, got no failed tests")
         }
       }
+      return listener
     } finally {
       TestEventsHandlerHolder.stop()
     }
@@ -323,6 +363,16 @@ class JUnit5Test extends CiVisibilityInstrumentationTest {
 
   private static final class TestResultListener implements TestExecutionListener {
     private final Map<TestExecutionResult.Status, Collection<org.junit.platform.launcher.TestIdentifier>> testsByStatus = new ConcurrentHashMap<>()
+    private final Collection<ReportEntry> reportEntries = new CopyOnWriteArrayList<>()
+    private final Collection<org.junit.platform.launcher.TestIdentifier> dynamicTests = new CopyOnWriteArrayList<>()
+
+    void reportingEntryPublished(org.junit.platform.launcher.TestIdentifier testIdentifier, ReportEntry entry) {
+      reportEntries.add(entry)
+    }
+
+    void dynamicTestRegistered(org.junit.platform.launcher.TestIdentifier testIdentifier) {
+      dynamicTests.add(testIdentifier)
+    }
 
     void executionFinished(org.junit.platform.launcher.TestIdentifier testIdentifier, TestExecutionResult testExecutionResult) {
       testsByStatus.computeIfAbsent(testExecutionResult.status, k -> new CopyOnWriteArrayList<>()).add(testIdentifier)

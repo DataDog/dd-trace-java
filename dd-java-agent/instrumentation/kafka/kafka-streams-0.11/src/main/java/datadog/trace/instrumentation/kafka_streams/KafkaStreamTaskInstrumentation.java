@@ -11,6 +11,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.rootContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.kafka_common.StreamingContext.STREAMING_CONTEXT;
 import static datadog.trace.instrumentation.kafka_common.Utils.computePayloadSizeBytes;
 import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.BROKER_DECORATE;
@@ -42,7 +43,6 @@ import datadog.trace.api.Config;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.instrumentation.kafka_clients.TracingIterableDelegator;
@@ -72,7 +72,6 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      "datadog.trace.instrumentation.kafka_clients.TextMapInjectAdapterInterface",
       "datadog.trace.instrumentation.kafka_clients.TracingIterableDelegator",
       "datadog.trace.instrumentation.kafka_common.Utils",
       "datadog.trace.instrumentation.kafka_common.StreamingContext",
@@ -279,8 +278,9 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
       AgentSpan span, queueSpan = null;
       StreamTaskContext streamTaskContext =
           InstrumentationContext.get(StreamTask.class, StreamTaskContext.class).get(task);
-      long timeInQueueStart = SR_GETTER.extractTimeInQueueStart(record);
-      if (timeInQueueStart == 0 || !TIME_IN_QUEUE_ENABLED) {
+      // Check the flag first, as finding the produce time scans the record's headers
+      long timeInQueueStart = TIME_IN_QUEUE_ENABLED ? SR_GETTER.extractTimeInQueueStart(record) : 0;
+      if (timeInQueueStart == 0) {
         span = startSpan(JAVA_KAFKA.toString(), KAFKA_CONSUME);
       } else {
         queueSpan =
@@ -316,7 +316,7 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
 
       CONSUMER_DECORATE.afterStart(span);
       CONSUMER_DECORATE.onConsume(span, record, node);
-      AgentScope agentScope = activateSpan(span);
+      ContextScope scope = activateSpan(span);
       if (null != queueSpan) {
         queueSpan.finish();
       }
@@ -324,7 +324,7 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
       if (streamTaskContext == null) {
         streamTaskContext = new StreamTaskContext();
       }
-      streamTaskContext.setAgentScope(agentScope);
+      streamTaskContext.setScope(scope);
       InstrumentationContext.get(StreamTask.class, StreamTaskContext.class)
           .put(task, streamTaskContext);
     }
@@ -345,8 +345,9 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
       AgentSpan span, queueSpan = null;
       StreamTaskContext streamTaskContext =
           InstrumentationContext.get(StreamTask.class, StreamTaskContext.class).get(task);
-      long timeInQueueStart = PR_GETTER.extractTimeInQueueStart(record);
-      if (timeInQueueStart == 0 || !TIME_IN_QUEUE_ENABLED) {
+      // Check the flag first, as finding the produce time scans the record's headers
+      long timeInQueueStart = TIME_IN_QUEUE_ENABLED ? PR_GETTER.extractTimeInQueueStart(record) : 0;
+      if (timeInQueueStart == 0) {
         span = startSpan(JAVA_KAFKA.toString(), KAFKA_CONSUME);
       } else {
         queueSpan =
@@ -388,7 +389,7 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
 
       CONSUMER_DECORATE.afterStart(span);
       CONSUMER_DECORATE.onConsume(span, record, node);
-      AgentScope agentScope = activateSpan(span);
+      ContextScope scope = activateSpan(span);
       if (null != queueSpan) {
         queueSpan.finish();
       }
@@ -396,7 +397,7 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
       if (streamTaskContext == null) {
         streamTaskContext = new StreamTaskContext();
       }
-      streamTaskContext.setAgentScope(agentScope);
+      streamTaskContext.setScope(scope);
       InstrumentationContext.get(StreamTask.class, StreamTaskContext.class)
           .put(task, streamTaskContext);
     }
@@ -410,14 +411,14 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
       StreamTaskContext streamTaskContext =
           InstrumentationContext.get(StreamTask.class, StreamTaskContext.class).get(task);
       if (streamTaskContext != null) {
-        AgentScope scope = streamTaskContext.getAgentScope();
+        ContextScope scope = streamTaskContext.getScope();
         if (scope != null) {
-          AgentSpan span = scope.span();
+          AgentSpan span = spanFromScope(scope);
           CONSUMER_DECORATE.onError(span, throwable);
           CONSUMER_DECORATE.beforeFinish(span);
           scope.close();
           span.finish();
-          streamTaskContext.setAgentScope(null);
+          streamTaskContext.setScope(null);
         }
       }
     }

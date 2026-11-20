@@ -31,15 +31,6 @@ public class ScalatestSkipInstrumentation extends InstrumenterModule.CiVisibilit
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".ScalatestUtils",
-      packageName + ".RunContext",
-      packageName + ".DatadogReporter",
-    };
-  }
-
-  @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap("org.scalatest.Filter", packageName + ".RunContext");
   }
@@ -101,16 +92,16 @@ public class ScalatestSkipInstrumentation extends InstrumenterModule.CiVisibilit
         @Advice.Argument(value = 1)
             scala.collection.immutable.Map<String, scala.collection.immutable.Set<String>> tags,
         @Advice.Argument(value = 2) String suiteId) {
-      if (filterResult == null // filter terminated exceptionally
-          || filterResult._1() // test is filtered
-          || filterResult._2() // test is ignored
-      ) {
+      if (filterResult == null) {
         return;
       }
       TestIdentifier test = new TestIdentifier(suiteId, testName, null);
       RunContext runContext =
           InstrumentationContext.get(Filter.class, RunContext.class).get(filter);
       runContext.populateTags(test, tags);
+      if (filterResult._1() || filterResult._2()) {
+        return;
+      }
 
       if (runContext.skip(test, tags)) {
         filterResult = new Tuple2<>(false, true);

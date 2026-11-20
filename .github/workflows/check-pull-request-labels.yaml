@@ -18,7 +18,7 @@ jobs:
     steps:
       - name: Get GitHub Token via dd-octo-sts
         id: generate-token
-        uses: DataDog/dd-octo-sts-action@96a25462dbcb10ebf0bfd6e2ccc917d2ab235b9a # v1.0.4
+        uses: DataDog/dd-octo-sts-action@c85802a58e202b7e764b5441e4378c76043c8108 # v1.0.5
         with:
           scope: DataDog/dd-trace-java
           policy: self.check-pull-request-labels
@@ -37,8 +37,9 @@ jobs:
             const repo = context.repo.repo
             // Labels applied by external tooling that are never allowed on a pull request
             const toolLabels = [
-              'Bits AI',                    // Applied by the Bits AI tooling
-              'campaigner-automated-change' // Applied by the Campaigner tooling
+              'Bits AI',                     // Applied by the Bits AI tooling
+              'campaigner-automated-change', // Applied by the Campaigner tooling
+              'type: bug'                    // Applied by coding agents
             ]
             const prLabels = context.payload.pull_request.labels.map(l => l.name)
             const cleanedLabels = toolLabels.filter(label => prLabels.includes(label))

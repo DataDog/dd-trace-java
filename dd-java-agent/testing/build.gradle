@@ -5,10 +5,6 @@ plugins {
   id 'dd-trace-java.module.testing-support'
 }
 
-tasks.withType(JavaCompile).configureEach {
-  configureCompiler(it, 8, JavaVersion.VERSION_1_8, "Need access to sun.misc package")
-}
-
 minimumBranchCoverage = 0.5
 minimumInstructionCoverage = 0.5
 excludedClassesCoverage += [
@@ -58,6 +54,9 @@ dependencies {
   implementation "org.junit.platform:junit-platform-runner:${libs.versions.junit.platform.get()}"
   implementation project(':dd-java-agent:appsec')
 
+  // OtelMetricCollector fixture; tests that use it put otel-bootstrap on their own classpath
+  compileOnly project(path: ':dd-java-agent:agent-otel:otel-bootstrap', configuration: 'shadow')
+
   compileOnly(libs.bundles.groovy)
   compileOnly(libs.bundles.spock)
 }
@@ -93,8 +92,4 @@ configurations {
     exclude group: 'org.eclipse.jetty'
     exclude group: 'org.eclipse.jetty.http2'
   }
-}
-
-tasks.withType(Test).configureEach {
-  useJUnitPlatform()
 }

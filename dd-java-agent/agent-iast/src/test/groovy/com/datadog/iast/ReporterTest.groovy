@@ -10,7 +10,7 @@ import datadog.trace.api.ProductTraceSource
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.internal.TraceSegment
-import datadog.trace.bootstrap.instrumentation.api.AgentScope
+import datadog.context.ContextScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
@@ -218,7 +218,7 @@ class ReporterTest extends DDSpecification {
     final spanId = 12345L
     final serviceName = 'service-name'
     final span = Mock(AgentSpan)
-    final scope = Mock(AgentScope)
+    final scope = Mock(ContextScope)
     final ctx = new IastRequestContext(noOpTaintedObjects())
     final reqCtx = Stub(RequestContext)
     reqCtx.getData(RequestContextSlot.IAST) >> ctx
@@ -231,7 +231,7 @@ class ReporterTest extends DDSpecification {
     then:
     noExceptionThrown()
     1 * tracerAPI.startSpan('iast', 'vulnerability', _ as AgentSpanContext) >> span
-    1 * tracerAPI.activateManualSpan(span) >> scope
+    1 * tracerAPI.activateSpan(span) >> scope
     1 * span.getRequestContext() >> reqCtx
     1 * span.setSpanType(InternalSpanTypes.VULNERABILITY) >> span
     1 * span.setTag(ANALYZED.key(), ANALYZED.value())

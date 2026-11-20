@@ -9,7 +9,10 @@ repositories {
       allowInsecureProtocol = true
     }
   }
-  mavenCentral()
+  // TODO: temporary fix for Maven Central rate limiting
+  else {
+    mavenCentral()
+  }
   // add maven central repository for snapshot dependencies
   maven {
     content {
@@ -30,12 +33,12 @@ repositories {
     }
   }
   maven {
-    url = 'https://repo.spring.io/libs-milestone'
+    url = 'https://repo.spring.io/milestone'
     content {
       includeGroupAndSubgroups "org.springframework"
     }
   }
-  // Hosts gradle-tooling-api, used by build-logic:smoke-test to run nested
+  // Hosts gradle-tooling-api, used by build-logic:smoke-test-app to run nested
   // Gradle builds for smoke-test applications pinned to older Gradle versions.
   maven {
     url = 'https://repo.gradle.org/gradle/libs-releases'

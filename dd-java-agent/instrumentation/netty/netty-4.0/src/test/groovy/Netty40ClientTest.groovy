@@ -27,12 +27,6 @@ import static org.asynchttpclient.Dsl.asyncHttpClient
 
 abstract class Netty40ClientTest extends HttpClientTest {
 
-  @Override
-  boolean useStrictTraceWrites() {
-    // NettyPromiseInstrumentation results in unfinished continuations.
-    return false
-  }
-
   def clientConfig = DefaultAsyncHttpClientConfig.Builder.newInstance()
   .setConnectTimeout(CONNECT_TIMEOUT_MS)
   .setRequestTimeout(READ_TIMEOUT_MS)

@@ -80,7 +80,7 @@ class ConcurrentHashtableD1Test {
     table.tryGetOrCreateOrNull("b", k -> new StringEntry(k, 2));
     table.tryGetOrCreateOrNull("c", k -> new StringEntry(k, 3));
     Set<String> seen = new HashSet<>();
-    table.forEach(e -> seen.add(e.key));
+    table.forEach(e -> seen.add(e.key()));
     assertEquals(3, seen.size());
     assertTrue(seen.contains("a"));
     assertTrue(seen.contains("b"));
@@ -94,7 +94,7 @@ class ConcurrentHashtableD1Test {
     table.tryGetOrCreateOrNull("x", k -> new StringEntry(k, 10));
     table.tryGetOrCreateOrNull("y", k -> new StringEntry(k, 20));
     Set<String> seen = new HashSet<>();
-    table.forEach(seen, (ctx, e) -> ctx.add(e.key));
+    table.forEach(seen, (ctx, e) -> ctx.add(e.key()));
     assertEquals(2, seen.size());
     assertTrue(seen.contains("x"));
     assertTrue(seen.contains("y"));
@@ -112,22 +112,21 @@ class ConcurrentHashtableD1Test {
     Thread[] workers = new Thread[threads];
     for (int i = 0; i < threads; i++) {
       workers[i] =
-          new Thread(
-              () -> {
-                ready.countDown();
-                try {
-                  go.await();
-                } catch (InterruptedException ex) {
-                  Thread.currentThread().interrupt();
-                  return;
-                }
-                table.tryGetOrCreateOrNull(
-                    "shared",
-                    k -> {
-                      createCount.incrementAndGet();
-                      return new StringEntry(k, 1);
-                    });
-              });
+          new Thread(() -> {
+            ready.countDown();
+            try {
+              go.await();
+            } catch (InterruptedException ex) {
+              Thread.currentThread().interrupt();
+              return;
+            }
+            table.tryGetOrCreateOrNull(
+                "shared",
+                k -> {
+                  createCount.incrementAndGet();
+                  return new StringEntry(k, 1);
+                });
+          });
       workers[i].start();
     }
     ready.await();
@@ -174,17 +173,16 @@ class ConcurrentHashtableD1Test {
     for (int i = 0; i < threads; i++) {
       final String key = keys[i];
       workers[i] =
-          new Thread(
-              () -> {
-                ready.countDown();
-                try {
-                  go.await();
-                } catch (InterruptedException ex) {
-                  Thread.currentThread().interrupt();
-                  return;
-                }
-                table.tryGetOrCreateOrNull(key, k -> new StringEntry(k, 1));
-              });
+          new Thread(() -> {
+            ready.countDown();
+            try {
+              go.await();
+            } catch (InterruptedException ex) {
+              Thread.currentThread().interrupt();
+              return;
+            }
+            table.tryGetOrCreateOrNull(key, k -> new StringEntry(k, 1));
+          });
       workers[i].start();
     }
     ready.await();
@@ -258,7 +256,7 @@ class ConcurrentHashtableD1Test {
     assertTrue(removed);
     assertEquals(5, table.size());
     Set<String> seen = new HashSet<>();
-    table.forEach(e -> seen.add(e.key));
+    table.forEach(e -> seen.add(e.key()));
     assertEquals(5, seen.size());
     for (String key : seen) {
       assertNotNull(table.get(key));
@@ -299,11 +297,10 @@ class ConcurrentHashtableD1Test {
 
     Set<String> drained = new HashSet<>();
     int[] sum = {0};
-    table.drain(
-        e -> {
-          drained.add(e.key);
-          sum[0] += e.value;
-        });
+    table.drain(e -> {
+      drained.add(e.key());
+      sum[0] += e.value;
+    });
 
     assertEquals(new HashSet<>(Arrays.asList("a", "b", "c")), drained);
     assertEquals(6, sum[0]);
@@ -323,7 +320,7 @@ class ConcurrentHashtableD1Test {
     table.tryGetOrCreateOrNull("b", k -> new StringEntry(k, 2));
 
     Set<String> drained = new HashSet<>();
-    table.drain(drained, (ctx, e) -> ctx.add(e.key));
+    table.drain(drained, (ctx, e) -> ctx.add(e.key()));
 
     assertEquals(new HashSet<>(Arrays.asList("a", "b")), drained);
     assertEquals(0, table.size());
@@ -361,16 +358,15 @@ class ConcurrentHashtableD1Test {
     AtomicBoolean stop = new AtomicBoolean(false);
     AtomicInteger missed = new AtomicInteger();
     Thread reader =
-        new Thread(
-            () -> {
-              while (!stop.get()) {
-                for (int i = 1; i < n; i++) {
-                  if (table.get(keys[i]) == null) {
-                    missed.incrementAndGet();
-                  }
-                }
+        new Thread(() -> {
+          while (!stop.get()) {
+            for (int i = 1; i < n; i++) {
+              if (table.get(keys[i]) == null) {
+                missed.incrementAndGet();
               }
-            });
+            }
+          }
+        });
     reader.start();
     for (int r = 0; r < 100_000; r++) {
       table.remove(churn);
@@ -421,7 +417,7 @@ class ConcurrentHashtableD1Test {
     Maybe<StringEntry> created =
         table.tryGetOrCreateOrEvict("new", k -> new StringEntry(k, 2), e -> true);
     assertTrue(created.isPresent());
-    assertEquals("new", created.getOrNull().key);
+    assertEquals("new", created.getOrNull().key());
     assertEquals(1, table.size());
     assertNull(table.get("old"));
     assertSame(created.getOrNull(), table.get("new"));
@@ -464,12 +460,20 @@ class ConcurrentHashtableD1Test {
     assertNull(table.get("new"));
   }
 
+  /** Entry holding a key plus one mutable {@code int} payload. */
   private static final class StringEntry extends ConcurrentHashtable.D1.Entry<String> {
-    final int value;
+    volatile int value;
 
     StringEntry(String key, int value) {
       super(key);
       this.value = value;
+    }
+  }
+
+  /** Entry with no payload, used for the bucket-chain/collision tests. */
+  private static final class CollidingEntry extends ConcurrentHashtable.D1.Entry<CollidingKey> {
+    CollidingEntry(CollidingKey key) {
+      super(key);
     }
   }
 
@@ -495,12 +499,6 @@ class ConcurrentHashtableD1Test {
       }
       CollidingKey that = (CollidingKey) o;
       return fixedHash == that.fixedHash && label.equals(that.label);
-    }
-  }
-
-  private static final class CollidingEntry extends ConcurrentHashtable.D1.Entry<CollidingKey> {
-    CollidingEntry(CollidingKey key) {
-      super(key);
     }
   }
 }

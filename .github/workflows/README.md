@@ -40,6 +40,15 @@ _Actions:_
 
 _Recovery:_ Update the pull request or add a comment to trigger the action again.
 
+### check-pull-request-size [🔗](check-pull-request-size.yaml)
+
+_Trigger:_ When creating or updating a pull request targeting `master` or a patch release (`release/vM.N.x`) branch, or when labels are updated. Draft pull requests are skipped.
+
+_Action:_ Fail the pull request if it adds 1000 lines or more, then comment asking to split it into smaller stacked pull requests.
+Deleted lines, moved code, test code and resources, and Gradle lock files files are not counted.
+
+_Recovery:_ Split the pull request into smaller stacked pull requests. To override this check entirely, add the `tag: override pr size check` label to the PR. Remove the label to re-enable the check.
+
 ### enforce-datadog-merge-queue [🔗](enforce-datadog-merge-queue.yaml)
 
 _Trigger:_ When creating or updating a pull request, or when a pull request is added to GitHub merge queue.
@@ -128,6 +137,16 @@ _Actions:_
 _Recovery:_ Re-write the new Groovy files in Java / JUnit. To override this check entirely, add the `tag: override groovy enforcement` label to the PR. Remove the label to re-enable enforcement.
 
 _Notes:_ The override label skips the workflow entirely.
+
+### team-freeze-guard [🔗](team-freeze-guard.yaml)
+
+_Trigger:_ When a pull request is opened, reopened, synchronized, labeled, unlabeled, or marked ready for review.
+
+_Action:_ Fail the check if the pull request author or the last committer belongs to a team currently listed in the `frozen-teams` input, blocking the PR from merging.
+
+_Recovery:_ If your PR is not dedicated to fix CI issue, it'll be block until the incident is resolved. If your Pr aims to fix CI issues, add one of the configured labels: `comp: testing`, `comp: tooling`, `tag: flaky test`, `tag: flaky test/disabled` to the pull request.
+
+_Notes:_ Configure frozen teams by editing the `frozen-teams` input in the workflow file (empty string means no team is frozen; otherwise list `@DataDog/<team>` entries one per line).
 
 ## Code Quality and Security
 

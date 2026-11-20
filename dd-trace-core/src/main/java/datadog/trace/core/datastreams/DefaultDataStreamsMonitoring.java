@@ -31,6 +31,7 @@ import datadog.trace.api.datastreams.SchemaRegistryUsage;
 import datadog.trace.api.datastreams.StatsPoint;
 import datadog.trace.api.datastreams.TransactionInfo;
 import datadog.trace.api.experimental.DataStreamsContextCarrier;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -247,6 +248,10 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
   @Override
   public void trackBacklog(DataStreamsTags tags, long value) {
+    // With Data Streams off the inbox would only drop it
+    if (!traceConfigSupplier.get().isDataStreamsEnabled()) {
+      return;
+    }
     inbox.offer(new Backlog(tags, value, timeSource.getCurrentTimeNanos(), getThreadServiceName()));
   }
 
@@ -258,6 +263,10 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       boolean isSuccess,
       boolean isKey,
       String operation) {
+    // With Data Streams off the inbox would only drop it
+    if (!traceConfigSupplier.get().isDataStreamsEnabled()) {
+      return;
+    }
     inbox.offer(
         new SchemaRegistryUsage(
             topic,
@@ -522,7 +531,8 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     timeToBucket.clear();
   }
 
-  void report() {
+  @VisibleForTesting
+  public void report() {
     inbox.offer(REPORT);
   }
 

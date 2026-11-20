@@ -20,6 +20,7 @@ val excludedClassesCoverage by extra(
     "datadog.telemetry.metric.CiVisibilityMetricPeriodicAction",
     "datadog.telemetry.metric.OtelSpiMetricPeriodicAction",
     "datadog.telemetry.metric.OtlpTelemetryPeriodicAction",
+    "datadog.telemetry.metric.DebuggerMetricPeriodicAction",
   )
 )
 extra["excludedClassesBranchCoverage"] = listOf(

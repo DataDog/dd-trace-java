@@ -246,15 +246,6 @@ public class CapturedContextInstrumenter extends Instrumenter {
     return -1;
   }
 
-  private TryCatchBlockNode findCatchHandler(LabelNode targetLine) {
-    for (TryCatchBlockNode tryCatchBlockNode : methodNode.tryCatchBlocks) {
-      if (tryCatchBlockNode.handler == targetLine) {
-        return tryCatchBlockNode;
-      }
-    }
-    return null;
-  }
-
   private boolean isExceptionLocalDeclared(TryCatchBlockNode catchHandler, MethodNode methodNode) {
     if (methodNode.localVariables == null || methodNode.localVariables.isEmpty()) {
       return false;

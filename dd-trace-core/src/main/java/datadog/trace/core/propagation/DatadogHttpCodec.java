@@ -1,6 +1,7 @@
 package datadog.trace.core.propagation;
 
 import static datadog.trace.api.TracePropagationStyle.DATADOG;
+import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY;
 import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
 import static datadog.trace.core.propagation.XRayHttpCodec.XRayContextInterpreter.handleXRayTraceHeader;
 import static datadog.trace.core.propagation.XRayHttpCodec.X_AMZN_TRACE_ID;
@@ -15,6 +16,7 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.TracePropagationStyle;
+import datadog.trace.api.llmobs.LLMObsInternal;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.core.propagation.PropagationTags.HeaderType;
@@ -77,7 +79,13 @@ class DatadogHttpCodec {
       }
 
       // inject x-datadog-tags
-      String datadogTags = context.getPropagationTags().headerValue(HeaderType.DATADOG);
+      PropagationTags propagationTags = context.getPropagationTags();
+      String datadogTags =
+          propagationTags.headerValue(
+              HeaderType.DATADOG,
+              null,
+              LLMObsInternal.propagationValuesFor(context),
+              propagationTags.samplingState());
       if (datadogTags != null) {
         setter.set(carrier, DATADOG_TAGS_KEY, datadogTags);
       }
@@ -103,6 +111,9 @@ class DatadogHttpCodec {
 
     private final boolean isAwsPropagationEnabled;
 
+    /** The raw x-datadog-tags value, parsed in {@link #build()} once the priority is known. */
+    private String datadogTags;
+
     private DatadogContextInterpreter(Config config) {
       super(config);
       isAwsPropagationEnabled = config.isAwsPropagationEnabled();
@@ -111,6 +122,12 @@ class DatadogHttpCodec {
     @Override
     public TracePropagationStyle style() {
       return DATADOG;
+    }
+
+    @Override
+    public ContextInterpreter reset(TraceConfig traceConfig) {
+      datadogTags = null;
+      return super.reset(traceConfig);
     }
 
     @Override
@@ -136,22 +153,17 @@ class DatadogHttpCodec {
             classification = ORIGIN;
           } else if (isAwsPropagationEnabled && X_AMZN_TRACE_ID.equalsIgnoreCase(key)) {
             handleXRayTraceHeader(this, value);
-            return true;
-          } else if (handledXForwarding(key, value)) {
-            return true;
           } else if (DATADOG_TAGS_KEY.equalsIgnoreCase(key)) {
             classification = DD_TAGS;
+          } else {
+            handledXForwarding(key, value);
           }
           break;
         case 'f':
-          if (handledForwarding(key, value)) {
-            return true;
-          }
+          handledForwarding(key, value);
           break;
         case 'u':
-          if (handledUserAgent(key, value)) {
-            return true;
-          }
+          handledUserAgent(key, value);
           break;
         case 'o':
           lowerCaseKey = toLowerCase(key);
@@ -184,7 +196,7 @@ class DatadogHttpCodec {
                 endToEndStartTime = extractEndToEndStartTime(firstHeaderValue(value));
                 break;
               case DD_TAGS:
-                propagationTags = propagationTagsFactory.fromHeaderValue(HeaderType.DATADOG, value);
+                datadogTags = value;
                 break;
               case OT_BAGGAGE:
                 addBaggageItem(lowerCaseKey.substring(OT_BAGGAGE_PREFIX.length()), value);
@@ -192,15 +204,17 @@ class DatadogHttpCodec {
               default:
             }
           }
+        } catch (NumberFormatException e) {
+          invalidateContext();
+          log.debug(EXCLUDE_TELEMETRY, "Ignoring context with invalid {}: {}", key, value);
+          return false;
         } catch (RuntimeException e) {
           invalidateContext();
           log.debug("Exception when extracting context", e);
           return false;
         }
       } else {
-        if (handledIpHeaders(key, value)) {
-          return true;
-        }
+        handledIpHeaders(key, value);
         if (handleTags(key, value)) {
           return true;
         }
@@ -211,6 +225,20 @@ class DatadogHttpCodec {
 
     @Override
     protected TagContext build() {
+      if (datadogTags != null) {
+        try {
+          propagationTags =
+              propagationTagsFactory.fromDatadogHeaderValue(
+                  datadogTags, inheritedSamplingPriority());
+        } catch (RuntimeException e) {
+          invalidateContext();
+          log.debug("Exception when extracting context", e);
+        } finally {
+          // The interpreter is cached per thread: don't keep the raw header reachable until the
+          // next extraction.
+          datadogTags = null;
+        }
+      }
       restore128bTraceId();
       return super.build();
     }

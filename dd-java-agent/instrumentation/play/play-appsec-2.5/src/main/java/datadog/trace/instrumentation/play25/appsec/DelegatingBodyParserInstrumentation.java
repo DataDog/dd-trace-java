@@ -28,13 +28,6 @@ public class DelegatingBodyParserInstrumentation extends InstrumenterModule.AppS
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".JavaMultipartFormDataRegisterExcF",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("apply")

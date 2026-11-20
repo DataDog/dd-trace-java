@@ -1,8 +1,8 @@
 package datadog.trace.core.scopemanager;
 
 import datadog.context.Context;
+import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentTraceCollector;
 import datadog.trace.bootstrap.instrumentation.api.NoopScope;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
@@ -15,8 +15,7 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
  * <p>This class must not be a nested class of ContinuableScope to avoid an unconstrained chain of
  * references (using too much memory).
  */
-@SuppressWarnings("deprecation")
-final class ScopeContinuation implements AgentScope.Continuation {
+final class ScopeContinuation implements ContextContinuation {
   private static final AtomicIntegerFieldUpdater<ScopeContinuation> COUNT =
       AtomicIntegerFieldUpdater.newUpdater(ScopeContinuation.class, "count");
 
@@ -120,16 +119,6 @@ final class ScopeContinuation implements AgentScope.Continuation {
       // slow path: multiple activations, all have now closed (no hold)
       release();
     } /* else there are outstanding activations or hold is in place */
-  }
-
-  @Override
-  public AgentScope activate() {
-    return (AgentScope) resume();
-  }
-
-  @Override
-  public void cancel() {
-    release();
   }
 
   @Override

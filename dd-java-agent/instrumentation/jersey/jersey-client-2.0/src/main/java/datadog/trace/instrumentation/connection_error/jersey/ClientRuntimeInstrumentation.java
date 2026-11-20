@@ -26,11 +26,6 @@ public class ClientRuntimeInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {"org.glassfish.jersey.client.WrappingResponseCallback"};
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()

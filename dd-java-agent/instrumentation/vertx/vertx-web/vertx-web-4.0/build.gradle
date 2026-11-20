@@ -1,5 +1,6 @@
 plugins {
   id 'dd-trace-java.module.instrumentation'
+  id 'dd-trace-java.instrumentation.netty-concurrent-tests'
 }
 
 testJvmConstraints {
@@ -21,7 +22,6 @@ muzzle {
 }
 
 addTestSuiteForDir('latestDepTest', 'latestDepTest')
-addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'latestDepTest')
 
 configurations {
   testArtifacts
@@ -48,6 +48,7 @@ dependencies {
   testImplementation project(':dd-java-agent:appsec:appsec-test-fixtures')
 
   testImplementation libs.junit.jupiter
+  testImplementation libs.bundles.mockito
 
   testRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core:jackson-core-common')
   testRuntimeOnly project(':dd-java-agent:instrumentation:netty:netty-buffer-4.0')
@@ -56,15 +57,11 @@ dependencies {
   latestDepTestImplementation group: 'io.vertx', name: 'vertx-web-client', version: '4.+'
 }
 
-["compileLatestDepTestJava", "compileLatestDepForkedTestJava"].each { name ->
-  tasks.named(name, JavaCompile) {
-    configureCompiler(it, 11)
-  }
+tasks.named("compileLatestDepTestJava", JavaCompile) {
+  configureCompiler(it, JavaVersion.VERSION_11)
 }
-["compileLatestDepForkedTestGroovy", "compileLatestDepTestGroovy"].each {
-  tasks.named(it, GroovyCompile) {
-    configureCompiler(it, 11)
-  }
+tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
+  configureCompiler(it, JavaVersion.VERSION_11)
 }
 
 tasks.named("latestDepTest", Test) {
@@ -73,11 +70,3 @@ tasks.named("latestDepTest", Test) {
     maxJavaVersion = JavaVersion.VERSION_25
   }
 }
-
-tasks.named("latestDepForkedTest", Test) {
-  testJvmConstraints {
-    minJavaVersion = JavaVersion.VERSION_11
-    maxJavaVersion = JavaVersion.VERSION_25
-  }
-}
-

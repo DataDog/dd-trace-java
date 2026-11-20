@@ -1,0 +1,1172 @@
+[
+  {
+    "args": {
+      "activation": "missing",
+      "attribute": "absent",
+      "doLog": false,
+      "mode": "disabled"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": false
+    },
+    "id": "disabled/absent/missing/0"
+  },
+  {
+    "args": {
+      "activation": "missing",
+      "attribute": "absent",
+      "doLog": true,
+      "mode": "disabled"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": false
+    },
+    "id": "disabled/absent/missing/1"
+  },
+  {
+    "args": {
+      "activation": "invalid",
+      "attribute": "absent",
+      "doLog": false,
+      "mode": "disabled"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": false
+    },
+    "id": "disabled/absent/invalid/0"
+  },
+  {
+    "args": {
+      "activation": "invalid",
+      "attribute": "absent",
+      "doLog": true,
+      "mode": "disabled"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": false
+    },
+    "id": "disabled/absent/invalid/1"
+  },
+  {
+    "args": {
+      "activation": "before",
+      "attribute": "absent",
+      "doLog": false,
+      "mode": "disabled"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": false
+    },
+    "id": "disabled/absent/before/0"
+  },
+  {
+    "args": {
+      "activation": "before",
+      "attribute": "absent",
+      "doLog": true,
+      "mode": "disabled"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": false
+    },
+    "id": "disabled/absent/before/1"
+  },
+  {
+    "args": {
+      "activation": "equal",
+      "attribute": "absent",
+      "doLog": false,
+      "mode": "disabled"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": false
+    },
+    "id": "disabled/absent/equal/0"
+  },
+  {
+    "args": {
+      "activation": "equal",
+      "attribute": "absent",
+      "doLog": true,
+      "mode": "disabled"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": false
+    },
+    "id": "disabled/absent/equal/1"
+  },
+  {
+    "args": {
+      "activation": "after",
+      "attribute": "absent",
+      "doLog": false,
+      "mode": "disabled"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": false
+    },
+    "id": "disabled/absent/after/0"
+  },
+  {
+    "args": {
+      "activation": "after",
+      "attribute": "absent",
+      "doLog": true,
+      "mode": "disabled"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": false
+    },
+    "id": "disabled/absent/after/1"
+  },
+  {
+    "args": {
+      "activation": "missing",
+      "attribute": "valid",
+      "doLog": false,
+      "mode": "disabled"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": false
+    },
+    "id": "disabled/valid/missing/0"
+  },
+  {
+    "args": {
+      "activation": "missing",
+      "attribute": "valid",
+      "doLog": true,
+      "mode": "disabled"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": false
+    },
+    "id": "disabled/valid/missing/1"
+  },
+  {
+    "args": {
+      "activation": "invalid",
+      "attribute": "valid",
+      "doLog": false,
+      "mode": "disabled"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": false
+    },
+    "id": "disabled/valid/invalid/0"
+  },
+  {
+    "args": {
+      "activation": "invalid",
+      "attribute": "valid",
+      "doLog": true,
+      "mode": "disabled"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": false
+    },
+    "id": "disabled/valid/invalid/1"
+  },
+  {
+    "args": {
+      "activation": "before",
+      "attribute": "valid",
+      "doLog": false,
+      "mode": "disabled"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": false
+    },
+    "id": "disabled/valid/before/0"
+  },
+  {
+    "args": {
+      "activation": "before",
+      "attribute": "valid",
+      "doLog": true,
+      "mode": "disabled"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": false
+    },
+    "id": "disabled/valid/before/1"
+  },
+  {
+    "args": {
+      "activation": "equal",
+      "attribute": "valid",
+      "doLog": false,
+      "mode": "disabled"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": false
+    },
+    "id": "disabled/valid/equal/0"
+  },
+  {
+    "args": {
+      "activation": "equal",
+      "attribute": "valid",
+      "doLog": true,
+      "mode": "disabled"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": false
+    },
+    "id": "disabled/valid/equal/1"
+  },
+  {
+    "args": {
+      "activation": "after",
+      "attribute": "valid",
+      "doLog": false,
+      "mode": "disabled"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": false
+    },
+    "id": "disabled/valid/after/0"
+  },
+  {
+    "args": {
+      "activation": "after",
+      "attribute": "valid",
+      "doLog": true,
+      "mode": "disabled"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": false
+    },
+    "id": "disabled/valid/after/1"
+  },
+  {
+    "args": {
+      "activation": "missing",
+      "attribute": "invalid",
+      "doLog": false,
+      "mode": "disabled"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": false
+    },
+    "id": "disabled/invalid/missing/0"
+  },
+  {
+    "args": {
+      "activation": "missing",
+      "attribute": "invalid",
+      "doLog": true,
+      "mode": "disabled"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": false
+    },
+    "id": "disabled/invalid/missing/1"
+  },
+  {
+    "args": {
+      "activation": "invalid",
+      "attribute": "invalid",
+      "doLog": false,
+      "mode": "disabled"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": false
+    },
+    "id": "disabled/invalid/invalid/0"
+  },
+  {
+    "args": {
+      "activation": "invalid",
+      "attribute": "invalid",
+      "doLog": true,
+      "mode": "disabled"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": false
+    },
+    "id": "disabled/invalid/invalid/1"
+  },
+  {
+    "args": {
+      "activation": "before",
+      "attribute": "invalid",
+      "doLog": false,
+      "mode": "disabled"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": false
+    },
+    "id": "disabled/invalid/before/0"
+  },
+  {
+    "args": {
+      "activation": "before",
+      "attribute": "invalid",
+      "doLog": true,
+      "mode": "disabled"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": false
+    },
+    "id": "disabled/invalid/before/1"
+  },
+  {
+    "args": {
+      "activation": "equal",
+      "attribute": "invalid",
+      "doLog": false,
+      "mode": "disabled"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": false
+    },
+    "id": "disabled/invalid/equal/0"
+  },
+  {
+    "args": {
+      "activation": "equal",
+      "attribute": "invalid",
+      "doLog": true,
+      "mode": "disabled"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": false
+    },
+    "id": "disabled/invalid/equal/1"
+  },
+  {
+    "args": {
+      "activation": "after",
+      "attribute": "invalid",
+      "doLog": false,
+      "mode": "disabled"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": false
+    },
+    "id": "disabled/invalid/after/0"
+  },
+  {
+    "args": {
+      "activation": "after",
+      "attribute": "invalid",
+      "doLog": true,
+      "mode": "disabled"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": false
+    },
+    "id": "disabled/invalid/after/1"
+  },
+  {
+    "args": {
+      "activation": "missing",
+      "attribute": "absent",
+      "doLog": false,
+      "mode": "immediate"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": false
+    },
+    "id": "immediate/absent/missing/0"
+  },
+  {
+    "args": {
+      "activation": "missing",
+      "attribute": "absent",
+      "doLog": true,
+      "mode": "immediate"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": false
+    },
+    "id": "immediate/absent/missing/1"
+  },
+  {
+    "args": {
+      "activation": "invalid",
+      "attribute": "absent",
+      "doLog": false,
+      "mode": "immediate"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": false
+    },
+    "id": "immediate/absent/invalid/0"
+  },
+  {
+    "args": {
+      "activation": "invalid",
+      "attribute": "absent",
+      "doLog": true,
+      "mode": "immediate"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": false
+    },
+    "id": "immediate/absent/invalid/1"
+  },
+  {
+    "args": {
+      "activation": "before",
+      "attribute": "absent",
+      "doLog": false,
+      "mode": "immediate"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": false
+    },
+    "id": "immediate/absent/before/0"
+  },
+  {
+    "args": {
+      "activation": "before",
+      "attribute": "absent",
+      "doLog": true,
+      "mode": "immediate"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": false
+    },
+    "id": "immediate/absent/before/1"
+  },
+  {
+    "args": {
+      "activation": "equal",
+      "attribute": "absent",
+      "doLog": false,
+      "mode": "immediate"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": false
+    },
+    "id": "immediate/absent/equal/0"
+  },
+  {
+    "args": {
+      "activation": "equal",
+      "attribute": "absent",
+      "doLog": true,
+      "mode": "immediate"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": false
+    },
+    "id": "immediate/absent/equal/1"
+  },
+  {
+    "args": {
+      "activation": "after",
+      "attribute": "absent",
+      "doLog": false,
+      "mode": "immediate"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": false
+    },
+    "id": "immediate/absent/after/0"
+  },
+  {
+    "args": {
+      "activation": "after",
+      "attribute": "absent",
+      "doLog": true,
+      "mode": "immediate"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": false
+    },
+    "id": "immediate/absent/after/1"
+  },
+  {
+    "args": {
+      "activation": "missing",
+      "attribute": "valid",
+      "doLog": false,
+      "mode": "immediate"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": false
+    },
+    "id": "immediate/valid/missing/0"
+  },
+  {
+    "args": {
+      "activation": "missing",
+      "attribute": "valid",
+      "doLog": true,
+      "mode": "immediate"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": true
+    },
+    "id": "immediate/valid/missing/1"
+  },
+  {
+    "args": {
+      "activation": "invalid",
+      "attribute": "valid",
+      "doLog": false,
+      "mode": "immediate"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": false
+    },
+    "id": "immediate/valid/invalid/0"
+  },
+  {
+    "args": {
+      "activation": "invalid",
+      "attribute": "valid",
+      "doLog": true,
+      "mode": "immediate"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": true
+    },
+    "id": "immediate/valid/invalid/1"
+  },
+  {
+    "args": {
+      "activation": "before",
+      "attribute": "valid",
+      "doLog": false,
+      "mode": "immediate"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": false
+    },
+    "id": "immediate/valid/before/0"
+  },
+  {
+    "args": {
+      "activation": "before",
+      "attribute": "valid",
+      "doLog": true,
+      "mode": "immediate"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": true
+    },
+    "id": "immediate/valid/before/1"
+  },
+  {
+    "args": {
+      "activation": "equal",
+      "attribute": "valid",
+      "doLog": false,
+      "mode": "immediate"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": false
+    },
+    "id": "immediate/valid/equal/0"
+  },
+  {
+    "args": {
+      "activation": "equal",
+      "attribute": "valid",
+      "doLog": true,
+      "mode": "immediate"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": true
+    },
+    "id": "immediate/valid/equal/1"
+  },
+  {
+    "args": {
+      "activation": "after",
+      "attribute": "valid",
+      "doLog": false,
+      "mode": "immediate"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": false
+    },
+    "id": "immediate/valid/after/0"
+  },
+  {
+    "args": {
+      "activation": "after",
+      "attribute": "valid",
+      "doLog": true,
+      "mode": "immediate"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": true
+    },
+    "id": "immediate/valid/after/1"
+  },
+  {
+    "args": {
+      "activation": "missing",
+      "attribute": "invalid",
+      "doLog": false,
+      "mode": "immediate"
+    },
+    "expected": {
+      "error": "INVALID_CONTEXT",
+      "exclude": false
+    },
+    "id": "immediate/invalid/missing/0"
+  },
+  {
+    "args": {
+      "activation": "missing",
+      "attribute": "invalid",
+      "doLog": true,
+      "mode": "immediate"
+    },
+    "expected": {
+      "error": "INVALID_CONTEXT",
+      "exclude": false
+    },
+    "id": "immediate/invalid/missing/1"
+  },
+  {
+    "args": {
+      "activation": "invalid",
+      "attribute": "invalid",
+      "doLog": false,
+      "mode": "immediate"
+    },
+    "expected": {
+      "error": "INVALID_CONTEXT",
+      "exclude": false
+    },
+    "id": "immediate/invalid/invalid/0"
+  },
+  {
+    "args": {
+      "activation": "invalid",
+      "attribute": "invalid",
+      "doLog": true,
+      "mode": "immediate"
+    },
+    "expected": {
+      "error": "INVALID_CONTEXT",
+      "exclude": false
+    },
+    "id": "immediate/invalid/invalid/1"
+  },
+  {
+    "args": {
+      "activation": "before",
+      "attribute": "invalid",
+      "doLog": false,
+      "mode": "immediate"
+    },
+    "expected": {
+      "error": "INVALID_CONTEXT",
+      "exclude": false
+    },
+    "id": "immediate/invalid/before/0"
+  },
+  {
+    "args": {
+      "activation": "before",
+      "attribute": "invalid",
+      "doLog": true,
+      "mode": "immediate"
+    },
+    "expected": {
+      "error": "INVALID_CONTEXT",
+      "exclude": false
+    },
+    "id": "immediate/invalid/before/1"
+  },
+  {
+    "args": {
+      "activation": "equal",
+      "attribute": "invalid",
+      "doLog": false,
+      "mode": "immediate"
+    },
+    "expected": {
+      "error": "INVALID_CONTEXT",
+      "exclude": false
+    },
+    "id": "immediate/invalid/equal/0"
+  },
+  {
+    "args": {
+      "activation": "equal",
+      "attribute": "invalid",
+      "doLog": true,
+      "mode": "immediate"
+    },
+    "expected": {
+      "error": "INVALID_CONTEXT",
+      "exclude": false
+    },
+    "id": "immediate/invalid/equal/1"
+  },
+  {
+    "args": {
+      "activation": "after",
+      "attribute": "invalid",
+      "doLog": false,
+      "mode": "immediate"
+    },
+    "expected": {
+      "error": "INVALID_CONTEXT",
+      "exclude": false
+    },
+    "id": "immediate/invalid/after/0"
+  },
+  {
+    "args": {
+      "activation": "after",
+      "attribute": "invalid",
+      "doLog": true,
+      "mode": "immediate"
+    },
+    "expected": {
+      "error": "INVALID_CONTEXT",
+      "exclude": false
+    },
+    "id": "immediate/invalid/after/1"
+  },
+  {
+    "args": {
+      "activation": "missing",
+      "attribute": "absent",
+      "doLog": false,
+      "mode": "future_experiments_only"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": false
+    },
+    "id": "future_experiments_only/absent/missing/0"
+  },
+  {
+    "args": {
+      "activation": "missing",
+      "attribute": "absent",
+      "doLog": true,
+      "mode": "future_experiments_only"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": false
+    },
+    "id": "future_experiments_only/absent/missing/1"
+  },
+  {
+    "args": {
+      "activation": "invalid",
+      "attribute": "absent",
+      "doLog": false,
+      "mode": "future_experiments_only"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": false
+    },
+    "id": "future_experiments_only/absent/invalid/0"
+  },
+  {
+    "args": {
+      "activation": "invalid",
+      "attribute": "absent",
+      "doLog": true,
+      "mode": "future_experiments_only"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": false
+    },
+    "id": "future_experiments_only/absent/invalid/1"
+  },
+  {
+    "args": {
+      "activation": "before",
+      "attribute": "absent",
+      "doLog": false,
+      "mode": "future_experiments_only"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": false
+    },
+    "id": "future_experiments_only/absent/before/0"
+  },
+  {
+    "args": {
+      "activation": "before",
+      "attribute": "absent",
+      "doLog": true,
+      "mode": "future_experiments_only"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": false
+    },
+    "id": "future_experiments_only/absent/before/1"
+  },
+  {
+    "args": {
+      "activation": "equal",
+      "attribute": "absent",
+      "doLog": false,
+      "mode": "future_experiments_only"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": false
+    },
+    "id": "future_experiments_only/absent/equal/0"
+  },
+  {
+    "args": {
+      "activation": "equal",
+      "attribute": "absent",
+      "doLog": true,
+      "mode": "future_experiments_only"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": false
+    },
+    "id": "future_experiments_only/absent/equal/1"
+  },
+  {
+    "args": {
+      "activation": "after",
+      "attribute": "absent",
+      "doLog": false,
+      "mode": "future_experiments_only"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": false
+    },
+    "id": "future_experiments_only/absent/after/0"
+  },
+  {
+    "args": {
+      "activation": "after",
+      "attribute": "absent",
+      "doLog": true,
+      "mode": "future_experiments_only"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": false
+    },
+    "id": "future_experiments_only/absent/after/1"
+  },
+  {
+    "args": {
+      "activation": "missing",
+      "attribute": "valid",
+      "doLog": false,
+      "mode": "future_experiments_only"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": false
+    },
+    "id": "future_experiments_only/valid/missing/0"
+  },
+  {
+    "args": {
+      "activation": "missing",
+      "attribute": "valid",
+      "doLog": true,
+      "mode": "future_experiments_only"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": true
+    },
+    "id": "future_experiments_only/valid/missing/1"
+  },
+  {
+    "args": {
+      "activation": "invalid",
+      "attribute": "valid",
+      "doLog": false,
+      "mode": "future_experiments_only"
+    },
+    "expected": {
+      "error": "PARSE_ERROR",
+      "exclude": false
+    },
+    "id": "future_experiments_only/valid/invalid/0"
+  },
+  {
+    "args": {
+      "activation": "invalid",
+      "attribute": "valid",
+      "doLog": true,
+      "mode": "future_experiments_only"
+    },
+    "expected": {
+      "error": "PARSE_ERROR",
+      "exclude": false
+    },
+    "id": "future_experiments_only/valid/invalid/1"
+  },
+  {
+    "args": {
+      "activation": "before",
+      "attribute": "valid",
+      "doLog": false,
+      "mode": "future_experiments_only"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": false
+    },
+    "id": "future_experiments_only/valid/before/0"
+  },
+  {
+    "args": {
+      "activation": "before",
+      "attribute": "valid",
+      "doLog": true,
+      "mode": "future_experiments_only"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": false
+    },
+    "id": "future_experiments_only/valid/before/1"
+  },
+  {
+    "args": {
+      "activation": "equal",
+      "attribute": "valid",
+      "doLog": false,
+      "mode": "future_experiments_only"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": false
+    },
+    "id": "future_experiments_only/valid/equal/0"
+  },
+  {
+    "args": {
+      "activation": "equal",
+      "attribute": "valid",
+      "doLog": true,
+      "mode": "future_experiments_only"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": true
+    },
+    "id": "future_experiments_only/valid/equal/1"
+  },
+  {
+    "args": {
+      "activation": "after",
+      "attribute": "valid",
+      "doLog": false,
+      "mode": "future_experiments_only"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": false
+    },
+    "id": "future_experiments_only/valid/after/0"
+  },
+  {
+    "args": {
+      "activation": "after",
+      "attribute": "valid",
+      "doLog": true,
+      "mode": "future_experiments_only"
+    },
+    "expected": {
+      "error": "NONE",
+      "exclude": true
+    },
+    "id": "future_experiments_only/valid/after/1"
+  },
+  {
+    "args": {
+      "activation": "missing",
+      "attribute": "invalid",
+      "doLog": false,
+      "mode": "future_experiments_only"
+    },
+    "expected": {
+      "error": "INVALID_CONTEXT",
+      "exclude": false
+    },
+    "id": "future_experiments_only/invalid/missing/0"
+  },
+  {
+    "args": {
+      "activation": "missing",
+      "attribute": "invalid",
+      "doLog": true,
+      "mode": "future_experiments_only"
+    },
+    "expected": {
+      "error": "INVALID_CONTEXT",
+      "exclude": false
+    },
+    "id": "future_experiments_only/invalid/missing/1"
+  },
+  {
+    "args": {
+      "activation": "invalid",
+      "attribute": "invalid",
+      "doLog": false,
+      "mode": "future_experiments_only"
+    },
+    "expected": {
+      "error": "INVALID_CONTEXT",
+      "exclude": false
+    },
+    "id": "future_experiments_only/invalid/invalid/0"
+  },
+  {
+    "args": {
+      "activation": "invalid",
+      "attribute": "invalid",
+      "doLog": true,
+      "mode": "future_experiments_only"
+    },
+    "expected": {
+      "error": "INVALID_CONTEXT",
+      "exclude": false
+    },
+    "id": "future_experiments_only/invalid/invalid/1"
+  },
+  {
+    "args": {
+      "activation": "before",
+      "attribute": "invalid",
+      "doLog": false,
+      "mode": "future_experiments_only"
+    },
+    "expected": {
+      "error": "INVALID_CONTEXT",
+      "exclude": false
+    },
+    "id": "future_experiments_only/invalid/before/0"
+  },
+  {
+    "args": {
+      "activation": "before",
+      "attribute": "invalid",
+      "doLog": true,
+      "mode": "future_experiments_only"
+    },
+    "expected": {
+      "error": "INVALID_CONTEXT",
+      "exclude": false
+    },
+    "id": "future_experiments_only/invalid/before/1"
+  },
+  {
+    "args": {
+      "activation": "equal",
+      "attribute": "invalid",
+      "doLog": false,
+      "mode": "future_experiments_only"
+    },
+    "expected": {
+      "error": "INVALID_CONTEXT",
+      "exclude": false
+    },
+    "id": "future_experiments_only/invalid/equal/0"
+  },
+  {
+    "args": {
+      "activation": "equal",
+      "attribute": "invalid",
+      "doLog": true,
+      "mode": "future_experiments_only"
+    },
+    "expected": {
+      "error": "INVALID_CONTEXT",
+      "exclude": false
+    },
+    "id": "future_experiments_only/invalid/equal/1"
+  },
+  {
+    "args": {
+      "activation": "after",
+      "attribute": "invalid",
+      "doLog": false,
+      "mode": "future_experiments_only"
+    },
+    "expected": {
+      "error": "INVALID_CONTEXT",
+      "exclude": false
+    },
+    "id": "future_experiments_only/invalid/after/0"
+  },
+  {
+    "args": {
+      "activation": "after",
+      "attribute": "invalid",
+      "doLog": true,
+      "mode": "future_experiments_only"
+    },
+    "expected": {
+      "error": "INVALID_CONTEXT",
+      "exclude": false
+    },
+    "id": "future_experiments_only/invalid/after/1"
+  }
+]

@@ -71,7 +71,7 @@ class WebSphereJmxSmokeTest extends AbstractSmokeTest {
       }
     }
 
-    websphere = new GenericContainer("icr.io/appcafe/websphere-traditional:latest")
+    websphere = new GenericContainer(System.getProperty("test.websphere.image"))
       // inject wished jvm props for the server we are running
       .withCopyFileToContainer(MountableFile.forClasspathResource("jvm-config.props"), "/work/config/")
       // copy the agent jar

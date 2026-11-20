@@ -28,11 +28,4 @@ public abstract class AbstractTibcoInstrumentation extends InstrumenterModule.Tr
         "com.tibco.bw.jms.shared.api.receive.JMSMessageCallBackHandler", String.class.getName());
     return stores;
   }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".TibcoDecorator", packageName + ".IgnoreHelper",
-    };
-  }
 }

@@ -17,7 +17,7 @@ final class ContextProviders {
     static final ContextBinder INSTANCE =
         null != ContextProviders.customBinder
             ? ContextProviders.customBinder
-            : WeakMapContextBinder.INSTANCE;
+            : ObjectStoreContextBinder.INSTANCE;
   }
 
   static ContextManager manager() {

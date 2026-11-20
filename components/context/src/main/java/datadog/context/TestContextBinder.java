@@ -31,7 +31,7 @@ final class TestContextBinder implements ContextBinder {
     ContextBinder delegate = ContextProviders.customBinder;
     if (delegate == TEST_INSTANCE) {
       // fall back to default context binder
-      return WeakMapContextBinder.INSTANCE;
+      return ObjectStoreContextBinder.INSTANCE;
     } else {
       return delegate;
     }

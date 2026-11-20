@@ -12,6 +12,7 @@ import datadog.trace.api.TraceConfig;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.core.DDSpanContext;
+import datadog.trace.util.Strings;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.Map;
 import java.util.TreeMap;
@@ -177,14 +178,10 @@ class HaystackHttpCodec {
           }
           break;
         case 'x':
-          if (handledXForwarding(key, value)) {
-            return true;
-          }
+          handledXForwarding(key, value);
           break;
         case 'f':
-          if (handledForwarding(key, value)) {
-            return true;
-          }
+          handledForwarding(key, value);
           break;
         case 'b':
           lowerCaseKey = toLowerCase(key);
@@ -193,9 +190,7 @@ class HaystackHttpCodec {
           }
           break;
         case 'u':
-          if (handledUserAgent(key, value)) {
-            return true;
-          }
+          handledUserAgent(key, value);
           break;
         default:
       }
@@ -230,9 +225,7 @@ class HaystackHttpCodec {
           return false;
         }
       } else {
-        if (handledIpHeaders(key, value)) {
-          return true;
-        }
+        handledIpHeaders(key, value);
         if (handleTags(key, value)) {
           return true;
         }
@@ -271,7 +264,7 @@ class HaystackHttpCodec {
     // ones.
     //  this is done for the purpose of being able to maintain cardinality and idempotence of the
     // conversion
-    String idHex = String.format("%016x", id);
+    String idHex = Strings.format("%016x", id);
     return DATADOG + "-" + idHex.substring(0, 4) + "-" + idHex.substring(4);
   }
 

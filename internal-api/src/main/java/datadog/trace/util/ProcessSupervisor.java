@@ -151,4 +151,9 @@ public class ProcessSupervisor implements Closeable {
   Process getCurrentProcess() {
     return currentProcess;
   }
+
+  @VisibleForTesting
+  Thread getSupervisorThread() {
+    return supervisorThread;
+  }
 }

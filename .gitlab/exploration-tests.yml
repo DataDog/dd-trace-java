@@ -1,5 +1,14 @@
 variables:
   EXPLORATION_TESTS_IMAGE: registry.ddbuild.io/ci/dd-trace-java:exploration-tests
+  # Digest of the exploration tests image used by test jobs. Update it after running build-exploration-tests-image.
+  EXPLORATION_TESTS_IMAGE_DIGEST: sha256:a52a55789206b6e53b38b042653f27efa2e1116eb769e2c619ffc0630bcc14f6
+  # Eclipse Temurin JDK releases (https://adoptium.net/temurin/releases) installed in the exploration tests image
+  JAVA_8_VERSION: jdk8u372-b07
+  JAVA_11_VERSION: jdk-11.0.32.1+1
+  JAVA_17_VERSION: jdk-17.0.21+9
+  JAVA_21_VERSION: jdk-21.0.13+9
+  # Apache Maven version installed in the exploration tests image
+  MAVEN_VERSION: 3.8.4
 
 build-exploration-tests-image:
   stage: exploration-tests
@@ -15,6 +24,11 @@ build-exploration-tests-image:
     - >
       docker buildx build 
       --tag $EXPLORATION_TESTS_IMAGE 
+      --build-arg JAVA_8_VERSION=$JAVA_8_VERSION 
+      --build-arg JAVA_11_VERSION=$JAVA_11_VERSION 
+      --build-arg JAVA_17_VERSION=$JAVA_17_VERSION 
+      --build-arg JAVA_21_VERSION=$JAVA_21_VERSION 
+      --build-arg MAVEN_VERSION=$MAVEN_VERSION 
       --file dd-java-agent/agent-debugger/exploration-tests/Dockerfile.exploration-tests 
       --push 
       --metadata-file ${METADATA_FILE}
@@ -34,13 +48,30 @@ build-exploration-tests-image:
     - when: manual
       allow_failure: true
   before_script:
+    - |
+      mkdir -p "$HOME/.m2"
+      cat > "$HOME/.m2/settings.xml" <<EOF
+      <settings>
+        <mirrors>
+          <mirror>
+            <id>env-proxy</id>
+            <mirrorOf>*</mirrorOf>
+            <url>${MAVEN_REPOSITORY_PROXY}</url>
+          </mirror>
+        </mirrors>
+      </settings>
+      EOF
+    - export MVNW_REPOURL=${MAVEN_REPOSITORY_PROXY%/}
+    - export ORG_GRADLE_PROJECT_mavenRepositoryProxy="$MAVEN_REPOSITORY_PROXY"
+    - export ORG_GRADLE_PROJECT_gradlePluginProxy="$GRADLE_PLUGIN_PROXY"
+    # TODO: Centralize Gradle repository proxy initialization instead of reusing a smoke-test resource.
+    - mkdir -p "$HOME/.gradle/init.d"
+    - cp build-logic/smoke-test-app/src/main/resources/datadog/buildlogic/smoketest/proxy-repositories.init.gradle.kts "$HOME/.gradle/init.d/"
     - cp workspace/dd-java-agent/build/libs/*.jar /exploration-tests/dd-java-agent.jar
     - cp dd-java-agent/agent-debugger/exploration-tests/run-exploration-tests.sh /exploration-tests
     - cp dd-java-agent/agent-debugger/exploration-tests/exclude_*.txt /exploration-tests
     - cp dd-java-agent/agent-debugger/exploration-tests/include_*.txt /exploration-tests
-    - source $HOME/.sdkman/bin/sdkman-init.sh && cd / && sdk env
     - cd /exploration-tests
-    - java -version
   after_script:
     - cp /exploration-tests/${PROJECT}/agent.log ${PROJECT}_agent.log
     - gzip ${PROJECT}_agent.log
@@ -48,14 +79,15 @@ build-exploration-tests-image:
     - tar czf ${PROJECT}_debugger-dumps.tar.gz /tmp/debugger
   stage: exploration-tests
   tags: [ "arch:amd64"]
-  image: $EXPLORATION_TESTS_IMAGE
+  image: $EXPLORATION_TESTS_IMAGE@$EXPLORATION_TESTS_IMAGE_DIGEST
   artifacts:
+    when: always
     paths:
       - "*_agent.log.gz"
       - "*_surefire-reports.tar.gz"
       - "*_debugger-dumps.tar.gz"
 
-exploration-tests-method-jsoup:
+exploration-tests-log_method-jsoup:
   needs: [ build ]
   dependencies:
     - build
@@ -63,9 +95,9 @@ exploration-tests-method-jsoup:
   variables:
     PROJECT: jsoup
   script:
-    - ./run-exploration-tests.sh "method" "$PROJECT" "mvn verify" "include_${PROJECT}.txt" "exclude_${PROJECT}.txt"
+    - ./run-exploration-tests.sh "log_method" "$PROJECT" "mvn verify" "include_${PROJECT}.txt" "exclude_${PROJECT}.txt"
 
-exploration-tests-line-jsoup:
+exploration-tests-log_line-jsoup:
   needs: [ build ]
   dependencies:
     - build
@@ -73,9 +105,29 @@ exploration-tests-line-jsoup:
   variables:
     PROJECT: jsoup
   script:
-    - ./run-exploration-tests.sh "line" "$PROJECT" "mvn verify" "include_${PROJECT}.txt" "exclude_${PROJECT}.txt"
+    - ./run-exploration-tests.sh "log_line" "$PROJECT" "mvn verify" "include_${PROJECT}.txt" "exclude_${PROJECT}.txt"
 
-exploration-tests-method-jackson-core:
+exploration-tests-metric_method-jsoup:
+  needs: [ build ]
+  dependencies:
+    - build
+  <<: *common-exploration-tests
+  variables:
+    PROJECT: jsoup
+  script:
+    - ./run-exploration-tests.sh "metric_method" "$PROJECT" "mvn verify" "include_${PROJECT}.txt" "exclude_${PROJECT}.txt"
+
+exploration-tests-metric_line-jsoup:
+  needs: [ build ]
+  dependencies:
+    - build
+  <<: *common-exploration-tests
+  variables:
+    PROJECT: jsoup
+  script:
+    - ./run-exploration-tests.sh "metric_line" "$PROJECT" "mvn verify" "include_${PROJECT}.txt" "exclude_${PROJECT}.txt"
+
+exploration-tests-log_method-jackson-core:
   needs: [ build ]
   dependencies:
     - build
@@ -83,9 +135,9 @@ exploration-tests-method-jackson-core:
   variables:
     PROJECT: jackson-core
   script:
-    - ./run-exploration-tests.sh "method" "$PROJECT" "mvn verify" "include_${PROJECT}.txt" "exclude_${PROJECT}.txt"
+    - ./run-exploration-tests.sh "log_method" "$PROJECT" "mvn verify" "include_${PROJECT}.txt" "exclude_${PROJECT}.txt"
 
-exploration-tests-line-jackson-core:
+exploration-tests-log_line-jackson-core:
   needs: [ build ]
   dependencies:
     - build
@@ -93,9 +145,29 @@ exploration-tests-line-jackson-core:
   variables:
     PROJECT: jackson-core
   script:
-    - ./run-exploration-tests.sh "line" "$PROJECT" "mvn verify" "include_${PROJECT}.txt" "exclude_${PROJECT}.txt"
+    - ./run-exploration-tests.sh "log_line" "$PROJECT" "mvn verify" "include_${PROJECT}.txt" "exclude_${PROJECT}.txt"
 
-exploration-tests-method-jackson-databind:
+exploration-tests-metric_method-jackson-core:
+  needs: [ build ]
+  dependencies:
+    - build
+  <<: *common-exploration-tests
+  variables:
+    PROJECT: jackson-core
+  script:
+    - ./run-exploration-tests.sh "metric_method" "$PROJECT" "mvn verify" "include_${PROJECT}.txt" "exclude_${PROJECT}.txt"
+
+exploration-tests-metric_line-jackson-core:
+  needs: [ build ]
+  dependencies:
+    - build
+  <<: *common-exploration-tests
+  variables:
+    PROJECT: jackson-core
+  script:
+    - ./run-exploration-tests.sh "metric_line" "$PROJECT" "mvn verify" "include_${PROJECT}.txt" "exclude_${PROJECT}.txt"
+
+exploration-tests-log_method-jackson-databind:
   needs: [ build ]
   dependencies:
     - build
@@ -103,9 +175,9 @@ exploration-tests-method-jackson-databind:
   variables:
     PROJECT: jackson-databind
   script:
-    - ./run-exploration-tests.sh "method" "$PROJECT" "./mvnw verify" "include_${PROJECT}.txt" "exclude_$PROJECT.txt"
+    - ./run-exploration-tests.sh "log_method" "$PROJECT" "mvn verify" "include_${PROJECT}.txt" "exclude_$PROJECT.txt"
 
-exploration-tests-line-jackson-databind:
+exploration-tests-log_line-jackson-databind:
   needs: [ build ]
   dependencies:
     - build
@@ -113,18 +185,53 @@ exploration-tests-line-jackson-databind:
   variables:
     PROJECT: jackson-databind
   script:
-    - ./run-exploration-tests.sh "line" "$PROJECT" "./mvnw verify" "include_${PROJECT}.txt" "exclude_line_$PROJECT.txt"
+    - ./run-exploration-tests.sh "log_line" "$PROJECT" "mvn verify" "include_${PROJECT}.txt" "exclude_line_$PROJECT.txt"
 
-exploration-tests-method-okhttp:
+exploration-tests-metric_method-jackson-databind:
+  needs: [ build ]
+  dependencies:
+    - build
+  <<: *common-exploration-tests
+  variables:
+    PROJECT: jackson-databind
+  script:
+    - ./run-exploration-tests.sh "metric_method" "$PROJECT" "mvn verify" "include_${PROJECT}.txt" "exclude_$PROJECT.txt"
+
+exploration-tests-metric_line-jackson-databind:
+  needs: [ build ]
+  dependencies:
+    - build
+  <<: *common-exploration-tests
+  variables:
+    PROJECT: jackson-databind
+  script:
+    - ./run-exploration-tests.sh "metric_line" "$PROJECT" "mvn verify" "include_${PROJECT}.txt" "exclude_line_$PROJECT.txt"
+
+exploration-tests-log_method-okhttp:
   needs: [ build ]
   dependencies:
     - build
   <<: *common-exploration-tests
   variables:
     PROJECT: okhttp
-    KUBERNETES_MEMORY_REQUEST: 8Gi
-    KUBERNETES_MEMORY_LIMIT: 8Gi
+    KUBERNETES_MEMORY_REQUEST: 10Gi
+    KUBERNETES_MEMORY_LIMIT: 10Gi
   script:
-    - sdk use java 17.0.10-tem
+    - export JAVA_HOME=$JAVA_17_HOME PATH=$JAVA_17_HOME/bin:$PATH
     - java -XshowSettings:system -version
-    - ./run-exploration-tests.sh "method" "$PROJECT" "GRADLE_OPTS=-XX:ActiveProcessorCount=4 ./gradlew --max-workers 4 jvmTest -Dtest.java.version=11" "include_${PROJECT}.txt" "exclude_$PROJECT.txt"
+    - ./run-exploration-tests.sh "log_method" "$PROJECT" "GRADLE_OPTS=-XX:ActiveProcessorCount=4 ./gradlew -Dorg.gradle.java.installations.auto-download=true --max-workers 4 jvmTest -Dtest.java.version=11" "include_${PROJECT}.txt" "exclude_$PROJECT.txt"
+  after_script:
+    - cp /exploration-tests/${PROJECT}/agent.log ${PROJECT}_agent.log || true
+    - gzip ${PROJECT}_agent.log || true
+    - tar czf ${PROJECT}_debugger-dumps.tar.gz /tmp/debugger || true
+    - mkdir -p ${PROJECT}-test-results
+    - (cd /exploration-tests/${PROJECT} && find . -path "*/build/test-results/*/TEST-*.xml" -exec cp --parents {} $CI_PROJECT_DIR/${PROJECT}-test-results/ \;) || true
+  artifacts:
+    when: always
+    paths:
+      - "*_agent.log.gz"
+      - "*_debugger-dumps.tar.gz"
+      - "${PROJECT}-test-results/"
+    reports:
+      junit:
+        - "${PROJECT}-test-results/**/TEST-*.xml"

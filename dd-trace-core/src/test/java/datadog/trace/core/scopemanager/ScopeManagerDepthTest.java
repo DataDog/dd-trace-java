@@ -4,8 +4,8 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
+import datadog.context.ContextScope;
 import datadog.trace.api.config.TracerConfig;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.NoopScope;
 import datadog.trace.common.writer.ListWriter;
@@ -26,7 +26,7 @@ class ScopeManagerDepthTest extends DDCoreJavaSpecification {
     ContinuableScopeManager scopeManager = ScopeManagerTestBridge.getScopeManager(tracer);
 
     // fill up the scope stack
-    AgentScope scope = null;
+    ContextScope scope = null;
     for (int i = 0; i < depth; i++) {
       AgentSpan testSpan = tracer.buildSpan("test", "test").start();
       scope = tracer.activateSpan(testSpan);
@@ -44,7 +44,7 @@ class ScopeManagerDepthTest extends DDCoreJavaSpecification {
     assertInstanceOf(NoopScope.class, scope);
 
     // activate a noop scope over the limit
-    scope = scopeManager.activateManualSpan(noopSpan());
+    scope = scopeManager.activateSpan(noopSpan());
 
     // still have a noop instance
     assertInstanceOf(NoopScope.class, scope);
@@ -66,7 +66,7 @@ class ScopeManagerDepthTest extends DDCoreJavaSpecification {
     ContinuableScopeManager scopeManager = ScopeManagerTestBridge.getScopeManager(tracer);
 
     // fill up the scope stack
-    AgentScope scope = null;
+    ContextScope scope = null;
     for (int i = 0; i < defaultLimit; i++) {
       AgentSpan testSpan = tracer.buildSpan("test", "test").start();
       scope = tracer.activateSpan(testSpan);
@@ -85,7 +85,7 @@ class ScopeManagerDepthTest extends DDCoreJavaSpecification {
     assertEquals(defaultLimit + 1, scopeManager.scopeStack().depth());
 
     // activate a noop span
-    scope = scopeManager.activateManualSpan(noopSpan());
+    scope = scopeManager.activateSpan(noopSpan());
 
     // a real instance is still returned
     assertInstanceOf(ContinuableScope.class, scope);
@@ -106,10 +106,10 @@ class ScopeManagerDepthTest extends DDCoreJavaSpecification {
     ContinuableScopeManager scopeManager = ScopeManagerTestBridge.getScopeManager(tracer);
 
     AgentSpan firstSpan = tracer.buildSpan("test", "foo").start();
-    AgentScope firstScope = tracer.activateSpan(firstSpan);
+    ContextScope firstScope = tracer.activateSpan(firstSpan);
 
     AgentSpan secondSpan = tracer.buildSpan("test", "foo").start();
-    AgentScope secondScope = tracer.activateSpan(secondSpan);
+    ContextScope secondScope = tracer.activateSpan(secondSpan);
 
     assertEquals(2, scopeManager.scopeStack().depth());
 

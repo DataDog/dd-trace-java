@@ -15,12 +15,19 @@ smokeTestApp {
     artifactPath = 'libs/openfeature-smoketest.jar'
     sysProperty = 'datadog.smoketest.springboot.shadowJar.path'
   }
-  projectJar('featureFlaggingApiJar', project(':products:feature-flagging:feature-flagging-api'))
+  projectJar('featureFlaggingApiJar', project(':dd-openfeature'))
 }
 
 dependencies {
-  testImplementation project(':dd-smoke-tests')
-  testImplementation project(':products:feature-flagging:feature-flagging-lib')
+  testImplementation project(':dd-smoke-tests:smoke-test-common')
+}
+
+// The shared FFE fixtures belong to dd-openfeature: copy the files these tests read.
+tasks.named('processTestResources', ProcessResources) {
+  from(rootProject.file('dd-openfeature/src/test/fixtures')) {
+    include 'ffe-system-test-data/ufc-config.json'
+    include 'ffe-system-test-data/evaluation-cases/**'
+  }
 }
 
 spotless {

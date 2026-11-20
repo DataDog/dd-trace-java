@@ -20,14 +20,20 @@ class DebuggerTracerTest {
 
   private static final ProbeId SPAN_ID = new ProbeId("spanProbe-id", 1);
 
+  private CoreTracer tracer;
+
   @AfterEach
   public void after() {
+    if (tracer != null) {
+      tracer.close();
+    }
     AgentTracer.forceRegister(AgentTracer.NOOP_TRACER);
   }
 
   @Test
   public void createSpan() {
-    AgentTracer.forceRegister(CoreTracer.builder().build());
+    tracer = CoreTracer.builder().build();
+    AgentTracer.forceRegister(tracer);
     ProbeStatusSink probeStatusSink = mock(ProbeStatusSink.class);
     DebuggerTracer debuggerTracer = new DebuggerTracer(probeStatusSink);
     DebuggerSpan span =
@@ -38,9 +44,11 @@ class DebuggerTracerTest {
     assertEquals(0, underlyingSpan.getDurationNano());
     assertEquals(
         "dd.dynamic.span",
-        ((DebuggerTracer.DebuggerSpanImpl) span).currentScope.span().getSpanName());
+        AgentSpan.fromScope(((DebuggerTracer.DebuggerSpanImpl) span).currentScope).getSpanName());
     assertEquals(
-        "a-span", ((DebuggerTracer.DebuggerSpanImpl) span).currentScope.span().getResourceName());
+        "a-span",
+        AgentSpan.fromScope(((DebuggerTracer.DebuggerSpanImpl) span).currentScope)
+            .getResourceName());
     span.finish();
     assertNotEquals(0, underlyingSpan.getDurationNano());
     verify(probeStatusSink).addEmitting(eq(SPAN_ID.getEncodedId()));
@@ -48,7 +56,8 @@ class DebuggerTracerTest {
 
   @Test
   public void setError() {
-    AgentTracer.forceRegister(CoreTracer.builder().build());
+    tracer = CoreTracer.builder().build();
+    AgentTracer.forceRegister(tracer);
     ProbeStatusSink probeStatusSink = mock(ProbeStatusSink.class);
     DebuggerTracer debuggerTracer = new DebuggerTracer(probeStatusSink);
     DebuggerSpan span =

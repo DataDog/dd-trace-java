@@ -25,6 +25,7 @@ muzzle {
 
 dependencies {
   compileOnly group: 'org.apache.tomcat', name: 'coyote', version: '6.0.53'
+  implementation project(':dd-java-agent:instrumentation:tomcat:tomcat-common')
 }
 
 // testing happens in tomcat-5.5 module

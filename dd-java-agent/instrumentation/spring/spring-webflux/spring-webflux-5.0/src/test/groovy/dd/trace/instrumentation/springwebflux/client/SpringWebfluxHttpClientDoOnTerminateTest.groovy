@@ -29,7 +29,7 @@ class SpringWebfluxHttpClientDoOnTerminateTest extends SpringWebfluxHttpClientBa
 
     check()
 
-    response.statusCode().value()
+    consumeResponse(response)
   }
 
   @Override

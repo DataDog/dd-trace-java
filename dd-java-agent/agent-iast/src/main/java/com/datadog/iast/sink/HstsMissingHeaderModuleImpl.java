@@ -5,6 +5,7 @@ import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Location;
 import com.datadog.iast.model.Vulnerability;
 import com.datadog.iast.model.VulnerabilityType;
+import datadog.trace.api.KnownTags;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.sink.HstsMissingHeaderModule;
@@ -38,6 +39,7 @@ public class HstsMissingHeaderModuleImpl extends SinkModuleBase implements HstsM
       try {
         Map<String, Object> tags = igSpanInfo.getTags();
         String urlString = (String) tags.get("http.url");
+        String scheme = (String) tags.get(KnownTags.URL_SCHEME_NAME);
         Integer httpStatus = (Integer) tags.get("http.status_code");
         if (isIgnorableResponseCode(httpStatus)) {
           return;
@@ -45,7 +47,7 @@ public class HstsMissingHeaderModuleImpl extends SinkModuleBase implements HstsM
         if (!isHtmlResponse(iastRequestContext.getContentType())) {
           return;
         }
-        if (!isHttps(urlString, iastRequestContext.getxForwardedProto())) {
+        if (!isHttps(urlString, scheme, iastRequestContext.getxForwardedProto())) {
           return;
         }
         final AgentSpan span = (AgentSpan) igSpanInfo;
@@ -68,11 +70,15 @@ public class HstsMissingHeaderModuleImpl extends SinkModuleBase implements HstsM
     return Integer.parseInt(matcher.group(1)) > 0;
   }
 
-  static boolean isHttps(@Nullable final String urlString, @Nullable final String forwardedFor) {
-    if (urlString == null) {
+  static boolean isHttps(
+      @Nullable final String urlString,
+      @Nullable final String scheme,
+      @Nullable final String forwardedFor) {
+    if (urlString == null && scheme == null) {
       return false;
     }
-    if (urlString.toLowerCase(Locale.ROOT).startsWith("https://")) {
+    if ("https".equalsIgnoreCase(scheme)
+        || (urlString != null && urlString.toLowerCase(Locale.ROOT).startsWith("https://"))) {
       return true;
     }
     if (forwardedFor == null) {

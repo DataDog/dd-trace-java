@@ -1,18 +1,22 @@
-import java.io.BufferedReader;
+import static java.util.stream.Collectors.groupingBy;
+
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
+import java.io.UncheckedIOException;
+import java.lang.classfile.Attributes;
+import java.lang.classfile.ClassFile;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Pattern;
+import java.util.Set;
 
 final class SourceFileResolver {
   private static final String UNKNOWN = "UNKNOWN";
-  private static final Pattern CLASS_DECLARATION =
-      Pattern.compile("\\b(?:static\\s+)?class\\s+([A-Za-z_$][A-Za-z0-9_$]*)\\b");
+  private static final List<String> SOURCE_EXTENSIONS =
+      List.of(".java", ".groovy", ".kt", ".scala");
 
   private final String workspacePrefix;
   private final Map<String, SourceIndex> indexes = new HashMap<>();
@@ -21,94 +25,103 @@ final class SourceFileResolver {
     this.workspacePrefix = ResultCollector.toUnixString(workspaceDir) + "/";
   }
 
-  String resolve(Path resultXml) throws IOException {
+  String resolve(Path resultXml, String className) {
     var resultXmlPath = ResultCollector.toUnixString(resultXml);
-    var sourceRoot = sourceRoot(resultXmlPath);
-    if (resultXmlPath.contains("#")) {
-      return sourceRoot;
+    // Module names such as build-helper are not build output directories.
+    var buildIndex = resultXmlPath.lastIndexOf("/build/");
+    if (buildIndex < 0) {
+      return UNKNOWN;
     }
-
-    var className = className(resultXml);
+    var module = resultXmlPath.substring(0, buildIndex);
+    var project =
+        module.startsWith(workspacePrefix) ? module.substring(workspacePrefix.length()) : module;
+    var sourceRoot = Path.of(project, "src");
+    if (resultXmlPath.contains("#")) {
+      return ResultCollector.toUnixString(sourceRoot);
+    }
     if (className.isEmpty()) {
       return UNKNOWN;
     }
-
-    return indexes.computeIfAbsent(sourceRoot, SourceIndex::new).resolve(className);
-  }
-
-  private String sourceRoot(String resultXmlPath) {
-    var buildIndex = resultXmlPath.indexOf("/build");
-    var projectPath = buildIndex >= 0 ? resultXmlPath.substring(0, buildIndex) : resultXmlPath;
-    if (projectPath.startsWith(workspacePrefix)) {
-      projectPath = projectPath.substring(workspacePrefix.length());
-    }
-    return projectPath + "/src";
-  }
-
-  private static String className(Path resultXml) {
-    var fileName = resultXml.getFileName();
-    if (fileName == null) {
-      return "";
-    }
-
-    var name = fileName.toString();
-    if (name.endsWith(".xml")) {
-      name = name.substring(0, name.length() - ".xml".length());
-    }
-
-    var testPrefix = name.lastIndexOf("TEST-");
-    if (testPrefix >= 0) {
-      name = name.substring(testPrefix + "TEST-".length());
-    }
-
-    var packageSeparator = name.lastIndexOf('.');
-    if (packageSeparator >= 0) {
-      name = name.substring(packageSeparator + 1);
-    }
-
-    var innerClassSeparator = name.lastIndexOf('$');
-    if (innerClassSeparator >= 0) {
-      name = name.substring(innerClassSeparator + 1);
-    }
-    return name;
+    return indexes
+        .computeIfAbsent(
+            module, ignored -> new SourceIndex(sourceRoot, Path.of(module, "build", "classes")))
+        .resolve(className);
   }
 
   private static final class SourceIndex {
-    private final String sourceRoot;
-    private final Map<String, List<Path>> classLocations = new HashMap<>();
+    private final Path sourceRoot;
+    private final Path classesDir;
+    private final Map<String, Set<String>> sourceNames = new HashMap<>();
+    private final Map<String, String> resolved = new HashMap<>();
+    private Map<String, List<Path>> sourcesByFilename = Map.of();
     private boolean indexed;
 
-    private SourceIndex(String sourceRoot) {
+    private SourceIndex(Path sourceRoot, Path classesDir) {
       this.sourceRoot = sourceRoot;
+      this.classesDir = classesDir;
     }
 
     private String resolve(String className) {
       try {
         indexIfNecessary();
-      } catch (IOException e) {
+      } catch (IOException | UncheckedIOException e) {
         return UNKNOWN;
       }
+      return resolved.computeIfAbsent(className, this::resolveClass);
+    }
 
-      var locations = locations(className);
+    private String resolveClass(String className) {
+      var names = sourceNames.get(className);
+      var locations = new ArrayList<Path>();
+      if (names != null) {
+        for (var name : names) {
+          var candidates = sourcesByFilename.getOrDefault(name, List.of());
+          var conventional =
+              candidates.stream().filter(path -> matchesPackage(path, className, name)).toList();
+          // Groovy and Kotlin source directories need not mirror the declared package.
+          locations.addAll(conventional.isEmpty() ? candidates : conventional);
+        }
+      } else {
+        // shortcut: missing metadata needs standard layouts; export source maps for custom layouts.
+        var lookupName = className;
+        while (locations.isEmpty()) {
+          var simpleName = lookupName.substring(lookupName.lastIndexOf('.') + 1);
+          for (var extension : SOURCE_EXTENSIONS) {
+            var name = simpleName + extension;
+            for (var source : sourcesByFilename.getOrDefault(name, List.of())) {
+              if (matchesPackage(source, lookupName, name)) {
+                locations.add(source);
+              }
+            }
+          }
+          // Try a literal '$' in a filename before falling back to the enclosing class.
+          var separator = lookupName.lastIndexOf('$');
+          if (separator <= lookupName.lastIndexOf('.')) {
+            break;
+          }
+          lookupName = lookupName.substring(0, separator);
+        }
+      }
       if (locations.isEmpty()) {
         return UNKNOWN;
       }
-
-      var commonRoot = commonRoot(locations);
-      if (commonRoot == null) {
-        return UNKNOWN;
-      }
-      return "/" + ResultCollector.toUnixString(commonRoot);
-    }
-
-    private List<Path> locations(String className) {
-      var locations = new ArrayList<Path>();
-      for (var entry : classLocations.entrySet()) {
-        if (entry.getKey().startsWith(className)) {
-          locations.addAll(entry.getValue());
+      // Duplicate binary names across source sets still fall back to their common directory.
+      var commonRoot = locations.getFirst();
+      for (var location : locations) {
+        while (commonRoot != null && !location.startsWith(commonRoot)) {
+          commonRoot = commonRoot.getParent();
         }
       }
-      return locations;
+      return commonRoot == null ? UNKNOWN : "/" + ResultCollector.toUnixString(commonRoot);
+    }
+
+    private boolean matchesPackage(Path source, String className, String fileName) {
+      var relative = sourceRoot.relativize(source);
+      var packagePath = className.substring(0, className.lastIndexOf('.') + 1).replace('.', '/');
+      // Strip src/<source set>/<language>, so other/example cannot match package example.
+      return relative.getNameCount() > 2
+          && ResultCollector.toUnixString(relative.subpath(2, relative.getNameCount()))
+              .equals(packagePath + fileName);
     }
 
     private void indexIfNecessary() throws IOException {
@@ -116,62 +129,39 @@ final class SourceFileResolver {
         return;
       }
       indexed = true;
-
-      var root = Path.of(sourceRoot);
-      if (!Files.isDirectory(root)) {
-        return;
+      if (Files.isDirectory(sourceRoot)) {
+        try (var paths = Files.walk(sourceRoot)) {
+          sourcesByFilename =
+              paths
+                  .filter(Files::isRegularFile)
+                  .collect(groupingBy(path -> path.getFileName().toString()));
+        }
       }
-
-      try (var paths = Files.walk(root)) {
-        var iterator =
-            paths.filter(Files::isRegularFile).filter(SourceIndex::isSourceFile).iterator();
-        while (iterator.hasNext()) {
-          try {
-            index(iterator.next());
-          } catch (IOException ignored) {
-            // Match grep's best-effort behavior from the old shell implementation.
+      if (Files.isDirectory(classesDir)) {
+        try (var paths = Files.walk(classesDir)) {
+          var iterator =
+              paths
+                  .filter(Files::isRegularFile)
+                  .filter(path -> path.toString().endsWith(".class"))
+                  .iterator();
+          while (iterator.hasNext()) {
+            try {
+              // SourceFile covers nested types and arbitrary filenames across JVM languages.
+              var model = ClassFile.of().parse(iterator.next());
+              var source = model.findAttribute(Attributes.sourceFile());
+              if (source.isPresent()) {
+                sourceNames
+                    .computeIfAbsent(
+                        model.thisClass().asInternalName().replace('/', '.'),
+                        ignored -> new HashSet<>())
+                    .add(source.get().sourceFile().stringValue());
+              }
+            } catch (IOException | IllegalArgumentException ignored) {
+              // Keep collecting reports when compilation leaves missing or invalid class files.
+            }
           }
         }
       }
-    }
-
-    private static boolean isSourceFile(Path path) {
-      var fileName = path.getFileName();
-      if (fileName == null) {
-        return false;
-      }
-      var name = fileName.toString();
-      return name.endsWith(".java")
-          || name.endsWith(".groovy")
-          || name.endsWith(".kt")
-          || name.endsWith(".scala");
-    }
-
-    private void index(Path sourceFile) throws IOException {
-      try (BufferedReader reader = Files.newBufferedReader(sourceFile, StandardCharsets.UTF_8)) {
-        String line;
-        while ((line = reader.readLine()) != null) {
-          var matcher = CLASS_DECLARATION.matcher(line);
-          while (matcher.find()) {
-            classLocations
-                .computeIfAbsent(matcher.group(1), ignored -> new ArrayList<>())
-                .add(sourceFile);
-          }
-        }
-      }
-    }
-
-    private static Path commonRoot(List<Path> locations) {
-      var commonRoot = locations.get(0);
-      for (var location : locations) {
-        while (commonRoot != null && !location.startsWith(commonRoot)) {
-          commonRoot = commonRoot.getParent();
-        }
-        if (commonRoot == null) {
-          return null;
-        }
-      }
-      return commonRoot.getNameCount() == 0 ? null : commonRoot;
     }
   }
 }

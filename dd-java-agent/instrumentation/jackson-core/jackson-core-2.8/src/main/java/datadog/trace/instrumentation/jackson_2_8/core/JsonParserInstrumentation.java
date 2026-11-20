@@ -75,14 +75,6 @@ public class JsonParserInstrumentation extends InstrumenterModule.Iast
     return singletonMap(TARGET_TYPE, "datadog.trace.bootstrap.instrumentation.iast.NamedContext");
   }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      "com.fasterxml.jackson.core.json" + ".JsonParser28Helper",
-      "com.fasterxml.jackson.core.sym" + ".ByteQuadsCanonicalizer28Helper",
-    };
-  }
-
   public static class NameAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)

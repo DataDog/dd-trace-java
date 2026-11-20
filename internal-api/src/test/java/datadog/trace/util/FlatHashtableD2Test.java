@@ -57,11 +57,11 @@ class FlatHashtableD2Test {
   }
 
   private static FlatHashtable.D2<String, Integer, PairEntry> growable(int initialCapacity) {
-    return FlatHashtable.D2.createGrowable(PairEntry.class, initialCapacity);
+    return FlatHashtable.D2.createGrowable(initialCapacity, PairEntry[]::new);
   }
 
   private static FlatHashtable.D2<String, Integer, PairEntry> fixed(int maxCapacity) {
-    return FlatHashtable.D2.createFixed(PairEntry.class, maxCapacity);
+    return FlatHashtable.D2.createFixed(maxCapacity, PairEntry[]::new);
   }
 
   @Test
@@ -167,7 +167,7 @@ class FlatHashtableD2Test {
     FlatHashtable.D2<String, Integer, PairEntry> table = growable(8);
     int[] createCount = {0};
     PairEntry created =
-        table.getOrCreate(
+        table.tryGetOrCreateOrNull(
             "foo",
             1,
             (k1, k2) -> {
@@ -190,7 +190,7 @@ class FlatHashtableD2Test {
     table.insert(seeded);
     int[] createCount = {0};
     PairEntry got =
-        table.getOrCreate(
+        table.tryGetOrCreateOrNull(
             "foo",
             1,
             (k1, k2) -> {
@@ -217,13 +217,35 @@ class FlatHashtableD2Test {
   @Test
   void fixedGetOrCreateCapsWhenFull() {
     FlatHashtable.D2<String, Integer, PairEntry> table = fixed(2);
-    assertNotNull(table.getOrCreate("a", 1, (k1, k2) -> new PairEntry(k1, k2, 1)));
-    assertNotNull(table.getOrCreate("b", 2, (k1, k2) -> new PairEntry(k1, k2, 2)));
+    assertNotNull(table.tryGetOrCreateOrNull("a", 1, (k1, k2) -> new PairEntry(k1, k2, 1)));
+    assertNotNull(table.tryGetOrCreateOrNull("b", 2, (k1, k2) -> new PairEntry(k1, k2, 2)));
     assertEquals(2, table.size());
-    assertNull(table.getOrCreate("c", 3, (k1, k2) -> new PairEntry(k1, k2, 3)));
+    assertNull(table.tryGetOrCreateOrNull("c", 3, (k1, k2) -> new PairEntry(k1, k2, 3)));
     assertEquals(2, table.size());
     PairEntry a = table.get("a", 1);
-    assertSame(a, table.getOrCreate("a", 1, (k1, k2) -> new PairEntry(k1, k2, 99)));
+    assertSame(a, table.tryGetOrCreateOrNull("a", 1, (k1, k2) -> new PairEntry(k1, k2, 99)));
+  }
+
+  @Test
+  void fixedGetOrCreateAsMaybeIsAbsentWhenFullButStillReturnsHits() {
+    FlatHashtable.D2<String, Integer, PairEntry> table = fixed(2);
+    table.tryGetOrCreate("a", 1, (k1, k2) -> new PairEntry(k1, k2, 1));
+    table.tryGetOrCreate("b", 2, (k1, k2) -> new PairEntry(k1, k2, 2));
+
+    assertFalse(table.tryGetOrCreate("c", 3, (k1, k2) -> new PairEntry(k1, k2, 3)).isPresent());
+
+    Maybe<PairEntry> hit = table.tryGetOrCreate("a", 1, (k1, k2) -> new PairEntry(k1, k2, 99));
+    assertEquals(1, hit.getOrNull().value, "existing entry is still returned even at capacity");
+  }
+
+  @Test
+  void growableGetOrCreateAsMaybeIsAlwaysPresent() {
+    FlatHashtable.D2<String, Integer, PairEntry> table = growable(1);
+    for (int i = 0; i < 50; i++) {
+      Maybe<PairEntry> maybe = table.tryGetOrCreate("k", i, (k1, k2) -> new PairEntry(k1, k2, k2));
+      assertTrue(maybe.isPresent());
+    }
+    assertEquals(50, table.size());
   }
 
   @Test
@@ -238,7 +260,7 @@ class FlatHashtableD2Test {
   @Test
   void hashCollisionsResolveByKeyEquality() {
     FlatHashtable.D2<CollidingKey, CollidingKey, CollidingPairEntry> table =
-        FlatHashtable.D2.createGrowable(CollidingPairEntry.class, 8);
+        FlatHashtable.D2.createGrowable(8, CollidingPairEntry[]::new);
     CollidingKey key1 = new CollidingKey("a", 7);
     CollidingKey key2 = new CollidingKey("x", 3);
     CollidingPairEntry e = new CollidingPairEntry(key1, key2, 100);
@@ -258,7 +280,7 @@ class FlatHashtableD2Test {
   void growableGetOrCreateGrowsPastInitialCapacity() {
     FlatHashtable.D2<String, Integer, PairEntry> table = growable(1);
     for (int i = 0; i < 50; i++) {
-      PairEntry e = table.getOrCreate("k", i, (k1, k2) -> new PairEntry(k1, k2, k2));
+      PairEntry e = table.tryGetOrCreateOrNull("k", i, (k1, k2) -> new PairEntry(k1, k2, k2));
       assertNotNull(e);
     }
     assertEquals(50, table.size());

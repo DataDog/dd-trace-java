@@ -24,15 +24,6 @@ public class RatpackRequestBodyInstrumentation extends InstrumenterModule.AppSec
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".RequestBodyCollectionPublisher$ByteBufIntoByteBufferCallback",
-      packageName + ".RequestBodyCollectionPublisher",
-      packageName + ".RequestBodyCollectionPublisher$1",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("readStream").and(takesArguments(0)), packageName + ".RatpackBodyReadStreamAdvice");

@@ -44,17 +44,6 @@ public final class RestletInstrumentation extends InstrumenterModule.Tracing
         getClass().getName() + "$RestletHandleAdvice");
   }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".RestletExtractAdapter",
-      packageName + ".RestletExtractAdapter$Request",
-      packageName + ".RestletExtractAdapter$Response",
-      packageName + ".RestletDecorator",
-      packageName + ".HttpExchangeURIDataAdapter"
-    };
-  }
-
   @AppliesOn(CONTEXT_TRACKING)
   public static class ContextTrackingAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)

@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.osgi43;
 import static org.osgi.framework.wiring.BundleRevision.PACKAGE_NAMESPACE;
 
 import java.net.URL;
+import java.util.ConcurrentModificationException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -28,30 +29,51 @@ public final class BundleWiringHelper {
       // bundle reference has gone stale, e.g. the bundle was uninstalled
       return SKIP_REQUEST;
     }
-    URL resource = origin.getEntry(resourceName);
-    if (null != resource) {
-      return resource;
-    }
-    // not in the bundle, lets check for a direct import of the containing package
-    BundleWiring wiring = (BundleWiring) origin.adapt(BundleWiring.class);
-    if (null != wiring) {
-      List<BundleWire> importWires = wiring.getRequiredWires(PACKAGE_NAMESPACE);
-      if (null != importWires) {
-        int lastSlash = resourceName.lastIndexOf('/');
-        if (lastSlash > 0) {
-          String pkg = resourceName.substring(0, lastSlash).replace('/', '.');
-          for (BundleWire wire : importWires) {
-            if (pkg.equals(wire.getCapability().getAttributes().get(PACKAGE_NAMESPACE))) {
-              // class resource comes from a transitive import - to avoid cost of finding it, and
-              // because classloader matching/probing just checks existence, we return a resource
-              // we know exists to stand-in for the real resource
-              return origin.getEntry("META-INF/MANIFEST.MF");
+    try {
+      URL resource = origin.getEntry(resourceName);
+      if (null != resource) {
+        return resource;
+      }
+      // not in the bundle, lets check for a direct import of the containing package
+      BundleWiring wiring = (BundleWiring) origin.adapt(BundleWiring.class);
+      if (null != wiring) {
+        List<BundleWire> importWires = wiring.getRequiredWires(PACKAGE_NAMESPACE);
+        if (null != importWires) {
+          int lastSlash = resourceName.lastIndexOf('/');
+          if (lastSlash > 0) {
+            String pkg = resourceName.substring(0, lastSlash).replace('/', '.');
+            for (BundleWire wire : importWires) {
+              if (pkg.equals(wire.getCapability().getAttributes().get(PACKAGE_NAMESPACE))) {
+                // class resource comes from a transitive import - to avoid cost of finding it, and
+                // because classloader matching/probing just checks existence, we return a resource
+                // we know exists to stand-in for the real resource
+                return origin.getEntry("META-INF/MANIFEST.MF");
+              }
             }
           }
         }
+      } else if (origin.getState() == Bundle.UNINSTALLED) {
+        // uninstalled after getEntry: adapt then returns null rather than throwing, but a class
+        // loader still in use may find the resource, so fall back to standard lookup
+        return null;
       }
+    } catch (IllegalStateException e) {
+      // bundle was uninstalled after its reference was taken - fall back to standard lookup
+      return null;
+    } catch (ConcurrentModificationException e) {
+      // wiring changed under us (e.g. a dynamic import was added) - fall back to standard lookup
+      return null;
     }
     return SKIP_REQUEST;
+  }
+
+  /** Returns the bundle's current wiring, or {@code null} if the bundle has been uninstalled. */
+  private static BundleWiring currentWiring(final Bundle origin) {
+    try {
+      return (BundleWiring) origin.adapt(BundleWiring.class);
+    } catch (IllegalStateException e) {
+      return null; // bundle was uninstalled after its reference was taken
+    }
   }
 
   /** Delegates resource request to any direct dependencies (Import-Package, Require-Bundle etc.) */
@@ -60,7 +82,7 @@ public final class BundleWiringHelper {
       // bundle reference has gone stale, e.g. the bundle was uninstalled
       return null;
     }
-    BundleWiring wiring = (BundleWiring) origin.adapt(BundleWiring.class);
+    BundleWiring wiring = currentWiring(origin);
     if (null != wiring) {
       // track which bundles we've visited to avoid dependency cycles
       Set<BundleRevision> visited = new HashSet<>();
@@ -92,7 +114,7 @@ public final class BundleWiringHelper {
       // bundle reference has gone stale, e.g. the bundle was uninstalled
       return null;
     }
-    BundleWiring wiring = (BundleWiring) origin.adapt(BundleWiring.class);
+    BundleWiring wiring = currentWiring(origin);
     if (null != wiring) {
       // track which bundles we've visited to avoid dependency cycles
       Set<BundleRevision> visited = new HashSet<>();

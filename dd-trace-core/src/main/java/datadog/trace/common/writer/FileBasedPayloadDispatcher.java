@@ -1,7 +1,9 @@
 package datadog.trace.common.writer;
 
 import static datadog.json.JsonMapper.toJson;
+import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 import static datadog.trace.api.civisibility.CIConstants.MAX_META_STRING_VALUE_LENGTH;
+import static datadog.trace.core.CoreSpan.OWN_PROPAGATION_TAGS;
 import static datadog.trace.util.Strings.truncate;
 
 import datadog.json.JsonWriter;
@@ -22,6 +24,7 @@ import datadog.trace.core.CoreSpan;
 import datadog.trace.core.Metadata;
 import datadog.trace.core.MetadataConsumer;
 import datadog.trace.util.PidHelper;
+import datadog.trace.util.Strings;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -269,7 +272,7 @@ public class FileBasedPayloadDispatcher implements PayloadDispatcher {
     w.name("duration").value(span.getDurationNano());
     w.name("error").value(span.getError());
 
-    span.processTagsAndBaggage(new JsonMetaWriter(w));
+    span.processTagsAndBaggage(new JsonMetaWriter(w), OWN_PROPAGATION_TAGS);
 
     w.endObject(); // content
     w.endObject(); // event
@@ -328,7 +331,7 @@ public class FileBasedPayloadDispatcher implements PayloadDispatcher {
     long pid = PidHelper.getPidAsLong();
     long seq = sequence.getAndIncrement();
 
-    String filename = String.format("%s-%d-%d-%d.json", filePrefix, timestampNs, pid, seq);
+    String filename = Strings.format("%s-%d-%d-%d.json", filePrefix, timestampNs, pid, seq);
     File target = new File(outputDir, filename);
     File tmp = new File(outputDir, filename + ".tmp");
 
@@ -388,9 +391,11 @@ public class FileBasedPayloadDispatcher implements PayloadDispatcher {
           w.name(entry.getKey()).value(truncate(entry.getValue(), MAX_META_STRING_VALUE_LENGTH));
         }
       }
-      if (metadata.getHttpStatusCode() != null) {
+      if (metadata.getHttpStatusCode() != UNSET_STATUS) {
         w.name(Tags.HTTP_STATUS)
-            .value(truncate(metadata.getHttpStatusCode().toString(), MAX_META_STRING_VALUE_LENGTH));
+            .value(
+                truncate(
+                    metadata.getHttpStatusCodeString().toString(), MAX_META_STRING_VALUE_LENGTH));
       }
       for (Map.Entry<String, Object> entry : tags.entrySet()) {
         Object value = entry.getValue();

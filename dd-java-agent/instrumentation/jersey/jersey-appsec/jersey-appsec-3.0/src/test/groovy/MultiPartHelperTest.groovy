@@ -394,7 +394,7 @@ class MultiPartHelperTest extends Specification {
     MultiPartHelper.tryBlock(ctx, flow, 'msg')
 
     then:
-    1 * brf.tryCommitBlockingResponse(segment, rba)
+    1 * brf.tryCommitBlockingResponse(ctx, rba)
     1 * segment.effectivelyBlocked()
   }
 

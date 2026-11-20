@@ -17,6 +17,33 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
 
   def runner = new JUnitCore()
 
+  def "test automation exclusions keep a protected scenario blocking and execute once"() {
+    given:
+    def path = "org/example/cucumber/calculator/automation_excluded.feature"
+    def id = new TestFQN("classpath:${path}:Basic Arithmetic", "Addition")
+    givenDisabledTests([id])
+    givenQuarantinedTests([id])
+    givenAttemptToFixTests([id])
+    givenFlakyRetryEnabled(true)
+    givenFlakyTests([id])
+    givenEarlyFlakinessDetectionEnabled(true)
+    givenKnownTests([])
+
+    when:
+    runFeatures([path], false)
+
+    then:
+    def testSpans = TEST_WRITER.toList().flatten().findAll { it.getTag("test.name") == "Addition" }
+    testSpans.size() == 1
+    def testSpan = testSpans.first()
+    testSpan.getTag("test.test_management.no_auto_retry")
+    testSpan.getTag("test.test_management.prevent_failure_suppression")
+    testSpan.getTag("test.test_management.is_test_disabled")
+    testSpan.getTag("test.test_management.is_quarantined")
+    testSpan.getTag("test.test_management.is_attempt_to_fix")
+    testSpan.getTag("test.test_management.attempt_to_fix_passed") == null
+  }
+
   def "test #testcaseName"() {
     runFeatures(features, success)
 

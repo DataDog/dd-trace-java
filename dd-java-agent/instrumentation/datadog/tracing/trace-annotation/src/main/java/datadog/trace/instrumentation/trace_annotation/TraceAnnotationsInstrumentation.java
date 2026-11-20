@@ -75,13 +75,6 @@ public final class TraceAnnotationsInstrumentation extends InstrumenterModule.Tr
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".TraceDecorator",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(isAnnotatedWith(methodTraceMatcher), packageName + ".TraceAdvice");
   }

@@ -8,10 +8,10 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.websocket.HandlerContext;
 import javax.websocket.MessageHandler;
@@ -51,7 +51,7 @@ public class MessageHandlerInstrumentation
 
   public static class OnMessageAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope onEnter(
+    public static ContextScope onEnter(
         @Advice.This final MessageHandler handler,
         @Advice.Argument(value = 0, typing = Assigner.Typing.DYNAMIC) final Object data,
         @Advice.Argument(value = 1, optional = true) final Boolean last,
@@ -73,7 +73,7 @@ public class MessageHandlerInstrumentation
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void onExit(
-        @Advice.Enter final AgentScope scope,
+        @Advice.Enter final ContextScope scope,
         @Advice.Local("handlerContext") HandlerContext.Receiver handlerContext,
         @Advice.Thrown final Throwable throwable,
         @Advice.Argument(value = 1, optional = true) final Boolean last) {

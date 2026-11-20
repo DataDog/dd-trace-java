@@ -1,5 +1,6 @@
 package datadog.smoketest;
 
+import static datadog.smoketest.debugger.TestApplicationHelper.waitForInstrumentation;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
@@ -7,10 +8,9 @@ import datadog.trace.api.DDTags;
 import datadog.trace.test.agent.decoder.DecodedSpan;
 import datadog.trace.test.agent.decoder.DecodedTrace;
 import datadog.trace.test.util.NonRetryable;
-import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Collections;
-import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledIf;
@@ -20,14 +20,11 @@ public class SpringCodeOriginIntegrationTest extends SpringBasedIntegrationTest 
 
   private boolean traceReceived;
 
-  @Override
-  protected ProcessBuilder createProcessBuilder(Path logFilePath, String... params) {
-    List<String> commandParams = getDebuggerCommandParams();
-    commandParams.add("-Ddd.trace.enabled=true"); // explicitly enable tracer
-    commandParams.add("-Ddd.code.origin.for.spans.enabled=true");
-    commandParams.add("-Ddd.code.origin.for.spans.interface.support=true");
-    return ProcessBuilderHelper.createProcessBuilder(
-        commandParams, logFilePath, getAppClass(), params);
+  @BeforeEach
+  public void beforeEach() {
+    additionalJvmArgs.add("-Ddd.trace.enabled=true"); // explicitly enable tracer
+    additionalJvmArgs.add("-Ddd.code.origin.for.spans.enabled=true");
+    additionalJvmArgs.add("-Ddd.code.origin.for.spans.interface.support=true");
   }
 
   @Test
@@ -39,11 +36,12 @@ public class SpringCodeOriginIntegrationTest extends SpringBasedIntegrationTest 
     registerTraceListener(this::receiveGreetingTrace);
     String httpPort = startSpringApp(Collections.emptyList());
     sendRequest(httpPort, "/greeting"); // trigger CodeOriginProbe instrumentation
-    waitForSpecificLogLine(
-        logFilePath,
-        "DEBUG com.datadog.debugger.agent.ConfigurationUpdater - Re-transformation done",
-        Duration.ofMillis(100),
-        Duration.ofSeconds(30)); // wait for instrumentation to be done
+    // Ignore retransformation of other methods, including constructors instrumented at startup.
+    waitForInstrumentation(
+        logFilePath.toString(),
+        "datadog.smoketest.debugger.controller.WebController",
+        "Instrumenting method: datadog.smoketest.debugger.controller.WebController.greeting(",
+        Duration.ofSeconds(30));
     sendRequest(httpPort, "/greeting"); // generate first span with tags
     processRequests(
         () -> traceReceived, () -> String.format("Timeout! traceReceived=%s", traceReceived));
@@ -58,11 +56,12 @@ public class SpringCodeOriginIntegrationTest extends SpringBasedIntegrationTest 
     registerTraceListener(this::receiveProcessTrace);
     String httpPort = startSpringApp(Collections.emptyList());
     sendRequest(httpPort, "/process"); // trigger CodeOriginProbe instrumentation
-    waitForSpecificLogLine(
-        logFilePath,
-        "DEBUG com.datadog.debugger.agent.ConfigurationUpdater - Re-transformation done",
-        Duration.ofMillis(100),
-        Duration.ofSeconds(30)); // wait for instrumentation to be done
+    // The controller's constructor can already have been instrumented during startup.
+    waitForInstrumentation(
+        logFilePath.toString(),
+        "datadog.smoketest.debugger.controller.InterfacedController",
+        "Instrumenting method: datadog.smoketest.debugger.controller.InterfacedController.process(",
+        Duration.ofSeconds(30));
     sendRequest(httpPort, "/process"); // generate first span with tags
     processRequests(
         () -> traceReceived, () -> String.format("Timeout! traceReceived=%s", traceReceived));

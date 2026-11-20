@@ -92,37 +92,48 @@ public interface CoreSpan<T extends CoreSpan<T>> {
   /**
    * Runs early {@link datadog.trace.core.tagprocessor.TagsPostProcessor} like base service and peer
    * service computation. Such tags are needed before span serialization so they can’t be processed
-   * lazily as part of the {@link #processTagsAndBaggage(MetadataConsumer)} API.
+   * lazily as part of the {@link #processTagsAndBaggage(MetadataConsumer, int)} API.
    */
   void processServiceTags();
 
-  void processTagsAndBaggage(MetadataConsumer consumer);
+  /** The serialization protocol encodes span links natively, so they are not added as a tag. */
+  int STRUCTURED_LINKS = 1;
 
-  default void processTagsAndBaggage(MetadataConsumer consumer, boolean firstInChunk) {
-    processTagsAndBaggage(consumer);
-  }
+  /** The serialization protocol encodes span events natively, so they are not added as a tag. */
+  int STRUCTURED_EVENTS = 1 << 1;
 
   /**
-   * Variant of {@link #processTagsAndBaggage(MetadataConsumer)} for protocols that serialize span
-   * links as first-class structured data rather than tags. Baggage tag injection still follows the
-   * tracer configuration.
-   *
-   * <p>To simplify tests, by default delegating to {@link
-   * #processTagsAndBaggage(MetadataConsumer)}.
+   * Serializes the span context own propagation tags. This is the default option, for tag-based
+   * protocols that serialize each span independently.
    */
-  default void processTagsAndBaggageWithStructuredLinks(MetadataConsumer consumer) {
-    processTagsAndBaggage(consumer);
-  }
+  int OWN_PROPAGATION_TAGS = 1 << 2;
 
-  default void processTagsAndBaggageWithStructuredLinks(
-      MetadataConsumer consumer, boolean firstInChunk) {
-    processTagsAndBaggageWithStructuredLinks(consumer);
-  }
+  /** Serializes the local root span context propagation tags, as for the first span of a chunk. */
+  int ROOT_PROPAGATION_TAGS = 1 << 3;
+
+  /**
+   * Processes the span tags and baggage, and hands the resulting {@link Metadata} to the consumer.
+   *
+   * @param consumer The consumer of the span metadata.
+   * @param options A combination of {@link #STRUCTURED_LINKS}, {@link #STRUCTURED_EVENTS}, and
+   *     either {@link #OWN_PROPAGATION_TAGS} (the default option) or {@link
+   *     #ROOT_PROPAGATION_TAGS}.
+   */
+  void processTagsAndBaggage(MetadataConsumer consumer, int options);
 
   T setSamplingPriority(int samplingPriority, int samplingMechanism);
 
   T setSamplingPriority(
       int samplingPriority, CharSequence rate, double sampleRate, int samplingMechanism);
+
+  default T setSamplingPriority(
+      int samplingPriority,
+      CharSequence rate,
+      double sampleRate,
+      int samplingMechanism,
+      boolean rateLimiterRejected) {
+    return setSamplingPriority(samplingPriority, rate, sampleRate, samplingMechanism);
+  }
 
   T setSpanSamplingPriority(double rate, int limit);
 

@@ -1,5 +1,8 @@
 package datadog.trace.bootstrap;
 
+import datadog.instrument.fieldinject.KeyWithValue;
+import java.util.function.Function;
+
 /**
  * {@link ContextStore} that attempts to store context in its keys by using bytecode-injected
  * fields. Delegates to a lazy {@link WeakMap} for keys that don't have a field for this store.
@@ -13,8 +16,8 @@ public final class FieldBackedContextStore implements ContextStore<Object, Objec
 
   @Override
   public Object get(final Object key) {
-    if (key instanceof FieldBackedContextAccessor) {
-      return ((FieldBackedContextAccessor) key).$get$__datadogContext$(storeId);
+    if (key instanceof KeyWithValue) {
+      return ((KeyWithValue) key).$get$__dd_instrument$(storeId);
     } else {
       return weakStore().get(key);
     }
@@ -22,8 +25,8 @@ public final class FieldBackedContextStore implements ContextStore<Object, Objec
 
   @Override
   public void put(final Object key, final Object context) {
-    if (key instanceof FieldBackedContextAccessor) {
-      ((FieldBackedContextAccessor) key).$put$__datadogContext$(storeId, context);
+    if (key instanceof KeyWithValue) {
+      ((KeyWithValue) key).$put$__dd_instrument$(storeId, context);
     } else {
       weakStore().put(key, context);
     }
@@ -31,15 +34,15 @@ public final class FieldBackedContextStore implements ContextStore<Object, Objec
 
   @Override
   public Object getOrPut(final Object key, final Object context) {
-    if (key instanceof FieldBackedContextAccessor) {
-      final FieldBackedContextAccessor accessor = (FieldBackedContextAccessor) key;
-      Object existingContext = accessor.$get$__datadogContext$(storeId);
+    if (key instanceof KeyWithValue) {
+      final KeyWithValue accessor = (KeyWithValue) key;
+      Object existingContext = accessor.$get$__dd_instrument$(storeId);
       if (null == existingContext) {
         synchronized (accessor) {
-          existingContext = accessor.$get$__datadogContext$(storeId);
+          existingContext = accessor.$get$__dd_instrument$(storeId);
           if (null == existingContext) {
             existingContext = context;
-            accessor.$put$__datadogContext$(storeId, existingContext);
+            accessor.$put$__dd_instrument$(storeId, existingContext);
           }
         }
       }
@@ -50,16 +53,17 @@ public final class FieldBackedContextStore implements ContextStore<Object, Objec
   }
 
   @Override
-  public Object getOrCompute(Object key, KeyAwareFactory<? super Object, Object> contextFactory) {
-    if (key instanceof FieldBackedContextAccessor) {
-      final FieldBackedContextAccessor accessor = (FieldBackedContextAccessor) key;
-      Object existingContext = accessor.$get$__datadogContext$(storeId);
+  public Object getOrCompute(
+      final Object key, final Function<? super Object, Object> contextFactory) {
+    if (key instanceof KeyWithValue) {
+      final KeyWithValue accessor = (KeyWithValue) key;
+      Object existingContext = accessor.$get$__dd_instrument$(storeId);
       if (null == existingContext) {
         synchronized (accessor) {
-          existingContext = accessor.$get$__datadogContext$(storeId);
+          existingContext = accessor.$get$__dd_instrument$(storeId);
           if (null == existingContext) {
-            existingContext = contextFactory.create(key);
-            accessor.$put$__datadogContext$(storeId, existingContext);
+            existingContext = contextFactory.apply(key);
+            accessor.$put$__dd_instrument$(storeId, existingContext);
           }
         }
       }
@@ -70,15 +74,15 @@ public final class FieldBackedContextStore implements ContextStore<Object, Objec
   }
 
   @Override
-  public Object remove(Object key) {
-    if (key instanceof FieldBackedContextAccessor) {
-      final FieldBackedContextAccessor accessor = (FieldBackedContextAccessor) key;
-      Object existingContext = accessor.$get$__datadogContext$(storeId);
+  public Object remove(final Object key) {
+    if (key instanceof KeyWithValue) {
+      final KeyWithValue accessor = (KeyWithValue) key;
+      Object existingContext = accessor.$get$__dd_instrument$(storeId);
       if (null != existingContext) {
         synchronized (accessor) {
-          existingContext = accessor.$get$__datadogContext$(storeId);
+          existingContext = accessor.$get$__dd_instrument$(storeId);
           if (null != existingContext) {
-            accessor.$put$__datadogContext$(storeId, null);
+            accessor.$put$__dd_instrument$(storeId, null);
           }
         }
       }

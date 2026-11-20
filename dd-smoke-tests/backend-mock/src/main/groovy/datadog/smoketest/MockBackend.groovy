@@ -222,7 +222,7 @@ class MockBackend implements AutoCloseable {
               },
               "name": "$test.name",
               "suite": "$test.suite",
-              "_missing_line_code_coverage": ${test.coverage == null}
+              "_is_missing_line_code_coverage": ${test.coverage == null}
             }
           }
           """)

@@ -2,7 +2,6 @@ plugins {
   id 'com.gradleup.shadow'
   id 'dd-trace-java.module.internal-library'
   id 'dd-trace-java.jmh-conventions'
-  id 'idea'
 }
 
 ext {
@@ -26,6 +25,16 @@ excludedClassesCoverage += [
   'com.datadog.profiling.ddprof.DatadogProfilerRecordingData',
 ]
 
+// TODO: Cover these classes, then remove them from the coverage baseline (APMLP-2263)
+excludedClassesBranchCoverage += [
+  'com.datadog.profiling.ddprof.DatadogProfilingScope',
+  'com.datadog.profiling.ddprof.QueueTimeTracker',
+]
+excludedClassesInstructionCoverage += [
+  'com.datadog.profiling.ddprof.DatadogProfilingIntegration.NoOpEndpointTracker',
+  'com.datadog.profiling.ddprof.QueueTimeTracker',
+]
+
 dependencies {
   api project(':dd-java-agent:agent-profiling:profiling-controller')
   api project(':dd-java-agent:agent-profiling:profiling-utils')
@@ -38,6 +47,8 @@ dependencies {
 
   testImplementation libs.bundles.jmc
   testImplementation libs.bundles.junit5
+  testImplementation libs.bundles.mockito
+  testImplementation group: 'org.mockito', name: 'mockito-inline', version: '4.11.0'
 }
 
 
@@ -60,16 +71,9 @@ configurations.configureEach {
 
 [JavaCompile, GroovyCompile].each {
   tasks.withType(it).configureEach {
-    configureCompiler(it, 11, JavaVersion.VERSION_1_8)
     // Disable '-processing' because some annotations are not claimed.
     // Disable '-options' because we are compiling for java8 without specifying bootstrap - intentionally.
     // Disable '-path' because we do not have some of the paths seem to be missing.
     options.compilerArgs.addAll(['-Xlint:all,-processing,-options,-path'/*, '-Werror'*/])
-  }
-}
-
-idea {
-  module {
-    jdkName = '11'
   }
 }

@@ -4,6 +4,10 @@ import static java.util.Collections.emptyMap;
 import static java.util.Collections.unmodifiableMap;
 
 import datadog.trace.test.agent.decoder.DecodedSpan;
+import datadog.trace.test.agent.decoder.DecodedSpanEvent;
+import datadog.trace.test.agent.decoder.DecodedSpanEvents;
+import datadog.trace.test.agent.decoder.DecodedSpanLink;
+import datadog.trace.test.agent.decoder.DecodedSpanLinks;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -69,6 +73,9 @@ public class SpanV04 implements DecodedSpan {
         metaStruct = unpackMetaStruct(unpacker, spanId);
       }
 
+      List<DecodedSpanLink> links = DecodedSpanLinks.fromMeta(meta);
+      List<DecodedSpanEvent> events = DecodedSpanEvents.fromMeta(meta);
+
       return new SpanV04(
           service,
           name,
@@ -82,7 +89,9 @@ public class SpanV04 implements DecodedSpan {
           type,
           metrics,
           meta,
-          metaStruct);
+          metaStruct,
+          links,
+          events);
     } catch (Throwable t) {
       if (t instanceof RuntimeException) {
         throw (RuntimeException) t;
@@ -243,6 +252,8 @@ public class SpanV04 implements DecodedSpan {
   private final Map<String, Object> metaStruct;
   private final Map<String, Number> metrics;
   private final String type;
+  private final List<DecodedSpanLink> links;
+  private final List<DecodedSpanEvent> events;
 
   public SpanV04(
       String service,
@@ -257,7 +268,9 @@ public class SpanV04 implements DecodedSpan {
       String type,
       Map<String, Number> metrics,
       Map<String, String> meta,
-      Map<String, Object> metaStruct) {
+      Map<String, Object> metaStruct,
+      List<DecodedSpanLink> links,
+      List<DecodedSpanEvent> events) {
     this.service = service;
     this.name = name;
     this.resource = resource;
@@ -271,6 +284,8 @@ public class SpanV04 implements DecodedSpan {
     this.metaStruct = metaStruct == null ? emptyMap() : unmodifiableMap(metaStruct);
     this.metrics = unmodifiableMap(metrics);
     this.type = type;
+    this.links = links;
+    this.events = events;
   }
 
   public String getService() {
@@ -326,6 +341,16 @@ public class SpanV04 implements DecodedSpan {
   }
 
   @Override
+  public List<DecodedSpanLink> getLinks() {
+    return links;
+  }
+
+  @Override
+  public List<DecodedSpanEvent> getEvents() {
+    return events;
+  }
+
+  @Override
   public String toString() {
     return "SpanV04{"
         + "service='"
@@ -357,7 +382,10 @@ public class SpanV04 implements DecodedSpan {
         + metrics
         + ", type='"
         + type
-        + '\''
+        + "', links="
+        + links
+        + ", events="
+        + events
         + '}';
   }
 }

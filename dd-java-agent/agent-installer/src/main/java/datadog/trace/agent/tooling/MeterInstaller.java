@@ -10,17 +10,21 @@ import datadog.metrics.impl.DDSketchHistograms;
 import datadog.metrics.impl.MonitoringImpl;
 import datadog.trace.api.Config;
 import datadog.trace.api.config.GeneralConfig;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.core.DDTraceCoreInfo;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 public class MeterInstaller {
-  private static final String LANG_STATSD_TAG = "lang";
-  private static final String LANG_VERSION_STATSD_TAG = "lang_version";
-  private static final String LANG_INTERPRETER_STATSD_TAG = "lang_interpreter";
-  private static final String LANG_INTERPRETER_VENDOR_STATSD_TAG = "lang_interpreter_vendor";
-  private static final String TRACER_VERSION_STATSD_TAG = "tracer_version";
+  @VisibleForTesting static final String LANG_STATSD_TAG = "lang";
+  @VisibleForTesting static final String LANG_VERSION_STATSD_TAG = "lang_version";
+  @VisibleForTesting static final String LANG_INTERPRETER_STATSD_TAG = "lang_interpreter";
+
+  @VisibleForTesting
+  static final String LANG_INTERPRETER_VENDOR_STATSD_TAG = "lang_interpreter_vendor";
+
+  @VisibleForTesting static final String TRACER_VERSION_STATSD_TAG = "tracer_version";
 
   public static void installMeter() {
     Config config = Config.get();
@@ -55,7 +59,8 @@ public class MeterInstaller {
             generateConstantTags(config));
   }
 
-  private static String[] generateConstantTags(final Config config) {
+  @VisibleForTesting
+  static String[] generateConstantTags(final Config config) {
     final List<String> constantTags = new ArrayList<>();
 
     constantTags.add(statsdTag(LANG_STATSD_TAG, "java"));

@@ -1,6 +1,7 @@
 package datadog.telemetry.dependency;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.util.AgentTaskScheduler;
 import java.lang.instrument.Instrumentation;
 import java.net.URI;
@@ -72,7 +73,8 @@ public class DependencyService implements Runnable {
     resolverQueue.queueURI(convertToURI(url));
   }
 
-  private URI convertToURI(URL location) {
+  @VisibleForTesting
+  URI convertToURI(URL location) {
     URI uri = null;
 
     if (location.getProtocol().equals("vfs")) {

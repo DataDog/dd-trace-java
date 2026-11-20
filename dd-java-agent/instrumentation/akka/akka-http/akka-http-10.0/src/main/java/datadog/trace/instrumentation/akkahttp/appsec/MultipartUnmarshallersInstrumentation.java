@@ -26,20 +26,6 @@ public class MultipartUnmarshallersInstrumentation extends InstrumenterModule.Ap
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".UnmarshallerHelpers",
-      packageName + ".UnmarshallerHelpers$UnmarkStrictFormOngoingOnUnsupportedException",
-      packageName + ".AkkaBlockResponseFunction",
-      packageName + ".BlockingResponseHelper",
-      packageName + ".ScalaListCollector",
-      "datadog.trace.instrumentation.akkahttp.AkkaHttpServerDecorator",
-      "datadog.trace.instrumentation.akkahttp.AkkaHttpServerHeaders",
-      "datadog.trace.instrumentation.akkahttp.UriAdapter",
-    };
-  }
-
-  @Override
   public String[] knownMatchingTypes() {
     return new String[] {
       TRAIT_NAME, TRAIT_NAME + "$class",

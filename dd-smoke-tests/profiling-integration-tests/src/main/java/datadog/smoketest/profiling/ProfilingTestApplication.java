@@ -95,28 +95,26 @@ public class ProfilingTestApplication {
     AtomicInteger it = new AtomicInteger();
     for (int i = 0; i < 100; i++) {
       executorService
-          .submit(
-              () -> {
-                try {
-                  Thread.sleep(10);
-                  it.incrementAndGet();
-                } catch (InterruptedException e) {
-                }
-              })
+          .submit(() -> {
+            try {
+              Thread.sleep(10);
+              it.incrementAndGet();
+            } catch (InterruptedException e) {
+            }
+          })
           .get();
     }
     List<Callable<Integer>> runnables =
         IntStream.range(0, 100)
-            .mapToObj(
-                i ->
-                    (Callable<Integer>)
-                        () -> {
-                          try {
-                            Thread.sleep(10);
-                          } catch (InterruptedException e) {
-                          }
-                          return it.getAndIncrement();
-                        })
+            .mapToObj(i ->
+                (Callable<Integer>)
+                    () -> {
+                      try {
+                        Thread.sleep(10);
+                      } catch (InterruptedException e) {
+                      }
+                      return it.getAndIncrement();
+                    })
             .collect(Collectors.toList());
     for (Future f : executorService.invokeAll(runnables)) {
       f.get();

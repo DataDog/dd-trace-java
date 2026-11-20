@@ -6,10 +6,13 @@ import datadog.trace.api.civisibility.domain.JavaAgent;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import org.gradle.BuildAdapter;
 import org.gradle.BuildResult;
@@ -25,6 +28,9 @@ import org.gradle.api.provider.Provider;
 import org.gradle.api.services.BuildServiceRegistry;
 import org.gradle.api.tasks.TaskState;
 import org.gradle.api.tasks.testing.Test;
+import org.gradle.api.tasks.testing.TestDescriptor;
+import org.gradle.api.tasks.testing.TestListener;
+import org.gradle.api.tasks.testing.TestResult;
 import org.gradle.build.event.BuildEventsListenerRegistry;
 import org.gradle.execution.taskgraph.TaskListenerInternal;
 import org.gradle.internal.InternalBuildListener;
@@ -38,13 +44,16 @@ import org.gradle.process.CommandLineArgumentProvider;
 public class CiVisibilityGradleListener extends BuildAdapter
     implements InternalBuildListener, TaskListenerInternal {
 
+  private static final String NO_TESTS_EXECUTED_REASON = "No tests were executed by Gradle";
   private static final String TRACER_VERSION;
 
   static {
+    // The bundled tracer version is UTF-8 text, independent of the build JVM's default charset.
     try (BufferedReader reader =
         new BufferedReader(
             new InputStreamReader(
-                ClassLoader.getSystemResourceAsStream("dd-java-agent.version")))) {
+                ClassLoader.getSystemResourceAsStream("dd-java-agent.version"),
+                StandardCharsets.UTF_8))) {
       TRACER_VERSION = reader.lines().collect(Collectors.joining());
     } catch (IOException e) {
       throw new RuntimeException("Could not read tracer version from dd-java-agent.version", e);
@@ -76,6 +85,7 @@ public class CiVisibilityGradleListener extends BuildAdapter
   private final Config config = Config.get();
   private final Gradle gradle;
   private final CiVisibilityService ciVisibilityService;
+  private final Set<String> emptyTestTasks = ConcurrentHashMap.newKeySet();
 
   public CiVisibilityGradleListener(
       Gradle gradle,
@@ -206,6 +216,7 @@ public class CiVisibilityGradleListener extends BuildAdapter
 
     ciVisibilityService.onModuleStart(
         taskPath, isAndroid, moduleLayout, jvmExecutable, taskClasspath, jacocoAgent);
+    task.addTestListener(new EmptyTestTaskListener(taskPath, emptyTestTasks));
   }
 
   private JavaAgent getJacocoAgent(Test task) {
@@ -215,7 +226,7 @@ public class CiVisibilityGradleListener extends BuildAdapter
       }
       Named namedProvider = (Named) jvmArgumentProvider;
       String providerName = namedProvider.getName();
-      if (!providerName.toLowerCase().contains("jacoco")) {
+      if (!providerName.toLowerCase(Locale.ROOT).contains("jacoco")) {
         continue;
       }
       Iterable<String> arguments = jvmArgumentProvider.asArguments();
@@ -247,8 +258,42 @@ public class CiVisibilityGradleListener extends BuildAdapter
       return;
     }
 
+    boolean empty = emptyTestTasks.remove(taskPath);
     String reason = state.getSkipped() || !state.getDidWork() ? state.getSkipMessage() : null;
+    if (reason == null && empty) {
+      reason = NO_TESTS_EXECUTED_REASON;
+    }
     ciVisibilityService.onModuleFinish(taskPath, failure, reason);
+  }
+
+  static final class EmptyTestTaskListener implements TestListener {
+    private final String taskPath;
+    private final Set<String> emptyTestTasks;
+
+    EmptyTestTaskListener(String taskPath, Set<String> emptyTestTasks) {
+      this.taskPath = taskPath;
+      this.emptyTestTasks = emptyTestTasks;
+    }
+
+    @Override
+    public void beforeSuite(TestDescriptor suite) {}
+
+    @Override
+    public void afterSuite(TestDescriptor suite, TestResult result) {
+      // Use Gradle's completed root result, not absence of tracer events: tests may have run
+      // without supported or enabled framework instrumentation.
+      if (suite.getParent() == null
+          && result.getTestCount() == 0
+          && result.getResultType() == TestResult.ResultType.SUCCESS) {
+        emptyTestTasks.add(taskPath);
+      }
+    }
+
+    @Override
+    public void beforeTest(TestDescriptor test) {}
+
+    @Override
+    public void afterTest(TestDescriptor test, TestResult result) {}
   }
 
   @Override

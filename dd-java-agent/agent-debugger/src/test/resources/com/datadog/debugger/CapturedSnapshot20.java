@@ -25,7 +25,7 @@ public class CapturedSnapshot20 {
   public static int main(String arg) {
     AgentTracer.TracerAPI tracerAPI = AgentTracer.get();
     AgentSpan span = tracerAPI.buildSpan("dynamic-instrumentation", "process").start();
-    try (ContextScope scope = tracerAPI.activateManualSpan(span)) {
+    try (ContextScope scope = tracerAPI.activateSpan(span)) {
       if (arg.equals("exception") || arg.equals("illegal")) {
         return new CapturedSnapshot20().processWithException(arg);
       }
