@@ -108,6 +108,8 @@ Use `latestDepTestImplementation` in `build.gradle` to pin the latest available 
 ./gradlew :dd-java-agent:instrumentation:$framework:$framework-$version:latestDepTest
 ```
 
+If the latest dependency versions need a newer JVM than the module's floor (e.g. a driver built for Java 11), constrain the latest-dep task(s) rather than skipping them: `tasks.named("latestDepTest", Test) { testJvmConstraints { minJavaVersion = JavaVersion.VERSION_11 } }` (also `latestDepTestForkedTest` when a forked suite exists).
+
 **`latestDepTestImplementation` version range must match the instrumented range.** If your module instruments version `2.x`, use `2.+` as the version constraint, not `3.+`:
 
 ```groovy

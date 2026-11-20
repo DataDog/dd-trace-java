@@ -63,4 +63,6 @@ When adding a new tracer configuration to `metadata/supported-configurations.jso
 - Use the registry-canonical `type` field: `boolean` for `_ENABLED`, `decimal` for ratio/rate values (NOT `double`), `int` for counts (NOT `integer`), `string` for enumerations, `array` and `map` where applicable. The `dd-gitlab/validate_supported_configurations_v2_local_file` CI job will fail on non-canonical type names. Consult `metadata/supported-configurations.json` for existing examples of each.
 - Every new `_ANALYTICS_SAMPLE_RATE` needs both an `_ANALYTICS_ENABLED` (`boolean`) and an `_ANALYTICS_SAMPLE_RATE` (`decimal`) entry.
 
+- A configuration name that no tracer has registered before must also be added to the [Feature Parity Dashboard](https://feature-parity.us1.prod.dog/#/configurations?viewType=configurations) (see `docs/add_new_configurations.md`). Otherwise `dd-gitlab/validate_supported_configurations_v2_local_file` fails with "Configuration implementation not found in configuration registry", even when the local JSON entry is correct. New integration names (`DD_TRACE_<NAME>_ENABLED`, `_ANALYTICS_ENABLED`, `_ANALYTICS_SAMPLE_RATE`) are the usual case.
+
 Run `./gradlew checkInstrumenterModuleConfigurations` locally before pushing to catch registration mismatches.
