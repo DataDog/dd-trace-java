@@ -55,33 +55,47 @@ public final class ProfilingSystem {
   private final ControllerFactory controllerFactory;
   // For now only support one callback. Multiplex as needed.
   private final RecordingDataListener dataListener;
-  // a stopped scheduler can't be restarted, so each start gets a new one
+
+  /** Creates the scheduler of each start, since a stopped scheduler can't be restarted. */
   private final Supplier<AgentTaskScheduler> schedulerFactory;
 
   private final Duration startupDelay;
-  // when the startup delay is over, counted from the creation of the system, i.e. from premain, so
-  // that restarting before the first recording doesn't delay it again
+
+  /**
+   * When the startup delay is over, counted from the creation of the system, i.e. from premain, so
+   * that restarting before the first recording doesn't delay it again.
+   */
   private final long startupDeadlineNanos;
+
   private final Duration uploadPeriod;
   private final boolean isStartingFirst;
 
-  // created by init() and kept across restarts
+  /** Created by {@link #init()} and kept across restarts. */
   private Controller controller;
+
+  /** Created by {@link #init()} and kept across restarts. */
   private ControllerContext.Snapshot context;
 
-  // set by start() and cleared by stop()
+  /** Set by {@link #start(boolean)} and cleared by {@link #stop(boolean)}. */
   private AgentTaskScheduler scheduler;
+
   private volatile OngoingRecording recording;
   private volatile SnapshotRecording snapshotRecording;
   private volatile boolean started = false;
-  // set when a start didn't give a recording, e.g. on the scheduler thread after a delay
+
+  /** Set when a start didn't give a recording, e.g. on the scheduler thread after a delay. */
   private volatile boolean startFailed = false;
-  // terminal: a shut down system can't be started again
+
+  /** Terminal: a shut down system can't be started again. */
   private volatile boolean closed = false;
-  // set while stop() runs, so that shutdown() doesn't wait behind its final snapshot upload
+
+  /** Set while a stop runs, so that {@link #shutdown} doesn't wait behind its final upload. */
   private volatile boolean stopping = false;
-  // guards publishing the recording on the scheduler thread against stop() taking it away, since
-  // stop() only waits a bounded time for that thread
+
+  /**
+   * Guards publishing the recording on the scheduler thread against a stop taking it away, since a
+   * stop only waits a bounded time for that thread.
+   */
   private final Object recordingLock = new Object();
 
   /**
@@ -230,8 +244,10 @@ public final class ProfilingSystem {
     }
   }
 
-  // runs on the scheduler thread, so it must not lock 'this': stop() holds it while joining that
-  // thread
+  /**
+   * Runs on the scheduler thread, so it must not lock {@code this}: a stop holds it while joining
+   * that thread.
+   */
   private void startProfilingRecording(final AgentTaskScheduler scheduler) {
     try {
       final Instant now = Instant.now();
