@@ -55,6 +55,11 @@ class GitLabInfo implements CIProviderInfo {
   }
 
   @Override
+  public String getMergeCommitSha() {
+    return GitCheckoutInfo.mergeCommitSha(getProvider(), environment);
+  }
+
+  @Override
   public GitInfo buildCIGitInfo() {
     return new GitInfo(
         filterSensitiveInfo(environment.get(GITLAB_GIT_REPOSITORY_URL)),
