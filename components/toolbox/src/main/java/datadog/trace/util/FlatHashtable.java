@@ -851,9 +851,7 @@ public final class FlatHashtable {
    * Package-private so tests can predict slots.
    */
   static int home(long hash, int mask) {
-    long z = hash * 0x9E3779B97F4A7C15L; // 2^64 / golden ratio; odd ⇒ a bijection (loses no bits)
-    z ^= z >>> 32; // fold the well-mixed high half down into the low bits the mask keeps
-    return (int) z & mask;
+    return HashingUtils.hashSpread(hash) & mask;
   }
 
   /**
