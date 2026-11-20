@@ -1,0 +1,11 @@
+_v: 1
+name: testng
+display_name: TestNG
+description: Instruments TestNG test execution and lifecycle events for CI Visibility, including conditional test skipping,
+  retry policies, and fail-fast test ordering.
+packages:
+- name: org.testng:testng
+category:
+- test.execution
+systems: []
+creation_date: '2020-08-20'

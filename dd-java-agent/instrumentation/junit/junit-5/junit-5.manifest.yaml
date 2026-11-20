@@ -1,0 +1,15 @@
+_v: 1
+name: junit-5
+display_name: JUnit 5
+description: Instruments JUnit 5 test executions and lifecycle callbacks for CI Visibility, including Cucumber and Spock tests
+  run on the JUnit Platform, with test skipping, retries, and fail-fast test ordering.
+packages:
+- name: io.cucumber:cucumber-junit-platform-engine
+- name: org.junit.jupiter:junit-jupiter-api
+- name: org.junit.jupiter:junit-jupiter-engine
+- name: org.junit.platform:junit-platform-launcher
+- name: org.spockframework:spock-core
+category:
+- test.execution
+systems: []
+creation_date: '2020-08-19'

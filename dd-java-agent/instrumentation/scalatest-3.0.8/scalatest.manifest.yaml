@@ -1,0 +1,11 @@
+_v: 1
+name: scalatest
+display_name: ScalaTest
+description: Instruments ScalaTest test execution and suite/test lifecycle reporting for CI Visibility, including test selection
+  and retry policies.
+packages:
+- name: org.scalatest:scalatest_2.12
+category:
+- test.execution
+systems: []
+creation_date: '2023-12-13'

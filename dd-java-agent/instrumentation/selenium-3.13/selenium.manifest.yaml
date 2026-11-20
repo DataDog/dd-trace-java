@@ -1,0 +1,11 @@
+_v: 1
+name: selenium
+display_name: Selenium
+description: Instruments Selenium browser tests to associate test events with browser metadata and correlate them with RUM
+  sessions.
+packages:
+- name: org.seleniumhq.selenium:selenium-java
+category:
+- other
+systems: []
+creation_date: '2024-04-04'

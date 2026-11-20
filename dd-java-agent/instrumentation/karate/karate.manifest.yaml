@@ -1,0 +1,12 @@
+_v: 1
+name: karate
+display_name: Karate
+description: Instruments Karate test suites, scenarios, and steps for CI Visibility, including test reporting, skipping, and
+  retries.
+packages:
+- name: com.intuit.karate:karate-core
+- name: io.karatelabs:karate-core
+category:
+- test.execution
+systems: []
+creation_date: '2023-10-17'

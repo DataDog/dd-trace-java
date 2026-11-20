@@ -1,0 +1,10 @@
+_v: 1
+name: gradle
+display_name: Gradle
+description: Instruments Gradle builds to report Test Optimization session, build-task, and test-module events, configuring
+  test and compile tasks for Test Optimization and reordering JUnit 4 test classes run by Gradle when a test order is set.
+packages: []
+category:
+- test.execution
+systems: []
+creation_date: '2023-03-28'

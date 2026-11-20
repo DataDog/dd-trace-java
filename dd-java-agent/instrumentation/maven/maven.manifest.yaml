@@ -1,0 +1,13 @@
+_v: 1
+name: maven
+display_name: Maven
+description: Instruments Maven build and test execution for CI Visibility, including fail-fast ordering of JUnit 4 test classes
+  run by Surefire.
+packages:
+- name: org.apache.maven:maven-embedder
+- name: org.apache.maven.surefire:surefire-junit4
+- name: org.apache.maven.surefire:surefire-junit47
+category:
+- test.execution
+systems: []
+creation_date: '2023-04-06'

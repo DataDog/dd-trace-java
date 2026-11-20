@@ -1,0 +1,11 @@
+_v: 1
+name: weaver
+display_name: Weaver
+description: Instruments Weaver test execution to report test-suite and test-case lifecycle events to CI Visibility.
+packages:
+- name: com.disneystreaming:weaver-cats_3
+- name: org.typelevel:weaver-cats_3
+category:
+- test.execution
+systems: []
+creation_date: '2025-01-20'

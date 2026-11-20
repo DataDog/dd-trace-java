@@ -1,0 +1,10 @@
+_v: 1
+name: jacoco
+display_name: JaCoCo
+description: Instruments the JaCoCo agent to collect per-test line and percentage coverage data for CI Visibility.
+packages:
+- name: org.jacoco:org.jacoco.agent
+category:
+- other
+systems: []
+creation_date: '2023-06-19'

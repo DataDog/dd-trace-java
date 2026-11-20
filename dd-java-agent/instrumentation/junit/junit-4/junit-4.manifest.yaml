@@ -1,0 +1,13 @@
+_v: 1
+name: junit-4
+display_name: JUnit 4
+description: Instruments JUnit 4 test suites and tests for CI Visibility, including Cucumber and MUnit tests run on the JUnit
+  4 runner, with test skipping, retries, ordering, and setup/teardown tracing.
+packages:
+- name: io.cucumber:cucumber-junit
+- name: junit:junit
+- name: org.scalameta:munit_2.13
+category:
+- test.execution
+systems: []
+creation_date: '2020-07-08'

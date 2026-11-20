@@ -1,0 +1,10 @@
+_v: 1
+name: cucumber
+display_name: Cucumber
+description: Instruments Cucumber-JVM step-definition execution, creating CI Visibility spans for each executed step.
+packages:
+- name: io.cucumber:cucumber-core
+category:
+- test.execution
+systems: []
+creation_date: '2023-08-07'
