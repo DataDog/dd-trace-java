@@ -56,7 +56,7 @@ public final class OtlpMetricsJsonCollector extends OtlpMetricsCollector
   private String endNanosStr;
 
   private JsonWriter writer;
-  private boolean anyDataPointWritten;
+  private int dataPoints;
   private boolean scopeStarted;
   private boolean metricStarted;
   private boolean dataPointStarted;
@@ -143,7 +143,7 @@ public final class OtlpMetricsJsonCollector extends OtlpMetricsCollector
   private void stop() {
     attributesArray.reset();
 
-    anyDataPointWritten = false;
+    dataPoints = 0;
 
     writer = null;
 
@@ -199,7 +199,7 @@ public final class OtlpMetricsJsonCollector extends OtlpMetricsCollector
     writer.endObject(); // data point
 
     dataPointStarted = false;
-    anyDataPointWritten = true;
+    dataPoints++;
   }
 
   // opens the scope header (and its metrics array) on first use
@@ -240,12 +240,12 @@ public final class OtlpMetricsJsonCollector extends OtlpMetricsCollector
     writer.endArray(); // resourceMetrics
     writer.endObject(); // root
 
-    if (!anyDataPointWritten) {
+    if (dataPoints == 0) {
       return OtlpPayload.EMPTY;
     }
 
     byte[] bytes = writer.toByteArray();
-    return new OtlpPayload(ByteBuffer.wrap(bytes), JSON_CONTENT_TYPE);
+    return new OtlpPayload(ByteBuffer.wrap(bytes), JSON_CONTENT_TYPE, dataPoints);
   }
 
   // called once we've processed all metrics in a specific scope

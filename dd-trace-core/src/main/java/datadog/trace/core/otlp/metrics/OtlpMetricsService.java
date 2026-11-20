@@ -1,13 +1,18 @@
 package datadog.trace.core.otlp.metrics;
 
+import static datadog.trace.core.monitor.ExporterId.Signal.METRIC_DATA_POINT;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.OTLP_METRICS_EXPORTER;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.config.OtlpConfig;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.telemetry.OtlpTelemetry;
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.bootstrap.otel.metrics.data.OtelMetricRegistry;
 import datadog.trace.common.writer.RemoteApi;
+import datadog.trace.core.monitor.ExportRecorder;
+import datadog.trace.core.monitor.ExporterId;
+import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.otlp.common.OtlpPayload;
 import datadog.trace.core.otlp.common.OtlpSender;
 import datadog.trace.util.AgentTaskScheduler;
@@ -30,6 +35,11 @@ public final class OtlpMetricsService {
   private final OtlpSender sender;
   private final int intervalMillis;
 
+  /** The identity of this service's sender; null when there is no sender. */
+  private final ExporterId exporter;
+
+  private volatile ExportRecorder exportRecorder = ExportRecorder.NO_OP;
+
   private final Object lifecycleLock = new Object();
 
   private AgentTaskScheduler.Scheduled<?> scheduledTask;
@@ -38,6 +48,7 @@ public final class OtlpMetricsService {
   OtlpMetricsService(Config config) {
     this.scheduler = new AgentTaskScheduler(OTLP_METRICS_EXPORTER);
     this.sender = OtlpMetricsSenderFactory.create(config);
+    this.exporter = exporterId(config.getOtlpMetricsProtocol(), sender);
     if (this.sender == null) {
       LOGGER.debug("Unsupported OTLP metrics protocol: {}", config.getOtlpMetricsProtocol());
       this.collector = null;
@@ -55,25 +66,43 @@ public final class OtlpMetricsService {
       AgentTaskScheduler scheduler,
       OtlpMetricsCollector collector,
       OtlpSender sender,
+      OtlpConfig.Protocol protocol,
       int intervalMillis) {
     this.scheduler = scheduler;
     this.collector = collector;
     this.sender = sender;
+    this.exporter = exporterId(protocol, sender);
     this.intervalMillis = intervalMillis;
   }
 
+  private static ExporterId exporterId(OtlpConfig.Protocol protocol, OtlpSender sender) {
+    return sender == null
+        ? null
+        : ExporterId.otlp(METRIC_DATA_POINT, protocol, sender.destination());
+  }
+
+  @VisibleForTesting
   OtlpSender getSender() {
     return sender;
   }
 
+  @VisibleForTesting
   OtlpMetricsCollector getCollector() {
     return collector;
   }
 
-  public void start() {
+  @VisibleForTesting
+  ExporterId getExporter() {
+    return exporter;
+  }
+
+  /** Starts periodic collection and export, reporting each export to {@code healthMetrics}. */
+  public void start(HealthMetrics healthMetrics) {
     if (sender == null) {
       return;
     }
+
+    this.exportRecorder = ExportRecorder.create(healthMetrics, exporter);
 
     // add random jitter of up to 5 seconds to initial delay; avoids a fleet
     // of apps starting at the same time from exporting OTLP metrics in sync
@@ -155,7 +184,7 @@ public final class OtlpMetricsService {
   }
 
   private void export() {
-    boolean attemptedExport = false;
+    ExportRecorder.Export export = null;
     try {
       OtlpPayload payload = collector.collectMetrics();
       if (payload == OtlpPayload.EMPTY) {
@@ -163,12 +192,14 @@ public final class OtlpMetricsService {
       }
 
       OtlpTelemetry.getInstance().onMetricsExportAttempt();
-      attemptedExport = true;
+      export = exportRecorder.start(payload.getItemCount());
       RemoteApi.Response response = sender.send(payload);
+      export.finish(response);
       boolean success = response != null && response.success();
       OtlpTelemetry.getInstance().onMetricsExportComplete(success);
     } catch (Throwable e) {
-      if (attemptedExport) {
+      if (export != null) {
+        export.failure(e);
         OtlpTelemetry.getInstance().onMetricsExportComplete(false);
       }
       LOGGER.debug("Failed to export OTLP metrics", e);

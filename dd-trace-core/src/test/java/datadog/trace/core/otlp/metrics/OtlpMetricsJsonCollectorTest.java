@@ -46,6 +46,30 @@ class OtlpMetricsJsonCollectorTest {
   }
 
   @Test
+  void countsDataPointsAcrossScopesAndMetrics() {
+    OtlpMetricsJsonCollector collector = new OtlpMetricsJsonCollector(new ControllableTimeSource());
+    Consumer<OtlpMetricsVisitor> registry =
+        visitor -> {
+          OtlpScopedMetricsVisitor http =
+              visitor.visitScopedMetrics(new OtelInstrumentationScope("io.http", null, null));
+          OtlpMetricVisitor requests =
+              http.visitMetric(new OtelInstrumentDescriptor("requests", COUNTER, true, null, null));
+          requests.visitAttribute(STRING_ATTRIBUTE, "method", "GET");
+          requests.visitDataPoint(new OtlpLongPoint(1L));
+          requests.visitAttribute(STRING_ATTRIBUTE, "method", "POST");
+          requests.visitDataPoint(new OtlpLongPoint(2L));
+          OtlpScopedMetricsVisitor db =
+              visitor.visitScopedMetrics(new OtelInstrumentationScope("io.db", null, null));
+          db.visitMetric(new OtelInstrumentDescriptor("pool", GAUGE, false, null, null))
+              .visitDataPoint(new OtlpDoublePoint(5.0));
+        };
+
+    assertEquals(3, collector.collectMetrics(registry).getItemCount());
+    // the count restarts with each collection
+    assertEquals(3, collector.collectMetrics(registry).getItemCount());
+  }
+
+  @Test
   void metricWithNoDataPointsContributesNothing() throws IOException {
     OtelInstrumentDescriptor descriptor =
         new OtelInstrumentDescriptor("unused", COUNTER, true, null, null);

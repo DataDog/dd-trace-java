@@ -11,11 +11,21 @@ public final class OtlpPayload {
   private final ByteBuffer content;
   private final int contentLength;
   private final String contentType;
+  private final int itemCount;
 
   public OtlpPayload(ByteBuffer content, String contentType) {
+    this(content, contentType, 0);
+  }
+
+  /**
+   * @param itemCount the number of telemetry items encoded in {@code content}, such as metric data
+   *     points; 0 when the producer doesn't count them
+   */
+  public OtlpPayload(ByteBuffer content, String contentType, int itemCount) {
     this.content = content;
     this.contentLength = content.remaining();
     this.contentType = contentType;
+    this.itemCount = itemCount;
   }
 
   public ByteBuffer getContent() {
@@ -28,5 +38,10 @@ public final class OtlpPayload {
 
   public String getContentType() {
     return contentType;
+  }
+
+  /** The number of telemetry items in the payload, or 0 when the producer doesn't count them. */
+  public int getItemCount() {
+    return itemCount;
   }
 }

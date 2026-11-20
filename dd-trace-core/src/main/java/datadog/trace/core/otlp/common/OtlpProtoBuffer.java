@@ -118,7 +118,12 @@ public final class OtlpProtoBuffer {
    * <p>This payload is only valid for the calling thread until the next collection.
    */
   public OtlpPayload toPayload() {
-    return new OtlpPayload(flip(), PROTOBUF_CONTENT_TYPE);
+    return toPayload(0);
+  }
+
+  /** Same as {@link #toPayload()}, recording the number of telemetry items in the payload. */
+  public OtlpPayload toPayload(int itemCount) {
+    return new OtlpPayload(flip(), PROTOBUF_CONTENT_TYPE, itemCount);
   }
 
   /**
