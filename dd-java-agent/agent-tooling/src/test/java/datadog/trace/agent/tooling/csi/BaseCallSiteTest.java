@@ -11,6 +11,7 @@ import datadog.trace.agent.tooling.bytebuddy.csi.CallSiteInstrumentation;
 import datadog.trace.agent.tooling.bytebuddy.csi.CallSiteSupplier;
 import datadog.trace.agent.tooling.bytebuddy.csi.CallSiteTransformer;
 import datadog.trace.config.inversion.ConfigHelper;
+import datadog.trace.config.inversion.ConfigHelper.StrictnessPolicy;
 import datadog.trace.test.util.DDJavaSpecification;
 import java.io.IOException;
 import java.io.InputStream;
@@ -28,6 +29,7 @@ import net.bytebuddy.dynamic.loading.ByteArrayClassLoader;
 import net.bytebuddy.jar.asm.Type;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.commons.io.IOUtils;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.extension.ParameterContext;
 import org.junit.jupiter.params.converter.ArgumentConversionException;
@@ -36,10 +38,19 @@ import org.junit.jupiter.params.converter.ArgumentConverter;
 /** Shared helpers for call site instrumentation tests. */
 abstract class BaseCallSiteTest extends DDJavaSpecification {
 
+  private static StrictnessPolicy previousStrictnessPolicy;
+
   @BeforeAll
   static void setupCallSites() {
-    ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.TEST);
-    ClassInjector.enableClassInjection(ByteBuddyAgent.getInstrumentation());
+    previousStrictnessPolicy = ConfigHelper.get().configInversionStrictFlag();
+    ConfigHelper.get().setConfigInversionStrict(StrictnessPolicy.TEST);
+    // install() reuses an already installed agent, and installs one when only JUnit tests run
+    ClassInjector.enableClassInjection(ByteBuddyAgent.install());
+  }
+
+  @AfterAll
+  static void cleanupCallSites() {
+    ConfigHelper.get().setConfigInversionStrict(previousStrictnessPolicy);
   }
 
   protected static CallSites mockCallSites(
@@ -56,8 +67,8 @@ abstract class BaseCallSiteTest extends DDJavaSpecification {
   }
 
   /**
-   * Builds real {@link Advices} from the call sites, without constant pool introspection (the
-   * Groovy {@code mockAdvices} stub reimplemented the same lookups).
+   * Builds real {@link Advices} from the call sites with the no-op introspector, so no constant
+   * pool introspection happens.
    */
   protected static Advices buildAdvices(Iterable<CallSites> callSites) {
     return Advices.fromCallSites(

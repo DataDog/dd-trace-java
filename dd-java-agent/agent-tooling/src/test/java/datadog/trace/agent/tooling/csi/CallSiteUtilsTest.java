@@ -22,8 +22,12 @@ import static net.bytebuddy.jar.asm.Type.FLOAT_TYPE;
 import static net.bytebuddy.jar.asm.Type.INT_TYPE;
 import static net.bytebuddy.jar.asm.Type.LONG_TYPE;
 import static net.bytebuddy.jar.asm.Type.SHORT_TYPE;
-import static net.bytebuddy.utility.OpenedClassReader.ASM_API;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.AdditionalAnswers.answerVoid;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -121,7 +125,7 @@ public class CallSiteUtilsTest extends DDJavaSpecification {
   void testStackCloneOf(List<StackObject> items) {
     // setup
     List<StackObject> stack = buildStack(items);
-    MethodVisitor visitor = new StackMethodVisitor(stack);
+    MethodVisitor visitor = mockMethodVisitor(stack);
     List<StackObject> expected = new ArrayList<>(items);
     expected.addAll(items);
 
@@ -162,7 +166,7 @@ public class CallSiteUtilsTest extends DDJavaSpecification {
       List<StackObject> items, int[] indices, List<StackObject> expectedExtra) {
     // setup
     List<StackObject> stack = buildStack(items);
-    MethodVisitor visitor = new StackMethodVisitor(stack);
+    MethodVisitor visitor = mockMethodVisitor(stack);
     List<StackObject> expected = new ArrayList<>(items);
     expected.addAll(expectedExtra);
 
@@ -188,7 +192,7 @@ public class CallSiteUtilsTest extends DDJavaSpecification {
   void testStackDupWithArrayBefore(List<StackObject> items) {
     // setup
     List<StackObject> stack = buildStack(items);
-    MethodVisitor visitor = new StackMethodVisitor(stack);
+    MethodVisitor visitor = mockMethodVisitor(stack);
 
     // when
     CallSiteUtils.dup(visitor, types(items), PREPEND_ARRAY);
@@ -215,7 +219,7 @@ public class CallSiteUtilsTest extends DDJavaSpecification {
   void testStackDupWithArrayAfter(List<StackObject> items) {
     // setup
     List<StackObject> stack = buildStack(items);
-    MethodVisitor visitor = new StackMethodVisitor(stack);
+    MethodVisitor visitor = mockMethodVisitor(stack);
 
     // when
     CallSiteUtils.dup(visitor, types(items), APPEND_ARRAY);
@@ -243,7 +247,7 @@ public class CallSiteUtilsTest extends DDJavaSpecification {
     // setup
     List<StackObject> expected = items.subList(2, items.size());
     List<StackObject> stack = buildStack(items);
-    MethodVisitor visitor = new StackMethodVisitor(stack);
+    MethodVisitor visitor = mockMethodVisitor(stack);
 
     // when
     CallSiteUtils.dup(visitor, types(expected), PREPEND_ARRAY_CTOR);
@@ -271,7 +275,7 @@ public class CallSiteUtilsTest extends DDJavaSpecification {
     // setup
     List<StackObject> expected = items.subList(1, items.size());
     List<StackObject> stack = buildStack(items);
-    MethodVisitor visitor = new StackMethodVisitor(stack);
+    MethodVisitor visitor = mockMethodVisitor(stack);
 
     // when
     CallSiteUtils.dup(visitor, types(expected), PREPEND_ARRAY_SUPER_CTOR);
@@ -401,112 +405,75 @@ public class CallSiteUtilsTest extends DDJavaSpecification {
   }
 
   /**
-   * Simulates the JVM operand stack for the instructions emitted by {@link CallSiteUtils}; any
-   * other instruction is rejected.
+   * Mocks a {@link MethodVisitor} that runs the instructions emitted by {@link CallSiteUtils} on
+   * the simulated {@code stack}; any other call is rejected.
    */
-  private static final class StackMethodVisitor extends MethodVisitor {
+  private static MethodVisitor mockMethodVisitor(List<StackObject> stack) {
+    StackSimulator simulator = new StackSimulator(stack);
+    MethodVisitor visitor =
+        mock(
+            MethodVisitor.class,
+            invocation -> {
+              throw new IllegalArgumentException(
+                  "Unexpected ASM visitor call " + invocation.getMethod().getName());
+            });
+
+    doAnswer(answerVoid(it -> simulator.handleDup())).when(visitor).visitInsn(Opcodes.DUP);
+    doAnswer(answerVoid(it -> simulator.handleDupX1())).when(visitor).visitInsn(Opcodes.DUP_X1);
+    doAnswer(answerVoid(it -> simulator.handleDupX2())).when(visitor).visitInsn(Opcodes.DUP_X2);
+    doAnswer(answerVoid(it -> simulator.handleDup2())).when(visitor).visitInsn(Opcodes.DUP2);
+    doAnswer(answerVoid(it -> simulator.handleDup2X1())).when(visitor).visitInsn(Opcodes.DUP2_X1);
+    doAnswer(answerVoid(it -> simulator.handleDup2X2())).when(visitor).visitInsn(Opcodes.DUP2_X2);
+    doAnswer(answerVoid(it -> simulator.handlePop())).when(visitor).visitInsn(Opcodes.POP);
+    doAnswer(answerVoid(it -> simulator.handlePop2())).when(visitor).visitInsn(Opcodes.POP2);
+    doAnswer(answerVoid(it -> simulator.handleSwap())).when(visitor).visitInsn(Opcodes.SWAP);
+    doAnswer(answerVoid(it -> stack.add(forInt(-1)))).when(visitor).visitInsn(Opcodes.ICONST_M1);
+    doAnswer(answerVoid(it -> stack.add(forInt(0)))).when(visitor).visitInsn(Opcodes.ICONST_0);
+    doAnswer(answerVoid(it -> stack.add(forInt(1)))).when(visitor).visitInsn(Opcodes.ICONST_1);
+    doAnswer(answerVoid(it -> stack.add(forInt(2)))).when(visitor).visitInsn(Opcodes.ICONST_2);
+    doAnswer(answerVoid(it -> stack.add(forInt(3)))).when(visitor).visitInsn(Opcodes.ICONST_3);
+    doAnswer(answerVoid(it -> stack.add(forInt(4)))).when(visitor).visitInsn(Opcodes.ICONST_4);
+    doAnswer(answerVoid(it -> stack.add(forInt(5)))).when(visitor).visitInsn(Opcodes.ICONST_5);
+    doAnswer(answerVoid((Integer opcode, Integer operand) -> stack.add(forInt(operand))))
+        .when(visitor)
+        .visitIntInsn(eq(Opcodes.BIPUSH), anyInt());
+    doAnswer(answerVoid(it -> simulator.handleNewArray()))
+        .when(visitor)
+        .visitTypeInsn(Opcodes.ANEWARRAY, "java/lang/Object");
+    doAnswer(answerVoid(it -> simulator.handleArrayStore()))
+        .when(visitor)
+        .visitInsn(Opcodes.AASTORE);
+    doAnswer(answerVoid(it -> simulator.handleArrayLoad())).when(visitor).visitInsn(Opcodes.AALOAD);
+    doAnswer(answerVoid((Integer opcode, String type) -> simulator.handleCheckCast(type)))
+        .when(visitor)
+        .visitTypeInsn(eq(Opcodes.CHECKCAST), any());
+    doAnswer(
+            invocation -> {
+              simulator.handleBoxing(invocation.getArgument(1));
+              return null;
+            })
+        .when(visitor)
+        .visitMethodInsn(eq(Opcodes.INVOKESTATIC), any(), eq("valueOf"), any(), eq(false));
+    doAnswer(
+            invocation -> {
+              simulator.handleUnBoxing(invocation.getArgument(1), invocation.getArgument(2));
+              return null;
+            })
+        .when(visitor)
+        .visitMethodInsn(eq(Opcodes.INVOKEVIRTUAL), any(), any(), any(), eq(false));
+    return visitor;
+  }
+
+  /** Simulates the JVM operand stack for the instructions emitted by {@link CallSiteUtils}. */
+  private static final class StackSimulator {
 
     private static final Pattern UNBOXING_METHOD =
         Pattern.compile("(?:char|boolean|byte|short|int|long|float|double)Value");
 
     private final List<StackObject> stack;
 
-    StackMethodVisitor(List<StackObject> stack) {
-      super(ASM_API);
+    StackSimulator(List<StackObject> stack) {
       this.stack = stack;
-    }
-
-    @Override
-    public void visitInsn(int opcode) {
-      switch (opcode) {
-        case Opcodes.DUP:
-          handleDup();
-          break;
-        case Opcodes.DUP_X1:
-          handleDupX1();
-          break;
-        case Opcodes.DUP_X2:
-          handleDupX2();
-          break;
-        case Opcodes.DUP2:
-          handleDup2();
-          break;
-        case Opcodes.DUP2_X1:
-          handleDup2X1();
-          break;
-        case Opcodes.DUP2_X2:
-          handleDup2X2();
-          break;
-        case Opcodes.POP:
-          handlePop();
-          break;
-        case Opcodes.POP2:
-          handlePop2();
-          break;
-        case Opcodes.SWAP:
-          handleSwap();
-          break;
-        case Opcodes.ICONST_M1:
-        case Opcodes.ICONST_0:
-        case Opcodes.ICONST_1:
-        case Opcodes.ICONST_2:
-        case Opcodes.ICONST_3:
-        case Opcodes.ICONST_4:
-        case Opcodes.ICONST_5:
-          stack.add(forInt(opcode - Opcodes.ICONST_0));
-          break;
-        case Opcodes.AASTORE:
-          handleArrayStore();
-          break;
-        case Opcodes.AALOAD:
-          handleArrayLoad();
-          break;
-        default:
-          throw notYetImplemented();
-      }
-    }
-
-    @Override
-    public void visitIntInsn(int opcode, int operand) {
-      if (opcode != Opcodes.BIPUSH) {
-        throw notYetImplemented();
-      }
-      stack.add(forInt(operand));
-    }
-
-    @Override
-    public void visitTypeInsn(int opcode, String type) {
-      if (opcode == Opcodes.ANEWARRAY && "java/lang/Object".equals(type)) {
-        handleNewArray();
-      } else if (opcode == Opcodes.CHECKCAST) {
-        handleCheckCast(type);
-      } else {
-        throw notYetImplemented();
-      }
-    }
-
-    @Override
-    public void visitMethodInsn(
-        int opcode, String owner, String name, String descriptor, boolean isInterface) {
-      if (opcode == Opcodes.INVOKESTATIC && "valueOf".equals(name) && !isInterface) {
-        handleBoxing(owner);
-      } else if (opcode == Opcodes.INVOKEVIRTUAL && !isInterface) {
-        if (!UNBOXING_METHOD.matcher(name).matches()) {
-          throw new UnsupportedOperationException();
-        }
-        handleUnBoxing(owner, name);
-      } else {
-        throw notYetImplemented();
-      }
-    }
-
-    @Override
-    public void visitLdcInsn(Object value) {
-      throw notYetImplemented();
-    }
-
-    private static IllegalArgumentException notYetImplemented() {
-      return new IllegalArgumentException("Not yet implemented");
     }
 
     private StackObject peek(int depth) {
@@ -732,6 +699,9 @@ public class CallSiteUtilsTest extends DDJavaSpecification {
     }
 
     private void handleUnBoxing(String typeDescriptor, String method) {
+      if (!UNBOXING_METHOD.matcher(method).matches()) {
+        throw new UnsupportedOperationException();
+      }
       StackObject item = pop();
       if (item.isCategoryTwo()) {
         pop();
