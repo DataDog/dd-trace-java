@@ -92,12 +92,14 @@ public class CiVisibilityRepoServices {
             && (GitCheckoutInfo.matchesRevision(selectedSha, providerGit, providerPr, mergeSha)
                 || GitCheckoutInfo.sameRevision(
                     selectedSha, services.environment.get(Constants.DDCI_PULL_REQUEST_SOURCE_SHA))
-                || checkoutRoot == null
-                    && isBlank(ConfigProvider.getInstance().getString("git.commit.sha"))
+                || isBlank(ConfigProvider.getInstance().getString("git.commit.sha"))
                     && isBlank(services.config.getGlobalTags().get("git.commit.sha"))
                     && (isBlank(selectedSha)
                         || isBlank(providerGit.getCommit().getSha())
-                            && isBlank(providerPr.getHeadCommit().getSha())));
+                            && isBlank(providerPr.getHeadCommit().getSha())
+                            && isBlank(mergeSha)
+                            && isBlank(
+                                services.environment.get(Constants.DDCI_PULL_REQUEST_SOURCE_SHA))));
     PullRequestInfo pullRequestInfo =
         buildPullRequestInfo(
             services.config, services.environment, ciProviderInfo, gitClient, useCiInfo);
@@ -164,17 +166,15 @@ public class CiVisibilityRepoServices {
       GitClient gitClient,
       boolean useCiInfo) {
     PullRequestInfo userInfo = buildUserPullRequestInfo(config, environment, gitClient, useCiInfo);
-    if (!useCiInfo) {
-      return userInfo;
-    }
-
     if (userInfo.isComplete()) {
       return userInfo;
     }
 
     // complete with CI vars if user didn't provide all information
     PullRequestInfo ciInfo =
-        PullRequestInfo.coalesce(userInfo, ciProviderInfo.buildPullRequestInfo());
+        useCiInfo
+            ? PullRequestInfo.coalesce(userInfo, ciProviderInfo.buildPullRequestInfo())
+            : userInfo;
     String headSha = ciInfo.getHeadCommit().getSha();
     if (isNotBlank(headSha)) {
       // if head sha present try to populate author, committer and message info through git client
