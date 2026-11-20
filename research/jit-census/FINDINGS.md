@@ -37,7 +37,10 @@ Other corpora: `java -cp asm.jar Census.java <gradle files-2.1 dir> out` (the ba
    **Changes to the rule catalog** (name, example constants, rewrite, trap). Don't change
    `classify()` without also re-running the earlier batches, so the totals stay comparable.
 5. Update **Headline findings** only when a batch changes one.
-6. Commit `research/jit-census/` with a message like `jit-census: batch N (<theme>)`, then push.
+6. Commit `research/jit-census/` with a message like `jit-census: batch N (<theme>)`. Workers (Bits,
+   cloud agents) push to a **new** branch, `dd/jit-census/batchN` (Bits) or `claude/jit-census/batchN`
+   (cloud), cut from the latest `dougqh/jit-census`. Worker sandboxes can't push to existing branches.
+   The notebook owner merges those into `dougqh/jit-census` and reconciles FINDINGS.md.
 
 ## Method and caveats
 
