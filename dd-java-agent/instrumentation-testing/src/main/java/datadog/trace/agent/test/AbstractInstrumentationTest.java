@@ -7,6 +7,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import datadog.instrument.classinject.ClassInjector;
 import datadog.trace.agent.test.assertions.TraceAssertions;
 import datadog.trace.agent.test.assertions.TraceMatcher;
+import datadog.trace.agent.test.datastreams.MockFeaturesDiscovery;
+import datadog.trace.agent.test.datastreams.RecordingDataStreamsWriter;
 import datadog.trace.agent.test.scopediag.TrackScopeContinuations;
 import datadog.trace.agent.tooling.AgentInstaller;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -14,20 +16,32 @@ import datadog.trace.agent.tooling.TracerInstaller;
 import datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers;
 import datadog.trace.api.Config;
 import datadog.trace.api.IdGenerationStrategy;
+import datadog.trace.api.Pair;
+import datadog.trace.api.TraceConfig;
+import datadog.trace.api.datastreams.DataStreamsTransactionExtractor;
+import datadog.trace.api.sampling.SamplingRule.SpanSamplingRule;
+import datadog.trace.api.sampling.SamplingRule.TraceSamplingRule;
+import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.bootstrap.InstrumentationErrors;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
+import datadog.trace.common.metrics.EventListener;
+import datadog.trace.common.metrics.Sink;
 import datadog.trace.common.writer.ListWriter;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.PendingTrace;
 import datadog.trace.core.TraceCollector;
+import datadog.trace.core.datastreams.DataStreamsMonitoring;
+import datadog.trace.core.datastreams.DefaultDataStreamsMonitoring;
 import datadog.trace.test.junit.utils.config.WithConfig;
 import datadog.trace.test.junit.utils.context.AllowContextTestingExtension;
 import datadog.trace.test.junit.utils.context.LegacyContextTestingExtension;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
+import java.nio.ByteBuffer;
 import java.util.List;
+import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -71,6 +85,8 @@ public abstract class AbstractInstrumentationTest {
 
   protected static TracerAPI tracer;
   protected static ListWriter writer;
+
+  protected static RecordingDataStreamsWriter dsmWriter;
   private static ClassFileTransformer activeTransformer;
   private static ClassFileTransformerListener transformerListener;
 
@@ -84,11 +100,33 @@ public abstract class AbstractInstrumentationTest {
 
     // Create shared test writer and tracer
     writer = new ListWriter();
+    DataStreamsMonitoring dataStreamsMonitoring = null;
+    if (Config.get().isDataStreamsEnabled()) {
+      dsmWriter = new RecordingDataStreamsWriter();
+      TraceConfig traceConfig = new DataStreamsTraceConfig();
+      Sink sink =
+          new Sink() {
+            @Override
+            public void accept(int messageCount, ByteBuffer buffer) {}
+
+            @Override
+            public void register(EventListener listener) {}
+          };
+      dataStreamsMonitoring =
+          new DefaultDataStreamsMonitoring(
+              sink,
+              new MockFeaturesDiscovery(true),
+              SystemTimeSource.INSTANCE,
+              () -> traceConfig,
+              dsmWriter,
+              TimeUnit.MILLISECONDS.toNanos(250));
+    }
     CoreTracer coreTracer =
         CoreTracer.builder()
             .writer(writer)
             .idGenerationStrategy(IdGenerationStrategy.fromName(testConfig.idGenerationStrategy))
             .strictTraceWrites(true)
+            .dataStreamsMonitoring(dataStreamsMonitoring)
             .build();
     TracerInstaller.forceInstallGlobalTracer(coreTracer);
     tracer = coreTracer;
@@ -139,6 +177,7 @@ public abstract class AbstractInstrumentationTest {
       writer.close();
       writer = null;
     }
+    dsmWriter = null;
     if (activeTransformer != null) {
       INSTRUMENTATION.removeTransformer(activeTransformer);
       activeTransformer = null;
@@ -234,6 +273,78 @@ public abstract class AbstractInstrumentationTest {
     public InstrumentationTestConfig idGenerationStrategy(String strategy) {
       this.idGenerationStrategy = strategy;
       return this;
+    }
+  }
+
+  private static final class DataStreamsTraceConfig implements TraceConfig {
+    @Override
+    public boolean isTraceEnabled() {
+      return true;
+    }
+
+    @Override
+    public boolean isRuntimeMetricsEnabled() {
+      return true;
+    }
+
+    @Override
+    public boolean isLogsInjectionEnabled() {
+      return true;
+    }
+
+    @Override
+    public boolean isDataStreamsEnabled() {
+      return true;
+    }
+
+    @Override
+    public Map<String, String> getServiceMapping() {
+      return null;
+    }
+
+    @Override
+    public Map<String, String> getRequestHeaderTags() {
+      return null;
+    }
+
+    @Override
+    public Map<String, String> getResponseHeaderTags() {
+      return null;
+    }
+
+    @Override
+    public Map<String, String> getBaggageMapping() {
+      return null;
+    }
+
+    @Override
+    public Double getTraceSampleRate() {
+      return null;
+    }
+
+    @Override
+    public Map<String, String> getTracingTags() {
+      return null;
+    }
+
+    @Override
+    public Pair<String, CharSequence> getPreferredServiceNameAndSource() {
+      return null;
+    }
+
+    @Override
+    public List<? extends SpanSamplingRule> getSpanSamplingRules() {
+      return null;
+    }
+
+    @Override
+    public List<? extends TraceSamplingRule> getTraceSamplingRules() {
+      return null;
+    }
+
+    @Override
+    public List<DataStreamsTransactionExtractor> getDataStreamsTransactionExtractors() {
+      return null;
     }
   }
 }

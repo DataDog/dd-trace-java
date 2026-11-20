@@ -50,8 +50,4 @@ dependencies {
 
   // For this module Groovy 3 needs `org.junit.rules.ExternalResource` from JUnit4.
   testImplementation(libs.junit4)
-
-  dsmTestImplementation group: 'org.apache.activemq.tooling', name: 'activemq-junit', version: '5.14.5'
-  dsmTestImplementation group: 'org.apache.activemq', name: 'activemq-broker', version: '5.14.5'
-  dsmTestImplementation(libs.junit4)
 }
