@@ -621,11 +621,8 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
         forceCoordinatedEmit();
       }
     } else if (logStatus.hasConditionErrors()) {
-      // condition errors are reported with a dedicated sampler (1 per probe per 5 minutes),
-      // independently of the probe sampler and of the trace-wide coordinated sampling: an error
-      // snapshot carries no captures, so it must neither consume nor record a coordinated decision.
-      // The global samplers are skipped too: at this rate even many failing probes stay far below
-      // the global budget, and they must not take budget from healthy probes.
+      // error snapshots carry no captures:
+      // use a dedicated sampler, outside of coordinated and global sampling
       sampled = errorSampler.sample();
     } else {
       sampled = trySample(sampler);
