@@ -4,8 +4,8 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfi
 
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
