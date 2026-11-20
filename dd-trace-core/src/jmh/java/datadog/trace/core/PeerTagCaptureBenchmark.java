@@ -151,8 +151,7 @@ public class PeerTagCaptureBenchmark {
   /** The capture with TagLookup: one bulk read, allocating only when a tag is found. */
   @Benchmark
   public String[] bulk() {
-    TagLookup lookup = LOOKUP;
-    return lookup.size() == 0 ? null : span.unsafeGetTagStrings(lookup);
+    return span.unsafeGetTagStrings(LOOKUP);
   }
 
   /** The same arms with the dense tag store on. */

@@ -326,7 +326,7 @@ final class DenseIdStore extends IdStore {
    * inherited, slots share no bit with any of the lookup's tags holds none of them.
    */
   @Override
-  public boolean mayHoldAny(TagLookup lookup) {
+  boolean mayHoldAny(TagLookup lookup) {
     long span = lookup.spanMask;
     long trace = lookup.traceMask;
     return (this.spanOccupancy & span) != 0L

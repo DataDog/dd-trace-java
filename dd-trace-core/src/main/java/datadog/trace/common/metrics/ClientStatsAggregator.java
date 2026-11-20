@@ -663,7 +663,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
    * nothing. Returns null when none of the tags are set.
    */
   private static String[] captureTagValues(CoreSpan<?> span, TagLookup lookup) {
-    return lookup.size() == 0 ? null : span.unsafeGetTagStrings(lookup);
+    return span.unsafeGetTagStrings(lookup);
   }
 
   private static boolean isSynthetic(CoreSpan<?> span) {

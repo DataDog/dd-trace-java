@@ -41,6 +41,9 @@ public final class TagLookup {
   /** Whether any name falls back to a direction-scoped id. */
   final boolean hasDirectional;
 
+  /** The indexes of the names that fall back to a direction-scoped id. */
+  final int[] directionalIndexes;
+
   /** The slot bits of every span-level id above, plain and directional. */
   final long spanMask;
 
@@ -92,6 +95,22 @@ public final class TagLookup {
     this.inboundIds = directional ? inbound : NO_IDS;
     this.outboundIds = directional ? outbound : NO_IDS;
     this.hasDirectional = directional;
+    int[] directionalIndexes = NO_INDEXES;
+    if (directional) {
+      int count = 0;
+      for (int i = 0; i < n; i++) {
+        if (inbound[i] != 0 || outbound[i] != 0) {
+          count++;
+        }
+      }
+      directionalIndexes = new int[count];
+      for (int i = 0, k = 0; i < n; i++) {
+        if (inbound[i] != 0 || outbound[i] != 0) {
+          directionalIndexes[k++] = i;
+        }
+      }
+    }
+    this.directionalIndexes = directionalIndexes;
     this.spanMask = span;
     this.traceMask = trace;
   }
@@ -119,6 +138,16 @@ public final class TagLookup {
   /** Whether any name falls back to a direction-scoped id. */
   public boolean hasDirectional() {
     return hasDirectional;
+  }
+
+  /** The number of names that fall back to a direction-scoped id. */
+  public int directionalCount() {
+    return directionalIndexes.length;
+  }
+
+  /** The index (into the names) of the {@code k}th name with a direction-scoped fallback. */
+  public int directionalIndex(int k) {
+    return directionalIndexes[k];
   }
 
   /** The number of custom names. */

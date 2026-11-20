@@ -1798,7 +1798,8 @@ public class DDSpanContext
     if (lookup.hasDirectional()) {
       int direction = directionOfKind(spanKindOrdinal);
       if (direction != KnownTagCodec.DIRECTION_UNKNOWN) {
-        for (int i = 0; i < n; i++) {
+        for (int k = 0, directionals = lookup.directionalCount(); k < directionals; k++) {
+          int i = lookup.directionalIndex(k);
           if (out == null || out[i] == null) {
             long tagId = lookup.directionalId(i, direction);
             if (tagId != 0) {
