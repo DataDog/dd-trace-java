@@ -1,0 +1,12 @@
+_v: 1
+name: spark-launcher
+display_name: Spark Project SQL
+description: Instruments SparkLauncher application startup and lifecycle transitions, recording launch timing, configuration,
+  and failures.
+packages:
+- name: org.apache.spark:spark-sql_2.12
+- name: org.apache.spark:spark-sql_2.13
+category:
+- task.execution
+systems: []
+creation_date: '2026-02-23'

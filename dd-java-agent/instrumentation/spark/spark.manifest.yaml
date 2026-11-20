@@ -1,0 +1,12 @@
+_v: 1
+name: spark
+display_name: Spark Project SQL
+description: Instruments Apache Spark applications, SQL executions, jobs, stages, streaming batches, and task failures,
+  capturing execution metrics, query plans, and errors for Data Jobs Monitoring.
+packages:
+- name: org.apache.spark:spark-sql_2.12
+- name: org.apache.spark:spark-sql_2.13
+category:
+- task.execution
+systems: []
+creation_date: '2023-04-24'
