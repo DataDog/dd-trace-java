@@ -54,7 +54,7 @@ public class CILocalGitInfoBuilder implements GitInfoBuilder {
 
   @Override
   public int order() {
-    return 2;
+    return 3;
   }
 
   @Override

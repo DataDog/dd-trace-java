@@ -1,8 +1,12 @@
 package datadog.trace.civisibility.git.tree;
 
+import static datadog.trace.civisibility.git.tree.GitTestRepository.GIT_COMMAND_TIMEOUT_MILLIS;
 import static datadog.trace.civisibility.git.tree.GitTestRepository.client;
 import static datadog.trace.civisibility.git.tree.GitTestRepository.fixture;
 import static datadog.trace.civisibility.git.tree.GitTestRepository.git;
+import static datadog.trace.civisibility.git.tree.GitTestRepository.replaceExecutor;
+import static datadog.trace.civisibility.git.tree.GitTestRepository.selectedCommit;
+import static datadog.trace.civisibility.git.tree.GitTestRepository.sha256Fixture;
 import static datadog.trace.civisibility.git.tree.GitTestRepository.writeCommit;
 import static datadog.trace.civisibility.git.tree.GitTestRepository.writeObject;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -16,11 +20,9 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.spy;
 
-import datadog.communication.util.IOUtils;
 import datadog.trace.api.git.CommitInfo;
 import datadog.trace.civisibility.utils.ShellCommandExecutor;
 import java.io.IOException;
-import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.TimeoutException;
@@ -34,28 +36,10 @@ class GitRecoveryCompatibilityTest {
 
   @Test
   void recoveryUsesTheCheckoutObjectFormat() throws Exception {
-    Path origin = Files.createDirectory(directory.resolve("origin"));
-    ShellCommandExecutor remote = new ShellCommandExecutor(origin.toFile(), 10_000);
-    git(remote, "init", "--object-format=sha256");
-    String tree =
-        remote
-            .executeCommand(
-                IOUtils::readFully,
-                new byte[0],
-                "git",
-                "hash-object",
-                "-w",
-                "-t",
-                "tree",
-                "--stdin")
-            .trim();
-    String person = "Test <test@example.com> " + System.currentTimeMillis() / 1000 + " +0000";
-    String head =
-        writeObject(
-            remote, "tree " + tree + "\nauthor " + person + "\ncommitter " + person + "\n\nhead\n");
-    git(remote, "update-ref", "HEAD", head);
+    Path origin = directory.resolve("origin");
+    ShellCommandExecutor remote = sha256Fixture(origin);
     Path checkout = cloneFrom(remote, origin);
-    String selected = writeCommit(remote, tree, head, "selected");
+    String selected = selectedCommit(remote);
     git(remote, "update-ref", "refs/heads/selected", selected);
     ShellGitClient client = client(checkout, "1 month ago");
     client.fetchSelectedCommit(selected);
@@ -65,17 +49,61 @@ class GitRecoveryCompatibilityTest {
   }
 
   @Test
+  void baseBranchFetchRemainsAvailableAfterPrivateRecovery() throws Exception {
+    Path origin = directory.resolve("origin");
+    ShellCommandExecutor remote = fixture(origin);
+    String ancestor = git(remote, "rev-parse", "HEAD");
+    String tree = git(remote, "rev-parse", "HEAD^{tree}");
+    String head = writeCommit(remote, tree, ancestor, "recent checkout");
+    git(remote, "update-ref", "HEAD", head);
+    Path checkout = directory.resolve("checkout");
+    git(remote, "clone", "--no-local", origin.toString(), checkout.toString());
+    Path control = directory.resolve("control");
+    git(remote, "clone", "--no-local", origin.toString(), control.toString());
+    String selected = writeCommit(remote, tree, head, "selected child");
+    git(remote, "update-ref", "refs/heads/selected", selected);
+    git(
+        new ShellCommandExecutor(checkout.toFile(), GIT_COMMAND_TIMEOUT_MILLIS),
+        "update-ref",
+        "refs/remotes/origin/base",
+        ancestor);
+    ShellGitClient client = client(checkout, "1 month ago");
+    client.fetchSelectedCommit(selected);
+    assertEquals(selected, client.getCommitInfo(selected, false).getSha());
+    assertFalse(client.isShallow());
+    assertEquals(ancestor, client.getBaseCommitSha("base", null));
+    git(remote, "update-ref", "refs/heads/new-base", head);
+    assertEquals(head, client(control, "1 month ago").getBaseCommitSha("new-base", null));
+    assertEquals(head, client.getBaseCommitSha("new-base", null));
+  }
+
+  @Test
+  @org.junit.jupiter.api.condition.DisabledOnOs(org.junit.jupiter.api.condition.OS.WINDOWS)
+  void selectedRecoveryPreservesLegacyConfigurationBytes() throws Exception {
+    Path origin = directory.resolve("origin");
+    ShellCommandExecutor remote = fixture(origin);
+    Path checkout = cloneFrom(remote, origin);
+    String selected = selectedCommit(remote);
+    Files.write(
+        directory.resolve("legacy-upload.sh"),
+        "#!/bin/sh\n[ \"$1\" = \"$(printf '\\351')\" ] || exit 42\nshift\nexec git-upload-pack \"$@\"\n"
+            .getBytes(UTF_8));
+    Files.write(
+        checkout.resolve(".git/config"),
+        "\n[remote \"origin\"]\n uploadpack = sh ../legacy-upload.sh é\n"
+            .getBytes(java.nio.charset.StandardCharsets.ISO_8859_1),
+        java.nio.file.StandardOpenOption.APPEND);
+    ShellGitClient client = client(checkout, "1 month ago");
+    client.fetchSelectedCommit(selected);
+    assertEquals(selected, client.getCommitInfo(selected, false).getSha());
+  }
+
+  @Test
   void unknownAbbreviationsAreRejectedBeforeRemoteRecovery() throws Exception {
     Path origin = directory.resolve("origin");
     ShellCommandExecutor remote = fixture(origin);
     Path checkout = cloneFrom(remote, origin);
-    String selected =
-        writeCommit(
-            remote,
-            git(remote, "rev-parse", "HEAD^{tree}"),
-            git(remote, "rev-parse", "HEAD"),
-            "selected");
-    git(remote, "update-ref", "refs/heads/selected", selected);
+    String selected = selectedCommit(remote);
     ShellGitClient client = client(checkout, "1 month ago");
     IOException error =
         assertThrows(IOException.class, () -> client.fetchSelectedCommit(selected.substring(0, 8)));
@@ -189,9 +217,7 @@ class GitRecoveryCompatibilityTest {
         .executeCommand(any(), (String[]) any());
     ShellGitClient client = spy(client(checkout, "1 month ago"));
     doThrow(failure).when(client).getRemoteName();
-    Field executor = ShellGitClient.class.getDeclaredField("commandExecutor");
-    executor.setAccessible(true);
-    executor.set(client, command);
+    replaceExecutor(client, command);
     if (!present) {
       Class<? extends Exception> failureType = failure.getClass();
       assertEquals(failure, assertThrows(failureType, () -> client.getCommitInfo(selected, true)));
@@ -259,7 +285,8 @@ class GitRecoveryCompatibilityTest {
     Path origin = directory.resolve(originName);
     ShellCommandExecutor remote = fixture(origin);
     Path checkout = cloneFrom(remote, origin);
-    ShellCommandExecutor local = new ShellCommandExecutor(checkout.toFile(), 10_000);
+    ShellCommandExecutor local =
+        new ShellCommandExecutor(checkout.toFile(), GIT_COMMAND_TIMEOUT_MILLIS);
     String alias = "url." + (rawPath ? origin : origin.toUri()) + ".insteadOf";
     git(local, "config", "--add", alias, "first:");
     git(local, "config", "--add", alias, "second:");

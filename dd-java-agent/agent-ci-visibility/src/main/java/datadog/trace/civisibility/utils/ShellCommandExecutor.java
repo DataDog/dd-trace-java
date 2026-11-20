@@ -76,6 +76,21 @@ public class ShellCommandExecutor {
     return executeCommand(outputParser, input, false, command);
   }
 
+  /** Executes a command without retaining sensitive output in failure diagnostics. */
+  public <T> T executeSensitiveCommand(OutputParser<T> parser, String... command)
+      throws IOException, InterruptedException, TimeoutException {
+    try {
+      return executeCommand(parser, command);
+    } catch (ShellCommandFailedException e) {
+      throw new ShellCommandFailedException(
+          e.getExitCode(), "Command failed; sensitive output omitted");
+    } catch (IOException e) {
+      throw new IOException("Command failed; sensitive output omitted");
+    } catch (TimeoutException e) {
+      throw new TimeoutException("Command timed out; sensitive output omitted");
+    }
+  }
+
   /**
    * Executes given shell command and returns parsed error stream
    *
