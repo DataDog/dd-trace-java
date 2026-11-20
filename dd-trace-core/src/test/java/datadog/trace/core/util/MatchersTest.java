@@ -32,8 +32,8 @@ class MatchersTest {
 
   @ParameterizedTest
   @ValueSource(strings = {"?", "foo*", "*bar", "F?oB?r", "F?o*", "?*", "*?"})
-  void patternWithEitherStarOrQuestionMustBeAPatternMatcher(String glob) {
-    assertInstanceOf(Matchers.PatternMatcher.class, Matchers.compileGlob(glob));
+  void patternWithEitherStarOrQuestionMustBeAGlobPatternMatcher(String glob) {
+    assertInstanceOf(Matchers.GlobPatternMatcher.class, Matchers.compileGlob(glob));
   }
 
   @ParameterizedTest
@@ -104,7 +104,12 @@ class MatchersTest {
         arguments("^ matches ^", "^", "^", true),
         arguments("() matches ()", "()", "()", true),
         arguments("(*) matches (-)", "(*)", "(-)", true),
-        arguments("$ matches $", "$", "$", true));
+        arguments("$ matches $", "$", "$", true),
+        arguments("a+b* matches a+bc", "a+b*", "a+bc", true),
+        arguments("a+b* does not match aabc", "a+b*", "aabc", false),
+        arguments("c++* matches c++17", "c++*", "c++17", true),
+        arguments("Fo* does not match Fo with a newline", "Fo*", "Fo\n", false),
+        arguments("F?o* does not match F with a newline", "F?o*", "F\no", false));
   }
 
   @ParameterizedTest(name = "{0}")

@@ -1,8 +1,8 @@
 package datadog.trace.core.util;
 
+import datadog.trace.util.GlobMatcher;
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.util.regex.Pattern;
 
 public final class Matchers {
   public static final Matcher ANY = new AnyMatcher();
@@ -15,9 +15,7 @@ public final class Matchers {
     } else if (isExact(glob)) {
       return new InsensitiveEqualsMatcher(glob);
     } else {
-      // DQH - not sure about the error handling here
-      Pattern pattern = GlobPattern.globToRegexPattern(glob);
-      return new PatternMatcher(pattern);
+      return new GlobPatternMatcher(GlobMatcher.compileIgnoringCase(glob));
     }
   }
 
@@ -143,21 +141,21 @@ public final class Matchers {
     }
   }
 
-  static final class PatternMatcher extends BaseMatcher {
-    private final Pattern pattern;
+  static final class GlobPatternMatcher extends BaseMatcher {
+    private final GlobMatcher glob;
 
-    PatternMatcher(Pattern pattern) {
-      this.pattern = pattern;
+    GlobPatternMatcher(GlobMatcher glob) {
+      this.glob = glob;
     }
 
     @Override
     public boolean matches(CharSequence charSeq) {
-      return pattern.matcher(charSeq).matches();
+      return glob.matches(charSeq);
     }
 
     @Override
     public boolean matches(String str) {
-      return pattern.matcher(str).matches();
+      return glob.matches(str);
     }
   }
 }
