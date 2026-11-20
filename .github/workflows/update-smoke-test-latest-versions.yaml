@@ -149,7 +149,7 @@ jobs:
 
       - name: Push changes
         if: steps.check-changes.outputs.has_changes == 'true'
-        uses: DataDog/commit-headless@79367f840e221d63cb28a359de97833cdfde81dd # action/v3.4.0
+        uses: DataDog/commit-headless@d6afabfd690ea1dbdd7d368acbefd71304928699 # action/v3.4.1
         with:
           token: "${{ steps.octo-sts.outputs.token }}"
           branch: "${{ steps.define-branch.outputs.branch }}"

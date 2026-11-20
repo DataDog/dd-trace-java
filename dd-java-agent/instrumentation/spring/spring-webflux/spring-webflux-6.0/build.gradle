@@ -1,5 +1,6 @@
 plugins {
   id 'dd-trace-java.module.instrumentation'
+  id 'dd-trace-java.instrumentation.netty-concurrent-tests'
 }
 
 testJvmConstraints {
@@ -10,7 +11,6 @@ testJvmConstraints {
 addTestSuite('iastTest')
 addTestSuite('bootTest')
 addTestSuiteForDir('latestDepTest', 'test')
-addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 addTestSuiteExtendingForDir('latestDepBootTest', 'latestDepTest', 'bootTest')
 
 tasks.withType(GroovyCompile).configureEach {

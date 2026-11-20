@@ -1,6 +1,7 @@
 import com.google.api.client.http.HttpRequest
 import com.google.api.client.http.HttpResponse
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
+import datadog.trace.agent.test.naming.TestingOtelHttpSemantics
 import spock.lang.Timeout
 
 abstract class GoogleHttpClientTest extends AbstractGoogleHttpClientTest {
@@ -17,4 +18,8 @@ class GoogleHttpClientV0ForkedTest extends GoogleHttpClientTest implements Testi
 
 @Timeout(5)
 class GoogleHttpClientV1ForkedTest extends GoogleHttpClientTest implements TestingGenericHttpNamingConventions.ClientV1 {
+}
+
+@Timeout(5)
+class GoogleHttpClientOtelSemanticsForkedTest extends GoogleHttpClientTest implements TestingGenericHttpNamingConventions.ClientV0, TestingOtelHttpSemantics {
 }

@@ -4,7 +4,6 @@ import static com.datadog.debugger.probe.LogProbe.Capture.toLimits;
 import static com.datadog.debugger.probe.LogProbe.CoordinatedSamplingState.Status.DROP;
 import static com.datadog.debugger.probe.LogProbe.CoordinatedSamplingState.Status.EMIT;
 import static datadog.trace.api.debugger.DebuggerMetricCollector.SkippedReason.RATE_LIMIT;
-import static java.lang.String.format;
 
 import com.datadog.debugger.agent.DebuggerAgent;
 import com.datadog.debugger.agent.Generated;
@@ -47,6 +46,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.DDSpanContext;
+import datadog.trace.util.Strings;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
 import java.time.Duration;
@@ -68,6 +68,7 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
   private static final Logger LOGGER = LoggerFactory.getLogger(LogProbe.class);
   private static final Limits LIMITS = new Limits(1, 3, 8192, 5);
   private static final int LOG_MSG_LIMIT = 8192;
+
   private static final ContextKey<CoordinatedSamplingState> SAMPLING_KEY =
       ContextKey.named("debugger_sampling");
   public static final int CAPTURING_PROBE_BUDGET = 10;
@@ -306,6 +307,23 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
 
     @Generated
     @Override
+    public boolean equals(Object o) {
+      if (this == o) return true;
+      if (o == null || getClass() != o.getClass()) return false;
+      CaptureExpression that = (CaptureExpression) o;
+      return Objects.equals(name, that.name)
+          && Objects.equals(expr, that.expr)
+          && Objects.equals(capture, that.capture);
+    }
+
+    @Generated
+    @Override
+    public int hashCode() {
+      return Objects.hash(name, expr, capture);
+    }
+
+    @Generated
+    @Override
     public String toString() {
       return "CaptureExpression{"
           + "name='"
@@ -478,7 +496,7 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
                 ? ProbeRateLimiter.DEFAULT_SNAPSHOT_RATE
                 : ProbeRateLimiter.DEFAULT_LOG_RATE);
     sampler = ProbeRateLimiter.createSampler(rate);
-    errorSampler = ProbeRateLimiter.createSampler(1.0); // errors are always sampled at 1/s rate
+    errorSampler = ProbeRateLimiter.createSampler(ProbeRateLimiter.DEFAULT_EVALUATION_ERROR_RATE);
   }
 
   public List<CaptureExpression> getCaptureExpressions() {
@@ -602,12 +620,12 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
       if (isFullSnapshot() && useCoordinatedSampling()) {
         forceCoordinatedEmit();
       }
+    } else if (logStatus.hasConditionErrors()) {
+      // error snapshots carry no captures:
+      // use a dedicated sampler, outside of coordinated and global sampling
+      sampled = errorSampler.sample();
     } else {
-      // if condition has error and no capture Snapshot, the error is reported using errorSampler
-      // at 1/s rate instead of the log template one
-      Sampler localSampler =
-          logStatus.hasConditionErrors && !isFullSnapshot() ? errorSampler : sampler;
-      sampled = trySample(localSampler);
+      sampled = trySample(sampler);
     }
     logStatus.setSampled(sampled);
     if (!sampled) {
@@ -1156,7 +1174,7 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
       TracerAPI tracer = AgentTracer.get();
       AgentSpan span = tracer != null ? tracer.activeSpan() : null;
       if (span != null) {
-        span.getLocalRootSpan().setTag(format("_dd.ld.probe_id.%s", id), budgetLevel.get());
+        span.getLocalRootSpan().setTag(Strings.format("_dd.ld.probe_id.%s", id), budgetLevel.get());
       }
     }
   }
@@ -1181,6 +1199,7 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
         && Objects.equals(template, that.template)
         && Objects.equals(segments, that.segments)
         && Objects.equals(captureSnapshot, that.captureSnapshot)
+        && Objects.equals(captureExpressions, that.captureExpressions)
         && Objects.equals(probeCondition, that.probeCondition)
         && Objects.equals(capture, that.capture)
         && Objects.equals(sampling, that.sampling);
@@ -1200,6 +1219,7 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
             template,
             segments,
             captureSnapshot,
+            captureExpressions,
             probeCondition,
             capture,
             sampling);

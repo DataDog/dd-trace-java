@@ -1,12 +1,14 @@
 package com.datadog.profiling.uploader.util;
 
 import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_HTTP_DISPATCHER;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 import datadog.environment.JavaVirtualMachine;
 import datadog.environment.SystemProperties;
 import datadog.logging.IOLogger;
 import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.util.AgentThreadFactory;
+import datadog.trace.util.Strings;
 import datadog.trace.util.TempLocationManager;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -63,9 +65,16 @@ public class JfrCliHelper {
 
       String[] stdout;
 
-      // Launch `jfr` on temporary file and get stdout
+      // Request and decode UTF-8 to preserve event names and localised counts from the child JVM.
+      // JDK 11/17 need sun.stdout.encoding when inherited _JAVA_OPTIONS overrides file.encoding.
       ProcessBuilder builder =
-          new ProcessBuilder(jfr.toString(), "summary", tmp.toAbsolutePath().toString());
+          new ProcessBuilder(
+              jfr.toString(),
+              "-J-Dfile.encoding=UTF-8",
+              "-J-Dstdout.encoding=UTF-8",
+              "-J-Dsun.stdout.encoding=UTF-8",
+              "summary",
+              tmp.toAbsolutePath().toString());
       builder.redirectInput(ProcessBuilder.Redirect.INHERIT);
       builder.redirectOutput(ProcessBuilder.Redirect.PIPE); // we'll want to read stdout
       builder.redirectError(ProcessBuilder.Redirect.INHERIT);
@@ -74,11 +83,10 @@ public class JfrCliHelper {
 
       try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
         Future<?> asyncRedirect =
-            executorService.submit(
-                () -> {
-                  redirect(process.getInputStream(), out);
-                  return true;
-                });
+            executorService.submit(() -> {
+              redirect(process.getInputStream(), out);
+              return true;
+            });
 
         if (!process.waitFor(30, TimeUnit.SECONDS)) {
           ioLogger.error("Failed to gather information on recording, `jfr` never finished");
@@ -88,7 +96,7 @@ public class JfrCliHelper {
 
         asyncRedirect.get();
 
-        stdout = lineSeparatorRegex.split(out.toString());
+        stdout = lineSeparatorRegex.split(out.toString(UTF_8.name()));
       } finally {
         process.destroy();
       }
@@ -129,13 +137,12 @@ public class JfrCliHelper {
       events.stream()
           .sorted(Comparator.comparing(Event::getSize).reversed())
           .limit(10)
-          .forEach(
-              event -> {
-                ioLogger.error(
-                    String.format(
-                        "Event: %s, size = %d, count = %d",
-                        event.getType(), event.getSize(), event.getCount()));
-              });
+          .forEach(event -> {
+            ioLogger.error(
+                Strings.format(
+                    "Event: %s, size = %d, count = %d",
+                    event.getType(), event.getSize(), event.getCount()));
+          });
     } catch (Exception e) {
       ioLogger.error("Failed to gather information on recording", e);
       return;

@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.r2dbc;
 
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.instrumentation.r2dbc.shaded.proxy.ProxyConnectionFactory;
+import datadog.trace.instrumentation.r2dbc.shaded.proxy.callback.ProxyConfig;
 import datadog.trace.instrumentation.r2dbc.shaded.proxy.core.ConnectionInfo;
 import datadog.trace.instrumentation.r2dbc.shaded.proxy.core.MethodExecutionInfo;
 import datadog.trace.instrumentation.r2dbc.shaded.proxy.listener.ProxyExecutionListener;
@@ -41,10 +42,11 @@ public final class R2dbcTracingSupport {
     ConnectionMetadataListener metadataListener =
         new ConnectionMetadataListener(options, connectionOptionsStore);
 
-    return ProxyConnectionFactory.builder(factory)
-        .listener(queryListener)
-        .listener(metadataListener)
-        .build();
+    ProxyConnectionFactory.Builder builder =
+        ProxyConnectionFactory.builder(factory).listener(queryListener).listener(metadataListener);
+    ProxyConfig config = builder.getProxyConfig();
+    config.setProxyFactoryFactory(new R2dbcProxyFactory(config.getProxyFactory()));
+    return builder.build();
   }
 
   /**

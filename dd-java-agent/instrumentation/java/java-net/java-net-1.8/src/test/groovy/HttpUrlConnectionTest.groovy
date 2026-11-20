@@ -4,6 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
 import datadog.trace.agent.test.base.HttpClientTest
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
+import datadog.trace.agent.test.naming.TestingOtelHttpSemantics
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.httpurlconnection.HttpUrlConnectionDecorator
@@ -379,4 +380,7 @@ abstract class HttpUrlConnectionTest extends HttpClientTest {
 class HttpUrlConnectionV0ForkedTest extends HttpUrlConnectionTest implements TestingGenericHttpNamingConventions.ClientV0 {}
 
 class HttpUrlConnectionV1ForkedTest extends HttpUrlConnectionTest implements TestingGenericHttpNamingConventions.ClientV1 {
+}
+
+class HttpUrlConnectionOtelSemanticsForkedTest extends HttpUrlConnectionTest implements TestingGenericHttpNamingConventions.ClientV0, TestingOtelHttpSemantics {
 }

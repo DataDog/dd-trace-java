@@ -1,12 +1,12 @@
 package datadog.trace.common.writer;
 
+import static datadog.trace.core.CoreSpan.OWN_PROPAGATION_TAGS;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.MetadataConsumer;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
@@ -37,7 +37,6 @@ public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Wr
     return traceCount.get();
   }
 
-  @SuppressFBWarnings("NN_NAKED_NOTIFY")
   @Override
   public void write(List<DDSpan> trace) {
     if (!filter.accept(trace)) {
@@ -46,14 +45,15 @@ public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Wr
     for (DDSpan span : trace) {
       // This is needed to properly do all delayed processing to make this writer even
       // remotely realistic so the test actually test something
-      span.processTagsAndBaggage(metadataConsumer);
+      span.processTagsAndBaggage(metadataConsumer, OWN_PROPAGATION_TAGS);
     }
 
-    add(trace);
     structureWriter.write(trace);
 
-    traceCount.incrementAndGet();
     synchronized (monitor) {
+      // Publish and count together so clear cannot leave a count for a removed trace.
+      add(trace);
+      traceCount.incrementAndGet();
       monitor.notifyAll();
     }
   }
@@ -62,21 +62,22 @@ public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Wr
       throws InterruptedException {
     final long deadline = System.nanoTime() + unit.toNanos(timeout);
 
-    while (true) {
-      if (predicate.getAsBoolean()) {
-        return true;
-      }
+    synchronized (monitor) {
+      while (true) {
+        if (predicate.getAsBoolean()) {
+          return true;
+        }
 
-      long now = System.nanoTime();
-      long remaining = deadline - now;
-      if (remaining <= 0) {
-        break;
-      }
+        long now = System.nanoTime();
+        long remaining = deadline - now;
+        if (remaining <= 0) {
+          break;
+        }
 
-      long millis = NANOSECONDS.toMillis(remaining);
-      long nanos = remaining - MILLISECONDS.toNanos(millis);
+        long millis = NANOSECONDS.toMillis(remaining);
+        long nanos = remaining - MILLISECONDS.toNanos(millis);
 
-      synchronized (monitor) {
+        // Check and wait under the same monitor so publication cannot lose its notification.
         monitor.wait(millis, (int) nanos);
       }
     }
@@ -157,9 +158,10 @@ public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Wr
 
   @Override
   public void clear() {
-    super.clear();
-
-    traceCount.set(0);
+    synchronized (monitor) {
+      super.clear();
+      traceCount.set(0);
+    }
   }
 
   @Override

@@ -17,6 +17,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.SpanLink;
 import datadog.trace.util.AgentThreadFactory;
+import datadog.trace.util.Strings;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -33,6 +34,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
@@ -101,6 +103,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   private final SparkConf sparkConf;
   private final String sparkVersion;
   private final String appId;
+  private final String serializer;
 
   private final AgentTracer.TracerAPI tracer;
 
@@ -157,6 +160,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     this.sparkConf = sparkConf;
     this.appId = appId;
     this.sparkVersion = sparkVersion;
+    serializer = sparkConf.get("spark.serializer", "org.apache.spark.serializer.JavaSerializer");
 
     isRunningOnDatabricks = sparkConf.contains("spark.databricks.sparkContextId");
     databricksClusterName = sparkConf.get("spark.databricks.clusterUsageTags.clusterName", null);
@@ -523,7 +527,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
         buildSparkSpan("spark.job", jobStart.properties())
             .withStartTimestamp(jobStart.time() * 1000)
             .withTag("job_id", jobStart.jobId())
-            .withTag("stage_count", getStageCount(jobStart));
+            .withTag("stage_count", getStageCount(jobStart))
+            .withTag("config.spark_serializer", serializer);
 
     String batchKey = getStreamingBatchKey(jobStart.properties());
     Long sqlExecutionId = getSqlExecutionId(jobStart.properties());
@@ -590,7 +595,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       jobSpan.setTag(DDTags.ERROR_TYPE, "Spark Job Failed");
 
       // Only propagate the error to the application if it is not a cancellation
-      if (errorMessage != null && !errorMessage.toLowerCase().contains("cancelled")) {
+      if (errorMessage != null && !errorMessage.toLowerCase(Locale.ROOT).contains("cancelled")) {
         lastJobFailed = true;
         lastJobFailedMessage = errorMessage;
         lastJobFailedStackTrace = errorStackTrace;
@@ -650,6 +655,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
                 "parent_stage_ids", Arrays.toString(getStageParentIds(stageSubmitted.stageInfo())))
             .withTag("task_count", stageSubmitted.stageInfo().numTasks())
             .withTag("attempt_id", stageAttemptId)
+            .withTag("config.spark_serializer", serializer)
             .withTag(DDTags.RESOURCE_NAME, stageSubmitted.stageInfo().name())
             .start();
 
@@ -822,7 +828,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
         ExceptionFailure exceptionFailure = (ExceptionFailure) reason;
 
         taskSpan.setErrorMessage(
-            String.format("%s: %s", exceptionFailure.className(), exceptionFailure.description()));
+            Strings.format("%s: %s", exceptionFailure.className(), exceptionFailure.description()));
         taskSpan.setTag(DDTags.ERROR_STACK, exceptionFailure.fullStackTrace());
       } else {
         taskSpan.setErrorMessage(reason.toErrorString());
@@ -946,7 +952,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   private synchronized void onSQLExecutionEnd(SparkListenerSQLExecutionEnd sqlEnd) {
     AgentSpan span = sqlSpans.remove(sqlEnd.executionId());
     SparkAggregatedTaskMetrics metrics = sqlMetrics.remove(sqlEnd.executionId());
-    SparkListenerSQLExecutionStart queryStart = sqlQueries.remove(sqlEnd.executionId());
+    sqlQueries.remove(sqlEnd.executionId());
     sqlPlans.remove(sqlEnd.executionId());
 
     if (span != null) {
@@ -954,10 +960,6 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
         metrics.setSpanMetrics(span);
       }
       notifyOl(x -> openLineageSparkListener.onOtherEvent(x), sqlEnd);
-
-      // Set right before finish so long-running heartbeats of the running span don't carry the
-      // plan
-      span.setTag("_dd.spark.physical_plan", queryStart.physicalPlanDescription());
       span.finish(sqlEnd.time() * 1000);
     }
   }
@@ -1340,6 +1342,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       builder.withTag("config." + entry.getKey().replace(".", "_"), entry.getValue());
     }
     builder.withTag("config.spark_version", sparkVersion);
+    builder.withTag("config.spark_serializer", serializer);
   }
 
   private static void captureEmrStepId(AgentTracer.SpanBuilder builder) {
@@ -1519,7 +1522,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     }
 
     // check if this is a kafka source
-    if (progress.description().toLowerCase().startsWith("kafka")) {
+    if (progress.description().toLowerCase(Locale.ROOT).startsWith("kafka")) {
       try {
         // parse offsets from endOffsets json, reported in a format:
         // "topic" -> ["partition":value]

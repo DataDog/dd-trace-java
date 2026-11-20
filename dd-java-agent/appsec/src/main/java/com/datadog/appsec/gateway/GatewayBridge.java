@@ -8,6 +8,7 @@ import static com.datadog.appsec.gateway.AppSecRequestContext.DEFAULT_REQUEST_HE
 import static com.datadog.appsec.gateway.AppSecRequestContext.REQUEST_HEADERS_ALLOW_LIST;
 import static com.datadog.appsec.gateway.AppSecRequestContext.RESPONSE_HEADERS_ALLOW_LIST;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
+import static datadog.trace.bootstrap.instrumentation.api.OtelHttpSemantics.urlOrPath;
 
 import com.datadog.appsec.AppSecSystem;
 import com.datadog.appsec.api.security.ApiSecurityDownstreamSampler;
@@ -1114,13 +1115,12 @@ public class GatewayBridge {
   private boolean maybeSampleForApiSecurity(
       AppSecRequestContext ctx, IGSpanInfo spanInfo, Map<String, Object> tags) {
     log.debug("Checking API Security for end of request handler on span: {}", spanInfo.getSpanId());
-    // API Security sampling requires http.route tag or http.url for endpoint inference.
+    // API Security sampling requires a route or a URL path for endpoint inference.
     final Object route = tags.get(Tags.HTTP_ROUTE);
     if (route != null) {
       ctx.setRoute(route.toString());
     }
-    // Pass http.url to enable endpoint inference when route is absent
-    final Object url = tags.get(Tags.HTTP_URL);
+    Object url = urlOrPath(tags);
     if (url != null) {
       ctx.setHttpUrl(url.toString());
     }

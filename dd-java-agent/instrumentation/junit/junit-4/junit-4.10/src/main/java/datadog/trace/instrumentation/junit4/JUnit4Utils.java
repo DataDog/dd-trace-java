@@ -168,6 +168,7 @@ public abstract class JUnit4Utils {
     boolean isJunitParamsTestCase =
         runWith != null && "junitparams.JUnitParamsRunner".equals(runWith.value().getName());
     int junitParamsStartIdx;
+    int parameterizedStartIdx;
     if (isJunitParamsTestCase && (junitParamsStartIdx = methodName.indexOf('(')) >= 0) {
       // assuming this is a parameterized test case that uses use pl.pragmatists.JUnitParams
       // in that case method name will have the following structure:
@@ -195,8 +196,10 @@ public abstract class JUnit4Utils {
           }
         }
       }
-    } else if (methodName.contains("[")) {
-      methodName = testNameNormalizerRegex.matcher(methodName).replaceAll("");
+    } else if ((parameterizedStartIdx = methodName.indexOf('[')) >= 0) {
+      // Java method names cannot contain '[', but parameter labels can contain brackets or
+      // newlines.
+      methodName = methodName.substring(0, parameterizedStartIdx);
     }
 
     try {

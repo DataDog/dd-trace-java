@@ -16,9 +16,11 @@ import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Scanner;
 import java.util.SortedSet;
@@ -92,28 +94,33 @@ public class JMXFetch {
           statsDConnectionString);
     }
 
-    final StatsDClient statsd = statsDClientManager.statsDClient(host, port, namedPipe, null, null);
-    final AgentStatsdReporter reporter = new AgentStatsdReporter(statsd);
-
     final boolean otlpRuntimeMetricsEnabled =
         InstrumenterConfig.get().isMetricsOtelEnabled() && config.isMetricsOtlpExporterEnabled();
+    final boolean websphereEnabled =
+        config.isJmxFetchIntegrationEnabled(Collections.singletonList("websphere"), false);
 
-    TracerFlare.addReporter(reporter);
-    final List<String> defaultConfigs = new ArrayList<>();
     if (otlpRuntimeMetricsEnabled) {
       // Register JVM runtime metric callbacks against the OtelMeterProvider so the OTLP
       // exporter started by CoreTracer collects them. Started here so it rides the same
       // delayed-start path as JMXFetch itself.
       JvmOtlpRuntimeMetrics.start(config.isMetricsOtelExperimentalEnabled());
-      // When the OTLP exporter is collecting JVM runtime metrics, skip the default JMXFetch
-      // JVM config to avoid double-reporting.
-      defaultConfigs.add(OTLP_JMX_CONFIG);
-    } else {
-      defaultConfigs.add(DEFAULT_CONFIG);
     }
-    if (config.isJmxFetchIntegrationEnabled(Collections.singletonList("websphere"), false)) {
-      defaultConfigs.add(WEBSPHERE_CONFIG);
+
+    final List<String> defaultConfigs =
+        defaultInstanceConfigs(
+            otlpRuntimeMetricsEnabled, internalMetricsConfigs, metricsConfigs, websphereEnabled);
+    log.debug("JMXFetch default instance configs: {}", defaultConfigs);
+    if (!hasJmxFetchWork(defaultConfigs, jmxFetchConfigs)) {
+      log.debug(
+          "JMXFetch collector not started: JVM runtime metrics are collected over OTLP and no"
+              + " JMXFetch integration or configuration is enabled");
+      return;
     }
+
+    final StatsDClient statsd = statsDClientManager.statsDClient(host, port, namedPipe, null, null);
+    final AgentStatsdReporter reporter = new AgentStatsdReporter(statsd);
+
+    TracerFlare.addReporter(reporter);
 
     final AppConfig.AppConfigBuilder configBuilder =
         AppConfig.builder()
@@ -185,6 +192,38 @@ public class JMXFetch {
     thread.start();
   }
 
+  /**
+   * Returns the bundled instance configs to load.
+   *
+   * <p>When OTLP reports JVM runtime metrics, the default instance no longer collects them. It then
+   * only carries the integration and user metric configs, which JMXFetch appends to every instance.
+   * Without any, the default instance matches no MBean and logs "didn't return any metrics" on
+   * every check, so it is left out.
+   */
+  static List<String> defaultInstanceConfigs(
+      final boolean otlpRuntimeMetricsEnabled,
+      final List<String> internalMetricsConfigs,
+      final List<String> metricsConfigs,
+      final boolean websphereEnabled) {
+    final List<String> defaultConfigs = new ArrayList<>();
+    if (!otlpRuntimeMetricsEnabled) {
+      defaultConfigs.add(DEFAULT_CONFIG);
+    } else if (!internalMetricsConfigs.isEmpty() || !metricsConfigs.isEmpty()) {
+      // This config turns off JMXFetch's JVM metrics, which OTLP already reports.
+      defaultConfigs.add(OTLP_JMX_CONFIG);
+    }
+    if (websphereEnabled) {
+      defaultConfigs.add(WEBSPHERE_CONFIG);
+    }
+    return defaultConfigs;
+  }
+
+  /** Returns whether the JMXFetch collector has at least one bundled or user instance to run. */
+  static boolean hasJmxFetchWork(
+      final List<String> defaultConfigs, final List<String> jmxFetchConfigs) {
+    return !defaultConfigs.isEmpty() || !jmxFetchConfigs.isEmpty();
+  }
+
   @SuppressForbidden
   private static List<String> getInternalMetricFiles() {
     try (final InputStream metricConfigsStream =
@@ -194,7 +233,8 @@ public class JMXFetch {
         return Collections.emptyList();
       }
       log.debug("reading found metricconfigs");
-      Scanner scanner = new Scanner(metricConfigsStream);
+      // copyMetricConfigs writes this packaged resource list with Files.write's UTF-8 overload.
+      Scanner scanner = new Scanner(metricConfigsStream, StandardCharsets.UTF_8.name());
       scanner.useDelimiter("\n");
       final List<String> result = new ArrayList<>();
       final SortedSet<String> integrationName = new TreeSet<>();
@@ -240,6 +280,6 @@ public class JMXFetch {
 
   private static String getLogLevel() {
     return SystemProperties.getOrDefault("org.slf4j.simpleLogger.defaultLogLevel", "info")
-        .toUpperCase();
+        .toUpperCase(Locale.ROOT);
   }
 }

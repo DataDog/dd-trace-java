@@ -3,10 +3,14 @@ package datadog.trace.core.tagprocessor;
 import com.google.re2j.Matcher;
 import com.google.re2j.Pattern;
 import com.google.re2j.PatternSyntaxException;
+import datadog.trace.api.Config;
+import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.KnownTags;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.instrumentation.api.AppendableSpanLinks;
+import datadog.trace.bootstrap.instrumentation.api.OtelHttpSemantics;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.DDSpanContext;
 import org.slf4j.Logger;
@@ -20,17 +24,56 @@ public final class QueryObfuscator extends TagsPostProcessor {
 
   @VisibleForTesting
   static final String DEFAULT_OBFUSCATION_PATTERN =
-      "(?i)(?:(?:\"|%22)?)(?:(?:old[-_]?|new[-_]?)?p(?:ass)?w(?:or)?d(?:1|2)?|pass(?:[-_]?phrase)?|secret|(?:api[-_]?|private[-_]?|public[-_]?|access[-_]?|secret[-_]?|app(?:lication)?[-_]?)key(?:[-_]?id)?|token|consumer[-_]?(?:id|key|secret)|sign(?:ed|ature)?|auth(?:entication|orization)?)(?:(?:\\s|%20)*(?:=|%3D)[^&]+|(?:\"|%22)(?:\\s|%20)*(?::|%3A)(?:\\s|%20)*(?:\"|%22)(?:%2[^2]|%[^2]|[^\"%])+(?:\"|%22))|(?:bearer(?:\\s|%20)+[a-z0-9._\\-]+|token(?::|%3A)[a-z0-9]{13}|gh[opsu]_[0-9a-zA-Z]{36}|(^|[^\\w%-]|%[0-9a-f]{2})ey[I-L][\\w-]+(?:=|%3D)*\\.ey[I-L][\\w-]+(?:=|%3D)*(?:\\.(?:[\\w.+/=-]|%3D|%2F|%2B)+)?|-{5}BEGIN(?:[a-z\\s]|%20)+PRIVATE(?:\\s|%20)KEY-{5}[^\\-]+-{5}END(?:[a-z\\s]|%20)+PRIVATE(?:\\s|%20)KEY(?:-{5})?(?:\\n|%0A)?|(?:ssh-(?:rsa|dss)|ecdsa-[a-z0-9]+-[a-z0-9]+)(?:\\s|%20|%09)+(?:[a-z0-9/.+]|%2F|%5C|%2B){100,}(?:=|%3D)*(?:(?:\\s|%20|%09)+[a-z0-9._-]+)?)";
+      "(?i)"
+          // Sensitive parameter names.
+          + "(?:(?:\"|%22)?)"
+          + "(?:"
+          + "(?:old[-_]?|new[-_]?)?p(?:ass)?w(?:or)?d(?:1|2)?"
+          + "|pass(?:[-_]?phrase)?|secret"
+          + "|(?:api[-_]?|private[-_]?|public[-_]?|access[-_]?|secret[-_]?|app(?:lication)?[-_]?)"
+          + "key(?:[-_]?id)?"
+          + "|token|consumer[-_]?(?:id|key|secret)"
+          + "|sign(?:ed|ature)?|auth(?:entication|orization)?"
+          + ")"
+          // Query parameter or quoted JSON value.
+          + "(?:"
+          + "(?:\\s|%20)*(?:=|%3D)[^&]+"
+          + "|(?:\"|%22)(?:\\s|%20)*(?::|%3A)(?:\\s|%20)*(?:\"|%22)"
+          + "(?:%2[^2]|%[^2]|[^\"%])+(?:\"|%22)"
+          + ")"
+          // Tokens and key material, matched independently of parameter names.
+          + "|(?:"
+          + "bearer(?:\\s|%20)+[a-z0-9._\\-]+"
+          + "|token(?::|%3A)[a-z0-9]{13}"
+          + "|gh[opsu]_[0-9a-zA-Z]{36}"
+          // JWT: capture the preceding delimiter in group 1 for the replacement.
+          + "|(^|[^\\w%-]|%[0-9a-f]{2})"
+          + "ey[I-L][\\w-]+(?:=|%3D)*\\.ey[I-L][\\w-]+(?:=|%3D)*"
+          + "(?:\\.(?:[\\w.+/=-]|%3D|%2F|%2B)+)?"
+          // PEM private key.
+          + "|-{5}BEGIN(?:[a-z\\s]|%20)+PRIVATE(?:\\s|%20)KEY-{5}[^\\-]+"
+          + "-{5}END(?:[a-z\\s]|%20)+PRIVATE(?:\\s|%20)KEY(?:-{5})?(?:\\n|%0A)?"
+          // SSH public key.
+          + "|(?:ssh-(?:rsa|dss)|ecdsa-[a-z0-9]+-[a-z0-9]+)"
+          + "(?:\\s|%20|%09)+(?:[a-z0-9/.+]|%2F|%5C|%2B){100,}(?:=|%3D)*"
+          + "(?:(?:\\s|%20|%09)+[a-z0-9._-]+)?"
+          + ")";
 
   private final Pattern pattern;
   private final String replacement;
   private final boolean failClosed;
+  private final boolean otelSemanticsEnabled;
 
   /**
    * If regex is null - then used default regex pattern If regex is empty string - then disable
    * regex. If the regex does not compile, the query string is not reported.
    */
   public QueryObfuscator(String regex) {
+    this(regex, Config.get().isTraceOtelSemanticsEnabled());
+  }
+
+  QueryObfuscator(String regex, boolean otelSemanticsEnabled) {
+    this.otelSemanticsEnabled = otelSemanticsEnabled;
     // empty string -> disabled query obfuscation
     if ("".equals(regex)) {
       this.pattern = null;
@@ -83,27 +126,57 @@ public final class QueryObfuscator extends TagsPostProcessor {
   @Override
   public void processTags(
       TagMap unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
-    Object query = unsafeTags.getObject(DDTags.HTTP_QUERY);
+    processQuery(unsafeTags, spanContext, DDTags.HTTP_QUERY);
+    if (otelSemanticsEnabled) {
+      processQuery(unsafeTags, spanContext, KnownTags.URL_QUERY_NAME);
+    }
+  }
+
+  private void processQuery(TagMap unsafeTags, DDSpanContext spanContext, String queryTag) {
+    Object query = unsafeTags.getObject(queryTag);
     if (query instanceof CharSequence) {
       if (failClosed) {
-        unsafeTags.remove(DDTags.HTTP_QUERY);
+        unsafeTags.remove(queryTag);
         return;
       }
+      final String obfuscatedQuery;
       try {
-        query = obfuscate(query.toString());
+        obfuscatedQuery = obfuscate(query.toString());
       } catch (Exception e) {
         // never report a query that could not be obfuscated, and never log it
         log.debug("Could not obfuscate query string, dropping it", e);
-        unsafeTags.remove(DDTags.HTTP_QUERY);
+        unsafeTags.remove(queryTag);
         return;
       }
 
-      unsafeTags.put(DDTags.HTTP_QUERY, query);
+      unsafeTags.put(queryTag, obfuscatedQuery);
 
       Object url = unsafeTags.getObject(Tags.HTTP_URL);
       if (url instanceof CharSequence) {
-        unsafeTags.put(Tags.HTTP_URL, url + "?" + query);
+        if (otelSemanticsEnabled) {
+          unsafeTags.put(Tags.HTTP_URL, rebuildOtelUrl(url.toString(), obfuscatedQuery));
+        } else {
+          unsafeTags.put(Tags.HTTP_URL, url + "?" + obfuscatedQuery);
+        }
+      }
+
+      // HTTP clients carry the query separately only so this processor can scrub it before
+      // rebuilding url.full. url.query is a server attribute in the OTel HTTP conventions.
+      if (otelSemanticsEnabled
+          && spanContext != null
+          && spanContext.getSpanType() != null
+          && DDSpanTypes.HTTP_CLIENT.contentEquals(spanContext.getSpanType())) {
+        unsafeTags.remove(queryTag);
       }
     }
+  }
+
+  private String rebuildOtelUrl(final String url, final String query) {
+    final String withoutQuery = OtelHttpSemantics.withoutQuery(url);
+    final int fragment = withoutQuery.indexOf('#');
+    if (fragment < 0) {
+      return withoutQuery + "?" + query;
+    }
+    return withoutQuery.substring(0, fragment) + "?" + query + withoutQuery.substring(fragment);
   }
 }

@@ -30,31 +30,31 @@ import org.openjdk.jmh.infra.Blackhole;
  * CAS on Java 15+ (biased locking disabled by default, JEP 374). The unsynchronized {@code hashSet}
  * {@code contains}/{@code iterate} methods are the in-harness baseline; the tax is the delta.
  *
- * <p>Java 17 results (Apple M1, {@code @Fork(2)}, {@code @Threads(8)}; M ops/s = millions):
+ * <p>Java 17 results (Apple M1, {@code @Fork(2)}, {@code @Threads(8)}) with the front-loaded {@link
+ * BenchmarkUtils#warmUpHashDispatch} pollution design (M ops/s = millions):
  *
  * <pre>{@code
- * contains_hashSet            1291
- * contains_synchronizedSet     808    (~37% slower — the uncontended sync tax)
- * iterate_hashSet              91
- * iterate_synchronizedSet      90    (one monitor acquire amortized over the walk)
+ * contains_hashSet            1376.4
+ * contains_synchronizedSet     814.5    (~41% slower — the uncontended sync tax)
+ * iterate_hashSet               94.6
+ * iterate_synchronizedSet       91.3    (one monitor acquire amortized over the walk)
  *
- * create_hashSet         81    clone_hashSet          48
- * create_hashSet_sized   78    clone_synchronizedSet  47
- * create_linkedHashSet   61    clone_linkedHashSet    59
- * create_synchronizedSet 41    clone_treeSet          83
- * create_treeSet         36
+ * create_hashSet          94.4   clone_hashSet          48.4
+ * create_hashSet_sized    95.9   clone_synchronizedSet  44.0
+ * create_linkedHashSet    41.3   clone_linkedHashSet    42.7
+ * create_synchronizedSet  41.7   clone_treeSet          86.1
+ * create_treeSet          32.7
  * }</pre>
  *
  * <p>Key findings:
  *
  * <ul>
- *   <li><b>Uncontended synchronization tax</b> on {@code contains} is ~37% (1291 → 808M ops/s) even
- *       with no contention and biased locking disabled (Java 17, JEP 374) — the full per-lock CAS
- *       cost. On {@code iterate} it nearly vanishes: a single monitor acquire amortized over the
- *       traversal.
- *   <li>Construction: {@code TreeSet} is the slowest to build (~36M); the {@code synchronizedSet}
- *       wrapper adds a modest cost over plain {@code HashSet}. (Allocation-path numbers carry more
- *       run-to-run variance than the read paths.)
+ *   <li><b>Uncontended synchronization tax</b> holds up under pollution: {@code contains} is ~41%
+ *       slower synchronized (1376.4 → 814.5M ops/s), consistent with Java 15+'s biased locking
+ *       being disabled by default (JEP 374). {@code iterate}'s tax stays small (~3.5%): one monitor
+ *       acquire amortized over the walk.
+ *   <li>{@code TreeSet} stays the slowest structure to build but is, notably, the fastest to clone
+ *       (86.1M) — worth a closer look if that gap turns out to matter elsewhere.
  * </ul>
  */
 @Fork(2)
@@ -92,8 +92,13 @@ public class SingleThreadedSetBenchmark {
   LinkedHashSet<String> linkedHashSet;
   int index = 0;
 
+  // Front-load pollution once per trial, entirely before JMH's warmup starts: JMH
+  // injects the Blackhole straight into this setup method, so no per-benchmark
+  // scratch state is needed.
   @Setup(Level.Trial)
-  public void setUp() {
+  public void setUp(Blackhole bh) {
+    BenchmarkUtils.warmUpHashDispatch(bh);
+
     hashSet = new HashSet<>(Arrays.asList(ELEMENTS));
     synchronizedSet = Collections.synchronizedSet(new HashSet<>(hashSet));
     treeSet = new TreeSet<>(Arrays.asList(ELEMENTS));

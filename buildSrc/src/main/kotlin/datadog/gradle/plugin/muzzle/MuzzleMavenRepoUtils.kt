@@ -41,8 +41,8 @@ internal object MuzzleMavenRepoUtils {
       listOf(central)
     } else {
       val proxy = RemoteRepository.Builder("central-proxy", "default", mavenProxyUrl).build()
-      // TODO: temporary hack for Maven Central rate limiting
-      listOf(proxy /*, central*/)
+      // TODO: temporary hack for Maven Central rate limiting, restore listOf(proxy, central)
+      listOf(proxy)
     }
   }
 
@@ -273,8 +273,7 @@ internal object MuzzleMavenRepoUtils {
    */
   fun lowest(a: Version, b: Version): Version = if (a < b) a else b
 
-  private fun VersionRangeResult.hasBounds(): Boolean =
-    lowestVersion != null && highestVersion != null
+  private fun VersionRangeResult.hasBounds(): Boolean = lowestVersion != null && highestVersion != null
 
   private fun sleepBeforeBackoffRetry(delaySeconds: Long, artifact: Artifact) {
     try {

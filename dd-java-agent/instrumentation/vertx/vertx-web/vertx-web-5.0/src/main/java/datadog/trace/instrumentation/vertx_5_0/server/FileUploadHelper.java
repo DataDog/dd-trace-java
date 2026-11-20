@@ -22,8 +22,9 @@ public class FileUploadHelper {
     if (action instanceof Flow.Action.RequestBlockingAction) {
       BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
       if (brf != null) {
-        brf.tryCommitBlockingResponse(
-            reqCtx.getTraceSegment(), (Flow.Action.RequestBlockingAction) action);
+        // effectivelyBlocked() is intentionally absent: vertx-web shares Netty's block response
+        // function, which finishes the span synchronously when the blocking response is committed.
+        brf.tryCommitBlockingResponse(reqCtx, (Flow.Action.RequestBlockingAction) action);
         return new BlockingException(reason);
       }
     }

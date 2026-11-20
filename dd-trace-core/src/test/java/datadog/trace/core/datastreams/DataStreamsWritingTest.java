@@ -61,16 +61,14 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
     defaultBucketDurationNanos = Config.get().getDataStreamsBucketDurationNanoseconds();
     requestBodies = new CopyOnWriteArrayList<>();
     server =
-        JavaTestHttpServer.httpServer(
-            s ->
-                s.handlers(
-                    h ->
-                        h.post(
-                            DDAgentFeaturesDiscovery.V01_DATASTREAMS_ENDPOINT,
-                            api -> {
-                              requestBodies.add(api.getRequest().getBody());
-                              api.getResponse().status(200).send();
-                            })));
+        JavaTestHttpServer.httpServer(s ->
+            s.handlers(h ->
+                h.post(
+                    DDAgentFeaturesDiscovery.V01_DATASTREAMS_ENDPOINT,
+                    api -> {
+                      requestBodies.add(api.getRequest().getBody());
+                      api.getResponse().status(200).send();
+                    })));
     serverAddress = HttpUrl.get(server.getAddress());
   }
 

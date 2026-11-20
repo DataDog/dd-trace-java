@@ -22,6 +22,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import org.gradle.internal.impldep.org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestInstance;
@@ -51,6 +52,11 @@ public abstract class AbstractGradleTest extends CiVisibilitySmokeTest {
   @BeforeEach
   void resetMockBackend() {
     mockBackend.reset();
+  }
+
+  @AfterEach
+  void reportForkedJvmCrashes() {
+    reportJvmCrashLogs(projectFolder);
   }
 
   @AfterAll
@@ -101,30 +107,28 @@ public abstract class AbstractGradleTest extends CiVisibilitySmokeTest {
     try (Stream<Path> files = Files.walk(testKitDir)) {
       files
           .filter(Files::isRegularFile)
-          .forEach(
-              file -> {
-                String name = file.getFileName().toString();
-                if (!name.startsWith("daemon-") || !name.endsWith(".out.log")) {
-                  return;
-                }
-                String pid =
-                    name.substring("daemon-".length(), name.length() - ".out.log".length());
-                if (!pid.matches("\\d+")) {
-                  // skip the UUID fallback Gradle uses when the PID is unavailable
-                  return;
-                }
-                ProcessBuilder kill =
-                    windows
-                        ? new ProcessBuilder("taskkill", "/F", "/PID", pid)
-                        : new ProcessBuilder("kill", pid);
-                try {
-                  kill.redirectErrorStream(true).start().waitFor(5, TimeUnit.SECONDS);
-                } catch (InterruptedException e) {
-                  Thread.currentThread().interrupt();
-                } catch (Exception e) {
-                  // best effort — the daemon may already be stopped
-                }
-              });
+          .forEach(file -> {
+            String name = file.getFileName().toString();
+            if (!name.startsWith("daemon-") || !name.endsWith(".out.log")) {
+              return;
+            }
+            String pid = name.substring("daemon-".length(), name.length() - ".out.log".length());
+            if (!pid.matches("\\d+")) {
+              // skip the UUID fallback Gradle uses when the PID is unavailable
+              return;
+            }
+            ProcessBuilder kill =
+                windows
+                    ? new ProcessBuilder("taskkill", "/F", "/PID", pid)
+                    : new ProcessBuilder("kill", pid);
+            try {
+              kill.redirectErrorStream(true).start().waitFor(5, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
+            } catch (Exception e) {
+              // best effort — the daemon may already be stopped
+            }
+          });
     } catch (Exception e) {
       // best effort — failing to enumerate daemon logs must not fail the test run
     }

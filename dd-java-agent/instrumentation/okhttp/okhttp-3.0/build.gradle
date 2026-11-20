@@ -29,7 +29,8 @@ muzzle {
   }
 }
 
-addTestSuiteForDir('latestDepTest', 'test')
+// TODO APMLP-2194: no latestDepForkedTest until AppSec redirect analysis tests pass with the latest OkHttp 3
+addTestSuiteForDir('latestDepTest', 'test', false)
 
 // Separate suite for tests that need the JDK 21+ virtual-thread API. Kept apart from the
 // default test suite so that the existing OkHttp 3.0 tests keep their Java 1.8 baseline.

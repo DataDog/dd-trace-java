@@ -12,11 +12,6 @@ muzzle {
 }
 
 addTestSuiteForDir('latestDepTest', 'test')
-addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
-
-tasks.named("latestDepTest", Test) {
-  finalizedBy 'latestDepForkedTest'
-}
 
 dependencies {
   compileOnly group: 'io.vertx', name: 'vertx-mysql-client', version: '4.4.2'

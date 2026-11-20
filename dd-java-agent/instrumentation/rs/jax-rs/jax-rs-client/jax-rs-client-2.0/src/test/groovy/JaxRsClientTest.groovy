@@ -1,6 +1,7 @@
 import datadog.environment.JavaVirtualMachine
 import datadog.trace.agent.test.base.HttpClientTest
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
+import datadog.trace.agent.test.naming.TestingOtelHttpSemantics
 import datadog.trace.instrumentation.jaxrs.JaxRsClientDecorator
 import datadog.trace.test.util.Flaky
 import org.apache.cxf.jaxrs.client.spec.ClientBuilderImpl
@@ -99,6 +100,10 @@ class ResteasyClientV0ForkedTest extends ResteasyClientTest {
 
 @Timeout(5)
 class ResteasyClientV1ForkedTest extends ResteasyClientTest implements TestingGenericHttpNamingConventions.ClientV1 {
+}
+
+@Timeout(5)
+class JaxRsClientOtelSemanticsForkedTest extends ResteasyClientTest implements TestingOtelHttpSemantics {
 }
 
 @Timeout(5)

@@ -8,10 +8,9 @@ import datadog.trace.api.DDTags;
 import datadog.trace.test.agent.decoder.DecodedSpan;
 import datadog.trace.test.agent.decoder.DecodedTrace;
 import datadog.trace.test.util.NonRetryable;
-import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Collections;
-import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledIf;
@@ -21,14 +20,11 @@ public class SpringCodeOriginIntegrationTest extends SpringBasedIntegrationTest 
 
   private boolean traceReceived;
 
-  @Override
-  protected ProcessBuilder createProcessBuilder(Path logFilePath, String... params) {
-    List<String> commandParams = getDebuggerCommandParams();
-    commandParams.add("-Ddd.trace.enabled=true"); // explicitly enable tracer
-    commandParams.add("-Ddd.code.origin.for.spans.enabled=true");
-    commandParams.add("-Ddd.code.origin.for.spans.interface.support=true");
-    return ProcessBuilderHelper.createProcessBuilder(
-        commandParams, logFilePath, getAppClass(), params);
+  @BeforeEach
+  public void beforeEach() {
+    additionalJvmArgs.add("-Ddd.trace.enabled=true"); // explicitly enable tracer
+    additionalJvmArgs.add("-Ddd.code.origin.for.spans.enabled=true");
+    additionalJvmArgs.add("-Ddd.code.origin.for.spans.interface.support=true");
   }
 
   @Test

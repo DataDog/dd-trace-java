@@ -12,7 +12,8 @@ muzzle {
   }
 }
 
-addTestSuiteForDir('latestDepTest', 'test')
+// TODO APMLP-2192: no latestDepForkedTest until the forked tests set the credentials the latest OpenAI SDK requires
+addTestSuiteForDir('latestDepTest', 'test', false)
 
 dependencies {
   compileOnly group: 'com.openai', name: 'openai-java', version: minVer

@@ -5,7 +5,6 @@ import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestDescriptor;
-import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
 import datadog.trace.api.civisibility.execution.TestExecutionTracker;
 import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
@@ -37,9 +36,13 @@ public class KarateTracingListener implements RunListener {
   public static final String KARATE_STEP_SPAN_NAME = "karate.step";
 
   private final ContextStore<Scenario, ExecutionContext> scenarioContext;
+  private final ContextStore<FeatureRuntime, FeatureSuite> featureSuites;
 
-  public KarateTracingListener(ContextStore<Scenario, ExecutionContext> scenarioContext) {
+  public KarateTracingListener(
+      ContextStore<Scenario, ExecutionContext> scenarioContext,
+      ContextStore<FeatureRuntime, FeatureSuite> featureSuites) {
     this.scenarioContext = scenarioContext;
+    this.featureSuites = featureSuites;
   }
 
   @Override
@@ -66,7 +69,7 @@ public class KarateTracingListener implements RunListener {
     Scenario scenario = sr.getScenario();
     // A context means call advice will finish the test after scenario post-processing.
     if (scenarioContext.get(scenario) == null) {
-      afterScenario(sr, event.result(), null);
+      afterScenario(sr, event.result(), null, featureSuites);
     }
   }
 
@@ -75,18 +78,11 @@ public class KarateTracingListener implements RunListener {
     if (skipTracking(fr)) {
       return true;
     }
-    TestSuiteDescriptor suiteDescriptor = KarateUtils.toSuiteDescriptor(fr);
-    Feature feature = fr.getFeature();
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteStart(
-        suiteDescriptor,
-        KarateUtils.getFeatureNameForReport(feature),
-        FRAMEWORK_NAME,
-        FRAMEWORK_VERSION,
-        null,
-        KarateUtils.getCategories(feature.getTags()),
-        isParallel(fr),
-        TestFrameworkInstrumentation.KARATE,
-        null);
+    FeatureSuite featureSuite =
+        featureSuites.getOrCompute(fr, KarateTracingListener::newFeatureSuite);
+    synchronized (featureSuite) {
+      startSuite(fr, featureSuite, false);
+    }
     return true;
   }
 
@@ -95,15 +91,89 @@ public class KarateTracingListener implements RunListener {
     if (skipTracking(fr)) {
       return;
     }
-    TestSuiteDescriptor suiteDescriptor = KarateUtils.toSuiteDescriptor(fr);
-    FeatureResult result = event.result();
-    if (result != null && result.isFailed()) {
-      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFailure(
-          suiteDescriptor, suiteThrowable(result));
-    } else if (result != null && result.isEmpty()) {
-      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteSkip(suiteDescriptor, null);
+    FeatureSuite featureSuite = featureSuites.get(fr);
+    if (featureSuite == null) {
+      return;
     }
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(suiteDescriptor, null);
+    synchronized (featureSuite) {
+      featureSuite.featureFinished = true;
+      if (featureSuite.runningScenarios.isEmpty()) {
+        finishSuite(fr, featureSuite);
+      }
+    }
+  }
+
+  private static FeatureSuite newFeatureSuite(FeatureRuntime fr) {
+    return new FeatureSuite();
+  }
+
+  private static void startSuite(FeatureRuntime fr, FeatureSuite featureSuite, boolean detached) {
+    if (featureSuite.started) {
+      return;
+    }
+    featureSuite.started = true;
+    featureSuite.detached = detached;
+    Feature feature = fr.getFeature();
+    // Karate can start and finish a feature's suite on different threads
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteStart(
+        fr,
+        KarateUtils.getFeatureNameForReport(feature),
+        FRAMEWORK_NAME,
+        FRAMEWORK_VERSION,
+        null,
+        KarateUtils.getCategories(feature.getTags()),
+        true,
+        TestFrameworkInstrumentation.KARATE,
+        null);
+  }
+
+  private static void finishSuite(FeatureRuntime fr, FeatureSuite featureSuite) {
+    if (!featureSuite.started) {
+      return;
+    }
+    featureSuite.started = false;
+    if (featureSuite.detached) {
+      // the feature result covers scenarios that ran outside this suite
+      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(fr, null);
+      return;
+    }
+    FeatureResult result = fr.getResult();
+    if (result != null && result.isFailed()) {
+      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFailure(fr, suiteThrowable(result));
+    } else if (result != null && result.isEmpty()) {
+      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteSkip(fr, null);
+    }
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(fr, null);
+  }
+
+  private void scenarioStarted(ScenarioRuntime sr) {
+    FeatureRuntime fr = sr.getFeatureRuntime();
+    FeatureSuite featureSuite =
+        featureSuites.getOrCompute(fr, KarateTracingListener::newFeatureSuite);
+    synchronized (featureSuite) {
+      if (!featureSuite.started) {
+        // the scenario runs outside its feature's lifecycle, for example when retried by a wrapper
+        featureSuite.featureFinished = true;
+        startSuite(fr, featureSuite, true);
+      }
+      featureSuite.runningScenarios.add(sr);
+    }
+  }
+
+  private static void scenarioFinished(
+      ScenarioRuntime sr, ContextStore<FeatureRuntime, FeatureSuite> featureSuites) {
+    FeatureRuntime fr = sr.getFeatureRuntime();
+    FeatureSuite featureSuite = featureSuites.get(fr);
+    if (featureSuite == null) {
+      return;
+    }
+    synchronized (featureSuite) {
+      if (featureSuite.runningScenarios.remove(sr)
+          && featureSuite.featureFinished
+          && featureSuite.runningScenarios.isEmpty()) {
+        finishSuite(fr, featureSuite);
+      }
+    }
   }
 
   private boolean beforeScenario(ScenarioRunEvent event) {
@@ -112,7 +182,8 @@ public class KarateTracingListener implements RunListener {
       return true;
     }
     Scenario scenario = sr.getScenario();
-    TestSuiteDescriptor suiteDescriptor = KarateUtils.toSuiteDescriptor(sr.getFeatureRuntime());
+    FeatureRuntime fr = sr.getFeatureRuntime();
+    scenarioStarted(sr);
     TestDescriptor testDescriptor = KarateUtils.toTestDescriptor(sr);
     String scenarioName = KarateUtils.getScenarioName(scenario);
     String parameters = KarateUtils.getParameters(scenario);
@@ -124,13 +195,15 @@ public class KarateTracingListener implements RunListener {
     if (Config.get().isCiVisibilityTestSkippingEnabled()
         || Config.get().isCiVisibilityTestManagementEnabled()) {
       TestIdentifier skippableTest = KarateUtils.toTestIdentifier(scenario);
-      SkipReason skipReason = TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skipReason(skippableTest);
+      SkipReason skipReason =
+          TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skipReason(
+              skippableTest, TestSourceData.UNKNOWN, categories);
 
       if (skipReason != null
           && !(skipReason == SkipReason.ITR
               && categories.contains(CIConstants.Tags.ITR_UNSKIPPABLE_TAG))) {
         TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestIgnore(
-            suiteDescriptor,
+            fr,
             testDescriptor,
             scenarioName,
             FRAMEWORK_NAME,
@@ -140,12 +213,14 @@ public class KarateTracingListener implements RunListener {
             TestSourceData.UNKNOWN,
             skipReason.getDescription(),
             executionTracker);
+        // onTestIgnore already finished the test
+        scenarioFinished(sr, featureSuites);
         return false;
       }
     }
 
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestStart(
-        suiteDescriptor,
+        fr,
         testDescriptor,
         scenarioName,
         FRAMEWORK_NAME,
@@ -162,7 +237,10 @@ public class KarateTracingListener implements RunListener {
   }
 
   public static void afterScenario(
-      ScenarioRuntime sr, ScenarioResult result, ExecutionContext context) {
+      ScenarioRuntime sr,
+      ScenarioResult result,
+      ExecutionContext context,
+      ContextStore<FeatureRuntime, FeatureSuite> featureSuites) {
     if (skipTracking(sr)) {
       return;
     }
@@ -185,6 +263,8 @@ public class KarateTracingListener implements RunListener {
     TestExecutionTracker executionTracker = context != null ? context.getExecutionPolicy() : null;
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(
         testDescriptor, null, executionTracker);
+
+    scenarioFinished(sr, featureSuites);
   }
 
   private void beforeStep(StepRunEvent event) {
@@ -246,10 +326,6 @@ public class KarateTracingListener implements RunListener {
       }
     }
     return new RuntimeException(result.getFailureMessage());
-  }
-
-  private static boolean isParallel(FeatureRuntime fr) {
-    return fr.getSuite() != null && fr.getSuite().parallel;
   }
 
   private static boolean skipTracking(FeatureRuntime fr) {

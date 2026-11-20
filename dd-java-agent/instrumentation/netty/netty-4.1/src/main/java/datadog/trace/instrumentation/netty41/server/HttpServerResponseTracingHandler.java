@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.netty41.server;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.CONTEXT_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.WEBSOCKET_SENDER_HANDLER_CONTEXT;
 import static datadog.trace.instrumentation.netty41.server.NettyHttpServerDecorator.DECORATE;
+import static datadog.trace.instrumentation.netty41.server.NettyHttpServerDecorator.isNettyNativeClientAbort;
 
 import datadog.context.Context;
 import datadog.context.ContextScope;
@@ -19,6 +20,7 @@ import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.concurrent.Future;
+import java.nio.channels.ClosedChannelException;
 
 @ChannelHandler.Sharable
 public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdapter {
@@ -124,10 +126,22 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
       final Context storedContext,
       final AgentSpan span,
       final Future<?> future) {
-    if (!future.isSuccess()) {
+    // A client disconnect can fail the terminal write after the response has started. Leave any
+    // existing span error intact, and retain failures with an unrelated cause or another subtype.
+    if (!future.isSuccess() && !isClosedChannelClientAbort(future.cause())) {
       DECORATE.onError(span, future.cause());
     }
     finishSpan(serverContext, storedContext, span);
+  }
+
+  private static boolean isClosedChannelClientAbort(final Throwable failure) {
+    // StacklessClosedChannelException is package-private and absent from older Netty versions,
+    // so match it by class name.
+    return failure != null
+        && (failure.getClass() == ClosedChannelException.class
+            || "io.netty.channel.StacklessClosedChannelException"
+                .equals(failure.getClass().getName()))
+        && (failure.getCause() == null || isNettyNativeClientAbort(failure.getCause()));
   }
 
   private static void finishSpan(

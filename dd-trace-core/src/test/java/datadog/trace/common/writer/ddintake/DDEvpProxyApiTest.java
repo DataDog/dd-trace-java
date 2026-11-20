@@ -71,22 +71,19 @@ class DDEvpProxyApiTest extends DDCoreJavaSpecification {
     String evpProxyEndpoint = V2_EVP_PROXY_ENDPOINT;
     String path = buildAgentEvpProxyPath(evpProxyEndpoint, trackType, apiVersion);
     JavaTestHttpServer agentEvpProxy =
-        JavaTestHttpServer.httpServer(
-            s ->
-                s.handlers(
-                    h ->
-                        h.post(
-                            path,
-                            api -> {
-                              if (!"application/msgpack"
-                                  .equals(api.getRequest().getContentType())) {
-                                api.getResponse()
-                                    .status(400)
-                                    .send("wrong type: " + api.getRequest().getContentType());
-                              } else {
-                                api.getResponse().status(200).send();
-                              }
-                            })));
+        JavaTestHttpServer.httpServer(s ->
+            s.handlers(h ->
+                h.post(
+                    path,
+                    api -> {
+                      if (!"application/msgpack".equals(api.getRequest().getContentType())) {
+                        api.getResponse()
+                            .status(400)
+                            .send("wrong type: " + api.getRequest().getContentType());
+                      } else {
+                        api.getResponse().status(200).send();
+                      }
+                    })));
     DDEvpProxyApi client =
         createEvpProxyApi(
             agentEvpProxy.getAddress().toString(), evpProxyEndpoint, trackType, false);
@@ -113,20 +110,18 @@ class DDEvpProxyApiTest extends DDCoreJavaSpecification {
     String path = buildAgentEvpProxyPath(evpProxyEndpoint, trackType, apiVersion);
     int[] retry = {1};
     JavaTestHttpServer agentEvpProxy =
-        JavaTestHttpServer.httpServer(
-            s ->
-                s.handlers(
-                    h ->
-                        h.post(
-                            path,
-                            api -> {
-                              if (retry[0] < 5) {
-                                api.getResponse().status(503).send();
-                                retry[0]++;
-                              } else {
-                                api.getResponse().status(200).send();
-                              }
-                            })));
+        JavaTestHttpServer.httpServer(s ->
+            s.handlers(h ->
+                h.post(
+                    path,
+                    api -> {
+                      if (retry[0] < 5) {
+                        api.getResponse().status(503).send();
+                        retry[0]++;
+                      } else {
+                        api.getResponse().status(200).send();
+                      }
+                    })));
     DDEvpProxyApi client =
         createEvpProxyApi(
             agentEvpProxy.getAddress().toString(), evpProxyEndpoint, trackType, false);

@@ -99,22 +99,21 @@ class AccumulatorFootprintTest {
     CountDownLatch done = new CountDownLatch(threads);
     try {
       for (int t = 0; t < threads; t++) {
-        pool.execute(
-            () -> {
-              try {
-                start.await();
-                long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
-                while (System.nanoTime() < deadline) {
-                  for (LongAdder adder : adders) {
-                    adder.increment();
-                  }
-                }
-              } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-              } finally {
-                done.countDown();
+        pool.execute(() -> {
+          try {
+            start.await();
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
+            while (System.nanoTime() < deadline) {
+              for (LongAdder adder : adders) {
+                adder.increment();
               }
-            });
+            }
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+          } finally {
+            done.countDown();
+          }
+        });
       }
       start.countDown();
       assertTrue(done.await(30, TimeUnit.SECONDS));
