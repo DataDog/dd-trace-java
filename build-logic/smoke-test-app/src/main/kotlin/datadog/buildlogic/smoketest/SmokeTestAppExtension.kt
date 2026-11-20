@@ -50,6 +50,9 @@ abstract class SmokeTestAppExtension @Inject constructor(
    */
   abstract val gradleDistributionBaseUrl: Property<String>
 
+  /** Expected distribution SHA-256. Override together with [gradleVersion]. */
+  abstract val gradleDistributionSha256Sum: Property<String>
+
   /**
    * JDK used by the nested build. Defaults to a [DEFAULT_NESTED_JAVA_VERSION] toolchain;
    * override to pin a different JDK if the nested application's build chain requires it.
@@ -74,6 +77,7 @@ abstract class SmokeTestAppExtension @Inject constructor(
     applicationDir.convention(project.layout.projectDirectory.dir("application"))
     applicationBuildDir.convention(project.layout.buildDirectory.dir("application"))
     gradleVersion.convention(DEFAULT_NESTED_GRADLE_VERSION)
+    gradleDistributionSha256Sum.convention(DEFAULT_NESTED_GRADLE_SHA256_SUM)
     gradleDistributionBaseUrl.convention(
       project.providers.environmentVariable(MASS_READ_URL_ENV),
     )
@@ -120,12 +124,12 @@ abstract class SmokeTestAppExtension @Inject constructor(
         applicationBuildDir.set(this@SmokeTestAppExtension.applicationBuildDir)
         gradleVersion.set(this@SmokeTestAppExtension.gradleVersion)
         gradleDistributionBaseUrl.set(this@SmokeTestAppExtension.gradleDistributionBaseUrl)
+        gradleDistributionSha256Sum.set(this@SmokeTestAppExtension.gradleDistributionSha256Sum)
         javaLauncher.set(this@SmokeTestAppExtension.javaLauncher)
         tasksToRun.set(nestedTasks)
         buildArguments.set(spec.buildArguments)
         environment.set(spec.environment)
         buildCacheEnabled.set(spec.buildCacheEnabled)
-        spec.stopTimeoutSeconds.orNull?.let(stopTimeoutSeconds::set)
         projectJars.set(this@SmokeTestAppExtension.projectJars)
         spec.applyInputs(inputs)
       }
@@ -345,9 +349,6 @@ abstract class GradleAppSpec @Inject constructor() : ApplicationSpec() {
    * `--build-cache` / `--no-build-cache` is passed explicitly either way.
    */
   abstract val buildCacheEnabled: Property<Boolean>
-
-  /** Timeout, in seconds, for each shutdown wait. See [NestedGradleBuild.stopTimeoutSeconds]. */
-  abstract val stopTimeoutSeconds: Property<Long>
 }
 
 /** DSL describing a nested Maven invocation for one smoke-test application. */
