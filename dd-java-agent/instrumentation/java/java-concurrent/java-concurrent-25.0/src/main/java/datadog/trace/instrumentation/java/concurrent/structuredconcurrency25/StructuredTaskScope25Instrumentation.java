@@ -9,9 +9,9 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.TaskScopeStateRegistry;
-import net.bytebuddy.asm.Advice.FieldValue;
 import net.bytebuddy.asm.Advice.OnMethodExit;
 import net.bytebuddy.asm.Advice.This;
+import net.bytebuddy.asm.Advice.Thrown;
 
 /**
  * This instrumentation releases the continuations captured by {@link
@@ -42,21 +42,26 @@ public class StructuredTaskScope25Instrumentation
      * never-started subtasks still hold an unconsumed continuation; releasing an already-consumed
      * one is a no-op.
      *
-     * <p>The registry is only swept once the scope reached its closed state: {@code close()} may
-     * also throw after joining (e.g. owner did not join after forking), but it throws before
-     * joining when called by a non-owner thread, while subtasks may still be pending.
+     * <p>When {@code close()} throws, the registry is swept depending on the exception:
+     *
+     * <ul>
+     *   <li>an {@link IllegalStateException} is thrown after joining (e.g. the owner did not join
+     *       after forking): the scope is closed, so the registry is swept;
+     *   <li>a {@code WrongThreadException} is thrown before joining when called by a non-owner
+     *       thread: subtasks may still be pending, so the registry is kept.
+     * </ul>
+     *
+     * <p>The exception is checked rather than the scope state, as the state constants differ across
+     * JDK versions.
      *
      * @param scope The StructuredTaskScopeImpl object (using {@link Object} as the advice is
      *     compiled against Java 8, meaning the type from JDK 25 can't be referred directly).
-     * @param state The StructuredTaskScopeImpl state.
-     * @param closedState The StructuredTaskScopeImpl closed state value.
+     * @param thrown The exception thrown by {@code close()}, {@code null} if it returned normally.
      */
     @OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void afterClose(
-        @This Object scope,
-        @FieldValue("state") int state,
-        @FieldValue("ST_CLOSED") int closedState) {
-      if (state != closedState) {
+    public static void afterClose(@This Object scope, @Thrown Throwable thrown) {
+      // Matched by name as WrongThreadException (JDK 19+) can't be referred from Java 8 advice
+      if (thrown != null && "java.lang.WrongThreadException".equals(thrown.getClass().getName())) {
         return;
       }
       ContextStore<Object, TaskScopeStateRegistry> registryStore =
