@@ -24,12 +24,17 @@ class RecordingDatastreamsPayloadWriter implements DatastreamsPayloadWriter {
 
   private final Set<String> serviceNameOverrides = []
 
+  @SuppressWarnings('UnusedPrivateField')
+  private final Map<String, List<StatsGroup>> groupsByService = [:]
+
   @Override
   synchronized void writePayload(Collection<StatsBucket> data, String serviceNameOverride) {
     log.info("payload written - {}", data)
     serviceNameOverrides.add(serviceNameOverride)
     this.@payloads.addAll(data)
     data.each { this.@groups.addAll(it.groups) }
+    List<StatsGroup> serviceGroups = this.@groupsByService.computeIfAbsent(serviceNameOverride) { [] }
+    data.each { serviceGroups.addAll(it.groups) }
     for (StatsBucket bucket : data) {
       if (bucket.backlogs != null) {
         for (Map.Entry<DataStreamsTags, Long> backlog : bucket.backlogs) {
@@ -46,6 +51,11 @@ class RecordingDatastreamsPayloadWriter implements DatastreamsPayloadWriter {
 
   synchronized List<String> getServices() {
     Collections.unmodifiableList(new ArrayList<>(this.@serviceNameOverrides))
+  }
+
+  /** Groups written under a service name override, or under the default service for null. */
+  synchronized List<StatsGroup> getGroupsForService(String serviceNameOverride) {
+    Collections.unmodifiableList(new ArrayList<>(this.@groupsByService.getOrDefault(serviceNameOverride, [])))
   }
 
   synchronized List<StatsBucket> getPayloads() {
@@ -67,6 +77,7 @@ class RecordingDatastreamsPayloadWriter implements DatastreamsPayloadWriter {
   synchronized void clear() {
     this.@payloads.clear()
     this.@groups.clear()
+    this.@groupsByService.clear()
     this.@backlogs.clear()
     this.@schemaRegistryUsages.clear()
   }

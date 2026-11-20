@@ -61,7 +61,8 @@ public interface AgentDataStreamsMonitoring
 
   /**
    * setServiceNameOverride is used override service name for all DataStreams payloads produced
-   * within Thread.currentThread()
+   * within Thread.currentThread(). Threads created by this thread while the override is set inherit
+   * it.
    *
    * @param serviceName new service name to use for DSM checkpoints.
    */
