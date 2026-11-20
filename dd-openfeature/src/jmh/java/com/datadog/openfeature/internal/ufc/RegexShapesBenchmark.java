@@ -18,9 +18,10 @@ import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Warmup;
 
 /**
- * PROTOTYPE: {@code java.util.regex} {@code find()} (master), {@link RegexMatcher} (#13487) and
- * {@link PrototypeRegex}, on common MATCHES pattern shapes: the literal tiers #13487 already has,
- * multi-segment globs, and literal + class runs.
+ * PROTOTYPE: {@code java.util.regex} {@code find()} (master), {@link RegexMatcher} without the
+ * prototype (#13487) and with it ({@link RegexMatcher#compile}, as a configuration compiles it), on
+ * common MATCHES pattern shapes: the literal tiers #13487 already has, multi-segment globs, and
+ * literal + class runs.
  */
 @State(Scope.Thread)
 @Warmup(iterations = 3, time = 1, timeUnit = SECONDS)
@@ -49,7 +50,8 @@ public class RegexShapesBenchmark {
 
   private Pattern jdk;
   private RegexMatcher regexMatcher;
-  private PrototypeRegex prototype;
+  // As a configuration compiles it: the literal tiers stay #13487's, the rest try the prototype.
+  private RegexMatcher prototype;
   private String value;
 
   @Setup
@@ -114,7 +116,7 @@ public class RegexShapesBenchmark {
     }
     jdk = Pattern.compile(pattern);
     regexMatcher = RegexMatcher.compileWithoutPrototype(pattern); // #13487 alone
-    prototype = PrototypeRegex.compileStandalone(pattern);
+    prototype = RegexMatcher.compile(pattern);
     switch (input) {
       case "hit":
         value = hit;
@@ -142,7 +144,9 @@ public class RegexShapesBenchmark {
             + ": RegexMatcher "
             + regexMatcher.kind()
             + ", prototype "
-            + prototype.tier());
+            + (prototype instanceof PrototypeRegex
+                ? ((PrototypeRegex) prototype).tier()
+                : prototype.kind()));
   }
 
   @Benchmark
