@@ -1,7 +1,10 @@
 package datadog.trace.instrumentation.kafka_common;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -117,6 +120,71 @@ class KafkaConfigHelperReportPendingConfigTest {
             "cluster-1",
             "group-1",
             KafkaConfigHelper.extractClientConfig(consumerConfig));
+  }
+
+  @Test
+  void consumerGroupMemberJoinedWhileOffIsReportedOnceWhenOn() {
+    MetadataState state = new MetadataState();
+    state.clusterId = "cluster-1";
+
+    assertTrue(
+        KafkaConfigHelper.reportConsumerGroupMember(state, "group-1", "member-1", 1, "range"));
+    KafkaConfigHelper.reportPendingConfig(state, "cluster-1");
+    verify(dataStreams, never())
+        .reportKafkaConsumerGroupMember(anyString(), anyString(), anyString(), anyInt(), any());
+
+    dataStreamsEnabled[0] = true;
+    KafkaConfigHelper.reportPendingConfig(state, "cluster-1");
+    KafkaConfigHelper.reportPendingConfig(state, "cluster-1");
+
+    verify(dataStreams, times(1))
+        .reportKafkaConsumerGroupMember(anyString(), anyString(), anyString(), anyInt(), any());
+    verify(dataStreams)
+        .reportKafkaConsumerGroupMember("cluster-1", "group-1", "member-1", 1, "range");
+  }
+
+  @Test
+  void consumerGroupMemberJoinedBeforeClusterIdIsReportedWithIt() {
+    MetadataState state = new MetadataState();
+    dataStreamsEnabled[0] = true;
+
+    assertTrue(
+        KafkaConfigHelper.reportConsumerGroupMember(state, "group-1", "member-1", 1, "range"));
+    verify(dataStreams, never())
+        .reportKafkaConsumerGroupMember(anyString(), anyString(), anyString(), anyInt(), any());
+
+    state.clusterId = "cluster-1";
+    KafkaConfigHelper.reportPendingConfig(state, "cluster-1");
+
+    verify(dataStreams, times(1))
+        .reportKafkaConsumerGroupMember("cluster-1", "group-1", "member-1", 1, "range");
+  }
+
+  @Test
+  void newerConsumerGroupMemberReportSupersedesPendingOne() {
+    MetadataState state = new MetadataState();
+    state.clusterId = "cluster-1";
+    KafkaConfigHelper.reportConsumerGroupMember(state, "group-1", "member-1", 1, "range");
+
+    dataStreamsEnabled[0] = true;
+    assertTrue(
+        KafkaConfigHelper.reportConsumerGroupMember(state, "group-1", "member-2", 2, "range"));
+    KafkaConfigHelper.reportPendingConfig(state, "cluster-1");
+
+    verify(dataStreams, times(1))
+        .reportKafkaConsumerGroupMember(anyString(), anyString(), anyString(), anyInt(), any());
+    verify(dataStreams)
+        .reportKafkaConsumerGroupMember("cluster-1", "group-1", "member-2", 2, "range");
+  }
+
+  @Test
+  void consumerGroupMemberWithoutMetadataStateIsNotKept() {
+    dataStreamsEnabled[0] = true;
+
+    assertFalse(
+        KafkaConfigHelper.reportConsumerGroupMember(null, "group-1", "member-1", 1, "range"));
+    verify(dataStreams, never())
+        .reportKafkaConsumerGroupMember(anyString(), anyString(), anyString(), anyInt(), any());
   }
 
   private static Map<String, Object> props(String... keyValues) {

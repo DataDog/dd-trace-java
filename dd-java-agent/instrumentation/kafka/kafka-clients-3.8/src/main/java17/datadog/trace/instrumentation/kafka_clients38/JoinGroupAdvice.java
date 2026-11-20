@@ -30,14 +30,12 @@ public class JoinGroupAdvice {
 
     String consumerGroup = kafkaConsumerInfo.getConsumerGroup().orElse(null);
     Metadata consumerMetadata = kafkaConsumerInfo.getmetadata().orElse(null);
-    String clusterId = null;
-    if (consumerMetadata != null) {
-      MetadataState metadataState =
-          InstrumentationContext.get(Metadata.class, MetadataState.class).get(consumerMetadata);
-      clusterId = metadataState != null ? metadataState.clusterId : null;
-    }
+    MetadataState metadataState =
+        consumerMetadata != null
+            ? InstrumentationContext.get(Metadata.class, MetadataState.class).get(consumerMetadata)
+            : null;
     if (KafkaConfigHelper.reportConsumerGroupMember(
-        clusterId, consumerGroup, memberId, generationId, memberProtocol)) {
+        metadataState, consumerGroup, memberId, generationId, memberProtocol)) {
       kafkaConsumerInfo.setLastReportedMembership(memberId, generationId);
     }
   }

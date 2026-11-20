@@ -6,6 +6,8 @@ import java.util.concurrent.atomic.AtomicReference;
 public class MetadataState {
   public volatile String clusterId;
   private final AtomicReference<PendingConfig> pendingConfig = new AtomicReference<>();
+  private final AtomicReference<PendingConsumerGroupMember> pendingConsumerGroupMember =
+      new AtomicReference<>();
 
   public void setPendingConfig(PendingConfig config) {
     pendingConfig.set(config);
@@ -24,5 +26,15 @@ public class MetadataState {
   /** Atomically retrieves and clears the pending config. */
   public PendingConfig takePendingConfig() {
     return pendingConfig.getAndSet(null);
+  }
+
+  /** Replaces any pending consumer group membership with a newer one. */
+  public void setPendingConsumerGroupMember(PendingConsumerGroupMember member) {
+    pendingConsumerGroupMember.set(member);
+  }
+
+  /** Atomically retrieves and clears the pending consumer group membership. */
+  public PendingConsumerGroupMember takePendingConsumerGroupMember() {
+    return pendingConsumerGroupMember.getAndSet(null);
   }
 }

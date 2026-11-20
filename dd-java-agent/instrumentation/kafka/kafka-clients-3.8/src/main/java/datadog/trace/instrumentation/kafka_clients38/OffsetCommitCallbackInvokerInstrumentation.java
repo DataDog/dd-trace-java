@@ -34,6 +34,7 @@ public class OffsetCommitCallbackInvokerInstrumentation extends InstrumenterModu
   public String[] helperClassNames() {
     return new String[] {
       "datadog.trace.instrumentation.kafka_common.PendingConfig",
+      "datadog.trace.instrumentation.kafka_common.PendingConsumerGroupMember",
       "datadog.trace.instrumentation.kafka_common.MetadataState",
       packageName + ".KafkaConsumerInfo",
       packageName + ".DDOffsetCommitCallback"
