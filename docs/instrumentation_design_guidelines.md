@@ -81,3 +81,36 @@ Context ctx = Context.current();
 // GOOD - use the bytecode bridge, static-imported
 Context ctx = currentContext();
 ```
+
+### 4. CompletableFuture callback exclusions
+
+**When to skip capture:**
+
+An agent callback that already holds the span it finishes may not need its registration context.
+Only opt out when the callback can run without that context. If it invokes application code, it must
+restore the context that code needs itself.
+
+**How to opt out:**
+
+Have the callback implement `SkipCompletableFutureContextCapture`. A lambda can implement the marker
+through an intersection cast:
+
+```java
+import datadog.trace.bootstrap.instrumentation.java.concurrent.SkipCompletableFutureContextCapture;
+import java.util.function.BiConsumer;
+
+stage.whenComplete(
+    (BiConsumer<Object, Throwable> & SkipCompletableFutureContextCapture)
+        (result, error) -> {
+          DECORATE.onError(span, error);
+          DECORATE.beforeFinish(span);
+          span.finish();
+        });
+```
+
+The marker is inherited by subclasses. It skips context capture; the callback still runs and remains
+responsible for its span's lifecycle. Ordinary downstream callbacks and internal completions without
+a callback keep their normal propagation.
+
+For Scala promise callbacks, use `SkipScalaPromiseContextCapture`. Runnable and fork-join task
+exclusions remain separate.
