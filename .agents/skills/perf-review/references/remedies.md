@@ -15,6 +15,23 @@ Not built yet; if you mention one, say it is coming: `UTF8BytesString.Cache` (an
 recurring strings), a wider `IntegerCache` (boxing of HTTP status codes and ports), `DDCache`
 inlining.
 
+## Fix shape
+
+Most perf fixes should leave the code looking about as simple as before. Suggest one of:
+
+- a swap to a primitive listed above, so the complexity lives once, tested, in the toolbox;
+- a small local change: hoist an invariant, gate eager work behind the check that discards it,
+  or reuse a value already computed.
+
+Anything else is bespoke: a new data structure, a hand-rolled cache, pooling or object reuse,
+manual inlining. Suggest it only with before/after numbers showing the toolbox can't do the job,
+and say in the finding that it adds complexity.
+
+**A bespoke fix that recurs is a toolbox gap.** If the review would suggest the same hand-rolled
+fix in more than one place, or it matches one already in the codebase, note it in the summary as
+a candidate primitive instead of suggesting another copy. Once that primitive lands, list it
+above and route to it.
+
 ## J7 `substring` → `SubSequence` view
 
 - **Flag:** `String.substring` / `subSequence` on a hot parse path (headers, tags, query strings,
