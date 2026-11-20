@@ -4,15 +4,25 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 import datadog.context.ContextScope;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.agent.test.scopediag.ScopeDiagnostics;
+import datadog.trace.api.gateway.Events;
+import datadog.trace.api.gateway.Flow;
+import datadog.trace.api.gateway.IGSpanInfo;
+import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.api.gateway.Subscription;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.core.DDSpan;
 import java.util.ArrayDeque;
 import java.util.Queue;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiFunction;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import play.api.mvc.Result;
@@ -26,6 +36,67 @@ import scala.util.Success;
 import scala.util.Try;
 
 class PlayCallbackExclusionTest extends AbstractInstrumentationTest {
+  @ParameterizedTest(name = "Request-end hook restores completion context: workerActive={0}")
+  @ValueSource(booleans = {false, true})
+  void requestEndHooksUseRequestContextAndRestoreCompletionContext(boolean workerActive)
+      throws Exception {
+    Object requestData = new Object();
+    AtomicInteger hookCalls = new AtomicInteger();
+    AtomicReference<AgentSpan> hookSpan = new AtomicReference<>();
+    AtomicReference<RequestContext> hookContext = new AtomicReference<>();
+    Events<Object> events = Events.get();
+    Subscription subscription =
+        tracer
+            .getSubscriptionService(RequestContextSlot.IAST)
+            .registerCallback(
+                events.requestEnded(),
+                new BiFunction<RequestContext, IGSpanInfo, Flow<Void>>() {
+                  @Override
+                  public Flow<Void> apply(RequestContext context, IGSpanInfo spanInfo) {
+                    hookCalls.incrementAndGet();
+                    hookSpan.set(activeSpan());
+                    hookContext.set(context);
+                    return Flow.ResultFlow.empty();
+                  }
+                });
+    AgentSpan request =
+        tracer
+            .buildSpan("test", "play.request")
+            .ignoreActiveSpan()
+            .withRequestContextData(RequestContextSlot.IAST, requestData)
+            .start();
+    Promise<Result> promise = Promise$.MODULE$.apply();
+    QueuedExecutionContext executor = new QueuedExecutionContext();
+    Try<Result> outcome = new Success<>(Results.ok().asScala());
+    AgentSpan worker = workerActive ? startSpan("test", "worker") : null;
+    try {
+      int before = ScopeDiagnostics.report().records().size();
+      try (ContextScope scope = activateSpan(request)) {
+        promise.future().onComplete(new RequestCompleteCallback(scope), executor);
+      }
+      assertEquals(0, ScopeDiagnostics.report().records().size() - before);
+      try (ContextScope ignored = workerActive ? activateSpan(worker) : null) {
+        before = ScopeDiagnostics.report().records().size();
+        promise.complete(outcome);
+        executor.drain();
+        assertEquals(0, ScopeDiagnostics.report().records().size() - before);
+        assertSame(worker, activeSpan());
+      }
+      assertEquals(1, hookCalls.get());
+      assertSame(request, hookSpan.get());
+      assertSame(requestData, hookContext.get().getData(RequestContextSlot.IAST));
+      assertNull(activeSpan());
+    } finally {
+      subscription.cancel();
+      promise.tryComplete(outcome);
+      executor.drain();
+      request.finish();
+      if (worker != null) {
+        worker.finish();
+      }
+    }
+  }
+
   @ParameterizedTest(name = "Play finisher preserves application context: failure={0}")
   @ValueSource(booleans = {false, true})
   void finisherSkipsCaptureAndPreservesApplicationContext(boolean failure) throws Exception {

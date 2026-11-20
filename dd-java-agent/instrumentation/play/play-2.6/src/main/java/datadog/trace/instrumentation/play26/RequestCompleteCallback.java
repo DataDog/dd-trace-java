@@ -26,7 +26,7 @@ public class RequestCompleteCallback extends scala.runtime.AbstractFunction1<Try
 
   @Override
   public Object apply(final Try<Result> result) {
-    try {
+    try (ContextScope ignored = scope.context().attach()) {
       if (result.isFailure()) {
         DECORATE.onError(span, result.failed().get());
       } else {
