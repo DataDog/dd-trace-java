@@ -8,6 +8,7 @@ call-for-call substitutions where a **constant** regex/format string flows strai
 - Exact library coordinates per batch: `batches.txt`
 - Target-list coverage, with per-library numbers: `top100.md` (from `top100.txt` via `top100.py`)
 - Legacy vs current comparison: `legacy.md` (via `legacy.py`)
+- **Discarded and superseded ideas, with reasons and revisit conditions: `DISCARDED.md`.** Add to it whenever an idea is dropped.
 - Branch `dougqh/jit-census` (research only, not for merge); Slack: #Datadog JIT analysis
 - Per-run outputs: `out-*/report.txt`, `out-*/by-artifact.txt`, `out-*/sites.csv`
 
