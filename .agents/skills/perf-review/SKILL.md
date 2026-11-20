@@ -64,8 +64,9 @@ Apply a check only when its Flag line holds and no Not-when line does.
 ### Step 1 — Get the code to review
 
 **If the user points you at specific files or pasted code** ("review this class / this
-method for perf"), review those directly — skip the diff and go to Step 2 with the same
-hot-path mapping and checks.
+method for perf"), review those directly: skip the diff, run Step 1b with `PATHS` set to the
+files, then go on to Step 2 with the same hot-path mapping and checks. Pasted code can't go
+through Step 1b, so say so in **Scope reviewed**.
 
 **Otherwise, review the branch changes.** Find the merge-base against the DataDog
 upstream `master` and diff against it:
@@ -101,69 +102,112 @@ independent review, except to find performance claims.
 The contract checks (#8–#10) fire on code that never names the annotation, so don't rely on
 spotting it while reading. Run this from the repository root. It runs under `bash` explicitly,
 because it relies on word splitting, which `zsh` doesn't do. Set `DIFF_BASE` to the merge base from
-Step 1 (it defaults to the merge base with `origin/master`):
+Step 1 (it defaults to the merge base with `origin/master`). By default it reads the working tree,
+including uncommitted edits, so it sees the same code as Step 1; set `REV` to scan a commit
+instead. For a direct review of files, set `PATHS` to them (space-separated):
 
 ```bash
 DIFF_BASE=<merge base> bash <<'EOF'
-REV=${REV:-HEAD}
-DIFF_BASE=${DIFF_BASE:-$(git merge-base "$REV" origin/master)}  # the merge base from Step 1
+REV=${REV:-}      # empty: the working tree, as Step 1 reviews it; or a commit to scan instead
+PATHS=${PATHS:-}  # a direct review of files: list 3 covers every line of them, not the diff
+DIFF_BASE=${DIFF_BASE:-$(git merge-base "${REV:-HEAD}" origin/master)}  # the merge base from Step 1
 A='NoEscape|StaticLifetime|ImpliedFor|Singleton|BackgroundOnly|ForegroundSafe'
 PKG='datadog\.(contract|trace\.api\.function)'
-FILES=$( { git grep -l -E "import $PKG\.($A);|@$PKG\.($A)" "$REV" -- '*.java'
-           git grep -l -E "@($A)([[:space:](]|$)" "$REV" -- 'internal-api/src/main/java/datadog/contract/' 'internal-api/src/main/java/datadog/trace/api/function/'
-         } | sed "s|^$REV:||" | grep -v -E '/(test|jmh)/' | sort -u )
+src_grep() { if [ -n "$REV" ]; then git grep "$@" "$REV" -- "${PATHSPEC[@]}" | sed "s|^$REV:||"; else git grep "$@" -- "${PATHSPEC[@]}"; fi; }
+src_show() { if [ -n "$REV" ]; then git show "$REV:$1"; else cat "$1"; fi; }
+MAIN=('*.java' ':!*/test/*' ':!*/jmh/*')
+PATHSPEC=("${MAIN[@]}")
+FILES=$( { src_grep -l -E "import $PKG\.($A);|@$PKG\.($A)"
+           PATHSPEC=('internal-api/src/main/java/datadog/contract/' 'internal-api/src/main/java/datadog/trace/api/function/')
+           src_grep -l -E "@($A)([[:space:](]|$)"
+         } | sort -u )
 [ -z "$FILES" ] && { echo "No contract annotations found."; exit 0; }
 
-# 1. Each annotation and the element it marks (the next class/interface/enum/record or method declaration).
-HITS=$(git grep -n -E "^[[:space:]]*@(($PKG\.)?($A))([[:space:](]|$)" "$REV" -- $FILES | sed "s|^$REV:||")
+# 1. Each annotation and the element it marks: the type, field or method it sits on, on the same
+#    line or below.
+PATHSPEC=($FILES)
+HITS=$(src_grep -n -E "^[[:space:]]*@(($PKG\.)?($A))([[:space:](]|$)")
 echo "== 1. Marked elements"
 MARKED=$(echo "$HITS" | while IFS=: read -r f ln text; do
-  ann=$(echo "$text" | grep -oE "@($A)" | head -1)
+  ann=$(echo "$text" | grep -oE "@(($PKG)\.)?($A)" | head -1 | sed -E "s/^@.*\./@/")
   if [ "$ann" = "@ImpliedFor" ]; then
-    for t in $(echo "$text" | grep -oE '[A-Z][A-Za-z0-9_]*\.class' | sed 's/\.class$//'); do echo "type $t $ann $f:$ln"; done
+    for t in $(echo "$text" | grep -oE '[A-Z][A-Za-z0-9_]*\.class' | sed 's/\.class$//'); do echo "implied $t $ann $f:$ln"; done
     continue
   fi
-  git show "$REV:$f" | awk -v s="$ln" -v ann="$ann" -v loc="$f:$ln" '
-    NR > s && NR <= s + 20 && $0 !~ /^[[:space:]]*@/ {
-      if (match($0, /(class|interface|enum|record)[[:space:]]+[A-Za-z0-9_]+/)) {
-        t = substr($0, RSTART, RLENGTH); sub(/.*[[:space:]]/, "", t); print "type " t " " ann " " loc; exit }
-      if (match($0, /[A-Za-z0-9_]+[[:space:]]*\(/)) {
-        m = substr($0, RSTART, RLENGTH); sub(/[[:space:]]*\($/, "", m); print "method " m " " ann " " loc; exit }
+  src_show "$f" | awk -v s="$ln" -v ann="$ann" -v loc="$f:$ln" '
+    NR >= s && NR <= s + 20 {
+      line = $0
+      while (sub(/^[[:space:]]*@[A-Za-z0-9_.]+(\([^)]*\))?/, "", line)) {}
+      if (line ~ /^[[:space:]]*$/) next
+      if (match(line, /(class|interface|enum|record)[[:space:]]+[A-Za-z0-9_]+/)) {
+        t = substr(line, RSTART, RLENGTH); sub(/.*[[:space:]]/, "", t); print "type " t " " ann " " loc; exit }
+      head = line; sub(/\(.*/, "", head)
+      if (match(head, /[A-Za-z0-9_>\]][[:space:]]+[A-Za-z_][A-Za-z0-9_]*[[:space:]]*(=|;)/)) {
+        v = substr(head, RSTART + 1, RLENGTH - 1); sub(/[[:space:]]*[=;]$/, "", v); sub(/^[[:space:]]+/, "", v)
+        print "field " v " " ann " " loc; exit }
+      if (match(line, /[A-Za-z0-9_]+[[:space:]]*\(/)) {
+        m = substr(line, RSTART, RLENGTH); sub(/[[:space:]]*\($/, "", m); print "method " m " " ann " " loc; exit }
     }'
 done)
+
+# Subtypes of the @ImpliedFor types count too, at any depth.
+PATHSPEC=("${MAIN[@]}")
+KNOWN=$(echo "$MARKED" | awk '$1 == "implied" { print $2 }' | sort -u)
+NEW=$KNOWN
+while [ -n "$NEW" ]; do
+  NRE=$(echo $NEW | tr ' ' '|')
+  NEW=$(src_grep -h -o -E "(class|interface)[[:space:]]+[A-Za-z0-9_]+[^{;]*(extends|implements)[^{;]*(^|[^A-Za-z0-9_.])($NRE)([^A-Za-z0-9_]|$)" \
+        | sed -E 's/^(class|interface)[[:space:]]+([A-Za-z0-9_]+).*/\2/' | sort -u | comm -23 - <(echo "$KNOWN"))
+  for t in $NEW; do MARKED="$MARKED"$'\n'"implied $t (subtype)"; done
+  KNOWN=$(printf '%s\n' $KNOWN $NEW | sort -u)
+done
 echo "$MARKED"
-TYPES=$(echo "$MARKED" | awk '$1 == "type" { print $2 }' | sort -u)
+TYPES=$(echo "$MARKED" | awk '$1 == "type" || $1 == "implied" { print $2 }' | sort -u)
 METHODS=$(echo "$MARKED" | awk '$1 == "method" { print $2 }' | sort -u)
+MFIELDS=$(echo "$MARKED" | awk '$1 == "field" { print $2 }' | sort -u)
 
 # 2. One hop: fields and methods declared with a marked type. Only class-level declarations
-#    (with an access or static modifier) count: a local or parameter can't be used from another
-#    file. Fields match by name; methods only as Declarer.name(, since short method names such as
+#    (with an access or static modifier) count here; locals and parameters are matched per file in
+#    step 3. Fields match by name; methods only as Declarer.name(, since short method names such as
 #    of() or next() are everywhere.
 TRE=$(echo $TYPES | tr ' ' '|')
 DECL="($TRE)(<[^;=()]*>)?(\\[\\])?[[:space:]]+[A-Za-z_][A-Za-z0-9_]*[[:space:]]*[=;(]"
-HOLDS=$(git grep -n -E "(public|protected|private|static)[^=;(]*(^|[^A-Za-z0-9_.])$DECL" "$REV" -- '*.java' ':!*/test/*' ':!*/jmh/*' \
-        | sed "s|^$REV:||" | while IFS=: read -r f ln text; do
+HOLDS=$(src_grep -n -E "(public|protected|private|static)[^=;(]*(^|[^A-Za-z0-9_.])$DECL" \
+        | while IFS=: read -r f ln text; do
             d=$(echo "$text" | grep -oE "$DECL" | head -1)
             name=$(echo "$d" | sed -E 's/.*[[:space:]]([A-Za-z_][A-Za-z0-9_]*)[[:space:]]*[=;(]$/\1/')
             cls=$(basename "$f" .java)
             case "$d" in *'(') echo "method $cls.$name" ;; *) echo "field $name" ;; esac
           done | sort -u)
-FIELDS=$(echo "$HOLDS" | awk '$1 == "field" { print $2 }')
+FIELDS=$( { echo "$HOLDS" | awk '$1 == "field" { print $2 }'; printf '%s\n' $MFIELDS; } | sort -u)
 HMETHODS=$(echo "$HOLDS" | awk '$1 == "method" { print $2 }')
 echo; echo "== 2. Fields and methods declared with a marked type (one hop)"; echo $FIELDS $HMETHODS | fold -w 100 -s
 
-# 3. Added, non-comment lines in the diff that use any of those names.
+# 3. Lines that use any of those names: the diff's added lines, or every line of $PATHS. In those
+#    files, a call through a local or parameter of a marked type (name.) counts too.
+if [ -n "$PATHS" ]; then CHANGED=$PATHS
+elif [ -n "$REV" ]; then CHANGED=$(git diff --name-only "$DIFF_BASE" "$REV" -- "${MAIN[@]}")
+else CHANGED=$(git diff --name-only "$DIFF_BASE" -- "${MAIN[@]}"); fi
+LDECL="($TRE)(<[^;=()]*>)?(\\[\\])?[[:space:]]+[A-Za-z_][A-Za-z0-9_]*[[:space:]]*[=;,)]"
+LOCALS=$(for f in $CHANGED; do
+           src_show "$f" 2>/dev/null | grep -oE "(^|[^A-Za-z0-9_])$LDECL" \
+             | sed -E 's/.*[[:space:]]([A-Za-z_][A-Za-z0-9_]*)[[:space:]]*[=;,)]$/\1/' | sort -u | sed "s|^|$f |"
+         done)
 WORDS=$(printf '%s\n' $TYPES $METHODS $FIELDS | sort -u | tr '\n' '|' | sed 's/|$//')
 CALLS=$(printf '%s\n' $HMETHODS | sed 's/\./\\./' | sort -u | tr '\n' '|' | sed 's/|$//')
 RE="(^|[^A-Za-z0-9_])($WORDS)([^A-Za-z0-9_]|$)"
 [ -n "$CALLS" ] && RE="$RE|(^|[^A-Za-z0-9_.])($CALLS)[[:space:]]*\\("
-echo; echo "== 3. Added lines in the diff that use them"
-git diff -U0 "$DIFF_BASE" "$REV" -- '*.java' ':!*/test/*' ':!*/jmh/*' | RE="$RE" awk '
-  BEGIN { re = ENVIRON["RE"] }
-  /^\+\+\+ b\// { f = substr($0, 7); next }
+echo; echo "== 3. Lines that use them"
+if [ -n "$PATHS" ]; then
+  for f in $PATHS; do echo "+++ b/$f"; echo "@@ -0,0 +1 @@"; sed 's/^/+/' "$f"; done
+elif [ -n "$REV" ]; then git diff -U0 "$DIFF_BASE" "$REV" -- "${MAIN[@]}"
+else git diff -U0 "$DIFF_BASE" -- "${MAIN[@]}"; fi | RE="$RE" LOCALS="$LOCALS" awk '
+  BEGIN { re = ENVIRON["RE"]; n = split(ENVIRON["LOCALS"], ls, "\n")
+          for (i = 1; i <= n; i++) if (split(ls[i], p, " ") == 2) lr[p[1]] = (p[1] in lr) ? lr[p[1]] "|" p[2] : p[2] }
+  /^\+\+\+ b\// { f = substr($0, 7); lre = (f in lr) ? "(^|[^A-Za-z0-9_.])(" lr[f] ")[[:space:]]*\\." : ""; next }
   /^@@/ { split($3, a, ","); n = substr(a[1], 2) + 0; next }
   /^\+/ { line = substr($0, 2)
-          if (line !~ /^[[:space:]]*(\*|\/\/|\/\*)/ && match(line, re)) {
+          if (line !~ /^[[:space:]]*(\*|\/\/|\/\*)/ && (match(line, re) || (lre != "" && match(line, lre)))) {
             hit = substr(line, RSTART, RLENGTH); gsub(/^[^A-Za-z0-9_]+|[^A-Za-z0-9_.]+$/, "", hit); sub(/\.+$/, "", hit)
             printf "%s:%d: [%s] %s\n", f, n, hit, line }
           n++; next }'
@@ -172,13 +216,14 @@ EOF
 
 It prints three lists:
 
-1. **Marked elements:** each contract annotation and the type or method it marks, including the
-   types `@ImpliedFor` lists on `StaticLifetime`. A mark on a class covers its methods.
+1. **Marked elements:** each contract annotation and the type, field or method it marks, plus the
+   types `@ImpliedFor` lists on `StaticLifetime` and their subtypes. A mark on a class covers its
+   methods.
 2. **One hop:** class-level fields and methods declared with a marked type, such as a
-   `static final` cache field. Locals and parameters are left out: code in another file can't use
-   them, and a declaration in the diff already names the marked type.
-3. **Added lines in the diff that use either list**, tagged with the name that matched. Comment
-   lines are skipped.
+   `static final` cache field.
+3. **Lines that use either list**, tagged with the name that matched: the diff's added lines, or
+   every line of `PATHS`. In those files, a call through a local or parameter of a marked type
+   (`cache.getUtf8(...)`) counts too. Comment lines are skipped.
 
 Check every line in list 3 against `checks/contracts.md`, however large the diff is. A hit is a
 place to look, not a finding: it still has to pass the check's Flag line, and short names can match
