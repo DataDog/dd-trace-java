@@ -69,11 +69,47 @@ class GlobMatcherTest {
     assertEquals("a*", GlobMatcher.compile("a*").toString());
   }
 
+  @Test
+  void aStarDoesNotTakeALineTerminatorAnywhere() {
+    assertFalse(GlobMatcher.compile("web-*").matches("web-a\nb"));
+    assertFalse(GlobMatcher.compile("*-prod").matches("a\rb-prod"));
+    assertFalse(GlobMatcher.compile("*.x.*").matches("a\u2028.x.b"));
+    assertFalse(GlobMatcher.compile("*.x.*").matches("a.x.b\u0085"));
+    assertFalse(GlobMatcher.compile("a*b*c").matches("a\u2029bc"));
+    assertTrue(GlobMatcher.compile("*.x.*").matches("a.x.b"));
+  }
+
+  @Test
+  void aQuestionMarkFacingASurrogateAnywhereGoesToTheRegex() {
+    assertTrue(GlobMatcher.compile("?b*").matches("😀bc"));
+    assertTrue(GlobMatcher.compile("*a?").matches("xa😀"));
+    assertTrue(GlobMatcher.compile("*a?b*").matches("xa😀by"));
+    assertFalse(GlobMatcher.compile("*a??b*").matches("xa😀by"));
+  }
+
+  @Test
+  void aGlobWithALoneSurrogateComparesCodePoints() {
+    // as a code point, a lone high surrogate doesn't match the start of a pair
+    assertFalse(GlobMatcher.compile("\uD83D*").matches("😀"));
+    assertTrue(GlobMatcher.compile("😀*").matches("😀x"));
+  }
+
   /** Every result agrees with the glob's regex on random globs and texts. */
   @Test
   void agreesWithTheRegexOnRandomGlobsAndTexts() {
-    final Random random = new Random(7);
-    final String alphabet = "aAbB.-+$\\(*?éÉ";
+    agreesWithTheRegex(new Random(7), "aAbB.-+$\\(*?éÉ");
+  }
+
+  /**
+   * As above, with line terminators, surrogates (lone or paired) and the Kelvin sign in the globs,
+   * and so in the texts their stars and question marks expand to.
+   */
+  @Test
+  void agreesWithTheRegexOnLineTerminatorsAndSurrogates() {
+    agreesWithTheRegex(new Random(13597), "aAbk-*?*?\n\u2028😀\u212A");
+  }
+
+  private static void agreesWithTheRegex(final Random random, final String alphabet) {
     int checked = 0;
     for (int g = 0; g < 3_000; g++) {
       final String glob = randomString(alphabet, random, 7);
@@ -165,18 +201,26 @@ class GlobMatcherTest {
     return s.toString();
   }
 
-  /** The glob as a regex: star to .*, question mark to ., every other character quoted. */
+  /**
+   * The glob as a regex: star to .*, question mark to ., and each literal run quoted whole, so a
+   * surrogate pair stays one code point. Built independently of {@code GlobMatcher}.
+   */
   private static Pattern regex(final String glob, final boolean ignoreCase) {
     final StringBuilder regex = new StringBuilder("^");
-    for (final char c : glob.toCharArray()) {
-      if (c == '*') {
-        regex.append(".*");
-      } else if (c == '?') {
-        regex.append('.');
+    final StringBuilder run = new StringBuilder();
+    for (final char c : (glob + "*").toCharArray()) {
+      if (c == '*' || c == '?') {
+        if (run.length() > 0) {
+          regex.append(Pattern.quote(run.toString()));
+          run.setLength(0);
+        }
+        regex.append(c == '*' ? ".*" : ".");
       } else {
-        regex.append(Pattern.quote(String.valueOf(c)));
+        run.append(c);
       }
     }
+    // drop the sentinel star's ".*"
+    regex.setLength(regex.length() - 2);
     return Pattern.compile(regex.append('$').toString(), ignoreCase ? Pattern.CASE_INSENSITIVE : 0);
   }
 }
