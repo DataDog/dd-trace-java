@@ -5,7 +5,6 @@ import static datadog.trace.api.ProtocolVersion.V0_5;
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 import static datadog.trace.core.CoreSpan.ROOT_PROPAGATION_TAGS;
 
-import datadog.communication.serialization.FlushingBuffer;
 import datadog.communication.serialization.Mapper;
 import datadog.communication.serialization.Writable;
 import datadog.communication.serialization.WritableFormatter;
@@ -35,7 +34,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
   private final WritableFormatter dictionaryWriter;
   private final DictionaryMapper dictionaryMapper;
   private final Map<Object, Integer> encoding = new HashMap<>();
-  private final FlushingBuffer dictionary;
+  private final DictionaryBuffer dictionary;
 
   private final MetaWriter metaWriter = new MetaWriter();
 
@@ -47,15 +46,8 @@ public final class TraceMapperV0_5 implements TraceMapper {
   }
 
   public TraceMapperV0_5(int dictionarySize, int bufferSize) {
-    this.dictionary =
-        new FlushingBuffer(
-            dictionarySize,
-            (count, buffer) -> {
-              // Escape the dictionary writer's local reset: completed traces still reference these
-              // entries. The trace writer must publish them before resetting and retrying the
-              // trace.
-              throw new BufferOverflowException();
-            });
+    // chunked, so an idle or lightly used dictionary doesn't hold its whole capacity
+    this.dictionary = new DictionaryBuffer(dictionarySize);
     this.dictionaryWriter = new MsgPackWriter(dictionary);
     this.dictionaryMapper = new DictionaryMapper(dictionarySize);
     this.size = bufferSize;
@@ -149,7 +141,8 @@ public final class TraceMapperV0_5 implements TraceMapper {
 
   @Override
   public Payload newPayload() {
-    return new PayloadV0_5(dictionary.completedMessages(), dictionary.messageCount());
+    return new PayloadV0_5(
+        dictionary.completedChunks(), dictionary.completedBytes(), dictionary.messageCount());
   }
 
   @Override
@@ -175,8 +168,19 @@ public final class TraceMapperV0_5 implements TraceMapper {
   }
 
   @VisibleForTesting
-  FlushingBuffer getDictionary() {
+  DictionaryBuffer getDictionary() {
     return dictionary;
+  }
+
+  /** The dictionary's completed entries as one buffer, for tests that decode them. */
+  @VisibleForTesting
+  ByteBuffer dictionaryBytes() {
+    ByteBuffer bytes = ByteBuffer.allocate(dictionary.completedBytes());
+    for (ByteBuffer chunk : dictionary.completedChunks()) {
+      bytes.put(chunk);
+    }
+    bytes.flip();
+    return bytes;
   }
 
   private static class DictionaryMapper implements Mapper<Object> {
@@ -238,11 +242,14 @@ public final class TraceMapperV0_5 implements TraceMapper {
 
   private static class PayloadV0_5 extends Payload {
 
-    private final ByteBuffer dictionary;
+    // views of the dictionary's chunks, valid until the mapper is reset after the send
+    private final List<ByteBuffer> dictionary;
+    private final int dictionarySize;
     private final int stringCount;
 
-    private PayloadV0_5(ByteBuffer dictionary, int stringCount) {
+    private PayloadV0_5(List<ByteBuffer> dictionary, int dictionarySize, int stringCount) {
       this.dictionary = dictionary;
+      this.dictionarySize = dictionarySize;
       this.stringCount = stringCount;
     }
 
@@ -255,7 +262,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
     public int sizeInBytes() {
       return 1
           + msgpackArrayHeaderSize(stringCount)
-          + dictionary.remaining()
+          + dictionarySize
           + msgpackArrayHeaderSize(traceCount())
           + bodySize();
     }
@@ -273,12 +280,16 @@ public final class TraceMapperV0_5 implements TraceMapper {
     }
 
     private List<ByteBuffer> toList() {
-      return bodyAfter(
-          // msgpack array header with 2 elements (FIXARRAY | 2)
-          ByteBuffer.allocate(1).put(0, (byte) 0x92),
-          msgpackArrayHeader(stringCount),
-          dictionary.duplicate(),
-          msgpackArrayHeader(traceCount()));
+      ByteBuffer[] prefix = new ByteBuffer[dictionary.size() + 3];
+      int i = 0;
+      // msgpack array header with 2 elements (FIXARRAY | 2)
+      prefix[i++] = ByteBuffer.allocate(1).put(0, (byte) 0x92);
+      prefix[i++] = msgpackArrayHeader(stringCount);
+      for (ByteBuffer chunk : dictionary) {
+        prefix[i++] = chunk.duplicate();
+      }
+      prefix[i] = msgpackArrayHeader(traceCount());
+      return bodyAfter(prefix);
     }
   }
 
