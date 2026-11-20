@@ -862,6 +862,9 @@ muzzle-dep-report:
       - unmet_prerequisites
       - scheduler_failure
       - data_integrity_failure
+      # A dind pod scheduled on a node whose kata stack is not ready yet never starts,
+      # and the runner reports it as a job timeout. This also retries tests that hang.
+      - job_execution_timeout
 
 .test_job_amd64:
   extends: .test_job_common
