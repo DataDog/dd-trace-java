@@ -7,14 +7,16 @@ see `../SKILL.md`) is unchanged.**
 
 ## Toolkit availability — cite only what exists
 
-Available today: `Strings`, `SubSequence`, `HashingUtils`, `Hashtable`, `ChunkedBuffer`
+Available today: `Strings`, `SubSequence`, `HashingUtils`, `Hashtable`, `FlatHashtable`,
+`ConcurrentHashtable`, `StringIndex` (immutable string set/map), `ChunkedBuffer`
 (+ `ChunkedStreamingBuffer` in `datadog.communication.serialization`),
 `BenchmarkUtils.warmUpHashDispatch(Blackhole)` for JMH setup (all `datadog.trace.util` unless
-noted), `RE2J` (`com.google.re2j`).
+noted), `RE2J` (`com.google.re2j`). The `datadog.trace.util` primitives live in
+`components/toolbox`, which has no dependencies, so standalone SDKs can shade them.
 
-Coming (name as "coming", don't imply it's present): `ConcurrentHashtable`, `StringIndex`
-(immutable string set/map), `UTF8BytesString.Cache` (recurring-string interner), wider
-`IntegerCache` (http-status/port boxing), `DDCache` inlining.
+Coming (name as "coming", don't imply it's present): `StringCanonicalizer` (per-parse string
+sharing), `LruTable` (allocation-free bounded LRU), `UTF8BytesString.Cache` (recurring-string
+interner), wider `IntegerCache` (http-status/port boxing), `DDCache` inlining.
 
 ## Routes
 
