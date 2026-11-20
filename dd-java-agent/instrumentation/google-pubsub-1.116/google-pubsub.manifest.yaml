@@ -1,0 +1,13 @@
+_v: 1
+name: google-pubsub
+display_name: Google Cloud Pub/Sub
+description: Instruments Google Cloud Pub/Sub message publishing and subscriber processing with trace propagation
+  and Data Streams Monitoring.
+packages:
+- name: com.google.cloud:google-cloud-pubsub
+category:
+- messaging.consumer
+- messaging.producer
+systems:
+- gcp.pubsub
+creation_date: '2023-11-15'
