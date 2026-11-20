@@ -4,7 +4,6 @@ import static datadog.trace.api.KnownTags.TOMBSTONE;
 import static datadog.trace.api.datastreams.DataStreamsContext.create;
 import static datadog.trace.api.datastreams.DataStreamsTags.Direction.INBOUND;
 import static datadog.trace.api.datastreams.DataStreamsTags.create;
-import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.DSM_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateNext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious;
@@ -12,15 +11,11 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.JAVA_KAFKA;
 import static datadog.trace.instrumentation.kafka_clients38.TextMapExtractAdapter.GETTER;
-import static datadog.trace.instrumentation.kafka_clients38.TextMapInjectAdapter.SETTER;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import datadog.context.Context;
-import datadog.context.propagation.Propagator;
-import datadog.context.propagation.Propagators;
 import datadog.trace.api.Config;
 import datadog.trace.api.InstrumenterConfig;
-import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.api.datastreams.DataStreamsTransactionExtractor;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -125,25 +120,16 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
 
           // Only build the DSM tags and context when DSM is on: with it off the checkpoint is a
           // no-op, but the arguments were still built (hashed tags, strings) for every record.
-          if (traceConfig().isDataStreamsEnabled()) {
+          // Records read by Kafka Streams never get here: the streams instrumentation unwraps the
+          // record collections and sets the one consume checkpoint per record per hop itself.
+          // Internal topics of a topology (repartition, changelog) are skipped, as there.
+          if (traceConfig().isDataStreamsEnabled()
+              && !StreamingContext.STREAMING_CONTEXT.isInternalTopic(val.topic())) {
             DataStreamsTags tags = create("kafka", INBOUND, val.topic(), group, clusterId);
             final long payloadSize = Utils.computePayloadSizeBytes(val);
-            if (StreamingContext.STREAMING_CONTEXT.isDisabledForTopic(val.topic())) {
-              AgentTracer.get()
-                  .getDataStreamsMonitoring()
-                  .setCheckpoint(span, create(tags, val.timestamp(), payloadSize));
-            } else {
-              // when we're in a streaming context we want to consume only from source topics
-              if (StreamingContext.STREAMING_CONTEXT.isSourceTopic(val.topic())) {
-                // We have to inject the context to headers here,
-                // since the data received from the source may leave the topology on
-                // some other instance of the application, breaking the context propagation
-                // for DSM users
-                Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
-                DataStreamsContext dsmContext = create(tags, val.timestamp(), payloadSize);
-                dsmPropagator.inject(span.with(dsmContext), val.headers(), SETTER);
-              }
-            }
+            AgentTracer.get()
+                .getDataStreamsMonitoring()
+                .setCheckpoint(span, create(tags, val.timestamp(), payloadSize));
           }
         } else {
           span = startSpan(JAVA_KAFKA.toString(), operationName, null);

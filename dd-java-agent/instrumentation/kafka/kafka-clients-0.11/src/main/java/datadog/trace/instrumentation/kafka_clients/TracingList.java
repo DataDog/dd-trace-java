@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.kafka_clients;
 
+import datadog.trace.instrumentation.kafka_common.TracingIterableDelegator;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -157,5 +158,10 @@ public class TracingList implements List<ConsumerRecord<?, ?>>, TracingIterableD
   @Override
   public List<ConsumerRecord<?, ?>> getDelegate() {
     return delegate;
+  }
+
+  @Override
+  public String getClusterId() {
+    return clusterId;
   }
 }
