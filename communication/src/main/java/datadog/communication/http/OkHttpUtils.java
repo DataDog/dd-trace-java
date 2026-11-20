@@ -365,8 +365,9 @@ public final class OkHttpUtils {
     @Override
     public void writeTo(BufferedSink sink) throws IOException {
       for (ByteBuffer buffer : buffers) {
-        while (buffer.hasRemaining()) {
-          sink.write(buffer);
+        ByteBuffer duplicate = buffer.duplicate();
+        while (duplicate.hasRemaining()) {
+          sink.write(duplicate);
         }
       }
     }
