@@ -260,6 +260,11 @@ public class DataStreamsTags {
     DataStreamsTags.serviceNameOverride = serviceNameOverride;
   }
 
+  static String currentServiceNameOverride() {
+    ThreadLocal<String> override = DataStreamsTags.serviceNameOverride;
+    return override != null ? override.get() : null;
+  }
+
   public static DataStreamsTags createWithClusterId(
       String type, Direction direction, String topic, String clusterId) {
     return new DataStreamsTags(

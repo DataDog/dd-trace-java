@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.kafka_clients38;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -31,8 +32,10 @@ public class DDOffsetCommitCallback implements OffsetCommitCallback {
     if (callback != null) {
       callback.onComplete(map, e);
     }
-    // Only Data Streams tracks committed offsets
-    if (map == null || !traceConfig().isDataStreamsEnabled()) {
+    // Only full Data Streams tracks committed offsets
+    if (map == null
+        || !traceConfig().isDataStreamsEnabled()
+        || Config.get().isDataStreamsLiteEnabled()) {
       return;
     }
     for (Map.Entry<TopicPartition, OffsetAndMetadata> entry : map.entrySet()) {

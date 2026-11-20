@@ -15,6 +15,7 @@ import java.util.Map;
 public class StatsBucket {
   private final long startTimeNanos;
   private final long bucketDurationNanos;
+  private final boolean histograms;
   private final Map<Long, StatsGroup> hashToGroup = new HashMap<>();
   private final Map<DataStreamsTags, Long> backlogs = new HashMap<>();
   private final TransactionContainer transactions = new TransactionContainer(1024);
@@ -22,11 +23,24 @@ public class StatsBucket {
   private final List<KafkaConfigReport> kafkaConfigs = new ArrayList<>();
 
   public StatsBucket(long startTimeNanos, long bucketDurationNanos) {
+    this(startTimeNanos, bucketDurationNanos, true);
+  }
+
+  StatsBucket(long startTimeNanos, long bucketDurationNanos, boolean histograms) {
     this.startTimeNanos = startTimeNanos;
     this.bucketDurationNanos = bucketDurationNanos;
+    this.histograms = histograms;
   }
 
   public void addPoint(StatsPoint statsPoint) {
+    if (!histograms) {
+      hashToGroup.computeIfAbsent(
+          statsPoint.getAggregationHash(),
+          hash ->
+              StatsGroup.withoutHistograms(
+                  statsPoint.getTags(), statsPoint.getHash(), statsPoint.getParentHash()));
+      return;
+    }
     // we want to perform aggregation per dataset, to allow
     // lower-level granularity and unblock dataset name manipulations on the backend
     // without affecting the precision.

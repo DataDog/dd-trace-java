@@ -1188,6 +1188,54 @@
         "aliases": []
       }
     ],
+    "DD_DATA_STREAMS_LITE_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
+    "DD_DATA_STREAMS_LITE_DSM_TAG_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
+    "DD_DATA_STREAMS_LITE_ORIGIN_CAP_PER_SECOND": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "500",
+        "aliases": []
+      }
+    ],
+    "DD_DATA_STREAMS_LITE_PATHWAY_HASH_TAG": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": "sampled",
+        "aliases": []
+      }
+    ],
+    "DD_DATA_STREAMS_LITE_POLL_SPANS_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
+    "DD_DATA_STREAMS_LITE_REFRESH_SECONDS": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "600",
+        "aliases": []
+      }
+    ],
     "DD_DATA_STREAMS_TRANSACTION_EXTRACTORS": [
       {
         "version": "B",

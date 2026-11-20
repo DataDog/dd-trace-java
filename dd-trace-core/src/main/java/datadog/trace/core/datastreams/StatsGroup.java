@@ -14,12 +14,37 @@ public class StatsGroup {
   private final Histogram payloadSize;
 
   public StatsGroup(DataStreamsTags tags, long hash, long parentHash) {
+    this(
+        tags,
+        hash,
+        parentHash,
+        Histogram.newLogHistogram(),
+        Histogram.newLogHistogram(),
+        Histogram.newLogHistogram());
+  }
+
+  private StatsGroup(
+      DataStreamsTags tags,
+      long hash,
+      long parentHash,
+      Histogram pathwayLatency,
+      Histogram edgeLatency,
+      Histogram payloadSize) {
     this.tags = tags;
     this.hash = hash;
     this.parentHash = parentHash;
-    this.pathwayLatency = Histogram.newLogHistogram();
-    this.edgeLatency = Histogram.newLogHistogram();
-    this.payloadSize = Histogram.newLogHistogram();
+    this.pathwayLatency = pathwayLatency;
+    this.edgeLatency = edgeLatency;
+    this.payloadSize = payloadSize;
+  }
+
+  /** A group for Data Streams lite mode, which reports pathways but measures nothing. */
+  static StatsGroup withoutHistograms(DataStreamsTags tags, long hash, long parentHash) {
+    return new StatsGroup(tags, hash, parentHash, null, null, null);
+  }
+
+  public boolean hasHistograms() {
+    return pathwayLatency != null;
   }
 
   public void add(long pathwayLatencyNano, long edgeLatencyNano, long payloadSizeBytes) {

@@ -253,7 +253,8 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
         }
       }
 
-      if (traceConfig().isDataStreamsEnabled()) {
+      if (traceConfig().isDataStreamsEnabled()
+          && Config.get().isDataStreamsKafkaPollSpanEnabled()) {
         final AgentSpan span = startSpan(JAVA_KAFKA.toString(), KAFKA_POLL);
         return activateSpan(span);
       }

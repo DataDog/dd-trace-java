@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.kafka_clients38;
 import static datadog.trace.api.KnownTags.TOMBSTONE;
 import static datadog.trace.api.datastreams.DataStreamsContext.create;
 import static datadog.trace.api.datastreams.DataStreamsTags.Direction.INBOUND;
-import static datadog.trace.api.datastreams.DataStreamsTags.create;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.DSM_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateNext;
@@ -22,6 +21,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
+import datadog.trace.api.datastreams.DataStreamsTagsCache;
 import datadog.trace.api.datastreams.DataStreamsTransactionExtractor;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
@@ -126,8 +126,10 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
           // Only build the DSM tags and context when DSM is on: with it off the checkpoint is a
           // no-op, but the arguments were still built (hashed tags, strings) for every record.
           if (traceConfig().isDataStreamsEnabled()) {
-            DataStreamsTags tags = create("kafka", INBOUND, val.topic(), group, clusterId);
-            final long payloadSize = Utils.computePayloadSizeBytes(val);
+            DataStreamsTags tags =
+                DataStreamsTagsCache.create("kafka", INBOUND, val.topic(), group, clusterId);
+            final long payloadSize =
+                Config.get().isDataStreamsLiteEnabled() ? 0 : Utils.computePayloadSizeBytes(val);
             if (StreamingContext.STREAMING_CONTEXT.isDisabledForTopic(val.topic())) {
               AgentTracer.get()
                   .getDataStreamsMonitoring()

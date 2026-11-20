@@ -624,6 +624,27 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
     }
   }
 
+  @TableTest({
+    "scenario                 | liteDsmTag | expectTag",
+    "lite drops the tag       |            | false    ",
+    "lite keeps it when asked | true       | true     "
+  })
+  void dataStreamsLiteControlsTheDsmEnabledSpanTag(String liteDsmTag, boolean expectTag) {
+    injectSysConfig(GeneralConfig.DATA_STREAMS_LITE_ENABLED, "true");
+    if (liteDsmTag != null) {
+      injectSysConfig(GeneralConfig.DATA_STREAMS_LITE_DSM_TAG_ENABLED, liteDsmTag);
+    }
+    CoreTracer tracer = tracerBuilder().build();
+    unclosedTracers.add(tracer);
+    try {
+      ConfigSnapshot config = tracer.captureTraceConfig();
+      assertTrue(config.isDataStreamsEnabled());
+      assertEquals(expectTag, config.mergedTracerTags.containsKey(DDTags.DSM_ENABLED));
+    } finally {
+      tracer.close();
+    }
+  }
+
   /**
    * Remote config can enable Data Streams Monitoring without changing the tracing tags; the tags
    * every span starts with must still pick up (and later drop) {@code _dd.dsm.enabled}.
