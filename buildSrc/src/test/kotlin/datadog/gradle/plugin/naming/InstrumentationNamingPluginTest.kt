@@ -8,18 +8,13 @@ import java.io.File
 
 class InstrumentationNamingPluginTest : GradleFixture() {
   @Test
-  fun `exempts only the directory of a test-support project`() {
+  fun `exempts only test modules nested in an instrumentation module`() {
     val instrumentation = "dd-java-agent:instrumentation"
     addSubproject(instrumentation, """plugins { id("dd-trace-java.instrumentation-naming") }""")
     addSubproject("$instrumentation:lettuce:lettuce-5.0", "plugins { java }")
-    addSubproject(
-      "$instrumentation:lettuce:lettuce-5.0:lettuce-6.0-test",
-      """plugins { id("dd-trace-java.module.testing-support") }"""
-    )
+    addSubproject("$instrumentation:lettuce:lettuce-5.0:lettuce-6.0-test", "plugins { java }")
+    // Its parent directory is a grouping directory, not an instrumentation module
     addSubproject("$instrumentation:other:lettuce-6.0-test", "plugins { java }")
-    writeFile("gradle/libs.versions.toml", File("../gradle/libs.versions.toml").readText())
-    writeFile("gradle/java_no_deps.gradle", "")
-    writeFile("gradle/codenarc.gradle", "")
 
     val task = ":$instrumentation:checkInstrumentationNaming"
     val build = run(task, expectFailure = true)

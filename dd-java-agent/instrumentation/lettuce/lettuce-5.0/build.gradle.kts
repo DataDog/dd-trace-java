@@ -1,8 +1,8 @@
 plugins {
   id("dd-trace-java.module.instrumentation")
   id("dd-trace-java.instrumentation.netty-concurrent-tests")
+  id("dd-trace-java.instrumentation.lettuce-tests")
   id("dd-trace-java.jmh-conventions")
-  id("dd-trace-java.testcontainers")
 }
 
 muzzle {
@@ -14,11 +14,11 @@ muzzle {
   }
 }
 
-extra["lettuceTestSuites"] = mapOf(
-  "lettuce51Test" to "5.1.0.RELEASE",
-  "lettuce5LatestDepTest" to "5.+",
-)
-apply(from = "lettuce-tests.gradle.kts")
+// The nested *-test modules run the same tests against later Lettuce versions
+lettuceTests {
+  suite("lettuce51Test", "5.1.0.RELEASE")
+  suite("lettuce5LatestDepTest", "5.+")
+}
 
 dependencies {
   compileOnly("io.lettuce:lettuce-core:5.0.0.RELEASE")

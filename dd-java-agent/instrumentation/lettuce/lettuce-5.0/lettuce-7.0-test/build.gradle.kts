@@ -1,7 +1,9 @@
 plugins {
   id("dd-trace-java.module.testing-support")
-  id("dd-trace-java.testcontainers")
+  id("dd-trace-java.instrumentation.lettuce-tests")
 }
 
-extra["lettuceTestSuites"] = mapOf("lettuce7LatestDepTest" to "7.+")
-apply(from = "../lettuce-tests.gradle.kts")
+lettuceTests {
+  suite("lettuce70Test", "7.0.0.RELEASE")
+  suite("lettuce7LatestDepTest", "7.+")
+}

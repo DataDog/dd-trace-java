@@ -22,21 +22,15 @@ import java.io.File
  * ```
  */
 class InstrumentationNamingPlugin : Plugin<Project> {
+  private companion object {
+    /** Suffix of the test-only modules nested in an instrumentation module, which are not checked. */
+    const val TEST_ONLY_SUFFIX = "-test"
+  }
+
   private val versionPattern: Regex = Regex("""\d+\.\d+(\.\d+)?$""")
 
   override fun apply(target: Project) {
     val extension = target.extensions.create<InstrumentationNamingExtension>("instrumentationNaming")
-    val testOnlyDirectories = target.objects.setProperty(File::class.java)
-    target.gradle.projectsEvaluated {
-      testOnlyDirectories.set(
-        target.subprojects
-          .filter {
-            it.pluginManager.hasPlugin("dd-trace-java.module.testing-support") &&
-              !it.pluginManager.hasPlugin("dd-trace-java.module.instrumentation")
-          }
-          .map { it.projectDir }
-      )
-    }
 
     target.tasks.register("checkInstrumentationNaming") {
       group = "verification"
@@ -53,7 +47,7 @@ class InstrumentationNamingPlugin : Plugin<Project> {
           )
         }
 
-        val violations = validateInstrumentations(instrumentationsDir, exclusions, suffixes, testOnlyDirectories.get())
+        val violations = validateInstrumentations(instrumentationsDir, exclusions, suffixes)
 
         if (violations.isNotEmpty()) {
           val suffixesStr = suffixes.joinToString("', '", "'", "'")
@@ -99,8 +93,7 @@ class InstrumentationNamingPlugin : Plugin<Project> {
   private fun validateInstrumentations(
     instrumentationsDir: File,
     exclusions: Set<String>,
-    suffixes: Set<String>,
-    testOnlyDirectories: Set<File>
+    suffixes: Set<String>
   ): List<NamingViolation> {
     val violations = mutableListOf<NamingViolation>()
 
@@ -122,9 +115,13 @@ class InstrumentationNamingPlugin : Plugin<Project> {
         }
 
         val childHasBuildFile = hasBuildFile(childDir)
+        // Skip test-only modules, nested in the instrumentation module whose tests they run
+        if (childHasBuildFile && moduleName.endsWith(TEST_ONLY_SUFFIX) && hasBuildFile(currentDir)) {
+          return@childLoop
+        }
         val nestedModules = childDir.listFiles { file -> file.isDirectory }?.filter { hasBuildFile(it) } ?: emptyList()
 
-        if (childHasBuildFile && moduleName !in exclusions && childDir !in testOnlyDirectories) {
+        if (childHasBuildFile && moduleName !in exclusions) {
           val relativePath = childDir.relativeTo(instrumentationsDir).path
           if (parentName == null && nestedModules.isEmpty()) {
             validateLeafModuleName(moduleName, relativePath, suffixes)?.let { violations.add(it) }
