@@ -745,7 +745,8 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
     }
 
     assertEquals("ProductMask", unpacker.unpackString());
-    assertEquals(1L, unpacker.unpackLong());
+    // APM | DSM: the live trace config enables DSM even though Config.get() doesn't
+    assertEquals(3L, unpacker.unpackLong());
 
     List<String> processTags = ProcessTags.getTagsAsStringList();
     if (processTags == null) {

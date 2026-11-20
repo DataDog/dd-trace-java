@@ -3,6 +3,7 @@ package datadog.context.propagation;
 import static datadog.context.Context.root;
 import static datadog.context.propagation.Concern.DEFAULT_PRIORITY;
 import static java.util.Objects.requireNonNull;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -13,6 +14,9 @@ import datadog.context.Context;
 import datadog.context.ContextKey;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import javax.annotation.ParametersAreNonnullByDefault;
 import org.junit.jupiter.api.AfterEach;
@@ -153,6 +157,55 @@ class PropagatorsTest {
 
     Propagator cached = Propagators.defaultPropagator();
     assertEquals(composite, cached, "default propagator should be cached");
+  }
+
+  @Test
+  void testConcurrentRegisterAndDefaultPropagator() throws InterruptedException {
+    int count = 500;
+    int readerCount = 4;
+    AtomicBoolean registering = new AtomicBoolean(true);
+    AtomicReference<Throwable> readerFailure = new AtomicReference<>();
+    CountDownLatch readersReady = new CountDownLatch(readerCount);
+    CountDownLatch startReading = new CountDownLatch(1);
+    Thread[] readers = new Thread[readerCount];
+    for (int r = 0; r < readerCount; r++) {
+      readers[r] =
+          new Thread(() -> {
+            try {
+              readersReady.countDown();
+              startReading.await();
+              do {
+                if (Propagators.defaultPropagator() == null) {
+                  readerFailure.compareAndSet(
+                      null, new AssertionError("Default propagator should never be null"));
+                }
+              } while (registering.get());
+            } catch (Throwable t) {
+              readerFailure.compareAndSet(null, t);
+            }
+          });
+      readers[r].start();
+    }
+    assertTrue(readersReady.await(10, SECONDS), "Reader threads should have started");
+    // Release readers together so they race the first lazy build, then race registrations
+    startReading.countDown();
+    Context context = root();
+    for (int i = 0; i < count; i++) {
+      ContextKey<String> key = ContextKey.named("concurrent-" + i);
+      context = context.with(key, "value");
+      Propagators.register(
+          Concern.named("concurrent-" + i), new BasicPropagator(key, "concurrent-" + i));
+    }
+    registering.set(false);
+    for (Thread reader : readers) {
+      reader.join(SECONDS.toMillis(10));
+      assertFalse(reader.isAlive(), "Reader thread should have stopped");
+    }
+    assertNull(readerFailure.get(), "Reader threads should not fail");
+
+    Map<String, String> carrier = new HashMap<>();
+    Propagators.defaultPropagator().inject(context, carrier, ACCESSOR);
+    assertEquals(count, carrier.size(), "All registered propagators should be in the default one");
   }
 
   @Test

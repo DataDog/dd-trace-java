@@ -1,14 +1,17 @@
 package datadog.trace.instrumentation.kafka_common;
 
-import datadog.trace.api.Config;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
+
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.common.config.AbstractConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -92,68 +95,123 @@ public class KafkaConfigHelper {
               "default.api.timeout.ms"));
 
   /** Store a producer config to be reported once the cluster ID is known from metadata. */
-  public static void storePendingProducerConfig(MetadataState state, Map<String, String> config) {
-    state.setPendingConfig(new PendingConfig("kafka_producer", "", config));
+  public static void storePendingProducerConfig(
+      MetadataState state, ProducerConfig producerConfig) {
+    state.setPendingConfig(new PendingConfig("kafka_producer", "", producerConfig));
     log.debug("Stored pending producer config (cluster ID not yet known)");
   }
 
   /** Store a consumer config to be reported once the cluster ID is known from metadata. */
   public static void storePendingConsumerConfig(
-      MetadataState state, String consumerGroup, Map<String, String> config) {
+      MetadataState state, String consumerGroup, ConsumerConfig consumerConfig) {
     state.setPendingConfig(
-        new PendingConfig("kafka_consumer", consumerGroup != null ? consumerGroup : "", config));
+        new PendingConfig("kafka_consumer", groupOrEmpty(consumerGroup), consumerConfig));
     log.debug("Stored pending consumer config (cluster ID not yet known)");
   }
 
+  /**
+   * Store a shallow copy of a raw consumer config map, converted only when reported, unless a
+   * config is already pending.
+   */
+  public static void storePendingConsumerConfigIfAbsent(
+      MetadataState state, String consumerGroup, Map<String, Object> rawConfig) {
+    if (state.hasPendingConfig()) {
+      return;
+    }
+    // Copied so later caller mutations aren't reported nor race with reporting threads
+    Map<String, Object> rawConfigCopy = new HashMap<>(rawConfig);
+    if (state.setPendingConfigIfAbsent(
+        new PendingConfig("kafka_consumer", groupOrEmpty(consumerGroup), rawConfigCopy))) {
+      log.debug("Stored pending raw consumer config (cluster ID not yet known)");
+    }
+  }
+
+  private static String groupOrEmpty(String consumerGroup) {
+    return consumerGroup != null ? consumerGroup : "";
+  }
+
+  /**
+   * Reports a consumer group membership, or keeps it pending until Data Streams is enabled and the
+   * cluster ID is known.
+   *
+   * @return whether the membership was reported or kept pending
+   */
   public static boolean reportConsumerGroupMember(
-      String clusterId,
+      MetadataState state,
       String consumerGroup,
       String memberId,
       int generationId,
       String memberProtocol) {
-    if (memberId == null || memberId.isEmpty() || clusterId == null || clusterId.isEmpty()) {
+    if (state == null || memberId == null || memberId.isEmpty()) {
       return false;
     }
-    if (Config.get().isDataStreamsEnabled()) {
+    String group = groupOrEmpty(consumerGroup);
+    String protocol = memberProtocol != null ? memberProtocol : "";
+    String clusterId = state.clusterId;
+    if (!canReportConsumerGroupMember(clusterId)) {
+      // Reported on the first metadata update with a cluster ID while DSM is enabled
+      state.setPendingConsumerGroupMember(
+          new PendingConsumerGroupMember(group, memberId, generationId, protocol));
+      // Re-checked in case a concurrent metadata update ran before the member was pending
+      clusterId = state.clusterId;
+      if (canReportConsumerGroupMember(clusterId)) {
+        reportPendingConsumerGroupMember(state, clusterId);
+      }
+      return true;
+    }
+    // Best effort: drops a pending older generation so it isn't reported after this one
+    state.takePendingConsumerGroupMember();
+    AgentTracer.get()
+        .getDataStreamsMonitoring()
+        .reportKafkaConsumerGroupMember(clusterId, group, memberId, generationId, protocol);
+    return true;
+  }
+
+  private static boolean canReportConsumerGroupMember(String clusterId) {
+    return clusterId != null && !clusterId.isEmpty() && traceConfig().isDataStreamsEnabled();
+  }
+
+  private static void reportPendingConsumerGroupMember(MetadataState state, String clusterId) {
+    PendingConsumerGroupMember member = state.takePendingConsumerGroupMember();
+    if (member != null) {
       AgentTracer.get()
           .getDataStreamsMonitoring()
           .reportKafkaConsumerGroupMember(
               clusterId,
-              consumerGroup != null ? consumerGroup : "",
-              memberId,
-              generationId,
-              memberProtocol != null ? memberProtocol : "");
+              member.consumerGroup,
+              member.memberId,
+              member.generationId,
+              member.memberProtocol);
     }
-    return true;
   }
 
   /** Called from metadata update advice when the cluster ID becomes available. */
   public static void reportPendingConfig(MetadataState state, String clusterId) {
+    if (!traceConfig().isDataStreamsEnabled()) {
+      // Kept pending: reported on the first metadata update after DSM is enabled
+      return;
+    }
     PendingConfig pending = state.takePendingConfig();
     if (pending != null) {
       log.debug("Received cluster ID, reporting {} config", pending.type);
-      if (Config.get().isDataStreamsEnabled()) {
-        AgentTracer.get()
-            .getDataStreamsMonitoring()
-            .reportKafkaConfig(pending.type, clusterId, pending.consumerGroup, pending.config);
-      }
+      Map<String, String> config =
+          pending.clientConfig != null
+              ? extractClientConfig(pending.clientConfig)
+              : extractConsumerConfigFromMap(pending.rawConfig);
+      AgentTracer.get()
+          .getDataStreamsMonitoring()
+          .reportKafkaConfig(pending.type, clusterId, pending.consumerGroup, config);
+    }
+    if (clusterId != null && !clusterId.isEmpty()) {
+      reportPendingConsumerGroupMember(state, clusterId);
     }
   }
 
-  public static Map<String, String> extractProducerConfig(ProducerConfig producerConfig) {
+  static Map<String, String> extractClientConfig(AbstractConfig clientConfig) {
     try {
-      return convertToStringMap(producerConfig.values());
+      return convertToStringMap(clientConfig.values());
     } catch (Exception e) {
-      log.debug("Error extracting producer configuration", e);
-      return new LinkedHashMap<>();
-    }
-  }
-
-  public static Map<String, String> extractConsumerConfig(ConsumerConfig consumerConfig) {
-    try {
-      return convertToStringMap(consumerConfig.values());
-    } catch (Exception e) {
-      log.debug("Error extracting consumer configuration", e);
+      log.debug("Error extracting client configuration", e);
       return new LinkedHashMap<>();
     }
   }

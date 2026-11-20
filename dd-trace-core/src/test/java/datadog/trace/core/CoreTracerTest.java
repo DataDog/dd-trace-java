@@ -1,5 +1,6 @@
 package datadog.trace.core;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.DSM_CONCERN;
 import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectSysConfig;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -19,6 +20,8 @@ import static org.mockito.Mockito.verify;
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
+import datadog.context.propagation.Propagator;
+import datadog.context.propagation.Propagators;
 import datadog.environment.JavaVirtualMachine;
 import datadog.metrics.api.Monitoring;
 import datadog.remoteconfig.ConfigurationPoller;
@@ -44,6 +47,7 @@ import datadog.trace.common.writer.DDAgentWriter;
 import datadog.trace.common.writer.ListWriter;
 import datadog.trace.common.writer.LoggingWriter;
 import datadog.trace.core.CoreTracer.ConfigSnapshot;
+import datadog.trace.core.datastreams.DataStreamsMonitoring;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.monitor.TracerHealthMetrics;
 import datadog.trace.core.tagprocessor.TagsPostProcessorFactory;
@@ -663,6 +667,98 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
       capturedUpdater[0].commit(null);
 
       assertFalse(tracer.captureTraceConfig().mergedTracerTags.containsKey(DDTags.DSM_ENABLED));
+    } finally {
+      tracer.close();
+    }
+  }
+
+  /**
+   * Data Streams Monitoring off at startup and enabled by remote config must register its
+   * propagator, which instrumentations such as Kafka look up per message.
+   */
+  @Test
+  void remoteConfigDataStreamsEnableRegistersPropagator() throws Exception {
+    ParsedConfigKey key = ParsedConfigKey.parse("datadog/2/APM_TRACING/config_overrides/config");
+    ConfigurationPoller poller = mock(ConfigurationPoller.class);
+    SharedCommunicationObjects sco = createScoWithPoller(poller);
+
+    ProductListener[] capturedUpdater = {null};
+    doAnswer(
+            inv -> {
+              capturedUpdater[0] = inv.getArgument(1, ProductListener.class);
+              return null;
+            })
+        .when(poller)
+        .addListener(eq(Product.APM_TRACING), any(ProductListener.class));
+
+    CoreTracer tracer =
+        CoreTracer.builder().sharedCommunicationObjects(sco).pollForTracingConfiguration().build();
+    unclosedTracers.add(tracer);
+
+    try {
+      Propagator dsmPropagator =
+          ((DataStreamsMonitoring) tracer.getDataStreamsMonitoring()).propagator();
+      assertNotSame(dsmPropagator, Propagators.forConcern(DSM_CONCERN));
+
+      String json = "{\"lib_config\":{\"data_streams_enabled\": true}}";
+      capturedUpdater[0].accept(key, json.getBytes(StandardCharsets.UTF_8), null);
+      capturedUpdater[0].commit(null);
+
+      assertSame(dsmPropagator, Propagators.forConcern(DSM_CONCERN));
+
+      // Stays registered once disabled: the propagator checks the live config itself
+      capturedUpdater[0].remove(key, null);
+      capturedUpdater[0].commit(null);
+
+      assertFalse(tracer.captureTraceConfig().isDataStreamsEnabled());
+      assertSame(dsmPropagator, Propagators.forConcern(DSM_CONCERN));
+    } finally {
+      tracer.close();
+    }
+  }
+
+  /** A remote config DSM enable applied while the tracer is still being constructed is kept. */
+  @Test
+  void remoteConfigDataStreamsEnableDuringConstructionRegistersPropagator() throws Exception {
+    ParsedConfigKey key = ParsedConfigKey.parse("datadog/2/APM_TRACING/config_overrides/config");
+    ConfigurationPoller poller = mock(ConfigurationPoller.class);
+    SharedCommunicationObjects sco = createScoWithPoller(poller);
+
+    // Applied when the poller starts, before the constructor creates Data Streams Monitoring
+    doAnswer(
+            inv -> {
+              ProductListener updater = inv.getArgument(1, ProductListener.class);
+              String json = "{\"lib_config\":{\"data_streams_enabled\": true}}";
+              updater.accept(key, json.getBytes(StandardCharsets.UTF_8), null);
+              updater.commit(null);
+              return null;
+            })
+        .when(poller)
+        .addListener(eq(Product.APM_TRACING), any(ProductListener.class));
+
+    CoreTracer tracer =
+        CoreTracer.builder().sharedCommunicationObjects(sco).pollForTracingConfiguration().build();
+    unclosedTracers.add(tracer);
+
+    try {
+      assertTrue(tracer.captureTraceConfig().isDataStreamsEnabled());
+      Propagator dsmPropagator =
+          ((DataStreamsMonitoring) tracer.getDataStreamsMonitoring()).propagator();
+      assertSame(dsmPropagator, Propagators.forConcern(DSM_CONCERN));
+    } finally {
+      tracer.close();
+    }
+  }
+
+  @Test
+  void dataStreamsEnabledAtStartupRegistersPropagator() {
+    injectSysConfig(GeneralConfig.DATA_STREAMS_ENABLED, "true");
+    CoreTracer tracer = tracerBuilder().build();
+
+    try {
+      Propagator dsmPropagator =
+          ((DataStreamsMonitoring) tracer.getDataStreamsMonitoring()).propagator();
+      assertSame(dsmPropagator, Propagators.forConcern(DSM_CONCERN));
     } finally {
       tracer.close();
     }

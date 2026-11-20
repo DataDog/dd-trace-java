@@ -5,10 +5,14 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import datadog.trace.api.TraceConfig;
 import datadog.trace.bootstrap.ContextStore;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.instrumentation.kafka_common.MetadataState;
 import org.apache.kafka.clients.Metadata;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class KafkaConsumerInstrumentationHelperTest {
 
@@ -61,7 +65,8 @@ class KafkaConsumerInstrumentationHelperTest {
 
   @Test
   void extractClusterIdReturnsNullWhenMetadataIsNull() {
-    KafkaConsumerInfo kafkaConsumerInfo = new KafkaConsumerInfo("test-group", "localhost:9092");
+    KafkaConsumerInfo kafkaConsumerInfo =
+        new KafkaConsumerInfo("test-group", null, "localhost:9092");
     assertNull(
         KafkaConsumerInstrumentationHelper.extractClusterId(
             kafkaConsumerInfo, metadataContextStore));
@@ -90,5 +95,31 @@ class KafkaConsumerInstrumentationHelperTest {
         "cluster-1",
         KafkaConsumerInstrumentationHelper.extractClusterId(
             kafkaConsumerInfo, metadataContextStore));
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  void extractClusterIdForDataStreamsOnlyFollowsLiveConfig(boolean dataStreamsEnabled) {
+    Metadata metadata = mock(Metadata.class);
+    KafkaConsumerInfo kafkaConsumerInfo =
+        new KafkaConsumerInfo("test-group", metadata, "localhost:9092", true);
+    MetadataState state = new MetadataState();
+    state.clusterId = "cluster-1";
+    when(metadataContextStore.get(metadata)).thenReturn(state);
+
+    TraceConfig traceConfig = mock(TraceConfig.class);
+    when(traceConfig.isDataStreamsEnabled()).thenReturn(dataStreamsEnabled);
+    AgentTracer.TracerAPI tracer = mock(AgentTracer.TracerAPI.class);
+    when(tracer.captureTraceConfig()).thenReturn(traceConfig);
+    AgentTracer.TracerAPI originalTracer = AgentTracer.get();
+    AgentTracer.forceRegister(tracer);
+    try {
+      assertEquals(
+          dataStreamsEnabled ? "cluster-1" : null,
+          KafkaConsumerInstrumentationHelper.extractClusterId(
+              kafkaConsumerInfo, metadataContextStore));
+    } finally {
+      AgentTracer.forceRegister(originalTracer);
+    }
   }
 }

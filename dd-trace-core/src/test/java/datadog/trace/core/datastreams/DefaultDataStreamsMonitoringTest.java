@@ -1,10 +1,12 @@
 package datadog.trace.core.datastreams;
 
+import static datadog.trace.api.datastreams.DataStreamsTransactionExtractor.Type.KAFKA_PRODUCE_HEADERS;
 import static datadog.trace.core.datastreams.DefaultDataStreamsMonitoring.FEATURE_CHECK_INTERVAL_NANOS;
 import static datadog.trace.core.datastreams.DefaultDataStreamsMonitoringTestBridge.getThreadState;
 import static datadog.trace.core.datastreams.DefaultDataStreamsMonitoringTestBridge.isInboxEmpty;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -24,6 +26,8 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
+import datadog.trace.api.datastreams.DataStreamsTransactionExtractor;
+import datadog.trace.api.datastreams.DataStreamsTransactionTracker.TransactionSourceReader;
 import datadog.trace.api.datastreams.KafkaConfigReport;
 import datadog.trace.api.datastreams.PathwayContext;
 import datadog.trace.api.datastreams.SchemaRegistryUsage;
@@ -32,9 +36,11 @@ import datadog.trace.api.experimental.DataStreamsContextCarrier;
 import datadog.trace.api.time.ControllableTimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.common.metrics.EventListener;
 import datadog.trace.common.metrics.Sink;
 import datadog.trace.core.DDCoreJavaSpecification;
+import datadog.trace.core.datastreams.DataStreamsTransactionExtractors.DataStreamsTransactionExtractorImpl;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -763,6 +769,96 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     assertTrue(payloadWriter.buckets.isEmpty());
 
     // cleanup
+    payloadWriter.close();
+    dataStreams.close();
+  }
+
+  @Test
+  void dynamicEnableLoadsTransactionExtractors() throws InterruptedException {
+    DDAgentFeaturesDiscovery features = stubFeatures(true);
+    ControllableTimeSource timeSource = new ControllableTimeSource();
+    Sink sink = mock(Sink.class);
+    CapturingPayloadWriter payloadWriter = new CapturingPayloadWriter();
+    boolean[] dsmEnabled = new boolean[] {false};
+    TraceConfig traceConfig = mock(TraceConfig.class, RETURNS_SMART_NULLS);
+    when(traceConfig.isDataStreamsEnabled()).thenAnswer(invocation -> dsmEnabled[0]);
+    List<DataStreamsTransactionExtractor> extractors = new ArrayList<>();
+    extractors.add(
+        new DataStreamsTransactionExtractorImpl("produce", KAFKA_PRODUCE_HEADERS, "txn"));
+    when(traceConfig.getDataStreamsTransactionExtractors()).thenReturn(extractors);
+    TransactionSourceReader headerReader = (source, headerName) -> "txn-1";
+
+    DefaultDataStreamsMonitoring dataStreams =
+        new DefaultDataStreamsMonitoring(
+            sink,
+            features,
+            timeSource,
+            () -> traceConfig,
+            payloadWriter,
+            DEFAULT_BUCKET_DURATION_NANOS);
+    dataStreams.start();
+    awaitIdle(dataStreams);
+
+    // no transaction tracked while data streams is off
+    AgentSpan spanWhileOff = mock(AgentSpan.class);
+    dataStreams.trackTransaction(spanWhileOff, KAFKA_PRODUCE_HEADERS, new Object(), headerReader);
+    verify(spanWhileOff, never()).setTag(eq(Tags.DSM_TRANSACTION_ID), any(String.class));
+
+    // enabled by remote config
+    dsmEnabled[0] = true;
+    dataStreams.report();
+    awaitIdle(dataStreams);
+
+    AgentSpan span = mock(AgentSpan.class);
+    dataStreams.trackTransaction(span, KAFKA_PRODUCE_HEADERS, new Object(), headerReader);
+    verify(span).setTag(Tags.DSM_TRANSACTION_ID, "txn-1");
+    verify(span).setTag(Tags.DSM_TRANSACTION_CHECKPOINT, "produce");
+
+    awaitIdle(dataStreams);
+    timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS);
+    dataStreams.report();
+
+    awaitBuckets(dataStreams, payloadWriter, 1);
+    assertFalse(payloadWriter.buckets.get(0).getTransactions().isEmpty());
+
+    // cleanup
+    payloadWriter.close();
+    dataStreams.close();
+  }
+
+  @Test
+  void oneShotItemEnqueuedRightAfterDynamicEnableIsNotDropped() throws InterruptedException {
+    DDAgentFeaturesDiscovery features = stubFeatures(true);
+    ControllableTimeSource timeSource = new ControllableTimeSource();
+    Sink sink = mock(Sink.class);
+    CapturingPayloadWriter payloadWriter = new CapturingPayloadWriter();
+    boolean[] dsmEnabled = new boolean[] {false};
+    TraceConfig traceConfig = mock(TraceConfig.class, RETURNS_SMART_NULLS);
+    when(traceConfig.isDataStreamsEnabled()).thenAnswer(invocation -> dsmEnabled[0]);
+
+    DefaultDataStreamsMonitoring dataStreams =
+        new DefaultDataStreamsMonitoring(
+            sink,
+            features,
+            timeSource,
+            () -> traceConfig,
+            payloadWriter,
+            DEFAULT_BUCKET_DURATION_NANOS);
+    dataStreams.start();
+    awaitIdle(dataStreams);
+
+    // enabled by remote config, item enqueued before the next report tick
+    dsmEnabled[0] = true;
+    dataStreams.reportKafkaConsumerGroupMember("cluster-1", "test-group", "member-1", 1, "range");
+    awaitIdle(dataStreams);
+    timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS);
+    dataStreams.report();
+
+    awaitBuckets(dataStreams, payloadWriter, 1);
+    List<KafkaConfigReport> kafkaConfigs = payloadWriter.buckets.get(0).getKafkaConfigs();
+    assertEquals(1, kafkaConfigs.size());
+    assertEquals("member-1", kafkaConfigs.get(0).getMemberId());
+
     payloadWriter.close();
     dataStreams.close();
   }

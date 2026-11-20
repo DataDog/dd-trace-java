@@ -8,19 +8,29 @@ public class KafkaConsumerInfo {
   private final String consumerGroup;
   private final Metadata metadata;
   private final String bootstrapServers;
+  private final boolean clusterIdForDataStreamsOnly;
   private volatile String lastReportedMemberId;
   private volatile int lastReportedGenerationId = Integer.MIN_VALUE;
 
   public KafkaConsumerInfo(String consumerGroup, Metadata metadata, String bootstrapServers) {
+    this(consumerGroup, metadata, bootstrapServers, false);
+  }
+
+  /**
+   * Creates a consumer info whose metadata may be kept only for Data Streams Monitoring.
+   *
+   * @param clusterIdForDataStreamsOnly whether the metadata cluster ID is used only while Data
+   *     Streams Monitoring is enabled
+   */
+  public KafkaConsumerInfo(
+      String consumerGroup,
+      Metadata metadata,
+      String bootstrapServers,
+      boolean clusterIdForDataStreamsOnly) {
     this.consumerGroup = consumerGroup;
     this.metadata = metadata;
     this.bootstrapServers = bootstrapServers;
-  }
-
-  public KafkaConsumerInfo(String consumerGroup, String bootstrapServers) {
-    this.consumerGroup = consumerGroup;
-    this.metadata = null;
-    this.bootstrapServers = bootstrapServers;
+    this.clusterIdForDataStreamsOnly = clusterIdForDataStreamsOnly;
   }
 
   public Optional<String> getConsumerGroup() {
@@ -33,6 +43,10 @@ public class KafkaConsumerInfo {
 
   public Optional<String> getBootstrapServers() {
     return Optional.ofNullable(bootstrapServers);
+  }
+
+  public boolean isClusterIdForDataStreamsOnly() {
+    return clusterIdForDataStreamsOnly;
   }
 
   public boolean hasMembershipChanged(String memberId, int generationId) {
