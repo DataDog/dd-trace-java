@@ -1,4 +1,5 @@
 import datadog.gradle.plugin.testing.GeneratedGroovyClosureSpec
+import datadog.gradle.plugin.testing.configureFlakyTestSelection
 import datadog.gradle.plugin.testing.configureTestAgentPostChecks
 import datadog.gradle.plugin.testing.configureTestFailurePolicy
 import org.gradle.api.plugins.jvm.JvmTestSuite
@@ -40,6 +41,9 @@ val skipFlakyTestsProvider = rootProject.providers.gradleProperty("skipFlakyTest
 val runFlakyTestsProvider = rootProject.providers.gradleProperty("runFlakyTests")
 val rerunTestsProperty = "rerun.tests.${project.name}"
 val rerunTestsProvider = rootProject.providers.gradleProperty(rerunTestsProperty)
+val testcontainersMaxParallelForks = providers.gradleProperty("testcontainersMaxParallelForks")
+  .map(String::toInt)
+  .orElse(1)
 val isMasterBranch = providers.environmentVariable("CI_COMMIT_BRANCH")
   .map { it == "master" }
   .orElse(false)
@@ -81,6 +85,9 @@ tasks.withType<Test>().configureEach {
     exclude(GeneratedGroovyClosureSpec())
     setIncludes(listOf("**/*ForkedTest*"))
     forkEvery = 1
+    pluginManager.withPlugin("dd-trace-java.testcontainers") {
+      maxParallelForks = testcontainersMaxParallelForks.get()
+    }
     // Limit the number of concurrent forked tests
     usesService(forkedTestLimit)
     onlyIf("skipForkedTests are undefined or false") { !skipForkedTestsProvider.isPresent }
@@ -99,6 +106,8 @@ tasks.withType<Test>().configureEach {
 
   // Set test timeout for 20 minutes. Default job timeout is 1h (configured on CI level).
   timeout.set(Duration.of(20, ChronoUnit.MINUTES))
+
+  configureFlakyTestSelection(skipFlakyTestsProvider.isPresent, runFlakyTestsProvider.isPresent)
 }
 
 // Register a task "allTests" that depends on all non-latest and non-traceAgentTest Test tasks.
@@ -125,22 +134,6 @@ tasks.register("allLatestDepTests") {
 // This means that when running the 'check' task, all Test tasks will run as well.
 tasks.named("check") {
   dependsOn(tasks.withType<Test>())
-}
-
-tasks.withType<Test>().configureEach {
-  // Keep suites without test-utils out of flaky-only runs. Runtime extensions refine this tag.
-  if (!skipFlakyTestsProvider.isPresent && runFlakyTestsProvider.isPresent) {
-    useJUnitPlatform {
-      includeTags("flaky")
-    }
-  }
-
-  // Let the JUnit and Spock extensions evaluate @Flaky conditions before selecting tests.
-  if (skipFlakyTestsProvider.isPresent) {
-    jvmArgs("-Drun.flaky.tests=false")
-  } else if (runFlakyTestsProvider.isPresent) {
-    jvmArgs("-Drun.flaky.tests=true")
-  }
 }
 
 tasks.withType<Test>().configureEach {

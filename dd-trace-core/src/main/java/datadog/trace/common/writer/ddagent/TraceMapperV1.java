@@ -2,6 +2,7 @@ package datadog.trace.common.writer.ddagent;
 
 import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
 import static datadog.trace.api.DDTags.SPAN_EVENTS;
+import static datadog.trace.api.ProtocolVersion.V1_0;
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 import static datadog.trace.core.CoreSpan.ROOT_PROPAGATION_TAGS;
 import static datadog.trace.core.CoreSpan.STRUCTURED_EVENTS;
@@ -20,6 +21,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.ProcessTags;
+import datadog.trace.api.ProtocolVersion;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
@@ -620,6 +622,11 @@ public final class TraceMapperV1 implements TraceMapper {
   }
 
   @Override
+  public ProtocolVersion protocolVersion() {
+    return V1_0;
+  }
+
+  @Override
   public Payload newPayload() {
     return new PayloadV1(header);
   }
@@ -687,10 +694,16 @@ public final class TraceMapperV1 implements TraceMapper {
 
   /** Payload implementation for V1.0 format. */
   private static class PayloadV1 extends Payload {
+
     private final ByteBuffer header;
 
     private PayloadV1(ByteBuffer header) {
       this.header = header;
+    }
+
+    @Override
+    public ProtocolVersion protocol() {
+      return V1_0;
     }
 
     @Override

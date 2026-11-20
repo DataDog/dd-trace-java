@@ -48,6 +48,8 @@ import datadog.trace.common.writer.ListWriter;
 import datadog.trace.common.writer.LoggingWriter;
 import datadog.trace.core.CoreTracer.ConfigSnapshot;
 import datadog.trace.core.datastreams.DataStreamsMonitoring;
+import datadog.trace.core.monitor.HealthMetrics;
+import datadog.trace.core.monitor.TracerHealthMetrics;
 import datadog.trace.core.tagprocessor.TagsPostProcessorFactory;
 import datadog.trace.test.junit.utils.config.WithConfig;
 import java.lang.reflect.Field;
@@ -232,6 +234,28 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
     CoreTracer tracer = tracerBuilder().build();
     try {
       assertInstanceOf(AllSampler.class, tracer.initialSampler);
+    } finally {
+      tracer.close();
+    }
+  }
+
+  @Test
+  @WithConfig(key = GeneralConfig.HEALTH_METRICS_ENABLED, value = "false")
+  void healthMetricsAreNoOpWhenNoSinkIsEnabled() {
+    CoreTracer tracer = tracerBuilder().build();
+    try {
+      assertSame(HealthMetrics.NO_OP, tracer.healthMetrics);
+    } finally {
+      tracer.close();
+    }
+  }
+
+  // the cases with the OTel SDK self-monitoring sink are in CoreTracerOtelHealthMetricsForkedTest
+  @Test
+  void healthMetricsAreTheDatadogSinkWhenOnlyItIsEnabled() {
+    CoreTracer tracer = tracerBuilder().build();
+    try {
+      assertInstanceOf(TracerHealthMetrics.class, tracer.healthMetrics);
     } finally {
       tracer.close();
     }

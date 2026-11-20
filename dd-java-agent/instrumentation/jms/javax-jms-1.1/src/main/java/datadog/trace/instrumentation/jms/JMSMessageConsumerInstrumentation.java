@@ -183,8 +183,6 @@ public final class JMSMessageConsumerInstrumentation
           previousSpan.finishWithEndToEnd();
         }
       }
-      JMSLogger.logIterationSpan(span);
-
       SessionState sessionState = consumerState.getSessionState();
       if (sessionState.isClientAcknowledge()) {
         // consumed spans will be finished by a call to Message.acknowledge
