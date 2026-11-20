@@ -80,7 +80,9 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   private volatile boolean supportsDataStreams = false;
   private volatile boolean agentSupportsDataStreams = false;
   private volatile boolean configSupportsDataStreams = false;
-  private static final ThreadLocal<String> serviceNameOverride = new ThreadLocal<>();
+  // Inheritable so threads created while an override is set, such as threads a Kafka Connect
+  // task starts, report under the same service name.
+  private static final ThreadLocal<String> serviceNameOverride = new InheritableThreadLocal<>();
 
   // contains a list of active extractors by type. Thread-safe via volatile with immutable
   // snapshots.

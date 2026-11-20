@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.kafka_clients;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
+import static datadog.trace.instrumentation.kafka_common.ConnectInternalTopics.isInternal;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
@@ -68,6 +69,7 @@ public final class ConsumerCoordinatorInstrumentation extends InstrumenterModule
       "datadog.trace.instrumentation.kafka_common.KafkaConfigHelper",
       "datadog.trace.instrumentation.kafka_common.PendingConfig",
       "datadog.trace.instrumentation.kafka_common.MetadataState",
+      "datadog.trace.instrumentation.kafka_common.ConnectInternalTopics",
     };
   }
 
@@ -115,7 +117,9 @@ public final class ConsumerCoordinatorInstrumentation extends InstrumenterModule
         if (consumerGroup == null) {
           consumerGroup = "";
         }
-        if (entry.getKey() == null || entry.getValue() == null) {
+        if (entry.getKey() == null
+            || entry.getValue() == null
+            || isInternal(entry.getKey().topic())) {
           continue;
         }
 

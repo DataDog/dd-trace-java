@@ -49,6 +49,7 @@ public final class ConsumerCoordinatorInstrumentation extends InstrumenterModule
       "datadog.trace.instrumentation.kafka_common.KafkaConfigHelper",
       "datadog.trace.instrumentation.kafka_common.PendingConfig",
       "datadog.trace.instrumentation.kafka_common.MetadataState",
+      "datadog.trace.instrumentation.kafka_common.ConnectInternalTopics",
     };
   }
 
