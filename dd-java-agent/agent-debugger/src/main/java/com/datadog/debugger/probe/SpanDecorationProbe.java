@@ -344,8 +344,9 @@ public class SpanDecorationProbe extends ProbeDefinition implements CapturedCont
     if (status.getErrors().isEmpty()) {
       return;
     }
-    boolean sampled = ProbeRateLimiter.tryProbe(errorSampler, true);
-    if (!sampled) {
+    // evaluation errors are reported with a dedicated sampler (1 per probe per 5 minutes),
+    // bypassing the global samplers so failing probes do not take budget from healthy ones
+    if (!errorSampler.sample()) {
       return;
     }
     Snapshot snapshot = new Snapshot(Thread.currentThread(), this, -1);
@@ -368,7 +369,7 @@ public class SpanDecorationProbe extends ProbeDefinition implements CapturedCont
 
   @Override
   public void initSamplers() {
-    errorSampler = ProbeRateLimiter.createSampler(1.0);
+    errorSampler = ProbeRateLimiter.createSampler(ProbeRateLimiter.DEFAULT_EVALUATION_ERROR_RATE);
   }
 
   @Generated
