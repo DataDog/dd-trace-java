@@ -45,7 +45,7 @@ public final class RemoteConfiguration {
   public static final RemoteConfiguration EMPTY =
       new RemoteConfiguration(new EnumMap<>(Feature.class));
 
-  // only the features that are set
+  /** Only the features that are set. */
   private final Map<Feature, Boolean> values;
 
   private RemoteConfiguration(Map<Feature, Boolean> values) {

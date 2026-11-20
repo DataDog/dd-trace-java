@@ -40,14 +40,18 @@ public final class ProfilingConfigTargets {
   private static final int LEVEL_POD = 6;
   private static final int LEVEL_CONTAINER_ID = 7;
   private static final Map<String, Integer> LEVEL_BY_TAG_NAME = levelsByTagName();
-  // A target's level outranks any number of conditions, which only break ties within a level.
+
+  /** A target's level outranks any number of conditions, which only break ties within a level. */
   private static final int CONDITIONS_PER_LEVEL = 1000;
 
   /** A valid target of a payload. */
   private static final class Target {
-    // null when the target is for any service or env
+    /** Null when the target is for any service. */
     private final String service;
+
+    /** Null when the target is for any env. */
     private final String env;
+
     private final List<String> tags;
 
     private Target(String service, String env, List<String> tags) {

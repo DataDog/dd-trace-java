@@ -118,9 +118,11 @@ public final class DatadogProfiler {
 
   private final AtomicBoolean recordingFlag = new AtomicBoolean(false);
   private final JavaProfiler profiler;
-  // replaced by reconfigure(), read once per recording start
+
+  /** Replaced by {@link #reconfigure}, read once per recording start. */
   private volatile RecordingSettings settings;
-  // keeps the settings from changing while a recording is starting
+
+  /** Keeps the settings from changing while a recording is starting. */
   private final Object settingsLock = new Object();
 
   /**
@@ -128,16 +130,21 @@ public final class DatadogProfiler {
    * attributes are not part of it since they can't be changed at runtime.
    */
   static final class RecordingSettings {
-    // the last settings computed: remote config first checks a configuration for enabled modes,
-    // then applies it, which would otherwise compute them, and log their warnings, twice
+    /**
+     * The last settings computed: remote config first checks a configuration for enabled modes,
+     * then applies it, which would otherwise compute them, and log their warnings, twice.
+     */
     private static volatile RecordingSettings last;
 
     final ConfigProvider configProvider;
-    // the experimental raw profiler options, which override the derived ones
+
+    /** The experimental raw profiler options, which override the derived ones. */
     final String profilerOptions;
-    // the modes enabled by the config flags, which decide the derived command options
+
+    /** The modes enabled by the config flags, which decide the derived command options. */
     final EnumSet<ProfilingMode> configuredProfilingModes;
-    // the configured modes adjusted by the profiler options, i.e. the modes actually in effect
+
+    /** The configured modes adjusted by the profiler options, i.e. the modes actually in effect. */
     final EnumSet<ProfilingMode> profilingModes;
 
     private RecordingSettings(

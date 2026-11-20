@@ -87,30 +87,41 @@ import org.slf4j.LoggerFactory;
 final class ProfilingRemoteConfigHandler implements ProfilingConfigHandler {
   private static final Logger log = LoggerFactory.getLogger(ProfilingRemoteConfigHandler.class);
 
-  // set once, never reset to null
+  /** Set once, never reset to null. */
   private volatile ProfilingSystem profilingSystem;
+
   private final ConfigProvider localConfig;
   private final Function<Map<String, String>, ConfigProvider> remoteConfigFactory;
   private final Predicate<ConfigProvider> anyProfilingEnabled;
   private final boolean startImmediately;
 
-  // the latest configs not applied yet, e.g. received before the profiler was available
+  /** The latest configs not applied yet, e.g. received before the profiler was available. */
   private final AtomicReference<RemoteConfigurationStack> latestStack = new AtomicReference<>();
-  // held by the thread applying configs, so that they are applied one at a time without holding a
-  // lock across the profiler's start and stop
+
+  /**
+   * Held by the thread applying configs, so that they are applied one at a time without holding a
+   * lock across the profiler's start and stop.
+   */
   private final AtomicBoolean applying = new AtomicBoolean();
 
-  // only used by the thread holding the applying flag:
-  // the merged configuration currently applied, null when there is no profiling config, and
-  // EMPTY when there are some, but none sets a feature
+  // only used by the thread holding the applying flag
+
+  /**
+   * The merged configuration currently applied, null when there is no profiling config, and {@link
+   * RemoteConfiguration#EMPTY} when there are some, but none sets a feature.
+   */
   private RemoteConfiguration appliedConfiguration;
-  // whether the profiler is in the state that appliedConfiguration says; false after a failure.
-  // Initially idle, as without profiling config
+
+  /**
+   * Whether the profiler is in the state that {@link #appliedConfiguration} says; false after a
+   * failure. Initially idle, as without profiling config.
+   */
   private boolean stateKnown = true;
-  // whether a recording was seen running, which means that the JVM is past premain
+
+  /** Whether a recording was seen running, which means that the JVM is past premain. */
   private boolean recordingSeen;
 
-  // set from any thread, so that closing doesn't wait for a configuration being applied
+  /** Set from any thread, so that closing doesn't wait for a configuration being applied. */
   private volatile boolean closed;
 
   /**
@@ -304,7 +315,10 @@ final class ProfilingRemoteConfigHandler implements ProfilingConfigHandler {
     }
   }
 
-  // the threads are only registered for wall clock profiling when it is enabled at startup
+  /**
+   * Warns that the threads are only registered for wall clock profiling when it is enabled at
+   * startup.
+   */
   private void warnIfWallClockCantSample(RemoteConfiguration remote) {
     if (Boolean.TRUE.equals(remote.get(RemoteConfiguration.Feature.WALL_TIME))
         && !isWallClockProfilerEnabled(localConfig)) {

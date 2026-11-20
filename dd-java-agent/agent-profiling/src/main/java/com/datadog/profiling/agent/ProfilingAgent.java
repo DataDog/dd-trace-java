@@ -256,8 +256,10 @@ public class ProfilingAgent {
     connectRemoteConfigToProfiler();
   }
 
-  // called with the class lock held once the profiling system is initialized; connects the
-  // profiler to the remote config handler, if there is one, so that later configs are applied
+  /**
+   * Connects the profiler to the remote config handler, if there is one, so that later configs are
+   * applied. Called with the class lock held once the profiling system is initialized.
+   */
   private static void connectRemoteConfigToProfiler() {
     ProfilingRemoteConfigHandler handler = remoteConfigHandler;
     if (profiler != null && handler != null) {

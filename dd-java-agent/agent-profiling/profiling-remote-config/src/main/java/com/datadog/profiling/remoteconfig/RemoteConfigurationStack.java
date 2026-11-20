@@ -28,8 +28,10 @@ public final class RemoteConfigurationStack {
   public static final class Entry {
     private final String configId;
     private final int priority;
-    // the order the entries were pushed in, the greater the later
+
+    /** The order the entries were pushed in, the greater the later. */
     private final long sequence;
+
     private final RemoteConfiguration configuration;
 
     private Entry(String configId, int priority, long sequence, RemoteConfiguration configuration) {
@@ -57,7 +59,7 @@ public final class RemoteConfigurationStack {
     }
   }
 
-  // by priority, then the oldest first so that the latest overwrites it when merged
+  /** By priority, then the oldest first so that the latest overwrites it when merged. */
   private static final Comparator<Entry> LOWEST_PRIORITY_FIRST =
       Comparator.comparingInt(Entry::priority).thenComparingLong(entry -> entry.sequence);
 

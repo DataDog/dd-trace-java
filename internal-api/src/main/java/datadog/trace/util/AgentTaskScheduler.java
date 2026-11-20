@@ -282,8 +282,10 @@ public class AgentTaskScheduler implements Executor {
     }
   }
 
-  // a scheduler that was shut down doesn't need its hook anymore, and the JVM would otherwise keep
-  // it, and the scheduler, forever
+  /**
+   * Removes the shutdown hook: a scheduler that was shut down doesn't need it anymore, and the JVM
+   * would otherwise keep it, and the scheduler, forever.
+   */
   @SuppressFBWarnings({
     "JLM_JSR166_UTILCONCURRENT_MONITORENTER",
     "USO_UNSAFE_ACCESSIBLE_OBJECT_SYNCHRONIZATION"
