@@ -34,6 +34,9 @@ public final class AnnotationSubstitutionProcessorInstrumentation
     public static void onExit(@Advice.Return(readOnly = false) List<Class<?>> result) {
       result.add(Target_com_datadog_profiling_agent_ProcessContext.class);
       result.add(Target_datadog_jctools_util_UnsafeRefArrayAccess.class);
+      result.add(Target_javax_management_MBeanServerFactory.class);
+      result.add(Target_com_sun_jmx_mbeanserver_MXBeanLookup.class);
+      result.add(Target_com_sun_jmx_mbeanserver_WeakIdentityHashMap.class);
       result.add(Target_org_datadog_jmxfetch_App.class);
       result.add(Target_org_datadog_jmxfetch_Status.class);
       result.add(Target_org_datadog_jmxfetch_reporter_JsonReporter.class);

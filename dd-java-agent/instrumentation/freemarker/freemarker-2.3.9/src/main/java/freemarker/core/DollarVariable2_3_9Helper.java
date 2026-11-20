@@ -1,8 +1,8 @@
 package freemarker.core;
 
+import freemarker.template.TemplateModel;
 import freemarker.template.TemplateModelException;
 import java.lang.reflect.Field;
-import java.lang.reflect.UndeclaredThrowableException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,7 +31,8 @@ public final class DollarVariable2_3_9Helper {
     try {
       return (Expression) ESCAPED_EXPRESSION.get(object);
     } catch (IllegalAccessException e) {
-      throw new UndeclaredThrowableException(e);
+      log.debug("Failed to read DollarVariable escapedExpression", e);
+      return null;
     }
   }
 
@@ -40,13 +41,16 @@ public final class DollarVariable2_3_9Helper {
       return null;
     }
     final Expression expression = DollarVariable2_3_9Helper.fetchEscapeExpression(object);
-    if (expression instanceof BuiltIn) {
+    if (expression == null || expression instanceof BuiltIn) {
       return null;
     }
     try {
-      return environment.getDataModel().get(expression.toString()).toString();
+      // only top-level variables are found in the data model (not ${user.name} or ${a + b})
+      final TemplateModel model = environment.getDataModel().get(expression.toString());
+      return model == null ? null : model.toString();
     } catch (TemplateModelException e) {
-      throw new UndeclaredThrowableException(e);
+      // user-caused, FreeMarker reports it when evaluating the interpolation
+      return null;
     }
   }
 

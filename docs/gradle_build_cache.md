@@ -70,31 +70,182 @@ If no summary appears, try `--info` and check cache and statistics settings.
 | Native smoke-test failures                                                  | Use `SKIP_BUILD_CACHE=true` to rebuild the executable in the failing job. Check that task inputs track changes to the toolchain and builder image. |
 | Hits without faster CI                                                      | Transfers, configuration time, tasks that still execute, and the pipeline's critical path.                                                         |
 
-Compare task inputs in [Build Scans](how_to_work_with_gradle.md#build-scans-develocity).
-Muzzle jobs disable scans; use logs instead. For detailed fingerprints:
-
-```shell
-./gradlew :dd-trace-api:clean :dd-trace-api:test \
-  --build-cache --info -Dorg.gradle.caching.debug=true
-```
-
-Replace the module/task as needed. Run twice and compare keys and input hashes.
-Cleaning outputs allows restoration; omit `--rerun-tasks` when checking hits.
-Local runs diagnose inputs, but do not verify CI's S3 access.
+Compare task inputs in [Build Scans](how_to_work_with_gradle.md#build-scans-develocity)
+or [compare their fingerprints in logs](#compare-fingerprints-in-logs).
 
 S3 misses can also mean HTTP 403 (access denied) or an entry larger than the plugin's
 `maximumCachedObjectLength`. Use `--info` to check the key and reason before assuming
-an entry is missing.
+an entry is missing. 
 
-Check build logic, dependencies, JVM/toolchains, flags, platform, container digests,
-and generated files. Timestamps and absolute paths can cause unnecessary misses;
-missing inputs can cause incorrect hits. See Gradle's
-[cache debugging guide](https://docs.gradle.org/current/userguide/build_cache_debugging.html).
+> [!NOTE]
+> This build allows entries up to `256 MiB` so smoke application builds can be stored and restored.
 
-Smoke tests track the complete agent JAR through `SmokeAgentArguments.tracerJar` (`@InputFile`).
-Its generated `.version` files contain the commit hash, so a new commit can cause smoke-test
-misses even with identical sources. Compilation may still hit the cache. Rerun the same commit
-with matching inputs to measure smoke-test reuse.
+When entries that should match do not, check 
+* build logic, 
+* dependencies, 
+* JVM/toolchains, 
+* flags, 
+* platform, 
+* container digests,
+* file order,
+* generated files. 
+
+Timestamps and absolute paths can cause unnecessary misses while missing inputs can cause incorrect hits.
+
+## Choose input fingerprints
+
+Choose the input declaration according to what the task consumes. A file's extension alone
+does not determine its fingerprint: for example a JAR file can be either declared as an 
+input file or a runtime classpath.
+
+| Declaration                  | Use when                                                                              | Changes that invalidate the input                                                                                |
+| ---------------------------- | ------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `@InputFile` / `@InputFiles` | Exact file contents matter, such as a checksum, signed archive or configuration file. | File bytes and the paths selected by `@PathSensitive`. ZIP metadata is part of the bytes.                        |
+| `@Classpath`                 | The task executes or inspects JVM classes and resources, including a Java agent.      | Class and resource paths and contents, after `normalization.runtimeClasspath` rules, plus classpath entry order. |
+| `@CompileClasspath`          | Only the Java API visible to compilation matters.                                     | API changes. Method bodies, private members and resources are ignored.                                           |
+| `@Input`                     | A value affects execution, such as a version, flag or immutable container digest.     | The value changes.                                                                                               |
+
+In a custom task or nested input object, declare properties such as:
+
+```kotlin
+@get:InputFile
+@get:PathSensitive(PathSensitivity.NONE)
+abstract val distributionArchive: RegularFileProperty
+
+@get:Classpath
+abstract val tracerJar: RegularFileProperty
+
+@get:Input
+abstract val tracerVersion: Property<String>
+```
+
+> [!NOTE]
+> About [path sensitivity](https://docs.gradle.org/current/javadoc/org/gradle/api/tasks/PathSensitivity.html)
+> * `PathSensitivity.NONE` removes paths from the fingerprint while preserving file contents.
+> * `PathSensitivity.RELATIVE` includes filenames and subdirectory paths relative to each
+>   declared input directory, excluding the path to that directory. For input directory
+>   `/checkout/src`, the file `/checkout/src/pkg/Foo.java` contributes `pkg/Foo.java`.
+> * `PathSensitivity.ABSOLUTE` (default) includes absolute paths in the fingerprint, so changing
+>   those paths prevents cache reuse.
+
+A task that embeds absolute paths in its outputs also needs reproducible outputs before
+its cache can be shared.
+
+[`Classpath`](https://docs.gradle.org/current/javadoc/org/gradle/api/tasks/Classpath.html) 
+uses Gradle's built-in runtime classpath normalization. Keep in mind, that
+entry order matters for classpath. The normalization of the classpath allow to ignore
+files or selected `.properties` ignores these when fingerprint are computed.
+Note, the `@Classpath` tracks all resources on the classpath, i.e. classes, text files, 
+`.classdata` (renamed `.class`), etc.
+
+For compilation classpath consider [`CompileClasspath`](https://docs.gradle.org/current/javadoc/org/gradle/api/tasks/CompileClasspath.html)
+which has different change detection semantics.
+
+### Normalize runtime inputs
+
+Gradle uses runtime classpath normalization to ignore selected differences when comparing
+inputs or calculating cache keys. The rules need to be configured in the project owning the task. 
+The `dd-trace-java` ignores generated `.version` files in every project:
+
+```kotlin
+normalization {
+  runtimeClasspath {
+    ignore("**/*.version")
+  }
+}
+```
+
+Matching resources (declared in `ignore(...)`) won't participate in `@Classpath` fingerprints.
+But `@InputFile` fingerprints are not affected. Keep exclusions
+narrow and prefer tracking any excluded information that still affects 
+execution separately by scope, file, convention, whole repo.
+
+By default, Gradle normalises `.properties` files, ignoring comments, whitespace and key order.
+Use [`properties { ... }`](https://docs.gradle.org/current/javadoc/org/gradle/normalization/RuntimeClasspathNormalization.html)
+to ignore selected keys, or [`metaInf { ... }`](https://docs.gradle.org/current/javadoc/org/gradle/normalization/MetaInfNormalization.html)
+to ignore manifest attributes or all `META-INF` contents.
+
+> [!TIP]
+>
+> `dd-trace-java`'s generated `.version` files contain the project version followed by
+> `~<SHA>`, for example `1.69.0-SNAPSHOT~<SHA>`. The rule above excludes that file.
+> When the base version affects the task, not the commit hash, the `project.version` 
+> is used instead tracked as a tracked `@Input`.
+
+## Diagnose fingerprints in logs
+
+Start with the earliest unexpected miss in the dependency chain. Changed outputs can
+invalidate downstream tasks.
+
+### 1. Capture comparable runs
+
+Run before the change, then repeat after the change with output redirected to `after.log`.
+Keep the task, JVM, dependencies and flags comparable:
+
+```shell
+./gradlew :dd-smoke-tests:quarkus:clean :dd-smoke-tests:quarkus:test \
+  --build-cache --info --console=plain -Dorg.gradle.caching.debug=true \
+  > before.log 2>&1
+```
+
+- Use `clean` to remove outputs so Gradle can restore them from the cache.
+- Omit `--rerun-tasks` when checking restoration.
+- Local runs compare task inputs. Check CI logs to verify S3 access.
+
+### 2. Find the same task in both logs
+
+Search for cache keys, fingerprints and reasons for execution:
+
+```shell
+rg -n --max-columns 300 --max-columns-preview \
+  'Build cache key|Appending .*implementation|Appending input|Appending output|Caching disabled|not up-to-date' \
+  before.log after.log
+```
+
+Locate the task path and compare its fingerprint block in each log. For example
+(hashes and property prefixes vary by task):
+
+```text
+Appending implementation to build cache key: <task-class>@<implementation-hash>
+Appending input value fingerprint for '...tracerVersion' to build cache key: <version-hash>
+Appending input value fingerprint for '...neededResourcePaths' to build cache key: <resource-names-hash>
+Appending input file fingerprints for '...tracerJar' to build cache key: <jar-hash> - CLASSPATH{...}
+Appending output property name to build cache key: <output-name>
+Build cache key for task ':dd-smoke-tests:quarkus:test' is <task-key>
+```
+
+The search preview truncates long lines. Open the logs at those line numbers to compare
+complete file fingerprints.
+
+### 3. Follow the first difference
+
+Compare implementation hashes first, then output property names and individual inputs:
+
+| Log evidence                              | Next check                                                                                                      |
+| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| Implementation or action hash differs     | Compare Gradle, plugin and build-logic versions before inspecting file changes.                                 |
+| Output property name differs              | Check the task's output declarations; output names contribute to the key.                                       |
+| Named input value hash differs            | Compare that property's resolved value, such as a version, flag or digest.                                      |
+| File input hash differs                   | Compare normalized paths and per-file hashes, then inspect the changed file contents.                           |
+| `ABSOLUTE_PATH`                           | Compare checkout locations because absolute paths contribute to the fingerprint.                                |
+| `CLASSPATH`                               | Compare classpath order and tracked archive contents. ZIP metadata is ignored.                                  |
+| `No history is available`                 | Gradle has no local up-to-date record. A cache lookup can still succeed.                                        |
+| `Caching disabled for task`               | Resolve the reported reason before expecting restoration.                                                       |
+| Final task keys match, but no restoration | Check the namespace, read settings, permissions and entry-size limit, and whether the producer stored that key. |
+
+Use the normalizer label to assess path sensitivity. Printed file locations can be absolute
+even when the fingerprint ignores them.
+
+<details>
+<summary>Example: matching tracerVersion, different tracerJar</summary>
+
+JMXFetch's `metricconfigs.txt` listed the same filenames in different orders across builds.
+Sorting the list made the resource reproducible. Its text contents affected the `@Classpath`
+fingerprint even though ZIP metadata was already ignored.
+
+</details>
+
+See Gradle's [cache debugging guide](https://docs.gradle.org/current/userguide/build_cache_debugging.html).
 
 ## Inspect a cache entry
 

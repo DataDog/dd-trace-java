@@ -5,6 +5,7 @@ import datadog.trace.plugin.csi.AdvicePointcutParser;
 import datadog.trace.plugin.csi.SpecificationBuilder;
 import datadog.trace.plugin.csi.TypeResolver;
 import java.io.File;
+import java.nio.file.Path;
 import javax.annotation.Nonnull;
 
 public abstract class CallSiteFactory {
@@ -22,6 +23,11 @@ public abstract class CallSiteFactory {
 
   public static SpecificationBuilder specificationBuilder() {
     return new AsmSpecificationBuilder();
+  }
+
+  /** A builder that adds the classes in {@code classesFolder} each call site's helpers need. */
+  public static SpecificationBuilder specificationBuilder(@Nonnull final Path classesFolder) {
+    return new AsmSpecificationBuilder(classesFolder);
   }
 
   public static AdvicePointcutParser pointcutParser() {

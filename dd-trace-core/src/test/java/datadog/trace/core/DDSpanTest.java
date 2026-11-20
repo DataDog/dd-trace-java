@@ -423,7 +423,6 @@ public class DDSpanTest extends DDCoreJavaSpecification {
             Collections.emptyMap(),
             false,
             "fakeType",
-            0,
             tracer.createTraceCollector(DDTraceId.ONE),
             null,
             null,

@@ -15,6 +15,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -122,7 +123,8 @@ public class ExtractorBenchmark {
     // Just calling new String(string) is not good enough since it will copy the hash code
     // as well which will most likely need to be computed on a new header straight off the
     // wire
-    return new String(input.toLowerCase().getBytes(StandardCharsets.UTF_8), StandardCharsets.UTF_8);
+    return new String(
+        input.toLowerCase(Locale.ROOT).getBytes(StandardCharsets.UTF_8), StandardCharsets.UTF_8);
   }
 
   private static List<Pair<String, String>> resetList(List<Pair<String, String>> list) {

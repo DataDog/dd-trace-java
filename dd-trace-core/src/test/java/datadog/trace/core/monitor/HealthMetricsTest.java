@@ -5,6 +5,7 @@ import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -278,7 +279,7 @@ class HealthMetricsTest {
     try (TracerHealthMetrics healthMetrics =
         new TracerHealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)) {
       healthMetrics.start();
-      healthMetrics.onCreateSpan();
+      healthMetrics.onCreateSpan(mock(DDSpan.class));
       assertTrue(latch.await(5, TimeUnit.SECONDS));
     }
     verify(statsD).count("span.pending.created", 1L);

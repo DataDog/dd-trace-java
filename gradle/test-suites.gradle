@@ -113,7 +113,6 @@ ext.addForkedTestTask = { String sourceSetName ->
   return tasks.register(taskName, Test) {
     group = LifecycleBasePlugin.VERIFICATION_GROUP
     description = "Runs the '*ForkedTest' classes of the '${sourceSetName}' source set, each in its own JVM."
-    useJUnitPlatform()
     testClassesDirs = sourceSets[sourceSetName].output.classesDirs
     classpath = sourceSets[sourceSetName].runtimeClasspath
     // Set rather than a convention: the test JVM constraints plugin already sets the launcher of every

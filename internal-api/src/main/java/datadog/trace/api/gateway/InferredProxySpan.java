@@ -22,6 +22,7 @@ import datadog.trace.bootstrap.instrumentation.api.TagExtractor;
 import datadog.trace.bootstrap.instrumentation.api.http.DatadogServerUrl;
 import datadog.trace.bootstrap.instrumentation.api.http.HttpServerUrl;
 import datadog.trace.bootstrap.instrumentation.api.http.OtelServerUrl;
+import datadog.trace.util.Strings;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -208,7 +209,7 @@ public class InferredProxySpan implements ImplicitContextKeyed {
       return null; // Unknown proxy type
     }
 
-    return String.format("arn:%s:apigateway:%s::/%s/%s", partition, region, resourceType, apiId);
+    return Strings.format("arn:%s:apigateway:%s::/%s/%s", partition, region, resourceType, apiId);
   }
 
   /**
@@ -219,6 +220,11 @@ public class InferredProxySpan implements ImplicitContextKeyed {
    */
   public void registerServiceEntrySpan(AgentSpan serviceEntrySpan) {
     this.registeredServiceEntrySpan = serviceEntrySpan;
+  }
+
+  /** Returns the registered application server span, or {@code null} if none is registered. */
+  public AgentSpan getServiceEntrySpan() {
+    return registeredServiceEntrySpan;
   }
 
   public void finish() {

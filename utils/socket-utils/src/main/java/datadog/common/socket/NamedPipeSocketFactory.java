@@ -2,6 +2,7 @@ package datadog.common.socket;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
+import datadog.trace.api.internal.VisibleForTesting;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -25,6 +26,11 @@ public class NamedPipeSocketFactory extends SocketFactory {
 
   NamedPipeSocketFactory(File pipe) {
     this.pipe = pipe;
+  }
+
+  @VisibleForTesting
+  File getPipe() {
+    return this.pipe;
   }
 
   @Override
