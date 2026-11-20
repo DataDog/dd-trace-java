@@ -128,6 +128,13 @@ public final class CompositeHealthMetrics extends HealthMetrics {
   }
 
   @Override
+  public void onEndSpan() {
+    for (HealthMetrics delegate : delegates) {
+      delegate.onEndSpan();
+    }
+  }
+
+  @Override
   public void onFinishSpan() {
     for (HealthMetrics delegate : delegates) {
       delegate.onFinishSpan();
