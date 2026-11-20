@@ -605,7 +605,7 @@ abstract class AbstractSparkListenerTest extends InstrumentationSpecification {
     }
   }
 
-  def "span links mode finalizes outstanding children once and ignores late starts"() {
+  def "span links mode preserves callback-driven descendant finalization"() {
     setup:
     injectSysConfig(DATA_JOBS_SPARK_SPAN_LINKS, "true")
     def listener = getTestDatadogSparkListener()
@@ -615,13 +615,18 @@ abstract class AbstractSparkListenerTest extends InstrumentationSpecification {
 
     when:
     listener.onApplicationEnd(applicationEndEvent(2000L))
-    listener.onJobStart(jobStartEvent(2, 2100L, [2]))
-    listener.onStageSubmitted(stageSubmittedEvent(2, 2200L))
-    listener.onApplicationEnd(applicationEndEvent(2300L))
+
+    then:
+    TEST_WRITER.empty
+
+    when:
+    listener.onStageCompleted(stageCompletedEvent(1, 2200L))
+    listener.onJobEnd(jobEndEvent(1, 2300L))
 
     then:
     assertTraces(1) {
       trace(3) {
+        sortSpansByStart()
         span {
           operationName "spark.application"
           spanType "spark"

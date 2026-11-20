@@ -35,10 +35,12 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.apache.spark.SparkConf;
 import org.apache.spark.executor.TaskMetrics;
+import org.apache.spark.scheduler.JobSucceeded$;
 import org.apache.spark.scheduler.SparkListener;
 import org.apache.spark.scheduler.SparkListenerApplicationEnd;
 import org.apache.spark.scheduler.SparkListenerApplicationStart;
 import org.apache.spark.scheduler.SparkListenerInterface;
+import org.apache.spark.scheduler.SparkListenerJobEnd;
 import org.apache.spark.scheduler.SparkListenerJobStart;
 import org.apache.spark.scheduler.StageInfo;
 import org.apache.spark.sql.SparkSession;
@@ -241,16 +243,16 @@ public abstract class AbstractSparkSpanLinksTest extends AbstractInstrumentation
 
   @Test
   @WithConfig(key = DATA_JOBS_SPARK_SPAN_LINKS, value = "true")
-  void terminalCleanupFinishesOutstandingChildrenOnceAndRejectsLateStarts() throws Exception {
-    SparkSession spark = newSession("terminal-cleanup", false, false);
+  void applicationEndPreservesCallbackDrivenJobFinalization() throws Exception {
+    SparkSession spark = newSession("callback-driven-finalization", false, false);
     AbstractDatadogSparkListener listener = AbstractDatadogSparkListener.listener;
     assertNotNull(listener);
 
     listener.onJobStart(jobStart(9001));
     stopCurrentSession();
-    listener.finishApplication(System.currentTimeMillis(), null, 0, null);
-    listener.onJobStart(jobStart(9002));
-    listener.finishApplication(System.currentTimeMillis(), null, 0, null);
+    assertEquals(0, writer.size());
+    listener.onJobEnd(
+        new SparkListenerJobEnd(9001, System.currentTimeMillis(), JobSucceeded$.MODULE$));
 
     List<DDSpan> trace = waitForSingleTrace();
     DDSpan application = onlySpan(trace, "spark.application");
