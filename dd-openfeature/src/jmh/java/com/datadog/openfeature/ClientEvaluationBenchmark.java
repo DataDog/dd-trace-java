@@ -10,6 +10,7 @@ import com.datadog.openfeature.internal.bridge.v1.HealthMetrics;
 import com.datadog.openfeature.internal.bridge.v1.ShutdownSource;
 import com.datadog.openfeature.internal.bridge.v1.SpanEnricher;
 import com.datadog.openfeature.internal.config.TestSettings;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import dev.openfeature.sdk.Client;
 import dev.openfeature.sdk.EvaluationContext;
 import dev.openfeature.sdk.FlagEvaluationDetails;
@@ -17,9 +18,14 @@ import dev.openfeature.sdk.MutableContext;
 import dev.openfeature.sdk.OpenFeatureAPI;
 import dev.openfeature.sdk.Value;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Consumer;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -34,6 +40,7 @@ import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.annotations.Warmup;
+import org.openjdk.jmh.infra.Blackhole;
 
 /**
  * Evaluation cost through the OpenFeature client, as an application pays it: the client, the
@@ -49,6 +56,16 @@ import org.openjdk.jmh.annotations.Warmup;
  * subject every time, like a service whose requests come from many users: every exposure is new,
  * and evaluation counts open a bucket per subject up to the per-flag cap. The subject keys are
  * built in the setup, so the benchmark itself allocates nothing per operation.
+ *
+ * <p>Only {@code scale/variations} and some {@code scale/splits} cases log exposures: in the other
+ * case files, every allocation has {@code doLog=false}.
+ *
+ * <p>Above a few hundred thousand evaluations per second, the flag evaluation queue overflows and
+ * evaluations skip their event, so the measured cost leaves part of it out, the more so the faster
+ * the code. The teardown prints how many events were dropped. {@code pace} spends CPU before each
+ * evaluation to keep the rate under the overflow, at the same cost on both sides of a comparison.
+ * The worker thread also flushes, so with unique subjects a few percent of the events are still
+ * dropped while it builds each flush's payloads.
  *
  * <p>Run: {@code ./gradlew :dd-openfeature:jmh -Pjmh.includes=ClientEvaluationBenchmark
  * -Pjmh.profilers=gc}.
@@ -66,11 +83,20 @@ public class ClientEvaluationBenchmark {
   private static final int SUBJECTS = 1 << 18;
 
   /** A case file of the scale suite, as in {@link ScaleSuiteBenchmark}. */
-  @Param({"scale/flags", "scale/rules", "scale/splits", "scale/wide-context"})
+  @Param({"scale/flags", "scale/rules", "scale/splits", "scale/variations", "scale/wide-context"})
   public String cases;
 
   @Param({"repeated", "unique"})
   public String subjects;
+
+  /** CPU spent before each evaluation, in {@link Blackhole#consumeCPU} tokens; 0 for none. */
+  @Param({"0"})
+  public int pace;
+
+  /** The health metrics the runtime reported, such as events dropped on a full queue. */
+  private static final Map<String, LongAdder> HEALTH = new ConcurrentHashMap<>();
+
+  private static final Queue<Cursor> CURSORS = new ConcurrentLinkedQueue<>();
 
   private Client client;
   private ScaleCase[] scaleCases;
@@ -83,6 +109,7 @@ public class ClientEvaluationBenchmark {
 
     private int nextCase;
     private int nextSubject;
+    private long evaluations;
     private final SubjectContext context = new SubjectContext();
 
     /**
@@ -92,10 +119,11 @@ public class ClientEvaluationBenchmark {
     @Setup(Level.Trial)
     public void spread(final ClientEvaluationBenchmark benchmark) {
       final int thread = THREADS.getAndIncrement();
-      nextCase = offset(thread, benchmark.scaleCases.length);
+      nextCase = thread % benchmark.scaleCases.length;
       if (benchmark.subjectKeys != null) {
         nextSubject = offset(thread, benchmark.subjectKeys.length);
       }
+      CURSORS.add(this);
     }
 
     /** Fibonacci hashing spreads consecutive thread numbers across the range. */
@@ -104,6 +132,7 @@ public class ClientEvaluationBenchmark {
     }
 
     ScaleCase next(final ScaleCase[] scaleCases) {
+      evaluations++;
       final ScaleCase scaleCase = scaleCases[nextCase];
       nextCase = nextCase + 1 == scaleCases.length ? 0 : nextCase + 1;
       return scaleCase;
@@ -146,12 +175,34 @@ public class ClientEvaluationBenchmark {
   }
 
   @TearDown(Level.Trial)
+  @SuppressForbidden
   public void tearDown() {
+    // The shutdown flushes, which reports the last of the health metrics.
     OpenFeatureAPI.getInstance().shutdown();
+    long evaluations = 0;
+    for (final Cursor cursor : CURSORS) {
+      evaluations += cursor.evaluations;
+    }
+    final LongAdder dropped = HEALTH.get("flagevaluation.rows.dropped{queue_overflow}");
+    final long drops = dropped == null ? 0 : dropped.sum();
+    System.out.printf(
+        Locale.ROOT,
+        "%n[%s %s pace=%d] %,d of %,d flag evaluation events dropped on a full queue (%.1f%%);"
+            + " health: %s%n",
+        cases,
+        subjects,
+        pace,
+        drops,
+        evaluations,
+        evaluations == 0 ? 0.0 : 100.0 * drops / evaluations,
+        HEALTH);
   }
 
   @Benchmark
   public FlagEvaluationDetails<?> evaluate(final Cursor cursor) {
+    if (pace > 0) {
+      Blackhole.consumeCPU(pace);
+    }
     final ScaleCase scaleCase = cursor.next(scaleCases);
     return scaleCase.evaluate(
         client, subjectKeys == null ? scaleCase.context() : cursor.subject(scaleCase, subjectKeys));
@@ -241,7 +292,11 @@ public class ClientEvaluationBenchmark {
 
     @Override
     public HealthMetrics healthMetrics() {
-      return HealthMetrics.NOOP;
+      return (metric, value, reason) ->
+          HEALTH
+              .computeIfAbsent(
+                  reason == null ? metric : metric + "{" + reason + "}", k -> new LongAdder())
+              .add(value);
     }
 
     @Override
