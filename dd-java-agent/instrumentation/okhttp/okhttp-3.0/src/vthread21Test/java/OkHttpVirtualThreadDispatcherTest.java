@@ -203,16 +203,15 @@ class OkHttpVirtualThreadDispatcherTest extends AbstractInstrumentationTest {
 
     try {
       for (int i = 0; i < parentCount; i++) {
-        parentRunner.submit(
-            () -> {
-              try {
-                runParentBurst(client, requestsPerParent);
-              } catch (Throwable t) {
-                failure.compareAndSet(null, t);
-              } finally {
-                allParentsDone.countDown();
-              }
-            });
+        parentRunner.submit(() -> {
+          try {
+            runParentBurst(client, requestsPerParent);
+          } catch (Throwable t) {
+            failure.compareAndSet(null, t);
+          } finally {
+            allParentsDone.countDown();
+          }
+        });
       }
       assertTrue(allParentsDone.await(60, TimeUnit.SECONDS), "parent threads timed out");
     } finally {
