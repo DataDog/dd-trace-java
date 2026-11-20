@@ -13,8 +13,6 @@ import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * The profiling features that remote config can enable or disable, as set by the {@code profilers}
@@ -25,7 +23,6 @@ import org.slf4j.LoggerFactory;
  * configuration, see {@link RemoteConfigurationStack}, or, if none sets it, the local one.
  */
 public final class RemoteConfiguration {
-  private static final Logger log = LoggerFactory.getLogger(RemoteConfiguration.class);
 
   /** The features that can be set remotely, with their names in the payload. */
   public enum Feature {
@@ -83,10 +80,6 @@ public final class RemoteConfiguration {
   static RemoteConfiguration parse(Map<String, Object> payload, List<String> problems) {
     if (!payload.containsKey("profilers")) {
       return null;
-    }
-    Object settings = payload.get("settings");
-    if (payload.containsKey("settings") && !(settings instanceof Map)) {
-      problems.add("settings is not an object");
     }
     Object profilers = payload.get("profilers");
     if (!(profilers instanceof Map)) {
