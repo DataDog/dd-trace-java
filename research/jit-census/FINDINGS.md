@@ -172,6 +172,17 @@ stand-in for "what customers on old stacks run".
 - **Trap (batch 4):** `split("|")` (RESTEasy) is an empty alternation, so it splits between every character.
   It is not a literal pipe. The classifier must never treat a bare `|` as a literal.
 - Noted, not proposed: `">\\s+<"` (Struts `Compress`), `"\\s{2,}"` (Vaadin). One site each.
+- **Subsumption test for candidate rewrites (Doug, 2026-11-20):** if the safety proof a rewrite
+  needs implies the proof the JIT already does, drop the rewrite. It only helps where C2 doesn't run
+  (interpreter and C1 code, methods over 8,000 bytes of bytecode, failed inlining), and those are cold or rare. A rewrite earns its keep only when it
+  uses knowledge the JIT lacks: caching across calls, library semantics (what a regex or format string means, CHM forbidding null values),
+  or the judgment that some value is unobservable. Dropped on this basis: swapping a local `StringBuffer`/`Vector`
+  for `StringBuilder`/`ArrayList`. The non-escape proof it needs is what C2's escape analysis plus lock elision already does.
+  Borderline: `substring(…).equals` → `regionMatches`; measure first.
+- **Rule for any type substitution:** never when the object is stored to a field, static or array,
+  passed as an argument, returned, thrown, captured by a lambda or inner class, observed via
+  `instanceof`/`checkcast`/`getClass()`/`==`, or merged with another value at a join. Fields are visible to
+  reflection, serialization and heap-walking frameworks. It also needs targeted StackMapTable edits.
 - **Frame-safety rule:** substitutions must keep the stack the same shape, so no stack map frame
   recomputation and no `getCommonSuperClass`. Every branch lives in the callee (helper or
   `guardWithTest`). Log guards and for-each presizing are the exceptions; they need frame synthesis.
