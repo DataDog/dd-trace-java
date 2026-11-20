@@ -54,14 +54,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 
-/** Turns evaluation telemetry and exposures off independently, by option or setting. */
+/** Turns evaluation telemetry and exposures off independently, per provider. */
 class EvaluationTelemetryAndExposuresTest {
-  private static final String TELEMETRY_PROPERTY = "dd.feature.flags.evaluation.telemetry.enabled";
-  private static final String EXPOSURES_PROPERTY = "dd.feature.flags.exposures.enabled";
-
   private final List<FlagEvalEvent> events = new CopyOnWriteArrayList<>();
   private final List<String> spans = new CopyOnWriteArrayList<>();
   private final List<ExposureEvent> exposures = new CopyOnWriteArrayList<>();
@@ -82,16 +77,10 @@ class EvaluationTelemetryAndExposuresTest {
         }
       };
   private final OpenFeatureAPI api = OpenFeatureAPI.getInstance();
-  private String previousTelemetryProperty;
-  private String previousExposuresProperty;
   private FeatureFlagsRuntime runtime;
 
   @BeforeEach
   void setUp() throws Exception {
-    this.previousTelemetryProperty = System.getProperty(TELEMETRY_PROPERTY);
-    this.previousExposuresProperty = System.getProperty(EXPOSURES_PROPERTY);
-    System.clearProperty(TELEMETRY_PROPERTY);
-    System.clearProperty(EXPOSURES_PROPERTY);
     GlobalOpenTelemetry.resetForTest();
     final OpenTelemetry otel = mock(OpenTelemetry.class, RETURNS_DEEP_STUBS);
     final LongCounter counter = mock(LongCounter.class);
@@ -113,8 +102,6 @@ class EvaluationTelemetryAndExposuresTest {
 
   @AfterEach
   void tearDown() {
-    restore(TELEMETRY_PROPERTY, this.previousTelemetryProperty);
-    restore(EXPOSURES_PROPERTY, this.previousExposuresProperty);
     this.api.clearHooks();
     this.api.shutdown();
     GlobalOpenTelemetry.resetForTest();
@@ -179,39 +166,22 @@ class EvaluationTelemetryAndExposuresTest {
   }
 
   @Test
-  void settingsTurnBothOffForEveryProvider() throws Exception {
-    System.setProperty(TELEMETRY_PROPERTY, "false");
-    System.setProperty(EXPOSURES_PROPERTY, "false");
-
+  void optionsAreEnabledByDefault() {
     final Provider provider = new Provider(new Provider.Options());
+
+    assertTrue(provider.isEvaluationTelemetryEnabled());
+    assertTrue(provider.isExposuresEnabled());
+  }
+
+  @Test
+  void bothOptionsOffRegisterNoTelemetryOrExposureHooks() {
+    final Provider provider =
+        new Provider(
+            new Provider.Options().evaluationTelemetryEnabled(false).exposuresEnabled(false));
 
     assertFalse(provider.isEvaluationTelemetryEnabled());
     assertFalse(provider.isExposuresEnabled());
     assertNoTelemetryOrExposureHooks(provider);
-  }
-
-  @ParameterizedTest
-  @ValueSource(booleans = {false, true})
-  void optionsOverrideTheSettings(final boolean enabled) {
-    System.setProperty(TELEMETRY_PROPERTY, Boolean.toString(!enabled));
-    System.setProperty(EXPOSURES_PROPERTY, Boolean.toString(!enabled));
-
-    final Provider provider =
-        new Provider(
-            new Provider.Options().evaluationTelemetryEnabled(enabled).exposuresEnabled(enabled));
-
-    assertEquals(enabled, provider.isEvaluationTelemetryEnabled());
-    assertEquals(enabled, provider.isExposuresEnabled());
-  }
-
-  @Test
-  void settingsAreCapturedAtProviderConstruction() {
-    System.setProperty(EXPOSURES_PROPERTY, "false");
-    final Provider provider = new Provider(new Provider.Options());
-    System.setProperty(EXPOSURES_PROPERTY, "true");
-
-    assertFalse(provider.isExposuresEnabled());
-    assertTrue(provider.isEvaluationTelemetryEnabled());
   }
 
   private static void assertNoTelemetryOrExposureHooks(final Provider provider) {
@@ -238,8 +208,8 @@ class EvaluationTelemetryAndExposuresTest {
   }
 
   /**
-   * Registers a provider with span enrichment on under the domain. The evaluator gets the switches
-   * the provider resolved, as the provider passes them to the evaluator it builds itself.
+   * Registers a provider with span enrichment on under the domain. The evaluator gets the options
+   * the provider captured, as the provider passes them to the evaluator it builds itself.
    */
   private Client start(final String domain, final Provider.Options options) throws Exception {
     final Provider resolved = new Provider(options, null, Boolean.TRUE);
@@ -255,14 +225,6 @@ class EvaluationTelemetryAndExposuresTest {
     }
     this.api.setProviderAndWait(domain, provider);
     return this.api.getClient(domain);
-  }
-
-  private static void restore(final String property, final String previous) {
-    if (previous == null) {
-      System.clearProperty(property);
-    } else {
-      System.setProperty(property, previous);
-    }
   }
 
   /** Creates a runtime only holding a flag evaluation pipeline, without starting it. */

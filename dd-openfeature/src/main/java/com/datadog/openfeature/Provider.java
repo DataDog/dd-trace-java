@@ -98,8 +98,8 @@ public class Provider extends EventProvider implements Metadata {
         selection == null
             ? FlagSelectionRequest.NONE
             : FlagSelectionRequest.of(selection.tags, selection.keyPatterns);
-    this.evaluationTelemetryEnabled = options.isEvaluationTelemetryEnabled(this.settings);
-    this.exposuresEnabled = options.isExposuresEnabled(this.settings);
+    this.evaluationTelemetryEnabled = options.evaluationTelemetryEnabled;
+    this.exposuresEnabled = options.exposuresEnabled;
     FlagEvalMetrics metrics = null;
     FlagEvalMetricsHook hook = null;
     if (this.evaluationTelemetryEnabled) {
@@ -383,7 +383,7 @@ public class Provider extends EventProvider implements Metadata {
     return spanEnrichmentHook;
   }
 
-  // Visible for tests: the switches resolved from the options and settings at construction.
+  // Visible for tests: the options captured at construction.
   boolean isEvaluationTelemetryEnabled() {
     return evaluationTelemetryEnabled;
   }
@@ -447,19 +447,19 @@ public class Provider extends EventProvider implements Metadata {
     private long timeout = 30;
     private TimeUnit unit = SECONDS;
     private Boolean evaluationTelemetryOptOutParameterEnabled;
-    private Boolean evaluationTelemetryEnabled;
-    private Boolean exposuresEnabled;
+    private boolean evaluationTelemetryEnabled = true;
+    private boolean exposuresEnabled = true;
     private ExperimentationOptOutMode experimentationOptOutMode = ExperimentationOptOutMode.DEFAULT;
     private FlagSelection flagSelection;
 
     /**
      * Sets whether this provider produces evaluation telemetry: flag evaluation events, evaluation
-     * metrics, and span enrichment. Overrides {@code
-     * DD_FEATURE_FLAGS_EVALUATION_TELEMETRY_ENABLED}, including when true. Without an explicit
-     * option, the provider reads configuration at construction. Enabled by default.
+     * metrics, and span enrichment. Enabled by default.
      *
      * <p>This does not change flag results, assignment, exposures, application hooks, or ordinary
-     * application tracing. Use {@link #exposuresEnabled(boolean)} to control exposures.
+     * application tracing. Use {@link #exposuresEnabled(boolean)} to control exposures. To turn
+     * flag evaluation events off for the whole process instead, use {@code
+     * DD_FLAGGING_EVALUATION_COUNTS_ENABLED=false}.
      *
      * @param enabled whether to produce evaluation telemetry; configure before constructing the
      *     provider.
@@ -471,9 +471,7 @@ public class Provider extends EventProvider implements Metadata {
     }
 
     /**
-     * Sets whether evaluations through this provider are exposures. Overrides {@code
-     * DD_FEATURE_FLAGS_EXPOSURES_ENABLED}, including when true. Without an explicit option, the
-     * provider reads configuration at construction. Enabled by default.
+     * Sets whether evaluations through this provider are exposures. Enabled by default.
      *
      * <p>When disabled, an evaluation is not recorded, deduplicated, sent to Datadog, or reported
      * to an {@link ExposureHook} as an exposure, and it does not suppress a later exposure of the
@@ -482,8 +480,9 @@ public class Provider extends EventProvider implements Metadata {
      * before the subject experiences it.
      *
      * <p>This differs from {@code DD_FEATURE_FLAGS_EXPOSURES_DATADOG_LOGGING_ENABLED=false}, which
-     * keeps exposures for exposure hooks and only stops sending them to Datadog. Use {@link
-     * #evaluationTelemetryEnabled(boolean)} to control evaluation telemetry.
+     * applies to the whole process, keeps exposures for exposure hooks and deduplication, and only
+     * stops sending them to Datadog. Use {@link #evaluationTelemetryEnabled(boolean)} to control
+     * evaluation telemetry.
      *
      * @param enabled whether evaluations are exposures; configure before constructing the provider.
      * @return these options.
@@ -491,20 +490,6 @@ public class Provider extends EventProvider implements Metadata {
     public Options exposuresEnabled(final boolean enabled) {
       this.exposuresEnabled = enabled;
       return this;
-    }
-
-    private boolean isEvaluationTelemetryEnabled(final Settings settings) {
-      if (this.evaluationTelemetryEnabled != null) {
-        return this.evaluationTelemetryEnabled;
-      }
-      return settings.isEvaluationTelemetryEnabled();
-    }
-
-    private boolean isExposuresEnabled(final Settings settings) {
-      if (this.exposuresEnabled != null) {
-        return this.exposuresEnabled;
-      }
-      return settings.isExposuresEnabled();
     }
 
     /**

@@ -1636,22 +1636,6 @@
         "aliases": []
       }
     ],
-    "DD_FEATURE_FLAGS_EVALUATION_TELEMETRY_ENABLED": [
-      {
-        "version": "A",
-        "type": "boolean",
-        "default": "true",
-        "aliases": []
-      }
-    ],
-    "DD_FEATURE_FLAGS_EXPOSURES_ENABLED": [
-      {
-        "version": "A",
-        "type": "boolean",
-        "default": "true",
-        "aliases": []
-      }
-    ],
     "DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED": [
       {
         "version": "A",
