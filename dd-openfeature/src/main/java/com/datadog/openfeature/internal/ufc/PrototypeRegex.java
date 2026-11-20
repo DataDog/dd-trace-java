@@ -642,9 +642,10 @@ abstract class PrototypeRegex extends RegexMatcher {
     private final boolean anchoredEnd;
     private final boolean endsWithGap;
     private final int minLength;
-    // Whether the answer depends on counting code points: a single '.', or a gap or tail of at
-    // least two. A surrogate pair is one code point but two chars, so with one in the input the
-    // char positions this matcher computes are off.
+    // Whether a char position this matcher computes without comparing the chars there can be off
+    // by a surrogate pair (one code point, two chars): a gap or tail of at least two, or an
+    // end-anchored last segment with a '.', placed by length from the end. A '.' compared in place
+    // already falls back on a surrogate.
     private final boolean countsCodePoints;
     private final RegexMatcher fallback;
 
@@ -674,7 +675,9 @@ abstract class PrototypeRegex extends RegexMatcher {
       for (int k = 0; k < segments.length; k++) {
         min += gapMin[k] + segments[k].length;
         counts |= gapMin[k] >= 2;
-        for (final char c : segments[k]) {
+      }
+      if (trailingBounded) {
+        for (final char c : segments[segments.length - 1]) {
           counts |= c == ANY;
         }
       }

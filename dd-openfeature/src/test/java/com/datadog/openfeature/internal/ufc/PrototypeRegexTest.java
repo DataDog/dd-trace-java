@@ -90,7 +90,13 @@ class PrototypeRegexTest {
           "^a.{2}b$",
           "a.{2}b",
           "a.b.c",
-          "^a.+b$");
+          "^a.+b$",
+          "^a.{2,}b$",
+          "a.{2,}b",
+          "^x.+y.{2,}$",
+          "@my.co$",
+          "^ab.c",
+          "^.b.$");
 
   @Test
   void agreesWithRegexMatcherOnEveryFixtureAndHandPickedPattern() throws IOException {
