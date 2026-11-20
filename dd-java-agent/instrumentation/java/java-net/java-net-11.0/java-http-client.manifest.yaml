@@ -1,0 +1,9 @@
+_v: 1
+name: java-http-client
+display_name: Java HTTP Client
+description: Instruments Java HTTP Client for outbound synchronous and asynchronous HTTP requests.
+packages: []
+category:
+- http.client
+systems: []
+creation_date: '2022-11-21'

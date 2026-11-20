@@ -1,0 +1,13 @@
+_v: 1
+name: apache-httpclient
+display_name: Apache HttpClient
+description: Traces outbound HTTP requests sent through Apache HttpClient's classic (synchronous) execute API, creating client
+  spans and propagating trace context, and propagates IAST taint from request URIs to request objects.
+packages:
+- name: io.dropwizard:dropwizard-client
+- name: org.apache.httpcomponents.client5:httpclient5
+- name: org.apache.httpcomponents:httpclient
+category:
+- http.client
+systems: []
+creation_date: '2017-05-23'

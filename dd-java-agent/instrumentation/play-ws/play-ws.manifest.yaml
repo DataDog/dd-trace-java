@@ -1,0 +1,13 @@
+_v: 1
+name: play-ws
+display_name: Play WS
+description: Instruments Play WS general-purpose outbound HTTP requests, creating spans, injecting trace context, and recording
+  asynchronous responses and errors.
+packages:
+- name: com.typesafe.play:play-ahc-ws-standalone_2.11
+- name: com.typesafe.play:play-ahc-ws-standalone_2.12
+- name: com.typesafe.play:play-ahc-ws-standalone_2.13
+category:
+- http.client
+systems: []
+creation_date: '2019-10-30'

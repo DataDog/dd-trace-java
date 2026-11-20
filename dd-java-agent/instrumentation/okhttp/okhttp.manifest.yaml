@@ -1,0 +1,12 @@
+_v: 1
+name: okhttp
+display_name: OkHttp
+description: Instruments OkHttp client requests, producing outbound HTTP client spans and injecting trace context, while enabling
+  AppSec downstream request analysis and IAST URL taint propagation.
+packages:
+- name: com.squareup.okhttp3:okhttp
+- name: com.squareup.okhttp:okhttp
+category:
+- http.client
+systems: []
+creation_date: '2017-06-15'

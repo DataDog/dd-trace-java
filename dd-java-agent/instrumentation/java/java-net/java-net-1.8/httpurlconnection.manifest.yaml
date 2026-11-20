@@ -1,0 +1,10 @@
+_v: 1
+name: httpurlconnection
+display_name: HttpURLConnection
+description: Traces outbound HTTP requests made through Java's HttpURLConnection, propagating distributed trace context in
+  request headers (and, when the urlconnection option is enabled, records error spans for failed URL.openConnection calls).
+packages: []
+category:
+- http.client
+systems: []
+creation_date: '2018-06-01'

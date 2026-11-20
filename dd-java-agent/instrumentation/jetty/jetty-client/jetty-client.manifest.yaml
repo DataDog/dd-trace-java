@@ -1,0 +1,10 @@
+_v: 1
+name: jetty-client
+display_name: Jetty Client
+description: Instruments outbound HTTP requests made with the Jetty HTTP client.
+packages:
+- name: org.eclipse.jetty:jetty-client
+category:
+- http.client
+systems: []
+creation_date: '2021-04-12'
