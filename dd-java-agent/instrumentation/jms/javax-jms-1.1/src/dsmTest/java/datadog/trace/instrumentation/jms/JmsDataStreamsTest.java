@@ -93,7 +93,10 @@ public final class JmsDataStreamsTest {
     ClassInjector.enableClassInjection(INSTRUMENTATION);
     transformer =
         AgentInstaller.installBytebuddyAgent(
-            INSTRUMENTATION, true, AgentInstaller.getEnabledSystems(), false,
+            INSTRUMENTATION,
+            true,
+            AgentInstaller.getEnabledSystems(),
+            false,
             new ClassFileTransformerListener());
     broker = new EmbeddedActiveMQBroker();
     broker.start();
@@ -184,8 +187,8 @@ public final class JmsDataStreamsTest {
       }
       Thread.sleep(20);
     }
-    throw new AssertionError("No stats group with tags " + String.join(", ", tags)
-        + " was written");
+    throw new AssertionError(
+        "No stats group with tags " + String.join(", ", tags) + " was written");
   }
 
   private static final class TestTraceConfig implements TraceConfig {
