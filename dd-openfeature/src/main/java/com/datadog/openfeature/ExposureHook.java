@@ -4,6 +4,7 @@ import static com.datadog.openfeature.internal.evaluation.MetadataKeys.ALLOCATIO
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.DO_LOG;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EXPOSURE_CACHE_HIT;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.FEATURE_PREFIX;
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.allocationKey;
 import static java.util.Collections.emptyMap;
 import static java.util.Objects.requireNonNull;
 
@@ -130,8 +131,7 @@ public final class ExposureHook implements Hook<Object> {
      *     when it failed or returned the default value.
      */
     public String getAllocationKey() {
-      final Object allocationKey = metadata().get(ALLOCATION_KEY);
-      return allocationKey instanceof String ? (String) allocationKey : null;
+      return allocationKey(metadata());
     }
 
     /**

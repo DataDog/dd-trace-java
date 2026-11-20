@@ -9,7 +9,9 @@ import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.common.AttributesBuilder;
 import io.opentelemetry.api.metrics.LongCounter;
 import io.opentelemetry.api.metrics.Meter;
+import io.opentelemetry.api.metrics.MeterProvider;
 import java.io.Closeable;
+import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,10 +43,10 @@ class FlagEvalMetrics implements Closeable {
   static {
     for (final Reason reason : Reason.values()) {
       REASONS[reason.ordinal()] = reason.name();
-      LOWER_CASE_REASONS[reason.ordinal()] = reason.name().toLowerCase();
+      LOWER_CASE_REASONS[reason.ordinal()] = reason.name().toLowerCase(Locale.ROOT);
     }
     for (final ErrorCode errorCode : ErrorCode.values()) {
-      ERROR_TYPES[errorCode.ordinal()] = errorCode.name().toLowerCase();
+      ERROR_TYPES[errorCode.ordinal()] = errorCode.name().toLowerCase(Locale.ROOT);
     }
   }
 
@@ -52,7 +54,6 @@ class FlagEvalMetrics implements Closeable {
   static final long NOOP_RECHECK_NANOS = TimeUnit.MILLISECONDS.toNanos(100);
 
   private volatile LongCounter counter;
-  private volatile OpenTelemetry telemetry;
   private volatile boolean closed;
   private volatile Boolean legacyAgentBridge;
   private volatile boolean getOrNoopUnavailable;
@@ -64,6 +65,11 @@ class FlagEvalMetrics implements Closeable {
     this(NOOP_RECHECK_NANOS);
   }
 
+  /**
+   * Creates metrics that look for an SDK again at most once per interval while none is registered.
+   *
+   * @param noopRecheckNanos the interval, in nanoseconds; tests pass 0 to look on every evaluation.
+   */
   FlagEvalMetrics(final long noopRecheckNanos) {
     this.suppliedCounter = false;
     this.noopRecheckNanos = noopRecheckNanos;
@@ -88,10 +94,7 @@ class FlagEvalMetrics implements Closeable {
     lastNoopCheckNanos = now;
     try {
       final OpenTelemetry current = currentOpenTelemetry();
-      if (current == telemetry) {
-        return counter;
-      }
-      if (current == OpenTelemetry.noop()) {
+      if (recordsNothing(current)) {
         // Nothing to record into until the application registers an SDK: skip the attributes.
         return null;
       }
@@ -103,6 +106,15 @@ class FlagEvalMetrics implements Closeable {
       log.error("Failed to initialize flag evaluation metrics", e);
     }
     return null;
+  }
+
+  /**
+   * Tells whether an OpenTelemetry instance drops every metric. Checked on its meter provider, not
+   * on the instance: dd-java-agent's OpenTelemetry metrics support makes the no-op instance's meter
+   * provider record, and older APIs wrap the no-op instance in another one.
+   */
+  static boolean recordsNothing(final OpenTelemetry telemetry) {
+    return telemetry.getMeterProvider() == MeterProvider.noop();
   }
 
   private OpenTelemetry currentOpenTelemetry() {
@@ -144,7 +156,8 @@ class FlagEvalMetrics implements Closeable {
     if (closed) {
       return null;
     }
-    if (current != telemetry) {
+    // Another thread may have created the counter while this one waited for the lock.
+    if (counter == null) {
       Meter meter = current.getMeterProvider().meterBuilder(METER_NAME).build();
       counter =
           meter
@@ -152,7 +165,6 @@ class FlagEvalMetrics implements Closeable {
               .setUnit(METRIC_UNIT)
               .setDescription(METRIC_DESC)
               .build();
-      telemetry = current;
 
       log.debug("Flag evaluation metrics initialized");
     }
@@ -199,7 +211,7 @@ class FlagEvalMetrics implements Closeable {
         return LOWER_CASE_REASONS[i];
       }
     }
-    return reason.toLowerCase();
+    return reason.toLowerCase(Locale.ROOT);
   }
 
   @Override
@@ -210,6 +222,5 @@ class FlagEvalMetrics implements Closeable {
   synchronized void shutdown() {
     closed = true;
     counter = null;
-    telemetry = null;
   }
 }

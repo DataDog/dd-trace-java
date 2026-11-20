@@ -1,10 +1,10 @@
 package com.datadog.openfeature;
 
-import static com.datadog.openfeature.internal.evaluation.MetadataKeys.ALLOCATION_KEY;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.DO_LOG;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EXPOSURE_CACHE_HIT;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EXPOSURE_FEATURE_PREFIX;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.SPLIT_SERIAL_ID;
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.allocationKey;
 
 import com.datadog.openfeature.internal.exposure.ExposureDeduplicationCache;
 import dev.openfeature.sdk.EvaluationContext;
@@ -65,9 +65,7 @@ class ExposureLoggingHook<T> implements Hook<T> {
         log.trace("Feature Flagging exposure suppressed: exposure already recorded");
         return;
       }
-      final Object allocationValue = values.get(ALLOCATION_KEY);
-      final String allocationKey =
-          allocationValue instanceof String ? (String) allocationValue : null;
+      final String allocationKey = allocationKey(values);
       final String variantKey = details.getVariant();
       final EvaluationContext context = ctx == null ? null : ctx.getCtx();
       if (allocationKey == null || variantKey == null || context == null) {
