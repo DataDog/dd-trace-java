@@ -1,0 +1,127 @@
+# Curated target list (~115 runtime libraries): widely used, plus a legacy track.
+# NOT ranked by downloads. Format: group:artifact  category  [legacy]
+# Status is computed by top100.py from out/sites.csv (Gradle-cache baseline) and batches.txt.
+org.slf4j:slf4j-api core
+com.google.guava:guava core
+org.apache.commons:commons-lang3 core
+commons-lang:commons-lang core legacy
+commons-io:commons-io core
+commons-codec:commons-codec core
+commons-collections:commons-collections core legacy
+org.apache.commons:commons-collections4 core
+org.apache.commons:commons-text core
+commons-logging:commons-logging core
+commons-beanutils:commons-beanutils core
+org.apache.commons:commons-compress core
+org.apache.commons:commons-pool2 core
+joda-time:joda-time core
+com.github.ben-manes.caffeine:caffeine core
+org.ehcache:ehcache core
+net.sf.ehcache:ehcache core legacy
+com.fasterxml.jackson.core:jackson-databind serialization
+com.fasterxml.jackson.core:jackson-core serialization
+org.codehaus.jackson:jackson-mapper-asl serialization legacy
+com.google.code.gson:gson serialization
+org.yaml:snakeyaml serialization
+com.fasterxml.jackson.dataformat:jackson-dataformat-yaml serialization
+com.fasterxml.jackson.dataformat:jackson-dataformat-xml serialization
+com.google.protobuf:protobuf-java serialization
+org.glassfish.jaxb:jaxb-runtime serialization
+com.sun.xml.bind:jaxb-impl serialization legacy
+com.thoughtworks.xstream:xstream serialization
+org.dom4j:dom4j serialization
+dom4j:dom4j serialization legacy
+xerces:xercesImpl serialization legacy
+xalan:xalan serialization legacy
+org.json:json serialization
+com.alibaba:fastjson serialization
+ch.qos.logback:logback-classic logging
+ch.qos.logback:logback-core logging
+org.apache.logging.log4j:log4j-core logging
+org.apache.logging.log4j:log4j-api logging
+log4j:log4j logging legacy
+org.apache.httpcomponents:httpclient http
+org.apache.httpcomponents:httpcore http
+org.apache.httpcomponents.client5:httpclient5 http
+commons-httpclient:commons-httpclient http legacy
+com.squareup.okhttp3:okhttp http
+com.squareup.retrofit2:retrofit http
+io.github.openfeign:feign-core http
+org.apache.tomcat.embed:tomcat-embed-core server
+org.eclipse.jetty:jetty-server server
+io.undertow:undertow-core server
+org.glassfish.jersey.core:jersey-server server
+org.jboss.resteasy:resteasy-core server
+io.netty:netty-codec-http server
+io.netty:netty-handler server
+io.vertx:vertx-core server
+org.apache.struts:struts2-core web
+struts:struts web legacy
+org.apache.axis:axis web legacy
+org.apache.axis2:axis2-kernel web legacy
+org.apache.cxf:cxf-core web
+org.springframework:spring-core framework
+org.springframework:spring-beans framework
+org.springframework:spring-context framework
+org.springframework:spring-web framework
+org.springframework:spring-webmvc framework
+org.springframework.boot:spring-boot framework
+org.springframework.boot:spring-boot-autoconfigure framework
+org.springframework.security:spring-security-core framework
+org.springframework.security:spring-security-web framework
+org.springframework.data:spring-data-commons framework
+com.google.inject:guice framework
+io.micronaut:micronaut-http-server-netty framework
+io.quarkus:quarkus-vertx-http framework
+io.dropwizard:dropwizard-core framework
+io.javalin:javalin framework
+org.hibernate.orm:hibernate-core data
+org.hibernate:hibernate-core data legacy
+org.hibernate.validator:hibernate-validator data
+org.postgresql:postgresql data
+com.mysql:mysql-connector-j data
+mysql:mysql-connector-java data legacy
+com.zaxxer:HikariCP data
+com.mchange:c3p0 data legacy
+com.h2database:h2 data
+org.mybatis:mybatis data
+org.jooq:jooq data
+org.apache.kafka:kafka-clients messaging
+com.rabbitmq:amqp-client messaging
+org.apache.activemq:activemq-client messaging
+redis.clients:jedis data
+io.lettuce:lettuce-core data
+org.mongodb:mongodb-driver-core data
+com.datastax.oss:java-driver-core data
+org.elasticsearch.client:elasticsearch-rest-client data
+org.apache.zookeeper:zookeeper data
+org.apache.curator:curator-framework data
+org.quartz-scheduler:quartz data
+org.flywaydb:flyway-core data
+org.liquibase:liquibase-core data
+com.amazonaws:aws-java-sdk-core cloud
+software.amazon.awssdk:sdk-core cloud
+io.micrometer:micrometer-core observability
+io.dropwizard.metrics:metrics-core observability
+org.bouncycastle:bcprov-jdk18on security
+com.nimbusds:nimbus-jose-jwt security
+io.jsonwebtoken:jjwt-impl security
+org.apache.shiro:shiro-core security
+io.projectreactor:reactor-core reactive
+io.reactivex.rxjava3:rxjava reactive
+org.jetbrains.kotlin:kotlin-stdlib language
+org.scala-lang:scala-library language
+org.apache.groovy:groovy language
+org.freemarker:freemarker templating
+org.thymeleaf:thymeleaf templating
+org.apache.velocity:velocity-engine-core templating
+org.apache.velocity:velocity templating legacy
+org.jsoup:jsoup documents
+org.apache.poi:poi documents
+org.apache.pdfbox:pdfbox documents
+org.apache.tika:tika-core documents
+org.apache.lucene:lucene-core documents
+org.antlr:antlr4-runtime parsing
+info.picocli:picocli cli
+commons-cli:commons-cli cli
+com.sun.mail:javax.mail mail legacy

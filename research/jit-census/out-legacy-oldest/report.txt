@@ -1,0 +1,95 @@
+artifacts: 393
+classes: 88,974  (299 MB)  unparseable-cp: 0  asm-failed: 0
+
+== Prescan hit rates (fraction of all classes)
+  any target method ref :     2,124    2.39%
+  String.split          :       429    0.48%
+  String.matches        :        56    0.06%
+  String.replaceAll     :       111    0.12%
+  String.replaceFirst   :        15    0.02%
+  String.replace(CS,CS) :       153    0.17%
+  String.format/formatted:     1,205    1.35%
+  Pattern.compile       :       390    0.44%
+  Pattern.matches       :         9    0.01%
+  Pattern.quote         :        11    0.01%
+  split + S0-shaped const:        11   0.012%
+
+== Prescan soundness / precision
+  classes with >=1 const site: 1,847 ; missed by prescan: 0 (must be 0)
+  precision of any-target filter: 87.0% of hits have a const site
+  S0 filter: 11 prescan hits, 8 classes with real S0 site, 8 of those caught
+
+== Rough prescan cost (NOT JMH; sample 88,974 classes, 299 MB): median 804 ns/class, 233.4 ns/KB
+
+== All calls to target methods (const + non-const)
+  Pattern.compile                  665
+  Pattern.matches                   10
+  Pattern.quote                     14
+  String.format/formatted        3,097
+  String.matches                   108
+  String.replace(CS,CS)            273
+  String.replaceAll                170
+  String.replaceFirst               23
+  String.split                     638
+
+== Constant-argument sites: method | shape   sites   #artifacts   top constants
+  Pattern.compile[in-clinit]|ALT_LITERALS                3      3   "-|_"x1  "/:|/\\{"x1  "\\r|\\n"x1
+  Pattern.compile[in-clinit]|CHARCLASS                  36     20   "[\\s]+"x6  "\\s+"x3  "\\d+"x2  "[^0-9]"x2  "[^ ]"x2  "[-_./;:]"x2
+  Pattern.compile[in-clinit]|INVALID                     3      1   "+"x2  "*"x1
+  Pattern.compile[in-clinit]|LINES                       1      1   "\\R"x1
+  Pattern.compile[in-clinit]|LITERAL                    42     15   "\\."x5  "\\*"x3  "\\+"x3  "%7E"x3  "<"x3  " "x2
+  Pattern.compile[in-clinit]|OTHER                     298     79   "\\{([^/]+?)\\}"x5  "^.*(?:connection.*(?:reset|closed|abort|broken)|broken.*pipe).*$"x3  ".*\\$\\{.*\\}.*"x3  "(.*)\\s*=>\\s*(.*)\\s*$"x3  "<\\?xml.*encoding[\\s]*=[\\s]*((?:\".[^\"]*\")|(?:'.[^']*'))"x2  "VAULT::.*::.*::.*"x2
+  Pattern.compile[in-clinit]|WS_SEP                      9      4   "\\s*,\\s*"x6  " *, *"x1  " *= *"x1  " *; *"x1
+  Pattern.compile[in-clinit]|used-directly             392      0   
+  Pattern.compile[in-ctor]|CHARCLASS                     2      2   "[a-zA-Z0-9_\\-]+"x1  "\\s"x1
+  Pattern.compile[in-ctor]|OTHER                        34     14   "10\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}"x4  "127\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}"x4  "169\\.254\\.\\d{1,3}\\.\\d{1,3}"x4  "192\\.168\\.\\d{1,3}\\.\\d{1,3}"x4  "text/x-server-parsed-html(;.*)?"x2  "\\A\\$2a?\\$\\d\\d\\$[./0-9A-Za-z]{53}"x2
+  Pattern.compile[in-ctor]|used-directly                36      0   
+  Pattern.compile[in-method]|CHARCLASS                   8      3   "[a-zA-Z0-9_\\-]+"x1  "[A-Z]+"x1  "[:\",=*?]"x1  "[a-z]+"x1  "[0-9]*"x1  "[0-9]+"x1
+  Pattern.compile[in-method]|LITERAL                     5      3   "test"x2  "__consumer_offsets"x2  "\\\\,"x1
+  Pattern.compile[in-method]|OTHER                      48     17   ".*"x12  "test.*"x3  "t.*c"x2  " : \"(.*?)\","x2  "[^0-9a-zA-Z]?"x2  "([1-9][0-9]+)-?bit"x2
+  Pattern.compile[in-method]|used-directly              61      0   
+  Pattern.matches|OTHER                                  1      1   "s[0-9]+"x1
+  Pattern.quote|CONST                                    1      1   "! "x1
+  String.format/formatted|no-specifiers                 51     18   "%n"x11  "%n%n"x5  "-----------------%n"x2  "%n    None%n"x2  "----------------------%n"x1  "Interrupted while waiting to connect"x1
+  String.format/formatted|other                        198     51   "%1.1f%%"x9  "%02x"x6  "%s=[key=%s, value=%s, weight=%d, accessTimeNS=%,d, writeTimeNS=%,d, prevInAccess=%s, nextInAccess=%s, prevInWrite=%s, nextInWrite=%s]"x6  "%.2f"x6  "         %-30s %s"x4  "%.1f"x4
+  String.format/formatted|plain-%s-only              1,225    107   "Argument for @NotNull parameter '%s' of %s.%s must not be null"x47  "Error closing %s file."x12  "%s -> %s"x7  "Invalid challenge. Actual: %s. Expected: %s"x7  "%s.%s"x7  "Invalid increment modifier [%s]"x6
+  String.format/formatted|plain-%s/%d-only             367     68   "Version %d is not valid. Valid versions for %s are 0 to %d"x26  "initialCapacity(%d) > maxCapacity(%d)"x11  "dstIndex: %d, length: %d (expected: range(0, %d))"x9  "initialDelay: %d (expected: >= 0)"x6  "Source array with length %d cannot have offset of %d and process %d bytes."x5  "Destination array with length %d cannot have offset of %d and still store three bytes."x5
+  String.matches|ALT_LITERALS                            6      1   "^(ppc|ppc32)$"x1  "^(arm|arm32)$"x1  "^(sparcv9|sparc64)$"x1  "^(ia64|itanium64)$"x1  "^(x8664|amd64|ia32e|em64t|x64)$"x1  "^(sparc|sparc32)$"x1
+  String.matches|CASEI_LITERAL                          34      2   "(?i)max-stale"x4  "(?i)no-cache"x4  "(?i)private"x4  "(?i)stale-if-error"x2  "(?i)s-maxage"x2  "(?i)no-store"x2
+  String.matches|CHARCLASS                               5      4   "^[0-9]+$"x2  "[A-Z0-9._$]+"x1  "\\s+"x1  "[0-9]+"x1
+  String.matches|CHAR_RUN                                1      1   "0+"x1
+  String.matches|DOTSTAR                                 1      1   "^1\\.4\\..*"x1
+  String.matches|LITERAL                                 3      2   "^\\[a-zA-Z]:"x2  "^test:foo-bar:\\{key=value\\}     : 1$"x1
+  String.matches|OTHER                                  44     24   ".*[0-9A-Za-z].*"x2  "f\\d+"x2  "^(i[3-6]86|x86(_64)?|x64|amd64)$"x2  "0?\\d{3}"x1  "^(x8632|x86|i[3-6]86|ia32|x32)$"x1  "(?m).*spring-security-4\\.2.*.xsd.*"x1
+  String.replace(CS,CS)|CONST_TARGET                   229     64   "."x21  "/"x12  "\\"x12  "${STATUS}"x12  "\n"x7  "\""x6
+  String.replaceAll|ALT_LITERALS                         3      3   "<|>|\n"x1  ",|:|=|\n"x1  "\\r|\\n"x1
+  String.replaceAll|ANCHORED_LITERAL                     3      3   "^tokenizerFactory\\."x1  "/$"x1  "\\$$"x1
+  String.replaceAll|CHARCLASS                           17     11   "\\s"x5  "[^a-z0-9]+"x3  "\\s+"x3  "[\\r\\n]"x1  "[:-]"x1  "[:\\\\/*\"?|<>',]"x1
+  String.replaceAll|LITERAL                             89     41   "\\."x7  "\""x7  "/"x6  "\\\\"x5  "\n"x4  "//"x4
+  String.replaceAll|OTHER                               42     21   "\\$[0-9]+"x3  ".class"x3  "\\\\."x2  ".class$"x2  "(?:\\h|\\v)+"x1  "(?<!\\\\)[%]"x1
+  String.replaceFirst|ALT_LITERALS                       1      1   "find|count"x1
+  String.replaceFirst|ANCHORED_LITERAL                   3      2   "^/"x1  "/$"x1  "^#"x1
+  String.replaceFirst|LITERAL                           10      4   "\\]\\]>"x2  "<!\\[CDATA\\["x2  "--"x1  "exact:"x1  ":"x1  "glob:"x1
+  String.replaceFirst|OTHER                              6      5   ".*?\n"x1  "(?iu)\\s+order\\s+by\\s+.*$"x1  "[/_.-]+$"x1  "^(is)(.+)"x1  "\\.cglib\\..*$"x1  "\\.internal\\..*$"x1
+  String.split|ALT_LITERALS                              3      3   "&|;"x1  "\\.|\\-"x1  "\\.| "x1
+  String.split|CHARCLASS                                39     17   "\\s+"x24  "\\s"x4  "[;,]"x4  "[,; ]"x2  "[/\\\\]"x1  "[\\s_-]"x1
+  String.split|CHAR_RUN                                  3      3   " +"x2  "/+"x1
+  String.split|LINES                                     1      1   "\\r?\\n"x1
+  String.split|LITERAL                                   7      6   "__"x2  "\r\n"x2  "->"x1  "!/"x1  "]]>"x1
+  String.split|OTHER                                    14     10   "[ ]*,[ ]*"x2  "\r?\n"x2  ",(?=(?:[^\"]*\"[^\"]*\")+$)"x2  "[ \t]*[= \t]"x1  "[?]xsd="x1  ",(?=(?:[^\"]|\"[^\"]*\")*$)"x1
+  String.split|S0_FOLD                                   8      6   "\\n"x4  "[.]"x2  "[:]"x2
+  String.split|SPLIT_FASTPATH                          507    113   ","x162  "\\."x55  ":"x55  " "x41  "\n"x38  "="x32
+  String.split|WS_SEP                                   25     17   "\\s*,\\s*"x17  ",\\s*"x6  " *, *"x1  "\\s*=\\s*"x1
+
+== Class-file versions of const sites  [<51 | 51-54 (indy ok) | >=55 (condy ok)]
+  Pattern.compile[in-clinit]             179 |     178 |      35
+  Pattern.compile[in-ctor]                22 |      11 |       3
+  Pattern.compile[in-method]              13 |      46 |       2
+  Pattern.matches                          1 |       0 |       0
+  Pattern.quote                            0 |       1 |       0
+  String.format/formatted                968 |     812 |      61
+  String.matches                          28 |      58 |       8
+  String.replace(CS,CS)                  122 |      98 |       9
+  String.replaceAll                       80 |      62 |      12
+  String.replaceFirst                     14 |       5 |       1
+  String.split                           256 |     317 |      34

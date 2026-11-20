@@ -1,0 +1,881 @@
+com.aerospike:aerospike-client:4.0.0  (6 sites excl. split fast path)
+    String.format/formatted|other                        4
+    String.format/formatted|plain-%s/%d-only             1
+    String.replaceAll|LITERAL                            1
+com.alipay.sofa:tracer-core:2.1.2  (1 sites excl. split fast path)
+    String.format/formatted|plain-%s-only                1
+com.amazonaws:amazon-sqs-java-messaging-lib:1.0.0  (4 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     1
+    String.format/formatted|plain-%s-only                3
+com.couchbase.client:core-io:1.0.0  (86 sites excl. split fast path)
+    Pattern.compile[in-clinit]|CHARCLASS                 4
+    Pattern.compile[in-clinit]|LITERAL                   4
+    Pattern.compile[in-clinit]|OTHER                     9
+    Pattern.compile[in-method]|OTHER                     3
+    String.format/formatted|other                        4
+    String.format/formatted|plain-%s-only               11
+    String.format/formatted|plain-%s/%d-only            45
+    String.matches|OTHER                                 1
+    String.replace(CS,CS)|CONST_TARGET                   3
+    String.replaceAll|CHARCLASS                          1
+    String.replaceAll|LITERAL                            1
+com.couchbase.client:java-client:2.0.0  (5 sites excl. split fast path)
+    String.format/formatted|plain-%s-only                2
+    String.replace(CS,CS)|CONST_TARGET                   1
+    String.replaceAll|OTHER                              2
+com.fasterxml.woodstox:woodstox-core:6.0.2  (1 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     1
+com.github.ben-manes.caffeine:caffeine:1.0.0  (9 sites excl. split fast path)
+    String.format/formatted|other                        6
+    String.matches|OTHER                                 2
+    String.replaceAll|OTHER                              1
+com.google.api:api-common:1.1.0  (6 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     1
+    String.format/formatted|plain-%s-only                5
+com.google.api:gax-grpc:1.58.2  (4 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     2
+    String.format/formatted|no-specifiers                1
+    String.format/formatted|plain-%s-only                1
+com.google.api:gax:1.4.0  (2 sites excl. split fast path)
+    String.format/formatted|plain-%s/%d-only             2
+com.google.auth:google-auth-library-oauth2-http:0.7.0  (11 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     1
+    String.format/formatted|plain-%s-only               10
+com.google.code.gson:gson:1.6  (5 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     1
+    String.format/formatted|other                        3
+    String.format/formatted|plain-%s-only                1
+com.google.googlejavaformat:google-java-format:1.28.0  (29 sites excl. split fast path)
+    Pattern.compile[in-clinit]|LINES                     1
+    Pattern.compile[in-clinit]|OTHER                    13
+    Pattern.compile[in-method]|OTHER                     1
+    String.format/formatted|plain-%s-only                8
+    String.format/formatted|plain-%s/%d-only             2
+    String.matches|OTHER                                 3
+    String.replace(CS,CS)|CONST_TARGET                   1
+com.google.guava:guava:10.0  (8 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     1
+    String.format/formatted|plain-%s-only                6
+    String.replaceAll|OTHER                              1
+com.google.http-client:google-http-client:1.19.0  (12 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     6
+    String.matches|OTHER                                 1
+    String.replace(CS,CS)|CONST_TARGET                   2
+    String.replaceAll|CHARCLASS                          1
+    String.replaceAll|LITERAL                            1
+    String.replaceAll|OTHER                              1
+com.google.inject:guice:3.0  (3 sites excl. split fast path)
+    String.format/formatted|plain-%s-only                1
+    String.replaceFirst|OTHER                            2
+com.google.protobuf:protobuf-java-util:3.7.1  (7 sites excl. split fast path)
+    String.format/formatted|other                        3
+    String.format/formatted|plain-%s-only                4
+com.google.protobuf:protobuf-java:2.5.0  (9 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     5
+    String.format/formatted|other                        2
+    String.format/formatted|plain-%s/%d-only             2
+com.gradleup.shadow:shadow-gradle-plugin:8.3.9  (1 sites excl. split fast path)
+    Pattern.compile[in-ctor]|OTHER                       1
+com.graphql-java:graphql-java:14.0  (126 sites excl. split fast path)
+    String.format/formatted|plain-%s-only              114
+    String.format/formatted|plain-%s/%d-only             5
+    String.matches|CHARCLASS                             2
+    String.matches|OTHER                                 1
+    String.replaceAll|LITERAL                            2
+    String.replaceFirst|ANCHORED_LITERAL                 1
+    String.split|S0_FOLD                                 1
+com.hazelcast:hazelcast-all:3.6  (141 sites excl. split fast path)
+    Pattern.compile[in-clinit]|LITERAL                   2
+    Pattern.compile[in-clinit]|OTHER                     1
+    Pattern.compile[in-method]|CHARCLASS                 1
+    Pattern.compile[in-method]|OTHER                     5
+    String.format/formatted|other                       16
+    String.format/formatted|plain-%s-only               65
+    String.format/formatted|plain-%s/%d-only            15
+    String.replace(CS,CS)|CONST_TARGET                  20
+    String.replaceAll|ALT_LITERALS                       1
+    String.replaceAll|CHARCLASS                          1
+    String.replaceAll|LITERAL                            4
+    String.replaceAll|OTHER                              3
+    String.split|CHARCLASS                               3
+    String.split|LITERAL                                 2
+    String.split|OTHER                                   2
+com.jayway.jsonpath:json-path:2.2.0  (11 sites excl. split fast path)
+    Pattern.compile[in-clinit]|WS_SEP                    1
+    String.format/formatted|other                        3
+    String.format/formatted|plain-%s-only                6
+    String.replaceAll|CHARCLASS                          1
+com.linecorp.armeria:armeria-grpc-protocol:0.84.0  (3 sites excl. split fast path)
+    String.format/formatted|plain-%s/%d-only             3
+com.linecorp.armeria:armeria-grpc:0.84.0  (1 sites excl. split fast path)
+    String.format/formatted|plain-%s-only                1
+com.linecorp.armeria:armeria:0.84.0  (50 sites excl. split fast path)
+    Pattern.compile[in-clinit]|ALT_LITERALS              1
+    Pattern.compile[in-clinit]|CHARCLASS                 2
+    Pattern.compile[in-clinit]|OTHER                    19
+    Pattern.compile[in-method]|OTHER                     1
+    String.format/formatted|no-specifiers                1
+    String.format/formatted|other                        4
+    String.format/formatted|plain-%s-only                8
+    String.format/formatted|plain-%s/%d-only             2
+    String.matches|OTHER                                 2
+    String.replace(CS,CS)|CONST_TARGET                  10
+com.rabbitmq:amqp-client:2.7.0  (2 sites excl. split fast path)
+    String.replace(CS,CS)|CONST_TARGET                   1
+    String.split|WS_SEP                                  1
+com.squareup.okhttp3:okhttp:3.0.0  (21 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     8
+    String.format/formatted|other                        5
+    String.format/formatted|plain-%s-only                4
+    String.matches|OTHER                                 1
+    String.replace(CS,CS)|CONST_TARGET                   2
+    String.replaceAll|OTHER                              1
+com.squareup.okio:okio:1.2.0  (6 sites excl. split fast path)
+    String.format/formatted|other                        1
+    String.format/formatted|plain-%s-only                5
+com.sun.xml.bind:jaxb-core:2.2.11  (2 sites excl. split fast path)
+    String.replaceAll|LITERAL                            2
+com.sun.xml.bind:jaxb-impl:2.2.5-2  (2 sites excl. split fast path)
+    String.replaceAll|LITERAL                            2
+com.twitter:finagle-base-http_2.11:6.43.0  (0 sites excl. split fast path)
+com.twitter:finagle-core_2.11:6.43.0  (2 sites excl. split fast path)
+    String.replaceAll|LITERAL                            2
+com.twitter:finagle-http_2.11:6.43.0  (0 sites excl. split fast path)
+com.twitter:finagle-netty4_2.11:6.43.0  (2 sites excl. split fast path)
+    String.replaceAll|LITERAL                            2
+com.twitter:finagle-stats_2.11:6.43.0  (1 sites excl. split fast path)
+    String.replace(CS,CS)|CONST_TARGET                   1
+com.twitter:finagle-thrift_2.11:6.43.0  (1 sites excl. split fast path)
+    String.replace(CS,CS)|CONST_TARGET                   1
+com.twitter:finatra-http_2.11:2.9.0  (2 sites excl. split fast path)
+    String.replaceAll|LITERAL                            2
+com.twitter:finatra-jackson_2.11:2.9.0  (0 sites excl. split fast path)
+com.twitter:scrooge-core_2.11:4.15.0  (0 sites excl. split fast path)
+com.twitter:twitter-server_2.11:1.28.0  (5 sites excl. split fast path)
+    String.replace(CS,CS)|CONST_TARGET                   5
+com.twitter:util-app_2.11:6.42.0  (1 sites excl. split fast path)
+    String.replaceAll|LITERAL                            1
+com.twitter:util-core_2.11:6.42.0  (0 sites excl. split fast path)
+com.twitter:util-jvm_2.11:6.42.0  (0 sites excl. split fast path)
+com.twitter:util-lint_2.11:6.42.0  (1 sites excl. split fast path)
+    Pattern.compile[in-ctor]|CHARCLASS                   1
+com.twitter:util-logging_2.11:6.42.0  (2 sites excl. split fast path)
+    Pattern.compile[in-ctor]|OTHER                       1
+    String.format/formatted|plain-%s-only                1
+com.typesafe.play:cachecontrol_2.12:1.1.2  (18 sites excl. split fast path)
+    String.matches|CASEI_LITERAL                        17
+    String.split|WS_SEP                                  1
+com.typesafe.play:cachecontrol_2.13:1.1.7  (18 sites excl. split fast path)
+    String.matches|CASEI_LITERAL                        17
+    String.split|WS_SEP                                  1
+com.typesafe.play:play-ahc-ws-standalone_2.12:1.0.2  (1 sites excl. split fast path)
+    String.replace(CS,CS)|CONST_TARGET                   1
+com.typesafe.play:shaded-asynchttpclient:1.0.2  (100 sites excl. split fast path)
+    Pattern.compile[in-clinit]|CHARCLASS                 4
+    Pattern.compile[in-clinit]|INVALID                   3
+    Pattern.compile[in-clinit]|LITERAL                   5
+    Pattern.compile[in-clinit]|OTHER                    16
+    Pattern.compile[in-method]|OTHER                     1
+    String.format/formatted|other                        5
+    String.format/formatted|plain-%s-only               14
+    String.format/formatted|plain-%s/%d-only            38
+    String.matches|ALT_LITERALS                          6
+    String.matches|OTHER                                 2
+    String.replace(CS,CS)|CONST_TARGET                   1
+    String.replaceAll|CHARCLASS                          3
+    String.replaceAll|LITERAL                            2
+com.typesafe.play:shaded-oauth:1.0.2  (1 sites excl. split fast path)
+    String.replace(CS,CS)|CONST_TARGET                   1
+com.zaxxer:HikariCP:2.4.0  (8 sites excl. split fast path)
+    String.format/formatted|plain-%s/%d-only             2
+    String.replace(CS,CS)|CONST_TARGET                   5
+    String.replaceAll|OTHER                              1
+de.siegmar:fastcsv:1.0.4  (1 sites excl. split fast path)
+    String.format/formatted|plain-%s/%d-only             1
+io.airlift:aircompressor:0.10  (11 sites excl. split fast path)
+    String.format/formatted|other                        3
+    String.format/formatted|plain-%s-only                8
+io.confluent:common-utils:4.1.0  (1 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     1
+io.confluent:kafka-schema-registry-client:4.1.0  (18 sites excl. split fast path)
+    String.format/formatted|plain-%s-only               12
+    String.format/formatted|plain-%s/%d-only             3
+    String.replaceFirst|ANCHORED_LITERAL                 2
+    String.split|WS_SEP                                  1
+io.dropwizard.metrics:metrics-core:3.1.0  (2 sites excl. split fast path)
+    String.format/formatted|plain-%s-only                1
+    String.format/formatted|plain-%s/%d-only             1
+io.dropwizard.metrics:metrics-graphite:3.1.5  (5 sites excl. split fast path)
+    Pattern.compile[in-clinit]|CHARCLASS                 4
+    String.format/formatted|other                        1
+io.dropwizard.metrics:metrics-jvm:3.1.0  (4 sites excl. split fast path)
+    Pattern.compile[in-clinit]|CHARCLASS                 2
+    String.format/formatted|no-specifiers                1
+    String.format/formatted|plain-%s-only                1
+io.dropwizard.metrics:metrics-servlets:3.1.0  (1 sites excl. split fast path)
+    String.format/formatted|no-specifiers                1
+io.dropwizard:dropwizard-configuration:0.7.0  (4 sites excl. split fast path)
+    Pattern.compile[in-method]|LITERAL                   1
+    Pattern.compile[in-method]|OTHER                     1
+    String.format/formatted|no-specifiers                1
+    String.matches|OTHER                                 1
+io.dropwizard:dropwizard-core:0.7.0  (6 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     1
+    String.format/formatted|no-specifiers                4
+    String.format/formatted|other                        1
+io.dropwizard:dropwizard-jersey:0.7.0  (5 sites excl. split fast path)
+    String.format/formatted|no-specifiers                1
+    String.format/formatted|other                        3
+    String.format/formatted|plain-%s-only                1
+io.dropwizard:dropwizard-logging:0.7.0  (5 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     2
+    Pattern.quote|CONST                                  1
+    String.replaceAll|LITERAL                            2
+io.dropwizard:dropwizard-util:0.7.0  (2 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     2
+io.dropwizard:dropwizard-validation:0.7.0  (1 sites excl. split fast path)
+    String.format/formatted|plain-%s-only                1
+io.lettuce:lettuce-core:5.0.0.RELEASE  (84 sites excl. split fast path)
+    Pattern.compile[in-clinit]|CHARCLASS                 1
+    Pattern.compile[in-clinit]|LITERAL                   2
+    Pattern.compile[in-clinit]|OTHER                     6
+    String.format/formatted|no-specifiers                1
+    String.format/formatted|other                        3
+    String.format/formatted|plain-%s-only               61
+    String.format/formatted|plain-%s/%d-only             8
+    String.replaceAll|LITERAL                            1
+    String.split|S0_FOLD                                 1
+io.micronaut:micronaut-context:3.0.0  (13 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     2
+    String.format/formatted|plain-%s-only                9
+    String.replace(CS,CS)|CONST_TARGET                   1
+    String.split|CHARCLASS                               1
+io.micronaut:micronaut-core:2.0.0  (14 sites excl. split fast path)
+    Pattern.compile[in-clinit]|CHARCLASS                 2
+    Pattern.compile[in-clinit]|OTHER                     4
+    String.format/formatted|other                        1
+    String.format/formatted|plain-%s-only                4
+    String.replaceAll|OTHER                              2
+    String.split|CHARCLASS                               1
+io.micronaut:micronaut-http-server-netty:2.0.0  (2 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     1
+    String.replace(CS,CS)|CONST_TARGET                   1
+io.micronaut:micronaut-http-server:2.0.0  (2 sites excl. split fast path)
+    String.format/formatted|plain-%s-only                2
+io.micronaut:micronaut-http:2.0.0  (14 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     8
+    String.format/formatted|plain-%s/%d-only             1
+    String.replace(CS,CS)|CONST_TARGET                   2
+    String.replaceAll|CHARCLASS                          2
+    String.replaceAll|OTHER                              1
+io.micronaut:micronaut-inject-java:2.0.0  (1 sites excl. split fast path)
+    String.replaceFirst|OTHER                            1
+io.micronaut:micronaut-inject:2.0.0  (7 sites excl. split fast path)
+    Pattern.compile[in-clinit]|LITERAL                   1
+    Pattern.compile[in-clinit]|OTHER                     2
+    String.format/formatted|plain-%s-only                1
+    String.replace(CS,CS)|CONST_TARGET                   2
+    String.split|S0_FOLD                                 1
+io.micronaut:micronaut-runtime:2.0.0  (18 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     4
+    String.format/formatted|plain-%s-only               11
+    String.replace(CS,CS)|CONST_TARGET                   1
+    String.replaceFirst|LITERAL                          1
+    String.split|CHARCLASS                               1
+io.opentelemetry:opentelemetry-api:0.3.0  (6 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     1
+    String.format/formatted|plain-%s-only                5
+io.projectreactor.netty:reactor-netty:0.8.0.RELEASE  (16 sites excl. split fast path)
+    Pattern.compile[in-clinit]|LITERAL                   3
+    Pattern.compile[in-clinit]|OTHER                     8
+    String.format/formatted|other                        1
+    String.format/formatted|plain-%s-only                1
+    String.replace(CS,CS)|CONST_TARGET                   1
+    String.replaceAll|LITERAL                            2
+io.projectreactor:reactor-core:2.0.8.RELEASE  (10 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     1
+    String.format/formatted|plain-%s-only                6
+    String.format/formatted|plain-%s/%d-only             2
+    String.replaceAll|LITERAL                            1
+io.undertow:undertow-core:1.0.0.Final  (15 sites excl. split fast path)
+    Pattern.compile[in-clinit]|LITERAL                   1
+    Pattern.compile[in-clinit]|OTHER                     6
+    String.format/formatted|plain-%s/%d-only             5
+    String.replace(CS,CS)|CONST_TARGET                   1
+    String.split|LITERAL                                 1
+    String.split|S0_FOLD                                 1
+io.undertow:undertow-servlet:1.0.0.Final  (3 sites excl. split fast path)
+    String.replace(CS,CS)|CONST_TARGET                   3
+io.vertx:vertx-codegen:3.9.0  (20 sites excl. split fast path)
+    Pattern.compile[in-clinit]|CHARCLASS                 1
+    Pattern.compile[in-clinit]|OTHER                     6
+    Pattern.compile[in-ctor]|OTHER                       3
+    String.replace(CS,CS)|CONST_TARGET                   5
+    String.replaceAll|OTHER                              2
+    String.split|OTHER                                   1
+    String.split|WS_SEP                                  2
+io.vertx:vertx-core:3.4.0  (14 sites excl. split fast path)
+    Pattern.compile[in-clinit]|LITERAL                   1
+    Pattern.compile[in-clinit]|OTHER                     4
+    String.replaceAll|CHARCLASS                          1
+    String.replaceAll|LITERAL                            2
+    String.replaceAll|OTHER                              5
+    String.split|LINES                                   1
+io.vertx:vertx-mysql-client:3.9.0  (8 sites excl. split fast path)
+    Pattern.compile[in-method]|OTHER                     1
+    String.format/formatted|plain-%s-only                3
+    String.format/formatted|plain-%s/%d-only             1
+    String.replace(CS,CS)|CONST_TARGET                   2
+    String.replaceAll|LITERAL                            1
+io.vertx:vertx-redis-client:3.9.0  (3 sites excl. split fast path)
+    String.split|LITERAL                                 1
+    String.split|OTHER                                   2
+io.vertx:vertx-sql-client:3.9.0  (2 sites excl. split fast path)
+    String.format/formatted|plain-%s/%d-only             2
+io.vertx:vertx-web:3.4.0  (26 sites excl. split fast path)
+    Pattern.compile[in-clinit]|ALT_LITERALS              1
+    Pattern.compile[in-clinit]|OTHER                     7
+    Pattern.compile[in-clinit]|WS_SEP                    3
+    Pattern.compile[in-method]|OTHER                     1
+    String.format/formatted|plain-%s/%d-only             3
+    String.replace(CS,CS)|CONST_TARGET                   7
+    String.replaceAll|ALT_LITERALS                       1
+    String.replaceAll|LITERAL                            2
+    String.split|OTHER                                   1
+jakarta.ws.rs:jakarta.ws.rs-api:3.0.0  (14 sites excl. split fast path)
+    String.format/formatted|plain-%s-only               12
+    String.format/formatted|plain-%s/%d-only             2
+net.java.dev.jna:jna-platform:4.1.0  (2 sites excl. split fast path)
+    String.matches|DOTSTAR                               1
+    String.replaceAll|LITERAL                            1
+net.logstash.logback:logstash-logback-encoder:3.0  (7 sites excl. split fast path)
+    Pattern.compile[in-clinit]|CHARCLASS                 1
+    Pattern.compile[in-clinit]|OTHER                     2
+    String.format/formatted|plain-%s-only                3
+    String.replaceAll|LITERAL                            1
+net.minidev:accessors-smart:1.1  (5 sites excl. split fast path)
+    String.replace(CS,CS)|CONST_TARGET                   5
+org.apache.arrow:arrow-vector:0.10.0  (25 sites excl. split fast path)
+    String.format/formatted|plain-%s-only               17
+    String.format/formatted|plain-%s/%d-only             8
+org.apache.axis2:axis2-kernel:1.3  (24 sites excl. split fast path)
+    String.replaceAll|LITERAL                           11
+    String.replaceAll|OTHER                              3
+    String.replaceFirst|LITERAL                          6
+    String.split|LITERAL                                 1
+    String.split|S0_FOLD                                 3
+org.apache.axis2:axis2-transport-http:1.7.3  (3 sites excl. split fast path)
+    String.replace(CS,CS)|CONST_TARGET                   1
+    String.split|OTHER                                   1
+    String.split|S0_FOLD                                 1
+org.apache.kafka:connect-runtime:0.11.0.0  (4 sites excl. split fast path)
+    String.format/formatted|plain-%s/%d-only             1
+    String.matches|OTHER                                 2
+    String.split|WS_SEP                                  1
+org.apache.kafka:connect-transforms:0.11.0.0  (1 sites excl. split fast path)
+    String.replace(CS,CS)|CONST_TARGET                   1
+org.apache.kafka:kafka-clients:0.11.0.0  (147 sites excl. split fast path)
+    Pattern.compile[in-clinit]|CHARCLASS                 2
+    Pattern.compile[in-clinit]|OTHER                     4
+    Pattern.compile[in-method]|CHARCLASS                 1
+    Pattern.compile[in-method]|LITERAL                   2
+    Pattern.compile[in-method]|OTHER                    15
+    String.format/formatted|no-specifiers                1
+    String.format/formatted|other                        8
+    String.format/formatted|plain-%s-only               58
+    String.format/formatted|plain-%s/%d-only            46
+    String.replace(CS,CS)|CONST_TARGET                   9
+    String.split|WS_SEP                                  1
+org.apache.kafka:kafka-metadata:2.8.2  (16 sites excl. split fast path)
+    String.format/formatted|no-specifiers                5
+    String.format/formatted|plain-%s-only                8
+    String.format/formatted|plain-%s/%d-only             3
+org.apache.kafka:kafka-raft:2.7.2  (0 sites excl. split fast path)
+org.apache.kafka:kafka-streams-test-utils:2.7.2  (1 sites excl. split fast path)
+    String.format/formatted|plain-%s/%d-only             1
+org.apache.kafka:kafka-streams:0.11.0.0  (76 sites excl. split fast path)
+    Pattern.compile[in-clinit]|LITERAL                   1
+    String.format/formatted|other                        2
+    String.format/formatted|plain-%s-only               63
+    String.format/formatted|plain-%s/%d-only             8
+    String.matches|OTHER                                 1
+    String.split|CHARCLASS                               1
+org.apache.kafka:kafka-tools:0.11.0.0  (4 sites excl. split fast path)
+    String.format/formatted|other                        1
+    String.format/formatted|plain-%s/%d-only             3
+org.apache.kafka:kafka_2.13:2.7.2  (39 sites excl. split fast path)
+    Pattern.compile[in-clinit]|CHARCLASS                 2
+    Pattern.compile[in-ctor]|CHARCLASS                   1
+    Pattern.compile[in-method]|LITERAL                   2
+    Pattern.compile[in-method]|OTHER                     8
+    String.format/formatted|other                        1
+    String.matches|LITERAL                               1
+    String.matches|OTHER                                 5
+    String.replace(CS,CS)|CONST_TARGET                   7
+    String.replaceAll|ANCHORED_LITERAL                   1
+    String.replaceAll|LITERAL                            4
+    String.replaceAll|OTHER                              3
+    String.split|WS_SEP                                  4
+org.apache.lucene:lucene-analyzers-common:5.2.1  (27 sites excl. split fast path)
+    Pattern.compile[in-clinit]|CHARCLASS                 2
+    Pattern.compile[in-clinit]|OTHER                     7
+    String.matches|OTHER                                 1
+    String.replace(CS,CS)|CONST_TARGET                   1
+    String.replaceAll|ANCHORED_LITERAL                   1
+    String.replaceAll|CHARCLASS                          1
+    String.replaceAll|OTHER                              1
+    String.split|CHARCLASS                              12
+    String.split|OTHER                                   1
+org.apache.lucene:lucene-backward-codecs:5.2.1  (5 sites excl. split fast path)
+    String.format/formatted|other                        5
+org.apache.lucene:lucene-core:3.5.0  (16 sites excl. split fast path)
+    Pattern.matches|OTHER                                1
+    String.format/formatted|other                        8
+    String.format/formatted|plain-%s/%d-only             3
+    String.matches|OTHER                                 3
+    String.split|CHARCLASS                               1
+org.apache.lucene:lucene-join:5.2.1  (4 sites excl. split fast path)
+    String.format/formatted|plain-%s-only                3
+    String.format/formatted|plain-%s/%d-only             1
+org.apache.lucene:lucene-queryparser:5.2.1  (4 sites excl. split fast path)
+    Pattern.compile[in-ctor]|OTHER                       1
+    String.format/formatted|plain-%s-only                3
+org.apache.lucene:lucene-spatial-extras:6.2.0  (1 sites excl. split fast path)
+    String.format/formatted|other                        1
+org.apache.lucene:lucene-spatial:5.2.1  (1 sites excl. split fast path)
+    String.format/formatted|other                        1
+org.apache.tomcat.embed:tomcat-embed-core:7.0.0  (17 sites excl. split fast path)
+    Pattern.compile[in-clinit]|WS_SEP                    2
+    Pattern.compile[in-ctor]|OTHER                       9
+    String.replace(CS,CS)|CONST_TARGET                   4
+    String.split|OTHER                                   2
+org.apache.tomcat.embed:tomcat-embed-el:8.0.41  (0 sites excl. split fast path)
+org.apache.tomcat.embed:tomcat-embed-jasper:7.0.37  (2 sites excl. split fast path)
+    String.replace(CS,CS)|CONST_TARGET                   2
+org.apache.tomcat.embed:tomcat-embed-websocket:8.5.34  (6 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     1
+    String.format/formatted|other                        2
+    String.replace(CS,CS)|CONST_TARGET                   1
+    String.split|CHARCLASS                               2
+org.apache.tomcat:tomcat-catalina:7.0.4  (21 sites excl. split fast path)
+    Pattern.compile[in-clinit]|WS_SEP                    3
+    Pattern.compile[in-ctor]|OTHER                       9
+    String.format/formatted|other                        1
+    String.replace(CS,CS)|CONST_TARGET                   6
+    String.split|OTHER                                   2
+org.apache.tomcat:tomcat-jdbc:7.0.19  (0 sites excl. split fast path)
+org.apache.ws.commons.axiom:axiom-dom:1.2.5  (0 sites excl. split fast path)
+org.assertj:assertj-core:1.7.1  (53 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     2
+    String.format/formatted|plain-%s-only               43
+    String.format/formatted|plain-%s/%d-only             8
+org.checkerframework:checker-qual:2.0.0  (6 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     2
+    String.format/formatted|plain-%s-only                2
+    String.format/formatted|plain-%s/%d-only             2
+org.codehaus.plexus:plexus-utils:3.0.22  (14 sites excl. split fast path)
+    Pattern.compile[in-clinit]|LITERAL                   6
+    Pattern.compile[in-clinit]|OTHER                     3
+    String.format/formatted|plain-%s/%d-only             2
+    String.matches|LITERAL                               2
+    String.replace(CS,CS)|CONST_TARGET                   1
+org.curioswitch.curiostack:protobuf-jackson:0.3.1  (0 sites excl. split fast path)
+org.eclipse.jdt.core.compiler:ecj:3.7  (3 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     1
+    String.replace(CS,CS)|CONST_TARGET                   2
+org.eclipse.jetty.websocket:websocket-core-common:10.0.0  (22 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     1
+    String.format/formatted|other                       15
+    String.format/formatted|plain-%s-only                5
+    String.format/formatted|plain-%s/%d-only             1
+org.eclipse.jetty.websocket:websocket-core-server:10.0.0  (3 sites excl. split fast path)
+    String.format/formatted|other                        2
+    String.format/formatted|plain-%s-only                1
+org.eclipse.jetty.websocket:websocket-servlet:9.2.30.v20200428  (1 sites excl. split fast path)
+    String.split|WS_SEP                                  1
+org.eclipse.jetty:jetty-annotations:9.2.30.v20200428  (1 sites excl. split fast path)
+    String.format/formatted|other                        1
+org.eclipse.jetty:jetty-client:9.1.0.v20131115  (22 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     4
+    String.format/formatted|other                        9
+    String.format/formatted|plain-%s-only                4
+    String.format/formatted|plain-%s/%d-only             4
+    String.matches|OTHER                                 1
+org.eclipse.jetty:jetty-http:7.0.0.v20091005  (1 sites excl. split fast path)
+    String.format/formatted|other                        1
+org.eclipse.jetty:jetty-plus:9.2.30.v20200428  (2 sites excl. split fast path)
+    Pattern.compile[in-ctor]|OTHER                       1
+    String.format/formatted|plain-%s-only                1
+org.eclipse.jetty:jetty-security:7.0.0.v20091005  (0 sites excl. split fast path)
+org.eclipse.jetty:jetty-server:7.0.0.v20091005  (0 sites excl. split fast path)
+org.eclipse.jetty:jetty-util:7.0.0.v20091005  (0 sites excl. split fast path)
+org.eclipse.jetty:jetty-webapp:9.2.9.v20150224  (1 sites excl. split fast path)
+    String.replaceAll|LITERAL                            1
+org.eclipse.jgit:org.eclipse.jgit.ssh.apache:6.6.0.202305301015-r  (4 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     1
+    String.split|LITERAL                                 1
+    String.split|WS_SEP                                  2
+org.eclipse.jgit:org.eclipse.jgit:6.6.0.202305301015-r  (84 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                    19
+    Pattern.compile[in-ctor]|OTHER                       3
+    Pattern.compile[in-method]|OTHER                     1
+    String.format/formatted|other                       16
+    String.format/formatted|plain-%s-only                5
+    String.format/formatted|plain-%s/%d-only             6
+    String.matches|OTHER                                 5
+    String.replace(CS,CS)|CONST_TARGET                   8
+    String.replaceAll|ALT_LITERALS                       1
+    String.replaceAll|CHARCLASS                          3
+    String.replaceAll|OTHER                              8
+    String.replaceFirst|OTHER                            1
+    String.split|ALT_LITERALS                            1
+    String.split|CHARCLASS                               4
+    String.split|CHAR_RUN                                1
+    String.split|OTHER                                   1
+    String.split|WS_SEP                                  1
+org.elasticsearch.client:elasticsearch-rest-client:6.0.0  (1 sites excl. split fast path)
+    String.format/formatted|plain-%s-only                1
+org.elasticsearch.plugin:lang-mustache-client:5.0.0  (1 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     1
+org.elasticsearch.plugin:reindex-client:5.0.0  (1 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     1
+org.elasticsearch.plugin:transport-netty4-client:5.0.0  (2 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     1
+    String.replace(CS,CS)|CONST_TARGET                   1
+org.elasticsearch:elasticsearch-core:6.4.0  (6 sites excl. split fast path)
+    String.format/formatted|plain-%s-only                2
+    String.matches|CHAR_RUN                              1
+    String.matches|OTHER                                 2
+    String.replace(CS,CS)|CONST_TARGET                   1
+org.elasticsearch:elasticsearch-x-content:6.4.0  (3 sites excl. split fast path)
+    String.format/formatted|other                        1
+    String.replaceAll|OTHER                              2
+org.elasticsearch:elasticsearch:2.0.0  (87 sites excl. split fast path)
+    Pattern.compile[in-clinit]|CHARCLASS                 2
+    Pattern.compile[in-clinit]|LITERAL                   3
+    Pattern.compile[in-clinit]|OTHER                    11
+    Pattern.compile[in-method]|OTHER                     1
+    String.format/formatted|no-specifiers                1
+    String.format/formatted|other                       18
+    String.format/formatted|plain-%s-only               16
+    String.format/formatted|plain-%s/%d-only             9
+    String.replace(CS,CS)|CONST_TARGET                  23
+    String.replaceAll|CHARCLASS                          2
+    String.split|ALT_LITERALS                            1
+org.elasticsearch:jna:4.4.0  (2 sites excl. split fast path)
+    String.replace(CS,CS)|CONST_TARGET                   2
+org.glassfish.grizzly:grizzly-framework:2.0  (1 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     1
+org.glassfish.jersey.core:jersey-client:2.0  (3 sites excl. split fast path)
+    String.format/formatted|plain-%s-only                3
+org.glassfish.jersey.core:jersey-common:2.0  (16 sites excl. split fast path)
+    Pattern.compile[in-clinit]|CHARCLASS                 1
+    Pattern.compile[in-clinit]|OTHER                     3
+    String.format/formatted|plain-%s-only                4
+    String.replace(CS,CS)|CONST_TARGET                   5
+    String.split|CHARCLASS                               2
+    String.split|CHAR_RUN                                1
+org.glassfish.jersey.core:jersey-server:2.0  (11 sites excl. split fast path)
+    String.format/formatted|other                        1
+    String.format/formatted|plain-%s-only                4
+    String.format/formatted|plain-%s/%d-only             1
+    String.matches|OTHER                                 1
+    String.replace(CS,CS)|CONST_TARGET                   2
+    String.replaceAll|LITERAL                            2
+org.glassfish.jersey.media:jersey-media-jaxb:2.16  (4 sites excl. split fast path)
+    String.format/formatted|plain-%s-only                3
+    String.replace(CS,CS)|CONST_TARGET                   1
+org.glassfish.tyrus:tyrus-client:1.3.1  (4 sites excl. split fast path)
+    String.format/formatted|plain-%s-only                4
+org.glassfish.tyrus:tyrus-container-grizzly-client:1.3.1  (14 sites excl. split fast path)
+    String.format/formatted|plain-%s-only               13
+    String.format/formatted|plain-%s/%d-only             1
+org.glassfish.tyrus:tyrus-core:1.3.1  (54 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     2
+    String.format/formatted|plain-%s-only               44
+    String.format/formatted|plain-%s/%d-only             1
+    String.replace(CS,CS)|CONST_TARGET                   7
+org.glassfish.tyrus:tyrus-server:1.3.1  (2 sites excl. split fast path)
+    String.format/formatted|plain-%s-only                2
+org.graalvm.sdk:graal-sdk:20.0.0  (6 sites excl. split fast path)
+    String.format/formatted|plain-%s-only                6
+org.jboss.logmanager:jboss-logmanager:1.1.0.GA  (2 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     1
+    String.split|WS_SEP                                  1
+org.jboss.marshalling:jboss-marshalling:1.4.10.Final  (5 sites excl. split fast path)
+    String.format/formatted|other                        3
+    String.format/formatted|plain-%s-only                2
+org.jboss.modules:jboss-modules:1.3.0.Final  (23 sites excl. split fast path)
+    Pattern.compile[in-clinit]|CHARCLASS                 1
+    Pattern.compile[in-clinit]|OTHER                     2
+    String.format/formatted|other                        2
+    String.format/formatted|plain-%s-only               14
+    String.replace(CS,CS)|CONST_TARGET                   1
+    String.split|CHARCLASS                               2
+    String.split|WS_SEP                                  1
+org.jboss.remoting:jboss-remoting:4.0.9.Final  (12 sites excl. split fast path)
+    Pattern.compile[in-clinit]|CHARCLASS                 1
+    String.format/formatted|other                        9
+    String.format/formatted|plain-%s-only                2
+org.jboss.resteasy:resteasy-jaxrs:3.0.0.Final  (47 sites excl. split fast path)
+    Pattern.compile[in-clinit]|LITERAL                   7
+    Pattern.compile[in-clinit]|OTHER                    14
+    String.format/formatted|other                        1
+    String.format/formatted|plain-%s-only                6
+    String.format/formatted|plain-%s/%d-only             7
+    String.matches|CHARCLASS                             1
+    String.replace(CS,CS)|CONST_TARGET                   7
+    String.replaceAll|CHARCLASS                          1
+    String.split|CHARCLASS                               2
+    String.split|CHAR_RUN                                1
+org.jboss.threads:jboss-threads:2.2.0.Final  (22 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     1
+    String.format/formatted|plain-%s-only               19
+    String.format/formatted|plain-%s/%d-only             2
+org.jboss:jandex:1.0.3.Final  (2 sites excl. split fast path)
+    String.replace(CS,CS)|CONST_TARGET                   2
+org.jetbrains.kotlin:kotlin-reflect:1.6.10  (58 sites excl. split fast path)
+    Pattern.compile[in-clinit]|LITERAL                   1
+    String.format/formatted|other                        1
+    String.format/formatted|plain-%s-only               54
+    String.format/formatted|plain-%s/%d-only             2
+org.joda:joda-convert:1.2  (0 sites excl. split fast path)
+org.jodd:jodd-core:3.7.1  (2 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     2
+org.mockito:mockito-core:1.9.5  (6 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     1
+    String.format/formatted|other                        2
+    String.replaceAll|LITERAL                            2
+    String.replaceFirst|OTHER                            1
+org.mongodb:bson:3.1.0  (41 sites excl. split fast path)
+    String.format/formatted|plain-%s-only               21
+    String.format/formatted|plain-%s/%d-only            16
+    String.replace(CS,CS)|CONST_TARGET                   1
+    String.replaceAll|LITERAL                            3
+org.mongodb:mongodb-driver-core:3.1.0  (129 sites excl. split fast path)
+    String.format/formatted|no-specifiers                4
+    String.format/formatted|plain-%s-only               92
+    String.format/formatted|plain-%s/%d-only            30
+    String.replace(CS,CS)|CONST_TARGET                   2
+    String.split|ALT_LITERALS                            1
+org.mongodb:mongodb-driver-sync:3.10.0  (10 sites excl. split fast path)
+    String.format/formatted|plain-%s-only               10
+org.mule.tools.maven:mule-classloader-model:3.8.5  (8 sites excl. split fast path)
+    String.format/formatted|plain-%s-only                8
+org.redisson:redisson:2.0.0  (1 sites excl. split fast path)
+    String.replaceAll|LITERAL                            1
+org.rocksdb:rocksdbjni:5.0.1  (4 sites excl. split fast path)
+    String.format/formatted|plain-%s-only                3
+    String.format/formatted|plain-%s/%d-only             1
+org.scala-lang.modules:scala-async_2.13:0.10.0  (1 sites excl. split fast path)
+    String.replaceAll|LITERAL                            1
+org.scala-lang.modules:scala-java8-compat_2.12:0.8.0  (1 sites excl. split fast path)
+    String.replaceAll|LITERAL                            1
+org.scala-lang.modules:scala-java8-compat_2.13:0.9.0  (1 sites excl. split fast path)
+    String.replaceAll|LITERAL                            1
+org.scala-lang.modules:scala-xml_2.13:1.2.0  (1 sites excl. split fast path)
+    String.replaceAll|LITERAL                            1
+org.seleniumhq.selenium:selenium-api:2.39.0  (13 sites excl. split fast path)
+    Pattern.compile[in-clinit]|CHARCLASS                 1
+    Pattern.compile[in-ctor]|OTHER                       1
+    String.format/formatted|plain-%s-only                6
+    String.format/formatted|plain-%s/%d-only             3
+    String.matches|OTHER                                 1
+    String.replace(CS,CS)|CONST_TARGET                   1
+org.seleniumhq.selenium:selenium-chrome-driver:2.39.0  (2 sites excl. split fast path)
+    String.format/formatted|plain-%s-only                1
+    String.format/formatted|plain-%s/%d-only             1
+org.seleniumhq.selenium:selenium-edge-driver:2.48.2  (1 sites excl. split fast path)
+    String.format/formatted|plain-%s/%d-only             1
+org.seleniumhq.selenium:selenium-firefox-driver:2.39.0  (17 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     1
+    String.format/formatted|plain-%s-only                5
+    String.format/formatted|plain-%s/%d-only             6
+    String.replace(CS,CS)|CONST_TARGET                   2
+    String.replaceAll|LITERAL                            2
+    String.replaceAll|OTHER                              1
+org.seleniumhq.selenium:selenium-ie-driver:2.39.0  (6 sites excl. split fast path)
+    String.format/formatted|plain-%s-only                5
+    String.format/formatted|plain-%s/%d-only             1
+org.seleniumhq.selenium:selenium-java:2.39.0  (33 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     3
+    Pattern.compile[in-ctor]|OTHER                       1
+    String.format/formatted|plain-%s-only                6
+    String.replace(CS,CS)|CONST_TARGET                  17
+    String.replaceAll|LITERAL                            2
+    String.replaceAll|OTHER                              1
+    String.replaceFirst|LITERAL                          2
+    String.split|WS_SEP                                  1
+org.seleniumhq.selenium:selenium-remote-driver:2.39.0  (27 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     5
+    Pattern.compile[in-method]|OTHER                     1
+    String.format/formatted|plain-%s-only                9
+    String.format/formatted|plain-%s/%d-only             3
+    String.replace(CS,CS)|CONST_TARGET                   4
+    String.replaceAll|ANCHORED_LITERAL                   1
+    String.replaceAll|LITERAL                            3
+    String.split|CHARCLASS                               1
+org.seleniumhq.selenium:selenium-safari-driver:2.39.0  (7 sites excl. split fast path)
+    String.format/formatted|plain-%s-only                4
+    String.format/formatted|plain-%s/%d-only             3
+org.seleniumhq.selenium:selenium-support:2.39.0  (33 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     8
+    String.format/formatted|other                        1
+    String.format/formatted|plain-%s-only               17
+    String.format/formatted|plain-%s/%d-only             7
+org.springframework.amqp:spring-amqp:1.1.0.RELEASE  (1 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     1
+org.springframework.amqp:spring-rabbit:1.1.0.RELEASE  (3 sites excl. split fast path)
+    String.format/formatted|plain-%s-only                3
+org.springframework.boot:spring-boot-autoconfigure:1.5.17.RELEASE  (41 sites excl. split fast path)
+    String.format/formatted|no-specifiers               23
+    String.format/formatted|plain-%s-only               16
+    String.replace(CS,CS)|CONST_TARGET                   2
+org.springframework.boot:spring-boot-test-autoconfigure:1.5.17.RELEASE  (3 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     1
+    String.format/formatted|other                        1
+    String.format/formatted|plain-%s-only                1
+org.springframework.boot:spring-boot-test:1.5.17.RELEASE  (4 sites excl. split fast path)
+    String.format/formatted|no-specifiers                2
+    String.format/formatted|plain-%s-only                2
+org.springframework.boot:spring-boot:1.3.0.RELEASE  (14 sites excl. split fast path)
+    Pattern.compile[in-clinit]|CHARCLASS                 1
+    Pattern.compile[in-clinit]|OTHER                     2
+    String.format/formatted|plain-%s-only                3
+    String.matches|CHARCLASS                             1
+    String.matches|OTHER                                 1
+    String.replace(CS,CS)|CONST_TARGET                   5
+    String.split|CHARCLASS                               1
+org.springframework.data:spring-data-commons:1.8.0.RELEASE  (97 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     6
+    Pattern.compile[in-method]|OTHER                     1
+    String.format/formatted|other                        1
+    String.format/formatted|plain-%s-only               79
+    String.format/formatted|plain-%s/%d-only             3
+    String.matches|CHARCLASS                             1
+    String.replace(CS,CS)|CONST_TARGET                   3
+    String.replaceAll|LITERAL                            1
+    String.replaceAll|OTHER                              1
+    String.split|OTHER                                   1
+org.springframework.data:spring-data-couchbase:2.0.0.RELEASE  (12 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     3
+    String.format/formatted|plain-%s-only                7
+    String.replaceFirst|ALT_LITERALS                     1
+    String.replaceFirst|LITERAL                          1
+org.springframework.data:spring-data-elasticsearch:2.0.0.RELEASE  (9 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     1
+    String.format/formatted|plain-%s-only                8
+org.springframework.data:spring-data-jpa:1.6.0.RELEASE  (42 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     1
+    String.format/formatted|plain-%s-only               36
+    String.format/formatted|plain-%s/%d-only             3
+    String.matches|OTHER                                 1
+    String.replaceFirst|OTHER                            1
+org.springframework.kafka:spring-kafka-test:1.3.3.RELEASE  (0 sites excl. split fast path)
+org.springframework.kafka:spring-kafka:1.3.3.RELEASE  (8 sites excl. split fast path)
+    String.format/formatted|plain-%s-only                7
+    String.format/formatted|plain-%s/%d-only             1
+org.springframework.retry:spring-retry:1.2.0.RELEASE  (2 sites excl. split fast path)
+    String.format/formatted|other                        2
+org.springframework.security:spring-security-config:4.2.9.RELEASE  (4 sites excl. split fast path)
+    String.format/formatted|plain-%s-only                1
+    String.matches|OTHER                                 3
+org.springframework.security:spring-security-core:4.2.9.RELEASE  (7 sites excl. split fast path)
+    Pattern.compile[in-ctor]|OTHER                       1
+    Pattern.compile[in-method]|OTHER                     1
+    String.format/formatted|plain-%s/%d-only             5
+org.springframework.security:spring-security-crypto:5.0.6.RELEASE  (6 sites excl. split fast path)
+    Pattern.compile[in-ctor]|OTHER                       1
+    String.format/formatted|plain-%s/%d-only             5
+org.springframework.security:spring-security-web:4.2.9.RELEASE  (3 sites excl. split fast path)
+    Pattern.compile[in-clinit]|ALT_LITERALS              1
+    Pattern.compile[in-clinit]|OTHER                     1
+    Pattern.compile[in-ctor]|OTHER                       1
+org.springframework:spring-aop:1.2  (2 sites excl. split fast path)
+    Pattern.compile[in-clinit]|LITERAL                   1
+    Pattern.compile[in-clinit]|OTHER                     1
+org.springframework:spring-context:2.0.8  (1 sites excl. split fast path)
+    String.replace(CS,CS)|CONST_TARGET                   1
+org.springframework:spring-expression:3.0.5.RELEASE  (1 sites excl. split fast path)
+    String.replaceAll|LITERAL                            1
+org.springframework:spring-jdbc:3.2.9.RELEASE  (5 sites excl. split fast path)
+    String.format/formatted|plain-%s-only                4
+    String.replaceAll|LITERAL                            1
+org.springframework:spring-messaging:4.0.0.RELEASE  (8 sites excl. split fast path)
+    String.replaceAll|LITERAL                            8
+org.springframework:spring-test:3.0.0.RELEASE  (5 sites excl. split fast path)
+    String.format/formatted|plain-%s-only                4
+    String.format/formatted|plain-%s/%d-only             1
+org.springframework:spring-web:3.1.0.RELEASE  (10 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     5
+    String.format/formatted|plain-%s-only                1
+    String.split|WS_SEP                                  4
+org.springframework:spring-webflux:5.0.0.RELEASE  (12 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     2
+    String.format/formatted|plain-%s-only                9
+    String.format/formatted|plain-%s/%d-only             1
+org.springframework:spring-webmvc:3.1.0.RELEASE  (2 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     1
+    String.format/formatted|plain-%s-only                1
+org.springframework:spring-websocket:4.3.20.RELEASE  (9 sites excl. split fast path)
+    Pattern.compile[in-clinit]|CHARCLASS                 1
+    String.format/formatted|plain-%s-only                2
+    String.format/formatted|plain-%s/%d-only             1
+    String.matches|OTHER                                 2
+    String.replace(CS,CS)|CONST_TARGET                   3
+org.testng:testng:6.4  (21 sites excl. split fast path)
+    Pattern.compile[in-clinit]|LITERAL                   4
+    Pattern.compile[in-clinit]|OTHER                     1
+    String.format/formatted|plain-%s-only                3
+    String.format/formatted|plain-%s/%d-only             2
+    String.replace(CS,CS)|CONST_TARGET                   2
+    String.replaceAll|LITERAL                            6
+    String.replaceAll|OTHER                              1
+    String.split|CHARCLASS                               1
+    String.split|LITERAL                                 1
+org.wildfly.common:wildfly-common:1.5.1.Final  (11 sites excl. split fast path)
+    Pattern.compile[in-clinit]|CHARCLASS                 1
+    Pattern.compile[in-method]|OTHER                     1
+    String.format/formatted|plain-%s-only                6
+    String.format/formatted|plain-%s/%d-only             2
+    String.split|WS_SEP                                  1
+org.wildfly.core:wildfly-controller-client:1.0.0.Final  (1 sites excl. split fast path)
+    String.format/formatted|plain-%s/%d-only             1
+org.wildfly.core:wildfly-controller:1.0.0.Final  (24 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                    12
+    Pattern.compile[in-ctor]|OTHER                       1
+    String.format/formatted|no-specifiers                1
+    String.format/formatted|plain-%s-only                4
+    String.format/formatted|plain-%s/%d-only             1
+    String.replace(CS,CS)|CONST_TARGET                   3
+    String.split|CHARCLASS                               2
+org.wildfly.core:wildfly-domain-http-interface:1.0.0.Final  (0 sites excl. split fast path)
+org.wildfly.core:wildfly-domain-management:1.0.0.Final  (25 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     2
+    Pattern.compile[in-method]|CHARCLASS                 6
+    Pattern.compile[in-method]|OTHER                     5
+    String.format/formatted|no-specifiers                1
+    String.format/formatted|other                        2
+    String.format/formatted|plain-%s-only                4
+    String.format/formatted|plain-%s/%d-only             3
+    String.replace(CS,CS)|CONST_TARGET                   2
+org.wildfly.core:wildfly-io:1.0.0.Final  (1 sites excl. split fast path)
+    String.split|WS_SEP                                  1
+org.wildfly.core:wildfly-process-controller:1.0.0.Final  (12 sites excl. split fast path)
+    String.format/formatted|no-specifiers                1
+    String.format/formatted|other                        5
+    String.format/formatted|plain-%s-only                6
+org.wildfly.core:wildfly-protocol:1.0.0.Final  (0 sites excl. split fast path)
+org.wildfly.core:wildfly-server:1.0.0.Final  (9 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     1
+    String.format/formatted|plain-%s-only                2
+    String.matches|OTHER                                 1
+    String.replaceAll|LITERAL                            2
+    String.replaceAll|OTHER                              1
+    String.split|CHARCLASS                               2
+org.wildfly.core:wildfly-version:1.0.0.Final  (10 sites excl. split fast path)
+    String.format/formatted|no-specifiers                1
+    String.format/formatted|other                        5
+    String.format/formatted|plain-%s-only                4
+redis.clients:jedis:1.4.0  (1 sites excl. split fast path)
+    Pattern.compile[in-clinit]|OTHER                     1
