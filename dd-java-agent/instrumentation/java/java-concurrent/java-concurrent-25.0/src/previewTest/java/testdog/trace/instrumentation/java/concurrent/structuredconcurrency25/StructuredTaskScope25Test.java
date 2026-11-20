@@ -12,6 +12,7 @@ import datadog.trace.api.DDSpanId;
 import datadog.trace.core.DDSpan;
 import java.util.Comparator;
 import java.util.concurrent.StructuredTaskScope;
+import java.util.concurrent.ThreadFactory;
 import org.junit.jupiter.api.Test;
 
 @SuppressWarnings("preview")
@@ -145,6 +146,28 @@ public class StructuredTaskScope25Test extends AbstractInstrumentationTest {
       }
       assertEquals(
           parentSpanId, tracer.getSpanId(), "parent context should be restored after the scope");
+    }
+    span.finish();
+
+    assertTraces(trace(span().root().operationName("parent")));
+  }
+
+  /**
+   * A {@code close()} call without {@code join()} throws after the scope is closed. The
+   * continuation of a subtask that never ran must still be released.
+   */
+  @Test
+  void testCloseWithoutJoinDoesNotLeakContinuation() {
+    // Start threads that never run their subtask
+    ThreadFactory idleFactory = subtask -> new Thread(() -> {});
+    var span = tracer.startSpan("test", "parent");
+    try (var ignored = tracer.activateSpan(span)) {
+      var scope =
+          StructuredTaskScope.open(
+              StructuredTaskScope.Joiner.awaitAllSuccessfulOrThrow(),
+              cf -> cf.withThreadFactory(idleFactory));
+      scope.fork(() -> task("child"));
+      assertThrows(IllegalStateException.class, scope::close);
     }
     span.finish();
 
