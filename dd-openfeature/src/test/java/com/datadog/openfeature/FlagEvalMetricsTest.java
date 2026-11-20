@@ -1,13 +1,18 @@
 package com.datadog.openfeature;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 import dev.openfeature.sdk.ErrorCode;
+import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.LongCounter;
+import io.opentelemetry.api.metrics.MeterProvider;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -161,5 +166,21 @@ class FlagEvalMetricsTest {
     if (present) {
       throw new AssertionError("Expected no attribute " + key + " but it was present");
     }
+  }
+
+  @Test
+  void skipsOnlyAnOpenTelemetryWhoseMeterProviderRecordsNothing() {
+    assertTrue(FlagEvalMetrics.recordsNothing(OpenTelemetry.noop()));
+
+    // Older APIs wrap the no-op instance in another one with the same no-op meter provider.
+    final OpenTelemetry wrappedNoop = mock(OpenTelemetry.class);
+    when(wrappedNoop.getMeterProvider()).thenReturn(MeterProvider.noop());
+    assertTrue(FlagEvalMetrics.recordsNothing(wrappedNoop));
+
+    // dd-java-agent with DD_METRICS_OTEL_ENABLED makes the no-op instance return its own meter
+    // provider, which records: the evaluations must still be counted there.
+    final OpenTelemetry agentRewritten = mock(OpenTelemetry.class);
+    when(agentRewritten.getMeterProvider()).thenReturn(mock(MeterProvider.class));
+    assertFalse(FlagEvalMetrics.recordsNothing(agentRewritten));
   }
 }

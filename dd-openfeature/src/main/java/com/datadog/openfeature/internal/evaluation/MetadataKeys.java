@@ -1,9 +1,23 @@
 package com.datadog.openfeature.internal.evaluation;
 
+import java.util.Map;
+
 /** The flag metadata keys the evaluator writes for the provider hooks and exposure hooks. */
 public final class MetadataKeys {
   /** The key of the selected allocation. */
   public static final String ALLOCATION_KEY = "allocationKey";
+
+  /**
+   * Reads the allocation key from flag metadata. Read from the map because the {@code
+   * ImmutableMetadata} getters build a debug message for every absent key.
+   *
+   * @param values the flag metadata, as {@code ImmutableMetadata.asUnmodifiableMap()}.
+   * @return the allocation key, or {@code null} when absent or not a string.
+   */
+  public static String allocationKey(final Map<String, Object> values) {
+    final Object value = values.get(ALLOCATION_KEY);
+    return value instanceof String ? (String) value : null;
+  }
 
   /** The evaluation timestamp, in milliseconds since epoch. */
   public static final String EVAL_TIMESTAMP_MS = "__dd_eval_timestamp_ms";
