@@ -37,6 +37,10 @@ import org.slf4j.LoggerFactory;
  * later. With an older SDK, Datadog receives no exposures from a provider inside a {@code
  * MultiProvider}, and {@code shouldSend()} is true for every exposure.
  *
+ * <p>Evaluations through a provider with exposures disabled, by {@code
+ * Provider.Options#exposuresEnabled(false)} or {@code DD_FEATURE_FLAGS_EXPOSURES_ENABLED=false},
+ * are not exposures: {@code isExposure()} and {@code shouldSend()} are false.
+ *
  * <p>The callback runs on the evaluation thread: hand the data to a background queue instead of
  * writing it from the callback. An exception from the callback does not affect the evaluation. The
  * first one is logged at warn level, later ones at debug level.

@@ -14,6 +14,21 @@ public final class FeatureFlaggingConfig {
       "feature.flags.configuration.source";
 
   /**
+   * Turns off evaluation telemetry: flag evaluation events, evaluation metrics, and span
+   * enrichment. A provider option overrides it. Default: enabled. Maps to {@code
+   * DD_FEATURE_FLAGS_EVALUATION_TELEMETRY_ENABLED}.
+   */
+  public static final String FEATURE_FLAGS_EVALUATION_TELEMETRY_ENABLED =
+      "feature.flags.evaluation.telemetry.enabled";
+
+  /**
+   * Turns off exposures: no exposure is recorded, deduplicated, sent, or reported to exposure
+   * hooks. A provider option overrides it. Default: enabled. Maps to {@code
+   * DD_FEATURE_FLAGS_EXPOSURES_ENABLED}.
+   */
+  public static final String FEATURE_FLAGS_EXPOSURES_ENABLED = "feature.flags.exposures.enabled";
+
+  /**
    * Turns off sending exposures to Datadog while customer exposure hooks keep receiving them.
    * Default: enabled. Maps to {@code DD_FEATURE_FLAGS_EXPOSURES_DATADOG_LOGGING_ENABLED}.
    */

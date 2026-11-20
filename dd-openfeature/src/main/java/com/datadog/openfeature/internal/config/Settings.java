@@ -36,6 +36,8 @@ public final class Settings {
   static final String EVALUATION_COUNTS_ENABLED = "flagging.evaluation.counts.enabled";
   static final String EXPOSURES_DATADOG_LOGGING_ENABLED =
       "feature.flags.exposures.datadog.logging.enabled";
+  static final String EVALUATION_TELEMETRY_ENABLED = "feature.flags.evaluation.telemetry.enabled";
+  static final String EXPOSURES_ENABLED = "feature.flags.exposures.enabled";
   static final String EVALUATION_TELEMETRY_PER_SUBJECT_OPT_OUT_ENABLED =
       "feature.flags.evaluation.telemetry.per.subject.opt.out.enabled";
   static final String EXPERIMENTATION_OPT_OUT_MODE = "feature.flags.experimentation.opt.out.mode";
@@ -164,6 +166,27 @@ public final class Settings {
    */
   public boolean isExposuresDatadogLoggingEnabled() {
     return !Boolean.FALSE.equals(getBoolean(EXPOSURES_DATADOG_LOGGING_ENABLED));
+  }
+
+  /**
+   * Tells whether providers produce evaluation telemetry: flag evaluation events, evaluation
+   * metrics, and span enrichment. A provider option takes precedence over this setting.
+   *
+   * @return whether evaluation telemetry is enabled (on by default).
+   */
+  public boolean isEvaluationTelemetryEnabled() {
+    return !Boolean.FALSE.equals(getBoolean(EVALUATION_TELEMETRY_ENABLED));
+  }
+
+  /**
+   * Tells whether evaluations through providers are exposures. When off, no exposure is recorded,
+   * deduplicated, sent, or reported to exposure hooks. A provider option takes precedence over this
+   * setting.
+   *
+   * @return whether exposures are enabled (on by default).
+   */
+  public boolean isExposuresEnabled() {
+    return !Boolean.FALSE.equals(getBoolean(EXPOSURES_ENABLED));
   }
 
   /**

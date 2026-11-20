@@ -42,6 +42,8 @@ class ProviderTest {
         options
             .initTimeout(5, SECONDS)
             .enableEvaluationTelemetryOptOutParameter(true)
+            .evaluationTelemetryEnabled(false)
+            .exposuresEnabled(false)
             .experimentationOptOutMode(com.datadog.openfeature.ExperimentationOptOutMode.IMMEDIATE);
 
     assertSame(options, configured);
