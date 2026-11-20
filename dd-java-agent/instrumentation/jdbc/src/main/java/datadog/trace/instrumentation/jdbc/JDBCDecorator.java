@@ -331,44 +331,37 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
   }
 
   /**
-   * Sets the dynamic service hash in {@code v$session.action} once per Oracle session and hash.
+   * Sets the dynamic service hash in {@code v$session.action} before every Oracle execution.
+   *
+   * <p>The application can change ACTION on the server (e.g. with {@code
+   * DBMS_APPLICATION_INFO.SET_ACTION}), so the hash is written on every execution. ACTION is
+   * cleared first because some drivers (e.g. ojdbc 19) skip a write equal to the last value they
+   * sent. The driver sends both writes with the next call, so this adds no round trip.
    *
    * @return the hash in ACTION, or {@code null} if ACTION propagation is disabled or failed
    */
   public String setServiceHashAction(
       Connection connection, JDBCConnectionContext connectionContext) {
-    if (!usesOracleServiceHashAction(connectionContext.getDbInfo())) {
+    if (!usesOracleServiceHashAction(connectionContext.getDbInfo())
+        || connectionContext.isOracleServiceActionUnsupported()) {
       return null;
     }
 
-    String baseHash = BaseHash.getBaseHashStr();
+    // Read once so ACTION and the span tag use the same hash.
+    final String baseHash = BaseHash.getBaseHashStr();
     if (baseHash == null) {
       return null;
     }
-    if (!connectionContext.shouldSetOracleServiceHash(baseHash)) {
-      return connectionContext.isOracleServiceHashSet(baseHash) ? baseHash : null;
-    }
-    synchronized (connectionContext) {
-      // Re-read after taking the lock so a waiting query does not restore a stale process hash.
-      baseHash = BaseHash.getBaseHashStr();
-      if (baseHash == null) {
-        return null;
+    try {
+      connection.setClientInfo(ORACLE_ACTION_CLIENT_INFO, "");
+      connection.setClientInfo(ORACLE_ACTION_CLIENT_INFO, DD_ORACLE_SERVICE_HASH_PREFIX + baseHash);
+      return baseHash;
+    } catch (Throwable e) {
+      if (isUnsupportedOracleAction(e)) {
+        connectionContext.markOracleServiceActionUnsupported();
       }
-      if (!connectionContext.shouldSetOracleServiceHash(baseHash)) {
-        return connectionContext.isOracleServiceHashSet(baseHash) ? baseHash : null;
-      }
-      try {
-        connection.setClientInfo(
-            ORACLE_ACTION_CLIENT_INFO, DD_ORACLE_SERVICE_HASH_PREFIX + baseHash);
-        connectionContext.markOracleServiceHashSet(baseHash);
-        return baseHash;
-      } catch (Throwable e) {
-        if (isUnsupportedOracleAction(e)) {
-          connectionContext.markOracleServiceActionUnsupported();
-        }
-        logInjectionErrorOnce("service hash action", e);
-        return null;
-      }
+      logInjectionErrorOnce("service hash action", e);
+      return null;
     }
   }
 

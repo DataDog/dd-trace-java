@@ -28,27 +28,14 @@ class JDBCConnectionContextTest {
   }
 
   @Test
-  void tracksTheLastSuccessfullySetOracleServiceHash() {
+  void remembersThatTheDriverDoesNotSupportOracleAction() {
     JDBCConnectionContext context = oracleContext();
 
-    assertTrue(context.shouldSetOracleServiceHash("123"));
-    assertFalse(context.isOracleServiceHashSet("123"));
-
-    context.markOracleServiceHashSet("123");
-
-    assertFalse(context.shouldSetOracleServiceHash("123"));
-    assertTrue(context.isOracleServiceHashSet("123"));
-    assertFalse(context.isOracleServiceHashSet("456"));
-    assertTrue(context.shouldSetOracleServiceHash("456"));
-  }
-
-  @Test
-  void skipsActionAfterDriverIsMarkedUnsupported() {
-    JDBCConnectionContext context = oracleContext();
+    assertFalse(context.isOracleServiceActionUnsupported());
 
     context.markOracleServiceActionUnsupported();
 
-    assertFalse(context.shouldSetOracleServiceHash("123"));
+    assertTrue(context.isOracleServiceActionUnsupported());
   }
 
   private static JDBCConnectionContext oracleContext() {
