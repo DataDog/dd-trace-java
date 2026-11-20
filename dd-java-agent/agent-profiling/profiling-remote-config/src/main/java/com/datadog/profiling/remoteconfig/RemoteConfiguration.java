@@ -74,8 +74,10 @@ public final class RemoteConfiguration {
    *
    * @param payload the payload, see {@link ApmProfilingPayload#read}
    * @param problems receives a description of each thing that is invalid
-   * @return the configuration, or null when the payload has no {@code profilers} section, so that
-   *     it is not a profiling config; the shared {@code APM_PROFILING} product may carry others
+   * @return the configuration, or null when the payload is not a usable profiling config: it has no
+   *     {@code profilers} section, as the shared {@code APM_PROFILING} product may carry others, or
+   *     the section is not an object, which is reported. Taking a malformed section for one that
+   *     sets no feature would start an armed profiler with the local configuration
    */
   static RemoteConfiguration parse(Map<String, Object> payload, List<String> problems) {
     if (!payload.containsKey("profilers")) {
@@ -84,7 +86,7 @@ public final class RemoteConfiguration {
     Object profilers = payload.get("profilers");
     if (!(profilers instanceof Map)) {
       problems.add("profilers is not an object");
-      return EMPTY;
+      return null;
     }
     Map<?, ?> section = (Map<?, ?>) profilers;
     Map<Feature, Boolean> values = new EnumMap<>(Feature.class);

@@ -173,8 +173,34 @@ class ProfilingConfigPollerTest {
             () -> listener.accept(configKey("a"), json("{\"profilers\":{"), hinter));
     listener.commit(hinter);
 
-    assertTrue(error.getMessage().contains("payload is not an object"), error.getMessage());
+    assertEquals("APM_PROFILING config a ignored: payload is not an object", error.getMessage());
     // no longer a usable config
+    assertTrue(committedStack().isEmpty());
+  }
+
+  @TableTest({
+    "Scenario                | Profilers",
+    "profilers not an object | '[]'     ",
+    "profilers null          | 'null'   ",
+    "profilers a boolean     | 'true'   "
+  })
+  void malformedProfilersSectionDropsTheConfig(String profilers) throws Exception {
+    ProductListener listener = startAndCaptureListener();
+    listener.accept(configKey("a"), targeted("\"cpuTime\":true"), hinter);
+
+    IOException error =
+        assertThrows(
+            IOException.class,
+            () ->
+                listener.accept(
+                    configKey("a"),
+                    json(
+                        "{\"profilers\":" + profilers + ",\"targets\":[{\"service\":\"my-app\"}]}"),
+                    hinter));
+    listener.commit(hinter);
+
+    assertEquals("APM_PROFILING config a ignored: profilers is not an object", error.getMessage());
+    // not taken for a config that sets no feature, which would apply the local configuration
     assertTrue(committedStack().isEmpty());
   }
 
@@ -217,7 +243,9 @@ class ProfilingConfigPollerTest {
                     configKey("service-not-a-string"),
                     json("{\"profilers\":{\"cpuTime\":true},\"targets\":[{\"service\":123}]}"),
                     hinter));
-    assertTrue(error.getMessage().contains("no valid targets"), error.getMessage());
+    assertEquals(
+        "APM_PROFILING config service-not-a-string ignored: targets[0] is invalid; no valid targets",
+        error.getMessage());
     assertThrows(
         IOException.class,
         () ->
@@ -246,8 +274,10 @@ class ProfilingConfigPollerTest {
                     hinter));
     listener.commit(hinter);
 
-    assertTrue(error.getMessage().contains("profilers.wallTime is not a boolean"));
-    assertTrue(error.getMessage().contains("targets[1] is invalid"));
+    assertEquals(
+        "APM_PROFILING config a applied without its invalid parts: "
+            + "profilers.wallTime is not a boolean; targets[1] is invalid",
+        error.getMessage());
     RemoteConfiguration stored = committedStack().lowestToHighestPriority().get(0).configuration();
     assertEquals(true, stored.get(CPU_TIME));
     assertEquals(null, stored.get(WALL_TIME));

@@ -81,7 +81,8 @@ public final class ProfilingConfigPoller {
       String configId = configKey.getConfigId();
       List<String> problems = new ArrayList<>();
       Map<String, Object> payload = ApmProfilingPayload.read(new String(content, UTF_8), problems);
-      // null for a payload that is not a profiling config: the product is shared
+      // null for a payload that is not a profiling config, as the product is shared, or is
+      // malformed
       RemoteConfiguration configuration =
           payload == null ? null : RemoteConfiguration.parse(payload, problems);
       // the more specific the targets are, the higher the priority
@@ -103,10 +104,15 @@ public final class ProfilingConfigPoller {
       }
       if (!problems.isEmpty()) {
         // The config is stored or dropped above before throwing. The poller records the message as
-        // the apply error of this config and still commits, so the valid fields of a stored config
-        // apply.
+        // the apply error of this config, reported to the backend, and still commits, so the valid
+        // fields of a stored config apply. The message says which of the two happened.
         throw new IOException(
-            "Invalid APM_PROFILING config " + configId + ": " + String.join("; ", problems));
+            "APM_PROFILING config "
+                + configId
+                + (priority == ProfilingConfigTargets.DROPPED
+                    ? " ignored: "
+                    : " applied without its invalid parts: ")
+                + String.join("; ", problems));
       }
     }
 
