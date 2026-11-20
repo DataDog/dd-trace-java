@@ -13,3 +13,8 @@ datadog.trace.api.TagMap#readThroughParent(datadog.trace.api.TagMap)
 datadog.trace.api.TagMap#viewOf(datadog.trace.api.IdStore,datadog.trace.api.HashStore,boolean)
 datadog.trace.api.TagMap#customStore()
 datadog.trace.api.TagMap#isCustomStoreBorrowed()
+
+# A span prototype's sizing hint is resolved by the tracer core at span creation; it is @Restricted to
+# the core (see datadog.contract.Restricted).
+@defaultMessage SpanPrototype#sizingHint is restricted to the tracer core.
+datadog.trace.bootstrap.instrumentation.api.SpanPrototype#sizingHint(boolean,java.lang.CharSequence)

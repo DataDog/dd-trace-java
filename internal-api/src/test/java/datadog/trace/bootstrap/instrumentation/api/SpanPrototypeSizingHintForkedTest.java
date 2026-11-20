@@ -1,8 +1,10 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.api.SizingHint;
 import org.junit.jupiter.api.BeforeAll;
@@ -38,6 +40,50 @@ class SpanPrototypeSizingHintForkedTest {
     assertSame(SizingHint.forOperation("proto.op", true), entry);
     assertSame(entry, proto.sizingHint(true, UTF8BytesString.create("proto.op")));
     assertSame(child, proto.sizingHint(false, "proto.op"));
+  }
+
+  /** Counts how often the name is converted to a String, which a table lookup does. */
+  private static final class CountingName implements CharSequence {
+    private final String name;
+    int conversions;
+
+    CountingName(String name) {
+      this.name = name;
+    }
+
+    @Override
+    public int length() {
+      return name.length();
+    }
+
+    @Override
+    public char charAt(int index) {
+      return name.charAt(index);
+    }
+
+    @Override
+    public CharSequence subSequence(int start, int end) {
+      return name.subSequence(start, end);
+    }
+
+    @Override
+    public String toString() {
+      conversions++;
+      return name;
+    }
+  }
+
+  @Test
+  void aLaneLooksTheNameUpOnlyOnce() {
+    final CountingName name = new CountingName("counted.op");
+    final SpanPrototype proto = SpanPrototype.builder().initOperationName(name).build();
+
+    final SizingHint first = proto.sizingHint(true, name);
+    final int afterFirst = name.conversions;
+    assertTrue(afterFirst > 0, "the first call looks the name up in the table");
+
+    assertSame(first, proto.sizingHint(true, name));
+    assertEquals(afterFirst, name.conversions, "a second call in the lane uses the cached hint");
   }
 
   @Test
