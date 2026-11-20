@@ -2,6 +2,7 @@ package com.datadog.debugger.sink;
 
 import static com.datadog.debugger.sink.SymbolSink.MAX_SYMDB_UPLOAD_SIZE;
 import static java.util.Collections.singletonList;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -327,6 +328,23 @@ class SymbolSinkTest {
         symbolUploaderMock.multiPartContents.get(index + 1);
     assertEquals("file", symbolContent.getPartName());
     return new String(symbolContent.getContent());
+  }
+
+  @Test
+  public void flushDoesNotThrowWhenUploadFails() {
+    SymbolUploaderMock symbolUploaderMock =
+        new SymbolUploaderMock() {
+          @Override
+          public void uploadAsMultipart(String tags, MultiPartContent... parts) {
+            throw new RuntimeException("upload failed");
+          }
+        };
+    Config config = mock(Config.class);
+    when(config.getServiceName()).thenReturn("service1");
+    when(config.isSymbolDatabaseCompressed()).thenReturn(false);
+    SymbolSink symbolSink = new SymbolSink(config, symbolUploaderMock, MAX_SYMDB_UPLOAD_SIZE);
+    symbolSink.addScope(Scope.builder(ScopeType.JAR, null, 0, 0).build());
+    assertDoesNotThrow(symbolSink::flush);
   }
 
   static class SymbolUploaderMock extends BatchUploader {

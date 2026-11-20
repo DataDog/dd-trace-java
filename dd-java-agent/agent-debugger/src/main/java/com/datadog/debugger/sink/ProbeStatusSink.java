@@ -44,6 +44,8 @@ public class ProbeStatusSink {
   private final int batchSize;
   private final RatelimitedLogger ratelimitedLogger =
       new RatelimitedLogger(LOGGER, MINUTES_BETWEEN_ERROR_LOG, TimeUnit.MINUTES);
+  private final RatelimitedLogger flushErrorLogger =
+      new RatelimitedLogger(LOGGER, MINUTES_BETWEEN_ERROR_LOG, TimeUnit.MINUTES);
   private final boolean isInstrumentTheWorld;
   private final boolean useMultiPart;
 
@@ -103,16 +105,22 @@ public class ProbeStatusSink {
   }
 
   public void flush(String tags) {
-    List<String> serializedDiagnostics = getSerializedDiagnostics();
-    List<byte[]> batches = IntakeBatchHelper.createBatches(serializedDiagnostics);
-    for (byte[] batch : batches) {
-      if (useMultiPart) {
-        diagnosticUploader.uploadAsMultipart(
-            tags,
-            new BatchUploader.MultiPartContent(batch, "event", "event.json", APPLICATION_JSON));
-      } else {
-        diagnosticUploader.upload(batch, tags);
+    try {
+      List<String> serializedDiagnostics = getSerializedDiagnostics();
+      if (!serializedDiagnostics.isEmpty()) {
+        List<byte[]> batches = IntakeBatchHelper.createBatches(serializedDiagnostics);
+        for (byte[] batch : batches) {
+          if (useMultiPart) {
+            diagnosticUploader.uploadAsMultipart(
+                tags,
+                new BatchUploader.MultiPartContent(batch, "event", "event.json", APPLICATION_JSON));
+          } else {
+            diagnosticUploader.upload(batch, tags);
+          }
+        }
       }
+    } catch (Exception e) {
+      flushErrorLogger.warn("Error during probe status flush", e);
     }
   }
 
@@ -146,7 +154,7 @@ public class ProbeStatusSink {
   }
 
   List<ProbeStatus> getDiagnostics() {
-    return getDiagnostics(Clock.systemDefaultZone());
+    return getDiagnostics(Clock.systemUTC());
   }
 
   List<ProbeStatus> getDiagnostics(Clock clock) {
@@ -164,10 +172,15 @@ public class ProbeStatusSink {
   }
 
   private int enqueueAllProbesStatusIfNeeded(Clock clock) {
+    if (probeStatuses.isEmpty()) {
+      return 0;
+    }
     Instant now = Instant.now(clock);
+    // messages last emitted strictly before this threshold are due to be emitted again
+    Instant emitThreshold = now.minus(interval);
     int missingCapacity = 0;
     for (TimedMessage entry : probeStatuses.values()) {
-      if (shouldEmitAgain(now, entry.getLastEmit())) {
+      if (entry.getLastEmit().isBefore(emitThreshold)) {
         if (!enqueueTimedMessage(entry, now)) {
           missingCapacity++;
         }
@@ -190,7 +203,7 @@ public class ProbeStatusSink {
     if (current == null || shouldOverwrite(current.getMessage(), message)) {
       TimedMessage newMessage = new TimedMessage(message);
       probeStatuses.put(probeId.getEncodedId(), newMessage);
-      enqueueTimedMessage(newMessage, Instant.now(Clock.systemDefaultZone()));
+      enqueueTimedMessage(newMessage, Instant.now(Clock.systemUTC()));
     }
   }
 
@@ -218,10 +231,6 @@ public class ProbeStatusSink {
         || (current.getDiagnostics().getStatus() != next.getDiagnostics().getStatus())
         || (current.getDiagnostics().getProbeId().getVersion()
             < next.getDiagnostics().getProbeId().getVersion());
-  }
-
-  private boolean shouldEmitAgain(Instant now, Instant lastEmit) {
-    return Duration.between(lastEmit, now).compareTo(interval) >= 1;
   }
 
   private static class TimedMessage {

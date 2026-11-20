@@ -1,11 +1,17 @@
 package com.datadog.debugger.sink;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.datadog.debugger.agent.ProbeStatus;
 import com.datadog.debugger.agent.ProbeStatus.Builder;
+import com.datadog.debugger.uploader.BatchUploader;
 import com.datadog.debugger.util.MoshiHelper;
 import com.squareup.moshi.JsonAdapter;
 import datadog.trace.api.Config;
@@ -315,6 +321,16 @@ class ProbeStatusSinkTest {
     // when fetching all messages the queue will reset and only send last messages for ecah probe
 
     assertEquals(Arrays.asList(builder.installedMessage(PROBE_ID2)), thirdBatch);
+  }
+
+  @Test
+  void flushDoesNotThrowWhenUploadFails() {
+    BatchUploader uploader = mock(BatchUploader.class);
+    doThrow(new RuntimeException("upload failed")).when(uploader).upload(any(), any());
+    ProbeStatusSink sink = new ProbeStatusSink(config, uploader, false);
+    sink.addReceived(PROBE_ID);
+    assertDoesNotThrow(() -> sink.flush("tags"));
+    verify(uploader).upload(any(), any());
   }
 
   @Test

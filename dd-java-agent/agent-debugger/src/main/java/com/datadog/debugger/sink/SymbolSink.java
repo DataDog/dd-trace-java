@@ -9,6 +9,7 @@ import com.datadog.debugger.symbol.ServiceVersion;
 import com.datadog.debugger.uploader.BatchUploader;
 import com.datadog.debugger.util.MoshiHelper;
 import com.squareup.moshi.JsonAdapter;
+import datadog.logging.RatelimitedLogger;
 import datadog.trace.api.Config;
 import datadog.trace.util.RandomUtils;
 import datadog.trace.util.Strings;
@@ -23,6 +24,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.zip.GZIPOutputStream;
 import okhttp3.HttpUrl;
@@ -35,6 +37,7 @@ import org.slf4j.LoggerFactory;
 public class SymbolSink {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(SymbolSink.class);
+  private static final int MINUTES_BETWEEN_ERROR_LOG = 5;
   static final int CAPACITY = 1024;
   public static final BatchUploader.RetryPolicy RETRY_POLICY = new BatchUploader.RetryPolicy(10);
   private static final JsonAdapter<ServiceVersion> SERVICE_VERSION_ADAPTER =
@@ -78,6 +81,8 @@ public class SymbolSink {
   // cumulative length of the serialized scopes currently in the queue
   private final AtomicLong queuedScopesSize = new AtomicLong(0);
   private final Stats stats = new Stats();
+  private final RatelimitedLogger ratelimitedLogger =
+      new RatelimitedLogger(LOGGER, MINUTES_BETWEEN_ERROR_LOG, TimeUnit.MINUTES);
   private final boolean isCompressed;
 
   public SymbolSink(Config config) {
@@ -142,20 +147,23 @@ public class SymbolSink {
     if (scopes.isEmpty()) {
       return;
     }
-    List<String> scopesToSerialize = new ArrayList<>();
-    // ArrayBlockingQueue makes drainTo atomic, so it is safe to call flush from different and
-    // concurrent threads
-    scopes.drainTo(scopesToSerialize);
-    long drainedSize = 0;
-    for (String scope : scopesToSerialize) {
-      drainedSize += scope.length();
+    try {
+      List<String> scopesToSerialize = new ArrayList<>();
+      // ArrayBlockingQueue makes drainTo atomic, so it is safe to call flush from different and
+      // concurrent threads
+      scopes.drainTo(scopesToSerialize);
+      long drainedSize = 0;
+      for (String scope : scopesToSerialize) {
+        drainedSize += scope.length();
+      }
+      queuedScopesSize.addAndGet(-drainedSize);
+      // concurrent calls to flush can result in empty scope to send, we don't want to send empty
+      if (!scopesToSerialize.isEmpty()) {
+        serializeAndUpload(scopesToSerialize);
+      }
+    } catch (Exception e) {
+      ratelimitedLogger.warn("Error during symbol flush", e);
     }
-    queuedScopesSize.addAndGet(-drainedSize);
-    // concurrent calls to flush can result in empty scope to send, we don't want to send empty
-    if (scopesToSerialize.isEmpty()) {
-      return;
-    }
-    serializeAndUpload(scopesToSerialize);
   }
 
   private void serializeAndUpload(List<String> scopesToSerialize) {
