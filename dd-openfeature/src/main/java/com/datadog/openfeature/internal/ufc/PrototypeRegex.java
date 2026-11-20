@@ -552,15 +552,18 @@ abstract class PrototypeRegex extends RegexMatcher {
         }
         final String body = p.substring(i + 1, end);
         final int comma = body.indexOf(',');
-        try {
-          if (comma < 0) {
-            min = Integer.parseInt(body);
-            max = min;
-          } else {
-            min = Integer.parseInt(body.substring(0, comma));
-            max = comma == body.length() - 1 ? INF : Integer.parseInt(body.substring(comma + 1));
-          }
-        } catch (final NumberFormatException e) {
+        // Only counts both RegexMatcher.Limits and RE2/J read as counts: 1 to 4 plain digits, no
+        // leading zero. Other braces, such as {+2147483647}, {0002} or {-1}, are literal text
+        // there, so they're left to RE2/J. parseInt would read them as counts, and a count Limits
+        // never sized can exhaust the heap.
+        if (comma < 0) {
+          min = count(body);
+          max = min;
+        } else {
+          min = count(body.substring(0, comma));
+          max = comma == body.length() - 1 ? INF : count(body.substring(comma + 1));
+        }
+        if (max < min) {
           throw new Unsupported();
         }
         i = end + 1;
@@ -574,6 +577,14 @@ abstract class PrototypeRegex extends RegexMatcher {
         throw new Unsupported(); // nested repetition
       }
       return atom.repeated(min, max);
+    }
+
+    private static int count(final String digits) {
+      if (!RegexMatcher.Limits.isNumber(digits)
+          || (digits.length() > 1 && digits.charAt(0) == '0')) {
+        throw new Unsupported();
+      }
+      return Integer.parseInt(digits);
     }
 
     private boolean[] fold(final boolean[] set) {
@@ -631,6 +642,10 @@ abstract class PrototypeRegex extends RegexMatcher {
     private final boolean anchoredEnd;
     private final boolean endsWithGap;
     private final int minLength;
+    // Whether the answer depends on counting code points: a single '.', or a gap or tail of at
+    // least two. A surrogate pair is one code point but two chars, so with one in the input the
+    // char positions this matcher computes are off.
+    private final boolean countsCodePoints;
     private final RegexMatcher fallback;
 
     private static final char ANY = '￿';
@@ -655,10 +670,16 @@ abstract class PrototypeRegex extends RegexMatcher {
       this.anchoredEnd = parsed.anchoredEnd;
       this.endsWithGap = endsWithGap;
       int min = trailingMin;
+      boolean counts = trailingMin >= 2;
       for (int k = 0; k < segments.length; k++) {
         min += gapMin[k] + segments[k].length;
+        counts |= gapMin[k] >= 2;
+        for (final char c : segments[k]) {
+          counts |= c == ANY;
+        }
       }
       this.minLength = min;
+      this.countsCodePoints = counts;
       this.fallback = fallback;
     }
 
@@ -746,7 +767,9 @@ abstract class PrototypeRegex extends RegexMatcher {
           count++;
         }
       }
-      return count == 2 && atom.set[lowerLetter(atom)] && atom.set[lowerLetter(atom) - 32];
+      final char lower = lowerLetter(atom);
+      // Two members that aren't a letter and its capital, like [\x00\x01], are not a folded letter.
+      return count == 2 && lower != '\0' && atom.set[lower - 32];
     }
 
     private static char lowerLetter(final Atom atom) {
@@ -771,7 +794,10 @@ abstract class PrototypeRegex extends RegexMatcher {
     public boolean matches(final String s) {
       final int n = s.length();
       if (n < minLength) {
-        return false;
+        return false; // fewer chars than needed, so fewer code points too
+      }
+      if (countsCodePoints && hasSurrogate(s)) {
+        return fallback.matches(s);
       }
       final int last = segments.length - 1;
       // Cheapest rejections first: an anchored last segment has a fixed position.
@@ -833,6 +859,15 @@ abstract class PrototypeRegex extends RegexMatcher {
         }
       }
       return true;
+    }
+
+    private static boolean hasSurrogate(final String s) {
+      for (int x = 0; x < s.length(); x++) {
+        if (Character.isSurrogate(s.charAt(x))) {
+          return true;
+        }
+      }
+      return false;
     }
 
     private static boolean hasNewline(final String s, final int from, final int to) {
