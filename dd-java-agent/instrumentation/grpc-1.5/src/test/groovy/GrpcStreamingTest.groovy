@@ -1,4 +1,5 @@
 import com.google.common.util.concurrent.MoreExecutors
+import datadog.context.Context
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
@@ -68,7 +69,7 @@ abstract class GrpcStreamingTest extends VersionedNamingTestBase {
                 serverReceived << value.message
 
                 (1..msgCount).each {
-                  if (TEST_TRACER.isAsyncPropagationEnabled()) {
+                  if (Context.isCaptureEnabled()) {
                     observer.onNext(value)
                   } else {
                     observer.onError(new IllegalStateException("not async propagating!"))
@@ -78,7 +79,7 @@ abstract class GrpcStreamingTest extends VersionedNamingTestBase {
 
               @Override
               void onError(Throwable t) {
-                if (TEST_TRACER.isAsyncPropagationEnabled()) {
+                if (Context.isCaptureEnabled()) {
                   error.set(t)
                   observer.onError(t)
                 } else {
@@ -88,7 +89,7 @@ abstract class GrpcStreamingTest extends VersionedNamingTestBase {
 
               @Override
               void onCompleted() {
-                if (TEST_TRACER.isAsyncPropagationEnabled()) {
+                if (Context.isCaptureEnabled()) {
                   observer.onCompleted()
                 } else {
                   observer.onError(new IllegalStateException("not async propagating!"))
@@ -108,7 +109,7 @@ abstract class GrpcStreamingTest extends VersionedNamingTestBase {
     def streamObserver = client.conversation(new StreamObserver<Helloworld.Response>() {
         @Override
         void onNext(Helloworld.Response value) {
-          if (TEST_TRACER.isAsyncPropagationEnabled()) {
+          if (Context.isCaptureEnabled()) {
             clientReceived << value.message
           } else {
             error.set(new IllegalStateException("not async propagating!"))
@@ -117,7 +118,7 @@ abstract class GrpcStreamingTest extends VersionedNamingTestBase {
 
         @Override
         void onError(Throwable t) {
-          if (TEST_TRACER.isAsyncPropagationEnabled()) {
+          if (Context.isCaptureEnabled()) {
             error.set(t)
           } else {
             error.set(new IllegalStateException("not async propagating!"))
@@ -126,7 +127,7 @@ abstract class GrpcStreamingTest extends VersionedNamingTestBase {
 
         @Override
         void onCompleted() {
-          if (!TEST_TRACER.isAsyncPropagationEnabled()) {
+          if (!Context.isCaptureEnabled()) {
             error.set(new IllegalStateException("not async propagating!"))
           }
         }
