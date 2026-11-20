@@ -290,6 +290,33 @@ class ProcessSupervisorTest {
   }
 
   @Test
+  void closesItsHealthCheckWhenClosed() {
+    AtomicInteger checks = new AtomicInteger();
+    AtomicInteger closes = new AtomicInteger();
+    HealthCheck otherProcessAnswers =
+        new HealthCheck() {
+          @Override
+          public ProcessSupervisor.Health run(ProcessSupervisor.Health previous) {
+            checks.incrementAndGet();
+            return HEALTHY;
+          }
+
+          @Override
+          public void close() {
+            closes.incrementAndGet();
+          }
+        };
+
+    ProcessSupervisor processSupervisor =
+        new ProcessSupervisor("test", createProcessBuilder(), otherProcessAnswers);
+    new PollingConditions(5).eventually(() -> assertEquals(1, checks.get()));
+    assertEquals(0, closes.get());
+
+    processSupervisor.close();
+    new PollingConditions(5).eventually(() -> assertEquals(1, closes.get()));
+  }
+
+  @Test
   void keepsTrackingItsProcessWhenItDoesNotStopInsteadOfStartingASecondCopy() throws IOException {
     List<FakeProcess> started = new CopyOnWriteArrayList<>();
     AtomicInteger checksWhileRunning = new AtomicInteger();

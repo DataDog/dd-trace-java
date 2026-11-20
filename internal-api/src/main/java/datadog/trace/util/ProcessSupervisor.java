@@ -47,6 +47,9 @@ public class ProcessSupervisor implements Closeable {
   @FunctionalInterface
   public interface HealthCheck {
     Health run(Health previousHealth) throws InterruptedException;
+
+    /** Releases what the check holds. Called once, on the supervisor thread, when it stops. */
+    default void close() {}
   }
 
   /** Starts a process whenever none is running, and never checks a running one. */
@@ -141,6 +144,7 @@ public class ProcessSupervisor implements Closeable {
       }
     } finally {
       stopProcess();
+      healthCheck.close();
     }
   }
 

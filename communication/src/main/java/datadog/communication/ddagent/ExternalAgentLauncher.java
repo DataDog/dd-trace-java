@@ -207,6 +207,17 @@ public class ExternalAgentLauncher implements Closeable {
       return requestThread;
     }
 
+    /**
+     * Stops the request thread. A request still blocked on a pipe read may stay blocked until the
+     * agent exits, since the read does not respond to the interrupt.
+     */
+    @Override
+    public void close() {
+      if (requestThread != null) {
+        requestThread.shutdownNow();
+      }
+    }
+
     /** Returns the result of a finished request, without waiting. */
     private static boolean answered(FutureTask<Boolean> finishedRequest)
         throws InterruptedException {
