@@ -2,6 +2,7 @@ import static datadog.trace.api.datastreams.PathwayContext.PROPAGATION_KEY_BASE6
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.KAFKA_CLUSTER_ID;
 import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -9,10 +10,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.agent.test.datastreams.DataStreamsRemoteConfigTracer;
+import datadog.trace.api.datastreams.KafkaConfigReport;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.datastreams.StatsGroup;
 import datadog.trace.test.junit.utils.config.WithConfig;
 import datadog.trace.test.util.PollingConditions;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -125,6 +128,35 @@ class KafkaDataStreamsRemoteConfigForkedTest extends AbstractInstrumentationTest
       assertNull(consumeSpan().getTag(KAFKA_CLUSTER_ID));
       // Stats stop too: no new group is written once DSM is off
       assertEquals(groupsBeforeOffAgain, dataStreams.settledGroupCount());
+    }
+  }
+
+  @Test
+  void consumerGroupMembershipJoinedWhileOffIsReportedOnceAfterTheEnable() throws Exception {
+    Map<String, Object> consumerProps =
+        KafkaTestUtils.consumerProps("subscriber", "false", embeddedKafka);
+    consumerProps.put(ConsumerConfig.METADATA_MAX_AGE_CONFIG, METADATA_MAX_AGE_MS);
+    try (KafkaConsumer<String, String> consumer =
+        new KafkaConsumer<>(consumerProps, new StringDeserializer(), new StringDeserializer())) {
+      consumer.subscribe(singletonList(TOPIC));
+      // data streams is off while the consumer joins its group
+      new PollingConditions(15)
+          .delay(0)
+          .eventually(() -> {
+            consumer.poll(100);
+            assertFalse(consumer.assignment().isEmpty());
+          });
+
+      // remote config enables data streams, then a metadata update reports without a rebalance
+      dataStreams.toggleDataStreams(true);
+      List<KafkaConfigReport> members =
+          dataStreams.waitForKafkaConsumerGroupMemberReports(() -> consumer.poll(100));
+      assertEquals(1, members.size());
+      KafkaConfigReport member = members.get(0);
+      assertEquals("subscriber", member.getConsumerGroup());
+      assertFalse(member.getMemberId().isEmpty());
+      // The first generation: the membership from the join while off
+      assertEquals(1, member.getGenerationId());
     }
   }
 

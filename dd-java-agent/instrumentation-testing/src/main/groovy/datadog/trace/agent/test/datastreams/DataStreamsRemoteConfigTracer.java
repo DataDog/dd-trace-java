@@ -158,6 +158,36 @@ public final class DataStreamsRemoteConfigTracer {
         });
   }
 
+  /**
+   * Runs {@code pollClients} until a consumer group membership reports, then for a settling window
+   * where duplicates would land; returns the membership reports.
+   */
+  public List<KafkaConfigReport> waitForKafkaConsumerGroupMemberReports(Runnable pollClients) {
+    new PollingConditions(15)
+        .eventually(() -> {
+          pollClients.run();
+          assertFalse(kafkaConsumerGroupMemberReports().isEmpty());
+        });
+    long settledAt = System.nanoTime() + TimeUnit.SECONDS.toNanos(1);
+    while (System.nanoTime() < settledAt) {
+      pollClients.run();
+    }
+    return kafkaConsumerGroupMemberReports();
+  }
+
+  /** Reported consumer group memberships, which carry a member ID instead of a config. */
+  private List<KafkaConfigReport> kafkaConsumerGroupMemberReports() {
+    List<KafkaConfigReport> reports = new ArrayList<>();
+    for (StatsBucket bucket : dataStreamsWriter.getPayloads()) {
+      for (KafkaConfigReport report : bucket.getKafkaConfigs()) {
+        if (!report.getMemberId().isEmpty()) {
+          reports.add(report);
+        }
+      }
+    }
+    return reports;
+  }
+
   /** The first non-empty reported Kafka config of {@code type}, or null if none was reported. */
   public Map<String, String> kafkaConfig(String type) {
     for (StatsBucket bucket : dataStreamsWriter.getPayloads()) {

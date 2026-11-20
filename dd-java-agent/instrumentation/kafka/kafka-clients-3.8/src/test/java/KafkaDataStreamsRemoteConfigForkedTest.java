@@ -2,6 +2,7 @@ import static datadog.trace.api.datastreams.PathwayContext.PROPAGATION_KEY_BASE6
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.KAFKA_CLUSTER_ID;
 import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -9,15 +10,18 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.agent.test.datastreams.DataStreamsRemoteConfigTracer;
+import datadog.trace.api.datastreams.KafkaConfigReport;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.datastreams.StatsGroup;
 import datadog.trace.test.junit.utils.config.WithConfig;
 import datadog.trace.test.util.PollingConditions;
 import java.lang.reflect.Field;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerGroupMetadata;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.KafkaProducer;
@@ -131,6 +135,39 @@ class KafkaDataStreamsRemoteConfigForkedTest extends AbstractInstrumentationTest
       assertNull(record.headers().lastHeader(PROPAGATION_KEY_BASE64));
       assertNotNull(consumeSpan().getTag(KAFKA_CLUSTER_ID));
       assertEquals(0, dataStreams.settledGroupCount());
+    }
+  }
+
+  @Test
+  void classicConsumerGroupMembershipJoinedWhileOffIsReportedOnceAfterTheEnable() throws Exception {
+    Map<String, Object> properties =
+        KafkaTestUtils.consumerProps("subscriber-classic", "false", broker);
+    properties.put(ConsumerConfig.GROUP_PROTOCOL_CONFIG, "classic");
+    properties.put(ConsumerConfig.METADATA_MAX_AGE_CONFIG, METADATA_MAX_AGE_MS);
+    try (KafkaConsumer<String, String> consumer =
+        new KafkaConsumer<>(properties, new StringDeserializer(), new StringDeserializer())) {
+      consumer.subscribe(singletonList(TOPIC));
+      // data streams is off while the consumer joins its group
+      new PollingConditions(15)
+          .delay(0)
+          .eventually(() -> {
+            consumer.poll(Duration.ofMillis(100));
+            assertFalse(consumer.assignment().isEmpty());
+          });
+      ConsumerGroupMetadata joinedWhileOff = consumer.groupMetadata();
+
+      // remote config enables data streams, then a metadata update reports without a rebalance
+      dataStreams.toggleDataStreams(true);
+      List<KafkaConfigReport> members =
+          dataStreams.waitForKafkaConsumerGroupMemberReports(
+              () -> consumer.poll(Duration.ofMillis(100)));
+      assertEquals(1, members.size());
+      KafkaConfigReport member = members.get(0);
+      assertEquals("subscriber-classic", member.getConsumerGroup());
+      assertFalse(member.getMemberId().isEmpty());
+      assertEquals(joinedWhileOff.memberId(), member.getMemberId());
+      assertEquals(joinedWhileOff.generationId(), member.getGenerationId());
+      assertEquals(joinedWhileOff.generationId(), consumer.groupMetadata().generationId());
     }
   }
 
