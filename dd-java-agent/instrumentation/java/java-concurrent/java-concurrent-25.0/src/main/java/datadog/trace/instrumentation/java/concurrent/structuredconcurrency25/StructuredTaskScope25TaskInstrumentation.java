@@ -73,7 +73,8 @@ public class StructuredTaskScope25TaskInstrumentation
   public static final class RunAdvice {
     /**
      * Unregisters the subtask state from its scope's {@link TaskScopeStateRegistry} once the
-     * subtask ran, as its continuation was consumed by the {@link Runnable} instrumentation.
+     * subtask ran, releasing its continuation if the {@link Runnable} instrumentation did not
+     * consume it (e.g. when that integration is disabled).
      *
      * @param subTaskImpl The StructuredTaskScopeImpl.SubtaskImpl object (the advice is compiled
      *     against Java 8 so the type from JDK25 can't be referred, using its {@link Runnable}
@@ -87,6 +88,7 @@ public class StructuredTaskScope25TaskInstrumentation
       ContextStore<Runnable, State> stateStore = get(Runnable.class, State.class);
       State state = stateStore.get(subTaskImpl);
       if (state != null) {
+        state.closeContinuation();
         ContextStore<Object, TaskScopeStateRegistry> registryStore =
             get(STRUCTURED_TASK_SCOPE_CLASS_NAME, TASK_SCOPE_STATE_REGISTRY_CLASS_NAME);
         TaskScopeStateRegistry registry = registryStore.get(scope);
