@@ -40,7 +40,8 @@ class EventBridgeMessageTest {
         "{\"detail-type\":\"order.created\",\"detail\":{\"_datadog\":"
             + "{\"x-datadog-resource-name\":"
             + "\"arn:aws:events:us-east-1:123456789012:event-bus/test-bus\"}}}";
-    EventBridgeMessage parsed = EventBridgeMessage.tryParseFrom(Message.builder().body(body).build());
+    EventBridgeMessage parsed =
+        EventBridgeMessage.tryParseFrom(Message.builder().body(body).build());
 
     assertNotNull(parsed);
     assertEquals(EXCHANGE_TAG + ":test-bus", parsed.consumeTags().getExchange());
@@ -48,8 +49,10 @@ class EventBridgeMessageTest {
 
   @Test
   void fallsBackToTheDefaultBusWhenResourceNameIsMissing() {
-    String body = "{\"detail-type\":\"order.created\",\"detail\":{\"_datadog\":{\"x-datadog-trace-id\":\"123\"}}}";
-    EventBridgeMessage parsed = EventBridgeMessage.tryParseFrom(Message.builder().body(body).build());
+    String body =
+        "{\"detail-type\":\"order.created\",\"detail\":{\"_datadog\":{\"x-datadog-trace-id\":\"123\"}}}";
+    EventBridgeMessage parsed =
+        EventBridgeMessage.tryParseFrom(Message.builder().body(body).build());
 
     assertNotNull(parsed);
     assertEquals(EXCHANGE_TAG + ":default", parsed.consumeTags().getExchange());
@@ -62,7 +65,8 @@ class EventBridgeMessageTest {
             .body(ENVELOPE)
             .messageAttributes(
                 Collections.singletonMap(
-                    "_datadog", MessageAttributeValue.builder().dataType("String").stringValue("{}").build()))
+                    "_datadog",
+                    MessageAttributeValue.builder().dataType("String").stringValue("{}").build()))
             .build();
 
     assertNull(EventBridgeMessage.tryParseFrom(message));
@@ -73,7 +77,8 @@ class EventBridgeMessageTest {
     assertNull(EventBridgeMessage.tryParseFrom(Message.builder().body(null).build()));
     assertNull(EventBridgeMessage.tryParseFrom(Message.builder().body("").build()));
     assertNull(EventBridgeMessage.tryParseFrom(Message.builder().body("plain text").build()));
-    assertNull(EventBridgeMessage.tryParseFrom(Message.builder().body("{\"message\":\"hi\"}").build()));
+    assertNull(
+        EventBridgeMessage.tryParseFrom(Message.builder().body("{\"message\":\"hi\"}").build()));
     assertNull(
         EventBridgeMessage.tryParseFrom(
             Message.builder()

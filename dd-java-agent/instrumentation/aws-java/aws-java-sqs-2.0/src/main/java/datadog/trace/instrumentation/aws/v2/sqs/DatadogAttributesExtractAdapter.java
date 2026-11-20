@@ -9,7 +9,8 @@ import javax.annotation.ParametersAreNonnullByDefault;
 public final class DatadogAttributesExtractAdapter
     implements AgentPropagation.ContextVisitor<Map<String, ?>> {
 
-  public static final DatadogAttributesExtractAdapter GETTER = new DatadogAttributesExtractAdapter();
+  public static final DatadogAttributesExtractAdapter GETTER =
+      new DatadogAttributesExtractAdapter();
 
   @Override
   public void forEachKey(Map<String, ?> carrier, AgentPropagation.KeyClassifier classifier) {

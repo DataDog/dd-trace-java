@@ -77,20 +77,7 @@ final class EventBridgeMessage {
     String exchange = normalizeEventBusName(eventBusName);
     String topic = null == detailType || detailType.isEmpty() ? null : detailType;
     return new DataStreamsTags(
-        null,
-        INBOUND,
-        exchange,
-        topic,
-        TYPE,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null);
+        null, INBOUND, exchange, topic, TYPE, null, null, null, null, null, null, null, null, null);
   }
 
   private static String normalizeEventBusName(String eventBusName) {
