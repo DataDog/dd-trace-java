@@ -148,18 +148,41 @@ public class KafkaConfigHelper {
     String group = groupOrEmpty(consumerGroup);
     String protocol = memberProtocol != null ? memberProtocol : "";
     String clusterId = state.clusterId;
-    if (clusterId == null || clusterId.isEmpty() || !traceConfig().isDataStreamsEnabled()) {
+    if (!canReportConsumerGroupMember(clusterId)) {
       // Reported on the first metadata update with a cluster ID while DSM is enabled
       state.setPendingConsumerGroupMember(
           new PendingConsumerGroupMember(group, memberId, generationId, protocol));
+      // Re-checked in case a concurrent metadata update ran before the member was pending
+      clusterId = state.clusterId;
+      if (canReportConsumerGroupMember(clusterId)) {
+        reportPendingConsumerGroupMember(state, clusterId);
+      }
       return true;
     }
-    // Dropped so an older generation isn't reported after this one
+    // Best effort: drops a pending older generation so it isn't reported after this one
     state.takePendingConsumerGroupMember();
     AgentTracer.get()
         .getDataStreamsMonitoring()
         .reportKafkaConsumerGroupMember(clusterId, group, memberId, generationId, protocol);
     return true;
+  }
+
+  private static boolean canReportConsumerGroupMember(String clusterId) {
+    return clusterId != null && !clusterId.isEmpty() && traceConfig().isDataStreamsEnabled();
+  }
+
+  private static void reportPendingConsumerGroupMember(MetadataState state, String clusterId) {
+    PendingConsumerGroupMember member = state.takePendingConsumerGroupMember();
+    if (member != null) {
+      AgentTracer.get()
+          .getDataStreamsMonitoring()
+          .reportKafkaConsumerGroupMember(
+              clusterId,
+              member.consumerGroup,
+              member.memberId,
+              member.generationId,
+              member.memberProtocol);
+    }
   }
 
   /** Called from metadata update advice when the cluster ID becomes available. */
@@ -180,17 +203,7 @@ public class KafkaConfigHelper {
           .reportKafkaConfig(pending.type, clusterId, pending.consumerGroup, config);
     }
     if (clusterId != null && !clusterId.isEmpty()) {
-      PendingConsumerGroupMember member = state.takePendingConsumerGroupMember();
-      if (member != null) {
-        AgentTracer.get()
-            .getDataStreamsMonitoring()
-            .reportKafkaConsumerGroupMember(
-                clusterId,
-                member.consumerGroup,
-                member.memberId,
-                member.generationId,
-                member.memberProtocol);
-      }
+      reportPendingConsumerGroupMember(state, clusterId);
     }
   }
 

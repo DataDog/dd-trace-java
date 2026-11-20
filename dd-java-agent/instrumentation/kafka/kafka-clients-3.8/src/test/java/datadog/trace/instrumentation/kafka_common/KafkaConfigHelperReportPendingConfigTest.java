@@ -28,12 +28,23 @@ import org.junit.jupiter.api.Test;
 class KafkaConfigHelperReportPendingConfigTest {
   private final AgentDataStreamsMonitoring dataStreams = mock(AgentDataStreamsMonitoring.class);
   private final boolean[] dataStreamsEnabled = {false};
+  private Runnable onNextDataStreamsEnabledCheck;
   private AgentTracer.TracerAPI originalTracer;
 
   @BeforeEach
   void installTracer() {
     TraceConfig traceConfig = mock(TraceConfig.class);
-    when(traceConfig.isDataStreamsEnabled()).thenAnswer(invocation -> dataStreamsEnabled[0]);
+    when(traceConfig.isDataStreamsEnabled())
+        .thenAnswer(invocation -> {
+          // Value read before the hook runs, as a racing thread would see it
+          boolean enabled = dataStreamsEnabled[0];
+          Runnable hook = onNextDataStreamsEnabledCheck;
+          onNextDataStreamsEnabledCheck = null;
+          if (hook != null) {
+            hook.run();
+          }
+          return enabled;
+        });
     AgentTracer.TracerAPI tracer = mock(AgentTracer.TracerAPI.class);
     when(tracer.captureTraceConfig()).thenReturn(traceConfig);
     when(tracer.getDataStreamsMonitoring()).thenReturn(dataStreams);
@@ -158,6 +169,28 @@ class KafkaConfigHelperReportPendingConfigTest {
 
     verify(dataStreams, times(1))
         .reportKafkaConsumerGroupMember("cluster-1", "group-1", "member-1", 1, "range");
+  }
+
+  @Test
+  void consumerGroupMemberIsReportedWhenDataStreamsIsEnabledDuringJoin() {
+    MetadataState state = new MetadataState();
+    state.clusterId = "cluster-1";
+    // Join sees DSM off, then a metadata update sees it on before the member is pending
+    onNextDataStreamsEnabledCheck =
+        () -> {
+          dataStreamsEnabled[0] = true;
+          KafkaConfigHelper.reportPendingConfig(state, "cluster-1");
+        };
+
+    assertTrue(
+        KafkaConfigHelper.reportConsumerGroupMember(state, "group-1", "member-1", 1, "range"));
+
+    // Reported without waiting for the next metadata update
+    verify(dataStreams, times(1))
+        .reportKafkaConsumerGroupMember(anyString(), anyString(), anyString(), anyInt(), any());
+    verify(dataStreams)
+        .reportKafkaConsumerGroupMember("cluster-1", "group-1", "member-1", 1, "range");
+    assertNull(state.takePendingConsumerGroupMember());
   }
 
   @Test
