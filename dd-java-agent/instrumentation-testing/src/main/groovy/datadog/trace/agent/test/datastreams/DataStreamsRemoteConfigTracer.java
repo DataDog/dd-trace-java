@@ -116,12 +116,17 @@ public final class DataStreamsRemoteConfigTracer {
   }
 
   public boolean hasGroup(String... tags) {
+    return group(tags) != null;
+  }
+
+  /** The first recorded group having all {@code tags}, or null if none was recorded. */
+  public StatsGroup group(String... tags) {
     for (StatsGroup group : dataStreamsWriter.getGroups()) {
       if (group.getTags().hasAllTags(tags)) {
-        return true;
+        return group;
       }
     }
-    return false;
+    return null;
   }
 
   /**

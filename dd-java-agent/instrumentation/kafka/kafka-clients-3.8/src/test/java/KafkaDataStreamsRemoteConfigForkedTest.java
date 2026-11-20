@@ -2,6 +2,7 @@ import static datadog.trace.api.datastreams.PathwayContext.PROPAGATION_KEY_BASE6
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.KAFKA_CLUSTER_ID;
 import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -9,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.agent.test.datastreams.DataStreamsRemoteConfigTracer;
 import datadog.trace.core.DDSpan;
+import datadog.trace.core.datastreams.StatsGroup;
 import datadog.trace.test.junit.utils.config.WithConfig;
 import datadog.trace.test.util.PollingConditions;
 import java.lang.reflect.Field;
@@ -99,6 +101,11 @@ class KafkaDataStreamsRemoteConfigForkedTest extends AbstractInstrumentationTest
             assertTrue(dataStreams.hasGroup("direction:out", "topic:" + TOPIC, "type:kafka"));
             assertTrue(dataStreams.hasGroup("direction:in", "topic:" + TOPIC, "type:kafka"));
           });
+      // The consumer continues the pathway the producer started
+      StatsGroup outbound = dataStreams.group("direction:out", "topic:" + TOPIC, "type:kafka");
+      StatsGroup inbound = dataStreams.group("direction:in", "topic:" + TOPIC, "type:kafka");
+      assertNotEquals(0L, outbound.getHash());
+      assertEquals(outbound.getHash(), inbound.getParentHash());
       // Configs captured while DSM was off are kept until a metadata update after the enable
       dataStreams.waitForKafkaConfigReports(() -> consumer.poll(Duration.ofMillis(100)));
 
