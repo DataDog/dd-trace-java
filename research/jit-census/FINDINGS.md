@@ -66,7 +66,7 @@ Other corpora: `java -cp asm.jar Census.java <gradle files-2.1 dir> out` (the ba
 | JDK 8 / 11 / 17 / 21 / 25 class libraries | modules | ~25–31k each | `out-jdkNN/`; not a target, see below |
 | Central batch 1 (data / DB / docs) | 10 | 7,332 | `out-batch1/` |
 | Central batch 2 (expressions / templates / parsers) | 10 | 3,886 | `out-batch2/` |
-| Central batch 5 (latest releases of hot target-list libraries) | 10 | 8,560 | `out-batch5/`; re-scan of baseline libraries, netty resolves to 5.0.0.Alpha2 |
+| Central batch 5 (latest releases of hot target-list libraries) | 10 | 8,560 | `out-batch5/`; re-scan of baseline libraries at their latest stable release |
 
 ## Headline findings so far
 
@@ -88,6 +88,13 @@ Other corpora: `java -cp asm.jar Census.java <gradle files-2.1 dir> out` (the ba
    precision. The cost is about 780 ns/class (rough, not JMH); a JMH run is still needed (Bits worker).
 7. **The JDK isn't a target**, since its sites are cold and the classes are bootstrap/CDS. It did confirm
    the X2 gate: `Formatter`'s regex-based format parser is present in JDK 8 and 11 and gone from 17.
+8. **The biggest frameworks are nearly clean on their hot paths** (batch 5: Jackson, Spring, Tomcat,
+   Netty, Guava, Logback at latest). Their request paths tokenize by hand or use a `Pattern` compiled
+   once in `<clinit>`. Of 11 implicit compiles, 10 run at config or startup. The one per-request
+   site is **new in Spring 7.1**: `MultipartParser$HeadersState.parseHeaders()` calls
+   `split("\\r\\n")` for every multipart part. The value is in the long tail (MyBatis,
+   Connector/J, OGNL, Struts, Wicket, Vaadin), in JDK 8 deployments (X1/X2), and probably in
+   application code, which no corpus here covers.
 
 ## Legacy vs current (2026-11-20)
 
@@ -163,17 +170,17 @@ opencsv, mysql-connector-j.
 - POI and Tika mostly cache their patterns properly. PDFBox is mostly hex `format`.
 
 ### Batch 2: expressions / templates / parsers (2026-11-20)
-commons-beanutils, commons-configuration2, ognl (3.5.0-BETA10: Central's `<release>` is a beta),
+commons-beanutils, commons-configuration2, ognl (first run used 3.5.0-BETA10, Central's `<release>`; re-run with 3.4.17),
 mvel2, commons-jexl3, handlebars, mustache.java compiler, univocity-parsers, jsqlparser,
 javaparser-core.
 - Quiet batch: these libraries tokenize by hand or cache their patterns. univocity and beanutils have 0 sites.
-- **OGNL: 16 `replaceAll` with a literal**, the same pattern again.
+- **OGNL: 15 `replaceAll` with a literal** (16 in the 3.5.0 beta), the same pattern again.
 - javaparser: 7 `split` with LINES (`\\r?\\n`, `\\R`).
 
 ### Batch 5: latest releases of hot target-list libraries (2026-11-20, Temurin 21.0.4)
 jackson-databind 2.23.0, jackson-core 2.23.0, guava 33.8.0-jre, commons-lang3 3.22.0, spring-core
 7.1.0, spring-web 7.1.0, spring-webmvc 7.1.0, tomcat-embed-core 11.0.29, netty-codec-http
-5.0.0.Alpha2, logback-classic 1.6.8. All ten are already in the baseline, so this batch checks how
+4.2.21.Final, logback-classic 1.6.8. All ten are already in the baseline, so this batch checks how
 stale the "latest cached" version is, and which of the sites run per request.
 
 | Library | Latest: sites (per 1k) | Baseline version: sites (per 1k) | Change |
@@ -186,7 +193,7 @@ stale the "latest cached" version is, and which of the sites run per request.
 | spring-web | 7.1.0: 24 (17.5) | 7.0.9: 24 (18.1) | none in count; the multipart split moved (below) |
 | spring-webmvc | 7.1.0: 26 (48) | 7.0.9: 26 (48) | 2 `replaceAll` LITERAL became `replace(CS,CS)` |
 | tomcat-embed-core | 11.0.29: 56 (37.6) | 11.0.26: 53 (36.0) | +1 `replaceAll` LITERAL, +1 `split` CHARCLASS, +1 `replace` |
-| netty-codec-http | 5.0.0.Alpha2: 14 (48) | 4.2.19: 14 (37) | different code line; 4.2.21 (scanned off-batch) is identical to 4.2.19 |
+| netty-codec-http | 4.2.21.Final: 14 (37) | 4.2.19: 14 (37) | none |
 | logback-classic | 1.6.8: 12 (65) | 1.6.5: 11 (62) | +1 `format` |
 
 Sites exclude the split fast path. "Per 1k" is all addressable sites per 1k classes.
@@ -197,10 +204,12 @@ Sites exclude the split fast path. "Per 1k" is all addressable sites per 1k clas
   `replaceAll("class path resource", ...)` to `replace` (cold, it builds a log string). Tomcat
   went the other way. `SSLHostConfigPreSharedKey.setDigest` adds `replaceAll("-", "")`, and
   `RandomizedTextRewriteMap.<init>` changed `split(" ")` (fast path) to `split("\\s+")`. Both run at config time.
-- **Central's `<release>` for netty-codec-http is 5.0.0.Alpha2**, the abandoned 2015 alpha, not
-  4.2.21.Final. This is the same trap as OGNL's beta in batch 2. Its row is a different code base,
-  so it shouldn't be compared with the 4.2 baseline. A follow-up for `fetch.sh` is to skip
-  pre-release `<release>` values (proposed here, not changed).
+- **Pre-release trap (fixed):** Central's `<release>` for netty-codec-http is 5.0.0.Alpha2, the
+  abandoned 2015 alpha. The cloud worker caught it, the same trap as OGNL's beta in batch 2.
+  `fetch.sh` now picks the highest *stable* version: it skips alpha/beta/RC/milestone/snapshot
+  versions and prefers versions that start with a digit (guava's 2011-era `r09` was the next trap).
+  Batches 2 and 5 were re-run with it: netty is now 4.2.21.Final and ognl 3.4.17. Batch 3's Vaadin
+  is still 25.4.0-beta1; a re-run would pick 25.3.7.
 - **Almost every addressable site here is cold.** On their request paths, these frameworks either
   tokenize by hand or use a cached static `Pattern` (for example, 14 of spring-web's patterns are
   compiled in `<clinit>`, including `UriComponentsBuilder`'s query pattern `"([^&=]+)(=?)([^&]+)?"`).
@@ -222,8 +231,8 @@ Sites exclude the split fast path. "Per 1k" is all addressable sites per 1k clas
   - Tomcat 11.0.29 `RequestUtil.stripPathParams` (`split(";")`) and netty 4.2
     `HttpContentCompressor.determineWrapper` (`split(",")`, Accept-Encoding) run per request, but they're
     on the JDK fast path already. Nothing to gain.
-  - Netty 4.2 `HttpPostRequestEncoder.encodeAttribute` (`replace` ×3: `*`, `+`, `~`) and netty 5
-    `QueryStringEncoder.encodeComponent` (`replace("+", "%20")`) run per form attribute on the client. Jackson
+  - Netty 4.2 `HttpPostRequestEncoder.encodeAttribute` (`replace` ×3: `*`, `+`, `~`) runs per form
+    attribute on the client (the original run's netty 5 alpha also had `QueryStringEncoder.encodeComponent`). Jackson
     `ISO8601Utils.parse` (`replace(":", "")`) runs per date when the offset is written without a colon.
     Spring-web `HttpRequestValues$Builder.appendQueryParams` (`replace(":", "%3A")`) and
     spring-webmvc `ExtendedServletRequestDataBinder.normalizeHeaderName` (`replace("-", "")`) are also

@@ -1,35 +1,34 @@
 artifacts: 10
-classes: 3,886  (17 MB)  unparseable-cp: 0  asm-failed: 0
+classes: 3,761  (16 MB)  unparseable-cp: 0  asm-failed: 0
 
 == Prescan hit rates (fraction of all classes)
-  any target method ref :       151    3.89%
-  String.split          :        29    0.75%
+  any target method ref :       147    3.91%
+  String.split          :        28    0.74%
   String.matches        :         2    0.05%
-  String.replaceAll     :        22    0.57%
+  String.replaceAll     :        20    0.53%
   String.replaceFirst   :         0    0.00%
-  String.replace(CS,CS) :        22    0.57%
-  String.format/formatted:        69    1.78%
-  Pattern.compile       :        30    0.77%
-  Pattern.matches       :         1    0.03%
+  String.replace(CS,CS) :        21    0.56%
+  String.format/formatted:        69    1.83%
+  Pattern.compile       :        30    0.80%
+  Pattern.matches       :         0    0.00%
   Pattern.quote         :         1    0.03%
-  split + S0-shaped const:         1   0.026%
+  split + S0-shaped const:         1   0.027%
 
 == Prescan soundness / precision
-  classes with >=1 const site: 128 ; missed by prescan: 0 (must be 0)
-  precision of any-target filter: 84.8% of hits have a const site
+  classes with >=1 const site: 125 ; missed by prescan: 0 (must be 0)
+  precision of any-target filter: 85.0% of hits have a const site
   S0 filter: 1 prescan hits, 0 classes with real S0 site, 0 of those caught
 
-== Rough prescan cost (NOT JMH; sample 3,886 classes, 17 MB): median 979 ns/class, 216.7 ns/KB
+== Rough prescan cost (NOT JMH; sample 3,761 classes, 16 MB): median 939 ns/class, 209.0 ns/KB
 
 == All calls to target methods (const + non-const)
   Pattern.compile                   38
-  Pattern.matches                    2
   Pattern.quote                      2
   String.format/formatted          116
   String.matches                     9
-  String.replace(CS,CS)             43
-  String.replaceAll                 34
-  String.split                      43
+  String.replace(CS,CS)             42
+  String.replaceAll                 32
+  String.split                      42
 
 == Constant-argument sites: method | shape   sites   #artifacts   top constants
   Pattern.compile[in-clinit]|OTHER                      15      3   "\\s+$"x2  "\\p{javaJavaIdentifierStart}\\p{javaJavaIdentifierPart}*"x1  "<K_\\w+:\\s*\"(\\w+)\"\\s*>"x1  "^[+-]?\\d*(\\.\\d*)?([eE][+-]?\\d+)?$"x1  "--\\+ *([^ ].*[^ ])"x1  "\\s|\\p{Punct}&&[^@#$_]"x1
@@ -43,16 +42,15 @@ classes: 3,886  (17 MB)  unparseable-cp: 0  asm-failed: 0
   String.format/formatted|plain-%s/%d-only              11      2   "pushMode(%d)"x1  "inputSize %d larger than max %d"x1  "I could not find child '%s' from position %d. Elements: %s"x1  "precpred(_ctx, %d)"x1  "type(%d)"x1  "channel(%d)"x1
   String.matches|CHARCLASS                               4      2   "\\d+"x4
   String.matches|OTHER                                   5      1   "\\.[0-9]+"x2  "(?i)NONE|TEXT|BINARY"x1  "(?i)TEXT|XML|JSON|YAML"x1  "(?i)TRUE|FALSE|ON|OFF|0|1"x1
-  String.replace(CS,CS)|CONST_TARGET                    39      6   "\n"x8  "\r"x7  "\t"x5  "\""x4  "."x4  "'"x2
-  String.replaceAll|ANCHORED_LITERAL                     1      1   "^java\\.lang\\."x1
+  String.replace(CS,CS)|CONST_TARGET                    38      5   "\n"x8  "\r"x7  "\t"x5  "\""x4  "."x3  "'"x2
   String.replaceAll|CHARCLASS                            4      2   "\\s+"x2  "[\"']"x1  "\\s"x1
   String.replaceAll|LINES                                1      1   "\\R"x1
-  String.replaceAll|LITERAL                             26      6   "\""x13  " "x3  "\\.\\."x3  "_"x3  "\\-"x2  "\\\\\""x1
+  String.replaceAll|LITERAL                             25      6   "\""x13  " "x3  "\\.\\."x3  "_"x3  "\\-"x2  "\\\\\""x1
   String.split|ALT_LITERALS                              2      2   "(:|;)"x1  "(\r\n|\r|\n)"x1
   String.split|CHARCLASS                                 6      5   "\\s+"x3  "[\\s,]+"x1  "\\s"x1  "[.\\-+]"x1
   String.split|LINES                                     7      1   "\\R"x7
   String.split|LITERAL                                   1      1   " \\+ "x1
-  String.split|SPLIT_FASTPATH                           24      8   "\\."x11  " "x3  "="x3  "\n"x2  ","x2  "_"x2
+  String.split|SPLIT_FASTPATH                           23      8   "\\."x11  " "x3  "="x3  "\n"x2  ","x2  "_"x2
 
 == Class-file versions of const sites  [<51 | 51-54 (indy ok) | >=55 (condy ok)]
   Pattern.compile[in-clinit]               0 |       6 |       9
@@ -60,7 +58,7 @@ classes: 3,886  (17 MB)  unparseable-cp: 0  asm-failed: 0
   Pattern.compile[in-method]               0 |       1 |       1
   Pattern.quote                            0 |       0 |       2
   String.format/formatted                  0 |      81 |      22
-  String.matches                           0 |       0 |       9
-  String.replace(CS,CS)                    0 |      34 |       5
-  String.replaceAll                        0 |       8 |      24
-  String.split                             2 |      20 |      18
+  String.matches                           0 |       1 |       8
+  String.replace(CS,CS)                    0 |      34 |       4
+  String.replaceAll                        2 |      23 |       5
+  String.split                             5 |      21 |      13

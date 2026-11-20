@@ -30,9 +30,9 @@ com.github.spullara.mustache.java:compiler:0.9.14  (6 sites excl. split fast pat
     String.replaceAll|LITERAL                            1
     String.split|CHARCLASS                               1
 com.univocity:univocity-parsers:2.9.1  (0 sites excl. split fast path)
-ognl:ognl:3.5.0-BETA10  (18 sites excl. split fast path)
+ognl:ognl:3.4.17  (17 sites excl. split fast path)
     String.matches|CHARCLASS                             1
-    String.replaceAll|LITERAL                           16
+    String.replaceAll|LITERAL                           15
     String.split|CHARCLASS                               1
 org.apache.commons:commons-configuration2:2.15.1  (19 sites excl. split fast path)
     String.format/formatted|plain-%s-only               14
@@ -44,9 +44,7 @@ org.apache.commons:commons-jexl3:3.7.1  (10 sites excl. split fast path)
     Pattern.compile[in-clinit]|OTHER                     2
     String.format/formatted|plain-%s-only                6
     String.replace(CS,CS)|CONST_TARGET                   2
-org.mvel:mvel2:2.6.0.Final  (6 sites excl. split fast path)
-    String.replace(CS,CS)|CONST_TARGET                   1
-    String.replaceAll|ANCHORED_LITERAL                   1
+org.mvel:mvel2:2.0RC3  (4 sites excl. split fast path)
     String.replaceAll|LITERAL                            2
     String.split|ALT_LITERALS                            1
     String.split|CHARCLASS                               1

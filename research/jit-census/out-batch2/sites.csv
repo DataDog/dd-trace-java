@@ -32,9 +32,9 @@ com.github.spullara.mustache.java:compiler:0.9.14,93,"String.split","CHARCLASS",
 com.github.spullara.mustache.java:compiler:0.9.14,93,"String.split","SPLIT_FASTPATH",2
 com.univocity:univocity-parsers:2.9.1,273,"String.split","SPLIT_FASTPATH",2
 commons-beanutils:commons-beanutils:1.11.0,134,,,0
-ognl:ognl:3.5.0-BETA10,164,"String.matches","CHARCLASS",1
-ognl:ognl:3.5.0-BETA10,164,"String.replaceAll","LITERAL",16
-ognl:ognl:3.5.0-BETA10,164,"String.split","CHARCLASS",1
+ognl:ognl:3.4.17,173,"String.matches","CHARCLASS",1
+ognl:ognl:3.4.17,173,"String.replaceAll","LITERAL",15
+ognl:ognl:3.4.17,173,"String.split","CHARCLASS",1
 org.apache.commons:commons-configuration2:2.15.1,400,"String.format/formatted","plain-%s-only",14
 org.apache.commons:commons-configuration2:2.15.1,400,"String.replace(CS,CS)","CONST_TARGET",2
 org.apache.commons:commons-configuration2:2.15.1,400,"String.replaceAll","CHARCLASS",1
@@ -45,9 +45,7 @@ org.apache.commons:commons-jexl3:3.7.1,366,"Pattern.compile[in-clinit]","OTHER",
 org.apache.commons:commons-jexl3:3.7.1,366,"String.format/formatted","plain-%s-only",6
 org.apache.commons:commons-jexl3:3.7.1,366,"String.replace(CS,CS)","CONST_TARGET",2
 org.apache.commons:commons-jexl3:3.7.1,366,"String.split","SPLIT_FASTPATH",2
-org.mvel:mvel2:2.6.0.Final,515,"String.replace(CS,CS)","CONST_TARGET",1
-org.mvel:mvel2:2.6.0.Final,515,"String.replaceAll","ANCHORED_LITERAL",1
-org.mvel:mvel2:2.6.0.Final,515,"String.replaceAll","LITERAL",2
-org.mvel:mvel2:2.6.0.Final,515,"String.split","ALT_LITERALS",1
-org.mvel:mvel2:2.6.0.Final,515,"String.split","CHARCLASS",1
-org.mvel:mvel2:2.6.0.Final,515,"String.split","SPLIT_FASTPATH",2
+org.mvel:mvel2:2.0RC3,381,"String.replaceAll","LITERAL",2
+org.mvel:mvel2:2.0RC3,381,"String.split","ALT_LITERALS",1
+org.mvel:mvel2:2.0RC3,381,"String.split","CHARCLASS",1
+org.mvel:mvel2:2.0RC3,381,"String.split","SPLIT_FASTPATH",1

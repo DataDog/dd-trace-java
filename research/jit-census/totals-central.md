@@ -2,15 +2,15 @@
 
 Runs: out-batch1 (10 libs), out-batch2 (10 libs), out-batch5 (10 libs)
 
-Libraries: 30, classes: 19,778
+Libraries: 30, classes: 19,741
 
 ## Sites by method and shape
 
 | method | shape | sites | libraries |
 |---|---|---:|---:|
-| Pattern.compile[in-clinit] | OTHER | 241 | 19 |
-| Pattern.compile[in-clinit] | CHARCLASS | 16 | 7 |
-| Pattern.compile[in-clinit] | LITERAL | 16 | 6 |
+| Pattern.compile[in-clinit] | OTHER | 240 | 19 |
+| Pattern.compile[in-clinit] | CHARCLASS | 15 | 7 |
+| Pattern.compile[in-clinit] | LITERAL | 13 | 5 |
 | Pattern.compile[in-clinit] | ALT_LITERALS | 2 | 2 |
 | Pattern.compile[in-clinit] | CHAR_RUN | 1 | 1 |
 | Pattern.compile[in-clinit] | ANCHORED_LITERAL | 1 | 1 |
@@ -22,23 +22,23 @@ Libraries: 30, classes: 19,778
 | Pattern.matches | OTHER | 1 | 1 |
 | Pattern.quote | CONST | 11 | 4 |
 | String.format/formatted | plain-%s-only | 689 | 24 |
-| String.format/formatted | other | 117 | 13 |
-| String.format/formatted | plain-%s/%d-only | 116 | 16 |
+| String.format/formatted | other | 119 | 14 |
+| String.format/formatted | plain-%s/%d-only | 117 | 17 |
 | String.matches | OTHER | 71 | 8 |
 | String.matches | CHARCLASS | 17 | 7 |
 | String.matches | DOTSTAR | 4 | 1 |
-| String.replace(CS,CS) | CONST_TARGET | 299 | 21 |
-| String.replaceAll | LITERAL | 98 | 15 |
+| String.replace(CS,CS) | CONST_TARGET | 300 | 20 |
+| String.replaceAll | LITERAL | 97 | 15 |
 | String.replaceAll | OTHER | 42 | 4 |
 | String.replaceAll | CHARCLASS | 27 | 8 |
 | String.replaceAll | CHAR_RUN | 8 | 3 |
-| String.replaceAll | ANCHORED_LITERAL | 5 | 4 |
+| String.replaceAll | ANCHORED_LITERAL | 4 | 3 |
 | String.replaceAll | WS_SEP | 3 | 1 |
 | String.replaceAll | LINES | 2 | 2 |
 | String.replaceFirst | OTHER | 78 | 2 |
 | String.replaceFirst | ANCHORED_LITERAL | 58 | 3 |
 | String.replaceFirst | LITERAL | 21 | 3 |
-| String.split | SPLIT_FASTPATH | 186 | 20 |
+| String.split | SPLIT_FASTPATH | 195 | 21 |
 | String.split | WS_SEP | 25 | 2 |
 | String.split | CHARCLASS | 17 | 11 |
 | String.split | LINES | 10 | 3 |
@@ -71,12 +71,12 @@ Libraries: 30, classes: 19,778
 | org.springframework:spring-web:7.1.0 | out-batch5 | 1,371 | 24 | 17.5 |
 | org.apache.commons:commons-configuration2:2.15.1 | out-batch2 | 400 | 19 | 47.5 |
 | com.google.guava:guava:33.8.0-jre | out-batch5 | 1,972 | 19 | 9.6 |
-| ognl:ognl:3.5.0-BETA10 | out-batch2 | 164 | 18 | 109.8 |
-| io.netty:netty-codec-http:5.0.0.Alpha2 | out-batch5 | 292 | 14 | 47.9 |
+| ognl:ognl:3.4.17 | out-batch2 | 173 | 17 | 98.3 |
+| io.netty:netty-codec-http:4.2.21.Final | out-batch5 | 380 | 14 | 36.8 |
 | ch.qos.logback:logback-classic:1.6.8 | out-batch5 | 184 | 12 | 65.2 |
 | org.apache.velocity:velocity-engine-core:2.4.1 | out-batch1 | 255 | 10 | 39.2 |
 | org.apache.commons:commons-jexl3:3.7.1 | out-batch2 | 366 | 10 | 27.3 |
 | com.github.spullara.mustache.java:compiler:0.9.14 | out-batch2 | 93 | 6 | 64.5 |
-| org.mvel:mvel2:2.6.0.Final | out-batch2 | 515 | 6 | 11.7 |
 | org.apache.commons:commons-csv:1.14.1 | out-batch1 | 20 | 4 | 200.0 |
+| org.mvel:mvel2:2.0RC3 | out-batch2 | 381 | 4 | 10.5 |
 | com.opencsv:opencsv:5.12.0 | out-batch1 | 157 | 2 | 12.7 |
