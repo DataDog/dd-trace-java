@@ -362,6 +362,22 @@ texts in the commit message:
 * `[ci: ARM64, JAVA11]` to add Java 11 to the default arm64 JVMs.
 * `[ci: ARM64, NON_DEFAULT_JVMS, JAVA11]` to also include Java 11 vendor JVMs (Zulu and Semeru).
 
+### Rerunning Tests on CI
+
+On master, CI runs every selected test task even when its inputs match a previous run.
+Pull requests reuse up-to-date and cached test results instead. To give a pull request
+the master behavior, include the case-sensitive `[ci: RERUN_TESTS]` option in the commit
+message, or set the GitLab CI variable `RERUN_TESTS=true` when starting a pipeline.
+Combine it with other CI options as needed, for example `[ci: ARM64, RERUN_TESTS]`.
+
+Only test tasks run again. Compilation and other tasks still reuse the build cache, and
+successful test results are still stored in it. Use this to compare test durations or
+collect flaky-test signals. To also rebuild everything else, use
+[`SKIP_BUILD_CACHE`](how_to_work_with_gradle.md#forcing-fresh-ci-task-execution).
+
+The option sets the Gradle property `rerun.tests`. Locally, pass `-Prerun.tests` for all
+projects, or `-Prerun.tests.<project-name>` for one project.
+
 ### Running System Tests
 
 The system tests are setup to run on continuous integration (CI) as pull request check
