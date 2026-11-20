@@ -54,15 +54,17 @@ class ClassLoaderMatchersTest extends DDJavaSpecification {
         LogContextScopeListener.class.getName());
   }
 
-  @ParameterizedTest(name = "skips drools classloader: {0}")
+  @ParameterizedTest(name = "skips classloader: {0}")
   @ValueSource(
       strings = {
+        "org.codehaus.janino.ByteArrayClassLoader",
+        "org.codehaus.commons.compiler.util.reflect.ByteArrayClassLoader",
         "org.drools.core.rule.PackageClassLoader",
         "org.drools.wiring.dynamic.PackageClassLoader",
         "org.drools.core.rule.JavaDialectRuntimeData$PackageClassLoader",
         "org.drools.wiring.dynamic.DynamicProjectClassLoader$DefaultInternalTypesClassLoader"
       })
-  void skipsDroolsClassloader(String loaderName) throws Exception {
+  void skipsClassloaderByName(String loaderName) throws Exception {
     ClassLoader systemClassLoader = ClassLoader.getSystemClassLoader();
     ClassLoader loader =
         new ByteBuddy()
