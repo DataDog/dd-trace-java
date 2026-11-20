@@ -51,6 +51,11 @@ class AzurePipelinesInfo implements CIProviderInfo {
   }
 
   @Override
+  public String getMergeCommitSha() {
+    return GitCheckoutInfo.mergeCommitSha(getProvider(), environment);
+  }
+
+  @Override
   public GitInfo buildCIGitInfo() {
     return new GitInfo(
         buildGitRepositoryUrl(),

@@ -62,6 +62,6 @@ class CiVisibilityRepoServicesTest extends Specification {
     gitClient.getCommitInfo("sourceSha", true) >> expectedInfo.getHeadCommit()
 
     expect:
-    CiVisibilityRepoServices.buildPullRequestInfo(config, environment, ciProviderInfo, gitClient, repoUnshallow) == expectedInfo
+    CiVisibilityRepoServices.buildPullRequestInfo(config, environment, ciProviderInfo, gitClient, true) == expectedInfo
   }
 }

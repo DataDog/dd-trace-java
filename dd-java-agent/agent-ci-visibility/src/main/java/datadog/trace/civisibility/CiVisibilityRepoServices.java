@@ -6,10 +6,13 @@ import datadog.trace.api.civisibility.config.BazelMode;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.api.git.CommitInfo;
+import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
+import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.civisibility.ci.CIInfo;
 import datadog.trace.civisibility.ci.CIProviderInfo;
 import datadog.trace.civisibility.ci.CITagsProvider;
+import datadog.trace.civisibility.ci.GitCheckoutInfo;
 import datadog.trace.civisibility.ci.PullRequestInfo;
 import datadog.trace.civisibility.ci.env.CiEnvironment;
 import datadog.trace.civisibility.codeowners.Codeowners;
@@ -68,20 +71,51 @@ public class CiVisibilityRepoServices {
     ciProvider = ciProviderInfo.getProvider();
     CIInfo ciInfo = ciProviderInfo.buildCIInfo();
 
-    repoRoot = getRepoRoot(ciInfo, services.gitClientFactory);
+    String checkoutRoot = getRepoRoot(services.gitClientFactory, path);
+    repoRoot = checkoutRoot != null ? checkoutRoot : ciInfo.getCiWorkspace();
     moduleName = getModuleName(services.config, repoRoot, path);
 
     GitClient gitClient = services.gitClientFactory.create(repoRoot);
     GitRepoUnshallow gitRepoUnshallow = new GitRepoUnshallow(services.config, gitClient);
+    PullRequestInfo providerPr = ciProviderInfo.buildPullRequestInfo();
+    GitInfo providerGit = ciProviderInfo.buildCIGitInfo();
+    String mergeSha = ciProviderInfo.getMergeCommitSha();
+    String selectedSha = services.gitInfoProvider.getGitInfo(repoRoot).getCommit().getSha();
+    boolean custom =
+        checkoutRoot != null
+            && Strings.isNotBlank(ciInfo.getCiWorkspace())
+            && !GitCheckoutInfo.samePath(checkoutRoot, ciInfo.getCiWorkspace());
+    boolean useCiInfo =
+        !custom
+            && (GitCheckoutInfo.matchesRevision(selectedSha, providerGit, providerPr, mergeSha)
+                || GitCheckoutInfo.sameRevision(
+                    selectedSha, services.environment.get(Constants.DDCI_PULL_REQUEST_SOURCE_SHA))
+                || checkoutRoot == null
+                    && Strings.isBlank(ConfigProvider.getInstance().getString("git.commit.sha"))
+                    && Strings.isBlank(services.config.getGlobalTags().get("git.commit.sha"))
+                    && (Strings.isBlank(selectedSha)
+                        || Strings.isBlank(providerGit.getCommit().getSha())
+                            && Strings.isBlank(providerPr.getHeadCommit().getSha())));
     PullRequestInfo pullRequestInfo =
         buildPullRequestInfo(
-            services.config, services.environment, ciProviderInfo, gitClient, gitRepoUnshallow);
+            services.config, services.environment, ciProviderInfo, gitClient, useCiInfo);
 
     if (!pullRequestInfo.isEmpty()) {
       LOGGER.info("PR detected: {}", pullRequestInfo);
     }
 
-    ciTags = new CITagsProvider().getCiTags(ciInfo, pullRequestInfo);
+    ciTags =
+        new CITagsProvider()
+            .getCiTags(ciInfo, PullRequestInfo.coalesce(pullRequestInfo, providerPr), repoRoot);
+    if (checkoutRoot != null) {
+      ciTags.put("git.checkout.root", checkoutRoot);
+    }
+    if (custom) {
+      ciTags.put("git.checkout.is_custom", "true");
+    }
+    if (mergeSha != null) {
+      ciTags.put("ci.git.merge_commit_sha", mergeSha);
+    }
 
     if (BazelMode.get().isEnabled()) {
       // bazel rule takes care of the git data upload
@@ -126,8 +160,11 @@ public class CiVisibilityRepoServices {
       CiEnvironment environment,
       CIProviderInfo ciProviderInfo,
       GitClient gitClient,
-      GitRepoUnshallow gitRepoUnshallow) {
-    PullRequestInfo userInfo = buildUserPullRequestInfo(config, environment, gitClient);
+      boolean useCiInfo) {
+    PullRequestInfo userInfo = buildUserPullRequestInfo(config, environment, gitClient, useCiInfo);
+    if (!useCiInfo) {
+      return userInfo;
+    }
 
     if (userInfo.isComplete()) {
       return userInfo;
@@ -151,7 +188,7 @@ public class CiVisibilityRepoServices {
 
   @Nonnull
   private static PullRequestInfo buildUserPullRequestInfo(
-      Config config, CiEnvironment environment, GitClient gitClient) {
+      Config config, CiEnvironment environment, GitClient gitClient, boolean useCiInfo) {
     PullRequestInfo userInfo =
         new PullRequestInfo(
             config.getGitPullRequestBaseBranch(),
@@ -160,7 +197,7 @@ public class CiVisibilityRepoServices {
             new CommitInfo(config.getGitCommitHeadSha()),
             null);
 
-    if (userInfo.isComplete()) {
+    if (userInfo.isComplete() || !useCiInfo) {
       return userInfo;
     }
 
@@ -188,7 +225,7 @@ public class CiVisibilityRepoServices {
     return PullRequestInfo.coalesce(userInfo, ddCiInfo);
   }
 
-  private static String getRepoRoot(CIInfo ciInfo, GitClient.Factory gitClientFactory) {
+  static String getRepoRoot(GitClient.Factory gitClientFactory, Path path) {
     BazelMode bazelMode = BazelMode.get();
     if (bazelMode.isEnabled()) {
       String bazelRepoRoot = bazelMode.getRepoRoot();
@@ -199,24 +236,15 @@ public class CiVisibilityRepoServices {
       }
     }
 
-    String ciWorkspace = ciInfo.getCiWorkspace();
-    if (Strings.isNotBlank(ciWorkspace)) {
-      return ciWorkspace;
-
-    } else {
-      try {
-        return gitClientFactory.create(".").getRepoRoot();
-
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        LOGGER.error("Interrupted while getting repo root", e);
-        return null;
-
-      } catch (Exception e) {
-        LOGGER.error("Error while getting repo root", e);
-        return null;
-      }
+    try {
+      return gitClientFactory.create(path.toString()).getRepoRoot();
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      LOGGER.debug("Interrupted while getting repo root", e);
+    } catch (Exception e) {
+      LOGGER.debug("Error while getting repo root", e);
     }
+    return null;
   }
 
   static String getModuleName(Config config, @Nullable String repoRoot, Path path) {
