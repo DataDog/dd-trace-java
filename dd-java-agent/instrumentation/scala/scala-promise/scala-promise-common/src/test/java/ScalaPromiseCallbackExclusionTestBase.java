@@ -1,10 +1,6 @@
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.SCALA_PROMISE_CALLBACK;
-import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.add;
-import static java.util.Collections.singletonList;
-import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -13,6 +9,7 @@ import datadog.context.ContextScope;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.agent.test.scopediag.ScopeDiagnostics;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.SkipScalaPromiseContextCapture;
 import datadog.trace.core.DDSpan;
 import datadog.trace.test.junit.utils.config.WithConfig;
 import java.util.ArrayDeque;
@@ -26,19 +23,16 @@ import scala.util.Try;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 abstract class ScalaPromiseCallbackExclusionTestBase extends AbstractInstrumentationTest {
-  static {
-    add(singletonMap(SCALA_PROMISE_CALLBACK, singletonList(ExcludedCallback.class.getName())));
-  }
-
   boolean completionPriority() {
     return false;
   }
 
   @TableTest({
-    "scenario             | kind                           | registerActive | completeActive | failure      ",
-    "registration context | {EXCLUDED, ORDINARY, UNLISTED} | true           | false          | {false, true}",
-    "both contexts        | {EXCLUDED, ORDINARY, UNLISTED} | true           | true           | {false, true}",
-    "completion context   | {EXCLUDED, ORDINARY, UNLISTED} | false          | true           | {false, true}"
+    "scenario             | kind                            | registerActive | completeActive | failure      ",
+    "registration context | {EXCLUDED, ORDINARY, INHERITED} | true           | false          | {false, true}",
+    "both contexts        | {EXCLUDED, ORDINARY, INHERITED} | true           | true           | {false, true}",
+    "completion context   | {EXCLUDED, ORDINARY, INHERITED} | false          | true           | {false, true}",
+    "root context         | {EXCLUDED, ORDINARY, INHERITED} | false          | false          | {false, true}"
   })
   void pendingCallback(
       CallbackKind kind, boolean registerActive, boolean completeActive, boolean failure)
@@ -71,9 +65,9 @@ abstract class ScalaPromiseCallbackExclusionTestBase extends AbstractInstrumenta
       scope = null;
       executor.drain();
 
-      assertEquals(kind != CallbackKind.EXCLUDED && registerActive ? 1 : 0, registrationCaptures);
+      assertEquals(kind == CallbackKind.ORDINARY && registerActive ? 1 : 0, registrationCaptures);
       assertEquals(
-          kind != CallbackKind.EXCLUDED
+          kind == CallbackKind.ORDINARY
                   && completeActive
                   && (!registerActive || completionPriority())
               ? 1
@@ -82,11 +76,11 @@ abstract class ScalaPromiseCallbackExclusionTestBase extends AbstractInstrumenta
       assertEquals(1, callback.calls);
       assertEquals(failure, callback.failed);
       assertSame(
-          kind == CallbackKind.EXCLUDED
+          kind != CallbackKind.ORDINARY
               ? null
               : completeActive && (!registerActive || completionPriority())
                   ? completion
-                  : registration,
+                  : registerActive ? registration : null,
           callback.parent);
       assertEquals(
           callback.parent == null ? 0 : callback.parent.getSpanId(), callback.child.getParentId());
@@ -99,14 +93,14 @@ abstract class ScalaPromiseCallbackExclusionTestBase extends AbstractInstrumenta
       executor.drain();
       registration.finish();
       completion.finish();
-      writer.waitForTraces(kind == CallbackKind.EXCLUDED ? 3 : 2);
+      writer.waitForTraces(callback.parent == null ? 3 : 2);
       assertEquals(3, writer.stream().mapToInt(trace -> trace.size()).sum());
     }
   }
 
   @TableTest({
-    "scenario           | kind                 | failure      ",
-    "completed callback | {EXCLUDED, ORDINARY} | {false, true}"
+    "scenario           | kind                            | failure      ",
+    "completed callback | {EXCLUDED, ORDINARY, INHERITED} | {false, true}"
   })
   void alreadyCompletedCallback(CallbackKind kind, boolean failure) throws Exception {
     Promise<String> promise = Promise$.MODULE$.apply();
@@ -132,11 +126,11 @@ abstract class ScalaPromiseCallbackExclusionTestBase extends AbstractInstrumenta
       executor.drain();
 
       assertEquals(
-          kind == CallbackKind.EXCLUDED ? 0 : completionPriority() ? 2 : 1, registrationCaptures);
+          kind != CallbackKind.ORDINARY ? 0 : completionPriority() ? 2 : 1, registrationCaptures);
       assertEquals(1, callback.calls);
       assertEquals(failure, callback.failed);
       assertSame(
-          kind == CallbackKind.EXCLUDED ? null : completionPriority() ? completion : registration,
+          kind != CallbackKind.ORDINARY ? null : completionPriority() ? completion : registration,
           callback.parent);
       assertEquals(
           callback.parent == null ? 0 : callback.parent.getSpanId(), callback.child.getParentId());
@@ -148,7 +142,7 @@ abstract class ScalaPromiseCallbackExclusionTestBase extends AbstractInstrumenta
       executor.drain();
       registration.finish();
       completion.finish();
-      writer.waitForTraces(kind == CallbackKind.EXCLUDED ? 3 : 2);
+      writer.waitForTraces(callback.parent == null ? 3 : 2);
       assertEquals(3, writer.stream().mapToInt(trace -> trace.size()).sum());
     }
   }
@@ -160,13 +154,13 @@ abstract class ScalaPromiseCallbackExclusionTestBase extends AbstractInstrumenta
   private static OrdinaryCallback callback(CallbackKind kind) {
     return kind == CallbackKind.EXCLUDED
         ? new ExcludedCallback()
-        : kind == CallbackKind.UNLISTED ? new UnlistedSubclass() : new OrdinaryCallback();
+        : kind == CallbackKind.INHERITED ? new InheritedCallback() : new OrdinaryCallback();
   }
 
   enum CallbackKind {
     EXCLUDED,
     ORDINARY,
-    UNLISTED
+    INHERITED
   }
 
   static class OrdinaryCallback extends AbstractFunction1<Try<String>, Object> {
@@ -186,9 +180,10 @@ abstract class ScalaPromiseCallbackExclusionTestBase extends AbstractInstrumenta
     }
   }
 
-  static class ExcludedCallback extends OrdinaryCallback {}
+  static class ExcludedCallback extends OrdinaryCallback
+      implements SkipScalaPromiseContextCapture {}
 
-  static class UnlistedSubclass extends ExcludedCallback {}
+  static class InheritedCallback extends ExcludedCallback {}
 
   static class QueuedContext implements ExecutionContext {
     final ArrayDeque<Runnable> tasks = new ArrayDeque<>();

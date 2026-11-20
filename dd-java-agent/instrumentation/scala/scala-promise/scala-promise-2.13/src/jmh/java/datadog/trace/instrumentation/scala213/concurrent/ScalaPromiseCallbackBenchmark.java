@@ -3,10 +3,7 @@ package datadog.trace.instrumentation.scala213.concurrent;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.SCALA_PROMISE_CALLBACK;
 import static java.util.Collections.emptyList;
-import static java.util.Collections.singletonList;
-import static java.util.Collections.singletonMap;
 
 import datadog.context.Context;
 import datadog.context.ContextScope;
@@ -15,7 +12,7 @@ import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.SkipScalaPromiseContextCapture;
 import java.util.Collection;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -49,10 +46,10 @@ import scala.util.Try;
  * machinery, not Play request latency, network I/O or cross-thread scheduling.
  *
  * <p>Run the same patched agent in separate forks with {@code -Dbench.exclude=false} and {@code
- * -Dbench.exclude=true}, {@code -prof gc -t 1}. Setup registers this benchmark's callback exclusion
- * before its first use. Also run each with {@code
+ * -Dbench.exclude=true}, {@code -prof gc -t 1}. The flag selects an ordinary callback or one
+ * implementing {@code SkipScalaPromiseContextCapture}. Also run each with {@code
  * -Ddd.trace.integration.scala_promise_completion_priority.enabled=false} and {@code true}. This
- * comparison does not measure the lookup overhead added for ordinary application callbacks.
+ * comparison does not measure the marker-check overhead on ordinary application callbacks.
  */
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
@@ -68,6 +65,7 @@ public class ScalaPromiseCallbackBenchmark {
   private final QueuedExecutionContext executor = new QueuedExecutionContext();
   private final CountingDiscardInterceptor interceptor = new CountingDiscardInterceptor();
   private final Try<Object> result = new Success<>(new Object());
+  private boolean exclude;
   private long initialSpans;
   private long operations;
 
@@ -75,6 +73,7 @@ public class ScalaPromiseCallbackBenchmark {
   public void setupTrial() {
     String mode = System.getProperty("bench.exclude");
     require("true".equals(mode) || "false".equals(mode), "Set bench.exclude=true or false");
+    exclude = Boolean.parseBoolean(mode);
     String priority =
         System.getProperty("dd.trace.integration.scala_promise_completion_priority.enabled");
     require(
@@ -86,14 +85,6 @@ public class ScalaPromiseCallbackBenchmark {
     require(AgentTracer.isRegistered(), "Run with a real -javaagent");
     require(Context.current() == Context.root(), "Benchmark must start at root");
     require(AgentTracer.get().addTraceInterceptor(interceptor), "Discard interceptor rejected");
-    if (Boolean.parseBoolean(mode)) {
-      ExcludeFilter.add(
-          singletonMap(SCALA_PROMISE_CALLBACK, singletonList(FinishingCallback.class.getName())));
-    }
-    require(
-        ExcludeFilter.exclude(SCALA_PROMISE_CALLBACK, FinishingCallback.class.getName())
-            == Boolean.parseBoolean(mode),
-        "Exclusion registration mismatch");
     AgentSpan span = startSpan("benchmark", "scala.preflight");
     OrdinaryCallback ordinary = new OrdinaryCallback();
     Promise<Object> promise = Promise$.MODULE$.apply();
@@ -109,7 +100,7 @@ public class ScalaPromiseCallbackBenchmark {
     FinishingCallback callback = completeRequest(false);
     require(callback.calls == 1, "Callback did not execute once");
     require(
-        Boolean.parseBoolean(mode) ? callback.active == null : callback.active == callback.span,
+        exclude ? callback.active == null : callback.active == callback.span,
         "Callback propagation does not match exclusion mode");
     require(interceptor.spans.get() == before + 1, "Callback did not finish its span");
     require(Context.current() == Context.root(), "Preflight leaked context");
@@ -134,7 +125,8 @@ public class ScalaPromiseCallbackBenchmark {
       promise.complete(result);
     }
     AgentSpan span = startSpan("benchmark", "scala.callback");
-    FinishingCallback callback = new FinishingCallback(span);
+    FinishingCallback callback =
+        exclude ? new SkippingFinishingCallback(span) : new FinishingCallback(span);
     try (ContextScope ignored = activateSpan(span)) {
       AgentTracer.setAsyncPropagationEnabled(true);
       promise.future().onComplete(callback, executor);
@@ -158,7 +150,7 @@ public class ScalaPromiseCallbackBenchmark {
     }
   }
 
-  private static final class FinishingCallback extends AbstractFunction1<Try<Object>, Object> {
+  private static class FinishingCallback extends AbstractFunction1<Try<Object>, Object> {
     private final AgentSpan span;
     private AgentSpan active;
     private Object value;
@@ -175,6 +167,13 @@ public class ScalaPromiseCallbackBenchmark {
       value = result.get();
       span.finish();
       return null;
+    }
+  }
+
+  private static final class SkippingFinishingCallback extends FinishingCallback
+      implements SkipScalaPromiseContextCapture {
+    private SkippingFinishingCallback(AgentSpan span) {
+      super(span);
     }
   }
 
