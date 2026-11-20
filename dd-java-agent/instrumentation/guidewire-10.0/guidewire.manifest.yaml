@@ -1,7 +1,7 @@
 _v: 1
 name: guidewire
 display_name: Guidewire InsuranceSuite
-description: Instruments trace context propagation across Guidewire asynchronous SOAP invocation worker threads.
+description: Instruments Guidewire InsuranceSuite to propagate trace context across WSI SOAP worker threads.
 packages: []
 category:
 - other

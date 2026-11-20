@@ -1,12 +1,12 @@
 _v: 1
 name: mule
-display_name: Mule Core
-description: Instruments Mule flow and component execution, preserving trace context across event processing and
-  recording operation errors.
+display_name: Mule
+description: Instruments Mule runtime flow and component executions, creating internal Mule action spans and propagating context
+  across event processing.
 packages:
 - name: org.mule.runtime:mule-core
 - name: org.mule.runtime:mule-tracer-customization-impl
 category:
-- task.execution
+- other
 systems: []
 creation_date: '2021-02-26'

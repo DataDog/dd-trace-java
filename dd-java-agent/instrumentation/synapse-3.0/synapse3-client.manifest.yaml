@@ -1,8 +1,8 @@
 _v: 1
 name: synapse3-client
-display_name: Apache Synapse - Non-blocking HTTP/s Transport
-description: Instruments outbound HTTP requests through Apache Synapse, propagating trace context across pass-through
-  dispatch and asynchronous response processing.
+display_name: Apache Synapse Client
+description: Instruments Apache Synapse non-blocking transport's outbound HTTP requests, tracing request outcomes and propagating
+  trace context.
 packages:
 - name: org.apache.synapse:synapse-nhttp-transport
 category:

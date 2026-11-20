@@ -1,7 +1,7 @@
 _v: 1
 name: cics
 display_name: IBM CICS Transaction Gateway
-description: Instruments IBM CICS remote program interactions and Transaction Gateway request flows.
+description: Instruments IBM CICS Transaction Gateway ECI interaction execution and Java gateway flow calls.
 packages: []
 category:
 - rpc.client

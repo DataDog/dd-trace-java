@@ -1,8 +1,7 @@
 _v: 1
 name: tibco
 display_name: TIBCO BusinessWorks
-description: Instruments TIBCO BusinessWorks process and activity execution, propagating trace context across scheduled
-  work and preserving inferred service names in JMS callbacks.
+description: Instruments TIBCO BusinessWorks process and activity execution.
 packages: []
 category:
 - task.execution
