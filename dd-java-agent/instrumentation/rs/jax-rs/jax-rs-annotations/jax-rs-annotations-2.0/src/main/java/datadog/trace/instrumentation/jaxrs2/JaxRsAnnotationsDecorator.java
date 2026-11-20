@@ -1,9 +1,11 @@
 package datadog.trace.instrumentation.jaxrs2;
 
+import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
 import datadog.trace.api.GenericClassValue;
 import datadog.trace.api.Pair;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.ClassHierarchyIterable;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
@@ -12,13 +14,17 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 import java.lang.annotation.Annotation;
+import java.lang.annotation.AnnotationFormatError;
 import java.lang.reflect.Method;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.ws.rs.HttpMethod;
 import javax.ws.rs.Path;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class JaxRsAnnotationsDecorator extends BaseDecorator {
+  private static final Logger log = LoggerFactory.getLogger(JaxRsAnnotationsDecorator.class);
 
   public static final CharSequence JAX_RS_REQUEST_ABORT =
       UTF8BytesString.create("jax-rs.request.abort");
@@ -62,8 +68,10 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
     // When jax-rs is the root, we want to name using the path, otherwise use the class/method.
     final boolean isRootScope = parent == null;
     if (isRootScope) {
-      HTTP_RESOURCE_DECORATOR.withRoute(
-          span, httpMethodAndRoute.getLeft(), httpMethodAndRoute.getRight());
+      if (httpMethodAndRoute.hasRight()) { // no route when no path was readable: keep the name
+        HTTP_RESOURCE_DECORATOR.withRoute(
+            span, httpMethodAndRoute.getLeft(), httpMethodAndRoute.getRight());
+      }
     } else {
       span.setResourceName(DECORATE.spanNameForMethod(target, method));
 
@@ -74,6 +82,10 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
         // current handler is a filter
         if (!httpMethodAndRoute.hasLeft()
             && (!httpMethodAndRoute.hasRight() || httpMethodAndRoute.getRight().length() == 0)) {
+          return;
+        }
+        // no route when no path was readable: keep the root's name rather than "GET "
+        if (!httpMethodAndRoute.hasRight()) {
           return;
         }
 
@@ -87,16 +99,19 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
    * Returns the resource name parts given a JaxRS annotated method. Results are cached so this
    * method can be called multiple times without significantly impacting performance.
    *
-   * @return The result can be an empty string but will never be {@code null}.
+   * @return The route can be an empty string. It is {@code null} only when malformed annotations
+   *     left no {@code @Path} readable anywhere in the hierarchy, so the span keeps its name.
    */
-  private Pair<CharSequence, CharSequence> getHttpMethodAndRoute(
+  @VisibleForTesting
+  Pair<CharSequence, CharSequence> getHttpMethodAndRoute(
       final Class<?> target, final Method method) {
     Map<Method, Pair<CharSequence, CharSequence>> classMap = RESOURCE_NAMES.get(target);
     Pair<CharSequence, CharSequence> httpMethodAndRoute = classMap.get(method);
     if (httpMethodAndRoute == null) {
       String httpMethod = null;
       Path methodPath = null;
-      final Path classPath = findClassPath(target);
+      final boolean[] pathUnreadable = {false};
+      final Path classPath = findClassPath(target, pathUnreadable);
       for (final Class<?> currentClass : new ClassHierarchyIterable(target)) {
         Method currentMethod;
         if (currentClass.equals(target)) {
@@ -110,7 +125,7 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
             httpMethod = locateHttpMethod(currentMethod);
           }
           if (methodPath == null) {
-            methodPath = findMethodPath(currentMethod);
+            methodPath = findMethodPath(currentMethod, pathUnreadable);
           }
 
           if (httpMethod != null && methodPath != null) {
@@ -118,33 +133,80 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
           }
         }
       }
-      httpMethodAndRoute =
-          Pair.<CharSequence, CharSequence>of(httpMethod, buildRoutePath(classPath, methodPath));
+      final CharSequence route =
+          classPath == null && methodPath == null && pathUnreadable[0]
+              ? null
+              : buildRoutePath(classPath, methodPath);
+      httpMethodAndRoute = Pair.<CharSequence, CharSequence>of(httpMethod, route);
       classMap.put(method, httpMethodAndRoute);
     }
 
     return httpMethodAndRoute;
   }
 
+  /*
+   * Reading an element's annotations parses all of them, and throws AnnotationFormatError if any is
+   * malformed in the application's class path, such as a duplicate of a non-repeatable annotation
+   * or an annotation compiled against a different version of its type. Such an element is treated
+   * as unannotated, so the rest of the hierarchy is still searched and the result is still cached:
+   * the JDK only caches annotations it parsed successfully, so otherwise every request would
+   * re-parse them and throw again.
+   *
+   * A class's annotations are read together with those it inherits, so malformed class-level
+   * annotations on a superclass make a subclass's own @Path unreadable too; the route then comes
+   * from further up the hierarchy, such as an interface. Each failure is logged at debug.
+   */
+
   private String locateHttpMethod(final Method method) {
-    String httpMethod = null;
-    for (final Annotation ann : method.getDeclaredAnnotations()) {
-      final HttpMethod annotation = ann.annotationType().getAnnotation(HttpMethod.class);
+    final Annotation[] annotations;
+    try {
+      annotations = method.getDeclaredAnnotations();
+    } catch (AnnotationFormatError e) {
+      // unreadable annotations: ignore them, so no http method from this method
+      logMalformed(method, e);
+      return null;
+    }
+    for (final Annotation ann : annotations) {
+      final Class<? extends Annotation> annotationType = ann.annotationType();
+      final HttpMethod annotation;
+      try {
+        annotation = annotationType.getAnnotation(HttpMethod.class);
+      } catch (AnnotationFormatError e) {
+        // an unreadable annotation type: ignore it and keep looking for the http method
+        logMalformed(annotationType, e);
+        continue;
+      }
       if (annotation != null) {
-        httpMethod = annotation.value();
-        break;
+        return annotation.value();
       }
     }
-    return httpMethod;
+    return null;
   }
 
-  private Path findMethodPath(final Method method) {
-    return method.getAnnotation(Path.class);
+  /** Sets {@code unreadable[0]} when the method's annotations can't be read. */
+  private Path findMethodPath(final Method method, final boolean[] unreadable) {
+    try {
+      return method.getAnnotation(Path.class);
+    } catch (AnnotationFormatError e) {
+      // unreadable annotations: ignore them, so no path from this method
+      logMalformed(method, e);
+      unreadable[0] = true;
+      return null;
+    }
   }
 
-  private Path findClassPath(final Class<?> target) {
+  /** Sets {@code unreadable[0]} when a class's annotations in the hierarchy can't be read. */
+  private Path findClassPath(final Class<?> target, final boolean[] unreadable) {
     for (final Class<?> currentClass : new ClassHierarchyIterable(target)) {
-      final Path annotation = currentClass.getAnnotation(Path.class);
+      final Path annotation;
+      try {
+        annotation = currentClass.getAnnotation(Path.class);
+      } catch (AnnotationFormatError e) {
+        // unreadable annotations: ignore this class and look further up the hierarchy
+        logMalformed(currentClass, e);
+        unreadable[0] = true;
+        continue;
+      }
       if (annotation != null) {
         // Annotation overridden, no need to continue.
         return annotation;
@@ -152,6 +214,10 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
     }
 
     return null;
+  }
+
+  private static void logMalformed(final Object element, final AnnotationFormatError e) {
+    log.debug(EXCLUDE_TELEMETRY, "Ignoring unreadable JAX-RS annotations on {}", element, e);
   }
 
   private Method findMatchingMethod(final Method baseMethod, final Method[] methods) {
