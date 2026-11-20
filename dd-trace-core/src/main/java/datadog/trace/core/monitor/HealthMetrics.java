@@ -106,6 +106,14 @@ public abstract class HealthMetrics implements AutoCloseable {
       @Nullable final RemoteApi.Response response,
       @Nullable final Throwable error) {}
 
+  /**
+   * Reports that metric reader {@code reader} finished one collection after {@code durationNanos}.
+   *
+   * @param error the exception the collection threw, or null when it succeeded
+   */
+  public void onMetricCollection(
+      final ComponentId reader, final long durationNanos, @Nullable final Throwable error) {}
+
   public void onLongRunningUpdate(final int dropped, final int write, final int expired) {}
 
   /**

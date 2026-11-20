@@ -16,9 +16,10 @@ import datadog.trace.bootstrap.otel.metrics.data.OtelMetricStorage;
 import datadog.trace.common.writer.RemoteApi;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.DDSpanContext;
+import datadog.trace.core.monitor.ComponentId;
+import datadog.trace.core.monitor.ExporterId;
+import datadog.trace.core.monitor.ExporterId.Signal;
 import datadog.trace.core.monitor.HealthMetrics;
-import datadog.trace.core.monitor.OtelExporterId;
-import datadog.trace.core.monitor.OtelExporterId.Signal;
 import datadog.trace.core.otlp.common.OtlpGrpcStatusException;
 import java.util.EnumMap;
 import java.util.Map;
@@ -34,7 +35,9 @@ import javax.annotation.Nullable;
  *       LongAdder}s; observable instruments report the adders at collection.
  *   <li>{@code otel.sdk.exporter.<signal>.inflight}, {@code .exported} and {@code
  *       otel.sdk.exporter.operation.duration}, modeled on the OTel Java SDK's {@code
- *       SemConvExporterMetrics}, one series per {@link OtelExporterId}.
+ *       SemConvExporterMetrics}, one series per {@link ExporterId}.
+ *   <li>{@code otel.sdk.metric_reader.collection.duration}, one series per reader {@link
+ *       ComponentId}.
  * </ul>
  *
  * Every other callback stays a no-op.
@@ -75,6 +78,7 @@ final class OtelHealthMetrics extends HealthMetrics {
 
   private final Map<Signal, ExportInstruments> exports = new EnumMap<>(Signal.class);
   private final OtelMetricStorage exportDuration;
+  private final OtelMetricStorage collectionDuration;
 
   private OtelHealthMetrics() {
     observe("otel.sdk.span.started", COUNTER, "The number of created spans.", started, ORIGINS);
@@ -98,6 +102,14 @@ final class OtelHealthMetrics extends HealthMetrics {
             "s",
             // no bucket boundaries: a single bucket with count, sum, min and max
             descriptor -> OtelMetricStorage.newHistogramStorage(descriptor, emptyList()));
+    collectionDuration =
+        OtelSdkRegistry.storage(
+            OtelInstrumentBuilder.ofDoubles(
+                "otel.sdk.metric_reader.collection.duration", HISTOGRAM),
+            false,
+            "The duration of the collect operation of the metric reader.",
+            "s",
+            descriptor -> OtelMetricStorage.newHistogramStorage(descriptor, emptyList()));
   }
 
   @Override
@@ -113,7 +125,7 @@ final class OtelHealthMetrics extends HealthMetrics {
   }
 
   @Override
-  public void onExportStart(OtelExporterId exporter, long itemCount) {
+  public void onExportStart(ExporterId exporter, long itemCount) {
     exports.get(exporter.signal()).inflight.recordLong(itemCount, baseAttributes(exporter));
   }
 
@@ -124,7 +136,7 @@ final class OtelHealthMetrics extends HealthMetrics {
    */
   @Override
   public void onExportEnd(
-      OtelExporterId exporter,
+      ExporterId exporter,
       long itemCount,
       long durationNanos,
       @Nullable RemoteApi.Response response,
@@ -168,21 +180,35 @@ final class OtelHealthMetrics extends HealthMetrics {
     exportDuration.recordDouble(durationNanos / 1e9, outcome);
   }
 
+  /** Records the collection, with {@code error.type} (see {@link ErrorTypes}) when it failed. */
+  @Override
+  public void onMetricCollection(
+      ComponentId reader, long durationNanos, @Nullable Throwable error) {
+    AttributesBuilder attributes = componentAttributes(reader);
+    if (error != null) {
+      attributes.put(ERROR_TYPE, ErrorTypes.fromException(error));
+    }
+    collectionDuration.recordDouble(durationNanos / 1e9, attributes.build());
+  }
+
   /**
    * {@code otel.component.*}, plus {@code server.*} when the destination is known. Built per call
    * rather than cached: exports are infrequent, and the sink keeps no per-exporter state.
    */
-  private static Attributes baseAttributes(OtelExporterId exporter) {
-    AttributesBuilder builder =
-        Attributes.builder()
-            .put(COMPONENT_TYPE, exporter.component().type())
-            .put(COMPONENT_NAME, exporter.component().name());
+  private static Attributes baseAttributes(ExporterId exporter) {
+    AttributesBuilder builder = componentAttributes(exporter.component());
     String serverAddress = exporter.serverAddress();
     if (serverAddress != null) {
       builder.put(SERVER_ADDRESS, serverAddress);
       builder.put(SERVER_PORT, exporter.serverPort());
     }
     return builder.build();
+  }
+
+  private static AttributesBuilder componentAttributes(ComponentId component) {
+    return Attributes.builder()
+        .put(COMPONENT_TYPE, component.type())
+        .put(COMPONENT_NAME, component.name());
   }
 
   /**

@@ -15,6 +15,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -37,8 +39,8 @@ import datadog.trace.core.otlp.common.OtlpPayload;
 import datadog.trace.core.otlp.common.OtlpSender;
 import datadog.trace.core.otlp.sdk.OtelSdkSelfMonitoring;
 import datadog.trace.util.AgentTaskScheduler;
-import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -55,6 +57,7 @@ class OtlpMetricsServiceTest {
   private static final OtlpPayload PAYLOAD =
       new OtlpPayload(ByteBuffer.wrap(new byte[] {1}), OtlpPayload.PROTOBUF_CONTENT_TYPE, 3);
   private static final HttpUrl DESTINATION = HttpUrl.get("http://collector:4318/v1/metrics");
+  private static final String COLLECTION = "otel.sdk.metric_reader.collection.duration";
   private static final String INFLIGHT = "otel.sdk.exporter.metric_data_point.inflight";
   private static final String EXPORTED = "otel.sdk.exporter.metric_data_point.exported";
   private static final String DURATION = "otel.sdk.exporter.operation.duration";
@@ -275,12 +278,17 @@ class OtlpMetricsServiceTest {
   }
 
   @Test
-  void successfulExportRecordsExporterMetrics() {
+  void successfulExportRecordsCollectionAndExporterMetrics() {
     TestService test = service(PAYLOAD, otelSink());
     when(test.sender.send(PAYLOAD)).thenReturn(success(200));
 
     assertTrue(test.service.exportThenShutdown(5, SECONDS));
     OtelMetricCollector collector = collect();
+
+    DataPointEntry collection = onlyPoint(collector, COLLECTION, test.readerName());
+    assertEquals("periodic_metric_reader", collection.attrs.get("otel.component.type"));
+    assertFalse(collection.attrs.containsKey("error.type"));
+    assertEquals(1.0, ((OtlpHistogramPoint) collection.point).count);
 
     assertEquals(0L, onlyPoint(collector, INFLIGHT, test.exporterName()).value.longValue());
     DataPointEntry exported = onlyPoint(collector, EXPORTED, test.exporterName());
@@ -346,6 +354,43 @@ class OtlpMetricsServiceTest {
   }
 
   @Test
+  void collectionFailureRecordsErrorType() {
+    TestService test = service(PAYLOAD, otelSink());
+    when(test.collector.collectMetrics()).thenThrow(new IllegalStateException("boom"));
+
+    assertTrue(test.service.exportThenShutdown(5, SECONDS));
+    OtelMetricCollector collector = collect();
+
+    DataPointEntry collection = onlyPoint(collector, COLLECTION, test.readerName());
+    assertEquals("java.lang.IllegalStateException", collection.attrs.get("error.type"));
+  }
+
+  @Test
+  void emptyCollectionIsRecorded() {
+    TestService test = service(OtlpPayload.EMPTY, otelSink());
+
+    assertTrue(test.service.exportThenShutdown(5, SECONDS));
+    OtelMetricCollector collector = collect();
+
+    assertFalse(
+        onlyPoint(collector, COLLECTION, test.readerName()).attrs.containsKey("error.type"));
+  }
+
+  @Test
+  void failingCollectionHookDoesNotDropThePayload() {
+    HealthMetrics sink = mock(HealthMetrics.class);
+    doThrow(new IllegalStateException("sink"))
+        .when(sink)
+        .onMetricCollection(any(), anyLong(), any());
+    TestService test = service(PAYLOAD, sink);
+    when(test.sender.send(PAYLOAD)).thenReturn(success(200));
+
+    assertTrue(test.service.exportThenShutdown(5, SECONDS));
+
+    verify(test.sender).send(PAYLOAD);
+  }
+
+  @Test
   void unstartedServiceRecordsNothing() {
     AgentTaskScheduler scheduler = new AgentTaskScheduler(OTLP_METRICS_EXPORTER);
     schedulers.add(scheduler);
@@ -369,6 +414,7 @@ class OtlpMetricsServiceTest {
 
   private static void assertNothingRecorded(TestService test) {
     OtelMetricCollector collector = collect();
+    assertTrue(points(collector, COLLECTION, test.readerName()).isEmpty());
     assertTrue(points(collector, INFLIGHT, test.exporterName()).isEmpty());
     assertTrue(points(collector, EXPORTED, test.exporterName()).isEmpty());
     assertTrue(points(collector, DURATION, test.exporterName()).isEmpty());
@@ -454,6 +500,10 @@ class OtlpMetricsServiceTest {
       this.scheduler = scheduler;
       this.collector = collector;
       this.sender = sender;
+    }
+
+    private String readerName() {
+      return service.getReader().name();
     }
 
     private String exporterName() {
