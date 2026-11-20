@@ -22,7 +22,7 @@ pluginManagement {
     if (mavenRepositoryProxy == null) {
       mavenCentral()
     }
-    // Hosts gradle-tooling-api, a transitive dep of the build-logic:smoke-test plugin used
+    // Hosts gradle-tooling-api, a transitive dep of the build-logic:smoke-test-app plugin used
     // to run nested Gradle builds for smoke-test applications pinned to older Gradle versions.
     maven {
       url = uri("https://repo.gradle.org/gradle/libs-releases")
@@ -94,6 +94,8 @@ if (isCI.isPresent) {
         isPush = true
         lookupDefaultAwsCredentials = true
         isReducedRedundancy = false
+        // Smoke application build entries exceed the plugin's 50 MiB default limit.
+        maximumCachedObjectLength = 256L * 1024 * 1024
       }
     }
   }
@@ -230,8 +232,10 @@ include(
 
 // smoke tests
 include(
+  ":dd-smoke-tests:smoke-test-common",
   ":dd-smoke-tests:apm-tracing-disabled",
   ":dd-smoke-tests:armeria-grpc",
+  ":dd-smoke-tests:azure-cosmos",
   ":dd-smoke-tests:backend-mock",
   ":dd-smoke-tests:cli",
   ":dd-smoke-tests:concurrent:java-8",
@@ -254,6 +258,7 @@ include(
   ":dd-smoke-tests:lib-injection",
   ":dd-smoke-tests:log-injection",
   ":dd-smoke-tests:maven",
+  ":dd-smoke-tests:native-image-jmx",
   ":dd-smoke-tests:openfeature",
   ":dd-smoke-tests:openfeature-legacy",
   ":dd-smoke-tests:opentracing",
@@ -311,6 +316,7 @@ include(
   ":dd-smoke-tests:websphere-jmx",
   ":dd-smoke-tests:wildfly",
   ":dd-smoke-tests:appsec",
+  ":dd-smoke-tests:appsec:dropwizard-5",
   ":dd-smoke-tests:appsec:spring-tomcat7",
   ":dd-smoke-tests:appsec:lambda-sca",
   ":dd-smoke-tests:appsec:springboot",
@@ -340,6 +346,7 @@ include(
 // instrumentation:
 include(
   ":dd-java-agent:instrumentation:aerospike-4.0",
+  ":dd-java-agent:instrumentation:aerospike-6.0",
   ":dd-java-agent:instrumentation:akka:akka-actor-2.5",
   ":dd-java-agent:instrumentation:akka:akka-http:akka-http-10.0",
   ":dd-java-agent:instrumentation:akka:akka-http:akka-http-10.2-iast",
@@ -365,6 +372,7 @@ include(
   ":dd-java-agent:instrumentation:aws-java:aws-java-sqs-2.0",
   ":dd-java-agent:instrumentation:axis2-1.3",
   ":dd-java-agent:instrumentation:axway-api-7.5",
+  ":dd-java-agent:instrumentation:azure-cosmos:azure-cosmos-4.0",
   ":dd-java-agent:instrumentation:azure-functions-1.2.2",
   ":dd-java-agent:instrumentation:azure-functions-worker-2.7",
   ":dd-java-agent:instrumentation:beanshell-2.0",

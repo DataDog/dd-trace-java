@@ -41,10 +41,10 @@ import datadog.trace.bootstrap.instrumentation.api.TagExtractor;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.bootstrap.instrumentation.api.http.ClientIpAddressResolver;
 import datadog.trace.bootstrap.instrumentation.api.http.DatadogServerUrl;
 import datadog.trace.bootstrap.instrumentation.api.http.HttpServerUrl;
 import datadog.trace.bootstrap.instrumentation.api.http.OtelServerUrl;
-import datadog.trace.bootstrap.instrumentation.decorator.http.ClientIpAddressResolver;
 import java.net.InetAddress;
 import java.util.BitSet;
 import java.util.Locale;
@@ -392,20 +392,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     String inferredAddressStr = null;
     boolean clientIpTagged = false;
     if (shouldResolveIp && extracted != null) {
-      InetAddress inferredAddress = ClientIpAddressResolver.resolve(extracted, span);
-      // the peer address should be used if:
-      // 1. the headers yield nothing, regardless of whether it is public or not
-      // 2. it is public and the headers yield a private address
-      if (peerIp != null) {
-        if (inferredAddress == null) {
-          inferredAddress = ClientIpAddressResolver.parseIpAddress(peerIp);
-        } else if (ClientIpAddressResolver.isIpAddrPrivate(inferredAddress)) {
-          InetAddress peerAddress = ClientIpAddressResolver.parseIpAddress(peerIp);
-          if (!ClientIpAddressResolver.isIpAddrPrivate(peerAddress)) {
-            inferredAddress = peerAddress;
-          }
-        }
-      }
+      InetAddress inferredAddress = ClientIpAddressResolver.resolve(extracted, span, peerIp);
       if (inferredAddress != null) {
         inferredAddressStr = inferredAddress.getHostAddress();
         if (shouldTagIps) {
@@ -612,11 +599,24 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
               cbp.getCallback(EVENTS.requestHeader()),
               cbp.getCallback(EVENTS.requestHeaderDone()));
       if (null != igKeyClassifier) {
-        getter.forEachKey(carrier, igKeyClassifier);
+        if (hasHeaderConsumer(requestContext)) {
+          getter.forEachKey(carrier, igKeyClassifier);
+        }
         return igKeyClassifier.done();
       }
     }
     return Flow.ResultFlow.empty();
+  }
+
+  /**
+   * Whether a product that reads headers through the gateway (AppSec, IAST) tracks this request.
+   * Their header callbacks do nothing without their request data, and AppSec registers them even
+   * while inactive (its default), so walking the headers then only converts every name and value to
+   * a String for nothing.
+   */
+  private static boolean hasHeaderConsumer(RequestContext requestContext) {
+    return requestContext.getData(RequestContextSlot.APPSEC) != null
+        || requestContext.getData(RequestContextSlot.IAST) != null;
   }
 
   @SuppressWarnings("UnusedReturnValue")
@@ -668,7 +668,10 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
             cbp.getCallback(EVENTS.responseHeader()),
             cbp.getCallback(EVENTS.responseHeaderDone()));
     if (null != igKeyClassifier) {
-      contextVisitor.forEachKey(carrier, igKeyClassifier);
+      // Response headers go only to AppSec (IAST registers no response-header callback).
+      if (requestContext.getData(RequestContextSlot.APPSEC) != null) {
+        contextVisitor.forEachKey(carrier, igKeyClassifier);
+      }
       return igKeyClassifier.done();
     }
     return Flow.ResultFlow.empty();

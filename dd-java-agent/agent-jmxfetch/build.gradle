@@ -71,6 +71,8 @@ abstract class CopyMetricConfigsTask extends DefaultTask {
     def configDirectoryPath = createConfigDirectory()
     def configPaths = Files.find(this.inputDirectory.toPath(), 10, this::checkMetricsFile)
     .map(p -> copyMetricsFile(configDirectoryPath, p))
+    // Keep the packaged list independent of filesystem traversal order.
+    .sorted()
     .collect(Collectors.toList())
     saveConfig(configDirectoryPath.parent, configPaths)
   }

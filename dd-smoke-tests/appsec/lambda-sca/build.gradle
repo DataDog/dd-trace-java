@@ -8,7 +8,7 @@ dependencies {
   compileOnly project(':dd-trace-api')
   implementation group: 'com.amazonaws', name: 'aws-lambda-java-core', version: '1.2.3'
   runtimeOnly group: 'com.github.junrar', name: 'junrar', version: '7.5.5'
-  testImplementation project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests:smoke-test-common')
 }
 
 // Launch with the runtime classpath: Junrar must retain its own JAR code source for SCA.

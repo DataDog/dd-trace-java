@@ -3,6 +3,7 @@ package datadog.trace.api.git;
 import datadog.trace.util.Strings;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.TimeZone;
 
@@ -112,7 +113,7 @@ public final class PersonInfo {
       return null;
     }
 
-    final SimpleDateFormat sdf = new SimpleDateFormat(DATE_FORMAT_ISO8601);
+    final SimpleDateFormat sdf = new SimpleDateFormat(DATE_FORMAT_ISO8601, Locale.ROOT);
     sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
     return sdf.format(new Date(when));
   }

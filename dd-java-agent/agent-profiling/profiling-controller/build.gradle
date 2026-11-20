@@ -18,6 +18,23 @@ excludedClassesCoverage += [
   'com.datadog.profiling.controller.ProfilingSupport',
 ]
 
+// TODO: Cover these classes, then remove them from the coverage baseline (APMLP-2263)
+excludedClassesBranchCoverage += [
+  'com.datadog.profiling.controller.EnvironmentChecker',
+  'com.datadog.profiling.controller.ProfilerFlareReporter',
+  'com.datadog.profiling.controller.ProfilerSettingsSupport.ProfilerActivationSetting',
+  'com.datadog.profiling.controller.ProfilingSystem',
+]
+excludedClassesInstructionCoverage += [
+  'com.datadog.profiling.controller.Controller',
+  'com.datadog.profiling.controller.ControllerContext',
+  'com.datadog.profiling.controller.ControllerContext.Snapshot',
+  'com.datadog.profiling.controller.EnvironmentChecker',
+  'com.datadog.profiling.controller.EnvironmentChecker.1',
+  'com.datadog.profiling.controller.ProfilerFlareReporter',
+  'com.datadog.profiling.controller.ProfilerSettingsSupport.ProfilerActivationSetting',
+]
+
 dependencies {
   api libs.slf4j
   api project(':internal-api')
