@@ -150,7 +150,9 @@ class SizingHintTableForkedTest {
       }
     }
     assertNotNull(firstOverflow, "lane collapses to a capped overflow hint once full");
-    assertEquals(SizingHintTable.OVERFLOW_SEED, firstOverflow.size);
+    // untuned, so a store sharing it presizes nothing until its first write
+    assertEquals(SizingHintTable.SEED_SIZE, firstOverflow.size);
+    assertEquals(0, capacity(storeFor(firstOverflow)));
 
     // Every further over-budget name shares that same capped instance...
     SizingHint another = SizingHintTable.hintFor("registry.flood.after", false);
@@ -163,9 +165,9 @@ class SizingHintTableForkedTest {
 
     // A capped hint is never tuned: a heavy span sharing it does not grow it.
     IdStore heavy = storeFor(another);
-    fill(heavy, SizingHintTable.OVERFLOW_SEED + 4);
+    fill(heavy, DenseIdStore.INIT_CAP + 4);
     heavy.recordSize();
-    assertEquals(SizingHintTable.OVERFLOW_SEED, another.size);
+    assertEquals(SizingHintTable.SEED_SIZE, another.size);
   }
 
   @Test

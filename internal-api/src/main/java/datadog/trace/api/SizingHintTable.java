@@ -7,10 +7,11 @@ import javax.annotation.Nullable;
  * Process-wide, self-tuning registry of per-operation {@link SizingHint}s, keyed by operation name.
  * Pure static and package-private: the tracer resolves a hint at span build through {@link
  * SizingHint#forOperation} and hands it to the span, which sizes its dense {@link IdStore} from it.
- * The span records its actual size back once every tag is present: at serialization for a published
- * trace ({@code DDSpanContext.processTagsAndBaggage}), or in {@code CoreTracer.write} for a dropped
- * one. The hint converges to the operation's known-tag high-water mark, so later spans of that
- * operation size correctly.
+ * The span records its size back at three points: in {@code CoreTracer.write}, for every trace
+ * before it is written or dropped (the writer can drop a trace without serializing it); again at
+ * serialization ({@code DDSpanContext.processTagsAndBaggage}), with the tags serialization adds;
+ * and in {@code DenseIdStore.removeAt}, just before a removal shrinks the store, so its peak isn't
+ * lost. The hint keeps the high-water mark, so later spans of that operation size correctly.
  *
  * <p>Only meaningful with the dense store on ({@link IdStoreFactory.Default#DENSE}); with it off,
  * {@link #hintFor} returns {@code null} before touching anything, so the default span path does no
@@ -47,15 +48,13 @@ final class SizingHintTable {
   // tag count pays extra doublings on every span until the hint is tuned.
   static final int SEED_SIZE = 0;
 
-  // Fixed size for the shared over-budget hint: the untuned default, DenseIdStore's initial
-  // capacity (a compile-time constant, so reading it loads no class). Capped (never grown by
-  // recordSize) because it's a heterogeneous catch-all -- growing it would over-provision lean
-  // sharers to the max of an unlike cohort.
-  static final int OVERFLOW_SEED = DenseIdStore.INIT_CAP;
-
   // Max distinct operation names per lane that get their own hint before collapsing to the capped
   // overflow hint.
   static final int CARDINALITY_LIMIT = 512;
+
+  // The longest operation name that gets a hint: names are kept for the JVM's life, so their length
+  // is bounded as well as their number.
+  static final int MAX_OPERATION_NAME_LENGTH = 256;
 
   /**
    * The lanes, in a holder so they are only allocated once the dense store is on and a span asks
@@ -70,29 +69,28 @@ final class SizingHintTable {
     static final FlatHashtable.D1<String, SizingHint> CHILD =
         FlatHashtable.D1.createFixed(CARDINALITY_LIMIT, SizingHint[]::new);
 
-    // Shared capped hint each lane returns once its budget is exhausted.
-    static final SizingHint ENTRY_OVERFLOW = new SizingHint(null, OVERFLOW_SEED, /* capped */ true);
-    static final SizingHint CHILD_OVERFLOW = new SizingHint(null, OVERFLOW_SEED, /* capped */ true);
+    // Shared hint each lane returns once its budget is exhausted: untuned (SEED_SIZE) and capped,
+    // so it presizes nothing and a store keeps the shared empty arrays until its first write, as
+    // without a hint. Capped because it's a heterogeneous catch-all -- growing it would
+    // over-provision lean sharers to the max of an unlike cohort.
+    static final SizingHint ENTRY_OVERFLOW = new SizingHint(null, SEED_SIZE, /* capped */ true);
+    static final SizingHint CHILD_OVERFLOW = new SizingHint(null, SEED_SIZE, /* capped */ true);
   }
 
   /**
    * The sizing hint for {@code operationName} in the given lane: the existing one, a freshly-minted
    * (seeded) one if the lane has budget, or the shared capped overflow hint if it's full. Returns
    * {@code null} when the dense store is off (constant-folded, so the default span path does no
-   * lookup) and for a {@code null} operation name — the span then uses the generic default capacity
-   * (operation-less spans aren't reliably similar, so they get no hint). Hits are a single probe;
+   * lookup), for a {@code null} operation name, and for one longer than {@link
+   * #MAX_OPERATION_NAME_LENGTH} — the span then uses the generic default capacity (operation-less
+   * spans aren't reliably similar, and long names aren't worth keeping). Hits are a single probe;
    * the create path is warmup-rare.
    */
   @Nullable
-  /** The longest operation name that gets a hint. */
-  static final int MAX_OPERATION_NAME_LENGTH = 256;
-
   static SizingHint hintFor(@Nullable CharSequence operationName, boolean entrySpan) {
     if (!IdStoreFactory.Default.DENSE) {
       return null;
     }
-    // Names are kept for the JVM's life, so bound their length as well as their number; a span
-    // with a longer name just grows its store normally.
     if (operationName == null || operationName.length() > MAX_OPERATION_NAME_LENGTH) {
       return null;
     }

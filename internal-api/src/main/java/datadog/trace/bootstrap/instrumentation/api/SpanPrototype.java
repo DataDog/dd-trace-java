@@ -45,8 +45,9 @@ public final class SpanPrototype {
    * The dense-store sizing hints for spans that use this prototype's own operation name, in the
    * entry-span and child-span lanes, resolved on first use so later spans skip the table lookup.
    * Racy by design: two threads resolving a lane at once can get distinct hints if they both miss
-   * the table (see {@link datadog.trace.util.FlatHashtable.D1}); the last write wins, and the other
-   * hint only mis-sizes a span or two.
+   * the table (see {@link datadog.trace.util.FlatHashtable.D1}), and prototypes for the same
+   * operation can each cache a different one for their lifetime. Such hints converge independently;
+   * a mismatch only mis-sizes arrays, never tag data.
    */
   private SizingHint entryHint;
 

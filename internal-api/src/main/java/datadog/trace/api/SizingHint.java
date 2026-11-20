@@ -13,10 +13,12 @@ import javax.annotation.Nullable;
  * racy publication (JMM final-field guarantee). That sidesteps the memory-ordering / visibility
  * problems parallel key/hash/value arrays would create, no volatile or atomics.
  *
- * <p>Opaque to everything outside {@code datadog.trace.api}: its only public member is the lookup,
- * {@link #forOperation}. {@link DenseIdStore} reads {@link #size} to size a span's fresh store and
- * writes it back (best-effort max, see {@link IdStore#recordSize}) at a terminal point; {@link
- * SizingHintTable} mints them. Callers only ever hold the reference.
+ * <p>Opaque to everything outside {@code datadog.trace.api}: {@link #forOperation} is the entry
+ * point. The {@link FlatHashtable.D1.Entry} members it inherits ({@code key()}, {@code matches},
+ * {@code hash}) are for the table's probe only; callers should just hold the returned reference.
+ * {@link DenseIdStore} reads {@link #size} to size a span's fresh store and writes it back
+ * (best-effort max, see {@link IdStore#recordSize}) at a terminal point; {@link SizingHintTable}
+ * mints them. Callers only ever hold the reference.
  */
 public final class SizingHint extends FlatHashtable.D1.Entry<String> {
   // Payload: the tuned dense-store size. Plain racy int, updated best-effort max (see

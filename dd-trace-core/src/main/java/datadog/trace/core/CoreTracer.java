@@ -2408,11 +2408,13 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       // Per-operation dense-store sizing: an entry (local-root) span carries tags a child doesn't,
       // so the lane is chosen by whether there's a local parent. A span using its prototype's own
       // operation name gets the hint cached on the prototype; any other span (including NONE's,
-      // which has no operation name) gets its operation's hint from the table. Null with the dense
-      // store off -- the flag test folds, so the default path does no lookup.
+      // which has no operation name) gets its operation's hint from the table. Skipped with the
+      // dense store off: the flag test folds, so the default path does no name comparison either.
       final SizingHint sizingHint =
-          spanPrototype.sizingHint(
-              !(resolvedParentSpanContext instanceof DDSpanContext), operationName);
+          IdStore.recordsSizes()
+              ? spanPrototype.sizingHint(
+                  !(resolvedParentSpanContext instanceof DDSpanContext), operationName)
+              : null;
 
       // some attributes are inherited from the parent
       context =
