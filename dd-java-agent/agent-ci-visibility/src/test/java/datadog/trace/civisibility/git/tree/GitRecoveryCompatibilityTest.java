@@ -178,7 +178,7 @@ class GitRecoveryCompatibilityTest {
             invocation -> {
               commands.incrementAndGet();
               Object[] arguments = invocation.getArguments();
-              if ("rev-list".equals(arguments[4]) || "merge-base".equals(arguments[4])) {
+              if ("rev-list".equals(arguments[6]) || "merge-base".equals(arguments[6])) {
                 throw fetch
                     ? new ShellCommandExecutor.ShellCommandFailedException(128, "missing ancestry")
                     : failure;

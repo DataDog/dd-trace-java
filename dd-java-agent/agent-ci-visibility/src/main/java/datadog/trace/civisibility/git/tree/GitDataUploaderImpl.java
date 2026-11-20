@@ -10,6 +10,7 @@ import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.api.git.GitUtils;
 import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.civisibility.utils.FileUtils;
+import datadog.trace.civisibility.utils.ShellCommandExecutor.ShellCommandFailedException;
 import datadog.trace.util.AgentThreadFactory;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -105,8 +106,7 @@ public class GitDataUploaderImpl implements GitDataUploader {
       List<String> latestCommits;
       try {
         latestCommits = gitClient.getLatestCommits(selectedCommit);
-      } catch (
-          datadog.trace.civisibility.utils.ShellCommandExecutor.ShellCommandFailedException e) {
+      } catch (ShellCommandFailedException e) {
         if (!config.isCiVisibilityGitUnshallowEnabled()) {
           throw e;
         }
@@ -153,8 +153,7 @@ public class GitDataUploaderImpl implements GitDataUploader {
       if (config.isCiVisibilityGitUnshallowDefer() && !unshallowed) {
         try {
           refreshed |= gitRepoUnshallow.unshallow();
-        } catch (datadog.trace.civisibility.utils.ShellCommandExecutor.ShellCommandFailedException
-            | TimeoutException e) {
+        } catch (ShellCommandFailedException | TimeoutException e) {
           if (!recoveredSelected && !refreshed) {
             throw e;
           }
