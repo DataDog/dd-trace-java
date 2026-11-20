@@ -149,7 +149,7 @@ public abstract class IdStore {
    * false is definite, so a reader can skip the whole set; a true only means "look". This base
    * answer is the conservative one: a store that keeps presence masks overrides it.
    */
-  public boolean mayHoldAny(TagLookup lookup) {
+  boolean mayHoldAny(TagLookup lookup) {
     return !isDefinitelyEmpty();
   }
 

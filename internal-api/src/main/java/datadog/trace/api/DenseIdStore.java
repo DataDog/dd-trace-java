@@ -465,7 +465,7 @@ final class DenseIdStore extends IdStore {
    * inherited, slots share no bit with any of the lookup's tags holds none of them.
    */
   @Override
-  public boolean mayHoldAny(TagLookup lookup) {
+  boolean mayHoldAny(TagLookup lookup) {
     long span = lookup.spanMask;
     long trace = lookup.traceMask;
     return (this.spanOccupancy & span) != 0L
@@ -486,6 +486,13 @@ final class DenseIdStore extends IdStore {
     if (!this.mayHoldAny(lookup)) {
       return out;
     }
+    int entries = 0;
+    for (DenseIdStore level = this; level != null; level = level.parent) {
+      entries += level.used;
+    }
+    if (lookup.scanBeats(entries)) {
+      return this.scanStrings(lookup, out);
+    }
     long[] ids = lookup.ids;
     char[] serials = lookup.serials;
     long[] bits = lookup.bits;
@@ -505,6 +512,39 @@ final class DenseIdStore extends IdStore {
           out = new String[ids.length];
         }
         out[i] = value.toString();
+      }
+    }
+    return out;
+  }
+
+  /**
+   * The bulk read driven by this store's entries rather than by the lookup's names: each level's
+   * serials, nearest first, index straight into the lookup ({@link TagLookup#indexBySerial}), so
+   * the cost follows the span's tag count, not the lookup's size. A position resolved at a nearer
+   * level (a value, or a tombstone hiding an inherited one) isn't overridden by an ancestor, as
+   * {@link #getVisible} would have it.
+   */
+  private String[] scanStrings(TagLookup lookup, @Nullable String[] out) {
+    short[] indexBySerial = lookup.indexBySerial;
+    int n = lookup.size();
+    long resolved = 0L;
+    for (DenseIdStore level = this; level != null; level = level.parent) {
+      char[] serials = level.serials;
+      Object[] values = level.values;
+      for (int e = 0, used = level.used; e < used; e++) {
+        int serial = serials[e];
+        int i = serial < indexBySerial.length ? indexBySerial[serial] : -1;
+        if (i < 0 || (resolved & (1L << i)) != 0L) {
+          continue;
+        }
+        resolved |= 1L << i;
+        Object value = values[e];
+        if (value != TOMBSTONE) {
+          if (out == null) {
+            out = new String[n];
+          }
+          out[i] = value.toString();
+        }
       }
     }
     return out;

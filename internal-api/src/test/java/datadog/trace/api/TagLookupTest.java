@@ -93,6 +93,56 @@ class TagLookupTest {
     }
   }
 
+  /**
+   * Small lookups over small stores, so the stores scan their own entries against the lookup rather
+   * than probing for each name: the scan must agree with per-id loads, including read-through to a
+   * parent and tombstones hiding inherited values.
+   */
+  @ParameterizedTest
+  @MethodSource("stores")
+  void scanningReadMatchesPerTagLoads(Function<IdStore, IdStore> newStore) throws Exception {
+    List<Long> ids = knownIds();
+    for (int seed = 0; seed < 300; seed++) {
+      Random random = new Random(seed);
+      List<Long> pool = new ArrayList<>(ids);
+      Collections.shuffle(pool, random);
+      List<Long> chosen = pool.subList(0, 40); // the lookup's names, and the only ids stored
+      IdStore parent = newStore.apply(null);
+      for (long id : chosen) {
+        if (random.nextInt(6) == 0) {
+          parent.store(id, "parent-" + KnownTagCodec.nameOf(id));
+        }
+      }
+      IdStore store = newStore.apply(random.nextBoolean() ? parent : null);
+      for (long id : chosen) {
+        int roll = random.nextInt(10);
+        if (roll == 0) {
+          store.store(id, "local-" + KnownTagCodec.nameOf(id));
+        } else if (roll == 1) {
+          store.remove(id);
+        } else if (roll == 2) {
+          store.store(id, 7L);
+        }
+      }
+      String[] names = new String[chosen.size()];
+      for (int i = 0; i < names.length; i++) {
+        names[i] = KnownTagCodec.nameOf(chosen.get(i));
+      }
+      TagLookup lookup = TagLookup.of(names);
+      String[] expected = new String[names.length];
+      int expectedFound = 0;
+      for (int i = 0; i < names.length; i++) {
+        Object value = store.load(chosen.get(i));
+        if (value != null) {
+          expected[i] = value.toString();
+          expectedFound++;
+        }
+      }
+      assertArrayEquals(
+          expectedFound == 0 ? null : expected, store.loadStrings(lookup, null), "seed " + seed);
+    }
+  }
+
   @Test
   void anEmptyDenseStoreRulesOutTheWholeLookup() throws Exception {
     List<Long> ids = knownIds();

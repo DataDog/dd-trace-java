@@ -29,6 +29,15 @@ public final class TagLookup {
   final long[] bits;
   final int[] levels;
 
+  /**
+   * For each known-tag serial, the index of the name that has it, or -1: the membership test and
+   * the output position for a store that scans its own entries instead of probing for each name.
+   */
+  final short[] indexBySerial;
+
+  /** The number of names that are known tags. */
+  final int knownCount;
+
   /** The indexes of the custom names, which are looked up by name. */
   final int[] customIndexes;
 
@@ -40,6 +49,9 @@ public final class TagLookup {
 
   /** Whether any name falls back to a direction-scoped id. */
   final boolean hasDirectional;
+
+  /** The indexes of the names that fall back to a direction-scoped id. */
+  final int[] directionalIndexes;
 
   /** The slot bits of every span-level id above, plain and directional. */
   final long spanMask;
@@ -78,6 +90,17 @@ public final class TagLookup {
       }
     }
     this.ids = n == 0 ? NO_IDS : ids;
+    short[] indexBySerial = new short[KnownTagCodec.serialLimit()];
+    Arrays.fill(indexBySerial, (short) -1);
+    int knownCount = 0;
+    for (int i = 0; i < n; i++) {
+      if (ids[i] != 0) {
+        indexBySerial[KnownTagCodec.serialNum(ids[i])] = (short) i;
+        knownCount++;
+      }
+    }
+    this.indexBySerial = indexBySerial;
+    this.knownCount = knownCount;
     this.serials = new char[n];
     this.bits = new long[n];
     this.levels = new int[n];
@@ -92,8 +115,34 @@ public final class TagLookup {
     this.inboundIds = directional ? inbound : NO_IDS;
     this.outboundIds = directional ? outbound : NO_IDS;
     this.hasDirectional = directional;
+    int[] directionalIndexes = NO_INDEXES;
+    if (directional) {
+      int count = 0;
+      for (int i = 0; i < n; i++) {
+        if (inbound[i] != 0 || outbound[i] != 0) {
+          count++;
+        }
+      }
+      directionalIndexes = new int[count];
+      for (int i = 0, k = 0; i < n; i++) {
+        if (inbound[i] != 0 || outbound[i] != 0) {
+          directionalIndexes[k++] = i;
+        }
+      }
+    }
+    this.directionalIndexes = directionalIndexes;
     this.spanMask = span;
     this.traceMask = trace;
+  }
+
+  /**
+   * Whether a store holding {@code entries} entries should scan them against this lookup rather
+   * than probe for each known name: scanning costs a table load per entry, probing a lookup per
+   * name. The scan records the names it has resolved in a 64-bit mask, so it needs at most 64
+   * names.
+   */
+  boolean scanBeats(int entries) {
+    return names.length <= 64 && entries < knownCount;
   }
 
   /** A lookup over {@code names}, read in this order. */
@@ -119,6 +168,16 @@ public final class TagLookup {
   /** Whether any name falls back to a direction-scoped id. */
   public boolean hasDirectional() {
     return hasDirectional;
+  }
+
+  /** The number of names that fall back to a direction-scoped id. */
+  public int directionalCount() {
+    return directionalIndexes.length;
+  }
+
+  /** The index (into the names) of the {@code k}th name with a direction-scoped fallback. */
+  public int directionalIndex(int k) {
+    return directionalIndexes[k];
   }
 
   /** The number of custom names. */
