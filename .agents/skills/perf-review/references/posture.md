@@ -95,7 +95,7 @@ mechanism is certain or the severity is catastrophic.
   toolkit primitive — no visible downside); or a change that **ships a benchmark/JFR**
   (well-evidenced — recognize it). One line; a nudge, not a code-pattern finding.
 - **Shipped core code is stricter — see the core performance rules in `AGENTS.md`.**
-  For changes to `dd-trace-core/src/main/` or `internal-api/src/main/`: a performance claim
+  For changes to `dd-trace-core/src/main/`, `internal-api/src/main/` or `components/toolbox/src/main/`: a performance claim
   (in the title, description, or commits) without JMH before/after numbers is a finding, not
   a soft nudge. Elsewhere, including those modules' tests, benchmarks and build files, keep
   the softer posture above.
