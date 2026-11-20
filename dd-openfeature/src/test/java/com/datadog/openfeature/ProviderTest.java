@@ -1,6 +1,7 @@
 package com.datadog.openfeature;
 
 import static com.datadog.openfeature.Provider.METADATA;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonList;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -38,6 +39,7 @@ import com.datadog.openfeature.internal.ufc.Allocation;
 import com.datadog.openfeature.internal.ufc.Flag;
 import com.datadog.openfeature.internal.ufc.ServerConfiguration;
 import com.datadog.openfeature.internal.ufc.Split;
+import com.datadog.openfeature.internal.ufc.UniversalFlagConfigParser;
 import com.datadog.openfeature.internal.ufc.ValueType;
 import com.datadog.openfeature.internal.ufc.Variant;
 import com.datadog.openfeature.testlog.CapturingServiceProvider;
@@ -47,7 +49,9 @@ import dev.openfeature.sdk.EvaluationContext;
 import dev.openfeature.sdk.EventDetails;
 import dev.openfeature.sdk.Features;
 import dev.openfeature.sdk.FlagEvaluationDetails;
+import dev.openfeature.sdk.FlagEvaluationOptions;
 import dev.openfeature.sdk.Hook;
+import dev.openfeature.sdk.HookContext;
 import dev.openfeature.sdk.MutableContext;
 import dev.openfeature.sdk.OpenFeatureAPI;
 import dev.openfeature.sdk.ProviderEvaluation;
@@ -153,6 +157,47 @@ public class ProviderTest {
     dispatch(emptyConfiguration());
     readyEvent.get(EVENT_TIMEOUT_SECONDS, SECONDS);
     assertThat(client.getProviderState(), equalTo(ProviderState.READY));
+  }
+
+  @Test
+  public void testAfterHookThatChangesAJsonValueGetsTheDefault() throws Exception {
+    final OpenFeatureAPI api = OpenFeatureAPI.getInstance();
+    final CompletableFuture<EventDetails> readyEvent = new CompletableFuture<>();
+    api.onProviderReady(readyEvent::complete);
+    api.setProvider(newProvider());
+    dispatch(
+        UniversalFlagConfigParser.parse(
+            ("{\"flags\":{\"json\":{\"key\":\"json\",\"enabled\":true,"
+                    + "\"variationType\":\"JSON\",\"variations\":{\"on\":{\"key\":\"on\","
+                    + "\"value\":{\"n\":1}}},\"allocations\":[{\"key\":\"a\",\"splits\":["
+                    + "{\"variationKey\":\"on\",\"shards\":[]}]}]}}}")
+                .getBytes(UTF_8)));
+    readyEvent.get(EVENT_TIMEOUT_SECONDS, SECONDS);
+    final Client client = api.getClient();
+    final Value defaultValue = new Value("default");
+    final Hook<Value> changesTheValue =
+        new Hook<Value>() {
+          @Override
+          public void after(
+              final HookContext<Value> ctx,
+              final FlagEvaluationDetails<Value> details,
+              final Map<String, Object> hints) {
+            details.getValue().asStructure().asObjectMap().put("n", 2);
+          }
+        };
+
+    final FlagEvaluationDetails<Value> changed =
+        client.getObjectDetails(
+            "json",
+            defaultValue,
+            new MutableContext("user"),
+            FlagEvaluationOptions.builder().hook(changesTheValue).build());
+    final FlagEvaluationDetails<Value> next =
+        client.getObjectDetails("json", defaultValue, new MutableContext("user"));
+
+    assertThat(changed.getValue(), equalTo(defaultValue));
+    assertThat(changed.getErrorCode(), equalTo(ErrorCode.GENERAL));
+    assertThat(next.getValue().asStructure().asObjectMap().get("n"), equalTo(1));
   }
 
   @Test
