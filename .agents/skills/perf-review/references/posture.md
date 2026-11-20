@@ -74,6 +74,11 @@ mechanism is certain or the severity is catastrophic.
   a mechanism that has landed (see `remedies.md` — cite only what exists; name "coming"
   primitives as coming). Don't flag a pattern whose only fix is a mechanism that isn't
   built yet.
+- **Point at a fix that leaves the code no harder to read.** The fix should be a toolbox
+  primitive from `remedies.md` or a small local change (see *Fix shape* there). A bespoke
+  mechanism, such as a new data structure, a hand-rolled cache or manual object reuse, needs
+  measured evidence that the toolbox can't do the job. Agents often apply the fix, and they
+  follow the finding's suggestion closely, so the finding sets how complex the result gets.
 - **Triage by severity.** Flag P1 (unbounded memory / OOM, cardinality blowups)
   *aggressively* — a false positive there is cheap insurance against a container kill.
   Flag low-severity CPU-micro *conservatively or not at all* — false positives there
