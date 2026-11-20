@@ -5,6 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfi
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
@@ -118,7 +119,7 @@ public class KafkaConfigHelper {
       return;
     }
     // Copied so later caller mutations aren't reported nor race with reporting threads
-    Map<String, Object> rawConfigCopy = new LinkedHashMap<>(rawConfig);
+    Map<String, Object> rawConfigCopy = new HashMap<>(rawConfig);
     if (state.setPendingConfigIfAbsent(
         new PendingConfig("kafka_consumer", groupOrEmpty(consumerGroup), rawConfigCopy))) {
       log.debug("Stored pending raw consumer config (cluster ID not yet known)");
