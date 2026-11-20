@@ -16,6 +16,9 @@ import org.junit.jupiter.api.Test;
 
 @SuppressWarnings("preview")
 public class StructuredTaskScope25Test extends AbstractInstrumentationTest {
+  static final Comparator<DDSpan> SORT_BY_OPERATION_NAME =
+      comparing(DDSpan::getOperationName, comparing(CharSequence::toString));
+
   /** Tests the structured task scope with a single task. */
   @Test
   void testSingleTaskTracking() throws Exception {
@@ -100,9 +103,6 @@ public class StructuredTaskScope25Test extends AbstractInstrumentationTest {
             span().childOfIndex(0).operationName("grandchild2"),
             span().root().operationName("parent")));
   }
-
-  Comparator<DDSpan> SORT_BY_OPERATION_NAME =
-      comparing(DDSpan::getOperationName, comparing(CharSequence::toString));
 
   Void nestedChildren(String name) throws Exception {
     var span = tracer.startSpan("test", name);
