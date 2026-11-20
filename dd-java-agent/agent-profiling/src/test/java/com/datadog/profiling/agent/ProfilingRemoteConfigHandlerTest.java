@@ -599,23 +599,6 @@ class ProfilingRemoteConfigHandlerTest {
   }
 
   @Test
-  void configChangesBeforeTheFirstRecordingDoNotDelayItAgain() throws Exception {
-    ProfilingSystem system = systemWithStartupDelay(Duration.ofMillis(600));
-    ProfilingRemoteConfigHandler handler = handler(system, false);
-    long startNanos = System.nanoTime();
-    handler.onConfigsChanged(enabledConfig());
-
-    // restarts before the first recording, which keep the deadline of the first start
-    Thread.sleep(300);
-    handler.onConfigsChanged(otherEnabledConfig());
-    awaitTrue(system::isStarted);
-
-    long elapsedMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
-    assertTrue(elapsedMillis < 850, "started after " + elapsedMillis + "ms, not a new delay");
-    system.stop(false);
-  }
-
-  @Test
   void aStartThatFailsAfterTheStartupDelayIsAppliedAgainByTheSameConfig() throws Exception {
     when(controller.createRecording(any(), any()))
         .thenThrow(new IllegalArgumentException("boom"))

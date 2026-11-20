@@ -60,6 +60,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -296,6 +297,47 @@ public class ProfilingSystemTest {
     verify(snapshotRecording, never()).snapshot(any(), anyBoolean());
     verify(recording).stop();
     assertFalse(system.isStarted());
+  }
+
+  @Test
+  public void testRestartBeforeTheStartupDelayKeepsItsDeadline() throws Exception {
+    // the delay of each delayed start, from when it was scheduled
+    final List<Long> startDelaysNanos = new ArrayList<>();
+    final ProfilingSystem system =
+        new ProfilingSystem(
+            configProvider,
+            controllerFactory,
+            listener,
+            Duration.ofHours(1),
+            Duration.ZERO,
+            Duration.ofMillis(300),
+            false,
+            () ->
+                new AgentTaskScheduler(PROFILER_RECORDING_SCHEDULER) {
+                  @Override
+                  public <T> Scheduled<T> schedule(
+                      Task<T> task, T target, long initialDelay, TimeUnit unit) {
+                    startDelaysNanos.add(unit.toNanos(initialDelay));
+                    return super.schedule(task, target, initialDelay, unit);
+                  }
+                },
+            threadLocalRandom);
+    try {
+      system.start(false);
+      // so that the deadline of the first start is measurably closer when restarting
+      Thread.sleep(10);
+      system.stop(false);
+      system.start(false);
+
+      assertEquals(2, startDelaysNanos.size(), String.valueOf(startDelaysNanos));
+      // a new delay from the restart would be the whole hour again, not shorter than the first
+      assertTrue(
+          startDelaysNanos.get(1) < startDelaysNanos.get(0),
+          "the restart waits for the deadline of the first start: " + startDelaysNanos);
+      verify(controller, never()).createRecording(any(), any());
+    } finally {
+      system.shutdown(false);
+    }
   }
 
   @Test
