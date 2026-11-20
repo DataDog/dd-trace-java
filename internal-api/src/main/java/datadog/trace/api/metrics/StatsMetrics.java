@@ -3,7 +3,6 @@ package datadog.trace.api.metrics;
 import java.util.Collection;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Telemetry counters for client-side trace-stats span collapses. Mirrors the statsd {@code
@@ -18,9 +17,9 @@ import java.util.concurrent.atomic.AtomicLong;
  * themselves guarantee it), so a dynamic map keyed by reason cannot itself blow up.
  *
  * <p>Counters are incremented from the single stats-aggregator thread and drained from the
- * telemetry thread: the backing map is a {@link ConcurrentMap} and each counter is an {@link
- * AtomicLong}, so neither side needs external synchronization. {@link
- * TaggedCounter#getValueAndReset()} is only called from the draining thread.
+ * telemetry thread: the backing map is a {@link ConcurrentMap} and each {@link TaggedCounter} is
+ * atomic, so neither side needs external synchronization. {@link TaggedCounter#getValueAndReset()}
+ * is only called from the draining thread.
  */
 public final class StatsMetrics {
   static final String COLLAPSED_SPANS = "stats.collapsed_spans";
@@ -57,8 +56,7 @@ public final class StatsMetrics {
     }
     collapsedByReason
         .computeIfAbsent(reason, tag -> new TaggedCounter(COLLAPSED_SPANS, tag))
-        .counter
-        .addAndGet(count);
+        .add(count);
   }
 
   /**
@@ -67,45 +65,10 @@ public final class StatsMetrics {
    * keeping the per-dropped-span aggregator path off the reason map.
    */
   public void onWholeKeyCollapse() {
-    this.wholeKeyCollapses.counter.addAndGet(1);
+    this.wholeKeyCollapses.add(1);
   }
 
   public Collection<TaggedCounter> getTaggedCounters() {
     return this.collapsedByReason.values();
-  }
-
-  /** A named, single-tag counter drained as a telemetry {@code count} metric. */
-  public static final class TaggedCounter implements CoreCounter {
-    private final String name;
-    private final String tag;
-    private final AtomicLong counter = new AtomicLong();
-    private long previousCount;
-
-    TaggedCounter(String name, String tag) {
-      this.name = name;
-      this.tag = tag;
-    }
-
-    @Override
-    public String getName() {
-      return this.name;
-    }
-
-    public String getTag() {
-      return this.tag;
-    }
-
-    @Override
-    public long getValue() {
-      return this.counter.get();
-    }
-
-    @Override
-    public long getValueAndReset() {
-      long count = this.counter.get();
-      long delta = count - this.previousCount;
-      this.previousCount = count;
-      return delta;
-    }
   }
 }

@@ -4,6 +4,7 @@ import static com.datadog.openfeature.internal.delivery.Retries.isRetryableStatu
 
 import com.datadog.openfeature.internal.ConfigurationService;
 import com.datadog.openfeature.internal.RuntimeServices;
+import com.datadog.openfeature.internal.bridge.v1.HealthMetrics;
 import com.datadog.openfeature.internal.config.Settings;
 import com.datadog.openfeature.internal.ufc.ServerConfiguration;
 import com.datadog.openfeature.internal.ufc.UniversalFlagConfigParser;
@@ -42,15 +43,21 @@ public final class CdnConfigurationSource implements ConfigurationService {
   private static final long SECOND_RETRY_MAX_MILLIS = 30_000;
   private static final double RETRY_JITTER = 0.2;
   private static final long WARNING_INTERVAL_NANOS = TimeUnit.MINUTES.toNanos(5);
+  // The Agent cuts a service to this many bytes of UTF-8.
+  private static final int MAX_SERVICE_BYTES = 100;
 
   private final URI endpoint;
+  private final FlagSelectionRequest selection;
+  private final boolean selectionSent;
   @Nullable private final String apiKey;
+  @Nullable private final String service;
   private final long pollIntervalMillis;
   private final Duration requestTimeout;
   private final HttpClient httpClient;
   private final ScheduledExecutorService executor;
   private final Retries.Sleeper retrySleeper;
   private final DoubleSupplier jitter;
+  private final RuntimeServices services;
   private final Object lifecycleLock = new Object();
   private final AtomicBoolean polling = new AtomicBoolean();
   private final CountDownLatch closedSignal = new CountDownLatch(1);
@@ -62,10 +69,15 @@ public final class CdnConfigurationSource implements ConfigurationService {
   private volatile String etag;
   private long lastWarningNanos;
 
-  public CdnConfigurationSource(final Settings settings, final RuntimeServices services) {
+  public CdnConfigurationSource(
+      final Settings settings,
+      final RuntimeServices services,
+      final FlagSelectionRequest selection) {
     this(
         endpoint(settings),
+        selection,
         isManagedEndpoint(settings) ? settings.apiKey() : null,
+        usageService(settings.untrimmedService()),
         TimeUnit.SECONDS.toMillis(settings.agentlessPollIntervalSeconds()),
         Duration.ofSeconds(settings.agentlessRequestTimeoutSeconds()),
         HttpClient.newBuilder()
@@ -75,20 +87,53 @@ public final class CdnConfigurationSource implements ConfigurationService {
         Executors.newSingleThreadScheduledExecutor(
             task -> services.newThread("configuration", task)),
         null,
-        () -> ThreadLocalRandom.current().nextDouble(1 - RETRY_JITTER, 1 + RETRY_JITTER));
+        () -> ThreadLocalRandom.current().nextDouble(1 - RETRY_JITTER, 1 + RETRY_JITTER),
+        services);
   }
 
   CdnConfigurationSource(
       final URI endpoint,
       @Nullable final String apiKey,
+      @Nullable final String service,
       final long pollIntervalMillis,
       final Duration requestTimeout,
       final HttpClient httpClient,
       final ScheduledExecutorService executor,
       @Nullable final Retries.Sleeper retrySleeper,
       final DoubleSupplier jitter) {
-    this.endpoint = endpoint;
+    this(
+        endpoint,
+        FlagSelectionRequest.NONE,
+        apiKey,
+        service,
+        pollIntervalMillis,
+        requestTimeout,
+        httpClient,
+        executor,
+        retrySleeper,
+        jitter,
+        new RuntimeServices(HealthMetrics.NOOP));
+  }
+
+  CdnConfigurationSource(
+      final URI endpoint,
+      final FlagSelectionRequest selection,
+      @Nullable final String apiKey,
+      @Nullable final String service,
+      final long pollIntervalMillis,
+      final Duration requestTimeout,
+      final HttpClient httpClient,
+      final ScheduledExecutorService executor,
+      @Nullable final Retries.Sleeper retrySleeper,
+      final DoubleSupplier jitter,
+      final RuntimeServices services) {
+    // The endpoint is fixed for the life of the source, so the URL check holds for every request.
+    final URI selected = selection.appendTo(endpoint);
+    this.endpoint = selected == null ? endpoint : selected;
+    this.selection = selected == null ? FlagSelectionRequest.urlTooLong() : selection;
+    this.selectionSent = selected != null && selection.hasValues();
     this.apiKey = apiKey;
+    this.service = service;
     this.pollIntervalMillis = pollIntervalMillis;
     this.requestTimeout = requestTimeout;
     this.httpClient = httpClient;
@@ -98,6 +143,15 @@ public final class CdnConfigurationSource implements ConfigurationService {
             ? retrySleeper
             : delay -> this.closedSignal.await(delay, TimeUnit.MILLISECONDS);
     this.jitter = jitter;
+    this.services = services;
+  }
+
+  /**
+   * @return the selection that this source sends, {@link FlagSelectionRequest#NONE}, or the reason
+   *     it is not sent.
+   */
+  public FlagSelectionRequest selection() {
+    return this.selection;
   }
 
   @Override
@@ -238,6 +292,11 @@ public final class CdnConfigurationSource implements ConfigurationService {
       warn("Feature Flags configuration endpoint returned HTTP {}", status);
       return false;
     }
+    final String ignoredReason =
+        this.selectionSent
+            ? FlagSelectionRequest.ignoredReasonOfFields(
+                response.headers().allValues(FlagSelectionRequest.IGNORED_HEADER))
+            : null;
     final ServerConfiguration configuration;
     try {
       configuration = UniversalFlagConfigParser.parseJsonApi(Gzip.decode(response));
@@ -257,6 +316,10 @@ public final class CdnConfigurationSource implements ConfigurationService {
     final String nextEtag = response.headers().firstValue("ETag").orElse(null);
     this.etag = nextEtag == null || nextEtag.trim().isEmpty() ? null : nextEtag;
     LOGGER.debug("Feature Flags agentless configuration applied: etag={}", this.etag);
+    // Reported last, so that "Loaded the full flag configuration" is already true.
+    if (ignoredReason != null) {
+      FlagSelectionRequest.reportIgnored(this.services, ignoredReason);
+    }
     return true;
   }
 
@@ -298,8 +361,13 @@ public final class CdnConfigurationSource implements ConfigurationService {
             .timeout(this.requestTimeout)
             .header("Accept-Encoding", "gzip");
     Headers.addMetadata(request);
+    Headers.addClientLibrary(request);
     if (this.apiKey != null) {
       request.header("DD-API-KEY", this.apiKey);
+    }
+    if (this.service != null) {
+      // The CDN attributes the usage of this request to this service.
+      request.header("DD-Service", this.service);
     }
     final String currentEtag = this.etag;
     if (currentEtag != null) {
@@ -328,18 +396,19 @@ public final class CdnConfigurationSource implements ConfigurationService {
               + UFC_RULES_BASED_SERVER_PATH
               + (env == null ? "" : "?dd_env=" + URLEncoder.encode(env, StandardCharsets.UTF_8)));
     }
+    // The errors omit the URL and its parse error: its userinfo, path, or query can carry a
+    // credential, and the provider reports the error message.
     final URI parsed;
     try {
       parsed = URI.create(configuredBaseUrl);
     } catch (final IllegalArgumentException e) {
-      throw new IllegalArgumentException(
-          "Invalid Feature Flags configuration source URL: " + configuredBaseUrl, e);
+      throw new IllegalArgumentException("Invalid Feature Flags configuration source URL");
     }
     final String scheme = parsed.getScheme();
     if ((!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme))
         || parsed.getHost() == null) {
       throw new IllegalArgumentException(
-          "Invalid Feature Flags configuration source URL: " + configuredBaseUrl);
+          "Feature Flags configuration source URL must use HTTP or HTTPS and include a host");
     }
     final String path = parsed.getRawPath();
     if (path == null || path.isEmpty() || "/".equals(path)) {
@@ -350,8 +419,82 @@ public final class CdnConfigurationSource implements ConfigurationService {
     return parsed;
   }
 
-  private static boolean isManagedEndpoint(final Settings settings) {
+  public static boolean isManagedEndpoint(final Settings settings) {
     return settings.agentlessBaseUrl() == null;
+  }
+
+  /**
+   * Selects the value of the DD-Service header. The value is the service name that APM shows, so
+   * the usage and APM show the same name. The value is {@code null} when that name is empty, for
+   * example from {@code ___}.
+   */
+  @Nullable
+  private static String usageService(@Nullable final String service) {
+    if (service == null || service.isEmpty()) {
+      return null;
+    }
+    final String normalized = normalizeService(service);
+    if (!normalized.isEmpty()) {
+      return normalized;
+    }
+    LOGGER.debug(
+        "Feature Flags: service {} has an empty APM name; DD-Service header not sent", service);
+    return null;
+  }
+
+  /**
+   * Normalizes a service name with the rules of {@code NormalizeService} in the Datadog Agent
+   * (datadog-agent pkg/trace/traceutil/normalize, v0.82.3). The result is the name that APM shows.
+   * The SDK does not depend on internal-api, so it cannot call {@code
+   * TraceUtils.normalizeServiceName}. That helper also follows older Agent rules.
+   *
+   * <ul>
+   *   <li>Cuts the name to 100 bytes of UTF-8, and does not split a character.
+   *   <li>Lowercases the ASCII letters.
+   *   <li>Keeps {@code a-z}, {@code 0-9}, {@code :}, {@code .}, {@code /}, {@code -}, and the
+   *       non-ASCII letters and decimal digits.
+   *   <li>Replaces each run of other characters with one {@code _}, and removes a run at the end.
+   * </ul>
+   */
+  private static String normalizeService(final String service) {
+    final StringBuilder normalized =
+        new StringBuilder(Math.min(service.length(), MAX_SERVICE_BYTES));
+    boolean underscorePending = false;
+    int bytes = 0;
+    for (int i = 0; i < service.length(); ) {
+      int c = service.codePointAt(i);
+      bytes += c < 0x80 ? 1 : c < 0x800 ? 2 : c < 0x10000 ? 3 : 4;
+      if (bytes > MAX_SERVICE_BYTES) {
+        break;
+      }
+      i += Character.charCount(c);
+      if (c >= 'A' && c <= 'Z') {
+        c += 'a' - 'A';
+      }
+      if (isServiceCharacter(c)) {
+        if (underscorePending) {
+          normalized.append('_');
+          underscorePending = false;
+        }
+        normalized.appendCodePoint(c);
+      } else {
+        underscorePending = true;
+      }
+    }
+    return normalized.toString();
+  }
+
+  private static boolean isServiceCharacter(final int c) {
+    if (c < 0x80) {
+      return (c >= 'a' && c <= 'z')
+          || (c >= '0' && c <= '9')
+          || c == ':'
+          || c == '.'
+          || c == '/'
+          || c == '-';
+    }
+    // Like unicode.IsLetter and unicode.IsDigit in Go: the letters and the decimal digits (Nd).
+    return Character.isLetterOrDigit(c);
   }
 
   private static String managedHost(final Settings settings) {

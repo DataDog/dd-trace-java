@@ -61,6 +61,8 @@ excludedClassesCoverage += [
   'datadog.trace.core.datastreams.DataStreamPropagator',
   // send() requires live HTTP/2 server
   'datadog.trace.core.otlp.common.OtlpGrpcSender',
+  // exception holder; status codes covered by OtlpGrpcSenderTest
+  'datadog.trace.core.otlp.common.OtlpGrpcStatusException',
   // covered by OTLP system-tests
   'datadog.trace.core.otlp.logs.OtlpLogsService',
   'datadog.trace.core.otlp.metrics.OtlpMetricsSenderFactory',
@@ -91,7 +93,8 @@ dependencies {
   implementation project(':utils:logging-utils')
   implementation project(':utils:queue-utils')
   // for OTLP support
-  compileOnly project(':dd-java-agent:agent-otel:otel-bootstrap')
+  // shadow: the OTel API is already relocated to datadog.trace.bootstrap.otel.api, as in agent-jmxfetch
+  compileOnly project(path: ':dd-java-agent:agent-otel:otel-bootstrap', configuration: 'shadow')
   // for span exception debugging
   compileOnly project(':dd-java-agent:agent-debugger:debugger-bootstrap')
 

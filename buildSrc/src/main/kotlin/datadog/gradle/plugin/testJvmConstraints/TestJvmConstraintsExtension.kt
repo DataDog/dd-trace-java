@@ -46,6 +46,13 @@ interface TestJvmConstraintsExtension {
    */
   val nativeImageCapable: Property<Boolean>
 
+  /**
+   * The test JVM name (passed through the `testJvm` property) to check coverage on with
+   * `-PcheckCoverageOnFirstTestJvm`, like `ORACLE8`. Defaults to the lowest Java LTS version
+   * allowed by these constraints. Set it only when no LTS version is allowed.
+   */
+  val coverageTestJvm: Property<String>
+
   companion object {
     const val TEST_JVM_CONSTRAINTS = "testJvmConstraints"
   }

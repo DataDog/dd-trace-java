@@ -447,6 +447,25 @@ class UniversalFlagConfigParserTest {
     assertTrue(config.invalidFlags.isEmpty());
   }
 
+  @Test
+  void indexesOneOfListsOfTwoOrMoreElements() throws Exception {
+    final ServerConfiguration config =
+        deserialize(
+            "{\"flags\":{\"f\":{\"key\":\"f\",\"enabled\":true,\"variationType\":\"STRING\","
+                + "\"variations\":{\"in\":{\"key\":\"in\",\"value\":\"in\"}},"
+                + "\"allocations\":[{\"key\":\"a\",\"rules\":[{\"conditions\":["
+                + "{\"attribute\":\"x\",\"operator\":\"ONE_OF\",\"value\":[\"1\",\"2\"]},"
+                + "{\"attribute\":\"x\",\"operator\":\"NOT_ONE_OF\",\"value\":[\"3\",4]},"
+                + "{\"attribute\":\"x\",\"operator\":\"ONE_OF\",\"value\":[\"5\"]}]}],"
+                + "\"splits\":[]}]}}}");
+
+    final List<ConditionConfiguration> conditions =
+        config.flags.get("f").allocations.get(0).rules.get(0).conditions;
+    assertEquals(MembershipIndex.MATCH, conditions.get(0).membership.lookup(2));
+    assertEquals(MembershipIndex.MATCH, conditions.get(1).membership.lookup(4));
+    assertNull(conditions.get(2).membership);
+  }
+
   private static ServerConfiguration deserialize(final String json) throws Exception {
     return UniversalFlagConfigParser.parse(json.getBytes(UTF_8));
   }

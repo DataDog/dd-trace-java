@@ -1,5 +1,7 @@
 package com.datadog.debugger.el;
 
+import java.util.Locale;
+
 public enum ValueType {
   OBJECT,
   BOOLEAN,
@@ -21,7 +23,7 @@ public enum ValueType {
       case SHORT:
       case CHAR:
       case FLOAT:
-        return type.name().toLowerCase();
+        return type.name().toLowerCase(Locale.ROOT);
       default:
         return Object.class.getTypeName();
     }
