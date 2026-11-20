@@ -3,8 +3,6 @@ package datadog.trace.instrumentation.scala213.concurrent;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.capture;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.endTaskScope;
-import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.SCALA_PROMISE_CALLBACK;
-import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.exclude;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
@@ -14,6 +12,7 @@ import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.SkipScalaPromiseContextCapture;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import datadog.trace.instrumentation.scala.PromiseHelper;
 import net.bytebuddy.asm.Advice;
@@ -48,7 +47,7 @@ public final class PromiseTransformationInstrumentation
       if (xform == 0) {
         return;
       }
-      if (callback != null && exclude(SCALA_PROMISE_CALLBACK, callback)) {
+      if (callback instanceof SkipScalaPromiseContextCapture) {
         return;
       }
       capture(InstrumentationContext.get(Transformation.class, State.class), task);
@@ -84,7 +83,7 @@ public final class PromiseTransformationInstrumentation
         @Advice.This Transformation<F, T> task,
         @Advice.Argument(value = 0) Try<T> resolved,
         @Advice.FieldValue("_fun") Object callback) {
-      if (callback != null && exclude(SCALA_PROMISE_CALLBACK, callback)) {
+      if (callback instanceof SkipScalaPromiseContextCapture) {
         return;
       }
       // About to enter an ExecutionContext so capture the Scope if necessary
