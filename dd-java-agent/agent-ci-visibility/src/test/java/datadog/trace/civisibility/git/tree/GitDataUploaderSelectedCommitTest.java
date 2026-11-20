@@ -14,6 +14,7 @@ import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -496,12 +497,11 @@ class GitDataUploaderSelectedCommitTest {
       verify(next).fetchSelectedCommit(selected);
       verify(api).uploadPackFile(eq(URL), eq(selected), any());
     } else {
-      assertTrue(
+      assertInstanceOf(
+          ShellCommandExecutor.ShellCommandFailedException.class,
           assertThrows(
-                      ExecutionException.class,
-                      () -> upload.get(UPLOAD_WAIT_SECONDS, TimeUnit.SECONDS))
-                  .getCause()
-              instanceof ShellCommandExecutor.ShellCommandFailedException);
+                  ExecutionException.class, () -> upload.get(UPLOAD_WAIT_SECONDS, TimeUnit.SECONDS))
+              .getCause());
       verify(next, never()).fetchSelectedCommit(any());
       verify(api, never()).uploadPackFile(any(), any(), any());
     }

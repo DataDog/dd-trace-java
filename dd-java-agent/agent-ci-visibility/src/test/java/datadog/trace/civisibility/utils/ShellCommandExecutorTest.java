@@ -1,5 +1,8 @@
 package datadog.trace.civisibility.utils;
 
+import static datadog.trace.test.util.PortableCommand.cat;
+import static datadog.trace.test.util.PortableCommand.echo;
+import static datadog.trace.test.util.PortableCommand.sleep;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -11,7 +14,6 @@ import static org.mockito.Mockito.spy;
 import datadog.communication.util.IOUtils;
 import datadog.trace.civisibility.utils.ShellCommandExecutor.OutputParser;
 import datadog.trace.civisibility.utils.ShellCommandExecutor.ShellCommandFailedException;
-import datadog.trace.test.util.PortableCommand;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.concurrent.TimeoutException;
@@ -31,7 +33,7 @@ class ShellCommandExecutorTest {
         new ShellCommandExecutor(directory.toFile(), COMMAND_TIMEOUT_MILLIS);
     assertEquals(
         "this is a test",
-        executor.executeCommand(IOUtils::readFully, PortableCommand.echo("this is a test")).trim());
+        executor.executeCommand(IOUtils::readFully, echo("this is a test")).trim());
   }
 
   @Test
@@ -44,7 +46,7 @@ class ShellCommandExecutorTest {
             .executeCommand(
                 IOUtils::readFully,
                 "this is a test".getBytes(java.nio.charset.StandardCharsets.UTF_8),
-                PortableCommand.cat())
+                cat())
             .trim());
   }
 
@@ -52,8 +54,7 @@ class ShellCommandExecutorTest {
   void enforcesCommandTimeout() {
     ShellCommandExecutor executor = new ShellCommandExecutor(directory.toFile(), 1_000);
     assertThrows(
-        TimeoutException.class,
-        () -> executor.executeCommand(IOUtils::readFully, PortableCommand.sleep(2)));
+        TimeoutException.class, () -> executor.executeCommand(IOUtils::readFully, sleep(2)));
   }
 
   @ParameterizedTest
