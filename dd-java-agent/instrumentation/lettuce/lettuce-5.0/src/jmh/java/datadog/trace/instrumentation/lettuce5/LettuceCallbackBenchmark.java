@@ -3,8 +3,6 @@ package datadog.trace.instrumentation.lettuce5;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.COMPLETABLE_FUTURE_CALLBACK;
-import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.exclude;
 import static java.util.Collections.emptyList;
 
 import datadog.context.Context;
@@ -40,7 +38,7 @@ import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
 
 /**
- * Measures the Lettuce finishing callback with and without its exact capture exclusion.
+ * Measures the Lettuce finishing callback with and without marker-based capture exclusion.
  *
  * <p>Each operation allocates a Command, AsyncCommand, fresh root span and real
  * LettuceAsyncBiConsumer. It registers under the span, closes the scope, invokes Lettuce's no-arg
@@ -55,9 +53,9 @@ import org.openjdk.jmh.annotations.Warmup;
  *
  * <p>Run with a full agent in every fork, {@code -prof gc -t 1}, and {@code -jvmArgsAppend
  * "-javaagent:/path/to/agent.jar -Dbench.patched=true"}. Compare against an otherwise identical
- * agent without only the Lettuce callback exclusion and {@code bench.patched=false}. The property
- * checks the expected provider registration; it does not enable the production change. Keep JVM,
- * heap, GC and agent configuration identical, and disable external reporting.
+ * agent that ignores the callback marker and {@code bench.patched=false}. The property labels the
+ * agent variant; it does not enable or verify the production change. Keep JVM, heap, GC and agent
+ * configuration identical, and disable external reporting.
  */
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
@@ -88,12 +86,7 @@ public class LettuceCallbackBenchmark {
         AgentTracer.get().addTraceInterceptor(interceptor), "Discarding interceptor not installed");
     output = new StatusOutput<>(StringCodec.UTF8);
     output.set(ByteBuffer.wrap(new byte[] {'O', 'K'}));
-    // Load the actual command before inspecting its provider's callback exclusion.
     newCommand().complete();
-    require(
-        exclude(COMPLETABLE_FUTURE_CALLBACK, LettuceAsyncBiConsumer.class.getName())
-            == Boolean.parseBoolean(patchedProperty),
-        "Lettuce provider registration does not match bench.patched");
     verifyOrdinaryPropagation();
     long before = interceptor.spans.get();
     require("OK".equals(completeCommand(false)), "Pending result changed");
