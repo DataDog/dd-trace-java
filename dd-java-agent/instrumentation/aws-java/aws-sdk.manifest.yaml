@@ -1,0 +1,23 @@
+_v: 1
+name: aws-sdk
+display_name: AWS SDK for Java
+description: Instruments AWS SDK for Java requests across AWS services and traces Amazon SQS and SNS message operations with
+  context propagation for SQS, SNS, and Step Functions.
+packages:
+- name: com.amazonaws:aws-java-sdk-core
+- name: com.amazonaws:aws-java-sdk-sns
+- name: com.amazonaws:aws-java-sdk-sqs
+- name: software.amazon.awssdk:aws-core
+- name: software.amazon.awssdk:sfn
+- name: software.amazon.awssdk:sns
+- name: software.amazon.awssdk:sqs
+category:
+- cloud_provider.client
+- messaging.consumer
+- messaging.producer
+systems:
+- aws
+- aws.sns
+- aws.sqs
+- aws.step_functions
+creation_date: '2017-05-23'

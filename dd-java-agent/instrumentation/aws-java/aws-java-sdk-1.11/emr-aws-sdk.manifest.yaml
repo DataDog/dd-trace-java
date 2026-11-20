@@ -1,0 +1,10 @@
+_v: 1
+name: emr-aws-sdk
+display_name: Amazon EMR AWS SDK
+description: Instruments Amazon EMR's relocated AWS SDK requests, creating spans and optionally propagating trace context.
+packages: []
+category:
+- cloud_provider.client
+systems:
+- aws
+creation_date: '2025-01-06'

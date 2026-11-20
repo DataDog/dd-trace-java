@@ -1,0 +1,12 @@
+_v: 1
+name: aws-lambda
+display_name: AWS Lambda
+description: Instruments AWS Lambda Java handler invocations, creating serverless spans and reporting invocation lifecycle
+  data to the Datadog Lambda Extension.
+packages:
+- name: com.amazonaws:aws-lambda-java-core
+category:
+- faas
+systems:
+- aws.lambda
+creation_date: '2022-04-28'
