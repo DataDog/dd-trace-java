@@ -20,3 +20,14 @@ ognl:ognl:3.5.0-BETA10
 org.apache.commons:commons-configuration2:2.15.1
 org.apache.commons:commons-jexl3:3.7.1
 org.mvel:mvel2:2.6.0.Final
+# batch5
+ch.qos.logback:logback-classic:1.6.8
+com.fasterxml.jackson.core:jackson-core:2.23.0
+com.fasterxml.jackson.core:jackson-databind:2.23.0
+com.google.guava:guava:33.8.0-jre
+io.netty:netty-codec-http:5.0.0.Alpha2
+org.apache.commons:commons-lang3:3.22.0
+org.apache.tomcat.embed:tomcat-embed-core:11.0.29
+org.springframework:spring-core:7.1.0
+org.springframework:spring-web:7.1.0
+org.springframework:spring-webmvc:7.1.0
