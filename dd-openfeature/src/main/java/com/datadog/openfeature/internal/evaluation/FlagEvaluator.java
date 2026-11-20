@@ -403,15 +403,26 @@ public final class FlagEvaluator {
 
   private static boolean compareNumber(
       final Object attributeValue, final Object conditionValue, NumberComparator comparator) {
-    final double a = mapValue(Double.class, attributeValue);
-    final double b = mapValue(Double.class, conditionValue);
-    return comparator.compare(a, b);
+    return comparator.compare(toDouble(attributeValue), toDouble(conditionValue));
+  }
+
+  /**
+   * Converts a comparison operand to a double. A {@link Number} converts without allocating. Any
+   * other value goes through {@link #mapValue} as before: a non-numeric value fails with mapValue's
+   * exception, and null fails when its null result is unboxed.
+   */
+  private static double toDouble(final Object value) {
+    if (value instanceof Number) {
+      return ((Number) value).doubleValue();
+    }
+    return mapValue(Double.class, value);
   }
 
   /**
    * Evaluates a semantic version comparison operator. The attribute value must be a string that is
    * a valid semantic version, and the comparand must have been pre-parsed during configuration
-   * validation. If either is missing or invalid, the condition does not match.
+   * validation. If either is missing or invalid, the condition does not match. The attribute is
+   * validated and compared without parsing it into a {@link ParsedSemver}.
    */
   private static boolean evaluateSemverCondition(
       final Object attributeValue,
@@ -420,11 +431,11 @@ public final class FlagEvaluator {
     if (!(attributeValue instanceof String) || comparand == null) {
       return false;
     }
-    final ParsedSemver parsedAttribute = ParsedSemver.parse((String) attributeValue);
-    if (parsedAttribute == null) {
+    final int ordering = ParsedSemver.compare((String) attributeValue, comparand);
+    if (ordering == ParsedSemver.INVALID_ORDERING) {
       return false;
     }
-    return comparator.compare(ParsedSemver.compare(parsedAttribute, comparand));
+    return comparator.compare(ordering);
   }
 
   private static boolean matchesShard(final Shard shard, final String targetingKey) {

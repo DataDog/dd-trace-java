@@ -159,7 +159,7 @@ public class CoordinatedSamplingTest extends CapturingTestBase {
     MockSampler probeSampler = new MockSampler(1);
     ProbeRateLimiter.setSamplerSupplier(rate -> probeSampler);
     try {
-      CoreTracer tracer = CoreTracer.builder().build();
+      tracer = CoreTracer.builder().build();
       TracerInstaller.forceInstallGlobalTracer(tracer);
       final String className = "com.datadog.debugger.CapturedSnapshot21";
       LogProbe probe1 = createMethodProbeAtExit(PROBE_ID1, className, "process1", null);
@@ -184,7 +184,7 @@ public class CoordinatedSamplingTest extends CapturingTestBase {
     MockSampler probeSampler = new MockSampler(2);
     ProbeRateLimiter.setSamplerSupplier(rate -> probeSampler);
     try {
-      CoreTracer tracer = CoreTracer.builder().build();
+      tracer = CoreTracer.builder().build();
       TracerInstaller.forceInstallGlobalTracer(tracer);
       final String className = "com.datadog.debugger.CapturedSnapshot21";
       LogProbe logProbe2 =
@@ -394,7 +394,7 @@ public class CoordinatedSamplingTest extends CapturingTestBase {
   }
 
   private TestSnapshotListener coordinatedSampling() throws IOException, URISyntaxException {
-    CoreTracer tracer = CoreTracer.builder().build();
+    tracer = CoreTracer.builder().build();
     TracerInstaller.forceInstallGlobalTracer(tracer);
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot21";
     LogProbe probe1 = createMethodProbeAtExit(PROBE_ID1, CLASS_NAME, "process1", null);
@@ -407,7 +407,7 @@ public class CoordinatedSamplingTest extends CapturingTestBase {
   }
 
   private TestSnapshotListener lineCoordinatedSampling() throws IOException, URISyntaxException {
-    CoreTracer tracer = CoreTracer.builder().build();
+    tracer = CoreTracer.builder().build();
     TracerInstaller.forceInstallGlobalTracer(tracer);
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot21";
     int line = getLineForLineProbe(CLASS_NAME, LINE_PROBE_ID1);
@@ -425,7 +425,7 @@ public class CoordinatedSamplingTest extends CapturingTestBase {
   private TestSnapshotListener coordinatedSamplingWithCondition(
       BooleanExpression cond1, BooleanExpression cond2, BooleanExpression cond3)
       throws IOException, URISyntaxException {
-    CoreTracer tracer = CoreTracer.builder().build();
+    tracer = CoreTracer.builder().build();
     TracerInstaller.forceInstallGlobalTracer(tracer);
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot21";
     LogProbe probe1 =
@@ -449,7 +449,7 @@ public class CoordinatedSamplingTest extends CapturingTestBase {
   private TestSnapshotListener coordinatedSamplingLineWithCondition(
       BooleanExpression cond1, BooleanExpression cond2, BooleanExpression cond3)
       throws IOException, URISyntaxException {
-    CoreTracer tracer = CoreTracer.builder().build();
+    tracer = CoreTracer.builder().build();
     TracerInstaller.forceInstallGlobalTracer(tracer);
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot21";
     int line = getLineForLineProbe(CLASS_NAME, LINE_PROBE_ID1);
@@ -474,7 +474,7 @@ public class CoordinatedSamplingTest extends CapturingTestBase {
   }
 
   private TestSnapshotListener coordinatedSamplingLoop() throws IOException, URISyntaxException {
-    CoreTracer tracer = CoreTracer.builder().build();
+    tracer = CoreTracer.builder().build();
     TracerInstaller.forceInstallGlobalTracer(tracer);
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot21";
     LogProbe probeRoot = createMethodProbeAtExit(PROBE_ID1, CLASS_NAME, "rootLoopProcess", null);
@@ -486,7 +486,7 @@ public class CoordinatedSamplingTest extends CapturingTestBase {
   }
 
   private TestSnapshotListener coordinatedSamplingSibling() throws IOException, URISyntaxException {
-    CoreTracer tracer = CoreTracer.builder().build();
+    tracer = CoreTracer.builder().build();
     TracerInstaller.forceInstallGlobalTracer(tracer);
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot21";
     LogProbe probe1 = createMethodProbeAtExit(PROBE_ID1, CLASS_NAME, "siblingProcess1", null);
@@ -500,7 +500,7 @@ public class CoordinatedSamplingTest extends CapturingTestBase {
 
   private TestSnapshotListener coordinatedSamplingLogTemplate()
       throws IOException, URISyntaxException {
-    CoreTracer tracer = CoreTracer.builder().build();
+    tracer = CoreTracer.builder().build();
     TracerInstaller.forceInstallGlobalTracer(tracer);
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot21";
     LogProbe probe1 =
