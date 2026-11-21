@@ -189,6 +189,7 @@ class SmokeTestAppPluginTest {
     val extension = project.extensions.getByType<SmokeTestAppExtension>()
 
     assertThat(extension.gradleVersion.get()).isEqualTo(DEFAULT_NESTED_GRADLE_VERSION)
+    assertThat(extension.gradleDistributionSha256Sum.get()).isEqualTo(DEFAULT_NESTED_GRADLE_SHA256_SUM)
   }
 
   @Test
@@ -200,6 +201,7 @@ class SmokeTestAppPluginTest {
     val extension = project.extensions.getByType<SmokeTestAppExtension>()
     extension.gradleVersion.set("8.14.8")
     extension.gradleDistributionBaseUrl.set("https://mass.example")
+    extension.gradleDistributionSha256Sum.set("custom-checksum")
     extension.gradleApp {
       taskName.set("packageApp")
       artifactPath.set("libs/test.jar")
@@ -218,6 +220,7 @@ class SmokeTestAppPluginTest {
       .isEqualTo(project.layout.buildDirectory.dir("application").get().asFile)
     assertThat(task.gradleVersion.get()).isEqualTo("8.14.8")
     assertThat(task.gradleDistributionBaseUrl.get()).isEqualTo("https://mass.example")
+    assertThat(task.gradleDistributionSha256Sum.get()).isEqualTo("custom-checksum")
     assertThat(task.tasksToRun.get()).containsExactly("assemble", "check")
     assertThat(task.buildArguments.get()).containsExactly("-Ddemo=true")
     assertThat(task.environment.get()).containsEntry("DEMO_ENV", "true")
@@ -322,6 +325,7 @@ class SmokeTestAppPluginTest {
     assertThat(task.gradlePluginProxy.get()).isEqualTo("https://plugins.example")
     assertThat(task.initScripts.get()).isEmpty()
     assertThat(task.gradleProperties.get()).isEmpty()
+    assertThat(task.gradleDistributionSha256Sum.get()).isEqualTo(DEFAULT_NESTED_GRADLE_SHA256_SUM)
   }
 
   @Test
@@ -334,6 +338,14 @@ class SmokeTestAppPluginTest {
       .isEqualTo(
         "https://mass.example/internal/artifact/services.gradle.org/distributions/gradle-8.14.8-bin.zip",
       )
+  }
+
+  @Test
+  fun `Gradle distribution URI defaults to the official distribution`() {
+    listOf(null, "", " ").forEach { baseUrl ->
+      assertThat(gradleDistributionUri(baseUrl, DEFAULT_NESTED_GRADLE_VERSION).toString())
+        .isEqualTo("https://services.gradle.org/distributions/gradle-$DEFAULT_NESTED_GRADLE_VERSION-bin.zip")
+    }
   }
 
   @Test
