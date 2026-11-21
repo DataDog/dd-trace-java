@@ -1,5 +1,6 @@
 package com.datadog.openfeature.internal.evaluation;
 
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EVALUATION_FEATURES_HANDLE;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EVALUATION_FEATURE_PREFIX;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EXPOSURE_FEATURE_PREFIX;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.FEATURE_PREFIX;
@@ -8,6 +9,7 @@ import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonList;
+import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -48,9 +50,23 @@ class SplitFeaturesTest {
     expected.put(EXPOSURE_FEATURE_PREFIX + "holdout.enabled", true);
     expected.put(HAS_EVALUATION_FEATURES, true);
     final SplitFeatures prepared = split.preparedFeatures(SplitFeatures::prepare);
+    expected.put(EVALUATION_FEATURES_HANDLE, prepared.evaluationFeaturesHandle());
     assertSame(prepared, split.preparedFeatures(SplitFeatures::prepare));
     assertEquals(4, prepared.size());
     assertEquals(expected, metadata(prepared));
+    assertEquals(
+        singletonMap("holdout.weight", 0.5),
+        EvaluationFeatureHandles.lookup(prepared.evaluationFeaturesHandle()),
+        "the handle resolves to the evaluation features, without their prefix");
+  }
+
+  @Test
+  void splitsWithoutEvaluationFeaturesGetNoHandle() {
+    final SplitFeatures features =
+        SplitFeatures.prepare(singletonList(new Feature("k", "v", singletonList("HOOK"))));
+
+    assertEquals(0L, features.evaluationFeaturesHandle());
+    assertEquals(singletonMap(FEATURE_PREFIX + "k", "v"), metadata(features));
   }
 
   @Test
