@@ -49,6 +49,23 @@ class HeaderSchemaTest {
   }
 
   @Test
+  void onlyDatadogIdHeadersAreParseOnly() {
+    Set<HeaderSchema> parseOnly = new HashSet<>();
+    for (HeaderSchema header : HeaderSchema.values()) {
+      if (header.isParseOnly()) {
+        parseOnly.add(header);
+      }
+    }
+    assertEquals(
+        new HashSet<>(
+            java.util.Arrays.asList(
+                HeaderSchema.X_DATADOG_TRACE_ID,
+                HeaderSchema.X_DATADOG_PARENT_ID,
+                HeaderSchema.X_DATADOG_SAMPLING_PRIORITY)),
+        parseOnly);
+  }
+
+  @Test
   void lookupsByNameAndOrdinal() {
     assertEquals(HeaderSchema.values().length, HeaderSchema.count());
     for (HeaderSchema header : HeaderSchema.values()) {

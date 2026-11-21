@@ -79,7 +79,10 @@ class CompositePropagator implements Propagator {
    * walking the carrier again, and readable in place as an {@link IndexedCarrier}.
    */
   static final class CarrierCache
-      implements BiConsumer<String, String>, CarrierVisitor<CarrierCache>, IndexedCarrier {
+      implements BiConsumer<String, String>,
+          TransientValueConsumer,
+          CarrierVisitor<CarrierCache>,
+          IndexedCarrier {
     /** Enough for the trace headers a carrier usually holds once unread keys are skipped. */
     private static final int INITIAL_PAIRS = 8;
 
@@ -91,6 +94,13 @@ class CompositePropagator implements Propagator {
      * pair rather than a reference, since there are fewer than 127 constants.
      */
     private byte[] headers = new byte[INITIAL_PAIRS];
+
+    /**
+     * Values handed as transient views, by pair, until copied; null until the first one, so
+     * carriers that hand only {@code String}s don't pay for it. The cache lives for one extraction,
+     * so the views stay in their scope.
+     */
+    private CharSequence[] views;
 
     private int size;
 
@@ -107,14 +117,31 @@ class CompositePropagator implements Propagator {
 
     @Override
     public void accept(String key, String value) {
+      add(key, value, key == null ? null : this.keys.header(key));
+    }
+
+    /** Keeps {@code value} as a view until something reads it as a {@code String}. */
+    @Override
+    public void acceptTransient(HeaderSchema header, String key, CharSequence value) {
+      int index = this.size;
+      add(key, null, header);
+      if (this.views == null) {
+        this.views = new CharSequence[this.headers.length];
+      }
+      this.views[index] = value;
+    }
+
+    private void add(String key, String value, HeaderSchema header) {
       int index = 2 * this.size;
       if (index == this.keysAndValues.length) {
         this.keysAndValues = Arrays.copyOf(this.keysAndValues, 2 * index);
         this.headers = Arrays.copyOf(this.headers, this.size * 2);
+        if (this.views != null) {
+          this.views = Arrays.copyOf(this.views, this.size * 2);
+        }
       }
       this.keysAndValues[index] = key;
       this.keysAndValues[index + 1] = value;
-      HeaderSchema header = key == null ? null : this.keys.header(key);
       this.headers[this.size] = header == null ? 0 : (byte) (header.ordinal() + 1);
       this.size++;
     }
@@ -122,7 +149,7 @@ class CompositePropagator implements Propagator {
     @Override
     public void forEachKeyValue(CarrierCache carrier, BiConsumer<String, String> visitor) {
       for (int i = 0; i < carrier.size; i++) {
-        visitor.accept(carrier.keysAndValues[2 * i], carrier.keysAndValues[2 * i + 1]);
+        visitor.accept(carrier.key(i), carrier.value(i));
       }
     }
 
@@ -136,9 +163,22 @@ class CompositePropagator implements Propagator {
       return this.keysAndValues[2 * index];
     }
 
+    /** The value as a {@code String}, copying a view once (and keeping the copy). */
     @Override
     public String value(int index) {
-      return this.keysAndValues[2 * index + 1];
+      String value = this.keysAndValues[2 * index + 1];
+      if (value == null && this.views != null && this.views[index] != null) {
+        value = this.views[index].toString();
+        this.keysAndValues[2 * index + 1] = value;
+        this.views[index] = null;
+      }
+      return value;
+    }
+
+    @Override
+    public CharSequence valueView(int index) {
+      CharSequence view = this.views == null ? null : this.views[index];
+      return view != null ? view : this.keysAndValues[2 * index + 1];
     }
 
     @Override

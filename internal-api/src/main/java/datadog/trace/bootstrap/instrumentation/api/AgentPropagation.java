@@ -69,6 +69,19 @@ public final class AgentPropagation {
     default boolean accept(HeaderSchema header, String key, String value) {
       return accept(key, value);
     }
+
+    /**
+     * Variant of {@link #accept(HeaderSchema, String, String)} for a value handed as a transient
+     * view (see {@code TransientValueConsumer}), valid only during this call: a classifier that
+     * overrides this parses it, or copies it ({@code toString()}) to keep it, and never keeps or
+     * hands on the view. The default copies it and calls {@link #accept(HeaderSchema, String,
+     * String)}.
+     *
+     * @return {@code false} to stop iteration, {@code true} to continue
+     */
+    default boolean acceptTransient(HeaderSchema header, String key, CharSequence value) {
+      return accept(header, key, value == null ? null : value.toString());
+    }
   }
 
   public interface ContextVisitor<C> extends CarrierVisitor<C> {

@@ -90,6 +90,19 @@ public class HttpCodec {
     default void cleanup() {}
   }
 
+  /**
+   * Hands pair {@code i} of {@code indexed} to {@code classifier}: a transient view through {@link
+   * AgentPropagation.KeyClassifier#acceptTransient}, a {@code String} through {@code accept}.
+   */
+  static boolean acceptIndexed(
+      AgentPropagation.KeyClassifier classifier, IndexedCarrier indexed, int i) {
+    CharSequence value = indexed.valueView(i);
+    if (value == null || value instanceof String) {
+      return classifier.accept(indexed.header(i), indexed.key(i), (String) value);
+    }
+    return classifier.acceptTransient(indexed.header(i), indexed.key(i), value);
+  }
+
   public static Injector createInjector(
       Config config,
       Set<TracePropagationStyle> styles,
@@ -439,7 +452,7 @@ public class HttpCodec {
       IndexedCarrier indexed = carrier.indexed;
       if (indexed != null) {
         for (int i = 0, n = indexed.size(); i < n; i++) {
-          classifier.accept(indexed.header(i), indexed.key(i), indexed.value(i));
+          acceptIndexed(classifier, indexed, i);
         }
         return;
       }
