@@ -22,20 +22,27 @@ import java.util.Set;
  * <p>Immutable.
  */
 public final class CarrierKeys {
-  private static final CarrierKeys ALL = new CarrierKeys(true, new String[0][], new String[0]);
-  private static final CarrierKeys NONE = new CarrierKeys(false, new String[0][], new String[0]);
+  private static final CarrierKeys ALL =
+      new CarrierKeys(true, new String[0][], new byte[0][][], new String[0]);
+  private static final CarrierKeys NONE =
+      new CarrierKeys(false, new String[0][], new byte[0][][], new String[0]);
 
   private final boolean all;
 
   /** Lower-cased exact names, indexed by length. */
   private final String[][] namesByLength;
 
+  /** Each name's lower-case ASCII bytes (null if it isn't ASCII), parallel to the names. */
+  private final byte[][][] asciiByLength;
+
   /** Lower-cased prefixes. */
   private final String[] prefixes;
 
-  private CarrierKeys(boolean all, String[][] namesByLength, String[] prefixes) {
+  private CarrierKeys(
+      boolean all, String[][] namesByLength, byte[][][] asciiByLength, String[] prefixes) {
     this.all = all;
     this.namesByLength = namesByLength;
+    this.asciiByLength = asciiByLength;
     this.prefixes = prefixes;
   }
 
@@ -103,18 +110,58 @@ public final class CarrierKeys {
    */
   public String nameAscii(ByteBuffer key) {
     int length = key.remaining();
-    if (length < namesByLength.length) {
-      String[] names = namesByLength[length];
-      if (names != null) {
-        int start = key.position();
-        for (String name : names) {
-          if (asciiMatches(key, start, name, length)) {
-            return name;
-          }
+    if (length >= namesByLength.length) {
+      return null;
+    }
+    String[] names = namesByLength[length];
+    if (names == null) {
+      return null;
+    }
+    int start = key.position();
+    if (key.hasArray()) {
+      // Keys are almost always lower case already: compare the backing array's bytes exactly
+      // first, and only compare ignoring case if the key has an upper-case byte at all
+      byte[] bytes = key.array();
+      int offset = key.arrayOffset() + start;
+      byte[][] asciiNames = asciiByLength[length];
+      for (int i = 0; i < names.length; i++) {
+        if (bytesEqual(bytes, offset, asciiNames[i], length)) {
+          return names[i];
         }
+      }
+      if (!hasUpperCase(bytes, offset, length)) {
+        return null;
+      }
+    }
+    for (String name : names) {
+      if (asciiMatches(key, start, name, length)) {
+        return name;
       }
     }
     return null;
+  }
+
+  /** Whether {@code length} bytes from {@code offset} are {@code expected}'s (null: never). */
+  private static boolean bytesEqual(byte[] bytes, int offset, byte[] expected, int length) {
+    if (expected == null) {
+      return false;
+    }
+    for (int i = 0; i < length; i++) {
+      if (bytes[offset + i] != expected[i]) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private static boolean hasUpperCase(byte[] bytes, int offset, int length) {
+    for (int i = offset, end = offset + length; i < end; i++) {
+      byte b = bytes[i];
+      if (b >= 'A' && b <= 'Z') {
+        return true;
+      }
+    }
+    return false;
   }
 
   /** Whether the ASCII bytes between {@code key}'s position and limit start with a prefix. */
@@ -246,7 +293,29 @@ public final class CarrierKeys {
           namesByLength[i] = sameLength.toArray(new String[0]);
         }
       }
-      return new CarrierKeys(false, namesByLength, prefixes.toArray(new String[0]));
+      byte[][][] asciiByLength = new byte[namesByLength.length][][];
+      for (int i = 0; i < namesByLength.length; i++) {
+        if (namesByLength[i] != null) {
+          asciiByLength[i] = new byte[namesByLength[i].length][];
+          for (int j = 0; j < namesByLength[i].length; j++) {
+            asciiByLength[i][j] = asciiBytes(namesByLength[i][j]);
+          }
+        }
+      }
+      return new CarrierKeys(false, namesByLength, asciiByLength, prefixes.toArray(new String[0]));
+    }
+
+    /** {@code name}'s ASCII bytes, or null if it has a char outside ASCII. */
+    private static byte[] asciiBytes(String name) {
+      byte[] bytes = new byte[name.length()];
+      for (int i = 0; i < bytes.length; i++) {
+        char c = name.charAt(i);
+        if (c > 0x7f) {
+          return null;
+        }
+        bytes[i] = (byte) c;
+      }
+      return bytes;
     }
   }
 }
