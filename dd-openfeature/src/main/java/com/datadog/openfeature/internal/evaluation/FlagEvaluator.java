@@ -476,7 +476,7 @@ public final class FlagEvaluator {
 
     final T mappedValue;
     try {
-      mappedValue = mapValue(target, variant.value);
+      mappedValue = mapValue(target, variant.value());
     } catch (final NumberFormatException e) {
       return error(
           defaultValue,

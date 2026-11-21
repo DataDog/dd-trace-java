@@ -96,7 +96,7 @@ class UniversalFlagConfigParserTest {
             "{\"flags\":{\"f\":{\"key\":\"f\",\"enabled\":true,\"variationType\":\"INTEGER\","
                 + "\"variations\":{\"v\":{\"key\":\"v\",\"value\":3}}}}}");
 
-    assertEquals(3.0, config.flags.get("f").variations.get("v").value);
+    assertEquals(3.0, config.flags.get("f").variations.get("v").value());
   }
 
   @Test
@@ -106,7 +106,7 @@ class UniversalFlagConfigParserTest {
     assertNotNull(config);
     assertFalse(config.flags.containsKey("malformed-flag"));
     assertTrue(config.flags.containsKey("valid-flag"));
-    assertEquals("expected", config.flags.get("valid-flag").variations.get("expected").value);
+    assertEquals("expected", config.flags.get("valid-flag").variations.get("expected").value());
   }
 
   @Test
@@ -345,7 +345,7 @@ class UniversalFlagConfigParserTest {
     assertNotNull(config);
     assertFalse(config.flags.containsKey("operator-grease-flag"));
     assertTrue(config.flags.containsKey("valid-flag"));
-    assertEquals("expected", config.flags.get("valid-flag").variations.get("expected").value);
+    assertEquals("expected", config.flags.get("valid-flag").variations.get("expected").value());
   }
 
   @Test
@@ -363,7 +363,7 @@ class UniversalFlagConfigParserTest {
     assertNotNull(config);
     assertFalse(config.flags.containsKey("null-flag"));
     assertTrue(config.flags.containsKey("valid-flag"));
-    assertEquals("expected", config.flags.get("valid-flag").variations.get("expected").value);
+    assertEquals("expected", config.flags.get("valid-flag").variations.get("expected").value());
   }
 
   @TableTest({

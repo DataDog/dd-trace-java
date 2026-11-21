@@ -205,10 +205,10 @@ class FlagEvaluatorJsonValueTest {
     final ServerConfiguration integer = config("f", "INTEGER", "5");
     final ServerConfiguration string = config("f", "STRING", "{\"n\":5,\"l\":[1]}");
 
-    assertEquals(5.0, integer.flags.get("f").variations.get("on").value);
+    assertEquals(5.0, integer.flags.get("f").variations.get("on").value());
     assertEquals(
-        "{n=5.0, l=[1.0]}", String.valueOf(string.flags.get("f").variations.get("on").value));
-    assertFalse(string.flags.get("f").variations.get("on").value instanceof Value);
+        "{n=5.0, l=[1.0]}", String.valueOf(string.flags.get("f").variations.get("on").value()));
+    assertFalse(string.flags.get("f").variations.get("on").value() instanceof Value);
   }
 
   @Test
