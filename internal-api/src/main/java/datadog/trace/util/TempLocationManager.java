@@ -1,5 +1,7 @@
 package datadog.trace.util;
 
+import static java.nio.file.LinkOption.NOFOLLOW_LINKS;
+
 import datadog.environment.SystemProperties;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.internal.VisibleForTesting;
@@ -9,6 +11,8 @@ import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.config.inversion.ConfigHelper;
 import java.io.IOException;
+import java.nio.file.DirectoryNotEmptyException;
+import java.nio.file.DirectoryStream;
 import java.nio.file.FileSystems;
 import java.nio.file.FileVisitResult;
 import java.nio.file.FileVisitor;
@@ -25,15 +29,12 @@ import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A manager class for temporary locations used by the profiling product. The temporary location is
- * keyed by the process ID and allows for cleanup of orphaned temporary files on startup by querying
- * the list of running Java processes and cleaning up any temporary locations that do not correspond
- * to a running Java process. Also, the temporary location is cleaned up on shutdown.
+ * Manages profiling files beneath a fresh directory for each JVM. Startup cleanup removes stale
+ * files belonging to exited JVMs from directories owned by the same OS user.
  */
 public final class TempLocationManager {
   private static final Logger log = LoggerFactory.getLogger(TempLocationManager.class);
@@ -71,6 +72,7 @@ public final class TempLocationManager {
 
   private final class CleanupVisitor implements FileVisitor<Path> {
     private boolean shouldClean;
+    private Path cleanupBase;
 
     private Set<String> pidSet;
 
@@ -89,6 +91,11 @@ public final class TempLocationManager {
       return terminated;
     }
 
+    void setBase(Path cleanupBase) {
+      this.cleanupBase = cleanupBase;
+      shouldClean = false;
+    }
+
     private boolean isTimedOut() {
       return timeSource.getCurrentTimeMillis() > timeoutTargetMillis;
     }
@@ -105,7 +112,7 @@ public final class TempLocationManager {
 
       cleanupTestHook.preVisitDirectory(dir, attrs, false);
 
-      if (dir.equals(baseTempDir)) {
+      if (dir.equals(cleanupBase)) {
         return FileVisitResult.CONTINUE;
       }
       String fileName = dir.getFileName().toString();
@@ -222,10 +229,12 @@ public final class TempLocationManager {
           PosixFilePermission.OTHERS_EXECUTE);
 
   private final boolean isPosixFs;
+  private final Path configuredTempDir;
+  private final String baseTempDirName;
   private final Path baseTempDir;
   private final Path tempDir;
   private final long cutoffSeconds;
-  private UserPrincipal expectedOwner;
+  private final UserPrincipal expectedOwner;
 
   private final CleanupTask cleanupTask = new CleanupTask();
   private final CleanupHook cleanupTestHook;
@@ -292,7 +301,7 @@ public final class TempLocationManager {
         configProvider.getLong(
             ProfilingConfig.PROFILING_UPLOAD_PERIOD,
             ProfilingConfig.PROFILING_UPLOAD_PERIOD_DEFAULT);
-    Path configuredTempDir =
+    configuredTempDir =
         Paths.get(
             configProvider.getString(
                 ProfilingConfig.PROFILING_TEMP_DIR, ProfilingConfig.PROFILING_TEMP_DIR_DEFAULT));
@@ -308,16 +317,30 @@ public final class TempLocationManager {
 
     String pid = PidHelper.getPid();
 
-    baseTempDir = configuredTempDir.resolve(getBaseTempDirName());
+    baseTempDirName = getBaseTempDirName();
+    try {
+      // A fresh parent avoids reusing directories left behind by earlier JVMs.
+      baseTempDir =
+          isPosixFs
+              ? Files.createTempDirectory(
+                  configuredTempDir,
+                  baseTempDirName + "_",
+                  PosixFilePermissions.asFileAttribute(
+                      PosixFilePermissions.fromString("rwx------")))
+              : Files.createTempDirectory(configuredTempDir, baseTempDirName + "_");
+      expectedOwner = isPosixFs ? Files.getOwner(baseTempDir, NOFOLLOW_LINKS) : null;
+    } catch (IOException e) {
+      throw new IllegalStateException(
+          "Failed to create profiler temp directory in " + configuredTempDir, e);
+    }
     baseTempDir.toFile().deleteOnExit();
 
     tempDir = baseTempDir.resolve(TEMPDIR_PREFIX + pid);
+    createTempDir(tempDir);
     if (runStartupCleanup) {
       // do not execute the background cleanup task when running in tests
       AgentTaskScheduler.get().execute(cleanupTask);
     }
-
-    createTempDir(tempDir);
   }
 
   @VisibleForTesting
@@ -332,7 +355,8 @@ public final class TempLocationManager {
   }
 
   /**
-   * Get the temporary directory for the current process. The directory will be removed at JVM exit.
+   * Gets the temporary directory for the current process. Stale files may be removed by startup
+   * cleanup in a later JVM.
    *
    * @return the temporary directory for the current process
    */
@@ -341,8 +365,7 @@ public final class TempLocationManager {
   }
 
   /**
-   * Get the temporary subdirectory for the current process. The directory will be removed at JVM
-   * exit.
+   * Gets a temporary subdirectory for the current process.
    *
    * @param subPath the relative subdirectory path, may be {@literal null}
    * @return the temporary subdirectory for the current process
@@ -371,8 +394,7 @@ public final class TempLocationManager {
   }
 
   /**
-   * Walk the base temp directory recursively and remove all inactive per-process entries. No
-   * timeout is applied.
+   * Removes stale per-process entries from profiling directories. No timeout is applied.
    *
    * @return {@literal true} if cleanup fully succeeded or {@literal false} otherwise (eg.
    *     interruption etc.)
@@ -382,7 +404,7 @@ public final class TempLocationManager {
   }
 
   /**
-   * Walk the base temp directory recursively and remove all inactive per-process entries
+   * Removes stale per-process entries from profiling directories.
    *
    * @param timeout the task timeout; may be {@literal -1} to signal no timeout
    * @param unit the task timeout unit
@@ -391,25 +413,52 @@ public final class TempLocationManager {
    */
   boolean cleanup(long timeout, TimeUnit unit) {
     try {
-      if (!Files.exists(baseTempDir)) {
-        // not even the main temp location exists; nothing to clean up
-        return true;
-      }
-      try (Stream<Path> paths = Files.walk(baseTempDir)) {
-        if (paths.noneMatch(
-            path ->
-                Files.isDirectory(path)
-                    && path.getFileName().toString().startsWith(TEMPDIR_PREFIX))) {
-          // nothing to clean up; bail out early
-          return true;
-        }
-      }
       cleanupTestHook.onCleanupStart(timeout, unit);
       CleanupVisitor visitor = new CleanupVisitor(timeout, unit);
-      Files.walkFileTree(baseTempDir, visitor);
-      return !visitor.isTerminated();
+      boolean success = true;
+      String prefix = baseTempDirName + "_";
+      try (DirectoryStream<Path> candidates =
+          Files.newDirectoryStream(
+              configuredTempDir,
+              path -> {
+                String name = path.getFileName().toString();
+                return name.equals(baseTempDirName) || name.startsWith(prefix);
+              })) {
+        for (Path candidate : candidates) {
+          if (visitor.isTimedOut()) {
+            return false;
+          }
+          try {
+            if (!isTrustedCleanupBase(candidate)) {
+              continue;
+            }
+            boolean removeBase =
+                !candidate.equals(baseTempDir)
+                    && Files.getLastModifiedTime(candidate, NOFOLLOW_LINKS).toMillis()
+                        <= visitor.cutoffMillis;
+            visitor.setBase(candidate);
+            Files.walkFileTree(candidate, visitor);
+            if (visitor.isTerminated()) {
+              return false;
+            }
+            if (removeBase) {
+              try {
+                Files.delete(candidate);
+              } catch (DirectoryNotEmptyException ignored) {
+                // An active JVM or recent files still use this directory.
+              }
+            }
+          } catch (NoSuchFileException ignored) {
+            // Another JVM has already cleaned this directory.
+          } catch (IOException e) {
+            log.debug("Unable to cleanup temp location {}", candidate, e);
+            success = false;
+          }
+        }
+      }
+      return success;
     } catch (IOException e) {
-      log.debug("Unable to cleanup temp location {}", baseTempDir, e);
+      log.debug("Unable to scan profiling temp locations in {}", configuredTempDir, e);
     }
     return false;
   }
@@ -431,15 +480,14 @@ public final class TempLocationManager {
     return false;
   }
 
-  @VisibleForTesting
-  void createDirStructure() throws IOException {
-    Files.createDirectories(baseTempDir);
-    if (isPosixFs) {
-      if (expectedOwner == null) {
-        expectedOwner = Files.getOwner(baseTempDir);
-      }
-      validateOwnedSecureDir(baseTempDir);
+  private boolean isTrustedCleanupBase(Path dir) throws IOException {
+    if (!Files.isDirectory(dir, NOFOLLOW_LINKS)) {
+      return false;
     }
+    return !isPosixFs
+        || (expectedOwner.equals(Files.getOwner(dir, NOFOLLOW_LINKS))
+            && Files.getPosixFilePermissions(dir, NOFOLLOW_LINKS).stream()
+                .noneMatch(GROUP_WORLD_BITS::contains));
   }
 
   /**
@@ -453,10 +501,13 @@ public final class TempLocationManager {
       return;
     }
     try {
-      Set<PosixFilePermission> perms = Files.getPosixFilePermissions(dir);
-      UserPrincipal owner = Files.getOwner(dir);
+      if (!Files.isDirectory(dir, NOFOLLOW_LINKS)) {
+        throw new IllegalStateException("Untrusted temp directory: " + dir);
+      }
+      Set<PosixFilePermission> perms = Files.getPosixFilePermissions(dir, NOFOLLOW_LINKS);
+      UserPrincipal owner = Files.getOwner(dir, NOFOLLOW_LINKS);
       boolean hasGroupWorldBits = perms.stream().anyMatch(GROUP_WORLD_BITS::contains);
-      boolean wrongOwner = expectedOwner != null && !expectedOwner.equals(owner);
+      boolean wrongOwner = !expectedOwner.equals(owner);
       if (hasGroupWorldBits || wrongOwner) {
         ProfilerFlareLogger.getInstance()
             .log(
@@ -479,13 +530,9 @@ public final class TempLocationManager {
     String msg = "Failed to create temp directory: " + tempDir;
     try {
       if (isPosixFs) {
-        // Validate any already-existing components from baseTempDir down to tempDir
-        // before creating anything new, to reject attacker-pre-planted directories.
+        // Check existing components before creating subdirectories.
         Path current = baseTempDir;
         if (Files.exists(current)) {
-          if (expectedOwner == null) {
-            expectedOwner = Files.getOwner(current);
-          }
           validateOwnedSecureDir(current);
           // Walk the relative path components between baseTempDir and tempDir
           Path rel = baseTempDir.relativize(tempDir);
@@ -499,10 +546,6 @@ public final class TempLocationManager {
         Files.createDirectories(
             tempDir,
             PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
-        // Capture owner from a freshly created reference if not yet established
-        if (expectedOwner == null) {
-          expectedOwner = Files.getOwner(tempDir);
-        }
         validateOwnedSecureDir(tempDir);
       } else {
         Files.createDirectories(tempDir);

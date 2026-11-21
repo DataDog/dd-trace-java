@@ -104,7 +104,9 @@ public class TempLocationManagerTest {
 
     // fake temp location
     Path fakeTempDir = myDir.resolve(TempLocationManager.getBaseTempDirName()).resolve("pid_fake");
-    Files.createDirectories(fakeTempDir);
+    Files.createDirectories(
+        fakeTempDir,
+        PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
     Path tmpFile = Files.createFile(fakeTempDir.resolve("test.txt"));
     tmpFile.toFile().deleteOnExit(); // make sure this is deleted at exit
     fakeTempDir.toFile().deleteOnExit(); // also this one

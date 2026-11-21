@@ -2,6 +2,7 @@ package datadog.libs.ddprof;
 
 import com.datadoghq.profiler.JVMAccess;
 import com.datadoghq.profiler.JavaProfiler;
+import com.datadoghq.profiler.LibraryLoader;
 import com.datadoghq.profiler.OTelContext;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
@@ -61,6 +62,19 @@ public final class DdprofLibraryLoader {
       }
     }
 
+    /**
+     * Returns whether a load of this component has been attempted (successfully or not), without
+     * triggering one.
+     */
+    public final boolean isLoadAttempted() {
+      return loaded;
+    }
+
+    /** Returns whether this component was successfully loaded, without initializing it. */
+    public final boolean isLoaded() {
+      return loaded && component != null;
+    }
+
     public final T getComponent() {
       initialize();
       return component;
@@ -102,6 +116,24 @@ public final class DdprofLibraryLoader {
     }
   }
 
+  /** Outcome of {@link #checkLibrary()}. */
+  public static final class LibraryCheck {
+    /** Whether the native library is loaded. */
+    public final boolean loaded;
+
+    /** Whether the outcome comes from an earlier load attempt rather than from this check. */
+    public final boolean earlierAttempt;
+
+    /** Why the native library is not loaded; {@code null} if it is loaded or the reason is lost. */
+    public final Throwable reasonNotLoaded;
+
+    LibraryCheck(boolean loaded, boolean earlierAttempt, Throwable reasonNotLoaded) {
+      this.loaded = loaded;
+      this.earlierAttempt = earlierAttempt;
+      this.reasonNotLoaded = reasonNotLoaded;
+    }
+  }
+
   private static final JavaProfilerHolder PROFILER_HOLDER =
       new JavaProfilerHolder(DdprofLibraryLoader::initJavaProfiler);
 
@@ -121,6 +153,50 @@ public final class DdprofLibraryLoader {
 
   public static OTelContextHolder otelContext() {
     return OTEL_CONTEXT_HOLDER;
+  }
+
+  /**
+   * Checks the native library the same way the profiler loads it, without initializing any
+   * component. The check is serialized with component loading, so a load in progress is awaited and
+   * its outcome reported.
+   */
+  public static LibraryCheck checkLibrary() {
+    if (javaProfiler().isLoaded()) {
+      return new LibraryCheck(true, true, null);
+    }
+
+    synchronized (DdprofLibraryLoader.class) {
+      JavaProfilerHolder profiler = javaProfiler();
+      if (profiler.isLoadAttempted()) {
+        return new LibraryCheck(profiler.isLoaded(), true, profiler.getReasonNotLoaded());
+      }
+      LibraryLoader.Result result;
+      try {
+        ConfigProvider configProvider = ConfigProvider.getInstance();
+        result =
+            LibraryLoader.builder()
+                .withLibraryLocation(
+                    configProvider.getString(ProfilingConfig.PROFILING_DATADOG_PROFILER_LIBPATH))
+                .withScratchDir(getScratchDir(configProvider))
+                .load();
+      } catch (Throwable t) {
+        return new LibraryCheck(false, false, t);
+      }
+
+      if (result.succeeded || result.error != null) {
+        return new LibraryCheck(result.succeeded, false, result.error);
+      }
+
+      // the loader reports the original error only once; look it up in the components which may
+      // have attempted the load earlier
+      Throwable reason = reasonNotLoaded(jvmAccess());
+      return new LibraryCheck(
+          false, true, reason != null ? reason : reasonNotLoaded(otelContext()));
+    }
+  }
+
+  private static Throwable reasonNotLoaded(ComponentHolder<?> holder) {
+    return holder.isLoadAttempted() ? holder.getReasonNotLoaded() : null;
   }
 
   private static JavaProfilerHolder initJavaProfiler() {
