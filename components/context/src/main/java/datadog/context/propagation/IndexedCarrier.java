@@ -16,4 +16,11 @@ public interface IndexedCarrier {
 
   /** The value of pair {@code index}, from 0 to {@link #size()} - 1. */
   String value(int index);
+
+  /**
+   * The {@link HeaderSchema} constant of pair {@code index}'s key, or null if it has none (an
+   * unknown key, or a key the carrier didn't classify). Lets a propagator switch on the constant
+   * instead of comparing names; null keys must still be checked by name.
+   */
+  HeaderSchema header(int index);
 }

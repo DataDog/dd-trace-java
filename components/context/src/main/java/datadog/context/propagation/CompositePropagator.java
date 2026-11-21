@@ -64,8 +64,9 @@ class CompositePropagator implements Propagator {
   @Override
   public <C> Context extract(Context context, C carrier, CarrierVisitor<C> visitor) {
     // Extract and cache the carrier key/value pairs the propagators read
-    CarrierCache carrierCache = new CarrierCache();
-    visitor.forEachKeyValue(carrier, keys(), carrierCache);
+    CarrierKeys keys = keys();
+    CarrierCache carrierCache = new CarrierCache(keys);
+    visitor.forEachKeyValue(carrier, keys, carrierCache);
     // Run the multiple extractions on cache
     for (Propagator propagator : this.propagators) {
       context = propagator.extract(context, carrierCache, carrierCache);
@@ -85,16 +86,32 @@ class CompositePropagator implements Propagator {
     /** Keys at even indexes, values at odd ones. */
     private String[] keysAndValues = new String[2 * INITIAL_PAIRS];
 
+    /** Each pair's {@link HeaderSchema} constant, or null. */
+    private HeaderSchema[] headers = new HeaderSchema[INITIAL_PAIRS];
+
     private int size;
+
+    /** Classifies keys with {@code keys}, which knows each declared name's constant. */
+    private final CarrierKeys keys;
+
+    CarrierCache(CarrierKeys keys) {
+      this.keys = keys;
+    }
+
+    CarrierCache() {
+      this(CarrierKeys.none());
+    }
 
     @Override
     public void accept(String key, String value) {
       int index = 2 * this.size;
       if (index == this.keysAndValues.length) {
         this.keysAndValues = Arrays.copyOf(this.keysAndValues, 2 * index);
+        this.headers = Arrays.copyOf(this.headers, this.size * 2);
       }
       this.keysAndValues[index] = key;
       this.keysAndValues[index + 1] = value;
+      this.headers[this.size] = key == null ? null : this.keys.header(key);
       this.size++;
     }
 
@@ -118,6 +135,11 @@ class CompositePropagator implements Propagator {
     @Override
     public String value(int index) {
       return this.keysAndValues[2 * index + 1];
+    }
+
+    @Override
+    public HeaderSchema header(int index) {
+      return this.headers[index];
     }
   }
 }

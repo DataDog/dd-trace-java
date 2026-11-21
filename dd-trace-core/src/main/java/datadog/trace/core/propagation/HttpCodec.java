@@ -6,6 +6,7 @@ import static datadog.trace.core.propagation.DatadogHttpCodec.SPAN_ID_KEY;
 
 import datadog.context.propagation.CarrierKeys;
 import datadog.context.propagation.CarrierSetter;
+import datadog.context.propagation.HeaderSchema;
 import datadog.context.propagation.IndexedCarrier;
 import datadog.trace.api.Config;
 import datadog.trace.api.DD128bTraceId;
@@ -399,7 +400,12 @@ public class HttpCodec {
         this.indexed = (IndexedCarrier) carrier;
         this.keysAndValues = null;
         for (int i = 0, n = this.indexed.size(); i < n; i++) {
-          cacheDatadogSpanId(this.indexed.key(i), this.indexed.value(i));
+          HeaderSchema header = this.indexed.header(i);
+          // a known header is matched by its constant; a key without one, by name
+          if (header == HeaderSchema.X_DATADOG_PARENT_ID
+              || header == null && SPAN_ID_KEY.equalsIgnoreCase(this.indexed.key(i))) {
+            cacheDatadogSpanIdValue(this.indexed.value(i));
+          }
         }
       } else {
         this.indexed = null;
@@ -418,11 +424,15 @@ public class HttpCodec {
 
     private void cacheDatadogSpanId(String key, String value) {
       if (SPAN_ID_KEY.equalsIgnoreCase(key)) {
-        try {
-          this.datadogSpanId = DDSpanId.from(value);
-          this.hasDatadogSpanId = true;
-        } catch (NumberFormatException ignored) {
-        }
+        cacheDatadogSpanIdValue(value);
+      }
+    }
+
+    private void cacheDatadogSpanIdValue(String value) {
+      try {
+        this.datadogSpanId = DDSpanId.from(value);
+        this.hasDatadogSpanId = true;
+      } catch (NumberFormatException ignored) {
       }
     }
 
@@ -439,7 +449,7 @@ public class HttpCodec {
       IndexedCarrier indexed = carrier.indexed;
       if (indexed != null) {
         for (int i = 0, n = indexed.size(); i < n; i++) {
-          classifier.accept(indexed.key(i), indexed.value(i));
+          classifier.accept(indexed.header(i), indexed.key(i), indexed.value(i));
         }
         return;
       }
