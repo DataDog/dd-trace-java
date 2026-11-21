@@ -1,6 +1,13 @@
 package datadog.trace.api.datastreams;
 
+import static datadog.trace.api.BaseHash.getBaseHash;
+import static datadog.trace.api.BaseHash.updateBaseHash;
+import static datadog.trace.api.datastreams.DataStreamsTags.Direction.INBOUND;
 import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
+import static datadog.trace.api.datastreams.DataStreamsTags.setServiceNameOverride;
+import static datadog.trace.util.FNV64Hash.Version.v1;
+import static datadog.trace.util.FNV64Hash.continueHash;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -9,12 +16,26 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import datadog.trace.api.BaseHash;
 import datadog.trace.api.datastreams.DataStreamsTags.Direction;
 import java.nio.ByteBuffer;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class DataStreamsTagsTest {
+  private long originalBaseHash;
+
+  @BeforeEach
+  void captureBaseHash() {
+    originalBaseHash = getBaseHash();
+  }
+
+  /** The override and base hash are global, so a test changing them mustn't leak into others. */
+  @AfterEach
+  void restoreGlobals() {
+    setServiceNameOverride(null);
+    updateBaseHash(originalBaseHash);
+  }
 
   private static DataStreamsTags getTags(int idx) {
     return new DataStreamsTags(
@@ -99,6 +120,19 @@ class DataStreamsTagsTest {
   }
 
   @Test
+  void hasAllTagsRejectsTagsItDoesNotHave() {
+    DataStreamsTags tags = DataStreamsTags.create("kafka", INBOUND, "orders", "group", "cluster");
+
+    assertTrue(tags.hasAllTags(new String[] {"topic:orders", "direction:in", "group:group"}));
+    assertFalse(tags.hasAllTags(new String[] {"topic:payments"}), "different value");
+    assertFalse(tags.hasAllTags(new String[] {"exchange:orders"}), "absent tag");
+    assertFalse(tags.hasAllTags(new String[] {"unknown:orders"}), "unknown name");
+    assertFalse(tags.hasAllTags(new String[] {"direction:out"}), "different direction");
+    assertFalse(tags.hasAllTags(new String[] {"direction:garbage"}), "unknown direction");
+    assertFalse(tags.hasAllTags(new String[] {"topic:orders", "group:other"}), "one mismatch");
+  }
+
+  @Test
   void testLongToBytes() {
     long value = 123444L;
     byte[] bytes = DataStreamsTags.longToBytes(value);
@@ -115,10 +149,10 @@ class DataStreamsTagsTest {
 
     ThreadLocal<String> serviceName = new ThreadLocal<>();
     serviceName.set("test");
-    DataStreamsTags.setServiceNameOverride(serviceName);
+    setServiceNameOverride(serviceName);
     DataStreamsTags two = getTags(0);
 
-    BaseHash.updateBaseHash(12);
+    updateBaseHash(12);
     DataStreamsTags three = getTags(0);
 
     assertNotEquals(one.getHash(), two.getHash());
@@ -488,5 +522,93 @@ class DataStreamsTagsTest {
         base.getAggregationHash(),
         withPartition.getAggregationHash()); // aggregation hash unchanged
     assertNotEquals(base, withPartition); // but complete hash changed
+  }
+
+  @Test
+  void hashesMatchHashingTheEncodedTags() {
+    DataStreamsTags[] tagsList = {
+      getTags(0),
+      DataStreamsTags.create(null, null),
+      DataStreamsTags.create("kafka", INBOUND, "orders", "group", "cluster"),
+      DataStreamsTags.createWithExchange("rabbitmq", OUTBOUND, "exchange", false),
+      DataStreamsTags.createWithDataset("s3", Direction.UNKNOWN, null, "caf\u00e9", "\u6ce8\ud83d"),
+      new DataStreamsTags(
+          "bus\ud83d\ude80",
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          "consumer",
+          null,
+          null,
+          "3")
+    };
+    for (DataStreamsTags tags : tagsList) {
+      assertHashesMatchEncodedTags(tags, getBaseHash(), null);
+    }
+  }
+
+  @Test
+  void hashesUseTheBaseHashAndServiceNameOverrideOfConstruction() {
+    long baseHash = getBaseHash();
+    ThreadLocal<String> serviceName = new ThreadLocal<>();
+    serviceName.set("service-at-construction");
+    setServiceNameOverride(serviceName);
+    DataStreamsTags tags = getTags(1);
+
+    // Changed before the hashes are first read, which mustn't change them
+    serviceName.set("service-later");
+    updateBaseHash(baseHash + 1);
+
+    assertHashesMatchEncodedTags(tags, baseHash, "service-at-construction");
+  }
+
+  /** Checks the hashes against FNV-64 over the UTF-8 encoded "name:value" tags. */
+  private static void assertHashesMatchEncodedTags(
+      DataStreamsTags tags, long baseHash, String serviceName) {
+    long hash = baseHash;
+    if (serviceName != null) {
+      hash = hashEncoded(hash, serviceName);
+    }
+    int nonNullSize = 0;
+    for (int i = 0; i < DataStreamsTags.AGGREGATION_TAGS_START; i++) {
+      String tag = tags.tagByIndex(i);
+      if (tag != null) {
+        nonNullSize++;
+        hash = hashEncoded(hash, tag);
+      }
+    }
+    long aggregationHash = hash;
+    for (int i = DataStreamsTags.AGGREGATION_TAGS_START;
+        i < DataStreamsTags.VALUE_TAGS_START;
+        i++) {
+      String tag = tags.tagByIndex(i);
+      if (tag != null) {
+        nonNullSize++;
+        aggregationHash = hashEncoded(aggregationHash, tag);
+      }
+    }
+    long completeHash = aggregationHash;
+    for (int i = DataStreamsTags.VALUE_TAGS_START; i < tags.size(); i++) {
+      String tag = tags.tagByIndex(i);
+      if (tag != null) {
+        nonNullSize++;
+        completeHash = hashEncoded(completeHash, tag);
+      }
+    }
+    assertEquals(hash, tags.getHash(), tags::toString);
+    assertEquals(aggregationHash, tags.getAggregationHash(), tags::toString);
+    // The complete hash isn't exposed, but equals and hashCode are defined by it
+    assertEquals(Long.hashCode(completeHash), tags.hashCode(), tags::toString);
+    assertEquals(nonNullSize, tags.nonNullSize(), tags::toString);
+  }
+
+  private static long hashEncoded(long hash, String value) {
+    return continueHash(hash, value.getBytes(UTF_8), v1);
   }
 }
