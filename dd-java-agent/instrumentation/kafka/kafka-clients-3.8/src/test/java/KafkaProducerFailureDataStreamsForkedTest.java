@@ -1,5 +1,7 @@
+import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import datadog.trace.agent.test.AbstractInstrumentationTest;
@@ -19,6 +21,8 @@ import datadog.trace.common.metrics.Sink;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.datastreams.DefaultDataStreamsMonitoring;
 import datadog.trace.core.datastreams.StatsBucket;
+import datadog.trace.instrumentation.kafka_clients38.DDOffsetCommitCallback;
+import datadog.trace.instrumentation.kafka_clients38.KafkaConsumerInfo;
 import datadog.trace.instrumentation.kafka_clients38.OffsetCommitBacklogListener;
 import datadog.trace.test.junit.utils.config.WithConfig;
 import java.nio.ByteBuffer;
@@ -32,6 +36,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -96,7 +101,7 @@ class KafkaProducerFailureDataStreamsForkedTest extends AbstractInstrumentationT
     embeddedKafka.afterPropertiesSet();
     embeddedKafka.addTopics(
         new NewTopic(REJECTING_TOPIC, 1, (short) 1)
-            .configs(Collections.singletonMap("max.message.bytes", "512")));
+            .configs(singletonMap("max.message.bytes", "512")));
   }
 
   @AfterEach
@@ -126,7 +131,7 @@ class KafkaProducerFailureDataStreamsForkedTest extends AbstractInstrumentationT
   @Test
   void produceRejectedByTheClientDoesNotReportAKafkaProduceBacklog() throws Exception {
     try (KafkaProducer<String, String> failingProducer =
-            newProducer(Collections.singletonMap(ProducerConfig.MAX_REQUEST_SIZE_CONFIG, 10));
+            newProducer(singletonMap(ProducerConfig.MAX_REQUEST_SIZE_CONFIG, 10));
         KafkaProducer<String, String> producer = newProducer(Collections.emptyMap())) {
       assertThrows(
           ExecutionException.class,
@@ -155,16 +160,39 @@ class KafkaProducerFailureDataStreamsForkedTest extends AbstractInstrumentationT
           OffsetMetadataTooLarge.class,
           () ->
               rejected.commitSync(
-                  Collections.singletonMap(
-                      partition, new OffsetAndMetadata(99L, repeat('x', 8192))),
+                  singletonMap(partition, new OffsetAndMetadata(99L, repeat('x', 8192))),
                   COMMIT_TIMEOUT));
       assertNull(
           rejected.committed(Collections.singleton(partition), COMMIT_TIMEOUT).get(partition));
-      accepted.commitSync(
-          Collections.singletonMap(partition, new OffsetAndMetadata(2L)), COMMIT_TIMEOUT);
+      accepted.commitSync(singletonMap(partition, new OffsetAndMetadata(2L)), COMMIT_TIMEOUT);
       waitForCommitBacklog(acceptedGroup, 2L, null);
       assertEquals(Collections.emptyList(), commitBacklogs(rejectedGroup, null));
     }
+  }
+
+  @Test
+  void failedCommitCallbackDoesNotReportAnUncommittedOffset() throws Exception {
+    String rejectedGroup = "callback-rejected";
+    String acceptedGroup = "callback-accepted";
+    TopicPartition partition = new TopicPartition(OK_TOPIC, 0);
+    Map<TopicPartition, OffsetAndMetadata> offsets =
+        singletonMap(partition, new OffsetAndMetadata(99L));
+    Exception failure = new OffsetMetadataTooLarge("rejected");
+    AtomicReference<Exception> received = new AtomicReference<>();
+    DDOffsetCommitCallback rejected =
+        new DDOffsetCommitCallback(
+            (committed, exception) -> received.set(exception),
+            new KafkaConsumerInfo(rejectedGroup, null, "localhost:9092"),
+            null);
+    DDOffsetCommitCallback accepted =
+        new DDOffsetCommitCallback(
+            null, new KafkaConsumerInfo(acceptedGroup, null, "localhost:9092"), null);
+
+    rejected.onComplete(offsets, failure);
+    assertSame(failure, received.get());
+    accepted.onComplete(singletonMap(partition, new OffsetAndMetadata(2L)), null);
+    waitForCommitBacklog(acceptedGroup, 2L, null);
+    assertEquals(Collections.emptyList(), commitBacklogs(rejectedGroup, null));
   }
 
   @Test
@@ -179,7 +207,7 @@ class KafkaProducerFailureDataStreamsForkedTest extends AbstractInstrumentationT
     try {
       future.addListener(
           new OffsetCommitBacklogListener(
-              Collections.singletonMap(partition, new OffsetAndMetadata(5L)), null, group));
+              singletonMap(partition, new OffsetAndMetadata(5L)), null, group));
     } finally {
       monitoring.clearThreadServiceName();
     }

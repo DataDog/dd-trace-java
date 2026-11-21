@@ -32,7 +32,7 @@ public class DDOffsetCommitCallback implements OffsetCommitCallback {
       callback.onComplete(map, e);
     }
     // Only Data Streams tracks committed offsets
-    if (map == null || !traceConfig().isDataStreamsEnabled()) {
+    if (e != null || map == null || !traceConfig().isDataStreamsEnabled()) {
       return;
     }
     for (Map.Entry<TopicPartition, OffsetAndMetadata> entry : map.entrySet()) {
