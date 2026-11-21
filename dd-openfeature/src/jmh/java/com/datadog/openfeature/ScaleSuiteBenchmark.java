@@ -92,8 +92,7 @@ public class ScaleSuiteBenchmark {
     "scale-json/json-values",
     "regex/backtracking",
     "regex/literals",
-    "regex/semantics",
-    "regex/unsupported-syntax"
+    "regex/semantics"
   })
   public String cases;
 

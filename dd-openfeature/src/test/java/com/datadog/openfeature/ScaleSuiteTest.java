@@ -25,6 +25,9 @@ class ScaleSuiteTest {
   // The regex suite needs the linear-time matcher (#13487).
   private static final List<String> SUITES = Arrays.asList("scale", "scale-json", "regex");
 
+  // Its cases expect an error code and reason, which ScaleCase doesn't check yet.
+  private static final String SKIPPED = "regex/unsupported-syntax";
+
   /** One provider per suite, so each configuration is parsed once. */
   private static final Map<String, Provider> PROVIDERS = new HashMap<>();
 
@@ -32,7 +35,9 @@ class ScaleSuiteTest {
     final List<String> caseFiles = new ArrayList<>();
     for (final String suite : SUITES) {
       for (final String file : ScaleSuites.load(suite).caseFiles()) {
-        caseFiles.add(suite + "/" + file);
+        if (!SKIPPED.equals(suite + "/" + file)) {
+          caseFiles.add(suite + "/" + file);
+        }
       }
     }
     return caseFiles.stream();

@@ -34,8 +34,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
 /** Local evaluation over a single configuration snapshot. No transport dependency. */
