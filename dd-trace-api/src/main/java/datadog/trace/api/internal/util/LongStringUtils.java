@@ -3,6 +3,7 @@ package datadog.trace.api.internal.util;
 import static java.nio.charset.StandardCharsets.US_ASCII;
 
 import java.util.Arrays;
+import java.util.Locale;
 
 /**
  * Utility class with common long decimal and hexadecimal parsing, and {@link String} creation
