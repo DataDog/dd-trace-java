@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.kafka_clients38;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import datadog.trace.bootstrap.instrumentation.api.BufferedHeaderFields;
+import datadog.trace.util.AsciiSequence;
 import java.nio.ByteBuffer;
 import org.apache.kafka.common.header.Header;
 
@@ -77,6 +78,24 @@ final class RecordHeaderAccess {
       }
     }
     return value == null ? null : new String(value, UTF_8);
+  }
+
+  /**
+   * The header's value as a view of its bytes, without copying or decoding them, or null if it
+   * can't be viewed: no value, non-ASCII bytes, or a direct buffer. The view shares the record's
+   * buffer (the whole fetch buffer), so it must not outlive the extraction ({@link AsciiSequence}).
+   */
+  static CharSequence asciiValueView(BufferedHeaderFields fields) {
+    byte[] value = fields.$$DD$$__value();
+    if (value != null) {
+      return AsciiSequence.ofAscii(value, 0, value.length);
+    }
+    ByteBuffer buffer = fields.$$DD$$__valueBuffer();
+    if (buffer == null || !buffer.hasArray()) {
+      return null;
+    }
+    return AsciiSequence.ofAscii(
+        buffer.array(), buffer.arrayOffset() + buffer.position(), buffer.remaining());
   }
 
   /** The known name whose bytes {@code buffer}'s remaining bytes are, or null. */

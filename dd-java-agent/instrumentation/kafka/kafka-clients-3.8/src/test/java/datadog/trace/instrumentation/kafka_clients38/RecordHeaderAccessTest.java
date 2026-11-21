@@ -8,14 +8,18 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.context.propagation.CarrierKeys;
+import datadog.context.propagation.HeaderSchema;
+import datadog.context.propagation.TransientValueConsumer;
 import datadog.trace.agent.tooling.bytebuddy.FieldAccessors;
 import datadog.trace.bootstrap.instrumentation.api.BufferedHeaderFields;
+import datadog.trace.util.AsciiSequence;
 import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
+import java.util.function.BiConsumer;
 import net.bytebuddy.description.type.TypeDescription.ForLoadedType;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
@@ -215,6 +219,92 @@ class RecordHeaderAccessTest {
     new TextMapExtractAdapter(true)
         .forEachKeyValue(headers, TRACE_KEYS, (key, value) -> seen.add(key + "=" + value));
     assertEquals(Arrays.asList("traceparent=00-abc-def-01"), seen);
+  }
+
+  /** Records what it's handed: "key=value" for Strings, "key~value" for transient views. */
+  static final class Recording implements BiConsumer<String, String>, TransientValueConsumer {
+    final List<String> seen = new ArrayList<>();
+    final List<Object> views = new ArrayList<>();
+
+    @Override
+    public void accept(String key, String value) {
+      seen.add(key + "=" + value);
+    }
+
+    @Override
+    public void acceptTransient(HeaderSchema header, String key, CharSequence value) {
+      assertSame(header.headerName, key);
+      seen.add(key + "~" + value);
+      views.add(value);
+    }
+  }
+
+  private static final CarrierKeys DATADOG_AND_W3C =
+      CarrierKeys.of(
+          HeaderSchema.X_DATADOG_TRACE_ID,
+          HeaderSchema.X_DATADOG_PARENT_ID,
+          HeaderSchema.X_DATADOG_SAMPLING_PRIORITY,
+          HeaderSchema.TRACEPARENT);
+
+  @Test
+  void parseOnlyValuesAreHandedAsViews() {
+    RecordHeaders headers = new RecordHeaders();
+    headers.add(fetched("x-datadog-trace-id", "123"));
+    headers.add(fetched("traceparent", "00-abc-def-01"));
+    headers.add(fetched("x-datadog-sampling-priority", "1"));
+    headers.add(new OtherHeader("x-datadog-parent-id", "456"));
+    Recording recording = new Recording();
+    new TextMapExtractAdapter(false).forEachKeyValue(headers, DATADOG_AND_W3C, recording);
+
+    assertEquals(
+        Arrays.asList(
+            "x-datadog-trace-id~123",
+            "traceparent=00-abc-def-01",
+            "x-datadog-sampling-priority~1",
+            "x-datadog-parent-id=456"),
+        recording.seen);
+    for (Object view : recording.views) {
+      assertTrue(view instanceof AsciiSequence, view.getClass().getName());
+    }
+  }
+
+  @Test
+  void viewsAlsoCoverValuesKafkaAlreadyCopied() {
+    FieldsHeader header = fetched("x-datadog-parent-id", "456");
+    header.value(); // Kafka copies the value into its own array
+    RecordHeaders headers = new RecordHeaders();
+    headers.add(header);
+    Recording recording = new Recording();
+    new TextMapExtractAdapter(false).forEachKeyValue(headers, DATADOG_AND_W3C, recording);
+    assertEquals(Arrays.asList("x-datadog-parent-id~456"), recording.seen);
+  }
+
+  @Test
+  void nonAsciiOrMissingParseOnlyValuesAreNotViewed() {
+    RecordHeaders headers = new RecordHeaders();
+    headers.add(fetched("x-datadog-trace-id", "1\u00e92"));
+    headers.add(fetched("x-datadog-parent-id", null));
+    Recording recording = new Recording();
+    new TextMapExtractAdapter(false).forEachKeyValue(headers, DATADOG_AND_W3C, recording);
+    assertEquals(Arrays.asList("x-datadog-trace-id=1\u00e92"), recording.seen);
+    assertNull(RecordHeaderAccess.asciiValueView(fetched("x-datadog-parent-id", null)));
+  }
+
+  @Test
+  void noViewsInBase64ModeOrForPlainVisitors() {
+    RecordHeaders headers = new RecordHeaders();
+    headers.add(
+        new RecordHeader("x-datadog-trace-id", Base64.getEncoder().encode("123".getBytes(UTF_8))));
+    Recording recording = new Recording();
+    new TextMapExtractAdapter(true).forEachKeyValue(headers, DATADOG_AND_W3C, recording);
+    assertEquals(Arrays.asList("x-datadog-trace-id=123"), recording.seen);
+
+    RecordHeaders fetchedHeaders = new RecordHeaders();
+    fetchedHeaders.add(fetched("x-datadog-trace-id", "123"));
+    List<String> plain = new ArrayList<>();
+    new TextMapExtractAdapter(false)
+        .forEachKeyValue(fetchedHeaders, DATADOG_AND_W3C, (key, value) -> plain.add(value));
+    assertEquals(Arrays.asList("123"), plain);
   }
 
   private static List<String> visit(TextMapExtractAdapter adapter, RecordHeaders headers) {
