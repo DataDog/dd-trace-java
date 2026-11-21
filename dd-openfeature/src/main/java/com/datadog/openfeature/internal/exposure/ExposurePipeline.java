@@ -5,14 +5,9 @@ import static com.datadog.openfeature.internal.exposure.ExposuresRequest.writeEx
 
 import com.datadog.openfeature.internal.EventPipeline;
 import com.datadog.openfeature.internal.EventQueue;
-import com.datadog.openfeature.internal.JsonWriting;
+import com.datadog.openfeature.internal.JsonArrayPayload;
 import com.datadog.openfeature.internal.RuntimeServices;
 import com.datadog.openfeature.internal.bridge.v1.EventTransport;
-import datadog.trace.util.ChunkedBuffer;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -46,10 +41,28 @@ public class ExposurePipeline implements Consumer<ExposureEvent>, EventPipeline 
       final EventTransport transport,
       final Map<String, String> context,
       final RuntimeServices services) {
+    this(capacity, flushInterval, timeUnit, transport, context, services, PAYLOAD_SIZE_LIMIT_BYTES);
+  }
+
+  /** Lets tests use a small payload size limit. */
+  ExposurePipeline(
+      final int capacity,
+      final long flushInterval,
+      final TimeUnit timeUnit,
+      final EventTransport transport,
+      final Map<String, String> context,
+      final RuntimeServices services,
+      final int payloadSizeLimitBytes) {
     this.queue = new EventQueue<>(capacity);
     this.serializer =
         new ExposureSerializingHandler(
-            transport, this.queue, flushInterval, timeUnit, context, this.droppedQueueFull);
+            transport,
+            this.queue,
+            flushInterval,
+            timeUnit,
+            context,
+            this.droppedQueueFull,
+            payloadSizeLimitBytes);
     this.serializerThread = services.newThread("exposures", this.serializer);
   }
 
@@ -98,9 +111,6 @@ public class ExposurePipeline implements Consumer<ExposureEvent>, EventPipeline 
     return queue.size();
   }
 
-  @SuppressFBWarnings(
-      value = {"AT_NONATOMIC_OPERATIONS_ON_SHARED_VARIABLE", "AT_STALE_THREAD_WRITE_OF_PRIMITIVE"},
-      justification = "the payload is confined to the serializer thread")
   private static class ExposureSerializingHandler implements Runnable {
     private final EventQueue<ExposureEvent> queue;
     private final long ticksRequiredToFlush;
@@ -111,11 +121,7 @@ public class ExposurePipeline implements Consumer<ExposureEvent>, EventPipeline 
     // The exposures since the last flush, serialized as they are drained, so a batch waits for its
     // flush as compact bytes in reused chunks rather than as event objects. A full payload is sent
     // at once.
-    private final ByteBuffer prefix;
-    private final int payloadCapacity;
-    // Replaced, not reset, after a failed post: a timed-out request may still be reading it.
-    private ChunkedBuffer payload;
-    private int pending;
+    private final JsonArrayPayload payload;
     private final Consumer<ExposureEvent> add = this::add;
     private final AtomicBoolean shutdownRequested = new AtomicBoolean();
     private final AtomicLong droppedQueueFull;
@@ -126,16 +132,15 @@ public class ExposurePipeline implements Consumer<ExposureEvent>, EventPipeline 
         final long flushInterval,
         final TimeUnit timeUnit,
         final Map<String, String> context,
-        final AtomicLong droppedQueueFull) {
+        final AtomicLong droppedQueueFull,
+        final int payloadSizeLimitBytes) {
       this.droppedQueueFull = droppedQueueFull;
       this.queue = queue;
       this.transport = transport;
 
-      final byte[] prefix = ExposuresRequest.prefix(context);
-      this.prefix = ByteBuffer.wrap(prefix);
-      this.payloadCapacity =
-          PAYLOAD_SIZE_LIMIT_BYTES - prefix.length - ExposuresRequest.SUFFIX.length;
-      this.payload = new ChunkedBuffer(this.payloadCapacity);
+      this.payload =
+          new JsonArrayPayload(
+              ExposuresRequest.prefix(context), ExposuresRequest.SUFFIX, payloadSizeLimitBytes);
       this.lastTicks = System.nanoTime();
       this.ticksRequiredToFlush = timeUnit.toNanos(flushInterval);
 
@@ -195,7 +200,7 @@ public class ExposurePipeline implements Consumer<ExposureEvent>, EventPipeline 
       if (append(event)) {
         return;
       }
-      if (this.pending > 0) {
+      if (this.payload.count() > 0) {
         flush();
         if (append(event)) {
           return;
@@ -208,23 +213,16 @@ public class ExposurePipeline implements Consumer<ExposureEvent>, EventPipeline 
      * @return whether the exposure was handled: serialized, or dropped as unserializable.
      */
     private boolean append(final ExposureEvent event) {
-      if (this.pending > 0) {
-        this.payload.put((byte) ',');
-      }
       try {
-        if (!JsonWriting.write(this.payload, generator -> writeExposure(generator, event))) {
-          return false;
-        }
+        return this.payload.append(generator -> writeExposure(generator, event));
       } catch (final RuntimeException e) {
         LOGGER.error("Could not serialize an exposure; dropping it", e);
         return true;
       }
-      this.pending++;
-      return true;
     }
 
     protected void flushIfNecessary() {
-      if (this.pending > 0 && shouldFlush()) {
+      if (this.payload.count() > 0 && shouldFlush()) {
         flush();
       }
     }
@@ -235,24 +233,19 @@ public class ExposurePipeline implements Consumer<ExposureEvent>, EventPipeline 
         LOGGER.debug(
             "Feature Flags exposures dropped since the last flush: queue full, count={}", dropped);
       }
-      if (this.pending == 0) {
+      final int count = this.payload.count();
+      if (count == 0) {
         return;
       }
-      final int count = this.pending;
       LOGGER.debug("Feature Flags exposure flush starting: count={}", count);
-      final List<ByteBuffer> chunks = this.payload.completedChunks();
-      final List<ByteBuffer> body = new ArrayList<>(chunks.size() + 2);
-      body.add(this.prefix.duplicate());
-      body.addAll(chunks);
-      body.add(ByteBuffer.wrap(ExposuresRequest.SUFFIX));
-      // Best-effort delivery must not retry an ambiguously accepted batch.
-      this.pending = 0;
+      // Best-effort delivery must not retry an ambiguously accepted batch: the payload is emptied
+      // whether or not the post succeeds.
       try {
-        this.transport.post(EXPOSURES_ROUTE, body);
+        this.transport.post(EXPOSURES_ROUTE, this.payload.body());
         this.payload.reset();
         LOGGER.debug("Feature Flags exposure flush delivered: count={}", count);
       } catch (Exception e) {
-        this.payload = new ChunkedBuffer(this.payloadCapacity);
+        this.payload.discard(); // a timed-out request may still be reading the old buffers
         LOGGER.debug(
             "Feature Flags exposure flush failed: {}; dropping the batch of {} exposure(s)",
             e.toString(),

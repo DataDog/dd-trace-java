@@ -16,6 +16,7 @@ import com.datadog.openfeature.internal.bridge.v1.HealthMetrics;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -229,6 +230,55 @@ class ExposurePipelineTest {
       joined.put(chunk.duplicate());
     }
     return (List<Map<String, Object>>) JsonReading.readObject(joined.array()).get("exposures");
+  }
+
+  @Test
+  void splitsABatchAcrossPayloadsAndDropsAnExposureLargerThanOne() throws Exception {
+    final List<ExposureEvent> exposures = buildExposures(6);
+    final ExposureEvent huge = buildExposure(singletonMap("blob", repeat('x', 2_000)));
+    final int limit = ExposuresRequest.prefix(emptyMap()).length + 900;
+    try (ExposurePipeline pipeline =
+        new ExposurePipeline(
+            64,
+            Long.MAX_VALUE,
+            NANOSECONDS,
+            this.transport,
+            emptyMap(),
+            new RuntimeServices(HealthMetrics.NOOP),
+            limit)) {
+      exposures.forEach(pipeline);
+      pipeline.accept(huge); // larger than a whole payload: dropped
+      pipeline.start();
+    }
+
+    assertTrue(this.posts.get() > 1, "expected several payloads, got " + this.posts.get());
+    assertEquals(keys(exposures), exposureKeys(allExposures()));
+  }
+
+  @Test
+  void dropsAnExposureThatCannotBeSerializedAndKeepsTheRest() throws Exception {
+    final Object unserializable =
+        new Object() {
+          @Override
+          public String toString() {
+            throw new IllegalStateException("unserializable");
+          }
+        };
+    final ExposureEvent bad = buildExposure(singletonMap("bad", unserializable));
+    final ExposureEvent good = buildExposure();
+    try (ExposurePipeline pipeline = pipeline(emptyMap())) {
+      pipeline.start();
+      pipeline.accept(bad);
+      pipeline.accept(good);
+      eventually(() -> allExposures().size() == 1);
+    }
+    assertEquals(keys(List.of(good)), exposureKeys(allExposures()));
+  }
+
+  private static String repeat(final char c, final int count) {
+    final char[] chars = new char[count];
+    Arrays.fill(chars, c);
+    return new String(chars);
   }
 
   @Test

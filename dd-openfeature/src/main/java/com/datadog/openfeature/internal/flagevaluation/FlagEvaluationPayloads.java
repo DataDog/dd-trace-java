@@ -4,15 +4,14 @@ import static com.datadog.openfeature.internal.JsonWriting.writeKeyObject;
 import static com.datadog.openfeature.internal.JsonWriting.writeValue;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import com.datadog.openfeature.internal.JsonArrayPayload;
 import com.datadog.openfeature.internal.JsonWriting;
 import com.fasterxml.jackson.core.JsonGenerator;
-import datadog.trace.util.ChunkedBuffer;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -153,64 +152,48 @@ final class FlagEvaluationPayloads {
   }
 
   /**
-   * Splits events into payloads under the size limit, written into one {@link ChunkedBuffer} that
-   * each payload reuses once the sink accepted the previous one, so a payload of several MiB is
-   * never one large array.
+   * Splits events into payloads under the size limit, in one {@link JsonArrayPayload} that each
+   * payload reuses once the sink accepted the previous one.
    */
   private static final class Payloads {
-    private final byte[] prefix;
     private final PayloadCounts counts;
     private final PayloadSink sink;
-    private final ChunkedBuffer current;
+    private final JsonArrayPayload current;
 
     Payloads(
         final byte[] prefix,
         final int payloadSizeLimitBytes,
         final PayloadCounts counts,
         final PayloadSink sink) {
-      this.prefix = prefix;
       this.counts = counts;
       this.sink = sink;
-      // The events and their separators, between the prefix and the suffix.
-      this.current =
-          new ChunkedBuffer(payloadSizeLimitBytes - prefix.length - PAYLOAD_SUFFIX.length);
+      this.current = new JsonArrayPayload(prefix, PAYLOAD_SUFFIX, payloadSizeLimitBytes);
     }
 
     /**
      * @return whether the event was added, to the current payload or to a new one.
      */
     boolean add(final FlagEvaluationEvent event) throws IOException {
-      if (append(event)) {
+      if (current.append(generator -> writeEvent(generator, event))) {
         return true;
       }
-      if (!current.isDirty()) {
+      if (current.count() == 0) {
         return false;
       }
       closeCurrent();
-      return append(event);
-    }
-
-    private boolean append(final FlagEvaluationEvent event) {
-      if (current.isDirty()) {
-        current.put((byte) ',');
-      }
-      return JsonWriting.write(current, generator -> writeEvent(generator, event));
+      return current.append(generator -> writeEvent(generator, event));
     }
 
     private void closeCurrent() throws IOException {
-      final List<ByteBuffer> chunks = current.completedChunks();
-      final List<ByteBuffer> body = new ArrayList<>(chunks.size() + 2);
-      body.add(ByteBuffer.wrap(prefix));
-      body.addAll(chunks);
-      body.add(ByteBuffer.wrap(PAYLOAD_SUFFIX));
-      // Not reset when the sink fails: a timed-out request may still be reading the chunks.
-      sink.accept(body);
+      // Not reset when the sink fails: the payload is dropped with the flush, and a timed-out
+      // request may still be reading its buffers.
+      sink.accept(current.body());
       counts.payloads++;
       current.reset();
     }
 
     void close() throws IOException {
-      if (current.isDirty()) {
+      if (current.count() > 0) {
         closeCurrent();
       }
     }
