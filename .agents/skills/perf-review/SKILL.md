@@ -42,8 +42,8 @@ Then read the check files that apply to the diff:
 
 | File | Checks | Load |
 |---|---|---|
-| `references/checks/memory.md` | #3 unbounded memory, J5 cardinality-sensitive aggregator, J6 weak-ref strengthening, J13 large retained `byte[]` | always |
-| `references/checks/allocation.md` | #1 per-call allocation, #7 escape defeated, J1 EA, J4 GC → tail latency; defensive copies, capturing lambdas, `Optional`/boxing | always |
+| `references/checks/memory.md` | #3 unbounded memory, J5 cardinality-sensitive aggregator, J6 weak-ref strengthening, J13 large retained `byte[]`, J15 JVM-wide interning of parsed input | always |
+| `references/checks/allocation.md` | #1 per-call allocation, #7 escape defeated, J1 EA, J4 GC → tail latency, J16 shared sentinel / shared-bytecode traversal defeats EA; defensive copies, capturing lambdas, `Optional`/boxing | always |
 | `references/checks/repeat-work.md` | #2 repeat work, J8 backtracking regex; regex compile, `String.format`, `Config.get()`, Streams | always |
 | `references/checks/critical-path.md` | #4 deferrable work, #6 FFI crossing, J3 JNI + virtual-thread pinning | always |
 | `references/checks/collections.md` | wrong collection type, mis-sizing, concurrency choice | always |
