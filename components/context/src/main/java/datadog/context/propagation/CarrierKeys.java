@@ -23,14 +23,18 @@ import java.util.Set;
  */
 public final class CarrierKeys {
   private static final CarrierKeys ALL =
-      new CarrierKeys(true, new String[0][], new HeaderSchema[0][], new String[0]);
+      new CarrierKeys(true, new String[0][], new byte[0][][], new HeaderSchema[0][], new String[0]);
   private static final CarrierKeys NONE =
-      new CarrierKeys(false, new String[0][], new HeaderSchema[0][], new String[0]);
+      new CarrierKeys(
+          false, new String[0][], new byte[0][][], new HeaderSchema[0][], new String[0]);
 
   private final boolean all;
 
   /** Lower-cased exact names, indexed by length. */
   private final String[][] namesByLength;
+
+  /** Each name's lower-case ASCII bytes (null if it isn't ASCII), parallel to the names. */
+  private final byte[][][] asciiByLength;
 
   /** Each name's {@link HeaderSchema} constant, or null, parallel to {@link #namesByLength}. */
   private final HeaderSchema[][] headersByLength;
@@ -39,9 +43,14 @@ public final class CarrierKeys {
   private final String[] prefixes;
 
   private CarrierKeys(
-      boolean all, String[][] namesByLength, HeaderSchema[][] headersByLength, String[] prefixes) {
+      boolean all,
+      String[][] namesByLength,
+      byte[][][] asciiByLength,
+      HeaderSchema[][] headersByLength,
+      String[] prefixes) {
     this.all = all;
     this.namesByLength = namesByLength;
+    this.asciiByLength = asciiByLength;
     this.headersByLength = headersByLength;
     this.prefixes = prefixes;
   }
@@ -155,18 +164,58 @@ public final class CarrierKeys {
   /** The index, among the names of its length, of the name {@code key}'s bytes spell, or -1. */
   private int indexAscii(ByteBuffer key) {
     int length = key.remaining();
-    if (length < namesByLength.length) {
-      String[] names = namesByLength[length];
-      if (names != null) {
-        int start = key.position();
-        for (int i = 0; i < names.length; i++) {
-          if (asciiMatches(key, start, names[i], length)) {
-            return i;
-          }
+    if (length >= namesByLength.length) {
+      return -1;
+    }
+    String[] names = namesByLength[length];
+    if (names == null) {
+      return -1;
+    }
+    int start = key.position();
+    if (key.hasArray()) {
+      // Keys are almost always lower case already: compare the backing array's bytes exactly
+      // first, and only compare ignoring case if the key has an upper-case byte at all
+      byte[] bytes = key.array();
+      int offset = key.arrayOffset() + start;
+      byte[][] asciiNames = asciiByLength[length];
+      for (int i = 0; i < names.length; i++) {
+        if (bytesEqual(bytes, offset, asciiNames[i], length)) {
+          return i;
         }
+      }
+      if (!hasUpperCase(bytes, offset, length)) {
+        return -1;
+      }
+    }
+    for (int i = 0; i < names.length; i++) {
+      if (asciiMatches(key, start, names[i], length)) {
+        return i;
       }
     }
     return -1;
+  }
+
+  /** Whether {@code length} bytes from {@code offset} are {@code expected}'s (null: never). */
+  private static boolean bytesEqual(byte[] bytes, int offset, byte[] expected, int length) {
+    if (expected == null) {
+      return false;
+    }
+    for (int i = 0; i < length; i++) {
+      if (bytes[offset + i] != expected[i]) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private static boolean hasUpperCase(byte[] bytes, int offset, int length) {
+    for (int i = offset, end = offset + length; i < end; i++) {
+      byte b = bytes[i];
+      if (b >= 'A' && b <= 'Z') {
+        return true;
+      }
+    }
+    return false;
   }
 
   /** Whether the ASCII bytes between {@code key}'s position and limit start with a prefix. */
@@ -310,8 +359,30 @@ public final class CarrierKeys {
           }
         }
       }
+      byte[][][] asciiByLength = new byte[namesByLength.length][][];
+      for (int i = 0; i < namesByLength.length; i++) {
+        if (namesByLength[i] != null) {
+          asciiByLength[i] = new byte[namesByLength[i].length][];
+          for (int j = 0; j < namesByLength[i].length; j++) {
+            asciiByLength[i][j] = asciiBytes(namesByLength[i][j]);
+          }
+        }
+      }
       return new CarrierKeys(
-          false, namesByLength, headersByLength, prefixes.toArray(new String[0]));
+          false, namesByLength, asciiByLength, headersByLength, prefixes.toArray(new String[0]));
+    }
+
+    /** {@code name}'s ASCII bytes, or null if it has a char outside ASCII. */
+    private static byte[] asciiBytes(String name) {
+      byte[] bytes = new byte[name.length()];
+      for (int i = 0; i < bytes.length; i++) {
+        char c = name.charAt(i);
+        if (c > 0x7f) {
+          return null;
+        }
+        bytes[i] = (byte) c;
+      }
+      return bytes;
     }
   }
 }
