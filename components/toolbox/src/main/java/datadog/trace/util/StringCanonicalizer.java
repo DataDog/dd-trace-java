@@ -1,0 +1,184 @@
+package datadog.trace.util;
+
+/**
+ * Shares one {@code String} instance per distinct text within one scope, typically one parse, so a
+ * document that repeats a key, an id or a value thousands of times keeps a single copy of it.
+ *
+ * <p>Long-lived parsed state, such as a configuration that stays in the old generation until the
+ * next one replaces it, pays for each duplicate in memory and in marking work for as long as it
+ * lives. Sharing is scoped to an instance on purpose: parsed texts can be customer data, which must
+ * not reach a JVM-wide table like {@link String#intern()}'s. Create one instance per parse and drop
+ * it when the parse returns.
+ *
+ * <p>Two bounds keep the cost of a parse predictable, whatever the input:
+ *
+ * <ul>
+ *   <li><b>Length:</b> texts longer than {@code maxLength} are neither hashed nor shared. Long
+ *       values rarely repeat, and hashing them is most of the cost.
+ *   <li><b>Probes:</b> a lookup gives up and returns an unshared copy after comparing {@link
+ *       #MAX_EQUAL_HASH_PROBES} strings with its hash code, or after {@link #MAX_PROBES} slots in
+ *       all. Strings with equal hash codes are easy to construct, and each one costs a string
+ *       comparison, so without the first bound, input made of them would compare every lookup
+ *       against all the others. The second bound is far above the longest run ordinary input makes
+ *       at half load (under 50 slots, even at a million entries).
+ * </ul>
+ *
+ * <p>Either way, the result is equal to the text, so giving up only costs sharing. The table is
+ * open-addressed over parallel arrays of strings and their hashes, spread with {@link
+ * HashingUtils#hashSpread}, and grown when half full. Not thread-safe.
+ */
+public final class StringCanonicalizer {
+  /** The default longest text that is shared. */
+  public static final int DEFAULT_MAX_LENGTH = 128;
+
+  /** The most strings with a lookup's hash code that it compares before giving up. */
+  static final int MAX_EQUAL_HASH_PROBES = 16;
+
+  /** The most slots a lookup probes before giving up. */
+  static final int MAX_PROBES = 256;
+
+  private static final int INITIAL_CAPACITY = 256;
+
+  private final int maxLength;
+  private String[] strings = new String[INITIAL_CAPACITY];
+  private int[] hashes = new int[INITIAL_CAPACITY];
+  private int size;
+
+  /** Creates a canonicalizer that shares texts of up to {@link #DEFAULT_MAX_LENGTH} chars. */
+  public StringCanonicalizer() {
+    this(DEFAULT_MAX_LENGTH);
+  }
+
+  /**
+   * Creates a canonicalizer that shares texts of up to {@code maxLength} chars.
+   *
+   * @param maxLength the longest text to share; longer texts are copied but not shared.
+   */
+  public StringCanonicalizer(final int maxLength) {
+    if (maxLength < 0) {
+      throw new IllegalArgumentException("maxLength < 0: " + maxLength);
+    }
+    this.maxLength = maxLength;
+  }
+
+  /**
+   * Returns the shared instance for the text in {@code chars[offset, offset + length)}, creating it
+   * on the first occurrence. A miss copies the characters, so the caller may reuse the array, as a
+   * parser reuses its buffer.
+   *
+   * @param chars the characters, such as a parser's text buffer.
+   * @param offset the index of the first character.
+   * @param length the number of characters.
+   * @return a {@code String} equal to the text: the shared instance, or an unshared copy when the
+   *     text is longer than {@code maxLength} or the lookup gave up.
+   */
+  public String canonical(final char[] chars, final int offset, final int length) {
+    if (length > maxLength) {
+      return new String(chars, offset, length);
+    }
+    int hash = 0; // String.hashCode's polynomial, so canonical(String) finds the same entries
+    for (int i = 0; i < length; i++) {
+      hash = 31 * hash + chars[offset + i];
+    }
+    final int mask = strings.length - 1;
+    int slot = HashingUtils.hashSpread(hash) & mask;
+    int equalHashes = 0;
+    for (int probes = 0; probes < MAX_PROBES; probes++, slot = (slot + 1) & mask) {
+      final String existing = strings[slot];
+      if (existing == null) {
+        return insert(slot, hash, new String(chars, offset, length));
+      }
+      if (hashes[slot] == hash) {
+        if (matches(existing, chars, offset, length)) {
+          return existing;
+        }
+        if (++equalHashes == MAX_EQUAL_HASH_PROBES) {
+          break;
+        }
+      }
+    }
+    return new String(chars, offset, length);
+  }
+
+  /**
+   * Returns the shared instance equal to {@code text}, recording {@code text} itself on a miss.
+   *
+   * @param text the text, as a parser that hands out strings produces it.
+   * @return the shared instance, or {@code text} itself when it is longer than {@code maxLength} or
+   *     the lookup gave up.
+   */
+  public String canonical(final String text) {
+    if (text.length() > maxLength) {
+      return text;
+    }
+    final int hash = text.hashCode();
+    final int mask = strings.length - 1;
+    int slot = HashingUtils.hashSpread(hash) & mask;
+    int equalHashes = 0;
+    for (int probes = 0; probes < MAX_PROBES; probes++, slot = (slot + 1) & mask) {
+      final String existing = strings[slot];
+      if (existing == null) {
+        return insert(slot, hash, text);
+      }
+      if (hashes[slot] == hash) {
+        if (existing.equals(text)) {
+          return existing;
+        }
+        if (++equalHashes == MAX_EQUAL_HASH_PROBES) {
+          break;
+        }
+      }
+    }
+    return text;
+  }
+
+  /**
+   * Gets the number of distinct texts shared so far.
+   *
+   * @return the number of shared instances.
+   */
+  public int size() {
+    return size;
+  }
+
+  private String insert(final int slot, final int hash, final String text) {
+    strings[slot] = text;
+    hashes[slot] = hash;
+    if (++size * 2 > strings.length) {
+      grow();
+    }
+    return text;
+  }
+
+  private void grow() {
+    final String[] oldStrings = strings;
+    final int[] oldHashes = hashes;
+    strings = new String[oldStrings.length * 2];
+    hashes = new int[oldStrings.length * 2];
+    final int mask = strings.length - 1;
+    for (int i = 0; i < oldStrings.length; i++) {
+      if (oldStrings[i] != null) {
+        // Rehashing places every entry: the table is at most half full, so a slot is near.
+        int slot = HashingUtils.hashSpread(oldHashes[i]) & mask;
+        while (strings[slot] != null) {
+          slot = (slot + 1) & mask;
+        }
+        strings[slot] = oldStrings[i];
+        hashes[slot] = oldHashes[i];
+      }
+    }
+  }
+
+  private static boolean matches(
+      final String existing, final char[] chars, final int offset, final int length) {
+    if (existing.length() != length) {
+      return false;
+    }
+    for (int i = 0; i < length; i++) {
+      if (existing.charAt(i) != chars[offset + i]) {
+        return false;
+      }
+    }
+    return true;
+  }
+}
