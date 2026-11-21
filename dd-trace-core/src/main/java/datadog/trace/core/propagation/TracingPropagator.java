@@ -92,7 +92,7 @@ public class TracingPropagator implements Propagator {
         // the composite propagator's cache: hand each key's header constant along
         IndexedCarrier indexed = (IndexedCarrier) carrier;
         for (int i = 0, n = indexed.size(); i < n; i++) {
-          classifier.accept(indexed.header(i), indexed.key(i), indexed.value(i));
+          HttpCodec.acceptIndexed(classifier, indexed, i);
         }
       } else {
         visitor.forEachKeyValue(carrier, classifier::accept);
