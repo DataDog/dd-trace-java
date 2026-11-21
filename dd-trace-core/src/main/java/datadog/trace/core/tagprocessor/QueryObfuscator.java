@@ -22,6 +22,9 @@ public final class QueryObfuscator extends TagsPostProcessor {
 
   private static final String REDACTED = "<redacted>";
 
+  // Every match of this pattern must contain one of the literals mayMatchDefaultPattern looks for.
+  // When changing it, update that method; QueryObfuscatorDefaultPatternTest pins the pattern so a
+  // change can't go unnoticed.
   @VisibleForTesting
   static final String DEFAULT_OBFUSCATION_PATTERN =
       "(?i)"
@@ -62,6 +65,7 @@ public final class QueryObfuscator extends TagsPostProcessor {
   private final Pattern pattern;
   private final String replacement;
   private final boolean failClosed;
+  private final boolean defaultPattern;
   private final boolean otelSemanticsEnabled;
 
   /**
@@ -79,11 +83,13 @@ public final class QueryObfuscator extends TagsPostProcessor {
       this.pattern = null;
       this.replacement = REDACTED;
       this.failClosed = false;
+      this.defaultPattern = false;
       return;
     }
 
     // null -> use default regex
     // group references only apply to the default regex, a user regex may capture the secret itself
+    this.defaultPattern = regex == null;
     if (regex == null) {
       regex = DEFAULT_OBFUSCATION_PATTERN;
       this.replacement = "$1" + REDACTED;
@@ -107,7 +113,7 @@ public final class QueryObfuscator extends TagsPostProcessor {
   }
 
   private String obfuscate(String query) {
-    if (pattern == null) {
+    if (pattern == null || (defaultPattern && !mayMatchDefaultPattern(query))) {
       return query;
     }
     final Matcher matcher = pattern.matcher(query);
@@ -169,6 +175,114 @@ public final class QueryObfuscator extends TagsPostProcessor {
         unsafeTags.remove(queryTag);
       }
     }
+  }
+
+  /**
+   * Tells whether {@link #DEFAULT_OBFUSCATION_PATTERN} could find a match in the text. False means
+   * it certainly finds none; true means it may. Every match of the pattern contains one of these
+   * literals, ignoring case as the pattern's {@code (?i)} does: {@code pw}, {@code pass}, {@code
+   * secret}, {@code key}, {@code token}, {@code consumer}, {@code sign}, {@code auth}, {@code
+   * bearer}, {@code gh[opsu]_}, {@code ey[i-l]}, {@code -----begin}, {@code ssh-} or {@code
+   * ecdsa-}. Keep this in step with the pattern.
+   */
+  @VisibleForTesting
+  static boolean mayMatchDefaultPattern(final String text) {
+    final int n = text.length();
+    for (int i = 0; i < n; i++) {
+      switch (fold(text.charAt(i))) {
+        case 'p':
+          if (startsWith(text, i, "pw") || startsWith(text, i, "pass")) {
+            return true;
+          }
+          break;
+        case 's':
+          if (startsWith(text, i, "secret")
+              || startsWith(text, i, "sign")
+              || startsWith(text, i, "ssh-")) {
+            return true;
+          }
+          break;
+        case 'k':
+          if (startsWith(text, i, "key")) {
+            return true;
+          }
+          break;
+        case 't':
+          if (startsWith(text, i, "token")) {
+            return true;
+          }
+          break;
+        case 'c':
+          if (startsWith(text, i, "consumer")) {
+            return true;
+          }
+          break;
+        case 'a':
+          if (startsWith(text, i, "auth")) {
+            return true;
+          }
+          break;
+        case 'b':
+          if (startsWith(text, i, "bearer")) {
+            return true;
+          }
+          break;
+        case 'g':
+          if (i + 3 < n
+              && fold(text.charAt(i + 1)) == 'h'
+              && "opsu".indexOf(fold(text.charAt(i + 2))) >= 0
+              && text.charAt(i + 3) == '_') {
+            return true;
+          }
+          break;
+        case 'e':
+          if ((i + 2 < n
+                  && fold(text.charAt(i + 1)) == 'y'
+                  && "ijkl".indexOf(fold(text.charAt(i + 2))) >= 0)
+              || startsWith(text, i, "ecdsa-")) {
+            return true;
+          }
+          break;
+        case '-':
+          if (startsWith(text, i, "-----begin")) {
+            return true;
+          }
+          break;
+        default:
+          break;
+      }
+    }
+    return false;
+  }
+
+  /** Whether the text has the lower-case ASCII literal at the index, ignoring case as re2j does. */
+  private static boolean startsWith(final String text, final int at, final String literal) {
+    final int len = literal.length();
+    if (at + len > text.length()) {
+      return false;
+    }
+    for (int j = 0; j < len; j++) {
+      if (fold(text.charAt(at + j)) != literal.charAt(j)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /**
+   * Folds a character the way re2j's {@code (?i)} relates it to ASCII letters: upper-case ASCII to
+   * lower-case, and the two non-ASCII characters that fold to ASCII letters, the Kelvin sign to
+   * {@code k} and the long s to {@code s}.
+   */
+  private static char fold(final char c) {
+    if (c >= 'A' && c <= 'Z') {
+      return (char) (c + ('a' - 'A'));
+    } else if (c == '\u212A') {
+      return 'k';
+    } else if (c == '\u017F') {
+      return 's';
+    }
+    return c;
   }
 
   private String rebuildOtelUrl(final String url, final String query) {
