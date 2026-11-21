@@ -18,6 +18,7 @@ import com.datadog.openfeature.internal.ufc.ConditionConfiguration;
 import com.datadog.openfeature.internal.ufc.ConditionOperator;
 import com.datadog.openfeature.internal.ufc.Feature;
 import com.datadog.openfeature.internal.ufc.Flag;
+import com.datadog.openfeature.internal.ufc.MembershipIndex;
 import com.datadog.openfeature.internal.ufc.ParsedSemver;
 import com.datadog.openfeature.internal.ufc.Rule;
 import com.datadog.openfeature.internal.ufc.ServerConfiguration;
@@ -62,6 +63,7 @@ public final class FlagEvaluator {
   private final boolean spanEnrichmentEnabled;
   private final ExposureLookup exposureLookup;
   private final ExperimentationOptOutMode experimentationOptOutMode;
+  private final boolean exposuresEnabled;
   @Nullable private final EvaluationMetadataTable metadataTable;
   private final int metadataTimeBucketMs;
 
@@ -79,10 +81,27 @@ public final class FlagEvaluator {
       final boolean spanEnrichmentEnabled,
       final ExposureLookup exposureLookup,
       final ExperimentationOptOutMode experimentationOptOutMode) {
+    this(spanEnrichmentEnabled, exposureLookup, experimentationOptOutMode, true);
+  }
+
+  /**
+   * Creates an evaluator with the default evaluation metadata table.
+   *
+   * @param spanEnrichmentEnabled whether span enrichment is enabled.
+   * @param exposureLookup the lookup telling whether an exposure was already recorded.
+   * @param experimentationOptOutMode the resolved experimentation opt-out mode.
+   * @param exposuresEnabled whether evaluations of allocations logging exposures are exposures.
+   */
+  public FlagEvaluator(
+      final boolean spanEnrichmentEnabled,
+      final ExposureLookup exposureLookup,
+      final ExperimentationOptOutMode experimentationOptOutMode,
+      final boolean exposuresEnabled) {
     this(
         spanEnrichmentEnabled,
         exposureLookup,
         experimentationOptOutMode,
+        exposuresEnabled,
         EvaluationMetadataTable.DEFAULT_SIZE,
         EvaluationMetadataTable.DEFAULT_TIME_BUCKET_MS);
   }
@@ -92,9 +111,12 @@ public final class FlagEvaluator {
    *
    * @param spanEnrichmentEnabled whether span enrichment is enabled.
    * @param exposureLookup the lookup telling whether an exposure was already recorded.
-   * @param experimentationOptOutMode the experimentation opt-out mode.
+   * @param experimentationOptOutMode the resolved experimentation opt-out mode.
+   * @param exposuresEnabled whether evaluations of allocations logging exposures are exposures.
+   *     When false, every evaluation is reported as not logging exposures, so no exposure is
+   *     recorded, deduplicated, sent, or reported to exposure hooks, and assignment is unchanged.
    * @param metadataTableSize the number of slots of the table sharing the metadata of evaluations
-   *     that resolve the same split in the same millisecond, rounded up to a power of two, or 0 to
+   *     that resolve the same split in the same time bucket, rounded up to a power of two, or 0 to
    *     build the metadata of each evaluation.
    * @param metadataTimeBucketMs the width, in milliseconds, of the time bucket in which evaluations
    *     of a split share their metadata and its {@code __dd_eval_timestamp_ms}, at most {@link
@@ -105,12 +127,14 @@ public final class FlagEvaluator {
       final boolean spanEnrichmentEnabled,
       final ExposureLookup exposureLookup,
       final ExperimentationOptOutMode experimentationOptOutMode,
+      final boolean exposuresEnabled,
       final int metadataTableSize,
       final int metadataTimeBucketMs) {
     this(
         spanEnrichmentEnabled,
         exposureLookup,
         experimentationOptOutMode,
+        exposuresEnabled,
         EvaluationMetadataTable.create(metadataTableSize),
         metadataTimeBucketMs);
   }
@@ -119,11 +143,13 @@ public final class FlagEvaluator {
       final boolean spanEnrichmentEnabled,
       final ExposureLookup exposureLookup,
       final ExperimentationOptOutMode experimentationOptOutMode,
+      final boolean exposuresEnabled,
       @Nullable final EvaluationMetadataTable metadataTable,
       final int metadataTimeBucketMs) {
     this.spanEnrichmentEnabled = spanEnrichmentEnabled;
     this.exposureLookup = exposureLookup;
     this.experimentationOptOutMode = experimentationOptOutMode;
+    this.exposuresEnabled = exposuresEnabled;
     this.metadataTable = metadataTable;
     this.metadataTimeBucketMs = EvaluationMetadataTable.timeBucketMs(metadataTimeBucketMs);
   }
@@ -365,9 +391,9 @@ public final class FlagEvaluator {
       case NOT_MATCHES:
         return !matchesRegex(attributeValue, condition);
       case ONE_OF:
-        return isOneOf(attributeValue, condition.value);
+        return isOneOf(attributeValue, condition);
       case NOT_ONE_OF:
-        return !isOneOf(attributeValue, condition.value);
+        return !isOneOf(attributeValue, condition);
       case GTE:
         return compareNumber(attributeValue, condition.value, (a, b) -> a >= b);
       case GT:
@@ -404,7 +430,26 @@ public final class FlagEvaluator {
     return pattern.matcher(String.valueOf(attributeValue)).find();
   }
 
-  private static boolean isOneOf(final Object attributeValue, final Object conditionValue) {
+  private static boolean isOneOf(
+      final Object attributeValue, final ConditionConfiguration condition) {
+    // Parsed configurations index lists of two or more elements; the index gives the same result
+    // as the scan.
+    final MembershipIndex membership = condition.membership;
+    if (membership != null) {
+      final int result = membership.lookup(attributeValue);
+      if (result > MembershipIndex.SCAN) {
+        return result == MembershipIndex.MATCH;
+      }
+      if (result < MembershipIndex.SCAN) {
+        // No earlier element matches, so the comparison with this element throws as the scan does.
+        final Object element = ((List<?>) condition.value).get(MembershipIndex.throwsAt(result));
+        return valuesEqual(attributeValue, element) || scanOneOf(attributeValue, condition.value);
+      }
+    }
+    return scanOneOf(attributeValue, condition.value);
+  }
+
+  private static boolean scanOneOf(final Object attributeValue, final Object conditionValue) {
     if (!(conditionValue instanceof Iterable)) {
       return false;
     }
@@ -430,15 +475,26 @@ public final class FlagEvaluator {
 
   private static boolean compareNumber(
       final Object attributeValue, final Object conditionValue, NumberComparator comparator) {
-    final double a = mapValue(Double.class, attributeValue);
-    final double b = mapValue(Double.class, conditionValue);
-    return comparator.compare(a, b);
+    return comparator.compare(toDouble(attributeValue), toDouble(conditionValue));
+  }
+
+  /**
+   * Converts a comparison operand to a double. A {@link Number} converts without allocating. Any
+   * other value goes through {@link #mapValue} as before: a non-numeric value fails with mapValue's
+   * exception, and null fails when its null result is unboxed.
+   */
+  private static double toDouble(final Object value) {
+    if (value instanceof Number) {
+      return ((Number) value).doubleValue();
+    }
+    return mapValue(Double.class, value);
   }
 
   /**
    * Evaluates a semantic version comparison operator. The attribute value must be a string that is
    * a valid semantic version, and the comparand must have been pre-parsed during configuration
-   * validation. If either is missing or invalid, the condition does not match.
+   * validation. If either is missing or invalid, the condition does not match. The attribute is
+   * validated and compared without parsing it into a {@link ParsedSemver}.
    */
   private static boolean evaluateSemverCondition(
       final Object attributeValue,
@@ -447,11 +503,11 @@ public final class FlagEvaluator {
     if (!(attributeValue instanceof String) || comparand == null) {
       return false;
     }
-    final ParsedSemver parsedAttribute = ParsedSemver.parse((String) attributeValue);
-    if (parsedAttribute == null) {
+    final int ordering = ParsedSemver.compare((String) attributeValue, comparand);
+    if (ordering == ParsedSemver.INVALID_ORDERING) {
       return false;
     }
-    return comparator.compare(ParsedSemver.compare(parsedAttribute, comparand));
+    return comparator.compare(ordering);
   }
 
   private static boolean matchesShard(final Shard shard, final String targetingKey) {
@@ -537,8 +593,10 @@ public final class FlagEvaluator {
           observeFullEvaluationData);
     }
 
-    // The exposure state depends on the subject, so it is part of the metadata table key.
-    final boolean doLog = Boolean.TRUE.equals(allocation.doLog);
+    // The exposure state depends on the subject, so it is part of the metadata table key. A
+    // provider with exposures disabled treats every allocation as not logging exposures. The
+    // allocation and split were already selected, so this changes reporting, not assignment.
+    final boolean doLog = this.exposuresEnabled && Boolean.TRUE.equals(allocation.doLog);
     final int exposure;
     if (!doLog) {
       exposure = EvaluationMetadataTable.NO_EXPOSURE;

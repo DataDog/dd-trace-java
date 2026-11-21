@@ -147,6 +147,24 @@ class EvaluationMetadataTableTest {
   }
 
   @Test
+  void sharesAcrossExposureStatesWhenExposuresAreDisabled() {
+    final FlagEvaluator evaluator =
+        new FlagEvaluator(
+            false,
+            exposedUser(),
+            ExperimentationOptOutMode.DISABLED,
+            false,
+            EvaluationMetadataTable.DEFAULT_SIZE,
+            EvaluationMetadataTable.UNBOUNDED);
+    final ServerConfiguration config = config(true, flag("flag", allocation("a", split(), true)));
+
+    final ImmutableMetadata exposed = evaluate(evaluator, config, "flag", "exposed");
+    assertNull(exposed.getBoolean(DO_LOG));
+    assertNull(exposed.getBoolean(EXPOSURE_CACHE_HIT));
+    assertSame(exposed, evaluate(evaluator, config, "flag", "user"));
+  }
+
+  @Test
   void keysOnTheAllocationAndItsDoLog() {
     final FlagEvaluator evaluator = evaluator(EvaluationMetadataTable.DEFAULT_SIZE);
     // Directly built configurations can share a split between allocations.
@@ -279,6 +297,7 @@ class EvaluationMetadataTableTest {
             false,
             exposedUser(),
             ExperimentationOptOutMode.DISABLED,
+            true,
             EvaluationMetadataTable.create(1),
             timeBucketMs);
     final List<Flag> flags = new ArrayList<>();
@@ -340,7 +359,7 @@ class EvaluationMetadataTableTest {
 
   private static FlagEvaluator evaluator(final int tableSize, final int timeBucketMs) {
     return new FlagEvaluator(
-        false, exposedUser(), ExperimentationOptOutMode.DISABLED, tableSize, timeBucketMs);
+        false, exposedUser(), ExperimentationOptOutMode.DISABLED, true, tableSize, timeBucketMs);
   }
 
   private static FlagEvaluator.ExposureLookup exposedUser() {

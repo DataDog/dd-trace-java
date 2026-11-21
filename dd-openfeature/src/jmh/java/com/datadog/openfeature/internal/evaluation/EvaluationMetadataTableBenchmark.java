@@ -142,6 +142,7 @@ public class EvaluationMetadataTableBenchmark {
             false,
             (flag, subject, allocation, variant, serialId) -> false,
             ExperimentationOptOutMode.DISABLED,
+            true,
             EvaluationMetadataTable.create(tableSize, misses),
             timeBucketMs);
     // Every 10th bulk flag is disabled: skip them, so each evaluation resolves a split.

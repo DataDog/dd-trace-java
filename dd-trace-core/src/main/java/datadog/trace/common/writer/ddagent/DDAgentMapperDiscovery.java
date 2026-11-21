@@ -15,12 +15,16 @@ public class DDAgentMapperDiscovery implements RemoteMapperDiscovery {
   private final DDAgentFeaturesDiscovery featuresDiscovery;
   private TraceMapper traceMapper;
 
+  /** The trace endpoint the mapper was chosen for, updated while later ones keep its protocol. */
+  private String selectedEndpoint;
+
   public DDAgentMapperDiscovery(final DDAgentFeaturesDiscovery featuresDiscovery) {
     this.featuresDiscovery = featuresDiscovery;
   }
 
   private void reset() {
     this.traceMapper = null;
+    this.selectedEndpoint = null;
   }
 
   @Override
@@ -35,6 +39,7 @@ public class DDAgentMapperDiscovery implements RemoteMapperDiscovery {
     if (tracesEndpoint == null) {
       return;
     }
+    selectedEndpoint = tracesEndpoint;
 
     switch (ProtocolVersion.fromTraceEndpoint(tracesEndpoint)) {
       case V1_0:
@@ -54,5 +59,26 @@ public class DDAgentMapperDiscovery implements RemoteMapperDiscovery {
   @Override
   public RemoteMapper getMapper() {
     return traceMapper;
+  }
+
+  /**
+   * True once discovery has moved to an endpoint of another protocol than the mapper encodes, for
+   * instance after the agent restarted as another version. Not thread-safe: called by the one
+   * thread that encodes traces.
+   */
+  @Override
+  public boolean isOutdated() {
+    String endpoint = featuresDiscovery.getTraceEndpoint();
+    if (traceMapper == null || endpoint == null || endpoint.equals(selectedEndpoint)) {
+      return false;
+    }
+
+    if (ProtocolVersion.fromTraceEndpoint(endpoint) == traceMapper.protocolVersion()) {
+      // another endpoint for the same protocol, such as the v0.3 fallback: keep the mapper
+      selectedEndpoint = endpoint;
+      return false;
+    }
+
+    return true;
   }
 }
