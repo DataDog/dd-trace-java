@@ -581,9 +581,9 @@ class UniversalFlagConfigParserTest {
                 + "\"allocations\":[]}}}");
 
     final Flag flag = config.flags.get("f");
-    assertEquals("q\"b\\s\u00e9\uD83D\uDE00", flag.variations.get("escaped").value);
-    assertEquals(longValue.toString(), flag.variations.get("long").value);
-    assertEquals("", flag.variations.get("empty").value);
+    assertEquals("q\"b\\s\u00e9\uD83D\uDE00", flag.variations.get("escaped").value());
+    assertEquals(longValue.toString(), flag.variations.get("long").value());
+    assertEquals("", flag.variations.get("empty").value());
   }
 
   @Test
@@ -607,7 +607,7 @@ class UniversalFlagConfigParserTest {
     assertEquals(listClass, allocation.splits.getClass());
     assertEquals(listClass, allocation.splits.get(0).features.getClass());
     assertEquals(2, flag.variations.size());
-    assertEquals("b", flag.variations.get("b").value);
+    assertEquals("b", flag.variations.get("b").value());
     assertThrows(UnsupportedOperationException.class, () -> flag.variations.put("c", null));
     assertThrows(UnsupportedOperationException.class, () -> config.flags.remove("f"));
     final List<Feature> features = allocation.splits.get(0).features;
