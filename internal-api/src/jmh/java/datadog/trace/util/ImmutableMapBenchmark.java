@@ -27,11 +27,11 @@ import org.openjdk.jmh.infra.Blackhole;
  * ConcurrentHashtable} / {@code ThreadSafeMap} suites.
  *
  * <p>Compares {@code get} + {@code iterate} across {@link HashMap}, {@link LinkedHashMap}, {@link
- * TreeMap}, {@link TagMap}, and {@link java.util.Map#copyOf} (via {@link
- * CollectionUtils#tryMakeImmutableMap} — the JDK's compact, array-backed {@code
- * ImmutableCollections.MapN}, which is what the agent actually uses for fixed config maps; Java
- * 10+, falls back to the input map pre-10). {@code Map.copyOf}/{@code MapN} is the honest
- * immutable-map baseline, not {@code HashMap}.
+ * TreeMap}, {@link TagMap}, {@link FrozenMap} (indexed at ten keys, and scanned at eight), and
+ * {@link java.util.Map#copyOf} (via {@link CollectionUtils#tryMakeImmutableMap} — the JDK's
+ * compact, array-backed {@code ImmutableCollections.MapN}, which is what the agent actually uses
+ * for fixed config maps; Java 10+, falls back to the input map pre-10). {@code Map.copyOf}/{@code
+ * MapN} is the honest immutable-map baseline, not {@code HashMap}.
  *
  * <p>Also compared: {@link StringIndex} used as a string-&gt;int map — an open-addressed index plus
  * a slot-aligned {@code int[]} of values ({@code SI_VALUES[indexOf(key)]}). {@code
@@ -115,6 +115,12 @@ public class ImmutableMapBenchmark {
     return keys;
   }
 
+  // The keys of frozenMapScanned, as literals and as distinct instances.
+  static final String[] SCANNED_KEYS =
+      java.util.Arrays.copyOf(INSERTION_KEYS, FrozenMap.MAX_SCANNED);
+  static final String[] SCANNED_EQUAL_KEYS =
+      java.util.Arrays.copyOf(EQUAL_KEYS, FrozenMap.MAX_SCANNED);
+
   static void fill(Map<String, Integer> map) {
     for (int i = 0; i < INSERTION_KEYS.length; ++i) {
       map.put(INSERTION_KEYS[i], i);
@@ -146,6 +152,8 @@ public class ImmutableMapBenchmark {
   TreeMap<String, Integer> treeMap;
   TagMap tagMap;
   Map<String, Integer> tracerImmutableMap;
+  FrozenMap<String, Integer> frozenMap;
+  FrozenMap<String, Integer> frozenMapScanned;
   StringIndex stringIndex;
 
   @Setup(Level.Trial)
@@ -163,6 +171,14 @@ public class ImmutableMapBenchmark {
     // JDK compact immutable map (MapN on Java 10+); the agent's actual fixed-map representation.
     tracerImmutableMap = CollectionUtils.tryMakeImmutableMap(hashMap);
     stringIndex = StringIndex.of(INSERTION_KEYS);
+    // Ten keys: past FrozenMap.MAX_SCANNED, so lookups go through its index.
+    frozenMap = FrozenMap.copyOf(hashMap);
+    // The first eight keys: a scanned map, no hashing. Its lookups use keys it holds only.
+    final Map<String, Integer> eight = new HashMap<>();
+    for (int i = 0; i < FrozenMap.MAX_SCANNED; ++i) {
+      eight.put(INSERTION_KEYS[i], i);
+    }
+    frozenMapScanned = FrozenMap.copyOf(eight);
   }
 
   /** Per-thread lookup cursor so each reader thread cycles keys independently. */
@@ -277,6 +293,42 @@ public class ImmutableMapBenchmark {
       blackhole.consume(entry.getKey());
       blackhole.consume(entry.getValue());
     }
+  }
+
+  @Benchmark
+  public Integer get_frozenMap(Cursor cursor) {
+    return frozenMap.get(cursor.nextKey());
+  }
+
+  @Benchmark
+  public Integer get_frozenMap_sameKey(Cursor cursor) {
+    return frozenMap.get(cursor.nextKey(INSERTION_KEYS));
+  }
+
+  @Benchmark
+  public Integer get_frozenMapScanned(Cursor cursor) {
+    return frozenMapScanned.get(cursor.nextKey(SCANNED_EQUAL_KEYS));
+  }
+
+  @Benchmark
+  public Integer get_frozenMapScanned_sameKey(Cursor cursor) {
+    return frozenMapScanned.get(cursor.nextKey(SCANNED_KEYS));
+  }
+
+  @Benchmark
+  public void iterate_frozenMap(Blackhole blackhole) {
+    for (Map.Entry<String, Integer> entry : frozenMap.entrySet()) {
+      blackhole.consume(entry.getKey());
+      blackhole.consume(entry.getValue());
+    }
+  }
+
+  @Benchmark
+  public void iterate_frozenMap_forEach(Blackhole blackhole) {
+    frozenMap.forEach((key, value) -> {
+      blackhole.consume(key);
+      blackhole.consume(value);
+    });
   }
 
   @Benchmark
