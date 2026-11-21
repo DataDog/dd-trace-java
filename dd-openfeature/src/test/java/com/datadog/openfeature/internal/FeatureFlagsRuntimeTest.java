@@ -30,7 +30,6 @@ import com.datadog.openfeature.internal.config.TestSettings;
 import com.datadog.openfeature.internal.delivery.FlagSelectionRequest;
 import com.datadog.openfeature.internal.delivery.FlagSelectionTestSupport;
 import com.datadog.openfeature.internal.delivery.FlagSelectionTestSupport.RecordingHealthMetrics;
-import com.datadog.openfeature.internal.flagevaluation.FlagEvalEvent;
 import com.datadog.openfeature.internal.ufc.ServerConfiguration;
 import com.datadog.openfeature.testlog.CapturingServiceProvider;
 import java.io.IOException;
@@ -520,7 +519,7 @@ class FeatureFlagsRuntimeTest {
     runtime.start();
     try {
       runtime.recordExposure(exposure());
-      runtime.evaluations().enqueue(new FlagEvalEvent("f", "v", "a", "s", 1L, emptyMap()));
+      runtime.evaluations().record("f", "v", "a", "s", null, 1L, false, emptyMap(), emptyMap());
 
       final long started = System.nanoTime();
       runtime.stop();
