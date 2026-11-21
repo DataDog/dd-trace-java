@@ -6,6 +6,8 @@ import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY;
 import static datadog.trace.instrumentation.kafka_common.Utils.readProducedTime;
 
 import datadog.context.propagation.CarrierKeys;
+import datadog.context.propagation.HeaderSchema;
+import datadog.context.propagation.TransientValueConsumer;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation.ContextVisitor;
@@ -40,7 +42,7 @@ public class TextMapExtractAdapter implements ContextVisitor<Headers> {
 
   @Override
   public void forEachKey(Headers carrier, AgentPropagation.KeyClassifier classifier) {
-    visit(carrier, CarrierKeys.all(), classifier);
+    visit(carrier, CarrierKeys.all(), classifier, null);
   }
 
   /**
@@ -57,7 +59,11 @@ public class TextMapExtractAdapter implements ContextVisitor<Headers> {
         (key, value) -> {
           visitor.accept(key, value);
           return true;
-        });
+        },
+        // a visitor that takes transient views gets parse-only values without decoding them
+        decoder == null && visitor instanceof TransientValueConsumer
+            ? (TransientValueConsumer) visitor
+            : null);
   }
 
   /**
@@ -66,13 +72,28 @@ public class TextMapExtractAdapter implements ContextVisitor<Headers> {
    * keys aren't decoded and UTF-8 values aren't copied before decoding; any other goes through
    * {@code key()} and {@code value()}.
    */
-  private void visit(Headers carrier, CarrierKeys keys, AgentPropagation.KeyClassifier sink) {
+  private void visit(
+      Headers carrier,
+      CarrierKeys keys,
+      AgentPropagation.KeyClassifier sink,
+      TransientValueConsumer transientSink) {
     for (Header header : carrier) {
       BufferedHeaderFields fields =
           header instanceof BufferedHeaderFields ? (BufferedHeaderFields) header : null;
       String key = key(header, fields, keys);
       if (key == null) {
         continue;
+      }
+      if (transientSink != null && fields != null) {
+        // a matched key is the declared name itself, so this is an identity check
+        HeaderSchema schema = keys.header(key);
+        if (schema != null && schema.isParseOnly()) {
+          CharSequence view = RecordHeaderAccess.asciiValueView(fields);
+          if (view != null) {
+            transientSink.acceptTransient(schema, key, view);
+            continue;
+          }
+        }
       }
       String value = value(header, fields, key);
       if (value == null) {
