@@ -33,9 +33,12 @@ public class ProducerAdvice {
       @Advice.FieldValue("metadata") Metadata metadata,
       @Advice.Argument(value = 0, readOnly = false) ProducerRecord record,
       @Advice.Argument(value = 1, readOnly = false) Callback callback) {
+    // getOrCreate, so a send that starts before the first metadata update shares the state that
+    // update records the cluster ID on, and the callback can read it then
     MetadataState metadataState =
-        InstrumentationContext.get(Metadata.class, MetadataState.class).get(metadata);
-    String clusterId = metadataState != null ? metadataState.clusterId : null;
+        InstrumentationContext.get(Metadata.class, MetadataState.class)
+            .getOrCreate(metadata, MetadataState::new);
+    String clusterId = metadataState.clusterId;
 
     // Set cluster ID for Schema Registry instrumentation, which only reports to Data Streams
     if (clusterId != null && traceConfig().isDataStreamsEnabled()) {
@@ -63,7 +66,8 @@ public class ProducerAdvice {
     PRODUCER_DECORATE.afterStart(span);
     PRODUCER_DECORATE.onProduce(span, record, producerConfig, clusterId);
 
-    callback = new KafkaProducerCallback(callback, callbackParentSpan, span, clusterId);
+    callback =
+        new KafkaProducerCallback(callback, callbackParentSpan, span, clusterId, metadataState);
 
     if (record.value() == null) {
       span.setTag(TOMBSTONE, true);

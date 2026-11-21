@@ -88,6 +88,7 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
     return new String[] {
       packageName + ".KafkaDecorator",
       packageName + ".KafkaConsumerInfo",
+      packageName + ".KafkaConsumerInstrumentationHelper",
       "datadog.trace.instrumentation.kafka_common.ClusterIdHolder",
       "datadog.trace.instrumentation.kafka_common.KafkaConfigHelper",
       "datadog.trace.instrumentation.kafka_common.PendingConfig",
@@ -141,16 +142,14 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
         bootstrapServers = String.join(",", bootstrapServersList);
       }
 
-      KafkaConsumerInfo kafkaConsumerInfo;
-      if (Config.get().isDataStreamsEnabled()) {
-        kafkaConsumerInfo =
-            new KafkaConsumerInfo(normalizedConsumerGroup, metadata, bootstrapServers);
-      } else {
-        kafkaConsumerInfo = new KafkaConsumerInfo(normalizedConsumerGroup, bootstrapServers);
-      }
+      // Keep the metadata even without Data Streams: MetadataInstrumentation records the cluster ID
+      // on it, which consumer spans are tagged with.
+      KafkaConsumerInfo kafkaConsumerInfo =
+          new KafkaConsumerInfo(normalizedConsumerGroup, metadata, bootstrapServers);
 
       if (kafkaConsumerInfo.getConsumerGroup() != null
-          || kafkaConsumerInfo.getClientMetadata() != null) {
+          || kafkaConsumerInfo.getClientMetadata() != null
+          || kafkaConsumerInfo.getBootstrapServers() != null) {
         InstrumentationContext.get(KafkaConsumer.class, KafkaConsumerInfo.class)
             .put(consumer, kafkaConsumerInfo);
         if (coordinator != null) {
@@ -184,26 +183,28 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
         @Advice.FieldValue("metadata") Metadata metadata,
         @Advice.FieldValue("coordinator") ConsumerCoordinator coordinator,
         @Advice.Argument(0) Map<String, Object> consumerConfig) {
+      if (InstrumentationContext.get(KafkaConsumer.class, KafkaConsumerInfo.class).get(consumer)
+          != null) {
+        // This constructor delegated to the ConsumerConfig one, whose advice already captured the
+        // parsed config.
+        return;
+      }
       Object groupID = consumerConfig.get(ConsumerConfig.GROUP_ID_CONFIG);
       String consumerGroup = groupID instanceof String ? (String) groupID : null;
       String normalizedConsumerGroup =
           consumerGroup != null && !consumerGroup.isEmpty() ? consumerGroup : null;
 
-      String bootstrapServers = null;
-      Object bootstrapServersObj = consumerConfig.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG);
-      if (bootstrapServersObj instanceof String) {
-        bootstrapServers = (String) bootstrapServersObj;
-      }
-      KafkaConsumerInfo kafkaConsumerInfo;
-      if (Config.get().isDataStreamsEnabled()) {
-        kafkaConsumerInfo =
-            new KafkaConsumerInfo(normalizedConsumerGroup, metadata, bootstrapServers);
-      } else {
-        kafkaConsumerInfo = new KafkaConsumerInfo(normalizedConsumerGroup, bootstrapServers);
-      }
+      String bootstrapServers =
+          KafkaConsumerInstrumentationHelper.bootstrapServers(
+              consumerConfig.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG));
+      // Keep the metadata even without Data Streams: MetadataInstrumentation records the cluster ID
+      // on it, which consumer spans are tagged with.
+      KafkaConsumerInfo kafkaConsumerInfo =
+          new KafkaConsumerInfo(normalizedConsumerGroup, metadata, bootstrapServers);
 
       if (kafkaConsumerInfo.getConsumerGroup() != null
-          || kafkaConsumerInfo.getClientMetadata() != null) {
+          || kafkaConsumerInfo.getClientMetadata() != null
+          || kafkaConsumerInfo.getBootstrapServers() != null) {
         InstrumentationContext.get(KafkaConsumer.class, KafkaConsumerInfo.class)
             .put(consumer, kafkaConsumerInfo);
         if (coordinator != null) {
