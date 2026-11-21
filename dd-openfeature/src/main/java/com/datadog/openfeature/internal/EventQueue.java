@@ -3,21 +3,31 @@ package com.datadog.openfeature.internal;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.concurrent.locks.LockSupport;
 import java.util.function.Consumer;
 
 /**
- * A bounded, lock-free, multiple-producer single-consumer queue. Producers never block; the
- * consumer polls with a timeout by parking, as producers do not signal it.
+ * A bounded, lock-free, multiple-producer single-consumer queue. Producers never block. A consumer
+ * that finds the queue empty parks until the timeout, and the next producer to queue an element
+ * wakes it.
+ *
+ * <p>Without that wake-up, the consumer slept in fixed 10 ms slices: at more than {@code capacity}
+ * elements per 10 ms (410k a second for 4,096 slots), the queue filled during each sleep and
+ * producers dropped elements, however idle the consumer was.
  *
  * @param <E> the element type.
  */
 public final class EventQueue<E> {
-  private static final long PARK_NANOS = TimeUnit.MILLISECONDS.toNanos(10);
+  @SuppressWarnings("rawtypes")
+  private static final AtomicReferenceFieldUpdater<EventQueue, Thread> WAITER =
+      AtomicReferenceFieldUpdater.newUpdater(EventQueue.class, Thread.class, "waiter");
 
   private final ConcurrentLinkedQueue<E> queue = new ConcurrentLinkedQueue<>();
   private final AtomicInteger size = new AtomicInteger();
   private final int capacity;
+  // The consumer while it is about to park or parked, so a producer can wake it.
+  private volatile Thread waiter;
 
   public EventQueue(final int capacity) {
     this.capacity = capacity;
@@ -38,6 +48,12 @@ public final class EventQueue<E> {
       return false;
     }
     this.queue.offer(element);
+    // One volatile read per offer. Only the producer that clears the waiter wakes it, so a burst
+    // of producers costs one unpark.
+    final Thread parked = this.waiter;
+    if (parked != null && WAITER.compareAndSet(this, parked, null)) {
+      LockSupport.unpark(parked);
+    }
     return true;
   }
 
@@ -71,7 +87,16 @@ public final class EventQueue<E> {
       if (remaining <= 0) {
         return null;
       }
-      LockSupport.parkNanos(this, Math.min(remaining, PARK_NANOS));
+      // Publish the waiter, then check again: a producer either sees the waiter and wakes it, or
+      // queued its element before this check, which then finds it. No wake-up is lost.
+      this.waiter = Thread.currentThread();
+      final E queued = poll();
+      if (queued != null) {
+        this.waiter = null;
+        return queued;
+      }
+      LockSupport.parkNanos(this, remaining);
+      this.waiter = null;
       if (Thread.interrupted()) {
         throw new InterruptedException();
       }
