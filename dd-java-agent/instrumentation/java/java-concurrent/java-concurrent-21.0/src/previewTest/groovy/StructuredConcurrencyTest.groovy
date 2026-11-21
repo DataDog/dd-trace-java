@@ -49,7 +49,7 @@ class StructuredConcurrencyTest extends InstrumentationSpecification {
   }
 
   /**
-   * Tests the structured task scope with a multiple tasks.
+   * Tests the structured task scope with multiple tasks.
    * Here is the expected task/span structure:
    * <pre>
    *   parent
