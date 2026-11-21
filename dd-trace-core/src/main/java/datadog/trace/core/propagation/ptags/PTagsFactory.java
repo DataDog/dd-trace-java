@@ -105,6 +105,41 @@ public class PTagsFactory implements PropagationTags.Factory {
         0);
   }
 
+  /**
+   * {@link #createValid} with the trace id's high-order bits already parsed from the header, so its
+   * hex {@link TagValue} is made only if something reads it. {@code zeroTraceIdTagValue} carries an
+   * all-zero {@code tid} verbatim, since zero bits otherwise mean the tag is absent.
+   */
+  PropagationTags createValid(
+      List<TagElement> tagPairs,
+      TagValue decisionMakerTagValue,
+      long traceIdHighOrderBits,
+      TagValue zeroTraceIdTagValue,
+      int productTraceSource,
+      int samplingPriority,
+      TagValue orgPropagationMarkerTagValue,
+      @Nonnull LLMObsTagValues llmObsTagValues) {
+    PTags ptags =
+        new PTags(
+            this,
+            tagPairs,
+            decisionMakerTagValue,
+            zeroTraceIdTagValue,
+            productTraceSource,
+            samplingPriority,
+            null,
+            null,
+            orgPropagationMarkerTagValue,
+            llmObsTagValues,
+            null,
+            null,
+            0);
+    if (traceIdHighOrderBits != 0) {
+      ptags.initTraceIdHighOrderBits(traceIdHighOrderBits);
+    }
+    return ptags;
+  }
+
   PropagationTags createInvalid(String error) {
     return PTags.withError(this, error);
   }
@@ -872,6 +907,15 @@ public class PTagsFactory implements PropagationTags.Factory {
       }
     }
 
+    /**
+     * Sets the high-order bits parsed from an extracted header, before this is published. Their hex
+     * {@link TagValue} is made on first read, which most extracted traces never do.
+     */
+    void initTraceIdHighOrderBits(long highOrderBits) {
+      this.traceIdHighOrderBits = highOrderBits;
+      this.traceIdHighOrderBitsHexTagValue = null;
+    }
+
     @Override
     public CharSequence getLastParentId() {
       return lastParentId;
@@ -1023,7 +1067,9 @@ public class PTagsFactory implements PropagationTags.Factory {
         size =
             PTagsCodec.calcXDatadogTagsSize(
                 size, DECISION_MAKER_TAG, getDecisionMakerTagValue(samplingState));
-        size = PTagsCodec.calcXDatadogTagsSize(size, TRACE_ID_TAG, traceIdHighOrderBitsHexTagValue);
+        size =
+            PTagsCodec.calcXDatadogTagsSize(
+                size, TRACE_ID_TAG, getTraceIdHighOrderBitsHexTagValue());
         size =
             PTagsCodec.calcXDatadogTagsSize(
                 size, KNUTH_SAMPLING_RATE_TAG, getKnuthSamplingRateTagValue(samplingState));
@@ -1055,8 +1101,26 @@ public class PTagsFactory implements PropagationTags.Factory {
     }
 
     TagValue getTraceIdHighOrderBitsHexTagValue() {
+      TagValue hex = traceIdHighOrderBitsHexTagValue;
+      if (hex != null) {
+        return hex;
+      }
+      long highOrderBits = traceIdHighOrderBits;
+      if (highOrderBits == 0) {
+        return null;
+      }
+      hex = TagValue.from(LongStringUtils.toHexStringPadded(highOrderBits, 16));
+      // publish unless an update set other bits (and their own hex) in the meantime
+      if (TRACE_ID_HEX.compareAndSet(this, null, hex) && traceIdHighOrderBits != highOrderBits) {
+        TRACE_ID_HEX.compareAndSet(this, hex, null);
+        return getTraceIdHighOrderBitsHexTagValue();
+      }
       return traceIdHighOrderBitsHexTagValue;
     }
+
+    private static final AtomicReferenceFieldUpdater<PTags, TagValue> TRACE_ID_HEX =
+        AtomicReferenceFieldUpdater.newUpdater(
+            PTags.class, TagValue.class, "traceIdHighOrderBitsHexTagValue");
 
     TagValue getDecisionMakerTagValue() {
       return getDecisionMakerTagValue(samplingState);

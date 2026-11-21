@@ -4,6 +4,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_X_DATADOG_TAGS_MAX_LEN
 
 import datadog.logging.RatelimitedLogger;
 import datadog.trace.api.ProductTraceSource;
+import datadog.trace.api.internal.util.LongStringUtils;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.propagation.PropagationTags.SamplingState;
@@ -12,7 +13,6 @@ import datadog.trace.core.propagation.ptags.TagElement.Encoding;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-import java.util.function.IntPredicate;
 import org.slf4j.LoggerFactory;
 
 /** Captures configuration required for PropagationTags logic */
@@ -74,7 +74,8 @@ final class DatadogPTagsCodec extends PTagsCodec {
     int len = value.length();
     int tagPos = 0;
     TagValue decisionMakerTagValue = null;
-    TagValue traceIdTagValue = null;
+    long traceIdHighOrderBits = 0;
+    TagValue zeroTraceIdTagValue = null;
     int traceSource = 0;
     TagValue orgPropagationMarkerTagValue = null;
     TagValue llmObsTraceIdTagValue = null;
@@ -86,75 +87,133 @@ final class DatadogPTagsCodec extends PTagsCodec {
     TagValue llmObsSampleRateTagValue = null;
     TagValue llmObsSamplingDecisionTagValue = null;
     while (tagPos < len) {
-      int tagKeyEndsAt =
-          validateCharsUntilSeparatorOrEnd(
-              value, tagPos, TAG_KEY_SEPARATOR, DatadogPTagsCodec::isAllowedKeyChar);
+      int tagKeyEndsAt = scan(value, tagPos, TAG_KEY_SEPARATOR, ALLOWED_KEY_CHARS);
       if (tagKeyEndsAt < 0 || tagKeyEndsAt == len) {
         log.warn("Invalid datadog tags header value: '{}' at {}", value, tagPos);
         return tagsFactory.createInvalid(PROPAGATION_ERROR_DECODING_ERROR);
       }
       int tagValuePos = tagKeyEndsAt + 1;
-      int tagValueEndsAt =
-          validateCharsUntilSeparatorOrEnd(
-              value, tagValuePos, TAGS_SEPARATOR, DatadogPTagsCodec::isAllowedValueChar);
+      int tagValueEndsAt = scan(value, tagValuePos, TAGS_SEPARATOR, ALLOWED_VALUE_CHARS);
       if (tagValueEndsAt < 0) {
         log.warn("Invalid datadog tags header value: '{}' at {}", value, tagKeyEndsAt);
         return tagsFactory.createInvalid(PROPAGATION_ERROR_DECODING_ERROR);
       }
-      TagKey tagKey = TagKey.from(Encoding.DATADOG, value, tagPos, tagKeyEndsAt);
-      TagValue tagValue = tagValue(Encoding.DATADOG, tagKey, value, tagValuePos, tagValueEndsAt);
-      if (tagKey != null) {
-        if (!tagKey.equals(UPSTREAM_SERVICES_DEPRECATED_TAG)) {
-          if (!validateTagValue(tagKey, tagValue)) {
-            log.warn(
-                "Invalid datadog tags header value: '{}' invalid tag value at {}",
-                value,
-                tagValuePos);
-            if (tagKey.equals(TRACE_ID_TAG)) {
-              return tagsFactory.createInvalid(PROPAGATION_ERROR_MALFORMED_TID + tagValue);
+      // Known keys are matched on the raw range, by length and then characters, so they aren't
+      // interned; only other propagated keys go through TagKey.from.
+      switch (knownKey(value, tagPos, tagKeyEndsAt)) {
+        case NOT_PROPAGATED: // not a _dd.p.* key: TagKey.from would reject it
+        case KNOWN_UPSTREAM_SERVICES: // deprecated, dropped
+          break;
+        case KNOWN_DECISION_MAKER:
+          {
+            TagValue tagValue =
+                tagValue(Encoding.DATADOG, DECISION_MAKER_TAG, value, tagValuePos, tagValueEndsAt);
+            if (!validateTagValue(DECISION_MAKER_TAG, tagValue)) {
+              return invalidTagValue(tagsFactory, value, tagValuePos);
             }
-            return tagsFactory.createInvalid(PROPAGATION_ERROR_DECODING_ERROR);
-          }
-          if (tagKey.equals(DECISION_MAKER_TAG)) {
             decisionMakerTagValue = tagValue;
-          } else if (tagKey.equals(TRACE_ID_TAG)) {
-            traceIdTagValue = tagValue;
-          } else if (tagKey.equals(TRACE_SOURCE_TAG)) {
-            traceSource = ProductTraceSource.parseBitfieldHex(tagValue.toString());
-          } else if (tagKey.equals(ORG_PROPAGATION_MARKER_TAG)) {
-            orgPropagationMarkerTagValue = tagValue;
-          } else if (tagKey.equals(LLMOBS_TRACE_ID_TAG)) {
-            llmObsTraceIdTagValue = tagValue;
-          } else if (tagKey.equals(LLMOBS_ML_APP_TAG)) {
-            llmObsMlAppTagValue = tagValue;
-          } else if (tagKey.equals(LLMOBS_SESSION_ID_TAG)) {
-            llmObsSessionIdTagValue = tagValue;
-          } else if (tagKey.equals(LLMOBS_PAGENT_SPAN_ID_TAG)) {
-            llmObsParentAgentSpanIdTagValue = tagValue;
-          } else if (tagKey.equals(LLMOBS_PAGENT_NAME_TAG)) {
-            llmObsParentAgentNameTagValue = tagValue;
-          } else if (tagKey.equals(LLMOBS_PARENT_ID_TAG)) {
-            llmObsParentIdTagValue = tagValue;
-          } else if (tagKey.equals(LLMOBS_SAMPLE_RATE_TAG)) {
-            llmObsSampleRateTagValue = tagValue;
-          } else if (tagKey.equals(LLMOBS_SAMPLING_DECISION_TAG)) {
-            llmObsSamplingDecisionTagValue = tagValue;
-          } else {
-            if (tagPairs == null) {
-              // This is roughly the size of a two element linked list but can hold six
-              tagPairs = new ArrayList<>(6);
-            }
-            tagPairs.add(tagKey);
-            tagPairs.add(tagValue);
+            break;
           }
-        }
+        case KNOWN_TRACE_ID:
+          {
+            // validated and parsed in one pass; its TagValue is made only if something reads it
+            if (!isTraceIdHighOrderBits(value, tagValuePos, tagValueEndsAt)) {
+              log.warn(
+                  "Invalid datadog tags header value: '{}' invalid tag value at {}",
+                  value,
+                  tagValuePos);
+              return tagsFactory.createInvalid(
+                  PROPAGATION_ERROR_MALFORMED_TID + value.substring(tagValuePos, tagValueEndsAt));
+            }
+            traceIdHighOrderBits =
+                LongStringUtils.parseUnsignedLongHex(value, tagValuePos, 16, true);
+            // an all-zero tid is kept verbatim, as before; zero bits otherwise mean "no tid"
+            zeroTraceIdTagValue =
+                traceIdHighOrderBits == 0
+                    ? tagValue(Encoding.DATADOG, TRACE_ID_TAG, value, tagValuePos, tagValueEndsAt)
+                    : null;
+            break;
+          }
+        case KNOWN_TRACE_SOURCE:
+          {
+            TagValue tagValue =
+                tagValue(Encoding.DATADOG, TRACE_SOURCE_TAG, value, tagValuePos, tagValueEndsAt);
+            if (!validateTagValue(TRACE_SOURCE_TAG, tagValue)) {
+              return invalidTagValue(tagsFactory, value, tagValuePos);
+            }
+            traceSource = ProductTraceSource.parseBitfieldHex(tagValue.toString());
+            break;
+          }
+        case KNOWN_ORG_PROPAGATION_MARKER:
+          orgPropagationMarkerTagValue =
+              tagValue(
+                  Encoding.DATADOG, ORG_PROPAGATION_MARKER_TAG, value, tagValuePos, tagValueEndsAt);
+          break;
+        case KNOWN_LLMOBS_TRACE_ID:
+          llmObsTraceIdTagValue =
+              tagValue(Encoding.DATADOG, LLMOBS_TRACE_ID_TAG, value, tagValuePos, tagValueEndsAt);
+          break;
+        case KNOWN_LLMOBS_ML_APP:
+          llmObsMlAppTagValue =
+              tagValue(Encoding.DATADOG, LLMOBS_ML_APP_TAG, value, tagValuePos, tagValueEndsAt);
+          break;
+        case KNOWN_LLMOBS_SESSION_ID:
+          llmObsSessionIdTagValue =
+              tagValue(Encoding.DATADOG, LLMOBS_SESSION_ID_TAG, value, tagValuePos, tagValueEndsAt);
+          break;
+        case KNOWN_LLMOBS_PAGENT_SPAN_ID:
+          llmObsParentAgentSpanIdTagValue =
+              tagValue(
+                  Encoding.DATADOG, LLMOBS_PAGENT_SPAN_ID_TAG, value, tagValuePos, tagValueEndsAt);
+          break;
+        case KNOWN_LLMOBS_PAGENT_NAME:
+          llmObsParentAgentNameTagValue =
+              tagValue(
+                  Encoding.DATADOG, LLMOBS_PAGENT_NAME_TAG, value, tagValuePos, tagValueEndsAt);
+          break;
+        case KNOWN_LLMOBS_PARENT_ID:
+          llmObsParentIdTagValue =
+              tagValue(Encoding.DATADOG, LLMOBS_PARENT_ID_TAG, value, tagValuePos, tagValueEndsAt);
+          break;
+        case KNOWN_LLMOBS_SAMPLE_RATE:
+          llmObsSampleRateTagValue =
+              tagValue(
+                  Encoding.DATADOG, LLMOBS_SAMPLE_RATE_TAG, value, tagValuePos, tagValueEndsAt);
+          break;
+        case KNOWN_LLMOBS_SAMPLING_DECISION:
+          llmObsSamplingDecisionTagValue =
+              tagValue(
+                  Encoding.DATADOG,
+                  LLMOBS_SAMPLING_DECISION_TAG,
+                  value,
+                  tagValuePos,
+                  tagValueEndsAt);
+          break;
+        default:
+          {
+            TagKey tagKey = TagKey.from(Encoding.DATADOG, value, tagPos, tagKeyEndsAt);
+            TagValue tagValue =
+                tagValue(Encoding.DATADOG, tagKey, value, tagValuePos, tagValueEndsAt);
+            if (tagKey != null) {
+              if (!validateTagValue(tagKey, tagValue)) {
+                return invalidTagValue(tagsFactory, value, tagValuePos);
+              }
+              if (tagPairs == null) {
+                // This is roughly the size of a two element linked list but can hold six
+                tagPairs = new ArrayList<>(6);
+              }
+              tagPairs.add(tagKey);
+              tagPairs.add(tagValue);
+            }
+          }
       }
       tagPos = tagValueEndsAt + 1;
     }
     return tagsFactory.createValid(
         tagPairs,
         decisionMakerTagValue,
-        traceIdTagValue,
+        traceIdHighOrderBits,
+        zeroTraceIdTagValue,
         traceSource,
         samplingPriority,
         orgPropagationMarkerTagValue,
@@ -167,6 +226,80 @@ final class DatadogPTagsCodec extends PTagsCodec {
             llmObsParentIdTagValue,
             llmObsSampleRateTagValue,
             llmObsSamplingDecisionTagValue));
+  }
+
+  private static PropagationTags invalidTagValue(
+      PTagsFactory tagsFactory, String value, int tagValuePos) {
+    log.warn("Invalid datadog tags header value: '{}' invalid tag value at {}", value, tagValuePos);
+    return tagsFactory.createInvalid(PROPAGATION_ERROR_DECODING_ERROR);
+  }
+
+  /** Whether the range is 16 lower-case hex digits, the only form a tid tag may take. */
+  private static boolean isTraceIdHighOrderBits(String s, int start, int end) {
+    if (end - start != 16) {
+      return false;
+    }
+    for (int i = start; i < end; i++) {
+      if (!isHexDigit(s.charAt(i))) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private static final int NOT_PROPAGATED = -2;
+  private static final int UNKNOWN_PROPAGATED = -1;
+  private static final int KNOWN_DECISION_MAKER = 0;
+  private static final int KNOWN_TRACE_ID = 1;
+  private static final int KNOWN_TRACE_SOURCE = 2;
+  private static final int KNOWN_ORG_PROPAGATION_MARKER = 3;
+  private static final int KNOWN_UPSTREAM_SERVICES = 4;
+  private static final int KNOWN_LLMOBS_TRACE_ID = 5;
+  private static final int KNOWN_LLMOBS_ML_APP = 6;
+  private static final int KNOWN_LLMOBS_SESSION_ID = 7;
+  private static final int KNOWN_LLMOBS_PAGENT_SPAN_ID = 8;
+  private static final int KNOWN_LLMOBS_PAGENT_NAME = 9;
+  private static final int KNOWN_LLMOBS_PARENT_ID = 10;
+  private static final int KNOWN_LLMOBS_SAMPLE_RATE = 11;
+  private static final int KNOWN_LLMOBS_SAMPLING_DECISION = 12;
+
+  /** The full {@code _dd.p.*} names of the keys handled specially, indexed by the constants. */
+  private static final String[] KNOWN_KEYS = {
+    DECISION_MAKER_TAG.forType(Encoding.DATADOG).toString(),
+    TRACE_ID_TAG.forType(Encoding.DATADOG).toString(),
+    TRACE_SOURCE_TAG.forType(Encoding.DATADOG).toString(),
+    ORG_PROPAGATION_MARKER_TAG.forType(Encoding.DATADOG).toString(),
+    UPSTREAM_SERVICES_DEPRECATED_TAG.forType(Encoding.DATADOG).toString(),
+    LLMOBS_TRACE_ID_TAG.forType(Encoding.DATADOG).toString(),
+    LLMOBS_ML_APP_TAG.forType(Encoding.DATADOG).toString(),
+    LLMOBS_SESSION_ID_TAG.forType(Encoding.DATADOG).toString(),
+    LLMOBS_PAGENT_SPAN_ID_TAG.forType(Encoding.DATADOG).toString(),
+    LLMOBS_PAGENT_NAME_TAG.forType(Encoding.DATADOG).toString(),
+    LLMOBS_PARENT_ID_TAG.forType(Encoding.DATADOG).toString(),
+    LLMOBS_SAMPLE_RATE_TAG.forType(Encoding.DATADOG).toString(),
+    LLMOBS_SAMPLING_DECISION_TAG.forType(Encoding.DATADOG).toString(),
+  };
+
+  private static final String DATADOG_PREFIX = Encoding.DATADOG.getPrefix();
+
+  /**
+   * Which key {@code [start, end)} of {@code s} is: one of the {@code KNOWN_*} constants, {@link
+   * #UNKNOWN_PROPAGATED} for another {@code _dd.p.*} key, or {@link #NOT_PROPAGATED} for a key
+   * {@link TagKey#from(Encoding, String, int, int)} would reject (no {@code _dd.p.} prefix, or
+   * nothing after it). Compares lengths before characters, so most keys are told apart cheaply.
+   */
+  static int knownKey(String s, int start, int end) {
+    int length = end - start;
+    if (length <= DATADOG_PREFIX.length() || !s.startsWith(DATADOG_PREFIX, start)) {
+      return NOT_PROPAGATED;
+    }
+    for (int i = 0; i < KNOWN_KEYS.length; i++) {
+      String known = KNOWN_KEYS[i];
+      if (known.length() == length && s.regionMatches(start, known, 0, length)) {
+        return i;
+      }
+    }
+    return UNKNOWN_PROPAGATED;
   }
 
   /**
@@ -278,28 +411,43 @@ final class DatadogPTagsCodec extends PTagsCodec {
     return sb.length() == 0;
   }
 
-  private static int validateCharsUntilSeparatorOrEnd(
-      String s, int start, char separator, IntPredicate isValid) {
+  /**
+   * The position of the first {@code separator} at or after {@code start}, or the end of {@code s},
+   * if every char from {@code start} up to it is {@code allowed}; -1 if one isn't, or if the range
+   * is empty (starts with the separator or at the end).
+   */
+  private static int scan(String s, int start, char separator, boolean[] allowed) {
     int end = s.length();
     if (start >= end) {
       return -1;
     }
-    int pos = start;
-    char c = s.charAt(pos);
-    do {
-      if (!isValid.test(c) || c == separator) {
+    char c = s.charAt(start);
+    if (c == separator || c >= allowed.length || !allowed[c]) {
+      return -1;
+    }
+    int pos = start + 1;
+    while (pos < end) {
+      c = s.charAt(pos);
+      if (c == separator) {
+        break; // trailing separator allowed; caller resumes parsing from here
+      }
+      if (c >= allowed.length || !allowed[c]) {
         return -1;
       }
       pos++;
-      if (pos < end) {
-        c = s.charAt(pos);
-        if (c == separator) {
-          break; // trailing separator allowed; caller resumes parsing from here
-        }
-      }
-    } while (pos < end);
-
+    }
     return pos;
+  }
+
+  private static final boolean[] ALLOWED_KEY_CHARS = allowedChars(true);
+  private static final boolean[] ALLOWED_VALUE_CHARS = allowedChars(false);
+
+  private static boolean[] allowedChars(boolean key) {
+    boolean[] allowed = new boolean[MAX_ALLOWED_CHAR + 1];
+    for (int c = 0; c <= MAX_ALLOWED_CHAR; c++) {
+      allowed[c] = key ? isAllowedKeyChar(c) : isAllowedValueChar(c);
+    }
+    return allowed;
   }
 
   private static boolean isAllowedKeyChar(int c) {
