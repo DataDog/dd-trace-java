@@ -61,6 +61,13 @@ public class FlagEvaluationPipeline implements FlagEvaluationWriter, EventPipeli
   static final String DEGRADED_REASON_CARDINALITY_CAP = "cardinality_cap";
   static final String DEGRADED_REASON_PAYLOAD_LIMIT = "payload_limit";
   private static final String FLAG_EVALUATION_ROUTE = "flagevaluation";
+
+  /**
+   * PROTOTYPE: aggregate on the evaluating threads ({@link ConcurrentFlagAggregator}) instead of
+   * queueing an event per evaluation for the worker. Off by default, so one build benchmarks both.
+   */
+  static final boolean CALLER_SIDE_AGGREGATION = Boolean.getBoolean("dd.ffe.callerSideAggregation");
+
   private final RuntimeServices services;
 
   private final EventQueue<FlagEvalEvent> queue;
@@ -168,6 +175,47 @@ public class FlagEvaluationPipeline implements FlagEvaluationWriter, EventPipeli
   }
 
   @Override
+  public void record(
+      final String flagKey,
+      final String variant,
+      final String allocationKey,
+      final String targetingKey,
+      final String errorMessage,
+      final long evalTimeMs,
+      final boolean observeFullEvaluationData,
+      final Map<String, Object> attrs,
+      final Map<String, Object> features) {
+    final ConcurrentFlagAggregator concurrent = serializer.concurrent;
+    if (concurrent == null) {
+      FlagEvaluationWriter.super.record(
+          flagKey,
+          variant,
+          allocationKey,
+          targetingKey,
+          errorMessage,
+          evalTimeMs,
+          observeFullEvaluationData,
+          attrs,
+          features);
+      return;
+    }
+    if (closed.get()) {
+      countClosedDrop();
+      return;
+    }
+    concurrent.record(
+        flagKey,
+        variant,
+        allocationKey,
+        targetingKey,
+        errorMessage,
+        evalTimeMs,
+        observeFullEvaluationData,
+        attrs,
+        features);
+  }
+
+  @Override
   public void enqueue(final FlagEvalEvent event) {
     if (event == null) {
       return;
@@ -196,7 +244,8 @@ public class FlagEvaluationPipeline implements FlagEvaluationWriter, EventPipeli
 
   @Override
   public boolean hasCapacityForEnqueue() {
-    return queue.size() < queue.capacity();
+    // Aggregating on the evaluating thread has no queue to fill.
+    return serializer.concurrent != null || queue.size() < queue.capacity();
   }
 
   @Override
@@ -255,6 +304,9 @@ public class FlagEvaluationPipeline implements FlagEvaluationWriter, EventPipeli
     private final ConcurrentHashMap<String, AtomicLong> contextTruncatedCounts;
     private final int payloadSizeLimitBytes;
     final FlagEvaluationAggregator aggregator = new FlagEvaluationAggregator();
+    // PROTOTYPE: set when aggregating on the evaluating threads; the queue then stays empty.
+    final ConcurrentFlagAggregator concurrent =
+        CALLER_SIDE_AGGREGATION ? new ConcurrentFlagAggregator() : null;
 
     // Shutdown coordination: set by close(), drives a final drain+flush before the worker exits.
     private final AtomicBoolean shutdownRequested = new AtomicBoolean(false);
@@ -363,7 +415,10 @@ public class FlagEvaluationPipeline implements FlagEvaluationWriter, EventPipeli
                 + " (best-effort telemetry)",
             qDrops);
       }
-      final long dgDrops = aggregator.droppedDegradedOverflow.getAndSet(0);
+      final long dgDrops =
+          concurrent != null
+              ? concurrent.droppedDegradedOverflow.getAndSet(0)
+              : aggregator.droppedDegradedOverflow.getAndSet(0);
       countMetric(FLAG_EVALUATION_DROPPED_METRIC, dgDrops, DROP_REASON_DEGRADED_CAP);
       if (dgDrops > 0) {
         LOGGER.warn(
@@ -380,6 +435,10 @@ public class FlagEvaluationPipeline implements FlagEvaluationWriter, EventPipeli
         }
       }
 
+      if (concurrent != null) {
+        flushConcurrent();
+        return;
+      }
       if (aggregator.isEmpty()) {
         return;
       }
@@ -425,6 +484,47 @@ public class FlagEvaluationPipeline implements FlagEvaluationWriter, EventPipeli
       }
     }
 
+    /** PROTOTYPE: swaps out the concurrent aggregator's window and serializes it. */
+    private void flushConcurrent() {
+      final ConcurrentFlagAggregator.Window window = concurrent.swap();
+      try {
+        if (window.isEmpty()) {
+          return;
+        }
+        countMetric(
+            FLAG_EVALUATION_DEGRADED_METRIC,
+            window.degradedEvaluationCount(),
+            DEGRADED_REASON_CARDINALITY_CAP);
+        final long flushTimeMs = System.currentTimeMillis();
+        final List<FlagEvaluationPayloads.FlagEvaluationEvent> events =
+            new ArrayList<>(window.bucketCount());
+        window.forEachFull(bucket ->
+            events.add(FlagEvaluationPayloads.FlagEvaluationEvent.fromBucket(bucket, flushTimeMs)));
+        window.forEachDegraded(bucket ->
+            events.add(FlagEvaluationPayloads.FlagEvaluationEvent.fromBucket(bucket, flushTimeMs)));
+        final FlagEvaluationPayloads.PayloadCounts counts =
+            new FlagEvaluationPayloads.PayloadCounts();
+        try {
+          FlagEvaluationPayloads.writePayloads(
+              events,
+              context,
+              payloadSizeLimitBytes,
+              counts,
+              payload -> transport.post(FLAG_EVALUATION_ROUTE, payload));
+        } finally {
+          reportPayloadCounts(counts);
+        }
+      } catch (IOException e) {
+        LOGGER.debug(
+            "Feature Flags flag evaluation flush failed: {}; dropping the batch", e.toString(), e);
+      } catch (Exception e) {
+        LOGGER.error("Could not submit flag evaluations", e);
+      } finally {
+        concurrent.recycle(window);
+        lastTicks = System.nanoTime();
+      }
+    }
+
     private void reportPayloadCounts(final FlagEvaluationPayloads.PayloadCounts counts) {
       countMetric(
           FLAG_EVALUATION_DROPPED_METRIC, counts.droppedPayloadLimit, DROP_REASON_PAYLOAD_LIMIT);
@@ -464,7 +564,8 @@ public class FlagEvaluationPipeline implements FlagEvaluationWriter, EventPipeli
     }
 
     private boolean shouldFlush() {
-      if (aggregator.isEmpty() && droppedQueueOverflow.get() == 0) {
+      final boolean empty = concurrent != null ? concurrent.isEmpty() : aggregator.isEmpty();
+      if (empty && droppedQueueOverflow.get() == 0) {
         return false;
       }
       final long nanoTime = System.nanoTime();

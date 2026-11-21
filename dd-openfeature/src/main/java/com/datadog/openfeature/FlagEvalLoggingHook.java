@@ -6,7 +6,6 @@ import static com.datadog.openfeature.internal.evaluation.MetadataKeys.HAS_EVALU
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.OBSERVE_FULL_EVALUATION_DATA;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.allocationKey;
 
-import com.datadog.openfeature.internal.flagevaluation.FlagEvalEvent;
 import com.datadog.openfeature.internal.flagevaluation.FlagEvaluationWriter;
 import dev.openfeature.sdk.FlagEvaluationDetails;
 import dev.openfeature.sdk.Hook;
@@ -140,17 +139,16 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
           Boolean.TRUE.equals(values.get(HAS_EVALUATION_FEATURES))
               ? SplitFeatureMetadata.featuresWithPrefix(metadata, EVALUATION_FEATURE_PREFIX)
               : Collections.<String, Object>emptyMap();
-      w.enqueue(
-          new FlagEvalEvent(
-              flagKey,
-              variant,
-              allocationKey,
-              targetingKey,
-              errorMessage,
-              evalTimeMs,
-              observeFullEvaluationData,
-              attrs,
-              features));
+      w.record(
+          flagKey,
+          variant,
+          allocationKey,
+          targetingKey,
+          errorMessage,
+          evalTimeMs,
+          observeFullEvaluationData,
+          attrs,
+          features);
     } catch (LinkageError e) {
       // Never let EVP recording break flag evaluation
     }

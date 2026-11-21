@@ -250,8 +250,7 @@ final class FlagEvaluationPayloads {
         final boolean isFullTier,
         final boolean observeFullEvaluationData,
         final long flushTimeMs) {
-      final boolean includeRawContext = isFullTier && observeFullEvaluationData;
-      return new FlagEvaluationEvent(
+      return of(
           flushTimeMs,
           bucket.flagKey,
           bucket.firstEvalMs,
@@ -259,13 +258,66 @@ final class FlagEvaluationPayloads {
           bucket.count,
           bucket.variant,
           bucket.allocationKey,
-          resolveTargetingKey(bucket.targetingKey, isFullTier, observeFullEvaluationData),
+          bucket.targetingKey,
           bucket.runtimeDefaultUsed,
           bucket.errorMessage,
-          includeRawContext ? bucket.prunedAttrs : null,
+          bucket.prunedAttrs,
+          bucket.features,
+          isFullTier,
+          observeFullEvaluationData);
+    }
+
+    /** PROTOTYPE: a row from a {@link ConcurrentFlagAggregator} bucket. */
+    static FlagEvaluationEvent fromBucket(
+        final ConcurrentFlagAggregator.Bucket bucket, final long flushTimeMs) {
+      return of(
+          flushTimeMs,
+          bucket.flagKey,
+          bucket.firstEvalMs,
+          bucket.lastEvalMs,
+          bucket.count,
+          bucket.variant,
+          bucket.allocationKey,
+          bucket.targetingKey,
+          bucket.runtimeDefaultUsed,
+          bucket.errorMessage,
+          bucket.prunedAttrs,
+          bucket.features,
+          !bucket.degraded,
+          bucket.observeFullEvaluationData);
+    }
+
+    private static FlagEvaluationEvent of(
+        final long flushTimeMs,
+        final String flagKey,
+        final long firstEvalMs,
+        final long lastEvalMs,
+        final long count,
+        final String variant,
+        final String allocationKey,
+        final String targetingKey,
+        final boolean runtimeDefaultUsed,
+        final String errorMessage,
+        final Map<String, Object> prunedAttrs,
+        final Map<String, Object> features,
+        final boolean isFullTier,
+        final boolean observeFullEvaluationData) {
+      final boolean includeRawContext = isFullTier && observeFullEvaluationData;
+      return new FlagEvaluationEvent(
+          flushTimeMs,
+          flagKey,
+          firstEvalMs,
+          lastEvalMs,
+          count,
+          variant,
+          allocationKey,
+          resolveTargetingKey(targetingKey, isFullTier, observeFullEvaluationData),
+          runtimeDefaultUsed,
+          errorMessage,
+          includeRawContext ? prunedAttrs : null,
           // Features come from the flag configuration, so both tiers keep them whatever the
           // consent.
-          bucket.features);
+          features);
     }
 
     private static String resolveTargetingKey(

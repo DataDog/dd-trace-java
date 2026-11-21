@@ -12,6 +12,10 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -51,7 +55,7 @@ class FlagEvalLoggingHookTest {
 
   /** Creates a pipeline mock that captures the enqueued event for assertion. */
   private static FlagEvaluationWriter capturingWriter(final AtomicReference<FlagEvalEvent> ref) {
-    final FlagEvaluationWriter writer = mock(FlagEvaluationWriter.class);
+    final FlagEvaluationWriter writer = mock(FlagEvaluationWriter.class, CALLS_REAL_METHODS);
     when(writer.hasCapacityForEnqueue()).thenReturn(true);
     doAnswer(
             invocation -> {
@@ -413,7 +417,7 @@ class FlagEvalLoggingHookTest {
 
   @Test
   void finallyAfterOnlyCallsEnqueueAndCapacityCheckOnWriter() {
-    final FlagEvaluationWriter writer = mock(FlagEvaluationWriter.class);
+    final FlagEvaluationWriter writer = mock(FlagEvaluationWriter.class, CALLS_REAL_METHODS);
     when(writer.hasCapacityForEnqueue()).thenReturn(true);
     final FlagEvalLoggingHook<Object> hook = hookWithWriter(writer);
 
@@ -422,15 +426,18 @@ class FlagEvalLoggingHookTest {
 
     hook.finallyAfter(null, det, Collections.emptyMap());
 
-    // Capacity check gates the enqueue; exactly one enqueue call; nothing else.
+    // Capacity check gates the record; exactly one record, which by default enqueues one event;
+    // nothing else.
     verify(writer, times(1)).hasCapacityForEnqueue();
+    verify(writer, times(1))
+        .record(any(), any(), any(), any(), any(), anyLong(), anyBoolean(), anyMap(), anyMap());
     verify(writer, times(1)).enqueue(any(FlagEvalEvent.class));
     verifyNoMoreInteractions(writer);
   }
 
   @Test
   void finallyAfterSkipsEnqueueAndCountsDropWhenQueueSaturated() {
-    final FlagEvaluationWriter writer = mock(FlagEvaluationWriter.class);
+    final FlagEvaluationWriter writer = mock(FlagEvaluationWriter.class, CALLS_REAL_METHODS);
     when(writer.hasCapacityForEnqueue()).thenReturn(false);
     final FlagEvalLoggingHook<Object> hook = hookWithWriter(writer);
 
@@ -447,7 +454,7 @@ class FlagEvalLoggingHookTest {
 
   @Test
   void countContextTruncatedCalledWhenContextIsTruncated() {
-    final FlagEvaluationWriter writer = mock(FlagEvaluationWriter.class);
+    final FlagEvaluationWriter writer = mock(FlagEvaluationWriter.class, CALLS_REAL_METHODS);
     when(writer.hasCapacityForEnqueue()).thenReturn(true);
     final FlagEvalLoggingHook<Object> hook = hookWithWriter(writer);
 
@@ -479,7 +486,7 @@ class FlagEvalLoggingHookTest {
 
   @Test
   void countContextTruncatedNotCalledWhenNoTruncation() {
-    final FlagEvaluationWriter writer = mock(FlagEvaluationWriter.class);
+    final FlagEvaluationWriter writer = mock(FlagEvaluationWriter.class, CALLS_REAL_METHODS);
     when(writer.hasCapacityForEnqueue()).thenReturn(true);
     final FlagEvalLoggingHook<Object> hook = hookWithWriter(writer);
 
@@ -534,7 +541,7 @@ class FlagEvalLoggingHookTest {
 
   @Test
   void detailsNullIsNoOp() {
-    final FlagEvaluationWriter writer = mock(FlagEvaluationWriter.class);
+    final FlagEvaluationWriter writer = mock(FlagEvaluationWriter.class, CALLS_REAL_METHODS);
     final FlagEvalLoggingHook<Object> hook = hookWithWriter(writer);
 
     // Should not throw

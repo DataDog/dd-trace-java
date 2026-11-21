@@ -1,5 +1,7 @@
 package com.datadog.openfeature.internal.flagevaluation;
 
+import java.util.Map;
+
 /** Records flag evaluation events from the evaluation thread, without blocking. */
 public interface FlagEvaluationWriter {
   /**
@@ -30,4 +32,31 @@ public interface FlagEvaluationWriter {
    * @param event the event to enqueue.
    */
   void enqueue(FlagEvalEvent event);
+
+  /**
+   * Records one evaluation from its fields. By default it enqueues an event; a writer that
+   * aggregates on the evaluating thread records it without one.
+   */
+  default void record(
+      final String flagKey,
+      final String variant,
+      final String allocationKey,
+      final String targetingKey,
+      final String errorMessage,
+      final long evalTimeMs,
+      final boolean observeFullEvaluationData,
+      final Map<String, Object> attrs,
+      final Map<String, Object> features) {
+    enqueue(
+        new FlagEvalEvent(
+            flagKey,
+            variant,
+            allocationKey,
+            targetingKey,
+            errorMessage,
+            evalTimeMs,
+            observeFullEvaluationData,
+            attrs,
+            features));
+  }
 }

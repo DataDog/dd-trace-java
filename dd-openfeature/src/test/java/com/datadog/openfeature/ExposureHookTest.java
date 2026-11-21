@@ -19,6 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -460,7 +461,7 @@ class ExposureHookTest {
   }
 
   private static FlagEvaluationWriter capturingWriter(final AtomicReference<FlagEvalEvent> ref) {
-    final FlagEvaluationWriter writer = mock(FlagEvaluationWriter.class);
+    final FlagEvaluationWriter writer = mock(FlagEvaluationWriter.class, CALLS_REAL_METHODS);
     when(writer.hasCapacityForEnqueue()).thenReturn(true);
     doAnswer(
             invocation -> {
