@@ -18,6 +18,7 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.TracePropagationStyle;
+import datadog.trace.api.internal.util.LongStringUtils;
 import datadog.trace.api.llmobs.LLMObsInternal;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.core.DDSpanContext;
@@ -226,6 +227,66 @@ class DatadogHttpCodec {
     @Override
     protected boolean acceptClassified(int classification, String key, String value) {
       return handleClassified(classification, key, value, null);
+    }
+
+    /**
+     * Parses the trace id, parent id and sampling priority straight from a transient view, as
+     * {@link #handleClassified} would from the same chars, without making a {@code String}. Values
+     * that path would treat differently (several comma-separated values, or a trace id whose text
+     * isn't canonical, since {@code DDTraceId} keeps the text it parsed) are copied and take it.
+     * The view is parsed here and not kept.
+     */
+    @Override
+    public boolean acceptTransient(HeaderSchema header, String key, CharSequence value) {
+      int classification =
+          header == null || value == null || LOG_EXTRACT_HEADER_NAMES ? BY_NAME : classify(header);
+      if ((classification != TRACE_ID
+              && classification != SPAN_ID
+              && classification != SAMPLING_PRIORITY)
+          || !isParsedAsIs(classification, value)) {
+        return accept(header, key, value == null ? null : value.toString());
+      }
+      int end = value.length();
+      try {
+        switch (classification) {
+          case TRACE_ID:
+            traceId = DDTraceId.from(LongStringUtils.parseUnsignedLong(value, 0, end));
+            break;
+          case SPAN_ID:
+            spanId = LongStringUtils.parseUnsignedLong(value, 0, end);
+            break;
+          default:
+            samplingPriority = LongStringUtils.parseInt(value, 0, end);
+        }
+      } catch (NumberFormatException e) {
+        invalidateContext();
+        log.debug(EXCLUDE_TELEMETRY, "Ignoring context with invalid {}: {}", key, value.toString());
+        return false;
+      } catch (RuntimeException e) {
+        invalidateContext();
+        log.debug("Exception when extracting context", e);
+        return false;
+      }
+      return true;
+    }
+
+    /**
+     * Whether {@link #handleClassified} would parse {@code value} as is: no comma (so {@code
+     * firstHeaderValue} returns it unchanged), and for a trace id, canonical decimal text (no
+     * leading {@code +} or zero), which {@code DDTraceId} would print back the same.
+     */
+    private static boolean isParsedAsIs(int classification, CharSequence value) {
+      int length = value.length();
+      for (int i = 0; i < length; i++) {
+        if (value.charAt(i) == ',') {
+          return false;
+        }
+      }
+      if (classification == TRACE_ID && length > 1) {
+        char first = value.charAt(0);
+        return first != '0' && first != '+';
+      }
+      return true;
     }
 
     /** Stores the value of a key classified as one of this style's own. */
