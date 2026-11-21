@@ -73,7 +73,7 @@ public final class CarrierKeys {
       String[] names = namesByLength[length];
       if (names != null) {
         for (String name : names) {
-          if (name.regionMatches(true, 0, key, 0, length)) {
+          if (name.equals(key) || name.regionMatches(true, 0, key, 0, length)) {
             return true;
           }
         }
