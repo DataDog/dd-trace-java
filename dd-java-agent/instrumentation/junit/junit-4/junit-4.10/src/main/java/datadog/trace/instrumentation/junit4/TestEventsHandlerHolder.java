@@ -9,6 +9,7 @@ import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation
 import datadog.trace.util.ConcurrentEnumMap;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Collection;
+import java.util.Locale;
 import java.util.Map;
 
 public abstract class TestEventsHandlerHolder {
@@ -28,7 +29,7 @@ public abstract class TestEventsHandlerHolder {
       HANDLERS.put(
           framework,
           InstrumentationBridge.createTestEventsHandler(
-              framework.name().toLowerCase(), null, null, capabilities));
+              framework.name().toLowerCase(Locale.ROOT), null, null, capabilities));
     }
   }
 

@@ -304,7 +304,9 @@ class DDAgentWriterCombinedTest extends DDCoreJavaSpecification {
     }
     writer.flush();
 
-    verify(discovery, times(2)).getTraceEndpoint();
+    // twice to pick the mapper, and once more when the buffer overflows: the dispatcher
+    // rechecks the protocol before the trace that started the next payload
+    verify(discovery, times(3)).getTraceEndpoint();
     verify(api, times(1))
         .sendSerializedTraces(
             argThat(payload -> payload != null && payload.traceCount() == maxedPayloadTraceCount));

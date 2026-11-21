@@ -495,7 +495,7 @@ public class JavaTestHttpServer implements AutoCloseable {
       }
 
       public String getText() {
-        return new String(body);
+        return new String(body, StandardCharsets.UTF_8);
       }
 
       public String getParameter(String parameter) {

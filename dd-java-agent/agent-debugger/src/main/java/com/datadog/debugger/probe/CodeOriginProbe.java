@@ -21,6 +21,7 @@ import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeLocation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.util.Strings;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -124,7 +125,7 @@ public class CodeOriginProbe extends ProbeDefinition {
 
   @Override
   public String toString() {
-    return String.format(
+    return Strings.format(
         "CodeOriginProbe{probeId=%s, entrySpanProbe=%s, signature=%s, where=%s, location=%s}",
         getProbeId(), entrySpanProbe, signature, where, location);
   }
