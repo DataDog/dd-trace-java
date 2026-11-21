@@ -182,7 +182,7 @@ public class AIGuardInternal implements Evaluator {
   private static boolean isReservedTag(final String key) {
     return RESERVED_TAGS.contains(key)
         || key.startsWith(RESERVED_TAG_PREFIX)
-        || KnownTagCodec.isIntercepted(KnownTagCodec.keyOf(key));
+        || KnownTagCodec.isIntercepted(KnownTagCodec.idOf(key));
   }
 
   /** Returns whether a backend extra meta_struct key is owned by the tracer. */

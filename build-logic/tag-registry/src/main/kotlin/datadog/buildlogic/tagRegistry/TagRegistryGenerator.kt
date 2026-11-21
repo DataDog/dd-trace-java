@@ -94,7 +94,7 @@ object TagRegistryGenerator {
     appendLine(
       """
 
-      # OPENTELEMETRY NAMES. keyOf(otelName) resolves to the canonical tag's id; nameOf still
+      # OPENTELEMETRY NAMES. idOf(otelName) resolves to the canonical tag's id; nameOf still
       # returns the Datadog name, openTelemetryNameOf returns the name below. (No distinct id.)
       """.trimIndent()
     )

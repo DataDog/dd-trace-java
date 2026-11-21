@@ -187,7 +187,7 @@ class TagConstantsRegistryCoverageTest {
   }
 
   private static boolean isRegistered(String tag) {
-    return KnownTagCodec.keyOf(tag) != 0;
+    return KnownTagCodec.idOf(tag) != 0;
   }
 
   /** Every public static final String constant of the tag classes, keyed {@code Class.FIELD}. */
