@@ -239,9 +239,8 @@ abstract class RabbitMQTestBase extends VersionedNamingTestBase {
     }
   }
 
-  def "test rabbit per-instance names are normalized in DSM tags (#exchangeType exchange)"() {
+  def "test rabbit per-instance names are normalized in DSM tags (#scenario)"() {
     setup:
-    String queueName = "callback-" + UUID.randomUUID()
     channel.queueDeclare(queueName, false, true, true, null)
     if (!exchangeName.isEmpty()) {
       channel.exchangeDeclare(exchangeName, "direct", false, true, null)
@@ -265,14 +264,15 @@ abstract class RabbitMQTestBase extends VersionedNamingTestBase {
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        tags.hasAllTags("direction:in", "topic:callback-*", "type:rabbitmq")
+        tags.hasAllTags("direction:in", "topic:" + expectedInTopic, "type:rabbitmq")
       }
     }
 
     where:
-    exchangeType | exchangeName                              | expectedOutTags
-    "default"    | ""                                        | ["topic:callback-*"]
-    "named"      | "events-" + UUID.randomUUID().toString().replace("-", "") | ["exchange:events-*", "has_routing_key:true"]
+    scenario           | queueName                             | exchangeName                                               | expectedOutTags                               | expectedInTopic
+    "default exchange" | "callback-" + UUID.randomUUID()       | ""                                                         | ["topic:callback-*"]                          | "callback-*"
+    "named exchange"   | "callback-" + UUID.randomUUID()       | "events-" + UUID.randomUUID().toString().replace("-", "") | ["exchange:events-*", "has_routing_key:true"] | "callback-*"
+    "bare uuid queue"  | UUID.randomUUID().toString()          | ""                                                         | ["topic:*"]                                   | "*"
   }
 
   def "test rabbit consume #messageCount messages"() {

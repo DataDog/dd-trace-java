@@ -17,6 +17,7 @@ public final class RabbitDsmNames {
   static final String REPLY_TO_PREFIX = "amq.rabbitmq.reply-to";
   static final String WOLVERINE_PREFIX = "wolverine.";
   static final String BUS_MARKER = "_bus_";
+  static final String WILDCARD = "*";
 
   private static final String[] WOLVERINE_KINDS = {"control", "response", "replies"};
   private static final String[] WOLVERINE_NORMALIZED = {
@@ -25,6 +26,9 @@ public final class RabbitDsmNames {
 
   /** Length of a dashed UUID: 8-4-4-4-12 hex digits. */
   private static final int UUID_LENGTH = 36;
+
+  /** Length of an undashed UUID: 32 hex digits. */
+  private static final int UNDASHED_UUID_LENGTH = 32;
 
   /** Minimum length of a trailing run of hex digits that is treated as random. */
   private static final int MIN_HEX_SUFFIX = 16;
@@ -44,6 +48,7 @@ public final class RabbitDsmNames {
    *   <li>{@code wolverine.(control|response|replies).<rest>}: {@code wolverine.<kind>.*}
    *   <li>a separator ({@code -}, {@code _} or {@code .}) followed by a UUID (dashed or 32 hex) or
    *       by 16 or more hex digits at the end: the suffix becomes {@code <sep>*}
+   *   <li>the whole name is a UUID (dashed, or exactly 32 hex digits), case-insensitive: {@code *}
    *   <li>otherwise unchanged
    * </ol>
    */
@@ -68,6 +73,9 @@ public final class RabbitDsmNames {
     normalized = normalizeRandomSuffix(name);
     if (normalized != null) {
       return normalized;
+    }
+    if (isBareUuid(name)) {
+      return WILDCARD;
     }
     return name;
   }
@@ -143,8 +151,25 @@ public final class RabbitDsmNames {
     return name.substring(0, sep + 1) + '*';
   }
 
+  /** The whole name is a dashed UUID or exactly 32 hex digits. */
+  private static boolean isBareUuid(final String name) {
+    final int length = name.length();
+    if (length == UUID_LENGTH) {
+      return isDashedUuidAt(name, 0);
+    }
+    if (length != UNDASHED_UUID_LENGTH) {
+      return false;
+    }
+    for (int i = 0; i < length; i++) {
+      if (!isHex(name.charAt(i))) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   private static boolean isDashedUuidAt(final String name, final int start) {
-    if (start < 1) {
+    if (start < 0) {
       return false;
     }
     for (int i = 0; i < UUID_LENGTH; i++) {

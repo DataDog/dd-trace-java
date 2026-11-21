@@ -27,7 +27,11 @@ class RabbitDsmNamesTest {
     "uuid after multi-dash prefix  | reply-queue-8f14e45f-ceea-467a-9f3a-6b1f1e2c0a11          | reply-queue-*         ",
     "trailing undashed uuid        | reply_8f14e45fceea467a9f3a6b1f1e2c0a11                    | reply_*               ",
     "trailing long hex             | membership-9f8e7d6c5b4a39281706f5e4d3c2b1a0               | membership-*          ",
-    "trailing 16 hex after dot     | events.0123456789abcdef                                   | events.*              "
+    "trailing 16 hex after dot     | events.0123456789abcdef                                   | events.*              ",
+    "underscore and dashed uuid    | foo_8f14e45f-ceea-467a-9f3a-6b1f1e2c0a11                  | foo_*                 ",
+    "bare dashed uuid              | 32f268c3-9791-4f81-b471-e1f31c1607d9                      | *                     ",
+    "bare upper case dashed uuid   | 8F14E45F-CEEA-467A-9F3A-6B1F1E2C0A11                      | *                     ",
+    "bare undashed uuid            | 8f14e45fceea467a9f3a6b1f1e2c0a11                          | *                     "
   })
   void normalizesPerInstanceNames(String name, String expected) {
     assertEquals(expected, RabbitDsmNames.normalize(name));
@@ -45,6 +49,8 @@ class RabbitDsmNamesTest {
         "amq.gen",
         "events.0123456789abcde",
         "deadbeefdeadbeefdeadbeef",
+        "8f14e45f-ceea-467a-9f3a-6b1f1e2c0a1",
+        "8f14e45fceea467a9f3a6b1f1e2c0a1",
         "orders0123456789abcdef",
         "callback-8f14e45f-ceea-467a-9f3a-6b1f1e2c0a1",
         "callbackx8f14e45f-ceea-467a-9f3a-6b1f1e2c0a11",
@@ -68,7 +74,8 @@ class RabbitDsmNamesTest {
           "amq.rabbitmq.reply-to",
           "*_PaymentService_bus_*",
           "wolverine.control.*",
-          "callback-*"
+          "callback-*",
+          "*"
         }) {
       assertEquals(name, RabbitDsmNames.normalize(name));
     }
