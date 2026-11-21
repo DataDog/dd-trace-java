@@ -5,6 +5,7 @@ import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
 
 import datadog.context.propagation.CarrierKeys;
 import datadog.context.propagation.CarrierSetter;
+import datadog.context.propagation.HeaderSchema;
 import datadog.trace.api.Config;
 import datadog.trace.api.DD64bTraceId;
 import datadog.trace.api.DDSpanId;
@@ -212,40 +213,59 @@ class HaystackHttpCodec {
       }
 
       if (IGNORE != classification) {
-        try {
-          String firstValue = firstHeaderValue(value);
-          if (null != firstValue) {
-            switch (classification) {
-              case TRACE_ID:
-                traceId = DD64bTraceId.fromHex(convertUUIDToHexString(firstValue));
-                addReservedBaggageItem(HAYSTACK_TRACE_ID_BAGGAGE_KEY, firstValue);
+        return handleClassified(classification, value, lowerCaseKey);
+      }
+      return acceptUnclassified(key, value);
+    }
+
+    @Override
+    protected int classify(HeaderSchema header) {
+      switch (header) {
+        case HAYSTACK_TRACE_ID:
+          return TRACE_ID;
+        case HAYSTACK_SPAN_ID:
+          return SPAN_ID;
+        case HAYSTACK_PARENT_ID:
+          return PARENT_ID;
+        default:
+          return NOT_OWN_HEADER;
+      }
+    }
+
+    @Override
+    protected boolean acceptClassified(int classification, String key, String value) {
+      return handleClassified(classification, value, null);
+    }
+
+    /** Stores the value of a key classified as one of this style's own. */
+    private boolean handleClassified(int classification, String value, String lowerCaseKey) {
+      try {
+        String firstValue = firstHeaderValue(value);
+        if (null != firstValue) {
+          switch (classification) {
+            case TRACE_ID:
+              traceId = DD64bTraceId.fromHex(convertUUIDToHexString(firstValue));
+              addReservedBaggageItem(HAYSTACK_TRACE_ID_BAGGAGE_KEY, firstValue);
+              break;
+            case SPAN_ID:
+              spanId = DDSpanId.fromHex(convertUUIDToHexString(firstValue));
+              addReservedBaggageItem(HAYSTACK_SPAN_ID_BAGGAGE_KEY, firstValue);
+              break;
+            case PARENT_ID:
+              addBaggageItem(HAYSTACK_PARENT_ID_BAGGAGE_KEY, firstValue);
+              break;
+            case BAGGAGE:
+              {
+                addBaggageItem(lowerCaseKey.substring(BAGGAGE_PREFIX_LC.length()), value);
                 break;
-              case SPAN_ID:
-                spanId = DDSpanId.fromHex(convertUUIDToHexString(firstValue));
-                addReservedBaggageItem(HAYSTACK_SPAN_ID_BAGGAGE_KEY, firstValue);
-                break;
-              case PARENT_ID:
-                addBaggageItem(HAYSTACK_PARENT_ID_BAGGAGE_KEY, firstValue);
-                break;
-              case BAGGAGE:
-                {
-                  addBaggageItem(lowerCaseKey.substring(BAGGAGE_PREFIX_LC.length()), value);
-                  break;
-                }
-              default:
-            }
+              }
+            default:
           }
-        } catch (RuntimeException e) {
-          invalidateContext();
-          log.debug("Exception when extracting context", e);
-          return false;
         }
-      } else {
-        handledIpHeaders(key, value);
-        if (handleTags(key, value)) {
-          return true;
-        }
-        handleMappedBaggage(key, value);
+      } catch (RuntimeException e) {
+        invalidateContext();
+        log.debug("Exception when extracting context", e);
+        return false;
       }
       return true;
     }

@@ -22,20 +22,27 @@ import java.util.Set;
  * <p>Immutable.
  */
 public final class CarrierKeys {
-  private static final CarrierKeys ALL = new CarrierKeys(true, new String[0][], new String[0]);
-  private static final CarrierKeys NONE = new CarrierKeys(false, new String[0][], new String[0]);
+  private static final CarrierKeys ALL =
+      new CarrierKeys(true, new String[0][], new HeaderSchema[0][], new String[0]);
+  private static final CarrierKeys NONE =
+      new CarrierKeys(false, new String[0][], new HeaderSchema[0][], new String[0]);
 
   private final boolean all;
 
   /** Lower-cased exact names, indexed by length. */
   private final String[][] namesByLength;
 
+  /** Each name's {@link HeaderSchema} constant, or null, parallel to {@link #namesByLength}. */
+  private final HeaderSchema[][] headersByLength;
+
   /** Lower-cased prefixes. */
   private final String[] prefixes;
 
-  private CarrierKeys(boolean all, String[][] namesByLength, String[] prefixes) {
+  private CarrierKeys(
+      boolean all, String[][] namesByLength, HeaderSchema[][] headersByLength, String[] prefixes) {
     this.all = all;
     this.namesByLength = namesByLength;
+    this.headersByLength = headersByLength;
     this.prefixes = prefixes;
   }
 
@@ -52,6 +59,15 @@ public final class CarrierKeys {
   /** Exactly these names. */
   public static CarrierKeys of(String... names) {
     return builder().names(Arrays.asList(names)).build();
+  }
+
+  /** Exactly these headers. */
+  public static CarrierKeys of(HeaderSchema... headers) {
+    Builder builder = builder();
+    for (HeaderSchema header : headers) {
+      builder.header(header);
+    }
+    return builder.build();
   }
 
   public static Builder builder() {
@@ -102,19 +118,55 @@ public final class CarrierKeys {
    * that matched a key's bytes use the name as the key without decoding it. Reads only.
    */
   public String nameAscii(ByteBuffer key) {
-    int length = key.remaining();
+    int index = indexAscii(key);
+    return index < 0 ? null : namesByLength[key.remaining()][index];
+  }
+
+  /**
+   * The {@link HeaderSchema} constant of the declared name that the ASCII bytes between {@code
+   * key}'s position and limit spell, ignoring case; null if they spell no declared name, or one
+   * with no constant (such as a configured header tag). Reads only.
+   */
+  public HeaderSchema headerAscii(ByteBuffer key) {
+    int index = indexAscii(key);
+    return index < 0 ? null : headersByLength[key.remaining()][index];
+  }
+
+  /**
+   * The {@link HeaderSchema} constant of the declared name {@code key} is, ignoring case; null if
+   * it's no declared name, or one with no constant.
+   */
+  public HeaderSchema header(String key) {
+    int length = key.length();
     if (length < namesByLength.length) {
       String[] names = namesByLength[length];
       if (names != null) {
-        int start = key.position();
-        for (String name : names) {
-          if (asciiMatches(key, start, name, length)) {
-            return name;
+        for (int i = 0; i < names.length; i++) {
+          // a carrier that matched the key's bytes passes the declared name itself
+          if (names[i] == key || names[i].regionMatches(true, 0, key, 0, length)) {
+            return headersByLength[length][i];
           }
         }
       }
     }
     return null;
+  }
+
+  /** The index, among the names of its length, of the name {@code key}'s bytes spell, or -1. */
+  private int indexAscii(ByteBuffer key) {
+    int length = key.remaining();
+    if (length < namesByLength.length) {
+      String[] names = namesByLength[length];
+      if (names != null) {
+        int start = key.position();
+        for (int i = 0; i < names.length; i++) {
+          if (asciiMatches(key, start, names[i], length)) {
+            return i;
+          }
+        }
+      }
+    }
+    return -1;
   }
 
   /** Whether the ASCII bytes between {@code key}'s position and limit start with a prefix. */
@@ -180,6 +232,12 @@ public final class CarrierKeys {
 
     private Builder() {}
 
+    /** Adds {@code header}'s name, which then matches as that constant. */
+    public Builder header(HeaderSchema header) {
+      names.add(header.headerName);
+      return this;
+    }
+
     public Builder name(String name) {
       if (name != null && !name.isEmpty()) {
         names.add(name.toLowerCase(Locale.ROOT));
@@ -240,13 +298,20 @@ public final class CarrierKeys {
         sameLength.add(name);
       }
       String[][] namesByLength = new String[names.isEmpty() ? 0 : maxLength + 1][];
+      HeaderSchema[][] headersByLength = new HeaderSchema[namesByLength.length][];
       for (int i = 0; i < namesByLength.length; i++) {
         List<String> sameLength = grouped.get(i);
         if (sameLength != null) {
           namesByLength[i] = sameLength.toArray(new String[0]);
+          headersByLength[i] = new HeaderSchema[namesByLength[i].length];
+          for (int j = 0; j < namesByLength[i].length; j++) {
+            // any declared name that is a known header matches as its constant
+            headersByLength[i][j] = HeaderSchema.forName(namesByLength[i][j]);
+          }
         }
       }
-      return new CarrierKeys(false, namesByLength, prefixes.toArray(new String[0]));
+      return new CarrierKeys(
+          false, namesByLength, headersByLength, prefixes.toArray(new String[0]));
     }
   }
 }

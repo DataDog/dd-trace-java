@@ -81,6 +81,41 @@ class CarrierKeysTest {
   }
 
   @Test
+  void knownHeadersMatchAsTheirConstant() {
+    CarrierKeys keys =
+        CarrierKeys.builder()
+            .header(HeaderSchema.X_DATADOG_PARENT_ID)
+            .name("TraceParent")
+            .name("x-custom-header")
+            .prefix("ot-baggage-")
+            .build();
+    // declared as a constant, or by a name that is a known header, either way
+    assertSame(HeaderSchema.X_DATADOG_PARENT_ID, keys.header("X-Datadog-Parent-Id"));
+    assertSame(HeaderSchema.X_DATADOG_PARENT_ID, keys.headerAscii(bytes("x-datadog-parent-id")));
+    assertSame(HeaderSchema.TRACEPARENT, keys.header("traceparent"));
+    assertSame(HeaderSchema.TRACEPARENT, keys.headerAscii(bytes("TRACEPARENT")));
+    // a declared name with no constant, a prefix match, or an undeclared known header: no constant
+    assertNull(keys.header("x-custom-header"));
+    assertNull(keys.headerAscii(bytes("x-custom-header")));
+    assertTrue(keys.contains("x-custom-header"));
+    assertNull(keys.header("ot-baggage-user"));
+    assertNull(keys.header("tracestate"));
+    assertNull(keys.headerAscii(bytes("tracestate")));
+    assertSame(HeaderSchema.BAGGAGE, CarrierKeys.of(HeaderSchema.BAGGAGE).header("baggage"));
+    assertNull(CarrierKeys.all().header("baggage"));
+    assertNull(CarrierKeys.none().headerAscii(bytes("baggage")));
+  }
+
+  @Test
+  void unionKeepsConstants() {
+    CarrierKeys union =
+        CarrierKeys.of(HeaderSchema.TRACEPARENT).union(CarrierKeys.of("x-custom-header"));
+    assertSame(HeaderSchema.TRACEPARENT, union.header("traceparent"));
+    assertNull(union.header("x-custom-header"));
+    assertTrue(union.contains("x-custom-header"));
+  }
+
+  @Test
   void nonAsciiBytesMatchNothing() {
     assertFalse(KEYS.containsAscii(bytes("traceparént")));
     assertFalse(KEYS.containsAscii(ByteBuffer.wrap(new byte[] {(byte) 0xC3, (byte) 0xA9})));
