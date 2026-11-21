@@ -133,36 +133,168 @@ public class LongStringUtils {
       } else {
         if (len <= 18) { // Signed 64 bits max is 19 digits, so this always fits
           return Long.parseLong(s);
-        } else if (len > 20) { // Unsigned 64 bits max is 20 digits, so this always overflows
-          throw numberFormatOutOfLongRange(s);
         }
-        // Now do the first part and the last character
-        long first = 0;
-        int ok = 0;
-        for (int i = 0; i < len - 1; i++) {
-          char c = s.charAt(i);
-          int d = Character.digit(c, 10);
-          ok |= d;
-          first = first * 10 + d;
-        }
-        int last = Character.digit(s.charAt(len - 1), 10);
-        ok |= last;
-        if (ok < 0) {
-          throw new NumberFormatException("Illegal character in " + s);
-        }
-        if (Long.compareUnsigned(first, MAX_FIRST_PART) > 0) {
-          throw numberFormatOutOfLongRange(s);
-        }
-        long guard = first * 10;
-        long result = guard + last;
-        if (guard < 0 && result >= 0) {
-          throw numberFormatOutOfLongRange(s);
-        }
-        return result;
+        return parseLongUnsignedDigits(s, 0, len);
       }
     } else {
       throw new NumberFormatException("Empty input string");
     }
+  }
+
+  /**
+   * {@link #parseUnsignedLong(String)} for the chars {@code [start, end)} of {@code s}: the same
+   * result, or a {@code NumberFormatException}, as for the same chars in a {@code String}, without
+   * making one.
+   */
+  public static long parseUnsignedLong(CharSequence s, int start, int end)
+      throws NumberFormatException {
+    if (s == null) {
+      throw new NumberFormatException("s can't be null");
+    }
+
+    int len = end - start;
+    if (len > 0) {
+      char firstChar = s.charAt(start);
+      if (firstChar == '-') {
+        throw new NumberFormatException(
+            String.format(
+                Locale.ROOT,
+                "Illegal leading minus sign on unsigned string %s.",
+                s.subSequence(start, end)));
+      } else {
+        if (len <= 18) { // Signed 64 bits max is 19 digits, so this always fits
+          return parseLong(s, start, end);
+        }
+        return parseLongUnsignedDigits(s, start, end);
+      }
+    } else {
+      throw new NumberFormatException("Empty input string");
+    }
+  }
+
+  /** The 19 or more digits {@code [start, end)} of {@code s} as an unsigned long. */
+  private static long parseLongUnsignedDigits(CharSequence s, int start, int end) {
+    int len = end - start;
+    if (len > 20) { // Unsigned 64 bits max is 20 digits, so this always overflows
+      throw numberFormatOutOfLongRange(s.subSequence(start, end));
+    }
+    // Now do the first part and the last character
+    long first = 0;
+    int ok = 0;
+    for (int i = start; i < end - 1; i++) {
+      char c = s.charAt(i);
+      int d = Character.digit(c, 10);
+      ok |= d;
+      first = first * 10 + d;
+    }
+    int last = Character.digit(s.charAt(end - 1), 10);
+    ok |= last;
+    if (ok < 0) {
+      throw new NumberFormatException("Illegal character in " + s.subSequence(start, end));
+    }
+    if (Long.compareUnsigned(first, MAX_FIRST_PART) > 0) {
+      throw numberFormatOutOfLongRange(s.subSequence(start, end));
+    }
+    long guard = first * 10;
+    long result = guard + last;
+    if (guard < 0 && result >= 0) {
+      throw numberFormatOutOfLongRange(s.subSequence(start, end));
+    }
+    return result;
+  }
+
+  /**
+   * {@link Long#parseLong(String)} for the chars {@code [start, end)} of {@code s}, in base 10: the
+   * same result, or a {@code NumberFormatException}, as for the same chars in a {@code String}.
+   * Java 8 has no range-based {@code CharSequence} overload.
+   */
+  public static long parseLong(CharSequence s, int start, int end) throws NumberFormatException {
+    if (s == null) {
+      throw new NumberFormatException("s can't be null");
+    }
+    if (start >= end) {
+      throw new NumberFormatException("Empty input string");
+    }
+    boolean negative = false;
+    long limit = -Long.MAX_VALUE;
+    int i = start;
+    char firstChar = s.charAt(i);
+    if (firstChar < '0') { // possible leading "+" or "-"
+      if (firstChar == '-') {
+        negative = true;
+        limit = Long.MIN_VALUE;
+      } else if (firstChar != '+') {
+        throw forInput(s, start, end);
+      }
+      if (end - start == 1) { // a lone "+" or "-"
+        throw forInput(s, start, end);
+      }
+      i++;
+    }
+    long multmin = limit / 10;
+    long result = 0;
+    while (i < end) {
+      // Accumulating negatively avoids surprises near MAX_VALUE
+      int digit = Character.digit(s.charAt(i++), 10);
+      if (digit < 0 || result < multmin) {
+        throw forInput(s, start, end);
+      }
+      result *= 10;
+      if (result < limit + digit) {
+        throw forInput(s, start, end);
+      }
+      result -= digit;
+    }
+    return negative ? result : -result;
+  }
+
+  /**
+   * {@link Integer#parseInt(String)} for the chars {@code [start, end)} of {@code s}: the same
+   * result, or a {@code NumberFormatException}, as for the same chars in a {@code String}. Java 8
+   * has no range-based {@code CharSequence} overload.
+   */
+  public static int parseInt(CharSequence s, int start, int end) throws NumberFormatException {
+    if (s == null) {
+      throw new NumberFormatException("s can't be null");
+    }
+    if (start >= end) {
+      throw new NumberFormatException("Empty input string");
+    }
+    boolean negative = false;
+    int limit = -Integer.MAX_VALUE;
+    int i = start;
+    char firstChar = s.charAt(i);
+    if (firstChar < '0') { // possible leading "+" or "-"
+      if (firstChar == '-') {
+        negative = true;
+        limit = Integer.MIN_VALUE;
+      } else if (firstChar != '+') {
+        throw forInput(s, start, end);
+      }
+      if (end - start == 1) { // a lone "+" or "-"
+        throw forInput(s, start, end);
+      }
+      i++;
+    }
+    int multmin = limit / 10;
+    int result = 0;
+    while (i < end) {
+      // Accumulating negatively avoids surprises near MAX_VALUE
+      int digit = Character.digit(s.charAt(i++), 10);
+      if (digit < 0 || result < multmin) {
+        throw forInput(s, start, end);
+      }
+      result *= 10;
+      if (result < limit + digit) {
+        throw forInput(s, start, end);
+      }
+      result -= digit;
+    }
+    return negative ? result : -result;
+  }
+
+  private static NumberFormatException forInput(CharSequence s, int start, int end) {
+    return new NumberFormatException("For input string: \"" + s.subSequence(start, end) + "\"");
   }
 
   /**
