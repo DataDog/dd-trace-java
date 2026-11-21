@@ -8,6 +8,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import net.bytebuddy.asm.Advice;
@@ -61,8 +62,10 @@ public final class ResourcesFeatureInstrumentation
       String metricConfigsPath = "jmxfetch/datadog/trace/agent/jmxfetch/";
       String metricConfigs = metricConfigsPath + "metricconfigs.txt";
       tracerResources.add(metricConfigs);
+      // Match copyMetricConfigs' UTF-8 list so native images include the same JMX resources.
       try (InputStream is = ClassLoader.getSystemResourceAsStream(metricConfigs);
-          BufferedReader reader = new BufferedReader(new InputStreamReader(is))) {
+          BufferedReader reader =
+              new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
         String metricConfig;
         while ((metricConfig = reader.readLine()) != null) {
           if (!metricConfig.trim().isEmpty()) {

@@ -251,27 +251,56 @@ class FlagEvaluationPipelineTest {
   }
 
   @Test
-  void finalFlushRunsWithoutTheInterruptFlagSet() throws Exception {
-    // close() interrupts the worker to break it out of poll(). The final flush does socket I/O,
-    // which fails fast on an interrupted thread, so the flag must be clear by the time the
-    // transport is called.
+  void flushesPendingEvaluationsWhenQueuePollTimesOut() throws Exception {
+    final RuntimeServices services = new RuntimeServices(this.metrics);
+    final FlagEvaluationPipeline.FlagEvaluationSerializingHandler handler =
+        new FlagEvaluationPipeline.FlagEvaluationSerializingHandler(
+            this.transport,
+            new EventQueue<>(16),
+            1L,
+            TimeUnit.MILLISECONDS,
+            context(),
+            new AtomicLong(),
+            new ConcurrentHashMap<>(),
+            FlagEvaluationPipeline.FLAG_EVALUATION_PAYLOAD_SIZE_LIMIT_BYTES,
+            services);
+    // The worker must flush the buffered evaluation after polling the empty queue.
+    handler.aggregateEvent(simpleEvent("idle-flag", "on"));
     final CountDownLatch posted = new CountDownLatch(1);
-    final boolean[] interruptedDuringPost = {true};
-    this.transport.onPost =
-        () -> {
-          interruptedDuringPost[0] = Thread.currentThread().isInterrupted();
-          posted.countDown();
-        };
-    final FlagEvaluationPipeline writer = writer(64, TimeUnit.DAYS.toSeconds(1), TimeUnit.SECONDS);
+    this.transport.onPost = posted::countDown;
+    final Thread worker = services.newThread("evaluations", handler);
+    final long timeoutSeconds = 5;
 
-    writer.start();
-    writer.enqueue(simpleEvent("interrupt-flag", "on"));
-    writer.close();
+    worker.start();
+    try {
+      assertTrue(posted.await(timeoutSeconds, TimeUnit.SECONDS), "The idle worker did not flush");
+    } finally {
+      handler.requestShutdown();
+      worker.join(TimeUnit.SECONDS.toMillis(timeoutSeconds));
+    }
 
-    assertTrue(posted.await(5, TimeUnit.SECONDS));
-    assertFalse(
-        interruptedDuringPost[0],
-        "final flush must not run on an interrupted thread; the drained rows would be lost");
+    assertFalse(worker.isAlive());
+    assertEquals(1, this.transport.posts.size());
+    final Map<String, Object> json = readJson(this.transport.posts.get(0).body).parsed;
+    assertNotNull(eventForFlag(json, "idle-flag"));
+  }
+
+  @Test
+  void finalFlushClearsAndRestoresTheInterruptFlag() {
+    final FlagEvaluationTestSupport.TestWriterSetup setup = buildTestWriter();
+    setup.handler.aggregateEvent(simpleEvent("interrupt-flag", "on"));
+    setup.transport.onPost =
+        () -> assertFalse(Thread.currentThread().isInterrupted(), "The flush performs socket I/O");
+
+    Thread.currentThread().interrupt();
+    try {
+      setup.handler.run();
+      assertTrue(Thread.currentThread().isInterrupted());
+    } finally {
+      Thread.interrupted();
+    }
+
+    assertEquals(1, setup.transport.posts.size());
   }
 
   @Test
@@ -444,23 +473,22 @@ class FlagEvaluationPipelineTest {
   }
 
   @Test
-  void countContextTruncatedAccumulatesPerReason() {
+  void contextTruncationCountsAreFlushedOncePerReason() {
     final FlagEvaluationPipeline writer = writer(16, Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+    final String metric = FlagEvaluationPipeline.FLAG_EVALUATION_CONTEXT_TRUNCATED_METRIC;
 
     writer.countContextTruncated("field_count");
     writer.countContextTruncated("field_count");
     writer.countContextTruncated("field_length");
     writer.flushForTest();
 
-    assertEquals(
-        2,
-        this.metrics.sum(
-            FlagEvaluationPipeline.FLAG_EVALUATION_CONTEXT_TRUNCATED_METRIC, "reason:field_count"));
-    assertEquals(
-        1,
-        this.metrics.sum(
-            FlagEvaluationPipeline.FLAG_EVALUATION_CONTEXT_TRUNCATED_METRIC,
-            "reason:field_length"));
+    assertEquals(2, this.metrics.sum(metric, "reason:field_count"));
+    assertEquals(1, this.metrics.sum(metric, "reason:field_length"));
+
+    writer.flushForTest();
+
+    assertEquals(2, this.metrics.sum(metric, "reason:field_count"));
+    assertEquals(1, this.metrics.sum(metric, "reason:field_length"));
   }
 
   @Test

@@ -708,6 +708,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_CLOUD_PAYLOAD_TAGGING_
 import static datadog.trace.api.config.TracerConfig.TRACE_CLOUD_PAYLOAD_TAGGING_SERVICES;
 import static datadog.trace.api.config.TracerConfig.TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING;
 import static datadog.trace.api.config.TracerConfig.TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING;
+import static datadog.trace.api.config.TracerConfig.TRACE_DENSE_TAGS_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_EXPERIMENTAL_FEATURES_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_GIT_METADATA_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_CLIENT_ERROR_STATUSES;
@@ -750,8 +751,12 @@ import static datadog.trace.api.config.TracerConfig.WRITER_BAGGAGE_INJECT;
 import static datadog.trace.api.config.TracerConfig.WRITER_LINKS_INJECT;
 import static datadog.trace.api.config.TracerConfig.WRITER_TYPE;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
+import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.DD_INTAKE_WRITER_TYPE;
+import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.LOGGING_WRITER_TYPE;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.MULTI_WRITER_TYPE;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.OTLP_WRITER_TYPE;
+import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.PRINTING_WRITER_TYPE;
+import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.TRACE_STRUCTURE_WRITER_TYPE;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
 import static datadog.trace.util.ConfigStrings.propertyNameToEnvironmentVariableName;
@@ -1471,6 +1476,7 @@ public class Config {
   private final boolean jdkSocketEnabled;
 
   private final boolean spanBuilderReuseEnabled;
+  private final boolean traceDenseTagsEnabled;
   private final int tagNameUtf8CacheSize;
   private final int tagValueUtf8CacheSize;
   private final int stackTraceLengthLimit;
@@ -2269,14 +2275,8 @@ public class Config {
             OtlpConfig.Temporality.class,
             OtlpConfig.Temporality.DELTA);
 
-    // Tri-state default: when unset, SDK-computed OTLP span metrics are emitted iff OTLP trace
-    // export and OTLP metrics export are both enabled. OTEL_SDK_DISABLED=true turns them off.
     otelTracesSpanMetricsEnabled =
-        configProvider.getBoolean(
-                OTEL_TRACES_SPAN_METRICS_ENABLED,
-                isTraceOtlpExporterEnabled()
-                    && isMetricsOtelEnabled()
-                    && isMetricsOtlpExporterEnabled())
+        configProvider.getBoolean(OTEL_TRACES_SPAN_METRICS_ENABLED, false)
             && !configProvider.isOtelSdkDisabled();
 
     otlpTimeout = configProvider.getInteger(OTLP_TRACES_TIMEOUT, DEFAULT_OTLP_TRACES_TIMEOUT);
@@ -3504,6 +3504,7 @@ public class Config {
 
     this.spanBuilderReuseEnabled =
         configProvider.getBoolean(GeneralConfig.SPAN_BUILDER_REUSE_ENABLED, true);
+    this.traceDenseTagsEnabled = configProvider.getBoolean(TRACE_DENSE_TAGS_ENABLED, false);
     this.tagNameUtf8CacheSize =
         Math.max(configProvider.getInteger(GeneralConfig.TAG_NAME_UTF8_CACHE_SIZE, 128), 0);
     this.tagValueUtf8CacheSize =
@@ -4115,6 +4116,32 @@ public class Config {
     return tracerMetricsEnabled && isApmTracingEnabled();
   }
 
+  public boolean isNativeTracerMetricsEnabled() {
+    return isTracerMetricsEnabled() && !isOtelTracesSpanMetricsEnabled() && hasAgentWriter();
+  }
+
+  public boolean hasAgentWriter() {
+    if (!writerType.startsWith(MULTI_WRITER_TYPE)) {
+      return isAgentWriterType(writerType);
+    }
+    String multiWriterConfig = Strings.replace(writerType, MULTI_WRITER_TYPE + ":", "");
+    for (String subWriterType : COMMA.split(multiWriterConfig)) {
+      if (isAgentWriterType(subWriterType)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private static boolean isAgentWriterType(String type) {
+    // WriterFactory falls back to DDAgentWriter for unrecognized writer types.
+    return !OTLP_WRITER_TYPE.equals(type)
+        && !DD_INTAKE_WRITER_TYPE.equals(type)
+        && !LOGGING_WRITER_TYPE.equals(type)
+        && !PRINTING_WRITER_TYPE.equals(type)
+        && !type.startsWith(TRACE_STRUCTURE_WRITER_TYPE);
+  }
+
   public boolean isTracerMetricsIgnoreAgentVersion() {
     return tracerMetricsIgnoreAgentVersion;
   }
@@ -4136,27 +4163,22 @@ public class Config {
   }
 
   /**
-   * Upper bound for a configured stats cardinality limit. Each limit sizes a {@code
-   * TagCardinalityHandler} that eagerly allocates four reference arrays of {@code nextPow2(limit *
-   * 2)} slots, so an unbounded value (e.g. a mis-set env var) can exhaust the heap while the
-   * aggregator is constructed, before the tracer finishes starting. {@code 1 << 16} caps a single
-   * handler near ~2 MB while staying far above any useful setting -- the highest built-in default
-   * is 1024, and the aggregate table itself caps at a few thousand rows, so a larger per-key budget
-   * cannot produce more aggregate rows anyway.
+   * Upper bound for configured client-stats cardinality limits. Handlers allocate their lookup
+   * tables lazily and grow them as they see more distinct values. This bound limits how large those
+   * tables can grow during aggregation, even if a much larger limit is configured. It stays far
+   * above any useful setting: the highest built-in default is 1024, and the aggregate table itself
+   * caps at a few thousand rows, so a larger per-key budget cannot produce more aggregate rows
+   * anyway.
    */
   private static final int MAX_TRACE_STATS_CARDINALITY_LIMIT = 1 << 16;
 
   /**
-   * Returns the per-cycle cardinality limit for the named stats field, following the RFC naming
-   * pattern {@code DD_TRACE_STATS_{tagName}_CARDINALITY_LIMIT} (e.g. {@code
-   * DD_TRACE_STATS_RESOURCE_CARDINALITY_LIMIT}). The caller supplies the default from {@code
-   * MetricCardinalityLimits} so per-field rationale stays co-located with the defaults.
+   * Reads the per-cycle distinct-value limit for a client-stats field. For example, the {@code
+   * resource} field uses {@code DD_TRACE_STATS_RESOURCE_CARDINALITY_LIMIT}. The caller supplies the
+   * default from {@code MetricCardinalityLimits}, so per-field rationale stays with the defaults.
    *
-   * <p>A non-positive configured value is invalid -- each limit sizes a fixed-capacity handler
-   * table that requires a positive size -- so it falls back to {@code defaultLimit}, logged at
-   * debug. A value above {@link #MAX_TRACE_STATS_CARDINALITY_LIMIT} would eagerly allocate handler
-   * tables large enough to exhaust the heap at startup, so it likewise falls back to {@code
-   * defaultLimit}, logged at warn.
+   * <p>Non-positive settings fall back to the default and log at debug level. Settings above {@link
+   * #MAX_TRACE_STATS_CARDINALITY_LIMIT} fall back to the default and log a warning.
    */
   public int getTraceStatsCardinalityLimit(String tagName, int defaultLimit) {
     int limit =
@@ -5498,6 +5520,10 @@ public class Config {
     return jdkSocketEnabled;
   }
 
+  public boolean isTraceDenseTagsEnabled() {
+    return traceDenseTagsEnabled;
+  }
+
   public boolean isSpanBuilderReuseEnabled() {
     return spanBuilderReuseEnabled;
   }
@@ -6648,11 +6674,13 @@ public class Config {
       }
     }
 
-    // Try hostname command
+    // Decode the OS-owned hostname output with the host charset, independently of file.encoding.
     try (final TraceScope scope = AgentTracer.get().muteTracing();
         final BufferedReader reader =
             new BufferedReader(
-                new InputStreamReader(Runtime.getRuntime().exec("hostname").getInputStream()))) {
+                new InputStreamReader(
+                    Runtime.getRuntime().exec("hostname").getInputStream(),
+                    OperatingSystem.nativeCharset()))) {
       possibleHostname = reader.readLine();
     } catch (final Throwable ignore) {
       // Ignore.  Hostname command is not always available

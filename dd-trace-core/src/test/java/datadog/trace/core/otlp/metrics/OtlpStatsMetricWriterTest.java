@@ -26,6 +26,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
+import okhttp3.HttpUrl;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -75,6 +76,12 @@ class OtlpStatsMetricWriterTest {
       content.get(bytes);
       lastPayload = bytes;
       return success(200);
+    }
+
+    @Override
+    @Nullable
+    public HttpUrl destination() {
+      return null;
     }
 
     @Override
