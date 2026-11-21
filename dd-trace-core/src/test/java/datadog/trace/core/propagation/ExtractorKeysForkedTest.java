@@ -224,13 +224,29 @@ class ExtractorKeysForkedTest extends DDJavaSpecification {
     final List<String> keys = new ArrayList<>();
     final List<String> values = new ArrayList<>();
     final List<HeaderSchema> headers = new ArrayList<>();
+    final List<StringBuilder> views = new ArrayList<>();
 
     Indexed(Map<String, String> carrier, CarrierKeys classifier) {
       carrier.forEach((key, value) -> {
+        HeaderSchema header = classifier.header(key);
         keys.add(key);
         values.add(value);
-        headers.add(classifier.header(key));
+        headers.add(header);
+        views.add(
+            header != null && header.isParseOnly() && value != null
+                ? new StringBuilder(value)
+                : null);
       });
+    }
+
+    /** Overwrites every view, as a reused fetch buffer would. */
+    void overwriteViews() {
+      for (StringBuilder view : views) {
+        if (view != null) {
+          view.setLength(0);
+          view.append("999");
+        }
+      }
     }
 
     @Override
@@ -256,11 +272,8 @@ class ExtractorKeysForkedTest extends DDJavaSpecification {
     /** Parse-only values as views that aren't {@code String}s, as a byte carrier hands them. */
     @Override
     public CharSequence valueView(int index) {
-      HeaderSchema header = headers.get(index);
-      String value = values.get(index);
-      return header != null && header.isParseOnly() && value != null
-          ? new StringBuilder(value)
-          : value;
+      StringBuilder view = views.get(index);
+      return view != null ? view : values.get(index);
     }
   }
 
@@ -321,5 +334,65 @@ class ExtractorKeysForkedTest extends DDJavaSpecification {
     assertEquals(
         describe(compound.extract(headers, stringValuesMap())),
         describe(compound.extract(new Indexed(headers, compound.keys()), WITH_HEADERS)));
+  }
+
+  static String[][] datadogValues() {
+    return new String[][] {
+      {"123", "456", "1"},
+      {"00123", "0456", "+1"},
+      {"+123", "+456", "-1"},
+      {"0", "0", "0"},
+      {"123,456", "456, 789", "2,1"},
+      {"abc", "456", "1"},
+      {"123", "4x6", "1"},
+      {"123", "456", "one"},
+      {"18446744073709551615", "18446744073709551615", "2147483647"},
+      {"18446744073709551616", "456", "2147483648"},
+      {"9223372036854775807", "9223372036854775808", "-2147483648"},
+    };
+  }
+
+  private static Map<String, String> datadogHeaders(
+      String traceId, String parentId, String priority) {
+    Map<String, String> headers = new LinkedHashMap<>();
+    headers.put("x-datadog-trace-id", traceId);
+    headers.put("x-datadog-parent-id", parentId);
+    headers.put("x-datadog-sampling-priority", priority);
+    headers.put("x-datadog-origin", "synthetics");
+    headers.put("traceparent", "00-0000000000000000000000000000007b-00000000000001c8-01");
+    return headers;
+  }
+
+  private static HttpCodec.Extractor datadogAndW3C() {
+    DynamicConfig<DynamicConfig.Snapshot> dynamicConfig = DynamicConfig.create().apply();
+    List<HttpCodec.Extractor> parts = new ArrayList<>();
+    parts.add(DatadogHttpCodec.newExtractor(Config.get(), dynamicConfig::captureTraceConfig));
+    parts.add(W3CHttpCodec.newExtractor(Config.get(), dynamicConfig::captureTraceConfig));
+    return new HttpCodec.CompoundExtractor(parts, false);
+  }
+
+  @ParameterizedTest
+  @MethodSource("datadogValues")
+  void parsingIdsFromViewsMatchesParsingStrings(String traceId, String parentId, String priority) {
+    Map<String, String> headers = datadogHeaders(traceId, parentId, priority);
+    DynamicConfig<DynamicConfig.Snapshot> dynamicConfig = DynamicConfig.create().apply();
+    HttpCodec.Extractor datadog =
+        DatadogHttpCodec.newExtractor(Config.get(), dynamicConfig::captureTraceConfig);
+    for (HttpCodec.Extractor extractor : new HttpCodec.Extractor[] {datadog, datadogAndW3C()}) {
+      assertEquals(
+          describe(extractor.extract(headers, stringValuesMap())),
+          describe(extractor.extract(new Indexed(headers, extractor.keys()), WITH_HEADERS)));
+    }
+  }
+
+  @ParameterizedTest
+  @MethodSource("datadogValues")
+  void viewsAreNotKeptPastExtraction(String traceId, String parentId, String priority) {
+    HttpCodec.Extractor extractor = datadogAndW3C();
+    Indexed carrier = new Indexed(datadogHeaders(traceId, parentId, priority), extractor.keys());
+    TagContext context = extractor.extract(carrier, WITH_HEADERS);
+    String before = describe(context);
+    carrier.overwriteViews();
+    assertEquals(before, describe(context), "the context kept a view");
   }
 }
