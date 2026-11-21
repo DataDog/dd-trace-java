@@ -52,7 +52,7 @@ class FlagEvaluatorTest {
 
   @AfterEach
   void tearDown() {
-    FlagEvaluator.WARNED_FEATURE_DESTINATIONS.clear();
+    SplitFeatures.WARNED_FEATURE_DESTINATIONS.clear();
   }
 
   @TableTest({
@@ -196,15 +196,15 @@ class FlagEvaluatorTest {
     final Map<String, Object> metadata = evaluate(evaluator, true, 7, features);
 
     assertEquals(
-        new HashSet<>(asList("NEW_A", "NEW_B")), FlagEvaluator.WARNED_FEATURE_DESTINATIONS);
+        new HashSet<>(asList("NEW_A", "NEW_B")), SplitFeatures.WARNED_FEATURE_DESTINATIONS);
     assertEquals("q4-global", metadata.get(FEATURE_PREFIX + "holdout.key"));
     assertEquals("x", metadata.get(EXPOSURE_FEATURE_PREFIX + "other"));
   }
 
   @Test
   void stopsRememberingUnknownDestinationsAtTheCap() {
-    for (int i = 0; i < FlagEvaluator.MAX_WARNED_FEATURE_DESTINATIONS; i++) {
-      FlagEvaluator.WARNED_FEATURE_DESTINATIONS.add("OLD_" + i);
+    for (int i = 0; i < SplitFeatures.MAX_WARNED_FEATURE_DESTINATIONS; i++) {
+      SplitFeatures.WARNED_FEATURE_DESTINATIONS.add("OLD_" + i);
     }
 
     final Map<String, Object> metadata =
@@ -215,9 +215,9 @@ class FlagEvaluatorTest {
             singletonList(new Feature("holdout.key", "q4-global", asList("HOOK", "NEW_A"))));
 
     assertEquals(
-        FlagEvaluator.MAX_WARNED_FEATURE_DESTINATIONS,
-        FlagEvaluator.WARNED_FEATURE_DESTINATIONS.size());
-    assertFalse(FlagEvaluator.WARNED_FEATURE_DESTINATIONS.contains("NEW_A"));
+        SplitFeatures.MAX_WARNED_FEATURE_DESTINATIONS,
+        SplitFeatures.WARNED_FEATURE_DESTINATIONS.size());
+    assertFalse(SplitFeatures.WARNED_FEATURE_DESTINATIONS.contains("NEW_A"));
     assertEquals("q4-global", metadata.get(FEATURE_PREFIX + "holdout.key"));
   }
 
