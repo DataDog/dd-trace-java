@@ -136,7 +136,12 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
     // hook.
     this.core =
         new FlagEvaluator(
-            spanEnrichmentEnabled, this::isExposed, experimentationOptOutMode, exposuresEnabled);
+            spanEnrichmentEnabled,
+            this::isExposed,
+            experimentationOptOutMode,
+            exposuresEnabled,
+            settings.evaluationMetadataTableSize(),
+            settings.evaluationMetadataTimeBucketMs());
   }
 
   @Override

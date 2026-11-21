@@ -39,6 +39,10 @@ public final class Settings {
   static final String EVALUATION_TELEMETRY_PER_SUBJECT_OPT_OUT_ENABLED =
       "feature.flags.evaluation.telemetry.per.subject.opt.out.enabled";
   static final String EXPERIMENTATION_OPT_OUT_MODE = "feature.flags.experimentation.opt.out.mode";
+  static final String EVALUATION_METADATA_TABLE_SIZE =
+      "feature.flags.evaluation.metadata.table.size";
+  static final String EVALUATION_METADATA_TIME_BUCKET_MS =
+      "feature.flags.evaluation.metadata.time.bucket.ms";
   static final String TRACE_DEBUG = "trace.debug";
   static final String API_KEY = "api-key";
   static final String SITE = "site";
@@ -49,6 +53,8 @@ public final class Settings {
   static final String DEFAULT_SITE = "datadoghq.com";
   static final int DEFAULT_POLL_INTERVAL_SECONDS = 30;
   static final int DEFAULT_REQUEST_TIMEOUT_SECONDS = 5;
+  static final int DEFAULT_EVALUATION_METADATA_TABLE_SIZE = 1024;
+  static final int DEFAULT_EVALUATION_METADATA_TIME_BUCKET_MS = 10;
 
   private final AgentBridge bridge;
   private final UnaryOperator<String> systemProperties;
@@ -183,6 +189,31 @@ public final class Settings {
   }
 
   /**
+   * The number of slots of the table sharing the flag metadata of evaluations that resolve the same
+   * split in the same millisecond. The evaluator rounds it up to a power of two.
+   *
+   * @return the number of slots, or 0 to build the metadata of each evaluation (1024 by default).
+   */
+  public int evaluationMetadataTableSize() {
+    return getNonNegativeInt(
+        EVALUATION_METADATA_TABLE_SIZE, DEFAULT_EVALUATION_METADATA_TABLE_SIZE);
+  }
+
+  /**
+   * The width of the time bucket in which evaluations of a split share their flag metadata,
+   * including its evaluation timestamp. Evaluations that reuse the metadata report the time of the
+   * evaluation that built it, up to the width minus one millisecond early. The evaluator caps it at
+   * 10,000 milliseconds, the flush interval of the flag evaluation events.
+   *
+   * @return the width in milliseconds (10 by default; 1 keeps the timestamps exact), or 0 to leave
+   *     the timestamp out of the metadata, so the hooks read their own clock.
+   */
+  public int evaluationMetadataTimeBucketMs() {
+    return getNonNegativeInt(
+        EVALUATION_METADATA_TIME_BUCKET_MS, DEFAULT_EVALUATION_METADATA_TIME_BUCKET_MS);
+  }
+
+  /**
    * Tells whether {@code DD_TRACE_DEBUG} is on. It gates the diagnostics that log raw evaluation
    * contexts and values, on top of the application's logging configuration.
    *
@@ -292,6 +323,16 @@ public final class Settings {
 
   /** Reads the first value that parses, in source priority order, like the agent. */
   private int getPositiveInt(final String key, final int defaultValue) {
+    return getInt(key, defaultValue, 1, "positive");
+  }
+
+  /** Reads the first value that parses, in source priority order, like the agent. */
+  private int getNonNegativeInt(final String key, final int defaultValue) {
+    return getInt(key, defaultValue, 0, "zero or positive");
+  }
+
+  private int getInt(
+      final String key, final int defaultValue, final int minimum, final String expected) {
     for (int source = 0; source < SOURCE_COUNT; source++) {
       final String value = value(key, source);
       if (nonBlank(value) == null) {
@@ -299,10 +340,10 @@ public final class Settings {
       }
       try {
         final int parsed = Integer.parseInt(value);
-        if (parsed > 0) {
+        if (parsed >= minimum) {
           return parsed;
         }
-        LOGGER.warn("Invalid value for {}: {}. The value must be positive", key, value);
+        LOGGER.warn("Invalid value for {}: {}. The value must be {}", key, value, expected);
         return defaultValue;
       } catch (final NumberFormatException e) {
         LOGGER.warn("Invalid value for {}: {}", key, value);
