@@ -32,4 +32,14 @@ public interface Propagator {
    * @return A context with the extracted values on top of the given base context.
    */
   <C> Context extract(Context context, C carrier, CarrierVisitor<C> visitor);
+
+  /**
+   * The carrier keys {@link #extract} reads, so a carrier visitor can skip the others. The default,
+   * {@link CarrierKeys#all()}, is always safe; a propagator that declares fewer keys than it reads
+   * loses the ones left out. Called on every extraction, so it should return a cached instance,
+   * rebuilt only when what it depends on changes.
+   */
+  default CarrierKeys keys() {
+    return CarrierKeys.all();
+  }
 }

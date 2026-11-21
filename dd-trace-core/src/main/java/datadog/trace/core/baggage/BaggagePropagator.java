@@ -1,6 +1,7 @@
 package datadog.trace.core.baggage;
 
 import datadog.context.Context;
+import datadog.context.propagation.CarrierKeys;
 import datadog.context.propagation.CarrierSetter;
 import datadog.context.propagation.CarrierVisitor;
 import datadog.context.propagation.Propagator;
@@ -109,6 +110,13 @@ public class BaggagePropagator implements Propagator {
 
     // Record successful baggage injection for telemetry
     BAGGAGE_METRICS.onBaggageInjected();
+  }
+
+  private static final CarrierKeys KEYS = CarrierKeys.of(BAGGAGE_KEY);
+
+  @Override
+  public CarrierKeys keys() {
+    return KEYS;
   }
 
   @Override

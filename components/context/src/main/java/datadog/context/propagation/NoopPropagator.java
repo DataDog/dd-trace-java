@@ -16,4 +16,9 @@ final class NoopPropagator implements Propagator {
   public <C> Context extract(Context context, C carrier, CarrierVisitor<C> visitor) {
     return context;
   }
+
+  @Override
+  public CarrierKeys keys() {
+    return CarrierKeys.none();
+  }
 }
