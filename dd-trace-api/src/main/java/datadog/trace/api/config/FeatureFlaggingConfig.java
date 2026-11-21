@@ -49,8 +49,8 @@ public final class FeatureFlaggingConfig {
    * The width, in milliseconds, of the time bucket in which evaluations of a split share their flag
    * metadata, including its evaluation timestamp, so evaluations report up to the width minus one
    * millisecond early. At most {@code 10000}. {@code 0} leaves the timestamp out of the metadata,
-   * so the hooks read their own clock. Default: {@code 1}, which keeps the timestamps exact. Maps
-   * to {@code DD_FEATURE_FLAGS_EVALUATION_METADATA_TIME_BUCKET_MS}.
+   * so the hooks read their own clock, and {@code 1} keeps the timestamps exact. Default: {@code
+   * 10}. Maps to {@code DD_FEATURE_FLAGS_EVALUATION_METADATA_TIME_BUCKET_MS}.
    */
   public static final String FEATURE_FLAGS_EVALUATION_METADATA_TIME_BUCKET_MS =
       "feature.flags.evaluation.metadata.time.bucket.ms";

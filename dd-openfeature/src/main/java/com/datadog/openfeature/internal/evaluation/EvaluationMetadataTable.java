@@ -11,11 +11,13 @@ import javax.annotation.Nullable;
  * Shares the flag metadata of successful evaluations that resolve the same split in the same time
  * bucket. With a bounded bucket, this is a burst coalescer, not a cache: an entry is only reusable
  * within the bucket it was built in, because the metadata carries the evaluation timestamp of the
- * evaluation that built it. A later bucket builds and publishes a new entry. The default bucket is
- * one millisecond, the resolution of the timestamp, so the timestamp stays exact. A wider bucket of
- * {@code W} milliseconds reports the evaluations that reuse an entry up to {@code W - 1}
- * milliseconds early. The {@link #UNBOUNDED} bucket leaves the timestamp out of the metadata, so
- * the hooks read their own clock and the entry of a split is reusable until the slot is replaced.
+ * evaluation that built it. A later bucket builds and publishes a new entry. A bucket of {@code W}
+ * milliseconds reports the evaluations that reuse an entry up to {@code W - 1} milliseconds early:
+ * the default of 10 milliseconds, at most 9 milliseconds early in the 10 second flush interval of
+ * the flag evaluation events, shares most of what wider buckets share. A bucket of one millisecond,
+ * the resolution of the timestamp, keeps the timestamp exact. The {@link #UNBOUNDED} bucket leaves
+ * the timestamp out of the metadata, so the hooks read their own clock and the entry of a split is
+ * reusable until the slot is replaced.
  *
  * <p>The table is a fixed, direct-mapped array of slots. Each slot holds the metadata built last
  * for one key: the {@link Split}, {@link Allocation} and {@link Flag} references, the configuration
@@ -35,8 +37,8 @@ final class EvaluationMetadataTable {
   /** The largest number of slots. */
   static final int MAX_SIZE = 1 << 16;
 
-  /** The default time bucket width: the millisecond resolution of the evaluation timestamp. */
-  static final int DEFAULT_TIME_BUCKET_MS = 1;
+  /** The default time bucket width. */
+  static final int DEFAULT_TIME_BUCKET_MS = 10;
 
   /**
    * The widest time bucket: the flush interval of the flag evaluation events, which aggregate the

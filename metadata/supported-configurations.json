@@ -1624,7 +1624,7 @@
       {
         "version": "A",
         "type": "int",
-        "default": "1",
+        "default": "10",
         "aliases": []
       }
     ],

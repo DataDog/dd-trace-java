@@ -353,8 +353,9 @@ class EvaluationMetadataTableTest {
     }
   }
 
+  /** An evaluator with a one millisecond bucket, which keeps the timestamps exact. */
   private static FlagEvaluator evaluator(final int tableSize) {
-    return evaluator(tableSize, EvaluationMetadataTable.DEFAULT_TIME_BUCKET_MS);
+    return evaluator(tableSize, 1);
   }
 
   private static FlagEvaluator evaluator(final int tableSize, final int timeBucketMs) {
