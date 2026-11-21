@@ -21,6 +21,8 @@ public final class DurableFunctionsUtils {
   private static final String ACTIVITY_ANNOTATION = "DurableActivityTrigger";
   private static final String ENTITY_ANNOTATION = "DurableEntityTrigger";
   private static final String ORCHESTRATION_ANNOTATION = "DurableOrchestrationTrigger";
+  private static final String COSMOS_DB_ANNOTATION = "CosmosDBTrigger";
+  private static final String COSMOS_DB_TRIGGER = "CosmosDB";
 
   private DurableFunctionsUtils() {}
 
@@ -34,13 +36,18 @@ public final class DurableFunctionsUtils {
     if (context.getParameterName(ENTITY_ANNOTATION) != null) {
       return "DurableEntity";
     }
+    if (context.getParameterName(COSMOS_DB_ANNOTATION) != null) {
+      return COSMOS_DB_TRIGGER;
+    }
     return null;
   }
 
   public static ContextScope startSpanScope(MiddlewareContext context, String trigger) {
-    return activateSpan(
-        startInvocationSpan(
-            context.getFunctionName(), trigger, extractParent(context.getTraceContext()), 0));
+    // Like dd-trace-js and dd-trace-py, Cosmos DB trigger spans start a new trace: the host's
+    // trace context is usually not exported to Datadog and its sampled flag would drop the span.
+    final AgentSpanContext parent =
+        COSMOS_DB_TRIGGER.equals(trigger) ? null : extractParent(context.getTraceContext());
+    return activateSpan(startInvocationSpan(context.getFunctionName(), trigger, parent, 0));
   }
 
   public static long nowMicros() {
