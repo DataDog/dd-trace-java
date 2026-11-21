@@ -8,6 +8,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
 import datadog.context.Context;
 import datadog.context.propagation.CarrierVisitor;
 import datadog.context.propagation.Concern;
+import datadog.context.propagation.HeaderSchema;
 import datadog.context.propagation.Propagators;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -56,6 +57,17 @@ public final class AgentPropagation {
      */
     default <T> boolean accept(String key, T value, Function<T, String> transformer) {
       return accept(key, transformer.apply(value));
+    }
+
+    /**
+     * Variant of {@link #accept(String, String)} for carriers that already know the key's {@link
+     * HeaderSchema} constant (null when it has none), so a classifier handling several headers can
+     * switch on it instead of comparing names. The default ignores it.
+     *
+     * @return {@code false} to stop iteration, {@code true} to continue
+     */
+    default boolean accept(HeaderSchema header, String key, String value) {
+      return accept(key, value);
     }
   }
 

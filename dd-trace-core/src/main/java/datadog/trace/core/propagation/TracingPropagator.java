@@ -8,6 +8,7 @@ import datadog.context.Context;
 import datadog.context.propagation.CarrierKeys;
 import datadog.context.propagation.CarrierSetter;
 import datadog.context.propagation.CarrierVisitor;
+import datadog.context.propagation.IndexedCarrier;
 import datadog.context.propagation.Propagator;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -86,6 +87,16 @@ public class TracingPropagator implements Propagator {
     if (visitor instanceof AgentPropagation.ContextVisitor) {
       return (AgentPropagation.ContextVisitor<C>) visitor;
     }
-    return (carrier, classifier) -> visitor.forEachKeyValue(carrier, classifier::accept);
+    return (carrier, classifier) -> {
+      if (carrier instanceof IndexedCarrier) {
+        // the composite propagator's cache: hand each key's header constant along
+        IndexedCarrier indexed = (IndexedCarrier) carrier;
+        for (int i = 0, n = indexed.size(); i < n; i++) {
+          classifier.accept(indexed.header(i), indexed.key(i), indexed.value(i));
+        }
+      } else {
+        visitor.forEachKeyValue(carrier, classifier::accept);
+      }
+    };
   }
 }

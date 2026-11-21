@@ -16,6 +16,7 @@ import static datadog.trace.core.propagation.HttpCodec.X_FORWARDED_PROTO_KEY;
 import static datadog.trace.core.propagation.HttpCodec.X_REAL_IP_KEY;
 
 import datadog.context.propagation.CarrierKeys;
+import datadog.context.propagation.HeaderSchema;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
@@ -159,6 +160,81 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
         .names(traceConfig.getRequestHeaderTags().keySet())
         .names(traceConfig.getBaggageMapping().keySet())
         .build();
+  }
+
+  /** {@link #classify}: a known header this style doesn't read itself. */
+  protected static final int NOT_OWN_HEADER = -1;
+
+  /** {@link #classify}: handle the header by name, as {@link #accept(String, String)} does. */
+  protected static final int BY_NAME = -2;
+
+  /**
+   * {@link #accept(String, String)} for a key whose {@link HeaderSchema} constant the carrier
+   * already knows: the style's own headers go straight to {@link #acceptClassified}, the shared
+   * forwarding and user agent headers to their handlers, and other known headers to {@link
+   * #acceptUnclassified}, without comparing names. A null constant, or a style that doesn't {@link
+   * #classify} the header, takes the by-name path, so the result is the same either way.
+   */
+  @Override
+  public boolean accept(HeaderSchema header, String key, String value) {
+    if (header == null || LOG_EXTRACT_HEADER_NAMES || key == null || key.isEmpty()) {
+      return accept(key, value);
+    }
+    int classification = classify(header);
+    if (classification == BY_NAME) {
+      return accept(key, value);
+    }
+    if (classification != NOT_OWN_HEADER) {
+      return acceptClassified(classification, key, value);
+    }
+    switch (header) {
+      case FORWARDED:
+      case FORWARDED_FOR:
+        handledForwarding(key, value);
+        break;
+      case USER_AGENT:
+        handledUserAgent(key, value);
+        break;
+      case X_FORWARDED_PROTO:
+      case X_FORWARDED_HOST:
+      case X_FORWARDED_FOR:
+      case X_FORWARDED_PORT:
+        handledXForwarding(key, value);
+        break;
+      default:
+    }
+    return acceptUnclassified(key, value);
+  }
+
+  /**
+   * How this style handles {@code header}: one of its own classifications (non-negative, for {@link
+   * #acceptClassified}), {@link #NOT_OWN_HEADER} for a header it doesn't read itself, or {@link
+   * #BY_NAME}, the default, to handle it exactly as {@link #accept(String, String)} does.
+   */
+  protected int classify(HeaderSchema header) {
+    return BY_NAME;
+  }
+
+  /**
+   * Handles a value of one of this style's own headers, classified by {@link #classify}, as {@link
+   * #accept(String, String)} would. Only called for classifications {@link #classify} returns.
+   */
+  protected boolean acceptClassified(int classification, String key, String value) {
+    return accept(key, value);
+  }
+
+  /**
+   * Handles a key that isn't one of this style's own headers, after the forwarding and user agent
+   * handlers: client IP headers, request header tags and mapped baggage, as {@link #accept(String,
+   * String)} does for such keys.
+   */
+  protected boolean acceptUnclassified(String key, String value) {
+    handledIpHeaders(key, value);
+    if (handleTags(key, value)) {
+      return true;
+    }
+    handleMappedBaggage(key, value);
+    return true;
   }
 
   protected final boolean handledForwarding(String key, String value) {

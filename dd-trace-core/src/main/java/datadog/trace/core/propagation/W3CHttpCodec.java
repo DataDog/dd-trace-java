@@ -10,6 +10,7 @@ import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 import datadog.context.propagation.CarrierKeys;
 import datadog.context.propagation.CarrierSetter;
+import datadog.context.propagation.HeaderSchema;
 import datadog.trace.api.Config;
 import datadog.trace.api.DD128bTraceId;
 import datadog.trace.api.DDSpanId;
@@ -254,33 +255,50 @@ class W3CHttpCodec {
       }
 
       if (classification != IGNORE) {
-        try {
-          if (null != value) {
-            switch (classification) {
-              case TRACE_PARENT:
-                return storeTraceParent(value);
-              case TRACE_STATE:
-                return storeTraceState(value);
-              case E2E_START:
-                endToEndStartTime = extractEndToEndStartTime(firstHeaderValue(value));
-                break;
-              case OT_BAGGAGE:
-                addBaggageItem(lowerCaseKey.substring(OT_BAGGAGE_PREFIX.length()), value);
-                break;
-              default:
-            }
+        return handleClassified(classification, value, lowerCaseKey);
+      }
+      return acceptUnclassified(key, value);
+    }
+
+    @Override
+    protected int classify(HeaderSchema header) {
+      switch (header) {
+        case TRACEPARENT:
+          return TRACE_PARENT;
+        case TRACESTATE:
+          return TRACE_STATE;
+        default:
+          return NOT_OWN_HEADER;
+      }
+    }
+
+    @Override
+    protected boolean acceptClassified(int classification, String key, String value) {
+      return handleClassified(classification, value, null);
+    }
+
+    /** Stores the value of a key classified as one of this style's own. */
+    private boolean handleClassified(int classification, String value, String lowerCaseKey) {
+      try {
+        if (null != value) {
+          switch (classification) {
+            case TRACE_PARENT:
+              return storeTraceParent(value);
+            case TRACE_STATE:
+              return storeTraceState(value);
+            case E2E_START:
+              endToEndStartTime = extractEndToEndStartTime(firstHeaderValue(value));
+              break;
+            case OT_BAGGAGE:
+              addBaggageItem(lowerCaseKey.substring(OT_BAGGAGE_PREFIX.length()), value);
+              break;
+            default:
           }
-        } catch (RuntimeException e) {
-          invalidateContext();
-          log.debug("Exception when extracting context", e);
-          return false;
         }
-      } else {
-        handledIpHeaders(key, value);
-        if (handleTags(key, value)) {
-          return true;
-        }
-        handleMappedBaggage(key, value);
+      } catch (RuntimeException e) {
+        invalidateContext();
+        log.debug("Exception when extracting context", e);
+        return false;
       }
       return true;
     }

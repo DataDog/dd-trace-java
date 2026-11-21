@@ -151,7 +151,8 @@ public final class CarrierKeys {
       String[] names = namesByLength[length];
       if (names != null) {
         for (int i = 0; i < names.length; i++) {
-          if (names[i].regionMatches(true, 0, key, 0, length)) {
+          // a carrier that matched the key's bytes passes the declared name itself
+          if (names[i] == key || names[i].regionMatches(true, 0, key, 0, length)) {
             return headersByLength[length][i];
           }
         }

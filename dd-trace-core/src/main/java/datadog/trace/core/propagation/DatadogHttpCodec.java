@@ -10,6 +10,7 @@ import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 import datadog.context.propagation.CarrierKeys;
 import datadog.context.propagation.CarrierSetter;
+import datadog.context.propagation.HeaderSchema;
 import datadog.trace.api.Config;
 import datadog.trace.api.DD128bTraceId;
 import datadog.trace.api.DDSpanId;
@@ -197,48 +198,74 @@ class DatadogHttpCodec {
       }
 
       if (classification != IGNORE) {
-        try {
-          if (null != value) {
-            switch (classification) {
-              case TRACE_ID:
-                traceId = DDTraceId.from(firstHeaderValue(value));
-                break;
-              case SPAN_ID:
-                spanId = DDSpanId.from(firstHeaderValue(value));
-                break;
-              case ORIGIN:
-                origin = firstHeaderValue(value);
-                break;
-              case SAMPLING_PRIORITY:
-                samplingPriority = Integer.parseInt(firstHeaderValue(value));
-                break;
-              case E2E_START:
-                endToEndStartTime = extractEndToEndStartTime(firstHeaderValue(value));
-                break;
-              case DD_TAGS:
-                datadogTags = value;
-                break;
-              case OT_BAGGAGE:
-                addBaggageItem(lowerCaseKey.substring(OT_BAGGAGE_PREFIX.length()), value);
-                break;
-              default:
-            }
+        return handleClassified(classification, key, value, lowerCaseKey);
+      }
+      return acceptUnclassified(key, value);
+    }
+
+    @Override
+    protected int classify(HeaderSchema header) {
+      switch (header) {
+        case X_DATADOG_TRACE_ID:
+          return TRACE_ID;
+        case X_DATADOG_PARENT_ID:
+          return SPAN_ID;
+        case X_DATADOG_SAMPLING_PRIORITY:
+          return SAMPLING_PRIORITY;
+        case X_DATADOG_ORIGIN:
+          return ORIGIN;
+        case X_DATADOG_TAGS:
+          return DD_TAGS;
+        case X_AMZN_TRACE_ID:
+          return BY_NAME; // read only when AWS propagation is enabled
+        default:
+          return NOT_OWN_HEADER;
+      }
+    }
+
+    @Override
+    protected boolean acceptClassified(int classification, String key, String value) {
+      return handleClassified(classification, key, value, null);
+    }
+
+    /** Stores the value of a key classified as one of this style's own. */
+    private boolean handleClassified(
+        int classification, String key, String value, String lowerCaseKey) {
+      try {
+        if (null != value) {
+          switch (classification) {
+            case TRACE_ID:
+              traceId = DDTraceId.from(firstHeaderValue(value));
+              break;
+            case SPAN_ID:
+              spanId = DDSpanId.from(firstHeaderValue(value));
+              break;
+            case ORIGIN:
+              origin = firstHeaderValue(value);
+              break;
+            case SAMPLING_PRIORITY:
+              samplingPriority = Integer.parseInt(firstHeaderValue(value));
+              break;
+            case E2E_START:
+              endToEndStartTime = extractEndToEndStartTime(firstHeaderValue(value));
+              break;
+            case DD_TAGS:
+              datadogTags = value;
+              break;
+            case OT_BAGGAGE:
+              addBaggageItem(lowerCaseKey.substring(OT_BAGGAGE_PREFIX.length()), value);
+              break;
+            default:
           }
-        } catch (NumberFormatException e) {
-          invalidateContext();
-          log.debug(EXCLUDE_TELEMETRY, "Ignoring context with invalid {}: {}", key, value);
-          return false;
-        } catch (RuntimeException e) {
-          invalidateContext();
-          log.debug("Exception when extracting context", e);
-          return false;
         }
-      } else {
-        handledIpHeaders(key, value);
-        if (handleTags(key, value)) {
-          return true;
-        }
-        handleMappedBaggage(key, value);
+      } catch (NumberFormatException e) {
+        invalidateContext();
+        log.debug(EXCLUDE_TELEMETRY, "Ignoring context with invalid {}: {}", key, value);
+        return false;
+      } catch (RuntimeException e) {
+        invalidateContext();
+        log.debug("Exception when extracting context", e);
+        return false;
       }
       return true;
     }
