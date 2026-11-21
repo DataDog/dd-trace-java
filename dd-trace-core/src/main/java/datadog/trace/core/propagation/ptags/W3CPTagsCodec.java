@@ -14,7 +14,6 @@ import datadog.trace.util.SubSequence;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-import java.util.function.IntPredicate;
 import org.slf4j.LoggerFactory;
 
 public class W3CPTagsCodec extends PTagsCodec {
@@ -155,12 +154,7 @@ public class W3CPTagsCodec extends PTagsCodec {
       }
       int tagKeyEndsAt =
           validateCharsUntilSeparatorOrEnd(
-              value,
-              tagPos,
-              ddMemberValueEnd,
-              KEY_VALUE_SEPARATOR,
-              false,
-              W3CPTagsCodec::isAllowedKeyChar);
+              value, tagPos, ddMemberValueEnd, KEY_VALUE_SEPARATOR, false, ALLOWED_KEY_CHARS);
       if (tagKeyEndsAt < 0 || tagKeyEndsAt >= ddMemberValueEnd) {
         int nextTagPos = skipMalformedElement(value, tagPos, ddMemberValueEnd);
         maxUnknownSize += (nextTagPos - tagPos); // still relay malformed elements
@@ -170,12 +164,7 @@ public class W3CPTagsCodec extends PTagsCodec {
       int tagValuePos = tagKeyEndsAt + 1;
       int tagValueEndsAt =
           validateCharsUntilSeparatorOrEnd(
-              value,
-              tagValuePos,
-              ddMemberValueEnd,
-              ELEMENT_SEPARATOR,
-              true,
-              W3CPTagsCodec::isAllowedValueChar);
+              value, tagValuePos, ddMemberValueEnd, ELEMENT_SEPARATOR, true, ALLOWED_VALUE_CHARS);
       if (tagValueEndsAt < 0) {
         int nextTagPos = skipMalformedElement(value, tagValuePos, ddMemberValueEnd);
         maxUnknownSize += (nextTagPos - tagPos); // still relay malformed elements
@@ -196,13 +185,43 @@ public class W3CPTagsCodec extends PTagsCodec {
         // a span id, so it never repeats
         lastParentId = TagValue.uncached(Encoding.W3C, value, tagValuePos, tagValueEndsAt);
       } else {
-        TagKey tagKey = TagKey.from(Encoding.W3C, value, tagPos, tagKeyEndsAt);
-        if (tagKey != null) {
-          if (!result.keepsDatadogTags() && !hasValidatedValues(tagKey)) {
+        TagKey tagKey;
+        if (result.keepsDatadogTags()) {
+          tagKey = TagKey.from(Encoding.W3C, value, tagPos, tagKeyEndsAt);
+        } else {
+          // Only keys with validated values are read here; tell them apart without interning keys
+          int kind = validatedKey(value, tagPos, tagKeyEndsAt);
+          if (kind == OTHER_PROPAGATED_KEY) {
             // Its value is never read, and it can't be invalid, so it changes nothing
             tagPos = nextTagPos;
             continue;
           }
+          if (kind != NOT_PROPAGATED_KEY) {
+            // Only whether its value is valid matters here, so it's checked in place
+            TagKey validatedKey = VALIDATED_KEYS[kind];
+            if (!isValidValue(validatedKey, value, tagValuePos, tagValueEndsAt)) {
+              log.warn(
+                  "Invalid datadog tags header value: '{}' invalid tag value at {}",
+                  value,
+                  tagValuePos);
+              if (validatedKey.equals(TRACE_ID_TAG)) {
+                return result.invalid(
+                    PROPAGATION_ERROR_MALFORMED_TID + value.substring(tagValuePos, tagValueEndsAt));
+              }
+              return result.withoutDatadogTags(
+                  value,
+                  firstMemberStart,
+                  ddMemberStart,
+                  ddMemberValueEnd,
+                  rawOtelTraceState,
+                  otelOriginalSize);
+            }
+            tagPos = nextTagPos;
+            continue;
+          }
+          tagKey = null;
+        }
+        if (tagKey != null) {
           TagValue tagValue = tagValue(Encoding.W3C, tagKey, value, tagValuePos, tagValueEndsAt);
           if (!tagKey.equals(UPSTREAM_SERVICES_DEPRECATED_TAG)) {
             if (!validateTagValue(tagKey, tagValue)) {
@@ -494,7 +513,7 @@ public class W3CPTagsCodec extends PTagsCodec {
   }
 
   private static int validateCharsUntilSeparatorOrEnd(
-      String s, int start, int end, char separator, boolean allowOWC, IntPredicate isValid) {
+      String s, int start, int end, char separator, boolean allowOWC, boolean[] allowed) {
     if (start >= end) {
       return -1;
     }
@@ -507,7 +526,7 @@ public class W3CPTagsCodec extends PTagsCodec {
           definitelyOWC = true;
         }
       } else {
-        if (definitelyOWC || !isValid.test(c) || c == separator) {
+        if (definitelyOWC || c >= allowed.length || !allowed[c] || c == separator) {
           return -1;
         }
       }
@@ -594,6 +613,42 @@ public class W3CPTagsCodec extends PTagsCodec {
   }
 
   // This is The Fine Specification for the member key https://www.w3.org/TR/trace-context/#key
+  private static final int NOT_PROPAGATED_KEY = -2;
+  private static final int OTHER_PROPAGATED_KEY = -1;
+
+  /** The keys whose values are validated, as {@link #hasValidatedValues} lists them. */
+  private static final TagKey[] VALIDATED_KEYS = {
+    DECISION_MAKER_TAG, TRACE_ID_TAG, TRACE_SOURCE_TAG
+  };
+
+  private static final String[] VALIDATED_KEY_NAMES = {
+    DECISION_MAKER_TAG.forType(Encoding.W3C).toString(),
+    TRACE_ID_TAG.forType(Encoding.W3C).toString(),
+    TRACE_SOURCE_TAG.forType(Encoding.W3C).toString(),
+  };
+
+  private static final String W3C_PREFIX = Encoding.W3C.getPrefix();
+
+  /**
+   * Which key {@code [start, end)} of {@code s} is, without interning it: an index into {@link
+   * #VALIDATED_KEYS}, {@link #OTHER_PROPAGATED_KEY} for another {@code t.*} key, or {@link
+   * #NOT_PROPAGATED_KEY} for a key {@link TagKey#from(Encoding, String, int, int)} would reject (no
+   * {@code t.} prefix, or nothing after it).
+   */
+  static int validatedKey(String s, int start, int end) {
+    int length = end - start;
+    if (length <= W3C_PREFIX.length() || !s.startsWith(W3C_PREFIX, start)) {
+      return NOT_PROPAGATED_KEY;
+    }
+    for (int i = 0; i < VALIDATED_KEY_NAMES.length; i++) {
+      String name = VALIDATED_KEY_NAMES[i];
+      if (name.length() == length && s.regionMatches(start, name, 0, length)) {
+        return i;
+      }
+    }
+    return OTHER_PROPAGATED_KEY;
+  }
+
   private static int validateMemberKey(String original, int start) {
     int end = original.length();
     if (start < 0 || start >= end) {
@@ -687,7 +742,54 @@ public class W3CPTagsCodec extends PTagsCodec {
   // This is The Fine Specification for the member value https://www.w3.org/TR/trace-context/#value
   // Please note the wonderful decision to allow ' ' in the value but not let it end with ' ', since
   // that is indistinguishable from optional whitespace at the end
-  private static int validateMemberValue(String original, int start) {
+  /** {@link #isAllowedKeyChar} and {@link #isAllowedValueChar} as lookup tables. */
+  private static final boolean[] ALLOWED_KEY_CHARS = new boolean[MAX_ALLOWED_CHAR + 1];
+
+  private static final boolean[] ALLOWED_VALUE_CHARS = new boolean[MAX_ALLOWED_CHAR + 1];
+
+  /**
+   * Chars a member value may hold that need none of {@link #validateMemberValueSlowly}'s whitespace
+   * handling: {@link #isValidMemberValueChar}, less space and tab.
+   */
+  private static final boolean[] PLAIN_MEMBER_VALUE_CHARS = new boolean[128];
+
+  static {
+    for (int c = 0; c <= MAX_ALLOWED_CHAR; c++) {
+      ALLOWED_KEY_CHARS[c] = isAllowedKeyChar(c);
+      ALLOWED_VALUE_CHARS[c] = isAllowedValueChar(c);
+    }
+    for (char c = 0; c < PLAIN_MEMBER_VALUE_CHARS.length; c++) {
+      PLAIN_MEMBER_VALUE_CHARS[c] = c != ' ' && c != '\t' && isValidMemberValueChar(c);
+    }
+  }
+
+  /**
+   * The end of the member value starting at {@code start} (the {@code ','} after it, or the end of
+   * {@code original}), or -1 if it isn't valid. The usual value, plain chars within the length
+   * limit and no whitespace, is checked in one pass; anything else goes through {@link
+   * #validateMemberValueSlowly}, which this matches for those values.
+   */
+  static int validateMemberValue(String original, int start) {
+    int end = original.length();
+    if (start < 0 || start >= end) {
+      return -1;
+    }
+    int limit = Math.min(end, start + 256);
+    int pos = start;
+    while (pos < limit) {
+      char c = original.charAt(pos);
+      if (c >= PLAIN_MEMBER_VALUE_CHARS.length || !PLAIN_MEMBER_VALUE_CHARS[c]) {
+        break;
+      }
+      pos++;
+    }
+    if (pos > start && (pos == end || original.charAt(pos) == ',')) {
+      return pos;
+    }
+    return validateMemberValueSlowly(original, start);
+  }
+
+  static int validateMemberValueSlowly(String original, int start) {
     int end = original.length();
     if (start < 0 || start >= end) {
       return -1;
