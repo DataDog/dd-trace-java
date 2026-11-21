@@ -3,6 +3,7 @@ package datadog.trace.agent.tooling;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 
+import datadog.trace.agent.tooling.bytebuddy.FieldAccessors;
 import java.security.ProtectionDomain;
 import java.util.Collection;
 import net.bytebuddy.asm.AsmVisitorWrapper;
@@ -116,6 +117,18 @@ public interface Instrumenter {
 
     default void applyAdvice(AsmVisitorWrapper typeVisitor) {
       applyAdvice(new VisitingAdvice(typeVisitor));
+    }
+
+    /**
+     * Makes the instrumented type implement {@code accessorInterface}, each of whose methods
+     * returns one of the type's fields, if the type declares them all with matching types (see
+     * {@link FieldAccessors}). The instrumentation must be {@link WithStructuralChange}, with
+     * {@code accessorInterface} as its marker.
+     *
+     * @param methodAndFieldNames pairs of getter method name and the name of the field it returns
+     */
+    default void installFieldAccessors(Class<?> accessorInterface, String... methodAndFieldNames) {
+      applyAdvice(new FieldAccessors(accessorInterface, methodAndFieldNames));
     }
   }
 

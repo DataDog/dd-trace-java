@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import datadog.trace.agent.tooling.bytebuddy.FieldAccessors;
 import datadog.trace.bootstrap.instrumentation.api.BufferedHeaderFields;
 import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
@@ -155,8 +156,9 @@ class RecordHeaderAccessTest {
   @Test
   void fieldsMatchWhatTheInstrumentationExpects() {
     assertTrue(
-        RecordHeaderInstrumentation.hasExpectedFields(
-            ForLoadedType.of(RecordHeader.class).getDeclaredFields()),
+        new FieldAccessors(
+                BufferedHeaderFields.class, RecordHeaderInstrumentation.GETTERS_AND_FIELDS)
+            .appliesTo(ForLoadedType.of(RecordHeader.class)),
         "RecordHeader's layout changed; the accessor won't be installed");
   }
 
