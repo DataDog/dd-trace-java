@@ -182,8 +182,12 @@ public class W3CPTagsCodec extends PTagsCodec {
       } else if (keyLength == 1 && c == 'o') {
         origin = TagValue.from(Encoding.W3C, value, tagValuePos, tagValueEndsAt);
       } else if (keyLength == 1 && c == 'p') {
-        // a span id, so it never repeats
-        lastParentId = TagValue.uncached(Encoding.W3C, value, tagValuePos, tagValueEndsAt);
+        // A span id, so it never repeats. The merge only reads it, as a String, when the span ids
+        // differ, so there a view of the header it already holds is enough.
+        lastParentId =
+            result.keepsDatadogTags()
+                ? TagValue.uncached(Encoding.W3C, value, tagValuePos, tagValueEndsAt)
+                : SubSequence.of(value, tagValuePos, tagValueEndsAt);
       } else {
         TagKey tagKey;
         if (result.keepsDatadogTags()) {
