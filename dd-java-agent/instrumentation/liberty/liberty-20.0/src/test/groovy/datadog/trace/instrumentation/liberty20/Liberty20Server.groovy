@@ -7,15 +7,19 @@ import datadog.trace.agent.test.utils.PortUtils
 import groovy.xml.XmlParser
 import groovy.xml.XmlUtil
 
+import java.nio.file.Files
+import java.nio.file.Path
 import java.util.concurrent.TimeUnit
 
+/** Runs the test app in a private Liberty user directory seeded from the build's server template. */
 class Liberty20Server implements HttpServer {
-  File serverXmlFile = new File(System.getProperty('server.xml'))
-  long serverXmlLastModified
-  byte[] origServerXml
+  private static final String SERVER_NAME = 'defaultServer'
+
+  final File serverTemplateDir = new File(System.getProperty('server.xml')).parentFile
   final String prefix
 
   def port
+  File userDir
   Server server
 
   Liberty20Server(String prefix = '') {
@@ -24,10 +28,12 @@ class Liberty20Server implements HttpServer {
 
   @Override
   void start() {
-    findRandomPort()
-    changeServerXml()
-    ServerBuilder sb = new ServerBuilder(name: 'defaultServer')
-    server = sb.build()
+    port = PortUtils.randomOpenPort()
+    userDir = Files.createTempDirectory('liberty-').toFile()
+    File serverDir = new File(userDir, "servers/$SERVER_NAME")
+    copyDirectory(serverTemplateDir.toPath(), serverDir.toPath())
+    changeServerXml(new File(serverDir, 'server.xml'))
+    server = new ServerBuilder().setName(SERVER_NAME).setUserDir(userDir).build()
     // set bootdelegation to mimic how our -javaagent delegates requests for our shaded slf4j package
     // (at this point in the build we haven't shaded slf4j or transformed any framework class-loaders)
     def result = server.start(["org.osgi.framework.bootdelegation":"org.slf4j"]).get(45, TimeUnit.SECONDS)
@@ -36,13 +42,16 @@ class Liberty20Server implements HttpServer {
     }
   }
 
-  private void findRandomPort() {
-    port = PortUtils.randomOpenPort()
+  private static void copyDirectory(Path source, Path target) {
+    Files.createDirectories(target.parent)
+    Files.walk(source).withCloseable { paths ->
+      paths.forEach { Path path ->
+        Files.copy(path, target.resolve(source.relativize(path).toString()))
+      }
+    }
   }
 
-  private void changeServerXml() {
-    serverXmlLastModified = serverXmlFile.lastModified()
-    origServerXml = serverXmlFile.bytes
+  private void changeServerXml(File serverXmlFile) {
     def xml = new XmlParser().parse(serverXmlFile)
     xml.httpEndpoint[0].'@httpPort' = port as String
     xml.httpEndpoint[0].attributes().remove 'httpsPort'
@@ -52,12 +61,14 @@ class Liberty20Server implements HttpServer {
 
   @Override
   void stop() {
-    def result = server.stop().get(30, TimeUnit.SECONDS)
-    if (!result.successful()) {
-      throw new IllegalStateException("OpenLiberty stop has failed")
+    try {
+      def result = server.stop().get(30, TimeUnit.SECONDS)
+      if (!result.successful()) {
+        throw new IllegalStateException("OpenLiberty stop has failed")
+      }
+    } finally {
+      userDir.deleteDir()
     }
-    serverXmlFile.bytes = origServerXml
-    serverXmlFile.lastModified = serverXmlLastModified
   }
 
   @Override
