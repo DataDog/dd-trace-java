@@ -43,7 +43,7 @@ class GlobMatcherTest {
     assertFalse(GlobMatcher.compile("Web-*").matches("web-x"));
     // Without UNICODE_CASE, CASE_INSENSITIVE doesn't fold é and É, or K and the Kelvin sign.
     assertFalse(GlobMatcher.compileIgnoringCase("café").matches("CAFÉ"));
-    assertFalse(GlobMatcher.compileIgnoringCase("k").matches("K"));
+    assertFalse(GlobMatcher.compileIgnoringCase("k").matches("\u212A"));
   }
 
   @Test
@@ -139,7 +139,7 @@ class GlobMatcherTest {
       texts.add(mutate(match, alpha, r));
       texts.add(randomString(alpha, r, 8));
     }
-    for (final String extra : new String[] {"\n", "\r", "\u0085", " ", " ", "😀", "K", "é"}) {
+    for (final String extra : new String[] {"\n", "\r", "\u0085", " ", " ", "😀", "\u212A", "é"}) {
       final String match = expand(glob, alpha, r);
       final int at = match.isEmpty() ? 0 : r.nextInt(match.length() + 1);
       texts.add(match.substring(0, at) + extra + match.substring(at));

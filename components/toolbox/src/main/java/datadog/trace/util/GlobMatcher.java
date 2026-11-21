@@ -8,7 +8,8 @@ import javax.annotation.Nonnull;
 /**
  * Matches text against a glob without a regex engine: {@code *} matches any run of characters,
  * {@code ?} matches any one character, and every other character is literal (there is no escape).
- * The whole text must match. Matching allocates nothing and never backtracks.
+ * The whole text must match. Matching allocates nothing and, apart from the rare cases left to a
+ * regex below, never backtracks.
  *
  * <p>The results are exactly those of the regular expression the glob translates to, {@code ^} with
  * {@code *} as {@code .*}, {@code ?} as {@code .}, every other character quoted, then {@code $},
@@ -137,7 +138,7 @@ public final class GlobMatcher {
    */
   public boolean matches(@Nonnull final CharSequence text) {
     if (regexOnly) {
-      return fallback().matcher(text).matches();
+      return fallbackMatches(text);
     }
     final int n = text.length();
     if (n < minLength || n > maxLength) {
@@ -167,10 +168,8 @@ public final class GlobMatcher {
       first = 1;
     }
     if (!trailingStar) {
+      // n >= minLength leaves room for every segment, so the last one starts at or after start
       final int at = n - lower[last].length;
-      if (at < start) {
-        return false;
-      }
       final int result = backward(last, text, n);
       if (result != MATCH) {
         return result == FALLBACK && fallbackMatches(text);
