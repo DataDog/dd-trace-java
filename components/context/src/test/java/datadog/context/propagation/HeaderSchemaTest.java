@@ -43,6 +43,12 @@ class HeaderSchemaTest {
   }
 
   @Test
+  void ordinalsFitInAByte() {
+    // CarrierCache stores ordinal() + 1 in a byte
+    assertTrue(HeaderSchema.count() < Byte.MAX_VALUE);
+  }
+
+  @Test
   void lookupsByNameAndOrdinal() {
     assertEquals(HeaderSchema.values().length, HeaderSchema.count());
     for (HeaderSchema header : HeaderSchema.values()) {
