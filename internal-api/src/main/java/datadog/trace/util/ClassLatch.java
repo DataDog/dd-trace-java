@@ -44,6 +44,7 @@ import javax.annotation.concurrent.ThreadSafe;
 @ThreadSafe
 public abstract class ClassLatch<T, R, E extends Exception> {
   private static final String RECEIVER_PREFIX = "Receiver class ";
+  private static final String METHOD_PREFIX = "Method ";
 
   /**
    * Per-class state. Created eagerly so that it is safely published through a final field; it holds
@@ -364,6 +365,16 @@ public abstract class ClassLatch<T, R, E extends Exception> {
           && message.length() > end
           && message.charAt(end) == ' '
           && message.indexOf(methodName + "(", end) > end;
+    }
+    if (message.startsWith(METHOD_PREFIX)) {
+      // "Method <internal class name>.<method><descriptor> is abstract", as some HotSpot call paths
+      // report it: the class name uses '/', so a '.' must follow it exactly, then the method name
+      final String internalName = name.replace('.', '/');
+      final int methodStart = METHOD_PREFIX.length() + internalName.length() + 1;
+      return message.startsWith(internalName, METHOD_PREFIX.length())
+          && message.length() > methodStart
+          && message.charAt(methodStart - 1) == '.'
+          && message.startsWith(methodName + "(", methodStart);
     }
     if (message.startsWith(name) && message.length() > name.length() + 1) {
       // JDK 8: the method name follows the class name and runs up to the descriptor, so it
