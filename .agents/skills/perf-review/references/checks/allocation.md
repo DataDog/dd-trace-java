@@ -51,6 +51,15 @@ escapes, and it's real.
     Fix: give the class its own iterator, `forEach` and `isEmpty`, so their calls see one class.
     Mixing list classes at one call site (`emptyList`/`singletonList`/`ArrayList`) does the same
     to the caller's own sites, even unpolluted.
+  - *Evidence to cite:* `EscapeShapeBenchmark` (internal-api JMH, `datadog.trace.util.escape`)
+    measures these shapes across JDKs, in bytes per op on JDK 8 / 17 / 25: `singleSite` and
+    `flagOnOneAllocation` 0 / 0 / 0, `mergeWithStatic` (the shared sentinel) 8 / 8 / 8,
+    `mergeOfTwoAllocations` 16 / 16 / 16, `backingMegamorphic` (three implementations behind one
+    site) 24, and `mergeWithNull` (`return ok ? new X() : null`) 8 / 8 / 0, which is still a trap
+    on the Java 8 the tracer supports. `Maybe` is the worked example: one construction site, the
+    outcome in a plain nullable field rather than a singleton, and `@NoEscape`;
+    `MaybeUsagePatternsBenchmark#badMultiConstructionSite` shows two construction sites costing
+    16 B/op.
 
   **flag-as-measure** ("may keep an object escape analysis would remove; verify with `-prof gc`,
   and with the shared profile polluted first by walking several other list classes before the trial,
