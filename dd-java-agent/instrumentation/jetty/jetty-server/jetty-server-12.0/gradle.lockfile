@@ -112,6 +112,7 @@ org.eclipse.jetty.ee10:jetty-ee10-annotations:12.1.14=ee10LatestDepTestCompileCl
 org.eclipse.jetty.ee10:jetty-ee10-plus:12.0.0=ee10TestCompileClasspath,ee10TestRuntimeClasspath
 org.eclipse.jetty.ee10:jetty-ee10-plus:12.1.14=ee10LatestDepTestCompileClasspath,ee10LatestDepTestRuntimeClasspath
 org.eclipse.jetty.ee10:jetty-ee10-servlet:12.0.0=ee10TestCompileClasspath,ee10TestRuntimeClasspath
+org.eclipse.jetty.ee10:jetty-ee10-servlet:12.0.16=main_java17CompileClasspath
 org.eclipse.jetty.ee10:jetty-ee10-servlet:12.1.14=ee10LatestDepTestCompileClasspath,ee10LatestDepTestRuntimeClasspath
 org.eclipse.jetty.ee10:jetty-ee10-webapp:12.0.0=ee10TestCompileClasspath,ee10TestRuntimeClasspath
 org.eclipse.jetty.ee10:jetty-ee10-webapp:12.1.14=ee10LatestDepTestCompileClasspath,ee10LatestDepTestRuntimeClasspath
