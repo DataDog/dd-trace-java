@@ -5,11 +5,14 @@ import static datadog.trace.api.Functions.UTF8_BYTES_TO_STRING;
 import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY;
 import static datadog.trace.instrumentation.kafka_common.Utils.readProducedTime;
 
+import datadog.context.propagation.CarrierKeys;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation.ContextVisitor;
 import datadog.trace.bootstrap.instrumentation.api.BufferedHeaderFields;
+import java.nio.ByteBuffer;
 import java.util.Base64;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.Headers;
@@ -37,52 +40,91 @@ public class TextMapExtractAdapter implements ContextVisitor<Headers> {
 
   @Override
   public void forEachKey(Headers carrier, AgentPropagation.KeyClassifier classifier) {
-    if (decoder == null) {
-      forEachKeyFromBuffers(carrier, classifier);
-      return;
-    }
+    visit(carrier, CarrierKeys.all(), classifier);
+  }
+
+  /**
+   * Visits only the headers whose key is in {@code keys}. A skipped header's value is never read,
+   * and a fetched header's key is matched from its bytes, so a header nothing reads (an
+   * application's own) costs neither a key decode nor a value copy.
+   */
+  @Override
+  public void forEachKeyValue(
+      Headers carrier, CarrierKeys keys, BiConsumer<String, String> visitor) {
+    visit(
+        carrier,
+        keys,
+        (key, value) -> {
+          visitor.accept(key, value);
+          return true;
+        });
+  }
+
+  /**
+   * Visits the headers whose key is in {@code keys}, until {@code sink} returns false. A header the
+   * agent gave {@link BufferedHeaderFields} is read through {@link RecordHeaderAccess}, so known
+   * keys aren't decoded and UTF-8 values aren't copied before decoding; any other goes through
+   * {@code key()} and {@code value()}.
+   */
+  private void visit(Headers carrier, CarrierKeys keys, AgentPropagation.KeyClassifier sink) {
     for (Header header : carrier) {
-      String key = header.key();
-      byte[] value = header.value();
-      if (null == value) {
+      BufferedHeaderFields fields =
+          header instanceof BufferedHeaderFields ? (BufferedHeaderFields) header : null;
+      String key = key(header, fields, keys);
+      if (key == null) {
         continue;
       }
-      String decoded = headerValueTransformer.apply(value);
-      if (decoded == null) {
-        log.debug(EXCLUDE_TELEMETRY, "Failed to Base64-decode Kafka header '{}', skipping", key);
+      String value = value(header, fields, key);
+      if (value == null) {
         continue;
       }
-      if (!classifier.accept(key, decoded)) {
+      if (!sink.accept(key, value)) {
         return;
       }
     }
   }
 
   /**
-   * {@link #forEachKey} for UTF-8 headers. A header the agent gave {@link BufferedHeaderFields} is
-   * read through {@link RecordHeaderAccess}, so known keys aren't decoded and values aren't copied
-   * before decoding; any other goes through {@code key()} and {@code value()}.
+   * The header's key, or null if it isn't in {@code keys}. A fetched header's key is matched from
+   * its bytes once: a declared name comes back as that name's (lower-cased) constant, a prefix
+   * match is decoded, and anything else is skipped undecoded.
    */
-  private void forEachKeyFromBuffers(Headers carrier, AgentPropagation.KeyClassifier classifier) {
-    for (Header header : carrier) {
-      String key;
-      String value;
-      if (header instanceof BufferedHeaderFields) {
-        BufferedHeaderFields fields = (BufferedHeaderFields) header;
-        key = RecordHeaderAccess.key(header, fields);
-        value = RecordHeaderAccess.utf8Value(header, fields);
-      } else {
-        key = header.key();
-        byte[] bytes = header.value();
-        value = bytes == null ? null : UTF8_BYTES_TO_STRING.apply(bytes);
-      }
-      if (value == null) {
-        continue;
-      }
-      if (!classifier.accept(key, value)) {
-        return;
+  private static String key(Header header, BufferedHeaderFields fields, CarrierKeys keys) {
+    if (fields != null && fields.$$DD$$__key() == null) {
+      ByteBuffer keyBuffer = fields.$$DD$$__keyBuffer();
+      if (keyBuffer != null) {
+        if (keys.isAll()) {
+          return RecordHeaderAccess.key(header, fields);
+        }
+        String name = keys.nameAscii(keyBuffer);
+        if (name != null) {
+          return name;
+        }
+        return keys.hasPrefixAscii(keyBuffer) ? header.key() : null;
       }
     }
+    String key = header.key();
+    return keys.contains(key) ? key : null;
+  }
+
+  /** The header's value decoded, or null if it has none or doesn't decode. */
+  private String value(Header header, BufferedHeaderFields fields, String key) {
+    if (decoder == null) {
+      if (fields != null) {
+        return RecordHeaderAccess.utf8Value(header, fields);
+      }
+      byte[] bytes = header.value();
+      return bytes == null ? null : UTF8_BYTES_TO_STRING.apply(bytes);
+    }
+    byte[] bytes = header.value();
+    if (bytes == null) {
+      return null;
+    }
+    String decoded = headerValueTransformer.apply(bytes);
+    if (decoded == null) {
+      log.debug(EXCLUDE_TELEMETRY, "Failed to Base64-decode Kafka header '{}', skipping", key);
+    }
+    return decoded;
   }
 
   public long extractTimeInQueueStart(Headers carrier) {

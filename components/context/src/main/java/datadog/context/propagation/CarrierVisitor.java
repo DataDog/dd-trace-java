@@ -23,4 +23,18 @@ public interface CarrierVisitor<C> {
    * @param visitor the callback to call for each carrier key/value pair found.
    */
   void forEachKeyValue(C carrier, BiConsumer<String, String> visitor);
+
+  /**
+   * Iterates over the carrier content, calling the visitor callback for at least every key/value
+   * whose key is in {@code keys}. Visitors that can skip a key cheaply (for instance, before
+   * decoding its value) override this to skip the keys not in {@code keys}; the default visits
+   * every key, as {@link #forEachKeyValue(Object, BiConsumer)} does.
+   *
+   * @param carrier the carrier to iterate over.
+   * @param keys the keys the caller reads; others may be skipped.
+   * @param visitor the callback to call for each carrier key/value pair found.
+   */
+  default void forEachKeyValue(C carrier, CarrierKeys keys, BiConsumer<String, String> visitor) {
+    forEachKeyValue(carrier, visitor);
+  }
 }

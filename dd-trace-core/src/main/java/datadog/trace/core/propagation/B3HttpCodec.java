@@ -6,6 +6,7 @@ import static datadog.trace.api.internal.util.LongStringUtils.parseUnsignedLongH
 import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY;
 import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
 
+import datadog.context.propagation.CarrierKeys;
 import datadog.context.propagation.CarrierSetter;
 import datadog.trace.api.Config;
 import datadog.trace.api.DD128bTraceId;
@@ -181,6 +182,17 @@ class B3HttpCodec {
   }
 
   private abstract static class B3BaseContextInterpreter extends ContextInterpreter {
+    /**
+     * This style's own headers; the ones every style reads come from {@link ContextInterpreter}.
+     */
+    private static final CarrierKeys OWN_KEYS =
+        CarrierKeys.of(TRACE_ID_KEY, SPAN_ID_KEY, SAMPLING_PRIORITY_KEY, B3_KEY);
+
+    @Override
+    protected CarrierKeys ownKeys() {
+      return OWN_KEYS;
+    }
+
     public B3BaseContextInterpreter(Config config) {
       super(config);
     }

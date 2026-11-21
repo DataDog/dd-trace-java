@@ -214,7 +214,7 @@ class CompoundExtractionGoldenTest extends DDCoreJavaSpecification {
     return sb.toString();
   }
 
-  private static void describeContext(StringBuilder sb, AgentSpanContext context) {
+  static void describeContext(StringBuilder sb, AgentSpanContext context) {
     if (!(context instanceof TagContext)) {
       sb.append(context == null ? "null" : context.getClass().getSimpleName());
       return;
