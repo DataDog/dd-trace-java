@@ -9,10 +9,14 @@ import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.BufferedHeaderFields;
 import datadog.trace.common.writer.Writer;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDSpan;
 import java.io.ByteArrayOutputStream;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -55,8 +59,12 @@ import org.openjdk.jmh.infra.Blackhole;
  * measure the cache instead. That construction is in every arm and costs the same in each.
  *
  * <ul>
- *   <li>{@code headerShape}: {@code fetched} headers hold buffer slices, as on a real consumer;
- *       {@code built} headers hold a {@code String} key and a {@code byte[]} value, as {@code
+ *   <li>{@code headerShape}: {@code fetched} headers hold buffer slices, as on a real consumer, and
+ *       are read through {@code key()} and {@code value()}, as when the agent hasn't instrumented
+ *       {@code RecordHeader}; {@code fetchedAccessor} are the same headers with the accessor {@code
+ *       RecordHeaderInstrumentation} installs, as under the agent (its getters are {@code static
+ *       final} method handles here, which compile to the same field reads); {@code built} headers
+ *       hold a {@code String} key and a {@code byte[]} value, as {@code
  *       KafkaConsumeScenariosBenchmark} (kafka-clients-0.11) builds them, for comparison with it.
  *   <li>{@code appHeaders}: how many application headers each record carries besides the trace
  *       headers (a content type, a schema id, a correlation id), which no propagator reads.
@@ -93,7 +101,7 @@ public class KafkaFetchedHeadersBenchmark {
     {"correlation-id", "6f1c2a9e-3b7d-4c55-9a1e-0d8f2b4c7e13"},
   };
 
-  @Param({"fetched", "built"})
+  @Param({"fetched", "fetchedAccessor", "built"})
   String headerShape;
 
   @Param({"0", "3"})
@@ -113,11 +121,18 @@ public class KafkaFetchedHeadersBenchmark {
 
   byte[] recordValue;
   long timestamp;
-  boolean fetched;
+  private static final int FETCHED = 0;
+  private static final int FETCHED_ACCESSOR = 1;
+  private static final int BUILT = 2;
+
+  int shape;
 
   @Setup
   public void setup(Blackhole blackhole) {
-    fetched = "fetched".equals(headerShape);
+    shape =
+        "fetched".equals(headerShape)
+            ? FETCHED
+            : "fetchedAccessor".equals(headerShape) ? FETCHED_ACCESSOR : BUILT;
     tracer = CoreTracer.builder().writer(new DropWriter(blackhole)).build();
     AgentTracer.forceRegister(tracer);
 
@@ -204,10 +219,16 @@ public class KafkaFetchedHeadersBenchmark {
     int n = keys[i].length;
     Header[] headers = new Header[n];
     for (int h = 0; h < n; h++) {
-      headers[h] =
-          fetched
-              ? new RecordHeader(keyBuffers[i][h], valueBuffers[i][h])
-              : new RecordHeader(keys[i][h], values[i][h]);
+      switch (shape) {
+        case FETCHED:
+          headers[h] = new RecordHeader(keyBuffers[i][h], valueBuffers[i][h]);
+          break;
+        case FETCHED_ACCESSOR:
+          headers[h] = new AccessorRecordHeader(keyBuffers[i][h], valueBuffers[i][h]);
+          break;
+        default:
+          headers[h] = new RecordHeader(keys[i][h], values[i][h]);
+      }
     }
     return new ConsumerRecord<>(
         TOPICS[i % TOPICS.length],
@@ -221,6 +242,68 @@ public class KafkaFetchedHeadersBenchmark {
         recordValue,
         new RecordHeaders(headers),
         Optional.empty());
+  }
+
+  /**
+   * A {@link RecordHeader} with the accessor {@code RecordHeaderInstrumentation} installs under the
+   * agent. The getters read the private fields through {@code static final} method handles, which
+   * compile to the same field reads as the generated getters.
+   */
+  static final class AccessorRecordHeader extends RecordHeader implements BufferedHeaderFields {
+    private static final MethodHandle KEY = getter("key");
+    private static final MethodHandle KEY_BUFFER = getter("keyBuffer");
+    private static final MethodHandle VALUE = getter("value");
+    private static final MethodHandle VALUE_BUFFER = getter("valueBuffer");
+
+    AccessorRecordHeader(ByteBuffer keyBuffer, ByteBuffer valueBuffer) {
+      super(keyBuffer, valueBuffer);
+    }
+
+    private static MethodHandle getter(String name) {
+      try {
+        Field field = RecordHeader.class.getDeclaredField(name);
+        field.setAccessible(true);
+        return MethodHandles.lookup().unreflectGetter(field);
+      } catch (ReflectiveOperationException e) {
+        throw new IllegalStateException(e);
+      }
+    }
+
+    @Override
+    public String $$DD$$__key() {
+      try {
+        return (String) KEY.invokeExact((RecordHeader) this);
+      } catch (Throwable t) {
+        throw new IllegalStateException(t);
+      }
+    }
+
+    @Override
+    public ByteBuffer $$DD$$__keyBuffer() {
+      try {
+        return (ByteBuffer) KEY_BUFFER.invokeExact((RecordHeader) this);
+      } catch (Throwable t) {
+        throw new IllegalStateException(t);
+      }
+    }
+
+    @Override
+    public byte[] $$DD$$__value() {
+      try {
+        return (byte[]) VALUE.invokeExact((RecordHeader) this);
+      } catch (Throwable t) {
+        throw new IllegalStateException(t);
+      }
+    }
+
+    @Override
+    public ByteBuffer $$DD$$__valueBuffer() {
+      try {
+        return (ByteBuffer) VALUE_BUFFER.invokeExact((RecordHeader) this);
+      } catch (Throwable t) {
+        throw new IllegalStateException(t);
+      }
+    }
   }
 
   /**
