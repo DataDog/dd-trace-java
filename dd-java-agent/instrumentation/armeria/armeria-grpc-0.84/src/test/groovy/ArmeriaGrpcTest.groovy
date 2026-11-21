@@ -8,6 +8,7 @@ import com.linecorp.armeria.server.Server
 import com.linecorp.armeria.server.ServerBuilder
 import com.linecorp.armeria.server.grpc.GrpcService
 import com.linecorp.armeria.testing.junit4.server.ServerRule
+import datadog.context.Context
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDSpanTypes
@@ -18,6 +19,7 @@ import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
+import datadog.trace.bootstrap.instrumentation.api.Baggage
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.datastreams.StatsGroup
@@ -25,6 +27,10 @@ import datadog.trace.instrumentation.armeria.grpc.server.GrpcExtractAdapter
 import example.GreeterGrpc
 import example.Helloworld
 import io.grpc.Metadata
+import io.grpc.ServerCall
+import io.grpc.ServerCallHandler
+import io.grpc.ServerInterceptor
+import io.grpc.ServerInterceptors
 import io.grpc.Status
 import io.grpc.StatusRuntimeException
 import io.grpc.stub.StreamObserver
@@ -33,6 +39,7 @@ import spock.lang.Shared
 import java.time.Duration
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicReference
 import java.util.function.BiFunction
 import java.util.function.Function
 import java.util.function.Supplier
@@ -268,6 +275,76 @@ abstract class ArmeriaGrpcTest extends VersionedNamingTestBase {
 
     where:
     name << ["some name", "some other name"]
+  }
+
+  def "test inbound baggage is current in the handler and propagated downstream"() {
+    setup:
+    def handlerBaggage = new AtomicReference<Map<String, String>>()
+    def downstreamBaggage = new AtomicReference<String>()
+    def downstreamClient = new AtomicReference<GreeterGrpc.GreeterBlockingStub>()
+    def greeter = new GreeterGrpc.GreeterImplBase() {
+        @Override
+        void sayHello(
+          final Helloworld.Request req, final StreamObserver<Helloworld.Response> responseObserver) {
+          handlerBaggage.set(Baggage.fromContext(Context.current())?.asMap())
+          // outbound call made from the handler, which should carry the inbound baggage
+          def downstream = downstreamClient.get().ignoreInbound(req)
+          responseObserver.onNext(Helloworld.Response.newBuilder().setMessage(downstream.message).build())
+          responseObserver.onCompleted()
+        }
+
+        @Override
+        void ignoreInbound(
+          final Helloworld.Request req, final StreamObserver<Helloworld.Response> responseObserver) {
+          responseObserver.onNext(Helloworld.Response.newBuilder().setMessage("Hello $req.name").build())
+          responseObserver.onCompleted()
+        }
+      }
+    def captureDownstreamBaggage = new ServerInterceptor() {
+        @Override
+        <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(
+          ServerCall<ReqT, RespT> call, Metadata headers, ServerCallHandler<ReqT, RespT> next) {
+          if (call.methodDescriptor.fullMethodName == "example.Greeter/IgnoreInbound") {
+            downstreamBaggage.set(headers.get(Metadata.Key.of("baggage", Metadata.ASCII_STRING_MARSHALLER)))
+          }
+          return next.startCall(call, headers)
+        }
+      }
+    ServerRule serverRule = new ServerRule() {
+        @Override
+        protected void configure(ServerBuilder sb) throws Exception {
+          sb.service(GrpcService.builder()
+            .addService(ServerInterceptors.intercept(greeter, captureDownstreamBaggage))
+            // the handler blocks on its downstream call, so keep it off the event loop
+            .useBlockingTaskExecutor(true)
+            .build())
+        }
+      }
+    serverRule.configure(Server.builder().requestTimeout(timeoutDuration()))
+    serverRule.start()
+
+    def uri = serverRule.uri(SessionProtocol.HTTP, GrpcSerializationFormats.PROTO)
+    downstreamClient.set(Clients.builder(uri)
+      .writeTimeout(timeoutDuration())
+      .responseTimeout(timeoutDuration())
+      .build(GreeterGrpc.GreeterBlockingStub))
+    GreeterGrpc.GreeterBlockingStub client = Clients.builder(uri)
+      .writeTimeout(timeoutDuration())
+      .responseTimeout(timeoutDuration())
+      .addHeader("baggage", "user.id=abc123,jtbd=checkout")
+      .build(GreeterGrpc.GreeterBlockingStub)
+
+    when:
+    def response = client.sayHello(Helloworld.Request.newBuilder().setName("whatever").build())
+    TEST_WRITER.waitForTraces(2)
+
+    then:
+    response.message == "Hello whatever"
+    handlerBaggage.get() == ["user.id": "abc123", "jtbd": "checkout"]
+    downstreamBaggage.get()?.split(",") as Set == ["user.id=abc123", "jtbd=checkout"] as Set
+
+    cleanup:
+    serverRule.stop().get()
   }
 
   def "test error - #name"() {
