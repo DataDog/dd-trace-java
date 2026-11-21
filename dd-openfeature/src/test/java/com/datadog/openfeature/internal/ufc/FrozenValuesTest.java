@@ -48,7 +48,7 @@ class FrozenValuesTest {
   }
 
   @Test
-  void sharesRepeatedStringsAndScalars() {
+  void sharesRepeatedKeysAndNumbersButNotStringValues() {
     final FrozenValues.Freezer freezer = new FrozenValues.Freezer();
     final Value a = freezer.freeze(object(new String("tier"), new String("gold"), "n", 1_000));
     final Value b = freezer.freeze(object(new String("tier"), new String("gold"), "n", 1_000));
@@ -56,9 +56,49 @@ class FrozenValuesTest {
     assertNotSame(a, b, "objects are not shared");
     final Map<String, Value> left = a.asStructure().asUnmodifiableMap();
     final Map<String, Value> right = b.asStructure().asUnmodifiableMap();
-    assertSame(left.get("tier"), right.get("tier"));
     assertSame(left.get("n"), right.get("n"));
-    assertSame(left.keySet().iterator().next(), right.keySet().iterator().next());
+    assertNotSame(left.get("tier"), right.get("tier"));
+    assertEquals(left.get("tier"), right.get("tier"));
+    assertSame(sortedKeys(left).get(1), sortedKeys(right).get(1));
+  }
+
+  @org.junit.jupiter.params.ParameterizedTest
+  @org.junit.jupiter.params.provider.ValueSource(ints = {1, 2, 7, 8, 9, 12, 13, 40, 100, 1000})
+  void keepsTheKeyOrderOfObjectToValueAtEverySize(final int size) {
+    final Map<String, Object> tree = new java.util.LinkedHashMap<>();
+    for (int i = 0; i < size; i++) {
+      tree.put("k" + (i * 7919), i);
+    }
+
+    assertEquals(
+        new ArrayList<>(Value.objectToValue(tree).asStructure().keySet()),
+        new ArrayList<>(new FrozenValues.Freezer().freeze(tree).asStructure().keySet()));
+  }
+
+  @Test
+  void keepsTheKeyOrderWhenABucketOverflows() {
+    // Every combination of "Aa" and "BB" has the same String hash, so these 16 keys share a bucket.
+    final Map<String, Object> tree = new java.util.LinkedHashMap<>();
+    for (int i = 0; i < 16; i++) {
+      final StringBuilder key = new StringBuilder();
+      for (int bit = 3; bit >= 0; bit--) {
+        key.append((i >> bit & 1) == 0 ? "Aa" : "BB");
+      }
+      tree.put(key.toString(), i);
+    }
+
+    final Value frozen = new FrozenValues.Freezer().freeze(tree);
+
+    assertEquals(Value.objectToValue(tree), frozen);
+    assertEquals(
+        new ArrayList<>(Value.objectToValue(tree).asStructure().keySet()),
+        new ArrayList<>(frozen.asStructure().keySet()));
+  }
+
+  private static List<String> sortedKeys(final Map<String, Value> map) {
+    final List<String> keys = new ArrayList<>(map.keySet());
+    java.util.Collections.sort(keys);
+    return keys;
   }
 
   @Test
@@ -91,15 +131,11 @@ class FrozenValuesTest {
       longText.append("abcdefgh");
     }
     final String longKey = longText.toString();
-    final List<Value> items =
-        freezer.freeze(asList(new String(longKey), new String(longKey))).asList();
     final Map<String, Value> one =
         freezer.freeze(object(new String(longKey), 1)).asStructure().asUnmodifiableMap();
     final Map<String, Value> two =
         freezer.freeze(object(new String(longKey), 1)).asStructure().asUnmodifiableMap();
 
-    assertEquals(items.get(0), items.get(1));
-    assertNotSame(items.get(0), items.get(1));
     assertNotSame(one.keySet().iterator().next(), two.keySet().iterator().next());
     assertEquals(one, two);
   }
@@ -129,7 +165,7 @@ class FrozenValuesTest {
     final Map<String, Value> one = attributes(configuration, "f1");
     final Map<String, Value> two = attributes(configuration, "f2");
     assertEquals(one, two);
-    assertSame(one.get("color"), two.get("color"));
+    assertSame(sortedKeys(one).get(0), sortedKeys(two).get(0));
   }
 
   private static Map<String, Value> attributes(

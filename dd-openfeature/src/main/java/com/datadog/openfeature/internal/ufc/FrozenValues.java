@@ -50,34 +50,44 @@ final class FrozenValues {
   /**
    * Freezes the JSON variants of one document. Each JSON object becomes a {@link FrozenStructure}
    * over a {@link FrozenMap}, which holds its entries in flat arrays rather than one node each.
-   * Repeated keys, short strings and numbers are shared through small direct-mapped caches: a value
-   * that recurs nearby is built once, a unique one costs a slot overwrite, and the caches never
-   * grow, so a large document doesn't pay for an ever-larger table. Each leaf takes one lookup, and
-   * long strings, which rarely repeat, skip the caches. The values cannot change, so sharing is
+   * Repeated keys and numbers are shared through small direct-mapped caches: a value that recurs
+   * nearby is built once, a unique one costs a slot overwrite, and the caches never grow, so a
+   * large document doesn't pay for an ever-larger table. Each leaf takes one lookup, and long
+   * strings, which rarely repeat, skip the caches. The values cannot change, so sharing is
    * invisible to readers.
    */
   static final class Freezer {
     static final int CACHE_SLOTS = 1 << 12;
 
-    /**
-     * Longer strings aren't shared: they rarely repeat, and each lookup would scan them again to
-     * hash and compare them.
-     */
+    /** Longer keys aren't shared: they rarely repeat, and each lookup would scan them again. */
     static final int MAX_SHARED_LENGTH = 64;
 
     private final String[] keys = new String[CACHE_SLOTS];
-    private final Value[] strings = new Value[CACHE_SLOTS];
     private final Value[] numbers = new Value[CACHE_SLOTS];
 
     Value freeze(final Object tree) {
       if (tree instanceof Map) {
         final Map<?, ?> source = (Map<?, ?>) tree;
-        // Built through a HashMap so the frozen map iterates in the order objectToValue's would.
-        final Map<String, Value> attributes = new HashMap<>(capacity(source.size()));
+        final int size = source.size();
+        final String[] names = new String[size];
+        final Value[] values = new Value[size];
+        int i = 0;
         for (final Map.Entry<?, ?> entry : source.entrySet()) {
-          attributes.put(key((String) entry.getKey()), freeze(entry.getValue()));
+          names[i] = key((String) entry.getKey());
+          values[i] = freeze(entry.getValue());
+          i++;
         }
-        return new Value(new FrozenStructure(FrozenMap.copyOf(attributes)));
+        // In the order objectToValue's HashMap would iterate, sized as it would be.
+        FrozenMap map = FrozenMap.inHashMapOrder(names, values, capacity(size));
+        if (map == null) {
+          // A bucket long enough for HashMap to restructure it: let a HashMap set the order.
+          final Map<String, Value> attributes = new HashMap<>(capacity(size));
+          for (int j = 0; j < size; j++) {
+            attributes.put(names[j], values[j]);
+          }
+          map = FrozenMap.copyOf(attributes);
+        }
+        return new Value(new FrozenStructure(map));
       }
       if (tree instanceof List) {
         final List<?> source = (List<?>) tree;
@@ -94,7 +104,8 @@ final class FrozenValues {
         return (Boolean) tree ? TRUE : FALSE;
       }
       if (tree instanceof String) {
-        return string((String) tree);
+        // Not shared: string values rarely repeat enough to pay for hashing each one.
+        return new Value((String) tree);
       }
       return number(tree);
     }
@@ -111,21 +122,6 @@ final class FrozenValues {
       }
       keys[slot] = key;
       return key;
-    }
-
-    /** A string value: one shared Value per distinct short string, one lookup each. */
-    private Value string(final String string) {
-      if (string.length() > MAX_SHARED_LENGTH) {
-        return Value.objectToValue(string);
-      }
-      final int slot = slot(string.hashCode());
-      final Value cached = strings[slot];
-      if (cached != null && string.equals(cached.asString())) {
-        return cached;
-      }
-      final Value value = Value.objectToValue(string);
-      strings[slot] = value;
-      return value;
     }
 
     /** A number: one shared Value per distinct value of each type. */

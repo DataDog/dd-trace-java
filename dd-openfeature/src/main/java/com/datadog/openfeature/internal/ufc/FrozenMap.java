@@ -50,6 +50,50 @@ final class FrozenMap extends AbstractMap<String, Value> {
     return new FrozenMap(keys, values, size > MAX_SCANNED ? index(keys) : null);
   }
 
+  /**
+   * Builds the map with its entries in the order a {@link java.util.HashMap} of the given initial
+   * capacity would iterate them, had they been put in array order, without building that map.
+   * Returns {@code null} when a bucket would hold enough entries for the HashMap to restructure it,
+   * since the order then depends on that; the caller falls back to a HashMap.
+   */
+  static FrozenMap inHashMapOrder(
+      final String[] keys, final Value[] values, final int initialCapacity) {
+    final int size = keys.length;
+    // HashMap's table: the power of two at or above the initial capacity, which the callers size
+    // so that it never resizes.
+    final int tableSize = Math.max(1, Integer.highestOneBit(Math.max(1, initialCapacity - 1)) << 1);
+    if (size > tableSize - (tableSize >>> 2)) {
+      return null;
+    }
+    final int mask = tableSize - 1;
+    final int[] buckets = new int[size];
+    final int[] counts = new int[tableSize + 1];
+    for (int i = 0; i < size; i++) {
+      final int h = keys[i].hashCode();
+      final int bucket = (h ^ (h >>> 16)) & mask;
+      buckets[i] = bucket;
+      if (++counts[bucket + 1] >= TREEIFY_THRESHOLD) {
+        return null;
+      }
+    }
+    // A stable counting sort by bucket: within a bucket, HashMap keeps insertion order.
+    for (int b = 0; b < tableSize; b++) {
+      counts[b + 1] += counts[b];
+    }
+    final String[] orderedKeys = new String[size];
+    final Value[] orderedValues = new Value[size];
+    for (int i = 0; i < size; i++) {
+      final int position = counts[buckets[i]]++;
+      orderedKeys[position] = keys[i];
+      orderedValues[position] = values[i];
+    }
+    return new FrozenMap(
+        orderedKeys, orderedValues, size > MAX_SCANNED ? index(orderedKeys) : null);
+  }
+
+  /** HashMap restructures a bucket once it reaches this many entries. */
+  static final int TREEIFY_THRESHOLD = 8;
+
   private static int[] index(final String[] keys) {
     // At most half full, so probes stay short.
     final int[] index = new int[Integer.highestOneBit(keys.length) << 2];
