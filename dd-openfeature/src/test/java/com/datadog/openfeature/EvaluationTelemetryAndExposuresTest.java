@@ -1,5 +1,8 @@
 package com.datadog.openfeature;
 
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.DO_LOG;
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EXPOSURE_CACHE_HIT;
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.SPLIT_SERIAL_ID;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonList;
@@ -41,6 +44,7 @@ import dev.openfeature.sdk.FlagEvaluationDetails;
 import dev.openfeature.sdk.Hook;
 import dev.openfeature.sdk.MutableContext;
 import dev.openfeature.sdk.OpenFeatureAPI;
+import dev.openfeature.sdk.ProviderEvaluation;
 import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.common.Attributes;
@@ -48,12 +52,15 @@ import io.opentelemetry.api.metrics.LongCounter;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 /** Turns evaluation telemetry and exposures off independently, per provider. */
 class EvaluationTelemetryAndExposuresTest {
@@ -177,11 +184,87 @@ class EvaluationTelemetryAndExposuresTest {
   void bothOptionsOffRegisterNoTelemetryOrExposureHooks() {
     final Provider provider =
         new Provider(
-            new Provider.Options().evaluationTelemetryEnabled(false).exposuresEnabled(false));
+            new Provider.Options().evaluationTelemetryEnabled(false).exposuresEnabled(false),
+            null,
+            Boolean.TRUE);
 
     assertFalse(provider.isEvaluationTelemetryEnabled());
     assertFalse(provider.isExposuresEnabled());
     assertNoTelemetryOrExposureHooks(provider);
+  }
+
+  @Test
+  void evaluationTelemetryOffRegistersOnlyTheExposureHook() {
+    final Provider provider =
+        new Provider(new Provider.Options().evaluationTelemetryEnabled(false), null, Boolean.TRUE);
+
+    assertHookCount(provider, FlagEvalMetricsHook.class, 0);
+    assertHookCount(provider, FlagEvalLoggingHook.class, 0);
+    assertHookCount(provider, SpanEnrichmentHook.class, 0);
+    assertHookCount(provider, ExposureLoggingHook.class, 1);
+  }
+
+  @Test
+  void exposuresOffRegistersOnlyTheTelemetryHooks() {
+    final Provider provider =
+        new Provider(new Provider.Options().exposuresEnabled(false), null, Boolean.TRUE);
+
+    assertHookCount(provider, FlagEvalMetricsHook.class, 1);
+    assertHookCount(provider, FlagEvalLoggingHook.class, 1);
+    assertHookCount(provider, SpanEnrichmentHook.class, 1);
+    assertHookCount(provider, ExposureLoggingHook.class, 0);
+  }
+
+  @Test
+  void optionsChangedAfterConstructionAreIgnored() {
+    final Provider.Options options =
+        new Provider.Options().evaluationTelemetryEnabled(false).exposuresEnabled(false);
+    final Provider provider = new Provider(options, null, Boolean.TRUE);
+
+    options.evaluationTelemetryEnabled(true).exposuresEnabled(true);
+
+    assertFalse(provider.isEvaluationTelemetryEnabled());
+    assertFalse(provider.isExposuresEnabled());
+    assertNoTelemetryOrExposureHooks(provider);
+  }
+
+  /**
+   * The evaluator the provider builds itself, rather than one injected by a test, gets the captured
+   * options: exposure marking follows exposuresEnabled only, and span enrichment metadata without
+   * an exposure follows evaluationTelemetryEnabled only.
+   */
+  @ParameterizedTest
+  @CsvSource({"true,true", "true,false", "false,true", "false,false"})
+  void builtEvaluatorUsesTheProviderOptions(final boolean telemetry, final boolean exposures) {
+    final Provider provider =
+        new Provider(
+            new Provider.Options()
+                .evaluationTelemetryEnabled(telemetry)
+                .exposuresEnabled(exposures),
+            null,
+            Boolean.TRUE);
+    final DDEvaluator evaluator = (DDEvaluator) provider.buildEvaluator();
+    evaluator.accept(configuration());
+
+    final ProviderEvaluation<Integer> result =
+        evaluator.evaluate(Integer.class, "flag", 0, new MutableContext("user-1"));
+    final Map<String, Object> metadata = result.getFlagMetadata().asUnmodifiableMap();
+
+    assertEquals("on", result.getVariant(), "assignment is unchanged");
+    assertEquals(exposures, Boolean.TRUE.equals(metadata.get(DO_LOG)), metadata::toString);
+    assertEquals(exposures, metadata.containsKey(EXPOSURE_CACHE_HIT), metadata::toString);
+    assertEquals(telemetry || exposures, metadata.containsKey(SPLIT_SERIAL_ID), metadata::toString);
+  }
+
+  private static void assertHookCount(
+      final Provider provider, final Class<?> hookClass, final int expected) {
+    long count = 0;
+    for (final Hook<?> hook : provider.getProviderHooks()) {
+      if (hookClass.isInstance(hook)) {
+        count++;
+      }
+    }
+    assertEquals(expected, count, hookClass::getSimpleName);
   }
 
   private static void assertNoTelemetryOrExposureHooks(final Provider provider) {

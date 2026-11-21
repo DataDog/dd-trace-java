@@ -167,7 +167,7 @@ A provider has two independent options. Each is on by default and applies to tha
 | Provider option | When off |
 |---|---|
 | `evaluationTelemetryEnabled(false)` | No flag evaluation events, no `feature_flag.evaluations` metric, and no span enrichment. |
-| `exposuresEnabled(false)` | Evaluations are not exposures: none is recorded, deduplicated, sent to Datadog, or reported to `ExposureHook`. |
+| `exposuresEnabled(false)` | Evaluations are not exposures: none is recorded, deduplicated, or sent to Datadog, and `ExposureHook` reports them with `isExposure()` and `shouldSend()` false. With span enrichment on, the span records the evaluation but not the subject. |
 
 Neither option changes flag results or assignment. The provider reads both at construction.
 
@@ -201,7 +201,7 @@ String planned = peek.getStringValue("digest-subject-line", "control", user);
 String seen = live.getStringValue("digest-subject-line", "control", user);
 ```
 
-* Both providers share the process's flag configuration, so for the same flag, targeting key, attributes and configuration, they return the same variant.
+* Both providers share the process's flag configuration, so for the same flag, targeting key, attributes and configuration, and the same `experimentationOptOutMode`, they return the same variant.
 * An inspection does not mark the subject as exposed, so the later live evaluation still sends the exposure.
 * Evaluate inspections through the inspection domain's client only. Hooks that the application registers itself, at the API or client level, still run.
 

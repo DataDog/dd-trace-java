@@ -160,8 +160,9 @@ public class Provider extends EventProvider implements Metadata {
     }
     // Exposure hook: registered last when exposures are enabled, and independent of evaluation
     // telemetry; no-op when the evaluator is not a Datadog one or is not initialized. With
-    // exposures disabled, the evaluator also reports no evaluation as an exposure, so the shared
-    // deduplication cache and application exposure hooks never see this provider's evaluations.
+    // exposures disabled, the evaluator also reports no evaluation as an exposure, so neither the
+    // shared deduplication cache nor application exposure hooks treat this provider's evaluations
+    // as exposures.
     if (this.exposuresEnabled) {
       hooks.add(new ExposureLoggingHook<>(this::datadogEvaluator));
     }
@@ -332,7 +333,11 @@ public class Provider extends EventProvider implements Metadata {
     }
   }
 
-  private Evaluator buildEvaluator() {
+  /**
+   * Returns the injected evaluator, or a Datadog evaluator built with the options this provider
+   * captured. Package-private for tests.
+   */
+  Evaluator buildEvaluator() {
     if (evaluator != null) {
       return evaluator;
     }
@@ -460,7 +465,8 @@ public class Provider extends EventProvider implements Metadata {
      * <p>This does not change flag results, assignment, exposures, application hooks, or ordinary
      * application tracing. Use {@link #exposuresEnabled(boolean)} to control exposures. To turn
      * flag evaluation events off for the whole process instead, use {@code
-     * DD_FLAGGING_EVALUATION_COUNTS_ENABLED=false}.
+     * DD_FLAGGING_EVALUATION_COUNTS_ENABLED=false}, which does not stop evaluation metrics or span
+     * enrichment.
      *
      * @param enabled whether to produce evaluation telemetry; configure before constructing the
      *     provider.
@@ -478,7 +484,8 @@ public class Provider extends EventProvider implements Metadata {
      * to an {@link ExposureHook} as an exposure, and it does not suppress a later exposure of the
      * same subject through a provider with exposures enabled. Flag results and assignment are
      * unchanged, so a provider with exposures disabled can look up the variant a subject would get
-     * before the subject experiences it.
+     * before the subject experiences it. With span enrichment on, the span records the evaluation
+     * but not the subject.
      *
      * <p>This differs from {@code DD_FEATURE_FLAGS_EXPOSURES_DATADOG_LOGGING_ENABLED=false}, which
      * applies to the whole process, keeps exposures for exposure hooks and deduplication, and only

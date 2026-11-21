@@ -114,6 +114,8 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
   }
 
   /**
+   * Creates an evaluator.
+   *
    * @param spanEnrichmentEnabled whether to attach span-enrichment metadata to every evaluation.
    * @param exposuresEnabled whether evaluations of allocations logging exposures are exposures.
    */
@@ -130,7 +132,8 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
     this.settings = settings;
     this.flagSelection = flagSelection;
     // When span enrichment is off, the __dd_* span-enrichment metadata is attached only to
-    // evaluations of allocations logging exposures, for the exposure hook.
+    // evaluations of allocations logging exposures, when exposures are enabled, for the exposure
+    // hook.
     this.core =
         new FlagEvaluator(
             spanEnrichmentEnabled, this::isExposed, experimentationOptOutMode, exposuresEnabled);
