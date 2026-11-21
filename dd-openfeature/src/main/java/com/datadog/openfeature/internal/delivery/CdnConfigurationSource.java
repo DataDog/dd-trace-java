@@ -16,7 +16,10 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -67,6 +70,9 @@ public final class CdnConfigurationSource implements ConfigurationService {
   private volatile boolean started;
   private volatile ScheduledFuture<?> scheduledPoll;
   private volatile String etag;
+  // The SHA-256 of the last body the listener accepted, guarded by lifecycleLock. It lets a poll
+  // skip parsing an unchanged body when the endpoint sends no ETag.
+  @Nullable private byte[] appliedBodyHash;
   private long lastWarningNanos;
 
   public CdnConfigurationSource(
@@ -292,20 +298,36 @@ public final class CdnConfigurationSource implements ConfigurationService {
       warn("Feature Flags configuration endpoint returned HTTP {}", status);
       return false;
     }
+    final byte[] body;
+    try {
+      body = Gzip.decode(response);
+    } catch (final IOException | RuntimeException e) {
+      return malformedPayload(e);
+    }
+    // An endpoint without ETags (a custom one, for example) gets no 304s, so each poll would parse
+    // the whole configuration again and replace it with an identical one: a new graph promoted and
+    // the old one dying in the old generation, every poll.
     final String ignoredReason =
         this.selectionSent
             ? FlagSelectionRequest.ignoredReasonOfFields(
                 response.headers().allValues(FlagSelectionRequest.IGNORED_HEADER))
             : null;
+    final byte[] bodyHash = sha256(body);
+    if (Arrays.equals(bodyHash, this.appliedBodyHash)) {
+      LOGGER.debug("Feature Flags agentless configuration unchanged (same content)");
+      recordEtag(response);
+      // The configuration is the same, but the server can still report a new reason for ignoring
+      // the flag selection. Reports are deduplicated per reason.
+      if (ignoredReason != null) {
+        FlagSelectionRequest.reportIgnored(this.services, ignoredReason);
+      }
+      return true;
+    }
     final ServerConfiguration configuration;
     try {
-      configuration = UniversalFlagConfigParser.parseJsonApi(Gzip.decode(response));
+      configuration = UniversalFlagConfigParser.parseJsonApi(body);
     } catch (final IOException | RuntimeException e) {
-      LOGGER.debug(
-          "Feature Flags configuration endpoint returned a malformed payload ({}); retaining the current configuration",
-          e.getClass().getSimpleName(),
-          e);
-      return false;
+      return malformedPayload(e);
     }
     if (configuration == null) {
       LOGGER.debug(
@@ -313,14 +335,37 @@ public final class CdnConfigurationSource implements ConfigurationService {
       return false;
     }
     this.listener.accept(configuration);
-    final String nextEtag = response.headers().firstValue("ETag").orElse(null);
-    this.etag = nextEtag == null || nextEtag.trim().isEmpty() ? null : nextEtag;
+    // Recorded only once the listener has accepted it, so a failed parse or dispatch is retried.
+    this.appliedBodyHash = bodyHash;
+    recordEtag(response);
     LOGGER.debug("Feature Flags agentless configuration applied: etag={}", this.etag);
     // Reported last, so that "Loaded the full flag configuration" is already true.
     if (ignoredReason != null) {
       FlagSelectionRequest.reportIgnored(this.services, ignoredReason);
     }
     return true;
+  }
+
+  private void recordEtag(final HttpResponse<byte[]> response) {
+    final String nextEtag = response.headers().firstValue("ETag").orElse(null);
+    this.etag = nextEtag == null || nextEtag.trim().isEmpty() ? null : nextEtag;
+  }
+
+  private static boolean malformedPayload(final Exception e) {
+    LOGGER.debug(
+        "Feature Flags configuration endpoint returned a malformed payload ({}); retaining the current configuration",
+        e.getClass().getSimpleName(),
+        e);
+    return false;
+  }
+
+  /** The SHA-256 of a body. Every Java platform is required to provide SHA-256. */
+  private static byte[] sha256(final byte[] body) {
+    try {
+      return MessageDigest.getInstance("SHA-256").digest(body);
+    } catch (final NoSuchAlgorithmException e) {
+      throw new IllegalStateException("SHA-256 is unavailable", e);
+    }
   }
 
   private HttpResponse<byte[]> fetchWithRetries() throws IOException, InterruptedException {
