@@ -16,7 +16,9 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import jdk.jfr.EventType;
 import jdk.jfr.Recording;
+import jdk.jfr.consumer.RecordedEvent;
 import jdk.jfr.consumer.RecordingFile;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -88,10 +90,14 @@ class SmapEntryCacheTest {
       recording.dump(recordingPath);
     }
 
+    String smapEntryType = EventType.getEventType(SmapEntryEvent.class).getName();
     List<String> pathnames = new ArrayList<>();
     try (RecordingFile recording = new RecordingFile(recordingPath)) {
       while (recording.hasMoreEvents()) {
-        pathnames.add(recording.readEvent().getString("pathname"));
+        RecordedEvent event = recording.readEvent();
+        if (smapEntryType.equals(event.getEventType().getName())) {
+          pathnames.add(event.getString("pathname"));
+        }
       }
     }
     assertEquals(Arrays.asList("/tmp/café.so", "/tmp/caf\\xe9.so"), pathnames);
