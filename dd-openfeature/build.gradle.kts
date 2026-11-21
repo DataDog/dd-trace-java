@@ -165,12 +165,3 @@ tasks.named("jmh") {
     fixtures.dir("ffe-system-test-data").asFileTree.matching { include("evaluation-suites/**") }
   ).withPropertyName("scaleSuites").withPathSensitivity(PathSensitivity.RELATIVE)
 }
-
-// The scale benchmarks read the fixtures from disk at run time, so a fixture change reruns them.
-tasks.named("jmh") {
-  inputs.dir(
-    rootProject.layout.projectDirectory.dir(
-      "dd-smoke-tests/openfeature/src/test/resources/ffe-system-test-data/evaluation-suites"
-    )
-  ).withPathSensitivity(PathSensitivity.RELATIVE)
-}
