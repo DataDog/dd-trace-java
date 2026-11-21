@@ -324,10 +324,9 @@ public final class UniversalFlagConfigParser {
       // Only JSON flags keep exact integers.
       return new Variant(key, withDoubles(variantValue));
     }
-    // Convert an object or array once, here, so that each evaluation shares it.
-    return new Variant(
-        key,
-        FrozenValues.isContainer(variantValue) ? FrozenValues.freeze(variantValue) : variantValue);
+    // An object or array is converted once, when the variant is first served, so that each
+    // evaluation shares it and variants that are never served cost no conversion.
+    return new Variant(key, variantValue, true);
   }
 
   /**
@@ -680,11 +679,12 @@ public final class UniversalFlagConfigParser {
       return;
     }
     for (final Variant variant : flag.variations.values()) {
-      if (variant == null || variant.value == null || variant.value instanceof Number) {
+      final Object value = variant == null ? null : variant.value();
+      if (value == null || value instanceof Number) {
         continue;
       }
       try {
-        Double.parseDouble(String.valueOf(variant.value));
+        Double.parseDouble(String.valueOf(value));
       } catch (final NumberFormatException e) {
         throw new IllegalArgumentException("flag \"" + flagKey + "\" has a non-numeric variant");
       }
