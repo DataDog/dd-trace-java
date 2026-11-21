@@ -338,7 +338,7 @@ public class ShellGitClient implements GitClient {
         Command.GET_REPOSITORY,
         () ->
             commandExecutor
-                .executeCommand(
+                .executeSensitiveCommand(
                     ShellGitClient::readMetadata,
                     buildGitCommand("config", "--get", "remote." + remoteName + ".url"))
                 .trim());
