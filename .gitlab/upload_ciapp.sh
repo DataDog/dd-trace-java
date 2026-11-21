@@ -16,6 +16,10 @@ if [ -n "$TEST_JVM" ]; then
         for var in $(compgen -v JAVA_ | grep -E '^JAVA_[0-9]+_HOME$'); do
             ver="${var#JAVA_}"
             ver="${ver%_HOME}"
+            # TODO(JDK-28-EA): remove after GA (tip will move to 28)
+            if [ "$ver" = "28" ]; then
+                continue
+            fi
             if [ "$ver" -gt "$MAX_VER" ] 2>/dev/null; then
                 MAX_VER="$ver"
             fi
