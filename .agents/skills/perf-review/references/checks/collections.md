@@ -1,6 +1,6 @@
 # Wrong collection type
 
-SEV-2/3.
+Base P3.
 
 Three-step ladder: `LinkedHashMap → HashMap → POJO/record`. Lighter wins.
 

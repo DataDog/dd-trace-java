@@ -26,7 +26,7 @@ Javadoc ("Checker contract") when a diff touches one of the marked types or meth
   hypothetical `@Borrowed`) — treat the meta-annotation's own `reason` as satisfying the
   requirement. Don't flag a `SuppressPerfContract`/canned-exception use as non-compliant just for
   being terse; that mirrors the annotation's own Checker contract. **flag-with-confidence** —
-  SEV-2/3 (SEV-1 if the annotated type/method shares backing storage with something large, per its
+  P3 (P1 if the annotated type/method shares backing storage with something large, per its
   own javadoc). Current wearers: `SubSequence`, `Maybe` (type form; see J7 in `../remedies.md` for
   `SubSequence`'s specific retention-vs-transient discriminator).
 - **#9 — `@StaticLifetime` field-lifetime violation** — *a field annotated `@StaticLifetime`
@@ -43,7 +43,7 @@ Javadoc ("Checker contract") when a diff touches one of the marked types or meth
   class, is a trusted, unverified declaration (v1 posture — the same stance the other
   perf-contract markers take toward `static final` itself) that the class has exactly one
   process-wide instance; declaring it satisfies `@StaticLifetime` for that class's `final` instance
-  fields. **flag-with-confidence** — SEV-2/3, motivated by a real production defect (a
+  fields. **flag-with-confidence** — P3, motivated by a real production defect (a
   per-request-constructed cache that never actually amortized anything — see the annotation's own
   javadoc for the full trigger/accepted-form table).
 - **#10 — `@BackgroundOnly` reached from the foreground** — *foreground code that directly calls
@@ -63,7 +63,7 @@ Javadoc ("Checker contract") when a diff touches one of the marked types or meth
   `@SuppressPerfContract(value = BackgroundOnly.class, reason = "...")`. Not a trigger: handing the
   work to a background thread (enqueueing it) instead of running it; background-only code calling
   `@ForegroundSafe` code; a calling method with
-  `@SuppressPerfContract(value = BackgroundOnly.class, reason = "...")`. SEV-2 (SEV-1 if the
+  `@SuppressPerfContract(value = BackgroundOnly.class, reason = "...")`. P2 (P1 if the
   background-only work blocks — I/O, a contended lock, or an unbounded loop) — fix: defer the work
   to the background thread that owns it (enqueue, or record and let the background drain compute).
   A checker is tracked as APMLP-1645.
