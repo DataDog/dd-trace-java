@@ -59,6 +59,13 @@ public final class FrozenMap<K, V> extends AbstractMap<K, V> {
   @SuppressWarnings("unchecked")
   @Nonnull
   public static <K, V> FrozenMap<K, V> copyOf(@Nonnull final Map<? extends K, ? extends V> source) {
+    return copyOf(source, MAX_SCANNED);
+  }
+
+  /** {@link #copyOf(Map)} with a given scan threshold, for benchmarks. */
+  @SuppressWarnings("unchecked")
+  static <K, V> FrozenMap<K, V> copyOf(
+      final Map<? extends K, ? extends V> source, final int maxScanned) {
     final int size = source.size();
     if (size == 0) {
       return (FrozenMap<K, V>) EMPTY;
@@ -71,7 +78,7 @@ public final class FrozenMap<K, V> extends AbstractMap<K, V> {
       values[i] = entry.getValue();
       i++;
     }
-    return new FrozenMap<>(keys, values, size > MAX_SCANNED ? index(keys) : null);
+    return new FrozenMap<>(keys, values, size > maxScanned ? index(keys) : null);
   }
 
   private static int[] index(final Object[] keys) {
