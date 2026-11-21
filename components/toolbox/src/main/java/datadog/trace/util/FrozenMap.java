@@ -39,8 +39,12 @@ import javax.annotation.Nullable;
  * @param <V> the value type
  */
 public final class FrozenMap<K, V> extends AbstractMap<K, V> {
-  /** Up to this many entries, a lookup scans the keys instead of hashing. */
-  public static final int MAX_SCANNED = 8;
+  /**
+   * Up to this many entries, a lookup scans the keys instead of hashing. {@code
+   * FrozenMapScanBenchmark} puts the crossover here: scanning clearly wins up to 3 entries, ties at
+   * 4, where skipping the index saves its array, and loses from 6.
+   */
+  public static final int MAX_SCANNED = 4;
 
   private static final FrozenMap<?, ?> EMPTY = new FrozenMap<>(new Object[0], new Object[0], null);
 

@@ -27,11 +27,11 @@ import org.openjdk.jmh.infra.Blackhole;
  * ConcurrentHashtable} / {@code ThreadSafeMap} suites.
  *
  * <p>Compares {@code get} + {@code iterate} across {@link HashMap}, {@link LinkedHashMap}, {@link
- * TreeMap}, {@link TagMap}, {@link FrozenMap} (indexed at ten keys, and scanned at eight), and
- * {@link java.util.Map#copyOf} (via {@link CollectionUtils#tryMakeImmutableMap} — the JDK's
- * compact, array-backed {@code ImmutableCollections.MapN}, which is what the agent actually uses
- * for fixed config maps; Java 10+, falls back to the input map pre-10). {@code Map.copyOf}/{@code
- * MapN} is the honest immutable-map baseline, not {@code HashMap}.
+ * TreeMap}, {@link TagMap}, {@link FrozenMap} (indexed at ten keys, and scanned at its scan
+ * threshold), and {@link java.util.Map#copyOf} (via {@link CollectionUtils#tryMakeImmutableMap} —
+ * the JDK's compact, array-backed {@code ImmutableCollections.MapN}, which is what the agent
+ * actually uses for fixed config maps; Java 10+, falls back to the input map pre-10). {@code
+ * Map.copyOf}/{@code MapN} is the honest immutable-map baseline, not {@code HashMap}.
  *
  * <p>Also compared: {@link StringIndex} used as a string-&gt;int map — an open-addressed index plus
  * a slot-aligned {@code int[]} of values ({@code SI_VALUES[indexOf(key)]}). {@code
@@ -173,12 +173,12 @@ public class ImmutableMapBenchmark {
     stringIndex = StringIndex.of(INSERTION_KEYS);
     // Ten keys: past FrozenMap.MAX_SCANNED, so lookups go through its index.
     frozenMap = FrozenMap.copyOf(hashMap);
-    // The first eight keys: a scanned map, no hashing. Its lookups use keys it holds only.
-    final Map<String, Integer> eight = new HashMap<>();
+    // The first MAX_SCANNED keys: a scanned map, no hashing. Its lookups use keys it holds only.
+    final Map<String, Integer> scanned = new HashMap<>();
     for (int i = 0; i < FrozenMap.MAX_SCANNED; ++i) {
-      eight.put(INSERTION_KEYS[i], i);
+      scanned.put(INSERTION_KEYS[i], i);
     }
-    frozenMapScanned = FrozenMap.copyOf(eight);
+    frozenMapScanned = FrozenMap.copyOf(scanned);
   }
 
   /** Per-thread lookup cursor so each reader thread cycles keys independently. */
