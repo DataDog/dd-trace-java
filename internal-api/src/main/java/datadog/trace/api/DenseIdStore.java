@@ -6,6 +6,7 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import javax.annotation.Nullable;
 
 /**
  * The dense {@link IdStore}: known tags in two parallel arrays -- each tag's 16-bit serial and its
@@ -223,7 +224,24 @@ final class DenseIdStore extends IdStore {
   /** The frozen parent's id store, or null. */
   final DenseIdStore parent;
 
+  /**
+   * The per-operation hint this store was presized from, and that {@link #recordSize} tunes, or
+   * null. Held here rather than on the span so a span with the dense store off carries no field for
+   * it.
+   */
+  @Nullable private final SizingHint hint;
+
   DenseIdStore(IdStore parent) {
+    this(parent, null);
+  }
+
+  /**
+   * Like {@link #DenseIdStore(IdStore)}, with the arrays allocated up front at {@code hint}'s size.
+   * A span's store presized this way never grows on its first tag, so {@link #grow} stays off the
+   * write path. A null hint, or one not yet tuned (0, the seed -- also what a racy reader can see),
+   * keeps the shared empty arrays.
+   */
+  DenseIdStore(IdStore parent, @Nullable SizingHint hint) {
     DenseIdStore dense = (DenseIdStore) parent;
     this.parent = dense;
     if (dense == null) {
@@ -232,6 +250,14 @@ final class DenseIdStore extends IdStore {
     } else {
       this.inheritedMask = dense.spanOccupancy | dense.traceOccupancy | dense.inheritedMask;
       this.inheritedLevels = (byte) (dense.localLevels() | dense.inheritedLevels);
+    }
+    this.hint = hint;
+    if (hint != null) {
+      int cap = hint.size; // read the racy field once
+      if (cap > 0) {
+        this.serials = new char[cap];
+        this.values = new Object[cap];
+      }
     }
   }
 
@@ -285,10 +311,26 @@ final class DenseIdStore extends IdStore {
 
   /** Grows the arrays to hold at least {@code minCapacity} slots. Rare, so kept out of line. */
   private void growTo(int minCapacity) {
+    int length = this.serials.length;
     int newCap =
-        Math.max(minCapacity, Math.min(this.serials.length << 1, KnownTagCodec.serialLimit()));
+        length == 0
+            ? Math.max(minCapacity, INIT_CAP)
+            : Math.max(minCapacity, Math.min(length << 1, KnownTagCodec.serialLimit()));
     this.serials = Arrays.copyOf(this.serials, newCap);
     this.values = Arrays.copyOf(this.values, newCap);
+  }
+
+  @Override
+  public void recordSize() {
+    // Capped hints (the shared overflow) are fixed: unlike sharers mustn't grow them. Best-effort
+    // racy max; a benign plain-int write.
+    SizingHint hint = this.hint;
+    if (hint != null && !hint.capped) {
+      int used = this.used;
+      if (used > hint.size) {
+        hint.size = used;
+      }
+    }
   }
 
   /**
@@ -518,6 +560,8 @@ final class DenseIdStore extends IdStore {
 
   /** Removes slot {@code i}, swapping the last slot into its place. The masks stay as they were. */
   private void removeAt(int i) {
+    // the store is at its peak size until now, so record it before shrinking (removals are rare)
+    this.recordSize();
     int last = --this.used;
     this.serials[i] = this.serials[last];
     this.values[i] = this.values[last];

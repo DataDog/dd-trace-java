@@ -20,6 +20,7 @@ import datadog.trace.api.IdStore;
 import datadog.trace.api.KnownTagCodec;
 import datadog.trace.api.KnownTags;
 import datadog.trace.api.ProcessTags;
+import datadog.trace.api.SizingHint;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.TagStore;
 import datadog.trace.api.cache.DDCache;
@@ -61,6 +62,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Function;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -384,6 +386,10 @@ public class DDSpanContext
         null);
   }
 
+  /**
+   * Without a sizing hint: for tests and benchmarks that build contexts directly. The tracer uses
+   * the constructor that takes one.
+   */
   public DDSpanContext(
       final DDTraceId traceId,
       final long spanId,
@@ -436,7 +442,8 @@ public class DDSpanContext
         injectBaggageAsTags,
         injectLinksAsTags,
         readThroughParent,
-        parentId == DDSpanId.ZERO ? PARENT_ORIGIN_NONE : PARENT_ORIGIN_LOCAL);
+        parentId == DDSpanId.ZERO ? PARENT_ORIGIN_NONE : PARENT_ORIGIN_LOCAL,
+        null);
   }
 
   public DDSpanContext(
@@ -465,7 +472,8 @@ public class DDSpanContext
       final boolean injectBaggageAsTags,
       final boolean injectLinksAsTags,
       final TagMap readThroughParent,
-      final byte parentOrigin) {
+      final byte parentOrigin,
+      @Nullable final SizingHint sizingHint) {
 
     assert traceCollector != null;
     this.traceCollector = traceCollector;
@@ -494,7 +502,7 @@ public class DDSpanContext
 
     // Reads through to the frozen tracer-level tags, if any.
     TagMap parentTags = TagMap.readThroughParent(readThroughParent);
-    this.knownTags = IdStore.create(parentTags);
+    this.knownTags = IdStore.create(parentTags, sizingHint);
     this.customTags = HashStore.inheritedFrom(parentTags);
     this.customTagsBorrowed = this.customTags != null;
 
@@ -1859,6 +1867,15 @@ public class DDSpanContext
     }
   }
 
+  /**
+   * Feeds this span's known-tag count back into its operation's {@link SizingHint}, held by its
+   * dense store, so later spans of the operation are presized. A best-effort racy max; with the
+   * dense store off this does nothing.
+   */
+  void recordDenseSize() {
+    knownTags.recordSize();
+  }
+
   void earlyProcessTags(AppendableSpanLinks links) {
     synchronized (knownTags) {
       TagsPostProcessorFactory.eagerProcessor().processTags(this, this, links);
@@ -1912,6 +1929,10 @@ public class DDSpanContext
           tags.set(SPAN_EVENTS, eventsTag);
         }
       }
+
+      // Tune the operation's sizing hint now that every tag, serialization-time ones included, is
+      // present. CoreTracer.write has already recorded the span without them.
+      recordDenseSize();
 
       // Baggage
       Map<String, String> baggageItemsWithPropagationTags;
