@@ -1,0 +1,21 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
+muzzle {
+  pass {
+    group = 'com.google.code.gson'
+    module = 'gson'
+    versions = '[2.1, )'
+  }
+}
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  compileOnly group: 'com.google.code.gson', name: 'gson', version: '2.1'
+
+  testImplementation group: 'com.google.code.gson', name: 'gson', version: '2.10.1'
+
+  latestDepTestImplementation group: 'com.google.code.gson', name: 'gson', version: '2.+'
+}
