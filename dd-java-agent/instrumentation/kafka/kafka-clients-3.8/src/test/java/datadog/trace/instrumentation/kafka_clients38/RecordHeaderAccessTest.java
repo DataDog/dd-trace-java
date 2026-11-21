@@ -7,11 +7,14 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import datadog.context.propagation.CarrierKeys;
 import datadog.trace.agent.tooling.bytebuddy.FieldAccessors;
 import datadog.trace.bootstrap.instrumentation.api.BufferedHeaderFields;
 import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Base64;
 import java.util.List;
 import net.bytebuddy.description.type.TypeDescription.ForLoadedType;
 import org.apache.kafka.common.header.Header;
@@ -159,6 +162,58 @@ class RecordHeaderAccessTest {
         new FieldAccessors(BufferedHeaderFields.class)
             .appliesTo(ForLoadedType.of(RecordHeader.class)),
         "RecordHeader's layout changed; the accessor won't be installed");
+  }
+
+  private static final CarrierKeys TRACE_KEYS =
+      CarrierKeys.of("x-datadog-trace-id", "traceparent", "x-custom-header");
+
+  @Test
+  void filteredVisitSkipsKeysNothingReads() {
+    FieldsHeader appHeader = fetched("content-type", "application/json");
+    RecordHeaders headers = new RecordHeaders();
+    headers.add(fetched("x-datadog-trace-id", "123"));
+    headers.add(appHeader);
+    headers.add(fetched("X-Custom-Header", "custom"));
+    headers.add(new OtherHeader("traceparent", "00-abc-def-01"));
+    headers.add(new OtherHeader("x-app-request-id", "r-1"));
+
+    List<String> seen = new ArrayList<>();
+    new TextMapExtractAdapter(false)
+        .forEachKeyValue(headers, TRACE_KEYS, (key, value) -> seen.add(key + "=" + value));
+
+    assertEquals(
+        Arrays.asList(
+            "x-datadog-trace-id=123", "x-custom-header=custom", "traceparent=00-abc-def-01"),
+        seen);
+    // a fetched key matching a declared name comes back as the (lower-cased) declared name, and the
+    // skipped fetched header was matched from its bytes: neither its key nor value was decoded
+    assertNull(appHeader.$$DD$$__key());
+    assertNull(appHeader.$$DD$$__value());
+  }
+
+  @Test
+  void filteredVisitWithAllKeysVisitsEverything() {
+    RecordHeaders headers = new RecordHeaders();
+    headers.add(fetched("x-datadog-trace-id", "123"));
+    headers.add(fetched("content-type", "application/json"));
+    List<String> seen = new ArrayList<>();
+    new TextMapExtractAdapter(false)
+        .forEachKeyValue(headers, CarrierKeys.all(), (key, value) -> seen.add(key));
+    assertEquals(Arrays.asList("x-datadog-trace-id", "content-type"), seen);
+  }
+
+  @Test
+  void filteredVisitDecodesBase64ValuesOfKeptKeysOnly() {
+    RecordHeaders headers = new RecordHeaders();
+    headers.add(
+        new RecordHeader(
+            "traceparent", Base64.getEncoder().encode("00-abc-def-01".getBytes(UTF_8))));
+    // not valid Base64, but skipped before decoding
+    headers.add(new RecordHeader("content-type", "not base64!".getBytes(UTF_8)));
+    List<String> seen = new ArrayList<>();
+    new TextMapExtractAdapter(true)
+        .forEachKeyValue(headers, TRACE_KEYS, (key, value) -> seen.add(key + "=" + value));
+    assertEquals(Arrays.asList("traceparent=00-abc-def-01"), seen);
   }
 
   private static List<String> visit(TextMapExtractAdapter adapter, RecordHeaders headers) {

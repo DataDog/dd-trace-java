@@ -8,6 +8,7 @@ import static datadog.trace.core.propagation.PropagationTags.HeaderType.W3C;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
+import datadog.context.propagation.CarrierKeys;
 import datadog.context.propagation.CarrierSetter;
 import datadog.trace.api.Config;
 import datadog.trace.api.DD128bTraceId;
@@ -172,6 +173,20 @@ class W3CHttpCodec {
   }
 
   private static class W3CContextInterpreter extends ContextInterpreter {
+    /**
+     * This style's own headers; the ones every style reads come from {@link ContextInterpreter}.
+     */
+    private static final CarrierKeys OWN_KEYS =
+        CarrierKeys.builder()
+            .name(TRACE_PARENT_KEY)
+            .name(TRACE_STATE_KEY)
+            .prefix(OT_BAGGAGE_PREFIX)
+            .build();
+
+    @Override
+    protected CarrierKeys ownKeys() {
+      return OWN_KEYS;
+    }
 
     private static final int TRACE_PARENT = 0;
     private static final int TRACE_STATE = 1;

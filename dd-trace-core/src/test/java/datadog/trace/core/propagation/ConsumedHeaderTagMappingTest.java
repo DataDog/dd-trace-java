@@ -110,7 +110,7 @@ class ConsumedHeaderTagMappingTest extends DDJavaSpecification {
    * Every header consumed by the {@code handled*} helpers, mapped to a distinct value. The tag name
    * for each is {@code "tag." + headerKey}.
    */
-  private static Map<String, String> consumedHeaderValues() {
+  static Map<String, String> consumedHeaderValues() {
     Map<String, String> values = new LinkedHashMap<>();
     values.put(HttpCodec.USER_AGENT_KEY, "test-agent"); // handledUserAgent
     values.put(HttpCodec.X_FORWARDED_PROTO_KEY, "https"); // handledXForwarding
