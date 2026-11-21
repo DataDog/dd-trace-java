@@ -1,6 +1,7 @@
 package com.datadog.openfeature.internal.delivery;
 
 import static java.net.http.HttpClient.Redirect.NEVER;
+import static java.net.http.HttpRequest.BodyPublishers.fromPublisher;
 import static java.net.http.HttpRequest.BodyPublishers.ofByteArray;
 
 import com.datadog.openfeature.internal.bridge.v1.EventTransport;
@@ -11,7 +12,10 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.ByteBuffer;
 import java.time.Duration;
+import java.util.List;
+import java.util.concurrent.Flow;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
 
@@ -60,6 +64,19 @@ public final class DirectIntakeTransport implements EventTransport {
 
   @Override
   public void post(final String route, final byte[] json) throws IOException {
+    post(route, ofByteArray(json));
+  }
+
+  @Override
+  public void post(final String route, final List<ByteBuffer> json) throws IOException {
+    long length = 0;
+    for (final ByteBuffer chunk : json) {
+      length += chunk.remaining();
+    }
+    post(route, fromPublisher(new ChunksPublisher(json), length));
+  }
+
+  private void post(final String route, final HttpRequest.BodyPublisher body) throws IOException {
     final HttpRequest.Builder builder =
         HttpRequest.newBuilder(this.intake.resolve(route))
             .timeout(REQUEST_TIMEOUT)
@@ -70,7 +87,7 @@ public final class DirectIntakeTransport implements EventTransport {
             .header("DD-EVP-ORIGIN", ORIGIN)
             .header("DD-EVP-ORIGIN-VERSION", SdkVersion.VERSION);
     Headers.addMetadata(builder);
-    final HttpRequest request = builder.POST(ofByteArray(json)).build();
+    final HttpRequest request = builder.POST(body).build();
     final int status;
     try {
       status =
@@ -83,6 +100,48 @@ public final class DirectIntakeTransport implements EventTransport {
     }
     if (status < 200 || status >= 300) {
       throw new IOException("Request to " + route + " returned error response " + status);
+    }
+  }
+
+  /** Publishes the chunks of a body in order, as read-only views, to each subscriber. */
+  static final class ChunksPublisher implements Flow.Publisher<ByteBuffer> {
+    private final List<ByteBuffer> chunks;
+
+    ChunksPublisher(final List<ByteBuffer> chunks) {
+      this.chunks = chunks;
+    }
+
+    @Override
+    public void subscribe(final Flow.Subscriber<? super ByteBuffer> subscriber) {
+      subscriber.onSubscribe(
+          new Flow.Subscription() {
+            private int next;
+            private boolean done;
+
+            @Override
+            public synchronized void request(final long n) {
+              if (done) {
+                return;
+              }
+              if (n <= 0) {
+                done = true;
+                subscriber.onError(new IllegalArgumentException("Non-positive request: " + n));
+                return;
+              }
+              for (long i = 0; i < n && next < chunks.size() && !done; i++) {
+                subscriber.onNext(chunks.get(next++).asReadOnlyBuffer());
+              }
+              if (next == chunks.size() && !done) {
+                done = true;
+                subscriber.onComplete();
+              }
+            }
+
+            @Override
+            public synchronized void cancel() {
+              done = true;
+            }
+          });
     }
   }
 }

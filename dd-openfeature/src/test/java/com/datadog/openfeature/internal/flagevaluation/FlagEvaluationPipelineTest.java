@@ -312,6 +312,26 @@ class FlagEvaluationPipelineTest {
   }
 
   @Test
+  void keepsWorkingAfterAnIdlePoll() throws Exception {
+    // The worker polls with a 100 ms timeout. Stay idle past it, so the empty poll is exercised
+    // regardless of timing, then check that traffic arriving afterwards is still flushed.
+    final CountDownLatch posted = new CountDownLatch(1);
+    this.transport.onPost = posted::countDown;
+    final FlagEvaluationPipeline writer = writer(64, 1, TimeUnit.MILLISECONDS);
+
+    writer.start();
+    try {
+      Thread.sleep(250);
+      writer.enqueue(simpleEvent("after-idle-flag", "on"));
+      assertTrue(posted.await(5, TimeUnit.SECONDS));
+    } finally {
+      writer.close();
+    }
+    assertNotNull(
+        eventForFlag(readJson(this.transport.posts.get(0).body).parsed, "after-idle-flag"));
+  }
+
+  @Test
   void flushPostsToFlagevaluationEndpoint() {
     final FlagEvaluationTestSupport.TestWriterSetup setup = buildTestWriter();
 
@@ -340,6 +360,34 @@ class FlagEvaluationPipelineTest {
     assertEquals(2, setup.transport.posts.size());
     setup.handler.flush();
     assertEquals(2, setup.transport.posts.size());
+  }
+
+  @Test
+  void splitFlushPostsEachPayloadAndCountsTheSplits() throws Exception {
+    final FlagEvaluationTestSupport.TestWriterSetup setup = buildTestWriter(1_100);
+    for (int i = 0; i < 4; i++) {
+      final Map<String, Object> attrs = new HashMap<>();
+      attrs.put("payload", repeat('x', 180));
+      setup.handler.add(event("split-" + i, "on", "alloc1", "user-" + i, 1000L, attrs));
+    }
+
+    setup.handler.drainAndAggregate();
+    setup.handler.flush();
+
+    final int posts = setup.transport.posts.size();
+    assertTrue(posts > 1, "expected a split flush, got " + posts + " post(s)");
+    assertEquals(
+        posts - 1, setup.metrics.sum(FlagEvaluationPipeline.FLAG_EVALUATION_SPLITS_METRIC, null));
+    // Each payload was posted before the next one reused the buffer: all four flags arrived.
+    int flags = 0;
+    for (final FlagEvaluationTestSupport.Post post : setup.transport.posts) {
+      for (int i = 0; i < 4; i++) {
+        if (eventForFlag(readJson(post.body).parsed, "split-" + i) != null) {
+          flags++;
+        }
+      }
+    }
+    assertEquals(4, flags);
   }
 
   private static final String HASHED_JANE_DOE =
