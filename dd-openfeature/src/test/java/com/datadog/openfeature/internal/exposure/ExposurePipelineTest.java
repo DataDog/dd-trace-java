@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -297,6 +298,26 @@ class ExposurePipelineTest {
       eventually(() -> !pipeline.isSerializerThreadAlive());
     }
     assertEquals(1, this.posts.get());
+  }
+
+  @Test
+  void reportsQueueFullDropsAsAHealthCounter() throws Exception {
+    final Map<String, Long> counters = new ConcurrentHashMap<>();
+    final HealthMetrics metrics =
+        (metric, value, reason) -> counters.merge(metric + ":" + reason, value, Long::sum);
+    try (ExposurePipeline pipeline =
+        new ExposurePipeline(
+            2, 10, MILLISECONDS, this.transport, emptyMap(), new RuntimeServices(metrics))) {
+      // Not started yet, so the queue holds two and drops the other three.
+      for (int i = 0; i < 5; i++) {
+        pipeline.accept(buildExposure());
+      }
+      pipeline.start();
+
+      eventually(() -> counters.containsKey("exposures.dropped:queue_overflow"));
+      assertEquals(3L, counters.get("exposures.dropped:queue_overflow"));
+      eventually(() -> allExposures().size() == 2);
+    }
   }
 
   @Test

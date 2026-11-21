@@ -25,6 +25,11 @@ public class ExposurePipeline implements Consumer<ExposureEvent>, EventPipeline 
   private static final int FLUSH_THRESHOLD = 100;
   private static final String EXPOSURES_ROUTE = "exposures";
 
+  /** Health counter of the exposures dropped because the queue was full, as for evaluations. */
+  static final String EXPOSURES_DROPPED_METRIC = "exposures.dropped";
+
+  static final String DROP_REASON_QUEUE_OVERFLOW = "queue_overflow";
+
   private final EventQueue<ExposureEvent> queue;
   private final ExposureSerializingHandler serializer;
   private final Thread serializerThread;
@@ -42,7 +47,13 @@ public class ExposurePipeline implements Consumer<ExposureEvent>, EventPipeline 
     this.queue = new EventQueue<>(capacity);
     this.serializer =
         new ExposureSerializingHandler(
-            transport, this.queue, flushInterval, timeUnit, context, this.droppedQueueFull);
+            transport,
+            this.queue,
+            flushInterval,
+            timeUnit,
+            context,
+            this.droppedQueueFull,
+            services);
     this.serializerThread = services.newThread("exposures", this.serializer);
   }
 
@@ -101,6 +112,7 @@ public class ExposurePipeline implements Consumer<ExposureEvent>, EventPipeline 
     private final List<ExposureEvent> buffer = new ArrayList<>();
     private final AtomicBoolean shutdownRequested = new AtomicBoolean();
     private final AtomicLong droppedQueueFull;
+    private final RuntimeServices services;
 
     ExposureSerializingHandler(
         final EventTransport transport,
@@ -108,8 +120,10 @@ public class ExposurePipeline implements Consumer<ExposureEvent>, EventPipeline 
         final long flushInterval,
         final TimeUnit timeUnit,
         final Map<String, String> context,
-        final AtomicLong droppedQueueFull) {
+        final AtomicLong droppedQueueFull,
+        final RuntimeServices services) {
       this.droppedQueueFull = droppedQueueFull;
+      this.services = services;
       this.queue = queue;
       this.transport = transport;
       this.context = context;
@@ -169,7 +183,7 @@ public class ExposurePipeline implements Consumer<ExposureEvent>, EventPipeline 
     }
 
     protected void flushIfNecessary() {
-      if (!this.buffer.isEmpty() && shouldFlush()) {
+      if ((!this.buffer.isEmpty() || this.droppedQueueFull.get() > 0) && shouldFlush()) {
         flush();
       }
     }
@@ -177,6 +191,7 @@ public class ExposurePipeline implements Consumer<ExposureEvent>, EventPipeline 
     private void flush() {
       final long dropped = this.droppedQueueFull.getAndSet(0);
       if (dropped > 0) {
+        this.services.countMetric(EXPOSURES_DROPPED_METRIC, dropped, DROP_REASON_QUEUE_OVERFLOW);
         LOGGER.debug(
             "Feature Flags exposures dropped since the last flush: queue full, count={}", dropped);
       }
