@@ -101,6 +101,17 @@ public class FlagEvaluationPipeline implements FlagEvaluationWriter, EventPipeli
       final EventTransport transport,
       final Map<String, String> context,
       final RuntimeServices services) {
+    this(capacity, flushInterval, timeUnit, transport, context, services, CALLER_SIDE_AGGREGATION);
+  }
+
+  FlagEvaluationPipeline(
+      final int capacity,
+      final long flushInterval,
+      final TimeUnit timeUnit,
+      final EventTransport transport,
+      final Map<String, String> context,
+      final RuntimeServices services,
+      final boolean callerSideAggregation) {
     this.services = services;
     this.queue = new EventQueue<>(capacity);
     this.serializer =
@@ -113,7 +124,8 @@ public class FlagEvaluationPipeline implements FlagEvaluationWriter, EventPipeli
             droppedQueueOverflow,
             contextTruncatedCounts,
             FLAG_EVALUATION_PAYLOAD_SIZE_LIMIT_BYTES,
-            services);
+            services,
+            callerSideAggregation);
     this.serializerThread = services.newThread("evaluations", serializer);
   }
 
@@ -305,8 +317,7 @@ public class FlagEvaluationPipeline implements FlagEvaluationWriter, EventPipeli
     private final int payloadSizeLimitBytes;
     final FlagEvaluationAggregator aggregator = new FlagEvaluationAggregator();
     // PROTOTYPE: set when aggregating on the evaluating threads; the queue then stays empty.
-    final ConcurrentFlagAggregator concurrent =
-        CALLER_SIDE_AGGREGATION ? new ConcurrentFlagAggregator() : null;
+    final ConcurrentFlagAggregator concurrent;
 
     // Shutdown coordination: set by close(), drives a final drain+flush before the worker exits.
     private final AtomicBoolean shutdownRequested = new AtomicBoolean(false);
@@ -321,9 +332,11 @@ public class FlagEvaluationPipeline implements FlagEvaluationWriter, EventPipeli
         final AtomicLong droppedQueueOverflow,
         final ConcurrentHashMap<String, AtomicLong> contextTruncatedCounts,
         final int payloadSizeLimitBytes,
-        final RuntimeServices services) {
+        final RuntimeServices services,
+        final boolean callerSideAggregation) {
       this.services = services;
       this.queue = queue;
+      this.concurrent = callerSideAggregation ? new ConcurrentFlagAggregator() : null;
       this.transport = transport;
       this.context = context;
       this.droppedQueueOverflow = droppedQueueOverflow;
@@ -484,24 +497,29 @@ public class FlagEvaluationPipeline implements FlagEvaluationWriter, EventPipeli
       }
     }
 
-    /** PROTOTYPE: swaps out the concurrent aggregator's window and serializes it. */
+    /**
+     * PROTOTYPE: drains the concurrent aggregator's touched buckets in place, serializes them, then
+     * sweeps out the buckets idle for a whole window.
+     */
     private void flushConcurrent() {
-      final ConcurrentFlagAggregator.Window window = concurrent.swap();
       try {
-        if (window.isEmpty()) {
+        final long flushTimeMs = System.currentTimeMillis();
+        final List<FlagEvaluationPayloads.FlagEvaluationEvent> events = new ArrayList<>();
+        final long[] degradedCount = {0};
+        concurrent.drain((bucket, count, first, last, defaultUsed) -> {
+          if (bucket.degraded) {
+            degradedCount[0] += count;
+          }
+          events.add(
+              FlagEvaluationPayloads.FlagEvaluationEvent.fromBucket(
+                  bucket, count, first, last, defaultUsed, flushTimeMs));
+        });
+        concurrent.sweepIdle();
+        if (events.isEmpty()) {
           return;
         }
         countMetric(
-            FLAG_EVALUATION_DEGRADED_METRIC,
-            window.degradedEvaluationCount(),
-            DEGRADED_REASON_CARDINALITY_CAP);
-        final long flushTimeMs = System.currentTimeMillis();
-        final List<FlagEvaluationPayloads.FlagEvaluationEvent> events =
-            new ArrayList<>(window.bucketCount());
-        window.forEachFull(bucket ->
-            events.add(FlagEvaluationPayloads.FlagEvaluationEvent.fromBucket(bucket, flushTimeMs)));
-        window.forEachDegraded(bucket ->
-            events.add(FlagEvaluationPayloads.FlagEvaluationEvent.fromBucket(bucket, flushTimeMs)));
+            FLAG_EVALUATION_DEGRADED_METRIC, degradedCount[0], DEGRADED_REASON_CARDINALITY_CAP);
         final FlagEvaluationPayloads.PayloadCounts counts =
             new FlagEvaluationPayloads.PayloadCounts();
         try {
@@ -520,7 +538,6 @@ public class FlagEvaluationPipeline implements FlagEvaluationWriter, EventPipeli
       } catch (Exception e) {
         LOGGER.error("Could not submit flag evaluations", e);
       } finally {
-        concurrent.recycle(window);
         lastTicks = System.nanoTime();
       }
     }
@@ -598,6 +615,15 @@ public class FlagEvaluationPipeline implements FlagEvaluationWriter, EventPipeli
         final Map<String, String> context,
         final int payloadSizeLimitBytes,
         final RuntimeServices services) {
+      this(transport, context, payloadSizeLimitBytes, services, false);
+    }
+
+    SerializingHandlerForTest(
+        final EventTransport transport,
+        final Map<String, String> context,
+        final int payloadSizeLimitBytes,
+        final RuntimeServices services,
+        final boolean callerSideAggregation) {
       super(
           transport,
           new EventQueue<>(DEFAULT_CAPACITY),
@@ -607,7 +633,8 @@ public class FlagEvaluationPipeline implements FlagEvaluationWriter, EventPipeli
           new AtomicLong(0),
           new ConcurrentHashMap<>(),
           payloadSizeLimitBytes,
-          services);
+          services,
+          callerSideAggregation);
     }
 
     private final List<FlagEvalEvent> staged = new ArrayList<>();

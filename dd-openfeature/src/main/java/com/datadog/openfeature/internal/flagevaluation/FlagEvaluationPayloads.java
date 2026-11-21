@@ -267,19 +267,28 @@ final class FlagEvaluationPayloads {
           observeFullEvaluationData);
     }
 
-    /** PROTOTYPE: a row from a {@link ConcurrentFlagAggregator} bucket. */
+    /**
+     * PROTOTYPE: a row from a {@link ConcurrentFlagAggregator} bucket, with the counters it was
+     * drained with. Timestamps that raced the drain into the next flush read as the flush time.
+     */
     static FlagEvaluationEvent fromBucket(
-        final ConcurrentFlagAggregator.Bucket bucket, final long flushTimeMs) {
+        final ConcurrentFlagAggregator.Bucket bucket,
+        final long count,
+        final long firstEvalMs,
+        final long lastEvalMs,
+        final boolean runtimeDefaultUsed,
+        final long flushTimeMs) {
+      final boolean timed = firstEvalMs <= lastEvalMs;
       return of(
           flushTimeMs,
           bucket.flagKey,
-          bucket.firstEvalMs,
-          bucket.lastEvalMs,
-          bucket.count,
+          timed ? firstEvalMs : flushTimeMs,
+          timed ? lastEvalMs : flushTimeMs,
+          count,
           bucket.variant,
           bucket.allocationKey,
           bucket.targetingKey,
-          bucket.runtimeDefaultUsed,
+          runtimeDefaultUsed,
           bucket.errorMessage,
           bucket.prunedAttrs,
           bucket.features,

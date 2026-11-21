@@ -8,12 +8,11 @@ import datadog.trace.util.ConcurrentHashtable;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
-import java.util.concurrent.locks.LockSupport;
-import java.util.function.Consumer;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import javax.annotation.Nullable;
 
 /**
@@ -25,21 +24,41 @@ import javax.annotation.Nullable;
  * enforces the tier's cap. The tiers, caps and bucket keys are the same as {@link
  * FlagEvaluationAggregator}'s, so the payloads don't change.
  *
- * <p>The buckets of a flush window live in a {@link Window}. At flush, the worker swaps in a spare
- * window, waits a short grace period for evaluations already updating the old one, serializes it,
- * then clears it as the next spare. An update that lands in the old window after the grace period
- * is lost; that's best-effort, like the queue it replaces, whose overflow drops whole events.
+ * <p><b>Drained in place.</b> Buckets live across flushes. A bucket whose count goes from zero to
+ * one pushes itself onto a lock-free stack of the buckets touched since the last flush. The flush
+ * takes the whole stack and, for each bucket, reads and resets its counters. An evaluation racing
+ * the flush is never lost: if its increment lands before the reset, this flush emits it; if after,
+ * it finds the count at zero and pushes the bucket onto the next flush's stack. Only the timestamps
+ * of such an evaluation can land in the other flush. So a flush costs time in proportion to the
+ * buckets touched, not to the table, and busy buckets aren't recreated every window.
+ *
+ * <p>Buckets idle for a whole window are swept out, which frees their slots under the caps. An
+ * evaluation that finds a bucket just as it's swept still counts, in the next flush; a later one
+ * creates a fresh bucket.
  */
 final class ConcurrentFlagAggregator {
-  /** How long a swapped-out window stays untouched before it's read. */
-  static final long GRACE_NANOS = TimeUnit.MILLISECONDS.toNanos(1);
+  /** Receives each drained row, with the counters it had at the flush. */
+  interface Rows {
+    void row(Bucket bucket, long count, long firstEvalMs, long lastEvalMs, boolean defaultUsed);
+  }
+
+  private static final AtomicReferenceFieldUpdater<ConcurrentFlagAggregator, Bucket> DIRTY =
+      AtomicReferenceFieldUpdater.newUpdater(ConcurrentFlagAggregator.class, Bucket.class, "dirty");
 
   private static final int FLAG_COUNT_CAP = 65_536;
-  private static final int FEATURE_SET_CAP = 65_536;
 
   final AtomicLong droppedDegradedOverflow = new AtomicLong();
-  private volatile Window current = new Window();
-  @Nullable private Window spare = new Window(); // worker thread only
+  final ConcurrentHashtable.State<Bucket> full =
+      ConcurrentHashtable.createBounded(Bucket.class, GLOBAL_CAP);
+  final ConcurrentHashtable.State<Bucket> degraded =
+      ConcurrentHashtable.createBounded(Bucket.class, DEGRADED_CAP);
+  private final ConcurrentHashtable.D1<String, FlagCount> flagCounts =
+      ConcurrentHashtable.D1.createBounded(FlagCount.class, FLAG_COUNT_CAP);
+
+  // The buckets touched since the last drain, linked through Bucket.dirtyNext.
+  @Nullable private volatile Bucket dirty;
+  // Written by the worker only; read when a bucket is created.
+  private volatile int drains;
 
   /** Records one evaluation, on the evaluating thread. */
   void record(
@@ -52,14 +71,15 @@ final class ConcurrentFlagAggregator {
       final boolean observeFullEvaluationData,
       @Nullable final Map<String, Object> attrs,
       @Nullable final Map<String, Object> features) {
-    final Window window = current;
     final boolean isDefault = variant == null;
     // As in FlagEvaluationAggregator: without consent the context is dropped on emit, so it must
     // neither split buckets nor be stored.
-    final Map<String, Object> prunedAttrs = observeFullEvaluationData ? attrs : null;
-    final String contextKey =
-        observeFullEvaluationData ? FlagEvaluationAggregator.canonicalContextKey(prunedAttrs) : "";
-    final FeatureSet featureSet = window.featureSet(features);
+    final Map<String, Object> context = observeFullEvaluationData ? attrs : null;
+    final long contextHash =
+        observeFullEvaluationData ? FlagEvaluationAggregator.contextHash(context) : 0L;
+    final Map<String, Object> featureMap =
+        features == null ? Collections.<String, Object>emptyMap() : features;
+    final long featuresHash = featureMap.hashCode();
 
     final long fullHash =
         FlagEvaluationAggregator.fullHash(
@@ -68,10 +88,10 @@ final class ConcurrentFlagAggregator {
             allocationKey,
             errorMessage,
             targetingKey,
-            contextKey,
+            contextHash,
             observeFullEvaluationData,
-            featureSet.key);
-    for (Bucket b = ConcurrentHashtable.bucketFor(window.full, fullHash); b != null; b = b.next()) {
+            featuresHash);
+    for (Bucket b = ConcurrentHashtable.bucketFor(full, fullHash); b != null; b = b.next()) {
       if (b.keyHash == fullHash
           && b.matchesFull(
               flagKey,
@@ -79,15 +99,15 @@ final class ConcurrentFlagAggregator {
               allocationKey,
               errorMessage,
               targetingKey,
-              contextKey,
+              context,
               observeFullEvaluationData,
-              featureSet.key)) {
-        b.merge(evalTimeMs, isDefault);
+              featureMap)) {
+        b.merge(this, evalTimeMs, isDefault);
         return;
       }
     }
 
-    final FlagCount flagCount = window.flagCounts.tryGetOrCreateOrNull(flagKey, FlagCount::new);
+    final FlagCount flagCount = flagCounts.tryGetOrCreateOrNull(flagKey, FlagCount::new);
     if (flagCount != null && flagCount.count.get() < PER_FLAG_CAP) {
       final Bucket bucket =
           new Bucket(
@@ -98,23 +118,21 @@ final class ConcurrentFlagAggregator {
               allocationKey,
               targetingKey,
               errorMessage,
-              evalTimeMs,
-              isDefault,
-              prunedAttrs,
+              context,
               observeFullEvaluationData,
-              featureSet,
-              contextKey);
+              featureMap,
+              flagCount,
+              drains);
       final Bucket inserted;
       try (ConcurrentHashtable.Reservation<Bucket> reservation =
-          ConcurrentHashtable.tryReserve(window.full, fullHash)) {
+          ConcurrentHashtable.tryReserve(full, fullHash)) {
         inserted = reservation.tryGetOrInsertOrNull(bucket);
       }
-      if (inserted == bucket) {
-        flagCount.count.incrementAndGet();
-        return;
-      }
       if (inserted != null) {
-        inserted.merge(evalTimeMs, isDefault); // another thread inserted it first
+        if (inserted == bucket) {
+          flagCount.count.incrementAndGet();
+        }
+        inserted.merge(this, evalTimeMs, isDefault);
         return;
       }
       // The full tier is at its global cap: fall through to the degraded tier.
@@ -122,16 +140,13 @@ final class ConcurrentFlagAggregator {
 
     final long degradedHash =
         FlagEvaluationAggregator.degradedHash(
-            flagKey, variant, allocationKey, errorMessage, featureSet.key);
-    for (Bucket b = ConcurrentHashtable.bucketFor(window.degraded, degradedHash);
+            flagKey, variant, allocationKey, errorMessage, featuresHash);
+    for (Bucket b = ConcurrentHashtable.bucketFor(degraded, degradedHash);
         b != null;
         b = b.next()) {
       if (b.keyHash == degradedHash
-          && b.matchesDegraded(flagKey, variant, allocationKey, errorMessage, featureSet.key)) {
-        b.merge(evalTimeMs, isDefault);
-        if (!observeFullEvaluationData) {
-          b.observeFullEvaluationData = false; // a mixed bucket stays at consent-off
-        }
+          && b.matchesDegraded(flagKey, variant, allocationKey, errorMessage, featureMap)) {
+        b.mergeDegraded(this, evalTimeMs, isDefault, observeFullEvaluationData);
         return;
       }
     }
@@ -144,109 +159,111 @@ final class ConcurrentFlagAggregator {
             allocationKey,
             null,
             errorMessage,
-            evalTimeMs,
-            isDefault,
             null,
             observeFullEvaluationData,
-            featureSet,
-            "");
+            featureMap,
+            null,
+            drains);
     final Bucket inserted;
     try (ConcurrentHashtable.Reservation<Bucket> reservation =
-        ConcurrentHashtable.tryReserve(window.degraded, degradedHash)) {
+        ConcurrentHashtable.tryReserve(degraded, degradedHash)) {
       inserted = reservation.tryGetOrInsertOrNull(bucket);
     }
     if (inserted == null) {
       droppedDegradedOverflow.incrementAndGet();
-    } else if (inserted != bucket) {
-      inserted.merge(evalTimeMs, isDefault);
+    } else {
+      inserted.mergeDegraded(this, evalTimeMs, isDefault, observeFullEvaluationData);
     }
   }
 
-  /** Whether the current window has no buckets. */
+  private void push(final Bucket bucket) {
+    Bucket head;
+    do {
+      head = dirty;
+      bucket.dirtyNext = head;
+    } while (!DIRTY.compareAndSet(this, head, bucket));
+  }
+
+  /** Whether no evaluation has been recorded since the last drain. */
   boolean isEmpty() {
-    return current.isEmpty();
+    return dirty == null;
   }
 
   /**
-   * Swaps in a fresh window and returns the old one, once evaluations already updating it have had
-   * a grace period to finish. Worker thread only; give the window back with {@link #recycle}.
+   * Passes every bucket touched since the last drain to {@code rows}, with its counters, and resets
+   * them. Worker thread only.
+   *
+   * @return the number of rows drained.
    */
-  Window swap() {
-    final Window old = current;
-    final Window next = spare != null ? spare : new Window();
-    spare = null;
-    current = next;
-    LockSupport.parkNanos(GRACE_NANOS);
-    return old;
-  }
-
-  /** Clears a window returned by {@link #swap} and keeps it as the next spare. */
-  void recycle(final Window window) {
-    window.clear();
-    spare = window;
-  }
-
-  /** The buckets of one flush window. */
-  static final class Window {
-    final ConcurrentHashtable.State<Bucket> full =
-        ConcurrentHashtable.createBounded(Bucket.class, GLOBAL_CAP);
-    final ConcurrentHashtable.State<Bucket> degraded =
-        ConcurrentHashtable.createBounded(Bucket.class, DEGRADED_CAP);
-    final ConcurrentHashtable.D1<String, FlagCount> flagCounts =
-        ConcurrentHashtable.D1.createBounded(FlagCount.class, FLAG_COUNT_CAP);
-    final ConcurrentHashtable.D1<String, FeatureSet> featureSets =
-        ConcurrentHashtable.D1.createBounded(FeatureSet.class, FEATURE_SET_CAP);
-
-    FeatureSet featureSet(@Nullable final Map<String, Object> features) {
-      if (features == null || features.isEmpty()) {
-        return FeatureSet.NONE;
+  int drain(final Rows rows) {
+    final int drain = drains + 1;
+    drains = drain;
+    int drained = 0;
+    Bucket b = DIRTY.getAndSet(this, null);
+    while (b != null) {
+      // Unlink before resetting the count: once it is zero, an evaluation can push the bucket
+      // again, and that push writes dirtyNext.
+      final Bucket next = b.dirtyNext;
+      b.dirtyNext = null;
+      final long count = Bucket.COUNT.getAndSet(b, 0);
+      final long first = Bucket.FIRST.getAndSet(b, Long.MAX_VALUE);
+      final long last = Bucket.LAST.getAndSet(b, Long.MIN_VALUE);
+      final boolean defaultUsed = Bucket.DEFAULT_USED.getAndSet(b, 0) != 0;
+      b.lastDrain = drain;
+      if (count > 0) {
+        drained++;
+        rows.row(b, count, first, last, defaultUsed);
       }
-      final String key = FlagEvaluationAggregator.canonicalContextKey(features);
-      final FeatureSet featureSet =
-          featureSets.tryGetOrCreateOrNull(key, k -> new FeatureSet(k, features));
-      // At the feature-set cap, keep the features unshared rather than drop the evaluation.
-      return featureSet != null ? featureSet : new FeatureSet(key, features);
+      b = next;
     }
+    return drained;
+  }
 
-    boolean isEmpty() {
-      return ConcurrentHashtable.estimateSize(full) == 0
-          && ConcurrentHashtable.estimateSize(degraded) == 0;
-    }
+  /**
+   * Removes the buckets that saw no evaluation in the last whole window, freeing their slots under
+   * the caps. Worker thread only, after {@link #drain}.
+   *
+   * @return the number of buckets removed.
+   */
+  int sweepIdle() {
+    final int drain = drains;
+    final int[] removed = {0};
+    ConcurrentHashtable.removeIf(
+        full,
+        b -> {
+          if (b.isIdleSince(drain)) {
+            b.flagCount.count.decrementAndGet();
+            removed[0]++;
+            return true;
+          }
+          return false;
+        });
+    ConcurrentHashtable.removeIf(
+        degraded,
+        b -> {
+          if (b.isIdleSince(drain)) {
+            removed[0]++;
+            return true;
+          }
+          return false;
+        });
+    return removed[0];
+  }
 
-    void forEachFull(final Consumer<Bucket> consumer) {
-      ConcurrentHashtable.forEach(full, consumer);
-    }
-
-    void forEachDegraded(final Consumer<Bucket> consumer) {
-      ConcurrentHashtable.forEach(degraded, consumer);
-    }
-
-    long degradedEvaluationCount() {
-      final long[] count = {0};
-      ConcurrentHashtable.forEach(degraded, bucket -> count[0] += bucket.count);
-      return count[0];
-    }
-
-    int bucketCount() {
-      return ConcurrentHashtable.estimateSize(full) + ConcurrentHashtable.estimateSize(degraded);
-    }
-
-    void clear() {
-      ConcurrentHashtable.clear(full);
-      ConcurrentHashtable.clear(degraded);
-      flagCounts.clear();
-      featureSets.clear();
-    }
+  int bucketCount() {
+    return ConcurrentHashtable.estimateSize(full) + ConcurrentHashtable.estimateSize(degraded);
   }
 
   /** One aggregated row: its key, and counters updated by any evaluating thread. */
   static final class Bucket extends ConcurrentHashtable.Entry<Bucket> {
-    private static final AtomicLongFieldUpdater<Bucket> COUNT =
+    static final AtomicLongFieldUpdater<Bucket> COUNT =
         AtomicLongFieldUpdater.newUpdater(Bucket.class, "count");
-    private static final AtomicLongFieldUpdater<Bucket> FIRST =
+    static final AtomicLongFieldUpdater<Bucket> FIRST =
         AtomicLongFieldUpdater.newUpdater(Bucket.class, "firstEvalMs");
-    private static final AtomicLongFieldUpdater<Bucket> LAST =
+    static final AtomicLongFieldUpdater<Bucket> LAST =
         AtomicLongFieldUpdater.newUpdater(Bucket.class, "lastEvalMs");
+    static final AtomicIntegerFieldUpdater<Bucket> DEFAULT_USED =
+        AtomicIntegerFieldUpdater.newUpdater(Bucket.class, "defaultUsed");
 
     final boolean degraded;
     final String flagKey;
@@ -256,14 +273,20 @@ final class ConcurrentFlagAggregator {
     @Nullable final String errorMessage;
     @Nullable final Map<String, Object> prunedAttrs;
     final Map<String, Object> features;
-    final String contextKey;
-    final String featuresKey;
+    // The full-tier bucket count of this bucket's flag; null for degraded buckets.
+    @Nullable final FlagCount flagCount;
     // Fixed for a full-tier bucket (consent is a key dimension); degraded buckets AND-fold it.
     volatile boolean observeFullEvaluationData;
+
     volatile long count;
-    volatile long firstEvalMs;
-    volatile long lastEvalMs;
-    volatile boolean runtimeDefaultUsed;
+    volatile long firstEvalMs = Long.MAX_VALUE;
+    volatile long lastEvalMs = Long.MIN_VALUE;
+    volatile int defaultUsed;
+
+    // The next bucket on the stack of buckets touched since the last drain.
+    @Nullable Bucket dirtyNext;
+    // The drain that last found this bucket touched, or the last drain before it was created.
+    int lastDrain;
 
     Bucket(
         final boolean degraded,
@@ -273,13 +296,13 @@ final class ConcurrentFlagAggregator {
         @Nullable final String allocationKey,
         @Nullable final String targetingKey,
         @Nullable final String errorMessage,
-        final long evalTimeMs,
-        final boolean runtimeDefaultUsed,
         @Nullable final Map<String, Object> prunedAttrs,
         final boolean observeFullEvaluationData,
-        final FeatureSet featureSet,
-        final String contextKey) {
+        final Map<String, Object> features,
+        @Nullable final FlagCount flagCount,
+        final int lastDrain) {
       super(keyHash);
+      this.lastDrain = lastDrain;
       this.degraded = degraded;
       this.flagKey = flagKey;
       this.variant = variant;
@@ -287,18 +310,37 @@ final class ConcurrentFlagAggregator {
       this.targetingKey = targetingKey;
       this.errorMessage = errorMessage;
       this.prunedAttrs = prunedAttrs;
-      this.features = featureSet.features;
-      this.featuresKey = featureSet.key;
-      this.contextKey = contextKey;
+      this.features = features;
+      this.flagCount = flagCount;
       this.observeFullEvaluationData = observeFullEvaluationData;
-      this.count = 1;
-      this.firstEvalMs = evalTimeMs;
-      this.lastEvalMs = evalTimeMs;
-      this.runtimeDefaultUsed = runtimeDefaultUsed;
     }
 
-    void merge(final long evalTimeMs, final boolean isDefault) {
-      COUNT.incrementAndGet(this);
+    void merge(
+        final ConcurrentFlagAggregator owner, final long evalTimeMs, final boolean isDefault) {
+      // Timestamps first, so a drain that counts this evaluation also sees its timestamps.
+      updateTimes(evalTimeMs);
+      if (isDefault && defaultUsed == 0) {
+        defaultUsed = 1;
+      }
+      if (COUNT.getAndIncrement(this) == 0) {
+        owner.push(this);
+        // A drain may have reset the timestamps between the update above and the increment.
+        updateTimes(evalTimeMs);
+      }
+    }
+
+    void mergeDegraded(
+        final ConcurrentFlagAggregator owner,
+        final long evalTimeMs,
+        final boolean isDefault,
+        final boolean observeFullEvaluationData) {
+      if (!observeFullEvaluationData && this.observeFullEvaluationData) {
+        this.observeFullEvaluationData = false; // a mixed bucket stays at consent-off
+      }
+      merge(owner, evalTimeMs, isDefault);
+    }
+
+    private void updateTimes(final long evalTimeMs) {
       long first;
       while (evalTimeMs < (first = firstEvalMs) && !FIRST.compareAndSet(this, first, evalTimeMs)) {
         // retry: another thread moved it
@@ -307,9 +349,11 @@ final class ConcurrentFlagAggregator {
       while (evalTimeMs > (last = lastEvalMs) && !LAST.compareAndSet(this, last, evalTimeMs)) {
         // retry: another thread moved it
       }
-      if (isDefault && !runtimeDefaultUsed) {
-        runtimeDefaultUsed = true;
-      }
+    }
+
+    /** Untouched through the whole window that ended with drain {@code drain}. */
+    boolean isIdleSince(final int drain) {
+      return count == 0 && drain - lastDrain >= 1;
     }
 
     boolean matchesFull(
@@ -318,17 +362,17 @@ final class ConcurrentFlagAggregator {
         @Nullable final String allocationKey,
         @Nullable final String errorMessage,
         @Nullable final String targetingKey,
-        final String contextKey,
+        @Nullable final Map<String, Object> context,
         final boolean observeFullEvaluationData,
-        final String featuresKey) {
+        final Map<String, Object> features) {
       return this.observeFullEvaluationData == observeFullEvaluationData
           && this.flagKey.equals(flagKey)
           && Objects.equals(this.variant, variant)
           && Objects.equals(this.allocationKey, allocationKey)
           && Objects.equals(this.errorMessage, errorMessage)
           && Objects.equals(this.targetingKey, targetingKey)
-          && this.contextKey.equals(contextKey)
-          && this.featuresKey.equals(featuresKey);
+          && this.features.equals(features)
+          && FlagEvaluationAggregator.sameContext(this.prunedAttrs, context);
     }
 
     boolean matchesDegraded(
@@ -336,55 +380,37 @@ final class ConcurrentFlagAggregator {
         @Nullable final String variant,
         @Nullable final String allocationKey,
         @Nullable final String errorMessage,
-        final String featuresKey) {
+        final Map<String, Object> features) {
       return this.flagKey.equals(flagKey)
           && Objects.equals(this.variant, variant)
           && Objects.equals(this.allocationKey, allocationKey)
           && Objects.equals(this.errorMessage, errorMessage)
-          && this.featuresKey.equals(featuresKey);
+          && this.features.equals(features);
     }
 
     @Override
     public boolean matches(final Bucket other) {
       return degraded
           ? matchesDegraded(
-              other.flagKey,
-              other.variant,
-              other.allocationKey,
-              other.errorMessage,
-              other.featuresKey)
+              other.flagKey, other.variant, other.allocationKey, other.errorMessage, other.features)
           : matchesFull(
               other.flagKey,
               other.variant,
               other.allocationKey,
               other.errorMessage,
               other.targetingKey,
-              other.contextKey,
+              other.prunedAttrs,
               other.observeFullEvaluationData,
-              other.featuresKey);
+              other.features);
     }
   }
 
-  /** The number of full-tier buckets of a flag in the window. */
+  /** The number of full-tier buckets of a flag. */
   static final class FlagCount extends ConcurrentHashtable.D1.Entry<String> {
     final AtomicInteger count = new AtomicInteger();
 
     FlagCount(final String flagKey) {
       super(flagKey);
-    }
-  }
-
-  /** One shared key and map per distinct feature set in the window. */
-  static final class FeatureSet extends ConcurrentHashtable.D1.Entry<String> {
-    static final FeatureSet NONE = new FeatureSet("", Collections.<String, Object>emptyMap());
-
-    final String key;
-    final Map<String, Object> features;
-
-    FeatureSet(final String key, final Map<String, Object> features) {
-      super(key);
-      this.key = key;
-      this.features = features;
     }
   }
 }

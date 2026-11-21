@@ -203,7 +203,8 @@ class FlagEvaluationPipelineTest {
             queueDrops,
             new ConcurrentHashMap<>(),
             FlagEvaluationPipeline.FLAG_EVALUATION_PAYLOAD_SIZE_LIMIT_BYTES,
-            new RuntimeServices(this.metrics));
+            new RuntimeServices(this.metrics),
+            false);
 
     handler.flushIfNecessary();
 
@@ -263,7 +264,8 @@ class FlagEvaluationPipelineTest {
             new AtomicLong(),
             new ConcurrentHashMap<>(),
             FlagEvaluationPipeline.FLAG_EVALUATION_PAYLOAD_SIZE_LIMIT_BYTES,
-            services);
+            services,
+            false);
     // The worker must flush the buffered evaluation after polling the empty queue.
     handler.aggregateEvent(simpleEvent("idle-flag", "on"));
     final CountDownLatch posted = new CountDownLatch(1);
