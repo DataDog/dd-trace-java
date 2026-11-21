@@ -10,8 +10,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
 import datadog.context.propagation.CarrierKeys;
+import datadog.context.propagation.HeaderSchema;
+import datadog.context.propagation.IndexedCarrier;
 import datadog.trace.api.Config;
 import datadog.trace.api.DynamicConfig;
+import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.core.propagation.ConsumedHeaderTagMappingTest.Style;
 import datadog.trace.test.util.DDJavaSpecification;
@@ -214,5 +217,99 @@ class ExtractorKeysForkedTest extends DDJavaSpecification {
     assertTrue(keys.contains("x-datadog-trace-id"));
     assertTrue(keys.contains("traceparent"));
     assertSame(keys, compound.keys());
+  }
+
+  /** A carrier that knows each key's header constant, as the composite propagator's cache does. */
+  static final class Indexed implements IndexedCarrier {
+    final List<String> keys = new ArrayList<>();
+    final List<String> values = new ArrayList<>();
+    final List<HeaderSchema> headers = new ArrayList<>();
+
+    Indexed(Map<String, String> carrier, CarrierKeys classifier) {
+      carrier.forEach((key, value) -> {
+        keys.add(key);
+        values.add(value);
+        headers.add(classifier.header(key));
+      });
+    }
+
+    @Override
+    public int size() {
+      return keys.size();
+    }
+
+    @Override
+    public String key(int index) {
+      return keys.get(index);
+    }
+
+    @Override
+    public String value(int index) {
+      return values.get(index);
+    }
+
+    @Override
+    public HeaderSchema header(int index) {
+      return headers.get(index);
+    }
+  }
+
+  /** Visits an {@link Indexed} carrier, handing each key's constant to the classifier. */
+  static final AgentPropagation.ContextVisitor<Indexed> WITH_HEADERS =
+      (carrier, classifier) -> {
+        for (int i = 0; i < carrier.size(); i++) {
+          if (!classifier.accept(carrier.header(i), carrier.key(i), carrier.value(i))) {
+            return;
+          }
+        }
+      };
+
+  /** Every known header, so the constant path also sees headers a style doesn't read. */
+  private static CarrierKeys everyKnownHeader() {
+    CarrierKeys.Builder builder = CarrierKeys.builder();
+    for (HeaderSchema header : HeaderSchema.values()) {
+      builder.header(header);
+    }
+    return builder.build();
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("styles")
+  void dispatchingOnHeaderConstantsExtractsTheSameContext(Style style) {
+    HttpCodec.Extractor extractor = extractor(style);
+    Map<String, String> headers = headers(style);
+    // the style's own keys, and every known header
+    for (CarrierKeys classifier : new CarrierKeys[] {extractor.keys(), everyKnownHeader()}) {
+      assertEquals(
+          describe(extractor.extract(headers, stringValuesMap())),
+          describe(extractor.extract(new Indexed(headers, classifier), WITH_HEADERS)),
+          classifier.toString());
+    }
+  }
+
+  @Test
+  void compoundExtractionReadsHeaderConstantsInPlace() {
+    DynamicConfig<DynamicConfig.Snapshot> dynamicConfig =
+        DynamicConfig.create()
+            .setHeaderTags(Collections.singletonMap("x-custom-header", "tag.custom"))
+            .apply();
+    List<HttpCodec.Extractor> parts = new ArrayList<>();
+    parts.add(DatadogHttpCodec.newExtractor(Config.get(), dynamicConfig::captureTraceConfig));
+    parts.add(W3CHttpCodec.newExtractor(Config.get(), dynamicConfig::captureTraceConfig));
+    HttpCodec.CompoundExtractor compound = new HttpCodec.CompoundExtractor(parts, false);
+
+    Map<String, String> headers = new LinkedHashMap<>();
+    headers.put("x-datadog-trace-id", "123");
+    headers.put("x-datadog-parent-id", "456");
+    headers.put("x-datadog-sampling-priority", "1");
+    headers.put("x-datadog-tags", "_dd.p.dm=-4");
+    headers.put("traceparent", "00-0000000000000000000000000000007b-00000000000001c9-01");
+    headers.put("tracestate", "dd=s:1;p:00000000000001c9");
+    headers.put("X-Custom-Header", "custom");
+    headers.put("content-type", "application/json");
+
+    assertEquals(
+        describe(compound.extract(headers, stringValuesMap())),
+        describe(compound.extract(new Indexed(headers, compound.keys()), WITH_HEADERS)));
   }
 }

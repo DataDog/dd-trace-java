@@ -4,6 +4,8 @@ import datadog.context.Context;
 import datadog.context.propagation.CarrierKeys;
 import datadog.context.propagation.CarrierSetter;
 import datadog.context.propagation.CarrierVisitor;
+import datadog.context.propagation.HeaderSchema;
+import datadog.context.propagation.IndexedCarrier;
 import datadog.context.propagation.Propagator;
 import datadog.trace.api.Config;
 import datadog.trace.api.metrics.BaggageMetrics;
@@ -125,7 +127,18 @@ public class BaggagePropagator implements Propagator {
       return context;
     }
     BaggageExtractor baggageExtractor = new BaggageExtractor();
-    visitor.forEachKeyValue(carrier, baggageExtractor);
+    if (carrier instanceof IndexedCarrier) {
+      // only the baggage header, or a key without a header constant, can be baggage
+      IndexedCarrier indexed = (IndexedCarrier) carrier;
+      for (int i = 0, n = indexed.size(); i < n; i++) {
+        HeaderSchema header = indexed.header(i);
+        if (header == null || header == HeaderSchema.BAGGAGE) {
+          baggageExtractor.accept(indexed.key(i), indexed.value(i));
+        }
+      }
+    } else {
+      visitor.forEachKeyValue(carrier, baggageExtractor);
+    }
     Baggage baggage = baggageExtractor.extracted;
     if (baggage == null) {
       return context;
