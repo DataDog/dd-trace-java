@@ -3,6 +3,7 @@ package datadog.trace.core.propagation;
 import static datadog.trace.api.TracePropagationStyle.HAYSTACK;
 import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
 
+import datadog.context.propagation.CarrierKeys;
 import datadog.context.propagation.CarrierSetter;
 import datadog.trace.api.Config;
 import datadog.trace.api.DD64bTraceId;
@@ -129,6 +130,21 @@ class HaystackHttpCodec {
   }
 
   private static class HaystackContextInterpreter extends ContextInterpreter {
+    /**
+     * This style's own headers; the ones every style reads come from {@link ContextInterpreter}.
+     */
+    private static final CarrierKeys OWN_KEYS =
+        CarrierKeys.builder()
+            .name(TRACE_ID_KEY)
+            .name(SPAN_ID_KEY)
+            .name(PARENT_ID_KEY)
+            .prefix(OT_BAGGAGE_PREFIX)
+            .build();
+
+    @Override
+    protected CarrierKeys ownKeys() {
+      return OWN_KEYS;
+    }
 
     private static final String BAGGAGE_PREFIX_LC = "baggage-";
 
