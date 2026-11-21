@@ -61,6 +61,17 @@ class SplitFeaturesTest {
   }
 
   @Test
+  void everyEvaluationGetsTheSameBoxedHandle() {
+    final SplitFeatures prepared =
+        SplitFeatures.prepare(singletonList(new Feature("k", 1, singletonList("EVALUATION"))));
+
+    assertSame(
+        metadata(prepared).get(EVALUATION_FEATURES_HANDLE),
+        metadata(prepared).get(EVALUATION_FEATURES_HANDLE),
+        "the handle is boxed once, not on each evaluation");
+  }
+
+  @Test
   void splitsWithoutEvaluationFeaturesGetNoHandle() {
     final SplitFeatures features =
         SplitFeatures.prepare(singletonList(new Feature("k", "v", singletonList("HOOK"))));

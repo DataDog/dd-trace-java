@@ -46,8 +46,11 @@ final class SplitFeatures {
 
   private final boolean hasEvaluationFeatures;
 
-  /** The {@link EvaluationFeatureHandles} handle of the evaluation features, {@code 0} if none. */
-  private final long evaluationFeaturesHandle;
+  /**
+   * The {@link EvaluationFeatureHandles} handle of the evaluation features, {@code null} if none.
+   * It is boxed once here, so writing it to each evaluation's metadata does not allocate.
+   */
+  private final Long evaluationFeaturesHandle;
 
   private SplitFeatures(
       final String[] keys,
@@ -57,7 +60,8 @@ final class SplitFeatures {
     this.keys = keys;
     this.values = values;
     this.hasEvaluationFeatures = hasEvaluationFeatures;
-    this.evaluationFeaturesHandle = evaluationFeaturesHandle;
+    this.evaluationFeaturesHandle =
+        evaluationFeaturesHandle == 0L ? null : evaluationFeaturesHandle;
   }
 
   /**
@@ -128,13 +132,13 @@ final class SplitFeatures {
     if (hasEvaluationFeatures) {
       metadataBuilder.addBoolean(HAS_EVALUATION_FEATURES, true);
     }
-    if (evaluationFeaturesHandle != 0L) {
+    if (evaluationFeaturesHandle != null) {
       metadataBuilder.addLong(EVALUATION_FEATURES_HANDLE, evaluationFeaturesHandle);
     }
   }
 
   long evaluationFeaturesHandle() {
-    return evaluationFeaturesHandle;
+    return evaluationFeaturesHandle == null ? 0L : evaluationFeaturesHandle;
   }
 
   /** The number of metadata entries, without the evaluation-features marker. */
