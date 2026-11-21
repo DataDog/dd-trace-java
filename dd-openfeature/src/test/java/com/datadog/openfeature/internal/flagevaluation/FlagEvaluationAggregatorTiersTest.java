@@ -1,11 +1,14 @@
 package com.datadog.openfeature.internal.flagevaluation;
 
+import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
@@ -18,6 +21,9 @@ import org.tabletest.junit.TableTest;
 class FlagEvaluationAggregatorTiersTest {
   private static final FlagEvalEvent EVENT =
       new FlagEvalEvent("flag", "variant", "allocation", "subject", "error", 1L, true, null);
+  private static final Map<String, Object> CONTEXT = singletonMap("key", "value");
+  private static final FlagEvaluationAggregator.FeatureSet FEATURES =
+      new FlagEvaluationAggregator.FeatureSet(singletonMap("feature", 1));
 
   @TableTest({
     "dimension  | matches",
@@ -33,8 +39,7 @@ class FlagEvaluationAggregatorTiersTest {
     "features   | false  "
   })
   void fullTierComparesEveryDimension(final String dimension, final boolean matches) {
-    final FlagEvaluationAggregator.Lookup lookup =
-        new FlagEvaluationAggregator.Lookup().of(EVENT, "context", "features");
+    final FlagEvaluationAggregator.Lookup lookup = lookup();
     final FlagEvaluationAggregator.EvalBucket bucket =
         bucket(lookup.fullTierHash(), dimension, true);
 
@@ -57,8 +62,7 @@ class FlagEvaluationAggregatorTiersTest {
   })
   void degradedTierIgnoresTheSubjectContextAndConsent(
       final String dimension, final boolean matches) {
-    final FlagEvaluationAggregator.Lookup lookup =
-        new FlagEvaluationAggregator.Lookup().of(EVENT, "context", "features");
+    final FlagEvaluationAggregator.Lookup lookup = lookup();
     final FlagEvaluationAggregator.EvalBucket bucket =
         bucket(lookup.degradedTierHash(), dimension, false);
 
@@ -79,7 +83,16 @@ class FlagEvaluationAggregatorTiersTest {
     assertThrows(NoSuchElementException.class, buckets::next);
   }
 
-  /** A bucket equal to {@link #EVENT} in every dimension except {@code differs}. */
+  private static FlagEvaluationAggregator.Lookup lookup() {
+    return new FlagEvaluationAggregator.Lookup()
+        .of(EVENT, CONTEXT, FlagEvaluationAggregator.contextHash(CONTEXT), FEATURES);
+  }
+
+  /**
+   * A bucket equal to {@link #EVENT} in every dimension except {@code differs}. Its context is an
+   * equal copy, since contexts compare by value, but its features are the canonical instance, since
+   * feature sets compare by identity.
+   */
   private static FlagEvaluationAggregator.EvalBucket bucket(
       final long hash, final String differs, final boolean fullTier) {
     final String other = "other";
@@ -92,12 +105,10 @@ class FlagEvaluationAggregatorTiersTest {
         "error".equals(differs) ? other : EVENT.errorMessage,
         1L,
         false,
-        null,
+        "context".equals(differs) ? singletonMap("key", (Object) other) : new HashMap<>(CONTEXT),
         "consent".equals(differs)
             ? !EVENT.observeFullEvaluationData
             : EVENT.observeFullEvaluationData,
-        null,
-        "context".equals(differs) ? other : "context",
-        "features".equals(differs) ? other : "features");
+        "features".equals(differs) ? singletonMap("feature", (Object) 2) : FEATURES.features);
   }
 }

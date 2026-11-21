@@ -4,12 +4,15 @@ import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -153,29 +156,55 @@ class FlagEvaluationAggregatorTest {
   }
 
   @Test
-  void emptyContextInputsProduceEmptyCanonicalKey() {
-    assertEquals("", FlagEvaluationAggregator.canonicalContextKey(null));
-    assertEquals("", FlagEvaluationAggregator.canonicalContextKey(emptyMap()));
+  void emptyAndMissingContextsAreTheSame() {
+    assertEquals(0L, FlagEvaluationAggregator.contextHash(null));
+    assertEquals(0L, FlagEvaluationAggregator.contextHash(emptyMap()));
+    assertTrue(FlagEvaluationAggregator.sameContext(null, emptyMap()));
+    assertTrue(FlagEvaluationAggregator.sameContext(emptyMap(), null));
+    assertFalse(FlagEvaluationAggregator.sameContext(null, singletonMap("k", "v")));
   }
 
   @Test
-  void canonicalContextKeyEncodesSupportedValueTypes() {
-    final Map<String, Object> attrs = new HashMap<>();
+  void contextHashIgnoresOrderButNotValueTypes() {
+    final Map<String, Object> attrs = new LinkedHashMap<>();
     attrs.put("bool", true);
     attrs.put("double", 1.5d);
     attrs.put("float", 1.25f);
     attrs.put("int", 1);
     attrs.put("long", 2L);
     attrs.put("null", null);
-    attrs.put("object", new StringBuilder("other"));
     attrs.put("string", "value");
+    final Map<String, Object> reversed = new LinkedHashMap<>();
+    final List<String> keys = new ArrayList<>(attrs.keySet());
+    Collections.reverse(keys);
+    for (final String key : keys) {
+      reversed.put(key, attrs.get(key));
+    }
 
-    final String key = FlagEvaluationAggregator.canonicalContextKey(attrs);
+    assertEquals(
+        FlagEvaluationAggregator.contextHash(attrs),
+        FlagEvaluationAggregator.contextHash(reversed));
+    assertTrue(FlagEvaluationAggregator.sameContext(attrs, reversed));
 
-    assertEquals(key, FlagEvaluationAggregator.canonicalContextKey(new HashMap<>(attrs)));
-    assertTrue(key.contains("bool"));
-    assertTrue(key.contains("string"));
-    assertTrue(key.contains("other"));
+    final Map<String, Object> intAsLong = new HashMap<>(attrs);
+    intAsLong.put("int", 1L);
+    assertNotEquals(
+        FlagEvaluationAggregator.contextHash(attrs),
+        FlagEvaluationAggregator.contextHash(intAsLong));
+    assertFalse(FlagEvaluationAggregator.sameContext(attrs, intAsLong));
+  }
+
+  @Test
+  void contextHashTellsSwappedValuesApart() {
+    final Map<String, Object> ab = new HashMap<>();
+    ab.put("a", 1);
+    ab.put("b", 2);
+    final Map<String, Object> ba = new HashMap<>();
+    ba.put("a", 2);
+    ba.put("b", 1);
+
+    assertNotEquals(
+        FlagEvaluationAggregator.contextHash(ab), FlagEvaluationAggregator.contextHash(ba));
   }
 
   @Test

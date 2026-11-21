@@ -112,7 +112,7 @@ public class FlagEvaluationHotPathBenchmark {
   private FlagEvalEvent nextEvent() {
     final int i = cursor++;
     // observeFullEvaluationData=true is required for this benchmark to mean anything: under the
-    // consent-off default the aggregator drops attrs and skips canonicalContextKey entirely, so
+    // consent-off default the aggregator drops attrs and never hashes the context, so
     // every field-count profile would collapse to the same scalar-only cost.
     return new FlagEvalEvent(
         flagKeys[Math.floorMod(i, flagKeys.length)],
