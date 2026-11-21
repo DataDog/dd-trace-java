@@ -15,6 +15,7 @@ import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.TracePropagationStyle;
+import datadog.trace.api.internal.util.LongStringUtils;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
@@ -411,7 +412,8 @@ public class HttpCodec {
           // a known header is matched by its constant; a key without one, by name
           if (header == HeaderSchema.X_DATADOG_PARENT_ID
               || header == null && SPAN_ID_KEY.equalsIgnoreCase(this.indexed.key(i))) {
-            cacheDatadogSpanIdValue(this.indexed.value(i));
+            // parsed from the value as handed, so a transient view isn't copied
+            cacheDatadogSpanIdValue(this.indexed.valueView(i));
           }
         }
       } else {
@@ -435,10 +437,15 @@ public class HttpCodec {
       }
     }
 
-    private void cacheDatadogSpanIdValue(String value) {
+    private void cacheDatadogSpanIdValue(CharSequence value) {
+      if (value == null) {
+        return;
+      }
       try {
-        // Parse numeric header value to format it as 16 hexadecimal character format
-        this.datadogSpanIdHex = DDSpanId.toHexStringPadded(DDSpanId.from(value));
+        // Parse numeric header value to format it as 16 hexadecimal character format; the
+        // range parser gives what DDSpanId.from would for the same chars
+        this.datadogSpanIdHex =
+            DDSpanId.toHexStringPadded(LongStringUtils.parseUnsignedLong(value, 0, value.length()));
       } catch (NumberFormatException ignored) {
       }
     }
