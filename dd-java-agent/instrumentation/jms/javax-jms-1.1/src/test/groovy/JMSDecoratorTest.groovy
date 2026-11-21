@@ -1,7 +1,10 @@
+import com.ibm.jms.JMSTextMessage
+import com.tibco.tibjms.TibjmsTextMessage
 import datadog.trace.instrumentation.jms.JMSDecorator
 import spock.lang.Specification
 
 import javax.jms.Queue
+import javax.jms.TextMessage
 import javax.jms.Topic
 
 class JMSDecoratorTest extends Specification {
@@ -95,5 +98,21 @@ class JMSDecoratorTest extends Specification {
 
     then:
     result == null
+  }
+
+  def "test messageTechnology detects vendor from message class"() {
+    given:
+    def message = messageType == null ? null : Mock(messageType)
+
+    expect:
+    JMSDecorator.messageTechnology(message) == expectedTech
+    JMSDecorator.isDataStreamsSupported(expectedTech) == dsmSupported
+
+    where:
+    messageType        | expectedTech | dsmSupported
+    TibjmsTextMessage  | "tibcoems"   | true
+    JMSTextMessage     | "ibmmq"      | true
+    TextMessage        | "unknown"    | false
+    null               | "null"       | false
   }
 }
