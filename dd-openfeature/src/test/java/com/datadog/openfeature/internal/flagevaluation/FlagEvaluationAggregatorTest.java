@@ -4,7 +4,6 @@ import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -26,7 +25,7 @@ class FlagEvaluationAggregatorTest {
 
     final FlagEvaluationAggregator.AggregatedState state = aggregator.snapshot();
     assertEquals(1, state.fullTier.size());
-    final FlagEvaluationAggregator.EvalBucket bucket = state.fullTier.values().iterator().next();
+    final FlagEvaluationAggregator.EvalBucket bucket = state.fullTier.get(0);
     assertEquals(2, bucket.count);
     assertEquals(1000L, bucket.firstEvalMs);
     assertEquals(2000L, bucket.lastEvalMs);
@@ -86,7 +85,7 @@ class FlagEvaluationAggregatorTest {
   @Test
   void perFlagCapOverflowRoutesToDegradedTierAndMergesSameDegradedKey() {
     final FlagEvaluationAggregator aggregator = new FlagEvaluationAggregator();
-    aggregator.perFlagCount.put("hot-flag", FlagEvaluationAggregator.PER_FLAG_CAP);
+    aggregator.setFlagCountForTest("hot-flag", FlagEvaluationAggregator.PER_FLAG_CAP);
 
     aggregator.aggregate(event("hot-flag", "on", "alloc1", "user-1", 1000L, emptyMap()));
     aggregator.aggregate(event("hot-flag", "on", "alloc1", "user-2", 2000L, emptyMap()));
@@ -94,8 +93,7 @@ class FlagEvaluationAggregatorTest {
     final FlagEvaluationAggregator.AggregatedState state = aggregator.snapshot();
     assertEquals(0, state.fullTier.size());
     assertEquals(1, state.degradedTier.size());
-    final FlagEvaluationAggregator.EvalBucket bucket =
-        state.degradedTier.values().iterator().next();
+    final FlagEvaluationAggregator.EvalBucket bucket = state.degradedTier.get(0);
     assertEquals(2, bucket.count);
     assertEquals(1000L, bucket.firstEvalMs);
     assertEquals(2000L, bucket.lastEvalMs);
@@ -110,7 +108,7 @@ class FlagEvaluationAggregatorTest {
     // The AND-fold on EvalBucket.observeFullEvaluationData still runs but the value has no
     // downstream effect for degraded rows.
     final FlagEvaluationAggregator aggregator = new FlagEvaluationAggregator();
-    aggregator.perFlagCount.put("hot-flag", FlagEvaluationAggregator.PER_FLAG_CAP);
+    aggregator.setFlagCountForTest("hot-flag", FlagEvaluationAggregator.PER_FLAG_CAP);
 
     aggregator.aggregate(event("hot-flag", "on", "alloc1", "user-1", 1000L, true, emptyMap()));
     aggregator.aggregate(event("hot-flag", "on", "alloc1", "user-2", 2000L, false, emptyMap()));
@@ -118,8 +116,7 @@ class FlagEvaluationAggregatorTest {
     final FlagEvaluationAggregator.AggregatedState state = aggregator.snapshot();
     assertEquals(0, state.fullTier.size());
     assertEquals(1, state.degradedTier.size());
-    final FlagEvaluationAggregator.EvalBucket bucket =
-        state.degradedTier.values().iterator().next();
+    final FlagEvaluationAggregator.EvalBucket bucket = state.degradedTier.get(0);
     assertEquals(2, bucket.count);
     // AND-fold collapses to consent-off; benign for degraded rows but a documented invariant.
     assertFalse(bucket.observeFullEvaluationData);
@@ -133,7 +130,7 @@ class FlagEvaluationAggregatorTest {
 
     final FlagEvaluationAggregator.AggregatedState state = aggregator.snapshot();
     assertEquals(1, state.fullTier.size());
-    final FlagEvaluationAggregator.EvalBucket bucket = state.fullTier.values().iterator().next();
+    final FlagEvaluationAggregator.EvalBucket bucket = state.fullTier.get(0);
     assertTrue(bucket.runtimeDefaultUsed);
   }
 
@@ -150,7 +147,7 @@ class FlagEvaluationAggregatorTest {
     aggregator.aggregate(event("flag-d", "on", "alloc1", "user-1", 1000L, true, preprunedAttrs));
 
     final FlagEvaluationAggregator.AggregatedState state = aggregator.snapshot();
-    final FlagEvaluationAggregator.EvalBucket bucket = state.fullTier.values().iterator().next();
+    final FlagEvaluationAggregator.EvalBucket bucket = state.fullTier.get(0);
     assertEquals(100, bucket.prunedContextFieldCount());
     assertEquals(100, bucket.prunedAttrs.size());
   }
@@ -192,7 +189,7 @@ class FlagEvaluationAggregatorTest {
     aggregator.aggregate(event("flag-e", "on", "alloc1", "user-1", 1000L, true, preprunedAttrs));
 
     final FlagEvaluationAggregator.AggregatedState state = aggregator.snapshot();
-    final FlagEvaluationAggregator.EvalBucket bucket = state.fullTier.values().iterator().next();
+    final FlagEvaluationAggregator.EvalBucket bucket = state.fullTier.get(0);
     assertTrue(bucket.prunedAttrs.containsKey("short-val"));
   }
 
@@ -236,43 +233,47 @@ class FlagEvaluationAggregatorTest {
   }
 
   @Test
-  void fullKeyEqualityUsesEveryDimension() {
-    final FlagEvaluationAggregator.FullKey base =
-        fullKey("flag", "on", "alloc", false, "error", "user", "ctx");
-    final FlagEvaluationAggregator.FullKey same =
-        fullKey("flag", "on", "alloc", false, "error", "user", "ctx");
+  void fullTierSplitsBucketsOnEveryDimension() {
+    final Map<String, Object> context = singletonMap("plan", "pro");
+    final FlagEvaluationAggregator aggregator = new FlagEvaluationAggregator();
+    aggregator.aggregate(fullEvent("flag", "on", "alloc", "error", "user", context));
+    aggregator.aggregate(fullEvent("flag", "on", "alloc", "error", "user", context));
+    assertEquals(1, aggregator.fullTierSize());
 
-    assertEquals(base, base);
-    assertEquals(base, same);
-    assertEquals(base.hashCode(), same.hashCode());
-    assertNotEquals(base, null);
-    assertNotEquals(base, "not-a-key");
-    assertNotEquals(base, fullKey("other", "on", "alloc", false, "error", "user", "ctx"));
-    assertNotEquals(base, fullKey("flag", "off", "alloc", false, "error", "user", "ctx"));
-    assertNotEquals(base, fullKey("flag", "on", "other", false, "error", "user", "ctx"));
-    assertNotEquals(base, fullKey("flag", "on", "alloc", true, "error", "user", "ctx"));
-    assertNotEquals(base, fullKey("flag", "on", "alloc", false, "other", "user", "ctx"));
-    assertNotEquals(base, fullKey("flag", "on", "alloc", false, "error", "other", "ctx"));
-    assertNotEquals(base, fullKey("flag", "on", "alloc", false, "error", "user", "other"));
+    aggregator.aggregate(fullEvent("other", "on", "alloc", "error", "user", context));
+    aggregator.aggregate(fullEvent("flag", "off", "alloc", "error", "user", context));
+    aggregator.aggregate(fullEvent("flag", null, "alloc", "error", "user", context));
+    aggregator.aggregate(fullEvent("flag", "on", "other", "error", "user", context));
+    aggregator.aggregate(fullEvent("flag", "on", "alloc", "other", "user", context));
+    aggregator.aggregate(fullEvent("flag", "on", "alloc", "error", "other", context));
+    aggregator.aggregate(
+        fullEvent("flag", "on", "alloc", "error", "user", singletonMap("plan", "free")));
+
+    assertEquals(8, aggregator.fullTierSize());
+    int merged = 0;
+    for (final FlagEvaluationAggregator.EvalBucket bucket : aggregator.fullBuckets()) {
+      if (bucket.count == 2) {
+        merged++;
+      }
+    }
+    assertEquals(1, merged);
   }
 
   @Test
-  void degradedKeyEqualityUsesEveryDimension() {
-    final FlagEvaluationAggregator.DegradedKey base =
-        degradedKey("flag", "on", "alloc", false, "error");
-    final FlagEvaluationAggregator.DegradedKey same =
-        degradedKey("flag", "on", "alloc", false, "error");
+  void degradedTierSplitsBucketsWithoutTheSubject() {
+    final FlagEvaluationAggregator aggregator = new FlagEvaluationAggregator();
+    aggregator.simulateFullTierAtCap();
+    aggregator.aggregate(fullEvent("flag", "on", "alloc", "error", "user-1", emptyMap()));
+    aggregator.aggregate(fullEvent("flag", "on", "alloc", "error", "user-2", emptyMap()));
+    assertEquals(1, aggregator.snapshot().degradedTier.size());
 
-    assertEquals(base, base);
-    assertEquals(base, same);
-    assertEquals(base.hashCode(), same.hashCode());
-    assertNotEquals(base, null);
-    assertNotEquals(base, "not-a-key");
-    assertNotEquals(base, degradedKey("other", "on", "alloc", false, "error"));
-    assertNotEquals(base, degradedKey("flag", "off", "alloc", false, "error"));
-    assertNotEquals(base, degradedKey("flag", "on", "other", false, "error"));
-    assertNotEquals(base, degradedKey("flag", "on", "alloc", true, "error"));
-    assertNotEquals(base, degradedKey("flag", "on", "alloc", false, "other"));
+    aggregator.aggregate(fullEvent("other", "on", "alloc", "error", "user", emptyMap()));
+    aggregator.aggregate(fullEvent("flag", "off", "alloc", "error", "user", emptyMap()));
+    aggregator.aggregate(fullEvent("flag", null, "alloc", "error", "user", emptyMap()));
+    aggregator.aggregate(fullEvent("flag", "on", "other", "error", "user", emptyMap()));
+    aggregator.aggregate(fullEvent("flag", "on", "alloc", "other", "user", emptyMap()));
+
+    assertEquals(6, aggregator.snapshot().degradedTier.size());
   }
 
   @Test
@@ -287,8 +288,7 @@ class FlagEvaluationAggregatorTest {
     assertEquals(2, aggregator.fullTierSize());
     int onCount = 0;
     int offCount = 0;
-    for (final FlagEvaluationAggregator.EvalBucket bucket :
-        aggregator.snapshot().fullTier.values()) {
+    for (final FlagEvaluationAggregator.EvalBucket bucket : aggregator.snapshot().fullTier) {
       if (bucket.observeFullEvaluationData) {
         onCount++;
       } else {
@@ -305,8 +305,7 @@ class FlagEvaluationAggregatorTest {
     aggregator.aggregate(event("fold-flag", "on", "alloc1", "user-1", 1000L, true, emptyMap()));
     aggregator.aggregate(event("fold-flag", "on", "alloc1", "user-1", 2000L, true, emptyMap()));
 
-    final FlagEvaluationAggregator.EvalBucket bucket =
-        aggregator.snapshot().fullTier.values().iterator().next();
+    final FlagEvaluationAggregator.EvalBucket bucket = aggregator.snapshot().fullTier.get(0);
     assertEquals(2, bucket.count);
     assertTrue(bucket.observeFullEvaluationData);
   }
@@ -328,8 +327,7 @@ class FlagEvaluationAggregatorTest {
     aggregator.aggregate(event("checkout", "on", "alloc1", "alice", 3000L, false, ctx3));
 
     assertEquals(1, aggregator.fullTierSize());
-    final FlagEvaluationAggregator.EvalBucket bucket =
-        aggregator.snapshot().fullTier.values().iterator().next();
+    final FlagEvaluationAggregator.EvalBucket bucket = aggregator.snapshot().fullTier.get(0);
     assertEquals(3, bucket.count);
     assertFalse(bucket.observeFullEvaluationData);
     assertEquals(0, bucket.prunedContextFieldCount());
@@ -397,34 +395,15 @@ class FlagEvaluationAggregatorTest {
     return event(flagKey, variant, "alloc1", "user-1", 1000L, emptyMap());
   }
 
-  private static FlagEvaluationAggregator.FullKey fullKey(
+  private static FlagEvalEvent fullEvent(
       final String flagKey,
       final String variant,
       final String allocationKey,
-      final boolean runtimeDefaultUsed,
       final String errorMessage,
       final String targetingKey,
-      final String contextKey) {
-    return new FlagEvaluationAggregator.FullKey(
-        flagKey,
-        variant,
-        allocationKey,
-        runtimeDefaultUsed,
-        errorMessage,
-        targetingKey,
-        contextKey,
-        false,
-        "");
-  }
-
-  private static FlagEvaluationAggregator.DegradedKey degradedKey(
-      final String flagKey,
-      final String variant,
-      final String allocationKey,
-      final boolean runtimeDefaultUsed,
-      final String errorMessage) {
-    return new FlagEvaluationAggregator.DegradedKey(
-        flagKey, variant, allocationKey, runtimeDefaultUsed, errorMessage, "");
+      final Map<String, Object> attrs) {
+    return new FlagEvalEvent(
+        flagKey, variant, allocationKey, targetingKey, errorMessage, 1000L, true, attrs);
   }
 
   @Test
@@ -439,7 +418,7 @@ class FlagEvaluationAggregatorTest {
 
     final FlagEvaluationAggregator.AggregatedState full = aggregator.snapshot();
     assertEquals(2, full.fullTier.size());
-    for (final FlagEvaluationAggregator.EvalBucket bucket : full.fullTier.values()) {
+    for (final FlagEvaluationAggregator.EvalBucket bucket : full.fullTier) {
       assertEquals(p1.equals(bucket.features) ? 2 : 1, bucket.count);
     }
 
@@ -450,7 +429,7 @@ class FlagEvaluationAggregatorTest {
 
     final FlagEvaluationAggregator.AggregatedState degraded = aggregator.snapshot();
     assertEquals(2, degraded.degradedTier.size());
-    for (final FlagEvaluationAggregator.EvalBucket bucket : degraded.degradedTier.values()) {
+    for (final FlagEvaluationAggregator.EvalBucket bucket : degraded.degradedTier) {
       assertEquals(p1.equals(bucket.features) ? 2 : 1, bucket.count);
     }
   }
@@ -464,7 +443,7 @@ class FlagEvaluationAggregatorTest {
     aggregator.aggregate(featureEvent("user-3", 3000L, false, policy("p2")));
 
     final List<FlagEvaluationAggregator.EvalBucket> p1Buckets = new ArrayList<>();
-    for (final FlagEvaluationAggregator.EvalBucket bucket : aggregator.fullTier.values()) {
+    for (final FlagEvaluationAggregator.EvalBucket bucket : aggregator.fullBuckets()) {
       if (policy("p1").equals(bucket.features)) {
         p1Buckets.add(bucket);
       }
@@ -475,12 +454,12 @@ class FlagEvaluationAggregatorTest {
 
     aggregator.simulateFullTierAtCap();
     aggregator.aggregate(featureEvent("user-4", 4000L, false, policy("p1")));
-    for (final FlagEvaluationAggregator.EvalBucket bucket : aggregator.degradedTier.values()) {
+    for (final FlagEvaluationAggregator.EvalBucket bucket : aggregator.degradedBuckets()) {
       assertSame(p1Buckets.get(0).features, bucket.features);
     }
 
     aggregator.clear();
-    assertTrue(aggregator.featureSets.isEmpty());
+    assertEquals(0, aggregator.featureSets.size());
   }
 
   @Test
@@ -492,10 +471,8 @@ class FlagEvaluationAggregatorTest {
 
     final FlagEvaluationAggregator.AggregatedState state = aggregator.snapshot();
     assertEquals(1, state.fullTier.size());
-    assertSame(
-        FlagEvaluationAggregator.FeatureSet.NONE.features,
-        state.fullTier.values().iterator().next().features);
-    assertTrue(aggregator.featureSets.isEmpty());
+    assertSame(FlagEvaluationAggregator.FeatureSet.NONE.features, state.fullTier.get(0).features);
+    assertEquals(0, aggregator.featureSets.size());
   }
 
   private static Map<String, Object> policy(final String id) {
