@@ -18,9 +18,9 @@ import static java.nio.charset.StandardCharsets.US_ASCII;
  */
 public enum HeaderSchema {
   // Datadog
-  X_DATADOG_TRACE_ID("x-datadog-trace-id"),
-  X_DATADOG_PARENT_ID("x-datadog-parent-id"),
-  X_DATADOG_SAMPLING_PRIORITY("x-datadog-sampling-priority"),
+  X_DATADOG_TRACE_ID("x-datadog-trace-id", true),
+  X_DATADOG_PARENT_ID("x-datadog-parent-id", true),
+  X_DATADOG_SAMPLING_PRIORITY("x-datadog-sampling-priority", true),
   X_DATADOG_ORIGIN("x-datadog-origin"),
   X_DATADOG_TAGS("x-datadog-tags"),
   // W3C trace context
@@ -65,10 +65,28 @@ public enum HeaderSchema {
   /** {@link #headerName} in ASCII, for matching or writing a key without encoding it. */
   private final byte[] asciiName;
 
+  /** Whether the header's value is only parsed: see {@link #isParseOnly()}. */
+  private final boolean parseOnly;
+
   /** {@code headerName} must be lower case, as {@code HeaderSchemaTest} checks. */
   HeaderSchema(String headerName) {
+    this(headerName, false);
+  }
+
+  HeaderSchema(String headerName, boolean parseOnly) {
     this.headerName = headerName;
+    this.parseOnly = parseOnly;
     this.asciiName = headerName.getBytes(US_ASCII);
+  }
+
+  /**
+   * Whether every propagator that reads this header only parses its value (into a number, say) and
+   * keeps nothing of it, so a carrier may hand the value as a transient view instead of decoding it
+   * (see {@link TransientValueConsumer}). A propagator that starts keeping such a value must copy
+   * it, or this must change.
+   */
+  public boolean isParseOnly() {
+    return parseOnly;
   }
 
   /** The length of {@link #headerName}, in chars and in ASCII bytes. */
