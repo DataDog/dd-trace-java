@@ -14,9 +14,9 @@ import java.util.Map;
  * Builds the OpenFeature {@link Value} of a JSON variant once, when the configuration is parsed, so
  * that each evaluation returns the same instance instead of a new deep copy.
  *
- * <p>Each JSON object becomes a {@link FrozenStructure}: a {@link MutableStructure} over an
- * unmodifiable map, so {@code getValue} returns the shared child without a copy and {@code add}
- * throws {@link UnsupportedOperationException}. It keeps the equality of {@link
+ * <p>Each JSON object becomes a {@link FrozenStructure}: a {@link MutableStructure} over a
+ * read-only {@link FrozenMap}, so {@code getValue} returns the shared child without a copy and
+ * {@code add} throws {@link UnsupportedOperationException}. It keeps the equality of {@link
  * Value#objectToValue}. Each JSON array becomes an unmodifiable list.
  */
 final class FrozenValues {
@@ -48,26 +48,28 @@ final class FrozenValues {
   }
 
   /**
-   * Freezes the JSON variants of one document, sharing every part they have in common: each
-   * distinct string once, each distinct scalar {@link Value} once, and each distinct object or
-   * array once. The values cannot change, so sharing is invisible to readers.
-   *
-   * <p>Parsing runs on a background thread, so the table costs nothing on the evaluation path, and
-   * it is dropped with the freezer: only the shared values are retained. Children are frozen first,
-   * so two containers are equal exactly when they hold the same keys and the very same child
-   * instances, and each lookup compares one level by identity.
+   * Freezes the JSON variants of one document. Each JSON object becomes a {@link FrozenStructure}
+   * over a {@link FrozenMap}, which holds its entries in flat arrays rather than one node each.
+   * Repeated strings and scalar {@link Value}s are shared through small direct-mapped caches: a
+   * value that recurs nearby is built once, a unique one costs a slot overwrite, and the caches
+   * never grow, so a large document doesn't pay for an ever-larger table. The values cannot change,
+   * so sharing is invisible to readers.
    */
   static final class Freezer {
-    private final Map<Object, Object> shared = new HashMap<>();
+    static final int CACHE_SLOTS = 1 << 12;
+
+    private final String[] strings = new String[CACHE_SLOTS];
+    private final Value[] scalars = new Value[CACHE_SLOTS];
 
     Value freeze(final Object tree) {
       if (tree instanceof Map) {
         final Map<?, ?> source = (Map<?, ?>) tree;
+        // Built through a HashMap so the frozen map iterates in the order objectToValue's would.
         final Map<String, Value> attributes = new HashMap<>(capacity(source.size()));
         for (final Map.Entry<?, ?> entry : source.entrySet()) {
           attributes.put(string((String) entry.getKey()), freeze(entry.getValue()));
         }
-        return shared(new StructureKey(attributes));
+        return new Value(new FrozenStructure(FrozenMap.copyOf(attributes)));
       }
       if (tree instanceof List) {
         final List<?> source = (List<?>) tree;
@@ -75,7 +77,7 @@ final class FrozenValues {
         for (final Object element : source) {
           items.add(freeze(element));
         }
-        return shared(new ListKey(items));
+        return new Value(Collections.unmodifiableList(items));
       }
       if (tree == null) {
         return NULL;
@@ -83,138 +85,37 @@ final class FrozenValues {
       if (tree instanceof Boolean) {
         return (Boolean) tree ? TRUE : FALSE;
       }
-      // Integer 1, Long 1 and Double 1.0 are different keys, as they are different values.
-      final Object scalar = tree instanceof String ? string((String) tree) : tree;
-      Object value = shared.get(new ScalarKey(scalar));
-      if (value == null) {
-        value = Value.objectToValue(scalar);
-        shared.put(new ScalarKey(scalar), value);
-      }
-      return (Value) value;
+      return scalar(tree instanceof String ? string((String) tree) : tree);
     }
 
     private String string(final String s) {
-      final Object existing = shared.putIfAbsent(s, s);
-      return existing == null ? s : (String) existing;
+      final int slot = slot(s.hashCode());
+      final String cached = strings[slot];
+      if (s.equals(cached)) {
+        return cached;
+      }
+      strings[slot] = s;
+      return s;
     }
 
-    private Value shared(final ContainerKey key) {
-      final Object existing = shared.get(key);
-      if (existing != null) {
-        return (Value) existing;
+    private Value scalar(final Object scalar) {
+      final int slot = slot(scalar.hashCode() * 31 + scalar.getClass().hashCode());
+      final Value cached = scalars[slot];
+      // Integer 1, Long 1 and Double 1.0 stay apart, as they are different values.
+      if (cached != null) {
+        final Object inner = cached.asObject();
+        if (inner.getClass() == scalar.getClass() && inner.equals(scalar)) {
+          return cached;
+        }
       }
-      final Value value = key.toValue();
-      shared.put(key, value);
+      final Value value = Value.objectToValue(scalar);
+      scalars[slot] = value;
       return value;
     }
-  }
 
-  /** A scalar as a table key, so it can't collide with an interned string of the same text. */
-  static final class ScalarKey {
-    private final Object scalar;
-
-    ScalarKey(final Object scalar) {
-      this.scalar = scalar;
-    }
-
-    @Override
-    public boolean equals(final Object o) {
-      return o instanceof ScalarKey
-          && scalar.getClass() == ((ScalarKey) o).scalar.getClass()
-          && scalar.equals(((ScalarKey) o).scalar);
-    }
-
-    @Override
-    public int hashCode() {
-      return scalar.hashCode() * 31 + scalar.getClass().hashCode();
-    }
-  }
-
-  /** A container whose children are already shared, compared one level deep by identity. */
-  abstract static class ContainerKey {
-    abstract Value toValue();
-  }
-
-  static final class StructureKey extends ContainerKey {
-    private final Map<String, Value> attributes;
-    private final int hash;
-
-    StructureKey(final Map<String, Value> attributes) {
-      this.attributes = attributes;
-      int hash = 0;
-      for (final Map.Entry<String, Value> entry : attributes.entrySet()) {
-        hash += entry.getKey().hashCode() ^ System.identityHashCode(entry.getValue());
-      }
-      this.hash = hash;
-    }
-
-    @Override
-    Value toValue() {
-      return new Value(new FrozenStructure(Collections.unmodifiableMap(attributes)));
-    }
-
-    @Override
-    public boolean equals(final Object o) {
-      if (!(o instanceof StructureKey)) {
-        return false;
-      }
-      final StructureKey other = (StructureKey) o;
-      // HashMap only calls equals for keys whose hashes already matched.
-      if (attributes.size() != other.attributes.size()) {
-        return false;
-      }
-      for (final Map.Entry<String, Value> entry : attributes.entrySet()) {
-        if (other.attributes.get(entry.getKey()) != entry.getValue()) {
-          return false;
-        }
-      }
-      return true;
-    }
-
-    @Override
-    public int hashCode() {
-      return hash;
-    }
-  }
-
-  static final class ListKey extends ContainerKey {
-    private final List<Value> items;
-    private final int hash;
-
-    ListKey(final List<Value> items) {
-      this.items = items;
-      int hash = 1;
-      for (final Value item : items) {
-        hash = 31 * hash + System.identityHashCode(item);
-      }
-      this.hash = hash;
-    }
-
-    @Override
-    Value toValue() {
-      return new Value(Collections.unmodifiableList(items));
-    }
-
-    @Override
-    public boolean equals(final Object o) {
-      if (!(o instanceof ListKey)) {
-        return false;
-      }
-      final ListKey other = (ListKey) o;
-      if (items.size() != other.items.size()) {
-        return false;
-      }
-      for (int i = 0; i < items.size(); i++) {
-        if (items.get(i) != other.items.get(i)) {
-          return false;
-        }
-      }
-      return true;
-    }
-
-    @Override
-    public int hashCode() {
-      return hash;
+    private static int slot(final int hash) {
+      final int spread = hash * 0x9E3779B9;
+      return (spread ^ (spread >>> 15)) & (CACHE_SLOTS - 1);
     }
   }
 
