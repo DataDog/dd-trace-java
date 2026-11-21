@@ -531,6 +531,60 @@ class UniversalFlagConfigParserTest {
     return config.flags.get(key).allocations.get(0).rules.get(0).conditions.get(0).regex;
   }
 
+  @Test
+  void sharesOneInstanceOfEachRepeatedText() throws Exception {
+    final ServerConfiguration config =
+        deserialize(
+            "{\"flags\":{\"flag-a\":{\"key\":\"flag-a\",\"enabled\":true,"
+                + "\"variationType\":\"BOOLEAN\","
+                + "\"variations\":{\"on\":{\"key\":\"on\",\"value\":true}},"
+                + "\"allocations\":[{\"key\":\"alloc\",\"rules\":["
+                + "{\"conditions\":[{\"operator\":\"ONE_OF\",\"attribute\":\"country\","
+                + "\"value\":[\"Aa\",\"BB\"]}]},"
+                + "{\"conditions\":[{\"operator\":\"ONE_OF\",\"attribute\":\"country\","
+                + "\"value\":[\"Aa\"]}]}],"
+                + "\"splits\":[{\"variationKey\":\"on\",\"shards\":[]}]}]}}}");
+
+    final String flagKey = config.flags.keySet().iterator().next();
+    final Flag flag = config.flags.get("flag-a");
+    assertSame(flagKey, flag.key);
+
+    final String variationKey = flag.variations.keySet().iterator().next();
+    final Allocation allocation = flag.allocations.get(0);
+    assertSame(variationKey, flag.variations.get("on").key);
+    assertSame(variationKey, allocation.splits.get(0).variationKey);
+
+    final ConditionConfiguration first = allocation.rules.get(0).conditions.get(0);
+    final ConditionConfiguration second = allocation.rules.get(1).conditions.get(0);
+    assertSame(first.attribute, second.attribute);
+    // Equal hashes, different texts: still two values.
+    assertEquals(asList("Aa", "BB"), first.value);
+    assertSame(((List<?>) first.value).get(0), ((List<?>) second.value).get(0));
+  }
+
+  @Test
+  void keepsEscapedNonAsciiAndLongStrings() throws Exception {
+    final StringBuilder longValue = new StringBuilder();
+    for (int i = 0; i < 20_000; i++) {
+      longValue.append((char) ('a' + i % 26));
+    }
+    final ServerConfiguration config =
+        deserialize(
+            "{\"flags\":{\"f\":{\"key\":\"f\",\"enabled\":true,\"variationType\":\"STRING\","
+                + "\"variations\":{"
+                + "\"escaped\":{\"key\":\"escaped\",\"value\":\"q\\\"b\\\\s\\u00e9\\uD83D\\uDE00\"},"
+                + "\"long\":{\"key\":\"long\",\"value\":\""
+                + longValue
+                + "\"},"
+                + "\"empty\":{\"key\":\"empty\",\"value\":\"\"}},"
+                + "\"allocations\":[]}}}");
+
+    final Flag flag = config.flags.get("f");
+    assertEquals("q\"b\\s\u00e9\uD83D\uDE00", flag.variations.get("escaped").value);
+    assertEquals(longValue.toString(), flag.variations.get("long").value);
+    assertEquals("", flag.variations.get("empty").value);
+  }
+
   private static ServerConfiguration deserialize(final String json) throws Exception {
     return UniversalFlagConfigParser.parse(json.getBytes(UTF_8));
   }
