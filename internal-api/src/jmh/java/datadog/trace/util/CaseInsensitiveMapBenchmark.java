@@ -29,9 +29,9 @@ import org.openjdk.jmh.infra.Blackhole;
  * zero allocation, but trails HashMap's look-up throughput by ~20-30%; its case is the allocation
  * win (no per-look-up folded String), not a throughput win. The case-insensitive hash is the
  * consistent-for-all-inputs two-way fold ({@link
- * datadog.trace.util.Strings#caseInsensitiveHashCode} — see its note); a cheaper ASCII-only fold
- * would recover a few percent for header-name-only hot paths, deliberately not the default. {@code
- * LOW_LOAD_FACTOR} makes no consistent difference here, so the default 0.5 is used.
+ * datadog.trace.util.HashingUtils#caseInsensitiveHashCode} — see its note); a cheaper ASCII-only
+ * fold would recover a few percent for header-name-only hot paths, deliberately not the default.
+ * {@code LOW_LOAD_FACTOR} makes no consistent difference here, so the default 0.5 is used.
  *
  * <p>Java 17 results (Zulu 17.0.7, MacBook M1, {@code @Fork(5)}, {@code @Threads(8)}, {@code -prof
  * gc}) with the front-loaded {@link BenchmarkUtils#warmUpHashDispatch} pollution design and the
@@ -224,7 +224,8 @@ public class CaseInsensitiveMapBenchmark {
     }
   }
 
-  // Dogfoods the shared toolbox pieces: the CI hash is Strings.caseInsensitiveHashCode (sealed by
+  // Dogfoods the shared toolbox pieces: the CI hash is HashingUtils.caseInsensitiveHashCode (sealed
+  // by
   // CaseInsensitiveStringStrategy), the table owns the spread. Only matches/hashOf are bespoke.
   static final class CaseInsensitiveKeyStrategy
       extends FlatHashtable.CaseInsensitiveStringStrategy<CIEntry> {
