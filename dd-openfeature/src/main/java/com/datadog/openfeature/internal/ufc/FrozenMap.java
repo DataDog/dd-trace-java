@@ -22,8 +22,8 @@ import java.util.Set;
  * stay with each of them.
  */
 final class FrozenMap extends AbstractMap<String, Value> {
-  /** Up to this many entries, a lookup scans the keys instead of hashing. */
-  static final int MAX_SCANNED = 8;
+  /** Up to this many entries, a lookup scans the keys instead of hashing (measured crossover). */
+  static final int MAX_SCANNED = 4;
 
   private final String[] keys;
   private final Value[] values;
