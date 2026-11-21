@@ -6,6 +6,7 @@ import datadog.context.Context;
 import datadog.context.propagation.CarrierKeys;
 import datadog.context.propagation.CarrierSetter;
 import datadog.context.propagation.CarrierVisitor;
+import datadog.context.propagation.IndexedCarrier;
 import datadog.context.propagation.Propagator;
 import datadog.trace.api.gateway.InferredProxySpan;
 import java.util.HashMap;
@@ -35,7 +36,17 @@ public class InferredProxyPropagator implements Propagator {
       return context;
     }
     InferredProxyContextExtractor extractor = new InferredProxyContextExtractor();
-    visitor.forEachKeyValue(carrier, extractor);
+    if (carrier instanceof IndexedCarrier) {
+      // a known header never has the proxy prefix, so only keys without a constant are read
+      IndexedCarrier indexed = (IndexedCarrier) carrier;
+      for (int i = 0, n = indexed.size(); i < n; i++) {
+        if (indexed.header(i) == null) {
+          extractor.accept(indexed.key(i), indexed.value(i));
+        }
+      }
+    } else {
+      visitor.forEachKeyValue(carrier, extractor);
+    }
     InferredProxySpan inferredProxySpan = extractor.inferredProxySpan();
     if (inferredProxySpan != null) {
       context = context.with(inferredProxySpan);
