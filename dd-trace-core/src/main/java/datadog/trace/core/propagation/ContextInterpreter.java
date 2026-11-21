@@ -207,6 +207,34 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   }
 
   /**
+   * {@link #acceptTransient} for a style that doesn't parse views itself: a parse-only header that
+   * isn't the style's own (another style's id header) is skipped, without copying the view, unless
+   * the configuration names it (a request header tag, a baggage mapping, the client IP header),
+   * since the shared handling reads nothing else of it. Anything else is copied and accepted.
+   */
+  @Override
+  public boolean acceptTransient(HeaderSchema header, String key, CharSequence value) {
+    if (header != null
+        && !LOG_EXTRACT_HEADER_NAMES
+        && header.isParseOnly()
+        && classify(header) == NOT_OWN_HEADER
+        && !isConfiguredFor(key)) {
+      return true;
+    }
+    return accept(header, key, value == null ? null : value.toString());
+  }
+
+  /**
+   * Whether the configuration names {@code key}: a request header tag, mapped baggage, client IP.
+   */
+  private boolean isConfiguredFor(String key) {
+    String lowerCaseKey = toLowerCase(key);
+    return headerTags.containsKey(lowerCaseKey)
+        || baggageMapping.containsKey(lowerCaseKey)
+        || (customIpHeaderName != null && customIpHeaderName.equalsIgnoreCase(key));
+  }
+
+  /**
    * How this style handles {@code header}: one of its own classifications (non-negative, for {@link
    * #acceptClassified}), {@link #NOT_OWN_HEADER} for a header it doesn't read itself, or {@link
    * #BY_NAME}, the default, to handle it exactly as {@link #accept(String, String)} does.
