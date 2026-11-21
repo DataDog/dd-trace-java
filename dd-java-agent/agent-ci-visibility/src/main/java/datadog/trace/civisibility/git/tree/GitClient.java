@@ -45,6 +45,10 @@ public interface GitClient {
   CommitInfo getCommitInfo(String commit, boolean fetchIfNotPresent)
       throws IOException, TimeoutException, InterruptedException;
 
+  /** Recovers the selected revision and its bounded history, including existing shallow roots. */
+  void fetchSelectedCommit(String commitReference)
+      throws IOException, TimeoutException, InterruptedException;
+
   @Nonnull
   List<String> getLatestCommits() throws IOException, TimeoutException, InterruptedException;
 
