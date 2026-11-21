@@ -171,7 +171,7 @@ A provider has two independent options. Each is on by default and applies to tha
 
 Neither option changes flag results or assignment. The provider reads both at construction.
 
-For the whole process, use the existing settings instead: `DD_FLAGGING_EVALUATION_COUNTS_ENABLED=false` stops flag evaluation events, and `DD_FEATURE_FLAGS_EXPOSURES_DATADOG_LOGGING_ENABLED=false` stops sending exposures to Datadog. The `feature_flag.evaluations` metric and span enrichment are already off unless enabled.
+Process-wide, `DD_FLAGGING_EVALUATION_COUNTS_ENABLED=false` stops flag evaluation events, and `DD_FEATURE_FLAGS_EXPOSURES_DATADOG_LOGGING_ENABLED=false` stops sending exposures to Datadog. Neither setting stops the `feature_flag.evaluations` metric, which is recorded whenever OpenTelemetry supplies a working meter. To stop evaluation metrics across the process, set `evaluationTelemetryEnabled(false)` on every Datadog provider. Span enrichment is off by default.
 
 ### Inspecting an assignment before the subject sees it
 

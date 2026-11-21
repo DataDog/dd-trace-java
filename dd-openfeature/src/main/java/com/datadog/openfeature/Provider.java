@@ -383,11 +383,12 @@ public class Provider extends EventProvider implements Metadata {
     return spanEnrichmentHook;
   }
 
-  // Visible for tests: the options captured at construction.
+  /** Tells whether this provider produces evaluation telemetry, as captured at construction. */
   boolean isEvaluationTelemetryEnabled() {
     return evaluationTelemetryEnabled;
   }
 
+  /** Tells whether this provider's evaluations are exposures, as captured at construction. */
   boolean isExposuresEnabled() {
     return exposuresEnabled;
   }
