@@ -30,13 +30,6 @@ tasks.named("compileTestJava") {
   configureCompiler(it, JavaVersion.VERSION_11)
 }
 
-tasks.named("jersey3JettyTest", Test) {
-  javaLauncher = getJavaLauncherFor(11)
-}
-tasks.named("test", Test) {
-  javaLauncher = getJavaLauncherFor(11)
-}
-
 def jersey2Version = '2.18'
 def jersey3Version = '3.1.2'
 dependencies {
