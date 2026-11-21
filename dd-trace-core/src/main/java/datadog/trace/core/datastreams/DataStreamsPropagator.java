@@ -7,6 +7,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromSpanCont
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 
 import datadog.context.Context;
+import datadog.context.propagation.CarrierKeys;
 import datadog.context.propagation.CarrierSetter;
 import datadog.context.propagation.CarrierVisitor;
 import datadog.context.propagation.Propagator;
@@ -71,6 +72,13 @@ public class DataStreamsPropagator implements Propagator {
       // LOGGER.debug("Unable to set encode pathway context", e);
     }
     return false;
+  }
+
+  private static final CarrierKeys KEYS = CarrierKeys.of(PROPAGATION_KEY_BASE64);
+
+  @Override
+  public CarrierKeys keys() {
+    return KEYS;
   }
 
   @Override

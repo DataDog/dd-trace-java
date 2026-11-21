@@ -8,6 +8,7 @@ import static datadog.trace.core.propagation.XRayHttpCodec.X_AMZN_TRACE_ID;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
+import datadog.context.propagation.CarrierKeys;
 import datadog.context.propagation.CarrierSetter;
 import datadog.trace.api.Config;
 import datadog.trace.api.DD128bTraceId;
@@ -99,6 +100,25 @@ class DatadogHttpCodec {
   }
 
   private static class DatadogContextInterpreter extends ContextInterpreter {
+    /**
+     * This style's own headers; the ones every style reads come from {@link ContextInterpreter}.
+     */
+    private static final CarrierKeys OWN_KEYS =
+        CarrierKeys.builder()
+            .name(TRACE_ID_KEY)
+            .name(SPAN_ID_KEY)
+            .name(SAMPLING_PRIORITY_KEY)
+            .name(ORIGIN_KEY)
+            .name(DATADOG_TAGS_KEY)
+            // read when AWS propagation is enabled
+            .name(XRayHttpCodec.X_AMZN_TRACE_ID)
+            .prefix(OT_BAGGAGE_PREFIX)
+            .build();
+
+    @Override
+    protected CarrierKeys ownKeys() {
+      return OWN_KEYS;
+    }
 
     private static final int TRACE_ID = 0;
     private static final int SPAN_ID = 1;

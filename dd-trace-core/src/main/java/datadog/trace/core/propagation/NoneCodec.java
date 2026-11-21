@@ -1,5 +1,6 @@
 package datadog.trace.core.propagation;
 
+import datadog.context.propagation.CarrierKeys;
 import datadog.context.propagation.CarrierSetter;
 import datadog.trace.api.Config;
 import datadog.trace.api.TraceConfig;
@@ -13,6 +14,16 @@ public class NoneCodec {
   private static final Logger log = LoggerFactory.getLogger(NoneCodec.class);
 
   private static class NoneContextInterpreter extends ContextInterpreter {
+    /**
+     * This style's own headers; the ones every style reads come from {@link ContextInterpreter}.
+     */
+    private static final CarrierKeys OWN_KEYS = CarrierKeys.none();
+
+    @Override
+    protected CarrierKeys ownKeys() {
+      return OWN_KEYS;
+    }
+
     private NoneContextInterpreter(Config config) {
       super(config);
     }

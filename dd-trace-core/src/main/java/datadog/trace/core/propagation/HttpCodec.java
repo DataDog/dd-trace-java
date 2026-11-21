@@ -4,6 +4,7 @@ import static datadog.trace.api.DDTags.PARENT_ID;
 import static datadog.trace.api.TracePropagationStyle.TRACECONTEXT;
 import static datadog.trace.core.propagation.DatadogHttpCodec.SPAN_ID_KEY;
 
+import datadog.context.propagation.CarrierKeys;
 import datadog.context.propagation.CarrierSetter;
 import datadog.trace.api.Config;
 import datadog.trace.api.DD128bTraceId;
@@ -67,6 +68,15 @@ public class HttpCodec {
      *     context extraction or an {@link ExtractedContext} for complete context extraction.
      */
     <C> TagContext extract(final C carrier, final AgentPropagation.ContextVisitor<C> getter);
+
+    /**
+     * The carrier keys {@link #extract} reads (see {@link
+     * datadog.context.propagation.Propagator#keys()}). The default, {@link CarrierKeys#all()}, is
+     * always safe.
+     */
+    default CarrierKeys keys() {
+      return CarrierKeys.all();
+    }
 
     /**
      * Cleans up any thread local resources associated with this extractor.
@@ -203,15 +213,60 @@ public class HttpCodec {
     public <C> TagContext extract(C carrier, AgentPropagation.ContextVisitor<C> getter) {
       return null;
     }
+
+    @Override
+    public CarrierKeys keys() {
+      return CarrierKeys.none();
+    }
   }
 
   public static class CompoundExtractor implements Extractor {
     private final List<Extractor> extractors;
     private final boolean extractFirst;
 
+    /** The last union of the extractors' keys, with the parts it was built from. */
+    private volatile KeysUnion keys;
+
     public CompoundExtractor(final List<Extractor> extractors, boolean extractFirst) {
       this.extractors = extractors;
       this.extractFirst = extractFirst;
+    }
+
+    /** The union of the extractors' keys, rebuilt only when one of them returns a new instance. */
+    @Override
+    public CarrierKeys keys() {
+      KeysUnion current = this.keys;
+      if (current != null && current.isFor(this.extractors)) {
+        return current.union;
+      }
+      KeysUnion rebuilt = new KeysUnion(this.extractors);
+      this.keys = rebuilt;
+      return rebuilt.union;
+    }
+
+    /** An immutable union of keys, with the instances it was built from. */
+    private static final class KeysUnion {
+      final CarrierKeys[] parts;
+      final CarrierKeys union;
+
+      KeysUnion(List<Extractor> extractors) {
+        this.parts = new CarrierKeys[extractors.size()];
+        CarrierKeys union = CarrierKeys.none();
+        for (int i = 0; i < this.parts.length; i++) {
+          this.parts[i] = extractors.get(i).keys();
+          union = union.union(this.parts[i]);
+        }
+        this.union = union;
+      }
+
+      boolean isFor(List<Extractor> extractors) {
+        for (int i = 0; i < this.parts.length; i++) {
+          if (extractors.get(i).keys() != this.parts[i]) {
+            return false;
+          }
+        }
+        return true;
+      }
     }
 
     @Override

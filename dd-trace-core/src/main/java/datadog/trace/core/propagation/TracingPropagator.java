@@ -5,6 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromSpanContext;
 
 import datadog.context.Context;
+import datadog.context.propagation.CarrierKeys;
 import datadog.context.propagation.CarrierSetter;
 import datadog.context.propagation.CarrierVisitor;
 import datadog.context.propagation.Propagator;
@@ -57,6 +58,12 @@ public class TracingPropagator implements Propagator {
       ddSpanContext.getTraceCollector().setSamplingPriorityIfNecessary();
       this.injector.inject(ddSpanContext, carrier, setter);
     }
+  }
+
+  /** The keys the extractor reads under the current trace config. */
+  @Override
+  public CarrierKeys keys() {
+    return this.extractor.keys();
   }
 
   @Override
