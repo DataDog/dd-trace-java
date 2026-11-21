@@ -230,7 +230,8 @@ public final class UniversalFlagConfigParser {
               asString(json.get("format"), "format"),
               lenientBoolean(json.get("observeFullEvaluationData")),
               toEnvironment(json.get("environment")),
-              toFlags(json.get("flags"), invalidFlags));
+              // One freezer per document, so JSON variants share equal parts across flags.
+              toFlags(json.get("flags"), invalidFlags, new FrozenValues.Freezer()));
       if (!invalidFlags.isEmpty()) {
         configuration.invalidFlags = invalidFlags;
       }
@@ -250,7 +251,9 @@ public final class UniversalFlagConfigParser {
 
   @Nullable
   private static Map<String, Flag> toFlags(
-      @Nullable final Object value, final Map<String, String> invalidFlags) {
+      @Nullable final Object value,
+      final Map<String, String> invalidFlags,
+      final FrozenValues.Freezer freezer) {
     if (value == null) {
       return null;
     }
@@ -260,7 +263,7 @@ public final class UniversalFlagConfigParser {
     for (final Map.Entry<?, ?> entry : asObject(value, "flags").entrySet()) {
       final String flagKey = (String) entry.getKey();
       try {
-        final Flag flag = toFlag(entry.getValue());
+        final Flag flag = toFlag(entry.getValue(), freezer);
         if (flag != null) {
           validateFlag(flagKey, flag, regexes);
           flags.put(flagKey, flag);
@@ -283,7 +286,7 @@ public final class UniversalFlagConfigParser {
   }
 
   @Nullable
-  private static Flag toFlag(@Nullable final Object value) {
+  private static Flag toFlag(@Nullable final Object value, final FrozenValues.Freezer freezer) {
     if (value == null) {
       return null;
     }
@@ -294,26 +297,30 @@ public final class UniversalFlagConfigParser {
         asString(json.get("key"), "key"),
         strictBoolean(json, "enabled"),
         variationType,
-        toVariants(json.get("variations"), variationType),
+        toVariants(json.get("variations"), variationType, freezer),
         toList(json.get("allocations"), "allocations", UniversalFlagConfigParser::toAllocation));
   }
 
   @Nullable
   private static Map<String, Variant> toVariants(
-      @Nullable final Object value, @Nullable final ValueType variationType) {
+      @Nullable final Object value,
+      @Nullable final ValueType variationType,
+      final FrozenValues.Freezer freezer) {
     if (value == null) {
       return null;
     }
     final Map<String, Variant> variants = new HashMap<>();
     for (final Map.Entry<?, ?> entry : asObject(value, "variations").entrySet()) {
-      variants.put((String) entry.getKey(), toVariant(entry.getValue(), variationType));
+      variants.put((String) entry.getKey(), toVariant(entry.getValue(), variationType, freezer));
     }
     return compactMap(variants);
   }
 
   @Nullable
   private static Variant toVariant(
-      @Nullable final Object value, @Nullable final ValueType variationType) {
+      @Nullable final Object value,
+      @Nullable final ValueType variationType,
+      final FrozenValues.Freezer freezer) {
     if (value == null) {
       return null;
     }
@@ -326,8 +333,7 @@ public final class UniversalFlagConfigParser {
     }
     // Convert an object or array once, here, so that each evaluation shares it.
     return new Variant(
-        key,
-        FrozenValues.isContainer(variantValue) ? FrozenValues.freeze(variantValue) : variantValue);
+        key, FrozenValues.isContainer(variantValue) ? freezer.freeze(variantValue) : variantValue);
   }
 
   /**
