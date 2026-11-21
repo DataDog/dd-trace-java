@@ -667,6 +667,7 @@ public final class ConfigProvider {
       return properties;
     }
 
+    // Preserve the JVM default used for existing user-supplied files; it can differ from the host.
     try (final FileReader fileReader = new FileReader(configurationFile)) {
       properties.load(fileReader);
     } catch (final FileNotFoundException fnf) {

@@ -180,11 +180,14 @@ object KnownTagsEmitter {
           private static final long[] KEYOF_IDS;
 
           static {
-            StringIndex.Data data = StringIndex.EmbeddingSupport.create(KEYOF_NAMES);
+            // Read the arrays once: a static field read inside its own class's initializer is not
+            // cached by the interpreter, which on JDK 21 makes this loop cost tens of ms per JVM start.
+            String[] names = KEYOF_NAMES;
+            long[] values = KEYOF_VALUES;
+            StringIndex.Data data = StringIndex.EmbeddingSupport.create(names);
             long[] ids = new long[data.names.length];
-            for (int j = 0; j < KEYOF_NAMES.length; j++) {
-              ids[StringIndex.EmbeddingSupport.indexOf(data.hashes, data.names, KEYOF_NAMES[j])] =
-                  KEYOF_VALUES[j];
+            for (int j = 0; j < names.length; j++) {
+              ids[StringIndex.EmbeddingSupport.indexOf(data.hashes, data.names, names[j])] = values[j];
             }
             KEYOF_HASHES = data.hashes;
             KEYOF_KEYS = data.names;

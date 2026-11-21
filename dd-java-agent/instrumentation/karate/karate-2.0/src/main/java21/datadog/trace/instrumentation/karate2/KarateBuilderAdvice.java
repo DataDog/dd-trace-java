@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.karate2;
 
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
+import io.karatelabs.core.FeatureRuntime;
 import io.karatelabs.core.RunEvent;
 import io.karatelabs.core.RunListener;
 import io.karatelabs.core.Runner;
@@ -15,7 +16,9 @@ public class KarateBuilderAdvice {
   public static void onRunnerBuilderConstructorExit(@Advice.This Runner.Builder builder) {
     ContextStore<Scenario, ExecutionContext> scenarioContext =
         InstrumentationContext.get(Scenario.class, ExecutionContext.class);
-    builder.listener(new KarateTracingListener(scenarioContext));
+    ContextStore<FeatureRuntime, FeatureSuite> featureSuites =
+        InstrumentationContext.get(FeatureRuntime.class, FeatureSuite.class);
+    builder.listener(new KarateTracingListener(scenarioContext, featureSuites));
   }
 
   // Karate 2.0.0 and above

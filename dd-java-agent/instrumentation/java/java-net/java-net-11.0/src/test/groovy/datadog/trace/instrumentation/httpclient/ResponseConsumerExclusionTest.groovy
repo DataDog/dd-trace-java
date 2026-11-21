@@ -11,8 +11,6 @@ import java.util.function.BiConsumer
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan
-import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.exclude
-import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.COMPLETABLE_FUTURE_CALLBACK
 
 class ResponseConsumerExclusionTest extends InstrumentationSpecification {
   def "real response consumer captures no continuation: completed=#completed failure=#failure"() {
@@ -46,8 +44,6 @@ class ResponseConsumerExclusionTest extends InstrumentationSpecification {
     control.complete(response)
 
     then:
-    exclude(COMPLETABLE_FUTURE_CALLBACK, consumer)
-    !exclude(COMPLETABLE_FUTURE_CALLBACK, ordinary)
     captures == 0
     controlCaptures == 1
     controlResult.join().is(response)

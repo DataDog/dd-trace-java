@@ -281,6 +281,7 @@ class CdnConfigurationSourceFlagSelectionTest {
             endpoint,
             selection,
             null,
+            null,
             30_000,
             Duration.ofSeconds(5),
             HttpClient.newHttpClient(),
