@@ -56,6 +56,7 @@ public final class KafkaConsumerInstrumentation extends InstrumenterModule.Traci
       packageName + ".KafkaConsumerInstrumentationHelper",
       packageName + ".KafkaDecorator",
       packageName + ".TextMapExtractAdapter",
+      packageName + ".RecordHeaderAccess",
       packageName + ".TracingIterableDelegator",
       packageName + ".TracingIterable",
       packageName + ".TracingIterator",
