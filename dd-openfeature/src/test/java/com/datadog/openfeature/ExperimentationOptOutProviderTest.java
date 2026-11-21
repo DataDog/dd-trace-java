@@ -332,16 +332,10 @@ class ExperimentationOptOutProviderTest {
     assertEquals("default", result.getValue());
   }
 
-  @ParameterizedTest
-  @ValueSource(strings = {"keySet", "getValue"})
-  void contextImplementationFailureIsNotAnInvalidTimestamp(final String method) throws Exception {
+  @Test
+  void contextImplementationFailureIsNotAnInvalidTimestamp() throws Exception {
     final EvaluationContext context = mock(EvaluationContext.class);
-    when(context.keySet()).thenReturn(Set.of(ATTRIBUTE));
-    if ("keySet".equals(method)) {
-      when(context.keySet()).thenThrow(new IllegalArgumentException("context failure"));
-    } else {
-      when(context.getValue(ATTRIBUTE)).thenThrow(new IllegalArgumentException("context failure"));
-    }
+    when(context.getValue(ATTRIBUTE)).thenThrow(new IllegalArgumentException("context failure"));
     final ProviderEvaluation<String> result =
         evaluator(configuration(null, "true", false), "IMMEDIATE")
             .evaluate(String.class, "target", "default", context);

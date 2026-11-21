@@ -652,11 +652,13 @@ public final class FlagEvaluator {
   }
 
   private static Object resolveAttribute(final String name, final EvaluationContext context) {
-    // Special handling for "id" attribute: if not explicitly provided, use targeting key
-    if ("id".equals(name) && !context.keySet().contains(name)) {
-      return context.getTargetingKey();
+    // getValue is null only for an absent key: an "id" that is not provided is the targeting key.
+    // A context's keySet() is not used for this, as a layered context copies its keys to build it.
+    final Value value = context.getValue(name);
+    if (value == null) {
+      return "id".equals(name) ? context.getTargetingKey() : null;
     }
-    return context.convertValue(context.getValue(name));
+    return context.convertValue(value);
   }
 
   public static boolean isTypeCompatible(final Class<?> target, final ValueType variationType) {
