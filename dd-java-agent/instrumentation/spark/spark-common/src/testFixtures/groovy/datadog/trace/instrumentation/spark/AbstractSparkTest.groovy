@@ -1,5 +1,8 @@
 package datadog.trace.instrumentation.spark
 
+import static datadog.trace.api.DDTags.SPAN_LINKS
+import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_SPARK_SPAN_LINKS
+
 import datadog.environment.JavaVirtualMachine
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanId
@@ -459,6 +462,113 @@ abstract class AbstractSparkTest extends InstrumentationSpecification {
 
     cleanup:
     sparkSession.stop()
+  }
+
+  def "span links mode keeps Databricks direct jobs in the application trace"() {
+    setup:
+    injectSysConfig(DATA_JOBS_SPARK_SPAN_LINKS, "true")
+    def sparkSession = SparkSession.builder()
+      .config("spark.master", "local")
+      .config("spark.default.parallelism", "2")
+      .config("spark.sql.shuffle.partitions", "2")
+      .config("spark.databricks.sparkContextId", "some_id")
+      .config("spark.databricks.clusterUsageTags.clusterName", "job-1234-run-8765-Job_cluster")
+      .getOrCreate()
+
+    sparkSession.sparkContext().setLocalProperty("spark.databricks.job.id", "1234")
+    sparkSession.sparkContext().setLocalProperty("spark.databricks.job.runId", "9012")
+    sparkSession.sparkContext().setLocalProperty("spark.databricks.job.parentRunId", "5678")
+    def externalContext = new DatabricksParentContext("1234", "5678", "9012", 0)
+
+    TestSparkComputation.generateTestSparkComputation(sparkSession)
+    sparkSession.stop()
+
+    expect:
+    assertTraces(1) {
+      trace(4) {
+        span {
+          operationName "spark.application"
+          spanType "spark"
+          parent()
+          assert !span.tags.containsKey(SPAN_LINKS)
+        }
+        span {
+          operationName "spark.job"
+          spanType "spark"
+          childOf(span(0))
+          links({
+            link(externalContext.traceId, externalContext.spanId)
+          })
+        }
+        span {
+          operationName "spark.stage"
+          spanType "spark"
+          childOf(span(1))
+        }
+        span {
+          operationName "spark.stage"
+          spanType "spark"
+          childOf(span(1))
+        }
+      }
+    }
+
+    cleanup:
+    sparkSession?.stop()
+  }
+
+  def "span links mode links Databricks SQL entries and keeps their jobs local"() {
+    setup:
+    injectSysConfig(DATA_JOBS_SPARK_SPAN_LINKS, "true")
+    def sparkSession = SparkSession.builder()
+      .config("spark.master", "local[2]")
+      .config("spark.sql.shuffle.partitions", "2")
+      .config("spark.databricks.sparkContextId", "some_id")
+      .config("spark.databricks.clusterUsageTags.clusterName", "job-1234-run-5678-Job_cluster")
+      .getOrCreate()
+
+    sparkSession.sparkContext().setLocalProperty("spark.databricks.job.id", "1234")
+    sparkSession.sparkContext().setLocalProperty("spark.databricks.job.runId", "9012")
+    sparkSession.sparkContext().setLocalProperty("spark.databricks.job.parentRunId", "5678")
+    def externalContext = new DatabricksParentContext("1234", "5678", "9012", 0)
+
+    def df = generateSampleDataframe(sparkSession)
+    df.coalesce(1).count()
+    sparkSession.stop()
+
+    expect:
+    assertTraces(1) {
+      trace(4) {
+        span {
+          operationName "spark.application"
+          spanType "spark"
+          parent()
+          assert !span.tags.containsKey(SPAN_LINKS)
+        }
+        span {
+          operationName "spark.sql"
+          spanType "spark"
+          childOf(span(0))
+          links({
+            link(externalContext.traceId, externalContext.spanId)
+          })
+        }
+        span {
+          operationName "spark.job"
+          spanType "spark"
+          childOf(span(1))
+          assert !span.tags.containsKey(SPAN_LINKS)
+        }
+        span {
+          operationName "spark.stage"
+          spanType "spark"
+          childOf(span(2))
+        }
+      }
+    }
+
+    cleanup:
+    sparkSession?.stop()
   }
 
   def "fallback to jobGroup.id when spark.databricks.job.runId equals parentRunId on Databricks 18.2+"() {

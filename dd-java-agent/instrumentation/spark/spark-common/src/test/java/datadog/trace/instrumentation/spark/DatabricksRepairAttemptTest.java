@@ -103,7 +103,8 @@ class DatabricksRepairAttemptTest {
   void computesDistinctTraceIdsForOriginalAndRepairedAttemptOfTheSameRun() {
     // A repaired run reuses the same jobId/parentRunId as the original (that's the whole reason
     // spans collided before this fix); it gets a fresh taskRunId per attempt, but that alone isn't
-    // enough since the job span (the trace root) is keyed on jobId+parentRunId, not taskRunId.
+    // enough since the external task identity is keyed on jobId+parentRunId, not taskRunId. That
+    // identity is an actual parent in legacy mode and a span-link target in independent mode.
     String jobId = "1234";
     String parentRunId = "5678";
 

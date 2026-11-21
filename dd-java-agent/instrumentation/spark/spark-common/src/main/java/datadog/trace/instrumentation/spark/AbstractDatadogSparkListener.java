@@ -84,6 +84,12 @@ import scala.collection.JavaConverters;
  * still needed
  */
 public abstract class AbstractDatadogSparkListener extends SparkListener {
+  private enum DatabricksSpanTopology {
+    PARENT,
+    LINK,
+    VALID_LINK
+  }
+
   private static final Logger log = LoggerFactory.getLogger(AbstractDatadogSparkListener.class);
   protected static final ObjectMapper objectMapper = new ObjectMapper();
   public static volatile AbstractDatadogSparkListener listener = null;
@@ -107,9 +113,9 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
   private final AgentTracer.TracerAPI tracer;
 
-  // This is created by constructor, and used if we're not in other known
-  // parent context like Databricks, OpenLineage
+  // Used only by the legacy topology when there is no OpenLineage parent.
   private final PredeterminedTraceIdContext predeterminedTraceIdContext;
+  private final boolean spanLinksEnabled;
 
   private AgentSpan applicationSpan;
   private SparkListenerApplicationStart applicationStart;
@@ -166,8 +172,13 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     databricksClusterName = sparkConf.get("spark.databricks.clusterUsageTags.clusterName", null);
     databricksServiceName = getDatabricksServiceName(sparkConf, databricksClusterName);
     sparkServiceName = getSparkServiceName(sparkConf, isRunningOnDatabricks);
+    Config config = Config.get();
+    spanLinksEnabled =
+        config.isDataJobsSparkSpanLinksEnabled() || config.isDataJobsExperimentalFeaturesEnabled();
     predeterminedTraceIdContext =
-        new PredeterminedTraceIdContext(Config.get().getIdGenerationStrategy().generateTraceId());
+        spanLinksEnabled
+            ? null
+            : new PredeterminedTraceIdContext(config.getIdGenerationStrategy().generateTraceId());
 
     // If JVM exiting with System.exit(code), it bypass the code closing the application span
     //
@@ -261,11 +272,23 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       openLineageSparkConf = InstanceStore.of(SparkConf.class).get("openLineageSparkConf");
     }
 
+    if (spanLinksEnabled) {
+      // The application trace must exist before OpenLineage is configured so forwarded events use
+      // its independently generated trace id rather than an external execution's identity.
+      initApplicationSpanIfNotInitialized();
+    }
+
     if (openLineageSparkListener != null) {
-      setupOpenLineage(
-          OpenlineageParentContext.from(sparkConf)
-              .map(context -> context.getTraceId())
-              .orElse(predeterminedTraceIdContext.getTraceId()));
+      DDTraceId traceId;
+      if (spanLinksEnabled) {
+        traceId = applicationSpan.getTraceId();
+      } else {
+        traceId =
+            OpenlineageParentContext.from(sparkConf)
+                .map(context -> context.getTraceId())
+                .orElse(predeterminedTraceIdContext.getTraceId());
+      }
+      setupOpenLineage(traceId);
     }
     notifyOl(x -> openLineageSparkListener.onApplicationStart(x), applicationStart);
   }
@@ -278,6 +301,9 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     log.debug("Starting tracer application span.");
 
     AgentTracer.SpanBuilder builder = buildSparkSpan("spark.application", null);
+    if (spanLinksEnabled) {
+      builder.ignoreActiveSpan();
+    }
 
     if (applicationStart != null) {
       String ddTags =
@@ -302,11 +328,10 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     captureOpenlineageJobInfo(builder);
 
     Optional<OpenlineageParentContext> openlineageParentContext =
-        OpenlineageParentContext.from(sparkConf);
-    // We know we're not in Databricks context
+        spanLinksEnabled ? validOpenlineageLinkContext() : OpenlineageParentContext.from(sparkConf);
     if (openlineageParentContext.isPresent()) {
       captureOpenlineageContextIfPresent(builder, openlineageParentContext.get());
-    } else {
+    } else if (!spanLinksEnabled) {
       builder.asChildOf(predeterminedTraceIdContext);
     }
 
@@ -324,7 +349,11 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
   private void captureOpenlineageContextIfPresent(
       AgentTracer.SpanBuilder builder, OpenlineageParentContext context) {
-    builder.asChildOf(context);
+    if (spanLinksEnabled) {
+      builder.withLink(SpanLink.from(context));
+    } else {
+      builder.asChildOf(context);
+    }
 
     log.debug("Captured Openlineage context: {}, with trace_id: {}", context, context.getTraceId());
 
@@ -334,6 +363,32 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     builder.withTag("openlineage_root_parent_job_namespace", context.getRootParentJobNamespace());
     builder.withTag("openlineage_root_parent_job_name", context.getRootParentJobName());
     builder.withTag("openlineage_root_parent_run_id", context.getRootParentRunId());
+  }
+
+  /**
+   * Returns a complete, nonzero OpenLineage context suitable for an external link.
+   *
+   * <p>The legacy parent factory intentionally keeps its historical validation behavior. The
+   * enabled topology is stricter because a partial external context must never prevent the local
+   * application root from being emitted or produce a zero-id link.
+   */
+  private Optional<OpenlineageParentContext> validOpenlineageLinkContext() {
+    if (!sparkConf.contains(OpenlineageParentContext.OPENLINEAGE_PARENT_JOB_NAMESPACE)
+        || !sparkConf.contains(OpenlineageParentContext.OPENLINEAGE_PARENT_JOB_NAME)
+        || !sparkConf.contains(OpenlineageParentContext.OPENLINEAGE_PARENT_RUN_ID)
+        || !sparkConf.contains(OpenlineageParentContext.OPENLINEAGE_ROOT_PARENT_JOB_NAMESPACE)
+        || !sparkConf.contains(OpenlineageParentContext.OPENLINEAGE_ROOT_PARENT_JOB_NAME)
+        || !sparkConf.contains(OpenlineageParentContext.OPENLINEAGE_ROOT_PARENT_RUN_ID)) {
+      return Optional.empty();
+    }
+
+    Optional<OpenlineageParentContext> context = OpenlineageParentContext.from(sparkConf);
+    if (!context.isPresent()
+        || context.get().getTraceId() == DDTraceId.ZERO
+        || context.get().getSpanId() == 0) {
+      return Optional.empty();
+    }
+    return context;
   }
 
   /**
@@ -382,9 +437,10 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     }
     applicationEnded = true;
 
-    if ((applicationSpan == null && jobCount > 0) || isRunningOnDatabricks) {
+    if ((applicationSpan == null && jobCount > 0) || (!spanLinksEnabled && isRunningOnDatabricks)) {
       // If the application span is not initialized, but spark jobs have been executed, all those
-      // spark jobs were databricks or streaming. In this case we don't send the application span
+      // spark jobs were Databricks or streaming. In the legacy topology those executions do not
+      // send an application span.
       return;
     }
 
@@ -438,7 +494,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     captureJobParameters(builder, jobProperties);
 
     if (isRunningOnDatabricks) {
-      addDatabricksSpecificTags(builder, jobProperties, false);
+      addDatabricksSpecificTags(builder, jobProperties, DatabricksSpanTopology.LINK);
     }
 
     batchSpan = builder.start();
@@ -448,7 +504,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   }
 
   private void addDatabricksSpecificTags(
-      AgentTracer.SpanBuilder builder, Properties properties, boolean withParentContext) {
+      AgentTracer.SpanBuilder builder, Properties properties, DatabricksSpanTopology topology) {
     // Databricks has no application span. Adding the parameters to the top level spark span
     captureJobParameters(builder, properties);
 
@@ -469,13 +525,25 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
               databricksTaskRunId,
               getDatabricksJobRunAttempt(properties));
 
-      if (parentContext.getTraceId() != DDTraceId.ZERO) {
-        if (withParentContext) {
+      if (parentContext.getTraceId() != DDTraceId.ZERO
+          && (topology != DatabricksSpanTopology.VALID_LINK || parentContext.getSpanId() != 0)) {
+        if (topology == DatabricksSpanTopology.PARENT) {
           builder.asChildOf(parentContext);
         } else {
           builder.withLink(SpanLink.from(parentContext));
         }
       }
+    }
+  }
+
+  private void configureNonStreamingDatabricksSpan(
+      AgentTracer.SpanBuilder builder, Properties properties) {
+    if (spanLinksEnabled) {
+      initApplicationSpanIfNotInitialized();
+      builder.asChildOf(applicationSpan.spanContext());
+      addDatabricksSpecificTags(builder, properties, DatabricksSpanTopology.VALID_LINK);
+    } else {
+      addDatabricksSpecificTags(builder, properties, DatabricksSpanTopology.PARENT);
     }
   }
 
@@ -504,7 +572,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
           getOrCreateStreamingBatchSpan(batchKey, queryStart.time(), jobProperties);
       spanBuilder.asChildOf(batchSpan.spanContext());
     } else if (isRunningOnDatabricks) {
-      addDatabricksSpecificTags(spanBuilder, jobProperties, true);
+      configureNonStreamingDatabricksSpan(spanBuilder, jobProperties);
     } else {
       initApplicationSpanIfNotInitialized();
       spanBuilder.asChildOf(applicationSpan.spanContext());
@@ -541,7 +609,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     /*-
      * The spark.job span hierarchy depends on the setup:
      *
-     * spark.application | spark.streaming_batch | databricks.task depending on the environment where spark is running
+     * spark.application | spark.streaming_batch | databricks.task depending on the environment and topology mode
      *               \          |                   /
      *                    [spark.sql] optional, only present if using spark-sql
      *                          |
@@ -555,7 +623,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
           getOrCreateStreamingBatchSpan(batchKey, jobStart.time(), jobStart.properties());
       jobSpanBuilder.asChildOf(batchSpan.spanContext());
     } else if (isRunningOnDatabricks) {
-      addDatabricksSpecificTags(jobSpanBuilder, jobStart.properties(), true);
+      configureNonStreamingDatabricksSpan(jobSpanBuilder, jobStart.properties());
     } else {
       // In non-databricks, non-streaming env, the spark application is the local root span
       initApplicationSpanIfNotInitialized();

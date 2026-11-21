@@ -18,6 +18,8 @@ dependencies {
   testFixturesApi project(':dd-trace-api')
   testFixturesApi project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
   testFixturesApi project(':dd-java-agent:instrumentation-testing')
+  testFixturesImplementation project(':utils:test-junit-utils')
+  testFixturesImplementation libs.bundles.junit5
 
   testFixturesCompileOnly group: 'org.apache.spark', name: 'spark-core_2.12', version: '2.4.0'
   testFixturesCompileOnly group: 'org.apache.spark', name: 'spark-sql_2.12', version: '2.4.0'
@@ -35,4 +37,3 @@ dependencies {
   testImplementation group: 'org.apache.spark', name: 'spark-core_2.12', version: '2.4.0'
   testImplementation group: 'org.apache.spark', name: 'spark-sql_2.12', version: '2.4.0'
 }
-

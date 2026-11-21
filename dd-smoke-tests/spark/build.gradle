@@ -1,0 +1,39 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
+plugins {
+  id 'com.gradleup.shadow'
+  id 'dd-trace-java.module.smoke-test'
+}
+
+description = 'Spark independent application trace smoke tests.'
+
+testJvmConstraints {
+  // Spark 3.5's Hadoop dependency calls Subject.getSubject(), which is unsupported after the
+  // Security Manager removal in JDK 24 (JEP 486).
+  maxJavaVersion = JavaVersion.VERSION_23
+}
+
+dependencies {
+  implementation group: 'org.apache.spark', name: 'spark-core_2.12', version: '3.5.9'
+  implementation group: 'org.apache.spark', name: 'spark-sql_2.12', version: '3.5.9'
+
+  testImplementation project(':dd-smoke-tests:smoke-test-common')
+}
+
+tasks.named('shadowJar', ShadowJar) {
+  mergeServiceFiles()
+  zip64 true
+}
+
+tasks.withType(Test).configureEach {
+  dependsOn 'shadowJar'
+  maxParallelForks = 1
+
+  def shadowJarTask = tasks.named('shadowJar', ShadowJar)
+  jvmArgumentProviders.add(new CommandLineArgumentProvider() {
+      @Override
+      Iterable<String> asArguments() {
+        return shadowJarTask.map { ["-Ddatadog.smoketest.shadowJar.path=${it.archiveFile.get()}"] }.get()
+      }
+    })
+}
