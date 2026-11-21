@@ -76,10 +76,7 @@ final class LLMObsTagValues {
    * the tracer, so they have to be checked before they reach the wire.
    */
   static TagValue toTagValue(CharSequence value) {
-    if (value == null || value.length() == 0 || !isRepresentable(value)) {
-      return null;
-    }
-    return TagValue.from(value);
+    return toTagValue(value, false);
   }
 
   /**
@@ -87,10 +84,17 @@ final class LLMObsTagValues {
    * cache unless it's the {@link #isRootMarker root marker}.
    */
   static TagValue toUniqueTagValue(CharSequence value) {
+    return toTagValue(value, true);
+  }
+
+  /** The one place both conversions validate a value, so they accept the same characters. */
+  private static TagValue toTagValue(CharSequence value, boolean unique) {
     if (value == null || value.length() == 0 || !isRepresentable(value)) {
       return null;
     }
-    return isRootMarker(value, 0, value.length()) ? TagValue.from(value) : TagValue.uncached(value);
+    return unique && !isRootMarker(value, 0, value.length())
+        ? TagValue.uncached(value)
+        : TagValue.from(value);
   }
 
   /**

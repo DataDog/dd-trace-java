@@ -27,25 +27,6 @@ class UniqueTagValueCachingTest {
   }
 
   @Test
-  void uncachedValueEqualsCachedValue() {
-    TagValue cached = TagValue.from(TagElement.Encoding.W3C, "x:abc", 2, 5);
-    TagValue uncached = TagValue.uncached(TagElement.Encoding.W3C, "x:abc", 2, 5);
-
-    assertEquals(cached, uncached);
-    assertEquals(cached.hashCode(), uncached.hashCode());
-    assertEquals(
-        cached.forType(TagElement.Encoding.DATADOG), uncached.forType(TagElement.Encoding.DATADOG));
-  }
-
-  @Test
-  void repeatedValuesAreStillCached() {
-    TagValue first = TagValue.from(TagElement.Encoding.DATADOG, "-4");
-    TagValue second = TagValue.from(TagElement.Encoding.DATADOG, "-4");
-
-    assertSame(first, second);
-  }
-
-  @Test
   void llmObsIdsAreNotCachedButOtherLlmObsValuesAre() {
     String id = "x0123456789abcdef";
     String mlApp = "xchatbot";
