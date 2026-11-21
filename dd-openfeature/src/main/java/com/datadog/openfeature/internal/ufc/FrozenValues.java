@@ -50,16 +50,24 @@ final class FrozenValues {
   /**
    * Freezes the JSON variants of one document. Each JSON object becomes a {@link FrozenStructure}
    * over a {@link FrozenMap}, which holds its entries in flat arrays rather than one node each.
-   * Repeated strings and scalar {@link Value}s are shared through small direct-mapped caches: a
-   * value that recurs nearby is built once, a unique one costs a slot overwrite, and the caches
-   * never grow, so a large document doesn't pay for an ever-larger table. The values cannot change,
-   * so sharing is invisible to readers.
+   * Repeated keys, short strings and numbers are shared through small direct-mapped caches: a value
+   * that recurs nearby is built once, a unique one costs a slot overwrite, and the caches never
+   * grow, so a large document doesn't pay for an ever-larger table. Each leaf takes one lookup, and
+   * long strings, which rarely repeat, skip the caches. The values cannot change, so sharing is
+   * invisible to readers.
    */
   static final class Freezer {
     static final int CACHE_SLOTS = 1 << 12;
 
-    private final String[] strings = new String[CACHE_SLOTS];
-    private final Value[] scalars = new Value[CACHE_SLOTS];
+    /**
+     * Longer strings aren't shared: they rarely repeat, and each lookup would scan them again to
+     * hash and compare them.
+     */
+    static final int MAX_SHARED_LENGTH = 64;
+
+    private final String[] keys = new String[CACHE_SLOTS];
+    private final Value[] strings = new Value[CACHE_SLOTS];
+    private final Value[] numbers = new Value[CACHE_SLOTS];
 
     Value freeze(final Object tree) {
       if (tree instanceof Map) {
@@ -67,7 +75,7 @@ final class FrozenValues {
         // Built through a HashMap so the frozen map iterates in the order objectToValue's would.
         final Map<String, Value> attributes = new HashMap<>(capacity(source.size()));
         for (final Map.Entry<?, ?> entry : source.entrySet()) {
-          attributes.put(string((String) entry.getKey()), freeze(entry.getValue()));
+          attributes.put(key((String) entry.getKey()), freeze(entry.getValue()));
         }
         return new Value(new FrozenStructure(FrozenMap.copyOf(attributes)));
       }
@@ -85,31 +93,54 @@ final class FrozenValues {
       if (tree instanceof Boolean) {
         return (Boolean) tree ? TRUE : FALSE;
       }
-      return scalar(tree instanceof String ? string((String) tree) : tree);
+      if (tree instanceof String) {
+        return string((String) tree);
+      }
+      return number(tree);
     }
 
-    private String string(final String s) {
-      final int slot = slot(s.hashCode());
-      final String cached = strings[slot];
-      if (s.equals(cached)) {
+    /** An object key: one shared instance per distinct short key. */
+    private String key(final String key) {
+      if (key.length() > MAX_SHARED_LENGTH) {
+        return key;
+      }
+      final int slot = slot(key.hashCode());
+      final String cached = keys[slot];
+      if (key.equals(cached)) {
         return cached;
       }
-      strings[slot] = s;
-      return s;
+      keys[slot] = key;
+      return key;
     }
 
-    private Value scalar(final Object scalar) {
-      final int slot = slot(scalar.hashCode() * 31 + scalar.getClass().hashCode());
-      final Value cached = scalars[slot];
+    /** A string value: one shared Value per distinct short string, one lookup each. */
+    private Value string(final String string) {
+      if (string.length() > MAX_SHARED_LENGTH) {
+        return Value.objectToValue(string);
+      }
+      final int slot = slot(string.hashCode());
+      final Value cached = strings[slot];
+      if (cached != null && string.equals(cached.asString())) {
+        return cached;
+      }
+      final Value value = Value.objectToValue(string);
+      strings[slot] = value;
+      return value;
+    }
+
+    /** A number: one shared Value per distinct value of each type. */
+    private Value number(final Object number) {
+      final int slot = slot(number.hashCode() * 31 + number.getClass().hashCode());
+      final Value cached = numbers[slot];
       // Integer 1, Long 1 and Double 1.0 stay apart, as they are different values.
       if (cached != null) {
         final Object inner = cached.asObject();
-        if (inner.getClass() == scalar.getClass() && inner.equals(scalar)) {
+        if (inner.getClass() == number.getClass() && inner.equals(number)) {
           return cached;
         }
       }
-      final Value value = Value.objectToValue(scalar);
-      scalars[slot] = value;
+      final Value value = Value.objectToValue(number);
+      numbers[slot] = value;
       return value;
     }
 

@@ -84,6 +84,27 @@ class FrozenValuesTest {
   }
 
   @Test
+  void doesNotShareLongStrings() {
+    final FrozenValues.Freezer freezer = new FrozenValues.Freezer();
+    final StringBuilder longText = new StringBuilder();
+    while (longText.length() <= FrozenValues.Freezer.MAX_SHARED_LENGTH) {
+      longText.append("abcdefgh");
+    }
+    final String longKey = longText.toString();
+    final List<Value> items =
+        freezer.freeze(asList(new String(longKey), new String(longKey))).asList();
+    final Map<String, Value> one =
+        freezer.freeze(object(new String(longKey), 1)).asStructure().asUnmodifiableMap();
+    final Map<String, Value> two =
+        freezer.freeze(object(new String(longKey), 1)).asStructure().asUnmodifiableMap();
+
+    assertEquals(items.get(0), items.get(1));
+    assertNotSame(items.get(0), items.get(1));
+    assertNotSame(one.keySet().iterator().next(), two.keySet().iterator().next());
+    assertEquals(one, two);
+  }
+
+  @Test
   void freezesNullsAndBooleansToSharedConstants() {
     final List<Value> items =
         new FrozenValues.Freezer().freeze(asList(null, true, false, true)).asList();
