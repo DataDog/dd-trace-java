@@ -1,5 +1,6 @@
 plugins {
   id 'dd-trace-java.module.instrumentation'
+  id 'dd-trace-java.jmh-conventions'
 }
 
 muzzle {
@@ -59,4 +60,9 @@ dependencies {
   latestDepTestImplementation group: 'org.springframework.kafka', name: 'spring-kafka-test', version: '3.+'
   latestDepTestImplementation group: 'io.dropwizard.metrics', name: 'metrics-core', version: '+'
   latestDepTestImplementation libs.guava
+
+  // the instrumentation classes live in main_java17, which the JMH plugin doesn't add by itself
+  jmh sourceSets.main_java17.output
+  jmh group: 'org.apache.kafka', name: 'kafka-clients', version: '3.8.0'
+  jmh project(':dd-trace-core')
 }
