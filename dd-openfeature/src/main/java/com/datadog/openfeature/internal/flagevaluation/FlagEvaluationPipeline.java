@@ -345,6 +345,5 @@ public class FlagEvaluationPipeline implements FlagEvaluationWriter, EventPipeli
             counts.droppedPayloadLimit);
       }
     }
-
   }
 }
