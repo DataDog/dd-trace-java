@@ -11,7 +11,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
-import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -46,14 +45,6 @@ final class FlagEvaluationAggregator {
   static final int PER_FLAG_CAP = PER_FLAG_BUCKET_SIZING_BASIS;
   static final int DEGRADED_CAP = 32_768; // nearest power of two above DEGRADED_BUCKET_SIZING_BASIS
 
-  private static final byte CTX_TAG_STRING = 's';
-  private static final byte CTX_TAG_BOOL = 'b';
-  private static final byte CTX_TAG_INT = 'i';
-  private static final byte CTX_TAG_LONG = 'l';
-  private static final byte CTX_TAG_FLOAT = 'f';
-  private static final byte CTX_TAG_DOUBLE = 'd';
-  private static final byte CTX_TAG_OTHER = 'o';
-
   private static final int INITIAL_BUCKETS = 64;
   private static final FullTier FULL_TIER = new FullTier();
   private static final DegradedTier DEGRADED_TIER = new DegradedTier();
@@ -67,7 +58,7 @@ final class FlagEvaluationAggregator {
   final AtomicLong droppedDegradedOverflow = new AtomicLong(0);
   // One shared key and map for each distinct feature set in the flush window, so buckets of many
   // subjects do not each keep their own copy until the flush.
-  final FlatHashtable.D1<String, FeatureSet> featureSets =
+  final FlatHashtable.D1<Map<String, Object>, FeatureSet> featureSets =
       FlatHashtable.D1.createGrowable(INITIAL_BUCKETS, FeatureSet[]::new);
   // The worker is the only thread aggregating, so one lookup serves every event.
   private final Lookup lookup = new Lookup();
@@ -79,11 +70,11 @@ final class FlagEvaluationAggregator {
     // stored — otherwise a high-cardinality field (request_id, timestamp) blows out PER_FLAG_CAP
     // and spills every subsequent evaluation into the degraded tier.
     final Map<String, Object> prunedAttrs = observeFullEvaluationData ? event.attrs : null;
-    final String ctxKey = observeFullEvaluationData ? canonicalContextKey(prunedAttrs) : "";
+    final long contextHash = observeFullEvaluationData ? contextHash(prunedAttrs) : 0L;
     // Features come from the flag configuration, not the evaluation context, so they split buckets
     // in both tiers and whatever the consent: rows with different features must not merge.
     final FeatureSet featureSet = featureSet(event.features);
-    final Lookup lookup = this.lookup.of(event, ctxKey, featureSet.key());
+    final Lookup lookup = this.lookup.of(event, prunedAttrs, contextHash, featureSet);
 
     EvalBucket bucket = FlatHashtable.get(fullTier, lookup, FULL_TIER);
     if (bucket != null) {
@@ -106,9 +97,7 @@ final class FlagEvaluationAggregator {
               isDefault,
               prunedAttrs,
               observeFullEvaluationData,
-              featureSet.features,
-              ctxKey,
-              featureSet.key()));
+              featureSet.features));
       if (flagCount == null) {
         perFlagCount.insert(new FlagCount(event.flagKey, 1));
       } else {
@@ -137,9 +126,7 @@ final class FlagEvaluationAggregator {
               isDefault,
               null,
               observeFullEvaluationData,
-              featureSet.features,
-              "",
-              featureSet.key()));
+              featureSet.features));
       return;
     }
 
@@ -208,22 +195,27 @@ final class FlagEvaluationAggregator {
     if (features == null || features.isEmpty()) {
       return FeatureSet.NONE;
     }
-    final String key = canonicalContextKey(features);
-    FeatureSet featureSet = this.featureSets.get(key);
+    // Map equality and hashing are order-independent and type-aware (Integer 1 is not Long 1), and
+    // the same configuration map is usually passed every time, which equals() checks first.
+    FeatureSet featureSet = this.featureSets.get(features);
     if (featureSet == null) {
-      featureSet = new FeatureSet(key, features);
+      featureSet = new FeatureSet(features);
       this.featureSets.insert(featureSet);
     }
     return featureSet;
   }
 
-  static final class FeatureSet extends FlatHashtable.D1.Entry<String> {
-    static final FeatureSet NONE = new FeatureSet("", Collections.<String, Object>emptyMap());
+  /**
+   * The canonical instance of a distinct feature set in the window: buckets keep its map, so two
+   * buckets have the same features exactly when they hold the same map instance.
+   */
+  static final class FeatureSet extends FlatHashtable.D1.Entry<Map<String, Object>> {
+    static final FeatureSet NONE = new FeatureSet(Collections.<String, Object>emptyMap());
 
     final Map<String, Object> features;
 
-    FeatureSet(final String key, final Map<String, Object> features) {
-      super(key);
+    FeatureSet(final Map<String, Object> features) {
+      super(features);
       this.features = features;
     }
   }
@@ -242,16 +234,20 @@ final class FlagEvaluationAggregator {
   // Package-private for FlagEvaluationAggregatorTiersTest.
   static final class Lookup {
     FlagEvalEvent event;
-    String contextKey;
-    String featuresKey;
+    Map<String, Object> context;
+    FeatureSet featureSet;
     private long fullHash;
     private long degradedHash;
     private boolean degradedHashed;
 
-    Lookup of(final FlagEvalEvent event, final String contextKey, final String featuresKey) {
+    Lookup of(
+        final FlagEvalEvent event,
+        final Map<String, Object> context,
+        final long contextHash,
+        final FeatureSet featureSet) {
       this.event = event;
-      this.contextKey = contextKey;
-      this.featuresKey = featuresKey;
+      this.context = context;
+      this.featureSet = featureSet;
       this.fullHash =
           fullHash(
               event.flagKey,
@@ -259,9 +255,9 @@ final class FlagEvaluationAggregator {
               event.allocationKey,
               event.errorMessage,
               event.targetingKey,
-              contextKey,
+              contextHash,
               event.observeFullEvaluationData,
-              featuresKey);
+              featureSet.hash);
       this.degradedHashed = false;
       return this;
     }
@@ -275,7 +271,11 @@ final class FlagEvaluationAggregator {
       if (!degradedHashed) {
         degradedHash =
             degradedHash(
-                event.flagKey, event.variant, event.allocationKey, event.errorMessage, featuresKey);
+                event.flagKey,
+                event.variant,
+                event.allocationKey,
+                event.errorMessage,
+                featureSet.hash);
         degradedHashed = true;
       }
       return degradedHash;
@@ -288,13 +288,13 @@ final class FlagEvaluationAggregator {
       final String allocationKey,
       final String errorMessage,
       final String targetingKey,
-      final String contextKey,
+      final long contextHash,
       final boolean observeFullEvaluationData,
-      final String featuresKey) {
+      final long featuresHash) {
     long hash = LongHashingUtils.hash(flagKey, variant, allocationKey, errorMessage, targetingKey);
-    hash = LongHashingUtils.addToHash(hash, contextKey);
+    hash = LongHashingUtils.addToHash(hash, contextHash);
     hash = LongHashingUtils.addToHash(hash, observeFullEvaluationData);
-    return LongHashingUtils.addToHash(hash, featuresKey);
+    return LongHashingUtils.addToHash(hash, featuresHash);
   }
 
   static long degradedHash(
@@ -302,8 +302,9 @@ final class FlagEvaluationAggregator {
       final String variant,
       final String allocationKey,
       final String errorMessage,
-      final String featuresKey) {
-    return LongHashingUtils.hash(flagKey, variant, allocationKey, errorMessage, featuresKey);
+      final long featuresHash) {
+    final long hash = LongHashingUtils.hash(flagKey, variant, allocationKey, errorMessage);
+    return LongHashingUtils.addToHash(hash, featuresHash);
   }
 
   /**
@@ -326,8 +327,8 @@ final class FlagEvaluationAggregator {
           && Objects.equals(bucket.allocationKey, event.allocationKey)
           && Objects.equals(bucket.errorMessage, event.errorMessage)
           && Objects.equals(bucket.targetingKey, event.targetingKey)
-          && Objects.equals(bucket.contextKey, lookup.contextKey)
-          && Objects.equals(bucket.featuresKey, lookup.featuresKey);
+          && bucket.features == lookup.featureSet.features
+          && sameContext(bucket.prunedAttrs, lookup.context);
     }
   }
 
@@ -354,7 +355,7 @@ final class FlagEvaluationAggregator {
           && Objects.equals(bucket.variant, event.variant)
           && Objects.equals(bucket.allocationKey, event.allocationKey)
           && Objects.equals(bucket.errorMessage, event.errorMessage)
-          && Objects.equals(bucket.featuresKey, lookup.featuresKey);
+          && bucket.features == lookup.featureSet.features;
     }
   }
 
@@ -408,7 +409,7 @@ final class FlagEvaluationAggregator {
       final String key = "synthetic-full-" + i;
       insertFull(
           new EvalBucket(
-              fullHash(key, "on", "alloc", null, null, "", false, ""),
+              fullHash(key, "on", "alloc", null, null, 0L, false, FeatureSet.NONE.hash),
               key,
               "on",
               "alloc",
@@ -418,9 +419,7 @@ final class FlagEvaluationAggregator {
               false,
               null,
               false,
-              null,
-              "",
-              ""));
+              FeatureSet.NONE.features));
       final FlagCount flagCount = perFlagCount.get(key);
       if (flagCount == null) {
         perFlagCount.insert(new FlagCount(key, 1));
@@ -445,7 +444,7 @@ final class FlagEvaluationAggregator {
       final long evalTimeMs) {
     insertDegraded(
         new EvalBucket(
-            degradedHash(flagKey, variant, allocationKey, errorMessage, ""),
+            degradedHash(flagKey, variant, allocationKey, errorMessage, FeatureSet.NONE.hash),
             flagKey,
             variant,
             allocationKey,
@@ -455,9 +454,7 @@ final class FlagEvaluationAggregator {
             variant == null,
             null,
             false,
-            null,
-            "",
-            ""));
+            FeatureSet.NONE.features));
   }
 
   /** Sets the number of full-tier buckets of a flag, for tests. */
@@ -470,53 +467,46 @@ final class FlagEvaluationAggregator {
     }
   }
 
-  static String canonicalContextKey(final Map<String, Object> prunedAttrs) {
-    if (prunedAttrs == null || prunedAttrs.isEmpty()) {
-      return "";
+  /**
+   * Hashes a context the way {@link #sameContext} compares it: independent of iteration order, and
+   * distinguishing value types (Integer 1, Long 1 and Double 1.0 hash and compare apart).
+   *
+   * <p>Entries are combined by addition, so the order the map yields them in does not matter; each
+   * entry is mixed first, so that swapping values between keys changes the hash.
+   */
+  static long contextHash(final Map<String, Object> context) {
+    if (context == null || context.isEmpty()) {
+      return 0L;
     }
-    final Map<String, Object> sorted =
-        (prunedAttrs instanceof TreeMap) ? prunedAttrs : new TreeMap<>(prunedAttrs);
-    final StringBuilder sb = new StringBuilder();
-    for (final Map.Entry<String, Object> entry : sorted.entrySet()) {
-      appendLengthDelimited(sb, entry.getKey());
-      appendContextValue(sb, entry.getValue());
+    long hash = context.size();
+    for (final Map.Entry<String, Object> entry : context.entrySet()) {
+      final Object value = entry.getValue();
+      final long valueHash =
+          value == null ? 0L : (((long) value.getClass().hashCode()) << 32) ^ value.hashCode();
+      hash += mix(entry.getKey().hashCode() * 0x9E3779B97F4A7C15L + valueHash);
     }
-    return sb.toString();
+    return hash;
   }
 
-  private static final String HEX_ZEROS = "00000000";
-
-  private static void appendLengthDelimited(final StringBuilder sb, final String s) {
-    // 8-char zero-padded hex length prefix, allocation-lean (no String.format on the hot path).
-    final String hexLength = Integer.toHexString(s.length());
-    sb.append(HEX_ZEROS, 0, 8 - hexLength.length());
-    sb.append(hexLength);
-    sb.append(s);
+  /** The finalizer of SplitMix64: spreads every input bit over the whole result. */
+  private static long mix(long z) {
+    z = (z ^ (z >>> 30)) * 0xBF58476D1CE4E5B9L;
+    z = (z ^ (z >>> 27)) * 0x94D049BB133111EBL;
+    return z ^ (z >>> 31);
   }
 
-  private static void appendContextValue(final StringBuilder sb, final Object v) {
-    if (v instanceof Boolean) {
-      sb.append((char) CTX_TAG_BOOL);
-      appendLengthDelimited(sb, v.toString());
-    } else if (v instanceof Long) {
-      sb.append((char) CTX_TAG_LONG);
-      appendLengthDelimited(sb, v.toString());
-    } else if (v instanceof Integer) {
-      sb.append((char) CTX_TAG_INT);
-      appendLengthDelimited(sb, v.toString());
-    } else if (v instanceof Float) {
-      sb.append((char) CTX_TAG_FLOAT);
-      appendLengthDelimited(sb, v.toString());
-    } else if (v instanceof Double) {
-      sb.append((char) CTX_TAG_DOUBLE);
-      appendLengthDelimited(sb, v.toString());
-    } else if (v instanceof String) {
-      sb.append((char) CTX_TAG_STRING);
-      appendLengthDelimited(sb, (String) v);
-    } else {
-      sb.append((char) CTX_TAG_OTHER);
-      appendLengthDelimited(sb, v == null ? "" : v.toString());
+  /**
+   * Whether two contexts would be emitted the same. A missing context and an empty one are the
+   * same, and values compare with {@code equals}, which already tells value types apart.
+   */
+  static boolean sameContext(final Map<String, Object> a, final Map<String, Object> b) {
+    if (a == b) {
+      return true;
     }
+    if (a == null || a.isEmpty()) {
+      return b == null || b.isEmpty();
+    }
+    return a.equals(b);
   }
 
   /**
@@ -544,10 +534,6 @@ final class FlagEvaluationAggregator {
     // effect for degraded rows.
     boolean observeFullEvaluationData;
 
-    // The canonical context and features keys, which only identify the bucket.
-    final String contextKey;
-    final String featuresKey;
-
     EvalBucket(
         final String flagKey,
         final String variant,
@@ -570,9 +556,7 @@ final class FlagEvaluationAggregator {
           runtimeDefaultUsed,
           prunedAttrs,
           observeFullEvaluationData,
-          features,
-          "",
-          "");
+          features);
     }
 
     EvalBucket(
@@ -586,9 +570,7 @@ final class FlagEvaluationAggregator {
         final boolean runtimeDefaultUsed,
         final Map<String, Object> prunedAttrs,
         final boolean observeFullEvaluationData,
-        final Map<String, Object> features,
-        final String contextKey,
-        final String featuresKey) {
+        final Map<String, Object> features) {
       super(hash);
       this.flagKey = flagKey;
       this.variant = variant;
@@ -602,8 +584,6 @@ final class FlagEvaluationAggregator {
       this.prunedAttrs = prunedAttrs;
       this.observeFullEvaluationData = observeFullEvaluationData;
       this.features = features;
-      this.contextKey = contextKey;
-      this.featuresKey = featuresKey;
     }
 
     int prunedContextFieldCount() {
