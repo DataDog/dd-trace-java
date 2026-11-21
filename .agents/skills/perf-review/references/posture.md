@@ -92,7 +92,9 @@ mechanism is certain or the severity is catastrophic.
   nothing to measure, so stay silent. Specifically not for: a **mechanically-obvious win**
   (hoisting an invariant out of a loop, a denser data structure, removing an allocation);
   **routine adoption of a known-better idiom** (migrating to a lower-overhead builder / API /
-  toolkit primitive — no visible downside); or a change that **ships a benchmark/JFR**
+  toolkit primitive — no visible downside); **replacing a lock with a compare-and-set on
+  immutable state** (the preferred idiom — review it for correctness under J17 in
+  `checks/collections.md` instead); or a change that **ships a benchmark/JFR**
   (well-evidenced — recognize it). One line; a nudge, not a code-pattern finding.
 - **Shipped core code is stricter — see the core performance rules in `AGENTS.md`.**
   For changes to `dd-trace-core/src/main/` or `internal-api/src/main/`: a performance claim
