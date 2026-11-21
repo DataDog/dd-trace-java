@@ -14,6 +14,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 
@@ -141,17 +142,34 @@ class EventQueueTest {
   }
 
   @Test
-  void wakesAParkedConsumerWhenAnElementArrives() throws Exception {
+  void findsAnElementBelowTheThresholdWithinOneSlice() throws Exception {
     final EventQueue<String> queue = new EventQueue<>(16);
     final ExecutorService consumer = Executors.newSingleThreadExecutor();
     try {
-      final long start = System.nanoTime();
       final Future<String> polled = consumer.submit(() -> queue.poll(30, TimeUnit.SECONDS));
       MILLISECONDS.sleep(100); // let the consumer park
-      assertTrue(queue.offer("wake"));
-      // Without the wake-up, a consumer parked for the full timeout would sleep 30 s.
-      assertEquals("wake", polled.get(10, TimeUnit.SECONDS));
-      assertTrue(System.nanoTime() - start < TimeUnit.SECONDS.toNanos(10));
+      assertTrue(queue.offer("one"));
+      // No wake-up below the threshold: the consumer's next 10 ms slice finds it.
+      assertEquals("one", polled.get(10, TimeUnit.SECONDS));
+    } finally {
+      consumer.shutdownNow();
+    }
+  }
+
+  @Test
+  void wakesAParkedConsumerOnlyOnceTheQueueReachesTheThreshold() throws Exception {
+    // Slices as long as the timeout, so only a wake-up ends the park early.
+    final EventQueue<String> queue = new EventQueue<>(16, 3, TimeUnit.SECONDS.toNanos(30));
+    final ExecutorService consumer = Executors.newSingleThreadExecutor();
+    try {
+      final Future<String> polled = consumer.submit(() -> queue.poll(30, TimeUnit.SECONDS));
+      MILLISECONDS.sleep(100); // let the consumer park
+      assertTrue(queue.offer("a"));
+      assertTrue(queue.offer("b"));
+      assertThrows(TimeoutException.class, () -> polled.get(200, MILLISECONDS));
+
+      assertTrue(queue.offer("c"));
+      assertEquals("a", polled.get(10, TimeUnit.SECONDS));
     } finally {
       consumer.shutdownNow();
     }

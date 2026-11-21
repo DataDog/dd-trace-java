@@ -9,12 +9,14 @@ import java.util.function.Consumer;
 
 /**
  * A bounded, lock-free, multiple-producer single-consumer queue. Producers never block. A consumer
- * that finds the queue empty parks until the timeout, and the next producer to queue an element
- * wakes it.
+ * that finds the queue empty parks in slices of at most 10 ms, and a producer wakes it early only
+ * once the queue is a quarter full.
  *
- * <p>Without that wake-up, the consumer slept in fixed 10 ms slices: at more than {@code capacity}
- * elements per 10 ms (410k a second for 4,096 slots), the queue filled during each sleep and
- * producers dropped elements, however idle the consumer was.
+ * <p>Without the early wake-up, at more than {@code capacity} elements per 10 ms (410k a second for
+ * 4,096 slots) the queue filled during each sleep and producers dropped elements, however idle the
+ * consumer was. Waking on every element fixes that but is worse at low rates: the consumer keeps
+ * up, parks after every element, and nearly every offer pays an unpark, a system call and a context
+ * switch costing microseconds. Below the threshold, the slice bounds the delay instead.
  *
  * @param <E> the element type.
  */
@@ -25,12 +27,23 @@ public final class EventQueue<E> {
 
   private final ConcurrentLinkedQueue<E> queue = new ConcurrentLinkedQueue<>();
   private final AtomicInteger size = new AtomicInteger();
+  private static final long MAX_PARK_NANOS = TimeUnit.MILLISECONDS.toNanos(10);
+
   private final int capacity;
+  // The queue size at which a producer wakes a parked consumer.
+  private final int wakeThreshold;
+  private final long maxParkNanos;
   // The consumer while it is about to park or parked, so a producer can wake it.
   private volatile Thread waiter;
 
   public EventQueue(final int capacity) {
+    this(capacity, Math.max(1, capacity >> 2), MAX_PARK_NANOS);
+  }
+
+  EventQueue(final int capacity, final int wakeThreshold, final long maxParkNanos) {
     this.capacity = capacity;
+    this.wakeThreshold = wakeThreshold;
+    this.maxParkNanos = maxParkNanos;
   }
 
   /**
@@ -43,16 +56,19 @@ public final class EventQueue<E> {
     if (element == null) {
       throw new NullPointerException("element");
     }
-    if (this.size.incrementAndGet() > this.capacity) {
+    final int queued = this.size.incrementAndGet();
+    if (queued > this.capacity) {
       this.size.decrementAndGet();
       return false;
     }
     this.queue.offer(element);
-    // One volatile read per offer. Only the producer that clears the waiter wakes it, so a burst
-    // of producers costs one unpark.
-    final Thread parked = this.waiter;
-    if (parked != null && WAITER.compareAndSet(this, parked, null)) {
-      LockSupport.unpark(parked);
+    // Below the threshold the consumer's next slice finds the element, at no cost here. Above it,
+    // only the producer that clears the waiter wakes it, so a burst costs one unpark.
+    if (queued >= this.wakeThreshold) {
+      final Thread parked = this.waiter;
+      if (parked != null && WAITER.compareAndSet(this, parked, null)) {
+        LockSupport.unpark(parked);
+      }
     }
     return true;
   }
@@ -87,15 +103,15 @@ public final class EventQueue<E> {
       if (remaining <= 0) {
         return null;
       }
-      // Publish the waiter, then check again: a producer either sees the waiter and wakes it, or
-      // queued its element before this check, which then finds it. No wake-up is lost.
+      // Publish the waiter, then check again: a producer crossing the threshold either sees the
+      // waiter and wakes it, or queued its element before this check, which then finds it.
       this.waiter = Thread.currentThread();
       final E queued = poll();
       if (queued != null) {
         this.waiter = null;
         return queued;
       }
-      LockSupport.parkNanos(this, remaining);
+      LockSupport.parkNanos(this, Math.min(remaining, this.maxParkNanos));
       this.waiter = null;
       if (Thread.interrupted()) {
         throw new InterruptedException();
