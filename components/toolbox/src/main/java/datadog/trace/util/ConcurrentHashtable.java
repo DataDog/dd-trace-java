@@ -183,7 +183,8 @@ public final class ConcurrentHashtable {
     /**
      * Creates a fixed-size table holding at most {@code maxCapacity} entries. {@code entryClass} is
      * used only to infer {@code TEntry}; entries are created by the {@code creator} functions
-     * passed to the insertion methods. The table does not resize.
+     * passed to the insertion methods. The table does not resize; its bucket count is {@link
+     * ConcurrentHashtable#bucketCountFor(int)}.
      */
     @Nonnull
     @SuppressWarnings("unchecked")
@@ -526,7 +527,8 @@ public final class ConcurrentHashtable {
     /**
      * Creates a fixed-size table holding at most {@code maxCapacity} entries. {@code entryClass} is
      * used only to infer {@code TEntry}; entries are created by the {@code creator} functions
-     * passed to the insertion methods. The table does not resize.
+     * passed to the insertion methods. The table does not resize; its bucket count is {@link
+     * ConcurrentHashtable#bucketCountFor(int)}.
      */
     @Nonnull
     @SuppressWarnings("unchecked")
@@ -1027,11 +1029,61 @@ public final class ConcurrentHashtable {
   /**
    * Creates a bucket array for {@code maxCapacity} entries and pairs it with a manager enforcing
    * that cap. {@code entryClass} is used only to infer {@code TEntry}.
+   *
+   * <p>The array has {@link #bucketCountFor(int) bucketCountFor(maxCapacity)} buckets: one per
+   * entry for small tables, but bounded by the heap for large ones (see {@link
+   * #bucketCountFor(int)}).
    */
   @Nonnull
   public static <TEntry extends Entry<TEntry>> State<TEntry> createBounded(
       @Nonnull Class<TEntry> entryClass, int maxCapacity) {
-    return new State<>(createFixedBuckets(entryClass, maxCapacity), maxCapacity);
+    return createBounded(entryClass, maxCapacity, bucketCountFor(maxCapacity));
+  }
+
+  /**
+   * Creates a table of {@code bucketCount} buckets holding at most {@code maxCapacity} entries.
+   * Chains bear any excess of entries over buckets, so a table sized for its expected population
+   * still accepts up to its cap, with longer chains. {@code bucketCount} is rounded up to a power
+   * of two.
+   */
+  @Nonnull
+  public static <TEntry extends Entry<TEntry>> State<TEntry> createBounded(
+      @Nonnull Class<TEntry> entryClass, int maxCapacity, int bucketCount) {
+    return new State<>(createFixedBuckets(entryClass, bucketCount), maxCapacity);
+  }
+
+  /** The fewest buckets {@link #bucketCountFor(int)} limits a table to. */
+  static final int MIN_HEAP_BOUNDED_BUCKETS = 1 << 10;
+
+  /**
+   * Returns the bucket count {@link #createBounded(Class, int)} uses for {@code maxCapacity}
+   * entries: {@link #sizeFor(int) sizeFor(maxCapacity)}, but no more than the heap warrants.
+   *
+   * <p>The table never resizes, so its bucket array is allocated at full size up front and
+   * retained, even if the table stays nearly empty. For a large cap on a small heap that is both a
+   * fixed cost out of proportion to the heap and, under G1, a humongous allocation. So the array is
+   * kept to at most 1/1024 of the maximum heap and below G1's humongous threshold, and never cut
+   * below {@value #MIN_HEAP_BOUNDED_BUCKETS} buckets. A table filled past its bucket count still
+   * works, with chains longer than one.
+   */
+  public static int bucketCountFor(int maxCapacity) {
+    return bucketCountFor(maxCapacity, Runtime.getRuntime().maxMemory());
+  }
+
+  static int bucketCountFor(int maxCapacity, long maxHeapBytes) {
+    return Math.min(sizeFor(maxCapacity), maxBucketsForHeap(maxHeapBytes));
+  }
+
+  static int maxBucketsForHeap(long maxHeapBytes) {
+    // G1 aims for about 2,048 regions, a power of two between 1 and 32 MiB, and allocates any
+    // object of half a region or more as humongous. Leave room for the array header.
+    final long region =
+        Math.max(1L << 20, Math.min(1L << 25, Long.highestOneBit(maxHeapBytes >>> 11)));
+    final long arrayBytes = Math.min(region / 2 - 64, maxHeapBytes >>> 10);
+    // Compressed references, the default below 32 GiB, take 4 bytes; otherwise 8.
+    final long referenceBytes = maxHeapBytes < (32L << 30) ? 4 : 8;
+    final long buckets = Long.highestOneBit(Math.max(1, arrayBytes / referenceBytes));
+    return (int) Math.max(MIN_HEAP_BOUNDED_BUCKETS, Math.min(MAX_BUCKETS, buckets));
   }
 
   /** Live entries in {@code state}; see {@link SizeManager#estimateSize()}. Lock-free. */
