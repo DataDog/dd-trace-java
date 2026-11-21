@@ -50,11 +50,11 @@ final class FrozenValues {
   /**
    * Freezes the JSON variants of one document. Each JSON object becomes a {@link FrozenStructure}
    * over a {@link FrozenMap}, which holds its entries in flat arrays rather than one node each.
-   * Repeated keys and numbers are shared through small direct-mapped caches: a value that recurs
-   * nearby is built once, a unique one costs a slot overwrite, and the caches never grow, so a
-   * large document doesn't pay for an ever-larger table. Each leaf takes one lookup, and long
-   * strings, which rarely repeat, skip the caches. The values cannot change, so sharing is
-   * invisible to readers.
+   * Repeated keys, short string values and numbers are shared through small direct-mapped caches: a
+   * value that recurs nearby is built once, a unique one costs a slot overwrite, and the caches
+   * never grow, so a large document doesn't pay for an ever-larger table. Each leaf takes one
+   * lookup, and long strings, which rarely repeat, skip the caches. The values cannot change, so
+   * sharing is invisible to readers.
    */
   static final class Freezer {
     static final int CACHE_SLOTS = 1 << 12;
@@ -64,6 +64,14 @@ final class FrozenValues {
 
     private final String[] keys = new String[CACHE_SLOTS];
     private final Value[] numbers = new Value[CACHE_SLOTS];
+    private final Value[] strings = new Value[CACHE_SLOTS];
+    private final FrozenMap.OrderScratch scratch = new FrozenMap.OrderScratch();
+
+    /**
+     * String values up to this length are shared: short ones, like enum-like values, are the ones
+     * that repeat, and hashing them is cheap.
+     */
+    static final int MAX_SHARED_VALUE_LENGTH = 16;
 
     Value freeze(final Object tree) {
       if (tree instanceof Map) {
@@ -78,7 +86,7 @@ final class FrozenValues {
           i++;
         }
         // In the order objectToValue's HashMap would iterate, sized as it would be.
-        FrozenMap map = FrozenMap.inHashMapOrder(names, values, capacity(size));
+        FrozenMap map = FrozenMap.inHashMapOrder(names, values, capacity(size), scratch);
         if (map == null) {
           // A bucket long enough for HashMap to restructure it: let a HashMap set the order.
           final Map<String, Value> attributes = new HashMap<>(capacity(size));
@@ -104,8 +112,7 @@ final class FrozenValues {
         return (Boolean) tree ? TRUE : FALSE;
       }
       if (tree instanceof String) {
-        // Not shared: string values rarely repeat enough to pay for hashing each one.
-        return new Value((String) tree);
+        return string((String) tree);
       }
       return number(tree);
     }
@@ -122,6 +129,21 @@ final class FrozenValues {
       }
       keys[slot] = key;
       return key;
+    }
+
+    /** A string value: one shared Value per distinct short string; longer ones aren't shared. */
+    private Value string(final String string) {
+      if (string.length() > MAX_SHARED_VALUE_LENGTH) {
+        return new Value(string);
+      }
+      final int slot = slot(string.hashCode());
+      final Value cached = strings[slot];
+      if (cached != null && string.equals(cached.asString())) {
+        return cached;
+      }
+      final Value value = new Value(string);
+      strings[slot] = value;
+      return value;
     }
 
     /** A number: one shared Value per distinct value of each type. */

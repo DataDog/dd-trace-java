@@ -55,9 +55,15 @@ final class FrozenMap extends AbstractMap<String, Value> {
    * capacity would iterate them, had they been put in array order, without building that map.
    * Returns {@code null} when a bucket would hold enough entries for the HashMap to restructure it,
    * since the order then depends on that; the caller falls back to a HashMap.
+   *
+   * <p>The arrays are reordered in place and kept, so they must belong to the caller alone. {@code
+   * scratch} is reused across calls, never across threads.
    */
   static FrozenMap inHashMapOrder(
-      final String[] keys, final Value[] values, final int initialCapacity) {
+      final String[] keys,
+      final Value[] values,
+      final int initialCapacity,
+      final OrderScratch scratch) {
     final int size = keys.length;
     // HashMap's table: the power of two at or above the initial capacity, which the callers size
     // so that it never resizes.
@@ -66,29 +72,102 @@ final class FrozenMap extends AbstractMap<String, Value> {
       return null;
     }
     final int mask = tableSize - 1;
-    final int[] buckets = new int[size];
-    final int[] counts = new int[tableSize + 1];
+    final int[] buckets = scratch.buckets(size);
     for (int i = 0; i < size; i++) {
       final int h = keys[i].hashCode();
-      final int bucket = (h ^ (h >>> 16)) & mask;
-      buckets[i] = bucket;
-      if (++counts[bucket + 1] >= TREEIFY_THRESHOLD) {
-        return null;
-      }
+      buckets[i] = (h ^ (h >>> 16)) & mask;
+    }
+    if (size <= MAX_INSERTION_SORTED) {
+      insertionSort(keys, values, buckets, size);
+      return finish(keys, values, buckets, size);
     }
     // A stable counting sort by bucket: within a bucket, HashMap keeps insertion order.
+    final int[] counts = scratch.counts(tableSize + 1);
+    for (int i = 0; i < size; i++) {
+      counts[buckets[i] + 1]++;
+    }
     for (int b = 0; b < tableSize; b++) {
       counts[b + 1] += counts[b];
     }
     final String[] orderedKeys = new String[size];
     final Value[] orderedValues = new Value[size];
+    final int[] orderedBuckets = scratch.orderedBuckets(size);
     for (int i = 0; i < size; i++) {
       final int position = counts[buckets[i]]++;
       orderedKeys[position] = keys[i];
       orderedValues[position] = values[i];
+      orderedBuckets[position] = buckets[i];
     }
-    return new FrozenMap(
-        orderedKeys, orderedValues, size > MAX_SCANNED ? index(orderedKeys) : null);
+    return finish(orderedKeys, orderedValues, orderedBuckets, size);
+  }
+
+  /** Up to this many entries, the order is found by an insertion sort, in place. */
+  static final int MAX_INSERTION_SORTED = 32;
+
+  /** A stable insertion sort of the entries by bucket. */
+  private static void insertionSort(
+      final String[] keys, final Value[] values, final int[] buckets, final int size) {
+    for (int i = 1; i < size; i++) {
+      final int bucket = buckets[i];
+      if (buckets[i - 1] <= bucket) {
+        continue;
+      }
+      final String key = keys[i];
+      final Value value = values[i];
+      int j = i - 1;
+      while (j >= 0 && buckets[j] > bucket) {
+        buckets[j + 1] = buckets[j];
+        keys[j + 1] = keys[j];
+        values[j + 1] = values[j];
+        j--;
+      }
+      buckets[j + 1] = bucket;
+      keys[j + 1] = key;
+      values[j + 1] = value;
+    }
+  }
+
+  /** Checks the bucket runs of the ordered entries and builds the map. */
+  private static FrozenMap finish(
+      final String[] keys, final Value[] values, final int[] buckets, final int size) {
+    int run = 0;
+    for (int i = 0; i < size; i++) {
+      run = i > 0 && buckets[i] == buckets[i - 1] ? run + 1 : 1;
+      if (run >= TREEIFY_THRESHOLD) {
+        return null;
+      }
+    }
+    return new FrozenMap(keys, values, size > MAX_SCANNED ? index(keys) : null);
+  }
+
+  /** Scratch arrays for {@link #inHashMapOrder}, reused across the objects of one document. */
+  static final class OrderScratch {
+    private int[] buckets = new int[16];
+    private int[] orderedBuckets = new int[16];
+    private int[] counts = new int[64];
+
+    int[] buckets(final int size) {
+      if (buckets.length < size) {
+        buckets = new int[Integer.highestOneBit(size) << 1];
+      }
+      return buckets;
+    }
+
+    int[] orderedBuckets(final int size) {
+      if (orderedBuckets.length < size) {
+        orderedBuckets = new int[Integer.highestOneBit(size) << 1];
+      }
+      return orderedBuckets;
+    }
+
+    int[] counts(final int size) {
+      if (counts.length < size) {
+        counts = new int[Integer.highestOneBit(size) << 1];
+      } else {
+        java.util.Arrays.fill(counts, 0, size, 0);
+      }
+      return counts;
+    }
   }
 
   /** HashMap restructures a bucket once it reaches this many entries. */

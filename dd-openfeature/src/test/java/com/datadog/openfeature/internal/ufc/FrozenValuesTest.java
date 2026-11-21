@@ -48,7 +48,7 @@ class FrozenValuesTest {
   }
 
   @Test
-  void sharesRepeatedKeysAndNumbersButNotStringValues() {
+  void sharesRepeatedKeysNumbersAndShortStringValues() {
     final FrozenValues.Freezer freezer = new FrozenValues.Freezer();
     final Value a = freezer.freeze(object(new String("tier"), new String("gold"), "n", 1_000));
     final Value b = freezer.freeze(object(new String("tier"), new String("gold"), "n", 1_000));
@@ -57,8 +57,13 @@ class FrozenValuesTest {
     final Map<String, Value> left = a.asStructure().asUnmodifiableMap();
     final Map<String, Value> right = b.asStructure().asUnmodifiableMap();
     assertSame(left.get("n"), right.get("n"));
-    assertNotSame(left.get("tier"), right.get("tier"));
-    assertEquals(left.get("tier"), right.get("tier"));
+    assertSame(left.get("tier"), right.get("tier"));
+
+    final String longValue = "a value longer than the shared limit";
+    final Value long1 = freezer.freeze(java.util.Collections.singletonList(new String(longValue)));
+    final Value long2 = freezer.freeze(java.util.Collections.singletonList(new String(longValue)));
+    assertNotSame(long1.asList().get(0), long2.asList().get(0));
+    assertEquals(long1, long2);
     assertSame(sortedKeys(left).get(1), sortedKeys(right).get(1));
   }
 
@@ -73,6 +78,22 @@ class FrozenValuesTest {
     assertEquals(
         new ArrayList<>(Value.objectToValue(tree).asStructure().keySet()),
         new ArrayList<>(new FrozenValues.Freezer().freeze(tree).asStructure().keySet()));
+  }
+
+  @Test
+  void oneFreezerKeepsTheOrderAcrossObjectsOfChangingSizes() {
+    final FrozenValues.Freezer freezer = new FrozenValues.Freezer();
+    for (final int size : new int[] {100, 40, 1000, 40, 3, 100}) {
+      final Map<String, Object> tree = new java.util.LinkedHashMap<>();
+      for (int i = 0; i < size; i++) {
+        tree.put("key" + (i * 31), i);
+      }
+
+      assertEquals(
+          new ArrayList<>(Value.objectToValue(tree).asStructure().keySet()),
+          new ArrayList<>(freezer.freeze(tree).asStructure().keySet()),
+          "size " + size);
+    }
   }
 
   @Test
