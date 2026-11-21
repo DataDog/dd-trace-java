@@ -1,15 +1,21 @@
 package datadog.trace.util;
 
+import java.util.AbstractList;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.openjdk.jmh.annotations.CompilerControl;
 import org.openjdk.jmh.infra.Blackhole;
@@ -76,6 +82,9 @@ public final class BenchmarkUtils {
    * generates before measurement is not free.
    */
   private static final AtomicBoolean WARMED_UP = new AtomicBoolean();
+
+  /** Guards {@link #warmUpListDispatch} so its passes run once per JVM. */
+  private static final AtomicBoolean LIST_WARMED_UP = new AtomicBoolean();
 
   /**
    * Exercises shared collection methods with several key classes before benchmark warmup.
@@ -258,6 +267,94 @@ public final class BenchmarkUtils {
       return new Boolean((Boolean) key);
     } else {
       return key;
+    }
+  }
+
+  /**
+   * Broadens the receiver profiles of the JDK's shared list internals before a trial, as an
+   * application's other lists do: {@code AbstractList}'s iterator (whose {@code size()} and {@code
+   * get()} calls every {@code AbstractList} subclass without its own iterator shares), {@code
+   * AbstractCollection.isEmpty()}, and {@code Iterable.forEach}'s default loop. A quiet benchmark
+   * JVM leaves them monomorphic, so escape analysis removes iterators there that it wouldn't in
+   * production.
+   *
+   * <p>Only shared JDK code is exercised, through {@link #walk}; the benchmark's own call sites
+   * stay free to specialize. The anonymous {@code AbstractList} subclasses are what reach {@code
+   * AbstractList}'s iterator, since most JDK lists have their own. The same caveat as {@link
+   * #warmUpHashDispatch} applies: confirm megamorphic sites in the compiled code before calling
+   * them that.
+   */
+  public static void warmUpListDispatch(Blackhole bh) {
+    if (!LIST_WARMED_UP.compareAndSet(false, true)) {
+      return;
+    }
+    final List<List<Integer>> lists = new ArrayList<>();
+    lists.add(new ArrayList<>(Arrays.asList(1, 2, 3)));
+    lists.add(new LinkedList<>(Arrays.asList(1, 2, 3)));
+    lists.add(Arrays.asList(1, 2, 3));
+    lists.add(Collections.nCopies(3, 1));
+    lists.add(Collections.singletonList(1));
+    lists.add(Collections.<Integer>emptyList());
+    lists.add(Collections.unmodifiableList(new ArrayList<>(Arrays.asList(1, 2, 3))));
+    lists.add(CollectionUtils.tryMakeImmutableList(Arrays.asList(1, 2)));
+    lists.add(CollectionUtils.tryMakeImmutableList(Arrays.asList(1, 2, 3)));
+    lists.add(new ArrayList<>(Arrays.asList(1, 2, 3, 4)).subList(1, 3));
+    lists.add(new CopyOnWriteArrayList<>(Arrays.asList(1, 2, 3)));
+    lists.add(
+        new AbstractList<Integer>() {
+          @Override
+          public Integer get(int index) {
+            return index;
+          }
+
+          @Override
+          public int size() {
+            return 3;
+          }
+        });
+    lists.add(
+        new AbstractList<Integer>() {
+          @Override
+          public Integer get(int index) {
+            return 7;
+          }
+
+          @Override
+          public int size() {
+            return 2;
+          }
+        });
+    lists.add(
+        new AbstractList<Integer>() {
+          @Override
+          public Integer get(int index) {
+            return -index;
+          }
+
+          @Override
+          public int size() {
+            return 4;
+          }
+        });
+    for (int i = 0; i < WARM_UP_ITERATIONS; ++i) {
+      for (final List<Integer> list : lists) {
+        walk(list, bh);
+      }
+    }
+  }
+
+  /**
+   * Exercises a list's iterator, isEmpty, forEach and indexed access, outside the caller's code.
+   */
+  @CompilerControl(CompilerControl.Mode.DONT_INLINE)
+  private static void walk(List<Integer> list, Blackhole bh) {
+    bh.consume(list.isEmpty());
+    for (Integer element : list) {
+      bh.consume(element);
+    }
+    list.forEach(bh::consume);
+    for (int i = 0; i < list.size(); ++i) {
+      bh.consume(list.get(i));
     }
   }
 }
