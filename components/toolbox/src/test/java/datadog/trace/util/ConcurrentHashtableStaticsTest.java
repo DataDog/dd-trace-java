@@ -10,6 +10,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.util.HashSet;
+import java.util.Iterator;
+import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -100,6 +102,27 @@ class ConcurrentHashtableStaticsTest {
     assertNull(table.get(1));
     assertNull(table.remove(1)); // already gone
     assertEquals(1, table.size.get());
+  }
+
+  @Test
+  void hashIteratorYieldsOnlyEntriesWithTheKeyHash() {
+    AtomicReferenceArray<IntEntry> buckets =
+        ConcurrentHashtable.createFixedBuckets(IntEntry.class, 8); // mask 7
+    IntEntry first = new IntEntry(9, 1); // keyHash 9 -> bucket 1
+    IntEntry other = new IntEntry(1, 2); // keyHash 1 -> bucket 1 too, but another hash
+    IntEntry second = new IntEntry(9, 3);
+    for (IntEntry e : new IntEntry[] {first, other, second}) {
+      synchronized (ConcurrentHashtable.getWriteLock(buckets, e.keyHash)) {
+        ConcurrentHashtable.insertHeadEntryFor(buckets, e.keyHash, e);
+      }
+    }
+    Iterator<IntEntry> candidates = ConcurrentHashtable.hashIterator(buckets, 9L);
+    assertTrue(candidates.hasNext());
+    assertSame(second, candidates.next()); // inserted last, so at the head
+    assertSame(first, candidates.next());
+    assertFalse(candidates.hasNext());
+    assertThrows(NoSuchElementException.class, candidates::next);
+    assertFalse(ConcurrentHashtable.hashIterator(buckets, 17L).hasNext()); // bucket 1, no match
   }
 
   @Test
