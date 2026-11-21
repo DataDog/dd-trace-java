@@ -163,7 +163,12 @@ public final class FlagEvaluator {
       final Instant now = Instant.now();
       final long evalTimestampMs = now.toEpochMilli();
       final String targetingKey = context.getTargetingKey();
-      EvaluationScope scope = null;
+      // Only a flag that reads an attribute twice keeps what it reads; others read the context.
+      // Deciding it here, and not in the loop, keeps the loop fast for allocations it skips.
+      final EvaluationScope scope =
+          flag.preparedRules(EvaluationScope::readsAnAttributeTwice)
+              ? new EvaluationScope(context)
+              : null;
 
       for (final Allocation allocation : flag.allocations) {
         if (experimentationCutoff != null
@@ -176,10 +181,6 @@ public final class FlagEvaluator {
         }
 
         if (!isEmpty(allocation.rules)) {
-          // Only a flag that reads an attribute twice keeps what it reads; others read the context.
-          if (scope == null && flag.preparedRules(EvaluationScope::readsAnAttributeTwice)) {
-            scope = new EvaluationScope(context);
-          }
           if (!evaluateRules(allocation.rules, context, scope)) {
             continue;
           }
