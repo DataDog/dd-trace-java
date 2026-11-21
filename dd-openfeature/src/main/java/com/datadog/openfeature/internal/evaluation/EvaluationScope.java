@@ -17,7 +17,7 @@ import java.util.Set;
  *
  * <p>An attribute is read from the context the first time a condition needs it. A context that
  * changes during the evaluation is not read again. A flag whose conditions each read a different
- * attribute gains nothing from keeping them, so its attributes are read directly.
+ * attribute gains nothing from keeping them, so it is evaluated without a scope.
  */
 final class EvaluationScope {
   private static final String ID = "id";
@@ -26,7 +26,6 @@ final class EvaluationScope {
   private static final int MAX_SCANNED = 8;
 
   private final EvaluationContext context;
-  private final boolean cached;
   // Most flags read one attribute: it is kept without allocating the arrays.
   private String firstName;
   private Object firstValue;
@@ -35,17 +34,9 @@ final class EvaluationScope {
   private int size;
   private Map<String, Object> overflow;
 
-  /** A scope that keeps the attributes it resolves. */
+  /** A scope that keeps the attributes it resolves; see {@link #readsAnAttributeTwice}. */
   EvaluationScope(final EvaluationContext context) {
-    this(context, true);
-  }
-
-  /**
-   * @param cached whether the resolved attributes are kept; see {@link #readsAnAttributeTwice}.
-   */
-  EvaluationScope(final EvaluationContext context, final boolean cached) {
     this.context = context;
-    this.cached = cached;
   }
 
   /**
@@ -79,9 +70,9 @@ final class EvaluationScope {
 
   /** Returns the attribute's value, or {@code null} when the context does not hold it. */
   Object attribute(final String name) {
-    if (!cached || name == null) {
+    if (name == null) {
       // A condition without an attribute is read as before, but never kept.
-      return resolve(name);
+      return resolve(context, name);
     }
     // String.equals compares the references first, so the same name returns at once.
     if (name.equals(firstName)) {
@@ -99,12 +90,13 @@ final class EvaluationScope {
         return value == NULL ? null : value;
       }
     }
-    final Object value = resolve(name);
+    final Object value = resolve(context, name);
     remember(name, value == null ? NULL : value);
     return value;
   }
 
-  private Object resolve(final String name) {
+  /** Reads an attribute from the context, as a flag that keeps no attributes does. */
+  static Object resolve(final EvaluationContext context, final String name) {
     // Special handling for "id" attribute: if not explicitly provided, use targeting key
     if (ID.equals(name) && !context.keySet().contains(name)) {
       return context.getTargetingKey();

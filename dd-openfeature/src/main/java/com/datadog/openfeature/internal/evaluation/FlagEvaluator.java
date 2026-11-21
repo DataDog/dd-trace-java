@@ -176,12 +176,11 @@ public final class FlagEvaluator {
         }
 
         if (!isEmpty(allocation.rules)) {
-          if (scope == null) {
-            scope =
-                new EvaluationScope(
-                    context, flag.preparedRules(EvaluationScope::readsAnAttributeTwice));
+          // Only a flag that reads an attribute twice keeps what it reads; others read the context.
+          if (scope == null && flag.preparedRules(EvaluationScope::readsAnAttributeTwice)) {
+            scope = new EvaluationScope(context);
           }
-          if (!evaluateRules(allocation.rules, scope)) {
+          if (!evaluateRules(allocation.rules, context, scope)) {
             continue;
           }
         }
@@ -287,7 +286,11 @@ public final class FlagEvaluator {
     return true;
   }
 
-  private static boolean evaluateRules(final List<Rule> rules, final EvaluationScope scope) {
+  /**
+   * @param scope the attributes resolved so far, or {@code null} to read each one from the context.
+   */
+  private static boolean evaluateRules(
+      final List<Rule> rules, final EvaluationContext context, final EvaluationScope scope) {
     for (final Rule rule : rules) {
       if (isEmpty(rule.conditions)) {
         continue;
@@ -295,7 +298,7 @@ public final class FlagEvaluator {
 
       boolean allConditionsMatch = true;
       for (final ConditionConfiguration condition : rule.conditions) {
-        if (!evaluateCondition(condition, scope)) {
+        if (!evaluateCondition(condition, context, scope)) {
           allConditionsMatch = false;
           break;
         }
@@ -309,16 +312,18 @@ public final class FlagEvaluator {
   }
 
   private static boolean evaluateCondition(
-      final ConditionConfiguration condition, final EvaluationScope scope) {
+      final ConditionConfiguration condition,
+      final EvaluationContext context,
+      final EvaluationScope scope) {
     if (condition.operator == ConditionOperator.IS_NULL) {
-      final Object value = scope.attribute(condition.attribute);
+      final Object value = attribute(condition.attribute, context, scope);
       boolean isNull = value == null;
       // condition.value determines if we're checking for null (true) or not null (false)
       boolean expectedNull = condition.value instanceof Boolean ? (Boolean) condition.value : true;
       return isNull == expectedNull;
     }
 
-    final Object attributeValue = scope.attribute(condition.attribute);
+    final Object attributeValue = attribute(condition.attribute, context, scope);
     if (attributeValue == null) {
       return false;
     }
@@ -579,6 +584,11 @@ public final class FlagEvaluator {
       return Reason.DEFAULT.name();
     }
     return !isEmpty(split.shards) ? Reason.SPLIT.name() : Reason.STATIC.name();
+  }
+
+  private static Object attribute(
+      final String name, final EvaluationContext context, final EvaluationScope scope) {
+    return scope != null ? scope.attribute(name) : EvaluationScope.resolve(context, name);
   }
 
   public static boolean isTypeCompatible(final Class<?> target, final ValueType variationType) {

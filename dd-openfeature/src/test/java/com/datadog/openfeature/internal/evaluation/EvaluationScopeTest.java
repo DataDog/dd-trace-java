@@ -89,13 +89,12 @@ class EvaluationScopeTest {
   }
 
   @Test
-  void readsTheContextEachTimeWhenNotCached() {
+  void readsTheContextEachTimeWithoutAScope() {
     final CountingContext context = new CountingContext("user-1");
     context.add("plan", "pro");
-    final EvaluationScope scope = new EvaluationScope(context, false);
 
-    assertEquals("pro", scope.attribute("plan"));
-    assertEquals("pro", scope.attribute("plan"));
+    assertEquals("pro", EvaluationScope.resolve(context, "plan"));
+    assertEquals("pro", EvaluationScope.resolve(context, "plan"));
     assertEquals(2, context.reads("plan"));
   }
 
