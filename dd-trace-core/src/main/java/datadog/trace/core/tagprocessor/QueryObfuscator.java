@@ -22,6 +22,9 @@ public final class QueryObfuscator extends TagsPostProcessor {
 
   private static final String REDACTED = "<redacted>";
 
+  // Every match of this pattern must contain one of the literals mayMatchDefaultPattern looks for.
+  // When changing it, update that method; QueryObfuscatorDefaultPatternTest pins the pattern so a
+  // change can't go unnoticed.
   @VisibleForTesting
   static final String DEFAULT_OBFUSCATION_PATTERN =
       "(?i)"

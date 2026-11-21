@@ -15,9 +15,24 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
-/** {@link QueryObfuscator#mayMatchDefaultPattern} against re2j running the default pattern. */
+/**
+ * {@link QueryObfuscator#mayMatchDefaultPattern} against re2j running the default pattern. Kept
+ * apart from {@code QueryObfuscatorTest}, which covers how the obfuscator rewrites span tags, since
+ * these tests check one helper against the pattern itself and don't touch spans or tags.
+ */
 class QueryObfuscatorDefaultPatternTest {
   private static final Pattern DEFAULT = Pattern.compile(DEFAULT_OBFUSCATION_PATTERN);
+
+  /**
+   * Fails on any edit to the default pattern. The check, and the pieces the differential test below
+   * builds queries from, list the literals every match contains, so a new alternative needs adding
+   * to both. Once they're updated, set the new hash and length here.
+   */
+  @Test
+  void theDefaultPatternIsTheOneTheCheckWasWrittenFor() {
+    assertEquals(841, DEFAULT_OBFUSCATION_PATTERN.length());
+    assertEquals(1426552850, DEFAULT_OBFUSCATION_PATTERN.hashCode());
+  }
 
   /** The check folds case as it believes re2j's {@code (?i)} does; this pins that belief. */
   @Test
