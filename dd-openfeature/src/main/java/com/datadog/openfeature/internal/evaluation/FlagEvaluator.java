@@ -20,6 +20,7 @@ import com.datadog.openfeature.internal.ufc.Feature;
 import com.datadog.openfeature.internal.ufc.Flag;
 import com.datadog.openfeature.internal.ufc.MembershipIndex;
 import com.datadog.openfeature.internal.ufc.ParsedSemver;
+import com.datadog.openfeature.internal.ufc.RegexMatcher;
 import com.datadog.openfeature.internal.ufc.Rule;
 import com.datadog.openfeature.internal.ufc.ServerConfiguration;
 import com.datadog.openfeature.internal.ufc.Shard;
@@ -42,7 +43,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -349,13 +349,13 @@ public final class FlagEvaluator {
 
   private static boolean matchesRegex(
       final Object attributeValue, final ConditionConfiguration condition) {
-    // Parsed configurations cache the validated pattern. Directly constructed configurations
+    // Parsed configurations cache the validated matcher. Directly constructed configurations
     // retain the same syntax and error handling.
-    final Pattern pattern =
+    final RegexMatcher regex =
         condition.regex != null
             ? condition.regex
             : ConditionConfiguration.compileRegex(condition.value);
-    return pattern.matcher(String.valueOf(attributeValue)).find();
+    return regex.matches(String.valueOf(attributeValue));
   }
 
   private static boolean isOneOf(

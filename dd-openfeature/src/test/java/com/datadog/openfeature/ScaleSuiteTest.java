@@ -22,7 +22,8 @@ import org.junit.jupiter.params.provider.MethodSource;
  * change that resolves a large configuration wrongly fails here instead of only in a manual run.
  */
 class ScaleSuiteTest {
-  private static final List<String> SUITES = Arrays.asList("scale", "scale-json");
+  // The regex suite needs the linear-time matcher (#13487).
+  private static final List<String> SUITES = Arrays.asList("scale", "scale-json", "regex");
 
   /** One provider per suite, so each configuration is parsed once. */
   private static final Map<String, Provider> PROVIDERS = new HashMap<>();

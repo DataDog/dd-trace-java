@@ -72,6 +72,8 @@ java {
 dependencies {
   api("dev.openfeature:sdk:1.23.0")
   implementation("io.opentelemetry:opentelemetry-api:1.66.0")
+  // Linear-time regex engine for MATCHES and NOT_MATCHES, like the Rust evaluator.
+  implementation(libs.re2j)
   api(libs.jackson.core)
 
   testImplementation(libs.bundles.junit5)
@@ -162,4 +164,13 @@ tasks.named("jmh") {
   inputs.files(
     fixtures.dir("ffe-system-test-data").asFileTree.matching { include("evaluation-suites/**") }
   ).withPropertyName("scaleSuites").withPathSensitivity(PathSensitivity.RELATIVE)
+}
+
+// The scale benchmarks read the fixtures from disk at run time, so a fixture change reruns them.
+tasks.named("jmh") {
+  inputs.dir(
+    rootProject.layout.projectDirectory.dir(
+      "dd-smoke-tests/openfeature/src/test/resources/ffe-system-test-data/evaluation-suites"
+    )
+  ).withPathSensitivity(PathSensitivity.RELATIVE)
 }
