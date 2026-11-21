@@ -78,6 +78,24 @@ public class DirectIntakeTransportTest {
     assertNotEquals("unknown", request.header("DD-EVP-ORIGIN-VERSION"));
   }
 
+  @Test
+  void postsChunksAsOneBodyWithItsLength() throws Exception {
+    this.server.enqueue(202, null);
+
+    transport()
+        .post(
+            "exposures",
+            java.util.Arrays.asList(
+                java.nio.ByteBuffer.wrap("{\"a\"".getBytes(UTF_8)),
+                java.nio.ByteBuffer.wrap(":".getBytes(UTF_8)),
+                java.nio.ByteBuffer.wrap("1}".getBytes(UTF_8))));
+
+    final LocalHttpServer.Request request = this.server.requests().get(0);
+    assertEquals("/api/v2/exposures", request.uri.getPath());
+    assertEquals("{\"a\":1}", request.bodyAsString());
+    assertEquals("7", request.header("Content-Length"));
+  }
+
   @TableTest({
     "scenario          | status",
     "server error      | 500   ",

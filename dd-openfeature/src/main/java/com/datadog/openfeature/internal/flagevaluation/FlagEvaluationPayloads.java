@@ -4,19 +4,20 @@ import static com.datadog.openfeature.internal.JsonWriting.writeKeyObject;
 import static com.datadog.openfeature.internal.JsonWriting.writeValue;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import com.datadog.openfeature.internal.JsonArrayPayload;
 import com.datadog.openfeature.internal.JsonWriting;
-import java.io.ByteArrayOutputStream;
+import com.fasterxml.jackson.core.JsonGenerator;
+import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 final class FlagEvaluationPayloads {
 
   private static final byte[] PAYLOAD_SUFFIX = "]}".getBytes(UTF_8);
-  private static final byte[] JSON_COMMA = ",".getBytes(UTF_8);
 
   /**
    * Wire prefix identifying a privacy-preserving, hashed targeting key. Emitted for full-tier rows
@@ -25,6 +26,8 @@ final class FlagEvaluationPayloads {
    * it in sync with the other server SDKs and the UFC/EVP spec.
    */
   private static final String HASHED_TARGETING_KEY_PREFIX = "sha256_";
+
+  private static final char[] HEX_DIGITS = "0123456789abcdef".toCharArray();
 
   // Per-thread SHA-256 instance as hashing runs for every full-tier row without consent.
   private static final ThreadLocal<MessageDigest> SHA_256 =
@@ -38,50 +41,52 @@ final class FlagEvaluationPayloads {
 
   private FlagEvaluationPayloads() {}
 
-  static EncodedPayloads buildPayloads(
+  /** Receives each payload as it closes. */
+  interface PayloadSink {
+    /**
+     * @param payload the chunks of the payload's JSON document, valid only until this returns: the
+     *     next payload reuses them.
+     * @throws IOException to stop writing payloads.
+     */
+    void accept(List<ByteBuffer> payload) throws IOException;
+  }
+
+  /** What writing the payloads of a flush counted: kept when a payload fails to post. */
+  static final class PayloadCounts {
+    /** The payloads the sink accepted. */
+    int payloads;
+
+    long droppedPayloadLimit;
+    long degradedPayloadLimit;
+  }
+
+  /**
+   * Splits events into payloads under the size limit and hands each to the sink as it closes, so a
+   * flush holds one payload at a time however many it takes, rather than all of them at once.
+   *
+   * @throws IOException if the sink fails; the remaining events are not written.
+   */
+  static void writePayloads(
       final List<FlagEvaluationEvent> events,
       final Map<String, String> context,
-      final int payloadSizeLimitBytes) {
-    final byte[] prefix = payloadPrefix(context);
-    EncodedPayloadBuilder current = new EncodedPayloadBuilder(prefix);
-    final List<byte[]> payloads = new ArrayList<>();
-    long droppedPayloadLimit = 0;
-    long degradedPayloadLimit = 0;
-
+      final int payloadSizeLimitBytes,
+      final PayloadCounts counts,
+      final PayloadSink sink)
+      throws IOException {
+    final Payloads payloads =
+        new Payloads(payloadPrefix(context), payloadSizeLimitBytes, counts, sink);
     for (final FlagEvaluationEvent event : events) {
-      byte[] eventBytes = encodeEvent(event);
-
-      if (!current.canAdd(eventBytes, payloadSizeLimitBytes) && !current.isEmpty()) {
-        payloads.add(current.toByteArray());
-        current = new EncodedPayloadBuilder(prefix);
-      }
-
-      if (current.canAdd(eventBytes, payloadSizeLimitBytes)) {
-        current.add(eventBytes);
+      if (payloads.add(event)) {
         continue;
       }
-
       final FlagEvaluationEvent degraded = event.withoutTargetingKeyAndContext();
-      if (degraded != null) {
-        eventBytes = encodeEvent(degraded);
-        if (!current.canAdd(eventBytes, payloadSizeLimitBytes) && !current.isEmpty()) {
-          payloads.add(current.toByteArray());
-          current = new EncodedPayloadBuilder(prefix);
-        }
-        if (current.canAdd(eventBytes, payloadSizeLimitBytes)) {
-          current.add(eventBytes);
-          degradedPayloadLimit += event.evaluation_count;
-          continue;
-        }
+      if (degraded != null && payloads.add(degraded)) {
+        counts.degradedPayloadLimit += event.evaluation_count;
+        continue;
       }
-
-      droppedPayloadLimit += event.evaluation_count;
+      counts.droppedPayloadLimit += event.evaluation_count;
     }
-
-    if (!current.isEmpty()) {
-      payloads.add(current.toByteArray());
-    }
-    return new EncodedPayloads(payloads, droppedPayloadLimit, degradedPayloadLimit);
+    payloads.close();
   }
 
   private static byte[] payloadPrefix(final Map<String, String> context) {
@@ -91,38 +96,41 @@ final class FlagEvaluationPayloads {
   }
 
   static byte[] encodeEvent(final FlagEvaluationEvent event) {
-    return JsonWriting.write(generator -> {
-      generator.writeStartObject();
-      generator.writeNumberField("timestamp", event.timestamp);
-      writeKeyObject(generator, "flag", event.flag.key);
-      generator.writeNumberField("first_evaluation", event.first_evaluation);
-      generator.writeNumberField("last_evaluation", event.last_evaluation);
-      generator.writeNumberField("evaluation_count", event.evaluation_count);
-      writeKeyObject(generator, "variant", keyOf(event.variant));
-      writeKeyObject(generator, "allocation", keyOf(event.allocation));
-      if (event.targeting_key != null) {
-        generator.writeStringField("targeting_key", event.targeting_key);
-      }
-      if (event.runtime_default_used != null) {
-        generator.writeBooleanField("runtime_default_used", event.runtime_default_used);
-      }
-      if (event.context != null) {
-        generator.writeObjectFieldStart("context");
-        generator.writeFieldName("evaluation");
-        writeValue(generator, event.context.evaluation);
-        generator.writeEndObject();
-      }
-      if (event.error != null) {
-        generator.writeObjectFieldStart("error");
-        generator.writeStringField("message", event.error.message);
-        generator.writeEndObject();
-      }
-      if (event.features != null) {
-        generator.writeFieldName("features");
-        writeValue(generator, event.features);
-      }
+    return JsonWriting.write(generator -> writeEvent(generator, event));
+  }
+
+  private static void writeEvent(final JsonGenerator generator, final FlagEvaluationEvent event)
+      throws IOException {
+    generator.writeStartObject();
+    generator.writeNumberField("timestamp", event.timestamp);
+    writeKeyObject(generator, "flag", event.flag.key);
+    generator.writeNumberField("first_evaluation", event.first_evaluation);
+    generator.writeNumberField("last_evaluation", event.last_evaluation);
+    generator.writeNumberField("evaluation_count", event.evaluation_count);
+    writeKeyObject(generator, "variant", keyOf(event.variant));
+    writeKeyObject(generator, "allocation", keyOf(event.allocation));
+    if (event.targeting_key != null) {
+      generator.writeStringField("targeting_key", event.targeting_key);
+    }
+    if (event.runtime_default_used != null) {
+      generator.writeBooleanField("runtime_default_used", event.runtime_default_used);
+    }
+    if (event.context != null) {
+      generator.writeObjectFieldStart("context");
+      generator.writeFieldName("evaluation");
+      writeValue(generator, event.context.evaluation);
       generator.writeEndObject();
-    });
+    }
+    if (event.error != null) {
+      generator.writeObjectFieldStart("error");
+      generator.writeStringField("message", event.error.message);
+      generator.writeEndObject();
+    }
+    if (event.features != null) {
+      generator.writeFieldName("features");
+      writeValue(generator, event.features);
+    }
+    generator.writeEndObject();
   }
 
   /**
@@ -135,71 +143,59 @@ final class FlagEvaluationPayloads {
     final MessageDigest digest = SHA_256.get();
     digest.reset();
     final byte[] hash = digest.digest(value.getBytes(StandardCharsets.UTF_8));
-    final StringBuilder hex = new StringBuilder(hash.length * 2);
-    for (final byte b : hash) {
-      final int v = b & 0xFF;
-      if (v < 0x10) {
-        hex.append('0');
-      }
-      hex.append(Integer.toHexString(v));
+    final char[] hex = new char[hash.length * 2];
+    for (int i = 0; i < hash.length; i++) {
+      hex[2 * i] = HEX_DIGITS[(hash[i] >> 4) & 0xF];
+      hex[2 * i + 1] = HEX_DIGITS[hash[i] & 0xF];
     }
-    return hex.toString();
+    return new String(hex);
   }
 
-  static final class EncodedPayloads {
-    final List<byte[]> bodies;
-    final long droppedPayloadLimit;
-    final long degradedPayloadLimit;
+  /**
+   * Splits events into payloads under the size limit, in one {@link JsonArrayPayload} that each
+   * payload reuses once the sink accepted the previous one.
+   */
+  private static final class Payloads {
+    private final PayloadCounts counts;
+    private final PayloadSink sink;
+    private final JsonArrayPayload current;
 
-    private EncodedPayloads(
-        final List<byte[]> bodies,
-        final long droppedPayloadLimit,
-        final long degradedPayloadLimit) {
-      this.bodies = bodies;
-      this.droppedPayloadLimit = droppedPayloadLimit;
-      this.degradedPayloadLimit = degradedPayloadLimit;
-    }
-  }
-
-  private static final class EncodedPayloadBuilder {
-    private final byte[] prefix;
-    private final List<byte[]> events = new ArrayList<>();
-    private int eventBytes;
-
-    private EncodedPayloadBuilder(final byte[] prefix) {
-      this.prefix = prefix;
+    Payloads(
+        final byte[] prefix,
+        final int payloadSizeLimitBytes,
+        final PayloadCounts counts,
+        final PayloadSink sink) {
+      this.counts = counts;
+      this.sink = sink;
+      this.current = new JsonArrayPayload(prefix, PAYLOAD_SUFFIX, payloadSizeLimitBytes);
     }
 
-    private boolean isEmpty() {
-      return events.isEmpty();
-    }
-
-    private boolean canAdd(final byte[] event, final int payloadSizeLimitBytes) {
-      return sizeWith(event) <= payloadSizeLimitBytes;
-    }
-
-    private int sizeWith(final byte[] event) {
-      return prefix.length + PAYLOAD_SUFFIX.length + eventBytes + event.length + events.size();
-    }
-
-    private void add(final byte[] event) {
-      events.add(event);
-      eventBytes += event.length;
-    }
-
-    private byte[] toByteArray() {
-      final int size = prefix.length + PAYLOAD_SUFFIX.length + eventBytes;
-      final ByteArrayOutputStream out = new ByteArrayOutputStream(size + events.size());
-      out.write(prefix, 0, prefix.length);
-      for (int i = 0; i < events.size(); i++) {
-        if (i > 0) {
-          out.write(JSON_COMMA, 0, JSON_COMMA.length);
-        }
-        final byte[] event = events.get(i);
-        out.write(event, 0, event.length);
+    /**
+     * @return whether the event was added, to the current payload or to a new one.
+     */
+    boolean add(final FlagEvaluationEvent event) throws IOException {
+      if (current.append(generator -> writeEvent(generator, event))) {
+        return true;
       }
-      out.write(PAYLOAD_SUFFIX, 0, PAYLOAD_SUFFIX.length);
-      return out.toByteArray();
+      if (current.count() == 0) {
+        return false;
+      }
+      closeCurrent();
+      return current.append(generator -> writeEvent(generator, event));
+    }
+
+    private void closeCurrent() throws IOException {
+      // Not reset when the sink fails: the payload is dropped with the flush, and a timed-out
+      // request may still be reading its buffers.
+      sink.accept(current.body());
+      counts.payloads++;
+      current.reset();
+    }
+
+    void close() throws IOException {
+      if (current.count() > 0) {
+        closeCurrent();
+      }
     }
   }
 

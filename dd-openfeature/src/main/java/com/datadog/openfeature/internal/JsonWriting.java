@@ -3,8 +3,10 @@ package com.datadog.openfeature.internal;
 import com.fasterxml.jackson.core.JsonEncoding;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
+import datadog.trace.util.ChunkedBuffer;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.UncheckedIOException;
 import java.util.Collection;
 import java.util.Map;
@@ -30,6 +32,47 @@ public final class JsonWriting {
       throw new UncheckedIOException(e);
     }
     return output.toByteArray();
+  }
+
+  /**
+   * Serializes a JSON document into a buffer, as one message with whatever the caller wrote since
+   * the last message, such as a separator.
+   *
+   * @param buffer the buffer to write to.
+   * @param writer the document writer.
+   * @return whether the message fit; if not, the buffer is back at its last message.
+   */
+  public static boolean write(final ChunkedBuffer buffer, final Writer writer) {
+    try (JsonGenerator generator =
+        JSON_FACTORY.createGenerator(new ChunkedOutput(buffer), JsonEncoding.UTF8)) {
+      writer.write(generator);
+    } catch (final IOException e) {
+      buffer.rewind();
+      throw new UncheckedIOException(e);
+    } catch (final RuntimeException e) {
+      buffer.rewind();
+      throw e;
+    }
+    return buffer.mark();
+  }
+
+  /** Writes into a buffer: the generator flushes its own buffer into it. */
+  static final class ChunkedOutput extends OutputStream {
+    private final ChunkedBuffer buffer;
+
+    ChunkedOutput(final ChunkedBuffer buffer) {
+      this.buffer = buffer;
+    }
+
+    @Override
+    public void write(final int b) {
+      buffer.put((byte) b);
+    }
+
+    @Override
+    public void write(final byte[] bytes, final int offset, final int length) {
+      buffer.put(bytes, offset, length);
+    }
   }
 
   /**

@@ -14,7 +14,9 @@ import com.datadog.openfeature.internal.RuntimeServices;
 import com.datadog.openfeature.internal.bridge.v1.EventTransport;
 import com.datadog.openfeature.internal.bridge.v1.HealthMetrics;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -178,6 +180,105 @@ class ExposurePipelineTest {
     }
 
     assertEquals(keys(exposures.subList(1, 2)), exposureKeys(allExposures()));
+  }
+
+  @Test
+  void aFailedPostKeepsItsBuffers() throws Exception {
+    // A timed-out request can still be reading the chunks after post throws, so the next batch
+    // must not be serialized into them.
+    final List<ExposureEvent> exposures = buildExposures(2);
+    final List<List<ByteBuffer>> bodies = new CopyOnWriteArrayList<>();
+    final EventTransport transport =
+        new EventTransport() {
+          @Override
+          public void post(final String route, final byte[] json) {
+            throw new AssertionError("expected the chunked post");
+          }
+
+          @Override
+          public void post(final String route, final List<ByteBuffer> json) throws IOException {
+            bodies.add(json);
+            if (bodies.size() == 1) {
+              throw new IOException("timed out, still sending");
+            }
+          }
+        };
+
+    try (ExposurePipeline pipeline =
+        new ExposurePipeline(
+            16, 1, MILLISECONDS, transport, emptyMap(), new RuntimeServices(HealthMetrics.NOOP))) {
+      pipeline.start();
+      pipeline.accept(exposures.get(0));
+      eventually(() -> bodies.size() == 1);
+      pipeline.accept(exposures.get(1));
+      eventually(() -> bodies.size() == 2);
+    }
+
+    assertEquals(keys(exposures.subList(0, 1)), exposureKeys(exposuresOf(bodies.get(0))));
+    assertEquals(keys(exposures.subList(1, 2)), exposureKeys(exposuresOf(bodies.get(1))));
+  }
+
+  @SuppressWarnings("unchecked")
+  private static List<Map<String, Object>> exposuresOf(final List<ByteBuffer> body)
+      throws IOException {
+    int size = 0;
+    for (final ByteBuffer chunk : body) {
+      size += chunk.remaining();
+    }
+    final ByteBuffer joined = ByteBuffer.allocate(size);
+    for (final ByteBuffer chunk : body) {
+      joined.put(chunk.duplicate());
+    }
+    return (List<Map<String, Object>>) JsonReading.readObject(joined.array()).get("exposures");
+  }
+
+  @Test
+  void splitsABatchAcrossPayloadsAndDropsAnExposureLargerThanOne() throws Exception {
+    final List<ExposureEvent> exposures = buildExposures(6);
+    final ExposureEvent huge = buildExposure(singletonMap("blob", repeat('x', 2_000)));
+    final int limit = ExposuresRequest.prefix(emptyMap()).length + 900;
+    try (ExposurePipeline pipeline =
+        new ExposurePipeline(
+            64,
+            Long.MAX_VALUE,
+            NANOSECONDS,
+            this.transport,
+            emptyMap(),
+            new RuntimeServices(HealthMetrics.NOOP),
+            limit)) {
+      exposures.forEach(pipeline);
+      pipeline.accept(huge); // larger than a whole payload: dropped
+      pipeline.start();
+    }
+
+    assertTrue(this.posts.get() > 1, "expected several payloads, got " + this.posts.get());
+    assertEquals(keys(exposures), exposureKeys(allExposures()));
+  }
+
+  @Test
+  void dropsAnExposureThatCannotBeSerializedAndKeepsTheRest() throws Exception {
+    final Object unserializable =
+        new Object() {
+          @Override
+          public String toString() {
+            throw new IllegalStateException("unserializable");
+          }
+        };
+    final ExposureEvent bad = buildExposure(singletonMap("bad", unserializable));
+    final ExposureEvent good = buildExposure();
+    try (ExposurePipeline pipeline = pipeline(emptyMap())) {
+      pipeline.start();
+      pipeline.accept(bad);
+      pipeline.accept(good);
+      eventually(() -> allExposures().size() == 1);
+    }
+    assertEquals(keys(List.of(good)), exposureKeys(allExposures()));
+  }
+
+  private static String repeat(final char c, final int count) {
+    final char[] chars = new char[count];
+    Arrays.fill(chars, c);
+    return new String(chars);
   }
 
   @Test
