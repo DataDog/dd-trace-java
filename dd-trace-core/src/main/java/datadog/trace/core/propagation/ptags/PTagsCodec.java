@@ -371,6 +371,72 @@ abstract class PTagsCodec {
         || tagKey.equals(TRACE_SOURCE_TAG);
   }
 
+  /**
+   * {@link #validateTagValue} for a value given as the range {@code [start, end)} of {@code s},
+   * without making a {@link TagValue}, for the keys with validated values (see {@link
+   * #hasValidatedValues}). The accepted values contain neither {@code =} nor {@code ~}, so the
+   * range may be in either encoding.
+   */
+  static boolean isValidValue(TagKey tagKey, CharSequence s, int start, int end) {
+    if (tagKey.equals(DECISION_MAKER_TAG)) {
+      return isValidDecisionMaker(s, start, end);
+    } else if (tagKey.equals(TRACE_ID_TAG)) {
+      if (end - start != 16) {
+        return false;
+      }
+      for (int i = start; i < end; i++) {
+        if (!isHexDigit(s.charAt(i))) {
+          return false;
+        }
+      }
+      return true;
+    } else if (tagKey.equals(TRACE_SOURCE_TAG)) {
+      int length = end - start;
+      if (length < 2 || length > 8) {
+        return false;
+      }
+      for (int i = start; i < end; i++) {
+        if (!isHexDigitCaseInsensitive(s.charAt(i))) {
+          return false;
+        }
+      }
+      return true;
+    }
+    return true;
+  }
+
+  /** {@link #validateDecisionMakerTag} for the range {@code [start, end)} of {@code s}. */
+  private static boolean isValidDecisionMaker(CharSequence s, int start, int end) {
+    int sepPos = -1;
+    for (int i = start; i < end; i++) {
+      if (s.charAt(i) == '-') {
+        sepPos = i;
+        break;
+      }
+    }
+    if (sepPos < 0) {
+      return false; // missing separator
+    }
+    int hashLength = sepPos - start;
+    if (hashLength != 0 && hashLength != 10) {
+      return false; // invalid service hash length
+    }
+    if (sepPos + 1 == end) {
+      return false; // missing sampling mechanism
+    }
+    for (int i = start; i < sepPos; i++) {
+      if (!isHexDigit(s.charAt(i))) {
+        return false; // invalid service hash char
+      }
+    }
+    for (int i = sepPos + 1; i < end; i++) {
+      if (!isDigit(s.charAt(i))) {
+        return false; // invalid sampling mechanism
+      }
+    }
+    return true;
+  }
+
   protected static boolean validateTagValue(TagKey tagKey, TagValue tagValue) {
     if (!hasValidatedValues(tagKey)) {
       return true;
