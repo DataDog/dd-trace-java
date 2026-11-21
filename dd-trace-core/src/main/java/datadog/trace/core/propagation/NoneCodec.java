@@ -2,6 +2,7 @@ package datadog.trace.core.propagation;
 
 import datadog.context.propagation.CarrierKeys;
 import datadog.context.propagation.CarrierSetter;
+import datadog.context.propagation.HeaderSchema;
 import datadog.trace.api.Config;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.TracePropagationStyle;
@@ -26,6 +27,12 @@ public class NoneCodec {
 
     private NoneContextInterpreter(Config config) {
       super(config);
+    }
+
+    /** No headers of its own: every known header gets the shared handling. */
+    @Override
+    protected int classify(HeaderSchema header) {
+      return NOT_OWN_HEADER;
     }
 
     @Override
