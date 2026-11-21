@@ -7,14 +7,11 @@ plugins {
 }
 
 testJvmConstraints {
-  // This smoke test should be limited to Java 25 and above
-  // But the groovy testing framework cannot run on Java 25
-  // Using Java 8 for now and runs a JVM 25 when forking tests process.
-  // Relying on forked JVM 25 is hardcoded in the test suites (see createProcessBuilder()).
-  minJavaVersion = JavaVersion.VERSION_1_8
-  maxJavaVersion = JavaVersion.VERSION_1_8
-  // Only runs on Temurin build as it spawns a Temurin 25 for test process.
-  excludeJdk = ['IBM8', 'SEMERU8']
+  minJavaVersion = JavaVersion.VERSION_25
+  // Newer JVMs can run ordinary Java 25 bytecode, but these are tests for preview of StructuredTaskScope API.
+  // Preview bytecode runs only on the Java release that compiled it.
+  // Even with --enable-preview, Java 27 accepts only Java 27 preview bytecode, not Java 25's.
+  maxJavaVersion = JavaVersion.VERSION_25
 }
 
 description = 'JDK 25 Concurrent Integration Tests'
@@ -32,13 +29,6 @@ tasks.named('compileJava', JavaCompile) {
   options.compilerArgs.add("--enable-preview")
 }
 
-// TODO: drop Groovy here at all
-// The Groovy test framework can't run on Java 25 (the module's default toolchain), so pin the
-// Groovy test compiler back to JDK 8 — matches the Java 8 test JVM that forks a Java 25 subprocess.
-tasks.named('compileTestGroovy') {
-  configureCompiler(it, 8, JavaVersion.VERSION_1_8, "Groovy test framework cannot run on JDK 25")
-}
-
 application {
   mainClass = 'datadog.smoketest.concurrent.ConcurrentApp'
 }
@@ -51,7 +41,6 @@ dependencies {
 tasks.withType(Test).configureEach {
   def shadowJarTask = tasks.named('shadowJar', ShadowJar)
   dependsOn shadowJarTask
-  environment("JAVA_HOME", getLazyJavaHomeFor(25))
   jvmArgumentProviders.add(new CommandLineArgumentProvider() {
       @Override
       Iterable<String> asArguments() {
