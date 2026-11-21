@@ -45,8 +45,8 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
 
   /**
    * Maximum number of top-level context fields retained by copyPrunedContext. Bounds the width of
-   * the caller-supplied context and, transitively, the size of every FlagEvalEvent sitting in the
-   * async hand-off queue. Kept aligned with the cross-SDK RFC.
+   * the caller-supplied context and, transitively, the size of every full-tier bucket of the flag
+   * evaluation aggregate. Kept aligned with the cross-SDK RFC.
    */
   static final int MAX_CONTEXT_FIELDS = 256;
 
@@ -419,7 +419,7 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
 
   /**
    * Single-pass bounded copy of a caller-owned EvaluationContext into the flattened, pruned map
-   * stored on a FlagEvalEvent and later canonicalized by the aggregator.
+   * recorded with a flag evaluation and kept by the aggregator.
    *
    * <p>Every retained-size dimension is capped inline so the hot path performs work proportional to
    * what is kept, never to what the caller supplied: MAX_CONTEXT_FIELDS - stop iterating the

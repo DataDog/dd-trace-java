@@ -4,8 +4,8 @@ import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import com.datadog.openfeature.internal.RuntimeServices;
-import com.datadog.openfeature.internal.bridge.v1.EventTransport;
 import com.datadog.openfeature.internal.bridge.v1.HealthMetrics;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import org.openjdk.jmh.annotations.Benchmark;
@@ -19,24 +19,27 @@ import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
+import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
-import org.openjdk.jmh.infra.Blackhole;
 
 /**
- * Writer-side benchmark for EVP {@code flagevaluation} recording: the bounded-queue enqueue and the
- * worker-thread aggregation of already-captured events.
+ * Evaluating-thread benchmark for EVP {@code flagevaluation} recording: {@link
+ * FlagEvaluationPipeline#record} into the caller-side aggregate, on one thread and on several
+ * contending for the same buckets.
  *
- * <p><strong>Scope limitation:</strong> this benchmark starts from a pre-built FlagEvalEvent
- * holding a ready-made flat attribute map. It therefore does NOT cover the OpenFeature hook's own
- * inline capture cost - in particular the bounded evaluation-context copy that
- * FlagEvalLoggingHook.finallyAfter performs synchronously on the evaluation thread under
- * consent-on. That cost is measured separately by FlagEvalHookHotPathBenchmark in the root package,
- * where the hook and the OpenFeature context types live. Do not read writerEnqueue as the total
+ * <p><strong>Scope limitation:</strong> this benchmark starts from already-captured fields and a
+ * ready-made flat attribute map. It therefore does NOT cover the OpenFeature hook's own inline
+ * capture cost - in particular the bounded evaluation-context copy that
+ * FlagEvalLoggingHook.finallyAfter performs under consent-on. That cost is measured separately by
+ * FlagEvalHookHotPathBenchmark in the root package. Do not read these numbers as the total
  * per-evaluation cost paid by the caller.
  *
- * <p>Events are built with observeFullEvaluationData=true so the aggregator actually hashes and
- * compares the context. Under the consent-off default it drops attrs and skips that work, which
+ * <p>Evaluations are recorded with observeFullEvaluationData=true so the aggregator actually hashes
+ * and compares the context. Under the consent-off default it drops attrs and skips that work, which
  * makes every field-count profile measure the same scalar-only work.
+ *
+ * <p>The worker is never started, so nothing drains: after the first pass over the keys every
+ * evaluation lands in an existing bucket, the steady state of a flush window.
  *
  * <p>Run: {@code ./gradlew :dd-openfeature:jmh -Pjmh.includes=FlagEvaluationHotPathBenchmark}.
  */
@@ -58,9 +61,13 @@ public class FlagEvaluationHotPathBenchmark {
   private Map<String, Object> attrs;
   private String[] flagKeys;
   private String[] targetingKeys;
-  private int cursor;
   private FlagEvaluationPipeline writer;
-  private FlagEvaluationPipeline.SerializingHandlerForTest handler;
+
+  /** Per-thread cursor: a shared counter would add its own cache-line contention. */
+  @State(Scope.Thread)
+  public static class Cursor {
+    int next;
+  }
 
   @Setup(Level.Iteration)
   public void setUp() {
@@ -72,58 +79,49 @@ public class FlagEvaluationHotPathBenchmark {
     }
     flagKeys = keys("bench-flag-", p.numFlags);
     targetingKeys = keys("bench-user-", p.numUsers);
-    cursor = 0;
 
-    final EventTransport transport = (route, json) -> {};
-    final RuntimeServices services = new RuntimeServices(HealthMetrics.NOOP);
     final Map<String, String> ddContext = new HashMap<>();
     ddContext.put("service", "bench-service");
-    handler = new FlagEvaluationPipeline.SerializingHandlerForTest(transport, ddContext, services);
-
-    // Capacity large enough that the benchmark never overflows within a measurement window.
     writer =
         new FlagEvaluationPipeline(
-            1 << 20, Long.MAX_VALUE, NANOSECONDS, transport, ddContext, services);
+            Long.MAX_VALUE,
+            NANOSECONDS,
+            (route, json) -> {},
+            ddContext,
+            new RuntimeServices(HealthMetrics.NOOP));
   }
 
-  /**
-   * Queue-mechanics cost only: event allocation plus the non-blocking bounded-queue offer. Excludes
-   * the hook's inline context snapshot - see the class javadoc.
-   */
+  /** Uncontended cost of recording one evaluation. */
   @Benchmark
-  public void writerEnqueue(final Blackhole blackhole) {
-    final FlagEvalEvent event = nextEvent();
-    writer.enqueue(event);
-    blackhole.consume(writer.pollQueuedEventForTest());
-    blackhole.consume(event);
+  @Threads(1)
+  public void record(final Cursor cursor) {
+    recordNext(cursor);
   }
 
-  /** Worker-thread cost: hash the context and aggregate. */
+  /** Recording from several threads into the same buckets. */
   @Benchmark
-  public void workerAggregate(final Blackhole blackhole) {
-    final FlagEvalEvent event = nextEvent();
-    handler.aggregateEvent(event);
-    if ((cursor % 10_000) == 0) {
-      handler.clearAggregationForTest();
-    }
-    blackhole.consume(handler.fullTierSizeForTest());
+  @Threads(8)
+  public void recordContended(final Cursor cursor) {
+    recordNext(cursor);
   }
 
-  private FlagEvalEvent nextEvent() {
-    final int i = cursor++;
-    // observeFullEvaluationData=true is required for this benchmark to mean anything: under the
-    // consent-off default the aggregator drops attrs and never hashes the context, so
-    // every field-count profile would collapse to the same scalar-only cost.
-    return new FlagEvalEvent(
-        flagKeys[Math.floorMod(i, flagKeys.length)],
-        "variant-" + Math.floorMod(i, 4),
-        "alloc-" + Math.floorMod(i, flagKeys.length),
+  private void recordNext(final Cursor cursor) {
+    final int i = cursor.next++;
+    final int flag = Math.floorMod(i, flagKeys.length);
+    writer.record(
+        flagKeys[flag],
+        VARIANTS[Math.floorMod(i, VARIANTS.length)],
+        ALLOCATIONS[Math.floorMod(flag, ALLOCATIONS.length)],
         targetingKeys[Math.floorMod(i, targetingKeys.length)],
         null,
         1_700_000_000_000L + i,
         true,
-        attrs);
+        attrs,
+        Collections.<String, Object>emptyMap());
   }
+
+  private static final String[] VARIANTS = {"variant-0", "variant-1", "variant-2", "variant-3"};
+  private static final String[] ALLOCATIONS = {"alloc-0", "alloc-1"};
 
   private static String[] keys(final String prefix, final int count) {
     final String[] out = new String[count];

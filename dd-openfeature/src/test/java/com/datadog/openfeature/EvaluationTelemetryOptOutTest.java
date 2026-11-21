@@ -28,8 +28,8 @@ import com.datadog.openfeature.internal.delivery.FlagSelectionRequest;
 import com.datadog.openfeature.internal.exposure.ExposureDeduplicationCache;
 import com.datadog.openfeature.internal.exposure.ExposureEvent;
 import com.datadog.openfeature.internal.exposure.ExposurePipeline;
-import com.datadog.openfeature.internal.flagevaluation.FlagEvalEvent;
 import com.datadog.openfeature.internal.flagevaluation.FlagEvaluationPipeline;
+import com.datadog.openfeature.internal.flagevaluation.RecordedEvaluation;
 import com.datadog.openfeature.internal.ufc.Allocation;
 import com.datadog.openfeature.internal.ufc.ConditionConfiguration;
 import com.datadog.openfeature.internal.ufc.ConditionOperator;
@@ -92,7 +92,7 @@ class EvaluationTelemetryOptOutTest {
   private static final String SYSTEM_PROPERTY =
       "dd.feature.flags.evaluation.telemetry.per.subject.opt.out.enabled";
 
-  private final List<FlagEvalEvent> events = new CopyOnWriteArrayList<>();
+  private final List<RecordedEvaluation> events = new CopyOnWriteArrayList<>();
   private final List<String> spans = new CopyOnWriteArrayList<>();
   private final List<ExposureEvent> exposures = new CopyOnWriteArrayList<>();
   private final List<ExposureHook.Evaluation> customerEvaluations = new CopyOnWriteArrayList<>();
@@ -267,7 +267,8 @@ class EvaluationTelemetryOptOutTest {
           assertEquals(true, this.events.get(previousEvents + 1).attrs.get(PARAMETER));
         }
       } else {
-        for (final FlagEvalEvent event : this.events.subList(previousEvents, this.events.size())) {
+        for (final RecordedEvaluation event :
+            this.events.subList(previousEvents, this.events.size())) {
           assertTrue(event.attrs.isEmpty(), "normal evaluation privacy rules still apply");
         }
       }
@@ -804,7 +805,7 @@ class EvaluationTelemetryOptOutTest {
 
   private void assertTelemetryCounts(final int expected) {
     assertAll(
-        () -> assertEquals(expected, this.events.size(), "evaluation EVP enqueue count"),
+        () -> assertEquals(expected, this.events.size(), "evaluation EVP record count"),
         () -> assertEquals(expected, this.metrics.get(), "OTel evaluation count"),
         () -> assertEquals(expected, this.spans.size(), "automatic span enrichment count"));
   }
@@ -855,24 +856,36 @@ class EvaluationTelemetryOptOutTest {
     }
   }
 
-  /** A flag evaluation pipeline capturing enqueued events, never started. */
+  /** A flag evaluation pipeline capturing recorded evaluations, never started. */
   private static final class CapturingPipeline extends FlagEvaluationPipeline {
-    private final List<FlagEvalEvent> events;
+    private final RecordedEvaluation.Recorder recorder;
 
-    CapturingPipeline(final List<FlagEvalEvent> events) {
-      super(
-          1, 1, SECONDS, (route, json) -> {}, emptyMap(), new RuntimeServices(HealthMetrics.NOOP));
-      this.events = events;
+    CapturingPipeline(final List<RecordedEvaluation> events) {
+      super(1, SECONDS, (route, json) -> {}, emptyMap(), new RuntimeServices(HealthMetrics.NOOP));
+      this.recorder = new RecordedEvaluation.Recorder(events::add);
     }
 
     @Override
-    public boolean hasCapacityForEnqueue() {
-      return true;
-    }
-
-    @Override
-    public void enqueue(final FlagEvalEvent event) {
-      this.events.add(event);
+    public void record(
+        final String flagKey,
+        final String variant,
+        final String allocationKey,
+        final String targetingKey,
+        final String errorMessage,
+        final long evalTimeMs,
+        final boolean observeFullEvaluationData,
+        final Map<String, Object> attrs,
+        final Map<String, Object> features) {
+      recorder.record(
+          flagKey,
+          variant,
+          allocationKey,
+          targetingKey,
+          errorMessage,
+          evalTimeMs,
+          observeFullEvaluationData,
+          attrs,
+          features);
     }
   }
 }

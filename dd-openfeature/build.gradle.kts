@@ -47,7 +47,6 @@ extra["excludedClassesBranchCoverage"] = listOf(
   "com.datadog.openfeature.internal.delivery.RemoteConfigurationService",
   "com.datadog.openfeature.internal.delivery.Retries",
   "com.datadog.openfeature.internal.exposure.ExposurePipeline.ExposureSerializingHandler",
-  "com.datadog.openfeature.internal.flagevaluation.FlagEvalEvent",
   "com.datadog.openfeature.internal.flagevaluation.FlagEvaluationPipeline",
 )
 extra["excludedClassesInstructionCoverage"] = listOf(
@@ -59,8 +58,7 @@ extra["excludedClassesInstructionCoverage"] = listOf(
   "com.datadog.openfeature.internal.config.SdkVersion",
   "com.datadog.openfeature.internal.delivery.HttpCall",
   "com.datadog.openfeature.internal.delivery.HttpCall.CancellableBodySubscriber",
-  "com.datadog.openfeature.internal.flagevaluation.FlagEvalEvent",
-  "com.datadog.openfeature.internal.flagevaluation.FlagEvaluationPipeline.SerializingHandlerForTest",
+  "com.datadog.openfeature.internal.exposure.ExposureDeduplicationCache.Sent",
   "datadog.trace.api.openfeature.Provider",
 )
 

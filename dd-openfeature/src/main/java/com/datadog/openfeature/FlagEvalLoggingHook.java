@@ -6,7 +6,6 @@ import static com.datadog.openfeature.internal.evaluation.MetadataKeys.HAS_EVALU
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.OBSERVE_FULL_EVALUATION_DATA;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.allocationKey;
 
-import com.datadog.openfeature.internal.flagevaluation.FlagEvalEvent;
 import com.datadog.openfeature.internal.flagevaluation.FlagEvaluationWriter;
 import dev.openfeature.sdk.FlagEvaluationDetails;
 import dev.openfeature.sdk.Hook;
@@ -20,8 +19,8 @@ import java.util.function.Supplier;
  * OpenFeature Hook that captures flag evaluation events for EVP flagevaluation emission.
  *
  * <p>Contract: finallyAfter does scalar metadata extraction, a single bounded copy of the
- * evaluation context, and a non-blocking offer to the writer's bounded queue. Aggregation and
- * posting are deferred to the writer's worker thread.
+ * evaluation context, and records the evaluation into the writer's lock-free aggregate. Posting is
+ * deferred to the writer's worker thread.
  *
  * <p>Hot-path cost: under consent-on (observeFullEvaluationData=true) DDEvaluator.copyPrunedContext
  * performs one bounded walk of the caller-owned EvaluationContext, applying every retained-size cap
@@ -46,8 +45,8 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
   }
 
   /**
-   * Capture + non-blocking enqueue only; no flattening, aggregation, or I/O. Runs at the finally
-   * stage so it covers success, error, and default-value paths.
+   * Capture and record only; no flattening or I/O. Runs at the finally stage so it covers success,
+   * error, and default-value paths.
    *
    * <p>The context snapshot taken here scales with context size/nesting - see the class javadoc for
    * why it cannot be deferred.
@@ -63,14 +62,6 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
       }
       final FlagEvaluationWriter w = writerSupplier.get();
       if (w == null) {
-        return;
-      }
-
-      // Pre-queue guard: if the queue is already saturated, avoid the context-copy work whose
-      // result would be discarded on offer(). Best-effort — the queue can still be full at
-      // offer() time — but flips a full snapshot into an O(1) check on the drop path.
-      if (!w.hasCapacityForEnqueue()) {
-        w.countPreQueueOverflow();
         return;
       }
 
@@ -123,8 +114,9 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
       final Map<String, Object> attrs;
       if (observeFullEvaluationData && ctx != null && ctx.getCtx() != null) {
         // Bounded copy of the caller's mutable context (see DDEvaluator.copyPrunedContext for
-        // every retained-size cap). Runs inline because the event is consumed asynchronously
-        // and the source context is caller-owned; work is proportional to what is retained.
+        // every retained-size cap). Runs inline because the aggregate keeps the context past
+        // this call and the source context is caller-owned; work is proportional to what is
+        // retained.
         final DDEvaluator.CopyResult copy = DDEvaluator.copyPrunedContext(ctx.getCtx());
         if (copy.truncatedReason != null) {
           w.countContextTruncated(copy.truncatedReason);
@@ -140,17 +132,16 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
           Boolean.TRUE.equals(values.get(HAS_EVALUATION_FEATURES))
               ? SplitFeatureMetadata.featuresWithPrefix(metadata, EVALUATION_FEATURE_PREFIX)
               : Collections.<String, Object>emptyMap();
-      w.enqueue(
-          new FlagEvalEvent(
-              flagKey,
-              variant,
-              allocationKey,
-              targetingKey,
-              errorMessage,
-              evalTimeMs,
-              observeFullEvaluationData,
-              attrs,
-              features));
+      w.record(
+          flagKey,
+          variant,
+          allocationKey,
+          targetingKey,
+          errorMessage,
+          evalTimeMs,
+          observeFullEvaluationData,
+          attrs,
+          features);
     } catch (LinkageError e) {
       // Never let EVP recording break flag evaluation
     }

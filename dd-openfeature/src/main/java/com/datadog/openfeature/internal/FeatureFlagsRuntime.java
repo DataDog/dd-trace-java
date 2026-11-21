@@ -189,7 +189,6 @@ public final class FeatureFlagsRuntime {
     final FlagEvaluationPipeline evaluations =
         settings.isEvaluationCountsEnabled()
             ? new FlagEvaluationPipeline(
-                FlagEvaluationPipeline.DEFAULT_CAPACITY,
                 FlagEvaluationPipeline.FLUSH_INTERVAL_SECONDS,
                 TimeUnit.SECONDS,
                 transport,

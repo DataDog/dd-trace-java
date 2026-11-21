@@ -17,7 +17,9 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
 import java.util.function.IntPredicate;
 
 final class FlagEvaluationTestSupport {
@@ -26,17 +28,17 @@ final class FlagEvaluationTestSupport {
 
   private FlagEvaluationTestSupport() {}
 
-  static FlagEvalEvent event(
+  static RecordedEvaluation event(
       final String flagKey,
       final String variant,
       final String allocationKey,
       final String targetingKey,
       final long evalTimeMs,
       final Map<String, Object> attrs) {
-    return new FlagEvalEvent(flagKey, variant, allocationKey, targetingKey, evalTimeMs, attrs);
+    return event(flagKey, variant, allocationKey, targetingKey, evalTimeMs, false, attrs);
   }
 
-  static FlagEvalEvent event(
+  static RecordedEvaluation event(
       final String flagKey,
       final String variant,
       final String allocationKey,
@@ -44,7 +46,7 @@ final class FlagEvaluationTestSupport {
       final long evalTimeMs,
       final boolean observeFullEvaluationData,
       final Map<String, Object> attrs) {
-    return new FlagEvalEvent(
+    return new RecordedEvaluation(
         flagKey,
         variant,
         allocationKey,
@@ -52,16 +54,11 @@ final class FlagEvaluationTestSupport {
         null,
         evalTimeMs,
         observeFullEvaluationData,
-        attrs);
+        attrs,
+        Collections.emptyMap());
   }
 
-  static FlagEvalEvent errorEvent(
-      final String flagKey, final String errorMessage, final long evalTimeMs) {
-    return new FlagEvalEvent(
-        flagKey, null, null, null, errorMessage, evalTimeMs, Collections.emptyMap());
-  }
-
-  static FlagEvalEvent simpleEvent(final String flagKey, final String variant) {
+  static RecordedEvaluation simpleEvent(final String flagKey, final String variant) {
     return event(flagKey, variant, "alloc1", "user-1", 1000L, Collections.emptyMap());
   }
 
@@ -84,10 +81,18 @@ final class FlagEvaluationTestSupport {
   static TestWriterSetup buildTestWriter(final int payloadSizeLimitBytes) {
     final CapturingTransport transport = new CapturingTransport();
     final RecordingMetrics metrics = new RecordingMetrics();
-    final FlagEvaluationPipeline.SerializingHandlerForTest handler =
-        new FlagEvaluationPipeline.SerializingHandlerForTest(
-            transport, context(), payloadSizeLimitBytes, new RuntimeServices(metrics));
-    return new TestWriterSetup(handler, transport, metrics);
+    final ConcurrentFlagAggregator aggregator = new ConcurrentFlagAggregator();
+    final FlagEvaluationPipeline.FlagEvaluationSerializingHandler handler =
+        new FlagEvaluationPipeline.FlagEvaluationSerializingHandler(
+            transport,
+            aggregator,
+            Long.MAX_VALUE,
+            TimeUnit.NANOSECONDS,
+            context(),
+            new ConcurrentHashMap<>(),
+            payloadSizeLimitBytes,
+            new RuntimeServices(metrics));
+    return new TestWriterSetup(handler, aggregator, transport, metrics);
   }
 
   static CapturedJson flushAndCapture(final TestWriterSetup setup) {
@@ -98,7 +103,6 @@ final class FlagEvaluationTestSupport {
 
   static List<CapturedJson> flushAndCaptureAll(final TestWriterSetup setup) {
     setup.transport.posts.clear();
-    setup.handler.drainAndAggregate();
     setup.handler.flush();
     final List<CapturedJson> json = new ArrayList<>();
     for (final Post post : setup.transport.posts) {
@@ -200,17 +204,25 @@ final class FlagEvaluationTestSupport {
   }
 
   static class TestWriterSetup {
-    final FlagEvaluationPipeline.SerializingHandlerForTest handler;
+    final FlagEvaluationPipeline.FlagEvaluationSerializingHandler handler;
+    final ConcurrentFlagAggregator aggregator;
     final CapturingTransport transport;
     final RecordingMetrics metrics;
 
     TestWriterSetup(
-        final FlagEvaluationPipeline.SerializingHandlerForTest handler,
+        final FlagEvaluationPipeline.FlagEvaluationSerializingHandler handler,
+        final ConcurrentFlagAggregator aggregator,
         final CapturingTransport transport,
         final RecordingMetrics metrics) {
       this.handler = handler;
+      this.aggregator = aggregator;
       this.transport = transport;
       this.metrics = metrics;
+    }
+
+    /** Records an evaluation into the handler's aggregator. */
+    void add(final RecordedEvaluation evaluation) {
+      evaluation.recordInto(aggregator);
     }
   }
 
