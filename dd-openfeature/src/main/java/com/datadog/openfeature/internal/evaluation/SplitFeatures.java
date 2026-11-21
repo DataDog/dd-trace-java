@@ -1,5 +1,6 @@
 package com.datadog.openfeature.internal.evaluation;
 
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EVALUATION_FEATURES_HANDLE;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EVALUATION_FEATURE_PREFIX;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EXPOSURE_FEATURE_PREFIX;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.FEATURE_PREFIX;
@@ -8,8 +9,10 @@ import static com.datadog.openfeature.internal.evaluation.MetadataKeys.HAS_EVALU
 import com.datadog.openfeature.internal.ufc.Feature;
 import dev.openfeature.sdk.ImmutableMetadata;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
@@ -19,6 +22,9 @@ import org.slf4j.LoggerFactory;
  * The metadata entries of a split's features, resolved when the split is first served and then
  * cached on it: the first feature of each key wins, each destination gets its prefixed key, and
  * unknown destinations are dropped. Later evaluations only copy the entries.
+ *
+ * <p>The features routed to flag evaluations are also built once into a map, registered with {@link
+ * EvaluationFeatureHandles}, and passed to the flag evaluation hook by handle.
  */
 final class SplitFeatures {
   private static final Logger LOGGER = LoggerFactory.getLogger(SplitFeatures.class);
@@ -31,7 +37,7 @@ final class SplitFeatures {
   static final Set<String> WARNED_FEATURE_DESTINATIONS = ConcurrentHashMap.newKeySet();
 
   /** The prepared features of a split without metadata entries, shared by all such splits. */
-  static final SplitFeatures NONE = new SplitFeatures(new String[0], new Object[0], false);
+  static final SplitFeatures NONE = new SplitFeatures(new String[0], new Object[0], false, 0L);
 
   private final String[] keys;
 
@@ -40,11 +46,18 @@ final class SplitFeatures {
 
   private final boolean hasEvaluationFeatures;
 
+  /** The {@link EvaluationFeatureHandles} handle of the evaluation features, {@code 0} if none. */
+  private final long evaluationFeaturesHandle;
+
   private SplitFeatures(
-      final String[] keys, final Object[] values, final boolean hasEvaluationFeatures) {
+      final String[] keys,
+      final Object[] values,
+      final boolean hasEvaluationFeatures,
+      final long evaluationFeaturesHandle) {
     this.keys = keys;
     this.values = values;
     this.hasEvaluationFeatures = hasEvaluationFeatures;
+    this.evaluationFeaturesHandle = evaluationFeaturesHandle;
   }
 
   /**
@@ -59,6 +72,7 @@ final class SplitFeatures {
     }
     final List<String> keys = new ArrayList<>();
     final List<Object> values = new ArrayList<>();
+    final Map<String, Object> evaluation = new HashMap<>();
     final Set<String> seenKeys = new HashSet<>();
     boolean evaluationFeatures = false;
     for (final Feature feature : features) {
@@ -76,6 +90,9 @@ final class SplitFeatures {
           if (value != null) {
             keys.add(prefix + feature.key);
             values.add(value);
+            if (EVALUATION_FEATURE_PREFIX.equals(prefix)) {
+              evaluation.put(feature.key, value);
+            }
           }
           evaluationFeatures |= EVALUATION_FEATURE_PREFIX.equals(prefix);
         } else if (WARNED_FEATURE_DESTINATIONS.size() < MAX_WARNED_FEATURE_DESTINATIONS
@@ -87,8 +104,13 @@ final class SplitFeatures {
     if (keys.isEmpty() && !evaluationFeatures) {
       return NONE;
     }
+    // Matches what the hook would read back from the metadata entries.
+    final long handle =
+        evaluation.isEmpty()
+            ? 0L
+            : EvaluationFeatureHandles.register(EvaluationFeatureHandles.prepared(evaluation));
     return new SplitFeatures(
-        keys.toArray(new String[0]), values.toArray(new Object[0]), evaluationFeatures);
+        keys.toArray(new String[0]), values.toArray(new Object[0]), evaluationFeatures, handle);
   }
 
   /** Adds the entries, and the evaluation-features marker when there are any, to metadata. */
@@ -106,6 +128,13 @@ final class SplitFeatures {
     if (hasEvaluationFeatures) {
       metadataBuilder.addBoolean(HAS_EVALUATION_FEATURES, true);
     }
+    if (evaluationFeaturesHandle != 0L) {
+      metadataBuilder.addLong(EVALUATION_FEATURES_HANDLE, evaluationFeaturesHandle);
+    }
+  }
+
+  long evaluationFeaturesHandle() {
+    return evaluationFeaturesHandle;
   }
 
   /** The number of metadata entries, without the evaluation-features marker. */
