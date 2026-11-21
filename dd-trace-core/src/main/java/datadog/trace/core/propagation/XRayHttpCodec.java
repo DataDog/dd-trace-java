@@ -134,6 +134,9 @@ class XRayHttpCodec {
   }
 
   static class XRayContextInterpreter extends ContextInterpreter {
+    // Not opted into header-constant dispatch (classify stays BY_NAME): accept wraps the shared
+    // forwarding / user agent handling and the common tail in its try/catch, which the generic
+    // dispatch would move outside it.
     /**
      * This style's own headers; the ones every style reads come from {@link ContextInterpreter}.
      */
