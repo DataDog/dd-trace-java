@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.okhttp2;
 
+import static datadog.trace.api.gateway.Events.EVENTS;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
@@ -9,8 +11,13 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.squareup.okhttp.Interceptor;
+import com.squareup.okhttp.MediaType;
+import com.squareup.okhttp.Protocol;
 import com.squareup.okhttp.Request;
+import com.squareup.okhttp.Response;
+import com.squareup.okhttp.ResponseBody;
 import datadog.trace.api.gateway.CallbackProvider;
+import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -64,5 +71,33 @@ class AppSecInterceptorTest {
 
     assertSame(failure, thrown);
     verify(chain, times(1)).proceed(request);
+  }
+
+  @Test
+  void responseHookFailureAfterBodyCapturePreservesCapturedBody() throws IOException {
+    final String json = "{\"hello\":\"world\"}";
+    final Response response =
+        new Response.Builder()
+            .request(request)
+            .protocol(Protocol.HTTP_1_1)
+            .code(200)
+            .message("OK")
+            .body(ResponseBody.create(MediaType.parse("application/json"), json))
+            .build();
+    when(chain.proceed(request)).thenReturn(response);
+
+    final CallbackProvider cbp = mock(CallbackProvider.class);
+    when(cbp.getCallback(EVENTS.httpClientSampling()))
+        .thenReturn((ctx, requestId) -> new Flow.ResultFlow<>(Boolean.TRUE));
+    when(cbp.getCallback(EVENTS.httpClientResponse()))
+        .thenReturn(
+            (ctx, clientResponse) -> {
+              throw new RuntimeException("boom");
+            });
+    when(AgentTracer.get().getCallbackProvider(any(RequestContextSlot.class))).thenReturn(cbp);
+
+    final Response result = interceptor.intercept(chain);
+
+    assertEquals(json, result.body().string());
   }
 }
