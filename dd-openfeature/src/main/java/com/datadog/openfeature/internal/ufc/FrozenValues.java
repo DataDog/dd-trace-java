@@ -48,34 +48,174 @@ final class FrozenValues {
   }
 
   /**
-   * Converts a parsed JSON tree to a {@link Value} that cannot change. The result is equal to
-   * {@code Value.objectToValue(tree)}.
+   * Freezes the JSON variants of one document, sharing every part they have in common: each
+   * distinct string once, each distinct scalar {@link Value} once, and each distinct object or
+   * array once. The values cannot change, so sharing is invisible to readers.
+   *
+   * <p>Parsing runs on a background thread, so the table costs nothing on the evaluation path, and
+   * it is dropped with the freezer: only the shared values are retained. Children are frozen first,
+   * so two containers are equal exactly when they hold the same keys and the very same child
+   * instances, and each lookup compares one level by identity.
    */
-  static Value freeze(final Object tree) {
-    if (tree instanceof Map) {
-      final Map<?, ?> source = (Map<?, ?>) tree;
-      final Map<String, Value> attributes = new HashMap<>(capacity(source.size()));
-      for (final Map.Entry<?, ?> entry : source.entrySet()) {
-        attributes.put((String) entry.getKey(), freeze(entry.getValue()));
+  static final class Freezer {
+    private final Map<Object, Object> shared = new HashMap<>();
+
+    Value freeze(final Object tree) {
+      if (tree instanceof Map) {
+        final Map<?, ?> source = (Map<?, ?>) tree;
+        final Map<String, Value> attributes = new HashMap<>(capacity(source.size()));
+        for (final Map.Entry<?, ?> entry : source.entrySet()) {
+          attributes.put(string((String) entry.getKey()), freeze(entry.getValue()));
+        }
+        return shared(new StructureKey(attributes));
       }
+      if (tree instanceof List) {
+        final List<?> source = (List<?>) tree;
+        final List<Value> items = new ArrayList<>(source.size());
+        for (final Object element : source) {
+          items.add(freeze(element));
+        }
+        return shared(new ListKey(items));
+      }
+      if (tree == null) {
+        return NULL;
+      }
+      if (tree instanceof Boolean) {
+        return (Boolean) tree ? TRUE : FALSE;
+      }
+      // Integer 1, Long 1 and Double 1.0 are different keys, as they are different values.
+      final Object scalar = tree instanceof String ? string((String) tree) : tree;
+      Object value = shared.get(new ScalarKey(scalar));
+      if (value == null) {
+        value = Value.objectToValue(scalar);
+        shared.put(new ScalarKey(scalar), value);
+      }
+      return (Value) value;
+    }
+
+    private String string(final String s) {
+      final Object existing = shared.putIfAbsent(s, s);
+      return existing == null ? s : (String) existing;
+    }
+
+    private Value shared(final ContainerKey key) {
+      final Object existing = shared.get(key);
+      if (existing != null) {
+        return (Value) existing;
+      }
+      final Value value = key.toValue();
+      shared.put(key, value);
+      return value;
+    }
+  }
+
+  /** A scalar as a table key, so it can't collide with an interned string of the same text. */
+  static final class ScalarKey {
+    private final Object scalar;
+
+    ScalarKey(final Object scalar) {
+      this.scalar = scalar;
+    }
+
+    @Override
+    public boolean equals(final Object o) {
+      return o instanceof ScalarKey
+          && scalar.getClass() == ((ScalarKey) o).scalar.getClass()
+          && scalar.equals(((ScalarKey) o).scalar);
+    }
+
+    @Override
+    public int hashCode() {
+      return scalar.hashCode() * 31 + scalar.getClass().hashCode();
+    }
+  }
+
+  /** A container whose children are already shared, compared one level deep by identity. */
+  abstract static class ContainerKey {
+    abstract Value toValue();
+  }
+
+  static final class StructureKey extends ContainerKey {
+    private final Map<String, Value> attributes;
+    private final int hash;
+
+    StructureKey(final Map<String, Value> attributes) {
+      this.attributes = attributes;
+      int hash = 0;
+      for (final Map.Entry<String, Value> entry : attributes.entrySet()) {
+        hash += entry.getKey().hashCode() ^ System.identityHashCode(entry.getValue());
+      }
+      this.hash = hash;
+    }
+
+    @Override
+    Value toValue() {
       return new Value(new FrozenStructure(Collections.unmodifiableMap(attributes)));
     }
-    if (tree instanceof List) {
-      final List<?> source = (List<?>) tree;
-      final List<Value> items = new ArrayList<>(source.size());
-      for (final Object element : source) {
-        items.add(freeze(element));
+
+    @Override
+    public boolean equals(final Object o) {
+      if (!(o instanceof StructureKey)) {
+        return false;
       }
+      final StructureKey other = (StructureKey) o;
+      // HashMap only calls equals for keys whose hashes already matched.
+      if (attributes.size() != other.attributes.size()) {
+        return false;
+      }
+      for (final Map.Entry<String, Value> entry : attributes.entrySet()) {
+        if (other.attributes.get(entry.getKey()) != entry.getValue()) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    @Override
+    public int hashCode() {
+      return hash;
+    }
+  }
+
+  static final class ListKey extends ContainerKey {
+    private final List<Value> items;
+    private final int hash;
+
+    ListKey(final List<Value> items) {
+      this.items = items;
+      int hash = 1;
+      for (final Value item : items) {
+        hash = 31 * hash + System.identityHashCode(item);
+      }
+      this.hash = hash;
+    }
+
+    @Override
+    Value toValue() {
       return new Value(Collections.unmodifiableList(items));
     }
-    if (tree == null) {
-      return NULL;
+
+    @Override
+    public boolean equals(final Object o) {
+      if (!(o instanceof ListKey)) {
+        return false;
+      }
+      final ListKey other = (ListKey) o;
+      if (items.size() != other.items.size()) {
+        return false;
+      }
+      for (int i = 0; i < items.size(); i++) {
+        if (items.get(i) != other.items.get(i)) {
+          return false;
+        }
+      }
+      return true;
     }
-    if (tree instanceof Boolean) {
-      // Values cannot change, so the common scalars are shared.
-      return (Boolean) tree ? TRUE : FALSE;
+
+    @Override
+    public int hashCode() {
+      return hash;
     }
-    return Value.objectToValue(tree);
   }
 
   /**
