@@ -177,7 +177,7 @@ class KafkaProducerFailureDataStreamsForkedTest extends AbstractInstrumentationT
 
   private static final class NoopSink implements Sink {
     @Override
-    public void accept(int messageCount, ByteBuffer buffer) {}
+    public void accept(int messageCount, List<ByteBuffer> chunks) {}
 
     @Override
     public void register(EventListener listener) {}

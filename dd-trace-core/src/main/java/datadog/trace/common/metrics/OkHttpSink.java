@@ -67,13 +67,13 @@ public final class OkHttpSink implements Sink, EventListener {
   }
 
   @Override
-  public void accept(int messageCount, ByteBuffer buffer) {
+  public void accept(int messageCount, List<ByteBuffer> chunks) {
     // if the agent is healthy, then we can send on this thread,
-    // without copying the buffer, otherwise this needs to be async,
+    // without copying the chunks, otherwise this needs to be async,
     // so need to copy and buffer the request, and let it be executed
     // on the main task scheduler as a last resort
     if (!bufferingEnabled || lastRequestTime.get() < ASYNC_THRESHOLD_LATENCY) {
-      send(prepareRequest(metricsUrl, headers).post(makeRequestBody(buffer)).build());
+      send(prepareRequest(metricsUrl, headers).post(makeRequestBody(chunks)).build());
       AgentTaskScheduler.Scheduled<OkHttpSink> future = this.future;
       if (future != null && enqueuedRequests.isEmpty()) {
         // async mode has been started but request latency is normal,
@@ -87,27 +87,44 @@ public final class OkHttpSink implements Sink, EventListener {
             AgentTaskScheduler.get()
                 .scheduleAtFixedRate(new Sender(enqueuedRequests), this, 1, 1, SECONDS);
       }
-      sendAsync(messageCount, buffer);
+      sendAsync(messageCount, chunks);
     }
   }
 
-  private RequestBody makeRequestBody(ByteBuffer buffer) {
+  private RequestBody makeRequestBody(List<ByteBuffer> chunks) {
     if (compressionEnabled) {
-      return gzippedMsgpackRequestBodyOf(Collections.singletonList(buffer));
+      return gzippedMsgpackRequestBodyOf(chunks);
     } else {
-      return msgpackRequestBodyOf(Collections.singletonList(buffer));
+      return msgpackRequestBodyOf(chunks);
     }
   }
 
-  private void sendAsync(int messageCount, ByteBuffer buffer) {
+  private void sendAsync(int messageCount, List<ByteBuffer> chunks) {
     asyncRequestCounter.getAndIncrement();
+    // the chunks are reused for the next payload as soon as accept returns, so copy them
+    ByteBuffer copy = copyOf(chunks);
     if (!enqueuedRequests.offer(
-        prepareRequest(metricsUrl, headers).post(makeRequestBody(buffer.duplicate())).build())) {
+        prepareRequest(metricsUrl, headers)
+            .post(makeRequestBody(Collections.singletonList(copy)))
+            .build())) {
       log.debug(
           "dropping payload of {} and {}B because sending queue was full",
           messageCount,
-          buffer.limit());
+          copy.limit());
     }
+  }
+
+  private static ByteBuffer copyOf(List<ByteBuffer> chunks) {
+    int size = 0;
+    for (ByteBuffer chunk : chunks) {
+      size += chunk.remaining();
+    }
+    ByteBuffer copy = ByteBuffer.allocate(size);
+    for (ByteBuffer chunk : chunks) {
+      copy.put(chunk.duplicate());
+    }
+    copy.flip();
+    return copy;
   }
 
   public boolean isInDegradedMode() {

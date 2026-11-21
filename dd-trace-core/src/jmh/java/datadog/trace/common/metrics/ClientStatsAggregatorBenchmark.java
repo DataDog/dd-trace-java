@@ -68,7 +68,7 @@ public class ClientStatsAggregatorBenchmark {
     public void register(EventListener listener) {}
 
     @Override
-    public void accept(int messageCount, ByteBuffer buffer) {}
+    public void accept(int messageCount, List<ByteBuffer> chunks) {}
   }
 
   static class FixedAgentFeaturesDiscovery extends DDAgentFeaturesDiscovery {
