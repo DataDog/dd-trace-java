@@ -252,13 +252,23 @@ class ExtractorKeysForkedTest extends DDJavaSpecification {
     public HeaderSchema header(int index) {
       return headers.get(index);
     }
+
+    /** Parse-only values as views that aren't {@code String}s, as a byte carrier hands them. */
+    @Override
+    public CharSequence valueView(int index) {
+      HeaderSchema header = headers.get(index);
+      String value = values.get(index);
+      return header != null && header.isParseOnly() && value != null
+          ? new StringBuilder(value)
+          : value;
+    }
   }
 
   /** Visits an {@link Indexed} carrier, handing each key's constant to the classifier. */
   static final AgentPropagation.ContextVisitor<Indexed> WITH_HEADERS =
       (carrier, classifier) -> {
         for (int i = 0; i < carrier.size(); i++) {
-          if (!classifier.accept(carrier.header(i), carrier.key(i), carrier.value(i))) {
+          if (!HttpCodec.acceptIndexed(classifier, carrier, i)) {
             return;
           }
         }
