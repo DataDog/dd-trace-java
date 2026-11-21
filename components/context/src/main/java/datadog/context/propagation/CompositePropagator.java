@@ -1,8 +1,7 @@
 package datadog.context.propagation;
 
 import datadog.context.Context;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Arrays;
 import java.util.function.BiConsumer;
 
 class CompositePropagator implements Propagator {
@@ -74,25 +73,51 @@ class CompositePropagator implements Propagator {
     return context;
   }
 
-  static class CarrierCache implements BiConsumer<String, String>, CarrierVisitor<CarrierCache> {
-    /** Cached key/values from carrier (even indexes are keys, odd indexes are values). */
-    private final List<String> keysAndValues;
+  /**
+   * The carrier key/value pairs the propagators read, cached so each propagator reads them without
+   * walking the carrier again, and readable in place as an {@link IndexedCarrier}.
+   */
+  static final class CarrierCache
+      implements BiConsumer<String, String>, CarrierVisitor<CarrierCache>, IndexedCarrier {
+    /** Enough for the trace headers a carrier usually holds once unread keys are skipped. */
+    private static final int INITIAL_PAIRS = 8;
 
-    public CarrierCache() {
-      this.keysAndValues = new ArrayList<>(32);
-    }
+    /** Keys at even indexes, values at odd ones. */
+    private String[] keysAndValues = new String[2 * INITIAL_PAIRS];
+
+    private int size;
 
     @Override
     public void accept(String key, String value) {
-      this.keysAndValues.add(key);
-      this.keysAndValues.add(value);
+      int index = 2 * this.size;
+      if (index == this.keysAndValues.length) {
+        this.keysAndValues = Arrays.copyOf(this.keysAndValues, 2 * index);
+      }
+      this.keysAndValues[index] = key;
+      this.keysAndValues[index + 1] = value;
+      this.size++;
     }
 
     @Override
     public void forEachKeyValue(CarrierCache carrier, BiConsumer<String, String> visitor) {
-      for (int i = 0; i < carrier.keysAndValues.size() - 1; i += 2) {
-        visitor.accept(carrier.keysAndValues.get(i), carrier.keysAndValues.get(i + 1));
+      for (int i = 0; i < carrier.size; i++) {
+        visitor.accept(carrier.keysAndValues[2 * i], carrier.keysAndValues[2 * i + 1]);
       }
+    }
+
+    @Override
+    public int size() {
+      return this.size;
+    }
+
+    @Override
+    public String key(int index) {
+      return this.keysAndValues[2 * index];
+    }
+
+    @Override
+    public String value(int index) {
+      return this.keysAndValues[2 * index + 1];
     }
   }
 }

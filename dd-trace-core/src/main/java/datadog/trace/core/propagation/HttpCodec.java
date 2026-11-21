@@ -6,6 +6,7 @@ import static datadog.trace.core.propagation.DatadogHttpCodec.SPAN_ID_KEY;
 
 import datadog.context.propagation.CarrierKeys;
 import datadog.context.propagation.CarrierSetter;
+import datadog.context.propagation.IndexedCarrier;
 import datadog.trace.api.Config;
 import datadog.trace.api.DD128bTraceId;
 import datadog.trace.api.DD64bTraceId;
@@ -371,10 +372,18 @@ public class HttpCodec {
     }
   }
 
+  /**
+   * The carrier's key/value pairs, read once so each extractor visits them without walking the
+   * carrier again. A carrier that is already an {@link IndexedCarrier} (the composite propagator's
+   * cache) is read in place; any other is copied.
+   */
   private static class ExtractionCache<C>
       implements AgentPropagation.KeyClassifier,
           AgentPropagation.ContextVisitor<ExtractionCache<?>> {
-    /** Cached context key-values (even indexes are header names, odd indexes are header values). */
+    /** The pairs, read in place; null when they were copied into {@link #keysAndValues}. */
+    private final IndexedCarrier indexed;
+
+    /** The copied pairs, keys at even indexes; null when {@link #indexed} is used. */
     private final List<String> keysAndValues;
 
     /**
@@ -386,8 +395,17 @@ public class HttpCodec {
     private boolean hasDatadogSpanId;
 
     public ExtractionCache(C carrier, AgentPropagation.ContextVisitor<C> getter) {
-      this.keysAndValues = new ArrayList<>(32);
-      getter.forEachKey(carrier, this);
+      if (carrier instanceof IndexedCarrier) {
+        this.indexed = (IndexedCarrier) carrier;
+        this.keysAndValues = null;
+        for (int i = 0, n = this.indexed.size(); i < n; i++) {
+          cacheDatadogSpanId(this.indexed.key(i), this.indexed.value(i));
+        }
+      } else {
+        this.indexed = null;
+        this.keysAndValues = new ArrayList<>(32);
+        getter.forEachKey(carrier, this);
+      }
     }
 
     @Override
@@ -418,6 +436,13 @@ public class HttpCodec {
 
     @Override
     public void forEachKey(ExtractionCache<?> carrier, AgentPropagation.KeyClassifier classifier) {
+      IndexedCarrier indexed = carrier.indexed;
+      if (indexed != null) {
+        for (int i = 0, n = indexed.size(); i < n; i++) {
+          classifier.accept(indexed.key(i), indexed.value(i));
+        }
+        return;
+      }
       List<String> keysAndValues = carrier.keysAndValues;
       for (int i = 0; i < keysAndValues.size(); i += 2) {
         classifier.accept(keysAndValues.get(i), keysAndValues.get(i + 1));
