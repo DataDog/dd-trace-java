@@ -86,8 +86,11 @@ class CompositePropagator implements Propagator {
     /** Keys at even indexes, values at odd ones. */
     private String[] keysAndValues = new String[2 * INITIAL_PAIRS];
 
-    /** Each pair's {@link HeaderSchema} constant, or null. */
-    private HeaderSchema[] headers = new HeaderSchema[INITIAL_PAIRS];
+    /**
+     * Each pair's {@link HeaderSchema} constant as {@code ordinal() + 1}, or 0 for none: a byte per
+     * pair rather than a reference, since there are fewer than 127 constants.
+     */
+    private byte[] headers = new byte[INITIAL_PAIRS];
 
     private int size;
 
@@ -111,7 +114,8 @@ class CompositePropagator implements Propagator {
       }
       this.keysAndValues[index] = key;
       this.keysAndValues[index + 1] = value;
-      this.headers[this.size] = key == null ? null : this.keys.header(key);
+      HeaderSchema header = key == null ? null : this.keys.header(key);
+      this.headers[this.size] = header == null ? 0 : (byte) (header.ordinal() + 1);
       this.size++;
     }
 
@@ -139,7 +143,8 @@ class CompositePropagator implements Propagator {
 
     @Override
     public HeaderSchema header(int index) {
-      return this.headers[index];
+      int header = this.headers[index];
+      return header == 0 ? null : HeaderSchema.fromOrdinal(header - 1);
     }
   }
 }
