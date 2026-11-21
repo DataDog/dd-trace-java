@@ -3,9 +3,10 @@ package datadog.trace.api.git;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.TagContributor;
 import java.util.Objects;
 
-public final class GitInfo {
+public final class GitInfo implements TagContributor {
   public static final GitInfo NOOP = new GitInfo(null, null, null, CommitInfo.NOOP);
 
   private final String repositoryURL;
@@ -22,7 +23,7 @@ public final class GitInfo {
     this.tag = tag;
     this.commit = commit;
 
-    // GitInfo is reused across many traces, so create entries once and reuse them (see addTags)
+    // GitInfo is reused across many traces, so create entries once and reuse them (see addTo)
     // null & empty values result in null entries which nop when added to a span
     this.repositoryEntry = TagMap.Entry.create(DDTags.INTERNAL_GIT_REPOSITORY_URL, repositoryURL);
     this.commitEntry =
@@ -47,7 +48,8 @@ public final class GitInfo {
     return commit;
   }
 
-  public void addTags(AgentSpan span) {
+  @Override
+  public void addTo(AgentSpan span) {
     span.setTag(this.repositoryEntry);
     span.setTag(this.commitEntry);
   }
