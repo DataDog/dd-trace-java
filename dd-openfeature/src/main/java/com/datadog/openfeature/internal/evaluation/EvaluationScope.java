@@ -2,6 +2,7 @@ package com.datadog.openfeature.internal.evaluation;
 
 import com.datadog.openfeature.internal.ufc.Allocation;
 import com.datadog.openfeature.internal.ufc.ConditionConfiguration;
+import com.datadog.openfeature.internal.ufc.Flag;
 import com.datadog.openfeature.internal.ufc.Rule;
 import dev.openfeature.sdk.EvaluationContext;
 import java.util.HashMap;
@@ -37,6 +38,13 @@ final class EvaluationScope {
   /** A scope that keeps the attributes it resolves; see {@link #readsAnAttributeTwice}. */
   EvaluationScope(final EvaluationContext context) {
     this.context = context;
+  }
+
+  /** A scope for the flag when it reads an attribute twice, or {@code null} to read the context. */
+  static EvaluationScope forFlag(final Flag flag, final EvaluationContext context) {
+    return flag.preparedRules(EvaluationScope::readsAnAttributeTwice)
+        ? new EvaluationScope(context)
+        : null;
   }
 
   /**

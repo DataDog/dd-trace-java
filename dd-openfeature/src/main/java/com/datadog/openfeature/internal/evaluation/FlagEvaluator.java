@@ -164,11 +164,9 @@ public final class FlagEvaluator {
       final long evalTimestampMs = now.toEpochMilli();
       final String targetingKey = context.getTargetingKey();
       // Only a flag that reads an attribute twice keeps what it reads; others read the context.
-      // Deciding it here, and not in the loop, keeps the loop fast for allocations it skips.
-      final EvaluationScope scope =
-          flag.preparedRules(EvaluationScope::readsAnAttributeTwice)
-              ? new EvaluationScope(context)
-              : null;
+      // Deciding it here, and not in the loop, keeps the loop fast for allocations it skips; a
+      // separate method keeps the JIT's allocation elimination in this method stable.
+      final EvaluationScope scope = EvaluationScope.forFlag(flag, context);
 
       for (final Allocation allocation : flag.allocations) {
         if (experimentationCutoff != null
