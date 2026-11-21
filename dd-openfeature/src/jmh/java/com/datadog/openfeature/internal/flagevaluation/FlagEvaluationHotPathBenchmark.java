@@ -34,9 +34,9 @@ import org.openjdk.jmh.infra.Blackhole;
  * where the hook and the OpenFeature context types live. Do not read writerEnqueue as the total
  * per-evaluation cost paid by the caller.
  *
- * <p>Events are built with observeFullEvaluationData=true so the aggregator actually canonicalizes
- * the context. Under the consent-off default it drops attrs and skips canonicalization, which makes
- * every field-count profile measure the same scalar-only work.
+ * <p>Events are built with observeFullEvaluationData=true so the aggregator actually hashes and
+ * compares the context. Under the consent-off default it drops attrs and skips that work, which
+ * makes every field-count profile measure the same scalar-only work.
  *
  * <p>Run: {@code ./gradlew :dd-openfeature:jmh -Pjmh.includes=FlagEvaluationHotPathBenchmark}.
  */
@@ -98,7 +98,7 @@ public class FlagEvaluationHotPathBenchmark {
     blackhole.consume(event);
   }
 
-  /** Worker-thread cost: materialize context, prune, canonicalize, and aggregate. */
+  /** Worker-thread cost: hash the context and aggregate. */
   @Benchmark
   public void workerAggregate(final Blackhole blackhole) {
     final FlagEvalEvent event = nextEvent();
