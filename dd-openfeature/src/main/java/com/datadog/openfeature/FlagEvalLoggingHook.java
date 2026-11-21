@@ -1,10 +1,10 @@
 package com.datadog.openfeature;
 
-import static com.datadog.openfeature.internal.evaluation.MetadataKeys.ALLOCATION_KEY;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EVALUATION_FEATURE_PREFIX;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EVAL_TIMESTAMP_MS;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.HAS_EVALUATION_FEATURES;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.OBSERVE_FULL_EVALUATION_DATA;
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.allocationKey;
 
 import com.datadog.openfeature.internal.flagevaluation.FlagEvalEvent;
 import com.datadog.openfeature.internal.flagevaluation.FlagEvaluationWriter;
@@ -82,9 +82,7 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
       // The ImmutableMetadata getters build a debug message for every absent key.
       final Map<String, Object> values =
           metadata == null ? Collections.<String, Object>emptyMap() : metadata.asUnmodifiableMap();
-      final Object allocationValue = values.get(ALLOCATION_KEY);
-      final String allocationKey =
-          allocationValue instanceof String ? (String) allocationValue : null;
+      final String allocationKey = allocationKey(values);
 
       // eval-time: from flag metadata "__dd_eval_timestamp_ms" (Long), fallback to hook-fire time.
       final Object evalTimeValue = values.get(EVAL_TIMESTAMP_MS);
