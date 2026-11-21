@@ -14,7 +14,8 @@ import org.openjdk.jmh.annotations.Warmup;
 /**
  * Glob matching as trace sampling rules use it, on service, operation and resource names: {@link
  * GlobMatcher#compileIgnoringCase} against the case-insensitive {@code java.util.regex} pattern the
- * glob translates to, which is what {@code Matchers.compileGlob} matches with today.
+ * glob translates to, which is what {@code Matchers.compileGlob} matched with before it moved to
+ * {@code GlobMatcher}.
  *
  * <p>Inputs: a name that matches, a short one that doesn't, and a 500-character resource name that
  * doesn't, as SQL or URL resources can be. Report time and allocation ({@code -prof gc}).
@@ -91,7 +92,10 @@ public class GlobMatcherBenchmark {
     }
   }
 
-  /** The glob as a case-insensitive regex, as {@code GlobPattern.globToRegexPattern} builds it. */
+  /**
+   * The glob as a case-insensitive regex, as the removed {@code GlobPattern.globToRegexPattern}
+   * built it.
+   */
   private static Pattern toRegex(final String glob) {
     final StringBuilder regex = new StringBuilder("^");
     for (final char c : glob.toCharArray()) {
