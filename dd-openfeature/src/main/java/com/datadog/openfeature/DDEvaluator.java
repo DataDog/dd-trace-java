@@ -9,6 +9,7 @@ import com.datadog.openfeature.internal.evaluation.FlagEvaluator;
 import com.datadog.openfeature.internal.exposure.ExposureDeduplicationCache;
 import com.datadog.openfeature.internal.exposure.ExposureEvent;
 import com.datadog.openfeature.internal.exposure.Subject;
+import com.datadog.openfeature.internal.flagevaluation.HashedContext;
 import com.datadog.openfeature.internal.ufc.Allocation;
 import com.datadog.openfeature.internal.ufc.ServerConfiguration;
 import com.datadog.openfeature.internal.ufc.ValueType;
@@ -445,7 +446,8 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
     if (keys.isEmpty()) {
       return new CopyResult(Collections.emptyMap(), null);
     }
-    final HashMap<String, Object> out = new HashMap<>();
+    // Hashes itself as it fills, so the aggregator doesn't walk the copy again to key its bucket.
+    final HashedContext out = new HashedContext();
     final Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap<>());
     final int[] reasonMask = {0};
     for (final String key : keys) {

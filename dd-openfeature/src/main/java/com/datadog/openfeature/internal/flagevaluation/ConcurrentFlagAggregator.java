@@ -335,21 +335,15 @@ final class ConcurrentFlagAggregator {
     if (context == null || context.isEmpty()) {
       return 0L;
     }
+    if (context instanceof HashedContext) {
+      // The hook's copy hashed itself as it was built.
+      return ((HashedContext) context).contextHash();
+    }
     long hash = context.size();
     for (final Map.Entry<String, Object> entry : context.entrySet()) {
-      final Object value = entry.getValue();
-      final long valueHash =
-          value == null ? 0L : (((long) value.getClass().hashCode()) << 32) ^ value.hashCode();
-      hash += mix(entry.getKey().hashCode() * 0x9E3779B97F4A7C15L + valueHash);
+      hash += HashedContext.entryHash(entry.getKey(), entry.getValue());
     }
     return hash;
-  }
-
-  /** The finalizer of SplitMix64: spreads every input bit over the whole result. */
-  private static long mix(long z) {
-    z = (z ^ (z >>> 30)) * 0xBF58476D1CE4E5B9L;
-    z = (z ^ (z >>> 27)) * 0x94D049BB133111EBL;
-    return z ^ (z >>> 31);
   }
 
   /**
