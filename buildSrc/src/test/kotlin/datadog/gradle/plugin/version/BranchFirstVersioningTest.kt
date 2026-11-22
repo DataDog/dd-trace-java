@@ -5,6 +5,7 @@ import org.assertj.core.api.Assertions.assertThat
 import org.tabletest.junit.TableTest
 
 class BranchFirstVersioningTest {
+  // A blank expectedLine means the branch name is not a release line (fromBranch returns null).
   @TableTest(
     """
     scenario                   | branch              | expectedLine
