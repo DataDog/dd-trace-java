@@ -125,6 +125,6 @@ org.springframework:spring-beans:3.2.2.RELEASE=compileClasspath,latestDepTestCom
 org.springframework:spring-core:3.2.2.RELEASE=compileClasspath,latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
 org.tabletest:tabletest-junit:1.2.2=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
 org.tabletest:tabletest-parser:1.2.1=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
-org.unbescape:unbescape:1.1.6.RELEASE=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath
+org.unbescape:unbescape:1.1.8.RELEASE=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath
 org.xmlresolver:xmlresolver:5.3.3=spotbugs
 empty=spotbugsPlugins
