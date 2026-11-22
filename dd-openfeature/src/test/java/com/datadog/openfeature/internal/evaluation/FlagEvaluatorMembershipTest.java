@@ -20,6 +20,7 @@ import com.datadog.openfeature.internal.ufc.ServerConfiguration;
 import com.datadog.openfeature.internal.ufc.Split;
 import com.datadog.openfeature.internal.ufc.ValueType;
 import com.datadog.openfeature.internal.ufc.Variant;
+import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.MutableContext;
 import dev.openfeature.sdk.ProviderEvaluation;
 import dev.openfeature.sdk.Value;
@@ -239,6 +240,29 @@ class FlagEvaluatorMembershipTest {
     assertEquals(scan.getErrorMessage(), indexed.getErrorMessage());
   }
 
+  @TableTest({
+    "operator   | nullFirst",
+    "ONE_OF     | true     ",
+    "ONE_OF     | false    ",
+    "NOT_ONE_OF | true     ",
+    "NOT_ONE_OF | false    "
+  })
+  void preservesNullElementOrder(final ConditionOperator operator, final boolean nullFirst) {
+    final List<Object> values = nullFirst ? asList(null, "42") : asList("42", null);
+    if (nullFirst) {
+      assertEquals(0, MembershipIndex.throwsAt(MembershipIndex.build(values).lookup(42)));
+    }
+    for (final boolean indexed : new boolean[] {false, true}) {
+      final ProviderEvaluation<String> result = evaluate(operator, values, 42, indexed);
+
+      assertEquals(nullFirst ? ErrorCode.GENERAL : null, result.getErrorCode());
+      assertEquals(
+          nullFirst ? "Cannot compare a null value as a number" : null, result.getErrorMessage());
+      assertEquals(
+          !nullFirst && operator == ConditionOperator.ONE_OF ? "in" : "out", result.getValue());
+    }
+  }
+
   private void assertSameResult(
       final ConditionOperator operator, final List<Object> list, final Object attribute) {
     final ProviderEvaluation<String> scan = evaluate(operator, list, attribute, false);
@@ -284,7 +308,7 @@ class FlagEvaluatorMembershipTest {
             singletonMap("in", new Variant("in", "in")),
             singletonList(allocation));
     final ServerConfiguration config =
-        new ServerConfiguration("", "", null, null, singletonMap(FLAG, flag));
+        new ServerConfiguration("", "", true, null, singletonMap(FLAG, flag));
     final MutableContext context =
         new MutableContext("user", singletonMap("attr", toValue(attribute)));
     return evaluator.evaluate(config, String.class, FLAG, "out", context);

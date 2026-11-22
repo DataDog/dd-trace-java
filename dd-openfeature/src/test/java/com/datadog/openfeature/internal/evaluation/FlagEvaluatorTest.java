@@ -18,7 +18,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import com.datadog.openfeature.ExperimentationOptOutMode;
 import com.datadog.openfeature.internal.ufc.Allocation;
@@ -381,7 +380,7 @@ class FlagEvaluatorTest {
   }
 
   @Test
-  void reportsANullListElementAsMapValueDoes() {
+  void reportsANullListElementWithADeterministicMessage() {
     final MutableContext context = new MutableContext("user");
     context.add("score", 5);
 
@@ -392,10 +391,7 @@ class FlagEvaluatorTest {
             context);
 
     assertEquals(ErrorCode.GENERAL, result.getErrorCode());
-    final String expectedMessage = mapValueFailure(null).getMessage();
-    // Before JDK 15 a NullPointerException has no message, so there is nothing to compare.
-    assumeTrue(expectedMessage != null, "helpful NullPointerException messages are unavailable");
-    assertEquals(expectedMessage, result.getErrorMessage());
+    assertEquals("Cannot compare a null value as a number", result.getErrorMessage());
   }
 
   @Test

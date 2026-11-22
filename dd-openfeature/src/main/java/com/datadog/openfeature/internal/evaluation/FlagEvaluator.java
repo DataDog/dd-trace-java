@@ -428,12 +428,15 @@ public final class FlagEvaluator {
 
   /**
    * Converts a comparison operand to a double. A {@link Number} converts without allocating. Any
-   * other value goes through {@link #mapValue} as before: a non-numeric value fails with mapValue's
-   * exception, and null fails when its null result is unboxed.
+   * other non-null value goes through {@link #mapValue}: a non-numeric value fails with mapValue's
+   * exception. A null operand throws a {@link NullPointerException} with a fixed message.
    */
   private static double toDouble(final Object value) {
     if (value instanceof Number) {
       return ((Number) value).doubleValue();
+    }
+    if (value == null) {
+      throw new NullPointerException("Cannot compare a null value as a number");
     }
     return mapValue(Double.class, value);
   }
