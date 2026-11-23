@@ -1531,6 +1531,62 @@ public class DDSpanContext implements AgentSpanContext, ProfilerContext, TagStor
     }
   }
 
+  /**
+   * Prototype: the bulk setter a build-time fusion of adjacent constant-id setTag calls would
+   * target. The ids are ones the tag registry classifies as never intercepted, and the run takes
+   * the knownTags lock once. A null value, or an id that is unknown or intercepted at run time (the
+   * split-by-tags configuration), sends the whole run through setTag one tag at a time, in order.
+   */
+  public void setTagsNoIntercept(
+      final long k1,
+      final CharSequence v1,
+      final long k2,
+      final CharSequence v2,
+      final long k3,
+      final CharSequence v3,
+      final long k4,
+      final CharSequence v4) {
+    if (isPlainTag(k1, v1) && isPlainTag(k2, v2) && isPlainTag(k3, v3) && isPlainTag(k4, v4)) {
+      synchronized (knownTags) {
+        knownTags.store(k1, v1);
+        knownTags.store(k2, v2);
+        knownTags.store(k3, v3);
+        knownTags.store(k4, v4);
+      }
+    } else {
+      setTag(k1, v1);
+      setTag(k2, v2);
+      setTag(k3, v3);
+      setTag(k4, v4);
+    }
+  }
+
+  /** Prototype: {@link #setTagsNoIntercept} for a run of three. */
+  public void setTagsNoIntercept(
+      final long k1,
+      final CharSequence v1,
+      final long k2,
+      final CharSequence v2,
+      final long k3,
+      final CharSequence v3) {
+    if (isPlainTag(k1, v1) && isPlainTag(k2, v2) && isPlainTag(k3, v3)) {
+      synchronized (knownTags) {
+        knownTags.store(k1, v1);
+        knownTags.store(k2, v2);
+        knownTags.store(k3, v3);
+      }
+    } else {
+      setTag(k1, v1);
+      setTag(k2, v2);
+      setTag(k3, v3);
+    }
+  }
+
+  /** A non-null value for a known id that nothing intercepts right now: a plain store suffices. */
+  private boolean isPlainTag(final long tagId, final CharSequence value) {
+    return null != value && KnownTagCodec.isKnown(tagId) && !tagInterceptor.needsIntercept(tagId);
+  }
+
   public void setTag(final long tagId, final boolean value) {
     if (!KnownTagCodec.isKnown(tagId)) {
       return;
