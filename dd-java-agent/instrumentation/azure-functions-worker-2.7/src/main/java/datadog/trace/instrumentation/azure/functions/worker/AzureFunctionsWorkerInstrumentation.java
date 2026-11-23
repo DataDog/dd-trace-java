@@ -3,7 +3,7 @@ package datadog.trace.instrumentation.azure.functions.worker;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.azure.functions.worker.AzureFunctionsWorkerDecorator.DECORATE;
-import static datadog.trace.instrumentation.azure.functions.worker.AzureFunctionsWorkerDecorator.ORCHESTRATION_TRIGGER;
+import static datadog.trace.instrumentation.azure.functions.worker.AzureFunctionsWorkerUtils.ORCHESTRATION_TRIGGER;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;

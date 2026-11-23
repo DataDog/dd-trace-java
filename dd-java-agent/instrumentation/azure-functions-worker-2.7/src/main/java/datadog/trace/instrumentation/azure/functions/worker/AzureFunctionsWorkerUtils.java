@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.azure.functions.worker.AzureFunctionsWorkerDecorator.AZURE_FUNCTIONS_REQUEST;
 import static datadog.trace.instrumentation.azure.functions.worker.AzureFunctionsWorkerDecorator.DECORATE;
-import static datadog.trace.instrumentation.azure.functions.worker.AzureFunctionsWorkerDecorator.ORCHESTRATION_TRIGGER;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
@@ -18,11 +17,16 @@ import datadog.trace.bootstrap.instrumentation.azure.DurableOrchestrationState;
 import java.time.Instant;
 
 public final class AzureFunctionsWorkerUtils {
+  public static final String ORCHESTRATION_TRIGGER = "DurableOrchestration";
+
+  private static final String ACTIVITY_TRIGGER = "DurableActivity";
+  private static final String ENTITY_TRIGGER = "DurableEntity";
+  private static final String COSMOS_DB_TRIGGER = "CosmosDB";
+
   private static final String ACTIVITY_ANNOTATION = "DurableActivityTrigger";
   private static final String ENTITY_ANNOTATION = "DurableEntityTrigger";
   private static final String ORCHESTRATION_ANNOTATION = "DurableOrchestrationTrigger";
   private static final String COSMOS_DB_ANNOTATION = "CosmosDBTrigger";
-  private static final String COSMOS_DB_TRIGGER = "CosmosDB";
 
   private AzureFunctionsWorkerUtils() {}
 
@@ -31,10 +35,10 @@ public final class AzureFunctionsWorkerUtils {
       return ORCHESTRATION_TRIGGER;
     }
     if (context.getParameterName(ACTIVITY_ANNOTATION) != null) {
-      return "DurableActivity";
+      return ACTIVITY_TRIGGER;
     }
     if (context.getParameterName(ENTITY_ANNOTATION) != null) {
-      return "DurableEntity";
+      return ENTITY_TRIGGER;
     }
     if (context.getParameterName(COSMOS_DB_ANNOTATION) != null) {
       return COSMOS_DB_TRIGGER;
