@@ -143,6 +143,28 @@ class TagLookupTest {
     }
   }
 
+  /**
+   * Names that share an id, a second spelling of one tag or a repeated name, each get the value, on
+   * the scan path (fewer entries than known names) and the probe path alike.
+   */
+  @ParameterizedTest
+  @MethodSource("stores")
+  void namesSharingAnIdAllGetTheValue(Function<IdStore, IdStore> newStore) {
+    assertEquals(KnownTagCodec.keyOf("http.method"), KnownTagCodec.keyOf("http.request.method"));
+    TagLookup lookup = TagLookup.of("http.method", "http.request.method", "http.method");
+    String[] expected = {"GET", "GET", "GET"};
+
+    IdStore scanned = newStore.apply(null);
+    scanned.store(KnownTags.HTTP_METHOD, "GET"); // 1 entry < 3 known names: scans
+    assertArrayEquals(expected, scanned.loadStrings(lookup, null));
+
+    IdStore probed = newStore.apply(null);
+    probed.store(KnownTags.HTTP_METHOD, "GET");
+    probed.store(KnownTags.PEER_SERVICE, "a");
+    probed.store(KnownTags.DB_INSTANCE, "b"); // 3 entries, not fewer than 3 names: probes
+    assertArrayEquals(expected, probed.loadStrings(lookup, null));
+  }
+
   @Test
   void anEmptyDenseStoreRulesOutTheWholeLookup() throws Exception {
     List<Long> ids = knownIds();
